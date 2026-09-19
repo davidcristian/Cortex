@@ -121,4 +121,4 @@ that lists what it measures is blind to a new module nobody added to the list.
   [ADR-0045](ADR-0045-documented-log-lines.md) (the log-sample check),
   [ADR-0044](ADR-0044-document-rosters.md) (the roster reader),
   [ADR-0039](ADR-0039-backlog-per-task.md) (the anchor scan).
-- [repo checks](../modules/repo-gates.md).
+- [repo checks](../modules/repo-checks.md).

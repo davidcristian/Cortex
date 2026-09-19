@@ -1,84 +1,62 @@
 # Whether the reply says a window was resampled
 
-**Status:** open, a seam or port change comes first
+**Status:** open, needs a port change first
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
 **Verified:** 2026-09-19
 **Trigger:** The next change that opens either capture message in `proto/body.proto`, or a measured
 caption effect.
 
-Opened 2026-08-10 by the measurement above and the steer correction that followed it
-([ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)'s fourth addendum of that date).
-`CaptureScreenReply` carries `resolved_target` and nothing else about the picture's provenance, so a
-`focus` capture of a window wider than the capture edge goes through the same box filter the whole
-display does, lands at the same 2048x1152, and arrives indistinguishable from a crop that was never
-touched. The model asked for the target that keeps detail, got a picture exactly as lossy as a
-screenshot, and has no way to find out. The body can tell: the identity arm of `downscale` either
-fired or it did not, and `Capture` holds the crop and the bound side by side, so the value is one
-`bool` on the reply, symmetric with `resolved_target`, and `describe()` would finally be able to say
-which of the two pictures arrived.
+`CaptureScreenReply` contains `resolved_target` and nothing else about where the picture came from,
+so a `focus` capture of a window wider than the capture edge goes through the same box filter the
+whole display does, arrives at the same 2048x1152, and looks exactly like a crop that was never
+resampled. The model asked for the target that keeps detail, got a picture as lossy as a
+screenshot, and cannot tell. The body can tell, since either `downscale` resampled or it did not,
+and `Capture` holds the crop and the bound side by side, so the value is one `bool` on the reply,
+matching `resolved_target`, and `describe()` could then say which of the two arrived.
 
-**Why it was not built, in descending weight.** Its only consumer is a sentence in the stand-in
-text, and that is the one intervention this area has measured twice and found inert: with
-`describe()`'s source size in front of it, saying in so many words that the picture is a shrunk
-view, and "unreadable" offered as an allowed answer, the cortex declined on 3 of 47 and invented
-the other 38, and the crop arm found the same thing from the other side, that a crop converts
-declines into readings rather than inventions into truths. The cheaper half of the value landed
-instead, in the tool description, which now tells the model **before** the pick that `focus` is
-not a guarantee of detail, which is the half it can act on. And the cost is a slice rather than a
-follow-up: a fourth proto regeneration on this path in one day, reaching `screen_policy.rs` (289
-of 300 at HEAD, so a field plus its accessor forces a split by responsibility), the body client's
-`gateway.py` (285 of 300), the seam facade, both fakes, six test files and six docs. Per this
-backlog's own standing warning, everything in that sentence except the two line counts is a
-hypothesis; the line counts were read at HEAD.
+It was not built for three reasons. Its only consumer is a sentence in the placeholder text, and
+that kind of wording has been measured twice and found to change nothing: with `describe()`'s
+source size in front of it, told the picture is a shrunk view, and with "unreadable" offered as an
+allowed answer, the cortex declined on 3 of 47 and invented the other 38. The cheaper half of the
+value was done instead, in the tool description, which now tells the model before it picks that
+`focus` is not a guarantee of detail. And the cost is a slice rather than a follow-up: a proto
+regeneration reaching `screen_policy.rs` (289 of 300 lines, so a field plus its accessor forces a
+split), the body client's `gateway.py` (285 of 300), the gRPC facade, both fakes, six test files
+and six docs. Everything in that sentence except the two line counts is a hypothesis; the line
+counts were read at HEAD.
 
-What is **not** a reason is accuracy. The missing field is a real gap in what `describe()` can say,
-and it is why that function already declines to guess. The claim is that the gap is not currently
-reachable by any behaviour this repo can measure, not that it is not a gap.
+Accuracy is not a reason against it. The missing field is a real gap in what `describe()` can say,
+and it is why that function already refuses to guess; the claim is only that no behaviour this repo
+can measure currently reaches the gap.
 
-**Trigger.** It lands with the next change that opens `CaptureScreenRequest` or
-`CaptureScreenReply` at all, a `display_index` or the overlay-drawn region picker the rectangle
-decline waits on, or the day a caption is measured to change what this cortex does with a picture
-it cannot read, whichever comes first. Either message counts, because what such a change pays
-for is the regeneration and the files it reaches, and a request field reaches most of the same
-ones, `screen_policy.rs` (whose `CaptureRequest` it would join) and the body client's `gateway.py`
-among them.
+It should be done with the next change that opens `CaptureScreenRequest` or `CaptureScreenReply` at
+all, such as a `display_index` or the overlay-drawn region picker, or the day a caption is measured
+to change what the cortex does with a picture it cannot read. Either message counts, because what
+such a change pays for is the regeneration and the files it reaches, and a request field reaches
+most of the same ones.
 
-## Trail
+## History
 
-- 2026-08-10: opened by the window measurement and by the steer correction that followed it,
-  moving the area's count 10 to 11. This is the area's first arrival since the swap entry's halves
-  and the first reading here to move a vision count up. The shipped tool description had promised
-  the model that a focused window is cut out "at full detail", unconditionally, while the mechanism
-  is being unresampled rather than being cropped, so a window wider than the capture edge gets the
-  same box filter and the same 2048x1152 the screen does and is indistinguishable from an untouched
-  crop on arrival. The description now names small text in one thing as the case the window wins,
-  says what it costs (everything outside that window) and promises no detail it cannot keep, and
-  both copies of the steer are held to that by a test proved able to fail three ways. One
-  restatement went with it: refusing a call that names no target had leaned on the whole screen
-  being the less legible picture as well as the more exposing one, which the measurement narrows to
-  the smallest type alone, and the refusal never needed that leg. It is a whole new entry rather
-  than the closed one reopening, since what closed was a question about the world and what opens is
-  a piece of work with its own trigger.
-- 2026-09-13: re-derived and left open, with both line citations refreshed. The trigger has not
-  fired. `CaptureScreenReply` still carries `image` and `resolved_target` and nothing else, and
-  the one change to `proto/body.proto` since this entry opened edited the delete-session comment.
-  The mechanism the entry rests on is unchanged: `Capture::from_bgra` crops before the ladder and
-  a region already inside the edge crosses through the identity arm of `downscale`, while
-  `describe()` in `screen_tool.py` still says nothing about which of the two arrived. Both cost
-  citations had moved under the same 300 cap, `screen_policy.rs` from 286 to 289 lines and the
-  body client's `gateway.py` from 263 to 285, so the split by responsibility the entry predicts
-  is nearer on both files than when it was written.
-- 2026-09-19: re-derived and left open, with the trigger restated. `proto/body.proto` has not
-  changed since the delete-session comment edit, so `CaptureScreenReply` still carries `image` and
-  `resolved_target` and nothing else, and no caption measurement has run since. `describe()` still
-  declines to say whether a window was shrunk, and the tool description still carries the cheaper
-  half, telling the model before the pick that a window too large to send whole is shrunk exactly
-  as the screen is. The brain still asks for a 2048 edge (`DEFAULT_CAPTURE_MAX_EDGE` in the
-  orchestrator's `config_body.py`), so 2048x1152 is still what a 16:9 display arrives at, and both
-  line counts are unchanged at 289 and 285. The trigger line named the next change opening
-  `CaptureScreenReply`, while the paragraph below it counts a `display_index` among such changes,
-  and that is a request field: the multi-monitor entry has it taking `CaptureScreenRequest` field
-  4. The cost this entry argues from is a proto regeneration and the files it reaches, most of
-  which a request field pays for too, so both the line and the paragraph now name either capture
-  message.
+- 2026-08-10: Opened by the window measurement and by the correction to the tool description that
+  followed it. That description had promised the model that a focused window is cut out "at full
+  detail", unconditionally, while the real mechanism is not being resampled rather than being
+  cropped, so a window wider than the capture edge gets the same box filter as the screen. The
+  description now names small text as the case a window wins, says what it costs (everything
+  outside that window) and promises no detail it cannot keep, with a test proved able to fail three
+  ways. Refusing a call that names no target had partly relied on the whole screen being the less
+  legible picture, which the measurement narrows to the smallest type alone; the refusal never
+  needed that argument.
+- 2026-09-13: Checked and left open, with both line citations refreshed. The trigger has not
+  occurred. `CaptureScreenReply` still has `image` and `resolved_target` and nothing else, and the
+  one change to `proto/body.proto` since edited the delete-session comment. `Capture::from_bgra`
+  still crops before the halving ladder and a region already inside the edge passes through
+  unresampled, while `describe()` in `screen_tool.py` still says nothing about which arrived. Both
+  cost citations had moved under the same 300-line cap, `screen_policy.rs` from 286 to 289 and
+  `gateway.py` from 263 to 285.
+- 2026-09-19: Checked and left open, with the trigger restated. `proto/body.proto` is unchanged and
+  no caption measurement has run. The brain still asks for a 2048 edge
+  (`DEFAULT_CAPTURE_MAX_EDGE` in the orchestrator's `config_body.py`), so 2048x1152 is still what a
+  16:9 display arrives at, and both line counts are unchanged at 289 and 285. The trigger named the
+  next change opening `CaptureScreenReply` while the text below counted a `display_index` among
+  such changes, and that is a request field, so both now name either capture message.

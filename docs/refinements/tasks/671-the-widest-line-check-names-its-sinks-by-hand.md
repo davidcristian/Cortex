@@ -1,68 +1,54 @@
 # The widest-line check names its sinks by hand
 
-**Status:** landed 2026-09-19
+**Status:** done 2026-09-19
 **Area:** cross-cutting
-**Origin:** [ADR-0038](../../adr/ADR-0038-ranked-recall.md)
+**Origin:** [ADR-0051](../../adr/ADR-0051-log-line-rendering.md)
 
-Opened 2026-09-15 by the close of
-[R-337](337-a-bounded-value-leaves-the-line-unbounded.md), which held the widest line each shipped
-sink builds under the log driver's cliff and left the set of sinks a written list.
+`test_widest_line.py` compares the widest line each shipped sink builds against the log driver's
+cliff, and it had one hand-written case per sink: one for `LoggingAuditSink` and its eleven keys,
+one for `LoggingRecallSink` and its eleven. A sink added tomorrow was covered by neither, and
+nothing said so. `flagcheck.py` refused that same shape on the subagent servers, where the set a
+rule runs over is derived from the stack's own wiring rather than read from a list (ADR-0043).
 
-`test_widest_line.py` has one case per sink and both cases are hand-written: one names
-`LoggingAuditSink` and its eleven keys, the other `LoggingRecallSink` and its eleven. A sink that
-lands in the brain tomorrow is held by neither, and nothing says so. The same shape is what
-`flagcheck.py` refused to accept on the subagent servers, where the set a rule runs over is derived
-from the stack's own wiring rather than read from a list, so a server added anywhere is covered the
-day it is written (ADR-0029 addendum on deriving the set a rule runs over).
+The cost of the miss was one unmeasured line rather than a wrong answer: the check does not become
+false when a sink is added, it stops being complete.
 
-**Why it was left.** Two sinks, both old, and a third is a change somebody is making deliberately
-rather than something that appears. The cost of the miss is one unmeasured line rather than a wrong
-answer: the check that exists does not become false when a sink is added, it just stops being
-complete.
-
-**What fired.** The third sink landed on 2026-09-17: `JsonLinesAuditSink` in
+**What fired.** The third sink arrived on 2026-09-17: `JsonLinesAuditSink` in
 `brain/packages/tools/src/cortex_tools/audit_file.py`, wired with `TeeAuditSink` by
 `tool_audit_from_config` in `dispatch_builders.py` when `CORTEX_TOOLS_AUDIT_FILE` is set. Its record
 goes to a file, which has no driver cliff, but a failed append writes a log line of its own,
-`tool.audit.gap`, carrying `path`, `tool` and `error`, and `tool` is the model's. No case in
-`test_widest_line.py` drives it and nothing said so, which is this entry's defect happening once.
-The old trigger's reading, `grep -rn "Logging.*Sink"`, could not have shown it: it matched a class
-name prefix the new sink does not carry. The gap line itself cannot reach the cliff. It carries three
-fields, and `log_fields.py` measures seven cut fields at 14,536 characters. `TeeAuditSink` writes
-no line of its own. So what fired is the completeness the entry is about, not a line past the cliff.
+`tool.audit.gap`, with `path`, `tool` and `error`, and `tool` is the model's. No case drove it and
+nothing said so. The old trigger's reading, `grep -rn "Logging.*Sink"`, could not have shown it: it
+matched a class name prefix the new sink does not have. The gap line itself cannot reach the cliff,
+since it has three fields and `log_fields.py` measures seven cut fields at 14,536 characters, and
+`TeeAuditSink` writes no line of its own. So what fired is the completeness this entry is about, not
+a line past the cliff.
 
-The same landing made the suite's docstring and the ADR-0038 widest-line addendum wrong in a
-detail: `schedule_builders` and `subagent_builders` no longer construct `LoggingAuditSink` but spend
-the `setup.audit` that `dispatch_builders` builds, so the concrete sink classes are named in two
-orchestrator modules, `dispatch_builders.py` and `memory_builders.py`.
+**What closed it.** `brain/packages/orchestrator/tests/test_widest_line.py` now derives the wired
+set by reading the orchestrator's source with `ast`: every name ending in `Sink` that a module under
+`brain/packages/orchestrator/src/cortex_orchestrator/` imports from `cortex_tools` or
+`cortex_memory`, which today is `JsonLinesAuditSink`, `LoggingAuditSink`, `TeeAuditSink` and
+`LoggingRecallSink`. It has a case for `JsonLinesAuditSink`'s gap line, driven by pointing the sink
+at a directory so the append raises `IsADirectoryError` with a `tool` past `VALUE_CHARS`, asserting
+the line stays under `ONE_DOCKER_MESSAGE` with one cut marker and the keys `path`, `tool` and
+`error`. It keeps an exemption map naming each sink that writes no line with its reason, today only
+`TeeAuditSink`, and asserts that the derived set equals the sinks with a case plus the exempted
+ones, so a stale exemption fails as it does in `settingscheck.py`. The judgement a derivation cannot
+supply, which of a sink's fields a caller fills, stays in each case, and a new sink fails the set
+assertion until somebody writes a case or an exemption.
 
-**The fix, brain-side.** In `brain/packages/orchestrator/tests/test_widest_line.py`:
+The same change corrected the suite's docstring: `schedule_builders` and `subagent_builders` no
+longer construct `LoggingAuditSink` but use the `setup.audit` that `dispatch_builders` builds, so
+the concrete sink classes are named in two orchestrator modules, `dispatch_builders.py` and
+`memory_builders.py`.
 
-1. Derive the wired set by reading the orchestrator's source with `ast`: every name ending in `Sink`
-   that a module under `brain/packages/orchestrator/src/cortex_orchestrator/` imports from
-   `cortex_tools` or `cortex_memory`. Today that is `JsonLinesAuditSink`, `LoggingAuditSink`,
-   `TeeAuditSink` and `LoggingRecallSink`.
-2. Add a case for `JsonLinesAuditSink`'s gap line: point the sink at a directory so the append
-   raises `IsADirectoryError`, record an invocation whose `tool` is past `VALUE_CHARS`, and assert
-   the line stays under `ONE_DOCKER_MESSAGE`, carries one cut marker and the keys `path`, `tool`
-   and `error`.
-3. Keep an exemption map naming each sink that writes no line, with its reason, today only
-   `TeeAuditSink`. Assert that the derived set equals the sinks with a case plus the exempted ones,
-   and that every exemption is still in the derived set, so a stale one fails as it does in
-   `settingscheck.py`.
-4. Correct the docstring's list of builders to the two that name a sink class.
+## History
 
-The judgement a derivation cannot supply, which of a sink's fields a caller fills, stays in each
-case, and a new sink fails the set assertion until somebody writes that case or that exemption.
-
-## Trail
-
-- 2026-09-19: landed as specified in the fix above. The suite reads the wired sinks from the
-  orchestrator's imports with `ast`, has a case for `JsonLinesAuditSink`'s `tool.audit.gap` line
-  driven by a directory path, exempts `TeeAuditSink` by name with a stale-exemption check, and its
-  docstring names the two builders that name a sink class. The widest-line addendum's three
-  builders are corrected there. Recorded in the ADR-0038 trigger-sweep addendum of the same day,
-  with its mutation table.
+- 2026-09-15: opened by the close of
+  [R-337](337-a-bounded-value-leaves-the-line-unbounded.md), which measured the widest line each
+  shipped sink builds and left the set of sinks a written list. Two sinks, both old, and a third is
+  a change somebody makes deliberately rather than something that appears.
 - 2026-09-19: trigger fired, by the tool audit file sink of 2026-09-17, and the entry moved to
-  actionable with the fix above. The trigger is removed because an actionable entry carries none.
-  Recorded in the ADR-0038 trigger-sweep addendum of the same day.
+  actionable.
+- 2026-09-19: done. The decision is
+  [ADR-0051](../../adr/ADR-0051-log-line-rendering.md) decision 15.

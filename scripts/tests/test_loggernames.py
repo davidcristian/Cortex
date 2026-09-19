@@ -1,5 +1,3 @@
-"""Tests for the reader that says which module owns the logger a brain line is written under."""
-
 from pathlib import Path
 
 import pytest
@@ -19,7 +17,7 @@ SETTLE = (
 
 
 def brain(root: Path, files: dict[str, str]) -> None:
-    """Write a miniature brain, each path relative to `brain/packages/`."""
+    """Write a small brain tree, each path relative to `brain/packages/`."""
     for relative, text in files.items():
         path = root / "brain" / "packages" / relative
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -27,7 +25,7 @@ def brain(root: Path, files: dict[str, str]) -> None:
 
 
 def settler(root: Path) -> None:
-    """Write the one fixture package every test about the walk itself starts from."""
+    """Write the one package every test about the directory walk starts from."""
     brain(root, {"core/src/cortex_core/swap_settle.py": SETTLE})
 
 
@@ -39,9 +37,6 @@ def test_a_module_logging_under_name_is_found_by_its_dotted_path(tmp_path: Path)
 
 
 def test_a_sink_that_names_itself_is_found_under_the_name_it_chose(tmp_path: Path) -> None:
-    """A bare literal is read, the spelling neither self-named sink writes any more now that both
-    bind the name above the call.
-    """
     brain(tmp_path, {"tools/src/cortex_tools/audit.py": 'getLogger("cortex.tools.audit")\n'})
     assert set(loggernames.loggers(tmp_path)) == {"cortex.tools.audit"}
 
@@ -49,7 +44,6 @@ def test_a_sink_that_names_itself_is_found_under_the_name_it_chose(tmp_path: Pat
 def test_a_sink_naming_its_logger_through_a_constant_is_found_under_that_name(
     tmp_path: Path,
 ) -> None:
-    """This is the recall trail's spelling."""
     brain(
         tmp_path,
         {
@@ -66,9 +60,6 @@ def test_a_sink_naming_its_logger_through_a_constant_is_found_under_that_name(
 def test_a_logger_named_through_something_the_module_does_not_bind_is_a_fault(
     tmp_path: Path,
 ) -> None:
-    """A name bound outside this module's own top level raises rather than being chased into
-    another module, since resolving it would mean importing the brain. The fault names the
-    identifier."""
     brain(
         tmp_path,
         {
@@ -85,9 +76,6 @@ def test_a_logger_named_through_something_the_module_does_not_bind_is_a_fault(
 def test_a_module_that_binds_its_logger_name_and_writes_it_again_is_a_fault(
     tmp_path: Path,
 ) -> None:
-    """The declaration is what the constant registry ties the restating documents to, so a sink
-    holding both spellings can move the literal alone and leave those documents on an abandoned
-    name. The fault names the binding, which is the spelling the call is asked to pass."""
     brain(
         tmp_path,
         {
@@ -102,8 +90,6 @@ def test_a_module_that_binds_its_logger_name_and_writes_it_again_is_a_fault(
 
 
 def test_every_binding_of_a_twice_spelled_logger_name_is_named(tmp_path: Path) -> None:
-    """Every binding is named in the fault. A module that bound the name twice would otherwise be
-    told to pass one of two, chosen by whichever the dict happened to hold first."""
     brain(
         tmp_path,
         {
@@ -119,8 +105,6 @@ def test_every_binding_of_a_twice_spelled_logger_name_is_named(tmp_path: Path) -
 
 
 def test_a_literal_beside_a_binding_of_some_other_string_is_left_alone(tmp_path: Path) -> None:
-    """The rule is that one logger name is written once, so a binding of some other string beside
-    a literal call is left alone."""
     brain(
         tmp_path,
         {
@@ -138,7 +122,6 @@ def test_a_package_barrel_claims_the_package_name_and_not_its_init(tmp_path: Pat
 
 
 def test_a_pruned_directory_inside_the_source_tree_is_not_walked(tmp_path: Path) -> None:
-    """A cached copy of a module would otherwise claim the same name as the module itself."""
     settler(tmp_path)
     brain(tmp_path, {"core/src/cortex_core/__pycache__/stale.py": "getLogger(__name__)\n"})
     assert set(loggernames.loggers(tmp_path)) == {"cortex_core.swap_settle"}
@@ -174,13 +157,8 @@ def test_a_source_file_that_is_not_text_is_a_fault(tmp_path: Path) -> None:
         loggernames.loggers(tmp_path)
 
 
-# ── the brain this reader is written for ───────────────────────────────────────
-
-
 def declarations(root: Path) -> dict[str, str]:
-    """Return every logger name a brain module binds under ``DECLARATION``, against the file that
-    binds it.
-    """
+    """Return every logger name a brain module binds under ``DECLARATION``, by file."""
     found: dict[str, str] = {}
     for package in sorted((root / logcalls.BRAIN_PACKAGES).iterdir()):
         source = package / logcalls.SOURCE_DIR
@@ -207,7 +185,6 @@ def self_named(root: Path) -> dict[str, str]:
 
 
 def test_every_self_named_sink_binds_the_name_its_own_call_is_handed() -> None:
-    """The one place a sink's declaration meets the call handed it, over whatever the tree holds."""
     sinks = self_named(REPO_ROOT)
     assert sinks, "no sink in this brain names its own logger, so the fixtures above are fiction"
     assert declarations(REPO_ROOT) == sinks, (

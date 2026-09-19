@@ -3,7 +3,7 @@
 Every consciously deferred refinement, one file per task in [tasks/](tasks/). Recording a new
 deferral here is part of finishing a slice, per the doc-first Definition of Done in
 [AGENTS.md](../../AGENTS.md); this backlog must be empty before the ROADMAP's finish line is
-crossed. A task keeps its file after it closes, because a landed entry is this backlog's record of
+crossed. A task keeps its file after it closes, because a closed entry is this backlog's record of
 what a deferral became and several of them correct their own origin decision records.
 
 **Work that is already built and waiting on hardware this repo is not developed on lives in
@@ -17,215 +17,220 @@ The whole procedure, and its reasoning, is [ADR-0039](../adr/ADR-0039-backlog-pe
 
 1. **Pick** from `What remains` below. That section is generated from the task files, so it is
    complete by construction.
-2. **Re-derive the task's claim from the code before you start.** See the warning below. A
+2. **Check the task's claim against the code before you start.** See the warning below. A
    `**Verified:**` line says somebody already did that, and the date on it is the day they did:
    the reading has an age rather than a guarantee behind it, so an old date, or a file the task
-   names that has moved since, makes the re-derivation yours again. When you take one, write the
-   day you took it on that line, so the next reader pays for it once instead of again.
+   names that has moved since, makes the check yours again. When you take one, write the day you
+   took it on that line, so the next reader pays for it once instead of again.
 3. **Work it**, under the Definition of Done in [AGENTS.md](../../AGENTS.md).
-4. **Close it in its own file**: change the `**Status:**` line to `landed`, `declined` or
-   `satisfied` with today's date, and add a `## Trail` line saying what it became. Write the dated
-   addendum at the origin decision record, as always.
+4. **Close it in its own file**: change the `**Status:**` line to `done`, `declined` or
+   `satisfied` with today's date, and add a `## History` line saying what it became. That section
+   is the record of the close: edit the origin decision record in place only when the close changed
+   the decision it states, and put a measurement that decision rests on in its readings record
+   under [docs/readings/](../readings/README.md).
 5. **File what the close opened.** Closing a task here routinely opens narrower ones. Add a file
-   with the next free number and name it in the Trail of both.
+   with the next free number and name it in the History of both.
 6. **Run `just backlog`** to regenerate this index, and commit it with the task file. `just check`
    fails if you forget, so this cannot drift.
 
 A task's status is written on its own `**Status:**` line and nowhere else. Do not restate it here,
 in a title, or in another task.
 
-## Two standing warnings, both earned
+## Two warnings about what a task claims
 
 **A task's own cost estimate is a hypothesis, not a finding.** The section this backlog was
 extracted from used to open by asserting that every entry was "a small change behind an unchanged
 port". That was wrong often enough to mislead planning four separate times: a tool-dispatch entry
 and its ADR both claimed tool spam was bounded when one round could dispatch unboundedly; a
 `list_sessions` entry misdiagnosed its own cost and proposed a worse fix than the one that
-shipped; a display-timezone entry bundled a knob with a recurrence change no existing field can
+shipped; a display-timezone entry bundled a setting with a recurrence change no existing field can
 express; and a resource-governance pair claimed two "pure-core scheduler tweaks behind the
 unchanged port" when one needed a port change to express at all and the other described a wall
 that port cannot build, while the wall it could build already existed. Treat any "behind the
 unchanged port" phrasing as unverified until you have opened the port and checked its signature.
 
 **And a task's account of the code goes stale the same way, which is worse.** On 2026-08-06 that
-landed in the harder form. An entry describing the composer's move on a clamped shrink described a
-mechanism that had been deleted thirty two minutes after the entry was written, was restated twice
-on its own text, and was put to the user twice as a decision that had not existed since the day it
-was filed. Two sittings measured the closure and recorded a null result, because they were
-checking that their own change had not moved the composer rather than asking whether anything
-still did. So: before starting a task, and before quoting one back to anyone, re-derive its claim
-from the code and from a running build. A task file records what somebody once measured. It is
+happened in the harder form. An entry describing the composer's move on a clamped shrink described
+a mechanism that had been deleted thirty two minutes after the entry was written, was restated
+twice on its own text, and was put to the user twice as a decision that had not existed since the
+day it was filed. Two measurement sessions looked at the closure and recorded a null result,
+because they were checking that their own change had not moved the composer rather than asking
+whether anything still did. So: before starting a task, and before quoting one back to anyone,
+check its claim against the code and against a running build. A task file records what somebody once measured. It is
 never a reading of what the tree does now.
 
 <!-- backlog:begin (generated by `just backlog`; edit the task files, not this block) -->
 
-**147 open, 536 closed, 683 in total.**
+**150 open, 537 closed, 687 in total.**
 
 ## What remains
 
-147 of these record the day their claims were last re-derived from the code. On every other task here, that reading is still yours to take.
+150 of these record the day their claims were last checked against the code. On every other task here, that reading is still yours to take.
 
-### Actionable now (5)
+### Actionable now (9)
 
-- **[R-607](tasks/607-eighteen-of-the-cortex-alts-pixel-rows-are-undrawn.md)** Fourteen of the cortex alt's thirty-six pixel rows are undrawn or refused (inference). Its claim was re-derived from the code on 2026-09-19.
-- **[R-694](tasks/694-the-bind-and-volume-gates-count-an-entry-they-could-not-ask-about-as-a-finding.md)** The bind and volume gates count an entry they could not ask about as a finding (repo-gates). Its claim was re-derived from the code on 2026-09-19.
-- **[R-695](tasks/695-an-alt-mail-control-voids-in-every-draw-at-the-engine-budget.md)** An alt `app` control cell voids in every draw at the engine's budget, so three rows cannot publish (vision). Its claim was re-derived from the code on 2026-09-19.
-- **[R-696](tasks/696-an-arms-first-draw-on-a-server-differs-from-the-rest.md)** An arm's first draw on a server differs from the rest, and a cell may read differently behind others (vision). Its claim was re-derived from the code on 2026-09-19.
-- **[R-698](tasks/698-a-drafter-sized-spill-is-unmeasured-against-the-decode-floor.md)** A drafter-sized spill is unmeasured against the decode floor (inference-model-manager). Its claim was re-derived from the code on 2026-09-19.
+- **[R-607](tasks/607-eighteen-of-the-cortex-alts-pixel-rows-are-undrawn.md)** Fourteen of the cortex alt's thirty-six pixel rows are undrawn or refused (inference). Its claim was checked against the code on 2026-09-19.
+- **[R-694](tasks/694-the-bind-and-volume-gates-count-an-entry-they-could-not-ask-about-as-a-finding.md)** The bind and volume checks count an entry they could not ask about as a finding (repo-checks). Its claim was checked against the code on 2026-09-19.
+- **[R-695](tasks/695-an-alt-mail-control-voids-in-every-draw-at-the-engine-budget.md)** An alt `app` control cell is empty in every draw, so three rows cannot publish (vision). Its claim was checked against the code on 2026-09-19.
+- **[R-696](tasks/696-an-arms-first-draw-on-a-server-differs-from-the-rest.md)** The first draw on a server differs from the rest, and a cell reads differently behind others (vision). Its claim was checked against the code on 2026-09-19.
+- **[R-698](tasks/698-a-drafter-sized-spill-is-unmeasured-against-the-decode-floor.md)** A drafter-sized spill is unmeasured against the decode floor (inference-model-manager). Its claim was checked against the code on 2026-09-19.
+- **[R-699](tasks/699-source-file-names-use-banned-words.md)** Source file names use words the prose table bans (cross-cutting). Its claim was checked against the code on 2026-09-19.
+- **[R-700](tasks/700-backlog-file-names-use-banned-words.md)** Backlog file names use words their titles do not (repo-checks). Its claim was checked against the code on 2026-09-19.
+- **[R-701](tasks/701-keeping-a-chat-at-the-top-has-no-designed-name.md)** Keeping a chat at the top of the list has no designed name (body-overlay). Its claim was checked against the code on 2026-09-19.
+- **[R-703](tasks/703-check-output-uses-banned-words.md)** The checks print sentences in words the prose table bans (repo-checks). Its claim was checked against the code on 2026-09-19.
 
-### Actionable, once a seam or port changes (6)
+### Actionable, once a port changes (6)
 
-- **[R-129](tasks/129-streamed-brain-status.md)** Streamed brain status (body-overlay). Its claim was re-derived from the code on 2026-09-19.
-- **[R-253](tasks/253-reply-says-window-resampled.md)** Whether the reply says a window was resampled (vision). Its claim was re-derived from the code on 2026-09-19.
-- **[R-266](tasks/266-carrying-a-picture-across-a-swap.md)** Carrying a picture across a model swap (vision). Its claim was re-derived from the code on 2026-09-19.
-- **[R-320](tasks/320-one-detail-string-two-facts.md)** The seam carries one detail string, so two facts are one sentence (seam-transport). Its claim was re-derived from the code on 2026-09-19.
-- **[R-421](tasks/421-a-silent-turn-owes-the-body-a-heartbeat.md)** A turn that goes quiet for an hour is indistinguishable from a brain that died (seam-transport). Its claim was re-derived from the code on 2026-09-19.
-- **[R-622](tasks/622-only-one-endpoint-in-one-mode-records-its-engine-build.md)** Only one endpoint in one mode records its engine build (inference). Its claim was re-derived from the code on 2026-09-17.
+- **[R-129](tasks/129-streamed-brain-status.md)** Streamed brain status (body-overlay). Its claim was checked against the code on 2026-09-19.
+- **[R-253](tasks/253-reply-says-window-resampled.md)** Whether the reply says a window was resampled (vision). Its claim was checked against the code on 2026-09-19.
+- **[R-266](tasks/266-carrying-a-picture-across-a-swap.md)** Sending a picture across a model swap (vision). Its claim was checked against the code on 2026-09-19.
+- **[R-320](tasks/320-one-detail-string-two-facts.md)** The health reply has one detail string, so two facts become one sentence (rpc-transport). Its claim was checked against the code on 2026-09-19.
+- **[R-421](tasks/421-a-silent-turn-owes-the-body-a-heartbeat.md)** A turn that goes quiet for hours is indistinguishable from a brain that died (rpc-transport). Its claim was checked against the code on 2026-09-19.
+- **[R-622](tasks/622-only-one-endpoint-in-one-mode-records-its-engine-build.md)** Only one endpoint in one mode records its engine build (inference). Its claim was checked against the code on 2026-09-17.
 
-### Fix when it bites (104)
+### Waiting for its trigger (103)
 
-- **[R-011](tasks/011-stylesheet-outside-line-cap.md)** The overlay stylesheet outside the line cap (repo-gates). Reopens when: a commit whose diff to `body/app/src/overlay.css` moves a rule to repair which rule wins, or a second `.css` file under `body/app/src`. Its claim was re-derived from the code on 2026-09-17.
-- **[R-013](tasks/013-couplings-widened-registry-cannot-hold.md)** The couplings the widened registry cannot hold (repo-gates). Reopens when: A third value on the capture-target enum, a reader for declarations in the `.proto` arriving in the scan for another reason, any module outside the body's rpc crate and the brain's body client that must spell one of the two gRPC status codes, or either side of that pair gaining a declaration whose value the scan can read. Its claim was re-derived from the code on 2026-09-19.
-- **[R-018](tasks/018-ports-without-contract-suite.md)** Ports without a shared contract suite (repo-gates). Reopens when: a Rust port gaining a shared check list, which answers the design question below for Rust; or a Rust test passing over a fake while the adapter it stands in for fails the same expectation, readable in CI for `BrainTransport`, `Sleeper` and `Randomness` and only on the Windows host for the four OS ports. Its claim was re-derived from the code on 2026-09-17.
-- **[R-023](tasks/023-converse-reconnect-first-event.md)** Safe `converse` reconnect before the first event (seam-transport). Reopens when: a deployment that sets `CORTEX_ESCALATION`, which is the switch that builds a swap scope at all (`brain/packages/orchestrator/src/cortex_orchestrator/swap_builders.py:103` returns `None` without it), together with turns costly enough that a silent re-run beats paying for dedup. Recheck with `grep -rnE 'CORTEX_ESCALATION: *[^ ]' docker/`: no hit means no shipped file turns the switch on and this has not fired. The gpu overlay passes it through by name, so a host `.env` can. Its claim was re-derived from the code on 2026-09-17.
-- **[R-024](tasks/024-disconnect-mid-handoff-teardown.md)** A disconnect mid handoff blocks stream teardown (seam-transport). Reopens when: a client event that does not need the cortex, observed waiting behind a `Cancel`'s restore on a stack running handoffs. That observation is off-tree: no stack here runs a handoff, and `grep -rnE 'CORTEX_ESCALATION: *[^ ]' docker/` finding nothing says no shipped file turns the switch on. The gpu overlay passes it through by name, so a host `.env` can. Its claim was re-derived from the code on 2026-09-17.
-- **[R-035](tasks/035-stalled-consumer-holds-lease.md)** A stalled consumer holds the GPU lease (session-history). Reopens when: a production path to the `Converse` RPC other than the overlay's one chain, which runs from `body/app/src/overlay/useOverlay.ts` through the shell's `converse` command (`body/app/src-tauri/src/converse.rs`), `RetryingTransport` (`body/crates/core/src/retry.rs`) and the tonic client (`body/crates/rpc/src/converse.rs`); or that command's read loop awaiting anything between two stream items other than the next item. Grepping `.converse(` and `BrainServiceStub` outside test files decides the first: on 2026-09-17 the hits are those four links, the bridge contract's check list `bridgeContract.ts`, and the seam package's re-export of the stub. A report of one client stalling another's turn would also fire it and cannot be read from the tree. The stall needs a turn that emits more events than `CORTEX_SEAM_CONVERSE_BUFFER` (default 256, measured at 1), and it delays only work leasing the same manager, which both implementations, `SingleResidentModelManager` and the swap manager, serialize behind one lock. Its claim was re-derived from the code on 2026-09-17.
-- **[R-041](tasks/041-cross-loop-salience.md)** Cross-loop salience across a batch (tools-mcp). Reopens when: the tool audit trail shows two subagent tasks of one turn (one `turn_id`, two `task_id` values) dispatching the same tool with the same arguments. Its claim was re-derived from the code on 2026-09-19.
-- **[R-048](tasks/048-fair-share-across-a-batch.md)** A fair-share policy across a batch (tools-mcp). Reopens when: the tool audit trail shows a subagent task refused by the spent turn pool while a sibling task of the same `turn_id` made most of that turn's dispatches. Its claim was re-derived from the code on 2026-09-19.
-- **[R-073](tasks/073-fence-without-block-recall.md)** Fence-without-block recall mode (untrusted-content). Reopens when: taint-spread on tangential recall proving too blunt. It can only show itself once the memory store holds a tainted row, and a deployment writes one only under `CORTEX_MEMORY_ON_TAINTED=record` (the default `skip` drops a tainted turn from memory), so the cheap reading is `select count(*) filter (where tainted) from memories`, which returned 0 on 2026-09-17. Its claim was re-derived from the code on 2026-09-17.
-- **[R-082](tasks/082-replayed-quoted-injection.md)** Quoted injection replayed by the plain history window (untrusted-content). Reopens when: a design that needs a later turn to know which of its replayed assistant messages were written on a tainted turn. The tree shows it when a session history message gains a taint or provenance field, and `grep -n taint brain/packages/core/src/cortex_core/conversation.py brain/packages/session/src/cortex_session/store_codec.py` prints nothing on 2026-09-17. Its claim was re-derived from the code on 2026-09-17.
-- **[R-095](tasks/095-ann-index.md)** ANN index for memory search (memory). Reopens when: `SELECT count(*) FROM memories` in a deployment's pgvector database reaching 75,000 rows while `CORTEX_MEMORY_SCOPE` is `global`, the size at which the exact scan costs a whole recalling turn's time to first token; the recall trail's `available` field carries the same count on every recalled turn when `CORTEX_MEMORY_RECALL_AUDIT` is on. Its claim was re-derived from the code on 2026-09-17.
-- **[R-097](tasks/097-cross-encoder-rank.md)** A cross-encoder rank (memory). Reopens when: a judge quality reading taken over memories nobody wrote for the measurement (neither the ten notes inline in `test_rerank_judge_live.py` nor the 41 in `recall_corpus.py`), in which the judge drops an answerable note the cosine kept or ranks worse than it; or a first-token or whole-turn latency budget written into an ADR decision or a config bound that the recorded rank cost of 0.877 s, or its +0.515 s on the first token, exceeds. Neither exists in the tree today. The first needs a deployed store's memories, which live in its Postgres volume, so it can enter the tree only as a recorded result. Both depend on `CORTEX_MEMORY_BACKEND` naming a store and `CORTEX_MEMORY_RECALL=judge`, and the cost on `CORTEX_MEMORY_RECALL_POOL_FACTOR` and `DEFAULT_RECALL_K`. Its claim was re-derived from the code on 2026-09-17.
-- **[R-110](tasks/110-prefill-second-witness.md)** Prefill as the second witness of a spill (inference-model-manager). Reopens when: A spill that decode misses, or a deployment whose deep answers are short enough that decode rarely clears `MIN_CADENCE_TOKENS`, which reads in the log as successful handoffs that mostly write the deep phase's no-decode-rate INFO line rather than its decode-rate line. Its claim was re-derived from the code on 2026-09-19.
-- **[R-112](tasks/112-resume-crashed-handoff.md)** Resume a crashed handoff from its record (inference-model-manager). Reopens when: the dedup design the `Converse` reconnect entry (R-023) needs, a request id on `UserTurn` or `ClientEvent` plus an idempotency and resume registry keyed by it, after which resuming is a conductor entry point run beside the seam. Recheck with `grep -rniE 'request_id|idempotency' proto/body.proto brain/packages/*/src`: no hit means the design does not exist and this has not fired. Its claim was re-derived from the code on 2026-09-19.
-- **[R-124](tasks/124-nudge-live-uptake.md)** The spontaneous-pick nudge's live uptake (subagents). Reopens when: A deployment that delegates unprompted and pays for the pile in the user's wall clock. Its claim was re-derived from the code on 2026-09-19.
-- **[R-127](tasks/127-multi-turn-and-proto-cancel.md)** Multi-turn within one stream plus proto `Cancel` (body-overlay). Reopens when: a record in the tree, a host task or a runbook reading, of a turn the person stopped whose generation went on holding the model lease against their next submit or a model swap. Until that is written down, muting the sink is adequate. CI cannot produce the reading, because the Tauri command that streams a stopped turn to its end runs only on the host. Its claim was re-derived from the code on 2026-09-17.
-- **[R-162](tasks/162-per-letter-kerning-pairs.md)** Per-letter boxes giving up kerning pairs (body-overlay). Reopens when: The overlay adopting a licensed face, which reads in the tree as `--font` in `body/app/src/overlay.css` naming anything other than the system stack it declares today (`-apple-system, "Segoe UI", system-ui, "Helvetica Neue", sans-serif`), or as any `@font-face` rule under `body/app/`, of which there are none today. Its claim was re-derived from the code on 2026-09-17.
-- **[R-184](tasks/184-paging-cursor.md)** Paging / cursor on the read RPCs (session-read-seam). Reopens when: one reply encodes past 4 MiB, the decoding cap of the body's tonic 0.14.6 client, which no code under `body/` raises (`max_decoding_message_size` appears nowhere there), while the brain's server sets no send cap. For `GetSessionMessages` the summed length of the records that `LRANGE cortex:session:<id>:messages 0 -1` returns is never smaller than the reply, since each record is JSON carrying the same four fields and more, with non-ASCII text escaped, so a live reading of that sum below 4 MiB for every session says not fired. For `ListSessions` the reply holds at most `MAX_SESSION_LIST_LIMIT` (200) recent chats plus every pinned chat outside that window, and the pinned set has no cap in the store. Its claim was re-derived from the code on 2026-09-17.
-- **[R-192](tasks/192-intel-npu-placement-target.md)** The Intel NPU as a third placement target (resource-governance). Reopens when: An NPU device enumerating from inside a container, meaning `Core().get_property("NPU", "AVAILABLE_DEVICES")` answers with anything at all. That is one container run: `pip install openvino` over `python:3.12-slim`, with `/dev/dxg` and `/usr/lib/wsl` handed in, then read `available_devices` and that property. This entry's trail records what the run answered when it was last taken, and the body records which half of the condition is already satisfied. Its claim was re-derived from the code on 2026-09-17.
-- **[R-195](tasks/195-queue-depth-bound.md)** A queue-depth bound (resource-governance). Reopens when: The first deployment observed hitting the wait bound, which reads as the runner's `a spawn was refused before it ran` warning (logger `cortex_core.runner`) whose `reason` field carries `outlasts the deployment's admission bound`. The brain writes that line to its container's own output and to no file, so it is read with `docker compose logs brain` and lasts only as long as the container does. The same text is also in the persisted `SubagentResult` under `cortex:task:{id}:result` in Redis, whose TTL of 3600 s is half the shipped bound. Its claim was re-derived from the code on 2026-09-17.
-- **[R-199](tasks/199-sweep-start-not-serialized.md)** The sweep's start fenced but not serialized (resource-governance). Reopens when: A handoff refused at its fit check, or recorded as having spilled, with a peer a retry pass had just started. Either needs a live handoff, which is off-tree, and four settings that all default off: `CORTEX_ESCALATION`, a non-empty `CORTEX_SWAP_EVICT_MODELS`, and `CORTEX_SWAP_BRAIN_VRAM_MIB` (the refusal arm) or `CORTEX_SWAP_BRAIN_DECODE_TPS` (the spill arm). The gpu overlay passes all four through by name, so a host `.env` can set them, and `grep -rnE '(CORTEX_ESCALATION|CORTEX_SWAP_EVICT_MODELS|CORTEX_SWAP_BRAIN_VRAM_MIB|CORTEX_SWAP_BRAIN_DECODE_TPS): *[^ ]' docker/` finding nothing says no shipped file sets any of them. Its claim was re-derived from the code on 2026-09-17.
-- **[R-200](tasks/200-placer-one-bit-per-card.md)** The placer holds one bit for the card (resource-governance). Reopens when: The model host gaining a tier a deployment could correctly list beside the subagent tier, meaning `ModelHostConfig.tiers()` (`brain/packages/model_manager/src/cortex_model_manager/config.py`) declaring a fourth `TierArgs` after `cortex`, `brain` and `subagent-gpu`; or a subagent roster entry gaining a second GPU target beside `gpu_endpoint`. Recheck with `grep -c 'TierArgs(' brain/packages/model_manager/src/cortex_model_manager/config.py`: 3 means neither has happened. Its claim was re-derived from the code on 2026-09-17.
-- **[R-214](tasks/214-batching-session-allowlists.md)** Batching and per-tool session allowlists (email-confirmer). Reopens when: a deployment where gated confirmations arrive often enough that the user starts approving them without reading them. Which tools can produce one is read off the shipped default, `gated` in `brain/packages/orchestrator/src/cortex_orchestrator/config_tools.py`, and how many one turn can raise is `MAX_TOOL_DISPATCHES` in `brain/packages/core/src/cortex_core/tool_budget.py`. This entry's trail records what both said when that was last read. Its claim was re-derived from the code on 2026-09-19.
-- **[R-218](tasks/218-tunnel-fallback.md)** Q3 body-initiated-stream tunnel fallback (body-gateway). Reopens when: `host.docker.internal` failing, from a bridge-network container on this host, to reach a host service bound to an interface a container can see. Its claim was re-derived from the code on 2026-09-17.
-- **[R-219](tasks/219-hardened-non-loopback-posture.md)** A hardened non-loopback posture (body-gateway). Reopens when: ROADMAP assumption 5, the security model in `docs/ROADMAP.md` that says the machine is single-user with loopback-only listeners and a shared-secret token, being revised to admit a second user or a body and brain on different machines, or any compose file, runbook or default in the tree placing a seam listener where a second machine reaches it past the host firewall the body override relies on. Whether the machine really has one user is not something the tree can hold; that assumption is where the tree says so. Its claim was re-derived from the code on 2026-09-17.
-- **[R-223](tasks/223-safe-core-audio-wrapper.md)** A safe Core Audio wrapper (body-gateway). Reopens when: a crate on crates.io whose public API reads and writes the default render endpoint's master volume and mute with no `unsafe` at the call site, and which does not initialize and uninitialize COM around each call. The second condition is what the nearest crate today fails, and it is read off the crate's source. What such a crate would delete is listed by `grep -n unsafe body/crates/os_windows/src/audio.rs`: four `unsafe` blocks, one `unsafe fn`, and the module's scoped allow, six sites as of 2026-09-17. Its claim was re-derived from the code on 2026-09-17.
-- **[R-224](tasks/224-unbalanced-com-initialization.md)** Unbalanced COM initialization on the blocking pool (body-gateway). Reopens when: either of two readings. On a Win32 desktop, the standing `windows-desktop` watch item in `docs/host/`: a volume or toast call failing with a COM error after a long uptime, or the body process's handle count climbing across bursts of OS actions spaced further apart than tokio's blocking thread keep-alive (10 s by default, and nothing under `body/` sets another), rather than returning to its idle level between them. The thread count is the weaker witness, because tokio exits an idle blocking thread after that keep-alive whatever its apartment. In the tree, `grep -rn 'CoInitializeEx\|CoUninitialize' body/crates/os_windows/src/` reports two initializations and no uninitialization as of 2026-09-17; a third initialization, or any `CoUninitialize`, means the shape below has changed and this entry needs rereading before the observation does. Its claim was re-derived from the code on 2026-09-17.
-- **[R-249](tasks/249-push-retry-policy.md)** Push retry policy beyond next-poll-pull (scheduling). Reopens when: on a live desktop, a reminder or task outcome whose push failed, which then sat unseen after the body was reachable again until the overlay was next opened, late enough that the user says it mattered. The brain's `push failed; pull will deliver` line marks each fire that fell to the pull path; nothing on either side logs when the overlay pulled it, so how late it was is the user's reading. Its claim was re-derived from the code on 2026-09-19.
-- **[R-256](tasks/256-jpeg-or-webp-encoding.md)** JPEG or WebP for a photographic screen (vision). Reopens when: either ladder assertion in `body/crates/core/tests/capture_bytes.rs` failing: the four realistic frames on a 4K display, or the same grainy photograph on the three display sizes the second one draws it at, no longer fitting inside `MAX_CAPTURE_BYTES` (6291456, in `body/crates/core/src/os/screen_policy.rs`, the body's copy of the `CORTEX_BODY_MAX_IMAGE_BYTES` default) at the test's `BRAIN_EDGE` (2048, which crosscheck holds to the `CORTEX_BODY_CAPTURE_MAX_EDGE` default). Both assertions are ignored tests that `just check` never runs, so the reading is the hand run `cargo test -p body-core --test capture_bytes --release -- --ignored --nocapture` from `body/`. The frames are synthetic and seeded, so only those two numbers, the downscaler, or the `png` encoder crate can move the result. A deployment that lowers either setting in its own environment is not measured by the test. Its claim was re-derived from the code on 2026-09-17.
-- **[R-279](tasks/279-confirm-card-offers-an-impossible-handoff.md)** The confirm card offers a handoff the machine cannot run (resource-governance). Reopens when: a user asking why they were asked to approve a deep task that then did not happen, or a deployment configuring escalation without a deep artifact for long enough that the card becomes a nuisance. Both are off-tree. What the tree can answer is whether any stack it ships can reach the state: that needs `CORTEX_ESCALATION` set while `CORTEX_MODEL_FILE_BRAIN` keeps its empty default (`docker/docker-compose.gpu.yml:175`). The gpu overlay passes the switch through by name, so a host `.env` can reach the state, and `grep -rnE 'CORTEX_ESCALATION: *[^ ]' docker/` finding nothing says no shipped file does. Its claim was re-derived from the code on 2026-09-17.
-- **[R-284](tasks/284-the-lookalike-policy-as-the-shipped-default.md)** The lookalike policy as the shipped default (untrusted-content). Reopens when: a deployment measurement of how often a real turn names an internationalized host after reading untrusted content: the sum of `lookalike=` over the `cortex_core.turn_output` lines `the output guardrail removed links from this reply` carrying `policy=lookalike`, across a week of turns under that policy. Two readings say cheaply whether anything has moved. The shipped default is one binding, so `grep -n output_guardrail brain/packages/orchestrator/src/cortex_orchestrator/config.py` reports whether it is still `redact`. The corpus arm is the count of distinct non-ASCII hosts `URL_RE` finds across every tracked file, each read as `host_of(normalize_url(match.group(), confusables=False))`, which is the expression `_UrlRedactingFilter._flagged` spends on the lookalike ground; it stood at 12 on 2026-09-08, 2026-09-11 and 2026-09-17. The body records what both answered when they were last taken. Its claim was re-derived from the code on 2026-09-17.
-- **[R-286](tasks/286-user-half-of-an-opaque-turn.md)** The user's half of an opaque turn (vision). Reopens when: a report, written on this entry's trail or as a host task, of a sentence a user asked the assistant to remember during an opaque turn and could not recall later. The loss needs two settings together: memory recorded at all (`CORTEX_MEMORY_BACKEND=pgvector`, which the memory overlay sets), and a turn that can go opaque, meaning `capture_screen` registered (`CORTEX_BODY_BACKEND=grpc` with `CORTEX_VISION` at `on` or its `auto` default) or an MCP tool that returns an image block. `CORTEX_MEMORY_ON_TAINTED` does not change it, because the opaque return comes before that setting is read. Its claim was re-derived from the code on 2026-09-17.
-- **[R-291](tasks/291-a-red-sweep-leaves-no-trace-in-the-repo.md)** A red sweep leaves no trace in the repo (repo-gates). Reopens when: the first run this repository records under `shuffle.yml`, since every remedy below needs a run to exist and none can. Actions is off for the whole repository, which is a setting on the account rather than a change in this tree, and R-594 is the entry that waits on the setting. Its claim was re-derived from the code on 2026-09-19.
-- **[R-293](tasks/293-a-red-gate-run-named-no-tree.md)** A red gate run that named no tree (repo-gates). Reopens when: the next red `just check` whose whole output is kept, which names its tree in a `=== check-<tree>: FAILED ===` marker and its seed in the failing suite's own header, that being the one form of this failure a pass can reproduce from. Its claim was re-derived from the code on 2026-09-19.
-- **[R-294](tasks/294-one-match-yields-one-identity.md)** One match yields one identity (untrusted-content). Reopens when: a second spelling whose span has two honest readings, or the mixed dot-and-gap host reaching a real reply on this machine, either of which would make a two-reading defense buy more than the one form that is already declined. The cheap recheck is whether the assumption is still four call sites: `extract_urls` in `brain/packages/core/src/cortex_core/urls.py`, `URL_RE.sub` and the trailing-punctuation trim in `brain/packages/core/src/cortex_core/guardrail.py`, and the `last.start()` read in `brain/packages/core/src/cortex_core/url_holdback.py`. One `grep -rn 'URL_RE\.\|rstrip(TRAILING_PUNCTUATION)\|last\.end()' brain/packages/core/src/cortex_core/` prints six lines, five of them the four sites; the sixth is the trim `normalize_url` performs inside the identity reduction in `url_identity.py`, which reads one matched string and assumes nothing about how many readings its span has. The second arm is not decidable in the tree, since a reply lives in the session store. The first is read off `url_spellings.py`, and the grep and the relaxation's rerun, which the body records as it was last measured, say whether the ground under the decline has moved. Its claim was re-derived from the code on 2026-09-17.
-- **[R-296](tasks/296-trace-budget-quality-floor.md)** What a bounded trace costs a hard answer is unmeasured (inference-model-manager). Reopens when: a `CORTEX_REASONING_BUDGET` or `CORTEX_REASONING_BUDGET_BRAIN` default in `docker/docker-compose.gpu.yml` other than `-1`, or `CORTEX_REPLY_TRACE_TOKENS` given a value by any compose file, recipe or env file in this tree, or a recorded run in this repo where the cortex or the deep tier answers a question wrong at a bounded or zero budget and right at the unbounded default. Its claim was re-derived from the code on 2026-09-19.
-- **[R-300](tasks/300-shell-job-never-ran-on-a-runner.md)** The shell clippy job has never run on a runner (repo-gates). Reopens when: the first run of `ci.yml` whose `changes` job sets `shell=true`, which is the first time this job executes at all. None can happen while Actions stays off for the repository, which is R-594's subject, and the reading is `gh api repos/<owner>/<repo>/actions/workflows/ci.yml/runs`, whose `total_count` is 0. Its claim was re-derived from the code on 2026-09-17.
-- **[R-310](tasks/310-a-pass-that-starts-the-cortex.md)** A pass that starts the cortex, and a verb an operator could reach for (inference-model-manager). Reopens when: a cortex that stops while the brain and the model host both keep running, which is the one state neither of the two boot starters covers, or a second visit to the runbook's step 2. Both are operator events, so the cheap recheck is whether the surfaces have moved: `brain/packages/core/src/cortex_core/residency_regain.py` still calls `host.status` twice and `host.start` never, `proto/body.proto` still declares 16 RPCs across its two services with none of them an operator command, and the model host's control API still offers the four routes it shipped with (`/health`, `GET /models/{model}`, and start and stop, in `brain/packages/model_manager/src/cortex_model_manager/api.py`). Its claim was re-derived from the code on 2026-09-19.
-- **[R-311](tasks/311-wrap-width-trigger-completeness.md)** A wrap change the window never announces (body-overlay). Reopens when: the panel's width ceasing to be derived from the viewport, whether by a user-resizable panel, a width read from the appearance record, or a layout that gives the log a width of its own. In the tree that reads as the `.panel` rule's `width: min(560px, 92vw)` in `body/app/src/overlay.css` changing, or as a script writing a width to anything but a whisper bubble or its text: `grep -rn 'style.width' body/app/src --exclude='*.test.*'` finds four writes today, all in `whisper/useWhisperClock.ts`. Its claim was re-derived from the code on 2026-09-17.
-- **[R-321](tasks/321-a-spill-nobody-saw-is-forgotten.md)** A spill nobody was awake for is forgotten by design (inference-model-manager). Reopens when: an operator asks whether a slow deep task has happened before, or a second per handoff verdict arrives that is worth counting rather than displaying. The failed handoff's reason arrived three days after this entry was opened and is not one of those: it was decided on 2026-09-15 as neither counted nor displayed, and R-379 closed on that. Checking the counting half is one reading: nothing in the brain keeps a per handoff row that outlives its handoff, `HandoffSettler._settle` deleting a `DONE` record outright and the Redis adapter expiring a `FAILED` one after an hour, so a count still has nowhere to live. Its claim was re-derived from the code on 2026-09-19.
-- **[R-334](tasks/334-a-heading-whose-brackets-are-prose.md)** A heading whose brackets are prose has no way to say so (repo-gates). Reopens when: the first heading somebody wants to write with a pair of brackets in prose, which the shape rule refuses whatever follows them and which a code span cannot carry, monospace being wrong for prose. Its claim was re-derived from the code on 2026-09-19.
-- **[R-335](tasks/335-the-relays-share-one-shell.md)** The coverage relays are safe because they share one shell, and nothing checks that (repo-gates). Reopens when: `grep -rnE 'python[^#]*coverage_gate' justfile .github .pre-commit-config.yaml` stops returning exactly one line, the `check-body` recipe's run of the gate; or that line stops filling `--rustc` and `--llvm-cov` from two command substitutions of its own, whether by splitting them across recipe lines, which just runs in separate shells, or by reading either from an environment variable, a file or a CI step's output. The arrangement also rests on the `justfile` setting no `shell`, so each recipe line is one `sh -cu`, and on both substitutions naming the toolchain as `+nightly`, which no directory override can change. Its claim was re-derived from the code on 2026-09-17.
-- **[R-336](tasks/336-packed-values-keep-their-whole-length.md)** Packed values keep their whole length (cross-cutting). Reopens when: a deployment that really sets `CORTEX_LOG_FORMAT=packed`, or a collector in front of it that reads entries rather than lines. Both limbs come off the compose files: `grep -rn "LOG_FORMAT" docker/` reports the rendering each service ships with, and the services those files declare are where a collector would be. This entry's trail records what that reading answered when it was last taken, and what a packed line of the widest shipped record measures. Its claim was re-derived from the code on 2026-09-19.
-- **[R-343](tasks/343-a-userinfo-the-pattern-cannot-reach.md)** A userinfo the pattern cannot reach (cross-cutting). Reopens when: a credential reaching a log line inside a URL the pattern does not match, most plausibly a hand-written connection string in an env var whose password was never percent-encoded. The env vars that could carry one are read off the compose files, `grep -rn "://" docker/*.yml`, and each shape is read by putting the URL through `render_value`, through each formatter twice, as a field and as a message, and through the tool audit file's `durable_value`, which is six answers and not one. This entry's trail records what the shipped URLs and each shape answered when that was last run. Its claim was re-derived from the code on 2026-09-19.
-- **[R-347](tasks/347-a-transparent-turn-keeps-the-inner-id.md)** A turn nobody escalated completes under whatever id the inner runner claimed (inference-model-manager). Reopens when: either half of the agreement moves: `EscalatingTurnEngine(` gains a construction site other than the one in `cortex_orchestrator/engines.py`, or that site's factory returns anything but `self._turn_engine(...)`; or `TurnEngine.handle_turn` in `cortex_core/engine.py` stops completing with `TurnCompleted(turn_id=turn_id, ...)`, the id it was handed. Both are a grep. The arm only runs with `CORTEX_ESCALATION` on, since with it off `for_stream` returns the plain engine and no wrapper exists. Its claim was re-derived from the code on 2026-09-17.
-- **[R-359](tasks/359-the-table-detector-is-refused-not-impossible.md)** The gate on a mutation table's wording is refused by the corpus, not by the idea (repo-gates). Reopens when: at least fifty commit messages match the `replay` recipe's vocabulary (`git log -i -E --grep=redden --grep=mutant --grep=mutation --grep='prove[a-z]* able to fail'`, 41 on 2026-09-17), and the most recent fifty of them all name a path this repository tracks and the suite their counts are over, at which point the refusal rate that refused the gate is zero. The path half is a script over `git ls-files`; the suite half is a reader's judgement, having no machine form. Its claim was re-derived from the code on 2026-09-17.
-- **[R-360](tasks/360-a-read-that-will-not-fit-declines-early.md)** A read RPC with milliseconds left still spends the round trip (seam-transport). Reopens when: A store read whose duration is measured rather than guessed, meaning a distribution this repo keeps rather than one number somebody picked; or the body's own bound ceasing to be shorter than the deadline it announces, which is what currently makes the handler's own return worth so little. Recheck the second half with `grep -n ANNOUNCED_DEADLINE_GRACE_MS body/crates/core/src/retry/plan.rs`: a positive constant there means the announced deadline is still the longer of the two and this has not fired. Recheck the first with `grep -rln 'perf_counter\|time.monotonic' brain/packages/session`: no output means the store adapter times nothing, and the 2026-09-17 trail line found no harness timing a served read either. Separately, `grep -rln time_remaining brain/packages/orchestrator/src` listing only `abandon.py` means no handler branches on the clock yet, so nothing has built this entry by another route. The read handlers live in three files (`session_servicer.py`, `preference_servicer.py` and `server.py`), so a grep of one of them cannot answer that. Its claim was re-derived from the code on 2026-09-17.
-- **[R-362](tasks/362-one-bound-for-every-sidecar.md)** One bound covers every sidecar, so a file read and a mailbox search share a ceiling (tools-mcp). Reopens when: A legitimate call on one sidecar that a bound sized for another cuts, or a deployment that wants a tight bound on the fast sidecar without loosening the slow one. Neither has happened: the only two sidecars this repo ships are a filesystem server measured at 154 ms a call and an email server nobody has timed. Its claim was re-derived from the code on 2026-09-19.
-- **[R-386](tasks/386-the-answer-read-holds-the-name-that-was-sent.md)** The answer the folder rule reads holds the name the caller sent (email-confirmer). Reopens when: a third IMAP server, or one whose refusal for a mailbox that is there and shut echoes the name it refused. The first limb is read off the compose files, which name every server image this repo runs (`grep -n 'image:' docker/*.yml`); the second by shutting a mailbox on a server this repo reaches and reading the refusal verbatim. On the probe that reading can move only when its image line or `docker/dovecot/` changes, and it is taken after `just up-imap-probe` by an EXAMINE of `Guarded`, the mailbox there and shut, past the port. The Bridge limb needs a live run against the account. This entry's trail records both readings. Its claim was re-derived from the code on 2026-09-19.
-- **[R-395](tasks/395-a-work-identity-is-copied-by-hand-at-every-hop.md)** A work identity is copied by hand at every hop and nothing ties the copies (tools-mcp). Reopens when: a fifth work identity arriving on `TurnStamp`, or a hop found dropping one of the four that are there. Its claim was re-derived from the code on 2026-09-19.
-- **[R-400](tasks/400-the-keep-in-the-adapters-listing-is-one-account.md)** The keep in the listing the adapter really makes is still proved on one account (email-confirmer). Reopens when: a second server this repo can reach starts flagging a name in a plain LIST and opening it, or the Bridge account whose two flagged parents are the current proof stops being reachable. Both limbs come off one reading, a plain `LIST "" "*"` taken past the port with every listed name opened: on the probe after `just up-imap-probe`, and on the Bridge through `ImapMailbox`. The probe half can move only when its image line in `docker/docker-compose.imap-probe.yml` or the mailboxes `docker/dovecot/probe-mailboxes.sh` builds change; the Bridge half needs a live run against the account. This entry's trail records the counts and the flags each server answered with when that was last run. Its claim was re-derived from the code on 2026-09-19.
-- **[R-410](tasks/410-the-floor-under-a-walk-is-one-file.md)** The floor under a walk is one file, so a collapsed scan still clears it (repo-gates). Reopens when: a printed count comes in below the reading this entry's trail records, with no commit between the two runs that changed an exclusion, a root or a suffix. An exclusion changing and a count dropping is not by itself the trigger: that happened two and a half hours after this entry was opened, in a commit whose own subject was the exclusion. Its claim was re-derived from the code on 2026-09-19.
-- **[R-429](tasks/429-nothing-counts-how-often-the-cpu-re-run-fires.md)** Nothing counts how often the CPU re-run fires, so the doubled hold is sized from reasoning (subagents). Reopens when: a deployment recorded refused at the admission bound, which is the runner's `a spawn was refused before it ran` warning, or a retune of the run deadline or the admission wait. In the tree a retune is a move of `DEFAULT_ADMISSION_WAIT_S` (7200.0, `cortex_core/scheduler.py`), `DEFAULT_SUBAGENT_RUN_TIMEOUT_S` (2400.0) or `ATTEMPTS_PER_ADMISSION` (2, both in `cortex_core/subagents.py`), or a compose file giving `CORTEX_SUBAGENTS_ADMISSION_WAIT_S` or `CORTEX_SUBAGENTS_RUN_TIMEOUT_S` a value, counted by `grep -rnE 'CORTEX_SUBAGENTS_(ADMISSION_WAIT|RUN_TIMEOUT)_S: *[^ ]' docker/`. A value set only in a host's shell or `.env` reaches the brain as well and is outside the tree. Its claim was re-derived from the code on 2026-09-17.
-- **[R-440](tasks/440-the-replay-sample-is-spelled-in-three-places.md)** The replay sample and its window are spelled in four places (repo-gates). Reopens when: the `replay` recipe's defaults line in the `justfile` stops reading `count="5" window="25"`, or any of the prose copies stops saying five and twenty five, since the copies drift the moment one of them moves. A caller passing other values to `just replay` changes neither default and does not fire it. Its claim was re-derived from the code on 2026-09-17.
-- **[R-441](tasks/441-a-token-in-dotenv-reaches-compose-and-not-just.md)** A seam token written in .env reaches compose and never reaches just (seam-auth). Reopens when: an operator keeps the seam token in `.env` rather than in the environment, since that is the first moment the two readers of that file disagree about what is configured. Two readings decide it: `grep -c '^CORTEX_SEAM_TOKEN=' .env` in the checkout (no `.env` exists on 2026-09-17), and `grep -n '^set' justfile`, which prints nothing while no `dotenv-load` has been added. Its claim was re-derived from the code on 2026-09-17.
-- **[R-444](tasks/444-nothing-says-which-log-lines-a-runbook-should-print.md)** Nothing says which log lines a runbook should print (repo-gates). Reopens when: a line somebody wanted during a real failure, and no runbook named, is written down in this file's Trail. That is the evidence the entry says nobody has collected, and it is what decides between the two closes below: a gated criterion needs at least one such line to be written against, and the editorial close needs none. The trigger fires when a Trail bullet here names one, which is checkable by reading this file. Its claim was re-derived from the code on 2026-09-19.
-- **[R-447](tasks/447-a-widened-passage-is-caught-only-by-accident.md)** A roster's passage widened past the list it bounds is caught only by accident (repo-gates). Reopens when: an existing roster's `opens` or `closes` value changes in `scripts/rosters.py`, or a passage's prose before its first name or after its last grows past the figures in this entry's 2026-09-17 trail bullet. The event this entry is about, a widened passage carrying no extra name, reports nothing by construction, so those two readings are the ones a sweep can take. Its claim was re-derived from the code on 2026-09-17.
-- **[R-461](tasks/461-the-tiers-thinking-flag-is-deprecated.md)** The subagent tier's thinking flag is deprecated on the image this repo pulls (subagents). Reopens when: a llama.cpp image whose `--chat-template-kwargs` no longer parses, or a subagent server that fails to start after an image bump; either arrives as a tier that will not come up. The compose files name the floating tag `ghcr.io/ggml-org/llama.cpp:server`, so the image is not in the tree: read the digest `docker buildx imagetools inspect` names for that tag, and on that image check that `strings` over `/app/libllama-common.so*` still carries the deprecation warning quoted below and that `--help` still lists `--chat-template-kwargs`, without starting a server. Its claim was re-derived from the code on 2026-09-17.
-- **[R-468](tasks/468-a-subagent-server-started-outside-compose-is-held-by-a-value.md)** A subagent server started outside compose is held by one value and not by the rule (repo-gates). Reopens when: a second hand-started subagent server appears in a runbook or a host task, or the one that exists is found missing a flag the flag rule requires or spelling one with a value the shipped stack does not. Its claim was re-derived from the code on 2026-09-19.
-- **[R-471](tasks/471-the-lines-ceiling-is-the-least-sampled-cohort.md)** The line's ceiling is the least sampled cohort (cross-cutting). Reopens when: a change to `turn_context.DEFAULT_RECALL_K` or to `ranking.DROPPED_TRAIL_LIMIT`, either of which moves the widest line into a shape this run barely produced. Both are module constants and neither is read from the environment, so the change is a diff in this tree and not a deployment's setting: `grep -rn "DEFAULT_RECALL_K\|DROPPED_TRAIL_LIMIT" brain/packages/*/src` reports every place either is spelled. Its claim was re-derived from the code on 2026-09-19.
-- **[R-495](tasks/495-the-forced-thought-can-leak-its-own-start-tag.md)** A forced end of thought can deliver its own start tag as the answer (inference). Reopens when: a delegated run whose answer is one word, or a budgeted cell of the committed probe counting two or more leaks in a hundred draws, on any tier that ends a thought at the engine. Its claim was re-derived from the code on 2026-09-15.
-- **[R-497](tasks/497-nothing-reports-a-trace-budget-that-went-unread.md)** Nothing reports a trace budget the engine never read (inference). Reopens when: a deployment runs with `CORTEX_REPLY_TRACE_TOKENS` at a positive count while its brain's boot line reads `trace lever probe answered` with `lever=false`, or with `CORTEX_INFERENCE_TRACE_LEVER=off`; or a side call returns an empty reply on an endpoint whose boot probe answered that the engine reads no per-request trace budget. Its claim was re-derived from the code on 2026-09-19.
-- **[R-502](tasks/502-the-substitution-reader-refuses-a-nesting-compose-expands.md)** The substitution reader refuses a nesting compose expands (repo-gates). Reopens when: a commit after 2026-08-30 renames a variable a compose file under `docker/` spends, which is the change a two-variable fallback exists to shim. Checkable with `git log -p -- 'docker/*.yml'`, reading for a spend name one commit removes while adding another; the embedder's and the projector's model-file renames of 2026-08-30 are the only two so far, both taken without a shim. Its claim was re-derived from the code on 2026-09-19.
-- **[R-520](tasks/520-the-compose-artifact-flag-set-names-two-of-the-engines-file-flags.md)** The compose artifact flag set names two of the engine's file flags (repo-gates). Reopens when: a compose service in this tree spends a variable after a llama.cpp file flag outside `ARTIFACT_FLAGS`, a draft model under `--model-draft`, a LoRA adapter under `--lora` or a control vector, which no service here does today. That is countable by reading the command of every service the compose files start and listing the flags it spells. Its claim was re-derived from the code on 2026-09-19.
-- **[R-521](tasks/521-a-settings-method-reading-the-mount-for-anything-but-a-path-is-refused.md)** A settings method reading the mount for anything but a path is refused (repo-gates). Reopens when: a `ModelHostConfig` method other than `_path` needs `models_root` for something that is not an artifact path, reporting the mount on `GET /health` or checking that it exists at startup, which nothing in the sidecar does today. That is countable by reading every method of `ModelHostConfig` and asking which of them name `self.models_root`. Its claim was re-derived from the code on 2026-09-19.
-- **[R-524](tasks/524-the-readers-thought-vocabulary-is-a-hand-list-held-to-nothing-the-model-files-say.md)** The reader's thought vocabulary is a hand list held to nothing the model files say (inference). Reopens when: a pick entering the lineup whose chat template writes a thought marker `scripts/switchtail.py` does not list, or a model file of a listed family whose template changes the marker it writes. Both are countable by the struct walk over each GGUF header's `tokenizer.chat_template` that opened this entry: count the chat templates on the mount and the markers they write, and compare a file's template against a recorded reading of that same file. Its claim was re-derived from the code on 2026-09-15.
-- **[R-526](tasks/526-the-pairs-budget-half-is-inert-beside-the-kwarg.md)** The pair's budget half is inert beside the kwarg, on both families and both builds measured (inference). Reopens when: a llama.cpp build on which a subagent server carrying the kwarg alone writes into the reasoning channel where the pair does not, which is the reading the budget was added on; or the kwarg's deprecation biting, when the argv is being rewritten anyway. Its claim was re-derived from the code on 2026-09-15.
-- **[R-527](tasks/527-one-roster-entrys-two-targets-are-named-by-two-artifact-variables.md)** One roster entry's two placement targets are named by two artifact variables nothing holds together (subagents). Reopens when: a deployment that names different files in `CORTEX_MODEL_FILE_SUBAGENT` and `CORTEX_MODEL_FILE_SUBAGENT_GPU`, whether found by a GPU-placed and an overflowed spawn of the default entry answering differently or by reading the two variables side by side; or the hosted subagent tier gaining a second pick, at which point the pairing has to be written down anyway. Both halves are countable inside the repo: list every place the tree names either variable with a file and compare the strings, reading each mention of either variable with the line after it, since a runbook sentence can wrap the variable and its file onto two lines; and count the tiers `ModelHostConfig().tiers()` declares, with every file variable named, whose artifact field is aliased to a `CORTEX_MODEL_FILE_SUBAGENT` variable. Neither half reads a host's shell or `.env`, where a deployment would really write the second file. Its claim was re-derived from the code on 2026-09-17.
-- **[R-529](tasks/529-the-rendering-column-is-one-builds-sweep-and-an-engine-bump-reopens-it.md)** The rendering column is one build's sweep, and an engine bump reopens every row of it (inference). Reopens when: an engine bump under this stack, meaning the cached image compose starts for the `server-cuda` tag (the model-host base in `brain/Dockerfile.modelhost`) or the `server` tag (both subagents overrides) reporting a llama.cpp build other than b10680 on the GPU runbook's `docker image inspect` label command. Nothing pins a digest, so a pull is the bump. The column is a property of one build's chat handlers, and a handler that started gating its reasoning rule on `enable_thinking` would break it with nothing reporting the break. Its claim was re-derived from the code on 2026-09-19.
-- **[R-541](tasks/541-the-swept-subtask-shapes-are-spelled-in-two-trees-and-held-by-nothing.md)** The swept subtask shapes are spelled in two trees and held by nothing (repo-gates). Reopens when: the driver's default instruction moving, which `git log -S` over its text in `brain/packages/orchestrator/tests/test_envelope_cost_live.py` shows as any commit after the harness's own of 2026-08-26, or a reading at the origin record publishing `stood` alone with `no judge is declared for this shape` for a shape its sweep asked. That phrase occurs once in the origin record today, in the addendum describing the mechanism. Its claim was re-derived from the code on 2026-09-17.
-- **[R-553](tasks/553-which-condition-a-printed-audit-sample-stands-for-is-prose-beside-the-fence.md)** Which condition a printed audit sample stands for is prose beside the fence (repo-gates). Reopens when: a rendered sample of the tool audit's line in `docs/runbooks/tools-mcp.md` whose introducing sentence names a shape other than the one its fields spell, or a whole-line assertion of that line added anywhere in the tools package suite, `brain/packages/tools/tests`, with a field set the runbook's fence does not print. Both are countable: read each sample's field names against the clause introducing it, and compare the set of field lists `scripts/assertedlines.proven` returns for the sink against the set the fence prints. Its claim was re-derived from the code on 2026-09-19.
-- **[R-554](tasks/554-a-whole-line-asserted-through-an-f-string-or-a-helper-is-not-read-as-proven.md)** A whole line asserted through an f-string or a helper is not read as proven (repo-gates). Reopens when: a whole-line assertion whose expected line is not a plain string constant (an f-string, a name the expected line is bound to above the assert, or a helper that builds or compares it) and whose logger and message are those of a call the code reader refuses the field list of, since only such a call's samples are held through this reader. Countable in two steps: list the refused calls by running `logcalls.logged` over every message `logcalls.messages` returns and keeping those raising `UnreadFieldsError`, five calls in four modules on 2026-09-19; then read the package suite beside each for an `assert` whose test is one `==`, with neither side a one-line string constant, that would render one of those calls' logger and message. Binding the *rendered* side to a name fires nothing, and the audit suite already writes one assertion that way. The five f-string whole lines in the tree today fire nothing: two render through the fixture logger `cortex.test`, and three render lines of `cortex_orchestrator.abandon` and `cortex_orchestrator.converse_stream`, whose calls the code reader reads directly. Its claim was re-derived from the code on 2026-09-19.
-- **[R-558](tasks/558-thinking-follows-the-tiers-name-and-not-its-shipped-budget.md)** Thinking follows the tier's name and not its shipped budget (inference). Reopens when: a deployment that starts the cortex or the deep tier with `CORTEX_REASONING_BUDGET` or `CORTEX_REASONING_BUDGET_BRAIN` at anything other than `-1`, and wants the injection harness to draw that tier's lever rows as it runs them. Read it with `grep -n 'CORTEX_REASONING_BUDGET' docker/docker-compose.gpu.yml`, which names both variables and defaults both to `-1` today, and confirm what a tier's tail then holds with `ModelHostConfig(...).tiers()`. Its claim was re-derived from the code on 2026-09-17.
-- **[R-561](tasks/561-a-token-beside-the-models-own-words-is-read-as-a-description.md)** A token beside the model's own words on one line is read as a description (vision). Reopens when: a row prints a cell marked `desc` whose reply carries the token beside words of the model's own rather than inside a report of what the screen or file says, the shape `Sure! ZK9-OVERRIDE` or `DAN: ZK9-DAN`. Its claim was re-derived from the code on 2026-09-19.
-- **[R-570](tasks/570-a-search-of-a-folder-holding-one-unreadable-message-is-refused-whole.md)** A search of a folder holding one unreadable message is refused whole (email). Reopens when: a real account holds a message its server cannot open, and a `search_emails` of that folder whose first `limit` matches include it reads back `the mailbox could not run that search` rather than the messages the server did deliver. Read past the port by searching every folder `list_folders` offers for `ALL` with a limit no smaller than that folder's message count. The live row `test_a_folder_no_mailbox_has_is_refused_by_name_and_by_the_folder_list` searches each folder at a limit of 1, so it fetches only the first message each search returns. Its claim was re-derived from the code on 2026-09-19.
-- **[R-574](tasks/574-a-void-text-row-fails-on-the-harnesss-own-cap.md)** A void text row fails on the harness's own cap (inference). Reopens when: a recorded run of the text arm, `test_injection_defense`, prints a void cell or fails `assert_measured`: a run with `CORTEX_PROBE_BRAIN` set that reaches either mixture-of-experts deep candidate, which the GPU runbook records consuming a whole context and answering nothing, or any later text row whose totals line names a void cell. Its claim was re-derived from the code on 2026-09-19.
-- **[R-581](tasks/581-the-six-line-attacks-have-no-written-hand-rule.md)** The six line attacks have no written hand rule (inference). Reopens when: a printed reply on one of the six whose sort is argued rather than read off the line, which is any reply carrying the token on a line with the model's own words that a sitting wants to count as obedience. Its claim was re-derived from the code on 2026-09-19.
-- **[R-584](tasks/584-the-uid-rows-are-measured-where-the-listing-answers-the-ask.md)** The uid rows are measured where the listing answers the ask (email). Reopens when: `UID_HELP` or `NOT_FOUND` in `brain/packages/email/src/cortex_email/values.py` is reworded, the shipped cortex pick changes (`DEFAULT_CORTEX_FILE` in `brain/packages/model_manager/src/cortex_model_manager/config.py`, the tier whose argv the harness starts), or a second sitting of `test_uid_reading_live.py` is run. Each is a moment the 2026-09-06 counts are read as evidence about what ships; the first two are read with `git log` on those two files. Its claim was re-derived from the code on 2026-09-19.
-- **[R-594](tasks/594-no-workflow-in-this-repository-has-ever-run.md)** No workflow in this repository has ever run (repo-gates). Reopens when: the first run this repository records under either workflow, which needs Actions enabled for the whole repository and is therefore a setting on the account rather than a change in this tree. Its claim was re-derived from the code on 2026-09-19.
-- **[R-599](tasks/599-the-shells-windows-clippy-waits-on-a-resource-step.md)** The shell's Windows clippy waits on a resource step (repo-gates). Reopens when: a release of `tauri-build`, `tauri-winres` or `embed-resource` within the shell's manifest requirement that lets a build for a target it never links skip the resource step, or the first `cfg(windows)` red in the shell that reaches master because the check that would have caught it does not run at the hook. Its claim was re-derived from the code on 2026-09-17.
-- **[R-609](tasks/609-a-declared-mime-type-can-disagree-with-the-bytes-it-labels.md)** A declared mime type can disagree with the bytes it labels (tools-mcp). Reopens when: an inference engine this repo runs refuses or misreads a picture whose `data:` label names another format than its bytes; llama.cpp build 10680 reads all four such pairs tried by their bytes. Its claim was re-derived from the code on 2026-09-19.
-- **[R-631](tasks/631-the-purpose-paragraph-describes-the-scans-by-eye.md)** The Purpose paragraph describes the scans by eye (repo-gates). Reopens when: The Purpose paragraph of `docs/modules/repo-gates.md` is found describing a set of cross-tree scans other than the one `scripts/scanrecipes.py` reads out of the justfile and the workflow. Its claim was re-derived from the code on 2026-09-19.
-- **[R-636](tasks/636-a-cpu-budget-under-one-floors-the-thread-count-to-the-engines-default.md)** A CPU budget under one floors the thread count to the engine's default (subagents). Reopens when: a deployment that sets `CORTEX_SUBAGENTS_CPU_BUDGET` below 1.0, or a brain config change that lets the budget reach a CPU subagent server by any other spelling than the compose substitution both CPU servers read. Its claim was re-derived from the code on 2026-09-19.
-- **[R-637](tasks/637-the-delegated-run-ceilings-were-sized-on-the-unpinned-cpu-tier.md)** The delegated run ceilings were sized on the unpinned CPU tier (subagents). Reopens when: a delegated run on the pinned CPU server that holds its admission for the whole stall ceiling or the whole run deadline while a peer queues behind it, a spawn refused at the admission wait, or any retune of `CORTEX_SUBAGENTS_STALL_TIMEOUT_S`, `CORTEX_SUBAGENTS_RUN_TIMEOUT_S` or `CORTEX_SUBAGENTS_ADMISSION_WAIT_S`. Its claim was re-derived from the code on 2026-09-19.
-- **[R-639](tasks/639-the-envelope-judges-read-no-form.md)** The envelope judges read no form (subagents). Reopens when: a seeded sweep in which runs of the two kinds below, counted by hand beside the machine column because no reader for them is in the tree, lower a control cell's rate until its whole interval lies under the floor, or lower a published cell's delivered rate out of the Wilson interval quoted beside it. Its claim was re-derived from the code on 2026-09-19.
-- **[R-648](tasks/648-nothing-re-asks-the-trace-lever-when-the-engine-moves.md)** Nothing re-asks the trace lever when the engine behind the endpoint moves (inference). Reopens when: a newer llama.cpp pulled under a brain that keeps running, where the new build answers the lever question differently from the answer that brain cached and the documented restart was skipped, which shows as the GPU runbook's own `curl` contradicting the brain's boot line. Its claim was re-derived from the code on 2026-09-19.
-- **[R-650](tasks/650-nothing-holds-a-side-call-to-the-request-level-zero.md)** Nothing holds a new side call to the request-level zero the shipped bounds carry (inference). Reopens when: a `GenerationBounds` call in `brain/packages/*/src` that spells `thinking=False` and no `trace_tokens`, read with `grep -rn 'thinking=False' brain/packages/*/src --include=*.py`. Today that grep prints seven lines: the three bounds named below and four lines of docstring or comment prose. A further code line fires it when its call names no `trace_tokens`, whether it is a fourth side call or `SubagentAttempt`'s bound gaining the switch. Its claim was re-derived from the code on 2026-09-17.
-- **[R-657](tasks/657-the-roster-alternate-hands-the-report-back-under-the-new-sentence.md)** The roster alternate hands the report back under the new sentence too (subagents). Reopens when: a deployment runs the roster alternate, as the `qwen` entry the roster overlay adds or as the default `CORTEX_MODEL_FILE_SUBAGENT` names, and a delegated summarization comes back as the report body it was given. Its claim was re-derived from the code on 2026-09-19.
-- **[R-663](tasks/663-a-figure-that-describes-only-this-machine-is-caught-by-eye.md)** A figure that describes only this machine is caught by eye (repo-gates). Reopens when: a power, clock, temperature or fan reading stands as an absolute in a tracked text file on a line other than the five named as standing in the 2026-09-19 trail bullet, or a document tells an operator to take a card reading and gives a value where it should give the fields to query. The search is `git grep` for a number followed by W, watts, MHz, GHz, °C, a bare C or MT/s. Its claim was re-derived from the code on 2026-09-19.
-- **[R-664](tasks/664-a-startup-traceback-reaches-stderr-with-no-formatter.md)** A startup traceback reaches stderr with no formatter (brain). Reopens when: a startup failure whose exception text carries something the log formatter would withhold, most plausibly a connection URL with a credential inside it. Two readings answer it: `grep -rn "asyncio.run" brain/packages/orchestrator/src` says whether anything guards the entry point, and raising from inside `run_from_env` says what the container's last line looks like. This entry's trail records what both answered when they were last taken. Its claim was re-derived from the code on 2026-09-19.
-- **[R-665](tasks/665-a-settled-handoff-does-not-say-it-was-cut.md)** A settled handoff record does not say whether the answer was cut (inference-model-manager). Reopens when: a consumer in this tree reads a settled handoff's outcome: code that counts handoffs by outcome, or a runbook step that tells a clean `done` record from a cut one. Its claim was re-derived from the code on 2026-09-19.
-- **[R-667](tasks/667-a-dateless-row-is-passed-over-by-the-commit-anchor.md)** A dateless row is passed over by the commit anchor (repo-gates). Reopens when: the ledger's latest pass has a "Drawn from" cell holding no commit this clone resolves while an earlier row's does, whether its pass wrote the row without one or a rewrite moved the commit it recorded and left the earlier one in place, so the standing line counts from a pass that is not the last one and reports more unsampled work than there is. Its claim was re-derived from the code on 2026-09-19.
-- **[R-669](tasks/669-the-fence-obligation-is-over-literals-only.md)** The fence obligation is over literals only (repo-gates). Reopens when: a module under `scripts/` decides whether a line is a fence by testing it against `markdownfences.MARKERS`, or against anything read off that tuple, rather than by asking `Fences`. One search over the modules importing any name from `markdownfences` other than `Fences` and `spelled` answers it, since `CHARACTERS` and `LEAST` are both read off the tuple. Its claim was re-derived from the code on 2026-09-19.
-- **[R-670](tasks/670-the-inward-skip-check-walks-from-the-ignored-directory.md)** The inward skip check walks from the ignored directory (repo-gates). Reopens when: a directory git ignores that `SKIPPED_DIRS` does not prune is itself named `tests` or `_generated`, the two names only the line cap skips, or sits below one, and holds a file the cap selects by suffix and name. The check then reports a file the line cap would never have read. Its claim was re-derived from the code on 2026-09-19.
-- **[R-672](tasks/672-a-wrapped-calls-needle-holds-the-name-rather-than-the-call.md)** A wrapped call's needle holds the name rather than the call (repo-gates). Reopens when: a registry mention whose template is the name and a comma alone, which is what a wrapped call takes. Countable by reading `crosscheck.CONSTANTS` for mentions carrying a `name` whose template renders nothing but `{name},`, and, for each, counting the bounded matches of the rendered needle in the file it names: one match is the call, and a second is the needle holding a spelling that is not the call. Its claim was re-derived from the code on 2026-09-19.
-- **[R-673](tasks/673-the-search-paths-dropped-connection-is-driven-by-no-live-row.md)** The search path's dropped connection is driven by no live row (email). Reopens when: the brain image moves off Python 3.12 (`FROM python:3.12-slim-trixie` in `brain/Dockerfile`, the image the email sidecar runs) or imap-tools moves off 1.13.0 in `brain/uv.lock`, since which class a dropped connection raises is those libraries' choice and the unit row scripts the class itself; or a search on a real server drops its connection and comes back as `SearchRefusedError`, sending a model to rewrite a query that was never the problem. Its claim was re-derived from the code on 2026-09-19.
-- **[R-674](tasks/674-a-nested-copy-of-an-ordering-or-a-membership-is-not-read-as-one.md)** A nested copy of an ordering or a membership is not read as a copy (repo-gates). Reopens when: a second ordering or membership over sites another entry of the same relation already reads, which is countable by walking `crosscheck.CONSTANTS` pairwise over the entries whose relation is not `EQUAL` and asking whether either one's sites are a subsequence of the other's. Its claim was re-derived from the code on 2026-09-19.
-- **[R-675](tasks/675-the-subagent-memory-cap-is-sized-for-the-picks-artifact-alone.md)** The subagent memory cap is sized for the pick's artifact alone (subagents). Reopens when: a deployment that names a `CORTEX_MODEL_FILE_SUBAGENT` or `CORTEX_MODEL_FILE_SUBAGENT_QWEN` artifact larger than about 5.6 GB, or that raises `CORTEX_SUBAGENTS_MAX_TOKENS` or `CORTEX_SUBAGENT_CTX_SIZE` above their shipped defaults, on a container still capped at `CORTEX_SUBAGENTS_MEM_BUDGET_GB` 8. Its claim was re-derived from the code on 2026-09-19.
-- **[R-676](tasks/676-a-third-compose-files-thread-count-is-held-to-no-value.md)** A third CPU subagent server's thread count is held to no value (subagents). Reopens when: any compose file, either shipped subagent file included, starts a third subagent server with `-ngl 0`, which `uv run python flagcheck.py --root ..` in `scripts/` counts in its success line as a fourth server (three on 2026-09-19: the two CPU servers and the model host's hosted tier). Its claim was re-derived from the code on 2026-09-19.
-- **[R-677](tasks/677-a-double-backtick-code-span-is-torn-apart.md)** A double backtick code span is torn apart before the inline shapes are looked for (repo-gates). Reopens when: the first heading quoting something in a double backtick code span, which `backlogcheck` refuses whenever what is quoted holds brackets, an angle-bracket tag or an entity reference. For brackets the printed remedy is the code span the author already wrote; for a tag or an entity it is the shared remedy, which tells the author to drop the quote and write plain text. Its claim was re-derived from the code on 2026-09-19.
-- **[R-679](tasks/679-a-card-timing-outside-the-injection-harness-carries-no-ceiling.md)** A card timing outside the injection harness carries no ceiling (vision). Reopens when: a figure from one of the harnesses below, a turn-cost interval or a decode rate, is published in `docs/` with a date after 2026-09-17 and no card reading beside it. Its claim was re-derived from the code on 2026-09-17.
-- **[R-680](tasks/680-a-needle-spanning-two-lines-keeps-the-whole-file-run.md)** A needle spanning two lines keeps the whole-file run, and it can name the wrong line (repo-gates). Reopens when: a sixth registered needle whose rendered template holds a newline, or a replay of one of the five that do in which the unfound fault names a line the drift is not on. The five are listed by rendering every mention and keeping those holding `\n`: the two compose files that hold `--threads` above its substitution, and three needles whose newline only pins them to the start or the end of a line, in `docs/runbooks/subagents-cpu.md`, `docs/runbooks/llamacpp-gpu.md` and `brain/Dockerfile.modelhost`. Its claim was re-derived from the code on 2026-09-17.
-- **[R-684](tasks/684-a-serving-line-cannot-say-how-long-a-row-ran-under-a-lowered-ceiling.md)** A serving line cannot say how long a row ran under a lowered ceiling (vision). Reopens when: a row whose price is published in `docs/` prints a `card readings every` line with its lowest ceiling ratio under 0.50 of max and its highest above 0.50. Its claim was re-derived from the code on 2026-09-19.
-- **[R-691](tasks/691-the-substitution-reader-refuses-a-brace-compose-reads-as-text.md)** The substitution reader refuses a brace compose reads as text (repo-gates). Reopens when: a commit under `docker/` replaces a literal JSON value in a compose file with a spend, which is the change that would next want the JSON as that spend's default. Checkable with `git log -p -- 'docker/*.yml'`, reading for a removed line whose value opens with `{` and an added one spending a variable in its place; today the JSON values are the subagent roster's endpoint list in `docker/docker-compose.subagents-roster.yml` and the two `enable_thinking` template arguments, all literal. Its claim was re-derived from the code on 2026-09-19.
+- **[R-011](tasks/011-stylesheet-outside-line-cap.md)** The overlay stylesheet outside the line cap (repo-checks). Reopens when: a commit whose diff to `body/app/src/overlay.css` moves a rule to repair which rule wins, or a second `.css` file under `body/app/src`. Its claim was checked against the code on 2026-09-17.
+- **[R-013](tasks/013-couplings-widened-registry-cannot-hold.md)** The couplings the widened registry cannot cover (repo-checks). Reopens when: A third value on the capture-target enum, a reader for declarations in the `.proto` arriving in the scan for another reason, any module outside the body's rpc crate and the brain's body client that has to name one of the two gRPC status codes, or either side of that pair gaining a declaration whose value the scan can read. Its claim was checked against the code on 2026-09-19.
+- **[R-018](tasks/018-ports-without-contract-suite.md)** Ports without a shared contract suite (repo-checks). Reopens when: a Rust port gaining a shared check list, which answers the design question below for Rust; or a Rust test passing over a fake while the adapter it stands in for fails the same expectation, readable in CI for `BrainTransport`, `Sleeper` and `Randomness` and only on the Windows host for the four OS ports. Its claim was checked against the code on 2026-09-17.
+- **[R-023](tasks/023-converse-reconnect-first-event.md)** Safe `converse` reconnect before the first event (rpc-transport). Reopens when: a deployment that sets `CORTEX_ESCALATION`, which is the switch that builds a swap scope at all (`brain/packages/orchestrator/src/cortex_orchestrator/swap_builders.py:103` returns `None` without it), together with turns costly enough that a silent re-run beats paying for dedup. Recheck with `grep -rnE 'CORTEX_ESCALATION: *[^ ]' docker/`: no hit means no shipped file turns the switch on and this has not fired. The gpu overlay passes it through by name, so a host `.env` can. Its claim was checked against the code on 2026-09-17.
+- **[R-024](tasks/024-disconnect-mid-handoff-teardown.md)** A disconnect mid handoff blocks stream teardown (rpc-transport). Reopens when: a client event that does not need the cortex, observed waiting behind a `Cancel`'s restore on a stack running handoffs. That observation is off-tree: no stack here runs a handoff, and `grep -rnE 'CORTEX_ESCALATION: *[^ ]' docker/` finding nothing says no shipped file turns the switch on. The gpu overlay passes it through by name, so a host `.env` can. Its claim was checked against the code on 2026-09-17.
+- **[R-035](tasks/035-stalled-consumer-holds-lease.md)** A stalled consumer holds the GPU lease (session-history). Reopens when: a production path to the `Converse` RPC other than the overlay's one chain, which runs from `body/app/src/overlay/useOverlay.ts` through the shell's `converse` command (`body/app/src-tauri/src/converse.rs`), `RetryingTransport` (`body/crates/core/src/retry.rs`) and the tonic client (`body/crates/rpc/src/converse.rs`); or that command's read loop awaiting anything between two stream items other than the next item. Grepping `.converse(` and `BrainServiceStub` outside test files decides the first: on 2026-09-17 the hits are those four links, the bridge contract's check list `bridgeContract.ts`, and the `seam` package's re-export of the stub. A report of one client stalling another's turn would also fire it and cannot be read from the tree. The stall needs a turn that emits more events than `CORTEX_SEAM_CONVERSE_BUFFER` (default 256, measured at 1), and it delays only work leasing the same manager, which both implementations, `SingleResidentModelManager` and the swap manager, serialize behind one lock. Its claim was checked against the code on 2026-09-17.
+- **[R-041](tasks/041-cross-loop-salience.md)** Cross-loop salience across a batch (tools-mcp). Reopens when: the tool audit trail shows two subagent tasks of one turn (one `turn_id`, two `task_id` values) dispatching the same tool with the same arguments. Its claim was checked against the code on 2026-09-19.
+- **[R-048](tasks/048-fair-share-across-a-batch.md)** A fair-share policy across a batch (tools-mcp). Reopens when: the tool audit trail shows a subagent task refused by the spent turn pool while a sibling task of the same `turn_id` made most of that turn's dispatches. Its claim was checked against the code on 2026-09-19.
+- **[R-073](tasks/073-fence-without-block-recall.md)** Fence-without-block recall mode (untrusted-content). Reopens when: taint-spread on tangential recall proving too blunt. It can only show itself once the memory store holds a tainted row, and a deployment writes one only under `CORTEX_MEMORY_ON_TAINTED=record` (the default `skip` drops a tainted turn from memory), so the cheap reading is `select count(*) filter (where tainted) from memories`, which returned 0 on 2026-09-17. Its claim was checked against the code on 2026-09-17.
+- **[R-082](tasks/082-replayed-quoted-injection.md)** Quoted injection replayed by the plain history window (untrusted-content). Reopens when: a design that needs a later turn to know which of its replayed assistant messages were written on a tainted turn. The tree shows it when a session history message gains a taint or provenance field, and `grep -n taint brain/packages/core/src/cortex_core/conversation.py brain/packages/session/src/cortex_session/store_codec.py` prints nothing on 2026-09-17. Its claim was checked against the code on 2026-09-17.
+- **[R-095](tasks/095-ann-index.md)** ANN index for memory search (memory). Reopens when: `SELECT count(*) FROM memories` in a deployment's pgvector database reaching 75,000 rows while `CORTEX_MEMORY_SCOPE` is `global`, the size at which the exact scan costs a whole recalling turn's time to first token; the recall trail's `available` field reports the same count on every recalled turn when `CORTEX_MEMORY_RECALL_AUDIT` is on. Its claim was checked against the code on 2026-09-17.
+- **[R-097](tasks/097-cross-encoder-rank.md)** A cross-encoder rank (memory). Reopens when: a judge quality reading taken over memories nobody wrote for the measurement (neither the ten notes inline in `test_rerank_judge_live.py` nor the 41 in `recall_corpus.py`), in which the judge drops an answerable note the cosine kept or ranks worse than it; or a first-token or whole-turn latency budget written into an ADR decision or a config bound that the recorded rank cost of 0.877 s, or its +0.515 s on the first token, exceeds. Neither exists in the tree today. The first needs a deployed store's memories, which live in its Postgres volume, so it can enter the tree only as a recorded result. Both depend on `CORTEX_MEMORY_BACKEND` naming a store and `CORTEX_MEMORY_RECALL=judge`, and the cost on `CORTEX_MEMORY_RECALL_POOL_FACTOR` and `DEFAULT_RECALL_K`. Its claim was checked against the code on 2026-09-17.
+- **[R-110](tasks/110-prefill-second-witness.md)** Prefill as the second sign of a spill (inference-model-manager). Reopens when: A spill that decode misses, or a deployment whose deep answers are short enough that decode rarely clears `MIN_CADENCE_TOKENS`, which reads in the log as successful handoffs that mostly write the deep phase's no-decode-rate INFO line rather than its decode-rate line. Its claim was checked against the code on 2026-09-19.
+- **[R-112](tasks/112-resume-crashed-handoff.md)** Resume a crashed handoff from its record (inference-model-manager). Reopens when: the dedup design the `Converse` reconnect entry (R-023) needs, a request id on `UserTurn` or `ClientEvent` plus an idempotency and resume registry keyed by it, after which resuming is a conductor entry point run beside the gRPC server. Recheck with `grep -rniE 'request_id|idempotency' proto/body.proto brain/packages/*/src`: no hit means the design does not exist and this has not fired. Its claim was checked against the code on 2026-09-19.
+- **[R-124](tasks/124-nudge-live-uptake.md)** The spontaneous-pick nudge's live uptake (subagents). Reopens when: A deployment that delegates unprompted and pays for the pile in the user's wall clock. Its claim was checked against the code on 2026-09-19.
+- **[R-127](tasks/127-multi-turn-and-proto-cancel.md)** Multi-turn within one stream plus proto `Cancel` (body-overlay). Reopens when: a record in the tree, a host task or a runbook reading, of a turn the person stopped whose generation went on holding the model lease against their next submit or a model swap. Until that is written down, muting the sink is adequate. CI cannot produce the reading, because the Tauri command that streams a stopped turn to its end runs only on the host. Its claim was checked against the code on 2026-09-17.
+- **[R-162](tasks/162-per-letter-kerning-pairs.md)** Per-letter boxes losing kerning pairs (body-overlay). Reopens when: The overlay adopting a licensed face, which shows up in the tree as `--font` in `body/app/src/overlay.css` naming anything other than the system stack it declares today (`-apple-system, "Segoe UI", system-ui, "Helvetica Neue", sans-serif`), or as any `@font-face` rule under `body/app/`, of which there are none today. Its claim was checked against the code on 2026-09-17.
+- **[R-184](tasks/184-paging-cursor.md)** Paging or a cursor on the read RPCs (session-read-rpc). Reopens when: one reply encodes past 4 MiB, the decoding cap of the body's tonic 0.14.6 client, which no code under `body/` raises (`max_decoding_message_size` appears nowhere there), while the brain's server sets no send cap. For `GetSessionMessages` the summed length of the records that `LRANGE cortex:session:<id>:messages 0 -1` returns is never smaller than the reply, since each record is JSON with the same four fields and more, with non-ASCII text escaped, so a live reading of that sum below 4 MiB for every session means the trigger has not fired. For `ListSessions` the reply holds at most `MAX_SESSION_LIST_LIMIT` (200) recent chats plus every chat kept at the top outside that window, and that set has no cap in the store. Its claim was checked against the code on 2026-09-17.
+- **[R-192](tasks/192-intel-npu-placement-target.md)** The Intel NPU as a third placement target (resource-governance). Reopens when: An NPU device enumerating from inside a container, meaning `Core().get_property("NPU", "AVAILABLE_DEVICES")` returns anything at all. That is one container run: `pip install openvino` over `python:3.12-slim`, with `/dev/dxg` and `/usr/lib/wsl` handed in, then read `available_devices` and that property. This entry's history records what the run returned when it was last taken, and the body records which half of the condition is already met. Its claim was checked against the code on 2026-09-17.
+- **[R-195](tasks/195-queue-depth-bound.md)** A queue-depth bound (resource-governance). Reopens when: The first deployment seen reaching the wait bound, which appears as the runner's `a spawn was refused before it ran` warning (logger `cortex_core.runner`) whose `reason` field contains `outlasts the deployment's admission bound`. The brain writes that line to its container's own output and to no file, so it is read with `docker compose logs brain` and lasts only as long as the container does. The same text is also in the stored `SubagentResult` under `cortex:task:{id}:result` in Redis, whose TTL of 3600 s is half the shipped bound. Its claim was checked against the code on 2026-09-17.
+- **[R-199](tasks/199-sweep-start-not-serialized.md)** The retry pass's start guarded but not ordered (resource-governance). Reopens when: A handoff refused at its fit check, or recorded as having overcommitted, with a peer a retry pass had just started. Either needs a live handoff, which is off-tree, and four settings that all default off: `CORTEX_ESCALATION`, a non-empty `CORTEX_SWAP_EVICT_MODELS`, and `CORTEX_SWAP_BRAIN_VRAM_MIB` (the refusal case) or `CORTEX_SWAP_BRAIN_DECODE_TPS` (the overcommit case). The gpu overlay passes all four through by name, so a host `.env` can set them, and `grep -rnE '(CORTEX_ESCALATION|CORTEX_SWAP_EVICT_MODELS|CORTEX_SWAP_BRAIN_VRAM_MIB|CORTEX_SWAP_BRAIN_DECODE_TPS): *[^ ]' docker/` finding nothing means no shipped file sets any of them. Its claim was checked against the code on 2026-09-17.
+- **[R-200](tasks/200-placer-one-bit-per-card.md)** The placer holds one flag for the whole card (resource-governance). Reopens when: The model host gaining a tier a deployment could correctly list beside the subagent tier, meaning `ModelHostConfig.tiers()` (`brain/packages/model_manager/src/cortex_model_manager/config.py`) declaring a fourth `TierArgs` after `cortex`, `brain` and `subagent-gpu`; or a subagent roster entry gaining a second GPU target beside `gpu_endpoint`. Check with `grep -c 'TierArgs(' brain/packages/model_manager/src/cortex_model_manager/config.py`: 3 means neither has happened. Its claim was checked against the code on 2026-09-17.
+- **[R-214](tasks/214-batching-session-allowlists.md)** Batching and per-tool session allowlists (email-confirmer). Reopens when: a deployment where confirmations arrive often enough that the user starts approving them without reading them. Which tools can produce one is read off the shipped default, `gated` in `brain/packages/orchestrator/src/cortex_orchestrator/config_tools.py`, and how many one turn can raise is `MAX_TOOL_DISPATCHES` in `brain/packages/core/src/cortex_core/tool_budget.py`. This entry's history records what both said when that was last read. Its claim was checked against the code on 2026-09-19.
+- **[R-218](tasks/218-tunnel-fallback.md)** Tunnelling body-directed calls over a body-initiated stream (body-gateway). Reopens when: `host.docker.internal` failing, from a bridge-network container on this host, to reach a host service bound to an interface a container can see. Its claim was checked against the code on 2026-09-17.
+- **[R-219](tasks/219-hardened-non-loopback-posture.md)** A hardened non-loopback posture (body-gateway). Reopens when: ROADMAP assumption 5, the security model in `docs/ROADMAP.md` that says the machine is single-user with loopback-only listeners and a shared-secret token, being revised to admit a second user or a body and brain on different machines; or any compose file, runbook or default in the tree putting a listener where a second machine reaches it past the host firewall the body override relies on. Whether the machine really has one user is not something the tree can record; that assumption is where the tree says so. Its claim was checked against the code on 2026-09-17.
+- **[R-223](tasks/223-safe-core-audio-wrapper.md)** A safe Core Audio wrapper (body-gateway). Reopens when: a crate on crates.io whose public API reads and writes the default render endpoint's master volume and mute with no `unsafe` at the call site, and which does not initialize and uninitialize COM around each call. The second condition is what the nearest crate today fails, and it is read off the crate's source. What such a crate would delete is listed by `grep -n unsafe body/crates/os_windows/src/audio.rs`: four `unsafe` blocks, one `unsafe fn`, and the module's scoped allow, six sites as of 2026-09-17. Its claim was checked against the code on 2026-09-17.
+- **[R-224](tasks/224-unbalanced-com-initialization.md)** Unbalanced COM initialization on the blocking pool (body-gateway). Reopens when: either of two readings. On a Win32 desktop, the watch item in `docs/host/`: a volume or toast call failing with a COM error after a long uptime, or the body process's handle count climbing across bursts of OS actions spaced further apart than tokio's blocking thread keep-alive (10 s by default, and nothing under `body/` sets another), rather than returning to its idle level between them. The thread count is the weaker witness, because tokio exits an idle blocking thread after that keep-alive whatever its apartment. In the tree, `grep -rn 'CoInitializeEx\|CoUninitialize' body/crates/os_windows/src/` reports two initializations and no uninitialization as of 2026-09-17; a third initialization, or any `CoUninitialize`, means the shape below has changed and this entry needs rereading before the observation does. Its claim was checked against the code on 2026-09-17.
+- **[R-249](tasks/249-push-retry-policy.md)** Push retry policy beyond the next poll (scheduling). Reopens when: on a live desktop, a reminder or task outcome whose push failed, which then sat unseen after the body was reachable again until the overlay was next opened, late enough that the user says it mattered. The brain's `push failed; pull will deliver` line marks each fire that fell to the pull path; nothing on either side logs when the overlay pulled it, so how late it was is the user's own report. Its claim was checked against the code on 2026-09-19.
+- **[R-256](tasks/256-jpeg-or-webp-encoding.md)** JPEG or WebP for a photographic screen (vision). Reopens when: either ladder assertion in `body/crates/core/tests/capture_bytes.rs` failing: the four realistic frames on a 4K display, or the same grainy photograph on the three display sizes the second one draws it at, no longer fitting inside `MAX_CAPTURE_BYTES` (6291456, in `body/crates/core/src/os/screen_policy.rs`, the body's copy of the `CORTEX_BODY_MAX_IMAGE_BYTES` default) at the test's `BRAIN_EDGE` (2048, which crosscheck compares against the `CORTEX_BODY_CAPTURE_MAX_EDGE` default). Both assertions are ignored tests that `just check` never runs, so the reading is the hand run `cargo test -p body-core --test capture_bytes --release -- --ignored --nocapture` from `body/`. The frames are synthetic and seeded, so only those two numbers, the downscaler, or the `png` encoder crate can move the result. A deployment that lowers either setting in its own environment is not measured by the test. Its claim was checked against the code on 2026-09-17.
+- **[R-279](tasks/279-confirm-card-offers-an-impossible-handoff.md)** The confirm card offers a handoff the machine cannot run (resource-governance). Reopens when: a user asking why they were asked to approve a deep task that then did not happen, or a deployment configuring escalation without a deep artifact for long enough that the card becomes a nuisance. Both happen outside this repo. What the tree can answer is whether any stack it ships can reach the state: that needs `CORTEX_ESCALATION` set while `CORTEX_MODEL_FILE_BRAIN` keeps its empty default (`docker/docker-compose.gpu.yml:175`). The gpu overlay passes the switch through by name, so a host `.env` can reach the state, and `grep -rnE 'CORTEX_ESCALATION: *[^ ]' docker/` finding nothing says no shipped file does. Its claim was checked against the code on 2026-09-17.
+- **[R-284](tasks/284-the-lookalike-policy-as-the-shipped-default.md)** The lookalike policy as the shipped default (untrusted-content). Reopens when: a deployment measurement of how often a real turn names an internationalized host after reading untrusted content: the sum of `lookalike=` over the `cortex_core.turn_output` lines `the output guardrail removed links from this reply` with `policy=lookalike`, across a week of turns under that policy. Two readings say cheaply whether anything has moved. The shipped default is one binding, so `grep -n output_guardrail brain/packages/orchestrator/src/cortex_orchestrator/config.py` reports whether it is still `redact`. The corpus reading is the count of distinct non-ASCII hosts `URL_RE` finds across every tracked file, each read as `host_of(normalize_url(match.group(), confusables=False))`, the expression `_UrlRedactingFilter._flagged` uses for the lookalike rule; it stood at 12 on 2026-09-08, 2026-09-11 and 2026-09-17. Its claim was checked against the code on 2026-09-17.
+- **[R-286](tasks/286-user-half-of-an-opaque-turn.md)** The user's half of an opaque turn (vision). Reopens when: a report, written on this entry's history or as a host task, of a sentence a user asked the assistant to remember during an opaque turn and could not recall later. The loss needs two settings together: memory recorded at all (`CORTEX_MEMORY_BACKEND=pgvector`, which the memory overlay sets), and a turn that can go opaque, meaning `capture_screen` registered (`CORTEX_BODY_BACKEND=grpc` with `CORTEX_VISION` at `on` or its `auto` default) or an MCP tool that returns an image block. `CORTEX_MEMORY_ON_TAINTED` does not change it, because the opaque return comes before that setting is read. Its claim was checked against the code on 2026-09-17.
+- **[R-291](tasks/291-a-red-sweep-leaves-no-trace-in-the-repo.md)** A failing scheduled run leaves no trace in the repo (repo-checks). Reopens when: the first run this repository records under `shuffle.yml`, since every remedy below needs a run to exist and none can. Actions is off for the whole repository, which is a setting on the account rather than a change in this tree, and R-594 is the entry that waits on the setting. Its claim was checked against the code on 2026-09-19.
+- **[R-293](tasks/293-a-red-gate-run-named-no-tree.md)** A failing check run that named no tree (repo-checks). Reopens when: the next failing `just check` whose whole output is kept, which names its tree in a `=== check-<tree>: FAILED ===` marker and its seed in the failing suite's own header, that being the one form of this failure a later pass can reproduce from. Its claim was checked against the code on 2026-09-19.
+- **[R-294](tasks/294-one-match-yields-one-identity.md)** One match yields one identity (untrusted-content). Reopens when: a second written form whose span has two valid readings, or the mixed dot-and-gap host reaching a real reply on this machine, either of which would make a two-reading defence buy more than the one form already declined. The cheap recheck is whether the assumption is still four call sites: `extract_urls` in `brain/packages/core/src/cortex_core/urls.py`, `URL_RE.sub` and the trailing-punctuation trim in `brain/packages/core/src/cortex_core/guardrail.py`, and the `last.start()` read in `brain/packages/core/src/cortex_core/url_holdback.py`. One `grep -rn 'URL_RE\.\|rstrip(TRAILING_PUNCTUATION)\|last\.end()' brain/packages/core/src/cortex_core/` prints six lines, five of them the four sites; the sixth is the trim `normalize_url` performs inside the identity reduction in `url_identity.py`, which reads one matched string and assumes nothing about how many readings its span has. The second condition cannot be decided from the tree, since a reply lives in the session store. The first is read off `url_spellings.py`. Its claim was checked against the code on 2026-09-17.
+- **[R-296](tasks/296-trace-budget-quality-floor.md)** What a bounded trace costs a hard answer is unmeasured (inference-model-manager). Reopens when: a `CORTEX_REASONING_BUDGET` or `CORTEX_REASONING_BUDGET_BRAIN` default in `docker/docker-compose.gpu.yml` other than `-1`, or `CORTEX_REPLY_TRACE_TOKENS` given a value by any compose file, recipe or env file in this tree, or a recorded run in this repo where the cortex or the deep tier answers a question wrong at a bounded or zero budget and right at the unbounded default. Its claim was checked against the code on 2026-09-19.
+- **[R-300](tasks/300-shell-job-never-ran-on-a-runner.md)** The shell clippy job has never run on a runner (repo-checks). Reopens when: the first run of `ci.yml` whose `changes` job sets `shell=true`, which is the first time this job executes at all. None can happen while Actions stays off for the repository, which is R-594's subject, and the reading is `gh api repos/<owner>/<repo>/actions/workflows/ci.yml/runs`, whose `total_count` is 0. Its claim was checked against the code on 2026-09-17.
+- **[R-310](tasks/310-a-pass-that-starts-the-cortex.md)** Nothing starts a stopped cortex outside boot, and no operator command exists (inference-model-manager). Reopens when: a cortex that stops while the brain and the model host both keep running, which is the one state neither boot path covers, or a second visit to the runbook's step 2. Both are operator events, so the cheap recheck is whether the code has moved: `brain/packages/core/src/cortex_core/residency_regain.py` still calls `host.status` twice and `host.start` never, `proto/body.proto` still declares 16 RPCs across its two services with none of them an operator command, and the model host's control API still offers the four routes it shipped with (`/health`, `GET /models/{model}`, and start and stop, in `brain/packages/model_manager/src/cortex_model_manager/api.py`). Its claim was checked against the code on 2026-09-19.
+- **[R-311](tasks/311-wrap-width-trigger-completeness.md)** A wrap width change with no resize event behind it (body-overlay). Reopens when: the panel's width ceasing to be derived from the viewport, whether by a user-resizable panel, a width read from the appearance record, or a layout that gives the log a width of its own. In the tree that reads as the `.panel` rule's `width: min(560px, 92vw)` in `body/app/src/overlay.css` changing, or as a script writing a width to anything but a whisper bubble or its text: `grep -rn 'style.width' body/app/src --exclude='*.test.*'` finds four writes today, all in `whisper/useWhisperClock.ts`. Its claim was checked against the code on 2026-09-17.
+- **[R-321](tasks/321-a-spill-nobody-saw-is-forgotten.md)** A spill nobody was awake for is forgotten by design (inference-model-manager). Reopens when: an operator asks whether a slow deep task has happened before, or a second per handoff result arrives that is worth counting rather than displaying. The failed handoff's reason arrived three days after this entry was opened and is not one of those: it was decided on 2026-09-15 as neither counted nor displayed, and R-379 closed on that. Checking the counting half is one reading: nothing in the brain keeps a per handoff row that outlives its handoff, `HandoffSettler._settle` deleting a `DONE` record outright and the Redis adapter expiring a `FAILED` one after an hour, so a count still has nowhere to live. Its claim was checked against the code on 2026-09-19.
+- **[R-334](tasks/334-a-heading-whose-brackets-are-prose.md)** A heading whose brackets are prose has no way to say so (repo-checks). Reopens when: the first heading somebody wants to write with a pair of brackets in prose, which the heading rule refuses whatever follows them and which a code span cannot express, monospace being wrong for prose. Its claim was checked against the code on 2026-09-19.
+- **[R-335](tasks/335-the-relays-share-one-shell.md)** The two coverage arguments are safe only because they share one shell (repo-checks). Reopens when: `grep -rnE 'python[^#]*coverage_gate' justfile .github .pre-commit-config.yaml` stops returning exactly one line, the `check-body` recipe's run of the check; or that line stops filling `--rustc` and `--llvm-cov` from two command substitutions of its own, whether by splitting them across recipe lines, which just runs in separate shells, or by reading either from an environment variable, a file or a CI step's output. The arrangement also depends on the `justfile` setting no `shell`, so each recipe line is one `sh -cu`, and on both substitutions naming the toolchain as `+nightly`, which no directory override can change. Its claim was checked against the code on 2026-09-17.
+- **[R-336](tasks/336-packed-values-keep-their-whole-length.md)** Packed values keep their whole length (cross-cutting). Reopens when: a deployment that really sets `CORTEX_LOG_FORMAT=packed`, or a collector in front of it that reads entries rather than lines. Both come off the compose files: `grep -rn "LOG_FORMAT" docker/` reports the rendering each service ships with, and the services those files declare are where a collector would be. The history below records what that reading answered when it was last taken, and what a packed line of the widest shipped record measures. Its claim was checked against the code on 2026-09-19.
+- **[R-343](tasks/343-a-userinfo-the-pattern-cannot-reach.md)** The credential pattern misses three kinds of URL (cross-cutting). Reopens when: a credential reaching a log line inside a URL the pattern does not match, most likely a hand-written connection string in an environment variable whose password was never percent-encoded. The variables that could contain one are read off the compose files, `grep -rn "://" docker/*.yml`, and each form is checked by putting the URL through `render_value`, through each formatter twice, as a field and as a message, and through the tool audit file's `durable_value`, which is six results and not one. The history below records what the shipped URLs and each form answered when that was last run. Its claim was checked against the code on 2026-09-19.
+- **[R-347](tasks/347-a-transparent-turn-keeps-the-inner-id.md)** A turn nobody escalated completes under whatever id the inner runner used (inference-model-manager). Reopens when: either half of the agreement moves: `EscalatingTurnEngine(` gains a construction site other than the one in `cortex_orchestrator/engines.py`, or that site's factory returns anything but `self._turn_engine(...)`; or `TurnEngine.handle_turn` in `cortex_core/engine.py` stops completing with `TurnCompleted(turn_id=turn_id, ...)`, the id it was handed. Both are a grep. The path only runs with `CORTEX_ESCALATION` on, since with it off `for_stream` returns the plain engine and no wrapper exists. Its claim was checked against the code on 2026-09-17.
+- **[R-359](tasks/359-the-table-detector-is-refused-not-impossible.md)** A check on a mutation table's wording was refused by the corpus, not by the idea (repo-checks). Reopens when: at least fifty commit messages match the `replay` recipe's vocabulary (`git log -i -E --grep=redden --grep=mutant --grep=mutation --grep='prove[a-z]* able to fail'`, 17 on 2026-09-19), and the most recent fifty of them all name a path this repository tracks and the suite their counts are over, at which point the refusal rate that refused the check is zero. The path half is a script over `git ls-files`; the suite half is a reader's judgement, having no machine form. Its claim was checked against the code on 2026-09-19.
+- **[R-360](tasks/360-a-read-that-will-not-fit-declines-early.md)** A read RPC with milliseconds left still spends the round trip (rpc-transport). Reopens when: A store read whose duration is measured rather than guessed, meaning a distribution this repo keeps rather than one number somebody picked; or the body's own bound ceasing to be shorter than the deadline it announces, which is what currently makes the handler's own return worth so little. Recheck the second half with `grep -n ANNOUNCED_DEADLINE_GRACE_MS body/crates/core/src/retry/plan.rs`: a positive constant there means the announced deadline is still the longer of the two and this has not fired. Recheck the first with `grep -rln 'perf_counter\|time.monotonic' brain/packages/session`: no output means the store adapter times nothing, and the 2026-09-17 reading found no test timing a served read either. Separately, `grep -rln time_remaining brain/packages/orchestrator/src` listing only `abandon.py` means no handler branches on the clock yet. The read handlers live in three files (`session_servicer.py`, `preference_servicer.py` and `server.py`), so a grep of one of them cannot answer that. Its claim was checked against the code on 2026-09-17.
+- **[R-362](tasks/362-one-bound-for-every-sidecar.md)** One bound covers every sidecar, so a file read and a mailbox search share a limit (tools-mcp). Reopens when: A legitimate call on one sidecar that a bound sized for another cuts, or a deployment that wants a tight bound on the fast sidecar without loosening the slow one. Neither has happened: the only two sidecars this repo ships are a filesystem server measured at 154 ms a call and an email server nobody has timed. Its claim was checked against the code on 2026-09-19.
+- **[R-386](tasks/386-the-answer-read-holds-the-name-that-was-sent.md)** The refusal the folder rule reads can contain the name the caller sent (email-confirmer). Reopens when: a third IMAP server, or one whose refusal for a mailbox that exists but is closed repeats the name it refused. The first part is read off the compose files, which name every server image this repo runs (`grep -n 'image:' docker/*.yml`); the second by closing a mailbox on a server this repo reaches and reading the refusal verbatim. On the probe that reading can change only when its image line or `docker/dovecot/` changes, and it is taken after `just up-imap-probe` by an EXAMINE of `Guarded`, the mailbox there that is closed, through the port. The Bridge part needs a live run against the account. The history below records both readings. Its claim was checked against the code on 2026-09-19.
+- **[R-395](tasks/395-a-work-identity-is-copied-by-hand-at-every-hop.md)** A work identity is copied by hand at every step and nothing ties the copies (tools-mcp). Reopens when: a fifth work identity arriving on `TurnStamp`, or a step found dropping one of the four that are there. Its claim was checked against the code on 2026-09-19.
+- **[R-400](tasks/400-the-keep-in-the-adapters-listing-is-one-account.md)** The keep branch in the listing the adapter really makes is proved on one account (email-confirmer). Reopens when: a second server this repo can reach starts flagging a name in a plain LIST and opening it, or the Bridge account whose two flagged parents are the current proof stops being reachable. Both parts come off one reading, a plain `LIST "" "*"` taken through the port with every listed name opened: on the probe after `just up-imap-probe`, and on the Bridge through `ImapMailbox`. The probe part can change only when its image line in `docker/docker-compose.imap-probe.yml` or the mailboxes `docker/dovecot/probe-mailboxes.sh` builds change; the Bridge part needs a live run against the account. The history below records the counts and the flags each server answered with when that was last run. Its claim was checked against the code on 2026-09-19.
+- **[R-410](tasks/410-the-floor-under-a-walk-is-one-file.md)** The minimum under a walk is one file, so a collapsed scan still clears it (repo-checks). Reopens when: a printed count comes in below the reading recorded in this entry's history, with no commit between the two runs that changed an exclusion, a root or a suffix. An exclusion changing and a count dropping is not by itself the trigger: that happened two and a half hours after this entry was opened, in a commit whose own subject was the exclusion. Its claim was checked against the code on 2026-09-19.
+- **[R-429](tasks/429-nothing-counts-how-often-the-cpu-re-run-fires.md)** Nothing counts how often the CPU re-run happens, so the doubled hold is sized from reasoning (subagents). Reopens when: a deployment recorded refused at the admission bound, which is the runner's `a spawn was refused before it ran` warning, or a retune of the run deadline or the admission wait. In the tree a retune is a move of `DEFAULT_ADMISSION_WAIT_S` (7200.0, `cortex_core/scheduler.py`), `DEFAULT_SUBAGENT_RUN_TIMEOUT_S` (2400.0) or `ATTEMPTS_PER_ADMISSION` (2, both in `cortex_core/subagents.py`), or a compose file giving `CORTEX_SUBAGENTS_ADMISSION_WAIT_S` or `CORTEX_SUBAGENTS_RUN_TIMEOUT_S` a value, counted by `grep -rnE 'CORTEX_SUBAGENTS_(ADMISSION_WAIT|RUN_TIMEOUT)_S: *[^ ]' docker/`. A value set only in a host's shell or `.env` reaches the brain as well and is outside the tree. Its claim was checked against the code on 2026-09-17.
+- **[R-440](tasks/440-the-replay-sample-is-spelled-in-three-places.md)** The replay sample and its window are written in four places (repo-checks). Reopens when: the `replay` recipe's defaults line in the `justfile` stops reading `count="5" window="25"`, or any of the prose copies stops saying five and twenty five, since the copies come apart the moment one of them moves. A caller passing other values to `just replay` changes neither default and does not fire it. Its claim was checked against the code on 2026-09-17.
+- **[R-441](tasks/441-a-token-in-dotenv-reaches-compose-and-not-just.md)** A token written in .env reaches compose and never reaches just (rpc-auth). Reopens when: an operator keeps `CORTEX_SEAM_TOKEN` in `.env` rather than in the environment, since that is the first moment the two readers of that file disagree about what is configured. Two readings decide it: `grep -c '^CORTEX_SEAM_TOKEN=' .env` in the checkout (no `.env` exists on 2026-09-17), and `grep -n '^set' justfile`, which prints nothing while no `dotenv-load` has been added. Its claim was checked against the code on 2026-09-17.
+- **[R-444](tasks/444-nothing-says-which-log-lines-a-runbook-should-print.md)** Nothing says which log lines a runbook should print (repo-checks). Reopens when: a line somebody wanted during a real failure, and no runbook named, is written down in this file's History section. That is the evidence this entry says nobody has collected, and it is what decides between the two closes below: a criterion a check enforces needs at least one such line to be written against, and the editorial close needs none. The trigger fires when a History entry here names one, which a reader can check by reading this file. Its claim was checked against the code on 2026-09-19.
+- **[R-447](tasks/447-a-widened-passage-is-caught-only-by-accident.md)** A list's passage widened past the names it bounds is caught only by accident (repo-checks). Reopens when: an existing list's `opens` or `closes` value changes in `scripts/rosters.py`, or a passage's prose before its first name or after its last grows past the figures in this entry's 2026-09-17 history entry. The event this entry is about, a widened passage containing no extra name, reports nothing, so those two readings are what a review can take. Its claim was checked against the code on 2026-09-17.
+- **[R-461](tasks/461-the-tiers-thinking-flag-is-deprecated.md)** The subagent tier's thinking flag is deprecated on the image this repo pulls (subagents). Reopens when: a llama.cpp image whose `--chat-template-kwargs` no longer parses, or a subagent server that fails to start after an image bump; either arrives as a tier that will not come up. The compose files name the floating tag `ghcr.io/ggml-org/llama.cpp:server`, so the image is not in the tree: read the digest `docker buildx imagetools inspect` names for that tag, and on that image check that `strings` over `/app/libllama-common.so*` still contains the deprecation warning quoted below and that `--help` still lists `--chat-template-kwargs`, without starting a server. Its claim was checked against the code on 2026-09-17.
+- **[R-468](tasks/468-a-subagent-server-started-outside-compose-is-held-by-a-value.md)** A subagent server started outside compose is checked on one value and not by the rule (repo-checks). Reopens when: a second hand-started subagent server appears in a runbook or a host task, or the one that exists is found missing a flag the flag rule requires or writing one with a value the shipped stack does not use. Its claim was checked against the code on 2026-09-19.
+- **[R-471](tasks/471-the-lines-ceiling-is-the-least-sampled-cohort.md)** The widest trail line comes from the least sampled cohort (cross-cutting). Reopens when: a change to `turn_context.DEFAULT_RECALL_K` or to `ranking.DROPPED_TRAIL_LIMIT`, either of which moves the widest line into a shape this run barely produced. Both are module constants and neither is read from the environment, so the change is a diff in this tree and not a deployment's setting: `grep -rn "DEFAULT_RECALL_K\|DROPPED_TRAIL_LIMIT" brain/packages/*/src` reports every place either is written. Its claim was checked against the code on 2026-09-19.
+- **[R-495](tasks/495-the-forced-thought-can-leak-its-own-start-tag.md)** A forced end of thought can deliver its own start tag as the answer (inference). Reopens when: a delegated run whose answer is one word, or a budgeted cell of the committed probe counting two or more leaks in a hundred draws, on any tier that ends a thought at the engine. Its claim was checked against the code on 2026-09-15.
+- **[R-502](tasks/502-the-substitution-reader-refuses-a-nesting-compose-expands.md)** The substitution reader refuses a nesting compose expands (repo-checks). Reopens when: a commit after 2026-08-30 renames a variable a compose file under `docker/` uses, which is the change a two-variable fallback exists to cover. Checkable with `git log -p -- 'docker/*.yml'`, reading for a variable name one commit removes while adding another; the embedder's and the projector's model-file renames of 2026-08-30 are the only two so far, both taken without a fallback. Its claim was checked against the code on 2026-09-19.
+- **[R-520](tasks/520-the-compose-artifact-flag-set-names-two-of-the-engines-file-flags.md)** The compose artifact flag set names two of the engine's file flags (repo-checks). Reopens when: a compose service in this tree uses a variable after a llama.cpp file flag outside `ARTIFACT_FLAGS`, a draft model under `--model-draft`, a LoRA adapter under `--lora` or a control vector, which no service here does today. That is countable by reading the command of every service the compose files start and listing the flags it uses. Its claim was checked against the code on 2026-09-19.
+- **[R-521](tasks/521-a-settings-method-reading-the-mount-for-anything-but-a-path-is-refused.md)** A settings method reading the mount for anything but a path is refused (repo-checks). Reopens when: a `ModelHostConfig` method other than `_path` needs `models_root` for something that is not an artifact path, reporting the mount on `GET /health` or checking that it exists at startup, which nothing in the sidecar does today. That is countable by reading every method of `ModelHostConfig` and asking which of them name `self.models_root`. Its claim was checked against the code on 2026-09-19.
+- **[R-524](tasks/524-the-readers-thought-vocabulary-is-a-hand-list-held-to-nothing-the-model-files-say.md)** The reader's thought vocabulary is a hand list checked against nothing the model files say (inference). Reopens when: a pick entering the lineup whose chat template writes a thought marker `scripts/switchtail.py` does not list, or a model file of a listed family whose template changes the marker it writes. Both are countable by the struct walk over each GGUF header's `tokenizer.chat_template` that opened this entry: count the chat templates on the mount and the markers they write, and compare a file's template against a recorded reading of that same file. Its claim was checked against the code on 2026-09-15.
+- **[R-526](tasks/526-the-pairs-budget-half-is-inert-beside-the-kwarg.md)** The pair's budget half has no effect beside the kwarg, on both families and both builds measured (inference). Reopens when: a llama.cpp build on which a subagent server using the kwarg alone writes into the reasoning channel where the pair does not, which is the reading the budget was added on; or the kwarg's deprecation taking effect, when the argv is being rewritten anyway. Its claim was checked against the code on 2026-09-15.
+- **[R-527](tasks/527-one-roster-entrys-two-targets-are-named-by-two-artifact-variables.md)** One roster entry's two placement targets are named by two artifact variables nothing compares (subagents). Reopens when: a deployment that names different files in `CORTEX_MODEL_FILE_SUBAGENT` and `CORTEX_MODEL_FILE_SUBAGENT_GPU`, whether found by a GPU-placed and an overflowed spawn of the default entry answering differently or by reading the two variables side by side; or the hosted subagent tier gaining a second pick, at which point the pairing has to be written down anyway. Both halves are countable inside the repo: list every place the tree names either variable with a file and compare the strings, reading each mention of either variable with the line after it, since a runbook sentence can wrap the variable and its file onto two lines; and count the tiers `ModelHostConfig().tiers()` declares, with every file variable named, whose artifact field is aliased to a `CORTEX_MODEL_FILE_SUBAGENT` variable. Neither half reads a host's shell or `.env`, where a deployment would really write the second file. Its claim was checked against the code on 2026-09-17.
+- **[R-529](tasks/529-the-rendering-column-is-one-builds-sweep-and-an-engine-bump-reopens-it.md)** The rendering column is one build's measurement, and an engine bump reopens every row of it (inference). Reopens when: an engine bump under this stack, meaning the cached image compose starts for the `server-cuda` tag (the model-host base in `brain/Dockerfile.modelhost`) or the `server` tag (both subagents overrides) reporting a llama.cpp build other than b10680 on the GPU runbook's `docker image inspect` label command. Nothing fixes a digest, so a pull is the bump. The column is a property of one build's chat handlers, and a handler that started reading `enable_thinking` in its reasoning rule would break it with nothing reporting the break. Its claim was checked against the code on 2026-09-19.
+- **[R-541](tasks/541-the-swept-subtask-shapes-are-spelled-in-two-trees-and-held-by-nothing.md)** The measured subtask instructions are written in two trees and no check compares them (repo-checks). Reopens when: the driver's default instruction changing, which `git log -S` over its text in `brain/packages/orchestrator/tests/test_envelope_cost_live.py` shows as any commit after the harness's own of 2026-08-26; or a reading at the origin record publishing `stood` alone with `no judge is declared for this shape` for an instruction its measurement asked. That phrase occurs once in the origin record today, in the decision describing the mechanism. Its claim was checked against the code on 2026-09-17.
+- **[R-553](tasks/553-which-condition-a-printed-audit-sample-stands-for-is-prose-beside-the-fence.md)** Which condition a printed audit sample stands for is only stated in prose (repo-checks). Reopens when: a printed sample of the tool audit's line in `docs/runbooks/tools-mcp.md` whose introducing sentence names a condition other than the one its fields describe, or a whole-line assertion of that line added anywhere under `brain/packages/tools/tests` with a field set the runbook does not print. Both are countable: read each sample's field names against the clause introducing it, and compare the set of field lists `scripts/assertedlines.proven` returns for this sink with the set the runbook prints. Its claim was checked against the code on 2026-09-19.
+- **[R-554](tasks/554-a-whole-line-asserted-through-an-f-string-or-a-helper-is-not-read-as-proven.md)** A whole line asserted through an f-string or a helper is not read as asserted (repo-checks). Reopens when: a whole-line assertion whose expected line is not a plain string constant (an f-string, a name the expected line is bound to above the assert, or a helper that builds or compares it) and whose logger and message belong to a call whose field list the code reader cannot read, since only such a call's samples go through this reader. Count it in two steps: list the calls the reader cannot read by running `logcalls.logged` over every message `logcalls.messages` returns and keeping those that raise `UnreadFieldsError`, five calls in four modules on 2026-09-19; then read the package suite beside each for an `assert` whose test is one `==`, with neither side a one-line string constant, that would produce one of those calls' logger and message. Binding the produced side to a name does not count, and the audit suite already writes one assertion that way. Its claim was checked against the code on 2026-09-19.
+- **[R-558](tasks/558-thinking-follows-the-tiers-name-and-not-its-shipped-budget.md)** Thinking follows the tier's name and not its shipped budget (inference). Reopens when: a deployment that starts the cortex or the deep tier with `CORTEX_REASONING_BUDGET` or `CORTEX_REASONING_BUDGET_BRAIN` at anything other than `-1` and wants the injection harness to draw that tier's rows as it runs them. Read it with `grep -n 'CORTEX_REASONING_BUDGET' docker/docker-compose.gpu.yml`, which names both variables and defaults both to `-1` today, and confirm what a tier's flag tail then has with `ModelHostConfig(...).tiers()`. Its claim was checked against the code on 2026-09-17.
+- **[R-561](tasks/561-a-token-beside-the-models-own-words-is-read-as-a-description.md)** A token beside the model's own words on one line is read as a description (vision). Reopens when: a row prints a cell marked `desc` whose reply has the token beside words of the model's own rather than inside a report of what the screen or file says, as in `Sure! ZK9-OVERRIDE` or `DAN: ZK9-DAN`. Its claim was checked against the code on 2026-09-19.
+- **[R-570](tasks/570-a-search-of-a-folder-holding-one-unreadable-message-is-refused-whole.md)** A search of a folder holding one unreadable message is refused whole (email). Reopens when: a real account holds a message its server cannot open, and a `search_emails` of that folder whose first `limit` matches include it reads back `the mailbox could not run that search` rather than the messages the server did deliver. Read it past the port by searching every folder `list_folders` offers for `ALL` with a limit no smaller than that folder's message count. The live test `test_a_folder_no_mailbox_has_is_refused_by_name_and_by_the_folder_list` searches each folder at a limit of 1, so it fetches only the first message each search returns. Its claim was checked against the code on 2026-09-19.
+- **[R-574](tasks/574-a-void-text-row-fails-on-the-harnesss-own-cap.md)** A text row that comes back empty fails on the harness's own cap (inference). Reopens when: a recorded run of the text row, `test_injection_defense`, prints a void cell or fails `assert_measured`: a run with `CORTEX_PROBE_BRAIN` set that reaches either mixture-of-experts deep candidate, which the GPU runbook records consuming a whole context and answering nothing, or any later text row whose totals line names a void cell. Its claim was checked against the code on 2026-09-19.
+- **[R-581](tasks/581-the-six-line-attacks-have-no-written-hand-rule.md)** The six line attacks have no written hand rule (inference). Reopens when: a printed reply on one of the six whose reading is argued rather than read off the line, which is any reply with the token on a line beside the model's own words that a session wants to count as obedience. Its claim was checked against the code on 2026-09-19.
+- **[R-584](tasks/584-the-uid-rows-are-measured-where-the-listing-answers-the-ask.md)** The uid rows are measured where the listing already answers the request (email). Reopens when: `UID_HELP` or `NOT_FOUND` in `brain/packages/email/src/cortex_email/values.py` is reworded, the shipped cortex pick changes (`DEFAULT_CORTEX_FILE` in `brain/packages/model_manager/src/cortex_model_manager/config.py`), or a second run of `test_uid_reading_live.py` happens. Each is a moment the 2026-09-06 counts are read as evidence about what ships; the first two are read with `git log` on those two files. Its claim was checked against the code on 2026-09-19.
+- **[R-594](tasks/594-no-workflow-in-this-repository-has-ever-run.md)** No workflow in this repository has ever run (repo-checks). Reopens when: the first run this repository records under either workflow, which needs Actions enabled for the whole repository and is therefore a setting on the account rather than a change in this tree. Its claim was checked against the code on 2026-09-19.
+- **[R-599](tasks/599-the-shells-windows-clippy-waits-on-a-resource-step.md)** The shell's Windows clippy waits on a resource step (repo-checks). Reopens when: a release of `tauri-build`, `tauri-winres` or `embed-resource` within the shell's manifest requirement that lets a build for a target it never links skip the resource step, or the first `cfg(windows)` failure in the shell that reaches master because the check that would have caught it does not run at the hook. Its claim was checked against the code on 2026-09-17.
+- **[R-609](tasks/609-a-declared-mime-type-can-disagree-with-the-bytes-it-labels.md)** A declared mime type can disagree with the bytes it labels (tools-mcp). Reopens when: an inference engine this repo runs refuses or misreads a picture whose `data:` label names another format than its bytes; llama.cpp build 10680 reads all four such pairs tried by their bytes. Its claim was checked against the code on 2026-09-19.
+- **[R-631](tasks/631-the-purpose-paragraph-describes-the-scans-by-eye.md)** The Purpose paragraph describes the scans by eye (repo-checks). Reopens when: The Purpose paragraph of `docs/modules/repo-checks.md` is found describing a set of cross-tree scans other than the one `scripts/scanrecipes.py` reads out of the justfile and the workflow. Its claim was checked against the code on 2026-09-19.
+- **[R-636](tasks/636-a-cpu-budget-under-one-floors-the-thread-count-to-the-engines-default.md)** A CPU budget under one makes the thread count fall back to the engine's default (subagents). Reopens when: a deployment that sets `CORTEX_SUBAGENTS_CPU_BUDGET` below 1.0, or a brain config change that lets the budget reach a CPU subagent server by any route other than the compose substitution both CPU servers read. Its claim was checked against the code on 2026-09-19.
+- **[R-637](tasks/637-the-delegated-run-ceilings-were-sized-on-the-unpinned-cpu-tier.md)** The delegated run ceilings were sized on the CPU tier's default thread count (subagents). Reopens when: a delegated run on the CPU server that holds its admission for the whole stall ceiling or the whole run deadline while a peer queues behind it, a spawn refused at the admission wait, or any retune of `CORTEX_SUBAGENTS_STALL_TIMEOUT_S`, `CORTEX_SUBAGENTS_RUN_TIMEOUT_S` or `CORTEX_SUBAGENTS_ADMISSION_WAIT_S`. Its claim was checked against the code on 2026-09-19.
+- **[R-639](tasks/639-the-envelope-judges-read-no-form.md)** The envelope checks read no structure (subagents). Reopens when: a seeded review in which replies of the two kinds below, counted by hand beside the machine column because no reader for them is in the tree, lower a control cell's rate until its whole interval lies under the floor, or lower a published cell's delivered rate out of the Wilson interval quoted beside it. Its claim was checked against the code on 2026-09-19.
+- **[R-648](tasks/648-nothing-re-asks-the-trace-lever-when-the-engine-moves.md)** Nothing asks the trace setting again when the engine behind the endpoint moves (inference). Reopens when: a newer llama.cpp pulled under a brain that keeps running, where the new build answers the trace question differently from the answer that brain cached and the documented restart was skipped, which shows as the GPU runbook's own `curl` contradicting the brain's boot line. Its claim was checked against the code on 2026-09-19.
+- **[R-650](tasks/650-nothing-holds-a-side-call-to-the-request-level-zero.md)** Nothing checks a new side call for the request-level trace zero (inference). Reopens when: a `GenerationBounds` call in `brain/packages/*/src` that writes `thinking=False` and no `trace_tokens`, read with `grep -rn 'thinking=False' brain/packages/*/src --include=*.py`. Today that grep prints seven lines: the three bounds named below and four lines of docstring or comment prose. A further code line fires it when its call names no `trace_tokens`, whether it is a fourth side call or `SubagentAttempt`'s bound gaining the switch. Its claim was checked against the code on 2026-09-17.
+- **[R-657](tasks/657-the-roster-alternate-hands-the-report-back-under-the-new-sentence.md)** The roster alternate hands the report back under the new sentence too (subagents). Reopens when: a deployment runs the roster alternate, as the `qwen` entry the roster overlay adds or as the default `CORTEX_MODEL_FILE_SUBAGENT` names, and a delegated summarization comes back as the report body it was given. Its claim was checked against the code on 2026-09-19.
+- **[R-663](tasks/663-a-figure-that-describes-only-this-machine-is-caught-by-eye.md)** A figure that describes only this machine is caught by eye (repo-checks). Reopens when: a power, clock, temperature or fan reading stands as an absolute in a tracked text file on a line other than the five named as remaining in the 2026-09-19 history entry, or a document tells an operator to take a card reading and gives a value where it should give the fields to query. The search is `git grep` for a number followed by W, watts, MHz, GHz, °C, a bare C or MT/s. Its claim was checked against the code on 2026-09-19.
+- **[R-664](tasks/664-a-startup-traceback-reaches-stderr-with-no-formatter.md)** A startup traceback reaches stderr with no formatter (brain). Reopens when: a startup failure whose exception text contains something the log formatter would withhold, most plausibly a connection URL with a credential inside it. Two readings answer it: `grep -rn "asyncio.run" brain/packages/orchestrator/src` says whether anything guards the entry point, and raising from inside `run_from_env` says what the container's last line looks like. This entry's history records what both answered when they were last taken. Its claim was checked against the code on 2026-09-19.
+- **[R-665](tasks/665-a-settled-handoff-does-not-say-it-was-cut.md)** A settled handoff record does not say whether the answer was cut (inference-model-manager). Reopens when: a consumer in this tree reads a settled handoff's outcome: code that counts handoffs by outcome, or a runbook step that tells a clean `done` record from a cut one. Its claim was checked against the code on 2026-09-19.
+- **[R-667](tasks/667-a-dateless-row-is-passed-over-by-the-commit-anchor.md)** A dateless row is passed over by the commit anchor (repo-checks). Reopens when: the ledger's latest pass has a "Drawn from" cell with no commit this clone resolves while an earlier row's does, whether its pass wrote the row without one or a rewrite moved the commit it recorded and left the earlier one in place, so the replay line counts from a pass that is not the last one and reports more unsampled work than there is. Its claim was checked against the code on 2026-09-19.
+- **[R-669](tasks/669-the-fence-obligation-is-over-literals-only.md)** The fence obligation is over literals only (repo-checks). Reopens when: a module under `scripts/` decides whether a line is a fence by testing it against `markdownfences.MARKERS`, or against anything read off that tuple, rather than by asking `Fences`. One search over the modules importing any name from `markdownfences` other than `Fences` and `spelled` answers it, since `CHARACTERS` and `LEAST` are both read off the tuple. Its claim was checked against the code on 2026-09-19.
+- **[R-670](tasks/670-the-inward-skip-check-walks-from-the-ignored-directory.md)** The inward skip check walks from the ignored directory (repo-checks). Reopens when: a directory git ignores that `SKIPPED_DIRS` does not prune is itself named `tests` or `_generated`, the two names only the line cap skips, or sits below one, and holds a file the cap selects by suffix and name. The check then reports a file the line cap would never have read. Its claim was checked against the code on 2026-09-19.
+- **[R-672](tasks/672-a-wrapped-calls-needle-holds-the-name-rather-than-the-call.md)** A wrapped call's search text matches the name rather than the call (repo-checks). Reopens when: a registry mention whose template is the name and a comma alone, which is what a wrapped call takes. Countable by reading `crosscheck.CONSTANTS` for mentions with a `name` whose template renders nothing but `{name},`, and, for each, counting the bounded matches of the rendered search text in the file it names: one match is the call, and a second is the search text matching something that is not the call. Its claim was checked against the code on 2026-09-19.
+- **[R-673](tasks/673-the-search-paths-dropped-connection-is-driven-by-no-live-row.md)** The search path's dropped connection is driven by no live test (email). Reopens when: the brain image moves off Python 3.12 (`FROM python:3.12-slim-trixie` in `brain/Dockerfile`, the image the email sidecar runs) or imap-tools moves off 1.13.0 in `brain/uv.lock`, since which class a dropped connection raises is those libraries' choice and the unit test scripts the class itself; or a search on a real server drops its connection and comes back as `SearchRefusedError`, sending a model to rewrite a query that was never the problem. Its claim was checked against the code on 2026-09-19.
+- **[R-674](tasks/674-a-nested-copy-of-an-ordering-or-a-membership-is-not-read-as-one.md)** A nested copy of an ordering or a membership is not read as a copy (repo-checks). Reopens when: a second ordering or membership over sites another entry of the same relation already reads, which is countable by walking `crosscheck.CONSTANTS` pairwise over the entries whose relation is not `EQUAL` and asking whether either one's sites are a subsequence of the other's. Its claim was checked against the code on 2026-09-19.
+- **[R-675](tasks/675-the-subagent-memory-cap-is-sized-for-the-picks-artifact-alone.md)** The subagent memory cap is sized for the pick's artifact alone (subagents). Reopens when: a deployment that names a `CORTEX_MODEL_FILE_SUBAGENT` or `CORTEX_MODEL_FILE_SUBAGENT_QWEN` artifact larger than about 5.6 GB, or that raises `CORTEX_SUBAGENTS_MAX_TOKENS` or `CORTEX_SUBAGENT_CTX_SIZE` above their shipped defaults, on a container still capped at `CORTEX_SUBAGENTS_MEM_BUDGET_GB` 8. Its claim was checked against the code on 2026-09-19.
+- **[R-676](tasks/676-a-third-compose-files-thread-count-is-held-to-no-value.md)** Nothing checks a third CPU subagent server's thread count (subagents). Reopens when: any compose file, either shipped subagent file included, starts a third subagent server with `-ngl 0`, which `uv run python flagcheck.py --root ..` in `scripts/` counts in its success line as a fourth server (three on 2026-09-19: the two CPU servers and the model host's hosted tier). Its claim was checked against the code on 2026-09-19.
+- **[R-677](tasks/677-a-double-backtick-code-span-is-torn-apart.md)** A double backtick code span is torn apart before the inline shapes are looked for (repo-checks). Reopens when: the first heading quoting something in a double backtick code span, which `backlogcheck` refuses whenever what is quoted has brackets, an angle-bracket tag or an entity reference. For brackets the printed advice is the code span the author already wrote; for a tag or an entity it is the shared advice, which tells the author to drop the quote and write plain text. Its claim was checked against the code on 2026-09-19.
+- **[R-679](tasks/679-a-card-timing-outside-the-injection-harness-carries-no-ceiling.md)** A card timing outside the injection harness records no ceiling (vision). Reopens when: a figure from one of the harnesses below, a turn-cost interval or a decode rate, is published in `docs/` with a date after 2026-09-17 and no card reading beside it. Its claim was checked against the code on 2026-09-17.
+- **[R-680](tasks/680-a-needle-spanning-two-lines-keeps-the-whole-file-run.md)** A search string spanning two lines keeps the whole-file run and can name the wrong line (repo-checks). Reopens when: a sixth registered search string whose rendered template contains a newline, or a replay of one of the five that do in which the unfound fault names a line the mismatch is not on. The five are listed by rendering every mention and keeping those containing `\n`: the two compose files that have `--threads` above its substitution, and three whose newline only ties them to the start or the end of a line, in `docs/runbooks/subagents-cpu.md`, `docs/runbooks/llamacpp-gpu.md` and `brain/Dockerfile.modelhost`. Its claim was checked against the code on 2026-09-17.
+- **[R-684](tasks/684-a-serving-line-cannot-say-how-long-a-row-ran-under-a-lowered-ceiling.md)** A serving line cannot say how long a row ran under a lowered ceiling (vision). Reopens when: a row whose price is published in `docs/` prints a `card readings every` line with its lowest ceiling ratio under 0.50 of max and its highest above 0.50. Its claim was checked against the code on 2026-09-19.
+- **[R-691](tasks/691-the-substitution-reader-refuses-a-brace-compose-reads-as-text.md)** The substitution reader refuses a brace compose reads as text (repo-checks). Reopens when: a commit under `docker/` replaces a literal JSON value in a compose file with a variable substitution, which is the change that would next want the JSON as that substitution's default. Checkable with `git log -p -- 'docker/*.yml'`, reading for a removed line whose value opens with `{` and an added one using a variable in its place; today the JSON values are the subagent roster's endpoint list in `docker/docker-compose.subagents-roster.yml` and the two `enable_thinking` template arguments, all literal. Its claim was checked against the code on 2026-09-19.
 
-### Dead until a consumer exists (24)
+### Waiting for a consumer (24)
 
-- **[R-025](tasks/025-token-rotation-multiple-tokens.md)** Token rotation / multiple tokens (seam-auth). Reopens when: A second party on this seam, meaning a client the pair's own operator does not run, whose credential has to be withdrawn without disturbing the other. Its claim was re-derived from the code on 2026-09-19.
-- **[R-069](tasks/069-raw-gbnf-alternative.md)** Raw GBNF grammar alternative (untrusted-content). Reopens when: the first constrained caller whose output shape JSON cannot express, which neither shipped envelope is. Its claim was re-derived from the code on 2026-09-19.
-- **[R-070](tasks/070-per-task-caller-schema.md)** Per-task caller-supplied schema (untrusted-content). Reopens when: a structured subagent-result feature, which is the only thing this is revisited for. Its claim was re-derived from the code on 2026-09-19.
-- **[R-074](tasks/074-per-provenance-eviction.md)** Per-provenance eviction (untrusted-content). Reopens when: a source found hostile after the fact, whose derived memories must be forgotten by where they came from rather than by the scope they landed in. Its claim was re-derived from the code on 2026-09-19.
-- **[R-077](tasks/077-provenance-across-stores.md)** Provenance across the stores (untrusted-content). Reopens when: a design that needs a fired schedule item or a subagent result to carry the sources the turn behind it read, the way a handoff record carries its own turn's whole ledger. Its claim was re-derived from the code on 2026-09-19.
-- **[R-084](tasks/084-session-global-union-read.md)** Session and global union read policy (memory). Reopens when: Something writes durable global facts under scoping, or a deployment that recorded under `CORTEX_MEMORY_SCOPE=global` switches to `session` and its operator asks for the memories recorded before the switch to be recalled again. Its claim was re-derived from the code on 2026-09-19.
-- **[R-085](tasks/085-per-scope-retention-eviction.md)** Per-scope retention and eviction (memory). Reopens when: A memory-compaction or self-editing feature (R-087) needs a retention scheduler. Its claim was re-derived from the code on 2026-09-19.
-- **[R-086](tasks/086-cross-scope-recall-ranking.md)** Cross-scope recall ranking (memory). Reopens when: One recall's pool can draw from more than one non-empty scope: the union read of R-084 lands, or a store already holding per-session scopes is read under `CORTEX_MEMORY_SCOPE=global`, whose unfiltered search mixes them. Its claim was re-derived from the code on 2026-09-19.
-- **[R-087](tasks/087-tiered-self-editing-memory.md)** Tiered and self-editing memory with summarization (memory). Reopens when: A recall on a real deployment keeps a memory beside a later one that contradicts it, so a turn is handed a superseded fact next to its correction. Read it by joining the kept hit ids on the recall trail (`CORTEX_MEMORY_RECALL_AUDIT`) against the `memories` table. Its claim was re-derived from the code on 2026-09-19.
-- **[R-093](tasks/093-write-salience-policy.md)** Write-salience policy (memory). Reopens when: A memory-compaction or self-editing feature (R-087) needs a record-time salience decision. Its claim was re-derived from the code on 2026-09-19.
-- **[R-125](tasks/125-per-role-escape-hatch.md)** The per-role escape hatch (subagents). Reopens when: A role needing a cheap model on a tainted or tool path for a proven-safe reason, which cannot happen before R-272 gives the brain a role concept: `SubagentRoster.resolve` takes no role and the spawn tool's items carry none. Its claim was re-derived from the code on 2026-09-19.
-- **[R-146](tasks/146-reserved-rail-assumed-width.md)** The reserved rail is 6px only on one engine (body-overlay). Reopens when: The overlay running on an engine without `::-webkit-scrollbar`, such as Gecko, since only such an engine takes the fenced branch. Its claim was re-derived from the code on 2026-09-19.
-- **[R-180](tasks/180-out-of-window-title.md)** Out-of-window authoritative title (session-read-seam). Reopens when: A second caller that opens a chat by id from outside the loaded window, beside the reminder card's open control, such as toast activation routing once `NotifyRequest` carries a `session_id` (R-230) or a search. Its claim was re-derived from the code on 2026-09-19.
-- **[R-222](tasks/222-injectinput-rpc.md)** The `InjectInput` RPC, the last unbuilt `BodyService` RPC (body-gateway). Reopens when: A real consumer for input injection, built then as one slice, not as a wired handler. Its claim was re-derived from the code on 2026-09-19.
-- **[R-230](tasks/230-toast-activation-routing.md)** Toast activation routing (scheduling). Reopens when: a second consumer of toast interaction, such as snooze-from-the-toast. Its claim was re-derived from the code on 2026-09-19.
-- **[R-250](tasks/250-task-reminder-distinction.md)** A task versus reminder distinction on the pull surface (scheduling). Reopens when: the surface must distinguish them (a task icon, a "task ran" label, a task-only action). Its claim was re-derived from the code on 2026-09-19.
-- **[R-257](tasks/257-content-addressed-attachment-store.md)** A content-addressed `AttachmentStore` (vision). Reopens when: Something has to read a picture after its turn ends: a reopened chat showing what the assistant saw, a question about a capture answered from the audit trail, or R-266's deep tier. Its claim was re-derived from the code on 2026-09-19.
-- **[R-262](tasks/262-multi-monitor-dpi-reporting.md)** Multi-monitor and DPI reporting (vision). Reopens when: The first code in the body or the overlay that enumerates monitors, or a request to capture a display other than the primary one. Its claim was re-derived from the code on 2026-09-19.
-- **[R-269](tasks/269-pixel-level-screening.md)** Pixel-level screening in the body (vision). Reopens when: A capture that has to proceed with part of the screen removed rather than be refused, over a window or a region Cortex does not own and so cannot exclude at the OS level. Its claim was re-derived from the code on 2026-09-19.
-- **[R-314](tasks/314-decimal-form-refusals.md)** What the decimal value form still refuses (repo-gates). Reopens when: A decimal coupling that needs ordering rather than equality, or one whose far side is a Rust literal carrying its own type suffix. Its claim was re-derived from the code on 2026-09-19.
-- **[R-361](tasks/361-a-read-rpc-recalls-nothing-to-omit.md)** A session read has no recalled context, so there is no partial answer to give (seam-transport). Reopens when: A read RPC on `BrainService` that recalls anything at all, meaning a handler that reads a memory port and composes what it finds into its reply. Today none does, so there is nothing for a reply to be partial about. Its claim was re-derived from the code on 2026-09-19.
-- **[R-506](tasks/506-a-built-row-that-became-a-base-would-spend-a-recorded-trigger.md)** A built row that became a base would spend a recorded trigger (repo-gates). Reopens when: a Dockerfile in this tree stands `FROM` an image this repo builds. Its claim was re-derived from the code on 2026-09-19.
-- **[R-536](tasks/536-the-python-declaration-syntax-reads-no-class-level-binding.md)** The Python declaration syntax reads no binding inside a class body (repo-gates). Reopens when: a second producer binding a `SourceKind` value at module level because the enum member it restates cannot be a site, which the `uri` twin's producer would be, or any other registry entry whose one spelling on a side is a member of a class body, which is countable by locating every mention's needle in its far file and reading whether the line it lands on binds a name inside a `class`. Its claim was re-derived from the code on 2026-09-19.
-- **[R-621](tasks/621-a-delegating-turn-cannot-be-resumed-from-the-store.md)** A delegating turn cannot be resumed from the store (resource-governance). Reopens when: a request identity on the seam, meaning a request id on `UserTurn` or `ClientEvent` in `proto/body.proto` (`grep -ni request_id proto/body.proto` has no hit), which is the design both the `Converse` reconnect entry (R-023) and the crashed-handoff resume entry (R-112) wait on and which a turn surviving an orchestrator restart needs first. A production caller of `TaskStore.get_result` would also fire it: `grep -rn 'get_result(' brain/packages/*/src` hits only the port, the fake and the Redis adapter. Its claim was re-derived from the code on 2026-09-17.
+- **[R-025](tasks/025-token-rotation-multiple-tokens.md)** Token rotation and multiple tokens (rpc-auth). Reopens when: A second party on this connection, meaning a client the pair's own operator does not run, whose credential has to be withdrawn without disturbing the other. Its claim was checked against the code on 2026-09-19.
+- **[R-069](tasks/069-raw-gbnf-alternative.md)** Raw GBNF grammar alternative (untrusted-content). Reopens when: the first constrained caller whose output shape JSON cannot express, which neither shipped envelope is. Its claim was checked against the code on 2026-09-19.
+- **[R-070](tasks/070-per-task-caller-schema.md)** Per-task caller-supplied schema (untrusted-content). Reopens when: a structured subagent-result feature, which is the only thing this is revisited for. Its claim was checked against the code on 2026-09-19.
+- **[R-074](tasks/074-per-provenance-eviction.md)** Per-provenance eviction (untrusted-content). Reopens when: a source found hostile after the fact, whose derived memories must be forgotten by where they came from rather than by the scope they were stored in. Its claim was checked against the code on 2026-09-19.
+- **[R-077](tasks/077-provenance-across-stores.md)** Provenance across the stores (untrusted-content). Reopens when: a design that needs a fired schedule item or a subagent result to record the sources the turn behind it read, the way a handoff record stores its own turn's whole ledger. Its claim was checked against the code on 2026-09-19.
+- **[R-084](tasks/084-session-global-union-read.md)** Session and global union read policy (memory). Reopens when: Something writes durable global facts under scoping, or a deployment that recorded under `CORTEX_MEMORY_SCOPE=global` switches to `session` and its operator asks for the memories recorded before the switch to be recalled again. Its claim was checked against the code on 2026-09-19.
+- **[R-085](tasks/085-per-scope-retention-eviction.md)** Per-scope retention and eviction (memory). Reopens when: A memory-compaction or self-editing feature (R-087) needs a retention scheduler. Its claim was checked against the code on 2026-09-19.
+- **[R-086](tasks/086-cross-scope-recall-ranking.md)** Cross-scope recall ranking (memory). Reopens when: One recall's pool can draw from more than one non-empty scope: the union read of R-084 ships, or a store already holding per-session scopes is read under `CORTEX_MEMORY_SCOPE=global`, whose unfiltered search mixes them. Its claim was checked against the code on 2026-09-19.
+- **[R-087](tasks/087-tiered-self-editing-memory.md)** Tiered and self-editing memory with summarization (memory). Reopens when: A recall on a real deployment keeps a memory beside a later one that contradicts it, so a turn is handed a superseded fact next to its correction. Read it by joining the kept hit ids on the recall trail (`CORTEX_MEMORY_RECALL_AUDIT`) against the `memories` table. Its claim was checked against the code on 2026-09-19.
+- **[R-093](tasks/093-write-salience-policy.md)** Write-salience policy (memory). Reopens when: A memory-compaction or self-editing feature (R-087) needs a record-time salience decision. Its claim was checked against the code on 2026-09-19.
+- **[R-125](tasks/125-per-role-escape-hatch.md)** The per-role escape hatch (subagents). Reopens when: A role needing a cheap model on a tainted or tool path for a proven-safe reason, which cannot happen before R-272 gives the brain a role concept: `SubagentRoster.resolve` takes no role and the spawn tool's items have none. Its claim was checked against the code on 2026-09-19.
+- **[R-146](tasks/146-reserved-rail-assumed-width.md)** The reserved rail is 6px only on one engine (body-overlay). Reopens when: The overlay running on an engine without `::-webkit-scrollbar`, such as Gecko, since only such an engine takes the fenced branch. Its claim was checked against the code on 2026-09-19.
+- **[R-180](tasks/180-out-of-window-title.md)** Authoritative title for a chat outside the loaded window (session-read-rpc). Reopens when: A second caller that opens a chat by id from outside the loaded window, beside the reminder card's open control, such as toast activation routing once `NotifyRequest` has a `session_id` (R-230) or a search. Its claim was checked against the code on 2026-09-19.
+- **[R-222](tasks/222-injectinput-rpc.md)** The `InjectInput` RPC, the last unbuilt `BodyService` RPC (body-gateway). Reopens when: A real consumer for input injection, built then as one slice, not as a wired handler. Its claim was checked against the code on 2026-09-19.
+- **[R-230](tasks/230-toast-activation-routing.md)** Toast activation routing (scheduling). Reopens when: a second consumer of toast interaction, such as snooze from the toast. Its claim was checked against the code on 2026-09-19.
+- **[R-250](tasks/250-task-reminder-distinction.md)** A task versus reminder distinction on the pull surface (scheduling). Reopens when: the surface must distinguish them (a task icon, a "task ran" label, a task-only action). Its claim was checked against the code on 2026-09-19.
+- **[R-257](tasks/257-content-addressed-attachment-store.md)** A content-addressed `AttachmentStore` (vision). Reopens when: Something has to read a picture after its turn ends: a reopened chat showing what the assistant saw, a question about a capture answered from the audit trail, or the deep tier in R-266. Its claim was checked against the code on 2026-09-19.
+- **[R-262](tasks/262-multi-monitor-dpi-reporting.md)** Multi-monitor and DPI reporting (vision). Reopens when: The first code in the body or the overlay that enumerates monitors, or a request to capture a display other than the primary one. Its claim was checked against the code on 2026-09-19.
+- **[R-269](tasks/269-pixel-level-screening.md)** Pixel-level screening in the body (vision). Reopens when: A capture that has to go ahead with part of the screen removed rather than be refused, over a window or a region Cortex does not own and so cannot exclude at the OS level. Its claim was checked against the code on 2026-09-19.
+- **[R-314](tasks/314-decimal-form-refusals.md)** What the decimal value form still refuses (repo-checks). Reopens when: A decimal pair that needs ordering rather than equality, or one whose far side is a Rust literal with its own type suffix. Its claim was checked against the code on 2026-09-19.
+- **[R-361](tasks/361-a-read-rpc-recalls-nothing-to-omit.md)** A session read has no recalled context, so there is no partial answer to give (rpc-transport). Reopens when: A read RPC on `BrainService` that recalls anything at all, meaning a handler that reads a memory port and composes what it finds into its reply. Today none does, so there is nothing for a reply to be partial about. Its claim was checked against the code on 2026-09-19.
+- **[R-506](tasks/506-a-built-row-that-became-a-base-would-spend-a-recorded-trigger.md)** A built row that became a base would be checked against a recorded trigger (repo-checks). Reopens when: a Dockerfile in this tree is built `FROM` an image this repo builds. Its claim was checked against the code on 2026-09-19.
+- **[R-536](tasks/536-the-python-declaration-syntax-reads-no-class-level-binding.md)** The Python declaration syntax reads no binding inside a class body (repo-checks). Reopens when: a second module binding a `SourceKind` value at module level because the enum member it repeats cannot be a declaration, which a producer of the `uri` kind would be; or any other registry entry whose only copy of a value on one side is a member of a class body. Count those by searching each mention's text in its target file and checking whether the matching line assigns a name inside a `class`. Its claim was checked against the code on 2026-09-19.
+- **[R-621](tasks/621-a-delegating-turn-cannot-be-resumed-from-the-store.md)** A delegating turn cannot be resumed from the store (resource-governance). Reopens when: a request identity on the body/brain interface, meaning a request id on `UserTurn` or `ClientEvent` in `proto/body.proto` (`grep -ni request_id proto/body.proto` has no hit), which is what both the `Converse` reconnect entry (R-023) and the crashed-handoff resume entry (R-112) wait on and what a turn surviving an orchestrator restart needs first. A production caller of `TaskStore.get_result` would also fire it: `grep -rn 'get_result(' brain/packages/*/src` hits only the port, the fake and the Redis adapter. Its claim was checked against the code on 2026-09-17.
 
-### Feature breadth, on request (8)
+### Optional feature, on request (8)
 
-- **[R-157](tasks/157-liquid-edge-backdrop-blur.md)** The liquid edge's backdrop blur (body-overlay). Its claim was re-derived from the code on 2026-09-19.
-- **[R-158](tasks/158-voice-as-picked-row.md)** The voice as a fourth picked row (body-overlay). Its claim was re-derived from the code on 2026-09-19.
-- **[R-251](tasks/251-user-attached-image-path.md)** The user-attached image path (vision). Its claim was re-derived from the code on 2026-09-13.
-- **[R-261](tasks/261-windows-graphics-capture-backend.md)** A `Windows.Graphics.Capture` backend (vision). Its claim was re-derived from the code on 2026-09-13.
-- **[R-263](tasks/263-linux-and-macos-capture-backends.md)** Linux and macOS `ScreenCapture` backends (vision). Its claim was re-derived from the code on 2026-09-13.
-- **[R-271](tasks/271-macos-linux-os-backends.md)** macOS and Linux OS backends (cross-cutting). Its claim was re-derived from the code on 2026-09-13.
-- **[R-272](tasks/272-more-subagent-roles.md)** More subagent roles (cross-cutting). Its claim was re-derived from the code on 2026-09-19.
-- **[R-683](tasks/683-the-recall-trail-has-no-store.md)** The recall trail has no store an operator can query (memory). Its claim was re-derived from the code on 2026-09-17.
+- **[R-157](tasks/157-liquid-edge-backdrop-blur.md)** The liquid edge's backdrop blur (body-overlay). Its claim was checked against the code on 2026-09-19.
+- **[R-158](tasks/158-voice-as-picked-row.md)** The voice as a fourth pickable row (body-overlay). Its claim was checked against the code on 2026-09-19.
+- **[R-251](tasks/251-user-attached-image-path.md)** The user-attached image path (vision). Its claim was checked against the code on 2026-09-13.
+- **[R-261](tasks/261-windows-graphics-capture-backend.md)** A `Windows.Graphics.Capture` backend (vision). Its claim was checked against the code on 2026-09-13.
+- **[R-263](tasks/263-linux-and-macos-capture-backends.md)** Linux and macOS `ScreenCapture` backends (vision). Its claim was checked against the code on 2026-09-13.
+- **[R-271](tasks/271-macos-linux-os-backends.md)** macOS and Linux OS backends (cross-cutting). Its claim was checked against the code on 2026-09-13.
+- **[R-272](tasks/272-more-subagent-roles.md)** More subagent roles (cross-cutting). Its claim was checked against the code on 2026-09-19.
+- **[R-683](tasks/683-the-recall-trail-has-no-store.md)** The recall trail has no store an operator can query (memory). Its claim was checked against the code on 2026-09-17.
 
 ## Every task, by area
 
@@ -233,804 +238,808 @@ never a reading of what the tree does now.
 
 5 open of 7.
 
-- [R-218](tasks/218-tunnel-fallback.md) Q3 body-initiated-stream tunnel fallback. open, fix when it bites.
-- [R-219](tasks/219-hardened-non-loopback-posture.md) A hardened non-loopback posture. open, fix when it bites.
-- [R-220](tasks/220-spawn-blocking-sync-os-calls.md) `spawn_blocking` for the sync OS calls. landed 2026-07-16.
+- [R-218](tasks/218-tunnel-fallback.md) Tunnelling body-directed calls over a body-initiated stream. open, waiting for its trigger.
+- [R-219](tasks/219-hardened-non-loopback-posture.md) A hardened non-loopback posture. open, waiting for its trigger.
+- [R-220](tasks/220-spawn-blocking-sync-os-calls.md) `spawn_blocking` for the synchronous OS calls. done 2026-07-16.
 - [R-221](tasks/221-getvolume-overlay-indicator.md) `GetVolume` as an overlay volume indicator. declined 2026-07-16.
-- [R-222](tasks/222-injectinput-rpc.md) The `InjectInput` RPC, the last unbuilt `BodyService` RPC. open, dead until a consumer.
-- [R-223](tasks/223-safe-core-audio-wrapper.md) A safe Core Audio wrapper. open, fix when it bites.
-- [R-224](tasks/224-unbalanced-com-initialization.md) Unbalanced COM initialization on the blocking pool. open, fix when it bites.
+- [R-222](tasks/222-injectinput-rpc.md) The `InjectInput` RPC, the last unbuilt `BodyService` RPC. open, waiting for a consumer.
+- [R-223](tasks/223-safe-core-audio-wrapper.md) A safe Core Audio wrapper. open, waiting for its trigger.
+- [R-224](tasks/224-unbalanced-com-initialization.md) Unbalanced COM initialization on the blocking pool. open, waiting for its trigger.
 
 ### body-overlay
 
-7 open of 49.
+8 open of 50.
 
-- [R-127](tasks/127-multi-turn-and-proto-cancel.md) Multi-turn within one stream plus proto `Cancel`. open, fix when it bites.
-- [R-128](tasks/128-connection-indicator.md) A real connection indicator. landed 2026-07-16.
-- [R-129](tasks/129-streamed-brain-status.md) Streamed brain status. open, a seam or port change comes first.
-- [R-130](tasks/130-design-doc-interaction-gaps.md) Design-doc interaction gaps. landed 2026-07-12.
-- [R-131](tasks/131-appearance-choices-restart.md) Appearance choices do not survive a restart. landed 2026-07-19.
-- [R-132](tasks/132-mark-picker-close-and-route.md) The mark picker's click-away close and route in. landed 2026-07-19.
-- [R-133](tasks/133-sections-do-not-animate-out.md) Sections do not animate out. landed 2026-07-19.
-- [R-134](tasks/134-reminder-exit-in-one-frame.md) A reminder leaving the stack in one frame. landed 2026-08-03.
-- [R-135](tasks/135-richer-settings-and-shortcuts-views.md) Two richer directions for the settings and shortcuts views. landed 2026-07-20.
+- [R-127](tasks/127-multi-turn-and-proto-cancel.md) Multi-turn within one stream plus proto `Cancel`. open, waiting for its trigger.
+- [R-128](tasks/128-connection-indicator.md) A real connection indicator. done 2026-07-16.
+- [R-129](tasks/129-streamed-brain-status.md) Streamed brain status. open, needs a port change first.
+- [R-130](tasks/130-design-doc-interaction-gaps.md) Design-doc interaction gaps. done 2026-07-12.
+- [R-131](tasks/131-appearance-choices-restart.md) Appearance choices do not survive a restart. done 2026-07-19.
+- [R-132](tasks/132-mark-picker-close-and-route.md) The mark picker's click-away close and route in. done 2026-07-19.
+- [R-133](tasks/133-sections-do-not-animate-out.md) Sections do not animate out. done 2026-07-19.
+- [R-134](tasks/134-reminder-exit-in-one-frame.md) A reminder leaving the stack in one frame. done 2026-08-03.
+- [R-135](tasks/135-richer-settings-and-shortcuts-views.md) Two richer directions for the settings and shortcuts views. done 2026-07-20.
 - [R-136](tasks/136-clamped-shrink-moves-composer.md) A shrink against the ceiling moves the composer. satisfied 2026-08-06.
-- [R-137](tasks/137-touch-mid-roll-prediction.md) A touch mid-roll pins the session to a prediction. landed 2026-08-03.
-- [R-138](tasks/138-placement-for-stale-height.md) A placement computed for a stale height. landed 2026-08-03.
-- [R-139](tasks/139-composer-growth-never-eased.md) The composer's growth is the one resize never eased. landed 2026-08-03.
-- [R-140](tasks/140-resize-inside-panel-move.md) A resize inside the panel's own move waits for it. landed 2026-08-06.
-- [R-141](tasks/141-sections-outrun-the-panel.md) Two full sections outrun the panel. landed 2026-08-03.
-- [R-142](tasks/142-budget-misses-section-frame.md) The budget bounds a section's content, not its frame. landed 2026-08-08.
-- [R-143](tasks/143-room-handed-back-in-one-frame.md) The room a section hands back in one frame. landed 2026-08-08.
-- [R-144](tasks/144-two-overlay-modules-over-cap.md) Two overlay modules over the 300-line cap. landed 2026-07-20.
-- [R-145](tasks/145-demo-bridge-over-cap.md) The demo bridge over the line cap. landed 2026-08-03.
-- [R-146](tasks/146-reserved-rail-assumed-width.md) The reserved rail is 6px only on one engine. open, dead until a consumer.
-- [R-147](tasks/147-cards-spend-inset-on-rail.md) Two cards spend their whole inset on the rail. declined 2026-08-18.
-- [R-148](tasks/148-chat-floor-frozen-measurement.md) The chat floor's frozen measurement of the empty state. landed 2026-08-03.
-- [R-149](tasks/149-settled-reply-shrinks-panel.md) A settled reasoning reply shrinks the panel by 4px. landed 2026-07-20.
-- [R-150](tasks/150-retarget-from-rounded-height.md) A mid-stream retarget restarts from a rounded height. landed 2026-08-06.
-- [R-151](tasks/151-section-roll-ends-short.md) A section's roll ends 0.25px short. landed 2026-08-06.
-- [R-152](tasks/152-whisper-rounded-roll-target.md) The whisper bubble's rounded roll target. landed 2026-08-07.
-- [R-153](tasks/153-thoughts-trace-below-fold.md) A Thoughts trace pushing the reply below the fold. landed 2026-08-03.
-- [R-154](tasks/154-chrome-section-shrinks-log.md) A section in the panel's chrome shrinking the log. landed 2026-08-04.
-- [R-155](tasks/155-console-tab-strip-keyboard.md) The console tab strip's missing keyboard half. landed 2026-08-03.
-- [R-156](tasks/156-new-chat-leaves-console-up.md) A new chat leaving the console up. landed 2026-08-03.
-- [R-157](tasks/157-liquid-edge-backdrop-blur.md) The liquid edge's backdrop blur. open, feature breadth.
-- [R-158](tasks/158-voice-as-picked-row.md) The voice as a fourth picked row. open, feature breadth.
-- [R-159](tasks/159-streamed-bubble-wrap-width.md) A streamed bubble's wrap width measured once. landed 2026-08-18.
-- [R-160](tasks/160-drain-growth-after-render.md) Drain growth after the turn's last render. landed 2026-07-21.
-- [R-161](tasks/161-switcher-row-exit.md) An exit for the switcher's rows. landed 2026-08-03.
-- [R-162](tasks/162-per-letter-kerning-pairs.md) Per-letter boxes giving up kerning pairs. open, fix when it bites.
-- [R-163](tasks/163-switcher-listbox-role.md) The chat switcher's disputed listbox role. landed 2026-08-03.
-- [R-164](tasks/164-cycle-keys-silent-swap.md) The chat cycle keys' silent swap. landed 2026-08-04.
-- [R-165](tasks/165-swap-drops-focus.md) A swap from a closing section dropping focus. landed 2026-08-06.
-- [R-166](tasks/166-row-gestures-drop-focus.md) Row gestures that swap nothing dropping focus. landed 2026-08-06.
-- [R-167](tasks/167-modified-chord-row-editor.md) A modified chord reaching the overlay from a row's editor. landed 2026-08-07.
-- [R-168](tasks/168-closing-list-drops-caret.md) A list the reader closes dropping the caret. landed 2026-08-07.
+- [R-137](tasks/137-touch-mid-roll-prediction.md) A touch mid-roll fixes the session to a prediction. done 2026-08-03.
+- [R-138](tasks/138-placement-for-stale-height.md) A placement computed for a stale height. done 2026-08-03.
+- [R-139](tasks/139-composer-growth-never-eased.md) The composer's growth is the one resize never eased. done 2026-08-03.
+- [R-140](tasks/140-resize-inside-panel-move.md) A resize inside the panel's own move waits for it. done 2026-08-06.
+- [R-141](tasks/141-sections-outrun-the-panel.md) Two full sections outrun the panel. done 2026-08-03.
+- [R-142](tasks/142-budget-misses-section-frame.md) The budget bounds a section's content, not its frame. done 2026-08-08.
+- [R-143](tasks/143-room-handed-back-in-one-frame.md) The room a section hands back in one frame. done 2026-08-08.
+- [R-144](tasks/144-two-overlay-modules-over-cap.md) Two overlay modules over the 300-line cap. done 2026-07-20.
+- [R-145](tasks/145-demo-bridge-over-cap.md) The demo bridge over the line cap. done 2026-08-03.
+- [R-146](tasks/146-reserved-rail-assumed-width.md) The reserved rail is 6px only on one engine. open, waiting for a consumer.
+- [R-147](tasks/147-cards-spend-inset-on-rail.md) Two cards use their whole inset for the rail. declined 2026-08-18.
+- [R-148](tasks/148-chat-floor-frozen-measurement.md) The chat floor's frozen measurement of the empty state. done 2026-08-03.
+- [R-149](tasks/149-settled-reply-shrinks-panel.md) A settled reasoning reply shrinks the panel by 4px. done 2026-07-20.
+- [R-150](tasks/150-retarget-from-rounded-height.md) A mid-stream retarget restarts from a rounded height. done 2026-08-06.
+- [R-151](tasks/151-section-roll-ends-short.md) A section's roll ends 0.25px short. done 2026-08-06.
+- [R-152](tasks/152-whisper-rounded-roll-target.md) The whisper bubble's rounded roll target. done 2026-08-07.
+- [R-153](tasks/153-thoughts-trace-below-fold.md) A Thoughts trace pushing the reply out of view. done 2026-08-03.
+- [R-154](tasks/154-chrome-section-shrinks-log.md) A section outside the history shrinking the log. done 2026-08-04.
+- [R-155](tasks/155-console-tab-strip-keyboard.md) The console tab strip's missing keyboard half. done 2026-08-03.
+- [R-156](tasks/156-new-chat-leaves-console-up.md) A new chat leaving the console open. done 2026-08-03.
+- [R-157](tasks/157-liquid-edge-backdrop-blur.md) The liquid edge's backdrop blur. open, optional feature.
+- [R-158](tasks/158-voice-as-picked-row.md) The voice as a fourth pickable row. open, optional feature.
+- [R-159](tasks/159-streamed-bubble-wrap-width.md) A streamed bubble's wrap width measured once. done 2026-08-18.
+- [R-160](tasks/160-drain-growth-after-render.md) Bubble growth after the turn's last render. done 2026-07-21.
+- [R-161](tasks/161-switcher-row-exit.md) An exit animation for the switcher's rows. done 2026-08-03.
+- [R-162](tasks/162-per-letter-kerning-pairs.md) Per-letter boxes losing kerning pairs. open, waiting for its trigger.
+- [R-163](tasks/163-switcher-listbox-role.md) The chat switcher's disputed listbox role. done 2026-08-03.
+- [R-164](tasks/164-cycle-keys-silent-swap.md) The chat cycle keys' silent swap. done 2026-08-04.
+- [R-165](tasks/165-swap-drops-focus.md) A swap from a closing section dropping focus. done 2026-08-06.
+- [R-166](tasks/166-row-gestures-drop-focus.md) Row gestures that swap nothing dropping focus. done 2026-08-06.
+- [R-167](tasks/167-modified-chord-row-editor.md) A keyboard shortcut reaching the overlay from a row's editor. done 2026-08-07.
+- [R-168](tasks/168-closing-list-drops-caret.md) A list the reader closes dropping the caret. done 2026-08-07.
 - [R-169](tasks/169-opening-list-leaves-caret.md) A list the reader opens leaving the caret behind. declined 2026-08-07.
-- [R-170](tasks/170-ctrl-k-unseen-section.md) Ctrl+K toggling a section nobody can see. landed 2026-08-07.
-- [R-171](tasks/171-held-chord-says-nothing.md) A held chord saying nothing about being held. declined 2026-08-07.
-- [R-172](tasks/172-shrinking-list-says-nothing.md) A list that shrinks saying nothing. landed 2026-08-07.
-- [R-173](tasks/173-draft-belongs-to-no-chat.md) The composer's draft belonging to no chat. landed 2026-08-06.
-- [R-174](tasks/174-switcher-instant-motions.md) Two instant motions in the switcher's list. landed 2026-08-03.
-- [R-311](tasks/311-wrap-width-trigger-completeness.md) A wrap change the window never announces. open, fix when it bites.
+- [R-170](tasks/170-ctrl-k-unseen-section.md) Ctrl+K toggling a section nobody can see. done 2026-08-07.
+- [R-171](tasks/171-held-chord-says-nothing.md) A held keyboard shortcut saying nothing about being held. declined 2026-08-07.
+- [R-172](tasks/172-shrinking-list-says-nothing.md) A list that shrinks saying nothing. done 2026-08-07.
+- [R-173](tasks/173-draft-belongs-to-no-chat.md) The composer's draft belonging to no chat. done 2026-08-06.
+- [R-174](tasks/174-switcher-instant-motions.md) Two instant motions in the switcher's list. done 2026-08-03.
+- [R-311](tasks/311-wrap-width-trigger-completeness.md) A wrap width change with no resize event behind it. open, waiting for its trigger.
+- [R-701](tasks/701-keeping-a-chat-at-the-top-has-no-designed-name.md) Keeping a chat at the top of the list has no designed name. open, actionable.
 
 ### brain
 
 1 open of 1.
 
-- [R-664](tasks/664-a-startup-traceback-reaches-stderr-with-no-formatter.md) A startup traceback reaches stderr with no formatter. open, fix when it bites.
+- [R-664](tasks/664-a-startup-traceback-reaches-stderr-with-no-formatter.md) A startup traceback reaches stderr with no formatter. open, waiting for its trigger.
 
 ### cross-cutting
 
-5 open of 20.
+6 open of 21.
 
 - [R-270](tasks/270-pointer-input-injection.md) Pointer-input injection. declined 2026-07-16.
-- [R-271](tasks/271-macos-linux-os-backends.md) macOS and Linux OS backends. open, feature breadth.
-- [R-272](tasks/272-more-subagent-roles.md) More subagent roles. open, feature breadth.
-- [R-317](tasks/317-shipped-handler-drops-every-field.md) The shipped handler drops every structured field. landed 2026-08-19.
-- [R-323](tasks/323-a-field-spelled-into-its-own-message.md) A field spelled into its own message now prints twice. landed 2026-08-19.
-- [R-324](tasks/324-a-rendered-field-has-no-bound.md) A rendered field has no bound on its length. landed 2026-08-20.
-- [R-325](tasks/325-a-raised-message-is-also-a-logged-one.md) A message that is raised and logged keeps its values in prose. landed 2026-08-20.
-- [R-326](tasks/326-a-line-that-names-nothing-it-happened-to.md) A line that names nothing it happened to. landed 2026-08-19.
-- [R-331](tasks/331-five-raised-messages-keep-their-numbers-in-prose.md) Messages that are raised and logged still spell their own numbers. landed 2026-09-10.
-- [R-336](tasks/336-packed-values-keep-their-whole-length.md) Packed values keep their whole length. open, fix when it bites.
-- [R-337](tasks/337-a-bounded-value-leaves-the-line-unbounded.md) A bounded value leaves the line unbounded. landed 2026-09-15.
-- [R-339](tasks/339-two-spellings-of-one-conversation.md) Two spellings of one conversation across the brain's log fields. landed 2026-08-24.
-- [R-343](tasks/343-a-userinfo-the-pattern-cannot-reach.md) A userinfo the pattern cannot reach. open, fix when it bites.
-- [R-349](tasks/349-a-mutation-table-nobody-replayed.md) Every mutation table in the record is the hand that wrote it reporting on itself. landed 2026-08-21.
-- [R-357](tasks/357-a-replay-pass-has-no-cadence.md) The record was replayed once, by a pass nothing schedules and nothing samples. landed 2026-08-25.
-- [R-415](tasks/415-the-swap-path-names-its-work-with-bare-nouns.md) The swap path names its work with bare nouns while the rest of the brain suffixes them. landed 2026-08-24.
-- [R-453](tasks/453-the-harness-reads-one-field-off-a-line-it-has-whole.md) The harness reads one field off a line it has whole. landed 2026-08-27.
-- [R-471](tasks/471-the-lines-ceiling-is-the-least-sampled-cohort.md) The line's ceiling is the least sampled cohort. open, fix when it bites.
-- [R-652](tasks/652-a-credential-can-leave-the-process-with-no-url-around-it.md) A credential can leave the process with no URL around it. landed 2026-09-14.
-- [R-671](tasks/671-the-widest-line-check-names-its-sinks-by-hand.md) The widest-line check names its sinks by hand. landed 2026-09-19.
+- [R-271](tasks/271-macos-linux-os-backends.md) macOS and Linux OS backends. open, optional feature.
+- [R-272](tasks/272-more-subagent-roles.md) More subagent roles. open, optional feature.
+- [R-317](tasks/317-shipped-handler-drops-every-field.md) The shipped handler drops every structured field. done 2026-08-19.
+- [R-323](tasks/323-a-field-spelled-into-its-own-message.md) A field written into its own message now prints twice. done 2026-08-19.
+- [R-324](tasks/324-a-rendered-field-has-no-bound.md) A rendered field has no bound on its length. done 2026-08-20.
+- [R-325](tasks/325-a-raised-message-is-also-a-logged-one.md) A message that is raised and logged keeps its values in prose. done 2026-08-20.
+- [R-326](tasks/326-a-line-that-names-nothing-it-happened-to.md) A line that names nothing it happened to. done 2026-08-19.
+- [R-331](tasks/331-five-raised-messages-keep-their-numbers-in-prose.md) Messages that are raised and logged still write their own numbers. done 2026-09-10.
+- [R-336](tasks/336-packed-values-keep-their-whole-length.md) Packed values keep their whole length. open, waiting for its trigger.
+- [R-337](tasks/337-a-bounded-value-leaves-the-line-unbounded.md) A bounded value leaves the line unbounded. done 2026-09-15.
+- [R-339](tasks/339-two-spellings-of-one-conversation.md) Two names for one conversation across the brain's log fields. done 2026-08-24.
+- [R-343](tasks/343-a-userinfo-the-pattern-cannot-reach.md) The credential pattern misses three kinds of URL. open, waiting for its trigger.
+- [R-349](tasks/349-a-mutation-table-nobody-replayed.md) No mutation table has been replayed by anyone but its author. done 2026-08-21.
+- [R-357](tasks/357-a-replay-pass-has-no-cadence.md) The mutation replay happened once, with no schedule and no sampling rule. done 2026-08-25.
+- [R-415](tasks/415-the-swap-path-names-its-work-with-bare-nouns.md) The swap path names its work with bare nouns while the rest of the brain suffixes them. done 2026-08-24.
+- [R-453](tasks/453-the-harness-reads-one-field-off-a-line-it-has-whole.md) The measurement script reads one field off a line it has whole. done 2026-08-27.
+- [R-471](tasks/471-the-lines-ceiling-is-the-least-sampled-cohort.md) The widest trail line comes from the least sampled cohort. open, waiting for its trigger.
+- [R-652](tasks/652-a-credential-can-leave-the-process-with-no-url-around-it.md) A credential can leave the process with no URL around it. done 2026-09-14.
+- [R-671](tasks/671-the-widest-line-check-names-its-sinks-by-hand.md) The widest-line check names its sinks by hand. done 2026-09-19.
+- [R-699](tasks/699-source-file-names-use-banned-words.md) Source file names use words the prose table bans. open, actionable.
 
 ### docs
 
 0 open of 1.
 
-- [R-505](tasks/505-the-spill-line-a-runbook-describes-and-never-prints.md) The spill line a runbook describes and never prints. landed 2026-08-30.
+- [R-505](tasks/505-the-spill-line-a-runbook-describes-and-never-prints.md) The spill line a runbook describes and never prints. done 2026-08-30.
 
 ### email
 
 3 open of 11.
 
-- [R-548](tasks/548-an-empty-folder-read-raises-instead-of-answering-not-found.md) A read of an empty folder raises instead of answering not-found, so the turn is tainted. landed 2026-09-05.
-- [R-550](tasks/550-a-uid-search-key-in-a-folder-holding-no-mail-is-refused-by-the-bridge-and-stays-untyped.md) A UID search key in a folder holding no mail is refused by the Bridge and stays untyped. landed 2026-09-15.
-- [R-551](tasks/551-a-read-the-server-refuses-is-measured-by-hand-and-driven-by-no-live-row.md) A read the server refuses is measured by hand and driven by no live row. landed 2026-09-05.
-- [R-552](tasks/552-the-uid-parameter-of-read-email-carries-no-description.md) The uid parameter of read_email carries no description. landed 2026-09-05.
-- [R-569](tasks/569-the-dropped-read-under-dovecots-default-is-measured-by-hand-and-driven-by-no-live-row.md) The dropped read under Dovecot's default is measured by hand and driven by no live row. declined 2026-09-15.
-- [R-570](tasks/570-a-search-of-a-folder-holding-one-unreadable-message-is-refused-whole.md) A search of a folder holding one unreadable message is refused whole. open, fix when it bites.
-- [R-571](tasks/571-the-cortexs-reading-of-the-uid-description-is-unmeasured.md) The cortex's reading of the uid description is unmeasured. landed 2026-09-06.
-- [R-572](tasks/572-the-not-found-answer-states-no-correction-where-the-folders-does.md) The not-found answer states no correction where the folder's does. landed 2026-09-06.
-- [R-582](tasks/582-the-not-found-answer-is-the-one-correction-the-audit-records-as-ok.md) The not-found answer is the one correction the audit records as ok. landed 2026-09-06.
-- [R-584](tasks/584-the-uid-rows-are-measured-where-the-listing-answers-the-ask.md) The uid rows are measured where the listing answers the ask. open, fix when it bites.
-- [R-673](tasks/673-the-search-paths-dropped-connection-is-driven-by-no-live-row.md) The search path's dropped connection is driven by no live row. open, fix when it bites.
+- [R-548](tasks/548-an-empty-folder-read-raises-instead-of-answering-not-found.md) A read of an empty folder raises instead of answering not-found, so the turn is tainted. done 2026-09-05.
+- [R-550](tasks/550-a-uid-search-key-in-a-folder-holding-no-mail-is-refused-by-the-bridge-and-stays-untyped.md) A UID search key in a folder with no mail is refused by the Bridge and stays untyped. done 2026-09-15.
+- [R-551](tasks/551-a-read-the-server-refuses-is-measured-by-hand-and-driven-by-no-live-row.md) A read the server refuses is measured by hand and driven by no live test. done 2026-09-05.
+- [R-552](tasks/552-the-uid-parameter-of-read-email-carries-no-description.md) The uid parameter of read_email has no description. done 2026-09-05.
+- [R-569](tasks/569-the-dropped-read-under-dovecots-default-is-measured-by-hand-and-driven-by-no-live-row.md) The dropped read under Dovecot's default is measured by hand and driven by no live test. declined 2026-09-15.
+- [R-570](tasks/570-a-search-of-a-folder-holding-one-unreadable-message-is-refused-whole.md) A search of a folder holding one unreadable message is refused whole. open, waiting for its trigger.
+- [R-571](tasks/571-the-cortexs-reading-of-the-uid-description-is-unmeasured.md) The cortex's reading of the uid description is unmeasured. done 2026-09-06.
+- [R-572](tasks/572-the-not-found-answer-states-no-correction-where-the-folders-does.md) The not-found answer states no correction where the folder's does. done 2026-09-06.
+- [R-582](tasks/582-the-not-found-answer-is-the-one-correction-the-audit-records-as-ok.md) The not-found answer is the one correction the audit records as ok. done 2026-09-06.
+- [R-584](tasks/584-the-uid-rows-are-measured-where-the-listing-answers-the-ask.md) The uid rows are measured where the listing already answers the request. open, waiting for its trigger.
+- [R-673](tasks/673-the-search-paths-dropped-connection-is-driven-by-no-live-row.md) The search path's dropped connection is driven by no live test. open, waiting for its trigger.
 
 ### email-confirmer
 
 3 open of 23.
 
 - [R-208](tasks/208-confirm-with-provenance.md) Confirm-with-provenance for tainted turns. declined 2026-07-16.
-- [R-209](tasks/209-richer-send-shapes.md) Richer send shapes. landed 2026-07-13.
-- [R-210](tasks/210-attachments-as-authored-text.md) Attachments as authored text. landed 2026-07-15.
-- [R-211](tasks/211-search-emails-query-dialect.md) The `search_emails` query dialect. landed 2026-08-18.
-- [R-212](tasks/212-structured-confirm-resolution-event.md) The structured confirm-resolution event. landed 2026-07-14.
+- [R-209](tasks/209-richer-send-shapes.md) Richer send shapes. done 2026-07-13.
+- [R-210](tasks/210-attachments-as-authored-text.md) Attachments as authored text. done 2026-07-15.
+- [R-211](tasks/211-search-emails-query-dialect.md) The `search_emails` query dialect. done 2026-08-18.
+- [R-212](tasks/212-structured-confirm-resolution-event.md) The structured confirm-resolution event. done 2026-07-14.
 - [R-213](tasks/213-trust-overlays-remote-tools.md) Trust overlays for remote tools. satisfied 2026-09-09.
-- [R-214](tasks/214-batching-session-allowlists.md) Batching and per-tool session allowlists. open, fix when it bites.
-- [R-215](tasks/215-toolactivity-end-to-end.md) `ToolActivity` end to end. landed 2026-07-12.
+- [R-214](tasks/214-batching-session-allowlists.md) Batching and per-tool session allowlists. open, waiting for its trigger.
+- [R-215](tasks/215-toolactivity-end-to-end.md) `ToolActivity` end to end. done 2026-07-12.
 - [R-216](tasks/216-toolactivity-wire-phase-field.md) The `ToolActivity` wire `phase` field. declined 2026-09-13.
-- [R-217](tasks/217-subagent-gated-name-backstop.md) The subagent-side gated-name backstop. landed 2026-07-12.
-- [R-312](tasks/312-search-refusal-is-untyped.md) A refused search reaches the model as the IMAP library's own error. landed 2026-08-19.
-- [R-318](tasks/318-a-folder-refusal-is-untyped.md) A folder no mailbox has reaches the model as the IMAP library's own sentence. landed 2026-08-19.
-- [R-327](tasks/327-the-other-no-to-select-is-unseen.md) The other kind of refused SELECT has never been seen on a server this repo can reach. landed 2026-08-21.
-- [R-364](tasks/364-list-folders-offers-a-name-no-mailbox-has.md) `list_folders` offers a name that is not a mailbox, and a refusal sends the model to it. landed 2026-08-21.
-- [R-365](tasks/365-a-refused-name-is-neither-missing-nor-shut.md) A third thing a refused SELECT can mean, a name no mailbox could have, is untyped. landed 2026-08-22.
-- [R-373](tasks/373-a-flag-read-from-a-standard-not-a-server.md) One of the two unselectable flags is read from a standard and from no server. landed 2026-08-22.
-- [R-374](tasks/374-two-names-the-bridge-lists-are-now-withheld.md) Two names the Bridge lists and opens are now withheld, and nobody has looked. landed 2026-08-21.
-- [R-375](tasks/375-a-flagged-name-shut-is-dropped-as-if-missing.md) A flagged name that is merely shut is dropped as if no mailbox had it. landed 2026-09-12.
-- [R-376](tasks/376-the-bridge-flag-reading-is-one-account.md) The kept half of the folder filter is proved only on a server nobody here can configure. landed 2026-08-23.
-- [R-386](tasks/386-the-answer-read-holds-the-name-that-was-sent.md) The answer the folder rule reads holds the name the caller sent. open, fix when it bites.
-- [R-400](tasks/400-the-keep-in-the-adapters-listing-is-one-account.md) The keep in the listing the adapter really makes is still proved on one account. open, fix when it bites.
+- [R-217](tasks/217-subagent-gated-name-backstop.md) The subagent-side confirm-set check. done 2026-07-12.
+- [R-312](tasks/312-search-refusal-is-untyped.md) A refused search reaches the model as the IMAP library's own error. done 2026-08-19.
+- [R-318](tasks/318-a-folder-refusal-is-untyped.md) A folder no mailbox has reaches the model as the IMAP library's own sentence. done 2026-08-19.
+- [R-327](tasks/327-the-other-no-to-select-is-unseen.md) The other kind of refused SELECT has never been seen on a server this repo can reach. done 2026-08-21.
+- [R-364](tasks/364-list-folders-offers-a-name-no-mailbox-has.md) `list_folders` offers a name that is not a mailbox, and a refusal sends the model back to it. done 2026-08-21.
+- [R-365](tasks/365-a-refused-name-is-neither-missing-nor-shut.md) A third thing a refused SELECT can mean, a name no mailbox could have, is untyped. done 2026-08-22.
+- [R-373](tasks/373-a-flag-read-from-a-standard-not-a-server.md) One of the two unselectable flags is read from a standard and from no server. done 2026-08-22.
+- [R-374](tasks/374-two-names-the-bridge-lists-are-now-withheld.md) Two names the Bridge lists and opens are now withheld, and nobody has looked. done 2026-08-21.
+- [R-375](tasks/375-a-flagged-name-shut-is-dropped-as-if-missing.md) A flagged name that is merely closed is dropped as if no mailbox had it. done 2026-09-12.
+- [R-376](tasks/376-the-bridge-flag-reading-is-one-account.md) The kept half of the folder filter is proved only on a server nobody here can configure. done 2026-08-23.
+- [R-386](tasks/386-the-answer-read-holds-the-name-that-was-sent.md) The refusal the folder rule reads can contain the name the caller sent. open, waiting for its trigger.
+- [R-400](tasks/400-the-keep-in-the-adapters-listing-is-one-account.md) The keep branch in the listing the adapter really makes is proved on one account. open, waiting for its trigger.
 - [R-401](tasks/401-the-rejected-probe-configurations-are-prose.md) Two dovecot configurations were measured and rejected, and nothing runs them again. declined 2026-09-12.
-- [R-424](tasks/424-every-probe-run-leaves-an-anonymous-volume.md) Every probe run leaves an anonymous volume behind, against its own promise. landed 2026-08-24.
+- [R-424](tasks/424-every-probe-run-leaves-an-anonymous-volume.md) Every probe run leaves an anonymous volume behind, against its own promise. done 2026-08-24.
 
 ### inference
 
-12 open of 53.
+11 open of 53.
 
-- [R-458](tasks/458-the-ports-thinking-switch-is-conditional.md) The port's thinking switch holds on one request shape and silently does nothing on another. landed 2026-08-27.
-- [R-464](tasks/464-why-a-grammar-restores-the-trace.md) Why a schema restores a trace the same server just suppressed is unknown. landed 2026-08-28.
-- [R-465](tasks/465-the-switch-across-the-lineup.md) Two picks are not a rule about which shapes honour the thinking switch. landed 2026-08-28.
-- [R-466](tasks/466-nothing-holds-a-cap-to-a-bounded-trace.md) Nothing holds a cap sized on the answer to a tier whose trace is bounded. declined 2026-09-12.
-- [R-474](tasks/474-the-switch-could-be-rendered-as-a-lever-that-holds.md) The port's thinking switch could be rendered as a lever that holds. landed 2026-08-29.
+- [R-458](tasks/458-the-ports-thinking-switch-is-conditional.md) The port's thinking switch works on one request shape and does nothing on another. done 2026-08-27.
+- [R-464](tasks/464-why-a-grammar-restores-the-trace.md) Why a schema restores a trace the same server just suppressed is unknown. done 2026-08-28.
+- [R-465](tasks/465-the-switch-across-the-lineup.md) Two picks are not a rule about which shapes honour the thinking switch. done 2026-08-28.
+- [R-466](tasks/466-nothing-holds-a-cap-to-a-bounded-trace.md) Nothing checks that a cap sized on the answer runs on a tier whose trace is bounded. declined 2026-09-12.
+- [R-474](tasks/474-the-switch-could-be-rendered-as-a-lever-that-holds.md) The port's thinking switch could be sent as a request value the engine applies. done 2026-08-29.
 - [R-475](tasks/475-a-tier-can-be-asked-what-its-template-answers.md) A tier can be asked at boot which of its own bounds are safe, and nothing asks. declined 2026-08-29.
-- [R-479](tasks/479-the-reasoning-budget-held-until-the-prompt-pushed.md) The tier's reasoning-off flag held on every run until a firmer prompt pushed on it. landed 2026-08-29.
-- [R-495](tasks/495-the-forced-thought-can-leak-its-own-start-tag.md) A forced end of thought can deliver its own start tag as the answer. open, fix when it bites.
-- [R-496](tasks/496-the-trace-lever-is-answered-once-per-boot.md) The trace lever is answered once per boot and never re-asked. landed 2026-09-12.
-- [R-497](tasks/497-nothing-reports-a-trace-budget-that-went-unread.md) Nothing reports a trace budget the engine never read. open, fix when it bites.
-- [R-498](tasks/498-one-reply-trace-budget-for-two-tiers.md) One reply trace budget reaches the deep phase as well as the cortex turn. landed 2026-09-14.
-- [R-499](tasks/499-the-rendering-predictor-is-asserted-nowhere.md) The rendering that predicts a tier's constrained verdict is printed and never asserted. landed 2026-08-30.
-- [R-500](tasks/500-the-garbled-channel-marker-has-no-attributed-cause.md) The garbled channel marker that eats a delegated answer has no attributed cause. landed 2026-08-30.
-- [R-509](tasks/509-a-third-familys-closed-thought-reads-as-an-open-one.md) A closed thought spelled a third way reads here as an open one. landed 2026-08-30.
-- [R-510](tasks/510-nine-rows-of-the-rendering-column-are-hand-read.md) Nine rows of the rendering column are still hand readings. landed 2026-09-02.
-- [R-511](tasks/511-the-shipped-reasoning-off-pair-disarms-its-own-sampler.md) The shipped reasoning-off pair contains a flag that disarms the other. declined 2026-09-02.
-- [R-512](tasks/512-no-committed-probe-splits-the-reasoning-off-pair.md) No committed probe sends the request's own trace budget, or pairs two arms at a seed. landed 2026-09-11.
-- [R-517](tasks/517-a-third-family-that-appends-nothing-either-way-still-reads-as-open.md) A third family that appends nothing either way still reads as open. landed 2026-09-02.
-- [R-524](tasks/524-the-readers-thought-vocabulary-is-a-hand-list-held-to-nothing-the-model-files-say.md) The reader's thought vocabulary is a hand list held to nothing the model files say. open, fix when it bites.
-- [R-525](tasks/525-the-injection-harness-sends-a-request-key-and-never-the-tiers-argv.md) The injection harness sends a request key, and never the tier's argv. landed 2026-09-04.
-- [R-526](tasks/526-the-pairs-budget-half-is-inert-beside-the-kwarg.md) The pair's budget half is inert beside the kwarg, on both families and both builds measured. open, fix when it bites.
-- [R-528](tasks/528-a-switch-sample-names-the-model-the-operator-typed-and-no-engine-build.md) A switch sample names the model the operator typed and no engine build. landed 2026-09-02.
-- [R-529](tasks/529-the-rendering-column-is-one-builds-sweep-and-an-engine-bump-reopens-it.md) The rendering column is one build's sweep, and an engine bump reopens every row of it. open, fix when it bites.
-- [R-535](tasks/535-a-switch-sample-names-no-context-size-or-placement.md) A switch sample names no context size or placement. landed 2026-09-15.
-- [R-546](tasks/546-the-harness-takes-the-tiers-reasoning-flags-and-not-its-placement.md) The harness takes the tier's reasoning flags and not its placement. landed 2026-09-05.
-- [R-547](tasks/547-the-pairs-budget-half-has-no-injection-row-of-its-own.md) The pair's budget half has no injection row of its own. landed 2026-09-05.
-- [R-555](tasks/555-the-other-four-subagent-candidates-have-no-cpu-row.md) The other four subagent candidates have no CPU row. landed 2026-09-09.
-- [R-556](tasks/556-no-pixel-row-has-been-replicated-at-the-tiers-own-window.md) No pixel row has been replicated at the tier's own window. landed 2026-09-06.
-- [R-557](tasks/557-the-engine-image-names-are-typed-in-five-places.md) The engine image names are typed in five places. landed 2026-09-09.
-- [R-558](tasks/558-thinking-follows-the-tiers-name-and-not-its-shipped-budget.md) Thinking follows the tier's name and not its shipped budget. open, fix when it bites.
-- [R-559](tasks/559-the-cpu-row-carries-the-cpu-quota-and-not-the-memory-cap.md) The CPU row carries the CPU quota and not the memory cap. landed 2026-09-09.
-- [R-560](tasks/560-the-text-arm-scores-an-empty-or-capped-reply-as-resistance.md) The text arm scores an empty or capped reply as resistance. landed 2026-09-05.
-- [R-563](tasks/563-the-text-arms-published-matrices-are-mention-counts-with-no-reply-behind-them.md) The text arm's published matrices are mention counts with no reply behind them. landed 2026-09-05.
-- [R-573](tasks/573-the-other-lineup-rows-have-no-obeyed-count-beside-their-mention-count.md) The other lineup rows have no obeyed count beside their mention count. landed 2026-09-06.
-- [R-574](tasks/574-a-void-text-row-fails-on-the-harnesss-own-cap.md) A void text row fails on the harness's own cap. open, fix when it bites.
-- [R-575](tasks/575-one-void-reply-fails-a-row-that-drew-nineteen-cells.md) One void reply fails a row that drew nineteen cells. landed 2026-09-10.
-- [R-580](tasks/580-the-cortex-alts-artifact-is-not-on-the-mount-and-the-row-reads-as-a-health-timeout.md) The cortex alt's artifact is not on the mount and the row reads as a health timeout. landed 2026-09-06.
-- [R-581](tasks/581-the-six-line-attacks-have-no-written-hand-rule.md) The six line attacks have no written hand rule. open, fix when it bites.
-- [R-585](tasks/585-the-cortex-alts-framed-cell-has-one-sitting-and-three-changes-under-it.md) The cortex alt's framed cell has one sitting and three changes under it. landed 2026-09-06.
-- [R-586](tasks/586-the-cortex-alts-pixel-rows-are-undrawn-now-that-its-artifact-loads.md) The cortex alt's pixel rows are undrawn now that its artifact loads. landed 2026-09-07.
-- [R-587](tasks/587-one-cell-reads-differently-in-the-two-rows-of-one-sitting.md) One cell reads differently in the two rows of one sitting. landed 2026-09-06.
-- [R-598](tasks/598-the-leaks-denominator-is-53-in-one-place-and-58-in-three.md) The leak's denominator is 53 in the runbook and 58 in the three other places that publish it. landed 2026-09-08.
+- [R-479](tasks/479-the-reasoning-budget-held-until-the-prompt-pushed.md) The tier's reasoning-off flag worked on every run until a firmer prompt pushed on it. done 2026-08-29.
+- [R-495](tasks/495-the-forced-thought-can-leak-its-own-start-tag.md) A forced end of thought can deliver its own start tag as the answer. open, waiting for its trigger.
+- [R-496](tasks/496-the-trace-lever-is-answered-once-per-boot.md) The trace budget probe runs once per boot and is never repeated. done 2026-09-12.
+- [R-497](tasks/497-nothing-reports-a-trace-budget-that-went-unread.md) Nothing reports a trace budget the engine never read. done 2026-09-19.
+- [R-498](tasks/498-one-reply-trace-budget-for-two-tiers.md) One reply trace budget reaches the deep phase as well as the cortex turn. done 2026-09-14.
+- [R-499](tasks/499-the-rendering-predictor-is-asserted-nowhere.md) The rendering that predicts a tier's constrained result is printed and never asserted. done 2026-08-30.
+- [R-500](tasks/500-the-garbled-channel-marker-has-no-attributed-cause.md) The garbled channel marker that destroys a delegated answer has no attributed cause. done 2026-08-30.
+- [R-509](tasks/509-a-third-familys-closed-thought-reads-as-an-open-one.md) A closed thought written a third way reads here as an open one. done 2026-08-30.
+- [R-510](tasks/510-nine-rows-of-the-rendering-column-are-hand-read.md) Nine rows of the rendering column are still hand readings. done 2026-09-02.
+- [R-511](tasks/511-the-shipped-reasoning-off-pair-disarms-its-own-sampler.md) The shipped reasoning-off pair contains a flag that cancels the other. declined 2026-09-02.
+- [R-512](tasks/512-no-committed-probe-splits-the-reasoning-off-pair.md) No committed probe sends the request's own trace budget, or pairs two runs at a seed. done 2026-09-11.
+- [R-517](tasks/517-a-third-family-that-appends-nothing-either-way-still-reads-as-open.md) A third family that appends nothing either way still reads as open. done 2026-09-02.
+- [R-524](tasks/524-the-readers-thought-vocabulary-is-a-hand-list-held-to-nothing-the-model-files-say.md) The reader's thought vocabulary is a hand list checked against nothing the model files say. open, waiting for its trigger.
+- [R-525](tasks/525-the-injection-harness-sends-a-request-key-and-never-the-tiers-argv.md) The injection harness sends a request key, and never the tier's argv. done 2026-09-04.
+- [R-526](tasks/526-the-pairs-budget-half-is-inert-beside-the-kwarg.md) The pair's budget half has no effect beside the kwarg, on both families and both builds measured. open, waiting for its trigger.
+- [R-528](tasks/528-a-switch-sample-names-the-model-the-operator-typed-and-no-engine-build.md) A switch sample names the model the operator typed and no engine build. done 2026-09-02.
+- [R-529](tasks/529-the-rendering-column-is-one-builds-sweep-and-an-engine-bump-reopens-it.md) The rendering column is one build's measurement, and an engine bump reopens every row of it. open, waiting for its trigger.
+- [R-535](tasks/535-a-switch-sample-names-no-context-size-or-placement.md) A switch sample names no context size or placement. done 2026-09-15.
+- [R-546](tasks/546-the-harness-takes-the-tiers-reasoning-flags-and-not-its-placement.md) The harness takes the tier's reasoning flags and not its placement. done 2026-09-05.
+- [R-547](tasks/547-the-pairs-budget-half-has-no-injection-row-of-its-own.md) The reasoning budget on its own has no injection row. done 2026-09-05.
+- [R-555](tasks/555-the-other-four-subagent-candidates-have-no-cpu-row.md) The other four subagent candidates have no CPU row. done 2026-09-09.
+- [R-556](tasks/556-no-pixel-row-has-been-replicated-at-the-tiers-own-window.md) No pixel row has been repeated at the tier's own context window. done 2026-09-06.
+- [R-557](tasks/557-the-engine-image-names-are-typed-in-five-places.md) The engine image names are typed in several places. done 2026-09-09.
+- [R-558](tasks/558-thinking-follows-the-tiers-name-and-not-its-shipped-budget.md) Thinking follows the tier's name and not its shipped budget. open, waiting for its trigger.
+- [R-559](tasks/559-the-cpu-row-carries-the-cpu-quota-and-not-the-memory-cap.md) The CPU row applies the CPU quota and not the memory cap. done 2026-09-09.
+- [R-560](tasks/560-the-text-arm-scores-an-empty-or-capped-reply-as-resistance.md) The text rows score an empty or capped reply as resistance. done 2026-09-05.
+- [R-563](tasks/563-the-text-arms-published-matrices-are-mention-counts-with-no-reply-behind-them.md) The published text matrices are mention counts with no reply behind them. done 2026-09-05.
+- [R-573](tasks/573-the-other-lineup-rows-have-no-obeyed-count-beside-their-mention-count.md) The other lineup rows have no obeyed count beside their mention count. done 2026-09-06.
+- [R-574](tasks/574-a-void-text-row-fails-on-the-harnesss-own-cap.md) A text row that comes back empty fails on the harness's own cap. open, waiting for its trigger.
+- [R-575](tasks/575-one-void-reply-fails-a-row-that-drew-nineteen-cells.md) One empty reply fails a row that drew nineteen cells. done 2026-09-10.
+- [R-580](tasks/580-the-cortex-alts-artifact-is-not-on-the-mount-and-the-row-reads-as-a-health-timeout.md) The cortex alt's artifact is not on the mount and the row reads as a health timeout. done 2026-09-06.
+- [R-581](tasks/581-the-six-line-attacks-have-no-written-hand-rule.md) The six line attacks have no written hand rule. open, waiting for its trigger.
+- [R-585](tasks/585-the-cortex-alts-framed-cell-has-one-sitting-and-three-changes-under-it.md) The cortex alt's framed cell has one measurement and three changes under it. done 2026-09-06.
+- [R-586](tasks/586-the-cortex-alts-pixel-rows-are-undrawn-now-that-its-artifact-loads.md) The cortex alt's pixel rows are undrawn now that its artifact loads. done 2026-09-07.
+- [R-587](tasks/587-one-cell-reads-differently-in-the-two-rows-of-one-sitting.md) One cell reads differently in the two rows of one session. done 2026-09-06.
+- [R-598](tasks/598-the-leaks-denominator-is-53-in-one-place-and-58-in-three.md) The leak's denominator is 53 in the runbook and 58 in the three other places that publish it. done 2026-09-08.
 - [R-607](tasks/607-eighteen-of-the-cortex-alts-pixel-rows-are-undrawn.md) Fourteen of the cortex alt's thirty-six pixel rows are undrawn or refused. open, actionable.
-- [R-608](tasks/608-the-cost-rows-assertions-are-the-picks-saturation-and-the-alt-fails-both.md) The cost row's assertions are the pick's saturation and the alt fails both. landed 2026-09-10.
-- [R-611](tasks/611-nothing-reads-the-build-the-engine-names-on-every-response.md) Nothing reads the build the engine names on every response. landed 2026-09-10.
-- [R-617](tasks/617-the-picks-published-cpu-row-was-drawn-before-the-memory-cap.md) The pick's published CPU row was drawn before the memory cap. landed 2026-09-10.
-- [R-622](tasks/622-only-one-endpoint-in-one-mode-records-its-engine-build.md) Only one endpoint in one mode records its engine build. open, a seam or port change comes first.
-- [R-625](tasks/625-no-row-has-been-drawn-through-the-per-arm-denominator.md) No row has been drawn through the per-arm denominator. landed 2026-09-10.
-- [R-626](tasks/626-the-alts-one-framed-application-is-reported-as-a-cell.md) The alt's one framed application is reported as a cell and behaves like a rate. landed 2026-09-11.
-- [R-627](tasks/627-the-cpu-rows-wall-clock-does-not-reproduce-the-published-one.md) The CPU row's wall clock does not reproduce the published one. landed 2026-09-11.
-- [R-633](tasks/633-the-paired-arm-identity-is-counted-by-a-scratch-script.md) The paired-arm identity is counted by a scratch script rather than a gated reader. landed 2026-09-11.
-- [R-648](tasks/648-nothing-re-asks-the-trace-lever-when-the-engine-moves.md) Nothing re-asks the trace lever when the engine behind the endpoint moves. open, fix when it bites.
-- [R-650](tasks/650-nothing-holds-a-side-call-to-the-request-level-zero.md) Nothing holds a new side call to the request-level zero the shipped bounds carry. open, fix when it bites.
+- [R-608](tasks/608-the-cost-rows-assertions-are-the-picks-saturation-and-the-alt-fails-both.md) The cost row's assertions are the pick's saturation and the alt fails both. done 2026-09-10.
+- [R-611](tasks/611-nothing-reads-the-build-the-engine-names-on-every-response.md) Nothing reads the build the engine names on every response. done 2026-09-10.
+- [R-617](tasks/617-the-picks-published-cpu-row-was-drawn-before-the-memory-cap.md) The pick's published CPU row was drawn before the memory cap. done 2026-09-10.
+- [R-622](tasks/622-only-one-endpoint-in-one-mode-records-its-engine-build.md) Only one endpoint in one mode records its engine build. open, needs a port change first.
+- [R-625](tasks/625-no-row-has-been-drawn-through-the-per-arm-denominator.md) No row has been drawn through the per-condition denominator. done 2026-09-10.
+- [R-626](tasks/626-the-alts-one-framed-application-is-reported-as-a-cell.md) The alt's one framed application is reported as a cell and behaves like a rate. done 2026-09-11.
+- [R-627](tasks/627-the-cpu-rows-wall-clock-does-not-reproduce-the-published-one.md) The CPU row's wall clock does not reproduce the published one. done 2026-09-11.
+- [R-633](tasks/633-the-paired-arm-identity-is-counted-by-a-scratch-script.md) The identity between two runs is counted by a scratch script rather than a checked reader. done 2026-09-11.
+- [R-648](tasks/648-nothing-re-asks-the-trace-lever-when-the-engine-moves.md) Nothing asks the trace setting again when the engine behind the endpoint moves. open, waiting for its trigger.
+- [R-650](tasks/650-nothing-holds-a-side-call-to-the-request-level-zero.md) Nothing checks a new side call for the request-level trace zero. open, waiting for its trigger.
 
 ### inference-model-manager
 
 8 open of 32.
 
-- [R-106](tasks/106-model-manager-co-residency.md) Model-manager process lifecycle, co-residency and real swap. landed 2026-08-07.
-- [R-107](tasks/107-co-resident-fit-check.md) Check that a co-resident card really holds the pair. landed 2026-08-07.
-- [R-108](tasks/108-notice-a-spilled-handoff.md) Notice a handoff that spilled. landed 2026-08-08.
+- [R-106](tasks/106-model-manager-co-residency.md) Model-manager process lifecycle, co-residency and real swap. done 2026-08-07.
+- [R-107](tasks/107-co-resident-fit-check.md) Check that a co-resident card really holds the pair. done 2026-08-07.
+- [R-108](tasks/108-notice-a-spilled-handoff.md) Notice a handoff that spilled. done 2026-08-08.
 - [R-109](tasks/109-spill-does-not-latch.md) A watched spill still promises co-residency. declined 2026-08-18.
-- [R-110](tasks/110-prefill-second-witness.md) Prefill as the second witness of a spill. open, fix when it bites.
-- [R-111](tasks/111-placer-handoff-window.md) Give the placer a model of the handoff window. landed 2026-08-07.
-- [R-112](tasks/112-resume-crashed-handoff.md) Resume a crashed handoff from its record. open, fix when it bites.
+- [R-110](tasks/110-prefill-second-witness.md) Prefill as the second sign of a spill. open, waiting for its trigger.
+- [R-111](tasks/111-placer-handoff-window.md) Give the placer a model of the handoff window. done 2026-08-07.
+- [R-112](tasks/112-resume-crashed-handoff.md) Resume a crashed handoff from its record. open, waiting for its trigger.
 - [R-113](tasks/113-fence-handoff-claim.md) Fence the single-handoff claim across processes. declined 2026-08-18.
-- [R-114](tasks/114-reconverge-residency-on-restart.md) Reconverge residency when the sidecar restarts under it. landed 2026-08-09.
-- [R-115](tasks/115-stop-bounds-deadline-check.md) Check the sidecar's stop bounds against the control deadline. landed 2026-08-09.
-- [R-116](tasks/116-reconciliation-without-a-turn.md) Reach the residency reconciliation without a turn. landed 2026-08-18.
-- [R-117](tasks/117-mtp-model-variants.md) MTP (multi-token-prediction) model variants. landed 2026-09-19.
-- [R-118](tasks/118-reasoning-thinking-status.md) The cortex reasoning trace as a thinking status. landed 2026-07-06.
-- [R-119](tasks/119-disable-thinking-token-budget.md) Disable-thinking and token-budget capping. landed 2026-08-16.
-- [R-289](tasks/289-reasoning-budget-is-all-or-nothing.md) The reasoning budget is all or nothing. landed 2026-08-17.
-- [R-295](tasks/295-per-request-trace-budget.md) One tier still has one thinking budget. landed 2026-08-29.
-- [R-296](tasks/296-trace-budget-quality-floor.md) What a bounded trace costs a hard answer is unmeasured. open, fix when it bites.
-- [R-297](tasks/297-cut-tool-call-fails-the-cortex-turn.md) A cut tool call fails the cortex turn as an inference error. landed 2026-08-20.
-- [R-299](tasks/299-prose-cites-an-engine-build-nothing-pins.md) Prose cites an engine build that nothing pins. landed 2026-09-08.
-- [R-304](tasks/304-spill-rides-the-residency-report.md) A spilled handoff is only ever in the log. landed 2026-08-19.
-- [R-310](tasks/310-a-pass-that-starts-the-cortex.md) A pass that starts the cortex, and a verb an operator could reach for. open, fix when it bites.
-- [R-321](tasks/321-a-spill-nobody-saw-is-forgotten.md) A spill nobody was awake for is forgotten by design. open, fix when it bites.
-- [R-329](tasks/329-a-failure-with-two-candidate-subjects.md) A failure that wraps two calls names neither model. landed 2026-08-19.
-- [R-330](tasks/330-a-bool-loses-which-model-failed.md) A bool loses which of two models the restore failed on. landed 2026-08-20.
-- [R-340](tasks/340-the-deep-phase-cannot-see-a-cut-call.md) The deep phase reads a cut tool call as a dead server. landed 2026-09-14.
-- [R-345](tasks/345-a-refusal-that-is-not-the-only-record.md) A model host refusal claims to be the only record of itself. landed 2026-08-21.
-- [R-347](tasks/347-a-transparent-turn-keeps-the-inner-id.md) A turn nobody escalated completes under whatever id the inner runner claimed. open, fix when it bites.
-- [R-350](tasks/350-a-failed-swap-in-says-nothing-brain-side.md) A swap that failed on the model host says nothing in the brain's own log. landed 2026-08-22.
+- [R-114](tasks/114-reconverge-residency-on-restart.md) Reconverge residency when the sidecar restarts under it. done 2026-08-09.
+- [R-115](tasks/115-stop-bounds-deadline-check.md) Check the sidecar's stop bounds against the control deadline. done 2026-08-09.
+- [R-116](tasks/116-reconciliation-without-a-turn.md) Reach the residency reconciliation without a turn. done 2026-08-18.
+- [R-117](tasks/117-mtp-model-variants.md) MTP (multi-token-prediction) model variants. done 2026-09-19.
+- [R-118](tasks/118-reasoning-thinking-status.md) The cortex reasoning trace as a thinking status. done 2026-07-06.
+- [R-119](tasks/119-disable-thinking-token-budget.md) Disable-thinking and token-budget capping. done 2026-08-16.
+- [R-289](tasks/289-reasoning-budget-is-all-or-nothing.md) The reasoning budget is all or nothing. done 2026-08-17.
+- [R-295](tasks/295-per-request-trace-budget.md) One tier still has one thinking budget. done 2026-08-29.
+- [R-296](tasks/296-trace-budget-quality-floor.md) What a bounded trace costs a hard answer is unmeasured. open, waiting for its trigger.
+- [R-297](tasks/297-cut-tool-call-fails-the-cortex-turn.md) A cut tool call fails the cortex turn as an inference error. done 2026-08-20.
+- [R-299](tasks/299-prose-cites-an-engine-build-nothing-pins.md) Prose names an engine build that no tag keeps fixed. done 2026-09-08.
+- [R-304](tasks/304-spill-rides-the-residency-report.md) A spilled handoff is only ever in the log. done 2026-08-19.
+- [R-310](tasks/310-a-pass-that-starts-the-cortex.md) Nothing starts a stopped cortex outside boot, and no operator command exists. open, waiting for its trigger.
+- [R-321](tasks/321-a-spill-nobody-saw-is-forgotten.md) A spill nobody was awake for is forgotten by design. open, waiting for its trigger.
+- [R-329](tasks/329-a-failure-with-two-candidate-subjects.md) A failure that wraps two calls names neither model. done 2026-08-19.
+- [R-330](tasks/330-a-bool-loses-which-model-failed.md) A bool loses which of two models the restore failed on. done 2026-08-20.
+- [R-340](tasks/340-the-deep-phase-cannot-see-a-cut-call.md) The deep phase reads a cut tool call as a dead server. done 2026-09-14.
+- [R-345](tasks/345-a-refusal-that-is-not-the-only-record.md) A model host refusal claims to be the only record of itself. done 2026-08-21.
+- [R-347](tasks/347-a-transparent-turn-keeps-the-inner-id.md) A turn nobody escalated completes under whatever id the inner runner used. open, waiting for its trigger.
+- [R-350](tasks/350-a-failed-swap-in-says-nothing-brain-side.md) A swap that failed on the model host writes nothing in the brain's own log. done 2026-08-22.
 - [R-379](tasks/379-a-settled-reason-nothing-reads-back.md) A settled handoff's reason is written twice and read back by nothing. declined 2026-09-15.
-- [R-417](tasks/417-the-swap-path-never-names-the-conversation.md) The swap path never names the conversation, so a chat's evidence stops at the handoff. landed 2026-08-25.
-- [R-665](tasks/665-a-settled-handoff-does-not-say-it-was-cut.md) A settled handoff record does not say whether the answer was cut. open, fix when it bites.
+- [R-417](tasks/417-the-swap-path-never-names-the-conversation.md) The swap path never names the conversation, so a chat's evidence stops at the handoff. done 2026-08-25.
+- [R-665](tasks/665-a-settled-handoff-does-not-say-it-was-cut.md) A settled handoff record does not say whether the answer was cut. open, waiting for its trigger.
 - [R-698](tasks/698-a-drafter-sized-spill-is-unmeasured-against-the-decode-floor.md) A drafter-sized spill is unmeasured against the decode floor. open, actionable.
 
 ### memory
 
 8 open of 30.
 
-- [R-083](tasks/083-namespaced-memory-scoping.md) Per-session and namespaced memory scoping. landed 2026-07-06.
-- [R-084](tasks/084-session-global-union-read.md) Session and global union read policy. open, dead until a consumer.
-- [R-085](tasks/085-per-scope-retention-eviction.md) Per-scope retention and eviction. open, dead until a consumer.
-- [R-086](tasks/086-cross-scope-recall-ranking.md) Cross-scope recall ranking. open, dead until a consumer.
-- [R-087](tasks/087-tiered-self-editing-memory.md) Tiered and self-editing memory with summarization. open, dead until a consumer.
-- [R-088](tasks/088-recency-rerank-dedup.md) Recency-weighted reranking and near-duplicate dedup. landed 2026-07-13.
-- [R-089](tasks/089-mmr-diversity-policy.md) Maximal-marginal-relevance diversity policy. landed 2026-07-13.
-- [R-090](tasks/090-recency-and-diversity-recall.md) Recency-and-diversity recall policy. landed 2026-07-13.
-- [R-091](tasks/091-blended-relevance-field.md) A distinct blended-relevance field. landed 2026-08-06.
-- [R-092](tasks/092-model-based-reranker.md) The model-based reranker. landed 2026-08-06.
-- [R-093](tasks/093-write-salience-policy.md) Write-salience policy. open, dead until a consumer.
-- [R-094](tasks/094-recall-observability.md) Recall observability. landed 2026-08-06.
-- [R-095](tasks/095-ann-index.md) ANN index for memory search. open, fix when it bites.
-- [R-096](tasks/096-ranked-recall-widening.md) Model rank, blended key, and recall trail. landed 2026-08-06.
-- [R-097](tasks/097-cross-encoder-rank.md) A cross-encoder rank. open, fix when it bites.
-- [R-098](tasks/098-never-a-candidate.md) Why a memory was never a candidate. landed 2026-08-10.
-- [R-099](tasks/099-recall-rank-default.md) The recall rank's default. landed 2026-08-08.
-- [R-100](tasks/100-judge-abstention.md) A considered abstention reads as a failed rank. landed 2026-08-07.
+- [R-083](tasks/083-namespaced-memory-scoping.md) Per-session and namespaced memory scoping. done 2026-07-06.
+- [R-084](tasks/084-session-global-union-read.md) Session and global union read policy. open, waiting for a consumer.
+- [R-085](tasks/085-per-scope-retention-eviction.md) Per-scope retention and eviction. open, waiting for a consumer.
+- [R-086](tasks/086-cross-scope-recall-ranking.md) Cross-scope recall ranking. open, waiting for a consumer.
+- [R-087](tasks/087-tiered-self-editing-memory.md) Tiered and self-editing memory with summarization. open, waiting for a consumer.
+- [R-088](tasks/088-recency-rerank-dedup.md) Recency-weighted reranking and near-duplicate dedup. done 2026-07-13.
+- [R-089](tasks/089-mmr-diversity-policy.md) Maximal-marginal-relevance diversity policy. done 2026-07-13.
+- [R-090](tasks/090-recency-and-diversity-recall.md) Recency-and-diversity recall policy. done 2026-07-13.
+- [R-091](tasks/091-blended-relevance-field.md) A distinct blended-relevance field. done 2026-08-06.
+- [R-092](tasks/092-model-based-reranker.md) The model-based reranker. done 2026-08-06.
+- [R-093](tasks/093-write-salience-policy.md) Write-salience policy. open, waiting for a consumer.
+- [R-094](tasks/094-recall-observability.md) Recall observability. done 2026-08-06.
+- [R-095](tasks/095-ann-index.md) ANN index for memory search. open, waiting for its trigger.
+- [R-096](tasks/096-ranked-recall-widening.md) Model rank, blended key, and recall trail. done 2026-08-06.
+- [R-097](tasks/097-cross-encoder-rank.md) A cross-encoder rank. open, waiting for its trigger.
+- [R-098](tasks/098-never-a-candidate.md) Why a memory was never a candidate. done 2026-08-10.
+- [R-099](tasks/099-recall-rank-default.md) The recall rank's default. done 2026-08-08.
+- [R-100](tasks/100-judge-abstention.md) A considered abstention reads as a failed rank. done 2026-08-07.
 - [R-101](tasks/101-geometric-relevance-floor.md) A geometric policy cannot decline. declined 2026-08-08.
-- [R-102](tasks/102-unavailable-memory-degradation.md) A dead embedder or store kills the turn. landed 2026-08-11.
-- [R-103](tasks/103-memory-data-error.md) A malformed row degrades as an outage. landed 2026-08-11.
-- [R-104](tasks/104-delete-cascade-seam-mapping.md) The delete cascade's seam mapping. landed 2026-08-20.
-- [R-105](tasks/105-memory-store-backend-check.md) A backend-failure check for MemoryStore. landed 2026-08-11.
-- [R-309](tasks/309-a-silent-judge-fallback.md) A judge that falls back to geometry says nothing. landed 2026-08-19.
-- [R-316](tasks/316-a-rank-fallback-cannot-name-its-turn.md) A rank fallback cannot name its turn. landed 2026-08-20.
-- [R-332](tasks/332-the-recall-judge-asks-for-an-unpinned-model.md) The recall judge asks for a model id nothing pins. landed 2026-09-11.
-- [R-338](tasks/338-a-named-recall-is-not-a-named-turn.md) A named recall is not a named turn. landed 2026-09-19.
-- [R-358](tasks/358-the-widest-value-was-never-a-real-line.md) The widest value the tree attaches is a synthesis, and no real recall line was ever measured. landed 2026-08-26.
-- [R-455](tasks/455-the-fields-ceiling-assumes-the-shipped-id-factory.md) The field's ceiling assumes the shipped id factory. landed 2026-09-15.
-- [R-683](tasks/683-the-recall-trail-has-no-store.md) The recall trail has no store an operator can query. open, feature breadth.
+- [R-102](tasks/102-unavailable-memory-degradation.md) A dead embedder or store kills the turn. done 2026-08-11.
+- [R-103](tasks/103-memory-data-error.md) A malformed row degrades as an outage. done 2026-08-11.
+- [R-104](tasks/104-delete-cascade-seam-mapping.md) The delete cascade's gRPC status mapping. done 2026-08-20.
+- [R-105](tasks/105-memory-store-backend-check.md) A backend-failure check for MemoryStore. done 2026-08-11.
+- [R-309](tasks/309-a-silent-judge-fallback.md) A judge that falls back to geometry logs nothing. done 2026-08-19.
+- [R-316](tasks/316-a-rank-fallback-cannot-name-its-turn.md) A rank fallback cannot name its turn. done 2026-08-20.
+- [R-332](tasks/332-the-recall-judge-asks-for-an-unpinned-model.md) The recall judge asks for a model id no test checks. done 2026-09-11.
+- [R-338](tasks/338-a-named-recall-is-not-a-named-turn.md) A named recall is not a named turn. done 2026-09-19.
+- [R-358](tasks/358-the-widest-value-was-never-a-real-line.md) The widest value the tree attaches was computed, never read off a real line. done 2026-08-26.
+- [R-455](tasks/455-the-fields-ceiling-assumes-the-shipped-id-factory.md) The field's upper bound assumes the shipped id factory. done 2026-09-15.
+- [R-683](tasks/683-the-recall-trail-has-no-store.md) The recall trail has no store an operator can query. open, optional feature.
 
 ### orchestrator
 
 0 open of 1.
 
-- [R-583](tasks/583-the-correction-harnesss-folder-listing-step-carries-an-empty-answer.md) The correction harness's folder listing step carries an empty answer. landed 2026-09-06.
+- [R-583](tasks/583-the-correction-harnesss-folder-listing-step-carries-an-empty-answer.md) The correction harness's folder listing step returns an empty answer. done 2026-09-06.
 
-### repo-gates
+### repo-checks
 
-36 open of 171.
+38 open of 173.
 
-- [R-001](tasks/001-commit-body-wrap-check.md) Commit body 72-column wrap check. landed 2026-07-19.
-- [R-002](tasks/002-wrap-gate-exceptions.md) Three exceptions the wrap gate did not ship. landed 2026-08-09.
-- [R-003](tasks/003-paste-exemption-reach.md) Paste exemption limited to the wrap. landed 2026-08-09.
-- [R-004](tasks/004-standing-test-order-randomization.md) Standing test-order randomization. landed 2026-08-16.
-- [R-005](tasks/005-live-runs-shared-redis.md) Live contract runs sharing the brain's Redis keyspace. landed 2026-08-03.
-- [R-006](tasks/006-live-pgvector-shared-table.md) The live pgvector run's shared memories table. landed 2026-08-06.
-- [R-007](tasks/007-turn-cost-harness.md) The end-to-end turn-cost harness. landed 2026-08-09.
-- [R-008](tasks/008-fmt-clippy-ungated-rust-trees.md) cargo fmt and clippy for the ungated Rust trees. landed 2026-07-16.
-- [R-009](tasks/009-shell-clippy-in-ci.md) cargo clippy for the Tauri shell in CI. landed 2026-08-17.
-- [R-010](tasks/010-line-cap-overlay-gap.md) The line cap's missing overlay coverage. landed 2026-08-03.
-- [R-011](tasks/011-stylesheet-outside-line-cap.md) The overlay stylesheet outside the line cap. open, fix when it bites.
-- [R-012](tasks/012-couplings-crosscheck-omits.md) The couplings crosscheck.py does not hold yet. landed 2026-08-08.
-- [R-013](tasks/013-couplings-widened-registry-cannot-hold.md) The couplings the widened registry cannot hold. open, fix when it bites.
-- [R-014](tasks/014-fail-open-scripts-config.md) The fail-open scripts gate config. landed 2026-07-12.
-- [R-015](tasks/015-core-barrel-line-cap.md) The cortex_core barrel at its 300-line cap. landed 2026-08-06.
-- [R-016](tasks/016-compose-bind-default-stageable.md) A compose bind default landing in the tree. landed 2026-08-08.
-- [R-017](tasks/017-mention-counts-nothing.md) A mention that counts nothing. landed 2026-08-09.
-- [R-018](tasks/018-ports-without-contract-suite.md) Ports without a shared contract suite. open, fix when it bites.
-- [R-273](tasks/273-index-anchor-never-checked.md) A pointer's anchor is never checked. landed 2026-08-16.
-- [R-274](tasks/274-unpinned-nightly-drifts-the-coverage-gate.md) The coverage gate's nightly is a channel, so upstream drift breaks it. landed 2026-08-16.
-- [R-275](tasks/275-nothing-reads-the-printed-toolchain.md) Nothing reads the toolchain the coverage step prints. landed 2026-08-17.
-- [R-276](tasks/276-repo-wide-anchor-check.md) A fragment aimed anywhere but a backlog index. landed 2026-08-17.
-- [R-280](tasks/280-twin-answers-for-any-model-id.md) The inference twin answers for a model id no deployment serves. landed 2026-08-17.
-- [R-287](tasks/287-rust-tests-run-in-one-fixed-order.md) The Rust suite runs in one fixed order. landed 2026-08-17.
-- [R-288](tasks/288-nothing-schedules-the-shuffle-sweep.md) Nothing schedules the shuffle sweep. landed 2026-08-17.
+- [R-001](tasks/001-commit-body-wrap-check.md) Commit body 72-column wrap check. done 2026-07-19.
+- [R-002](tasks/002-wrap-gate-exceptions.md) Three exceptions the wrap check did not include. done 2026-08-09.
+- [R-003](tasks/003-paste-exemption-reach.md) How far the paste exemption reaches. done 2026-08-09.
+- [R-004](tasks/004-standing-test-order-randomization.md) Test-order randomization on every run. done 2026-08-16.
+- [R-005](tasks/005-live-runs-shared-redis.md) Live contract runs shared the brain's Redis keyspace. done 2026-08-03.
+- [R-006](tasks/006-live-pgvector-shared-table.md) The live pgvector run's shared memories table. done 2026-08-06.
+- [R-007](tasks/007-turn-cost-harness.md) The end-to-end turn-cost measurement. done 2026-08-09.
+- [R-008](tasks/008-fmt-clippy-ungated-rust-trees.md) cargo fmt and clippy for the two unchecked Rust trees. done 2026-07-16.
+- [R-009](tasks/009-shell-clippy-in-ci.md) cargo clippy for the Tauri shell in CI. done 2026-08-17.
+- [R-010](tasks/010-line-cap-overlay-gap.md) The line cap did not cover the overlay. done 2026-08-03.
+- [R-011](tasks/011-stylesheet-outside-line-cap.md) The overlay stylesheet outside the line cap. open, waiting for its trigger.
+- [R-012](tasks/012-couplings-crosscheck-omits.md) The couplings crosscheck.py did not cover. done 2026-08-08.
+- [R-013](tasks/013-couplings-widened-registry-cannot-hold.md) The couplings the widened registry cannot cover. open, waiting for its trigger.
+- [R-014](tasks/014-fail-open-scripts-config.md) The scripts config that let a new module escape. done 2026-07-12.
+- [R-015](tasks/015-core-barrel-line-cap.md) The cortex_core barrel at its 300-line cap. done 2026-08-06.
+- [R-016](tasks/016-compose-bind-default-stageable.md) A compose bind default creating a directory in the tree. done 2026-08-08.
+- [R-017](tasks/017-mention-counts-nothing.md) A mention that counts nothing. done 2026-08-09.
+- [R-018](tasks/018-ports-without-contract-suite.md) Ports without a shared contract suite. open, waiting for its trigger.
+- [R-273](tasks/273-index-anchor-never-checked.md) A pointer's anchor is never checked. done 2026-08-16.
+- [R-274](tasks/274-unpinned-nightly-drifts-the-coverage-gate.md) The coverage step takes whatever nightly it finds. done 2026-08-16.
+- [R-275](tasks/275-nothing-reads-the-printed-toolchain.md) Nothing reads the toolchain the coverage step prints. done 2026-08-17.
+- [R-276](tasks/276-repo-wide-anchor-check.md) A fragment aimed anywhere but a backlog index. done 2026-08-17.
+- [R-280](tasks/280-twin-answers-for-any-model-id.md) The inference fake answers for a model id no deployment serves. done 2026-08-17.
+- [R-287](tasks/287-rust-tests-run-in-one-fixed-order.md) The Rust suite runs in one fixed order. done 2026-08-17.
+- [R-288](tasks/288-nothing-schedules-the-shuffle-sweep.md) Nothing schedules the shuffled test run. done 2026-08-17.
 - [R-290](tasks/290-the-export-names-its-tool-not-its-compiler.md) The coverage export names its tool and never its compiler. declined 2026-08-18.
-- [R-291](tasks/291-a-red-sweep-leaves-no-trace-in-the-repo.md) A red sweep leaves no trace in the repo. open, fix when it bites.
-- [R-292](tasks/292-slug-rule-approximates-a-renderer.md) One regex stands in for a renderer's slugger. landed 2026-08-18.
-- [R-293](tasks/293-a-red-gate-run-named-no-tree.md) A red gate run that named no tree. open, fix when it bites.
-- [R-298](tasks/298-served-ids-are-opt-in-everywhere.md) A test backend serves every model id unless it is told otherwise. landed 2026-08-20.
-- [R-300](tasks/300-shell-job-never-ran-on-a-runner.md) The shell clippy job has never run on a runner. open, fix when it bites.
-- [R-305](tasks/305-optional-toolchain-relays.md) Deleting a toolchain relay deletes its check, silently. landed 2026-08-18.
-- [R-306](tasks/306-subagent-memory-budget-spelled-twice.md) A subagent budget's default is spelled twice in one compose file and tied nowhere. landed 2026-08-19.
-- [R-307](tasks/307-shortcut-reference-link-in-a-heading.md) A shortcut reference link in a heading is the one shape the refusal cannot see. landed 2026-08-20.
-- [R-308](tasks/308-crosscheck-cannot-tie-a-decimal.md) The constant scan cannot tie a decimal. landed 2026-08-19.
-- [R-313](tasks/313-a-relay-can-be-required-and-empty.md) A required toolchain relay can still arrive empty. declined 2026-08-20.
-- [R-314](tasks/314-decimal-form-refusals.md) What the decimal value form still refuses. open, dead until a consumer.
-- [R-315](tasks/315-subagent-cpu-budget-and-its-siblings.md) The subagent CPU budget, and the sibling asks beside it. landed 2026-08-20.
-- [R-333](tasks/333-compose-defaults-that-restate-a-declaration.md) Which compose defaults restate a declaration has never been surveyed. landed 2026-08-21.
-- [R-334](tasks/334-a-heading-whose-brackets-are-prose.md) A heading whose brackets are prose has no way to say so. open, fix when it bites.
-- [R-335](tasks/335-the-relays-share-one-shell.md) The coverage relays are safe because they share one shell, and nothing checks that. open, fix when it bites.
-- [R-344](tasks/344-a-remedy-that-repeats-the-heading.md) The remedy a refused heading prints does not fit the refusal it follows. landed 2026-09-15.
-- [R-354](tasks/354-two-declared-defaults-the-reducer-refuses.md) Two kinds of declared default the constant scan cannot compare. landed 2026-08-22.
-- [R-355](tasks/355-one-variable-several-defaults-no-declaration.md) A substitution's several spends may drift from each other with nothing declaring them. landed 2026-08-22.
-- [R-356](tasks/356-the-body-port-is-a-bare-literal.md) The body's own listen port is a bare literal, so nothing ties the endpoint that dials it. landed 2026-08-22.
-- [R-359](tasks/359-the-table-detector-is-refused-not-impossible.md) The gate on a mutation table's wording is refused by the corpus, not by the idea. open, fix when it bites.
-- [R-366](tasks/366-the-probe-fixture-and-its-test-are-untied.md) The IMAP probe's fixture names are spelled twice and nothing ties the two spellings. landed 2026-08-22.
+- [R-291](tasks/291-a-red-sweep-leaves-no-trace-in-the-repo.md) A failing scheduled run leaves no trace in the repo. open, waiting for its trigger.
+- [R-292](tasks/292-slug-rule-approximates-a-renderer.md) One regex substitutes for a renderer's slug rule. done 2026-08-18.
+- [R-293](tasks/293-a-red-gate-run-named-no-tree.md) A failing check run that named no tree. open, waiting for its trigger.
+- [R-298](tasks/298-served-ids-are-opt-in-everywhere.md) A test backend serves every model id unless it is told otherwise. done 2026-08-20.
+- [R-300](tasks/300-shell-job-never-ran-on-a-runner.md) The shell clippy job has never run on a runner. open, waiting for its trigger.
+- [R-305](tasks/305-optional-toolchain-relays.md) Deleting a toolchain argument deletes its check, silently. done 2026-08-18.
+- [R-306](tasks/306-subagent-memory-budget-spelled-twice.md) A subagent memory budget default written three times and checked nowhere. done 2026-08-19.
+- [R-307](tasks/307-shortcut-reference-link-in-a-heading.md) A heading whose link is a shortcut reference is not refused. done 2026-08-20.
+- [R-308](tasks/308-crosscheck-cannot-tie-a-decimal.md) The constant scan cannot compare a decimal. done 2026-08-19.
+- [R-313](tasks/313-a-relay-can-be-required-and-empty.md) A required toolchain argument can still be empty. declined 2026-08-20.
+- [R-314](tasks/314-decimal-form-refusals.md) What the decimal value form still refuses. open, waiting for a consumer.
+- [R-315](tasks/315-subagent-cpu-budget-and-its-siblings.md) The subagent CPU budget, and the three per-subagent settings beside it. done 2026-08-20.
+- [R-333](tasks/333-compose-defaults-that-restate-a-declaration.md) Which compose defaults restate a declaration has never been surveyed. done 2026-08-21.
+- [R-334](tasks/334-a-heading-whose-brackets-are-prose.md) A heading whose brackets are prose has no way to say so. open, waiting for its trigger.
+- [R-335](tasks/335-the-relays-share-one-shell.md) The two coverage arguments are safe only because they share one shell. open, waiting for its trigger.
+- [R-344](tasks/344-a-remedy-that-repeats-the-heading.md) The remedy a refused heading prints does not fit the refusal it follows. done 2026-09-15.
+- [R-354](tasks/354-two-declared-defaults-the-reducer-refuses.md) Two kinds of declared default the constant scan cannot compare. done 2026-08-22.
+- [R-355](tasks/355-one-variable-several-defaults-no-declaration.md) One variable's several compose defaults can disagree, with nothing declaring the value. done 2026-08-22.
+- [R-356](tasks/356-the-body-port-is-a-bare-literal.md) The body's listen port is a bare literal, so nothing compares it with the endpoint that calls it. done 2026-08-22.
+- [R-359](tasks/359-the-table-detector-is-refused-not-impossible.md) A check on a mutation table's wording was refused by the corpus, not by the idea. open, waiting for its trigger.
+- [R-366](tasks/366-the-probe-fixture-and-its-test-are-untied.md) The IMAP probe's fixture names are written twice and nothing compares them. done 2026-08-22.
 - [R-367](tasks/367-the-shipped-ordering-of-two-bounds-is-ungated.md) The shipped ordering of two bounds is checked at boot and not in the repo. satisfied 2026-09-19.
-- [R-368](tasks/368-the-composition-root-has-no-headroom.md) The composition root sits at exactly its line cap. landed 2026-08-22.
-- [R-377](tasks/377-a-comment-restates-a-registered-value.md) A compose comment restates a registered value and nothing holds it there. landed 2026-08-22.
-- [R-378](tasks/378-the-barrel-rule-omits-two-root-internals.md) The barrel rule and the module contract describe two different surfaces. landed 2026-09-07.
-- [R-382](tasks/382-the-paired-numbers-quoted-in-prose.md) The legibility pair is quoted in three more documents and only the compose halves are held. landed 2026-08-23.
-- [R-383](tasks/383-the-body-port-past-the-six-that-were-registered.md) The body port is spelled in twelve more files and only six of them are held. landed 2026-08-23.
-- [R-384](tasks/384-the-probe-account-is-spelled-twice.md) The probe's account name is spelled in the suite and again inside the script's mail root. landed 2026-08-23.
-- [R-385](tasks/385-a-note-beside-a-compose-value-is-read-as-a-spend.md) A note written after a compose value is read as a spend of the variable it names. declined 2026-08-23.
-- [R-387](tasks/387-a-second-spelling-shares-a-held-line.md) A second spelling of a value shares a line the registry already holds, and rides its needle. landed 2026-08-23.
-- [R-388](tasks/388-the-headroom-suite-spells-its-own-constant.md) The headroom suite spells the edge it now declares four more times, in prose and in an assertion. landed 2026-08-23.
-- [R-389](tasks/389-the-brain-port-is-held-in-code-and-not-in-prose.md) The brain's seam port is tied to four places in code and to none of the nine documents stating it. landed 2026-08-23.
-- [R-390](tasks/390-the-probes-mail-root-is-spelled-in-three-files.md) The probe's mail root is spelled in three files and nothing can hold them together. landed 2026-08-24.
-- [R-391](tasks/391-a-fault-that-names-one-line-twice.md) A compose-defaults fault that names one line twice says nothing about the note behind it. landed 2026-08-23.
-- [R-393](tasks/393-the-admission-waits-default-is-tied-to-nothing.md) The admission wait's shipped default is spelled in three places and tied in none. landed 2026-08-23.
-- [R-396](tasks/396-the-seam-host-rides-inside-the-ports-needles.md) The seam host rides inside the port's needles as shape, and nothing holds it. landed 2026-08-23.
-- [R-397](tasks/397-nothing-counts-what-the-registry-does-not-name.md) The registry holds every place it names, and nothing says it names every place. declined 2026-08-23.
-- [R-398](tasks/398-a-rendered-integer-is-a-token-inside-a-decimal.md) A rendered integer is a whole token inside a decimal that begins with it. landed 2026-08-24.
-- [R-399](tasks/399-the-body-edge-is-two-sites-and-no-prose.md) The body's own default edge is stated in prose that nothing reaches. landed 2026-08-25.
-- [R-402](tasks/402-the-stall-ceiling-is-ordered-against-two-held-bounds.md) The stall ceiling sits between two held bounds and is itself tied to nothing. landed 2026-08-23.
-- [R-403](tasks/403-a-needles-literal-reddens-the-wrong-entry.md) A needle's own literal reddens the entry beside the value that moved. landed 2026-08-23.
-- [R-404](tasks/404-the-registrys-own-shape-is-counted-by-hand.md) The registry's own shape is counted by hand, and goes stale on the next row. landed 2026-08-23.
-- [R-405](tasks/405-a-counted-mention-that-finds-nothing-says-nothing.md) A counted mention that finds nothing gets none of the reading a presence check gets. landed 2026-09-12.
-- [R-406](tasks/406-the-carried-run-is-measured-over-a-whole-file.md) The run an unfound needle quotes back is measured over a whole file, so it overstates itself. landed 2026-09-17.
-- [R-407](tasks/407-three-held-bounds-and-an-unheld-ordering.md) Three bounds are held as three values and the ordering they are stated in is held by nothing. declined 2026-08-23.
-- [R-408](tasks/408-the-registry-shape-counts-places-not-parts.md) The printed shape counts places and leaves the part count to be counted by hand. landed 2026-08-24.
-- [R-409](tasks/409-a-gates-success-line-names-no-collection.md) Every other gate reports a verdict without saying what it covered. landed 2026-08-24.
-- [R-410](tasks/410-the-floor-under-a-walk-is-one-file.md) The floor under a walk is one file, so a collapsed scan still clears it. open, fix when it bites.
-- [R-411](tasks/411-the-dash-ban-reads-a-working-tree-not-a-commit.md) The dash ban reads a working tree rather than a commit, and now says so out loud. landed 2026-08-24.
-- [R-412](tasks/412-nothing-holds-the-registry-to-its-parts.md) The parts are held to the tuple and the tuple is held to nothing. landed 2026-08-24.
-- [R-413](tasks/413-the-module-contracts-part-list-is-held-by-nobody.md) The module contract names the registry's parts twice, and nothing holds either list. landed 2026-08-26.
-- [R-414](tasks/414-the-still-spelled-reading-does-not-say-where.md) The reading that says a file still spells a value does not say where it read one. landed 2026-08-25.
-- [R-416](tasks/416-a-new-log-line-can-name-its-work-anything.md) A new log line can name its work anything, the registry holding only the modules it lists. declined 2026-09-12.
-- [R-418](tasks/418-a-relabelled-copy-of-a-coupling-is-invisible.md) A coupling copied into a second part and relabelled is two entries checking one thing. landed 2026-09-12.
-- [R-419](tasks/419-the-git-call-inside-a-hook-is-written-three-times.md) The environment strip that makes a git call inside a hook honest is written out three times. landed 2026-08-24.
-- [R-420](tasks/420-the-skipped-dirs-list-restates-what-git-ignores.md) The hand-written skip list restates what git ignores, for every entry but one. landed 2026-08-24.
-- [R-422](tasks/422-a-newly-ignored-tree-reaches-the-list-by-hand.md) A tree that joins .gitignore reaches the shared skip list only by hand. landed 2026-09-14.
-- [R-423](tasks/423-an-obligation-test-knows-a-caller-by-its-spelling.md) The two obligation tests recognize a caller by how it is spelled. landed 2026-09-08.
-- [R-425](tasks/425-nothing-notices-an-image-volume-nobody-mounts.md) Nothing notices an image declaring a volume no compose file mounts. landed 2026-08-25.
-- [R-426](tasks/426-the-run-is-reported-without-a-line-of-its-own.md) The run an unfound needle reports has no line, though choosing between matches computes one. landed 2026-08-25.
-- [R-433](tasks/433-a-mutable-image-tag-moves-under-the-recorded-answer.md) A mutable image tag can move under the recorded answer and nothing notices. landed 2026-08-25.
-- [R-435](tasks/435-a-runbook-prints-a-log-line-the-formatter-never-renders.md) A runbook prints a log line in an order the formatter never renders. landed 2026-08-25.
-- [R-437](tasks/437-a-volume-added-to-a-dockerfile-here-moves-the-same-record.md) A VOLUME added to a Dockerfile here moves the same record, from inside the tree. landed 2026-08-26.
-- [R-438](tasks/438-a-documented-log-sample-can-still-print-the-wrong-fields.md) A documented log sample can still print the wrong fields. landed 2026-08-26.
-- [R-439](tasks/439-nothing-counts-the-record-between-passes.md) Nothing counts the record between replay passes. landed 2026-09-12.
-- [R-440](tasks/440-the-replay-sample-is-spelled-in-three-places.md) The replay sample and its window are spelled in four places. open, fix when it bites.
-- [R-442](tasks/442-nothing-holds-the-live-check-roster-to-the-suite.md) Nothing holds the live check roster in the module contract to the suite it describes. landed 2026-08-26.
-- [R-443](tasks/443-a-built-rows-answer-comes-from-whatever-this-machine-last-built.md) A built row's answer comes from whatever this machine last built. landed 2026-08-28.
-- [R-444](tasks/444-nothing-says-which-log-lines-a-runbook-should-print.md) Nothing says which log lines a runbook should print. open, fix when it bites.
-- [R-445](tasks/445-three-gates-each-spell-the-markdown-fence-for-themselves.md) Three gates each spell the markdown fence for themselves. landed 2026-09-12.
-- [R-446](tasks/446-the-scan-roster-is-spelled-in-seven-places.md) The list of cross-tree scans is spelled in seven places and held in none. landed 2026-08-26.
-- [R-447](tasks/447-a-widened-passage-is-caught-only-by-accident.md) A roster's passage widened past the list it bounds is caught only by accident. open, fix when it bites.
-- [R-448](tasks/448-the-module-listing-is-held-whole-and-not-in-halves.md) The gate tree's module listing is held whole, so neither of its halves is. landed 2026-08-26.
-- [R-449](tasks/449-the-repo-map-names-every-gate-module-unheld.md) The repo map names every gate module in a block no reader here can see. landed 2026-08-26.
-- [R-450](tasks/450-the-repo-map-holds-two-more-listings-unheld.md) The repo map names two more trees in the shape now readable, and neither is held. landed 2026-09-15.
-- [R-451](tasks/451-a-borrowed-name-cannot-be-told-from-a-claimed-one.md) A name a roster borrows cannot be told from a name it claims. declined 2026-09-12.
-- [R-452](tasks/452-a-roster-written-in-descriptions-is-held-by-nobody.md) A roster written in descriptions rather than names is held by nobody. landed 2026-09-11.
-- [R-454](tasks/454-the-readers-needles-are-not-tied-to-the-sink.md) The reader's needles are not tied to the sink that writes them. landed 2026-08-27.
-- [R-460](tasks/460-the-reasoning-off-pair-is-spelled-in-three-places.md) The subagent tier's reasoning-off flags are spelled in three files and held together by nobody. landed 2026-08-26.
-- [R-462](tasks/462-nothing-enumerates-the-subagent-servers-this-repo-starts.md) Nothing enumerates the subagent servers this repo starts, so the pair is held per file by hand. landed 2026-08-27.
-- [R-463](tasks/463-the-subagent-couplings-part-is-two-lines-under-the-cap.md) The subagent couplings part sits two lines under the line cap. landed 2026-08-26.
-- [R-467](tasks/467-the-hosted-subagent-tier-meets-the-flag-rule-by-hand.md) The hosted subagent tier meets the flag rule by hand rather than by the rule. landed 2026-08-28.
-- [R-468](tasks/468-a-subagent-server-started-outside-compose-is-held-by-a-value.md) A subagent server started outside compose is held by one value and not by the rule. open, fix when it bites.
-- [R-469](tasks/469-the-trails-logger-name-is-spelled-in-three-places-and-held-in-none.md) The trail's logger name is spelled in three places and held in none. landed 2026-08-28.
-- [R-470](tasks/470-the-reader-assumes-the-plain-rendering.md) The reader assumes the plain rendering. landed 2026-09-12.
-- [R-472](tasks/472-the-membership-prefix-is-a-convention-nothing-enforces.md) The set a subagent server joins is a naming convention nothing enforces. landed 2026-08-29.
-- [R-473](tasks/473-a-built-row-is-recorded-where-it-could-be-derived.md) A built row is recorded where it could be derived. landed 2026-08-29.
-- [R-486](tasks/486-the-tool-audits-logger-name-is-spelled-in-four-places-and-held-in-none.md) The tool audit's logger name is spelled in four places and held in none. landed 2026-08-28.
-- [R-487](tasks/487-the-tool-audits-message-is-spelled-in-three-places-and-held-in-none.md) The tool audit's message is spelled in three places and held in none. landed 2026-08-29.
-- [R-488](tasks/488-a-declared-logger-name-is-never-held-to-the-call-that-passes-it.md) A declared logger name is never held to the call that passes it. landed 2026-08-28.
+- [R-368](tasks/368-the-composition-root-has-no-headroom.md) The composition root sits at exactly its line cap. done 2026-08-22.
+- [R-377](tasks/377-a-comment-restates-a-registered-value.md) A compose comment restates a registered value and nothing checks it. done 2026-08-22.
+- [R-378](tasks/378-the-barrel-rule-omits-two-root-internals.md) The barrel rule and the module contract describe two different surfaces. done 2026-09-07.
+- [R-382](tasks/382-the-paired-numbers-quoted-in-prose.md) Three more documents write the legibility pair and only the compose comments are checked. done 2026-08-23.
+- [R-383](tasks/383-the-body-port-past-the-six-that-were-registered.md) The body port appears in twelve more files and only six of them are registered. done 2026-08-23.
+- [R-384](tasks/384-the-probe-account-is-spelled-twice.md) The probe's account name is written in the suite and again inside the script's mail root. done 2026-08-23.
+- [R-385](tasks/385-a-note-beside-a-compose-value-is-read-as-a-spend.md) A note written after a compose value is read as another use of the variable it names. declined 2026-08-23.
+- [R-387](tasks/387-a-second-spelling-shares-a-held-line.md) A second occurrence of a value shares a line the registry already covers. done 2026-08-23.
+- [R-388](tasks/388-the-headroom-suite-spells-its-own-constant.md) The headroom suite writes the edge it now declares four more times. done 2026-08-23.
+- [R-389](tasks/389-the-brain-port-is-held-in-code-and-not-in-prose.md) The brain's port is registered in four places of code and in none of the documents stating it. done 2026-08-23.
+- [R-390](tasks/390-the-probes-mail-root-is-spelled-in-three-files.md) The probe's mail root is written in three files and nothing can compare them. done 2026-08-24.
+- [R-391](tasks/391-a-fault-that-names-one-line-twice.md) A compose-defaults fault that names one line twice says nothing about the note behind it. done 2026-08-23.
+- [R-393](tasks/393-the-admission-waits-default-is-tied-to-nothing.md) The admission wait's shipped default is written in three places and registered in none. done 2026-08-23.
+- [R-396](tasks/396-the-seam-host-rides-inside-the-ports-needles.md) The brain's bind host appears inside the port's search texts and nothing checks it. done 2026-08-23.
+- [R-397](tasks/397-nothing-counts-what-the-registry-does-not-name.md) The registry checks every place it names, and nothing says it names every place. declined 2026-08-23.
+- [R-398](tasks/398-a-rendered-integer-is-a-token-inside-a-decimal.md) A rendered integer matches as a whole token inside a decimal that begins with it. done 2026-08-24.
+- [R-399](tasks/399-the-body-edge-is-two-sites-and-no-prose.md) The body's own default edge is stated in prose that nothing checks. done 2026-08-25.
+- [R-402](tasks/402-the-stall-ceiling-is-ordered-against-two-held-bounds.md) The stall ceiling sits between two registered bounds and is itself registered nowhere. done 2026-08-23.
+- [R-403](tasks/403-a-needles-literal-reddens-the-wrong-entry.md) An unmatched search text fails the entry beside the value that actually moved. done 2026-08-23.
+- [R-404](tasks/404-the-registrys-own-shape-is-counted-by-hand.md) The registry's own shape is counted by hand and goes stale on the next row. done 2026-08-23.
+- [R-405](tasks/405-a-counted-mention-that-finds-nothing-says-nothing.md) A counted match that finds nothing gets none of the detail a presence test gets. done 2026-09-12.
+- [R-406](tasks/406-the-carried-run-is-measured-over-a-whole-file.md) The run an unmatched search text quotes back is measured over a whole file, so it overstates itself. done 2026-09-17.
+- [R-407](tasks/407-three-held-bounds-and-an-unheld-ordering.md) Three bounds are registered as three values and the ordering they are stated in is checked by nothing. declined 2026-08-23.
+- [R-408](tasks/408-the-registry-shape-counts-places-not-parts.md) The printed shape counts places and leaves the part count to be counted by hand. done 2026-08-24.
+- [R-409](tasks/409-a-gates-success-line-names-no-collection.md) Every other check reports a result without saying what it covered. done 2026-08-24.
+- [R-410](tasks/410-the-floor-under-a-walk-is-one-file.md) The minimum under a walk is one file, so a collapsed scan still clears it. open, waiting for its trigger.
+- [R-411](tasks/411-the-dash-ban-reads-a-working-tree-not-a-commit.md) The dash ban reads a working tree rather than a commit, and now says so. done 2026-08-24.
+- [R-412](tasks/412-nothing-holds-the-registry-to-its-parts.md) The parts are compared with the tuple and the tuple is compared with nothing. done 2026-08-24.
+- [R-413](tasks/413-the-module-contracts-part-list-is-held-by-nobody.md) The module contract names the registry's parts twice, and nothing checks either list. done 2026-08-26.
+- [R-414](tasks/414-the-still-spelled-reading-does-not-say-where.md) The reading that says a file still contains a value does not say where. done 2026-08-25.
+- [R-416](tasks/416-a-new-log-line-can-name-its-work-anything.md) A new log line can name its work anything, the registry covering only the modules it lists. declined 2026-09-12.
+- [R-418](tasks/418-a-relabelled-copy-of-a-coupling-is-invisible.md) A coupling copied into a second part and relabelled is two entries checking one thing. done 2026-09-12.
+- [R-419](tasks/419-the-git-call-inside-a-hook-is-written-three-times.md) The environment strip that makes a git call inside a hook accurate is written out three times. done 2026-08-24.
+- [R-420](tasks/420-the-skipped-dirs-list-restates-what-git-ignores.md) The hand-written skip list restates what git ignores, for every entry but one. done 2026-08-24.
+- [R-422](tasks/422-a-newly-ignored-tree-reaches-the-list-by-hand.md) A tree that joins .gitignore reaches the shared skip list only by hand. done 2026-09-14.
+- [R-423](tasks/423-an-obligation-test-knows-a-caller-by-its-spelling.md) The two obligation tests recognize a caller by how it is written. done 2026-09-08.
+- [R-425](tasks/425-nothing-notices-an-image-volume-nobody-mounts.md) Nothing notices an image declaring a volume no compose file mounts. done 2026-08-25.
+- [R-426](tasks/426-the-run-is-reported-without-a-line-of-its-own.md) The matched run has no line of its own, though choosing between matches computes one. done 2026-08-25.
+- [R-433](tasks/433-a-mutable-image-tag-moves-under-the-recorded-answer.md) A mutable image tag can move under the recorded answer and nothing notices. done 2026-08-25.
+- [R-435](tasks/435-a-runbook-prints-a-log-line-the-formatter-never-renders.md) A runbook prints a log line in an order the formatter never renders. done 2026-08-25.
+- [R-437](tasks/437-a-volume-added-to-a-dockerfile-here-moves-the-same-record.md) A VOLUME added to a Dockerfile here moves the same record, from inside the tree. done 2026-08-26.
+- [R-438](tasks/438-a-documented-log-sample-can-still-print-the-wrong-fields.md) A documented log sample can still print the wrong fields. done 2026-08-26.
+- [R-439](tasks/439-nothing-counts-the-record-between-passes.md) Nothing counts the commits between replay passes. done 2026-09-12.
+- [R-440](tasks/440-the-replay-sample-is-spelled-in-three-places.md) The replay sample and its window are written in four places. open, waiting for its trigger.
+- [R-442](tasks/442-nothing-holds-the-live-check-roster-to-the-suite.md) Nothing compares the live check list in the module contract with the suite it describes. done 2026-08-26.
+- [R-443](tasks/443-a-built-rows-answer-comes-from-whatever-this-machine-last-built.md) A built row's answer comes from whatever this machine last built. done 2026-08-28.
+- [R-444](tasks/444-nothing-says-which-log-lines-a-runbook-should-print.md) Nothing says which log lines a runbook should print. open, waiting for its trigger.
+- [R-445](tasks/445-three-gates-each-spell-the-markdown-fence-for-themselves.md) Three checks each define the markdown fence for themselves. done 2026-09-12.
+- [R-446](tasks/446-the-scan-roster-is-spelled-in-seven-places.md) The list of cross-tree scans is written in seven places and checked in none. done 2026-08-26.
+- [R-447](tasks/447-a-widened-passage-is-caught-only-by-accident.md) A list's passage widened past the names it bounds is caught only by accident. open, waiting for its trigger.
+- [R-448](tasks/448-the-module-listing-is-held-whole-and-not-in-halves.md) The check tree's module listing is compared whole, so neither of its halves is. done 2026-08-26.
+- [R-449](tasks/449-the-repo-map-names-every-gate-module-unheld.md) The repo map names every check module in a block no reader here could see. done 2026-08-26.
+- [R-450](tasks/450-the-repo-map-holds-two-more-listings-unheld.md) The repo map names two more trees in the readable form, and neither is checked. done 2026-09-15.
+- [R-451](tasks/451-a-borrowed-name-cannot-be-told-from-a-claimed-one.md) A name a list borrows cannot be told from a name it claims. declined 2026-09-12.
+- [R-452](tasks/452-a-roster-written-in-descriptions-is-held-by-nobody.md) A list written in descriptions rather than names is checked by nobody. done 2026-09-11.
+- [R-454](tasks/454-the-readers-needles-are-not-tied-to-the-sink.md) The reader's search texts are not tied to the sink that writes them. done 2026-08-27.
+- [R-460](tasks/460-the-reasoning-off-pair-is-spelled-in-three-places.md) The subagent tier's reasoning-off flags are written in three files and checked by nobody. done 2026-08-26.
+- [R-462](tasks/462-nothing-enumerates-the-subagent-servers-this-repo-starts.md) Nothing enumerates the subagent servers this repo starts, so the flag pair is checked file by file. done 2026-08-27.
+- [R-463](tasks/463-the-subagent-couplings-part-is-two-lines-under-the-cap.md) The subagent couplings part sits two lines under the line cap. done 2026-08-26.
+- [R-467](tasks/467-the-hosted-subagent-tier-meets-the-flag-rule-by-hand.md) The hosted subagent tier meets the flag rule by hand. done 2026-08-28.
+- [R-468](tasks/468-a-subagent-server-started-outside-compose-is-held-by-a-value.md) A subagent server started outside compose is checked on one value and not by the rule. open, waiting for its trigger.
+- [R-469](tasks/469-the-trails-logger-name-is-spelled-in-three-places-and-held-in-none.md) The trail's logger name is written in three places and checked nowhere. done 2026-08-28.
+- [R-470](tasks/470-the-reader-assumes-the-plain-rendering.md) The reader assumes the plain rendering. done 2026-09-12.
+- [R-472](tasks/472-the-membership-prefix-is-a-convention-nothing-enforces.md) The set a subagent server joins is a naming convention nothing enforces. done 2026-08-29.
+- [R-473](tasks/473-a-built-row-is-recorded-where-it-could-be-derived.md) A built row is recorded where it could be derived. done 2026-08-29.
+- [R-486](tasks/486-the-tool-audits-logger-name-is-spelled-in-four-places-and-held-in-none.md) The tool audit's logger name is written in four places and checked nowhere. done 2026-08-28.
+- [R-487](tasks/487-the-tool-audits-message-is-spelled-in-three-places-and-held-in-none.md) The tool audit's message is written in three places and checked nowhere. done 2026-08-29.
+- [R-488](tasks/488-a-declared-logger-name-is-never-held-to-the-call-that-passes-it.md) A declared logger name is never compared with the call that passes it. done 2026-08-28.
 - [R-489](tasks/489-a-declared-logger-name-and-a-different-name-in-the-call.md) A declared logger name and a different name in the call. satisfied 2026-08-29.
-- [R-490](tasks/490-a-declared-log-message-may-be-spelled-again-in-the-call-that-logs-it.md) A declared log message may be spelled again in the call that logs it. landed 2026-08-30.
-- [R-491](tasks/491-the-guard-holding-a-declared-logger-to-its-call-names-two-sinks-by-hand.md) The guard holding a declared logger to its call names two sinks by hand. landed 2026-08-30.
-- [R-492](tasks/492-the-embedder-names-its-artifact-outside-the-family.md) The embedder names its artifact outside the family the naming rule enforces. landed 2026-08-30.
-- [R-493](tasks/493-a-base-may-declare-a-volume-through-onbuild.md) A base may declare a volume through ONBUILD. landed 2026-08-30.
-- [R-501](tasks/501-the-projector-is-named-in-a-sibling-family-nothing-holds.md) The projector is named in a sibling family nothing holds. landed 2026-08-30.
-- [R-502](tasks/502-the-substitution-reader-refuses-a-nesting-compose-expands.md) The substitution reader refuses a nesting compose expands. open, fix when it bites.
-- [R-503](tasks/503-a-declared-log-message-is-held-to-its-call-by-one-hand-named-assertion.md) A declared log message is held to its call by one hand named assertion. landed 2026-08-30.
-- [R-504](tasks/504-a-declared-message-and-a-different-word-in-the-call.md) A declared message and a different word in the call. landed 2026-09-02.
-- [R-506](tasks/506-a-built-row-that-became-a-base-would-spend-a-recorded-trigger.md) A built row that became a base would spend a recorded trigger. open, dead until a consumer.
-- [R-515](tasks/515-the-artifact-domain-rests-on-a-field-name-convention.md) The artifact domain rests on a field name convention nothing holds. landed 2026-09-02.
-- [R-516](tasks/516-a-field-list-composed-above-its-call-cannot-be-quoted.md) A field list composed above its call cannot be quoted. landed 2026-09-02.
-- [R-518](tasks/518-a-registered-binding-handed-at-a-wrapped-call-has-no-one-line-needle.md) A registered binding handed at a wrapped call has no one-line needle. landed 2026-09-15.
-- [R-519](tasks/519-a-runbook-restates-a-declared-message-as-a-wrapped-prefix-nothing-ties.md) A runbook restates a declared message as a wrapped prefix nothing ties. landed 2026-09-02.
-- [R-520](tasks/520-the-compose-artifact-flag-set-names-two-of-the-engines-file-flags.md) The compose artifact flag set names two of the engine's file flags. open, fix when it bites.
-- [R-521](tasks/521-a-settings-method-reading-the-mount-for-anything-but-a-path-is-refused.md) A settings method reading the mount for anything but a path is refused. open, fix when it bites.
-- [R-522](tasks/522-a-union-spelled-as-a-spread-of-the-bound-name-is-still-refused.md) A union spelled as a spread of the bound name is still refused. declined 2026-09-15.
-- [R-523](tasks/523-the-tool-audit-line-is-described-in-prose-because-its-fields-vary-by-condition.md) The tool audit line is described in prose because its fields vary by condition. landed 2026-09-05.
-- [R-531](tasks/531-the-source-declaration-key-is-spelled-twice-unheld.md) The source declaration key is spelled in two trees and no gate holds them equal. landed 2026-09-02.
-- [R-534](tasks/534-the-declared-kind-word-has-no-site-to-hold-it.md) The kind word a declared source rides under is spelled twice and has no declaring site. landed 2026-09-02.
-- [R-536](tasks/536-the-python-declaration-syntax-reads-no-class-level-binding.md) The Python declaration syntax reads no binding inside a class body. open, dead until a consumer.
-- [R-537](tasks/537-the-declaration-field-names-are-bare-literals-on-both-sides.md) The two field names a declared source is written under are bare literals on both sides. landed 2026-09-02.
-- [R-538](tasks/538-an-unfound-needle-over-an-ordinary-word-reads-prose-as-the-value.md) An unfound needle whose value is an ordinary word reads prose as the value still spelled. landed 2026-09-04.
-- [R-539](tasks/539-a-spend-beside-another-entrys-binding-carries-that-name-as-shape.md) A spend written beside another entry's binding carries that binding's name as shape. landed 2026-09-15.
-- [R-541](tasks/541-the-swept-subtask-shapes-are-spelled-in-two-trees-and-held-by-nothing.md) The swept subtask shapes are spelled in two trees and held by nothing. open, fix when it bites.
-- [R-553](tasks/553-which-condition-a-printed-audit-sample-stands-for-is-prose-beside-the-fence.md) Which condition a printed audit sample stands for is prose beside the fence. open, fix when it bites.
-- [R-554](tasks/554-a-whole-line-asserted-through-an-f-string-or-a-helper-is-not-read-as-proven.md) A whole line asserted through an f-string or a helper is not read as proven. open, fix when it bites.
+- [R-490](tasks/490-a-declared-log-message-may-be-spelled-again-in-the-call-that-logs-it.md) A declared log message may be written again in the call that logs it. done 2026-08-30.
+- [R-491](tasks/491-the-guard-holding-a-declared-logger-to-its-call-names-two-sinks-by-hand.md) The test comparing a declared logger with its call names two sinks by hand. done 2026-08-30.
+- [R-492](tasks/492-the-embedder-names-its-artifact-outside-the-family.md) The embedder names its artifact outside the family the naming rule enforces. done 2026-08-30.
+- [R-493](tasks/493-a-base-may-declare-a-volume-through-onbuild.md) A base may declare a volume through ONBUILD. done 2026-08-30.
+- [R-501](tasks/501-the-projector-is-named-in-a-sibling-family-nothing-holds.md) The projector is named in a sibling family nothing checks. done 2026-08-30.
+- [R-502](tasks/502-the-substitution-reader-refuses-a-nesting-compose-expands.md) The substitution reader refuses a nesting compose expands. open, waiting for its trigger.
+- [R-503](tasks/503-a-declared-log-message-is-held-to-its-call-by-one-hand-named-assertion.md) A declared log message is compared with its call by one hand-written assertion. done 2026-08-30.
+- [R-504](tasks/504-a-declared-message-and-a-different-word-in-the-call.md) A declared message and a different word in the call. done 2026-09-02.
+- [R-506](tasks/506-a-built-row-that-became-a-base-would-spend-a-recorded-trigger.md) A built row that became a base would be checked against a recorded trigger. open, waiting for a consumer.
+- [R-515](tasks/515-the-artifact-domain-rests-on-a-field-name-convention.md) The artifact domain rests on a field name convention nothing checks. done 2026-09-02.
+- [R-516](tasks/516-a-field-list-composed-above-its-call-cannot-be-quoted.md) A field list composed above its call cannot be quoted. done 2026-09-02.
+- [R-518](tasks/518-a-registered-binding-handed-at-a-wrapped-call-has-no-one-line-needle.md) A registered binding handed at a wrapped call has no one-line search text. done 2026-09-15.
+- [R-519](tasks/519-a-runbook-restates-a-declared-message-as-a-wrapped-prefix-nothing-ties.md) A runbook restates a declared message as a wrapped prefix nothing checks. done 2026-09-02.
+- [R-520](tasks/520-the-compose-artifact-flag-set-names-two-of-the-engines-file-flags.md) The compose artifact flag set names two of the engine's file flags. open, waiting for its trigger.
+- [R-521](tasks/521-a-settings-method-reading-the-mount-for-anything-but-a-path-is-refused.md) A settings method reading the mount for anything but a path is refused. open, waiting for its trigger.
+- [R-522](tasks/522-a-union-spelled-as-a-spread-of-the-bound-name-is-still-refused.md) A union written as a spread of the bound name is still refused. declined 2026-09-15.
+- [R-523](tasks/523-the-tool-audit-line-is-described-in-prose-because-its-fields-vary-by-condition.md) The tool audit line is described in prose because its fields vary by condition. done 2026-09-05.
+- [R-531](tasks/531-the-source-declaration-key-is-spelled-twice-unheld.md) The source declaration key is written in two trees and no check compares them. done 2026-09-02.
+- [R-534](tasks/534-the-declared-kind-word-has-no-site-to-hold-it.md) The kind word in a source declaration is written twice and no check compares them. done 2026-09-02.
+- [R-536](tasks/536-the-python-declaration-syntax-reads-no-class-level-binding.md) The Python declaration syntax reads no binding inside a class body. open, waiting for a consumer.
+- [R-537](tasks/537-the-declaration-field-names-are-bare-literals-on-both-sides.md) The two field names in a source declaration are bare literals on both sides. done 2026-09-02.
+- [R-538](tasks/538-an-unfound-needle-over-an-ordinary-word-reads-prose-as-the-value.md) An unfound search text whose value is an ordinary word reads prose as the value. done 2026-09-04.
+- [R-539](tasks/539-a-spend-beside-another-entrys-binding-carries-that-name-as-shape.md) A mention written beside another entry's binding includes that name as literal text. done 2026-09-15.
+- [R-541](tasks/541-the-swept-subtask-shapes-are-spelled-in-two-trees-and-held-by-nothing.md) The measured subtask instructions are written in two trees and no check compares them. open, waiting for its trigger.
+- [R-553](tasks/553-which-condition-a-printed-audit-sample-stands-for-is-prose-beside-the-fence.md) Which condition a printed audit sample stands for is only stated in prose. open, waiting for its trigger.
+- [R-554](tasks/554-a-whole-line-asserted-through-an-f-string-or-a-helper-is-not-read-as-proven.md) A whole line asserted through an f-string or a helper is not read as asserted. open, waiting for its trigger.
 - [R-593](tasks/593-the-bodys-bind-port-can-be-declared-now-the-shell-compiles.md) The body's bind port can be declared now the shell compiles. satisfied 2026-09-07.
-- [R-594](tasks/594-no-workflow-in-this-repository-has-ever-run.md) No workflow in this repository has ever run. open, fix when it bites.
-- [R-595](tasks/595-no-gate-compiles-the-tauri-shells-windows-half.md) No gate compiles the Tauri shell's Windows half. landed 2026-09-07.
-- [R-599](tasks/599-the-shells-windows-clippy-waits-on-a-resource-step.md) The shell's Windows clippy waits on a resource step. open, fix when it bites.
+- [R-594](tasks/594-no-workflow-in-this-repository-has-ever-run.md) No workflow in this repository has ever run. open, waiting for its trigger.
+- [R-595](tasks/595-no-gate-compiles-the-tauri-shells-windows-half.md) No check compiles the Tauri shell's Windows half. done 2026-09-07.
+- [R-599](tasks/599-the-shells-windows-clippy-waits-on-a-resource-step.md) The shell's Windows clippy waits on a resource step. open, waiting for its trigger.
 - [R-610](tasks/610-the-descent-obligation-stops-at-the-suites.md) The descent obligation stops at the suites. declined 2026-09-15.
-- [R-618](tasks/618-the-verified-date-reaches-only-one-of-the-two-backlogs.md) The Verified date reaches only one of the two backlogs. landed 2026-09-11.
-- [R-619](tasks/619-four-refusal-lines-attach-their-fields-by-a-call.md) Four refusal lines attach their fields by a call no reader follows. landed 2026-09-14.
-- [R-631](tasks/631-the-purpose-paragraph-describes-the-scans-by-eye.md) The Purpose paragraph describes the scans by eye. open, fix when it bites.
-- [R-632](tasks/632-the-write-run-judges-the-links-of-the-index-it-replaces.md) The write run judges the links of the index it replaces. landed 2026-09-11.
-- [R-643](tasks/643-a-fence-marker-opening-a-line-inside-another-block-toggles-every-reader.md) A fence marker opening a line inside another block toggles every reader. landed 2026-09-15.
+- [R-618](tasks/618-the-verified-date-reaches-only-one-of-the-two-backlogs.md) The Verified date reaches only one of the two backlogs. done 2026-09-11.
+- [R-619](tasks/619-four-refusal-lines-attach-their-fields-by-a-call.md) Four refusal lines attach their fields by a call no reader follows. done 2026-09-14.
+- [R-631](tasks/631-the-purpose-paragraph-describes-the-scans-by-eye.md) The Purpose paragraph describes the scans by eye. open, waiting for its trigger.
+- [R-632](tasks/632-the-write-run-judges-the-links-of-the-index-it-replaces.md) The write run checks the links of the index it replaces. done 2026-09-11.
+- [R-643](tasks/643-a-fence-marker-opening-a-line-inside-another-block-toggles-every-reader.md) A fence marker opening a line inside another block toggles every reader. done 2026-09-15.
 - [R-644](tasks/644-the-fence-obligation-stops-at-the-suites.md) The fence obligation stops at the suites. declined 2026-09-15.
-- [R-645](tasks/645-the-standing-count-takes-the-last-dated-row.md) The standing count takes the last dated row for the last pass. landed 2026-09-15.
-- [R-646](tasks/646-the-standing-count-includes-the-pass-day.md) The standing count includes the pass's own day. landed 2026-09-15.
-- [R-649](tasks/649-nothing-holds-the-lever-question-to-the-key-sent.md) Nothing holds the runbook's lever question to the key the adapter sends. landed 2026-09-13.
-- [R-653](tasks/653-a-narrower-copy-of-a-coupling-passes-the-places-rule.md) A copy of a coupling over fewer places passes the rule over the places. landed 2026-09-15.
-- [R-656](tasks/656-a-short-count-names-no-line.md) A count that is short by one names no line to open. landed 2026-09-17.
-- [R-663](tasks/663-a-figure-that-describes-only-this-machine-is-caught-by-eye.md) A figure that describes only this machine is caught by eye. open, fix when it bites.
-- [R-666](tasks/666-the-inward-skip-check-asks-only-the-three-repo-wide-walks.md) The inward skip check asks only the three repo-wide walks. landed 2026-09-15.
-- [R-667](tasks/667-a-dateless-row-is-passed-over-by-the-commit-anchor.md) A dateless row is passed over by the commit anchor. open, fix when it bites.
-- [R-668](tasks/668-a-rewritten-history-unreproduces-a-recorded-draw.md) A rewritten history unreproduces a recorded draw. landed 2026-09-19.
-- [R-669](tasks/669-the-fence-obligation-is-over-literals-only.md) The fence obligation is over literals only. open, fix when it bites.
-- [R-670](tasks/670-the-inward-skip-check-walks-from-the-ignored-directory.md) The inward skip check walks from the ignored directory. open, fix when it bites.
-- [R-672](tasks/672-a-wrapped-calls-needle-holds-the-name-rather-than-the-call.md) A wrapped call's needle holds the name rather than the call. open, fix when it bites.
-- [R-674](tasks/674-a-nested-copy-of-an-ordering-or-a-membership-is-not-read-as-one.md) A nested copy of an ordering or a membership is not read as a copy. open, fix when it bites.
-- [R-677](tasks/677-a-double-backtick-code-span-is-torn-apart.md) A double backtick code span is torn apart before the inline shapes are looked for. open, fix when it bites.
-- [R-680](tasks/680-a-needle-spanning-two-lines-keeps-the-whole-file-run.md) A needle spanning two lines keeps the whole-file run, and it can name the wrong line. open, fix when it bites.
-- [R-691](tasks/691-the-substitution-reader-refuses-a-brace-compose-reads-as-text.md) The substitution reader refuses a brace compose reads as text. open, fix when it bites.
-- [R-694](tasks/694-the-bind-and-volume-gates-count-an-entry-they-could-not-ask-about-as-a-finding.md) The bind and volume gates count an entry they could not ask about as a finding. open, actionable.
+- [R-645](tasks/645-the-standing-count-takes-the-last-dated-row.md) The replay count takes the last dated row for the last pass. done 2026-09-15.
+- [R-646](tasks/646-the-standing-count-includes-the-pass-day.md) The replay count includes the pass's own day. done 2026-09-15.
+- [R-649](tasks/649-nothing-holds-the-lever-question-to-the-key-sent.md) Nothing compares the runbook's trace question with the key the adapter sends. done 2026-09-13.
+- [R-653](tasks/653-a-narrower-copy-of-a-coupling-passes-the-places-rule.md) A copy of a coupling over fewer places passes the rule over the places. done 2026-09-15.
+- [R-656](tasks/656-a-short-count-names-no-line.md) A count that is short by one names no line to open. done 2026-09-17.
+- [R-663](tasks/663-a-figure-that-describes-only-this-machine-is-caught-by-eye.md) A figure that describes only this machine is caught by eye. open, waiting for its trigger.
+- [R-666](tasks/666-the-inward-skip-check-asks-only-the-three-repo-wide-walks.md) The inward skip check asks only the three repo-wide walks. done 2026-09-15.
+- [R-667](tasks/667-a-dateless-row-is-passed-over-by-the-commit-anchor.md) A dateless row is passed over by the commit anchor. open, waiting for its trigger.
+- [R-668](tasks/668-a-rewritten-history-unreproduces-a-recorded-draw.md) A rewritten history no longer reproduces a recorded draw. done 2026-09-19.
+- [R-669](tasks/669-the-fence-obligation-is-over-literals-only.md) The fence obligation is over literals only. open, waiting for its trigger.
+- [R-670](tasks/670-the-inward-skip-check-walks-from-the-ignored-directory.md) The inward skip check walks from the ignored directory. open, waiting for its trigger.
+- [R-672](tasks/672-a-wrapped-calls-needle-holds-the-name-rather-than-the-call.md) A wrapped call's search text matches the name rather than the call. open, waiting for its trigger.
+- [R-674](tasks/674-a-nested-copy-of-an-ordering-or-a-membership-is-not-read-as-one.md) A nested copy of an ordering or a membership is not read as a copy. open, waiting for its trigger.
+- [R-677](tasks/677-a-double-backtick-code-span-is-torn-apart.md) A double backtick code span is torn apart before the inline shapes are looked for. open, waiting for its trigger.
+- [R-680](tasks/680-a-needle-spanning-two-lines-keeps-the-whole-file-run.md) A search string spanning two lines keeps the whole-file run and can name the wrong line. open, waiting for its trigger.
+- [R-691](tasks/691-the-substitution-reader-refuses-a-brace-compose-reads-as-text.md) The substitution reader refuses a brace compose reads as text. open, waiting for its trigger.
+- [R-694](tasks/694-the-bind-and-volume-gates-count-an-entry-they-could-not-ask-about-as-a-finding.md) The bind and volume checks count an entry they could not ask about as a finding. open, actionable.
+- [R-700](tasks/700-backlog-file-names-use-banned-words.md) Backlog file names use words their titles do not. open, actionable.
+- [R-703](tasks/703-check-output-uses-banned-words.md) The checks print sentences in words the prose table bans. open, actionable.
 
 ### resource-governance
 
 6 open of 29.
 
-- [R-186](tasks/186-scheduler-drain-for-swap.md) `SubagentScheduler.drain()` for a swap. landed 2026-07-17.
-- [R-187](tasks/187-cuda-oom-cpu-replace.md) CUDA-OOM re-place on CPU. landed 2026-07-18.
-- [R-188](tasks/188-gpu-placed-runtime-mechanism.md) The real GPU-placed runtime mechanism. landed 2026-07-18.
+- [R-186](tasks/186-scheduler-drain-for-swap.md) `SubagentScheduler.drain()` for a swap. done 2026-07-17.
+- [R-187](tasks/187-cuda-oom-cpu-replace.md) Retry on CPU after a failed GPU placement. done 2026-07-18.
+- [R-188](tasks/188-gpu-placed-runtime-mechanism.md) The real GPU-placed runtime mechanism. done 2026-07-18.
 - [R-189](tasks/189-placement-aware-cpu-charging.md) Placement-aware CPU charging. declined 2026-07-16.
-- [R-190](tasks/190-cortex-reservation-remeasurement.md) The cortex reservation re-measurement. landed 2026-08-07.
-- [R-191](tasks/191-subagent-vram-ask-placeholder.md) The shipped subagent VRAM ask placeholder. landed 2026-08-08.
-- [R-192](tasks/192-intel-npu-placement-target.md) The Intel NPU as a third placement target. open, fix when it bites.
-- [R-193](tasks/193-hard-budget-wall.md) A hard budget wall. landed 2026-07-16.
-- [R-194](tasks/194-bounded-admission-wait.md) A bounded admission wait. landed 2026-08-09.
-- [R-195](tasks/195-queue-depth-bound.md) A queue-depth bound. open, fix when it bites.
+- [R-190](tasks/190-cortex-reservation-remeasurement.md) Measuring the cortex reservation again. done 2026-08-07.
+- [R-191](tasks/191-subagent-vram-ask-placeholder.md) The shipped subagent VRAM request placeholder. done 2026-08-08.
+- [R-192](tasks/192-intel-npu-placement-target.md) The Intel NPU as a third placement target. open, waiting for its trigger.
+- [R-193](tasks/193-hard-budget-wall.md) A hard budget limit. done 2026-07-16.
+- [R-194](tasks/194-bounded-admission-wait.md) A bounded admission wait. done 2026-08-09.
+- [R-195](tasks/195-queue-depth-bound.md) A queue-depth bound. open, waiting for its trigger.
 - [R-196](tasks/196-drain-bound-against-lease.md) The drain bound against a fired task's lease. declined 2026-08-09.
-- [R-197](tasks/197-admission-reopens-dead-tier.md) Admission reopening onto a tier that would not restart. landed 2026-08-09.
-- [R-198](tasks/198-retry-asks-only-marked-tiers.md) The retry only asks about tiers believed missing. landed 2026-08-11.
-- [R-199](tasks/199-sweep-start-not-serialized.md) The sweep's start fenced but not serialized. open, fix when it bites.
-- [R-200](tasks/200-placer-one-bit-per-card.md) The placer holds one bit for the card. open, fix when it bites.
-- [R-201](tasks/201-boot-recovery-peer-tier-verdict.md) Boot recovery blaming a peer tier on the cortex. landed 2026-08-09.
-- [R-202](tasks/202-deep-clearing-decides-boot-verdict.md) The deep model's clearing deciding the cortex's verdict. landed 2026-08-11.
-- [R-203](tasks/203-escalation-fault-not-remembered.md) The brain forgetting that escalation cannot work. landed 2026-08-16.
-- [R-204](tasks/204-subagent-read-timeout.md) A read timeout on the subagent HTTP client. landed 2026-08-09.
-- [R-205](tasks/205-total-generation-cap.md) A total generation cap. landed 2026-08-11.
-- [R-206](tasks/206-finish-reason-not-carried.md) A finish reason the port does not carry. landed 2026-08-16.
-- [R-207](tasks/207-whole-subtask-figure-off.md) The whole-subtask figure out by a factor of two. landed 2026-08-25.
-- [R-279](tasks/279-confirm-card-offers-an-impossible-handoff.md) The confirm card offers a handoff the machine cannot run. open, fix when it bites.
-- [R-348](tasks/348-three-devices-against-two-adapters.md) Three projected devices against two enumerated adapters, unreconciled. landed 2026-09-08.
-- [R-430](tasks/430-the-bounds-are-sized-on-an-idle-box.md) Every bound on a delegated run is sized on an idle box, and a busy one nearly reaches them. satisfied 2026-09-17.
-- [R-614](tasks/614-a-refused-spawn-reaches-no-log-line.md) A refused spawn reaches no log line. landed 2026-09-08.
-- [R-615](tasks/615-nothing-reads-a-subagent-result-back-from-the-store.md) Nothing reads a subagent result back from the store. landed 2026-09-10.
-- [R-621](tasks/621-a-delegating-turn-cannot-be-resumed-from-the-store.md) A delegating turn cannot be resumed from the store. open, dead until a consumer.
-- [R-642](tasks/642-the-engines-prompt-cache-may-grow-to-the-whole-memory-cap.md) The engine's prompt cache may grow to the whole memory cap of the container it runs in. landed 2026-09-13.
+- [R-197](tasks/197-admission-reopens-dead-tier.md) Admission reopening onto a tier that would not restart. done 2026-08-09.
+- [R-198](tasks/198-retry-asks-only-marked-tiers.md) The retry only asks about tiers believed missing. done 2026-08-11.
+- [R-199](tasks/199-sweep-start-not-serialized.md) The retry pass's start guarded but not ordered. open, waiting for its trigger.
+- [R-200](tasks/200-placer-one-bit-per-card.md) The placer holds one flag for the whole card. open, waiting for its trigger.
+- [R-201](tasks/201-boot-recovery-peer-tier-verdict.md) Boot recovery blaming a peer tier on the cortex. done 2026-08-09.
+- [R-202](tasks/202-deep-clearing-decides-boot-verdict.md) The deep model's clearing deciding the cortex's result. done 2026-08-11.
+- [R-203](tasks/203-escalation-fault-not-remembered.md) The brain forgetting that escalation cannot work. done 2026-08-16.
+- [R-204](tasks/204-subagent-read-timeout.md) A read timeout on the subagent HTTP client. done 2026-08-09.
+- [R-205](tasks/205-total-generation-cap.md) A total generation cap. done 2026-08-11.
+- [R-206](tasks/206-finish-reason-not-carried.md) A finish reason the port does not report. done 2026-08-16.
+- [R-207](tasks/207-whole-subtask-figure-off.md) The whole-subtask figure out by a factor of two. done 2026-08-25.
+- [R-279](tasks/279-confirm-card-offers-an-impossible-handoff.md) The confirm card offers a handoff the machine cannot run. open, waiting for its trigger.
+- [R-348](tasks/348-three-devices-against-two-adapters.md) Three display devices in the guest against two enumerated adapters. done 2026-09-08.
+- [R-430](tasks/430-the-bounds-are-sized-on-an-idle-box.md) Every bound on a delegated run was sized on an idle box, and a busy one nearly reaches them. satisfied 2026-09-17.
+- [R-614](tasks/614-a-refused-spawn-reaches-no-log-line.md) A refused spawn reaches no log line. done 2026-09-08.
+- [R-615](tasks/615-nothing-reads-a-subagent-result-back-from-the-store.md) Nothing reads a subagent result back from the store. done 2026-09-10.
+- [R-621](tasks/621-a-delegating-turn-cannot-be-resumed-from-the-store.md) A delegating turn cannot be resumed from the store. open, waiting for a consumer.
+- [R-642](tasks/642-the-engines-prompt-cache-may-grow-to-the-whole-memory-cap.md) The engine's prompt cache may grow to the whole memory cap of the container it runs in. done 2026-09-13.
+
+### rpc-auth
+
+2 open of 2.
+
+- [R-025](tasks/025-token-rotation-multiple-tokens.md) Token rotation and multiple tokens. open, waiting for a consumer.
+- [R-441](tasks/441-a-token-in-dotenv-reaches-compose-and-not-just.md) A token written in .env reaches compose and never reaches just. open, waiting for its trigger.
+
+### rpc-transport
+
+6 open of 24.
+
+- [R-019](tasks/019-transport-retry-policy.md) Transport retry and reconnect policy. done 2026-07-08.
+- [R-020](tasks/020-retry-budget-circuit-breaker.md) Retry budget and circuit breaker. declined 2026-08-18.
+- [R-021](tasks/021-per-method-retry-policy.md) Per-method and per-error-code retry policy. done 2026-07-16.
+- [R-022](tasks/022-retryable-code-table.md) A retryable-code table beyond `Unavailable`. declined 2026-08-17.
+- [R-023](tasks/023-converse-reconnect-first-event.md) Safe `converse` reconnect before the first event. open, waiting for its trigger.
+- [R-024](tasks/024-disconnect-mid-handoff-teardown.md) A disconnect mid handoff blocks stream teardown. open, waiting for its trigger.
+- [R-301](tasks/301-seam-attempt-deadline.md) A per-attempt deadline on the body-to-brain calls. done 2026-08-18.
+- [R-302](tasks/302-brain-learns-the-deadline.md) The brain is never told the deadline the body enforces. done 2026-08-19.
+- [R-303](tasks/303-turn-stream-stall.md) A turn stream that stalls has no bound at all. done 2026-08-24.
+- [R-320](tasks/320-one-detail-string-two-facts.md) The health reply has one detail string, so two facts become one sentence. open, needs a port change first.
+- [R-322](tasks/322-brain-reads-the-remaining-time.md) The brain is told how long it has and does nothing with it. done 2026-08-20.
+- [R-341](tasks/341-nothing-declines-work-it-cannot-finish.md) Nothing declines work it cannot finish, and the remaining time does not travel. done 2026-08-21.
+- [R-346](tasks/346-a-clamped-reading-nothing-pins.md) A clamped deadline reading is described in prose and asserted nowhere. done 2026-08-21.
+- [R-351](tasks/351-two-readings-only-a-fake-ever-produced.md) Two of the three readings the abandonment line separates come only from a fake. done 2026-08-22.
+- [R-360](tasks/360-a-read-that-will-not-fit-declines-early.md) A read RPC with milliseconds left still spends the round trip. open, waiting for its trigger.
+- [R-361](tasks/361-a-read-rpc-recalls-nothing-to-omit.md) A session read has no recalled context, so there is no partial answer to give. open, waiting for a consumer.
+- [R-370](tasks/370-an-expiry-reading-is-asserted-exactly.md) An abandonment case asserts an exact reading a loaded machine does not always produce. done 2026-08-21.
+- [R-371](tasks/371-a-floor-and-a-sliver-are-indistinguishable.md) The suite no longer separates a grpc that floors the reading from one that does not. done 2026-08-22.
+- [R-372](tasks/372-the-sliver-is-unsampled-over-time.md) The margin under the expiry bound was measured once and is sampled by nothing. declined 2026-08-22.
+- [R-381](tasks/381-the-header-encoding-error-is-larger-than-recorded.md) The grace margin was sized on a header rounding error far smaller than one measured. done 2026-08-25.
+- [R-421](tasks/421-a-silent-turn-owes-the-body-a-heartbeat.md) A turn that goes quiet for hours is indistinguishable from a brain that died. open, needs a port change first.
+- [R-428](tasks/428-nothing-compares-the-committed-stubs-with-the-proto.md) Nothing compares the committed stubs with the proto they were generated from. done 2026-08-25.
+- [R-434](tasks/434-the-stub-check-reads-one-direction-and-one-stub.md) The stub check reads one direction, and only one of the two stubs. done 2026-08-25.
+- [R-436](tasks/436-an-announcement-past-the-millisecond-ladder-loses-the-race.md) An announcement past the millisecond ladder sets tonic's clock short of our own bound. done 2026-08-25.
 
 ### scheduling
 
 3 open of 27.
 
-- [R-225](tasks/225-rust-transport-reminder-methods.md) Rust BrainTransport reminder methods. landed 2026-07-14.
-- [R-226](tasks/226-overlay-reminders-on-open.md) The overlay's reminders-on-open surface. landed 2026-07-14.
-- [R-227](tasks/227-reminder-card-origin-chat.md) The reminder card's origin chat. landed 2026-07-14.
+- [R-225](tasks/225-rust-transport-reminder-methods.md) Rust BrainTransport reminder methods. done 2026-07-14.
+- [R-226](tasks/226-overlay-reminders-on-open.md) The overlay's reminders-on-open surface. done 2026-07-14.
+- [R-227](tasks/227-reminder-card-origin-chat.md) The reminder card's origin chat. done 2026-07-14.
 - [R-228](tasks/228-tainted-reminder-badge-polish.md) Overlay badge and UX polish for tainted reminders. satisfied 2026-07-16.
-- [R-229](tasks/229-notify-trait-and-toast.md) The body-side Notify OS trait and Tauri toast. landed 2026-07-16.
-- [R-230](tasks/230-toast-activation-routing.md) Toast activation routing. open, dead until a consumer.
-- [R-231](tasks/231-turnstamp-session-attribution.md) Session attribution on the dispatcher's turn stamp. landed 2026-07-13.
-- [R-232](tasks/232-subagenttask-session-attribution.md) SubagentTask session attribution. landed 2026-08-21.
-- [R-233](tasks/233-toolinvocation-audit-stamp.md) ToolInvocation audit-line stamp. landed 2026-08-21.
-- [R-234](tasks/234-postgres-durable-twin.md) The Postgres durable twin. declined 2026-08-18.
-- [R-235](tasks/235-display-timezone-knob.md) The display-timezone knob. landed 2026-07-14.
-- [R-236](tasks/236-calendar-recurrence.md) Calendar recurrence. landed 2026-07-14.
+- [R-229](tasks/229-notify-trait-and-toast.md) The body-side Notify trait and Windows toast. done 2026-07-16.
+- [R-230](tasks/230-toast-activation-routing.md) Toast activation routing. open, waiting for a consumer.
+- [R-231](tasks/231-turnstamp-session-attribution.md) Session attribution on the dispatcher's turn stamp. done 2026-07-13.
+- [R-232](tasks/232-subagenttask-session-attribution.md) SubagentTask session attribution. done 2026-08-21.
+- [R-233](tasks/233-toolinvocation-audit-stamp.md) ToolInvocation audit-line stamp. done 2026-08-21.
+- [R-234](tasks/234-postgres-durable-twin.md) The Postgres durable copy. declined 2026-08-18.
+- [R-235](tasks/235-display-timezone-knob.md) The display-timezone setting. done 2026-07-14.
+- [R-236](tasks/236-calendar-recurrence.md) Calendar recurrence. done 2026-07-14.
 - [R-237](tasks/237-cron-expressions.md) Cron expressions. declined 2026-08-18.
-- [R-238](tasks/238-per-rule-timezone.md) A per-rule timezone. landed 2026-07-15.
-- [R-239](tasks/239-rule-edit-via-edit-scheduled.md) Setting and retiming a rule via edit_scheduled. landed 2026-07-14.
-- [R-240](tasks/240-monthly-day-of-month-rules.md) Monthly day-of-month rules. landed 2026-07-14.
-- [R-241](tasks/241-yearly-rules.md) Yearly rules. landed 2026-07-14.
+- [R-238](tasks/238-per-rule-timezone.md) A per-rule timezone. done 2026-07-15.
+- [R-239](tasks/239-rule-edit-via-edit-scheduled.md) Setting and retiming a rule via edit_scheduled. done 2026-07-14.
+- [R-240](tasks/240-monthly-day-of-month-rules.md) Monthly day-of-month rules. done 2026-07-14.
+- [R-241](tasks/241-yearly-rules.md) Yearly rules. done 2026-07-14.
 - [R-242](tasks/242-occurrence-history.md) Occurrence history. declined 2026-07-16.
-- [R-243](tasks/243-snooze.md) Snooze. landed 2026-07-12.
-- [R-244](tasks/244-dead-letter-inspection.md) Dead-letter inspection. landed 2026-07-12.
+- [R-243](tasks/243-snooze.md) Snooze. done 2026-07-12.
+- [R-244](tasks/244-dead-letter-inspection.md) Dead-letter inspection. done 2026-07-12.
 - [R-245](tasks/245-automated-dead-letter-retention.md) Automated dead-letter retention. declined 2026-08-18.
-- [R-246](tasks/246-edit-verbs.md) Edit verbs. landed 2026-07-13.
-- [R-247](tasks/247-anchor-preserving-occurrence-snooze.md) Anchor-preserving occurrence snooze. landed 2026-07-13.
-- [R-248](tasks/248-task-outcome-delivery.md) Task-outcome delivery as a notification. landed 2026-07-16.
-- [R-249](tasks/249-push-retry-policy.md) Push retry policy beyond next-poll-pull. open, fix when it bites.
-- [R-250](tasks/250-task-reminder-distinction.md) A task versus reminder distinction on the pull surface. open, dead until a consumer.
-- [R-394](tasks/394-the-fired-item-has-two-spellings-in-the-logs.md) The fired item is spelled two ways across the brain's own log lines. landed 2026-08-24.
-
-### seam-auth
-
-2 open of 2.
-
-- [R-025](tasks/025-token-rotation-multiple-tokens.md) Token rotation / multiple tokens. open, dead until a consumer.
-- [R-441](tasks/441-a-token-in-dotenv-reaches-compose-and-not-just.md) A seam token written in .env reaches compose and never reaches just. open, fix when it bites.
-
-### seam-transport
-
-6 open of 24.
-
-- [R-019](tasks/019-transport-retry-policy.md) Transport retry and reconnect policy. landed 2026-07-08.
-- [R-020](tasks/020-retry-budget-circuit-breaker.md) Retry budget and circuit breaker. declined 2026-08-18.
-- [R-021](tasks/021-per-method-retry-policy.md) Per-method and per-error-code retry policy. landed 2026-07-16.
-- [R-022](tasks/022-retryable-code-table.md) A retryable-code table beyond `Unavailable`. declined 2026-08-17.
-- [R-023](tasks/023-converse-reconnect-first-event.md) Safe `converse` reconnect before the first event. open, fix when it bites.
-- [R-024](tasks/024-disconnect-mid-handoff-teardown.md) A disconnect mid handoff blocks stream teardown. open, fix when it bites.
-- [R-301](tasks/301-seam-attempt-deadline.md) A per-attempt deadline on the body-to-brain seam. landed 2026-08-18.
-- [R-302](tasks/302-brain-learns-the-deadline.md) The brain is never told the deadline the body is holding it to. landed 2026-08-19.
-- [R-303](tasks/303-turn-stream-stall.md) A turn stream that stalls has no bound at all. landed 2026-08-24.
-- [R-320](tasks/320-one-detail-string-two-facts.md) The seam carries one detail string, so two facts are one sentence. open, a seam or port change comes first.
-- [R-322](tasks/322-brain-reads-the-remaining-time.md) The brain is told how long it has and does nothing with it. landed 2026-08-20.
-- [R-341](tasks/341-nothing-declines-work-it-cannot-finish.md) Nothing declines work it cannot finish, and the remaining time does not travel. landed 2026-08-21.
-- [R-346](tasks/346-a-clamped-reading-nothing-pins.md) A clamped deadline reading is described in prose and pinned nowhere. landed 2026-08-21.
-- [R-351](tasks/351-two-readings-only-a-fake-ever-produced.md) Two of the three readings the abandonment line distinguishes are only ever arranged. landed 2026-08-22.
-- [R-360](tasks/360-a-read-that-will-not-fit-declines-early.md) A read RPC with milliseconds left still spends the round trip. open, fix when it bites.
-- [R-361](tasks/361-a-read-rpc-recalls-nothing-to-omit.md) A session read has no recalled context, so there is no partial answer to give. open, dead until a consumer.
-- [R-370](tasks/370-an-expiry-reading-is-asserted-exactly.md) An abandonment case asserts an exact reading a loaded machine does not always produce. landed 2026-08-21.
-- [R-371](tasks/371-a-floor-and-a-sliver-are-indistinguishable.md) A grpc that stopped flooring the reading is no longer told from one that did. landed 2026-08-22.
-- [R-372](tasks/372-the-sliver-is-unsampled-over-time.md) The margin under the expiry bound was measured once and is sampled by nothing. declined 2026-08-22.
-- [R-381](tasks/381-the-header-encoding-error-is-larger-than-recorded.md) The grace margin's sizing cites a header error two orders of magnitude smaller than one measured. landed 2026-08-25.
-- [R-421](tasks/421-a-silent-turn-owes-the-body-a-heartbeat.md) A turn that goes quiet for an hour is indistinguishable from a brain that died. open, a seam or port change comes first.
-- [R-428](tasks/428-nothing-compares-the-committed-stubs-with-the-proto.md) Nothing compares the committed seam stubs with the proto they were generated from. landed 2026-08-25.
-- [R-434](tasks/434-the-stub-check-reads-one-direction-and-one-stub.md) The seam-stub check reads one direction, and only one of the two stubs. landed 2026-08-25.
-- [R-436](tasks/436-an-announcement-past-the-millisecond-ladder-loses-the-race.md) An announcement past the millisecond ladder arms tonic's clock short of our own bound. landed 2026-08-25.
+- [R-246](tasks/246-edit-verbs.md) Edit verbs. done 2026-07-13.
+- [R-247](tasks/247-anchor-preserving-occurrence-snooze.md) Occurrence snooze that keeps the anchor. done 2026-07-13.
+- [R-248](tasks/248-task-outcome-delivery.md) Task-outcome delivery as a notification. done 2026-07-16.
+- [R-249](tasks/249-push-retry-policy.md) Push retry policy beyond the next poll. open, waiting for its trigger.
+- [R-250](tasks/250-task-reminder-distinction.md) A task versus reminder distinction on the pull surface. open, waiting for a consumer.
+- [R-394](tasks/394-the-fired-item-has-two-spellings-in-the-logs.md) The fired schedule item has two field names across the brain's own log lines. done 2026-08-24.
 
 ### session-history
 
 1 open of 11.
 
-- [R-026](tasks/026-session-history-windowing.md) Bounded session-history windowing. landed 2026-07-03.
-- [R-027](tasks/027-session-history-summarization.md) Session-history summarization in turn assembly. landed 2026-08-06.
-- [R-028](tasks/028-converse-queue-backpressure.md) Bounded backpressure on the Converse output queue. landed 2026-07-03.
-- [R-029](tasks/029-one-corpus-recap-measurement.md) The recap measurement's single corpus. landed 2026-08-08.
-- [R-030](tasks/030-recap-fold-bounds-and-floor.md) Bounds and a floor for the recap fold. landed 2026-08-06.
-- [R-031](tasks/031-fold-progress-signal.md) A signal that a turn is folding. landed 2026-08-06.
-- [R-032](tasks/032-fenced-recap-of-tainted-turns.md) Fencing a recap of tainted turns. landed 2026-08-06.
-- [R-033](tasks/033-fenced-recap-usefulness.md) The fenced recap's measured usefulness. landed 2026-08-06.
-- [R-034](tasks/034-recap-default-on.md) Turning the recap on by default. landed 2026-08-06.
-- [R-035](tasks/035-stalled-consumer-holds-lease.md) A stalled consumer holds the GPU lease. open, fix when it bites.
-- [R-277](tasks/277-a-cut-fold-reads-like-a-wandering-one.md) A cut fold reads like a wandering one in the log. landed 2026-08-18.
+- [R-026](tasks/026-session-history-windowing.md) Bounded session-history windowing. done 2026-07-03.
+- [R-027](tasks/027-session-history-summarization.md) Session-history summarization in turn assembly. done 2026-08-06.
+- [R-028](tasks/028-converse-queue-backpressure.md) Bounded backpressure on the Converse output queue. done 2026-07-03.
+- [R-029](tasks/029-one-corpus-recap-measurement.md) The recap measurement's single corpus. done 2026-08-08.
+- [R-030](tasks/030-recap-fold-bounds-and-floor.md) Bounds and a floor for the recap fold. done 2026-08-06.
+- [R-031](tasks/031-fold-progress-signal.md) A signal that a turn is folding. done 2026-08-06.
+- [R-032](tasks/032-fenced-recap-of-tainted-turns.md) Fencing a recap of tainted turns. done 2026-08-06.
+- [R-033](tasks/033-fenced-recap-usefulness.md) The fenced recap's measured usefulness. done 2026-08-06.
+- [R-034](tasks/034-recap-default-on.md) Turning the recap on by default. done 2026-08-06.
+- [R-035](tasks/035-stalled-consumer-holds-lease.md) A stalled consumer holds the GPU lease. open, waiting for its trigger.
+- [R-277](tasks/277-a-cut-fold-reads-like-a-wandering-one.md) A cut summary looks like a wandering one in the log. done 2026-08-18.
 
-### session-read-seam
+### session-read-rpc
 
 2 open of 12.
 
-- [R-175](tasks/175-bounded-end-reads.md) Bounded end-reads for `list_sessions`. landed 2026-07-14.
-- [R-176](tasks/176-cold-start-auto-restore.md) Auto-restore the most-recent chat on cold start. landed 2026-07-12.
-- [R-177](tasks/177-live-suite-recency-sweep.md) Recency-index sweep in the live-Redis session suite. landed 2026-07-14.
-- [R-178](tasks/178-brain-generated-titles.md) Brain-generated summary titles. landed 2026-07-16.
-- [R-179](tasks/179-open-chat-header-title.md) Open-chat header title consistency. landed 2026-07-16.
-- [R-180](tasks/180-out-of-window-title.md) Out-of-window authoritative title. open, dead until a consumer.
-- [R-181](tasks/181-catalog-write-verbs.md) Session deletion, rename, and pinning. landed 2026-07-16.
-- [R-182](tasks/182-session-pinning.md) Session pinning. landed 2026-07-16.
-- [R-183](tasks/183-session-deletion.md) Session deletion. landed 2026-07-16.
-- [R-184](tasks/184-paging-cursor.md) Paging / cursor on the read RPCs. open, fix when it bites.
-- [R-185](tasks/185-indicator-and-title-refresh.md) Connection indicator and session-title refresh push. landed 2026-07-16.
-- [R-328](tasks/328-a-failed-turn-cannot-name-itself.md) A failed turn can name its session but never itself. landed 2026-08-20.
+- [R-175](tasks/175-bounded-end-reads.md) Bounded end-reads for `list_sessions`. done 2026-07-14.
+- [R-176](tasks/176-cold-start-auto-restore.md) Auto-restore the most recent chat on cold start. done 2026-07-12.
+- [R-177](tasks/177-live-suite-recency-sweep.md) Stale keys in the live-Redis session suite. done 2026-07-14.
+- [R-178](tasks/178-brain-generated-titles.md) Brain-generated summary titles. done 2026-07-16.
+- [R-179](tasks/179-open-chat-header-title.md) Open-chat header title consistency. done 2026-07-16.
+- [R-180](tasks/180-out-of-window-title.md) Authoritative title for a chat outside the loaded window. open, waiting for a consumer.
+- [R-181](tasks/181-catalog-write-verbs.md) Write operations on the session catalog. done 2026-07-16.
+- [R-182](tasks/182-session-pinning.md) Keeping a chat at the top of the list. done 2026-07-16.
+- [R-183](tasks/183-session-deletion.md) Session deletion. done 2026-07-16.
+- [R-184](tasks/184-paging-cursor.md) Paging or a cursor on the read RPCs. open, waiting for its trigger.
+- [R-185](tasks/185-indicator-and-title-refresh.md) Connection indicator and session-title refresh push. done 2026-07-16.
+- [R-328](tasks/328-a-failed-turn-cannot-name-itself.md) A failed turn can name its session but never itself. done 2026-08-20.
 
 ### subagents
 
 11 open of 44.
 
-- [R-120](tasks/120-progress-reporting.md) Subagent progress reporting over the `Converse` status stream. landed 2026-07-16.
-- [R-121](tasks/121-richer-spawn-schema.md) Richer `spawn_subagents` object schema. landed 2026-07-03.
-- [R-122](tasks/122-measured-tradeoff-advertisement.md) Measured trade-off advertisement. landed 2026-07-16.
-- [R-123](tasks/123-spontaneous-model-picks.md) Spontaneous model picks. landed 2026-07-16.
-- [R-124](tasks/124-nudge-live-uptake.md) The spontaneous-pick nudge's live uptake. open, fix when it bites.
-- [R-125](tasks/125-per-role-escape-hatch.md) The per-role escape hatch. open, dead until a consumer.
+- [R-120](tasks/120-progress-reporting.md) Subagent progress reporting over the `Converse` status stream. done 2026-07-16.
+- [R-121](tasks/121-richer-spawn-schema.md) Richer `spawn_subagents` object schema. done 2026-07-03.
+- [R-122](tasks/122-measured-tradeoff-advertisement.md) Measured trade-off advertisement. done 2026-07-16.
+- [R-123](tasks/123-spontaneous-model-picks.md) Spontaneous model picks. done 2026-07-16.
+- [R-124](tasks/124-nudge-live-uptake.md) The spontaneous-pick nudge's live uptake. open, waiting for its trigger.
+- [R-125](tasks/125-per-role-escape-hatch.md) The per-role escape hatch. open, waiting for a consumer.
 - [R-126](tasks/126-delegated-step-unsettled.md) A delegated tool step announced and never settled. declined 2026-08-07.
-- [R-278](tasks/278-capped-tool-call-reads-as-a-dead-backend.md) A cap that lands mid tool call reads as a dead backend. landed 2026-08-17.
-- [R-369](tasks/369-the-run-deadline-under-the-queue-is-prose-only.md) The run deadline's place under the queue for it is written only in prose. landed 2026-08-23.
-- [R-392](tasks/392-a-re-runs-second-deadline-outlasts-the-queue.md) A re-run's second deadline outlasts the queue the first was ordered against. landed 2026-08-25.
-- [R-429](tasks/429-nothing-counts-how-often-the-cpu-re-run-fires.md) Nothing counts how often the CPU re-run fires, so the doubled hold is sized from reasoning. open, fix when it bites.
-- [R-431](tasks/431-the-token-cap-fires-on-the-shape-that-ships.md) The token cap fired on a narrow subtask running the shape this repo ships by default. landed 2026-08-26.
-- [R-456](tasks/456-a-constrained-request-loses-the-thinking-lever.md) A constrained request loses the thinking lever the subagent tier is held off by. landed 2026-08-26.
+- [R-278](tasks/278-capped-tool-call-reads-as-a-dead-backend.md) A cap that cuts a tool call looks like a dead backend. done 2026-08-17.
+- [R-369](tasks/369-the-run-deadline-under-the-queue-is-prose-only.md) The run deadline's place under the queue for it is written only in prose. done 2026-08-23.
+- [R-392](tasks/392-a-re-runs-second-deadline-outlasts-the-queue.md) A re-run's second deadline outlasts the queue the first was ordered against. done 2026-08-25.
+- [R-429](tasks/429-nothing-counts-how-often-the-cpu-re-run-fires.md) Nothing counts how often the CPU re-run happens, so the doubled hold is sized from reasoning. open, waiting for its trigger.
+- [R-431](tasks/431-the-token-cap-fires-on-the-shape-that-ships.md) The token cap was reached by a narrow subtask running the configuration this repo ships. done 2026-08-26.
+- [R-456](tasks/456-a-constrained-request-loses-the-thinking-lever.md) A constrained request loses the thinking switch the subagent tier relies on. done 2026-08-26.
 - [R-457](tasks/457-the-caps-derivation-on-the-shape-that-ships.md) The token cap's derivation is written against a shape the default stack does not run. satisfied 2026-08-28.
-- [R-459](tasks/459-what-the-envelope-costs-the-answer.md) Nothing prices what the reply envelope costs the answer rather than the tokens. landed 2026-08-28.
-- [R-461](tasks/461-the-tiers-thinking-flag-is-deprecated.md) The subagent tier's thinking flag is deprecated on the image this repo pulls. open, fix when it bites.
-- [R-476](tasks/476-the-envelopes-answer-rate-is-an-instruction.md) The constrained shape answers one time in four, and the repair is a sentence nothing writes. landed 2026-08-28.
+- [R-459](tasks/459-what-the-envelope-costs-the-answer.md) Nothing measures what the reply envelope costs the answer rather than the tokens. done 2026-08-28.
+- [R-461](tasks/461-the-tiers-thinking-flag-is-deprecated.md) The subagent tier's thinking flag is deprecated on the image this repo pulls. open, waiting for its trigger.
+- [R-476](tasks/476-the-envelopes-answer-rate-is-an-instruction.md) The constrained shape answers one time in four, and the repair is a sentence nothing writes. done 2026-08-28.
 - [R-477](tasks/477-the-caps-margin-over-an-answering-run.md) The token cap has 12% of headroom over a delegated answer that is doing its job. declined 2026-09-11.
-- [R-478](tasks/478-two-ceilings-on-one-run-and-no-ordering.md) Two ceilings bound one delegated run and nothing puts them in the same unit. satisfied 2026-08-29.
+- [R-478](tasks/478-two-ceilings-on-one-run-and-no-ordering.md) Two limits bound one delegated run and nothing puts them in the same unit. satisfied 2026-08-29.
 - [R-480](tasks/480-a-narrated-reply-arrives-as-an-answer.md) A reply that is a plan still arrives as an answer, and nothing says so. declined 2026-09-11.
-- [R-481](tasks/481-the-sentence-is-measured-on-one-pick.md) The sentence every constrained subagent now carries is measured on one pick. landed 2026-08-28.
+- [R-481](tasks/481-the-sentence-is-measured-on-one-pick.md) The sentence every constrained subagent is now sent was measured on one pick. done 2026-08-28.
 - [R-482](tasks/482-the-sentence-is-one-wording-for-every-entry.md) One sentence is appended for every roster entry and the entries do not agree about it. declined 2026-08-30.
-- [R-483](tasks/483-the-rest-of-the-subagent-tier-is-unasked.md) Two of the subagent row's five entries have been asked what the reply envelope costs them. landed 2026-08-28.
-- [R-484](tasks/484-the-control-arm-is-held-to-no-floor.md) The raw arm every envelope reading is measured against is held to no floor. landed 2026-08-30.
+- [R-483](tasks/483-the-rest-of-the-subagent-tier-is-unasked.md) Two of the subagent row's five entries have never been asked what the reply envelope costs them. done 2026-08-28.
+- [R-484](tasks/484-the-control-arm-is-held-to-no-floor.md) The control run every envelope reading is compared against has no minimum. done 2026-08-30.
 - [R-485](tasks/485-a-roster-description-never-says-whether-the-entry-answers.md) A roster entry's description tells the cortex how fast it is and never whether it answers. declined 2026-08-30.
 - [R-494](tasks/494-one-pair-of-run-bounds-for-a-roster-of-tiers.md) One pair of run bounds reaches every roster entry and the entries convert between them differently. declined 2026-09-11.
-- [R-507](tasks/507-the-floor-sees-only-the-failures-a-machine-can-name.md) The floor sees only the failures a machine can name. landed 2026-09-04.
-- [R-508](tasks/508-a-roster-entry-names-an-endpoint-and-not-a-model.md) A roster entry names an endpoint, and nothing says which model answers there. declined 2026-09-02.
-- [R-527](tasks/527-one-roster-entrys-two-targets-are-named-by-two-artifact-variables.md) One roster entry's two placement targets are named by two artifact variables nothing holds together. open, fix when it bites.
-- [R-540](tasks/540-the-judged-rate-and-the-hand-column-are-compared-on-a-probe-and-no-sweep.md) The judged rate and the hand column are compared on a probe and no sweep. landed 2026-09-11.
-- [R-616](tasks/616-the-roster-alternates-cpu-server-carries-neither-cgroup-cap.md) The roster alternate's CPU server carries neither cgroup cap. landed 2026-09-11.
-- [R-628](tasks/628-the-subagent-cpu-servers-thread-count-is-not-pinned-to-its-quota.md) The subagent CPU server's thread count is not pinned to its quota. landed 2026-09-11.
+- [R-507](tasks/507-the-floor-sees-only-the-failures-a-machine-can-name.md) The control minimum counts only the failures a machine can name. done 2026-09-04.
+- [R-508](tasks/508-a-roster-entry-names-an-endpoint-and-not-a-model.md) A roster entry names an endpoint, and nothing says which model is loaded there. declined 2026-09-02.
+- [R-527](tasks/527-one-roster-entrys-two-targets-are-named-by-two-artifact-variables.md) One roster entry's two placement targets are named by two artifact variables nothing compares. open, waiting for its trigger.
+- [R-540](tasks/540-the-judged-rate-and-the-hand-column-are-compared-on-a-probe-and-no-sweep.md) The judged rate and the hand-read column are compared on one probe and no full run. done 2026-09-11.
+- [R-616](tasks/616-the-roster-alternates-cpu-server-carries-neither-cgroup-cap.md) The roster alternate's CPU server has neither cgroup cap. done 2026-09-11.
+- [R-628](tasks/628-the-subagent-cpu-servers-thread-count-is-not-pinned-to-its-quota.md) The subagent CPU server's thread count is not set from its quota. done 2026-09-11.
 - [R-629](tasks/629-the-picks-cpu-server-reaches-its-memory-cap-under-the-harnesss-budget.md) The pick's CPU server reaches its memory cap under the harness's budget. declined 2026-09-15.
-- [R-634](tasks/634-the-body-handed-back-passes-both-rates.md) The body handed back passes both rates. landed 2026-09-11.
-- [R-635](tasks/635-the-lookup-judge-passes-an-invented-instance-beside-the-bodys-phrase.md) The lookup judge passes an invented instance beside the body's phrase. landed 2026-09-11.
-- [R-636](tasks/636-a-cpu-budget-under-one-floors-the-thread-count-to-the-engines-default.md) A CPU budget under one floors the thread count to the engine's default. open, fix when it bites.
-- [R-637](tasks/637-the-delegated-run-ceilings-were-sized-on-the-unpinned-cpu-tier.md) The delegated run ceilings were sized on the unpinned CPU tier. open, fix when it bites.
-- [R-638](tasks/638-a-cpu-subagent-server-in-a-third-compose-file-is-held-to-no-thread-count.md) A CPU subagent server in a third compose file is held to no thread count. landed 2026-09-15.
-- [R-639](tasks/639-the-envelope-judges-read-no-form.md) The envelope judges read no form. open, fix when it bites.
-- [R-640](tasks/640-the-five-pick-envelope-table-is-on-an-image-the-stack-no-longer-pulls.md) The five-pick envelope table is on an image the stack no longer pulls. landed 2026-09-11.
-- [R-641](tasks/641-the-shipped-sentence-hands-the-report-back-on-a-summarization.md) The shipped sentence hands the report back on a summarization. landed 2026-09-13.
-- [R-657](tasks/657-the-roster-alternate-hands-the-report-back-under-the-new-sentence.md) The roster alternate hands the report back under the new sentence too. open, fix when it bites.
-- [R-675](tasks/675-the-subagent-memory-cap-is-sized-for-the-picks-artifact-alone.md) The subagent memory cap is sized for the pick's artifact alone. open, fix when it bites.
-- [R-676](tasks/676-a-third-compose-files-thread-count-is-held-to-no-value.md) A third CPU subagent server's thread count is held to no value. open, fix when it bites.
+- [R-634](tasks/634-the-body-handed-back-passes-both-rates.md) The body handed back passes both rates. done 2026-09-11.
+- [R-635](tasks/635-the-lookup-judge-passes-an-invented-instance-beside-the-bodys-phrase.md) The lookup check passes an invented instance beside the body's phrase. done 2026-09-11.
+- [R-636](tasks/636-a-cpu-budget-under-one-floors-the-thread-count-to-the-engines-default.md) A CPU budget under one makes the thread count fall back to the engine's default. open, waiting for its trigger.
+- [R-637](tasks/637-the-delegated-run-ceilings-were-sized-on-the-unpinned-cpu-tier.md) The delegated run ceilings were sized on the CPU tier's default thread count. open, waiting for its trigger.
+- [R-638](tasks/638-a-cpu-subagent-server-in-a-third-compose-file-is-held-to-no-thread-count.md) Nothing checks a third compose file's CPU subagent server for a thread count. done 2026-09-15.
+- [R-639](tasks/639-the-envelope-judges-read-no-form.md) The envelope checks read no structure. open, waiting for its trigger.
+- [R-640](tasks/640-the-five-pick-envelope-table-is-on-an-image-the-stack-no-longer-pulls.md) The five-pick envelope table is on an image the stack no longer pulls. done 2026-09-11.
+- [R-641](tasks/641-the-shipped-sentence-hands-the-report-back-on-a-summarization.md) The shipped sentence hands the report back on a summarization. done 2026-09-13.
+- [R-657](tasks/657-the-roster-alternate-hands-the-report-back-under-the-new-sentence.md) The roster alternate hands the report back under the new sentence too. open, waiting for its trigger.
+- [R-675](tasks/675-the-subagent-memory-cap-is-sized-for-the-picks-artifact-alone.md) The subagent memory cap is sized for the pick's artifact alone. open, waiting for its trigger.
+- [R-676](tasks/676-a-third-compose-files-thread-count-is-held-to-no-value.md) Nothing checks a third CPU subagent server's thread count. open, waiting for its trigger.
 
 ### tools-mcp
 
 5 open of 29.
 
-- [R-036](tasks/036-dispatch-half-rate-policy.md) The dispatch half of the rate policy. landed 2026-07-14.
-- [R-037](tasks/037-per-tool-cost-half.md) The per-tool cost half of the budget. landed 2026-07-14.
-- [R-038](tasks/038-core-barrel-headroom.md) Headroom in `cortex_core/__init__.py`. landed 2026-07-14.
-- [R-039](tasks/039-salience-on-the-tool-loop.md) Salience on the tool loop. landed 2026-07-14.
-- [R-040](tasks/040-salience-limit-knob.md) A limit knob for the salience policy. landed 2026-08-18.
-- [R-041](tasks/041-cross-loop-salience.md) Cross-loop salience across a batch. open, fix when it bites.
-- [R-042](tasks/042-per-round-call-cap.md) The per-round cap on distinct calls. landed 2026-07-16.
+- [R-036](tasks/036-dispatch-half-rate-policy.md) The dispatch half of the rate policy. done 2026-07-14.
+- [R-037](tasks/037-per-tool-cost-half.md) The per-tool cost half of the budget. done 2026-07-14.
+- [R-038](tasks/038-core-barrel-headroom.md) Headroom in `cortex_core/__init__.py`. done 2026-07-14.
+- [R-039](tasks/039-salience-on-the-tool-loop.md) Salience on the tool loop. done 2026-07-14.
+- [R-040](tasks/040-salience-limit-knob.md) A configurable limit for the salience policy. done 2026-08-18.
+- [R-041](tasks/041-cross-loop-salience.md) Cross-loop salience across a batch. open, waiting for its trigger.
+- [R-042](tasks/042-per-round-call-cap.md) The per-round cap on distinct calls. done 2026-07-16.
 - [R-043](tasks/043-structural-argument-identity.md) Structural argument identity in salience. declined 2026-07-16.
-- [R-044](tasks/044-turn-wide-dispatch-budget.md) The turn-wide dispatch budget. landed 2026-07-14.
-- [R-045](tasks/045-spawn-subagents-batch-cap.md) The batch cap on `spawn_subagents`. landed 2026-07-14.
-- [R-046](tasks/046-subagents-max-batch-knob.md) A `CORTEX_SUBAGENTS_MAX_BATCH` knob. declined 2026-08-18.
+- [R-044](tasks/044-turn-wide-dispatch-budget.md) The turn-wide dispatch budget. done 2026-07-14.
+- [R-045](tasks/045-spawn-subagents-batch-cap.md) The batch cap on `spawn_subagents`. done 2026-07-14.
+- [R-046](tasks/046-subagents-max-batch-knob.md) A `CORTEX_SUBAGENTS_MAX_BATCH` setting. declined 2026-08-18.
 - [R-047](tasks/047-cost-aware-batch-cap.md) A cost-aware batch cap. declined 2026-08-18.
-- [R-048](tasks/048-fair-share-across-a-batch.md) A fair-share policy across a batch. open, fix when it bites.
-- [R-049](tasks/049-connect-time-sidecar-tolerance.md) Connect-time sidecar tolerance and reconnect policy. landed 2026-07-08.
+- [R-048](tasks/048-fair-share-across-a-batch.md) A fair-share policy across a batch. open, waiting for its trigger.
+- [R-049](tasks/049-connect-time-sidecar-tolerance.md) Connect-time sidecar tolerance and reconnect policy. done 2026-07-08.
 - [R-050](tasks/050-sidecar-session-pool.md) The sidecar session cache and pool. declined 2026-08-08.
-- [R-051](tasks/051-aggregation-filtering-html-extraction.md) Multi-server aggregation, advertised-tool filtering, and HTML extraction. landed 2026-07-03.
-- [R-052](tasks/052-partial-degradation-policy.md) The partial-degradation policy for the aggregate. landed 2026-07-03.
-- [R-342](tasks/342-the-audit-trail-cannot-name-the-turn.md) The audit trail cannot name the turn a call belonged to. landed 2026-08-21.
-- [R-352](tasks/352-a-dispatch-names-no-call.md) A dispatched call's own id reaches no line. landed 2026-08-22.
-- [R-353](tasks/353-a-trail-worth-querying-has-no-store.md) The trail is now worth querying and has nowhere to be queried. landed 2026-09-17.
-- [R-362](tasks/362-one-bound-for-every-sidecar.md) One bound covers every sidecar, so a file read and a mailbox search share a ceiling. open, fix when it bites.
-- [R-363](tasks/363-the-call-bound-and-the-run-bound-are-unordered.md) A tool call may be bounded above the run that has to contain it. landed 2026-08-21.
-- [R-380](tasks/380-a-fires-delegates-do-not-name-the-item.md) A fire's delegates do not name the item that fired them. landed 2026-08-23.
-- [R-395](tasks/395-a-work-identity-is-copied-by-hand-at-every-hop.md) A work identity is copied by hand at every hop and nothing ties the copies. open, fix when it bites.
-- [R-532](tasks/532-an-mcp-image-block-is-dropped-rather-than-carried.md) An MCP image block is dropped by the adapter rather than carried as a result image. landed 2026-09-04.
-- [R-549](tasks/549-jpeg-and-webp-image-blocks-are-refused-rather-than-sized.md) JPEG and WebP image blocks are refused rather than sized. landed 2026-09-08.
-- [R-591](tasks/591-an-ok-audit-line-carries-a-size-where-the-correction-is.md) An ok audit line carries a size where the correction is. landed 2026-09-12.
-- [R-609](tasks/609-a-declared-mime-type-can-disagree-with-the-bytes-it-labels.md) A declared mime type can disagree with the bytes it labels. open, fix when it bites.
-- [R-651](tasks/651-the-corrected-answer-reading-is-in-the-contract-and-not-the-runbook.md) The corrected-answer reading is in the contract and not in the runbook. landed 2026-09-17.
+- [R-051](tasks/051-aggregation-filtering-html-extraction.md) Multi-server aggregation, advertised-tool filtering, and HTML extraction. done 2026-07-03.
+- [R-052](tasks/052-partial-degradation-policy.md) The partial-degradation policy for the aggregate. done 2026-07-03.
+- [R-342](tasks/342-the-audit-trail-cannot-name-the-turn.md) The audit trail cannot name the turn a call belonged to. done 2026-08-21.
+- [R-352](tasks/352-a-dispatch-names-no-call.md) A dispatched call's own id reaches no line. done 2026-08-22.
+- [R-353](tasks/353-a-trail-worth-querying-has-no-store.md) The audit trail is worth querying and has nowhere to be queried. done 2026-09-17.
+- [R-362](tasks/362-one-bound-for-every-sidecar.md) One bound covers every sidecar, so a file read and a mailbox search share a limit. open, waiting for its trigger.
+- [R-363](tasks/363-the-call-bound-and-the-run-bound-are-unordered.md) A tool call may be bounded above the run that has to contain it. done 2026-08-21.
+- [R-380](tasks/380-a-fires-delegates-do-not-name-the-item.md) A scheduled item's delegates do not name the item that started them. done 2026-08-23.
+- [R-395](tasks/395-a-work-identity-is-copied-by-hand-at-every-hop.md) A work identity is copied by hand at every step and nothing ties the copies. open, waiting for its trigger.
+- [R-532](tasks/532-an-mcp-image-block-is-dropped-rather-than-carried.md) An MCP image block is dropped by the adapter rather than passed on as a result image. done 2026-09-04.
+- [R-549](tasks/549-jpeg-and-webp-image-blocks-are-refused-rather-than-sized.md) JPEG and WebP image blocks are refused rather than sized. done 2026-09-08.
+- [R-591](tasks/591-an-ok-audit-line-carries-a-size-where-the-correction-is.md) An ok audit line records a size where the correction is. done 2026-09-12.
+- [R-609](tasks/609-a-declared-mime-type-can-disagree-with-the-bytes-it-labels.md) A declared mime type can disagree with the bytes it labels. open, waiting for its trigger.
+- [R-651](tasks/651-the-corrected-answer-reading-is-in-the-contract-and-not-the-runbook.md) The corrected-answer reading is in the contract and not in the runbook. done 2026-09-17.
 
 ### untrusted-content
 
 8 open of 39.
 
-- [R-053](tasks/053-overlay-confirmation-adapter.md) Real overlay confirmation adapter. landed 2026-07-08.
-- [R-054](tasks/054-gpu-framing-efficacy-validation.md) Agent GPU validation of framing efficacy. landed 2026-07-01.
+- [R-053](tasks/053-overlay-confirmation-adapter.md) Real overlay confirmation adapter. done 2026-07-08.
+- [R-054](tasks/054-gpu-framing-efficacy-validation.md) Agent GPU validation of framing efficacy. done 2026-07-01.
 - [R-055](tasks/055-screening-subagent.md) Screening subagent for external content. declined 2026-08-16.
-- [R-056](tasks/056-output-guardrail.md) Model-independent output guardrail. landed 2026-07-03.
-- [R-057](tasks/057-whitespace-split-hosts.md) Whitespace-split hosts. landed 2026-08-16.
+- [R-056](tasks/056-output-guardrail.md) Model-independent output guardrail. done 2026-07-03.
+- [R-057](tasks/057-whitespace-split-hosts.md) Whitespace-split hosts. done 2026-08-16.
 - [R-058](tasks/058-uts39-confusables-set.md) Full UTS-39 confusables set. declined 2026-08-16.
-- [R-059](tasks/059-mixed-other-encodings.md) Mixed and other encodings past percent and HTML. landed 2026-08-16.
+- [R-059](tasks/059-mixed-other-encodings.md) Mixed and other encodings past percent and HTML. done 2026-08-16.
 - [R-060](tasks/060-footer-boilerplate-heuristics.md) Footer and boilerplate heuristics. declined 2026-08-16.
-- [R-061](tasks/061-fullwidth-cjk-punctuation-twins.md) A URL in fullwidth and CJK punctuation twins. landed 2026-08-08.
-- [R-062](tasks/062-bracketless-entity-separator.md) Bracketless HTML character reference separator. landed 2026-08-08.
-- [R-063](tasks/063-leftover-encoding-table-priced.md) Pricing the leftover obfuscation table. landed 2026-08-10.
-- [R-064](tasks/064-slashless-authority-url.md) Slashless authority URL. landed 2026-08-11.
+- [R-061](tasks/061-fullwidth-cjk-punctuation-twins.md) A URL in fullwidth and CJK punctuation twins. done 2026-08-08.
+- [R-062](tasks/062-bracketless-entity-separator.md) Bracketless HTML character reference separator. done 2026-08-08.
+- [R-063](tasks/063-leftover-encoding-table-priced.md) Pricing the leftover obfuscation list. done 2026-08-10.
+- [R-064](tasks/064-slashless-authority-url.md) Slashless authority URL. done 2026-08-11.
 - [R-065](tasks/065-structured-redaction-event.md) Structured redaction event for the overlay. declined 2026-07-16.
-- [R-066](tasks/066-subagent-model-pick-e4b.md) Subagent model pick revised to gemma-4-E4B. landed 2026-07-03.
-- [R-067](tasks/067-forced-robust-spawn-model.md) Forced-robust model on untrusted-content spawns. landed 2026-07-03.
-- [R-068](tasks/068-grammar-constrained-subagent-output.md) Grammar-constrained subagent output. landed 2026-07-13.
-- [R-069](tasks/069-raw-gbnf-alternative.md) Raw GBNF grammar alternative. open, dead until a consumer.
-- [R-070](tasks/070-per-task-caller-schema.md) Per-task caller-supplied schema. open, dead until a consumer.
-- [R-071](tasks/071-subagents-never-handed-gated-tools.md) Subagents are never handed a gated tool. landed 2026-07-03.
-- [R-072](tasks/072-tainted-memory-recording.md) Context-preserving tainted-memory recording. landed 2026-07-06.
-- [R-073](tasks/073-fence-without-block-recall.md) Fence-without-block recall mode. open, fix when it bites.
-- [R-074](tasks/074-per-provenance-eviction.md) Per-provenance eviction. open, dead until a consumer.
+- [R-066](tasks/066-subagent-model-pick-e4b.md) Subagent model pick revised to gemma-4-E4B. done 2026-07-03.
+- [R-067](tasks/067-forced-robust-spawn-model.md) The injection-resistant model forced on untrusted-content spawns. done 2026-07-03.
+- [R-068](tasks/068-grammar-constrained-subagent-output.md) Grammar-constrained subagent output. done 2026-07-13.
+- [R-069](tasks/069-raw-gbnf-alternative.md) Raw GBNF grammar alternative. open, waiting for a consumer.
+- [R-070](tasks/070-per-task-caller-schema.md) Per-task caller-supplied schema. open, waiting for a consumer.
+- [R-071](tasks/071-subagents-never-handed-gated-tools.md) Subagents are never given a tool that needs approval. done 2026-07-03.
+- [R-072](tasks/072-tainted-memory-recording.md) Context-preserving tainted-memory recording. done 2026-07-06.
+- [R-073](tasks/073-fence-without-block-recall.md) Fence-without-block recall mode. open, waiting for its trigger.
+- [R-074](tasks/074-per-provenance-eviction.md) Per-provenance eviction. open, waiting for a consumer.
 - [R-075](tasks/075-summarizing-tainted-exchange.md) Summarizing a tainted exchange before recording. declined 2026-07-16.
-- [R-076](tasks/076-turnstamp-structured-provenance.md) Structured provenance on the TurnStamp. landed 2026-07-16.
-- [R-077](tasks/077-provenance-across-stores.md) Provenance across the stores. open, dead until a consumer.
-- [R-078](tasks/078-sidecar-declared-sender.md) Sidecar-declared sender. landed 2026-07-16.
-- [R-079](tasks/079-per-remote-tool-trust-overrides.md) Per-remote-tool trust and gating overrides. declined 2026-09-02.
-- [R-080](tasks/080-taint-across-mid-turn-swap.md) Taint and provenance across a mid-turn swap. landed 2026-07-17.
-- [R-081](tasks/081-tainted-escalation-hard-deny.md) Tainted-escalation hard-deny. landed 2026-07-17.
-- [R-082](tasks/082-replayed-quoted-injection.md) Quoted injection replayed by the plain history window. open, fix when it bites.
+- [R-076](tasks/076-turnstamp-structured-provenance.md) Structured provenance on the TurnStamp. done 2026-07-16.
+- [R-077](tasks/077-provenance-across-stores.md) Provenance across the stores. open, waiting for a consumer.
+- [R-078](tasks/078-sidecar-declared-sender.md) Sidecar-declared sender. done 2026-07-16.
+- [R-079](tasks/079-per-remote-tool-trust-overrides.md) Trust and confirmation overrides for a remote tool. declined 2026-09-02.
+- [R-080](tasks/080-taint-across-mid-turn-swap.md) Taint and provenance across a mid-turn swap. done 2026-07-17.
+- [R-081](tasks/081-tainted-escalation-hard-deny.md) A tainted turn cannot escalate to the brain model. done 2026-07-17.
+- [R-082](tasks/082-replayed-quoted-injection.md) Quoted injection replayed by the plain history window. open, waiting for its trigger.
 - [R-281](tasks/281-a-host-that-mixes-a-dot-and-a-gap.md) A host that mixes a dot and a gap. declined 2026-08-17.
-- [R-282](tasks/282-a-slashless-authority-whose-host-is-split.md) A slashless authority whose host is split. landed 2026-08-17.
-- [R-283](tasks/283-a-chosen-homoglyph-outlives-any-table.md) A chosen homoglyph outlives any table. landed 2026-08-16.
-- [R-284](tasks/284-the-lookalike-policy-as-the-shipped-default.md) The lookalike policy as the shipped default. open, fix when it bites.
-- [R-285](tasks/285-a-tab-inside-a-scheme-word.md) A tab inside a scheme word. landed 2026-08-17.
-- [R-294](tasks/294-one-match-yields-one-identity.md) One match yields one identity. open, fix when it bites.
-- [R-319](tasks/319-a-refusal-taints-the-turn.md) A tool result that carried no external content still taints the turn. landed 2026-09-02.
-- [R-530](tasks/530-a-sidecars-own-text-is-re-stamped-trusted.md) A sidecar's own text is re-stamped trusted by the brain, on bytes it holds. landed 2026-09-02.
-- [R-533](tasks/533-the-unfenced-correction-is-unmeasured-on-the-cortex.md) The unfenced correction is unmeasured on the cortex, and the own texts are unrun against a Bridge. landed 2026-09-04.
+- [R-282](tasks/282-a-slashless-authority-whose-host-is-split.md) A slashless authority whose host is split. done 2026-08-17.
+- [R-283](tasks/283-a-chosen-homoglyph-outlives-any-table.md) A chosen homoglyph outlives any table. done 2026-08-16.
+- [R-284](tasks/284-the-lookalike-policy-as-the-shipped-default.md) The lookalike policy as the shipped default. open, waiting for its trigger.
+- [R-285](tasks/285-a-tab-inside-a-scheme-word.md) A tab inside a scheme word. done 2026-08-17.
+- [R-294](tasks/294-one-match-yields-one-identity.md) One match yields one identity. open, waiting for its trigger.
+- [R-319](tasks/319-a-refusal-taints-the-turn.md) A tool result with no external content still taints the turn. done 2026-09-02.
+- [R-530](tasks/530-a-sidecars-own-text-is-re-stamped-trusted.md) A sidecar's own text is re-stamped trusted by the brain, on bytes this repo contains. done 2026-09-02.
+- [R-533](tasks/533-the-unfenced-correction-is-unmeasured-on-the-cortex.md) The unfenced correction is unmeasured on the cortex, and the own texts are unrun against a Bridge. done 2026-09-04.
 
 ### vision
 
 15 open of 67.
 
-- [R-251](tasks/251-user-attached-image-path.md) The user-attached image path. open, feature breadth.
-- [R-252](tasks/252-region-and-window-capture.md) Region and window capture, and legibility at 4K. landed 2026-08-10.
-- [R-253](tasks/253-reply-says-window-resampled.md) Whether the reply says a window was resampled. open, a seam or port change comes first.
-- [R-254](tasks/254-cross-language-byte-ceiling-check.md) A cross-language check on the byte ceiling. landed 2026-08-03.
-- [R-255](tasks/255-live-probe-refresh.md) A live-probe refresh. landed 2026-08-06.
-- [R-256](tasks/256-jpeg-or-webp-encoding.md) JPEG or WebP for a photographic screen. open, fix when it bites.
-- [R-257](tasks/257-content-addressed-attachment-store.md) A content-addressed `AttachmentStore`. open, dead until a consumer.
-- [R-258](tasks/258-image-arm-injection-harness.md) An image arm of the injection-defence harness. landed 2026-08-04.
-- [R-259](tasks/259-accepted-residual-guardrail.md) The accepted residual the guardrail cannot catch. declined 2026-07-19.
+- [R-251](tasks/251-user-attached-image-path.md) The user-attached image path. open, optional feature.
+- [R-252](tasks/252-region-and-window-capture.md) Region and window capture, and legibility at 4K. done 2026-08-10.
+- [R-253](tasks/253-reply-says-window-resampled.md) Whether the reply says a window was resampled. open, needs a port change first.
+- [R-254](tasks/254-cross-language-byte-ceiling-check.md) A cross-language check on the byte ceiling. done 2026-08-03.
+- [R-255](tasks/255-live-probe-refresh.md) A live vision probe. done 2026-08-06.
+- [R-256](tasks/256-jpeg-or-webp-encoding.md) JPEG or WebP for a photographic screen. open, waiting for its trigger.
+- [R-257](tasks/257-content-addressed-attachment-store.md) A content-addressed `AttachmentStore`. open, waiting for a consumer.
+- [R-258](tasks/258-image-arm-injection-harness.md) An image variant of the injection-defence tests. done 2026-08-04.
+- [R-259](tasks/259-accepted-residual-guardrail.md) The accepted residual risk the redaction cannot catch. declined 2026-07-19.
 - [R-260](tasks/260-per-source-memory-rules.md) Per-source memory rules for vision turns. declined 2026-08-16.
-- [R-261](tasks/261-windows-graphics-capture-backend.md) A `Windows.Graphics.Capture` backend. open, feature breadth.
-- [R-262](tasks/262-multi-monitor-dpi-reporting.md) Multi-monitor and DPI reporting. open, dead until a consumer.
-- [R-263](tasks/263-linux-and-macos-capture-backends.md) Linux and macOS `ScreenCapture` backends. open, feature breadth.
-- [R-264](tasks/264-uniform-per-call-deadline.md) A uniform per-call deadline on `BodyService`. landed 2026-08-18.
-- [R-265](tasks/265-resource-exhausted-classification.md) `RESOURCE_EXHAUSTED` classification. landed 2026-08-08.
-- [R-266](tasks/266-carrying-a-picture-across-a-swap.md) Carrying a picture across a model swap. open, a seam or port change comes first.
-- [R-267](tasks/267-outcome-driven-capture-indicator.md) An outcome-driven capture indicator. landed 2026-08-06.
-- [R-268](tasks/268-two-agent-docker-validations.md) Two agent-Docker validations. landed 2026-08-03.
-- [R-269](tasks/269-pixel-level-screening.md) Pixel-level screening in the body. open, dead until a consumer.
-- [R-286](tasks/286-user-half-of-an-opaque-turn.md) The user's half of an opaque turn. open, fix when it bites.
-- [R-427](tasks/427-the-injection-corpus-claims-a-size-nothing-holds.md) The injection corpus calls its size the body's own output and nothing holds it to one. landed 2026-08-25.
-- [R-432](tasks/432-the-image-arm-has-never-run-at-two-sizes.md) Nobody has measured whether the image arm's result depends on the picture's size. landed 2026-08-30.
-- [R-513](tasks/513-the-frame-pair-ran-only-where-the-picture-is-saturated.md) The two frames were compared at the one budget where a bigger picture is not a bigger picture. landed 2026-09-04.
-- [R-514](tasks/514-the-payloads-share-of-the-screen-is-the-variable-nobody-varied.md) The corpus has only ever drawn a payload that fills the screen it is drawn on. landed 2026-09-04.
-- [R-542](tasks/542-the-shipped-budgets-rate-row-has-one-sitting.md) The shipped budget's rate row has one sitting and the budget it is compared against has two. landed 2026-09-05.
-- [R-543](tasks/543-the-description-confound-grows-with-the-image-budget.md) The detector cannot tell a description from obedience, and the budget makes descriptions likelier. landed 2026-09-05.
-- [R-544](tasks/544-share-and-glyph-pixels-are-one-variable-at-one-frame.md) The payload's share and the pixels per glyph are one variable at one frame. landed 2026-09-05.
-- [R-545](tasks/545-the-plain-renderings-legibility-floor-is-not-bracketed.md) The plain rendering never went illegible, so the crossing is unbracketed where it matters most. landed 2026-09-05.
-- [R-561](tasks/561-a-token-beside-the-models-own-words-is-read-as-a-description.md) A token beside the model's own words on one line is read as a description. open, fix when it bites.
-- [R-562](tasks/562-the-tail-reading-takes-a-quoted-notice-as-reported-speech.md) The tail reading takes a quoted notice as reported speech. landed 2026-09-19.
-- [R-564](tasks/564-three-published-pixel-matrices-are-re-read-from-a-hand-sort.md) Three published pixel matrices and every rate column are re-read from a hand sort. landed 2026-09-05.
-- [R-565](tasks/565-the-mail-renderings-laundering-cell-fires-only-under-the-defence.md) The mail rendering's laundering cell has fired three times, and every one was the framed arm. landed 2026-09-06.
-- [R-566](tasks/566-a-cell-can-be-transcribable-and-unmentioned.md) A cell can be transcribable and unmentioned, and the sweep's claim is stated over the transcription. landed 2026-09-06.
-- [R-567](tasks/567-at-the-engines-budget-the-plain-control-differs-between-frames.md) At the engine's budget the plain control differs between the frames in every sitting. landed 2026-09-06.
-- [R-568](tasks/568-a-report-of-the-rule-without-its-quote-marks-reads-as-applied.md) A report of the rule that sheds the payload's quote marks reads as the rule applied. declined 2026-09-05.
-- [R-576](tasks/576-the-two-applications-every-boundary-rule-re-sorts-were-sorted-by-an-unwritten-rule.md) The two applications every boundary rule re-sorts were sorted by an unwritten hand rule. landed 2026-09-06.
-- [R-577](tasks/577-the-frame-gap-at-the-engines-budget-rests-on-two-points.md) The frame gap at the engine's budget rests on two points, and it is on one rendering. landed 2026-09-07.
-- [R-578](tasks/578-the-mail-cells-direction-is-significant-on-one-reading-only.md) The mail cell's direction separates the arms on the mention reading and not on the obeyed one. landed 2026-09-06.
-- [R-579](tasks/579-the-dialog-summarises-past-its-payload-one-size-early.md) The dialog rendering summarises past its own payload one size before the plain one does. landed 2026-09-07.
-- [R-588](tasks/588-the-dialog-cells-control-arm-is-undrawn-at-depth.md) The dialog cell's control arm has five draws a sitting and none at depth. landed 2026-09-07.
-- [R-589](tasks/589-the-matrix-prints-no-reply-where-a-reading-did-not-fire.md) The matrix prints no reply where neither reading fired. landed 2026-09-06.
-- [R-590](tasks/590-two-renderings-laundering-cells-have-five-draws-an-arm.md) Two renderings' laundering cells have five draws an arm and one has a hundred and twenty. landed 2026-09-07.
-- [R-592](tasks/592-the-resisted-print-switch-has-never-been-set-on-a-live-row.md) The resisted-print switch has never been set on a live row. landed 2026-09-07.
-- [R-596](tasks/596-the-payload-sweeps-resisted-print-argument-is-unrun.md) The payload sweep's resisted-print argument is still unrun on a live row. landed 2026-09-19.
-- [R-597](tasks/597-the-third-frame-is-drawn-by-the-rate-row-alone.md) The third frame is drawn by the rate row alone, and the payload sweep still knows two frames. landed 2026-09-07.
-- [R-600](tasks/600-the-plain-cells-application-rate-is-measured-and-its-direction-is-not.md) The plain cell's application rate is measured and its direction is not. landed 2026-09-08.
-- [R-601](tasks/601-the-plain-framed-cell-at-the-third-frame-reads-1-of-5-and-4-of-5.md) The plain framed cell at the third frame reads 1 of 5 and 4 of 5. landed 2026-09-08.
-- [R-602](tasks/602-the-plain-controls-fall-at-the-third-frame-is-read-off-twelve-draws.md) The plain control's fall at the third frame is read off twelve draws. landed 2026-09-08.
-- [R-603](tasks/603-the-engine-budgets-deep-row-voids-on-draws-that-think-to-the-cap.md) The engine budget's deep row voids on draws that think to the cap. landed 2026-09-08.
-- [R-604](tasks/604-the-advisory-probes-arms-part-by-fourteen-draws.md) The dialog probe's two arms part by fourteen draws, in the direction the defence is not for. landed 2026-09-10.
-- [R-605](tasks/605-the-bare-probe-rests-on-one-sitting.md) The unstyled probe carries half the square's answer and has one sitting behind it. landed 2026-09-10.
-- [R-606](tasks/606-the-alt-reports-the-dialogs-rule-in-grammar-the-tail-reading-sorts-as-applied.md) The alt reports the dialog's rule in grammar the tail reading sorts as applied. landed 2026-09-10.
-- [R-612](tasks/612-the-plain-cells-obeyed-direction-is-unmeasured-at-280-draws-an-arm.md) The plain cell's obeyed direction is unmeasured at 280 draws an arm. landed 2026-09-10.
-- [R-613](tasks/613-the-engine-budgets-deep-row-is-drawn-for-one-rendering-of-three.md) The engine budget's deep row is drawn for one rendering of three. landed 2026-09-12.
-- [R-620](tasks/620-the-mail-cells-rate-at-the-shipped-budget-is-two-sittings-that-disagree.md) The mail cell's rate at the shipped budget is two sittings that disagree. landed 2026-09-11.
-- [R-623](tasks/623-a-cell-that-settles-per-load-is-read-in-draws-rather-than-loads.md) A cell that settles per load is read in draws rather than loads. landed 2026-09-11.
-- [R-624](tasks/624-the-alts-conditional-trigger-reply-was-never-printed-into-the-tree.md) The alt's conditional-trigger reply is named as carrying a confound and was never written down. landed 2026-09-11.
-- [R-630](tasks/630-the-settled-cells-are-undrawn-across-loads.md) The cells whose published reading is one load's answer are undrawn across loads. landed 2026-09-19.
-- [R-647](tasks/647-the-mail-cells-rate-at-the-engine-budget-rests-on-one-firing.md) The mail cell's rate at the engine budget rests on one firing. landed 2026-09-13.
-- [R-654](tasks/654-the-void-ceiling-is-a-share-the-alts-control-arm-is-above.md) The void ceiling is a share the cortex alt's control arm is above. landed 2026-09-13.
-- [R-655](tasks/655-the-canary-rows-ok-cannot-be-told-from-a-void-draw.md) The canary row's `ok` cannot be told from a void draw. landed 2026-09-13.
-- [R-662](tasks/662-a-sitting-records-the-cards-ceiling-by-hand.md) A sitting records the card's ceiling by hand. landed 2026-09-17.
-- [R-678](tasks/678-a-rows-card-reading-misses-the-ceiling-between-its-ends.md) A row's card reading misses what the ceiling did between its ends. landed 2026-09-19.
-- [R-679](tasks/679-a-card-timing-outside-the-injection-harness-carries-no-ceiling.md) A card timing outside the injection harness carries no ceiling. open, fix when it bites.
-- [R-684](tasks/684-a-serving-line-cannot-say-how-long-a-row-ran-under-a-lowered-ceiling.md) A serving line cannot say how long a row ran under a lowered ceiling. open, fix when it bites.
-- [R-695](tasks/695-an-alt-mail-control-voids-in-every-draw-at-the-engine-budget.md) An alt `app` control cell voids in every draw at the engine's budget, so three rows cannot publish. open, actionable.
-- [R-696](tasks/696-an-arms-first-draw-on-a-server-differs-from-the-rest.md) An arm's first draw on a server differs from the rest, and a cell may read differently behind others. open, actionable.
+- [R-261](tasks/261-windows-graphics-capture-backend.md) A `Windows.Graphics.Capture` backend. open, optional feature.
+- [R-262](tasks/262-multi-monitor-dpi-reporting.md) Multi-monitor and DPI reporting. open, waiting for a consumer.
+- [R-263](tasks/263-linux-and-macos-capture-backends.md) Linux and macOS `ScreenCapture` backends. open, optional feature.
+- [R-264](tasks/264-uniform-per-call-deadline.md) A uniform per-call deadline on `BodyService`. done 2026-08-18.
+- [R-265](tasks/265-resource-exhausted-classification.md) `RESOURCE_EXHAUSTED` classification. done 2026-08-08.
+- [R-266](tasks/266-carrying-a-picture-across-a-swap.md) Sending a picture across a model swap. open, needs a port change first.
+- [R-267](tasks/267-outcome-driven-capture-indicator.md) A capture indicator driven by the outcome. done 2026-08-06.
+- [R-268](tasks/268-two-agent-docker-validations.md) Two agent-Docker validations. done 2026-08-03.
+- [R-269](tasks/269-pixel-level-screening.md) Pixel-level screening in the body. open, waiting for a consumer.
+- [R-286](tasks/286-user-half-of-an-opaque-turn.md) The user's half of an opaque turn. open, waiting for its trigger.
+- [R-427](tasks/427-the-injection-corpus-claims-a-size-nothing-holds.md) The injection corpus calls its size the body's own output and nothing checks that. done 2026-08-25.
+- [R-432](tasks/432-the-image-arm-has-never-run-at-two-sizes.md) Nobody has measured whether the image variant's result depends on the picture's size. done 2026-08-30.
+- [R-513](tasks/513-the-frame-pair-ran-only-where-the-picture-is-saturated.md) The two frames were compared at the one budget where a bigger picture is not a bigger picture. done 2026-09-04.
+- [R-514](tasks/514-the-payloads-share-of-the-screen-is-the-variable-nobody-varied.md) The corpus has only ever drawn a payload that fills the screen it is drawn on. done 2026-09-04.
+- [R-542](tasks/542-the-shipped-budgets-rate-row-has-one-sitting.md) The shipped budget's rate row has one measurement and the budget it is compared against has two. done 2026-09-05.
+- [R-543](tasks/543-the-description-confound-grows-with-the-image-budget.md) The detector cannot tell a description from obedience, and the budget makes descriptions likelier. done 2026-09-05.
+- [R-544](tasks/544-share-and-glyph-pixels-are-one-variable-at-one-frame.md) The payload's share of the screen and the pixels per glyph are one variable at one frame. done 2026-09-05.
+- [R-545](tasks/545-the-plain-renderings-legibility-floor-is-not-bracketed.md) The plain rendering never went illegible, so the crossing is unmeasured where it matters most. done 2026-09-05.
+- [R-561](tasks/561-a-token-beside-the-models-own-words-is-read-as-a-description.md) A token beside the model's own words on one line is read as a description. open, waiting for its trigger.
+- [R-562](tasks/562-the-tail-reading-takes-a-quoted-notice-as-reported-speech.md) The end-of-reply reading takes a quoted notice as reported speech. done 2026-09-19.
+- [R-564](tasks/564-three-published-pixel-matrices-are-re-read-from-a-hand-sort.md) Three published pixel matrices and every rate column are read again from a hand sort. done 2026-09-05.
+- [R-565](tasks/565-the-mail-renderings-laundering-cell-fires-only-under-the-defence.md) The mail rendering's laundering cell has fired three times, all of them framed. done 2026-09-06.
+- [R-566](tasks/566-a-cell-can-be-transcribable-and-unmentioned.md) A cell can be transcribable and unmentioned, and the claim is stated over the transcription. done 2026-09-06.
+- [R-567](tasks/567-at-the-engines-budget-the-plain-control-differs-between-frames.md) At the engine's budget the plain control differs between the frames in every run. done 2026-09-06.
+- [R-568](tasks/568-a-report-of-the-rule-without-its-quote-marks-reads-as-applied.md) A report of the rule that drops the payload's quote marks reads as the rule applied. declined 2026-09-05.
+- [R-576](tasks/576-the-two-applications-every-boundary-rule-re-sorts-were-sorted-by-an-unwritten-rule.md) The two applications every boundary rule re-reads were sorted by an unwritten hand rule. done 2026-09-06.
+- [R-577](tasks/577-the-frame-gap-at-the-engines-budget-rests-on-two-points.md) The frame gap at the engine's budget rests on two points, and it is on one rendering. done 2026-09-07.
+- [R-578](tasks/578-the-mail-cells-direction-is-significant-on-one-reading-only.md) The mail cell's direction separates the two conditions on the mention reading only. done 2026-09-06.
+- [R-579](tasks/579-the-dialog-summarises-past-its-payload-one-size-early.md) The dialog rendering summarises past its own payload one size before the plain one does. done 2026-09-07.
+- [R-588](tasks/588-the-dialog-cells-control-arm-is-undrawn-at-depth.md) The dialog cell's control has five draws a session and none at depth. done 2026-09-07.
+- [R-589](tasks/589-the-matrix-prints-no-reply-where-a-reading-did-not-fire.md) The matrix prints no reply where neither reading fired. done 2026-09-06.
+- [R-590](tasks/590-two-renderings-laundering-cells-have-five-draws-an-arm.md) Two renderings' laundering cells have five draws each and one has a hundred and twenty. done 2026-09-07.
+- [R-592](tasks/592-the-resisted-print-switch-has-never-been-set-on-a-live-row.md) The resisted-print switch has never been set on a live row. done 2026-09-07.
+- [R-596](tasks/596-the-payload-sweeps-resisted-print-argument-is-unrun.md) The payload-size row's resisted-print argument is still unrun on a live row. done 2026-09-19.
+- [R-597](tasks/597-the-third-frame-is-drawn-by-the-rate-row-alone.md) The third frame is drawn by the rate row alone, and the payload-size row still knows two frames. done 2026-09-07.
+- [R-600](tasks/600-the-plain-cells-application-rate-is-measured-and-its-direction-is-not.md) The plain cell's application rate is measured and its direction is not. done 2026-09-08.
+- [R-601](tasks/601-the-plain-framed-cell-at-the-third-frame-reads-1-of-5-and-4-of-5.md) The plain framed cell at the third frame reads 1 of 5 and 4 of 5. done 2026-09-08.
+- [R-602](tasks/602-the-plain-controls-fall-at-the-third-frame-is-read-off-twelve-draws.md) The plain control's fall at the third frame is read off twelve draws. done 2026-09-08.
+- [R-603](tasks/603-the-engine-budgets-deep-row-voids-on-draws-that-think-to-the-cap.md) The engine budget's deep row comes back empty on draws that think to the cap. done 2026-09-08.
+- [R-604](tasks/604-the-advisory-probes-arms-part-by-fourteen-draws.md) The dialog probe's two conditions differ by fourteen draws, the way round the defence is not for. done 2026-09-10.
+- [R-605](tasks/605-the-bare-probe-rests-on-one-sitting.md) The unstyled probe supplies half the four-corner answer and has one session behind it. done 2026-09-10.
+- [R-606](tasks/606-the-alt-reports-the-dialogs-rule-in-grammar-the-tail-reading-sorts-as-applied.md) The alt reports the dialog's rule in grammar the end-of-reply reading counts as applied. done 2026-09-10.
+- [R-612](tasks/612-the-plain-cells-obeyed-direction-is-unmeasured-at-280-draws-an-arm.md) The plain cell's obeyed direction is unmeasured at 280 draws per condition. done 2026-09-10.
+- [R-613](tasks/613-the-engine-budgets-deep-row-is-drawn-for-one-rendering-of-three.md) The engine budget's deep row is drawn for one rendering of three. done 2026-09-12.
+- [R-620](tasks/620-the-mail-cells-rate-at-the-shipped-budget-is-two-sittings-that-disagree.md) The mail cell's rate at the shipped budget is two runs that disagree. done 2026-09-11.
+- [R-623](tasks/623-a-cell-that-settles-per-load-is-read-in-draws-rather-than-loads.md) A cell that settles per load is read in draws rather than loads. done 2026-09-11.
+- [R-624](tasks/624-the-alts-conditional-trigger-reply-was-never-printed-into-the-tree.md) The alt's conditional-trigger reply is named as sharing a confound and was never written down. done 2026-09-11.
+- [R-630](tasks/630-the-settled-cells-are-undrawn-across-loads.md) The cells whose published reading is one load's answer are undrawn across loads. done 2026-09-19.
+- [R-647](tasks/647-the-mail-cells-rate-at-the-engine-budget-rests-on-one-firing.md) The mail cell's rate at the engine budget rests on one firing. done 2026-09-13.
+- [R-654](tasks/654-the-void-ceiling-is-a-share-the-alts-control-arm-is-above.md) The empty-reply ceiling is a share the cortex alt's control condition is above. done 2026-09-13.
+- [R-655](tasks/655-the-canary-rows-ok-cannot-be-told-from-a-void-draw.md) The canary row's `ok` cannot be told from an empty reply. done 2026-09-13.
+- [R-662](tasks/662-a-sitting-records-the-cards-ceiling-by-hand.md) A measurement run records the card's ceiling by hand. done 2026-09-17.
+- [R-678](tasks/678-a-rows-card-reading-misses-the-ceiling-between-its-ends.md) A row's card reading misses what the ceiling did between its ends. done 2026-09-19.
+- [R-679](tasks/679-a-card-timing-outside-the-injection-harness-carries-no-ceiling.md) A card timing outside the injection harness records no ceiling. open, waiting for its trigger.
+- [R-684](tasks/684-a-serving-line-cannot-say-how-long-a-row-ran-under-a-lowered-ceiling.md) A serving line cannot say how long a row ran under a lowered ceiling. open, waiting for its trigger.
+- [R-695](tasks/695-an-alt-mail-control-voids-in-every-draw-at-the-engine-budget.md) An alt `app` control cell is empty in every draw, so three rows cannot publish. open, actionable.
+- [R-696](tasks/696-an-arms-first-draw-on-a-server-differs-from-the-rest.md) The first draw on a server differs from the rest, and a cell reads differently behind others. open, actionable.
 
 <!-- backlog:end -->
 
 ## One thread, deliberately counted twice
 
-Per-remote-tool trust and gating overrides is one piece of work with a task in the
+Per-remote-tool trust and its approval overrides is one piece of work with a task in the
 `untrusted-content` area and another in `email-confirmer`. Both wait on the same thing, which is
 that no trusted remote tool exists yet. They are kept as two tasks rather than merged because each
 area's reader needs to meet it, and this note is here so the total above is understood to count it
 twice. It was found on 2026-07-19 and two earlier duplicates of the same shape have since closed:
-the cross-cutting "richer memory policies" line, covered by the memory area's tasks, and subagent
-tool-step surfacing, which appeared in two areas as one piece of work and closed 2026-07-16 by
-landing one side channel.
+the cross-cutting "richer memory policies" line, covered by the memory area's tasks, and reporting
+a subagent's tool steps, which appeared in two areas as one piece of work and closed 2026-07-16 by
+adding one side channel.

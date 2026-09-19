@@ -1,435 +1,250 @@
-# ADR-0025: Scheduling & proactive reminders (`ScheduleStore`, the ticker, and delivery over both seam directions)
+# ADR-0025: Scheduling and proactive reminders
 
-- **Status:** Accepted (Slice 9.5)
-- **Date:** 2026-07-08
+**Status:** Accepted (2026-09-19)
 
 ## Context
 
-Slice 9.5 gives the assistant a sense of time: "remind me at 18:00 to stretch", "every
-morning summarize my inbox". Schedule now, fire later, with the brain acting on its own
-initiative. The ROADMAP scoped it as a `ScheduleStore` port, a native `schedule_task`
-tool through the audited `ToolRegistry`, a pure use-case deciding what is due, and two
-firing modes: an **autonomous task** run via a subagent (Slice 7), and a **reminder**
-delivered to the user, pull-first (surfaced when the overlay next opens), proactively
-over the **brain→body** direction Slice 9 just opened. (The ROADMAP's "Design → ADR-0014"
-pointer was stale, since 0014 was taken by history windowing in the 2026-07-03 insertion wave;
-this slice's ADR is 0025 and the pointer is fixed alongside it.)
+The assistant needs a sense of time: "remind me at 18:00 to stretch", "every weekday at 09:00
+summarize my inbox". A schedule is created now and runs later on the brain's own initiative, either
+as an autonomous **task** run through a subagent or as a **reminder** shown to the user. A reminder
+is fetched when the overlay next opens, and is also sent over the brain to body direction of the
+gRPC interface (ADR-0023).
 
-Facts that shape the design:
-
-- **The one hard rule governs this slice.** A schedule *outlives every model swap* and
-  every brain restart. Nothing may live in the orchestrator process beyond the in-flight
-  fire; every `ScheduledItem` lives in the external store, and firing is a stateless
-  read-store → act → persist pass (the ROADMAP names this the gate the slice proves).
-- **The stack's Redis is already the durable-enough tier.** The base compose runs Redis 8
-  append-only on a named volume; *sessions*, conversation history, the thing the hard
-  rule exists to protect, already live there. A Redis `ScheduleStore` has the same
-  durability class; a Postgres twin stays a pure adapter swap behind the port (the
-  ROADMAP's "Redis for near-due, Postgres for durable" split becomes a deferral, not a
-  v1 requirement, so scheduling does not couple to the memory overlay).
-- **Every mechanism the slice needs has a worked precedent.** The dispatcher's taint
-  stamp on `ToolCall` rides onto persisted work (`SubagentTask.tainted`, ADR-0018); a
-  built-in tool is a `BuiltinTool` merged by `CompositeToolRegistry` and audited by
-  `ToolDispatcher` (ADR-0010); the injected `Clock` port exists (sync, tz-aware); the
-  shared contract-check suite pattern spans the in-memory fake and the fakeredis-covered
-  adapter (`task_contract.py`); read-only overlay views are unary `BrainService` RPCs
-  (ADR-0021); the brain→body call path is `BodyGateway` → `BodyService` (ADR-0023).
-- **Two names are already taken.** `Scheduler` already means resource *admission* in this
-  codebase (`SubagentScheduler` port, `ResourceBudgetScheduler`), and `scheduler.py`
-  exists in `cortex_core`. The time-based machinery is named **`ScheduleTicker`** /
-  `schedule.py` throughout. Never "Scheduler".
-- **Autonomous firing has nobody to ask.** A fired item executes outside any live turn:
-  there is no stream, no `Confirmer`, no user watching. The safety posture must be
-  structural (what the firing path *cannot reach*), not conversational. It must
-  extend to what the firing path *can be told to do* (decision 3's tainted-task refusal).
-
-The draft of this ADR was adversarially reviewed pre-implementation (four lenses covering
-crash/state/time, security/taint, seam/gates, operational completeness, with 27 findings).
-Every major finding is folded into the decisions below: the finish-fencing claim token,
-cancel-sticks-through-a-fire, corrupt-record quarantine, the tainted-task creation
-refusal, fire-time outcome taint, the model-learns-"now" mechanism, the store-absent RPC
-posture, and the `build_cortex_tools` argument-ceiling refactor.
+- **The one hard rule applies.** A schedule outlives every model swap and brain restart, so every
+  `ScheduledItem` lives in the external store, and a run is a stateless read, act, store pass.
+  Nothing lives in the orchestrator beyond the run in progress.
+- **Redis is already durable enough.** The base compose file runs Redis append-only on a named
+  volume, and sessions, the state the hard rule exists to protect, already live there.
+- **The mechanisms have precedents**: the dispatcher's taint stamp on stored work (ADR-0018),
+  audited built-in tools (ADR-0010), the injected `Clock`, unary read RPCs (ADR-0021).
+- **`Scheduler` is taken.** It means resource admission here (`SubagentScheduler`,
+  `ResourceBudgetScheduler`, `scheduler.py`), so the time-based code is `ScheduleTicker` and
+  `schedule*.py` throughout.
+- **An autonomous run has nobody to ask.** It runs outside any turn, with no stream and no
+  `Confirmer`, so its safety comes from what that path cannot reach and what it can be told to do,
+  not from a confirmation.
 
 ## Decision
 
-### 1. `ScheduledItem` + `ScheduleStore`: durable schedules behind a fenced port
+### 1. Durable schedules behind a fenced `ScheduleStore` port
 
-Frozen, slotted values in `cortex_core/schedule.py` (new module, since `scheduler.py` is
-taken by admission; `FireOutcome`/`ScheduleClaim` live here too, since `ports.py` is
-protocols-only by contract):
+`cortex_core/schedule.py` holds frozen values: `ScheduledItem` (`id`, `kind` reminder or task,
+`text`, origin `session_id`, tz-aware `due_at` and `created_at`, recurrence as `every` or `rule`,
+`anchor`, roster hint `model` with `""` for the default entry, `tainted`, `status` PENDING, FIRING
+or DONE, `deliverable_since`, `last_outcome`), `ScheduleClaim(item, token)` and `FireOutcome`. There
+is no CANCELLED status, because cancel deletes. The port (`ports_stores.py`) has eleven methods:
+`add`, `get`, `list_active`, `cancel`, `snooze`, `edit`, `claim_due`, `finish`, `release`,
+`deliverable`, `ack`. Every transition is guarded:
 
-```python
-class ScheduleKind(Enum):    REMINDER = "reminder"; TASK = "task"
-class ScheduleStatus(Enum):  PENDING = "pending"; FIRING = "firing"; DONE = "done"
+- **`claim_due`** takes items due at `now` plus FIRING items whose lease expired, oldest due first
+  across both, at most `limit`, each under a fresh fencing token. Running is at-least-once: a lost
+  reminder is worse than a repeated one. A record that fails to decode on this path is
+  **quarantined** to a dead-letter key and logged, and the pass continues.
+- **`finish(claim, outcome)`** applies only while the item is FIRING under that token and returns
+  `False` for a stale claimant, so a run that outlived its lease cannot overwrite the new claim. It
+  ORs the run's taint onto the item, then sets the item back to PENDING at the next due time or to
+  DONE, and a DONE item is deleted at once unless it is deliverable.
+- **`cancel` is permanent**: it deletes the item in any state, so a later `finish` finds no claim.
+- **`release`** returns a FIRING item to PENDING with `due_at` unchanged, so a graceful shutdown
+  strands nothing for a whole lease.
+- **`ack(item_id, *, fired_at)`** clears the deliverable slot only while it holds that run (decision
+  5) and deletes a DONE one-shot.
 
-@dataclass(frozen=True, slots=True)
-class ScheduledItem:
-    id: str
-    kind: ScheduleKind
-    text: str                      # reminder text, or the task instruction
-    session_id: str                # origin session (provenance + future targeting)
-    due_at: datetime               # tz-aware (enforced in __post_init__, Message precedent)
-    created_at: datetime           # tz-aware (enforced)
-    every: timedelta | None = None # None = one-shot; else fixed interval, must be > 0 (enforced)
-    model: str | None = None       # task-only roster hint (ADR-0018; resolve() still rules)
-    tainted: bool = False          # creation taint, OR'd with fire-time taint at finish()
-    status: ScheduleStatus = ScheduleStatus.PENDING
-    deliverable_since: datetime | None = None  # reminder fired, awaiting delivery/ack
-    last_outcome: str | None = None            # last fire's result line (task) or None
+The Redis adapter runs each guard and its write in one WATCH, MULTI, EXEC transaction, and a raced
+EXEC is treated like a stale token. The claim path re-checks the watched read and skips a PENDING
+record whose `due_at` has moved into the future since the index snapshot, so a snooze or a
+rescheduling committed in that window is not overridden. `InMemoryScheduleStore`
+(`fakes_schedule.py`) and the Redis adapter pass one shared contract suite (`schedule_contract.py`),
+races included; quarantine is tested on the adapter.
 
-@dataclass(frozen=True, slots=True)
-class ScheduleClaim:
-    item: ScheduledItem            # as of the claim (status FIRING)
-    token: str                     # fencing token minted per claim; finish/release require it
+### 2. Recurrence has two forms, an interval and a calendar rule
 
-@dataclass(frozen=True, slots=True)
-class FireOutcome:
-    fired_at: datetime
-    next_due: datetime | None      # None → terminal (DONE); else re-armed PENDING
-    deliverable: bool              # reminder awaiting delivery (sets deliverable_since)
-    outcome: str | None = None     # persisted to last_outcome
-    tainted: bool = False          # the fire consumed untrusted content; OR'd onto the item
-```
+An item has either `every` (a positive `timedelta`) or a `CalendarRule`, a wall time on chosen days
+([ADR-0065](ADR-0065-wall-clock-schedule-times.md)), never both, which `__post_init__` enforces.
+`next_occurrence(item, now, zone)` is the one entry point the ticker calls. For an interval,
+`next_due` returns the first anchored occurrence strictly after `now` from `recurrence_base(item)`
+(`anchor` when set, else `due_at`), so runs missed while the brain was down collapse into the one
+that just happened. An occurrence past `datetime.max` ends the recurrence rather than raising.
+Wall-clock time reaches the core only through `Clock`.
 
-The port (in `ports.py`; `ScheduleStoreError` joins `errors.py`):
+### 3. Five cortex-only built-ins through the audited dispatcher
 
-```python
-class ScheduleStore(Protocol):
-    async def add(self, item: ScheduledItem) -> None: ...
-    async def get(self, item_id: str) -> ScheduledItem | None: ...
-    async def list_active(self) -> Sequence[ScheduledItem]: ...   # PENDING/FIRING + deliverable, due order
-    async def cancel(self, item_id: str) -> bool: ...
-    async def claim_due(self, now: datetime, *, lease: timedelta, limit: int) -> Sequence[ScheduleClaim]: ...
-    async def finish(self, claim: ScheduleClaim, outcome: FireOutcome) -> bool: ...
-    async def release(self, claim: ScheduleClaim) -> bool: ...    # un-claim: FIRING → PENDING, due unchanged
-    async def deliverable(self) -> Sequence[ScheduledItem]: ...   # fired reminders awaiting ack
-    async def ack(self, item_id: str) -> bool: ...                # delivered; False if not deliverable
-```
+`schedule_task`, `list_scheduled`, `cancel_scheduled`, `snooze_scheduled` and `edit_scheduled` are
+built-ins, so subagents never see them (ADR-0010) and cannot re-schedule themselves.
 
-The transitions are **guarded and fenced** (review findings showed a bare `finish(item_id)`
-loses races it cannot even detect):
+- **The specification tells the model the time.** `schedule_task`'s description is rebuilt on every
+  `describe_tools` walk and includes the current time in the display zone (ADR-0065 decision 1); no
+  other context line tells the model the date.
+- **Arguments.** `kind`, `text`, and exactly one of `at` (ISO-8601), `in_seconds` or `at_time` (a
+  calendar rule, ADR-0065 decision 2); `every_seconds` between 60 s and ten years; `model` for a
+  task. Bad arguments return `is_error` results and never raise. Ids are uuid4 from an injectable
+  factory.
+- **Creation bounds.** Active items are capped (`CORTEX_SCHEDULE_MAX_ACTIVE`, 32), and **a tainted
+  turn cannot create a task**. A reminder only ever reaches a human, while a task instruction
+  written by injected content would be a permanent directive fed to a subagent.
+- **Trust.** Creation, cancel, snooze and edit results are `TRUSTED` and never echo stored text.
+  `list_scheduled` echoes text and is `TRUSTED` only when every listed item is clean. The item's
+  `session_id` comes from the dispatcher's `TurnStamp` and is never rendered.
+- **Accurate advertisement.** `kind: "task"` and `model` are offered only when the spawn tool is
+  configured. None of the five needs confirmation by default, and `CORTEX_TOOLS_GATED` can require
+  it for any of them by name.
 
-- **`claim_due`** claims items whose `due_at <= now` plus `FIRING` items whose lease
-  expired (a crash or an overrun mid-fire), **oldest-due-first across both classes**,
-  at most `limit`; each claim carries a fresh fencing `token`. Firing is therefore
-  **at-least-once**: a brain that dies between claim and finish re-fires after the lease,
-  never losing the item; deliveries and task runs may rarely duplicate (documented, since a
-  lost reminder is worse than a repeated one). A record that fails to decode is
-  **quarantined** (dropped from the live indexes to a dead-letter key, logged loudly
-  naming it) and the rest of the pass proceeds. This is fail-loud-per-item, never a poison pill
-  that halts all scheduling forever (the adapter-level twin of the session store's
-  fail-loud read, adjusted for this port's whole-subsystem blast radius).
-- **`finish(claim, outcome)`** applies only while the item is still `FIRING` under
-  `claim.token`; it returns `False` (a logged no-op) for a stale claimant, so a task
-  that outran its lease cannot clobber the re-claim's newer state, resurrect an acked
-  reminder, or overwrite a fresher outcome. A matching finish persists
-  `last_outcome`/`deliverable_since`, ORs `outcome.tainted` onto `item.tainted` (a
-  *clean-created* task whose subagent read untrusted content at fire time must not
-  launder that into a trusted listing), and re-arms to `PENDING` at `next_due` or,
-  with `next_due=None`, goes `DONE` and is **deleted immediately unless deliverable**
-  (terminal records never accumulate; a deliverable one-shot survives until `ack`).
-- **`cancel` sticks.** It removes the item outright, whether pending, firing, or
-  fired-but-undelivered (clearing deliverability), returning `True` when it stopped
-  anything and `False` for an unknown id. An in-flight fire's later `finish` then finds
-  no claim to match and no-ops `False`: a user's cancel can never be silently undone by
-  a re-arm racing it.
-- **`release(claim)`** is the graceful-shutdown un-claim: `FIRING` under the token →
-  back to `PENDING` with `due_at` unchanged, so an orderly SIGTERM mid-pass does not
-  strand claimed items for the full lease (a redeploy would otherwise delay a due
-  reminder by up to `CORTEX_SCHEDULE_LEASE_S`).
-- **`ack`** clears deliverability; on a `DONE` one-shot it deletes the record.
+### 4. The `ScheduleTicker` is a stateless poll loop in the orchestrator
 
-`InMemoryScheduleStore` lands in `cortex_core/fakes_schedule.py` (`fakes.py` is at
-282/300), contract-checked by a shared `schedule_contract.py` suite (including the
-guarded-transition races: stale finish rejected, cancel-during-fire sticks) that the
-Redis adapter must also pass; quarantine is adapter-mechanics, tested on the adapter
-with a deliberately corrupt record.
+`run_from_env` starts the ticker beside `serve()` and cancels it on the way out; a done-callback
+logs an unexpected exit. Every `CORTEX_SCHEDULE_POLL_S` it claims items, runs the batch concurrently
+and finishes each claim. Each run is bounded by `wait_for(lease)`, and a hung run is cancelled and
+released. A pass is wrapped in a logged catch-all, so a bug skips a pass rather than killing the
+loop, and on cancellation it releases unfinished claims.
 
-### 2. Recurrence (pure): one-shot + fixed interval, coalesced catch-up
+- **A reminder** finishes deliverable, then is sent (decision 6).
+- **A task** is a synthetic `spawn_subagents` call through the ticker's own `ToolDispatcher` (the
+  spawn tool alone, `LoggingAuditSink`, `confirmer=None`, the `CORTEX_TOOLS_GATED` set), stamped
+  with the item's `session_id` and taint. That gives the run an audit line, the taint stamp that
+  routes it to the injection-resistant model (ADR-0017), admission and the fail-closed confirmation
+  check, with no change to `build_subagents`. The result's trust becomes the run's taint. With no
+  spawn tool configured, the run finishes with an `ok=False` outcome saying so.
+- **Safety comes from the structure.** The run has no confirmer, so tools that need confirmation are
+  denied outright, and subagents hold only tools that need none, so no scheduled item reaches
+  `send_email`.
+- **Errors.** `ScheduleStoreError` skips the pass; `BodyGatewayError` leaves the item deliverable; a
+  task failure is an `ok=False` outcome.
 
-`every` is a plain `timedelta`; `ScheduledItem.__post_init__` enforces `every > 0` (the
-value invariant, while the 60 s floor is tool-boundary policy, decision 3). The pure helper
-in `schedule.py`:
+### 5. Fetched delivery, and an ack that identifies the run
 
-```python
-def next_due(due_at: datetime, every: timedelta | None, now: datetime) -> datetime | None
-```
+`BrainService` has `ListDueReminders` (all sessions, each row with `session_id`, `tainted`,
+`recurring` and `fired_at_unix_ms`) and `AckReminder` ([proto/body.proto](../../proto/body.proto)).
+A store failure aborts with `UNAVAILABLE`. **With no store configured
+(`CORTEX_SCHEDULE_BACKEND=none`) the list is empty and every ack returns `acked=false`**, never
+`UNAVAILABLE`, which the body's retry would treat as transient on every overlay open.
 
-returns `None` for one-shots, else the first anchored occurrence strictly after `now`,
-so occurrences missed while the brain was down **coalesce into the single fire that just
-happened** (one catch-up reminder, not a flood). Wall-clock time reaches the core only
-through the existing `Clock` port. Local-time daily/weekly recurrence (DST-aware) and
-cron expressions are deferred behind the same field, since an interval covers "every N
-hours/days" reminders without a new dependency in the pure core.
+**An ack identifies the run it showed.** A card can stay on screen for run N after run N+1 has
+replaced the slot, and acking by item alone cleared N+1 unseen. `AckReminderRequest` includes the
+card's own `fired_at_unix_ms`, and both stores clear the slot through the pure `acks_fire`
+(`schedule_transitions.py`) only while it holds that run; the Redis adapter decides inside the ack's
+WATCH transaction. Stamps compare at the wire's millisecond precision through `fire_stamp`, integer
+arithmetic with `stamp_instant` as its exact inverse, because `int(timestamp() * 1000)` writes some
+exact-millisecond instants one low and an echoed stamp would never match. A stamp of `0`, what a
+body built before the field sends, acks whichever run is held, so a mixed deployment keeps the old
+behaviour. A stale or out-of-range stamp returns `acked=false` and logs nothing.
 
-### 3. Three cortex-only built-ins through the audited dispatcher
+Body side, `BrainTransport` has `list_due_reminders` and `ack_reminder(id, fired_at_unix_ms)`
+(`body/crates/rpc/src/reminders.rs`). `RetryingTransport` retries the list and **never the ack**: a
+lost reply would make the retry return `acked=false` for the reminder its first attempt cleared. The
+next overlay open re-lists whatever is still deliverable. `acked=false` is a state, returned as
+`Ok(false)`, and the body has no separate mode for a brain without scheduling.
 
-`schedule_task` (the ROADMAP's name, and one tool with a `kind` enum), `list_scheduled`,
-`cancel_scheduled`, in `cortex_core/schedule_tools.py`, registered via the composition
-root's builtins list, so they are **cortex-only by construction** (subagents never see
-built-ins, ADR-0010/0013): a subagent cannot re-schedule, which bounds
-self-perpetuation exactly like depth-1 bounds delegation fan-out.
+### 6. Immediate delivery through `BodyService.Notify`
 
-- **The model learns "now" from the spec.** `ToolSpec`s are rebuilt on every
-  `describe_tools` walk (the spawn tool's roster-derived spec is the precedent), so
-  `schedule_task`'s *description* carries the current UTC time from the injected
-  `Clock`, so the model can compute an absolute `at` for "at 18:00" without any engine or
-  context-assembly change. Without this the headline use case is unimplementable: no
-  existing context line tells the model the date or time (review blocker).
-- **Arguments.** `{kind: "reminder"|"task", text, at?: ISO-8601-with-offset,
-  in_seconds?: number, every_seconds?: number (≥ 60), model?: roster name}`, with exactly
-  one of `at`/`in_seconds`. A **naive `at` (no offset/Z) is rejected** as `is_error`
-  (the spec states times are UTC and shows the format; a configured display timezone is
-  deferred, since v1 is UTC end-to-end, stored tz-aware and rendered ISO-8601 UTC).
-  Validation failures return `is_error` results, never raise (volume.py precedent,
-  including the bool-is-not-a-number and huge-int guards). Ids are uuid4 via an
-  injectable factory (spawn precedent).
-- **Two creation bounds** (the review noted "ungated + unbounded" invites a planted perpetual
-  workload): active items are capped (`CORTEX_SCHEDULE_MAX_ACTIVE`, default 32; at the
-  cap creation is an `is_error` naming the cap), and (the sharp one) **a tainted turn
-  cannot create a `kind="task"` item at all** (refused as a trusted `is_error`). A
-  reminder may carry attacker-influenced text because it only ever reaches a human; an
-  *autonomous agent instruction* authored by injected content is a standing directive
-  the runner would feed to a subagent as its user message. The structural gate below
-  bounds what it can reach, but not what it is told to do. Deterministic, the ADR-0017
-  spirit: the safety decision never rests on the model's judgment. Creation taint still
-  stamps `ScheduledItem.tainted = call.tainted` for reminders (ADR-0018 mechanism).
-- **Trust.** Creation/cancel results are `Trust.TRUSTED` and **never echo the stored
-  text**. They confirm by id, kind, and ISO-8601 UTC time only, so a tainted-created
-  reminder's text (and any URL in it) cannot ride back on a trusted result.
-  `list_scheduled` does echo text, with one line per item: `{id, kind, due ISO-8601 UTC,
-  every, tainted marker, last_outcome, text}`, so the listing is `TRUSTED` only when
-  every listed item is clean, else `UNTRUSTED` (spawn's aggregate rule): hostile text is
-  fenced and re-taints the turn instead of laundering through a trusted tool result.
-  `cancel_scheduled` takes `{id}` (echoed from a listing); an unknown id is an
-  `is_error` result.
-- **Honest advertisement** (spawn precedent): the spec offers `kind: "task"` and the
-  `model` knob only when delegation is wired, as signaled by the spawn tool's presence in
-  the composition root; a reminders-only deployment advertises reminders only.
-- **Gating.** All three are ungated by default, since creating a schedule is reversible by
-  construction (`cancel_scheduled` sticks, decision 1; the irreversible thing is the
-  *fired action*, where decision 4's posture lives). The `CORTEX_TOOLS_GATED` dispatcher
-  backstop covers any of them by name for a cautious user (ADR-0022).
+`NotifyRequest` has `title`, `body`, `reminder_id` and `tainted`. `BodyGateway.notify`
+(`InMemoryBodyGateway` in `fakes_body.py`) is called whenever the body gateway is configured. A
+shown toast counts as delivery, and the ticker acks the run it sent; `false` or `BodyGatewayError`
+leaves it deliverable to be fetched instead. Exactly one of the two paths clears a run.
 
-### 4. Firing: the `ScheduleTicker` is a stateless poll loop in the orchestrator
+The body renders the toast behind a `Notify` OS trait whose text cannot be interpreted as markup and
+whose taint line is fixed application text ([ADR-0066](ADR-0066-reminder-toast-and-card.md)).
 
-There is no lifecycle-hook mechanism in `serve()`; the ticker is an asyncio task started
-by `run_from_env` beside `await serve(...)` and cancelled in its `finally` (the pump-task
-discipline), with a done-callback that logs an unexpected death as an error. Every
-`CORTEX_SCHEDULE_POLL_S` it runs one stateless pass: `claim_due(now, lease, limit)` →
-fire the claimed batch concurrently (`asyncio.gather`, spawn precedent) → `finish` each
-with `next_due` from decision 2. Each pass is wrapped in a structured-logged catch-all
-(`except Exception: log + continue`) so an unenumerated bug degrades to a skipped pass,
-never a silently dead ticker; `CancelledError` propagates, and on the way out the ticker
-**releases** any claims it has not finished (decision 1) so a graceful shutdown strands
-nothing. The ticker holds **no state**. Kill it anywhere and the store's lease recovers
-the pass (the hard rule, live).
+### 7. Configuration, wiring and the Redis adapter
 
-- **`REMINDER`** → `finish(deliverable=True, …)`, then a push attempt (decision 6);
-  push failure leaves it deliverable for pull (decision 5).
-- **`TASK`** → dispatched as a **synthetic `spawn_subagents` call through the ticker's
-  own audited `ToolDispatcher`** (a private `CompositeToolRegistry` holding just the
-  spawn tool + `LoggingAuditSink` + `confirmer=None`): `dispatch(call,
-  tainted=item.tainted)` gives the fire an audit line, the dispatcher's taint stamp
-  (→ `SubagentTask.tainted` → ADR-0017 pins a tainted or tools-enabled fire to the
-  injection-robust model), admission/placement, and the fail-closed gate. All of it comes free,
-  with **no change to `build_subagents`' public shape** (the runner stays encapsulated;
-  the review's exposed-runner alternative is thereby unnecessary). The result's content
-  becomes `last_outcome`; its trust becomes `FireOutcome.tainted` (fire-time taint,
-  decision 1). With no spawn tool wired (a durable TASK from an earlier config outliving
-  a reconfig), the fire finishes with an `ok=False` outcome naming the gap. One-shot
-  goes `DONE`, recurring re-arms, neither crashing the pass nor lease-cycling forever.
-- **Safety posture is structural.** The autonomous path runs with `confirmer=None`
-  (fail-closed: gated tools hard-deny) and subagents hold only `UngatedToolRegistry`
-  (gated specs stripped, invocation refused). A scheduled item, however hostile its
-  origin, **cannot reach `send_email` or any gated action**; there is no confirm-away
-  window because there is nobody to ask. Decision 3's tainted-task refusal closes the
-  remaining hole (attacker-*authored* instructions); this closes attacker-*reachable*
-  actions. Together they are the Slice 6.5 "a reminder created from injected content
-  must not silently fire an irreversible action" requirement, enforced by reachability
-  rather than judgment.
-- **Errors.** `ScheduleStoreError` → log + skip the pass (per-item corruption is already
-  quarantined inside `claim_due`, so this is a store-down signal, not a poison record);
-  `BodyGatewayError` on push → recoverable, reminder stays deliverable; a task failure
-  is an `ok=False` outcome, never a ticker crash.
+`ScheduleConfig` (`config_schedule.py`) reads `CORTEX_SCHEDULE_BACKEND` (`none` by default, so CI
+and the no-service loop run without scheduling), `CORTEX_SCHEDULE_POLL_S` (5),
+`CORTEX_SCHEDULE_LEASE_S` (300), `CORTEX_SCHEDULE_CLAIM_LIMIT` (8), `CORTEX_SCHEDULE_MAX_ACTIVE`
+(32) and `CORTEX_SCHEDULE_TZ` (ADR-0065 decision 1); Redis is `CORTEX_REDIS_URL`. The built-ins
+reach `build_cortex_tools` as one pre-assembled sequence from `build_builtin_tools`, which keeps it
+under ruff's argument limit; `schedule_builders.py` builds the store, the five tools and the ticker.
 
-### 5. Pull delivery: two seam RPCs, the ADR-0021 pattern plus one narrow write
+`RedisScheduleStore` (`cortex_session/schedules.py`, with `schedule_claims.py` and
+`schedule_codec.py`) keeps records durable with no TTL, versioned `{"v": 1, "kind": "schedule"}` and
+tolerant of extra keys, so new fields (`anchor`, `rule`, a rule's `zone`) are additive and need no
+migration. Keys: `cortex:schedule:{id}` plus the sorted sets `cortex:schedules:due`, `:firing`
+(score is the claim time, the lease) and `:deliverable`, and the dead-letter hash
+`cortex:schedules:dead`; every `RedisError` becomes `ScheduleStoreError`.
 
-`proto/body.proto`, `BrainService`:
+Dead letters are inspected through adapter methods, **not port methods**: `dead_letters()` returns
+each quarantined id with its raw bytes rendered with replacement characters, and
+`purge_dead_letter(id)` drops one. The in-memory fake can never quarantine, so a port method would
+do nothing there, and the raw bytes are hostile or corrupt content that no model tool may read.
 
-```proto
-rpc ListDueReminders(ListDueRemindersRequest) returns (ListDueRemindersReply);
-rpc AckReminder(AckReminderRequest) returns (AckReminderReply);
+### 8. Snooze moves one occurrence
 
-message ListDueRemindersRequest {}
-message ListDueRemindersReply { repeated DueReminder reminders = 1; }
-message DueReminder {
-  string reminder_id = 1;
-  string text = 2;
-  int64 fired_at_unix_ms = 3;   // when it became deliverable
-  bool recurring = 4;
-  bool tainted = 5;             // untrusted provenance, so the overlay may badge it
-  string session_id = 6;        // origin chat (all sessions are listed; see below)
-}
-message AckReminderRequest { string reminder_id = 1; }
-message AckReminderReply { bool acked = 1; }
-```
+`snooze_scheduled(id, for_seconds)` computes `until` from the injected clock, with the same 60 s to
+ten-year bounds as `every_seconds`. The pure `apply_snooze`, shared by both stores, sets `due_at` to
+`until`, sets the item back to PENDING and clears deliverability, so a reminder that already ran
+runs again fresh. On a recurring item's first snooze it sets `anchor` to the old `due_at`, so the
+series keeps its original spacing; a calendar item defines its own times and takes no anchor. FIRING
+and unknown ids return `False`. A snooze adds no content, so it needs no taint check, as with
+cancel. The tool reads the item first for a precise correction, and the fenced transition gives the
+authoritative result.
 
-`ListDueReminders` is a read-only store view (ADR-0021 exactly) and is deliberately
-**all-sessions**. A single-user assistant has one user to remind; `session_id` rides
-along so the overlay can later offer "open the conversation this came from" without a
-wire change. `AckReminder` is the one narrow, idempotent write the pull loop needs
-(acking a non-deliverable id is a no-op `acked=false`, so a retried ack is harmless).
-`ScheduleStoreError` aborts `UNAVAILABLE` (the session-reads precedent). **With no
-`ScheduleStore` wired (the default `CORTEX_SCHEDULE_BACKEND=none`), `ListDueReminders`
-answers an empty reply and `AckReminder` `acked=false`**. A schedule-free brain is
-indistinguishable from one with nothing due; it must never abort `UNAVAILABLE`, which
-the body's `RetryingTransport` classifies as transient and would turn every overlay open
-into a retry-backoff storm (review). Turning the backend off with deliverables stored
-strands them until re-enabled (runbook note). Body-side, `BrainTransport` grows the two
-unary methods (+ a `DueReminder` core mirror), `RetryingTransport` forwards
-`list_due_reminders` as idempotent (ack stays unretried v1), and the overlay surfaces
-deliverable reminders when it opens, acking on dismiss, matching "surface due reminders when the
-overlay next opens", the ROADMAP's pull-first fallback.
+### 9. Edit changes text and recurrence, never an interval's next due time
 
-### 6. Push delivery: `BodyService.Notify` over the Slice 9 seam
+`edit_scheduled` changes `text` and the recurrence through one pure `apply_edit` over a
+`ScheduleEdit` value. `every_seconds` sets an interval (and clears a rule), `0` stops either form
+repeating, and omitting it leaves the recurrence alone. An interval edit leaves `due_at` in place,
+so only later reschedulings take the new interval. **Setting a rule is the exception**: a rule
+derives its occurrences from the wall clock, so the tool computes the rule's next occurrence and
+passes both as one `RuleChange(rule, due_at)`, which reschedules the item as a snooze does (PENDING,
+deliverability and `anchor` cleared). Merely moving `due_at` would put a DONE reminder back on the
+claim path and run it twice, and the rule branch writes snooze's index set under the same fence.
+**Edit ORs the turn's taint onto the item, and a tainted turn cannot edit a task**, since rewriting
+the text injects content, as creation does. Results never echo stored text.
 
-```proto
-rpc Notify(NotifyRequest) returns (NotifyReply);
-message NotifyRequest {
-  string title = 1;
-  string body = 2;
-  string reminder_id = 3;
-  bool tainted = 4;   // symmetric with DueReminder, so the toast may badge provenance
-}
-message NotifyReply { bool shown = 1; }
-```
+### 10. A task's outcome is delivered like a reminder
 
-`BodyGateway` gains `async def notify(*, title: str, body: str, reminder_id: str,
-tainted: bool = False) -> bool` (`GrpcBodyGateway`; `InMemoryBodyGateway` grows it too
-and **moves to `cortex_core/fakes_body.py`** (`fakes.py` has no headroom) with its
-`cortex_core` re-export unchanged). The ticker attempts a push exactly when the body
-gateway is wired (`CORTEX_BODY_BACKEND=grpc`, with no second knob); `shown` → the ticker
-acks (a native toast *is* delivery); `false` or `BodyGatewayError` → the reminder stays
-deliverable and pull covers it. Body-side is all compile-forced by the proto change,
-so in the CI-gated half, not an afterthought: a new `Notify` OS trait joins
-`AudioControl` in `body_core::os` (Linux/macOS stubs behind the coverage escape hatch),
-the `body_rpc` server grows a second backend generic and the `notify` handler behind the
-same `SeamTokenValidator`, both contract-tested over loopback. The Windows impl (a
-native toast from the Tauri shell) is host-authored (like `WindowsAudioControl`) and
-**must render `title`/`body` as inert escaped text** (toast templates are XML; injected
-reminder text must not become actionable markup, per the seam's data-not-instructions
-posture, extended to the host). If the Tauri toast outpaces the session it lands
-host-side per the shape-now/implement-later seam precedent (`CaptureScreen`), recorded.
-
-### 7. Config, wiring, and the Redis adapter
-
-- **`ScheduleConfig`** in `config_schedule.py` (the `config_subagents.py` split
-  precedent; `config.py` is at 224): `CORTEX_SCHEDULE_BACKEND` (`none` default, so CI and
-  the no-service dev loop run schedule-free, the turn path byte-identical),
-  `CORTEX_SCHEDULE_POLL_S` (5.0), `CORTEX_SCHEDULE_LEASE_S` (300),
-  `CORTEX_SCHEDULE_CLAIM_LIMIT` (8), and `CORTEX_SCHEDULE_MAX_ACTIVE` (32). Redis
-  location reuses `CORTEX_REDIS_URL`.
-- **The builtins bundle.** `build_cortex_tools` already sits at the PLR0913 six-argument
-  ceiling (per review, verified against ruff's counting), so the composition root's
-  built-ins stop being individual parameters: wiring pre-assembles the builtins sequence
-  (spawn, volume, schedule tools) via a `build_builtin_tools(...)` helper in
-  `schedule_builders.py` and passes **one** sequence, which is the `TurnCapabilities`-style
-  bundling the ruff config itself prescribes. `build_schedule(...)` returns
-  `(ScheduleStore | None, closer)`; the ticker takes one frozen collaborators value.
-- **`RedisScheduleStore`** in `cortex_session/schedules.py`: schedules are **durable** with
-  no TTL (the `RedisTaskStore` `ex=3600` would silently drop reminders), records carry
-  the session store's `{"v": 1, "kind": "schedule"}` version markers with
-  lenient-extra-keys / loud-unknown-kind decode (the durable-record evolution policy);
-  an undecodable record on the claim path is quarantined per decision 1 (elsewhere, in
-  `get`/`list_active`, where it fails loudly naming its key, the one-record blast radius).
-  Keys: `cortex:schedule:{id}` (JSON, claim token included) + the ZSET indexes
-  `cortex:schedules:due` (score = due-at epoch), `cortex:schedules:firing` (score =
-  claim epoch, the lease), `cortex:schedules:deliverable` (score = fired-at epoch), and
-  the dead-letter `cortex:schedules:dead`. Index+record write pairs go through a
-  pipeline; every `RedisError` wraps into `ScheduleStoreError` with the cause chained.
-  100% via fakeredis through the shared contract suite; an `integration`-marked live
-  test replays the checks against real Redis.
+A task run finishes deliverable and sends its **outcome, never its instruction**, under `TASK_TITLE`
+(a reminder uses `REMINDER_TITLE`), through the ticker's `_deliver`; `reminder_to_proto` puts
+`last_outcome` in `DueReminder.text` for the fetched path. The deliverable and ack machinery does
+not depend on the kind, so this needed no store, proto or overlay change, and a one-shot task's
+outcome now survives its run until acked.
 
 ## Consequences
 
-**CI-gated (mine, 100% under `just check`, no Redis/GPU/OS/GUI):** the values + port +
-pure `next_due` + `InMemoryScheduleStore` + the contract suite (guarded transitions and
-races included); the three built-ins through a real `ToolDispatcher` (audit, taint
-stamp + tainted-task refusal, trust rules, the clock-bearing spec, honest
-advertisement, both creation bounds); `RedisScheduleStore` over fakeredis (quarantine
-included); the `ScheduleTicker` over the fakes with an injected clock (no sleeps, since the
-poll wait is injected, asserted with a fake); the proto extension regenerated into both
-committed stub trees, the facade re-exports, the two `BrainService` handlers (store-
-absent behavior included), `BodyGateway.notify` + both adapters + the `fakes_body.py`
-split; the body-side `Notify` OS trait + stubs + the `body_rpc` `notify` handler and
-its loopback contract tests; the Rust `BrainTransport` reminder methods + retry
-forwarding + fake-brain contract tests; the overlay's reminders-on-open surface over
-its fake bridge.
-
-**Agent-Docker (mine):** the schedule contract suite against live Redis; an
-`integration`-marked end-to-end fire. Seed a near-due reminder, watch the ticker make
-it deliverable, read it back over `ListDueReminders`, ack it, all against the real brain +
-Redis containers.
-
-**Host-Windows (host-only):** the native toast (the Tauri-shell `Notify` impl over the
-new OS trait, rendering reminder text inert) and the overlay's reminder surface on the
-real hotkey→overlay path (runbook `docs/runbooks/scheduling.md`).
-
-**Deferrals** (recorded in the ROADMAP's deferred-refinements section): the Postgres
-durable twin behind the unchanged port; local-time/cron recurrence and a display-
-timezone knob (v1 is UTC end-to-end); occurrence history (coalesced single-slot
-deliverability keeps no per-fire records, and terminal cleanup deletes a one-shot
-task's outcome with the record); snooze/edit verbs; task-outcome delivery as a
-notification; a push retry policy beyond next-poll-pull; structured provenance beyond
-the `tainted` bit; overlay badge/UX polish for tainted reminders; retention/inspection
-tooling for the dead-letter key.
+- CI covers the values, the port, both stores through one contract suite, the built-ins through a
+  real dispatcher, the ticker over fakes with an injected clock, the gRPC handlers and the Rust
+  transport methods, all at 100%. The live Redis contract run and an end-to-end run are done by the
+  agent in Docker (runbook [scheduling](../runbooks/scheduling.md)); the real toast and card need
+  the host (ADR-0066).
+- **At-least-once duplicates**: a crash between claim and finish runs the item again after the
+  lease; a task running past `CORTEX_SCHEDULE_LEASE_S` is cancelled and re-claimed.
+- **A shown toast acks even if nobody saw it**, and a one-shot that already ran then leaves no
+  record. The fetched card cannot tell a task from a reminder, since `DueReminder` has no kind.
+- A tainted recurring reminder puts attacker text in front of the user repeatedly; it is badged on
+  both paths, cannot become a task, and the active cap bounds the volume. The item stores the taint
+  bit and no sources, so nothing can say which source tainted it (backlog: provenance).
+- Runs share the process with live turns; the claim limit bounds a pass and subagent admission
+  (ADR-0012) budgets a task's inference.
+- Turning the backend off with deliverables stored strands them until it is enabled again.
+- **A sent notification is never re-sent.** The safe retry is the fetched path, which keeps the item
+  deliverable until acked. Re-sending would deliver twice unless the body could tell a retry from
+  the next run and from a shown toast whose reply was lost. The item id and `deliverable_since`
+  already identify a run, so a safe re-send needs that stamp on `NotifyRequest` and a deduplication
+  record that outlives the stateless body server, which the OS notification history could hold (a
+  toast `Tag`/`Group` per run, unread on a desktop). It waits for a body that reconnects often
+  enough between a failed send and the next open to matter.
 
 ## Alternatives rejected
 
-- **Postgres-first store.** Couples scheduling to the memory overlay for no durability
-  win the stack doesn't already grant sessions (AOF + named volume); the port keeps the
-  swap pure when per-provenance queries or retention policies earn it.
-- **Cron-string recurrence (croniter).** A new dependency in the pure core for
-  expressiveness no near-term reminder needs; the `every` timedelta covers the real
-  cases and the field carries a richer rule later.
-- **Per-occurrence delivery records.** A second entity and a growth policy, to preserve
-  duplicate fires nobody reads at personal scale; coalescing into the item's one
-  deliverable slot is simpler and loses only history (deferred).
-- **Delivery as a new `ServerEvent` on `Converse`.** Per-stream: the overlay must hold
-  an open stream to hear it, and reminders outlive streams by design. Pull RPC + body
-  push are both stream-independent.
-- **A scheduling sidecar process.** A new deployment unit and seam for no isolation win;
-  the orchestrator already owns an asyncio lifecycle, and the ticker is stateless by
-  construction so process placement is immaterial.
-- **Exposing the `SubagentRunner` from `build_subagents` for the ticker.** The ticker
-  dispatches a synthetic `spawn_subagents` call through its own audited dispatcher
-  instead. That gives the audit trail, taint stamping, and the fail-closed gate for free, and the
-  builder's public shape (and its tests) stay untouched.
-- **Fencing via status checks alone (no claim token).** A status guard cannot tell the
-  original claimant from the re-claim (both see `FIRING`), so a late finish would still
-  clobber; the token is one field and one parameter.
-- **Naming it `Scheduler`.** Collides with the resource-admission vocabulary
-  (`SubagentScheduler`, `ResourceBudgetScheduler`, `scheduler.py`) in the same flat
-  export namespace.
+- **A Postgres store.** Sessions have no Postgres backend, so it would make a reminder more durable
+  than its conversation; nothing queries schedules by provenance, a finished one-shot is deleted and
+  the active set is capped, so there is nothing to retain; and with no fake Postgres the fenced
+  races could be proven only in an integration suite CI never runs.
+- **Per-occurrence history.** Nothing reads a past occurrence: the fetched list shows the one
+  deliverable slot and `list_scheduled` the last outcome. It would add a store read, a growth
+  policy, an RPC and an overlay view for no reader, and reopens with one.
+- **Automated dead-letter expiry.** A quarantined id is dropped from every index in the same
+  transaction, so the hash grows only by distinct corrupt records, and expiry would delete the one
+  forensic record. If ever wanted, an `hexpire` beside the `hset` is the adapter-local form.
+- **Delivery as a `ServerEvent` on `Converse`**: reminders outlive streams.
+- **A scheduling sidecar**: a new unit for no isolation gain, since the ticker is stateless.
+- **Fencing by status alone**: both claimants see FIRING; the token tells them apart.
+- **Snooze or edit moving an interval series**: a daily 09:00 nudged once would become 09:10.
 
-## Risks
+## Related
 
-- **At-least-once duplicates.** A crash between claim and finish re-fires after the
-  lease: a reminder may toast twice, a task may run twice. Accepted (personal scale;
-  losing fires is worse); the lease bounds the window, the fencing token bounds the
-  damage (a stale finish is a no-op), and graceful shutdown releases claims so the
-  common restart path is prompt, not lease-delayed.
-- **Lease vs. long tasks.** A task outrunning `CORTEX_SCHEDULE_LEASE_S` gets re-claimed
-  while still running (a duplicate run; the stale finish is fenced off). The default
-  (300 s) sits far above measured subagent latencies; the knob exists, and the risk is
-  noted in the runbook.
-- **A tainted recurring reminder puts attacker text in front of the user repeatedly.** Its text is fenced on every
-  model-facing surface and badged on both wire paths, but a human can still read and
-  obey it; the tainted-task refusal keeps it from becoming autonomous compute, and the
-  active-items cap bounds the volume an injected turn can plant.
-- **Push-acked ≠ seen.** A toast shown while the user is away still acks. Accepted: a
-  toast is the OS's delivery contract; unseen-toast recovery (history) is the deferred
-  occurrence-history item.
-- **Ticker vs. turn contention.** Fires share the process with live turns; the claim
-  limit bounds a pass, and subagent admission (ADR-0012) already budgets the heavy part.
+- [ADR-0065](ADR-0065-wall-clock-schedule-times.md) (display zone and calendar rules) and
+  [ADR-0066](ADR-0066-reminder-toast-and-card.md) (the toast and the overlay card).
+- Modules: [brain-core](../modules/brain-core.md),
+  [brain-orchestrator](../modules/brain-orchestrator.md),
+  [brain-session](../modules/brain-session.md), [body-app](../modules/body-app.md).
+- Runbook: [scheduling](../runbooks/scheduling.md). ADR-0010 (built-ins), ADR-0012 (admission),
+  ADR-0017 (taint routing), ADR-0021 (read RPCs), ADR-0023 (brain to body), ADR-0024 (retries).

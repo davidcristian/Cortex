@@ -1,53 +1,42 @@
 # macOS and Linux OS backends
 
-**Status:** open, feature breadth
+**Status:** open, optional feature
 **Area:** cross-cutting
 **Origin:** none, this area is the old catch-all list and has no single origin decision record
 **Verified:** 2026-09-13
 
-macOS/Linux OS backends.
+Real macOS and Linux backends behind the existing OS traits. Today both crates satisfy `Hotkey`,
+`AudioControl`, `Notify` and `ScreenCapture` with `unimplemented!()`.
 
-That fragment was recorded inside the area's one grouped entry, "Cross-cutting (originally 'Later,
-unordered')", which lists it beside pointer-input injection, richer memory policies and more
-subagent roles and never gave it a bullet of its own.
+The Linux half costs more than one line suggests, because of a coverage problem no document
+records. `os_windows` is excluded from the Linux coverage run by construction, being
+`#[cfg(windows)]` with even its dependencies declared under
+`[target.'cfg(windows)'.dependencies]`, while `body/crates/os_linux/src/lib.rs` and
+`body/crates/os_macos/src/lib.rs` are plain workspace members with a bare `[dependencies]`, whose
+stubs sit under `#[cfg_attr(coverage, coverage(off))]` with an inline reason. Since the coverage
+run passes `--workspace`, a real Linux backend would compile in CI and be measured, putting live
+X11 or Wayland calls inside the 100% line and branch requirement, which is exactly where AGENTS.md
+does not put real OS calls: those belong in thin adapters under `integration` marking, run on the
+host. Both halves of that collision are written down separately, in
+[body-os.md](../../modules/body-os.md), which records `os_linux` as compiled and measured on Linux
+CI, and in the crate's own header, which records that real backends are host-validated and never in
+CI. Whoever picks this up needs the integration-marking answer before writing a line of X11. The
+macOS half does not have the problem, because a real macOS backend could not compile on Linux at
+all and would have to take `os_windows`'s `cfg` attribute, which also means
+[ADR-0011](../../adr/ADR-0011-body-v1.md) decision 3 describes `os_macos` as `cfg(macos)` where the
+crate has no such attribute.
 
-## Trail
+This stays a refinement rather than moving to [docs/host/](../../host/index.md), which holds work
+needing a Win32 desktop session or a 24 GB GPU: a Linux or macOS backend needs neither.
+
+## History
 
 - 2026-07-15: Extracted from the ROADMAP's deferred-refinements section as one clause of the
-  "Later, unordered" list, and carried in the index's feature-breadth bucket as "macOS/Linux OS
-  backends behind the existing traits".
-- 2026-08-09: A costing pass over that bucket read the entry against the tree and found a coverage
-  trap no doc records, which is the reason it reads cheaper than it is: `os_windows` escapes the
-  Linux coverage run by construction, being `#[cfg(windows)]` with even its dependencies declared
-  under `[target.'cfg(windows)'.dependencies]`, while `body/crates/os_linux/src/lib.rs` and
-  `body/crates/os_macos/src/lib.rs` are plain workspace members of 71 lines each with a bare
-  `[dependencies]` (`body/Cargo.toml:2`) that satisfy `Hotkey`, `AudioControl`, `Notify` and
-  `ScreenCapture` with `unimplemented!()` under `#[cfg_attr(coverage, coverage(off))]` with an
-  inline reason, so a real Linux backend would compile in CI and be measured by
-  `cargo llvm-cov --workspace` (`justfile:95`), putting live X11 or Wayland calls inside the 100
-  percent line and branch gate, which is precisely where AGENTS.md does not put real OS calls: those
-  belong in thin adapters under `integration` marking, run on the host and excluded from the gate.
-  Both halves of that collision were already written down and never joined, at
-  [body-os.md](../../modules/body-os.md) line 42, which records `os_linux` as compiled and measured
-  on Linux CI, and at the crate's own header lines 7 to 9, which records that real backends are
-  host-validated and never in CI, so whoever picks this up needs the integration-marking answer
-  before writing a line of X11. The macOS half does not have the problem, because a real macOS
-  backend could not compile on Linux at all and would have to gain `os_windows`'s `cfg` gate, which
-  also means ADR-0011's decision 3 describes `os_macos` as `cfg(macos)` and compiling to nothing on
-  Linux where the crate carries no such gate today and is spared only by the per-method escape
-  hatch. Nothing opened and nothing closed in that pass, and the index recorded this trap as the
-  finding of the pass itself, writing it there rather than into this entry, so what the pass
-  changed is what the next reader should expect to pay.
-- 2026-09-13: Re-derived and every substantive claim holds; four of the pointers it cites had
-  moved. `os_linux` and `os_macos` are 70 lines each rather than 71, both still plain workspace
-  members (`body/Cargo.toml:2`) with a bare `[dependencies]`, both still satisfying `Hotkey`,
-  `AudioControl`, `Notify` and `ScreenCapture` with `unimplemented!()` under
-  `#[cfg_attr(coverage, coverage(off))]`. The coverage run that would measure a real backend is now
-  at `justfile:233` rather than 95, and it still passes `--workspace`. The two halves of the
-  collision are at [body-os.md](../../modules/body-os.md) line 51 rather than 42, and at the crate
-  header lines 7 to 8 rather than 7 to 9. The origin decision still describes `os_macos` as
-  `cfg(macos)` ([ADR-0011](../../adr/ADR-0011-body-v1.md) line 63) where the crate carries no such
-  gate. The entry has no trigger to check, and it stays a refinement rather than moving to
-  [docs/host/](../../host/index.md), which holds work needing a Win32 desktop session or a 24 GB
-  GPU: a Linux or macOS backend needs neither, and the hardware it does need is not the hardware
-  that directory is about.
+  "Later, unordered" list.
+- 2026-08-09: A costing pass found the coverage problem above, which is the reason the entry reads
+  cheaper than it is, and wrote it down rather than changing the entry.
+- 2026-09-13: Checked again and every substantive claim holds, while four cited pointers had moved.
+  `os_linux` and `os_macos` are 70 lines each rather than 71, the coverage run is at
+  `justfile:233` rather than 95 and still passes `--workspace`, the two halves of the collision are
+  at [body-os.md](../../modules/body-os.md) line 51 rather than 42 and at the crate header lines 7
+  to 8 rather than 7 to 9, and the origin decision still describes `os_macos` as `cfg(macos)`.

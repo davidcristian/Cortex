@@ -1,72 +1,47 @@
-# A required toolchain relay can still arrive empty
+# A required toolchain argument can still be empty
 
 **Status:** declined 2026-08-20
-**Area:** repo-gates
+**Area:** repo-checks
 **Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-checks.md)
 
-Opened 2026-08-18 by the close of [305](305-optional-toolchain-relays.md), which made `--rustc` and
-`--llvm-cov` required arguments of `coverage_gate.py` so that deleting one from `check-body` is a
-usage error rather than a quieter gate. Required is not the same as non-empty, and the two halves
-degrade differently when the substitution that fills them yields an empty string.
+[305](305-optional-toolchain-relays.md) made `--rustc` and `--llvm-cov` required arguments of
+`coverage_gate.py`, so deleting one from `check-body` is a usage error. Required is not the same as
+non-empty, and the two behave differently when the substitution that fills them produces an empty
+string.
 
-`--llvm-cov ""` is already loud: the probed string has to contain the version the export records
-for itself, and an empty one cannot, so the gate fails with a producer mismatch naming `''`. That
-path is covered by a test. `--rustc ""` is the quiet half: the relay is printed rather than checked,
-the compiler being absent from the export, so the verdict prints `measured by ` with nothing after
-it and passes.
+`--llvm-cov ""` fails loudly: the probed string has to contain the version the export records for
+itself, and an empty one cannot, so the check fails with a producer mismatch naming `''`. A test
+covers that path. `--rustc ""` is the quiet half: the value is printed rather than compared, the
+compiler being absent from the export, so the output reads `measured by ` with nothing after it and
+passes. Both were reproduced on a synthetic export before this was decided.
 
-**Why it is not fixed in the same sitting.** The recipe probes rustc twice on purpose, and the
-first probe is a standing `rustc +nightly --version` line that fails the run before the measurement
-starts. Reaching an empty relay therefore needs that line to succeed and the identical command
-substitution four lines later to produce nothing, which is not a failure mode anybody has seen. A
-gate that cannot fail for a reason that happens is a shape this ADR has already declined more than
-once, and adding one here would be one more.
-
-**What would close it if the trigger fires.** A shared validator on both relay arguments, rejecting
-a blank or whitespace string with argparse's own usage error, so the two relays are refused on the
-same grounds and in the same place; `_require_version` in the module already spells that rule for
-the export's fields and would say what "present" means for a probed one too.
-
-**Declined 2026-08-20, on a re-derivation that found the symptom exact and the reachability
-argument aimed at the wrong line.** Both halves were reproduced first on a synthetic export:
-`--rustc ""` prints `measured by ` and three `PASS` lines and exits 0, and `--llvm-cov ""` prints the
-producer mismatch naming `''` and exits 1.
-
-**What shields the quiet half is not the standing probe.** This entry argued that reaching an empty
-relay needs the recipe's standing `rustc +nightly --version` line to succeed and the identical
-substitution four lines later to yield nothing. That line runs in `body/` in a shell of its own, so
-it is the weaker half of the argument. The half that carries the argument is that both relays are
-filled on one recipe line by two command substitutions in one shell, one working directory and one
-toolchain resolution, so the quiet half is shielded by the loud one rather than by the probe above
-it. Measured against a toolchain name that does not resolve: both substitutions come back empty
-together and the gate exits 1 on the producer mismatch. An empty `--rustc` arriving alone therefore
-needs nightly cargo-llvm-cov to answer while nightly rustc prints nothing, in the same shell,
+What protects the quiet half is not the recipe's earlier `rustc +nightly --version` probe, which
+runs in `body/` in a shell of its own. It is that both arguments are filled on one recipe line by
+two command substitutions in one shell, one working directory and one toolchain resolution.
+Measured against a toolchain name that does not resolve: both substitutions come back empty
+together and the check exits 1 on the producer mismatch. An empty `--rustc` arriving alone would
+need nightly cargo-llvm-cov to answer while nightly rustc prints nothing, in the same shell,
 seconds apart.
 
-**So the validator would be one more gate of a shape this origin has declined at least three
-times**, the dated pin twice on its expiry cost and the compiler-in-export comparison once on being
-unable to disagree, and the gate's own suite would carry a case its only caller cannot produce.
-The asymmetry this entry names is real and stays: one relay is checked and the other printed,
-because the export records a tool and no compiler.
+Declined because the validator would be a check that cannot fail for a reason that happens, a shape
+this origin has declined at least three times, and the suite would contain a case its only caller
+cannot produce. The asymmetry stays: one argument is compared and the other printed, because the
+export records a tool and no compiler. The arrangement the decline rests on is written in the
+`check-body` comment beside the line, and the trigger that would reopen the question is
+[R-335](335-the-relays-share-one-shell.md): the two arguments stop being filled by two substitutions
+in one shell. The fix, if that happens, is a shared validator on both arguments rejecting a blank
+string with argparse's own usage error; `_require_version` in the module already states that rule
+for the export's fields.
 
-**The arrangement the decline rests on is now written where it can be broken**, in the `check-body`
-comment beside the line, and the trigger that would reopen the question moves with it to
-[R-335](335-the-relays-share-one-shell.md): the relays stop being filled by two substitutions in one
-shell. The fix, if it fires, is the three lines this entry already describes.
-
-## Trail
+## History
 
 - 2026-08-18: Opened by the close of [305](305-optional-toolchain-relays.md), which made both
-  relays mandatory and recorded, at the origin decision, that mandatory is not non-empty.
-- 2026-08-20: declined. The symptom is exact and the shield is stronger than this entry knew: the
-  two relays are filled in one shell, so the compiler probe cannot come back empty while the
-  cargo-llvm-cov probe beside it does not, and the loud half fails the run whenever the toolchain
-  that fills both is gone. Reproduced both halves and measured the shared-shell claim against an
-  unresolvable toolchain before deciding. The argument is recorded at the origin decision, the
-  arrangement in the recipe's own comment, and the trigger in
-  [R-335](335-the-relays-share-one-shell.md).
-- 2026-08-20: two counts in the prose above corrected. The probe and the relay are four recipe
-  lines apart rather than two, the tool probe, the instrumented run and a `uv sync` standing
-  between them; and the shape has been declined at least three times rather than twice, the origin
-  decision counting the dated pin alone as twice declined in two places. Neither number carries
-  any part of the decline.
+  arguments mandatory and recorded, at the origin decision, that mandatory is not non-empty.
+- 2026-08-20: Declined. The symptom is exact and the protection is stronger than this entry knew:
+  the two arguments are filled in one shell, so the compiler probe cannot come back empty while the
+  cargo-llvm-cov probe beside it does not. Reproduced both halves and measured the shared-shell
+  claim against an unresolvable toolchain before deciding.
+- 2026-08-20: Two counts above corrected. The probe and the argument are four recipe lines apart
+  rather than two, with the tool probe, the instrumented run and a `uv sync` between them; and the
+  shape has been declined at least three times rather than twice. Neither number affects the
+  decline.

@@ -117,7 +117,7 @@ inside an `integration`-marked file is code no check runs.
 
 - [ADR-0005](ADR-0005-llamacpp-engine.md), [ADR-0028](ADR-0028-grammar-constrained-subagents.md)
   (the envelope and `envelopefloor.py`), [ADR-0049](ADR-0049-thinking-switch-and-trace-budget.md).
-- [repo checks module contract](../modules/repo-gates.md) (the readers and sample formats),
+- [repo checks module contract](../modules/repo-checks.md) (the readers and sample formats),
   [brain-inference](../modules/brain-inference.md).
 - Runbooks: [llamacpp-gpu](../runbooks/llamacpp-gpu.md) (the switch section),
   [subagents-cpu](../runbooks/subagents-cpu.md) (re-measuring the envelope).

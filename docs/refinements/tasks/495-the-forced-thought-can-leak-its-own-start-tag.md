@@ -1,115 +1,80 @@
 # A forced end of thought can deliver its own start tag as the answer
 
-**Status:** open, fix when it bites
+**Status:** open, waiting for its trigger
 **Area:** inference
-**Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
+**Origin:** [ADR-0049](../../adr/ADR-0049-thinking-switch-and-trace-budget.md)
 **Verified:** 2026-09-15
 **Trigger:** a delegated run whose answer is one word, or a budgeted cell of the committed probe
 counting two or more leaks in a hundred draws, on any tier that ends a thought at the engine.
 
-Opened 2026-08-29 by the close of
-[R-474](474-the-switch-could-be-rendered-as-a-lever-that-holds.md), which shipped the per-request
-trace budget, measured the leak that entry had recorded, and found a worse shape than the one it
-described.
+A trace budget is a sampler: it detects the thought's start sequence and forces its end tag, so the
+forcing necessarily happens after the start has been written. What the model had already emitted of
+that tag can end up in the answer. The shape is visible even without a budget: a completion capped
+at one token on the shipped subagent pick returns `"<|channel>"` as its reply.
 
-A trace budget is a sampler: it detects the thought's start sequence and forces its end tag, so
-the forcing necessarily lands **after** the start has been written. What the model had already
-emitted of that tag can therefore end up in the answer. The shape is visible even without a budget:
-a completion capped at one token on the shipped subagent pick returns `"<|channel>"` as its reply,
-an unterminated start marker the parser had nowhere else to put.
-
-**The shape that actually appears is the dangerous one.** Measured on `b10666-4e97ac86e`, the
-shipped subagent pick, a constrained reply into the fixed envelope: one draw returned
+The shape that appears is the dangerous one. Measured on `b10666-4e97ac86e`, the shipped subagent
+pick, a constrained reply into the fixed envelope: one draw returned
 
 ```
 {"reply": "thought"}
 ```
 
-a whole, valid envelope whose entire answer is the channel name. It is **not** the prefix the
-opening entry described, and that difference is the whole of the risk: a prefix would break the
-JSON and reach the `MALFORMED` outcome ADR-0028 already has words for, where this parses, unwraps,
-and is reported to the spawning cortex as the subtask's answer. Nothing downstream can tell it from
-a real one.
+a whole, valid envelope whose entire answer is the channel name. It is not a prefix, which would
+break the JSON and reach the `MALFORMED` outcome ADR-0028 already has words for; this parses,
+unwraps, and is reported to the spawning cortex as the subtask's answer.
 
-**What the counts are, and what they are not.** 1 of 58 draws carrying `reasoning_budget_tokens: 0`
-across the raw wire and the shipped adapter. 0 of 20 of the identical request against a tier
-carrying `--reasoning-budget 0` on its argv instead, which is how every subagent server this repo
-ships is started. Those two set the same sampler and at these sizes the counts do not separate, so
-this is a rare engine behaviour the per-request key **inherits** rather than one it introduced, and
-it is already reachable in the shipped stack. What nobody has is a rate good enough to act on.
+The counts are 1 of 58 draws sending `reasoning_budget_tokens: 0` across the raw wire and the
+shipped adapter, and 0 of 20 of the identical request against a tier using `--reasoning-budget 0` on
+its argv, which is how every subagent server this repo ships is started. Those two set the same
+sampler and at these sizes the counts do not separate, so this is a rare engine behaviour the
+per-request key inherits rather than introduces. No repair shipped: removing the tag means knowing
+the start sequence, a per-pick token (`<|channel>thought` on the gemma-4 family, `<think>` on the
+Qwen one) that the port exists not to know, and a rule over the answer's shape cannot stand in,
+since the probe's own detector calls a one-word answer a leak, which is wrong for a subtask that
+asked for a number.
 
-**Why no repair shipped.** Stripping it means knowing the start sequence, a per-pick token
-(`<|channel>thought` on the gemma-4 family, `<think>` on the Qwen one) that the port exists to not
-know and that a core reading a chat template it cannot see would be guessing at. A shape rule
-cannot stand in either: the probe's own detector calls a one-word answer a leak, which is sound for
-a prompt whose answer cannot be one word and wrong for a subtask that asked for a number.
-
-**What would close it.** Get a rate first, on a build that shows it: the committed probe
-(`brain/packages/inference/tests/test_trace_budget_live.py`) prints a leak count reading both
-shapes, and a hundred draws either side of the flag-and-key comparison would say whether the two
-differ at all. If a build leaks often enough to act on, the honest repair is at the **decode** seam
-rather than in the core, `decode.py` already reading llama.cpp's own reasoning split, so a fragment
-the engine failed to route is an engine fact that could be recognised against what that server
-reports about its own template; and the alternative worth pricing first is an upstream report,
-since a sampler that emits half a tag into content is a bug wherever it is fixed.
-
-## Trail
+## History
 
 - 2026-08-29: opened by the close of
   [R-474](474-the-switch-could-be-rendered-as-a-lever-that-holds.md), which shipped the count that
-  forces the end of a thought, reproduced the leak once in 58 budgeted draws, and found it lands
-  inside the payload rather than in front of it, where no existing defence sees it.
+  forces the end of a thought, reproduced the leak once in 58 budgeted draws, and found it arrives
+  inside the payload rather than in front of it.
 - 2026-08-29: [R-500](500-the-garbled-channel-marker-has-no-attributed-cause.md) records the other
-  seam the same forced close reaches, a mangled marker read as a channel switch on a flagged server,
-  where this entry records the tag arriving in the reply. One mechanism seen at two seams, filed
-  the same day by two sittings that could not see each other; pick them up together.
-- 2026-08-30: the link above is **half withdrawn** by the close of
-  [R-500](500-the-garbled-channel-marker-has-no-attributed-cause.md), whose ADR-0005 marker addendum
-  measured that seam's marker on a server setting no reasoning budget anywhere and got it anyway. So
-  the two are not one mechanism: that one is a model closing a thought the template never opened,
-  and this one, the tag arriving inside the reply, is still the forced close and is still this
-  entry's own. What survives of the link is the reading instrument, since a probe that counts leaks
-  and one that reads what a trace opens with need the same column.
+  place the same forced close reaches, a mangled marker read as a channel switch on a flagged
+  server.
+- 2026-08-30: that link is half withdrawn by the close of
+  [R-500](500-the-garbled-channel-marker-has-no-attributed-cause.md), which measured that marker on
+  a server setting no reasoning budget anywhere and got it anyway. So the two are not one mechanism:
+  that one is a model closing a thought the template never opened, and this one is still the forced
+  close. What survives of the link is the instrument, since a probe that counts leaks and one that
+  reads what a trace opens with need the same column.
 - 2026-09-02: the close of
   [R-511](511-the-shipped-reasoning-off-pair-disarms-its-own-sampler.md) drew 80 GPU draws of
-  `--reasoning-budget 0` alone on the E4B pick across both request shapes, the arm on which the
-  forced close fires on every draw, and no reply began with a leaked tag or was the channel name
-  alone; nor did any of the pair's 40. The rate stays under one in a hundred and the entry stands.
-- 2026-09-07: the trigger was answered, and its second limb was **already true on the day the entry
-  was written**, which is why it is narrowed above: the opening run's own leak count was 1, so "any
-  draw whose leak count is not zero" could never come out false and told no build apart from
-  another. Held to a fresh reading instead, on both builds this host can start, the committed probe
-  at a hundred draws a cell on the shipped subagent pick at `-ngl 99` and a cap of 256. Neither
-  build leaked once, in the budgeted cell or in either of the other two: `b10680-d7bd3bfca`, which
-  is what the stack starts today, and `b10666-4e97ac86e`, which is the build the leak was seen on
-  and is still cached here under its pinned tag, so the original arm was re-drawn rather than
-  approximated. Six hundred draws, no leak. The budgeted cell carrying the request key now stands
-  at 1 leak in 258 draws against 0 in the 140 flag draws of the bullet above, and the two still do
-  not separate, which is the reading the entry opened with. The first limb has nothing behind it
-  either, no delegated run recorded in this repo having reported a one-word answer. The mechanism
-  is real and nothing repairs it, so the entry stays open; what would be news is a rate an order
-  above the one recorded, and that is what the narrowed clause names. Cells and builds: the
-  ADR-0005 trigger-sweep addendum. Quoting the 258 turned up
-  [R-598](598-the-leaks-denominator-is-53-in-one-place-and-58-in-three.md): the GPU runbook
-  publishes the original leak as one draw in 53 where the other three places publish 58.
-
-- 2026-09-13: neither limb of the trigger has fired, and the change that looked like it reached
-  this entry does not. The sentence the constrained path appends to every subtask was rewritten
-  tonight, and the probe carrying this entry's counts,
+  `--reasoning-budget 0` alone on the E4B pick across both request shapes, the case where the forced
+  close happens on every draw, and no reply began with a leaked tag or was the channel name alone;
+  nor did any of the pair's 40. The rate stays under one in a hundred.
+- 2026-09-07: the trigger was answered, and its second clause was already true on the day the entry
+  was written, so it is narrowed above: the opening run's own leak count was 1, so "any draw whose
+  leak count is not zero" could never come out false. Measured again on both builds this host can
+  start, the committed probe at a hundred draws a cell on the shipped subagent pick at `-ngl 99` and
+  a cap of 256. Neither build leaked once, in the budgeted cell or in either of the other two:
+  `b10680-d7bd3bfca`, which the stack starts today, and `b10666-4e97ac86e`, the build the leak was
+  seen on, still cached here under its fixed tag. Six hundred draws, no leak. The budgeted cell now
+  stands at 1 leak in 258 draws against 0 in the 140 flag draws, and the two still do not separate.
+  No delegated run recorded in this repo has reported a one-word answer. Cells and builds: ADR-0049.
+  Quoting the 258 turned up
+  [R-598](598-the-leaks-denominator-is-53-in-one-place-and-58-in-three.md).
+- 2026-09-13: neither clause of the trigger has fired, and the change that looked like it reached
+  this entry does not. The sentence the constrained path appends to every subtask was rewritten, and
+  the probe holding these counts,
   [test_trace_budget_live.py](../../../brain/packages/inference/tests/test_trace_budget_live.py),
-  imports `REPLY_ENVELOPE` alone and composes its own ask, so the 1 leak in 258 budgeted draws and
-  the 0 in 140 flag draws are still readings of the request shape the probe sends and the sentence
-  change does not date them. No delegated run in this repo has reported a one-word answer since,
-  and no cell has been drawn, so the count stands where the sweep left it.
-
-- 2026-09-15: re-derived and still open, and the three shapes were put through the shipped reader
-  rather than argued about from the parser, which nobody had done since the entry was opened.
-  `settle_reply` on a constrained attempt reports `{"reply": "thought"}` as the answer `thought`
-  with no failure, and reports `<|channel>{"reply": "42"}`, `<think>{"reply": "42"}` and
-  `<|channel>` alone as `MALFORMED`. So the entry's account of which shape is dangerous is exact:
-  the prefix reaches an outcome this repo has words for and the whole envelope does not. The
-  adapter's chunk reader passes a bare `<|channel>` through as reply content, since it routes on
-  the key llama.cpp put the text under and never on what the text says. Neither limb of the trigger
-  has fired, no delegated run in this repo having reported a one-word answer and no cell having
-  been drawn since the trigger sweep, so the counts stand where that sweep left them. The ADR-0005
-  context-size addendum carries the table.
+  imports `REPLY_ENVELOPE` alone and composes its own request, so the counts are still readings of
+  the request the probe sends.
+- 2026-09-15: checked again and still open, and the three shapes were put through the shipped reader
+  rather than argued about from the parser. `settle_reply` on a constrained attempt reports
+  `{"reply": "thought"}` as the answer `thought` with no failure, and reports
+  `<|channel>{"reply": "42"}`, `<think>{"reply": "42"}` and `<|channel>` alone as `MALFORMED`. So
+  the account of which shape is dangerous is exact. The adapter's chunk reader passes a bare
+  `<|channel>` through as reply content, since it routes on the key llama.cpp put the text under and
+  never on what the text says. Neither clause of the trigger has fired and no cell has been drawn,
+  so the counts stand where the last review left them (thinking-switch readings).

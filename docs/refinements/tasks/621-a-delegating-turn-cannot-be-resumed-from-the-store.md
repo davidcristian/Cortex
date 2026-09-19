@@ -1,61 +1,52 @@
 # A delegating turn cannot be resumed from the store
 
-**Status:** open, dead until a consumer
+**Status:** open, waiting for a consumer
 **Area:** resource-governance
 **Origin:** [ADR-0010](../../adr/ADR-0010-subagents.md)
 **Verified:** 2026-09-17
-**Trigger:** a request identity on the seam, meaning a request id on `UserTurn` or `ClientEvent` in
-`proto/body.proto` (`grep -ni request_id proto/body.proto` has no hit), which is the design both
-the `Converse` reconnect entry (R-023) and the crashed-handoff resume entry (R-112) wait on and
-which a turn surviving an orchestrator restart needs first. A production caller of
+**Trigger:** a request identity on the body/brain interface, meaning a request id on `UserTurn` or
+`ClientEvent` in `proto/body.proto` (`grep -ni request_id proto/body.proto` has no hit), which is
+what both the `Converse` reconnect entry (R-023) and the crashed-handoff resume entry (R-112) wait
+on and what a turn surviving an orchestrator restart needs first. A production caller of
 `TaskStore.get_result` would also fire it: `grep -rn 'get_result(' brain/packages/*/src` hits only
 the port, the fake and the Redis adapter.
-
-Opened 2026-09-10 by the close of
-[R-615](615-nothing-reads-a-subagent-result-back-from-the-store.md), which repaired four sentences
-describing this read as though it existed and left the read itself unbuilt.
 
 The store already holds everything a delegation would need to be finished a second time.
 `SpawnSubagentsTool.invoke` writes one `SubagentTask` per instructions entry under
 `cortex:task:{id}`, and `SubagentRunner._persist` writes the `SubagentResult` under
 `cortex:task:{id}:result`, both at the 3600 s TTL `RedisTaskStore` sets. Neither is read back after
-the run: `run` takes the task once, before it admits, and carries it in the coroutine's own frame
+the run: `run` takes the task once, before it admits, and keeps it in the coroutine's own frame
 through the wait and the attempt, and the tool formats the list `asyncio.gather` returns. An
-orchestrator that restarts mid-delegation therefore loses the turn, and the results of every
-subtask that had already finished sit in Redis until they expire.
+orchestrator that restarts mid-delegation loses the turn, and the results of every subtask that had
+already finished sit in Redis until they expire.
 
-Reading them back is the smaller half of a resume. The larger half is that nothing resumes a turn
-at all: `handle_turn` holds the conversation in its own frame, the overlay's `Converse` stream dies
+Reading them back is the smaller half of a resume. The larger half is that nothing resumes a turn at
+all: `handle_turn` holds the conversation in its own frame, the overlay's `Converse` stream dies
 with the process, and a restarted brain has no record that a turn was in flight.
-[R-023](023-converse-reconnect-first-event.md) and
-[R-112](112-resume-crashed-handoff.md) carry that half between them, and both wait on request
-identity, which the brain spells nowhere.
+[R-023](023-converse-reconnect-first-event.md) and [R-112](112-resume-crashed-handoff.md) cover that
+half between them, and both wait on request identity, which the brain does not define anywhere.
 
 **What would close it.** A resumable turn first, then the read. A delegating turn that came back
 would look up each subtask id it had spawned, take the result the store already holds for any that
-finished, and spawn only the rest, which is one `get_result` per id and a spawn tool that accepts
-the ids it is resuming. That gives the result half of the `TaskStore` its first production reader
-and makes the port's own promise, that a subagent is a stateless function over the store, something
-a run exercises rather than something a contract test does.
+finished, and spawn only the rest: one `get_result` per id, plus a spawn tool that accepts the ids
+it is resuming. Two things it needs do not exist. A turn keeps no record of which task ids it
+spawned, that list living in the coroutine's frame beside everything else a restart takes. And the
+record lifetime would have to be decided again: 3600 s is deliberately shorter than the 7200 s a
+spawn may queue for, which [ADR-0012](../../adr/ADR-0012-resource-governance.md) decision 16
+explains is harmless because the only read either key has is taken before the queue starts. A
+resume path is a second read taken arbitrarily later.
 
-Two things it needs do not exist. A turn keeps no record of which task ids it spawned, that list
-living in the coroutine's frame beside everything else the restart takes. And the record lifetime
-would have to be re-decided: 3600 s is deliberately shorter than the 7200 s a spawn may queue for,
-which the [ADR-0012](../../adr/ADR-0012-resource-governance.md) record-lifetime addendum argues is
-harmless because the only read either key has is taken before the queue starts. A resume path is a
-second read taken arbitrarily later, and it would be the first read that ordering has to cover.
-
-## Trail
+## History
 
 - 2026-09-10: opened by the close of
   [R-615](615-nothing-reads-a-subagent-result-back-from-the-store.md), which repaired the port
   docstring, the `SubagentResult` docstring, the core module contract and three test comments that
-  each described the cortex reading a result out of the store, and recorded the repair in the
-  [ADR-0010](../../adr/ADR-0010-subagents.md) addendum on decision 5's last clause.
-- 2026-09-17: re-derived, not fired, and the trigger restated as two greps. Both entries the old
-  trigger leaned on are still open and neither has built request identity: R-023 was re-verified
+  each described the cortex reading a result out of the store, and brought
+  [ADR-0010](../../adr/ADR-0010-subagents.md) decision 5 in line with the code.
+- 2026-09-17: checked again, not fired, and the trigger restated as two greps. Both entries the old
+  trigger leaned on are still open and neither has built request identity: R-023 was checked again
   today with its trigger moved onto `CORTEX_ESCALATION`, and R-112 still waits on the same request
-  id. The account holds. `SubagentRunner.run` reads `get_task` once (`runner.py:101`) and
-  `_persist` writes the result (`runner.py:212`); both keys sit at `_TASK_TTL_SECONDS = 3600` in
-  `cortex_session/tasks.py`, against `DEFAULT_ADMISSION_WAIT_S = 7200.0` in `scheduler.py`; and no
-  commit since 2026-09-10 changed the runner, the spawn tool, the task store or the port.
+  id. `SubagentRunner.run` reads `get_task` once (`runner.py:101`) and `_persist` writes the result
+  (`runner.py:212`); both keys sit at `_TASK_TTL_SECONDS = 3600` in `cortex_session/tasks.py`,
+  against `DEFAULT_ADMISSION_WAIT_S = 7200.0` in `scheduler.py`; and no commit since 2026-09-10 has
+  changed the runner, the spawn tool, the task store or the port.

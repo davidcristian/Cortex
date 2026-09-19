@@ -1,61 +1,48 @@
-# The body-side Notify OS trait and Tauri toast
+# The body-side Notify trait and Windows toast
 
-**Status:** landed 2026-07-16
+**Status:** done 2026-07-16
 **Area:** scheduling
-**Origin:** [ADR-0025](../../adr/ADR-0025-scheduling-reminders.md)
+**Origin:** [ADR-0066](../../adr/ADR-0066-reminder-toast-and-card.md)
 
-Recorded in the [ADR-0025 notify addendum](../../adr/ADR-0025-scheduling-reminders.md). The last of
-the three in-slice remainders, so push delivery exists end to end: the ticker's `notify` call
-reaches a real handler instead of the shape-now `Unimplemented`. `body_core::os::notify` holds the
-port (`Notify::show(&Notification) -> Result<bool, NotifyError>`, `Send + Sync` like `AudioControl`,
-in its own submodule because `os.rs` was at the line cap), `os_linux`/ `os_macos` get the stubs
-behind the coverage escape hatch, `os_windows` gets the real `WindowsNotify` (a `ToastGeneric` WinRT
-toast), and `body_rpc`'s server takes the second backend generic the ADR predicted.
-**Three corrections to that ADR's own framing, each found by reading the code:** (1) it placed the
-Windows implementation in the **Tauri shell**, but the shell's own contract is that it holds no
-branchy decision, and `os_windows` already is the per-platform backend home and already
-`cfg(windows)`, so the backend lands there and the shell keeps only which backend to build and from
-which env var; (2) `VolumeService` could not keep its name once the server answered two unrelated
-capabilities, so it is `OsService<A: AudioControl, N: Notify>` (a rename, no behavior change); (3)
-the ADR-0023 `unsafe` authorization widened by one line, still COM only and still `os_windows` only,
-because WinRT projections are safe but activating a WinRT factory needs a COM-initialized thread the
-tokio workers do not have. The decision that matters most is **where the inert-text rule lives**:
-the ADR phrased it as an instruction to the Windows file, which would have rested the whole
-data-not-instructions posture on the one file no gate ever sees, so `Notification::new` applies it
-in the pure core instead (control characters replaced by spaces, never dropped, so words cannot
-fuse; each line bounded at 200 characters with a trailing ellipsis, so an oversized payload degrades
-a reminder rather than losing it, the same bias as the daylight-saving fold and the month-length
-clamp).
-**Escaping split off from sanitizing** once the two were examined: a toast template is XML, but a
-future Linux backend renders through markup-limited text where a pre-escaped string would show the
-entity literally, and a backend that escapes for itself would double-escape, so `escape_xml` is a
-gated helper the renderer calls rather than something the value bakes in. `shown=false` turned out
-to be a real answer rather than a dead wire field, because `ToastNotifier.Setting` reports *before*
-showing that notifications are off for this app, user, or policy, which is a decline and not a
-failure; the brain treats it exactly like an error either way, so the split buys only accurate logs.
-The taint badge is a fixed body-authored `from an untrusted source` line, for the reason the
-overlay's card already learned (whoever writes the reminder must never write the label that
-describes it). CI-gated at 100% line+region+branch with nine guards mutation-proven (the
-control-character replacement, the length bound, the truncation mark, the taint-conditional
-attribution, the ampersand escape, the declined verdict, the unavailable status mapping, and the
-title/body and taint mapping into the value), plus a compile-only cross-check: both `os_windows` and
-the ungated Tauri shell were type-checked and clippy-checked against the real `windows` crate for
-the `x86_64-pc-windows-msvc` target from Linux. Remaining, and unchanged from what this slice always
-owed: the **Host-Windows** look at a real toast (runbook
-[scheduling.md](../../runbooks/scheduling.md)), which **moved to
-[docs/host/windows-desktop.md](../../host/index.md#windows-desktop) on 2026-07-19** with that
-sentence kept verbatim, joined there by the pull surface's own user check, which until that day had
-no line in any backlog although ADR-0025's host line and the runbook both named it. Neither was ever
-counted in this area, so no count moves. Newly deferred behind it: **toast activation routing** (its
-own entry below). Unblocked by it, and still deferred on their own merits: the **task-outcome
-delivery notification** and the **push retry policy**.
+Decided in [ADR-0066](../../adr/ADR-0066-reminder-toast-and-card.md) decisions 1 to 5. Push
+delivery now works end to end: the ticker's `notify` call reaches a real handler instead of
+`Unimplemented`. `body_core::os::notify` defines the port (`Notify::show(&Notification) ->
+Result<bool, NotifyError>`, `Send + Sync` like `AudioControl`, in its own submodule because `os.rs`
+was at the line cap). `os_linux` and `os_macos` get stubs behind the coverage escape hatch,
+`os_windows` gets `WindowsNotify`, which shows a `ToastGeneric` WinRT toast, and `body_rpc`'s
+server takes a second backend type parameter. `VolumeService` was renamed to `OsService<A:
+AudioControl, N: Notify>`, since it now serves two unrelated capabilities.
 
-## Trail
+Three things came out different from the ADR's description:
 
-- 2026-07-16: The area held at 10 when this closed and opened one entry behind it, toast
-  activation routing, which the index records as the backlog working as intended rather than a
-  stalled area.
-- 2026-07-19: The Host-Windows look at a real toast moved to
-  [docs/host/](../../host/index.md) with the host-side extraction, joined there by the pull
-  surface's own user check. Neither had ever been counted in this area, so the move took no
-  count with it.
+- The Windows implementation is in `os_windows`, not the Tauri shell. The shell only chooses which
+  backend to build, from an env var.
+- The `unsafe` authorization from ADR-0023 widened by one line, still COM only and still inside
+  `os_windows`: activating a WinRT factory needs a COM-initialized thread, which the tokio workers
+  do not have.
+- The rule that toast text is data and never an instruction is applied by `Notification::new` in
+  the pure core, not in the Windows file, which no check ever reads. Control characters become
+  spaces rather than being dropped, so words cannot run together, and each line is cut at 200
+  characters with a trailing ellipsis, so an oversized payload shortens a reminder instead of
+  losing it.
+
+Escaping is separate from sanitizing. A toast template is XML, but a future Linux backend renders
+through markup-limited text, where a pre-escaped string would show the entity literally and a
+backend that escapes for itself would escape twice. So `escape_xml` is a helper the renderer calls
+rather than something the value applies. `shown=false` is a real result and not a dead field:
+`ToastNotifier.Setting` reports before showing that notifications are off for this app, user or
+policy, which is a refusal rather than a failure. The brain treats both the same, so the
+distinction only makes the logs accurate. The taint label is a fixed body-written `from an
+untrusted source` line, because whoever writes the reminder must not also write the label that
+describes it.
+
+Tested in CI at 100% line, region and branch coverage, with nine checks proven by mutation, plus a
+compile-only cross-check: `os_windows` and the Tauri shell were type-checked and clippy-checked
+against the real `windows` crate for the `x86_64-pc-windows-msvc` target from Linux.
+
+## History
+
+- 2026-07-16: Closed, and one entry opened behind it: toast activation routing.
+- 2026-07-19: The Windows-desktop look at a real toast moved to
+  [docs/host/](../../host/index.md), together with the pull surface's own user check. Neither had
+  been counted in this area, so no count changed.

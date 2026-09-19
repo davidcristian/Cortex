@@ -8,8 +8,6 @@ from pathlib import Path
 import scanrecipes
 from scanrecipes import ScanReadError
 
-# The body's live suite, the tree this repo's own gates live in, and the two workspaces the repo
-# map names the members of.
 LIVE_SEAM = Path("body/crates/rpc/tests/live.rs")
 GATES = Path("scripts")
 PACKAGES = Path("brain/packages")
@@ -17,16 +15,12 @@ CRATES = Path("body/crates")
 
 MODULES = "*.py"
 PARTS = "*couplings.py"
-# The word every part's file name ends with, which is also the whole name of the one
-# `*couplings.py` that is not a part: the vocabulary every part is written in.
 COUPLINGS = "couplings"
 TUPLE = "_COUPLINGS"
 
 IGNORED = re.compile(r"^\s*#\[ignore\b")
 FUNCTION = re.compile(r"^\s*(?:pub +)?(?:async +)?fn +([A-Za-z_][A-Za-z0-9_]*)")
 
-# What gives a module here a command line of its own. It is read at column zero, since a guard is
-# a top-level statement and the same text inside a docstring or a nested function is neither one.
 MAIN_GUARD = re.compile(r"^if __name__ == \"__main__\":", re.MULTILINE)
 
 
@@ -95,17 +89,17 @@ def _named_after(lines: list[str], number: int) -> str:
 
 
 def live_seam_checks(root: Path) -> frozenset[str]:
-    """Every `#[ignore]`d test in the body's live seam suite."""
+    """Every `#[ignore]`d test in the body's live transport suite."""
     return _floored(ignored_tests(_read(root, LIVE_SEAM)), f"the ignored tests in {LIVE_SEAM}")
 
 
 def gate_modules(root: Path) -> frozenset[str]:
-    """Every module in `scripts/`, the tree its own module contract is a contract for."""
+    """Every module in `scripts/`, which is the set that directory's module contract describes."""
     return _floored(_filenames(root, MODULES), f"the modules in {GATES}")
 
 
 def _with_a_cli(root: Path, *, wanted: bool) -> list[str]:
-    """The modules in `scripts/` that do, or do not, carry a top-level main guard."""
+    """The modules in `scripts/` that do, or do not, have a top-level main guard."""
     return [
         name
         for name in _filenames(root, MODULES)
@@ -124,7 +118,7 @@ def library_gate_modules(root: Path) -> frozenset[str]:
 
 
 def cross_tree_scans(root: Path) -> frozenset[str]:
-    """Every module the single gate and CI both run as a cross-tree scan."""
+    """Every module `just check` and CI both run as a cross-tree scan."""
     try:
         found = scanrecipes.scan_modules(root)
     except ScanReadError as err:

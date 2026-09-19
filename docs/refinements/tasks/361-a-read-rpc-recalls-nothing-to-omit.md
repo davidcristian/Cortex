@@ -1,59 +1,47 @@
 # A session read has no recalled context, so there is no partial answer to give
 
-**Status:** open, dead until a consumer
-**Area:** seam-transport
-**Origin:** [ADR-0024](../../adr/ADR-0024-transport-retry.md)
+**Status:** open, waiting for a consumer
+**Area:** rpc-transport
+**Origin:** [ADR-0061](../../adr/ADR-0061-abandoned-call-line.md)
 **Verified:** 2026-09-19
 **Trigger:** A read RPC on `BrainService` that recalls anything at all, meaning a handler that
 reads a memory port and composes what it finds into its reply. Today none does, so there is
 nothing for a reply to be partial about.
 
-The shape asked for was a session read whose memory cascade will not fit returning the transcript
-without it, and a wire that says so, because a transcript missing its recalled context with nothing
-declaring the omission cannot be told from a session that recalled nothing.
+The change asked for was a session read whose memory cascade will not fit returning the transcript
+without it, and a field on the wire saying so, because a transcript missing its recalled context
+with nothing declaring the omission cannot be told from a session that recalled nothing.
 
-Re-derived on 2026-08-21, and the mechanism it describes is not in the tree. `GetSessionMessages`
-calls `SessionStore.history` and maps the result; it touches no memory port. `SessionMemoryCascade`
-reaches exactly one handler, `DeleteSession`, where it is a **write** and not a read, and where the
-ordering is already a deliberate decision in the other direction: the session is hard-deleted
-first, so a memory failure leaves the chat gone with a self-healing retry cleaning up, rather than
-leaving a visible chat whose memories vanished. Dropping that step under time pressure is not a
-partial answer, it is the failure mode that ordering exists to produce on purpose.
+The mechanism it describes is not in the tree. `GetSessionMessages` calls `SessionStore.history`
+and maps the result; it touches no memory port. `SessionMemoryCascade` reaches exactly one handler,
+`DeleteSession`, where it is a write and not a read, and where the ordering is already a deliberate
+decision in the other direction: the session is hard-deleted first, so a memory failure leaves the
+chat gone with a retry cleaning up, rather than leaving a visible chat whose memories vanished.
 
-The recall this shape is really about happens inside a turn, where `MemoryRecaller` composes what
-it finds into the prompt. That is behind the `Converse` fence: the stream announces no deadline, so
-there is no reading there to decide anything from, and putting one there would be the first half of
-enforcing a bound that seam deliberately does not have.
+The recall this is really about happens inside a turn, where `MemoryRecaller` composes what it
+finds into the prompt. `Converse` announces no deadline, so there is no reading there to decide
+anything from.
 
-So the shape is not declined on its merits; it has no site. Should a read RPC ever gain a recall
-step, the wire question it raises is real and is the interesting half: an omission a reader cannot
-see is worse than a refusal, and the seam carries one free-text `detail` per reply, which
-[320](320-one-detail-string-two-facts.md) already records as one sentence doing the work of two
-facts. Whoever builds the recall builds that at the same time.
+So the change is not declined on its merits; it has no site. Should a read RPC ever gain a recall
+step, the wire question is real: an omission a reader cannot see is worse than a refusal, and the
+reply has one free-text `detail`, which [320](320-one-detail-string-two-facts.md) already records
+as one sentence doing the work of two facts.
 
-## Trail
+## History
 
-- 2026-08-21: Filed by the close of
-  [341](341-nothing-declines-work-it-cannot-finish.md), which found on re-derivation that this one
-  of its three shapes describes a cascade no read path has. Recorded in the ADR-0024 addendum on
-  what the announced deadline is worth downstream.
-- 2026-09-13: Re-derived, unchanged, and the trigger has not fired. `session_servicer.py` holds all
-  five session RPCs and every one of them calls the store alone: `GetSessionMessages` is
+- 2026-08-21: Filed by the close of [341](341-nothing-declines-work-it-cannot-finish.md), which
+  found that this one of its three shapes describes a cascade no read path has.
+- 2026-09-13: Checked again, unchanged, and the trigger has not fired. `session_servicer.py` has
+  all five session RPCs and every one of them calls the store alone: `GetSessionMessages` is
   `self._store.history(...)` mapped, and `SessionMemoryCascade` is still injected for
-  `DeleteSession` only, where it is a write and where the hard-delete-first ordering stands. The
-  other four read RPCs on the service, `ListDueReminders`, `AckReminder`, `GetPreferences` and
-  `SetPreference`, touch no memory port either. No read RPC recalls anything, so there is still no
-  site for the wire question this entry holds.
-- 2026-09-19: re-derived, and the trigger has not fired, but the last bullet miscounted the service.
-  `BrainService` declares eleven RPCs ([proto/body.proto](../../../proto/body.proto)): `Converse`,
-  the turn, and ten others. Five of those read: `Health`, `ListSessions`, `GetSessionMessages`,
+  `DeleteSession` only.
+- 2026-09-19: Checked again, and the trigger has not fired, but the last entry miscounted the
+  service. `BrainService` declares eleven RPCs ([proto/body.proto](../../../proto/body.proto)):
+  `Converse` and ten others. Five of those read: `Health`, `ListSessions`, `GetSessionMessages`,
   `ListDueReminders` and `GetPreferences`. The other five write: `RenameSession`, `DeleteSession`,
-  `SetSessionPinned`, `AckReminder` and `SetPreference`. The last bullet called `AckReminder` and
-  `SetPreference` reads and left `Health` out, and it said every session RPC calls the store alone
-  just before naming the one, `DeleteSession`, that also calls the cascade. None of the five reads
-  touches a memory port: `GetSessionMessages` is still `self._store.history(...)` mapped
-  (`session_servicer.py`), `ListDueReminders` reads the `ScheduleStore`, `GetPreferences` the
-  preference store, and `Health` the `ResidencyReporter` (`server.py`). `SessionMemoryCascade` is
-  still injected for `DeleteSession` alone. So there is still no site for the wire question, and
-  [320](320-one-detail-string-two-facts.md), which holds the one-`detail` half, waits on nothing
-  here.
+  `SetSessionPinned`, `AckReminder` and `SetPreference`. The last entry called `AckReminder` and
+  `SetPreference` reads and left `Health` out. None of the five reads touches a memory port:
+  `GetSessionMessages` is still `self._store.history(...)` mapped (`session_servicer.py`),
+  `ListDueReminders` reads the `ScheduleStore`, `GetPreferences` the preference store, and `Health`
+  the `ResidencyReporter` (`server.py`). `SessionMemoryCascade` is still injected for
+  `DeleteSession` alone.

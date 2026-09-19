@@ -93,7 +93,7 @@ Whether that covered a list of names as well as a count was open.
     The workflow's header therefore no longer lists the scans: it keeps its argument that they are
     exempt from the path filter and points at the checked comment below it, because it was that
     unchecked second copy that fell out of date both times the list was found short. The Purpose
-    paragraph of the [repo-checks module doc](../modules/repo-gates.md) stays prose, left to the eye
+    paragraph of the [repo-checks module doc](../modules/repo-checks.md) stays prose, left to the eye
     ([R-631](../refinements/tasks/631-the-purpose-paragraph-describes-the-scans-by-eye.md)).
 
 ## Consequences
@@ -126,7 +126,7 @@ Whether that covered a list of names as well as a count was open.
 
 - Code: `scripts/rostercheck.py`, `rosters.py`, `rosternames.py`, `rostermembers.py`,
   `scanrecipes.py`.
-- The [repo checks module doc](../modules/repo-gates.md).
+- The [repo checks module doc](../modules/repo-checks.md).
 - [ADR-0003](ADR-0003-generated-stubs.md) (the live RPC suite),
   [ADR-0042](ADR-0042-cross-tree-constant-registry.md) (the registry, which covers values and not
   names).

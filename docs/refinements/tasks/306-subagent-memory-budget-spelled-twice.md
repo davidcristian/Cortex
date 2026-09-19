@@ -1,68 +1,47 @@
-# A subagent budget's default is spelled twice in one compose file and tied nowhere
+# A subagent memory budget default written three times and checked nowhere
 
-**Status:** landed 2026-08-19
-**Area:** repo-gates
+**Status:** done 2026-08-19
+**Area:** repo-checks
 **Origin:** [ADR-0012](../../adr/ADR-0012-resource-governance.md)
 
-Found 2026-08-18 while registering the salience limit's compose default as a cross-tree constant,
-which is what [40](040-salience-limit-knob.md) closed. Surveying what else `docker/` spells a second
-time turned up one variable whose own default is written twice inside a single file, in two shapes
-that cannot be made identical:
+The default for `CORTEX_SUBAGENTS_MEM_BUDGET_GB` was written in three places:
 
-- `docker/docker-compose.subagents.yml:85` passes `CORTEX_SUBAGENTS_MEM_BUDGET_GB:
-  "${CORTEX_SUBAGENTS_MEM_BUDGET_GB:-8.0}"` to the brain, which reads it into
-  `config_subagents.py`'s `mem_budget_gb: float = Field(default=8.0, gt=0)`.
-- `docker/docker-compose.subagents.yml:158` and `:159` spend the same variable as
-  `mem_limit: "${CORTEX_SUBAGENTS_MEM_BUDGET_GB:-8}g"` and the matching `memswap_limit`, where the
-  default has to be `8` rather than `8.0` because docker parses the suffix form and `8.0g` is not
-  a size it accepts.
+- `config_subagents.py`'s typed field, `mem_budget_gb: float = Field(default=8.0, gt=0)`.
+- `docker/docker-compose.subagents.yml:85`, which passes
+  `CORTEX_SUBAGENTS_MEM_BUDGET_GB: "${CORTEX_SUBAGENTS_MEM_BUDGET_GB:-8.0}"` to the brain.
+- `docker/docker-compose.subagents.yml:158` and `:159`, `mem_limit:
+  "${CORTEX_SUBAGENTS_MEM_BUDGET_GB:-8}g"` and the matching `memswap_limit`. The default has to be
+  `8` there rather than `8.0`, because docker does not accept `8.0g` as a size.
 
-So the number lives in three places: the brain's typed field, the env passthrough, and the two
-container limits. Raising the field to 12 leaves a container capped at 8 while the admission
-scheduler goes on admitting up to 12 GB of subagents, which is the failure mode the resource
-governance work exists to prevent, and nothing reports it: the two compose spellings agree with each
-other only by hand, and `crosscheck.py` carries no entry for either.
+Raising the field to 12 left a container capped at 8 GB while the admission scheduler went on
+admitting up to 12 GB of subagents, which is the failure the resource governance work exists to
+prevent, and nothing reported it. The two compose values agreed with each other only by hand, and
+`crosscheck.py` had no entry for either.
 
-**What would close it.** One `Constant` in `scripts/couplings.py` whose site is
-`config_subagents.py`'s `mem_budget_gb` and whose mentions are the three compose spellings. The
-obstacle is that the site declares `Field(default=8.0, gt=0)` rather than a bare number, which
-`values.py` refuses to reduce (`parse_value` reads a product of integer literals, a plain string, or
-a one-line frozenset, and refuses anything else rather than guessing), and that the two spellings
-differ as text (`8.0` against `8`) even when they agree as a number. So the closure is one of:
-promote the default to a module constant that `values.py` already reads and have the field cite it;
-or teach the reducer a float and teach a mention to render a value under a second spelling. Decide
-which before writing either, and prove the entry fails by drifting one of the three places, the way
-the salience default's was proved.
+The wider question, whether every compose default that repeats a Python default should be checked,
+is deliberately not asked here. About fifty `${CORTEX_*:-default}` substitutions live under
+`docker/`, and most name a path, a model file or a machine-specific number that no Python constant
+declares. This is the one measured case of a single number written in three places, two of them in
+the same file.
 
-The wider question this is one instance of, whether every compose default that restates a Python
-default should be tied, is deliberately **not** asked here. Around fifty `${CORTEX_*:-default}`
-substitutions live under `docker/` and most name a path, a model file or a host-shaped number that
-no Python constant declares. This entry is the one case measured to spell a single number in three
-places, two of them in the same file.
+## History
 
-## Trail
-
-- 2026-08-18: opened by the close of [40](040-salience-limit-knob.md), whose own compose default was
-  tied in the same sitting; this is the neighbour that survey found untied.
-- 2026-08-19: half of the obstacle above is gone and the entry stays open. The close of
-  [R-308](308-crosscheck-cannot-tie-a-decimal.md) taught `values.py` a decimal, so `8.0` reduces
-  now, and it reduces to the digits it is written with, which settles the second half the other way:
-  `8.0` and `8` are two spellings and therefore two values, so the two container limits still cannot
-  be covered by one needle. What remains is a site that declares `Field(default=8.0, gt=0)` rather
-  than a bare number, and a far side spelling the same number twice in a shape the first cannot
-  render. The closure is still one of the two written above, and the first of them (a module
-  constant the field cites) is now the cheaper one.
-- 2026-08-19: landed as one registry entry over four spends, and both halves of the obstacle were
-  resolved the way this entry framed them rather than around them. The site took the first option:
-  `DEFAULT_MEM_BUDGET_GB = 8.0` is a module constant in `config_subagents.py` that `mem_budget_gb`
-  cites, because a reducer taught to read `Field(...)` would be a language-agnostic module knowing
-  pydantic, and three fields in that class already cite module constants. The mentions took the
-  second: `Mention.spelling` picks `Spelling.WRITTEN` or `Spelling.WHOLE`, the whole spelling is
-  derived from the declared value rather than typed beside it, and a fraction that is not zero is
-  refused instead of truncated. `values.spelling_fault` keeps the decimal form's textual strictness
-  from being undone, refusing any entry whose mentions all re-spell, since `8` and `8.0` are one
-  whole spelling. Proved able to fail seven times on the real tree and reverted each time. The
-  reasoning is the ADR-0012 budget-tie addendum; the vocabulary is recorded at ADR-0029 beside the
-  decimal it extends. [R-315](315-subagent-cpu-budget-and-its-siblings.md) opens for the CPU budget
-  in the same file, which is the same shape and needs no second spelling, and for the three asks
-  beside it, one of which disagrees with its field on purpose.
+- 2026-08-18: Opened by the close of [40](040-salience-limit-knob.md), whose own compose default
+  was registered in the same session; this is the neighbour that survey found unchecked.
+- 2026-08-19: Half the obstacle is gone and the entry stays open. The close of
+  [R-308](308-crosscheck-cannot-tie-a-decimal.md) taught `values.py` to read a decimal, and it
+  reduces to the digits it is written with, so `8.0` and `8` are two different values and the two
+  container limits cannot be covered by one search text. What remains is a declaration of
+  `Field(default=8.0, gt=0)` rather than a bare number.
+- 2026-08-19: Fixed as one registry entry over four uses. `DEFAULT_MEM_BUDGET_GB = 8.0` is now a
+  module constant in `config_subagents.py` that `mem_budget_gb` refers to, because a reducer taught
+  to read `Field(...)` would be a language-independent module that knows pydantic, and three fields
+  in that class already refer to module constants. `Mention.spelling` chooses `Spelling.WRITTEN` or
+  `Spelling.WHOLE`, the whole form is computed from the declared value rather than typed beside it,
+  and a non-zero fraction is refused instead of truncated. `values.spelling_fault` refuses any
+  entry whose mentions all use the second form, since `8` and `8.0` are one whole number. Proved
+  able to fail seven times on the real tree and reverted each time. The reasoning is ADR-0012
+  decision 14; the value forms are in
+  [ADR-0042](../../adr/ADR-0042-cross-tree-constant-registry.md).
+  [R-315](315-subagent-cpu-budget-and-its-siblings.md) opens for the CPU budget in the same file
+  and the three settings beside it, one of which differs from its field deliberately.

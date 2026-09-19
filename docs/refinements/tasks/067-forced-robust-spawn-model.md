@@ -1,17 +1,17 @@
-# Forced-robust model on untrusted-content spawns
+# The injection-resistant model forced on untrusted-content spawns
 
-**Status:** landed 2026-07-03
+**Status:** done 2026-07-03
 **Area:** untrusted-content
 **Origin:** [ADR-0017](../../adr/ADR-0017-subagent-model-safety.md)
 
-The mechanics are in [ADR-0018](../../adr/ADR-0018-heterogeneous-subagents.md).
-The choice is an optimization *hint, not
-authority*: `SubagentRoster.resolve` (pure core, at the runner, over the store-carried
-`SubagentTask.model`/`tainted`) forces the injection-robust default whenever the spawn path can
-carry untrusted content (tainted turn or tools-enabled subagent), so a weak model is reachable
-only for a tool-less subagent on an untainted turn. Deterministic, CI-proven over the full
-matrix and end to end (taint ledger → dispatcher stamp → task record → resolution).
+A caller's choice of model is a hint rather than a decision. `SubagentRoster.resolve`, in the pure
+core at the runner, reads the stored `SubagentTask.model` and `tainted` and forces the
+injection-resistant default whenever the spawn can contain untrusted content, meaning a tainted
+turn or a subagent with tools. A weaker model is therefore reachable only for a tool-less subagent
+on an untainted turn. It is deterministic and covered over the full matrix and end to end, from
+taint ledger to dispatcher stamp to task record to resolution. The mechanics are in
+[ADR-0018](../../adr/ADR-0018-heterogeneous-subagents.md).
 
-## Trail
+## History
 
-- 2026-07-03: Landed with Slice 8.6.
+- 2026-07-03: Shipped.

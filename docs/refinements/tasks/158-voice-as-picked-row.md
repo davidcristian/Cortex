@@ -1,52 +1,33 @@
-# The voice as a fourth picked row
+# The voice as a fourth pickable row
 
-**Status:** open, feature breadth
+**Status:** open, optional feature
 **Area:** body-overlay
 **Origin:** [ADR-0037](../../adr/ADR-0037-whisper-streaming.md)
 **Trigger:** The user wanting a second voice back, or any second streaming treatment being asked for.
 **Verified:** 2026-09-19
 
-The whisper landed as the one streaming effect
-(ADR-0037 decision 1), but it was chosen from a pitched family (the Voice: Murmur, Whisper,
-Patter, Intone, each a breath, words and settle lifecycle) and it lands behind one component
-seam (`WhisperBubble` plus its clock), so promoting it to a registry beside the theme, the
-iris and the dream is data plus a swatch row rather than a redesign: the Face's anatomy
-extends to a light, an iris, a dream, and a voice. The pitch history lives in the artifact's
-labeled versions. Trigger: the user wanting a second voice back, or any second streaming
-treatment being asked for. Placed here 2026-07-21.
+The whisper shipped as the only streaming effect (ADR-0037 decision 1), but it was chosen from a
+pitched family of four, each with a breath, words and settle lifecycle. Promoting it to a pickable
+registry beside the theme, the mark and the window edge would extend the Face's anatomy with a
+voice.
 
-## Trail
+It is not as cheap as it sounds. There is no whisper registry to add an entry to, where the theme,
+the mark and the edge each have one. The lifecycle a pick would parameterize runs as one
+`requestAnimationFrame` loop in `body/app/src/whisper/useWhisperClock.ts`, so a per-voice change
+touches that loop. And every Appearance section is a live preview of the real thing, so a voice tile
+needs an animated preview component and its tests. What is already in place is persistence:
+`SetPreference` takes a free `key` and `value` and the brain stores whatever it is given. Naming the
+row is left to the maintainer.
 
-- 2026-07-21: Placed in the feature-breadth bucket when the whisper streaming redesign landed.
-- 2026-08-09: A costing pass against the tree found the entry is not the data plus a swatch row it
-  calls itself, and it fails that description in two independent places. The lifecycle a pick would
-  parameterize lives in one file at the cap, `body/app/src/whisper/useWhisperClock.ts` at 298 lines
-  against the 300-line limit, with all three phases driven from one rAF loop, so the first per-voice
-  edit overruns it and opens a responsibility split plus a re-cover of both halves; and there is no
-  registry to add a literal to, the theme, the mark and the edge each owning one while the whisper
-  directory holds only the clock and `front.ts`. The row costs too: every existing Appearance
-  section is a live preview of the real thing, and a voice tile's subject is motion over time rather
-  than a still surface, so it needs an animated preview component and its tests beside neighbours of
-  87 and 203 lines. What survives is the persistence half, preferences riding generic string keys so
-  a fourth key costs no proto change and no brain change. Naming the row is deliberately left to the
-  maintainer.
-- 2026-09-13: Re-derived, and the first of the two blockers has moved while the second has not.
-  `body/app/src/whisper/useWhisperClock.ts` is 288 lines rather than the 298 recorded above, and the
-  whisper directory now holds three files rather than two: `metrics.ts` (102 lines) took the bubble's
-  box arithmetic out of the clock when the wrap-width re-lay landed. So one responsibility split has
-  already happened and a per-voice edit starts with 12 lines of headroom instead of 2. What did not
-  move is the shape: all three phases still run from one rAF loop in that file, with the only
-  `setState` at the two transitions, so parameterizing the lifecycle still touches the loop itself.
-  The registry half is unchanged, `theme/themes.ts`, `mark/marks.ts` and `edge/edges.ts` each owning
-  one and the whisper owning none, and the tile row's neighbours are still exactly the 87 lines of
-  `EdgeMini.tsx` and the 203 of `BubbleMark.tsx`. The trigger has not fired: no second streaming
-  treatment has been asked for, and the pitched names appear nowhere in the tree.
-- 2026-09-19: Re-derived, and every count from 2026-09-13 still stands: nothing under
-  `body/app/src/whisper/` has changed since, `useWhisperClock.ts` is 288 lines with its three phases
-  on one rAF loop and `setPhase` only at the two transitions, `metrics.ts` is 102, and the tile
-  neighbours are 87 and 203. The persistence half also holds: `SetPreference` takes a free `key`
-  and `value` and the brain's servicer stores whatever key it is handed, though the overlay's own
-  appearance record in `overlay/usePreferences.ts` is a fixed triple of theme, mark and window, so a
-  fourth key widens that type. One negative claim was wrong: the pitched names do appear in the
-  tree, in ADR-0037's account of the pitch; they appear nowhere in the code. The trigger has not
-  fired.
+## History
+
+- 2026-07-21: Filed when the whisper streaming redesign was committed.
+- 2026-08-09: A costing pass found the entry is not the data plus a swatch row it calls itself, for
+  the two reasons above.
+- 2026-09-13: Checked again. `useWhisperClock.ts` is 288 lines rather than the 298 recorded before,
+  because `metrics.ts` took the bubble's box arithmetic out of it, so a per-voice change starts with
+  12 lines of headroom against the 300-line limit instead of 2. The shape is unchanged.
+- 2026-09-19: Checked again; every count from 2026-09-13 still holds and nothing under
+  `body/app/src/whisper/` has changed. The tile's neighbours are still `EdgeMini.tsx` at 87 lines
+  and `BubbleMark.tsx` at 203. One detail to note: `overlay/usePreferences.ts` records a fixed
+  triple of theme, mark and window, so a fourth key widens that type.

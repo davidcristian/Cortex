@@ -141,7 +141,7 @@ The rendering these samples are compared against is the shipped `PlainFormatter`
 
 ## Related
 
-- The [repo checks module contract](../modules/repo-gates.md),
+- The [repo checks module contract](../modules/repo-checks.md),
   [ADR-0042](ADR-0042-cross-tree-constant-registry.md) (the registry the sink names are compared
   through), [ADR-0046](ADR-0046-work-identities-on-log-lines.md) (the field names these lines
   include), [ADR-0009](ADR-0009-tools-mcp.md) (the tool audit),

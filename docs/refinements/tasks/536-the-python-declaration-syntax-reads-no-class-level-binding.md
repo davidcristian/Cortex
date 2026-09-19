@@ -1,84 +1,61 @@
 # The Python declaration syntax reads no binding inside a class body
 
-**Status:** open, dead until a consumer
-**Area:** repo-gates
-**Trigger:** a second producer binding a `SourceKind` value at module level because the enum
-member it restates cannot be a site, which the `uri` twin's producer would be, or any other
-registry entry whose one spelling on a side is a member of a class body, which is countable by
-locating every mention's needle in its far file and reading whether the line it lands on binds a
-name inside a `class`.
-**Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
+**Status:** open, waiting for a consumer
+**Area:** repo-checks
+**Trigger:** a second module binding a `SourceKind` value at module level because the enum member it
+repeats cannot be a declaration, which a producer of the `uri` kind would be; or any other registry
+entry whose only copy of a value on one side is a member of a class body. Count those by searching
+each mention's text in its target file and checking whether the matching line assigns a name inside
+a `class`.
+**Origin:** [ADR-0042](../../adr/ADR-0042-cross-tree-constant-registry.md)
 **Verified:** 2026-09-19
 
-Opened 2026-09-02 by the close of
-[534](534-the-declared-kind-word-has-no-site-to-hold-it.md), which held the kind word `sender` by
-binding it at module level in `cortex_email/server.py` and mentioning the enum member, and
-recorded why the other road was not taken.
+The Python pattern in `crosscheck.DECLARATIONS` starts with `^` under `re.MULTILINE` and takes the
+name at column 0, so a binding inside any block is not a declaration. That anchor stops a name bound
+inside a function from counting as a second declaration of a module constant, and it also makes
+every enum member in the brain unregistrable. One entry needs one today, and it is served by a
+module-level copy at the producer: the sidecar binds `_SENDER_KIND = "sender"` and the member
+`SENDER = "sender"` is compared against it, so nothing is unchecked. The cost is one copy of the
+word that exists for the check's sake.
 
-The Python form in `crosscheck.DECLARATIONS` opens with `^` under `re.MULTILINE` and takes the
-name at column 0, so a binding inside any block is not a site. That anchor was chosen so a name
-bound inside a function is never read as a second declaration of a module's constant, and it makes
-every enum member in the brain unregistrable as a site. Today one entry needs one, and it is served
-by a module-level twin at the producer: the sidecar binds `_SENDER_KIND = "sender"` and the member
-`SENDER = "sender"` is a mention rendering name and value. That twin is one commented binding the
-gate holds to the member, so nothing is unheld; the cost is a spelling of the word that exists for
-the scan's sake.
+**Why it was left.** A pattern found with `findall` cannot tell a class body from a function body,
+since the two look the same on their own line. A reader that walked lines with an indentation stack
+would be a new module with its own tests and its own faults: a member defined in two classes of one
+file, a class nested in a function, a member whose value is a call.
 
-**Why it was left.** An indented form has to tell a class body from a function body, and the two
-look the same on their own line. A pattern found by `findall` cannot do it, and a reader that
-walked lines with an indentation stack would be a new module with its own suite and its own faults,
-among them a member spelled in two classes of one file, a class nested in a function, and a member
-whose right-hand side is a call rather than a literal. Landing that for one entry would be the
-registry growing a parser to save one binding.
+**What would close it.** A second reader rather than a wider pattern, and it no longer needs a
+parser of its own. `scripts/moduleconstants.py` already parses a module with `ast` without importing
+it and its `bound` handles both assignment forms, and `scripts/settingsfields.py` already walks the
+statements of each top-level class body. Given a path and a dotted name (`SourceKind.SENDER`), take
+the one `ClassDef` of that name in the module's own body, the one statement `bound` says assigns the
+member, and pass the source of its right-hand side to `parse_value`, so a call there raises exactly
+as it does at column 0. Walking only the module's top level handles the class nested in a function,
+and requiring exactly one match handles the member defined in two classes. `Site.name` would hold
+the dotted form, so a bare name keeps meaning column 0 and no entry registered today changes
+meaning. To prove the fix works: rename the member's value alone and watch the check fail naming
+both files. Afterwards the module-level copy at the producer can go or stay, since two declarations
+are compared with each other while a mention is only a presence check.
 
-**What would close it.** A class-level form that is a second reader rather than a widened pattern,
-and it no longer needs a parser of its own: `scripts/moduleconstants.py` already parses a module
-with `ast` without importing it, its `bound` answers both assignment spellings, and
-`scripts/settingsfields.py` already walks the statements of each top-level class body in a parsed
-module. Given a path
-and a dotted name (`SourceKind.SENDER`), take the one `ClassDef` of that name in the module's own
-body, the one statement in it that `bound` says binds the member, and hand the source text of its
-right-hand side to `parse_value`, so a call there raises exactly as it does at column 0. Walking
-only the module's top level answers the class nested in a function, and requiring exactly one
-match answers the member spelled in two classes. `Site.name` would carry the dotted form, so a bare name keeps
-meaning column 0 and no entry registered today changes meaning. The mutation is the one the parent
-task ran: rename the member's value alone and watch the gate fail naming both files. When it lands,
-the module-level twin at the producer can go or stay; a second site is a stronger reading than a
-mention, since two sites are compared with each other while a mention is a presence check.
+## History
 
-## Trail
-
-- 2026-09-02: opened by the close of
-  [534](534-the-declared-kind-word-has-no-site-to-hold-it.md), whose ADR-0029 declared-kind-word
-  addendum records why the narrow road was taken.
-- 2026-09-04: checked and left open. Neither clause has fired. `SourceKind` still has one
-  producer: `cortex_email/server.py` is the only module outside the core that writes a
-  `cortex/source` declaration, and the `URI` member has none, so no second module-level twin
-  exists. Locating every one of the registry's 288 needles in its far file and reading the line it
-  lands on turns up one binding inside a class body, `SENDER = "sender"` under `class SourceKind`,
-  which is this entry's own subject. The other indented matches are calls, `extra=` mappings and
-  prose, none of them the one spelling of a value on a side. `Flag("--reasoning-budget", "0")` in
-  `scripts/flagcheck.py` reads like a near miss and is not one: it sits in a module-level tuple,
-  and that entry declares its value at `_NO_REASONING_BUDGET` in the model host's config.
-- 2026-09-13: re-derived and left open, both clauses still unfired. The registry has grown to 92
-  entries over 110 sites and 311 mentions since the last reading, and locating every one of those
-  311 needles in its far file turns up the same single binding inside a class body,
-  `SENDER = "sender"` under `class SourceKind(Enum)` in
-  `brain/packages/core/src/cortex_core/provenance.py`, which is this entry's own subject.
-  `SourceKind` still has one producer outside the core, `cortex_email/server.py`, and `URI` still
-  has none, so the `uri` twin the trigger names does not exist. The Python form in
-  `crosscheck.DECLARATIONS` is unchanged and still anchors its name at column 0 under
-  `re.MULTILINE`.
-- 2026-09-19: re-derived and left open, both clauses still unfired, with the remedy made cheaper.
-  The registry holds 92 entries over 110 sites and 313 mentions, and locating every mention's
-  needle in a Python far file with `ast` and asking whether the line it lands on is an assignment
-  inside a class body finds one, `SENDER = "sender"` under `class SourceKind(Enum)` in
-  `brain/packages/core/src/cortex_core/provenance.py`, this entry's own subject. `URI` still has no
-  producer outside the core and `cortex_email/server.py` is still the one module-level twin.
-  `crosscheck.DECLARATIONS` is unchanged. What moved is the cost: the scan added on 2026-09-17,
-  `scripts/settingscheck.py`, reads settings classes through `settingsfields.py`, which parses a
-  module with `moduleconstants.parse` and walks each top-level class body's statements, so the
-  class-level reader this entry describes is a few lines over existing code rather than a new
-  parser, and the section above now says how. The new
-  scan is not a consumer: it reads field names and their environment variables, never a value a
-  registry entry compares.
+- 2026-09-02: opened by the close of [534](534-the-declared-kind-word-has-no-site-to-hold-it.md),
+  whose ADR-0042 entry records why the narrow way was taken.
+- 2026-09-04: checked and left open, neither condition met. `cortex_email/server.py` is still the
+  only module outside the core that writes a `cortex/source` declaration, and the `URI` member has
+  no producer. Searching all 288 of the registry's mention texts in their target files finds one
+  assignment inside a class body, `SENDER = "sender"` under `class SourceKind`, this entry's own
+  subject. `Flag("--reasoning-budget", "0")` in `scripts/flagcheck.py` looks like a near miss and is
+  not one: it sits in a module-level tuple, and that entry declares its value at
+  `_NO_REASONING_BUDGET` in the model host's config.
+- 2026-09-13: checked again and left open. The registry has grown to 92 entries over 110
+  declarations and 311 mentions, and the same single assignment inside a class body is the only one,
+  in `brain/packages/core/src/cortex_core/provenance.py`. `SourceKind` still has one producer
+  outside the core and `URI` still has none. `crosscheck.DECLARATIONS` is unchanged.
+- 2026-09-19: checked again and left open, with the fix made cheaper. The registry holds 92 entries
+  over 110 declarations and 313 mentions, and reading each mention's target file with `ast` finds
+  the same single assignment inside a class body. What moved is the cost:
+  `scripts/settingscheck.py`, added on 2026-09-17, reads settings classes through
+  `settingsfields.py`, which parses a module with `moduleconstants.parse` and walks each top-level
+  class body, so the class-level reader is a few lines over existing code rather than a new parser.
+  That scan is not a consumer, since it reads field names and their environment variables and never
+  a value the registry compares.

@@ -125,7 +125,7 @@ for a CI that nobody watches run by run.
 
 - Code: `scripts/ci_paths.py` and its tests, `.github/workflows/ci.yml`, `.github/dependabot.yml`,
   the `check` recipe in `justfile`.
-- Module doc: [repo checks](../modules/repo-gates.md).
+- Module doc: [repo checks](../modules/repo-checks.md).
 - ADRs: [ADR-0002](ADR-0002-toolchain-checks.md) (the checks themselves),
   [ADR-0011](ADR-0011-body-v1.md) (the overlay and shell checks, `check-shell`),
   [ADR-0003](ADR-0003-generated-stubs.md) (the stub check).

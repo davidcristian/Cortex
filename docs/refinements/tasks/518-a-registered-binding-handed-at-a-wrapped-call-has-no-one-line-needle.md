@@ -1,92 +1,59 @@
-# A registered binding handed at a wrapped call has no one-line needle
+# A registered binding handed at a wrapped call has no one-line search text
 
-**Status:** landed 2026-09-15
-**Area:** repo-gates
-**Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
+**Status:** done 2026-09-15
+**Area:** repo-checks
+**Origin:** [ADR-0045](../../adr/ADR-0045-documented-log-lines.md)
 
-Opened 2026-09-02 by the close of
-[R-504](504-a-declared-message-and-a-different-word-in-the-call.md), which holds a registered
-message binding to the call handed it by a mention of the call rendering the identifier,
-`_logger.info({name},`, and requires such a mention of every registry site a brain log call is
-handed.
-
-The guard checks that the mention's needle lands on the line the name sits on, which
+The test checks that the registry entry's search text falls on the line the name sits on, which
 `logcalls.handed` reports as the name's own line rather than the call's. On the one site registered
 today those are one line. Four of the brain's twelve handed calls are wrapped by the formatter, the
-abandonment warning, the no-reading line, the unreadable-call warning and the short-card error,
-each with the identifier on the line after the opening parenthesis, and on any of the four the
-template the guard's failure message suggested until 2026-09-15, `<the call>({name},`, renders a
-needle the file does not carry, since a newline and an indent stand between the parenthesis and
-the name.
+abandonment warning, the no-reading line, the unreadable-call warning and the short-card error, each
+with the identifier on the line after the opening parenthesis, and on any of the four the template
+the failure message suggested until 2026-09-15, `<the call>({name},`, renders a search text the file
+does not contain, since a newline and an indent stand between the parenthesis and the name.
 
-Two shapes work and neither was written down. `{name},` alone lands on the name's line and is
-bounded at the word edge, and it is a looser needle: it matches wherever the identifier is followed
-by a comma, an `__all__` list among them, and only the guard's line check ties it to the call. A
-template carrying the line break and the indent pins the call and is broken by any reformat that
-moves the wrap, loudly, which is a needle failing on a change it has no opinion about.
+Two forms work and neither was written down. `{name},` alone falls on the name's line and is bounded
+at the word edge, and it is looser: it matches wherever the identifier is followed by a comma, an
+`__all__` list among them, and only the line check connects it to the call. A template containing
+the line break and the indent locks the call and is broken by any reformat that moves the wrap.
 
-What to weigh when it bites: a registry spelling that folds runs of whitespace in the needle, so one
-template matches the call whether or not it is wrapped, against the rule in `needles.py` that a
-needle is matched as written. That spelling is the same gap
-[R-519](519-a-runbook-restates-a-declared-message-as-a-wrapped-prefix-nothing-ties.md) names from
-the prose side.
-
-## Trail
+## History
 
 - 2026-09-02: opened by the close of
-  [R-504](504-a-declared-message-and-a-different-word-in-the-call.md), whose mutation table
-  measures a one-line call handed another word and says nothing about a wrapped one.
-- 2026-09-04: checked and left open. The trigger has not fired. The brain hands its message by
-  name at eleven log calls, five of them a binding the module makes at its own top level
-  (`_NO_READING_LOG_MSG`, `SPILLED_LOG_MSG` and `_MEASURED_LOG_MSG` in `cortex_core/brain_phase.py`,
-  `ABANDONED_MESSAGE` in `cortex_orchestrator/abandon.py`, `_MESSAGE` in `cortex_tools/audit.py`)
-  and the other six a local `msg` built in the function. Two of the five are wrapped, exactly the
-  pair this entry names, and neither is registered: running the guard's own reading over the real
-  registry returns one row, the audit sink's `_MESSAGE` at `audit.py:89`, whose call is on one
-  line. Rendering the template the guard's failure message suggests against the two wrapped calls
-  confirms the miss it predicts: `_logger.warning(ABANDONED_MESSAGE,` and
-  `_logger.info(_NO_READING_LOG_MSG,` are each found zero times in their own file, where
-  `_logger.info(_MESSAGE,` is found once.
-- 2026-09-07: re-checked and left open. The trigger has not fired, and the count the entry
-  prescribes reproduces the 2026-09-04 reading exactly. `logcalls.handed` reports 11 brain log
-  calls whose message is a bare name; five of those names are bound at their module's own top
-  level, the same five, at the same lines (`_NO_READING_LOG_MSG` at `brain_phase.py:191`,
-  `SPILLED_LOG_MSG` at 210, `_MEASURED_LOG_MSG` at 212, `ABANDONED_MESSAGE` at `abandon.py:73`,
-  `_MESSAGE` at `audit.py:89`); and comparing each name's line with its call's still marks two of
-  them wrapped, `_NO_READING_LOG_MSG` whose call opens at 190 and `ABANDONED_MESSAGE` whose call
-  opens at 72. Neither has gained a `Site`: the registry still carries exactly one mention
-  rendering a call handed a name, `Mention(AUDIT_SINK, "_logger.info({name},", name="_MESSAGE")` in
-  `trailcouplings.py`, and rendering the guard's suggested template against the three files finds
-  `_logger.warning(ABANDONED_MESSAGE,` and `_logger.info(_NO_READING_LOG_MSG,` zero times each and
-  `_logger.info(_MESSAGE,` once.
-- 2026-09-13: re-derived and corrected. The trigger has not fired, but the set this entry counts
-  has moved twice over. `logcalls.handed` still reports 11 brain log calls whose message is a bare
-  name, and all 11 names are now bound at their module's own top level, where five were when this
-  was last read: the six that were a local `msg` built in the function are now
-  `_NO_DEVICE_MEMORY` and `_CARD_TOO_SHORT` in `cortex_core/residency_moves.py`, `_NOT_CONVERGED`
-  and `_WORST_STOP_UNCLEARED` in `cortex_core/residency_watch.py`, and a `_REFUSED` in each of
-  `cortex_orchestrator/bounds.py` and `cortex_orchestrator/swap_builders.py`. Comparing each
-  name's line with its call's marks three of them wrapped rather than two: `_NO_READING_LOG_MSG` at
-  `brain_phase.py:191` whose call opens at 190, `ABANDONED_MESSAGE` at `abandon.py:73` whose call
-  opens at 72, and `_CARD_TOO_SHORT` at `residency_moves.py:161` whose call opens at 160. The
-  body and the trigger above are repaired to those numbers. None of the three has gained a `Site`:
-  the registry still carries exactly one mention rendering a call handed a name,
-  `Mention(AUDIT_SINK, "_logger.info({name},", name="_MESSAGE")` in `trailcouplings.py`, and none
-  of the other ten names is spelled in any registry part. Rendering the guard's suggested template
-  still finds `_logger.info(_NO_READING_LOG_MSG,` and `_logger.warning(ABANDONED_MESSAGE,` zero
-  times each in their own files, where `_logger.info(_MESSAGE,` is found once.
-- 2026-09-15: **landed** as the shorter of the two shapes written down where an author meets it
-  (ADR-0009 wrapped-needle addendum). The count moved again before anything was written.
-  `logcalls.handed` reports twelve brain log calls whose message is a bare name rather than
-  eleven, all twelve bound at their module's own top level, and four are wrapped rather than
-  three: `_UNREADABLE_CALL_LOG_MSG` at `brain_phase.py:170` joins `_NO_READING_LOG_MSG` at 226,
+  [R-504](504-a-declared-message-and-a-different-word-in-the-call.md), whose mutation table measures
+  a one-line call handed another word and says nothing about a wrapped one.
+- 2026-09-04: checked and left open. The brain hands its message by name at eleven log calls, five
+  of them a binding the module makes at its own top level (`_NO_READING_LOG_MSG`, `SPILLED_LOG_MSG`
+  and `_MEASURED_LOG_MSG` in `cortex_core/brain_phase.py`, `ABANDONED_MESSAGE` in
+  `cortex_orchestrator/abandon.py`, `_MESSAGE` in `cortex_tools/audit.py`) and the other six a local
+  `msg` built in the function. Two of the five are wrapped and neither is registered: the test's own
+  reading over the real registry returns one row, the audit sink's `_MESSAGE` at `audit.py:89`,
+  whose call is on one line. Rendering the suggested template against the two wrapped calls confirms
+  the miss: `_logger.warning(ABANDONED_MESSAGE,` and `_logger.info(_NO_READING_LOG_MSG,` are each
+  found zero times in their own file, where `_logger.info(_MESSAGE,` is found once.
+- 2026-09-07: checked again and left open. `logcalls.handed` reports 11 brain log calls whose
+  message is a bare name; five of those names are bound at their module's own top level, at the same
+  lines (`_NO_READING_LOG_MSG` at `brain_phase.py:191`, `SPILLED_LOG_MSG` at 210, `_MEASURED_LOG_MSG`
+  at 212, `ABANDONED_MESSAGE` at `abandon.py:73`, `_MESSAGE` at `audit.py:89`); and comparing each
+  name's line with its call's still marks two of them wrapped. Neither has gained a `Site`.
+- 2026-09-13: checked again and corrected. `logcalls.handed` still reports 11 brain log calls whose
+  message is a bare name, and all 11 names are now bound at their module's own top level, where five
+  were: the six that were a local `msg` are now `_NO_DEVICE_MEMORY` and `_CARD_TOO_SHORT` in
+  `cortex_core/residency_moves.py`, `_NOT_CONVERGED` and `_WORST_STOP_UNCLEARED` in
+  `cortex_core/residency_watch.py`, and a `_REFUSED` in each of `cortex_orchestrator/bounds.py` and
+  `cortex_orchestrator/swap_builders.py`. Comparing each name's line with its call's marks three of
+  them wrapped rather than two: `_NO_READING_LOG_MSG` at `brain_phase.py:191`, `ABANDONED_MESSAGE`
+  at `abandon.py:73`, and `_CARD_TOO_SHORT` at `residency_moves.py:161`. None has gained a `Site`.
+- 2026-09-15: closed as the shorter of the two forms, written down where an author meets it
+  (ADR-0045 decision 14). The count moved again first: `logcalls.handed` reports twelve brain log
+  calls whose message is a bare name, all twelve bound at their module's own top level, and four are
+  wrapped, `_UNREADABLE_CALL_LOG_MSG` at `brain_phase.py:170` joining `_NO_READING_LOG_MSG` at 226,
   `_CARD_TOO_SHORT` at `residency_moves.py:161` and `ABANDONED_MESSAGE` at `abandon.py:73`. None of
-  the four is registered, so the guard still returns one row. Rendering both templates through the
-  real registry machinery against the real files confirms both halves of this entry: the template
-  naming the call is found zero times for each of the four and once for `_MESSAGE`, and `{name},`
-  lands on the handing line in all five. So the guard's failure message now names both, and its
-  suite pins each on a wrapped fixture. The whitespace-folding registry spelling is not built and
-  is not the close: it would overturn the rule in `needles.py` that a needle is matched as written,
-  which every other mention rests on, for one shape of one entry kind. What the shorter template
-  gives up, that it holds the name rather than the call, is filed as
+  the four is registered. Rendering both templates through the real registry machinery against the
+  real files confirms both halves: the template naming the call is found zero times for each of the
+  four and once for `_MESSAGE`, and `{name},` falls on the handing line in all five. So the failure
+  message now names both, and its suite covers each on a wrapped fixture. The whitespace-folding
+  registry form is not built and is not the close: it would overturn the rule in `needles.py` that a
+  search text is matched as written, which every other entry rests on, for one shape of one entry
+  kind. What the shorter template gives up, that it locks the name rather than the call, is filed as
   [R-672](672-a-wrapped-calls-needle-holds-the-name-rather-than-the-call.md).

@@ -10,36 +10,36 @@ BUCKET_ORDER = (
     "Never attempted",
     "Attempted, inconclusive",
 )
-CLOSED_ORDER = ("Landed", "Declined", "Satisfied", "Done")
+CLOSED_ORDER = ("Done", "Declined", "Satisfied")
 
 
 def _describe(status: Status) -> str:
     """Return the short status phrase shown in a roll-call line."""
     if status.state in OPEN_STATES:
         return f"open, {status.state}"
-    if status.is_standing:
+    if status.is_ongoing:
         return f"{status.state}: {status.detail}"
     if status.on is None:
         return status.state
     return f"{status.state} {status.on.isoformat()}"
 
 
-def _standing_section(tasks: list[Task]) -> list[str]:
-    """Return the standing items, which are neither remaining work nor finished."""
-    standing = sorted(
-        (task for task in tasks if task.status.is_standing), key=lambda item: item.number
+def _ongoing_section(tasks: list[Task]) -> list[str]:
+    """Return the ongoing items, which are neither remaining work nor finished."""
+    ongoing = sorted(
+        (task for task in tasks if task.status.is_ongoing), key=lambda item: item.number
     )
-    if not standing:
+    if not ongoing:
         return []
-    lines = [f"## Standing, never closes ({len(standing)})", ""]
+    lines = [f"## Ongoing, never closes ({len(ongoing)})", ""]
     lines.append(
         "Neither work that remains nor work that finishes: an observation made over time, or an "
-        "obligation on every change. They are counted apart so that neither number lies."
+        "obligation on every change. They are counted apart so that neither number is wrong."
     )
     lines.append("")
     lines.extend(
         f"- **{_link(task)}** {task.title} ({task.group}): {task.status.detail}."
-        for task in standing
+        for task in ongoing
     )
     lines.append("")
     return lines
@@ -63,9 +63,6 @@ def _open_section(tasks: list[Task]) -> list[str]:
             entry = f"- **{_link(task)}** {task.title} ({task.group})."
             trigger = task.fields.get("Trigger")
             if trigger and task.status.state in NEEDS_TRIGGER:
-                # The trigger is an author's sentence and most of them already end in a full
-                # stop, so it is normalised to exactly one: a clause may follow it here, and a
-                # run-on would read as part of the trigger rather than after it.
                 entry += (
                     " No trigger was ever recorded for it."
                     if trigger == UNRECORDED
@@ -73,7 +70,7 @@ def _open_section(tasks: list[Task]) -> list[str]:
                 )
             verified = task.fields.get("Verified")
             if verified:
-                entry += f" Its claim was re-derived from the code on {verified}."
+                entry += f" Its claim was checked against the code on {verified}."
             lines.append(entry)
         lines.append("")
     return lines
@@ -101,15 +98,13 @@ def _group_section(tasks: list[Task], group_word: str) -> list[str]:
 
 
 def _verified_note(read: list[Task]) -> list[str]:
-    """Return the paragraph counting the tasks whose claim somebody re-derived and dated."""
+    """Return the paragraph counting the tasks whose claim somebody checked and dated."""
     if not read:
         return []
-    # Worded with the care the count above it takes, for the mirror reason: this number starts
-    # at zero and climbs, so the singular is the first reading anybody sees rather than the last.
     opener = (
-        "One of these records the day its claim was last re-derived from the code"
+        "One of these records the day its claim was last checked against the code"
         if len(read) == 1
-        else f"{len(read)} of these record the day their claims were last re-derived from the code"
+        else f"{len(read)} of these record the day their claims were last checked against the code"
     )
     return [f"{opener}. On every other task here, that reading is still yours to take.", ""]
 
@@ -117,11 +112,11 @@ def _verified_note(read: list[Task]) -> list[str]:
 def render(tasks: list[Task], group_word: str) -> str:
     """Return the whole generated block for ``tasks``, markers included."""
     opens = [task for task in tasks if task.status.is_open]
-    standing = [task for task in tasks if task.status.is_standing]
-    closed = len(tasks) - len(opens) - len(standing)
+    ongoing = [task for task in tasks if task.status.is_ongoing]
+    closed = len(tasks) - len(opens) - len(ongoing)
     counted = f"**{len(opens)} open, "
-    if standing:
-        counted += f"{len(standing)} standing, "
+    if ongoing:
+        counted += f"{len(ongoing)} ongoing, "
     lines = [BEGIN, "", f"{counted}{closed} closed, {len(tasks)} in total.**", ""]
     lines.append("## What remains")
     lines.append("")
@@ -131,9 +126,6 @@ def render(tasks: list[Task], group_word: str) -> str:
         if task.status.state in NEEDS_TRIGGER and task.fields.get("Trigger") == UNRECORDED
     ]
     if blank:
-        # This count is driven to zero, so the sentence has to read correctly at one: "1 of
-        # these wait" would be the wrong plural, and one is the number a reader sees on the pass
-        # that finishes the job.
         opener = "One of these waits" if len(blank) == 1 else f"{len(blank)} of these wait"
         lines.append(
             f"{opener} on something nobody wrote down. That is a gap in the "
@@ -146,7 +138,7 @@ def render(tasks: list[Task], group_word: str) -> str:
     else:
         lines.append("Nothing. Every task here is closed.")
         lines.append("")
-    lines.extend(_standing_section(tasks))
+    lines.extend(_ongoing_section(tasks))
     lines.append(f"## Every task, by {group_word}")
     lines.append("")
     lines.extend(_group_section(tasks, group_word))

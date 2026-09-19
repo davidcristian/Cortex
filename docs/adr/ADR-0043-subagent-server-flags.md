@@ -111,7 +111,7 @@ to keep each record to one subject.
 - Code: `scripts/flagcheck.py`, `subagentflags.py`, `subagentservers.py`, `hostedtiers.py`,
   `composestarts.py`, `moduleconstants.py`, `artifactnames.py`; model host `config.py` and
   `tiers.py`.
-- The [repo checks module doc](../modules/repo-gates.md),
+- The [repo checks module doc](../modules/repo-checks.md),
   [runbooks/subagents-cpu.md](../runbooks/subagents-cpu.md),
   [runbooks/vision.md](../runbooks/vision.md).
 - [ADR-0004](ADR-0004-model-lineup.md), [ADR-0005](ADR-0005-llamacpp-engine.md),

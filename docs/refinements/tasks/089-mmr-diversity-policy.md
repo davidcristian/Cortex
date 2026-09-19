@@ -1,24 +1,30 @@
 # Maximal-marginal-relevance diversity policy
 
-**Status:** landed 2026-07-13
+**Status:** done 2026-07-13
 **Area:** memory
 **Origin:** [ADR-0008](../../adr/ADR-0008-memory-v1.md)
 
-The rerank addendum's deferred diversity policy: a third
-pure-core `MmrRecallPolicy` (`rerank.py`, behind the **unchanged `MemoryStore`/`Embedder` ports**)
-builds its result greedily, each step keeping the candidate that maximizes
-`relevance_weight * similarity - (1 - relevance_weight) * redundancy` (redundancy = its greatest
-embedding cosine to an already-kept hit), so distinct-but-redundant memories sitting *below* the
-reranker's near-duplicate cutoff still spread across the query's neighborhood instead of clustering
-on its single closest region. `CORTEX_MEMORY_RECALL=mmr` selects it (now `raw`, `reranked`, or
-`mmr`), `CORTEX_MEMORY_RECALL_MMR_LAMBDA` (0.5) is the relevance-vs-diversity dial (`1` pure
-relevance, degenerating to `RawRecallPolicy` order; `0` pure diversity), reusing the shared
-`recall_pool_factor`; the reported `ScoredMemory.score` stays the raw cosine, only order and
-membership change. CI-gated end to end over the fakes at 100%; no SQL change, so no host validation
-is owed. Still open: the **model-based reranker** (blocked on the sync `RecallPolicy.select`, see
-above) and **surfacing the blended relevance**, behind the unchanged seam (the
-**recency-and-diversity** policy it also named landed, the entry below).
+The diversity policy the rerank entry ([R-088](088-recency-rerank-dedup.md)) deferred. A third
+pure-core `MmrRecallPolicy` in `rerank.py`, behind unchanged `MemoryStore` and `Embedder` ports,
+builds its result greedily: at each step it keeps the candidate with the highest
+`relevance_weight * similarity - (1 - relevance_weight) * redundancy`, where redundancy is that
+candidate's greatest embedding cosine to an already-kept hit. Memories that are distinct but
+still similar, and so sit below the reranker's near-duplicate cutoff, then spread across the
+query's neighbourhood instead of clustering on its closest region.
 
-## Trail
+`CORTEX_MEMORY_RECALL=mmr` selects it, so the choices are now `raw`, `reranked` and `mmr`.
+`CORTEX_MEMORY_RECALL_MMR_LAMBDA` (0.5) trades relevance against diversity: `1` is pure
+relevance, which reduces to `RawRecallPolicy` order, and `0` is pure diversity. It reuses the
+shared `recall_pool_factor`. The reported `ScoredMemory.score` stays the raw cosine; only order
+and membership change. Covered end to end in CI over the fakes at 100%; no SQL changed, so no
+host testing was needed.
 
-- 2026-07-13: Recorded at the [ADR-0008 MMR addendum](../../adr/ADR-0008-memory-v1.md).
+Two refinements stay open behind the unchanged port: the model-based reranker
+([R-092](092-model-based-reranker.md)), which is blocked on the synchronous
+`RecallPolicy.select`, and reporting the blended relevance as its own field
+([R-091](091-blended-relevance-field.md)). The recency-and-diversity policy this entry also named
+shipped as [R-090](090-recency-and-diversity-recall.md).
+
+## History
+
+- 2026-07-13: Recorded at [ADR-0008 decision 10](../../adr/ADR-0008-memory-v1.md).

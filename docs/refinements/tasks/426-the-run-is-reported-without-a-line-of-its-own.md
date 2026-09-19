@@ -1,56 +1,40 @@
-# The run an unfound needle reports has no line, though choosing between matches computes one
+# The matched run has no line of its own, though choosing between matches computes one
 
-**Status:** landed 2026-08-25
-**Area:** repo-gates
-**Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
+**Status:** done 2026-08-25
+**Area:** repo-checks
+**Origin:** [ADR-0042](../../adr/ADR-0042-cross-tree-constant-registry.md)
 
-Opened 2026-08-25 by the close of
-[R-414](414-the-still-spelled-reading-does-not-say-where.md), which gave the value reading a line
-and left the run reading without one.
+An unmatched search text has two readings and they are told in two different ways. The value
+reading says how many places contain the value, which line the nearest one is on, and what that
+line says. The run reading, the longest opening piece of the search text the file contains
+anywhere, is quoted as text alone. Where in the file that run stops is never said, even though
+`needles.nearest` locates every occurrence of it in order to pick which value match to quote, and
+then discards the positions.
 
-An unfound needle now carries two readings and they are told in two different ways. The value
-reading names how many places spell the value, which line the nearest one is on, and what that line
-says. The run reading, the longest opening piece of the needle the file carries anywhere, is still
-quoted as text alone: `carrying no more of it than '`DEFAULT_STOP_GRACE_S` (1'`. Where in the file
-that run stops is never said, even though `needles.nearest` locates every occurrence of it in order
-to pick which value match to quote, and then discards the positions.
+The distance between the two is the evidence a reader is weighing. A value on the line where the
+run stops is the strong form of "what moved is the surrounding shape". A value seventy lines away,
+which is the real case this came out of, is the weak form, and the reader can only tell which they
+have by opening the file.
 
-The distance between the two is the evidence a reader is actually weighing. A value spelled on the
-line where the run stops is the strong form of "what moved is shape". A value seventy lines away,
-which is the real case this came out of, is the weak form, and the reader can only see which they
-have by opening the file. Saying both lines would put that comparison in the message.
+Giving the run a line raises a question the value reading did not have to answer: a run is a
+prefix, so it can appear in several places. Naming one line therefore has to say which, and the
+answer may be the last occurrence, the one nearest the quoted value, or a count.
 
-**Why it was left.** The close it came out of was about the value reading, and giving the run a
-line raises a question that reading did not have to answer: a run is a prefix, so it may be carried
-in several places, and the one `needles.py` already documents as making the run longer than the
-divergence is the compose publish's `"127.0.0.1:` satisfied by the redis publish two dozen lines
-below. Naming one line for it therefore has to say which, and the honest answer may be the last
-occurrence, the nearest to the quoted value, or a count the way the value reading now carries one.
-Deciding that inside a close about where a value sits would have hidden it.
-
-**What would close it.** Decide which occurrence of the run a line should name, and whether the two
-lines should be compared for the reader (`the run stops on line 115 and the value is 71 lines
-below`) or merely both stated. Weigh the message length while there: the fault already carries a
-stem, two readings, one quoted line and the entry's `why`, and a second quoted line would be the
-point at which a fault stops being one sentence. The cheapest honest shape may be a line number for
-the run with no second quote, since the run's text is already in the message and only its place is
-missing.
-
-## Trail
+## History
 
 - 2026-08-25: opened by the close of
-  [R-414](414-the-still-spelled-reading-does-not-say-where.md), which spent the run's positions to
-  choose which value match to quote and never spent them on the run itself.
-- 2026-08-25: **landed.** The three candidates for which occurrence to name turned out not to be a
+  [R-414](414-the-still-spelled-reading-does-not-say-where.md), which used the run's positions to
+  choose which value match to quote and never used them on the run itself.
+- 2026-08-25: closed. The three candidates for which occurrence to name turned out not to be a
   choice: the two readings are the two ends of one distance, so `needles.nearest` picks the pair
   and both halves are reported, each named as the one nearest the other, with the same fallback to
-  the first occurrence stated explicitly when one of them is missing. The run's line goes in the clause it
-  already had, with a count when the file carries the run more than once, worded in the value
-  reading's own three shapes. The distance is not computed for the reader: two line numbers are the
-  comparison, and a gap stated in lines would sometimes disagree with a pair chosen by distance in
-  characters. No second quoted line, the entry's own cheapest honest shape, measured at 66
-  characters added to a fault of 788. Reading the positions out found a correction underneath: the
-  code anchored where the run **starts** while the prose said it stopped there, which biases every
-  choice towards the text above the divergence, and no case in the tree could tell the two apart
-  until this entry added one. Four mutations over `scripts/tests/test_crosscheck.py`, 144 cases,
-  in the [ADR-0029 run-line addendum](../../adr/ADR-0029-vision-screen-capture.md).
+  the first occurrence stated explicitly when one of them is missing. The run's line goes in the
+  clause it already had, with a count when the file contains the run more than once, worded in the
+  value reading's own three shapes. The distance is not computed for the reader: two line numbers
+  are the comparison, and a gap stated in lines would sometimes disagree with a pair chosen by
+  distance in characters. No second quoted line, the entry's own cheapest option, measured at 66
+  characters added to a message of 788. Reading the positions out found a correction underneath:
+  the code anchored where the run starts while the prose said it stopped there, which biases every
+  choice towards the text above the difference, and no case in the tree could tell the two apart
+  until this entry added one. Four mutations over `scripts/tests/test_crosscheck.py`, 144 cases, in
+  [ADR-0042](../../adr/ADR-0042-cross-tree-constant-registry.md).

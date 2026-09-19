@@ -240,7 +240,7 @@ whenever real records existed, passing while asserting nothing.
 
 ## Related
 
-- Modules: [repo checks](../modules/repo-gates.md), [brain-session](../modules/brain-session.md),
+- Modules: [repo checks](../modules/repo-checks.md), [brain-session](../modules/brain-session.md),
   [brain-memory](../modules/brain-memory.md), [body-core](../modules/body-core.md).
 - Runbooks: [local-dev-wsl](../runbooks/local-dev-wsl.md) (toolchains, a shuffled failure, the live
   runs), [mutation-replay](../runbooks/mutation-replay.md) (the procedure and the ledger).

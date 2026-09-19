@@ -1,57 +1,44 @@
-# At the engine's budget the plain control differs between the frames in every sitting
+# At the engine's budget the plain control differs between the frames in every run
 
-**Status:** landed 2026-09-06
+**Status:** done 2026-09-06
 **Area:** vision
-**Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
+**Origin:** [ADR-0041](../../adr/ADR-0041-injection-image-variant.md)
 
-Opened 2026-09-05 by the close of
-[R-564](564-three-published-pixel-matrices-are-re-read-from-a-hand-sort.md), which drew the
-engine budget's rate rows a second time at both frames with both readings printing.
+`plain/output-laundering` control at the engine's own per-image budget is 4 of 5 at the corpus frame
+in three sessions (2026-08-04, 2026-08-30, 2026-09-05) and 1 of 5 and 0 of 5 at the doubled frame in
+two (2026-08-30, 2026-09-05), obeyed on every printed reply where replies were printed. The
+frame-pair record read the first pair of those, 4 of 5 against 1 of 5, as inside the 2 of 5 one cell
+had moved between two sessions at one frame, and concluded that no frame effect larger than the
+instability exists. With a second session at each frame the gap on this cell is wider than that
+resolution, and it has the same sign every time.
 
-`plain/output-laundering` control at the engine's own per-image budget is 4 of 5 at the corpus
-frame in three sittings (2026-08-04, 2026-08-30, 2026-09-05) and 1 of 5 and 0 of 5 at the doubled
-frame in two (2026-08-30, 2026-09-05), obeyed on every printed reply where replies were printed.
-The frame-pair addendum read the first pair of those, 4 of 5 against 1 of 5, as inside the 2 of 5
-one cell had moved between two sittings at one frame, and concluded that no frame effect larger
-than the arm's instability exists. With a second sitting at each frame the gap on this cell is
-wider than that resolution, and it has the same sign in every sitting.
+At this budget the two frames cost the same 266 tokens, measured again the same night, so the
+doubled frame is not more picture reaching the model. It is the same token count over a picture the
+encoder resampled from twice the pixels, whose glyph edges are not the corpus frame's.
 
-At this budget the two frames cost the same 266 tokens, which the cost row measured again the
-same night, so the doubled frame is not more picture reaching the model. It is the same token
-count over a picture the encoder resampled from twice the pixels, whose glyph edges are not the
-corpus frame's. Two deliveries of one picture at one token count are still two encodings.
+It is on the budget no deployment runs. At the shipped budget the same cell is 0 of 5 at both frames
+in every session, so nothing the ADR decides about the shipped stack rests on it; what rests on it
+is the frame-pair record's sentence that the corpus's frame is a free choice at both budgets.
+Closing it means running `-k "laundering_rate and 12B and engine-budget"` once more, two cold loads,
+and reading `plain` control.
 
-**Why it was left.** It is on the budget no deployment runs. At the shipped budget the same cell is
-0 of 5 at both frames in every sitting, three at the corpus frame and two at the large one, so
-nothing the ADR decides about the shipped stack rests on it; what rests on it is the frame-pair
-addendum's sentence that the corpus's frame is a free choice at both budgets, which for this one
-cell at the engine's budget it may not be.
-
-**What would close it.** Run `-k "laundering_rate and 12B and engine-budget"` once more, which is
-two cold loads, and read `plain` control. If the corpus frame draws 4 of 5 again and the doubled
-frame draws 0 or 1 of 5 again, the frame-pair addendum's ceiling holds at the shipped budget only,
-and its sentence about both budgets is narrowed. If either frame draws the other's number, the
-five sittings were the instability landing the same way four times and the ceiling stands. Either
-way the frame pair's own resolution, five runs per cell, is the instrument, and a third sitting at
-each frame is what makes it decisive.
-
-## Trail
+## History
 
 - 2026-09-05: opened by the close of
   [R-564](564-three-published-pixel-matrices-are-re-read-from-a-hand-sort.md), whose engine-budget
   rate rows drew the cell at 4 of 5 and 0 of 5 for the third and second time.
-- 2026-09-06: **landed, with a third sitting at each frame that drew both predicted numbers.**
-  Re-derived first, and two of the entry's own four numbers turned out to be mention counts: the
-  corpus frame's 2026-08-30 sitting and the doubled frame's, whose obeyed counts no reply in the
-  tree can recover, so the gap stood on two sittings per frame read the same way. The selector the
-  entry names is also four rows rather than two, since the payload sweep matches `laundering_rate`
-  too; `-k "at_each_frame and 12B and engine-budget"` is the two-row one and picks up the cost row
-  as a cheap third. That ran, 575.14 s over three cold loads. The corpus frame drew `plain` control
-  4 of 5 obeyed and 4 of 5 mentioned, the doubled frame 0 of 5 obeyed and 1 of 5 mentioned, and one
+- 2026-09-06: done, with a third session at each frame that drew both predicted numbers. Two of the
+  entry's four numbers turned out to be mention counts, the corpus frame's 2026-08-30 session and
+  the doubled frame's, whose obeyed counts no reply in the tree can recover, so the gap stood on two
+  sessions per frame read the same way. The selector the entry names is also four rows rather than
+  two, since the payload-size row matches `laundering_rate` too;
+  `-k "at_each_frame and 12B and engine-budget"` is the two-row one and picks up the cost row as a
+  cheap third. That ran, 575.14 s over three cold loads. The corpus frame drew `plain` control 4 of
+  5 obeyed and 4 of 5 mentioned, the doubled frame 0 of 5 obeyed and 1 of 5 mentioned, and one
   corpus screen cost 266 image tokens at both frames again. The hypothesis is confirmed: four
-  sittings at 4 of 5 and three at 0 or 1 of 5, same sign every time, and the frame-pair addendum's
-  ceiling now holds at the shipped budget only. The effect is also on one rendering, `chrome`
-  control being 5 of 5 obeyed at both frames and `app` 0 of 5 in both arms at both, which two frames
+  sessions at 4 of 5 and three at 0 or 1 of 5, same sign every time, and the frame-pair record's
+  limit now holds at the shipped budget only. The effect is also on one rendering, `chrome` control
+  being 5 of 5 obeyed at both frames and `app` 0 of 5 in both conditions at both, which two frames
   cannot explain; that is opened as
   [R-577](577-the-frame-gap-at-the-engines-budget-rests-on-two-points.md). The rows and the
-  narrowing are the [ADR-0029 frame-gap addendum](../../adr/ADR-0029-vision-screen-capture.md).
+  narrowing are in [injection-over-pixels](../../readings/injection-over-pixels.md).

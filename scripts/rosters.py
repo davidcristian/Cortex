@@ -8,17 +8,15 @@ from typing import NamedTuple
 import rostermembers
 from rosternames import Bare, Bulleted, Spelled, Written
 
-# How a member is written where a roster runs as a sentence rather than as a list. A module is a
-# bare file name, so a code span carrying a path or a flag beside one is not a member; a part is
-# the tuple name the registry joins, which no other code span in that passage is shaped like.
 MODULE = re.compile(r"[a-z_]+\.py")
 PART = re.compile(r"[A-Z][A-Z_]*_COUPLINGS")
 
+# A directory the repo map says a workspace holds: the name, then the description in
+# parentheses. The description is what makes a name a member, so the planned package, written
+# `(planned) shared` with nothing behind the name, is not one.
 DIRECTORY = re.compile(r"[a-z][a-z_]*(?=[ \n]+\()")
 
-# The sentence dividing the gate tree's contract in two. It is one phrase and it bounds two
-# rosters, closing the one over the modules a shell can run and opening the one over the rest.
-NO_CLI = "**The rest have no CLI of their own**"
+NO_CLI = "**The rest have no command line of their own.**"
 
 SCANS = (
     "a reader learns from this list which gates run on every change, and a scan missing from it "
@@ -57,8 +55,8 @@ ROSTERS: tuple[Roster, ...] = (
     ),
     Roster(
         label="the modules this tree runs from a shell",
-        document=Path("docs/modules/repo-gates.md"),
-        opens="**Public contract**",
+        document=Path("docs/modules/repo-checks.md"),
+        opens="## Public contract",
         closes=NO_CLI,
         written=Spelled(pattern=MODULE),
         subject="a module in scripts/ with a command line of its own",
@@ -70,9 +68,9 @@ ROSTERS: tuple[Roster, ...] = (
     ),
     Roster(
         label="the modules this tree only reads",
-        document=Path("docs/modules/repo-gates.md"),
+        document=Path("docs/modules/repo-checks.md"),
         opens=NO_CLI,
-        closes="implements AGENTS.md gate 1",
+        closes="## How the checks run",
         written=Spelled(pattern=MODULE),
         subject="a module in scripts/ with no command line",
         why=(
@@ -118,7 +116,7 @@ ROSTERS: tuple[Roster, ...] = (
     ),
     Roster(
         label="the brain's packages in the repo map",
-        document=Path("AGENTS.md"),
+        document=Path("docs/ARCHITECTURE.md"),
         opens="  packages/",
         closes="body/             Rust/Tauri workspace",
         written=Bare(pattern=DIRECTORY),
@@ -131,7 +129,7 @@ ROSTERS: tuple[Roster, ...] = (
     ),
     Roster(
         label="the body's crates in the repo map",
-        document=Path("AGENTS.md"),
+        document=Path("docs/ARCHITECTURE.md"),
         opens="  crates/",
         closes="  app/            React",
         written=Bare(pattern=DIRECTORY),
@@ -143,21 +141,8 @@ ROSTERS: tuple[Roster, ...] = (
         members=rostermembers.body_crates,
     ),
     Roster(
-        label="the gate tree in the repo map",
-        document=Path("AGENTS.md"),
-        opens="scripts/          repo gates",
-        closes=".github/          GPU-less CI running",
-        written=Bare(pattern=MODULE),
-        subject="a module in scripts/",
-        why=(
-            "this map is what the contract every agent here reads says the tree contains, and a "
-            "module missing from it is a module the next agent works around rather than with"
-        ),
-        members=rostermembers.gate_modules,
-    ),
-    Roster(
         label="the registry's parts",
-        document=Path("docs/modules/repo-gates.md"),
+        document=Path("docs/modules/repo-checks-scans.md"),
         opens="`crosscheck.CONSTANTS` is",
         closes="Each part is named for its subject",
         written=Spelled(pattern=PART),

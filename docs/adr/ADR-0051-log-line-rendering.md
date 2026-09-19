@@ -180,7 +180,7 @@ is [ADR-0045](ADR-0045-documented-log-lines.md).
 - [brain-core module contract](../modules/brain-core.md) (`log_fields`, `log_format`),
   [brain-orchestrator](../modules/brain-orchestrator.md),
   [brain-model-manager](../modules/brain-model-manager.md),
-  [repo checks](../modules/repo-gates.md) (`trailwidth.py`).
+  [repo checks](../modules/repo-checks.md) (`trailwidth.py`).
 - Runbooks: [local-dev-wsl](../runbooks/local-dev-wsl.md),
   [memory-pgvector](../runbooks/memory-pgvector.md), [model-swap](../runbooks/model-swap.md),
   [scheduling](../runbooks/scheduling.md).

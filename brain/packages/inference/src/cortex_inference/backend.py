@@ -1,5 +1,10 @@
-"""LlamaCppBackend: the InferenceBackend port over llama-server's OpenAI HTTP API."""
+"""The ``InferenceBackend`` port over llama-server's OpenAI HTTP API.
 
+It takes a GPU lease from the ``ModelManager``, opens a streaming chat completion against the
+leased endpoint, and yields the reply and the model's thinking as core events.
+"""
+
+import logging
 from collections.abc import AsyncIterator, Iterator, Sequence
 
 import httpx
@@ -27,6 +32,8 @@ _CHAT_COMPLETIONS_PATH = "/v1/chat/completions"
 _SSE_DATA_PREFIX = "data:"
 _SSE_DONE = "[DONE]"
 
+_logger = logging.getLogger(__name__)
+
 
 def _transport_failure(err: httpx.HTTPError, model: str) -> InferenceError:
     """The port's error for a failed exchange, with a stall named apart from a dead server."""
@@ -48,7 +55,11 @@ def _chunk_events(chunk: ChunkRead) -> Iterator[InferenceEvent]:
 
 
 class LlamaCppBackend:
-    """InferenceBackend over a llama-server OpenAI-compatible endpoint (ADR-0005)."""
+    """``InferenceBackend`` over a llama-server OpenAI-compatible endpoint.
+
+    The ``http_client`` is injected, so the adapter sets no request timeout of its own: a
+    generation may stream for a long time, and the root's ceiling is a per-read stall bound.
+    """
 
     def __init__(
         self,
@@ -59,7 +70,22 @@ class LlamaCppBackend:
     ) -> None:
         self._manager = model_manager
         self._client = http_client
+        # Off by default: an engine that does not parse ``reasoning_budget_tokens`` drops the
+        # count without reporting anything, which would leave a setting that changes nothing.
         self._trace_lever = trace_lever
+        self._reported_unsent_budget = False
+
+    def _report_unsent_budget(self, model: str, bounds: GenerationBounds | None) -> None:
+        """Warn, once per backend, when a request names a trace count it will not send."""
+        if self._trace_lever or self._reported_unsent_budget or bounds is None:
+            return
+        if bounds.trace_tokens is None or (bounds.trace_tokens == 0 and not bounds.thinking):
+            return
+        self._reported_unsent_budget = True
+        _logger.warning(
+            "trace budget not sent because the trace lever is off",
+            extra={"model": model, "trace_budget": bounds.trace_tokens},
+        )
 
     async def stream(
         self,
@@ -71,6 +97,7 @@ class LlamaCppBackend:
         bounds: GenerationBounds | None = None,
     ) -> AsyncIterator[InferenceEvent]:
         """Stream text deltas from the leased llama-server, then any assembled tool calls."""
+        self._report_unsent_budget(model, bounds)
         payload = build_payload(
             model, messages, tools, schema, bounds, trace_lever=self._trace_lever
         )

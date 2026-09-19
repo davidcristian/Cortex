@@ -1,506 +1,250 @@
 # ADR-0030: Brain handoff (the real model swap)
 
-- **Status:** Accepted (2026-07-17)
-- **Date:** 2026-07-17
+**Status:** Accepted (2026-09-17)
 
 ## Context
 
-Slice 11 (docs/ROADMAP.md) is the capstone: the one hard rule proven end to end. The full
-handoff is cortex escalates → context serialized → the model manager evicts cortex/subagents
-and loads the brain (stops their `llama-server` processes, starts the brain's, per ADR-0005
-decision 3) → the brain rehydrates from the store, works, persists → swap back → cortex
-resumes from the store. It includes a chaos test (kill a model mid-handoff; the system resumes
-from the store) and the runbook `docs/runbooks/model-swap.md`.
+The one hard rule in [AGENTS.md](../../AGENTS.md) says state must survive a model swap. This record
+turns that rule into a mechanism: the cortex escalates mid-turn, its context is serialized to a
+store, the model host evicts the cortex and loads the deep model, the deep model reads the store,
+works and stores its results, and the cortex comes back and resumes from the store.
 
-The design sits on what exists, not on guesses. The facts the design rests on, each read from the
-tree at the commit this ADR lands on:
+Most of a turn already lives in a store (history, tasks, schedules, memory). What does not, mid-turn,
+is the tool loop's tail (the assistant tool-call messages and fenced `Role.TOOL` results, which are
+never stored), the `TaintLedger`, the fence nonce, the turn-wide `DispatchBudget` and the round
+count. The GPU lease is held across one inference round, not one turn, and the body opens one
+`Converse` stream per turn, so anything the user sees during a handoff is sent on that turn's own
+stream. The deep model (gemma-4-31B QAT q4_0, about 18.7 GiB at an 8K context) does not fit beside
+the cortex (about 8.4 GiB at its peak) on the 24 GB card this repo targets, so a handoff is an
+eviction.
 
-- **Almost everything is already in the stores.** The engine is a stateless function over
-  `SessionStore` ([engine.py](../../brain/packages/core/src/cortex_core/engine.py): the module
-  docstring and `handle_turn`); tasks live in the Redis `TaskStore`, schedules in the
-  `ScheduleStore`, durable memory in pgvector
-  ([ports_stores.py](../../brain/packages/core/src/cortex_core/ports_stores.py)). What is NOT
-  in any store mid-turn: the tool loop's `working` tail (the `Role.ASSISTANT` tool-call and
-  fenced `Role.TOOL` messages the loop appends are never persisted; only the user message and
-  the final reply are), the `TaintLedger` (tainted bit, `sources`, `untrusted_urls`;
-  [untrusted.py:90](../../brain/packages/core/src/cortex_core/untrusted.py)), the per-turn
-  fence `nonce`, the `DispatchBudget`, and the loop's round position.
-- **The GPU lease is a non-reentrant `asyncio.Lock` held across one inference round, not one
-  turn.** `SingleResidentModelManager` serializes callers on `self._lock`
-  ([model.py:41](../../brain/packages/core/src/cortex_core/model.py)) and raises
-  `ModelUnavailableError` for any non-resident model (model.py:51). `LlamaCppBackend.stream`
-  holds the lease across the whole SSE stream
-  ([backend.py:185](../../brain/packages/inference/src/cortex_inference/backend.py)), but each
-  tool-loop round is its own `backend.stream` call
-  ([tool_loop.py:211](../../brain/packages/core/src/cortex_core/tool_loop.py)), closed before
-  any dispatch runs (tool_loop.py:224), so the GPU is free while a tool executes.
-- **The tier seam already exists and always answers cortex.** `route_turn(RoutingHints())`
-  with default hints selects `Tier.CORTEX`
-  ([engine.py:155](../../brain/packages/core/src/cortex_core/engine.py),
-  [routing.py:24](../../brain/packages/core/src/cortex_core/routing.py)); `Tier.BRAIN` and
-  `needs_deep_reasoning` are shaped but nothing produces them.
-- **Processes are compose services today, started declaratively.** The resident cortex is the
-  `llama-cortex` service ([docker-compose.gpu.yml:24](../../docker/docker-compose.gpu.yml))
-  with `restart: unless-stopped`; the subagent tier is one CPU `llama-server` serving BOTH
-  placement targets ([docker-compose.subagents.yml:39](../../docker/docker-compose.subagents.yml)),
-  the real GPU sidecar being an ADR-0012 host-half deferral. Nothing in the running system can
-  stop or start a model process.
-- **The swap's composition contract is already written.** ADR-0007 decision 3 defers the
-  `cortex_model_manager` package (process lifecycle behind the unchanged `ModelManager` port)
-  to this slice; ADR-0012 decision 1 pins `acquire(model) -> ModelLease` to zero change and its
-  consequences defer `SubagentScheduler.drain()` as an additive method composed "at the swap
-  orchestrator, never merging the ports". The scheduler and placer are ONE object across roster
-  entries ([subagent_builders.py:106](../../brain/packages/orchestrator/src/cortex_orchestrator/subagent_builders.py)).
-- **`Health` is unconditionally ready.** The servicer answers `ready=True` always
-  ([server.py:102](../../brain/packages/orchestrator/src/cortex_orchestrator/server.py));
-  `HealthReply` already carries `ready` + `detail`
-  ([body.proto:138](../../proto/body.proto)). The overlay indicator already classifies a
-  future `ready=false` as amber Degraded, and the streamed-status deferral names this slice as
-  the producer that makes it real ([body-overlay](../refinements/index.md#body-overlay)).
-- **The body is one turn per `Converse` call.** The overlay opens a fresh stream per submit
-  and the transport sends exactly one `UserTurn`
-  ([body-overlay](../refinements/index.md#body-overlay), read against
-  `body/crates/rpc/src/converse.rs`). Anything the user must see during a handoff therefore
-  has to ride the escalating turn's own event stream, or wait for a body seam change.
-- **VRAM (ADR-0004, measured):** 24 GB GPU, soft cap 14 GB (`CORTEX_VRAM_SOFT_CAP_GB`), cortex
-  gemma-4-12B at ~11.3 GB incl. vision at 16K ctx, subagent E4B VRAM ask 5.5 GB (deliberately
-  above the ~2.7 GB headroom, so every spawn overflows to CPU today), brain candidates 15-18 GB
-  of weights that "all fit alone in 24 GB". That last clause was confirmed on 2026-08-04, when
-  the brain pick was measured and landed: **gemma-4-31B QAT q4_0**, 19128 MiB alone on the card at
-  an 8192 context and 99.6 s from start to READY, with all four candidates fitting and none
-  needing the hybrid fallback (ADR-0004's brain-pick addendum).
-- **Sequencing and the line cap.** ADR-0029 (Slice 10, designed, not yet implemented) records
-  `engine.py` at 299 of 300 lines and `tool_loop.py` at 297. This slice lands after the vision
-  slice; its engine-adjacent additions live in new modules and any residual cap pressure is
-  resolved by a mechanical split planned up front, per the same ADR's precedent.
+The supervisor sidecar is [ADR-0053](ADR-0053-model-host-supervisor.md); the residency report and
+the cortex's peers [ADR-0054](ADR-0054-baseline-residency.md); co-residency, the fit check and the
+spill watch [ADR-0055](ADR-0055-co-residency-and-spill-watch.md).
 
-## Decisions
+## Decision
 
-Each decision names the alternatives considered and why they lost.
+### 1. Escalation is an explicit `escalate_to_brain` built-in tool that needs confirmation
 
-### 1. Escalation is an explicit, gated `escalate_to_brain` built-in tool
+The cortex calls `escalate_to_brain(brief)` (`cortex_core/escalate.py`) when it finds mid-turn that
+the task is beyond it; mid-turn is where the evidence is. The tool writes only `slot.brief` (stripped,
+at most `MAX_BRIEF_CHARS`, 4,000, refused whole rather than cut) and tells the model to finish without
+further tools. It is registered only when the escalating wrapper is configured, since a tool that
+could only refuse would be a misleading advertisement.
 
-The cortex decides mid-turn that it is out of its depth by calling a new built-in tool,
-`escalate_to_brain(brief)`, advertised like the volume and spawn built-ins and dispatched
-through the audited `ToolDispatcher`. `brief` is the cortex-authored statement of what the
-deep model should do and what has been learned so far. The tool is marked **gated**, which
-buys both existing protections at zero new mechanism: on an untainted turn the user confirms
-via the ADR-0022 card (a swap takes minutes and claims the whole GPU; that consent surface
-already exists), and on a tainted turn the call is hard-denied with the confirmer never
-consulted ([dispatch.py](../../brain/packages/core/src/cortex_core/dispatch.py)), so injected
-content can never force an eviction. Because the brain tier's injection robustness is
-unmeasured until the harness runs (decision 9 / the backlog section), refusing to hand
-attacker-influenced context to a stronger tools-holding model is the only honest v1 default.
+The tool **needs confirmation**: an untainted turn confirms through the ADR-0022 card, whose reason
+is the tool's own (`DispatchPolicy.gate_reasons`, configured as `CORTEX_TOOLS_GATE_REASONS__<name>`),
+and a tainted turn is denied outright with the confirmer never consulted. Of the deny's two reasons,
+the deep tier's unmeasured injection resistance no longer applies (the model obeyed 0 of 10 framed
+injections, [ADR-0013](ADR-0013-untrusted-content.md)); the other still holds, since no model
+measurement addresses it: injected content must never force an eviction that claims the GPU for
+minutes. The deny is the dispatcher's generic branch for tools needing confirmation, unconditional by
+[ADR-0022](ADR-0022-email-write-confirmer.md) decision 2, so relaxing it means an explicit exception
+rather than a configuration change.
 
-Two consequences are named rather than hidden. First, the generic gate reason ("outbound or
-irreversible", dispatch.py:42) would be false on this card, the same falsehood argument
-ADR-0029 used against gating capture; the gate therefore grows an optional per-tool reason
-(config beside `CORTEX_TOOLS_GATED`, flowing into `ConfirmationRequest.reason`), an additive
-change, and the escalate card says what is true: the deep model will take over and the machine
-will be busy for a while. Second, a turn carrying screen-capture pixels cannot escalate:
-pixels are turn-local by ADR-0029's store invariant, the handoff record refuses image-bearing
-messages the same way the session stores do, and the user is told to ask again in a fresh message.
-Escalating an `opaque` turn would otherwise quietly widen pixel persistence, which that ADR
-explicitly reserved as its own deliberate decision. (Where that refusal belongs was corrected on
-2026-07-19; see this ADR's addendum. It is the gate plus the conductor, not the tool.)
+A turn that has seen screen-capture pixels cannot escalate, pixels being turn-local
+([ADR-0029](ADR-0029-vision-screen-capture.md)): the confirmation rule closes capture-then-escalate
+(an opaque turn is tainted), and the conductor refuses the reverse order on the ledger's `opaque`
+bit (`OPAQUE_TURN_NOTE`). A pre-turn policy would be a producer of the existing `RoutingHints`.
 
-Smarter policies slot in later without new seams: `route_turn` already accepts
-`needs_deep_reasoning` and `explicit_tier` (routing.py:16), so a pre-turn heuristic or a
-user-invoked "think deeper" affordance becomes a producer of `RoutingHints`, not a new
-mechanism. The tool is the v1 because mid-turn is where the evidence lives: the cortex
-discovers it needs depth after reading, not before.
+### 2. The handoff record and the `HandoffStore` port
 
-Rejected: **a pre-turn core policy** (nothing honest to compute it from yet; it would be a
-heuristic pretending to be a decision); **user-invoked only** (it cannot express the common
-case, the cortex discovering mid-turn that the task is deep, and it needs body/proto surface
-this slice does not otherwise touch); **an ungated tool with an internal taint check** (loses
-the user-consent card for a machine-wide disruption, and re-implements half the gate).
+`HandoffRecord` (`cortex_core/handoff.py`) holds only what is not already in a store:
+`handoff_id` (the escalating turn's id, [ADR-0046](ADR-0046-work-identities-on-log-lines.md)
+decision 4), `session_id`, a timezone-aware `requested_at`, `state`, `brief`, the fence `nonce`,
+the whole ledger (`tainted`, `opaque`, `sources`, `untrusted_urls`), `budget_remaining` and
+`budget_closed` (so a swap never refills the allowance; `DispatchBudget.resume` rebuilds the pool),
+`rounds_used`, the text-only `loop_tail`, and `failure` (decision 10). `opaque` is defence in depth:
+no record has it set today, but both its consumers (the URL guardrail's strict mode and the
+tainted-memory policy) relax on `False`, so a rebuilt ledger must never invent one.
 
-### 2. The handoff record: schema, and the `HandoffStore` port
+States run `READY`, `BRAIN_ACTIVE`, then terminal `DONE` or `FAILED`; `PENDING` has no producer.
+`HandoffStore` (`put`, `get`, `transition(id, state, *, failure=None)`, `delete`, `active()`) sits in
+`ports_stores.py` with a core fake and a Redis adapter in `cortex_session`. The codec reads every
+field strictly: a missing taint key is a corrupt record (`HandoffStoreError`), never a default. At
+most one handoff is active; `active()` treats a dangling pointer, or one naming a terminal record, as
+no handoff. A clean handoff ends `DONE` and is deleted, which frees the pointer, so success leaves no
+record; a failed one is kept for one hour (`_TERMINAL_TTL_SECONDS`); a live one has no TTL, so boot
+recovery finds it.
 
-Per the hard rule, the record carries only what is NOT already in a store. Frozen dataclass
-`HandoffRecord` (new `cortex_core/handoff.py`):
-
-- `handoff_id` (= the escalating `turn_id`), `session_id`, `requested_at`;
-- `state`: `PENDING` → `READY` → `BRAIN_ACTIVE` → terminal `DONE` | `FAILED`;
-- `brief`: the cortex's escalation ask (model-authored text, same trust domain as the
-  conversation);
-- `nonce`: the turn's fence id, carried so the fenced blocks in the tail stay explained by the
-  preamble's "markers carry a random id per turn" rule instead of becoming unexplained
-  markers under a fresh nonce;
-- the serialized `TaintLedger`: `tainted` bit, `sources` (the kind-tagged ADR-0027
-  `Provenance` values), and `untrusted_urls` (the ADR-0015 laundering evidence, without which
-  the brain phase's guardrail would forget every URL read before the swap);
-- `budget_remaining` + `budget_closed` (the turn-wide dispatch pool survives the swap; a swap
-  must not refill the turn's allowance);
-- `rounds_used`, and `loop_tail`: every message the tool loop appended this turn (the
-  assistant tool-call messages and the fenced `Role.TOOL` results, in order), text-only by the
-  same invariant the session stores enforce (ADR-0029).
-
-This is the schema the untrusted-content backlog flagged: the tainted bit AND the sources
-survive a mid-turn swap because they are IN the record, and provenance rides the serialized
-tool-step context. The contract test pins an exact round trip of a tainted ledger (bit,
-sources order, URL set) through the store and back into a reconstructed `TaintLedger`.
-
-It lives behind a new port, `HandoffStore` (`put`, `get`, `transition(id, state)`, `delete`,
-`active() -> HandoffRecord | None`), in `ports_stores.py` beside the four existing store
-ports, with the in-memory fake in core and a Redis adapter in `cortex_session` (hot state,
-exactly the `TaskStore` precedent; terminal records get a TTL). At most one handoff is active
-at a time (one GPU), which `active()` makes checkable and boot recovery (decision 5) relies
-on. Failures surface as a typed `HandoffStoreError`.
-
-Mechanically, the turn's in-flight state reaches the serializer through an `EscalationSlot`:
-a mutable turn-local object created next to the ledger and nonce, holding references to
-`working`, the ledger, the nonce, and the budget, and threaded to the tool the same way
-`budget` and `progress` already ride `ToolLoopContext`/`TurnStamp` (tool_loop.py:271). The
-tool writes only `slot.brief`; the conductor snapshots everything else at the loop boundary,
-after the cortex phase's generator has finished, so nothing is copied mid-flight.
-
-Rejected: **reusing `TaskStore`** (a handoff is not a subagent task; overloading the port
-muddies both contracts and the fake); **persisting the tail into `SessionStore`** (it would
-make half-finished tool rounds part of durable history and every reader would need to learn
-to skip them); **widening `TurnStamp` to carry the whole ledger and working list** (the stamp
-is a frozen per-dispatch value; hanging the turn's mutable state off it inverts its meaning).
+The in-flight state reaches the serializer through an `EscalationSlot`, built empty by the wrapper,
+filled by the engine at turn start with `EscalationRefs` (working list, ledger, nonce, budget,
+pre-loop length), and snapshotted by the conductor after the cortex phase has finished.
 
 ### 3. The process-lifecycle port: `ModelHost`, adapted by a supervisor sidecar
 
-The deferred `cortex_model_manager` package arrives, split into a port and a deliberately
-boring adapter pair.
-
-**The port** (in `cortex_core`, beside `ModelManager`):
-
-```python
-class ModelHost(Protocol):
-    async def start(self, model: str) -> None: ...      # idempotent; begins loading
-    async def stop(self, model: str) -> None: ...       # idempotent; SIGTERM then SIGKILL
-    async def status(self, model: str) -> ModelHostState: ...  # STOPPED|LOADING|READY|FAILED
-```
-
-`model` is a logical id (ADR-0004 decision 2); artifact paths, ports, `-ngl`, and ctx flags
-never cross the port. Failures surface as a typed `ModelHostError`. The fake in core is
-scriptable (delays, failures, kill-at-step) and is what CI and the chaos test drive; the real
-adapter's live tests are `integration`-marked, per gate 3.
-
-**The real mechanism** is a new `model-host` supervisor sidecar replacing the always-on
-`llama-cortex` service in `docker/docker-compose.gpu.yml`: one container holding the GPU
-device reservation and the read-only models mount, running a small daemon (shipped from the
-new `cortex_model_manager` workspace package, the standalone-sidecar precedent set by
-`cortex_email`) that spawns and kills one `llama-server` child process per logical model on a
-fixed per-model port (cortex :8080, brain :8081, GPU subagent :8083), each with argv built
-from its own env (`CORTEX_MODEL_FILE_BRAIN`, `CORTEX_NGL_BRAIN`, `CORTEX_CTX_SIZE_BRAIN`, and
-the existing cortex knobs). Its HTTP control API is the wire behind the `ModelHost` adapter
-(`CORTEX_MODELHOST_ENDPOINT`), reachable only on the compose network. `status` proxies the
-child's `/health`, so "READY" means what the compose healthcheck means today. At boot the
-daemon starts the cortex (its default residency), so a stack that never escalates behaves
-byte-for-byte as the current one. Killing a child loses nothing by construction: that is
-ADR-0005 decision 3 made literal.
-
-This container is also where the ADR-0012 host-half lands: the real GPU subagent
-`llama-server` (`-ngl 99`) becomes a hosted model, `CORTEX_SUBAGENTS_GPU_ENDPOINT` points at
-it, and the per-container cgroup caps ride the compose revision.
-
-Rejected: **the Docker API from the brain container** (mounting `docker.sock` into the
-process that runs model-influenced code is host-root in the hands of whatever compromises
-it); **a socket-holding controller sidecar driving `docker compose stop/start`** (still
-host-root somewhere, plus compose-file awareness inside a container; the blast radius of a
-child-process supervisor is its own container); **subprocesses inside the brain container**
-(the brain image would need CUDA and the GPU reservation, coupling orchestration restarts to
-model residency and fattening the attack surface of the one container that talks to
-sidecars).
+`ModelHost` (`ports_models.py`) has `start`, `stop` and `status` (`STOPPED`, `LOADING`, `READY`,
+`FAILED`) over a **logical** model id, and three reads (`device_memory`, `control_bounds`,
+`boot_id`). Model file paths, ports and layer counts never cross it. It raises `ModelHostError`, or
+its subclass `ModelNotHostedError` when the host has no such id. `ScriptedModelHost` is the core
+twin CI drives. The real adapter drives the `model-host` sidecar, which holds the GPU reservation
+and runs one `llama-server` child per logical model on a fixed port (cortex `:8080`, deep `:8081`,
+GPU subagent `:8083`), starting the cortex at boot; killing a child loses nothing, by design
+([ADR-0005](ADR-0005-llamacpp-engine.md) decision 3).
 
 ### 4. The swap sequence, its ordering guarantees, and every failure's direction
 
-The conductor runs the sequence inside the escalating turn (decision 6), after the cortex
-phase ends. Fail-safe direction throughout: **every exit path converges back to a serving
-cortex**; the swap back is the recovery path, not an optimization.
+Every exit path converges back to a serving cortex; the swap back is the recovery path.
 
-1. **Snapshot.** Build the `HandoffRecord` from the slot, persist it `READY`. Nothing has
-   been stopped yet; a crash here leaves a record that boot recovery marks `FAILED` and a
-   fully working cortex.
-2. **Drain subagents.** `SubagentScheduler.drain()` (the ADR-0012 deferral, additive on the
-   port): stop admitting, wait for in-flight admissions to release, bounded by
-   `CORTEX_SWAP_DRAIN_TIMEOUT_S` (default 60 s). While draining and for the whole handoff,
-   `admit` refuses with the typed `SubagentAdmissionError` ("pool draining for a model
-   handoff") instead of queuing; the runner already degrades that to an `ok=False` result
-   ([runner.py:152](../../brain/packages/core/src/cortex_core/runner.py)). Refuse, not queue,
-   because a brain-phase spawn queuing on a drained pool until swap-back would deadlock the
-   turn against its own drain. On timeout (one wedged CPU stream is a real hazard, bounded since
-   the per read stall ceiling landed at the delegated pool's 600 s rather than not at all, which
-   is what the deliberate `read=None` client this line used to cite meant):
-   **abort the handoff before anything is evicted**, mark the
-   record `FAILED`, tell the user, and continue on the cortex.
-3. **Swap in.** Enter the residency scope (decision 5): wait for the GPU lease to fall free
-   (the swap never preempts a mid-stream round in v1), then `stop(cortex)`, `stop(gpu
-   subagent)` if hosted, `start(brain)`, and health-gate by polling `status(brain)` until
-   `READY`, bounded by `CORTEX_SWAP_LOAD_TIMEOUT_S` (default 300 s; an 18 GB GGUF off the
-   drvfs mount at the measured ~150-180 MB/s is minutes, ADR-0004). Record state →
-   `BRAIN_ACTIVE`. On `FAILED` status or timeout (VRAM short, CUDA OOM at load, dead
-   sidecar): best-effort `stop(brain)`, `start(cortex)`, health-gate, mark `FAILED`, report
-   honestly on the stream. If the cortex restore itself fails: retry once, then surface
-   `ready=false` on `Health` with a loud log; the runbook owns manual recovery, and the
-   compose `restart` policy revives a dead sidecar whose boot default is cortex-up.
-4. **Rehydrate and run.** Reload history from `SessionStore` (windowed as usual), rebuild the
-   working set as preamble + recalled context + history + the record's `loop_tail`,
-   reconstruct the `TaintLedger` from the record, resume the carried budget, and run the
-   shared `stream_tool_loop` against model id `brain` with the same audited dispatcher, the
-   guardrail seeded with the record's URL evidence, and a fresh rounds allowance (the budget
-   is the spend bound and it carried; salience is per-loop by design, and a cross-swap repeat
-   costs budget but is not refused, a bounded residual this ADR accepts).
-5. **Persist.** The brain's reply is appended as an assistant message under the same
-   `turn_id`; a brain-phase memory record is written under the same taint policy the engine
-   applies.
-6. **Swap back.** Scope exit (a `finally`, so crash-or-success): `stop(brain)`,
-   `start(cortex)`, health-gate, record → `DONE`, then delete. A mid-work brain crash
-   (`InferenceError` from a dead server) persists the partial text with an honest failure
-   note, exactly the runner's parts-so-far discipline, then converges the same way.
+1. **Snapshot**: store the record `READY` before anything touches the pool.
+2. **Drain**: `SubagentScheduler.drain()` stops admitting and waits for in-flight admissions,
+   bounded by `CORTEX_SWAP_DRAIN_TIMEOUT_S` (60 s); `admit` refuses (`SubagentAdmissionError`)
+   rather than queues for the whole handoff, since a queued deep-phase spawn would deadlock the turn
+   against its own drain. On timeout the handoff aborts **before anything is evicted**. The drain
+   waits on admissions, never on a schedule lease, and a whole CPU subtask takes 3 to 5 times the
+   bound ([ADR-0005](ADR-0005-llamacpp-engine.md) decision 7), so meeting one usually aborts, which
+   is the intended direction. Raising the setting trades handoff latency for handoff success.
+3. **Swap in**: wait for the lease to fall free (no mid-stream preemption), stop the cortex and
+   every `CORTEX_SWAP_EVICT_MODELS` tier, start the deep model and wait for it to report `READY`
+   within `CORTEX_SWAP_LOAD_TIMEOUT_S` (300 s), store `BRAIN_ACTIVE`. A failed load stops it and
+   restores the cortex.
+4. **Read the state back and run** the shared `stream_tool_loop` on the deep model over windowed
+   history, recall and the record's tail, with the rebuilt ledger, the resumed budget, the same
+   audited dispatcher and the guardrail seeded with the stored URLs; the rounds allowance is fresh.
+5. **Store** the deep reply as a second assistant message under the same `turn_id`, and memory
+   under the engine's taint policy; a deep model that dies mid-answer has its partial text stored
+   with its failure note.
+6. **Swap back**, in the scope's `finally`: stop the deep model, start the cortex and wait for it to
+   report `READY` (one retry, then a logged failure), then start every evicted tier back, best
+   effort. The restore is a shielded task that waits out **every** cancellation and re-raises the
+   first once done, because the gRPC layer cancels a torn-down turn twice; `undrain` runs after it.
 
-**Boot recovery** (wiring startup): read `HandoffStore.active()`; any non-terminal record is
-marked `FAILED` (kept under TTL for diagnosis), and residency is converged: `status` each
-hosted model, stop a running brain, ensure the cortex is `READY`. v1 deliberately does **not**
-auto-resume a brain phase after a crash: without a request-identity/dedup design, replaying
-risks double-running side-effectful work, the exact hazard the seam-transport reconnect entry
-sharpened. Resume-from-record is the recorded refinement, unlocked by that same dedup design.
+**Boot recovery** fails any non-terminal record with `STRANDED_REASON` and brings residency back to
+plan ([ADR-0054](ADR-0054-baseline-residency.md) decision 2). A crashed deep phase is **not** resumed:
+a resumed phase would re-run every tool the deep model had dispatched, which only a request-identity
+and deduplication design prevents, and it would be a conductor entry point started beside the gRPC
+server, never a step of boot recovery, which runs first.
 
-### 5. Who orchestrates: a core conductor over an additive residency scope; `acquire` unchanged
+### 5. Who orchestrates: a core conductor over an added residency scope; `acquire` unchanged
 
-Three pieces, all explicit typed code in the core, composed at the orchestrator's root:
+- **`SwappingModelManager`** implements the unchanged `ModelManager` (`acquire` leases the resident
+  model under one lock) and the separate **`ResidencyController`**: `swap_scope(model)`,
+  `handoff_claim()` (non-blocking, nothing awaited between its check and set) and `unhosted(model)`
+  (decision 11). While a scope is active, `acquire` of another model waits instead of raising.
+- **`SwapConductor`** runs decision 4 over the store, the drain, the controller, a `Clock` and a
+  `Sleeper` port (so the health check never polls in real time under test). `HandoffSettler`
+  (`swap_settle.py`) owns the settling writes; `BrainPhase` bundles step 4, built per stream so the
+  deep model runs that stream's dispatcher; `turn_output.py` is the output half both phases share.
+- **`EscalatingTurnEngine`**, behind the `TurnRunner` port, builds the slot, runs the plain engine,
+  suppresses its `TurnCompleted` when the slot was filled, runs the handoff and emits one
+  `TurnCompleted` for the whole turn. It is wired only under `CORTEX_ESCALATION`, which requires
+  `CORTEX_MODELHOST_BACKEND` (`scripted` or `supervisor`) and `CORTEX_BRAIN_ENDPOINT` or boot fails.
 
-- **`SwappingModelManager`** (core, pure policy over the injected `ModelHost` port) implements
-  the unchanged `ModelManager` protocol: `acquire(model)` leases the resident model's endpoint
-  under the same single `asyncio.Lock` discipline as today. It additionally implements a new,
-  segregated **`ResidencyController`** protocol: `swap_scope(model)` is an async context
-  manager that waits for the lease to fall free, performs the process swap via `ModelHost`,
-  serves the new resident for the scope's duration, and on exit (in a `finally`) restores the
-  cortex. While a scope is active, `acquire` of a non-scope model **waits** instead of
-  raising, so a queued cortex turn on another stream blocks until restoration rather than
-  failing; outside any scope, non-resident `acquire` raises `ModelUnavailableError` exactly as
-  v1 does. The endpoint map (logical id → URL) is composition-root config.
-- **`SwapConductor`** (core) owns decision 4's sequence, composing `HandoffStore` +
-  `SubagentScheduler.drain` + `ResidencyController` + `ModelHost` status polling + a `Clock`
-  for the two timeouts. Per ADR-0012, drain is composed here, never merged into a port.
-- **`EscalatingTurnEngine`** (core) wraps the plain engine: per turn it builds the
-  `EscalationSlot`, constructs the inner `TurnEngine` (engines are stateless and per-stream
-  construction is free, [converse.py:61](../../brain/packages/orchestrator/src/cortex_orchestrator/converse.py)),
-  delegates `handle_turn`, suppresses the inner `TurnCompleted` when the slot was filled, runs
-  the conductor's phase 2, and emits the real `TurnCompleted`. The servicer's `EngineFactory`
-  wires the wrapper only when escalation is enabled (`CORTEX_ESCALATION`, default off), so CI
-  and the GPU-less loop are byte-identical to today.
+The claim is taken before anything is read, written, drained or evicted; a second handoff is refused
+with `ALREADY_ACTIVE_NOTE`, and `HandoffInProgressError` says one is running rather than that a swap
+failed. The store's `active()` check is the second line of defence, and the deep phase has no slot, so
+it cannot escalate to itself. **Every guard is in-process**, and the deployment runs one brain: the
+lease, the claim, the residency board, the peer record and the placer's ledger are instance state, so
+a second process that can swap needs a distributed-residency decision over all five.
 
-The rejected alternative is the one ADR-0012's consequences sketched in passing: **`acquire`
-itself performs the swap** (acquiring a non-resident model evicts and loads). It thrashes by
-construction: the brain's tool loop re-acquires per round, so any interleaved cortex `acquire`
-(a queued turn on a second stream, a ticker-driven pass) would swap back mid-task and the
-brain's next round would swap again, minutes each way. The scope is the second coordination
-primitive that makes eviction interact with in-flight streams safely: swaps happen only at
-lease-free boundaries, exactly once per handoff, and mid-stream preemption stays a recorded
-refinement (it is also the named trigger for the reconnect-dedup and real-abort backlog
-entries, which this ADR leaves where they are). `acquire`'s signature and its
-one-lock-per-GPU semantics survive untouched, which is what ADR-0012 decision 1 requires.
-Also rejected: **the conductor in the orchestrator package** (it is orchestration policy, the
-exact thing AGENTS.md pins to the core; the orchestrator contributes only wiring), and
-**widening the `ModelManager` port itself with `swap_scope`** (every existing implementation
-and fake would grow a method only one object meaningfully implements; interface segregation,
-same argument as ADR-0012 decision 1).
+### 6. What the user sees: one turn, one stream, and an accurate `Health`
 
-### 6. What the user sees: one turn, one stream, and an honest `Health`
+The cortex's pre-handoff text is stored as its assistant message; the wrapper yields
+`StatusUpdate(state="swapping")` for the drain, the load, the deep work and the restore, each only when
+its work is next; the deep reply streams as the same turn's `TextDelta`s; `TurnComplete` is sent once.
+A refusal or failure streams a fixed note from `swap_notes.py` describing the GPU, never the fault, and
+is not stored except for the deep model's failure note beside its partial text. `Health` returns
+`ready=false` with a truthful detail while the cortex is not serving, and ready through the drain
+([ADR-0054](ADR-0054-baseline-residency.md) decision 1). No proto change was needed.
 
-The handoff happens **inside the escalating turn**, on the stream the user already holds.
-The cortex's short pre-handoff text (whatever it streamed before calling the tool, plus its
-wrap-up after the confirmed call) arrives as normal deltas and persists as its assistant
-message; the wrapper then yields `StatusUpdate` events (`state="swapping"`, with the wire
-`state` being a free string the overlay already renders as a chip) through drain, load, and
-health-gate; the brain's reply streams as the same turn's continued `TextDelta`s and persists
-as a second assistant message under the same `turn_id`; `TurnComplete` fires once, at the
-true end. No proto change: every event shape already exists on the seam. The confirm card
-rode the existing ADR-0022 flow during the cortex phase. This fits the body's
-one-turn-per-call reality: the stream stays open because the turn genuinely is not finished.
+### 7. The failure test: kill points over fakes in CI, the real kill on the host
 
-`Health` becomes honest, the producer the streamed-brain-status deferral waits on:
-the servicer reads the manager's synchronously-cached residency state and answers
-`ready=false` with a truthful `detail` ("swapping: loading the deep model", "deep task in
-progress", "restoring the cortex") whenever the cortex is not the serving resident;
-`ready=true` otherwise, unchanged. The overlay's landed indicator already classifies that
-as amber Degraded with zero overlay work. The **push** half (a server-streamed status RPC)
-stays deferred: the probe-on-summon plus the escalating stream's own `StatusUpdate`s cover
-personal scale, and a push channel is a seam change that should be designed with its
-consumer. Its blocker is now met, so it graduates from "blocked on Slice 11" to actionable
-in its area doc when this lands.
+A parameterized suite over the scripted host, fake stores and the real conductor kills at every
+boundary of decision 4, including inside the real drain, a store refusing either settle, and a closed
+stream at the conductor, the wrapper and the deep phase. Every case asserts the cortex is the only
+model running with the evicted tiers asked back, the pool admits again, no partial reply is stored as
+complete, memory holds the exchange or nothing, the record is terminal and `active()` is `None`, a
+later escalation still runs, and the stream ends with an accurate sentence or a `SeamError`. Every
+property is proven able to fail by mutation. The host half (`kill -9` on the deep child) needs the
+24 GB card **and** a Windows desktop, since only the overlay shows the confirm card.
 
-Rejected: **ending the cortex turn and having the brain answer in a new turn** (there is no
-stream to carry a server-initiated second turn on a one-turn-per-call body; it would push a
-body/proto change into the capstone for no user-visible gain); **swapping inside the
-`escalate_to_brain` dispatch itself** (the loop would resume the cortex model mid-loop with
-the brain resident; the loop boundary is where the model id can change cleanly).
+### 8. VRAM: the deep model runs alone by default
 
-### 7. The chaos test: parameterized kill points over fakes in CI, the real kill on the host
+A handoff evicts the cortex and every `CORTEX_SWAP_EVICT_MODELS` tier and drains the pool, so
+admission never reopens onto an evicted tier. The window suspends the 14 GB soft cap, the user
+having confirmed a handoff that takes the card; `CORTEX_NGL_BRAIN` and `CORTEX_CTX_SIZE_BRAIN` bring
+the deep tier under a budget. In normal operation the card holds the cortex and one GPU-placed
+subagent tier ([ADR-0012](ADR-0012-resource-governance.md)), which a deployment hosting it lists for
+eviction.
 
-**CI half (the gate).** A parameterized suite over the fake `ModelHost`, fake stores, and the
-scriptable conductor, with a kill injected at every step boundary of decision 4:
-after-snapshot, mid-drain, after-drain, after-cortex-stop, brain-start-fails,
-health-gate-times-out, mid-brain-stream (task cancellation, the process-death analogue for
-the consumer side), after-brain-persist, cortex-restore-fails-once, and during-swap-back.
-For every kill point it asserts convergence and no state loss:
+The evict list names peers of the cortex only: `ResidencyPlan` raises `ValueError` at boot when it
+names the deep model or the cortex, reporting `CORTEX_SWAP_EVICT_MODELS` and the setting the id
+belongs to, because every reader of the list starts a listed tier that is not running (a listed deep
+model would start beside the cortex; a listed cortex would reload at every boot). Keeping peers
+resident through a handoff is the opt-in of
+[ADR-0055](ADR-0055-co-residency-and-spill-watch.md).
 
-- the conductor's exit path requested `start(cortex)` and the fake host ends with the cortex
-  as the only running model;
-- the scheduler is admitting again (drain always released);
-- the stores are intact: the user message and every persisted result are present, no partial
-  brain reply is persisted as a completed one, and the handoff record is terminal
-  (`DONE`/`FAILED`), never live;
-- the stream ended honestly: either a completed turn whose text says what happened, or a
-  terminal `SeamError`; never silence.
+### 9. What remains on the host
 
-Distrust-green, per AGENTS.md: after wiring, the suite is proven fallible by mutation
-(removing the scope's `finally` restore, or skipping the record transition before the swap,
-must make named cases fail; the proofs are noted in the tests as the lease-release test did).
+The mechanism is validated in Docker with small stand-in tiers and with the real cortex on the 24 GB
+card; the tier-scale swap through the overlay is in [docs/host/](../host/index.md#gpu-tier-scale).
 
-**Host half (host-side, runbook-driven).** On the 24 GB machine: `docker exec` into
-`model-host` and `kill -9` the brain's `llama-server` child mid-handoff (and once mid-load),
-then verify from the overlay that the turn fails honestly, the cortex comes back, and the
-next turn works; procedure and expected timings recorded in `docs/runbooks/model-swap.md`.
-Stated plainly: **CI has no GPU and the dev machine's 8 GB card cannot hold the 12B cortex
-and a ~31B brain, so the tier-scale swap can only be validated host-side; the CI chaos test
-over fakes is the gate.** The mechanism itself (real processes started, killed, health-gated,
-swapped) is agent-validated in Docker on the dev GPU with two small artifacts standing in
-for the tiers, which exercises every code path except the VRAM arithmetic.
+### 10. A handoff that failed says why, on the record
 
-### 8. VRAM arithmetic: the brain runs alone, and the handoff window suspends the soft cap
+`HandoffSettler.fail(record, reason)` is the only writer of `FAILED`, so no path settles a failure
+without a reason. The reason is written in the state's own read-modify-write, and a transition naming
+none clears it. It is written by the application or taken from an error's message, never from model
+text: `swap_reasons.py` holds `DRAIN_TIMEOUT_REASON`, `TORN_DOWN_REASON` and `STRANDED_REASON`, and
+the swap's `ModelManagerError` and the deep server's `InferenceError` include their own message,
+which is how the model host's status reaches the brain. `fail` writes one `WARNING` (`a handoff ended
+failed`) before asking the store. A terminal write the store refuses is followed by deleting the
+record, since a stuck active pointer would refuse every later escalation; a refused intermediate
+write keeps it for boot recovery. The reason stays off the residency report, whose detail the user
+reads word for word and which is not serving on every path that leaves the machine wrong.
 
-From ADR-0004's measurements: the cortex is ~11.3 GB at 16K ctx (11.0 weights + 0.3 mmproj);
-the soft cap is 14 GB, leaving ~2.7 GB headroom, which the E4B's 5.5 GB ask deliberately
-overflows, so today's GPU carries the cortex and nothing else. Every brain candidate is
-15-18 GB of weights plus KV: **no candidate fits beside the cortex in 24 GB (11.3 + 15 > 24),
-and none fits under the 14 GB soft cap alone at full offload.** Therefore the swap evicts
-BOTH the cortex and any GPU-placed subagent, and the v1 co-residency rule is: **while the
-brain is resident, it is alone on the GPU.** CPU subagents hold no VRAM but are drained
-anyway (decision 4): the brain's hybrid-offload fallback and its KV need the host RAM/CPU
-headroom, and "brain runs alone" is one invariant instead of three special cases.
+### 11. A handoff the host cannot run is refused before the drain
 
-The handoff window is a deliberate, user-confirmed exception to the 14 GB soft cap: the brain
-takes the whole GPU for the duration (the cap governs the standing AI stack the user games
-beside, and nobody games mid-handoff having just clicked the card). `CORTEX_NGL_BRAIN` and
-`CORTEX_CTX_SIZE_BRAIN` remain the deployment levers to pull it under any budget, costing
-zero core change (ADR-0004's placement logic). Recorded refinements, not v1: co-residency
-(keeping CPU subagents serving through a swap; brain + tiny GPU subagent on a larger card),
-and placement-aware charging, which reopens with a second GPU-capable executor per its
-ADR-0012 addendum.
-
-**The opening premise of this decision is no longer true and the decision is unchanged
-(2026-08-08).** Both of its standing terms have since been measured on the card this repo runs:
-the cortex reservation is 8.6 GiB rather than 11.3 and the subagent ask 3.5 GiB rather than 5.5
-([ADR-0012](ADR-0012-resource-governance.md)'s re-measured-reservation and measured-ask addenda),
-so the headroom is 5.4 GiB, the ask fits it, and the standing GPU carries the cortex **and** one
-GPU-placed subagent rather than the cortex alone. Nothing above depends on that: the deep model
-still does not fit beside either, the swap still evicts every listed tier unless
-`CORTEX_SWAP_CORESIDENT` says the card was measured to hold the pair, and the window still
-suspends the cap. What changes is only which sentence describes today: the shipped stack now has a
-GPU-placed subagent for a handoff to evict, where when this was written it had none.
-
-### 9. Implementation slicing: seven vertical slices, each green and committable
-
-1. **S11.a, the record.** `HandoffRecord` + `HandoffStore` port + core fake + contract test +
-   Redis adapter in `cortex_session`; the tainted-ledger round trip pinned. No behavior
-   change anywhere.
-2. **S11.b, drain.** `SubagentScheduler.drain()` on the port, implemented by
-   `ResourceBudgetScheduler` (drain-refuses-admission semantics + timeout), contract-tested
-   against fake and real impl alike.
-3. **S11.c, the trigger.** `escalate_to_brain` + `EscalationSlot` threading through
-   `ToolLoopContext`/`TurnStamp` + the per-tool gate reason + the opaque-turn and
-   tainted-turn refusals; any engine line-cap pressure resolved by the planned mechanical
-   split of the turn-context assembly.
-4. **S11.d, the conductor.** `SwappingModelManager` + `ResidencyController` +
-   `SwapConductor` + `EscalatingTurnEngine`, all pure over the fake host, plus the full
-   chaos suite (decision 7). The hard rule is CI-proven here, before any real process exists.
-5. **S11.e, the real lifecycle.** The `cortex_model_manager` package (daemon + HTTP
-   `ModelHost` adapter), the compose revision (model-host supersedes `llama-cortex`; the GPU
-   subagent sidecar + cgroup caps land per ADR-0012's host half), `integration`-marked live
-   tests, the CUDA-OOM one-shot CPU re-run in the runner, and the agent-side two-small-models
-   swap validation on the dev GPU.
-6. **S11.f, honesty surfaces.** `Health` residency state + the swapping `StatusUpdate`s;
-   overlay untouched by design.
-7. **S11.g, host-side capstone.** The brain pick (**done 2026-08-04**: ADR-0004 has its addendum
-   and `docs/host/index.md#gpu-tier-scale` item 1 its record), the live
-   tier-scale swap + chaos kill on the 24 GB machine, measured swap timings,
-   `docs/runbooks/model-swap.md`, and the ~31B injection-harness run
-   (`CORTEX_PROBE_BRAIN=1`), whose result feeds back into decision 1's tainted-escalation
-   stance. **That run is also done, on 2026-08-04** (0/10 framed; the last addendum here), so
-   what remains is the three that need a handoff the overlay has to approve.
-
-## Where each "Blocked on Slice 11" backlog entry lands
-
-The four entries under "Blocked on Slice 11" in
-[docs/refinements/index.md](../refinements/index.md), mapped; none is closed by this ADR
-(nothing lands with a design), and the area docs are updated only as slices deliver.
-
-- **Model-manager process lifecycle, co-residency, and the real swap**
-  ([inference-model-manager](../refinements/index.md#inference-model-manager)): lifecycle and
-  the real swap are decisions 3-5 (S11.d/e). **Co-residency stays deferred** (decision 8
-  records the v1 brain-runs-alone rule and the refinement's shape).
-- **`SubagentScheduler.drain()`, CUDA-OOM re-place, the real GPU-placed runtime**
-  ([resource-governance](../refinements/index.md#resource-governance)): drain is decision 4 /
-  S11.b with refuse-not-queue semantics; the GPU-placed runtime and cgroup caps land in
-  S11.e inside the model-host; CUDA-OOM re-place lands in S11.e as a single CPU re-run after
-  a GPU-placed failure, recorded in the result's detail. **Placement-aware CPU charging stays
-  declined-as-recorded**; its reopening condition (a second GPU-capable executor) is noted in
-  decision 8 but not built.
-- **Taint/provenance persistence across a mid-turn swap, and the ~31B injection-harness run**
-  ([untrusted-content](../refinements/index.md#untrusted-content)): the persistence is decision
-  2's record schema (S11.a) exactly as the entry flagged ("provenance rides on the stored
-  tool-step context"); the harness run is S11.g and gates any future relaxation of the
-  tainted-turn escalation denial. **It ran on 2026-08-04**, by the agent rather than the user
-  once the hardware premise that filed it turned out to be false, and the gate it held is open:
-  the relaxation is now a judgement rather than a missing number (the last addendum here).
-- **Streamed brain status** ([body-overlay](../refinements/index.md#body-overlay)): decision 6
-  delivers the *producer* (`Health` earns `ready=false` between turns, with truthful detail),
-  which is the entry's named blocker. **The push stream itself stays deferred**: the landed
-  probe-on-summon indicator plus the escalating stream's own status events cover personal
-  scale, and a push RPC is a seam change to be designed with its consumer. When S11.f lands,
-  the entry moves from "blocked" to actionable in its area doc.
-
-Adjacent entries this slice deliberately does not deliver, but whose recorded triggers it
-meets: safe `converse` reconnect dedup and the real Stop/abort
-([seam-transport](../refinements/index.md#seam-transport),
-[body-overlay](../refinements/index.md#body-overlay)) both name "mid-turn compute becomes
-expensive/evictable under the real swap" as their trigger. v1 never evicts mid-stream
-(decision 5), so the pressure arrives with usage, not with this design; they stay
-fix-when-it-bites with their triggers now live.
+`SwapConductor._prepare` calls `unhosted(deep model)`, one `status` call, after the `opaque` check
+and before the store is touched. Only `ModelNotHostedError` means yes: a model host with no deep tier
+(`CORTEX_ESCALATION=1` without `CORTEX_MODEL_FILE_BRAIN`) gets `UNHOSTED_TIER_NOTE`, no record, no
+drain and a cortex that never stopped. Any other failure means no and the handoff fails where it
+really fails. The result is not cached, because the fix is restarting the sidecar, not the brain.
+Each refused attempt logs one line naming `CORTEX_MODEL_FILE_BRAIN` and `CORTEX_ESCALATION`; the
+confirm card still comes first. Behind that, the swap in names the missing tier, and the swap back
+tolerates `ModelNotHostedError` from stopping the model it swapped in, so a missing tier never leaves
+the cortex unloaded.
 
 ## Consequences
 
-- New core modules: `handoff.py` (record + slot), the `ModelHost`/`ResidencyController`
-  ports + `SwappingModelManager`, `SwapConductor`, `EscalatingTurnEngine`, and their fakes;
-  new `cortex_model_manager` workspace package (daemon + adapter); `cortex_session` gains the
-  Redis `HandoffStore`; compose gains the model-host revision. Module contract docs land with
-  each slice, per the doc-first DoD.
-- Config gains, all at the composition root: `CORTEX_ESCALATION`, `CORTEX_MODEL_BRAIN`,
-  `CORTEX_MODELHOST_ENDPOINT`, `CORTEX_BRAIN_ENDPOINT`, `CORTEX_SWAP_DRAIN_TIMEOUT_S`,
-  `CORTEX_SWAP_LOAD_TIMEOUT_S`, `CORTEX_MODEL_FILE_BRAIN` / `CORTEX_NGL_BRAIN` /
-  `CORTEX_CTX_SIZE_BRAIN` (model-host env), and the per-tool gate reason knob.
-- CI stays GPU-less and green at 100% both toolchains: everything real is behind `ModelHost`
-  and `integration`-marked; the chaos suite over fakes is the gate that proves the hard rule.
-- The escalating turn makes long-lived `Converse` streams normal (minutes, not seconds);
-  the loopback seam and the credit-bounded buffer already tolerate that, and no timeout on
-  the seam path assumes short turns today.
+- The hard rule made real: all mid-turn state is in the record or a store before anything is
+  evicted, the deep phase is a function over them, and a failed record outlives the process that
+  ran it. Facts about the machine are read again from the model host, never stored
+  ([ADR-0054](ADR-0054-baseline-residency.md) decision 6).
+- A turn can hold its stream for minutes, and a teardown mid-handoff waits for the cortex. Swap-path
+  log lines name their work `turn_id`, and the handoff still in the store `active_turn_id`
+  ([ADR-0046](ADR-0046-work-identities-on-log-lines.md)). CI stays GPU-less, and the failure suite
+  must pass.
 
 ## Risks flagged for maintainer review
 
-1. **The gated-escalation default** trades away "escalate about untrusted content" until the
-   ~31B harness run exists. If that is too restrictive in practice, the alternative (ungated
-   tool + internal taint refusal + card kept for consent) weakens nothing else; it is a
-   config-plus-one-check change by design. **The harness run exists as of 2026-08-04** and the
-   deep tier measured 0/10; what that does and does not settle is the addendum at the end of this
-   file, and the short version is that it retires one of the deny's two reasons and leaves the
-   other standing.
-2. **The model-host sidecar** is a new privileged-ish component (GPU + models mount + process
-   control). Its API is compose-network-only and it holds no secrets, but the user may
-   prefer the docker-socket controller shape despite the host-root argument in decision 3.
-3. **Swap latency is unmeasured for the brain tier.** The 300 s default load timeout is an
-   estimate from ADR-0004's mount-read numbers; if the real figure is worse, the
-   fix is the recorded WSL-side model mirror lever (ADR-0005 consequences), not a design
-   change.
-4. **Two assistant messages under one turn id** (cortex wrap-up + brain reply) is new for
-   history readers; the stores append happily and the overlay renders sequential messages,
-   but any future per-turn aggregation must not assume one reply per turn.
-5. **Brain-phase tools carry the cortex's dispatcher unchanged**, including spawn (which
-   drain refuses for the window). If the user prefers a tool-less or narrower brain phase
-   for v1, it is a wiring choice at the composition root, not a design change.
+1. **The tainted-turn deny** rests on the eviction argument alone, with 0 of 10 measured beside it.
+2. **The model-host sidecar** is privileged (GPU, models mount, process control), on the compose
+   network only.
+3. **Swap latency** is the loads: an eviction costs about 1% of the deep load, and the whole swap
+   about 1.5 times that load warm ([model swap](../readings/model-swap.md)).
+4. **Two assistant messages share one turn id**, and **the deep phase uses the cortex's
+   dispatcher**, spawn included; narrowing it is wiring.
+
+## Alternatives rejected
+
+- **A pre-turn policy, a user-only trigger, or a tool without confirmation plus a taint check**:
+  nothing accurate computes the first, the second cannot express depth found mid-turn, the third
+  loses the consent.
+- **Reusing `TaskStore`, the tail in `SessionStore`, or a wider `TurnStamp`**: each muddies a
+  contract that already means something else.
+- **The Docker API, a compose controller, or subprocesses in the brain**: host root in the process
+  running model-influenced code, or CUDA in the brain.
+- **`acquire` performing the swap**: the deep loop re-acquires per round, so an interleaved cortex
+  `acquire` would swap back mid-task. **Answering in a new turn**: one turn per call.
+- **Hiding `escalate_to_brain` when the deep tier is missing**: an absent tool says nothing, so
+  nobody learns why no handoff happens. The per-turn cost first argued against it is not prohibitive
+  (a live capability read per turn exists at about 1.5 ms); the lost sentence is the reason.
+- **A cross-process claim with a fence** (`SET NX`): it breaks `active()`'s ability to recover on
+  its own and would be one cross-process guard above four in-process ones.
+
+## Related
+
+[brain-core](../modules/brain-core.md), [brain-orchestrator](../modules/brain-orchestrator.md),
+[brain-session](../modules/brain-session.md), the [model-swap](../runbooks/model-swap.md) runbook and
+its [measurements](../readings/model-swap.md), [ADR-0012](ADR-0012-resource-governance.md) (the drain
+and the placer), [ADR-0013](ADR-0013-untrusted-content.md) (taint and the injection measurements).

@@ -1,20 +1,20 @@
 # Spontaneous model picks
 
-**Status:** landed 2026-07-16
+**Status:** done 2026-07-16
 **Area:** subagents
 **Origin:** [ADR-0018](../../adr/ADR-0018-heterogeneous-subagents.md)
 
-See the richer-spawn-schema entry above (ADR-0018 addendum
-finding 1): further nudging beyond the inline example, if the cortex should reach for cheap
-models unprompted.
-**Landed 2026-07-16 as the same prose change** (annotated at the richer-spawn-schema entry):
-the added parallelism line is the nudge. Whether a live cortex now reaches for distinct models
-unprompted is the residual below.
+Whether the cortex should be pushed further, beyond the inline example, to reach for cheap models
+without being told (ADR-0018 decision 8).
 
-## Trail
+**Shipped 2026-07-16** as the same prose change that delivered the measured trade-off
+advertisement ([R-122](122-measured-tradeoff-advertisement.md)): the added parallelism sentence is
+the push. Whether a live cortex then reaches for distinct models unprompted is
+[R-124](124-nudge-live-uptake.md).
 
-- 2026-07-15: Extracted from the ROADMAP's deferred-refinements section into this area doc, kept
-  verbatim, among the Slice 8.6 heterogeneous-roster deferrals recorded at ADR-0018.
-- 2026-07-16: Landed as the one prose change that also landed the measured trade-off
-  advertisement, the added parallelism line being the nudge itself; the live uptake of that nudge
-  opened behind it as a separate entry.
+## History
+
+- 2026-07-15: Extracted from the ROADMAP's deferred-refinements section into this area, among the
+  Slice 8.6 heterogeneous-roster deferrals recorded at ADR-0018.
+- 2026-07-16: Shipped as the one prose change that also delivered the measured trade-off
+  advertisement, with the live uptake opening behind it as a separate entry.

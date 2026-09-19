@@ -1,6 +1,6 @@
 # Tiered and self-editing memory with summarization
 
-**Status:** open, dead until a consumer
+**Status:** open, waiting for a consumer
 **Area:** memory
 **Origin:** [ADR-0008](../../adr/ADR-0008-memory-v1.md)
 **Trigger:** A recall on a real deployment keeps a memory beside a later one that contradicts it,
@@ -8,60 +8,49 @@ so a turn is handed a superseded fact next to its correction. Read it by joining
 on the recall trail (`CORTEX_MEMORY_RECALL_AUDIT`) against the `memories` table.
 **Verified:** 2026-09-19
 
-Letta's good ideas, adoptable later without
-the framework, per decision 1. **Cost correction:** not behind the unchanged port. `MemoryStore`
-is **`add` + `search` only**, so tiering (promote, demote, expire), self-editing (update in
-place), and any retention or eviction policy all need verbs the port does not have, plus the
-pgvector adapter and a fake to implement them. Per-scope retention and per-provenance eviction
-are blocked on the same missing verbs.
-**The delete/forget verb landed 2026-07-16 ([ADR-0008 delete-scope
-addendum](../../adr/ADR-0008-memory-v1.md)); the policies stay deferred.**
-`MemoryStore.delete_scope(scope) -> int` hard-deletes one namespace and returns the row count, the
-one verb of the several this entry named that has recorded consumers already waiting on it: a
-**session-delete cascade** (which could not honestly delete a session's derived memories,
-[session-read-seam.md](../index.md#session-read-seam)) and **per-scope eviction**. It is by-scope, not
-by-id, because the only link from a session to its memories is the `scope` (`SessionMemoryScope`
-writes `scope == session_id`), and it takes a single required scope with no wildcard so a namespace
-is dropped only when named (a caller mapping a session to `GLOBAL_SCOPE` under global scoping must
-never pass it). Port + contract test + fake + pgvector adapter, CI-gated at 100%, the real DELETE
-host-validated against pgvector (rows 3 to 0, count 3, other scopes spared, a no-match scope
-returns 0). Data-loss-safe by construction: memory is not a tool in any registry, and the
-`MemoryRecaller` a turn is handed exposes only record/recall, so no tool call, tainted or not, can
-spell "forget everything" (a structural test pins that surface). **Still deferred, each for want of
-a consumer and not a missing verb now:** self-editing (**update** in place), **tiered**
-promote/demote/expire, **write-salience** ([its own entry](093-write-salience-policy.md)), and
-the **per-scope retention _policy_** (the eviction verb exists; a retention scheduler deciding
-what to evict when does not, and nothing drives one). **Per-provenance eviction** ([untrusted-content.md](../index.md#untrusted-content))
-wants a different filter, since a memory record stores only the `tainted` bit, not the ADR-0027
-structured provenance, so `delete_scope` does not serve it and it stays fix-when-it-bites.
+Letta's ideas about memory tiers and a model that edits its own memories, adoptable later without
+the framework (ADR-0008 decision 1). This is not behind an unchanged port: tiering (promote,
+demote, expire) and self-editing (update in place) both need verbs `MemoryStore` does not have,
+plus a pgvector adapter and a fake to implement them.
 
-## Trail
+**The delete verb shipped 2026-07-16**
+([ADR-0008 decision 11](../../adr/ADR-0008-memory-v1.md)).
+`MemoryStore.delete_scope(scope) -> int` deletes one namespace outright and returns the row
+count. It is by scope rather than by id because the only link from a session to its memories is
+the `scope` (`SessionMemoryScope` writes `scope == session_id`), and it takes one required scope
+with no wildcard so a namespace is dropped only when named. Port, contract test, fake and
+pgvector adapter, covered at 100% in CI; the real DELETE was tested against pgvector on the host
+(rows 3 to 0, count 3, other scopes untouched, an unmatched scope returns 0). No tool call can
+reach it: memory is not a tool in any registry, and the `MemoryRecaller` a turn is handed exposes
+only record and recall.
 
-- 2026-07-16: The delete/forget verb this entry was bundled with landed as
-  `MemoryStore.delete_scope(scope) -> int`, the one memory verb with recorded consumers already
-  waiting on it, so the index's "Memory verbs" line moved from actionable-with-a-port-change to dead
-  until a consumer and the residual is policy rather than seam. Self-editing update in place, tiered
-  promote/demote/expire, write-salience and the per-scope retention policy all stayed deferred for
-  want of a consumer, and the area's count did not move.
-- 2026-07-16: The index gave the reason the landed verb deletes hard rather than tombstoning, which
-  this entry states as a property and not as an argument: search is a stateless top-k scan, so there
-  is no in-flight id a tombstone would protect. The session-delete cascade that shipped the same day
-  cited that reasoning for its own hard delete.
-- 2026-09-13: Re-derived against the port. The cost correction's inventory is stale: `MemoryStore`
-  is no longer `add` plus `search`, it is `add`, `search`, `count_candidates` and `delete_scope`.
-  Neither added verb serves this entry, because tiering wants promote, demote and expire,
-  self-editing wants an update in place, and the port still has no verb that rewrites a stored
-  record, so the residual cost stands as written. The trigger has not fired. The summarization
-  that landed since is not this entry's half either: `HistoryRecap` folds the turns that fall out
-  of a session's history window and lives behind `SessionStore`, so it summarizes conversation
-  rather than memories and leaves every memory record untouched.
-- 2026-09-19: Re-derived, and the trigger could fire only on this entry's own work: it waited for
-  "a memory-compaction or self-editing feature", and self-editing and compaction are what this
-  entry would build. It now names the condition update in place exists for, a superseded fact
-  recalled beside its correction, which the recall trail and the store can show without anything
-  here being built first. The trail logs record ids and no text, hence the join. Nothing else
-  needs a record rewritten or moved: `MemoryRecaller.record` is still the only caller of
-  `MemoryStore.add`, `SessionMemoryCascade` the only caller of `delete_scope`, the port still has
-  no verb that rewrites a stored record, and no tool in any registry reaches memory. No commit
-  under `brain/` since 2026-09-13 changed any of that. The body's pointer to the write-salience
-  entry "below", a position in the single-file backlog this entry came from, is now a link.
+Still deferred, each for want of a consumer rather than a missing verb: update in place, tiered
+promote, demote and expire, write salience
+([R-093](093-write-salience-policy.md)), and the per-scope retention policy
+([R-085](085-per-scope-retention-eviction.md)). Per-provenance eviction
+([untrusted-content.md](../index.md#untrusted-content)) needs a different filter, since a memory
+record stores only the `tainted` flag and not the ADR-0027 structured provenance.
+
+## History
+
+- 2026-07-16: The delete verb shipped, so the index's "Memory verbs" line moved from actionable
+  with a port change to waiting for a consumer. Update in place, tiered promote, demote and
+  expire, write salience and the per-scope retention policy all stayed deferred, and the area's
+  count did not move. The session-delete cascade that shipped the same day could finally delete
+  a session's derived memories ([session-read-rpc.md](../index.md#session-read-rpc)).
+- 2026-07-16: The delete is a real delete rather than a tombstone because search is a stateless
+  top-k scan, so there is no in-flight id a tombstone would protect. The session-delete cascade
+  cited that reasoning for its own delete.
+- 2026-09-13: Checked against the port. The inventory above was stale: `MemoryStore` is now `add`,
+  `search`, `count_candidates` and `delete_scope`. Neither added verb serves this entry, because
+  the port still has nothing that rewrites a stored record. The trigger has not fired. The
+  summarization added since is not this entry's half either: `HistoryRecap` folds the turns that
+  fall out of a session's history window and lives behind `SessionStore`, so it summarizes
+  conversation rather than memories.
+- 2026-09-19: Checked again. The old trigger could only have fired on this entry's own work,
+  since it waited for a memory-compaction or self-editing feature and those are what this entry
+  would build. It now names the condition that update in place exists for, a superseded fact
+  recalled beside its correction, which the recall trail and the store can show first. The trail
+  logs record ids and no text, hence the join. `MemoryRecaller.record` is still the only caller
+  of `MemoryStore.add`, `SessionMemoryCascade` the only caller of `delete_scope`, and no tool in
+  any registry reaches memory. No commit under `brain/` since 2026-09-13 changed any of that.

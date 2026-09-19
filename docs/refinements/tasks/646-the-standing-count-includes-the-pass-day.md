@@ -1,56 +1,43 @@
-# The standing count includes the pass's own day
+# The replay count includes the pass's own day
 
-**Status:** landed 2026-09-15
-**Area:** repo-gates
+**Status:** done 2026-09-15
+**Area:** repo-checks
 **Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-checks.md)
 
-Opened 2026-09-12 by the close of
-[R-439](439-nothing-counts-the-record-between-passes.md), which gave `just replay` a standing count
-off the ledger in [docs/runbooks/mutation-replay.md](../../runbooks/mutation-replay.md). The count
-runs `git log` with `--since` set to the ledger's date, and that counts from midnight of the day,
-so every candidate body that landed on the pass's own day is inside the range whether it landed
-before the pass or after it. Two of the 21 counted on 2026-09-12 are the commits that landed the
-cadence and recorded the pass of 2026-08-25, so the count of unsampled work is overstated by the
-pass's own commits.
+`just replay` counted commits with `git log --since` set to the ledger's date, which counts from
+midnight of that day, so every candidate body committed on the pass's own day was inside the range
+whether it came before the pass or after it. Two of the 21 counted on 2026-09-12 are the commits
+that added the cadence and recorded the pass of 2026-08-25, so the count of unsampled work was
+overstated by the pass's own commits.
 
-**Why it was left this way.** The dated arm has counted this way since it was written and the
-standing count inherits it, so nothing regressed and no reading taken before today was any
-narrower. Correcting it means the ledger recording something finer than a date, and the cost lands
-on the ledger's shape rather than on the recipe: every past row would have to be read against the
-new column, for what was then an error of two in a count of twenty one. The trail below records
-what that error is worth now.
+The dated reading had counted this way since it was written, so nothing regressed. Correcting it
+meant the ledger recording something finer than a date, and that cost falls on the ledger's shape
+rather than on the recipe: every past row would have to be read against the new column, for what was
+then an error of two in a count of twenty one.
 
-**What would close it.** A ledger row carrying the commit the pass was recorded at, after which the
-count is the exact range `<sha>..HEAD` rather than a date and a midnight. The same column would
-answer [R-645](645-the-standing-count-takes-the-last-dated-row.md) as a side effect, a commit
-being orderable where a hand-typed date is only readable, so the two are worth deciding together.
+**What closed it.** The ledger grew a "Drawn from" column and the count became the range
+`<commit>..HEAD`, which is exactly the work committed after the pass took its sample. The column
+holds the sample's tip rather than the commit the pass was recorded at, because a commit's hash does
+not exist until the commit is made and no pass can write its own. The same column also closed
+[R-645](645-the-standing-count-takes-the-last-dated-row.md), a commit being orderable where a
+hand-typed date is only readable.
 
-## Trail
+## History
 
 - 2026-09-12: opened by the close of
-  [R-439](439-nothing-counts-the-record-between-passes.md), whose
-  [ADR-0002 standing-count addendum](../../adr/ADR-0002-toolchain-checks.md) records the two
-  same-day commits inside today's reading.
-
-- 2026-09-14: **the trigger fired, in the form it was written in.** `just replay 19269061` now
-  prints `25 candidate bodies since the pass of 2026-08-25, cadence 25: a pass is due`. The count
-  has reached the cadence exactly, and the two commits of the pass's own day are the whole of the
-  difference: counting from 2026-08-26 instead gives 23, which is under the cadence and prints no
-  pass due. A pass is therefore being called due on the two commits that landed the cadence and
-  recorded the pass of 2026-08-25, which is work that pass had already drawn from. The cost
-  argument above no longer holds, because the error is not two at the quiet end of a range but the
-  verdict the line exists to give, so this moves to actionable.
-
-- 2026-09-15: **landed, and the consequence written above does not survive the re-derivation.**
-  The ledger grows a "Drawn from" column and the count becomes the range `<commit>..HEAD`, which is
-  exactly the work that landed after the pass took its sample. The real ledger counts 26 under the
-  date and 25 under the range. The one body between the two readings is the commit that recorded
-  the pass of 2026-08-25, which landed thirteen minutes after the commit the draw ran over; the
-  other commit of that day was in the draw's pool, so the overstatement is one body and not two.
-  **The verdict does not move**, 25 reaching the cadence of 25, so the trail above is wrong that a
-  pass is being called due on the pass's own commits. The column holds the draw's tip rather than
-  the commit the pass was recorded at, because a commit's hash does not exist until the commit is
-  made and no pass can write its own; the tip is knowable before the row is written and is what the
-  count wants. The seven arms are in the
-  [ADR-0002 drawn-from addendum](../../adr/ADR-0002-toolchain-checks.md). Opened by this close:
+  [R-439](439-nothing-counts-the-record-between-passes.md), whose change
+  ([ADR-0002](../../adr/ADR-0002-toolchain-checks.md) decision 22) found the two same-day commits
+  inside that day's reading.
+- 2026-09-14: the trigger fired as written. `just replay 19269061` printed `25 candidate bodies
+  since the pass of 2026-08-25, cadence 25: a pass is due`. The count reached the cadence exactly,
+  and the two commits of the pass's own day were the whole difference: counting from 2026-08-26
+  gives 23, which is under the cadence. So a pass appeared to be due on the two commits that added
+  the cadence and recorded the pass of 2026-08-25, which is work that pass had already sampled.
+- 2026-09-15: done, and the consequence written in the previous bullet does not survive checking.
+  The real ledger counts 26 under the date and 25 under the range. The one body between the two
+  readings is the commit that recorded the pass of 2026-08-25, thirteen minutes after the commit
+  the sample ran over; the other commit of that day was in the sample's pool, so the overstatement
+  is one body and not two, and the result does not move, 25 still reaching the cadence of 25.
+  Committed as [ADR-0002](../../adr/ADR-0002-toolchain-checks.md) decision 22, measured over seven
+  cases. Opened by this close:
   [R-668](668-a-rewritten-history-unreproduces-a-recorded-draw.md).

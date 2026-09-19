@@ -1,6 +1,6 @@
 # Multi-turn within one stream plus proto `Cancel`
 
-**Status:** open, fix when it bites
+**Status:** open, waiting for its trigger
 **Area:** body-overlay
 **Origin:** [ADR-0011](../../adr/ADR-0011-body-v1.md)
 **Trigger:** a record in the tree, a host task or a runbook reading, of a turn the person stopped
@@ -9,100 +9,71 @@ that is written down, muting the sink is adequate. CI cannot produce the reading
 command that streams a stopped turn to its end runs only on the host.
 **Verified:** 2026-09-17
 
-One turn per `Converse`
-call; drop-to-cancel covers v1 (ADR-0011 decision 1 / risks). The interleaving half was
-taken by **Slice 8.8** (ADR-0022): the body's client stream now stays open past the first
-`UserTurn` to answer `ConfirmRequest`s mid-turn. Still deferred: multiple turns per call
-body-side and the client actually sending `Cancel` (drop-to-cancel remains the mechanism).
-When multiple turns per call land, Slice 8.8's single-slot `ConfirmRoute` (Tauri) and the
-`SeamConfirmer`'s "at most one confirm outstanding per stream" assumption need per-turn keying
-(a map, not one slot); the route is already generation-tagged, so the change is contained there.
-- **Read against the code 2026-07-16: the proto and the whole server half are already built and
-  proven; what remains is body-side only, and its two parts are coupled so the smaller cannot
-  cleanly precede the larger. Sharpened to fix-when-it-bites with the same Slice 11 trigger as
-  the reconnect and streamed-status entries.** Both halves the entry names are satisfied on the
-  proto and the brain:
-  - **The proto `Cancel` exists** (`proto/body.proto` `Cancel cancel = 3`, in the seam since the
-    first proto commit), round-tripped by `test_client_event_oneof_carries_a_cancel`
-    (`brain/packages/seam/tests/test_facade.py`).
-  - **The server carries multiple turns per stream and handles `Cancel` end to end.** A
-    `UserTurn` arriving mid-turn is queued and starts when the running turn finishes
-    (`_enqueue_turn`/`_start_next_turn`/`_drain_turns`, `converse_stream.py`); a `Cancel` stops the
-    in-flight turn and drops the queue and the stream stays open (`_cancel_turn`, dispatched from
-    the pump on `kind == "cancel"`). Pinned by `test_cancel_behind_a_queued_turn_stops_current_and_drops_queued`
-    (A dies mid-stream, B never runs, A's user message persisted with no partial reply) and
-    `test_cancel_mid_confirm_drops_the_turn_and_the_stream_stays_open` (a pending confirm on a
-    cancelled turn runs no tool and the stream survives), both in `test_converse.py` /
-    `test_converse_confirm.py`.
-  - **The lease-cancellation crux (the tricky part the entry flags) is clean and now has a
-    dedicated proof.** The GPU lease is a non-reentrant `asyncio.Lock` held across the whole
-    streaming block (`SingleResidentModelManager._lock`, taken in `LlamaCppBackend.stream` via
-    `async with manager.acquire(...)`); a `CancelledError` mid-inference propagates out through
-    that `async with` and frees the lock before the next turn leases it. Proven by
-    `test_cancelling_mid_stream_frees_the_model_lease` (`brain/packages/inference/tests/test_backend.py`):
-    it suspends a turn mid-stream with the lease held, cancels it, and asserts a fresh acquire
-    returns at once. Proved able to fail: releasing the lock outside a `finally` (so a
-    mid-`yield` cancel skips it) deadlocks the re-acquire and makes the test fail. No partial reply is persisted
-    on cancel (`TurnEngine.handle_turn`'s `finally: await loop.aclose()` drops the in-flight
-    generation; `test_aclose_mid_generation_keeps_user_and_drops_partial_reply`, `test_engine.py`).
-  - **What is genuinely deferred is body-side and coupled.** The `BrainTransport::converse` port
-    is one turn per call (`turn_request` sends exactly one `UserTurn`, `body/crates/rpc/src/converse.rs`),
-    and the overlay opens a fresh `Converse` per submit (`useOverlay.ts`). A client-sent `Cancel`
-    cannot cleanly precede body multi-turn: on the one-turn-per-call body, a `Cancel` then a
-    half-close ends the body stream **with no terminal event** (the server emits none for a
-    cancelled turn), which `converse_turn` maps to `TransportError::Protocol("converse stream
-    ended before the turn completed")`. So client `Cancel` needs either multi-turn-within-one-stream
-    (keep the stream and send the next `UserTurn`, the case that makes it worth having) or a new terminal
-    cancelled-ack (a server-semantics change), and multi-turn-within-one-stream carries the
-    per-turn-confirm-keying knock-on above.
-  - **Today's Stop is UI-only in the Tauri embedding, and that is why the deferral is
-    fix-when-it-bites rather than actionable-now.** The overlay's Stop denies a pending confirm
-    and mutes the JS sink (`tauriBridge.ts` sets `live = false`), but does not half-close or abort
-    the RPC (documented in `useOverlay.ts`), so the Rust `converse` command streams the turn to
-    completion: the brain finishes generating, persists the **full** reply, and holds the lease
-    until the turn ends naturally. Drop-to-cancel therefore behaves as "stop showing me this
-    turn", not "abort the compute", and the overlay can show a truncated reply while the store
-    keeps the full one. That is adequate at loopback personal scale where compute is cheap; a real
-    abort (release the lease, drop the partial, keep the store consistent) is worth building only when
-    Slice 11's real model swap makes mid-turn compute expensive and evictable, the same trigger
-    the reconnect and streamed-brain-status deferrals wait on. The clean v1 fix for one-turn-per-call
-    is a real drop-to-cancel: make the Tauri command abort its RPC on Stop (a body-local signal, no
-    proto change), which the brain already tears down cleanly through `events()`'s finally. Both
-    that and the multi-turn+`Cancel` build live entirely in the ungated, host-validated Tauri
-    shell + overlay glue, so neither is a gated slice today.
+The body sends one turn per `Converse` call and never sends `Cancel`; dropping the stream is how
+v1 cancels (ADR-0011 decision 1 and risks). Slice 8.8 (ADR-0022) took the interleaving half, so
+the body's client stream stays open past the first `UserTurn` to answer `ConfirmRequest`s
+mid-turn.
 
-## Trail
+**The proto and the whole brain half are already built.** `proto/body.proto:97` has
+`Cancel cancel = 3`, round-tripped by `test_client_event_oneof_carries_a_cancel`. The server
+supports multiple turns per stream and handles `Cancel` end to end: a `UserTurn` arriving mid-turn
+is queued and starts when the running turn finishes (`_enqueue_turn`, `_start_next_turn`,
+`_drain_turns` in `converse_stream.py`), and a `Cancel` stops the in-flight turn and drops the
+queue while the stream stays open (`_cancel_turn`). Two tests assert it:
+`test_cancel_behind_a_queued_turn_stops_current_and_drops_queued` and
+`test_cancel_mid_confirm_drops_the_turn_and_the_stream_stays_open`.
 
-- 2026-07-16: Read against the code and sharpened rather than built. The proto `Cancel` has existed
-  since the first proto commit, and the server already carries multiple turns per stream and handles
-  `Cancel` end to end, lease release on a mid-inference cancel included, so what remains is
-  body-side glue whose two parts are coupled. The area count did not move.
-- 2026-08-09: A trigger sweep read this against the tree and found it half fired and deliberately
-  not picked. The brain-side swap it names as its trigger has landed and the body glue it waits on
-  is confirmed absent, `body/crates/rpc/src/converse.rs` carrying no `Cancel` at all, while the
-  economic half of the trigger, compute expensive enough that muting the sink stops being adequate,
+The GPU lease releases cleanly on a mid-inference cancel. It is a non-reentrant `asyncio.Lock`
+held across the whole streaming block (`SingleResidentModelManager._lock`, taken in
+`LlamaCppBackend.stream`), and a `CancelledError` propagates out through that `async with` and
+frees it before the next turn leases it.
+`test_cancelling_mid_stream_frees_the_model_lease` suspends a turn mid-stream with the lease held,
+cancels it, and asserts a fresh acquire returns at once; it was proved able to fail by releasing
+the lock outside a `finally`, which deadlocks the re-acquire. No partial reply is persisted, since
+`TurnEngine.handle_turn`'s `finally: await loop.aclose()` drops the in-flight generation.
+
+**What is deferred is body-side, and its two parts are coupled.** `BrainTransport::converse` is
+one turn per call (`turn_request` sends exactly one `UserTurn`,
+`body/crates/rpc/src/converse.rs`), and the overlay opens a fresh `Converse` per submit
+(`useOverlay.ts`). A client-sent `Cancel` cannot come first on its own: with one turn per call, a
+`Cancel` then a half-close ends the body stream with no terminal event, since the server emits
+none for a cancelled turn, and `converse_turn` maps that to
+`TransportError::Protocol("converse stream ended before the turn completed")`. So client `Cancel`
+needs either multiple turns in one stream, which is also what makes it worth having, or a new
+terminal cancelled acknowledgement, which is a server-semantics change. Multiple turns per stream
+then needs per-turn keying for Slice 8.8's single-slot `ConfirmRoute` and the `SeamConfirmer`'s
+one-confirm-per-stream assumption: a map rather than one slot, contained in a route that is
+already generation-tagged.
+
+**Today's Stop is UI-only.** The overlay's Stop denies a pending confirm and mutes the JS sink
+(`tauriBridge.ts` sets `live = false`) but does not half-close or abort the RPC, so the Rust
+`converse` command streams the turn to completion: the brain finishes generating, persists the
+full reply, and holds the lease until the turn ends. Stop therefore means "stop showing me this
+turn" rather than "abort the compute", and the overlay can show a truncated reply while the store
+keeps the whole one. That is adequate at loopback personal scale. A real abort is worth building
+when mid-turn compute becomes expensive and evictable. The simple fix for one turn per call is to
+make the Tauri command abort its RPC on Stop, a body-local signal with no proto change, which the
+brain already tears down cleanly through `events()`'s `finally`. Both that and the
+multi-turn-plus-`Cancel` build live entirely in the Tauri shell and overlay glue.
+
+## History
+
+- 2026-07-16: Read against the code and sharpened rather than built. The area count did not move.
+- 2026-08-09: A trigger review found it half fired and deliberately not picked. The brain-side
+  swap it named as its trigger had shipped and the body glue was confirmed absent,
+  `body/crates/rpc/src/converse.rs` having no `Cancel` at all, while the cost half of the trigger
   still wants a live deployment.
-- 2026-09-11: read against the tree and still not fired. `proto/body.proto` still carries
-  `Cancel cancel = 3` and `body/crates/rpc/src/converse.rs` still carries no `Cancel`, its
-  `turn_request` sending exactly one `UserTurn` and its stream-end mapping still the `Protocol`
-  error the body quotes. The brain's handlers moved to `converse_stream.py` when the module split,
-  the path now written above, and every test named here still exists under the name given. The
-  lease is still `SingleResidentModelManager._lock` (`cortex_core/model.py`) taken by
-  `LlamaCppBackend.stream` around the whole SSE loop (`backend.py`). The Tauri `converse` command
-  still streams the turn to completion: its loop leaves early only when `channel.send` fails,
-  which is the webview going away rather than Stop, and that exit has been there since the shell
-  was wired. The two sibling entries this trigger used to name have moved on their own: the
-  reconnect entry now waits on a deployment that sets `CORTEX_ESCALATION`, and the streamed-status
-  entry waits on a seam change, so the trigger line now says what remains here rather than pointing
-  at them.
-- 2026-09-17: read against the tree and not fired: no task under `docs/host/tasks/` and no runbook
-  records a stopped turn holding the lease, and the trigger line now names that record instead of
-  a report, with the landed swap moved out of it into this trail. Every claim above holds.
-  `proto/body.proto:97` is still `Cancel cancel = 3`, `body/crates/rpc/src/converse.rs` still sends
-  one `UserTurn` from `turn_request` and maps an early end to the quoted `Protocol` error at line
-  145, the four brain handlers are in `converse_stream.py`, and the five tests are where the body
-  places them. The Tauri `converse` command (`body/app/src-tauri/src/converse.rs:184`) still
-  leaves its loop only when `channel.send` fails; the one commit to touch the shell since changed
-  a default in a doc comment. The comment beside `TauriBridge.converse`'s cancellation said that
-  dropping the channel half-closes the RPC, which contradicted `useOverlay.ts` and this entry, and
-  it now says that the command runs on.
+- 2026-09-11: Read against the tree; still not fired. The brain's handlers moved to
+  `converse_stream.py` when the module split, and every test named here still exists. The Tauri
+  `converse` command still streams the turn to completion: its loop leaves early only when
+  `channel.send` fails, which is the webview going away rather than Stop. The two sibling entries
+  this trigger used to name have moved on their own, so the trigger line now says what remains
+  here.
+- 2026-09-17: Read against the tree; not fired. No task under `docs/host/tasks/` and no runbook
+  records a stopped turn holding the lease, and the trigger now names that record instead of a
+  report. Every claim above holds: `proto/body.proto:97`, the one `UserTurn` from `turn_request`
+  and the `Protocol` error at line 145, the four brain handlers in `converse_stream.py`, the five
+  tests where the body places them, and
+  `body/app/src-tauri/src/converse.rs:184` still leaving its loop only when `channel.send` fails.
+  The comment beside `TauriBridge.converse`'s cancellation said that dropping the channel
+  half-closes the RPC, which contradicted `useOverlay.ts`, and it now says the command runs on.

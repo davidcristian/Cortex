@@ -1,21 +1,19 @@
 # ToolInvocation audit-line stamp
 
-**Status:** landed 2026-08-21
+**Status:** done 2026-08-21
 **Area:** scheduling
 **Origin:** [ADR-0027](../../adr/ADR-0027-turn-provenance.md)
 
-Recorded inside the entry for the dispatcher's `TurnStamp` session attribution, which landed the
-stamp itself and named this as one of the two things left behind the same seam.
+Recorded when the dispatcher's `TurnStamp` session attribution was added, as one of two things left
+for later: the audit line (`ToolInvocation`) would take the stamp once something wanted per-session
+queries.
 
-Remaining behind the same seam (ADR-0027 deferred): the **audit line** (`ToolInvocation`)
-gaining the stamp when an audit consumer wants per-session queries.
+## History
 
-## Trail
-
-- 2026-07-13: Recorded as remaining when the `TurnStamp` session attribution landed.
-- 2026-08-21: Landed with the close of
-  [342](342-the-audit-trail-cannot-name-the-turn.md), which is the consumer this trigger named: the
-  audit line now carries the chat, the turn and the subagent task each dispatch was made for. It
-  takes the stamp's identities rather than the stamp, since the stamp also carries live handles (a
-  pool, a progress sink, a handoff slot) that a record outliving its process must not hold.
-  Recorded in the ADR-0009 named-work addendum, with a pointer at the origin.
+- 2026-07-13: Recorded as remaining work when the `TurnStamp` session attribution was added.
+- 2026-08-21: Closed together with [342](342-the-audit-trail-cannot-name-the-turn.md), which is the
+  consumer the trigger named: the audit line now records the chat, the turn and the subagent task
+  each dispatch was made for. It takes the stamp's identities rather than the stamp itself, since
+  the stamp also holds live handles (a pool, a progress sink, a handoff slot) that a record
+  outliving its process must not keep. Recorded in ADR-0009 decision 16, with a pointer at the
+  origin.

@@ -217,7 +217,7 @@ weeks and moved here to keep each record to one subject.
 
 ## Related
 
-- The [repo checks module doc](../modules/repo-gates.md): the scan's contract and the method for
+- The [repo checks module doc](../modules/repo-checks.md): the scan's contract and the method for
   finding a value's other places.
 - Code: `scripts/crosscheck.py`, `registry.py`, `couplings.py`, `values.py`, `readings.py`,
   `needles.py`, `linereadings.py`, the `*couplings.py` parts, `scripts/tests/test_crosscheck.py`.

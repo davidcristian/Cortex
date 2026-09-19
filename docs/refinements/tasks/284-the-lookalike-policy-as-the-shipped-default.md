@@ -1,92 +1,73 @@
 # The lookalike policy as the shipped default
 
-**Status:** open, fix when it bites
+**Status:** open, waiting for its trigger
 **Area:** untrusted-content
 **Origin:** [ADR-0015](../../adr/ADR-0015-output-guardrail.md)
-**Trigger:** a deployment measurement of how often a real turn names an internationalized host after
-reading untrusted content: the sum of `lookalike=` over the `cortex_core.turn_output` lines
-`the output guardrail removed links from this reply` carrying `policy=lookalike`, across a week of
+**Trigger:** a deployment measurement of how often a real turn names an internationalized host
+after reading untrusted content: the sum of `lookalike=` over the `cortex_core.turn_output` lines
+`the output guardrail removed links from this reply` with `policy=lookalike`, across a week of
 turns under that policy. Two readings say cheaply whether anything has moved. The shipped default
 is one binding, so
 `grep -n output_guardrail brain/packages/orchestrator/src/cortex_orchestrator/config.py` reports
-whether it is still `redact`. The corpus arm is the count of distinct non-ASCII hosts `URL_RE` finds
-across every tracked file, each read as
-`host_of(normalize_url(match.group(), confusables=False))`, which is the expression
-`_UrlRedactingFilter._flagged` spends on the lookalike ground; it stood at 12 on 2026-09-08, 2026-09-11
-and 2026-09-17. The body records what both answered when they were last taken.
+whether it is still `redact`. The corpus reading is the count of distinct non-ASCII hosts `URL_RE`
+finds across every tracked file, each read as
+`host_of(normalize_url(match.group(), confusables=False))`, the expression
+`_UrlRedactingFilter._flagged` uses for the lookalike rule; it stood at 12 on 2026-09-08,
+2026-09-11 and 2026-09-17.
 **Verified:** 2026-09-17
 
 The pass that added the third `OutputGuardrail` policy shipped the answer without imposing it:
 `CORTEX_OUTPUT_GUARDRAIL` still defaults to `redact`, so the gap that pass closed is closed only
 where someone opts in, and the shipped default still delivers a homoglyph host on a tainted turn.
-That is deliberate rather than timid. The new ground costs a genuine internationalized domain named
-on such a turn, and the decision to spend that belongs to a deployment rather than to the pass that
-priced it.
+That is deliberate. The new rule costs a genuine internationalized domain named on such a turn, and
+the decision to pay that belongs to a deployment.
 
 What is missing is the one number that would settle it. The cost was measured against a domain
 ranking, where 0 of the top 1,000 hosts and 1,441 of the top 1,000,000 are internationalized, and
-against this repo's own corpus. Neither is the question. The question is how often **a real turn on
-this machine** names such a host **after reading untrusted content**, which is a measurement of one
-deployment's mail and files and not of the web, and nothing in the repo can stand in for it. A week
-of turns with the policy on and the redactions counted by ground would answer it. `REDACTED_LINK` is
-the same text whichever ground removed the link, so the count is read off the line a settled reply
-logs when it lost one, which carries a count per ground and counts a link under the lookalike
-ground only when no other ground in force took it (ADR-0015 per-ground addendum). A single user-visible false positive answers it
-too, which is why this waits on being bitten rather than on being scheduled.
+against this repo's own corpus. Neither is the question. The question is how often a real turn on
+this machine names such a host after reading untrusted content, which is a measurement of one
+deployment's mail and files and not of the web. A week of turns with the policy on and the
+redactions counted by rule would answer it. `REDACTED_LINK` is the same text whichever rule removed
+the link, so the count is read off the line a settled reply logs when it lost one, which has a
+count per rule and counts a link under the lookalike rule only when no other active rule took it
+(ADR-0015 decision 9). A single user-visible false positive answers it too, which is why this waits
+on a real problem rather than on a schedule.
 
-**Re-read 2026-09-08, and the corpus arm was six times out of date.** The default is unchanged:
-`config.py` binds `output_guardrail` to `redact`, so the lookalike ground still ships off and the
-paragraphs above still describe the code. The corpus is not what this entry recorded. `URL_RE` now
-finds 2,997 matched spans across the 1,548 readable files of 1,574 tracked and 2,304,319 words,
-reducing to 1,192 distinct identities, and the hosts among them that are not plain ASCII number
-**12** where this entry claimed 2. Every one of the twelve is still a fixture, and they sit in four
-files: this ADR, `brain/packages/core/tests/test_guardrail.py`, `docs/modules/brain-core.md`, and
-[R-058](058-uts39-confusables-set.md). Three of the twelve are not hosts anybody wrote at all but
-artifacts of the matcher running over Markdown, a backtick or an arrow being an ordinary body
-character to it, so a homoglyph example inside a code span is read with its closing backtick and one
-is read with the arrow after it. That sixfold growth is
-itself the argument for leaving this open: the count rises with every addendum that writes a
-homoglyph example down, so the corpus measures how much this ADR has been documented and not how
+The corpus count is not a stand-in for that measurement, and it has been wrong in this entry once
+before: it claimed 2 where a fresh reading found 12. Every one of the twelve is a fixture, and they
+sit in four files: this ADR, `brain/packages/core/tests/test_guardrail.py`,
+`docs/modules/brain-core.md`, and [R-058](058-uts39-confusables-set.md). Three of the twelve are
+not hosts anybody wrote but artifacts of the matcher running over Markdown, since a backtick or an
+arrow is an ordinary body character to it. The count rises with every document that writes a
+homoglyph example down, so it measures how much this decision has been documented rather than how
 often a turn names such a host.
 
-The change itself is one word in `config.py` plus the addendum that argues it, so nothing here is
-blocked on design. What the entry holds is the evidence, and the standing trade this ADR was founded
-on says which way to lean once the evidence exists: a missing link degrades a reply, and a delivered
+The change itself is one word in `config.py` plus the decision record that argues it, so nothing is
+blocked on design. What this entry waits for is the evidence, and the trade this decision was
+founded on says which way to lean once it exists: a missing link degrades a reply, and a delivered
 phishing link harms the user.
 
-## Trail
+## History
 
-- 2026-09-08: **Not fired**, and the corpus figures in the body are repaired from a fresh reading.
-  The trigger needs a measurement of this deployment's own turns and no such measurement has been
-  taken, which the shipped default confirms from the other side: `output_guardrail` is still
-  `redact`, so no turn has ever run under the lookalike ground here and there is nothing to count.
-  The corpus arm was re-run over `git ls-files` at `HEAD` rather than trusted: 2,997 spans, 1,192
-  distinct identities, 12 distinct non-ASCII hosts, all fixtures. Recorded in the twenty-first
-  ADR-0015 addendum with the reading behind [R-294](294-one-match-yields-one-identity.md).
-- 2026-08-16: Opened by the fourteenth ADR-0015 addendum on closing
-  [R-283](283-a-chosen-homoglyph-outlives-any-table.md), which landed the lookalike policy as an
-  opt-in and recorded the default question as the residue rather than answering it from a corpus
-  that cannot see this deployment's turns.
-- 2026-09-11: **Not fired**, and both readings were taken again. `config.py` binds
-  `output_guardrail` to `"redact"`, so no turn here has yet run under the lookalike ground and there
-  is nothing to count. The corpus arm over `git ls-files` at `HEAD`: 1,589 tracked files, 1,563
-  readable, 2,374,614 words, 3,007 matched spans reducing to 1,200 distinct identities, and **12**
-  distinct non-ASCII hosts, the same twelve in the same four files, three of them still the
-  backtick and arrow artifacts. The corpus grew by 15 tracked files and 10 spans since 2026-09-08
-  and the count did not move, which is what the paragraph above predicts: the count follows how
-  often a homoglyph example is written down, and none was. The same span count is the corpus
-  [R-294](294-one-match-yields-one-identity.md)'s relaxation figure was drawn over, so its 22 is a
-  reading over 2,997 spans and today's corpus carries 3,007.
-- 2026-09-17: **Not fired**, both readings taken again, and the measurement the trigger waits on
+- 2026-08-16: Opened when the lookalike policy was added as an opt-in
+  ([R-283](283-a-chosen-homoglyph-outlives-any-table.md)), recording the default question rather
+  than answering it from a corpus that cannot see this deployment's turns.
+- 2026-09-08: Not triggered, and the corpus figures repaired from a fresh reading. `config.py`
+  still binds `output_guardrail` to `redact`, so no turn has ever run under the lookalike rule here
+  and there is nothing to count. The corpus reading over `git ls-files` at `HEAD`: 2,997 spans,
+  1,192 distinct identities, 12 distinct non-ASCII hosts, all fixtures. Recorded in
+  [docs/readings/output-guardrail.md](../../readings/output-guardrail.md).
+- 2026-09-11: Not triggered, both readings taken again. The corpus: 1,589 tracked files, 1,563
+  readable, 2,374,614 words, 3,007 matched spans reducing to 1,200 distinct identities, and 12
+  distinct non-ASCII hosts, the same twelve in the same four files. The corpus grew by 15 tracked
+  files and 10 spans and the count did not move, which is what the entry predicts.
+- 2026-09-17: Not triggered, both readings taken again, and the measurement the trigger waits on
   was found to have no instrument. `config.py:146` binds `output_guardrail` to `"redact"`, and this
-  checkout has no `.env`, so no turn here has run under the lookalike ground. No compose file
-  carried `CORTEX_OUTPUT_GUARDRAIL` into the brain either, so the policy could not be switched on
-  in the Docker stack; the ADR-0015 addendum of the same day on the composed brain passes it, with
-  the brain's other settings, by name. The corpus arm over `git ls-files` at `HEAD`: 1,663 tracked
-  files, 1,637 readable, 2,578,187 words, 3,018 spans reducing to 1,198 distinct identities, and
-  **12** distinct non-ASCII hosts, the same twelve in the same four files with the same three
-  backtick and arrow artifacts. The new finding was in the remedy: `guardrail.py` held no logger,
-  and `_redacted` substitutes one `REDACTED_LINK` for every ground, so a week under the policy
-  would have left a count of removed links and no count of lookalike removals. The ADR-0015
-  per-ground addendum of the same day added that count as a log line, and the trigger above now
-  names it.
+  checkout has no `.env`. No compose file passed `CORTEX_OUTPUT_GUARDRAIL` into the brain either,
+  so the policy could not be switched on in the Docker stack; the same day the compose base file
+  began passing it by name with the brain's other settings. The corpus: 1,663 tracked files, 1,637
+  readable, 2,578,187 words, 3,018 spans reducing to 1,198 distinct identities, and 12 distinct
+  non-ASCII hosts. The new finding was in the remedy: `guardrail.py` had no logger, and `_redacted`
+  substitutes one `REDACTED_LINK` for every rule, so a week under the policy would have left a
+  count of removed links and no count of lookalike removals. ADR-0015 decision 9 of the same day
+  added that count as a log line, and the trigger above names it.

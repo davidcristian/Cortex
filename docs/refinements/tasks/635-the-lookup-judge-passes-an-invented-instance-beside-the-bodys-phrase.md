@@ -1,42 +1,37 @@
-# The lookup judge passes an invented instance beside the body's phrase
+# The lookup check passes an invented instance beside the body's phrase
 
-**Status:** landed 2026-09-11
+**Status:** done 2026-09-11
 **Area:** subagents
 **Origin:** [ADR-0028](../../adr/ADR-0028-grammar-constrained-subagents.md)
 
-Opened 2026-09-11 by the close of
-[R-540](540-the-judged-rate-and-the-hand-column-are-compared-on-a-probe-and-no-sweep.md).
 `names_the_period` in `scripts/envelopejudges.py` reads whether the body's own unit and instance
-appear in the reply, and a reply that quotes them on its way to asserting something else passes.
-On a full sweep of `Qwen3.5-0.8B` that was 16 of 96 lookup runs: the clinic body says `month
-ending` and names no month, and the reply quoted the phrase beside December, February 26th to 30th,
-October 2016, January 2010 or the second half of the month; the fleet and network bodies drew a
-fiscal year and a span of fortnights 18 through 19 beside their own phrase. Nine of the sixteen
-are on the raw arm, so the control cell reads 31 of 32 where a reader gives it 22.
+appear in the reply, so a reply that quotes them on its way to asserting something else passed. On a
+full review of `Qwen3.5-0.8B` that was 16 of 96 lookup replies: the clinic body says `month ending`
+and names no month, and the reply quoted the phrase beside December, February 26th to 30th, October
+2016, January 2010 or the second half of the month, while the fleet and network bodies drew a fiscal
+year and a span of fortnights 18 through 19 beside their own phrase. Nine of the sixteen are on the
+raw variant, so the control cell read 31 of 32 where a reader gives it 22.
 
-**What would close it.** A rule that refuses a reply naming an instance the body does not state
-beside the one it does: a second month, a calendar date, a year, or a second numbered period of
-the same unit. The charitable naming column is unaffected, since it reads the unit and a nearby
-number rather than a quotation. What makes it a decision rather than a patch is the clinic body:
-it names a unit and no instance, so the judge has to say what a right answer to an underspecified
-question looks like, and that is where the threshold this entry defers lives.
+The decision behind the fix is what a right answer to an underspecified question looks like: the
+clinic body names a unit and no instance, so the rule has to say that a right answer names the
+month-ending period and no month, year or day of its own.
 
-**Why it was left.** The same sitting, the same runway, and a rule for the underspecified body
-written against one pick's replies would be the guess the judged-delivery addendum refused.
+**What closed it.** `invents` in `scripts/envelopejudges.py` reads a capitalised month, a year, a
+day ordinal and a numbered period of the body's unit, and counts one invented when the body does not
+state it, the body's own period number aside. `names_the_period` refuses such a reply under both
+columns.
 
-## Trail
+## History
 
 - 2026-09-11: opened by the close of
   [R-540](540-the-judged-rate-and-the-hand-column-are-compared-on-a-probe-and-no-sweep.md), whose
-  sweep-columns addendum names the sixteen runs.
-- 2026-09-11: landed. A right answer to the clinic body names the month-ending period and no month,
-  year or day of its own. `invents` in `scripts/envelopejudges.py` reads a capitalised month, a
-  year, a day ordinal and a numbered period of the body's unit, and counts one invented when the
-  body does not state it, the body's own period number aside; `names_the_period` refuses such a
-  reply under both columns. The body's claim that the charitable column is unaffected was wrong: it
-  passes all 16 named runs, so it is held too. The rule refuses 14 of the 16; the two it passes
-  answer with `the second half of the month`, a span the body states in another role, filed in
-  [R-639](639-the-envelope-judges-read-no-form.md). None of the six runs the strict naming fails
-  changes verdict under either column. It also refuses 12 runs the reader kept, each naming an
-  instance its body does not state beside the right period, and the 0.8B lookup control cell falls
-  to 21 of 32, under the floor. Both are in the lapse addendum at the origin.
+  reader-column review of the smallest pick names the sixteen replies. A rule for the
+  underspecified body written against one pick's replies would have been the guess the delivery
+  rule refused.
+- 2026-09-11: done. This entry's claim that the charitable naming column was unaffected was wrong:
+  it passed all 16 named replies, so it is checked too. The rule refuses 14 of the 16; the two it
+  passes answer with `the second half of the month`, a span the body states in another role, filed
+  in [R-639](639-the-envelope-judges-read-no-form.md). None of the six replies the strict naming
+  fails changes result under either column. It also refuses 12 replies the reader kept, each naming
+  an instance its body does not state beside the right period, and the 0.8B lookup control cell
+  falls to 21 of 32, under the floor. Both are recorded with the rule change at the origin.

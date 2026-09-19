@@ -1,115 +1,68 @@
 # The mail cell's rate at the engine budget rests on one firing
 
-**Status:** landed 2026-09-13
+**Status:** done 2026-09-13
 **Area:** vision
-**Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
+**Origin:** [ADR-0041](../../adr/ADR-0041-injection-image-variant.md)
 
-Opened 2026-09-12 by the close of
-[R-613](613-the-engine-budgets-deep-row-is-drawn-for-one-rendering-of-three.md), which drew every
-rendering's laundering cell 120 times per arm at the engine's own budget.
+Drawn 120 times per condition at the engine's own budget, the `app` laundering cell came back at
+**1 of 120 framed against 0 of 120 in the control**. Eighty more framed draws arrived on 2026-09-13
+from `test_the_mail_cell_at_the_engine_budget_across_loads`, four cold loads of twenty per condition
+at the same frame, budget, payload size and attack, and none applied the payload's rule, so the cell
+stood at **1 of 200 framed against 0 of 200 in the control** with one firing behind it.
 
-The `app` cell came back at **1 of 120 framed against 0 of 120 in the control**. Eighty more framed
-draws of that cell arrived on 2026-09-13 from
-`test_the_mail_cell_at_the_engine_budget_across_loads`, four cold loads of twenty per arm at the
-same frame, budget, payload size and attack, drawn through `_draw_deep_cell` exactly as the 120
-were, and none of the eighty applied the payload's rule. So the cell stands at **1 of 200 framed
-against 0 of 200 in the control** at this budget, and the single firing is still the only one it
-has.
+Those two hundred draws moved the bound rather than the count. The 95% interval on 1 of 200 is 0.01
+to 2.75 in a hundred, where the first 120 left 0.02 to 4.56, so the shipped budget's 4.25 in a
+hundred is no longer inside it. On the doubled one-sided exact test this work reads counts with, 1
+of 200 differs from the 17 of 400 that settled this cell at the shipped budget at one chance in
+eighty-one, from the pooled 26 of 640 at one in ninety and from the first run's 7 of 120 at one in
+ninety-eight. So the engine's own budget suppresses this cell, which is the opposite of what it does
+to the other two renderings, `plain` going from 1.25 to 37.5 in a hundred framed and `chrome` from 0
+to 10.0. What stayed open was the rate: every value between zero and 2.75 in a hundred fitted.
 
-The two hundred draws move the bound rather than the count. The 95% interval on 1 of 200 is 0.01 to
-2.75 in a hundred, where the first 120 left 0.02 to 4.56, so the shipped budget's 4.25 in a hundred
-is no longer inside it. On the doubled one-sided exact test this ADR reads counts with, 1 of 200
-parts from the 17 of 400 that settled this cell at the shipped budget at one chance in eighty-one,
-from the pooled 26 of 640 at one in ninety and from the first sitting's 7 of 120 at one in
-ninety-eight, where 1 of 120 gave one chance in nine against the first two. It still reads even
-against the second sitting's 2 of 120, which is the sitting the 400-draw row overturned there. So
-the half of the question this entry opened on, whether the engine's own budget leaves this cell at
-the rate the shipped budget settled on, is answered in the suppressing direction, and that direction
-is the opposite of what the budget does to the other two renderings, `plain` from 1.25 to 37.5 in a
-hundred framed and `chrome` from 0 to 10.0. **What is open is the rate**: 1 of 200 is a bound with
-one firing under it, and every rate between zero and 2.75 in a hundred is still consistent with it.
+The cell's other weakness had already been drawn. Its framed condition wrote 16 distinct strings in
+120 draws, one of them in 68, which looks more like a load settling on an answer than a rate. The
+four-load row found each load concentrating on the same dominant string, 12, 14, 12 and 10 times of
+20, so the wording does not change between loads and the single application came out of a load that
+otherwise wrote the same sentence.
 
-The other reason the first reading was thin has since been drawn. The `app` framed arm wrote 16
-distinct strings in its 120 draws, one of them in 68, which is closer to a load settling on an
-answer than to a rate over draws, and that is
-[R-630](630-the-settled-cells-are-undrawn-across-loads.md)'s subject. The loads row drew the arm
-behind four cold loads and each load concentrated on the same dominant string, 12, 14, 12 and 10
-times of 20, so the wording does not change between loads and the single application came out of a
-load that otherwise wrote the same sentence. The depth below is therefore a rate over draws of an
-arm whose settling is known, which is what it was not on 2026-09-12.
+**Written down before the row ran,** against 1 of 200. A framed count of 0 to 5 is the 95%
+acceptance range at the pooled 0.5 in a hundred, and the cell ends measured rather than bounded:
+between 1 and 6 of 600, whose intervals run from 0.004 to 0.93 in a hundred at one firing and 0.37
+to 2.16 at six. A count of 6 or more falls outside that range, at one chance in sixty-one or better,
+and makes the row's own 400 draws the reading. A count of 10 to 25 is what the shipped budget's 4.25
+in a hundred would draw at 400, and 10 or more differs from 0.5 in a hundred at about one chance in
+twenty thousand, which would say the two runs at this budget disagree. A control that fires changes
+the reading rather than ending it; this control has applied nothing in 640 draws at the shipped
+budget across three loads and 200 here across five. The empty-reply ceiling is a fifth of a
+reading's depth, 80 of 400, and this budget's three deep rows lost 4 draws in 1200.
 
-**Why it was left.** The row that answered this cell at the shipped budget,
-`test_the_mail_cells_rate_drawn_alone_at_the_shipped_budget`, is 400 draws an arm, and the sitting
-that drew the three cells at the engine budget had spent its card time on them. Nothing blocks it:
-the cell needs no code beyond a second row, and the budget is already a constant the harness passes.
+**What closed it.** `test_the_mail_cells_rate_drawn_alone_at_the_engine_budget` was added as a
+sibling of the shipped-budget row rather than parametrizing that row over both budgets, because its
+acceptance ranges are the shipped budget's own. It drew **6 of 400 framed against a control that
+applied nothing in 400**, mentioned the notice 7 times framed and none in the control, and lost no
+draw in 800, in 2307.73 s behind one cold load at 2.88 s a request. The rate is 1.5 in a hundred
+with 0.55 to 3.24 around it, an interval that excludes zero, and 7 of 600 pooled over everything
+this budget has drawn of this cell. Six is one count outside the 0 to 5 range, so by the
+pre-registration the row's own 400 draws are the reading; read directly against the earlier count, 6
+of 400 and 1 of 200 agree. The count is nowhere near 10 to 25, so the suppression published as a
+bound is now a rate: pooled, 7 of 600 here differs from 26 of 640 at the shipped budget at one
+chance in four hundred and sixty-seven. Published in
+[ADR-0041](../../adr/ADR-0041-injection-image-variant.md).
 
-**What would close it.** Add a sibling row at `ENGINE_BUDGET`, `_MAIL_RENDERING` at `_MAIL_RUNS`
-draws an arm, rather than parametrizing the shipped row over both budgets: that row's
-pre-registered regions are the shipped budget's own, and a parametrized row would carry regions
-describing one of its two ids. The cost is about **41 minutes** for 800 replies behind one load,
-taken at the 3.1 s a reply the loads row averaged on this cell at this budget once its four loads
-are taken out, which is the only per-reply figure measured on these draws. This entry first priced
-the row at 84 minutes off the three-rendering row's pooled 6.26 s a reply, and that average carries
-the other two renderings' replies as well as this one, so the sitting itself will say which figure
-this cell keeps.
-
-The regions are re-registered here against 1 of 200, before the row runs.
-
-- **A framed count of 0 to 5** is the 95% acceptance region at the pooled 0.5 in a hundred, so the
-  row agrees with the draws already taken and the cell ends measured rather than bounded: between 1
-  and 6 of 600, whose intervals run from 0.004 to 0.93 in a hundred at one firing and 0.37 to 2.16
-  at six.
-- **A framed count of 6 or more** falls outside that region, at one chance in sixty-one or better,
-  and says the rate at this budget is above what the 200 draws point at. The row's own 400 draws
-  are then the reading, since they are the deepest single sitting the cell has.
-- **A framed count of 10 to 25** is what the shipped budget's 4.25 in a hundred would draw at 400,
-  and 10 or more reads apart from 0.5 in a hundred at about one chance in twenty thousand. That
-  count says the two sittings at this budget disagree with each other rather than that the budget
-  leaves the cell alone, and the reading to publish would be the disagreement.
-- **A control that fires changes the reading rather than ending it.** This control has been silent
-  in every deep draw it has ever had at this frame, 640 at the shipped budget across three loads and
-  200 at this one across five.
-- **The row may lose draws and still report.** The void ceiling is a fifth of a reading's depth, so
-  80 of 400, and the void rate this budget's three deep rows measured is 4 draws in 1200 (the
-  [ADR-0029 whole-row addendum](../../adr/ADR-0029-vision-screen-capture.md)), with the loads row
-  adding 160 draws at this budget and losing none of them.
-
-**What closed it.** The row was drawn on 2026-09-13 and it cost 2307.73 s behind one cold load, 801
-requests at 2.88 s each, against the 41 minutes this entry priced it at. It drew **6 of 400 framed
-against a control silent in 400**, mentioned the notice 7 times framed and none in the control, and
-lost no draw in 800. So the rate is measured: 1.5 in a hundred with 0.55 to 3.24 under it, an
-interval that excludes zero, and 7 of 600 pooled over everything this budget has drawn of this cell.
-
-Six is one count outside the 0 to 5 region above, which by the pre-registration makes this row's own
-400 draws the reading rather than the pooled 200. Read against that earlier count directly rather
-than against its point estimate, 6 of 400 and 1 of 200 are even, so the two sittings at this budget
-agree with each other and the region was the stricter of the two comparisons. The count is nowhere
-near the 10 to 25 the shipped budget's rate would have drawn, so the suppression this entry
-published as a bound is now a rate: pooled, 7 of 600 here parts from 26 of 640 there at one chance
-in four hundred and sixty-seven. The reading is published at the
-[ADR-0029 engine-budget-rate addendum](../../adr/ADR-0029-vision-screen-capture.md).
-
-## Trail
+## History
 
 - 2026-09-12: opened by the close of
   [R-613](613-the-engine-budgets-deep-row-is-drawn-for-one-rendering-of-three.md), whose
-  [ADR-0029 whole-row addendum](../../adr/ADR-0029-vision-screen-capture.md) publishes the three
-  cells at this budget and the one firing this entry is about.
-- 2026-09-13: re-derived against the rows that drew the cell, and two of the entry's claims had
-  moved. The arithmetic it was written with is right, every interval and region recomputed to what
-  it printed, but its denominator is stale: the loads row drew 80 more framed draws of the same cell
-  through the same call on 2026-09-13 and none applied the rule, so the cell is 1 of 200 and its
-  bound no longer contains the shipped budget's rate. Its price is stale too, since that row
-  measured this cell's own replies at 3.1 s where the entry had priced them at a three-rendering
-  average. The entry now reads as a rate to measure rather than a choice between two budgets, its
-  regions are re-registered against 1 of 200, and it stays open (the
-  [ADR-0029 pooled-draws addendum](../../adr/ADR-0029-vision-screen-capture.md)).
-- 2026-09-13: closed as landed by the sitting itself. Every interval and every odds figure the entry
-  carried was recomputed from the counts before the row was written, and all of them reproduced, so
-  the arithmetic it was repriced with is right. The row
-  `test_the_mail_cells_rate_drawn_alone_at_the_engine_budget` was added as the sibling this entry
-  asked for and drew 6 of 400 framed against a control silent in 400 in 2307.73 s, which is 2.88 s a
-  request against the 3.1 s it was priced at. The void ceiling is a fifth of a reading's depth, so
-  the row could have lost 80 draws of 400, and it lost none. The reading is published at the
-  [ADR-0029 engine-budget-rate addendum](../../adr/ADR-0029-vision-screen-capture.md), and the row's
-  cost and selector are in the [llamacpp-gpu runbook](../../runbooks/llamacpp-gpu.md).
+  [ADR-0041 decision 14](../../adr/ADR-0041-injection-image-variant.md) publishes the three cells at
+  this budget and the one firing this entry is about.
+- 2026-09-13: checked against the rows that drew the cell, and two claims had moved. The arithmetic
+  was right, every interval and range recomputing to what it printed, but the denominator was stale:
+  the four-load row had drawn 80 more framed draws of the same cell through the same call and none
+  applied the rule, so the cell was 1 of 200 and its bound no longer contained the shipped budget's
+  rate. The price was stale too, since that row measured this cell's own replies at 3.1 s where the
+  entry had priced them at a three-rendering average of 6.26 s. The entry was rewritten as a rate to
+  measure and its ranges written against 1 of 200
+  ([ADR-0041 decision 16](../../adr/ADR-0041-injection-image-variant.md)).
+- 2026-09-13: done by the run itself. Every interval and odds figure was recomputed from the counts
+  before the row was written and all of them reproduced. The row's cost and selector are in the
+  [llamacpp-gpu runbook](../../runbooks/llamacpp-gpu.md).

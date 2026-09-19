@@ -1,4 +1,4 @@
-"""Repo gate: hold each backlog index to the task files it claims to describe."""
+"""Check each backlog index against the task files it describes, or regenerate it."""
 
 import argparse
 import sys
@@ -12,7 +12,7 @@ from backloganchors import local_links
 
 BACKLOGS = (
     ("refinements", Path("docs/refinements"), "area"),
-    ("host", Path("docs/host"), "sitting"),
+    ("host", Path("docs/host"), "session"),
 )
 
 
@@ -34,7 +34,7 @@ def task_texts(tasks: list[Task]) -> list[tuple[Path, str]]:
 def check_stray(directory: Path) -> list[str]:
     """Return one problem per entry in ``directory`` that is not a task file."""
     return [
-        f"{path}: a tasks directory holds task files and nothing else"
+        f"{path}: a tasks directory contains task files and nothing else"
         for path in sorted(directory.iterdir())
         if path.is_dir() or path.suffix != ".md"
     ]
@@ -43,7 +43,7 @@ def check_stray(directory: Path) -> list[str]:
 def run_one(
     root: Path, kind: str, base: Path, group_word: str, *, write: bool
 ) -> tuple[list[str], frozenset[str] | None]:
-    """Check (or regenerate) one backlog; return its problems and the anchors its index offers."""
+    """Check one backlog, or regenerate it; return its problems and the anchors in its index."""
     directory = root / base / "tasks"
     index = root / base / "index.md"
     if not directory.is_dir():
@@ -62,9 +62,7 @@ def run_one(
         wanted = backlogindex.splice(existing, block)
     except ValueError as err:
         return [*problems, f"{base}/index.md: {err}"], None
-    # The index's links are judged after the splice and on its result, never on the file: a
-    # write run replaces that file, so a link only the stale file carries would fail the run
-    # that removes it, and one only the fresh block carries would pass the run that writes it.
+    # The links are checked on the regenerated text, because a write run replaces the file.
     problems.extend(check_links(root, [(index, wanted)]))
     if wanted != existing:
         if write:
@@ -81,9 +79,9 @@ def run_one(
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Run the gate; print any problems and return the process exit code."""
+    """Run the check; print any problems and return the process exit code."""
     parser = argparse.ArgumentParser(
-        description="Hold each backlog index to the task files it describes.",
+        description="Check each backlog index against the task files it describes.",
     )
     parser.add_argument(
         "--root", type=Path, default=Path(), help="repo root (default: current directory)"
@@ -101,8 +99,6 @@ def main(argv: list[str] | None = None) -> int:
     for kind, base, group_word in BACKLOGS:
         found, offered = run_one(root, kind, base, group_word, write=args.write)
         problems.extend(found)
-        # Registered even when its rendering is unknown, so the anchor scan treats this
-        # document as an index and leaves it alone rather than reading the stale file.
         name = f"{base}/index.md"
         indexes[(root / name).resolve()] = backloganchors.Index(name=name, anchors=offered)
     problems.extend(backloganchors.check(root, indexes))
@@ -117,7 +113,7 @@ def main(argv: list[str] | None = None) -> int:
             file=sys.stderr,
         )
         return 1
-    print("backlogcheck OK: every backlog index matches its task files, and every fragment lands")
+    print("backlogcheck OK: every index matches its task files, and every fragment resolves")
     return 0
 
 

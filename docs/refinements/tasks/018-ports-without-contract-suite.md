@@ -1,406 +1,101 @@
 # Ports without a shared contract suite
 
-**Status:** open, fix when it bites
-**Area:** repo-gates
-**Origin:** [ADR-0001](../../adr/ADR-0001-architecture.md)
+**Status:** open, waiting for its trigger
+**Area:** repo-checks
+**Origin:** [ADR-0068](../../adr/ADR-0068-port-contract-lists.md)
 **Trigger:** a Rust port gaining a shared check list, which answers the design question below for
 Rust; or a Rust test passing over a fake while the adapter it stands in for fails the same
 expectation, readable in CI for `BrainTransport`, `Sleeper` and `Randomness` and only on the
 Windows host for the four OS ports.
 **Verified:** 2026-09-17
 
-Opened 2026-08-10 by the sweep that followed the `MemoryStore` contract
-fix out to every port in both languages, recorded with its full inventory in the
-[ADR-0001](../../adr/ADR-0001-architecture.md) addendum on decision 2's contract-test half.
-The sweep's own finding closed inside it: `SessionStore` had the same defect the memory port
-had just been fixed for, its shared tuple read only by the integration-marked live-Redis run
-while the CI driver restated all fourteen checks by hand, and it now parametrizes over the
-tuple like the other four stores in that directory. What stays open is the larger half the
-sweep could only measure.
+A port with a fake and a real adapter should have one list of checks that both implementations
+run, so the fake cannot promise something the adapter does not do. A review on 2026-08-10 that
+followed the `MemoryStore` contract fix out to every port in both languages found the ports that
+had no such list. The full inventory is in
+[ADR-0068](../../adr/ADR-0068-port-contract-lists.md), which also names the ports whose two
+implementations legitimately cannot share checks.
 
-**Four Python ports have a fake and a real adapter and no shared check list**, `Embedder`,
-`ToolRegistry`, `BodyGateway` and `Confirmer`, with `InferenceBackend` a fifth in part: its
-decode-cadence arm is contract-tested over both implementations and the rest of the
-streaming contract is restated between the core's suite for `ScriptedInferenceBackend` and
-the adapter's own. None of the five is blocked on hardware. Each already has a CI-runnable
-real adapter, over `MockTransport` for the embedder and the backend, a fake MCP session for
-the registry, a real loopback `BodyService` for the gateway, and the seam's fake for the
-confirmer, so what is missing is the shared file and its two drivers rather than any way to
-run one.
+Every Python port and the overlay's `BrainBridge` now have a list, twenty-one in all: twenty in
+Python (eighteen named `<port>_contract.py`, plus `session/tests/contract.py` and the own-text
+list inside `tools/tests/test_own_text_contract.py`) and the overlay's `bridgeContract.ts`. What
+is left is the Rust workspace, which has no shared check list for any port.
 
-**The Rust workspace has no shared check list for any port**, and the shape there is worse
-than a restated list, being a restated fake: `FakeAudio`, `FakeNotify`, `FakeScreen` and
-`FakeBrain` are each hand-written twice with independent expectations, the first three once
-under `body/crates/core/tests/` and again under `body/crates/rpc/tests/`, and `FakeBrain` twice
-within `body/crates/rpc/tests/`, in `converse.rs` and in `client.rs`. The generic helpers that
-look like the missing driver (`register_via`, `get_via`, `show_via`, `capture_via`, `probe`)
-hold no assertions at all; they prove the trait is usable as a bound. The real OS adapters
-are `cfg(windows)` and so are neither compiled nor run by CI, which is gate 3 and not a
-defect, but it does mean a shared list would be the only artifact holding the Windows
-backends to the same description their fakes are held to, and it would be ready the day the
-host runs it.
+The Rust problem is worse than a repeated list; it is a repeated fake. `FakeAudio`, `FakeNotify`
+and `FakeScreen` are each hand-written twice with independent expectations, once under
+`body/crates/core/tests/` and again in `body/crates/rpc/tests/body_server.rs`, and `FakeBrain` is
+written twice inside `body/crates/rpc/tests/`, in `converse.rs` and in `client.rs`. The generic
+helpers that look like the missing driver (`register_via`, `get_via`, `show_via`, `capture_via`,
+`probe`) contain no assertions at all; they only show that the trait is usable as a bound.
+`BrainTransport` has eleven methods and three independent suites. The real OS adapters are
+`cfg(windows)`, so CI neither compiles nor runs them, which is deliberate; it does mean a shared
+list would be the only thing holding the Windows backends to the same description their fakes are
+held to, and it would be ready the day the host runs it.
 
-**The overlay's `BrainBridge` is the sharpest single case**, having three implementations of
-which one is tested, while `body/app/vite.config.ts` names `tauriBridge.ts` and
-`demoBridge.ts` in its coverage `exclude` list. The 100% threshold is therefore met with two
-thirds of that port unmeasured, which is the same class of thing this sweep was looking for:
-a gate that passes over code it was never pointed at.
+It is deferred rather than done because it has its own design questions: what a write-only port
+owes, and whether a Rust list is a generic function or a table of function pointers. The inventory
+in the ADR is the worklist, port by port.
 
-**That case closed on 2026-08-11, which is this entry's trigger firing once rather than the
-entry closing.** The next port to gain a shared check list was the overlay's, and it adopted the
-arrangement the nine Python ones share rather than inventing a tenth:
-`body/app/src/bridge/bridgeContract.ts` holds thirteen named checks and the case a check runs
-against, and `bridgeContract.test.ts` builds a fresh case per check and runs the list over
-`FakeBridge` and `DemoBridge`, `describe.each` and `it.each` standing where the Python driver's
-fixture parameters and `pytest.mark.parametrize` stand. `demoBridge.ts` and `demoScript.ts` came
-out of the coverage `exclude` with it, which is where the paragraph above was one file short of
-the tree: three files were named there, not two, the demo's script having been split out of the
-bridge when the line cap started measuring the overlay. What is left in that list is `main.tsx`
-and `tauriBridge.ts`, each with its reason written beside it. `TauriBridge` stays out on the
-argument the sweep's own design question was reaching for: every method of it is an `invoke`
-call, so a shared driver over it would fake `invoke` and measure the fake.
+## History
 
-The list paid on its first run, before either implementation was changed to suit it, with three
-disagreements decided against the port's own description in `types.ts`. `FakeBridge` ignored the
-`limit` its `listSessions` was given, so a test could pass against a listing production would
-have cut. `FakeBridge.setPreference` recorded a write the served record never carried, alone
-among its writes in that, the three catalog writes beside it having always reflected theirs.
-And `DemoBridge` read a zero limit as "at most none" where the port documents it as the brain's
-own default, so browser dev answered an empty switcher to a caller asking for the default
-listing. A fourth came from the turn-handle check rather than from the two arms disagreeing, the
-demo bridge having announced a capture activity inside the `converse` call, which is a delivery
-the real bridge cannot make: its events cross a Tauri channel and arrive after the call has
-handed back the cancellation its caller stores. It was then proven able to fail three times over,
-on a delete put back to the no-op it once was, on a cancellation that leaves its turn's timers
-running, and on a completion moved ahead of the reply it settles. The first two fail one arm of
-the shared list apiece and the third fails the demo's own suite while all thirteen shared
-checks pass, which is the division of labour showing itself: the list holds the port and
-the suite holds the script. Each break was restored. The whole account, including the four places
-the two implementations legitimately disagree and so what the list holds instead, is the
-[ADR-0001](../../adr/ADR-0001-architecture.md) addendum of the same day, with the divergences
-themselves in [docs/modules/body-app.md](../../modules/body-app.md).
-
-**The rest of the inventory stays open, unchanged**: the four Python ports with no shared list,
-`InferenceBackend`'s unshared streaming half, and every Rust row, where the fakes themselves are
-still hand-written twice in two crates. The trigger below is live for those, with one correction
-it earns from being fired: the arrangement to adopt is now shared by ten lists rather than nine,
-the overlay's being the first outside Python and the evidence that the shape carries across the
-language boundary.
-
-**The Python half is being taken one port per commit from 2026-08-11, and `Embedder` is the
-first of the four.** `brain/packages/embedding/tests/embedder_contract.py` holds four checks and
-`test_embedder_contract.py` runs them over `HashEmbedder` and over `LlamaCppEmbedder` on a
-`MockTransport` whose stand-in server answers the digest bytes of the text it was given, as JSON
-integers, which is a shape a real server is free to send and is what makes the check on float
-elements a statement about the adapter's coercion. The four are that an embedding is a non-empty
-sequence of real floats, that every text embeds at one width, that one text always embeds to one
-vector with an unrelated embedding in between changing nothing, and that a backend which cannot
-answer raises `EmbedderError`.
-
-It found no behavioural disagreement, which is the honest outcome for a port one method wide and
-is recorded rather than left unwritten. What it did find is that the fake could not fail at
-all: `HashEmbedder` had no way to raise the one error the port names, so nothing in the core
-could exercise a remember or a recall against a dead embedding server, and on the only path where
-the two implementations have anything to disagree about the fake could not stand in for the
-adapter. It gained `fail_with`, the scripted failure `InMemoryBodyGateway` has carried since it
-was written. Two divergences are legitimate and so are written into
-[docs/modules/brain-embedding.md](../../modules/brain-embedding.md) instead of into a check: the
-fake answers a `tuple` and the adapter a `list`, and their widths differ, which is why the width
-check compares an implementation's own answers with each other rather than with a number.
-
-**Proven able to fail, once per arm and once per side of the new knob.** Dropping the adapter's
-`float(value)` coercion fails `text_embeds_to_a_vector_of_real_numbers[llamacpp]` alone, 1
-failed against 7 passed; making the fake's width depend on the text's parity fails
-`every_text_embeds_at_one_width[hash]` alone; letting the adapter's `httpx.HTTPError` escape
-fails `a_backend_that_cannot_answer_raises_embedder_error[llamacpp]`; and making `fail_with` a
-no-op fails that same check on the `hash` arm, which is what proves the knob necessary. Each
-break was restored. The account port by port is the
-[ADR-0001](../../adr/ADR-0001-architecture.md) addendum of the same day. **Three of the four Python
-ports stay open**, `ToolRegistry`, `BodyGateway` and `Confirmer`, alongside
-`InferenceBackend`'s streaming half and every Rust row.
-
-**`ToolRegistry` is the second, and it is the one that paid.**
-`brain/packages/tools/tests/registry_contract.py` holds six checks and
-`test_registry_contract.py` runs them over three implementations, the core's
-`InMemoryToolRegistry` and both MCP ones, since the translating `McpToolRegistry` and the
-`ReconnectingMcpToolRegistry` production wires are not the same implementation of every promise.
-The six are that every served tool is advertised with its name, purpose and schema in order;
-that the listing is read again on every walk; that a call comes back stamped with its own id and
-the tool's text; that a tool which ran and failed is an `is_error` result rather than an
-exception; that a name the registry does not serve never comes back as a success; and that an
-unreachable backend raises `ToolError` from both verbs.
-
-The fake could express neither the port's central case nor the conditions it runs under.
-`InMemoryToolRegistry`
-handlers answered result text, so the fake could never produce a result with `is_error` set,
-which is the case the port draws its whole `is_error`-against-raise distinction around, and every
-core test of a failing tool went through the other branch, a handler raising, which the
-dispatcher labels differently (its own sentence is trusted, a relayed one is not). It copied its
-tool set at construction, so no test could change the tool set the port promises to re-read. And it
-had no way to be unreachable, so nothing held it to the `ToolError` that
-`SkipUnavailableToolRegistry` is built on. It gained a widened handler answer, `serve`, and the
-same `fail_with` the embedder's fake took.
-
-**One divergence was decided against the port rather than against an implementation.** The port
-promised `ToolNotFoundError` for an unknown name, which only a registry that holds its whole set
-can keep: an MCP server answers an unknown tool with an error result, so the adapter has never
-raised there and cannot without matching an error string or paying a listing round trip per call.
-The description was the thing that was wrong, and it now states the safety half both owe, that a
-name an implementation does not serve never comes back as a success, with the divergence and its
-downstream consequence written into
-[docs/modules/brain-tools.md](../../modules/brain-tools.md).
-
-**Proven able to fail four times, each on the arms that can carry the defect.** An adapter
-reading `isError` as always false fails the failed-tool check and the unknown-name check on
-both MCP arms while the fake passes (4 failed, 15 passed); an adapter dropping the call's
-arguments fails the id-and-text check and the failed-tool check on the same two; a fake
-answering an empty listing instead of raising when unreachable fails the backend check on the
-`in-memory` arm alone; and a listing cache in `McpToolRegistry` fails the re-read check on the
-`mcp` arm only, since the reconnecting wrapper builds a fresh inner registry per call and is
-structurally immune to it, which is the evidence that both MCP arms earn their place. Each break
-was restored. **Two of the four Python ports stay open**, `BodyGateway` and `Confirmer`,
-alongside `InferenceBackend`'s streaming half and every Rust row.
-
-**`BodyGateway` is the third, and its finding runs the dangerous way.**
-`brain/packages/body_client/tests/gateway_contract.py` holds ten checks and
-`test_gateway_contract.py` runs them over `InMemoryBodyGateway` and over `GrpcBodyGateway`
-talking to a `BodyService` served on loopback, so nothing on the adapter's side is stubbed. The
-ten are the volume read, the write that touches only the field it was given, the write that
-reports the state after it, the clamp, the notification that reaches the body with its taint
-bit, the decline that answers `False` rather than raising, the capture that reports what the
-body pointed at rather than what was asked, the capture refused for breaking the bound it asked
-for, the capture attempted exactly once, and the single `BodyGatewayError` every verb fails
-with.
-
-The fake handed back a capture the adapter would have refused. A non-zero `max_edge` or
-`max_bytes` is a bound on the reply, since a proto3 field an older body ignores is a constraint
-the brain only believes it set, and the gRPC adapter has verified it on receipt since the
-capture slice; the fake answered its scripted capture verbatim whatever was asked. So a core
-test could watch a turn accept a picture production would have thrown away, which is a fake more
-permissive than the adapter it stands in for, the direction that hides defects rather than
-inventing them. The rule is domain logic rather than wire translation, so it moved into the core
-as `hold_to_the_bounds_asked_for` and both implementations call it, which also leaves one fewer
-place for the two to drift. The fake gained `fail_with` and `show_notifications` besides, a body
-going away mid-run and a host switching toasts off being conditions a construction argument
-cannot supply. Two divergences are legitimate and are written into
-[docs/modules/brain-body-client.md](../../modules/brain-body-client.md): the level is 32 bits on
-the wire and a Python float in the fake, so every level the checks use is exact in both, and the
-clamp happens in different places, which is why the check asks only that a legal state comes
-back.
-
-**Proven able to fail four times, once per side.** The bounds rule taken back out of the fake
-fails the refusal check on the `in-memory` arm alone (1 failed, 19 passed), which is the
-finding measured rather than asserted; the adapter sending a zero for an absent level instead of
-leaving the field unset fails the presence check on the `grpc` arm alone, which is the mute
-that would silence the host; the adapter stamping the asked target onto the answer fails the
-target check the same way; and the fake recording a notification without its taint bit fails
-the notification check on `in-memory`. Each break was restored. **One of the four Python ports
-stays open**, `Confirmer`, alongside `InferenceBackend`'s streaming half and every Rust row.
-
-**`Confirmer` is the fourth and last of them.**
-`brain/packages/orchestrator/tests/confirmer_contract.py` holds five checks and
-`test_confirmer_contract.py` runs them over `RecordingConfirmer` and over `SeamConfirmer`. The
-list sits beside the real adapter rather than beside the seam's fake, which is where the other
-lists sit and where the fixture's work is: it wires a scripted overlay into the adapter's
-`emit`, reads the card off the control path, decodes it back into a `ConfirmationRequest`, and
-answers through `resolve` exactly as the Converse stream does, so nothing about the adapter is
-stubbed and only the person is. The five are that an explicit approval is the only `True`, that
-a refusal blocks, that a person who never answers denies, that the person is shown the call that
-would run, and that each ask is answered on its own.
-
-The fake's answer was fixed at construction, and a person is not a constant, so it could not be
-asked about two calls in one run; it gained `answer_with`. No behavioural disagreement came out
-of the five, which for a port whose whole contract is that only an explicit yes is `True` is the
-answer worth having. One legitimate divergence went into
-[docs/modules/brain-orchestrator.md](../../modules/brain-orchestrator.md): the fake records the
-request object while the real card crosses as JSON built with `default=str`, so a value JSON
-cannot represent would reach the person rendered rather than verbatim, and the checks use the
-JSON-native arguments a model always sends.
-
-**Proven able to fail three times, and once deliberately not.** A timeout that approves fails
-the silence check on the `seam` arm alone; a card emitted without its reason fails the two
-checks that read what the person was shown, on `seam`; a fake that stops recording fails the
-same two on `recording`. The fourth attempt is the informative one: `resolve` rewritten to
-answer whichever ask is pending rather than the one whose id it was given leaves all ten passing,
-because through the port only one ask is ever outstanding. That is the division of labour rather
-than a hole, the shared list holding the port while `test_confirm.py` holds the stream, where a
-stale or forged `confirm_id` resolving nothing is checked directly.
-
-**The four Python ports named at the top of this entry are done, and the entry is still open.**
-What is left is `InferenceBackend`, whose decode cadence is shared and whose streaming contract
-is not, and every Rust row. The inference one is deliberately not folded into the four: two
-implementations producing events at different rates from different sources need a list that says
-what a stream owes without saying when, which is a design question rather than a transcription.
-
-**`InferenceBackend`'s streaming half closed on 2026-08-16, which leaves only Rust.**
-`brain/packages/inference/tests/stream_contract.py` holds eight checks and
-`test_stream_contract.py` runs them over `ScriptedInferenceBackend` and over `LlamaCppBackend`
-reading real llama-server bodies through a `MockTransport`, the third file of this port's list
-beside the two that hold one closing event each. The design question the entry recorded got an
-answer written into the checks themselves: a stream owes that the reply is its deltas joined in
-arrival order, that thinking crosses apart and is over before the reply starts, that a tool call
-crosses whole and never precedes the words beside it, that the two closing events arrive at most
-once each with the stop first and both after what they describe, that a completion with nothing
-to say owes no event at all, that an abandoned completion costs the backend nothing, and that a
-backend which cannot answer fails with `InferenceError`. Nothing in it counts events, sizes one,
-or asks when one arrives, which is what "without saying when" turned out to mean.
-
-It paid twice against the port's own description and once against the fake. The port promised
-`ToolCall`s "interleaved" with the text, which no implementation has ever done, and called the
-cadence the event that "closes the stream", which the trailing tool calls disprove in the other
-direction; both sentences were the thing that was wrong, and the list holds the half both
-implementations already keep. The fake could not fail at all: `ScriptedInferenceBackend` had no
-way to raise the port's one error, which is why ten test files hand-roll a backend of their own to
-make one, and it gained `fail_with` like the three fakes before it. Three legitimate divergences
-went into [docs/modules/brain-inference.md](../../modules/brain-inference.md) instead of into
-checks: an empty delta is permitted by the port and dropped by the adapter, tool calls trail both
-closing events there because a call is whole only once the stream ends, and the twin's script
-advances per call, which is why nothing asks an implementation to answer twice the same way. The
-shipped `EchoInferenceBackend` is deliberately not a third leg, since three of the four scenarios
-cannot be put to it and teaching it any of them would turn shipped wiring into a test stub. What
-that left open is narrower and is filed as its own entry
-([R-280](280-twin-answers-for-any-model-id.md)): the twin answers for a model id no deployment
-serves, where the adapter rejects one its manager cannot lease. The whole account, including the
-seven breaks that proved the list able to fail and the eighth that deliberately did not, is the
-[ADR-0001](../../adr/ADR-0001-architecture.md) addendum of the same day.
-
-**The trigger below counts nine and the tree now holds twenty-one**, which is the entry's own text
-aging rather than a defect in it: twenty in Python, eighteen lists named `<port>_contract.py`,
-`session/tests/contract.py`, and the own-text list defined inside
-`tools/tests/test_own_text_contract.py`, plus the overlay's `bridgeContract.ts`. The trigger keeps its
-wording because the arrangement it points at is unchanged and the number was true when it was
-written; the count that matters to the next reader is here and in the ADR tables.
-
-**`EmailSender` was the last Python port, found and closed on 2026-09-17.** It was missing from
-the inventory until the Python ports were enumerated by grep rather than from the table, a fake
-inside `email/tests/test_email_server.py` and `SmtpSender` sharing no list.
-`brain/packages/email/tests/sender_contract.py` now holds eight checks and
-`test_sender_contract.py` runs them over `FakeSender`, moved to `tests/sender_fake.py`, and over
-`SmtpSender` on a stand-in `smtplib` (`tests/smtp_stub.py`) that fakes only the socket, so no
-dependency was added. The eight are the one-line answer naming recipient and subject, a plain
-draft and a full one handed over as written, fourteen refused drafts that reach nothing,
-attachments at both bounds handed over whole, and the three ways a send goes wrong at the server:
-unreachable, every recipient refused, one recipient refused.
-
-It paid three times. The port had no failure type, so an unreachable Bridge reached the tool as
-whatever `smtplib` or the socket raised; it gained `SendError`, which the adapter wraps both into.
-The adapter ignored the refused-recipient dict `send_message` returns, so a send refused for some
-recipients was reported as sent to all. And the fake accepted every draft the adapter refuses and
-answered a line of its own; the refusals and the line moved into `cortex_email/drafts.py`, which
-both implementations call. Ten breaks, four in the adapter, five in the fake and one in the shared
-rules, each fail the arm that carries them, and the whole account is the
-[ADR-0001](../../adr/ADR-0001-architecture.md) addendum on the send port's shared list.
-
-**What is left is every Rust row**: the four OS ports, three of whose fakes are hand-written twice
-in two crates, `BrainTransport` with three independent suites over one eleven-method trait, and the
-two small ones beside them. The overlay is done, and so is every Python row that owes a list.
-
-**Why deferred rather than done.** The ports named above come to five in Python counting the
-partial one, seven in Rust and one in the overlay, and writing contract suites for them is a
-slice with its own design questions (what a write-only port owes, whether a Rust list is a
-generic function or a table of function pointers, whether the overlay's fake and its Tauri
-bridge can share a driver at all when one answers from a record and the other crosses an IPC
-boundary), while the sweep that found them was scoped to one pass and one commit. The ADR
-addendum's tables are the worklist, port by port, with the ports that legitimately cannot
-share checks already argued out of it so the next reader does not re-derive them.
-
-**Trigger:** the next port to gain a shared check list, which should adopt the arrangement
-the nine existing ones share rather than invent a tenth; or the first drift caught in the
-wild, meaning a check that passes against a fake and fails against its adapter in a way a
-shared list would have named.
-
-## Trail
-
-- 2026-08-10: Opened by the sweep that carried the `MemoryStore` contract fix out to every port in
-  both languages, taking the area from four entries to five by arrival rather than exchange. The
-  sweep's own finding closed inside it, `SessionStore` having had the identical defect, its
-  fourteen shared checks read only by the integration-marked live-Redis run while the CI driver
-  restated them by hand; it now parametrizes over the tuple and was proven able to fail on a
-  poisoned fifteenth check, which fails both implementations where the restated driver had
-  answered `66 passed` over it. What opened is the half the sweep could only measure. The full port
-  inventory went into the ADR-0001 addendum on decision 2 rather than into this entry, so that the
-  next sweep re-reads it rather than re-deriving it, and it names the ports whose fake and adapter
-  legitimately cannot share checks: the write-only sinks, `Clock`, `Sleeper` and `ZoneResolver`,
-  whose two implementations are deliberately not interchangeable.
-- 2026-08-11: The trigger fired once without the entry closing. The overlay's `BrainBridge` gained
-  thirteen named checks driven over `FakeBridge` and `DemoBridge`, the first shared list outside
-  Python, and `demoBridge.ts` and its script came out of the overlay's coverage `exclude` behind it,
-  leaving `main.tsx` and the IPC-crossing `tauriBridge.ts` there with their reasons beside them. The
-  list paid on its first run, before either implementation was changed to suit it, on three
-  disagreements decided against the port's own description plus a fourth from the turn-handle check.
-  Every line of the demo's script is reached by the turns those suites drive, so the 0% the overlay
-  entry had measured for it was about a script nothing imported in CI rather than about the file.
+- 2026-08-10: Opened by the review that followed the `MemoryStore` contract fix out to every port
+  in both languages. The review's own finding closed inside it: `SessionStore` had the same defect,
+  its fourteen shared checks read only by the integration-marked live-Redis run while the CI driver
+  repeated them by hand. It now runs over the shared tuple, shown able to fail by a poisoned
+  fifteenth check that fails both implementations where the repeated driver had reported
+  `66 passed`.
+- 2026-08-11: The overlay's `BrainBridge` gained thirteen named checks run over `FakeBridge` and
+  `DemoBridge`, the first shared list outside Python, and `demoBridge.ts` and its script came out
+  of the overlay's coverage `exclude`, leaving `main.tsx` and the IPC-crossing `tauriBridge.ts`
+  there with their reasons. The list paid on its first run, before either implementation was
+  changed to suit it: `FakeBridge` ignored the `limit` given to `listSessions`, `FakeBridge`
+  recorded a write the served record never contained, `DemoBridge` read a zero limit as "at most
+  none" where the port documents it as the brain's default, and the demo bridge announced a capture
+  activity inside the `converse` call, which the real bridge cannot do.
 - 2026-08-11: `Embedder` was the first of the four Python ports, four checks over `HashEmbedder`
   and over `LlamaCppEmbedder` on a `MockTransport`. It found no behavioural disagreement, which is
-  the honest outcome for a port one method wide, and it found a fake that could not raise the one
+  the right outcome for a port one method wide, but it found a fake that could not raise the one
   error the port names, so `HashEmbedder` gained a scripted `fail_with`.
 - 2026-08-11: Writing that list also established that both implementations raise `EmbedderError`
-  and nothing else, and then that nothing in the brain caught it, nor the store's error either, so
-  a stopped embedding server or an unreachable Postgres failed the turn instead of costing it its
-  recalled notes. The index filed that arrival to the memory area rather than here.
-- 2026-08-11: `ToolRegistry` was the second and the one that paid, six checks over three
+  and nothing else, and that nothing in the brain caught it, so a stopped embedding server or an
+  unreachable Postgres failed the turn instead of costing it its recalled notes.
+- 2026-08-11: `ToolRegistry` was the second and the one that paid most, six checks over three
   implementations, since the translating and the reconnecting MCP registries are not the same
   implementation of every promise. The fake could express neither the port's central case nor the
-  conditions it runs under, and one divergence was decided against the port's own wording rather than against either
-  implementation.
-- 2026-08-11: `BodyGateway` was the third and its finding ran the dangerous way, the fake handing
-  back a capture the adapter would have refused, which is a fake more permissive than the adapter
-  it stands in for. The bounds rule turned out to be domain logic rather than wire translation and
-  moved into the core, where both implementations call it.
+  conditions it runs under, and one disagreement was decided against the port's own wording: it
+  promised `ToolNotFoundError` for an unknown name, which only a registry holding its whole set can
+  do.
+- 2026-08-11: `BodyGateway` was the third, and its finding ran the dangerous way: the fake handed
+  back a capture the adapter would have refused, so a core test could watch a turn accept a picture
+  production would have thrown away. The bounds rule is domain logic rather than wire translation,
+  so it moved into the core as `hold_to_the_bounds_asked_for` and both implementations call it.
 - 2026-08-11: `Confirmer` was the fourth and last, five checks over `RecordingConfirmer` and
   `SeamConfirmer` with a scripted overlay wired into the adapter's `emit`. No behavioural
-  disagreement came out of them, and one break deliberately made nothing fail, which is the
-  division of labour rather than a hole. That finished the four Python ports the sweep named, leaving
-  `InferenceBackend`'s streaming half, which is a design question rather than a transcription, and
-  every Rust row.
+  disagreement came out of them. One deliberate break made nothing fail, because through the port
+  only one request is ever outstanding, which is the division of labour rather than a hole.
 - 2026-08-16: `InferenceBackend`'s streaming half closed, eight checks over the scripted twin and
-  the llama.cpp adapter, and the design question was answered by writing only obligations and
-  orders: what a stream owes turned out to be sayable without counting an event, sizing one, or
-  asking when it arrives. It paid twice against the port's own description, which promised
-  interleaved tool calls and a cadence that closes the stream where every implementation trails its
-  calls behind both closing events, and once against the fake, which could not raise the port's one
-  error and gained `fail_with`. The model-id half of that finding was too narrow to fold in and
-  opened [R-280](280-twin-answers-for-any-model-id.md). The Python half of this entry and the
-  overlay are now done, so what remains is every Rust row, where the fakes themselves are still
-  hand-written twice in two crates.
-- 2026-09-11: read against the tree, and the first arm of the trigger has fired a second time
-  without the entry closing. `Mailbox`, the email package's port, gained
-  `brain/packages/email/tests/mailbox_contract.py` on 2026-08-19, and its driver runs the list
-  over `FakeMailbox` and over `ImapMailbox` on a stand-in box through `pytest.mark.parametrize`,
-  which is the arrangement the trigger asks for. A second list over `ToolRegistry`, the own-text
-  rule in `tools/tests/test_own_text_contract.py`, followed on 2026-09-02 over the fake and the
-  real MCP registry. So the count is seventeen, sixteen in Python and the overlay's, and the body
-  above now says so. The inventory table at the origin decision does not carry the `Mailbox`
-  row; whoever lands the Rust half should add it. Every Rust claim was re-read: `FakeAudio`,
-  `FakeNotify` and `FakeScreen` are still written once under `core/tests/` and once in
-  `rpc/tests/body_server.rs`, `FakeHotkey` once, and both copies of `FakeBrain` have sat in
-  `rpc/tests/` since 2026-07-01, in `converse.rs` and `client.rs`, so the sentence placing one of
-  them under `core/tests/` was wrong on the day it was written and is repaired above; the core's
-  own stand-in there is `FakeTransport`. `BrainTransport` still has eleven methods and three
-  suites, the five generic helpers are still where they were, no file under `body/crates/` is
-  named for a contract, and the overlay's coverage exclude still names `main.tsx` and
-  `tauriBridge.ts` as its only source files.
-- 2026-09-17: read against the tree with the ports enumerated by grep, and the entry was wrong
-  about its own scope. `class <Name>(Protocol` across `brain/packages/*/src` gives 43 names and
-  the origin's Python table named 25. Of the eighteen missing, `EmailSender` is a fake and a real
-  adapter with no shared list, so the Python half is not done and the body above now says so;
-  `Mailbox`, `PaceSink` and `MemoryScope` needed rows and have them, the last with no list by
-  design; `RecallPolicy`, a port with five shipped policies whose shared obligations were restated
-  per policy, gained a shared list the same day at the origin; and the other
-  thirteen are protocols their own docs do not call ports, argued at the origin's addendum of the
-  same day. The list count was one short, eighteen rather than seventeen. The Rust
-  side, `pub trait` across `body/crates` and `body/app/src-tauri/src`, is still the seven traits
-  the table names, `BrainTransport` still has eleven methods, `FakeAudio`, `FakeNotify` and
-  `FakeScreen` are still written in `core/tests/` and again in `rpc/tests/body_server.rs`, both
-  `FakeBrain` copies are where the previous bullet puts them, no file under `body/crates` is named
-  for a contract, and the overlay's coverage exclude still names `main.tsx` and `tauriBridge.ts`.
-  Neither arm has fired: no list has been added anywhere since 2026-09-02, and the one Rust port
-  change since this was opened, the capture target of 2026-08-10, was mirrored into both
-  `FakeScreen` copies without a drift. Its first arm had already fired twice without closing the
-  entry, so the trigger now names only what would move this entry.
-- 2026-09-17: `EmailSender` landed, eight checks over `FakeSender` and `SmtpSender` on a stand-in
-  `smtplib`, which leaves only the Rust rows. It paid three times: the port gained `SendError` for
-  a send that reached nobody, the adapter now names recipients the server refused while accepting
-  the others where it used to report them sent, and the fake now applies the refusals it had
-  skipped, from `cortex_email/drafts.py`, which both implementations call. The trigger no longer
-  names the port.
+  the llama.cpp adapter. The design question was answered inside the checks: a stream's obligations
+  can be stated without counting an event, sizing one, or asking when it arrives. It paid twice
+  against the port's own description, which promised tool calls interleaved with the text and a
+  cadence event that closes the stream, when every implementation puts its calls after both closing
+  events. The fake could not raise the port's one error and gained `fail_with`. The model-id half
+  of that finding opened [R-280](280-twin-answers-for-any-model-id.md).
+- 2026-09-11: Read against the tree. `Mailbox` gained a list on 2026-08-19 over `FakeMailbox` and
+  `ImapMailbox`, and the own-text rule in `tools/tests/test_own_text_contract.py` followed on
+  2026-09-02, so the count reached seventeen. Every Rust claim was checked again and one was
+  repaired: both copies of `FakeBrain` have been in `rpc/tests/` since 2026-07-01, not one under
+  `core/tests/`.
+- 2026-09-17: Read against the tree with the ports enumerated by grep, and the entry was wrong
+  about its own scope. `class <Name>(Protocol` across `brain/packages/*/src` gives 43 names where
+  the origin's Python table named 25. Of the eighteen missing, `EmailSender` had a fake and a real
+  adapter and no list; `Mailbox`, `PaceSink` and `MemoryScope` needed rows and have them;
+  `RecallPolicy` gained a shared list the same day; and the other thirteen are protocols their own
+  docs do not call ports. Neither half of the trigger has fired: no list has been added anywhere
+  since 2026-09-02, and the one Rust port change since this opened, the capture target of
+  2026-08-10, was mirrored into both `FakeScreen` copies without diverging.
+- 2026-09-17: `EmailSender` closed, eight checks over `FakeSender` and `SmtpSender` on a stand-in
+  `smtplib` that fakes only the socket, so no dependency was added. It paid three times: the port
+  gained `SendError` for a send that reached nobody, the adapter now names recipients the server
+  refused while accepting the others where it used to report them all sent, and the fake now
+  applies the refusals it had skipped, from `cortex_email/drafts.py`, which both implementations
+  call. Only the Rust rows are left.

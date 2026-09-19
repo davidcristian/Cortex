@@ -199,7 +199,7 @@ recorded in an ADR. This ADR is that exclusion, and the checks that grew around 
 
 - Modules: [body-core](../modules/body-core.md), [body-rpc](../modules/body-rpc.md),
   [body-os](../modules/body-os.md), [body-app](../modules/body-app.md),
-  [repo checks](../modules/repo-gates.md).
+  [repo checks](../modules/repo-checks.md).
 - Runbook: [body-overlay](../runbooks/body-overlay.md); design:
   [overlay-ux](../design/overlay-ux.md).
 - Readings: [shell clippy](../readings/shell-clippy.md).

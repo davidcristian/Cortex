@@ -1,100 +1,67 @@
 # Toast activation routing
 
-**Status:** open, dead until a consumer
+**Status:** open, waiting for a consumer
 **Area:** scheduling
-**Origin:** [ADR-0025](../../adr/ADR-0025-scheduling-reminders.md)
-**Trigger:** a second consumer of toast interaction, such as snooze-from-the-toast.
+**Origin:** [ADR-0066](../../adr/ADR-0066-reminder-toast-and-card.md)
+**Trigger:** a second consumer of toast interaction, such as snooze from the toast.
 **Verified:** 2026-09-19
 
-A shown toast is inert: clicking it does nothing, while the
-overlay's reminder card offers "open the conversation this came from". Closing that asymmetry
-is **not behind an unchanged seam**, which is why it is recorded rather than folded in:
-`NotifyRequest` carries `title`/`body`/`reminder_id`/`tainted` and **no `session_id`** (unlike
-`DueReminder`, which has carried one since the seam was designed), so the body cannot resolve
-the origin chat at all today. It also needs an activation channel from the toast back into the
-running app, and for an unpackaged Win32 app that means a registered COM activator, which is
-more Windows plumbing than the delivery it improves. Wait for a second consumer of toast
-interaction (snooze-from-the-toast would be the other one) before spending it.
+Clicking a shown toast does nothing, while the overlay's reminder card offers "open the
+conversation this came from". Fixing that needs a change to the gRPC boundary: `NotifyRequest`
+contains `title`, `body`, `reminder_id` and `tainted` and no `session_id` (unlike `DueReminder`,
+which has had one since the boundary was designed), so the body cannot find the origin chat at
+all. It also needs a way for a toast click to reach the running app, which for an unpackaged Win32
+app means a registered COM activator: more Windows plumbing than the delivery it improves.
 
-The two-part design is recorded in the [ADR-0025 toast-activation
-addendum](../../adr/ADR-0025-scheduling-reminders.md). Read against the tree, the `session_id` the
-obvious fix wants on `NotifyRequest` has no reader but a host-side Windows one, so adding it now
-would be the dead wire this sweep declined five times the same day (blended relevance, `GetVolume`,
-the structured redaction event, occurrence history, the per-error-code retry table), on the same "no
-consumer" test.
-**The push path is fire and forget, confirmed end to end.** `_deliver` reads only the `shown`
-verdict (`ticker.py`), `GrpcBodyGateway.notify` returns only `reply.shown` (`gateway.py`), the
-body's `OsService.notify` builds a `body_core::Notification`, calls `Notify::show`, and discards all
-but `shown` (`body/crates/rpc/src/server.rs`), and `WindowsNotify.show` renders a fire-and-forget
-`ToastGeneric` toast with nothing read back (`body/crates/os_windows/src/notify.rs`); the Linux and
-macOS backends are `unimplemented!()`. The overlay never sees the call at all: it is a
-`BrainService` client, while `Notify` is a `BodyService` RPC the body serves, so no `notify`
-reference exists anywhere under `body/app/src`. The only reader of any toast payload beyond `shown`
-is the host-side `toast_xml` (`cfg(windows)`, never measured in CI), and the only thing that could
-act on a clicked toast is a COM activator that does not exist.
-**The two-part design, so the next pass re-derives nothing.** Part one, the seam prerequisite: a
-`session_id` on `NotifyRequest` (a new proto field regenerated into both stubs), set by the ticker's
-`_deliver` for both kinds (a reminder and a task each carry the origin `item.session_id`; a
-session-less item carries `""`, the `DueReminder` convention, and its toast is not routable),
-plumbed through `BodyGateway.notify` and its adapter into `Notification`, and embedded by
-`toast_xml` as the toast's top-level `launch` argument so a click's activation payload names the
-origin chat. Part two, the host-side activator: a registered COM `INotificationActivationCallback`
-for the unpackaged app's `AppUserModelID`, plus an activation channel from the Tauri shell into the
-running overlay, so a clicked toast invokes the app, reads the `launch` `session_id` back, and
-routes the overlay to that chat through the same `onSelectSession`/`openSession` the reminder card's
-origin-chat control already uses.
-**Why part one does not land alone.** Its last mile (the `launch` attribute in `toast_xml`) is
-itself host-side `cfg(windows)` and uncovered, so the field cannot be plumbed end to end in the
-CI-gated half; and the activation payload should be designed with its reader, since the entry's own
-named second consumer, snooze-from-the-toast, wants toast action buttons carrying their own
-arguments rather than a bare top-level `session_id`, so committing the wire shape now risks being
-wrong when the activator arrives.
-**What reopens it** is a second consumer of toast interaction (snooze-from-the-toast) that shares
-the COM plumbing's cost, at which point the proto field and the toast launch payload are designed
-together with the activator that reads them, as one piece. This is the same `NotifyRequest`
-`session_id` the out-of-window authoritative title entry
-([session-read-seam.md](../index.md#session-read-seam)) names as one of its own reopen paths.
+The push path is fire and forget. `_deliver` reads only `shown` (`ticker.py`),
+`GrpcBodyGateway.notify` returns only `reply.shown` (`gateway.py`), the body's `OsService.notify`
+builds a `body_core::Notification`, calls `Notify::show` and discards everything but `shown`
+(`body/crates/rpc/src/server.rs`), and `WindowsNotify.show` renders a `ToastGeneric` toast with
+nothing read back (`body/crates/os_windows/src/notify.rs`). The overlay never sees the call: it is
+a `BrainService` client, while `Notify` is a `BodyService` RPC the body serves.
 
-**Corrected 2026-09-19: part two is smaller than the design above says, and neither half of the
-correction is measured.** The activation channel from the Tauri shell into the running overlay
-already exists: the shell emits `cortex:activate` on the hotkey and the tray
-(`body/app/src-tauri/src/lib.rs`), and the overlay records and answers it
-(`body/app/src/overlay/activation.ts`), as it has since 2026-07-01. It carries no payload, so what
-part two adds there is a session id on that event or a sibling of it, not a channel. And the COM
-activator is one of two ways to hear a click. `ToastNotification` in the pinned `windows` 0.58
-exposes an in-process `Activated` event, and the body is resident in the tray, so a click on a
-toast while the body runs could reach a handler registered when the toast is shown, with no COM
-registration. The activator is what a click needs when the process that showed the toast has
-gone. Whether `Activated` fires for an unpackaged app's toast at all, and for one clicked from the
-notification centre rather than the popup, is Win32 behaviour nobody has read on a desktop. So the
-cost this entry waits to share may be an event handler and a new `body_core` sink for it rather
-than COM plumbing. The trigger is unchanged, because part one's reason not to land alone still
-holds, and a first reading on the host would be the cheapest way to settle which cost is real.
+The design has two parts, recorded in the Consequences of
+[ADR-0066](../../adr/ADR-0066-reminder-toast-and-card.md).
 
-## Trail
+1. A `session_id` on `NotifyRequest`, regenerated into both stubs, set by the ticker's `_deliver`
+   for a reminder and for a task from `item.session_id` (a session-less item sends `""`, the
+   `DueReminder` convention, and its toast cannot be routed), passed through `BodyGateway.notify`
+   and its adapter into `Notification`, and written by `toast_xml` as the toast's top-level
+   `launch` argument.
+2. A registered COM `INotificationActivationCallback` for the unpackaged app's `AppUserModelID`,
+   so a clicked toast starts the app, reads the `launch` `session_id` back and routes the overlay
+   to that chat through the same `onSelectSession`/`openSession` the reminder card already uses.
 
-- 2026-07-16: Newly deferred behind the landing of the body-side `Notify` trait and Tauri toast,
-  which is what made a shown toast exist to click. The area's count held at 10 across that
-  landing, one entry closing and this one opening behind it.
-- 2026-07-16: Read against the tree and sharpened rather than built, moving from
-  actionable-with-a-seam-change to dead-until-a-consumer with the two-part design and the trigger
-  recorded. A sharpened deferral is still open, so the count was unchanged.
-- 2026-09-13: read against the tree again and every claim holds. `NotifyRequest` still carries
-  `title`, `body`, `reminder_id` and `tainted` and no `session_id` (`proto/body.proto`), while
-  `DueReminder` still carries one as field 6, so the body still cannot resolve the origin chat of
-  a toast. `toast_xml` still renders one `ToastGeneric` binding holding a title text node, a body
-  text node and, for an untrusted reminder, the attribution line, with no `launch` attribute and
-  no `<actions>` element (`body/crates/os_windows/src/notify.rs`), and `OsService.notify` still
-  returns `shown` alone (`body/crates/rpc/src/server.rs`). The trigger has not fired. A snooze does
-  now exist in the tree, the `snooze_scheduled` verb a model calls in a chat
-  (`brain/packages/core/src/cortex_core/schedule_verbs.py`), but that verb reaches the store
-  through a tool call and touches no toast, so it is not the second consumer of toast interaction
-  this waits for and it shares none of the COM plumbing's cost.
-- 2026-09-19: re-derived. `NotifyRequest` still carries `title`, `body`, `reminder_id` and `tainted`
-  and no `session_id`, `DueReminder` still carries one as field 6, `toast_xml` still renders one
-  `ToastGeneric` binding with no `launch` attribute and no `<actions>` element, and
-  `OsService.notify` still returns `shown` alone. No surface offers snooze from a toast and no entry
-  asks for one, so the trigger has not fired. What was wrong is part two's cost, corrected above:
-  the shell-to-overlay channel it counted as missing has existed since before the entry, and an
-  in-process `Activated` handler is a possible alternative to the COM activator. No circle: 180
-  waits on this entry's `session_id`, and this entry waits on nothing in 180.
+Part one cannot be done alone: its last step, the `launch` attribute in `toast_xml`, is
+`cfg(windows)` and not covered in CI, and the payload should be designed together with its reader,
+since snooze from the toast would want action buttons with their own arguments rather than one
+top-level `session_id`. This is the same `NotifyRequest` `session_id` that the out-of-window
+authoritative title entry ([session-read-rpc.md](../index.md#session-read-rpc)) names as one of
+its reopen paths.
+
+Corrected 2026-09-19, neither half measured: part two is smaller than described above. The channel
+from the Tauri shell into the running overlay already exists, since the shell emits
+`cortex:activate` on the hotkey and the tray (`body/app/src-tauri/src/lib.rs`) and the overlay
+handles it (`body/app/src/overlay/activation.ts`), as it has since 2026-07-01. It has no payload, so
+part two adds a session id to that event or a sibling of it. And the COM activator is only one of
+two ways to hear a click: `ToastNotification` in the fixed `windows` 0.58 exposes an in-process
+`Activated` event, and the body runs in the tray, so a click while the body runs could reach a
+handler registered when the toast is shown, with no COM registration. The activator is what a click
+needs when the process that showed the toast has exited. Whether `Activated` fires for an unpackaged
+app's toast, and for one clicked from the notification centre rather than the popup, has never been
+tested on a desktop.
+
+## History
+
+- 2026-07-16: Opened behind the body-side `Notify` trait and Windows toast, which is what made a
+  shown toast exist to click.
+- 2026-07-16: Checked against the tree and sharpened rather than built: it moved from actionable to
+  waiting for a consumer, with the two-part design and the trigger recorded.
+- 2026-09-13: Checked again and every claim holds. `NotifyRequest` still has no `session_id`,
+  `DueReminder` still has one as field 6, `toast_xml` still renders one `ToastGeneric` binding with
+  no `launch` attribute and no `<actions>` element, and `OsService.notify` still returns `shown`
+  alone. The `snooze_scheduled` verb a model calls in a chat
+  (`brain/packages/core/src/cortex_core/schedule_verbs.py`) reaches the store through a tool call
+  and touches no toast, so it is not the second consumer this waits for.
+- 2026-09-19: Checked again, same findings, and no surface offers snooze from a toast. What was
+  wrong is part two's cost, corrected above.

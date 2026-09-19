@@ -1,31 +1,28 @@
 # Richer `spawn_subagents` object schema
 
-**Status:** landed 2026-07-03
+**Status:** done 2026-07-03
 **Area:** subagents
 **Origin:** [ADR-0010](../../adr/ADR-0010-subagents.md)
 
-An instructions item is now a bare string or `{instruction, model?, context?}`, so per-subtask
-context reaches `SubagentTask.context` and the model choice rides alongside, closing the
-ADR-0010 increment-2 deferral. Remaining nearby: the cortex uses the model knob reliably when
-directed but may not reach for it spontaneously on a prose-only ask (ADR-0018 addendum
-finding 1). Further spec/description tuning is a later refinement behind the same tool.
-**Advanced 2026-07-16 by the trade-off change below:** the new parallelism line is also the
-spontaneous-pick nudge finding 1 wanted, giving the model knob a concrete reason (a wall-clock
-win from spreading independent subtasks across distinct models) to reach for beyond a directed
-pick. The *uptake* by a live cortex is unverified: not measured rather than unmeasurable, since
-the reason recorded until 2026-07-19 (gemma-12B does not fit the 8 GB dev GPU) is false. It is
-recorded as a fix-when-it-bites residual below rather than proven closed, with the probe itself
-agent-runnable now.
+An instructions item may now be a bare string or `{instruction, model?, context?}`, so per-subtask
+context reaches `SubagentTask.context` and the model choice travels with it. That closes the
+object item form ADR-0010 deferred.
 
-## Trail
+What stayed nearby: the cortex uses the model setting reliably when told to, but may not reach for
+it on its own from a prose-only ask (ADR-0018 decision 8). The trade-off change of 2026-07-16
+([R-122](122-measured-tradeoff-advertisement.md)) added the parallelism sentence that gives the
+model setting a concrete reason to be used, a wall-clock win from spreading independent subtasks
+across distinct models. Whether a live cortex takes that hint is
+[R-124](124-nudge-live-uptake.md).
 
-- 2026-07-03: Landed with Slice 8.6
-  ([ADR-0018](../../adr/ADR-0018-heterogeneous-subagents.md)), closing the ADR-0010 increment-2
-  deferral.
-- 2026-07-15: Extracted from the ROADMAP's deferred-refinements section into this area doc, kept
-  verbatim, among the Slice 7 subagent-runner deferrals recorded at ADR-0010.
-- 2026-07-16: Advanced by the measured trade-off advertisement's prose change, whose parallelism
-  line is the nudge ADR-0018 addendum finding 1 asked for; the live uptake of that nudge was left
-  unverified and recorded as a separate fix-when-it-bites residual.
-- 2026-07-19: The reason this entry gave for the uptake being unverifiable, that gemma-12B does
-  not fit the 8 GB dev GPU, was struck as false, and the probe was found to be agent-runnable.
+## History
+
+- 2026-07-03: Shipped with Slice 8.6
+  ([ADR-0018](../../adr/ADR-0018-heterogeneous-subagents.md)).
+- 2026-07-15: Extracted from the ROADMAP's deferred-refinements section into this area, among the
+  Slice 7 subagent-runner deferrals recorded at ADR-0010.
+- 2026-07-16: Advanced by the measured trade-off advertisement's prose change, and the live uptake
+  of that hint was recorded as a separate entry.
+- 2026-07-19: The reason this entry gave for that uptake being unverifiable, that gemma-12B does
+  not fit the 8 GB dev GPU, was struck as false, and the probe was found to be runnable by the
+  agent.

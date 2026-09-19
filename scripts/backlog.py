@@ -1,4 +1,4 @@
-"""Read and validate the per-task backlog files under `docs/refinements` and `docs/host`."""
+"""Read and check the per-task backlog files under `docs/refinements` and `docs/host`."""
 
 import re
 from dataclasses import dataclass
@@ -7,37 +7,35 @@ from pathlib import Path
 
 FILENAME = re.compile(r"^(\d{3})-([a-z0-9]+(?:-[a-z0-9]+)*)\.md$")
 FIELD = re.compile(r"^\*\*([A-Za-z]+):\*\* +(.+?) *$")
-TITLE_BANS = ("landed", "declined", "satisfied")
+# "done" and "closed" are left out: both are ordinary adjectives in a title, which the substring
+# check would reject.
+TITLE_BANS = ("declined", "satisfied")
 TITLE_YEAR = re.compile(r"\b(19|20)\d{2}\b")
 
-# The open states, each mapped to the heading it is filed under. A state says what unblocks the
-# task, so a reader picks a bucket rather than a priority number.
 OPEN_STATES = {
     "actionable": "Actionable now",
-    "a seam or port change comes first": "Actionable, once a seam or port changes",
-    "fix when it bites": "Fix when it bites",
-    "dead until a consumer": "Dead until a consumer exists",
-    "feature breadth": "Feature breadth, on request",
+    "needs a port change first": "Actionable, once a port changes",
+    "waiting for its trigger": "Waiting for its trigger",
+    "waiting for a consumer": "Waiting for a consumer",
+    "optional feature": "Optional feature, on request",
     "blocked on host hardware": "Blocked on hardware this repo is not developed on",
 }
-# Two states are defined by waiting for something nobody is doing yet, so each must name the
-# thing that would reopen it. Without that, a deferral cannot be told from a task that was dropped.
-NEEDS_TRIGGER = frozenset({"fix when it bites", "dead until a consumer"})
+NEEDS_TRIGGER = frozenset({"waiting for its trigger", "waiting for a consumer"})
 UNRECORDED = "unrecorded"
-CLOSED_VERBS = ("landed", "declined", "satisfied")
+CLOSED_VERBS = ("done", "declined", "satisfied")
 
 HOST_STATES = ("never attempted", "attempted", "done")
-STANDING = "standing"
+ONGOING = "ongoing"
 
 KIND_FIELDS = {
     "refinements": (("Status", "Area", "Origin"), ("Trigger", "Verified")),
-    "host": (("Status", "Sitting", "Capability", "Origin"), ("Verified",)),
+    "host": (("Status", "Session", "Capability", "Origin"), ("Verified",)),
 }
 CAPABILITIES = ("W", "G", "W+G")
 
 
 class TaskFileError(Exception):
-    """A task file does not satisfy the layout every reader and the index rely on."""
+    """A task file does not follow the layout the readers and the index rely on."""
 
 
 @dataclass(frozen=True)
@@ -54,9 +52,9 @@ class Status:
         return self.state in OPEN_STATES or self.state in ("never attempted", "attempted")
 
     @property
-    def is_standing(self) -> bool:
+    def is_ongoing(self) -> bool:
         """Return True when the task never closes, so no count may call it open or closed."""
-        return self.state == STANDING
+        return self.state == ONGOING
 
     @property
     def bucket(self) -> str:
@@ -67,8 +65,8 @@ class Status:
             return "Never attempted"
         if self.state == "attempted":
             return "Attempted, inconclusive"
-        if self.state == STANDING:
-            return "Standing, never closes"
+        if self.state == ONGOING:
+            return "Ongoing, never closes"
         return self.state.capitalize()
 
 
@@ -91,8 +89,8 @@ class Task:
 
     @property
     def group(self) -> str:
-        """Return the area (refinements) or sitting (host) this task belongs to."""
-        return self.fields.get("Area") or self.fields["Sitting"]
+        """Return the area (refinements) or session (host) this task belongs to."""
+        return self.fields.get("Area") or self.fields["Session"]
 
 
 def parse_status(raw: str) -> Status:
@@ -105,14 +103,14 @@ def parse_status(raw: str) -> Status:
         return Status(state=state, on=None, detail="")
     if raw == "never attempted":
         return Status(state=raw, on=None, detail="")
-    if raw.startswith(STANDING):
+    if raw.startswith(ONGOING):
         _, sep, why = raw.partition(":")
         if not sep or not why.strip():
-            msg = f"a standing status must read 'standing: <why it never closes>': {raw!r}"
+            msg = f"an ongoing status must read 'ongoing: <why it never closes>': {raw!r}"
             raise TaskFileError(msg)
-        return Status(state=STANDING, on=None, detail=why.strip())
+        return Status(state=ONGOING, on=None, detail=why.strip())
     head, _, rest = raw.partition(" ")
-    if head in CLOSED_VERBS or head == "done":
+    if head in CLOSED_VERBS:
         return Status(state=head, on=_parse_date(rest, f"status {raw!r}"), detail="")
     if head == "attempted":
         stamp, sep, detail = rest.partition(", inconclusive:")
@@ -148,17 +146,15 @@ def _read_header(text: str) -> tuple[str, dict[str, str]]:
     for line in lines[1:]:
         if not line.strip():
             if fields:
-                break  # the blank line that closes the block and opens the body
-            continue  # the blank line between the title and the block
+                break
+            continue
         match = FIELD.match(line)
         if match is None:
             if line.startswith("**"):
-                # `**` opens a field in this block, so a mistyped one must fail here rather
-                # than wrap into the field above it and be read as part of its value.
                 msg = f"{line.strip()!r} is not a field line; expected '**Name:** value'"
                 raise TaskFileError(msg)
             if not fields:
-                break  # prose where the block should start; the missing-field check names it
+                break
             fields[last] = f"{fields[last]} {line.strip()}"
             continue
         last, value = match.group(1), match.group(2)
@@ -170,7 +166,7 @@ def _read_header(text: str) -> tuple[str, dict[str, str]]:
 
 
 def _check_fields(kind: str, fields: dict[str, str]) -> None:
-    """Raise when the field block is missing a required field or carries an unknown one."""
+    """Raise when the field block is missing a required field or has an unknown one."""
     required, optional = KIND_FIELDS[kind]
     for name in required:
         if name not in fields:
@@ -185,8 +181,8 @@ def _check_fields(kind: str, fields: dict[str, str]) -> None:
 
 def _check_consistency(kind: str, title: str, status: Status, fields: dict[str, str]) -> None:
     """Raise when the kind, the title, the status and the remaining fields disagree."""
-    if status.is_standing and kind != "host":
-        msg = "a standing status belongs to the host backlog; a refinement is work that closes"
+    if status.is_ongoing and kind != "host":
+        msg = "an ongoing status belongs to the host backlog; a refinement is work that closes"
         raise TaskFileError(msg)
     lowered = title.lower()
     for banned in TITLE_BANS:
@@ -194,20 +190,19 @@ def _check_consistency(kind: str, title: str, status: Status, fields: dict[str, 
             msg = f"the title states a status ({banned!r}); status lives on the Status line alone"
             raise TaskFileError(msg)
     if TITLE_YEAR.search(title):
-        msg = "the title carries a date; a date belongs on the Status line or in the Trail"
+        msg = "the title states a date; a date belongs on the Status line or under History"
         raise TaskFileError(msg)
     trigger = fields.get("Trigger")
     if trigger is not None and not status.is_open:
-        msg = "a closed task may not carry a Trigger"
+        msg = "a closed task may not have a Trigger"
         raise TaskFileError(msg)
     if trigger is None and status.state in NEEDS_TRIGGER:
         msg = f"a {status.state!r} task must name the Trigger that would reopen it"
         raise TaskFileError(msg)
     verified = fields.get("Verified")
     if verified is not None and not status.is_open:
-        # A standing item reaches here too, now the host kind carries the field, and is named.
-        state = "standing" if status.is_standing else "closed"
-        msg = f"a {state} task may not carry a Verified date"
+        state = "an ongoing" if status.is_ongoing else "a closed"
+        msg = f"{state} task may not have a Verified date"
         raise TaskFileError(msg)
     if verified is not None:
         _parse_date(verified, f"the Verified line {verified!r}")
@@ -245,8 +240,6 @@ def load(directory: Path, kind: str) -> list[Task]:
         try:
             text = path.read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError) as err:
-            # A directory named like a task file, or bytes that are not text. The stray scan
-            # names both too, so the gate reports this rather than failing while reading it.
             msg = f"{path}: cannot be read as a task file: {err}"
             raise TaskFileError(msg) from err
         try:

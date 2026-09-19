@@ -1,6 +1,5 @@
-# Shared lint/format config for ALL Python in the repo (brain/ and scripts/).
-# Each uv project runs `ruff check .` / `ruff format --check .` over its own tree;
-# config discovery walks up to this file. Keep ignores short and justified.
+# Lint and format settings for all Python in the repo. Each uv project runs ruff over its own
+# tree, and ruff finds this file by walking up. Keep the ignore lists short, with a reason each.
 
 target-version = "py312"
 line-length = 100
@@ -18,7 +17,7 @@ src = [
   "brain/packages/tools/src",
   "scripts",
 ]
-# Generated code is exempt from all quality gates (ADR-0001 d7, ADR-0002 d4).
+# Generated code is not checked.
 extend-exclude = ["**/_generated"]
 
 [lint]
@@ -30,14 +29,13 @@ ignore = [
 ]
 
 [lint.pylint]
-# TurnEngine injects three ports + a TurnCapabilities bundle (optional memory + tools) +
-# two seams (the model id and the turn-id factory). Six is a sane dependency-injection
-# ceiling; bundle optional collaborators (as TurnCapabilities does) before asking for more.
+# TurnEngine takes three ports, a TurnCapabilities bundle, the model id and the turn-id factory.
+# Group optional collaborators into a bundle, as TurnCapabilities does, rather than raising this.
 max-args = 6
 
 [lint.per-file-ignores]
 "scripts/*.py" = [
-  "T201", # the repo gates are CLIs; reporting via stdout/stderr is their contract
+  "T201", # these checks are command line tools; they report on stdout and stderr
 ]
 "brain/packages/core/src/cortex_core/__init__.py" = [
   "F403", # the barrel re-exports its area sub-barrels wholesale; each declares its own __all__

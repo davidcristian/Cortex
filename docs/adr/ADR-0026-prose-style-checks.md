@@ -154,4 +154,4 @@ line cap, and `scripts/commitlint.py` checks the whole commit message as a commi
 - [ADR-0062](ADR-0062-shared-check-readers.md) (the walk, git's environment and the fence reader
   the checks share), [ADR-0063](ADR-0063-compose-checks.md) (the compose checks that grew beside
   these), [ADR-0064](ADR-0064-core-public-surface.md) (the core barrel and the line cap).
-- The module doc for the repo checks: [repo checks](../modules/repo-gates.md).
+- The module doc for the repo checks: [repo checks](../modules/repo-checks.md).

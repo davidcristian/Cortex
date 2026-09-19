@@ -1,295 +1,124 @@
-# The couplings the widened registry cannot hold
+# The couplings the widened registry cannot cover
 
-**Status:** open, fix when it bites
-**Area:** repo-gates
-**Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
+**Status:** open, waiting for its trigger
+**Area:** repo-checks
+**Origin:** [ADR-0042](../../adr/ADR-0042-cross-tree-constant-registry.md)
 **Verified:** 2026-09-19
-**Trigger:** A third value on the capture-target enum, a reader for declarations in the `.proto` arriving in the scan for another reason, any module outside the body's rpc crate and the brain's body client that must spell one of the two gRPC status codes, or either side of that pair gaining a declaration whose value the scan can read.
+**Trigger:** A third value on the capture-target enum, a reader for declarations in the `.proto`
+arriving in the scan for another reason, any module outside the body's rpc crate and the brain's
+body client that has to name one of the two gRPC status codes, or either side of that pair gaining
+a declaration whose value the scan can read.
 
-Opened 2026-08-08 behind the landing above, in the same shape its own parent had: a registry that
-now reaches four kinds of coupling makes each remaining one a decision rather than an absence.
-A fourth joined the same day and is folded in here rather than counted again, since it is the
-same absence and a near-duplicate name would inflate the area. **Still four on 2026-08-09, by
-exchange rather than by standing still:** the duration below closed, and the shape that closing
-it left behind is written directly under it, folded in for the same reason the fourth was.
-**Five on 2026-08-10**, by arrival this time, the capture target's two spellings of one
-vocabulary; it is written last, and it is the first here whose both sides are generated.
-**Four on 2026-08-11**, when the membership below was struck ahead of its trigger; the account
-of it is written under the sub-entry it closed rather than here, and the four that remain are
-the bind port with no declaration to read, the custom property whose spend a rendered value
-cannot reach, the gRPC status code spelled once per language's casing, and the capture target's
-generated enums. **Three later that same day**, when the second of those closed on a mention
-form that renders a NAME rather than a value, which is the half of the pair the constant happens
-not to be; what the close leaves behind is written under it and is narrower than the entry it
-came from, being one presence-checked name rather than a shape the registry cannot express. The
-three that remain are the bind port, the gRPC status code, and the capture target's enums.
-**Two on 2026-09-06**, when the bind port was struck on its trigger; it had in fact been registered
-since 2026-08-22, which is written under that sub-entry rather than here. The two that remain are
-the gRPC status code and the capture target's generated enums.
-**A membership, not an ordering.** `CAPTURE_MIME` (`"image/png"`) must stay inside the brain's
-`ALLOWED_MIME_TYPES`, which is a `frozenset` literal, so this needs a collection value form as
-well as a comparator, and the reducer rejects what it cannot reduce, by policy rather than by
-omission. **Trigger:** a second capture encoding, which is the only thing that makes the set
-larger than one useful element.
-**Struck 2026-08-11**, ahead of that trigger, which had not fired: the body still produces the
-one encoding and the allow-list still carries three, so what moved it is that the form is cheap
-once the scan has somewhere to put it, and this entry's own account of the tree was checked
-rather than trusted, and held (`CAPTURE_MIME` is `"image/png"` in
-`body/crates/core/src/os/screen_policy.rs`, and `ALLOWED_MIME_TYPES` is a one-line `frozenset`
-of three strings in `brain/packages/core/src/cortex_core/images.py`). The comparator is
-`Relation.MEMBER` and it reads registry order the way the ordering does: every site but the last
-declares a value, the last declares the collection that must carry them, and a last site holding
-a lone value is a fault rather than a comparison, since `in` over two strings would test for a
-substring instead. The value form is a one-line `frozenset` of double-quoted
-strings, reduced to its members so that the writer's order and spacing decide nothing.
-**What it cost was a file, and the cap is what asked for it**: the scan and the registry were
-both within twenty lines of 300, so the value forms and the relation comparators moved into
-`scripts/values.py` (what a value reduces to, and how a constant's readings must stand, with no
-file reading at all) and the overlay's half of the registry into `scripts/overlaycouplings.py`,
-which is where the entries had been accumulating anyway. `crosscheck.CONSTANTS` was the two halves
-read as one; it is split into parts today, each named in `scripts/registry.py`'s docstring
-(fourteen on 2026-09-19), and `values.py` split again into `scripts/readings.py` for how a
-constant's readings must stand. Nothing in the scan asks
-which part an entry is in.
-**Proved able to fail before it was trusted**, twice and in both directions: the body producing
-`"image/gif"` and the allow-list dropping `"image/png"` each exit 1 naming both files, both
-values and the reason, and the scan as it stood at the previous commit exits 0 over the second of
-those trees while reporting all fifteen constants agree, its reducer rejecting the `frozenset` it
-was never taught. **One limit is policy rather than omission and stays that way:** a collection
-spelled in Rust or TypeScript does not reduce, no coupling in this repo having one, and the
-reducer rejects what it cannot reduce rather than guessing. It becomes work the day a
-collection on the far side of a seam is not Python's.
-**A port with no declaration to read.** The body's bind port 50151 is a bare literal argument in
-`body/app/src-tauri/src/body_server.rs`, against `docker-compose.body.yml`'s
-`host.docker.internal:50151`. The brain's port was closable because its far sides are mentions
-and its near side became `DEFAULT_SEAM_PORT` in gated code; this one is the reverse, since the
-only place that could declare it is inside the one crate no gate compiles (the Tauri shell
-clippy entry above is that same hole). Landing a constant there to give the scan something to
-read means shipping a source edit nothing type-checks, which is a worse trade than leaving one
-port untied. **Trigger:** the shell entering CI, which that sibling entry already tracks.
-**Struck 2026-09-06, and satisfied for a fortnight before that.** The paragraph above stopped
-describing the tree on 2026-08-22, when
-[R-356](356-the-body-port-is-a-bare-literal.md) promoted the literal to `DEFAULT_BODY_PORT` in
-`body/app/src-tauri/src/body_server.rs` and registered it, and
-[R-383](383-the-body-port-past-the-six-that-were-registered.md) widened it to 23 far sides the next
-day. Neither of those entries named this one, so the coupling was held by the scan and listed as
-unheld here at the same time. The 2026-09-06 strike read the trigger and not the claim beside it,
-and filed the remedy as [R-593](593-the-bodys-bind-port-can-be-declared-now-the-shell-compiles.md),
-which closed satisfied on 2026-09-07 with a mutation table showing the coupling failing in both
-directions. What this leaves is the argument the paragraph makes rather than its finding: a
-declaration inside the Tauri shell is read by the scan on every `just check` and compiled by
-nothing, since both clippy runs over that crate target the Linux host and the constant is
-`cfg(windows)` ([R-595](595-no-gate-compiles-the-tauri-shells-windows-half.md)).
-**A duration restated in another unit.** `overlay.css` spells the roll's length as `0.3s` at
-some thirty inline sites while `MORPH_ROLL_MS` counts milliseconds, so no template renders one
-into the other; the curve half of the same pair closed, `--ease` restating `EASING` verbatim.
-Closing it wants either a unit-aware value form with a per-site unit, which is a design rather
-than a field, or the overlay adopting a `--roll: 300ms` custom property every transition spends,
-which is a stylesheet change and belongs with the stylesheet's own entry above. **Trigger:**
-either of those two, or the first frame that shows a CSS transition and the roll beside it on
-two clocks.
-**Struck 2026-08-09**, by the second of the two ways it named, and with its own arithmetic
-corrected first. The sheet spelled `0.3s` **seven** times and not thirty: six declarations and
-one sentence about them, beside seven `300ms` that were every one of them prose in a comment, so
-the number was never restated in the constant's own unit anywhere. Thirty inline sites made this
-read like a sweep when it is two lines, which is the stale-account failure the index warns about.
-`:root` now carries `--roll: 300ms` and the two rules that move WITH a roll spend it: the section
-share caps' `max-height`, and the thoughts marker's turn. Both already said in their own comments
-that the roll's clock was theirs, which is what made them identifiable as the roll rather than as
-a duration that matches it. The other four declarations keep their literal on purpose, being the
-panel's summon fade (paired with its own 0.44s spring, accompanying no roll) and the three
-arrivals (`bubblein` on a bubble, `confirmin` on a chip and on a reminder row, each played on
-something that has just appeared): tying them would mean a retune of the roll also retunes
-three features it has nothing to do with, which is the false tie this registry must not claim.
-**The unit-aware value form turned out to be unnecessary rather than deferred**, which is the
-finding: once the sheet spells the duration once, it spells it in the constant's own unit, and
-the mention is `--roll: {value}ms;` against `MORPH_ROLL_MS` with nothing new in the scan. Every
-rendered duration measured unchanged in headless Chromium at both `prefers-reduced-motion`
-settings, and the gate was made to fail on a drift in each direction before it was trusted
-([ADR-0029 addendum](../../adr/ADR-0029-vision-screen-capture.md) of that date).
-**A custom property's spend, where the TypeScript declares the value and not the name.** Opened
-2026-08-09 by the close above, and folded in here rather than counted beside it for the reason
-the gRPC pair was. A mention renders a value, so it reaches `--roll: 300ms` on `:root` and cannot
-reach the two `var(--roll)` that spend it; the same is true of `--ease`, which has shipped that
-way since the registry widened. Where the TypeScript declares the NAME instead
-(`CEILING_PROPERTY`, `CHAT_FLOOR_PROPERTY`, `TRACE_ROW_PROPERTY`) the mention pins the spend
-exactly, so the gap is not the mechanism but which half of the pair the constant happens to be.
-What stands in for the gate today is the browser: a `var()` that resolves to nothing is invalid
-at computed-value time and takes the whole declaration with it, so a mistyped spend loses the
-transition outright rather than shifting it, which is visible in one look and was measured.
-Closing it wants either a name constant in `overlay/morph.ts` that nothing imports, which is a
-declaration existing only to be read by a gate, or a mention form that pins a rendered NAME
-rather than a rendered value. **Trigger:** a third property in this shape, or the first spend
-that is found mistyped.
-**Struck 2026-08-11**, ahead of both of those, by the second of the two ways it named, and the
-reason it went that way rather than the other is that a name constant nothing imports is a
-declaration written to be read by a gate rather than used by the code. `Mention.name` is
-the name a far side spends the value under and `{name}` renders it, so the pair is two mentions
-of one entry: `{name}: {value}ms;` over the declaration on `:root`, which is the mention that
-already existed with its property name spelled inside the template, and `var({name})` over the
-spends, which no rendered value could reach. A mention carries a name exactly when its template
-renders one, either half alone being dead data, and the registry rejects a name pinned as a
-spend that no mention of the same entry renders a value under, since that would hold the name
-while dropping the value it was supposed to tie.
-**The two properties got different treatment, and the difference is the counting rule already
-written down.** `var(--roll)` is pinned at 2, those two rules being the set the entry's own
-reason names (the section share caps' handover and the thoughts marker's turn), so losing one is
-the drift rather than a design change and a third rule joining them is a registry line to
-correct. `var(--ease)` is a presence check, the transitions riding that curve across unrelated
-features numbering 52 on the day this closed and 49 today, where a count would fail on every one
-of those moves and make a retune of one feature depend on another. That is the same division the `[data-morphing` rules got.
-**Proved able to fail three times before it was trusted**, each restored: one of the two roll
-spends mistyped to `var(--rol)` exits 1 with `found 1, pinned 2`; the declaration renamed to
-`--cadence` on `:root` while the spends stand exits 1 saying the sheet does not spell
-`--roll: 300ms;`; and all 52 ease spends renamed to `var(--easing)` with the declaration left
-alone exits 1 saying the sheet does not spell `var(--ease)`. The scan as it stood at the previous
-commit exits 0 over the first and the third, reporting all sixteen constants agree, which is what
-makes these the drifts the form was for rather than ones the old one already caught. The second
-was catchable before and still is, being a rendered value.
-**What it does not reach**, recorded rather than left to be discovered: a mistyped spend of a
-property whose mention is a presence check is still undetected, so `var(--ease)` is held only
-against losing every spend at once. Counting it would be the churn the occurrences field was
-made opt in to avoid, and the honest closing of that gap is a stylesheet-wide check that every
-`var()` names a property something declares, which is a different scan over a different input and
-is not this registry's shape. **Trigger:** an `--ease` spend found mistyped, or a second
-presence-checked name whose spends matter one at a time.
-**A gRPC status code, spelled once per language's own casing.** Added 2026-08-08 with the
-gateway's kinded error currency ([ADR-0023](../../adr/ADR-0023-body-gateway-volume.md)'s addendum
-of that date). The body writes `Status::resource_exhausted` and `Status::failed_precondition`;
-the brain's classifier keys on `grpc.StatusCode.RESOURCE_EXHAUSTED` and
-`FAILED_PRECONDITION`, and the two sides must agree or a refused capture is worded as a fault.
-Neither side declares a value the other could read: tonic's spelling is a method name and
-grpc-python's is an enum member, so a mention template would have to case-fold across the
-languages, which the reducer cannot do and should not learn for one coupling. What holds the
-pair today is prose in both module docs plus a test table on each side, which is exactly what
-the registry exists to replace. **Trigger:** a third module outside the body's rpc crate and the
-brain's body client that has to spell one of the codes, or either side gaining a declaration whose
-value the scan can read.
-**The case-aware clause this trigger used to carry fired on 2026-09-15, and it reaches nothing.**
-`Spelling.LOWERED` is a case fold and it arrived for another reason, Python declaring `False` where
-YAML writes `false`, so a mention form that re-spells a value across languages exists now. It does
-not unblock this pair, because the casing was never the obstacle: a spelling is applied to a value
-a site declares, and neither side declares one. tonic's spelling is a method name and grpc-python's
-is an enum member, so there is nothing for a scan to read and nothing for a fold to be applied to.
-The clause is therefore restated as the declaration it was really waiting on.
-**A vocabulary generated on both sides, spelled a third time by hand for the model.** Added
-2026-08-10 with the brain half of the targeted capture
-([ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)'s second addendum of that date). The proto
-declares `CaptureTarget` with `CAPTURE_TARGET_DISPLAY` and `CAPTURE_TARGET_FOCUS`; `body_core`
-and `cortex_core` each mirror it as a hand-written enum; and the strings the model picks between
-in `capture_screen`'s JSON schema are a third spelling again. Half of that is already held
-without the scan, and by construction rather than by a gate: the schema list is **derived** from
-`cortex_core.CaptureTarget`'s member values (`_TARGET_NAMES` in `screen_tool.py`), so a third
-target cannot reach the model's vocabulary and the domain's separately. What no scan can hold is
-the other half, the two hand-written enums against the proto's. This is the first entry here with
-generated code on **both** sides of the coupling, which is why it is structurally out of reach
-rather than merely awkward: `crosscheck.py` reads declarations out of source, and a protobuf enum
-becomes a serialized descriptor in one tree and a `#[derive]`d Rust enum in the other, with no
-literal in either place for a template to match. Registering it would mean reading declarations out
-of the `.proto` itself, which is a parser this repo does not have. The file is not a new kind of
-place: one entry already searches `proto/body.proto` for a rendered needle, the body's own default
-edge, which is a mention rather than a declaration and needs no parser. What holds it today is the
-compiler on the Rust side (a `match` over
-`PbCaptureTarget` is exhaustive, so a new proto value fails the build) and nothing at all on the
-Python side, where a new value would never be produced. **Trigger:** the third value on
-this enum, which is also the first one whose addition the Rust side cannot catch for the Python
-side, or a `.proto` reader arriving in the scan for another reason.
+Once [R-012](012-couplings-crosscheck-omits.md) widened the registry to four kinds of coupling,
+each remaining one became a decision. Five were recorded here over time and three have closed. Two
+remain.
 
-## Trail
+**A gRPC status code, written once per language's own casing.** The body writes
+`Status::resource_exhausted` and `Status::failed_precondition`; the brain's classifier keys on
+`grpc.StatusCode.RESOURCE_EXHAUSTED` and `FAILED_PRECONDITION`. The two sides must agree or a
+refused capture is reported as a fault. Neither side declares a value the other could read:
+tonic's form is a method name and grpc-python's is an enum member. What holds the pair today is
+prose in both module docs plus a test table on each side, which is what the registry exists to
+replace. A case-folding mention form (`Spelling.LOWERED`) arrived on 2026-09-15 for another
+reason, and it does not help here: a case fold applies to a value a place declares, and neither
+side declares one.
 
-- 2026-08-08: Opened behind the widened registry in the same shape its own parent had, as three
-  couplings; a fourth joined the same day, the gRPC status code the kinded gateway error currency
-  needs both languages to spell alike, folded in here rather than counted beside it. The index's
-  own line was written in between and left saying three.
-- 2026-08-09: Still four, by exchange rather than by standing still. The roll's duration closed
-  onto a `--roll: 300ms` custom property with its own arithmetic corrected first, the sheet
-  spelling `0.3s` seven times and not thirty, and the spend side of a value-declaring property
-  opened in its place.
-- 2026-08-09: The bucket sweep checked all four against the tree and none had moved, reading three
-  of them at their sites: `CAPTURE_MIME` was still the single encoding `"image/png"`, the body's
-  bind port 50151 still had its only declaration inside the crate no gate compiles, and
-  `scripts/couplings.py` still registered exactly the two value-declaring properties, `--ease` and
-  `--roll`, that a third of that shape would join.
-- 2026-08-10: Five by arrival rather than exchange, the capture target's proto enum against the
-  schema strings the model picks between, the first coupling here with generated code on both
-  sides. A coupling's arrival is recorded in this entry and moves no count for the area.
-- 2026-08-11: Four, when the membership was struck ahead of its trigger as `Relation.MEMBER` plus
-  a `frozenset` value form, taking the registry to sixteen entries. The close cost a file: the
-  scan and the registry were both within twenty lines of 300, so the value forms and the
-  comparators moved to `scripts/values.py` and the overlay's half of the registry to
-  `scripts/overlaycouplings.py`.
-- 2026-08-11: Three later the same day, when the custom property's spend closed on `Mention.name`
-  and a `{name}` placeholder that pins a rendered name, leaving behind one presence-checked name
-  narrower than the entry it came from. The three that remain are the bind port, the gRPC status
-  code, and the capture target's generated enums.
-- 2026-09-06: **The shell clause fired, and it is the only one of the three that has.** The Tauri
-  shell entered CI on 2026-08-17 ([R-009](009-shell-clippy-in-ci.md), landed): `.github/workflows/ci.yml`
-  carries a `shell` job that installs the Tauri Linux dev stack and runs `just check-shell`, and
-  clippy there has to compile the crate. That removes the exact obstacle the bind-port sub-entry
-  named, which was that a constant in `body_server.rs` would be a source edit nothing type-checks.
-  The remedy is now ordinary work rather than a bad trade, so it is filed on its own as
-  [R-593](593-the-bodys-bind-port-can-be-declared-now-the-shell-compiles.md) and struck from this
-  entry, which leaves two couplings here.
-- 2026-09-06: the other two clauses were counted and neither has fired. The capture target still
-  has exactly two values, `CAPTURE_TARGET_DISPLAY = 0` and `CAPTURE_TARGET_FOCUS = 1` in
-  [body.proto](../../../proto/body.proto), so the third value that the generated-enum coupling waits
-  on does not exist. The gRPC status pair is still spelled in two trees and nowhere else: the body
-  writes `Status::failed_precondition` at four sites and `Status::resource_exhausted` at one, all
-  inside `body/crates/rpc/src/server.rs` and `body/crates/rpc/src/screen.rs`, and the brain keys on
-  `grpc.StatusCode.FAILED_PRECONDITION` and `RESOURCE_EXHAUSTED` in one table in
-  `cortex_body_client/failures.py`, read by `gateway.py` alone.
-- 2026-09-06: **"a third status-table caller" was not decidable as written**, which is why the
-  trigger above now says something a grep answers. A caller could have meant a third code joining
-  the pair, a third call site spelling one of them, or a third module that has to agree. By the
-  second reading the trigger had already fired and nobody noticed, five sites spelling a code today;
-  by the third it has not, two modules. The trigger is restated to the module reading, since the
-  coupling is between trees that must agree and a second site inside one file agrees with itself.
-- 2026-09-07: the bind-port sub-entry now says under itself that it was struck, and that it had
-  been satisfied since 2026-08-22 rather than on the day it was struck. Its remedy closed as
-  [R-593](593-the-bodys-bind-port-can-be-declared-now-the-shell-compiles.md), satisfied, and the
-  count line at the head of this entry records the two that remain.
-- 2026-09-09: both remaining couplings re-read and neither trigger fired. `CaptureTarget` still
-  carries `CAPTURE_TARGET_DISPLAY` and `CAPTURE_TARGET_FOCUS` and nothing else in
-  [body.proto](../../../proto/body.proto), the `match PbCaptureTarget::try_from` in
-  `body/crates/rpc/src/screen.rs` is still the Rust side's whole defence, and the status pair is
-  still spelled in two modules, five sites inside `body/crates/rpc` and one table in
-  `cortex_body_client/failures.py` that `gateway.py` alone reads.
-- 2026-09-09: what this entry said about the registry itself had gone stale three ways, all in
-  the accounts of closes rather than in the two couplings that remain. `crosscheck.CONSTANTS` was
-  described as two halves and is thirteen parts named by `scripts/registry.py`; `values.py` was
-  described as holding both the value forms and the comparators, which split again into
-  `scripts/readings.py`; and the ease spends the presence check was argued from were counted at 52,
-  where the stylesheet spells `var(--ease)` 49 times today. The capture-target paragraph also
-  called the `.proto` a kind of place the registry does not cover, when one entry already searches
-  it for a rendered needle; what is missing is a reader for declarations in it, not the file.
-- 2026-09-14: both remaining couplings re-derived and neither trigger has fired. The proto still
-  declares two capture targets, `CAPTURE_TARGET_DISPLAY` and `CAPTURE_TARGET_FOCUS`, so no third
-  value has arrived and the two hand-written mirrors still stand against a two-member vocabulary.
-  The gRPC status codes are spelled in three non-test modules and every one of them is inside the
-  two homes this entry names: `body/crates/rpc/src/screen.rs` and `body/crates/rpc/src/server.rs`
-  in the body's rpc crate, and `brain/packages/body_client/src/cortex_body_client/failures.py` in
-  the brain's body client. A second module inside the rpc crate is not the third caller the
-  trigger names, which counts modules outside those two.
-- 2026-09-15: both couplings re-derived again, and the registry's own widenings were read against
-  them, which is the reading this entry had not taken. The proto still declares
-  `CAPTURE_TARGET_DISPLAY` and `CAPTURE_TARGET_FOCUS` and nothing else, and
-  `crosscheck.DECLARATIONS` still knows three suffixes, `.py`, `.rs` and `.ts`, so no `.proto`
-  reader has arrived for another reason. The status codes are still spelled in three non-test
-  modules, `body/crates/rpc/src/screen.rs` and `body/crates/rpc/src/server.rs` in the body's rpc
-  crate and `brain/packages/body_client/src/cortex_body_client/failures.py` in the brain's body
-  client, which is the two homes the trigger counts. What had moved is the other clause of the
-  status pair's own trigger: a case-aware mention form has arrived, and the account under that
-  sub-entry now says why it reaches nothing and what the clause is restated to.
-- 2026-09-19: both couplings re-derived after the settings scan and the nearest-line report
-  landed, and neither trigger has fired. The proto still declares
-  `CAPTURE_TARGET_DISPLAY` and `CAPTURE_TARGET_FOCUS` and nothing else, `crosscheck.DECLARATIONS`
-  still knows `.py`, `.rs` and `.ts` only, and the status codes are still spelled in the same three
-  non-test modules, `screen.rs` and `server.rs` in the body's rpc crate and `failures.py` in the
-  brain's body client, none of which declares a value the scan could read. Neither landing
-  touched either pair. Two things in this entry had gone stale. The account of the
-  membership close said the registry is thirteen parts, and it has been fourteen since the trace
-  budget's wire name gained a part of its own on 2026-09-13, which the two re-derivations after that
-  date did not count; the sentence now points at the docstring that lists them and dates the count.
-  And the head trigger named two of the four events the sub-entries wait on, leaving out the
-  `.proto` reader and the declaration either side of the status pair could gain, so a sweep reading
-  only the index line could not have seen either one fire. It now names all four.
+**A vocabulary generated on both sides.** `proto/body.proto` declares `CaptureTarget` with
+`CAPTURE_TARGET_DISPLAY` and `CAPTURE_TARGET_FOCUS`; `body_core` and `cortex_core` each mirror it
+as a hand-written enum; and the strings the model chooses between in `capture_screen`'s JSON
+schema are a third copy. That third copy is already covered without the scan, because the schema
+list is derived from `cortex_core.CaptureTarget`'s member values (`_TARGET_NAMES` in
+`screen_tool.py`). What no scan covers is the two hand-written enums against the proto's. This is
+the only coupling here with generated code on both sides, which is why it is out of reach rather
+than merely awkward: `crosscheck.py` reads declarations out of source, and a protobuf enum becomes
+a serialized descriptor in one tree and a derived Rust enum in the other, with no literal for a
+template to match. Registering it means reading declarations out of the `.proto`, a parser this
+repo does not have; the file itself is already a place the scan searches for rendered text. What
+holds it today is the Rust compiler, a `match` over `PbCaptureTarget` being exhaustive so a new
+proto value fails the build, and nothing at all on the Python side.
+
+The three that closed:
+
+- **A membership**, `CAPTURE_MIME` (`"image/png"`) inside the brain's `ALLOWED_MIME_TYPES`. Closed
+  2026-08-11 as `Relation.MEMBER` plus a `frozenset` value form: every place but the last declares
+  a value, the last declares the collection that must contain them, and the collection is reduced
+  to its members so that the writer's order and spacing decide nothing. Shown able to fail in both
+  directions, and the scan as it stood the previous commit exits 0 over one of them while
+  reporting all fifteen constants agree. One limit stays by policy: a collection written in Rust
+  or TypeScript does not reduce, and the reducer refuses what it cannot reduce rather than
+  guessing. The close cost a file, both the scan and the registry being within twenty lines of
+  300: the value forms and comparators moved to `scripts/values.py` (later split again into
+  `scripts/readings.py`) and the overlay's half of the registry to `scripts/overlaycouplings.py`.
+  The registry is now several parts, listed in `scripts/registry.py`'s docstring (fourteen on
+  2026-09-19), and nothing in the scan asks which part an entry is in.
+- **A custom property's use, where the TypeScript declares the value and not the name.** A mention
+  renders a value, so it reaches `--roll: 300ms` on `:root` but not the two `var(--roll)` that
+  read it, and the same was true of `--ease`. Closed 2026-08-11 by `Mention.name`, which renders
+  the name a far side reads the value under, so the pair is two mentions of one entry:
+  `{name}: {value}ms;` over the declaration and `var({name})` over the uses. The alternative, a
+  name constant in `overlay/morph.ts` that nothing imports, was rejected as a declaration written
+  only to be read by a check. `var(--roll)` is fixed at 2 occurrences, those two rules being a set
+  that moves together; `var(--ease)` is a presence check, since the transitions using that curve
+  span unrelated features and numbered 52 that day and 49 later, so a count would fail on every
+  unrelated change. What it does not reach, recorded rather than left to be found: a mistyped use
+  of a presence-checked property is still undetected, and closing that needs a stylesheet-wide
+  check that every `var()` names a property something declares.
+- **The body's bind port 50151**, a bare literal in `body/app/src-tauri/src/body_server.rs`
+  against `docker-compose.body.yml`. Its argument was that a constant there would be a source edit
+  nothing type-checks, and its trigger was the shell entering CI, which happened on 2026-08-17
+  ([R-009](009-shell-clippy-in-ci.md)). Struck 2026-09-06, though it had in fact been registered
+  since 2026-08-22 by [R-356](356-the-body-port-is-a-bare-literal.md) and widened to 23 far sides
+  the next day by [R-383](383-the-body-port-past-the-six-that-were-registered.md), so the coupling
+  was covered and listed here as uncovered at the same time. The remedy was filed as
+  [R-593](593-the-bodys-bind-port-can-be-declared-now-the-shell-compiles.md) and closed satisfied
+  on 2026-09-07. What survives of the argument is
+  [R-595](595-no-gate-compiles-the-tauri-shells-windows-half.md): a declaration inside the Tauri
+  shell is read by the scan on every `just check` and compiled by nothing, both clippy runs over
+  that crate targeting the Linux host while the constant is `cfg(windows)`.
+
+A fourth, the roll duration written as `0.3s` in the stylesheet against `MORPH_ROLL_MS` in
+milliseconds, closed on 2026-08-09 when `:root` gained `--roll: 300ms` and the two rules that move
+with a roll read it. Its own arithmetic was wrong first: the sheet wrote `0.3s` seven times, not
+thirty, six declarations and one comment. The four declarations that keep a literal do so
+deliberately, being the panel's summon fade and three arrivals, which a retune of the roll must
+not also retune.
+
+## History
+
+- 2026-08-08: Opened behind the widened registry, as three couplings. A fourth, the gRPC status
+  code, joined the same day and is recorded here rather than counted beside it.
+- 2026-08-09: Still four. The roll duration closed onto a `--roll: 300ms` custom property, with
+  its own arithmetic corrected first, and the question of reading a property's uses opened in its
+  place.
+- 2026-08-09: All four were checked against the tree and none had moved. `CAPTURE_MIME` was still
+  the single encoding `"image/png"`, the bind port still had its only declaration inside the crate
+  nothing compiled, and `scripts/couplings.py` still registered exactly two value-declaring
+  properties.
+- 2026-08-10: Five, by arrival: the capture target's proto enum against the schema strings the
+  model chooses between, the first coupling here with generated code on both sides.
+- 2026-08-11: Four, when the membership closed as `Relation.MEMBER` plus a `frozenset` value form,
+  taking the registry to sixteen entries and costing two file splits.
+- 2026-08-11: Three later the same day, when the custom property's use closed on `Mention.name`,
+  leaving behind one presence-checked name.
+- 2026-09-06: The shell clause fired, the Tauri shell having entered CI on 2026-08-17, so the
+  bind port's remedy became ordinary work and was filed on its own.
+- 2026-09-06: The other two clauses were counted and neither had fired. The capture target still
+  had exactly two values, and the status pair was still written in two trees and nowhere else.
+- 2026-09-06: The status pair's trigger, "a third status-table caller", was not decidable as
+  written, since a caller could mean a third code, a third call site or a third module. It is
+  restated to the module reading, since a second call site inside one file agrees with itself.
+- 2026-09-07: The bind port had in fact been satisfied since 2026-08-22 rather than on the day it
+  was struck, and its remedy closed satisfied.
+- 2026-09-09: Both remaining couplings read again and neither trigger fired.
+- 2026-09-09: Three accounts of closed sub-entries had gone stale: the number of registry parts,
+  the split of `values.py`, and the count of `var(--ease)` uses, which is 49 today.
+- 2026-09-14: Both couplings checked again and neither trigger fired. The status codes are written
+  in three non-test modules, all inside the two places this entry names.
+- 2026-09-15: Both checked again. The registry's own widenings were read against them, which had
+  not been done before: `crosscheck.DECLARATIONS` still knows `.py`, `.rs` and `.ts` only, so no
+  `.proto` reader has arrived, and the case-folding mention form that did arrive reaches nothing
+  here.
+- 2026-09-19: Both checked again after the settings scan and the nearest-line report, and neither
+  trigger fired. Two things here had gone stale: the registry part count, fourteen since
+  2026-09-13, and the trigger line, which named two of the four events the sub-entries wait on. It
+  now names all four.

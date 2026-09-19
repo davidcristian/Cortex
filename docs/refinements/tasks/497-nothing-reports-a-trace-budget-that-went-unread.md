@@ -1,105 +1,57 @@
 # Nothing reports a trace budget the engine never read
 
-**Status:** open, fix when it bites
+**Status:** done 2026-09-19
 **Area:** inference
-**Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
-**Verified:** 2026-09-19
-**Trigger:** a deployment runs with `CORTEX_REPLY_TRACE_TOKENS` at a positive count while its
-brain's boot line reads `trace lever probe answered` with `lever=false`, or with
-`CORTEX_INFERENCE_TRACE_LEVER=off`; or a side call returns an empty reply on an endpoint whose boot
-probe answered that the engine reads no per-request trace budget.
-
-Opened 2026-08-29 by the close of
-[R-474](474-the-switch-could-be-rendered-as-a-lever-that-holds.md), which gave the port a count the
-engine may or may not read and left the reporting where the switch's already was.
+**Origin:** [ADR-0049](../../adr/ADR-0049-thinking-switch-and-trace-budget.md)
 
 `drain_text` warns when a request that asked for no thinking is answered with a trace anyway, which
-is the one runtime line saying a lever did not hold. It fires on `bounds.thinking` and does not read
-`bounds.trace_tokens`, so nothing reports the three cases the new count adds: a bound naming a
-count on a deployment whose lever is off, a bound naming a count the engine took and ignored, and a
-positive count that was honoured at a different number than the one asked for. The middle case
-cannot happen on a probed deployment, which is the point of the probe, and the first is a
-configuration a person chose.
+is the one runtime line saying a setting did not take effect. It reads `bounds.thinking` and never
+`bounds.trace_tokens`, so nothing reports the three cases the count adds: a bound naming a count on
+a deployment whose probe answered no, a bound naming a count the engine took and ignored, and a
+positive count honoured at a different number than the one asked for. The middle case cannot happen
+on a probed deployment, and the first is a configuration a person chose.
 
-**Why it was left.** The count's producers on a shipped path are exactly the ones the existing line
-already covers: all three side calls send the switch too, so a trace arriving against a zero already
-prints, and it prints for the right reason. What is genuinely unreported is a **positive** count that
-did nothing. `CORTEX_REPLY_TRACE_TOKENS` ships unset, and a deployment that sets it is watching the
-thinking status the count bounds, which is the most direct report there is. One producer of a
-positive count does exist since 2026-09-11, and it is a measurement rather than a deployment:
-`CORTEX_ENVELOPE_TRACE_TOKENS` writes a count into the bounds `test_envelope_cost_live.py` hands the
-runner. That file answers this entry's question for itself in two steps a deployment has neither of,
-asking `reads_a_trace_budget` before it draws a trace arm at all and then asserting that the wire
-carried the count that was asked, off a recording transport.
+The count's producers on a shipped path are the ones the existing line already covers: all three
+side calls send the switch too. What is genuinely unreported is a positive count that did nothing.
+`CORTEX_REPLY_TRACE_TOKENS` ships unset, and the one producer of a positive count, which has
+existed since 2026-09-11, is a measurement: `CORTEX_ENVELOPE_TRACE_TOKENS` in
+`test_envelope_cost_live.py`, which answers the question for itself by asking
+`reads_a_trace_budget` first and then asserting that the wire had the count.
 
-**What would close it.** The cheap half is one condition: report when a bound named a count and the
-trace came back longer than it, which needs `drain_text` to count characters it already counts and
-a rate to compare them at, so it is really a question of what a token is worth in characters and
-whether a line that guesses is worth more than no line. The honest half is to say it where the count
-is decided instead, so a deployment that named a count on an engine that reads none is told at boot,
-once, rather than never. That one guesses nothing, and it is probably the whole of what this needs,
-but it is not the few lines this entry first claimed: the composition root holds the count and not
-the lever. `build_inference_backend` resolves the lever inside its own llama.cpp arm, which is where
-it belongs, since that is what keeps an Echo deployment from opening a socket at all, and it returns
-the backend and its closer without the answer. The probe does log the answer there, once, as the
-GPU runbook's `trace lever probe answered ... lever=<true or false>` line, but that line names the
-endpoint and not the count, and under `CORTEX_INFERENCE_TRACE_LEVER=off` no probe runs and nothing
-is logged. So a boot line joining the two costs that builder's return shape or an argument carrying
-the deployment's reply bounds into it. A third site holds both without either change:
-`LlamaCppBackend` keeps the lever as `_trace_lever` and sees every request's bounds, and
-`build_payload` drops the count when the lever is off, so a warning written there once, the first
-time a request names a positive count it will not send, reports the case on the first reply rather
-than at boot. Choosing among those three is the work.
-
-## Trail
+## History
 
 - 2026-08-29: opened by the close of
   [R-474](474-the-switch-could-be-rendered-as-a-lever-that-holds.md), which added a per-request
   count whose failure to be read goes as unreported as the switch's did before the drain's warning.
-- 2026-09-07: neither limb of the trigger has fired, and the premise was re-derived and holds.
+- 2026-09-07: neither clause of the trigger has fired, and the premise holds.
   `CORTEX_REPLY_TRACE_TOKENS` is set by nothing in this tree: it is named in `config_reply.py`, the
-  GPU runbook's settings table, the orchestrator module doc, the origin ADR and these backlog
-  files, and by no compose file, no justfile recipe and no workflow, and there is no `.env` at the
-  repo root, so the field sits at its unset sentinel wherever the stack runs. The second limb was
-  too vague to have a truth value and is narrowed above to the reading that would show it. What it
-  now names cannot arise on this host either: the three side calls all send `thinking=False` and
-  `trace_tokens=0`, `CORTEX_INFERENCE_TRACE_LEVER` defaults to `auto`, and both builds this machine
-  can start answer the lever question `400` naming the field, so the zero reaches the engine on
-  every tier this stack starts. `drain_text` is unchanged, reading `bounds.thinking` alone and
-  never `bounds.trace_tokens`, so the three cases the count adds are still unreported.
-- 2026-09-12: neither limb has fired again, and the entry was wrong about two things. A producer of
-  a positive count now exists, `CORTEX_ENVELOPE_TRACE_TOKENS` in the envelope harness, and the way
-  it satisfies itself is the shape the close wants: ask the lever first, then read the key back off
-  the wire. And the boot report is not a few lines, because the root does not hold the lever;
-  `resolve_trace_lever` is called inside `build_inference_backend` and its answer reaches only
-  `LlamaCppBackend`, so both halves of the body above are corrected. Nothing else moved.
-  `CORTEX_REPLY_TRACE_TOKENS` is still set by no compose file, `just` recipe or workflow, is named
-  only in `config_reply.py`, the GPU runbook's settings table, the orchestrator module doc, the
-  origin ADR and these backlog files, and there is still no `.env` at the repo root. `drain_text`
-  still reads `bounds.thinking` alone and never `bounds.trace_tokens`. The second limb cannot arise
-  on this host either: the three side calls send `thinking=False` and `trace_tokens=0`, the lever
-  defaults to `auto`, and both cached builds here are the one whose answer to the lever question was
-  measured as yes.
-- 2026-09-14: neither limb has fired and every claim re-derived unchanged. `drain_text` reads
-  `bounds.thinking` at its one condition and never `bounds.trace_tokens`;
-  `CORTEX_REPLY_TRACE_TOKENS` is set by no compose file, recipe or workflow and there is still no
-  `.env` at the repo root; `CORTEX_ENVELOPE_TRACE_TOKENS` is still the one producer of a positive
-  count, in the envelope harness; and `resolve_trace_lever` is still called inside
-  `build_inference_backend`'s llama.cpp arm, which returns the backend and its closer with the
-  lever's answer visible nowhere, so the boot line still costs that return shape or an argument.
-  One relation is worth recording rather than left to be rediscovered: the entry beside this one
-  about re-asking the lever when the engine moves shares that obstacle and not the defect. A boot
-  line reports an answer once; it does not re-ask a stale one, so neither closes the other.
-- 2026-09-19: neither limb has fired, and the entry was wrong that the lever's answer is visible
+  GPU runbook's settings table, the orchestrator module doc, the origin ADR and these backlog files,
+  and by no compose file, recipe or workflow, and there is no `.env` at the repo root. The second
+  clause was too vague to have a truth value and is narrowed above. `drain_text` is unchanged.
+- 2026-09-12: neither clause has fired, and the entry was wrong about two things. A producer of a
+  positive count now exists, `CORTEX_ENVELOPE_TRACE_TOKENS` in the envelope harness, and the way it
+  satisfies itself is the shape the close wants: ask the probe first, then read the key back off the
+  wire. And the boot report is not a few lines, because the composition root does not hold the
+  probe's answer; `resolve_trace_lever` is called inside `build_inference_backend` and its answer
+  reaches only `LlamaCppBackend`. Nothing else moved.
+- 2026-09-14: neither clause has fired and every claim held when checked again. One relation is
+  worth recording: the entry beside this one about asking the probe again when the engine moves
+  shares that obstacle and not the defect. A boot line reports an answer once; it does not repeat a
+  stale one, so neither closes the other.
+- 2026-09-19: neither clause has fired, and the entry was wrong that the probe's answer is visible
   nowhere. `reads_a_trace_budget` in `cortex_inference/lever.py` logs `trace lever probe answered`
-  with the endpoint and `lever` at `INFO`, and the GPU runbook has quoted that line since the
-  landing that opened this entry on 2026-08-29; what no line says is that a configured count will be
-  dropped, so the defect stands at that narrower width. The adapter is named above as a third place
-  to say it, since it already holds the lever and each request's bounds. The first limb asked
-  whether a deployment "cannot tell" whether its count did anything, which has no truth value, and
-  now names the configuration that drops the count. One reach changed: since 2026-09-17
-  `docker/docker-compose.yml` passes `CORTEX_REPLY_TRACE_TOKENS` through by name with no value, so a
-  count set on the host reaches the composed brain where before it could not, and the first limb is
-  that much easier to reach. Nothing in the tree gives it a value, and there is still no `.env` at
-  the repo root. `drain_text` still reads `bounds.thinking` alone, at `drain.py` line 85, and
-  `CORTEX_ENVELOPE_TRACE_TOKENS` is still the one producer of a positive count.
+  with the endpoint and `lever` at `INFO`, and the GPU runbook has quoted that line since 2026-08-29;
+  what no line says is that a configured count will be dropped, so the defect stands at that
+  narrower width. Since 2026-09-17 `docker/docker-compose.yml` passes `CORTEX_REPLY_TRACE_TOKENS`
+  through by name with no value, so a count set on the host reaches the composed brain where before
+  it could not. Nothing in the tree gives it a value, and there is still no `.env` at the repo root.
+  `drain_text` still reads `bounds.thinking` alone, at `drain.py` line 85.
+- 2026-09-19: closed in the adapter, which already holds the probe's answer and each request's
+  bounds. `LlamaCppBackend` logs one `WARNING`, `trace budget not sent because the trace lever is
+  off`, with `model` and `trace_budget`, the first time a request on a backend built with the probe
+  answered no names a count it will not send. The entry was too narrow to call only a positive count
+  unreported: `CORTEX_REPLY_TRACE_TOKENS` accepts a zero, and a reply sending it with its switch on
+  has nothing else asking for no trace, so that zero is reported too. A zero beside
+  `thinking=False`, the side calls' shape, is not, since the drain already warns for it. The two
+  cases that need a characters-per-token rate are declined in ADR-0049, and the GPU runbook quotes
+  the line.

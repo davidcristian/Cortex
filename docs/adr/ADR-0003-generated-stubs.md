@@ -110,6 +110,6 @@ every build.
 - Code: `scripts/stubcheck.py`, `scripts/protocomments.py`, `body/crates/rpc/build.rs`, the `proto`
   recipe in the justfile.
 - Modules: [body-rpc](../modules/body-rpc.md), [`cortex_seam`](../modules/brain-seam.md),
-  [repo checks](../modules/repo-gates.md).
+  [repo checks](../modules/repo-checks.md).
 - [ADR-0044](ADR-0044-document-rosters.md): the list scan, first built for this record's live
   suite, and the list of scans.

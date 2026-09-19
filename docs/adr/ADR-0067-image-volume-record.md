@@ -140,7 +140,7 @@ check`" into a category ([ADR-0011](ADR-0011-body-v1.md)).
   `dockerfilebases.py`, `composeservices.py`, `composetargets.py`; recipes `check-volumecheck` and
   `image-volumes`.
 - [Readings: what images declare](../readings/image-volumes.md);
-  [repo checks](../modules/repo-gates.md).
+  [repo checks](../modules/repo-checks.md).
 - [ADR-0063](ADR-0063-compose-checks.md) (the other compose checks and the shared file list),
   [ADR-0057](ADR-0057-imap-probe-server.md) (the probe's tmpfs cover),
   [ADR-0011](ADR-0011-body-v1.md) (the one recipe outside `just check`),

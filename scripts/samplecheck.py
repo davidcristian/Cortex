@@ -1,4 +1,4 @@
-"""Repo gate: fail when a runbook prints a log line the brain would not print that way."""
+"""Fail when a runbook shows a log line the brain would not print that way."""
 
 import argparse
 import sys
@@ -11,23 +11,15 @@ from loggernames import loggers
 from logsamples import Sample, samples
 from treewalk import walk_files
 
-# Where the documents that instruct an operator live. The one tree whose log samples are read as
-# a claim about what the code prints today, argued in the module docstring.
 RUNBOOKS = Path("docs/runbooks")
 MARKDOWN = ".md"
 
-# The floors under the reading in the success line: a side that came back empty has read nothing,
-# and a comparison over nothing cannot fail.
 MIN_SAMPLES = 1
 MIN_LOGGERS = 1
 MIN_MESSAGES = 1
 
-# What a fault says in place of a field list that is empty, a bare pair of quotes being the one
-# rendering a reader cannot tell from a formatting slip.
 NO_FIELDS = "no fields"
 
-# What a fault says when the sink's suite asserts no line of the sample's message whole, in place
-# of an empty list of what it does assert.
 NO_LINES = "none"
 
 
@@ -36,7 +28,7 @@ class SampleCheckError(Exception):
 
 
 class Miss(NamedTuple):
-    """One documented sample that does not say what the call site it quotes would print."""
+    """One documented sample that differs from what the call site it quotes would print."""
 
     doc: str
     line: int
@@ -44,21 +36,14 @@ class Miss(NamedTuple):
 
 
 class Verdict(NamedTuple):
-    """What one sample was held to, and how it differs from that when it does.
-
-    ``proven`` is True when the sample was held to a line the sink's own suite asserts whole,
-    the call's field list being one the source cannot give.
-    """
+    """What one sample was compared against, and how it differs from it."""
 
     detail: str | None
     proven: bool
 
 
 class Scan(NamedTuple):
-    """One comparison: what it was over, then what it could not account for.
-
-    ``proven`` counts the samples held to a suite's assertion rather than to the call.
-    """
+    """What one comparison read, and what it could not account for."""
 
     docs: int
     samples: int
@@ -87,12 +72,12 @@ def runbooks(root: Path) -> list[Path]:
 
 
 def listed(fields: tuple[str, ...]) -> str:
-    """A field list as a fault should read it, with the empty one said in words."""
+    """A field list as a fault prints it, with the empty list written out in words."""
     return ", ".join(fields) if fields else NO_FIELDS
 
 
 def _proven(root: Path, module: str, sample: Sample, unread: UnreadFieldsError) -> str | None:
-    """How ``sample`` differs from every line the sink's own suite asserts whole, or None."""
+    """How ``sample`` differs from every whole line the sink's own tests assert, or None."""
     if unread.level != sample.level:
         return f"prints {sample.level} where {module}:{unread.line} logs at {unread.level}"
     try:
@@ -114,7 +99,7 @@ def _proven(root: Path, module: str, sample: Sample, unread: UnreadFieldsError) 
 
 
 def disagreement(root: Path, names: dict[str, str], sample: Sample) -> Verdict:
-    """What ``sample`` was held to, and how it differs from that, with no detail when it agrees."""
+    """What ``sample`` was compared against, and how it differs from it when it does."""
     module = names.get(sample.logger)
     if module is None:
         detail = f"names the logger {sample.logger!r}, which no module under the brain declares"
@@ -178,7 +163,7 @@ def check(root: Path) -> Scan:
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Run the gate; print any misses and return the process exit code."""
+    """Run the check; print any misses and return the process exit code."""
     parser = argparse.ArgumentParser(
         description="Fail when a documented log sample prints fields its call site does not.",
     )

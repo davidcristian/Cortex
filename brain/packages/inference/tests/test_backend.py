@@ -1,7 +1,6 @@
-"""Behavior tests for LlamaCppBackend: SSE streaming, message mapping, error mapping."""
-
 import asyncio
 import json
+import logging
 from collections.abc import AsyncIterator, Callable
 from datetime import UTC, datetime
 from typing import cast
@@ -45,7 +44,7 @@ def _sse(*chunks: str) -> bytes:
 
 
 def _chunk(delta: dict[str, object]) -> str:
-    """One streaming chat-completion chunk carrying ``delta`` (JSON-encoded, no manual escaping)."""
+    """One streaming chat-completion chunk holding ``delta`` (JSON-encoded, no manual escaping)."""
     return json.dumps({"choices": [{"delta": delta}]})
 
 
@@ -67,11 +66,7 @@ def _backend(
 
 
 async def _drain_into(stream: AsyncIterator[InferenceEvent], seen: list[InferenceEvent]) -> None:
-    """Collect events until the stream raises, keeping what arrived before the raise.
-
-    A comprehension would discard the whole list at the raise, and what arrived before it is the
-    thing under test wherever a stream reports something and then fails.
-    """
+    """Collect events until the stream raises, keeping what arrived before the raise."""
     async for event in stream:
         seen.append(event)  # noqa: PERF401 -- see above: a comprehension loses this on the raise
 
@@ -90,12 +85,12 @@ async def test_streams_content_deltas_and_stops_on_done() -> None:
         return httpx.Response(
             200,
             content=_sse(
-                '{"choices":[{"delta":{"role":"assistant"}}]}',  # role-only -> no text
+                '{"choices":[{"delta":{"role":"assistant"}}]}',
                 '{"choices":[{"delta":{"content":"Hello"}}]}',
                 '{"choices":[{"delta":{"content":", world"}}]}',
-                '{"choices":[{"delta":{},"finish_reason":"stop"}]}',  # empty delta -> none
+                '{"choices":[{"delta":{},"finish_reason":"stop"}]}',
                 "[DONE]",
-                '{"choices":[{"delta":{"content":"past done"}}]}',  # after DONE -> ignored
+                '{"choices":[{"delta":{"content":"past done"}}]}',
             ),
         )
 
@@ -109,7 +104,6 @@ async def test_streams_content_deltas_and_stops_on_done() -> None:
 
 
 async def test_streams_until_the_body_ends_without_done() -> None:
-    """A server that closes the stream without a [DONE] line still yields its content."""
     assert await _collect(_backend(_content_handler)) == ["solo"]
 
 
@@ -140,16 +134,13 @@ async def test_non_string_content_raises_inference_error() -> None:
 
 
 async def test_streams_reasoning_before_reply_content() -> None:
-    """A reasoning model (ADR-0020) streams reasoning_content before content; both surface as
-    their own events, thinking first, and a chunk carrying both keeps that order."""
-
     def handler(_request: httpx.Request) -> httpx.Response:
         return httpx.Response(
             200,
             content=_sse(
-                _chunk({"reasoning_content": "let me think"}),  # reasoning-only
-                _chunk({"reasoning_content": " harder", "content": "the "}),  # both, order kept
-                _chunk({"content": "answer"}),  # content-only
+                _chunk({"reasoning_content": "let me think"}),
+                _chunk({"reasoning_content": " harder", "content": "the "}),
+                _chunk({"content": "answer"}),
                 "[DONE]",
             ),
         )
@@ -175,9 +166,6 @@ async def test_non_string_reasoning_content_raises_inference_error() -> None:
 
 
 async def test_http_error_status_quotes_the_server_body() -> None:
-    # The body is what turns "500" into a diagnosis. A vision request to a llama-server started
-    # without its projector is the case this exists for; without the excerpt it is
-    # indistinguishable from any other failure.
     def handler(_request: httpx.Request) -> httpx.Response:
         return httpx.Response(503, json={"error": "overloaded"})
 
@@ -219,8 +207,6 @@ async def test_transport_error_wraps_into_inference_error() -> None:
 
 
 async def test_a_stalled_stream_is_named_apart_from_an_unreachable_server() -> None:
-    """The client's stall ceiling firing reads as its own failure, not as a dead server."""
-
     def handler(request: httpx.Request) -> httpx.Response:
         msg = "timed out while reading the stream"
         raise httpx.ReadTimeout(msg, request=request)
@@ -231,7 +217,6 @@ async def test_a_stalled_stream_is_named_apart_from_an_unreachable_server() -> N
 
 
 async def test_unavailable_model_wraps_into_inference_error() -> None:
-    # _content_handler never runs here: acquire('brain') raises before any request is made.
     with pytest.raises(InferenceError, match="could not lease 'brain'") as excinfo:
         await _collect(_backend(_content_handler), model="brain")
     assert isinstance(excinfo.value.__cause__, ModelUnavailableError)
@@ -290,8 +275,6 @@ async def test_offers_tools_and_serializes_the_tool_calling_conversation() -> No
 
 
 async def test_a_schema_maps_to_a_constrained_response_format() -> None:
-    # ADR-0028: a schema constrains decoding via an OpenAI json_schema response_format, so the
-    # subagent runner can force a weak model's reply into the fixed envelope.
     captured: dict[str, object] = {}
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -316,7 +299,6 @@ async def test_a_schema_maps_to_a_constrained_response_format() -> None:
 
 
 async def test_no_schema_omits_the_response_format() -> None:
-    # The unconstrained request is byte-for-byte the original: no response_format key at all.
     captured: dict[str, object] = {}
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -331,7 +313,6 @@ async def test_no_schema_omits_the_response_format() -> None:
 
 
 async def test_bounds_render_as_a_token_cap_and_a_no_thinking_template_kwarg() -> None:
-    """ADR-0038 cheap-fold addendum: both halves ride the request, not the server's flags."""
     captured: dict[str, object] = {}
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -348,7 +329,6 @@ async def test_bounds_render_as_a_token_cap_and_a_no_thinking_template_kwarg() -
 
 
 async def test_bounds_that_ask_for_nothing_leave_the_request_as_the_server_configured_it() -> None:
-    """A cap with thinking left alone, and thinking left alone with no cap, each emit one key."""
     captured: list[dict[str, object]] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -366,9 +346,6 @@ async def test_bounds_that_ask_for_nothing_leave_the_request_as_the_server_confi
 
 
 async def test_no_bounds_omits_every_key() -> None:
-    # The unbounded request is byte-for-byte the original, which is what every reply still sends.
-    # Asked with the trace lever ON, so the budget key is absent because nothing asked for one
-    # rather than because the deployment could not carry it.
     captured: dict[str, object] = {}
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -385,7 +362,6 @@ async def test_no_bounds_omits_every_key() -> None:
 
 
 async def test_a_trace_budget_rides_the_request_where_the_engine_reads_one() -> None:
-    """ADR-0005 request-lever addendum: the count crosses verbatim, a zero included."""
     captured: list[dict[str, object]] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -401,7 +377,6 @@ async def test_a_trace_budget_rides_the_request_where_the_engine_reads_one() -> 
 
 
 async def test_a_trace_budget_is_withheld_where_the_engine_does_not_read_one() -> None:
-    """An engine that does not read the key is sent no key at all (ADR-0005)."""
     captured: dict[str, object] = {}
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -413,14 +388,60 @@ async def test_a_trace_budget_is_withheld_where_the_engine_does_not_read_one() -
     body = captured["body"]
     assert isinstance(body, dict)
     assert "reasoning_budget_tokens" not in body
-    # The other two keys still ride it, so this is the budget being withheld and not the bounds
-    # being dropped.
     assert body["max_tokens"] == 32
     assert body["chat_template_kwargs"] == {"enable_thinking": False}
 
 
+_BACKEND_LOGGER = "cortex_inference.backend"
+_UNSENT_BUDGET = "trace budget not sent because the trace lever is off"
+
+
+def _ok_handler(_request: httpx.Request) -> httpx.Response:
+    return httpx.Response(200, content=_sse(_chunk({"content": "ok"})))
+
+
+async def _drain(backend: LlamaCppBackend, bounds: GenerationBounds | None) -> None:
+    _ = [event async for event in backend.stream("cortex", _messages(), bounds=bounds)]
+
+
+async def test_a_count_the_lever_withholds_is_reported_once(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    backend = _backend(_ok_handler)
+    bounds = GenerationBounds(trace_tokens=128)
+    with caplog.at_level(logging.WARNING, logger=_BACKEND_LOGGER):
+        await asyncio.gather(_drain(backend, bounds), _drain(backend, bounds))
+        await _drain(backend, bounds)
+    [record] = [r for r in caplog.records if r.name == _BACKEND_LOGGER]
+    assert record.levelno == logging.WARNING
+    assert record.getMessage() == _UNSENT_BUDGET
+    assert getattr(record, "model", None) == "cortex"
+    assert getattr(record, "trace_budget", None) == 128
+
+
+async def test_a_zero_with_the_thinking_switch_on_is_reported(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    with caplog.at_level(logging.WARNING, logger=_BACKEND_LOGGER):
+        await _drain(_backend(_ok_handler), GenerationBounds(trace_tokens=0))
+    [record] = [r for r in caplog.records if r.name == _BACKEND_LOGGER]
+    assert getattr(record, "trace_budget", None) == 0
+
+
+async def test_nothing_is_reported_when_no_positive_count_goes_unsent(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    unread = _backend(_ok_handler)
+    read = _backend(_ok_handler, trace_lever=True)
+    with caplog.at_level(logging.WARNING, logger=_BACKEND_LOGGER):
+        await _drain(unread, GenerationBounds(thinking=False, trace_tokens=0))
+        await _drain(unread, GenerationBounds(max_tokens=64))
+        await _drain(unread, None)
+        await _drain(read, GenerationBounds(trace_tokens=128))
+    assert [r for r in caplog.records if r.name == _BACKEND_LOGGER] == []
+
+
 async def test_the_thinking_switch_alone_never_budgets_the_trace() -> None:
-    """A bound that asks for no thinking and names no count carries no budget (ADR-0005)."""
     captured: dict[str, object] = {}
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -447,7 +468,7 @@ async def test_reassembles_a_streamed_tool_call_and_final_text() -> None:
             }
         ),
         _chunk({"tool_calls": [{"index": 0, "function": {"arguments": ':"/x"}'}}]}),
-        _chunk({}),  # a terminal empty-delta chunk carries neither text nor a fragment
+        _chunk({}),
         "[DONE]",
     )
 
@@ -497,7 +518,6 @@ async def test_malformed_tool_call_arguments_raise_inference_error() -> None:
 
 
 async def test_an_unparsable_tool_call_is_the_ports_narrower_failure() -> None:
-    """A tool call the model left unparsable raises the narrow ``MalformedToolCallError``."""
     content = _sse(
         _chunk(
             {
@@ -521,9 +541,6 @@ async def test_an_unparsable_tool_call_is_the_ports_narrower_failure() -> None:
     seen: list[InferenceEvent] = []
     with pytest.raises(MalformedToolCallError):
         await _drain_into(stream, seen)
-    # The stop rides the last chunk and the calls are assembled only once the stream is over, so
-    # the caller has already been told the completion was capped when the raise arrives. That
-    # ordering is the whole of what makes the pairing possible.
     assert seen == [DecodeStop(StopReason.CAPPED)]
 
 
@@ -537,21 +554,17 @@ class _BlockingStream(httpx.AsyncByteStream):
 
     async def __aiter__(self) -> AsyncIterator[bytes]:
         yield self._first
-        # Reached only when httpx pulls the body a SECOND time, which the backend does only
-        # after it has surfaced the first line's TextChunk. So `streaming` being set proves
-        # inference was genuinely in flight (a delta emitted) before the block below suspends.
         self._streaming.set()
-        await self._release.wait()  # never set: suspend mid-stream, lease held, until cancel
+        await self._release.wait()
 
     async def aclose(self) -> None:
         return None
 
 
 async def test_cancelling_mid_stream_frees_the_model_lease() -> None:
-    """Cancelling a turn task mid-inference must release the GPU lease so the next turn runs."""
     manager = SingleResidentModelManager("cortex", _ENDPOINT)
-    streaming = asyncio.Event()  # set once the body has streamed its first line (lease held)
-    release = asyncio.Event()  # never set: the body blocks here until the consumer is cancelled
+    streaming = asyncio.Event()
+    release = asyncio.Event()
     first = _sse(_chunk({"content": "partial"}))
 
     def handler(_request: httpx.Request) -> httpx.Response:
@@ -562,15 +575,15 @@ async def test_cancelling_mid_stream_frees_the_model_lease() -> None:
 
     async def consume() -> None:
         async for _event in backend.stream("cortex", _messages()):
-            pass  # drain: the body suspends after the first delta, holding the lease
+            pass
 
     task = asyncio.create_task(consume())
     async with asyncio.timeout(5.0):
-        await streaming.wait()  # a delta was surfaced; the task is now suspended, lease held
+        await streaming.wait()
     task.cancel()
     with pytest.raises(asyncio.CancelledError):
         await task
-    # The lease must be free: a fresh acquire returns at once. A leaked lock deadlocks here.
+    # The lease must be free: a fresh acquire returns at once, and a leaked lock deadlocks here.
     async with asyncio.timeout(5.0):
         async with manager.acquire("cortex") as lease:
             assert lease.endpoint == _ENDPOINT
@@ -578,8 +591,6 @@ async def test_cancelling_mid_stream_frees_the_model_lease() -> None:
 
 
 async def test_a_tool_message_with_an_image_becomes_a_content_parts_array() -> None:
-    # Measured against the real cortex: a role "tool" message whose content is a parts array
-    # carrying a data: URI is accepted inside a full tool-calling exchange and answered.
     sent: list[dict[str, object]] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -621,8 +632,6 @@ async def test_a_tool_message_with_an_image_becomes_a_content_parts_array() -> N
 
 
 async def test_a_tool_message_without_images_is_byte_identical_to_before() -> None:
-    # The images-absent request must not change at all: every text-only deployment pays nothing
-    # for vision, and a regression here would be invisible without pinning the exact shape.
     sent: list[dict[str, object]] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -663,7 +672,7 @@ async def test_several_images_on_one_message_all_ride_the_same_parts_array() -> 
 
 
 def _timings(**fields: object) -> str:
-    """One chunk carrying a llama.cpp ``timings`` object, in the shape a live run emits."""
+    """One chunk holding a llama.cpp ``timings`` object, in the shape a live run emits."""
     body = {"cache_n": 0, "prompt_n": 25, "predicted_ms": 1297.264, **fields}
     return json.dumps(
         {"choices": [{"finish_reason": "stop", "index": 0, "delta": {}}], "timings": body}
@@ -684,9 +693,10 @@ async def test_the_servers_timings_close_the_stream_as_one_cadence() -> None:
     ]
 
 
+# A chunk holding both is the one case where the order is the adapter's own, so it is checked
+# here rather than in the shared contract: on this build the ``timings`` object arrives on a
+# content-less final chunk, which satisfies the contract's ordering check either way.
 async def test_content_precedes_the_cadence_when_one_chunk_carries_both() -> None:
-    # A build that merges the last delta with the timings must not invert them: a consumer
-    # accumulating reply text has to see the text before the rate that describes it.
     chunk = json.dumps(
         {
             "choices": [{"finish_reason": "stop", "index": 0, "delta": {"content": "last"}}],
@@ -704,9 +714,6 @@ async def test_content_precedes_the_cadence_when_one_chunk_carries_both() -> Non
 
 
 async def test_a_choiceless_final_chunk_still_yields_its_cadence() -> None:
-    # The timings are read before the choices are, so a build closing on `{"choices":[]}` still
-    # has its cadence read. The exact event list is the other half: the stop is read off the first
-    # choice, so a chunk with no choice has none to report and only the cadence comes out.
     chunk = json.dumps(
         {"choices": [], "timings": {"predicted_per_second": 12.0, "predicted_n": 40}}
     )
@@ -732,8 +739,6 @@ async def test_a_choiceless_final_chunk_still_yields_its_cadence() -> None:
 async def test_an_unusable_timings_object_yields_no_cadence_and_keeps_the_reply(
     timings: str,
 ) -> None:
-    # An unreadable diagnostic arriving after the answer costs the answer nothing: no cadence is
-    # emitted and the reply text still crosses.
     body = _sse(
         '{"choices":[{"delta":{"content":"hi"}}]}',
         f'{{"choices":[{{"delta":{{}}}}],"timings":{timings}}}',
@@ -743,8 +748,8 @@ async def test_an_unusable_timings_object_yields_no_cadence_and_keeps_the_reply(
     assert [event async for event in stream] == [TextChunk("hi")]
 
 
+# llama.cpp reports floats; a build answering ints, or a float token count, is not a violation.
 async def test_a_whole_number_rate_and_count_are_taken_as_written() -> None:
-    # llama.cpp reports floats; a build answering ints (or a float token count) is not a violation.
     timings = json.dumps({"predicted_per_second": 30, "predicted_n": 64.0})
     body = _sse(f'{{"choices":[{{"delta":{{}}}}],"timings":{timings}}}', "[DONE]")
     stream = _backend(lambda _r: httpx.Response(200, content=body)).stream("cortex", _messages())
@@ -773,8 +778,6 @@ async def test_the_servers_finish_reason_crosses_the_port_as_a_closed_set(
 
 
 async def test_a_finish_reason_that_is_not_even_a_string_still_reports_a_stop() -> None:
-    # UNKNOWN rather than silence: the server did end the completion and did name a reason, so
-    # filing it under "nobody said" would put an unreadable answer where no answer belongs.
     body = _sse('{"choices":[{"finish_reason":7,"index":0,"delta":{"content":"hi"}}]}', "[DONE]")
     stream = _backend(lambda _r: httpx.Response(200, content=body)).stream("cortex", _messages())
     assert [event async for event in stream] == [
@@ -783,9 +786,9 @@ async def test_a_finish_reason_that_is_not_even_a_string_still_reports_a_stop() 
     ]
 
 
+# llama-server puts ``finish_reason: null`` on every chunk but the final one, so a stream of
+# four chunks must yield exactly one stop and not four.
 async def test_the_chunks_before_the_last_carry_no_stop() -> None:
-    # llama-server puts `finish_reason: null` on every chunk but the final one, so a stream of
-    # four chunks must yield exactly one stop and not four.
     body = _sse(
         '{"choices":[{"finish_reason":null,"delta":{"content":"a"}}]}',
         '{"choices":[{"finish_reason":null,"delta":{"content":"b"}}]}',
@@ -803,8 +806,6 @@ async def test_the_chunks_before_the_last_carry_no_stop() -> None:
 
 
 async def test_a_stop_and_a_cadence_on_one_chunk_arrive_stop_first() -> None:
-    # The wire puts both on the final chunk, so this order is the adapter's own: the stop explains
-    # the text that just ended, and the cadence still closes the stream.
     chunk = json.dumps(
         {
             "choices": [{"finish_reason": "length", "index": 0, "delta": {"content": "cut"}}],
@@ -822,8 +823,6 @@ async def test_a_stop_and_a_cadence_on_one_chunk_arrive_stop_first() -> None:
 
 
 async def test_the_stop_precedes_the_tool_calls_it_ends_the_completion_for() -> None:
-    # Tool calls are assembled once the stream ends, so they trail both closing events; a
-    # consumer reading the stop still knows a capped completion's calls may be half-built.
     body = _sse(
         '{"choices":[{"delta":{"tool_calls":[{"index":0,"id":"c1",'
         '"function":{"name":"clock_now","arguments":"{}"}}]}}]}',

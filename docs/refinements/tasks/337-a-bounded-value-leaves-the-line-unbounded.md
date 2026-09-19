@@ -1,131 +1,92 @@
 # A bounded value leaves the line unbounded
 
-**Status:** landed 2026-09-15
+**Status:** done 2026-09-15
 **Area:** cross-cutting
-**Origin:** [ADR-0038](../../adr/ADR-0038-ranked-recall.md)
+**Origin:** [ADR-0051](../../adr/ADR-0051-log-line-rendering.md)
 
-`VALUE_CHARS` bounds one field's value at 2,048 rendered characters. A line carries a message and
-as many fields as its call site attached, so **eight** fields at the bound pass the measured 16 KiB
-cliff and the line splits exactly as it did before, with `docker compose logs -t` stamping every
-piece and `--tail` counting pieces rather than lines (ADR-0038 bounded-value addendum).
+`VALUE_CHARS` bounds one field's value at 2,048 rendered characters. A line has a message and as
+many fields as its call site attached, so several fields at the bound pass the measured 16 KiB
+limit and the line splits exactly as it did before, with `docker compose logs -t` stamping every
+piece and `--tail` counting pieces rather than lines (ADR-0051 decision 12).
 
-That the bound is the cliff divided by eight is the argument that this cannot happen today, and it
-is an argument rather than a check. It is also a weaker argument than it first read: the addendum
-that landed the bound claimed eight fields at it still leave a line whole, and eight come to 16,384
-characters against a cliff of 16,383, one over before a `key=`, a separator, a marker or the
-message is counted. Measured through the shipped formatter, seven cut fields make a line of about
-14,500 characters and eight one of about 16,600, so the real headroom is seven (ADR-0038
-cut-defeats-withholding addendum). Only that field count carries between runs: the exact widths move
-by tens of characters with the level, logger and message a line opens with and with the digits in
-each cut marker, which is why three runs of this shape have recorded 14,536, 14,494 and 14,526.
-Nothing measures the widest line the tree can actually produce,
-and nothing fails when a new sink attaches an eighth large field. Both shipped sinks carry eleven
-keys at their widest: the recall trail always writes eleven, and the tool audit writes `tool`,
-`ok`, `arguments`, `trust` and `at`, then whichever of the five work identities the dispatch
-carried, then `result_chars` or `error`.
+That the bound is the limit divided by eight was the argument that this cannot happen today, and it
+is an argument rather than a check. It was also weaker than it first read: eight fields at the
+bound come to 16,384 characters against a limit of 16,383, one over before a `key=`, a separator, a
+marker or the message is counted. Measured through the shipped formatter, seven cut fields make a
+line of about 14,500 characters and eight one of about 16,600, so the real headroom is seven
+(ADR-0051 decision 13). Only that field count is portable between runs: the exact widths move by
+tens of characters with the level, logger and message a line opens with and with the digits in each
+cut marker, which is why three runs of this shape recorded 14,536, 14,494 and 14,526.
 
-Which of the two lines is the wide one is the part this entry's own trail had backwards. It called
-the recall trail the widest line the brain writes, and that holds only for what a live stack has
-been read writing. Four of the tool audit's fields carry text no call site chose: `tool`, `call_id`
-and `arguments` are the model's own, and `error` is what the dispatch or a sidecar answered, which
-for an unknown tool is `unknown tool {name!r}` and therefore the model's string again. All four can
-be past the bound at once, from one emitted call, and the line that results is several times wider
-than any trail line.
+Which of the two shipped sinks writes the wide line is what this entry first had backwards. It
+called the recall trail the widest line the brain writes, and that holds only for what a live stack
+has been read writing. Four of the tool audit's fields contain text no call site chose: `tool`,
+`call_id` and `arguments` are the model's own, and `error` is what the dispatch or a sidecar
+answered, which for an unknown tool is `unknown tool {name!r}` and therefore the model's string
+again. All four can be past the bound at once, from one emitted call. Both sinks have eleven keys
+at their widest.
 
-The fix has a shape and a cost. `render_fields` is where a whole-line bound would go, since it is
-the one place that sees every pair at once, and the awkward half is the same one the per-value bound
-decided: cutting the line drops whole fields, and a reader cannot tell a dropped field from a field
-nobody attached unless a count rides along, which `render_fields` can add because that function does
-own its line. The cheaper alternative is a test rather than a bound: assert that the widest line any
-shipped sink builds stays under the cliff, which catches the field that pushes a line over it on the
-day that field is written rather than the day the line is read.
+The fix is a whole-line bound in `render_fields`, the one place that sees every pair at once, and
+its awkward half is that cutting the line drops whole fields and a reader cannot tell a dropped
+field from one nobody attached unless a count goes with it. The cheaper alternative is a test:
+assert that the widest line any shipped sink builds stays under the limit.
 
-## Trail
+## History
 
-- 2026-09-15: landed as the cheaper of the two shapes, and the entry's own count of the wide fields
-  was wrong by one. `brain/packages/orchestrator/tests/test_widest_line.py` holds the widest line
-  each shipped sink builds under the cliff: one case per sink, each driving the real sink rather
-  than assembling a record, each setting every field whose text the brain does not choose past
-  `VALUE_CHARS`, each asserting the rendered width, the fields the bound cut and the eleven keys
-  the line carries. It sits in the orchestrator's suite because the composition root is the one
-  place both sinks are visible at once. The whole-line bound in `render_fields` was declined with
-  the argument recorded, its cost being a dropped-field count inside a rendering the function does
-  not own.
-  The correction is the fifth field: `session_id` is not one a call site chose either. It arrives
-  as a proto string on `ClientEvent`, reaches the dispatch stamp, and is length-checked nowhere
-  between the wire and `render_value`, so a body that sends a two-kilobyte session id puts a fifth
-  cut field on every audit line the turn writes. Measured today, the audit's widest line is
-  **10,593 characters, 65% of the cliff and a headroom factor of 1.55**, against the 8,437 and the
-  1.91 this entry recorded over four fields; the recall trail's widest is **4,464** against 2,258
-  for the same record with an ordinary session id. Seven fields at the bound is still the headroom
-  and five of the seven is what the widest sink spends. The live half was not run: the 1,800
-  characters of 2026-08-27 is still the only reading taken off a running stack, and the in-process
-  figures above are an upper bound over it rather than a competing reading of the same thing.
-  Recorded in the ADR-0038 widest-line addendum. It opened
-  [R-671](671-the-widest-line-check-names-its-sinks-by-hand.md), the two cases naming their sinks
-  by hand where the set could be derived.
-- 2026-08-20: The headroom this entry inherited was corrected from eight fields to seven, measured
-  rather than argued (ADR-0038 cut-defeats-withholding addendum). The entry is unchanged in
-  substance: the line is still unbounded and still unmeasured, and the cheaper alternative below, a
-  test rather than a bound, is now one field cheaper to trip.
 - 2026-08-20: Opened by the close of [R-324](324-a-rendered-field-has-no-bound.md), which bounded a
   value against a measurement of the whole line and left the whole line unmeasured.
+- 2026-08-20: The headroom was corrected from eight fields to seven, measured rather than argued
+  (ADR-0051 decision 13). The entry is otherwise unchanged.
 - 2026-08-21: The tool audit line grew by three keys (the chat, turn and subagent task a dispatch
-  was made for, ADR-0009 named-work addendum), which makes it nine keys on a line carrying all
-  three. All three are short ids and none of them approaches the per-value bound, so the headroom
-  argument is unchanged in substance; what matters is that this entry's count of the audit trail's
-  keys was already a claim nobody re-measured, and the line an operator reads is still unmeasured at
-  its widest.
-- 2026-08-27: the widest real line is measured at last, which is what this entry's trigger was
-  stated in the absence of ([R-453](453-the-harness-reads-one-field-off-a-line-it-has-whole.md),
-  ADR-0038 whole-line addendum). Over 466 recall-trail lines from a live stack, the widest line the
-  brain writes renders at **1,800 characters against the 16,383 cliff**, and arithmetic over the
-  shipped caps puts the widest this deployment could write near 2,200. This entry is unchanged in
-  substance: the line is still unbounded and still ungated, and the fix and its cheaper alternative
-  both stand. What changed is that the cheaper one, a test asserting the widest line a shipped sink
-  builds stays under the cliff, now has a measured figure to be written against.
-- 2026-09-08: trigger swept and not fired, and the headroom is a good deal smaller than the last
-  reading said, because the last reading was of the wrong line. Rendered through the shipped
-  `PlainFormatter` today, a `LoggingAuditSink`-shaped record whose `tool`, `call_id`, `arguments`
-  and `error` each carry a million characters makes a line of **8,580 characters** with four cut
-  markers on it, which is 52% of the 16,383 cliff and a headroom factor of 1.91. The recall trail
-  at its shipped caps, twenty dropped candidates and five hits with uuid4 ids, renders at 2,264 on
-  the same run, which is the near-2,200 the whole-line addendum computed. So the widest line a live
-  stack was read writing, 1,800 characters, is not the widest this deployment could write, and the
-  factor of nine recorded against it belongs to the trail alone. The arithmetic the bound rests on
-  is unchanged: measured the same way, seven fields at the bound make a line of 14,494 characters
-  and eight make one of 16,562, so seven is still the headroom in fields. Those two counts are the
-  ones the cut-defeats-withholding addendum reports as 14,536 and 16,607, over longer field names:
-  eight-character keys reproduce 14,536 exactly here, so the difference is the names each run chose
-  and not the formatter. The entry stays open and
-  its cheaper alternative is now the more attractive of the two: a test asserting the widest line a
-  shipped sink builds stays under the cliff has two figures to be written against, and the tool
-  audit is where it would bite first.
-- 2026-09-12: trigger swept again and not fired, and the two live documents that still carried the
-  claim this entry disproved are corrected. Re-measured through the shipped `PlainFormatter` today,
-  the widest line the tree can build, the audit-shaped record with a million characters in each of
-  its four model-written fields, renders at **8,437 characters, 51.5% of the 16,383 cliff and a
-  headroom factor of 1.94**; the recall trail at its shipped caps renders at 2,258; seven fields at
-  the bound make 14,526 characters and eight make 16,598, so seven is still the headroom in fields.
-  Both sinks were counted again off their own `extra=` dicts and both still carry eleven keys at
-  their widest. `docs/modules/repo-gates.md` and `docs/runbooks/memory-pgvector.md` each still said
-  the recall trail is the widest line the brain writes, which is what the 2026-09-08 reading
-  disproved, so both now name the tool audit and carry both figures. That is the doc half of a
-  reading already recorded here and not a bound: the line is still unbounded, still ungated, and the
-  cheaper alternative still stands. The live half was not re-read, `just recall-width` needing the
-  card that a long measurement was holding all session, so the 1,800-character live reading of
-  2026-08-27 remains the only one taken off a running stack.
-- 2026-09-14: trigger swept again and not fired, and every in-process figure re-derived. Rendered
-  through the shipped `PlainFormatter` today, the widest line the tree can build, the audit-shaped
-  record with a million characters in each of its four model-written fields, is **8,573 characters,
-  52.3% of the 16,383 cliff and a headroom factor of 1.91**; the recall trail at its shipped caps
-  renders at 2,256; seven fields at the bound make 14,571 characters and eight make 16,647, so seven
-  is still the headroom in fields. Both sinks were counted off their own `extra=` dicts again and
-  both still carry eleven keys at their widest, the audit's being `tool`, `ok`, `arguments`,
-  `trust`, `at`, whichever of the five work identities the dispatch carried, and `error`. The three
-  absolute widths this entry has now recorded for one shape, 8,580, 8,437 and 8,573, sit within 1.7%
-  of each other and move with the level, logger and message a run chose, which is why the field
-  count is the reading that carries. The entry is unchanged in substance: the line is still
-  unbounded, still ungated, and the cheaper alternative is still the more attractive of the two. The
-  live half was not re-read again, `just recall-width` needing a running stack this slot's box had
-  no room for, so the 1,800-character reading of 2026-08-27 is still the only one taken off one.
+  was made for, ADR-0009 decision 16), making nine keys on a line with all three. All three are
+  short ids and none approaches the per-value bound.
+- 2026-08-27: The widest real line was measured at last
+  ([R-453](453-the-harness-reads-one-field-off-a-line-it-has-whole.md), ADR-0051 decision 16). Over
+  466 recall-trail lines from a live stack, the widest line the brain writes renders at 1,800
+  characters against the 16,383 limit, and arithmetic over the shipped caps puts the widest this
+  deployment could write near 2,200.
+- 2026-09-08: Checked again and not fired, and the headroom is smaller than the last reading said,
+  because that reading was of the wrong line. Through the shipped `PlainFormatter`, a
+  `LoggingAuditSink`-shaped record whose `tool`, `call_id`, `arguments` and `error` each contain a
+  million characters makes a line of 8,580 characters with four cut markers, 52% of the 16,383
+  limit and a headroom factor of 1.91. The recall trail at its shipped caps, twenty dropped
+  candidates and five hits with uuid4 ids, renders at 2,264 on the same run. So the widest line a
+  live stack was read writing, 1,800 characters, is not the widest this deployment could write.
+  Seven fields at the bound make 14,494 characters and eight make 16,562, so seven is still the
+  headroom in fields.
+- 2026-09-12: Checked again and not fired, and the two documents that still had the claim this
+  entry disproved are corrected. Re-measured, the audit-shaped record renders at 8,437 characters,
+  51.5% of the limit and a headroom factor of 1.94; the recall trail at its shipped caps renders at
+  2,258; seven fields at the bound make 14,526 characters and eight make 16,598. Both sinks were
+  counted again off their own `extra=` dicts and both still have eleven keys at their widest.
+  `docs/modules/repo-checks.md` and `docs/runbooks/memory-pgvector.md` now name the tool audit and
+  give both figures. The live half was not re-read, `just recall-width` needing the card a long
+  measurement was using, so the 1,800-character reading of 2026-08-27 is still the only live one.
+- 2026-09-14: Checked again and not fired, and every in-process figure recomputed. The audit-shaped
+  record is 8,573 characters, 52.3% of the limit and a headroom factor of 1.91; the recall trail at
+  its shipped caps renders at 2,256; seven fields at the bound make 14,571 characters and eight
+  make 16,647. Both sinks still have eleven keys at their widest, the audit's being `tool`, `ok`,
+  `arguments`, `trust`, `at`, whichever of the five work identities the dispatch had, and `error`.
+  The three absolute widths recorded for one shape, 8,580, 8,437 and 8,573, sit within 1.7% of each
+  other and move with the level, logger and message a run chose, which is why the field count is
+  the reading that transfers.
+- 2026-09-15: Fixed as the cheaper of the two options, and the count of the wide fields was wrong
+  by one. `brain/packages/orchestrator/tests/test_widest_line.py` keeps the widest line each
+  shipped sink builds under the limit: one case per sink, each driving the real sink rather than
+  assembling a record, each setting every field whose text the brain does not choose past
+  `VALUE_CHARS`, each asserting the rendered width, the fields the bound cut and the eleven keys on
+  the line. It sits in the orchestrator's suite because the composition root is the one place both
+  sinks are visible at once. The whole-line bound in `render_fields` was declined, its cost being a
+  dropped-field count inside a rendering the function does not own. The correction is the fifth
+  field: `session_id` is not one a call site chose either, arriving as a proto string on
+  `ClientEvent`, reaching the dispatch stamp, and length-checked nowhere between the wire and
+  `render_value`, so a body that sends a two-kilobyte session id puts a fifth cut field on every
+  audit line the turn writes. Measured today, the audit's widest line is 10,593 characters, 65% of
+  the limit and a headroom factor of 1.55, against the 8,437 and the 1.91 recorded over four
+  fields; the recall trail's widest is 4,464 against 2,258 for the same record with an ordinary
+  session id. Seven fields at the bound is still the headroom and five of the seven is what the
+  widest sink uses. The live half was not run, so the 1,800 characters of 2026-08-27 is still the
+  only reading off a running stack, and the in-process figures are an upper bound over it rather
+  than a competing reading. Recorded in ADR-0051 decision 15. It opened
+  [R-671](671-the-widest-line-check-names-its-sinks-by-hand.md), the two cases naming their sinks
+  by hand where the set could be computed.

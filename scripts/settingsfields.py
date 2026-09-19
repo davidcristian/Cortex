@@ -7,12 +7,9 @@ from typing import NamedTuple
 from moduleconstants import constants, parse, text
 from treewalk import walk_files
 
-# Where the brain's workspace packages keep their importable module: one directory per module,
-# named as `python -m` names it.
 PACKAGES = Path("brain/packages")
 SOURCE = "src"
 
-# The pydantic-settings names this reader keys on.
 CONFIG_ATTRIBUTE = "model_config"
 CONFIG_CALL = "SettingsConfigDict"
 SETTINGS_BASE = "BaseSettings"
@@ -24,7 +21,7 @@ UNREAD_ANNOTATION = "ClassVar"
 
 
 class SettingsReadError(Exception):
-    """A settings class carries a shape this reader cannot reduce to environment names."""
+    """A settings class has a form this reader cannot reduce to environment names."""
 
 
 class Field(NamedTuple):

@@ -1,12 +1,13 @@
 # Dead-letter inspection
 
-**Status:** landed 2026-07-12
+**Status:** done 2026-07-12
 **Area:** scheduling
 **Origin:** [ADR-0025](../../adr/ADR-0025-scheduling-reminders.md)
 
-Recorded in the [ADR-0025 dead-letter addendum](../../adr/ADR-0025-scheduling-reminders.md).
-`RedisScheduleStore.dead_letters()`/`purge_dead_letter()`, adapter-only by design (the
-quarantine is a codec mechanic the fake can never produce; a port method would force a
-vacuous fake), operator-facing and never a model tool (the raw bytes are the content the
-codec refused); runbook recipe + redis-cli equivalents in scheduling.md. Automated
-retention stays deferred until quarantine volume ever exists.
+Decided in [ADR-0025](../../adr/ADR-0025-scheduling-reminders.md) decision 7.
+`RedisScheduleStore.dead_letters()` and `purge_dead_letter()` are on the adapter rather than the
+port, because the quarantine is a codec mechanic the in-memory fake can never produce, so a port
+method would force an empty fake implementation. They are for the operator and are never model
+tools, since the raw bytes are the content the codec refused. The runbook recipe and the
+`redis-cli` equivalents are in `scheduling.md`. Automated retention stayed deferred and was later
+declined ([245](245-automated-dead-letter-retention.md)).

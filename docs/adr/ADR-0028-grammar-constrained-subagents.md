@@ -245,6 +245,6 @@ envelope](../readings/reply-envelope.md).
   [ADR-0050](ADR-0050-live-probe-records.md) (seeds, pairing, placement),
   [ADR-0059](ADR-0059-prompt-cache-per-tier.md) (the prompt cache the subagent servers turn off).
 - Modules: [brain-core](../modules/brain-core.md), [brain-inference](../modules/brain-inference.md),
-  [repo checks](../modules/repo-gates.md) (the envelope readers).
+  [repo checks](../modules/repo-checks.md) (the envelope readers).
 - Runbook: [subagents-cpu](../runbooks/subagents-cpu.md) (the live probe, the measurement run and
   the override table). Measurements: [reply envelope](../readings/reply-envelope.md).

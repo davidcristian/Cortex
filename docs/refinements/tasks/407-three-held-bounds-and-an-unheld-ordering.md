@@ -1,55 +1,29 @@
-# Three bounds are held as three values and the ordering they are stated in is held by nothing
+# Three bounds are registered as three values and the ordering they are stated in is checked by nothing
 
 **Status:** declined 2026-08-23
-**Area:** repo-gates
-**Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
+**Area:** repo-checks
+**Origin:** [ADR-0042](../../adr/ADR-0042-cross-tree-constant-registry.md)
 
-Opened 2026-08-23 by the close of
-[R-402](402-the-stall-ceiling-is-ordered-against-two-held-bounds.md), which registered the last of
-the three numbers and made the gap visible by closing the others.
-
-`brain/packages/core/src/cortex_core/subagents.py` states that the delegated run's deadline "sits
+`brain/packages/core/src/cortex_core/subagents.py` states that the delegated run's deadline sits
 strictly between the two bounds either side of it, the pool's 600 s stall ceiling and its 3600 s
-admission wait, so the three are ordered by the scope of what they bound". All three numbers are
-now registry entries, and each is held to the places that state it. **The ordering is held by
-nothing.** `scripts/couplings.py` has a `Relation.ORDERED` for exactly this shape, but it orders
-the sites of ONE entry, and these are three entries in three modules. The boot-time check in
-`brain/packages/orchestrator/src/cortex_orchestrator/config_subagents.py` covers one of the two
-orderings the sentence claims (`run_timeout_s <= stall_timeout_s` fails validation) and says nothing
-about the run deadline against the admission wait, which the comment there notes is deliberate for
-the zero setting.
+admission wait. All three numbers are registry entries, and each is compared with the places that
+state it. The ordering itself was checked by nothing in the registry: `scripts/couplings.py` has a
+`Relation.ORDERED` for this shape, but it orders the declarations of one entry, and these are three
+entries in three modules.
 
-So retuning the ceiling above the deadline is caught at boot, retuning the deadline above the wait
-is caught nowhere, and the sentence asserting all three go on being green either way.
+## History
 
-**Why it was left.** Each close in this run was about one value, and an ordering is about three.
-Expressing it needs a decision the registry has never had to make: whether an entry may name a
-site another entry also names, which is the same new edge the misattribution close rejected for a
-different reason.
-
-**What would close it, and what to check first.** Re-derive before designing. The cheap shape is a
-fourth entry with `Relation.ORDERED` over the three declaring sites, `DEFAULT_STALL_TIMEOUT_S`,
-`DEFAULT_SUBAGENT_RUN_TIMEOUT_S` and `DEFAULT_ADMISSION_WAIT_S`, in that order, which the existing
-relation already expresses and which needs no new vocabulary at all. Two things to check before
-writing it: an ordering "compares integers" per `scripts/readings.py`, and all three of these are
-decimals, so either the relation grows a decimal comparison or this shape is not available; and the
-registry suite requires an entry to span more than one language, which an ordering over three
-Python declarations does not, so that rule has to be argued about or the entry has to reach a far
-side that is not Python.
-
-## Trail
-
-- 2026-08-23: **Declined.** The premise is false on two counts and the proposed remedy is wrong on
-  a third, all re-derived from the tree. The second ordering is not caught nowhere: the close that
-  landed it three hours before this file was written added
+- 2026-08-23: declined. The premise is false on two counts and the proposed remedy wrong on a
+  third, all checked against the tree. The second ordering is not unchecked: the close that added
+  it three hours before this file was written added
   `_the_run_deadline_must_fit_inside_the_queue_for_it` beside the older ceiling validator, so
-  `SubagentsConfig` raises on both misorderings, and every bare construction of that class reads all
-  three declarations, which makes a retune inverting either one fail the orchestrator suite on the
-  commit that types it. The zero-wait note this file read as an absence is the carve-out inside
-  that validator. And `Relation.ORDERED` is non-decreasing, so the fourth entry proposed here
-  would have gone green on the three bounds set equal, which is the misordering both validators
-  exist to catch. What is left of the observation, that the registry cannot express an ordering
-  over decimals and cannot express a strict one at all, is
+  `SubagentsConfig` raises on both wrong orderings, and every bare construction of that class reads
+  all three declarations, which makes a retune inverting either one fail the orchestrator suite on
+  the commit that types it. The zero-wait note this file read as an absence is the exception inside
+  that validator. And `Relation.ORDERED` is non-decreasing, so the fourth entry proposed here would
+  have passed with the three bounds set equal, which is the misordering both validators exist to
+  catch. What is left of the observation, that the registry cannot express an ordering over
+  decimals and cannot express a strict one at all, is
   [R-367](367-the-shipped-ordering-of-two-bounds-is-ungated.md), which records both halves and
   covers a pair no settings class validates. The stale sentence this file quoted is corrected in
-  `cortex_core/subagents.py`. Recorded in the ADR-0009 held-ordering addendum. Opens nothing.
+  `cortex_core/subagents.py`. Recorded in ADR-0047 decision 7. Opens nothing.

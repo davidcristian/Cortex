@@ -9,21 +9,15 @@ from logfields import FieldError, attached
 from moduleconstants import constants, text
 from treewalk import walk_files
 
-# Where the brain's importable source lives, and the directory each package puts it under. Only
-# these trees are walked: a package's tests sit beside `src` rather than inside it, and a logger a
-# test declares is not a logger the deployment writes under.
 BRAIN_PACKAGES = Path("brain/packages")
 SOURCE_DIR = "src"
 PYTHON = ".py"
 
-# The one logging method whose level is an argument rather than its own name, and where its
-# message sits when it is. The model host switches between a warning and an error that way, and a
-# line written through it has no level a sample could be held to.
 DYNAMIC_LEVEL = "log"
 DYNAMIC_MESSAGE = 1
 
-# What each logging method prints as its level. `exception` is the one that is not its own name:
-# it logs at ERROR with a traceback attached, so a runbook quoting one prints ERROR.
+# What each logging method prints as its level. `exception` is the one that is not its own
+# name: it logs at ERROR with a traceback attached.
 LEVELS = {
     "debug": "DEBUG",
     "info": "INFO",
@@ -49,11 +43,7 @@ class UnreadFieldsError(LogCallError):
 
 
 class LogCall(NamedTuple):
-    """One call's contribution to a line: where it stands, its level, and what it will print.
-
-    ``fields`` is in the order the formatter prints them rather than the order the call wrote
-    them, name order being what ``render_fields`` sorts to.
-    """
+    """One call's contribution to a line: where it stands, its level, and what it will print."""
 
     line: int
     level: str
@@ -70,10 +60,7 @@ def read(path: Path, shown: str) -> str:
 
 
 def modules(root: Path) -> Iterator[tuple[Path, Path, str]]:
-    """Every brain source module: the file, its path inside its source root, and how to name it.
-
-    One walk for both halves of this reader, in a fixed order so a fault reads the same twice.
-    """
+    """Every brain source module: the file, its path inside its source root, and how to name it."""
     packages = root / BRAIN_PACKAGES
     try:
         candidates = sorted(packages.iterdir())
@@ -99,7 +86,7 @@ def parsed(source: str, shown: str) -> ast.Module:
 
 
 def _written(first: ast.expr, strings: Mapping[str, str], shown: str, at: int) -> str | None:
-    """The message one call carries, in either spelling, or None where this reader cannot say."""
+    """The message one call logs, in either form, or None where this reader cannot say."""
     message = text(first, strings)
     if message is None or isinstance(first, ast.Name):
         return message
@@ -127,7 +114,7 @@ def _logs(node: ast.AST) -> bool:
 
 
 def carried(tree: ast.Module, shown: str) -> list[tuple[ast.Call, str, str]]:
-    """Every logging call in one module, with the level it prints and the message it carries."""
+    """Every logging call in one module, with the level it prints and the message it logs."""
     strings, _ = constants(tree)
     found: list[tuple[ast.Call, str, str]] = []
     for node in ast.walk(tree):
@@ -197,7 +184,7 @@ def logged(source: str, message: str, shown: str) -> LogCall:
 
 
 def messages(root: Path) -> dict[str, tuple[str, ...]]:
-    """Every message the brain logs, against the repo-relative file whose calls carry it."""
+    """Every message the brain logs, against the repo-relative file whose call writes it."""
     found: dict[str, tuple[str, ...]] = {}
     for module, _, shown in modules(root):
         tree = parsed(read(module, shown), shown)

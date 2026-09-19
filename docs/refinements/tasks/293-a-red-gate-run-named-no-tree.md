@@ -1,100 +1,63 @@
-# A red gate run that named no tree
+# A failing check run that named no tree
 
-**Status:** open, fix when it bites
-**Area:** repo-gates
+**Status:** open, waiting for its trigger
+**Area:** repo-checks
 **Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-checks.md)
-**Trigger:** the next red `just check` whose whole output is kept, which names its tree in a `=== check-<tree>: FAILED ===` marker and its seed in the failing suite's own header, that being the one form of this failure a pass can reproduce from.
+**Trigger:** the next failing `just check` whose whole output is kept, which names its tree in a `=== check-<tree>: FAILED ===` marker and its seed in the failing suite's own header, that being the one form of this failure a later pass can reproduce from.
 **Verified:** 2026-09-19
 
-**What was observed.** Twice on 2026-08-17, `just check` run by the pre-commit hook exited 1 on a
-tree that passed on both sides of it with nothing changed in between. The first was on the commit
-that taught the backlog grammar to read a field's whole value when it wraps: four passing runs of
-the same gate on the same tree around it, one failure. The second was on the commit that widened the
-anchor check, where the sequence is exact and worth writing down, since the tree was fully staged
-and therefore byte for byte identical across it: a manual `just check` exited 0, the hook's run of
-the same recipe exited 1, and an immediate retry of the identical commit exited 0 and landed. Both
-failures were single, both were bracketed by passing runs, and neither is explained.
+Twice on 2026-08-17, `just check` run by the pre-commit hook exited 1 on a tree that passed on both
+sides of it with nothing changed in between. The first was on the commit that taught the backlog
+grammar to read a field's whole value when it wraps: four passing runs of the same command on the
+same tree around it, one failure. The second was on the commit that widened the anchor check, where
+the tree was fully staged and therefore identical across the sequence: a manual `just check` exited
+0, the hook's run of the same recipe exited 1, and an immediate retry of the identical commit
+exited 0. Both failures were single, both were bracketed by passing runs, and neither is explained.
 
-**It did not reproduce.** After the second red, the gate was run twice more over the same tree with
-the whole output kept, and both passed in 129 and 125 seconds. Two runs are not a rate, and two
-passes are the outcome a genuinely intermittent failure gives most of the time, so this narrows
-nothing. It does say the failure is not a standing property of that tree.
+It did not reproduce. After the second failure the command was run twice more over the same tree
+with the whole output kept, and both passed, in 129 and 125 seconds. Two passes are the outcome a
+genuinely intermittent failure gives most of the time, so that narrows nothing beyond saying the
+failure is not a permanent property of that tree.
 
-**What was not established**, and this is most of the entry. Which of the four trees failed.
-Which check inside it. Whether the failure is order dependent, load dependent, or an environment
-hiccup that has nothing to do with the tests. Whether the two occurrences share a cause at all, or
-whether counting them together is already an assumption. Nothing was retained from either run.
+What was not established is most of this entry: which of the four trees failed, which check inside
+it, whether the failure is order dependent, load dependent or an environment problem, and whether
+the two occurrences share a cause at all. Nothing was kept from either run.
 
-**Why nothing was retained is not a property of the gate.** `just check` buffers each tree's output
-and prints `=== check-<tree>: OK|FAILED ===` ahead of it, so the failing tree is named in the log
-both times. Pre-commit surfaces a hook's output only when the hook fails, and on both occasions the
-caller kept only the tail of that output. The tail is the overlay's coverage table, which prints
-last whichever tree failed, so it identifies nothing. The remedy costs nothing and is procedural:
-capture the whole of a failing hook run, never a tail of it. What a captured failure looks like
-turned up by accident during the two re-runs above: a third and fourth run failed in about a second
-each, and their logs named the recipe, the tree and the reason on one line, because this file had
-been written between runs and the index was stale. That failure is explained and is not this one. It
-is what the other two would have looked like had anything been kept.
+The reason nothing was kept is not a property of the check. `just check` buffers each tree's output
+and prints `=== check-<tree>: OK|FAILED ===` ahead of it, so the failing tree was named in the log
+both times. Pre-commit shows a hook's output only when the hook fails, and on both occasions the
+caller kept only the tail of that output, which is the overlay's coverage table and identifies
+nothing. The remedy is procedural and costs nothing: keep the whole of a failing hook run.
 
-**A hypothesis, offered as one.** Every suite here now runs shuffled, and every seed is fixed, so
-for a given checkout an order is a pure function of its seed and an order-dependent failure ought to
-reproduce on the re-run that a person does first. Two things weaken that reasoning rather than
-supporting it. libtest hands its shuffled list to parallel workers, so a pair of tests inside one
-thread window races whichever way it was drawn, which the shuffle decision already records as a
-population the shuffle is worth nothing for. And the four trees run in parallel under one `just
-check`, so the load each sees differs run to run in a way no seed fixes, and anything timing
-sensitive underneath moves with it. Neither of those was measured here. They are the first two
-places to look, not findings.
+One hypothesis, offered as one. Every suite runs shuffled under a fixed seed, so for a given
+checkout an order is a function of its seed and an order-dependent failure ought to reproduce.
+Two things weaken that. libtest hands its shuffled list to parallel workers, so a pair of tests
+inside one thread window races whichever way it was drawn. And the four trees run in parallel under
+one `just check`, so the load each sees differs run to run in a way no seed fixes. Neither was
+measured; they are the first two places to look.
 
-**What would close it.** Nothing to build, which is why this waits. The next failure has to be kept:
-run the gate with its whole output captured, read the `FAILED` marker to get the tree, and take the
-seed the failing suite printed in its own header. A failure that names its tree and its seed is a
-bug report somebody can act on; one that names neither is this entry, and a third of those would say
-only that the rate is not negligible.
+## History
 
-## Trail
-
-- 2026-08-17: written down after the second occurrence, on the pass that widened the anchor check to
-  every document in the repo. Recorded rather than diagnosed: two failures, no tree named for
-  either, a passing re-run of the identical tree after each, and two further passing runs that
-  narrowed nothing.
-- 2026-09-06: **held to the tree, not fired, and one half of the trigger was uncountable as
-  written.** No third occurrence is recorded: the repo holds no red gate run after the two above,
-  the only files describing an intermittent failure are this one and
-  [R-115](115-stop-bounds-deadline-check.md), which is about a deadline assertion rather than the
-  gate, and nothing outside the generated index cites this entry. That is a search over the record,
-  not a count of reds, which is the half that had to be restated. "A third that is not captured"
-  cannot be answered from inside the tree by construction: an uncaptured red is exactly a red that
-  left no artifact, so counting them requires the retention whose absence is the entry. Nor is
-  there a second place to count them, since the pre-commit hook is the only thing that runs this
-  gate on a schedule anybody keeps and CI has recorded no run at all
+- 2026-08-17: Written down after the second occurrence: two failures, no tree named for either, a
+  passing re-run of the identical tree after each, and two further passing runs.
+- 2026-09-06: Checked, not triggered, and one half of the trigger was uncountable as written. No
+  third occurrence is recorded, and the only other file describing an intermittent failure is
+  [R-115](115-stop-bounds-deadline-check.md), which is about a deadline assertion. "A third that is
+  not captured" cannot be answered from inside the tree, since an uncaptured failure is one that
+  left no artifact, and there is no second place to count them, because the pre-commit hook is the
+  only thing that runs this check on any schedule and CI has recorded no run at all
   ([R-594](594-no-workflow-in-this-repository-has-ever-run.md)). The trigger now names only the
-  capture, which is the occurrence that gives somebody something to work on, and the procedural
-  remedy the entry already states, keep the whole of a failing hook run, is what produces it.
-- 2026-09-11: read against the tree and not fired. No red run of the gate has been kept since the
-  reading above: the repo records none, and no task file or decision record dated after
-  2026-09-06 describes one. The mechanism the trigger relies on is where it was written. `just
-  check` still runs the four trees in parallel, buffers each, and prints
-  `=== check-<tree>: OK|FAILED ===` ahead of every log, and every suite still runs shuffled under
-  a fixed seed it prints in its own header: 9973 for the brain, 7919 for the gate tree, 104729
-  for the body's coverage run and 65537 for the overlay. The two files describing an intermittent
-  failure are still this one and [R-115](115-stop-bounds-deadline-check.md).
-- 2026-09-14: read against the tree and not fired. No red run of the gate has been kept since the
-  reading above: no task file or decision record dated 2026-09-12 or later describes one, and the
-  only two files describing an intermittent failure are still this one and
-  [R-115](115-stop-bounds-deadline-check.md). The mechanism the trigger relies on was re-read
-  rather than assumed. `just check` still runs the four trees in parallel, buffers each into its
-  own log, and prints `=== check-<tree>: OK|FAILED ===` ahead of it, and the four fixed seeds are
-  where they were: 9973 in `brain/pyproject.toml`, 7919 in `scripts/pyproject.toml`, 104729 on the
-  body's coverage run in the justfile, and 65537 in `body/app/vite.config.ts`. The pre-commit hook
-  is still the only thing that runs this gate on a schedule anybody keeps, because no workflow in
-  this repository has executed once
-  ([R-291](291-a-red-sweep-leaves-no-trace-in-the-repo.md) holds today's reading of that).
-- 2026-09-19: read against the tree and not fired. No task file or decision record changed since
-  2026-09-14 describes a red run of the gate: a search of those 148 files for an intermittent or
-  `FAILED` run finds, besides this entry, only mutation-table rows and the brain handoff record's
-  failed-reason addendum, none of them about `just check`, and the files describing an
-  intermittent failure are still this one and [R-115](115-stop-bounds-deadline-check.md). The mechanism is unchanged: the `check` recipe still
-  prints `=== check-$tree: $status ===` ahead of each buffered log, and the four fixed seeds are
-  still 9973, 7919, 104729 and 65537 in the files the reading above names. The trigger can fire
-  as written, since a kept red names its tree in that marker.
+  capture.
+- 2026-09-11: Checked, not triggered. No failing run has been kept since. `just check` still runs
+  the four trees in parallel, buffers each, and prints `=== check-<tree>: OK|FAILED ===` ahead of
+  every log, and every suite still runs shuffled under a fixed seed it prints in its own header:
+  9973 for the brain, 7919 for the scripts tree, 104729 for the body's coverage run and 65537 for
+  the overlay.
+- 2026-09-14: Checked, not triggered. No file dated 2026-09-12 or later describes a failing run,
+  and the four fixed seeds are where they were: 9973 in `brain/pyproject.toml`, 7919 in
+  `scripts/pyproject.toml`, 104729 on the body's coverage run in the justfile, and 65537 in
+  `body/app/vite.config.ts`.
+- 2026-09-19: Checked, not triggered. A search of the 148 files changed since 2026-09-14 for an
+  intermittent or `FAILED` run finds only mutation-table rows and the brain handoff record's
+  failed-reason decision, none of them about `just check`. The `check` recipe still prints `===
+  check-$tree: $status ===` ahead of each buffered log, and the four seeds are unchanged.

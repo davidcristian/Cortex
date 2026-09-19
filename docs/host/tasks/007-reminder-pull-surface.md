@@ -1,42 +1,35 @@
 # The reminder pull surface on the hotkey path
 
 **Status:** never attempted
-**Sitting:** windows-desktop
+**Session:** windows-desktop
 **Capability:** W
-**Origin:** [ADR-0025](../../adr/ADR-0025-scheduling-reminders.md)
+**Origin:** [ADR-0066](../../adr/ADR-0066-reminder-toast-and-card.md)
 
-**Until 2026-07-19 this check had no backlog line**, though it was never unrecorded:
-[ADR-0025](../../adr/ADR-0025-scheduling-reminders.md)'s host line has named "the overlay's reminder
-surface on the real hotkey→overlay path" since the slice landed, and the procedure is in the
-runbook. What it lacked was a place that listed it as work still owed. (Corrected 2026-07-19: this
-section first claimed the runbook paragraph was its only record, which its own "Record it" line
-below refutes.)
-
-**What only this proves.** That the browser-validated card stack reads correctly at real window
-size, and that a failed pull is a no-op on the live path rather than an emptied surface.
-
-Kept verbatim from [runbooks/scheduling.md](../../runbooks/scheduling.md), which carries the procedure:
-
-> what is genuinely host-side is the real hotkey path: whether the stack reads well over the live
-> window and whether killing the brain mid-session leaves the cards in place (it should: a failed
-> pull dispatches nothing) rather than emptying the surface.
+**What only this proves.** That the card stack validated in the browser reads correctly at real
+window size, and that a failed pull does nothing on the live path rather than emptying the surface.
+[runbooks/scheduling.md](../../runbooks/scheduling.md) has the procedure and says the same: what is
+host-side is the real hotkey path, whether the stack reads well over the live window and whether
+killing the brain mid-session leaves the cards in place, which it should, since a failed pull
+dispatches nothing.
 
 **Do.** Summon the overlay with something due. Read the stack. Then stop the brain (`just down`)
 and summon again.
 
-**Pass.** The card stack sits above the history; each card carries its text, how long ago it fired,
+**Pass.** The card stack sits above the history; each card has its text, how long ago it fired,
 `repeats` on a recurring series, and a dashed, faintly red-tinted `untrusted source` badge when
-tainted. Dismissing a card acks it. With the brain down, the cards stay.
+tainted. Dismissing a card acknowledges it. With the brain down, the cards stay.
 
 **Fail.** Cards vanishing when the brain goes away means a failed pull is clearing state, which is
-the specific regression this check exists to catch.
+the regression this check exists to catch.
 
-**Record it.** A dated addendum to [ADR-0025](../../adr/ADR-0025-scheduling-reminders.md), whose
-host line already names "the overlay's reminder surface on the real hotkey→overlay path"; then
-delete this section.
+**Record it.** Edit [ADR-0066](../../adr/ADR-0066-reminder-toast-and-card.md) in place where its
+Consequences name the look of a real card; then delete this section.
 
 ## Notes
 
-- The sitting doc numbers this check **5**, and ADR-0025 cites it by that number.
-- The host index's roll call adds that it pairs with the reminder toast check and uses the same
-  seeded reminder.
+- The session doc numbers this check **5**; ADR-0066 links the section that lists it.
+- It pairs with the reminder toast check and uses the same seeded reminder.
+- It had no backlog line until 2026-07-19, though it was never unrecorded:
+  [ADR-0025](../../adr/ADR-0025-scheduling-reminders.md)'s host line has named the overlay's
+  reminder surface on the real hotkey path since the slice was added, and the procedure is in the
+  runbook.

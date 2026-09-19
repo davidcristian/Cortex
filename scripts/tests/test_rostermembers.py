@@ -1,5 +1,3 @@
-"""Tests for the readers that say what the tree holds under each roster."""
-
 from pathlib import Path
 
 import pytest
@@ -46,7 +44,7 @@ async fn the_probe_gives_up() {
 
 
 def suite(root: Path, text: str = SUITE) -> Path:
-    """Write a miniature live suite where the real one lives, and return the root it is under."""
+    """Write a small live suite where the real one lives, and return the root above it."""
     path = root / rostermembers.LIVE_SEAM
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")
@@ -54,15 +52,12 @@ def suite(root: Path, text: str = SUITE) -> Path:
 
 
 def gates(root: Path, *names: str) -> Path:
-    """Write a miniature `scripts/` holding exactly ``names``, and return the root over it."""
+    """Write a small `scripts/` with exactly ``names`` in it, and return the root above it."""
     tree = root / rostermembers.GATES
     tree.mkdir(parents=True, exist_ok=True)
     for name in names:
         (tree / name).write_text('"""A miniature."""\n', encoding="utf-8")
     return root
-
-
-# ── the ignored checks in one Rust suite ───────────────────────────────────────
 
 
 def test_every_ignored_check_is_read_and_nothing_else_is(tmp_path: Path) -> None:
@@ -72,13 +67,10 @@ def test_every_ignored_check_is_read_and_nothing_else_is(tmp_path: Path) -> None
 
 
 def test_a_helper_beside_the_checks_is_not_one() -> None:
-    """The reader keys on the `#[ignore]` attribute, so an ordinary function in the file is not
-    read as a check."""
     assert "patient_reads" not in ignored_tests(SUITE)
 
 
 def test_the_name_is_taken_from_below_the_whole_attribute_stack() -> None:
-    """`#[ignore]` is written above or below `#[tokio::test]`, so the first fn below wins."""
     swapped = SUITE.replace(
         '#[tokio::test]\n#[ignore = "live seam check: needs no brain"]',
         '#[ignore = "live seam check: needs no brain"]\n#[tokio::test]',
@@ -87,28 +79,21 @@ def test_the_name_is_taken_from_below_the_whole_attribute_stack() -> None:
 
 
 def test_an_ignore_quoted_in_a_doc_comment_is_not_a_check() -> None:
-    """The module comment of the real suite quotes the attribute, which is prose about it."""
     assert ignored_tests("//! `#[ignore]`d so they never run in CI.\n") == []
 
 
 def test_a_check_nested_in_a_module_is_still_a_check() -> None:
-    """Indentation is allowed deliberately, and nothing in the tree uses the allowance yet."""
     nested = "mod live {\n" + "\n".join(f"    {line}" for line in SUITE.splitlines()) + "\n}\n"
     assert ignored_tests(nested) == ["the_brain_answers", "the_probe_gives_up"]
 
 
 def test_an_ignore_above_no_function_refuses_to_name_a_check(tmp_path: Path) -> None:
-    """An `#[ignore]` above no function raises, since reporting the file's next name would invent
-    a check.
-    """
     dangling = SUITE + '\n#[ignore = "live seam check: needs nothing"]\n'
     with pytest.raises(MemberError, match="the ignore on line 22 sits above no function"):
         live_seam_checks(suite(tmp_path, dangling))
 
 
 def test_a_suite_with_no_ignored_check_left_is_a_failure(tmp_path: Path) -> None:
-    """An empty answer raises, since a comparison over nothing would report success every time it
-    ran."""
     with pytest.raises(MemberError, match="came back empty"):
         live_seam_checks(suite(tmp_path, "//! Nothing ignored here.\n"))
 
@@ -116,9 +101,6 @@ def test_a_suite_with_no_ignored_check_left_is_a_failure(tmp_path: Path) -> None
 def test_a_suite_that_is_not_there_is_named(tmp_path: Path) -> None:
     with pytest.raises(MemberError, match="cannot read body/crates/rpc/tests/live"):
         live_seam_checks(tmp_path)
-
-
-# ── the modules this tree is a contract for ────────────────────────────────────
 
 
 def test_every_module_in_the_gate_tree_is_a_member(tmp_path: Path) -> None:
@@ -137,13 +119,11 @@ def test_a_gate_tree_holding_no_module_is_a_failure(tmp_path: Path) -> None:
         gate_modules(gates(tmp_path))
 
 
-# ── the two halves that same tree sorts into ───────────────────────────────────
-
 GUARD = '"""A miniature with a command line."""\n\n\nif __name__ == "__main__":\n    main()\n'
 
 
 def split(root: Path, *, runs: tuple[str, ...], read: tuple[str, ...]) -> Path:
-    """Write a miniature `scripts/` where ``runs`` carry a main guard and ``read`` do not."""
+    """Write a small `scripts/` where ``runs`` have a main guard and ``read`` do not."""
     gates(root, *read)
     tree = root / rostermembers.GATES
     for name in runs:
@@ -158,16 +138,12 @@ def test_a_module_has_a_cli_exactly_when_it_carries_a_main_guard(tmp_path: Path)
 
 
 def test_the_two_halves_are_the_whole_tree_and_share_nothing(tmp_path: Path) -> None:
-    """The two halves are a partition of the directory, which is what lets each be held to a roster
-    of its own."""
     root = split(tmp_path, runs=("linecap.py",), read=("values.py",))
     assert cli_gate_modules(root) | library_gate_modules(root) == gate_modules(root)
     assert not cli_gate_modules(root) & library_gate_modules(root)
 
 
 def test_a_guard_that_is_not_at_the_top_level_is_not_a_cli(tmp_path: Path) -> None:
-    """An indented guard sits inside a function and a quoted one is prose about a guard, so neither
-    makes the module a CLI."""
     root = gates(tmp_path, "values.py")
     (tmp_path / rostermembers.GATES / "values.py").write_text(
         '"""Prose quoting `if __name__ == "__main__":` as the thing a CLI carries."""\n'
@@ -181,28 +157,19 @@ def test_a_guard_that_is_not_at_the_top_level_is_not_a_cli(tmp_path: Path) -> No
 
 
 def test_a_tree_whose_every_module_is_a_cli_leaves_the_other_half_empty(tmp_path: Path) -> None:
-    """Either half coming back empty raises, since an empty set matches any roster compared against
-    it."""
     root = split(tmp_path, runs=("linecap.py",), read=())
     with pytest.raises(MemberError, match="came back empty"):
         library_gate_modules(root)
 
 
 def test_a_module_that_cannot_be_read_is_named_rather_than_sorted(tmp_path: Path) -> None:
-    """A file the reader cannot open raises, since sorting it into a half would report a claim
-    about a module nothing read."""
     root = split(tmp_path, runs=("linecap.py",), read=("values.py",))
     (root / rostermembers.GATES / "values.py").write_bytes(b"\xff\xfe not text at all")
     with pytest.raises(MemberError, match=r"cannot read scripts/values\.py"):
         library_gate_modules(root)
 
 
-# ── the scans the single gate runs, which are no directory's listing ───────────
-
-
 def test_a_disagreement_between_the_two_files_arrives_as_a_member_failure(tmp_path: Path) -> None:
-    """`rosternames.py` raises on the disagreement, and this is how that reaches a roster's far
-    side."""
     (tmp_path / scanrecipes.JUSTFILE).write_text(
         "check:\n    just check-linecap\n", encoding="utf-8"
     )
@@ -216,8 +183,6 @@ def test_a_disagreement_between_the_two_files_arrives_as_a_member_failure(tmp_pa
 
 
 def test_a_gate_that_runs_no_scan_at_all_is_a_failure(tmp_path: Path) -> None:
-    """Two files agreeing that there are no scans raises, which is the empty answer every floor
-    here rejects."""
     (tmp_path / scanrecipes.JUSTFILE).write_text("check:\n    echo nothing\n", encoding="utf-8")
     workflow = tmp_path / scanrecipes.WORKFLOW
     workflow.parent.mkdir(parents=True, exist_ok=True)
@@ -230,16 +195,12 @@ def test_the_real_gate_runs_the_scans_this_repo_documents() -> None:
     assert "rostercheck.py" in cross_tree_scans(REPO_ROOT)
 
 
-# ── the tuples the constant registry is joined from ────────────────────────────
-
-
 def test_a_part_is_read_as_the_tuple_name_its_file_name_gives_it(tmp_path: Path) -> None:
     root = gates(tmp_path, "seamcouplings.py", "logcouplings.py", "couplings.py", "registry.py")
     assert registry_tuples(root) == frozenset({"SEAM_COUPLINGS", "LOG_COUPLINGS"})
 
 
 def test_the_vocabulary_file_is_not_a_part(tmp_path: Path) -> None:
-    """`couplings.py` is what every part is written in, so a roster naming it would be wrong."""
     root = gates(tmp_path, "seamcouplings.py", "couplings.py")
     assert registry_tuples(root) == frozenset({"SEAM_COUPLINGS"})
 
@@ -249,21 +210,18 @@ def test_a_registry_with_no_part_but_its_vocabulary_is_a_failure(tmp_path: Path)
         registry_tuples(gates(tmp_path, "couplings.py"))
 
 
-# ── the directories the two workspaces are made of ─────────────────────────────
-
-
 def packages(root: Path, *names: str) -> Path:
-    """Write a miniature `brain/packages/` holding exactly ``names``, and return the root."""
+    """Write a small `brain/packages/` with exactly ``names`` in it, and return the root."""
     return _workspace(root, rostermembers.PACKAGES, names)
 
 
 def crates(root: Path, *names: str) -> Path:
-    """Write a miniature `body/crates/` holding exactly ``names``, and return the root."""
+    """Write a small `body/crates/` with exactly ``names`` in it, and return the root."""
     return _workspace(root, rostermembers.CRATES, names)
 
 
 def _workspace(root: Path, tree: Path, names: tuple[str, ...]) -> Path:
-    """Write one miniature workspace holding exactly ``names`` as directories."""
+    """Write one small workspace with exactly ``names`` as directories."""
     made = root / tree
     made.mkdir(parents=True, exist_ok=True)
     for name in names:
@@ -277,7 +235,6 @@ def test_every_directory_under_the_workspace_is_a_package(tmp_path: Path) -> Non
 
 
 def test_a_file_beside_the_packages_is_not_one(tmp_path: Path) -> None:
-    """A workspace member is a directory holding a project, so a note beside them is not one."""
     root = packages(tmp_path, "core")
     (root / rostermembers.PACKAGES / "README.md").write_text("a note\n", encoding="utf-8")
     assert brain_packages(root) == frozenset({"core"})
@@ -295,8 +252,6 @@ def test_a_workspace_holding_no_package_is_a_failure(tmp_path: Path) -> None:
 
 
 def test_every_directory_under_the_body_workspace_is_a_crate(tmp_path: Path) -> None:
-    """The crates are read as directories, which is what the map names them by: `os_windows` is a
-    directory and `os-windows` is what its manifest calls the package."""
     root = crates(tmp_path, "core", "os_windows", "rpc")
     assert body_crates(root) == frozenset({"core", "os_windows", "rpc"})
 
@@ -312,15 +267,7 @@ def test_a_body_workspace_holding_no_crate_is_a_failure(tmp_path: Path) -> None:
         body_crates(tmp_path)
 
 
-# ── against the tree these readers are written for ─────────────────────────────
-
-
 def test_the_real_suite_and_the_real_registry_are_both_read() -> None:
-    """The fixtures above are miniatures, so the real files are read here too.
-
-    Floors are asserted rather than the exact sets, since the counts are what this repo holds
-    today and a check or a part landing tomorrow should not fail here.
-    """
     assert len(live_seam_checks(REPO_ROOT)) > 1
     assert len(registry_tuples(REPO_ROOT)) > 1
     assert "rostermembers.py" in gate_modules(REPO_ROOT)
@@ -329,7 +276,6 @@ def test_the_real_suite_and_the_real_registry_are_both_read() -> None:
 
 
 def test_the_real_tree_really_holds_both_halves() -> None:
-    """Both halves are filled by the committed tree, so neither roster is held to an empty set."""
     assert "rostercheck.py" in cli_gate_modules(REPO_ROOT)
     assert "rostermembers.py" in library_gate_modules(REPO_ROOT)
     assert cli_gate_modules(REPO_ROOT) | library_gate_modules(REPO_ROOT) == gate_modules(REPO_ROOT)

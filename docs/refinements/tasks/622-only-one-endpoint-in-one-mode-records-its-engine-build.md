@@ -1,54 +1,48 @@
 # Only one endpoint in one mode records its engine build
 
-**Status:** open, a seam or port change comes first
+**Status:** open, needs a port change first
 **Area:** inference
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
 **Verified:** 2026-09-17
 **Trigger:** a commit that changes `HealthProbe.serving` in
 `brain/packages/model_manager/src/cortex_model_manager/probe.py` or the `InferenceEvent` union in
 `brain/packages/core/src/cortex_core/inference.py`, either of which is where a build reading for
-the remaining endpoints would land. Read it with `git log --since=<Verified date>` on those two
-paths.
-
-Opened 2026-09-10 by the close of
-[R-611](611-nothing-reads-the-build-the-engine-names-on-every-response.md), which gave a running
-stack its first build reading and covered one endpoint with it.
+the remaining endpoints would go. Read it with `git log --since=<Verified date>` on those two paths.
 
 `PropsVisionProbe.can_see` reads `build_info` off the `/props` body it already parses and puts it on
 `vision probe answered` as `build`. That probe is built only for `CORTEX_VISION=auto`
-(`build_vision` in [vision.py](../../../brain/packages/orchestrator/src/cortex_orchestrator/vision.py)
-returns no probe for `on`, and none at all for `off` or for a brain with no body wired), and it asks one address, `config.endpoint`.
-So three populations still record nothing. A deployment that fixed the vision answer by hand logs
-no build. The subagent servers and the deep model are other endpoints, and nothing asks them
-anything outside a turn. And a capture decision's line says which build answered that probe rather
-than which build produced a given completion, which is the half a log line cannot reach at all.
+(`build_vision` in
+[vision.py](../../../brain/packages/orchestrator/src/cortex_orchestrator/vision.py) returns no probe
+for `on`, and none at all for `off` or for a brain with no body wired), and it asks one address,
+`config.endpoint`. Three cases therefore record nothing: a deployment that fixed the vision
+answer by hand, the subagent servers and the deep model, which nothing asks anything outside a turn,
+and any given completion, since a capture decision's line says which build answered that probe
+rather than which build produced a reply.
 
-**What would close it.** Two routes, and each begins with a port change, which is why this waits
-rather than being picked up behind an unchanged one.
+**What would close it.** Two routes, and each starts with a port change, which is why this waits.
 
-The model host is the placement that covers every tier: it starts one `llama-server` child per
-logical model and polls each child's `/health` until it serves, so the moment a child turns READY
-is the moment its build could be read once and logged. `HealthProbe.serving` returns a boolean over
-`GET /health` ([probe.py](../../../brain/packages/model_manager/src/cortex_model_manager/probe.py)),
-so a build reading there is a widened port answer plus a second request against `/props`, and the
-supervisor rather than the probe would decide when to spend it, a load being polled for minutes.
+The model host covers every tier: it starts one `llama-server` child per logical model and polls
+each child's `/health` until it serves, so the moment a child turns READY is the moment its build
+could be read once and logged. `HealthProbe.serving` returns a boolean over `GET /health`
+([probe.py](../../../brain/packages/model_manager/src/cortex_model_manager/probe.py)), so a build
+reading there is a widened port return plus a second request against `/props`, and the supervisor
+rather than the probe would decide when to spend it, a load being polled for minutes.
 
-The other route is per-completion provenance: a `system_fingerprint` arm on `InferenceEvent`, read
-in [decode.py](../../../brain/packages/inference/src/cortex_inference/decode.py), which reads
-`timings` and `choices` off a chunk and drops the rest. That is the only shape under which a
-measured figure carries the build that produced it rather than the build a probe found nearby, and
-it is a contract change: the port, the fake, the contract test and the seam's own wording.
+The other route is per-completion provenance: a `system_fingerprint` field on `InferenceEvent`,
+read in [decode.py](../../../brain/packages/inference/src/cortex_inference/decode.py), which reads
+`timings` and `choices` off a chunk and drops the rest. That is the only design under which a
+measured figure includes the build that produced it rather than the build a probe found nearby, and
+it is a contract change: the port, the fake, the contract test and the proto's own wording.
 
-## Trail
+## History
 
 - 2026-09-10: opened by the close of
-  [R-611](611-nothing-reads-the-build-the-engine-names-on-every-response.md), recorded in the
-  [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md) addendum on the vision probe's build field,
-  which argues why the reading landed on the one endpoint it did and names the three places it
-  leaves unrecorded.
-- 2026-09-17: re-derived, not fired. Neither path has a commit since 2026-09-10; both last changed
-  on 2026-08-31, and the two model-host commits since then (the subagent prompt cache) did not
-  touch the probe. `PropsVisionProbe.can_see` still logs `build` on `vision probe answered`, and
-  nothing else in `brain/packages/*/src` reads `build_info` or `system_fingerprint`. One
+  [R-611](611-nothing-reads-the-build-the-engine-names-on-every-response.md), recorded in
+  [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md) decision 9, which explains why the reading went
+  on the one endpoint it did and names the three places it leaves unrecorded.
+- 2026-09-17: checked again, not fired. Neither path has a commit since 2026-09-10; both last
+  changed on 2026-08-31, and the two model-host commits since then (the subagent prompt cache) did
+  not touch the probe. `PropsVisionProbe.can_see` still logs `build` on `vision probe answered`,
+  and nothing else in `brain/packages/*/src` reads `build_info` or `system_fingerprint`. One
   correction: `build_vision` also returns no probe when no body is wired, since without a body
   there is no capture tool to ask about.

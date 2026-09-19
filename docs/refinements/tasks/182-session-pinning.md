@@ -1,45 +1,40 @@
-# Session pinning
+# Keeping a chat at the top of the list
 
-**Status:** landed 2026-07-16
-**Area:** session-read-seam
+**Status:** done 2026-07-16
+**Area:** session-read-rpc
 **Origin:** [ADR-0021](../../adr/ADR-0021-session-read-rpcs.md)
 
-A new `SessionStore.set_pinned` verb plus a `pinned` field on `SessionSummary`
-across the wire and all four trees, but the real cost is a **read-path** decision the bounded
-two-round-trip listing does not answer: whether a pinned chat escapes the recency `ZREVRANGE`
-window (the expected UX) and so must be unioned into the listing, reshaping the tuned
-`list_sessions`. A genuine design change, not a drop-in behind the write verb, which is why it did
-not ride the rename that landed 2026-07-16.
-**Landed 2026-07-16 ([ADR-0021 pinning addendum](../../adr/ADR-0021-session-read-rpcs.md)), and the
-entry named its own crux exactly: the read-path union was the whole item.** A pinned chat DOES
-escape the recency window, so `list_sessions` unions the pinned set into every listing. The tuned
-two-round-trip shape held: round trip one now reads BOTH indexes in one transaction (`ZREVRANGE`
-the recency window AND `SMEMBERS` a new pinned set `cortex:sessions:pinned`), their union
-(recency window first, then pinned ids outside it, deduplicated) is the listed set, and round trip
-two is the same batched ends-read, so it stays two round trips and two decoded records per chat.
-A new pure-core `merge_pinned` is the one shared ordering rule (stable-sort recency then
-`not pinned`, so pinned chats sort above the recency group, newest-active first within each), and
-both the fake and the Redis adapter build the same deduplicated candidate set and hand it there,
-so they cannot drift. Three costs the "verb + field" framing hid: the union is additive, so a
-heavily-pinned catalog lists more than `limit` (bounded by the small pinned set); `delete` must
-also `SREM` the pinned member, or a deleted-then-pinned id lingers as a dangling pin; and
-`set_pinned` takes `*, pinned` keyword-only (the repo's boolean-arg convention). The write RPC
-`SetSessionPinned` has the SAME structural user-only reachability rename/delete got (no tool,
-never through the turn engine); its `SeamMethod` is classified **not repeatable** despite being
-idempotent by value, because the catalog-write convention is uniform (a lost reply must not
-re-assert a pinned value the user's next toggle reversed). The overlay adds a per-row pin toggle
-(a filled-pin indicator doubling as the state), re-lists after the write so the pinned group
-re-forms at the top, and reads the one pinned-first `sessions` order everywhere (switcher, cycling,
-cold-start adoption, which now adopts the top pinned chat when any is pinned). Gated at 100% across
-all four trees, with the union mutation-proven: the flagship contract check pins a chat older than
-a `limit=3` window and asserts it still lists above the recency group (dropping the union makes it
-fail), a pinned-and-recent chat is asserted to appear once (dropping the dedup makes it fail), and the
-user-only path is pinned by a no-tool structural test. Live-validated (agent, Docker + real Redis):
-four chats seeded with an old one pinned and a `limit=3` listing returned the pinned old chat
-first, above the three newer chats, exactly once.
+A `SessionStore.set_pinned` write and a `pinned` field on `SessionSummary` across the wire and all
+four trees, but the real cost was a read-path decision: whether a chat kept at the top escapes the
+recency `ZREVRANGE` window and so has to be merged into the listing.
 
-## Trail
+It does. `list_sessions` merges the kept set into every listing. Round trip one reads both indexes
+in one transaction (`ZREVRANGE` for the recency window and `SMEMBERS` for the new
+`cortex:sessions:pinned` set), their union is the listed set (recency window first, then the kept
+ids outside it, deduplicated), and round trip two is the same batched ends-read, so it stays two
+round trips and two decoded records per chat. A new pure-core `merge_pinned` is the one ordering
+rule (stable-sort by recency, then by not being kept, so kept chats sort above the recency group,
+newest first within each), and both the fake and the Redis adapter build the same deduplicated
+candidate set and hand it there.
 
-- 2026-07-16: Pinning landed end to end, the last of the three management-verb entries and the
-  one whose crux the entry named exactly, and it opened nothing behind it. The area count
-  went from 4 to 3.
+Three costs the "one write plus one field" framing hid: the union is additive, so a catalog with
+many kept chats lists more than `limit`; `delete` must also `SREM` the member, or a deleted id
+lingers; and `set_pinned` takes `*, pinned` keyword-only, per the repo's boolean-argument
+convention.
+
+`SetSessionPinned` is protected by the same structural user-only reachability as rename and delete:
+no tool, never through the turn engine. Its `SeamMethod` is classified not repeatable despite being
+idempotent by value, because the convention is uniform and a lost reply must not re-assert a value
+the user's next toggle reversed.
+
+The overlay adds a per-row toggle, re-lists after the write so the group re-forms at the top, and
+reads the one order everywhere (switcher, cycling, and cold-start adoption, which now adopts the
+top kept chat when there is one).
+
+Checked live against Docker and real Redis: four chats seeded with an old one kept at the top and a
+`limit=3` listing returned that old chat first, above the three newer chats, exactly once.
+
+## History
+
+- 2026-07-16: Closed end to end, the last of the three catalog-write entries and the one whose
+  central question the entry named exactly. It opened nothing behind it.

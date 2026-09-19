@@ -1,3 +1,6 @@
+# Plain ubuntu runners with no GPU, running the same `just` recipes a developer runs locally.
+# scripts/ci_paths.py picks the toolchain jobs, running all of them for an unrecognized path or an
+# unreadable diff range. Actions are named by commit SHA, kept current by .github/dependabot.yml.
 name: CI
 
 on:
@@ -5,8 +8,8 @@ on:
     branches: [master]
   pull_request:
 
-# A newer PR push supersedes the in-flight run for the same ref, but every
-# master commit keeps its CI verdict, preserving a bisectable history (ADR-0006).
+# A newer push to a pull request cancels the run in flight for the same ref, while every master
+# commit keeps its own result, so the history stays bisectable.
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -23,8 +26,7 @@ jobs:
       overlay: ${{ steps.filter.outputs.overlay }}
       shell: ${{ steps.filter.outputs.shell }}
     steps:
-      # fetch-depth 0: the repo is small, and full history makes computing the
-      # diff range trivial (merge bases and `before` SHAs are always present).
+      # Full history: the repo is small, and merge bases and `before` SHAs are then always there.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
@@ -38,9 +40,7 @@ jobs:
           set -euo pipefail
           range=""
           if [ "${EVENT}" = "pull_request" ]; then
-            # Three-dot = diff against the merge base with the PR target.
-            # origin has the base branch because fetch-depth is 0 and PR runs
-            # check out from the base repo.
+            # Three dots means diff against the merge base with the target branch.
             range="origin/${BASE_REF:-}...HEAD"
           elif [ -n "${BEFORE:-}" ] \
             && [ "${BEFORE:-}" != "0000000000000000000000000000000000000000" ] \
@@ -48,9 +48,8 @@ jobs:
             range="${BEFORE}..HEAD"
           fi
           if [ -n "${range}" ] && git diff --name-only "${range}" > /dev/null 2>&1; then
-            # The classifier is stdlib-only, so plain python3 works with no uv
-            # setup in this job. Under pipefail, a classifier error fails this
-            # step and therefore the run: visible red, never silently green.
+            # The classifier uses only the standard library, so plain python3 is enough. Under
+            # pipefail an error in it fails this step and so the whole run.
             git diff --name-only "${range}" | python3 scripts/ci_paths.py >> "$GITHUB_OUTPUT"
           else
             echo "No usable diff range (first push, or a force-push whose 'before' is gone); running everything, fail-closed."
@@ -60,9 +59,13 @@ jobs:
             echo "shell=true" >> "$GITHUB_OUTPUT"
           fi
 
+  # The cross-tree scans are repo-wide and exempt from the path filter: linecap.py, dashcheck.py,
+  # prosecheck.py, crosscheck.py, bindcheck.py, defaultcheck.py, volumecheck.py, stubcheck.py,
+  # samplecheck.py, rostercheck.py, flagcheck.py, settingscheck.py, backlogcheck.py.
   cross-tree:
     runs-on: ubuntu-latest
     steps:
+      # rostercheck.py compares the list above with the scans just check and this workflow run.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
@@ -72,6 +75,7 @@ jobs:
           tool: just
       - run: just check-linecap
       - run: just check-dashcheck
+      - run: just check-prosecheck
       - run: just check-crosscheck
       - run: just check-bindcheck
       - run: just check-defaultcheck
@@ -104,20 +108,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      # Nightly first (branch-coverage instrumentation only), stable second so that
-      # stable stays the default toolchain (ADR-0002). The SHA pin drops the
-      # @nightly/@stable ref selection, so the toolchain is passed explicitly.
-      - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # pinned master (no releases; dependabot bumps the SHA only)
+      # Nightly first, for branch-coverage instrumentation, then stable, so that stable stays the
+      # default toolchain. Naming the action by SHA means the toolchain is passed explicitly.
+      - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master (no releases; dependabot updates the SHA only)
         with:
           toolchain: nightly
           components: llvm-tools-preview
-      - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # pinned master (no releases; dependabot bumps the SHA only)
+      - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master (no releases; dependabot updates the SHA only)
         with:
           toolchain: stable
           components: rustfmt, clippy
-          # check-body clippies the cfg(windows) os_windows backend on this target (which the
-          # native workspace compiles to nothing); clippy never links, so no MSVC toolchain is
-          # needed. Shell fmt (body/app/src-tauri) needs only rustfmt, already present. ADR-0011.
+          # check-body runs clippy on the cfg(windows) os_windows crate for this target, which
+          # the native workspace compiles to nothing. Clippy never links, so no MSVC toolchain.
           targets: x86_64-pc-windows-msvc
       - uses: taiki-e/install-action@37f7c5781271959fb65b6b35224e28652ff2b63d # v2
         with:
@@ -125,12 +127,15 @@ jobs:
       - uses: Swatinem/rust-cache@f0d9c3887740aee45f6153b24b3a6b815192ec16 # v2
         with:
           workspaces: body
-      # uv is needed because check-body's branch gate runs scripts/coverage_gate.py.
+      # uv is needed because check-body's coverage step runs scripts/coverage_gate.py.
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           enable-cache: true
       - run: just check-body
 
+  # Clippy on the Tauri shell, which has to compile for clippy to see it. This is the one job
+  # that installs system libraries and the one that runs a `just` recipe local `just check` does
+  # not. Clippy never links, so the packages are installed only for their pkg-config metadata.
   shell:
     needs: changes
     if: needs.changes.outputs.shell == 'true'
@@ -144,7 +149,7 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev \
             librsvg2-dev libdbus-1-dev binutils-mingw-w64-x86-64
-      - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # pinned master (no releases; dependabot bumps the SHA only)
+      - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master (no releases; dependabot updates the SHA only)
         with:
           toolchain: stable
           components: clippy
@@ -152,13 +157,14 @@ jobs:
       - uses: taiki-e/install-action@37f7c5781271959fb65b6b35224e28652ff2b63d # v2
         with:
           tool: just
-      # The shell is its own cargo workspace, so it needs its own cache key; sharing the
-      # rust job's would thrash both.
+      # The shell is its own cargo workspace, so it needs its own cache key.
       - uses: Swatinem/rust-cache@f0d9c3887740aee45f6153b24b3a6b815192ec16 # v2
         with:
           workspaces: body/app/src-tauri
       - run: just check-shell
 
+  # The React overlay under body/app/, checked at 100% line and branch coverage by Vitest. The
+  # Tauri shell in the same tree is the separate job above, since it is Rust and needs webkit.
   overlay:
     needs: changes
     if: needs.changes.outputs.overlay == 'true'

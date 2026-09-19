@@ -1,101 +1,56 @@
-# No committed probe sends the request's own trace budget, or pairs two arms at a seed
+# No committed probe sends the request's own trace budget, or pairs two runs at a seed
 
-**Status:** landed 2026-09-11
+**Status:** done 2026-09-11
 **Area:** inference
-**Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
+**Origin:** [ADR-0050](../../adr/ADR-0050-live-probe-records.md)
 
-Opened 2026-08-30 by the close of
-[R-500](500-the-garbled-channel-marker-has-no-attributed-cause.md), which is the second sitting in
-two days to draw the arm it needed by hand off `build_payload`. This is the probe half
-[R-479](479-the-reasoning-budget-held-until-the-prompt-pushed.md) asked for, restated against what
-the attribution turned out to need.
+Two gaps, both in what a committed file can send rather than in what it records.
 
-Two gaps, and both are in what a committed file can **send** rather than in what it records.
+The request gap: `brain/packages/orchestrator/tests/test_envelope_cost_live.py` runs the shipped
+`SubagentRunner`, so it sends exactly what `PlacedAttempt` sends, which names no `trace_tokens`. A
+setting substituting a count into the bounds on the way past, the way `_Recording.substitute` already
+does for the schema, would make the request-key measurement reproducible by a committed file.
 
-The **request** gap is the one already written down. `brain/packages/orchestrator/tests/test_envelope_cost_live.py`
-runs the shipped `SubagentRunner`, so it sends exactly what `PlacedAttempt` sends, which names no
-`trace_tokens`. A knob substituting a count into the bounds on the way past, the way `_Recording.substitute`
-already does for the schema, would make the request key arm of the firm-prompt addendum reproducible
-by a committed file.
+The seed gap is what makes two runs comparable. The envelope harness cannot send a seed without
+leaving the shipped path: it runs the real `SubagentRunner`, `PlacedAttempt` builds the request, and
+`GenerationBounds` has no seed field, so seeding it is either a port change on a field no deployment
+would set, or a request the harness posts itself, which costs the one property that harness exists
+for. Without a seed a committed file can report a rate and cannot report that two variants drew the
+same completion.
 
-The **seed** gap is what makes two arms comparable. Nothing in this repo sends llama.cpp a `seed` on
-any request: not `build_payload`, not the envelope harness, and not the two live probes in the
-inference package. Both hand runs that attributed a behaviour to one flag added one in a scratch
-file, and the pairing is what made their identity claims comparisons rather than two rates, the
-marker addendum's 20 of 20 and the budget-alone addendum's 40 of 40. Without a seed on the request
-a committed file can report a rate and cannot report that two arms drew the same completion.
-
-**What the committed harnesses already read**, which this entry was wrong about from the day it was
-written. The envelope harness records `reasoning_head` and `stream_head` beside `reasoning_chars`
-and keeps `output` whole, so what the trace opens with and what the reply holds are both in every
-sample it has written since it landed on 2026-08-26, four days before this entry claimed no
-committed probe takes either reading. `brain/packages/inference/tests/test_thinking_switch_live.py`
-has asked `POST /apply-template` since 2026-08-28 and `just switch-tail` reads that rendering back
-against the cells the same run drew, so the third reading is not only committed but gated. What
-those two cannot do is what the two gaps above name.
-
-**Why it was left.** The sitting that found the need for it spent its runway on the measurement, and
-a probe written after the reading it exists to reproduce is worth less than the reading was. The
-consequence of not having it is bounded and known: the rates in the marker addendum are a hand run,
-labelled as one, and re-deriving them costs a scratch file rather than being impossible.
-
-**What would close it.** Two knobs on the envelope harness, which is the file that already runs the
-shipped path: `CORTEX_ENVELOPE_TRACE_TOKENS` substituted into `GenerationBounds` alongside the
-existing schema substitution, and a seed on the request so arms pair. Any reading taken off the
-recorded heads belongs in a covered module rather than in the `integration` marked driver, for the
-reason `scripts/contrast.py`, `scripts/envelopefloor.py` and `scripts/switchtail.py` each hold the
-arithmetic behind a published claim: a number a document quotes should come out of something a gate
-runs. `brain/packages/inference/tests/test_thinking_switch_live.py` is **not** the home for the
-request half: its control asserts that the no-switch arm deliberated, which a correctly flagged
-server will not do. The seed half is a decision before it is a knob, and the 2026-09-10 trail
-entry below says which: a field on `GenerationBounds` no deployment sets, or a request the harness
-posts beside the runner's, which costs the property that harness exists for. Closing this means
-picking one and writing down why, not adding a knob to both halves.
-
-## Trail
+## History
 
 - 2026-08-30: opened by the close of
-  [R-500](500-the-garbled-channel-marker-has-no-attributed-cause.md), whose ADR-0005 marker addendum
-  drew six arms by hand off `build_payload` and named the three readings no committed probe takes.
+  [R-500](500-the-garbled-channel-marker-has-no-attributed-cause.md), whose ADR-0049 drew six
+  variants by hand off `build_payload` and named the three readings no committed probe takes.
 - 2026-09-02: a third hand run, by the close of
-  [R-511](511-the-shipped-reasoning-off-pair-disarms-its-own-sampler.md), which drew 320 arms off
-  `build_payload` and the injection harness's corpus from two scratch files. It adds a fourth
-  reading to the three above, the one the marker addendum's budget arm lacked and the one that
-  decided that close: what the **reply** holds. A thought the channel no longer shows can arrive
-  inside `reply` as a narration or a plan, so a committed probe has to read the reply beside
-  `reasoning_chars` and not only what the trace opens with.
-- 2026-09-09: claims held to the code, and the reading gap does not exist. Three of the four
+  [R-511](511-the-shipped-reasoning-off-pair-disarms-its-own-sampler.md), which drew 320 variants
+  off `build_payload` and the injection harness's corpus from two scratch files. It adds a fourth
+  reading: what the reply contains, since a thought the channel no longer shows can arrive inside
+  `reply` as a narration or a plan.
+- 2026-09-09: claims checked against the code, and the reading gap does not exist. Three of the four
   readings this entry says no committed probe takes are recorded by committed files, and every one
-  of them was already there when the entry was written: `reasoning_head`, `stream_head` and the
-  whole `output` in `test_envelope_cost_live.py` since 2026-08-26, and the `/apply-template`
-  rendering in `test_thinking_switch_live.py` since 2026-08-28, read back by `just switch-tail`.
-  What survives is the request key and the seed, neither of which any file here sends, so the body
-  above is rewritten around those two and the title says them. The trigger is gone with the
-  deferral: its first limb fired on 2026-09-02, when the image under this stack had moved from
-  `b10666-4e97ac86e` to `b10680-d7bd3bfca` and the rates were re-derived on the newer build by two
-  scratch files, which is the cost the trigger named and the bullet above records without noticing
-  it was the trigger.
-- 2026-09-10: held to the code again, and the seam half is wrong. Two committed live probes have
+  was already there when the entry was written: `reasoning_head`, `stream_head` and the whole
+  `output` in `test_envelope_cost_live.py` since 2026-08-26, and the `/apply-template` rendering in
+  `test_thinking_switch_live.py` since 2026-08-28, read back by `just switch-tail`. What survives is
+  the request key and the seed, so the body above is rewritten around those two. The trigger is gone
+  with the deferral: its first clause fired on 2026-09-02, when the image under this stack had moved
+  from `b10666-4e97ac86e` to `b10680-d7bd3bfca` and the rates were recomputed by two scratch files.
+- 2026-09-10: checked again, and the seed half is wrong as written. Two committed live probes have
   sent llama.cpp a `seed` since 2026-09-06, `_draw` in
   [test_uid_reading_live.py](../../../brain/packages/orchestrator/tests/test_uid_reading_live.py)
-  and the same shape in `test_unfenced_correction_live.py`, and the first of them runs two arms over
-  the same twenty seeds, which is exactly the pairing this entry says no committed file can report.
-  So what survives is narrower than "nothing here sends a seed": it is that the **envelope** harness
-  cannot send one without leaving the shipped path. It runs the real `SubagentRunner`, `PlacedAttempt`
-  builds the request, and `GenerationBounds` has no seed field, so seeding it is either a port
-  change on a field no deployment would set, or a request the harness posts itself, which costs the
-  one property that harness exists for. The request half is unchanged: `GenerationBounds.trace_tokens`
-  exists and `_Recording.substitute` already rewrites the schema on the way past, so
-  `CORTEX_ENVELOPE_TRACE_TOKENS` is the same instrument aimed at a second field.
-- 2026-09-11: landed. Both knobs are in `test_envelope_cost_live.py`. `CORTEX_ENVELOPE_TRACE_TOKENS`
-  is written into the runner's bounds on the way past, with `trace_lever` on and the engine asked
-  first whether it reads the key, which is a second half this entry never named: the harness built
-  its backend with the lever off, so a count in the bounds alone would have been dropped by
-  `build_payload`. `CORTEX_ENVELOPE_SEED` is written onto the body the shipped adapter built, on the
-  transport, a third shape between the two the 2026-09-10 bullet named and the reason it was chosen:
-  the port gains no field for a measurement and the runner is still what runs. Drawn on the default
-  pick over the two bodies the traces fall on: identical on 4 of 4 cells between two runs at one
-  seed in the same prompt-cache state, 2 of 4 across a cold start, the key on top of the flags
-  changing nothing on 4 of 4, and the marker fragments re-drawn by seed. The ADR-0005 paired-arms
-  addendum publishes the rows; the identity count was made by a scratch script, filed as
+  and the same shape in `test_unfenced_correction_live.py`, and the first runs two variants over the
+  same twenty seeds. So what survives is narrower: the envelope harness cannot send one without
+  leaving the shipped path.
+- 2026-09-11: closed. Both settings are in `test_envelope_cost_live.py`.
+  `CORTEX_ENVELOPE_TRACE_TOKENS` is written into the runner's bounds on the way past, with
+  `trace_lever` on and the engine asked first whether it reads the key, which is a second half this
+  entry never named: the harness built its backend with the probe off, so a count in the bounds
+  alone would have been dropped by `build_payload`. `CORTEX_ENVELOPE_SEED` is written onto the body
+  the shipped adapter built, on the transport, a third option between the two named on 2026-09-10
+  and the reason it was chosen: the port gains no field for a measurement and the runner is still
+  what runs. Drawn on the default pick over the two bodies the traces fall on: identical on 4 of 4
+  cells between two runs at one seed in the same prompt-cache state, 2 of 4 across a cold start, the
+  key on top of the flags changing nothing on 4 of 4, and the marker fragments redrawn by seed.
+  ADR-0050 publishes the rows; the identity count was made by a scratch script, filed as
   [R-633](633-the-paired-arm-identity-is-counted-by-a-scratch-script.md).

@@ -100,7 +100,7 @@ name for one identity is a second query, not a cosmetic difference.
 ## Related
 
 - [brain-core module contract](../modules/brain-core.md) (`log_fields`), the
-  [repo checks module contract](../modules/repo-gates.md) (`logcouplings.py`).
+  [repo checks module contract](../modules/repo-checks.md) (`logcouplings.py`).
 - Runbooks: [tools-mcp](../runbooks/tools-mcp.md), [model-swap](../runbooks/model-swap.md),
   [memory-pgvector](../runbooks/memory-pgvector.md), [scheduling](../runbooks/scheduling.md).
 - [ADR-0009](ADR-0009-tools-mcp.md) (the audit line), [ADR-0030](ADR-0030-brain-handoff.md) (the

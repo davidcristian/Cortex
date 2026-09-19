@@ -1,4 +1,4 @@
-"""Which anchors a document offers, and every pointer in the repo aimed at one."""
+"""Which anchors a document has, and every link in the repo aimed at one."""
 
 import re
 from collections.abc import Mapping
@@ -14,9 +14,6 @@ DROPPED = re.compile(r"[^\w \-]")
 ELSEWHERE = ("http://", "https://", "mailto:")
 MARKDOWN = ".md"
 
-# What a pointer at markdown outside the scan's own reach is told. Failing closed is what makes
-# reading every markdown file safe: skipping whatever the scan cannot answer for is how the one
-# stale anchor already in this tree survived every gate.
 UNREAD = (
     "aims at a document this scan does not read, so nothing here can say which headings it "
     "offers: it is missing, outside the tree, or inside a vendored or built one"
@@ -24,22 +21,14 @@ UNREAD = (
 
 
 class Index(NamedTuple):
-    """One backlog index: the name a problem calls it by, and the anchors it will render.
-
-    ``anchors`` is None when this run could not work out what the index renders, in which case
-    nothing aimed at it is judged and the run is already failing on that reason.
-    """
+    """One backlog index: the name a problem calls it by, and the anchors it will render."""
 
     name: str
     anchors: frozenset[str] | None
 
 
 class Document(NamedTuple):
-    """One markdown file the scan read: what a problem calls it, and the anchors it offers.
-
-    ``anchors`` is None when the file carries a heading this rule cannot slug, in which
-    case nothing aimed at it is judged and the run is already failing on that heading.
-    """
+    """One markdown file the scan read: what a problem calls it, and the anchors it has."""
 
     name: str
     anchors: frozenset[str] | None
@@ -78,7 +67,7 @@ def slug(heading: str) -> str:
 
 
 def anchors(text: str) -> frozenset[str]:
-    """Return every anchor the document ``text`` offers a link."""
+    """Return every anchor a link can aim at in the document ``text``."""
     offered: set[str] = set()
     seen: dict[str, int] = {}
     for _, heading in headings(text):
@@ -95,7 +84,7 @@ def markdown_files(root: Path) -> list[Path]:
 
 
 def check(root: Path, indexes: Mapping[Path, Index]) -> list[str]:
-    """Return one problem per fragment aimed at a heading its target does not offer."""
+    """Return one problem per fragment aimed at a heading its target does not have."""
     problems: list[str] = []
     sources: list[tuple[Path, str]] = []
     documents: dict[Path, Document] = {}
@@ -127,8 +116,6 @@ def _faults(
     for target in local_targets(text):
         if not target.fragment:
             continue
-        # An empty path is a pointer into the document it is written in, which matters
-        # because an index links to its own hand-written sections.
         aimed = (path.parent / target.path).resolve() if target.path else path.resolve()
         fault = _fault(aimed, target.fragment, indexes, documents)
         if fault is not None:

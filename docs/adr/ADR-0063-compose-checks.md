@@ -165,5 +165,5 @@ each reads compose with a line reader that raises on any form it was not taught.
   [ADR-0062](ADR-0062-shared-check-readers.md) (the tree walk they share),
   [ADR-0067](ADR-0067-image-volume-record.md) (`volumecheck.py`),
   [ADR-0043](ADR-0043-subagent-server-flags.md) (`flagcheck.py`).
-- [repo checks](../modules/repo-gates.md), [local-dev-wsl runbook](../runbooks/local-dev-wsl.md),
+- [repo checks](../modules/repo-checks.md), [local-dev-wsl runbook](../runbooks/local-dev-wsl.md),
   [compose interpolation](../readings/compose-interpolation.md).
