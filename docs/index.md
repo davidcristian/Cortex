@@ -26,7 +26,7 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   addendum is the port inventory for both languages: every port, its shared check
   list if it has one, and which implementations CI actually drives it against,
   written down so the next parity sweep reads rather than re-derives.
-- [ADR-0002: Toolchain and gate mechanics](adr/ADR-0002-toolchain-gates.md): nightly
+- [ADR-0002: Toolchain and gate mechanics](adr/ADR-0002-toolchain-checks.md): nightly
   for Rust branch coverage, the JSON branch gate, `scripts/` as a standalone project,
   the `_generated` marker, tests-outside-source, ruff ALL, pre-commit = `just check`;
   a live contract run gets a Redis logical database of its own, so it reports on the

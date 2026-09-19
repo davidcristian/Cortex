@@ -7,7 +7,7 @@
 and the most recent fifty of them all name a path this repository tracks and the suite their counts
 are over, at which point the refusal rate that refused the gate is zero. The path half is a script
 over `git ls-files`; the suite half is a reader's judgement, having no machine form
-**Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-gates.md)
+**Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-checks.md)
 **Verified:** 2026-09-17
 
 Opened 2026-08-21 by the close of [R-349](349-a-mutation-table-nobody-replayed.md), which weighed

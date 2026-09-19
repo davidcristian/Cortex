@@ -2,7 +2,7 @@
 
 **Status:** landed 2026-08-03
 **Area:** repo-gates
-**Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-gates.md)
+**Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-checks.md)
 
 Found and closed the same day, 2026-08-03, so it is recorded here as what it was rather than as
 work waiting. This records an old deferral that had been mis-sized rather than a new one: the
@@ -26,7 +26,7 @@ database held a real record, passing while asserting nothing, and both skips are
 there is nothing real in that database to protect. The prefix sweeps went with them, and with
 them a coupling that restated each adapter's key layout inside the test. Decision, rejected
 alternatives, and evidence in the
-[ADR-0002 addendum on the live-run database](../../adr/ADR-0002-toolchain-gates.md). The lesson
+[ADR-0002 addendum on the live-run database](../../adr/ADR-0002-toolchain-checks.md). The lesson
 worth keeping is the one this entry is filed under: a recorded residual is sized against the
 code that existed when it was written, and a later change can lower its trigger without anyone
 reading it again.

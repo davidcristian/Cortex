@@ -1,5 +1,3 @@
-"""CI-side gate on the card reading the injection harness prints at each end of a row."""
-
 from card_reading import (
     END,
     OFF_CARD,
@@ -9,6 +7,7 @@ from card_reading import (
     NoReadingError,
     reading_of,
     render,
+    render_serving,
 )
 
 _ROW = "cortex (thinking-on, gpu, engine-budget)"
@@ -91,3 +90,54 @@ def test_a_row_with_the_wrong_number_of_values_is_no_reading() -> None:
 def test_a_row_without_a_reading_says_why_in_place_of_figures() -> None:
     line = render(END, _ROW, NoReadingError(OFF_CARD))
     assert line == f"  card reading at end of {_ROW}: none, the row is served on the cpu"
+
+
+def test_the_serving_line_spreads_each_ratio_over_every_reading_that_reports_it() -> None:
+    readings = [
+        _read("1500, 3000, 150.00, 160.00, 200.00, 100.00, Active"),
+        _read("1200, 3000, 150.00, 120.00, 200.00, 100.00, Active"),
+        _read("2700, 3000, 40.00, 180.00, 200.00, 100.00, Not Active"),
+        _read("[N/A], 3000, 150.00, [N/A], 200.00, 100.00, Active"),
+    ]
+    assert render_serving(_ROW, 5, readings) == (
+        f"  card readings every 5 s while serving {_ROW}: 4 taken, 0 unread; "
+        "ceiling of max lowest 0.60 median 0.80 highest 0.90; "
+        "clock of max lowest 0.40 median 0.50 highest 0.90; sw power cap Active in 3 of 4"
+    )
+
+
+def test_the_median_of_an_even_count_is_the_mean_of_its_middle_pair() -> None:
+    readings = [
+        _read("1200, 3000, 40.00, 140.00, 200.00, 100.00, Not Active"),
+        _read("1500, 3000, 40.00, 160.00, 200.00, 100.00, Not Active"),
+    ]
+    line = render_serving(_ROW, 5, readings)
+    assert "ceiling of max lowest 0.70 median 0.75 highest 0.80" in line
+
+
+def test_an_unread_sample_is_counted_and_left_out_of_every_spread() -> None:
+    readings = [
+        NoReadingError("no answer in 15 s"),
+        _read("1500, 3000, 40.00, 140.00, 200.00, 100.00, Not Active"),
+    ]
+    line = render_serving(_ROW, 2.5, readings)
+    assert line.startswith(f"  card readings every 2.5 s while serving {_ROW}: 2 taken, 1 unread;")
+    assert "ceiling of max lowest 0.70 median 0.70 highest 0.70" in line
+    assert line.endswith("sw power cap Active in 0 of 1")
+
+
+def test_a_ratio_no_reading_reports_is_unread_while_the_others_still_spread() -> None:
+    readings = [_read("[N/A], 3000, 40.00, 140.00, 200.00, 100.00, Active")]
+    line = render_serving(_ROW, 5, readings)
+    assert "ceiling of max lowest 0.70 median 0.70 highest 0.70; clock of max n/a;" in line
+
+
+def test_a_row_with_no_reading_says_so_with_the_last_reason() -> None:
+    readings = [NoReadingError("exit 1, no output"), NoReadingError("no answer in 15 s")]
+    assert render_serving(_ROW, 5, readings) == (
+        f"  card readings every 5 s while serving {_ROW}: 2 taken, none read, "
+        "the last no answer in 15 s"
+    )
+    assert render_serving(_ROW, 5, []) == (
+        f"  card readings every 5 s while serving {_ROW}: 0 taken, none read"
+    )

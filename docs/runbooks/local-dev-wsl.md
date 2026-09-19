@@ -2,7 +2,7 @@
 
 The daily loop for working on Cortex from a WSL2 distro. Rules live in
 [AGENTS.md](../../AGENTS.md); gate mechanics in
-[ADR-0002](../adr/ADR-0002-toolchain-gates.md); seam codegen, packaging, and the seam
+[ADR-0002](../adr/ADR-0002-toolchain-checks.md); seam codegen, packaging, and the seam
 config contract in [ADR-0003](../adr/ADR-0003-seam-codegen.md).
 
 ## Prerequisites (one-time, inside the distro)
@@ -16,7 +16,7 @@ config contract in [ADR-0003](../adr/ADR-0003-seam-codegen.md).
   needed; on a Windows host this target is already the native one.
 - **cargo-llvm-cov** installs via `cargo install cargo-llvm-cov`.
 - **Neither of those two is pinned to a version, by decision** (the
-  [ADR-0002](../adr/ADR-0002-toolchain-gates.md) toolchain-print addendum), so this machine and CI
+  [ADR-0002](../adr/ADR-0002-toolchain-checks.md) toolchain-print addendum), so this machine and CI
   routinely resolve different ones. `check-body` therefore prints `rustc +nightly --version` and
   `cargo +nightly llvm-cov --version` before it measures, and hands both to the gate, whose verdict
   repeats them next to the numbers they produced:
@@ -38,7 +38,7 @@ config contract in [ADR-0003](../adr/ADR-0003-seam-codegen.md).
 - **just** provides `just check`, THE gate (AGENTS.md gate 6); run it before calling
   anything done.
 - **Every suite in that gate runs shuffled under a fixed seed** (the
-  [ADR-0002](../adr/ADR-0002-toolchain-gates.md) shuffle addendum): `--randomly-seed=9973` in
+  [ADR-0002](../adr/ADR-0002-toolchain-checks.md) shuffle addendum): `--randomly-seed=9973` in
   `brain/pyproject.toml`, `7919` in `scripts/pyproject.toml`, `sequence: { shuffle: true, seed:
   65537 }` in `body/app/vite.config.ts`, and `-- -Z unstable-options --shuffle-seed=104729` on
   `check-body`'s coverage step in the `justfile`. So the order is not the collection order and is
@@ -346,7 +346,7 @@ They reach the same server `CORTEX_REDIS_URL` names but **select database 15**, 
 never opens, and they empty it before the suite and after every check. So the run is safe on a
 machine carrying real state, it needs no cleanup of yours, and each check gets the empty store
 the fakeredis fixture gives it (`brain/packages/session/tests/live_redis.py`, decided in the
-[ADR-0002](../adr/ADR-0002-toolchain-gates.md) addendum on the live-run database). Two things
+[ADR-0002](../adr/ADR-0002-toolchain-checks.md) addendum on the live-run database). Two things
 follow for you. Do not point `CORTEX_REDIS_URL` at database 15; the run fails at startup if you
 do, rather than emptying the brain's state. And if you want to inspect what a run left behind,
 look in database 15 (`redis-cli -n 15`) while it is paused, since the next `reset` clears it.

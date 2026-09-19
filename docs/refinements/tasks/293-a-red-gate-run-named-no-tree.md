@@ -2,7 +2,7 @@
 
 **Status:** open, fix when it bites
 **Area:** repo-gates
-**Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-gates.md)
+**Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-checks.md)
 **Trigger:** the next red `just check` whose whole output is kept, which names its tree in a `=== check-<tree>: FAILED ===` marker and its seed in the failing suite's own header, that being the one form of this failure a pass can reproduce from.
 **Verified:** 2026-09-14
 

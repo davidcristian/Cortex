@@ -1063,13 +1063,14 @@ so a row that fits an hour at full clock does not fit it at a third of one. **Ea
 it generated**, as a token total closing its rate line, so a stopped row leaves its own price in the
 run log rather than in the container's.
 
-**Every row prints the ceiling it ran under, at its start and at its end.** Since 2026-09-17 the
-harness reads the card through `docker exec cortex-inj-probe` once the row's server answers
-`/health`, and again as the row ends, however it ends, including a stopped row. It prints one line
-each time, and nothing fails on what the line says. Find them with
+**Every row prints the ceiling it ran under, at its start, while it serves, and at its end.** Since
+2026-09-17 the harness reads the card through `docker exec cortex-inj-probe` once the row's server
+answers `/health`, and again as the row ends, however it ends, including a stopped row. Since
+2026-09-19 a card row also reads it every 5 s while it serves and prints a summary of those readings
+just before its end line. Nothing fails on what any of these lines says. Find them with
 
 ```
-grep -n 'card reading at' <run log>
+grep -n 'card reading' <run log>
 ```
 
 A card row's line reads
@@ -1084,11 +1085,28 @@ A card row's line reads
 on one physical line: ratios first, each over the card's own figures, then every field as
 `nvidia-smi` printed it. A CPU row's line says `none, the row is served on the cpu`, and a card row
 the binary could not answer says `none, ` followed by the exit status and what the call printed.
-Publish the two ceiling ratios beside the row's token total. When the start and end ceilings
-differ, the row ran under both at some point and neither alone prices it. The end reading is taken
-as the last reply returns, so its clock and draw are the figures just after load rather than
-under it; `sw power cap Active` there says the ceiling was still binding. The query the harness
-runs, for a reading before a sitting is started, is
+The start reading is the idle card before the first request, and the end reading is taken as the
+last reply returns, so the clock and draw on both are not the figures the row's tokens were
+generated at. The summary between them is:
+
+```
+  card readings every 5 s while serving <model> (<switch>, gpu, <budget>): <n> taken, <u> unread;
+  ceiling of max lowest <r> median <r> highest <r>; clock of max lowest <r> median <r> highest <r>;
+  sw power cap Active in <k> of <m>
+```
+
+also on one physical line, with `<m>` the readings that returned figures. A CPU row prints no
+summary. **Publish a row's price against its summary line**: the ceiling it served under is the
+range from lowest to highest, with the median as where most readings found it, and the clock its
+tokens came at is the lowest and median clock. The highest clock can be a reading that found the
+card idle, which on this host has clocked above a loaded card. Two rows' prices describe one
+condition only when their ceiling ranges overlap. `sw power cap Active in <k> of <m>` says how often
+the ceiling was binding while the row served, which the end lines cannot say: on 2026-09-19 the
+cap was active in 5 of 6 serving readings of one draw while both of its end readings reported it
+not active. A row none of whose readings returned figures prints `none read` and the last reason.
+Why the interval is 5 s, and the check that reading every 2 s did not lower the tokens a second it
+reads, are in the [ADR-0029 serving-sampler addendum](../adr/ADR-0029-vision-screen-capture.md).
+The query the harness runs, for a reading before a sitting is started, is
 
 ```
 nvidia-smi --query-gpu=clocks.sm,clocks.max.sm,power.draw,enforced.power.limit,power.max_limit,power.default_limit,clocks_event_reasons.sw_power_cap --format=csv,noheader,nounits
@@ -1111,7 +1129,7 @@ on its own and the power source was not observed at either reading, so that is h
 not a mechanism this repo has isolated.
 
 Three things follow for anyone pricing a row. A cost is comparable only against a cost drawn under
-the same ceiling, which is why every row prints its own reading at both ends. An unattended overnight sitting either keeps the display awake or is budgeted at roughly a
+the same ceiling, which is why every row prints its own readings at both ends and while it serves. An unattended overnight sitting either keeps the display awake or is budgeted at roughly a
 third of the card. And every row drawn on the night of 2026-09-12 into 2026-09-13 was drawn under
 the lowered ceiling, so those costs are not full-speed ones.
 

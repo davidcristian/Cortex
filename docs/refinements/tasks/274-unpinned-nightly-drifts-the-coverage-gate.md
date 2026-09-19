@@ -2,7 +2,7 @@
 
 **Status:** landed 2026-08-16
 **Area:** repo-gates
-**Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-gates.md)
+**Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-checks.md)
 
 The rust CI job installs `toolchain: nightly`, a channel rather than a dated toolchain, so the
 branch-coverage step runs on whatever nightly exists the day the job runs while this host runs
@@ -33,7 +33,7 @@ instead of requiring a local bisect against two nightlies to find it. That is wo
 this entry is next opened, independent of the pin question.
 
 **Closed 2026-08-16** ([ADR-0002 toolchain-print
-addendum](../../adr/ADR-0002-toolchain-gates.md)). Every claim above was re-derived from the tree
+addendum](../../adr/ADR-0002-toolchain-checks.md)). Every claim above was re-derived from the tree
 before anything changed and all of it still held, including the part this file could not know it
 was right about: the two sides are apart *today*, this machine's `nightly` alias resolving to
 rustc 1.98.0-nightly (2026-07-01) against a CI that resolves the day's.

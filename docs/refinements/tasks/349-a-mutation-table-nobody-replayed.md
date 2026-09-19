@@ -2,7 +2,7 @@
 
 **Status:** landed 2026-08-21
 **Area:** cross-cutting
-**Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-gates.md)
+**Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-checks.md)
 
 Opened 2026-08-20 by a review of a run of fourteen changes landed in one sitting, and it is about
 the review as much as about the changes. Most of those commit bodies end in a mutation table: this

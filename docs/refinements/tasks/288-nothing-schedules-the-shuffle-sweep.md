@@ -2,10 +2,10 @@
 
 **Status:** landed 2026-08-17
 **Area:** repo-gates
-**Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-gates.md)
+**Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-checks.md)
 
 Opened 2026-08-16 by the decision to make the shuffle standing under a fixed seed rather than a
-per-run one ([ADR-0002 shuffle addendum](../../adr/ADR-0002-toolchain-gates.md)). That decision
+per-run one ([ADR-0002 shuffle addendum](../../adr/ADR-0002-toolchain-checks.md)). That decision
 rests on a measured property of `pytest-randomly`: the order under a fixed seed is per item and
 stable, so a test added today draws its position once against everything already there, and a pair
 that already coexists under the frozen order keeps the order it has forever. What that buys is a
@@ -39,7 +39,7 @@ nothing.
   changes, `pytest-randomly`'s per-item stability being exactly the property this entry was opened
   about.
 - 2026-08-17: Landed as `.github/workflows/shuffle.yml` at the [ADR-0002 sweep-schedule
-  addendum](../../adr/ADR-0002-toolchain-gates.md): a weekly cron plus a `workflow_dispatch` that
+  addendum](../../adr/ADR-0002-toolchain-checks.md): a weekly cron plus a `workflow_dispatch` that
   takes a seed, both ending in `just shuffle "$SEED"`, so CI cannot drift from what reproduces
   locally. It sweeps all four arms rather than the two the narrowing left open, since a Rust binary
   whose test list has stopped growing holds one permutation exactly as pytest does, and since

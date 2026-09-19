@@ -2,7 +2,7 @@
 
 **Status:** landed 2026-09-15
 **Area:** repo-gates
-**Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-gates.md)
+**Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-checks.md)
 
 Opened 2026-09-12 by the close of
 [R-439](439-nothing-counts-the-record-between-passes.md), which gave `just replay` a standing count
@@ -29,7 +29,7 @@ condition no commit caused.
 
 - 2026-09-12: opened by the close of
   [R-439](439-nothing-counts-the-record-between-passes.md), whose
-  [ADR-0002 standing-count addendum](../../adr/ADR-0002-toolchain-gates.md) records the four arms
+  [ADR-0002 standing-count addendum](../../adr/ADR-0002-toolchain-checks.md) records the four arms
   the new line was measured over, one of which is the ledger carrying no dated row at all.
 
 - 2026-09-14: re-derived and not fired, and the guess that this entry and
@@ -51,7 +51,7 @@ condition no commit caused.
   last pass is whichever row git says is latest. Both failure modes this entry names are gone for a
   row that records a commit: a date cell in another format is never read, and file order decides
   nothing. Two arms in the
-  [ADR-0002 drawn-from addendum](../../adr/ADR-0002-toolchain-gates.md) measure it, the rows
+  [ADR-0002 drawn-from addendum](../../adr/ADR-0002-toolchain-checks.md) measure it, the rows
   swapped and the older commit moved to the bottom of the table, both still anchoring on the pass
   of 2026-08-25; a third writes the last row's date as `25 August 2026` and still counts 25, where
   the date reading fell through to the row of 2026-08-21 and reported 32. A row with no resolvable

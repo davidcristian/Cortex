@@ -2,7 +2,7 @@
 
 **Status:** landed 2026-08-18
 **Area:** repo-gates
-**Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-gates.md)
+**Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-checks.md)
 
 Found 2026-08-18 while re-deriving [290](290-the-export-names-its-tool-not-its-compiler.md), and
 unrelated to that entry's question. `coverage_gate.py` takes `--rustc` and `--llvm-cov` as optional

@@ -20,7 +20,7 @@ more *real* sessions more recent than those crowds it out and fails identically.
 bites, by dating the check's messages from a clock or by reading a larger window.
 
 **The residual closed 2026-08-03, and its own sizing was the thing that went wrong
-([ADR-0002 addendum on the live-run database](../../adr/ADR-0002-toolchain-gates.md)).** Fifty was
+([ADR-0002 addendum on the live-run database](../../adr/ADR-0002-toolchain-checks.md)).** Fifty was
 right for the check this entry was looking at. Two days after it was written, the pinning
 addendum landed `check_a_pinned_chat_escapes_the_recency_window`, which reads `limit=3` because
 its three newer chats must BE the window for the pin to be the only reason the old chat lists.

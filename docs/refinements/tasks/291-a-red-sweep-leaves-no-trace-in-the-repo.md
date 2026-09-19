@@ -2,7 +2,7 @@
 
 **Status:** open, fix when it bites
 **Area:** repo-gates
-**Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-gates.md)
+**Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-checks.md)
 **Trigger:** the first run this repository records under `shuffle.yml`, since every remedy below
 needs a run to exist and none can. Actions is off for the whole repository, which is a setting on
 the account rather than a change in this tree, and R-594 is the entry that waits on the setting.
@@ -10,7 +10,7 @@ the account rather than a change in this tree, and R-594 is the entry that waits
 
 Opened 2026-08-17 by the pass that put the shuffle sweep on a clock
 ([R-288](288-nothing-schedules-the-shuffle-sweep.md), [ADR-0002 sweep-schedule
-addendum](../../adr/ADR-0002-toolchain-gates.md)). The sweep is scheduled weekly, and every part
+addendum](../../adr/ADR-0002-toolchain-checks.md)). The sweep is scheduled weekly, and every part
 of it this repo owns was proved: the seed is drawn, validated, written to the run summary before the sweep
 starts, and the recipe fails on a planted order dependency and names the test. What was not proved,
 because proving it means firing the real thing, is the last hop. GitHub's documented behaviour is to

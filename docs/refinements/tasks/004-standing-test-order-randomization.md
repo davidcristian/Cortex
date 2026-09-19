@@ -2,7 +2,7 @@
 
 **Status:** landed 2026-08-16
 **Area:** repo-gates
-**Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-gates.md)
+**Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-checks.md)
 
 Opened 2026-07-18, fix-when-it-bites, by a review that
 found repair reports citing `-p no:randomly` as if it controlled for ordering. `pytest-randomly`
@@ -18,7 +18,7 @@ reseeds `random` per test, which changes behaviour for any test that draws. **Tr
 that passes alone and fails inside a suite, or any order-dependent flake; the fix is then adding
 `pytest-randomly` to the brain (and `scripts/`) dev dependencies with the seed printed by the
 header it already emits. The `just check` recipes are unchanged for now
-([ADR-0002 addendum](../../adr/ADR-0002-toolchain-gates.md)).
+([ADR-0002 addendum](../../adr/ADR-0002-toolchain-checks.md)).
 
 **Run rather than read on 2026-08-10, at a wider scope, and the trigger did not fire.** The
 fix-when-it-bites sweep of 2026-08-09 recorded on [index.md](../index.md) reached this entry by
@@ -59,10 +59,10 @@ without reading a seed out of a log. The honest middle option, if it ever looks 
 fixed `--randomly-seed` in `addopts`, which buys one deterministic order that is not the
 collection order rather than a new one per run; it would have found nothing here either. The
 trigger is unchanged and the entry stays open
-([ADR-0002 addendum on re-running the shuffle](../../adr/ADR-0002-toolchain-gates.md)).
+([ADR-0002 addendum on re-running the shuffle](../../adr/ADR-0002-toolchain-checks.md)).
 
 **Closed 2026-08-16, the third measurement having found the thing the first two assumed**
-([ADR-0002 shuffle addendum](../../adr/ADR-0002-toolchain-gates.md)). The runs were repeated a
+([ADR-0002 shuffle addendum](../../adr/ADR-0002-toolchain-checks.md)). The runs were repeated a
 third time rather than read, wider again: five seeds over `brain/` (2576 tests, both figures above
 now stale), five over `scripts/` (578) and five over the overlay's Vitest suite, which had never
 been shuffled at all (57 files, 716 tests). Fifteen runs, every one green, so the trigger has now

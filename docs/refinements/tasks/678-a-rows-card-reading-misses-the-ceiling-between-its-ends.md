@@ -1,9 +1,8 @@
 # A row's card reading misses what the ceiling did between its ends
 
-**Status:** open, actionable
+**Status:** landed 2026-09-19
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-09-17
 
 Opened 2026-09-17 by the close of
 [R-662](662-a-sitting-records-the-cards-ceiling-by-hand.md), which made every row of
@@ -21,8 +20,6 @@ a row whose two readings agree can still have served part of its time under a lo
 reading is also taken after the last reply, so its clock and draw are figures just after load rather
 than under it.
 
-**Trigger:** the first sitting that publishes a row's price from its `card reading at` lines.
-
 **What would close it.** A sampler inside `_server` that reads the card every few seconds while the
 row serves, on a thread beside the event loop the row's requests run on, and prints the lowest and
 highest ceiling ratio it saw, and the highest clock ratio, on the end line. The summary is pure and
@@ -35,3 +32,18 @@ unsampled one under the same ceiling.
 
 - 2026-09-17: opened by the close of
   [R-662](662-a-sitting-records-the-cards-ceiling-by-hand.md).
+- 2026-09-19: landed. A card row now reads the card every 5 s on a thread inside `_server` and
+  prints a `card readings every 5 s while serving` line before its end line, with the lowest,
+  median and highest of the ceiling and clock ratios and the count of readings with the software
+  power cap active; the summary is `render_serving` in
+  [card_reading.py](../../../brain/packages/inference/tests/card_reading.py), fourteen mutants all
+  killed. What the task had wrong: its trigger had already fired, since the unattended sitting of
+  2026-09-17 published six rows' prices from their `card reading at` lines; the highest clock is the
+  figure a price should not be read against, because that sitting's idle start clocks sat above five
+  of its six end clocks, so the line prints the lowest and median beside it; and the summary is a
+  line of its own rather than a tail on the end line. The check the task asked for held: with a
+  `docker exec` every 2 s, three sampled draws of Qwen3.5-4B gave 137.45 to 140.17 tokens a second
+  against 136.88 to 138.25 unsampled, under a ceiling of 0.80 to 0.87 of the card's maximum. How long
+  a row ran under a lowered ceiling inside its range is
+  [R-684](684-a-serving-line-cannot-say-how-long-a-row-ran-under-a-lowered-ceiling.md) (the
+  [ADR-0029 serving-sampler addendum](../../adr/ADR-0029-vision-screen-capture.md)).

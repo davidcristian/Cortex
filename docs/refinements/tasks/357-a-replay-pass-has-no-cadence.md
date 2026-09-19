@@ -2,7 +2,7 @@
 
 **Status:** landed 2026-08-25
 **Area:** cross-cutting
-**Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-gates.md)
+**Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-checks.md)
 
 Opened 2026-08-21 by the close of [R-349](349-a-mutation-table-nobody-replayed.md), which replayed
 five mutation tables out of one week of the record and found all thirty two of their rows exact.
@@ -35,7 +35,7 @@ close's own AGENTS.md clause now names, and the third is not a defect at all.
 - 2026-08-21: opened by the close of [R-349](349-a-mutation-table-nobody-replayed.md), which
   replayed five tables and settled affordability without deciding when a second pass runs.
 - 2026-08-25: **landed**, as the [ADR-0002 replay-cadence
-  addendum](../../adr/ADR-0002-toolchain-gates.md), a `replay` recipe in the `justfile`, and
+  addendum](../../adr/ADR-0002-toolchain-checks.md), a `replay` recipe in the `justfile`, and
   [docs/runbooks/mutation-replay.md](../../runbooks/mutation-replay.md), which carries the
   procedure and the ledger a pass writes its result into. The three numbers: a pass is due once
   twenty five candidate bodies have landed since the last ledgered pass, it replays five of them,

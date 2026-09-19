@@ -2,7 +2,7 @@
 
 **Status:** open, fix when it bites
 **Area:** repo-gates
-**Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-gates.md)
+**Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-checks.md)
 **Trigger:** `grep -rnE 'python[^#]*coverage_gate' justfile .github .pre-commit-config.yaml` stops returning exactly one line, the `check-body` recipe's run of the gate; or that line stops filling `--rustc` and `--llvm-cov` from two command substitutions of its own, whether by splitting them across recipe lines, which just runs in separate shells, or by reading either from an environment variable, a file or a CI step's output. The arrangement also rests on the `justfile` setting no `shell`, so each recipe line is one `sh -cu`, and on both substitutions naming the toolchain as `+nightly`, which no directory override can change.
 **Verified:** 2026-09-17
 

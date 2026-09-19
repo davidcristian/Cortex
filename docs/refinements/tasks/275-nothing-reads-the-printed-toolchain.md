@@ -2,7 +2,7 @@
 
 **Status:** landed 2026-08-17
 **Area:** repo-gates
-**Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-gates.md)
+**Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-checks.md)
 
 Opened 2026-08-16 by the entry that declined to pin the coverage toolchain
 ([R-274](274-unpinned-nightly-drifts-the-coverage-gate.md)). `check-body` now prints `rustc +nightly
@@ -26,7 +26,7 @@ last green toolchain in the gate's own output rather than in a log, which is the
 value; the cost is a second artifact the gate has to read, keep accurate, and fail closed on when it
 is missing, which is a gate of its own to write and to prove fires.
 
-**Closed 2026-08-17** ([ADR-0002 single-verdict addendum](../../adr/ADR-0002-toolchain-gates.md)).
+**Closed 2026-08-17** ([ADR-0002 single-verdict addendum](../../adr/ADR-0002-toolchain-checks.md)).
 Every claim above was re-derived before anything changed and all of it held, and re-deriving it
 found the thing this file could not see: the printing had been placed above a failure that says
 nothing. `check-body` carried `--fail-under-lines 100 --fail-under-regions 100` on the measurement

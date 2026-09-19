@@ -2,7 +2,7 @@
 
 **Status:** landed 2026-08-06
 **Area:** repo-gates
-**Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-gates.md)
+**Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-checks.md)
 
 Opened 2026-08-03 behind the Redis fix above, which does not reach it: Postgres isolation is a
 different mechanism, a dedicated database or a schema plus a `search_path`, with
@@ -21,7 +21,7 @@ remembered something, or any pgvector failure whose first suspect should be
 ([brain-memory.md](../../modules/brain-memory.md)) and in its runbook
 ([memory-pgvector.md](../../runbooks/memory-pgvector.md)) so the failure is legible when it lands.
 
-**Landed 2026-08-06 ([ADR-0002 addendum on the live pgvector database](../../adr/ADR-0002-toolchain-gates.md)),
+**Landed 2026-08-06 ([ADR-0002 addendum on the live pgvector database](../../adr/ADR-0002-toolchain-checks.md)),
 ahead of its trigger rather than by it.** What moved it was two pieces of work queued behind it
 rather than a failure: the judge reranker's cost fell twentyfold, so a memory-enabled deployment
 that actually remembers things stopped being hypothetical, and the widened recall corpus that

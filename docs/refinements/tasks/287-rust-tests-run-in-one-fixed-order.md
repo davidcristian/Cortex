@@ -2,7 +2,7 @@
 
 **Status:** landed 2026-08-17
 **Area:** repo-gates
-**Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-gates.md)
+**Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-checks.md)
 
 Opened 2026-08-16 by the pass that made the shuffle standing in the other three suites, recording
 the Rust workspace's fixed order as a known asymmetry rather than an oversight. It rested on one
@@ -32,7 +32,7 @@ same recipe's single-verdict addendum is about.
 ## Trail
 
 - 2026-08-17: Landed at the [ADR-0002 rust-shuffle
-  addendum](../../adr/ADR-0002-toolchain-gates.md), which also corrects the shuffle addendum's
+  addendum](../../adr/ADR-0002-toolchain-checks.md), which also corrects the shuffle addendum's
   claim that libtest has no shuffle. Proved able to fail by a planted order-dependent pair with 58
   filler tests between its halves, passing 5 unshuffled runs of 5 and failing 5 of 5 at the frozen
   seed, with the real gate line exiting 101 and naming the test; the catch rate is 10 of 20 seeds,

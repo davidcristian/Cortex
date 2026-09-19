@@ -2,7 +2,7 @@
 
 **Status:** landed 2026-09-15
 **Area:** repo-gates
-**Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-gates.md)
+**Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-checks.md)
 
 Opened 2026-09-12 by the close of
 [R-439](439-nothing-counts-the-record-between-passes.md), which gave `just replay` a standing count
@@ -29,7 +29,7 @@ being orderable where a hand-typed date is only readable, so the two are worth d
 
 - 2026-09-12: opened by the close of
   [R-439](439-nothing-counts-the-record-between-passes.md), whose
-  [ADR-0002 standing-count addendum](../../adr/ADR-0002-toolchain-gates.md) records the two
+  [ADR-0002 standing-count addendum](../../adr/ADR-0002-toolchain-checks.md) records the two
   same-day commits inside today's reading.
 
 - 2026-09-14: **the trigger fired, in the form it was written in.** `just replay 19269061` now
@@ -52,5 +52,5 @@ being orderable where a hand-typed date is only readable, so the two are worth d
   the commit the pass was recorded at, because a commit's hash does not exist until the commit is
   made and no pass can write its own; the tip is knowable before the row is written and is what the
   count wants. The seven arms are in the
-  [ADR-0002 drawn-from addendum](../../adr/ADR-0002-toolchain-gates.md). Opened by this close:
+  [ADR-0002 drawn-from addendum](../../adr/ADR-0002-toolchain-checks.md). Opened by this close:
   [R-668](668-a-rewritten-history-unreproduces-a-recorded-draw.md).

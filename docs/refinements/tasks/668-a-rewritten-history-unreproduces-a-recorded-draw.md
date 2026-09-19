@@ -2,7 +2,7 @@
 
 **Status:** open, fix when it bites
 **Area:** repo-gates
-**Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-gates.md)
+**Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-checks.md)
 **Verified:** 2026-09-15
 **Trigger:** somebody tries to reproduce a ledger row's sample from its seed and its tip, and the
 five bodies the draw returns are not the ones the row says were replayed.

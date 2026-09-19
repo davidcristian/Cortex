@@ -4,6 +4,7 @@ import contextlib
 import json
 import os
 import subprocess
+import threading
 import time
 from base64 import b64encode
 from collections import Counter
@@ -16,7 +17,17 @@ from typing import Any, cast
 
 import httpx
 import pytest
-from card_reading import END, OFF_CARD, QUERY, START, NoReadingError, reading_of, render
+from card_reading import (
+    END,
+    OFF_CARD,
+    QUERY,
+    START,
+    CardReading,
+    NoReadingError,
+    reading_of,
+    render,
+    render_serving,
+)
 from rendered_screens import (
     CORPUS_FRAME,
     CORPUS_TYPE_SCALE,
@@ -790,11 +801,7 @@ def _server(
     switch: Switch = THINKING_ON,
     placement: Placement = GPU_PLACEMENT,
 ) -> Generator[None, None, None]:
-    """Bring the model up at this placement, budget and switch for the block, then tear it down.
-
-    The card is read once the server is healthy and again as the block ends, however it ends, and
-    both readings are printed (``card_reading``).
-    """
+    """Bring the model up at this placement, budget and switch for the block, then tear it down."""
     subprocess.run(["docker", "rm", "-f", _CONTAINER], capture_output=True, check=False)  # noqa: S603, S607
     _docker(
         "run", "-d", "--name", _CONTAINER, *placement.reservation,
@@ -806,7 +813,8 @@ def _server(
         _await_health(model)
         print_card(START, row, on_card=placement.on_card)
         try:
-            yield
+            with _sampled(row, on_card=placement.on_card):
+                yield
         finally:
             print_card(END, row, on_card=placement.on_card)
     finally:
@@ -815,17 +823,51 @@ def _server(
 
 # `nvidia-smi` answers in well under a second; the bound is for a driver that hangs.
 _CARD_TIMEOUT_S = 15
+# A `docker exec` of the query took 0.07 to 0.11 s here, and reading every 2 s did not lower the
+# tokens a second a draw generated at (ADR-0029's serving-sampler addendum).
+_SAMPLE_INTERVAL_S = 5
 
 
 def print_card(moment: str, row: str, *, on_card: bool) -> None:
-    """Print one reading of the card the probe container is served on. It never fails a row.
+    """Print one reading of the card the probe container is served on. It never fails a row."""
+    if not on_card:
+        print(render(moment, row, NoReadingError(OFF_CARD)))  # noqa: T201
+        return
+    print(render(moment, row, _read_card()))  # noqa: T201
+
+
+@contextmanager
+def _sampled(row: str, *, on_card: bool) -> Generator[None, None, None]:
+    """Read the card on a thread every ``_SAMPLE_INTERVAL_S`` while the block runs, then print
+    what those readings spanned. A CPU row has no card, so it takes no samples and prints no line.
+    """
+    if not on_card:
+        yield
+        return
+    readings: list[CardReading | NoReadingError] = []
+    stop = threading.Event()
+
+    def sample() -> None:
+        readings.append(_read_card())
+        while not stop.wait(_SAMPLE_INTERVAL_S):
+            readings.append(_read_card())
+
+    sampler = threading.Thread(target=sample, name="card-sampler", daemon=True)
+    sampler.start()
+    try:
+        yield
+    finally:
+        stop.set()
+        sampler.join()
+        print(render_serving(row, _SAMPLE_INTERVAL_S, readings))  # noqa: T201
+
+
+def _read_card() -> CardReading | NoReadingError:
+    """One reading of the card the probe container is served on, or why there is none.
 
     The binary is the one the container toolkit injects beside a reserved GPU, the same one the
     model host reads free memory with, so a card row reads it with no host path configured.
     """
-    if not on_card:
-        print(render(moment, row, NoReadingError(OFF_CARD)))  # noqa: T201
-        return
     try:
         done = subprocess.run(  # noqa: S603
             ["docker", "exec", _CONTAINER, *QUERY],  # noqa: S607
@@ -835,10 +877,8 @@ def print_card(moment: str, row: str, *, on_card: bool) -> None:
             timeout=_CARD_TIMEOUT_S,
         )
     except subprocess.TimeoutExpired:
-        reading = NoReadingError(f"no answer in {_CARD_TIMEOUT_S} s")
-    else:
-        reading = reading_of(done.returncode, done.stdout, done.stderr)
-    print(render(moment, row, reading))  # noqa: T201
+        return NoReadingError(f"no answer in {_CARD_TIMEOUT_S} s")
+    return reading_of(done.returncode, done.stdout, done.stderr)
 
 
 def _await_health(model: Model) -> None:

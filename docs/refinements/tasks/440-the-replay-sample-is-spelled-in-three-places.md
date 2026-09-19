@@ -2,13 +2,13 @@
 
 **Status:** open, fix when it bites
 **Area:** repo-gates
-**Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-gates.md)
+**Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-checks.md)
 **Verified:** 2026-09-17
 **Trigger:** the `replay` recipe's defaults line in the `justfile` stops reading `count="5" window="25"`, or any of the prose copies stops saying five and twenty five, since the copies drift the moment one of them moves. A caller passing other values to `just replay` changes neither default and does not fire it.
 
 Opened 2026-08-25 by the pass that gave the replay a cadence
 ([R-357](357-a-replay-pass-has-no-cadence.md), [ADR-0002 replay-cadence
-addendum](../../adr/ADR-0002-toolchain-gates.md)). Two numbers decide that pass, the sample of five
+addendum](../../adr/ADR-0002-toolchain-checks.md)). Two numbers decide that pass, the sample of five
 and the window of twenty five, and each is written four times: as a default parameter of the
 `replay` recipe in the `justfile`, in words in the comment directly above that recipe, in the prose
 of [docs/runbooks/mutation-replay.md](../../runbooks/mutation-replay.md), and in the addendum that

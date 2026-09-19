@@ -2,7 +2,7 @@
 
 **Status:** open, fix when it bites
 **Area:** repo-gates
-**Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-gates.md)
+**Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-checks.md)
 **Verified:** 2026-09-15
 **Trigger:** a pass writes a ledger row whose "Drawn from" cell holds no commit this clone
 resolves while an earlier row's does, so the standing line counts from a pass that is not the last

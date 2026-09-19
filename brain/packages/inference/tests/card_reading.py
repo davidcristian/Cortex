@@ -1,11 +1,15 @@
-"""One reading of the card a row is served on, and the run-log line that carries it."""
+"""One reading of the GPU card a row was served on, and the run-log line that reports it.
 
-from collections.abc import Mapping
+A token total becomes a time only against the rate the card was giving, and that rate changes
+between runs, so the harness takes a reading at the start and the end of every row.
+"""
+
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from statistics import median
 
-# The SM clock is the clock ADR-0029's addenda publish, and its maximum is queried beside it so
-# the line can state it as a ratio. ``clocks.sm`` is the driver's short name for
-# ``clocks.current.sm``; ``clocks.current.graphics`` is a different clock.
+# ``clocks.sm`` is the driver's short name for ``clocks.current.sm``; ``clocks.current.graphics``
+# is a different clock. The maximum is queried beside it so a line can state the ratio.
 FIELDS = (
     "clocks.sm",
     "clocks.max.sm",
@@ -15,17 +19,13 @@ FIELDS = (
     "power.default_limit",
     "clocks_event_reasons.sw_power_cap",
 )
-# No header and no units, so a row is exactly one value per field.
 QUERY = ("nvidia-smi", f"--query-gpu={','.join(FIELDS)}", "--format=csv,noheader,nounits")
 
-# Every line this module renders starts with this, so one grep finds every reading in a run log.
-PREFIX = "card reading at"
+PREFIX = "card reading"
 START = "start"
 END = "end"
-# The reason a CPU row's line gives: its container has no device reserved, so no binary either.
 OFF_CARD = "the row is served on the cpu"
 
-# What a ratio prints when either side is not a number, or the whole is zero.
 _UNREAD = "n/a"
 
 
@@ -46,12 +46,17 @@ class CardReading:
         except ValueError:
             return None
 
-    def ratio(self, part: str, whole: str) -> str:
-        """``part`` over ``whole`` to two places, or ``n/a`` when either does not divide."""
+    def fraction(self, part: str, whole: str) -> float | None:
+        """``part`` over ``whole``, or None when either is not a number or the whole is zero."""
         top, bottom = self.number(part), self.number(whole)
         if top is None or not bottom:
-            return _UNREAD
-        return f"{top / bottom:.2f}"
+            return None
+        return top / bottom
+
+    def ratio(self, part: str, whole: str) -> str:
+        """``part`` over ``whole`` to two places, or ``n/a`` when either does not divide."""
+        value = self.fraction(part, whole)
+        return _UNREAD if value is None else f"{value:.2f}"
 
 
 def reading_of(returncode: int, stdout: str, stderr: str) -> CardReading | NoReadingError:
@@ -69,12 +74,8 @@ def reading_of(returncode: int, stdout: str, stderr: str) -> CardReading | NoRea
 
 
 def render(moment: str, row: str, reading: CardReading | NoReadingError) -> str:
-    """The run-log line for one reading taken at ``moment`` of ``row``.
-
-    Ratios first, since those are what a price is published against, then every field as
-    printed, so a later reader can recompute a ratio the line does not state.
-    """
-    head = f"  {PREFIX} {moment} of {row}:"
+    """The run-log line for one reading taken at ``moment`` of ``row``."""
+    head = f"  {PREFIX} at {moment} of {row}:"
     if isinstance(reading, NoReadingError):
         return f"{head} none, {reading}"
     ceiling = reading.ratio("enforced.power.limit", "power.max_limit")
@@ -87,3 +88,30 @@ def render(moment: str, row: str, reading: CardReading | NoReadingError) -> str:
         f"{head} ceiling {ceiling} of max and {over_default} of default, draw {draw} of max, "
         f"clock {clock} of max, sw power cap {cap}; {fields}"
     )
+
+
+def render_serving(
+    row: str, interval_s: float, readings: Sequence[CardReading | NoReadingError]
+) -> str:
+    """The run-log line summarizing the readings taken every ``interval_s`` while ``row`` served."""
+    head = f"  {PREFIX}s every {interval_s:g} s while serving {row}: {len(readings)} taken"
+    read = [reading for reading in readings if isinstance(reading, CardReading)]
+    if not read:
+        last = f", the last {readings[-1]}" if readings else ""
+        return f"{head}, none read{last}"
+    unread = len(readings) - len(read)
+    ceiling = _spread(read, "enforced.power.limit", "power.max_limit")
+    clock = _spread(read, "clocks.sm", "clocks.max.sm")
+    capped = sum(r.raw["clocks_event_reasons.sw_power_cap"] == "Active" for r in read)
+    return (
+        f"{head}, {unread} unread; ceiling of max {ceiling}; clock of max {clock}; "
+        f"sw power cap Active in {capped} of {len(read)}"
+    )
+
+
+def _spread(read: Sequence[CardReading], part: str, whole: str) -> str:
+    """The lowest, median and highest of one ratio over the readings that report both fields."""
+    values = [v for r in read if (v := r.fraction(part, whole)) is not None]
+    if not values:
+        return _UNREAD
+    return f"lowest {min(values):.2f} median {median(values):.2f} highest {max(values):.2f}"

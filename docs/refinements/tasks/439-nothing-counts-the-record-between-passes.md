@@ -2,11 +2,11 @@
 
 **Status:** landed 2026-09-12
 **Area:** repo-gates
-**Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-gates.md)
+**Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-checks.md)
 
 Opened 2026-08-25 by the pass that gave the replay a cadence
 ([R-357](357-a-replay-pass-has-no-cadence.md), [ADR-0002 replay-cadence
-addendum](../../adr/ADR-0002-toolchain-gates.md)). The cadence is a count: a pass is due once
+addendum](../../adr/ADR-0002-toolchain-checks.md)). The cadence is a count: a pass is due once
 twenty five candidate bodies have landed since the last row of the ledger in
 [docs/runbooks/mutation-replay.md](../../runbooks/mutation-replay.md). `just replay "" <date>`
 answers that count exactly, and it answers it only when somebody runs it, which is the same
@@ -58,4 +58,4 @@ module; the second is the one that could be read by something other than a perso
   ([R-645](645-the-standing-count-takes-the-last-dated-row.md)) and the count reaching back to
   midnight of the pass's own day, which puts two of today's 21 inside the pass that drew them
   ([R-646](646-the-standing-count-includes-the-pass-day.md)). The four arms the line was measured
-  over are in the [ADR-0002 standing-count addendum](../../adr/ADR-0002-toolchain-gates.md).
+  over are in the [ADR-0002 standing-count addendum](../../adr/ADR-0002-toolchain-checks.md).

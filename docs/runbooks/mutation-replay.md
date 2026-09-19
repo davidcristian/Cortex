@@ -3,7 +3,7 @@
 A mutation table is how a change here proves its gate can fail: it names the edits that make the
 suite fail and how many cases each edit takes down. Every one of them is a self report until
 somebody other than its author re-runs it, which is what a replay pass is for. The decision behind the
-numbers below is the [ADR-0002](../adr/ADR-0002-toolchain-gates.md) replay-cadence addendum; this
+numbers below is the [ADR-0002](../adr/ADR-0002-toolchain-checks.md) replay-cadence addendum; this
 file is how a pass is run and where its result lands.
 
 Nothing schedules this. A replay needs the judgement to rebuild an edit from a sentence, so it is

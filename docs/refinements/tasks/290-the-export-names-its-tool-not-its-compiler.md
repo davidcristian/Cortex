@@ -2,7 +2,7 @@
 
 **Status:** declined 2026-08-18
 **Area:** repo-gates
-**Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-gates.md)
+**Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-checks.md)
 
 Opened 2026-08-17 by the entry that made the coverage verdict read its own toolchain
 ([R-275](275-nothing-reads-the-printed-toolchain.md)). `coverage_gate.py` attributes the numbers it

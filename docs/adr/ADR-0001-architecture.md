@@ -56,7 +56,7 @@ happens in WSL, Docker and the app run on Windows, and a later move to macOS or 
    done; and one `just check` over both toolchains, mirrored by pre-commit and by GPU-less CI. The
    overlay's TypeScript is held to the coverage requirement and the line limit since it grew real
    logic ([ADR-0011](ADR-0011-body-v1.md) decisions 6 and 12). [AGENTS.md](../../AGENTS.md) is the
-   contract and [ADR-0002](ADR-0002-toolchain-gates.md) the mechanics.
+   contract and [ADR-0002](ADR-0002-toolchain-checks.md) the mechanics.
 
 7. **Generated code is exempt from the line limit and from coverage.** Protobuf and tonic stubs
    live only in directories named `_generated`, which the line-limit scan skips and the coverage
@@ -108,5 +108,5 @@ Each of the six is now settled where named.
 ## Related
 
 - [AGENTS.md](../../AGENTS.md), [docs/ARCHITECTURE.md](../ARCHITECTURE.md).
-- [ADR-0002](ADR-0002-toolchain-gates.md), [ADR-0003](ADR-0003-seam-codegen.md),
+- [ADR-0002](ADR-0002-toolchain-checks.md), [ADR-0003](ADR-0003-seam-codegen.md),
   [ADR-0005](ADR-0005-llamacpp-engine.md), [ADR-0068](ADR-0068-port-contract-lists.md).

@@ -2,7 +2,7 @@
 
 **Status:** declined 2026-08-20
 **Area:** repo-gates
-**Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-gates.md)
+**Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-checks.md)
 
 Opened 2026-08-18 by the close of [305](305-optional-toolchain-relays.md), which made `--rustc` and
 `--llvm-cov` required arguments of `coverage_gate.py` so that deleting one from `check-body` is a

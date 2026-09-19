@@ -179,7 +179,7 @@ Rust and the overlay:
 
 ## Related
 
-- [ADR-0001](ADR-0001-architecture.md) decision 2; [ADR-0002](ADR-0002-toolchain-gates.md) (the
+- [ADR-0001](ADR-0001-architecture.md) decision 2; [ADR-0002](ADR-0002-toolchain-checks.md) (the
   checks the drivers run under).
 - Modules: [brain-core](../modules/brain-core.md), [brain-inference](../modules/brain-inference.md),
   [brain-session](../modules/brain-session.md), [brain-email](../modules/brain-email.md),
