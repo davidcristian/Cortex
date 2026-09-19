@@ -196,7 +196,7 @@ replay seed="" since="" count="5" window="25":
             read_as="the pass of $when, drawn from $(git rev-parse --short "$anchor")"
         elif [ -n "$last" ]; then
             landed="$(git log --since="$last" "${vocabulary[@]}" --format='%H')"
-            read_as="midnight of the pass of $last, which records no commit"
+            read_as="midnight of the pass of $last, as no row records a commit this clone resolves"
         else
             read_as=""
         fi

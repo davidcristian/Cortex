@@ -8,7 +8,7 @@ registry entry whose one spelling on a side is a member of a class body, which i
 locating every mention's needle in its far file and reading whether the line it lands on binds a
 name inside a `class`.
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-09-13
+**Verified:** 2026-09-19
 
 Opened 2026-09-02 by the close of
 [534](534-the-declared-kind-word-has-no-site-to-hold-it.md), which held the kind word `sender` by
@@ -25,16 +25,22 @@ gate holds to the member, so nothing is unheld; the cost is a spelling of the wo
 the scan's sake.
 
 **Why it was left.** An indented form has to tell a class body from a function body, and the two
-look the same on their own line. A pattern found by `findall` cannot do it; a reader that walks
-lines with an indentation stack is a new module with its own suite and its own faults, among them a
-member spelled in two classes of one file, a class nested in a function, and a member whose
-right-hand side is a call rather than a literal. Landing that for one entry would be the registry
-growing a parser to save one binding.
+look the same on their own line. A pattern found by `findall` cannot do it, and a reader that
+walked lines with an indentation stack would be a new module with its own suite and its own faults,
+among them a member spelled in two classes of one file, a class nested in a function, and a member
+whose right-hand side is a call rather than a literal. Landing that for one entry would be the
+registry growing a parser to save one binding.
 
-**What would close it.** A class-level form that is a second reader rather than a widened pattern:
-given a path and a dotted name (`SourceKind.SENDER`), find the `class` line at some indentation,
-then the member one level deeper before the next line at the class's own indentation, and hand its
-right-hand side to `parse_value`. `Site.name` would carry the dotted form, so a bare name keeps
+**What would close it.** A class-level form that is a second reader rather than a widened pattern,
+and it no longer needs a parser of its own: `scripts/moduleconstants.py` already parses a module
+with `ast` without importing it, its `bound` answers both assignment spellings, and
+`scripts/settingsfields.py` already walks the statements of each top-level class body in a parsed
+module. Given a path
+and a dotted name (`SourceKind.SENDER`), take the one `ClassDef` of that name in the module's own
+body, the one statement in it that `bound` says binds the member, and hand the source text of its
+right-hand side to `parse_value`, so a call there raises exactly as it does at column 0. Walking
+only the module's top level answers the class nested in a function, and requiring exactly one
+match answers the member spelled in two classes. `Site.name` would carry the dotted form, so a bare name keeps
 meaning column 0 and no entry registered today changes meaning. The mutation is the one the parent
 task ran: rename the member's value alone and watch the gate fail naming both files. When it lands,
 the module-level twin at the producer can go or stay; a second site is a stronger reading than a
@@ -63,3 +69,16 @@ mention, since two sites are compared with each other while a mention is a prese
   has none, so the `uri` twin the trigger names does not exist. The Python form in
   `crosscheck.DECLARATIONS` is unchanged and still anchors its name at column 0 under
   `re.MULTILINE`.
+- 2026-09-19: re-derived and left open, both clauses still unfired, with the remedy made cheaper.
+  The registry holds 92 entries over 110 sites and 313 mentions, and locating every mention's
+  needle in a Python far file with `ast` and asking whether the line it lands on is an assignment
+  inside a class body finds one, `SENDER = "sender"` under `class SourceKind(Enum)` in
+  `brain/packages/core/src/cortex_core/provenance.py`, this entry's own subject. `URI` still has no
+  producer outside the core and `cortex_email/server.py` is still the one module-level twin.
+  `crosscheck.DECLARATIONS` is unchanged. What moved is the cost: the scan added on 2026-09-17,
+  `scripts/settingscheck.py`, reads settings classes through `settingsfields.py`, which parses a
+  module with `moduleconstants.parse` and walks each top-level class body's statements, so the
+  class-level reader this entry describes is a few lines over existing code rather than a new
+  parser, and the section above now says how. The new
+  scan is not a consumer: it reads field names and their environment variables, never a value a
+  registry entry compares.

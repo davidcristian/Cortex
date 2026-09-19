@@ -3,7 +3,7 @@
 **Status:** open, dead until a consumer
 **Area:** repo-gates
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-09-13
+**Verified:** 2026-09-19
 **Trigger:** A decimal coupling that needs ordering rather than equality, or one whose far side is
 a Rust literal carrying its own type suffix.
 
@@ -55,3 +55,18 @@ strips rather than a new form.
   renamed and widened to compare language and brain package together, so two brain packages are
   now two seam sides and a decimal ordering between them would be registrable. The two gateway
   deadlines still are not, both being declared in one file.
+- 2026-09-19: re-derived and left open, neither trigger fired. `relation_fault` in
+  `scripts/readings.py` and the `DECIMAL` shape in `scripts/values.py` are unchanged since the last
+  reading, and neither `scripts/settingscheck.py` nor the needle reporting changed on 2026-09-17
+  touches them: the new scan reads settings through `moduleconstants.py` and never reduces a
+  value. The registry still declares fourteen decimal sites, all equalities, but the range the
+  previous bullet gave was wrong at its low end: it runs from `DEFAULT_CPUS` at 2.0 in the
+  orchestrator's subagent config, not from `DEFAULT_VRAM_GB` at 3.5, to `DEFAULT_ADMISSION_WAIT_S`
+  at 7200.0. The two orderings are still the capture edge pair and the receive limit pair, integers
+  on both sides, and nothing under `body/crates` or `body/app/src-tauri` declares an `f64` or
+  `f32` constant. The ordering half lost its one proposed consumer on 2026-09-19, when the entry
+  asking for the tool call and delegated run bounds to be ordered closed as satisfied, a suite
+  case already holding them and both constants sitting in one package. The next near miss is held
+  the same way: the subagent stall ceiling (600.0, orchestrator) must stay under the run deadline
+  (2400.0, core), which is two packages and so registrable, but `SubagentsConfig`'s validator
+  raises when it does not, and `test_config.py` builds that config from its shipped defaults.

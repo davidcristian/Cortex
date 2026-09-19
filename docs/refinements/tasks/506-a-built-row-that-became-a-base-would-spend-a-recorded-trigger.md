@@ -4,7 +4,7 @@
 **Area:** repo-gates
 **Trigger:** a Dockerfile in this tree stands `FROM` an image this repo builds
 **Origin:** [ADR-0011](../../adr/ADR-0011-body-v1.md)
-**Verified:** 2026-09-13
+**Verified:** 2026-09-19
 
 Opened 2026-08-30 by the close of
 [R-493](493-a-base-may-declare-a-volume-through-onbuild.md), which decided that
@@ -49,3 +49,12 @@ another one, which is what the trigger on this entry watches for.
   final stages, which are the ones `dockerfilebases.read_base` reads, are still the two images
   this entry names. The compose stack builds `cortex-brain` and `cortex-model-host` and nothing
   stands on either, so the hole this entry describes still costs nothing.
+- 2026-09-19: re-derived, and the trigger has not fired. The tree still holds the same two
+  Dockerfiles with the same four `FROM` lines, every one a pulled reference, and neither file
+  carries an `ONBUILD`. The compose files build the brain image in two services,
+  `docker/docker-compose.yml` and `docker/docker-compose.email.yml`, both from `./brain`, and the
+  model host from `brain/Dockerfile.modelhost` as `cortex-model-host`; every `image:` elsewhere is a
+  pulled reference. The rules the entry leans on are still where it says: the fault that names a
+  base's recorded `ONBUILD VOLUME` and the one for a trigger the reader will not guess at are both
+  in `scripts/dockerfilevolumes.py`, and `read_volumes` still returns nothing for an
+  `ONBUILD VOLUME` line. No commit since the last reading touched either reader.

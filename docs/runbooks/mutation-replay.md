@@ -32,15 +32,20 @@ pass whatever order the rows were typed in and whatever their date cells say. Th
 row it read and the commit it counted from, so a reader can see which pass the number is measured
 against.
 
-A row whose "Drawn from" cell holds no commit, or one this clone cannot resolve, is counted from
-midnight of its date instead, the reading this recipe used before the column existed. That reading
+When no row's "Drawn from" cell holds a commit this clone resolves, the count runs from midnight
+of the last dated row instead, the reading this recipe used before the column existed. That reading
 is coarser in two ways: it counts from the start of the pass's own day rather than from the sample,
 and it takes the last row that carries an ISO date rather than the last pass. The line says which
-of the two readings it gave. A rewrite of this repo's history is what makes a recorded commit stop
-resolving, and one has already reached the range the pass of 2026-08-25 drew over, which is why
-that pass's own five are no longer the five its seed draws. A row whose commit a rewrite has moved
-falls back to the coarse reading until somebody re-derives the commit, and the next pass records
-one that resolves.
+of the two readings it gave. While any row's commit resolves, a row without one takes no part in
+the count, so a pass that writes its row with no commit is passed over and the count runs from the
+pass before it. The line then names that older pass, which is how a reader sees it.
+
+A rewrite of this repo's history is what makes a recorded commit stop resolving, and one has
+already reached the range the pass of 2026-08-25 drew over, which is why that pass's own five are
+no longer the five its seed draws. A rewrite that moves every recorded commit leaves the coarse
+reading. One that moves only the newest, as a rewrite of work not yet pushed can, leaves the pass
+before it as the anchor. Either lasts until somebody re-derives the moved commit, and the next pass
+records one that resolves.
 
 Once the count is well past the cadence, the standing window and the gap since the last pass are no
 longer the same set, and the gap is the honest one to sample, being what went unsampled. Hand the
