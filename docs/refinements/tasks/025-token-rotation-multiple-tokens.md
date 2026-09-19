@@ -4,7 +4,7 @@
 **Area:** seam-auth
 **Origin:** [ADR-0016](../../adr/ADR-0016-seam-token.md)
 **Trigger:** A second party on this seam, meaning a client the pair's own operator does not run, whose credential has to be withdrawn without disturbing the other.
-**Verified:** 2026-09-13
+**Verified:** 2026-09-19
 
 Pointless for one user-managed body↔brain pair;
 revisit with any second client (ADR-0016 deferred). The other ADR-0016 deferral, mTLS on a
@@ -34,3 +34,12 @@ working, and the trigger above now names that instead.
   entry was written, both clients presenting one `CORTEX_SEAM_TOKEN`, so the trigger is narrowed
   from a second client to a second party. The pointer to the sibling deferral was repointed at the
   task file that now holds it, which already names what a per-direction split would cost.
+- 2026-09-19: re-derived, and the trigger has not fired. Outside tests and probes, the one
+  `CORTEX_SEAM_TOKEN` is still read from the environment in four places: `converse.rs`, `seam.rs`
+  and `body_server.rs` in the shell, and `SeamServerConfig.token` in the brain, which `wiring.py`
+  passes to the outbound body gateway as well as to the interceptor. The rest of what presents it is
+  the deployment checking itself: the brain container's compose healthcheck, which calls `Health` with
+  it (`docker/docker-compose.yml`), `just seam-health`, which runs `body/crates/rpc/tests/live.rs`,
+  and the brain's `integration`-marked live seam tests. Those run under the same operator on the same
+  machine, so they are more clients of one party rather than a second party. No compose file,
+  runbook or default gives the token to anything the pair's operator does not run.

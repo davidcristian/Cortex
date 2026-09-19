@@ -3,7 +3,7 @@
 **Status:** open, a seam or port change comes first
 **Area:** seam-transport
 **Origin:** [ADR-0024](../../adr/ADR-0024-transport-retry.md)
-**Verified:** 2026-09-13
+**Verified:** 2026-09-19
 
 Opened 2026-08-24 by the close of
 [R-303](303-turn-stream-stall.md), which bounded the turn stream's silence and could only draw the
@@ -67,3 +67,14 @@ here has yet watched a turn stall.
   The silence this entry describes is four hours now rather than two, and the brain-side coupling
   that would have caught the drift is in place, so the next move of a subagent bound reaches this
   bound as a gate failure.
+- 2026-09-19: re-derived. The seam change has not landed: `proto/body.proto` declares no keepalive
+  or heartbeat, no port carries one, and the only mention of a heartbeat in the code is the comment
+  on `DEFAULT_TURN_IDLE_GAP_MS` (`body/crates/core/src/retry/gap.rs`) saying the gap needs one to
+  come down. The arithmetic holds: `DEFAULT_ADMISSION_WAIT_S` is 7200.0
+  (`cortex_core/scheduler.py`), `DEFAULT_SUBAGENT_RUN_TIMEOUT_S` is 2400.0
+  (`cortex_core/subagents.py`), 7200 plus two runs of 2400 is 12000 s, and a fifth above that is the
+  shipped 14400000 ms. `ProgressSink.emit` still drops on a saturated buffer by design. One count in
+  the first 2026-09-13 bullet was wrong: `ServerEvent` carries eight event kinds, `text_delta`
+  through `tool_outcome`, not five, and it already carried eight when this entry was filed, since
+  `tool_outcome` landed on 2026-08-06. Nothing the entry argues rests on that number. The second
+  shape, a keepalive on the stream, is still the one the seam lacks, so the status stands.

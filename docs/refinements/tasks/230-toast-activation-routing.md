@@ -4,7 +4,7 @@
 **Area:** scheduling
 **Origin:** [ADR-0025](../../adr/ADR-0025-scheduling-reminders.md)
 **Trigger:** a second consumer of toast interaction, such as snooze-from-the-toast.
-**Verified:** 2026-09-13
+**Verified:** 2026-09-19
 
 A shown toast is inert: clicking it does nothing, while the
 overlay's reminder card offers "open the conversation this came from". Closing that asymmetry
@@ -55,6 +55,22 @@ together with the activator that reads them, as one piece. This is the same `Not
 `session_id` the out-of-window authoritative title entry
 ([session-read-seam.md](../index.md#session-read-seam)) names as one of its own reopen paths.
 
+**Corrected 2026-09-19: part two is smaller than the design above says, and neither half of the
+correction is measured.** The activation channel from the Tauri shell into the running overlay
+already exists: the shell emits `cortex:activate` on the hotkey and the tray
+(`body/app/src-tauri/src/lib.rs`), and the overlay records and answers it
+(`body/app/src/overlay/activation.ts`), as it has since 2026-07-01. It carries no payload, so what
+part two adds there is a session id on that event or a sibling of it, not a channel. And the COM
+activator is one of two ways to hear a click. `ToastNotification` in the pinned `windows` 0.58
+exposes an in-process `Activated` event, and the body is resident in the tray, so a click on a
+toast while the body runs could reach a handler registered when the toast is shown, with no COM
+registration. The activator is what a click needs when the process that showed the toast has
+gone. Whether `Activated` fires for an unpackaged app's toast at all, and for one clicked from the
+notification centre rather than the popup, is Win32 behaviour nobody has read on a desktop. So the
+cost this entry waits to share may be an event handler and a new `body_core` sink for it rather
+than COM plumbing. The trigger is unchanged, because part one's reason not to land alone still
+holds, and a first reading on the host would be the cheapest way to settle which cost is real.
+
 ## Trail
 
 - 2026-07-16: Newly deferred behind the landing of the body-side `Notify` trait and Tauri toast,
@@ -74,3 +90,11 @@ together with the activator that reads them, as one piece. This is the same `Not
   (`brain/packages/core/src/cortex_core/schedule_verbs.py`), but that verb reaches the store
   through a tool call and touches no toast, so it is not the second consumer of toast interaction
   this waits for and it shares none of the COM plumbing's cost.
+- 2026-09-19: re-derived. `NotifyRequest` still carries `title`, `body`, `reminder_id` and `tainted`
+  and no `session_id`, `DueReminder` still carries one as field 6, `toast_xml` still renders one
+  `ToastGeneric` binding with no `launch` attribute and no `<actions>` element, and
+  `OsService.notify` still returns `shown` alone. No surface offers snooze from a toast and no entry
+  asks for one, so the trigger has not fired. What was wrong is part two's cost, corrected above:
+  the shell-to-overlay channel it counted as missing has existed since before the entry, and an
+  in-process `Activated` handler is a possible alternative to the COM activator. No circle: 180
+  waits on this entry's `session_id`, and this entry waits on nothing in 180.

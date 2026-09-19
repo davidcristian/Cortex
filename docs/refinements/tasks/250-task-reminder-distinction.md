@@ -4,7 +4,7 @@
 **Area:** scheduling
 **Origin:** [ADR-0025](../../adr/ADR-0025-scheduling-reminders.md)
 **Trigger:** the surface must distinguish them (a task icon, a "task ran" label, a task-only action).
-**Verified:** 2026-09-13
+**Verified:** 2026-09-19
 
 A fired task now rides the same `DueReminder`/`Reminders.tsx` card as a reminder, undistinguished:
 `DueReminder` carries no `kind`, the overlay labels the stack "Due reminders" with a bell icon,
@@ -41,3 +41,12 @@ seeded rows ([demoScript.ts](../../../body/app/src/bridge/demoScript.ts)) and `R
   entry did not say is that the toast already names the kind through its title, so the gap is the
   pull card alone and only for a fire whose push did not show, and that the change crosses two more
   files than it counted. The trigger has not fired: nothing in the overlay asks which kind a row is.
+- 2026-09-19: re-derived, and every claim holds. `DueReminder` still carries no `kind`,
+  `Reminders.tsx` still labels the list "Due reminders" and draws a `BellIcon` on every row,
+  `reminder_to_proto` still maps `item.tainted` and swaps in a task's `last_outcome` as the text,
+  and `_deliver` is still handed `REMINDER_TITLE` or `TASK_TITLE`. The overlay files the hop list
+  names are still the three that would change outside the tests (`types.ts`, `demoScript.ts`,
+  `Reminders.tsx`); the other overlay readers of `DueReminder` pass it through. Nothing in the
+  overlay asks which kind a row is, so the trigger has not fired.
+  [690](690-dismissing-one-fires-card-acks-the-fire-after-it.md), filed the same day, is a different
+  gap on the same card: a task's outcome lost to an ack, not one mislabelled.

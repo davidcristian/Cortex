@@ -3,7 +3,7 @@
 **Status:** open, dead until a consumer
 **Area:** seam-transport
 **Origin:** [ADR-0024](../../adr/ADR-0024-transport-retry.md)
-**Verified:** 2026-09-13
+**Verified:** 2026-09-19
 **Trigger:** A read RPC on `BrainService` that recalls anything at all, meaning a handler that
 reads a memory port and composes what it finds into its reply. Today none does, so there is
 nothing for a reply to be partial about.
@@ -44,3 +44,16 @@ facts. Whoever builds the recall builds that at the same time.
   other four read RPCs on the service, `ListDueReminders`, `AckReminder`, `GetPreferences` and
   `SetPreference`, touch no memory port either. No read RPC recalls anything, so there is still no
   site for the wire question this entry holds.
+- 2026-09-19: re-derived, and the trigger has not fired, but the last bullet miscounted the service.
+  `BrainService` declares eleven RPCs ([proto/body.proto](../../../proto/body.proto)): `Converse`,
+  the turn, and ten others. Five of those read: `Health`, `ListSessions`, `GetSessionMessages`,
+  `ListDueReminders` and `GetPreferences`. The other five write: `RenameSession`, `DeleteSession`,
+  `SetSessionPinned`, `AckReminder` and `SetPreference`. The last bullet called `AckReminder` and
+  `SetPreference` reads and left `Health` out, and it said every session RPC calls the store alone
+  just before naming the one, `DeleteSession`, that also calls the cascade. None of the five reads
+  touches a memory port: `GetSessionMessages` is still `self._store.history(...)` mapped
+  (`session_servicer.py`), `ListDueReminders` reads the `ScheduleStore`, `GetPreferences` the
+  preference store, and `Health` the `ResidencyReporter` (`server.py`). `SessionMemoryCascade` is
+  still injected for `DeleteSession` alone. So there is still no site for the wire question, and
+  [320](320-one-detail-string-two-facts.md), which holds the one-`detail` half, waits on nothing
+  here.

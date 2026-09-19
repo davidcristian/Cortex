@@ -4,13 +4,13 @@
 **Area:** body-gateway
 **Origin:** [ADR-0023](../../adr/ADR-0023-body-gateway-volume.md)
 **Trigger:** A real consumer for input injection, built then as one slice, not as a wired handler.
-**Verified:** 2026-09-13
+**Verified:** 2026-09-19
 
 The remaining `BodyService` RPCs, `CaptureScreen` (Slice 10) and `InjectInput` (later), behind the
 same seam. The remaining `BodyService` RPCs in this entry (`CaptureScreen`, `InjectInput`) stay open
 with their slices; only the overlay half is declined. `InjectInput` stays open, and is now the only
-unbuilt `BodyService` RPC, which is why the index **holds this area at 6** rather than decrementing
-it: half an entry closing does not close the entry, and a count moved for a half-closed one is how
+unbuilt `BodyService` RPC, which is why the index **held this area at 6** on 2026-07-18 rather
+than decrementing it: half an entry closing does not close the entry, and a count moved for a half-closed one is how
 an open deferral gets lost.
 
 Those fragments were recorded inside the `GetVolume` surfaced as overlay state entry, which grouped
@@ -56,3 +56,15 @@ its own.
   and its contract test are all reachable and gated here, and only the real `SendInput` adapter and
   its validation need a Win32 desktop session, so moving the whole entry would hide the four fifths
   that do not.
+- 2026-09-19: re-derived, and the 2026-09-13 reading still holds line for line.
+  [proto/body.proto](../../../proto/body.proto) declares the RPC at line 282 and its messages at 369
+  to 377; `body/crates/core/src/os/` holds `notify.rs` and the four `screen` modules, and
+  `body/crates/core/src/os.rs` still says the input trait joins later; `os_windows` has no input
+  module; `body/crates/rpc/src/server.rs:121` still answers `Status::unimplemented`; and the brain's
+  gateway still exposes `get_volume`, `set_volume`, `notify` and `capture_screen`. No code under
+  `body/`, `brain/` or `proto/` spells `SendInput`, and no tool or surface asks to type or chord, so
+  the trigger has not fired. No circle: [270](270-pointer-input-injection.md) is declined, and the
+  two feature-breadth entries that mention input injection ([271](271-macos-linux-os-backends.md),
+  [272](272-more-subagent-roles.md)) wait on nothing here. The area reads 5 open entries today. The
+  body's sentence about holding it at 6 was put in the past tense, since that count belonged to
+  2026-07-18.
