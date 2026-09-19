@@ -1,10 +1,13 @@
-"""The widest line either shipped sink can build still fits one log-driver message."""
+"""The widest line each shipped sink can build still fits one log-driver message."""
 
+import ast
 import logging
 from datetime import UTC, datetime
+from pathlib import Path
 
 import pytest
 
+import cortex_orchestrator
 from cortex_core import (
     CUT,
     VALUE_CHARS,
@@ -25,7 +28,7 @@ from cortex_core import (
     record_fields,
 )
 from cortex_memory import LoggingRecallSink
-from cortex_tools import LoggingAuditSink
+from cortex_tools import JsonLinesAuditSink, LoggingAuditSink
 
 ONE_DOCKER_MESSAGE = 16383
 
@@ -143,3 +146,64 @@ async def test_the_widest_recall_trail_line_fits_one_log_driver_message(
         "query_chars",
         "session_id",
     }
+
+
+async def test_the_widest_audit_gap_line_fits_one_log_driver_message(
+    caplog: pytest.LogCaptureFixture, tmp_path: Path
+) -> None:
+    """The file sink's one line, a record it could not append, carries one field the model wrote."""
+    caplog.set_level(logging.WARNING, logger="cortex_tools.audit_file")
+    await JsonLinesAuditSink(tmp_path).record(
+        ToolInvocation(
+            name=_WIDE,
+            arguments={"instruction": _WIDE},
+            ok=False,
+            detail=_WIDE,
+            at=_AT,
+            trust=Trust.UNTRUSTED,
+            call_id=_WIDE,
+            session_id=_WIDE,
+        )
+    )
+    (record,) = caplog.records
+    assert record.getMessage() == "tool.audit.gap"
+    assert "IsADirectoryError" in str(record.__dict__["error"])
+    line = _line(record)
+    assert len(line) < ONE_DOCKER_MESSAGE
+    assert line.count(_MARKER) == 1
+    assert set(record_fields(record)) == {"error", "path", "tool"}
+
+
+# The sinks a case above drives, and the wired sinks that write no line of their own, each with why.
+_MEASURED = frozenset({LoggingAuditSink, LoggingRecallSink, JsonLinesAuditSink})
+_WRITES_NO_LINE = {
+    "TeeAuditSink": "records each invocation to the sinks it holds and logs nothing itself",
+}
+
+# The adapter packages whose sinks the composition root wires.
+_SINK_PACKAGES = frozenset({"cortex_tools", "cortex_memory"})
+
+
+def _wired_sinks() -> set[str]:
+    """Every name ending in `Sink` that an orchestrator module imports from an adapter package."""
+    root = Path(cortex_orchestrator.__file__).parent
+    names: set[str] = set()
+    for source in root.rglob("*.py"):
+        for node in ast.walk(ast.parse(source.read_text(encoding="utf-8"))):
+            if not isinstance(node, ast.ImportFrom) or node.module is None:
+                continue
+            if node.module.split(".")[0] in _SINK_PACKAGES:
+                names |= {alias.name for alias in node.names if alias.name.endswith("Sink")}
+    return names
+
+
+def test_every_sink_the_orchestrator_wires_has_a_case_or_writes_no_line() -> None:
+    """The set the cases run over is read from the composition root, not written here."""
+    wired = _wired_sinks()
+    measured = {sink.__name__ for sink in _MEASURED}
+    stale = set(_WRITES_NO_LINE) - wired
+    assert not stale, f"exempted but no longer wired: {sorted(stale)}"
+    assert not measured & set(_WRITES_NO_LINE)
+    assert wired == measured | set(_WRITES_NO_LINE), (
+        f"wired without a case or an exemption: {sorted(wired - measured - set(_WRITES_NO_LINE))}"
+    )

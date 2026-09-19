@@ -1,9 +1,8 @@
 # The widest-line check names its sinks by hand
 
-**Status:** open, actionable
+**Status:** landed 2026-09-19
 **Area:** cross-cutting
 **Origin:** [ADR-0038](../../adr/ADR-0038-ranked-recall.md)
-**Verified:** 2026-09-19
 
 Opened 2026-09-15 by the close of
 [R-337](337-a-bounded-value-leaves-the-line-unbounded.md), which held the widest line each shipped
@@ -58,6 +57,12 @@ case, and a new sink fails the set assertion until somebody writes that case or 
 
 ## Trail
 
+- 2026-09-19: landed as specified in the fix above. The suite reads the wired sinks from the
+  orchestrator's imports with `ast`, has a case for `JsonLinesAuditSink`'s `tool.audit.gap` line
+  driven by a directory path, exempts `TeeAuditSink` by name with a stale-exemption check, and its
+  docstring names the two builders that name a sink class. The widest-line addendum's three
+  builders are corrected there. Recorded in the ADR-0038 trigger-sweep addendum of the same day,
+  with its mutation table.
 - 2026-09-19: trigger fired, by the tool audit file sink of 2026-09-17, and the entry moved to
   actionable with the fix above. The trigger is removed because an actionable entry carries none.
   Recorded in the ADR-0038 trigger-sweep addendum of the same day.
