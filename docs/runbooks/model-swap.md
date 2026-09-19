@@ -227,10 +227,12 @@ The deep model, the E4B subagent tier and the drafter together come to more than
   a card it does not fit.
 
 To confirm the drafter is drafting, read `timings` on a deep-tier reply: `draft_n` and
-`draft_n_accepted` are present only while it drafts, and the pair started on this card accepted
-0.60 of drafted tokens on a reasoning trace and 0.37 on a tool call. Nothing on `GET /health` says
-whether a drafter is loaded. The drafter is off by default until a tool-call turn and an
-answer-text turn are priced with both arms at one clock
+`draft_n_accepted` are present only while it drafts, and the starts on this card accepted 0.60
+of drafted tokens on a reasoning trace, 0.32 to 0.37 on a tool call and 0.34 on answer text.
+Nothing on `GET /health` says whether a drafter is loaded. The drafter is off by default. With it,
+a tool-call turn and an answer-text turn each decoded about a third faster on this card, but the
+answer-text readings had the two arms' clocks just outside the tenth the price rule allows, so the
+rule does not count them
 ([R-697](../refinements/tasks/697-the-drafter-is-unpriced-on-a-tool-call-and-an-answer-at-one-clock.md)).
 
 ## The mechanism, as measured
