@@ -3,7 +3,7 @@
 **Status:** open, a seam or port change comes first
 **Area:** seam-transport
 **Origin:** [ADR-0030](../../adr/ADR-0030-brain-handoff.md)
-**Verified:** 2026-09-13
+**Verified:** 2026-09-19
 
 Opened 2026-08-19 by the close of [304](304-spill-rides-the-residency-report.md), which put a second
 annotator on a **serving** residency report. `HealthReply.detail` is one string
@@ -34,3 +34,10 @@ second client that needs it rather than against the first that ran into it.
   `Health` in `server.py` passes whatever the residency composed, so the overlay still learns one
   string and cannot tell that two facts arrived. The client that would decide the shape is still
   the only client, so the entry waits where it was left.
+- 2026-09-19: Re-derived, and still at two annotators. `HealthReply` is unchanged in the proto,
+  `with_note` still has the same two callers (a third mention, in `residency_probe.py`, is a
+  docstring naming the join), and `linkState.ts` still renders the joined string after "Brain
+  ready" through one `withDetail` call. The one candidate for a third note since the last reading,
+  a failed handoff's reason, was declined on 2026-09-15 by
+  [R-379](379-a-settled-reason-nothing-reads-back.md), partly because `with_note` annotates only a
+  serving report, so nothing has moved this entry toward the tooltip it warns about.

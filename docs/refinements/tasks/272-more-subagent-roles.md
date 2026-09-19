@@ -3,7 +3,7 @@
 **Status:** open, feature breadth
 **Area:** cross-cutting
 **Origin:** [ADR-0018](../../adr/ADR-0018-heterogeneous-subagents.md)
-**Verified:** 2026-09-13
+**Verified:** 2026-09-19
 
 More subagent roles.
 
@@ -45,3 +45,11 @@ design lives, and the catch-all list the fragment was extracted from is named in
   boundary is enforced. Nothing in the brain has gained a role concept, so this is still a vertical
   slice: a new pure value type, a new spawn argument, resolution beside that boundary, wiring and
   env config. The origin field was moved off `none` in the same pass, for the reason written above.
+- 2026-09-19: Re-derived, and none of it has been built. `Role` is still the message-author enum at
+  `brain/packages/core/src/cortex_core/conversation.py:24`, `build_spawn_spec` still builds the
+  per-item properties `instruction` and `context` and adds `model` only when the cortex has a
+  choice, and `SubagentRoster.resolve` is still at line 72 and still the one place the taint
+  boundary is enforced. The 2026-09-13 bullet said the schema had moved off the lines the
+  2026-08-09 bullet named, which was wrong: every version of `spawn_spec.py` since 2026-08-09
+  builds it at lines 89 to 98. No commit since the last reading touched the roster, the spawn tool
+  or the runner, so the costing stands as a vertical slice.

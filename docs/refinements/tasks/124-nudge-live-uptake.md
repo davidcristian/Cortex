@@ -4,7 +4,7 @@
 **Area:** subagents
 **Origin:** [ADR-0018](../../adr/ADR-0018-heterogeneous-subagents.md)
 **Trigger:** A deployment that delegates unprompted and pays for the pile in the user's wall clock.
-**Verified:** 2026-09-13
+**Verified:** 2026-09-19
 
 The measured trade-off line gives the cortex a
 concrete wall-clock reason to spread independent subtasks across distinct roster models, and
@@ -155,3 +155,16 @@ backend* or *per placement target*, were never wrong and were not touched.
   date on those terms, the hardened non-loopback posture waiting on the machine leaving single-user
   and the unbalanced COM initialization on a long Windows session, so withholding it here left this
   entry reading as unchecked on the day it had been read.
+- 2026-09-19: The code half holds as the 2026-09-13 reading left it: `build_spawn_spec` still
+  computes `with_choice = not tools_enabled and len(roster.entries) > 1`, `build_subagent_tools`
+  still returns `None` only with no tool registry, and the probe file, the runbook's section 3c and
+  the two pins are where this entry says. What moved is the rate the 2026-08-04 paragraph argues
+  from. Its 0.35 and about 1 tok/s were read on the unpinned CPU tier, and the thread-count pin
+  raised the published per-slot rates from 0.18 to 1.35 tok/s to 3.0 to 12.4
+  ([ADR-0004](../../adr/ADR-0004-model-lineup.md)). A subtask decoded to the shipped token cap still
+  takes over a minute, so declining to delegate a paragraph the cortex writes in seconds is still
+  the cheaper call, and the reason the trigger is quiet has not changed. The same record measured
+  what a pile costs on one server: two attempts decoding at once took about 1.4 times as long each
+  as one alone. Whether spreading onto a second entry avoids that depends on the two servers not
+  sharing cores, which nothing has measured. No addendum on the origin record reports an unprompted
+  delegation, so the trigger has not fired.

@@ -3,8 +3,8 @@
 **Status:** open, dead until a consumer
 **Area:** subagents
 **Origin:** [ADR-0018](../../adr/ADR-0018-heterogeneous-subagents.md)
-**Trigger:** A role needing a cheap model on a tainted or tool path for a proven-safe reason.
-**Verified:** 2026-09-13
+**Trigger:** A role needing a cheap model on a tainted or tool path for a proven-safe reason, which cannot happen before R-272 gives the brain a role concept: `SubagentRoster.resolve` takes no role and the spawn tool's items carry none.
+**Verified:** 2026-09-19
 
 A future subagent role needing a cheap model on a
 tainted/tool path for a proven-safe reason would be a per-role override on the same roster
@@ -30,3 +30,10 @@ Unimplemented by design; no role justifies it today.
   `model` and no role concept existing anywhere in the brain, so this entry cannot fire before the
   work described at [R-272](272-more-subagent-roles.md) exists. The 2026-08-09 pass costed the two
   together and left that dependency unrecorded.
+- 2026-09-19: Re-derived and unfired. `SubagentRoster.resolve` is still at `roster.py:72` and still
+  returns the `default` for any tainted or tools-enabled spawn before it reads the request, the
+  spawn tool's per-item properties are still `instruction`, `context` and the optional `model`, and
+  no module in the brain has gained a role since the last reading. The trigger now says in its own
+  line that it waits on R-272, which the 2026-09-13 bullet had recorded only here, because a
+  trigger read on its own from the index gave no sign that it could not fire yet. R-272 waits on
+  nothing, being feature breadth, so the two do not wait on each other.

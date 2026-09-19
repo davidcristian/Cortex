@@ -3,8 +3,8 @@
 **Status:** open, fix when it bites
 **Area:** inference-model-manager
 **Origin:** [ADR-0030](../../adr/ADR-0030-brain-handoff.md)
-**Verified:** 2026-09-13
-**Trigger:** the same dedup design the transport reconnect task needs, a request id plus an idempotency and resume registry keyed by it, after which resuming is a small addition to `recover_handoffs`.
+**Verified:** 2026-09-19
+**Trigger:** the dedup design the `Converse` reconnect entry (R-023) needs, a request id on `UserTurn` or `ClientEvent` plus an idempotency and resume registry keyed by it, after which resuming is a conductor entry point run beside the seam. Recheck with `grep -rniE 'request_id|idempotency' proto/body.proto brain/packages/*/src`: no hit means the design does not exist and this has not fired.
 
 Opened 2026-07-17 with the
 brain-handoff conductor sub-slice ([ADR-0030](../../adr/ADR-0030-brain-handoff.md) decision 4),
@@ -32,8 +32,24 @@ fence nonce, the whole taint ledger, the turn-wide dispatch budget's position, t
 spent and the loop tail in order, which is everything a deep phase would need to be re-entered.
 Resume is blocked by what the record deliberately does **not** carry, request identity, and not by
 anything missing from the turn state. Nothing in the brain's source spells an idempotency key or a
-request id today, and `CORTEX_ESCALATION` appears in `docker/` only inside a comment
-(`docker-compose.gpu.yml`), so no deployment here can strand a handoff in the first place.
+request id today. The paragraph said on 2026-09-09 that `CORTEX_ESCALATION` appeared in `docker/`
+only inside a comment, so no deployment could strand a handoff; since 2026-09-17 the gpu overlay
+passes it through by name, so a host `.env` can turn escalation on and a crash can strand a record,
+while no shipped file sets it.
+
+**Corrected 2026-09-19: the resume does not belong in `recover_handoffs`.** The composition root
+awaits it in `recover_boot_residency` (`swap_builders.py`) before the seam serves its first turn,
+so a deep phase run there would hold every turn off for a model load and a whole phase. The
+sequence a resume needs is the conductor's, not recovery's: the handoff claim, the drain, then
+`SwapConductor._swap(record)`, which is `_run_claimed` without `_prepare`, the record already
+existing. So the fix is a conductor entry point that takes a record instead of an escalation slot,
+started beside the seam after the boot publish the way the tier healer is, with recovery sparing
+the record it hands over rather than failing it. Two facts shape it. Its events have no stream to
+ride, since the `Converse` stream died with the process, so the answer reaches the user only
+through history, where `BrainPhase._persist` already writes it. And the phase restarts from the
+snapshot: after `_persist_snapshot` the record is written only by `transition`, which sets its state
+and failure reason, so any tool the deep model dispatched before the crash runs again, which is the
+double-run the dedup registry exists to prevent.
 
 ## Trail
 
@@ -56,3 +72,12 @@ request id today, and `CORTEX_ESCALATION` appears in `docker/` only inside a com
   rounds spent and the loop tail in order, and nothing in the brain's source spells a request id or
   an idempotency key; the word appears only where a control verb describes itself as idempotent.
   The trigger has not fired.
+- 2026-09-19: the record, the conductor and boot recovery were read against the entry, and the
+  claims about them hold: `HandoffRecord` has gained no field, the conductor fails the record on
+  every in-process teardown so only a process death strands one, and
+  `grep -rniE 'request_id|idempotency'` over the proto and the brain's source has no hit. Two things
+  had moved. The escalation switch became settable from a host `.env` on 2026-09-17, so the
+  negative claim that no deployment can strand a handoff was struck. The remedy was wrong about
+  where the resume runs: recovery is awaited before the seam serves, so the resume is a conductor
+  entry point run beside the seam, and the trigger now names the grep that answers it. The
+  trigger has not fired.
