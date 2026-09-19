@@ -97,7 +97,11 @@ five row table in the addendum it added. Then, per row:
 2. **Cut a scratch worktree at the drawn commit**, `git worktree add --detach <path> <sha>`, and
    not at master. The collection a table names is a historical fact, and a worktree at the commit
    reproduces it: the three tables replayed on 2026-08-25 baselined at exactly the 852, 119 and
-   2,878 cases they claim.
+   2,878 cases they claim. A brain row run with the main checkout's `brain/.venv` interpreter needs
+   `PYTHONPATH` set to the worktree's `brain/packages/*/src`. That venv installs every package as
+   an editable path into the main checkout, so without it a mutant planted under a worktree's
+   `packages/*/src` is never imported and the suite reports a zero; a plant in a test module is
+   imported off the worktree either way.
 3. **Ask whether the line still exists at master.** If it does not, the row is expired. Replaying
    it at its own commit still validates the record, and it says nothing about the suite that runs
    today, so spend the budget on the rows that say both.
@@ -170,3 +174,4 @@ Two places, and both are required for the next pass to work.
 | --- | --- | --- | --- | --- | --- |
 | 2026-08-21 | not recorded | none, chosen by hand | one week of the record, five tables | 32 rows over 49 runs | every row reproduced; cost four minutes per table where the file, the edit and the suite were named and fifteen where none of the three was |
 | 2026-08-25 | 2712a6aa1fd7c1c274a2f2c03b24fb0bf20872f2 | 19269061 | the 25 most recent bodies, five drawn | 10 rows over 16 runs, out of the 16 those tables state | every replayed row reproduced, one of them only after the plant was corrected; three of the five drawn bodies were opened and the pass was bounded by the session rather than by the record |
+| 2026-09-19 | 7088d2041cf04f027fb78c029602a4aff95acfd3 | 26747890 | the 25 most recent bodies, five drawn | 15 rows over 15 runs, out of the 15 those tables state, and the same 15 again over the suite at the drawn-from commit | every row reproduced at its own commit, the live-only zero included, and every mutant but that zero still fails today; all five bodies were opened, two carry no table and their readings reproduce at their parents, and one points at the table the commit before it landed, which is the one replayed |
