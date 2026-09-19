@@ -1,4 +1,4 @@
-"""Remember/recall use-case over the Embedder + MemoryStore ports (ADR-0008)."""
+"""Remember and recall, over the Embedder and MemoryStore ports."""
 
 from collections.abc import Callable, Sequence
 from uuid import uuid4
@@ -11,14 +11,14 @@ from cortex_core.scope import GLOBAL_MEMORY_SCOPE, MemoryScope
 
 
 def _uuid4_memory_id() -> str:
-    """Default memory-id factory; injectable so tests can pin ids."""
+    """Default memory-id factory; replaceable so tests can use fixed ids."""
     return str(uuid4())
 
 
 class MemoryRecaller:
-    """Embed-and-store on write, embed-and-search on read. This is the memory use-case."""
+    """Embed-and-store on write, embed-and-search on read."""
 
-    def __init__(  # noqa: PLR0913 -- four optional policy seams, each independently swappable
+    def __init__(  # noqa: PLR0913 -- four optional policy ports, each independently swappable
         self,
         store: MemoryStore,
         embedder: Embedder,
@@ -51,18 +51,23 @@ class MemoryRecaller:
         await self._store.add(record)
         return record
 
-    async def recall(self, query: str, *, k: int, session_id: str) -> Sequence[ScoredMemory]:
+    async def recall(
+        self, query: str, *, k: int, session_id: str, turn_id: str
+    ) -> Sequence[ScoredMemory]:
         """Return the ``k`` most relevant memories to ``query`` within the turn's read-scopes."""
         embedding = await self._embedder.embed(query)
         scopes = self._scope.read_scopes(session_id)
         pool = await self._store.search(embedding, k=self._policy.candidate_k(k), scopes=scopes)
         available = await self._count_candidates(scopes)
         now = self._clock.now()
-        ranking = await self._policy.select(pool, query=query, now=now, k=k, session_id=session_id)
+        ranking = await self._policy.select(
+            pool, query=query, now=now, k=k, session_id=session_id, turn_id=turn_id
+        )
         if self._audit is not None:
             await self._audit.record(
                 RecallAudit(
                     session_id=session_id,
+                    turn_id=turn_id,
                     query=query,
                     pool_size=len(pool),
                     available=available,

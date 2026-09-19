@@ -1,29 +1,22 @@
-# Runbook for memory on Postgres + pgvector (Slice 5 host half)
+# Runbook: memory on Postgres and pgvector
 
-Bring up the durable memory store and validate the pgvector adapter against it. This is the
-**host-driven** half of Slice 5: the CI half (the adapter, the embedder adapter, the wiring,
-100%-covered without a DB) is built and gated; here you run it against real Postgres. Design:
-[ADR-0008](../adr/ADR-0008-memory-v1.md); module: [brain-memory.md](../modules/brain-memory.md).
-CI never runs any of this (service-free by design, AGENTS.md gate 3).
+Bring up the durable memory store and check the pgvector adapter against it. CI never runs any of
+this, because CI runs no services. Design: [ADR-0008](../adr/ADR-0008-memory-v1.md).
 
-## Bring up Postgres (enough for the memory adapter)
+## Bring up Postgres
 
-The memory contract test needs **only Postgres** (it builds embeddings by hand, with no
-embedder). From the repo root:
+The memory contract test needs only Postgres; it builds embeddings by hand, with no embedder.
 
 ```
 docker compose --project-directory . -f docker/docker-compose.yml -f docker/docker-compose.memory.yml up -d postgres
 ```
 
-`docker/postgres/init.sql` creates the `vector` extension and the `memories` table on first
-init, and `docker/postgres/live-contract-db.sql` creates the `cortex_contract` database the
-integration test below owns, applying that same file to it. Data lives in the `cortex-pgdata`
-named volume (not a Windows bind mount, ADR-0008).
-
-- **Sanity poke** (loopback publish on `127.0.0.1:5432`):
-  `docker compose ... exec postgres psql -U cortex -d cortex -c '\dx vector'`.
-- **From WSL** (automount/interop off): same drvfs + `DOCKER_CONFIG` one-time steps as the
-  [llama.cpp runbook](llamacpp-gpu.md). The models mount only matters for the embedder below.
+`docker/postgres/init.sql` creates the `vector` extension and the `memories` table on first init,
+and `docker/postgres/live-contract-db.sql` creates the `cortex_contract` database the integration
+test owns. Data lives in the `cortex-pgdata` named volume, not a Windows bind mount. Check it with
+`docker compose ... exec postgres psql -U cortex -d cortex -c '\dx vector'`; the loopback publish
+is `127.0.0.1:5432`. From WSL with automount and interop off, the same drvfs and `DOCKER_CONFIG`
+steps as [llamacpp-gpu.md](llamacpp-gpu.md) apply.
 
 ## Run the memory integration test
 
@@ -32,47 +25,39 @@ cd brain && CORTEX_MEMORY_DSN=postgresql://cortex:cortex@127.0.0.1:5432/cortex \
   uv run pytest -m integration --no-cov packages/memory
 ```
 
-`--no-cov` matters, since the 100% gate in the workspace addopts would otherwise fail the run.
-This runs the full `MemoryStore` contract (empty search, cosine ranking, top-k, roundtrip
-fidelity including the `scope`, and scope-filter isolation/union) against real pgvector,
-proving the adapter's SQL, which CI's canned-row fake cannot.
-
-**Give it the DSN of the brain's database, not of its own.** The run redirects onto
-`cortex_contract` itself (`brain/packages/memory/tests/live_postgres.py`), which it empties before
-the suite and after every check, so your memories are never read, written, or deleted and the two
-checks that assert over the whole table (`check_empty_search` asserts `search(k=5)` is empty,
-`check_ranks_by_similarity` an exact top-2) hold however much the brain has remembered. That is
-the Redis suites' logical database in the form Postgres has for it (ADR-0002 addendum on the live
-pgvector database). Pointing `CORTEX_MEMORY_DSN` at `cortex_contract` fails the run rather than
-running there, since that would aim the brain at the database the suite empties.
+`--no-cov` is required, or the workspace's 100% coverage threshold fails the run. This runs the
+full `MemoryStore` contract (empty search, cosine ranking, top-k, roundtrip fidelity including the
+`scope`, and scope-filter isolation and union) against real pgvector, which CI's canned-row fake
+cannot do. **Give it the DSN of the brain's database, not of its own.** The run redirects onto
+`cortex_contract` itself, which it empties before the suite and after every check, so your
+memories are never touched and the two checks that assert over the whole table hold however much
+the brain has remembered. Pointing `CORTEX_MEMORY_DSN` at `cortex_contract` fails the run.
 
 **If the run fails at startup** with `the cortex_contract database is missing or unbootstrapped`,
-your data dir predates that database: an initdb script never re-runs on an existing volume. Create
-it once, with the same bootstrap file, which stays mounted in the container after init:
+your data directory predates that database, since an initdb script never re-runs on an existing
+volume. Create it once with the same bootstrap file, still mounted after init:
 
 ```
 docker compose ... exec postgres psql -U cortex -d cortex -c 'CREATE DATABASE cortex_contract;'
 docker compose ... exec postgres psql -U cortex -d cortex_contract -f /docker-entrypoint-initdb.d/init.sql
 ```
 
-It holds nothing but the suite's own rows, so dropping it costs nothing;
-`pg-backup` dumps `-d cortex` only, and never exports it.
+It holds nothing but the suite's own rows, so dropping it costs nothing, and `pg-backup` never
+exports it.
 
-## Setting any of these on the dockerized brain
+## Setting a memory variable on the dockerized brain
 
-Every `CORTEX_MEMORY_*` knob below is a **pass-through** on the memory override, meaning
-`docker/docker-compose.memory.yml` names it under `brain.environment` with no value. A bare key is
-compose's pass-through: set on the host it reaches the container, left unset it never enters the
-container at all, so each shipped default stays declared once in `MemoryConfig` rather than being
-restated in YAML where it could drift. Put them in the repo-root `.env` or in front of the command:
+Every `CORTEX_MEMORY_*` setting below is passed through: `docker/docker-compose.memory.yml` names
+it under `brain.environment` with no value, so set on the host it reaches the container and left
+unset it never enters the container. Put them in the repo-root `.env` or in front of the command:
 
 ```
 CORTEX_MEMORY_RECALL=raw CORTEX_MEMORY_RECALL_AUDIT=1 docker compose --project-directory . \
   -f docker/docker-compose.yml -f docker/docker-compose.memory.yml up -d
 ```
 
-To change one on a running stack, recreate **only** the brain and leave Postgres, the embedder and
-any loaded model where they are. `docker compose restart brain` will not do: it reuses the existing
+To change one on a running stack, recreate only the brain and leave Postgres, the embedder and
+any loaded model where they are. `docker compose restart brain` will not do, since it reuses the
 container and so keeps the old environment.
 
 ```
@@ -81,30 +66,21 @@ CORTEX_MEMORY_RECALL=raw docker compose --project-directory . \
   up -d --no-deps --force-recreate brain
 ```
 
-Before 2026-08-09 none of these reached the dockerized brain at all: the override set the backend,
-the DSN and the embedder endpoint and nothing else, so this runbook documented variables an
-operator running the stack in Docker had no way to supply. The pass-through block landed with the
-turn-cost harness (ADR-0038 harness addendum), which needs exactly this restart between arms.
-
-## The password the DSN can carry (ADR-0038 unreadable-DSN addendum)
+## The password the DSN can include
 
 `CORTEX_PG_PASSWORD` reaches Postgres twice, once as the server's own password and once inside
-`CORTEX_MEMORY_DSN`, and inside a URL it has to be percent-encoded. A password carrying a character
-that ends a URL's authority, `/` above all, makes the driver read the password's first segment as
-a port. The brain refuses that at boot, before anything dials:
+`CORTEX_MEMORY_DSN`, where it has to be percent-encoded. A password containing a character that
+ends a URL's authority, `/` above all, makes the driver read the password's first segment as a
+port, which the brain refuses at boot:
 
 ```
 cortex_orchestrator.config.MemoryConfigError: CORTEX_MEMORY_DSN carries an authority the Postgres
 driver cannot read; percent-encode any password character that would end a URL's authority
 ```
 
-The refusal names the variable and no part of what it holds, because nothing catches it and the
-interpreter prints it. Percent-encode the character (`/` is `%2F`) in the DSN and leave
-`POSTGRES_PASSWORD` as the raw text, which is not a URL.
-
-The check reruns three of `asyncpg`'s own parsing steps rather than calling it, since the driver
-reads the DSN inside `create_pool` and by then the failure has already happened. After upgrading
-the driver, retake the reading those steps are mirrored from:
+Percent-encode the character (`/` is `%2F`) in the DSN and leave `POSTGRES_PASSWORD` as raw text.
+The check repeats three of `asyncpg`'s own parsing steps rather than calling it, since the driver
+reads the DSN inside `create_pool`. After a driver upgrade, take that reading again:
 
 ```
 cd brain && .venv/bin/python -c "import asyncio, asyncpg; \
@@ -112,244 +88,103 @@ cd brain && .venv/bin/python -c "import asyncio, asyncpg; \
 ```
 
 On 0.31.0 that raises `ValueError: invalid literal for int() with base 10: 'hun'`, the password's
-first segment and nothing else. An upgrade that fails differently, or fails at connection time
-instead, is a driver whose parse `dsn.py` no longer mirrors.
+first segment and nothing else. An upgrade that fails differently, or at connection time, is a
+driver whose parse `dsn.py` no longer mirrors.
 
-## Memory scoping (ADR-0008 scoping addendum)
+## Memory scoping
 
-Recall is **global by default** (`CORTEX_MEMORY_SCOPE=global`). Memories are one shared space
-across every conversation, the founding "retrieval that grows" behavior. Set
-`CORTEX_MEMORY_SCOPE=session` to isolate each conversation: a memory recorded in one session is
-never recalled in another (`search` filters on `scope = ANY(read-scopes)`). It applies only when
-`CORTEX_MEMORY_BACKEND=pgvector`; the policy is selected at the composition root, never in the core.
+Recall is global by default (`CORTEX_MEMORY_SCOPE=global`), so memories are one shared space
+across every conversation. `CORTEX_MEMORY_SCOPE=session` isolates each conversation: a memory
+recorded in one session is never recalled in another. It applies only when
+`CORTEX_MEMORY_BACKEND=pgvector`.
 
 Changing the setting does not move a memory already stored. Each row keeps the scope it was
-recorded under, and rows older than the scope column were back-filled into `global`. A store that
-ran under `global` and is then set to `session` therefore keeps every earlier memory in `global`,
-where session recall never reads it and deleting a session never removes it. Setting `global` over
-a store that ran under `session` does the reverse: global recall reads with no filter, so every
-conversation's private memories become recallable from every other conversation.
+recorded under, and rows older than the scope column were back-filled into `global`. So a store
+that ran under `global` and is then set to `session` keeps every earlier memory in `global`, where
+session recall never reads it and deleting a session never removes it, and setting `global` over a
+store that ran under `session` makes every conversation's private memories recallable from every
+other conversation.
 
-## Recall ranking and its trail (`CORTEX_MEMORY_RECALL`, ADR-0008 and ADR-0038)
+## When a recall is not ranked, and how to read the audit line
 
-`judge` **is the default** since the ADR-0038 turn-cost addendum: the model rank hands the
-over-fetched pool to the resident cortex and takes back an ordering, so a recalling turn spends one
-bounded cortex generation before it answers and the GPU stack has to be up. It falls back to raw
-cosine whenever the model cannot be reached or its reply cannot be read as an order, and the
-fallback is visible rather than
-silent, because the trail records the basis that actually ranked. **What it costs, measured over 48
-real turns an arm on the 24 GB card:** the rank alone is 0.877 s at the pool a turn asks for (`k` 5
-at `pool_factor` 4, so 20 candidates), and a turn's time to first token rises 0.515 s (95% CI 0.116
-to 0.915) rather than the full 0.877 s, because a rank that keeps 1.17 notes gives the reply a
-smaller memory block to read than the cosine's 5. It is paid on every recalling turn; nothing
-caches a rank, unlike the history fold.
-
-Reproduced 2026-08-09 by the committed harness below at 0.539 s (95% CI 0.054 to 1.111) against a
-control arm whose interval spans zero, on a different day and a driver rebuilt from that addendum's
-prose. The same run puts the whole-turn cost at 0.979 s rather than the 0.526 s first published, and
-locates nearly all of the excess in the question memory cannot answer: when the rank declines, the
-turn carries no memory block and the model says at length that it does not know, where the cosine's
-five nearest misses give it something short to say.
-
-`raw` is top-`k` cosine exactly as it always was, and is now the **opt-out**: set
-`CORTEX_MEMORY_RECALL=raw` for the founding behavior, on a stack with no GPU, or to take that half
-second back. `reranked`, `mmr` and `recency_mmr` are the heuristic policies, tuned by the
-`CORTEX_MEMORY_RECALL_*` knobs.
-
-`judge` is also the only policy that can **return nothing**. Asked a question none of the candidates
-answers, it says so and the turn is assembled with no recalled memories at all, which the trail
-reports as the `demur` basis with an empty hit list (ADR-0038 abstention addendum). That is a
-different line from a fallback, which shows the fallback's basis and the notes it chose, and from an
-empty pool, which shows the ranking policy's own basis. The geometric policies have no way to
-decline: they always return their nearest `k`, so under `raw` a question memory cannot answer still
-recalls the three least-unrelated notes it holds. **That is a property of ranking by distance and
-not a gap waiting to be filled**, so setting `CORTEX_MEMORY_RECALL=raw` is an opt-out of the
-abstention as much as of the rank. A similarity floor was the obvious way to give the geometric
-policies an abstention, and it was calibrated on the real embedder before being declined
-(ADR-0038 relevance-floor addendum):
-over the 41-note corpus the questions memory can answer and the questions it cannot overlap on
-cosine, so every floor that silences the second silences the first, worst of all where a note
-answers in words the question never used. Reproduce or reopen it behind another embedding model
-with `packages/inference/tests/test_recall_floor_live.py`, which needs only the CPU embedder below.
-
-**A judge that falls back says so, with the trail off** (ADR-0038 unjudged-rank addendum). The
-rank warns in the brain's own container logs whenever something stops it ranking, so a deployment
-whose judge has never once answered no longer reads exactly like one where it answers every turn:
+What each policy does and costs: [memory-measurements.md](memory-measurements.md). A judge that
+falls back says so even with the audit off, warning in the brain's container logs whenever
+something stops it ranking:
 
     docker compose --project-directory . -f docker/docker-compose.yml \
       -f docker/docker-compose.gpu.yml -f docker/docker-compose.memory.yml logs brain \
       | grep "unjudged ranking"
 
-There are two lines and which one arrives is most of the diagnosis. `the model could not be asked
-to rank recall` is the backend: the cortex is not serving, or the model host is down, and the
-traceback printed under the line says which. `the model returned no usable recall order` is a reply
-that arrived and could not be read as an order, and it carries two readings that split its causes
-apart:
+Which of the two lines arrives is most of the diagnosis. `the model could not be asked to rank
+recall` is the backend: the cortex is not serving or the model host is down, and the traceback
+under the line says which. `the model returned no usable recall order` is a reply that could not
+be read as an order, and two of its fields split the causes apart:
 
 | Reading | What happened | Where to look next |
 | --- | --- | --- |
 | `capped=True` | The reply ran out of tokens mid-envelope, so it is not JSON at all. | Recall fewer notes, or widen the rank bound (`RANK_ENVELOPE_TOKENS` and `RANK_TOKENS_PER_CANDIDATE` in `rerank_judge.py`). |
-| `capped=False chars=0` | The model emitted no answer text whatever, which on this path means a tier that ignored the request to skip thinking and put the whole reply in its reasoning. | The model's own chat template, and the thinking switch the inference adapter sends with the request. |
-| `capped=False` and `chars` above zero | Text arrived and was not the envelope, so constrained decoding did not hold. | Whether the llama-server build honours the JSON schema the rank request carries. |
+| `capped=False chars=0` | The model emitted no answer text at all, which on this path means a tier that ignored the request to skip thinking and put the whole reply in its reasoning. | The model's own chat template, and the thinking switch the inference adapter sends with the request. |
+| `capped=False` and `chars` above zero | Text arrived and was not the envelope, so constrained decoding did not hold. | Whether the llama-server build honours the JSON schema in the rank request. |
 
-Those two readings are **fields**, printed after the message by the formatter the process entry
-installs (ADR-0038 rendered-fields addendum), and fields render in name order, so they arrive
-adjacently as `capped=True chars=0`. The judge used to spell them into its message as well, back
-when the shipped handler printed no field at all; it no longer does, so a deployment reading these
-lines through some other handler sees the message alone.
+Fields render in name order, so those two arrive adjacently as `capped=True chars=0`. Both lines
+also name `pool`, the candidates that went unjudged, `k`, the width asked of the rank, and
+`session_id`, the conversation the recall was for, written the way the audit line below writes it,
+so a fallback and the audit line for one recall are joined by
+`grep "session_id=<id>"` on one stream. `session_id=None` means the port was called by something
+that named no conversation, which nothing in the shipped brain does. Both lines name
+`turn_id` too, and so does the audit line, so
+`grep "turn_id=<id>"` returns the one audit line the fallback belongs to. No such line at all
+means the rank is working.
 
-Both lines name `pool`, the candidates that went unjudged, and `k`, the width asked of the rank,
-and both name `session_id`, the conversation the recall was for (ADR-0038 named-recall addendum).
-That last one is spelled the way the recall trail below spells it, so a fallback and the trail line
-for the same recall are joined by `grep "session_id=<id>"` on one stream; without it a burst of
-these on a brain serving several conversations could not be attributed to any of them. It is an id
-and nothing more, the question and the notes being conversation text that these lines never carry.
-`session_id=None` means the port was called by something that named no conversation, which nothing
-in the shipped brain does. Both of them and the trail spelled it `session` until the brain settled
-on one name per work identity (ADR-0009 one-vocabulary addendum), so the same grep now also reaches
-the turn's own failure lines and its audited tool calls, which always spelled it this way.
-
-No such line means the rank is working. A pool the model ordered and a pool it read and declined both
-pass without a line, the second showing as the `demur` basis on the trail below, and so does an
-empty pool, there being nothing to rank.
-
-Set `CORTEX_MEMORY_RECALL_AUDIT=1` to turn that trail on: one `cortex.memory.recall` line per
-recall, in the brain's container logs, carrying the pool size, how many candidates were available
-to it, the rank basis, whether keys on that
-basis may be compared, and each kept hit's memory id, cosine score and rank key. It is a bare
-`memory.recall` message followed by those as `key=value` fields, `hits` and `dropped` arriving as
+Set `CORTEX_MEMORY_RECALL_AUDIT=1` to turn the audit on: one `cortex.memory.recall` line per
+recall, in the brain's container logs, with the conversation and turn it was made for, the pool
+size, how many candidates were available to it, the rank basis, whether keys on that basis may be
+compared, and each kept hit's memory id, cosine score and rank key. It is a bare
+`memory.recall` message followed by those as `key=value` fields, with `hits` and `dropped` as
 compact JSON inside their own field, so one line is both readable and pasteable into `jq`
-(`CORTEX_LOG_FORMAT=packed` makes the whole line one JSON object if you would rather not slice it
-out; see [local-dev-wsl.md](local-dev-wsl.md)). It never carries
-text, neither the query nor a recalled memory, so a line names *which* memories came back and never
-what they said; pair an id with the `memories` table when you need the content. This is the answer
-to "why did recall return these?", which used to need a throwaway script against the store.
-
-The same line answers the harder question, "why did it not remember X?". `dropped` names every
-candidate the store offered and the rank did not keep, by memory id and by the store's cosine, so
-an id that appears there was read and passed over while an id in neither `hits` nor `dropped` was
-never a candidate at all. That distinction matters most under the shipped default, since a judge
-rank returns about one note where the cosine returned five, so most of the pool disappears on a
-normal turn. Two things to read carefully. A dropped candidate carries **no rank key**, because a
-rank key is assigned only to what the rank kept and the judge leaves an unhelpful note out of its
-order rather than scoring it low, so the line says what was available and not why the rank
-declined it.
-And the list is bounded at 20, which is the whole pool a default deployment ever fetches (a recall
-of five at a pool factor of four): `dropped_omitted` says how many more there were, and it reads 0
-unless you have widened `CORTEX_MEMORY_RECALL_POOL_FACTOR` past what ships.
-
-`available` is what makes "never a candidate" readable off the line. It is the store's own
-count of the namespaces this recall was allowed to read, so compare it with `pool`:
-
-| Line | What it means | Where to look next |
-| --- | --- | --- |
-| `pool` equals `available` | The pool WAS everything readable. Nothing was cut. | The memory was never written, or it was written outside the read scopes. Check `scope` in the `memories` table. |
-| `pool` below `available` | The pool stopped at its requested width and the rest of the store went unseen. | The memory may simply have ranked below the cut. Widen `CORTEX_MEMORY_RECALL_POOL_FACTOR` and recall again. |
-
-That is also how to answer "is my pool wide enough": `available` says what share of the readable
-store a recall actually looks at, and a deployment that has widened its factor can watch the gap
-close. The requested width itself is not logged: where it matters it equals `pool`, and where it
-does not it explains nothing.
-
-The count is a second statement against Postgres rather than part of the ranked `SELECT`, and it
-is issued **only** when this trail is on, so leaving the audit off costs a recall nothing at all.
-It is cheap when on: it reads the `memories_scope_idx` btree as an index-only scan and never
-touches the embeddings, which measured about 2 ms against a 520 ms search over 100k rows, rising
-to roughly 25 ms on a table whose recent writes autovacuum has not yet caught up with. Because the
-count and the search are two reads and not one transaction, a `pool` above `available` is possible
-in principle and means only that a namespace was deleted between them.
+(`CORTEX_LOG_FORMAT=packed` makes the whole line one JSON object; see
+[brain-logs.md](brain-logs.md)). It never includes text, so a line names which memories came
+back and never what they said; pair an id with the `memories` table for the content.
 
     docker compose --project-directory . -f docker/docker-compose.yml \
       -f docker/docker-compose.gpu.yml -f docker/docker-compose.memory.yml logs -f brain \
       | grep memory.recall
 
-## Measuring what an arm costs a whole turn (ADR-0038 harness addendum)
+The same line answers the harder question, "why did it not remember X?".
+`dropped` names every candidate the store offered and the rank did not keep, by memory id and by
+the store's cosine, so an id that appears there was read and passed over while an id in neither
+`hits` nor `dropped` was never a candidate at all. A dropped candidate has no rank key, because a
+rank key is assigned only to what the rank kept, so the line says what was available and not why
+the rank declined it. The list is bounded at 20, the whole pool a default deployment fetches;
+`dropped_omitted` says how many more there were.
 
-The numbers above came from real turns through the seam, and the harness that produced them is in
-the repo:
+`available` is the store's own count of the namespaces this recall was allowed to read, which is
+what makes "never a candidate" readable off the line. Compare it with `pool`:
 
-```
-CORTEX_MODELS_DIR=/path/to/models just turn-cost
-```
+| Line | What it means | Where to look next |
+| --- | --- | --- |
+| `pool` equals `available` | The pool was everything readable. Nothing was cut. | The memory was never written, or it was written outside the read scopes. Check `scope` in the `memories` table. |
+| `pool` below `available` | The pool stopped at its requested width and the rest of the store went unseen. | The memory may simply have ranked below the cut. Widen `CORTEX_MEMORY_RECALL_POOL_FACTOR` and recall again. |
 
-That brings up the gpu plus memory stacks and runs **three blocks in A/B/A order**, `raw` then
-`judge` then `raw`, recreating only the brain between them with `CORTEX_MEMORY_RECALL` changed and
-`CORTEX_MEMORY_SCOPE=session` plus `CORTEX_MEMORY_RECALL_AUDIT=1` on throughout. Each block runs
-`packages/orchestrator/tests/test_turn_cost_live.py`, which opens one `Converse` stream per turn
-against a fresh session whose scope it pre-seeds with the whole 41-note recall corpus, times the
-first `TextDelta` and the `TurnComplete`, and writes its sample to `measurements/`. The recipe then
-runs `scripts/contrast.py` over the three samples and prints the blocked paired bootstrap. The two
-outer blocks are the control: same configuration, different times, so their contrast is the noise
-floor the middle one has to clear. Roughly 15 minutes at the default of eight repetitions.
+The count is a second statement against Postgres, issued only when the audit is on, so leaving it
+off costs a recall nothing. It is an index-only scan of `memories_scope_idx` and never touches the
+embeddings: about 2 ms against a 520 ms search over 100k rows, up to roughly 25 ms when autovacuum
+is behind. Count and search are two reads rather than one transaction, so a `pool` above
+`available` means only that a namespace was deleted between them.
 
-`just turn-cost mmr raw 4` measures a different arm, and `just turn-cost judge judge` makes both
-outer blocks match the middle one, which is the null run to reach for when the harness itself is
-what is in doubt. Nothing is torn down at the end, so `docker compose ... logs brain | grep
-memory.recall` still holds the trail for the last block. The samples in `measurements/` are
-gitignored: they are evidence of one run on one machine, and the reading they support belongs in an
-ADR addendum.
+## Tainted-turn recording
 
-## Measuring how wide that trail line's widest field gets (ADR-0038 real-trail addendum)
+A turn that reads untrusted content is dropped from memory by default
+(`CORTEX_MEMORY_ON_TAINTED=skip`), so every stored memory is trusted. Set it to `record` to keep
+that context instead: the exchange is recorded with the `tainted` marker, and recall fences it and
+re-taints the turn, so it can only re-enter as data. The setting governs only writing, since a
+stored tainted memory is always fenced on recall, and it applies only when
+`CORTEX_MEMORY_BACKEND=pgvector`.
 
-`dropped` is the widest value the brain attaches to any log line, and `cortex_core.VALUE_CHARS`,
-the per-field bound, is sized to clear it. The figure it was sized against was synthesised: `uuid4`
-ids and cosine scores drawn in a script, no store anywhere near it. This is what reads the width
-off lines a live stack wrote instead:
-
-```
-CORTEX_MODELS_DIR=/path/to/models just recall-width
-```
-
-That brings up the gpu plus memory stacks, recreates the brain with `CORTEX_MEMORY_SCOPE=session`
-and `CORTEX_MEMORY_RECALL_AUDIT=1`, copies
-`brain/packages/orchestrator/tests/recall_trail_probe.py` and the wide recall corpus into the
-container, and runs the probe there. Inside the container it seeds a fresh session scope with all
-41 notes through `MemoryRecaller.record`, so the ids are minted by the shipped factory and the
-vectors by the real embedder, then recalls every question the corpus carries. Forty one notes
-against a pool of twenty is what makes the pool a real pool rather than the whole store. Each block
-finishes with real turns over the brain's own loopback seam, whose trail lines come back out of
-`docker compose logs brain` rather than off the probe's stream, which is what says the cheap phase
-measures the same lines a serving turn writes. `scripts/trailwidth.py` then reports each capture's
-range, median and a seeded bootstrap of the mean, and the count of renderings the bound cut.
-
-**The whole line is reported beside the field**, per capture and in the same cohorts, because the
-per-value bound leaves the line unbounded (ADR-0038 whole-line addendum). These are not the widest
-lines the brain writes: the tool audit's are, five of their eleven fields carrying text the brain
-did not choose, and one with all five past the bound renders at 10,593 characters, against a trail
-line's 4,464 at the shipped caps and the 16 KiB cliff a container's log driver ends a message at
-(ADR-0038 widest-line addendum, where `brain/packages/orchestrator/tests/test_widest_line.py` now
-holds both). The width counted is the rendering
-and not the
-captured text, so the `brain-1  |` prefix `docker compose logs` puts in front of a line is left
-out. Read the two ranges together rather than one after the other: the widest field and the widest
-line are not the same line, a rank that keeps three notes writing a narrower `dropped` and a wider
-line than one that keeps none.
-
-The harness runs two blocks by default, because the claim under test is about a maximum and one
-sample of a maximum can only grow with `n`. `just recall-width 1 2 0` is the quick shape to reach
-for when the harness
-itself is what is in doubt: one block, two passes, no turns. The captures land in `measurements/`
-and are gitignored for the reason the turn-cost samples are.
-
-**Read the cut count first.** Any number above zero says the bound cut a value that ships, which is
-the failure `VALUE_CHARS` was sized to avoid, and it makes every width beside it a reading of the
-bound rather than of the field.
-
-## Tainted-turn recording (`CORTEX_MEMORY_ON_TAINTED`, ADR-0019)
-
-A turn that reads untrusted content is dropped from memory by default (`skip`), so every stored
-memory is trusted. Set `CORTEX_MEMORY_ON_TAINTED=record` to preserve that context instead: the
-exchange is recorded with the `tainted` marker, and recall **fences** it (and re-taints the turn)
-so it can only re-enter as data, never trusted context. The knob governs only *writing*. A stored
-tainted memory is always fenced on recall regardless. It applies only when
-`CORTEX_MEMORY_BACKEND=pgvector`; the string maps to a bool at the composition root, never in the
-core.
-
-**Upgrading an existing DB.** `docker/postgres/init.sql` only runs on a *fresh* data dir, so a
-volume created before these addenda lacks the `scope` and/or `tainted` columns. Add them in place as
-each column's `DEFAULT` back-fills every existing row (into the global space / as trusted, since
-old rows were only ever written by untainted turns), so recall is unchanged until you opt into
-`session` scoping or `record` recording:
+**Upgrading an existing database.** `docker/postgres/init.sql` only runs on a fresh data
+directory, so a volume created before the `scope` and `tainted` columns existed lacks one or both.
+Add them in place; each column's `DEFAULT` back-fills every existing row, into the global space
+and as trusted, so recall is unchanged until you opt into one of those settings:
 
 ```
 docker compose ... exec postgres psql -U cortex -d cortex -c \
@@ -358,14 +193,13 @@ docker compose ... exec postgres psql -U cortex -d cortex -c \
    CREATE INDEX IF NOT EXISTS memories_scope_idx ON memories (scope);"
 ```
 
-An existing volume now has **two** databases holding that table, so run the same statements
-against `-d cortex_contract` as well, or drop and re-create it from `init.sql`; the contract run
-tests the adapter against whatever schema it finds there.
+An existing volume has two databases holding that table, so run the same statements against
+`-d cortex_contract` too, or drop and re-create it from `init.sql`.
 
-## Bring up the CPU embedder (for the end-to-end path)
+## Bring up the CPU embedder
 
-The embedder needs the nomic GGUF present under the models dir. Set `CORTEX_MODELS_DIR` (WSL:
-`/srv/models`) and `CORTEX_MODEL_FILE_EMBED` (the nomic pick's path under it), then:
+The embedder needs the nomic GGUF under the models directory, so set `CORTEX_MODELS_DIR` (on
+WSL, `/srv/models`) and `CORTEX_MODEL_FILE_EMBED` first.
 
 ```
 docker compose --project-directory . -f docker/docker-compose.yml -f docker/docker-compose.memory.yml up -d llama-embed
@@ -373,38 +207,27 @@ cd brain && CORTEX_EMBEDDING_ENDPOINT=http://127.0.0.1:8081 \
   uv run pytest -m integration --no-cov packages/embedding
 ```
 
-- **Renamed on 2026-08-30:** this variable was `CORTEX_EMBED_MODEL_FILE` until the CPU
-  embedder's artifact was brought under the naming convention every model artifact this tree
-  names follows, `CORTEX_MODEL_FILE_<tier>` (`scripts/flagcheck.py` now holds this one too;
-  ADR-0029's addendum on a non-chat artifact naming itself in the family). Nothing reads the
-  old name, so a `.env` that still sets it runs the shipped nomic pick instead of the
-  override, which matters only to a deployment that had named the `v2-moe` alternative below:
-  rename the key there and the stack loads what it did before. Recreate `llama-embed` after
-  changing it, and note that the column is dimension-agnostic, so a wrong pick is a silent
-  change in what recall returns rather than an insert that fails.
-- **Healthcheck:** if the CPU `server` image ships without `curl`, the healthcheck stays
-  unhealthy though the server is up. Watch `docker compose logs llama-embed` for the
-  `listening on http` line, or swap the compose test for a `python -c` poke.
-- With both up, `docker compose --project-directory . -f docker/docker-compose.yml -f docker/docker-compose.memory.yml up` runs
-  the brain with `CORTEX_MEMORY_BACKEND=pgvector`, so turns recall + record for real.
+`CORTEX_MODEL_FILE_EMBED` was `CORTEX_EMBED_MODEL_FILE` until 2026-08-30, and nothing reads the
+old name, so a `.env` that still sets it runs the shipped nomic model instead of the override.
+Recreate `llama-embed` after changing it; the column is dimension-agnostic, so a wrong choice is a
+silent change in what recall returns rather than an insert that fails. If the CPU `server` image
+ships without `curl` the healthcheck stays unhealthy though the server is up; watch
+`docker compose logs llama-embed` for the `listening on http` line instead.
 
-## The nomic pick (validated 2026-06-29)
+**nomic-embed-text-v1.5 Q8_0** (768 dimensions, about 146 MB) is the compose default, validated
+2026-06-29: it loads in about 1.2 s on CPU with negligible RAM. `nomic-embed-text-v2-moe` (also
+768 dimensions, larger, multilingual) is the alternative. With both services up, adding the memory
+override to `docker compose up` runs the brain with `CORTEX_MEMORY_BACKEND=pgvector`, so turns
+recall and record for real.
 
-**nomic-embed-text-v1.5 Q8_0** (768-dim, ~146 MB) is the compose default and the validated
-pick. It loads in ~1.2 s on CPU with negligible RAM. `nomic-embed-text-v2-moe` (also
-768-dim, larger, multilingual) is the alternative via `CORTEX_MODEL_FILE_EMBED`. Recorded in
-the [ADR-0004 addendum](../adr/ADR-0004-model-lineup.md). The `memories.embedding` column is
-dimension-agnostic, so switching needs no migration.
+## Export and restore
 
-## Plug-and-play export (ADR-0008)
-
-The durable data is a named volume, not a raw `D:\Software\AI\Database` bind mount (Postgres
-PGDATA over a Windows bind mount has ownership/latency pitfalls). The plug-and-play guarantee
-is the **`pg-backup` sidecar** (in `docker-compose.memory.yml`, script
-`docker/postgres/backup.sh`): it `pg_dump`s into `CORTEX_DB_DIR` (default
-`./pgdata`; WSL: `/srv/pgdata`) immediately on start and then every
-`CORTEX_DB_SYNC_INTERVAL_S` seconds (default 6 h), writing `cortex.dump` atomically and
-keeping the prior dump as `cortex-previous.dump`. It starts with the stack:
+The durable data is a named volume rather than a raw Windows bind mount, because Postgres PGDATA
+over one has ownership and latency problems. Export is the `pg-backup` sidecar in
+`docker-compose.memory.yml` (script `docker/postgres/backup.sh`): it runs `pg_dump` into
+`CORTEX_DB_DIR` (default `./pgdata`; on WSL `/srv/pgdata`) on start and then every
+`CORTEX_DB_SYNC_INTERVAL_S` seconds (default 6 h), writing `cortex.dump` atomically and keeping
+the prior dump as `cortex-previous.dump`.
 
 ```
 CORTEX_DB_DIR=/srv/pgdata \
@@ -412,21 +235,11 @@ CORTEX_DB_DIR=/srv/pgdata \
 ls /srv/pgdata   # cortex.dump appears after the first tick; watch: docker compose logs pg-backup
 ```
 
-The sidecar runs the same `pgvector/pgvector:pg16` image as the server so that `pg_dump` matches
-the major version, and that image declares `VOLUME /var/lib/postgresql/data`. The sidecar never
-opens a data directory (it dumps over the network and the compose file overrides the entrypoint),
-but docker keeps the declaration regardless, so until 2026-08-25 every start of this stack left a
-fresh anonymous volume on the host. It now mounts a `tmpfs` there, which leaves docker's
-declaration nothing to fill. `just image-volumes` is what re-derives that class of fact from a
-running docker; `just check` reads the record it writes, so a newly pinned image with a new
-declared path fails the gate rather than quietly collecting volumes.
-
-Restore with `pg_restore -U cortex -d cortex /path/to/cortex.dump`. A one-off manual dump
-remains available (`docker compose ... exec postgres pg_dump -U cortex -d cortex -Fc -f
-/tmp/cortex.dump`, then copy it out) but the guarantee no longer depends on remembering it.
-Validating a direct PGDATA bind mount as a nice-to-have (not the default) is optional, and is
-tracked as an optional user check in
-[docs/host/index.md#windows-desktop](../host/index.md#windows-desktop); no procedure exists for it yet.
+The sidecar runs the same `pgvector/pgvector:pg16` image as the server so `pg_dump` matches the
+major version. That image declares `VOLUME /var/lib/postgresql/data` and docker keeps the
+declaration even though the sidecar never opens a data directory, so it mounts a `tmpfs` there.
+Restore with `pg_restore -U cortex -d cortex /path/to/cortex.dump`, or dump by hand with
+`docker compose ... exec postgres pg_dump -U cortex -d cortex -Fc -f /tmp/cortex.dump`.
 
 ## Teardown
 
@@ -434,4 +247,4 @@ tracked as an optional user check in
 docker compose --project-directory . -f docker/docker-compose.yml -f docker/docker-compose.memory.yml down
 ```
 
-Add `-v` to also drop the `cortex-pgdata` volume (wipes the memory store).
+Add `-v` to also drop the `cortex-pgdata` volume, which wipes the memory store.

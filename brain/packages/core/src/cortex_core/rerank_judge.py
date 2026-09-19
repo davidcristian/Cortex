@@ -1,5 +1,4 @@
-"""The model-based recall rank: ask the resident model which candidates answer the query (ADR-0038).
-"""
+"""The model-based recall rank: ask the resident model which candidates fit the query."""
 
 import json
 import logging
@@ -19,8 +18,6 @@ from cortex_core.stops import StopLedger
 
 _logger = logging.getLogger(__name__)
 
-# The reply shape. An array of candidate numbers, best first, and nothing else: there is no
-# grammatical position for an explanation, so the parse is a list lookup rather than prose mining.
 ORDER_ENVELOPE: JsonSchema = {
     "type": "object",
     "properties": {"order": {"type": "array", "items": {"type": "integer"}}},
@@ -34,20 +31,19 @@ _INSTRUCTION = (
     "that do not help at all."
 )
 
-# How much of a candidate to show the model. Recall candidates are single exchanges, so this holds
-# whole ones in practice, and it bounds the prompt when a long one turns up.
 CANDIDATE_CHARS = 400
 
-# The prompt is not a conversation turn, so its ``turn_id`` is a constant rather than a real one:
-# nothing persists these messages, and a borrowed turn id would read as this turn in a log.
 _RANK_TURN_ID = "recall-rank"
 
+# Sized from measurement rather than fixed: the JSON reply alone decoded 14 to 16 tokens for
+# a single pick, and each further candidate adds a comma, a space and its digits. A fixed
+# constant would start truncating the day a deployment recalls more, with nothing saying so.
 RANK_ENVELOPE_TOKENS = 24
 RANK_TOKENS_PER_CANDIDATE = 8
 
 
 def rank_bounds(k: int) -> GenerationBounds:
-    """The bounds one rank request carries: no thinking, no trace, and room for ``k`` picks."""
+    """The bounds for one rank request: no thinking, no trace, and room for ``k`` picks."""
     return GenerationBounds(
         max_tokens=RANK_ENVELOPE_TOKENS + RANK_TOKENS_PER_CANDIDATE * k,
         thinking=False,
@@ -85,8 +81,7 @@ def parse_order(raw: str, *, pool_size: int, k: int) -> tuple[int, ...] | None:
 
 
 class JudgeRecallPolicy:
-    """Rank the candidate pool by asking the model, falling back to another policy when it cannot.
-    """
+    """Rank the candidate pool by asking the model, falling back to another policy on failure."""
 
     def __init__(
         self,
@@ -116,11 +111,14 @@ class JudgeRecallPolicy:
         now: datetime,
         k: int,
         session_id: str | None = None,
+        turn_id: str | None = None,
     ) -> Ranking:
         """Ask the model to order the pool: fall back on a failure, keep nothing on a refusal."""
         if not hits:
+            # No candidates, so no ranking was possible and none was attempted: this path
+            # writes no log line, unlike the two failures below.
             return await self._fallback.select(
-                hits, query=query, now=now, k=k, session_id=session_id
+                hits, query=query, now=now, k=k, session_id=session_id, turn_id=turn_id
             )
         stops = StopLedger()
         try:
@@ -133,15 +131,13 @@ class JudgeRecallPolicy:
                 stops=stops,
             )
         except InferenceError:
-            # The backend, rather than the reply: there is no completion to describe, so the
-            # cause rides as ``exc_info`` the way every other degraded-turn warning carries it.
             _logger.warning(
                 "the model could not be asked to rank recall; falling back to the unjudged ranking",
-                extra={"session_id": session_id, "pool": len(hits), "k": k},
+                extra={"session_id": session_id, "turn_id": turn_id, "pool": len(hits), "k": k},
                 exc_info=True,
             )
             return await self._fallback.select(
-                hits, query=query, now=now, k=k, session_id=session_id
+                hits, query=query, now=now, k=k, session_id=session_id, turn_id=turn_id
             )
         order = parse_order(raw, pool_size=len(hits), k=k)
         if order is None:
@@ -149,6 +145,7 @@ class JudgeRecallPolicy:
                 "the model returned no usable recall order; falling back to the unjudged ranking",
                 extra={
                     "session_id": session_id,
+                    "turn_id": turn_id,
                     "pool": len(hits),
                     "k": k,
                     "capped": stops.capped,
@@ -156,7 +153,7 @@ class JudgeRecallPolicy:
                 },
             )
             return await self._fallback.select(
-                hits, query=query, now=now, k=k, session_id=session_id
+                hits, query=query, now=now, k=k, session_id=session_id, turn_id=turn_id
             )
         if not order:
             return Ranking(hits=(), basis=RankBasis.DEMUR)

@@ -1,4 +1,4 @@
-"""LoggingRecallSink: the RecallAuditSink writing the recall trail to structured logs (ADR-0038)."""
+"""LoggingRecallSink: the RecallAuditSink that writes each recall to the structured logs."""
 
 import logging
 
@@ -16,6 +16,7 @@ class LoggingRecallSink:
         """Log one recall: the pool, what it was drawn from, the basis, the hits, and the drops."""
         fields: dict[str, object] = {
             "session_id": audit.session_id,
+            "turn_id": audit.turn_id,
             "query_chars": len(audit.query),
             "pool": audit.pool_size,
             "available": audit.available,

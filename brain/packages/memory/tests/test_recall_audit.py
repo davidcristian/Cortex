@@ -1,5 +1,3 @@
-"""Behavior of LoggingRecallSink: the recall trail carries the ranking and never the text."""
-
 import logging
 from datetime import UTC, datetime
 
@@ -37,6 +35,7 @@ def _audit(
     ranked = RankedMemory(hit=ScoredMemory(record=record, score=0.87), key=0.71)
     return RecallAudit(
         session_id="s1",
+        turn_id="t1",
         query="what goes in the recipe?",
         pool_size=pool_size,
         available=available,
@@ -48,7 +47,7 @@ def _audit(
 
 
 def _logged(caplog: pytest.LogCaptureFixture) -> dict[str, object]:
-    """Return the fields the line carries, read off the record as the formatter reads them."""
+    """Return the fields on the line, read off the record as the formatter reads them."""
     (record,) = caplog.records
     return record_fields(record)
 
@@ -75,8 +74,6 @@ async def test_the_trail_carries_the_pool_the_basis_and_each_hits_rank_key(
 async def test_a_full_pool_and_an_exhausted_store_are_different_lines(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """A pool of 20 says nothing on its own about what it was drawn from (ADR-0038 count addendum).
-    """
     with caplog.at_level(logging.INFO, logger="cortex.memory.recall"):
         await LoggingRecallSink().record(_audit(pool_size=20, available=20))
     exhausted = _logged(caplog)
@@ -85,14 +82,13 @@ async def test_a_full_pool_and_an_exhausted_store_are_different_lines(
         await LoggingRecallSink().record(_audit(pool_size=20, available=4213))
     truncated = _logged(caplog)
 
-    assert (exhausted["pool"], exhausted["available"]) == (20, 20)  # the pool WAS the store
-    assert (truncated["pool"], truncated["available"]) == (20, 4213)  # the pool was cut
+    assert (exhausted["pool"], exhausted["available"]) == (20, 20)
+    assert (truncated["pool"], truncated["available"]) == (20, 4213)
 
 
 async def test_the_trail_says_when_its_keys_may_not_be_compared(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """An MMR key was measured against the kept set, and a reader must not threshold it."""
     with caplog.at_level(logging.INFO, logger="cortex.memory.recall"):
         await LoggingRecallSink().record(_audit(basis=RankBasis.SPREAD))
     assert _logged(caplog)["keys_comparable"] is False
@@ -101,7 +97,6 @@ async def test_the_trail_says_when_its_keys_may_not_be_compared(
 async def test_a_declined_rank_and_an_empty_pool_are_different_lines(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Zero hits is not one event (ADR-0038 abstention addendum), so one line may not serve both."""
     empty = Ranking(hits=(), basis=RankBasis.DEMUR)
     with caplog.at_level(logging.INFO, logger="cortex.memory.recall"):
         await LoggingRecallSink().record(_audit(ranking=empty))
@@ -125,19 +120,14 @@ async def test_the_trail_carries_no_conversation_text(caplog: pytest.LogCaptureF
     with caplog.at_level(logging.INFO, logger="cortex.memory.recall"):
         await LoggingRecallSink().record(_audit())
     line = _rendered(caplog)
-    assert _PRIVATE not in line  # the recalled memory's text stays out of the logs
-    assert "what goes in the recipe?" not in line  # and so does the query
+    assert _PRIVATE not in line
+    assert "what goes in the recipe?" not in line
     assert _logged(caplog)["query_chars"] == len("what goes in the recipe?")
 
 
 async def test_the_trail_names_the_candidates_the_rank_dropped(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """A count says how many were passed over; only the ids say which (ADR-0038 dropped addendum).
-
-    Without them a memory that never came back reads the same as one the store never offered, and
-    a judge rank leaves most of its pool behind, so that is the common case rather than the corner.
-    """
     dropped = DroppedCandidates(
         carried=(DroppedCandidate(id="m2", score=0.83), DroppedCandidate(id="m3", score=0.11)),
         omitted=0,
@@ -145,8 +135,6 @@ async def test_the_trail_names_the_candidates_the_rank_dropped(
     with caplog.at_level(logging.INFO, logger="cortex.memory.recall"):
         await LoggingRecallSink().record(_audit(dropped=dropped))
     payload = _logged(caplog)
-    # Exact dicts: the store's cosine and nothing else, since a rank keys what it kept and has no
-    # key for the rest, and a taint bit only means something to a hit that reached the turn.
     assert payload["dropped"] == [{"id": "m2", "score": 0.83}, {"id": "m3", "score": 0.11}]
     assert payload["dropped_omitted"] == 0
 
@@ -154,7 +142,6 @@ async def test_the_trail_names_the_candidates_the_rank_dropped(
 async def test_the_trail_says_how_many_drops_its_bound_left_out(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """A truncated list read as a complete one would answer "never a candidate" wrongly."""
     dropped = DroppedCandidates(carried=(DroppedCandidate(id="m2", score=0.83),), omitted=7)
     with caplog.at_level(logging.INFO, logger="cortex.memory.recall"):
         await LoggingRecallSink().record(_audit(dropped=dropped))
@@ -164,7 +151,6 @@ async def test_the_trail_says_how_many_drops_its_bound_left_out(
 async def test_a_dropped_candidates_text_stays_out_of_the_line_too(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The kept hits' rule holds for the pool behind them: ids and scores, never conversation."""
     pool = [
         ScoredMemory(
             record=MemoryRecord(id=rid, text=text, embedding=(1.0, 0.0), at=_AT),
@@ -172,7 +158,7 @@ async def test_a_dropped_candidates_text_stays_out_of_the_line_too(
         )
         for rid, text, score in (("m0", _PRIVATE, 0.9), ("m1", _ALSO_PRIVATE, 0.4))
     ]
-    ranking = Ranking(hits=(), basis=RankBasis.DEMUR)  # declined, so the whole pool was dropped
+    ranking = Ranking(hits=(), basis=RankBasis.DEMUR)
     audit = _audit(ranking=ranking, dropped=dropped_candidates(pool, ranking))
     with caplog.at_level(logging.INFO, logger="cortex.memory.recall"):
         await LoggingRecallSink().record(audit)
@@ -183,14 +169,15 @@ async def test_a_dropped_candidates_text_stays_out_of_the_line_too(
 async def test_the_fields_reach_the_line_an_operator_actually_reads(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The fields reach both the record and the rendered line, spelled once by the sink."""
     with caplog.at_level(logging.INFO, logger="cortex.memory.recall"):
         await LoggingRecallSink().record(_audit())
     (record,) = caplog.records
     extras: dict[str, object] = vars(record)
     assert extras["session_id"] == "s1"
+    assert extras["turn_id"] == "t1"
     assert extras["basis"] == "ember"
     line = _rendered(caplog)
     assert line.startswith("INFO:cortex.memory.recall:memory.recall ")
     assert "session_id=s1" in line
+    assert "turn_id=t1" in line
     assert "basis=ember" in line

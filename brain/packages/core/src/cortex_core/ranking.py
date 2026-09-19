@@ -9,7 +9,7 @@ from cortex_core.memory import ScoredMemory
 
 
 class RankBasis(Enum):
-    """Which quantity a policy ranked by, or why it returned nothing (ADR-0038 decision 4)."""
+    """Which quantity a policy ranked by, or why it returned nothing."""
 
     ECHO = "echo"
     EMBER = "ember"
@@ -24,7 +24,6 @@ class RankBasis(Enum):
         return self not in _ORDER_DEPENDENT
 
 
-# The bases whose key depends on what was already kept when the hit was picked.
 _ORDER_DEPENDENT = frozenset({RankBasis.SPREAD, RankBasis.SWEEP})
 
 
@@ -55,6 +54,8 @@ class Ranking:
         return tuple(ranked.hit for ranked in self.hits)
 
 
+# Twenty is the shipped pool width (five recalled at a pool factor of four), so a normal
+# recall lists every dropped candidate and omits none.
 DROPPED_TRAIL_LIMIT = 20
 
 
@@ -68,8 +69,7 @@ class DroppedCandidate:
 
 @dataclass(frozen=True, slots=True)
 class DroppedCandidates:
-    """What a rank left in the pool, bounded: the candidates carried, and how many more there were.
-    """
+    """What a rank did not keep, bounded: the candidates listed, and how many more there were."""
 
     carried: tuple[DroppedCandidate, ...]
     omitted: int
@@ -78,8 +78,7 @@ class DroppedCandidates:
 def dropped_candidates(
     pool: Sequence[ScoredMemory], ranking: Ranking, *, limit: int = DROPPED_TRAIL_LIMIT
 ) -> DroppedCandidates:
-    """The pool minus what ``ranking`` kept, bounded to ``limit``, counting what the bound left out.
-    """
+    """The pool minus what ``ranking`` kept, cut to ``limit``, counting what the cut left out."""
     kept = {ranked.hit.record.id for ranked in ranking.hits}
     dropped = [hit for hit in pool if hit.record.id not in kept]
     return DroppedCandidates(
@@ -92,9 +91,10 @@ def dropped_candidates(
 
 @dataclass(frozen=True, slots=True)
 class RecallAudit:
-    """One recall as the trail records it: the query, the pool width, and what ranked."""
+    """One recall as the audit records it: the query, the pool width, and what ranked."""
 
     session_id: str
+    turn_id: str
     query: str
     pool_size: int
     available: int

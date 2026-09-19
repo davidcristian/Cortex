@@ -27,7 +27,6 @@ from cortex_core.windowing import HistoryWindow
 
 _logger = logging.getLogger(__name__)
 
-# How many past memories to recall into a turn's context by default (ADR-0008).
 DEFAULT_RECALL_K = 5
 
 FORGOING_STATE = "forgoing"
@@ -75,9 +74,7 @@ async def assemble_inference_messages(
     context: ToolLoopContext,
     clock: Clock,
 ) -> Sequence[Message]:
-    """History (windowed when configured) prefixed with the system context a turn
-    needs (ADR-0008/0013/0014/0019).
-    """
+    """History, windowed when configured, prefixed with the system context a turn needs."""
     if caps.window is not None:
         history = await caps.window.select(
             history, session_id=context.session_id, progress=caps.progress
@@ -100,14 +97,18 @@ async def _recalled_context(
     query: str, caps: TurnCapabilities, context: ToolLoopContext, clock: Clock
 ) -> Message | None:
     """Recall the turn's memories and render them as a system-context message, or ``None`` when
-    memory is disabled or nothing was recalled. A tainted memory is fenced and taints the turn
-    (ADR-0019), so it re-enters as untrusted data, never trusted context.
+    memory is disabled or nothing was recalled.
     """
     if caps.memory is None:
         return None
     try:
-        hits = await caps.memory.recall(query, k=DEFAULT_RECALL_K, session_id=context.session_id)
+        hits = await caps.memory.recall(
+            query, k=DEFAULT_RECALL_K, session_id=context.session_id, turn_id=context.turn_id
+        )
     except MemoryDataError:
+        # Caught first and re-raised, ahead of the base class below: a stopped server comes back
+        # and these turns are a bridge, while a row that cannot be decoded is decoded no better
+        # next week, so answering around it would hide a permanent fault.
         raise
     except (EmbedderError, MemoryStoreError) as err:
         await _report_forgone_memory(caps, context, err)

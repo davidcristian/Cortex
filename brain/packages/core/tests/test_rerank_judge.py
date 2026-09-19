@@ -1,5 +1,3 @@
-"""Behavior of the model-based recall rank: what it asks, what it believes, and when it gives up."""
-
 import json
 import logging
 from collections.abc import AsyncIterator, Sequence
@@ -53,8 +51,6 @@ class _ScriptedBackend:
     ) -> None:
         self._reply = reply
         self._error = error
-        # What the engine said about why the completion ended, or nothing at all, which is what a
-        # build that reports no reason looks like and is what this repo shipped before it could ask.
         self._stop = stop
         self.prompts: list[str] = []
         self.schemas: list[JsonSchema | None] = []
@@ -82,11 +78,12 @@ class _ScriptedBackend:
 
 
 class _CountingFallback:
-    """A RecallPolicy that counts how often it was asked, and under which recall's name."""
+    """A RecallPolicy that counts how often it was asked, and for which recall."""
 
     def __init__(self) -> None:
         self.calls = 0
         self.sessions: list[str | None] = []
+        self.turns: list[str | None] = []
 
     def candidate_k(self, k: int) -> int:
         return k
@@ -99,10 +96,12 @@ class _CountingFallback:
         now: datetime,
         k: int,
         session_id: str | None = None,
+        turn_id: str | None = None,
     ) -> Ranking:
         del query, now
         self.calls += 1
         self.sessions.append(session_id)
+        self.turns.append(turn_id)
         return Ranking(
             hits=tuple(RankedMemory(hit=hit, key=hit.score) for hit in hits[:k]),
             basis=RankBasis.ECHO,
@@ -110,7 +109,7 @@ class _CountingFallback:
 
 
 def _pool() -> list[ScoredMemory]:
-    """Three candidates whose cosine order disagrees with what actually answers the question."""
+    """Three candidates whose similarity order differs from the one that answers the question."""
     return [
         _hit("noise", "the office coffee machine was replaced in March", 0.91),
         _hit("answer", "we decided to keep session state in Redis, never in the model", 0.62),
@@ -130,7 +129,7 @@ async def test_the_judge_lifts_the_answer_over_the_higher_cosine_noise() -> None
     ranking = await policy.select(_pool(), query="where does state live?", now=_NOW, k=2)
     assert [ranked.hit.record.id for ranked in ranking.hits] == ["answer", "stale"]
     assert ranking.basis is RankBasis.VERDICT
-    assert [ranked.key for ranked in ranking.hits] == [1.0, 0.5]  # placings, normalized
+    assert [ranked.key for ranked in ranking.hits] == [1.0, 0.5]
 
 
 async def test_the_judge_sends_the_question_the_numbered_notes_and_the_envelope() -> None:
@@ -138,16 +137,16 @@ async def test_the_judge_sends_the_question_the_numbered_notes_and_the_envelope(
     await policy.select(_pool(), query="where does state live?", now=_NOW, k=1)
     (prompt,) = backend.prompts
     assert "where does state live?" in prompt
-    assert "0. the office coffee machine" in prompt  # candidates arrive numbered from zero
+    assert "0. the office coffee machine" in prompt
     assert "Reply with at most 1." in prompt
-    assert backend.schemas == [ORDER_ENVELOPE]  # constrained decoding, never prose mining
+    assert backend.schemas == [ORDER_ENVELOPE]
 
 
 async def test_an_unreachable_model_falls_back_and_says_so_in_the_basis() -> None:
     policy, _ = _judge(error=True)
     ranking = await policy.select(_pool(), query="where does state live?", now=_NOW, k=2)
-    assert [ranked.hit.record.id for ranked in ranking.hits] == ["noise", "answer"]  # store order
-    assert ranking.basis is RankBasis.ECHO  # the trail says what ranked, not what was configured
+    assert [ranked.hit.record.id for ranked in ranking.hits] == ["noise", "answer"]
+    assert ranking.basis is RankBasis.ECHO
 
 
 async def test_a_reply_outside_the_envelope_falls_back() -> None:
@@ -157,20 +156,12 @@ async def test_a_reply_outside_the_envelope_falls_back() -> None:
 
 
 async def test_an_order_of_only_junk_falls_back() -> None:
-    """Every element out of range means the model tried to pick and picked nothing that exists.
-
-    The discriminator against the abstention below: this reply named notes, so it is a failed rank
-    and takes the fallback, while an empty pick names none and is believed.
-    """
     policy, _ = _judge(json.dumps({"order": [99, -1]}))
     ranking = await policy.select(_pool(), query="q", now=_NOW, k=2)
     assert ranking.basis is RankBasis.ECHO
 
 
 async def test_a_model_that_picks_nothing_is_believed_rather_than_overruled() -> None:
-    """A model that picks nothing is believed, which is the one judgement no geometric policy can
-    make (ADR-0038).
-    """
     fallback = _CountingFallback()
     policy = JudgeRecallPolicy(
         _ScriptedBackend(json.dumps({"order": []})), "cortex", pool_factor=4, fallback=fallback
@@ -178,14 +169,12 @@ async def test_a_model_that_picks_nothing_is_believed_rather_than_overruled() ->
 
     ranking = await policy.select(_pool(), query="what is the wifi password?", now=_NOW, k=3)
 
-    assert ranking.hits == ()  # the turn is handed nothing, not the nearest three misses
-    assert ranking.basis is RankBasis.DEMUR  # and the trail says a reader declined it
-    assert fallback.calls == 0  # a refusal is an answer, so no second policy is consulted
+    assert ranking.hits == ()
+    assert ranking.basis is RankBasis.DEMUR
+    assert fallback.calls == 0
 
 
 async def test_a_declined_rank_is_not_the_same_event_as_an_unreachable_model() -> None:
-    """Both hand the turn a ranking, and only the declined one means memory had nothing to
-    say."""
     declined, _ = _judge(json.dumps({"order": []}))
     unreachable, _ = _judge(error=True)
 
@@ -201,7 +190,7 @@ async def test_an_empty_pool_never_reaches_the_model() -> None:
     ranking = await policy.select([], query="q", now=_NOW, k=3)
     assert ranking.hits == ()
     assert ranking.basis is RankBasis.ECHO
-    assert backend.prompts == []  # no candidates, no reason to spend a load
+    assert backend.prompts == []
 
 
 async def test_the_fallback_policy_is_swappable() -> None:
@@ -213,9 +202,6 @@ async def test_the_fallback_policy_is_swappable() -> None:
 
 
 async def test_every_fallback_hands_on_the_recall_it_was_given() -> None:
-    """Every exit that consults a fallback forwards the session id, so a fallback that reports is
-    not blinded by the policy wrapping it.
-    """
     fallback = _CountingFallback()
     unreachable = JudgeRecallPolicy(
         _ScriptedBackend(error=True), "cortex", pool_factor=4, fallback=fallback
@@ -224,17 +210,16 @@ async def test_every_fallback_hands_on_the_recall_it_was_given() -> None:
         _ScriptedBackend("not the envelope"), "cortex", pool_factor=4, fallback=fallback
     )
 
-    await unreachable.select(_pool(), query="q", now=_NOW, k=2, session_id="conv-9")
-    await unreachable.select([], query="q", now=_NOW, k=2, session_id="conv-9")
-    await unreadable.select(_pool(), query="q", now=_NOW, k=2, session_id="conv-9")
+    for policy, pool in ((unreachable, _pool()), (unreachable, []), (unreadable, _pool())):
+        await policy.select(pool, query="q", now=_NOW, k=2, session_id="conv-9", turn_id="turn-4")
 
     assert fallback.sessions == ["conv-9", "conv-9", "conv-9"]
+    assert fallback.turns == ["turn-4", "turn-4", "turn-4"]
 
 
 def test_parse_order_drops_bad_elements_without_voiding_the_answer() -> None:
-    """A note number the model invented costs that element and never the whole rank."""
     raw = json.dumps({"order": [2, 99, 2, -1, True, "1", 0]})
-    assert parse_order(raw, pool_size=3, k=5) == (2, 0)  # deduped, in range, and `True` is not 1
+    assert parse_order(raw, pool_size=3, k=5) == (2, 0)
 
 
 def test_parse_order_truncates_to_k() -> None:
@@ -248,7 +233,7 @@ def test_parse_order_truncates_to_k() -> None:
         json.dumps({"picks": [0]}),
         json.dumps({"order": "0,1"}),
         json.dumps([0]),
-        json.dumps({"order": [99, -1]}),  # it named notes; none of them exists
+        json.dumps({"order": [99, -1]}),
     ],
 )
 def test_parse_order_returns_none_for_anything_unusable(raw: str) -> None:
@@ -256,33 +241,21 @@ def test_parse_order_returns_none_for_anything_unusable(raw: str) -> None:
 
 
 def test_parse_order_tells_an_empty_pick_apart_from_an_unusable_reply() -> None:
-    """The three-outcome return exists for this: `[]` is an answer rather than a parse
-    failure."""
     assert parse_order(json.dumps({"order": []}), pool_size=3, k=2) == ()
 
 
 async def test_the_rank_request_asks_for_no_thinking_and_room_for_k_picks() -> None:
-    """The request asks for no thinking and caps the reply at the width the schema permits.
-
-    Asserted together because a cap against a model that deliberates first comes back empty, and
-    an empty reply here is a silent fall back to the cosine this policy exists to beat.
-    """
     policy, backend = _judge(json.dumps({"order": [1]}))
 
     await policy.select(_pool(), query="where does state live?", now=_NOW, k=3)
 
     assert backend.bounds == [rank_bounds(3)]
     assert rank_bounds(3).thinking is False
-    # The one shipped bound that carries a schema too, so the one the switch alone was measured
-    # losing: a grammar re-offers the thought whatever the template was told, and only the count
-    # reaches that shape (ADR-0005 request-lever addendum).
     assert rank_bounds(3).trace_tokens == 0
     assert rank_bounds(3).max_tokens == RANK_ENVELOPE_TOKENS + 3 * RANK_TOKENS_PER_CANDIDATE
 
 
 def test_the_rank_cap_grows_with_how_many_picks_were_asked_for() -> None:
-    """The cap grows with the number of picks asked for, since a fixed one would truncate the
-    day a deployment recalls more."""
     wider = rank_bounds(20).max_tokens
     narrower = rank_bounds(5).max_tokens
     assert wider is not None
@@ -291,9 +264,6 @@ def test_the_rank_cap_grows_with_how_many_picks_were_asked_for() -> None:
 
 
 async def test_a_reply_cut_off_by_the_cap_falls_back_like_any_other_unusable_one() -> None:
-    """A reply the cap cut degrades to the fallback's ranking, with the fallback's basis on the
-    trail.
-    """
     policy, _ = _judge('{"order":')
     ranking = await policy.select(_pool(), query="q", now=_NOW, k=2)
     assert [ranked.hit.record.id for ranked in ranking.hits] == ["noise", "answer"]
@@ -304,17 +274,13 @@ def test_a_long_candidate_is_truncated_in_the_prompt() -> None:
     long_hit = _hit("long", "x" * 900, 0.5)
     (message,) = build_rank_messages("q", [long_hit], k=1, at=_NOW)
     assert "x" * 400 in message.text
-    assert "x" * 401 not in message.text  # bounded, so one long memory cannot flood the prompt
+    assert "x" * 401 not in message.text
 
 
-# --- and when it does not rank, it says which way it did not ----------------------------------
-
-# The name the module logs under, so a test can read only its own lines out of the root capture.
 _JUDGE_LOGGER = "cortex_core.rerank_judge"
 
-# One unusable reply, reused below so nothing but its cause can differ between two runs. It is the
-# truncated JSON a constrained request really returns when the cap cuts it (measured against the
-# shipped cortex), which is the reply a cut rank and a mangled one both arrive as.
+# The truncated JSON a constrained request returns when the cap cuts it, measured against the
+# shipped cortex. A cut reply and a mangled one both arrive in this form.
 _UNUSABLE = '{"order":'
 
 
@@ -325,15 +291,19 @@ async def _fell_back(
     error: bool = False,
     stop: StopReason | None = None,
     session_id: str | None = None,
+    turn_id: str | None = None,
 ) -> logging.LogRecord:
-    """Drive one rank that falls back to geometry, and return the single warning it logged."""
+    """Run one rank that falls back to similarity, and return the warning it logged."""
     caplog.clear()
     policy, _ = _judge(reply, error=error, stop=stop)
     ranking = await policy.select(
-        _pool(), query="where does state live?", now=_NOW, k=2, session_id=session_id
+        _pool(),
+        query="where does state live?",
+        now=_NOW,
+        k=2,
+        session_id=session_id,
+        turn_id=turn_id,
     )
-    # The fallback itself, re-asserted here so a record about a rank that ranked could never
-    # satisfy the assertions below.
     assert ranking.basis is RankBasis.ECHO
     records = [record for record in caplog.records if "unjudged ranking" in record.getMessage()]
     assert len(records) == 1
@@ -341,21 +311,18 @@ async def _fell_back(
 
 
 def _extra(record: logging.LogRecord, field: str) -> object:
-    """One structured field off a log record, ``extra`` landing in the record's own dict."""
+    """One structured field of a log record, which ``extra=`` puts in the record's own dict."""
     return record.__dict__[field]
 
 
 def _own_records(caplog: pytest.LogCaptureFixture) -> list[logging.LogRecord]:
-    """Only what this module logged, since the capture handler sits on the root logger."""
+    """Only the records this module logged, since the capture handler is on the root logger."""
     return [record for record in caplog.records if record.name == _JUDGE_LOGGER]
 
 
 async def test_an_unreachable_model_and_an_unreadable_reply_are_two_different_lines(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Both hand the turn the same geometric ranking, and only the log line says which repair to
-    reach for.
-    """
     caplog.set_level(logging.WARNING, logger=_JUDGE_LOGGER)
     unreachable = await _fell_back(caplog, error=True)
     unreadable = await _fell_back(caplog, stop=StopReason.FINISHED)
@@ -363,11 +330,8 @@ async def test_an_unreachable_model_and_an_unreadable_reply_are_two_different_li
     assert unreachable.levelno == unreadable.levelno == logging.WARNING
     assert "could not be asked" in unreachable.getMessage()
     assert "no usable recall order" in unreadable.getMessage()
-    # The backend's own error rides the line it caused, there being no completion to describe;
-    # the unreadable reply carries no exception because nothing raised.
     assert unreachable.exc_info is not None
     assert unreadable.exc_info is None
-    # Both name what was given up on: the pool that went unjudged and the width asked of it.
     assert (_extra(unreachable, "pool"), _extra(unreachable, "k")) == (3, 2)
     assert (_extra(unreadable, "pool"), _extra(unreadable, "k")) == (3, 2)
 
@@ -375,37 +339,32 @@ async def test_an_unreachable_model_and_an_unreadable_reply_are_two_different_li
 async def test_both_lines_name_the_recall_they_happened_to(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """A burst of fallbacks is attributable to a conversation (ADR-0038 named-recall addendum)."""
     caplog.set_level(logging.WARNING, logger=_JUDGE_LOGGER)
-    unreachable = await _fell_back(caplog, error=True, session_id="conv-7")
-    unreadable = await _fell_back(caplog, stop=StopReason.FINISHED, session_id="conv-7")
+    unreachable = await _fell_back(caplog, error=True, session_id="conv-7", turn_id="turn-3")
+    unreadable = await _fell_back(
+        caplog, stop=StopReason.FINISHED, session_id="conv-7", turn_id="turn-3"
+    )
 
-    assert _extra(unreachable, "session_id") == _extra(unreadable, "session_id") == "conv-7"
-    assert "session_id=conv-7" in PlainFormatter().format(unreachable)
-    assert "session_id=conv-7" in PlainFormatter().format(unreadable)
+    for field, value in (("session_id", "conv-7"), ("turn_id", "turn-3")):
+        assert _extra(unreachable, field) == _extra(unreadable, field) == value
+        assert f"{field}={value}" in PlainFormatter().format(unreachable)
+        assert f"{field}={value}" in PlainFormatter().format(unreadable)
 
 
 async def test_a_recall_that_named_no_session_says_so_rather_than_leaving_the_field_out(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """An absent field and an unnamed caller are different facts, so the line prints the second.
-
-    Every caller the brain ships gives an id, so this is the direct caller of the port: a reader
-    who saw no ``session_id`` at all would go looking for the deployment that dropped it.
-    """
     caplog.set_level(logging.WARNING, logger=_JUDGE_LOGGER)
     record = await _fell_back(caplog, error=True)
 
-    assert _extra(record, "session_id") is None
-    assert "session_id=None" in PlainFormatter().format(record)
+    for field in ("session_id", "turn_id"):
+        assert _extra(record, field) is None
+        assert f"{field}=None" in PlainFormatter().format(record)
 
 
 async def test_neither_line_carries_the_question_or_what_memory_said_about_it(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Neither line carries the question or the memories, because the only other things ``select``
-    is handed are conversation content.
-    """
     caplog.set_level(logging.WARNING, logger=_JUDGE_LOGGER)
     unreachable = PlainFormatter().format(await _fell_back(caplog, error=True, session_id="conv-7"))
     unreadable = PlainFormatter().format(
@@ -413,17 +372,14 @@ async def test_neither_line_carries_the_question_or_what_memory_said_about_it(
     )
 
     for line in (unreachable, unreadable):
-        assert "where does state live?" not in line  # the question the turn asked
-        assert "keep session state in Redis" not in line  # and what memory had to say about it
-        assert "session_id=conv-7" in line  # what a line may carry: the caller's own handle
+        assert "where does state live?" not in line
+        assert "keep session state in Redis" not in line
+        assert "session_id=conv-7" in line
 
 
 async def test_a_cut_order_and_a_mangled_one_are_told_apart(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """A cut order and a mangled one are told apart by ``capped``, which is why the rank carries
-    a stop ledger at all.
-    """
     caplog.set_level(logging.WARNING, logger=_JUDGE_LOGGER)
     cut = await _fell_back(caplog, stop=StopReason.CAPPED)
     mangled = await _fell_back(caplog, stop=StopReason.FINISHED)
@@ -432,9 +388,6 @@ async def test_a_cut_order_and_a_mangled_one_are_told_apart(
     assert _extra(cut, "pool") == _extra(mangled, "pool")
     assert _extra(cut, "capped") is True
     assert _extra(mangled, "capped") is False
-    # And the reading survives the handler the brain ships, which renders the record's own
-    # fields onto the line: this is the exact spelling `docs/runbooks/memory-pgvector.md` sends
-    # an operator to grep for, so it is asserted against the rendered line and not the record.
     assert f"capped=True chars={len(_UNUSABLE)}" in PlainFormatter().format(cut)
     assert f"capped=False chars={len(_UNUSABLE)}" in PlainFormatter().format(mangled)
 
@@ -442,8 +395,6 @@ async def test_a_cut_order_and_a_mangled_one_are_told_apart(
 async def test_a_backend_that_reports_no_reason_reads_as_uncut_rather_than_as_cut(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """A backend that reports no stop reason reads as uncut, so it does not send its reader after
-    a token budget that was never the problem."""
     caplog.set_level(logging.WARNING, logger=_JUDGE_LOGGER)
     assert _extra(await _fell_back(caplog, stop=None), "capped") is False
 
@@ -451,21 +402,13 @@ async def test_a_backend_that_reports_no_reason_reads_as_uncut_rather_than_as_cu
 @pytest.mark.parametrize(
     ("reply", "expected_chars"),
     [
-        # A model that emitted no assistant text at all, which on this path means a tier whose
-        # whole reply arrived as reasoning that `drain_text` drops unread.
         ("", 0),
-        # Text arrived and was not the envelope, so constrained decoding did not hold.
         ("I think note two is best, actually", 34),
     ],
 )
 async def test_the_length_splits_a_silent_model_from_one_that_wrote_the_wrong_shape(
     caplog: pytest.LogCaptureFixture, reply: str, expected_chars: int
 ) -> None:
-    """`capped` is False for both of these, so the length is the only thing that separates them.
-
-    The number is spelled out rather than measured off the input, since an expectation computed
-    the way production computes it would agree with a broken reading as readily as a working one.
-    """
     caplog.set_level(logging.WARNING, logger=_JUDGE_LOGGER)
     record = await _fell_back(caplog, reply=reply, stop=StopReason.FINISHED)
 
@@ -477,9 +420,6 @@ async def test_the_length_splits_a_silent_model_from_one_that_wrote_the_wrong_sh
 async def test_a_refusal_is_not_reported_as_a_fallback(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """A refusal writes no line, because the judge answering that none of these help is a
-    judgement rather than a failure to reach one.
-    """
     caplog.set_level(logging.DEBUG, logger=_JUDGE_LOGGER)
     policy, _ = _judge(json.dumps({"order": []}))
 
@@ -492,11 +432,6 @@ async def test_a_refusal_is_not_reported_as_a_fallback(
 async def test_an_empty_pool_falls_back_without_a_word(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """An empty pool stays quiet even at the most verbose level, nothing having been asked.
-
-    It is the one fallback of the three that reports nothing, and deliberately: it would fire on
-    every turn a deployment recalls nothing on, diluting the two lines that mean a rank was lost.
-    """
     caplog.set_level(logging.DEBUG, logger=_JUDGE_LOGGER)
     policy, backend = _judge()
 

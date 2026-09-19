@@ -1,4 +1,4 @@
-"""Opt-in recall reranking policies over the ``RecallPolicy`` seam (ADR-0008)."""
+"""Opt-in recall reranking policies behind the ``RecallPolicy`` port."""
 
 from collections.abc import Sequence
 from datetime import datetime
@@ -48,9 +48,10 @@ class RerankingRecallPolicy:
         now: datetime,
         k: int,
         session_id: str | None = None,
+        turn_id: str | None = None,
     ) -> Ranking:
         """Rerank by the similarity+recency blend, drop near-duplicates, keep the top ``k``."""
-        del query, session_id  # scored from scores and embeddings alone
+        del query, session_id, turn_id
         ranked = sorted(hits, key=lambda hit: self._relevance(hit, now), reverse=True)
         kept: list[ScoredMemory] = []
         for hit in ranked:
@@ -100,10 +101,10 @@ class MmrRecallPolicy:
         now: datetime,
         k: int,
         session_id: str | None = None,
+        turn_id: str | None = None,
     ) -> Ranking:
         """Greedily keep the ``k`` hits of highest marginal relevance (relevance less penalty)."""
-        # MMR weighs relevance against diversity, using scores and embeddings alone.
-        del query, now, session_id
+        del query, now, session_id, turn_id
         return Ranking(hits=greedy_mmr(hits, k, self._marginal_relevance), basis=RankBasis.SPREAD)
 
     def _marginal_relevance(self, hit: ScoredMemory, kept: Sequence[ScoredMemory]) -> float:
@@ -152,9 +153,10 @@ class RecencyMmrRecallPolicy:
         now: datetime,
         k: int,
         session_id: str | None = None,
+        turn_id: str | None = None,
     ) -> Ranking:
         """Greedily keep the ``k`` of highest recency-blended marginal relevance."""
-        del query, session_id  # scored from scores, embeddings and the clock alone
+        del query, session_id, turn_id
         return Ranking(
             hits=greedy_mmr(hits, k, lambda hit, kept: self._marginal_relevance(hit, kept, now)),
             basis=RankBasis.SWEEP,

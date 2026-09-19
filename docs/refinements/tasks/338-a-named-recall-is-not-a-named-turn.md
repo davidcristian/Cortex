@@ -1,9 +1,8 @@
 # A named recall is not a named turn
 
-**Status:** open, a seam or port change comes first
+**Status:** landed 2026-09-19
 **Area:** memory
 **Origin:** [ADR-0038](../../adr/ADR-0038-ranked-recall.md)
-**Verified:** 2026-09-19
 
 `RecallPolicy.select` now carries a `session_id`, so the judge's two fallback warnings name the
 conversation they happened in. They still cannot name the recall. A session with twenty turns
@@ -52,3 +51,12 @@ session. Everything the trail carries today reads as the second.
   judge's two fallback warnings stay on the log stream, which removes even the adjacency this
   entry says a busy brain already breaks. If it lands first, the turn id this entry adds has two
   trail adapters to reach rather than one.
+- 2026-09-19: Landed, as the recall-turn part of the ADR-0038 2026-09-19 trigger-sweep addendum.
+  The open decision was taken: a recall is a fact about a turn, since `_recalled_context` recalls
+  once per turn for that turn's query, and it keeps its session as the scope it read.
+  `MemoryRecaller.recall` now requires `turn_id` and turn assembly passes `context.turn_id`;
+  `RecallPolicy.select` takes an optional `turn_id` beside `session_id`, which the judge forwards to
+  its fallback and writes on both warnings; `RecallAudit` carries `turn_id` and `LoggingRecallSink`
+  writes it. The recall policy contract now holds all five policies to one ranking with or without
+  the two ids. It landed before the trail's file adapter (R-683), which will receive the turn on the
+  value.

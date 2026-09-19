@@ -1,5 +1,3 @@
-"""The widest line each shipped sink can build still fits one log-driver message."""
-
 import ast
 import logging
 from datetime import UTC, datetime
@@ -30,22 +28,23 @@ from cortex_core import (
 from cortex_memory import LoggingRecallSink
 from cortex_tools import JsonLinesAuditSink, LoggingAuditSink
 
+# A container's log driver ends a message at 16 KiB, so 16,383 characters plus the newline is
+# the last line that stays one entry.
 ONE_DOCKER_MESSAGE = 16383
 
-# What every cut marker opens with, whatever count it goes on to name. Counting these is how each
-# case below says which fields the bound actually cut.
 _MARKER = CUT[: CUT.index("{")]
 
-# One field's worth of text past the bound, so the rendering of every field it is given is cut.
 _WIDE = "w" * (VALUE_CHARS * 2)
 
-# An id of the width the brain's own factories mint, for the fields a caller cannot write.
 _MINTED = "0e2f4a1b-6c3d-4e5f-8a9b-0c1d2e3f4a5b"
 
 _AT = datetime(2026, 9, 15, 12, 0, tzinfo=UTC)
 
+# The widest any Python float renders, at 24 characters.
 _WIDEST_FLOAT = -1.7976931348623157e308
 
+# The widest candidate count and the widest hit count a real recall writes. They come from
+# different lines, so the record built below is wider than any one recall can produce.
 _DROPPED = 20
 _HITS = 5
 
@@ -58,7 +57,6 @@ def _line(record: logging.LogRecord) -> str:
 async def test_the_widest_tool_audit_line_fits_one_log_driver_message(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Five of the audit's eleven fields carry text the brain did not choose, and five fit."""
     caplog.set_level(logging.INFO, logger="cortex.tools.audit")
     await LoggingAuditSink().record(
         ToolInvocation(
@@ -97,7 +95,6 @@ async def test_the_widest_tool_audit_line_fits_one_log_driver_message(
 async def test_the_widest_recall_trail_line_fits_one_log_driver_message(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """One field of the trail's eleven carries text the brain did not choose, and it fits."""
     recaller = MemoryRecaller(InMemoryMemoryStore(), HashEmbedder(), SystemClock())
     stored = [
         await recaller.record(f"note {number}", session_id="s1")
@@ -107,6 +104,7 @@ async def test_the_widest_recall_trail_line_fits_one_log_driver_message(
     await LoggingRecallSink().record(
         RecallAudit(
             session_id=_WIDE,
+            turn_id=_MINTED,
             query="q" * 4096,
             pool_size=_DROPPED,
             available=_DROPPED * 2,
@@ -145,13 +143,13 @@ async def test_the_widest_recall_trail_line_fits_one_log_driver_message(
         "pool",
         "query_chars",
         "session_id",
+        "turn_id",
     }
 
 
 async def test_the_widest_audit_gap_line_fits_one_log_driver_message(
     caplog: pytest.LogCaptureFixture, tmp_path: Path
 ) -> None:
-    """The file sink's one line, a record it could not append, carries one field the model wrote."""
     caplog.set_level(logging.WARNING, logger="cortex_tools.audit_file")
     await JsonLinesAuditSink(tmp_path).record(
         ToolInvocation(
@@ -174,13 +172,11 @@ async def test_the_widest_audit_gap_line_fits_one_log_driver_message(
     assert set(record_fields(record)) == {"error", "path", "tool"}
 
 
-# The sinks a case above drives, and the wired sinks that write no line of their own, each with why.
 _MEASURED = frozenset({LoggingAuditSink, LoggingRecallSink, JsonLinesAuditSink})
 _WRITES_NO_LINE = {
     "TeeAuditSink": "records each invocation to the sinks it holds and logs nothing itself",
 }
 
-# The adapter packages whose sinks the composition root wires.
 _SINK_PACKAGES = frozenset({"cortex_tools", "cortex_memory"})
 
 
@@ -198,7 +194,6 @@ def _wired_sinks() -> set[str]:
 
 
 def test_every_sink_the_orchestrator_wires_has_a_case_or_writes_no_line() -> None:
-    """The set the cases run over is read from the composition root, not written here."""
     wired = _wired_sinks()
     measured = {sink.__name__ for sink in _MEASURED}
     stale = set(_WRITES_NO_LINE) - wired

@@ -1,5 +1,3 @@
-"""run_from_env composes env config + Redis store + echo backend and serves the seam."""
-
 import asyncio
 import json
 import logging
@@ -186,8 +184,6 @@ async def test_run_from_env_serves_turns_and_closes_the_store(
         await asyncio.wait_for(task, timeout=10)
     finally:
         task.cancel()
-    # The factory got the env URL; the turn went through the injected store; and the
-    # composition root released the store's connections on the way out.
     assert seen_urls == ["redis://redis.test.invalid:6379/5"]
     assert [m.text for m in await store.history("wired")] == ["hello", "reply 1: hello"]
     assert store.closed is True
@@ -196,11 +192,9 @@ async def test_run_from_env_serves_turns_and_closes_the_store(
 async def test_run_from_env_default_store_surfaces_redis_outage_as_seam_error(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """With the real default factory and no Redis, a turn fails as a SeamError event."""
     port = _free_loopback_port()
     monkeypatch.setenv("CORTEX_SEAM_HOST", "127.0.0.1")
     monkeypatch.setenv("CORTEX_SEAM_PORT", str(port))
-    # TEST-NET port 1 on loopback: connection refused immediately, no retry loop.
     monkeypatch.setenv("CORTEX_REDIS_URL", "redis://127.0.0.1:1/0")
     task = asyncio.create_task(run_from_env())
     try:
@@ -217,18 +211,13 @@ async def test_run_from_env_default_store_surfaces_redis_outage_as_seam_error(
 async def test_the_model_a_turn_asks_for_is_the_one_its_deployment_hosts(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The turn's id and the id the backend was built for are two reads of one config value."""
     port = _free_loopback_port()
     monkeypatch.setenv("CORTEX_SEAM_HOST", "127.0.0.1")
     monkeypatch.setenv("CORTEX_SEAM_PORT", str(port))
     monkeypatch.setenv("CORTEX_REDIS_URL", "redis://redis.test.invalid:6379/5")
     monkeypatch.setenv("CORTEX_MODEL_CORTEX", "cortex-alt")
     monkeypatch.setenv("CORTEX_INFERENCE_BACKEND", "llamacpp")
-    # TEST-NET port 1 on loopback: connection refused immediately, no retry loop.
     monkeypatch.setenv("CORTEX_INFERENCE_ENDPOINT", "http://127.0.0.1:1")
-    # The lever is asked at wiring, and this endpoint answers nothing, so leaving it on `auto`
-    # would spend the probe's whole leash here on a question this test is not about (ADR-0005
-    # request-lever addendum). `off` is also what a deployment pointed at a dead tier should set.
     monkeypatch.setenv("CORTEX_INFERENCE_TRACE_LEVER", "off")
     store = RecordingStore()
     task = asyncio.create_task(run_from_env(store_factory=lambda _url: store))
@@ -241,28 +230,24 @@ async def test_the_model_a_turn_asks_for_is_the_one_its_deployment_hosts(
     (only,) = events
     assert only.WhichOneof("event") == "error"
     assert only.error.code == "inference_failed"
-    # The transport's refusal, naming the configured tier: the manager leased it. A tier the
-    # deployment does not host never reaches a socket, failing as "could not lease" instead.
     assert only.error.message == "llama-server request failed for model 'cortex-alt'"
 
 
 async def test_build_inference_backend_defaults_to_echo() -> None:
-    """The GPU-less default: Echo, with a closer that is a clean no-op."""
     backend, close = await build_inference_backend(
         InferenceConfig(backend="echo", endpoint=""), "cortex"
     )
     assert isinstance(backend, EchoInferenceBackend)
-    await close()  # no resources to release; must not raise
+    await close()
 
 
 async def test_build_inference_backend_selects_llamacpp_and_returns_a_closer() -> None:
-    """The opt-in GPU path: the real adapter, with the HTTP client's aclose as the closer."""
     config = InferenceConfig(
         backend="llamacpp", endpoint="http://llama-cortex:8080", trace_lever="off"
     )
     backend, close = await build_inference_backend(config, "cortex")
     assert isinstance(backend, LlamaCppBackend)
-    await close()  # releases the httpx client
+    await close()
 
 
 @asynccontextmanager
@@ -272,7 +257,7 @@ async def _canned_llama_server(status: int, body: str) -> AsyncGenerator[str]:
 
     async def serve(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
         while await reader.readline() not in (b"\r\n", b""):
-            pass  # drain the request line and headers; the body follows and is never read
+            pass
         writer.write(
             f"HTTP/1.1 {status} x\r\nContent-Type: application/json\r\n"
             f"Content-Length: {len(payload)}\r\nConnection: close\r\n\r\n".encode()
@@ -291,9 +276,6 @@ async def _canned_llama_server(status: int, body: str) -> AsyncGenerator[str]:
 
 
 async def test_the_trace_lever_is_measured_when_the_deployment_left_it_on_auto() -> None:
-    """``auto`` takes its answer from the engine, over a real exchange (ADR-0005 request-lever
-    addendum).
-    """
     refusal = '{"error":{"message":"Field \'reasoning_budget_tokens\': out of range"}}'
     async with _canned_llama_server(400, refusal) as endpoint:
         config = InferenceConfig(backend="llamacpp", endpoint=endpoint)
@@ -301,14 +283,13 @@ async def test_the_trace_lever_is_measured_when_the_deployment_left_it_on_auto()
 
 
 async def test_an_engine_that_answers_the_probe_leaves_the_lever_down() -> None:
-    """A build that ignores the field answers the completion, and the request carries no key."""
     async with _canned_llama_server(200, '{"choices":[]}') as endpoint:
         config = InferenceConfig(backend="llamacpp", endpoint=endpoint)
         assert await builders_module.resolve_trace_lever(config, "cortex") is False
 
 
 async def test_the_two_fixed_modes_answer_without_asking_anything() -> None:
-    """``on`` and ``off`` open no socket at all, which is what makes them usable with no server."""
+    # Port 1 on loopback refuses the connection at once, so nothing retries.
     dead = "http://127.0.0.1:1"
     on = InferenceConfig(backend="llamacpp", endpoint=dead, trace_lever="on")
     off = InferenceConfig(backend="llamacpp", endpoint=dead, trace_lever="off")
@@ -360,7 +341,6 @@ async def _routing_llama_server(
 
 
 async def test_the_lever_probe_asks_about_the_tier_the_deployment_named() -> None:
-    """A deployment that renamed its resident tier still measures its lever, then spends it."""
     async with _routing_llama_server(serves="cortex-alt") as (endpoint, requests):
         config = InferenceConfig(backend="llamacpp", endpoint=endpoint)
         backend, close = await build_inference_backend(config, "cortex-alt")
@@ -371,16 +351,12 @@ async def test_the_lever_probe_asks_about_the_tier_the_deployment_named() -> Non
         finally:
             await close()
         assert [request["model"] for request in requests] == ["cortex-alt", "cortex-alt"]
-        # The probe read the lever as present, so the completion after it carries the budget.
         assert requests[1][TRACE_BUDGET_KEY] == 0
         assert any(isinstance(event, TextChunk) for event in events)
-        # The same deployment asked about a tier it does not host, which is what the mis-wiring
-        # would post: the server does discriminate, so nothing above passes by default.
         assert await builders_module.resolve_trace_lever(config, DEFAULT_CORTEX_MODEL) is False
 
 
 async def test_the_generation_client_bounds_every_phase_including_the_read() -> None:
-    """The founding client passed ``read=None``, which is the wait nothing else bounded."""
     client = builders_module.build_generation_client(45.5)
     try:
         assert client.timeout == httpx.Timeout(connect=10.0, read=45.5, write=10.0, pool=10.0)
@@ -394,10 +370,10 @@ async def _wedged_llama_server() -> AsyncGenerator[str]:
     stop = asyncio.Event()
 
     async def serve_wedged(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
-        await reader.readline()  # the request line; the small body needs no draining
+        await reader.readline()
         writer.write(b"HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\n\r\n")
         await writer.drain()
-        await stop.wait()  # hold it open, sending nothing, until the test tears the server down
+        await stop.wait()
         writer.close()
 
     server = await asyncio.start_server(serve_wedged, "127.0.0.1", 0)
@@ -411,7 +387,6 @@ async def _wedged_llama_server() -> AsyncGenerator[str]:
 
 
 async def test_a_wedged_llama_server_fails_the_stream_instead_of_waiting_forever() -> None:
-    """End to end over a real socket: the configured ceiling reaches the wire and fires there."""
     async with _wedged_llama_server() as endpoint:
         config = InferenceConfig(
             backend="llamacpp", endpoint=endpoint, stall_timeout_s=0.25, trace_lever="off"
@@ -422,25 +397,23 @@ async def test_a_wedged_llama_server_fails_the_stream_instead_of_waiting_forever
             async with asyncio.timeout(10.0):
                 with pytest.raises(InferenceError, match="sent nothing for model 'cortex'"):
                     async for _event in backend.stream("cortex", [turn]):
-                        pass  # a wedged server streams nothing, so this body never runs
+                        pass
         finally:
             await close()
 
 
 async def test_build_memory_defaults_to_disabled() -> None:
-    """The DB-less default: no recaller, no cascade, and a closer that is a clean no-op."""
     memory, cascade, close = await build_memory(
         MemoryConfig(backend="none"), SystemClock(), EchoInferenceBackend(), "cortex"
     )
     assert memory is None
-    assert cascade is None  # nothing to forget with no backend, so DeleteSession skips the cascade
-    await close()  # no resources to release; must not raise
+    assert cascade is None
+    await close()
 
 
 async def test_build_memory_selects_pgvector_and_returns_a_closer(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The opt-in path: a recaller and a delete cascade over the pgvector store, closer frees it."""
     closed: list[str] = []
     seen_dsn: list[str] = []
 
@@ -462,21 +435,19 @@ async def test_build_memory_selects_pgvector_and_returns_a_closer(
         config, SystemClock(), EchoInferenceBackend(), "cortex"
     )
     assert isinstance(memory, MemoryRecaller)
-    assert isinstance(cascade, SessionMemoryCascade)  # DeleteSession's out-of-band forget path
+    assert isinstance(cascade, SessionMemoryCascade)
     assert seen_dsn == ["postgresql://cortex@db/cortex"]
-    await close()  # releases the pool and the embedder client
+    await close()
     assert closed == ["store"]
 
 
 def test_recall_audit_from_config_is_opt_in() -> None:
-    """The recall trail is off by default (ADR-0038): a silent path, not a sink that drops."""
     assert recall_audit_from_config(MemoryConfig()) is None
     audited = recall_audit_from_config(MemoryConfig(recall_audit=True))
     assert isinstance(audited, LoggingRecallSink)
 
 
 def test_tool_audit_from_config_is_the_log_line_alone_by_default() -> None:
-    """With no file named, every dispatcher records to the log line and to nothing else."""
     assert isinstance(tool_audit_from_config(ToolsConfig()), LoggingAuditSink)
     assert isinstance(DEFAULT_DISPATCH_SETUP.audit, LoggingAuditSink)
 
@@ -484,9 +455,6 @@ def test_tool_audit_from_config_is_the_log_line_alone_by_default() -> None:
 async def test_tool_audit_from_config_writes_the_line_then_the_file(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """A named file adds the file trail behind the log line, so one call reaches both (ADR-0009
-    durable-trail addendum), and a subagent's dispatcher records to the same file.
-    """
     caplog.set_level(logging.INFO, logger="cortex.tools.audit")
     path = tmp_path / "audit.jsonl"
     audit = tool_audit_from_config(ToolsConfig(audit_file=str(path)))
@@ -501,15 +469,12 @@ async def test_tool_audit_from_config_writes_the_line_then_the_file(
     (line,) = [record for record in caplog.records if record.name == "cortex.tools.audit"]
     (row,) = [json.loads(text) for text in path.read_text(encoding="ascii").splitlines()]
     assert (row["tool"], row["call_id"], row["task_id"]) == ("read", "c-1", "st")
-    assert row == record_fields(line)  # the file keeps exactly the fields the line prints
+    assert row == record_fields(line)
 
 
 async def test_tool_audit_from_config_logs_the_call_before_its_gap(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """The log line is written first, so a failed append reads as a gap after a call the line
-    already holds rather than before one.
-    """
     caplog.set_level(logging.INFO)
     audit = tool_audit_from_config(ToolsConfig(audit_file=str(tmp_path / "missing" / "a.jsonl")))
     await audit.record(
@@ -522,25 +487,20 @@ async def test_tool_audit_from_config_logs_the_call_before_its_gap(
 
 
 def test_memory_scope_from_name_maps_config_to_the_policy() -> None:
-    """The one env→core seam for scoping: `global` (default) vs `session` (ADR-0008 addendum)."""
     assert isinstance(memory_scope_from_name("global"), GlobalMemoryScope)
     assert isinstance(memory_scope_from_name("session"), SessionMemoryScope)
 
 
 def _policy(config: MemoryConfig) -> RecallPolicy:
-    """`recall_policy_from_config` with the two model-rank arguments fixed (ADR-0038)."""
+    """`recall_policy_from_config` with the two model-rank arguments fixed."""
     return recall_policy_from_config(config, EchoInferenceBackend(), "cortex")
 
 
 def test_recall_policy_from_config_maps_config_to_the_policy() -> None:
-    """The one env→core seam for reranking: `judge` (default), `raw`, `reranked`, `mmr`."""
-    # The shipped default is the model rank (ADR-0038 turn-cost addendum), and `raw` is what a
-    # deployment sets to get the founding top-k cosine back, so both directions are pinned here.
     assert isinstance(_policy(MemoryConfig()), JudgeRecallPolicy)
     assert _policy(MemoryConfig(recall="raw")) is RAW_RECALL_POLICY
     reranked = _policy(MemoryConfig(recall="reranked"))
     assert isinstance(reranked, RerankingRecallPolicy)
-    # The half-life knob is authored in days and reaches the policy converted to seconds.
     assert (
         _policy(MemoryConfig(recall="reranked", recall_half_life_days=1.0)).candidate_k(5)
         == 5 * MemoryConfig().recall_pool_factor
@@ -551,7 +511,7 @@ def test_recall_policy_from_config_maps_config_to_the_policy() -> None:
     recency_mmr = _policy(MemoryConfig(recall="recency_mmr"))
     assert isinstance(recency_mmr, RecencyMmrRecallPolicy)
     assert recency_mmr.candidate_k(5) == 5 * MemoryConfig().recall_pool_factor
-    judge = _policy(MemoryConfig(recall="judge"))  # the model rank (ADR-0038)
+    judge = _policy(MemoryConfig(recall="judge"))
     assert isinstance(judge, JudgeRecallPolicy)
     assert judge.candidate_k(5) == 5 * MemoryConfig().recall_pool_factor
 
@@ -559,7 +519,6 @@ def test_recall_policy_from_config_maps_config_to_the_policy() -> None:
 async def test_the_judge_asks_the_tier_the_deployment_named_to_rank(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """A deployment that renamed its resident tier still gets its recall judged."""
     at = datetime(2026, 8, 6, 12, 0, tzinfo=UTC)
     pool = [
         ScoredMemory(
@@ -602,7 +561,7 @@ async def test_the_judge_asks_the_tier_the_deployment_named_to_rank(
     memory, _cascade, close = await build_memory(config, SystemClock(), backend, "cortex-alt")
     assert memory is not None
     try:
-        recalled = await memory.recall("which?", k=2, session_id="renamed")
+        recalled = await memory.recall("which?", k=2, session_id="renamed", turn_id="t")
     finally:
         await close()
     assert [hit.record.id for hit in recalled] == ["second", "first"]
@@ -610,10 +569,9 @@ async def test_the_judge_asks_the_tier_the_deployment_named_to_rank(
 
 
 async def test_build_tool_registry_defaults_to_disabled() -> None:
-    """The MCP-less default: no registry, and a closer that is a clean no-op."""
     registry, close = build_tool_registry(ToolsConfig(backend="none"))
     assert registry is None
-    await close()  # no resources to release; must not raise
+    await close()
 
 
 class _FakeMcpSession:
@@ -638,7 +596,8 @@ def _fake_opener(
     script: Mapping[str, Sequence[str] | BaseException], opens: list[str]
 ) -> Callable[[str], object]:
     """A fake `streamable_http_session`: per url it yields a canned session or raises (a down
-    sidecar). ``opens`` records every dial attempt, so lazy/boot-tolerant dialing is observable."""
+    sidecar).
+    """
 
     @asynccontextmanager
     async def opener(url: str) -> AsyncGenerator[_FakeMcpSession, None]:
@@ -654,8 +613,6 @@ def _fake_opener(
 async def test_build_tool_registry_selects_mcp_and_dials_lazily(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The opt-in path dials nothing at build time (boot-tolerant, ADR-0009 addendum): the
-    reconnecting registry opens a session on first use, not at construction."""
     opens: list[str] = []
     monkeypatch.setattr(
         builders_module,
@@ -664,18 +621,16 @@ async def test_build_tool_registry_selects_mcp_and_dials_lazily(
     )
     registry, close = build_tool_registry(ToolsConfig(backend="mcp", endpoint="http://fs:9000/mcp"))
     assert registry is not None
-    assert opens == []  # no dial at build, so a sidecar down at boot does not fail the build
+    assert opens == []
     names = [spec.name for spec in await registry.describe_tools()]
     assert names == ["read_text_file"]
-    assert opens == ["http://fs:9000/mcp"]  # dialed on first use
-    await close()  # no held session; a clean no-op
+    assert opens == ["http://fs:9000/mcp"]
+    await close()
 
 
 async def test_build_tool_registry_filters_and_aggregates_endpoints(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Several endpoints: per-endpoint allowlists apply, and one aggregate spans them all
-    in sorted-name order (ADR-0009 refinements addendum)."""
     fs_url = "http://mcp-filesystem:9000/mcp"
     mail_url = "http://mcp-email:9100/mcp"
     opens: list[str] = []
@@ -692,7 +647,6 @@ async def test_build_tool_registry_filters_and_aggregates_endpoints(
         )
     )
     assert registry is not None
-    # "email" sorts before "filesystem"; the filesystem write tool is filtered out.
     names = [spec.name for spec in await registry.describe_tools()]
     assert names == ["read_email", "read_text_file"]
     routed = await registry.invoke(ToolCall(id="c1", name="read_text_file", arguments={}))
@@ -705,8 +659,6 @@ async def test_build_tool_registry_filters_and_aggregates_endpoints(
 async def test_build_tool_registry_skip_mode_serves_around_an_unavailable_sidecar(
     monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """CORTEX_TOOLS_ON_UNAVAILABLE=skip: healthy sidecars serve, a sidecar down at boot (its dial
-    fails) is mapped to ToolError, skipped, and logged (ADR-0009 boot-tolerance addendum)."""
     fs_url = "http://mcp-filesystem:9000/mcp"
     mail_url = "http://mcp-email:9100/mcp"
     opens: list[str] = []
@@ -725,20 +677,22 @@ async def test_build_tool_registry_skip_mode_serves_around_an_unavailable_sideca
     assert registry is not None
     with caplog.at_level(logging.WARNING, logger="cortex_orchestrator.builders"):
         names = [spec.name for spec in await registry.describe_tools()]
-    assert names == ["read_text_file"]  # the down email sidecar is skipped, not fatal
-    (record,) = caplog.records  # … and reported, never silent
-    # The reporter's structured fields ride on the LogRecord as dynamic attributes.
+    assert names == ["read_text_file"]
+    (record,) = caplog.records
     assert getattr(record, "sidecar", "") == "email"
     assert "MCP sidecar unavailable" in str(getattr(record, "error", ""))
     await close()
 
 
+# The wedged sidecar answers late rather than never, so deleting a bound fails a test here
+# instead of hanging the suite. Both waits are timers on one event loop, so the bound expires
+# first however loaded the machine is.
 _WEDGED_BOUND_S = 0.02
 _WEDGED_ANSWER_S = _WEDGED_BOUND_S * 3
 
 
 class _WedgedMcpSession:
-    """An McpSession that opens and then answers each verb far past any bound: a wedged sidecar."""
+    """An McpSession that opens and then answers each call far past any bound: a wedged sidecar."""
 
     async def list_tools(self) -> ListToolsResult:
         await asyncio.sleep(_WEDGED_ANSWER_S)
@@ -755,7 +709,6 @@ class _WedgedMcpSession:
 async def test_build_tool_registry_bounds_a_sidecar_that_hangs(
     monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """A wedged sidecar is served around exactly as a refused one is (ADR-0009 bound addendum)."""
     opens: list[str] = []
 
     @asynccontextmanager
@@ -776,9 +729,6 @@ async def test_build_tool_registry_bounds_a_sidecar_that_hangs(
     with caplog.at_level(logging.WARNING, logger="cortex_orchestrator.builders"):
         assert list(await asyncio.wait_for(registry.describe_tools(), 10)) == []
     assert opens == ["http://wedged:9000/mcp"]
-    # The empty listing above is what a *skipped* sidecar and a sidecar that answered nothing
-    # both look like, so the warning is what tells them apart: without the bound this session
-    # answers an empty tool set of its own and nothing is reported at all.
     (record,) = caplog.records
     assert getattr(record, "sidecar", "") == "default"
     assert "took longer than 0.02s" in str(getattr(record, "error", ""))
@@ -788,8 +738,6 @@ async def test_build_tool_registry_bounds_a_sidecar_that_hangs(
 def test_build_tool_registry_tolerates_a_sidecar_down_at_build_time(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The boot-tolerance guarantee: building never dials, so a sidecar down at startup no longer
-    fails the build. It is dialed (and skipped, if configured) only on first use (ADR-0009)."""
     opens: list[str] = []
     monkeypatch.setattr(
         builders_module,
@@ -797,12 +745,11 @@ def test_build_tool_registry_tolerates_a_sidecar_down_at_build_time(
         _fake_opener({"http://down:9000/mcp": httpx.ConnectError("refused")}, opens),
     )
     registry, _ = build_tool_registry(ToolsConfig(backend="mcp", endpoint="http://down:9000/mcp"))
-    assert registry is not None  # the down endpoint did not fail the build …
-    assert opens == []  # … because nothing was dialed
+    assert registry is not None
+    assert opens == []
 
 
 async def test_build_subagents_defaults_to_disabled() -> None:
-    """The default: no spawn tool, and a closer that is a clean no-op."""
     spawn, scheduler, close = await build_subagents(
         SubagentsConfig(backend="none"),
         None,
@@ -811,18 +758,14 @@ async def test_build_subagents_defaults_to_disabled() -> None:
         placer=VramBudgetPlacer(soft_cap_gb=14.0, cortex_reservation_gb=11.3),
     )
     assert spawn is None
-    # Nothing to quiesce, so the swap conductor is handed no pool rather than an idle one.
     assert scheduler is None
-    await close()  # no resources to release; must not raise
+    await close()
 
 
-# None and an empty MCP registry both exercised: the dispatcher argument arrives None or
-# real either way, assembled exactly as the composition root assembles it.
 @pytest.mark.parametrize("registry", [None, InMemoryToolRegistry({})])
 async def test_build_subagents_selects_llamacpp_and_returns_a_closer(
     registry: InMemoryToolRegistry | None,
 ) -> None:
-    """The opt-in path: a spawn tool over a CPU backend + Redis task store, plus a closer."""
     seen_url: list[str] = []
 
     def factory(url: str) -> RedisTaskStore:
@@ -843,10 +786,9 @@ async def test_build_subagents_selects_llamacpp_and_returns_a_closer(
         task_store_factory=factory,
     )
     assert isinstance(spawn, SpawnSubagentsTool)
-    # The one pool object the swap conductor drains before a handoff evicts anything.
     assert isinstance(scheduler, ResourceBudgetScheduler)
     assert seen_url == ["redis://sub:6379/0"]
-    await close()  # releases the fake task store + the httpx client
+    await close()
 
 
 def _fake_task_store(url: str) -> RedisTaskStore:
@@ -855,7 +797,7 @@ def _fake_task_store(url: str) -> RedisTaskStore:
 
 
 def _spec_model_property(spawn: SpawnSubagentsTool) -> dict[str, object] | None:
-    """Dig the per-item ``model`` property out of the advertised spawn spec (ADR-0018)."""
+    """Dig the per-item ``model`` property out of the advertised spawn spec."""
     instructions = cast("Mapping[str, object]", spawn.spec.parameters["properties"])
     items = cast(
         "Mapping[str, object]", cast("Mapping[str, object]", instructions["instructions"])["items"]
@@ -882,7 +824,6 @@ def _roster_config(model: str = DEFAULT_SUBAGENT_MODEL) -> SubagentsConfig:
 async def test_build_subagents_dials_its_llama_servers_under_its_own_stall_ceiling(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The pool's ceiling is the subagents' own number, not the resident tier's."""
     seen: list[float] = []
 
     def spy(stall_timeout_s: float) -> httpx.AsyncClient:
@@ -904,12 +845,10 @@ async def test_build_subagents_dials_its_llama_servers_under_its_own_stall_ceili
         task_store_factory=_fake_task_store,
     )
     await close()
-    # One client for the whole roster, built once with the configured seconds.
     assert seen == [333.0]
 
 
 async def test_build_subagents_hands_the_pool_its_configured_admission_bound() -> None:
-    """The deployment's seconds reach the one budget object, proved by what that object refuses."""
     _spawn, scheduler, close = await build_subagents(
         SubagentsConfig(
             backend="llamacpp",
@@ -936,17 +875,17 @@ async def test_build_subagents_hands_the_pool_its_configured_admission_bound() -
 async def _runaway_llama_server() -> AsyncGenerator[str]:
     """A loopback server that streams SSE chunks and never stops: the repetition loop itself."""
     stop = asyncio.Event()
-    chunk = b'data: {"choices":[{"delta":{"content":"and also, "}}]}\n\n'  # one SSE delta, forever
+    chunk = b'data: {"choices":[{"delta":{"content":"and also, "}}]}\n\n'
 
     async def serve_runaway(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
-        await reader.readline()  # the request line; the small body needs no draining
+        await reader.readline()
         writer.write(b"HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\n\r\n")
         try:
             while not stop.is_set():
                 writer.write(chunk)
                 await writer.drain()
         except (ConnectionResetError, BrokenPipeError):
-            pass  # the deadline closed the stream under us, which is the point of the test
+            pass
         writer.close()
 
     server = await asyncio.start_server(serve_runaway, "127.0.0.1", 0)
@@ -960,7 +899,6 @@ async def _runaway_llama_server() -> AsyncGenerator[str]:
 
 
 async def test_a_subagent_that_never_stops_talking_is_stopped_over_a_real_socket() -> None:
-    """End to end over the wiring the deployment runs: config to socket to a reported refusal."""
     async with _runaway_llama_server() as endpoint:
         config = SubagentsConfig(
             backend="llamacpp",
@@ -994,10 +932,9 @@ async def test_a_subagent_that_never_stops_talking_is_stopped_over_a_real_socket
 
 
 async def test_build_subagents_builds_the_config_roster_and_advertises_it() -> None:
-    """A tool-less wiring with an alternate entry: the spec offers the choice (ADR-0018)."""
     spawn, _scheduler, close = await build_subagents(
         _roster_config(),
-        None,  # tool-less subagents -> the model knob is advertised
+        None,
         "redis://sub:6379/0",
         SystemClock(),
         placer=VramBudgetPlacer(soft_cap_gb=14.0, cortex_reservation_gb=11.3),
@@ -1008,16 +945,15 @@ async def test_build_subagents_builds_the_config_roster_and_advertises_it() -> N
     assert model is not None
     assert model["enum"] == ["qwen", "subagent"]
     description = str(model["description"])
-    assert "default 'subagent'" in description  # the flat-env default entry
-    assert "small and fast" in description  # the alternate's configured trade-off text
+    assert "default 'subagent'" in description
+    assert "small and fast" in description
     await close()
 
 
 async def test_the_entry_every_untrusted_spawn_is_pinned_to_is_one_the_roster_hosts() -> None:
-    """A deployment that renamed its default tier still resolves, and to its own tier."""
     spawn, _scheduler, close = await build_subagents(
         _roster_config(model="subagent-alt"),
-        None,  # tool-less subagents -> the model knob is advertised
+        None,
         "redis://sub:6379/0",
         SystemClock(),
         placer=VramBudgetPlacer(soft_cap_gb=14.0, cortex_reservation_gb=11.3),
@@ -1026,15 +962,12 @@ async def test_the_entry_every_untrusted_spawn_is_pinned_to_is_one_the_roster_ho
     assert spawn is not None
     model = _spec_model_property(spawn)
     assert model is not None
-    # The renamed tier is both an entry and the advertised default, which is what the roster's
-    # own constructor refuses to build when the two disagree.
     assert model["enum"] == ["qwen", "subagent-alt"]
     assert "default 'subagent-alt'" in str(model["description"])
     await close()
 
 
 async def test_build_subagents_with_tools_pins_the_spec_to_the_default() -> None:
-    """Tools-enabled subagents: ADR-0017 rule 2b pins every spawn, so no knob is advertised."""
     spawn, _scheduler, close = await build_subagents(
         _roster_config(),
         build_subagent_tools(_read_registry(), SystemClock()),
@@ -1078,8 +1011,6 @@ def test_build_subagent_tools_none_when_tools_are_disabled() -> None:
 
 
 async def test_build_subagent_tools_strips_gated_tools_structurally() -> None:
-    """A subagent is never handed a gated tool (ADR-0013 subagent-exclusion addendum):
-    the gated name is not advertised, and invoking it anyway fails closed as not found."""
     registry = InMemoryToolRegistry(
         {
             "read": (ToolSpec(name="read", description="", parameters={}), _read_handler),
@@ -1098,8 +1029,6 @@ async def test_build_subagent_tools_strips_gated_tools_structurally() -> None:
 
 
 def test_every_guarding_mode_opens_a_filter_that_logs_under_the_same_name() -> None:
-    """The per-ground line names its policy with the core's own constant, so each constant is
-    held here to the configuration name that selects it (ADR-0015 per-ground addendum)."""
     modes = [mode for mode in get_args(OutputGuardrailName) if mode != "off"]
     assert modes == ["redact", "lookalike", "strict"]
     for mode in modes:
@@ -1115,19 +1044,16 @@ def test_build_output_guardrail_redact_is_the_shipped_defense() -> None:
 
 
 def test_build_output_guardrail_strict_is_the_opt_in_policy() -> None:
-    # CORTEX_OUTPUT_GUARDRAIL=strict selects the addendum's redact-all-non-user-URL policy.
     assert isinstance(build_output_guardrail("strict"), StrictUrlRedactingGuardrail)
 
 
 def test_build_output_guardrail_lookalike_is_the_homoglyph_policy() -> None:
-    # CORTEX_OUTPUT_GUARDRAIL=lookalike selects the non-ASCII-host ground beside the default one.
     guard = build_output_guardrail("lookalike")
     assert isinstance(guard, LookalikeUrlRedactingGuardrail)
     assert not isinstance(guard, UrlRedactingGuardrail | StrictUrlRedactingGuardrail)
 
 
 def test_build_output_guardrail_off_disables_it() -> None:
-    # CORTEX_OUTPUT_GUARDRAIL=off is the documented off switch (ADR-0015).
     assert build_output_guardrail("off") is None
 
 
@@ -1145,18 +1071,14 @@ def test_build_history_window_positive_budget_enables_windowing() -> None:
 
 
 def test_build_history_window_zero_disables_windowing() -> None:
-    # CORTEX_HISTORY_CHAR_BUDGET=0 is the documented off switch (ADR-0014).
     assert _window(0) is None
 
 
 def test_build_history_window_summarizes_when_asked() -> None:
-    # CORTEX_HISTORY_SUMMARY=true wraps the budget window so dropped turns arrive as a recap.
     assert isinstance(_window(100, summarize=True), SummarizingHistoryWindow)
 
 
 def test_build_history_window_ignores_the_summary_flag_without_a_budget() -> None:
-    # With windowing off nothing is ever dropped, so a summarizing wrapper could never fire;
-    # building one anyway would put a model call on a path that has no work for it.
     assert _window(0, summarize=True) is None
 
 
@@ -1193,7 +1115,6 @@ class _CountingBackend(EchoInferenceBackend):
 
 
 async def test_build_history_window_carries_the_fold_floor_into_the_window() -> None:
-    """CORTEX_HISTORY_RECAP_MIN_CHARS is the composition root's, so it has to arrive."""
     backend = _CountingBackend()
     window = build_history_window(
         BrainRuntimeConfig(
@@ -1206,12 +1127,11 @@ async def test_build_history_window_carries_the_fold_floor_into_the_window() -> 
     assert isinstance(window, SummarizingHistoryWindow)
     selected = await window.select(_forty_char_turns(4), session_id="floored")
     plain = await CharBudgetHistoryWindow(200).select(_forty_char_turns(4), session_id="floored")
-    assert list(selected) == list(plain)  # deferred, so no recap was prepended
+    assert list(selected) == list(plain)
     assert backend.calls == 0
 
 
 async def test_build_history_window_never_lets_the_floor_exceed_the_budget() -> None:
-    """A floor above the window would defer more conversation than the model can see at all."""
     backend = _CountingBackend()
     window = build_history_window(
         BrainRuntimeConfig(
@@ -1223,11 +1143,10 @@ async def test_build_history_window_never_lets_the_floor_exceed_the_budget() -> 
     )
     assert isinstance(window, SummarizingHistoryWindow)
     await window.select(_forty_char_turns(4), session_id="clamped")
-    assert backend.calls == 1  # the floor was clamped to the budget, so the fold was paid for
+    assert backend.calls == 1
 
 
 async def test_the_recap_is_folded_by_the_tier_the_deployment_named() -> None:
-    """A deployment that renamed its resident tier still gets its dropped turns recapped."""
     backend = ScriptedInferenceBackend(
         [[TextChunk(text="The user and the assistant exchanged four lines of x.")]],
         serves=["cortex-alt"],
@@ -1241,7 +1160,7 @@ async def test_the_recap_is_folded_by_the_tier_the_deployment_named() -> None:
     assert isinstance(window, SummarizingHistoryWindow)
     selected = await window.select(_forty_char_turns(4), session_id="renamed")
     plain = await CharBudgetHistoryWindow(80).select(_forty_char_turns(4), session_id="renamed")
-    assert len(selected) == len(plain) + 1  # the recap, prepended to the plain selection
+    assert len(selected) == len(plain) + 1
     assert selected[0].role is Role.SYSTEM
     assert backend.calls == ["cortex-alt"]
 
@@ -1269,18 +1188,14 @@ async def test_build_cortex_tools_mcp_only_when_no_subagents() -> None:
 
 
 async def test_build_body_gateway_defaults_to_disabled() -> None:
-    """The no-body default: no gateway, and a closer that is a clean no-op."""
     gateway, close = await build_body_gateway(BodyConfig(backend="none"), token="")
     assert gateway is None
-    await close()  # no resources to release; must not raise
+    await close()
 
 
 async def test_build_body_gateway_selects_grpc_and_returns_a_closer(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The opt-in path: the endpoint, the shared seam token, and BOTH deadlines all reach
-    GrpcBodyGateway.connect. The deadlines are asserted because a knob the composition root
-    drops silently leaves the rest of the suite passing and the turn hanging."""
     seen: dict[str, object] = {}
     closed: list[str] = []
 
@@ -1306,21 +1221,20 @@ async def test_build_body_gateway_selects_grpc_and_returns_a_closer(
         BodyConfig(
             backend="grpc",
             endpoint="host.docker.internal:50151",
+            # Two different non-default numbers, so a builder passing one for both would fail.
             capture_timeout_s=2.5,
             call_timeout_s=1.5,
         ),
-        token="s3cret",  # noqa: S106 - test seam token, not a real secret
+        token="s3cret",  # noqa: S106 - a test token, not a real secret
     )
     assert gateway is not None
-    # Two distinct non-default numbers, so a builder that passed one knob for both, or read the
-    # wrong field, cannot satisfy this by coincidence.
     assert seen == {
         "endpoint": "host.docker.internal:50151",
         "token": "s3cret",
         "capture_timeout_s": 2.5,
         "call_timeout_s": 1.5,
     }
-    await close()  # closes the channel
+    await close()
     assert closed == ["channel"]
 
 
@@ -1334,8 +1248,6 @@ async def test_build_cortex_tools_adds_volume_tools_when_body_is_wired() -> None
 
 
 async def test_capture_screen_is_advertised_only_when_vision_is_available() -> None:
-    """The tool needs a body to take the picture and a model that can read it. Advertising it
-    without both spends the whole privacy cost of a screen read on an image nothing can read."""
     without = build_builtin_tools(None, InMemoryBodyGateway())
     assert [tool.spec.name for tool in without] == [GET_VOLUME_TOOL_NAME, SET_VOLUME_TOOL_NAME]
 
@@ -1350,9 +1262,6 @@ async def test_capture_screen_is_advertised_only_when_vision_is_available() -> N
 
 
 async def test_the_capture_bounds_reach_the_body_through_the_built_tool() -> None:
-    """A knob the composition root drops leaves the rest of the suite passing and the bound
-    unenforced, so the plumbing is asserted at the far end: what the body was actually asked
-    for."""
     body = InMemoryBodyGateway()
     builtins = build_builtin_tools(
         None, body, vision=CaptureBounds(max_edge=1280, max_bytes=4_000_000)
@@ -1387,9 +1296,6 @@ async def test_build_cortex_tools_volume_is_ungated_by_default() -> None:
 async def test_build_tool_registry_stamps_gated_names_at_the_root(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The composition-root gating overlay (ADR-0022): the remote send_email arrives
-    gated=False from MCP and leaves the shared root gated=True because it is declared brain-side,
-    with the default CORTEX_TOOLS_GATED covering it (fail-closed pairing)."""
     url = "http://mcp-email:9100/mcp"
     monkeypatch.setattr(
         builders_module,
@@ -1401,14 +1307,13 @@ async def test_build_tool_registry_stamps_gated_names_at_the_root(
     gated = {spec.name: spec.gated for spec in await registry.describe_tools()}
     assert gated == {"read_email": False, "send_email": True}
     routed = await registry.invoke(ToolCall(id="c1", name="send_email", arguments={}))
-    assert routed.content == url  # the overlay declares; it never blocks routing
+    assert routed.content == url
     await close()
 
 
 async def test_build_tool_registry_gated_overlay_disabled_by_an_empty_list(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """CORTEX_TOOLS_GATED=[] is the documented off switch for the overlay."""
     url = "http://mcp-email:9100/mcp"
     monkeypatch.setattr(
         builders_module, "streamable_http_session", _fake_opener({url: ["send_email"]}, [])
@@ -1421,8 +1326,6 @@ async def test_build_tool_registry_gated_overlay_disabled_by_an_empty_list(
 
 
 async def test_build_cortex_tools_threads_the_confirmer_into_the_gate() -> None:
-    """The dispatcher build_cortex_tools returns enforces ADR-0022's untainted-confirm
-    branch with the confirmer it was given, so approval runs the gated tool."""
     registry = InMemoryToolRegistry(
         {"send": (ToolSpec(name="send", description="", parameters={}, gated=True), _reply_ok)}
     )
@@ -1437,8 +1340,6 @@ async def test_build_cortex_tools_threads_the_confirmer_into_the_gate() -> None:
 
 
 async def test_build_cortex_tools_defaults_to_no_confirmer_fail_closed() -> None:
-    """Without a confirmer (the default), an untainted gated call is declined. This is the
-    ADR-0013 fail-closed posture now covering every gated call (ADR-0022)."""
     registry = InMemoryToolRegistry(
         {"send": (ToolSpec(name="send", description="", parameters={}, gated=True), _reply_ok)}
     )
@@ -1457,9 +1358,6 @@ async def _reply_ok(arguments: Mapping[str, object]) -> str:
 
 
 async def test_build_cortex_tools_gated_names_gate_a_name_the_registry_advertises_ungated() -> None:
-    """The wiring threads CORTEX_TOOLS_GATED into the dispatcher as the authoritative set
-    (ADR-0022): a send tool the raw registry advertises ungated is still gated at dispatch,
-    closing the skip-mode advertisement window."""
     registry = InMemoryToolRegistry(
         {"send_email": (ToolSpec(name="send_email", description="", parameters={}), _reply_ok)}
     )
@@ -1471,7 +1369,6 @@ async def test_build_cortex_tools_gated_names_gate_a_name_the_registry_advertise
         setup=DispatchSetup(DispatchPolicy(gated_names={"send_email"})),
     )
     assert tools is not None
-    # The registry never stamped it gated, yet a tainted turn's call is denied outright.
     result = await tools.dispatch(
         ToolCall(id="c", name="send_email", arguments={}),
         stamp=TurnStamp(tainted=True),
@@ -1482,8 +1379,6 @@ async def test_build_cortex_tools_gated_names_gate_a_name_the_registry_advertise
 
 
 async def test_build_subagent_tools_gated_names_are_the_fail_closed_backstop() -> None:
-    """A subagent dispatcher with a gated name and confirmer=None hard-denies it even if the
-    UngatedToolRegistry strip were bypassed by the advertisement window (ADR-0022)."""
     registry = InMemoryToolRegistry(
         {"send_email": (ToolSpec(name="send_email", description="", parameters={}), _reply_ok)}
     )
@@ -1496,17 +1391,11 @@ async def test_build_subagent_tools_gated_names_are_the_fail_closed_backstop() -
         stamp=TurnStamp(tainted=False),
         gated=False,
     )
-    # confirmer=None on subagents -> the gated-by-name call is declined, never run.
     assert result.is_error is True
     assert result.content == USER_DECLINED_MSG
 
 
 def test_the_configured_tool_prices_reach_both_tool_loop_dispatchers() -> None:
-    """CORTEX_TOOLS_COSTS threads to the cortex and to subagents (ADR-0009 cost addendum).
-
-    Both run a `stream_tool_loop` with its own budget, so a tool a user priced has to be
-    priced in delegated work too: fan-out is exactly what multiplies a cheap-looking call.
-    """
     registry = InMemoryToolRegistry(
         {"read_file": (ToolSpec(name="read_file", description="", parameters={}), _reply_ok)}
     )
@@ -1519,7 +1408,6 @@ def test_the_configured_tool_prices_reach_both_tool_loop_dispatchers() -> None:
 
 
 def test_dispatchers_built_without_prices_charge_one_per_call() -> None:
-    # The default keeps the budget the plain call count it shipped as.
     registry = InMemoryToolRegistry(
         {"read_file": (ToolSpec(name="read_file", description="", parameters={}), _reply_ok)}
     )
@@ -1531,9 +1419,6 @@ def test_dispatchers_built_without_prices_charge_one_per_call() -> None:
 async def test_run_from_env_with_scheduling_fires_and_shuts_down_cleanly(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """CORTEX_SCHEDULE_BACKEND=redis end to end at the composition root: build_schedule
-    dials the (patched-to-fakeredis) URL, the ticker fires a seeded reminder, the pull RPC
-    serves it, and the SIGTERM path stops the ticker cleanly before its store closes."""
     port = _free_loopback_port()
     monkeypatch.setenv("CORTEX_SEAM_HOST", "127.0.0.1")
     monkeypatch.setenv("CORTEX_SEAM_PORT", str(port))
@@ -1542,7 +1427,7 @@ async def test_run_from_env_with_scheduling_fires_and_shuts_down_cleanly(
     server = FakeServer()
 
     def fake_from_url(url: str) -> Redis:
-        del url  # every schedule-store dial lands on the shared fake server
+        del url
         return FakeAsyncRedis(server=server)
 
     monkeypatch.setattr(Redis, "from_url", fake_from_url)
@@ -1575,14 +1460,13 @@ async def test_run_from_env_with_scheduling_fires_and_shuts_down_cleanly(
             assert fired is not None, "the composition-root ticker did not fire the reminder"
             assert fired.reminder_id == "wired-reminder"
         os.kill(os.getpid(), signal.SIGTERM)
-        await asyncio.wait_for(task, timeout=10)  # ticker stopped, stores closed, no errors
+        await asyncio.wait_for(task, timeout=10)
     finally:
         task.cancel()
         await seeder.aclose()
 
 
 def test_the_configured_salience_policy_reaches_both_tool_loop_dispatchers() -> None:
-    """CORTEX_TOOLS_SALIENCE threads to the cortex and to subagents (salience addendum)."""
     registry = InMemoryToolRegistry(
         {"read_file": (ToolSpec(name="read_file", description="", parameters={}), _reply_ok)}
     )
@@ -1601,7 +1485,6 @@ def test_the_configured_salience_policy_reaches_both_tool_loop_dispatchers() -> 
 
 
 def test_the_configured_salience_limit_reaches_both_tool_loop_dispatchers() -> None:
-    """CORTEX_TOOLS_SALIENCE_LIMIT threads the number, not only the kind (salience addendum)."""
     registry = InMemoryToolRegistry(
         {"read_file": (ToolSpec(name="read_file", description="", parameters={}), _reply_ok)}
     )

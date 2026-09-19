@@ -1,4 +1,4 @@
-"""Shared scaffolding for the swap suites: one handoff over fakes, and the invariants it owes."""
+"""Shared fakes and setup for the swap suites: one handoff run over fake adapters."""
 
 import asyncio
 from collections.abc import AsyncIterator, Callable, Sequence
@@ -56,13 +56,12 @@ CORTEX_URL = "http://llama-cortex:8080"
 BRAIN_URL = "http://llama-brain:8081"
 _AT = datetime(2026, 7, 25, 12, 0, tzinfo=UTC)
 
-# The swap window's four steps, in the only order they can honestly happen. Every handoff's
-# status details are a PREFIX of this: one that stopped early says less, never something else.
+# A handoff's status details are always a prefix of this list: one that stops early says less.
 SWAP_WINDOW = [DRAINING_DETAIL, LOADING_DETAIL, WORKING_DETAIL, RESTORING_DETAIL]
 
 
 class TickingClock:
-    """A clock that advances one second per reading, monotone and deterministic, with no wait."""
+    """A clock that advances one second each time it is read, and never waits."""
 
     def __init__(self) -> None:
         self._ticks = 0
@@ -73,7 +72,7 @@ class TickingClock:
 
 
 class Gate:
-    """One armed boundary: a fake fires ``reached`` there and blocks until ``release``."""
+    """A pause point: a fake sets ``reached`` and blocks until the test sets ``release``."""
 
     def __init__(self) -> None:
         self.reached = asyncio.Event()
@@ -84,19 +83,19 @@ class Gate:
         await self.release.wait()
 
     async def arrived(self) -> None:
-        """Wait for the boundary, under a timeout so a miss fails the test instead of hanging."""
+        """Wait for the pause point, under a timeout so a miss fails the test instead of hanging."""
         async with asyncio.timeout(5.0):
             await self.reached.wait()
 
 
 class WitnessingScheduler(AdmitAllScheduler):
-    """The pool, plus the two things about the drain window nothing else can observe after."""
+    """The subagent pool, counting its drains and recording what was running at each undrain."""
 
     def __init__(self) -> None:
         super().__init__()
         self.drains = 0
         self.reopened: list[frozenset[str]] = []
-        # Set by ``build_harness``; the pool is composed before the host it watches exists.
+        # Set later by build_harness: the pool is created before the host it watches.
         self.host: ScriptedModelHost | None = None
 
     async def drain(self, *, timeout_s: float) -> bool:
@@ -111,7 +110,7 @@ class WitnessingScheduler(AdmitAllScheduler):
 
 @dataclass(frozen=True, slots=True)
 class StatusWitness:
-    """What the machine had actually done at the instant one swap-window status was emitted."""
+    """What the system had done at the moment one swap-window status was sent."""
 
     detail: str
     drains: int
@@ -121,7 +120,7 @@ class StatusWitness:
 
 
 class RecordingHandoffStore(InMemoryHandoffStore):
-    """Records every state written, so a record that reached DONE and was deleted is provable."""
+    """Records every state written, so a test can check a record reached DONE before deletion."""
 
     def __init__(
         self,
@@ -148,7 +147,7 @@ class RecordingHandoffStore(InMemoryHandoffStore):
     async def transition(
         self, handoff_id: str, state: HandoffState, *, failure: str | None = None
     ) -> bool:
-        """As the in-memory twin, except that ``fail_settle`` refuses that state exactly once."""
+        """Like the in-memory store, except that ``fail_settle`` raises for that state once."""
         if state is self._fail_settle:
             self._fail_settle = None
             msg = f"redis refused the {state.value} write"
@@ -214,7 +213,6 @@ class ScriptedBrainBackend:
         self.models.append(model)
         self.seen = list(messages)
         if self.calls <= len(self._tool_calls):
-            # A round asking for a tool, with the reply on whichever round runs out of them.
             yield self._tool_calls[self.calls - 1]
             cadence = self._cadence_for_round()
             if cadence is not None:
@@ -235,17 +233,19 @@ class ScriptedBrainBackend:
             self.closed = True
 
     def _cadence_for_round(self) -> DecodeCadence | None:
-        """This round's scripted timings, the last entry standing in for every later round."""
+        """This round's scripted timings; the last entry is reused for every later round."""
         if not self._cadences:
             return None
         return self._cadences[min(self.calls - 1, len(self._cadences) - 1)]
 
 
 def request() -> PlacementRequest:
-    """One subagent admission, for asserting that the pool admits again after a handoff."""
+    """One subagent placement request, used to check the pool admits again after a handoff."""
     return PlacementRequest("subagent", vram_gb=1.0, cpus=1.0, memory_gb=1.0)
 
 
+# The only host call a handoff makes before it commits to anything: it asks whether there is a
+# deep tier to load. Assertions that nothing was evicted compare against this exact list.
 PREFLIGHT_CALLS = [("status", "brain")]
 
 
@@ -266,7 +266,7 @@ def armed_slot(
     tail: Sequence[Message] = (),
     budget: DispatchBudget | None = None,
 ) -> EscalationSlot:
-    """A slot as the engine leaves it at the loop boundary: armed, filled, tail captured."""
+    """A slot as the engine leaves it at the end of the tool loop: prepared, filled, tail kept."""
     ledger = taint if taint is not None else TaintLedger()
     working = [Message(role=Role.USER, text=USER_TEXT, at=_AT, turn_id=TURN)]
     base_len = len(working)
@@ -285,7 +285,7 @@ def armed_slot(
 
 @dataclass(slots=True)
 class Fakes:
-    """The four outermost adapters a test may script; anything left out gets a plain one."""
+    """The four outermost adapters a test may script; anything left out gets a default."""
 
     host: ScriptedModelHost | None = None
     handoffs: RecordingHandoffStore | None = None
@@ -294,11 +294,7 @@ class Fakes:
 
 
 def recaller() -> MemoryRecaller:
-    """The durable half of "the stores are intact": a real recaller over in-memory adapters.
-
-    Wired into every harness by default, because a ``TurnCapabilities`` without memory makes
-    the deep phase's memory write a no-op and the invariant it is supposed to cover vacuous.
-    """
+    """A real MemoryRecaller over in-memory adapters, for checking the durable store survives."""
     minted = 0
 
     def next_id() -> str:
@@ -311,7 +307,7 @@ def recaller() -> MemoryRecaller:
 
 @dataclass(slots=True)
 class Harness:
-    """One fully composed handoff, plus the fakes a test scripts and asserts against."""
+    """One fully composed handoff, plus the fakes a test scripts and checks."""
 
     host: ScriptedModelHost
     manager: SwappingModelManager
@@ -326,7 +322,7 @@ class Harness:
     statuses: list[StatusWitness] = field(default_factory=list[StatusWitness])
 
     def observe(self, event: TurnEvent) -> TurnEvent:
-        """Snapshot the machine behind a status the instant it crosses, and pass the event on."""
+        """Record what the system had done when a status was sent, and pass the event on."""
         if isinstance(event, StatusUpdate):
             self.statuses.append(
                 StatusWitness(
@@ -349,8 +345,8 @@ class Harness:
         )
 
     async def remembered(self) -> list[MemoryRecord]:
-        """Every exchange this handoff wrote to durable memory, recalled back out of it."""
-        hits = await self.memory.recall(USER_TEXT, k=5, session_id=SESSION)
+        """Every exchange this handoff wrote to durable memory, read back out of it."""
+        hits = await self.memory.recall(USER_TEXT, k=5, session_id=SESSION, turn_id="t")
         return [hit.record for hit in hits]
 
 
@@ -383,8 +379,6 @@ def build_harness(
     )
     pool = scheduler if scheduler is not None else WitnessingScheduler()
     pool.host = used_host
-    # Memory is wired in whatever else a test scripts, so "the stores are intact" covers the
-    # durable store too; a caller's own capabilities keep everything but that.
     memory = recaller()
     caps = replace(capabilities if capabilities is not None else TurnCapabilities(), memory=memory)
     return Harness(
@@ -411,7 +405,7 @@ def build_harness(
 async def run_handoff(
     harness: Harness, slot: EscalationSlot, *, turn_id: str = TURN
 ) -> list[TurnEvent]:
-    """Drive one handoff to the end, collecting every event it put on the turn's stream."""
+    """Run one handoff to the end, collecting every event it put on the turn's stream."""
     events: list[TurnEvent] = []
     stream = harness.conductor.run_handoff(slot, session_id=SESSION, turn_id=turn_id)
     try:
@@ -423,7 +417,7 @@ async def run_handoff(
 
 
 def assert_the_window_announced_real_progress(live: Harness) -> None:
-    """Every swap-window status, checked against the work it announces (ADR-0030 decision 6)."""
+    """Check every swap-window status against the work it reports."""
     seen = [witness.detail for witness in live.statuses]
     assert seen == SWAP_WINDOW[: len(seen)]
     for witness in live.statuses:
@@ -431,15 +425,15 @@ def assert_the_window_announced_real_progress(live: Harness) -> None:
 
 
 def _draining_was_true(live: Harness, seen: StatusWitness) -> None:
-    """ "Quiescing the subagent pool": said before the quiescing, with the record already safe."""
-    assert seen.drains == 0  # announced ahead of the drain it names, not after it
+    """The draining status is sent before the drain, with the record already saved."""
+    assert seen.drains == 0
     assert seen.host_ops == (("status", live.residency.brain_model),)
     assert seen.record_states[-1] is HandoffState.READY
     assert seen.deep_calls == 0
 
 
 def _loading_was_true(live: Harness, seen: StatusWitness) -> None:
-    """ "Loading the deep model": said once the pool is quiet and before the model is loaded."""
+    """The loading status is sent once the pool is drained and before the model is loaded."""
     assert seen.drains == (1 if live.pooled else 0)
     assert ("start", live.residency.brain_model) not in seen.host_ops
     assert ("stop", live.residency.cortex_model) not in seen.host_ops
@@ -447,15 +441,15 @@ def _loading_was_true(live: Harness, seen: StatusWitness) -> None:
 
 
 def _working_was_true(live: Harness, seen: StatusWitness) -> None:
-    """ "The deep model is working on this": the one status claiming the GPU already moved."""
+    """The working status is the only one that reports the deep model is already loaded."""
     assert ("start", live.residency.brain_model) in seen.host_ops
-    assert ("status", live.residency.brain_model) in seen.host_ops  # it health-gated, too
+    assert ("status", live.residency.brain_model) in seen.host_ops
     assert seen.record_states[-1] is HandoffState.BRAIN_ACTIVE
-    assert seen.deep_calls == 0  # about to work; a round already run would make the status wrong
+    assert seen.deep_calls == 0
 
 
 def _restoring_was_true(live: Harness, seen: StatusWitness) -> None:
-    """ "Restoring the usual assistant": said after the deep model ran and before it is stopped."""
+    """The restoring status is sent after the deep model ran and before it is stopped."""
     assert seen.deep_calls >= 1
     assert ("stop", live.residency.brain_model) not in seen.host_ops
     assert ("start", live.residency.cortex_model) not in seen.host_ops

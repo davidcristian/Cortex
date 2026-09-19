@@ -1,4 +1,7 @@
-"""Measure how wide the recall trail's `dropped` field renders on a line a real stack wrote."""
+"""Measure how wide the recall trail's `dropped` field renders in a line a running brain writes.
+
+`just recall-width` copies this file into the brain container and runs it there.
+"""
 
 import asyncio
 import os
@@ -9,7 +12,7 @@ from typing import cast
 from grpc import aio
 from recall_corpus import MEMORIES, QUESTIONS, UNRELATED
 
-from cortex_core import MemoryRecaller, SystemClock
+from cortex_core import MemoryRecaller, SystemClock, new_turn_id
 from cortex_core.turn_context import DEFAULT_RECALL_K
 from cortex_orchestrator.builders import build_inference_backend
 from cortex_orchestrator.config import BrainRuntimeConfig, InferenceConfig, MemoryConfig
@@ -17,10 +20,12 @@ from cortex_orchestrator.config_logging import configure_from_env
 from cortex_orchestrator.memory_builders import build_memory
 from cortex_seam import SEAM_TOKEN_HEADER, BrainServiceStub, ClientEvent, ServerEvent, UserTurn
 
+# The unanswerable questions are included on purpose: a rank that keeps nothing drops the whole
+# pool, which is the widest this field ever renders.
 _ASKED: tuple[str, ...] = (*QUESTIONS, *UNRELATED, *MEMORIES.values())
 
-# How many passes over `_ASKED` each phase makes. The direct phase pays one rank per recall; the
-# turns phase pays a whole reply, so it asks a slice rather than the whole list.
+# The direct phase runs one rank per recall, so it can afford several passes over `_ASKED`; the
+# turns phase runs a whole model reply each time, so it asks a slice.
 _DIRECT_PASSES = int(os.environ.get("CORTEX_TRAIL_DIRECT_PASSES", "3"))
 _TURNS = int(os.environ.get("CORTEX_TRAIL_TURNS", "8"))
 _SEAM = os.environ.get("CORTEX_TRAIL_SEAM", "127.0.0.1:50051")
@@ -32,12 +37,12 @@ def _metadata() -> tuple[tuple[str, str], ...] | None:
 
 
 def _say(message: str) -> None:
-    """Print progress on stdout, where no trail line ever lands."""
+    """Print progress on stdout, which is not where a trail line goes."""
     print(message, flush=True)  # noqa: T201 -- a probe's only output channel
 
 
 async def _turn(stub: BrainServiceStub, session_id: str, question: str) -> None:
-    """Ask one question over the seam and drain the stream, so the turn really completes."""
+    """Ask one question over gRPC and drain the stream, so the turn really completes."""
     converse = stub.Converse  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
     call = cast("aio.StreamStreamCall[ClientEvent, ServerEvent]", converse(metadata=_metadata()))
     await call.write(ClientEvent(session_id=session_id, user_turn=UserTurn(text=question)))
@@ -72,7 +77,9 @@ async def _direct(recaller: MemoryRecaller, scopes: list[str], stamp: int) -> No
         scopes.append(scope)
         await _seed(recaller, scope)
         for question in _ASKED:
-            await recaller.recall(question, k=DEFAULT_RECALL_K, session_id=scope)
+            await recaller.recall(
+                question, k=DEFAULT_RECALL_K, session_id=scope, turn_id=new_turn_id()
+            )
         _say(f"probe: direct pass {index + 1}/{_DIRECT_PASSES} asked {len(_ASKED)} questions")
 
 

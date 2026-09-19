@@ -1,5 +1,3 @@
-"""Behavior of the memory value types, in-memory fakes, and the MemoryRecaller use-case."""
-
 import uuid
 from collections.abc import Iterator, Sequence
 from datetime import UTC, datetime
@@ -28,7 +26,7 @@ _AT = datetime(2026, 7, 3, 12, 0, 0, tzinfo=UTC)
 
 
 class _FixedClock:
-    """A Clock pinned to ``_AT`` so recorded timestamps are assertable."""
+    """A clock fixed at ``_AT`` so recorded timestamps can be compared exactly."""
 
     def now(self) -> datetime:
         return _AT
@@ -107,23 +105,20 @@ async def test_delete_scope_removes_only_its_namespace_and_counts() -> None:
     await store.add(_record("a2", (1.0, 0.0), record_id="a2", scope="conv-a"))
     await store.add(_record("b1", (1.0, 0.0), record_id="b1", scope="conv-b"))
     removed = await store.delete_scope("conv-a")
-    assert removed == 2  # both conv-a memories, and only those
-    assert await store.search([1.0, 0.0], k=5, scopes=["conv-a"]) == ()  # the scope is empty now
+    assert removed == 2
+    assert await store.search([1.0, 0.0], k=5, scopes=["conv-a"]) == ()
     kept = await store.search([1.0, 0.0], k=5, scopes=["conv-b"])
-    assert [hit.record.id for hit in kept] == ["b1"]  # conv-b survives
+    assert [hit.record.id for hit in kept] == ["b1"]
 
 
 async def test_delete_scope_without_matches_returns_zero() -> None:
     store = InMemoryMemoryStore()
     await store.add(_record("a1", (1.0, 0.0), record_id="a1", scope="conv-a"))
-    assert await store.delete_scope("conv-x") == 0  # nothing matched, no error
-    assert len(await store.search([1.0, 0.0], k=5)) == 1  # the store is untouched
+    assert await store.delete_scope("conv-x") == 0
+    assert len(await store.search([1.0, 0.0], k=5)) == 1
 
 
 async def test_a_store_told_to_fail_takes_every_verb_away_the_way_a_lost_backend_does() -> None:
-    """``fail_with`` makes every verb raise, matching ``HashEmbedder.fail_with`` on the other
-    port.
-    """
     store = InMemoryMemoryStore()
     await store.add(_record("a1", (1.0, 0.0), record_id="a1", scope="conv-a"))
     store.fail_with(MemoryStoreError("the memory store is unreachable"))
@@ -139,13 +134,15 @@ async def test_a_store_told_to_fail_takes_every_verb_away_the_way_a_lost_backend
 
 
 def test_the_recaller_exposes_no_forget_verb_so_no_turn_can_delete_memory() -> None:
+    # A turn reaches memory only through MemoryRecaller, and memory is in no tool registry, so no
+    # tool call can delete anything. If a delete verb is added here, work out the taint path first.
     assert not hasattr(MemoryRecaller, "delete_scope")
     turn_facing = {name for name in vars(MemoryRecaller) if not name.startswith("_")}
     assert turn_facing == {"record", "recall"}
 
 
 class _SpyDeleteStore(InMemoryMemoryStore):
-    """An InMemoryMemoryStore that records every scope handed to ``delete_scope``."""
+    """An InMemoryMemoryStore that records every scope passed to ``delete_scope``."""
 
     def __init__(self) -> None:
         super().__init__()
@@ -157,11 +154,7 @@ class _SpyDeleteStore(InMemoryMemoryStore):
 
 
 class _FixedBucketScope:
-    """A MemoryScope writing every session to one shared bucket (neither global nor per-session).
-
-    Proves the cascade refuses a scope that is not the session's own private space even when it is
-    not ``GLOBAL_SCOPE`` (the ``scope != session_id`` guard branch).
-    """
+    """A MemoryScope that writes every session to one shared scope of its own."""
 
     def write_scope(self, session_id: str) -> str:
         del session_id
@@ -173,56 +166,48 @@ class _FixedBucketScope:
 
 
 async def test_cascade_forgets_a_session_scoped_chats_own_memories() -> None:
-    """Under session scoping the cascade deletes exactly the chat's own namespace and counts it."""
     store = _SpyDeleteStore()
     await store.add(_record("chat-a fact", (1.0, 0.0), record_id="a1", scope="chat-a"))
     await store.add(_record("chat-a fact 2", (1.0, 0.0), record_id="a2", scope="chat-a"))
     await store.add(_record("chat-b fact", (1.0, 0.0), record_id="b1", scope="chat-b"))
     cascade = SessionMemoryCascade(store, SessionMemoryScope())
     removed = await cascade.delete_session_memories("chat-a")
-    assert removed == 2  # both of chat-a's private memories
-    assert store.deleted_scopes == ["chat-a"]  # its own scope, and only it
-    assert await store.search([1.0, 0.0], k=5, scopes=["chat-a"]) == ()  # gone
+    assert removed == 2
+    assert store.deleted_scopes == ["chat-a"]
+    assert await store.search([1.0, 0.0], k=5, scopes=["chat-a"]) == ()
     kept = await store.search([1.0, 0.0], k=5, scopes=["chat-b"])
-    assert [hit.record.id for hit in kept] == ["b1"]  # another chat is untouched
+    assert [hit.record.id for hit in kept] == ["b1"]
 
 
 async def test_cascade_does_not_run_under_global_scoping() -> None:
-    """The critical guard: under the shared global space nothing session-private cascades, and
-    ``GLOBAL_SCOPE`` is NEVER handed to ``delete_scope`` (which would erase every conversation)."""
     store = _SpyDeleteStore()
     await store.add(_record("a shared fact", (1.0, 0.0), record_id="g1", scope=GLOBAL_SCOPE))
     cascade = SessionMemoryCascade(store, GlobalMemoryScope())
     removed = await cascade.delete_session_memories("any-session")
-    assert removed == 0  # nothing session-private to forget
-    assert store.deleted_scopes == []  # delete_scope never called: GLOBAL_SCOPE never passed
-    survived = await store.search([1.0, 0.0], k=5)  # the shared space is fully intact
+    assert removed == 0
+    assert store.deleted_scopes == []
+    survived = await store.search([1.0, 0.0], k=5)
     assert [hit.record.id for hit in survived] == ["g1"]
 
 
 async def test_cascade_never_passes_global_scope_even_for_a_session_named_global() -> None:
-    """A session whose id EQUALS ``GLOBAL_SCOPE`` under SESSION scoping still cannot sweep the
-    shared space: the ``GLOBAL_SCOPE`` guard is checked first, so ``write_scope == GLOBAL_SCOPE``
-    is refused before the ``scope == session_id`` test could ever admit it."""
     store = _SpyDeleteStore()
     await store.add(_record("a shared fact", (1.0, 0.0), record_id="g1", scope=GLOBAL_SCOPE))
     cascade = SessionMemoryCascade(store, SessionMemoryScope())
-    removed = await cascade.delete_session_memories(GLOBAL_SCOPE)  # a session id of "global"
+    removed = await cascade.delete_session_memories(GLOBAL_SCOPE)
     assert removed == 0
-    assert store.deleted_scopes == []  # GLOBAL_SCOPE never reached delete_scope
+    assert store.deleted_scopes == []
     survived = await store.search([1.0, 0.0], k=5)
-    assert [hit.record.id for hit in survived] == ["g1"]  # the shared space survives
+    assert [hit.record.id for hit in survived] == ["g1"]
 
 
 async def test_cascade_refuses_a_shared_bucket_that_is_not_the_session_scope() -> None:
-    """A policy writing to a shared bucket (not global, not the session's own scope) is not swept:
-    the cascade runs only when the write scope IS the session id (``scope != session_id``)."""
     store = _SpyDeleteStore()
     await store.add(_record("bucket fact", (1.0, 0.0), record_id="k1", scope="shared-bucket"))
     cascade = SessionMemoryCascade(store, _FixedBucketScope())
     removed = await cascade.delete_session_memories("some-session")
     assert removed == 0
-    assert store.deleted_scopes == []  # a shared-but-not-global bucket is left intact
+    assert store.deleted_scopes == []
     assert len(await store.search([1.0, 0.0], k=5)) == 1
 
 
@@ -235,21 +220,18 @@ async def test_record_builds_persists_and_returns_the_memory() -> None:
     assert stored.at is _AT
     assert stored.text == "remember this"
     assert stored.embedding == tuple(await embedder.embed("remember this"))
-    assert stored.scope == GLOBAL_SCOPE  # the default policy writes the global space
-    assert stored.tainted is False  # an untainted turn writes a trusted memory (ADR-0019)
-    # It is genuinely in the store: recall of the same text surfaces exactly it.
-    (hit,) = await recaller.recall("remember this", k=1, session_id="s")
+    assert stored.scope == GLOBAL_SCOPE
+    assert stored.tainted is False
+    (hit,) = await recaller.recall("remember this", k=1, session_id="s", turn_id="t")
     assert hit.record == stored
 
 
 async def test_record_stamps_the_tainted_marker_when_requested() -> None:
-    # A tainted turn records its exchange with the untrusted-provenance marker so recall can
-    # fence it (ADR-0019); the recaller only carries the flag onto the record.
     store = InMemoryMemoryStore()
     recaller = MemoryRecaller(store, HashEmbedder(), _FixedClock(), id_factory=lambda: "t-mem")
     stored = await recaller.record("from a hostile file", session_id="s", tainted=True)
     assert stored.tainted is True
-    (hit,) = await recaller.recall("from a hostile file", k=1, session_id="s")
+    (hit,) = await recaller.recall("from a hostile file", k=1, session_id="s", turn_id="t")
     assert hit.record.tainted is True
 
 
@@ -259,7 +241,7 @@ async def test_recall_embeds_the_query_and_returns_the_closest_memory() -> None:
     recaller = MemoryRecaller(store, HashEmbedder(), _FixedClock(), id_factory=lambda: next(ids))
     await recaller.record("alpha", session_id="s")
     await recaller.record("beta", session_id="s")
-    hits = await recaller.recall("alpha", k=2, session_id="s")
+    hits = await recaller.recall("alpha", k=2, session_id="s", turn_id="t")
     assert len(hits) == 2
     assert hits[0].record.text == "alpha"
     assert hits[0].score == pytest.approx(1.0)
@@ -268,7 +250,7 @@ async def test_recall_embeds_the_query_and_returns_the_closest_memory() -> None:
 async def test_record_uses_uuid_ids_by_default() -> None:
     recaller = MemoryRecaller(InMemoryMemoryStore(), HashEmbedder(), _FixedClock())
     stored = await recaller.record("x", session_id="s")
-    assert uuid.UUID(stored.id).version == 4  # parses as a v4 uuid → default factory ran
+    assert uuid.UUID(stored.id).version == 4
 
 
 def test_memory_record_defaults_to_the_global_scope() -> None:
@@ -277,16 +259,16 @@ def test_memory_record_defaults_to_the_global_scope() -> None:
 
 
 def test_memory_record_defaults_to_untainted() -> None:
-    assert _record("hi", (1.0, 0.0)).tainted is False  # trusted provenance unless marked (ADR-0019)
+    assert _record("hi", (1.0, 0.0)).tainted is False
     tainted = MemoryRecord(id="m", text="t", embedding=(1.0,), at=_AT, tainted=True)
     assert tainted.tainted is True
 
 
 def test_global_memory_scope_writes_global_and_reads_everything() -> None:
     scope = GlobalMemoryScope()
-    assert scope.write_scope("session-a") == GLOBAL_SCOPE  # ignores the session
-    assert scope.read_scopes("session-a") is None  # no filter, so recall spans all memories
-    assert GLOBAL_MEMORY_SCOPE.read_scopes("session-a") is None  # the shared singleton agrees
+    assert scope.write_scope("session-a") == GLOBAL_SCOPE
+    assert scope.read_scopes("session-a") is None
+    assert GLOBAL_MEMORY_SCOPE.read_scopes("session-a") is None
 
 
 def test_session_memory_scope_isolates_by_session() -> None:
@@ -300,22 +282,23 @@ async def test_scoped_search_filters_the_candidate_set() -> None:
     await store.add(_record("a-mem", (1.0, 0.0), record_id="a", scope="scope-a"))
     await store.add(_record("b-mem", (1.0, 0.0), record_id="b", scope="scope-b"))
     only_a = await store.search([1.0, 0.0], k=5, scopes=["scope-a"])
-    assert [hit.record.id for hit in only_a] == ["a"]  # scope-b filtered out
+    assert [hit.record.id for hit in only_a] == ["a"]
     both = await store.search([1.0, 0.0], k=5, scopes=["scope-a", "scope-b"])
-    assert {hit.record.id for hit in both} == {"a", "b"}  # a union of scopes
+    assert {hit.record.id for hit in both} == {"a", "b"}
     unfiltered = await store.search([1.0, 0.0], k=5)
-    assert {hit.record.id for hit in unfiltered} == {"a", "b"}  # None spans every scope
+    assert {hit.record.id for hit in unfiltered} == {"a", "b"}
 
 
 class _SpyRecallPolicy:
-    """A RecallPolicy that records how the recaller called it and returns only the first hit."""
+    """A RecallPolicy that records how the recaller called it and keeps only the first hit."""
 
     def __init__(self) -> None:
         self.select_call: tuple[tuple[str, ...], str, datetime, int] | None = None
         self.session_id: str | None = None
+        self.turn_id: str | None = None
 
     def candidate_k(self, k: int) -> int:
-        return k + 3  # ask for a wider pool than the caller's k, to observe the over-fetch
+        return k + 3
 
     async def select(
         self,
@@ -325,9 +308,11 @@ class _SpyRecallPolicy:
         now: datetime,
         k: int,
         session_id: str | None = None,
+        turn_id: str | None = None,
     ) -> Ranking:
         self.select_call = (tuple(hit.record.id for hit in hits), query, now, k)
         self.session_id = session_id
+        self.turn_id = turn_id
         return Ranking(
             hits=tuple(RankedMemory(hit=hit, key=hit.score) for hit in hits[:1]),
             basis=RankBasis.VERDICT,
@@ -343,34 +328,30 @@ async def test_recall_over_fetches_the_pool_and_applies_the_policy() -> None:
     )
     for i in range(5):
         await recaller.record(f"fact {i}", session_id="s")
-    hits = await recaller.recall("fact 0", k=2, session_id="s")
+    hits = await recaller.recall("fact 0", k=2, session_id="s", turn_id="t")
     assert spy.select_call is not None
     pool_ids, query, now, k = spy.select_call
-    assert len(pool_ids) == 5  # candidate_k(2) == 5, so the store handed the policy 5 candidates
-    assert query == "fact 0"  # the query reaches the policy, which is what a model rank needs
-    assert now == _AT  # the recaller passes clock.now() as the recall time
+    assert len(pool_ids) == 5
+    assert query == "fact 0"
+    assert now == _AT
     assert k == 2
-    assert len(hits) == 1  # the recaller returns exactly what the policy selected
+    assert len(hits) == 1
 
 
 async def test_the_policy_is_told_which_recall_it_is_ranking() -> None:
-    """The recalling session is the one identity that crosses the port, so a policy that reports
-    can name the recall it ranked.
-    """
     spy = _SpyRecallPolicy()
     recaller = MemoryRecaller(
         InMemoryMemoryStore(), HashEmbedder(), _FixedClock(), policy=spy, id_factory=lambda: "m0"
     )
     await recaller.record("a fact", session_id="the-writer")
 
-    await recaller.recall("a fact", k=1, session_id="the-reader")
+    await recaller.recall("a fact", k=1, session_id="the-reader", turn_id="the-turn")
 
     assert spy.session_id == "the-reader"
+    assert spy.turn_id == "the-turn"
 
 
 async def test_recall_audits_the_ranking_when_a_sink_is_wired() -> None:
-    """A wired sink receives the ranking, which the relevance-field decline had needed a
-    throwaway script to see (ADR-0038)."""
     store = InMemoryMemoryStore()
     sink = RecordingRecallSink()
     ids = iter([f"m{i}" for i in range(3)])
@@ -384,19 +365,19 @@ async def test_recall_audits_the_ranking_when_a_sink_is_wired() -> None:
     )
     for i in range(3):
         await recaller.record(f"fact {i}", session_id="s")
-    await recaller.recall("fact 0", k=1, session_id="s")
+    await recaller.recall("fact 0", k=1, session_id="s", turn_id="the-turn")
     (audit,) = sink.audits
     assert audit.session_id == "s"
+    assert audit.turn_id == "the-turn"
     assert audit.query == "fact 0"
     assert audit.k == 1
-    assert audit.pool_size == 3  # the whole pool the policy chose from, not just what it kept
+    assert audit.pool_size == 3
     assert audit.at == _AT
-    assert audit.ranking.basis is RankBasis.VERDICT  # the basis that actually ranked
+    assert audit.ranking.basis is RankBasis.VERDICT
     assert [ranked.hit.record.id for ranked in audit.ranking.hits] == ["m0"]
 
 
 async def test_the_trail_says_how_many_candidates_there_were_not_only_how_many_came_back() -> None:
-    """A pool at its requested width and a store that held exactly that many are two events."""
     store = InMemoryMemoryStore()
     sink = RecordingRecallSink()
     ids = iter([f"m{i}" for i in range(9)])
@@ -410,19 +391,14 @@ async def test_the_trail_says_how_many_candidates_there_were_not_only_how_many_c
     )
     for i in range(9):
         await recaller.record(f"fact {i}", session_id="s")
-    await recaller.recall("fact 0", k=1, session_id="s")
+    await recaller.recall("fact 0", k=1, session_id="s", turn_id="t")
 
     (audit,) = sink.audits
-    assert audit.pool_size == 4  # candidate_k(1), the width the policy asked the store for
-    assert audit.available == 9  # and what the store had to offer it, which nothing else reports
+    assert audit.pool_size == 4
+    assert audit.available == 9
 
 
 async def test_the_counted_candidates_are_the_read_scopes_and_not_the_whole_store() -> None:
-    """The count means nothing unless it counts the same set the search ranked over.
-
-    Under session scoping, a recall in one conversation must not be told that the other
-    conversation's memories were available to it: they were never candidates.
-    """
     store = InMemoryMemoryStore()
     sink = RecordingRecallSink()
     recaller = MemoryRecaller(
@@ -432,14 +408,14 @@ async def test_the_counted_candidates_are_the_read_scopes_and_not_the_whole_stor
         await recaller.record(f"fact {i}", session_id="conv-a")
     await recaller.record("only one here", session_id="conv-b")
 
-    await recaller.recall("fact 0", k=5, session_id="conv-b")
+    await recaller.recall("fact 0", k=5, session_id="conv-b", turn_id="t")
 
     (audit,) = sink.audits
-    assert audit.available == 1  # conv-b's own namespace, not the five memories the store holds
+    assert audit.available == 1
 
 
 class _DecliningRecallPolicy:
-    """A RecallPolicy that reads the pool and keeps none of it, the judge's refusal in a fake."""
+    """A RecallPolicy that reads the pool and keeps none of it, as a declining judge does."""
 
     def candidate_k(self, k: int) -> int:
         return k
@@ -452,17 +428,13 @@ class _DecliningRecallPolicy:
         now: datetime,
         k: int,
         session_id: str | None = None,
+        turn_id: str | None = None,
     ) -> Ranking:
-        del hits, query, now, k, session_id
+        del hits, query, now, k, session_id, turn_id
         return Ranking(hits=(), basis=RankBasis.DEMUR)
 
 
 async def test_a_declined_rank_reaches_the_turn_as_no_memories_and_the_trail_says_why() -> None:
-    """The recaller does not overrule a policy that kept nothing (ADR-0038 abstention addendum).
-
-    The store holds a matching memory, so the pool is not empty; the policy declines it, and both
-    the turn's hits and the audited ranking must say so rather than falling back to the pool.
-    """
     store = InMemoryMemoryStore()
     sink = RecordingRecallSink()
     recaller = MemoryRecaller(
@@ -475,16 +447,15 @@ async def test_a_declined_rank_reaches_the_turn_as_no_memories_and_the_trail_say
     )
     await recaller.record("a fact", session_id="s")
 
-    assert await recaller.recall("a fact", k=3, session_id="s") == ()
+    assert await recaller.recall("a fact", k=3, session_id="s", turn_id="t") == ()
 
     (audit,) = sink.audits
-    assert audit.pool_size == 1  # there WAS something to rank, which is what makes this a refusal
+    assert audit.pool_size == 1
     assert audit.ranking.hits == ()
     assert audit.ranking.basis is RankBasis.DEMUR
 
 
 async def test_the_trail_names_the_candidates_the_policy_left_behind() -> None:
-    """The pool the caller never sees, by id and by the store's own score (ADR-0038 addendum)."""
     store = InMemoryMemoryStore()
     sink = RecordingRecallSink()
     ids = iter([f"m{i}" for i in range(3)])
@@ -498,7 +469,7 @@ async def test_the_trail_names_the_candidates_the_policy_left_behind() -> None:
     )
     for i in range(3):
         await recaller.record(f"fact {i}", session_id="s")
-    await recaller.recall("fact 0", k=1, session_id="s")
+    await recaller.recall("fact 0", k=1, session_id="s", turn_id="t")
 
     pool = await store.search(await HashEmbedder().embed("fact 0"), k=3)
     (audit,) = sink.audits
@@ -506,19 +477,18 @@ async def test_the_trail_names_the_candidates_the_policy_left_behind() -> None:
     assert [(hit.record.id, hit.score) for hit in pool[1:]] == [
         (candidate.id, candidate.score) for candidate in audit.dropped.carried
     ]
-    assert audit.dropped.omitted == 0  # three candidates is nowhere near the bound
+    assert audit.dropped.omitted == 0
 
 
 async def test_recall_without_a_sink_records_nothing() -> None:
-    """With no sink wired, recall still answers and writes no trail at all."""
     store = InMemoryMemoryStore()
     recaller = MemoryRecaller(store, HashEmbedder(), _FixedClock(), id_factory=lambda: "m0")
     await recaller.record("a fact", session_id="s")
-    assert len(await recaller.recall("a fact", k=1, session_id="s")) == 1
+    assert len(await recaller.recall("a fact", k=1, session_id="s", turn_id="t")) == 1
 
 
 class _CountingPool(list[ScoredMemory]):
-    """A pool that counts how many times it is walked end to end."""
+    """A pool that counts how many times it is read end to end."""
 
     def __init__(self, hits: Sequence[ScoredMemory]) -> None:
         super().__init__(hits)
@@ -533,7 +503,7 @@ _READ_ONLY = "this store only ever serves its one pool"
 
 
 class _PoolStore:
-    """A MemoryStore that hands every search the one instrumented pool it was built with."""
+    """A MemoryStore that returns the one counted pool it was built with from every search."""
 
     def __init__(self, pool: _CountingPool) -> None:
         self.pool = pool
@@ -552,7 +522,7 @@ class _PoolStore:
     async def count_candidates(self, *, scopes: Sequence[str] | None = None) -> int:
         del scopes
         self.counts += 1
-        return len(self.pool)  # len() does not iterate, so answering costs the pool no walk
+        return len(self.pool)
 
     async def delete_scope(self, scope: str) -> int:
         del scope
@@ -560,7 +530,7 @@ class _PoolStore:
 
 
 async def _reads_recalling(*, audited: bool) -> tuple[int, int]:
-    """What one recall costs the store, trail on and off: pool walks, then counting queries."""
+    """What one recall costs the store, with and without the trail: pool reads, then counts."""
     pool = _CountingPool(
         [
             ScoredMemory(
@@ -577,12 +547,11 @@ async def _reads_recalling(*, audited: bool) -> tuple[int, int]:
         policy=_SpyRecallPolicy(),
         audit=RecordingRecallSink() if audited else None,
     )
-    await recaller.recall("a fact", k=1, session_id="s")
+    await recaller.recall("a fact", k=1, session_id="s", turn_id="t")
     return pool.walks, store.counts
 
 
 async def test_the_silent_path_assembles_no_record_for_a_sink_that_is_not_there() -> None:
-    """The trail is opt in and costs nothing off, which a widened record could quietly undo."""
     assert await _reads_recalling(audited=False) == (1, 0)
     assert await _reads_recalling(audited=True) == (2, 1)
 
@@ -591,8 +560,7 @@ async def test_session_scoped_recaller_does_not_cross_conversations() -> None:
     store = InMemoryMemoryStore()
     recaller = MemoryRecaller(store, HashEmbedder(), _FixedClock(), scope=SessionMemoryScope())
     await recaller.record("secret from A", session_id="conv-a")
-    # Conversation B recalls the same text but must not see A's memory.
-    assert await recaller.recall("secret from A", k=5, session_id="conv-b") == ()
-    (hit,) = await recaller.recall("secret from A", k=5, session_id="conv-a")
+    assert await recaller.recall("secret from A", k=5, session_id="conv-b", turn_id="t") == ()
+    (hit,) = await recaller.recall("secret from A", k=5, session_id="conv-a", turn_id="t")
     assert hit.record.text == "secret from A"
     assert hit.record.scope == "conv-a"

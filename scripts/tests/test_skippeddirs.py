@@ -1,5 +1,3 @@
-"""Tests for the shared directory skip list."""
-
 import subprocess
 from collections.abc import Sequence
 from pathlib import Path
@@ -16,20 +14,16 @@ from treewalk import walk_files
 
 GATES = Path(__file__).resolve().parents[1]
 REPO_ROOT = GATES.parent
-# A directory git tracks, under which nothing named below exists, so what comes back is the
-# ignore rules and not a fact about this checkout.
+# A tracked directory containing none of the names below, so the answer comes from the
+# ignore rules and not from what happens to exist here.
 PROBE = "brain/packages/core"
-# The two names git does not ignore everywhere they appear, which is why this list cannot be
-# replaced by the repo's ignore rules.
+# The two names git does not ignore everywhere they appear, so the repo's ignore rules
+# cannot replace this list.
 NOT_RESTATEMENTS = {".git", "coverage"}
 
 
 def _ignored_anywhere(name: str) -> bool:
-    """Whether git ignores a directory of this name wherever it appears in this repo.
-
-    The user's own excludes file is disabled, so the answer comes from the repo's `.gitignore`
-    files alone and a global rule on one machine cannot change it.
-    """
+    """Whether git ignores a directory of this name wherever it appears in this repo."""
     result = subprocess.run(  # noqa: S603 -- fixed argv, no shell
         [  # noqa: S607 -- git on PATH
             "git",
@@ -51,8 +45,6 @@ def _ignored_anywhere(name: str) -> bool:
 
 
 def test_the_overlap_with_gitignore_is_measured_rather_than_believed() -> None:
-    """Nine of the eleven names are also ignored by git everywhere; `.git` and `coverage` are not.
-    """
     restatements = {name for name in SKIPPED_DIRS if _ignored_anywhere(name)}
     assert SKIPPED_DIRS - restatements == NOT_RESTATEMENTS
     assert len(restatements) == 9
@@ -82,11 +74,7 @@ def _ignored_directories() -> list[Path]:
 
 
 def _read_by_a_suffix_walk(directory: Path) -> list[Path]:
-    """Every file under ``directory`` that the line cap, the anchor scan or the compose walk reads.
-
-    Each of the three is asked with its own selection rather than a copy of it, and the cap gets
-    its own descent because it skips two names the other two do not.
-    """
+    """Every file under ``directory`` the line cap, anchor scan or compose walk reads."""
     measured = [
         path
         for path in walk_files(directory, also_skip=EXTRA_SKIPS)
@@ -102,7 +90,7 @@ def _read_by_a_suffix_walk(directory: Path) -> list[Path]:
 
 
 def _read_by_a_scoped_reader() -> list[Path]:
-    """Every file the three readers scoped to a subtree would open, asked of each of them."""
+    """Every file the three readers limited to a subtree would open."""
     brain = list(modules(REPO_ROOT))
     found = [module for module, _, _ in brain]
     found.extend(runbooks(REPO_ROOT))
@@ -120,7 +108,6 @@ def _read_by_a_gate(directory: Path, scoped: Sequence[Path]) -> list[Path]:
 
 
 def test_no_tree_git_ignores_and_this_list_misses_holds_a_file_a_walk_reads() -> None:
-    """An ignored directory the list does not prune holds nothing the six readers read."""
     scoped = _read_by_a_scoped_reader()
     reachable = {
         directory.relative_to(REPO_ROOT): [
