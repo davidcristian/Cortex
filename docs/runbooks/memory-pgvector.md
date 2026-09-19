@@ -123,6 +123,13 @@ across every conversation, the founding "retrieval that grows" behavior. Set
 never recalled in another (`search` filters on `scope = ANY(read-scopes)`). It applies only when
 `CORTEX_MEMORY_BACKEND=pgvector`; the policy is selected at the composition root, never in the core.
 
+Changing the setting does not move a memory already stored. Each row keeps the scope it was
+recorded under, and rows older than the scope column were back-filled into `global`. A store that
+ran under `global` and is then set to `session` therefore keeps every earlier memory in `global`,
+where session recall never reads it and deleting a session never removes it. Setting `global` over
+a store that ran under `session` does the reverse: global recall reads with no filter, so every
+conversation's private memories become recallable from every other conversation.
+
 ## Recall ranking and its trail (`CORTEX_MEMORY_RECALL`, ADR-0008 and ADR-0038)
 
 `judge` **is the default** since the ADR-0038 turn-cost addendum: the model rank hands the

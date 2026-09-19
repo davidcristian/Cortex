@@ -3,12 +3,14 @@
 **Status:** open, dead until a consumer
 **Area:** memory
 **Origin:** [ADR-0008](../../adr/ADR-0008-memory-v1.md)
-**Trigger:** A memory-compaction or self-editing feature needs a record-time salience decision.
-**Verified:** 2026-09-13
+**Trigger:** A memory-compaction or self-editing feature (R-087) needs a record-time salience
+decision.
+**Verified:** 2026-09-19
 
 v1 records the raw exchange text every turn; deciding what
 *deserves* remembering (salience filtering at record time) is a later policy (ADR-0008 risks).
-Its summarization half is adjacent to the tiered-memory entry above. **Cost correction:** a
+Its summarization half is adjacent to the
+[tiered-memory entry](087-tiered-self-editing-memory.md). **Cost correction:** a
 policy that can decline to record does not fit the current shape, because
 `MemoryRecaller.record` returns a **non-optional** `MemoryRecord`; the return has to widen
 (or the decision move to the caller) before anything can drop a write.
@@ -28,3 +30,14 @@ policy that can decline to record does not fit the current shape, because
   and a consumer rather than a port change. The trigger has not fired. One naming note for
   whoever lands it: `SaliencePolicy` is taken, by the tool loop's port deciding whether a call is
   worth dispatching, so a record-time policy needs a name of its own.
+- 2026-09-19: Re-derived; the trigger has not fired and the 2026-09-13 account holds.
+  `record_exchange` in `turn_output.py` is still the only caller of `MemoryRecaller.record`, it is
+  reached from both `TurnEngine` and `BrainPhase`, and it still returns early on an opaque turn and
+  skips a tainted one unless `record_tainted_memory` is set. `SaliencePolicy` is still the tool
+  loop's port in `tool_salience.py`. One fact bears on the remedy: the shipped recall default,
+  `judge`, already drops at read time the notes the model says do not help, and the dedup
+  reranker drops near-duplicates, so a record-time filter would repeat a decision the read side
+  makes per recall, at the one point where it cannot be revised. What a drop at record time saves
+  that the read side cannot is the embedding call and the row itself, which is why the trigger
+  waits for a feature that needs the store to hold less. The trigger now names that feature's
+  entry.

@@ -3,8 +3,8 @@
 **Status:** open, dead until a consumer
 **Area:** memory
 **Origin:** [ADR-0008](../../adr/ADR-0008-memory-v1.md)
-**Trigger:** A memory-compaction or self-editing feature needs a retention scheduler.
-**Verified:** 2026-09-13
+**Trigger:** A memory-compaction or self-editing feature (R-087) needs a retention scheduler.
+**Verified:** 2026-09-19
 
 Recorded inside two landed entries rather than as a bullet of its own. The per-session and
 namespaced scoping entry named it among what stayed behind the same seams:
@@ -48,3 +48,17 @@ and then, once the delete verb landed, against the consumer it does not have:
   no retention driver and not about the process having no periodic pass to hang one on. What is
   missing is still the policy and the decision of what drives it. The trigger has not fired:
   nothing here compacts memory or edits it in place.
+- 2026-09-19: Re-derived; the trigger has not fired. The one caller of `delete_scope` is still
+  `SessionMemoryCascade`. The one caller of `count_candidates` is still `MemoryRecaller`, which asks
+  only when a recall audit sink is wired. The `ScheduleTicker` in `cortex_orchestrator/ticker.py`
+  is still the brain's only recurring pass, and nothing under `brain/` compacts, tiers or edits a
+  memory. The trigger now names the entry whose feature it
+  waits for. The 2026-09-13 bullet overstated the verbs, though. `delete_scope` removes a whole
+  namespace, and the port's docstring forbids any caller to hand it `GLOBAL_SCOPE`. Under the
+  default `CORTEX_MEMORY_SCOPE=global` every memory is in that one scope, so a retention policy
+  there has no verb at all: evicting past a cap or an age means deleting some records of a scope
+  and keeping the rest, which needs a delete by id or by timestamp that the port does not have.
+  Only under `session` scoping do the current verbs serve, and there a policy can only drop whole
+  conversations, sized by `count_candidates`, and never part of one. The port also lists no
+  scopes, so such a policy would take its candidates from the session store rather than from
+  memory. Recorded in the ADR-0008 policy-switch addendum.

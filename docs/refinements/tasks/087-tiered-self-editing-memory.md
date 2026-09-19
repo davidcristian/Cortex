@@ -3,8 +3,10 @@
 **Status:** open, dead until a consumer
 **Area:** memory
 **Origin:** [ADR-0008](../../adr/ADR-0008-memory-v1.md)
-**Trigger:** A memory-compaction or self-editing feature needs tiering or update in place.
-**Verified:** 2026-09-13
+**Trigger:** A recall on a real deployment keeps a memory beside a later one that contradicts it,
+so a turn is handed a superseded fact next to its correction. Read it by joining the kept hit ids
+on the recall trail (`CORTEX_MEMORY_RECALL_AUDIT`) against the `memories` table.
+**Verified:** 2026-09-19
 
 Letta's good ideas, adoptable later without
 the framework, per decision 1. **Cost correction:** not behind the unchanged port. `MemoryStore`
@@ -27,9 +29,9 @@ returns 0). Data-loss-safe by construction: memory is not a tool in any registry
 `MemoryRecaller` a turn is handed exposes only record/recall, so no tool call, tainted or not, can
 spell "forget everything" (a structural test pins that surface). **Still deferred, each for want of
 a consumer and not a missing verb now:** self-editing (**update** in place), **tiered**
-promote/demote/expire, **write-salience** (its own entry below), and the **per-scope retention
-_policy_** (the eviction verb exists; a retention scheduler deciding what to evict when does not,
-and nothing drives one). **Per-provenance eviction** ([untrusted-content.md](../index.md#untrusted-content))
+promote/demote/expire, **write-salience** ([its own entry](093-write-salience-policy.md)), and
+the **per-scope retention _policy_** (the eviction verb exists; a retention scheduler deciding
+what to evict when does not, and nothing drives one). **Per-provenance eviction** ([untrusted-content.md](../index.md#untrusted-content))
 wants a different filter, since a memory record stores only the `tainted` bit, not the ADR-0027
 structured provenance, so `delete_scope` does not serve it and it stays fix-when-it-bites.
 
@@ -53,3 +55,13 @@ structured provenance, so `delete_scope` does not serve it and it stays fix-when
   that landed since is not this entry's half either: `HistoryRecap` folds the turns that fall out
   of a session's history window and lives behind `SessionStore`, so it summarizes conversation
   rather than memories and leaves every memory record untouched.
+- 2026-09-19: Re-derived, and the trigger could fire only on this entry's own work: it waited for
+  "a memory-compaction or self-editing feature", and self-editing and compaction are what this
+  entry would build. It now names the condition update in place exists for, a superseded fact
+  recalled beside its correction, which the recall trail and the store can show without anything
+  here being built first. The trail logs record ids and no text, hence the join. Nothing else
+  needs a record rewritten or moved: `MemoryRecaller.record` is still the only caller of
+  `MemoryStore.add`, `SessionMemoryCascade` the only caller of `delete_scope`, the port still has
+  no verb that rewrites a stored record, and no tool in any registry reaches memory. No commit
+  under `brain/` since 2026-09-13 changed any of that. The body's pointer to the write-salience
+  entry "below", a position in the single-file backlog this entry came from, is now a link.
