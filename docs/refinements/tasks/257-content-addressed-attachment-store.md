@@ -3,17 +3,18 @@
 **Status:** open, dead until a consumer
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-09-13
-**Trigger:** Accountability outweighing zero retention.
+**Verified:** 2026-09-19
+**Trigger:** Something has to read a picture after its turn ends: a reopened chat showing what the
+assistant saw, a question about a capture answered from the audit trail, or R-266's deep tier.
 
-Today a
-reopened chat shows no evidence of what the assistant saw, and the audit line carries no
-picture either: for a capture that succeeded it records the tool name, the call's arguments,
-the trust level, a timestamp, the identities of the call, and `result_chars`, which is the
-length of the sentence the model was given rather than the sentence. So a later dispute about
-what a capture contained cannot be answered from the store. That is a deliberate cost. The
-right shape if it ever needs paying is a content-addressed store with the message carrying a
-reference, plus a garbage-collection answer and a `delete` cascade.
+Today a reopened chat shows no evidence of what the assistant saw, and the audit line carries no
+picture either: for a capture that succeeded it records the tool name, the call's arguments, the
+trust level, a timestamp, the identities of the call, and `result_chars`, which is the length of
+the sentence the model was given rather than the sentence. Kept in a file
+(`CORTEX_TOOLS_AUDIT_FILE`), those fields become durable, and the picture is still not among them.
+So a later dispute about what a capture contained cannot be answered from the store. That is a
+deliberate cost. The right shape if it ever needs paying is a content-addressed store with the
+message carrying a reference, plus a garbage-collection answer and a `delete` cascade.
 
 ## Trail
 
@@ -31,3 +32,15 @@ reference, plus a garbage-collection answer and a `delete` cascade.
   retention gap this entry describes is one field wider than it said. Zero retention itself is
   unchanged and asserted at three layers, which the user-attached image entry re-derived the same
   day. The trigger has not fired: nothing in the tree asks a capture to be reconstructible.
+- 2026-09-19: re-derived, with the trigger restated. Since the last pass the audit record can also
+  be kept in a file: `invocation_fields` in `cortex_tools/audit.py` now builds the one field set
+  that both `LoggingAuditSink` and the new `JsonLinesAuditSink` write, so an operator who sets
+  `CORTEX_TOOLS_AUDIT_FILE` can say durably when a capture ran, which target it asked for and how
+  long its sentence was, and still not what the picture held. That file is not a consumer, since it
+  keeps exactly what the log line prints. Zero retention holds at the three layers: `Message`
+  refuses images on any role but `TOOL`, both session stores refuse them through `refuse_images`,
+  and `EscalationSlot.snapshot` raises on one in a handoff tail. The trigger read "accountability
+  outweighing zero retention", which names nothing a reader could observe happening. It now names
+  the three readers that would have to see a picture after its turn. One of them is the swap
+  entry's expensive half, whose own trigger used to wait on this store, so each entry waited on the
+  other; that entry now names a demand instead.

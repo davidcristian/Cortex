@@ -3,25 +3,30 @@
 **Status:** open, a seam or port change comes first
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-09-13
-**Trigger:** The `AttachmentStore` above, plus a brain tier that can actually be started with a
-projector, which needs a setting the model host does not have.
+**Verified:** 2026-09-19
+**Trigger:** A turn that read the screen has to reach the deep model rather than end on the
+ask-again note. The work then starts with R-257's store, a brain-tier projector setting, and a
+probe of that tier.
 
 Carrying a picture, or at least the `opaque` bit, across a model swap. Named in ADR-0029's own
 Deferred paragraph and written down here on 2026-07-19, having been missed when the slice closed.
-Nothing persists an in-turn image: no session store, and no handoff record either, whose codec
-enumerates message fields by name so a `Message.images` would have been dropped without error. The
-**user-visible** consequence is live: a turn that looked at the screen cannot hand over to the deep
-model at all, and the conductor ends it with a note telling the user to ask again in a fresh
-message. `HandoffRecord` does not carry the `opaque` bit either, so `taint_ledger()` rebuilds it at
-`False`; that is sound only because no opaque turn can reach a record (the conductor rejects first),
-and carrying the bit as defence in depth is the cheap half of this entry. The expensive half is
-pixels themselves, which wants the `AttachmentStore` above and a deep tier that can read one. The
-capability half of that is a wiring gap rather than a mount gap: the model host names a projector
-for the cortex tier alone (`cortex_mmproj_file`, spent by `_vision()` in
+Nothing persists an in-turn image: no session store, and no handoff record either. The record's
+codec enumerates message fields by name, so a `Message.images` would be dropped without error,
+which is why `EscalationSlot.snapshot` raises on a tail message carrying one before any record
+exists. The **user-visible** consequence is live: a turn that looked at the screen cannot hand over
+to the deep model at all, and the conductor ends it with a note telling the user to ask again in a
+fresh message. `HandoffRecord` did not carry the `opaque` bit either, so `taint_ledger()` rebuilt
+it at `False`; that was sound only because no opaque turn can reach a record (the conductor rejects
+first), and carrying the bit as defence in depth was the cheap half of this entry, landed below.
+The expensive half is pixels themselves, which wants R-257's `AttachmentStore` and a deep tier
+that can read one. The capability half of that is a wiring gap rather than a mount gap: the model
+host names a projector for the cortex tier alone (`cortex_mmproj_file`, spent by `_vision()` in
 `brain/packages/model_manager/src/cortex_model_manager/config.py`), and the brain tier's `extra`
-carries only its reasoning budget, so a deep tier started today is text-only whatever sits beside
-its GGUF.
+carries its prompt-cache size and its reasoning budget and no projector, so a deep tier started
+today is text-only whatever sits beside its GGUF. A deep tier started with one would still not be
+asked: the vision probe (`PropsVisionProbe`, built by `build_vision` in the orchestrator's
+`vision.py`) reads `/props` from the cortex's `inference.endpoint` alone, and the deep tier answers
+at `CORTEX_BRAIN_ENDPOINT`.
 
 **The cheap half landed 2026-08-03; the expensive half stays open, so this entry stays counted**
 ([ADR-0030](../../adr/ADR-0030-brain-handoff.md) 2026-08-03 addendum). `HandoffRecord` grows
@@ -84,3 +89,20 @@ false` in the stored document, both read back exact on the record and on the led
   an `AttachmentStore`, no store persists pixels, and `SwapConductor._prepare` still refuses an
   opaque turn on `slot.refs.taint.opaque` before the store is touched, which is what keeps the far
   side clean rather than the schema.
+- 2026-09-19: re-derived against the handoff code rather than this file's description, with two
+  stale claims fixed, one omitted defence named, a third prerequisite added and the trigger
+  restated. The refusal holds as written: `SwapConductor._prepare` returns `OPAQUE_TURN_NOTE` on
+  `slot.refs.taint.opaque` before the unhosted-tier check and before the store is read, and the one
+  change to the deep phase since the last pass (a handoff cut mid tool call now ends rather than
+  fails) does not reach it. `HandoffRecord` still carries `opaque`, the Redis codec still writes
+  and reads it strictly, and `taint_ledger()` still rebuilds it. The codec still writes a message
+  field by field with no `images` key, but this file left out that `EscalationSlot.snapshot` raises
+  on an image in the tail, which it has done since 2026-07-18, the day before this entry was
+  written, so a relaxed refusal would fail loudly rather than drop a picture. The description's
+  sentence saying `HandoffRecord` lacks the bit, false since the cheap half landed, is now in the
+  past tense. The brain tier's `extra` gained its prompt-cache size, and still carries no
+  projector. The added prerequisite is the probe: `build_vision` points it at the cortex's
+  inference endpoint, and nothing asks the deep endpoint whether it reads pictures. The old trigger
+  was this entry's own prerequisites, one of which, the content-addressed store, waits for a
+  consumer, and this entry is that consumer, so each waited on the other. The trigger now names the
+  demand.

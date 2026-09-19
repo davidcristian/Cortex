@@ -3,8 +3,9 @@
 **Status:** open, a seam or port change comes first
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-09-13
-**Trigger:** The next change that opens `CaptureScreenReply`, or a measured caption effect.
+**Verified:** 2026-09-19
+**Trigger:** The next change that opens either capture message in `proto/body.proto`, or a measured
+caption effect.
 
 Opened 2026-08-10 by the measurement above and the steer correction that followed it
 ([ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)'s fourth addendum of that date).
@@ -35,10 +36,13 @@ What is **not** a reason is accuracy. The missing field is a real gap in what `d
 and it is why that function already declines to guess. The claim is that the gap is not currently
 reachable by any behaviour this repo can measure, not that it is not a gap.
 
-**Trigger.** It lands with the next change that opens `CaptureScreenReply` at all, a
-`display_index` or the overlay-drawn region picker the rectangle decline waits on, or the day a
-caption is measured to change what this cortex does with a picture it cannot read, whichever
-comes first.
+**Trigger.** It lands with the next change that opens `CaptureScreenRequest` or
+`CaptureScreenReply` at all, a `display_index` or the overlay-drawn region picker the rectangle
+decline waits on, or the day a caption is measured to change what this cortex does with a picture
+it cannot read, whichever comes first. Either message counts, because what such a change pays
+for is the regeneration and the files it reaches, and a request field reaches most of the same
+ones, `screen_policy.rs` (whose `CaptureRequest` it would join) and the body client's `gateway.py`
+among them.
 
 ## Trail
 
@@ -65,3 +69,16 @@ comes first.
   citations had moved under the same 300 cap, `screen_policy.rs` from 286 to 289 lines and the
   body client's `gateway.py` from 263 to 285, so the split by responsibility the entry predicts
   is nearer on both files than when it was written.
+- 2026-09-19: re-derived and left open, with the trigger restated. `proto/body.proto` has not
+  changed since the delete-session comment edit, so `CaptureScreenReply` still carries `image` and
+  `resolved_target` and nothing else, and no caption measurement has run since. `describe()` still
+  declines to say whether a window was shrunk, and the tool description still carries the cheaper
+  half, telling the model before the pick that a window too large to send whole is shrunk exactly
+  as the screen is. The brain still asks for a 2048 edge (`DEFAULT_CAPTURE_MAX_EDGE` in the
+  orchestrator's `config_body.py`), so 2048x1152 is still what a 16:9 display arrives at, and both
+  line counts are unchanged at 289 and 285. The trigger line named the next change opening
+  `CaptureScreenReply`, while the paragraph below it counts a `display_index` among such changes,
+  and that is a request field: the multi-monitor entry has it taking `CaptureScreenRequest` field
+  4. The cost this entry argues from is a proto regeneration and the files it reaches, most of
+  which a request field pays for too, so both the line and the paragraph now name either capture
+  message.

@@ -3,8 +3,9 @@
 **Status:** open, dead until a consumer
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-09-13
-**Trigger:** anything that enumerates monitors, which nothing does yet, and it arrives with a body that honours the field rather than ahead of one.
+**Verified:** 2026-09-19
+**Trigger:** The first code in the body or the overlay that enumerates monitors, or a request to
+capture a display other than the primary one.
 
 v1 is the primary display only, in physical pixels.
 Nothing enumerates monitors yet, which is why no field names one.
@@ -36,3 +37,19 @@ captured display, so it answers `NoTarget` rather than a wrong picture.
   as written: `CapturedFrame::region` clamps a focused window into the captured display and
   answers `NoTarget` when nothing is left, with no fallback to the whole screen. The trigger has
   not fired.
+- 2026-09-19: re-derived, with the trigger restated and the physical-pixel premise traced to where
+  it is really set. Nothing enumerates monitors: the Windows backend still sizes its blit from
+  `GetSystemMetrics`, neither the overlay nor the shell asks Tauri for a monitor, and
+  `CaptureScreenRequest` still spends fields 1 to 3, so a display index still takes 4. The physical
+  pixels in this entry's first line depend on the process being per-monitor DPI aware, which the
+  doc comment on `display_size` in `os_windows/src/screen.rs` credited to the manifest. No
+  manifest in this tree says so: the shell's is tauri-build 2.6.3's default, which declares only
+  the Common Controls dependency. The awareness is set at run time by tao 0.35.3, whose Windows
+  event loop calls `SetProcessDpiAwarenessContext` with the per-monitor V2 context when it is
+  created (its `dpi_aware` attribute defaults to true and Tauri does not change it), which is
+  before the shell's `setup` starts the body server and so before any capture. The comment now
+  says that. Nothing in this tree asserts it, so a tao release that dropped the call would turn
+  every size into logical points with no gate failing; the per-monitor DPI row of the display
+  capture host task (H-012) is where that would be seen. The old trigger carried a clause that was
+  true the day it was written ("which nothing does yet") and a design rule rather than an event
+  (the field arriving with a body that honours it, which the description above keeps).
