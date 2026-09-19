@@ -1,4 +1,4 @@
-"""Repo gate: fail when one compose variable carries two different defaults."""
+"""Fail when one compose variable has two different defaults."""
 
 import argparse
 import sys
@@ -7,34 +7,32 @@ from pathlib import Path
 from typing import NamedTuple
 
 from composedefaults import Substitution, SubstitutionReadError, read_substitutions
-from composefiles import ComposeSearchError, compose_files
+from composefiles import ComposeSearchError, compose_files, refused_summary
 from values import CrossCheckError, parse_value, whole_spelling
 
-# How many times a variable has to be written before there is anything to compare. A lone spend
-# has no sibling to disagree with, whatever its default reduces to.
 MIN_SPENDS = 2
 
 
 class Spend(NamedTuple):
-    """One place one variable is written: the compose file, and the substitution as read."""
+    """One place a compose file writes one variable: the file, and the substitution as read."""
 
     path: str
     substitution: Substitution
 
     def __str__(self) -> str:
-        """`path:line ${NAME:-value}`, which is how a fault names the places that disagree."""
+        """`path:line ${NAME:-value}`, the form a fault prints for each place that disagrees."""
         return f"{self.path}:{self.substitution.line} {self.substitution.written}"
 
 
 class Fault(NamedTuple):
-    """One variable whose spends disagree, or one compose file the scan could not read."""
+    """One variable whose defaults disagree, or one compose file the scan could not read."""
 
     subject: str
     detail: str
 
 
 class Walk(NamedTuple):
-    """What the compose files under a root spend, and which of those files would not read."""
+    """Every variable the compose files under a root write, and the files that would not read."""
 
     files: int
     groups: dict[str, list[Spend]]
@@ -42,7 +40,7 @@ class Walk(NamedTuple):
 
 
 class Scan(NamedTuple):
-    """One walk: the collection the verdict is over, then the verdict, in its two kinds."""
+    """What one walk read, and the two kinds of fault it found."""
 
     files: int
     variables: int
@@ -52,12 +50,12 @@ class Scan(NamedTuple):
 
     @property
     def faults(self) -> list[Fault]:
-        """Every fault, the refused files first, which is the order `main` prints them in."""
+        """Every fault, unreadable files first, in the order `main` prints them."""
         return self.refused + self.disagreements
 
 
 def same_value(arguments: list[str]) -> bool:
-    """Whether several default texts are one value once a whole-number spelling is allowed."""
+    """Whether several default texts are the same value when `8.0` and `8` count as one."""
     if len(set(arguments)) == 1:
         return True
     spellings: set[str] = set()
@@ -70,7 +68,7 @@ def same_value(arguments: list[str]) -> bool:
 
 
 def one_line_hint(spends: list[Spend]) -> str:
-    """The remedy for a group naming one `path:line` twice, or nothing to add."""
+    """The suggested fix when a group names one `path:line` twice, or nothing to add."""
     places = [(spend.path, spend.substitution.line) for spend in spends]
     repeated = sorted({place for place in places if places.count(place) > 1})
     if not repeated:
@@ -84,7 +82,7 @@ def one_line_hint(spends: list[Spend]) -> str:
 
 
 def disagreement(name: str, spends: list[Spend]) -> Fault | None:
-    """The complaint about one variable's several spends, or None when they hold together."""
+    """What is wrong with one variable's several defaults, or None when they agree."""
     shown = ", ".join(str(spend) for spend in spends)
     operators = {spend.substitution.operator for spend in spends}
     if len(operators) > 1:
@@ -109,7 +107,7 @@ def disagreement(name: str, spends: list[Spend]) -> Fault | None:
 
 
 def _read(root: Path, compose: Path, groups: dict[str, list[Spend]]) -> Fault | None:
-    """File one compose file's substitutions under their names, or say why it could not be read."""
+    """Group one compose file's substitutions by variable name, or say why it would not read."""
     name = compose.relative_to(root).as_posix()
     try:
         found = read_substitutions(compose.read_text(encoding="utf-8"))
@@ -121,7 +119,7 @@ def _read(root: Path, compose: Path, groups: dict[str, list[Spend]]) -> Fault | 
 
 
 def group(root: Path) -> Walk:
-    """Every variable the compose files under ``root`` spend, and the files that would not read."""
+    """Every variable the compose files under ``root`` write, and the files that would not read."""
     groups: dict[str, list[Spend]] = defaultdict(list)
     faults: list[Fault] = []
     files = 0
@@ -134,7 +132,7 @@ def group(root: Path) -> Walk:
 
 
 def check(root: Path) -> Scan:
-    """Return what the walk read under ``root``, and every variable whose spends do not agree."""
+    """Return what the walk read under ``root``, and every variable whose defaults disagree."""
     walk = group(root)
     disagreements: list[Fault] = []
     compared = 0
@@ -155,7 +153,7 @@ def check(root: Path) -> Scan:
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Run the gate; print any faults and return the process exit code."""
+    """Run the check; print any faults and return the process exit code."""
     parser = argparse.ArgumentParser(
         description="Fail when one compose variable carries two different defaults.",
     )
@@ -178,12 +176,8 @@ def main(argv: list[str] | None = None) -> int:
     for fault in scanned.faults:
         print(f"{fault.subject}: {fault.detail}")
     if scanned.refused:
-        print(
-            f"\ndefaultcheck: {len(scanned.refused)} compose file(s) could not be read, so no "
-            "spend in them was compared. Rewrite a form the reader refuses in one it takes, or "
-            "save the file as UTF-8 text, as the file's own fault says.",
-            file=sys.stderr,
-        )
+        unread = "no spend in them was compared"
+        print(refused_summary("defaultcheck", len(scanned.refused), unread), file=sys.stderr)
     if scanned.disagreements:
         print(
             f"\ndefaultcheck: {len(scanned.disagreements)} compose variable(s) do not carry one "

@@ -1,4 +1,4 @@
-"""Repo gate: fail when a compose bind mount would materialize an unignored path in the tree."""
+"""Fail when a compose bind mount would create a directory git neither tracks nor ignores."""
 
 import argparse
 import os
@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 from typing import NamedTuple
 
-from composefiles import ComposeSearchError, compose_files
+from composefiles import ComposeSearchError, compose_files, refused_summary
 from composemounts import ComposeReadError, Mount, read_mounts, strip_quotes
 from gitenv import git_env
 
@@ -17,11 +17,11 @@ _UNDEFAULTED = re.compile(r"^(?:\$\{[A-Za-z_]\w*\}|\$[A-Za-z_]\w*)$")
 
 
 class BindCheckError(Exception):
-    """A source could not be reduced to a path, or git could not answer about one."""
+    """A source could not be reduced to a path, or git failed when asked about one."""
 
 
 class Fault(NamedTuple):
-    """One compose bind that is unaccounted for, or one the scan could not read."""
+    """One bind mount that is not accounted for, or one compose file the scan could not read."""
 
     path: str
     line: int
@@ -29,19 +29,25 @@ class Fault(NamedTuple):
 
 
 class Scan(NamedTuple):
-    """One walk of the compose files: what it read, then what it could not account for."""
+    """What one walk of the compose files read, and what it could not account for."""
 
     files: int
     mounts: int
     landings: int
-    faults: list[Fault]
+    refused: list[Fault]
+    findings: list[Fault]
+
+    @property
+    def faults(self) -> list[Fault]:
+        """Every fault, unreadable files first, in the order `main` prints them."""
+        return self.refused + self.findings
 
 
 def default_path(source: str) -> str | None:
     """Return the path a source takes with no environment set, or None when env alone decides."""
     text = strip_quotes(source)
     if _UNDEFAULTED.match(text):
-        return None  # wholly env-supplied: wherever it points is the user's own disk
+        return None
     resolved = _DEFAULTED.sub(lambda match: match.group("default"), text)
     if "$" in resolved:
         msg = f"cannot reduce source {source!r} to a path"
@@ -50,13 +56,13 @@ def default_path(source: str) -> str | None:
 
 
 def landings(root: Path, compose: Path, path: str) -> list[str]:
-    """Return the repo-relative paths one source can land on, over both project directories."""
+    """Return the repo-relative paths one source resolves to, under either project directory."""
     projects = [root] if compose.parent == root else [root, compose.parent]
     found: list[str] = []
     for project in projects:
         landed = Path(path) if Path(path).is_absolute() else Path(os.path.normpath(project / path))
         if root not in landed.parents:
-            continue  # outside the working tree, so nothing of ours can be staged
+            continue
         relative = landed.relative_to(root).as_posix()
         if relative not in found:
             found.append(relative)
@@ -67,7 +73,7 @@ def _git(root: Path, *args: str) -> subprocess.CompletedProcess[bytes]:
     """Run one git command against ``root`` with git's own hook variables stripped."""
     try:
         return subprocess.run(  # noqa: S603 -- fixed argv, no shell
-            ["git", "-C", str(root), *args],  # noqa: S607 -- git resolves on PATH; a pinned path is not portable
+            ["git", "-C", str(root), *args],  # noqa: S607 -- git resolves on PATH; an absolute path is not portable
             capture_output=True,
             check=False,
             env=git_env(),
@@ -78,12 +84,12 @@ def _git(root: Path, *args: str) -> subprocess.CompletedProcess[bytes]:
 
 
 def _failed(result: subprocess.CompletedProcess[bytes], command: str, relative: str) -> str:
-    """The message for a git call that answered neither yes nor no."""
+    """The message for a git call whose exit code was neither yes nor no."""
     return f"git {command} failed for {relative}: {result.stderr.decode(errors='replace').strip()}"
 
 
 def is_tracked(root: Path, relative: str) -> bool:
-    """Whether the repo ships this path, in which case compose finds it rather than creating it."""
+    """Whether git tracks this path, in which case compose finds it rather than creating it."""
     result = _git(root, "ls-files", "--", relative)
     if result.returncode != 0:
         raise BindCheckError(_failed(result, "ls-files", relative))
@@ -91,7 +97,7 @@ def is_tracked(root: Path, relative: str) -> bool:
 
 
 def is_ignored(root: Path, relative: str) -> bool:
-    """Whether git ignores this path, asked with a trailing slash: compose makes a directory."""
+    """Whether git ignores this path, asked with a trailing slash because compose creates one."""
     result = _git(root, "check-ignore", "-q", "--", f"{relative}/")
     if result.returncode not in (0, 1):
         raise BindCheckError(_failed(result, "check-ignore", relative))
@@ -99,7 +105,7 @@ def is_ignored(root: Path, relative: str) -> bool:
 
 
 def _spots(root: Path, compose: Path, mount: Mount) -> tuple[int, list[str]]:
-    """How many landings git was asked about for one mount, and which of them it disowned."""
+    """How many paths git was asked about for one mount, and which of those it does not know."""
     path = default_path(mount.source)
     if path is None:
         return 0, []
@@ -110,13 +116,13 @@ def _spots(root: Path, compose: Path, mount: Mount) -> tuple[int, list[str]]:
 
 
 def check_file(root: Path, compose: Path) -> Scan:
-    """Return what one compose file offered the gate, and every unaccounted bind default in it."""
+    """Return what one compose file was read for, and every bind source in it not accounted for."""
     name = compose.relative_to(root).as_posix()
     try:
         mounts = read_mounts(compose.read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError, ComposeReadError) as err:
         fault = Fault(path=name, line=0, detail=str(err))
-        return Scan(files=1, mounts=0, landings=0, faults=[fault])
+        return Scan(files=1, mounts=0, landings=0, refused=[fault], findings=[])
     asked = 0
     faults: list[Fault] = []
     for mount in mounts:
@@ -137,7 +143,7 @@ def check_file(root: Path, compose: Path) -> Scan:
             )
             for spot in spots
         )
-    return Scan(files=1, mounts=len(mounts), landings=asked, faults=faults)
+    return Scan(files=1, mounts=len(mounts), landings=asked, refused=[], findings=faults)
 
 
 def check(root: Path) -> Scan:
@@ -147,12 +153,13 @@ def check(root: Path) -> Scan:
         files=len(scans),
         mounts=sum(scan.mounts for scan in scans),
         landings=sum(scan.landings for scan in scans),
-        faults=[fault for scan in scans for fault in scan.faults],
+        refused=[fault for scan in scans for fault in scan.refused],
+        findings=[fault for scan in scans for fault in scan.findings],
     )
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Run the gate; print any faults and return the process exit code."""
+    """Run the check; print any faults and return the process exit code."""
     parser = argparse.ArgumentParser(
         description="Fail when a compose bind default lands unignored inside the repo tree.",
     )
@@ -173,16 +180,19 @@ def main(argv: list[str] | None = None) -> int:
     except (BindCheckError, ComposeSearchError) as err:
         print(f"bindcheck: {err}", file=sys.stderr)
         return 2
-    faults = scanned.faults
-    for fault in faults:
+    for fault in scanned.faults:
         print(f"{fault.path}:{fault.line}: {fault.detail}")
-    if faults:
+    if scanned.refused:
+        unread = "no bind in them was checked"
+        print(refused_summary("bindcheck", len(scanned.refused), unread), file=sys.stderr)
+    if scanned.findings:
         print(
-            f"\nbindcheck: {len(faults)} compose bind default(s) land unignored in the tree. "
-            "Point the default outside the repo, or add the path to .gitignore, unanchored so "
-            "it matches under docker/ as well as at the root.",
+            f"\nbindcheck: {len(scanned.findings)} compose bind default(s) land unignored in the "
+            "tree. Point the default outside the repo, or add the path to .gitignore, unanchored "
+            "so it matches under docker/ as well as at the root.",
             file=sys.stderr,
         )
+    if scanned.faults:
         return 1
     print(
         f"bindcheck OK: {scanned.mounts} bind mount(s) under {given} are outside, tracked, or "

@@ -130,8 +130,8 @@ than two is worth reading at all, since compose allows it and no honest use of i
   and to the first `}` when none does, and names a bare `{` in an argument as that rather than as
   a nesting. The form itself is still refused and still unread, so this entry stays open for it,
   and the balanced scan (`_spend_extent`) is there for a reading of the form to reuse. The same
-  run showed `defaultcheck.py`'s summary counting the refused file as a variable, and a failing
-  run now prints one summary per kind of fault, refused files apart from disagreeing variables.
-  Two neighbours were filed from the same measurement:
-  [R-691](691-the-substitution-reader-refuses-a-brace-compose-reads-as-text.md) and
-  [R-693](693-the-bind-and-volume-gates-count-a-file-they-could-not-read-as-a-finding.md).
+  run showed all three compose gates counting the refused file as a finding of their own kind,
+  `defaultcheck.py` as a variable, `bindcheck.py` as a landing and `volumecheck.py` as a
+  declaration, and each failing run now prints the refused files under a summary of their own.
+  One neighbour was filed from the same measurement:
+  [R-691](691-the-substitution-reader-refuses-a-brace-compose-reads-as-text.md).

@@ -473,8 +473,11 @@ answer: a marker written into any other module here is reported by the line it i
   reader refuses, a source that cannot be reduced, and a git that cannot run are each a fault,
   never a skip. Exit 0 with a summary **stating what the walk read**, compose files, the binds
   they declare, and the landings git was asked about, which is neither the binds nor twice them;
-  exit 1 printing `path:line: detail` per fault; exit 2 if
-  `--root` is not a directory or the scan could not run at all.
+  exit 1 printing `path:line: detail` per fault, the files the reader refused first, and one
+  summary per kind that occurred: refused files are counted as files, with the remedy
+  `composefiles.refused_summary` gives, and never as unignored landings (ADR-0026 addendum on
+  quoting a nested spend whole); exit 2 if `--root` is not a directory or the scan could not run
+  at all.
 - `defaultcheck.py [--root DIR]` holds one variable spelled in several compose files to one
   default in all of them (ADR-0026 defaults addendum). It is compose-only and registry-free: it
   reads every substitution under `--root`, groups them by variable name across files, and reports
@@ -544,7 +547,10 @@ answer: a marker written into any other module here is reported by the line it i
   the project name an override inherits, so a gate keying a build-only service as
   `{project}-{service}` needs the stems this module already owns. Exactly one such file must pin a
   name; none and several both return `None`, and the caller draws a fault rather than keying a
-  silently wrong row.
+  silently wrong row. `refused_summary(gate, count, unread)` is the sentence `bindcheck.py`,
+  `defaultcheck.py` and `volumecheck.py` each end a failing run with when their reader refused
+  `count` files, `unread` naming what those files held that the gate never examined; it lives here
+  so the three count a refused file the same way, as a file and never as a finding.
 - `skippeddirs.py` is the directory components no walk here enters and has no CLI: eleven names,
   read by `treewalk.py` and by nothing else, which is what applies them to all seven readers.
   **It is deliberately not `.gitignore`**, and the
@@ -668,8 +674,11 @@ answer: a marker written into any other module here is reported by the line it i
   why `cortex` is not spelled a second time. Exit
   0 with a summary stating the coverings checked over the files, services and images read and the
   Dockerfiles the builds were followed to; exit 1
-  printing `path:line: detail` per fault; exit 2 if `--root` is not a directory or the scan could
-  not run.
+  printing `path:line: detail` per fault, the files the reader refused first, and one summary per
+  kind that occurred: refused files are counted as files, with the remedy
+  `composefiles.refused_summary` gives, and every other fault under the declaration sentence
+  (ADR-0011 addendum on counting a refused compose file as a file); exit 2 if `--root` is not a
+  directory or the scan could not run.
 - `imagevolumes.py` is `volumecheck.py`'s record and has no CLI of its own. `IMAGE_VOLUMES` maps
   each image reference a compose file names to a `Row`, which is what docker answered about it in
   **two dimensions**: `volumes`, the paths it declares of its own, sorted, and `onbuild`, the raw

@@ -73,7 +73,7 @@ never a reading of what the tree does now.
 - **[R-607](tasks/607-eighteen-of-the-cortex-alts-pixel-rows-are-undrawn.md)** Sixteen of the cortex alt's thirty-six pixel rows are undrawn or refused (inference). Its claim was re-derived from the code on 2026-09-19.
 - **[R-630](tasks/630-the-settled-cells-are-undrawn-across-loads.md)** The cells whose published reading is one load's answer are undrawn across loads (vision). Its claim was re-derived from the code on 2026-09-19.
 - **[R-690](tasks/690-dismissing-one-fires-card-acks-the-fire-after-it.md)** Dismissing one fire's card acks the fire after it (scheduling). Its claim was re-derived from the code on 2026-09-19.
-- **[R-693](tasks/693-the-bind-and-volume-gates-count-a-file-they-could-not-read-as-a-finding.md)** The bind and volume gates count a file they could not read as a finding (repo-gates). Its claim was re-derived from the code on 2026-09-19.
+- **[R-694](tasks/694-the-bind-and-volume-gates-count-an-entry-they-could-not-ask-about-as-a-finding.md)** The bind and volume gates count an entry they could not ask about as a finding (repo-gates). Its claim was re-derived from the code on 2026-09-19.
 
 ### Actionable, once a seam or port changes (7)
 
@@ -689,7 +689,7 @@ never a reading of what the tree does now.
 - [R-677](tasks/677-a-double-backtick-code-span-is-torn-apart.md) A double backtick code span is torn apart before the inline shapes are looked for. open, fix when it bites.
 - [R-680](tasks/680-a-needle-spanning-two-lines-keeps-the-whole-file-run.md) A needle spanning two lines keeps the whole-file run, and it can name the wrong line. open, fix when it bites.
 - [R-691](tasks/691-the-substitution-reader-refuses-a-brace-compose-reads-as-text.md) The substitution reader refuses a brace compose reads as text. open, fix when it bites.
-- [R-693](tasks/693-the-bind-and-volume-gates-count-a-file-they-could-not-read-as-a-finding.md) The bind and volume gates count a file they could not read as a finding. open, actionable.
+- [R-694](tasks/694-the-bind-and-volume-gates-count-an-entry-they-could-not-ask-about-as-a-finding.md) The bind and volume gates count an entry they could not ask about as a finding. open, actionable.
 
 ### resource-governance
 

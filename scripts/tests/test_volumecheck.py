@@ -1,5 +1,3 @@
-"""Tests for the image-volume gate, over compose trees written for each verdict."""
-
 from collections.abc import Mapping
 from pathlib import Path
 
@@ -11,7 +9,6 @@ from imagevolumes import IMAGE_VOLUMES, Row
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
-# A fake record: one image declaring a path, one measured silent, one built here by compose.
 RECORDS: dict[str, Row] = {
     "cache:1": Row((), ()),
     "db:1": Row(("/var/lib/db",), ()),
@@ -22,7 +19,7 @@ BASE = "name: tree\nservices:\n  brain:\n    build: ./brain\n"
 
 
 def _write(root: Path, name: str, text: str) -> Path:
-    """Put one compose file in the fixture tree, making the directory it lives in if need be."""
+    """Write one compose file into the test tree, creating its directory when needed."""
     path = root / name
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")
@@ -30,12 +27,12 @@ def _write(root: Path, name: str, text: str) -> Path:
 
 
 def _service(body: str, name: str = "db") -> str:
-    """Return one override file declaring one service, indented into place."""
+    """Return the text of one override file declaring a single service."""
     return f"services:\n  {name}:\n{body}"
 
 
 def _answering(answers: Mapping[str, Row]) -> Inspector:
-    """Return an inspector that answers from a dict and raises on anything else, as docker does."""
+    """Return an inspector that reads from a dict and raises on anything else, as docker does."""
 
     def inspect(reference: str, *, pull: bool) -> Row:  # noqa: ARG001
         try:
@@ -49,16 +46,14 @@ def _answering(answers: Mapping[str, Row]) -> Inspector:
 
 @pytest.fixture
 def tree(tmp_path: Path) -> Path:
-    """Return a tree holding the base file, which pins the project every override inherits, beside
-    the Dockerfile its one build stanza points at, since a build reaching no file is a fault of its
-    own."""
+    """Return a tree with the base compose file and the Dockerfile its one build stanza names."""
     _write(tmp_path, "docker/docker-compose.yml", BASE)
     _write(tmp_path, "brain/Dockerfile", "FROM scratch\n")
     return tmp_path
 
 
 def _faults(tree: Path) -> list[volumecheck.Fault]:
-    """Return every fault about the tree itself, which is all of them but the stale rows."""
+    """Return every fault about the tree itself, which is all of them except the stale rows."""
     return [
         fault
         for fault in volumecheck.check(tree, RECORDS).faults
@@ -66,12 +61,7 @@ def _faults(tree: Path) -> list[volumecheck.Fault]:
     ]
 
 
-# ── the rule ───────────────────────────────────────────────────────────────────
-
-
 def test_a_declared_volume_the_service_mounts_nothing_at_is_reported(tree: Path) -> None:
-    """This is the case the gate exists for: docker creates an anonymous volume there and `down`
-    leaves it behind."""
     _write(tree, "docker/docker-compose.db.yml", _service("    image: db:1\n"))
     faults = _faults(tree)
     assert len(faults) == 1
@@ -86,7 +76,6 @@ def test_a_declaration_covered_by_a_named_volume_is_accounted_for(tree: Path) ->
 
 
 def test_a_declaration_covered_by_a_tmpfs_is_accounted_for(tree: Path) -> None:
-    """How a container that writes nothing worth keeping answers the declaration."""
     body = "    image: db:1\n    tmpfs:\n      - /var/lib/db\n"
     _write(tree, "docker/docker-compose.db.yml", _service(body))
     assert _faults(tree) == []
@@ -99,7 +88,6 @@ def test_a_declaration_covered_by_a_bind_is_accounted_for(tree: Path) -> None:
 
 
 def test_a_mount_over_the_parent_directory_does_not_cover_the_declaration(tree: Path) -> None:
-    """Docker's declaration is at a path, and a mount one level up leaves it standing."""
     body = "    image: db:1\n    volumes:\n      - db-data:/var/lib\n"
     _write(tree, "docker/docker-compose.db.yml", _service(body))
     assert len(_faults(tree)) == 1
@@ -111,8 +99,6 @@ def test_an_image_declaring_nothing_needs_no_mount(tree: Path) -> None:
 
 
 def test_two_services_running_one_declaring_image_are_two_containers(tree: Path) -> None:
-    """The memory stack's own shape: the server and its pg_dump sidecar run the same image, and
-    each gets its own anonymous volume, so covering one says nothing about the other."""
     body = "    image: db:1\n    tmpfs:\n      - /var/lib/db\n"
     _write(
         tree, "docker/docker-compose.db.yml", _service(body) + _service("    image: db:1\n", "s")
@@ -123,11 +109,6 @@ def test_two_services_running_one_declaring_image_are_two_containers(tree: Path)
 
 
 def test_a_service_naming_neither_an_image_nor_a_build_asks_nothing(tree: Path) -> None:
-    """Every override re-opens a service to add environment; the image stays the base file's.
-
-    The fragment is deliberately named something the record has no row for, because a fragment
-    read as a definition would be keyed on `tree-worker` and the miss would be silent otherwise.
-    """
     _write(
         tree, "docker/docker-compose.o.yml", _service("    environment:\n      A: b\n", "worker")
     )
@@ -136,29 +117,21 @@ def test_a_service_naming_neither_an_image_nor_a_build_asks_nothing(tree: Path) 
 
 
 def test_a_service_that_only_builds_is_keyed_as_the_project_and_its_own_name(tree: Path) -> None:
-    """`tree-brain` is the row, because that is the image compose tags what it builds."""
     assert volumecheck.check(tree, RECORDS).names == ("tree-brain",)
 
 
 def test_an_override_inherits_the_base_files_project(tree: Path) -> None:
-    """An override pins no name of its own, so a build there is still the base's project."""
     _write(tree, "docker/docker-compose.b.yml", _service("    build: ./b\n", "brain"))
     assert volumecheck.check(tree, RECORDS).names == ("tree-brain",)
 
 
 def test_a_file_pinning_its_own_project_keys_its_builds_under_that_one(tree: Path) -> None:
-    """The probe stack's shape: its own project name, so its own image names."""
     text = "name: probe\n" + _service("    build: ./p\n", "sidecar")
     _write(tree, "docker/docker-compose.probe.yml", text)
     assert "probe-sidecar" in volumecheck.check(tree, RECORDS).names
 
 
-# ── the second rule: what a Dockerfile here declares ───────────────────────────
-
-
 def test_a_dockerfile_here_declaring_a_path_its_row_denies_is_reported(tree: Path) -> None:
-    """The record goes stale from inside the tree, which is why this rule exists: nothing else here
-    would report it until somebody rebuilt and re-derived by hand."""
     _write(tree, "brain/Dockerfile", "FROM scratch\nVOLUME /var/cache/thing\n")
     faults = _faults(tree)
     assert len(faults) == 1
@@ -168,8 +141,6 @@ def test_a_dockerfile_here_declaring_a_path_its_row_denies_is_reported(tree: Pat
 
 
 def test_one_dockerfile_is_asked_once_per_row_it_builds(tree: Path) -> None:
-    """`brain/Dockerfile` builds two of this repo's rows, and a path it declares goes uncarried by
-    each of them separately: two images, two records, two containers collecting a volume."""
     _write(tree, "docker/docker-compose.email.yml", _service("    build: ./brain\n", "mail"))
     _write(tree, "brain/Dockerfile", "FROM scratch\nVOLUME /var/cache/thing\n")
     records = {**RECORDS, "tree-mail": Row((), ())}
@@ -188,20 +159,14 @@ def test_a_build_reaching_no_dockerfile_is_a_fault_not_a_silent_pass(tree: Path)
 
 
 def test_the_walk_names_the_dockerfiles_it_followed_the_builds_to(tree: Path) -> None:
-    """This is the reading behind the rule, since a build the walk never resolved would check
-    nothing."""
     assert volumecheck.check(tree, RECORDS).dockerfiles == ("brain/Dockerfile",)
 
 
 def test_an_unrecorded_image_is_not_asked_what_its_dockerfile_declares(tree: Path) -> None:
-    """There is no row to compare against yet, and the unrecorded fault already says so once."""
     _write(tree, "docker/docker-compose.n.yml", _service("    build: .\n", "fresh"))
     scanned = volumecheck.check(tree, RECORDS)
     assert scanned.dockerfiles == ("brain/Dockerfile",)
     assert [fault.line for fault in _faults(tree)] == [2]
-
-
-# ── failing closed ─────────────────────────────────────────────────────────────
 
 
 def test_an_image_the_record_has_no_row_for_is_an_unasked_question(tree: Path) -> None:
@@ -213,7 +178,6 @@ def test_an_image_the_record_has_no_row_for_is_an_unasked_question(tree: Path) -
 
 
 def test_a_row_no_compose_file_names_is_a_claim_nothing_can_check(tree: Path) -> None:
-    """The other direction: an image dropped from the tree leaves a row that says nothing true."""
     faults = volumecheck.check(tree, RECORDS).faults
     assert [fault.path for fault in faults] == [volumecheck.RECORD_PATH] * 2
     assert [fault.line for fault in faults] == [0, 0]
@@ -222,9 +186,6 @@ def test_a_row_no_compose_file_names_is_a_claim_nothing_can_check(tree: Path) ->
 
 
 def test_a_path_the_base_declares_and_the_built_row_lacks_is_reported(tree: Path) -> None:
-    """The one way a built row could still be wrong. It is asked without a pull, so it answers
-    from whatever the machine running the recipe last built, while the base has been republished
-    and the next build there inherits a path nothing mounts."""
     _write(tree, "brain/Dockerfile", "FROM base:1\n")
     records = {**RECORDS, "base:1": Row(("/inherited",), ())}
     scanned = volumecheck.check(tree, records)
@@ -234,8 +195,6 @@ def test_a_path_the_base_declares_and_the_built_row_lacks_is_reported(tree: Path
 
 
 def test_a_base_the_record_has_no_row_for_is_an_unasked_question(tree: Path) -> None:
-    """Half of what a built row says comes from its base, so an unrecorded one leaves the row
-    unanswerable rather than merely unchecked."""
     _write(tree, "brain/Dockerfile", "FROM base:1\n")
     faults = _faults(tree)
     assert len(faults) == 1
@@ -244,8 +203,6 @@ def test_a_base_the_record_has_no_row_for_is_an_unasked_question(tree: Path) -> 
 
 
 def test_a_row_named_only_by_a_dockerfile_is_named_enough_to_stand(tree: Path) -> None:
-    """A base is named by a `FROM` and by no compose service, so the stale-row rule has to count
-    that as naming it; a rule that did not would make the rows the other rule needs impossible."""
     _write(tree, "brain/Dockerfile", "FROM base:1\n")
     scanned = volumecheck.check(tree, {**RECORDS, "base:1": Row((), ())})
     assert "base:1" in scanned.names
@@ -253,7 +210,6 @@ def test_a_row_named_only_by_a_dockerfile_is_named_enough_to_stand(tree: Path) -
 
 
 def test_an_image_written_as_a_substitution_cannot_be_keyed_on(tree: Path) -> None:
-    """The record is keyed on the image a container runs, which an expansion does not spell."""
     _write(tree, "docker/docker-compose.v.yml", _service('    image: "${TAG:-db:1}"\n'))
     faults = [fault for fault in _faults(tree) if fault.path.endswith("compose.v.yml")]
     assert len(faults) == 1
@@ -261,7 +217,6 @@ def test_an_image_written_as_a_substitution_cannot_be_keyed_on(tree: Path) -> No
 
 
 def test_a_build_with_no_project_to_key_it_under_is_a_fault(tmp_path: Path) -> None:
-    """No bare-stemmed base file, so nothing says what `<project>-brain` resolves to."""
     _write(tmp_path, "docker/docker-compose.only.yml", _service("    build: ./b\n", "brain"))
     faults = [fault for fault in volumecheck.check(tmp_path, RECORDS).faults if fault.line]
     assert len(faults) == 1
@@ -269,9 +224,6 @@ def test_a_build_with_no_project_to_key_it_under_is_a_fault(tmp_path: Path) -> N
 
 
 def test_two_base_files_pinning_two_projects_are_not_guessed_between(tree: Path) -> None:
-    """Two candidate project names leave the build unkeyed, since picking one would key the row on
-    a name that may be wrong and nothing would report it.
-    """
     _write(tree, "compose.yml", "name: other\nservices:\n  x:\n    image: cache:1\n")
     _write(tree, "docker/docker-compose.b.yml", _service("    build: ./b\n", "worker"))
     faults = [fault for fault in volumecheck.check(tree, RECORDS).faults if fault.line]
@@ -279,32 +231,33 @@ def test_two_base_files_pinning_two_projects_are_not_guessed_between(tree: Path)
     assert "no base compose file pins one project name" in faults[0].detail
 
 
-def test_a_compose_file_the_reader_refuses_is_a_fault(tree: Path) -> None:
+def test_a_compose_file_the_reader_refuses_is_a_refused_file_not_a_finding(tree: Path) -> None:
     _write(tree, "docker/docker-compose.bad.yml", _service("    volumes:\n      - /x\n"))
-    faults = [fault for fault in _faults(tree) if fault.path.endswith("compose.bad.yml")]
-    assert len(faults) == 1
-    assert (faults[0].line, "is not source:target" in faults[0].detail) == (0, True)
+    scanned = volumecheck.check(tree, {"tree-brain": Row((), ())})
+    assert [fault.path for fault in scanned.refused] == ["docker/docker-compose.bad.yml"]
+    assert (scanned.refused[0].line, "is not source:target" in scanned.refused[0].detail) == (
+        0,
+        True,
+    )
+    assert scanned.findings == []
 
 
-def test_a_compose_file_that_is_not_text_is_a_fault(tree: Path) -> None:
+def test_a_compose_file_that_is_not_text_is_a_refused_file(tree: Path) -> None:
     (tree / "docker" / "docker-compose.raw.yml").write_bytes(b"\xff\xfe not utf-8")
-    faults = [fault for fault in _faults(tree) if fault.path.endswith("compose.raw.yml")]
-    assert len(faults) == 1
-    assert faults[0].line == 0
+    scanned = volumecheck.check(tree, {"tree-brain": Row((), ())})
+    assert [(fault.path, fault.line) for fault in scanned.refused] == [
+        ("docker/docker-compose.raw.yml", 0)
+    ]
+    assert scanned.findings == []
+    assert scanned.faults == [*scanned.refused]
 
 
 def test_a_tree_with_no_compose_file_is_a_failure_not_a_pass(tmp_path: Path) -> None:
-    """A scan whose glob matched nothing raises rather than reporting OK over an empty walk."""
     with pytest.raises(volumecheck.ComposeSearchError, match="matched nothing cannot fail"):
         volumecheck.check(tmp_path, RECORDS)
 
 
-# ── what the walk read ─────────────────────────────────────────────────────────
-
-
 def test_check_counts_the_files_definitions_declarations_and_images_it_read(tree: Path) -> None:
-    """Four counts, none derivable from another, since one image is named twice and most declare
-    nothing."""
     body = "    image: db:1\n    tmpfs:\n      - /var/lib/db\n"
     _write(tree, "docker/docker-compose.db.yml", _service(body) + _service(body, "s"))
     _write(tree, "docker/docker-compose.c.yml", _service("    image: cache:1\n", name="cache"))
@@ -314,16 +267,11 @@ def test_check_counts_the_files_definitions_declarations_and_images_it_read(tree
     assert scanned.faults == []
 
 
-# ── the repo this gate guards ──────────────────────────────────────────────────
-
-
 def test_the_repo_itself_is_clean() -> None:
-    """The gate's own assertion, run as a test so the scripts suite catches drift too."""
     assert volumecheck.check(REPO_ROOT).faults == []
 
 
 def test_the_repo_really_declares_volumes_for_this_gate_to_have_checked() -> None:
-    """This guards the test above, which nothing declared would leave vacuous."""
     scanned = volumecheck.check(REPO_ROOT)
     assert scanned.declared >= 4, scanned
     assert scanned.definitions >= 8, scanned
@@ -331,14 +279,9 @@ def test_the_repo_really_declares_volumes_for_this_gate_to_have_checked() -> Non
 
 
 def test_the_repo_really_builds_from_dockerfiles_for_the_second_rule_to_have_read() -> None:
-    """The same guard for the second rule: three rows are built here from these two files, and a
-    walk that resolved neither would pass the tree while a `VOLUME` sat in one of them."""
     scanned = volumecheck.check(REPO_ROOT)
     assert scanned.dockerfiles == ("brain/Dockerfile", "brain/Dockerfile.modelhost")
     assert len(scanned.built) == 3, scanned.built
-
-
-# ── the CLI ────────────────────────────────────────────────────────────────────
 
 
 def test_main_passes_the_real_repo(capsys: pytest.CaptureFixture[str]) -> None:
@@ -357,6 +300,22 @@ def test_main_states_what_it_read_beside_the_verdict(capsys: pytest.CaptureFixtu
     assert "does not carry, triggers included" in out
 
 
+_REFUSED = (
+    "\nvolumecheck: 1 compose file(s) could not be read, so no service in them was checked. "
+    "Rewrite a form the reader refuses in one it takes, or save the file as UTF-8 text, as the "
+    "file's own fault says.\n"
+)
+
+
+def _findings(count: int) -> str:
+    """Return the whole summary line a run with ``count`` findings ends with."""
+    return (
+        f"\nvolumecheck: {count} image volume declaration(s) go uncovered or unrecorded. Mount "
+        f"something at the path, or bring {volumecheck.RECORD_PATH} back in step with the tree by "
+        "running `just image-volumes`.\n"
+    )
+
+
 def test_main_reports_each_fault_and_exits_one(
     tree: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -364,7 +323,31 @@ def test_main_reports_each_fault_and_exits_one(
     assert volumecheck.main(["--root", str(tree)]) == 1
     captured = capsys.readouterr()
     assert "docker/docker-compose.db.yml:2:" in captured.out
-    assert "go uncovered or unrecorded" in captured.err
+    assert captured.err == _findings(2 + len(IMAGE_VOLUMES))
+
+
+def test_main_counts_a_refused_file_as_a_file_and_not_as_a_declaration(
+    tree: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    (tree / "docker" / "docker-compose.raw.yml").write_bytes(b"\xff\xfe not utf-8")
+    assert volumecheck.main(["--root", str(tree)]) == 1
+    captured = capsys.readouterr()
+    assert captured.out.startswith("docker/docker-compose.raw.yml:0: 'utf-8' codec can't decode")
+    assert captured.err == _REFUSED + _findings(1 + len(IMAGE_VOLUMES))
+
+
+def test_main_fails_a_run_whose_only_fault_is_a_refused_file(
+    tree: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    real = volumecheck.check
+
+    def exact(root: Path) -> volumecheck.Scan:
+        return real(root, {"tree-brain": Row((), ())})
+
+    monkeypatch.setattr(volumecheck, "check", exact)
+    (tree / "docker" / "docker-compose.raw.yml").write_bytes(b"\xff\xfe not utf-8")
+    assert volumecheck.main(["--root", str(tree)]) == 1
+    assert capsys.readouterr().err == _REFUSED
 
 
 def test_main_rejects_a_root_that_is_not_a_directory(
@@ -381,23 +364,13 @@ def test_main_reports_a_scan_that_could_not_run(
     assert "no compose file" in capsys.readouterr().err
 
 
-# ── rederiving from a real docker ──────────────────────────────────────────────
-
-
 def test_the_walk_names_the_images_this_repo_builds_apart() -> None:
-    """The walk names the images this repo builds apart from the ones it pulls.
-
-    The gate has no use for the distinction and a re-derivation cannot do without it: a built
-    image has no registry to be refreshed from before it is asked what it declares.
-    """
     scanned = volumecheck.check(REPO_ROOT)
     assert set(scanned.built) <= set(scanned.names)
     assert scanned.built == ("cortex-brain", "cortex-mcp-email", "cortex-model-host")
 
 
 def test_a_service_that_only_builds_is_named_among_the_built(tree: Path) -> None:
-    """The name is the one compose runs it under, which is the project and the service with no
-    registry in it."""
     _write(tree, "docker/docker-compose.extra.yml", _service("    build: ..\n", name="fresh"))
     assert volumecheck.check(tree, {}).built == ("tree-brain", "tree-fresh")
 
@@ -405,7 +378,6 @@ def test_a_service_that_only_builds_is_named_among_the_built(tree: Path) -> None
 def test_main_rederiving_asks_the_registry_for_everything_it_did_not_build(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """The count in the success line says which half of the images was refreshed."""
     asked: dict[str, bool] = {}
 
     def inspect(reference: str, *, pull: bool) -> Row:
@@ -432,8 +404,6 @@ def test_main_rederiving_against_a_docker_that_agrees_reports_nothing(
 def test_main_rederiving_against_a_docker_that_has_moved_reports_the_row(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """This is what `just image-volumes` is for: the image changed under the answer this repo
-    recorded."""
     moved = {**IMAGE_VOLUMES, "redis:8-alpine": Row(("/data",), ())}
     argv = ["--root", str(REPO_ROOT), "--rederive"]
     assert volumecheck.main(argv, _answering(moved)) == 1

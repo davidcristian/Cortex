@@ -1,18 +1,16 @@
-"""Which files in this tree are compose files, answered once for the gates that ask."""
+"""Which files in this tree are compose files, read once for every check that asks."""
 
 from collections.abc import Iterable
 from pathlib import Path
 
 from treewalk import walk_files
 
-# What a compose file is called. Both stems and both suffixes, because a scan that silently
-# missed a new override file is the defect the gates reading this exist to prevent.
 COMPOSE_STEMS = ("docker-compose", "compose")
 COMPOSE_SUFFIXES = frozenset({".yml", ".yaml"})
 
 
 class ComposeSearchError(Exception):
-    """No compose file was found where a gate needs at least one."""
+    """No compose file was found where a check needs at least one."""
 
 
 def compose_files(root: Path) -> list[Path]:
@@ -34,3 +32,12 @@ def base_project(pinned: Iterable[tuple[Path, str | None]]) -> str | None:
         project for path, project in pinned if project is not None and path.stem in COMPOSE_STEMS
     ]
     return named[0] if len(named) == 1 else None
+
+
+def refused_summary(gate: str, count: int, unread: str) -> str:
+    """The summary a check prints when its reader could not read ``count`` compose files."""
+    return (
+        f"\n{gate}: {count} compose file(s) could not be read, so {unread}. Rewrite a form the "
+        "reader refuses in one it takes, or save the file as UTF-8 text, as the file's own fault "
+        "says."
+    )
