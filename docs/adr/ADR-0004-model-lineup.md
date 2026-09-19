@@ -1,57 +1,204 @@
-# ADR-0004: Model lineup (candidates locked)
+# ADR-0004: Model lineup
 
-- **Status:** Accepted (candidates locked 2026-06-29). Picks: cortex = **gemma-4-12B** (Slice 4),
-  embedder = **nomic-embed-text-v1.5 Q8_0** (Slice 5), subagent = **gemma-4-E4B QAT q4_0**
-  (Slice 7, revised to it on 2026-07-03), brain = **gemma-4-31B QAT q4_0** (Slice 11, measured
-  2026-08-04); see the measurement addenda. Every tier is now picked.
-- **Date:** 2026-06-29
+**Status:** Accepted (2026-09-19)
 
 ## Context
 
-Three tiers share the 24 GB GPU (ADR-0001); the AI stack must fit under a deliberate soft
-cap (**14 GB**, see the addendum), and the cortex must be natively multimodal (vision).
-The user has downloaded the
-candidates locally via LM Studio to `D:\Software\AI\Models` (Windows; the drive is not
-mounted into WSL).
+Three model tiers share one 24 GB card ([ADR-0001](ADR-0001-architecture.md)): a resident, natively
+multimodal cortex; small subagents; and an on-demand deep model that evicts the others. An embedder
+serves memory beside them. Each tier needs a pick from the candidates already on the host, an
+artifact and quantization, a placement, and the flags that make its server behave as the design
+assumes. The candidates were fixed first and the picks measured afterwards, on VRAM, load time,
+decode rate, whether a reasoning model stops, resistance to prompt injection, and what each entry's
+chat template does with the thinking switch. The measurements are in [model
+lineup](../readings/model-lineup.md) and [injection text rows](../readings/injection-text-rows.md).
 
-## Decision on candidate sets (verbatim)
+## Decision
 
-| Tier | Candidates |
-|---|---|
-| **Cortex** | `gemma-4-12B-it-qat-q4_0-gguf` · `Qwen3.5-9B-GGUF (Q4_K_M)` |
-| **Subagents** | `gemma-4-E2B-it-qat-q4_0-gguf` · `gemma-4-E4B-it-qat-q4_0-gguf` · `Qwen3.5-0.8B-GGUF (Q8_0/BF16)` · `Qwen3.5-2B-GGUF (Q4_K_M)` · `Qwen3.5-4B-GGUF (Q4_K_M)` |
-| **Brain** | `Qwen3.6-27B-GGUF (Q4_K_M)` · `Qwen3.6-35B-A3B-GGUF (UD-Q3_K_M)` · `gemma-4-31B-it-qat-q4_0-gguf` · `gemma-4-26B-A4B-it-qat-q4_0-gguf` |
-| **Embedder** | `nomic-embed-text-v1.5-GGUF (Q8_0/F16)` · `nomic-embed-text-v2-moe-GGUF (Q4_K_M/Q8_0/F16)` (added 2026-06-29) |
+### Engine, ids and artifacts
 
-MTP (multi-token-prediction) variants of some models exist locally but are deferred because
-they use more memory; revisit only if latency demands it.
+1. **Every artifact is GGUF, served by llama.cpp** ([ADR-0005](ADR-0005-llamacpp-engine.md)).
 
-## Implications
+2. **The core uses logical model ids, never file paths.** `cortex`, `subagent`, `brain` and the ids
+   derived from them (`subagent-gpu`) are the only names that cross a port or the model host's
+   control API. Only an adapter or the model host maps an id to an artifact, a port, a layer count
+   or a context size.
 
-1. **Engine question is RESOLVED.** Every artifact is GGUF (llama.cpp's native format).
-   The maintainer chose llama.cpp over vLLM on 2026-06-29:
-   [ADR-0005](ADR-0005-llamacpp-engine.md). Slice 4 now only measures (VRAM fit incl.
-   KV + vision tower, swap latency) to make the final per-tier picks.
-2. **Logical model ids, not file paths.** The core and config speak tier-logical ids
-   (`cortex`, `subagent`, `brain`); only the inference adapter maps ids to artifact
-   paths. File paths never enter the core.
-3. **Model access without copying.** Models stay in `D:\Software\AI\Models`. The
-   inference container bind-mounts that directory via Docker Desktop (Windows paths work
-   natively in compose on this setup); WSL never needs the files unless the
-   swap-latency fallback in ADR-0005 kicks in and hot models get mirrored into a
-   WSL-side/volume cache. If direct host-side/WSL access becomes necessary (e.g. a
-   non-dockerized engine), enable the `/mnt/d` automount then.
-4. **Envelope sanity (to verify in Slice 4).** Rough Q4 weight sizes: 12B ≈ 7 GB,
-   9B ≈ 5.5 GB (cortex) + embedder (the nomic candidates are small, ~0.1-1 GB
-   depending on quant; the v2-moe F16 sits at the top of that range) +
-   2-4B subagent (~1.5-2.5 GB) + KV. The 14 GB envelope is plausible but tight with
-   the 12B cortex; the 9B leaves more headroom. Brain candidates (~15-18 GB) all fit
-   alone in 24 GB. The cortex pick must ship its vision tower and its VRAM cost counts
-   against the envelope.
+3. **Models stay on the host, mounted read-only, never copied.** Every service that loads a model
+   bind-mounts `CORTEX_MODELS_DIR` read-only, and every artifact is named under it by a
+   `CORTEX_MODEL_FILE_` variable (`CORTEX`, `CORTEX_MMPROJ`, `BRAIN`, `BRAIN_DRAFT`, `SUBAGENT`,
+   `SUBAGENT_GPU`, `SUBAGENT_QWEN`, `EMBED`), which `scripts/flagcheck.py` requires
+   ([ADR-0043](ADR-0043-subagent-server-flags.md)). A cold load is limited by the mount's read
+   rate; copying hot models off the mount is the option if a swap ever feels slow.
+
+4. **The embedding column stays dimension-agnostic, and no ANN index is deployed.**
+   `memories.embedding` is an unbounded `vector`, so adopting an embedder of another width is one
+   variable. `hnsw` and `ivfflat` both need a typmod, which would turn an embedder change into a
+   migration this repo has no runner for, and the measured `hnsw` index kept on average only about
+   half of the exact top 20, a loss nobody has yet explained. The exact scan is cheap at personal
+   scale and grows linearly, passing a recalling turn's whole time to first token at about 75,000
+   memories in the global scope ([R-095](../refinements/tasks/095-ann-index.md) applies at that
+   count, which the recall log line reports as `available`); calibrating the index against the
+   exact scores is the first step then.
+
+### Candidates and picks
+
+5. **The candidate sets are fixed.** New entries need a new decision.
+
+   | Tier | Candidates |
+   |---|---|
+   | Cortex | `gemma-4-12B-it-qat-q4_0` (pick), `Qwen3.5-9B` 4-bit (alternate) |
+   | Subagent | `gemma-4-E4B-it-qat-q4_0` (pick), `Qwen3.5-2B-Q4_K_M` (alternate on a second CPU server), `gemma-4-E2B-it-qat-q4_0`, `Qwen3.5-0.8B-Q8_0`, `Qwen3.5-4B-Q4_K_M` |
+   | Deep | `gemma-4-31B-it-qat-q4_0` (pick), `Qwen3.6-27B-Q4_K_M` (alternate), `Qwen3.6-35B-A3B-UD-Q3_K_M`, `gemma-4-26B-A4B-it-qat-q4_0` |
+   | Embedder | `nomic-embed-text-v1.5` Q8_0 (pick), `nomic-embed-text-v2-moe` (alternate) |
+
+6. **Cortex: gemma-4-12B QAT q4_0 with its projector.** Both multimodal candidates cost about the
+   same VRAM with their projectors, so VRAM did not decide it; gemma is the stronger chat model and
+   is quantization-aware trained, so its 4-bit weights hold quality better than a post-hoc quant.
+   Resistance to prompt injection does not separate the two (both obeyed 0 to 1 of 10 framed
+   injections). The alternate is measured as `Qwen3.5-9B-UD-Q4_K_XL.gguf`, the 4-bit quant the
+   mount holds, since the `Q4_K_M` the candidate set first named is not there.
+
+7. **Subagent: gemma-4-E4B QAT q4_0.** It obeys 0 of 10 framed injections on both placements, and
+   the one other candidate that does, Qwen3.5-0.8B, is as likely too weak to follow the injection
+   as resistant to it. Injection resistance was adopted as a selection axis at a measured cost:
+   against the Qwen3.5-2B it replaced, about 2.6 times the load, 3 times a narrow task's latency
+   and 2.8 times the resident memory, acceptable for narrow asynchronous work. The safety default
+   of [ADR-0017](ADR-0017-subagent-model-safety.md) is tied to this pick by its logical id, so a
+   revision here moves that default with it. Qwen3.5-2B stays the second CPU server
+   (`CORTEX_MODEL_FILE_SUBAGENT_QWEN`, [ADR-0018](ADR-0018-heterogeneous-subagents.md)) and the
+   cheap override when latency matters more than injection resistance. The five entries do the same
+   narrow work at widely different rates under the constrained reply path
+   ([ADR-0028](ADR-0028-grammar-constrained-subagents.md)); the subagent runbook's override table
+   says what each costs, and gemma-4-E2B and Qwen3.5-0.8B are the two to override to last.
+
+8. **Deep: gemma-4-31B QAT q4_0.** Every candidate fits the card alone, so VRAM decided nothing.
+   What decided it is whether the model stops thinking: the two mixture-of-experts candidates are
+   about 2.6 times faster per token and spend the whole context reasoning, returning an empty reply
+   with no limit set, which is how the tier is deployed. Between the dense pair, gemma replies in
+   fewer tokens, is QAT, and shares the cortex's family, template and prompt idiom. Qwen3.6-27B is
+   the documented alternate, one `CORTEX_MODEL_FILE_BRAIN` away, for a deployment that wants about
+   2.7 GB more of the card free during a handoff. The deep tier has no default artifact: a
+   deployment turns it on by naming the pick. The pick obeyed 0 of 10 framed injections.
+
+9. **Embedder: nomic-embed-text-v1.5 Q8_0**, 768-dimensional, on the CPU (`-ngl 0`), negligible in
+   memory. `nomic-embed-text-v2-moe` is the multilingual alternative. The override is
+   `CORTEX_MODEL_FILE_EMBED`, named in the artifact family like every other model; the old
+   `CORTEX_EMBED_MODEL_FILE` is read by nothing. The embedder is excluded from injection
+   measurement, since it emits vectors.
+
+10. **A candidate's chat template is a selection input, read before a pick.** Every chat entry
+    respects the thinking switch on a plain request. Under a `response_format` the lineup splits
+    inside a family: the dense gemma-4 entries and every Qwen entry respect it, and both gemma-4-E
+    entries reason through it anyway. Asked for its rendered prompt with the kwarg and without it
+    (`POST /apply-template`), an entry whose template renders a thought already closed respects the
+    switch, and one that drops the block and adds nothing does not; that column has predicted which
+    entries write into the reasoning channel, which a delegated run discards on every entry
+    measured. The subagent tier's two reasoning-off flags stay, since the pair covers both kinds of
+    entry ([ADR-0049](ADR-0049-thinking-switch-and-trace-budget.md)).
+
+### Placement, context and the CPU tier
+
+11. **Placement and budget.** The cortex is GPU-resident; the embedder runs on the CPU; subagents
+    are GPU-first with CPU overflow ([ADR-0012](ADR-0012-resource-governance.md)); the deep model
+    swaps in for a handoff ([ADR-0030](ADR-0030-brain-handoff.md)) and needs no hybrid layer split
+    on this card, which stays the option for a smaller one. The AI stack's GPU budget is a
+    deliberate soft cap of 14 GB (`CORTEX_VRAM_SOFT_CAP_GB`), the owner's policy about the card
+    rather than a measurement; the cortex's measured footprint, `CORTEX_VRAM_CORTEX_GB` at 8.6, is
+    ADR-0012's. Context is set explicitly, never left to llama-server's default of the model's
+    maximum across four slots: the cortex runs 16384 tokens in one slot (`CORTEX_CTX_SIZE`), the
+    deep tier 8192 in one (`CORTEX_CTX_SIZE_BRAIN`, doubling it costs well under a gigabyte), and a
+    subagent server 8192 over two slots.
+
+12. **A CPU subagent server's thread count is set to its CPU quota.** Both CPU servers pass
+    `--threads "${CORTEX_SUBAGENTS_CPU_BUDGET:-4.0}"`, the substitution their `cpus` cap reads, so
+    a deployment cannot move the count without moving the cap. Left to its default the engine
+    starts one thread per hardware thread inside the quota, the threads are throttled mid-step at
+    the engine's barriers, and the same run took 13.7 times as long on identical output. The engine
+    rounds a fractional count down, which is the safe direction; a budget under one CPU rounds down
+    to 0, which the engine reads as its own default
+    ([R-636](../refinements/tasks/636-a-cpu-budget-under-one-floors-the-thread-count-to-the-engines-default.md)).
+    No `--threads-batch` is set, so the prompt rate follows the same count. `crosscheck.py` compares
+    each deployed file's flag line and count as one search text, and `flagcheck.py` requires a
+    `--threads` on every server started with `-ngl 0`
+    ([ADR-0043](ADR-0043-subagent-server-flags.md)); what no check covers is the count's value on a
+    third CPU server
+    ([R-676](../refinements/tasks/676-a-third-compose-files-thread-count-is-held-to-no-value.md)).
+
+13. **A CPU subagent server runs under an 8 GiB memory cap with swap disabled.** The cgroup is
+    charged for the mapped artifact as well as the working set, so the pick's server sits at about
+    nine tenths of the cap once loaded; `docker stats` hides the mapped half. Under a delegated run
+    at the deployed cap and two slots the cap does not bind and nothing is reclaimed. It fits this
+    pick and says nothing about a larger artifact
+    ([R-675](../refinements/tasks/675-the-subagent-memory-cap-is-sized-for-the-picks-artifact-alone.md)).
+
+### The deep tier's drafter
+
+14. **The deep pick takes its multi-token-prediction drafter from one setting, recommended with the
+    pick.** `CORTEX_MODEL_FILE_BRAIN_DRAFT` names the drafter under the models mount
+    (`google/gemma-4-31B-it-assistant/assistant-F16.gguf` for the pick). A named file appends
+    `--model-draft PATH --spec-type draft-mtp` to the deep tier's argv after its usual end, and
+    `drafter_flags` in `tiers.py` returns the four items or none, because the path without the type
+    loads the drafter and drafts nothing. The pair is passed through the tier's `extra`, since the
+    model host's argv builder has exactly one splat and `scripts/hostedtiers.py` reads it that way.
+    At matched power limits the drafter decodes 1.34 times the plain rate on a tool-call turn and
+    on answer text, and 1.86 to 1.89 times on a reasoning trace; it costs about 1000 MiB and about
+    a tenth more load time, which a handoff recovers within about 400 to 1500 decoded tokens. The
+    setting has an empty default: it serves one pick, a compose default would append it to whatever
+    deep model a deployment names, and `${VAR:-default}` cannot be turned off by an empty value.
+    The model-swap runbook and the gpu override name it as part of the pick's configuration, with
+    the settings that move with it: `CORTEX_SWAP_BRAIN_VRAM_MIB` raised by the drafter's cost, the
+    GPU subagent tier listed in `CORTEX_SWAP_EVICT_MODELS`, `CORTEX_SWAP_CORESIDENT` left off, and
+    the decode minimum measured again with the drafter drafting. Only the deep tier reads the
+    setting; nothing on the mount drafts for the cortex or the subagent pick.
 
 ## Consequences
 
-- Slice 4's runbook (`docs/runbooks/llamacpp-gpu.md` per ADR-0005) records the
-  measured numbers and the final per-tier picks.
-- Config gains per-tier model-id settings with the logical defaults; the adapter maps
-  them to artifacts.
+- The picks are named in `docker/docker-compose.gpu.yml`, `docker-compose.subagents.yml`,
+  `docker-compose.subagents-roster.yml` and `docker-compose.memory.yml` as the defaults of their
+  `CORTEX_MODEL_FILE_` variables, and in the model host's settings; changing a pick means changing
+  those defaults and this record together.
+- With the drafter, the deep model, the GPU subagent tier and the drafter do not fit one 24 GB
+  card, so the drafter rules out co-residency on this card. Under the deployed handoff the pool is
+  drained and the evicted tier costs nothing in use. Nothing catches a co-resident deployment that
+  names the drafter later without raising its declared cost: the brain cannot see a drafter through
+  the `ModelHost` port by design, and the spill watch
+  ([ADR-0055](ADR-0055-co-residency-and-spill-watch.md)) is what reports a figure set too low
+  ([R-698](../refinements/tasks/698-a-drafter-sized-spill-is-unmeasured-against-the-decode-floor.md)).
+- The delegated-run limits were sized on the CPU tier before its thread count was set, and are
+  looser than their derivation asked for now that it is; they are re-sized only on whole-subtask
+  measurements
+  ([R-637](../refinements/tasks/637-the-delegated-run-ceilings-were-sized-on-the-unpinned-cpu-tier.md)).
+- Three deep candidates have no injection measurement, and an adopted alternate needs its own.
+- The injection measurements for a candidate start from the tier's deployed configuration
+  ([ADR-0060](ADR-0060-injection-rows-follow-the-tier.md)).
+
+## Alternatives rejected
+
+- **Picking the cortex or the deep tier on VRAM**: every candidate fits, so VRAM separates none.
+- **A mixture-of-experts deep model for its decode rate**: it never stops reasoning, so it replies
+  with nothing at the context size deployed.
+- **An ANN index now**: see decision 4. **Storing the vector inline** (`SET STORAGE PLAIN`) bought a
+  fifth of the scan back and grew the table, the arithmetic rather than the detoasting being most
+  of the cost.
+- **A drafter field of its own on `TierArgs`, or the drafter on by default**: see decision 14.
+- **Checking the thread count's value in `flagcheck.py`**: a CPU quota exists only on a compose
+  service, and the model host's GPU tier has none for a count to equal.
+
+## Related
+
+- [ADR-0005](ADR-0005-llamacpp-engine.md), [ADR-0012](ADR-0012-resource-governance.md),
+  [ADR-0013](ADR-0013-untrusted-content.md), [ADR-0017](ADR-0017-subagent-model-safety.md),
+  [ADR-0018](ADR-0018-heterogeneous-subagents.md),
+  [ADR-0028](ADR-0028-grammar-constrained-subagents.md), [ADR-0030](ADR-0030-brain-handoff.md),
+  [ADR-0043](ADR-0043-subagent-server-flags.md),
+  [ADR-0049](ADR-0049-thinking-switch-and-trace-budget.md),
+  [ADR-0059](ADR-0059-prompt-cache-per-tier.md),
+  [ADR-0060](ADR-0060-injection-rows-follow-the-tier.md).
+- Runbooks: [llamacpp-gpu](../runbooks/llamacpp-gpu.md),
+  [subagents-cpu](../runbooks/subagents-cpu.md), [model-swap](../runbooks/model-swap.md),
+  [memory-pgvector](../runbooks/memory-pgvector.md).
+- Modules: [brain-model-manager](../modules/brain-model-manager.md),
+  [brain-memory](../modules/brain-memory.md).
+- Readings: [model lineup](../readings/model-lineup.md), [injection text
+  rows](../readings/injection-text-rows.md).
