@@ -7,14 +7,16 @@ count dropping is not by itself the trigger: that happened two and a half hours 
 was opened, in a commit whose own subject was the exclusion.
 **Area:** repo-gates
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-09-15
+**Verified:** 2026-09-19
 
 Opened 2026-08-24 by the close of
 [R-409](409-a-gates-success-line-names-no-collection.md), which gave the four remaining cross-tree
 scans a success line naming what they read and put a floor of one file under the two that had none.
 
-`linecap.MIN_FILES` and `dashcheck.MIN_FILES` are both 1, and `composefiles.py` raises on a walk that
-found no compose file. All three answer one question: did this scan enter the tree at all. None of
+`linecap.MIN_FILES` and `dashcheck.MIN_FILES` are both 1, `composefiles.py` raises on a walk that
+found no compose file, and since 2026-09-17 `settingscheck.MIN_CLASSES` is 1, raising when no
+composed service runs a module with settings. All four answer one question: did this scan enter
+the tree at all. None of
 them answers the question a reader of the printed count actually has, which is whether it read as
 much as it read yesterday. A line cap that measured 3 of 422 files, because a directory name
 joined `SKIPPED_DIRS` or a suffix left `SOURCE_SUFFIXES`, clears the floor, prints 3, and exits 0.
@@ -29,10 +31,12 @@ be no. The shapes worth weighing: a floor per gate set well under the real count
 never (cheap, stale by construction, and it would have to be argued against the same objection);
 a relative check against a recorded previous reading, which is a second file to maintain and a
 merge conflict on every branch; or nothing at all, on the ground that a collapse of that size
-comes from an edit to the gate itself, and an edit to the gate is reviewed. Note that `bindcheck`
-and `defaultcheck` already carry the shape of the middle option in their suites, as guards on the
-guard (`len(defaults) >= 6`, `len(repeated) >= 6`), which is a floor over the tree written where a
-stale one fails the suite rather than passing unnoticed. Whether that pattern belongs in the other two suites
+comes from an edit to the gate itself, and an edit to the gate is reviewed. Note that four
+compose gates already carry the shape of the middle option in their suites, as guards on the
+guard: `bindcheck` (`len(defaults) >= 6`), `defaultcheck` (`len(repeated) >= 6`), `volumecheck`
+(`scanned.declared >= 4`, `scanned.definitions >= 8`) and `flagcheck` (`scanned.servers >= 3`,
+`artifacts >= 6`), each a floor over the tree written where a stale one fails the suite rather than
+passing unnoticed. Whether that pattern belongs in the cap's and the dash ban's suites
 is the concrete first question, and it does not transplant as one line: both of those suites run
 their gate over the repo root and can put a floor beside that run, while `test_linecap.py` and
 `test_dashcheck.py` never read this repo at all, every test in both building a temporary tree
@@ -93,3 +97,19 @@ suite makes about the tree it ships in.
   open with `REPO_ROOT = Path(__file__).resolve().parents[2]` and run their gate over it, while
   `test_linecap.py` and `test_dashcheck.py` name no repo root anywhere, every test in both taking
   a `tmp_path` tree instead.
+- 2026-09-19: the readings again, against the ones recorded above. `linecap OK: 438 non-test
+  source file(s) under .. are within 300 lines, over 63011 line(s) counted`. `dashcheck OK: 1643
+  text file(s) under .. use no banned dash, over 326587 line(s) read`. Both compose gates still
+  walk 10 files, at 11 bind mounts and 8 variables spelled twice or more. Every count is above the
+  one before it, so the trigger has not fired. The settings scan that landed on 2026-09-17 is a
+  fifth walk with a printed count, and this is its first recorded reading: `settingscheck OK: the
+  134 field(s) of 14 settings class(es) read by brain, mcp-email, model-host are each named in that
+  service's environment by one of 10 compose file(s), or exempt with a reason`. It brought a fourth
+  floor of one, `settingscheck.MIN_CLASSES`, and its suite asserts the three service names in the
+  success line, which pins the set over the tree rather than putting a floor under it: any of
+  those three services dropping out of the walk fails `test_the_committed_tree_passes`. The account
+  of the middle option was also short. `test_volumecheck.py` and `test_flagcheck.py` carry the same
+  guard on the guard as the two suites this entry named, since 2026-08-25 and 2026-08-28, which is
+  before the correction of 2026-09-08 that described only two. Against today's tree
+  `declared >= 4` stands at 4 volume paths and `servers >= 3` at 3 servers, so both have no
+  headroom, while `definitions >= 8` absorbs three removals of 11 and `artifacts >= 6` one of 7.

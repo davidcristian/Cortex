@@ -3,7 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** repo-gates
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-09-15
+**Verified:** 2026-09-19
 **Trigger:** a second ordering or membership over sites another entry of the same relation already
 reads, which is countable by walking `crosscheck.CONSTANTS` pairwise over the entries whose
 relation is not `EQUAL` and asking whether either one's sites are a subsequence of the other's.
@@ -49,3 +49,13 @@ exactly where the wider entry's claim implies the narrower one's.
   non-equalities are `the capture edge ceiling under the brain's image bound`, `the capture
   encoding inside the brain's allow-list` and `the body-client receive limit above the capture
   ceiling`, each over two sites, so none of them can carry a nested copy.
+- 2026-09-19: re-derived by the walk the trigger names, and it has not fired. `crosscheck.CONSTANTS`
+  holds 92 entries, 89 equalities, 2 orderings and 1 membership, the same three non-equalities over
+  two sites each; the one pair of the same relation, the two orderings, shares no site, so neither
+  is a subsequence of the other. The floor this entry argues from still holds in code:
+  `crosscheck.registry_fault` refuses an entry over fewer than two places and refuses any mention
+  on a relation other than `EQUAL`, so an ordering or a membership is two sites at the least. The
+  rule that a registry entry must span more than one seam side, which refuses a pair whose places
+  all sit in one brain package in one language, narrows a nested copy further without changing
+  this entry: its subsequence would have to span two sides as well. `_narrower` is still in
+  `scripts/tests/test_crosscheck.py` and still reads two equalities only.

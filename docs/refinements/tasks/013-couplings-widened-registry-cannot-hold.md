@@ -3,8 +3,8 @@
 **Status:** open, fix when it bites
 **Area:** repo-gates
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-09-15
-**Trigger:** A third value on the capture-target enum, or a third module outside the body's rpc crate and the brain's body client that must spell one of the two gRPC status codes.
+**Verified:** 2026-09-19
+**Trigger:** A third value on the capture-target enum, a reader for declarations in the `.proto` arriving in the scan for another reason, any module outside the body's rpc crate and the brain's body client that must spell one of the two gRPC status codes, or either side of that pair gaining a declaration whose value the scan can read.
 
 Opened 2026-08-08 behind the landing above, in the same shape its own parent had: a registry that
 now reaches four kinds of coupling makes each remaining one a decision rather than an absence.
@@ -47,8 +47,9 @@ both within twenty lines of 300, so the value forms and the relation comparators
 `scripts/values.py` (what a value reduces to, and how a constant's readings must stand, with no
 file reading at all) and the overlay's half of the registry into `scripts/overlaycouplings.py`,
 which is where the entries had been accumulating anyway. `crosscheck.CONSTANTS` was the two halves
-read as one; it is thirteen parts today, named by `scripts/registry.py`, and `values.py` split
-again into `scripts/readings.py` for how a constant's readings must stand. Nothing in the scan asks
+read as one; it is split into parts today, each named in `scripts/registry.py`'s docstring
+(fourteen on 2026-09-19), and `values.py` split again into `scripts/readings.py` for how a
+constant's readings must stand. Nothing in the scan asks
 which part an entry is in.
 **Proved able to fail before it was trusted**, twice and in both directions: the body producing
 `"image/gif"` and the allow-list dropping `"image/png"` each exit 1 naming both files, both
@@ -279,3 +280,16 @@ side, or a `.proto` reader arriving in the scan for another reason.
   client, which is the two homes the trigger counts. What had moved is the other clause of the
   status pair's own trigger: a case-aware mention form has arrived, and the account under that
   sub-entry now says why it reaches nothing and what the clause is restated to.
+- 2026-09-19: both couplings re-derived after the settings scan and the nearest-line report
+  landed, and neither trigger has fired. The proto still declares
+  `CAPTURE_TARGET_DISPLAY` and `CAPTURE_TARGET_FOCUS` and nothing else, `crosscheck.DECLARATIONS`
+  still knows `.py`, `.rs` and `.ts` only, and the status codes are still spelled in the same three
+  non-test modules, `screen.rs` and `server.rs` in the body's rpc crate and `failures.py` in the
+  brain's body client, none of which declares a value the scan could read. Neither landing
+  touched either pair. Two things in this entry had gone stale. The account of the
+  membership close said the registry is thirteen parts, and it has been fourteen since the trace
+  budget's wire name gained a part of its own on 2026-09-13, which the two re-derivations after that
+  date did not count; the sentence now points at the docstring that lists them and dates the count.
+  And the head trigger named two of the four events the sub-entries wait on, leaving out the
+  `.proto` reader and the declaration either side of the status pair could gain, so a sweep reading
+  only the index line could not have seen either one fire. It now names all four.

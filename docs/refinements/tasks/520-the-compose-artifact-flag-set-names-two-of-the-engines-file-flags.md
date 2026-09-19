@@ -7,7 +7,7 @@
 vector, which no service here does today. That is countable by reading the command of every
 service the compose files start and listing the flags it spells
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-09-15
+**Verified:** 2026-09-19
 
 Opened 2026-09-02 by the close of
 [R-515](515-the-artifact-domain-rests-on-a-field-name-convention.md), which made the hosted half
@@ -76,3 +76,11 @@ language offers.
   `llama-subagent-qwen`, which are the three artifacts `artifactnames.composed` finds. Nothing
   spells `--model-draft`, `--lora` or a control vector, and `--mmproj` is still spelled by no
   compose command, so the compose half of the reader goes on resting on one of its two flags.
+- 2026-09-19: counted again after the settings pass-through and the settings scan added
+  environment entries to three compose files, and the trigger has not fired. Neither change wrote a
+  command, so reading the command of every service the compose files start still turns up the same
+  fifteen distinct flags. The only
+  file flag among them is `--model`, spelled by `llama-embed`, `llama-subagent` and
+  `llama-subagent-qwen`, and `artifactnames.ARTIFACT_FLAGS` is still `("--model", "--mmproj")`, with
+  `--mmproj` spelled by no compose command. The two short flags are unchanged, `-m` for the email
+  sidecar and `-c` for the filesystem sidecar's install line.

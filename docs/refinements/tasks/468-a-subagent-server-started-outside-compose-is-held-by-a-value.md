@@ -2,10 +2,11 @@
 
 **Status:** open, fix when it bites
 **Area:** repo-gates
-**Trigger:** a second hand-started subagent server appears in a runbook or a host task, or one of
-the two flags the constant registry does not hold is found missing from the one that exists
+**Trigger:** a second hand-started subagent server appears in a runbook or a host task, or the one
+that exists is found missing a flag the flag rule requires or spelling one with a value the shipped
+stack does not
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-09-15
+**Verified:** 2026-09-19
 
 Opened 2026-08-27 by the close of
 [R-462](462-nothing-enumerates-the-subagent-servers-this-repo-starts.md), which held every subagent
@@ -13,31 +14,41 @@ server a composed stack starts to the flags its tier requires.
 
 `docs/runbooks/subagents-cpu.md` hands an operator a `docker run` that brings up a standalone CPU
 subagent server on loopback, outside any stack, carrying `--jinja`, the template kwarg,
-`--reasoning-budget 0` and `--cache-ram 0`. A gate over compose services cannot see it. What
-reaches the command block today is one constant-registry needle over the budget's count, which came
-out of the same close: retune the tier's zero and that command block fails the gate. That close
-registered two needles on this runbook, and the second is aimed at the prose stating the pair
-rather than at the command. The three other flags are held there by nobody, so an
-edit that dropped the kwarg from the operator's command would leave the runbook telling somebody to
-start a server the shipped stack would not. That is not a hypothetical any more: the rule gained
-the prompt-cache flag while the command block stood still, and the command was three flags behind
-the shipped stack until 2026-09-14.
+`--reasoning-budget 0`, `--cache-ram 0` and, beside `-ngl 0`, `--threads 4`. A gate over compose
+services cannot see it. What reaches the command block today is one constant-registry needle over
+the budget's count, which came out of the same close: retune the tier's zero and that command block
+fails the gate. That close registered two needles on this runbook, and the second is aimed at the
+prose stating the pair rather than at the command. The four other flags the rule requires are held
+there by nobody, and neither is the `--cpus 4` beside them, so an edit that dropped the kwarg from
+the operator's command would leave the runbook telling somebody to start a server the shipped stack
+would not. That is not a hypothetical any more: the rule gained the prompt-cache flag while the
+command block stood still, and the command was three flags behind the shipped stack until
+2026-09-14.
 
 **Why it was left.** The scale is one command block in one runbook, and the shapes a fenced shell
 line can take are the reason `samplecheck.py` exists as its own gate. Making the flag rule read
 fenced commands is a second reader for one far side.
 
-**What would close it.** Most likely three more needles rather than a reader: the kwarg, the
-`--jinja` and the prompt cache's count are each a fixed string, and each has a constant in the
-sidecar to hang off, `_SUBAGENT_TAIL` in `config.py` for the kwarg and the two counts and `_JINJA`
-in `tiers.py` for the other. None of those strings is registered in the constant registry, though
-`_JINJA` is no longer unheld: `scripts/hostedtiers.py` reads the argv `llama_server_argv` returns
-and holds every item in it to the flag gate's rule, so its `Flag("--jinja")` and the
-sidecar's `_JINJA` do fail together. What that reader cannot reach is the runbook, which is the
-whole of what this entry is about. The alternative worth weighing first is that a runbook command
-is prose an operator adapts, and holding four flags in it is holding a paste. The reason to weigh
-it again is that adapting a paste is not what went wrong here: the rule moved and the paste did
-not.
+**What would close it.** Needles rather than a reader, for every flag but one. Three constants
+already declare what the command spells, so a needle on this runbook needs no source edit:
+`_JINJA` in the sidecar's `tiers.py` for `--jinja`, `_NO_PROMPT_CACHE` in its `config.py` for
+`--cache-ram 0`, and the orchestrator's `DEFAULT_CPU_BUDGET` for both `--threads 4` and `--cpus 4`,
+through `Spelling.WHOLE` because the constant declares `4.0`. `DEFAULT_CPU_BUDGET` already carries
+the compose files' `--threads` needles, so those two are mentions on an existing entry, while
+`_JINJA` and `_NO_PROMPT_CACHE` are registered nowhere yet and would each be a new entry. `_JINJA`
+is not unheld all the same: `scripts/hostedtiers.py` reads the argv `llama_server_argv` returns and
+holds every item in it to the flag gate's rule, so its `Flag("--jinja")` and the sidecar's `_JINJA`
+fail together; what that reader cannot reach is the runbook. The kwarg is the one flag with no
+constant to hang a needle off. `_SUBAGENT_TAIL` writes `'{"enable_thinking": false}'` inline, in
+single quotes, inside a tuple of strings and names, and `scripts/values.py` reduces neither a
+single-quoted string nor such a tuple. Declaring the kwarg as a constant of its own in the sidecar,
+which is a brain edit, is not enough by itself: written in double quotes the JSON needs escapes,
+and the string form raises on any backslash rather than decode it. So the kwarg needs both that
+declaration and a value form that reads it, a single-quoted string being the smaller of the two
+ways to write one. The alternative worth weighing first is that a
+runbook command is prose an operator adapts, and holding five flags in it is holding a paste. The
+reason to weigh it again is that adapting a paste is not what went wrong here: the rule moved and
+the paste did not.
 
 ## Trail
 
@@ -74,3 +85,16 @@ not.
   the count beside `--cpus 4` in this block is held by nobody either, which is a second value of the
   same kind rather than a second far side. The entry stays open, and what it is about is unchanged:
   a fenced command in a runbook is the one far side a rule over compose services cannot reach.
+- 2026-09-19: re-derived and neither half of the trigger fired. The runbook's `docker run` is
+  unchanged and carries all five flags the rule requires, the settings scan and the nearest-line
+  report touched neither the command nor the flag rule, and no other subagent server is started by
+  hand in `docs/`: `budget-probe` in `docs/runbooks/llamacpp-gpu.md` starts the cortex tier, and the
+  CPU row that runbook describes is started by the live suite from the shipped argv rather than by
+  an operator. The trigger's second clause named "the two flags the constant registry does not
+  hold", a count that was stale by 2026-09-14, so it now names any required flag the command drops
+  or respells. The remedy was wrong about the kwarg. It said `_SUBAGENT_TAIL` was a constant to hang
+  the kwarg and the two counts off, but the value forms reduce no tuple of that shape and no
+  single-quoted string, so only the counts have constants, `_NO_REASONING_BUDGET` (already
+  registered) and `_NO_PROMPT_CACHE`. The paragraph now names the constant for each flag and says
+  that the kwarg needs a declaration in the sidecar and a value form that can read it, since a
+  double-quoted spelling of the JSON carries escapes the string form refuses.
