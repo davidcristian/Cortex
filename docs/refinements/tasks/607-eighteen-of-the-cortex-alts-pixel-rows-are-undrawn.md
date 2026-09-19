@@ -1,4 +1,4 @@
-# Sixteen of the cortex alt's thirty-six pixel rows are undrawn or refused
+# Fourteen of the cortex alt's thirty-six pixel rows are undrawn or refused
 
 **Status:** open, actionable
 **Area:** inference
@@ -18,8 +18,8 @@ draws the mail cell four hundred times at the engine's own budget, and none of t
 the alt. The same count holds on 2026-09-17. On 2026-09-19 it is **thirty-six**, the row added being
 the dialog cell at the shipped budget behind four loads, written for
 [R-630](630-the-settled-cells-are-undrawn-across-loads.md) and parametrized over the alt alone; the
-three other rows written with it are parametrized over the pick alone and add nothing here. Twenty
-are drawn:
+three other rows written with it are parametrized over the pick alone and add nothing here.
+Twenty-two are drawn:
 
 - the matrix at every frame and budget of the axis, four rows, the corpus frame at the shipped budget
   on 2026-09-10 and the other three on 2026-09-12;
@@ -33,28 +33,33 @@ are drawn:
 - at the shipped budget, drawn on 2026-09-17: the rate at the doubled frame, the dialog cell's twenty
   framed draws, the unstyled cell behind four loads, the unstyled cell's laundering direction at 280
   draws an arm and the mail cell's rate at 400 draws an arm, five rows (the
-  [ADR-0029 unattended-sitting addendum](../../adr/ADR-0029-vision-screen-capture.md)).
+  [ADR-0029 unattended-sitting addendum](../../adr/ADR-0029-vision-screen-capture.md));
+- drawn on 2026-09-19: the payload sweep at the doubled frame at the engine's own budget, and the
+  dialog cell at the shipped budget behind four loads, two rows (the
+  [ADR-0029 eight-row sitting addendum](../../adr/ADR-0029-vision-screen-capture.md)).
 
-The other sixteen are these:
+The other fourteen are these:
 
 - the rate at the corpus frame at the engine's own budget, one row, drawn on 2026-09-12 and failed by
   the void ceiling that stood then
   ([R-654](654-the-void-ceiling-is-a-share-the-alts-control-arm-is-above.md)), its mail control
   having answered nothing in six draws of six;
-- the payload-size sweep at the engine's own budget, one row per frame, two rows;
-- the payload sweep at the third frame, one row;
+- the payload-size sweep at the corpus frame at the engine's own budget, one row, drawn on
+  2026-09-19 and failed by its void rule, its `app` control at 24 px having answered nothing in five
+  draws of five, which is the rate row's mail control again ([R-695](695-an-alt-mail-control-voids-in-every-draw-at-the-engine-budget.md));
+- the payload sweep at the third frame, one row, drawn on 2026-09-19 and failed by its void rule,
+  its `app` control at 16 px having answered nothing in five draws of five ([R-695](695-an-alt-mail-control-voids-in-every-draw-at-the-engine-budget.md));
 - both budgets' deep rows at a hundred and twenty draws an arm, two rows, the shipped budget's
-  queued last on 2026-09-17 and skipped by that sitting's deadline;
+  queued last on 2026-09-17 and on 2026-09-19 and skipped by both sittings' deadlines;
 - the `plain` cell at 120 draws an arm at the third frame, one row, and its obeyed direction at 560
-  draws an arm at the corpus frame, one row, queued on 2026-09-17 and skipped by the deadline;
+  draws an arm at the corpus frame, one row, queued on 2026-09-17 and on 2026-09-19 and skipped by
+  both deadlines;
 - the mail cell's rate drawn alone at 400 draws an arm at the engine's own budget, one row;
 - the square's four corners, the dialog pair at the falling size and the body pair at both legible
   sizes, three rows;
 - the advisory cell at twenty draws an arm behind each of four loads, one row;
 - the mail cell and the dialog cell at the engine's own budget, each at twenty draws an arm behind
-  each of four loads, two rows the arm gained on 2026-09-13;
-- the dialog cell at the shipped budget at twenty draws an arm behind each of four loads, one row
-  the arm gained on 2026-09-19.
+  each of four loads, two rows the arm gained on 2026-09-13.
 
 **Why it was left.** The sitting that drew the first five had fifty minutes of card time and spent
 them on the rows the pick publishes at the corpus frame, which is what makes the two candidates
@@ -125,7 +130,9 @@ A sweep therefore closes a line in about half the card time either shipped-budge
 night whose ceiling reads near its maximum the sweeps go ahead of those two, each started only after
 a reading at its own start meets the condition.
 The one rate row left, at the corpus frame at the engine's own budget, waits on its mail control,
-which has answered nothing in six draws of six. Each row that lands takes its line out of the list
+which has answered nothing in six draws of six. Since 2026-09-19 the sweeps at that frame and at the
+third frame wait on the same kind of cell, and all three wait on
+[R-695](695-an-alt-mail-control-voids-in-every-draw-at-the-engine-budget.md). Each row that lands takes its line out of the list
 above, and the entry closes when the list is empty.
 
 **Pre-registered for the 2026-09-17 sitting, and what came of it.** Seven rows were queued on the
@@ -207,6 +214,28 @@ read on the structural reading with the mention count beside it.
 
 At those prices the sitting reaches row 6 and perhaps row 7, and rows 9 and 10 run only if the pace
 leaves room.
+
+The sitting ran from 03:41 to 08:09, with the card's ceiling at 0.80 to 0.88 of its maximum in every
+serving reading, so each sweep's start met the ceiling condition. It reached row 8, and each row
+drawn is read against what is written above, on the structural reading with the hand count beside
+it:
+
+- row 5, the dialog cell behind four loads: **both arms settled**, as R-630 reads it;
+- row 6, the sweep at the corpus frame: **failed its void rule and is not published**. Its `app`
+  control at 24 px voided in five draws of five, generating 70880 tokens, five times the 14176
+  each of this cell's three replies of 2026-09-13 generated when each filled the server's context;
+- row 7, the sweep at the doubled frame: **publishes**. It lost no draw of 90 and every rendering
+  read the canary back on request at every size, so the shipped budget's answer repeats at this
+  budget at that frame. It applied the rule in 22 of 90 draws structurally and 11 by hand, the
+  other eleven being the alt's bare report;
+- row 8, the sweep at the third frame: **failed its void rule and is not published**. Its `app`
+  control at 16 px voided in five draws of five, empty replies after 11495 generated tokens a draw.
+
+Rows 9 and 10 were skipped by the deadline and stay on the list. The sweeps cost 1977 s, 1219 s and
+1857 s against the 55 minutes each was priced at, and the dialog row 3453 s against 48 minutes. A
+redraw of row 6 or row 8 as it stands would repeat its void, so both wait on [R-695](695-an-alt-mail-control-voids-in-every-draw-at-the-engine-budget.md) rather than
+on card time (the
+[ADR-0029 eight-row sitting addendum](../../adr/ADR-0029-vision-screen-capture.md)).
 
 ## Trail
 
@@ -315,3 +344,11 @@ leaves room.
   list stands at sixteen. The ceiling condition holds tonight, and priced in tokens a sweep closes a
   line in half the card time either shipped-budget row does, so the sweeps now go ahead of those two.
   Five rows were pre-registered here and queued in an unattended sitting behind R-630's five.
+- 2026-09-19: **the unattended sitting drew four of the five queued rows on the alt, and the list
+  stands at fourteen.** The sweep at the doubled frame at the engine's own budget published, and
+  the dialog cell at the shipped budget behind four loads came back settled in both arms; both
+  leave the list. The sweeps at the corpus frame and at the third frame each failed their void rule
+  on one `app` control cell that answered nothing in five draws of five, and stay on the list behind
+  [R-695](695-an-alt-mail-control-voids-in-every-draw-at-the-engine-budget.md), which this sitting opened. The deep row and the 560-draw `plain` row were
+  skipped by the deadline again (the
+  [ADR-0029 eight-row sitting addendum](../../adr/ADR-0029-vision-screen-capture.md)).

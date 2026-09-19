@@ -874,14 +874,17 @@ load, where three earlier sittings had drawn it 4 of 5, 1 of 20 and 19 of 20, so
 back to back agree and the spread is between sittings. Three more cells were drawn that way, and
 four more rows were written on 2026-09-19 for the cells still read from one load, so
 `-k across_loads` now selects eight functions, each naming its own cell. The four new ones are each
-parametrized over the one candidate whose reading they repeat, and none had run when they were
-written: `-k "body_screen and bare"` and `-k "body_screen and plain"` draw one of the pick's body
-screens at 24 px and at 16 px behind four loads per size, about 30 minutes each;
-`-k plain_cell_at_the_engine_budget` is the pick's `plain` cell at the engine's own budget, about
-33 minutes; `-k framed_arm_at_the_engine_budget` draws the pick's `app` framed arm alone 400 times
-behind each of two loads, about 40 minutes; and `-k dialog_cell_at_the_shipped_budget` is the alt's
-`chrome` cell at the shipped budget, about 48 minutes. Those prices are estimates off the nearest
-measured rows.
+parametrized over the one candidate whose reading they repeat, and all four ran on 2026-09-19 at a
+ceiling of 0.80 to 0.88 of `power.max_limit` in every serving reading: `-k "body_screen and bare"`
+and `-k "body_screen and plain"` draw one of the pick's body screens at 24 px and at 16 px behind
+four loads per size, **1119 s** and **2507 s**; `-k plain_cell_at_the_engine_budget` is the pick's
+`plain` cell at the engine's own budget, **1387 s**; `-k framed_arm_at_the_engine_budget` draws the
+pick's `app` framed arm alone 400 times behind each of two loads, **2540 s**; and
+`-k dialog_cell_at_the_shipped_budget` is the alt's `chrome` cell at the shipped budget, **3453 s**,
+its control arm generating 2637 tokens a reply. Every control arm but one wrote one string in 19 or
+20 draws of every load and the same string in all four; the `plain` control at 16 px wrote a summary
+that leaves the rule out in all 80, where one load had drawn it applying the rule in 19 of 20
+(ADR-0029's eight-row sitting addendum).
 `-k "plain_cell_at_the_shipped_budget and 12B"` is the unstyled cell at the corpus frame and the
 shipped budget, twenty per arm behind each of four loads, and takes **about seven minutes**,
 403.17 s on 2026-09-13: its control arm wrote one string in all twenty draws of every load and the
@@ -901,7 +904,13 @@ The alt's rows here cost differently. On 2026-09-17, at a ceiling of 0.80 to 0.8
 `-k "plain_cell_at_the_shipped_budget and Qwen"` took 1247.26 s,
 `-k "direction_drawn_deeper and Qwen"` 3591.74 s for 561 requests,
 `-k "mail_cells_rate and shipped and Qwen"` 3137.86 s for 801, and `-k "twenty_framed and Qwen"`
-119.79 s. At the doubled frame at the shipped budget the alt's `plain` control reports the payload's
+119.79 s. On 2026-09-19, at the same ceiling, `-k "payload_sizes and Qwen and 3200x1800 and
+engine-budget"` took 1219 s for 72870 generated tokens and published, while the same sweep at
+`1600x900` and `-k "payload_sweep_at_a_third_frame and Qwen"` failed their void rule at 1977 s and
+1857 s, each on an `app` control cell that answered nothing in five draws of five, so redrawing
+either repeats that until a row has a rule for a cell that voids in every draw (ADR-0029's eight-row
+sitting addendum). At the doubled frame at the shipped
+budget the alt's `plain` control reports the payload's
 rule in a sentence ending on the bare notice, so its applied count there counts that report (the
 same addendum).
 The port advice above applies unchanged: this arm runs the same

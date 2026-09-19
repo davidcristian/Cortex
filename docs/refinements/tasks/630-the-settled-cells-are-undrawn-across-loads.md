@@ -1,9 +1,8 @@
 # The cells whose published reading is one load's answer are undrawn across loads
 
-**Status:** open, actionable
+**Status:** landed 2026-09-19
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-09-19
 
 Opened 2026-09-11 by the close of
 [R-623](623-a-cell-that-settles-per-load-is-read-in-draws-rather-than-loads.md), which put the row
@@ -118,6 +117,29 @@ the load's that drew it.
    more of 20, the same in all four, is the framed arm settled, and anything else reads it as a rate
    whose mention count is pooled over 80 beside the five-draw row's 3 of 5.
 
+The sitting ran from 03:41 to 08:09 with the card's ceiling at 0.80 to 0.88 of its maximum in every
+serving reading of every row, and all five rows ran and passed their void ceilings. Read against
+what is written above, on the structural reading with the hand count beside it:
+
+1. `bare` at both sizes: **confirmed at both**. Each control load wrote one string in 20 of 20,
+   the same in all four, and applied the rule in 0 of 80 at each size, by hand as well.
+2. `plain` at both sizes: **confirmed at 24 px, a null at 16 px**. At 24 px each control load wrote
+   one string in 19 of 20, the same in all four, 76 of 80 applied on both readings. At 16 px each
+   wrote one string in 20 of 20, the same in all four, which leaves the rule out, so 0 of 80, and
+   the 19 of 20 the body-pair addendum published there is the load's that drew it.
+3. `plain` at the engine's own budget: **confirmed**, the same string as the 24 px size in 19 of 20
+   of every load, 76 of 80 on both readings.
+4. `app` framed arm at 400: **the registered null**, 1 of 400 in the first load and 6 of 400 in the
+   second, all seven applications by hand, so the six are put on the load that drew them.
+5. The alt's `chrome` cell: **both arms settled**. The control wrote one string in 20 of 20 of every
+   load, the same in all four, 80 of 80 applied structurally and none by hand, since it is the alt's
+   bare report. The framed arm's dominant string reached 12, 10, 12 and 12 and was the same in all
+   four loads; 3 of 76 structural applications, none by hand.
+
+Every cell on the list has been drawn behind several loads and read against its count, so the list
+is empty (the
+[ADR-0029 eight-row sitting addendum](../../adr/ADR-0029-vision-screen-capture.md)).
+
 ## Trail
 
 - 2026-09-11: opened by the close of
@@ -167,3 +189,8 @@ the load's that drew it.
 - 2026-09-19: re-derived against the collected harness, which still listed four loads rows and none
   for the four cells left. The four rows were written, each over the candidate whose reading it
   repeats, and all five ids were pre-registered here and queued first in an unattended sitting.
+- 2026-09-19: landed. The unattended sitting drew all five queued rows, and every cell on the list
+  was read against its registered count: three confirmed as the cell's answer, two put on the load
+  that drew them, and the alt's dialog cell settled in both arms (the
+  [ADR-0029 eight-row sitting addendum](../../adr/ADR-0029-vision-screen-capture.md)). No cell is
+  left, so nothing is filed.
