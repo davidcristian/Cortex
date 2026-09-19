@@ -3,8 +3,8 @@
 **Status:** open, fix when it bites
 **Area:** inference-model-manager
 **Origin:** [ADR-0030](../../adr/ADR-0030-brain-handoff.md)
-**Verified:** 2026-09-15
-**Trigger:** A spill that decode misses, or a deployment whose deep answers are short enough that decode rarely clears `MIN_CADENCE_TOKENS`.
+**Verified:** 2026-09-19
+**Trigger:** A spill that decode misses, or a deployment whose deep answers are short enough that decode rarely clears `MIN_CADENCE_TOKENS`, which reads in the log as successful handoffs that mostly write the deep phase's no-decode-rate INFO line rather than its decode-rate line.
 
 Opened 2026-08-08 by
 the same landing. `timings` carries `prompt_per_second` beside the decode rate, and the
@@ -17,12 +17,15 @@ calibrating. The arm is already shaped to carry it, `DecodeCadence` being a valu
 fills from the same object. **Trigger:** a spill that decode misses, or a deployment whose deep
 answers are short enough that decode rarely clears `MIN_CADENCE_TOKENS`.
 
-**The field this entry names was read off a live server on 2026-09-09.** Nothing in the tree
-records llama.cpp's `timings` object whole: the adapter takes `predicted_per_second` and
-`predicted_n` from it
-([decode.py](../../../brain/packages/inference/src/cortex_inference/decode.py)) and every fixture
-in `cortex_inference`'s suite builds those two keys and no others, so the claim that a prompt rate
-arrives beside the decode rate is a claim about the server rather than about this repo. A CPU
+**The field this entry names was read off a live server on 2026-09-09, and the tree already held
+a copy of it.** The adapter takes `predicted_per_second` and `predicted_n` from llama.cpp's
+`timings` object ([decode.py](../../../brain/packages/inference/src/cortex_inference/decode.py))
+and reads nothing else there. The contract suite has recorded the object whole since the landing
+that opened this entry: `_TIMINGS` in `brain/packages/inference/tests/test_cadence_contract.py` is
+the final chunk of a streaming body, described there as verbatim in shape from a live run, and it
+carries `cache_n`, `prompt_n`, `prompt_ms`, `prompt_per_token_ms` and `prompt_per_second` beside
+the four predicted fields. So a prompt rate arriving beside the decode rate is a fact about the
+server that this repo's own fixture had written down, not one it lacked. A CPU
 llama-server on build 10680 answered an eight token completion with nine timing fields, among them
 `prompt_n`, `prompt_ms`, `prompt_per_token_ms` and `prompt_per_second`. The second instrument
 therefore costs no extra request and no second parse, only another read of the object the adapter
@@ -67,7 +70,7 @@ would start from.
 
 **The cost claim itself is confirmed on the path the adapter actually uses.** The 2026-09-09
 reading was taken on a completion this entry does not record as streamed, and the adapter only ever
-streams. The final streamed chunk of a `/v1/chat/completions` request on build `b10680-d7bd3bfca`
+streams, though the contract fixture named above was already a streamed chunk. The final streamed chunk of a `/v1/chat/completions` request on build `b10680-d7bd3bfca`
 carries `prompt_n`, `prompt_ms`, `prompt_per_token_ms`, `prompt_per_second` and `cache_n` in the
 same `timings` object `_cadence` already reads `predicted_per_second` out of, so the second
 instrument really does cost no extra request and no second parse. No GPU was used, so the figures
@@ -108,3 +111,15 @@ above describe a CPU probe and are quoted only as ratios of their own server's r
   cheapest requests, and a prefill watch needs a minimum processed-prompt length as well as a
   floor. The entry stays open and the decline it records stands on better evidence than it had.
   The readings are in the ADR-0030 addendum of that date.
+- 2026-09-19: claims held to the code, and one negative claim was wrong from the day it was
+  written. `MIN_CADENCE_TOKENS` is still 32 in `cortex_core/cadence.py`, `_cadence` still takes
+  `predicted_per_second` and `predicted_n` and nothing else, `CadenceWatch` is still built by the
+  deep phase, every model-host tier still states `--cache-ram`, and the runbook still records the
+  13.8 against 105 to 134 contrast. The 2026-09-09 paragraph said no fixture in
+  `cortex_inference`'s suite carries more than the two decode keys; the contract suite's
+  `_TIMINGS` has carried all nine fields of a streamed final chunk since 2026-08-08, and
+  `test_backend.py`'s `_timings` builds `cache_n` and `prompt_n` into every case. The paragraph now
+  says so. The trigger's second half now names the log line that shows it, since the deep phase
+  writes its no-decode-rate INFO line for an answer shorter than `MIN_CADENCE_TOKENS`. The
+  rename of the decode-rate log fields on 2026-09-17 touched neither rate's source. The trigger has
+  not fired.

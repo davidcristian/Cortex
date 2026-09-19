@@ -9,7 +9,7 @@ neither counted nor displayed, and R-379 closed on that. Checking the counting h
 outlives its handoff, `HandoffSettler._settle` deleting a `DONE` record outright and the Redis
 adapter expiring a `FAILED` one after an hour, so a count still has nowhere to live.
 **Origin:** [ADR-0030](../../adr/ADR-0030-brain-handoff.md)
-**Verified:** 2026-09-15
+**Verified:** 2026-09-19
 
 Opened 2026-08-19 by the close of [304](304-spill-rides-the-residency-report.md). The standing rule
 that close chose is deliberate and it has a price: the note lives in the process, stands for an
@@ -88,3 +88,11 @@ anybody has argued is worth a history.
   a per handoff row. Choosing a store and a shape is still what closing it costs, and the one hard
   rule points at Postgres rather than at the record, since a record built for swap survival is
   released the moment the turn it carried is finished. The trigger has not fired.
+- 2026-09-19: claims held to the code again and all of them stand. `HandoffSettler._settle` still
+  writes the terminal state and then deletes a `DONE` record through `_release_claim`,
+  `_TERMINAL_TTL_SECONDS` is still 3600 and `DEFAULT_SPILL_DWELL_S` still 3600.0, the spill's only
+  history is still the one `WARNING` in `brain_phase.py`, and `residency_pace.py` still binds no
+  logger. That `WARNING`'s rate fields were renamed on 2026-09-17 to `decode_rate`, `decoded` and
+  `floor_rate`, because the log formatter had been printing them as `<redacted>`, so the observed
+  rate and the floor this entry says the line carries are readable only since then. No second per
+  handoff verdict has arrived. The trigger has not fired.

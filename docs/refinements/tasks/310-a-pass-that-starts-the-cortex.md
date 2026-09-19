@@ -3,7 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** inference-model-manager
 **Origin:** [ADR-0030](../../adr/ADR-0030-brain-handoff.md)
-**Verified:** 2026-09-15
+**Verified:** 2026-09-19
 **Trigger:** a cortex that stops while the brain and the model host both keep running, which is the
 one state neither of the two boot starters covers, or a second visit to the runbook's step 2. Both
 are operator events, so the cheap recheck is whether the surfaces have moved:
@@ -90,3 +90,11 @@ own deadline; only the count is.
   still defaults to the empty tuple. Nothing in the swept group touched this entry's subject: the
   three others are about what a handoff leaves behind for a reader, while this one is about a write
   nothing performs. The trigger has not fired.
+- 2026-09-19: the four surfaces the trigger clause names were counted again and none has moved.
+  `regain_residency` still calls `host.status` twice and `host.start` never;
+  [proto/body.proto](../../../proto/body.proto) still declares 16 RPCs, 11 on `BrainService` and 5
+  on `BodyService`, none an operator command; the control API in `api.py` still routes `/health`,
+  `GET /models/{model}` and the start and stop posts; and `evict_models` still defaults to the empty
+  tuple, with `TierHealer.aclose`'s docstring still saying two control calls. The 2026-09-17 rule
+  that refuses an evict list naming the cortex or the deep model leaves the 2N + 2 count above as it
+  was, since N only ever counted peers. The trigger has not fired.

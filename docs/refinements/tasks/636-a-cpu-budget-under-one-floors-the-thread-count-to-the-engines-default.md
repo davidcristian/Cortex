@@ -3,7 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** subagents
 **Origin:** [ADR-0004](../../adr/ADR-0004-model-lineup.md)
-**Verified:** 2026-09-15
+**Verified:** 2026-09-19
 **Trigger:** a deployment that sets `CORTEX_SUBAGENTS_CPU_BUDGET` below 1.0, or a brain config
 change that lets the budget reach a CPU subagent server by any other spelling than the compose
 substitution both CPU servers read.
@@ -62,3 +62,12 @@ this fix-when-it-bites rather than actionable: the single-knob version of it ann
   this box. Nothing else moves: both remedies and the two-knob door stand as the entry records them.
   Published in the
   [ADR-0004 delegated-memory addendum](../../adr/ADR-0004-model-lineup.md).
+- 2026-09-19: **held to the tree again, and neither half of the trigger has fired.**
+  `DEFAULT_CPU_BUDGET` is still 4.0 and `cpu_budget` still `Field(default=DEFAULT_CPU_BUDGET,
+  gt=0)`, and `_every_ask_must_fit_the_whole_budget` still compares each entry's asks against the
+  whole budget and nothing else. Both CPU servers still pass
+  `"${CORTEX_SUBAGENTS_CPU_BUDGET:-4.0}"` to `--threads` and to `cpus`, in
+  `docker/docker-compose.subagents.yml` and `docker/docker-compose.subagents-roster.yml`, and the
+  model host builds no argv from the budget, so no other spelling reaches a server. The 2026-09-17
+  pass-through of the brain's settings by name left this variable as it was: the brain already
+  received it under the same default. Both remedies and the two-knob door stand.

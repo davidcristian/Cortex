@@ -3,7 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** subagents
 **Origin:** [ADR-0004](../../adr/ADR-0004-model-lineup.md)
-**Verified:** 2026-09-15
+**Verified:** 2026-09-19
 **Trigger:** a delegated run on the pinned CPU server that holds its admission for the whole stall
 ceiling or the whole run deadline while a peer queues behind it, a spawn refused at the admission
 wait, or any retune of `CORTEX_SUBAGENTS_STALL_TIMEOUT_S`, `CORTEX_SUBAGENTS_RUN_TIMEOUT_S` or
@@ -31,8 +31,8 @@ again under the pinned count, which the close did not draw, since it measured de
 subtasks. Each of the three is also one setting for the whole roster and both placements rather
 than a per-entry one, the run deadline by the decision the roster-bounds addendum records and the
 other two by carrying no roster field at all (`SubagentRosterEntry` declares an endpoint, a GPU
-endpoint and three resource asks and nothing else), and a slower CPU than this box's is what they
-were sized to cover.
+endpoint, three resource asks and a description, and no bound), and a slower CPU than this box's is
+what they were sized to cover.
 
 **What would settle it.** The ADR-0005 ceilings addendum's five subtask shapes and its full batch
 drawn on the pinned server, idle and saturated, with the three bounds re-derived from them by the
@@ -73,3 +73,14 @@ rules those addenda wrote down.
   load and was satisfied by the pinned thread count. A spawn refused at the admission wait can
   follow a queue of runs that each finished inside the deadline, so the half about one run holding
   its admission did not cover it.
+- 2026-09-19: **the three declarations are unchanged and unretuned, and a retune on the host now
+  reaches the brain.** `DEFAULT_STALL_TIMEOUT_S` is 600.0, `DEFAULT_SUBAGENT_RUN_TIMEOUT_S` 2400.0
+  and `DEFAULT_ADMISSION_WAIT_S` 7200.0, no file in the brain that declares them has changed since
+  the last reading, and no delegated run or refused spawn is recorded, so the trigger has not
+  fired. Two things moved around it. Until 2026-09-17 no compose file named the three variables,
+  so a value set on the host never reached the dockerized brain and the retune clause could fire
+  only through the constants; the subagents overlay now passes all three by name, so a `.env` line
+  is a retune this trigger counts. And the paragraph above said `SubagentRosterEntry` declares
+  nothing beyond an endpoint, a GPU endpoint and three asks, when it has declared a `description`
+  since before this entry was opened; it declares no bound, which is what the argument needed, and
+  the sentence now says so.
