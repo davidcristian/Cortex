@@ -3,7 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** repo-gates
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
-**Verified:** 2026-09-15
+**Verified:** 2026-09-19
 **Trigger:** a line somebody wanted during a real failure, and no runbook named, is written down in
 this file's Trail. That is the evidence the entry says nobody has collected, and it is what decides
 between the two closes below: a gated criterion needs at least one such line to be written against,
@@ -20,7 +20,7 @@ the question a reader has about those samples.
 stopped attaching. It says nothing at all about **coverage**. A line the brain writes and no
 runbook mentions is invisible to that scan by construction, because a scan over what a document
 prints can only ever be as complete as the document. The brain writes far more lines than the
-sixteen the runbooks print, and which of them an operator would want documented is a question
+seventeen the runbooks print, and which of them an operator would want documented is a question
 nobody has asked in one place.
 
 The two questions are genuinely different and the second is much harder. Agreement is decidable: a
@@ -51,7 +51,12 @@ and a tool audit line carrying the batch's size rather than its text. So the wan
 writing the line and documenting it in one change, and the criterion applied was that this line is
 the only durable record of the event. That is the nearest thing to the evidence this entry asks
 for, and it is evidence about a line the brain did not write rather than about one no runbook
-names.
+names. On 2026-09-17 the same thing happened a second time and for a different reason: the output
+guardrail removed links without writing any line, so nothing could count how many links the
+lookalike ground removed beyond the default's, and the commit that added a line with a count per
+ground printed it in `docs/runbooks/local-dev-wsl.md`. The want there was a figure to price a
+policy with, not a line somebody went looking for during a failure, so it is precedent of the
+same kind and not the evidence the trigger asks for.
 
 ## Trail
 
@@ -117,3 +122,15 @@ names.
   refusal line of `cortex_orchestrator/swap_builders.py`, whose fields the source cannot list
   because they are what another call returns, so the proven path now carries a second module's
   line beside the tool audit's. The runbooks still print a sixth of what the brain writes.
+- 2026-09-19: verified again, with one number and one paragraph in the body repaired. The trigger
+  has not fired: no bullet here names a line somebody wanted during a real failure and no runbook
+  had. `scripts/samplecheck.py` reports 17 samples across the same 12 runbooks, resolved against
+  39 loggers the brain declares rather than 38 and 103 messages rather than 101, with the same 6
+  samples held to a line the sink's own suite asserts whole. Both moves come from two commits of
+  2026-09-17. The seventeenth sample is the output guardrail's link-removal line in
+  `docs/runbooks/local-dev-wsl.md`, held to its call directly rather than through a suite, and is
+  the second precedent now described above. The thirty-ninth logger is `cortex_tools.audit_file`,
+  whose one line, the `tool.audit.gap` warning written when an append to the audit file fails, is
+  named with its `error` field in the prose of `docs/runbooks/tools-mcp.md` rather than printed as
+  a sample, so no gate holds that sentence to the call. The runbooks still print about a sixth of
+  what the brain writes.

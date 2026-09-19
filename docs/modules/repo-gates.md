@@ -517,8 +517,10 @@ answer: a marker written into any other module here is reported by the line it i
   an identifier, and an operator it was not taught. Compose does expand a nested form, under every
   operator and at least three deep, measured on v2.39.1; it is refused here because a nested
   default is a second spend rather than a value, standing for one thing with nothing set and
-  another once the inner variable is set, and every rule over these spends compares a default as
-  a value.
+  another once the inner variable is set, and `defaultcheck.py`, the one rule reading these
+  spends' values, compares a default as one value. `artifactnames.py` and `subagentservers.py`
+  read a spend's name only, and `bindcheck.py` and `composetargets.py` read no spend through this
+  module.
 - `composefiles.py` is which files the compose gates walk and has no CLI. `compose_files(root)`
   returns every compose file under `root` by name (stem `docker-compose`/`compose`, suffix
   `.yml`/`.yaml`), and raises `ComposeSearchError`
@@ -1561,8 +1563,8 @@ answer: a marker written into any other module here is reported by the line it i
   (ADR-0009 held-call addendum). Its failure names two templates because the call is written in
   two shapes: a needle is matched as written, so `<the call>({name},` is found nowhere on a call
   the formatter wraps, where a newline and an indent stand between the parenthesis and the name,
-  and what lands there is `{name},`. Four of the brain's twelve handed calls are wrapped and none
-  of them is registered, so the one row the guard returns today takes the first template (ADR-0009
+  and what lands there is `{name},`. Several of the brain's handed calls are wrapped and none of
+  them is registered, so the one row the guard returns today takes the first template (ADR-0009
   wrapped-needle addendum). Registering a constant in a language
   `DECLARATIONS` does not know, or a mention whose template renders nothing the registry fills, or
   one whose name and whose `{name}` do not both appear, or an entry whose places are all on one

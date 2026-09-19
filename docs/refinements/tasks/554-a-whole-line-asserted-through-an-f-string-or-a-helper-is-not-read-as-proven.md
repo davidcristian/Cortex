@@ -3,16 +3,19 @@
 **Status:** open, fix when it bites
 **Area:** repo-gates
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
-**Verified:** 2026-09-15
-**Trigger:** a whole-line assertion in a suite this reader is consulted over whose expected line is
-not a plain string constant and whose logger a module under the brain declares: an f-string
-interpolating the fixture's timestamp, a name the expected line is bound to above the assert, or a
-helper that builds or compares it. Countable by listing those suites' `assert` statements whose
-test is one `==` and neither side of which is a one-line string constant, reading whether either
-side would render to a line opening with a level, and resolving that line's logger against
-`loggernames.loggers`. Binding the *rendered* side to a name fires nothing, and the audit suite
-already writes one assertion that way. The one f-string in the tree today renders a line through
-the fixture logger `cortex.test`, which no brain module declares, so it does not fire this.
+**Verified:** 2026-09-19
+**Trigger:** a whole-line assertion whose expected line is not a plain string constant (an
+f-string, a name the expected line is bound to above the assert, or a helper that builds or
+compares it) and whose logger and message are those of a call the code reader refuses the field
+list of, since only such a call's samples are held through this reader. Countable in two steps:
+list the refused calls by running `logcalls.logged` over every message `logcalls.messages` returns
+and keeping those raising `UnreadFieldsError`, five calls in four modules on 2026-09-19; then read
+the package suite beside each for an `assert` whose test is one `==`, with neither side a one-line
+string constant, that would render one of those calls' logger and message. Binding the *rendered*
+side to a name fires nothing, and the audit suite already writes one assertion that way. The five
+f-string whole lines in the tree today fire nothing: two render through the fixture logger
+`cortex.test`, and three render lines of `cortex_orchestrator.abandon` and
+`cortex_orchestrator.converse_stream`, whose calls the code reader reads directly.
 
 Opened 2026-09-05 by the close of
 [R-523](523-the-tool-audit-line-is-described-in-prose-because-its-fields-vary-by-condition.md),
@@ -38,11 +41,18 @@ the constant parts with a hole where each expression stands, and matched against
 name, since values are dropped anyway; that is one more case in `_rendered` and a fixture per
 part shape, plus a refusal for an f-string whose expression stands where a field name would, which
 no reading of the source can supply. A helper cannot be read without executing it, and stays
-refused. Not built, because no line anybody could document is asserted either way. One suite writes
-the f-string shape, `brain/packages/core/tests/test_log_format.py` asserting a whole line through
-`f"INFO:cortex.test:hello api_key={REDACTED}"`, and that line's logger is a fixture's, which no
-module under the brain declares, so a sample quoting it would be refused before the suite was
-read.
+refused. Not built, because no line anybody could document is asserted either way. Two suites
+write the f-string shape, five times. `brain/packages/core/tests/test_log_format.py` asserts two
+lines through the fixture logger `cortex.test`, which no module under the brain declares, so a
+sample quoting either would be refused before the suite was read. The orchestrator's suite asserts
+three, in `test_abandon.py` and `test_converse.py`, and those are lines of calls the code reader
+reads directly, so `_proven` is never consulted for them. They do change the cost of the case.
+Each interpolates the logger from a constant the test module binds, so a reading that leaves a hole
+where an expression stands would refuse all three at the logger, and resolving the test module's
+own bindings, which `scripts/moduleconstants.py` already does for a module without importing it,
+would reach the logger and no further in two of them: `test_abandon.py` interpolates a message it
+imports from the module under test, and `test_converse.py:530` one that `pytest.mark.parametrize`
+hands in, which no reading of the source binds to one string.
 
 ## Trail
 
@@ -104,3 +114,22 @@ read.
   2026-09-14 bullet recorded that no runbook printed a call-shaped refusal at all. The
   orchestrator's suite writes 553 single-`==` asserts and none of them is an unread whole line.
   Recorded in the ADR-0009 addendum holding three sample-gate triggers to the tree.
+- 2026-09-19: re-derived, and the trigger as narrowed on 2026-09-15 had already fired the day it was
+  written. `brain/packages/orchestrator/tests` is a suite this reader is consulted over, being the
+  one beside `cortex_orchestrator/swap_builders.py` and `cortex_orchestrator/bounds.py`, and it
+  asserts three whole lines through f-strings, `test_abandon.py:485` for
+  `cortex_orchestrator.abandon` and `test_converse.py:530` and `:592` for
+  `cortex_orchestrator.converse_stream`, all dating from 2026-08-19 and 2026-08-20. Both loggers are
+  declared by brain modules, so the clause held; the last bullet's reading that none of the
+  orchestrator's single-`==` asserts is an unread whole line was wrong. Nothing is unheld by them,
+  because those calls' field lists are read off the calls and `_proven` is reached only for a
+  refused one. So the trigger is narrowed again, to a line of a refused call, and the refused calls
+  are counted: the tool audit, the swap refusal, the two bounds refusals and the residency watch's
+  worst-stop line. Of those only the first two are asserted whole in any shape; the bounds lines
+  are checked by containment and the residency line by its message and its field mapping. The
+  core suite gained a second `cortex.test` f-string on 2026-09-17, at `test_log_format.py:334`,
+  and the one the body cited has moved to line 415. The body's account of the close is repaired
+  as well, since the shape the tree writes interpolates the logger, which the planned reading could
+  not match. The counts the last bullet gave for the tools suite were for `test_audit.py` alone,
+  which still writes fifteen single-`==` asserts, ten with a one-line string constant; the
+  orchestrator's suite now writes 558.

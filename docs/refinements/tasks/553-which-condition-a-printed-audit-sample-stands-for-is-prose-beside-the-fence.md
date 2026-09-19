@@ -3,11 +3,11 @@
 **Status:** open, fix when it bites
 **Area:** repo-gates
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
-**Verified:** 2026-09-15
+**Verified:** 2026-09-19
 **Trigger:** a rendered sample of the tool audit's line in `docs/runbooks/tools-mcp.md` whose
 introducing sentence names a shape other than the one its fields spell, or a whole-line assertion
-added to `brain/packages/tools/tests/test_audit.py` with a field set the runbook's fence does not
-print. Both are countable: read each sample's field names against the clause introducing it, and
+of that line added anywhere in the tools package suite, `brain/packages/tools/tests`, with a field
+set the runbook's fence does not print. Both are countable: read each sample's field names against the clause introducing it, and
 compare the set of field lists `scripts/assertedlines.proven` returns for the sink against the set
 the fence prints.
 
@@ -92,3 +92,15 @@ failing on shapes the reader had not been able to see.
   than the module's, and the orchestrator's holds a `cortex.tools.audit` line no module in that
   package prints, so a coverage rule over every asserted shape would demand a runbook print it.
   Recorded in the ADR-0009 addendum holding three sample-gate triggers to the tree.
+- 2026-09-19: verified again, with the trigger's second clause widened to the suite the reader
+  really reads. Neither clause has fired. `docs/runbooks/tools-mcp.md` prints the same five samples
+  of `cortex.tools.audit` in the order its introducing sentence states, success, failure, cortex
+  call, delegated call, schedule fire, and `assertedlines.proven` returns the same six lines for
+  the sink over those five field sets, all of them from `test_audit.py`. The clause named that one
+  file, while `_proven` reads every file under `brain/packages/tools/tests`, and on 2026-09-17 that
+  directory gained `audit_contract.py`, `test_audit_contract.py` and `test_audit_file.py` beside
+  the audit file sink. None of the three asserts a rendered line whole, but a whole-line assertion
+  added to any of them would grow the set the same way one in `test_audit.py` would, so the clause
+  now names the directory. Neither of that day's two audit changes adds a shape: the file sink
+  keeps what the line prints, and withholding a nested secret key changes a value, not a field.
+  `samplecheck.py` still stands at 289 lines.

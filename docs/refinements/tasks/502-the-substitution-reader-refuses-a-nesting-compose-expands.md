@@ -2,10 +2,13 @@
 
 **Status:** open, fix when it bites
 **Area:** repo-gates
-**Trigger:** a change wants a compose value that falls back through two variables, which is what an
-env-var rename with a compatibility shim needs and what nothing in this tree needs today
+**Trigger:** a commit after 2026-08-30 renames a variable a compose file under `docker/` spends,
+which is the change a two-variable fallback exists to shim. Checkable with
+`git log -p -- 'docker/*.yml'`, reading for a spend name one commit removes while adding another;
+the embedder's and the projector's model-file renames of 2026-08-30 are the only two so far, both
+taken without a shim
 **Origin:** [ADR-0026](../../adr/ADR-0026-prose-style-gates.md)
-**Verified:** 2026-09-15
+**Verified:** 2026-09-19
 
 Opened 2026-08-30 by the close of
 [R-492](492-the-embedder-names-its-artifact-outside-the-family.md), which wanted exactly this
@@ -15,10 +18,14 @@ shape for a rename's shim and measured that it was unavailable.
 close its docstring gave the reason as "which compose does not expand". That is false:
 `${A:-${B:-x}}` resolves to `B`'s value and then to `x` on compose v2.39.1, measured against the
 real binary. The docstring is corrected, and the refusal is kept with the true reason written in
-its place: every rule over these spends compares a default as a value, and a nested default is a
-second spend rather than a value, standing for one thing with nothing set and another once the
-inner variable is set, so a reader that returned either reading would hand `defaultcheck.py`,
-`bindcheck.py` and `volumecheck.py` a comparison none of them can make.
+its place: the one rule reading a spend's value through this module, `defaultcheck.py`, compares a
+default as a value, and a nested default is a second spend rather than a value, standing for one
+thing with nothing set and another once the inner variable is set, so a reader that returned
+either reading would hand that rule a comparison it cannot make. `bindcheck.py` and
+`volumecheck.py` do not read spends through this module at all: `bindcheck.py` reduces a bind
+source with a pattern of its own, which leaves the outer spend of a nesting unreduced and fails
+with `cannot reduce source`, and `composetargets.py` refuses any expansion in a short mount's
+target.
 
 **Why it is worth reopening rather than settled.** The refusal is honest but it costs a shape
 compose supports and this repo will want again. A two-variable fallback is the one cheap way to
@@ -33,9 +40,9 @@ a nested default reduces to. Three shapes to weigh, cheapest first:
 
 - **Read it and report the chain**, a `Substitution` whose argument is itself a list of
   substitutions with a literal at the end. Then the rules diverge: `defaultcheck.py` compares the
-  literal tail, which is what two files spelling the same chain must agree on; `bindcheck.py`
-  resolves the tail as the path a `docker compose up` would land on with nothing set;
-  `volumecheck.py` and `composetargets.py` do the same for a container path.
+  literal tail, which is what two files spelling the same chain must agree on. A nested bind
+  source or mount target would stay refused, since `bindcheck.py` and `composetargets.py` read
+  those with their own patterns, and teaching them the tail is a second change in each.
 - **Read it and report no value**, returning the spend so the name is visible to
   `artifactnames.py` and `subagentservers.py` while any rule asking for a value still raises. This
   is the smallest change that unblocks a rename shim, since those two readers want the variable
@@ -99,3 +106,18 @@ than two is worth reading at all, since compose allows it and no honest use of i
   needs too, so it lands with the form or not at all. The trigger has still not fired: no compose
   file in `docker/` spells a nested substitution, over 78 spends read across the ten files, the
   same count as the last reading.
+- 2026-09-19: re-derived, with the trigger restated and the account of the other readers repaired.
+  The trigger did not fire and could not have: "a change wants" a fallback names an intention, and
+  a nesting a change wanted could never reach the tree, since the gate refuses it. It now names the
+  change that wants the shim, a rename of a variable a compose file spends, which `git log` over
+  `docker/` can answer; none has happened since the two of 2026-08-30. The body said a nested
+  reading would reach `bindcheck.py` and `volumecheck.py` as well as `defaultcheck.py`. It would
+  not: `composedefaults.py` is read by `defaultcheck.py` for values and by `artifactnames.py` and
+  `subagentservers.py` for names, and nothing else, while `bindcheck.py` reduces a bind source with
+  its own pattern and raises `cannot reduce source '${A:-${B:-x}}/data' to a path` on a nesting,
+  measured today, and `composetargets.py` refuses any expansion in a short mount target. The same
+  overstatement stood in the module's docstring and in
+  [repo-gates.md](../../modules/repo-gates.md), which said every rule over these spends compares a
+  default as a value; both now name `defaultcheck.py` as the one that does. The fault still shows a nested spend one brace short
+  (`nested substitution ${A:-${B:-x}`), and no compose file spells a nesting, over the same 78
+  spends across ten files.
