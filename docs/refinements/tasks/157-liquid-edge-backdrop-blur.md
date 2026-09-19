@@ -4,7 +4,7 @@
 **Area:** body-overlay
 **Origin:** [ADR-0036](../../adr/ADR-0036-window-edge.md)
 **Trigger:** The transparent-window pass, when the desktop shows through and a Still panel is frosted while a liquid one is merely translucent.
-**Verified:** 2026-09-13
+**Verified:** 2026-09-19
 
 Measured in the design pitch that chose it
 and pinned in ADR-0036: Chromium composites `backdrop-filter` output without clipping it by a
@@ -43,3 +43,10 @@ should start by re-measuring, since the engine moves. Placed here 2026-07-21.
   [overlay-ux.md](../../design/overlay-ux.md) both point at this backlog; the comment now names this
   file for the trade and the host task for the pass, matching how the reserved-rail comment 160
   lines above it cites its own task file.
+- 2026-09-19: Re-derived and the premise holds; nothing in the overlay has changed since the last
+  reading. `backdrop-filter: none` on `.panel.edge-live` is at `body/app/src/overlay.css` line 308,
+  not 307: the comment edit made in the same pass added the line that moved it. The unclipped
+  `.panel` keeps `blur(30px) saturate(140%)` at line 276 and the measurement sits at lines 300 to
+  302. The trigger has not fired: host task 014 is still `never attempted` and the shell's window
+  is still declared `"transparent": false` in `body/app/src-tauri/tauri.conf.json`, so the ground
+  behind the panel is opaque.

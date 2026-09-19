@@ -3,8 +3,8 @@
 **Status:** open, dead until a consumer
 **Area:** body-overlay
 **Origin:** [ADR-0035](../../adr/ADR-0035-console-and-motion.md) decision 22, scrollbars as reserved chrome ([overlay-ux.md §2](../../design/overlay-ux.md))
-**Trigger:** The body running on an engine that is not Chromium.
-**Verified:** 2026-09-13
+**Trigger:** The overlay running on an engine without `::-webkit-scrollbar`, such as Gecko, since only such an engine takes the fenced branch.
+**Verified:** 2026-09-19
 
 Every scroll container holds
 `scrollbar-gutter: stable` and funds the rail out of its own inline-end padding, either
@@ -56,3 +56,17 @@ tests, which is why it is not in a CSS-only slice.
   1142), `.confirm-draft` (line 1304) and `.field` (line 1511). The trigger has not fired: the
   overlay still runs on WebView2 alone, so nothing reaches the fenced branch and the entry stays
   open.
+- 2026-09-19: Re-derived. The premise holds and the trigger has not fired, since the Windows shell
+  is still WebView2 and nothing else runs the overlay. Every stylesheet citation from 2026-09-13
+  after line 300 was one line short from the day it was written, because the same commit added a
+  line to the edge comment above them: the funding shapes sit at `body/app/src/overlay.css` lines
+  820 (`.history`), 1718 (`.rows`), 1143 (`.thoughts-body`), 1305 (`.confirm-draft`) and 1512
+  (`.field`), and the standards fence runs from line 202 to 207. The trigger named any engine that
+  is not Chromium, which is wider than the case it guards: `@supports not
+  selector(::-webkit-scrollbar)` is false wherever the pseudo-element exists, and WebKit, the
+  engine a Tauri shell uses on Linux and macOS, is where it came from. So only an engine without
+  it, Gecko being the one in use, reaches the unbalanced subtraction. Whether WebKit's gutter
+  reserves exactly `--rail` under `scrollbar-gutter: stable` has not been measured. The
+  stylesheet's own comment on this trade still named the rejected recipe, publishing the probe's
+  reading as `--rail`, and gave ADR-0011 as the origin, which holds only a summary line pointing on
+  to ADR-0035 decision 22; it now names the second property and ADR-0035.

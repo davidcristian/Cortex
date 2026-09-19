@@ -3,8 +3,8 @@
 **Status:** open, a seam or port change comes first
 **Area:** body-overlay
 **Origin:** [ADR-0011](../../adr/ADR-0011-body-v1.md)
-**Verified:** 2026-09-13
-**Trigger:** A consumer that needs the brain to speak first, meaning a status the overlay cannot ask for at the moment it changes rather than on its next 5 s recheck.
+**Verified:** 2026-09-19
+**Trigger:** A consumer that needs the brain to speak first, meaning a status change the overlay must show while it is on screen and green, where today it would be read only on the next summon, because the 5 s recheck runs only while the link is already not ready.
 
 What is deferred here is the **push**: a server-streamed status RPC, so the brain can say what it
 is doing at the moment it changes rather than when the overlay next asks. The blocker the entry
@@ -52,3 +52,12 @@ chips covers this scale.
   because it still opened with the 2026-07-16 reading that `Health` answers ready unconditionally
   and then refuted it twice further down, so the first thing a reader met was the claim the entry
   exists to withdraw.
+- 2026-09-19: Re-derived, and the trigger has not fired: the proto still declares one
+  server-streamed RPC and `LINK_RECHECK_MS` is still 5000 in `body/app/src/overlay/useLink.ts`.
+  Two corrections. `BrainService` declares eleven RPCs, not twelve, so the unary ones number ten
+  rather than the eleven written above, a count unchanged since the preferences pair landed on
+  2026-07-19. And the trigger described the push as beating "the next 5 s recheck", which exists
+  only while the link is already not ready: `useLink` arms that interval when the view is visible
+  and unhealthy, and a green link on screen is probed again only on the next summon. The gap a push
+  would close is therefore a change away from green while the overlay is open, and the trigger now
+  says so. ADR-0011's own account of the recheck was already right.

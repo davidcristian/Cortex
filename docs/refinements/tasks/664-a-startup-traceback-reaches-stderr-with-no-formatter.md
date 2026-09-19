@@ -8,7 +8,7 @@ withhold, most plausibly a connection URL with a credential inside it. Two readi
 point, and raising from inside `run_from_env` says what the container's last line looks like. This
 entry's trail records what both answered when they were last taken.
 **Origin:** [ADR-0038](../../adr/ADR-0038-ranked-recall.md)
-**Verified:** 2026-09-14
+**Verified:** 2026-09-19
 
 Opened 2026-09-14 by the landing of
 [R-652](652-a-credential-can-leave-the-process-with-no-url-around-it.md), which refused one
@@ -43,3 +43,15 @@ recognise a bare fragment.
   `except` anywhere in the file, and `memory_builders.py` awaits `PgVectorMemoryStore.connect`
   with no `except` around it either, so a memory backend that cannot be dialed still ends the
   process through the interpreter's hook.
+- 2026-09-19: both readings taken, and the trigger has not fired. The grep finds one `asyncio.run`,
+  at `cortex_orchestrator/__main__.py` line 18, still unguarded. The second reading ran the
+  orchestrator from the working tree (`brain/.venv/bin/python -m cortex_orchestrator`) with a
+  password fragment in each credential-bearing URL. With `CORTEX_REDIS_URL` pointing at a port
+  nothing answers, the process logged `seam server listening` and served, because the Redis stores
+  dial lazily, so that URL cannot end the boot at all. With `CORTEX_MEMORY_BACKEND=pgvector` and a
+  DSN whose host does not resolve, the boot ended with exit 1 through the interpreter's hook: a raw
+  traceback on stderr, last line `socket.gaierror: [Errno -2] Name or service not known`, and the
+  fragment appeared nowhere in stderr or stdout, chained exceptions included. A seam port that could
+  not be bound ended the same way, with a `RuntimeError` naming only the bind address. So the path
+  the entry describes is real and still unformatted, but neither dial that carries a credential
+  puts it into the exception text today.

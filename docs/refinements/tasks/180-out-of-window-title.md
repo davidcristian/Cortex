@@ -3,8 +3,8 @@
 **Status:** open, dead until a consumer
 **Area:** session-read-seam
 **Origin:** [ADR-0021](../../adr/ADR-0021-session-read-seam.md)
-**Trigger:** A consumer that opens an out-of-window chat beside the switcher, such as toast activation routing once `NotifyRequest` carries a `session_id`, or a search or deep-link by id.
-**Verified:** 2026-09-13
+**Trigger:** A second caller that opens a chat by id from outside the loaded window, beside the reminder card's open control, such as toast activation routing once `NotifyRequest` carries a `session_id` (R-230) or a search.
+**Verified:** 2026-09-19
 
 Opened 2026-07-16 behind the header-title carry that closed
 [179](179-open-chat-header-title.md). The carry reads the title from `state.sessions`, so a chat
@@ -13,10 +13,11 @@ opens a chat absent from that window is a reminder deep-link (`Reminders.tsx` "o
 chat that has fallen outside the loaded `listSessions(50)`; the switcher shows no row for such a
 chat either, so the disagreement is not user-visible, which is exactly why the overlay-only carry
 was preferred over the proto field. The authoritative closure is the `title` field on
-`GetSessionMessages` that entry named (the same read path
-[118](118-reasoning-thinking-status.md) independently wants widened), dead until a consumer that
-opens an out-of-window chat beside the switcher exists (toast activation routing once
-`NotifyRequest` carries a `session_id`, or a search / deep-link by id).
+`GetSessionMessages` that entry named (the same reply
+[118](118-reasoning-thinking-status.md) would widen with a reasoning field, if its declined
+re-display ever reopens), dead until a second caller opens an out-of-window chat
+beside the reminder card (toast activation routing once `NotifyRequest` carries a `session_id`, or
+a search).
 **Narrowed 2026-08-03 without being closed.** With the two `TITLE_MAX` declarations now equal and
 tied to each other by `scripts/crosscheck.py`, the local derivation renders exactly what the brain
 would have listed for the same first message, so the fallback no longer differs in *length*. What is still
@@ -43,3 +44,14 @@ loaded window opens with its first message derived locally, at the brain's bound
   window, since the switcher rows and the two cycle keys all read from the loaded list, and toast
   activation routing is still dead for want of a `session_id` on `NotifyRequest`
   ([230](230-toast-activation-routing.md)).
+- 2026-09-19: Re-derived, and the code claims from 2026-09-13 all hold: `headerTitle` in
+  `body/app/src/overlay/sessionState.ts` still falls back to `titleFor`, `GetSessionMessagesReply`
+  still carries `messages` alone, `SESSION_LIST_LIMIT` is still 50, and `Reminders.tsx` is still the
+  only caller of `onSelectSession` with an id the loaded list may not hold. Two things were wrong.
+  The trigger's last example, "a deep-link by id", was met the day it was written, since the
+  reminder card's open control is a deep-link by id and the entry names it as the path that exists,
+  so the trigger now asks for a second caller. And 118 does not want this read path widened: it
+  landed on 2026-07-06, and the reasoning re-display that would add a field to this reply was
+  declined on 2026-07-16 for want of a consumer, so the parenthesis now says that. The trigger has
+  not fired: 230 is still dead, `NotifyRequest` has no `session_id`, and no search exists. There is
+  no circle, since 230 waits on nothing here.
