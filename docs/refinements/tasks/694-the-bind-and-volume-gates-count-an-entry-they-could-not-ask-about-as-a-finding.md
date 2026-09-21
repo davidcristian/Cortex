@@ -1,9 +1,8 @@
 # The bind and volume checks count an entry they could not ask about as a finding
 
-**Status:** open, actionable
+**Status:** done 2026-09-21
 **Area:** repo-checks
 **Origin:** [ADR-0063](../../adr/ADR-0063-compose-checks.md)
-**Verified:** 2026-09-19
 
 `scripts/bindcheck.py` and `scripts/volumecheck.py` now count a compose file their reader refused
 separately, with a summary of its own. One level down, each still counts an entry it read but could
@@ -39,3 +38,9 @@ whole, as the tests of the refused-file summary do.
 
 - 2026-09-19: opened by the change that counted a refused compose file separately in the bind and
   volume checks, recorded in [ADR-0063](../../adr/ADR-0063-compose-checks.md) decision 1.
+- 2026-09-21: done. Re-measured first: the reader now refuses a short mount with a substitution, so
+  the scratch file needed a long-form bind to show the miscount, which it did as described. Both
+  checks now keep an entry they could not ask about in `Scan.unasked`, with a summary of its own. In
+  `volumecheck.py` that also covers the Dockerfile side the entry did not name: a build path
+  written through a substitution, a build reaching no Dockerfile, a Dockerfile the reader refuses,
+  and a recorded trigger it refuses. The file was at 228 lines, so no split was needed.

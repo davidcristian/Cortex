@@ -53,6 +53,7 @@ class Reading(NamedTuple):
     dockerfiles: tuple[str, ...]
     bases: tuple[str, ...]
     faults: tuple[str, ...]
+    unasked: tuple[str, ...] = ()
 
 
 def _array(number: int, argument: str) -> list[str]:
@@ -114,7 +115,7 @@ def onbuild_volumes(entries: Iterable[str]) -> tuple[str, ...]:
 
 
 def _triggered(
-    dockerfile: str, reference: str, stands: Inheritance, carried: set[str]
+    dockerfile: str, reference: str, stands: Inheritance, carried: set[str], unasked: list[str]
 ) -> list[str]:
     """Every path this file's base would declare through a trigger that its row does not have."""
     faults: list[str] = []
@@ -122,7 +123,7 @@ def _triggered(
         try:
             paths = onbuild_volumes(stands.triggers)
         except DockerfileError as err:
-            faults.append(
+            unasked.append(
                 _UNREADABLE_TRIGGER.format(
                     dockerfile=dockerfile, reference=reference, base=base, detail=err
                 )
@@ -160,17 +161,18 @@ def undeclared(
     """Every path the Dockerfile behind ``reference`` declares or inherits that its row lacks."""
     if "$" in build.context or "$" in build.dockerfile:
         written = f"{build.context}/{build.dockerfile}"
-        return Reading((), (), (_UNRESOLVED.format(reference=reference, written=written),))
+        return Reading((), (), (), (_UNRESOLVED.format(reference=reference, written=written),))
     found = landings(root, compose, build)
     if not found:
         detail = _NOWHERE.format(
             reference=reference, context=build.context, dockerfile=build.dockerfile
         )
-        return Reading((), (), (detail,))
+        return Reading((), (), (), (detail,))
     carried = {normalize(path) for path in recorded}
     read: list[str] = []
     bases: list[str] = []
     faults: list[str] = []
+    unasked: list[str] = []
     for path in found:
         name = Path(os.path.relpath(path, root)).as_posix()
         read.append(name)
@@ -179,14 +181,14 @@ def undeclared(
             paths = read_volumes(text)
             stands = inherited(name, text, reference, carried, records)
         except (OSError, UnicodeDecodeError, DockerfileError) as err:
-            faults.append(_UNREADABLE.format(dockerfile=name, reference=reference, detail=err))
+            unasked.append(_UNREADABLE.format(dockerfile=name, reference=reference, detail=err))
             continue
         bases.extend(stands.bases)
         faults.extend(stands.faults)
-        faults.extend(_triggered(name, reference, stands, carried))
+        faults.extend(_triggered(name, reference, stands, carried, unasked))
         faults.extend(
             _UNDECLARED.format(dockerfile=name, path=path_here, reference=reference)
             for path_here in paths
             if path_here not in carried
         )
-    return Reading(tuple(read), tuple(bases), tuple(faults))
+    return Reading(tuple(read), tuple(bases), tuple(faults), tuple(unasked))

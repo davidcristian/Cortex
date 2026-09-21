@@ -115,8 +115,9 @@ directory and a directory-only pattern does not match a bare path.
 A relative source is resolved against both project directories compose can pick, the repo root and
 the compose file's own directory, and both results are asked about, which is why `.gitignore`
 contains `docker/docker/`. Compose files come from `composefiles.py`, shared with the other two
-compose checks. Exit 1 prints the files the reader refused first, then the uncovered paths, then one
-summary per kind of problem.
+compose checks. Exit 1 prints the files the reader refused first, then the mounts it could not ask
+git about, then the uncovered paths, then one summary per kind of problem; `volumecheck.py` orders
+its output the same way.
 
 ## `defaultcheck.py`
 

@@ -188,12 +188,29 @@ def test_a_refused_file_does_not_stop_the_scan(repo: Path) -> None:
     assert scanned.faults == scanned.refused + scanned.findings
 
 
-def test_an_unreducible_source_is_a_fault_on_its_own_line(repo: Path) -> None:
+def test_an_unreducible_source_is_an_unasked_mount_on_its_own_line(repo: Path) -> None:
     _compose(repo, "./models/${TIER}")
-    faults = bindcheck.check(repo).faults
-    assert len(faults) == 1
-    assert faults[0].line == 4
-    assert "cannot reduce" in faults[0].detail
+    scanned = bindcheck.check(repo)
+    assert scanned.findings == []
+    assert [(fault.line, "cannot reduce" in fault.detail) for fault in scanned.unasked] == [
+        (4, True)
+    ]
+    assert scanned.faults == scanned.unasked
+
+
+def test_a_git_failure_on_a_mount_is_an_unasked_mount_not_a_finding(
+    repo: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _compose(repo, "${MODELS_DIR:-./models}")
+    broken = subprocess.CompletedProcess[bytes](args=[], returncode=128, stdout=b"", stderr=b"boom")
+
+    def _broken(_root: Path, *_args: str) -> subprocess.CompletedProcess[bytes]:
+        return broken
+
+    monkeypatch.setattr(bindcheck, "_git", _broken)
+    scanned = bindcheck.check(repo)
+    assert scanned.findings == []
+    assert [fault.detail for fault in scanned.unasked] == ["git ls-files failed for models: boom"]
 
 
 def test_a_missing_git_is_a_failure(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -308,6 +325,32 @@ _LANDING = (
     "the repo, or add the path to .gitignore, unanchored so it matches under docker/ as well as at "
     "the root.\n"
 )
+
+
+_UNASKED = (
+    "\nbindcheck: 1 bind mount(s) could not be checked, so git was never asked about their "
+    "default. Write the source as a path or as a variable with a default, or fix the git failure "
+    "the mount's own fault names.\n"
+)
+
+
+def test_main_counts_an_unreducible_source_apart_from_the_unignored_defaults(
+    repo: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    _binds(repo, ["./models/${TIER}", "${MODELS_DIR:-./models}"], "docker/docker-compose.yml")
+    assert bindcheck.main(["--root", str(repo)]) == 1
+    captured = capsys.readouterr()
+    assert captured.out.startswith("docker/docker-compose.yml:4: cannot reduce source")
+    assert captured.out.count("docker/docker-compose.yml:7:") == 2
+    assert captured.err == _UNASKED + _LANDING
+
+
+def test_main_fails_a_run_whose_only_fault_is_an_unasked_mount(
+    repo: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    _compose(repo, "./models/${TIER}")
+    assert bindcheck.main(["--root", str(repo)]) == 1
+    assert capsys.readouterr().err == _UNASKED
 
 
 def test_main_reports_each_fault_and_exits_one(

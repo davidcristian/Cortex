@@ -34,9 +34,11 @@ each reads compose with a line reader that raises on any form it was not taught.
    `composefiles.refused_summary(gate, count, unread)` prints
    `N compose file(s) could not be read, so no <what> in them was checked`, and `faults` lists
    refused files first. `bindcheck.py`, `defaultcheck.py` and `volumecheck.py`
-   ([ADR-0067](ADR-0067-image-volume-record.md)) all call it. One level down, each check still
-   counts an entry it read but could not ask its question about as a finding
-   ([R-694](../refinements/tasks/694-the-bind-and-volume-gates-count-an-entry-they-could-not-ask-about-as-a-finding.md)).
+   ([ADR-0067](ADR-0067-image-volume-record.md)) all call it. One level down, an entry a check read
+   but could not ask its question about is counted apart too, as `Scan.unasked`, with a summary of
+   its own printed between the two: a bind source that does not reduce to a path or a `git` that
+   answered neither yes nor no, and an image a service runs that has no name to look up or a
+   Dockerfile that builds it that could not be read.
 
 ### Bind defaults (`bindcheck.py`)
 

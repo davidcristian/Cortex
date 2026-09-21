@@ -156,7 +156,7 @@ def test_a_declared_path_the_row_does_not_carry_is_reported(tmp_path: Path) -> N
 def test_a_declared_path_the_row_carries_is_the_record_in_step(tmp_path: Path) -> None:
     compose = _tree(tmp_path, "FROM scratch\nVOLUME /var/cache/thing\n")
     reading = undeclared(tmp_path, compose, HERE, "tree-brain", ("/var/cache/thing",), {})
-    assert reading == ((DEFAULT_DOCKERFILE,), (), ())
+    assert reading == ((DEFAULT_DOCKERFILE,), (), (), ())
 
 
 def test_a_recorded_path_neither_the_file_nor_its_base_declares_is_not_a_fault(
@@ -165,7 +165,7 @@ def test_a_recorded_path_neither_the_file_nor_its_base_declares_is_not_a_fault(
     compose = _tree(tmp_path, "FROM base:1\n")
     records = {"base:1": Row((), ())}
     reading = undeclared(tmp_path, compose, HERE, "tree-brain", ("/inherited",), records)
-    assert reading == ((DEFAULT_DOCKERFILE,), ("base:1",), ())
+    assert reading == ((DEFAULT_DOCKERFILE,), ("base:1",), (), ())
 
 
 def test_a_path_the_base_declares_and_the_row_lacks_is_reported(tmp_path: Path) -> None:
@@ -186,6 +186,7 @@ def test_a_path_the_base_declares_and_the_row_carries_is_the_record_in_step(
         (DEFAULT_DOCKERFILE,),
         ("base:1",),
         (),
+        (),
     )
 
 
@@ -205,18 +206,19 @@ def test_a_path_a_bases_trigger_declares_and_the_row_carries_is_the_record_in_st
     compose = _tree(tmp_path, "FROM base:1\n")
     records = {"base:1": Row((), ("VOLUME /triggered/",))}
     reading = undeclared(tmp_path, compose, HERE, "tree-brain", ("/triggered",), records)
-    assert reading == ((DEFAULT_DOCKERFILE,), ("base:1",), ())
+    assert reading == ((DEFAULT_DOCKERFILE,), ("base:1",), (), ())
 
 
-def test_a_recorded_trigger_the_reader_refuses_is_a_fault_on_the_build_that_stands_on_it(
+def test_a_recorded_trigger_the_reader_refuses_is_unasked_on_the_build_that_stands_on_it(
     tmp_path: Path,
 ) -> None:
     compose = _tree(tmp_path, "FROM base:1\n")
     records = {"base:1": Row((), ("VOLUME relative/path",))}
-    faults = undeclared(tmp_path, compose, HERE, "tree-brain", (), records).faults
-    assert len(faults) == 1
-    assert "whose recorded ONBUILD this reader will not guess at" in faults[0]
-    assert "is not an absolute container path" in faults[0]
+    reading = undeclared(tmp_path, compose, HERE, "tree-brain", (), records)
+    assert reading.faults == ()
+    assert len(reading.unasked) == 1
+    assert "whose recorded ONBUILD this reader will not guess at" in reading.unasked[0]
+    assert "is not an absolute container path" in reading.unasked[0]
 
 
 def test_a_base_with_no_row_owes_no_trigger_fault_on_top_of_the_unrecorded_one(
@@ -251,13 +253,12 @@ def test_a_row_carrying_a_trailing_slash_still_covers_the_path(tmp_path: Path) -
     assert undeclared(tmp_path, compose, HERE, "tree-brain", ("/srv/mail/",), {}).faults == ()
 
 
-def test_a_build_pointing_where_no_dockerfile_lands_is_a_fault(tmp_path: Path) -> None:
+def test_a_build_pointing_where_no_dockerfile_lands_is_unasked(tmp_path: Path) -> None:
     compose = _tree(tmp_path, "FROM scratch\n")
-    faults = undeclared(
-        tmp_path, compose, Build("./nowhere", "Dockerfile"), "tree-x", (), {}
-    ).faults
-    assert len(faults) == 1
-    assert "where no Dockerfile lands" in faults[0]
+    reading = undeclared(tmp_path, compose, Build("./nowhere", "Dockerfile"), "tree-x", (), {})
+    assert reading.faults == ()
+    assert len(reading.unasked) == 1
+    assert "where no Dockerfile lands" in reading.unasked[0]
 
 
 @pytest.mark.parametrize(
@@ -265,30 +266,33 @@ def test_a_build_pointing_where_no_dockerfile_lands_is_a_fault(tmp_path: Path) -
     [Build("${DIR:-./brain}", DEFAULT_DOCKERFILE), Build(".", "${FILE}")],
     ids=["context", "dockerfile"],
 )
-def test_a_build_path_spelled_through_a_substitution_is_a_fault(
+def test_a_build_path_spelled_through_a_substitution_is_unasked(
     tmp_path: Path, build: Build
 ) -> None:
     compose = _tree(tmp_path, "FROM scratch\n")
-    faults = undeclared(tmp_path, compose, build, "tree-brain", (), {}).faults
-    assert len(faults) == 1
-    assert "carries a substitution" in faults[0]
+    reading = undeclared(tmp_path, compose, build, "tree-brain", (), {})
+    assert reading.faults == ()
+    assert len(reading.unasked) == 1
+    assert "carries a substitution" in reading.unasked[0]
 
 
-def test_a_dockerfile_the_reader_refuses_is_a_fault_rather_than_a_silence(tmp_path: Path) -> None:
+def test_a_dockerfile_the_reader_refuses_is_unasked_rather_than_a_silence(tmp_path: Path) -> None:
     compose = _tree(tmp_path, "VOLUME ${CACHE}\n")
     reading = undeclared(tmp_path, compose, HERE, "tree-brain", (), {})
     assert reading.dockerfiles == (DEFAULT_DOCKERFILE,)
-    assert len(reading.faults) == 1
-    assert "could not be read" in reading.faults[0]
-    assert "carries an expansion" in reading.faults[0]
+    assert reading.faults == ()
+    assert len(reading.unasked) == 1
+    assert "could not be read" in reading.unasked[0]
+    assert "carries an expansion" in reading.unasked[0]
 
 
-def test_a_dockerfile_that_is_not_text_is_a_fault(tmp_path: Path) -> None:
+def test_a_dockerfile_that_is_not_text_is_unasked(tmp_path: Path) -> None:
     compose = _tree(tmp_path, "FROM scratch\n")
     (tmp_path / DEFAULT_DOCKERFILE).write_bytes(b"\xff\xfe VOLUME")
-    faults = undeclared(tmp_path, compose, HERE, "tree-brain", (), {}).faults
-    assert len(faults) == 1
-    assert "could not be read" in faults[0]
+    reading = undeclared(tmp_path, compose, HERE, "tree-brain", (), {})
+    assert reading.faults == ()
+    assert len(reading.unasked) == 1
+    assert "could not be read" in reading.unasked[0]
 
 
 def test_a_dockerfile_outside_the_root_is_named_by_the_way_back_to_it(tmp_path: Path) -> None:

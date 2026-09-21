@@ -151,11 +151,12 @@ def test_one_dockerfile_is_asked_once_per_row_it_builds(tree: Path) -> None:
     ]
 
 
-def test_a_build_reaching_no_dockerfile_is_a_fault_not_a_silent_pass(tree: Path) -> None:
+def test_a_build_reaching_no_dockerfile_is_unasked_not_a_silent_pass(tree: Path) -> None:
     _write(tree, "docker/docker-compose.g.yml", _service("    build: ./gone\n", "brain"))
-    faults = [fault for fault in _faults(tree) if fault.path.endswith("compose.g.yml")]
-    assert len(faults) == 1
-    assert "where no Dockerfile lands" in faults[0].detail
+    scanned = volumecheck.check(tree, RECORDS)
+    assert [fault.path for fault in scanned.unasked] == ["docker/docker-compose.g.yml"]
+    assert "where no Dockerfile lands" in scanned.unasked[0].detail
+    assert [fault for fault in scanned.findings if fault.path.endswith("compose.g.yml")] == []
 
 
 def test_the_walk_names_the_dockerfiles_it_followed_the_builds_to(tree: Path) -> None:
@@ -209,18 +210,20 @@ def test_a_row_named_only_by_a_dockerfile_is_named_enough_to_stand(tree: Path) -
     assert [fault for fault in scanned.faults if "'base:1'" in fault.detail] == []
 
 
-def test_an_image_written_as_a_substitution_cannot_be_keyed_on(tree: Path) -> None:
+def test_an_image_written_as_a_substitution_is_unasked_rather_than_keyed_on(tree: Path) -> None:
     _write(tree, "docker/docker-compose.v.yml", _service('    image: "${TAG:-db:1}"\n'))
-    faults = [fault for fault in _faults(tree) if fault.path.endswith("compose.v.yml")]
-    assert len(faults) == 1
-    assert "does not spell" in faults[0].detail
+    scanned = volumecheck.check(tree, RECORDS)
+    assert [fault.path for fault in scanned.unasked] == ["docker/docker-compose.v.yml"]
+    assert "does not spell" in scanned.unasked[0].detail
+    assert [fault for fault in scanned.findings if fault.path.endswith("compose.v.yml")] == []
 
 
-def test_a_build_with_no_project_to_key_it_under_is_a_fault(tmp_path: Path) -> None:
+def test_a_build_with_no_project_to_key_it_under_is_unasked(tmp_path: Path) -> None:
     _write(tmp_path, "docker/docker-compose.only.yml", _service("    build: ./b\n", "brain"))
-    faults = [fault for fault in volumecheck.check(tmp_path, RECORDS).faults if fault.line]
-    assert len(faults) == 1
-    assert "no base compose file pins one project name" in faults[0].detail
+    scanned = volumecheck.check(tmp_path, RECORDS)
+    assert [fault.line for fault in scanned.unasked] == [2]
+    assert "no base compose file pins one project name" in scanned.unasked[0].detail
+    assert [fault for fault in scanned.findings if fault.line] == []
 
 
 def test_two_base_files_pinning_two_projects_are_not_guessed_between(tree: Path) -> None:
@@ -334,6 +337,23 @@ def test_main_counts_a_refused_file_as_a_file_and_not_as_a_declaration(
     captured = capsys.readouterr()
     assert captured.out.startswith("docker/docker-compose.raw.yml:0: 'utf-8' codec can't decode")
     assert captured.err == _REFUSED + _findings(1 + len(IMAGE_VOLUMES))
+
+
+_UNASKED = (
+    "\nvolumecheck: 1 image(s) could not be asked what they declare, because the image a service "
+    "runs could not be named or the Dockerfile that builds it could not be read, so nothing was "
+    "compared with the record. Write the name or the path out, as each one's own fault says.\n"
+)
+
+
+def test_main_counts_an_unasked_image_apart_from_the_declarations(
+    tree: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    _write(tree, "docker/docker-compose.v.yml", _service('    image: "${TAG}"\n'))
+    assert volumecheck.main(["--root", str(tree)]) == 1
+    captured = capsys.readouterr()
+    assert captured.out.startswith("docker/docker-compose.v.yml:2: service 'db' names its image")
+    assert captured.err == _UNASKED + _findings(1 + len(IMAGE_VOLUMES))
 
 
 def test_main_fails_a_run_whose_only_fault_is_a_refused_file(

@@ -53,7 +53,8 @@ check`" into a category ([ADR-0011](ADR-0011-body-v1.md)).
    rule runs per file, because `just up` runs the base file alone. It also fails on an image no row
    knows, a base no row knows, a row nothing names, and an image written through a substitution.
    Compose files come from the shared list ([ADR-0063](ADR-0063-compose-checks.md)); a file the
-   reader refuses is counted as a file, apart from the findings (ADR-0063 decision 1).
+   reader refuses, and an image or Dockerfile it cannot name or read, are counted apart from the
+   findings (ADR-0063 decision 1).
 4. **The fix for a declared path nothing needs is a tmpfs at that path**, which leaves docker's
    declaration nothing to make anonymous. The first run of the check found `pg-backup` in
    `docker/docker-compose.memory.yml` collecting a volume at `/var/lib/postgresql/data` on every

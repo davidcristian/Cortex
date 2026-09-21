@@ -56,11 +56,12 @@ class Scan(NamedTuple):
     dockerfiles: tuple[str, ...]
     findings: list[Fault]
     refused: tuple[Fault, ...] = ()
+    unasked: tuple[Fault, ...] = ()
 
     @property
     def faults(self) -> list[Fault]:
         """Every fault, unreadable files first, in the order `main` prints them."""
-        return [*self.refused, *self.findings]
+        return [*self.refused, *self.unasked, *self.findings]
 
 
 class Read(NamedTuple):
@@ -105,16 +106,19 @@ def check_file(root: Path, read: Read, base: str | None, records: Mapping[str, R
     built: list[str] = []
     dockerfiles: list[str] = []
     faults: list[Fault] = []
+    unasked: list[Fault] = []
     for service in read.found.services:
         if not service.defines:
             continue
         definitions += 1
         if service.image is None and project is None:
-            faults.append(Fault(read.name, service.line, _UNPROJECTED.format(service=service.name)))
+            unasked.append(
+                Fault(read.name, service.line, _UNPROJECTED.format(service=service.name))
+            )
             continue
         reference = service.image if service.image is not None else f"{project}-{service.name}"
         if "$" in reference:
-            faults.append(
+            unasked.append(
                 Fault(
                     read.name,
                     service.line,
@@ -142,7 +146,9 @@ def check_file(root: Path, read: Read, base: str | None, records: Mapping[str, R
             dockerfiles.extend(here.dockerfiles)
             names.extend(here.bases)
             faults.extend(Fault(read.name, service.line, detail) for detail in here.faults)
-    return Scan(1, definitions, paths, tuple(names), tuple(built), tuple(dockerfiles), faults)
+            unasked.extend(Fault(read.name, service.line, detail) for detail in here.unasked)
+    walked = (tuple(names), tuple(built), tuple(dockerfiles))
+    return Scan(1, definitions, paths, *walked, faults, unasked=tuple(unasked))
 
 
 def check(root: Path, records: Mapping[str, Row] = IMAGE_VOLUMES) -> Scan:
@@ -168,6 +174,7 @@ def check(root: Path, records: Mapping[str, Row] = IMAGE_VOLUMES) -> Scan:
         dockerfiles=tuple(sorted({name for scan in scans for name in scan.dockerfiles})),
         findings=faults,
         refused=tuple(fault for scan in scans for fault in scan.refused),
+        unasked=tuple(fault for scan in scans for fault in scan.unasked),
     )
 
 
@@ -205,6 +212,14 @@ def main(argv: list[str] | None = None, inspect: Inspector = docker_volumes) -> 
     if scanned.refused:
         unread = "no service in them was checked"
         print(refused_summary("volumecheck", len(scanned.refused), unread), file=sys.stderr)
+    if scanned.unasked:
+        print(
+            f"\nvolumecheck: {len(scanned.unasked)} image(s) could not be asked what they declare, "
+            "because the image a service runs could not be named or the Dockerfile that builds it "
+            "could not be read, so nothing was compared with the record. Write the name or the "
+            "path out, as each one's own fault says.",
+            file=sys.stderr,
+        )
     if scanned.findings:
         print(
             f"\nvolumecheck: {len(scanned.findings)} image volume declaration(s) go uncovered or "

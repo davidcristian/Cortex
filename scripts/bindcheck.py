@@ -35,12 +35,13 @@ class Scan(NamedTuple):
     mounts: int
     landings: int
     refused: list[Fault]
+    unasked: list[Fault]
     findings: list[Fault]
 
     @property
     def faults(self) -> list[Fault]:
         """Every fault, unreadable files first, in the order `main` prints them."""
-        return self.refused + self.findings
+        return self.refused + self.unasked + self.findings
 
 
 def default_path(source: str) -> str | None:
@@ -122,14 +123,15 @@ def check_file(root: Path, compose: Path) -> Scan:
         mounts = read_mounts(compose.read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError, ComposeReadError) as err:
         fault = Fault(path=name, line=0, detail=str(err))
-        return Scan(files=1, mounts=0, landings=0, refused=[fault], findings=[])
+        return Scan(files=1, mounts=0, landings=0, refused=[fault], unasked=[], findings=[])
     asked = 0
+    unasked: list[Fault] = []
     faults: list[Fault] = []
     for mount in mounts:
         try:
             count, spots = _spots(root, compose, mount)
         except BindCheckError as err:
-            faults.append(Fault(path=name, line=mount.line, detail=str(err)))
+            unasked.append(Fault(path=name, line=mount.line, detail=str(err)))
             continue
         asked += count
         faults.extend(
@@ -143,7 +145,9 @@ def check_file(root: Path, compose: Path) -> Scan:
             )
             for spot in spots
         )
-    return Scan(files=1, mounts=len(mounts), landings=asked, refused=[], findings=faults)
+    return Scan(
+        files=1, mounts=len(mounts), landings=asked, refused=[], unasked=unasked, findings=faults
+    )
 
 
 def check(root: Path) -> Scan:
@@ -154,6 +158,7 @@ def check(root: Path) -> Scan:
         mounts=sum(scan.mounts for scan in scans),
         landings=sum(scan.landings for scan in scans),
         refused=[fault for scan in scans for fault in scan.refused],
+        unasked=[fault for scan in scans for fault in scan.unasked],
         findings=[fault for scan in scans for fault in scan.findings],
     )
 
@@ -185,6 +190,13 @@ def main(argv: list[str] | None = None) -> int:
     if scanned.refused:
         unread = "no bind in them was checked"
         print(refused_summary("bindcheck", len(scanned.refused), unread), file=sys.stderr)
+    if scanned.unasked:
+        print(
+            f"\nbindcheck: {len(scanned.unasked)} bind mount(s) could not be checked, so git was "
+            "never asked about their default. Write the source as a path or as a variable with a "
+            "default, or fix the git failure the mount's own fault names.",
+            file=sys.stderr,
+        )
     if scanned.findings:
         print(
             f"\nbindcheck: {len(scanned.findings)} compose bind default(s) land unignored in the "
