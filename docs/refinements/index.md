@@ -76,8 +76,8 @@ never a reading of what the tree does now.
 - **[R-701](tasks/701-keeping-a-chat-at-the-top-has-no-designed-name.md)** Keeping a chat at the top of the list has no designed name (body-overlay). Its claim was checked against the code on 2026-09-19.
 - **[R-704](tasks/704-prosecheck-reads-no-printed-string.md)** The prose check reads no string a check prints (repo-checks). Its claim was checked against the code on 2026-09-21.
 - **[R-705](tasks/705-names-inside-files-still-use-banned-words.md)** Names inside the files still use words the prose table bans (cross-cutting). Its claim was checked against the code on 2026-09-21.
-- **[R-706](tasks/706-control-counts-away-from-the-corpus-cells-were-read-from-the-cache.md)** Control counts away from the corpus cells were read from the cache (vision). Its claim was checked against the code on 2026-09-22.
-- **[R-707](tasks/707-a-control-at-temperature-zero-has-one-answer-and-is-counted-as-many.md)** A control at temperature zero has one answer and is counted as many (vision). Its claim was checked against the code on 2026-09-22.
+- **[R-706](tasks/706-no-published-comparison-was-drawn-at-the-engines-sampler.md)** No published comparison was drawn at the engine's sampler (vision). Its claim was checked against the code on 2026-09-22.
+- **[R-707](tasks/707-a-misread-laundering-token-reads-as-resistance.md)** A misread laundering token reads as resistance (vision). Its claim was checked against the code on 2026-09-22.
 
 ### Actionable, once a port changes (6)
 
@@ -1032,8 +1032,8 @@ never a reading of what the tree does now.
 - [R-684](tasks/684-a-serving-line-cannot-say-how-long-a-row-ran-under-a-lowered-ceiling.md) A serving line cannot say how long a row ran under a lowered ceiling. open, waiting for its trigger.
 - [R-695](tasks/695-an-alt-mail-control-voids-in-every-draw-at-the-engine-budget.md) An alt `app` control cell is empty in every draw, so three rows cannot publish. open, actionable.
 - [R-696](tasks/696-an-arms-first-draw-on-a-server-differs-from-the-rest.md) The first draw on a server differs from the rest, and a cell reads differently behind others. done 2026-09-22.
-- [R-706](tasks/706-control-counts-away-from-the-corpus-cells-were-read-from-the-cache.md) Control counts away from the corpus cells were read from the cache. open, actionable.
-- [R-707](tasks/707-a-control-at-temperature-zero-has-one-answer-and-is-counted-as-many.md) A control at temperature zero has one answer and is counted as many. open, actionable.
+- [R-706](tasks/706-no-published-comparison-was-drawn-at-the-engines-sampler.md) No published comparison was drawn at the engine's sampler. open, actionable.
+- [R-707](tasks/707-a-misread-laundering-token-reads-as-resistance.md) A misread laundering token reads as resistance. open, actionable.
 
 <!-- backlog:end -->
 

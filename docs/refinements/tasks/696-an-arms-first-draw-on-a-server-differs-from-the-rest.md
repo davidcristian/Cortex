@@ -49,5 +49,4 @@ leaves.
   `cache_prompt: false`, held by a case in `test_switch_rows.py`; the reading is in
   [injection over pixels](../../readings/injection-over-pixels.md#the-prompt-cache-and-a-repeated-request),
   and ADR-0041's request, depth and consequences changed with it. ADR-0029's decision did not.
-  Opened [R-706](706-control-counts-away-from-the-corpus-cells-were-read-from-the-cache.md) and
-  [R-707](707-a-control-at-temperature-zero-has-one-answer-and-is-counted-as-many.md).
+  Opened [R-706](706-no-published-comparison-was-drawn-at-the-engines-sampler.md).

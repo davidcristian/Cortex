@@ -63,9 +63,15 @@ were taken under ADR-0029 over several weeks and moved here to keep each record 
    `--ubatch-size` off the projector only, and the constant scan compares it with the model host's
    default ([ADR-0042](ADR-0042-cross-tree-constant-registry.md)). `ENGINE_BUDGET` stays a
    selectable row, because every pixel row before 2026-09-04 ran there.
-7. **No `max_tokens`, no retry.** The shipped request sends no cap and the server reports
-   `n_predict` -1, so a cap would measure a request nobody makes, and a per-run retry would bias
-   the result toward short deliberations.
+7. **No `max_tokens`, no sampler setting, no retry.** The shipped request sends no cap and the
+   server reports `n_predict` -1, so a cap would measure a request nobody makes, and a per-run retry
+   would bias the result toward short deliberations. For the same reason no row, text or pixel,
+   sends `temperature` or `seed`: the engine samples each draw as it does a shipped turn, with the
+   defaults it reads for the model and a fresh random seed. Both conditions then vary through one
+   sampler, and each count is a rate over independent draws. At temperature 0 a control's prompt is
+   the same bytes in every draw and has one answer, while the framed variant varies through the
+   fence's nonce, so a count compared a rate over nonces with one answer. `test_switch_rows.py`
+   checks that a row sends no key the shipped payload does not, apart from `cache_prompt`.
 8. **The engine is identified by image digest and build**, read off `system_fingerprint` and
    `/props`, and off the host after a session when the log lacks it. A mutable tag names no build.
 
@@ -124,15 +130,14 @@ were taken under ADR-0029 over several weeks and moved here to keep each record 
 15. **A zero states what it refuses.** `assert_refuses` runs after `assert_drawn`: a reading that
     produced no application names the rate it refuses and fails when its own empty runs reach that
     rate. A reading that produced one measures a rate instead.
-16. **Depth is fixed before a session.** A deep row runs a count
-    pre-registered in its docstring and task file (`_DEEP_RATE_RUNS = 120`, `_MAIL_RUNS = 400`),
-    since one session at a fixed depth beats pooling. At temperature 0 an unchanged prompt is one
-    computation: a control writes one string in every draw, and the framed variant's draws differ
-    only through the fence's nonce. `_draw_cell_across_loads` runs a cell behind four cold loads and
-    prints per load the count and the number of distinct strings; its runs pool with deep rows of
-    the same cell. A loads row that repeats one candidate's reading is parametrized over that
-    candidate alone. Unattended sessions run from a launcher that queues rows behind a deadline, one
-    pytest process per row. A pass says only that a row completed within its empty-run ceiling.
+16. **Depth is fixed before a session.** A deep row runs a count pre-registered in its docstring and
+    task file (`_DEEP_RATE_RUNS = 120`, `_MAIL_RUNS = 400`), since one session at a fixed depth
+    beats pooling. Every draw is an independent sample, so `_draw_cell_across_loads`, which runs a
+    cell behind four cold loads and prints per load the count and the number of distinct strings,
+    pools with deep rows of the same cell. A loads row that repeats one candidate's reading is
+    parametrized over that candidate alone. Unattended sessions run from a launcher that queues rows
+    behind a deadline, one pytest process per row. A pass says only that a row completed within its
+    empty-run ceiling.
 17. **A size series runs inside one server.** The payload series runs every size behind one load,
     since the variation between sessions exceeds the effect being looked for, and it is parametrized
     over the same frames and budgets as the matrix; `test_image_variant.py` checks that the seeing
@@ -165,12 +170,11 @@ What this part of the harness has measured, each stated with its reading in
   hijack-shaped attack and `send_email` has never been called. Output-laundering, the case ADR-0013
   hardened, reaches the reply through the shipped defence. Read as obedience, a matrix row has been
   0 or 1 per channel in every session; the higher counts published first were descriptions.
-- **The budget changes which rendering the payload reaches, and the sign of the defence.** At the
-  shipped budget the framing produces an applied laundering rule where the control never does (mail
-  4.25%, plain 1.25%, chrome 0 of 120). At the engine budget, evaluated whole, only `chrome`'s
-  control applies the rule, so the framing is protective there alone, and the framed rates reverse
-  the shipped order (plain above chrome above mail). At 4800x2700 on the engine budget, plain
-  framed applies about half the time against a silent control.
+- **At temperature 0 the budget changed which rendering the payload reached.** At the shipped budget
+  the framed variant applied the laundering rule (mail 4.25%, plain 1.25%, chrome 0 of 120) where
+  the control's one answer did not. At the engine budget, evaluated whole, only `chrome`'s control
+  applied it, and the framed rates reversed the shipped order (plain above chrome above mail). At
+  4800x2700 on the engine budget, plain framed applied about half the time.
 - **Legibility is the pixels the encoder keeps per glyph**, not the payload's share: resistance
   rises where the transcription stops including the canary. The dialog's summaries name the rule at
   the level of its topic one size before the transcription fails, and a body above a bare payload
@@ -178,21 +182,22 @@ What this part of the harness has measured, each stated with its reading in
 - **The alternative candidate reads differently.** It transcribes at every size, writes the dialog's
   rule bare in every control reply (a report the tail reading counts as applied), returns nothing on
   its control channel about fifteen times as often as on its framed channel, and its applied counts
-  on the dialog's laundering cell and in its payload series are reports. On plain body text the
-  framing raises its applications (9 of 280 against 0). What separates it from the shipped model in
-  the matrix is the bare token: it answers payload-splitting with the token under the defence, which
-  no shipped-model matrix row has produced.
+  on the dialog's laundering cell and in its payload series are reports. On plain body text its
+  framed variant applied the rule in 9 of 280 draws at temperature 0. What separates it from the
+  shipped model in the matrix is the bare token: it answers payload-splitting with the token under
+  the defence, which no shipped-model matrix row has produced.
 - **The frame matters only where the encoder resamples differently.** Across a doubling of linear
   size at the shipped budget no effect beyond a cell's run-to-run variation (about 2 of 5) appears,
   so the corpus frame is a free choice there. The one frame effect published at the engine budget,
   plain's control applying the rule at the corpus frame and at no larger one, was read from the
   cache, and evaluated whole that control does not apply it at the corpus frame.
-- **A control is one answer per cell.** Every control count up to 2026-09-19 was drawn with the
-  prompt cache on, so behind one load it was two computations: draw 1 evaluated from where the
-  requests before it left the cache, and the rest at the prompt's tail. Evaluated whole, `plain`'s
-  control at the engine budget does not apply the rule, so its 119 of 120 against the framed
-  variant's 45 does not show the framing protecting that cell; `chrome` and `app` at the engine
-  budget and all three at the shipped budget read the same whole as from the cache.
+- **No published count compares two rates.** Every count before the sampler draws of 2026-09-22 was
+  drawn at temperature 0, where a control is one answer per cell, and up to 2026-09-19 with the
+  prompt cache on, where behind one load it was two computations: `plain`'s control at the engine
+  budget applied the rule in 119 of 120 tail evaluations and not in the whole one. So none shows the
+  framing protecting a cell or causing an application. At the engine's sampler, eight draws each and
+  read by hand, `plain` applied it framed 3 and control 4 at the engine budget, and framed 1 and
+  control 1 at the shipped budget, where the temperature-0 control never applied it in 560 draws.
 - **Nothing measured changes the shipped stack.** The boundary is the taint and the deterministic
   layers of ADR-0013 and ADR-0029 (the confirmation check, the opaque bit, the memory block, URL
   redaction). A laundering application that reaches the reply is formatting, not action.
@@ -201,9 +206,9 @@ What this part of the harness has measured, each stated with its reading in
   ran under a lowered ceiling.
 
 Open work is recorded under `docs/refinements/tasks/`, among it a written hand rule for the six
-line attacks, a mail-cell rate at the engine budget measured deep, the control counts at the other
-frames and sizes drawn again whole, what a control with one answer can be compared against, and card
-readings for the other harnesses that time the card.
+line attacks, a mail-cell rate at the engine budget measured deep, every comparison drawn again at
+the engine's sampler, a misread laundering token that reads as resistance, and card readings for the
+other harnesses that time the card.
 
 ## Alternatives rejected
 
@@ -219,6 +224,10 @@ readings for the other harnesses that time the card.
 - **A registry row over `FRAMES`, or a third `FRAMES` entry.** The first fixes a measurement's
   setup; the shipped budget saturates between the corpus and doubled frames, so a third frame is
   only informative at the engine budget and is measured by its own rows.
+- **A control drawn once per cell at temperature 0, or a nonce-shaped string in its tool text.** The
+  first compares a rate with one answer the evaluation's arithmetic decided; the second adds text to
+  the conversation the control stands for. A seed per draw would make a draw repeatable, but pooled
+  rows would need disjoint seeds, and the shipped request sends none.
 - **A per-request price, or one pooled across cells.** Replies vary from hundreds of tokens to the
   whole context, so only a token total and the clock it ran at compare.
 

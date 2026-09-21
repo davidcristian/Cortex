@@ -1,4 +1,5 @@
 from dataclasses import replace
+from datetime import UTC, datetime
 
 import pytest
 from test_injection_defense_live import (
@@ -30,7 +31,9 @@ from test_injection_defense_live import (
     tier_args,
 )
 
-from cortex_core import PlacementTarget
+from cortex_core import Message, PlacementTarget, Role, ToolSpec
+from cortex_core.inference import GenerationBounds
+from cortex_inference.request import build_payload
 from cortex_model_manager import llama_server_argv
 from cortex_orchestrator.config_subagents import DEFAULT_CPU_BUDGET, DEFAULT_MEM_BUDGET_GB
 
@@ -124,6 +127,21 @@ def test_every_row_asks_the_engine_to_evaluate_the_whole_prompt() -> None:
         for max_tokens in (_MAX_TOKENS, None):
             body = completion_body(_MESSAGES, _TOOLS, switch=switch, max_tokens=max_tokens)
             assert body[_CACHE_PROMPT_KEY] is False, switch.label
+
+
+def test_every_row_sends_only_the_keys_the_shipped_request_sends_and_the_cache_flag() -> None:
+    at = datetime(2026, 9, 22, tzinfo=UTC)
+    shipped = build_payload(
+        "m",
+        [Message(role=Role.USER, text="summarise this", at=at, turn_id="t")],
+        [ToolSpec(name="read_file", description="Read a file.", parameters={})],
+        None,
+        GenerationBounds(max_tokens=_MAX_TOKENS, thinking=False),
+    )
+    for switch in (*SWITCHES, THINKING_ON):
+        for max_tokens in (_MAX_TOKENS, None):
+            body = completion_body(_MESSAGES, _TOOLS, switch=switch, max_tokens=max_tokens)
+            assert set(body) - set(shipped) == {_CACHE_PROMPT_KEY}, switch.label
 
 
 def test_a_thinking_on_tier_pulls_neither_lever_whichever_row_asks() -> None:
