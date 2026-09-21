@@ -18,7 +18,7 @@ from linereadings import counted, short
 from readings import Reading, relation_fault
 from registry import CONSTANTS, shape
 from searchtexts import bounded, unfound
-from values import CrossCheckError, Value, parse_value, spell, spelling_fault
+from values import CrossCheckError, Value, form_fault, in_form, parse_value
 
 # Two places is the minimum: a value written once always agrees with itself.
 MIN_PLACES = 2
@@ -91,8 +91,8 @@ def rendered(mention: Mention, value: Value) -> str:
     if mention.name is not None and not renders_name:
         msg = f"mention {mention.template!r} has the name {mention.name!r} and renders it nowhere"
         raise CrossCheckError(msg)
-    spelled = mention.template.replace(PLACEHOLDER, spell(value, mention.spelling))
-    return spelled if mention.name is None else spelled.replace(NAME_PLACEHOLDER, mention.name)
+    written = mention.template.replace(PLACEHOLDER, in_form(value, mention.form))
+    return written if mention.name is None else written.replace(NAME_PLACEHOLDER, mention.name)
 
 
 def check_mention(root: Path, mention: Mention, value: Value) -> None:
@@ -101,20 +101,20 @@ def check_mention(root: Path, mention: Mention, value: Value) -> None:
     if wanted is not None and wanted < MIN_OCCURRENCES:
         msg = f"mention {mention.template!r} sets {wanted} occurrences, which ties nothing"
         raise CrossCheckError(msg)
-    needle = rendered(mention, value)
+    search_text = rendered(mention, value)
     text = _read(root, mention.path)
-    pattern = bounded(needle)
+    pattern = bounded(search_text)
     matches = list(pattern.finditer(text))
     found = len(matches)
     if not found:
-        reading = unfound(mention, needle, text, spell(value, mention.spelling))
+        reading = unfound(mention, search_text, text, in_form(value, mention.form))
         tail = "" if wanted is None else f"; the registry sets {wanted} occurrences, so {RECOUNT}"
         msg = f"{reading}{tail}"
         raise CrossCheckError(msg)
     if wanted is not None and found != wanted:
-        rest = short(needle, text, pattern) if found < wanted else ""
+        rest = short(search_text, text, pattern) if found < wanted else ""
         msg = (
-            f"{mention.path} writes {needle!r} as a token of its own: found {found}"
+            f"{mention.path} writes {search_text!r} as a token of its own: found {found}"
             f"{counted(text, matches)}, set to {wanted}{rest}; {RECOUNT}"
         )
         raise CrossCheckError(msg)
@@ -128,7 +128,7 @@ def registry_fault(constant: Constant) -> str | None:
         return "names fewer than two places, so it compares nothing"
     if constant.relation is not Relation.EQUAL and constant.mentions:
         return f"is {constant.relation.value}, so it has no one value a mention could write"
-    return spelling_fault(constant) or spend_fault(constant)
+    return form_fault(constant) or spend_fault(constant)
 
 
 def spend_fault(constant: Constant) -> str | None:

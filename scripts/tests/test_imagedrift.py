@@ -57,7 +57,7 @@ def test_an_answer_the_reader_was_not_taught_is_refused(answered: str, message: 
         parse(answered)
 
 
-def test_render_spells_an_empty_answer_in_words() -> None:
+def test_render_writes_an_empty_answer_in_words() -> None:
     assert (render(()), render(("/a", "/b"))) == ("nothing", "/a, /b")
 
 

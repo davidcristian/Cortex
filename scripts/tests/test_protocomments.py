@@ -141,5 +141,5 @@ def test_an_empty_doc_line_says_nothing() -> None:
         ("", ""),
     ],
 )
-def test_normalize_reduces_both_spellings_to_one(text: str, expected: str) -> None:
+def test_normalize_reduces_both_forms_to_one(text: str, expected: str) -> None:
     assert normalize(text) == expected

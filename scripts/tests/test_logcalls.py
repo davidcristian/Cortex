@@ -124,7 +124,7 @@ def test_a_module_that_binds_its_message_and_writes_it_again_is_a_fault() -> Non
         logcalls.logged(text, "tool.invocation", "audit.py")
 
 
-def test_every_binding_of_a_twice_spelled_message_is_named() -> None:
+def test_every_binding_of_a_twice_written_message_is_named() -> None:
     text = (
         '_AUDIT = "tool.invocation"\n_MESSAGE = "tool.invocation"\n_log.info("tool.invocation")\n'
     )
@@ -233,7 +233,7 @@ def test_a_module_that_logs_nothing_is_absent_rather_than_empty(tmp_path: Path) 
     assert logcalls.messages(tmp_path) == {}
 
 
-def test_the_walk_refuses_a_word_spelled_twice_in_a_module_no_document_quotes(
+def test_the_walk_refuses_a_word_written_twice_in_a_module_no_document_quotes(
     tmp_path: Path,
 ) -> None:
     brain(

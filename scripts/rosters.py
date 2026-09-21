@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import NamedTuple
 
 import rostermembers
-from rosternames import Bare, Bulleted, Spelled, Written
+from rosternames import Bare, Bulleted, CodeSpans, Written
 
 MODULE = re.compile(r"[a-z_]+\.py")
 PART = re.compile(r"[A-Z][A-Z_]*_COUPLINGS")
@@ -58,7 +58,7 @@ ROSTERS: tuple[Roster, ...] = (
         document=Path("docs/modules/repo-checks.md"),
         opens="## Public contract",
         closes=NO_CLI,
-        written=Spelled(pattern=MODULE),
+        written=CodeSpans(pattern=MODULE),
         subject="a module in scripts/ with a command line of its own",
         why=(
             "this sentence is where a reader learns which modules can be run and which are read "
@@ -71,7 +71,7 @@ ROSTERS: tuple[Roster, ...] = (
         document=Path("docs/modules/repo-checks.md"),
         opens=NO_CLI,
         closes="## How the checks run",
-        written=Spelled(pattern=MODULE),
+        written=CodeSpans(pattern=MODULE),
         subject="a module in scripts/ with no command line",
         why=(
             "this contract promises a future agent can work on the tree without reading it, "
@@ -86,7 +86,7 @@ ROSTERS: tuple[Roster, ...] = (
         document=Path("AGENTS.md"),
         opens="**the cross-tree scans**",
         closes="runs unconditionally, in CI too",
-        written=Spelled(pattern=MODULE),
+        written=CodeSpans(pattern=MODULE),
         subject="a cross-tree scan `just check` and CI both run",
         why=SCANS,
         members=rostermembers.cross_tree_scans,
@@ -109,7 +109,7 @@ ROSTERS: tuple[Roster, ...] = (
         document=Path("docs/index.md"),
         opens="whose **cross-tree scans** are",
         closes="**Beside them**",
-        written=Spelled(pattern=MODULE),
+        written=CodeSpans(pattern=MODULE),
         subject="a cross-tree scan `just check` and CI both run",
         why=SCANS,
         members=rostermembers.cross_tree_scans,
@@ -145,7 +145,7 @@ ROSTERS: tuple[Roster, ...] = (
         document=Path("docs/modules/repo-checks-scans.md"),
         opens="`crosscheck.CONSTANTS` is",
         closes="Each part is named for its subject",
-        written=Spelled(pattern=PART),
+        written=CodeSpans(pattern=PART),
         subject="a tuple crosscheck.CONSTANTS is joined from",
         why=(
             "this is the second copy of a list registry.py's own docstring already contains, and "

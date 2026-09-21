@@ -96,7 +96,7 @@ def copied(root: Path, edits: Sequence[tuple[str, str, str]] = ()) -> Path:
     for path in [*(REPO_ROOT / "docker").glob("docker-compose*.yml"), *sidecar]:
         text = path.read_text(encoding="utf-8")
         for _, was, now in [edit for edit in edits if edit[0] == path.name]:
-            assert was in text, f"{path.name} no longer spells {was!r}, so this mutation edits it"
+            assert was in text, f"{path.name} no longer writes {was!r}, so this mutation edits it"
             text = text.replace(was, now, 1)
         under = MODEL_MANAGER if path.suffix == ".py" else Path("docker")
         (root / under / path.name).write_text(text, encoding="utf-8")
@@ -265,7 +265,7 @@ def test_an_artifact_named_outside_the_family_names_itself_and_says_what_it_cost
     assert "drops out of the set unreported" in fault.detail
 
 
-def test_a_hosted_tiers_artifact_spelled_another_way_is_reported_rather_than_dropped(
+def test_a_hosted_tiers_artifact_written_another_way_is_reported_rather_than_dropped(
     tmp_path: Path,
 ) -> None:
     edits = [
@@ -279,7 +279,7 @@ def test_a_hosted_tiers_artifact_spelled_another_way_is_reported_rather_than_dro
     ]
 
 
-def test_a_compose_servers_artifact_spelled_another_way_is_reported_too(tmp_path: Path) -> None:
+def test_a_compose_servers_artifact_written_another_way_is_reported_too(tmp_path: Path) -> None:
     faults = check(copied(tmp_path, [(SUBAGENTS, ARTIFACT_ITEM, MISSPELLED_ITEM)])).faults
     assert [(fault.file, fault.service) for fault in faults] == [
         (f"docker/{SUBAGENTS}", "llama-subagent")

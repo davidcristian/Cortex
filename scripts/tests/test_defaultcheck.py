@@ -21,7 +21,7 @@ def _environment(*spends: str) -> str:
     return f"services:\n  brain:\n    environment:\n{lines}\n"
 
 
-def test_a_whole_number_spelled_two_ways_is_one_value(tmp_path: Path) -> None:
+def test_a_whole_number_written_two_ways_is_one_value(tmp_path: Path) -> None:
     _compose(tmp_path, _environment("${MEM_BUDGET_GB:-8.0}", "${MEM_BUDGET_GB:-8}g"))
     assert defaultcheck.check(tmp_path).faults == []
 
@@ -35,7 +35,7 @@ def test_a_real_drift_in_that_same_variable_is_reported(tmp_path: Path) -> None:
     assert "${MEM_BUDGET_GB:-9}" in faults[0].detail
 
 
-def test_a_fraction_that_is_lost_rather_than_zero_is_not_a_re_spelling(tmp_path: Path) -> None:
+def test_a_fraction_that_is_lost_rather_than_zero_is_not_a_rewrite(tmp_path: Path) -> None:
     _compose(tmp_path, _environment("${MEM_BUDGET_GB:-8.5}", "${MEM_BUDGET_GB:-8}g"))
     assert [fault.subject for fault in defaultcheck.check(tmp_path).faults] == ["MEM_BUDGET_GB"]
 
@@ -105,9 +105,7 @@ def test_two_spends_carrying_no_default_at_all_agree(tmp_path: Path) -> None:
         (["", "x"], False),
     ],
 )
-def test_same_value_allows_a_re_spelling_and_nothing_else(
-    arguments: list[str], *, agree: bool
-) -> None:
+def test_same_value_allows_a_rewrite_and_nothing_else(arguments: list[str], *, agree: bool) -> None:
     assert defaultcheck.same_value(arguments) is agree
 
 
@@ -152,20 +150,20 @@ def test_the_repo_itself_carries_one_default_per_variable() -> None:
     assert defaultcheck.check(REPO_ROOT).faults == []
 
 
-def test_the_repo_really_spells_variables_more_than_once() -> None:
+def test_the_repo_really_writes_variables_more_than_once() -> None:
     walk = defaultcheck.group(REPO_ROOT)
     assert walk.faults == []
     repeated = {name: spends for name, spends in walk.groups.items() if len(spends) > 1}
     assert len(repeated) >= 6, sorted(walk.groups)
 
 
-def test_the_repo_really_spells_one_value_two_ways() -> None:
-    respelled = {
+def test_the_repo_really_writes_one_value_two_ways() -> None:
+    rewritten = {
         name
         for name, spends in defaultcheck.group(REPO_ROOT).groups.items()
         if len({spend.substitution.argument for spend in spends}) > 1
     }
-    assert respelled == {"CORTEX_SUBAGENTS_MEM_BUDGET_GB"}
+    assert rewritten == {"CORTEX_SUBAGENTS_MEM_BUDGET_GB"}
 
 
 def test_main_passes_the_real_repo(capsys: pytest.CaptureFixture[str]) -> None:

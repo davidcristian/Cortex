@@ -53,37 +53,37 @@ def _closing(tail: str, rest: str) -> str:
     return tail[len(tail) - length :]
 
 
-def split(needle: str, line: str) -> tuple[str, str, int]:
-    """The opening and closing runs in ``line`` that cover the most of ``needle``."""
+def split(search_text: str, line: str) -> tuple[str, str, int]:
+    """The opening and closing runs in ``line`` that cover the most of ``search_text``."""
     best = ("", "", 0)
-    for length in range(len(needle) + 1):
-        start = line.find(needle[:length])
+    for length in range(len(search_text) + 1):
+        start = line.find(search_text[:length])
         if start < 0:
             break
         stop = start + length
-        closing = _closing(needle[length:], line[stop:])
+        closing = _closing(search_text[length:], line[stop:])
         if length + len(closing) >= len(best[0]) + len(best[1]):
             column = stop if length else line.find(closing) + len(closing)
-            best = (needle[:length], closing, column)
+            best = (search_text[:length], closing, column)
     return best
 
 
-def line_runs(needle: str, text: str, found: re.Pattern[str]) -> list[LineRun] | None:
-    """Every line tied for having the most of ``needle`` on it, once ``found`` is blanked out."""
-    if "\n" in needle:
+def line_runs(search_text: str, text: str, found: re.Pattern[str]) -> list[LineRun] | None:
+    """Every line tied for the most of ``search_text`` on it, once ``found`` is blanked out."""
+    if "\n" in search_text:
         return None
     best: list[LineRun] = []
     offset = 0
     for number, words in enumerate(text.split("\n"), start=1):
         read = found.sub(lambda match: BLANK * len(match.group()), words)
-        opening, closing, column = split(needle, read)
+        opening, closing, column = split(search_text, read)
         run = LineRun(number, opening, closing, column, offset + column, words)
         offset += len(words) + 1
         if not best or run.length > best[0].length:
             best = [run]
         elif run.length == best[0].length:
             best.append(run)
-    if 2 * best[0].length < len(needle):
+    if 2 * best[0].length < len(search_text):
         return []
     return best
 
@@ -97,12 +97,12 @@ def _pieces(run: LineRun) -> str:
     return f"its closing {run.closing!r}"
 
 
-def said(runs: list[LineRun], needle: str, at: int | None) -> str:
-    """The clause naming the line with the most of ``needle``, or saying no line has half of it."""
+def said(runs: list[LineRun], search_text: str, at: int | None) -> str:
+    """The clause naming the line with most of ``search_text``, or saying no line has half."""
     if not runs:
         return "with less than half of it on any line"
     run = next((each for each in runs if each.stop == at), runs[0])
-    share = f"{run.length} of its {len(needle)} characters ({_pieces(run)})"
+    share = f"{run.length} of its {len(search_text)} characters ({_pieces(run)})"
     carried = len(run.opening or run.closing)
     read = quote(run.words, run.column - carried, run.column)
     if len(runs) == 1:
@@ -122,9 +122,9 @@ def counted(text: str, matches: list[re.Match[str]]) -> str:
     return f" (on lines {', '.join(numbers[:-1])} and {numbers[-1]})"
 
 
-def short(needle: str, text: str, found: re.Pattern[str]) -> str:
+def short(search_text: str, text: str, found: re.Pattern[str]) -> str:
     """What a count that came up short says about the rest of the file, if anything."""
-    runs = line_runs(needle, text, found)
+    runs = line_runs(search_text, text, found)
     if runs is None:
         return ""
-    return f"; outside those, the file is {said(runs, needle, None)}"
+    return f"; outside those, the file is {said(runs, search_text, None)}"

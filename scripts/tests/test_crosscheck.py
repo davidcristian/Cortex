@@ -119,7 +119,7 @@ def test_read_value_ties_a_number_from_typescript_to_python(tmp_path: Path) -> N
     assert from_ts == from_py == 48
 
 
-def test_check_constant_ties_two_spellings_of_one_number(tmp_path: Path) -> None:
+def test_check_constant_ties_two_forms_of_one_number(tmp_path: Path) -> None:
     _tie(tmp_path, rust="6 * 1024 * 1024", python="6291456")
     assert crosscheck.check_constant(tmp_path, BYTE_CEILING) == []
 
@@ -313,24 +313,24 @@ MENTIONED = crosscheck.Constant(
 )
 
 
-def _spend(root: Path, declared: str, spelled: str) -> None:
+def _spend(root: Path, declared: str, written: str) -> None:
     (root / "budget.ts").write_text(f'const CEILING_PROPERTY = "{declared}";\n', encoding="utf-8")
-    (root / "overlay.css").write_text(f".panel {{ height: var({spelled}, 100vh); }}\n", "utf-8")
+    (root / "overlay.css").write_text(f".panel {{ height: var({written}, 100vh); }}\n", "utf-8")
 
 
 def test_a_mention_found_in_the_shape_it_names_is_tied(tmp_path: Path) -> None:
-    _spend(tmp_path, declared="--ceiling", spelled="--ceiling")
+    _spend(tmp_path, declared="--ceiling", written="--ceiling")
     assert crosscheck.check_constant(tmp_path, MENTIONED) == []
 
 
-def test_a_rename_on_the_declaring_side_leaves_the_needle_unfound(tmp_path: Path) -> None:
-    _spend(tmp_path, declared="--roof", spelled="--ceiling")
+def test_a_rename_on_the_declaring_side_leaves_the_search_text_unfound(tmp_path: Path) -> None:
+    _spend(tmp_path, declared="--roof", written="--ceiling")
     (fault,) = crosscheck.check_constant(tmp_path, MENTIONED)
     assert "does not write 'var(--roof,'" in fault.detail
 
 
 def test_a_rename_on_the_spending_side_leaves_it_unfound_too(tmp_path: Path) -> None:
-    _spend(tmp_path, declared="--ceiling", spelled="--roof")
+    _spend(tmp_path, declared="--ceiling", written="--roof")
     (fault,) = crosscheck.check_constant(tmp_path, MENTIONED)
     assert "does not write 'var(--ceiling,'" in fault.detail
 
@@ -355,7 +355,7 @@ def test_a_mention_of_a_number_renders_it_as_written(tmp_path: Path) -> None:
     assert crosscheck.check_constant(tmp_path, _ported("127.0.0.1:{value}:{value}")) == []
 
 
-def test_a_number_a_longer_one_merely_contains_is_not_spelled(tmp_path: Path) -> None:
+def test_a_number_a_longer_one_merely_contains_is_not_written(tmp_path: Path) -> None:
     _publish(tmp_path, declared="5005", host="50051", container="50051")
     (fault,) = crosscheck.check_constant(tmp_path, _ported("127.0.0.1:{value}"))
     assert "does not write '127.0.0.1:5005' as a token of its own" in fault.detail
@@ -391,7 +391,7 @@ def test_a_moved_value_is_reported_as_absent_and_blames_no_neighbour(tmp_path: P
     assert "the file does not write '50052' as a token of its own either" in fault.detail
 
 
-def test_a_value_left_only_inside_a_decimal_is_not_read_as_still_being_spelled(
+def test_a_value_left_only_inside_a_decimal_is_not_read_as_still_being_written(
     tmp_path: Path,
 ) -> None:
     (tmp_path / "config.py").write_text("DEFAULT_STOP_GRACE_S = 10\n", encoding="utf-8")
@@ -410,7 +410,7 @@ def test_a_value_left_only_inside_a_decimal_is_not_read_as_still_being_spelled(
     assert "the file does not write '10' as a token of its own either" in fault.detail
 
 
-def test_a_file_carrying_no_part_of_the_needle_has_no_run_to_report(tmp_path: Path) -> None:
+def test_a_file_carrying_no_part_of_the_search_text_has_no_run_to_report(tmp_path: Path) -> None:
     (tmp_path / "budget.ts").write_text('const CEILING_PROPERTY = "--ceiling";\n', encoding="utf-8")
     (tmp_path / "overlay.css").write_text(".panel { height: 100px; }\n", encoding="utf-8")
     (fault,) = crosscheck.check_constant(tmp_path, MENTIONED)
@@ -478,7 +478,7 @@ def test_a_value_in_several_places_is_counted_and_read_nearest_the_run(tmp_path:
     assert "which reads '- \"127.0.0.2:50051:50051\"'" in fault.detail
 
 
-def test_a_run_carried_in_several_places_names_the_stop_nearest_the_spelling(
+def test_a_run_carried_in_several_places_names_the_stop_nearest_the_form(
     tmp_path: Path,
 ) -> None:
     (tmp_path / "config.py").write_text("PORT = 50051\n", encoding="utf-8")
@@ -494,7 +494,7 @@ def test_a_run_carried_in_several_places_names_the_stop_nearest_the_spelling(
 
 _THREADED = crosscheck.Constant(
     label="a thread count",
-    why="the flag and the substitution under it are one needle",
+    why="the flag and the substitution under it are one search_text",
     sites=(crosscheck.Site("config.py", "THREADS"),),
     mentions=(crosscheck.Mention("stack.yml", '- "--threads"\n      - "{value}"'),),
 )
@@ -515,7 +515,7 @@ _THREADED = crosscheck.Constant(
         ),
     ],
 )
-def test_a_needle_holding_a_newline_is_read_over_the_whole_file(
+def test_a_search_text_holding_a_newline_is_read_over_the_whole_file(
     tmp_path: Path, stack: str, expected: str
 ) -> None:
     (tmp_path / "config.py").write_text("THREADS = 4\n", encoding="utf-8")
@@ -598,7 +598,7 @@ def test_a_quote_is_windowed_only_where_the_line_runs_past_it(
     assert read.endswith(linereadings.TRIMMED) is closes
 
 
-def test_a_needle_that_renders_only_a_name_is_read_on_that_name(tmp_path: Path) -> None:
+def test_a_search_text_that_renders_only_a_name_is_read_on_that_name(tmp_path: Path) -> None:
     _restate(tmp_path, "--roll", "--ease", "--ease")
     spent = RESTATED._replace(
         mentions=(RESTATED.mentions[0], RESTATED.mentions[1]._replace(occurrences=None)),
@@ -647,7 +647,7 @@ def test_a_name_whose_shape_is_a_neighbours_binding_reports_the_shape_as_the_mov
 
 
 @pytest.mark.parametrize(
-    ("needle", "text", "found"),
+    ("search_text", "text", "found"),
     [
         ("50051", "  - 50051\n", True),
         ("50051", "  - 500511\n", False),
@@ -657,14 +657,14 @@ def test_a_name_whose_shape_is_a_neighbours_binding_reports_the_shape_as_the_mov
         ("[data-morphing", ".view:has([data-morphing]) {", True),
     ],
 )
-def test_a_needle_is_bounded_at_whichever_edge_is_a_word(
-    needle: str, text: str, *, found: bool
+def test_a_search_text_is_bounded_at_whichever_edge_is_a_word(
+    search_text: str, text: str, *, found: bool
 ) -> None:
-    assert bool(crosscheck.bounded(needle).search(text)) is found
+    assert bool(crosscheck.bounded(search_text).search(text)) is found
 
 
 @pytest.mark.parametrize(
-    ("needle", "text", "found"),
+    ("search_text", "text", "found"),
     [
         ("2048", "the shipped edge is 2048.", True),
         ("2048", "resampled to 2048.5 px", False),
@@ -681,9 +681,9 @@ def test_a_needle_is_bounded_at_whichever_edge_is_a_word(
     ],
 )
 def test_a_point_between_two_digits_is_inside_a_number_and_not_a_full_stop(
-    needle: str, text: str, *, found: bool
+    search_text: str, text: str, *, found: bool
 ) -> None:
-    assert bool(crosscheck.bounded(needle).search(text)) is found
+    assert bool(crosscheck.bounded(search_text).search(text)) is found
 
 
 def test_a_mention_on_a_file_that_cannot_be_read_is_a_fault(tmp_path: Path) -> None:
@@ -693,14 +693,14 @@ def test_a_mention_on_a_file_that_cannot_be_read_is_a_fault(tmp_path: Path) -> N
 
 
 def test_a_mention_template_that_renders_nothing_is_refused(tmp_path: Path) -> None:
-    _spend(tmp_path, declared="--ceiling", spelled="--ceiling")
+    _spend(tmp_path, declared="--ceiling", written="--ceiling")
     blind = MENTIONED._replace(mentions=(crosscheck.Mention("overlay.css", ".panel"),))
     (fault,) = crosscheck.check_constant(tmp_path, blind)
     assert "renders neither {value} nor {name}" in fault.detail
 
 
 def test_every_mention_is_reported_rather_than_only_the_first(tmp_path: Path) -> None:
-    _spend(tmp_path, declared="--ceiling", spelled="--roof")
+    _spend(tmp_path, declared="--ceiling", written="--roof")
     both = MENTIONED._replace(
         mentions=(*MENTIONED.mentions, crosscheck.Mention("gone.css", "var({value})"))
     )
@@ -709,10 +709,10 @@ def test_every_mention_is_reported_rather_than_only_the_first(tmp_path: Path) ->
     assert "cannot read gone.css" in details[1]
 
 
-def _compare(root: Path, declared: str, *spelled: str) -> None:
+def _compare(root: Path, declared: str, *written: str) -> None:
     """Write a state string declared in Python and compared against in a component, one per line."""
     (root / "channels.py").write_text(f'STATE = "{declared}"\n', encoding="utf-8")
-    lines = "".join(f'  aria-label={{s === "{one}" ? "x" : undefined}}\n' for one in spelled)
+    lines = "".join(f'  aria-label={{s === "{one}" ? "x" : undefined}}\n' for one in written)
     (root / "Message.tsx").write_text(f"<span\n{lines}/>\n", encoding="utf-8")
 
 
@@ -725,7 +725,7 @@ def _counted(occurrences: int | None) -> crosscheck.Constant:
     )
 
 
-def test_a_counted_mention_holds_when_the_whole_set_is_spelled(tmp_path: Path) -> None:
+def test_a_counted_mention_holds_when_the_whole_set_is_written(tmp_path: Path) -> None:
     _compare(tmp_path, "thinking", "thinking", "thinking")
     assert crosscheck.check_constant(tmp_path, _counted(2)) == []
 
@@ -736,10 +736,8 @@ def test_a_half_applied_rename_passes_a_presence_check_and_fails_a_counted_one(
     _compare(tmp_path, "deliberating", "deliberating", "thinking")
     assert crosscheck.check_constant(tmp_path, _counted(None)) == []
     (fault,) = crosscheck.check_constant(tmp_path, _counted(2))
-    spelling = (
-        "writes 's === \"deliberating\"' as a token of its own: found 1 (on line 2), set to 2"
-    )
-    assert spelling in fault.detail
+    form = "writes 's === \"deliberating\"' as a token of its own: found 1 (on line 2), set to 2"
+    assert form in fault.detail
 
 
 def test_a_counted_mention_that_finds_nothing_reads_like_a_presence_check(tmp_path: Path) -> None:
@@ -924,7 +922,7 @@ def test_retuning_the_adapter_alone_leaves_every_deployment_on_the_old_number(
     assert "does not write '${CORTEX_BODY_CALL_TIMEOUT_S:-7.5}'" in fault.detail
 
 
-def test_the_same_number_without_its_point_is_a_different_spelling(tmp_path: Path) -> None:
+def test_the_same_number_without_its_point_is_a_different_form(tmp_path: Path) -> None:
     _deadline(tmp_path, declared="5", substituted="5.0")
     (fault,) = crosscheck.check_constant(tmp_path, DEADLINE)
     assert "does not write '${CORTEX_BODY_CALL_TIMEOUT_S:-5}'" in fault.detail
@@ -965,7 +963,7 @@ BUDGET = crosscheck.Constant(
             "stack.yml",
             '"${BUDGET_GB:-{value}}g"',
             occurrences=2,
-            spelling=couplings.Spelling.WHOLE,
+            form=couplings.Form.WHOLE,
         ),
     ),
 )
@@ -982,12 +980,12 @@ def _budget(root: Path, declared: str, passed: str, limit: str) -> None:
     )
 
 
-def test_one_number_ties_the_far_side_that_cannot_spell_it_as_written(tmp_path: Path) -> None:
+def test_one_number_ties_the_far_side_that_cannot_write_it_as_written(tmp_path: Path) -> None:
     _budget(tmp_path, declared="8.0", passed="8.0", limit="8")
     assert crosscheck.check_constant(tmp_path, BUDGET) == []
 
 
-def test_retuning_the_budget_alone_fails_both_spellings(tmp_path: Path) -> None:
+def test_retuning_the_budget_alone_fails_both_forms(tmp_path: Path) -> None:
     _budget(tmp_path, declared="12.0", passed="8.0", limit="8")
     written, whole = crosscheck.check_constant(tmp_path, BUDGET)
     assert "does not write '\"${BUDGET_GB:-12.0}\"'" in written.detail
@@ -1012,13 +1010,13 @@ def test_a_site_that_drops_its_point_is_still_caught(tmp_path: Path) -> None:
     assert "does not write '\"${BUDGET_GB:-8}\"'" in fault.detail
 
 
-def test_a_budget_the_far_side_cannot_spell_at_all_is_reported(tmp_path: Path) -> None:
+def test_a_budget_the_far_side_cannot_write_at_all_is_reported(tmp_path: Path) -> None:
     _budget(tmp_path, declared="8.5", passed="8.5", limit="8")
     (fault,) = crosscheck.check_constant(tmp_path, BUDGET)
     assert "8.5 cannot be written whole" in fault.detail
 
 
-def test_an_entry_that_re_spells_everywhere_is_refused(tmp_path: Path) -> None:
+def test_an_entry_that_rewrites_everywhere_is_refused(tmp_path: Path) -> None:
     blind = BUDGET._replace(mentions=BUDGET.mentions[1:])
     _budget(tmp_path, declared="8.0", passed="8.0", limit="8")
     (fault,) = crosscheck.check_constant(tmp_path, blind)
@@ -1033,7 +1031,7 @@ HATCH = crosscheck.Constant(
         crosscheck.Mention(
             "stack.yml",
             "${TLS_INSECURE:-{value}}",
-            spelling=couplings.Spelling.LOWERED,
+            form=couplings.Form.LOWERED,
         ),
     ),
 )
@@ -1064,7 +1062,7 @@ def test_a_hatch_the_field_opens_alone_is_reported_too(tmp_path: Path) -> None:
     assert "does not write '${TLS_INSECURE:-true}'" in fault.detail
 
 
-def test_a_boolean_a_far_side_writes_as_the_site_does_needs_no_spelling(tmp_path: Path) -> None:
+def test_a_boolean_a_far_side_writes_as_the_site_does_needs_no_form(tmp_path: Path) -> None:
     written = HATCH._replace(
         mentions=(crosscheck.Mention("stack.yml", "${TLS_INSECURE:-{value}}"),)
     )
@@ -1172,7 +1170,7 @@ def copied(root: Path, constant: couplings.Constant, edits: dict[str, tuple[str,
         text = (REPO_ROOT / place).read_text(encoding="utf-8")
         if place in edits:
             was, now = edits[place]
-            assert was in text, f"{place} no longer spells {was!r}, so this mutation edits nothing"
+            assert was in text, f"{place} no longer writes {was!r}, so this mutation edits nothing"
             text = text.replace(was, now, 1)
         target = root / place
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -1184,7 +1182,7 @@ def rewritten(root: Path, place: str, was: str, now: str) -> None:
     target = root / place
     assert target.exists(), f"the entry under test names no {place}, so there is nothing to edit"
     text = target.read_text(encoding="utf-8")
-    assert was in text, f"{place} no longer spells {was!r}, so this mutation edits nothing"
+    assert was in text, f"{place} no longer writes {was!r}, so this mutation edits nothing"
     target.write_text(text.replace(was, now), encoding="utf-8")
 
 
@@ -1224,7 +1222,7 @@ def test_the_budget_is_held_by_this_entry_and_not_by_a_neighbour(tmp_path: Path)
     assert [fault.label for fault in crosscheck.check(tmp_path, (pair,))] == [REASONING_OFF]
 
 
-def test_the_trail_needles_hold_over_the_files_they_name(tmp_path: Path) -> None:
+def test_the_trail_search_texts_hold_over_the_files_they_name(tmp_path: Path) -> None:
     for label in (TRAIL_LOGGER, TRAIL_MESSAGE, TRAIL_FIELD):
         constant = registered(label)
         copied(tmp_path, constant, {})
@@ -1269,10 +1267,10 @@ def test_the_trails_message_moving_fails_though_the_line_still_carries_the_word(
     faults = crosscheck.check_constant(tmp_path, constant)
     assert [fault.label for fault in faults] == [TRAIL_MESSAGE]
     doctored = (tmp_path / RECALL_SINK).read_text(encoding="utf-8")
-    assert "memory.recall" in doctored, "the logger goes on spelling the word that was renamed"
+    assert "memory.recall" in doctored, "the logger goes on writing the word that was renamed"
 
 
-def test_the_reader_retuning_its_own_needle_is_the_same_fault_from_the_other_side(
+def test_the_reader_retuning_its_own_search_text_is_the_same_fault_from_the_other_side(
     tmp_path: Path,
 ) -> None:
     constant = registered(TRAIL_FIELD)
@@ -1308,7 +1306,7 @@ def test_the_trails_logger_is_held_by_this_entry_and_not_by_a_neighbour(tmp_path
     assert len(alone) == len(logger.mentions), alone
 
 
-def test_the_audit_messages_needles_hold_over_the_files_they_name(tmp_path: Path) -> None:
+def test_the_audit_messages_search_texts_hold_over_the_files_they_name(tmp_path: Path) -> None:
     copied(tmp_path, registered(AUDIT_MESSAGE), {})
     assert crosscheck.check_constant(tmp_path, registered(AUDIT_MESSAGE)) == []
 
@@ -1345,13 +1343,13 @@ def test_the_suites_asserted_line_is_reported_against_the_word_that_moved(
     assert LEVEL_SUITE in faults[0].detail
 
 
-def test_the_audit_loggers_needles_hold_over_the_files_they_name(tmp_path: Path) -> None:
+def test_the_audit_loggers_search_texts_hold_over_the_files_they_name(tmp_path: Path) -> None:
     constant = registered(AUDIT_LOGGER)
     copied(tmp_path, constant, {})
     assert crosscheck.check_constant(tmp_path, constant) == []
 
 
-def test_the_declarations_needles_hold_over_the_files_they_name(tmp_path: Path) -> None:
+def test_the_declarations_search_texts_hold_over_the_files_they_name(tmp_path: Path) -> None:
     constant = registered(DECLARED_UNDER)
     copied(tmp_path, constant, {})
     assert crosscheck.check_constant(tmp_path, constant) == []
@@ -1392,7 +1390,7 @@ def test_an_audit_suite_asserting_another_word_before_its_fields_is_a_fault(
     copied(tmp_path, logger, {})
     rewritten(tmp_path, AUDIT_SUITE, ASSERTED_WORD, ':tool.dispatch "')
     doctored = (tmp_path / AUDIT_SUITE).read_text(encoding="utf-8")
-    assert "tool.invocation ok=True" in doctored, "the forged payload keeps the word it spells"
+    assert "tool.invocation ok=True" in doctored, "the forged payload keeps the word it writes"
     faults = crosscheck.check_constant(tmp_path, message)
     assert [fault.label for fault in faults] == [AUDIT_MESSAGE]
     assert AUDIT_SUITE in faults[0].detail
@@ -1662,11 +1660,9 @@ def test_the_registry_reduces_every_form_the_reducer_was_widened_for(
     assert any(reads(value) for value in read), form
 
 
-def test_the_registry_exercises_every_spelling() -> None:
-    spelled = {
-        mention.spelling for constant in crosscheck.CONSTANTS for mention in constant.mentions
-    }
-    assert spelled == set(couplings.Spelling)
+def test_the_registry_exercises_every_form() -> None:
+    written = {mention.form for constant in crosscheck.CONSTANTS for mention in constant.mentions}
+    assert written == set(couplings.Form)
 
 
 def test_the_registry_exercises_every_relation() -> None:

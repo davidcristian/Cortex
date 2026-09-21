@@ -69,7 +69,7 @@ def _marked(node: ast.Constant, prose: frozenset[int]) -> bool:
     )
 
 
-def spelled(module: ast.Module) -> list[int]:
+def marker_lines(module: ast.Module) -> list[int]:
     """Every line of ``module`` where a fence marker is written into code, in line order."""
     prose = _prose(module)
     return sorted(

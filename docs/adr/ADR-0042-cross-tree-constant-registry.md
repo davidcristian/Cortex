@@ -65,7 +65,7 @@ weeks and moved here to keep each record to one subject.
 8. **A count is exact and opt-in.** `Mention.occurrences` fixes how many times the search text
    appears in its file, never a minimum, because a minimum cannot report that it has gone stale;
    unset means presence.
-9. **A mention may write the value differently.** `Spelling.WRITTEN` is the default, `WHOLE` renders
+9. **A mention may write the value differently.** `Form.WRITTEN` is the default, `WHOLE` renders
    a value with no fractional part (a non-zero fraction is a fault), `LOWERED` renders a boolean in
    lower case. An entry whose mentions all lose information this way needs one mention beside them
    that renders the value as written. A compose default is written as the constant's own text
@@ -106,7 +106,7 @@ weeks and moved here to keep each record to one subject.
 ### Structure
 
 16. **Data in parts, logic in one scan.** `couplings.py` is the vocabulary (`Constant`, `Site`,
-    `Mention`, `Relation`, `Spelling`); `values.py` reduces; `readings.py` says whether a set of
+    `Mention`, `Relation`, `Form`); `values.py` reduces; `readings.py` says whether a set of
     readings is consistent; `searchtexts.py` and `linereadings.py` search and explain. Entries live
     in parts, each a `<subject>couplings.py` holding `<SUBJECT>_COUPLINGS`, added either by
     splitting at the line cap or as a new subject. `registry.py` is the one module naming them, and

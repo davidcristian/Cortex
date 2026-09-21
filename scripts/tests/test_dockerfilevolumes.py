@@ -43,7 +43,7 @@ def test_a_comment_between_continued_lines_is_dropped_the_way_docker_drops_it() 
     assert read_volumes("VOLUME \\\n# a note\n  /a\n") == ("/a",)
 
 
-def test_a_trailing_slash_is_not_a_second_spelling_of_one_path() -> None:
+def test_a_trailing_slash_is_not_a_second_form_of_one_path() -> None:
     assert read_volumes("VOLUME /srv/mail/\n") == ("/srv/mail",)
 
 
@@ -95,7 +95,7 @@ def test_a_recorded_trigger_declares_the_path_it_names() -> None:
     assert onbuild_volumes(("VOLUME /probe/onbuild",)) == ("/probe/onbuild",)
 
 
-def test_a_trigger_is_read_in_both_spellings_and_however_it_is_cased() -> None:
+def test_a_trigger_is_read_in_both_forms_and_however_it_is_cased() -> None:
     assert onbuild_volumes(('volume ["/a", "/b"]', "VOLUME /c")) == ("/a", "/b", "/c")
 
 
@@ -266,7 +266,7 @@ def test_a_build_pointing_where_no_dockerfile_lands_is_unasked(tmp_path: Path) -
     [Build("${DIR:-./brain}", DEFAULT_DOCKERFILE), Build(".", "${FILE}")],
     ids=["context", "dockerfile"],
 )
-def test_a_build_path_spelled_through_a_substitution_is_unasked(
+def test_a_build_path_written_through_a_substitution_is_unasked(
     tmp_path: Path, build: Build
 ) -> None:
     compose = _tree(tmp_path, "FROM scratch\n")

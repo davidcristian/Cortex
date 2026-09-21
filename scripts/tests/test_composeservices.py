@@ -159,7 +159,7 @@ def test_a_long_entry_may_open_on_a_bare_dash() -> None:
     assert _one(text).covered == ("/x",)
 
 
-def test_a_trailing_slash_is_not_a_second_spelling_of_one_path() -> None:
+def test_a_trailing_slash_is_not_a_second_form_of_one_path() -> None:
     assert _one("services:\n  r:\n    image: r\n    tmpfs:\n      - /run/\n").covered == ("/run",)
 
 
@@ -258,7 +258,7 @@ def test_the_real_compose_files_are_all_readable() -> None:
     assert sum(len(service.covered) for service in services) >= 12, services
 
 
-def test_the_real_build_stanzas_are_read_in_both_spellings() -> None:
+def test_the_real_build_stanzas_are_read_in_both_forms() -> None:
     files = sorted((REPO_ROOT / "docker").glob("docker-compose*.yml"))
     read = {path.name: read_services(path.read_text(encoding="utf-8")) for path in files}
     builds = {

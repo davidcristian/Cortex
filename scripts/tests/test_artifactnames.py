@@ -97,7 +97,7 @@ def test_a_service_declaring_no_command_names_nothing(tmp_path: Path) -> None:
     assert composed(_tree(tmp_path, {"docker-compose.body.yml": reopened})) == ()
 
 
-def test_the_short_spelling_of_the_model_flag_is_not_read() -> None:
+def test_the_short_form_of_the_model_flag_is_not_read() -> None:
     assert spends(_one(PYTHON_MODULE)) == ()
 
 
@@ -181,10 +181,10 @@ RESOLVER_METHOD = """\
 SETTINGS = DECLARED + RESOLVER_METHOD
 
 
-def _line(text: str, needle: str) -> int:
-    """Return the one-based line of ``text`` containing ``needle``, asserting there is one."""
-    lines = [number for number, line in enumerate(text.splitlines(), 1) if needle in line]
-    assert len(lines) == 1, (needle, lines)
+def _line(text: str, search_text: str) -> int:
+    """Return the one-based line of ``text`` containing ``search_text``, asserting there is one."""
+    lines = [number for number, line in enumerate(text.splitlines(), 1) if search_text in line]
+    assert len(lines) == 1, (search_text, lines)
     return lines[0]
 
 

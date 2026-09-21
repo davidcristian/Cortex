@@ -32,7 +32,7 @@ rendered search text contains no newline, and the whole-file run where it does.
 - 2026-08-23: opened by the close of
   [R-403](403-a-needles-literal-reddens-the-wrong-entry.md), which measured this while writing the
   fault message and chose to report the limitation rather than hide it.
-- 2026-09-10: checked again and still not fired. `searchtexts.carried` still grows the run one
+- 2026-09-10: checked again and still not fired. `searchtexts.longest_prefix` still grows the run one
   character at a time against the whole of `text` and takes no line number, and a `Mention` still
   names a path rather than a line. No match in the registry renders a multi-line template, which
   is the other half of the trigger. Nobody has been misled by a quoted run, there being no recorded

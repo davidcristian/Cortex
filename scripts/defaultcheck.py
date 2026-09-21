@@ -8,7 +8,7 @@ from typing import NamedTuple
 
 from composedefaults import Substitution, SubstitutionReadError, read_substitutions
 from composefiles import ComposeSearchError, compose_files, refused_summary
-from values import CrossCheckError, parse_value, whole_spelling
+from values import CrossCheckError, parse_value, whole_form
 
 MIN_SPENDS = 2
 
@@ -58,13 +58,13 @@ def same_value(arguments: list[str]) -> bool:
     """Whether several default texts are the same value when `8.0` and `8` count as one."""
     if len(set(arguments)) == 1:
         return True
-    spellings: set[str] = set()
+    forms: set[str] = set()
     for text in arguments:
         try:
-            spellings.add(whole_spelling(parse_value(text)))
+            forms.add(whole_form(parse_value(text)))
         except CrossCheckError:
             return False
-    return len(spellings) == 1
+    return len(forms) == 1
 
 
 def one_line_hint(spends: list[Spend]) -> str:

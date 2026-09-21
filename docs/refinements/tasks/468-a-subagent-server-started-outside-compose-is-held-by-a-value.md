@@ -21,7 +21,7 @@ while the command block stood still, and the command was three flags behind the 
 Closing it means registry entries rather than a reader, for every flag but one. Three constants
 already declare what the command writes: `_JINJA` in the sidecar's `tiers.py` for `--jinja`,
 `_NO_PROMPT_CACHE` in its `config.py` for `--cache-ram 0`, and the orchestrator's
-`DEFAULT_CPU_BUDGET` for both `--threads 4` and `--cpus 4`, through `Spelling.WHOLE` because the
+`DEFAULT_CPU_BUDGET` for both `--threads 4` and `--cpus 4`, through `Form.WHOLE` because the
 constant declares `4.0`. The kwarg is the one flag with no constant to reference: `_SUBAGENT_TAIL`
 writes `'{"enable_thinking": false}'` inline, in single quotes, inside a tuple of strings and
 names, and `scripts/values.py` reduces neither form. So the kwarg needs both a declaration in the

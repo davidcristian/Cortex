@@ -1,6 +1,6 @@
 """The couplings around a shipped number: one tree declares it, and other files restate it."""
 
-from couplings import Constant, Mention, Site, Spelling
+from couplings import Constant, Form, Mention, Site
 
 BASE_COMPOSE = "docker/docker-compose.yml"
 GPU_COMPOSE = "docker/docker-compose.gpu.yml"
@@ -72,7 +72,7 @@ SHIPPED_COUPLINGS: tuple[Constant, ...] = (
             Mention(
                 SUBAGENTS_RUNBOOK,
                 "`CORTEX_TOOLS_CALL_TIMEOUT_S` (default {value} s)",
-                spelling=Spelling.WHOLE,
+                form=Form.WHOLE,
             ),
             Mention(TOOLS_CORE_DOC, "`DEFAULT_TOOL_CALL_TIMEOUT_S = {value}`"),
         ),

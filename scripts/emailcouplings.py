@@ -2,7 +2,7 @@
 names a declared source is written under, and the two settings that ship off.
 """
 
-from couplings import Constant, Mention, Site, Spelling
+from couplings import Constant, Form, Mention, Site
 
 CORE_PROVENANCE = "brain/packages/core/src/cortex_core/provenance.py"
 EMAIL_COMPOSE = "docker/docker-compose.email.yml"
@@ -164,12 +164,12 @@ EMAIL_COUPLINGS: tuple[Constant, ...] = (
             Mention(
                 EMAIL_COMPOSE,
                 "${CORTEX_EMAIL_IMAP_TLS_INSECURE:-{value}}",
-                spelling=Spelling.LOWERED,
+                form=Form.LOWERED,
             ),
             Mention(
                 EMAIL_COMPOSE,
                 "${CORTEX_EMAIL_SMTP_TLS_INSECURE:-{value}}",
-                spelling=Spelling.LOWERED,
+                form=Form.LOWERED,
             ),
         ),
     ),
@@ -186,7 +186,7 @@ EMAIL_COUPLINGS: tuple[Constant, ...] = (
             Mention(
                 EMAIL_COMPOSE,
                 "${CORTEX_EMAIL_SEND_ENABLED:-{value}}",
-                spelling=Spelling.LOWERED,
+                form=Form.LOWERED,
             ),
         ),
     ),

@@ -8,7 +8,7 @@ from searchtexts import bounded
 
 
 @pytest.mark.parametrize(
-    ("needle", "line", "expected"),
+    ("search_text", "line", "expected"),
     [
         ('"127.0.0.1:50051:50051"', '- "0.0.0.0:50051:50051"', ('"', ':50051:50051"', 3)),
         ('"127.0.0.1:50051:50051"', '- "127.0.0.1:6379:6379"', ('"127.0.0.1:', '"', 13)),
@@ -30,12 +30,12 @@ from searchtexts import bounded
     ],
 )
 def test_a_line_is_credited_with_its_opening_and_then_its_closing_run(
-    needle: str, line: str, expected: tuple[str, str, int]
+    search_text: str, line: str, expected: tuple[str, str, int]
 ) -> None:
-    assert linereadings.split(needle, line) == expected
+    assert linereadings.split(search_text, line) == expected
 
 
-def test_the_two_runs_never_cover_more_than_the_needle() -> None:
+def test_the_two_runs_never_cover_more_than_the_search_text() -> None:
     opening, closing, _ = linereadings.split("abcabc", "abcab abc")
     assert (opening, closing) == ("abcab", "c")
     assert len(opening) + len(closing) <= len("abcabc")
@@ -45,11 +45,11 @@ def test_a_tie_between_two_splits_keeps_the_longer_opening() -> None:
     assert linereadings.split("ab", "b a") == ("a", "", 3)
 
 
-def _runs(needle: str, text: str) -> list[linereadings.LineRun] | None:
-    return linereadings.line_runs(needle, text, bounded(needle))
+def _runs(search_text: str, text: str) -> list[linereadings.LineRun] | None:
+    return linereadings.line_runs(search_text, text, bounded(search_text))
 
 
-def test_the_best_line_is_the_one_carrying_most_of_the_needle() -> None:
+def test_the_best_line_is_the_one_carrying_most_of_the_search_text() -> None:
     text = '- "0.0.0.0:50051:50051"\n\n- "127.0.0.1:6379:6379"\n'
     (run,) = _runs('"127.0.0.1:50051:50051"', text) or []
     assert (run.number, run.length, run.column) == (1, 14, 3)
@@ -67,7 +67,7 @@ def test_lines_tied_for_the_most_are_all_returned_in_file_order() -> None:
     assert {run.length for run in runs} == {5}
 
 
-def test_a_needle_absent_from_every_line_names_none() -> None:
+def test_a_search_text_absent_from_every_line_names_none() -> None:
     assert _runs("abcdef", "one\ntwo\n") == []
 
 
@@ -82,7 +82,7 @@ def test_a_line_is_named_only_when_it_carries_at_least_half(text: str, *, named:
     assert bool(_runs("abcdef", text)) is named
 
 
-def test_a_needle_holding_a_newline_has_no_line_to_be_read_on() -> None:
+def test_a_search_text_holding_a_newline_has_no_line_to_be_read_on() -> None:
     assert _runs("ab\ncd", "ab\ncX\n") is None
 
 
@@ -97,9 +97,9 @@ def test_a_line_whose_only_occurrence_was_found_carries_nothing_of_it() -> None:
 
 
 def test_a_single_best_line_is_named_with_its_share_and_its_words() -> None:
-    needle = '"127.0.0.1:50051:50051"'
-    runs = _runs(needle, '      - "0.0.0.0:50051:50051"\n') or []
-    assert linereadings.said(runs, needle, None) == (
+    search_text = '"127.0.0.1:50051:50051"'
+    runs = _runs(search_text, '      - "0.0.0.0:50051:50051"\n') or []
+    assert linereadings.said(runs, search_text, None) == (
         "with the most of it on line 1, 14 of its 23 characters (its opening '\"' and its "
         "closing ':50051:50051\"'), where it reads '- \"0.0.0.0:50051:50051\"'"
     )
@@ -146,7 +146,7 @@ def test_a_count_names_the_lines_it_found(text: str, expected: str) -> None:
     assert linereadings.counted(text, matches) == expected
 
 
-def test_a_short_count_over_a_needle_holding_a_newline_says_nothing_more() -> None:
+def test_a_short_count_over_a_search_text_holding_a_newline_says_nothing_more() -> None:
     assert linereadings.short("ab\ncd", "ab\ncd\nab\ncX\n", bounded("ab\ncd")) == ""
 
 

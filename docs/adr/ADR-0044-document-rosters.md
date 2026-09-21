@@ -47,7 +47,7 @@ Whether that covered a list of names as well as a count was open.
    is, and that name belongs to the other half. Borrowing widens what a passage may name, never
    what it may leave out, so a module that gains a CLI and stays in the second sentence is still
    reported by the first. Which direction a borrowed name's sentence points stays unread.
-5. **Three written forms.** `Bulleted` reads a list; `Spelled` reads code spans matching a pattern
+5. **Three written forms.** `Bulleted` reads a list; `CodeSpans` reads code spans matching a pattern
    (a module is a bare `name.py`, a part a `*_COUPLINGS` tuple name); `Bare` reads every whole word
    in the passage matching the pattern, with a guard that a match touching a word character is
    inside a longer word (a slash beside it is fine). `Bare` exists for the repo map, whose fenced

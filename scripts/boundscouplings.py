@@ -2,7 +2,7 @@
 its stream may say nothing, and how long a spawn waits for room.
 """
 
-from couplings import Constant, Mention, Site, Spelling
+from couplings import Constant, Form, Mention, Site
 
 SUBAGENTS_CONFIG = "brain/packages/orchestrator/src/cortex_orchestrator/config_subagents.py"
 SUBAGENTS_CORE = "brain/packages/core/src/cortex_core/subagents.py"
@@ -32,18 +32,18 @@ BOUNDS_COUPLINGS: tuple[Constant, ...] = (
             Mention(
                 SUBAGENTS_RUNBOOK,
                 "`CORTEX_SUBAGENTS_RUN_TIMEOUT_S` (default {value} s)",
-                spelling=Spelling.WHOLE,
+                form=Form.WHOLE,
             ),
             Mention(
                 TOOLS_RUNBOOK,
                 "`CORTEX_SUBAGENTS_RUN_TIMEOUT_S` (default {value} s)",
-                spelling=Spelling.WHOLE,
+                form=Form.WHOLE,
             ),
             Mention(ORCHESTRATOR_DOC, "`run_timeout_s: float = {value}`"),
             Mention(
                 RETRY_GAP,
                 "`DEFAULT_SUBAGENT_RUN_TIMEOUT_S` ({value} s)",
-                spelling=Spelling.WHOLE,
+                form=Form.WHOLE,
             ),
         ),
     ),
@@ -83,14 +83,14 @@ BOUNDS_COUPLINGS: tuple[Constant, ...] = (
             Mention(
                 SUBAGENTS_RUNBOOK,
                 "`CORTEX_SUBAGENTS_STALL_TIMEOUT_S` (default {value} s)",
-                spelling=Spelling.WHOLE,
+                form=Form.WHOLE,
             ),
             Mention(
                 INFERENCE_DOC,
                 "`CORTEX_SUBAGENTS_STALL_TIMEOUT_S` {value} s for the CPU pool",
-                spelling=Spelling.WHOLE,
+                form=Form.WHOLE,
             ),
-            Mention(SUBAGENTS_CORE, "the pool's {value} s", spelling=Spelling.WHOLE),
+            Mention(SUBAGENTS_CORE, "the pool's {value} s", form=Form.WHOLE),
             Mention(ORCHESTRATOR_DOC, "`stall_timeout_s: float = {value}`"),
         ),
     ),
@@ -112,12 +112,12 @@ BOUNDS_COUPLINGS: tuple[Constant, ...] = (
             Mention(
                 SUBAGENTS_RUNBOOK,
                 "`CORTEX_SUBAGENTS_ADMISSION_WAIT_S` (default {value} s)",
-                spelling=Spelling.WHOLE,
+                form=Form.WHOLE,
             ),
-            Mention(SUBAGENTS_CORE, "its {value} s admission wait", spelling=Spelling.WHOLE),
+            Mention(SUBAGENTS_CORE, "its {value} s admission wait", form=Form.WHOLE),
             Mention(ORCHESTRATOR_DOC, "`admission_wait_s: float = {value}`"),
             Mention(CORE_DOC, "`DEFAULT_ADMISSION_WAIT_S` is {value},"),
-            Mention(RETRY_GAP, "`DEFAULT_ADMISSION_WAIT_S` ({value} s)", spelling=Spelling.WHOLE),
+            Mention(RETRY_GAP, "`DEFAULT_ADMISSION_WAIT_S` ({value} s)", form=Form.WHOLE),
         ),
     ),
 )

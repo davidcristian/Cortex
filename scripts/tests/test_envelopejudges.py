@@ -65,7 +65,7 @@ def test_a_body_stating_no_period_is_judged_by_nothing() -> None:
     assert envelopejudges.names_the_period("week 34", "a report about nothing", TABLED) is None
 
 
-def test_a_judge_is_declared_for_each_shape_this_arc_sweeps() -> None:
+def test_a_judge_is_declared_for_each_shape_this_arc_covers() -> None:
     for instruction in (SUMMARIZE, FIGURES, EXTRACT, LOOKUP):
         declared = envelopejudges.declared(instruction)
         assert declared is not None, instruction

@@ -2,7 +2,7 @@ import re
 
 import pytest
 
-from rosternames import BULLET, CODE_SPAN, Bare, Bulleted, PassageError, Spelled, names, passage
+from rosternames import BULLET, CODE_SPAN, Bare, Bulleted, CodeSpans, PassageError, names, passage
 
 PAGE = """\
 # scripts/ (`repo-checks`)
@@ -79,9 +79,9 @@ def test_a_bullet_that_opens_without_a_name_is_a_fault_and_not_a_skip() -> None:
         names(unnamed, Bulleted())
 
 
-def test_a_spelled_roster_takes_every_code_span_matching_its_pattern() -> None:
+def test_a_written_roster_takes_every_code_span_matching_its_pattern() -> None:
     written = passage(PAGE, "**Public contract**", "- `linecap.py [--root DIR]`")
-    assert names(written, Spelled(pattern=MODULE)) == [
+    assert names(written, CodeSpans(pattern=MODULE)) == [
         "linecap.py",
         "dashcheck.py",
         "couplings.py",
@@ -89,13 +89,13 @@ def test_a_spelled_roster_takes_every_code_span_matching_its_pattern() -> None:
     ]
 
 
-def test_a_spelled_roster_refuses_a_span_that_only_contains_a_name() -> None:
+def test_a_written_roster_refuses_a_span_that_only_contains_a_name() -> None:
     written = "`scripts/linecap.py` and `linecap.py [--root DIR]` and `linecap.py`"
-    assert names(written, Spelled(pattern=MODULE)) == ["linecap.py"]
+    assert names(written, CodeSpans(pattern=MODULE)) == ["linecap.py"]
 
 
-def test_a_spelled_roster_reads_a_name_written_twice_twice() -> None:
-    assert names("`a.py` then `a.py`", Spelled(pattern=MODULE)) == ["a.py", "a.py"]
+def test_a_written_roster_reads_a_name_written_twice_twice() -> None:
+    assert names("`a.py` then `a.py`", CodeSpans(pattern=MODULE)) == ["a.py", "a.py"]
 
 
 def test_a_bare_roster_takes_every_whole_word_matching_its_pattern() -> None:

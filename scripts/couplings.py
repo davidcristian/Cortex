@@ -16,7 +16,7 @@ class Relation(Enum):
     MEMBER = "members of the collection the last site declares"
 
 
-class Spelling(Enum):
+class Form(Enum):
     """How a mention writes the agreed value down, where the far side's syntax differs."""
 
     WRITTEN = "as the declaring site writes it"
@@ -26,7 +26,7 @@ class Spelling(Enum):
     @property
     def lossy(self) -> bool:
         """Whether two different declared values can render as the same text."""
-        return self is Spelling.WHOLE
+        return self is Form.WHOLE
 
 
 class Site(NamedTuple):
@@ -43,7 +43,7 @@ class Mention(NamedTuple):
     template: str
     occurrences: int | None = None
     name: str | None = None
-    spelling: Spelling = Spelling.WRITTEN
+    form: Form = Form.WRITTEN
 
 
 class Constant(NamedTuple):

@@ -233,7 +233,7 @@ SPREAD_FAULT = (
 )
 
 
-def test_a_union_spelled_as_a_spread_of_the_bound_name_is_refused_at_the_call() -> None:
+def test_a_union_written_as_a_spread_of_the_bound_name_is_refused_at_the_call() -> None:
     text = 'def f(r):\n    extra = {"a": r}\n    _logger.info("m", extra={**extra, "b": r})\n'
     assert refused(text) == f"m.py:3: {SPREAD_FAULT}"
 

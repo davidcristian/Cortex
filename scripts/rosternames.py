@@ -15,7 +15,7 @@ class Bulleted(NamedTuple):
     """One bullet per member, its name the bullet's first code span."""
 
 
-class Spelled(NamedTuple):
+class CodeSpans(NamedTuple):
     """Every code span in the passage matching ``pattern`` is a name the roster writes down."""
 
     pattern: re.Pattern[str]
@@ -27,7 +27,7 @@ class Bare(NamedTuple):
     pattern: re.Pattern[str]
 
 
-Written = Bulleted | Spelled | Bare
+Written = Bulleted | CodeSpans | Bare
 
 
 def _once(text: str, phrase: str, which: str) -> int:
@@ -86,7 +86,7 @@ def _bare(text: str, pattern: re.Pattern[str]) -> list[str]:
 
 def names(text: str, written: Written) -> list[str]:
     """Return every name the roster in ``text`` writes down, in the order it writes them."""
-    if isinstance(written, Spelled):
+    if isinstance(written, CodeSpans):
         spans = [span.group(1) for span in CODE_SPAN.finditer(text)]
         return [span for span in spans if written.pattern.fullmatch(span)]
     if isinstance(written, Bare):

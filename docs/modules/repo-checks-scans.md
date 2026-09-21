@@ -90,7 +90,7 @@ own module docstring says which values it covers.
 - **Compared after reduction, with no master.** Sites are compared with each other, never against a
   declared source, so editing one side alone fails. `6291456` and `6 * 1024 * 1024` are equal, `5`
   and `5.0` are not, because a decimal reduces to its digits rather than to a number, and a boolean
-  reduces to its word. `Spelling.WHOLE` and `Spelling.LOWERED` rewrite one value for a far side
+  reduces to its word. `Form.WHOLE` and `Form.LOWERED` rewrite one value for a far side
   whose syntax cannot take it as written, computed rather than typed into the registry.
 - **`Relation`** is `EQUAL` by default. `ORDERED` requires the entry's sites to be non-decreasing
   in registry order, over integers only. `MEMBER` requires every site but the last to declare a
@@ -129,7 +129,7 @@ The rule is not that every default is written identically. The tree has one deli
 `${CORTEX_SUBAGENTS_MEM_BUDGET_GB:-8.0}` in an environment block against
 `${CORTEX_SUBAGENTS_MEM_BUDGET_GB:-8}g` in two container limits, because docker parses `8.0g` as a
 size and refuses it. Defaults are therefore compared as values through the same
-`values.whole_spelling` that `crosscheck.py` uses, so `8.0` equals `8` and `8.5` does not. The
+`values.whole_form` that `crosscheck.py` uses, so `8.0` equals `8` and `8.5` does not. The
 operator is part of the comparison: `${V:-x}` and `${V-x}` disagree about a variable set to empty,
 and a variable written once is never compared. Exit 1 prints one line per refused file, then
 `NAME: detail` per disagreeing variable listing every place it appears.

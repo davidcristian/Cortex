@@ -322,7 +322,7 @@ def test_a_fenced_line_past_the_wrap_is_exempt() -> None:
 
 
 @pytest.mark.parametrize("fence", ["```", "~~~", "```bash", "    ```"])
-def test_every_fence_spelling_opens_and_closes_a_block(fence: str) -> None:
+def test_every_fence_form_opens_and_closes_a_block(fence: str) -> None:
     assert commitlint.check_widths(["feat: subject", fence, _COMMAND, fence]) == []
 
 

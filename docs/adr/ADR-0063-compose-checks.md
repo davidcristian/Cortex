@@ -69,7 +69,7 @@ each reads compose with a line reader that raises on any form it was not taught.
 ### One default per variable (`defaultcheck.py`)
 
 5. **A variable written several times in compose has one default, compared as a value.** Identical
-   text agrees; anything else must reduce and render identically through `values.whole_spelling`,
+   text agrees; anything else must reduce and render identically through `values.whole_form`,
    the function the constant registry renders with, so `8.0` matches `8` (docker parses `8.0g` as a
    size and refuses it, so the memory budget is written both ways deliberately) and `8.5` does not.
    The operators must match first (`${V:-x}` and `${V-x}` disagree about an empty variable, and `:?`

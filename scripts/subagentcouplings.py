@@ -2,7 +2,7 @@
 container is given, and the count that turns its thinking off.
 """
 
-from couplings import Constant, Mention, Site, Spelling
+from couplings import Constant, Form, Mention, Site
 
 SUBAGENTS_COMPOSE = "docker/docker-compose.subagents.yml"
 ROSTER_COMPOSE = "docker/docker-compose.subagents-roster.yml"
@@ -29,15 +29,15 @@ SUBAGENT_COUPLINGS: tuple[Constant, ...] = (
                 SUBAGENTS_COMPOSE,
                 '"${CORTEX_SUBAGENTS_MEM_BUDGET_GB:-{value}}g"',
                 occurrences=2,
-                spelling=Spelling.WHOLE,
+                form=Form.WHOLE,
             ),
             Mention(SUBAGENTS_COMPOSE, "MEM_BUDGET_GB {value})"),
-            Mention(SUBAGENTS_COMPOSE, "under the {value} GB budget", spelling=Spelling.WHOLE),
+            Mention(SUBAGENTS_COMPOSE, "under the {value} GB budget", form=Form.WHOLE),
             Mention(
                 ROSTER_COMPOSE,
                 '"${CORTEX_SUBAGENTS_MEM_BUDGET_GB:-{value}}g"',
                 occurrences=2,
-                spelling=Spelling.WHOLE,
+                form=Form.WHOLE,
             ),
         ),
     ),

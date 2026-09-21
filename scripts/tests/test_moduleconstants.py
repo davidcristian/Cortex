@@ -54,7 +54,7 @@ def test_a_name_bound_above_resolves_to_what_it_was_bound_to() -> None:
     assert text(_expression("FLAG"), {"FLAG": "--jinja"}) == "--jinja"
 
 
-def test_a_name_nothing_bound_is_unreadable_rather_than_its_own_spelling() -> None:
+def test_a_name_nothing_bound_is_unreadable_rather_than_its_own_form() -> None:
     assert text(_expression("FLAG"), {}) is None
 
 

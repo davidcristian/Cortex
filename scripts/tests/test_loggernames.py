@@ -89,7 +89,7 @@ def test_a_module_that_binds_its_logger_name_and_writes_it_again_is_a_fault(
         loggernames.loggers(tmp_path)
 
 
-def test_every_binding_of_a_twice_spelled_logger_name_is_named(tmp_path: Path) -> None:
+def test_every_binding_of_a_twice_written_logger_name_is_named(tmp_path: Path) -> None:
     brain(
         tmp_path,
         {

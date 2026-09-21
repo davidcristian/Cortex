@@ -36,9 +36,9 @@ the same file.
 - 2026-08-19: Fixed as one registry entry over four uses. `DEFAULT_MEM_BUDGET_GB = 8.0` is now a
   module constant in `config_subagents.py` that `mem_budget_gb` refers to, because a reducer taught
   to read `Field(...)` would be a language-independent module that knows pydantic, and three fields
-  in that class already refer to module constants. `Mention.spelling` chooses `Spelling.WRITTEN` or
-  `Spelling.WHOLE`, the whole form is computed from the declared value rather than typed beside it,
-  and a non-zero fraction is refused instead of truncated. `values.spelling_fault` refuses any
+  in that class already refer to module constants. `Mention.form` chooses `Form.WRITTEN` or
+  `Form.WHOLE`, the whole form is computed from the declared value rather than typed beside it,
+  and a non-zero fraction is refused instead of truncated. `values.form_fault` refuses any
   entry whose mentions all use the second form, since `8` and `8.0` are one whole number. Proved
   able to fail seven times on the real tree and reverted each time. The reasoning is ADR-0012
   decision 14; the value forms are in

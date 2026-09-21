@@ -47,7 +47,7 @@ def test_a_file_with_no_from_at_all_is_refused() -> None:
         read_base("VOLUME /a\n")
 
 
-def test_an_image_spelled_through_a_substitution_is_refused() -> None:
+def test_an_image_written_through_a_substitution_is_refused() -> None:
     with pytest.raises(DockerfileError, match="contains an expansion"):
         read_base("ARG BASE\nFROM ${BASE}\n")
 

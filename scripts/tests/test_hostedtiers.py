@@ -203,7 +203,7 @@ def test_an_argv_builder_this_reader_cannot_read_one_argv_out_of_is_refused(
 @pytest.mark.parametrize(
     "returned",
     [
-        pytest.param("(binary, _JINJA)", id="no-tail-rides-the-command-at-all"),
+        pytest.param("(binary, _JINJA)", id="no-tail-is-on-the-command-at-all"),
         pytest.param("(binary, *tier.extra, *tier.extra)", id="the-tail-is-written-twice"),
         pytest.param("(binary, *tier.extra, *other)", id="something-else-is-splatted-beside-it"),
     ],

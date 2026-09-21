@@ -86,7 +86,7 @@ that lists what it measures is blind to a new module nobody added to the list.
    function its `env=` keyword calls. A form it was not taught is treated as a tree descent, so it
    fails and somebody reads the report. The requirements are: the modules that descend a tree are
    `{treewalk.py}`; every git call is handed `git_env`; and the modules that write a fence marker in
-   code, docstrings excepted, are `{markdownfences.py}` (`markdownfences.spelled`). A reader that
+   code, docstrings excepted, are `{markdownfences.py}` (`markdownfences.marker_lines`). A reader that
    finds nothing fails an equality as surely as a second copy does.
 
 8. **How far each test reads is decided.** The git test reads `scripts/*.py` and

@@ -3,7 +3,7 @@
 import re
 from typing import NamedTuple
 
-from couplings import PLACEHOLDER, Constant, Spelling
+from couplings import PLACEHOLDER, Constant, Form
 
 COMMENT_MARKER = "#"
 
@@ -136,7 +136,7 @@ def parse_value(text: str) -> Value:
     return _integer_value(stripped)
 
 
-def whole_spelling(value: Value) -> str:
+def whole_form(value: Value) -> str:
     """A number with no fractional part, for a far side whose syntax has none."""
     if isinstance(value, int):
         return str(value)
@@ -153,7 +153,7 @@ def whole_spelling(value: Value) -> str:
     return whole
 
 
-def _lowered_spelling(value: Value) -> str:
+def _lowered_form(value: Value) -> str:
     """A boolean in the lower case the other language writes the same answer in."""
     if not isinstance(value, Truth):
         msg = f"a lowered form needs a boolean, and this constant declares {value!r}"
@@ -161,22 +161,21 @@ def _lowered_spelling(value: Value) -> str:
     return value.written.lower()
 
 
-def spell(value: Value, spelling: Spelling) -> str:
+def in_form(value: Value, form: Form) -> str:
     """The text a mention writes ``value`` as, in the form that mention asks for."""
-    if spelling is Spelling.WHOLE:
-        return whole_spelling(value)
-    if spelling is Spelling.LOWERED:
-        return _lowered_spelling(value)
+    if form is Form.WHOLE:
+        return whole_form(value)
+    if form is Form.LOWERED:
+        return _lowered_form(value)
     return str(value)
 
 
-def spelling_fault(constant: Constant) -> str | None:
+def form_fault(constant: Constant) -> str | None:
     """What is wrong when a value is rewritten in a lossy form with no exact one beside it."""
-    if not any(mention.spelling.lossy for mention in constant.mentions):
+    if not any(mention.form.lossy for mention in constant.mentions):
         return None
     faithful = (
-        not mention.spelling.lossy and PLACEHOLDER in mention.template
-        for mention in constant.mentions
+        not mention.form.lossy and PLACEHOLDER in mention.template for mention in constant.mentions
     )
     if len(constant.sites) > 1 or any(faithful):
         return None

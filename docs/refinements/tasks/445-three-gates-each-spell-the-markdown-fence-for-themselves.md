@@ -50,7 +50,7 @@ three copies was already being paid by a reader that declined to answer the ques
   module for its subject rather than its format. The reading is unchanged, so no check moved: the
   log-sample check reads the same 14 samples in 12 runbooks, and the backlog check resolves every
   fragment over the same 642 tasks. The second half is what keeps the first from being copied
-  again: `spelled(module)` returns every line where a fence marker is written into a module's code,
+  again: `marker_lines(module)` returns every line where a fence marker is written into a module's code,
   read out of the syntax the way `scriptcalls.py` reads a call, with a marker inside a docstring
   passed over as prose about a fence. The obligation beside it compares the set of modules that
   contain one with `{markdownfences.py}` as an equality, so a fourth copy fails and so does a

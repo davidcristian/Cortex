@@ -39,7 +39,7 @@ private, and a registry entry naming it reaches past that underscore.
   reason a decimal reduces to its digits and for one Python adds: `bool` is `int` here, so a bare
   `False` would match a declaration of zero and would sort under an ordering. A declaration may use
   Python's two words only, a second casing at a declaring site being two texts for one answer, and
-  the far side that writes another is reached by the third form, `Spelling.LOWERED`. A signed
+  the far side that writes another is reached by the third form, `Form.LOWERED`. A signed
   integer is not a new form but a widening of the integer one: the sign is the expression's and
   never a factor's, a leading `+` stays refused, and the value has an ordering and needs no second
   form. This entry's account of the blocker was half of it: the three fields are indented, so the
@@ -50,7 +50,7 @@ private, and a registry entry naming it reaches past that underscore.
   scan reads `_UNRESTRICTED_REASONING` as text and the rule is written on `Site` itself, the
   alternative being an API widened to suit its reader. One rule was corrected on the way: a second
   written form owes a faithful reading beside it only when it loses information, which a case fold
-  does not, so `Spelling.lossy` is now the question `values.spelling_fault` turns on. Three
+  does not, so `Form.lossy` is now the question `values.form_fault` turns on. Three
   entries, sixteen planted differences, all exiting 1 and all restored byte for byte; the registry
   gained a sixth part, `scripts/emailcouplings.py`, the first added as a subject rather than as a
   split, and `values.py` split at the cap into itself and `scripts/readings.py`. Recorded in

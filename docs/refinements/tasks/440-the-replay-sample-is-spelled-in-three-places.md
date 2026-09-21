@@ -41,7 +41,7 @@ the ADR its argument and is probably the wrong trade.
   suffix and knows three, `.py`, `.rs` and `.ts`, so the `justfile`'s `count="5" window="25"`,
   which is the executable copy, cannot be a registered declaration at all until the scan learns a
   fourth syntax for a file that has no suffix. The word form this file names is the second obstacle
-  rather than the only one, and closing it needs `Spelling` to grow a form rendering 25 as twenty
+  rather than the only one, and closing it needs `Form` to grow a form rendering 25 as twenty
   five, a form being derived from the declared value rather than typed into the registry. Both are
   edits to the scan rather than registry entries. One sentence did move:
   `just replay` now reads the ledger's last date and compares the count against the same twenty

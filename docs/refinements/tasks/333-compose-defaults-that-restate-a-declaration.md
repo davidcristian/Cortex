@@ -16,7 +16,7 @@ into the two groups, so the count of unregistered restatements was unknown rathe
 
 Closing it means reading every substitution under `docker/`, deciding for each whether some tree
 declares the same value, and registering the ones that do. The mechanism needs nothing new: a
-module constant where a `Field(...)` call hides the number, `Spelling.WHOLE` where docker's own
+module constant where a `Field(...)` call hides the number, `Form.WHOLE` where docker's own
 syntax cannot take it as written, an occurrence count where several uses are one set.
 
 Two rules are worth settling in the same pass, since the survey applies them dozens of times. Which

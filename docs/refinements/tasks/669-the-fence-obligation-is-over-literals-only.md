@@ -7,9 +7,9 @@
 **Trigger:** a module under `scripts/` decides whether a line is a fence by testing it against
 `markdownfences.MARKERS`, or against anything read off that tuple, rather than by asking `Fences`.
 One search over the modules importing any name from `markdownfences` other than `Fences` and
-`spelled` answers it, since `CHARACTERS` and `LEAST` are both read off the tuple.
+`marker_lines` answers it, since `CHARACTERS` and `LEAST` are both read off the tuple.
 
-`markdownfences.spelled` walks a module's syntax and returns every line where a string literal
+`markdownfences.marker_lines` walks a module's syntax and returns every line where a string literal
 contains a marker. That reports a second copy of the literal, which is what it was written for: the
 three checks each had the same pattern before the shared reader existed. It reports nothing about a
 module that imports `MARKERS` or `CHARACTERS` and builds a second reading out of them, because such
@@ -27,7 +27,7 @@ reading built on the shared names, which is the same question
 and answering it for the modules first would leave the two halves of one rule written differently.
 
 **What would close it.** Report a module that imports a name from `markdownfences` other than
-`Fences` and `spelled`, which is a rule over imports rather than over positions and so avoids the
+`Fences` and `marker_lines`, which is a rule over imports rather than over positions and so avoids the
 enumeration that sank the shape rule. `MARKERS` would then be private to the module that answers for
 it, and a check needing the characters would have to ask for an answer rather than for the alphabet.
 The alternative is to say at the origin that the rule is over the literal on purpose, with the

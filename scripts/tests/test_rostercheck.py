@@ -8,7 +8,7 @@ import rostermembers
 import rosternames
 import rosters
 from rostercheck import Fault, RosterCheckError, check, check_one, main
-from rosternames import Bare, Bulleted, Spelled
+from rosternames import Bare, Bulleted, CodeSpans
 from rosters import Roster
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -150,7 +150,7 @@ LIBRARIES = Roster(
     document=CONTRACT,
     opens="**The rest have no CLI of their own**",
     closes="implements AGENTS.md gate 1",
-    written=Spelled(pattern=re.compile(r"[a-z_]+\.py")),
+    written=CodeSpans(pattern=re.compile(r"[a-z_]+\.py")),
     subject="a module in scripts/ with no command line",
     why="a module in the wrong half is described as something it is not",
     members=rostermembers.library_gate_modules,
@@ -321,7 +321,7 @@ def test_the_repos_own_rosters_are_over_something() -> None:
 
 def test_the_repo_really_writes_a_roster_in_every_shape() -> None:
     shapes = {type(roster.written) for roster in rosters.ROSTERS}
-    assert shapes == {Bulleted, Spelled, Bare}
+    assert shapes == {Bulleted, CodeSpans, Bare}
 
 
 def test_the_repo_really_spends_the_allowance_for_a_borrowed_name() -> None:
@@ -351,7 +351,7 @@ def test_no_registered_boundary_phrase_names_a_member() -> None:
 
 def test_every_registered_pattern_refuses_something_the_passage_carries() -> None:
     for roster in rosters.ROSTERS:
-        if not isinstance(roster.written, Spelled):
+        if not isinstance(roster.written, CodeSpans):
             continue
         text = (REPO_ROOT / roster.document).read_text(encoding="utf-8")
         spans = {found.group(1) for found in re.finditer(r"`([^`]+)`", text)}

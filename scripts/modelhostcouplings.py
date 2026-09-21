@@ -1,6 +1,6 @@
 """The couplings around the model host: which tiers it runs, and how long it waits to stop one."""
 
-from couplings import Constant, Mention, Site, Spelling
+from couplings import Constant, Form, Mention, Site
 
 BODY_COMPOSE = "docker/docker-compose.body.yml"
 GPU_COMPOSE = "docker/docker-compose.gpu.yml"
@@ -184,11 +184,9 @@ MODELHOST_COUPLINGS: tuple[Constant, ...] = (
             Mention(
                 SWAP_RUNBOOK,
                 "`CORTEX_MODELHOST_STOP_GRACE_S` ({value} s)",
-                spelling=Spelling.WHOLE,
+                form=Form.WHOLE,
             ),
-            Mention(
-                MODEL_MANAGER_DOC, "`DEFAULT_STOP_GRACE_S` ({value} s)", spelling=Spelling.WHOLE
-            ),
+            Mention(MODEL_MANAGER_DOC, "`DEFAULT_STOP_GRACE_S` ({value} s)", form=Form.WHOLE),
         ),
     ),
     Constant(
@@ -205,11 +203,9 @@ MODELHOST_COUPLINGS: tuple[Constant, ...] = (
             Mention(
                 SWAP_RUNBOOK,
                 "`CORTEX_MODELHOST_REAP_TIMEOUT_S` ({value} s)",
-                spelling=Spelling.WHOLE,
+                form=Form.WHOLE,
             ),
-            Mention(
-                MODEL_MANAGER_DOC, "`DEFAULT_REAP_TIMEOUT_S` ({value} s)", spelling=Spelling.WHOLE
-            ),
+            Mention(MODEL_MANAGER_DOC, "`DEFAULT_REAP_TIMEOUT_S` ({value} s)", form=Form.WHOLE),
         ),
     ),
     Constant(
@@ -226,11 +222,9 @@ MODELHOST_COUPLINGS: tuple[Constant, ...] = (
             Mention(
                 SWAP_RUNBOOK,
                 "`CORTEX_MODELHOST_PROBE_TIMEOUT_S` ({value} s)",
-                spelling=Spelling.WHOLE,
+                form=Form.WHOLE,
             ),
-            Mention(
-                MODEL_MANAGER_DOC, "`DEFAULT_PROBE_TIMEOUT_S` ({value} s)", spelling=Spelling.WHOLE
-            ),
+            Mention(MODEL_MANAGER_DOC, "`DEFAULT_PROBE_TIMEOUT_S` ({value} s)", form=Form.WHOLE),
         ),
     ),
 )

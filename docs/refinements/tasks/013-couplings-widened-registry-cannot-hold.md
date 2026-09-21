@@ -19,7 +19,7 @@ remain.
 refused capture is reported as a fault. Neither side declares a value the other could read:
 tonic's form is a method name and grpc-python's is an enum member. What holds the pair today is
 prose in both module docs plus a test table on each side, which is what the registry exists to
-replace. A case-folding mention form (`Spelling.LOWERED`) arrived on 2026-09-15 for another
+replace. A case-folding mention form (`Form.LOWERED`) arrived on 2026-09-15 for another
 reason, and it does not help here: a case fold applies to a value a place declares, and neither
 side declares one.
 

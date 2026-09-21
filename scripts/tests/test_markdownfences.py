@@ -4,10 +4,10 @@ from pathlib import Path
 import pytest
 
 import moduleconstants
-from markdownfences import MARKERS, Fences, spelled
+from markdownfences import MARKERS, Fences, marker_lines
 
 GATES = Path(__file__).resolve().parents[1]
-SPELLING = "markdownfences.py"
+MARKER_MODULE = "markdownfences.py"
 
 
 def _opens(line: str) -> bool:
@@ -87,19 +87,19 @@ def test_outside_a_block_nothing_closes_one() -> None:
     assert not Fences().closes("```")
 
 
-def _spelled(source: str) -> list[int]:
+def _marker_lines(source: str) -> list[int]:
     """Return every line of ``source`` where a fence marker is written into the code."""
-    return spelled(ast.parse(source))
+    return marker_lines(ast.parse(source))
 
 
 def test_a_marker_written_into_code_is_reported_by_its_line() -> None:
     source = (
         'x = 1\nFENCE = re.compile(r"^\\s*(?:```|~~~)")\nif line.startswith("~~~"):\n    pass\n'
     )
-    assert _spelled(source) == [2, 3]
+    assert _marker_lines(source) == [2, 3]
 
 
-def test_a_marker_inside_a_docstring_is_prose_and_not_a_spelling() -> None:
+def test_a_marker_inside_a_docstring_is_prose_and_not_a_form() -> None:
     source = (
         '"""A module saying ``` out loud."""\n'
         "\n"
@@ -114,25 +114,26 @@ def test_a_marker_inside_a_docstring_is_prose_and_not_a_spelling() -> None:
         "def other():\n"
         '    """Another docstring saying the same ```."""\n'
     )
-    assert _spelled(source) == []
+    assert _marker_lines(source) == []
 
 
 def test_a_literal_carrying_no_marker_is_not_reported() -> None:
-    assert _spelled('name = "backtick"\ncount = 3\nempty = ""\n') == []
+    assert _marker_lines('name = "backtick"\ncount = 3\nempty = ""\n') == []
 
 
 def test_a_bare_expression_that_is_not_a_string_leaves_the_literals_beside_it_held() -> None:
-    assert _spelled('do_something()\nopener = "```"\n') == [2]
+    assert _marker_lines('do_something()\nopener = "```"\n') == [2]
 
 
 def test_two_docstrings_with_the_same_text_are_both_passed_over() -> None:
     source = '"""Says ```."""\n\n\ndef f():\n    """Says ```."""\n'
-    assert _spelled(source) == []
+    assert _marker_lines(source) == []
 
 
-def test_no_module_here_spells_a_fence_of_its_own() -> None:
-    spellings = {
-        path.name: spelled(moduleconstants.parse(path, path.name)) for path in GATES.glob("*.py")
+def test_no_module_here_writes_a_fence_of_its_own() -> None:
+    marker_modules = {
+        path.name: marker_lines(moduleconstants.parse(path, path.name))
+        for path in GATES.glob("*.py")
     }
-    assert {name for name, lines in spellings.items() if lines} == {SPELLING}
-    assert len(set(spellings[SPELLING])) == 1
+    assert {name for name, lines in marker_modules.items() if lines} == {MARKER_MODULE}
+    assert len(set(marker_modules[MARKER_MODULE])) == 1

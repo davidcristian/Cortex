@@ -41,7 +41,7 @@ def _word(node: ast.expr) -> str | None:
     return None
 
 
-def _spelled_on(node: ast.Call, module: str) -> bool:
+def _called_on(node: ast.Call, module: str) -> bool:
     """Whether the call is written as an attribute of ``module``, as `ast.walk` is."""
     return (
         isinstance(node.func, ast.Attribute)
@@ -62,7 +62,7 @@ def descended(node: ast.Call) -> str | None:
     """The name of the call reading a directory tree, or None where it reads no tree."""
     name = _named(node)
     if name in DESCENDS:
-        return None if _spelled_on(node, SYNTAX) else name
+        return None if _called_on(node, SYNTAX) else name
     if name in PATTERNED:
         return None if _listing(node) else name
     return None

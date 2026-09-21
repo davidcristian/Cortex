@@ -37,19 +37,19 @@ def _guard(edge: str, guards: tuple[str, str]) -> str:
     return f"{word}{decimal}" if DIGIT.match(edge) else word
 
 
-def bounded(needle: str) -> re.Pattern[str]:
+def bounded(search_text: str) -> re.Pattern[str]:
     """The search text as a pattern no longer token contains: a word edge may not touch a word."""
-    lead = _guard(needle[:1], LEAD_GUARDS)
-    trail = _guard(needle[-1:], TRAIL_GUARDS)
-    return re.compile(f"{lead}{re.escape(needle)}{trail}")
+    lead = _guard(search_text[:1], LEAD_GUARDS)
+    trail = _guard(search_text[-1:], TRAIL_GUARDS)
+    return re.compile(f"{lead}{re.escape(search_text)}{trail}")
 
 
-def carried(needle: str, text: str) -> str:
-    """The longest opening run of ``needle`` that ``text`` contains, which may be all of it."""
+def longest_prefix(search_text: str, text: str) -> str:
+    """The longest opening run of ``search_text`` that ``text`` contains, which may be all of it."""
     length = 0
-    while length < len(needle) and needle[: length + 1] in text:
+    while length < len(search_text) and search_text[: length + 1] in text:
         length += 1
-    return needle[:length]
+    return search_text[:length]
 
 
 def anchors(text: str, run: str) -> list[int]:
@@ -79,7 +79,7 @@ def where(text: str, match: re.Match[str], places: int, *, anchored: bool) -> st
 
 
 def stops(text: str, run: str, ends: list[int], at: int | None) -> str:
-    """How much of ``needle`` ``text`` contains, and where the occurrence meant stops."""
+    """How much of ``search_text`` ``text`` contains, and where the occurrence meant stops."""
     if not run:
         return "with no part of it"
     held = f"with no more of it than {run!r}"
@@ -98,47 +98,51 @@ def verdict(text: str, match: re.Match[str], at: int | None, part: str) -> str:
 
 
 def _stopped(
-    text: str, needle: str, run: str, read: tuple[list[LineRun] | None, list[int]], at: int | None
+    text: str,
+    search_text: str,
+    run: str,
+    read: tuple[list[LineRun] | None, list[int]],
+    at: int | None,
 ) -> str:
-    """The run clause: per line where ``needle`` is one line long, over the whole file otherwise."""
+    """The run clause: per line for a one-line ``search_text``, over the whole file otherwise."""
     runs, ends = read
-    return stops(text, run, ends, at) if runs is None else said(runs, needle, at)
+    return stops(text, run, ends, at) if runs is None else said(runs, search_text, at)
 
 
 class Answered(NamedTuple):
     """The part of the search text its constant supplies, and what a fault calls that part."""
 
-    spelling: str
+    written: str
     word: str
 
 
-def answered(mention: Mention, spelled: str) -> Answered:
+def answered(mention: Mention, written: str) -> Answered:
     """Which half of the rendered search text this constant supplies: its value, or its name."""
     if PLACEHOLDER in mention.template or mention.name is None:
-        return Answered(spelled, VALUE)
+        return Answered(written, VALUE)
     return Answered(mention.name, NAME)
 
 
-def unfound(mention: Mention, needle: str, text: str, spelled: str) -> str:
-    """Why ``text`` does not contain ``needle``, said as how much of it the file still has."""
-    run = carried(needle, text)
-    stem = f"{mention.path} does not write {needle!r} as a token of its own"
-    if run == needle:
+def unfound(mention: Mention, search_text: str, text: str, written: str) -> str:
+    """Why ``text`` does not contain ``search_text``, said as how much of it the file still has."""
+    run = longest_prefix(search_text, text)
+    stem = f"{mention.path} does not write {search_text!r} as a token of its own"
+    if run == search_text:
         return f"{stem}, having it only inside a longer token"
-    runs = line_runs(needle, text, bounded(needle))
+    runs = line_runs(search_text, text, bounded(search_text))
     ends = anchors(text, run) if runs is None else [each.stop for each in runs]
-    held = answered(mention, spelled)
-    matches = list(bounded(held.spelling).finditer(text))
+    held = answered(mention, written)
+    matches = list(bounded(held.written).finditer(text))
     if not matches:
-        stopped = _stopped(text, needle, run, (runs, ends), None)
+        stopped = _stopped(text, search_text, run, (runs, ends), None)
         return (
-            f"{stem}, {stopped}; the file does not write {held.spelling!r} as a token of its own "
+            f"{stem}, {stopped}; the file does not write {held.written!r} as a token of its own "
             f"either"
         )
     match, at = nearest(ends, matches)
     return (
-        f"{stem}, {_stopped(text, needle, run, (runs, ends), at)}; the file does still write "
-        f"{held.spelling!r} as a "
+        f"{stem}, {_stopped(text, search_text, run, (runs, ends), at)}; the file does still write "
+        f"{held.written!r} as a "
         f"token of its own{where(text, match, len(matches), anchored=bool(ends))}, "
         f"{verdict(text, match, at, held.word)}"
     )
