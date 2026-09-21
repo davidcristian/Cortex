@@ -65,9 +65,9 @@ were split out of it to stay under the 300-line limit. Grouped by what reads the
   renderer, `backloganchors.py` for the anchors a document offers and the links aimed at them, and
   `headingshapes.py` for which headings a slug can be computed from. `linecap.py` reads
   `backlogindex.py` too, for the comment that shows a backlog index is generated.
-- `prosecheck.py` reads `bannedwords.py` for the word table in AGENTS.md, `commentblocks.py` for
-  comments and docstrings in Python, and `slashcomments.py` for comments in Rust, TypeScript, CSS
-  and protobuf.
+- `prosecheck.py` reads `bannedwords.py` for the word table in AGENTS.md and `prosereaders.py`
+  for the prose each file type holds. That reader uses `commentblocks.py` for comments and
+  docstrings in Python and `slashcomments.py` for comments in Rust, TypeScript, CSS and protobuf.
 - `switchtail.py` reads `switchsamples.py`, the file format one run of the thinking-switch probe
   writes. `envelopefloor.py` reads `envelopesamples.py`, the format one variant of the envelope
   measurement writes, and `envelopejudges.py`, the judge declared for each subtask.

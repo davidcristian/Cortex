@@ -8,6 +8,7 @@ import pytest
 
 import bannedwords
 import prosecheck
+import prosereaders
 from gitenv import git_env
 from prosecheck import Exemption, Problem
 
@@ -62,7 +63,7 @@ def repo(tmp_path: Path) -> Path:
 
 
 def _check(name: str, text: str) -> list[str]:
-    reader = prosecheck.reader_for(name)
+    reader = prosereaders.reader_for(name)
     assert reader is not None
     return [
         problem.message for problem in prosecheck.check_prose(Path(name), reader(text), PATTERN)
@@ -71,7 +72,7 @@ def _check(name: str, text: str) -> list[str]:
 
 def test_markdown_lines_leave_out_fenced_blocks() -> None:
     text = f"one\n{FENCE}sh\ngate\n{FENCE}\ntwo"
-    assert prosecheck.markdown_lines(text) == [(1, "one"), (5, "two")]
+    assert prosereaders.markdown_lines(text) == [(1, "one"), (5, "two")]
 
 
 @pytest.mark.parametrize(
@@ -105,7 +106,7 @@ def test_every_checked_file_type_is_searched(name: str, text: str) -> None:
 
 @pytest.mark.parametrize("name", ["logo.png", "data.json", "index.html", "LICENSE"])
 def test_other_file_types_are_not_checked(name: str) -> None:
-    assert prosecheck.reader_for(name) is None
+    assert prosereaders.reader_for(name) is None
 
 
 def test_string_literals_and_code_are_not_searched() -> None:
@@ -124,14 +125,14 @@ def test_three_lines_are_allowed() -> None:
 
 
 def test_problems_are_sorted_by_line() -> None:
-    prose = prosecheck.reader_for("a.py")
+    prose = prosereaders.reader_for("a.py")
     assert prose is not None
     problems = prosecheck.check_prose(Path("a.py"), prose("# gate\n" + LONG_DOCSTRING), PATTERN)
     assert [problem.line for problem in problems] == [1, 2]
 
 
 def test_exempt_lines_are_not_searched_for_words() -> None:
-    reader = prosecheck.reader_for("AGENTS.md")
+    reader = prosereaders.reader_for("AGENTS.md")
     assert reader is not None
     prose = reader("a gate\nthe gates\nin\nforce\n")
     problems = prosecheck.check_prose(Path("AGENTS.md"), prose, PATTERN, range(2, 4))
