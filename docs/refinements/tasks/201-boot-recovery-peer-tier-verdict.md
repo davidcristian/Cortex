@@ -12,7 +12,7 @@ the cortex was seen serving, so one peer that would not start made the whole con
 Fixed on 2026-08-09, recorded at [ADR-0054 decision 2](../../adr/ADR-0030-brain-handoff.md).
 `converge_residency` now answers about the cortex and nothing else: each `evict_models` peer is
 cleared and restarted best effort through the swap back's own `restart_evicted`, so a `status` or a
-`start` the host refuses is recorded in the manager's `StandingTiers` and skipped.
+`start` the host refuses is recorded in the manager's `BaselineTiers` and skipped.
 
 The stated blocker was real to the line: `residency.py` stood at 299 of 300 and both call sites
 reach the record through it. The split was taken by responsibility rather than by count:

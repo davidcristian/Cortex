@@ -10,7 +10,7 @@ def charge_handoff(placer: SubagentPlacer | None, plan: ResidencyPlan) -> None:
         placer.charge_handoff(resident_gb=plan.brain_vram_gb)
 
 
-def charge_standing(placer: SubagentPlacer | None) -> None:
+def charge_baseline(placer: SubagentPlacer | None) -> None:
     """Tell the placer the cortex holds the card again (idempotent, and a no-op with no placer)."""
     if placer is not None:
-        placer.charge_standing()
+        placer.charge_baseline()

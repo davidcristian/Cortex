@@ -896,7 +896,7 @@ async def test_security_preamble_precedes_a_tool_enabled_turn() -> None:
     assert PLAIN_SECURITY_PREAMBLE not in [m.text for m in messages]
 
 
-async def test_the_plain_standing_rule_precedes_a_turn_with_no_tools() -> None:
+async def test_the_plain_permanent_rule_precedes_a_turn_with_no_tools() -> None:
     backend = RecordingBackend(("ok",))
     engine = TurnEngine(
         InMemorySessionStore(),

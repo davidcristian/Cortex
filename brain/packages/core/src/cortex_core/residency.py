@@ -15,10 +15,10 @@ from cortex_core.residency_claim import HandoffClaim
 from cortex_core.residency_moves import is_unhosted, swap_in
 from cortex_core.residency_pace import HandoffPace
 from cortex_core.residency_probe import ResidencyProbeMixin
-from cortex_core.residency_regain import recheck_usual_residency
+from cortex_core.residency_regain import recheck_baseline_residency
 from cortex_core.residency_restore import restore_uninterruptibly, restore_with_retries
 from cortex_core.residency_state import RESIDENCY_DEEP, RESIDENCY_LOADING
-from cortex_core.residency_tiers import StandingTiers
+from cortex_core.residency_tiers import BaselineTiers
 from cortex_core.residency_watch import BootWatch
 
 
@@ -40,7 +40,7 @@ class SwappingModelManager(ResidencyProbeMixin):
         self._clock = clock
         self._sleeper = sleeper
         self._placer = placer
-        self._tiers = StandingTiers(placer)
+        self._tiers = BaselineTiers(placer)
         self._pace = HandoffPace(clock)
         self._boot = BootWatch(host, plan, self._tiers, clock=clock, sleeper=sleeper)
         # Two locks, not one: an acquire must never hold the lease while it waits for a scope
@@ -105,7 +105,7 @@ class SwappingModelManager(ResidencyProbeMixin):
     async def recheck_residency(self) -> None:
         """Read what the GPU is really doing and act on it, unless a handoff owns the card."""
         if self._fence():
-            await recheck_usual_residency(
+            await recheck_baseline_residency(
                 self._host, self._plan, self._board, self._tiers, self._fence
             )
 

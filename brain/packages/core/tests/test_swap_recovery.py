@@ -5,6 +5,7 @@ import swap_harness as harness
 from swap_harness import RecordingHandoffStore, TickingClock
 
 from cortex_core import (
+    BaselineTiers,
     HandoffState,
     HandoffStoreError,
     ModelHostState,
@@ -12,7 +13,6 @@ from cortex_core import (
     RecordingSleeper,
     ResidencyPlan,
     ScriptedModelHost,
-    StandingTiers,
     SystemClock,
     converge_residency,
     record_fields,
@@ -30,14 +30,14 @@ def _said(caplog: pytest.LogCaptureFixture) -> list[tuple[str, dict[str, object]
 async def _recover(
     handoffs: RecordingHandoffStore,
     host: ScriptedModelHost,
-    tiers: StandingTiers | None = None,
+    tiers: BaselineTiers | None = None,
     plan: ResidencyPlan | None = None,
 ) -> bool:
     return await recover_handoffs(
         handoffs,
         host,
         plan if plan is not None else harness.plan(),
-        tiers if tiers is not None else StandingTiers(),
+        tiers if tiers is not None else BaselineTiers(),
         clock=TickingClock(),
         sleeper=RecordingSleeper(),
     )
@@ -93,7 +93,7 @@ async def test_a_deep_model_left_resident_by_a_crash_is_stopped() -> None:
 
 async def test_an_evictable_tier_is_cleared_off_the_gpu_and_then_put_back() -> None:
     host = ScriptedModelHost(running=[_TIER, "brain", "cortex"])
-    tiers = StandingTiers()
+    tiers = BaselineTiers()
     settled = await converge_residency(
         host,
         harness.plan(evict_models=(_TIER,)),
@@ -120,7 +120,7 @@ async def test_a_cortex_that_will_not_come_back_is_reported_loudly(
             RecordingHandoffStore(),
             host,
             harness.plan(load_timeout_s=0.0),
-            StandingTiers(),
+            BaselineTiers(),
             clock=TickingClock(),
             sleeper=RecordingSleeper(),
         )
@@ -139,7 +139,7 @@ async def test_an_unreachable_host_does_not_fail_the_boot(
             ("start", _TIER): "supervisor unreachable",
         }
     )
-    tiers = StandingTiers()
+    tiers = BaselineTiers()
     with caplog.at_level(logging.ERROR, logger="cortex_core.swap_recovery"):
         settled = await _recover(
             RecordingHandoffStore(), host, tiers, harness.plan(evict_models=(_TIER,))
@@ -155,7 +155,7 @@ async def test_a_peer_that_will_not_start_is_recorded_and_not_counted(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     host = ScriptedModelHost(running=["cortex"], fail={("start", _TIER): "no such device"})
-    tiers = StandingTiers()
+    tiers = BaselineTiers()
     with caplog.at_level(logging.ERROR, logger="cortex_core.residency_moves"):
         settled = await converge_residency(
             host,
@@ -178,7 +178,7 @@ async def test_a_peer_the_daemon_does_not_serve_at_all_is_no_verdict_either(
         running=["cortex"],
         fail={("status", _TIER): "unknown model", ("start", _TIER): "unknown model"},
     )
-    tiers = StandingTiers()
+    tiers = BaselineTiers()
     with caplog.at_level(logging.ERROR):
         settled = await converge_residency(
             host,
@@ -190,7 +190,7 @@ async def test_a_peer_the_daemon_does_not_serve_at_all_is_no_verdict_either(
     assert settled is True
     assert tiers.missing == (_TIER,)
     assert [record.message for record in caplog.records] == [
-        "a tier the standing residency includes could not be cleared at boot",
+        "a tier the baseline residency includes could not be cleared at boot",
         "a tier evicted for the handoff could not be restarted",
     ]
 
@@ -255,7 +255,7 @@ async def test_a_host_that_fails_at_the_cortex_names_the_cortex_and_not_the_deep
 
 async def test_a_cortex_that_will_not_settle_still_asks_for_its_peers_back() -> None:
     host = ScriptedModelHost(running=[_TIER], status_override={"cortex": ModelHostState.LOADING})
-    tiers = StandingTiers()
+    tiers = BaselineTiers()
     tiers.mark_missing(_TIER)
     settled = await converge_residency(
         host,

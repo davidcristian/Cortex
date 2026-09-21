@@ -28,7 +28,7 @@ The one hard rule, 100% coverage without a GPU, and ports before adapters all ho
 1. **Placement is its own port; `ModelManager` is unchanged.** The GPU lease, the subagent pool's
    admission and VRAM placement are three contracts, composed at the orchestrator and never merged.
    `SubagentPlacer` (`cortex_core/ports_placement.py`, re-exported from `ports.py`) has `place`,
-   `release`, the residency pair `charge_handoff(resident_gb=)` and `charge_standing()`, and the
+   `release`, the residency pair `charge_handoff(resident_gb=)` and `charge_baseline()`, and the
    outage pair `close_gpu()` and `open_gpu()` (decision 13). An implementation with no GPU target
    of its own may make both pairs no-ops.
 
@@ -118,12 +118,12 @@ The one hard rule, 100% coverage without a GPU, and ports before adapters all ho
 
 13. **The placer knows which residency it fits against and whether the GPU tier is up.** During a
     handoff `charge_handoff(resident_gb=)` replaces the cortex term with the deep tier's declared
-    cost and `charge_standing()` restores it
+    cost and `charge_baseline()` restores it
     ([ADR-0055](ADR-0055-co-residency-and-spill-watch.md) decision 3). A GPU tier that did not come
     back after a swap is recorded and `close_gpu()` makes `place` answer CPU without consulting the
     headroom until `open_gpu()` ([ADR-0054](ADR-0054-baseline-residency.md) decision 3). Neither
     pair moves the placed total, and the two are independent: an outage is not a charge, because a
-    charge would report "no room" where the truth is "no server", and `charge_standing` after the
+    charge would report "no room" where the truth is "no server", and `charge_baseline` after the
     next swap would silently reopen it. The placer keeps one bit because the brain has no mapping
     from a hosted tier to the endpoint a subagent connects to.
 

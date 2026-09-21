@@ -13,7 +13,7 @@ next handoff or a restart.
 
 Fixed on 2026-08-09, recorded at [ADR-0054](../../adr/ADR-0054-baseline-residency.md) decision 3 and
 at [ADR-0012](../../adr/ADR-0012-resource-governance.md) decision 13. A peer the swap back could not
-restart is recorded in `StandingTiers` (`residency_tiers.py`), which closes GPU placement, names the
+restart is recorded in `BaselineTiers` (`residency_tiers.py`), which closes GPU placement, names the
 tier on a serving `Health` reply, and is retried every `CORTEX_SWAP_TIER_HEAL_S` (30 s) by
 `TierRechecker` until a pass sees the tier `ready`.
 
@@ -22,7 +22,7 @@ Two corrections to the entry. The scheduler port really is untouched, but the pl
 is up, and the only shape that fits is being told. `SubagentPlacer` gained `close_gpu()` and
 `open_gpu()`, deliberately not expressed as a charge, since a charge large enough to crowd the cap
 out would say "no room" where the truth is "no server", and would be reversed by the next successful
-`charge_standing`. And widening `ResidencyReport` does not work, for a lifetime reason rather than a
+`charge_baseline`. And widening `ResidencyReport` does not work, for a lifetime reason rather than a
 shape reason: that value is republished at every residency transition, so a fault written into it
 would be dropped by the next swap in. The record lives beside the report and is combined with it on
 read, which also keeps the swap to one writer of what the GPU is serving.

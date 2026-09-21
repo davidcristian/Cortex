@@ -71,18 +71,18 @@ def test_charging_a_handoff_fit_tests_against_the_deep_model_instead_of_the_cort
     assert placer.place(_request(2.81)).target is PlacementTarget.CPU
 
 
-def test_charging_the_standing_residency_restores_the_cortex_s_own_reservation() -> None:
+def test_charging_the_baseline_residency_restores_the_cortex_s_own_reservation() -> None:
     placer = _placer(soft_cap_gb=23.0, cortex_reservation_gb=11.3)
     placer.charge_handoff(resident_gb=18.68)
     assert placer.place(_request(9.0)).target is PlacementTarget.CPU
-    placer.charge_standing()
+    placer.charge_baseline()
     assert placer.place(_request(9.0)).target is PlacementTarget.GPU
 
 
-def test_charging_the_standing_residency_with_no_handoff_first_changes_nothing() -> None:
+def test_charging_the_baseline_residency_with_no_handoff_first_changes_nothing() -> None:
     placer = _placer()
-    placer.charge_standing()
-    placer.charge_standing()
+    placer.charge_baseline()
+    placer.charge_baseline()
     assert placer.place(_request(3.0)).target is PlacementTarget.GPU
 
 
@@ -90,7 +90,7 @@ def test_a_handoff_charge_does_not_disturb_what_is_already_placed() -> None:
     placer = _placer(soft_cap_gb=23.0, cortex_reservation_gb=11.3)
     placed = placer.place(_request(4.0))
     placer.charge_handoff(resident_gb=18.0)
-    placer.charge_standing()
+    placer.charge_baseline()
     placer.release(placed)
     assert placer.place(_request(11.7)).target is PlacementTarget.GPU
     assert placer.place(_request(0.1)).target is PlacementTarget.CPU
@@ -125,5 +125,5 @@ def test_a_handoff_charge_does_not_reopen_a_closed_gpu() -> None:
     placer = _placer(soft_cap_gb=23.0, cortex_reservation_gb=11.3)
     placer.close_gpu()
     placer.charge_handoff(resident_gb=18.0)
-    placer.charge_standing()
+    placer.charge_baseline()
     assert placer.place(_request(1.0)).target is PlacementTarget.CPU

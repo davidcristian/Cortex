@@ -144,13 +144,13 @@ async def assert_converged_on_cortex(live: Harness) -> None:
     """The cortex is resident again and the subagent pool admits again."""
     if ("stop", live.residency.cortex_model) in live.host.calls:
         assert ("start", live.residency.cortex_model) in live.host.calls
-    standing = {live.residency.cortex_model, *live.residency.evict_models}
-    assert live.host.running == standing
+    usual = {live.residency.cortex_model, *live.residency.evict_models}
+    assert live.host.running == usual
     assert live.host.calls.count(("start", live.residency.brain_model)) <= 1
     assert live.backend.calls <= 1
     if live.scheduler.drains:
         assert live.scheduler.reopened
-    assert all(running == standing for running in live.scheduler.reopened)
+    assert all(running == usual for running in live.scheduler.reopened)
     await _admit(live)
 
 
@@ -603,7 +603,7 @@ async def test_boot_recovery_fails_a_stranded_record_and_lets_the_next_handoff_r
         live.handoffs,
         host,
         live.residency,
-        live.manager.standing_tiers,
+        live.manager.baseline_tiers,
         clock=harness.TickingClock(),
         sleeper=RecordingSleeper(),
     )

@@ -52,7 +52,7 @@ is [ADR-0045](ADR-0045-documented-log-lines.md).
    holds is not interpolated into the message, so one `grep` on the sentence finds every instance of
    the line, and a runbook quotes the whole sentence and reads the value off the field beside it.
    The one exception is a word that is the sentence's own predicate: `residency_pass._unanswered`
-   logs `a tier of the standing residency could not be %s`, where the word is `started` and is not a
+   logs `a tier of the baseline residency could not be %s`, where the word is `started` and is not a
    field.
 6. **Ids, counts and reasons are fields; content never is.** Anything a person typed, a model
    generated or a tool returned stays off every line, because the secret defences below read names
@@ -67,7 +67,7 @@ is [ADR-0045](ADR-0045-documented-log-lines.md).
    (`the model host was unreachable during boot recovery`) under two blocks, and the swap back takes
    the swapped-in model off the card
    (`the model host failed while taking the swapped-in model off the card`) apart from restoring the
-   cortex. `restore_standing` returns `str | None`, `None` when the baseline residency is back and
+   cortex. `restore_baseline` returns `str | None`, `None` when the baseline residency is back and
    otherwise the id it failed on, so its retry and give-up lines add `model` (the cortex) and
    `failed_model` (the tier that failed), and `ResidencyRestoreError`'s text names both. The claim
    path's undecodable-record and quarantine lines add `item_id` and `dead_key`; the ticker's

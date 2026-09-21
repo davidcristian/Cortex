@@ -46,9 +46,9 @@ which also says where to read why a handoff failed. What the swap costs and whet
   `CORTEX_SWAP_TIER_HEAL_S` seconds, a `GET` of each tier's state and a `start` for any that is
   not coming, clearing all of that the first pass that sees the tier `ready`. That pass is why a
   tier that dies without anybody asking it to restart is caught too, since it reads the machine
-  rather than a list of refusals (`a tier of the standing residency stopped without anything
+  rather than a list of refusals (`a tier of the baseline residency stopped without anything
   asking it to`). Nothing here needs an operator, so the useful check is whether the retry is
-  failing for a reason a retry cannot fix: look for `a tier of the standing residency could not be
+  failing for a reason a retry cannot fix: look for `a tier of the baseline residency could not be
   started` in the brain's log, then ask the sidecar with
   `curl -fsS http://127.0.0.1:9300/models/subagent-gpu` (the loopback override) and read the
   child's own reason out of `docker logs model-host`. A missing artifact or a bad `-ngl` is a
@@ -61,7 +61,7 @@ which also says where to read why a handoff failed. What the swap costs and whet
   a tier the daemon lost and a tier it never had: a 404 is that daemon's env for the life of its
   container, so the tier is recorded once, skipped by every later pass, and left closed at the
   placer until the sidecar is replaced. Three log lines say which phase saw it, `a tier the
-  standing residency includes could not be cleared at boot`, `a tier named for eviction is not in
+  baseline residency includes could not be cleared at boot`, `a tier named for eviction is not in
   the model host's roster at all`, and `the model host does not serve this model at all, so this
   tier will not be asked about again`, which names both settings and has the tier's id in its own
   `model=` field ([brain-logs.md](brain-logs.md)). The fix is to name

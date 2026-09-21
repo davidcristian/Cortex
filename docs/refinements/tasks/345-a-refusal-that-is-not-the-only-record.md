@@ -10,7 +10,7 @@ swap's eviction meets the 503 through the brain's own port, the brain turns it i
 logging its text, "so this line is the only record of it anywhere".
 
 The level is right and the claim is wider than the tree supports. It holds for the swap in
-eviction. It does not hold for the swap back: `restore_standing` in
+eviction. It does not hold for the swap back: `restore_baseline` in
 `brain/packages/core/src/cortex_core/residency_moves.py` logs both of its failures with
 `_logger.exception`, so the traceback reaches the brain's own log, and the `ModelHostError` in it
 was built in `brain/packages/model_manager/src/cortex_model_manager/adapter.py` out of the status

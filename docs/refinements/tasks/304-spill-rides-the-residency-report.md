@@ -11,7 +11,7 @@ record ([brain_phase.py](../../../brain/packages/core/src/cortex_core/brain_phas
 else in the process, and nothing on the wire, records it. A spill therefore looks exactly like a
 fit to anyone who is not tailing the container.
 
-The cheap surface already exists and is proven on a neighbouring fact. `StandingTiers.note_on`
+The cheap surface already exists and is proven on a neighbouring fact. `BaselineTiers.note_on`
 annotates a serving residency report with a detail naming what is down
 ([residency_tiers.py](../../../brain/packages/core/src/cortex_core/residency_tiers.py)), `Health`
 prefers that detail over its version string
@@ -39,7 +39,7 @@ was one line under the cap, so the reporting surface moved out as `ResidencyProb
   ([116](116-reconciliation-without-a-turn.md)), since it decides where the note may live. That
   pass republishes the bare `RESIDENCY_SERVING` constant whenever it finds the cortex back, so a
   detail written into the published record would be erased by it; use the read-time composition
-  `StandingTiers.note_on` already does in `residency()` instead.
+  `BaselineTiers.note_on` already does in `residency()` instead.
 - 2026-08-19: Done. The result now travels on a serving residency report's detail and reads in the
   connection tooltip as "the last deep task ran far slower than this deployment measured for it, so
   deep tasks are taking much longer than they should", which names the consequence, because a

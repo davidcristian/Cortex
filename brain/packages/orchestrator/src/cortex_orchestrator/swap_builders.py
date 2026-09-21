@@ -138,7 +138,7 @@ async def recover_boot_residency(swap: SwapRuntime | None, clock: Clock) -> None
         swap.handoffs,
         swap.host,
         swap.plan,
-        swap.manager.standing_tiers,
+        swap.manager.baseline_tiers,
         clock=clock,
         sleeper=AsyncioSleeper(),
     )

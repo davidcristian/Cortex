@@ -64,8 +64,8 @@ residency, the brain's residency is `None`, and `Health` stays unconditionally r
    two rows share a line because the operator's next move is the same; the log tells them apart,
    each line naming the call and the model it failed on ([ADR-0051](ADR-0051-log-line-rendering.md)
    decisions 7 and 8).
-3. **A peer that is not serving is recorded, and GPU placement closes.** `StandingTiers`
-   (`residency_tiers.py`, held by the manager and handed out through `standing_tiers`) maps each
+3. **A peer that is not serving is recorded, and GPU placement closes.** `BaselineTiers`
+   (`residency_tiers.py`, held by the manager and handed out through `baseline_tiers`) maps each
    faulted peer to a `TierFault`: `MISSING` (not serving, worth asking again) or `UNHOSTED` (the
    roster has no such id; never asked again while that daemon runs). Any fault calls the placer's
    `close_gpu()`, so every spawn is placed on the CPU, and an emptied record calls `open_gpu()`. It

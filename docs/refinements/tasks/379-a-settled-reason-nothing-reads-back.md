@@ -33,7 +33,7 @@ copies would expire together.
   which wrote the reason down in two places and found nothing that reads either of them.
 - 2026-09-08: Trigger checked and not fired, and narrowed to the two surfaces a reader can count.
   `with_note` has exactly two callers in the brain's source,
-  `residency_tiers.StandingTiers.note_on` and `residency_pace.HandoffPace.note_on`, unchanged since
+  `residency_tiers.BaselineTiers.note_on` and `residency_pace.HandoffPace.note_on`, unchanged since
   the spill note; `HealthReply` still has `ready` and `detail`; one production line reads
   `HandoffRecord.failure`, and it is the codec encoding it. Also recorded above: the record's
   diagnosis TTL and the spill note's dwell are the same hour.

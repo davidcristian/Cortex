@@ -10,7 +10,7 @@ from cortex_core.residency_state import (
     RESIDENCY_SERVING,
     ResidencyPublisher,
 )
-from cortex_core.residency_tiers import StandingTiers
+from cortex_core.residency_tiers import BaselineTiers
 from cortex_core.swap_recovery import converge_residency
 
 _logger = logging.getLogger(__name__)
@@ -26,7 +26,7 @@ class BootWatch:
         self,
         host: ModelHost,
         plan: ResidencyPlan,
-        tiers: StandingTiers,
+        tiers: BaselineTiers,
         *,
         clock: Clock,
         sleeper: Sleeper,

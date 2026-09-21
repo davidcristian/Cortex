@@ -30,7 +30,7 @@ is drained
 ([swap_conductor.py](../../../brain/packages/core/src/cortex_core/swap_conductor.py)). A latch
 would withhold delegation through the handoff, not protect the cortex. It also said
 `ResidencyPlan` is a frozen value with nowhere to keep the latch, which stopped being true one
-day later: `SwappingModelManager` now holds `StandingTiers`
+day later: `SwappingModelManager` now holds `BaselineTiers`
 ([residency_tiers.py](../../../brain/packages/core/src/cortex_core/residency_tiers.py)), a mutable
 process-lifetime residency record that already drives an automatic policy from observed evidence,
 since marking a tier missing or unhosted closes GPU placement. Cost is not why this closes.

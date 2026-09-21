@@ -8,6 +8,7 @@ from cortex_core import (
     RESIDENCY_DEEP,
     RESIDENCY_SERVING,
     TIERS_MISSING_DETAIL,
+    BaselineTiers,
     ModelHostState,
     PlacementRequest,
     PlacementTarget,
@@ -15,7 +16,6 @@ from cortex_core import (
     RecordingSleeper,
     ResidencyPlan,
     ScriptedModelHost,
-    StandingTiers,
     SwappingModelManager,
     TierFault,
     TierRechecker,
@@ -148,19 +148,19 @@ async def test_a_second_handoff_that_restarts_the_peer_reopens_the_gpu() -> None
 
 async def test_one_peer_back_of_two_keeps_the_gpu_closed() -> None:
     placer = _placer()
-    tiers = StandingTiers(placer)
+    tiers = BaselineTiers(placer)
     tiers.mark_missing(_TIER)
     tiers.mark_missing(_OTHER_TIER)
-    tiers.mark_standing(_TIER)
+    tiers.mark_serving(_TIER)
     assert tiers.missing == (_OTHER_TIER,)
     assert placer.place(_spawn()).target is PlacementTarget.CPU
-    tiers.mark_standing(_OTHER_TIER)
+    tiers.mark_serving(_OTHER_TIER)
     assert tiers.missing == ()
     assert placer.place(_spawn()).target is PlacementTarget.GPU
 
 
 def test_a_deployment_with_no_pool_still_records_which_peer_is_down() -> None:
-    tiers = StandingTiers()
+    tiers = BaselineTiers()
     assert tiers.placer is None
     tiers.mark_missing(_TIER)
     assert tiers.missing == (_TIER,)
@@ -168,15 +168,15 @@ def test_a_deployment_with_no_pool_still_records_which_peer_is_down() -> None:
     tiers.mark_unhosted(_GHOST)
     assert tiers.missing == (_TIER, _GHOST)
     assert tiers.fault_of(_GHOST) is TierFault.UNHOSTED
-    tiers.mark_standing(_TIER)
-    tiers.mark_standing(_GHOST)
+    tiers.mark_serving(_TIER)
+    tiers.mark_serving(_GHOST)
     assert tiers.note_on(RESIDENCY_SERVING) == RESIDENCY_SERVING
 
 
 async def test_a_recheck_that_meets_the_fence_mid_pass_records_without_starting() -> None:
     placer = _placer()
     host = ScriptedModelHost(running=["cortex"])
-    tiers = StandingTiers(placer)
+    tiers = BaselineTiers(placer)
     await recheck_tiers(host, _plan(), tiers, lambda: False)
     assert host.calls == [("status", _TIER)]
     assert tiers.missing == (_TIER,)
@@ -187,7 +187,7 @@ async def test_a_start_the_host_refuses_leaves_the_tier_recorded_and_the_pass_al
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     host = ScriptedModelHost(running=["cortex"], fail={("start", _TIER): "no such device"})
-    tiers = StandingTiers(_placer())
+    tiers = BaselineTiers(_placer())
     with caplog.at_level(logging.WARNING, logger=_RETRY_LOGGER):
         await recheck_tiers(host, _plan(evict_models=(_TIER, _OTHER_TIER)), tiers, _open)
     assert host.calls == [
@@ -198,15 +198,15 @@ async def test_a_start_the_host_refuses_leaves_the_tier_recorded_and_the_pass_al
     ]
     assert tiers.missing == (_TIER, _OTHER_TIER)
     assert (
-        f"WARNING:{_RETRY_LOGGER}:a tier of the standing residency could not be started"
+        f"WARNING:{_RETRY_LOGGER}:a tier of the baseline residency could not be started"
         f' error="no such device" model={_TIER}'
     ) in _retry_lines(caplog)
 
 
-def test_marking_a_tier_standing_that_was_never_missing_changes_nothing() -> None:
+def test_marking_a_tier_serving_that_was_never_missing_changes_nothing() -> None:
     placer = _placer()
-    tiers = StandingTiers(placer)
-    tiers.mark_standing(_TIER)
+    tiers = BaselineTiers(placer)
+    tiers.mark_serving(_TIER)
     assert tiers.missing == ()
     assert placer.place(_spawn()).target is PlacementTarget.GPU
 
@@ -227,12 +227,12 @@ async def test_a_retry_that_finds_the_tier_serving_reopens_the_gpu(
     with caplog.at_level(logging.INFO, logger=_RETRY_LOGGER):
         await manager.recheck_residency()
     assert placer.place(_spawn()).target is PlacementTarget.GPU
-    assert _retry_log(caplog) == ["a tier the standing residency was missing is serving again"]
+    assert _retry_log(caplog) == ["a tier the baseline residency was missing is serving again"]
 
 
 async def test_a_recheck_leaves_a_tier_that_is_still_loading_alone() -> None:
     host = ScriptedModelHost(running=[_TIER], status_override={_TIER: ModelHostState.LOADING})
-    tiers = StandingTiers(_placer())
+    tiers = BaselineTiers(_placer())
     tiers.mark_missing(_TIER)
     await recheck_tiers(host, _plan(), tiers, _open)
     assert host.calls == [("status", _TIER)]
@@ -254,12 +254,12 @@ async def test_a_recheck_that_cannot_reach_the_host_leaves_the_record_alone(
         await manager.recheck_residency()
     assert placer.place(_spawn()).target is PlacementTarget.CPU
     assert _retry_lines(caplog) == [
-        f"WARNING:{_RETRY_LOGGER}:a tier of the standing residency could not be asked about"
+        f"WARNING:{_RETRY_LOGGER}:a tier of the baseline residency could not be asked about"
         f' error="connection refused" model={_TIER}'
     ]
-    standing = StandingTiers(_placer())
-    await recheck_tiers(host, _plan(), standing, _open)
-    assert standing.missing == ()
+    baseline = BaselineTiers(_placer())
+    await recheck_tiers(host, _plan(), baseline, _open)
+    assert baseline.missing == ()
 
 
 async def test_a_recheck_defers_while_a_handoff_owns_the_gpu() -> None:
@@ -292,12 +292,12 @@ async def test_a_peer_that_accepted_its_start_and_then_died_is_found_by_the_next
     async with manager.swap_scope("brain"):
         pass
     host.set_status(_TIER, ModelHostState.FAILED)
-    assert manager.standing_tiers.missing == ()
+    assert manager.baseline_tiers.missing == ()
     before = placer.place(_spawn())
     assert before.target is PlacementTarget.GPU
     placer.release(before)
     await manager.recheck_residency()
-    assert manager.standing_tiers.missing == (_TIER,)
+    assert manager.baseline_tiers.missing == (_TIER,)
     assert placer.place(_spawn()).target is PlacementTarget.CPU
     assert manager.residency().detail == TIERS_MISSING_DETAIL.format(models=_TIER)
 
@@ -316,7 +316,7 @@ async def test_a_peer_that_died_between_handoffs_is_found_without_any_handoff(
         await manager.recheck_residency()
     assert placer.place(_spawn()).target is PlacementTarget.CPU
     assert _retry_lines(caplog) == [
-        f"WARNING:{_RETRY_LOGGER}:a tier of the standing residency stopped without anything "
+        f"WARNING:{_RETRY_LOGGER}:a tier of the baseline residency stopped without anything "
         f"asking it to; delegated work runs on the CPU until it is serving again "
         f"model={_TIER} state=failed"
     ]
@@ -329,15 +329,15 @@ async def test_a_peer_nothing_ever_started_is_found_by_the_first_pass() -> None:
     )
     manager = _manager(host, placer)
     settled = await converge_residency(
-        host, _plan(), manager.standing_tiers, clock=_FixedClock(), sleeper=RecordingSleeper()
+        host, _plan(), manager.baseline_tiers, clock=_FixedClock(), sleeper=RecordingSleeper()
     )
     assert settled is False
-    assert manager.standing_tiers.missing == ()
+    assert manager.baseline_tiers.missing == ()
     before = placer.place(_spawn())
     assert before.target is PlacementTarget.GPU
     placer.release(before)
     await manager.recheck_residency()
-    assert manager.standing_tiers.missing == (_TIER,)
+    assert manager.baseline_tiers.missing == (_TIER,)
     assert placer.place(_spawn()).target is PlacementTarget.CPU
 
 
@@ -346,10 +346,10 @@ async def test_a_boot_that_could_not_reach_the_host_is_swept_when_it_answers_aga
     host = ScriptedModelHost(running=[], fail_once={("status", "brain"): "connection refused"})
     manager = _manager(host, placer)
     settled = await converge_residency(
-        host, _plan(), manager.standing_tiers, clock=_FixedClock(), sleeper=RecordingSleeper()
+        host, _plan(), manager.baseline_tiers, clock=_FixedClock(), sleeper=RecordingSleeper()
     )
     assert settled is False
-    assert manager.standing_tiers.missing == ()
+    assert manager.baseline_tiers.missing == ()
     before = placer.place(_spawn())
     assert before.target is PlacementTarget.GPU
     placer.release(before)
@@ -370,7 +370,7 @@ async def test_a_tier_the_roster_never_had_is_recorded_once_and_never_asked_agai
     manager = _manager(host, placer, plan)
     with caplog.at_level(logging.ERROR, logger=_RETRY_LOGGER):
         await manager.recheck_residency()
-    assert manager.standing_tiers.fault_of(_GHOST) is TierFault.UNHOSTED
+    assert manager.baseline_tiers.fault_of(_GHOST) is TierFault.UNHOSTED
     assert placer.place(_spawn()).target is PlacementTarget.CPU
     host.calls.clear()
     await manager.recheck_residency()
@@ -387,12 +387,12 @@ async def test_a_restart_refused_for_a_tier_the_roster_lacks_is_not_an_ordinary_
     settled = await converge_residency(
         host,
         _plan(evict_models=(_GHOST,)),
-        manager.standing_tiers,
+        manager.baseline_tiers,
         clock=_FixedClock(),
         sleeper=RecordingSleeper(),
     )
     assert settled is True
-    assert manager.standing_tiers.fault_of(_GHOST) is TierFault.UNHOSTED
+    assert manager.baseline_tiers.fault_of(_GHOST) is TierFault.UNHOSTED
 
 
 async def test_a_replaced_daemon_asks_an_unhosted_tier_again() -> None:
@@ -400,12 +400,12 @@ async def test_a_replaced_daemon_asks_an_unhosted_tier_again() -> None:
     plan = _plan(evict_models=(_GHOST,))
     manager = _manager(host, _placer(), plan)
     await manager.recheck_residency()
-    assert manager.standing_tiers.fault_of(_GHOST) is TierFault.UNHOSTED
+    assert manager.baseline_tiers.fault_of(_GHOST) is TierFault.UNHOSTED
     host.unhosted.clear()
     host.boot = "second"
     async with manager.swap_scope("brain"):
         pass
-    assert manager.standing_tiers.missing == ()
+    assert manager.baseline_tiers.missing == ()
 
 
 async def test_a_pass_that_finds_every_tier_serving_writes_nothing_and_starts_nothing() -> None:

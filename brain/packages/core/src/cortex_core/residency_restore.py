@@ -7,15 +7,15 @@ from collections.abc import Awaitable
 from cortex_core.errors import ResidencyRestoreError
 from cortex_core.model_host import ResidencyPlan
 from cortex_core.ports import ModelHost
-from cortex_core.residency_charge import charge_standing
-from cortex_core.residency_moves import ReadinessGate, restore_standing
+from cortex_core.residency_charge import charge_baseline
+from cortex_core.residency_moves import ReadinessGate, restore_baseline
 from cortex_core.residency_state import (
     RESIDENCY_LOST,
     RESIDENCY_RESTORING,
     RESIDENCY_SERVING,
     ResidencyPublisher,
 )
-from cortex_core.residency_tiers import StandingTiers
+from cortex_core.residency_tiers import BaselineTiers
 
 _RESTORE_ATTEMPTS = 2
 
@@ -28,7 +28,7 @@ async def restore_with_retries(
     model: str,
     gate: ReadinessGate,
     publish: ResidencyPublisher,
-    tiers: StandingTiers,
+    tiers: BaselineTiers,
 ) -> None:
     """Bring the cortex back, retrying once; raise rather than returning quietly on failure."""
     cortex = plan.cortex_model
@@ -37,13 +37,13 @@ async def restore_with_retries(
     # is what makes the failure path below typed.
     failed = cortex
     for attempt in range(1, _RESTORE_ATTEMPTS + 1):
-        failed = await restore_standing(host, plan, model, gate, tiers)
+        failed = await restore_baseline(host, plan, model, gate, tiers)
         if failed is None:
             await publish(cortex, RESIDENCY_SERVING)
             # Charged only here, where the cortex is genuinely serving again. A restore that
             # stopped retrying leaves the handoff's charge in place, so spawns keep going to
             # the CPU rather than onto a card nothing can describe.
-            charge_standing(tiers.placer)
+            charge_baseline(tiers.placer)
             return
         _logger.warning(
             "restoring the cortex failed; retrying",

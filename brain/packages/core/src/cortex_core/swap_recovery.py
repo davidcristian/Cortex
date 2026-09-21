@@ -8,7 +8,7 @@ from cortex_core.model_host import ModelHostState, ResidencyPlan
 from cortex_core.model_ready import await_model_ready
 from cortex_core.ports import Clock, HandoffStore, ModelHost, Sleeper
 from cortex_core.residency_moves import restart_evicted
-from cortex_core.residency_tiers import StandingTiers
+from cortex_core.residency_tiers import BaselineTiers
 from cortex_core.swap_reasons import STRANDED_REASON
 
 _logger = logging.getLogger(__name__)
@@ -18,7 +18,7 @@ async def recover_handoffs(
     handoffs: HandoffStore,
     host: ModelHost,
     plan: ResidencyPlan,
-    tiers: StandingTiers,
+    tiers: BaselineTiers,
     *,
     clock: Clock,
     sleeper: Sleeper,
@@ -48,7 +48,7 @@ async def _fail_stranded_handoff(handoffs: HandoffStore) -> None:
 
 
 async def converge_residency(
-    host: ModelHost, plan: ResidencyPlan, tiers: StandingTiers, *, clock: Clock, sleeper: Sleeper
+    host: ModelHost, plan: ResidencyPlan, tiers: BaselineTiers, *, clock: Clock, sleeper: Sleeper
 ) -> bool:
     """Clear the GPU, settle the cortex on it, put the usual residency back, and report."""
     # The tiers a swap evicts are stopped first and restarted last, because a crash can leave
@@ -108,7 +108,7 @@ async def _clear_peer(host: ModelHost, model: str) -> None:
             await host.stop(model)
     except ModelHostError:
         _logger.exception(
-            "a tier the standing residency includes could not be cleared at boot",
+            "a tier the baseline residency includes could not be cleared at boot",
             extra={"model": model},
         )
 

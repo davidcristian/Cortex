@@ -6,13 +6,13 @@ from swap_harness import TickingClock
 from cortex_core import (
     RESIDENCY_LOST,
     RESIDENCY_SERVING,
+    BaselineTiers,
     ControlBounds,
     ModelHostState,
     RecordingSleeper,
     ResidencyPlan,
     ResidencyReport,
     ScriptedModelHost,
-    StandingTiers,
     SwapFailedError,
     record_fields,
 )
@@ -45,12 +45,12 @@ class _Published:
 
 
 def _watch(
-    host: ScriptedModelHost, plan: ResidencyPlan | None = None, tiers: StandingTiers | None = None
+    host: ScriptedModelHost, plan: ResidencyPlan | None = None, tiers: BaselineTiers | None = None
 ) -> BootWatch:
     return BootWatch(
         host,
         plan if plan is not None else _plan(),
-        tiers if tiers is not None else StandingTiers(),
+        tiers if tiers is not None else BaselineTiers(),
         clock=TickingClock(),
         sleeper=RecordingSleeper(),
     )
@@ -114,7 +114,7 @@ async def test_a_peer_the_fresh_daemon_will_not_run_is_recorded_and_the_handoff_
     host = ScriptedModelHost(
         running=["cortex"], boot_id="daemon-a", fail={("start", "subagent-gpu"): "no such device"}
     )
-    tiers = StandingTiers()
+    tiers = BaselineTiers()
     watch = _watch(host, _plan(evict_models=("subagent-gpu",)), tiers)
     published = _Published()
     await watch.seed()

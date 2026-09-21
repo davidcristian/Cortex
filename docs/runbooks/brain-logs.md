@@ -26,7 +26,7 @@ fields beside them, and it is why `docker compose logs brain | grep "could not b
 every control call the sidecar left unanswered, however many tiers and errors they name. Two kinds
 of line still have a value in their prose: one whose message the code also raises as an
 exception's text, which has to read on its own where no formatter runs, and one whose sentence
-needs a word to finish it (`a tier of the standing residency could not be started`).
+needs a word to finish it (`a tier of the baseline residency could not be started`).
 
 **Two things never appear in a rendered line**, and the formatter removes them rather than each
 call site. A field whose name looks like a secret (`token`, `password`, `secret`, `credential`,

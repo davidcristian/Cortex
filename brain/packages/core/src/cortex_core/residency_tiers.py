@@ -17,7 +17,7 @@ class TierFault(Enum):
     UNHOSTED = "unhosted"
 
 
-class StandingTiers:
+class BaselineTiers:
     """The peer tiers that are not serving, plus the one consequence: no GPU placement."""
 
     def __init__(self, placer: SubagentPlacer | None = None) -> None:
@@ -50,7 +50,7 @@ class StandingTiers:
         if self._placer is not None:
             self._placer.close_gpu()
 
-    def mark_standing(self, model: str) -> None:
+    def mark_serving(self, model: str) -> None:
         """Record that ``model`` is back, and reopen the GPU once nothing at all is missing."""
         self._faults.pop(model, None)
         if not self._faults and self._placer is not None:

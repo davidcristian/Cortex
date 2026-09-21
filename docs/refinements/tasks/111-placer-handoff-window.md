@@ -19,7 +19,7 @@ on its trigger because that trigger is a machine setting rather than a code chan
 deployment that raises `CORTEX_VRAM_SOFT_CAP_GB` far enough to admit a GPU-placed spawn reaches
 it.
 
-`SubagentPlacer` gained `charge_handoff(resident_gb=...)` and `charge_standing()` (moved to
+`SubagentPlacer` gained `charge_handoff(resident_gb=...)` and `charge_baseline()` (moved to
 `ports_placement.py` for the line cap and re-exported, so no call site moved), written by the
 residency scope at the two edges of the swap
 ([residency_charge.py](../../../brain/packages/core/src/cortex_core/residency_charge.py)). What is

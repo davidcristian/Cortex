@@ -13,6 +13,7 @@ from cortex_core import (
     RESIDENCY_SERVING,
     SPILLED_PACE_DETAIL,
     TIERS_MISSING_DETAIL,
+    BaselineTiers,
     HandoffPace,
     ModelHostState,
     PaceSink,
@@ -22,7 +23,6 @@ from cortex_core import (
     ResidencyReport,
     ResidencyRestoreError,
     ScriptedModelHost,
-    StandingTiers,
     SwappingModelManager,
 )
 
@@ -156,7 +156,7 @@ def test_a_second_spill_starts_the_dwell_again_from_when_it_happened() -> None:
     assert pace.note_on(RESIDENCY_SERVING).detail == SPILLED_PACE_DETAIL
 
 
-def test_a_handoff_that_held_its_pace_clears_a_standing_note_at_once() -> None:
+def test_a_handoff_that_held_its_pace_clears_a_current_note_at_once() -> None:
     clock = _HeldClock()
     pace = HandoffPace(clock, dwell_s=100.0)
     pace.note_pace(spilled=True)
@@ -172,7 +172,7 @@ def test_a_dwell_that_could_never_stand_is_refused(dwell_s: float) -> None:
 
 
 def test_a_missing_peer_and_a_spilled_handoff_are_both_said() -> None:
-    tiers = StandingTiers()
+    tiers = BaselineTiers()
     tiers.mark_missing(_TIER)
     pace = HandoffPace(_HeldClock())
     pace.note_pace(spilled=True)

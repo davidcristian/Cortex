@@ -48,7 +48,7 @@ it.
    wrong declared figure, memory taken during the load, or a spill afterwards; a deployment that
    wants slack adds it to the figure, since an invented margin would be one more unchecked number.
 3. **The placer is charged for the window.** `SubagentPlacer.charge_handoff(resident_gb=)` and
-   `charge_standing()` (`ports_placement.py`) replace the cortex's reservation with the deep model's
+   `charge_baseline()` (`ports_placement.py`) replace the cortex's reservation with the deep model's
    declared cost for the window and restore it after; the placed-spawn ledger is untouched, since a
    spawn's VRAM did not move. The residency scope writes both edges (`residency_charge.py`, from the
    swap in and the successful restore), since only it knows when the card changes hands and its

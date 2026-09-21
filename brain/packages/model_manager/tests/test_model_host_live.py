@@ -138,14 +138,14 @@ async def test_a_residency_scope_really_evicts_one_model_and_loads_another() -> 
     endpoint = os.environ.get("CORTEX_MODELHOST_ENDPOINT")
     if not endpoint:
         pytest.skip("set CORTEX_MODELHOST_ENDPOINT to a running model-host sidecar")
-    standing = os.environ.get("CORTEX_MODEL_CORTEX", "cortex")
+    cortex_tier = os.environ.get("CORTEX_MODEL_CORTEX", "cortex")
     deep = os.environ.get("CORTEX_MODEL_BRAIN", "brain")
     client = httpx.AsyncClient(timeout=httpx.Timeout(_CONTROL_TIMEOUT_S))
     host = HttpModelHost(endpoint, client)
-    plan = ResidencyPlan(cortex_model=standing, brain_model=deep, load_timeout_s=300.0)
+    plan = ResidencyPlan(cortex_model=cortex_tier, brain_model=deep, load_timeout_s=300.0)
     manager = SwappingModelManager(
         host,
-        {standing: "http://127.0.0.1:8080", deep: "http://127.0.0.1:8081"},
+        {cortex_tier: "http://127.0.0.1:8080", deep: "http://127.0.0.1:8081"},
         plan,
         _SystemClock(),
         AsyncioSleeper(),
@@ -157,15 +157,15 @@ async def test_a_residency_scope_really_evicts_one_model_and_loads_another() -> 
             pytest.skip(f"the sidecar does not host a deep tier {deep!r}: {err}")
         if deep_state is ModelHostState.FAILED:
             pytest.skip(f"the deep tier {deep!r} has a dead child; fix it before swapping onto it")
-        await host.start(standing)
+        await host.start(cortex_tier)
         assert manager.residency() == RESIDENCY_SERVING
         async with manager.swap_scope(deep):
             assert await host.status(deep) is ModelHostState.READY
-            assert await host.status(standing) is ModelHostState.STOPPED
+            assert await host.status(cortex_tier) is ModelHostState.STOPPED
             assert manager.residency() == RESIDENCY_DEEP
             async with manager.acquire(deep) as lease:
                 assert lease.endpoint == "http://127.0.0.1:8081"
-        assert await host.status(standing) is ModelHostState.READY
+        assert await host.status(cortex_tier) is ModelHostState.READY
         assert await host.status(deep) is ModelHostState.STOPPED
         assert manager.residency() == RESIDENCY_SERVING
     finally:
@@ -177,13 +177,13 @@ async def test_a_coresident_scope_leaves_its_peer_serving_beside_the_deep_model(
     endpoint = os.environ.get("CORTEX_MODELHOST_ENDPOINT")
     if not endpoint:
         pytest.skip("set CORTEX_MODELHOST_ENDPOINT to a running model-host sidecar")
-    standing = os.environ.get("CORTEX_MODEL_CORTEX", "cortex")
+    cortex_tier = os.environ.get("CORTEX_MODEL_CORTEX", "cortex")
     deep = os.environ.get("CORTEX_MODEL_BRAIN", "brain")
     peer = os.environ.get("CORTEX_MODEL_SUBAGENT_GPU", "subagent-gpu")
     client = httpx.AsyncClient(timeout=httpx.Timeout(_CONTROL_TIMEOUT_S))
     host = HttpModelHost(endpoint, client)
     plan = ResidencyPlan(
-        cortex_model=standing,
+        cortex_model=cortex_tier,
         brain_model=deep,
         evict_models=(peer,),
         coresident=True,
@@ -191,7 +191,7 @@ async def test_a_coresident_scope_leaves_its_peer_serving_beside_the_deep_model(
     )
     manager = SwappingModelManager(
         host,
-        {standing: "http://127.0.0.1:8080", deep: "http://127.0.0.1:8081"},
+        {cortex_tier: "http://127.0.0.1:8080", deep: "http://127.0.0.1:8081"},
         plan,
         _SystemClock(),
         AsyncioSleeper(),
@@ -203,14 +203,14 @@ async def test_a_coresident_scope_leaves_its_peer_serving_beside_the_deep_model(
             pytest.skip(f"the sidecar does not host both {deep!r} and {peer!r}: {err}")
         if ModelHostState.FAILED in states:
             pytest.skip(f"a tier in {(deep, peer)} has a dead child; fix it before swapping")
-        await host.start(standing)
+        await host.start(cortex_tier)
         await host.start(peer)
         assert await _settled(host, peer) is ModelHostState.READY
         async with manager.swap_scope(deep):
             assert await host.status(deep) is ModelHostState.READY
-            assert await host.status(standing) is ModelHostState.STOPPED
+            assert await host.status(cortex_tier) is ModelHostState.STOPPED
             assert await host.status(peer) is ModelHostState.READY
-        assert await host.status(standing) is ModelHostState.READY
+        assert await host.status(cortex_tier) is ModelHostState.READY
         assert await host.status(peer) is ModelHostState.READY
     finally:
         await client.aclose()
@@ -223,14 +223,14 @@ async def test_a_stock_sidecar_answers_the_escalation_precondition_without_touch
     endpoint = os.environ.get("CORTEX_MODELHOST_ENDPOINT")
     if not endpoint:
         pytest.skip("set CORTEX_MODELHOST_ENDPOINT to a running model-host sidecar")
-    standing = os.environ.get("CORTEX_MODEL_CORTEX", "cortex")
+    cortex_tier = os.environ.get("CORTEX_MODEL_CORTEX", "cortex")
     deep = os.environ.get("CORTEX_MODEL_BRAIN", "brain")
     client = httpx.AsyncClient(timeout=httpx.Timeout(_CONTROL_TIMEOUT_S))
     host = HttpModelHost(endpoint, client)
-    plan = ResidencyPlan(cortex_model=standing, brain_model=deep, load_timeout_s=300.0)
+    plan = ResidencyPlan(cortex_model=cortex_tier, brain_model=deep, load_timeout_s=300.0)
     manager = SwappingModelManager(
         host,
-        {standing: "http://127.0.0.1:8080", deep: "http://127.0.0.1:8081"},
+        {cortex_tier: "http://127.0.0.1:8080", deep: "http://127.0.0.1:8081"},
         plan,
         _SystemClock(),
         AsyncioSleeper(),
@@ -242,10 +242,10 @@ async def test_a_stock_sidecar_answers_the_escalation_precondition_without_touch
             pass
         else:
             pytest.skip(f"the sidecar hosts a deep tier {deep!r}, so there is nothing to refuse")
-        await host.start(standing)
-        assert await _settled(host, standing) is ModelHostState.READY
+        await host.start(cortex_tier)
+        assert await _settled(host, cortex_tier) is ModelHostState.READY
         assert await manager.unhosted(deep) is True
-        assert await host.status(standing) is ModelHostState.READY
+        assert await host.status(cortex_tier) is ModelHostState.READY
         assert manager.residency() == RESIDENCY_SERVING
     finally:
         await client.aclose()
@@ -314,13 +314,13 @@ async def test_a_real_swap_charges_the_placer_for_the_model_that_holds_the_card(
     endpoint = os.environ.get("CORTEX_MODELHOST_ENDPOINT")
     if not endpoint:
         pytest.skip("set CORTEX_MODELHOST_ENDPOINT to a running model-host sidecar")
-    standing = os.environ.get("CORTEX_MODEL_CORTEX", "cortex")
+    cortex_tier = os.environ.get("CORTEX_MODEL_CORTEX", "cortex")
     target = os.environ.get("CORTEX_MODELHOST_LIVE_FIT_MODEL", "subagent-gpu")
     client = httpx.AsyncClient(timeout=httpx.Timeout(_CONTROL_TIMEOUT_S))
     host = HttpModelHost(endpoint, client)
     placer = VramBudgetPlacer(soft_cap_gb=23.0, cortex_reservation_gb=11.3)
     plan = ResidencyPlan(
-        cortex_model=standing,
+        cortex_model=cortex_tier,
         brain_model=target,
         coresident=True,
         brain_vram_mib=_DEEP_TIER_MIB,
@@ -328,7 +328,7 @@ async def test_a_real_swap_charges_the_placer_for_the_model_that_holds_the_card(
     )
     manager = SwappingModelManager(
         host,
-        {standing: "http://127.0.0.1:8080", target: "http://127.0.0.1:8083"},
+        {cortex_tier: "http://127.0.0.1:8080", target: "http://127.0.0.1:8083"},
         plan,
         _SystemClock(),
         AsyncioSleeper(),
@@ -339,8 +339,8 @@ async def test_a_real_swap_charges_the_placer_for_the_model_that_holds_the_card(
             await host.status(target)
         except ModelHostError as err:
             pytest.skip(f"the sidecar does not host {target!r}: {err}")
-        await host.start(standing)
-        assert await _settled(host, standing) is ModelHostState.READY
+        await host.start(cortex_tier)
+        assert await _settled(host, cortex_tier) is ModelHostState.READY
         before = await host.device_memory()
         if before is None:
             pytest.skip("this model-host container can see no GPU, so no charge can be grounded")
@@ -359,7 +359,7 @@ async def test_a_real_swap_charges_the_placer_for_the_model_that_holds_the_card(
         assert placer.place(_spawn()).target is PlacementTarget.GPU
     finally:
         await host.stop(target)
-        await host.start(standing)
+        await host.start(cortex_tier)
         await client.aclose()
 
 
@@ -368,23 +368,25 @@ async def test_a_background_pass_regains_residency_from_the_real_sidecar() -> No
     endpoint = os.environ.get("CORTEX_MODELHOST_ENDPOINT")
     if not endpoint:
         pytest.skip("set CORTEX_MODELHOST_ENDPOINT to a running model-host sidecar")
-    standing = os.environ.get("CORTEX_MODEL_CORTEX", "cortex")
+    cortex_tier = os.environ.get("CORTEX_MODEL_CORTEX", "cortex")
     deep = os.environ.get("CORTEX_MODEL_BRAIN", "brain")
     client = httpx.AsyncClient(timeout=httpx.Timeout(_CONTROL_TIMEOUT_S))
     host = HttpModelHost(endpoint, client)
-    manager = _live_manager(host, standing, deep)
+    manager = _live_manager(host, cortex_tier, deep)
     try:
-        await host.start(standing)
-        if await _settled(host, standing) is not ModelHostState.READY:
-            pytest.skip(f"the cortex tier {standing!r} is not serving; fix that before this test")
+        await host.start(cortex_tier)
+        if await _settled(host, cortex_tier) is not ModelHostState.READY:
+            pytest.skip(
+                f"the cortex tier {cortex_tier!r} is not serving; fix that before this test"
+            )
         await manager.publish_boot_residency(serving=False)
         assert manager.residency().serving is False
-        before = list(await _tier_states(host, (standing, deep)))
+        before = list(await _tier_states(host, (cortex_tier, deep)))
         await manager.recheck_residency()
         assert manager.residency() == RESIDENCY_SERVING
-        async with manager.acquire(standing) as lease:
+        async with manager.acquire(cortex_tier) as lease:
             assert lease.endpoint == "http://127.0.0.1:8080"
-        assert list(await _tier_states(host, (standing, deep))) == before
+        assert list(await _tier_states(host, (cortex_tier, deep))) == before
     finally:
         await client.aclose()
 
@@ -394,19 +396,19 @@ async def test_a_real_deep_tier_on_the_card_stops_the_regain() -> None:
     endpoint = os.environ.get("CORTEX_MODELHOST_ENDPOINT")
     if not endpoint:
         pytest.skip("set CORTEX_MODELHOST_ENDPOINT to a running model-host sidecar")
-    standing = os.environ.get("CORTEX_MODEL_CORTEX", "cortex")
+    cortex_tier = os.environ.get("CORTEX_MODEL_CORTEX", "cortex")
     deep = os.environ.get("CORTEX_MODEL_BRAIN", "brain")
     client = httpx.AsyncClient(timeout=httpx.Timeout(_CONTROL_TIMEOUT_S))
     host = HttpModelHost(endpoint, client)
-    manager = _live_manager(host, standing, deep)
+    manager = _live_manager(host, cortex_tier, deep)
     try:
         try:
             await host.start(deep)
         except ModelHostError as err:
             pytest.skip(f"the sidecar does not host a deep tier {deep!r}: {err}")
         try:
-            await host.start(standing)
-            if (await _settled(host, deep), await _settled(host, standing)) != (
+            await host.start(cortex_tier)
+            if (await _settled(host, deep), await _settled(host, cortex_tier)) != (
                 ModelHostState.READY,
                 ModelHostState.READY,
             ):
@@ -419,17 +421,17 @@ async def test_a_real_deep_tier_on_the_card_stops_the_regain() -> None:
             assert manager.residency() == RESIDENCY_SERVING
         finally:
             await host.stop(deep)
-            await host.start(standing)
+            await host.start(cortex_tier)
     finally:
         await client.aclose()
 
 
-def _live_manager(host: HttpModelHost, standing: str, deep: str) -> SwappingModelManager:
+def _live_manager(host: HttpModelHost, cortex_tier: str, deep: str) -> SwappingModelManager:
     """Build the shipped manager over the real adapter, on the loopback override's endpoints."""
     return SwappingModelManager(
         host,
-        {standing: "http://127.0.0.1:8080", deep: "http://127.0.0.1:8081"},
-        ResidencyPlan(cortex_model=standing, brain_model=deep, load_timeout_s=300.0),
+        {cortex_tier: "http://127.0.0.1:8080", deep: "http://127.0.0.1:8081"},
+        ResidencyPlan(cortex_model=cortex_tier, brain_model=deep, load_timeout_s=300.0),
         _SystemClock(),
         AsyncioSleeper(),
     )

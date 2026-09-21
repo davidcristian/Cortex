@@ -13,7 +13,7 @@ both read "no handoff" and both evict the cortex.
 **Declined 2026-08-18, because the fence cannot deliver the property it is named for.** It is one
 guard out of five, and the other four are in-process state on the same object: the GPU lease is an
 `asyncio.Lock`, the residency record and the condition every acquire queues on are
-`ResidencyBoard` instance state, the missing-peer record is `StandingTiers`, and the placer's VRAM
+`ResidencyBoard` instance state, the missing-peer record is `BaselineTiers`, and the placer's VRAM
 ledger is a pair of instance floats
 ([residency.py](../../../brain/packages/core/src/cortex_core/residency.py),
 [residency_board.py](../../../brain/packages/core/src/cortex_core/residency_board.py),

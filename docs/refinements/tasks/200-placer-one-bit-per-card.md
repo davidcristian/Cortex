@@ -34,7 +34,7 @@ placement-aware CPU charging entry ([R-189](189-placement-aware-cpu-charging.md)
   `docker/docker-compose.gpu.yml` naming the GPU-placed subagent tier, which is the single value the
   entry says the mapping would have.
 - 2026-09-12: Checked again and not fired, and one cross-reference was stale. `VramBudgetPlacer` has
-  `_gpu_closed`, one boolean read before the headroom arithmetic, against `StandingTiers`' `_faults`
+  `_gpu_closed`, one boolean read before the headroom arithmetic, against `BaselineTiers`' `_faults`
   dict of one entry per tier, and `PlacementRequest` still has a model id and three resource figures
   and no target. The roster's per-entry `gpu_endpoint` (`config_subagents.py`) is still the only
   address a GPU placement dials. The stale part was the last clause: R-189 does not wait on this

@@ -32,7 +32,7 @@ class VramBudgetPlacer:
         """Charge the deep model a handoff swapped in, in place of the cortex it evicted."""
         self._resident_gb = resident_gb
 
-    def charge_standing(self) -> None:
+    def charge_baseline(self) -> None:
         """Charge the cortex again, once it is genuinely serving."""
         self._resident_gb = self._cortex_reservation_gb
 

@@ -27,7 +27,7 @@ from cortex_core.residency_pace import (
 )
 from cortex_core.residency_pass import recheck_tiers
 from cortex_core.residency_recheck import DEFAULT_TIER_RECHECK_INTERVAL_S, TierRechecker
-from cortex_core.residency_regain import recheck_usual_residency, regain_residency
+from cortex_core.residency_regain import recheck_baseline_residency, regain_residency
 from cortex_core.residency_state import (
     RESIDENCY_BOOT_FAILED,
     RESIDENCY_DEEP,
@@ -38,7 +38,7 @@ from cortex_core.residency_state import (
     ResidencyReport,
     with_note,
 )
-from cortex_core.residency_tiers import TIERS_MISSING_DETAIL, StandingTiers, TierFault
+from cortex_core.residency_tiers import TIERS_MISSING_DETAIL, BaselineTiers, TierFault
 from cortex_core.swap_conductor import SwapConductor
 from cortex_core.swap_notes import (
     ALREADY_ACTIVE_NOTE,
@@ -90,6 +90,7 @@ __all__ = [
     "TORN_DOWN_REASON",
     "UNHOSTED_TIER_NOTE",
     "WORKING_DETAIL",
+    "BaselineTiers",
     "CadenceReading",
     "CadenceTerms",
     "CadenceWatch",
@@ -105,15 +106,14 @@ __all__ = [
     "ResidencyPlan",
     "ResidencyReport",
     "SingleResidentModelManager",
-    "StandingTiers",
     "SwapConductor",
     "SwappingModelManager",
     "TierFault",
     "TierRechecker",
     "await_model_ready",
     "converge_residency",
+    "recheck_baseline_residency",
     "recheck_tiers",
-    "recheck_usual_residency",
     "recover_handoffs",
     "regain_residency",
     "with_note",

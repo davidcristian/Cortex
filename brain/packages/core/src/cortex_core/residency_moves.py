@@ -6,7 +6,7 @@ from collections.abc import Awaitable, Callable
 from cortex_core.errors import ModelHostError, ModelNotHostedError, SwapFailedError
 from cortex_core.model_host import ModelHostState, ResidencyPlan
 from cortex_core.ports import ModelHost
-from cortex_core.residency_tiers import StandingTiers
+from cortex_core.residency_tiers import BaselineTiers
 
 type ReadinessGate = Callable[[str], Awaitable[ModelHostState]]
 
@@ -100,8 +100,8 @@ async def _refuse_a_load_the_card_cannot_hold(
     )
 
 
-async def restore_standing(
-    host: ModelHost, plan: ResidencyPlan, model: str, gate: ReadinessGate, tiers: StandingTiers
+async def restore_baseline(
+    host: ModelHost, plan: ResidencyPlan, model: str, gate: ReadinessGate, tiers: BaselineTiers
 ) -> str | None:
     """One attempt to restore the usual set: stop ``model``, start the cortex and its peers."""
     try:
@@ -137,7 +137,7 @@ async def _stop_what_was_swapped_in(host: ModelHost, model: str) -> None:
         )
 
 
-async def restart_evicted(host: ModelHost, plan: ResidencyPlan, tiers: StandingTiers) -> None:
+async def restart_evicted(host: ModelHost, plan: ResidencyPlan, tiers: BaselineTiers) -> None:
     """Put back every tier a swap or a crash left evicted, so the usual set is complete."""
     for evicted in plan.evict_models:
         try:
@@ -157,4 +157,4 @@ async def restart_evicted(host: ModelHost, plan: ResidencyPlan, tiers: StandingT
             )
             tiers.mark_missing(evicted)
         else:
-            tiers.mark_standing(evicted)
+            tiers.mark_serving(evicted)

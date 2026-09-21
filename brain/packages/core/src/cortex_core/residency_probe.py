@@ -7,7 +7,7 @@ from cortex_core.residency_state import (
     RESIDENCY_SERVING,
     ResidencyReport,
 )
-from cortex_core.residency_tiers import StandingTiers
+from cortex_core.residency_tiers import BaselineTiers
 from cortex_core.residency_watch import BootWatch
 
 
@@ -16,7 +16,7 @@ class ResidencyProbeMixin:
 
     _board: ResidencyBoard
     _boot: BootWatch
-    _tiers: StandingTiers
+    _tiers: BaselineTiers
     _pace: HandoffPace
 
     async def publish_boot_residency(self, *, serving: bool) -> None:
@@ -25,7 +25,7 @@ class ResidencyProbeMixin:
         await self._board.publish_report(RESIDENCY_SERVING if serving else RESIDENCY_BOOT_FAILED)
 
     @property
-    def standing_tiers(self) -> StandingTiers:
+    def baseline_tiers(self) -> BaselineTiers:
         """The peer tiers recorded as not serving, for boot recovery to write from outside."""
         return self._tiers
 

@@ -112,6 +112,6 @@ class ResidencyPlan:
             if tier in self.evict_models:
                 msg = (
                     f"ResidencyPlan.evict_models (CORTEX_SWAP_EVICT_MODELS) names {tier!r}, "
-                    f"which is {setting}; list only the peers standing beside the cortex"
+                    f"which is {setting}; list only the peers that run beside the cortex"
                 )
                 raise ValueError(msg)
