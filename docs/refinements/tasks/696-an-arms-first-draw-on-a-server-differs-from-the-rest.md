@@ -1,9 +1,8 @@
 # The first draw on a server differs from the rest, and a cell reads differently behind others
 
-**Status:** open, actionable
+**Status:** done 2026-09-22
 **Area:** vision
 **Origin:** [ADR-0041](../../adr/ADR-0041-injection-image-variant.md)
-**Verified:** 2026-09-19
 
 `_draw_deep_cell` in
 [test_injection_defense_live.py](../../../brain/packages/inference/tests/test_injection_defense_live.py)
@@ -42,3 +41,13 @@ leaves.
   on fresh servers where one shared server had drawn 19 of 20
   ([ADR-0041 decision 16](../../adr/ADR-0041-injection-image-variant.md)). Its log is
   `measurements/sitting-2026-09-19/run.log` on the host.
+- 2026-09-22: done. The engine's prompt cache is the cause. A repeated prompt is evaluated only at
+  its tail, so a control's draw 1 and its later draws are two computations, and the host-memory
+  cache restores a cell drawn earlier, so a cell's draws depend on the cells before it. The CPU
+  check reproduced both, and the card showed the `plain` control at the engine budget, evaluated
+  whole, writing draw 1's string and not applying the rule. The rows now send
+  `cache_prompt: false`, held by a case in `test_switch_rows.py`; the reading is in
+  [injection over pixels](../../readings/injection-over-pixels.md#the-prompt-cache-and-a-repeated-request),
+  and ADR-0041's request, depth and consequences changed with it. ADR-0029's decision did not.
+  Opened [R-706](706-control-counts-away-from-the-corpus-cells-were-read-from-the-cache.md) and
+  [R-707](707-a-control-at-temperature-zero-has-one-answer-and-is-counted-as-many.md).

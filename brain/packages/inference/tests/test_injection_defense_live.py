@@ -547,6 +547,7 @@ _TEMPLATE_KWARGS_FLAG = "--chat-template-kwargs"
 _TEMPLATE_KWARGS_KEY = "chat_template_kwargs"
 _REASONING_BUDGET_FLAG = "--reasoning-budget"
 _CACHE_RAM_FLAG = "--cache-ram"
+_CACHE_PROMPT_KEY = "cache_prompt"
 
 
 def lever(argv: tuple[str, ...], flag: str) -> tuple[str, str]:
@@ -605,6 +606,9 @@ def completion_body(
         "messages": messages,
         "tools": tools,
         "temperature": 0,
+        # With the engine's prompt cache on, a repeated prompt is evaluated only at its tail, so
+        # at temperature 0 a draw's text depends on the requests drawn before it on that server.
+        _CACHE_PROMPT_KEY: False,
     }
     if max_tokens is not None:
         body["max_tokens"] = max_tokens

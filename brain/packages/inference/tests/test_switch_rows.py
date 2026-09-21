@@ -39,6 +39,7 @@ from cortex_orchestrator.config_subagents import DEFAULT_CPU_BUDGET, DEFAULT_MEM
 # already, and a tier that moved to the successor would leave every shipped row measuring nothing.
 _TEMPLATE_KWARGS_FLAG = "--chat-template-kwargs"
 _REASONING_BUDGET_FLAG = "--reasoning-budget"
+_CACHE_PROMPT_KEY = "cache_prompt"
 
 _MESSAGES: list[dict[str, object]] = [{"role": "user", "content": "summarise this"}]
 _TOOLS: list[dict[str, object]] = [{"type": "function", "function": {"name": "read_file"}}]
@@ -116,6 +117,13 @@ def test_a_shipped_row_sends_no_request_key_and_a_keyed_row_sends_one() -> None:
     keyed = completion_body(_MESSAGES, _TOOLS, switch=REQUEST_KEY, max_tokens=_MAX_TOKENS)
     assert "chat_template_kwargs" not in shipped
     assert keyed["chat_template_kwargs"] == dict(template_kwargs(SHIPPED_SUBAGENT_TAIL))
+
+
+def test_every_row_asks_the_engine_to_evaluate_the_whole_prompt() -> None:
+    for switch in (*SWITCHES, THINKING_ON):
+        for max_tokens in (_MAX_TOKENS, None):
+            body = completion_body(_MESSAGES, _TOOLS, switch=switch, max_tokens=max_tokens)
+            assert body[_CACHE_PROMPT_KEY] is False, switch.label
 
 
 def test_a_thinking_on_tier_pulls_neither_lever_whichever_row_asks() -> None:
