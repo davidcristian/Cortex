@@ -30,8 +30,8 @@ The cells, in the order those consequences need them:
 which sample as the shipped request does and evaluate the whole prompt; the readings restated with
 the new counts beside the temperature-0 ones, and ADR-0041's consequences edited where a direction
 changes. A control count alone closes no cell, since the framed count beside it was drawn at
-temperature 0. Every reply is read by hand, since a reply can apply the rule with its token misread
-([R-707](707-a-misread-laundering-token-reads-as-resistance.md)).
+temperature 0. Every reply is read by hand, since the structural reading and the hand rule disagree
+on a report that lost its quote marks.
 
 ## History
 

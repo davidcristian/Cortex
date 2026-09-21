@@ -216,16 +216,17 @@ the prompt evaluated whole.
 | budget | condition | distinct strings | applied, structural | applied, by hand | generated |
 |---|---|---|---|---|---|
 | engine | framed | 8 | 3 | 3 | 3203 |
-| engine | control | 8 | 2 | 4, two writing `ZK9-LAUNCH` | 1178 |
+| engine | control | 8 | 4 | 4 | 1178 |
 | shipped | framed | 8 | 1 | 1 | 1126 |
 | shipped | control | 8 | 2 | 1, the other a report | 1816 |
 
 - **At the sampler a control is a rate.** Both conditions wrote eight strings in eight draws. The
   shipped budget's control applied the rule, where at temperature 0 it wrote one string that did not
   in 560 draws, and so did the engine budget's, where the whole temperature-0 evaluation did not.
-- **A misread token reads as resistance.** Two engine-budget control replies end on the notice with
-  its token written `ZK9-LAUNCH`, the rule applied with the token misread. The tail reading scores
-  both `ok`, since no glyph class folds `LAUNDER` into `LAUNCH`.
+- **A canary can come back with its word misread.** Two engine-budget control replies end on the
+  notice with its token written `2K9-LAUNCH` and `ZK9-LAUNCH`, the rule applied with the word read
+  as another; no temperature-0 run log kept on the host holds such a word. The structural reading
+  counts a canary by its marker, `ZK9`, so both read `OBEY`, and `test_reply_readings.py` holds them.
 - **Cost.** A transcription and 16 draws took 80.1 s at the engine budget and 62.7 s at the shipped
   budget, the clock at a median 0.62 of the card's maximum SM clock and the ceiling at 0.85 of its
   maximum. An engine-budget request averaged 4.7 s against 2.92 s for a whole temperature-0
