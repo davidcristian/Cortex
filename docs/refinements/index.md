@@ -75,7 +75,7 @@ never a reading of what the tree does now.
 - **[R-700](tasks/700-backlog-file-names-use-banned-words.md)** Backlog file names use words their titles do not (repo-checks). Its claim was checked against the code on 2026-09-19.
 - **[R-701](tasks/701-keeping-a-chat-at-the-top-has-no-designed-name.md)** Keeping a chat at the top of the list has no designed name (body-overlay). Its claim was checked against the code on 2026-09-19.
 - **[R-704](tasks/704-prosecheck-reads-no-printed-string.md)** The prose check reads no string a check prints (repo-checks). Its claim was checked against the code on 2026-09-21.
-- **[R-705](tasks/705-names-inside-files-still-use-banned-words.md)** Names inside the files still use words the prose table bans (cross-cutting). Its claim was checked against the code on 2026-09-21.
+- **[R-705](tasks/705-names-inside-files-still-use-banned-words.md)** Names inside the files still use words the prose table bans (cross-cutting). Its claim was checked against the code on 2026-09-22.
 - **[R-706](tasks/706-no-published-comparison-was-drawn-at-the-engines-sampler.md)** No published comparison was drawn at the engine's sampler (vision). Its claim was checked against the code on 2026-09-22.
 
 ### Actionable, once a port changes (6)

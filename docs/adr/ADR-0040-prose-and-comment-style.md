@@ -84,6 +84,16 @@ record says what it is and why.
     to argue its case argues it in the place nobody rereads, so longer reasoning belongs in a
     decision record or a module doc and the message points there. `scripts/commitlint.py` counts
     the words outside a fence or a paste ([ADR-0026](ADR-0026-prose-style-checks.md)).
+15. **The table reaches every name a reader meets in hand-written code.** That is identifiers
+    (constants, classes, functions, arguments, and locals that are public or widely read), the
+    words of a log message and its field names, test function names, and prose fields such as a
+    Cargo `description`. It stops at a name fixed outside the code: an environment variable
+    (`CORTEX_SWAP_TIER_HEAL_S` and `CORTEX_SEAM_TOKEN` stay, because a deployment's configuration
+    sets them), a proto message, field or package name (`cortex.seam.v1`), the `cortex_seam`
+    package, a key in recorded data (the envelope samples' `arm`), and anything the Windows host
+    reads. An identifier beside a kept name may still be renamed: a settings field keeps its
+    variable as a `validation_alias`. No check reads identifiers, so a `git grep` survey finds the
+    rest, and the backlog lists what is left. Backlog file names are a task of their own.
 
 ## Consequences
 
@@ -103,8 +113,8 @@ record says what it is and why.
   `samplecheck.py` the log lines runbooks print, `stubcheck.py` the comments in
   `proto/body.proto`, `backlogcheck.py` headings and every `#fragment`, and `crosscheck.py` the
   values quoted inside prose.
-- A file name, a package name or a storage key can hold a word from the table, and renaming one is
-  a code change rather than a prose edit, so those are listed in the backlog instead.
+- A name decision 15 covers is renamed as a code change rather than a prose edit, together with
+  the runbook line, module doc and task files that quote it. A name it excludes keeps its word.
 
 ## Alternatives rejected
 
@@ -126,6 +136,7 @@ record says what it is and why.
 - [R-663](../refinements/tasks/663-a-figure-that-describes-only-this-machine-is-caught-by-eye.md):
   whether decision 10 can be checked by a machine
 - [R-699](../refinements/tasks/699-source-file-names-use-banned-words.md),
-  [R-700](../refinements/tasks/700-backlog-file-names-use-banned-words.md) and
-  [R-701](../refinements/tasks/701-keeping-a-chat-at-the-top-has-no-designed-name.md): names that
-  still hold a word from the table
+  [R-700](../refinements/tasks/700-backlog-file-names-use-banned-words.md),
+  [R-701](../refinements/tasks/701-keeping-a-chat-at-the-top-has-no-designed-name.md) and
+  [R-705](../refinements/tasks/705-names-inside-files-still-use-banned-words.md): names that still
+  hold a word from the table
