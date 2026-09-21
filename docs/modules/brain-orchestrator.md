@@ -132,8 +132,8 @@ the version string `Health` reports.
 
 - `build_inference_backend(config, cortex_model)` returns `EchoInferenceBackend` and a no-op
   closer, or `LlamaCppBackend` over a `SingleResidentModelManager` and the httpx client's `aclose`;
-  `resolve_trace_lever` maps `CORTEX_INFERENCE_TRACE_LEVER` onto the bool the adapter holds, `auto`
-  probing under `TRACE_LEVER_PROBE_TIMEOUT_S` (5 s) and a server it cannot reach answering no.
+  `resolve_send_trace_budget` maps `CORTEX_INFERENCE_TRACE_LEVER` onto the bool the adapter holds,
+  `auto` probing under `TRACE_BUDGET_PROBE_TIMEOUT_S` (5 s) and a server it cannot reach answering no.
   `build_generation_client(stall_timeout_s)` is the one place a generation client is built, shared
   with `build_subagents`: connect, write and pool take `LLAMACPP_CONNECT_TIMEOUT_S` (10 s) and the
   read phase takes the caller's per-tier ceiling, which httpx applies to one socket read, so it
@@ -183,7 +183,7 @@ the version string `Health` reports.
   half-wired, the deep tier's own vision-less built-in set travelling with the runtime that swaps
   and the subagent pool the conductor drains.
 - With escalation wired, `run_from_env` also runs `recover_handoffs` before serving, publishes what
-  it observed about the cortex with `publish_boot_residency`, starts the `TierHealer` after that
+  it observed about the cortex with `publish_boot_residency`, starts the `TierRechecker` after that
   publish, registers `escalate_to_brain`, hands the manager to `serve` as the wire's `residency`
   reporter, and passes the runtime into `StreamEngines` as its `DeepTier`. `swap_closer` releases
   the handoff store and the control client in the shutdown `finally`, the client even when the

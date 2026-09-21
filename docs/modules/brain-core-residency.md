@@ -207,21 +207,21 @@ report gains the note, joined to any note already there, and one that is not ser
   dwell. The note lapses on its own after `DEFAULT_SPILL_DWELL_S` (3600 s), long enough to still be
   there when somebody who walked away from a minutes-long deep task comes back and short enough
   that a card left alone for an afternoon is not described by a judgement about the morning.
-- `sweep_tiers(host, plan, tiers, fence)` (`residency_pass.py`) is one pass over **every**
+- `recheck_tiers(host, plan, tiers, fence)` (`residency_pass.py`) is one pass over **every**
   `plan.evict_models` tier rather than only the marked ones, because the ways a peer goes down with
   no refusal to record are exactly the ways a record written from refusals cannot see. Per tier: an
   unhosted one is skipped without a call, a `ModelNotHostedError` records that fault, any other
   `ModelHostError` leaves the record alone and logs, `READY` marks it present, `LOADING` is left
   alone, and `STOPPED` or `FAILED` marks it missing and then, if `fence()` still allows, issues one
   `start`. The mark is written before the fence is consulted. It never raises.
-- `heal_standing_residency(host, plan, board, tiers, fence)` (`residency_regain.py`) is a whole
-  pass: `sweep_tiers` for the peers, then `regain_residency` for the resident, in that order so the
-  report the second publishes is composed over a record the first has just refreshed.
+- `recheck_usual_residency(host, plan, board, tiers, fence)` (`residency_regain.py`) is a whole
+  pass: `recheck_tiers` for the peers, then `regain_residency` for the resident, in that order so
+  the report the second publishes is composed over a record the first has just refreshed.
   `regain_residency` answers a state nothing else could leave, a restore that gave up refusing
   every `acquire`, so no turn runs, so no handoff starts, so the reconciliation inside the swap is
   unreachable; a serving report returns before any call, so a healthy deployment pays nothing.
-  `TierHealer(heal, *, interval_s=DEFAULT_TIER_HEAL_INTERVAL_S)` (`residency_recheck.py`) is the
-  loop that keeps calling one such pass and owns its own task.
+  `TierRechecker(recheck, *, interval_s=DEFAULT_TIER_RECHECK_INTERVAL_S)` (`residency_recheck.py`)
+  is the loop that keeps calling one such pass and owns its own task.
 - `BootWatch(host, plan, tiers, *, clock, sleeper)` (`residency_watch.py`, ADR-0053 decision 12)
   records which supervisor daemon every belief above was formed against, and the manager calls
   `reconcile(publish)` as the first thing a swap does. `observe(boot_id)` is the whole decision and

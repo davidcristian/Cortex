@@ -58,11 +58,11 @@ def _content_handler(_request: httpx.Request) -> httpx.Response:
 
 
 def _backend(
-    handler: _Handler, *, resident: str = "cortex", trace_lever: bool = False
+    handler: _Handler, *, resident: str = "cortex", send_trace_budget: bool = False
 ) -> LlamaCppBackend:
     manager = SingleResidentModelManager(resident, _ENDPOINT)
     client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
-    return LlamaCppBackend(manager, client, trace_lever=trace_lever)
+    return LlamaCppBackend(manager, client, send_trace_budget=send_trace_budget)
 
 
 async def _drain_into(stream: AsyncIterator[InferenceEvent], seen: list[InferenceEvent]) -> None:
@@ -352,7 +352,7 @@ async def test_no_bounds_omits_every_key() -> None:
         captured["body"] = json.loads(request.content)
         return httpx.Response(200, content=_sse(_chunk({"content": "ok"})))
 
-    backend = _backend(handler, trace_lever=True)
+    backend = _backend(handler, send_trace_budget=True)
     _ = [event async for event in backend.stream("cortex", _messages())]
     body = captured["body"]
     assert isinstance(body, dict)
@@ -361,14 +361,14 @@ async def test_no_bounds_omits_every_key() -> None:
     assert "reasoning_budget_tokens" not in body
 
 
-async def test_a_trace_budget_rides_the_request_where_the_engine_reads_one() -> None:
+async def test_a_trace_budget_is_sent_with_the_request_where_the_engine_reads_one() -> None:
     captured: list[dict[str, object]] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
         captured.append(json.loads(request.content))
         return httpx.Response(200, content=_sse(_chunk({"content": "ok"})))
 
-    backend = _backend(handler, trace_lever=True)
+    backend = _backend(handler, send_trace_budget=True)
     for bounds in (GenerationBounds(trace_tokens=0), GenerationBounds(trace_tokens=128)):
         _ = [event async for event in backend.stream("cortex", _messages(), bounds=bounds)]
     ended, budgeted = captured
@@ -393,7 +393,7 @@ async def test_a_trace_budget_is_withheld_where_the_engine_does_not_read_one() -
 
 
 _BACKEND_LOGGER = "cortex_inference.backend"
-_UNSENT_BUDGET = "trace budget not sent because the trace lever is off"
+_UNSENT_BUDGET = "trace budget not sent because its setting is off"
 
 
 def _ok_handler(_request: httpx.Request) -> httpx.Response:
@@ -404,7 +404,7 @@ async def _drain(backend: LlamaCppBackend, bounds: GenerationBounds | None) -> N
     _ = [event async for event in backend.stream("cortex", _messages(), bounds=bounds)]
 
 
-async def test_a_count_the_lever_withholds_is_reported_once(
+async def test_a_count_the_setting_withholds_is_reported_once(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     backend = _backend(_ok_handler)
@@ -432,7 +432,7 @@ async def test_nothing_is_reported_when_no_positive_count_goes_unsent(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     unread = _backend(_ok_handler)
-    read = _backend(_ok_handler, trace_lever=True)
+    read = _backend(_ok_handler, send_trace_budget=True)
     with caplog.at_level(logging.WARNING, logger=_BACKEND_LOGGER):
         await _drain(unread, GenerationBounds(thinking=False, trace_tokens=0))
         await _drain(unread, GenerationBounds(max_tokens=64))
@@ -448,7 +448,7 @@ async def test_the_thinking_switch_alone_never_budgets_the_trace() -> None:
         captured["body"] = json.loads(request.content)
         return httpx.Response(200, content=_sse(_chunk({"content": "ok"})))
 
-    backend = _backend(handler, trace_lever=True)
+    backend = _backend(handler, send_trace_budget=True)
     bounds = GenerationBounds(max_tokens=256, thinking=False)
     _ = [event async for event in backend.stream("cortex", _messages(), bounds=bounds)]
     body = captured["body"]
@@ -649,7 +649,7 @@ async def test_a_tool_message_without_images_is_byte_identical_to_before() -> No
     ]
 
 
-async def test_several_images_on_one_message_all_ride_the_same_parts_array() -> None:
+async def test_several_images_on_one_message_all_go_in_the_same_parts_array() -> None:
     sent: list[dict[str, object]] = []
 
     def handler(request: httpx.Request) -> httpx.Response:

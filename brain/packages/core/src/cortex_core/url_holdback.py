@@ -8,12 +8,12 @@ from cortex_core.url_separators import (
     AUTHORITY_SEPS,
     CHUNK_INNER,
     CLOSE_BRACKET,
-    COLON_SPELLING,
+    COLON_FORMS,
     DOT_TOKENS,
     GAP_WHITESPACE,
     OPAQUE_SEPS,
     OPEN_BRACKET,
-    SOLIDUS_SPELLING,
+    SOLIDUS_FORMS,
 )
 from cortex_core.urls import (
     ARRIVING_AUTHORITY,
@@ -41,8 +41,8 @@ _UNFINISHED_ENTITY = r"&[#0-9a-z]*"
 _OPEN_SEP_RE = re.compile(
     rf"\b(?:{'|'.join(permeable(word) for word in _SCHEME_WORDS)}){REMOVED_RUN}"
     rf"(?:{OPEN_BRACKET}{CHUNK_INNER}*"
-    rf"|(?:{OPAQUE_SEP_RE}){SOLIDUS_SPELLING}?{HOST_CHAR}*"
-    rf"|(?:{COLON_SPELLING}|{SOLIDUS_SPELLING})*(?:{_UNFINISHED_ENTITY})?)\Z",
+    rf"|(?:{OPAQUE_SEP_RE}){SOLIDUS_FORMS}?{HOST_CHAR}*"
+    rf"|(?:{COLON_FORMS}|{SOLIDUS_FORMS})*(?:{_UNFINISHED_ENTITY})?)\Z",
     re.IGNORECASE,
 )
 

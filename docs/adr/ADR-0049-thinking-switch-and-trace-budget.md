@@ -104,14 +104,14 @@ how those measurements are taken is [ADR-0050](ADR-0050-live-probe-records.md).
 ### Whether the engine reads the request key
 
 11. **`CORTEX_INFERENCE_TRACE_LEVER` is `auto` (the default), `on` or `off`.** `auto` asks the
-    cortex endpoint once, in `build_inference_backend` (`resolve_trace_lever`,
+    cortex endpoint once, in `build_inference_backend` (`resolve_send_trace_budget`,
     `reads_a_trace_budget` in `trace_probe.py`): a request sending `reasoning_budget_tokens: -2` is
     answered 400 naming the key by a build that parses it, since the engine range-checks the value
     before decoding, and 200 by one that ignores it. Only a well-typed out-of-range integer triggers
     the check. Every other answer, an unreachable server included, is no, and the request then sends
     no budget. `GET /props` does not answer the question, and its `build_info` is only a proxy for
     it. `on` and `off` fix the answer and open no socket. The probe is bounded by
-    `TRACE_LEVER_PROBE_TIMEOUT_S` (5 s), well above the sub-second answer measured on the slowest
+    `TRACE_BUDGET_PROBE_TIMEOUT_S` (5 s), well above the sub-second answer measured on the slowest
     tier the repo ships.
 12. **The answer is taken once per startup and covers the deep tier.** Whether the engine reads a
     key is a property of a binary, which changes only with the image, where vision is a property of
@@ -120,7 +120,7 @@ how those measurements are taken is [ADR-0050](ADR-0050-live-probe-records.md).
     one nothing reads. Re-asking at a model swap is not built: the only such boundary starts another
     child of the same image and exists only with `CORTEX_ESCALATION` on.
 13. **A count that is withheld is reported once.** A `LlamaCppBackend` built with the control off
-    logs one `WARNING`, `trace budget not sent because the trace lever is off`, with `model` and
+    logs one `WARNING`, `trace budget not sent because its setting is off`, with `model` and
     `trace_budget`, on the first request whose count goes unsent, and nothing after. The field is
     not `trace_tokens` because the log sink withholds any field whose name contains `token`. A zero
     sent beside `thinking=False` is not reported, the drain already covering that request; a zero
@@ -144,8 +144,8 @@ how those measurements are taken is [ADR-0050](ADR-0050-live-probe-records.md).
 ### The injection test's switch rows
 
 16. **The test reads each control off the tier's own argv tail by the flag's name.**
-    `lever(argv, flag)` returns the flag and the value after it and raises at import when the tail
-    lacks the flag; no value of the pair is typed into the test. The budget alone is its own
+    `flag_and_value(argv, flag)` returns the flag and the value after it and raises at import when
+    the tail lacks the flag; no value of the pair is typed into the test. The budget alone is its own
     `SWITCHES` row (`BUDGET_ALONE`), shown on the table, and `test_switch_rows.py` requires the rows
     to differ by the control alone. The kwarg alone has no row: on the plain request the test posts,
     it renders what the request-key row renders.

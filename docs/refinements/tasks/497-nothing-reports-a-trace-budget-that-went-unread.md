@@ -32,7 +32,7 @@ existed since 2026-09-11, is a measurement: `CORTEX_ENVELOPE_TRACE_TOKENS` in
   positive count now exists, `CORTEX_ENVELOPE_TRACE_TOKENS` in the envelope harness, and the way it
   satisfies itself is the shape the close wants: ask the probe first, then read the key back off the
   wire. And the boot report is not a few lines, because the composition root does not hold the
-  probe's answer; `resolve_trace_lever` is called inside `build_inference_backend` and its answer
+  probe's answer; `resolve_send_trace_budget` is called inside `build_inference_backend` and its answer
   reaches only `LlamaCppBackend`. Nothing else moved.
 - 2026-09-14: neither clause has fired and every claim held when checked again. One relation is
   worth recording: the entry beside this one about asking the probe again when the engine moves

@@ -18,7 +18,7 @@ from cortex_core import (
     Sleeper,
     SubagentPlacer,
     SwappingModelManager,
-    TierHealer,
+    TierRechecker,
     recover_handoffs,
 )
 from cortex_model_manager import HttpModelHost
@@ -44,7 +44,7 @@ class SwapRuntime:
     manager: SwappingModelManager
     handoffs: HandoffStore
     plan: ResidencyPlan
-    healer: TierHealer
+    rechecker: TierRechecker
     close: Callable[[], Awaitable[None]]
 
 
@@ -65,14 +65,14 @@ def build_swap_runtime(  # noqa: PLR0913 -- one more injected collaborator than 
     endpoints = {plan.cortex_model: inference.endpoint, plan.brain_model: swap.brain_endpoint}
     handoffs = handoff_store_factory(runtime.redis_url)
     manager = SwappingModelManager(host, endpoints, plan, clock, sleeper, placer)
-    healer = TierHealer(manager.heal_residency, interval_s=swap.swap_tier_heal_s)
+    rechecker = TierRechecker(manager.recheck_residency, interval_s=swap.swap_tier_recheck_s)
     return SwapRuntime(
         host=host,
         manager=manager,
         handoffs=handoffs,
         plan=plan,
-        healer=healer,
-        close=_release_all(healer.aclose, handoffs.aclose, close_host),
+        rechecker=rechecker,
+        close=_release_all(rechecker.aclose, handoffs.aclose, close_host),
     )
 
 
@@ -143,7 +143,7 @@ async def recover_boot_residency(swap: SwapRuntime | None, clock: Clock) -> None
         sleeper=AsyncioSleeper(),
     )
     await swap.manager.publish_boot_residency(serving=converged)
-    swap.healer.start()
+    swap.rechecker.start()
 
 
 def swap_closer(swap: SwapRuntime | None) -> Callable[[], Awaitable[None]]:

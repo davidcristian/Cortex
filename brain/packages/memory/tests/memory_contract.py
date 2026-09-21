@@ -54,7 +54,7 @@ async def _refuses_typed(verb: Callable[[], Awaitable[object]], name: str) -> No
     try:
         await verb()
     except MemoryDataError as err:
-        msg = f"{name} called a gone backend a data defect, which no outage ever heals out of"
+        msg = f"{name} called a gone backend a data defect, which the end of an outage does not fix"
         raise AssertionError(msg) from err
     except MemoryStoreError:
         return

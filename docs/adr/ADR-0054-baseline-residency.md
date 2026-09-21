@@ -76,12 +76,13 @@ residency, the brain's residency is `None`, and `Health` stays unconditionally r
    and nothing else (no timestamp, no attempt count): the pass interval paces the retry. The writers
    are the swap back's and startup's shared `residency_moves.restart_evicted` and the pass (decision
    4).
-4. **A periodic pass recomputes the record from the machine.** `TierHealer` (`residency_recheck.py`)
-   runs `SwappingModelManager.heal_residency` every `CORTEX_SWAP_TIER_HEAL_S` (30 s). Its first
-   half, `sweep_tiers` (`residency_pass.py`), asks `status` for **every** evict-list tier whatever
-   the record says: `READY` marks it present, `LOADING` is left for a later pass, anything else is
-   marked `MISSING` and started once, and a 404 marks it `UNHOSTED`. A host that cannot answer marks
-   nothing, so one transport blip cannot close the GPU for the pool. A pass never raises, and costs
+4. **A periodic pass recomputes the record from the machine.** `TierRechecker`
+   (`residency_recheck.py`) runs `SwappingModelManager.recheck_residency` every
+   `CORTEX_SWAP_TIER_HEAL_S` (30 s). Its first half, `recheck_tiers` (`residency_pass.py`), asks
+   `status` for **every** evict-list tier whatever the record says: `READY` marks it present,
+   `LOADING` is left for a later pass, anything else is marked `MISSING` and started once, and a
+   404 marks it `UNHOSTED`. A host that cannot answer marks nothing, so one transport blip cannot
+   close the GPU for the pool. A pass never raises, and costs
    at most 2N + 2 control calls for N peers (two more only while the report is not serving, decision
    5). The pass does nothing while a handoff owns the card: its condition is the residency scope's
    flag **or** the handoff claim, read synchronously before every `start` with nothing awaited

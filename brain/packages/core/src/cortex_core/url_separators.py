@@ -32,15 +32,15 @@ def _entity_forms(char: str) -> tuple[str, ...]:
     )
 
 
-def _spellings(plain: tuple[str, ...]) -> str:
+def _separator_forms(plain: tuple[str, ...]) -> str:
     """One separator position's alternation: its plain glyphs, then their entity references."""
     forms = tuple(f for g in plain if g in _ENTITY_NAMES for f in _entity_forms(g))
     return f"(?:{'|'.join((*(re.escape(g) for g in plain), *forms))})"
 
 
-COLON_SPELLING = _spellings(_COLONS)
-SOLIDUS_SPELLING = _spellings(_SOLIDI)
-DOT_SPELLING = _spellings(_DOTS)
+COLON_FORMS = _separator_forms(_COLONS)
+SOLIDUS_FORMS = _separator_forms(_SOLIDI)
+DOT_FORMS = _separator_forms(_DOTS)
 
 # Every character NFKC folds to a space, so a host split by a no-break, thin or ideographic
 # space reads exactly like one split by a plain space. A test regenerates this from the Unicode
@@ -51,7 +51,7 @@ NFKC_SPACES = (
 GAP_WHITESPACE = rf"[ \t{NFKC_SPACES}]"
 
 SPACED_DOT = (
-    rf"{GAP_WHITESPACE}+(?:{permeable(DOT_WORD)}|{DOT_SPELLING}|{DEFANG_DOT}){GAP_WHITESPACE}+"
+    rf"{GAP_WHITESPACE}+(?:{permeable(DOT_WORD)}|{DOT_FORMS}|{DEFANG_DOT}){GAP_WHITESPACE}+"
 )
 
 DOT_TOKENS = (DOT_WORD, *_DOTS)

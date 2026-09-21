@@ -18,10 +18,10 @@ from cortex_core import (
     StandingTiers,
     SwappingModelManager,
     TierFault,
-    TierHealer,
+    TierRechecker,
     VramBudgetPlacer,
     converge_residency,
-    sweep_tiers,
+    recheck_tiers,
 )
 
 _ENDPOINTS = {"cortex": "http://llama-cortex:8080", "brain": "http://llama-brain:8081"}
@@ -29,7 +29,7 @@ _TIER = "subagent-gpu"
 _OTHER_TIER = "subagent-gpu-2"
 _GHOST = "tier-with-no-artifact"
 _RETRY_LOGGER = "cortex_core.residency_pass"
-_LOOP_NAME = "residency-tier-healer"
+_LOOP_NAME = "residency-tier-recheck"
 
 
 def _open() -> bool:
@@ -173,11 +173,11 @@ def test_a_deployment_with_no_pool_still_records_which_peer_is_down() -> None:
     assert tiers.note_on(RESIDENCY_SERVING) == RESIDENCY_SERVING
 
 
-async def test_a_sweep_that_meets_the_fence_mid_pass_records_without_starting() -> None:
+async def test_a_recheck_that_meets_the_fence_mid_pass_records_without_starting() -> None:
     placer = _placer()
     host = ScriptedModelHost(running=["cortex"])
     tiers = StandingTiers(placer)
-    await sweep_tiers(host, _plan(), tiers, lambda: False)
+    await recheck_tiers(host, _plan(), tiers, lambda: False)
     assert host.calls == [("status", _TIER)]
     assert tiers.missing == (_TIER,)
     assert placer.place(_spawn()).target is PlacementTarget.CPU
@@ -189,7 +189,7 @@ async def test_a_start_the_host_refuses_leaves_the_tier_recorded_and_the_pass_al
     host = ScriptedModelHost(running=["cortex"], fail={("start", _TIER): "no such device"})
     tiers = StandingTiers(_placer())
     with caplog.at_level(logging.WARNING, logger=_RETRY_LOGGER):
-        await sweep_tiers(host, _plan(evict_models=(_TIER, _OTHER_TIER)), tiers, _open)
+        await recheck_tiers(host, _plan(evict_models=(_TIER, _OTHER_TIER)), tiers, _open)
     assert host.calls == [
         ("status", _TIER),
         ("start", _TIER),
@@ -221,25 +221,25 @@ async def test_a_retry_that_finds_the_tier_serving_reopens_the_gpu(
         pass
     assert placer.place(_spawn()).target is PlacementTarget.CPU
     host.calls.clear()
-    await manager.heal_residency()
+    await manager.recheck_residency()
     assert host.calls == [("status", _TIER), ("start", _TIER)]
     assert placer.place(_spawn()).target is PlacementTarget.CPU
     with caplog.at_level(logging.INFO, logger=_RETRY_LOGGER):
-        await manager.heal_residency()
+        await manager.recheck_residency()
     assert placer.place(_spawn()).target is PlacementTarget.GPU
     assert _retry_log(caplog) == ["a tier the standing residency was missing is serving again"]
 
 
-async def test_a_sweep_leaves_a_tier_that_is_still_loading_alone() -> None:
+async def test_a_recheck_leaves_a_tier_that_is_still_loading_alone() -> None:
     host = ScriptedModelHost(running=[_TIER], status_override={_TIER: ModelHostState.LOADING})
     tiers = StandingTiers(_placer())
     tiers.mark_missing(_TIER)
-    await sweep_tiers(host, _plan(), tiers, _open)
+    await recheck_tiers(host, _plan(), tiers, _open)
     assert host.calls == [("status", _TIER)]
     assert tiers.missing == (_TIER,)
 
 
-async def test_a_sweep_that_cannot_reach_the_host_leaves_the_record_alone(
+async def test_a_recheck_that_cannot_reach_the_host_leaves_the_record_alone(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     placer = _placer()
@@ -251,37 +251,37 @@ async def test_a_sweep_that_cannot_reach_the_host_leaves_the_record_alone(
     async with manager.swap_scope("brain"):
         pass
     with caplog.at_level(logging.WARNING, logger=_RETRY_LOGGER):
-        await manager.heal_residency()
+        await manager.recheck_residency()
     assert placer.place(_spawn()).target is PlacementTarget.CPU
     assert _retry_lines(caplog) == [
         f"WARNING:{_RETRY_LOGGER}:a tier of the standing residency could not be asked about"
         f' error="connection refused" model={_TIER}'
     ]
     standing = StandingTiers(_placer())
-    await sweep_tiers(host, _plan(), standing, _open)
+    await recheck_tiers(host, _plan(), standing, _open)
     assert standing.missing == ()
 
 
-async def test_a_sweep_defers_while_a_handoff_owns_the_gpu() -> None:
+async def test_a_recheck_defers_while_a_handoff_owns_the_gpu() -> None:
     host = ScriptedModelHost(running=["cortex", _TIER], fail_once={("start", _TIER): "device busy"})
     manager = _manager(host, _placer())
     async with manager.swap_scope("brain"):
         pass
     async with manager.swap_scope("brain"):
         host.calls.clear()
-        await manager.heal_residency()
+        await manager.recheck_residency()
         assert host.calls == []
 
 
-async def test_a_sweep_defers_while_a_handoff_is_claimed_and_the_pool_is_draining() -> None:
+async def test_a_recheck_defers_while_a_handoff_is_claimed_and_the_pool_is_draining() -> None:
     host = ScriptedModelHost(running=["cortex"])
     manager = _manager(host, _placer())
     async with manager.handoff_claim():
         host.calls.clear()
-        await manager.heal_residency()
+        await manager.recheck_residency()
         assert host.calls == []
     host.calls.clear()
-    await manager.heal_residency()
+    await manager.recheck_residency()
     assert host.calls == [("status", _TIER), ("start", _TIER)]
 
 
@@ -296,7 +296,7 @@ async def test_a_peer_that_accepted_its_start_and_then_died_is_found_by_the_next
     before = placer.place(_spawn())
     assert before.target is PlacementTarget.GPU
     placer.release(before)
-    await manager.heal_residency()
+    await manager.recheck_residency()
     assert manager.standing_tiers.missing == (_TIER,)
     assert placer.place(_spawn()).target is PlacementTarget.CPU
     assert manager.residency().detail == TIERS_MISSING_DETAIL.format(models=_TIER)
@@ -313,7 +313,7 @@ async def test_a_peer_that_died_between_handoffs_is_found_without_any_handoff(
     assert before.target is PlacementTarget.GPU
     placer.release(before)
     with caplog.at_level(logging.WARNING, logger=_RETRY_LOGGER):
-        await manager.heal_residency()
+        await manager.recheck_residency()
     assert placer.place(_spawn()).target is PlacementTarget.CPU
     assert _retry_lines(caplog) == [
         f"WARNING:{_RETRY_LOGGER}:a tier of the standing residency stopped without anything "
@@ -336,7 +336,7 @@ async def test_a_peer_nothing_ever_started_is_found_by_the_first_pass() -> None:
     before = placer.place(_spawn())
     assert before.target is PlacementTarget.GPU
     placer.release(before)
-    await manager.heal_residency()
+    await manager.recheck_residency()
     assert manager.standing_tiers.missing == (_TIER,)
     assert placer.place(_spawn()).target is PlacementTarget.CPU
 
@@ -354,10 +354,10 @@ async def test_a_boot_that_could_not_reach_the_host_is_swept_when_it_answers_aga
     assert before.target is PlacementTarget.GPU
     placer.release(before)
     host.calls.clear()
-    await manager.heal_residency()
+    await manager.recheck_residency()
     assert host.calls == [("status", _TIER), ("start", _TIER)]
     assert placer.place(_spawn()).target is PlacementTarget.CPU
-    await manager.heal_residency()
+    await manager.recheck_residency()
     assert placer.place(_spawn()).target is PlacementTarget.GPU
 
 
@@ -369,12 +369,12 @@ async def test_a_tier_the_roster_never_had_is_recorded_once_and_never_asked_agai
     plan = _plan(evict_models=(_GHOST,))
     manager = _manager(host, placer, plan)
     with caplog.at_level(logging.ERROR, logger=_RETRY_LOGGER):
-        await manager.heal_residency()
+        await manager.recheck_residency()
     assert manager.standing_tiers.fault_of(_GHOST) is TierFault.UNHOSTED
     assert placer.place(_spawn()).target is PlacementTarget.CPU
     host.calls.clear()
-    await manager.heal_residency()
-    await manager.heal_residency()
+    await manager.recheck_residency()
+    await manager.recheck_residency()
     assert host.calls == []
     (line,) = _retry_lines(caplog)
     assert f"model={_GHOST}" in line
@@ -399,7 +399,7 @@ async def test_a_replaced_daemon_asks_an_unhosted_tier_again() -> None:
     host = ScriptedModelHost(running=["cortex"], unhosted=[_GHOST], boot_id="first")
     plan = _plan(evict_models=(_GHOST,))
     manager = _manager(host, _placer(), plan)
-    await manager.heal_residency()
+    await manager.recheck_residency()
     assert manager.standing_tiers.fault_of(_GHOST) is TierFault.UNHOSTED
     host.unhosted.clear()
     host.boot = "second"
@@ -413,7 +413,7 @@ async def test_a_pass_that_finds_every_tier_serving_writes_nothing_and_starts_no
     host = ScriptedModelHost(running=["cortex", _TIER, _OTHER_TIER])
     manager = _manager(host, placer, _plan(evict_models=(_TIER, _OTHER_TIER)))
     host.calls.clear()
-    await manager.heal_residency()
+    await manager.recheck_residency()
     assert host.calls == [("status", _TIER), ("status", _OTHER_TIER)]
     assert placer.place(_spawn()).target is PlacementTarget.GPU
 
@@ -422,7 +422,7 @@ async def test_a_deployment_that_evicts_nothing_still_asks_nobody_anything() -> 
     host = ScriptedModelHost(running=["cortex"])
     manager = _manager(host, _placer(), _plan(evict_models=()))
     host.calls.clear()
-    await manager.heal_residency()
+    await manager.recheck_residency()
     assert host.calls == []
 
 
@@ -436,15 +436,15 @@ async def test_the_loop_keeps_retrying_until_it_is_closed() -> None:
         if count >= 2:
             passes.set()
 
-    healer = TierHealer(one_pass, interval_s=0.001)
-    healer.start()
-    healer.start()
+    rechecker = TierRechecker(one_pass, interval_s=0.001)
+    rechecker.start()
+    rechecker.start()
     assert len([task for task in asyncio.all_tasks() if task.get_name() == _LOOP_NAME]) == 1
     try:
         async with asyncio.timeout(5.0):
             await passes.wait()
     finally:
-        await healer.aclose()
+        await rechecker.aclose()
     assert count >= 2
 
 
@@ -462,14 +462,14 @@ async def test_a_failing_pass_costs_one_pass_and_not_the_loop(
             raise RuntimeError(msg)
         survived.set()
 
-    healer = TierHealer(flaky, interval_s=0.001)
+    rechecker = TierRechecker(flaky, interval_s=0.001)
     with caplog.at_level(logging.ERROR, logger="cortex_core.residency_recheck"):
-        healer.start()
+        rechecker.start()
         try:
             async with asyncio.timeout(5.0):
                 await survived.wait()
         finally:
-            await healer.aclose()
+            await rechecker.aclose()
     assert [record.message for record in caplog.records] == [
         "a residency tier retry failed; the next pass tries again"
     ]
@@ -481,15 +481,15 @@ async def test_closing_wakes_the_wait_instead_of_serving_out_the_interval() -> N
     async def one_pass() -> None:
         entered.set()
 
-    healer = TierHealer(one_pass, interval_s=3600.0)
-    healer.start()
+    rechecker = TierRechecker(one_pass, interval_s=3600.0)
+    rechecker.start()
     async with asyncio.timeout(5.0):
         await entered.wait()
-        await healer.aclose()
+        await rechecker.aclose()
 
 
 async def test_closing_a_loop_that_never_started_is_a_no_op() -> None:
     async def one_pass() -> None:  # pragma: no cover -- a loop that never ran never calls it
         raise AssertionError
 
-    await TierHealer(one_pass).aclose()
+    await TierRechecker(one_pass).aclose()

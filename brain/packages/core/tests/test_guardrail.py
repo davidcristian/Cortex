@@ -387,7 +387,7 @@ def test_extract_urls_ignores_data_colon_in_prose() -> None:
     assert extract_urls("the data: shows a chart and data:the results vary") == frozenset()
 
 
-def test_extract_urls_ignores_data_colon_in_prose_spelled_as_an_entity() -> None:
+def test_extract_urls_ignores_data_colon_in_prose_written_as_an_entity() -> None:
     text = "the data&#58; shows a chart and data&#58;the results vary"
     assert extract_urls(text) == frozenset()
 
@@ -664,7 +664,7 @@ _ENTITY_LINK = "https&#58;//evil.example/pay"
 _PLAIN_LINK = {"https://evil.example/pay"}
 
 
-def test_extract_urls_anchors_an_entity_spelled_colon() -> None:
+def test_extract_urls_anchors_a_colon_written_as_an_entity() -> None:
     assert extract_urls(_ENTITY_LINK) == _PLAIN_LINK
     assert extract_urls("https&#058;//evil.example/pay") == _PLAIN_LINK
     assert extract_urls("https&#0058;//evil.example/pay") == _PLAIN_LINK
@@ -675,7 +675,7 @@ def test_extract_urls_anchors_an_entity_spelled_colon() -> None:
     assert extract_urls("https&colon;//evil.example/pay") == _PLAIN_LINK
 
 
-def test_extract_urls_anchors_an_entity_spelled_solidus() -> None:
+def test_extract_urls_anchors_a_solidus_written_as_an_entity() -> None:
     assert extract_urls("https:&#47;&#47;evil.example/pay") == _PLAIN_LINK
     assert extract_urls("https:&sol;&sol;evil.example/pay") == _PLAIN_LINK
     assert extract_urls("https&#58;&#47;&#47;evil.example/pay") == _PLAIN_LINK
@@ -736,7 +736,7 @@ def test_the_entity_separator_composes_with_earlier_classes() -> None:
     assert extract_urls("https&#58;/／evil。ex\u200bample/pay") == _PLAIN_LINK  # noqa: RUF001
 
 
-def test_extract_urls_anchors_a_backslash_spelled_separator() -> None:
+def test_extract_urls_anchors_a_separator_written_as_a_backslash() -> None:
     assert extract_urls(r"https:\/\/evil.example/pay") == _PLAIN_LINK
     assert extract_urls(r"https:\\evil.example/pay") == _PLAIN_LINK
     assert extract_urls(r"https:/\evil.example/pay") == _PLAIN_LINK
@@ -744,7 +744,7 @@ def test_extract_urls_anchors_a_backslash_spelled_separator() -> None:
     assert extract_urls(r"hxxp:\/\/evil.example/pay") == {"http://evil.example/pay"}
 
 
-def test_extract_urls_anchors_an_entity_spelled_backslash() -> None:
+def test_extract_urls_anchors_a_backslash_written_as_an_entity() -> None:
     assert extract_urls("https:&#92;&#92;evil.example/pay") == _PLAIN_LINK
     assert extract_urls("https:&#x5c;&#092;evil.example/pay") == _PLAIN_LINK
     assert extract_urls("https:&bsol;&bsol;evil.example/pay") == _PLAIN_LINK
@@ -812,7 +812,7 @@ def test_extract_urls_anchors_a_slashless_authority() -> None:
     assert extract_urls("ftp:evil.example/pay") == {"ftp://evil.example/pay"}
 
 
-def test_a_slashless_authority_takes_every_separator_spelling() -> None:
+def test_a_slashless_authority_takes_every_separator_form() -> None:
     assert extract_urls("https&#58;evil.example/pay") == _PLAIN_LINK
     assert extract_urls("https&colon;/evil.example/pay") == _PLAIN_LINK
     assert extract_urls("https：evil.example/pay") == _PLAIN_LINK  # noqa: RUF001
@@ -857,7 +857,7 @@ def test_a_slashless_authority_survives_a_one_character_stream() -> None:
     assert fed == f"settle at {REDACTED_LINK} now"
 
 
-def test_a_dotted_host_is_what_a_dot_of_any_reading_spells() -> None:
+def test_a_dot_in_any_form_makes_a_dotted_host() -> None:
     assert extract_urls("https:evil。example/pay") == _PLAIN_LINK
     assert extract_urls("https:evil｡example/pay") == _PLAIN_LINK
     assert extract_urls("https:evil．example/pay") == _PLAIN_LINK  # noqa: RUF001
@@ -915,8 +915,8 @@ def test_extract_urls_reads_a_whitespace_split_host() -> None:
 
 
 def test_a_gap_may_hold_any_reading_of_the_dot() -> None:
-    for spelling in ("dot", "DOT", ".", "。", "&#46;", "&period;", "%2e", "[dot]", "(.)", "{DOT}"):
-        assert extract_urls(f"https://evil {spelling} example/pay") == _PLAIN_LINK
+    for form in ("dot", "DOT", ".", "。", "&#46;", "&period;", "%2e", "[dot]", "(.)", "{DOT}"):
+        assert extract_urls(f"https://evil {form} example/pay") == _PLAIN_LINK
     assert extract_urls("https://evil \t dot \t example/pay") == _PLAIN_LINK
     assert extract_urls("https://evil\ndot example/pay") == {"https://evil"}
 
@@ -995,7 +995,7 @@ def test_the_split_host_composes_with_earlier_classes() -> None:
     assert extract_urls("hxxps://evil [dot] ex\u3002ample/pay") == {"https://evil.ex.ample/pay"}
 
 
-def test_a_gap_is_spelled_with_every_space_nfkc_folds() -> None:
+def test_a_gap_is_written_with_every_space_nfkc_folds() -> None:
     for space in ("\u00a0", "\u2009", "\u3000", "\u202f"):
         assert extract_urls(f"hxxps://evil{space}dot{space}example/pay") == _PLAIN_LINK
     assert extract_urls("hxxps://evil\u00a0dot\u2009example/pay") == _PLAIN_LINK
@@ -1081,7 +1081,7 @@ def test_the_measured_cost_is_an_internationalized_domain_on_a_tainted_turn() ->
     assert guard.feed(f"buy at {_IDN} ") + guard.flush() == f"buy at {REDACTED_LINK} "
 
 
-def test_a_punycode_spelled_lookalike_is_redacted_too() -> None:
+def test_a_lookalike_written_in_punycode_is_redacted_too() -> None:
     guard = _lookalike(_Taint(tainted=True))
     fed = guard.feed("go to https://xn--bcher-kva.example/pay ") + guard.flush()
     assert fed == f"go to {REDACTED_LINK} "
@@ -1251,8 +1251,8 @@ def test_extract_urls_anchors_a_slashless_authority_whose_host_is_split() -> Non
 
 
 def test_the_split_anchor_inherits_the_gap_tables_rather_than_growing_one() -> None:
-    for spelling in ("dot", ".", "。", "&#46;", "%2e", "[dot]"):
-        assert extract_urls(f"https:evil {spelling} example/pay") == _PLAIN_LINK
+    for form in ("dot", ".", "。", "&#46;", "%2e", "[dot]"):
+        assert extract_urls(f"https:evil {form} example/pay") == _PLAIN_LINK
     assert extract_urls("https:evil\u00a0dot\u2009example/pay") == _PLAIN_LINK
 
 
@@ -1336,7 +1336,7 @@ def test_a_tab_stands_inside_a_defanged_scheme_word_at_every_position() -> None:
 
 
 def test_a_tab_stands_inside_the_separator_too() -> None:
-    for spelling in (
+    for form in (
         "https\t://evil.example/pay",
         "https:\t//evil.example/pay",
         "https:/\t/evil.example/pay",
@@ -1345,7 +1345,7 @@ def test_a_tab_stands_inside_the_separator_too() -> None:
         "https\t:evil.example/pay",
         "https\t&#58;//evil.example/pay",
     ):
-        assert extract_urls(spelling) == _PLAIN_LINK
+        assert extract_urls(form) == _PLAIN_LINK
 
 
 def test_a_tab_inside_a_defang_token_no_longer_truncates_the_host() -> None:

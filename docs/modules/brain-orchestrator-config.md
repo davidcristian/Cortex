@@ -35,9 +35,8 @@ what follows is the prefix, the defaults other parts depend on, and the validati
   "echo"`, echo being the GPU-less default for CI and dev, with `endpoint` required for the other.
   `vision: VisionMode = DEFAULT_VISION_MODE` (`"auto"`; `CORTEX_VISION`, a bare name rather than
   the prefix, ADR-0029) decides whether `capture_screen` is advertised, `auto` probing the running
-  server, while `trace_lever = "auto"` (ADR-0049) decides whether a request may include
-  `GenerationBounds.trace_tokens`
-  as llama.cpp's `reasoning_budget_tokens`: it is settled once at wiring, being a property of the
+  server, while `send_trace_budget = "auto"` (`CORTEX_INFERENCE_TRACE_LEVER`, ADR-0049) decides
+  whether a request may include `GenerationBounds.trace_tokens` as llama.cpp's `reasoning_budget_tokens`: it is settled once at wiring, being a property of the
   binary rather than of the running child. `stall_timeout_s: float = 120.0` (ADR-0005 decision 7)
   is how long this tier's stream may send nothing, a gap between chunks rather than a cap on the
   generation, sized from the worst measured time to first token (17.5 s contended).
@@ -89,7 +88,8 @@ what follows is the prefix, the defaults other parts depend on, and the validati
   deep tier needs, compared against the host's reading immediately before the load, and
   `brain_decode_tps` (0.0) the rate the deep phase judges a real completion against (ADR-0055
   decisions 4 and 5); `swap_drain_timeout_s` (60 s), `swap_load_timeout_s` (300 s) and
-  `swap_tier_heal_s` (30 s, pacing the check of every evicted tier, ADR-0054 decisions 3 and 4)
+  `swap_tier_recheck_s` (30 s, `CORTEX_SWAP_TIER_HEAL_S`, pacing the check of every evicted tier,
+  ADR-0054 decisions 3 and 4)
   are the timings. Escalation without a model host or a brain endpoint fails at boot, as does
   co-residency on the `supervisor` host with no measured VRAM figure; the decode figure guards no
   decision and is not required. `residency_plan(cortex_model)` is the one `ResidencyPlan` the

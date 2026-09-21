@@ -76,7 +76,7 @@ def build_payload(
     schema: JsonSchema | None,
     bounds: GenerationBounds | None,
     *,
-    trace_lever: bool = False,
+    send_trace_budget: bool = False,
 ) -> dict[str, object]:
     """The streaming chat-completion request body.
 
@@ -103,6 +103,6 @@ def build_payload(
         # The key is sent only where the deployment declared or the boot probe measured that the
         # engine parses ``reasoning_budget_tokens``, since a build that does not parse it drops
         # the value without reporting anything.
-        if trace_lever and bounds.trace_tokens is not None:
+        if send_trace_budget and bounds.trace_tokens is not None:
             payload[TRACE_BUDGET_KEY] = bounds.trace_tokens
     return payload

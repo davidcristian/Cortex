@@ -19,7 +19,7 @@ permissive so turns still run.
 
 **Closed 2026-08-18**, not in the shape the entry proposed. It had suggested a reconciliation on
 the refusal path, which would have needed `_claim` to release the residency condition to do I/O
-and its own concurrency argument. That was no longer the only option, because `TierHealer` already
+and its own concurrency argument. That was no longer the only option, because `TierRechecker` already
 runs a fenced pass every `CORTEX_SWAP_TIER_HEAL_S`, and the manager already leaves the card alone
 inside it while a handoff is claimed or a scope is active.
 

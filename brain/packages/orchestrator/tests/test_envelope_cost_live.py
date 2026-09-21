@@ -270,7 +270,7 @@ async def _one(
         LlamaCppBackend(
             SingleResidentModelManager(_MODEL, _ENDPOINT or ""),
             client,
-            trace_lever=_TRACE_TOKENS is not None,
+            send_trace_budget=_TRACE_TOKENS is not None,
         ),
         substitute=schema,
         strip_instruction=arm in _STRIPPING_ARMS,

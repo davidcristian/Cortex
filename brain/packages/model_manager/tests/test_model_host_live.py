@@ -380,7 +380,7 @@ async def test_a_background_pass_regains_residency_from_the_real_sidecar() -> No
         await manager.publish_boot_residency(serving=False)
         assert manager.residency().serving is False
         before = list(await _tier_states(host, (standing, deep)))
-        await manager.heal_residency()
+        await manager.recheck_residency()
         assert manager.residency() == RESIDENCY_SERVING
         async with manager.acquire(standing) as lease:
             assert lease.endpoint == "http://127.0.0.1:8080"
@@ -412,10 +412,10 @@ async def test_a_real_deep_tier_on_the_card_stops_the_regain() -> None:
             ):
                 pytest.skip("this card could not hold both tiers, so there is no guard to test")
             await manager.publish_boot_residency(serving=False)
-            await manager.heal_residency()
+            await manager.recheck_residency()
             assert manager.residency().serving is False
             await host.stop(deep)
-            await manager.heal_residency()
+            await manager.recheck_residency()
             assert manager.residency() == RESIDENCY_SERVING
         finally:
             await host.stop(deep)

@@ -66,7 +66,7 @@ async def test_a_refusal_about_something_else_is_not_a_yes() -> None:
         assert await reads_a_trace_budget(_ENDPOINT, "cortex", client) is False
 
 
-async def test_a_server_that_cannot_be_reached_is_read_as_no_lever() -> None:
+async def test_a_server_that_cannot_be_reached_is_read_as_not_reading_the_budget() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         msg = "no route to host"
         raise httpx.ConnectError(msg, request=request)

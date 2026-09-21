@@ -12,7 +12,7 @@ from cortex_session import DEFAULT_REDIS_URL
 
 InferenceBackendName = Literal["echo", "llamacpp"]
 VisionMode = Literal["auto", "on", "off"]
-TraceLeverMode = Literal["auto", "on", "off"]
+TraceBudgetMode = Literal["auto", "on", "off"]
 MemoryBackendName = Literal["none", "pgvector"]
 MemoryScopeName = Literal["global", "session"]
 MemoryRecallName = Literal["raw", "reranked", "mmr", "recency_mmr", "judge"]
@@ -71,7 +71,7 @@ class BrainRuntimeConfig(BaseSettings):
 class InferenceConfig(BaseSettings):
     """Which InferenceBackend answers turns."""
 
-    model_config = SettingsConfigDict(env_prefix="CORTEX_INFERENCE_")
+    model_config = SettingsConfigDict(env_prefix="CORTEX_INFERENCE_", validate_by_name=True)
 
     backend: InferenceBackendName = "echo"
     endpoint: str = ""
@@ -79,7 +79,9 @@ class InferenceConfig(BaseSettings):
     # Whether a request may set its own trace budget as llama.cpp's ``reasoning_budget_tokens``.
     # ``auto`` asks the endpoint once at wiring, the answer being a property of the binary behind
     # it rather than of the argv a model host last started a child with.
-    trace_lever: TraceLeverMode = "auto"
+    send_trace_budget: TraceBudgetMode = Field(
+        default="auto", validation_alias="CORTEX_INFERENCE_TRACE_LEVER"
+    )
     stall_timeout_s: float = Field(default=120.0, gt=0)
 
     @model_validator(mode="after")

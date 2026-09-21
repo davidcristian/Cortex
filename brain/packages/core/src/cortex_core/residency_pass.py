@@ -11,15 +11,15 @@ from cortex_core.residency_tiers import StandingTiers, TierFault
 _logger = logging.getLogger(__name__)
 
 
-async def sweep_tiers(
+async def recheck_tiers(
     host: ModelHost, plan: ResidencyPlan, tiers: StandingTiers, fence: Fence
 ) -> None:
     """Ask what every evictable peer is doing, record it, and start the ones that are not."""
     for model in plan.evict_models:
-        await _sweep_one(host, model, tiers, fence)
+        await _recheck_one(host, model, tiers, fence)
 
 
-async def _sweep_one(host: ModelHost, model: str, tiers: StandingTiers, fence: Fence) -> None:
+async def _recheck_one(host: ModelHost, model: str, tiers: StandingTiers, fence: Fence) -> None:
     """Read one tier's state and act on it, or log why the reading could not be taken."""
     # A daemon's roster is read once at its own boot, so this answer cannot change until the
     # daemon is replaced, and a replacement rebuilds the whole record.

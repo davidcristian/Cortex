@@ -50,7 +50,7 @@ def test_the_argv_is_the_compose_command_it_replaces() -> None:
     )
 
 
-def test_a_tiers_tail_rides_extra_rather_than_a_flag_per_knob() -> None:
+def test_a_tiers_tail_goes_in_extra_rather_than_a_flag_per_setting() -> None:
     argv = llama_server_argv(_BIN, _tier(extra=("--chat-template-kwargs", '{"a": false}')))
     assert argv[-3:] == ("--jinja", "--chat-template-kwargs", '{"a": false}')
 

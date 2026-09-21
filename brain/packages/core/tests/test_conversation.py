@@ -82,7 +82,7 @@ def test_a_tool_message_may_carry_images() -> None:
 @pytest.mark.parametrize("role", [Role.USER, Role.ASSISTANT, Role.SYSTEM])
 def test_no_role_but_tool_may_carry_images(role: Role) -> None:
     picture = ImagePart(data=b"\x89PNG", mime_type="image/png", width=8, height=8)
-    with pytest.raises(ValueError, match="may not carry images: pixels are turn-local"):
+    with pytest.raises(ValueError, match="may not have images: pixels are turn-local"):
         Message(role=role, text="hi", at=_AT, turn_id="t1", images=(picture,))
 
 

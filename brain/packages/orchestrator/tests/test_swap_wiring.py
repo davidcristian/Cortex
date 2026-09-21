@@ -156,6 +156,13 @@ def test_escalation_is_off_by_default() -> None:
     assert config.brain_model == "brain"
 
 
+def test_the_tier_recheck_interval_is_read_from_the_deployments_variable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("CORTEX_SWAP_TIER_HEAL_S", "7.5")
+    assert SwapConfig().swap_tier_recheck_s == 7.5
+
+
 def test_escalation_without_a_model_host_fails_at_boot() -> None:
     with pytest.raises(ValueError, match="CORTEX_MODELHOST_BACKEND must name a model host"):
         SwapConfig(escalation=True)
@@ -274,7 +281,7 @@ async def test_a_boot_whose_peer_tier_is_down_still_says_the_brain_is_ready() ->
     )
     try:
         await recover_boot_residency(replace(runtime, host=broken), SystemClock())
-        await runtime.healer.aclose()
+        await runtime.rechecker.aclose()
         report = runtime.manager.residency()
         assert report.serving is True
         assert report.detail == TIERS_MISSING_DETAIL.format(models="subagent-gpu")

@@ -121,7 +121,7 @@ def test_no_implementation_of_the_port_may_await(
     assert not inspect.iscoroutinefunction(build().sink.note_pace)
 
 
-def test_a_spill_rides_a_serving_report_and_names_what_it_costs() -> None:
+def test_a_spill_is_sent_with_a_serving_report_and_names_what_it_costs() -> None:
     pace = HandoffPace(_HeldClock())
     pace.note_pace(spilled=True)
     assert pace.note_on(RESIDENCY_SERVING) == ResidencyReport(
@@ -199,7 +199,7 @@ async def test_the_pass_that_republishes_a_serving_cortex_does_not_erase_the_not
     assert manager.residency() == RESIDENCY_LOST
     manager.handoff_pace.note_pace(spilled=True)
     host.set_status(_CORTEX, None)
-    await manager.heal_residency()
+    await manager.recheck_residency()
     assert manager.residency() == ResidencyReport(serving=True, detail=SPILLED_PACE_DETAIL)
 
 

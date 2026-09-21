@@ -7,18 +7,18 @@ from cortex_core.model_host import ModelHostState, ResidencyPlan
 from cortex_core.ports import ModelHost
 from cortex_core.residency_board import ResidencyBoard
 from cortex_core.residency_charge import charge_standing
-from cortex_core.residency_pass import sweep_tiers
+from cortex_core.residency_pass import recheck_tiers
 from cortex_core.residency_state import RESIDENCY_SERVING, Fence
 from cortex_core.residency_tiers import StandingTiers
 
 _logger = logging.getLogger(__name__)
 
 
-async def heal_standing_residency(
+async def recheck_usual_residency(
     host: ModelHost, plan: ResidencyPlan, board: ResidencyBoard, tiers: StandingTiers, fence: Fence
 ) -> None:
     """One pass over the usual residency: every evictable peer, and then the resident."""
-    await sweep_tiers(host, plan, tiers, fence)
+    await recheck_tiers(host, plan, tiers, fence)
     await regain_residency(host, plan, board, tiers, fence)
 
 

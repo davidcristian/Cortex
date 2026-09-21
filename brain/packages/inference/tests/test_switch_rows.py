@@ -23,7 +23,7 @@ from test_injection_defense_live import (
     VISION_MODELS,
     Model,
     completion_body,
-    lever,
+    flag_and_value,
     repeat_of,
     server_argv,
     switch_for,
@@ -78,7 +78,7 @@ def test_a_request_key_row_starts_its_server_with_neither_flag() -> None:
         assert _REASONING_BUDGET_FLAG not in argv, model.label
 
 
-def test_the_switch_rows_differ_by_the_lever_and_by_nothing_else() -> None:
+def test_the_switch_rows_differ_by_the_setting_and_by_nothing_else() -> None:
     for model in _THINKING_OFF:
         keyed = server_argv(model, SHIPPED_BUDGET, REQUEST_KEY)
         shipped = server_argv(model, SHIPPED_BUDGET, SHIPPED_SWITCH)
@@ -107,12 +107,12 @@ def test_the_budget_alone_row_carries_the_budget_half_and_not_the_kwarg() -> Non
         assert argv[-2:] == BUDGET_ALONE.argv, model.label
 
 
-def test_a_lever_is_read_by_its_flag_and_a_missing_one_refuses() -> None:
-    assert lever(("--a", "1", "--b", "2"), "--b") == ("--b", "2")
+def test_a_flag_and_its_value_are_read_by_the_flag_and_a_missing_one_raises() -> None:
+    assert flag_and_value(("--a", "1", "--b", "2"), "--b") == ("--b", "2")
     with pytest.raises(LookupError):
-        lever(("--a", "1"), "--b")
+        flag_and_value(("--a", "1"), "--b")
     with pytest.raises(LookupError):
-        lever(("--a", "1", "--b"), "--b")
+        flag_and_value(("--a", "1", "--b"), "--b")
 
 
 def test_a_shipped_row_sends_no_request_key_and_a_keyed_row_sends_one() -> None:
@@ -144,7 +144,7 @@ def test_every_row_sends_only_the_keys_the_shipped_request_sends_and_the_cache_f
             assert set(body) - set(shipped) == {_CACHE_PROMPT_KEY}, switch.label
 
 
-def test_a_thinking_on_tier_pulls_neither_lever_whichever_row_asks() -> None:
+def test_a_thinking_on_tier_changes_neither_setting_whichever_row_asks() -> None:
     thinking = [model for model in MODELS if model.thinking]
     assert thinking, MODELS
     for model in (*thinking, *VISION_MODELS):

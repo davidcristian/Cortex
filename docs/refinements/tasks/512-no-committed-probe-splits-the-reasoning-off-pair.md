@@ -44,7 +44,7 @@ same completion.
   leaving the shipped path.
 - 2026-09-11: closed. Both settings are in `test_envelope_cost_live.py`.
   `CORTEX_ENVELOPE_TRACE_TOKENS` is written into the runner's bounds on the way past, with
-  `trace_lever` on and the engine asked first whether it reads the key, which is a second half this
+  `send_trace_budget` on and the engine asked first whether it reads the key, which is a second half this
   entry never named: the harness built its backend with the probe off, so a count in the bounds
   alone would have been dropped by `build_payload`. `CORTEX_ENVELOPE_SEED` is written onto the body
   the shipped adapter built, on the transport, a third option between the two named on 2026-09-10

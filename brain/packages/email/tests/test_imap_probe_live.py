@@ -214,7 +214,7 @@ def test_a_uid_no_message_has_is_not_there_in_this_server_s_empty_folders() -> N
 
 
 @pytest.mark.integration
-def test_the_newer_spelling_of_unselectable_is_a_word_this_server_really_sends() -> None:
+def test_the_newer_form_of_unselectable_is_a_word_this_server_really_sends() -> None:
     with probe_dialogue() as conn:
         conn.xatom("LIST", "(SUBSCRIBED)", '""', '"*"')
         subscribed = _named(conn.response("LIST"))

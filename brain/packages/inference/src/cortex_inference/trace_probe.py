@@ -10,7 +10,7 @@ import httpx
 
 from cortex_inference.request import TRACE_BUDGET_KEY
 
-__all__ = ["TRACE_LEVER_PROBE_TIMEOUT_S", "reads_a_trace_budget"]
+__all__ = ["TRACE_BUDGET_PROBE_TIMEOUT_S", "reads_a_trace_budget"]
 
 _CHAT_COMPLETIONS_PATH = "/v1/chat/completions"
 
@@ -26,7 +26,7 @@ _REFUSED_STATUS = 400
 # The probe's whole timeout, paid at boot. Sized from what the request costs on the slowest tier
 # this repo ships, the subagent pick on CPU: a five-token prompt evaluates in 235 to 310 ms and
 # one token decodes in 111 ms, so five seconds is roughly ten times the cost.
-TRACE_LEVER_PROBE_TIMEOUT_S = 5.0
+TRACE_BUDGET_PROBE_TIMEOUT_S = 5.0
 
 _logger = logging.getLogger(__name__)
 
@@ -47,8 +47,8 @@ async def reads_a_trace_budget(endpoint: str, model: str, client: httpx.AsyncCli
     try:
         response = await client.post(url, json=body)
     except httpx.HTTPError as err:
-        _logger.warning("trace lever probe failed", extra={"endpoint": url, "error": str(err)})
+        _logger.warning("trace budget probe failed", extra={"endpoint": url, "error": str(err)})
         return False
     reads = response.status_code == _REFUSED_STATUS and TRACE_BUDGET_KEY in response.text
-    _logger.info("trace lever probe answered", extra={"endpoint": url, "lever": reads})
+    _logger.info("trace budget probe answered", extra={"endpoint": url, "reads_budget": reads})
     return reads

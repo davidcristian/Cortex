@@ -228,7 +228,7 @@ async def test_a_fires_audit_line_names_the_chat_and_no_turn() -> None:
     assert record.call_id == "schedule-t1"
 
 
-async def test_tainted_task_rides_the_dispatcher_stamp() -> None:
+async def test_tainted_task_keeps_the_dispatcher_stamp() -> None:
     store = InMemoryScheduleStore()
     spawn = FakeSpawnTool()
     await store.add(_item("t1", kind=ScheduleKind.TASK, every=timedelta(hours=1), tainted=True))

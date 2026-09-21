@@ -8,7 +8,7 @@
 the trace question differently from the answer that brain cached and the documented restart was
 skipped, which shows as the GPU runbook's own `curl` contradicting the brain's boot line.
 
-`resolve_trace_lever` is called once, inside `build_inference_backend`, and its answer reaches
+`resolve_send_trace_budget` is called once, inside `build_inference_backend`, and its answer reaches
 `LlamaCppBackend` as a `bool` that lives as long as the process. The vision probe beside it is the
 deliberate contrast, asked again on every advertisement and every call, because a projector is an
 argv a model host can change under a brain that never restarts. A binary cannot change that way,
@@ -45,7 +45,7 @@ to argue against it with a deployment that actually hit the problem.
 - 2026-09-14: the trigger has not fired, taken as the reading it names rather than reasoned about.
   Both mutable tags this stack names still resolve to the build the GPU runbook recorded on
   2026-09-12, `b10680-d7bd3bfca` for `ghcr.io/ggml-org/llama.cpp:server` and for `:server-cuda`,
-  read with the runbook's own `docker image inspect` command. `resolve_trace_lever` is still called
+  read with the runbook's own `docker image inspect` command. `resolve_send_trace_budget` is still called
   once inside `build_inference_backend`, `CORTEX_ESCALATION` is still off by default, and the
   documented restart is still what the runbook prints. This is not the same defect as the entry
   about a budget that went unread: that one asks for the cached answer to be reported, this one for
@@ -53,7 +53,7 @@ to argue against it with a deployment that actually hit the problem.
 - 2026-09-19: the trigger has not fired and every claim checked out unchanged. The runbook's label
   command still reads `b10680 d7bd3bfca` off both cached tags, at the digests `sha256:952424b09abc`
   (`server-cuda`) and `sha256:db057ec90de0` (`server`), and no brain container runs on this host, so
-  there is no boot line for a `curl` to contradict. `resolve_trace_lever` is still called once in
+  there is no boot line for a `curl` to contradict. `resolve_send_trace_budget` is still called once in
   `build_inference_backend`'s llama.cpp branch; the vision answer is still asked again per
   advertisement and per call (`cortex_orchestrator/vision.py`); `SwappingModelManager.swap_scope` is
   still the only boundary after boot. The one change nearby is in the entry about a budget that went

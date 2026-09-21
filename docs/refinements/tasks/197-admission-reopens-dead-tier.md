@@ -15,7 +15,7 @@ Fixed on 2026-08-09, recorded at [ADR-0054](../../adr/ADR-0054-baseline-residenc
 at [ADR-0012](../../adr/ADR-0012-resource-governance.md) decision 13. A peer the swap back could not
 restart is recorded in `StandingTiers` (`residency_tiers.py`), which closes GPU placement, names the
 tier on a serving `Health` reply, and is retried every `CORTEX_SWAP_TIER_HEAL_S` (30 s) by
-`TierHealer` until a pass sees the tier `ready`.
+`TierRechecker` until a pass sees the tier `ready`.
 
 Two corrections to the entry. The scheduler port really is untouched, but the placer port is not:
 `place` is synchronous, lock-free and argument-poor by design, so nothing can ask it whether a tier

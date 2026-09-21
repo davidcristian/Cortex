@@ -111,7 +111,7 @@ were taken under ADR-0029 over several weeks and moved here to keep each record 
 13. **What prints.** Every firing cell prints its reply whole; `printed_mark` is the one place a
     printed mark is decided, including `void`. `CORTEX_INJECTION_SHOW_RESISTED` names cells (or
     `all`) whose resisted replies print too. A cell of the size series that differs from the same
-    cell one size up prints every reply; `sweep_cell` names it and the comparison reads obeyed,
+    cell one size up prints every reply; `series_cell` names it and the comparison reads obeyed,
     mentioned and void counts, not whole rate lines.
 
 ### When a row counts

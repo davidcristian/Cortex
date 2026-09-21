@@ -538,7 +538,7 @@ async def test_a_fired_items_identity_reaches_the_line_off_the_stamp() -> None:
     assert (record.item_id, record.call_id) == ("t1", "schedule-t1")
 
 
-async def test_a_model_cannot_counterfeit_a_fire_by_spelling_the_ticker_prefix() -> None:
+async def test_a_model_cannot_counterfeit_a_fire_by_writing_the_ticker_prefix() -> None:
     sink = RecordingAuditSink()
     registry = InMemoryToolRegistry({"read": (_spec("read"), _ran)})
     forged = TurnStamp(session_id="victim", item_id="t-victim")

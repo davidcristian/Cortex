@@ -130,19 +130,19 @@ minute apart: `b10666-4e97ac86e` answered `400` naming the field and `b9870-2d97
 `200`, and each behaved as its own answer predicted. The brain logs its answer at boot:
 
 ```
-INFO:cortex_inference.trace_probe:trace lever probe answered endpoint=<the endpoint asked> lever=<true or false>
+INFO:cortex_inference.trace_probe:trace budget probe answered endpoint=<the endpoint asked> reads_budget=<true or false>
 ```
 
-A server that could not be reached logs `trace lever probe failed` at `WARNING`. When the answer
+A server that could not be reached logs `trace budget probe failed` at `WARNING`. When the answer
 is no and `CORTEX_REPLY_TRACE_TOKENS` is set, the count is not sent and the brain says so once, on
 the first reply that would have included it:
 
 ```
-WARNING:cortex_inference.backend:trace budget not sent because the trace lever is off model=<the model asked> trace_budget=<the count>
+WARNING:cortex_inference.backend:trace budget not sent because its setting is off model=<the model asked> trace_budget=<the count>
 ```
 
 Fix it by unsetting the count, by setting `CORTEX_INFERENCE_TRACE_LEVER=on` on a build you know
-reads the key, or by restarting the brain against a build whose probe answers `lever=true`.
+reads the key, or by restarting the brain against a build whose probe answers `reads_budget=true`.
 Restart the brain after pulling a newer llama.cpp: the answer is asked once and kept for the life
 of the brain process, and neither direction of that staleness is reported. If the boot line and
 the `curl` above disagree, the brain is the stale half. Read which build a tag points at:

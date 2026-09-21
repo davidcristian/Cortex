@@ -188,7 +188,7 @@ async def test_a_fired_item_is_named_beside_the_call_that_fired_it(
     )
 
 
-async def test_a_model_authored_id_spelling_the_ticker_prefix_names_no_item(
+async def test_a_model_authored_id_written_with_the_ticker_prefix_names_no_item(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     caplog.set_level(logging.INFO, logger="cortex.tools.audit")

@@ -243,7 +243,7 @@ async def test_build_inference_backend_defaults_to_echo() -> None:
 
 async def test_build_inference_backend_selects_llamacpp_and_returns_a_closer() -> None:
     config = InferenceConfig(
-        backend="llamacpp", endpoint="http://llama-cortex:8080", trace_lever="off"
+        backend="llamacpp", endpoint="http://llama-cortex:8080", send_trace_budget="off"
     )
     backend, close = await build_inference_backend(config, "cortex")
     assert isinstance(backend, LlamaCppBackend)
@@ -275,26 +275,26 @@ async def _canned_llama_server(status: int, body: str) -> AsyncGenerator[str]:
         await server.wait_closed()
 
 
-async def test_the_trace_lever_is_measured_when_the_deployment_left_it_on_auto() -> None:
+async def test_the_trace_budget_setting_is_measured_when_the_deployment_left_it_on_auto() -> None:
     refusal = '{"error":{"message":"Field \'reasoning_budget_tokens\': out of range"}}'
     async with _canned_llama_server(400, refusal) as endpoint:
         config = InferenceConfig(backend="llamacpp", endpoint=endpoint)
-        assert await builders_module.resolve_trace_lever(config, "cortex") is True
+        assert await builders_module.resolve_send_trace_budget(config, "cortex") is True
 
 
-async def test_an_engine_that_answers_the_probe_leaves_the_lever_down() -> None:
+async def test_an_engine_that_answers_the_probe_leaves_the_budget_unsent() -> None:
     async with _canned_llama_server(200, '{"choices":[]}') as endpoint:
         config = InferenceConfig(backend="llamacpp", endpoint=endpoint)
-        assert await builders_module.resolve_trace_lever(config, "cortex") is False
+        assert await builders_module.resolve_send_trace_budget(config, "cortex") is False
 
 
 async def test_the_two_fixed_modes_answer_without_asking_anything() -> None:
     # Port 1 on loopback refuses the connection at once, so nothing retries.
     dead = "http://127.0.0.1:1"
-    on = InferenceConfig(backend="llamacpp", endpoint=dead, trace_lever="on")
-    off = InferenceConfig(backend="llamacpp", endpoint=dead, trace_lever="off")
-    assert await builders_module.resolve_trace_lever(on, "cortex") is True
-    assert await builders_module.resolve_trace_lever(off, "cortex") is False
+    on = InferenceConfig(backend="llamacpp", endpoint=dead, send_trace_budget="on")
+    off = InferenceConfig(backend="llamacpp", endpoint=dead, send_trace_budget="off")
+    assert await builders_module.resolve_send_trace_budget(on, "cortex") is True
+    assert await builders_module.resolve_send_trace_budget(off, "cortex") is False
 
 
 @asynccontextmanager
@@ -340,7 +340,7 @@ async def _routing_llama_server(
         await server.wait_closed()
 
 
-async def test_the_lever_probe_asks_about_the_tier_the_deployment_named() -> None:
+async def test_the_trace_budget_probe_asks_about_the_tier_the_deployment_named() -> None:
     async with _routing_llama_server(serves="cortex-alt") as (endpoint, requests):
         config = InferenceConfig(backend="llamacpp", endpoint=endpoint)
         backend, close = await build_inference_backend(config, "cortex-alt")
@@ -353,7 +353,9 @@ async def test_the_lever_probe_asks_about_the_tier_the_deployment_named() -> Non
         assert [request["model"] for request in requests] == ["cortex-alt", "cortex-alt"]
         assert requests[1][TRACE_BUDGET_KEY] == 0
         assert any(isinstance(event, TextChunk) for event in events)
-        assert await builders_module.resolve_trace_lever(config, DEFAULT_CORTEX_MODEL) is False
+        assert (
+            await builders_module.resolve_send_trace_budget(config, DEFAULT_CORTEX_MODEL) is False
+        )
 
 
 async def test_the_generation_client_bounds_every_phase_including_the_read() -> None:
@@ -389,7 +391,7 @@ async def _wedged_llama_server() -> AsyncGenerator[str]:
 async def test_a_wedged_llama_server_fails_the_stream_instead_of_waiting_forever() -> None:
     async with _wedged_llama_server() as endpoint:
         config = InferenceConfig(
-            backend="llamacpp", endpoint=endpoint, stall_timeout_s=0.25, trace_lever="off"
+            backend="llamacpp", endpoint=endpoint, stall_timeout_s=0.25, send_trace_budget="off"
         )
         backend, close = await build_inference_backend(config, "cortex")
         try:

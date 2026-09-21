@@ -130,7 +130,7 @@ def test_the_bound_is_spent_on_the_rendered_text_rather_than_on_the_value() -> N
     assert rendered.endswith(CUT.format(chars=1850))
 
 
-def test_a_field_that_spells_the_marker_itself_is_still_told_from_a_cut_one() -> None:
+def test_a_field_that_holds_the_marker_itself_is_still_told_from_a_cut_one() -> None:
     said = CUT.format(chars=7)
     assert render_value(said) == f'"{said}"'
     assert render_value("x" * (VALUE_CHARS + 7)) == '"' + "x" * (VALUE_CHARS - 1) + CUT.format(

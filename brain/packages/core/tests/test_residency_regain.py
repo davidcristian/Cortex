@@ -129,7 +129,7 @@ async def test_a_restore_that_gave_up_is_regained_by_the_next_pass_with_no_resta
     host.set_status(_CORTEX, None)
     host.calls.clear()
     with caplog.at_level(logging.INFO, logger=_REGAIN_LOGGER):
-        await manager.heal_residency()
+        await manager.recheck_residency()
     assert host.calls == [("status", _CORTEX), ("status", _DEEP)]
     assert manager.residency() == RESIDENCY_SERVING
     await _serves_turns_again(manager)
@@ -140,7 +140,7 @@ async def test_a_serving_report_costs_the_pass_no_control_call_at_all() -> None:
     host = ScriptedModelHost(running=[_CORTEX])
     manager = _manager(host)
     host.calls.clear()
-    await manager.heal_residency()
+    await manager.recheck_residency()
     assert host.calls == []
     assert manager.residency() == RESIDENCY_SERVING
 
@@ -150,7 +150,7 @@ async def test_a_cortex_that_is_not_serving_yet_leaves_the_report_where_it_was()
     manager = _manager(host)
     await _give_up(manager)
     host.calls.clear()
-    await manager.heal_residency()
+    await manager.recheck_residency()
     assert host.calls == [("status", _CORTEX)]
     assert manager.residency() == RESIDENCY_LOST
     await _refuses_every_turn(manager)
@@ -169,7 +169,7 @@ async def test_a_deep_model_still_on_the_card_stops_the_regain(
     host.running.add(_CORTEX)
     host.set_status(_CORTEX, None)
     host.calls.clear()
-    await manager.heal_residency()
+    await manager.recheck_residency()
     assert host.calls == [("status", _CORTEX), ("status", _DEEP)]
     assert manager.residency() == RESIDENCY_LOST
     await _refuses_every_turn(manager)
@@ -180,7 +180,7 @@ async def test_a_deep_tier_the_daemon_never_had_is_off_the_card() -> None:
     manager = _manager(host)
     await _give_up(manager)
     host.set_status(_CORTEX, None)
-    await manager.heal_residency()
+    await manager.recheck_residency()
     assert manager.residency() == RESIDENCY_SERVING
     await _serves_turns_again(manager)
 
@@ -193,7 +193,7 @@ async def test_a_host_that_cannot_be_asked_about_the_cortex_publishes_nothing(
     await _give_up(manager)
     host.calls.clear()
     with caplog.at_level(logging.DEBUG, logger=_REGAIN_LOGGER):
-        await manager.heal_residency()
+        await manager.recheck_residency()
     assert host.calls == [("status", _CORTEX)]
     assert manager.residency() == RESIDENCY_LOST
     assert _regain_lines(caplog) == [
@@ -209,7 +209,7 @@ async def test_a_host_that_cannot_be_asked_about_the_deep_model_publishes_nothin
     await _give_up(manager)
     host.set_status(_CORTEX, None)
     with caplog.at_level(logging.DEBUG, logger=_REGAIN_LOGGER):
-        await manager.heal_residency()
+        await manager.recheck_residency()
     assert manager.residency() == RESIDENCY_LOST
     assert _regain_lines(caplog) == [
         f'DEBUG:{_REGAIN_LOGGER}:{_NO_DEEP_READING} error="{_REFUSED}" model={_DEEP}'
@@ -221,24 +221,24 @@ async def test_a_handoff_that_begins_mid_pass_wins_the_publish() -> None:
     manager = _manager(host)
     await manager.publish_boot_residency(serving=False)
     reached, release = host.reached[("status", _DEEP)], host.release[("status", _DEEP)]
-    first = asyncio.create_task(manager.heal_residency())
+    first = asyncio.create_task(manager.recheck_residency())
     async with asyncio.timeout(5.0):
         await reached.wait()
         async with manager.handoff_claim():
             release.set()
             await first
             assert manager.residency() == RESIDENCY_BOOT_FAILED
-        await manager.heal_residency()
+        await manager.recheck_residency()
     assert manager.residency() == RESIDENCY_SERVING
 
 
-async def test_a_pass_sweeps_the_peers_before_it_republishes_the_resident() -> None:
+async def test_a_pass_rechecks_the_peers_before_it_republishes_the_resident() -> None:
     host = _stalled_host()
     manager = _manager(host, plan=_plan(evict_models=(_TIER,)))
     await _give_up(manager)
     host.set_status(_CORTEX, None)
     host.calls.clear()
-    await manager.heal_residency()
+    await manager.recheck_residency()
     assert host.calls == [
         ("status", _TIER),
         ("start", _TIER),
@@ -248,7 +248,7 @@ async def test_a_pass_sweeps_the_peers_before_it_republishes_the_resident() -> N
     report = manager.residency()
     assert report.serving is True
     assert report.detail == TIERS_MISSING_DETAIL.format(models=_TIER)
-    await manager.heal_residency()
+    await manager.recheck_residency()
     assert manager.residency() == RESIDENCY_SERVING
 
 
@@ -262,7 +262,7 @@ async def test_a_regained_residency_charges_the_placer_for_the_cortex_again() ->
     await _give_up(manager)
     assert placer.place(_spawn()).target is PlacementTarget.CPU
     host.set_status(_CORTEX, None)
-    await manager.heal_residency()
+    await manager.recheck_residency()
     assert placer.place(_spawn()).target is PlacementTarget.GPU
 
 
@@ -272,5 +272,5 @@ async def test_a_boot_that_could_not_confirm_the_cortex_goes_green_when_it_comes
     await manager.publish_boot_residency(serving=False)
     assert manager.residency() == RESIDENCY_BOOT_FAILED
     await _serves_turns_again(manager)
-    await manager.heal_residency()
+    await manager.recheck_residency()
     assert manager.residency() == RESIDENCY_SERVING

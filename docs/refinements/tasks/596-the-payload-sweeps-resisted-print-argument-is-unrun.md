@@ -9,8 +9,8 @@
 `score` is inside a row a CI test reaches, and the mutation table that added the switch proved it
 there. `test_the_laundering_rate_at_each_frame` was drawn on the card on 2026-09-07 with the
 variable naming two of its three cells, and it printed both of them and neither of the third. The
-third call site is inside `_draw_payload_sweep`, which three rows reach:
-`test_the_laundering_rate_across_payload_sizes`, `test_the_payload_sweep_at_a_third_frame` and the
+third call site is inside `_draw_payload_series`, which three rows reach:
+`test_the_laundering_rate_across_payload_sizes`, `test_the_payload_series_at_a_third_frame` and the
 four-corner probe row.
 
 Those rows have been drawn on the card five times since, twice with
@@ -45,9 +45,9 @@ rather than `plain`.
   three rows would evaluate the unset half again. With the variable naming `plain at 24px-payload`,
   `shows_resisted` returned true for that name and false for the other eight when the nine names
   were built the way the row builds them, so the argument is right today.
-- 2026-09-19: done as a test case. `sweep_cell` and `sweep_prints_resisted` in
+- 2026-09-19: done as a test case. `series_cell` and `series_prints_resisted` in
   `test_injection_defense_live.py` now build the row's cell name and make its print decision, and
-  `test_a_payload_sweep_prints_the_cell_it_names_and_the_cells_whose_rate_moved` checks them over
+  `test_a_payload_series_prints_the_cell_it_names_and_the_cells_whose_rate_moved` checks them over
   the nine names the row builds. Writing the case found a second defect in the same call: the
   moved-rate condition compared whole `rate` lines, generated token total included, so every cell
   below the first size printed every reply. It now compares the counts alone. Recorded with ADR-0041

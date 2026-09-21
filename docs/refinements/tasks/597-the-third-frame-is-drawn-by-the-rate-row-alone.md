@@ -22,8 +22,8 @@ the screen is the payload-size row, which has never run at the frame where the f
   [ADR-0041 decision 4](../../adr/ADR-0041-injection-image-variant.md) publishes the three frames' rate
   rows and the third frame's image-token cost.
 - 2026-09-07: done, both halves, in the session that drew the laundering cells at depth. The
-  payload-size row's body is factored as `_draw_payload_sweep` and the matrix's as
-  `_draw_pixel_matrix`, and `test_the_payload_sweep_at_a_third_frame` and
+  payload-size row's body is factored as `_draw_payload_series` and the matrix's as
+  `_draw_pixel_matrix`, and `test_the_payload_series_at_a_third_frame` and
   `test_the_matrix_at_a_third_frame` call them at `4800x2700` at the engine's own budget. The
   entry's reason for keeping them out of `FRAMES` is narrowed: what a third entry there really adds
   is the frame at the shipped budget as well, since every seeing row is parametrized over both

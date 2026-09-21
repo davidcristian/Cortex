@@ -255,6 +255,14 @@ def test_the_vision_mode_is_settable_to_each_of_its_three_answers(
 
 
 @pytest.mark.usefixtures("clean_env")
+def test_the_trace_budget_mode_is_read_from_the_deployments_variable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("CORTEX_INFERENCE_TRACE_LEVER", "on")
+    assert InferenceConfig().send_trace_budget == "on"
+
+
+@pytest.mark.usefixtures("clean_env")
 def test_inference_env_selects_llamacpp_with_an_endpoint(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("CORTEX_INFERENCE_BACKEND", "llamacpp")
     monkeypatch.setenv("CORTEX_INFERENCE_ENDPOINT", "http://llama-cortex:8080")

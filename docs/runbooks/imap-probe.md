@@ -69,7 +69,7 @@ of the folder is refused the same way, and that the connection survives the `NO`
 `folder.list()` sends the plain `LIST "" "*"`, so the newer attribute for "not a mailbox" cannot
 reach the adapter through it. To see where that word comes from, drive imaplib directly against
 the running probe, which is what
-`test_the_newer_spelling_of_unselectable_is_a_word_this_server_really_sends` does, so
+`test_the_newer_form_of_unselectable_is_a_word_this_server_really_sends` does, so
 `just email-folder-probe` runs it for you:
 
 ```python

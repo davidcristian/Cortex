@@ -555,7 +555,7 @@ pass observes a real tier `ready` again and GPU placement resumes.** Its failure
 against the real sidecar over real HTTP that day, including a tier the daemon refuses outright and
 one that accepts a start and dies; what needs a loadable GGUF, and so needs the model drive mounted,
 is a tier that genuinely comes back. It is one `docker run` of `model-host` with a real artifact
-named and a few lines driving `sweep_tiers`, so it belongs to whichever session next has the mount.
+named and a few lines driving `recheck_tiers`, so it belongs to whichever session next has the mount.
 The pass it drives got wider on 2026-08-11 and the observation did not: a pass reads every evictable
 tier rather than only the marked ones, so what is still unwitnessed is the same single branch, a
 tier that was down and is now serving.

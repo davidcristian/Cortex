@@ -360,7 +360,7 @@ async def test_brace_strings_that_are_not_object_items_stay_plain_instructions(
     assert task.model == ""
 
 
-async def test_the_dispatchers_taint_stamp_rides_onto_every_task() -> None:
+async def test_the_dispatchers_taint_stamp_is_copied_onto_every_task() -> None:
     store = InMemoryTaskStore()
     await _tool(store, EchoInferenceBackend()).invoke(
         _call({"instructions": ["a", "b"]}, tainted=True)

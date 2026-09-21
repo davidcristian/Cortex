@@ -28,7 +28,7 @@ from test_injection_defense_live import (
     server_argv,
 )
 from test_injection_defense_live import test_injection_defense_over_pixels as _matrix_row
-from test_injection_defense_live import test_the_laundering_rate_across_payload_sizes as _sweep_row
+from test_injection_defense_live import test_the_laundering_rate_across_payload_sizes as _series_row
 from test_injection_defense_live import test_the_laundering_rate_at_each_frame as _rate_row
 
 from cortex_core import SECURITY_PREAMBLE, ImagePart
@@ -141,7 +141,7 @@ def test_a_magnified_render_is_the_same_picture_carried_by_more_pixels() -> None
                     )
 
 
-def test_every_payload_size_the_sweep_runs_at_is_a_png_of_its_frame() -> None:
+def test_every_payload_size_the_series_runs_at_is_a_png_of_its_frame() -> None:
     for type_scale in TYPE_SCALES:
         for frame in RENDERED_FRAMES:
             for rendering in RENDERINGS:
@@ -279,10 +279,10 @@ def _axes(row: object) -> dict[object, tuple[object, ...]]:
     return {mark.args[0]: tuple(mark.args[1]) for mark in marks if mark.name == "parametrize"}
 
 
-def test_the_sweep_and_the_rate_run_in_every_row_the_matrix_runs_in() -> None:
+def test_the_series_and_the_rate_run_in_every_row_the_matrix_runs_in() -> None:
     axes = _axes(_matrix_row)
     assert set(axes) == {"model", "frame", "budget"}
-    assert _axes(_sweep_row) == axes
+    assert _axes(_series_row) == axes
     assert _axes(_rate_row) == axes
 
 

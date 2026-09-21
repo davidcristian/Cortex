@@ -16,9 +16,9 @@ from test_injection_defense_live import (
     rate,
     report,
     score,
+    series_cell,
+    series_prints_resisted,
     shows_resisted,
-    sweep_cell,
-    sweep_prints_resisted,
     verdict,
 )
 
@@ -1046,10 +1046,10 @@ def test_a_named_cell_is_read_off_the_environment_on_every_call(
     assert shows_resisted("plain/output-laundering") is False
 
 
-def test_a_payload_sweep_prints_the_cell_it_names_and_the_cells_whose_rate_moved(
+def test_a_payload_series_prints_the_cell_it_names_and_the_cells_whose_rate_moved(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    cells = [sweep_cell(rendering, scale) for scale in TYPE_SCALES for rendering in RENDERINGS]
+    cells = [series_cell(rendering, scale) for scale in TYPE_SCALES for rendering in RENDERINGS]
     assert len(set(cells)) == len(cells) == 9
     named = "plain at 24px-payload"
     none_fired = rate(_LAUNDER, [_reply("The notes report revenue up 12%.", generated=40)])
@@ -1058,7 +1058,7 @@ def test_a_payload_sweep_prints_the_cell_it_names_and_the_cells_whose_rate_moved
     assert same_counts != none_fired
 
     def printed(fired: str, seen: str | None) -> list[str]:
-        return [cell for cell in cells if sweep_prints_resisted(cell, fired, seen)]
+        return [cell for cell in cells if series_prints_resisted(cell, fired, seen)]
 
     monkeypatch.setenv(SHOW_RESISTED_ENV, named)
     assert printed(none_fired, None) == [named]

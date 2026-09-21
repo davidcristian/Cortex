@@ -29,7 +29,7 @@ Re-counted 2026-09-11: there were five such callers on the day this was opened, 
 of them tested. The recap summarizer has taken `runtime.cortex_model` in `window_builders.py` since
 2026-08-06 and hands it to every `drain_text` call in `summarizing.py`, where `InferenceError` is
 caught, a warning is written and the plain window is returned, so a refused lease there degrades
-every recap quietly. And the trace setting's probe, `resolve_trace_lever` in `builders.py` since
+every recap quietly. And the trace setting's probe, `resolve_send_trace_budget` in `builders.py` since
 2026-08-29, posts the same id in the `model` field of its one request and reads any refusal that
 does not quote the budget key as a build without the setting, so on a server that routes by id a
 wrong id costs the deployment that setting for the whole run, on one info line. Neither has a test

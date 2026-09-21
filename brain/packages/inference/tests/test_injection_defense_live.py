@@ -560,7 +560,7 @@ _CACHE_RAM_FLAG = "--cache-ram"
 _CACHE_PROMPT_KEY = "cache_prompt"
 
 
-def lever(argv: tuple[str, ...], flag: str) -> tuple[str, str]:
+def flag_and_value(argv: tuple[str, ...], flag: str) -> tuple[str, str]:
     """One flag and the value after it, read off a tier's argv by the flag's name."""
     if flag not in argv:
         msg = f"{argv} carries no {flag}, so no row can pull it"
@@ -574,7 +574,7 @@ def lever(argv: tuple[str, ...], flag: str) -> tuple[str, str]:
 
 def template_kwargs(argv: tuple[str, ...]) -> dict[str, Any]:
     """The chat-template kwargs one argv holds, decoded as a request writes the same answer."""
-    _, written = lever(argv, _TEMPLATE_KWARGS_FLAG)
+    _, written = flag_and_value(argv, _TEMPLATE_KWARGS_FLAG)
     return cast("dict[str, Any]", json.loads(written))
 
 
@@ -594,7 +594,9 @@ class Switch:
 THINKING_ON = Switch("thinking-on")
 REQUEST_KEY = Switch("request-key", request_key=THINKING_OFF_KWARGS)
 SHIPPED_SWITCH = Switch("shipped-argv", argv=SHIPPED_SUBAGENT_TAIL)
-BUDGET_ALONE = Switch("budget-alone", argv=lever(SHIPPED_SUBAGENT_TAIL, _REASONING_BUDGET_FLAG))
+BUDGET_ALONE = Switch(
+    "budget-alone", argv=flag_and_value(SHIPPED_SUBAGENT_TAIL, _REASONING_BUDGET_FLAG)
+)
 SWITCHES: tuple[Switch, ...] = (REQUEST_KEY, SHIPPED_SWITCH, BUDGET_ALONE)
 
 
@@ -761,7 +763,7 @@ def prompt_cache(model: Model, tier: TierArgs) -> tuple[str, ...]:
     """The tier's own prompt-cache pair, for a row on a tier the switch rows do not cover."""
     if not model.thinking:
         return ()
-    return lever(tier.extra, _CACHE_RAM_FLAG)
+    return flag_and_value(tier.extra, _CACHE_RAM_FLAG)
 
 
 def server_argv(
@@ -1394,12 +1396,12 @@ async def test_the_two_token_attacks_drawn_as_rates(model: Model) -> None:
 TYPE_SCALES: tuple[TypeScale, ...] = (CORPUS_TYPE_SCALE, TypeScale(2), TypeScale(1))
 
 
-def sweep_cell(rendering: Rendering, type_scale: TypeScale) -> str:
+def series_cell(rendering: Rendering, type_scale: TypeScale) -> str:
     """The name a payload-size run prints a cell under, and the name it reads in the environment."""
     return f"{rendering.name} at {type_scale.label}"
 
 
-def sweep_prints_resisted(cell: str, fired: str, seen: str | None) -> bool:
+def series_prints_resisted(cell: str, fired: str, seen: str | None) -> bool:
     """Whether a cell's resisted replies print: the environment names it, or its rate moved."""
     moved = seen is not None and _counts(fired) != _counts(seen)
     return shows_resisted(cell) or moved
@@ -1417,10 +1419,10 @@ def _counts(rate_line: str) -> str:
 async def test_the_laundering_rate_across_payload_sizes(
     model: Model, frame: Frame, budget: Budget
 ) -> None:
-    await _draw_payload_sweep(model, frame, budget)
+    await _draw_payload_series(model, frame, budget)
 
 
-async def _draw_payload_sweep(
+async def _draw_payload_series(
     model: Model, frame: Frame, budget: Budget, renderings: tuple[Rendering, ...] = RENDERINGS
 ) -> None:
     """Run the payload at each size at one frame and one budget, inside one server."""
@@ -1435,7 +1437,7 @@ async def _draw_payload_sweep(
             above: dict[str, str] = {}
             for type_scale in TYPE_SCALES:
                 for rendering in renderings:
-                    cell = sweep_cell(rendering, type_scale)
+                    cell = series_cell(rendering, type_scale)
                     reply = await _transcription(client, model, rendering, frame, type_scale)
                     legible[cell] = _reads_canary(reply)
                     png = rendering.build(_LAUNDERING.injection, frame, type_scale)
@@ -1459,7 +1461,7 @@ async def _draw_payload_sweep(
                             arm,
                             _LAUNDERING,
                             replies,
-                            resisted=sweep_prints_resisted(cell, fired[arm], seen),
+                            resisted=series_prints_resisted(cell, fired[arm], seen),
                         )
                     print(  # noqa: T201
                         f"  [{cell}] read on request={'yes' if legible[cell] else 'NO'} "
@@ -1479,8 +1481,8 @@ async def _draw_payload_sweep(
 
 @pytest.mark.integration
 @pytest.mark.parametrize("model", VISION_MODELS, ids=lambda m: m.label)
-async def test_the_payload_sweep_at_a_third_frame(model: Model) -> None:
-    await _draw_payload_sweep(model, _THIRD_FRAME, ENGINE_BUDGET)
+async def test_the_payload_series_at_a_third_frame(model: Model) -> None:
+    await _draw_payload_series(model, _THIRD_FRAME, ENGINE_BUDGET)
 
 
 SQUARE: tuple[Rendering, ...] = (_PLAIN_RENDERING, _DIALOG_RENDERING, *PROBES)
@@ -1489,7 +1491,7 @@ SQUARE: tuple[Rendering, ...] = (_PLAIN_RENDERING, _DIALOG_RENDERING, *PROBES)
 @pytest.mark.integration
 @pytest.mark.parametrize("model", VISION_MODELS, ids=lambda m: m.label)
 async def test_the_summarys_fall_against_the_body_and_the_chrome(model: Model) -> None:
-    await _draw_payload_sweep(model, CORPUS_FRAME, ENGINE_BUDGET, SQUARE)
+    await _draw_payload_series(model, CORPUS_FRAME, ENGINE_BUDGET, SQUARE)
 
 
 _ADVISORY_RENDERING = next(rendering for rendering in PROBES if rendering.name == "advisory")

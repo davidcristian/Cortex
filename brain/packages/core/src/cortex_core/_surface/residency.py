@@ -25,9 +25,9 @@ from cortex_core.residency_pace import (
     SPILLED_PACE_DETAIL,
     HandoffPace,
 )
-from cortex_core.residency_pass import sweep_tiers
-from cortex_core.residency_recheck import DEFAULT_TIER_HEAL_INTERVAL_S, TierHealer
-from cortex_core.residency_regain import heal_standing_residency, regain_residency
+from cortex_core.residency_pass import recheck_tiers
+from cortex_core.residency_recheck import DEFAULT_TIER_RECHECK_INTERVAL_S, TierRechecker
+from cortex_core.residency_regain import recheck_usual_residency, regain_residency
 from cortex_core.residency_state import (
     RESIDENCY_BOOT_FAILED,
     RESIDENCY_DEEP,
@@ -65,7 +65,7 @@ __all__ = [
     "DEFAULT_SPILL_DWELL_S",
     "DEFAULT_SWAP_DRAIN_TIMEOUT_S",
     "DEFAULT_SWAP_LOAD_TIMEOUT_S",
-    "DEFAULT_TIER_HEAL_INTERVAL_S",
+    "DEFAULT_TIER_RECHECK_INTERVAL_S",
     "DRAINING_DETAIL",
     "DRAIN_TIMEOUT_NOTE",
     "DRAIN_TIMEOUT_REASON",
@@ -109,12 +109,12 @@ __all__ = [
     "SwapConductor",
     "SwappingModelManager",
     "TierFault",
-    "TierHealer",
+    "TierRechecker",
     "await_model_ready",
     "converge_residency",
-    "heal_standing_residency",
+    "recheck_tiers",
+    "recheck_usual_residency",
     "recover_handoffs",
     "regain_residency",
-    "sweep_tiers",
     "with_note",
 ]

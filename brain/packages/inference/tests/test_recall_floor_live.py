@@ -30,7 +30,7 @@ def _floored(pool: Sequence[tuple[str, float]], floor: float) -> list[str]:
     return [rid for rid, score in pool if score >= floor][:_K]
 
 
-class _Sweep:
+class _FloorSheet:
     """One floor's score sheet over the whole corpus."""
 
     def __init__(self, floor: float, label: str = "") -> None:
@@ -109,34 +109,36 @@ async def test_no_similarity_floor_separates_answerable_questions_from_unanswera
         unrelated_best = [pools[q][0][1] for q in UNRELATED]
 
         tight = math.nextafter(max(absent_best), 2.0)
-        sweeps = [
-            _Sweep(floor, "   <- tightest floor that silences all four" if floor == tight else "")
+        sheets = [
+            _FloorSheet(
+                floor, "   <- tightest floor that silences all four" if floor == tight else ""
+            )
             for floor in sorted({*_FLOORS, tight})
         ]
-        for sweep in sweeps:
+        for sheet in sheets:
             for question, (gold, category) in QUESTIONS.items():
-                sweep.record(_floored(pools[question], sweep.floor), gold, category)
+                sheet.record(_floored(pools[question], sheet.floor), gold, category)
             for question in UNRELATED:
-                sweep.record(_floored(pools[question], sweep.floor), None, None)
+                sheet.record(_floored(pools[question], sheet.floor), None, None)
 
-        _report(gold_scores, answerable_best, absent_best, unrelated_best, sweeps)
+        _report(gold_scores, answerable_best, absent_best, unrelated_best, sheets)
 
-        unfloored = next(sweep for sweep in sweeps if sweep.floor == 0.0)
+        unfloored = next(sheet for sheet in sheets if sheet.floor == 0.0)
         assert unfloored.hits == _K * (len(QUESTIONS) + len(UNRELATED))
         for question, (gold, _) in QUESTIONS.items():
             assert _floored(pools[question], 0.0) == [rid for rid, _ in pools[question][:_K]]
             assert gold is None or _floored(pools[question], 1.01) == []
-        absurd = next(sweep for sweep in sweeps if sweep.floor > 1.0)
+        absurd = next(sheet for sheet in sheets if sheet.floor > 1.0)
         assert absurd.hits == 0
         assert absurd.answerable_silent == absurd.answerable
         assert absurd.absent_silent == 4
         assert absurd.unrelated_silent == len(UNRELATED)
 
         assert min(gold_scores) < max(absent_best), "the populations would separate here"
-        silencing = [sweep for sweep in sweeps if sweep.absent_silent == 4]
+        silencing = [sheet for sheet in sheets if sheet.absent_silent == 4]
         assert silencing, "no swept floor silences the unanswerable questions at all"
-        assert all(sweep.answerable_silent > 0 for sweep in silencing)
-        assert min(sweep.floor for sweep in silencing) == tight
+        assert all(sheet.answerable_silent > 0 for sheet in silencing)
+        assert min(sheet.floor for sheet in silencing) == tight
 
 
 def _report(
@@ -144,7 +146,7 @@ def _report(
     answerable_best: Sequence[float],
     absent_best: Sequence[float],
     unrelated_best: Sequence[float],
-    sweeps: Sequence[_Sweep],
+    sheets: Sequence[_FloorSheet],
 ) -> None:
     """Print the three populations, then what every candidate floor does to the corpus."""
     lines = [
@@ -161,5 +163,5 @@ def _report(
         "\n floor | absent silent | unrelated silent | MRR | answerable silent | hits"
         " | by category",
     ]
-    lines.extend(f"  {sweep.row()}" for sweep in sweeps)
+    lines.extend(f"  {sheet.row()}" for sheet in sheets)
     print("\n".join(lines))  # noqa: T201 -- the measurement IS this test's output

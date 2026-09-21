@@ -15,7 +15,7 @@ from cortex_core.residency_claim import HandoffClaim
 from cortex_core.residency_moves import is_unhosted, swap_in
 from cortex_core.residency_pace import HandoffPace
 from cortex_core.residency_probe import ResidencyProbeMixin
-from cortex_core.residency_regain import heal_standing_residency
+from cortex_core.residency_regain import recheck_usual_residency
 from cortex_core.residency_restore import restore_uninterruptibly, restore_with_retries
 from cortex_core.residency_state import RESIDENCY_DEEP, RESIDENCY_LOADING
 from cortex_core.residency_tiers import StandingTiers
@@ -102,10 +102,10 @@ class SwappingModelManager(ResidencyProbeMixin):
             await swap_in(self._host, self._plan, model, self._gate)
             await self._board.publish(model, RESIDENCY_DEEP)
 
-    async def heal_residency(self) -> None:
+    async def recheck_residency(self) -> None:
         """Read what the GPU is really doing and act on it, unless a handoff owns the card."""
         if self._fence():
-            await heal_standing_residency(
+            await recheck_usual_residency(
                 self._host, self._plan, self._board, self._tiers, self._fence
             )
 

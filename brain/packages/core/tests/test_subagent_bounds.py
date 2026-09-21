@@ -439,7 +439,7 @@ async def test_a_timeout_from_below_the_deadline_is_the_backend_failing_not_a_tr
     assert "timed out below the delegated run's own deadline" in result.detail
 
 
-async def test_the_token_cap_rides_every_completion_of_a_delegated_loop() -> None:
+async def test_the_token_cap_reaches_every_completion_of_a_delegated_loop() -> None:
     store = InMemoryTaskStore()
     await _stored_task(store)
     backend = RecordingBackend(

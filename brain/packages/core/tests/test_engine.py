@@ -1738,7 +1738,7 @@ async def test_a_backend_that_reports_no_stop_at_all_is_never_read_as_capped() -
     assert events == [TextDelta("quiet"), TurnCompleted(turn_id="t-1", full_text="quiet")]
 
 
-async def test_the_deployments_reply_bounds_ride_every_completion_of_a_users_turn() -> None:
+async def test_the_deployments_reply_bounds_reach_every_completion_of_a_users_turn() -> None:
     bounded = StoppingBackend(StopReason.FINISHED)
     asked = GenerationBounds(max_tokens=2048, thinking=False)
     await _collect(

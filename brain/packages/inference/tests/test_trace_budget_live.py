@@ -106,14 +106,14 @@ def _verdict(label: str, draws: list[_Draw]) -> None:
 
 async def test_a_per_request_trace_budget_reaches_the_shape_the_switch_loses() -> None:
     async with httpx.AsyncClient(timeout=httpx.Timeout(10.0, read=None)) as client:
-        lever = await reads_a_trace_budget(_ENDPOINT, _MODEL, client)
-    print(f"\n{_MODEL} at {_ENDPOINT}: engine reads a per-request trace budget: {lever}")  # noqa: T201
-    if not lever:
+        reads = await reads_a_trace_budget(_ENDPOINT, _MODEL, client)
+    print(f"\n{_MODEL} at {_ENDPOINT}: engine reads a per-request trace budget: {reads}")  # noqa: T201
+    if not reads:
         print("  so the last cell is the middle one again, and says nothing about a budget")  # noqa: T201
     manager = SingleResidentModelManager(_MODEL, _ENDPOINT)
     async with httpx.AsyncClient(timeout=httpx.Timeout(10.0, read=None)) as client:
-        backend = LlamaCppBackend(manager, client, trace_lever=lever)
-        control = await _arm(backend, "control, neither lever", GenerationBounds(max_tokens=_CAP))
+        backend = LlamaCppBackend(manager, client, send_trace_budget=reads)
+        control = await _arm(backend, "control, neither setting", GenerationBounds(max_tokens=_CAP))
         switched = await _arm(
             backend, "the switch alone", GenerationBounds(max_tokens=_CAP, thinking=False)
         )
@@ -126,9 +126,9 @@ async def test_a_per_request_trace_budget_reaches_the_shape_the_switch_loses() -
     assert not quiet, (
         f"{len(quiet)} of {_REPEATS} control draws deliberated not at all, so this tier already "
         f"bounds its trace (a --reasoning-budget on its argv) or this prompt invites no thought "
-        f"on {_MODEL}, and this run says nothing about either lever"
+        f"on {_MODEL}, and this run says nothing about either setting"
     )
     print()  # noqa: T201
-    _verdict("control, neither lever", control)
+    _verdict("control, neither setting", control)
     _verdict("the switch alone", switched)
     _verdict("the switch and a budget", budgeted)

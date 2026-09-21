@@ -28,7 +28,7 @@ Both directions were measured through a real `TaintLedger` and a real streaming 
 character at a time, and the collected side is the worse one: untrusted content that writes its
 link JSON-escaped put nothing in the ledger, so the plain link in the reply was not removed
 either. The fix follows the fullwidth pass's shape, grammar and identity only: the backslash joins
-the solidus table so every mixture is generated, `_spellings` now generates entity references for
+the solidus table so every mixture is generated, `_separator_forms` now generates entity references for
 every glyph HTML names (so `&#92;` and `&bsol;` join `&#47;` and `&sol;`, 1125 generated
 combinations all folding), and `_fold_special_slashes` gives the identity the parser's own rule,
 scoped to the schemes it holds for, so `mailto:a\b@x` keeps its backslash.

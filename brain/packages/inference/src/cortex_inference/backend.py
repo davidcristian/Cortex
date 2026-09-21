@@ -66,24 +66,24 @@ class LlamaCppBackend:
         model_manager: ModelManager,
         http_client: httpx.AsyncClient,
         *,
-        trace_lever: bool = False,
+        send_trace_budget: bool = False,
     ) -> None:
         self._manager = model_manager
         self._client = http_client
         # Off by default: an engine that does not parse ``reasoning_budget_tokens`` drops the
         # count without reporting anything, which would leave a setting that changes nothing.
-        self._trace_lever = trace_lever
+        self._send_trace_budget = send_trace_budget
         self._reported_unsent_budget = False
 
     def _report_unsent_budget(self, model: str, bounds: GenerationBounds | None) -> None:
         """Warn, once per backend, when a request names a trace count it will not send."""
-        if self._trace_lever or self._reported_unsent_budget or bounds is None:
+        if self._send_trace_budget or self._reported_unsent_budget or bounds is None:
             return
         if bounds.trace_tokens is None or (bounds.trace_tokens == 0 and not bounds.thinking):
             return
         self._reported_unsent_budget = True
         _logger.warning(
-            "trace budget not sent because the trace lever is off",
+            "trace budget not sent because its setting is off",
             extra={"model": model, "trace_budget": bounds.trace_tokens},
         )
 
@@ -99,7 +99,7 @@ class LlamaCppBackend:
         """Stream text deltas from the leased llama-server, then any assembled tool calls."""
         self._report_unsent_budget(model, bounds)
         payload = build_payload(
-            model, messages, tools, schema, bounds, trace_lever=self._trace_lever
+            model, messages, tools, schema, bounds, send_trace_budget=self._send_trace_budget
         )
         pending: dict[int, PendingCall] = {}
         try:

@@ -16,9 +16,9 @@ since that prefix marks a module as private to its definer.
 
 ## Public contract
 
-`__all__` is `LlamaCppBackend`, `reads_a_trace_budget` and `TRACE_LEVER_PROBE_TIMEOUT_S`.
+`__all__` is `LlamaCppBackend`, `reads_a_trace_budget` and `TRACE_BUDGET_PROBE_TIMEOUT_S`.
 
-`LlamaCppBackend(model_manager: ModelManager, http_client: httpx.AsyncClient, *, trace_lever: bool = False)`
+`LlamaCppBackend(model_manager: ModelManager, http_client: httpx.AsyncClient, *, send_trace_budget: bool = False)`
 is an `InferenceBackend`. `stream(model, messages, *, tools=(), schema=None, bounds=None)` does
 this:
 
@@ -80,7 +80,7 @@ stops arriving fails instead of holding the model lease forever. It is sized per
 `reasoning_budget_tokens`, a sampler the engine reads from the request body, falling back to the
 tier's `--reasoning-budget` where the request names nothing (ADR-0049). It is the half of the
 thinking controls a request shape cannot overrule. A build that does not parse the key **ignores it
-with no error**, so the adapter sends it only when `trace_lever` is true, which the root decides
+with no error**, so the adapter sends it only when `send_trace_budget` is true, which the root decides
 once from `CORTEX_INFERENCE_TRACE_LEVER` (`auto`, `on` or `off`). Two rules are checked by tests:
 
 - a bound naming no count sends no key, whatever `thinking` says, so the setting can never quietly
@@ -89,13 +89,13 @@ once from `CORTEX_INFERENCE_TRACE_LEVER` (`auto`, `on` or `off`). Two rules are 
   three shipped bounds depend on.
 
 With the option off, the first request whose count goes unsent logs one `WARNING`,
-`trace budget not sent because the trace lever is off`, with `model` and `trace_budget`; later ones
+`trace budget not sent because its setting is off`, with `model` and `trace_budget`; later ones
 on the same backend log nothing. A zero sent beside `thinking=False` is not reported, because
 `drain_text` already warns when a trace arrives against that switch; a zero with the switch on is
 reported. The flag is read and written with no await between, so concurrent streams print one line.
 
 `reads_a_trace_budget(endpoint, model, client)` is the capability probe, exported beside the adapter
-along with `TRACE_LEVER_PROBE_TIMEOUT_S`, the timeout the composition root gives the client it hands
+along with `TRACE_BUDGET_PROBE_TIMEOUT_S`, the timeout the composition root gives the client it hands
 in. It sends one POST with an out-of-range budget: a build that parses the key rejects it by name
 (HTTP 400), and one that does not answers the completion (HTTP 200). Measured 2026-08-29 against two
 real builds one minute apart, `b10666-4e97ac86e` rejecting and `b9870-2d973636e` answering. Every

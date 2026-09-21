@@ -46,7 +46,7 @@ class Message:
             raise ValueError(msg)
         if self.images and self.role is not _IMAGE_BEARING_ROLE:
             msg = (
-                f"a {self.role.value} message may not carry images: pixels are turn-local and "
-                "ride the tool result they arrived on"
+                f"a {self.role.value} message may not have images: pixels are turn-local and "
+                "stay with the tool result they arrived on"
             )
             raise ValueError(msg)

@@ -7,13 +7,13 @@ from cortex_core.url_removals import REMOVED_CHARS, REMOVED_RUN, permeable
 from cortex_core.url_separators import (
     CHUNK_INNER,
     CLOSE_BRACKET,
-    COLON_SPELLING,
+    COLON_FORMS,
     DEFANGED_AUTHORITY_SEPS,
     DEFANGED_OPAQUE_SEPS,
-    DOT_SPELLING,
+    DOT_FORMS,
     GAP_WHITESPACE,
     OPEN_BRACKET,
-    SOLIDUS_SPELLING,
+    SOLIDUS_FORMS,
     SPACED_DOT,
 )
 
@@ -26,7 +26,7 @@ _URL_CHAR = rf"(?:[^{_NON_URL}]|{REMOVED_CHARS})"
 
 HOST_CHAR = rf"[^{_NON_URL}/?#\\]"
 
-SPLIT_LABEL = rf"(?:(?!{DOT_SPELLING}){HOST_CHAR})+"
+SPLIT_LABEL = rf"(?:(?!{DOT_FORMS}){HOST_CHAR})+"
 
 SPLIT_GAP = rf"{SPACED_DOT}{SPLIT_LABEL}"
 
@@ -36,23 +36,23 @@ SPLIT_GAP = rf"{SPACED_DOT}{SPLIT_LABEL}"
 _SPLIT_HOST = rf"{SPLIT_LABEL}(?:{SPLIT_GAP})+"
 
 _HOST_ANCHOR = (
-    rf"(?={HOST_CHAR}*{DOT_SPELLING}{HOST_CHAR}"
+    rf"(?={HOST_CHAR}*{DOT_FORMS}{HOST_CHAR}"
     rf"|\[{CHUNK_INNER}*:{CHUNK_INNER}*\]"
     rf"|{SPLIT_LABEL}{SPLIT_GAP})"
 )
 
 _ARRIVING_HOST_ANCHOR = rf"(?={SPLIT_LABEL}{GAP_WHITESPACE})"
 
-OPAQUE_SEP_RE = "|".join((COLON_SPELLING, *(permeable(s) for s in DEFANGED_OPAQUE_SEPS)))
+OPAQUE_SEP_RE = "|".join((COLON_FORMS, *(permeable(s) for s in DEFANGED_OPAQUE_SEPS)))
 
 
 def _authority_sep(anchor: str) -> str:
     """An authority scheme's separator alternation, with ``anchor`` behind its slashless branch."""
     return "|".join(
         (
-            rf"{COLON_SPELLING}{REMOVED_RUN}{SOLIDUS_SPELLING}{REMOVED_RUN}{SOLIDUS_SPELLING}",
+            rf"{COLON_FORMS}{REMOVED_RUN}{SOLIDUS_FORMS}{REMOVED_RUN}{SOLIDUS_FORMS}",
             *(permeable(s) for s in DEFANGED_AUTHORITY_SEPS),
-            rf"(?:{OPAQUE_SEP_RE}){REMOVED_RUN}(?:{SOLIDUS_SPELLING}{REMOVED_RUN})?{anchor}",
+            rf"(?:{OPAQUE_SEP_RE}){REMOVED_RUN}(?:{SOLIDUS_FORMS}{REMOVED_RUN})?{anchor}",
         )
     )
 

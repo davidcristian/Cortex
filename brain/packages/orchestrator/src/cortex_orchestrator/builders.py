@@ -27,7 +27,7 @@ from cortex_core import (
     UrlRedactingGuardrail,
 )
 from cortex_inference import (
-    TRACE_LEVER_PROBE_TIMEOUT_S,
+    TRACE_BUDGET_PROBE_TIMEOUT_S,
     LlamaCppBackend,
     reads_a_trace_budget,
 )
@@ -48,7 +48,7 @@ __all__ = [
     "build_output_guardrail",
     "build_tool_registry",
     "noop_aclose",
-    "resolve_trace_lever",
+    "resolve_send_trace_budget",
 ]
 
 # Connect, write and pool, which time out fast on a dead server whatever the tier. The read
@@ -81,13 +81,13 @@ async def noop_aclose() -> None:
     return
 
 
-async def resolve_trace_lever(config: InferenceConfig, cortex_model: str) -> bool:
+async def resolve_send_trace_budget(config: InferenceConfig, cortex_model: str) -> bool:
     """Whether a request to this deployment may include its own trace budget."""
-    if config.trace_lever == "off":
+    if config.send_trace_budget == "off":
         return False
-    if config.trace_lever == "on":
+    if config.send_trace_budget == "on":
         return True
-    async with httpx.AsyncClient(timeout=TRACE_LEVER_PROBE_TIMEOUT_S) as client:
+    async with httpx.AsyncClient(timeout=TRACE_BUDGET_PROBE_TIMEOUT_S) as client:
         return await reads_a_trace_budget(config.endpoint, cortex_model, client)
 
 
@@ -102,8 +102,8 @@ async def build_inference_backend(
             if manager is not None
             else SingleResidentModelManager(cortex_model, config.endpoint)
         )
-        lever = await resolve_trace_lever(config, cortex_model)
-        return LlamaCppBackend(leases, client, trace_lever=lever), client.aclose
+        send = await resolve_send_trace_budget(config, cortex_model)
+        return LlamaCppBackend(leases, client, send_trace_budget=send), client.aclose
     return EchoInferenceBackend(), noop_aclose
 
 

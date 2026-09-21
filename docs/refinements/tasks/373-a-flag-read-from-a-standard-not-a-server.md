@@ -9,7 +9,7 @@ one of them was measured. `\Noselect` is what the probe's Dovecot 2.3.21 really 
 word for word in [docs/readings/imap-server-answers.md](../../readings/imap-server-answers.md).
 `\NonExistent` is RFC 5258's name for the same fact on a server that speaks LIST-EXTENDED, and no
 server this repo has connected to had ever sent it: the unit test that covers it
-(`test_the_newer_spelling_of_unselectable_is_dropped_too`) drives it through a stand-in that was
+(`test_the_newer_form_of_unselectable_is_dropped_too`) drives it through a stand-in that was
 told to say it.
 
 So half the filter rested on a reading of a standard rather than on an answer somebody saw. The
