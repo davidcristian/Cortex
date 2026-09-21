@@ -36,7 +36,7 @@ therefore a jump.
 
 2. **One module owns the panel's edge and height, and the edge nearest the hand stays put.**
    `overlay/panelPlacement.ts`, driven by `overlay/usePanelMotion.ts`, owns both the panel's
-   `bottom` and its `max-height` as inline styles, and `overlay/panelPin.ts` holds the rule for
+   `bottom` and its `max-height` as inline styles, and `overlay/panelEdge.ts` holds the rule for
    which edge stays put:
    - **Growth inside the chat keeps the bottom edge fixed**, so the composer never slides out
      from under the hand that just typed into it. A reply arriving, the switcher opening and a new
@@ -58,7 +58,7 @@ therefore a jump.
 
    The first version slid the panel to the true centre on every view change. The maintainer,
    having lived with it, chose the kept edge; the slide stays one flag away behind
-   `VIEW_CHANGE_RECENTRES` (`overlay/panelPin.ts`), a defaulted argument of `place`, with both
+   `VIEW_CHANGE_RECENTRES` (`overlay/panelEdge.ts`), a defaulted argument of `place`, with both
    settings under test, including the stored-edge restore and the ceiling clamp that only a rising
    bottom edge exercises.
 
@@ -131,7 +131,7 @@ therefore a jump.
 
 ## Related
 
-- Code: `body/app/src/overlay/panelPlacement.ts`, `panelPin.ts`, `panelGeometry.ts`, `morph.ts`,
+- Code: `body/app/src/overlay/panelPlacement.ts`, `panelEdge.ts`, `panelGeometry.ts`, `morph.ts`,
   `usePanelMotion.ts`, `components/Collapse.tsx`, `components/ConsoleView.tsx`.
 - Design: [overlay-ux.md](../design/overlay-ux.md).
 - ADRs: [ADR-0033](ADR-0033-panel-growth.md) (how the height changes),

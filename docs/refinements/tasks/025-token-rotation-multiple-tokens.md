@@ -14,7 +14,7 @@ splitting the shared secret into a per-direction pair.
 The trigger as first worded asked for a second client, and a second client exists: the brain is a
 client of the body's `BodyService`, and `docker/docker-compose.body.yml` gives that direction the
 same shared `CORTEX_SEAM_TOKEN` the Tauri body presents to `BrainService`. The one secret reaches
-four readers: `converse.rs` and `seam.rs` in the body's shell attach it outbound, `body_server.rs`
+four readers: `converse.rs` and `brain.rs` in the body's shell attach it outbound, `body_server.rs`
 compares it inbound, and the brain reads it once as `SeamServerConfig.token`, which `wiring.py`
 hands both to its own interceptor and to the outbound body gateway. Nothing follows from that for
 rotation, because both clients are halves of the one pair this entry called pointless to rotate
@@ -30,7 +30,7 @@ another keeps working, which is what the trigger now asks for.
   clients presenting one `CORTEX_SEAM_TOKEN`, so the trigger was narrowed from a second client to
   a second party.
 - 2026-09-19: Checked again, and the trigger has not fired. Outside tests and probes, the one
-  `CORTEX_SEAM_TOKEN` is still read in four places: `converse.rs`, `seam.rs` and `body_server.rs`
+  `CORTEX_SEAM_TOKEN` is still read in four places: `converse.rs`, `brain.rs` and `body_server.rs`
   in the shell, and `SeamServerConfig.token` in the brain. The rest of what presents it is the
   deployment checking itself: the brain container's compose healthcheck, `just seam-health`, which
   runs `body/crates/rpc/tests/live.rs`, and the brain's `integration`-marked live tests. Those run

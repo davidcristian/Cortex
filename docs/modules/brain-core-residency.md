@@ -43,7 +43,7 @@ path returns the card to. Measurements are in [model-swap](../readings/model-swa
   usually elapses and aborts the handoff before anything is evicted),
   `DEFAULT_SWAP_LOAD_TIMEOUT_S` (300 s, an 18 GB GGUF off the mount being minutes) and
   `DEFAULT_HEALTH_POLL_INTERVAL_S` (1 s) are the exported defaults.
-- `await_model_ready(host, model, *, clock, sleeper, plan)` (`health_gate.py`) is the one readiness
+- `await_model_ready(host, model, *, clock, sleeper, plan)` (`model_ready.py`) is the one readiness
   check, shared by the swap in, the restore and boot recovery. It polls `status` until it settles
   or `plan.load_timeout_s` elapses and returns the last state seen when the bound elapses, so a
   caller can tell a load still running from a start that never took. The deadline is taken once
@@ -207,7 +207,7 @@ report gains the note, joined to any note already there, and one that is not ser
   dwell. The note lapses on its own after `DEFAULT_SPILL_DWELL_S` (3600 s), long enough to still be
   there when somebody who walked away from a minutes-long deep task comes back and short enough
   that a card left alone for an afternoon is not described by a judgement about the morning.
-- `sweep_tiers(host, plan, tiers, fence)` (`residency_sweep.py`) is one pass over **every**
+- `sweep_tiers(host, plan, tiers, fence)` (`residency_pass.py`) is one pass over **every**
   `plan.evict_models` tier rather than only the marked ones, because the ways a peer goes down with
   no refusal to record are exactly the ways a record written from refusals cannot see. Per tier: an
   unhosted one is skipped without a call, a `ModelNotHostedError` records that fault, any other
@@ -220,8 +220,8 @@ report gains the note, joined to any note already there, and one that is not ser
   `regain_residency` answers a state nothing else could leave, a restore that gave up refusing
   every `acquire`, so no turn runs, so no handoff starts, so the reconciliation inside the swap is
   unreachable; a serving report returns before any call, so a healthy deployment pays nothing.
-  `TierHealer(heal, *, interval_s=DEFAULT_TIER_HEAL_INTERVAL_S)` (`residency_heal.py`) is the loop
-  that keeps calling one such pass and owns its own task.
+  `TierHealer(heal, *, interval_s=DEFAULT_TIER_HEAL_INTERVAL_S)` (`residency_recheck.py`) is the
+  loop that keeps calling one such pass and owns its own task.
 - `BootWatch(host, plan, tiers, *, clock, sleeper)` (`residency_watch.py`, ADR-0053 decision 12)
   records which supervisor daemon every belief above was formed against, and the manager calls
   `reconcile(publish)` as the first thing a swap does. `observe(boot_id)` is the whole decision and

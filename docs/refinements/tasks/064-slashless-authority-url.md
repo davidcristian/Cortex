@@ -24,7 +24,7 @@ separator, and the rule it enforces is one sentence: a host is a dotted name or 
 literal containing a colon, and nothing else counts. The dotted name covers every registrable
 domain, every IPv4 literal and every IDN, with the dot counting in each reading the resolver has,
 so the same `LABEL_SEPARATORS` table the identity folds by now also defines the grammar's dot,
-imported into the new `url_spellings.py` so the two cannot disagree, joined by the HTML references
+imported into the new `url_separators.py` so the two cannot disagree, joined by the HTML references
 one rendering pass resolves and by the single percent escape a parser decodes inside a host. That
 percent reading is the only one in this grammar and it is there on a measurement:
 `https:evil%2eexample/pay` resolves to the plain link while the stacked `%252e` is a parse error,
@@ -49,7 +49,7 @@ split point of nine probes under both policies (702 splits) and one character at
 tests, each reverted with `__pycache__` cleared and each reversion verified applied.
 
 `urls.py` could not hold a host grammar under the line cap, so the separator vocabulary moved to
-`url_spellings.py` in the same commit.
+`url_separators.py` in the same commit.
 
 ## History
 

@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-import coverage_gate
+import rustcoverage
 
 TOOL = "0.8.7"
 EXPORT_FORMAT = "3.1.0"
@@ -43,43 +43,43 @@ def argv_of(report: str, *, rustc: str = PROBED_RUSTC, llvm_cov: str = PROBED_TO
 
 
 def test_check_passes_when_every_metric_is_full() -> None:
-    assert coverage_gate.check(make_totals()) == []
+    assert rustcoverage.check(make_totals()) == []
 
 
 @pytest.mark.parametrize("name", ["lines", "regions", "branches"])
 def test_check_fails_each_metric_individually(name: str) -> None:
     totals = make_totals()
     totals[name] = metric(count=40, covered=39)
-    assert coverage_gate.check(totals) == [f"FAIL {name}: 97.50% (need 100%)"]
+    assert rustcoverage.check(totals) == [f"FAIL {name}: 97.50% (need 100%)"]
 
 
 def test_check_ignores_producer_percent_and_gates_on_counts() -> None:
     totals = make_totals()
     totals["lines"] = metric(count=10, covered=3, percent=100.0)
-    assert coverage_gate.check(totals) == ["FAIL lines: 30.00% (need 100%)"]
+    assert rustcoverage.check(totals) == ["FAIL lines: 30.00% (need 100%)"]
 
 
 def test_evaluate_rejects_covered_exceeding_count() -> None:
     totals = make_totals()
     totals["regions"] = metric(count=10, covered=11)
     with pytest.raises(
-        coverage_gate.CoverageReportError,
+        rustcoverage.CoverageReportError,
         match=r"totals\.regions\.covered \(11\) exceeds count \(10\)",
     ):
-        coverage_gate.evaluate(totals)
+        rustcoverage.evaluate(totals)
 
 
 def test_check_treats_zero_count_metric_as_satisfied() -> None:
     totals = make_totals()
     totals["branches"] = metric(count=0, covered=0, percent=0.0)
-    assert coverage_gate.check(totals) == []
+    assert rustcoverage.check(totals) == []
 
 
 def test_evaluate_notes_zero_count_metric() -> None:
     totals = make_totals()
     totals["branches"] = metric(count=0, covered=0, percent=0.0)
-    verdicts = coverage_gate.evaluate(totals)
-    assert verdicts[2] == coverage_gate.Verdict(
+    verdicts = rustcoverage.evaluate(totals)
+    assert verdicts[2] == rustcoverage.Verdict(
         line="PASS branches: no branches to cover (count 0)", ok=True
     )
 
@@ -117,40 +117,40 @@ def test_evaluate_notes_zero_count_metric() -> None:
     ],
 )
 def test_evaluate_rejects_malformed_totals(totals: object, message: str) -> None:
-    with pytest.raises(coverage_gate.CoverageReportError, match=message):
-        coverage_gate.evaluate(totals)
+    with pytest.raises(rustcoverage.CoverageReportError, match=message):
+        rustcoverage.evaluate(totals)
 
 
 def test_load_totals_returns_the_totals_object() -> None:
-    assert coverage_gate.load_totals(document_with(make_totals())) == make_totals()
+    assert rustcoverage.load_totals(document_with(make_totals())) == make_totals()
 
 
 def test_read_document_rejects_missing_file(tmp_path: Path) -> None:
-    with pytest.raises(coverage_gate.CoverageReportError, match="cannot read coverage report"):
-        coverage_gate.read_document(tmp_path / "absent.json")
+    with pytest.raises(rustcoverage.CoverageReportError, match="cannot read coverage report"):
+        rustcoverage.read_document(tmp_path / "absent.json")
 
 
 def test_read_document_rejects_invalid_json(tmp_path: Path) -> None:
     report = tmp_path / "cov.json"
     report.write_text("{not json", encoding="utf-8")
-    with pytest.raises(coverage_gate.CoverageReportError, match="is not valid JSON"):
-        coverage_gate.read_document(report)
+    with pytest.raises(rustcoverage.CoverageReportError, match="is not valid JSON"):
+        rustcoverage.read_document(report)
 
 
 def test_read_document_rejects_non_utf8_bytes(tmp_path: Path) -> None:
     report = tmp_path / "cov.json"
     report.write_bytes(b"\x80\x81\x82")
-    with pytest.raises(coverage_gate.CoverageReportError, match="is not valid JSON"):
-        coverage_gate.read_document(report)
+    with pytest.raises(rustcoverage.CoverageReportError, match="is not valid JSON"):
+        rustcoverage.read_document(report)
 
 
 def test_read_document_rejects_a_non_object_payload(tmp_path: Path) -> None:
     report = tmp_path / "cov.json"
     write_report(report, [1, 2])
     with pytest.raises(
-        coverage_gate.CoverageReportError, match="coverage report must be a JSON object, got list"
+        rustcoverage.CoverageReportError, match="coverage report must be a JSON object, got list"
     ):
-        coverage_gate.read_document(report)
+        rustcoverage.read_document(report)
 
 
 MALFORMED_DOCUMENTS: list[tuple[dict[str, object], str]] = [
@@ -168,12 +168,12 @@ MALFORMED_DOCUMENTS: list[tuple[dict[str, object], str]] = [
 
 @pytest.mark.parametrize(("document", "message"), MALFORMED_DOCUMENTS)
 def test_load_totals_rejects_malformed_documents(document: dict[str, object], message: str) -> None:
-    with pytest.raises(coverage_gate.CoverageReportError, match=message):
-        coverage_gate.load_totals(document)
+    with pytest.raises(rustcoverage.CoverageReportError, match=message):
+        rustcoverage.load_totals(document)
 
 
 def test_load_producer_reads_the_writer_the_export_records() -> None:
-    assert coverage_gate.load_producer(document_with(make_totals())) == coverage_gate.Producer(
+    assert rustcoverage.load_producer(document_with(make_totals())) == rustcoverage.Producer(
         tool=TOOL, export_format=EXPORT_FORMAT
     )
 
@@ -207,13 +207,13 @@ MALFORMED_PRODUCERS: list[tuple[dict[str, object], str]] = [
 def test_load_producer_refuses_an_export_that_will_not_name_its_writer(
     document: dict[str, object], message: str
 ) -> None:
-    with pytest.raises(coverage_gate.CoverageReportError, match=message):
-        coverage_gate.load_producer(document)
+    with pytest.raises(rustcoverage.CoverageReportError, match=message):
+        rustcoverage.load_producer(document)
 
 
 def test_attribute_names_the_export_writer_and_relays_the_compiler() -> None:
-    producer = coverage_gate.Producer(tool=TOOL, export_format=EXPORT_FORMAT)
-    verdicts = coverage_gate.attribute(producer, coverage_gate.Toolchain(PROBED_RUSTC, PROBED_TOOL))
+    producer = rustcoverage.Producer(tool=TOOL, export_format=EXPORT_FORMAT)
+    verdicts = rustcoverage.attribute(producer, rustcoverage.Toolchain(PROBED_RUSTC, PROBED_TOOL))
     assert [verdict.line for verdict in verdicts] == [
         "measured by cargo-llvm-cov 0.8.7, llvm export 3.1.0",
         f"measured by {PROBED_RUSTC}",
@@ -223,8 +223,8 @@ def test_attribute_names_the_export_writer_and_relays_the_compiler() -> None:
 
 @pytest.mark.parametrize("probed", ["cargo-llvm-cov 0.9.1", "", "0.8.70"])
 def test_attribute_fails_an_export_this_step_did_not_write(probed: str) -> None:
-    producer = coverage_gate.Producer(tool=TOOL, export_format=EXPORT_FORMAT)
-    verdicts = coverage_gate.attribute(producer, coverage_gate.Toolchain(PROBED_RUSTC, probed))
+    producer = rustcoverage.Producer(tool=TOOL, export_format=EXPORT_FORMAT)
+    verdicts = rustcoverage.attribute(producer, rustcoverage.Toolchain(PROBED_RUSTC, probed))
     assert [verdict.ok for verdict in verdicts] == [True, True, False]
     assert verdicts[2].line == (
         f"FAIL producer: the export was written by cargo-llvm-cov {TOOL}, "
@@ -233,7 +233,7 @@ def test_attribute_fails_an_export_this_step_did_not_write(probed: str) -> None:
 
 
 def test_main_passes_on_full_coverage(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    exit_code = coverage_gate.main(argv_of(report_of(tmp_path, document_with(make_totals()))))
+    exit_code = rustcoverage.main(argv_of(report_of(tmp_path, document_with(make_totals()))))
     assert exit_code == 0
     assert capsys.readouterr().out.splitlines() == [
         "measured by cargo-llvm-cov 0.8.7, llvm export 3.1.0",
@@ -247,7 +247,7 @@ def test_main_passes_on_full_coverage(tmp_path: Path, capsys: pytest.CaptureFixt
 def test_main_fails_on_partial_coverage(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     totals = make_totals()
     totals["branches"] = metric(count=1000, covered=999)
-    exit_code = coverage_gate.main(argv_of(report_of(tmp_path, document_with(totals))))
+    exit_code = rustcoverage.main(argv_of(report_of(tmp_path, document_with(totals))))
     assert exit_code == 1
     assert capsys.readouterr().out.splitlines() == [
         "measured by cargo-llvm-cov 0.8.7, llvm export 3.1.0",
@@ -261,7 +261,7 @@ def test_main_fails_on_partial_coverage(tmp_path: Path, capsys: pytest.CaptureFi
 def test_main_fails_a_stale_export_even_at_full_coverage(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    exit_code = coverage_gate.main(
+    exit_code = rustcoverage.main(
         argv_of(report_of(tmp_path, document_with(make_totals())), llvm_cov="cargo-llvm-cov 0.9.1")
     )
     assert exit_code == 1
@@ -277,7 +277,7 @@ def test_main_refuses_a_run_that_deleted_a_toolchain_relay(
     argv = argv_of(report_of(tmp_path, document_with(make_totals())))
     flag = argv.index(dropped)
     with pytest.raises(SystemExit) as raised:
-        coverage_gate.main(argv[:flag] + argv[flag + 2 :])
+        rustcoverage.main(argv[:flag] + argv[flag + 2 :])
     assert raised.value.code == 2
     captured = capsys.readouterr()
     assert captured.out == ""
@@ -287,7 +287,7 @@ def test_main_refuses_a_run_that_deleted_a_toolchain_relay(
 def test_main_notes_zero_count_metric(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     totals = make_totals()
     totals["branches"] = metric(count=0, covered=0, percent=0.0)
-    exit_code = coverage_gate.main(argv_of(report_of(tmp_path, document_with(totals))))
+    exit_code = rustcoverage.main(argv_of(report_of(tmp_path, document_with(totals))))
     assert exit_code == 0
     assert "PASS branches: no branches to cover (count 0)" in capsys.readouterr().out
 
@@ -295,11 +295,11 @@ def test_main_notes_zero_count_metric(tmp_path: Path, capsys: pytest.CaptureFixt
 def test_main_reports_malformed_export_on_stderr(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    exit_code = coverage_gate.main(argv_of(report_of(tmp_path, [])))
+    exit_code = rustcoverage.main(argv_of(report_of(tmp_path, [])))
     assert exit_code == 1
     captured = capsys.readouterr()
     assert captured.out == ""
-    assert captured.err == "coverage_gate: coverage report must be a JSON object, got list\n"
+    assert captured.err == "rustcoverage: coverage report must be a JSON object, got list\n"
 
 
 def test_main_reports_non_utf8_export_on_stderr(
@@ -307,9 +307,9 @@ def test_main_reports_non_utf8_export_on_stderr(
 ) -> None:
     report = tmp_path / "cov.json"
     report.write_bytes(b'{"data": [\xff\xfd]}')
-    exit_code = coverage_gate.main(argv_of(str(report)))
+    exit_code = rustcoverage.main(argv_of(str(report)))
     assert exit_code == 1
     captured = capsys.readouterr()
     assert captured.out == ""
-    assert captured.err.startswith(f"coverage_gate: coverage report {report} is not valid JSON: ")
+    assert captured.err.startswith(f"rustcoverage: coverage report {report} is not valid JSON: ")
     assert captured.err.count("\n") == 1

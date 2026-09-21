@@ -28,7 +28,7 @@ clippy-checked elsewhere while the cross-tree scan reads it unconditionally.
   which found the endpoint default among the thirteen compose defaults nothing declares and
   recorded that this one is a missing declaration rather than a value with no other side.
 - 2026-08-22: Done. `DEFAULT_BODY_PORT` is declared in `body/app/src-tauri/src/body_server.rs`,
-  `cfg(windows)` beside `DEFAULT_TOAST_APP_ID`, and one entry in `scripts/seamcouplings.py`
+  `cfg(windows)` beside `DEFAULT_TOAST_APP_ID`, and one entry in `scripts/wirecouplings.py`
   compares it against five places: the body override's endpoint default, three runbook sentences,
   and the brain's live gateway fallback. The placement question is answered in the shell's favour:
   moving it into `body_core` or `body_rpc` would buy a compiler's opinion of a `u16` while putting

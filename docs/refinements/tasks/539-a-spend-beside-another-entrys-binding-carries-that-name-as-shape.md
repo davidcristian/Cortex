@@ -23,15 +23,15 @@ since the correct entry is named on the same run. One line using four bindings i
 place this happens.
 
 **What it became.** Neither remedy above. The scan already had a remedy for this wrong attribution
-and it did not run here. `needles.unfound` gives an unfound search text two readings and, where they
-name one line, says that the form probably changed and the constant it named may not be the one to
-change. It took that reading only for a mention writing a value, and answered a name-writing one by
-saying the whole search text was literal, which is wrong about it: the written name is the one part
-this constant is responsible for. `needles.answered` now says which half a search text's constant is
-responsible for, the value where the template writes one and the name where it writes only a name,
-and the result names whichever it read. The search text still includes the field's binding name and
-the registry still relates no entries, which the failure message now states on the line the
-neighbour moved on. Both entries are written from the one `KIND_FIELD` constant in
+and it did not run here. `searchtexts.unfound` gives an unfound search text two readings and, where
+they name one line, says that the form probably changed and the constant it named may not be the one
+to change. It took that reading only for a mention writing a value, and answered a name-writing one
+by saying the whole search text was literal, which is wrong about it: the written name is the one
+part this constant is responsible for. `searchtexts.answered` now says which half a search text's
+constant is responsible for, the value where the template writes one and the name where it writes
+only a name, and the result names whichever it read. The search text still includes the field's
+binding name and the registry still relates no entries, which the failure message now states on the
+line the neighbour moved on. Both entries are written from the one `KIND_FIELD` constant in
 `scripts/emailcouplings.py`, so one registry edit repairs both failures. Fifteen mentions write a
 name and no value today, so every one of them gained the reading.
 
@@ -59,5 +59,5 @@ name and no value today, so every one of them gained the reading.
   ordinary form of a module-doc row.
 - 2026-09-15: done. The mutation this entry names was run first and reproduced two failures with the
   misleading one printed first. The fix is the reading above, recorded in ADR-0042, with both
-  failures tabled over `scripts/needles.py`. The instance is still one, and a second one would now
-  cost a pointing failure rather than a misleading one.
+  failures tabled over `scripts/searchtexts.py`. The instance is still one, and a second one would
+  now cost a pointing failure rather than a misleading one.

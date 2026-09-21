@@ -130,7 +130,7 @@ minute apart: `b10666-4e97ac86e` answered `400` naming the field and `b9870-2d97
 `200`, and each behaved as its own answer predicted. The brain logs its answer at boot:
 
 ```
-INFO:cortex_inference.lever:trace lever probe answered endpoint=<the endpoint asked> lever=<true or false>
+INFO:cortex_inference.trace_probe:trace lever probe answered endpoint=<the endpoint asked> lever=<true or false>
 ```
 
 A server that could not be reached logs `trace lever probe failed` at `WARNING`. When the answer

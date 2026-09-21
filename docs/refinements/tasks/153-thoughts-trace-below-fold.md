@@ -9,7 +9,7 @@ everything below the trace slid down. Measured 2026-07-20 at 640x720: the reader
 the end of the reply grew from 0 to 76px, and a trace long enough to reach its own `28vh` limit
 pushed the answer off screen entirely.
 
-Fixed in `overlay/logRide.ts`, which keeps the reader's distance from the end of the log constant
+Fixed in `overlay/logRoll.ts`, which keeps the reader's distance from the end of the log constant
 for every frame of the opening animation, so the growth comes out of the scroll position instead
 of out of the reply. There is no second animation: the scroll position is recomputed from the box
 on each frame, so it follows the height animation's timing, and `Collapse.tsx` is unchanged. A

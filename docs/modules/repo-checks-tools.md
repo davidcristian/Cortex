@@ -4,7 +4,7 @@ The thirteen cross-tree scans are in [repo-checks-scans.md](repo-checks-scans.md
 module list is in [repo-checks.md](repo-checks.md). This document covers the rest: three modules
 that check one thing each, and five that report a measurement and decide nothing.
 
-## `coverage_gate.py PATH --rustc TEXT --llvm-cov TEXT`
+## `rustcoverage.py PATH --rustc TEXT --llvm-cov TEXT`
 
 Reads a `cargo llvm-cov --json --summary-only` export, requires exactly one `data[]` entry, and
 requires `covered == count` for each of `data[0].totals.{lines,regions,branches}`. The producer's

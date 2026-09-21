@@ -15,9 +15,9 @@ from couplings import (
     Site,
 )
 from linereadings import counted, short
-from needles import bounded, unfound
 from readings import Reading, relation_fault
 from registry import CONSTANTS, shape
+from searchtexts import bounded, unfound
 from values import CrossCheckError, Value, parse_value, spell, spelling_fault
 
 # Two places is the minimum: a value written once always agrees with itself.

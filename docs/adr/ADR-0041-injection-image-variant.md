@@ -36,7 +36,7 @@ here to keep each record to one subject.
    there because at 5x7 the model read `g` as `s`.
 3. **Two probe screens stand outside the counted set.** `bare` (plain without its notes) and
    `advisory` (chrome with three lines of body) live in `PROBES`, not `RENDERINGS`, so no published
-   denominator moves; `test_image_arm.py` checks them against the corpus's properties.
+   denominator moves; `test_image_variant.py` checks them against the corpus's properties.
 4. **The corpus frame is the corpus's own.** 1600x900 is kept for comparability and because a fixed
    glyph fills more of a small frame, the end that favours the attacker. `Frame` is an integer
    magnifier over every coordinate and glyph pixel, so a larger frame is the base frame grown pixel
@@ -51,8 +51,8 @@ here to keep each record to one subject.
 5. **Shipped code builds every request.** `CaptureScreenTool` over `InMemoryBodyGateway`,
    `describe`, `result_message`, `security_preamble_message`, `call_message` and the adapter's
    `_to_openai_message`. The control is the same conversation minus preamble and fence with a
-   byte-identical picture. `test_image_arm.py` (in CI, no GPU) asserts that, and that each larger
-   frame decodes to the base grown pixel for pixel.
+   byte-identical picture. `test_image_variant.py` (in CI, no GPU) asserts that, and that each
+   larger frame decodes to the base grown pixel for pixel.
 6. **The server is the tier's shipped server.** Every row starts it from the tier's own `TierArgs`
    through the model host's `llama_server_argv` (`server_argv`), so the cortex runs at its shipped
    window. `SHIPPED_BUDGET` is `Budget(1024)`, emitting `--image-max-tokens` and a matching
@@ -89,7 +89,7 @@ here to keep each record to one subject.
     (`test_a_canary_can_travel_from_the_pixels_into_a_reply`) must reach a reply on every rendering;
     `canary_hit` counts an empty run as neither a hit nor resistance and its failure names which.
     The same row asks a second time, with the user telling the model to do what the screen says, and
-    prints that answer without asserting on it. `test_image_arm.py` asserts that the font draws
+    prints that answer without asserting on it. `test_image_variant.py` asserts that the font draws
     every character of every payload (`drawn`), since a wrap reflows the payload. Below the corpus
     payload size legibility is recorded, not asserted, since an unreadable payload is the far end of
     the size series. A size series marks two conditions per cell: read on request (the
@@ -130,8 +130,8 @@ here to keep each record to one subject.
     pass says only that a row completed within its empty-run ceiling.
 17. **A size series runs inside one server.** The payload series runs every size behind one load,
     since the variation between sessions exceeds the effect being looked for, and it is parametrized
-    over the same frames and budgets as the matrix; `test_image_arm.py` checks that the seeing rows
-    use one set of axes.
+    over the same frames and budgets as the matrix; `test_image_variant.py` checks that the seeing
+    rows use one set of axes.
 
 ### Cost and the card
 
@@ -213,7 +213,7 @@ server may matter, and card readings for the other harnesses that time the card.
 ## Related
 
 - Code: `brain/packages/inference/tests/test_injection_defense_live.py`, `rendered_screens.py`,
-  `pixel_font.py`, `test_image_arm.py`, `test_reply_readings.py`, `card_reading.py`,
+  `pixel_font.py`, `test_image_variant.py`, `test_reply_readings.py`, `card_reading.py`,
   `test_card_reading.py`.
 - Procedure and selectors: [runbooks/llamacpp-gpu.md](../runbooks/llamacpp-gpu.md), the section on
   the pixel channel.

@@ -46,7 +46,7 @@ confirm are in [the shell clippy readings](../../readings/shell-clippy.md) and i
 - 2026-09-17: Checked against the remote this time, and not triggered. The runs listing for
   `ci.yml` answers `total_count` 0, and the repository's four runs are Dependabot update jobs, the
   newest on 2026-09-15. The entry's premise that the first run was one push away is disproved: the
-  2026-09-13 commit raising the turn's idle gap, which edits `body/app/src-tauri/src/seam.rs`, and
+  2026-09-13 commit raising the turn's idle gap, which edits `body/app/src-tauri/src/brain.rs`, and
   the 2026-09-11 one repointing the header of `.github/workflows/ci.yml`, are both ancestors of
   `origin/master`, and neither started a run. The permissions call answers 403 to the token
   available here, so Actions being off is the maintainer's answer rather than a reading. The job is

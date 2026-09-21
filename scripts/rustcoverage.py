@@ -183,7 +183,7 @@ def main(argv: list[str] | None = None) -> int:
         verdicts = attribute(load_producer(document), toolchain)
         verdicts += evaluate(load_totals(document))
     except CoverageReportError as err:
-        print(f"coverage_gate: {err}", file=sys.stderr)
+        print(f"rustcoverage: {err}", file=sys.stderr)
         return 1
     for verdict in verdicts:
         print(verdict.line)

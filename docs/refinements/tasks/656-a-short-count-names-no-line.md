@@ -5,8 +5,8 @@
 **Origin:** [ADR-0042](../../adr/ADR-0042-cross-tree-constant-registry.md)
 
 `crosscheck.check_mention` has three answers for a counted mention. It passes; it finds none of the
-search text and gets `needles.unfound`, which names the line the longest run stops on and the line
-the value is still written on; or it finds some but not the expected number and gets
+search text and gets `searchtexts.unfound`, which names the line the longest run stops on and the
+line the value is still written on; or it finds some but not the expected number and gets
 `found N, pinned M` and no line at all. That third answer is the common mismatch, a half applied
 rename over a set of two, and it named nothing: a reader was told that a runbook writes the endpoint
 once where two are expected, and had to grep the file to find which of the two moved.
@@ -18,13 +18,13 @@ with two of three has three matches and the interesting thing is which one is ab
 
 **What the entry had wrong,** measured 2026-09-17 on a scratch copy of the tree with the volume
 runbook's second endpoint, line 48, renamed to `host.docker.internal:50152`. The entry said the file
-no longer says where the occurrence went, and that `needles.unfound`'s value reading was the only
-candidate. The value reading cannot find a renamed occurrence at all, because the rename is what
-took the value off that line: `50151` is still written on lines 12, 13, 34, 76 and 97, six places
-before the change rather than the four this entry counted, and none of them is the line that moved.
-The search text itself is nearly all still there: line 48 has 25 of its 26 characters as an opening
-run. The next lines have 21 (line 78) and 20 (lines 31 and 103), each prose naming the host with
-`host.docker.internal:` or without the colon, so the margin is four characters. A half applied
+no longer says where the occurrence went, and that `searchtexts.unfound`'s value reading was the
+only candidate. The value reading cannot find a renamed occurrence at all, because the rename is
+what took the value off that line: `50151` is still written on lines 12, 13, 34, 76 and 97, six
+places before the change rather than the four this entry counted, and none of them is the line that
+moved. The search text itself is nearly all still there: line 48 has 25 of its 26 characters as an
+opening run. The next lines have 21 (line 78) and 20 (lines 31 and 103), each prose naming the host
+with `host.docker.internal:` or without the colon, so the margin is four characters. A half applied
 rename does leave a line, and it is the line with the longest run of the search text among the lines
 that do not have it whole; only a deleted occurrence leaves none.
 

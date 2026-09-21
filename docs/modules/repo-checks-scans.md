@@ -69,9 +69,9 @@ a label, the reason its places must agree (printed with any failure), its `Site`
 `relation` and optional `mentions`.
 
 `registry.py` is the only module that lists the parts, so a new part is a data file plus one line
-there. `crosscheck.CONSTANTS` is `SEAM_COUPLINGS`, `ENDPOINT_COUPLINGS`, `SHIPPED_COUPLINGS`,
+there. `crosscheck.CONSTANTS` is `WIRE_COUPLINGS`, `ENDPOINT_COUPLINGS`, `SHIPPED_COUPLINGS`,
 `CAPTURE_COUPLINGS`, `BOUNDS_COUPLINGS`, `SUBAGENT_COUPLINGS`, `MODELHOST_COUPLINGS`,
-`LEVER_COUPLINGS`, `IMAGE_COUPLINGS`, `EMAIL_COUPLINGS`, `FIXTURE_COUPLINGS`, `OVERLAY_COUPLINGS`,
+`TRACE_COUPLINGS`, `IMAGE_COUPLINGS`, `EMAIL_COUPLINGS`, `FIXTURE_COUPLINGS`, `OVERLAY_COUPLINGS`,
 `LOG_COUPLINGS` and `TRAIL_COUPLINGS`, in that order. Each part is named for its subject, and its
 own module docstring says which values it covers.
 

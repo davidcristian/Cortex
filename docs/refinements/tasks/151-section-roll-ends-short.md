@@ -7,7 +7,7 @@
 `Collapse` measured the height it rolls to with `offsetHeight`
 (`body/app/src/components/Collapse.tsx`), which is a whole number, and an opening roll
 deliberately does not fill, so the section hands itself back to its own layout when the animation
-ends and steps by the difference. The panel's arrival placement (`panelRide.ts`) then added that
+ends and steps by the difference. The panel's arrival placement (`panelRoll.ts`) then added that
 rounded target to two fractional heights, so its prediction of where the roll leaves the panel was
 out by the same amount. Opened 2026-08-06 by [R-150](150-retarget-from-rounded-height.md), which
 took the panel's own measurement off `offsetHeight` and left this one on it.

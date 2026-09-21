@@ -19,7 +19,7 @@ The detail lives in two companion documents:
 Twenty-one modules have a command line. `just` recipes run `linecap.py`, `dashcheck.py`,
 `prosecheck.py`, `crosscheck.py`, `bindcheck.py`, `defaultcheck.py`, `volumecheck.py`,
 `stubcheck.py`, `samplecheck.py`, `rostercheck.py`, `flagcheck.py`, `settingscheck.py`,
-`backlogcheck.py` and `coverage_gate.py`. The CI workflow runs `ci_paths.py`, and the `commit-msg`
+`backlogcheck.py` and `rustcoverage.py`. The CI workflow runs `ci_paths.py`, and the `commit-msg`
 hook runs `commitlint.py`. Five measurement reporters have a recipe each: `contrast.py` under
 `just turn-cost`, `trailwidth.py` under `just recall-width`, `envelopefloor.py` under
 `just envelope-floor`, `envelopepairs.py` under `just envelope-pairs` and `switchtail.py` under
@@ -32,10 +32,10 @@ were split out of it to stay under the 300-line limit. Grouped by what reads the
 - `crosscheck.py` reads `couplings.py` for the types a registry entry is written with,
   `registry.py` for the parts the registry is joined from, `values.py` for what a value reduces to
   and how a restatement writes it, `readings.py` for whether a set of those values agrees,
-  `needles.py` for how a rendered search text is looked for, and `linereadings.py` for what a
-  failure reports about one line. The parts themselves are `seamcouplings.py`,
+  `searchtexts.py` for how a rendered search text is looked for, and `linereadings.py` for what a
+  failure reports about one line. The parts themselves are `wirecouplings.py`,
   `endpointcouplings.py`, `shippedcouplings.py`, `boundscouplings.py`, `subagentcouplings.py`,
-  `modelhostcouplings.py`, `levercouplings.py`, `imagecouplings.py`, `emailcouplings.py`,
+  `modelhostcouplings.py`, `tracecouplings.py`, `imagecouplings.py`, `emailcouplings.py`,
   `fixturecouplings.py`, `capturecouplings.py`, `overlaycouplings.py`, `logcouplings.py` and
   `trailcouplings.py`.
 - `bindcheck.py` reads `composemounts.py` for the mounts one compose file declares.
@@ -77,7 +77,7 @@ Six modules are shared rather than owned by one check. `composefiles.py` decides
 compose checks walk, so a new override reaches all of them at once. `gitenv.py` is the environment
 every git call here runs with, in one place because a caller that omits it reads the wrong
 repository without reporting anything. `treewalk.py` is the single descent that hands every reader
-its files, and `skippeddirs.py` is the list of directory names it never enters. `gatecalls.py`
+its files, and `skippeddirs.py` is the list of directory names it never enters. `scriptcalls.py`
 reads out of a module's syntax which calls it makes, which is how the rules about git calls and
 tree descents recognize a caller by its shape rather than by how it is written.
 `markdownfences.py` defines what a code fence is for the three checks that read documents

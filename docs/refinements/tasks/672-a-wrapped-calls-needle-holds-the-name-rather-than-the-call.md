@@ -30,7 +30,7 @@ earlier close chose rather than a fault in it, and the cost arrives on the day s
 one of the six.
 
 **What would close it.** Either a registry form that folds runs of whitespace, so one template
-matches the call whether or not it is wrapped, which overturns the rule in `needles.py` that a
+matches the call whether or not it is wrapped, which overturns the rule in `searchtexts.py` that a
 search string is matched as written; or an occurrence count on the mention, `occurrences=1`, which
 turns the looseness into a failure the day a second occurrence of the name appears, at the price of
 failing on an addition that is not a defect, and which costs nothing on registration day, since each

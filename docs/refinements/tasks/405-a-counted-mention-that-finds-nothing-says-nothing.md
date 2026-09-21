@@ -5,7 +5,7 @@
 **Origin:** [ADR-0042](../../adr/ADR-0042-cross-tree-constant-registry.md)
 
 `scripts/crosscheck.py`'s `check_mention` branched on whether the match has an occurrence count. A
-match without one raised through `needles.unfound`, which says whether the file still writes the
+match without one raised through `searchtexts.unfound`, which says whether the file still writes the
 constant's own value and how much of the search text it contains. A match with a count raised the
 older sentence, `found 0, pinned 2; move the whole set, or correct occurrences in the registry`,
 which is true and says nothing about which of the search text's literals moved. Zero found is
@@ -26,13 +26,13 @@ has ever gone to zero on the real tree.
   message name whose literal stopped matching, and wired that into one of the two branches that can
   find nothing.
 - 2026-09-10: read against the tree and still not fired. `check_mention` still branched on
-  `wanted is None`, still sent only the uncounted branch through `needles.unfound`, and the counted
-  branch still raised the sentence above. The two counted matches over `docs/runbooks/body-volume.md`
-  are still set to two occurrences in `scripts/endpointcouplings.py`, with three more counted
-  matches beside them. Nothing has gone to zero: `crosscheck` passed over 91 constants, 109
-  declaring places and 296 matches, 25 of them with a count.
+  `wanted is None`, still sent only the uncounted branch through `searchtexts.unfound`, and the
+  counted branch still raised the sentence above. The two counted matches over
+  `docs/runbooks/body-volume.md` are still set to two occurrences in `scripts/endpointcouplings.py`,
+  with three more counted matches beside them. Nothing has gone to zero: `crosscheck` passed over 91
+  constants, 109 declaring places and 296 matches, 25 of them with a count.
 - 2026-09-12: closed ahead of its trigger, which has still not fired. `check_mention` now tests
-  `found` before the count, so a file containing none of the search text gets `needles.unfound`
+  `found` before the count, so a file containing none of the search text gets `searchtexts.unfound`
   whether or not a count is set, and the count follows as its own clause, `the registry pins 2
   occurrences, so move the whole set, or correct occurrences in the registry`. No sentence states a
   number of occurrences the file did not have. A count that is wrong without being zero still gets

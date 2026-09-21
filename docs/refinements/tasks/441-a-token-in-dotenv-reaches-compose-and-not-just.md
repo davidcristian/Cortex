@@ -52,7 +52,7 @@ documentation stops offering `.env` as a way to configure anything except the co
   justfile and it still has no `set` line, and the checkout has no `.env`. The split is wider than
   the live suite: `just brain-serve` runs the brain on the host with no `env_file` in any settings
   class, and the host body reads the token from its own process environment (`converse.rs:192`,
-  `seam.rs:106`, `body_server.rs:59` under `body/app/src-tauri/src/`), so `.env` configures the
+  `brain.rs:106`, `body_server.rs:59` under `body/app/src-tauri/src/`), so `.env` configures the
   compose brain and nothing else in the repo. The runbook's sentence names `just` as the reader
   that skips the file, which takes in `brain-serve`, and says nothing about the body, which would
   need a token exported wherever it is launched whatever `.env` holds.

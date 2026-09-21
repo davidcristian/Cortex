@@ -23,7 +23,7 @@ re-run by anyone but its author.
 1. **Rust branch coverage runs on nightly; everything else on stable.** LLVM branch instrumentation
    (`cargo llvm-cov --branch`) is nightly-only, so only the coverage step invokes
    `cargo +nightly llvm-cov`. CI installs nightly before stable, so stable stays the default.
-2. **The Rust coverage threshold is enforced by `scripts/coverage_gate.py`.** cargo-llvm-cov has no
+2. **The Rust coverage threshold is enforced by `scripts/rustcoverage.py`.** cargo-llvm-cov has no
    `--fail-under-branches`, so the step exports JSON (`--json --summary-only`) and the script
    requires exactly one `data[]` entry and `covered == count` for each of
    `data[0].totals.{lines,regions,branches}`. The producer's `percent` is never read; a printed
@@ -63,7 +63,7 @@ re-run by anyone but its author.
     measurement. CI runs the same recipe, so both sides print them, and a machine with no nightly
     fails at a probe that names it. When an upstream change causes a failure, those two lines tell
     it apart from the commit under test.
-12. **`coverage_gate.py` alone decides the coverage result.** The measurement is run with no
+12. **`rustcoverage.py` alone decides the coverage result.** The measurement is run with no
     `--fail-under-*` flag: with the report diverted to a file those flags exit 1 without naming a
     metric or a threshold ([reading](../readings/rust-coverage-toolchain.md)), which pre-empted the
     check that does name them. The script prints one PASS or FAIL line per metric in every case.

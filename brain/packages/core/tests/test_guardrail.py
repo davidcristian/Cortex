@@ -14,7 +14,7 @@ from cortex_core import (
     extract_urls,
 )
 from cortex_core.url_identity import host_of, normalize_url
-from cortex_core.url_spellings import NFKC_SPACES
+from cortex_core.url_separators import NFKC_SPACES
 
 EVIL = "https://evil.example/report"
 

@@ -1,9 +1,8 @@
 # Source file names use words the prose table bans
 
-**Status:** open, actionable
+**Status:** done 2026-09-21
 **Area:** cross-cutting
 **Origin:** [ADR-0040](../../adr/ADR-0040-prose-and-comment-style.md)
-**Verified:** 2026-09-19
 
 The prose rules reach documents, comments and docstrings, and stop at identifiers. Twelve source
 files are named after a word the table in AGENTS.md bans, so a reader who learns the vocabulary
@@ -35,3 +34,18 @@ touching working code for a name, and until somebody does this is a question rat
 ## History
 
 - 2026-09-19: opened after a reading of the file list against the table.
+- 2026-09-21: done. The list was short by five: `residency_heal.py`, `logRide.ts`, its test,
+  `panelRide.ts` and `panelPin.ts` also use a banned word. Each file was moved with `git mv` and
+  every import, test, document, registry and backlog link that names it was changed with it:
+  `trace_probe.py`, `test_trace_probe.py`, `test_image_variant.py`, `model_ready.py`,
+  `residency_pass.py`, `residency_recheck.py`, `url_separators.py`, `test_schedule_grpc_live.py`,
+  `test_children_and_probe.py`, the shell's `brain.rs`, `logRoll.ts`, `panelRoll.ts`,
+  `panelEdge.ts`, and under `scripts/` `rustcoverage.py`, `searchtexts.py`, `scriptcalls.py`,
+  `tracecouplings.py` and `wirecouplings.py`. Three kinds of name stay. `trail` is not in the
+  table, and `recall_trail_probe.py`, `trailcouplings.py` and `trailwidth.py` use it for the recall
+  log, as in "audit trail". The `cortex_seam` package, its `brain/packages/seam/` directory, its
+  module contract and `CORTEX_SEAM_TOKEN` stay: AGENTS.md exempts the package name in backticks,
+  and the Windows host's configuration reads the variable. The generated `cortex.seam.v1.rs` is
+  named by the proto package, which is part of every gRPC method path. Identifiers, the brain's
+  log words and the backlog's own file names were left to
+  [R-705](705-names-inside-files-still-use-banned-words.md).

@@ -5,9 +5,9 @@ from collections.abc import AsyncGenerator, Mapping
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
 
 from cortex_core.errors import ModelUnavailableError
-from cortex_core.health_gate import await_model_ready
 from cortex_core.model import ModelLease
 from cortex_core.model_host import ModelHostState, ResidencyPlan
+from cortex_core.model_ready import await_model_ready
 from cortex_core.ports import Clock, ModelHost, Sleeper, SubagentPlacer
 from cortex_core.residency_board import ResidencyBoard
 from cortex_core.residency_charge import charge_handoff

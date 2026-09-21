@@ -4,7 +4,7 @@
 **Area:** repo-checks
 **Origin:** [ADR-0042](../../adr/ADR-0042-cross-tree-constant-registry.md)
 
-`needles.unfound` reports two things about a search text its target file no longer contains: how
+`searchtexts.unfound` reports two things about a search text its target file no longer contains: how
 much of the text the file still has and where that run stops, and whether the file still contains
 the value as a word of its own, with the nearest line. The second report exists to say that what
 changed is the form rather than the value, which points the reader at a neighbouring constant
@@ -26,6 +26,6 @@ member's own line, said so.
   changed, when the value had (ADR-0042).
 - 2026-09-04: done. Across the whole registry, 65 of 288 mentions write a value made of letters and
   underscores into a file that also contains that word away from the search text, 31 of them a
-  single word. `needles.verdict` now states the strong form only where the value's line is the line
-  the match run stops on, and otherwise reports both readings without saying which changed; both
-  recorded misreadings were replayed in a copy of the tree before and after (ADR-0042).
+  single word. `searchtexts.verdict` now states the strong form only where the value's line is the
+  line the match run stops on, and otherwise reports both readings without saying which changed;
+  both recorded misreadings were replayed in a copy of the tree before and after (ADR-0042).

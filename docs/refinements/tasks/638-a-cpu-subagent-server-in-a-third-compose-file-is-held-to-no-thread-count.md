@@ -37,14 +37,15 @@ would learn the key, is at 250 lines of the 300 cap.
   saved copy after each run, and no comment or document claimed the flag name was checked.
 - 2026-09-12: the reason the previous bullet gave for choosing the conditional requirement is wrong,
   and the flag name is now checked on both shipped servers. A rendered search string is matched
-  against the whole file with `re.finditer` (`scripts/needles.py`), so it may include the newline
-  and the indentation between two argv items. The CPU budget's constant now has one such string per
-  file, the `- "--threads"` line and the substitution line under it, and four mutations fail it that
-  passed before: the flag renamed on either server, the flag line dropped with its value kept, and
-  the count moved ahead of its own flag. Recorded in the thread-flag change of 2026-09-12
-  ([ADR-0004](../../adr/ADR-0004-model-lineup.md)). This entry's own subject is untouched, since a
-  search string is written per file. `uv run python flagcheck.py --root ..` in `scripts/` on this
-  date reads three servers in three files, the two CPU servers and the hosted GPU tier.
+  against the whole file with `re.finditer` (`scripts/searchtexts.py`), so it may include the
+  newline and the indentation between two argv items. The CPU budget's constant now has one such
+  string per file, the `- "--threads"` line and the substitution line under it, and four mutations
+  fail it that passed before: the flag renamed on either server, the flag line dropped with its
+  value kept, and the count moved ahead of its own flag. Recorded in the thread-flag change of
+  2026-09-12 ([ADR-0004](../../adr/ADR-0004-model-lineup.md)). This entry's own subject is
+  untouched, since a search string is written per file. `uv run python flagcheck.py --root ..` in
+  `scripts/` on this date reads three servers in three files, the two CPU servers and the hosted GPU
+  tier.
 - 2026-09-15: the trigger is still unfired, and a second, smaller fix is worth writing down: a
   requirement predicated on the argv alone, requiring every server started with `-ngl 0` to have a
   `--threads` at all. It needs no new compose key and refuses the configuration the explicit count

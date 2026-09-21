@@ -4,7 +4,7 @@ import re
 
 from cortex_core.url_identity import MAILTO_SCHEME, SPECIAL_SCHEMES, normalize_url
 from cortex_core.url_removals import REMOVED_CHARS, REMOVED_RUN, permeable
-from cortex_core.url_spellings import (
+from cortex_core.url_separators import (
     CHUNK_INNER,
     CLOSE_BRACKET,
     COLON_SPELLING,

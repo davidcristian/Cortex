@@ -13,7 +13,7 @@ trailing-punctuation trim in `brain/packages/core/src/cortex_core/guardrail.py`,
 prints six lines, five of them the four sites; the sixth is the trim `normalize_url` performs
 inside the identity reduction in `url_identity.py`, which reads one matched string and assumes
 nothing about how many readings its span has. The second condition cannot be decided from the tree,
-since a reply lives in the session store. The first is read off `url_spellings.py`.
+since a reply lives in the session store. The first is read off `url_separators.py`.
 **Verified:** 2026-09-17
 
 Opened by the pass that declined the mixed dot-and-gap host, because that decline is a symptom
@@ -44,7 +44,7 @@ has been, since a second reading is a second chance to redact prose.
   assumption as what actually blocks it.
 - 2026-09-08: Not triggered, and the measurement repaired from a fresh run. No second two-reading
   form has appeared and the mixed host has not reached a reply here. The relaxation was rebuilt
-  from the current `url_spellings` tables rather than assumed: over 1,548 readable files, 2,304,319
+  from the current `url_separators` tables rather than assumed: over 1,548 readable files, 2,304,319
   words and 2,997 matched spans it adds 0 spans, loses 0, and extends 22, changing all 22
   identities, where this entry claimed 14 of each. The failure is the same at the larger size,
   `http://example.com` followed by ` dot the` becoming `http://example.com.the`. The trigger used
@@ -57,7 +57,7 @@ has been, since a second reading is a second chance to redact prose.
   trigger is corrected. None of the four files has changed since 2026-09-07.
 - 2026-09-17: Not triggered, and the relaxation was rebuilt and rerun rather than quoted. The grep
   prints the same six lines at `urls.py:226`, `guardrail.py:220` and `:226`, `url_identity.py:271`
-  and `url_holdback.py:134` and `:136`, and none of those four files nor `url_spellings.py` has
+  and `url_holdback.py:134` and `:136`, and none of those four files nor `url_separators.py` has
   changed since 2026-08-31. The rebuild composed the relaxed `SPLIT_LABEL` into the gap, the split
   host and the host anchor through the module's own `_family` and `_authority_sep`, after checking
   that the same composition over the shipped label reproduces `URL_RE.pattern` exactly. Over

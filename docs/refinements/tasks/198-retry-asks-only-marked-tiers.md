@@ -13,7 +13,7 @@ the dead attempt plus the CPU re-run.
 
 Fixed on 2026-08-11, recorded at [ADR-0054](../../adr/ADR-0054-baseline-residency.md) decision 4. A
 pass now asks `status` for every `CORTEX_SWAP_EVICT_MODELS` tier rather than only the marked ones
-(`residency_sweep.py`), so the record stopped being a list of refusals and became a reading of the
+(`residency_pass.py`), so the record stopped being a list of refusals and became a reading of the
 machine taken every interval.
 
 All the cases were driven against a real supervisor over HTTP before anything was designed, and the

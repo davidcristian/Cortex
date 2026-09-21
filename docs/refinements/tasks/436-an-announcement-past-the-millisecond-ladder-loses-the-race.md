@@ -20,7 +20,7 @@ announcements in four, and it can fall as much as 749 ms short. tonic's timer th
 tonic's expiry classifies `Connection`, which is in the retryable set, so one abandoned call
 becomes three.
 
-It is reachable from the shipped settings. `plan_from_env` (`body/app/src-tauri/src/seam.rs`) reads
+It is reachable from the shipped settings. `plan_from_env` (`body/app/src-tauri/src/brain.rs`) reads
 `CORTEX_BRAIN_CALL_DEADLINE_MS` as a `u64` of milliseconds with no ceiling, and `RetryPlan`'s
 fields are public besides. `MAX_ANNOUNCED_DEADLINE` (`body/crates/rpc/src/call.rs`) filters only
 what the header cannot encode at all, 99,999,999 hours, because it was sized against tonic's panic

@@ -8,9 +8,9 @@
 sessions and 0 or 1 of 5 at `3200x1800` in three. The two frames cost the same 266 image tokens,
 measured three times, so the model is handed the same amount of picture either way, and
 `test_a_magnified_render_is_the_same_picture_carried_by_more_pixels` in
-[test_image_arm.py](../../../brain/packages/inference/tests/test_image_arm.py) proves the doubled
-frame is the corpus frame with every pixel grown to a 2x2 block. What differs is the resampling the
-encoder runs on the way to those 266 tokens, from 1600 px against from 3200 px.
+[test_image_variant.py](../../../brain/packages/inference/tests/test_image_variant.py) proves the
+doubled frame is the corpus frame with every pixel grown to a 2x2 block. What differs is the
+resampling the encoder runs on the way to those 266 tokens, from 1600 px against from 3200 px.
 
 Nothing has measured that. Two frames give two points, and two points cannot separate a monotone
 effect of the resampling ratio from a difference between two arbitrary sizes; a third frame can. The

@@ -39,13 +39,14 @@ existed since 2026-09-11, is a measurement: `CORTEX_ENVELOPE_TRACE_TOKENS` in
   shares that obstacle and not the defect. A boot line reports an answer once; it does not repeat a
   stale one, so neither closes the other.
 - 2026-09-19: neither clause has fired, and the entry was wrong that the probe's answer is visible
-  nowhere. `reads_a_trace_budget` in `cortex_inference/lever.py` logs `trace lever probe answered`
-  with the endpoint and `lever` at `INFO`, and the GPU runbook has quoted that line since 2026-08-29;
-  what no line says is that a configured count will be dropped, so the defect stands at that
-  narrower width. Since 2026-09-17 `docker/docker-compose.yml` passes `CORTEX_REPLY_TRACE_TOKENS`
-  through by name with no value, so a count set on the host reaches the composed brain where before
-  it could not. Nothing in the tree gives it a value, and there is still no `.env` at the repo root.
-  `drain_text` still reads `bounds.thinking` alone, at `drain.py` line 85.
+  nowhere. `reads_a_trace_budget` in `cortex_inference/trace_probe.py` logs `trace lever probe
+  answered` with the endpoint and `lever` at `INFO`, and the GPU runbook has quoted that line since
+  2026-08-29; what no line says is that a configured count will be dropped, so the defect stands at
+  that narrower width. Since 2026-09-17 `docker/docker-compose.yml` passes
+  `CORTEX_REPLY_TRACE_TOKENS` through by name with no value, so a count set on the host reaches the
+  composed brain where before it could not. Nothing in the tree gives it a value, and there is still
+  no `.env` at the repo root. `drain_text` still reads `bounds.thinking` alone, at `drain.py` line
+  85.
 - 2026-09-19: closed in the adapter, which already holds the probe's answer and each request's
   bounds. `LlamaCppBackend` logs one `WARNING`, `trace budget not sent because the trace lever is
   off`, with `model` and `trace_budget`, the first time a request on a backend built with the probe

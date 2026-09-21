@@ -48,7 +48,7 @@ filter would pass it just as quietly.
   `scripts/treewalk.py`, which every one of the seven readers is now handed its files by, so the
   walk obligation is that one module descends and the rest do not, compared as an equality. The git
   call kept its own argv, the environment-versus-call argument holding on a re-reading of the three
-  call sites, and the obligation moved from the file to the call: `scripts/gatecalls.py` reads a
+  call sites, and the obligation moved from the file to the call: `scripts/scriptcalls.py` reads a
   module's syntax and answers which calls descend a tree and which are handed a git argv, with the
   function each hands to `env=`. The git half had fired too, which the reading that opened this
   missed by looking only at `scripts/*.py`: the suite beside the skip list runs git with an argv

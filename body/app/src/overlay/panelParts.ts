@@ -1,6 +1,6 @@
 // What a placement asks the panel's own tree about: the section it leaves out of the height it
 // centres on, how far short of its tallest shape the view falls, and the scroll positions its
-// measurement costs. They live here because `panelPlacement` and `panelRide` both need them.
+// measurement costs. They live here because `panelPlacement` and `panelRoll` both need them.
 
 import { MORPHING_ATTRIBUTE, TAB_SLACK_ATTRIBUTE } from "./morph";
 import { heightOf } from "./panelMemory";

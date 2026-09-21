@@ -4,8 +4,8 @@ import logging
 
 from cortex_core.errors import HandoffStoreError, ModelHostError, ModelNotHostedError
 from cortex_core.handoff import HandoffState
-from cortex_core.health_gate import await_model_ready
 from cortex_core.model_host import ModelHostState, ResidencyPlan
+from cortex_core.model_ready import await_model_ready
 from cortex_core.ports import Clock, HandoffStore, ModelHost, Sleeper
 from cortex_core.residency_moves import restart_evicted
 from cortex_core.residency_tiers import StandingTiers

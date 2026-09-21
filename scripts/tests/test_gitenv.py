@@ -3,9 +3,9 @@ from pathlib import Path
 
 import pytest
 
-import gatecalls
 import gitenv
 import moduleconstants
+import scriptcalls
 
 GATES = Path(__file__).resolve().parents[1]
 SHARED = "git_env"
@@ -48,7 +48,7 @@ def test_an_environment_git_never_touched_is_returned_whole(
 
 def test_every_git_call_here_is_handed_this_environment() -> None:
     calls = {
-        path.relative_to(GATES).as_posix(): gatecalls.git_calls(
+        path.relative_to(GATES).as_posix(): scriptcalls.git_calls(
             moduleconstants.parse(path, path.name)
         )
         for path in [*GATES.glob("*.py"), *GATES.glob("tests/*.py")]

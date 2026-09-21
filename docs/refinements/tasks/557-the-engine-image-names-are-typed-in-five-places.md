@@ -20,7 +20,7 @@ type one or both,
 [test_injection_defense_live.py](../../../brain/packages/inference/tests/test_injection_defense_live.py),
 [test_unfenced_correction_live.py](../../../brain/packages/orchestrator/tests/test_unfenced_correction_live.py)
 and [test_uid_reading_live.py](../../../brain/packages/orchestrator/tests/test_uid_reading_live.py),
-the last added 2026-09-06. Four more files name an image in prose alone (`lever.py`,
+the last added 2026-09-06. Four more files name an image in prose alone (`trace_probe.py`,
 `imagedrift.py`, `test_trace_budget_live.py` and `test_cut_tool_call_live.py`) and are not names
 anything starts a server from.
 

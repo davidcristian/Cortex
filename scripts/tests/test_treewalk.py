@@ -1,8 +1,8 @@
 import ast
 from pathlib import Path
 
-import gatecalls
 import moduleconstants
+import scriptcalls
 from treewalk import walk_files
 
 GATES = Path(__file__).resolve().parents[1]
@@ -60,7 +60,7 @@ def test_what_is_not_a_regular_file_is_not_handed_on(tmp_path: Path) -> None:
 
 def test_every_tree_read_here_is_the_shared_one() -> None:
     readers = {
-        path.name: gatecalls.tree_reads(moduleconstants.parse(path, path.name))
+        path.name: scriptcalls.tree_reads(moduleconstants.parse(path, path.name))
         for path in GATES.glob("*.py")
     }
     assert {name for name, reads in readers.items() if reads} == {DESCENT}
@@ -69,4 +69,4 @@ def test_every_tree_read_here_is_the_shared_one() -> None:
 
 def test_a_syntax_walk_is_not_a_tree_read() -> None:
     source = "import ast\nfor node in ast.walk(tree):\n    pass\n"
-    assert gatecalls.tree_reads(ast.parse(source)) == []
+    assert scriptcalls.tree_reads(ast.parse(source)) == []

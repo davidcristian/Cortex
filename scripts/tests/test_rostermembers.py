@@ -196,13 +196,13 @@ def test_the_real_gate_runs_the_scans_this_repo_documents() -> None:
 
 
 def test_a_part_is_read_as_the_tuple_name_its_file_name_gives_it(tmp_path: Path) -> None:
-    root = gates(tmp_path, "seamcouplings.py", "logcouplings.py", "couplings.py", "registry.py")
-    assert registry_tuples(root) == frozenset({"SEAM_COUPLINGS", "LOG_COUPLINGS"})
+    root = gates(tmp_path, "wirecouplings.py", "logcouplings.py", "couplings.py", "registry.py")
+    assert registry_tuples(root) == frozenset({"WIRE_COUPLINGS", "LOG_COUPLINGS"})
 
 
 def test_the_vocabulary_file_is_not_a_part(tmp_path: Path) -> None:
-    root = gates(tmp_path, "seamcouplings.py", "couplings.py")
-    assert registry_tuples(root) == frozenset({"SEAM_COUPLINGS"})
+    root = gates(tmp_path, "wirecouplings.py", "couplings.py")
+    assert registry_tuples(root) == frozenset({"WIRE_COUPLINGS"})
 
 
 def test_a_registry_with_no_part_but_its_vocabulary_is_a_failure(tmp_path: Path) -> None:

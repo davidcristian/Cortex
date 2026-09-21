@@ -51,7 +51,7 @@ what a document names, and none answers what it says.
   code span, read by matching every code span in the passage against the eighteen names the no-CLI
   half's sibling list owns. One count was wrong: the trailing paragraph names five shared modules
   and not three, `composefiles.py`, `gitenv.py`, `treewalk.py`, `skippeddirs.py` and
-  `gatecalls.py`, and it still has no borrowed name.
+  `scriptcalls.py`, and it still has no borrowed name.
 - 2026-09-12: declined, because the reading that passed three days ago fails, and on true prose.
   Read again over the current page: the borrowing half runs to eleven bullets with twelve borrowed
   names, and one of them, `envelopepairs.py` in the envelope bullet, is not its bullet's first code

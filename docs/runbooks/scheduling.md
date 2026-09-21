@@ -119,12 +119,12 @@ Both live checks run against the real containers and need no GPU:
 ```
 cd brain && uv run pytest -m integration --no-cov \
   packages/session/tests/test_schedule_live.py \
-  packages/orchestrator/tests/test_schedule_live_seam.py
+  packages/orchestrator/tests/test_schedule_grpc_live.py
 ```
 
 `test_schedule_live.py` replays the full fenced-protocol contract suite against live Redis. It
 skips if real schedules exist, because the checks assert exact global views and claim whatever is
-due, and would otherwise disturb a live deployment's items. `test_schedule_live_seam.py` proves
+due, and would otherwise disturb a live deployment's items. `test_schedule_grpc_live.py` proves
 the loop end to end: it seeds a due reminder into the store, waits for the brain's ticker to fire
 it, reads it back over `ListDueReminders`, acks it over `AckReminder` (a second ack does nothing)
 and cleans up. `just seam-health` confirms the rewired turn path still converses; it needs the

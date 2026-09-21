@@ -42,7 +42,7 @@ keeps the comparison textual.
   same declaration retyped as `5`, the compose default alone at `12.0`, and the runbook cell alone
   at `30.0`, each exiting 1, where the previous reducer raised on `10.0` and the entries could not
   be written at all. The close cost a file: `scripts/couplings.py` passed the line cap, so the
-  entries moved to `scripts/seamcouplings.py` and the shared vocabulary stayed behind. What it
+  entries moved to `scripts/wirecouplings.py` and the shared vocabulary stayed behind. What it
   leaves open is filed as [R-314](314-decimal-form-refusals.md);
   [R-306](306-subagent-memory-budget-spelled-twice.md) loses half of what blocked it. Written up in
   ADR-0042.

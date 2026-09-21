@@ -4,7 +4,7 @@ import re
 
 from cortex_core.url_identity import DOT_WORD
 from cortex_core.url_removals import REMOVED, REMOVED_RUN, permeable, strip_removed
-from cortex_core.url_spellings import (
+from cortex_core.url_separators import (
     AUTHORITY_SEPS,
     CHUNK_INNER,
     CLOSE_BRACKET,

@@ -1,13 +1,13 @@
 //! The Cortex body: the host-native Tauri shell.
 
 mod body_server;
+mod brain;
 mod confirm;
 mod converse;
 mod hotkey;
 mod link;
 mod preferences;
 mod reminders;
-mod seam;
 mod sessions;
 mod tray;
 

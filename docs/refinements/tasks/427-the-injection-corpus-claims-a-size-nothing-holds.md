@@ -39,7 +39,7 @@ which is one live run of the image variant at both sizes to find out
   already true and unwritten: the matrix was measured in this frame, and a payload at a fixed glyph
   size fills more of a small frame, so this is the legible end and the end a defence measurement
   should err on, which the image variant's own Chromium control already measured.
-  `test_image_arm.py` had a second copy of the old claim that this entry did not mention, and it is
-  corrected too. Whether the size changes the result is unmeasured and is now
+  `test_image_variant.py` had a second copy of the old claim that this entry did not mention, and it
+  is corrected too. Whether the size changes the result is unmeasured and is now
   [R-432](432-the-image-arm-has-never-run-at-two-sizes.md). The decision is
   [ADR-0041 decision 4](../../adr/ADR-0041-injection-image-variant.md).

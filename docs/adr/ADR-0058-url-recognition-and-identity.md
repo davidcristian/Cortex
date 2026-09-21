@@ -43,7 +43,7 @@ or declined on a stated test. The measurements, including the corpus and live-mo
    false positive can cost only a redaction under `strict` or `lookalike` on a tainted turn; the
    default policy replaces a match only when its identity was collected.
 
-### The grammar (`urls.py`, `url_spellings.py`, `url_removals.py`)
+### The grammar (`urls.py`, `url_separators.py`, `url_removals.py`)
 
 4. **Schemes.** Authority schemes `http`, `https`, `ftp` and the defanged `hxxp`, `hxxps`; opaque
    schemes `mailto:` and `tel:`; `data:` only behind a MIME lookahead (`type/subtype`, or the `,` or
@@ -124,11 +124,11 @@ or declined on a stated test. The measurements, including the corpus and live-mo
     removals first. Prose that might still grow a host is kept until the flush and released whole;
     keeping is not redacting.
 14. **The grammar lives in six modules split by responsibility**: `urls.py` (what a URL is, and
-    `extract_urls`, the single entry point both sides share), `url_spellings.py` (what one character
-    may be written as), `url_removals.py` (what the parser deletes), `url_holdback.py` (what may
-    still be growing), `url_identity.py` (the passes) and `url_confusables.py` (the judgement).
-    `SPECIAL_SCHEMES` lives with the fold that reads it, and `LABEL_SEPARATORS` is imported by the
-    forms module, so grammar and identity cannot disagree about what a dot is.
+    `extract_urls`, the single entry point both sides share), `url_separators.py` (what one
+    character may be written as), `url_removals.py` (what the parser deletes), `url_holdback.py`
+    (what may still be growing), `url_identity.py` (the passes) and `url_confusables.py` (the
+    judgement). `SPECIAL_SCHEMES` lives with the fold that reads it, and `LABEL_SEPARATORS` is
+    imported by the forms module, so grammar and identity cannot disagree about what a dot is.
 15. **Every widening is verified at every two-way split point** of its probes under every policy and
     at one character at a time, each agreeing with the whole-string feed.
 

@@ -5,7 +5,7 @@
 **Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-checks.md)
 
 [305](305-optional-toolchain-relays.md) made `--rustc` and `--llvm-cov` required arguments of
-`coverage_gate.py`, so deleting one from `check-body` is a usage error. Required is not the same as
+`rustcoverage.py`, so deleting one from `check-body` is a usage error. Required is not the same as
 non-empty, and the two behave differently when the substitution that fills them produces an empty
 string.
 

@@ -6,7 +6,7 @@ line in the list below and one in `CONSTANTS`. A part is a `<subject>couplings.p
 `<SUBJECT>_COUPLINGS` tuple in it, every entry belongs to exactly one part, and the order below is
 the order faults are reported in.
 
-- `seamcouplings` ties one tree's code to another's, where neither toolchain can import the other.
+- `wirecouplings` ties one tree's code to another's, where neither toolchain can import the other.
 - `endpointcouplings` ties each side's endpoint, the address it listens on and its port, to
   compose, to the image, to the tests that dial it and to every document that states it.
 - `shippedcouplings` ties the brain container's defaults to the stacks and documents that restate
@@ -18,7 +18,7 @@ the order faults are reported in.
 - `subagentcouplings` ties the subagent tier's admission budgets to the container limits that must
   match them.
 - `modelhostcouplings` ties the model-host sidecar's tier settings to the override that ships them.
-- `levercouplings` ties the wire name the brain sends a per-request trace budget under to the
+- `tracecouplings` ties the wire name the brain sends a per-request trace budget under to the
   command an operator asks the same question with, and to every document and comment that writes
   the name again.
 - `imagecouplings` ties the two llama.cpp images this repo starts servers from to the test setups
@@ -52,24 +52,24 @@ from emailcouplings import EMAIL_COUPLINGS
 from endpointcouplings import ENDPOINT_COUPLINGS
 from fixturecouplings import FIXTURE_COUPLINGS
 from imagecouplings import IMAGE_COUPLINGS
-from levercouplings import LEVER_COUPLINGS
 from logcouplings import LOG_COUPLINGS
 from modelhostcouplings import MODELHOST_COUPLINGS
 from overlaycouplings import OVERLAY_COUPLINGS
-from seamcouplings import SEAM_COUPLINGS
 from shippedcouplings import SHIPPED_COUPLINGS
 from subagentcouplings import SUBAGENT_COUPLINGS
+from tracecouplings import TRACE_COUPLINGS
 from trailcouplings import TRAIL_COUPLINGS
+from wirecouplings import WIRE_COUPLINGS
 
 CONSTANTS: tuple[Constant, ...] = (
-    *SEAM_COUPLINGS,
+    *WIRE_COUPLINGS,
     *ENDPOINT_COUPLINGS,
     *SHIPPED_COUPLINGS,
     *CAPTURE_COUPLINGS,
     *BOUNDS_COUPLINGS,
     *SUBAGENT_COUPLINGS,
     *MODELHOST_COUPLINGS,
-    *LEVER_COUPLINGS,
+    *TRACE_COUPLINGS,
     *IMAGE_COUPLINGS,
     *EMAIL_COUPLINGS,
     *FIXTURE_COUPLINGS,

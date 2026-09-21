@@ -28,7 +28,7 @@ _ENDPOINTS = {"cortex": "http://llama-cortex:8080", "brain": "http://llama-brain
 _TIER = "subagent-gpu"
 _OTHER_TIER = "subagent-gpu-2"
 _GHOST = "tier-with-no-artifact"
-_RETRY_LOGGER = "cortex_core.residency_sweep"
+_RETRY_LOGGER = "cortex_core.residency_pass"
 _LOOP_NAME = "residency-tier-healer"
 
 
@@ -463,7 +463,7 @@ async def test_a_failing_pass_costs_one_pass_and_not_the_loop(
         survived.set()
 
     healer = TierHealer(flaky, interval_s=0.001)
-    with caplog.at_level(logging.ERROR, logger="cortex_core.residency_heal"):
+    with caplog.at_level(logging.ERROR, logger="cortex_core.residency_recheck"):
         healer.start()
         try:
             async with asyncio.timeout(5.0):

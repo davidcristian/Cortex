@@ -7,8 +7,8 @@ from cortex_core.model_host import ModelHostState, ResidencyPlan
 from cortex_core.ports import ModelHost
 from cortex_core.residency_board import ResidencyBoard
 from cortex_core.residency_charge import charge_standing
+from cortex_core.residency_pass import sweep_tiers
 from cortex_core.residency_state import RESIDENCY_SERVING, Fence
-from cortex_core.residency_sweep import sweep_tiers
 from cortex_core.residency_tiers import StandingTiers
 
 _logger = logging.getLogger(__name__)

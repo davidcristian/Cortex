@@ -4,7 +4,7 @@ import pytest
 
 import crosscheck
 import linereadings
-from needles import bounded
+from searchtexts import bounded
 
 
 @pytest.mark.parametrize(

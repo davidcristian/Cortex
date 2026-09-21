@@ -1,16 +1,16 @@
 import ast
 
-import gatecalls
+import scriptcalls
 
 
 def _reads(source: str) -> list[tuple[int, str]]:
     """Return every tree read in ``source``, as a line number and the function called."""
-    return [(read.line, read.called) for read in gatecalls.tree_reads(ast.parse(source))]
+    return [(read.line, read.called) for read in scriptcalls.tree_reads(ast.parse(source))]
 
 
 def _calls(source: str) -> list[tuple[int, str | None]]:
     """Return every git call in ``source``, as a line number and the environment passed."""
-    return [(call.line, call.environment) for call in gatecalls.git_calls(ast.parse(source))]
+    return [(call.line, call.environment) for call in scriptcalls.git_calls(ast.parse(source))]
 
 
 def test_the_two_calls_that_always_descend_are_read_as_tree_reads() -> None:

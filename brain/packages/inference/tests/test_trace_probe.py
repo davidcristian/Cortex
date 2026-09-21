@@ -4,8 +4,8 @@ from collections.abc import Callable
 import httpx
 import pytest
 
-from cortex_inference.lever import reads_a_trace_budget
 from cortex_inference.request import TRACE_BUDGET_KEY
+from cortex_inference.trace_probe import reads_a_trace_budget
 
 pytestmark = pytest.mark.asyncio
 

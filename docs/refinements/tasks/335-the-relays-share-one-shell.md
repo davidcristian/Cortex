@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** repo-checks
 **Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-checks.md)
-**Trigger:** `grep -rnE 'python[^#]*coverage_gate' justfile .github .pre-commit-config.yaml` stops
+**Trigger:** `grep -rnE 'python[^#]*rustcoverage' justfile .github .pre-commit-config.yaml` stops
 returning exactly one line, the `check-body` recipe's run of the check; or that line stops filling
 `--rustc` and `--llvm-cov` from two command substitutions of its own, whether by splitting them
 across recipe lines, which just runs in separate shells, or by reading either from an environment
@@ -35,15 +35,15 @@ fields. It is three lines.
   the trigger a closed task may not, and narrowed to the arrangement that decline depends on.
 - 2026-09-07: Not fired, and the arrangement holds in both places it can be read. The `justfile`
   still fills both arguments from two command substitutions on the one line that runs
-  `coverage_gate.py`, and `.github/workflows/ci.yml` reaches that line by running `just check-body`
+  `rustcoverage.py`, and `.github/workflows/ci.yml` reaches that line by running `just check-body`
   rather than the script, so CI inherits the same shell. A second support turned up while checking
   the first: the two probes above the line are their own recipe lines, so a toolchain name that
   does not resolve fails the recipe there and the script is never reached. The trigger gains the CI
   half as a second place to look.
 - 2026-09-11: Not fired. The `check-body` recipe still fills both arguments from two command
-  substitutions on the one line that runs `coverage_gate.py`, the two probes are still their own
+  substitutions on the one line that runs `rustcoverage.py`, the two probes are still their own
   lines above it, and `.github/workflows/ci.yml` still reaches that line through `just check-body`,
-  naming `coverage_gate.py` only in the comment saying why `uv` is installed. `_require_version`
+  naming `rustcoverage.py` only in the comment saying why `uv` is installed. `_require_version`
   still states the non-blank rule the remedy would copy.
 - 2026-09-17: Not fired. The grep in the trigger returns one line, the run at `justfile` line 235,
   which still fills both arguments from two substitutions on that line. `.github/workflows/ci.yml`

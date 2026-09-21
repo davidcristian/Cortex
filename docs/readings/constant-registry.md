@@ -22,7 +22,7 @@ Most uncovered occurrences are unrelated numbers that share digits with a regist
 why finding far sides is done by sorting on the name a value is written under.
 
 Method: `git ls-files` less lockfiles and the overlay's node tree, each value rendered through
-`values.py` and searched with `needles.bounded`, the covered spans from the registry's mentions
+`values.py` and searched with `searchtexts.bounded`, the covered spans from the registry's mentions
 subtracted.
 
 ## Which line a fault names

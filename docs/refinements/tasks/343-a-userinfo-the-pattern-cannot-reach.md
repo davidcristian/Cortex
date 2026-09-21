@@ -76,9 +76,9 @@ credential this pattern misses was already outside the URL grammar.
   cell for cell. The compose files are unchanged: `CORTEX_MEMORY_DSN` is still the only URL built
   with a credential and `CORTEX_PG_PASSWORD` still defaults to `cortex`. One count has grown
   without changing the conclusion: the grep for a URL among the brain's `extra=` dicts finds six
-  call sites today rather than one, five attaching a URL (two in `cortex_inference/lever.py`, two
-  in `cortex_orchestrator/vision.py`, one in `cortex_model_manager/probe.py`) and one attaching a
-  bare host and port. None of the six can contain a credential.
+  call sites today rather than one, five attaching a URL (two in `cortex_inference/trace_probe.py`,
+  two in `cortex_orchestrator/vision.py`, one in `cortex_model_manager/probe.py`) and one attaching
+  a bare host and port. None of the six can contain a credential.
 - 2026-09-15: Trigger checked a fifth time and not fired, and the thirteen forms were put through
   the five readings again rather than reasoned about. Every result reproduces, and the compose
   files are unchanged. The entry has now reproduced identically four times running, which makes it

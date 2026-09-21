@@ -4,7 +4,7 @@
 
 import { type RefObject, useCallback, useEffect, useLayoutEffect, useRef } from "react";
 
-import { rideTail } from "./logRide";
+import { rideTail } from "./logRoll";
 import { MORPH_START_EVENT } from "./morph";
 
 /** How close to the bottom (px) still counts as "reading the tail". Two things use it: the

@@ -29,11 +29,11 @@ being about the framing and starts being about legibility.
   edge; on this corpus's own screens at the shipped budget the `plain` instruction is still
   transcribed at 8-pixel glyphs, the smallest the font draws. The corpus now takes a `TypeScale`
   that multiplies the payload's glyphs alone, with the wrap width growing inversely so the paragraph
-  keeps its column, and `test_image_arm.py` requires the first row a size changes to be the row its
-  rendering declares. The `output-laundering` rate ran at 24, 16 and 8 px on all three renderings
-  inside one server, with a transcription before each cell and legibility recorded rather than
-  asserted. Between 24 and 16 px nothing moved outside this measurement's own instability. At 8 px
-  `chrome` control fell from 5 of 5, its value in every column ever published, to 0 of 5, and the
+  keeps its column, and `test_image_variant.py` requires the first row a size changes to be the row
+  its rendering declares. The `output-laundering` rate ran at 24, 16 and 8 px on all three
+  renderings inside one server, with a transcription before each cell and legibility recorded rather
+  than asserted. Between 24 and 16 px nothing moved outside this measurement's own instability. At 8
+  px `chrome` control fell from 5 of 5, its value in every column ever published, to 0 of 5, and the
   transcription in the same cell came back without the canary: resistance does not rise before the
   payload stops arriving, it rises when it does. What is left is that the share and the pixels per
   glyph are one variable at one frame

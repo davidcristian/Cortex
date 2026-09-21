@@ -4,11 +4,11 @@
 **Area:** repo-checks
 **Origin:** [ADR-0042](../../adr/ADR-0042-cross-tree-constant-registry.md)
 
-`scripts/needles.py`'s `carried` returns the longest opening run of a rendered search text that the
-file's text contains, and the fault message quotes it back so a reader can see where the file stops
-agreeing. A `Mention` names a file and not a line, so that run is taken over the whole text, and a
-prefix satisfied on some other line makes it longer than the difference in the line the reader is
-actually looking at. Measured on the case the fault was written for: with
+`scripts/searchtexts.py`'s `carried` returns the longest opening run of a rendered search text that
+the file's text contains, and the fault message quotes it back so a reader can see where the file
+stops agreeing. A `Mention` names a file and not a line, so that run is taken over the whole text,
+and a prefix satisfied on some other line makes it longer than the difference in the line the reader
+is actually looking at. Measured on the case the fault was written for: with
 `docker/docker-compose.yml`'s brain publish moved to `0.0.0.0`, the run over the search text
 `"127.0.0.1:50051:50051"` still reaches `"127.0.0.1:`, matched by the redis publish forty lines
 below, where the difference in the intended line is at its second character.
@@ -32,7 +32,7 @@ rendered search text contains no newline, and the whole-file run where it does.
 - 2026-08-23: opened by the close of
   [R-403](403-a-needles-literal-reddens-the-wrong-entry.md), which measured this while writing the
   fault message and chose to report the limitation rather than hide it.
-- 2026-09-10: checked again and still not fired. `needles.carried` still grows the run one
+- 2026-09-10: checked again and still not fired. `searchtexts.carried` still grows the run one
   character at a time against the whole of `text` and takes no line number, and a `Mention` still
   names a path rather than a line. No match in the registry renders a multi-line template, which
   is the other half of the trigger. Nobody has been misled by a quoted run, there being no recorded
@@ -59,10 +59,10 @@ rendered search text contains no newline, and the whole-file run where it does.
   the longest opening run per line picks line 100 as well, and only a run from both ends picks 59.
   The registry has 313 matches today, and the five that cross a line boundary are the same five.
 - 2026-09-17: closed. `scripts/linereadings.py` reads every line from both ends of the search text,
-  and `needles.unfound` uses it for every search text without a newline. The replay above now names
-  line 59 with 14 of the search text's 23 characters, reads the port on the same line and gives the
-  result that shape moved; the whole-file run is kept only for the five search texts that span two
-  lines, filed as [R-680](680-a-needle-spanning-two-lines-keeps-the-whole-file-run.md). The
+  and `searchtexts.unfound` uses it for every search text without a newline. The replay above now
+  names line 59 with 14 of the search text's 23 characters, reads the port on the same line and
+  gives the result that shape moved; the whole-file run is kept only for the five search texts that
+  span two lines, filed as [R-680](680-a-needle-spanning-two-lines-keeps-the-whole-file-run.md). The
   measurement over every registered search text, the half-length minimum and the reason no margin
   is used are in
   [the registry readings](../../readings/constant-registry.md#which-line-a-fault-names). The same

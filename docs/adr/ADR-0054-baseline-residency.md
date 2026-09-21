@@ -76,9 +76,9 @@ residency, the brain's residency is `None`, and `Health` stays unconditionally r
    and nothing else (no timestamp, no attempt count): the pass interval paces the retry. The writers
    are the swap back's and startup's shared `residency_moves.restart_evicted` and the pass (decision
    4).
-4. **A periodic pass recomputes the record from the machine.** `TierHealer` (`residency_heal.py`)
+4. **A periodic pass recomputes the record from the machine.** `TierHealer` (`residency_recheck.py`)
    runs `SwappingModelManager.heal_residency` every `CORTEX_SWAP_TIER_HEAL_S` (30 s). Its first
-   half, `sweep_tiers` (`residency_sweep.py`), asks `status` for **every** evict-list tier whatever
+   half, `sweep_tiers` (`residency_pass.py`), asks `status` for **every** evict-list tier whatever
    the record says: `READY` marks it present, `LOADING` is left for a later pass, anything else is
    marked `MISSING` and started once, and a 404 marks it `UNHOSTED`. A host that cannot answer marks
    nothing, so one transport blip cannot close the GPU for the pool. A pass never raises, and costs

@@ -14,13 +14,12 @@ The survey that task used is the check this one proposes. It walks every non-tes
 file with `ast`, takes each `str` constant that is not a docstring (the pieces of an f-string
 included), passes it through `bannedwords.mask`, and matches it against
 `bannedwords.compile_words(bannedwords.read_table(bannedwords.RULES).words)`. On 2026-09-21 it
-finds eight hits, and none of them is prose:
+finds six hits, and none of them is prose:
 
 - `"arm"` in `contrast.py` and `envelopesamples.py`: the key the envelope samples are recorded
   under.
-- Four file paths: `seam.rs` in `endpointcouplings.py`, `cortex_seam/__init__.py` in
-  `seamcouplings.py`, `cortex.seam.v1.rs` in `stubcheck.py` and `lever.py` in
-  `levercouplings.py`.
+- Two file paths: `cortex_seam/__init__.py` in `wirecouplings.py` and `cortex.seam.v1.rs` in
+  `stubcheck.py`, named after the `cortex_seam` package and the proto package, which stay.
 - The `--rederive` flag in `volumecheck.py`, which the `image-volumes` recipe passes.
 - The label `numbered gate` in `commitlint.py`, which names the words it found in a commit message.
 

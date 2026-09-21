@@ -39,8 +39,8 @@ caret goes and what the overlay announces is
 
 2. **Coming back to the chat restores it.** The chat's held bottom edge is stored when the chat is
    left and restored on return. Entering the console resizes in place on the chat's edge
-   ([ADR-0034](ADR-0034-panel-views.md)); `VIEW_CHANGE_RECENTRES` in `overlay/panelPin.ts` keeps the
-   old slide to the centre one flag away, and with it on, the stored edge is what restores the chat.
+   ([ADR-0034](ADR-0034-panel-views.md)); `VIEW_CHANGE_RECENTRES` in `overlay/panelEdge.ts` keeps
+   the old slide to the centre one flag away, and with it on, the stored edge restores the chat.
 3. **Another chat is not another view.** The view name has no session id, so a new or different chat
    resizes from the held edge like any other size change.
 4. **The held edge is remembered unclamped, and the ceiling bounds the height, not the edge.**
@@ -198,7 +198,7 @@ caret goes and what the overlay announces is
     the roll's clock, composed when interrupted; during a roll the record refreshes each frame and
     only a commit animates.
 38. **The log follows a roll.** While the reader is at the tail (read off the box on the roll's
-    first frame), `overlay/logRide.ts` keeps the distance from the end of the content constant on
+    first frame), `overlay/logRoll.ts` keeps the distance from the end of the content constant on
     every frame, both ways, with no clock of its own. A reader scrolled up is left alone and any
     other movement stops it. For a section inside the log it stops when the section's top reaches
     the window's top. `useLogScroll` listens on the chat's column, so rolls in the chrome count.

@@ -5,7 +5,7 @@ from couplings import Constant, Mention, Relation, Site
 BASE_COMPOSE = "docker/docker-compose.yml"
 BODY_GATEWAY = "brain/packages/body_client/src/cortex_body_client/gateway.py"
 
-SEAM_COUPLINGS: tuple[Constant, ...] = (
+WIRE_COUPLINGS: tuple[Constant, ...] = (
     Constant(
         label="the screen-capture byte ceiling",
         why=(

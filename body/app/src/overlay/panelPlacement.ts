@@ -1,5 +1,5 @@
 // Putting the panel where it belongs: the DOM adapter over `panelGeometry`'s arithmetic and
-// `panelPin`'s rules. A CSS transition cannot do this, because the height is `auto` on both sides
+// `panelEdge`'s rules. A CSS transition cannot do this, because the height is `auto` on both sides
 // and only the content changed, which is not a change of computed value.
 
 import { EASING, MORPHING_ATTRIBUTE } from "./morph";
@@ -21,8 +21,8 @@ import {
 } from "./panelGeometry";
 import { type Memory, type Placement, arriving, heightOf, measure } from "./panelMemory";
 import { centringHeight, holdScroll, tabSlack } from "./panelParts";
-import { VIEW_CHANGE_RECENTRES, entering, pinnedBottom } from "./panelPin";
-import { rideAlong } from "./panelRide";
+import { VIEW_CHANGE_RECENTRES, entering, pinnedBottom } from "./panelEdge";
+import { rideAlong } from "./panelRoll";
 
 /** Put the panel where it belongs, and animate it there from wherever it was. The running
  *  animation is cancelled before measuring, because a height animation overrides the used height:

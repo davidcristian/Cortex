@@ -53,7 +53,7 @@ the line break and the indent locks the call and is broken by any reformat that 
   real files confirms both halves: the template naming the call is found zero times for each of the
   four and once for `_MESSAGE`, and `{name},` falls on the handing line in all five. So the failure
   message now names both, and its suite covers each on a wrapped fixture. The whitespace-folding
-  registry form is not built and is not the close: it would overturn the rule in `needles.py` that a
-  search text is matched as written, which every other entry rests on, for one shape of one entry
-  kind. What the shorter template gives up, that it locks the name rather than the call, is filed as
-  [R-672](672-a-wrapped-calls-needle-holds-the-name-rather-than-the-call.md).
+  registry form is not built and is not the close: it would overturn the rule in `searchtexts.py`
+  that a search text is matched as written, which every other entry rests on, for one shape of one
+  entry kind. What the shorter template gives up, that it locks the name rather than the call, is
+  filed as [R-672](672-a-wrapped-calls-needle-holds-the-name-rather-than-the-call.md).

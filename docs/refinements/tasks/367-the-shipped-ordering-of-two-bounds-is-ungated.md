@@ -50,7 +50,7 @@ this was filed and now lives in `scripts/readings.py`:
   exactly one commit. `relation_fault` in `scripts/readings.py` still filters its readings to
   `isinstance(value, int)` and still compares with `all(lower <= upper for lower, upper in
   pairwise(numbers))`. The only two registered orderings are still the pair of `Relation.ORDERED`
-  entries in `scripts/seamcouplings.py`.
+  entries in `scripts/wirecouplings.py`.
 - 2026-09-19: Satisfied. The premise was false the day the entry was filed: the commit that filed
   it also added `test_the_shipped_pair_is_wired_and_says_so` and
   `test_a_second_sidecar_costs_the_same_bound_more` to

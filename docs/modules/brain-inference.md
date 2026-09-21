@@ -10,9 +10,9 @@ decode rate when the server reports one (ADR-0055 decision 4). No orchestration 
 
 **Four modules, split by the direction a value travels.** `request.py` maps core values onto the
 wire, `decode.py` maps the wire back, `backend.py` keeps what neither can own (the lease, the HTTP
-call, and the order events leave in), and `lever.py` asks a server one question before any request
-is built. The three mapping modules are package-internal but have no leading underscore, since that
-prefix marks a module as private to its definer.
+call, and the order events leave in), and `trace_probe.py` asks a server one question before any
+request is built. The three mapping modules are package-internal but have no leading underscore,
+since that prefix marks a module as private to its definer.
 
 ## Public contract
 

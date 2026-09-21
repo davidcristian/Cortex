@@ -8,8 +8,8 @@ An unmatched search text has two readings and they are told in two different way
 reading says how many places contain the value, which line the nearest one is on, and what that
 line says. The run reading, the longest opening piece of the search text the file contains
 anywhere, is quoted as text alone. Where in the file that run stops is never said, even though
-`needles.nearest` locates every occurrence of it in order to pick which value match to quote, and
-then discards the positions.
+`searchtexts.nearest` locates every occurrence of it in order to pick which value match to quote,
+and then discards the positions.
 
 The distance between the two is the evidence a reader is weighing. A value on the line where the
 run stops is the strong form of "what moved is the surrounding shape". A value seventy lines away,
@@ -26,7 +26,7 @@ answer may be the last occurrence, the one nearest the quoted value, or a count.
   [R-414](414-the-still-spelled-reading-does-not-say-where.md), which used the run's positions to
   choose which value match to quote and never used them on the run itself.
 - 2026-08-25: closed. The three candidates for which occurrence to name turned out not to be a
-  choice: the two readings are the two ends of one distance, so `needles.nearest` picks the pair
+  choice: the two readings are the two ends of one distance, so `searchtexts.nearest` picks the pair
   and both halves are reported, each named as the one nearest the other, with the same fallback to
   the first occurrence stated explicitly when one of them is missing. The run's line goes in the
   clause it already had, with a count when the file contains the run more than once, worded in the

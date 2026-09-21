@@ -12,7 +12,7 @@ the only way to be read before the formatter existed. Each printed its field twi
 
 The group is `model=%s`, `pid=%d`, `error=%s` and their siblings, across `cortex_model_manager`
 (`supervisor.py`, `server.py`, `adapter.py`, `api.py`, `children.py`, `device_memory.py`),
-`cortex_core` (`residency_sweep.py`, `residency_moves.py`, `residency_regain.py`,
+`cortex_core` (`residency_pass.py`, `residency_moves.py`, `residency_regain.py`,
 `residency_watch.py`) and `cortex_orchestrator` (`swap_builders.py`). The three the formatter's own
 change removed, the two audit sinks and the rank fallback, were taken first because each was a
 whole JSON object or a documented sample rather than two short tokens.

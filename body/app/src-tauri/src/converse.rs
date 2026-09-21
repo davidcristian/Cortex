@@ -11,8 +11,8 @@ use tauri::State;
 use tauri::ipc::Channel;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 
+use crate::brain::{ShellRandomness, TokioSleeper, plan_from_env, policy_from_env};
 use crate::confirm::ConfirmRoute;
-use crate::seam::{ShellRandomness, TokioSleeper, plan_from_env, policy_from_env};
 
 /// The default brain address, the same one `body_rpc` uses; override with `CORTEX_BRAIN_ADDR`.
 const DEFAULT_ADDR: &str = "http://127.0.0.1:50051";

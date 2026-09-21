@@ -10,7 +10,7 @@ BODY_SERVER = "body/app/src-tauri/src/body_server.rs"
 RPC_CLIENT = "body/crates/rpc/src/client.rs"
 RPC_LIVE = "body/crates/rpc/tests/live.rs"
 GATEWAY_LIVE = "brain/packages/body_client/tests/test_gateway_live.py"
-SCHEDULE_LIVE = "brain/packages/orchestrator/tests/test_schedule_live_seam.py"
+SCHEDULE_LIVE = "brain/packages/orchestrator/tests/test_schedule_grpc_live.py"
 TURN_COST_LIVE = "brain/packages/orchestrator/tests/test_turn_cost_live.py"
 SEAM_CONFIG = "brain/packages/orchestrator/src/cortex_orchestrator/config.py"
 OVERLAY_RUNBOOK = "docs/runbooks/body-overlay.md"
@@ -65,7 +65,7 @@ ENDPOINT_COUPLINGS: tuple[Constant, ...] = (
             Mention(BASE_COMPOSE, "insecure_channel('127.0.0.1:{value}')"),
             Mention(BRAIN_DOCKERFILE, "EXPOSE {value}"),
             Mention(BODY_COMPOSE, "({value} is the brain's BrainService)"),
-            Mention("body/app/src-tauri/src/seam.rs", '"http://127.0.0.1:{value}"'),
+            Mention("body/app/src-tauri/src/brain.rs", '"http://127.0.0.1:{value}"'),
             Mention("body/app/src-tauri/src/converse.rs", '"http://127.0.0.1:{value}"'),
             Mention(BODY_SERVER, "`BrainService` being {value}"),
             Mention(RPC_CLIENT, "`http://127.0.0.1:{value}`"),

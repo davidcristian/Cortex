@@ -1,5 +1,5 @@
 // What the panel remembers about its own position between one placement and the next, and how it
-// reads its own box. Written only by `panelPlacement` and `panelRide`.
+// reads its own box. Written only by `panelPlacement` and `panelRoll`.
 
 import type { Geometry } from "./panelGeometry";
 

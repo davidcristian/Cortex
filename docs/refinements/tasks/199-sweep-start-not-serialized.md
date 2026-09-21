@@ -36,7 +36,7 @@ block a pass for the whole load bound.
 
 - 2026-08-11: Opened by the tier retry pass's close, which owns the check and says plainly what it
   does not cover.
-- 2026-09-10: Checked against the tree and not fired. `residency_sweep.py` still calls `fence()`
+- 2026-09-10: Checked against the tree and not fired. `residency_pass.py` still calls `fence()`
   synchronously and returns when it answers false, immediately before the one
   `await host.start(model)` in the module. The handoff is off unless `CORTEX_ESCALATION` is set,
   which no compose file here does.
@@ -47,13 +47,13 @@ block a pass for the whole load bound.
   second outcome: `swap_in` reads the card once, between its last eviction and the deep start, and
   `cadence.py` says that a handoff which overcommitted succeeds with both tiers reporting ready, so
   that outcome costs roughly half the deep model's decode rate rather than nothing.
-  `residency_sweep.py`'s module docstring was repaired at the same time, having presented the
+  `residency_pass.py`'s module docstring was repaired at the same time, having presented the
   per-model lock as covering the in-flight start. Read against
   [R-200](200-placer-one-bit-per-card.md), they are not one defect seen twice: this is an ordering
   residue between two control calls on one loopback client, and that one is the width of a single
   boolean in `VramBudgetPlacer`.
 - 2026-09-17: Checked again and not fired; no commit since 2026-09-12 touched
-  `residency_sweep.py`, `residency_moves.py` or the supervisor. The two outcomes each need a setting
+  `residency_pass.py`, `residency_moves.py` or the supervisor. The two outcomes each need a setting
   this entry had not named. The fit check returns at once while `plan.brain_vram_mib` is zero
   (`residency_moves.py`, `_refuse_a_load_the_card_cannot_hold`), and an overcommit result is `None`
   while the declared floor is zero (`cadence.py`, `verdict`), so a deployment that sets neither

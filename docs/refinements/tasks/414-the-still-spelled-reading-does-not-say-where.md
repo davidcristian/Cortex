@@ -4,8 +4,8 @@
 **Area:** repo-checks
 **Origin:** [ADR-0042](../../adr/ADR-0042-cross-tree-constant-registry.md)
 
-When a rendered search text is not found, `needles.unfound` adds the reading that decides who the
-fault is about: whether the file still contains this constant's own value as a token of its own,
+When a rendered search text is not found, `searchtexts.unfound` adds the reading that decides who
+the fault is about: whether the file still contains this constant's own value as a token of its own,
 which is the evidence that what moved is the surrounding shape and the entry named is not the entry
 to change. It searches the bare value across the whole file and reports a yes or a no. It never
 says which line the yes came from.

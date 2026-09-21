@@ -38,7 +38,7 @@ how those measurements are taken is [ADR-0050](ADR-0050-live-probe-records.md).
    `--reasoning-budget` deciding; a negative count raises rather than passing the engine's `-1`
    through the port. It renders as `reasoning_budget_tokens`, a zero included. The older name
    `reasoning_budget` is ignored by the engine, and the working alias `thinking_budget_tokens` is
-   not sent. The wire name is one entry of the constant registry (`scripts/levercouplings.py`,
+   not sent. The wire name is one entry of the constant registry (`scripts/tracecouplings.py`,
    [ADR-0042](ADR-0042-cross-tree-constant-registry.md)).
 3. **The switch and the count are independent, and neither is derived from the other.**
    `thinking=False` says the caller will not read the trace; `trace_tokens=0` says it must not be
@@ -105,7 +105,7 @@ how those measurements are taken is [ADR-0050](ADR-0050-live-probe-records.md).
 
 11. **`CORTEX_INFERENCE_TRACE_LEVER` is `auto` (the default), `on` or `off`.** `auto` asks the
     cortex endpoint once, in `build_inference_backend` (`resolve_trace_lever`,
-    `reads_a_trace_budget` in `lever.py`): a request sending `reasoning_budget_tokens: -2` is
+    `reads_a_trace_budget` in `trace_probe.py`): a request sending `reasoning_budget_tokens: -2` is
     answered 400 naming the key by a build that parses it, since the engine range-checks the value
     before decoding, and 200 by one that ignores it. Only a well-typed out-of-range integer triggers
     the check. Every other answer, an unreachable server included, is no, and the request then sends

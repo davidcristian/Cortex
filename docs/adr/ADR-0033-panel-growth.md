@@ -61,7 +61,7 @@ summon, kept across a view change, restored on returning to the chat) is
    (the day's reminders) rolls in behind the summon, the height the panel is centred for is its
    natural height less the section's height plus the section's target height, bounded only by
    `openHeight`, the loose cap an ordinary placement measures under, and the height the roll is
-   placed for is capped by the ceiling of the edge that centring picks (`overlay/panelRide.ts`).
+   placed for is capped by the ceiling of the edge that centring picks (`overlay/panelRoll.ts`).
    Subtracting the section from a prediction the old edge's ceiling had already clamped centred
    the chat on a number the ceiling had cut down: it fixed an edge the whole panel could not fit
    above, squeezed the chat under the rolling stack, and a second ease gave the height back a beat
@@ -89,7 +89,7 @@ summon, kept across a view change, restored on returning to the chat) is
 
 ## Related
 
-- Code: `body/app/src/overlay/panelPlacement.ts`, `panelRide.ts`, `usePanelMotion.ts`.
+- Code: `body/app/src/overlay/panelPlacement.ts`, `panelRoll.ts`, `usePanelMotion.ts`.
 - Design: [overlay-ux.md](../design/overlay-ux.md).
 - ADRs: [ADR-0034](ADR-0034-panel-views.md) (where the edge is placed, sections that roll),
   [ADR-0035](ADR-0035-console-and-motion.md) (the panel's motion rules),

@@ -49,7 +49,7 @@ about local processes.
    ([ADR-0023](ADR-0023-body-gateway-volume.md)) authenticates with the same `CORTEX_SEAM_TOKEN`,
    as `docker/docker-compose.body.yml` states. The brain reads it once, as
    `SeamServerConfig.token`, and its wiring hands that value both to its own interceptor and to the
-   outbound body gateway. In the body's shell, `converse.rs` and `seam.rs` attach it outbound and
+   outbound body gateway. In the body's shell, `converse.rs` and `brain.rs` attach it outbound and
    `body_server.rs` checks it inbound through `SeamTokenValidator`
    (`body/crates/rpc/src/auth.rs`). The validator is always attached and passes every call when the
    token is empty, the single-type equivalent of the brain registering its interceptor only when
@@ -120,7 +120,7 @@ about local processes.
 
 - Code: `brain/packages/orchestrator/src/cortex_orchestrator/auth.py`, `server.py`,
   `body/crates/rpc/src/auth.rs`, `call.rs`, `client.rs`, `body/crates/rpc/tests/live.rs`, the
-  `seam-health` recipe in `justfile`, `scripts/seamcouplings.py`.
+  `seam-health` recipe in `justfile`, `scripts/wirecouplings.py`.
 - Module docs: [body-rpc](../modules/body-rpc.md),
   [brain-orchestrator](../modules/brain-orchestrator.md).
 - Runbook: [local-dev-wsl](../runbooks/local-dev-wsl.md).

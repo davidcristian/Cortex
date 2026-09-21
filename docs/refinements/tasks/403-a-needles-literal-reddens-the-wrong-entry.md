@@ -27,8 +27,8 @@ answer for what happens when the neighbour's own entry is the failing one.
 - 2026-08-23: filed by the close of
   [R-396](396-the-seam-host-rides-inside-the-ports-needles.md), which measured the misattribution
   while settling that a value appearing only inside another entry's search text is not checked.
-- 2026-08-23: closed as the cheap remedy, in a new `scripts/needles.py` holding the match side of
-  the scan. The expensive remedy was rejected rather than deferred: both measured neighbours are
+- 2026-08-23: closed as the cheap remedy, in a new `scripts/searchtexts.py` holding the match side
+  of the scan. The expensive remedy was rejected rather than deferred: both measured neighbours are
   unregistered on purpose, the close that filed this having counted `127.0.0.1` as five values and
   registered one, so a template rendering a registered neighbour could not have reached either case
   without first registering four values that ruling had just declined. This entry's own proposal

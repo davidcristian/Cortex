@@ -8,7 +8,6 @@ from cortex_core.cadence import (
     CadenceWatch,
 )
 from cortex_core.handoff import EscalationRefs, EscalationSlot, HandoffRecord, HandoffState
-from cortex_core.health_gate import await_model_ready
 from cortex_core.model import ModelLease, SingleResidentModelManager
 from cortex_core.model_host import (
     DEFAULT_HEALTH_POLL_INTERVAL_S,
@@ -19,13 +18,15 @@ from cortex_core.model_host import (
     ModelHostState,
     ResidencyPlan,
 )
+from cortex_core.model_ready import await_model_ready
 from cortex_core.residency import SwappingModelManager
-from cortex_core.residency_heal import DEFAULT_TIER_HEAL_INTERVAL_S, TierHealer
 from cortex_core.residency_pace import (
     DEFAULT_SPILL_DWELL_S,
     SPILLED_PACE_DETAIL,
     HandoffPace,
 )
+from cortex_core.residency_pass import sweep_tiers
+from cortex_core.residency_recheck import DEFAULT_TIER_HEAL_INTERVAL_S, TierHealer
 from cortex_core.residency_regain import heal_standing_residency, regain_residency
 from cortex_core.residency_state import (
     RESIDENCY_BOOT_FAILED,
@@ -37,7 +38,6 @@ from cortex_core.residency_state import (
     ResidencyReport,
     with_note,
 )
-from cortex_core.residency_sweep import sweep_tiers
 from cortex_core.residency_tiers import TIERS_MISSING_DETAIL, StandingTiers, TierFault
 from cortex_core.swap_conductor import SwapConductor
 from cortex_core.swap_notes import (

@@ -169,7 +169,7 @@ check-body:
     cd body && cargo +nightly llvm-cov --version
     cd body && cargo +nightly llvm-cov --locked --branch --workspace --all-targets --ignore-filename-regex '/_generated/|/build[.]rs$' --json --summary-only --output-path coverage.json -- -Z unstable-options --shuffle-seed=104729
     cd scripts && uv sync --locked
-    cd scripts && uv run python coverage_gate.py ../body/coverage.json --rustc "$(rustc +nightly --version)" --llvm-cov "$(cargo +nightly llvm-cov --version)"
+    cd scripts && uv run python rustcoverage.py ../body/coverage.json --rustc "$(rustc +nightly --version)" --llvm-cov "$(cargo +nightly llvm-cov --version)"
 
 # Clippy on the Tauri shell, for the host and for Windows. `just check` does not run it, because
 # it is the only recipe that needs system libraries: the Linux GTK, webkit and dbus dev packages,

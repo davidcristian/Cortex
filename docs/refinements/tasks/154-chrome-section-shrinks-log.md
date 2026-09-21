@@ -6,7 +6,7 @@
 
 The switcher list and the reminder stack open outside the history, so at the panel's maximum
 height their growth takes space from the history's window rather than from the panel, and
-`overlay/logRide.ts` never heard them: it listened on the history box, and the start event went to
+`overlay/logRoll.ts` never heard them: it listened on the history box, and the start event went to
 the panel. Measured 2026-08-03 at 640x720 on a full history: opening the chat switcher took the
 history's window from 293px to 73px with `scrollTop` left at 408, so the reader's distance from
 the end of the reply went from 3px to 223px.

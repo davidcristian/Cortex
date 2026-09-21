@@ -58,5 +58,5 @@ depends on and a check that runs a different one proves less than it claims.
   source was read anyway: `src/lib.rs` still builds a `WindowsResource` and calls `compile()` for
   any target triple containing `windows` (lines 751 to 824), with no switch around it. One commit
   has touched `body/app/src-tauri/` since 2026-09-07, a one-line default in a doc comment in
-  `seam.rs`. The six items, the one `build.rs:2` call and `check-shell` (`justfile:265`) are
+  `brain.rs`. The six items, the one `build.rs:2` call and `check-shell` (`justfile:265`) are
   unchanged.

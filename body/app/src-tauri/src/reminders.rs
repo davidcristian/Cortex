@@ -32,7 +32,7 @@ impl From<DueReminder> for WireReminder {
 /// Lists fired-but-undelivered reminders across every session (`BrainService.ListDueReminders`).
 #[tauri::command]
 pub async fn list_due_reminders() -> Result<Vec<WireReminder>, String> {
-    let client = crate::seam::connect()?;
+    let client = crate::brain::connect()?;
     let reminders = client
         .list_due_reminders()
         .await
@@ -44,7 +44,7 @@ pub async fn list_due_reminders() -> Result<Vec<WireReminder>, String> {
 /// `firedAtUnixMs`.
 #[tauri::command]
 pub async fn ack_reminder(reminder_id: String, fired_at_unix_ms: i64) -> Result<bool, String> {
-    let client = crate::seam::connect()?;
+    let client = crate::brain::connect()?;
     client
         .ack_reminder(&reminder_id, fired_at_unix_ms)
         .await

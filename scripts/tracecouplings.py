@@ -3,7 +3,7 @@
 from couplings import Constant, Mention, Site
 
 REQUEST = "brain/packages/inference/src/cortex_inference/request.py"
-LEVER = "brain/packages/inference/src/cortex_inference/lever.py"
+TRACE_PROBE = "brain/packages/inference/src/cortex_inference/trace_probe.py"
 BACKEND = "brain/packages/inference/src/cortex_inference/backend.py"
 INFERENCE_CONFIG = "brain/packages/orchestrator/src/cortex_orchestrator/config.py"
 GPU_RUNBOOK = "docs/runbooks/llamacpp-gpu.md"
@@ -11,7 +11,7 @@ SUBAGENTS_RUNBOOK = "docs/runbooks/subagents-cpu.md"
 INFERENCE_DOC = "docs/modules/brain-inference.md"
 ORCHESTRATOR_DOC = "docs/modules/brain-orchestrator-config.md"
 
-LEVER_COUPLINGS: tuple[Constant, ...] = (
+TRACE_COUPLINGS: tuple[Constant, ...] = (
     Constant(
         label="the per-request trace budget's wire name",
         why=(
@@ -30,8 +30,8 @@ LEVER_COUPLINGS: tuple[Constant, ...] = (
             Mention(ORCHESTRATOR_DOC, "as llama.cpp's `{value}`:"),
             Mention(SUBAGENTS_RUNBOOK, "per-request `{value}: 0` on top of the flags"),
             Mention(REQUEST, "engine parses ``{value}``,"),
-            Mention(LEVER, "as llama.cpp's ``{value}``,"),
-            Mention(LEVER, "A build that parses ``{value}``"),
+            Mention(TRACE_PROBE, "as llama.cpp's ``{value}``,"),
+            Mention(TRACE_PROBE, "A build that parses ``{value}``"),
             Mention(BACKEND, "does not parse ``{value}`` drops"),
             Mention(INFERENCE_CONFIG, "as llama.cpp's ``{value}``."),
         ),

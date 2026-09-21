@@ -24,7 +24,7 @@ impl From<LinkStatus> for WireLink {
 /// Probes the brain once and reports what the answer proved.
 #[tauri::command]
 pub async fn check_link() -> WireLink {
-    match crate::seam::connect() {
+    match crate::brain::connect() {
         Ok(client) => probe_link(&client).await.into(),
         Err(error) => WireLink {
             state: LinkState::Down.as_str(),

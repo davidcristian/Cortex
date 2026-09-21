@@ -4,7 +4,7 @@
 **Area:** repo-checks
 **Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-checks.md)
 
-`coverage_gate.py` took `--rustc` and `--llvm-cov` as optional arguments defaulting to `None`, and
+`rustcoverage.py` took `--rustc` and `--llvm-cov` as optional arguments defaulting to `None`, and
 `attribute` skipped the check for an argument that was missing. Removing `--llvm-cov` from the
 `check-body` recipe therefore removed the producer cross-check with no error and no missing output
 line: the run printed the export's own writer, passed all three metric checks, and said nothing

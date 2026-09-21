@@ -57,7 +57,7 @@ weeks and moved here to keep each record to one subject.
    requires in that file. It covers compose strings, CSS `var()` reads, runbook table cells and bare
    literals. A mention includes a name exactly when its template renders one, and a name registered
    as a use requires a mention of the same entry rendering a value under it.
-7. **Rendered search text is bounded, not counted.** `needles.bounded` guards whichever edge is
+7. **Rendered search text is bounded, not counted.** `searchtexts.bounded` guards whichever edge is
    itself a word character, and a digit edge also refuses a neighbouring point and digit, so `5005`
    inside `50051` and `2048` inside `2048.5` are not found while `1..6291456` is. Search text
    contains the whole of what it checks and fits on one line. Position can matter: text
@@ -107,9 +107,9 @@ weeks and moved here to keep each record to one subject.
 
 16. **Data in parts, logic in one scan.** `couplings.py` is the vocabulary (`Constant`, `Site`,
     `Mention`, `Relation`, `Spelling`); `values.py` reduces; `readings.py` says whether a set of
-    readings is consistent; `needles.py` and `linereadings.py` search and explain. Entries live in
-    parts, each a `<subject>couplings.py` holding `<SUBJECT>_COUPLINGS`, added either by splitting
-    at the line cap or as a new subject. `registry.py` is the one module naming them, and
+    readings is consistent; `searchtexts.py` and `linereadings.py` search and explain. Entries live
+    in parts, each a `<subject>couplings.py` holding `<SUBJECT>_COUPLINGS`, added either by
+    splitting at the line cap or as a new subject. `registry.py` is the one module naming them, and
     `CONSTANTS` is the parts joined in fault-report order and holds nothing of its own. The scan
     never asks which part an entry is in. The filing question between the gRPC and shipped parts is
     whether the other side's own code has to hold the value. A new part is named in `registry.py`'s
@@ -123,13 +123,13 @@ weeks and moved here to keep each record to one subject.
 
 ### What a fault says
 
-18. **Search text that is not found names what moved, when it can.** `needles.nearest` picks the
+18. **Search text that is not found names what moved, when it can.** `searchtexts.nearest` picks the
     pair of the value's text nearest where the matched run stops and the run stop nearest that text,
     and reports both with their line, a quote windowed to `linereadings.QUOTED_WIDTH` and how many
-    places write the value. `needles.verdict` concludes that the surrounding text moved (`MET`) only
-    when the value sits on the line the run stops on, and otherwise reports both readings (`APART`).
-    `needles.answered` says which half the constant is responsible for, the value or the mention's
-    name, so a template rendering only a name is read on that name.
+    places write the value. `searchtexts.verdict` concludes that the surrounding text moved (`MET`)
+    only when the value sits on the line the run stops on, and otherwise reports both readings
+    (`APART`). `searchtexts.answered` says which half the constant is responsible for, the value or
+    the mention's name, so a template rendering only a name is read on that name.
 
 ### A passing scan states what it covered
 
@@ -220,7 +220,8 @@ weeks and moved here to keep each record to one subject.
 - The [repo checks module doc](../modules/repo-checks.md): the scan's contract and the method for
   finding a value's other places.
 - Code: `scripts/crosscheck.py`, `registry.py`, `couplings.py`, `values.py`, `readings.py`,
-  `needles.py`, `linereadings.py`, the `*couplings.py` parts, `scripts/tests/test_crosscheck.py`.
+  `searchtexts.py`, `linereadings.py`, the `*couplings.py` parts,
+  `scripts/tests/test_crosscheck.py`.
 - [Reading: the census](../readings/constant-registry.md).
 - [ADR-0063](ADR-0063-compose-checks.md) (the compose checks),
   [ADR-0029](ADR-0029-vision-screen-capture.md) (the first linked value),

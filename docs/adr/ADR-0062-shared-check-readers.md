@@ -79,7 +79,7 @@ that lists what it measures is blind to a new module nobody added to the list.
 ### The tests read the calls
 
 7. **Each shared answer has a test that requires every caller to use it, compared as set equality.**
-   `scripts/gatecalls.py` reads what a module calls out of its syntax: `tree_reads` returns every
+   `scripts/scriptcalls.py` reads what a module calls out of its syntax: `tree_reads` returns every
    call that descends a tree (`walk` and `rglob` always, `glob` or `iglob` unless the pattern is a
    literal naming one directory's entries, `ast.walk` told apart by the module it is called on), and
    `git_calls` every call handed a git argv, written inline or assigned to a name above it, with the

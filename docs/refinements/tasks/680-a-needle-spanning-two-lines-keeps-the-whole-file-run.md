@@ -12,10 +12,10 @@ start or the end of a line, in `docs/runbooks/subagents-cpu.md`, `docs/runbooks/
 **Verified:** 2026-09-17
 
 Every search string without a newline moved to the per-line reading in `scripts/linereadings.py`.
-These five stayed on the opening run over the whole file that `needles.carried` measures, which has
-the fault that reading was built to fix: an opening satisfied on another line makes it longer than
-the mismatch on the line a reader means, and a mismatch in the first characters leaves it stopping
-wherever else the file writes them.
+These five stayed on the opening run over the whole file that `searchtexts.carried` measures, which
+has the fault that reading was built to fix: an opening satisfied on another line makes it longer
+than the mismatch on the line a reader means, and a mismatch in the first characters leaves it
+stopping wherever else the file writes them.
 
 The three whose newline sits at one end are one line with a boundary attached, and the per-line
 reading could read them with that newline stripped. The two `--threads` strings really cross a line

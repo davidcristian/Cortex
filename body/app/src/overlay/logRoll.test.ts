@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { rideTail } from "./logRide";
+import { rideTail } from "./logRoll";
 
 /** The log's own threshold, which `rideTail` is handed rather than reading. */
 const WITHIN = 40;

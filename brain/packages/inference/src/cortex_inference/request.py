@@ -14,8 +14,8 @@ __all__ = [
     "tool_content",
 ]
 
-# What llama.cpp calls a per-request trace budget on the wire. ``lever.py`` asks a server whether
-# it parses this key, so the probe and the request must name the same thing.
+# What llama.cpp calls a per-request trace budget on the wire. ``trace_probe.py`` asks a server
+# whether it parses this key, so the probe and the request must name the same thing.
 TRACE_BUDGET_KEY = "reasoning_budget_tokens"
 
 

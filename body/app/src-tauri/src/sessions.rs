@@ -51,7 +51,7 @@ impl From<SessionMessage> for WireMessage {
 /// Lists recent chats newest-active first (`BrainService.ListSessions`).
 #[tauri::command]
 pub async fn list_sessions(limit: i32) -> Result<Vec<WireSummary>, String> {
-    let client = crate::seam::connect()?;
+    let client = crate::brain::connect()?;
     let sessions = client
         .list_sessions(limit)
         .await
@@ -62,7 +62,7 @@ pub async fn list_sessions(limit: i32) -> Result<Vec<WireSummary>, String> {
 /// Loads one session's persisted history (`BrainService.GetSessionMessages`).
 #[tauri::command]
 pub async fn session_messages(session_id: String) -> Result<Vec<WireMessage>, String> {
-    let client = crate::seam::connect()?;
+    let client = crate::brain::connect()?;
     let messages = client
         .session_messages(&session_id)
         .await
@@ -74,7 +74,7 @@ pub async fn session_messages(session_id: String) -> Result<Vec<WireMessage>, St
 /// relabel of a chat in its list.
 #[tauri::command]
 pub async fn rename_session(session_id: String, title: String) -> Result<(), String> {
-    let client = crate::seam::connect()?;
+    let client = crate::brain::connect()?;
     client
         .rename_session(&session_id, &title)
         .await
@@ -85,7 +85,7 @@ pub async fn rename_session(session_id: String, title: String) -> Result<(), Str
 /// destructive removal, fired only after an overlay-local confirm.
 #[tauri::command]
 pub async fn delete_session(session_id: String) -> Result<(), String> {
-    let client = crate::seam::connect()?;
+    let client = crate::brain::connect()?;
     client
         .delete_session(&session_id)
         .await
@@ -95,7 +95,7 @@ pub async fn delete_session(session_id: String) -> Result<(), String> {
 /// Sets or clears the `pinned` mark on one chat, from the overlay's toggle.
 #[tauri::command]
 pub async fn set_session_pinned(session_id: String, pinned: bool) -> Result<(), String> {
-    let client = crate::seam::connect()?;
+    let client = crate::brain::connect()?;
     client
         .set_session_pinned(&session_id, pinned)
         .await

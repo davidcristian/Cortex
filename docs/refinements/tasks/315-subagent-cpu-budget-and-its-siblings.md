@@ -16,7 +16,7 @@ times in that one compose file: the environment passthrough
 `cpus: "${CORTEX_SUBAGENTS_CPU_BUDGET:-4.0}"`, and the comment above that limit saying the two
 match (`CPU_BUDGET 4.0, MEM_BUDGET_GB 8.0`). All of them write `4.0`, docker's `cpus` taking a
 float where its `mem_limit` will not, so this needs no second form: move the default to a module
-constant beside `DEFAULT_MEM_BUDGET_GB` and add one `Constant` to `scripts/seamcouplings.py`. The
+constant beside `DEFAULT_MEM_BUDGET_GB` and add one `Constant` to `scripts/wirecouplings.py`. The
 failure it catches is the memory one's twin, a container given more or fewer cores than the
 scheduler admits against.
 

@@ -80,9 +80,9 @@ edge from the brain once and writes each change back (ADR-0032).
 modules that decide what: `panelGeometry.ts` (the arithmetic, including a duration paced by the
 distance the further edge travels, between 120ms and 380ms), `panelMemory.ts` (what it remembers
 and how it reads its own box), `panelParts.ts` (the probes into the panel's tree),
-`panelPlacement.ts` (plays the move, writes the two inline numbers), `panelPin.ts` (which edge is
+`panelPlacement.ts` (plays the move, writes the two inline numbers), `panelEdge.ts` (which edge is
 held), `panelBudget.ts` (the ceiling, as `max-height` and as a `--ceiling` property, and the split
-between the switcher and the reminder stack), `panelRide.ts` (the slide alongside a section's roll)
+between the switcher and the reminder stack), `panelRoll.ts` (the slide alongside a section's roll)
 and `panelWatch.ts` (a `ResizeObserver` for an unannounced resize). `overlay/measured.ts` publishes
 `--chat-floor` off the empty state's box and `--trace-row` off a live activity chip.
 
@@ -156,7 +156,7 @@ event the overlay listens on; in a plain browser `main.tsx` self-summons instead
 - **The reminder commands** (`reminders.rs`, ADR-0025): `list_due_reminders()` returns
   `Vec<WireReminder>`, and `ack_reminder(reminder_id, fired_at_unix_ms)` returns a `bool` that is a
   state report rather than a failure. The list is retried; the ack is not.
-- **The read transport** (`seam.rs`, ADR-0024). `connect()` builds a
+- **The read transport** (`brain.rs`, ADR-0024). `connect()` builds a
   `body_core::RetryingTransport<BrainSeamClient, TokioSleeper, ShellRandomness>` over
   `BrainSeamClient::connect_lazy_with_token`, a lazy channel that never fails at construction and
   reconnects on demand. `TokioSleeper` and `ShellRandomness` are the real `Sleeper` and
@@ -228,7 +228,7 @@ hold it for two runs of forty minutes without the stream seeing anything.
   instead (`overflow-wrap: anywhere`), and `whisper/front.ts` chunks a run of non-whitespace longer
   than 24 letters, a whispered reply's word boxes being `white-space: pre` (ADR-0037 decision 6).
 - `.history` sets `overflow-anchor: none`, Chromium's scroll anchoring being a third decider of a
-  number `overlay/useLogScroll.ts` and `overlay/logRide.ts` already own. A future scroll container
+  number `overlay/useLogScroll.ts` and `overlay/logRoll.ts` already own. A future scroll container
   holding rolling content needs the same line, or its own reason not to.
 - A theme change crosses the whole surface together. `applyTheme` sets `data-swapping` on the root
   for `THEME_SWAP_MS`, and `[data-swapping] *` puts one transition on everything for that window.

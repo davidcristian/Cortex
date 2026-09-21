@@ -10,8 +10,8 @@ import couplings
 import crosscheck
 import linereadings
 import logcalls
-import needles
 import registry
+import searchtexts
 import values
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -609,7 +609,7 @@ def test_a_needle_that_renders_only_a_name_is_read_on_that_name(tmp_path: Path) 
     assert "(its opening 'var(--' and its closing ')') each" in fault.detail
     assert "the nearest to that form on line 2" in fault.detail
     assert "does still write '--roll' as a token of its own, once on line 1" in fault.detail
-    assert needles.APART in fault.detail
+    assert searchtexts.APART in fault.detail
 
 
 UNDER_A_FIELD = crosscheck.Constant(
@@ -643,7 +643,7 @@ def test_a_name_whose_shape_is_a_neighbours_binding_reports_the_shape_as_the_mov
     (fault,) = crosscheck.check_constant(tmp_path, UNDER_A_FIELD)
     assert "does not write '_KIND_FIELD: _SENDER_KIND,' as a token of its own" in fault.detail
     assert "does still write '_SENDER_KIND' as a token of its own" in fault.detail
-    assert needles.MET.format(part=needles.NAME) in fault.detail
+    assert searchtexts.MET.format(part=searchtexts.NAME) in fault.detail
 
 
 @pytest.mark.parametrize(
@@ -876,7 +876,7 @@ def test_a_call_handed_another_word_leaves_the_call_mention_unfound(tmp_path: Pa
     (fault,) = crosscheck.check_constant(tmp_path, HANDED)
     assert "sink.py does not write '_logger.info(_MESSAGE,' as a token of its own" in fault.detail
     assert "does still write '_MESSAGE' as a token of its own, once on line 1" in fault.detail
-    assert needles.APART in fault.detail
+    assert searchtexts.APART in fault.detail
 
 
 def test_a_call_handed_another_binding_is_the_same_fault(tmp_path: Path) -> None:
@@ -1556,7 +1556,7 @@ def landed(root: Path, constant: couplings.Constant, site: couplings.Site) -> se
     for mention in constant.mentions:
         if mention.path != site.path or mention.name != site.name:
             continue
-        for match in needles.bounded(crosscheck.rendered(mention, value)).finditer(text):
+        for match in searchtexts.bounded(crosscheck.rendered(mention, value)).finditer(text):
             first = linereadings.line_of(text, match.start())
             last = linereadings.line_of(text, match.end() - 1)
             lines.update(range(first, last + 1))

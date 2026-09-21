@@ -16,7 +16,7 @@ suite that would catch it is `integration` marked, so it never runs in CI and th
 passing while the fixture and its test disagree.
 
 It is a registry decision more than a code change. The values are a Python test module's constants
-against a shell script's paths, which is neither the language boundary `seamcouplings.py` names nor
+against a shell script's paths, which is neither the language boundary `wirecouplings.py` names nor
 the brain container's shipped defaults `shippedcouplings.py` holds, so the first question is
 whether they join an existing part or whether a new part names the subject accurately, which
 `registry.py` is built to take (one data file plus one line). Then the entries: declarations in the

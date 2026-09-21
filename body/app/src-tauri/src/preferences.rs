@@ -5,7 +5,7 @@ use body_core::BrainTransport;
 /// Reads the whole settings record (`BrainService.GetPreferences`).
 #[tauri::command]
 pub async fn get_preferences() -> Result<Vec<(String, String)>, String> {
-    let client = crate::seam::connect()?;
+    let client = crate::brain::connect()?;
     client
         .get_preferences()
         .await
@@ -16,7 +16,7 @@ pub async fn get_preferences() -> Result<Vec<(String, String)>, String> {
 /// and an empty `value` clears it so the default applies again.
 #[tauri::command]
 pub async fn set_preference(key: String, value: String) -> Result<(), String> {
-    let client = crate::seam::connect()?;
+    let client = crate::brain::connect()?;
     client
         .set_preference(&key, &value)
         .await

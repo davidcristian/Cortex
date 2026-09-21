@@ -5,7 +5,7 @@
 **Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-checks.md)
 
 Opened 2026-08-17 by the entry that made the coverage result read its own toolchain
-([R-275](275-nothing-reads-the-printed-toolchain.md)). `coverage_gate.py` attributes the numbers it
+([R-275](275-nothing-reads-the-printed-toolchain.md)). `rustcoverage.py` attributes the numbers it
 judges, and the two halves of that attribution are not equally strong. The tool half is checked:
 the export records its writer in `cargo_llvm_cov.version`, the recipe passes what `cargo +nightly
 llvm-cov --version` printed, and a disagreement fails the check, because it means the report being

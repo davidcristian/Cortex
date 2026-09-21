@@ -11,7 +11,7 @@ the one moment the repo is explaining itself.
 
 Examples: `bindcheck.py` says a bind default `lands unignored` and `lands on` a path;
 `composemounts.py` says a short mount `carries an expansion`; `crosscheck.py`'s success line ends
-`27 of them pinned to a count`; `seamcouplings.py` describes a value as `quoted across the seam`;
+`27 of them pinned to a count`; `wirecouplings.py` describes a value as `quoted across the seam`;
 `envelopefloor.py` and its readers print `arm` for a measurement variant, which is also the field
 name in the sample files they read.
 

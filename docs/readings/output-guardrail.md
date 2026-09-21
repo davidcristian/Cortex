@@ -43,7 +43,7 @@ identity when the host's first letter is not a hex digit. Before a host starting
 306 of them end in a semicolon-less hexadecimal reference (`&#x2Fe` is one reference), as HTML reads
 them.
 
-Method: a generator over the `url_spellings` tables, calling `extract_urls` on each.
+Method: a generator over the `url_separators` tables, calling `extract_urls` on each.
 
 ## Over the repo's own text
 

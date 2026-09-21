@@ -537,7 +537,7 @@
   scrollbar-gutter: stable;
   /* Scroll anchoring off. A roll measures its content at full height and then animates from zero,
      which Chromium's anchoring reads as the log shrinking: measured at 640x720, scrollTop fell 498
-     to 422 in one frame and walked back. `ChatView` and `overlay/logRide.ts` own this position. */
+     to 422 in one frame and walked back. `ChatView` and `overlay/logRoll.ts` own this position. */
   overflow-anchor: none;
 }
 /* The history's inner column, packed to the bottom so a short conversation sits against the

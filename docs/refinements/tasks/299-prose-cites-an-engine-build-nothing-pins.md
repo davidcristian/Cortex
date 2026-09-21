@@ -58,8 +58,8 @@ tree reads `system_fingerprint` or `/props`, and it is filed as
   and `200` with the field ignored on `b9870-2d973636e`
   ([ADR-0049](../../adr/ADR-0049-thinking-switch-and-trace-budget.md),
   [brain-inference.md](../../modules/brain-inference.md), and the four worlds of
-  [test_lever.py](../../../brain/packages/inference/tests/test_lever.py) built over both answers).
-  One request, two builds, two behaviours.
+  [test_trace_probe.py](../../../brain/packages/inference/tests/test_trace_probe.py) built over both
+  answers). One request, two builds, two behaviours.
 - 2026-09-06: The second of the three shapes is partly done already, by other passes.
   [subagents-cpu.md](../../runbooks/subagents-cpu.md) records a reading taken on
   `sha256:db057ec90de0a423255a218b9612420993237ff33db68b3155dc3bba9b994a20` (build

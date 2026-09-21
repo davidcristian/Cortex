@@ -175,7 +175,7 @@ leave it in the reply.
   the removal of what a parser deletes, and a special-scheme backslash fold (ADR-0058 decision 10).
   `extract_urls(text)` finds every clickable URL (`http(s)`, `ftp`, `mailto:`, `tel:`, and `data:`
   behind a media-type anchor so prose stays out) and normalizes it; the grammar, the separator
-  forms, the confusable table and what a parser removes are in `urls.py`, `url_spellings.py`,
+  forms, the confusable table and what a parser removes are in `urls.py`, `url_separators.py`,
   `url_confusables.py` and `url_removals.py`, and
   [ADR-0058](../adr/ADR-0058-url-recognition-and-identity.md) says what is left out. Both sides of
   the defence normalize, so a collected URL and its reappearance always compare equal.
