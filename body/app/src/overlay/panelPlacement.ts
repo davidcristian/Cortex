@@ -21,8 +21,8 @@ import {
 } from "./panelGeometry";
 import { type Memory, type Placement, arriving, heightOf, measure } from "./panelMemory";
 import { centringHeight, holdScroll, tabSlack } from "./panelParts";
-import { VIEW_CHANGE_RECENTRES, entering, pinnedBottom } from "./panelEdge";
-import { rideAlong } from "./panelRoll";
+import { VIEW_CHANGE_RECENTRES, entering, heldBottom } from "./panelEdge";
+import { slideWithRoll } from "./panelRoll";
 
 /** Put the panel where it belongs, and animate it there from wherever it was. The running
  *  animation is cancelled before measuring, because a height animation overrides the used height:
@@ -58,7 +58,7 @@ export function place(
     const rolling = Number(section.getAttribute(MORPHING_ATTRIBUTE));
     if (memory.rolling !== rolling) {
       memory.rolling = rolling;
-      rideAlong(element, memory, section, viewport, arriving(memory, at));
+      slideWithRoll(element, memory, section, viewport, arriving(memory, at));
     }
     // The roll owns the height but not the ceiling. The cap above is a measuring cap, and left
     // there for the length of the roll it lets the panel grow past the clear space at the top:
@@ -73,8 +73,8 @@ export function place(
   memory.rolling = null;
   const deferred = memory.deferred;
   memory.deferred = false;
-  const carrying = memory.carrying;
-  memory.carrying = null;
+  const driving = memory.driving;
+  memory.driving = null;
   const was = memory.applied;
   const live = memory.running !== null && memory.running.playState === "running";
   const inFlight = live ? measure(element, viewport) : null;
@@ -85,9 +85,9 @@ export function place(
   // the roll to its end, and the bottom edge went along with it. `onScreen` rather than `height`,
   // because the two differ by whatever the measuring cap above just allowed.
   const displayed = deferred
-    ? { height: carrying ?? onScreen, bottom: was }
+    ? { height: driving ?? onScreen, bottom: was }
     : (inFlight ?? memory.shown);
-  const wanted = pinnedBottom(
+  const wanted = heldBottom(
     memory,
     at,
     viewport,
@@ -95,12 +95,12 @@ export function place(
     height,
     recentres,
   );
-  memory.pinned = wanted;
+  memory.held = wanted;
   // A closing panel is not moved: it is about to be scaled away from where the eye last had it,
   // and the edge worked out above is for the summon that follows. A panel that has never been
   // placed is the exception, which is what makes the very first summon appear centred.
   const placed = at.open || memory.shown === null;
-  // Used here and never folded into `memory.pinned`, so the edge the panel remembers stays the one
+  // Used here and never folded into `memory.held`, so the edge the panel remembers stays the one
   // the chat is on, and a second placement in the same view cannot arrive twice.
   const edge = clamped(wanted);
   const arrival = arrives ? arrivalBottom(viewport, edge, height, tabSlack(element)) : edge;
@@ -134,9 +134,9 @@ export function place(
   // had left, rather than starting the clock again. A token arrives about every 55ms, and a fresh
   // ease per token pushed the arrival back by another floor's worth every time.
   const holding = live && settled(memory.aim, next);
-  const duration = holding ? Math.max(memory.lands - Date.now(), 0) : durationOf(displayed, next);
+  const duration = holding ? Math.max(memory.due - Date.now(), 0) : durationOf(displayed, next);
   memory.aim = next;
-  memory.lands = Date.now() + duration;
+  memory.due = Date.now() + duration;
   const animation = element.animate(
     [
       // The ceiling the panel is going to is already on the element, and a panel easing down to it

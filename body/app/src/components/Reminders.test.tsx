@@ -187,7 +187,7 @@ describe("Reminders", () => {
     expect(screen.queryByText("open chat")).toBeNull();
   });
 
-  it("rides the caret down the stack, so clearing what fired is one key pressed again", () => {
+  it("moves the caret down the stack, so clearing what fired is one key pressed again", () => {
     const three = [
       reminder(),
       reminder({ reminderId: "r-2", text: "Stretch" }),

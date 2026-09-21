@@ -3,7 +3,7 @@ name = "body-rpc"
 version.workspace = true
 edition.workspace = true
 publish.workspace = true
-description = "tonic adapter for the body↔brain gRPC seam (lib name: body_rpc)"
+description = "tonic adapter for the body↔brain gRPC boundary (lib name: body_rpc)"
 
 [dependencies]
 async-stream.workspace = true

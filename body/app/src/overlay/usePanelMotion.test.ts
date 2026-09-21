@@ -228,7 +228,7 @@ describe("usePanelMotion", () => {
     expect(moves).toEqual([{ from: { height: 400, bottom: 300 }, to: { height: 520, bottom: 300 } }]);
   });
 
-  it("eases a shrink from the same pinned edge, so closing a section is not a jump either", () => {
+  it("eases a shrink from the same held edge, so closing a section is not a jump either", () => {
     const { ref, state, moves } = harness();
     state.natural = 520;
     const { rerender } = renderHook(() => usePanelMotion(ref, true, "chat"));
@@ -600,7 +600,7 @@ describe("usePanelMotion", () => {
     expect(moves).toEqual([]);
   });
 
-  it("takes the ceiling along in the move, riding the same edge the panel is standing on", () => {
+  it("takes the ceiling along in the move, on the same edge the panel stands on", () => {
     const { ref, state, keyed } = harness();
     state.natural = 700;
     const { rerender } = renderHook(({ view }) => usePanelMotion(ref, true, view), {
@@ -884,7 +884,7 @@ describe("usePanelMotion", () => {
     expect(durations[2]).toBe(120);
   });
 
-  it("rides along with a roll no render told it about, which is how a reply's trace opens", () => {
+  it("moves with a roll no render told it about, which is how a reply's trace opens", () => {
     const { ref, element, state, moves, bottom } = harness();
     state.natural = 600;
     renderHook(() => usePanelMotion(ref, true, "chat"));

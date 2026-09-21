@@ -14,7 +14,7 @@ const CHAT_VIEW = "chat";
 export const VIEW_CHANGE_RECENTRES = false;
 
 /** Whether the panel is arriving in a view with more than one shape, which is the one render that
- *  hangs it from the top its tallest shape would take. Asked before `pinnedBottom` decides
+ *  hangs it from the top its tallest shape would take. Asked before `heldBottom` decides
  *  anything, because deciding is also what forgets which view the panel was in. */
 export function entering(memory: Memory, at: Placement): boolean {
   return at.open && memory.view !== at.view && at.view !== CHAT_VIEW;
@@ -23,7 +23,7 @@ export function entering(memory: Memory, at: Placement): boolean {
 /** Where the panel's bottom edge wants to be, before the ceiling has its say. It also updates the
  *  memory the next such decision reads: which view is on screen, and where the chat was left. A
  *  closed panel always re-centres, because it is about to be summoned. */
-export function pinnedBottom(
+export function heldBottom(
   memory: Memory,
   at: Placement,
   viewport: number,
@@ -33,7 +33,7 @@ export function pinnedBottom(
 ): number {
   const changed = memory.view !== at.view;
   if (changed && memory.view === CHAT_VIEW) {
-    memory.parked = memory.pinned;
+    memory.parked = memory.held;
   }
   memory.view = at.view;
   const shown = memory.shown;
@@ -54,5 +54,5 @@ export function pinnedBottom(
   if (!changed && at.view !== CHAT_VIEW) {
     return shown.bottom + shown.height - height;
   }
-  return memory.pinned;
+  return memory.held;
 }

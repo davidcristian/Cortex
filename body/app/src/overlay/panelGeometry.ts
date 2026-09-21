@@ -75,11 +75,11 @@ export function arrivalBottom(
   return viewport - top - height;
 }
 
-/** The `pinned` edge as the DOM may have it: on screen, and nothing more. The ceiling is applied
+/** The `held` edge as the DOM may have it: on screen, and nothing more. The ceiling is applied
  *  to the height instead, because pushing the bottom edge down to make room for a taller panel is
  *  the downward growth that is not wanted. */
-export function clamped(pinned: number): number {
-  return Math.max(0, pinned);
+export function clamped(held: number): number {
+  return Math.max(0, held);
 }
 
 /** How long this move takes: how far the further-travelling of the panel's two edges goes, at a

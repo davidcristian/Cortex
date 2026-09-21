@@ -29,7 +29,7 @@ The step the entry doubted is not there, for a stronger reason than the entry ga
 frames inside the roll there is no frame in which the panel's height moves and the bubble's does
 not, and the panel's largest single-frame move is 3.907px, which is the bubble's own 3.906px of
 eased growth arriving one for one. The prediction never reaches the panel's height at all:
-`rideAlong` finds nothing of the panel's own in the air and the bottom edge already where it wants
+`slideWithRoll` finds nothing of the panel's own in the air and the bottom edge already where it wants
 it, so it returns at its common-case branch, and `Element.prototype.animate` is called zero times
 on the panel across the whole reply.
 
@@ -37,7 +37,7 @@ Two of the entry's sentences were wrong and one omission mattered. The predictio
 the length of every streamed reply: the target only changes at a wrap and the placement only
 re-predicts when the published number changes, so it is five predictions in a reply of about three
 seconds. The error is not merely bounded by half a pixel, it is half a pixel, every line. And the
-prediction is not only a prediction: on an arrival `rideAlong` also fixes the panel's bottom edge
+prediction is not only a prediction: on an arrival `slideWithRoll` also fixes the panel's bottom edge
 to the centre of the predicted height, and that edge is kept for the session. Traced by dismissing
 to the orb mid-reply and summoning back inside the roll, the panel fixed itself to 316.59375px
 where the height the roll actually leaves it at centres on 316.34375px, and it stood on the wrong

@@ -76,7 +76,7 @@ from there. The reader sees the whole shrink in one frame and then an animation 
 below centre and scrolled, having capped itself at 520px where 604px would have fitted.
 
 **A fractional ceiling.** Left fractional, `maxHeight` was rounded by `panelPlacement` on the way to
-`max-height` while `rideAlong` capped its prediction at the raw value, 0.2px apart. That is under
+`max-height` while `slideWithRoll` capped its prediction at the raw value, 0.2px apart. That is under
 `MIN_DELTA_PX`, so nothing animated it, but the bottom edge is written rounded and 0.2px is enough
 to cross a rounding boundary. At 60Hz at 640x720 with the reminder stack up, so the panel sat at its
 ceiling, every roll of a section inside it began with `bottom` stepping 87 to 86 in one frame with

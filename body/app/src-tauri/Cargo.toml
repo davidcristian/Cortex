@@ -3,7 +3,7 @@ name = "cortex-body"
 version = "0.1.0"
 edition = "2024"
 publish = false
-description = "Cortex body, the host-native Tauri shell (overlay + hotkey + brain seam)"
+description = "Cortex body, the host-native Tauri shell (overlay, hotkey and brain connection)"
 
 # Its own workspace root, kept out of the `body` workspace: `just check`'s `cargo --workspace`
 # never builds Tauri, so CI needs no webkit or node and coverage never measures this crate.

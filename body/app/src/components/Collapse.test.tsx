@@ -254,7 +254,7 @@ describe("Collapse", () => {
     expect(heard).toEqual([String(HEIGHT), "0"]);
   });
 
-  it("announces no start when there is no roll to ride along with", () => {
+  it("announces no start when there is no roll to move with", () => {
     stubMotionPreference(true);
     stubBrowser();
     const heard: string[] = [];

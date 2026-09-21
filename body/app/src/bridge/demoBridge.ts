@@ -45,7 +45,7 @@ export class DemoBridge implements BrainBridge {
   private expiry: ReturnType<typeof setTimeout> | null = null;
   /** What the next probe reports, and when the scripted outage ends (0 = never went down). */
   private link: LinkState = "ready";
-  private healsAt = 0;
+  private recoversAt = 0;
   private sessions: SessionSummary[] = script.sessions();
   private due: readonly DueReminder[] = script.reminders();
   private prefs: Preference[] = [];
@@ -164,13 +164,13 @@ export class DemoBridge implements BrainBridge {
   /** Script an outage that ends on its own, so the recovery re-check has something to find. */
   private fail(state: LinkState): void {
     this.link = state;
-    this.healsAt = Date.now() + script.OUTAGE_MS;
+    this.recoversAt = Date.now() + script.OUTAGE_MS;
   }
 
   checkLink(): Promise<LinkStatus> {
-    if (this.healsAt !== 0 && Date.now() >= this.healsAt) {
+    if (this.recoversAt !== 0 && Date.now() >= this.recoversAt) {
       this.link = "ready";
-      this.healsAt = 0;
+      this.recoversAt = 0;
     }
     const detail =
       this.link === "ready"

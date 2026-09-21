@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { rideTail } from "./logRoll";
+import { holdTail } from "./logRoll";
 
-/** The log's own threshold, which `rideTail` is handed rather than reading. */
+/** The log's own threshold, which `holdTail` is handed rather than reading. */
 const WITHIN = 40;
 
 /** jsdom has neither layout nor a frame clock, so the test is the layout: one mutable record of
@@ -65,11 +65,11 @@ afterEach(() => {
   document.body.replaceChildren();
 });
 
-describe("rideTail", () => {
+describe("holdTail", () => {
   it("holds the reader's distance from the end of the log for every frame of the roll", () => {
     const layout: Layout = { content: 704, window: 293, top: 408, at: 529 };
     const log = stage(layout);
-    rideTail(log.box, log.section, WITHIN);
+    holdTail(log.box, log.section, WITHIN);
     log.tick();
     expect(log.tail()).toBe(3);
     for (const content of [717, 739, 757, 771, 780]) {
@@ -83,7 +83,7 @@ describe("rideTail", () => {
   it("gives the growth back on the way shut, landing on the pixel it started from", () => {
     const layout: Layout = { content: 780, window: 293, top: 484, at: 529 };
     const log = stage(layout);
-    rideTail(log.box, log.section, WITHIN);
+    holdTail(log.box, log.section, WITHIN);
     log.tick();
     for (const content of [757, 727, 704]) {
       layout.content = content;
@@ -96,7 +96,7 @@ describe("rideTail", () => {
   it("scrolls nothing at all while the panel is still absorbing the growth", () => {
     const layout: Layout = { content: 234, window: 234, top: 0, at: 100 };
     const log = stage(layout);
-    rideTail(log.box, log.section, WITHIN);
+    holdTail(log.box, log.section, WITHIN);
     log.tick();
     for (const grown of [247, 287, 310]) {
       layout.content = grown;
@@ -109,7 +109,7 @@ describe("rideTail", () => {
   it("leaves a reader who has scrolled up exactly where they are", () => {
     const layout: Layout = { content: 704, window: 293, top: 100, at: 300 };
     const log = stage(layout);
-    rideTail(log.box, log.section, WITHIN);
+    holdTail(log.box, log.section, WITHIN);
     log.tick();
     expect(log.frames()).toBe(1);
     expect(log.top()).toBe(100);
@@ -118,7 +118,7 @@ describe("rideTail", () => {
   it("stops where the rolling section's own top edge reaches the top of the window", () => {
     const layout: Layout = { content: 704, window: 293, top: 408, at: 438 };
     const log = stage(layout);
-    rideTail(log.box, log.section, WITHIN);
+    holdTail(log.box, log.section, WITHIN);
     log.tick();
     layout.content = 780;
     log.tick();
@@ -129,7 +129,7 @@ describe("rideTail", () => {
   it("caps a section already above the window where it stands, rather than chasing it", () => {
     const layout: Layout = { content: 704, window: 121, top: 580, at: 530 };
     const log = stage(layout);
-    rideTail(log.box, log.section, WITHIN);
+    holdTail(log.box, log.section, WITHIN);
     log.tick();
     layout.content = 780;
     log.tick();
@@ -139,7 +139,7 @@ describe("rideTail", () => {
   it("holds the tail through a roll in the chrome, which takes the window and not the content", () => {
     const layout: Layout = { content: 469, window: 293, top: 173, at: -118 };
     const log = stage(layout, "chrome");
-    rideTail(log.box, log.section, WITHIN);
+    holdTail(log.box, log.section, WITHIN);
     log.tick();
     expect(log.tail()).toBe(3);
     for (const shrunk of [254, 192, 122, 90, 73]) {
@@ -153,7 +153,7 @@ describe("rideTail", () => {
   it("gives a chrome roll's room back on the way shut, landing on the pixel it started from", () => {
     const layout: Layout = { content: 469, window: 73, top: 393, at: -118 };
     const log = stage(layout, "chrome");
-    rideTail(log.box, log.section, WITHIN);
+    holdTail(log.box, log.section, WITHIN);
     log.tick();
     for (const grown of [122, 192, 254, 293]) {
       layout.window = grown;
@@ -167,7 +167,7 @@ describe("rideTail", () => {
     const layout: Layout = { content: 469, window: 293, top: 173, at: -118 };
     const log = stage(layout, "chrome");
     expect(log.section.getBoundingClientRect().top - log.box.getBoundingClientRect().top).toBe(-118);
-    rideTail(log.box, log.section, WITHIN);
+    holdTail(log.box, log.section, WITHIN);
     log.tick();
     layout.window = 73;
     log.tick();
@@ -177,7 +177,7 @@ describe("rideTail", () => {
   it("hands the scroll straight back to a reader who takes it mid-roll", () => {
     const layout: Layout = { content: 704, window: 293, top: 408, at: 529 };
     const log = stage(layout);
-    rideTail(log.box, log.section, WITHIN);
+    holdTail(log.box, log.section, WITHIN);
     log.tick();
     layout.content = 739;
     log.tick();
@@ -192,7 +192,7 @@ describe("rideTail", () => {
   it("does not mistake the engine's own clamp for the reader taking the scroll", () => {
     const layout: Layout = { content: 780, window: 293, top: 484, at: 529 };
     const log = stage(layout);
-    rideTail(log.box, log.section, WITHIN);
+    holdTail(log.box, log.section, WITHIN);
     log.tick();
     layout.content = 704;
     expect(log.top()).toBe(411);
@@ -203,7 +203,7 @@ describe("rideTail", () => {
   it("settles on the height the roll ended at before it stops following", () => {
     const layout: Layout = { content: 704, window: 293, top: 408, at: 529 };
     const log = stage(layout);
-    rideTail(log.box, log.section, WITHIN);
+    holdTail(log.box, log.section, WITHIN);
     log.tick();
     layout.content = 780;
     log.section.removeAttribute("data-morphing");
@@ -215,7 +215,7 @@ describe("rideTail", () => {
   it("stops following a section that leaves the tree mid-roll", () => {
     const layout: Layout = { content: 704, window: 293, top: 408, at: 529 };
     const log = stage(layout);
-    rideTail(log.box, log.section, WITHIN);
+    holdTail(log.box, log.section, WITHIN);
     log.tick();
     expect(log.frames()).toBe(2);
     log.section.remove();
@@ -223,10 +223,10 @@ describe("rideTail", () => {
     expect(log.frames()).toBe(2);
   });
 
-  it("gives up the frame it is holding when the ride is called off, once", () => {
+  it("gives up the frame it is holding when the hold is called off, once", () => {
     const layout: Layout = { content: 704, window: 293, top: 408, at: 529 };
     const log = stage(layout);
-    const off = rideTail(log.box, log.section, WITHIN);
+    const off = holdTail(log.box, log.section, WITHIN);
     off();
     expect(log.cancelled).toEqual([1]);
     off();
@@ -236,7 +236,7 @@ describe("rideTail", () => {
   it("has nothing to call off once the roll has ended on its own", () => {
     const layout: Layout = { content: 704, window: 293, top: 100, at: 300 };
     const log = stage(layout);
-    const off = rideTail(log.box, log.section, WITHIN);
+    const off = holdTail(log.box, log.section, WITHIN);
     log.tick();
     off();
     expect(log.cancelled).toEqual([]);

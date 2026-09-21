@@ -4,13 +4,13 @@
 
 import { type RefObject, useCallback, useEffect, useLayoutEffect, useRef } from "react";
 
-import { rideTail } from "./logRoll";
+import { holdTail } from "./logRoll";
 import { MORPH_START_EVENT } from "./morph";
 
 /** How close to the bottom (px) still counts as "reading the tail". Two things use it: the
  *  auto-scroll follows a reply for a reader inside it, and a section rolling open inside the log
  *  holds their distance from the end instead of pushing it away. */
-const PIN_THRESHOLD_PX = 40;
+const TAIL_THRESHOLD_PX = 40;
 
 export interface LogScroll {
   /** Goes on the scrolling box, which is mounted with the view and never unmounted. */
@@ -27,7 +27,7 @@ export interface LogScroll {
  *  position with it. `columnRef` is the flex column this box is in, where a roll is heard. */
 export function useLogScroll(showing: boolean, columnRef: RefObject<HTMLElement | null>): LogScroll {
   const ref = useRef<HTMLDivElement>(null!);
-  const pinned = useRef(true);
+  const onTail = useRef(true);
   const parked = useRef(0);
   // Read from a DOM event, so it has to be the current answer rather than the one a closure was
   // built with. Assigned during the render, so it is right before anything this render scheduled.
@@ -39,12 +39,12 @@ export function useLogScroll(showing: boolean, columnRef: RefObject<HTMLElement 
       return;
     }
     const el = ref.current;
-    pinned.current = el.scrollHeight - el.scrollTop - el.clientHeight <= PIN_THRESHOLD_PX;
+    onTail.current = el.scrollHeight - el.scrollTop - el.clientHeight <= TAIL_THRESHOLD_PX;
     parked.current = el.scrollTop;
   }, []);
 
   const toTail = useCallback(() => {
-    if (pinned.current) {
+    if (onTail.current) {
       const el = ref.current;
       el.scrollTop = el.scrollHeight;
     }
@@ -62,7 +62,7 @@ export function useLogScroll(showing: boolean, columnRef: RefObject<HTMLElement 
   // Subscribed on the column rather than on the box, because half the rolls that shrink this log
   // happen outside it: the switcher list and the reminder stack are siblings, so their bubbling
   // event goes up past the log and the box never hears it.
-  const ride = useRef<(() => void) | null>(null);
+  const hold = useRef<(() => void) | null>(null);
   useEffect(() => {
     const box = ref.current;
     const column = columnRef.current;
@@ -72,13 +72,13 @@ export function useLogScroll(showing: boolean, columnRef: RefObject<HTMLElement 
       const section = event.target as HTMLElement;
       // A roll starting while another is still running re-reads the distance from where the eye
       // has the log now.
-      ride.current?.();
-      ride.current = rideTail(box, section, PIN_THRESHOLD_PX);
+      hold.current?.();
+      hold.current = holdTail(box, section, TAIL_THRESHOLD_PX);
     };
     column?.addEventListener(MORPH_START_EVENT, onRoll);
     return () => {
       column?.removeEventListener(MORPH_START_EVENT, onRoll);
-      ride.current?.();
+      hold.current?.();
     };
   }, [columnRef]);
 

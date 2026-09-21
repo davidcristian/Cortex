@@ -104,7 +104,7 @@ describe("DemoBridge, the scripted hooks", () => {
     return pending;
   }
 
-  it("scripts an outage a prompt asks for, and heals it on its own", async () => {
+  it("scripts an outage a prompt asks for, and recovers from it on its own", async () => {
     const bridge = new DemoBridge();
     speak(bridge, "pretend you are offline").cancel();
     expect(await probe(bridge)).toEqual({ state: "down", detail: script.DOWN_DETAIL });
@@ -112,7 +112,7 @@ describe("DemoBridge, the scripted hooks", () => {
     expect(await probe(bridge)).toEqual({ state: "ready", detail: script.READY_DETAIL });
   });
 
-  it("scripts a degraded brain too, and a probe before the outage heals still reports it", async () => {
+  it("scripts a degraded brain too, and a probe before the outage ends still reports it", async () => {
     const bridge = new DemoBridge();
     speak(bridge, "pretend you are degraded").cancel();
     expect(await probe(bridge)).toEqual({ state: "degraded", detail: script.DEGRADED_DETAIL });

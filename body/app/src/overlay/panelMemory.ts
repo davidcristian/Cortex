@@ -20,7 +20,7 @@ export interface Memory {
   aim: Geometry;
   /** When `running` is due to arrive, as `Date.now()`. A re-render that leaves the destination
    *  unchanged resumes the move over the time left of this rather than restarting its clock. */
-  lands: number;
+  due: number;
   /** The view the panel last settled into; anything else moves it. */
   view: string;
   /** Whether the panel was open at the last placement, so a summon can be seen arriving. */
@@ -28,8 +28,8 @@ export interface Memory {
   /** When the panel was last summoned, as `Date.now()`; 0 before the first one. */
   arrived: number;
   /** The bottom edge the panel is held to, unclamped: what it asks for, not what fits. */
-  pinned: number;
-  /** The bottom edge last written to the DOM, which is `pinned` after the ceiling has its say. */
+  held: number;
+  /** The bottom edge last written to the DOM, which is `held` after the ceiling has its say. */
   applied: number;
   /** The chat's own edge, kept while another view is on screen; null until it first leaves. */
   parked: number | null;
@@ -37,7 +37,7 @@ export interface Memory {
   rolling: number | null;
   /** The height the panel is driving its own height to across the roll now running, or null in the
    *  usual case where the section owns the height and the panel's `auto` simply follows it. */
-  carrying: number | null;
+  driving: number | null;
   /** Set while a child owned the last size change, and cleared by the first placement after it. */
   deferred: boolean;
 }
@@ -50,15 +50,15 @@ export function emptyMemory(open: boolean, view: string): Memory {
     placedFor: 0,
     running: null,
     aim: { height: 0, bottom: 0 },
-    lands: 0,
+    due: 0,
     view,
     open,
     arrived: 0,
-    pinned: 0,
+    held: 0,
     applied: 0,
     parked: null,
     rolling: null,
-    carrying: null,
+    driving: null,
     deferred: false,
   };
 }

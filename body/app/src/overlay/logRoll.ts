@@ -22,7 +22,7 @@ function stopAt(box: HTMLElement, section: HTMLElement, tail: number): number {
 /** Hold `box`'s distance from the end of its content for every frame of the roll now running in
  *  `section`, for a reader already `within` px of that end, and return the way to stop. `within`
  *  is the log's own threshold, passed in: the two must be the same number. */
-export function rideTail(box: HTMLElement, section: HTMLElement, within: number): () => void {
+export function holdTail(box: HTMLElement, section: HTMLElement, within: number): () => void {
   // The distance being held, read on the first frame rather than given.
   let tail: number | null = null;
   // What this function last wrote, so a scroll that came from somewhere else can be told apart.

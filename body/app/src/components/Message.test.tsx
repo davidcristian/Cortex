@@ -43,7 +43,7 @@ describe("Message", () => {
     expect(container.querySelector(".ch")).toBeNull();
   });
 
-  it("whispers a streaming reply: the mist rides the bubble and no caret exists", () => {
+  it("whispers a streaming reply: the mist moves with the bubble and no caret exists", () => {
     const { container } = render(
       <Show message={msg({ content: "typing now", streaming: true })} />,
     );

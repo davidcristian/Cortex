@@ -62,7 +62,7 @@ afterEach(() => {
 });
 
 describe("useLogScroll and the rolls it hears", () => {
-  it("rides a roll that starts inside the log", () => {
+  it("follows a roll that starts inside the log", () => {
     const clock = stage();
     const view = render(<Log rolling />);
     expect(clock.frames()).toBe(0);
@@ -70,7 +70,7 @@ describe("useLogScroll and the rolls it hears", () => {
     expect(clock.frames()).toBe(1);
   });
 
-  it("rides a roll in the chrome, whose start event the log's own box never sees", () => {
+  it("follows a roll in the chrome, whose start event the log's own box never sees", () => {
     const clock = stage();
     const view = render(<Log chrome />);
     const box = view.container.querySelector(".history") as HTMLDivElement;
@@ -107,7 +107,7 @@ describe("useLogScroll and the rolls it hears", () => {
     expect(() => view.unmount()).not.toThrow();
   });
 
-  it("calls a running ride off when the log goes away under it", () => {
+  it("calls a running hold off when the log goes away under it", () => {
     const clock = stage();
     const view = render(<Log rolling />);
     roll(view, ".history .collapse");

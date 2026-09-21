@@ -9,7 +9,7 @@ import { centringHeight } from "./panelParts";
 /** Slide the bottom edge to where the roll now running will leave it, over that same roll. The
  *  panel will be as tall as it is now, less what the section takes now, plus what it is about to
  *  take, capped at its own `max-height`: a prediction it cannot reach is a height it never has. */
-export function rideAlong(
+export function slideWithRoll(
   element: HTMLElement,
   memory: Memory,
   section: HTMLElement,
@@ -29,9 +29,9 @@ export function rideAlong(
     // The summon is still arriving, so this roll is part of the panel appearing and ends centred
     // on the height it takes the panel to. Counted through `centringHeight` and bounded at the
     // loose cap, both as the placement at the end of the roll does, so the two agree.
-    memory.pinned = centred(viewport, centringHeight(element, Math.min(raw, openHeight(viewport))));
+    memory.held = centred(viewport, centringHeight(element, Math.min(raw, openHeight(viewport))));
   }
-  const bottom = clamped(memory.pinned);
+  const bottom = clamped(memory.held);
   const ceiling = maxHeight(viewport, bottom);
   // The height this roll leaves the panel at, under the ceiling of the edge it now stands on.
   const height = Math.min(raw, ceiling);
@@ -40,13 +40,13 @@ export function rideAlong(
   // the section anyway. An arrival whose section outgrows the ceiling is the other case: driven
   // from here, the chat's window compresses as the stack grows instead of only at the end.
   const squeezed = arrival && raw > ceiling ? natural : null;
-  const carried =
+  const easeFrom =
     shown !== null && Math.abs(shown.height - natural) >= MIN_DELTA_PX ? shown.height : squeezed;
-  memory.carrying = carried === null ? null : height;
+  memory.driving = easeFrom === null ? null : height;
   memory.applied = bottom;
   // With its fraction, for the reason `panelPlacement` gives where it writes the same edge.
   element.style.bottom = `${bottom}px`;
-  if (carried === null && Math.abs(bottom - from) < MIN_DELTA_PX) {
+  if (easeFrom === null && Math.abs(bottom - from) < MIN_DELTA_PX) {
     // The common case: nothing of the panel's own was moving and it is nowhere near its ceiling,
     // so the roll is the whole movement.
     return;
@@ -54,13 +54,13 @@ export function rideAlong(
   // Where this slide ends and when, in the same terms as the panel's own moves, so a placement
   // that arrives mid-slide and is going to the same place resumes it rather than restarting it.
   memory.aim = { height, bottom };
-  memory.lands = Date.now() + MORPH_ROLL_MS;
+  memory.due = Date.now() + MORPH_ROLL_MS;
   memory.running = element.animate(
-    carried === null
+    easeFrom === null
       ? [{ bottom: `${from}px` }, { bottom: `${bottom}px` }]
-      : // The `carried` ease starts from a height the roll's own ceiling may already forbid, so
+      : // `easeFrom` is a height the roll's own ceiling may already forbid, so
         // the ceiling goes with it rather than clamping it flat on the first frame.
-        [frame(carried, from, Math.max(carried, ceiling)), frame(height, bottom, ceiling)],
+        [frame(easeFrom, from, Math.max(easeFrom, ceiling)), frame(height, bottom, ceiling)],
     { duration: MORPH_ROLL_MS, easing: EASING },
   );
 }
