@@ -62,8 +62,8 @@ def load(path: Path) -> Block:
     sample = cast("dict[str, object]", raw)
     arm = sample.get("arm")
     entries = sample.get("turns")
-    _require(isinstance(arm, str), f"{path}: sample names no arm")
-    _require(isinstance(entries, list), f"{path}: sample carries no turns list")
+    _require(isinstance(arm, str), f"{path}: sample names no variant under `arm`")
+    _require(isinstance(entries, list), f"{path}: sample has no turns list")
     turns: list[tuple[str, dict[str, float]]] = []
     for entry in cast("list[object]", entries):
         _require(isinstance(entry, dict), f"{path}: a turn is not a JSON object")

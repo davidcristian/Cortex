@@ -136,7 +136,7 @@ def test_a_tail_is_known_when_it_carries_either_familys_marker(
 @pytest.mark.parametrize("plain", [THIRD_OPEN, NATIVE_OPEN])
 def test_an_unmarked_tail_the_key_changed_publishes_nothing(tmp_path: Path, plain: str) -> None:
     printed, code = report(sample(tmp_path / "s.json", plain=plain, switched=THIRD_SHUT))
-    assert "refused: the switched tail carries no marker of either format here" in printed
+    assert "refused: the switched tail has no marker of either format here" in printed
     assert "answered in an unrecognized format" in printed
     assert repr(tail(THIRD_SHUT, ASK)) in printed
     assert code == 1
@@ -227,7 +227,7 @@ def test_a_rendering_that_does_not_carry_the_ask_publishes_nothing(
             switched=someone_elses if switch else NATIVE_SHUT,
         )
     )
-    assert "does not carry the ask this run sent" in printed
+    assert "does not contain the ask this run sent" in printed
     assert ("sent" if switch else "left alone") in printed
     assert code == 1
 

@@ -36,7 +36,7 @@ def _once(text: str, phrase: str, which: str) -> int:
     if found != 1:
         msg = (
             f"the {which} phrase {phrase!r} appears {found} time(s); a passage is bounded by a "
-            f"phrase its document carries exactly once"
+            f"phrase its document contains exactly once"
         )
         raise PassageError(msg)
     return text.index(phrase)

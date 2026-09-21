@@ -1,9 +1,8 @@
 # The checks print sentences in words the prose table bans
 
-**Status:** open, actionable
+**Status:** done 2026-09-21
 **Area:** repo-checks
 **Origin:** [ADR-0040](../../adr/ADR-0040-prose-and-comment-style.md)
-**Verified:** 2026-09-19
 
 `prosecheck.py` reads documents, comments and docstrings, and never string literals, so the
 sentences the checks themselves print are outside every prose rule. Several use words the table in
@@ -25,3 +24,11 @@ asserted by a test, which makes it a code change.
 ## History
 
 - 2026-09-19: opened after reading the checks' own output against the table.
+- 2026-09-21: done. A survey of every non-test `scripts/*.py` string literal against the table
+  found 175 banned words in 47 files: 98 in the checks' own summaries, faults and help text, and 69
+  in the reasons the registries print after a failure. Every printed sentence is rewritten, with
+  the tests asserting it. The measurement variant is called a variant in every sentence, while the
+  sample key stays `arm`: the brain's live harnesses write it into recorded samples, so renaming it
+  would leave every recorded sample unreadable. Eight hits remain and none is prose: that key, four
+  file paths, the `--rederive` flag and a label naming the words `commitlint.py` found. A check
+  that reads these strings is [R-704](704-prosecheck-reads-no-printed-string.md).

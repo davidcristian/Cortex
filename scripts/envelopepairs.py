@@ -35,7 +35,7 @@ def where(key: Key) -> str:
 def _alone(sample: Sample) -> str | None:
     """Why one sample cannot be paired with any other, or ``None`` when it can."""
     if any(cell.seed is None for cell in sample.cells):
-        return f"{sample.path} carries a null seed, and an unseeded run pairs with nothing"
+        return f"{sample.path} has a null seed, and an unseeded run pairs with nothing"
     if len(keyed(sample)) != len(sample.cells):
         return f"{sample.path} holds one cell twice"
     return None
@@ -44,7 +44,7 @@ def _alone(sample: Sample) -> str | None:
 def _against(first: Sample, other: Sample) -> str | None:
     """Why ``other`` does not line up with ``first``, or ``None`` when every cell does."""
     if other.arm != first.arm:
-        return f"{other.path} is arm {other.arm} and {first.path} is arm {first.arm}"
+        return f"{other.path} is variant {other.arm} and {first.path} is variant {first.arm}"
     theirs, ours = keyed(other), keyed(first)
     if theirs.keys() != ours.keys():
         return f"{other.path} does not hold the cells {first.path} does"
@@ -86,8 +86,8 @@ def publish(samples: list[Sample]) -> tuple[str, int]:
         return f"refused: {refused}", 1
     size = len(samples[0].cells)
     lines = [
-        f"{len(samples)} samples of arm {samples[0].arm}, {size} cells each, matched on question,"
-        " draw and seed:"
+        f"{len(samples)} samples of variant {samples[0].arm}, {size} cells each, matched on"
+        " question, draw and seed:"
     ]
     for left, right in combinations(samples, 2):
         differ = differing(left, right)
@@ -103,11 +103,11 @@ def main(argv: list[str] | None = None) -> int:
     """Read the samples, publish or refuse, and return the process exit code."""
     parser = argparse.ArgumentParser(
         description=(
-            "Count the cells two or more seeded runs of one envelope arm drew identically, in"
+            "Count the cells two or more seeded runs of one envelope variant drew identically, in"
             " output and in tokens, for every pair of them."
         ),
     )
-    parser.add_argument("samples", type=Path, nargs="+", help="one envelope-<arm>.json per run")
+    parser.add_argument("samples", type=Path, nargs="+", help="one envelope-<variant>.json per run")
     args = parser.parse_args(argv)
     try:
         samples = [Sample(path, *cells(path)) for path in cast("list[Path]", args.samples)]

@@ -19,11 +19,11 @@ VALUE = "value"
 NAME = "name"
 
 MET = (
-    "so what moved is likely shape this needle carries rather than this {part}, and the constant "
+    "so what moved is likely shape this search text has rather than this {part}, and the constant "
     "to change may not be the one named here"
 )
 APART = (
-    "and no run stops on that line, so what moved is not settled here: a file is free to spell "
+    "and no run stops on that line, so what moved is not settled here: a file is free to write "
     "these characters under another meaning, which is what its own prose does with a value that "
     "is an ordinary word"
 )
@@ -81,12 +81,12 @@ def where(text: str, match: re.Match[str], places: int, *, anchored: bool) -> st
 def stops(text: str, run: str, ends: list[int], at: int | None) -> str:
     """How much of ``needle`` ``text`` contains, and where the occurrence meant stops."""
     if not run:
-        return "carrying no part of it"
-    held = f"carrying no more of it than {run!r}"
+        return "with no part of it"
+    held = f"with no more of it than {run!r}"
     line = line_of(text, (ends[0] if at is None else at) - 1)
     if len(ends) == 1:
         return f"{held}, which stops on line {line}"
-    which = "the first" if at is None else "the nearest to that spelling"
+    which = "the first" if at is None else "the nearest to that form"
     return f"{held}, which stops in {len(ends)} places, {which} on line {line}"
 
 
@@ -122,9 +122,9 @@ def answered(mention: Mention, spelled: str) -> Answered:
 def unfound(mention: Mention, needle: str, text: str, spelled: str) -> str:
     """Why ``text`` does not contain ``needle``, said as how much of it the file still has."""
     run = carried(needle, text)
-    stem = f"{mention.path} does not spell {needle!r} as a token of its own"
+    stem = f"{mention.path} does not write {needle!r} as a token of its own"
     if run == needle:
-        return f"{stem}, carrying it only inside a longer token"
+        return f"{stem}, having it only inside a longer token"
     runs = line_runs(needle, text, bounded(needle))
     ends = anchors(text, run) if runs is None else [each.stop for each in runs]
     held = answered(mention, spelled)
@@ -132,12 +132,12 @@ def unfound(mention: Mention, needle: str, text: str, spelled: str) -> str:
     if not matches:
         stopped = _stopped(text, needle, run, (runs, ends), None)
         return (
-            f"{stem}, {stopped}; the file does not spell {held.spelling!r} as a token of its own "
+            f"{stem}, {stopped}; the file does not write {held.spelling!r} as a token of its own "
             f"either"
         )
     match, at = nearest(ends, matches)
     return (
-        f"{stem}, {_stopped(text, needle, run, (runs, ends), at)}; the file does still spell "
+        f"{stem}, {_stopped(text, needle, run, (runs, ends), at)}; the file does still write "
         f"{held.spelling!r} as a "
         f"token of its own{where(text, match, len(matches), anchored=bool(ends))}, "
         f"{verdict(text, match, at, held.word)}"

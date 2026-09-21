@@ -38,9 +38,9 @@ OVERLAY_COUPLINGS: tuple[Constant, ...] = (
     Constant(
         label="the resizing attribute",
         why=(
-            "the placement writes this attribute while it moves the panel and one rule reads it "
-            "to hide the history's scrollbar thumb, so a rename leaves the thumb riding a resize "
-            "and nothing else says so (ADR-0035)"
+            "the placement writes this attribute while it moves the panel and one rule reads it to "
+            "hide the history's scrollbar thumb, so a rename leaves the thumb showing during a "
+            "resize and nothing else says so (ADR-0035)"
         ),
         sites=(Site("body/app/src/overlay/panelPlacement.ts", "RESIZING_ATTRIBUTE"),),
         mentions=(Mention(OVERLAY_CSS, "[{value}]"),),
@@ -76,7 +76,7 @@ OVERLAY_COUPLINGS: tuple[Constant, ...] = (
         why=(
             "a section's roll animates for this many milliseconds and the stylesheet restates it "
             "as the --roll custom property the two rules that must move WITH a roll spend, so a "
-            "drift lands the section caps' handover and the thoughts marker's turn on a different "
+            "drift puts the section caps' handover and the thoughts marker's turn on a different "
             "clock from the roll they accompany (ADR-0035/0037)"
         ),
         sites=(Site("body/app/src/overlay/morph.ts", "MORPH_ROLL_MS"),),

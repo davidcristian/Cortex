@@ -27,7 +27,7 @@ _UNROWED = (
 )
 _UNINHERITED = (
     "{dockerfile} builds {reference!r} FROM {base!r}, which declares VOLUME {path!r}, and the row "
-    "for {reference!r} in " + RECORD_PATH + " does not carry it; a build from that base inherits "
+    "for {reference!r} in " + RECORD_PATH + " does not contain it; a build from that base inherits "
     "the path, so every container of the rebuilt image takes an anonymous volume there while the "
     "record says the image declares nothing of the kind. Rebuild the image, run `just "
     "image-volumes` to record what it now declares, and mount something at the path."
@@ -73,7 +73,7 @@ def logical(text: str) -> list[tuple[int, str]]:
 def _stage(number: int, argument: str) -> tuple[str | None, str]:
     """One FROM: the stage name it gives, if any, and the image or stage it is built from."""
     if "$" in argument:
-        msg = f"line {number}: FROM {argument!r} carries an expansion only a build can resolve"
+        msg = f"line {number}: FROM {argument!r} contains an expansion only a build can resolve"
         raise DockerfileError(msg)
     written = [token for token in argument.split() if not token.startswith(FLAG)]
     if len(written) == 1:

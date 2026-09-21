@@ -119,13 +119,13 @@ def _refusals(cells: dict[str, tuple[Turn, ...]], rates: dict[str, Rate]) -> lis
     if stood:
         lines.append(
             f"refused: {len(stood)} of {len(rates)} control cell(s) stood on fewer than"
-            f" {FLOOR:.0%} of their own runs, so what these arms differ by is the pick failing the"
-            " subtask and not the envelope."
+            f" {FLOOR:.0%} of their own runs, so what these variants differ by is the pick failing"
+            " the subtask and not the envelope."
         )
     if short:
         lines.append(
             f"refused: {len(short)} of {len(rates)} control cell(s) delivered on fewer than"
-            f" {FLOOR:.0%} of the runs a judge could read, so this control arm was asked the"
+            f" {FLOOR:.0%} of the runs a judge could read, so this control variant was asked the"
             " subtask and did not do it."
         )
     if lines:
@@ -140,18 +140,18 @@ def publish(arms: list[Arm], reading: Reading = TABLED) -> tuple[str, int]:
     """The report and the exit code: the control first, and the comparison only if it holds."""
     cells = _control_cells(arms)
     lines = [
-        f"{len(arms)} arm sample(s): {', '.join(sorted({arm.name for arm in arms}))}",
+        f"{len(arms)} variant sample(s): {', '.join(sorted({arm.name for arm in arms}))}",
         f"delivered read under: {reading.rendered()}; every floor held under {TABLED.rendered()}",
         "",
-        "the control arm, per subtask shape (stood = accepted, not empty, not the ask or the"
+        "the control variant, per subtask shape (stood = accepted, not empty, not the ask or the"
         " body handed back; delivered = judged against the shape, where a judge is declared for"
         " it):",
     ]
     if not cells:
-        lines.append("  none of these samples is the control arm")
+        lines.append("  none of these samples is the control variant")
         lines.append(
             "refused: nothing here is a comparison. Every rate this harness publishes is read"
-            " against the arm carrying no grammar and no sentence, and this run drew none."
+            " against the variant with no grammar and no sentence, and this run drew none."
         )
         return "\n".join(lines), 1
     rates = {shape: rate(turns, reading) for shape, turns in cells.items()}
@@ -160,7 +160,7 @@ def publish(arms: list[Arm], reading: Reading = TABLED) -> tuple[str, int]:
     if under:
         lines.extend(under)
         return "\n".join(lines), 1
-    lines.extend(["", "the comparison, per arm over every shape:"])
+    lines.extend(["", "the comparison, per variant over every shape:"])
     lines.extend(f"  {arm.name:<12} {rate(arm.turns, reading).rendered()}" for arm in arms)
     return "\n".join(lines), 0
 
@@ -169,11 +169,13 @@ def main(argv: list[str] | None = None) -> int:
     """Read the samples, publish or refuse, and return the process exit code."""
     parser = argparse.ArgumentParser(
         description=(
-            "Report an envelope measurement's control arm per subtask shape, and publish the"
-            " comparison between its arms only while that control arm stands."
+            "Report an envelope measurement's control variant per subtask shape, and publish the"
+            " comparison between its variants only while that control variant stands."
         ),
     )
-    parser.add_argument("samples", type=Path, nargs="+", help="one envelope-<arm>.json per arm")
+    parser.add_argument(
+        "samples", type=Path, nargs="+", help="one envelope-<variant>.json per variant"
+    )
     parser.add_argument(
         "--comma", choices=COMMAS, default=TABLED.comma, help="how a comma between digits reads"
     )

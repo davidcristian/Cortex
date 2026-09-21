@@ -24,7 +24,7 @@ SHIPPED_COUPLINGS: tuple[Constant, ...] = (
     Constant(
         label="the salience limit's shipped default",
         why=(
-            "the compose stack spells the core's default into every container it starts, so "
+            "the compose stack writes the core's default into every container it starts, so "
             "retuning the core constant alone would leave every deployment still running the "
             "old number with nothing saying so (ADR-0009 decision 12)"
         ),
@@ -38,7 +38,7 @@ SHIPPED_COUPLINGS: tuple[Constant, ...] = (
     Constant(
         label="the salience rule the stack ships",
         why=(
-            "the same knob's other half: the base compose file names which rule a loop runs "
+            "the same setting's other half: the base compose file names which rule a loop runs "
             "under and the runbook tells an operator which one is running, so a retuned default "
             "with the substitution left alone would ship the old rule to every deployment while "
             "the field claimed the new one (ADR-0009 decision 12)"
@@ -96,7 +96,7 @@ SHIPPED_COUPLINGS: tuple[Constant, ...] = (
     Constant(
         label="the longest a turn may be silent between two of its events",
         why=(
-            "the same three readers carry this one, and it is the number that decides whether a "
+            "the same three readers contain this one, and it is the number that decides whether a "
             "delegated batch is allowed to finish: a contract or a runbook still quoting the old "
             "one would tell a reader a turn survives a silence the body now ends "
             "(ADR-0024 decision 20)"
@@ -123,10 +123,10 @@ SHIPPED_COUPLINGS: tuple[Constant, ...] = (
         ),
     ),
     Constant(
-        label="the longest deadline the seam is willing to announce",
+        label="the longest deadline the gRPC header can announce",
         why=(
-            "the grace above is only a margin while the header can carry the announcement in "
-            "milliseconds; one rung higher the unit is a whole second and the announcement arms "
+            "the grace above is only a margin while the header can hold the announcement in "
+            "milliseconds; one rung higher the unit is a whole second and the announcement starts "
             "tonic's own clock under the bound the core enforces, so the adapter rejects it "
             "there, and its contract quotes the rung as the number a future agent reads instead "
             "of the tree (ADR-0024 decision 16)"
@@ -154,7 +154,7 @@ SHIPPED_COUPLINGS: tuple[Constant, ...] = (
         label="the display zone every deployment renders in",
         why=(
             "the core names the zone a schedule datetime renders in when the deployment names "
-            "none, and the base compose file spells that same key as its own substitution "
+            "none, and the base compose file writes that same key as its own substitution "
             "default, so a renamed key would leave every composed deployment asking for a zone "
             "the brain refuses at startup (ADR-0065 decision 1)"
         ),
@@ -165,9 +165,9 @@ SHIPPED_COUPLINGS: tuple[Constant, ...] = (
         label="the log rendering both brain processes ship with",
         why=(
             "the core declares which rendering a process entry installs when its env names "
-            "none, and each compose service spells that same name as its own substitution "
+            "none, and each compose service writes that same name as its own substitution "
             "default, so a renamed rendering would leave every composed deployment asking for "
-            "one this build no longer carries and failing at startup"
+            "one this build no longer has and failing at startup"
         ),
         sites=(Site(LOG_FORMAT, "PLAIN_FORMAT"),),
         mentions=(

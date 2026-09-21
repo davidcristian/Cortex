@@ -193,7 +193,7 @@ def test_a_server_started_on_the_engines_own_prompt_cache_is_a_fault(
     faults = check(copied(tmp_path, [(compose, CACHE_ITEMS, "")])).faults
     assert [fault.file for fault in faults] == [f"docker/{compose}"]
     assert faults[0].detail.startswith("the host-RAM prompt cache, turned off:")
-    assert "it carries no --cache-ram" in faults[0].detail
+    assert "it has no --cache-ram" in faults[0].detail
 
 
 def test_a_server_started_at_a_cache_size_the_tier_does_not_ship_is_a_fault(
@@ -232,7 +232,7 @@ def test_a_cpu_server_in_a_third_file_is_held_to_carrying_a_thread_count(tmp_pat
     faults = check(root).faults
     assert [fault.service for fault in faults] == ["llama-subagent-third"]
     assert faults[0].detail.startswith("a thread count on a server that offloads no layer:")
-    assert "it carries no --threads" in faults[0].detail
+    assert "it has no --threads" in faults[0].detail
 
 
 @pytest.mark.parametrize("compose", [SUBAGENTS, ROSTER])
@@ -241,7 +241,7 @@ def test_a_shipped_cpu_server_losing_its_thread_count_is_a_fault(
 ) -> None:
     faults = check(copied(tmp_path, [(compose, THREADS_ITEMS, "")])).faults
     assert [fault.file for fault in faults] == [f"docker/{compose}"]
-    assert "it carries no --threads" in faults[0].detail
+    assert "it has no --threads" in faults[0].detail
 
 
 def test_a_server_offloading_its_layers_is_asked_for_no_thread_count(tmp_path: Path) -> None:

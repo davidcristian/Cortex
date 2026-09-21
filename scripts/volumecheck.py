@@ -29,11 +29,11 @@ _STALE = (
 )
 _SUBSTITUTED = (
     "service {service!r} names its image as {reference!r}, and the record is keyed on the image a "
-    "container really runs, which a substitution does not spell. Write the image out."
+    "container really runs, which a substitution does not name. Write the image out."
 )
 _UNPROJECTED = (
     "service {service!r} builds its image and names none, so compose runs it as "
-    "`<project>-{service}`, and no base compose file pins one project name for that to resolve to."
+    "`<project>-{service}`, and no base compose file sets one project name for that to resolve to."
 )
 
 
@@ -234,7 +234,7 @@ def main(argv: list[str] | None = None, inspect: Inspector = docker_volumes) -> 
         f"over {scanned.files} compose file(s), {scanned.definitions} service definition(s) and "
         f"{len(scanned.names)} image(s) counting the bases those builds stand on, and "
         f"{len(scanned.dockerfiles)} Dockerfile(s) here declare and inherit nothing their row "
-        "does not carry, triggers included"
+        "does not contain, triggers included"
     )
     return 0
 

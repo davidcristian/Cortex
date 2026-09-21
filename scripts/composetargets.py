@@ -64,7 +64,7 @@ class Targets:
         """The container path a short-syntax mount names, its second colon-separated field."""
         text = strip_quotes(entry)
         if "$" in text:
-            msg = f"line {number}: short mount {entry!r} carries an expansion; use the long form"
+            msg = f"line {number}: short mount {entry!r} contains an expansion; use the long form"
             raise ComposeServiceError(msg)
         parts = text.split(":")
         if len(parts) < _FIELDS:

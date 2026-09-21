@@ -79,7 +79,7 @@ FIXTURE_COUPLINGS: tuple[Constant, ...] = (
     Constant(
         label="the probe's subscribed child that flags its parent",
         why=(
-            "the parent above carries `\\Noselect` only because this child is subscribed and it "
+            "the parent above has `\\Noselect` only because this child is subscribed and it "
             "is not, so this name is the entire cause of the flag, and a rename that moved the "
             "mailbox and left the subscription line, or the reverse, would take the flag off the "
             "parent while every mailbox the suite names still existed: the reading would go quiet "

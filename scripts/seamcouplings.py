@@ -19,10 +19,11 @@ SEAM_COUPLINGS: tuple[Constant, ...] = (
         ),
     ),
     Constant(
-        label="the seam token's metadata key",
+        label="the gRPC token's metadata key",
         why=(
-            "each side attaches the token under this key and the other reads it back out, in "
-            "both seam directions, so a disagreement fails every authenticated call (ADR-0016)"
+            "each side attaches the token under this key and the other reads it back out, in both "
+            "directions across the boundary, so a disagreement fails every authenticated call "
+            "(ADR-0016)"
         ),
         sites=(
             Site("body/crates/rpc/src/auth.rs", "SEAM_TOKEN_HEADER"),
@@ -37,7 +38,7 @@ SEAM_COUPLINGS: tuple[Constant, ...] = (
             "the brain bounds every title it lists to this, and the overlay bounds the live "
             "title it derives for a chat the brain has not listed yet, so a disagreement shows "
             "one chat under two names at once: the header cut at one bound while its own "
-            "switcher row carries the other (ADR-0021)"
+            "switcher row has the other (ADR-0021)"
         ),
         sites=(
             Site("brain/packages/core/src/cortex_core/sessions.py", "TITLE_MAX"),
@@ -61,7 +62,7 @@ SEAM_COUPLINGS: tuple[Constant, ...] = (
         label="the capture encoding inside the brain's allow-list",
         why=(
             "the body encodes every capture as this one type and the brain refuses any image "
-            "whose type its allow-list does not carry, so an encoding the list lost would spend "
+            "whose type its allow-list does not contain, so an encoding the list lost would spend "
             "a real capture on an image the brain then throws away (ADR-0029)"
         ),
         sites=(
@@ -73,7 +74,7 @@ SEAM_COUPLINGS: tuple[Constant, ...] = (
     Constant(
         label="the body-client receive limit above the capture ceiling",
         why=(
-            "a capture rides back to the brain as one gRPC message, so a receive limit at or "
+            "a capture goes back to the brain as one gRPC message, so a receive limit at or "
             "below the byte ceiling would refuse in the transport a capture both policies "
             "allowed, and the refusal would read as a body fault (ADR-0023/0029)"
         ),

@@ -17,7 +17,7 @@ LEVER_COUPLINGS: tuple[Constant, ...] = (
         why=(
             "the brain renders `GenerationBounds.trace_tokens` under this key and probes an "
             "endpoint with it at boot, and the GPU runbook prints the `curl` an operator asks "
-            "that same question with, so a key the request stopped carrying would leave that "
+            "that same question with, so a key the request stopped sending would leave that "
             "command, two module contracts and two runbook paragraphs describing a request this "
             "repo does not send (ADR-0049)"
         ),

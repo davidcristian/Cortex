@@ -59,7 +59,7 @@ def _short_mount(line: int, item: str) -> Mount | None:
         msg = f"line {line}: flow-style mount entry {item!r} is not supported; use the block form"
         raise ComposeReadError(msg)
     if "$" in text:
-        msg = f"line {line}: short-syntax mount {item!r} carries an expansion; use the long form"
+        msg = f"line {line}: short-syntax mount {item!r} contains an expansion; use the long form"
         raise ComposeReadError(msg)
     source, separator, _ = text.partition(":")
     if not separator:

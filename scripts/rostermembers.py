@@ -123,7 +123,7 @@ def cross_tree_scans(root: Path) -> frozenset[str]:
         found = scanrecipes.scan_modules(root)
     except ScanReadError as err:
         raise MemberError(str(err)) from err
-    return _floored(found, "the cross-tree scans the gate runs")
+    return _floored(found, "the cross-tree scans `just check` runs")
 
 
 def brain_packages(root: Path) -> frozenset[str]:

@@ -52,12 +52,12 @@ def test_load_refuses_a_sample_that_is_not_an_object(tmp_path: Path) -> None:
 
 
 def test_load_refuses_a_sample_naming_no_arm(tmp_path: Path) -> None:
-    with pytest.raises(contrast.ContrastError, match="names no arm"):
+    with pytest.raises(contrast.ContrastError, match="names no variant under `arm`"):
         contrast.load(write(tmp_path / "n.json", {"turns": [turn("q", 1.0, 1.5)]}))
 
 
 def test_load_refuses_a_sample_carrying_no_turns_list(tmp_path: Path) -> None:
-    with pytest.raises(contrast.ContrastError, match="carries no turns list"):
+    with pytest.raises(contrast.ContrastError, match="has no turns list"):
         contrast.load(write(tmp_path / "n.json", {"arm": "raw", "turns": "several"}))
 
 

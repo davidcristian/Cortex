@@ -206,7 +206,7 @@ def test_a_bare_name_key_pins_nothing() -> None:
         ("services:\n  r:\n    volumes: [a:/a]\n", "inline volumes list"),
         ("services:\n  r:\n    image:\n", "image key names nothing"),
         ("services:\n  r:\n    volumes:\n      - {type: bind}\n", "flow-style entry"),
-        ("services:\n  r:\n    volumes:\n      - ${DIR:-./x}:/x\n", "carries an expansion"),
+        ("services:\n  r:\n    volumes:\n      - ${DIR:-./x}:/x\n", "contains an expansion"),
         ("services:\n  r:\n    volumes:\n      - /x\n", "is not source:target"),
         ("services:\n  r:\n    volumes:\n      - type: bind\n        source: ./x\n", "no target"),
         ("services:\n  r:\n    volumes:\n      - type: bind\n        oops\n", "is not a mount key"),

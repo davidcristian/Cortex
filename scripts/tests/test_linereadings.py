@@ -100,7 +100,7 @@ def test_a_single_best_line_is_named_with_its_share_and_its_words() -> None:
     needle = '"127.0.0.1:50051:50051"'
     runs = _runs(needle, '      - "0.0.0.0:50051:50051"\n') or []
     assert linereadings.said(runs, needle, None) == (
-        "carrying the most of it on line 1, 14 of its 23 characters (its opening '\"' and its "
+        "with the most of it on line 1, 14 of its 23 characters (its opening '\"' and its "
         "closing ':50051:50051\"'), where it reads '- \"0.0.0.0:50051:50051\"'"
     )
 
@@ -108,7 +108,7 @@ def test_a_single_best_line_is_named_with_its_share_and_its_words() -> None:
 def test_tied_lines_are_counted_and_the_first_named_without_a_pairing() -> None:
     runs = _runs("abcdef", "abcdeX\nabcdeY\n") or []
     assert linereadings.said(runs, "abcdef", None) == (
-        "carrying the most of it on 2 lines, 5 of its 6 characters (its opening 'abcde') each, "
+        "with the most of it on 2 lines, 5 of its 6 characters (its opening 'abcde') each, "
         "the first on line 1, where it reads 'abcdeX'"
     )
 
@@ -116,12 +116,12 @@ def test_tied_lines_are_counted_and_the_first_named_without_a_pairing() -> None:
 def test_tied_lines_name_the_one_another_reading_was_paired_with() -> None:
     runs = _runs("abcdef", "abcdeX\nZbcdef\n") or []
     said = linereadings.said(runs, "abcdef", runs[1].stop)
-    assert "(its closing 'bcdef') each, the nearest to that spelling on line 2" in said
+    assert "(its closing 'bcdef') each, the nearest to that form on line 2" in said
     assert "where it reads 'Zbcdef'" in said
 
 
 def test_no_line_carrying_half_is_said_as_such() -> None:
-    assert linereadings.said([], "abcdef", None) == "carrying less than half of it on any line"
+    assert linereadings.said([], "abcdef", None) == "with less than half of it on any line"
 
 
 def test_a_long_line_is_quoted_around_the_run_it_carries() -> None:
@@ -165,9 +165,9 @@ def test_a_moved_interface_is_read_on_its_own_line_and_not_on_a_sibling(tmp_path
         encoding="utf-8",
     )
     (fault,) = crosscheck.check_constant(tmp_path, _SEAM)
-    assert "carrying the most of it on line 2, 14 of its 23 characters" in fault.detail
+    assert "with the most of it on line 2, 14 of its 23 characters" in fault.detail
     assert "line 5" not in fault.detail
-    assert "so what moved is likely shape this needle carries" in fault.detail
+    assert "so what moved is likely shape this search text has" in fault.detail
 
 
 _ENDPOINT = crosscheck.Constant(
@@ -195,7 +195,7 @@ def test_a_half_applied_rename_names_the_line_it_left(tmp_path: Path) -> None:
     _runbook(tmp_path, _RUNBOOK.replace(":50151 just", ":50152 just"))
     (fault,) = crosscheck.check_constant(tmp_path, _ENDPOINT)
     assert (
-        "found 1 (on line 1), pinned 2; outside those, the file is carrying the most of it on "
+        "found 1 (on line 1), set to 2; outside those, the file is with the most of it on "
         "line 5, 25 of its 26 characters"
     ) in fault.detail
     assert "on line 5, 25 of its 26 characters (its opening 'host.docker.internal:5015')" in (
@@ -209,7 +209,7 @@ def test_a_half_applied_rename_names_the_line_it_left(tmp_path: Path) -> None:
 def test_a_deleted_occurrence_is_read_on_what_is_left_and_quoted(tmp_path: Path) -> None:
     _runbook(tmp_path, _RUNBOOK.replace("    CORTEX_BODY_ENDPOINT=host.docker.internal:50151", ""))
     (fault,) = crosscheck.check_constant(tmp_path, _ENDPOINT)
-    assert "found 1 (on line 1), pinned 2" in fault.detail
+    assert "found 1 (on line 1), set to 2" in fault.detail
     assert "on line 3, 21 of its 26 characters (its opening 'host.docker.internal:')" in (
         fault.detail
     )
@@ -222,6 +222,6 @@ def test_a_deleted_occurrence_with_nothing_like_it_left_names_no_line(tmp_path: 
     _runbook(tmp_path, "The brain dials `host.docker.internal:50151`.\n\nSee the host.\n")
     (fault,) = crosscheck.check_constant(tmp_path, _ENDPOINT)
     assert (
-        "found 1 (on line 1), pinned 2; outside those, the file is carrying less than half of it "
+        "found 1 (on line 1), set to 2; outside those, the file is with less than half of it "
         "on any line; move the whole set"
     ) in fault.detail

@@ -2,9 +2,7 @@ from subagentflags import REQUIREMENTS, Flag, Requirement, applies, missing
 
 
 def test_a_flag_the_argv_does_not_carry_is_missing() -> None:
-    assert (
-        missing(("--jinja",), Flag("--reasoning-budget", "0")) == "it carries no --reasoning-budget"
-    )
+    assert missing(("--jinja",), Flag("--reasoning-budget", "0")) == "it has no --reasoning-budget"
 
 
 def test_a_flag_that_takes_no_value_is_satisfied_by_being_there() -> None:

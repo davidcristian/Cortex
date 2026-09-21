@@ -86,12 +86,10 @@ def rendered(mention: Mention, value: Value) -> str:
         )
         raise CrossCheckError(msg)
     if renders_name and mention.name is None:
-        msg = f"mention {mention.template!r} renders a name the mention does not carry"
+        msg = f"mention {mention.template!r} renders a name the mention does not have"
         raise CrossCheckError(msg)
     if mention.name is not None and not renders_name:
-        msg = (
-            f"mention {mention.template!r} carries the name {mention.name!r} and renders it nowhere"
-        )
+        msg = f"mention {mention.template!r} has the name {mention.name!r} and renders it nowhere"
         raise CrossCheckError(msg)
     spelled = mention.template.replace(PLACEHOLDER, spell(value, mention.spelling))
     return spelled if mention.name is None else spelled.replace(NAME_PLACEHOLDER, mention.name)
@@ -101,7 +99,7 @@ def check_mention(root: Path, mention: Mention, value: Value) -> None:
     """Raise unless the file contains ``value`` in the form, and as often, as the mention says."""
     wanted = mention.occurrences
     if wanted is not None and wanted < MIN_OCCURRENCES:
-        msg = f"mention {mention.template!r} pins {wanted} occurrences, which ties nothing"
+        msg = f"mention {mention.template!r} sets {wanted} occurrences, which ties nothing"
         raise CrossCheckError(msg)
     needle = rendered(mention, value)
     text = _read(root, mention.path)
@@ -110,14 +108,14 @@ def check_mention(root: Path, mention: Mention, value: Value) -> None:
     found = len(matches)
     if not found:
         reading = unfound(mention, needle, text, spell(value, mention.spelling))
-        tail = "" if wanted is None else f"; the registry pins {wanted} occurrences, so {RECOUNT}"
+        tail = "" if wanted is None else f"; the registry sets {wanted} occurrences, so {RECOUNT}"
         msg = f"{reading}{tail}"
         raise CrossCheckError(msg)
     if wanted is not None and found != wanted:
         rest = short(needle, text, pattern) if found < wanted else ""
         msg = (
-            f"{mention.path} spells {needle!r} as a token of its own: found {found}"
-            f"{counted(text, matches)}, pinned {wanted}{rest}; {RECOUNT}"
+            f"{mention.path} writes {needle!r} as a token of its own: found {found}"
+            f"{counted(text, matches)}, set to {wanted}{rest}; {RECOUNT}"
         )
         raise CrossCheckError(msg)
 
@@ -129,7 +127,7 @@ def registry_fault(constant: Constant) -> str | None:
     if len(constant.sites) + len(constant.mentions) < MIN_PLACES:
         return "names fewer than two places, so it compares nothing"
     if constant.relation is not Relation.EQUAL and constant.mentions:
-        return f"is {constant.relation.value}, so it has no one value a mention could spell"
+        return f"is {constant.relation.value}, so it has no one value a mention could write"
     return spelling_fault(constant) or spend_fault(constant)
 
 
@@ -185,7 +183,7 @@ def check(root: Path, constants: tuple[Constant, ...] | None = None) -> list[Fau
 def main(argv: list[str] | None = None) -> int:
     """Run the check; print any faults and return the process exit code."""
     parser = argparse.ArgumentParser(
-        description="Fail when a constant spelled in two trees stops agreeing with itself.",
+        description="Fail when a constant written in two trees stops agreeing with itself.",
     )
     parser.add_argument(
         "--root",
@@ -212,7 +210,7 @@ def main(argv: list[str] | None = None) -> int:
     print(
         f"crosscheck OK: {size.entries} cross-tree constant(s) under {root} agree, "
         f"over {size.sites} declaring site(s) and {size.mentions} mention(s), "
-        f"{size.counted} of them pinned to a count"
+        f"{size.counted} of them held to a count"
     )
     return 0
 

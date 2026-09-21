@@ -40,7 +40,7 @@ def unfired(plain: str) -> str:
     """Why a control that did not fire measures nothing, read off the tail the key left alone."""
     if not marked(plain):
         return (
-            "the switch stopped nothing; the tail rendered with the key left alone carries no"
+            "the switch stopped nothing; the tail rendered with the key left alone has no"
             " marker of either format here, so either this prompt invites no thought on this tier"
             " or the template closed the thought with a marker this reader does not list"
         )
@@ -61,7 +61,7 @@ def _tails(probe: Probe, lines: list[str]) -> dict[bool, str] | None:
         if read is None:
             lines.append(
                 f"  refused: the rendering with the switch {'sent' if switch else 'left alone'}"
-                " does not carry the ask this run sent, so it has no tail to read"
+                " does not contain the ask this run sent, so it has no tail to read"
             )
             return None
         found[switch] = read
@@ -72,7 +72,7 @@ def _tails(probe: Probe, lines: list[str]) -> dict[bool, str] | None:
     lines.append(f"    the template {reads} the key ({len(plain)} chars against {len(switched)})")
     if not marked(found[True]) and found[True] != found[False]:
         lines.append(
-            "  refused: the switched tail carries no marker of either format here and is not the"
+            "  refused: the switched tail has no marker of either format here and is not the"
             " tail this template renders with the key left alone, so it answered in an"
             " unrecognized format and this reader cannot say whether that thought is closed"
         )
@@ -85,7 +85,7 @@ def _judged(probe: Probe, plain: str, lines: list[str]) -> Cell | None:
     control, cell = probe.cell(switch=False), probe.cell(switch=True)
     if control is None or cell is None:
         lines.append(
-            "  refused: a prediction is about the cell carrying a schema and the switch, and"
+            "  refused: a prediction is about the cell with a schema and the switch, and"
             " this sample does not hold that cell beside its own control"
         )
         return None
@@ -128,7 +128,7 @@ def read(probe: Probe) -> tuple[list[str], int]:
         lines.append(f"  agreed: {said} on {cell.draws} draws")
         return lines, 0
     lines.append(
-        f"  refused: {said} on {cell.draws} draws. The rule two documents carry is a set of"
+        f"  refused: {said} on {cell.draws} draws. The rule two documents contain is a set of"
         " readings of one engine's handlers and this tier is not one of them: read the tail"
         " above against the record before quoting either."
     )
@@ -146,7 +146,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
             "Report what a tier's own chat template rendered for a thinking switch, and hold the"
-            " rule that reads its constrained verdict off that rendering to what was measured."
+            " rule that reads its constrained result off that rendering to what was measured."
         ),
     )
     parser.add_argument("samples", type=Path, nargs="+", help="one switch-<model>.json per tier")

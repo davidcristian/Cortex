@@ -25,7 +25,7 @@ CAPTURE_COUPLINGS: tuple[Constant, ...] = (
     Constant(
         label="the capture call's shipped deadline",
         why=(
-            "the compose stack spells this default into every container it starts and two "
+            "the compose stack writes this default into every container it starts and two "
             "runbooks quote it as the number an operator is running, so retuning the adapter "
             "alone would leave every deployment waiting the old one (ADR-0029)"
         ),
@@ -40,8 +40,8 @@ CAPTURE_COUPLINGS: tuple[Constant, ...] = (
     Constant(
         label="the other calls' shipped deadline",
         why=(
-            "the same four places spell the short deadline the volume and notify calls run "
-            "under, so the knob an operator reads and the number the adapter uses are one value "
+            "the same four places write the short deadline the volume and notify calls run "
+            "under, so the setting an operator reads and the number the adapter uses are one value "
             "or they are a documented lie (ADR-0029)"
         ),
         sites=(Site(BODY_GATEWAY, "DEFAULT_CALL_TIMEOUT_S"),),
@@ -113,7 +113,7 @@ CAPTURE_COUPLINGS: tuple[Constant, ...] = (
     Constant(
         label="the capture byte budget's shipped default",
         why=(
-            "the brain's budget defaults to the body's own ceiling, and the stack spells that "
+            "the brain's budget defaults to the body's own ceiling, and the stack writes that "
             "number again while the vision runbook quotes it as the shipped budget and again as "
             "the top of the range the field accepts, so a tightened ceiling with either left "
             "alone would ask every deployment for more bytes than either end now allows "

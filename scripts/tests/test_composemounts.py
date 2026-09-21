@@ -82,7 +82,7 @@ def test_nothing_outside_a_volumes_block_is_read() -> None:
         ("services:\n  a:\n    volumes:\n      - source: ./x\n", "declares no type"),
         ("services:\n  a:\n    volumes:\n      - type: sorcery\n        source: ./x\n", "unknown"),
         ("services:\n  a:\n    volumes:\n      - type: bind\n        target: /x\n", "no source"),
-        ('services:\n  a:\n    volumes:\n      - "${X:-./y}:/z"\n', "carries an expansion"),
+        ('services:\n  a:\n    volumes:\n      - "${X:-./y}:/z"\n', "contains an expansion"),
         ("services:\n  a:\n    volumes:\n      - loose\n", "is not source:target"),
         ("services:\n  a:\n    volumes:\n      - type: bind\n        loose\n", "not a mount key"),
         ("services:\n  a:\n    volumes:\n      - v:/d\n        stray: true\n", "not a mount key"),

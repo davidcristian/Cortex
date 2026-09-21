@@ -35,7 +35,7 @@ LOG_COUPLINGS: tuple[Constant, ...] = (
             "eleven modules attach the conversation a line is about and the recall trail is read "
             "beside the turn failures and the handoff for the same chat, so a name that moved in "
             "one of them would split one investigation's evidence in two without any suite "
-            "noticing, which is what happened for as long as the trail spelled it `session` "
+            "noticing, which is what happened for as long as the trail wrote it `session` "
             "(ADR-0046 decision 1); the two runbooks are the far side no import "
             "could reach, telling an operator to grep the field by name"
         ),
@@ -65,7 +65,7 @@ LOG_COUPLINGS: tuple[Constant, ...] = (
             "recall it made and every line about the handoff it asked for are joined by, which "
             "three runbooks state as a grep, so the nine modules that attach it and those "
             "instructions have to keep "
-            "saying the same word (ADR-0046 decision 1); the swap path spelled it "
+            "saying the same word (ADR-0046 decision 1); the swap path wrote it "
             "`turn` and `handoff` until the mint was read and a handoff id turned out to be the "
             "escalating turn's own"
         ),
@@ -105,7 +105,7 @@ LOG_COUPLINGS: tuple[Constant, ...] = (
         label="the field a brain log line names the fired schedule item under",
         why=(
             "one grep by item is meant to reach the fire, the work firing it caused and the "
-            "ticker's own account of how it went, and it did not while the ticker spelled the "
+            "ticker's own account of how it went, and it did not while the ticker wrote the "
             "same id `reminder_id` (ADR-0046 decision 1); the two runbooks print "
             "the field in the lines they tell an operator to look for"
         ),

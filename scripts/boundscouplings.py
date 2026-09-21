@@ -19,14 +19,13 @@ BOUNDS_COUPLINGS: tuple[Constant, ...] = (
         label="the delegated run's shipped deadline",
         why=(
             "the deadline on a whole delegated run is declared in the core module the runner "
-            "spends it from, quoted to an operator by the delegation runbook as the number a "
-            "run is stopped at, quoted again by the tool runbook as the bound one tool call has "
-            "to fit inside, restated in the module contract a future agent reads instead of "
-            "the tree, and quoted across the seam by the comment declaring the body's idle gap, "
-            "which is sized from it, so retuning the declaration alone would leave three "
-            "documents claiming a number no run is given and the body bounding a turn's silence "
-            "by a run length that moved (ADR-0048, ADR-0047 decision 3, "
-            "ADR-0024 decision 20)"
+            "spends it from, quoted to an operator by the delegation runbook as the number a run "
+            "is stopped at, quoted again by the tool runbook as the bound one tool call has to fit "
+            "inside, restated in the module contract a future agent reads instead of the tree, and "
+            "quoted across the body and brain boundary by the comment declaring the body's idle "
+            "gap, which is sized from it, so retuning the declaration alone would leave three "
+            "documents claiming a number no run is given and the body bounding a turn's silence by "
+            "a run length that moved (ADR-0048, ADR-0047 decision 3, ADR-0024 decision 20)"
         ),
         sites=(Site(SUBAGENTS_CORE, "DEFAULT_SUBAGENT_RUN_TIMEOUT_S"),),
         mentions=(
@@ -73,7 +72,7 @@ BOUNDS_COUPLINGS: tuple[Constant, ...] = (
             "config module the adapter builds its read timeout from, quoted to an operator by "
             "the delegation runbook as the gap a spawn is failed on, restated in the "
             "orchestrator contract as the field's own default, cited by the inference contract "
-            "as the CPU pool's half of the two stall ceilings that adapter carries, and asserted "
+            "as the CPU pool's half of the two stall ceilings that adapter has, and asserted "
             "as the lower end of an ordering by the core module declaring the run deadline that "
             "has to clear it, so retuning the declaration alone would leave three documents and "
             "one comment quoting a ceiling no stream is held to (ADR-0005 decision 7, "
@@ -99,11 +98,11 @@ BOUNDS_COUPLINGS: tuple[Constant, ...] = (
         label="the admission wait's shipped default",
         why=(
             "the bound on how long a spawn may queue for room is declared in the core module the "
-            "scheduler defaults from, quoted to an operator by the delegation runbook as the "
-            "wait the refusal names, restated in the two module contracts a future agent reads "
-            "instead of the tree, asserted as the upper end of an ordering by the sibling "
-            "module declaring the run deadline that has to sit under it, and quoted across the "
-            "seam by the comment declaring the body's idle gap, which is sized from it, so "
+            "scheduler defaults from, quoted to an operator by the delegation runbook as the wait "
+            "the refusal names, restated in the two module contracts a future agent reads instead "
+            "of the tree, asserted as the upper end of an ordering by the sibling module declaring "
+            "the run deadline that has to sit under it, and quoted across the body and brain "
+            "boundary by the comment declaring the body's idle gap, which is sized from it, so "
             "retuning the declaration alone would leave four places quoting a bound no spawn is "
             "given and the body cutting a turn the brain is still allowed to be working on "
             "(ADR-0012 decision 11, ADR-0024 decision 20)"

@@ -160,7 +160,7 @@ def main(argv: list[str] | None = None) -> int:
         print(
             f"\ndashcheck: {len(violations)} line(s) use a banned dash. "
             f"For punctuation, restructure the sentence rather than swapping in another "
-            f"mark; a range takes a plain hyphen. If the dash carries meaning, add "
+            f"mark; a range takes a plain hyphen. If the dash has a meaning, add "
             f"'{ALLOW_PRAGMA}' with a reason.",
             file=sys.stderr,
         )

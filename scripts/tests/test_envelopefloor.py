@@ -166,7 +166,7 @@ def test_publish_reports_the_control_arm_then_the_comparison(tmp_path: Path) -> 
     assert code == 0
     assert "stood on 32 of 32 (0.89 to 1.00), delivered 32 of 32 (0.89 to 1.00)" in report
     assert "delivered read under: comma charitable, refusal strict, naming strict" in report
-    assert "the comparison, per arm over every shape:" in report
+    assert "the comparison, per variant over every shape:" in report
     assert "constrained stood on 30 of 32 (0.80 to 0.98), delivered 30 of 32" in " ".join(
         report.split()
     )
@@ -218,7 +218,7 @@ def test_publish_refuses_a_run_that_drew_no_control_arm(tmp_path: Path) -> None:
     arms = [load(sample(tmp_path / "con.json", "constrained", runs(8), control=False))]
     report, code = envelopefloor.publish(arms)
     assert code == 1
-    assert "none of these samples is the control arm" in report
+    assert "none of these samples is the control variant" in report
     assert "the comparison, per arm" not in report
 
 
@@ -227,7 +227,7 @@ def test_main_publishes_and_returns_zero(
 ) -> None:
     path = sample(tmp_path / "raw.json", "raw", runs(32), control=True)
     assert envelopefloor.main([str(path)]) == 0
-    assert "the comparison, per arm over every shape:" in capsys.readouterr().out
+    assert "the comparison, per variant over every shape:" in capsys.readouterr().out
 
 
 def test_main_reads_the_columns_it_was_asked_for(

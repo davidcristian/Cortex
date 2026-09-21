@@ -18,23 +18,25 @@ JSON_OPENERS = ("[", "{")
 _UNDECLARED = (
     "{dockerfile} declares VOLUME {path!r}, and the row for {reference!r} in "
     + RECORD_PATH
-    + " does not carry it; every container of that image then takes an anonymous volume there "
+    + " does not contain it; every container of that image then takes an anonymous volume there "
     "while the record says the image declares nothing. Rebuild the image, run `just "
     "image-volumes` to record what it now declares, and mount something at the path."
 )
 _NOWHERE = (
-    "the image {reference!r} is built from {context!r}, where no {dockerfile} lands under either "
+    "the image {reference!r} is built from {context!r}, where no {dockerfile} exists under either "
     "project directory compose can pick; the row for it in " + RECORD_PATH + " then describes an "
     "image nothing here builds. Point the build stanza at the file that builds it."
 )
 _UNRESOLVED = (
-    "the image {reference!r} is built from {written!r}, which carries a substitution only a build "
+    "the image {reference!r} is built from {written!r}, which contains a substitution only a build "
     "can resolve, so nothing here can read what that file declares. Write the path out."
 )
 _UNREADABLE = "{dockerfile} builds {reference!r} and could not be read: {detail}"
 _UNTRIGGERED = (
     "{dockerfile} builds {reference!r} FROM {base!r}, whose ONBUILD declares VOLUME {path!r}, and "
-    "the row for {reference!r} in " + RECORD_PATH + " does not carry it; the trigger fires during "
+    "the row for {reference!r} in "
+    + RECORD_PATH
+    + " does not contain it; the trigger fires during "
     "the next build from that base, so the rebuilt image declares the path and every container of "
     "it takes an anonymous volume there while the record says the image declares nothing of the "
     "kind. Rebuild the image, run `just image-volumes` to record what it now declares, and mount "
@@ -78,7 +80,7 @@ def _array(number: int, argument: str) -> list[str]:
 def _paths(number: int, argument: str) -> list[str]:
     """The container paths one VOLUME instruction names, in either form docker accepts."""
     if "$" in argument:
-        msg = f"line {number}: VOLUME {argument!r} carries an expansion only a build can resolve"
+        msg = f"line {number}: VOLUME {argument!r} contains an expansion only a build can resolve"
         raise DockerfileError(msg)
     written = _array(number, argument) if argument.startswith(JSON_OPENERS) else argument.split()
     if not written:

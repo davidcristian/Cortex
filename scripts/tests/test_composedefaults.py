@@ -89,7 +89,7 @@ def test_a_form_it_was_not_taught_is_raised_not_skipped(text: str, complaint: st
 
 
 _NESTED_TAIL = (
-    ", whose default is a second spend rather than a value, standing for one thing with nothing "
+    ", whose default is a second spend rather than a value, meaning one thing with nothing "
     "set and another once the inner variable is set"
 )
 
@@ -105,11 +105,11 @@ _NESTED_TAIL = (
         ('OUT: "${A:-${B}"', "line 7: nested substitution ${A:-${B}" + _NESTED_TAIL),
         (
             'OUT: "${A:-{x}}tail"',
-            "line 7: ${A:-{x}} carries a brace in its argument, which this reader was not taught",
+            "line 7: ${A:-{x}} has a brace in its argument, which this reader was not taught",
         ),
         (
             'OUT: "${A:-{x}"',
-            "line 7: ${A:-{x} carries a brace in its argument, which this reader was not taught",
+            "line 7: ${A:-{x} has a brace in its argument, which this reader was not taught",
         ),
     ],
 )

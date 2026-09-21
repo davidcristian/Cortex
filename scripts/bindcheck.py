@@ -139,7 +139,7 @@ def check_file(root: Path, compose: Path) -> Scan:
                 path=name,
                 line=mount.line,
                 detail=(
-                    f"bind default {mount.source!r} lands on {spot!r}, which git neither tracks "
+                    f"bind default {mount.source!r} resolves to {spot!r}, which git neither tracks "
                     f"nor ignores; a compose run creates it and `git add -A` stages it"
                 ),
             )
@@ -166,7 +166,7 @@ def check(root: Path) -> Scan:
 def main(argv: list[str] | None = None) -> int:
     """Run the check; print any faults and return the process exit code."""
     parser = argparse.ArgumentParser(
-        description="Fail when a compose bind default lands unignored inside the repo tree.",
+        description="Fail when a compose bind default resolves to an unignored path in the repo.",
     )
     parser.add_argument(
         "--root",
@@ -199,16 +199,17 @@ def main(argv: list[str] | None = None) -> int:
         )
     if scanned.findings:
         print(
-            f"\nbindcheck: {len(scanned.findings)} compose bind default(s) land unignored in the "
-            "tree. Point the default outside the repo, or add the path to .gitignore, unanchored "
-            "so it matches under docker/ as well as at the root.",
+            f"\nbindcheck: {len(scanned.findings)} compose bind default(s) resolve to an unignored "
+            "path in the tree. Point the default outside the repo, or add the path to .gitignore, "
+            "unanchored so it matches under docker/ as well as at the root.",
             file=sys.stderr,
         )
     if scanned.faults:
         return 1
     print(
         f"bindcheck OK: {scanned.mounts} bind mount(s) under {given} are outside, tracked, or "
-        f"ignored, over {scanned.files} compose file(s) and {scanned.landings} landing(s) checked"
+        f"ignored, over {scanned.files} compose file(s) and {scanned.landings} resolved path(s) "
+        "checked"
     )
     return 0
 

@@ -81,7 +81,7 @@ def shared(module: ast.Module) -> tuple[tuple[str | None, ...], tuple[str | None
     if len(at) != 1 or sum(splatted) != 1:
         msg = (
             f"{ARGV_FUNCTION} does not splat a tier's {TIER_EXTRA} exactly once, so this reader "
-            "cannot say where a tier's own flags land in its command"
+            "cannot say where a tier's own flags end up in its command"
         )
         raise HostedTierError(msg)
     return (

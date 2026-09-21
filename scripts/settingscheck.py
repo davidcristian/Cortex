@@ -30,7 +30,7 @@ class Exemption(NamedTuple):
 EXEMPT = (
     Exemption(
         "CORTEX_SEAM_PORT",
-        "the base file's port publish and healthcheck both fix the seam at 50051, so a value "
+        "the base file's port publish and healthcheck both fix the gRPC port at 50051, so a value "
         "passed in would move the listener away from both",
     ),
     Exemption(

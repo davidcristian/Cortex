@@ -45,7 +45,7 @@ MODELHOST_COUPLINGS: tuple[Constant, ...] = (
         label="the cortex artifact the stack ships",
         why=(
             "the sidecar names the pick it starts when a deployment names none and the GPU "
-            "runbook prints the same path as the shipped default, so a new pick landing in the "
+            "runbook prints the same path as the shipped default, so a new pick made in the "
             "config alone would leave every composed deployment loading the old GGUF (ADR-0004)"
         ),
         sites=(Site(MODELHOST_CONFIG, "DEFAULT_CORTEX_FILE"),),
@@ -57,7 +57,7 @@ MODELHOST_COUPLINGS: tuple[Constant, ...] = (
     Constant(
         label="how many layers a tier offloads",
         why=(
-            "one number serves all three tiers and the override spells it again for the two it "
+            "one number serves all three tiers and the override writes it again for the two it "
             "gives a layer count, so a deployment that decided to split a model across host and "
             "card in the config alone would still get every layer on the GPU (ADR-0004 decision 11)"
         ),
@@ -146,7 +146,7 @@ MODELHOST_COUPLINGS: tuple[Constant, ...] = (
         label="the unbounded reasoning budget both tiers ship with",
         why=(
             "llama.cpp's own word for a trace nobody bounds is the default for the cortex and "
-            "for the deep tier, and the override spells it again for each while the runbook and "
+            "for the deep tier, and the override writes it again for each while the runbook and "
             "the module contract state it as the answer that emits no flag, so a deployment "
             "given a budget in the config alone would still start both tiers unbounded "
             "(ADR-0030, and the thinking-budget measurements in the GPU runbook)"

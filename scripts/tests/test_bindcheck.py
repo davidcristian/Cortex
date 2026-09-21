@@ -311,7 +311,7 @@ def test_main_states_what_it_read_beside_the_verdict(
     assert bindcheck.main(["--root", str(repo)]) == 0
     assert capsys.readouterr().out == (
         f"bindcheck OK: 4 bind mount(s) under {repo} are outside, tracked, or ignored, "
-        f"over 2 compose file(s) and 3 landing(s) checked\n"
+        f"over 2 compose file(s) and 3 resolved path(s) checked\n"
     )
 
 
@@ -321,9 +321,9 @@ _REFUSED = (
     "fault says.\n"
 )
 _LANDING = (
-    "\nbindcheck: 2 compose bind default(s) land unignored in the tree. Point the default outside "
-    "the repo, or add the path to .gitignore, unanchored so it matches under docker/ as well as at "
-    "the root.\n"
+    "\nbindcheck: 2 compose bind default(s) resolve to an unignored path in the tree. Point the "
+    "default outside the repo, or add the path to .gitignore, unanchored so it matches under "
+    "docker/ as well as at the root.\n"
 )
 
 

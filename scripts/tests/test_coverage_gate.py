@@ -299,7 +299,7 @@ def test_main_reports_malformed_export_on_stderr(
     assert exit_code == 1
     captured = capsys.readouterr()
     assert captured.out == ""
-    assert captured.err == "coverage gate: coverage report must be a JSON object, got list\n"
+    assert captured.err == "coverage_gate: coverage report must be a JSON object, got list\n"
 
 
 def test_main_reports_non_utf8_export_on_stderr(
@@ -311,5 +311,5 @@ def test_main_reports_non_utf8_export_on_stderr(
     assert exit_code == 1
     captured = capsys.readouterr()
     assert captured.out == ""
-    assert captured.err.startswith(f"coverage gate: coverage report {report} is not valid JSON: ")
+    assert captured.err.startswith(f"coverage_gate: coverage report {report} is not valid JSON: ")
     assert captured.err.count("\n") == 1

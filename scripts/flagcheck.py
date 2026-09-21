@@ -21,8 +21,8 @@ class FlagCheckError(Exception):
 
 
 WHY_NAMED = (
-    "both readers of this gate's set decide whether a server or a tier serves subagents from that "
-    "spelling alone, so an artifact named another way drops out of the set unreported and this "
+    "both readers of this check's set decide whether a server or a tier serves subagents from that "
+    "name alone, so an artifact named another way drops out of the set unreported and this "
     "scan passes over the server or tier it belongs to"
 )
 
@@ -132,14 +132,14 @@ def main(argv: list[str] | None = None) -> int:
             f"\nflagcheck: {len(scanned.faults)} problem(s). Every subagent server this repo "
             "starts is started by an argv written in this tree, a compose command or the model "
             "host's own tier, and every model artifact one of them serves is named under a "
-            f"{FAMILY_PREFIX} variable, so add the flag to that argv or spell the name that way "
+            f"{FAMILY_PREFIX} variable, so add the flag to that argv or write the name that way "
             "rather than leaving either to the deployment that remembers it.",
             file=sys.stderr,
         )
         return 1
     print(
         f"flagcheck OK: the {scanned.servers} subagent server(s) started under {given} by "
-        f"{scanned.files} file(s) each carry every one of the {scanned.flags} required flag(s) "
+        f"{scanned.files} file(s) each have every one of the {scanned.flags} required flag(s) "
         f"that reaches them, and the "
         f"{scanned.artifacts} model artifact(s) this tree names are each named so a reader can "
         "say which tier they serve"

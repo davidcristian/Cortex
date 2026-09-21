@@ -15,7 +15,7 @@ IMAGE_COUPLINGS: tuple[Constant, ...] = (
         label="the CUDA engine image",
         why=(
             "this is the image the model host is built from and the image all three live "
-            "harnesses start a card row's server from, and each of the four spells it out, so a "
+            "harnesses start a card row's server from, and each of the four writes it out, so a "
             "retag of the engine the stack runs leaves those harnesses measuring a build no "
             "deployment runs and publishing the number under the build they name (ADR-0060 "
             "decision 5)"

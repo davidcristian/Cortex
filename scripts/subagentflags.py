@@ -32,7 +32,7 @@ REQUIREMENTS: tuple[Requirement, ...] = (
     Requirement(
         label="the tier's reasoning-off pair",
         why=(
-            "every subagent server this repo starts carries both flags, because neither alone "
+            "every subagent server this repo starts has both flags, because neither alone "
             "covers both request shapes the tier serves: the kwarg is what a chat template reads "
             "on a plain request, and the budget is what reaches the constrained shape every "
             "tool-less subagent decodes into the fixed envelope, where the kwarg was measured to "
@@ -66,7 +66,7 @@ REQUIREMENTS: tuple[Requirement, ...] = (
             "llama.cpp starts one thread per hardware thread, which is not what a server under a "
             "CPU quota may spend: left at that default the shipped CPU subagent server ran 24 "
             "threads inside its quota, was throttled in 14,308 of 14,520 periods and decoded at "
-            "0.43 to 0.54 tok/s against 11.9 to 12.4 with the count pinned (ADR-0004 decision "
+            "0.43 to 0.54 tok/s against 11.9 to 12.4 with the count set (ADR-0004 decision "
             "12). The flag is what is asked here and not the number after it: the "
             "right count is the service's own cpus cap, a relation between two keys of one "
             "compose file that the constant scan holds per file"
@@ -85,7 +85,7 @@ def missing(command: tuple[str, ...], flag: Flag) -> str | None:
         if item == flag.name
     ]
     if not written:
-        return f"it carries no {flag.name}"
+        return f"it has no {flag.name}"
     if flag.value is None:
         return None
     wrong = [value for value in written if value != flag.value]

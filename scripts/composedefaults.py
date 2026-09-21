@@ -54,12 +54,10 @@ def _brace_fault(number: int, spend: str) -> str:
     if "${" in spend[2:]:
         return (
             f"line {number}: nested substitution {spend}, whose default is a second spend "
-            "rather than a value, standing for one thing with nothing set and another once the "
+            "rather than a value, meaning one thing with nothing set and another once the "
             "inner variable is set"
         )
-    return (
-        f"line {number}: {spend} carries a brace in its argument, which this reader was not taught"
-    )
+    return f"line {number}: {spend} has a brace in its argument, which this reader was not taught"
 
 
 def _braced(number: int, text: str, start: int) -> tuple[Substitution, int]:

@@ -171,7 +171,7 @@ def test_check_constant_refuses_an_entry_with_nothing_to_read_the_value_from() -
 def test_check_constant_refuses_a_mention_on_an_ordering() -> None:
     muddled = ORDERING._replace(mentions=(crosscheck.Mention("a.css", "{value}"),))
     (fault,) = crosscheck.check_constant(Path(), muddled)
-    assert "no one value a mention could spell" in fault.detail
+    assert "no one value a mention could write" in fault.detail
 
 
 ORDERING = crosscheck.Constant(
@@ -326,13 +326,13 @@ def test_a_mention_found_in_the_shape_it_names_is_tied(tmp_path: Path) -> None:
 def test_a_rename_on_the_declaring_side_leaves_the_needle_unfound(tmp_path: Path) -> None:
     _spend(tmp_path, declared="--roof", spelled="--ceiling")
     (fault,) = crosscheck.check_constant(tmp_path, MENTIONED)
-    assert "does not spell 'var(--roof,'" in fault.detail
+    assert "does not write 'var(--roof,'" in fault.detail
 
 
 def test_a_rename_on_the_spending_side_leaves_it_unfound_too(tmp_path: Path) -> None:
     _spend(tmp_path, declared="--ceiling", spelled="--roof")
     (fault,) = crosscheck.check_constant(tmp_path, MENTIONED)
-    assert "does not spell 'var(--ceiling,'" in fault.detail
+    assert "does not write 'var(--ceiling,'" in fault.detail
 
 
 def _ported(template: str) -> crosscheck.Constant:
@@ -358,15 +358,15 @@ def test_a_mention_of_a_number_renders_it_as_written(tmp_path: Path) -> None:
 def test_a_number_a_longer_one_merely_contains_is_not_spelled(tmp_path: Path) -> None:
     _publish(tmp_path, declared="5005", host="50051", container="50051")
     (fault,) = crosscheck.check_constant(tmp_path, _ported("127.0.0.1:{value}"))
-    assert "does not spell '127.0.0.1:5005' as a token of its own" in fault.detail
-    assert "carrying it only inside a longer token" in fault.detail
+    assert "does not write '127.0.0.1:5005' as a token of its own" in fault.detail
+    assert "having it only inside a longer token" in fault.detail
 
 
 def test_a_template_that_pins_only_the_host_half_leaves_the_other_free(tmp_path: Path) -> None:
     _publish(tmp_path, declared="50051", host="50051", container="50052")
     assert crosscheck.check_constant(tmp_path, _ported("127.0.0.1:{value}")) == []
     (fault,) = crosscheck.check_constant(tmp_path, _ported("127.0.0.1:{value}:{value}"))
-    assert "does not spell '127.0.0.1:50051:50051'" in fault.detail
+    assert "does not write '127.0.0.1:50051:50051'" in fault.detail
 
 
 def _publish_on(root: Path, interface: str) -> None:
@@ -378,9 +378,9 @@ def _publish_on(root: Path, interface: str) -> None:
 def test_a_moved_neighbour_is_reported_as_shape_and_not_as_this_value(tmp_path: Path) -> None:
     _publish_on(tmp_path, "127.0.0.2")
     (fault,) = crosscheck.check_constant(tmp_path, _ported("127.0.0.1:{value}:{value}"))
-    assert "carrying the most of it on line 1, 20 of its 21 characters" in fault.detail
+    assert "with the most of it on line 1, 20 of its 21 characters" in fault.detail
     assert "(its opening '127.0.0.' and its closing ':50051:50051')" in fault.detail
-    assert "the file does still spell '50051' as a token of its own" in fault.detail
+    assert "the file does still write '50051' as a token of its own" in fault.detail
     assert "the constant to change may not be the one named here" in fault.detail
 
 
@@ -388,7 +388,7 @@ def test_a_moved_value_is_reported_as_absent_and_blames_no_neighbour(tmp_path: P
     _publish(tmp_path, declared="50052", host="50051", container="50051")
     (fault,) = crosscheck.check_constant(tmp_path, _ported("127.0.0.1:{value}"))
     assert "on line 1, 14 of its 15 characters (its opening '127.0.0.1:5005')," in fault.detail
-    assert "the file does not spell '50052' as a token of its own either" in fault.detail
+    assert "the file does not write '50052' as a token of its own either" in fault.detail
 
 
 def test_a_value_left_only_inside_a_decimal_is_not_read_as_still_being_spelled(
@@ -403,19 +403,19 @@ def test_a_value_left_only_inside_a_decimal_is_not_read_as_still_being_spelled(
         mentions=(crosscheck.Mention("swap.md", "{value} s"),),
     )
     (fault,) = crosscheck.check_constant(tmp_path, graced)
-    assert "does not spell '10 s' as a token of its own" in fault.detail
+    assert "does not write '10 s' as a token of its own" in fault.detail
     assert (
         "on line 1, 4 of its 4 characters (its opening '10' and its closing ' s')" in fault.detail
     )
-    assert "the file does not spell '10' as a token of its own either" in fault.detail
+    assert "the file does not write '10' as a token of its own either" in fault.detail
 
 
 def test_a_file_carrying_no_part_of_the_needle_has_no_run_to_report(tmp_path: Path) -> None:
     (tmp_path / "budget.ts").write_text('const CEILING_PROPERTY = "--ceiling";\n', encoding="utf-8")
     (tmp_path / "overlay.css").write_text(".panel { height: 100px; }\n", encoding="utf-8")
     (fault,) = crosscheck.check_constant(tmp_path, MENTIONED)
-    assert "carrying less than half of it on any line" in fault.detail
-    assert "does not spell '--ceiling' as a token of its own either" in fault.detail
+    assert "with less than half of it on any line" in fault.detail
+    assert "does not write '--ceiling' as a token of its own either" in fault.detail
 
 
 _GRACED = crosscheck.Constant(
@@ -440,8 +440,8 @@ def test_a_yes_reads_back_the_line_it_read_the_value_on(tmp_path: Path) -> None:
         "the cortex still holds ~11 GB of it while it dies\n",
     )
     (fault,) = crosscheck.check_constant(tmp_path, _GRACED)
-    assert "carrying the most of it on line 1, 20 of its 21 characters" in fault.detail
-    assert "the file does still spell '11' as a token of its own, once on line 3" in fault.detail
+    assert "with the most of it on line 1, 20 of its 21 characters" in fault.detail
+    assert "the file does still write '11' as a token of its own, once on line 3" in fault.detail
     assert "which reads 'the cortex still holds ~11 GB of it while it dies'" in fault.detail
     assert "and no run stops on that line, so what moved is not settled here" in fault.detail
     assert "likely shape" not in fault.detail
@@ -459,7 +459,7 @@ def test_the_run_is_measured_where_it_stops_and_not_where_it_starts(tmp_path: Pa
         "11 GB of it is still held\nand the full grace (10 s) is paid\nwhich leaves 11 free\n",
     )
     (fault,) = crosscheck.check_constant(tmp_path, _GRACED)
-    assert "carrying the most of it on line 2, 20 of its 21 characters" in fault.detail
+    assert "with the most of it on line 2, 20 of its 21 characters" in fault.detail
     assert "(its opening 'the full grace (1' and its closing ' s)')" in fault.detail
     assert "in 2 places, the nearest to that run on line 3" in fault.detail
     assert "which reads 'which leaves 11 free'" in fault.detail
@@ -473,7 +473,7 @@ def test_a_value_in_several_places_is_counted_and_read_nearest_the_run(tmp_path:
         encoding="utf-8",
     )
     (fault,) = crosscheck.check_constant(tmp_path, _ported("127.0.0.1:{value}:{value}"))
-    assert "carrying the most of it on line 8, 20 of its 21 characters" in fault.detail
+    assert "with the most of it on line 8, 20 of its 21 characters" in fault.detail
     assert "in 3 places, the nearest to that run on line 8" in fault.detail
     assert "which reads '- \"127.0.0.2:50051:50051\"'" in fault.detail
 
@@ -487,9 +487,9 @@ def test_a_run_carried_in_several_places_names_the_stop_nearest_the_spelling(
         encoding="utf-8",
     )
     (fault,) = crosscheck.check_constant(tmp_path, _ported('127.0.0.1:{value}:{value}"\n'))
-    assert "carrying no more of it than '127.0.0.1:'" in fault.detail
-    assert "which stops in 2 places, the nearest to that spelling on line 8" in fault.detail
-    assert "still spell '50051' as a token of its own, once on line 8" in fault.detail
+    assert "with no more of it than '127.0.0.1:'" in fault.detail
+    assert "which stops in 2 places, the nearest to that form on line 8" in fault.detail
+    assert "still write '50051' as a token of its own, once on line 8" in fault.detail
 
 
 _THREADED = crosscheck.Constant(
@@ -503,15 +503,15 @@ _THREADED = crosscheck.Constant(
 @pytest.mark.parametrize(
     ("stack", "expected"),
     [
-        ("ctx: 8\n", "carrying no part of it; the file does not spell '4'"),
+        ("ctx: 8\n", "with no part of it; the file does not write '4'"),
         (
             '      - "--threads"\n      - "8"\n',
-            'carrying no more of it than \'- "--threads"\\n      - "\', which stops on line 2; '
-            "the file does not spell '4'",
+            'with no more of it than \'- "--threads"\\n      - "\', which stops on line 2; '
+            "the file does not write '4'",
         ),
         (
             '- "--threads"\n  - "8"\n- "--threads"\n  - "9"\n',
-            "which stops in 2 places, the first on line 2; the file does not spell '4'",
+            "which stops in 2 places, the first on line 2; the file does not write '4'",
         ),
     ],
 )
@@ -531,7 +531,7 @@ def test_a_value_in_several_places_with_no_run_at_all_is_read_at_the_first(tmp_p
         ".panel { height: --ceiling; }\n.rail { width: --ceiling; }\n", encoding="utf-8"
     )
     (fault,) = crosscheck.check_constant(tmp_path, MENTIONED)
-    assert "carrying less than half of it on any line" in fault.detail
+    assert "with less than half of it on any line" in fault.detail
     assert "in 2 places, the first on line 1" in fault.detail
     assert "which reads '.panel { height: --ceiling; }'" in fault.detail
     assert "and no run stops on that line, so what moved is not settled here" in fault.detail
@@ -552,9 +552,9 @@ def test_a_word_still_written_in_prose_settles_nothing_about_what_moved(tmp_path
         '"""Eviction by sender must not sweep a URI."""\n\n\nSENDER = "from"\n', encoding="utf-8"
     )
     (fault,) = crosscheck.check_constant(tmp_path, _KINDED)
-    assert "carrying the most of it on line 4, 11 of its 17 characters" in fault.detail
+    assert "with the most of it on line 4, 11 of its 17 characters" in fault.detail
     assert "(its opening 'SENDER = \"' and its closing '\"')" in fault.detail
-    assert "does still spell 'sender' as a token of its own, once on line 1" in fault.detail
+    assert "does still write 'sender' as a token of its own, once on line 1" in fault.detail
     assert "and no run stops on that line, so what moved is not settled here" in fault.detail
     assert "likely shape" not in fault.detail
 
@@ -565,10 +565,10 @@ def test_a_word_written_where_the_run_stops_is_read_as_the_shape_moving(tmp_path
         '"""Eviction by sender must not sweep a URI."""\n\n\nSENDERS = "sender"\n', encoding="utf-8"
     )
     (fault,) = crosscheck.check_constant(tmp_path, _KINDED)
-    assert "does still spell 'sender' as a token of its own, in 2 places" in fault.detail
+    assert "does still write 'sender' as a token of its own, in 2 places" in fault.detail
     assert "the nearest to that run on line 4" in fault.detail
     assert (
-        "so what moved is likely shape this needle carries rather than this value" in fault.detail
+        "so what moved is likely shape this search text has rather than this value" in fault.detail
     )
 
 
@@ -604,11 +604,11 @@ def test_a_needle_that_renders_only_a_name_is_read_on_that_name(tmp_path: Path) 
         mentions=(RESTATED.mentions[0], RESTATED.mentions[1]._replace(occurrences=None)),
     )
     (fault,) = crosscheck.check_constant(tmp_path, spent)
-    assert "does not spell 'var(--roll)' as a token of its own" in fault.detail
-    assert "carrying the most of it on 2 lines, 7 of its 11 characters" in fault.detail
+    assert "does not write 'var(--roll)' as a token of its own" in fault.detail
+    assert "with the most of it on 2 lines, 7 of its 11 characters" in fault.detail
     assert "(its opening 'var(--' and its closing ')') each" in fault.detail
-    assert "the nearest to that spelling on line 2" in fault.detail
-    assert "does still spell '--roll' as a token of its own, once on line 1" in fault.detail
+    assert "the nearest to that form on line 2" in fault.detail
+    assert "does still write '--roll' as a token of its own, once on line 1" in fault.detail
     assert needles.APART in fault.detail
 
 
@@ -641,8 +641,8 @@ def test_a_name_whose_shape_is_a_neighbours_binding_reports_the_shape_as_the_mov
     assert crosscheck.check_constant(tmp_path, UNDER_A_FIELD) == []
     _declare(tmp_path, "_KIND_NAME")
     (fault,) = crosscheck.check_constant(tmp_path, UNDER_A_FIELD)
-    assert "does not spell '_KIND_FIELD: _SENDER_KIND,' as a token of its own" in fault.detail
-    assert "does still spell '_SENDER_KIND' as a token of its own" in fault.detail
+    assert "does not write '_KIND_FIELD: _SENDER_KIND,' as a token of its own" in fault.detail
+    assert "does still write '_SENDER_KIND' as a token of its own" in fault.detail
     assert needles.MET.format(part=needles.NAME) in fault.detail
 
 
@@ -737,7 +737,7 @@ def test_a_half_applied_rename_passes_a_presence_check_and_fails_a_counted_one(
     assert crosscheck.check_constant(tmp_path, _counted(None)) == []
     (fault,) = crosscheck.check_constant(tmp_path, _counted(2))
     spelling = (
-        "spells 's === \"deliberating\"' as a token of its own: found 1 (on line 2), pinned 2"
+        "writes 's === \"deliberating\"' as a token of its own: found 1 (on line 2), set to 2"
     )
     assert spelling in fault.detail
 
@@ -748,16 +748,16 @@ def test_a_counted_mention_that_finds_nothing_reads_like_a_presence_check(tmp_pa
         '<span\n  aria-label={state === "thinking" ? "x" : undefined}\n/>\n', encoding="utf-8"
     )
     (fault,) = crosscheck.check_constant(tmp_path, _counted(2))
-    assert "does not spell 's === \"thinking\"' as a token of its own" in fault.detail
-    assert "the file does still spell 'thinking' as a token of its own" in fault.detail
-    assert "the registry pins 2 occurrences, so move the whole set" in fault.detail
+    assert "does not write 's === \"thinking\"' as a token of its own" in fault.detail
+    assert "the file does still write 'thinking' as a token of its own" in fault.detail
+    assert "the registry sets 2 occurrences, so move the whole set" in fault.detail
     assert "found 0" not in fault.detail
 
 
 def test_a_counted_mention_fails_on_one_occurrence_too_many(tmp_path: Path) -> None:
     _compare(tmp_path, "thinking", "thinking", "thinking", "thinking")
     (fault,) = crosscheck.check_constant(tmp_path, _counted(2))
-    assert "found 3 (on lines 2, 3 and 4), pinned 2; move the whole set" in fault.detail
+    assert "found 3 (on lines 2, 3 and 4), set to 2; move the whole set" in fault.detail
     assert "outside those" not in fault.detail
 
 
@@ -771,7 +771,7 @@ def test_a_counted_mention_on_a_file_that_cannot_be_read_is_a_fault(tmp_path: Pa
 def test_a_count_below_one_is_refused(tmp_path: Path, occurrences: int) -> None:
     _compare(tmp_path, "thinking", "thinking")
     (fault,) = crosscheck.check_constant(tmp_path, _counted(occurrences))
-    assert f"pins {occurrences} occurrences, which ties nothing" in fault.detail
+    assert f"sets {occurrences} occurrences, which ties nothing" in fault.detail
 
 
 RESTATED = crosscheck.Constant(
@@ -807,20 +807,20 @@ def test_a_mistyped_spend_fails_where_a_rendered_value_never_reached_it(tmp_path
     assert crosscheck.check_constant(tmp_path, value_only) == []
     (fault,) = crosscheck.check_constant(tmp_path, RESTATED)
     assert (
-        "spells 'var(--roll)' as a token of its own: found 1 (on line 2), pinned 2" in fault.detail
+        "writes 'var(--roll)' as a token of its own: found 1 (on line 2), set to 2" in fault.detail
     )
 
 
 def test_a_spend_that_pays_a_neighbouring_property_is_a_spend_short(tmp_path: Path) -> None:
     _restate(tmp_path, "--roll", "--roll", "--ease")
     (fault,) = crosscheck.check_constant(tmp_path, RESTATED)
-    assert "found 1 (on line 2), pinned 2" in fault.detail
+    assert "found 1 (on line 2), set to 2" in fault.detail
 
 
 def test_renaming_the_declared_property_leaves_the_declaration_unfound(tmp_path: Path) -> None:
     _restate(tmp_path, "--cadence", "--roll", "--roll")
     (fault,) = crosscheck.check_constant(tmp_path, RESTATED)
-    assert "does not spell '--roll: 300ms;' as a token of its own" in fault.detail
+    assert "does not write '--roll: 300ms;' as a token of its own" in fault.detail
 
 
 def test_a_template_rendering_a_name_the_mention_does_not_carry_is_refused(tmp_path: Path) -> None:
@@ -829,7 +829,7 @@ def test_a_template_rendering_a_name_the_mention_does_not_carry_is_refused(tmp_p
         mentions=(crosscheck.Mention("overlay.css", "{name}: {value}ms;"),)
     )
     (fault,) = crosscheck.check_constant(tmp_path, nameless)
-    assert "renders a name the mention does not carry" in fault.detail
+    assert "renders a name the mention does not have" in fault.detail
 
 
 def test_a_name_the_template_renders_nowhere_is_refused(tmp_path: Path) -> None:
@@ -874,15 +874,15 @@ def test_a_spend_of_the_name_a_site_declares_is_paid_by_that_site(tmp_path: Path
 def test_a_call_handed_another_word_leaves_the_call_mention_unfound(tmp_path: Path) -> None:
     _hand(tmp_path, '_logger.info("tool.dispatch", extra=fields)')
     (fault,) = crosscheck.check_constant(tmp_path, HANDED)
-    assert "sink.py does not spell '_logger.info(_MESSAGE,' as a token of its own" in fault.detail
-    assert "does still spell '_MESSAGE' as a token of its own, once on line 1" in fault.detail
+    assert "sink.py does not write '_logger.info(_MESSAGE,' as a token of its own" in fault.detail
+    assert "does still write '_MESSAGE' as a token of its own, once on line 1" in fault.detail
     assert needles.APART in fault.detail
 
 
 def test_a_call_handed_another_binding_is_the_same_fault(tmp_path: Path) -> None:
     _hand(tmp_path, "_logger.info(_LOGGER_NAME, extra=fields)")
     (fault,) = crosscheck.check_constant(tmp_path, HANDED)
-    assert "does not spell '_logger.info(_MESSAGE,'" in fault.detail
+    assert "does not write '_logger.info(_MESSAGE,'" in fault.detail
 
 
 def test_a_renamed_value_faults_the_restatement_and_leaves_the_call_found(tmp_path: Path) -> None:
@@ -891,7 +891,7 @@ def test_a_renamed_value_faults_the_restatement_and_leaves_the_call_found(tmp_pa
         '_MESSAGE = "tool.dispatch"\n_logger.info(_MESSAGE, extra=fields)\n', encoding="utf-8"
     )
     (fault,) = crosscheck.check_constant(tmp_path, HANDED)
-    assert fault.detail.startswith("runbook.md does not spell")
+    assert fault.detail.startswith("runbook.md does not write")
 
 
 DEADLINE = crosscheck.Constant(
@@ -921,13 +921,13 @@ def test_retuning_the_adapter_alone_leaves_every_deployment_on_the_old_number(
 ) -> None:
     _deadline(tmp_path, declared="7.5", substituted="5.0")
     (fault,) = crosscheck.check_constant(tmp_path, DEADLINE)
-    assert "does not spell '${CORTEX_BODY_CALL_TIMEOUT_S:-7.5}'" in fault.detail
+    assert "does not write '${CORTEX_BODY_CALL_TIMEOUT_S:-7.5}'" in fault.detail
 
 
 def test_the_same_number_without_its_point_is_a_different_spelling(tmp_path: Path) -> None:
     _deadline(tmp_path, declared="5", substituted="5.0")
     (fault,) = crosscheck.check_constant(tmp_path, DEADLINE)
-    assert "does not spell '${CORTEX_BODY_CALL_TIMEOUT_S:-5}'" in fault.detail
+    assert "does not write '${CORTEX_BODY_CALL_TIMEOUT_S:-5}'" in fault.detail
 
 
 def _both_declare(root: Path, rust: str, python: str) -> None:
@@ -990,9 +990,9 @@ def test_one_number_ties_the_far_side_that_cannot_spell_it_as_written(tmp_path: 
 def test_retuning_the_budget_alone_fails_both_spellings(tmp_path: Path) -> None:
     _budget(tmp_path, declared="12.0", passed="8.0", limit="8")
     written, whole = crosscheck.check_constant(tmp_path, BUDGET)
-    assert "does not spell '\"${BUDGET_GB:-12.0}\"'" in written.detail
-    assert "does not spell '\"${BUDGET_GB:-12}g\"' as a token of its own" in whole.detail
-    assert "the registry pins 2 occurrences" in whole.detail
+    assert "does not write '\"${BUDGET_GB:-12.0}\"'" in written.detail
+    assert "does not write '\"${BUDGET_GB:-12}g\"' as a token of its own" in whole.detail
+    assert "the registry sets 2 occurrences" in whole.detail
 
 
 def test_one_of_the_two_limits_moving_alone_is_a_count_short(tmp_path: Path) -> None:
@@ -1003,26 +1003,26 @@ def test_one_of_the_two_limits_moving_alone_is_a_count_short(tmp_path: Path) -> 
         encoding="utf-8",
     )
     (fault,) = crosscheck.check_constant(tmp_path, BUDGET)
-    assert "found 1 (on line 3), pinned 2" in fault.detail
+    assert "found 1 (on line 3), set to 2" in fault.detail
 
 
 def test_a_site_that_drops_its_point_is_still_caught(tmp_path: Path) -> None:
     _budget(tmp_path, declared="8", passed="8.0", limit="8")
     (fault,) = crosscheck.check_constant(tmp_path, BUDGET)
-    assert "does not spell '\"${BUDGET_GB:-8}\"'" in fault.detail
+    assert "does not write '\"${BUDGET_GB:-8}\"'" in fault.detail
 
 
 def test_a_budget_the_far_side_cannot_spell_at_all_is_reported(tmp_path: Path) -> None:
     _budget(tmp_path, declared="8.5", passed="8.5", limit="8")
     (fault,) = crosscheck.check_constant(tmp_path, BUDGET)
-    assert "8.5 cannot be spelled whole" in fault.detail
+    assert "8.5 cannot be written whole" in fault.detail
 
 
 def test_an_entry_that_re_spells_everywhere_is_refused(tmp_path: Path) -> None:
     blind = BUDGET._replace(mentions=BUDGET.mentions[1:])
     _budget(tmp_path, declared="8.0", passed="8.0", limit="8")
     (fault,) = crosscheck.check_constant(tmp_path, blind)
-    assert "nothing holds the spelling the site writes" in fault.detail
+    assert "nothing holds the form the site writes" in fault.detail
 
 
 HATCH = crosscheck.Constant(
@@ -1055,13 +1055,13 @@ def test_a_boolean_reaches_the_far_side_that_writes_it_in_lower_case(tmp_path: P
 def test_a_hatch_the_stack_opens_alone_is_reported(tmp_path: Path) -> None:
     _hatch(tmp_path, declared="False", substituted="true")
     (fault,) = crosscheck.check_constant(tmp_path, HATCH)
-    assert "does not spell '${TLS_INSECURE:-false}'" in fault.detail
+    assert "does not write '${TLS_INSECURE:-false}'" in fault.detail
 
 
 def test_a_hatch_the_field_opens_alone_is_reported_too(tmp_path: Path) -> None:
     _hatch(tmp_path, declared="True", substituted="false")
     (fault,) = crosscheck.check_constant(tmp_path, HATCH)
-    assert "does not spell '${TLS_INSECURE:-true}'" in fault.detail
+    assert "does not write '${TLS_INSECURE:-true}'" in fault.detail
 
 
 def test_a_boolean_a_far_side_writes_as_the_site_does_needs_no_spelling(tmp_path: Path) -> None:
@@ -1096,7 +1096,7 @@ def test_a_signed_default_renders_into_the_shape_a_stack_substitutes(tmp_path: P
 def test_a_sentinel_the_stack_bounds_alone_is_reported(tmp_path: Path) -> None:
     _sentinel(tmp_path, declared="-1", substituted="512")
     (fault,) = crosscheck.check_constant(tmp_path, SENTINEL)
-    assert "does not spell '${BUDGET:--1}'" in fault.detail
+    assert "does not write '${BUDGET:--1}'" in fault.detail
 
 
 def test_a_sentinel_renamed_past_its_underscore_is_a_fault_and_not_a_skip(tmp_path: Path) -> None:
@@ -1329,7 +1329,7 @@ def test_the_audit_sink_handing_another_word_fails_at_the_call(tmp_path: Path) -
     constant = registered(AUDIT_MESSAGE)
     copied(tmp_path, constant, {AUDIT_SINK: (HANDED_CALL, HANDED_CALL.replace("_MESSAGE", '"x"'))})
     (fault,) = crosscheck.check_constant(tmp_path, constant)
-    assert fault.detail.startswith(f"{AUDIT_SINK} does not spell {HANDED_CALL!r}")
+    assert fault.detail.startswith(f"{AUDIT_SINK} does not write {HANDED_CALL!r}")
 
 
 def test_the_suites_asserted_line_is_reported_against_the_word_that_moved(
@@ -1745,7 +1745,7 @@ def test_main_states_the_registrys_shape_on_success(capsys: pytest.CaptureFixtur
     assert f"{size.entries} cross-tree constant(s)" in out
     assert f"{size.sites} declaring site(s)" in out
     assert f"{size.mentions} mention(s)" in out
-    assert f"{size.counted} of them pinned to a count" in out
+    assert f"{size.counted} of them held to a count" in out
 
 
 def test_main_fails_closed_when_no_site_can_be_found(
@@ -1754,7 +1754,7 @@ def test_main_fails_closed_when_no_site_can_be_found(
     assert crosscheck.main(["--root", str(tmp_path)]) == 1
     captured = capsys.readouterr()
     assert "the screen-capture byte ceiling: cannot read" in captured.out
-    assert "the seam token's metadata key: cannot read" in captured.out
+    assert "the gRPC token's metadata key: cannot read" in captured.out
     assert "are not tied" in captured.err
 
 

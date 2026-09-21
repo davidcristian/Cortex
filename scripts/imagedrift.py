@@ -58,7 +58,7 @@ def parse(output: str) -> Row:
     entries = [] if triggers is None else cast("list[object]", triggers)
     for entry in entries:
         if not isinstance(entry, str):
-            msg = f"docker's Config.OnBuild carries {entry!r}, which is not an instruction"
+            msg = f"docker's Config.OnBuild contains {entry!r}, which is not an instruction"
             raise InspectError(msg)
     paths = () if declared is None else tuple(sorted(cast("dict[str, object]", declared)))
     return Row(paths, tuple(cast("list[str]", entries)))

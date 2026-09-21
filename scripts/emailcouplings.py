@@ -43,7 +43,7 @@ EMAIL_COUPLINGS: tuple[Constant, ...] = (
         why=(
             "the brain re-stamps a search_emails result trusted only when its bytes are this "
             "sentence followed by the repr of the query the brain sent, and the sidecar composes "
-            "that answer from its own copy, so a rewording on either side alone would land every "
+            "that answer from its own copy, so a rewording on either side alone would put every "
             "refusal on the tainting side with nothing failing (ADR-0013 decision 10)"
         ),
         sites=(Site(EMAIL_VALUES, "SEARCH_REFUSED"), Site(OWN_TEXTS, "SEARCH_REFUSED")),
@@ -155,7 +155,7 @@ EMAIL_COUPLINGS: tuple[Constant, ...] = (
         label="whether the TLS escape hatches ship open",
         why=(
             "one shipped answer covers the reader's hatch and the sender's, and the email "
-            "override spells it again for each, so a substitution flipped to true with the field "
+            "override writes it again for each, so a substitution flipped to true with the field "
             "left alone would have every composed deployment accepting whatever certificate the "
             "far end offered while the config still promised otherwise (ADR-0009/0022)"
         ),

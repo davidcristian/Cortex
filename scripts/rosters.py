@@ -19,8 +19,8 @@ DIRECTORY = re.compile(r"[a-z][a-z_]*(?=[ \n]+\()")
 NO_CLI = "**The rest have no command line of their own.**"
 
 SCANS = (
-    "a reader learns from this list which gates run on every change, and a scan missing from it "
-    "is a gate they do not know exists"
+    "a reader learns from this list which checks run on every change, and a scan missing from it "
+    "is a check they do not know exists"
 )
 
 
@@ -40,14 +40,14 @@ class Roster(NamedTuple):
 
 ROSTERS: tuple[Roster, ...] = (
     Roster(
-        label="the live seam checks",
+        label="the live gRPC checks",
         document=Path("docs/modules/body-rpc.md"),
         opens="**Live checks**",
         closes="Being ignored, they never run in CI",
         written=Bulleted(),
         subject="an ignored test in body/crates/rpc/tests/live.rs",
         why=(
-            "the live suite is the one suite no gate runs, so this roster is the whole "
+            "the live suite is the one suite no check runs, so this roster is the whole "
             "description of it a reader gets without opening the file, and it is what decides "
             "whether they run it at all"
         ),
@@ -87,7 +87,7 @@ ROSTERS: tuple[Roster, ...] = (
         opens="**the cross-tree scans**",
         closes="runs unconditionally, in CI too",
         written=Spelled(pattern=MODULE),
-        subject="a cross-tree scan the gate and CI both run",
+        subject="a cross-tree scan `just check` and CI both run",
         why=SCANS,
         members=rostermembers.cross_tree_scans,
     ),
@@ -97,7 +97,7 @@ ROSTERS: tuple[Roster, ...] = (
         opens="# The cross-tree scans are repo-wide and exempt from the path filter",
         closes="  cross-tree:",
         written=Bare(pattern=MODULE),
-        subject="a cross-tree scan the gate and CI both run",
+        subject="a cross-tree scan `just check` and CI both run",
         why=(
             "this comment says why each scan is exempt from the path filter, which is the "
             "argument for the job below it, and it is read beside the steps it explains"
@@ -110,7 +110,7 @@ ROSTERS: tuple[Roster, ...] = (
         opens="whose **cross-tree scans** are",
         closes="**Beside them**",
         written=Spelled(pattern=MODULE),
-        subject="a cross-tree scan the gate and CI both run",
+        subject="a cross-tree scan `just check` and CI both run",
         why=SCANS,
         members=rostermembers.cross_tree_scans,
     ),
@@ -148,8 +148,8 @@ ROSTERS: tuple[Roster, ...] = (
         written=Spelled(pattern=PART),
         subject="a tuple crosscheck.CONSTANTS is joined from",
         why=(
-            "this is the second copy of a list registry.py's own docstring already carries, and "
-            "a part that lands unnamed here leaves the document describing the registry that "
+            "this is the second copy of a list registry.py's own docstring already contains, and "
+            "a part left unnamed here leaves the document describing the registry that "
             "existed before it"
         ),
         members=rostermembers.registry_tuples,

@@ -43,7 +43,7 @@ Being ignored, they never run in CI and never count toward coverage.
 """
 
 LIVE = Roster(
-    label="the live seam checks",
+    label="the live gRPC checks",
     document=DOCUMENT,
     opens="**Live checks**",
     closes="Being ignored, they never run in CI",
@@ -107,7 +107,7 @@ def test_every_fault_carries_the_reason_the_two_sides_must_agree(tmp_path: Path)
 def test_a_fault_names_the_document_and_the_roster_it_is_against(tmp_path: Path) -> None:
     trimmed = PAGE.replace("- `the_probe_gives_up` dials a dead address and stays inside its", "")
     fault = faults(repo(tmp_path, page=trimmed))[0]
-    assert (fault.document, fault.label) == (DOCUMENT.as_posix(), "the live seam checks")
+    assert (fault.document, fault.label) == (DOCUMENT.as_posix(), "the live gRPC checks")
 
 
 def test_the_sentence_beside_a_name_may_say_anything(tmp_path: Path) -> None:

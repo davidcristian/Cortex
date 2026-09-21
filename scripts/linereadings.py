@@ -100,16 +100,16 @@ def _pieces(run: LineRun) -> str:
 def said(runs: list[LineRun], needle: str, at: int | None) -> str:
     """The clause naming the line with the most of ``needle``, or saying no line has half of it."""
     if not runs:
-        return "carrying less than half of it on any line"
+        return "with less than half of it on any line"
     run = next((each for each in runs if each.stop == at), runs[0])
     share = f"{run.length} of its {len(needle)} characters ({_pieces(run)})"
     carried = len(run.opening or run.closing)
     read = quote(run.words, run.column - carried, run.column)
     if len(runs) == 1:
-        return f"carrying the most of it on line {run.number}, {share}, where it reads {read!r}"
-    which = "the first" if at is None else "the nearest to that spelling"
+        return f"with the most of it on line {run.number}, {share}, where it reads {read!r}"
+    which = "the first" if at is None else "the nearest to that form"
     return (
-        f"carrying the most of it on {len(runs)} lines, {share} each, {which} on line "
+        f"with the most of it on {len(runs)} lines, {share} each, {which} on line "
         f"{run.number}, where it reads {read!r}"
     )
 

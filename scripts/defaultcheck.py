@@ -89,7 +89,7 @@ def disagreement(name: str, spends: list[Spend]) -> Fault | None:
         return Fault(
             subject=name,
             detail=(
-                f"is spelled {len(spends)} times with {len(operators)} different fallback "
+                f"is written {len(spends)} times with {len(operators)} different fallback "
                 f"operators, so one spend falls back where another does not ({shown})"
             ),
         )
@@ -100,7 +100,7 @@ def disagreement(name: str, spends: list[Spend]) -> Fault | None:
     return Fault(
         subject=name,
         detail=(
-            f"is spelled {len(spends)} times and does not carry one default, so the stack takes "
+            f"is written {len(spends)} times and does not have one default, so the stack takes "
             f"whichever spend it happens to read ({shown}){one_line_hint(spends)}"
         ),
     )
@@ -155,7 +155,7 @@ def check(root: Path) -> Scan:
 def main(argv: list[str] | None = None) -> int:
     """Run the check; print any faults and return the process exit code."""
     parser = argparse.ArgumentParser(
-        description="Fail when one compose variable carries two different defaults.",
+        description="Fail when one compose variable has two different defaults.",
     )
     parser.add_argument(
         "--root",
@@ -180,16 +180,16 @@ def main(argv: list[str] | None = None) -> int:
         print(refused_summary("defaultcheck", len(scanned.refused), unread), file=sys.stderr)
     if scanned.disagreements:
         print(
-            f"\ndefaultcheck: {len(scanned.disagreements)} compose variable(s) do not carry one "
-            "default. Give every spend of one variable the same default, re-spelled only where "
+            f"\ndefaultcheck: {len(scanned.disagreements)} compose variable(s) do not have one "
+            "default. Give every spend of one variable the same default, rewritten only where "
             "the far side's own syntax cannot take it as written.",
             file=sys.stderr,
         )
     if scanned.faults:
         return 1
     print(
-        f"defaultcheck OK: {scanned.compared} variable(s) spelled twice or more under {given} "
-        f"carry one value, over {scanned.files} compose file(s) and {scanned.variables} "
+        f"defaultcheck OK: {scanned.compared} variable(s) written twice or more under {given} "
+        f"have one value, over {scanned.files} compose file(s) and {scanned.variables} "
         f"variable(s) read"
     )
     return 0

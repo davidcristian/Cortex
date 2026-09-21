@@ -22,10 +22,10 @@ SETEXT = re.compile(r"^ {0,3}(?:=+|-+)\s*$")
 BLOCK_OPENER = re.compile(r"^\s*(?:[-*+]\s|\d+[.)]\s|>|\||#{1,6} )")
 
 LINKED = "brackets a span, which markdown may make a link and this rule always reads literally"
-TAGGED = "carries angle-bracket markup, whose letters this rule keeps and a renderer drops"
+TAGGED = "contains angle-bracket markup, whose letters this rule keeps and a renderer drops"
 CLOSED = "is closed with hashes, which a renderer strips and this rule leaves as a trailing hyphen"
 STRESSED = "emphasises with underscores, a word character to this rule and a mark to a renderer"
-ENTITIED = "carries an entity reference, whose letters this rule keeps and a renderer resolves"
+ENTITIED = "contains an entity reference, whose letters this rule keeps and a renderer resolves"
 UNDERLINED = "is written as a setext underline, a heading shape this rule cannot see at all"
 PLAINLY = "; write it as plain text under leading hashes, so the source is what a renderer slugs"
 

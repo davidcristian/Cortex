@@ -141,12 +141,12 @@ def whole_spelling(value: Value) -> str:
     if isinstance(value, int):
         return str(value)
     if not isinstance(value, Digits):
-        msg = f"a whole spelling needs a number, and this constant declares {value!r}"
+        msg = f"a whole form needs a number, and this constant declares {value!r}"
         raise CrossCheckError(msg)
     whole, _, fraction = value.written.partition(DECIMAL_POINT)
     if fraction.strip("0"):
         msg = (
-            f"{value.written} cannot be spelled whole, its fraction being lost rather than "
+            f"{value.written} cannot be written whole, its fraction being lost rather than "
             "zero, so the far side would be tied to a number the site does not declare"
         )
         raise CrossCheckError(msg)
@@ -156,7 +156,7 @@ def whole_spelling(value: Value) -> str:
 def _lowered_spelling(value: Value) -> str:
     """A boolean in the lower case the other language writes the same answer in."""
     if not isinstance(value, Truth):
-        msg = f"a lowered spelling needs a boolean, and this constant declares {value!r}"
+        msg = f"a lowered form needs a boolean, and this constant declares {value!r}"
         raise CrossCheckError(msg)
     return value.written.lower()
 
@@ -181,6 +181,6 @@ def spelling_fault(constant: Constant) -> str | None:
     if len(constant.sites) > 1 or any(faithful):
         return None
     return (
-        "re-spells its one value everywhere it is spent, so nothing holds the spelling the site "
-        "writes and a site that changed spelling alone would go unreported"
+        "rewrites its one value everywhere it is spent, so nothing holds the form the site "
+        "writes and a site that changed form alone would go unreported"
     )

@@ -167,7 +167,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--rustc",
         required=True,
-        help="`rustc +nightly --version` as the step probed it; relayed into the verdict",
+        help="`rustc +nightly --version` as the step probed it; passed on into the result",
     )
     parser.add_argument(
         "--llvm-cov",
@@ -183,7 +183,7 @@ def main(argv: list[str] | None = None) -> int:
         verdicts = attribute(load_producer(document), toolchain)
         verdicts += evaluate(load_totals(document))
     except CoverageReportError as err:
-        print(f"coverage gate: {err}", file=sys.stderr)
+        print(f"coverage_gate: {err}", file=sys.stderr)
         return 1
     for verdict in verdicts:
         print(verdict.line)

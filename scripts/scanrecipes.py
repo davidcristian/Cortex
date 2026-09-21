@@ -70,7 +70,7 @@ def job_scans(text: str) -> list[str]:
         runs = RUNS.match(step.group(1))
         if runs is None:
             msg = (
-                f"the {JOB!r} job runs {step.group(1)!r}, which is not one of the gate's own "
+                f"the {JOB!r} job runs {step.group(1)!r}, which is not one of `just check`'s own "
                 f"check recipes; this job is the scans and nothing else"
             )
             raise ScanReadError(msg)

@@ -33,7 +33,7 @@ TRAIL_COUPLINGS: tuple[Constant, ...] = (
     Constant(
         label="the logger one recall-trail line is written through",
         why=(
-            "this is the name an operator selects the trail by on a stream carrying every other "
+            "this is the name an operator selects the trail by on a stream with every other "
             "line the brain writes, and three documents restate it while none of them can import "
             "it: the memory runbook says what turning the trail on produces, the local-dev "
             "runbook names it among the two per-line trails a deployment can raise or lower on "
@@ -54,9 +54,9 @@ TRAIL_COUPLINGS: tuple[Constant, ...] = (
         label="the message one recall-trail line is found by",
         why=(
             "the reader that measures this trail selects a line out of a capture by this message "
-            "and spells it itself, having no way to import it, so a rename in the sink leaves a "
+            "and writes it itself, having no way to import it, so a rename in the sink leaves a "
             "hand run measurement refusing every capture in the words of a stack that wrote no "
-            "trail (ADR-0051 decision 16); the runbook says the line carries this word "
+            "trail (ADR-0051 decision 16); the runbook says the line has this word "
             "as its message and tells an operator to grep for it, and one of those two sentences "
             "is what a rename makes false while the other still works by accident, the logger's "
             "own name ending in the same word"
@@ -88,19 +88,18 @@ TRAIL_COUPLINGS: tuple[Constant, ...] = (
     Constant(
         label="the logger one tool-audit line is written through",
         why=(
-            "this is the name an operator selects the audit trail by on a stream carrying every "
-            "other line the brain writes, and four places restate it while none of them can "
-            "import it: the tools runbook says one such line is written per dispatched call, the "
-            "local-dev runbook names it among the two per-line trails a deployment can raise or "
-            "lower, the process entry's logging module names it to argue that the shipped level "
-            "is not a knob, and that module's own suite writes a line under the name and asserts "
-            "the rendered result to prove the argument; a rename in the sink alone leaves two "
-            "runbooks telling an operator to select a trail nothing writes, one module arguing "
-            "about the level of a logger that no longer exists, and one suite demonstrating the "
-            "argument on a name the brain abandoned, all four green (ADR-0045 "
-            "decision 13); what holds this declaration to the call handed it is the guard the "
-            "sixth entry below is about, which names no sink and so restates nothing here "
-            "(ADR-0045 decision 13)"
+            "this is the name an operator selects the audit trail by on a stream with every other "
+            "line the brain writes, and four places restate it while none of them can import it: "
+            "the tools runbook says one such line is written per dispatched call, the local-dev "
+            "runbook names it among the two per-line trails a deployment can raise or lower, the "
+            "process entry's logging module names it to argue that the shipped level is not a "
+            "setting, and that module's own suite writes a line under the name and asserts the "
+            "rendered result to prove the argument; a rename in the sink alone leaves two runbooks "
+            "telling an operator to select a trail nothing writes, one module arguing about the "
+            "level of a logger that no longer exists, and one suite demonstrating the argument on "
+            "a name the brain abandoned, all four green (ADR-0045 decision 13); what holds this "
+            "declaration to the call handed it is the guard the sixth entry below is about, which "
+            "names no sink and so restates nothing here (ADR-0045 decision 13)"
         ),
         sites=(Site(AUDIT_SINK, "_LOGGER_NAME"),),
         mentions=(
@@ -116,11 +115,11 @@ TRAIL_COUPLINGS: tuple[Constant, ...] = (
         why=(
             "this is the word an operator looks for once the logger has selected the trail, and "
             "three places restate it while none of them can import it: the tools runbook says the "
-            "line carries this and nothing else before its fields, and the process entry's own "
+            "line has this and nothing else before its fields, and the process entry's own "
             "suite writes it under the trail's name and asserts the rendered result back to prove "
             "the shipped level; a rename in the sink alone leaves the runbook describing a "
-            "message nothing writes and the suite passing on both its spellings at once, having "
-            "renamed with itself (ADR-0045 decision 14); the sample gate holds the "
+            "message nothing writes and the suite passing on both its forms at once, having "
+            "renamed with itself (ADR-0045 decision 14); the sample check holds the "
             "runbook's rendered samples of this line to the sink's suite rather than to the call, "
             "and holds no prose sentence, so this entry still ties the one naming the message; "
             "the fourth place is the sink's own suite, which asserts the rendered line (ADR-0045 "
@@ -143,12 +142,12 @@ TRAIL_COUPLINGS: tuple[Constant, ...] = (
             "self-named out of the tree, a logger that is not its module's dotted path being one "
             "by construction, and then asks each of those modules for this one name, so the "
             "naming is what the derivation is read by and the guard, both sinks and any third "
-            "have to keep spelling it alike (ADR-0045 decision 13); a sink that renames "
+            "have to keep writing it alike (ADR-0045 decision 13); a sink that renames "
             "it fails the guard as well as this entry, and what nothing else would notice is "
             "the guard itself going away, which takes the whole derivation with it and leaves the "
             "two declarations above tied to the documents restating them and to nothing at all "
             "saying the brain still writes through them; both module contracts name the "
-            "identifier too, each explaining why its sink is spelled this way, and a rename that "
+            "identifier too, each explaining why its sink is named this way, and a rename that "
             "moved only the sinks would leave the pair of them pointing at a binding neither "
             "module makes"
         ),

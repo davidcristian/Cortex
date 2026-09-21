@@ -52,7 +52,7 @@ def test_a_cell_differing_in_output_or_in_tokens_is_named(
     report = capsys.readouterr().out.splitlines()
     assert (
         report[0]
-        == "3 samples of arm constrained, 2 cells each, matched on question, draw and seed:"
+        == "3 samples of variant constrained, 2 cells each, matched on question, draw and seed:"
     )
     counted = "identical in output and tokens; differ at"
     assert report[1] == f"  {left} against {right}: 1 of 2 {counted} warehouse draw 1 seed 1"
@@ -76,9 +76,9 @@ def test_cells_are_matched_on_their_place_rather_than_their_order(tmp_path: Path
 @pytest.mark.parametrize(
     ("second", "arm", "reason"),
     [
-        ([run("warehouse", 1, seed=None), run("clinic", 1)], "constrained", "carries a null seed"),
+        ([run("warehouse", 1, seed=None), run("clinic", 1)], "constrained", "has a null seed"),
         ([run("warehouse", 1), run("warehouse", 1)], "constrained", "holds one cell twice"),
-        (two(), "raw", "is arm raw and"),
+        (two(), "raw", "is variant raw and"),
         ([run("warehouse", 1), run("fleet", 1)], "constrained", "does not hold the cells"),
         ([run("warehouse", 1, seed=5), run("clinic", 1)], "constrained", "does not hold the cells"),
         (

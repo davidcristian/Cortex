@@ -30,7 +30,7 @@ def test_a_real_drift_in_that_same_variable_is_reported(tmp_path: Path) -> None:
     _compose(tmp_path, _environment("${MEM_BUDGET_GB:-8.0}", "${MEM_BUDGET_GB:-9}g"))
     faults = defaultcheck.check(tmp_path).faults
     assert [fault.subject for fault in faults] == ["MEM_BUDGET_GB"]
-    assert "does not carry one default" in faults[0].detail
+    assert "does not have one default" in faults[0].detail
     assert "${MEM_BUDGET_GB:-8.0}" in faults[0].detail
     assert "${MEM_BUDGET_GB:-9}" in faults[0].detail
 
@@ -193,7 +193,7 @@ def test_main_states_what_it_read_beside_the_verdict(
     _counted(tmp_path)
     assert defaultcheck.main(["--root", str(tmp_path)]) == 0
     assert capsys.readouterr().out == (
-        f"defaultcheck OK: 2 variable(s) spelled twice or more under {tmp_path} carry one value, "
+        f"defaultcheck OK: 2 variable(s) written twice or more under {tmp_path} have one value, "
         f"over 3 compose file(s) and 5 variable(s) read\n"
     )
 
@@ -204,8 +204,8 @@ _REFUSED = (
     "file's own fault says.\n"
 )
 _DISAGREEING = (
-    "\ndefaultcheck: 1 compose variable(s) do not carry one default. Give every spend of one "
-    "variable the same default, re-spelled only where the far side's own syntax cannot take it as "
+    "\ndefaultcheck: 1 compose variable(s) do not have one default. Give every spend of one "
+    "variable the same default, rewritten only where the far side's own syntax cannot take it as "
     "written.\n"
 )
 
@@ -216,7 +216,7 @@ def test_main_reports_each_fault_and_exits_one(
     _compose(tmp_path, _environment("${DIR:-./a}", "${DIR:-./b}"))
     assert defaultcheck.main(["--root", str(tmp_path)]) == 1
     captured = capsys.readouterr()
-    assert captured.out.startswith("DIR: is spelled 2 times")
+    assert captured.out.startswith("DIR: is written 2 times")
     assert captured.err == _DISAGREEING
 
 
@@ -262,7 +262,7 @@ def test_a_group_all_on_one_line_points_at_the_note_behind_it(tmp_path: Path) ->
     spend = '      DIR: "${MODELS_DIR:-./models}"  # ${MODELS_DIR:-./cache}\n'
     _compose(tmp_path, f"services:\n  brain:\n    environment:\n{spend}")
     (fault,) = defaultcheck.check(tmp_path).faults
-    assert "does not carry one default" in fault.detail
+    assert "does not have one default" in fault.detail
     assert "more than one of those spends is on docker-compose.yml:4" in fault.detail
     assert "move it above the line it annotates" in fault.detail
 
@@ -270,7 +270,7 @@ def test_a_group_all_on_one_line_points_at_the_note_behind_it(tmp_path: Path) ->
 def test_a_group_spread_over_two_lines_is_offered_no_such_remedy(tmp_path: Path) -> None:
     _compose(tmp_path, _environment("${MODELS_DIR:-./models}", "${MODELS_DIR:-./cache}"))
     (fault,) = defaultcheck.check(tmp_path).faults
-    assert "does not carry one default" in fault.detail
+    assert "does not have one default" in fault.detail
     assert "more than one of those spends" not in fault.detail
 
 

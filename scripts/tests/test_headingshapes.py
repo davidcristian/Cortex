@@ -137,7 +137,7 @@ def test_a_rule_that_underlines_nothing_is_not_a_setext_heading(text: str) -> No
         ),
         (
             "## Press <kbd>Ctrl</kbd>+N\n",
-            "docs/x.md:1: heading 'Press <kbd>Ctrl</kbd>+N' carries angle-bracket markup, whose"
+            "docs/x.md:1: heading 'Press <kbd>Ctrl</kbd>+N' contains angle-bracket markup, whose"
             " letters this rule keeps and a renderer drops; write it as plain text under leading"
             " hashes, so the source is what a renderer slugs",
         ),
@@ -155,7 +155,7 @@ def test_a_rule_that_underlines_nothing_is_not_a_setext_heading(text: str) -> No
         ),
         (
             "## Risks &amp; notes\n",
-            "docs/x.md:1: heading 'Risks &amp; notes' carries an entity reference, whose letters"
+            "docs/x.md:1: heading 'Risks &amp; notes' contains an entity reference, whose letters"
             " this rule keeps and a renderer resolves; write it as plain text under leading"
             " hashes, so the source is what a renderer slugs",
         ),

@@ -166,7 +166,7 @@ def test_only_the_whole_spelling_is_lossy() -> None:
 
 
 def test_a_fraction_that_is_not_zero_cannot_be_spelled_whole() -> None:
-    with pytest.raises(values.CrossCheckError, match="cannot be spelled whole"):
+    with pytest.raises(values.CrossCheckError, match="cannot be written whole"):
         values.spell(values.parse_value("8.5"), couplings.Spelling.WHOLE)
 
 
@@ -219,7 +219,7 @@ def test_a_re_spelling_holds_where_something_keeps_the_written_form(
 def test_an_entry_that_only_ever_re_spells_is_refused(constant: couplings.Constant) -> None:
     fault = values.spelling_fault(constant)
     assert fault is not None
-    assert "nothing holds the spelling the site writes" in fault
+    assert "nothing holds the form the site writes" in fault
 
 
 def test_a_faithful_re_spelling_needs_no_reading_beside_it() -> None:

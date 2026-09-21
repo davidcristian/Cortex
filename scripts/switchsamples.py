@@ -119,7 +119,7 @@ def load(path: Path) -> Probe:
     }
     _require(
         set(rendered) == {False, True},
-        f"{path}: renderings must carry one prompt with the switch and one without",
+        f"{path}: renderings must contain one prompt with the switch and one without",
     )
     return Probe(
         path=path,

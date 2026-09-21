@@ -125,7 +125,7 @@ def load(path: Path) -> Block:
     found = readings(text)
     if not found:
         rendering = _PACKED if packed_trail(text) else ""
-        msg = f"{path}: no {TRAIL_MESSAGE} line carrying a {TRAIL_FIELD} field{rendering}"
+        msg = f"{path}: no {TRAIL_MESSAGE} line with a {TRAIL_FIELD} field{rendering}"
         raise TrailWidthError(msg)
     return Block(path, found)
 

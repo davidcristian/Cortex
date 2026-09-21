@@ -62,7 +62,7 @@ def test_an_instruction_left_open_on_a_continuation_is_still_read() -> None:
 @pytest.mark.parametrize(
     ("text", "message"),
     [
-        ("VOLUME ${CACHE}\n", "carries an expansion"),
+        ("VOLUME ${CACHE}\n", "contains an expansion"),
         ("VOLUME\n", "names no path"),
         ("VOLUME []\n", "names no path"),
         ("VOLUME relative/path\n", "is not an absolute container path"),
@@ -114,7 +114,7 @@ def test_a_trigger_not_opening_with_an_instruction_is_refused(entry: str) -> Non
 
 
 def test_a_trigger_the_reader_cannot_read_is_refused_rather_than_resolved_to_nothing() -> None:
-    with pytest.raises(DockerfileError, match="carries an expansion"):
+    with pytest.raises(DockerfileError, match="contains an expansion"):
         onbuild_volumes(("VOLUME ${CACHE}",))
 
 
@@ -258,7 +258,7 @@ def test_a_build_pointing_where_no_dockerfile_lands_is_unasked(tmp_path: Path) -
     reading = undeclared(tmp_path, compose, Build("./nowhere", "Dockerfile"), "tree-x", (), {})
     assert reading.faults == ()
     assert len(reading.unasked) == 1
-    assert "where no Dockerfile lands" in reading.unasked[0]
+    assert "where no Dockerfile exists" in reading.unasked[0]
 
 
 @pytest.mark.parametrize(
@@ -273,7 +273,7 @@ def test_a_build_path_spelled_through_a_substitution_is_unasked(
     reading = undeclared(tmp_path, compose, build, "tree-brain", (), {})
     assert reading.faults == ()
     assert len(reading.unasked) == 1
-    assert "carries a substitution" in reading.unasked[0]
+    assert "contains a substitution" in reading.unasked[0]
 
 
 def test_a_dockerfile_the_reader_refuses_is_unasked_rather_than_a_silence(tmp_path: Path) -> None:
@@ -283,7 +283,7 @@ def test_a_dockerfile_the_reader_refuses_is_unasked_rather_than_a_silence(tmp_pa
     assert reading.faults == ()
     assert len(reading.unasked) == 1
     assert "could not be read" in reading.unasked[0]
-    assert "carries an expansion" in reading.unasked[0]
+    assert "contains an expansion" in reading.unasked[0]
 
 
 def test_a_dockerfile_that_is_not_text_is_unasked(tmp_path: Path) -> None:

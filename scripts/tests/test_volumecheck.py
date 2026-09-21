@@ -155,7 +155,7 @@ def test_a_build_reaching_no_dockerfile_is_unasked_not_a_silent_pass(tree: Path)
     _write(tree, "docker/docker-compose.g.yml", _service("    build: ./gone\n", "brain"))
     scanned = volumecheck.check(tree, RECORDS)
     assert [fault.path for fault in scanned.unasked] == ["docker/docker-compose.g.yml"]
-    assert "where no Dockerfile lands" in scanned.unasked[0].detail
+    assert "where no Dockerfile exists" in scanned.unasked[0].detail
     assert [fault for fault in scanned.findings if fault.path.endswith("compose.g.yml")] == []
 
 
@@ -214,7 +214,7 @@ def test_an_image_written_as_a_substitution_is_unasked_rather_than_keyed_on(tree
     _write(tree, "docker/docker-compose.v.yml", _service('    image: "${TAG:-db:1}"\n'))
     scanned = volumecheck.check(tree, RECORDS)
     assert [fault.path for fault in scanned.unasked] == ["docker/docker-compose.v.yml"]
-    assert "does not spell" in scanned.unasked[0].detail
+    assert "does not name" in scanned.unasked[0].detail
     assert [fault for fault in scanned.findings if fault.path.endswith("compose.v.yml")] == []
 
 
@@ -222,7 +222,7 @@ def test_a_build_with_no_project_to_key_it_under_is_unasked(tmp_path: Path) -> N
     _write(tmp_path, "docker/docker-compose.only.yml", _service("    build: ./b\n", "brain"))
     scanned = volumecheck.check(tmp_path, RECORDS)
     assert [fault.line for fault in scanned.unasked] == [2]
-    assert "no base compose file pins one project name" in scanned.unasked[0].detail
+    assert "no base compose file sets one project name" in scanned.unasked[0].detail
     assert [fault for fault in scanned.findings if fault.line] == []
 
 
@@ -231,7 +231,7 @@ def test_two_base_files_pinning_two_projects_are_not_guessed_between(tree: Path)
     _write(tree, "docker/docker-compose.b.yml", _service("    build: ./b\n", "worker"))
     faults = [fault for fault in volumecheck.check(tree, RECORDS).faults if fault.line]
     assert len(faults) == 1
-    assert "no base compose file pins one project name" in faults[0].detail
+    assert "no base compose file sets one project name" in faults[0].detail
 
 
 def test_a_compose_file_the_reader_refuses_is_a_refused_file_not_a_finding(tree: Path) -> None:
@@ -299,8 +299,8 @@ def test_main_states_what_it_read_beside_the_verdict(capsys: pytest.CaptureFixtu
     assert "compose file(s), " in out
     assert "service definition(s) and " in out
     assert "image(s) counting the bases those builds stand on, " in out
-    assert "2 Dockerfile(s) here declare and inherit nothing their row does not carry" in out
-    assert "does not carry, triggers included" in out
+    assert "2 Dockerfile(s) here declare and inherit nothing their row does not contain" in out
+    assert "does not contain, triggers included" in out
 
 
 _REFUSED = (

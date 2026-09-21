@@ -28,14 +28,14 @@ HOST_TOAST_CHECK = "docs/host/tasks/003-real-reminder-toast.md"
 
 ENDPOINT_COUPLINGS: tuple[Constant, ...] = (
     Constant(
-        label="the brain's seam bind host",
+        label="the brain's gRPC bind host",
         why=(
             "the interface BrainService binds when nothing overrides it is restated by the "
             "orchestrator contract as the field's own default, by the RPC contract as the pair "
             "the body's dial address is said to match, and by the WSL runbook's env table as "
             "what an operator gets without exporting anything, so moving the default alone "
             "leaves three documents telling a reader the brain answers somewhere it does not "
-            "(ADR-0003 seam-config contract)"
+            "(the endpoint configuration contract in ADR-0003)"
         ),
         sites=(Site(SEAM_CONFIG, "DEFAULT_SEAM_HOST"),),
         mentions=(
@@ -45,12 +45,12 @@ ENDPOINT_COUPLINGS: tuple[Constant, ...] = (
         ),
     ),
     Constant(
-        label="the brain's seam port",
+        label="the brain's gRPC port",
         why=(
-            "the compose stack publishes this port and dials it in its own healthcheck, the "
-            "image declares it, the host body's default endpoints name it, two runbooks and "
-            "four module contracts quote it to a reader as the address the brain answers on, "
-            "the host sitting's prerequisites tell an operator to expect it, and three live "
+            "the compose stack publishes this port and dials it in its own healthcheck, the image "
+            "declares it, the host body's default endpoints name it, two runbooks and four module "
+            "contracts quote it to a reader as the address the brain answers on, the host "
+            "measurement session's prerequisites tell an operator to expect it, and three live "
             "suites fall back to it when no endpoint is exported, so a change to the server "
             "default alone leaves every one of them pointed at a port nothing listens on "
             "(ADR-0003/0016)"
@@ -91,10 +91,10 @@ ENDPOINT_COUPLINGS: tuple[Constant, ...] = (
         why=(
             "the entry above with the trees swapped: the host body binds this port when nothing "
             "names another, the body override dials it from inside the container, three runbooks "
-            "and three module contracts quote it to an operator as the bind and the endpoint, "
-            "the host sitting's prerequisites tell an operator to export it, and the brain's "
-            "live gateway test falls back to it, so a change to the bind default alone leaves "
-            "the container dialling a port the host is not listening on (ADR-0023)"
+            "and three module contracts quote it to an operator as the bind and the endpoint, the "
+            "host measurement session's prerequisites tell an operator to export it, and the "
+            "brain's live gateway test falls back to it, so a change to the bind default alone "
+            "leaves the container dialling a port the host is not listening on (ADR-0023)"
         ),
         sites=(Site(BODY_SERVER, "DEFAULT_BODY_PORT"),),
         mentions=(
