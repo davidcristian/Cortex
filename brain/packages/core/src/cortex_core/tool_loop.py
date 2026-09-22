@@ -7,6 +7,7 @@ from cortex_core.dispatch_round import ToolLoopContext, run_round
 from cortex_core.inference import DecodeCadence, DecodeStop, ReasoningChunk, TextChunk
 from cortex_core.loop_events import ReasoningDelta, StepOutcome, ToolStep
 from cortex_core.ports import InferenceBackend
+from cortex_core.progress import hold_wait
 from cortex_core.tool_round import call_message, plan_round
 from cortex_core.tools import ToolCall
 
@@ -51,16 +52,17 @@ async def stream_tool_loop(
             model, working, tools=specs, schema=context.schema, bounds=context.bounds
         )
         try:
-            async for event in deltas:
-                if isinstance(event, ToolCall):
-                    calls.append(event)
-                elif isinstance(event, ReasoningChunk):
-                    yield ReasoningDelta(event.text)
-                else:
-                    text = _reply_text(event, context)
-                    if text is not None:
-                        step_text.append(text)
-                        yield text
+            async with hold_wait(context.progress, context.generating):
+                async for event in deltas:
+                    if isinstance(event, ToolCall):
+                        calls.append(event)
+                    elif isinstance(event, ReasoningChunk):
+                        yield ReasoningDelta(event.text)
+                    else:
+                        text = _reply_text(event, context)
+                        if text is not None:
+                            step_text.append(text)
+                            yield text
         finally:
             # Runs on exhaustion, on a backend failure and when a consumer closes this loop, so
             # an abandoned backend stream is never left half-suspended.

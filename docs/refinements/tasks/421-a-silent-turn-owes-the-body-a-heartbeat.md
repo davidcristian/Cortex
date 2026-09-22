@@ -71,5 +71,5 @@ existing.
   stuck on a live brain, so the body adds a two-minute gap on the stream's silence and counts each
   heartbeat as 30 s of the turn's own, which keeps the ten-minute and four-hour bounds. HTTP/2
   keepalive was rejected because gRPC's C core answers a ping while the Python event loop is
-  blocked. Opened [R-708](708-the-overlay-cannot-say-what-a-turn-waits-for.md) for the overlay
-  label this entry mentions.
+  blocked. Each heartbeat also contains what the turn waits on, which the overlay's status chip
+  shows, so the label this entry mentions is there too.

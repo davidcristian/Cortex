@@ -117,9 +117,10 @@ WIRE_COUPLINGS: tuple[Constant, ...] = (
             "trace and styles its chip by comparing against the bare literal, so a rename "
             "leaves the reasoning unaccumulated and the chip unstyled (ADR-0020)"
         ),
-        sites=(Site("brain/packages/core/src/cortex_core/output_channels.py", "THINKING_STATE"),),
+        sites=(Site("brain/packages/core/src/cortex_core/waits.py", "THINKING"),),
         mentions=(
             Mention("body/app/src/overlay/turnState.ts", 'event.state === "{value}"'),
+            Mention("body/app/src/overlay/turnState.ts", 'event.wait === "{value}"'),
             Mention(
                 "body/app/src/components/Message.tsx",
                 'message.statusState === "{value}"',

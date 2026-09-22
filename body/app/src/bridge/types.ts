@@ -21,6 +21,9 @@ export type TurnEvent =
   /** A `confirmRequest` the brain stopped waiting on, so the card can close. `outcome` is
    *  "timeout" or "unavailable"; neither one ran the tool. */
   | { readonly kind: "confirmResolved"; readonly confirmId: string; readonly outcome: string }
+  /** The turn still runs, sent while it is otherwise quiet. `wait` is the `status` state it
+   *  waits on, or "" for none, and `detail` is the sentence to show for it. */
+  | { readonly kind: "heartbeat"; readonly wait: string; readonly detail: string }
   | { readonly kind: "complete"; readonly turnId: string }
   | { readonly kind: "failed"; readonly code: string; readonly message: string };
 

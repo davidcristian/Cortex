@@ -65,8 +65,10 @@ Two areas of this crate have documents of their own:
     `ConfirmResolved { confirm_id, outcome }` says the brain stopped waiting on one, so a surface
     can close it; it is non-terminal and is sent only for endings the caller cannot know,
     `"timeout"` and `"unavailable"`, never the caller's own answer.
-  - `Heartbeat` says the brain's turn is still running (ADR-0069). It is non-terminal, and
-    `within_gaps` consumes it, so a surface behind `RetryingTransport` never receives one.
+  - `Heartbeat { wait, detail }` says the brain's turn is still running and what it waits on
+    (ADR-0069): `wait` is one of the `Status` states `thinking`, `queued`, `delegating`,
+    `swapping`, `folding`, `calling` or `asking`, or empty. It is non-terminal; `within_gaps`
+    counts it as silence and passes it on.
   - `Complete { turn_id }` and `Failed { code, message }` are the two terminal events.
 - `ConfirmDecision { confirm_id, approved }` is the user's answer to a `ConfirmRequest`, fed into
   `converse`'s `decisions` stream and delivered as a `ConfirmResponse` on the open stream.

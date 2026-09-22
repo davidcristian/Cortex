@@ -108,7 +108,10 @@ const BEATING: TurnGaps = TurnGaps {
 /// One heartbeat, in the `Result` shape a turn's items have.
 #[allow(clippy::unnecessary_wraps)]
 fn beat() -> TurnItem {
-    Ok(TurnEvent::Heartbeat)
+    Ok(TurnEvent::Heartbeat {
+        wait: "queued".to_owned(),
+        detail: "1 subtask waiting for room to run".to_owned(),
+    })
 }
 
 /// A number of seconds, so an expected recording reads as the figures in [`BEATING`].
@@ -222,7 +225,7 @@ async fn an_expired_gap_ends_the_stream_rather_than_waiting_again() {
 async fn a_stream_with_no_gaps_at_all_is_bounded_by_a_clock_that_never_wins() {
     let sleeper = GapSleeper::granting();
     let items = drain(None, &sleeper, finished(vec![beat(), delta("only")])).await;
-    assert_eq!(items, vec![delta("only")]);
+    assert_eq!(items, vec![beat(), delta("only")]);
     assert_eq!(
         sleeper.gaps(),
         vec![Duration::MAX, Duration::MAX, Duration::MAX]
@@ -255,7 +258,7 @@ fn the_shipped_gaps_are_the_four_constants_and_the_heartbeat_gap_is_four_periods
 }
 
 #[tokio::test]
-async fn heartbeats_keep_a_quiet_turn_alive_and_are_never_yielded() {
+async fn heartbeats_keep_a_quiet_turn_alive_and_are_passed_on_with_their_wait() {
     let sleeper = GapSleeper::granting();
     let items = drain(
         Some(BEATING),
@@ -271,7 +274,18 @@ async fn heartbeats_keep_a_quiet_turn_alive_and_are_never_yielded() {
         ]),
     )
     .await;
-    assert_eq!(items, vec![delta("a"), delta("b")]);
+    assert_eq!(
+        items,
+        vec![
+            delta("a"),
+            beat(),
+            beat(),
+            beat(),
+            beat(),
+            delta("b"),
+            beat()
+        ]
+    );
     assert_eq!(sleeper.gaps(), secs(&[20, 20, 20, 20, 20, 10, 20, 20]));
 }
 
@@ -283,6 +297,7 @@ async fn a_brain_that_stops_beating_ends_on_the_heartbeat_gap() {
         items,
         vec![
             delta("a"),
+            beat(),
             Err(TransportError::Timeout {
                 after: BEATING.heartbeat
             }),
@@ -312,6 +327,10 @@ async fn heartbeats_alone_end_the_turn_once_they_add_up_to_its_idle_gap() {
         items,
         vec![
             delta("a"),
+            beat(),
+            beat(),
+            beat(),
+            beat(),
             Err(TransportError::Timeout {
                 after: BEATING.idle
             }),
@@ -331,9 +350,13 @@ async fn heartbeats_before_any_event_count_against_the_first_event_gap() {
     .await;
     assert_eq!(
         items,
-        vec![Err(TransportError::Timeout {
-            after: BEATING.first
-        })]
+        vec![
+            beat(),
+            beat(),
+            Err(TransportError::Timeout {
+                after: BEATING.first
+            })
+        ]
     );
     assert_eq!(sleeper.gaps(), secs(&[20, 20, 10]));
 }
@@ -351,6 +374,10 @@ async fn a_silence_that_outlasts_the_turn_s_remaining_allowance_reports_the_allo
         items,
         vec![
             delta("a"),
+            beat(),
+            beat(),
+            beat(),
+            beat(),
             Err(TransportError::Timeout {
                 after: BEATING.idle
             }),

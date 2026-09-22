@@ -109,13 +109,17 @@ One stream's machinery lives in `converse_stream.py`, which `converse.py` re-exp
   real `ProgressSink`. Unlike the confirmer's control path, `emit` is credit-balanced and best
   effort: it takes a buffer credit only when one is free right now, else drops the event, so a
   delegating turn's many steps cannot drift the bound and a stalled consumer loses cosmetic
-  progress rather than stalling the subagent.
+  progress rather than stalling the subagent. Its `hold(wait)` keeps the stream's `TurnWaits`,
+  whose innermost wait `current()` returns for the heartbeat. `EscalatingTurnEngine` is given the
+  same sink, to hold each swap status it passes on.
 - **The heartbeat** ([ADR-0069](../adr/ADR-0069-turn-heartbeat.md)): one task per stream waits
   `HEARTBEAT_PERIOD_MS` (30000) through the `Sleeper` port (`AsyncioSleeper` unless `sleeper` is
   given) and sends `ServerEvent.heartbeat` when a turn task is running and the output queue is
   empty, taking a buffer credit like the turn's events. So it is never dropped, never queued behind
-  an unsent event, and never sent between turns. The body counts each one as a period of the turn's
-  silence, and `crosscheck` compares this period with the body's copy.
+  an unsent event, and never sent between turns. It contains the wait the stream's
+  `SeamProgressSink.current()` reports, key and sentence, or neither when the turn waits on
+  nothing (ADR-0069 decision 7). The body counts each one as a period of the turn's silence, and
+  `crosscheck` compares this period with the body's copy.
 - **Bounded backpressure**: at most `converse_buffer` events sit unread per stream, the turn's data
   path holding a credit per buffered event and returning it on dequeue, so a consumer that stops
   reading suspends generation at the bound. The terminal `SeamError` and teardown bypass the

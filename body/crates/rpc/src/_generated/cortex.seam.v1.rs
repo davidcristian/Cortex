@@ -62,16 +62,23 @@ pub mod server_event {
         /// how a tool call announced above ended
         #[prost(message, tag = "8")]
         ToolOutcome(super::ToolOutcome),
-        /// the turn is still running; holds no turn content
+        /// the turn is still running, and what it waits on
         #[prost(message, tag = "9")]
         Heartbeat(super::Heartbeat),
     }
 }
 /// Sent by the stream itself, not by the turn, once per heartbeat period while a turn task is
-/// running and nothing else is waiting to be sent. The body resets its silence clock on it and
-/// shows nothing, so a live brain and a dead one differ within minutes.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct Heartbeat {}
+/// running and nothing else is waiting to be sent, so a live brain and a dead one differ within
+/// minutes. It repeats the turn's current wait, which a dropped StatusUpdate may have lost.
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct Heartbeat {
+    /// a StatusUpdate state such as queued or calling, or "" for none
+    #[prost(string, tag = "1")]
+    pub wait: ::prost::alloc::string::String,
+    /// the sentence the overlay shows for the wait
+    #[prost(string, tag = "2")]
+    pub detail: ::prost::alloc::string::String,
+}
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct TextDelta {
     #[prost(string, tag = "1")]

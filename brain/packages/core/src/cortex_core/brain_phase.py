@@ -11,7 +11,7 @@ from cortex_core.handoff import HandoffRecord
 from cortex_core.output_channels import open_output_channels
 from cortex_core.ports import Clock, InferenceBackend, SessionStore
 from cortex_core.stops import StopLedger
-from cortex_core.swap_notes import BRAIN_FAILED_NOTE
+from cortex_core.swap_notes import BRAIN_FAILED_NOTE, WORKING_DETAIL
 from cortex_core.tool_budget import DispatchBudget
 from cortex_core.tool_loop import ToolLoopContext, stream_tool_loop
 from cortex_core.turn_context import TurnCapabilities, assemble_inference_messages
@@ -23,6 +23,7 @@ from cortex_core.turn_output import (
     unreadable_call_note,
 )
 from cortex_core.untrusted import TaintLedger
+from cortex_core.waits import THINKING, Wait
 
 _logger = logging.getLogger(__name__)
 
@@ -38,6 +39,7 @@ _NO_READING_LOG_MSG = (
 _UNREADABLE_CALL_LOG_MSG = (
     "a tool call the deep model wrote could not be read; ending this handoff where it broke"
 )
+_DEEP_GENERATING = Wait(THINKING, WORKING_DETAIL)
 
 
 def _user_query(history: Sequence[Message], record: HandoffRecord) -> str:
@@ -89,6 +91,7 @@ class BrainPhase:
             cadence=watch,
             stops=stops,
             bounds=self._caps.bounds,
+            generating=_DEEP_GENERATING,
         )
         assembled = await assemble_inference_messages(
             query, history, self._caps, context, self._clock

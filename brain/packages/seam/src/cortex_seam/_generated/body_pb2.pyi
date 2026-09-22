@@ -61,8 +61,12 @@ class ServerEvent(_message.Message):
     def __init__(self, text_delta: _Optional[_Union[TextDelta, _Mapping]] = ..., tool_activity: _Optional[_Union[ToolActivity, _Mapping]] = ..., status: _Optional[_Union[StatusUpdate, _Mapping]] = ..., turn_complete: _Optional[_Union[TurnComplete, _Mapping]] = ..., error: _Optional[_Union[SeamError, _Mapping]] = ..., confirm_request: _Optional[_Union[ConfirmRequest, _Mapping]] = ..., confirm_resolved: _Optional[_Union[ConfirmResolved, _Mapping]] = ..., tool_outcome: _Optional[_Union[ToolOutcome, _Mapping]] = ..., heartbeat: _Optional[_Union[Heartbeat, _Mapping]] = ...) -> None: ...
 
 class Heartbeat(_message.Message):
-    __slots__ = ()
-    def __init__(self) -> None: ...
+    __slots__ = ("wait", "detail")
+    WAIT_FIELD_NUMBER: _ClassVar[int]
+    DETAIL_FIELD_NUMBER: _ClassVar[int]
+    wait: str
+    detail: str
+    def __init__(self, wait: _Optional[str] = ..., detail: _Optional[str] = ...) -> None: ...
 
 class TextDelta(_message.Message):
     __slots__ = ("text",)

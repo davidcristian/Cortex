@@ -84,7 +84,7 @@ from cortex_core.ports import (
     ToolRegistry,
     TurnRunner,
 )
-from cortex_core.progress import ProgressEvent, ProgressSink
+from cortex_core.progress import ProgressEvent, ProgressSink, hold_wait
 from cortex_core.provenance import (
     MAX_SOURCE_CHARS,
     MAX_TURN_SOURCES,
@@ -176,5 +176,6 @@ __all__ = [
     "claimed_source",
     "data_uri",
     "hold_to_the_bounds_asked_for",
+    "hold_wait",
     "new_turn_id",
 ]

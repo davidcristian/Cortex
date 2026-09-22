@@ -5,8 +5,7 @@ from dataclasses import dataclass
 from cortex_core.events import StatusUpdate
 from cortex_core.guardrail import OutputFilter, OutputGuardrail, TaintView
 from cortex_core.urls import extract_urls
-
-THINKING_STATE = "thinking"
+from cortex_core.waits import THINKING as THINKING_STATE
 
 
 @dataclass(slots=True)

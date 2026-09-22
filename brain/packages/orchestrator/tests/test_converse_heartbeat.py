@@ -1,7 +1,17 @@
 import asyncio
 from collections.abc import AsyncGenerator, AsyncIterator
 
-from cortex_core import TextDelta, TurnCompleted, TurnEvent
+from cortex_core import (
+    CALLING,
+    GENERATING,
+    THINKING,
+    TOOL_RUNNING,
+    Confirmer,
+    ProgressSink,
+    TextDelta,
+    TurnCompleted,
+    TurnEvent,
+)
 from cortex_orchestrator import converse
 from cortex_orchestrator.converse_stream import HEARTBEAT_PERIOD_MS
 from cortex_seam import ClientEvent, ServerEvent, UserTurn
@@ -167,4 +177,56 @@ async def test_a_heartbeat_returns_the_buffer_credit_it_takes() -> None:
         assert _kind(await anext(stream)) == "text_delta"
         assert _kind(await anext(stream)) == "text_delta"
         turn.finish.set()
+        assert [_kind(event) async for event in stream] == ["turn_complete"]
+
+
+class _WaitingTurn:
+    """TurnRunner that holds a tool call and then a thinking wait on its stream's sink."""
+
+    def __init__(self, progress: ProgressSink) -> None:
+        self._progress = progress
+        self.step = asyncio.Event()
+        self.held = asyncio.Event()
+
+    async def handle_turn(
+        self, session_id: str, text: str, *, turn_id: str
+    ) -> AsyncGenerator[TurnEvent, None]:
+        """Hold each wait in turn until the test moves it on, then finish with none held."""
+        del session_id, text
+        async with self._progress.hold(TOOL_RUNNING), self._progress.hold(GENERATING):
+            self.held.set()
+            await self.step.wait()
+        self.step.clear()
+        self.held.set()
+        await self.step.wait()
+        yield TurnCompleted(turn_id=turn_id, full_text="")
+
+
+def _beat(event: ServerEvent) -> tuple[str, str]:
+    assert _kind(event) == "heartbeat"
+    return (event.heartbeat.wait, event.heartbeat.detail)
+
+
+async def test_a_heartbeat_repeats_the_innermost_wait_and_is_empty_without_one() -> None:
+    async with asyncio.timeout(_LIMIT_S):
+        sleeper = _StepSleeper()
+        turns: list[_WaitingTurn] = []
+
+        def make(_c: Confirmer, progress: ProgressSink) -> _WaitingTurn:
+            turns.append(_WaitingTurn(progress))
+            return turns[-1]
+
+        stream = converse(make, _one_turn(), sleeper=sleeper)
+        called = await anext(stream)
+        assert (called.status.state, called.status.detail) == (CALLING, TOOL_RUNNING.detail)
+        await turns[0].held.wait()
+        sleeper.tick()
+        assert _beat(await anext(stream)) == (THINKING, GENERATING.detail)
+        turns[0].held.clear()
+        turns[0].step.set()
+        await turns[0].held.wait()
+        assert _kind(await anext(stream)) == "status"
+        sleeper.tick()
+        assert _beat(await anext(stream)) == ("", "")
+        turns[0].step.set()
         assert [_kind(event) async for event in stream] == ["turn_complete"]

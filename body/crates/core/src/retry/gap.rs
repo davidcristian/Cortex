@@ -141,7 +141,7 @@ impl GapClock {
     /// Folds what the clock saw into the item to yield, or `None` to stop.
     fn step(&mut self, polled: Polled, gap: Duration) -> Option<Result<TurnEvent, TransportError>> {
         match polled {
-            Some(Some(Ok(TurnEvent::Heartbeat))) => self.beat(),
+            Some(Some(Ok(beat @ TurnEvent::Heartbeat { .. }))) => Some(self.beat(beat)),
             Some(Some(item)) => {
                 self.seen = true;
                 self.quiet = Duration::ZERO;
@@ -160,17 +160,17 @@ impl GapClock {
         }
     }
 
-    /// Counts one heartbeat as a period of the turn's silence, ending the stream once that
-    /// silence reaches the turn's allowance; a heartbeat itself is never yielded.
-    fn beat(&mut self) -> Option<Result<TurnEvent, TransportError>> {
+    /// Counts one heartbeat as a period of the turn's silence and passes it on, ending the
+    /// stream instead once that silence reaches the turn's allowance.
+    fn beat(&mut self, beat: TurnEvent) -> Result<TurnEvent, TransportError> {
         self.quiet = self.quiet.saturating_add(self.gaps.period);
         if self.quiet < self.allowance() {
-            return None;
+            return Ok(beat);
         }
         self.done = true;
-        Some(Err(TransportError::Timeout {
+        Err(TransportError::Timeout {
             after: self.allowance(),
-        }))
+        })
     }
 
     /// The gap a poll bounded by `gap` broke when it expired: the heartbeat gap when that was the

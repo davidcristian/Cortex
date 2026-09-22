@@ -10,13 +10,14 @@ from cortex_core.handoff import EscalationSlot
 from cortex_core.inference import GenerationBounds, JsonSchema
 from cortex_core.loop_events import StepOutcome, ToolStep, step_summary
 from cortex_core.ports import Clock
-from cortex_core.progress import ProgressSink
+from cortex_core.progress import ProgressSink, hold_wait
 from cortex_core.provenance import SourceKind, as_source
 from cortex_core.stops import StopLedger
 from cortex_core.tool_budget import DispatchBudget
 from cortex_core.tool_round import RoundPlan, result_message
 from cortex_core.tools import ToolCall, ToolSpec, TurnStamp
 from cortex_core.untrusted import TaintLedger
+from cortex_core.waits import GENERATING, TOOL_RUNNING, Wait
 
 
 @dataclass(frozen=True, slots=True)
@@ -38,6 +39,7 @@ class ToolLoopContext:
     escalation: EscalationSlot | None = None
     cadence: CadenceWatch | None = None
     stops: StopLedger | None = None
+    generating: Wait = GENERATING
 
     @property
     def unit_id(self) -> str:
@@ -99,12 +101,14 @@ async def run_round(
             yield ToolStep(tool_name=spec.name, summary=step_summary(spec))
         # A refused call is dispatched too, because the dispatcher writes the refusal as the
         # call's result: a tool call with no result would make the next request malformed.
-        result = await dispatcher.dispatch(
-            call,
-            stamp=_stamp(context),
-            gated=spec is not None and spec.gated,
-            refusal=refusal,
-        )
+        running = context.progress if refusal is None else None
+        async with hold_wait(running, TOOL_RUNNING):
+            result = await dispatcher.dispatch(
+                call,
+                stamp=_stamp(context),
+                gated=spec is not None and spec.gated,
+                refusal=refusal,
+            )
         if refusal is None and spec is not None:
             yield StepOutcome(tool_name=spec.name, ok=not result.is_error)
         context.taint.observe(

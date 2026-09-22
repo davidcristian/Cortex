@@ -6,10 +6,9 @@ from collections.abc import Sequence
 from cortex_core.conversation import Message, Role
 from cortex_core.drain import drain_text
 from cortex_core.errors import InferenceError, SessionStoreError
-from cortex_core.events import StatusUpdate
 from cortex_core.ports import Clock, InferenceBackend
 from cortex_core.ports_stores import SessionStore
-from cortex_core.progress import ProgressSink
+from cortex_core.progress import ProgressSink, hold_wait
 from cortex_core.recap_prompt import (
     RECAP_BOUNDS,
     build_recap_messages,
@@ -19,12 +18,14 @@ from cortex_core.recap_prompt import (
 )
 from cortex_core.sessions import HistoryRecap
 from cortex_core.stops import StopLedger
+from cortex_core.waits import FOLDING, Wait
 from cortex_core.windowing import HistoryWindow
 
 _logger = logging.getLogger(__name__)
 
-RECAP_PROGRESS_STATE = "folding"
+RECAP_PROGRESS_STATE = FOLDING
 RECAP_PROGRESS_DETAIL = "summarizing the earlier part of this conversation"
+_FOLDING = Wait(FOLDING, RECAP_PROGRESS_DETAIL)
 
 
 class SummarizingHistoryWindow:
@@ -96,10 +97,6 @@ class SummarizingHistoryWindow:
         newly_dropped = history[start:boundary]
         if sum(len(message.text) for message in newly_dropped) < self._min_dropped_chars:
             return previous
-        if progress is not None:
-            await progress.emit(
-                StatusUpdate(state=RECAP_PROGRESS_STATE, detail=RECAP_PROGRESS_DETAIL)
-            )
         prompt = build_recap_messages(
             previous,
             newly_dropped,
@@ -107,7 +104,10 @@ class SummarizingHistoryWindow:
             turn_id=history[boundary - 1].turn_id,
         )
         stops = StopLedger()
-        raw = await drain_text(self._backend, self._model, prompt, bounds=RECAP_BOUNDS, stops=stops)
+        async with hold_wait(progress, _FOLDING):
+            raw = await drain_text(
+                self._backend, self._model, prompt, bounds=RECAP_BOUNDS, stops=stops
+            )
         text = clean_recap(raw)
         if not text:
             _logger.warning(

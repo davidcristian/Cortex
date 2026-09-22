@@ -104,7 +104,12 @@ against a real brain by the `body-rpc` live suite, so what Windows adds is the I
 **What a stalled turn looks like, and when the body gives up on one.** A turn has no time limit:
 the reply may take as long as the model and its tools take, and the thinking indicator stays up
 while the brain keeps sending. While a turn runs, the brain sends a heartbeat every 30 s in which it
-has nothing else to send, and the overlay does not show it. If nothing at all arrives for
+has nothing else to send. It repeats what the turn waits on, and the status chip shows its
+sentence: a model generating (`thinking`), a subtask waiting for room in the subagent budget
+(`queued`) or running (`delegating`), the deep model loading or the cortex coming back
+(`swapping`), the earlier conversation being summarized (`folding`), a tool call running
+(`calling`), or an approval card waiting for you (`asking`). So a chip left stale by a dropped
+status is set right within 30 s. If nothing at all arrives for
 `CORTEX_BRAIN_TURN_HEARTBEAT_GAP_MS` (default 120000, two minutes), the brain or the path to it has
 stopped, and the body stops waiting: the reply settles on whatever text arrived, with
 `no reply within 120s`, and the header dot goes red with the same line. A brain that is alive but

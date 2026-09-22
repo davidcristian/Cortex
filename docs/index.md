@@ -94,7 +94,7 @@ format is in [adr/README.md](adr/README.md). A new non-obvious decision becomes
 | [ADR-0066: The reminder toast and card](adr/ADR-0066-reminder-toast-and-card.md) | The body's `Notify` trait with a WinRT backend, text made inert when a `Notification` is built. |
 | [ADR-0067: The image volume record](adr/ADR-0067-image-volume-record.md) | A check whose evidence is out of reach records the answer in the tree, checks the record, and recomputes it by hand. |
 | [ADR-0068: One shared contract list per port](adr/ADR-0068-port-contract-lists.md) | The port inventory for both languages, every port with its shared check list and the implementations CI drives it against. |
-| [ADR-0069: The turn stream's heartbeat](adr/ADR-0069-turn-heartbeat.md) | The brain sends a heartbeat while a turn runs and the body ends a stream silent for four periods, counting heartbeats toward the turn's own gaps. |
+| [ADR-0069: The turn stream's heartbeat](adr/ADR-0069-turn-heartbeat.md) | The brain sends a heartbeat, with what the turn waits on, while a turn runs; the body shows the wait and ends a stream silent for four periods, counting heartbeats toward the turn's own gaps. |
 
 ## Contracts
 

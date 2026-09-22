@@ -110,6 +110,8 @@ export function applyEvent(state: OverlayState, event: TurnEvent): OverlayState 
         thoughts: thinking ? m.thoughts + event.detail : m.thoughts,
       }));
     }
+    case "heartbeat":
+      return applyHeartbeat(state, event);
     case "confirmRequest":
       return applyConfirmRequest(state, event);
     case "confirmResolved":
@@ -123,6 +125,23 @@ export function applyEvent(state: OverlayState, event: TurnEvent): OverlayState 
     case "failed":
       return endTurn(state, `${event.code}: ${event.message}`);
   }
+}
+
+/** A heartbeat repeats the brain's current wait, so a chip a dropped status left behind is set
+ *  right within one period. It never adds to `thoughts`, because its `thinking` sentence is not
+ *  reasoning, and it leaves a thinking chip alone so the latest reasoning stays on it. */
+function applyHeartbeat(
+  state: OverlayState,
+  event: Extract<TurnEvent, { kind: "heartbeat" }>,
+): OverlayState {
+  if (event.wait === "") {
+    return state;
+  }
+  return patchStreaming(state, (m) =>
+    event.wait === "thinking" && m.statusState === "thinking"
+      ? m
+      : { ...m, status: event.detail, statusState: event.wait },
+  );
 }
 
 /** A call is waiting for approval: raise the card, showing it as a completed turn does (orb then

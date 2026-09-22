@@ -7,6 +7,7 @@ import pytest
 from cortex_core import (
     BUDGET_EXHAUSTED_MSG,
     MAX_SPAWN_BATCH,
+    QUEUED,
     SUBAGENT_PROGRESS_STATE,
     DispatchBudget,
     EchoInferenceBackend,
@@ -38,6 +39,7 @@ from cortex_core import (
     ToolSpec,
     TurnStamp,
     VramBudgetPlacer,
+    Wait,
 )
 
 _AT = datetime(2026, 7, 3, 12, 0, tzinfo=UTC)
@@ -237,7 +239,7 @@ async def test_a_delegating_batch_surfaces_its_scale_and_the_subagents_tool_step
     result = await tool.invoke(_call({"instructions": ["a", "b"]}, progress=progress))
     assert result.is_error is False
     events = progress.events
-    assert events[0] == StatusUpdate(state=SUBAGENT_PROGRESS_STATE, detail="delegating 2 subtasks")
+    assert events[0] == StatusUpdate(state=QUEUED, detail="2 subtasks waiting for room to run")
     steps = [event for event in events if isinstance(event, ToolActivity)]
     assert [step.tool_name for step in steps] == ["read", "read"]
 
@@ -249,7 +251,8 @@ async def test_a_single_subtask_batch_status_is_singular() -> None:
         _call({"instructions": ["only one"]}, progress=progress)
     )
     assert list(progress.events) == [
-        StatusUpdate(state=SUBAGENT_PROGRESS_STATE, detail="delegating 1 subtask")
+        StatusUpdate(state=QUEUED, detail="1 subtask waiting for room to run"),
+        StatusUpdate(state=SUBAGENT_PROGRESS_STATE, detail="1 subtask running"),
     ]
 
 
@@ -259,12 +262,8 @@ async def test_one_shared_tool_routes_each_calls_progress_to_its_own_sink() -> N
     sink_a, sink_b = RecordingProgressSink(), RecordingProgressSink()
     await tool.invoke(_call({"instructions": ["a"]}, progress=sink_a))
     await tool.invoke(_call({"instructions": ["b", "c"]}, progress=sink_b))
-    assert list(sink_a.events) == [
-        StatusUpdate(state=SUBAGENT_PROGRESS_STATE, detail="delegating 1 subtask")
-    ]
-    assert list(sink_b.events) == [
-        StatusUpdate(state=SUBAGENT_PROGRESS_STATE, detail="delegating 2 subtasks")
-    ]
+    assert list(sink_a.held) == [Wait(QUEUED, "1 subtask waiting for room to run")]
+    assert list(sink_b.held) == [Wait(QUEUED, "2 subtasks waiting for room to run")]
 
 
 async def test_object_items_carry_model_and_context_onto_the_task() -> None:

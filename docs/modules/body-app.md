@@ -139,10 +139,10 @@ event the overlay listens on; in a plain browser `main.tsx` self-summons instead
   `TransportError` to a `WireMessage` (`{ event }` or `{ error }`) that matches the TypeScript
   `WireMessage` in `tauriBridge.ts` field for field: tag `kind`, camelCase, so a confirm request is
   `{ kind: "confirmRequest", confirmId, toolName, argumentsJson, reason }` and the brain closing it
-  unanswered is `{ kind: "confirmResolved", confirmId, outcome }` (ADR-0022). A `TransportError`
-  has its own `kind` (`connection`, `rpc`, `protocol`, `timeout`). For the turn's duration the
-  command parks a decision sender in the managed `ConfirmRoute` state, one slot, at most one turn
-  running at a time.
+  unanswered is `{ kind: "confirmResolved", confirmId, outcome }` (ADR-0022), and a heartbeat
+  `{ kind: "heartbeat", wait, detail }` (ADR-0069). A `TransportError` has its own `kind`
+  (`connection`, `rpc`, `protocol`, `timeout`). For the turn's duration the command parks a
+  decision sender in the managed `ConfirmRoute` state, one slot, at most one turn running at once.
 - **`confirm_response(confirm_id, approved)`** (`confirm.rs`, ADR-0022) pushes the user's answer
   into that slot. An absent or closed route is silently ok: an unanswered confirm is denied
   brain-side by timeout, so a late answer is harmless.

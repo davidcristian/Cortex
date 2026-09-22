@@ -7,15 +7,16 @@ from dataclasses import dataclass
 from typing import Any, cast
 from uuid import uuid4
 
-from cortex_core.events import StatusUpdate
+from cortex_core.delegation_wait import DelegationBoard, batch_wait
 from cortex_core.ports import Clock, TaskStore
 from cortex_core.roster import SubagentRoster
 from cortex_core.runner import SubagentRunner
 from cortex_core.spawn_spec import MAX_SPAWN_BATCH, build_spawn_spec
 from cortex_core.subagents import SubagentResult, SubagentTask
-from cortex_core.tools import ToolCall, ToolResult, ToolSpec, Trust
+from cortex_core.tools import ToolCall, ToolResult, ToolSpec, Trust, TurnStamp
+from cortex_core.waits import DELEGATING
 
-SUBAGENT_PROGRESS_STATE = "delegating"
+SUBAGENT_PROGRESS_STATE = DELEGATING
 
 
 @dataclass(frozen=True, slots=True)
@@ -102,11 +103,6 @@ def _parse_instructions(
     return items
 
 
-def _progress_detail(count: int) -> str:
-    """The brain-authored batch-start line: how many subtasks, no model or subagent text."""
-    return f"delegating {count} subtask{'' if count == 1 else 's'}"
-
-
 def _format(results: Sequence[SubagentResult]) -> str:
     """Aggregate subagent outcomes into one readable block, one section per subagent."""
     lines = [
@@ -158,18 +154,36 @@ class SpawnSubagentsTool:
         ]
         for task in tasks:
             await self._store.put_task(task)
-        progress = call.stamp.progress
-        if progress is not None:
-            await progress.emit(
-                StatusUpdate(state=SUBAGENT_PROGRESS_STATE, detail=_progress_detail(len(tasks)))
-            )
-        results: list[SubagentResult] = list(
-            await asyncio.gather(
-                *(
-                    self._runner.run(task.id, budget=call.stamp.budget, progress=progress)
-                    for task in tasks
-                )
-            )
-        )
+        results = await self._run_batch(tasks, call.stamp)
         trust = Trust.UNTRUSTED if any(r.tainted for r in results) else Trust.TRUSTED
         return ToolResult(call_id=call.id, content=_format(results), trust=trust)
+
+    async def _run_batch(
+        self, tasks: Sequence[SubagentTask], stamp: TurnStamp
+    ) -> list[SubagentResult]:
+        """Run every subtask at once, holding the batch's wait while any of them is left."""
+        progress = stamp.progress
+        if progress is None:
+            return await self._run_all(tasks, stamp, None)
+        async with progress.hold(batch_wait(len(tasks), 0)) as hold:
+            return await self._run_all(tasks, stamp, DelegationBoard(hold, len(tasks)))
+
+    async def _run_all(
+        self, tasks: Sequence[SubagentTask], stamp: TurnStamp, board: DelegationBoard | None
+    ) -> list[SubagentResult]:
+        """Run the subtasks concurrently, in the order they were given."""
+        return list(await asyncio.gather(*(self._run_one(task, stamp, board) for task in tasks)))
+
+    async def _run_one(
+        self, task: SubagentTask, stamp: TurnStamp, board: DelegationBoard | None
+    ) -> SubagentResult:
+        """Run one subtask, moving it across the board as it is admitted and ends."""
+        if board is None:
+            return await self._runner.run(task.id, budget=stamp.budget)
+        place = board.subtask()
+        try:
+            return await self._runner.run(
+                task.id, budget=stamp.budget, progress=stamp.progress, admitted=place.admitted
+            )
+        finally:
+            await place.ended()

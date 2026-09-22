@@ -38,11 +38,11 @@ spawned subtask or a model swap is in [brain-core-residency.md](brain-core-resid
 - `Confirmer` provides `confirm(request) -> bool` (ADR-0013) over a
   `ConfirmationRequest(tool_name, arguments, reason)`: the user's decision, never the model's, and
   a missing confirmer denies. Real adapter: `SeamConfirmer` (ADR-0022).
-- `ProgressSink` (`progress.py`) provides `emit(event)`, where `ProgressEvent = ToolActivity |
-  StatusUpdate` (ADR-0010 decision 13). It is the side channel for progress a suspended turn cannot
-  yield itself, because while a spawned subagent runs the turn's own generator is suspended inside
-  the spawn dispatch. `emit` is best effort: a saturated consumer drops an event rather than
-  stalling the subagent. Fake: `RecordingProgressSink`.
+- `ProgressSink` (`progress.py`, ADR-0010 decision 13) is the side channel for progress a
+  suspended turn cannot yield itself. `emit(event)` sends a `ToolActivity` or `StatusUpdate`, best
+  effort. `hold(wait, *, announce=True)` records what the turn waits on, innermost first, in the
+  core's `TurnWaits` (`waits.py`), and sends each change other than `thinking` as a status
+  (ADR-0069 decisions 9 and 10). Fake: `RecordingProgressSink`; list: `progress_contract.py`.
 
 ## Dispatching one call
 

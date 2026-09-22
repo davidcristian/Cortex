@@ -91,7 +91,9 @@ class StreamEngines:
             deep.scheduler,
         )
         return EscalatingTurnEngine(
-            lambda slot: self._turn_engine(replace(caps, escalation=slot)), conductor
+            lambda slot: self._turn_engine(replace(caps, escalation=slot)),
+            conductor,
+            progress=progress,
         )
 
     def _capabilities(self, confirmer: Confirmer, progress: ProgressSink) -> TurnCapabilities:

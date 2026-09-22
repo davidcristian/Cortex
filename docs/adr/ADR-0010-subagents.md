@@ -149,9 +149,11 @@ lock.
     keeps no per-stream field that could leak across turns. A caller with no stream (the schedule
     ticker) passes `None`.
 
-14. **What it shows needs no guardrail pass.** The tool emits `StatusUpdate(state="delegating")`
-    with "delegating N subtasks" before the gather, and the runner maps each subagent's audited
-    `ToolStep` onto a `ToolActivity`. Every field is registry-authored or a brain-authored count,
+14. **What it shows needs no guardrail pass.** The tool holds one wait for the batch on the sink,
+    `queued` while any subtask has not been admitted and `delegating` after, with counts such as
+    "1 subtask running, 1 waiting for room to run" (ADR-0069 decision 9), and the runner maps
+    each subagent's audited `ToolStep` onto a `ToolActivity`. Every field is registry-authored or
+    a brain-authored count,
     never the model's call or untrusted content, so a tainted subagent's progress contains nothing
     injectable, the same argument the cortex's own `ToolActivity` makes. The wording claims no
     parallelism: spawns on one model do not deliver it (ADR-0018 decision 8).

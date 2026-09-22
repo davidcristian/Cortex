@@ -109,13 +109,20 @@ class ConverseStream:
             await self._cancel_turn()
 
     async def _beat(self) -> None:
-        """Send a heartbeat once a period while a turn runs and nothing waits to be sent."""
+        """Send a heartbeat, with the turn's wait, once a period while nothing waits to be sent."""
         while True:
             await self._sleeper.sleep(HEARTBEAT_PERIOD_MS / 1000)
             if self._turn is not None and self._out.empty():
                 # An empty queue means every credit is free, so this acquire never waits.
                 await self._credits.acquire()
-                self._out.put_nowait(ServerEvent(heartbeat=Heartbeat()))
+                self._out.put_nowait(ServerEvent(heartbeat=self._heartbeat()))
+
+    def _heartbeat(self) -> Heartbeat:
+        """The heartbeat for the current wait, which is empty when the turn waits on nothing."""
+        wait = self._progress.current()
+        if wait is None:
+            return Heartbeat()
+        return Heartbeat(wait=wait.key, detail=wait.detail)
 
     async def _pump(self, client_events: AsyncIterator[ClientEvent]) -> None:
         """Dispatch client events; when input ends, let the queued turns finish."""

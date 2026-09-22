@@ -2,13 +2,14 @@
 
 import asyncio
 from collections.abc import Callable
+from contextlib import AbstractAsyncContextManager
 
-from cortex_core import ProgressEvent, TurnEvent
+from cortex_core import ProgressEvent, TurnEvent, TurnWaits, Wait, WaitHold
 from cortex_seam import ServerEvent
 
 
 class SeamProgressSink:
-    """Emit a subagent's progress onto the stream's queue, best-effort and credit-balanced."""
+    """Emit progress onto the stream's queue, best-effort, and keep the waits of its turn."""
 
     def __init__(
         self,
@@ -20,6 +21,7 @@ class SeamProgressSink:
         self._emit = emit
         self._credits = credit_sem
         self._to_wire = to_wire
+        self._waits = TurnWaits(self.emit)
 
     async def emit(self, event: ProgressEvent) -> None:
         """Queue one progress event if a buffer credit is free right now, else drop it."""
@@ -30,3 +32,11 @@ class SeamProgressSink:
             return
         await self._credits.acquire()
         self._emit(self._to_wire(event))
+
+    def hold(self, wait: Wait, *, announce: bool = True) -> AbstractAsyncContextManager[WaitHold]:
+        """Hold ``wait`` on this stream's record of what its turn waits on."""
+        return self._waits.hold(wait, announce=announce)
+
+    def current(self) -> Wait | None:
+        """What this stream's running turn waits on now, for its heartbeat."""
+        return self._waits.current()

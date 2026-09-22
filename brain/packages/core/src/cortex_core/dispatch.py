@@ -7,6 +7,7 @@ from types import MappingProxyType
 
 from cortex_core.errors import ToolError
 from cortex_core.ports import Clock, Confirmer, ToolAuditSink, ToolRegistry
+from cortex_core.progress import hold_wait
 from cortex_core.tool_budget import UNIFORM_COST, ToolCostPolicy
 from cortex_core.tool_round import MAX_CALLS_PER_ROUND
 from cortex_core.tool_salience import REPEAT_SALIENCE, SaliencePolicy
@@ -21,6 +22,7 @@ from cortex_core.tools import (
     TurnStamp,
 )
 from cortex_core.untrusted import DENIED_MSG, USER_DECLINED_MSG
+from cortex_core.waits import USER_ASKED
 
 _GATE_REASON = "this action is outbound or irreversible and runs only with your approval"
 
@@ -154,7 +156,8 @@ class ToolDispatcher:
             arguments=call.arguments,
             reason=self._policy.gate_reasons.get(call.name, _GATE_REASON),
         )
-        return await self._confirmer.confirm(request)
+        async with hold_wait(call.stamp.progress, USER_ASKED):
+            return await self._confirmer.confirm(request)
 
     async def _audited(self, call: ToolCall, result: ToolResult) -> ToolResult:
         """Record one audit line (its provenance, the work it was for, the call) and return it."""

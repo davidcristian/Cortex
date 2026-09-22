@@ -5,8 +5,9 @@ from cortex_core.errors import (
     ModelManagerError,
     ResidencyRestoreError,
 )
+from cortex_core.waits import SWAPPING
 
-SWAPPING_STATE = "swapping"
+SWAPPING_STATE = SWAPPING
 
 DRAINING_DETAIL = "pausing delegated work before the model swap"
 LOADING_DETAIL = "loading the deep model; this takes a few minutes"

@@ -1,6 +1,7 @@
 """SubagentRunner: run one delegated task as a stateless function over the store."""
 
 import logging
+from collections.abc import Awaitable, Callable
 
 from cortex_core.dispatch import ToolDispatcher
 from cortex_core.errors import SubagentAdmissionError
@@ -57,6 +58,7 @@ class SubagentRunner:
         *,
         budget: DispatchBudget | None = None,
         progress: ProgressSink | None = None,
+        admitted: Callable[[], Awaitable[None]] | None = None,
     ) -> SubagentResult:
         """Load the task, resolve the model, admit it, place it, run it, and persist the result."""
         task = await self._store.get_task(task_id)
@@ -70,6 +72,8 @@ class SubagentRunner:
         res = self._roster.entries[name].resources
         try:
             async with res.scheduler.admit(res.request):
+                if admitted is not None:
+                    await admitted()
                 outcome = await self._placed(task, res, budget=budget, progress=progress)
                 return await self._persist(
                     SubagentResult(

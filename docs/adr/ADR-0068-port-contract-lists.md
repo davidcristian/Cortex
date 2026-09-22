@@ -56,8 +56,8 @@ review then listed every port in both languages to find the others.
    (`serve`, `show_notifications`, `answer_with`, `refuse`). A permissive fake hides defects: a core
    test can watch a turn accept what production refuses.
 
-6. **Some ports have no list, by decision.** A write-only sink (`RecallAuditSink`, `ProgressSink`,
-   and `LoggingAuditSink` among the audit sinks) exposes nothing to read back, so a shared check
+6. **Some ports have no list, by decision.** A write-only sink (`RecallAuditSink`, and
+   `LoggingAuditSink` among the audit sinks) exposes nothing to read back, so a shared check
    would reach past the port into a list on one side and a log capture on the other, or be the
    vacuous test the coverage rule bans; each side is checked where it lives. `Clock` and `Sleeper`
    are the wall clock and the event loop, where a shared check is vacuous or a timing assertion.
@@ -133,13 +133,14 @@ Python, each list in the named package's `tests/`. "Live" is an integration-mark
 | `ToolRegistry` | `InMemoryToolRegistry` | `McpToolRegistry`, `ReconnectingMcpToolRegistry` | `registry_contract.py`, and the own-text list | yes | yes, both, over a serving `McpSession` | yes |
 | `BodyGateway` | `InMemoryBodyGateway` | `GrpcBodyGateway` | `gateway_contract.py` | yes | yes, a loopback `BodyService` | yes |
 | `Confirmer` | `RecordingConfirmer` | `SeamConfirmer` | `confirmer_contract.py` | yes | yes, a scripted overlay | no |
+| `ProgressSink` | `RecordingProgressSink` | `SeamProgressSink` | `progress_contract.py` | yes | yes, a list of queued events | no |
 | `Mailbox` | `FakeMailbox` | `ImapMailbox` | `mailbox_contract.py` | yes | yes, a stand-in box | restated |
 | `EmailSender` | `FakeSender` | `SmtpSender` | `sender_contract.py` | yes | yes, a stand-in `smtplib` | restated |
 | `ToolAuditSink` | `RecordingAuditSink` | `JsonLinesAuditSink`, `TeeAuditSink` | `audit_contract.py` | yes | yes, a temporary file | no |
 | `RecallPolicy` | none | five shipped core policies | `recall_policy_contract.py` | n/a | yes, all pure core | no |
 | `SubagentScheduler` | `AdmitAllScheduler` | `ResourceBudgetScheduler` | `test_scheduler_drain.py`, one driver | yes | yes, pure core | no |
 
-No list, by decision 6: `RecallAuditSink`, `ProgressSink`, `Clock`, `Sleeper`, `ZoneResolver`,
+No list, by decision 6: `RecallAuditSink`, `Clock`, `Sleeper`, `ZoneResolver`,
 `MemoryScope`, `ModelManager`, `SubagentPlacer`, `ResidencyController`, `ResidencyReporter`,
 `PaceSink`, `TurnRunner`.
 

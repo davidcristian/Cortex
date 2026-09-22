@@ -77,9 +77,10 @@ and no wall clock. The port itself, and everything else in this crate, is in
   *retryable*; enforced here it arrives as `Timeout`, which is terminal (decisions 13 and 14).
 - `within_gaps(gaps, sleeper, stream)` (`retry::gap`) is the same composition for a stream: items
   pass through untouched and only the **silence between them** is bounded, so a turn that keeps
-  talking is never cut off. A `TurnEvent::Heartbeat` is consumed rather than passed on: it restarts
-  only the `heartbeat` gap and adds one `period` to the turn's counted silence, which ends the
-  stream once it reaches `first` before the first event or `idle` after one. Each poll is bounded by
+  talking is never cut off. A `TurnEvent::Heartbeat` is passed on with the wait it contains, but it
+  restarts only the `heartbeat` gap and adds one `period` to the turn's counted silence, which ends
+  the stream, in place of that heartbeat, once it reaches `first` before the first event or `idle`
+  after one. Each poll is bounded by
   the heartbeat gap or what is left of that allowance, whichever is shorter, so a stream without
   heartbeats runs under `first` and `idle` alone. An expired gap yields one final
   `TransportError::Timeout { after }` naming the gap it broke and ends the stream, dropping the

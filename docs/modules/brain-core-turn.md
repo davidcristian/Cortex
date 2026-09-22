@@ -91,7 +91,8 @@ of everything optional about a turn. With the bare default the turn is plain str
   `InferenceError` is absorbed and an empty title is not persisted.
 - `progress` (a `ProgressSink`, ADR-0010 decision 13) is stamped onto each dispatch so a spawned
   subagent's steps reach the overlay while the turn's generator is suspended inside the spawn
-  dispatch. `escalation` (an `EscalationSlot`, ADR-0030) is the turn's handoff slot, one per turn.
+  dispatch. The turn also holds its waits on it: `thinking` around each model stream, `calling`
+  around each dispatch that was not refused, `asking` around a confirmation (ADR-0069 decision 9). `escalation` (an `EscalationSlot`, ADR-0030) is the turn's handoff slot, one per turn.
 
 `turn_output.py` is the half of the engine the deep model's phase shares word for word, so the two
 cannot diverge (ADR-0030). `stream_turn_events(loop, channels, parts)` maps one tool loop's deltas

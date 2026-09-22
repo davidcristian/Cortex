@@ -56,9 +56,15 @@ pub enum TurnEvent {
         /// Why the wait ended: `"timeout"` or `"unavailable"`.
         outcome: String,
     },
-    /// The brain's turn is still running. Sent only while the stream is otherwise silent, and
-    /// consumed by [`crate::within_gaps`] rather than shown. Non-terminal.
-    Heartbeat,
+    /// The brain's turn is still running. Sent only while the stream is otherwise silent;
+    /// [`crate::within_gaps`] counts it as a period of the turn's silence. Non-terminal.
+    Heartbeat {
+        /// What the turn waits on, one of the [`TurnEvent::Status`] states `thinking`, `queued`,
+        /// `delegating`, `swapping`, `folding`, `calling` or `asking`; empty for none.
+        wait: String,
+        /// The sentence the overlay shows for `wait`.
+        detail: String,
+    },
     /// The turn finished successfully; terminal.
     Complete {
         /// Server-assigned turn id.

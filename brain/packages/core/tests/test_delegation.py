@@ -2,6 +2,8 @@ from collections.abc import AsyncIterator, Callable, Mapping, Sequence
 from datetime import UTC, datetime
 
 from cortex_core import (
+    CALLING,
+    QUEUED,
     SUBAGENT_PROGRESS_STATE,
     CompositeToolRegistry,
     EchoInferenceBackend,
@@ -213,9 +215,11 @@ async def test_delegation_surfaces_progress_to_the_stream_sink() -> None:
     engine_activities = [event for event in events if isinstance(event, ToolActivity)]
     assert [activity.tool_name for activity in engine_activities] == ["spawn_subagents"]
     surfaced = progress.events
-    assert surfaced[0] == StatusUpdate(
-        state=SUBAGENT_PROGRESS_STATE, detail="delegating 2 subtasks"
+    assert surfaced[:2] == (
+        StatusUpdate(state=CALLING, detail="waiting for a tool to finish"),
+        StatusUpdate(state=QUEUED, detail="2 subtasks waiting for room to run"),
     )
+    assert StatusUpdate(state=SUBAGENT_PROGRESS_STATE, detail="1 subtask running") in surfaced
     read_steps = [event for event in surfaced if isinstance(event, ToolActivity)]
     assert [step.tool_name for step in read_steps] == ["read", "read"]
     assert all(step.summary == "Read a file" for step in read_steps)

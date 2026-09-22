@@ -1,6 +1,7 @@
 """Reference implementations of the ports (pure, deterministic, fully covered)."""
 
 from collections.abc import AsyncIterator, Awaitable, Callable, Mapping, Sequence
+from contextlib import AbstractAsyncContextManager
 from dataclasses import replace
 from datetime import UTC, datetime
 from typing import Any
@@ -18,6 +19,7 @@ from cortex_core.inference import (
 from cortex_core.progress import ProgressEvent
 from cortex_core.subagents import SubagentResult, SubagentTask
 from cortex_core.tools import ConfirmationRequest, ToolCall, ToolInvocation, ToolResult, ToolSpec
+from cortex_core.waits import TurnWaits, Wait, WaitHold
 
 
 class EchoInferenceBackend:
@@ -147,19 +149,31 @@ class RecordingConfirmer:
 
 
 class RecordingProgressSink:
-    """ProgressSink that records every event, so a test can assert what a turn reported."""
+    """ProgressSink that records every event and wait, so a test can assert what a turn reported."""
 
     def __init__(self) -> None:
         self._events: list[ProgressEvent] = []
+        self._held: list[Wait] = []
+        self.waits = TurnWaits(self.emit)
 
     async def emit(self, event: ProgressEvent) -> None:
         """Record one emitted progress event."""
         self._events.append(event)
 
+    def hold(self, wait: Wait, *, announce: bool = True) -> AbstractAsyncContextManager[WaitHold]:
+        """Record ``wait`` and hold it on this sink's own record."""
+        self._held.append(wait)
+        return self.waits.hold(wait, announce=announce)
+
     @property
     def events(self) -> Sequence[ProgressEvent]:
         """The progress events emitted so far, in order."""
         return tuple(self._events)
+
+    @property
+    def held(self) -> Sequence[Wait]:
+        """Every wait opened on this sink so far, in order."""
+        return tuple(self._held)
 
 
 class RecordingPaceSink:

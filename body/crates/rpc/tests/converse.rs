@@ -124,6 +124,16 @@ fn confirm_script(
     }
 }
 
+/// A heartbeat whose turn waits on a tool call.
+fn calling_heartbeat() -> ServerEvent {
+    ServerEvent {
+        event: Some(server_event::Event::Heartbeat(Heartbeat {
+            wait: String::from("calling"),
+            detail: String::from("waiting for a tool to finish"),
+        })),
+    }
+}
+
 #[tonic::async_trait]
 impl BrainService for FakeBrain {
     type ConverseStream = Pin<Box<dyn Stream<Item = Result<ServerEvent, Status>> + Send>>;
@@ -160,9 +170,7 @@ impl BrainService for FakeBrain {
                             ok: false,
                         })),
                     }),
-                    Ok(ServerEvent {
-                        event: Some(server_event::Event::Heartbeat(Heartbeat {})),
-                    }),
+                    Ok(calling_heartbeat()),
                     Ok(ServerEvent {
                         event: Some(server_event::Event::Status(StatusUpdate {
                             state: String::from("model_loading"),
@@ -383,7 +391,10 @@ async fn echo_turn_round_trips_every_event_kind() {
                 tool_name: String::from("read_email"),
                 ok: false,
             },
-            TurnEvent::Heartbeat,
+            TurnEvent::Heartbeat {
+                wait: String::from("calling"),
+                detail: String::from("waiting for a tool to finish"),
+            },
             TurnEvent::Status {
                 state: String::from("model_loading"),
                 detail: String::from("swapping"),

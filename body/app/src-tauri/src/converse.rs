@@ -61,6 +61,10 @@ enum WireEvent {
         confirm_id: String,
         outcome: String,
     },
+    Heartbeat {
+        wait: String,
+        detail: String,
+    },
     Complete {
         turn_id: String,
     },
@@ -78,9 +82,9 @@ struct WireError {
 }
 
 impl WireEvent {
-    /// The overlay's copy of `event`, or `None` for a heartbeat, which the overlay never sees.
-    fn from_turn(event: TurnEvent) -> Option<Self> {
-        Some(match event {
+    /// The overlay's copy of `event`.
+    fn from_turn(event: TurnEvent) -> Self {
+        match event {
             TurnEvent::Delta(text) => Self::Delta { text },
             TurnEvent::ToolActivity { tool_name, summary } => {
                 Self::ToolActivity { tool_name, summary }
@@ -105,10 +109,10 @@ impl WireEvent {
                 confirm_id,
                 outcome,
             },
-            TurnEvent::Heartbeat => return None,
+            TurnEvent::Heartbeat { wait, detail } => Self::Heartbeat { wait, detail },
             TurnEvent::Complete { turn_id } => Self::Complete { turn_id },
             TurnEvent::Failed { code, message } => Self::Failed { code, message },
-        })
+        }
     }
 }
 
@@ -136,11 +140,11 @@ impl From<TransportError> for WireError {
 }
 
 impl WireMessage {
-    fn event(event: TurnEvent) -> Option<Self> {
-        WireEvent::from_turn(event).map(|event| Self {
-            event: Some(event),
+    fn event(event: TurnEvent) -> Self {
+        Self {
+            event: Some(WireEvent::from_turn(event)),
             error: None,
-        })
+        }
     }
 
     fn error(error: TransportError) -> Self {
@@ -196,10 +200,7 @@ pub async fn converse(
     while let Some(item) = stream.next().await {
         let message = match item {
             Ok(event) => WireMessage::event(event),
-            Err(error) => Some(WireMessage::error(error)),
-        };
-        let Some(message) = message else {
-            continue;
+            Err(error) => WireMessage::error(error),
         };
         if channel.send(message).is_err() {
             break;

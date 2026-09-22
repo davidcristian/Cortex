@@ -139,7 +139,7 @@ async def test_a_delegating_turn_surfaces_subagent_progress_on_the_wire() -> Non
     statuses = [e.status for e in events if e.WhichOneof("event") == "status"]
     activities = [e.tool_activity for e in events if e.WhichOneof("event") == "tool_activity"]
     names = [a.tool_name for a in activities]
-    assert any(s.state == "delegating" and s.detail == "delegating 1 subtask" for s in statuses)
+    assert any(s.state == "delegating" and s.detail == "1 subtask running" for s in statuses)
     assert "spawn_subagents" in names
     assert ("read", "Read a file") in [(a.tool_name, a.summary) for a in activities]
     assert any(e.WhichOneof("event") == "turn_complete" for e in events)

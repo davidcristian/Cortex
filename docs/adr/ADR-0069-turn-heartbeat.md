@@ -27,7 +27,8 @@ The third needs a bound on the turn's own progress, which ADR-0024's gaps alread
 ## Decision
 
 1. **The brain sends a `Heartbeat` on the turn stream.** `ServerEvent.heartbeat` (field 9 in
-   [proto/body.proto](../../proto/body.proto)) is an empty message. One task per `Converse` stream,
+   [proto/body.proto](../../proto/body.proto)) holds the turn's current wait (decision 7) and no
+   turn content. One task per `Converse` stream,
    `ConverseStream._beat` (`cortex_orchestrator/converse_stream.py`), started and cancelled with the
    stream's pump, waits `HEARTBEAT_PERIOD_MS` (30000) through the core's `Sleeper` port and then
    sends one heartbeat **if a turn task is running and the output queue is empty**. So a heartbeat
@@ -44,9 +45,9 @@ The third needs a bound on the turn's own progress, which ADR-0024's gaps alread
    with `AsyncioSleeper` in production and a fake in `tests/test_converse_heartbeat.py` that ends
    each wait when the test says so.
 
-3. **The body bounds the stream's silence at four periods.** `TurnEvent::Heartbeat` is the port's
-   form of it; `BrainSeamClient` maps it, `within_gaps` consumes it and never yields it, and the
-   shell's `converse` command drops one if it reaches it, so the overlay never sees one. A third
+3. **The body bounds the stream's silence at four periods.** `TurnEvent::Heartbeat { wait,
+   detail }` is the port's form of it; `BrainSeamClient` maps it, `within_gaps` counts it and
+   passes it on, and the shell's `converse` command forwards it to the webview. A third
    gap, `TurnGaps::heartbeat`, is the longest the stream may send nothing at all, a heartbeat
    included: `DEFAULT_TURN_HEARTBEAT_GAP_MS` (120000), set by
    `CORTEX_BRAIN_TURN_HEARTBEAT_GAP_MS`. A live brain sends something at least once a period, so
@@ -78,16 +79,57 @@ The third needs a bound on the turn's own progress, which ADR-0024's gaps alread
    minutes; setting `CORTEX_BRAIN_TURN_HEARTBEAT_GAP_MS` to the idle gap restores ADR-0024's
    behaviour until the brain is rebuilt.
 
-7. **The overlay shows nothing new.** Saying what a turn is waiting for (a model load, a place in
-   the admission queue) needs the brain to report its current wait and a designed label; that is
-   [R-708](../refinements/tasks/708-the-overlay-cannot-say-what-a-turn-waits-for.md).
+7. **A heartbeat says what the turn waits on.** `Heartbeat` has `wait`, a key, and `detail`, the
+   sentence the overlay's chip shows; the key is never shown alone. The keys are seven plain
+   verbs, the `StatusUpdate.state` values the brain already used plus three: `thinking` (a model
+   is generating), `queued` (a subtask waits for room in the subagent budget), `delegating`
+   (subtasks run), `swapping` (the deep model loads, or the cortex comes back), `folding` (the
+   earlier conversation is being summarized), `calling` (a tool call runs) and `asking` (a
+   confirm card waits for the user). `wait` is `""` when the turn waits on none of them. Plain
+   verbs, because a chip is read at a glance, like the console's Summon and Dismiss, and each
+   word starts with its own letter. Rejected: directions of attention (Inward, Aside, Deeper,
+   Outward, Yours), since Aside names a queued and a running subtask alike; and free text with
+   no key, which the overlay could neither style nor order.
+
+8. **The key is a string, as `StatusUpdate.state` is.** The same words fill both fields, so an
+   enum on one and a string on the other would type one vocabulary twice. The overlay styles only
+   `thinking` and shows any other key's sentence as it comes, so a key it does not know degrades
+   to a plain chip rather than to a decoding question. The keys are written once, `WAIT_KEYS` in
+   `cortex_core/waits.py`.
+
+9. **The brain keeps the wait on the stream's `ProgressSink`.** `ProgressSink.hold(wait)` is an
+   async context manager, backed in both implementations by the core's `TurnWaits`, one per
+   stream and so one per running turn, never in a model process. Holds nest, and **the innermost
+   open wait wins**: `spawn_subagents` is a tool call whose batch waits inside it, a call that needs
+   approval asks inside its dispatch, and the deep model's generation runs inside the swap. The holders
+   are the tool loop around each model stream (`thinking`), `run_round` around each dispatch that
+   was not refused (`calling`), `ToolDispatcher` around the confirmer (`asking`),
+   `SummarizingHistoryWindow` around the recap (`folding`), and the spawn tool around its batch.
+   A subagent's own loop gets no sink, so its steps never replace the batch's wait. The batch is
+   one wait over all its subtasks: `queued` while any has not been admitted, else `delegating`,
+   with both counts in the sentence (`2 subtasks running, 1 waiting for room to run`). The runner
+   reports admission from inside `SubagentScheduler.admit`, so the scheduler is unchanged.
+
+10. **A change is also sent at once, best effort.** When the innermost wait changes, the record
+    sends it as a `StatusUpdate` through the sink, which may drop it; the next heartbeat repeats
+    the wait, so a dropped one is set right within a period. A `thinking` wait is never sent as a
+    status, because a `thinking` status holds reasoning text that the overlay adds to the
+    reply's trace; it reaches the body only in a heartbeat, or as the model's own reasoning. The
+    swap conductor already sends its statuses on the turn stream, which does not drop them, so
+    `EscalatingTurnEngine` holds each one without sending it again (`announce=False`).
+
+11. **The overlay sets the chip from a heartbeat.** `turnState.ts` sets `status` and
+    `statusState` from a heartbeat with a wait, leaves a chip that already shows `thinking` alone
+    so the latest reasoning stays on it, ignores an empty wait, and never adds to `thoughts`.
 
 ## Consequences
 
 - A brain that stops answering, a path that stops delivering, or a blocked event loop is reported
   within two minutes of the last thing received, instead of up to four hours.
 - A turn that stays silent while its brain lives still ends at ADR-0024's bounds.
-- A silent turn costs one empty message per 30 s, from one task per open stream.
+- A silent turn costs one small message per 30 s, from one task per open stream.
+- A return to `thinking` after a tool call reaches the chip with the model's first reasoning, or
+  with the next heartbeat for a model that sends none.
 - The brain's event loop must not be blocked for more than about 90 s while a turn runs, or the
   body ends the turn. A synchronous call on the loop that long was already a defect, since it
   stalls every stream and the `Health` probe; this makes it visible to the user.

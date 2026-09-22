@@ -6,20 +6,26 @@ import swap_harness as harness
 from swap_harness import build_harness
 
 from cortex_core import (
+    GENERATING,
+    SWAPPING,
+    THINKING,
     WORKING_DETAIL,
     DispatchBudget,
     EscalatingTurnEngine,
     EscalationRefs,
     EscalationSlot,
     Message,
+    RecordingProgressSink,
     Role,
     StatusUpdate,
     SwapConductor,
     TaintLedger,
     TextDelta,
+    TurnCapabilities,
     TurnCompleted,
     TurnEvent,
     TurnRunner,
+    Wait,
 )
 
 _AT = datetime(2026, 7, 25, 12, 0, tzinfo=UTC)
@@ -70,6 +76,7 @@ def _wrapper(
     events: tuple[TurnEvent, ...],
     brief: str | None = None,
     block: asyncio.Event | None = None,
+    progress: RecordingProgressSink | None = None,
 ) -> tuple[EscalatingTurnEngine, list[_ScriptedTurn]]:
     """The wrapper around a scripted inner turn, plus the list of turns it built."""
     built: list[_ScriptedTurn] = []
@@ -79,7 +86,7 @@ def _wrapper(
         built.append(inner)
         return inner
 
-    return EscalatingTurnEngine(make, conductor), built
+    return EscalatingTurnEngine(make, conductor, progress=progress), built
 
 
 async def _drain(engine: EscalatingTurnEngine) -> list[TurnEvent]:
@@ -188,3 +195,38 @@ async def test_an_inner_turn_that_never_completes_hands_nothing_off() -> None:
     assert events == [TextDelta(text="cut short")]
     assert live.host.calls == []
     assert await live.handoffs.active() is None
+
+
+async def test_each_swap_status_is_held_as_the_turn_wait_without_being_sent_twice() -> None:
+    live = build_harness()
+    await live.seed_session()
+    sink = RecordingProgressSink()
+    engine, _built = _wrapper(
+        live.conductor,
+        events=(TextDelta(text=harness.CORTEX_TEXT), TurnCompleted(harness.TURN, "cortex text")),
+        brief=harness.BRIEF,
+        progress=sink,
+    )
+    held: list[Wait | None] = []
+    stream = engine.handle_turn(harness.SESSION, harness.USER_TEXT, turn_id=harness.TURN)
+    async for event in stream:
+        if isinstance(event, StatusUpdate):
+            assert event.state == SWAPPING
+            held.append(sink.waits.current())
+    assert held == [Wait(SWAPPING, detail) for detail in harness.SWAP_WINDOW]
+    assert sink.waits.current() is None
+    assert sink.events == ()
+
+
+async def test_the_deep_model_generating_is_held_under_its_own_sentence() -> None:
+    sink = RecordingProgressSink()
+    live = build_harness(capabilities=TurnCapabilities(progress=sink))
+    await live.seed_session()
+    engine, _built = _wrapper(
+        live.conductor,
+        events=(TextDelta(text=harness.CORTEX_TEXT), TurnCompleted(harness.TURN, "cortex text")),
+        brief=harness.BRIEF,
+    )
+    await _drain(engine)
+    assert Wait(THINKING, WORKING_DETAIL) in sink.held
+    assert GENERATING not in sink.held
