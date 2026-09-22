@@ -240,11 +240,11 @@ which is what `just check-backlog` runs; with `--write` it regenerates each inde
 `just backlog` runs. The index cannot be edited into disagreement with the tasks, because the only
 supported way to change it is to change a task file and regenerate.
 
-Five things fail it: a task file outside the layout (a name that is not `NNN-slug.md`, a missing,
-duplicated or unknown field, a status outside the grammar, a title restating its own status, a
-number already used, a waiting state with no trigger, or a `Verified` line that is not a date or
-sits on a task that has closed or is ongoing); a relative link that does not resolve, and a
-`#fragment` aimed at a heading its target does not offer, both checked over every markdown file in
-the repo; an index whose generated block is stale, missing or hand-edited; and a `tasks/`
-directory holding anything that is not a task file. An index is judged on the freshly rendered text
-rather than on the committed file, so a stale index stays one problem instead of a hundred.
+Five things fail it: a task file outside the layout (a name that is not `NNN-slug.md` or whose slug
+uses a banned word, a missing, duplicated or unknown field, a status outside the grammar, a title
+restating its own status, a number already used, a waiting state with no trigger, or a `Verified`
+line that is not a date or sits on a task that has closed or is ongoing); a relative link that does
+not resolve, and a `#fragment` aimed at a heading its target does not offer, both checked over every
+markdown file in the repo; an index whose generated block is stale, missing or hand-edited; and a
+`tasks/` directory holding anything that is not a task file. An index is judged on the freshly
+rendered text rather than on the committed file, so a stale index is one problem, not a hundred.

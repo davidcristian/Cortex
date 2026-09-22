@@ -95,7 +95,8 @@ record says what it is and why.
     reads. An identifier beside a kept name may still be renamed: a settings field keeps its
     variable as a `validation_alias`. Decision 16 checks the words of a log message. No check
     reads identifiers or log field names, so a `git grep` survey finds them, and the backlog lists
-    what is left. It reaches a backlog task's file name too, which no check reads.
+    what is left. It reaches a backlog task's file name too: `backlogcheck.py` reads each slug
+    with its hyphens, and those of the table's words, read as spaces.
 16. **The prose check reads the strings the code prints or raises.** Its scope is every non-test
     Python module in `scripts/` and every module under a brain package's `src/`: log messages,
     exception text, help text and the rest. Tests, generated code and the Rust and TypeScript

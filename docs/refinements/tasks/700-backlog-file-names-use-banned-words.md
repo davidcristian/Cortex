@@ -25,6 +25,5 @@ stay, on the ground that the index is how a task is found.
 - 2026-09-22: done. The survey, the table's own matcher run over every task file name with the
   slug's hyphens read as spaces, found the same 97 refinement slugs of 693 and no host slug, and
   none of the hits was a banned word inside an ordinary one. All 97 files were renamed from their
-  current titles with their numbers kept, and the 316 links to them were rewritten. No check reads
-  a slug, so a word added to the table later is not found in one: R-711. A scan over all 878
-  markdown files then found no link left broken.
+  current titles with their numbers kept, and the 316 links to them were rewritten. A scan over
+  all 878 markdown files then found no link left broken.

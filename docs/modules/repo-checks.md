@@ -62,9 +62,10 @@ were split out of it to stay under the 300-line limit. Grouped by what reads the
 - `settingscheck.py` reads `settingsfields.py` for the variables one module's settings classes
   read. The stack side comes from the readers above.
 - `backlogcheck.py` reads `backlog.py` for the task-file grammar, `backlogindex.py` for the index
-  renderer, `backloganchors.py` for the anchors a document offers and the links aimed at them, and
-  `headingshapes.py` for which headings a slug can be computed from. `linecap.py` reads
-  `backlogindex.py` too, for the comment that shows a backlog index is generated.
+  renderer, `backloganchors.py` for the anchors a document offers and the links aimed at them,
+  `headingshapes.py` for which headings a slug can be computed from, and `bannedwords.py` for the
+  words a task file name may not use. `linecap.py` reads `backlogindex.py` too, for the comment
+  that shows a backlog index is generated.
 - `prosecheck.py` reads `bannedwords.py` for the word table in AGENTS.md, `prosereaders.py` for
   the prose each file type holds, and `proseliterals.py` for the string literals that hold prose.
   `prosereaders.py` uses `commentblocks.py` for comments and docstrings in Python and

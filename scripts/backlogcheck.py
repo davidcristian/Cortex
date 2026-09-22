@@ -1,12 +1,14 @@
 """Check each backlog index against the task files it describes, or regenerate it."""
 
 import argparse
+import re
 import sys
 from collections.abc import Iterable
 from pathlib import Path
 
 import backloganchors
 import backlogindex
+import bannedwords
 from backlog import Task, TaskFileError, load
 from backloganchors import local_links
 
@@ -14,6 +16,7 @@ BACKLOGS = (
     ("refinements", Path("docs/refinements"), "area"),
     ("host", Path("docs/host"), "session"),
 )
+RULES_NAME = "AGENTS.md"
 
 
 def check_links(root: Path, sources: Iterable[tuple[Path, str]]) -> list[str]:
@@ -56,6 +59,22 @@ def check_stray(directory: Path) -> list[str]:
         f"{path}: a tasks directory contains task files and nothing else"
         for path in sorted(directory.iterdir())
         if path.is_dir() or path.suffix != ".md"
+    ]
+
+
+def slug_pattern(root: Path) -> re.Pattern[str]:
+    """Return the banned words of ``root``'s AGENTS.md as one pattern, hyphens read as spaces."""
+    table = bannedwords.read_table(root / RULES_NAME)
+    return bannedwords.compile_words(word.replace("-", " ") for word in table.words)
+
+
+def check_slugs(root: Path, directory: Path, pattern: re.Pattern[str]) -> list[str]:
+    """Return one problem per banned word in the slug of a task file in ``directory``."""
+    return [
+        f"{path.relative_to(root)}: the file name uses the banned word "
+        f"{found.group().lower()!r}; rename it from its title"
+        for path in sorted(directory.glob("*.md"))
+        for found in pattern.finditer(path.stem.partition("-")[2].replace("-", " "))
     ]
 
 
@@ -121,6 +140,13 @@ def main(argv: list[str] | None = None) -> int:
         name = f"{base}/index.md"
         indexes[(root / name).resolve()] = backloganchors.Index(name=name, anchors=offered)
     problems.extend(check_links(root, other_texts(root)))
+    try:
+        pattern = slug_pattern(root)
+    except bannedwords.TableError as err:
+        problems.append(f"the task file names cannot be checked: {err}")
+    else:
+        for _, base, _ in BACKLOGS:
+            problems.extend(check_slugs(root, root / base / "tasks", pattern))
     problems.extend(backloganchors.check(root, indexes))
     for problem in problems:
         print(problem, file=sys.stderr)
@@ -133,7 +159,10 @@ def main(argv: list[str] | None = None) -> int:
             file=sys.stderr,
         )
         return 1
-    print("backlogcheck OK: every index matches its task files, and every link resolves")
+    print(
+        "backlogcheck OK: every index matches its task files, every link resolves, and no task "
+        "file name uses a banned word"
+    )
     return 0
 
 

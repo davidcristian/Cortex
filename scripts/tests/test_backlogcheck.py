@@ -15,6 +15,9 @@ REFINEMENT = (
     "**Area:** brain\n"
     "**Origin:** ADR-0001\n"
 )
+RULES = (
+    "| Do not write | Write instead |\n| --- | --- |\n| knob | setting |\n| re-derive | check |\n"
+)
 HOST_TASK = (
     "# Bring the hotkey up\n\n"
     "**Status:** never attempted\n"
@@ -37,6 +40,7 @@ def _repo(root: Path) -> Path:
     _write(root, "docs/refinements/tasks/001-wire-the-memory-port.md", REFINEMENT)
     _write(root, "docs/host/index.md", INDEX)
     _write(root, "docs/host/tasks/001-bring-the-hotkey-up.md", HOST_TASK)
+    _write(root, "AGENTS.md", RULES)
     return root
 
 
@@ -89,7 +93,7 @@ def test_other_texts_reads_every_markdown_file_but_the_task_files_and_indexes(
     _write(root, "docs/adr/ADR-0001.md", "# The decision\n")
     _write(root, "docs/refinements/notes.md", "# Notes beside the backlog\n")
     names = sorted(path.relative_to(root).as_posix() for path, _ in backlogcheck.other_texts(root))
-    assert names == ["docs/adr/ADR-0001.md", "docs/refinements/notes.md"]
+    assert names == ["AGENTS.md", "docs/adr/ADR-0001.md", "docs/refinements/notes.md"]
 
 
 def test_other_texts_skips_a_file_it_cannot_read_and_main_reports_it_once(
@@ -98,7 +102,7 @@ def test_other_texts_skips_a_file_it_cannot_read_and_main_reports_it_once(
     root = _repo(tmp_path)
     (root / "docs" / "adr").mkdir(parents=True)
     (root / "docs" / "adr" / "ADR-0001.md").write_bytes(b"\xff\xfe not text\n")
-    assert backlogcheck.other_texts(root) == []
+    assert [path.name for path, _ in backlogcheck.other_texts(root)] == ["AGENTS.md"]
     assert backlogcheck.main(["--root", str(root), "--write"]) == 1
     assert capsys.readouterr().err.count("cannot be read") == 1
 
@@ -116,6 +120,50 @@ def test_main_reports_a_plain_link_outside_the_backlog_that_does_not_resolve(
     ) in capsys.readouterr().err
     adr.write_text("See [the task](../refinements/tasks/001-wire-the-memory-port.md).\n")
     assert backlogcheck.main(["--root", str(root)]) == 0
+
+
+def test_check_slugs_names_each_banned_word_in_a_task_file_name(tmp_path: Path) -> None:
+    root = _repo(tmp_path)
+    directory = root / REFINEMENTS / "tasks"
+    _write(root, "docs/refinements/tasks/002-a-knob-to-re-derive-the-knobs.md", REFINEMENT)
+    _write(root, "docs/refinements/tasks/003-knobless-rederive.md", REFINEMENT)
+    problems = backlogcheck.check_slugs(root, directory, backlogcheck.slug_pattern(root))
+    assert problems == [
+        "docs/refinements/tasks/002-a-knob-to-re-derive-the-knobs.md: the file name uses the "
+        "banned word 'knob'; rename it from its title",
+        "docs/refinements/tasks/002-a-knob-to-re-derive-the-knobs.md: the file name uses the "
+        "banned word 're derive'; rename it from its title",
+    ]
+
+
+def test_check_slugs_reads_the_slug_and_not_the_number(tmp_path: Path) -> None:
+    root = _write(tmp_path, "AGENTS.md", RULES.replace("knob", "001")).parent
+    _write(root, "tasks/001-wire-the-memory-port.md", REFINEMENT)
+    assert backlogcheck.check_slugs(root, root / "tasks", backlogcheck.slug_pattern(root)) == []
+
+
+def test_main_reports_a_banned_word_in_a_task_file_name_in_either_backlog(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root = _repo(tmp_path)
+    assert backlogcheck.main(["--root", str(root), "--write"]) == 0
+    (root / HOST / "tasks" / "001-bring-the-hotkey-up.md").rename(
+        root / HOST / "tasks" / "001-bring-the-hotkey-knob-up.md"
+    )
+    capsys.readouterr()
+    assert backlogcheck.main(["--root", str(root), "--write"]) == 1
+    assert (
+        "docs/host/tasks/001-bring-the-hotkey-knob-up.md: the file name uses the banned word 'knob'"
+    ) in capsys.readouterr().err
+
+
+def test_main_reports_a_missing_table_instead_of_passing_every_name(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root = _repo(tmp_path)
+    (root / "AGENTS.md").unlink()
+    assert backlogcheck.main(["--root", str(root), "--write"]) == 1
+    assert "the task file names cannot be checked: cannot read" in capsys.readouterr().err
 
 
 def test_run_one_reports_a_missing_tasks_directory(tmp_path: Path) -> None:
