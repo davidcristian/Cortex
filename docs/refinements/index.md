@@ -71,7 +71,7 @@ never a reading of what the tree does now.
 
 - **[R-607](tasks/607-eighteen-of-the-cortex-alts-pixel-rows-are-undrawn.md)** Fourteen of the cortex alt's thirty-six pixel rows are undrawn or refused (inference). Its claim was checked against the code on 2026-09-19.
 - **[R-695](tasks/695-an-alt-mail-control-voids-in-every-draw-at-the-engine-budget.md)** An alt `app` control cell is empty in every draw, so three rows cannot publish (vision). Its claim was checked against the code on 2026-09-19.
-- **[R-701](tasks/701-keeping-a-chat-at-the-top-has-no-designed-name.md)** Keeping a chat at the top of the list has no designed name (body-overlay). Its claim was checked against the code on 2026-09-19.
+- **[R-701](tasks/701-keeping-a-chat-at-the-top-has-no-designed-name.md)** Keeping a chat at the top of the list has no designed name (body-overlay). Its claim was checked against the code on 2026-09-22.
 - **[R-705](tasks/705-names-inside-files-still-use-banned-words.md)** Names inside the files still use words the prose table bans (cross-cutting). Its claim was checked against the code on 2026-09-22.
 - **[R-706](tasks/706-only-the-corpus-laundering-cell-is-drawn-at-the-engines-sampler.md)** Only the corpus laundering cell is drawn at the engine's sampler (vision). Its claim was checked against the code on 2026-09-22.
 - **[R-707](tasks/707-model-read-texts-keep-banned-words.md)** Texts a model reads keep words the prose table bans (brain). Its claim was checked against the code on 2026-09-22.
