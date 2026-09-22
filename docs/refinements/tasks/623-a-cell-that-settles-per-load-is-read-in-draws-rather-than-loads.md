@@ -29,7 +29,7 @@ draws. About eleven minutes at this cell's cost: 84 replies behind one load in 3
 ## History
 
 - 2026-09-10: opened by the close of
-  [R-604](604-the-advisory-probes-arms-part-by-fourteen-draws.md), which drew the advisory probe's
+  [R-604](604-the-dialog-probes-two-conditions-differ-by-fourteen-draws.md), which drew the advisory probe's
   two conditions a third time and found the control at the opposite end from the second time
   ([ADR-0041](../../adr/ADR-0041-injection-image-variant.md)).
 - 2026-09-10: a second cell shows the same thing. The cortex alt's `chrome` cell at the corpus frame

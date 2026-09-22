@@ -1,9 +1,8 @@
 # Backlog file names use words their titles do not
 
-**Status:** open, actionable
+**Status:** done 2026-09-22
 **Area:** repo-checks
 **Origin:** [ADR-0039](../../adr/ADR-0039-backlog-per-task.md)
-**Verified:** 2026-09-19
 
 A task file is `NNN-slug.md`, and the slug is written from the title the day the task is opened.
 A title can be edited afterwards and the file name cannot follow it, because renaming a file breaks
@@ -23,3 +22,10 @@ stay, on the ground that the index is how a task is found.
 ## History
 
 - 2026-09-19: opened after counting the slugs against the table in AGENTS.md.
+- 2026-09-22: done. The survey, the table's own matcher run over every task file name with the
+  slug's hyphens read as spaces, found the same 97 refinement slugs of 693 and no host slug, and
+  none of the hits was a banned word inside an ordinary one. All 97 files were renamed from their
+  current titles with their numbers kept, and the 316 links to them were rewritten. No check reads
+  a slug, so a word added to the table later is not found in one: R-711. `backlogcheck.py`
+  resolves a plain link only in a task file or an index, so the links from other documents were
+  resolved by a one-off scan over all 878 markdown files, which found none broken: R-712.

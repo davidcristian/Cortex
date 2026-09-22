@@ -41,7 +41,7 @@ is finished, so a store built for swap survival is not a store for history.
 
 ## History
 
-- 2026-08-19: Opened by the close of [304](304-spill-rides-the-residency-report.md), which argued
+- 2026-08-19: Opened by the close of [304](304-a-spilled-handoff-is-only-ever-in-the-log.md), which argued
   the dwell from the two lifetimes a spill has and recorded the history that choosing an hour
   throws away.
 - 2026-09-08: Trigger checked and not fired, and the proposed home found unavailable. The readings:

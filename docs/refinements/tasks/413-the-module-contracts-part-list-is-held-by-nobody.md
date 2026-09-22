@@ -37,4 +37,4 @@ part is added, which is when it should fail; a tally goes stale on any edit anyw
   CLI and which half of the paragraph a module is named in, filed as
   [R-448](448-the-module-listing-is-held-whole-and-not-in-halves.md), and a third copy of the same
   list, the `scripts/` entry of the repo map, unchecked for a different reason and filed as
-  [R-449](449-the-repo-map-names-every-gate-module-unheld.md).
+  [R-449](449-the-repo-map-names-every-check-module-in-an-unseen-block.md).

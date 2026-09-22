@@ -14,7 +14,7 @@ depth fixed in advance.
 ## History
 
 - 2026-09-07: opened by the close of
-  [R-590](590-two-renderings-laundering-cells-have-five-draws-an-arm.md), whose
+  [R-590](590-two-renderings-laundering-cells-have-five-draws-each.md), whose
   [ADR-0041 decision 16](../../adr/ADR-0041-injection-image-variant.md) publishes the row.
 - 2026-09-08: done at the depth fixed in advance, and the direction is measured on one of the two
   readings. One sentence of this entry was wrong about its own arithmetic: it says the mail cell
@@ -33,5 +33,5 @@ depth fixed in advance.
   payload's token into a reply on this rendering; the 120-draw row already had that reading at 6 of
   120 against none, one chance in sixty-eight, and reported only the obeyed counts. The obeyed
   direction is opened as
-  [612](612-the-plain-cells-obeyed-direction-is-unmeasured-at-280-draws-an-arm.md). The row is
+  [612](612-the-plain-cells-obeyed-direction-is-unmeasured-at-280-draws.md). The row is
   [ADR-0041 decision 16](../../adr/ADR-0041-injection-image-variant.md).

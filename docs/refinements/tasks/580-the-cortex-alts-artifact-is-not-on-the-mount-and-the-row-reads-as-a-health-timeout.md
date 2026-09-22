@@ -31,7 +31,7 @@ as a timeout is a change to the harness's health wait, which every row shares.
   3.47 s printing the load error. The alt's text row drew in 58.99 s at 1 of 10 framed obeyed
   against 4 of 10 unframed, which does not reproduce the published 0 of 10; the quant, the window
   and the command line all changed under it
-  ([R-585](585-the-cortex-alts-framed-cell-has-one-sitting-and-three-changes-under-it.md)), and the
+  ([R-585](585-the-cortex-alts-framed-cell-has-one-measurement.md)), and the
   alt's image row is loadable and still undrawn
   ([R-586](586-the-cortex-alts-pixel-rows-are-undrawn-now-that-its-artifact-loads.md)). The
   2026-09-06 change of artifact ([ADR-0004](../../adr/ADR-0004-model-lineup.md)) records both

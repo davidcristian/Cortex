@@ -36,7 +36,7 @@ asked for a number.
 ## History
 
 - 2026-08-29: opened by the close of
-  [R-474](474-the-switch-could-be-rendered-as-a-lever-that-holds.md), which shipped the count that
+  [R-474](474-the-ports-thinking-switch-could-be-sent-as-a-request-value.md), which shipped the count that
   forces the end of a thought, reproduced the leak once in 58 budgeted draws, and found it arrives
   inside the payload rather than in front of it.
 - 2026-08-29: [R-500](500-the-garbled-channel-marker-has-no-attributed-cause.md) records the other

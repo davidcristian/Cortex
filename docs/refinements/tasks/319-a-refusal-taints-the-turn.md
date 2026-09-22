@@ -39,5 +39,5 @@ outcome.
   states sits inside a region the preamble says never to obey. The build is
   [530](530-a-sidecars-own-text-is-re-stamped-trusted.md); the pattern it follows turned out to be
   unchecked for the source key, filed as
-  [531](531-the-source-declaration-key-is-spelled-twice-unheld.md); and the same rule closed
+  [531](531-the-source-declaration-key-is-written-in-two-trees-and-no-check.md); and the same rule closed
   [079](079-per-remote-tool-trust-overrides.md).

@@ -21,7 +21,7 @@ is an argument and not an inventory.
 ## History
 
 - 2026-08-26: opened by the close of
-  [R-446](446-the-scan-roster-is-spelled-in-seven-places.md), which checked the three copies that
+  [R-446](446-the-list-of-cross-tree-scans-is-written-in-seven-places.md), which checked the three copies that
   name modules and argued the tallies away, leaving these two. Recorded as what ADR-0044 decision
   11 leaves unchecked.
 - 2026-09-11: the trigger fired on 2026-08-27, the day after this was filed, and nobody read it as

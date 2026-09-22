@@ -5,7 +5,7 @@
 **Origin:** [ADR-0048](../../adr/ADR-0048-generation-bounds.md)
 
 Opened 2026-08-16 by the close that passed a finish reason through `InferenceBackend`
-([R-206](206-finish-reason-not-carried.md)), which reports a capped run as `TRUNCATED` everywhere
+([R-206](206-a-finish-reason-the-port-does-not-report.md)), which reports a capped run as `TRUNCATED` everywhere
 the run reaches the end of its loop, and left one path where it does not.
 
 A completion cut while the model was still writing a tool call's `arguments` leaves the adapter

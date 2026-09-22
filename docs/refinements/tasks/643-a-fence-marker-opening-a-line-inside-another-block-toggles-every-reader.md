@@ -30,7 +30,7 @@ reading is a documented line nothing compares against its call site.
 ## History
 
 - 2026-09-12: opened by the close of
-  [R-445](445-three-gates-each-spell-the-markdown-fence-for-themselves.md), which gave the three
+  [R-445](445-three-checks-each-define-the-markdown-fence-for-themselves.md), which gave the three
   document-reading checks one definition of a fence, recorded at
   [ADR-0062](../../adr/ADR-0062-shared-check-readers.md) decision 6. That change was about where the
   definition lived rather than what it said, and all three copies it replaced toggled on the marker,

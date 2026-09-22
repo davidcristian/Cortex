@@ -50,7 +50,7 @@ correctly, so a configurable table would have shipped with one live entry. It wa
   two errors above. The `Health` claim is narrower than written: the probe budget bounds the
   backoff between attempts and not an attempt, so `Down` arrives within `probe_budget` only from a
   brain that answers, and a brain that accepts the connection and then sends nothing still has no
-  deadline to hit ([R-301](301-seam-attempt-deadline.md)). And the test enforcing the per-method
+  deadline to hit ([R-301](301-a-per-attempt-deadline-on-the-body-to-brain-calls.md)). And the test enforcing the per-method
   split covered nine of the eleven methods: the `EVERY_METHOD` array called itself every variant
   while omitting `GetPreferences` and `SetPreference`, which is exactly the unreported copy this
   entry was built to prevent, arriving in the test rather than in the `impl`. An exhaustive `match`

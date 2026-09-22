@@ -19,7 +19,7 @@ before its first token while a mid-reply gap of the same length means something 
 
 ## History
 
-- 2026-08-18: Opened by the per-attempt deadline ([301](301-seam-attempt-deadline.md)), which
+- 2026-08-18: Opened by the per-attempt deadline ([301](301-a-per-attempt-deadline-on-the-body-to-brain-calls.md)), which
   bounded every unary attempt and left the turn stream explicitly outside the bound.
 - 2026-08-24: Done as `retry::gap` in the body core, closed without its trigger having occurred, on
   the ground that the design was settled and the cost bounded. Every claim above held except one,

@@ -53,4 +53,4 @@ same completion.
   cells between two runs at one seed in the same prompt-cache state, 2 of 4 across a cold start, the
   key on top of the flags changing nothing on 4 of 4, and the marker fragments redrawn by seed.
   ADR-0050 publishes the rows; the identity count was made by a scratch script, filed as
-  [R-633](633-the-paired-arm-identity-is-counted-by-a-scratch-script.md).
+  [R-633](633-the-identity-between-two-runs-is-counted-by-a-scratch-script.md).

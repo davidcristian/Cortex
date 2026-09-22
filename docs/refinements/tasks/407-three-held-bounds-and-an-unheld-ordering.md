@@ -24,6 +24,6 @@ entries in three modules.
   have passed with the three bounds set equal, which is the misordering both validators exist to
   catch. What is left of the observation, that the registry cannot express an ordering over
   decimals and cannot express a strict one at all, is
-  [R-367](367-the-shipped-ordering-of-two-bounds-is-ungated.md), which records both halves and
+  [R-367](367-the-shipped-ordering-of-two-bounds-is-not-checked-in-the-repo.md), which records both halves and
   covers a pair no settings class validates. The stale sentence this file quoted is corrected in
   `cortex_core/subagents.py`. Recorded in ADR-0047 decision 7. Opens nothing.

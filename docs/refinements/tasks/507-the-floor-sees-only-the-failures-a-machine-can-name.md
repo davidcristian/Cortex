@@ -30,7 +30,7 @@ machine-read rate is 4 of 4.
 ## History
 
 - 2026-08-30: opened by the close of
-  [R-484](484-the-control-arm-is-held-to-no-floor.md), which built the minimum on the failures a
+  [R-484](484-the-control-run-has-no-minimum.md), which built the minimum on the failures a
   reader can name without knowing the subtask and left the rest judged by hand.
 - 2026-09-02: the close of
   [R-511](511-the-shipped-reasoning-off-pair-disarms-its-own-sampler.md) judged 320 replies by hand
@@ -59,5 +59,5 @@ machine-read rate is 4 of 4.
   [ADR-0028](../../adr/ADR-0028-grammar-constrained-subagents.md) decision 14, with the tool's
   contract in [repo-checks](../../modules/repo-checks.md) and the operator half in the subagent
   runbook. No measurement was re-run and no rate in the record moved. Opened by it:
-  [R-540](540-the-judged-rate-and-the-hand-column-are-compared-on-a-probe-and-no-sweep.md) and
-  [R-541](541-the-swept-subtask-shapes-are-spelled-in-two-trees-and-held-by-nothing.md).
+  [R-540](540-the-judged-rate-and-hand-read-column-are-compared-on-one-probe.md) and
+  [R-541](541-the-measured-subtask-instructions-are-written-in-two-trees.md).

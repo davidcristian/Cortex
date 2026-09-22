@@ -22,7 +22,7 @@ GPU-less runner, a clean checkout, the path classifier deciding which toolchains
 needs that `just check` deliberately leaves out ([ADR-0011](../../adr/ADR-0011-body-v1.md) decision
 10). None of that has happened once. Three backlog entries wait on a run that cannot occur:
 [R-300](300-shell-job-never-ran-on-a-runner.md) waits on the first CI run reaching
-`body/app/src-tauri/`, [R-291](291-a-red-sweep-leaves-no-trace-in-the-repo.md) waits on evidence
+`body/app/src-tauri/`, [R-291](291-a-failing-scheduled-run-leaves-no-trace-in-the-repo.md) waits on evidence
 that the weekly test-order pass runs, and every claim this repo makes about CI mirroring the local
 check is an argument from the workflow file rather than from a result.
 
@@ -34,7 +34,7 @@ should turn the setting on to close this entry.
 ## History
 
 - 2026-09-06: opened by the trigger check on
-  [R-291](291-a-red-sweep-leaves-no-trace-in-the-repo.md), which fired on its schedule clause.
+  [R-291](291-a-failing-scheduled-run-leaves-no-trace-in-the-repo.md), which fired on its schedule clause.
 - 2026-09-09: re-aimed. The tree half stands, and the status was wrong: this was filed as actionable
   while its own text says the close is a setting nobody here may change. It now says what fires it
   and names the one half that is in reach, the wording of the docs that describe CI as something

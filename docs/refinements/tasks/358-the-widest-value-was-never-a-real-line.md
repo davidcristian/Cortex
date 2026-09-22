@@ -40,5 +40,5 @@ including bring-up and seeding.
   do. The comment on `VALUE_CHARS` moves to the measured reading; this file and the commit it came
   from keep the computed one, being statements about a date. Opened by this close:
   [R-453](453-the-harness-reads-one-field-off-a-line-it-has-whole.md),
-  [R-454](454-the-readers-needles-are-not-tied-to-the-sink.md) and
+  [R-454](454-the-readers-search-texts-are-not-tied-to-the-sink-that-writes.md) and
   [R-455](455-the-fields-ceiling-assumes-the-shipped-id-factory.md).

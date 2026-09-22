@@ -38,4 +38,4 @@ described as its reader.
   claims, which is filed as
   [R-451](451-a-borrowed-name-cannot-be-told-from-a-claimed-one.md). The count in front of the
   second list stays a hand count, as this entry asked. The same commit closed
-  [R-449](449-the-repo-map-names-every-gate-module-unheld.md), the third copy of the same set.
+  [R-449](449-the-repo-map-names-every-check-module-in-an-unseen-block.md), the third copy of the same set.

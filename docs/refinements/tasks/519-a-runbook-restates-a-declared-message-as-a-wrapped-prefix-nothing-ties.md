@@ -29,5 +29,5 @@ A rendered sample would cover the message, but the call's fields are composed ab
   italic prefix is gone; the message is now compared whole by `check-samplecheck`, which a mutation
   measured as the constant reworded leaving `test_brain_phase.py` passing and the check failing. The
   registry form that folds whitespace was not built, and
-  [R-518](518-a-registered-binding-handed-at-a-wrapped-call-has-no-one-line-needle.md) still names
+  [R-518](518-a-wrapped-call-binding-has-no-one-line-search-text.md) still names
   it from the call side.

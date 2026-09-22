@@ -39,6 +39,6 @@ and the real `McpToolRegistry`; and updates to `docs/modules/brain-core.md`,
   parenthesized run of literals, so the reducer gained that form (ADR-0042), and its suite's rule
   that every entry span two languages had to learn that two brain packages which cannot import each
   other are a boundary too. Through the real adapter an image block is dropped before the overlay
-  sees the result, filed as [532](532-an-mcp-image-block-is-dropped-rather-than-carried.md); whether
+  sees the result, filed as [532](532-an-mcp-image-block-is-dropped-by-the-adapter-rather-than-passed.md); whether
   the shipped cortex follows the now-unfenced correction, and the same path against a real Bridge,
   are filed as [533](533-the-unfenced-correction-is-unmeasured-on-the-cortex.md).

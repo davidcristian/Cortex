@@ -44,5 +44,5 @@ test and write the sorting down.
   file shrinks to a heading, its status and a pointer. Recorded in ADR-0042, in
   [modules/repo-checks.md](../../modules/repo-checks.md) and in
   [modules/body-core.md](../../modules/body-core.md). Two narrower entries open in its place:
-  [387](387-a-second-spelling-shares-a-held-line.md) and
-  [388](388-the-headroom-suite-spells-its-own-constant.md).
+  [387](387-a-second-occurrence-shares-a-line-the-registry-covers.md) and
+  [388](388-the-headroom-suite-writes-its-declared-edge-four-more-times.md).

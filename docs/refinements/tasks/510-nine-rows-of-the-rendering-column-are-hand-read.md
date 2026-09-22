@@ -34,5 +34,5 @@ card.
   card after the CPU image decoded the E2B at under two tokens a second, which is recorded rather
   than hidden. Opened
   [R-528](528-a-switch-sample-names-the-model-the-operator-typed-and-no-engine-build.md) and
-  [R-529](529-the-rendering-column-is-one-builds-sweep-and-an-engine-bump-reopens-it.md). Recorded
+  [R-529](529-the-rendering-column-is-one-builds-measurement.md). Recorded
   as ADR-0050.

@@ -23,7 +23,7 @@ answer may be the last occurrence, the one nearest the quoted value, or a count.
 ## History
 
 - 2026-08-25: opened by the close of
-  [R-414](414-the-still-spelled-reading-does-not-say-where.md), which used the run's positions to
+  [R-414](414-the-still-contains-reading-does-not-say-where.md), which used the run's positions to
   choose which value match to quote and never used them on the run itself.
 - 2026-08-25: closed. The three candidates for which occurrence to name turned out not to be a
   choice: the two readings are the two ends of one distance, so `searchtexts.nearest` picks the pair

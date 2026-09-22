@@ -24,7 +24,7 @@ remove a named volume if this stack ever grew one. The alternative is to give th
 ## History
 
 - 2026-08-24: filed by the close of
-  [R-390](390-the-probes-mail-root-is-spelled-in-three-files.md), which measured what the probe's
+  [R-390](390-the-probes-mail-root-is-written-in-three-files.md), which measured what the probe's
   image does with the two paths it declares volumes at and fixed only the mail root.
 - 2026-08-24: closed. One claim in this entry was wrong. The leak held and was measured again with
   the recipes an operator runs: `docker volume ls` at 37 (34 of them anonymous), `up` then `down`,

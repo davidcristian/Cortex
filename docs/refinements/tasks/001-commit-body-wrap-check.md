@@ -18,7 +18,7 @@ two. One exception was added: a line past the wrap whose longest single word is 
 the wrap has nowhere to break, so a URL, a path or a long identifier is allowed, while ordinary
 prose past the wrap is not. Checked against the four 73-character lines already on master and
 against bodies that are correctly wrapped. The other three exceptions are
-[R-002](002-wrap-gate-exceptions.md).
+[R-002](002-three-exceptions-the-wrap-check-did-not-include.md).
 
 ## History
 

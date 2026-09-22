@@ -23,7 +23,7 @@ single file.
 ## History
 
 - 2026-09-08: opened by the close of
-  [R-423](423-an-obligation-test-knows-a-caller-by-its-spelling.md), which made `treewalk.py` the
+  [R-423](423-the-two-obligation-tests-recognize-a-caller-by-how-it-is-written.md), which made `treewalk.py` the
   one descent under `scripts/`.
 - 2026-09-10: not yet a problem. `test_loggernames.py` still walks the brain's packages with
   `rglob("*.py")` and drops any module whose parts meet `SKIPPED_DIRS`. Every other glob under

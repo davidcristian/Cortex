@@ -26,7 +26,7 @@ a busy log they are the lines an operator finds and then cannot follow.
 
 ## History
 
-- 2026-08-19: Opened by the close of [R-323](323-a-field-spelled-into-its-own-message.md), whose
+- 2026-08-19: Opened by the close of [R-323](323-a-field-written-into-its-own-message-now-prints-twice.md), whose
   pass over every message that wrote a field it already attached had to read every log site in the
   brain, and found these at the other end of the same question.
 - 2026-08-19: Fixed as ADR-0051 decision 7. Counted from the tree first with an AST pass over all

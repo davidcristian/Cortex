@@ -72,7 +72,7 @@ The three that closed:
   was covered and listed here as uncovered at the same time. The remedy was filed as
   [R-593](593-the-bodys-bind-port-can-be-declared-now-the-shell-compiles.md) and closed satisfied
   on 2026-09-07. What survives of the argument is
-  [R-595](595-no-gate-compiles-the-tauri-shells-windows-half.md): a declaration inside the Tauri
+  [R-595](595-no-check-compiles-the-tauri-shells-windows-half.md): a declaration inside the Tauri
   shell is read by the scan on every `just check` and compiled by nothing, both clippy runs over
   that crate targeting the Linux host while the constant is `cfg(windows)`.
 

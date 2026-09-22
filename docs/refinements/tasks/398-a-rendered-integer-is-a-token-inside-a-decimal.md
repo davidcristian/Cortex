@@ -22,7 +22,7 @@ its own tests, on a defect nothing in the tree currently suffers.
 ## History
 
 - 2026-08-23: opened by the close of
-  [R-387](387-a-second-spelling-shares-a-held-line.md), whose measurement of second occurrences on
+  [R-387](387-a-second-occurrence-shares-a-line-the-registry-covers.md), whose measurement of second occurrences on
   covered lines reported three hits that were a bounded integer inside a decimal.
 - 2026-08-24: closed as the guard this entry proposed, under the rule that a point between two
   digits is inside a number, read from both ends: a digit edge takes `(?<!\d\.)` or `(?!\.\d)`
@@ -40,4 +40,4 @@ its own tests, on a defect nothing in the tree currently suffers.
   watching the swap runbook's message stop claiming the file still writes `11` on the strength of a
   `11.3 s` latency. Five planted mutations, one of which survived its first pass and bought the two
   tests that kill it. One residue: that same value reading does not say where it read the value
-  ([R-414](414-the-still-spelled-reading-does-not-say-where.md)).
+  ([R-414](414-the-still-contains-reading-does-not-say-where.md)).

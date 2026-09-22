@@ -21,7 +21,7 @@ existed since 2026-09-11, is a measurement: `CORTEX_ENVELOPE_TRACE_TOKENS` in
 ## History
 
 - 2026-08-29: opened by the close of
-  [R-474](474-the-switch-could-be-rendered-as-a-lever-that-holds.md), which added a per-request
+  [R-474](474-the-ports-thinking-switch-could-be-sent-as-a-request-value.md), which added a per-request
   count whose failure to be read goes as unreported as the switch's did before the drain's warning.
 - 2026-09-07: neither clause of the trigger has fired, and the premise holds.
   `CORTEX_REPLY_TRACE_TOKENS` is set by nothing in this tree: it is named in `config_reply.py`, the

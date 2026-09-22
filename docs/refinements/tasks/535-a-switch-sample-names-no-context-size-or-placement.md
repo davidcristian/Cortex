@@ -19,7 +19,7 @@ anything.
   [R-528](528-a-switch-sample-names-the-model-the-operator-typed-and-no-engine-build.md), which
   recorded what `GET /props` reports and what it does not (ADR-0050 decision 5).
 - 2026-09-04: checked again and still open. The engine bump that
-  [R-529](529-the-rendering-column-is-one-builds-sweep-and-an-engine-bump-reopens-it.md) waits for
+  [R-529](529-the-rendering-column-is-one-builds-measurement.md) waits for
   has not happened, since this stack still starts `build 10680, commit d7bd3bfca`, and no row has
   been read at a second placement.
 - 2026-09-13: still open on both counts. The cached engine digests are unchanged and no row has been

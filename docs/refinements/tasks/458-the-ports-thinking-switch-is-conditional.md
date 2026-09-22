@@ -20,7 +20,7 @@ is still running deletes the reply instead of shortening it.
 ## History
 
 - 2026-08-26: opened by the close of
-  [R-456](456-a-constrained-request-loses-the-thinking-lever.md), as the residue of a fix that was
+  [R-456](456-a-constrained-request-loses-the-thinking-switch.md), as the residue of a fix that was
   built on this switch, measured to do nothing, and reverted.
 - 2026-08-27: closed, with the paragraph above corrected on its own subject. A new committed probe
   ran both shipped picks with neither `--chat-template-kwargs` nor `--reasoning-budget`, sending

@@ -20,7 +20,7 @@ The reading moved between two runs on this candidate. On 2026-09-07 all three re
 the token, the dialog and the mail client alone and the unstyled screen describing it. On 2026-09-12
 the mail client alone returned it and the other two printed `ok`. The same run measured the alt's
 control condition losing 11.1 in a hundred over 135 pixel draws
-([R-654](654-the-void-ceiling-is-a-share-the-alts-control-arm-is-above.md)), and the canary ask
+([R-654](654-the-cortex-alts-control-is-above-the-empty-reply-ceiling.md)), and the canary ask
 posts the framed request, whose loss rate that run put at 1 in 135, so an empty reply here is
 unlikely rather than impossible.
 

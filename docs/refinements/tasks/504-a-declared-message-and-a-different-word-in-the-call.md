@@ -45,7 +45,7 @@ scan reads.
   registry and `logcalls.handed` together rather than off any naming, which is why the marker field
   was declined again. The suite convention covering the other messages is written down and not
   checked, a binding no document restates having no second place to disagree with. Opened:
-  [R-518](518-a-registered-binding-handed-at-a-wrapped-call-has-no-one-line-needle.md) for a binding
+  [R-518](518-a-wrapped-call-binding-has-no-one-line-search-text.md) for a binding
   handed at a call the formatter wraps, and
   [R-519](519-a-runbook-restates-a-declared-message-as-a-wrapped-prefix-nothing-ties.md) for the
   spill warning's message.

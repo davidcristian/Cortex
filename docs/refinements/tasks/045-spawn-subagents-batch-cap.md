@@ -29,7 +29,7 @@ costs its spawn price, because the loop charges before the dispatch, so retry sp
 four attempts. Covered at 100%, with the cap, the comparison and the advertisement each reverted
 individually to a distinct failing test.
 
-Two things were left behind it: [R-046](046-subagents-max-batch-knob.md), a
+Two things were left behind it: [R-046](046-a-cortex-subagents-max-batch-setting.md), a
 `CORTEX_SUBAGENTS_MAX_BATCH` setting if a host ever wants a different ceiling, and
 [R-047](047-cost-aware-batch-cap.md), a cap in placements or estimated VRAM rather than in items,
 if roster entries ever differ enough that eight of one is not eight of another.

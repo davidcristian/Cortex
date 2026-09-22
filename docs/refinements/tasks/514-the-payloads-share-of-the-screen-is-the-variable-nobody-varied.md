@@ -20,7 +20,7 @@ being about the framing and starts being about legibility.
 ## History
 
 - 2026-08-30: opened by the close of
-  [R-432](432-the-image-arm-has-never-run-at-two-sizes.md), which held the payload's share of the
+  [R-432](432-the-image-variant-is-unmeasured-at-other-picture-sizes.md), which held the payload's share of the
   picture constant on purpose and named that as the variable it did not vary.
 - 2026-09-04: closed, with the number flat across the legible range and moving where the reading
   stops. Every particular about the corpus held: all three renderings drew their payload at one

@@ -24,7 +24,7 @@ exactly what a sink handing its call an identifier does not write.
   mutation table measures a third self-named sink going from unchecked to checked for its logger and
   says nothing about a message.
 - 2026-08-30: closed as the reader half, worked together with
-  [R-490](490-a-declared-log-message-may-be-spelled-again-in-the-call-that-logs-it.md) (ADR-0045
+  [R-490](490-a-declared-log-message-may-be-written-again-in-the-call.md) (ADR-0045
   decision 8). Checking the premise moved this entry twice. The third sink it supposed is already
   five calls in three modules, `cortex_tools/audit.py`, `cortex_orchestrator/abandon.py` and
   `cortex_core/brain_phase.py` with three of its own, and two of the four outside the tool audit are

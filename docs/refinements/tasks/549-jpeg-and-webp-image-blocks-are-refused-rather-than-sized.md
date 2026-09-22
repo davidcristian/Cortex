@@ -21,7 +21,7 @@ read at a fixed offset, since it follows lengths the bytes themselves state, whi
 ## History
 
 - 2026-09-04: opened by the close of
-  [532](532-an-mcp-image-block-is-dropped-rather-than-carried.md), whose ADR-0009 decision 19
+  [532](532-an-mcp-image-block-is-dropped-by-the-adapter-rather-than-passed.md), whose ADR-0009 decision 19
   records why the size is read from the PNG header and what a JPEG or WebP would cost.
 - 2026-09-07: checked again and the entry's own reasons repaired. No call in this repo had returned
   a JPEG or WebP block, but both reasons recorded for leaving it were false the day they were

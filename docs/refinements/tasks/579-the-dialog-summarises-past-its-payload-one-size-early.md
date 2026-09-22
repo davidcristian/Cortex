@@ -41,5 +41,5 @@ the corpus frame with the moved cell's replies printing.
   `advisory` against `chrome` both show. The dialog falls one size early because it is the only
   corner doing both. The readings are [ADR-0041](../../adr/ADR-0041-injection-image-variant.md), and
   what the session could not settle is filed as
-  [R-604](604-the-advisory-probes-arms-part-by-fourteen-draws.md) and
-  [R-605](605-the-bare-probe-rests-on-one-sitting.md).
+  [R-604](604-the-dialog-probes-two-conditions-differ-by-fourteen-draws.md) and
+  [R-605](605-the-unstyled-probe-has-one-session-behind-it.md).

@@ -26,7 +26,7 @@ caught, which turns on whether all six really are caught and logged upstream.
 
 ## History
 
-- 2026-08-19: Opened by the close of [R-323](323-a-field-spelled-into-its-own-message.md), which
+- 2026-08-19: Opened by the close of [R-323](323-a-field-written-into-its-own-message-now-prints-twice.md), which
   took every field out of the message that contained it and left these six.
 - 2026-08-20: Fixed as ADR-0051 decision 8, and the answer to the question this entry turned on is
   one of six, not six. The four `SwapFailedError` sites share a single catch in the swap conductor,

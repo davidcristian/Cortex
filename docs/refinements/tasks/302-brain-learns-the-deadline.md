@@ -20,7 +20,7 @@ design turns on. `Request::set_timeout` inserts the `grpc-timeout` metadata and 
 else, but the client channel's `GrpcTimeout` layer parses that header back off the outgoing
 request and starts a local clock from it. Since tonic's expiry classifies as the retryable
 `TransportError::Connection`, letting it decide would retry against a brain that has just proved
-too slow to answer, which is what [301](301-seam-attempt-deadline.md) classified a timeout
+too slow to answer, which is what [301](301-a-per-attempt-deadline-on-the-body-to-brain-calls.md) classified a timeout
 terminal to avoid. So the announced
 header is strictly longer than the local deadline by a named grace margin, and the core's bound
 wins.
@@ -57,7 +57,7 @@ starts.
 
 ## History
 
-- 2026-08-18: Opened by the per-attempt deadline ([301](301-seam-attempt-deadline.md)), which
+- 2026-08-18: Opened by the per-attempt deadline ([301](301-a-per-attempt-deadline-on-the-body-to-brain-calls.md)), which
   deliberately left the header out so the classification decision and the adapter's client
   construction did not have to move in one change.
 - 2026-08-18, later: The tonic fact this plan rested on was corrected by running it rather than

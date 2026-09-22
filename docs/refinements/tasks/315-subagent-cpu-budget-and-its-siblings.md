@@ -4,7 +4,7 @@
 **Area:** repo-checks
 **Origin:** [ADR-0012](../../adr/ADR-0012-resource-governance.md)
 
-[R-306](306-subagent-memory-budget-spelled-twice.md) registered the memory budget in
+[R-306](306-a-subagent-memory-budget-default-written-three-times.md) registered the memory budget in
 `docker/docker-compose.subagents.yml` against the brain's own default and left the four settings
 beside it unchecked. They are not one job: one is the same case as the closed entry and costs a
 registry entry, and the other three need a decision first.
@@ -35,7 +35,7 @@ here, as it did in the entry before this one.
 
 ## History
 
-- 2026-08-19: Opened by the close of [R-306](306-subagent-memory-budget-spelled-twice.md), which
+- 2026-08-19: Opened by the close of [R-306](306-a-subagent-memory-budget-default-written-three-times.md), which
   built the second value form these settings mostly do not need.
 - 2026-08-20: Fixed as four registry entries, and the half that needed a decision got one. The CPU
   budget went in as described, a module constant plus three uses in the one compose file, and

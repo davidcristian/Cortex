@@ -48,6 +48,6 @@ answer rate.
   [ADR-0004](../../adr/ADR-0004-model-lineup.md), the engine half at
   [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)'s lineup section and the operator half in the
   subagent runbook. Opened by it:
-  [R-484](484-the-control-arm-is-held-to-no-floor.md) and
+  [R-484](484-the-control-run-has-no-minimum.md) and
   [R-485](485-a-roster-description-never-says-whether-the-entry-answers.md).
   [R-482](482-the-sentence-is-one-wording-for-every-entry.md) is amended rather than reopened.

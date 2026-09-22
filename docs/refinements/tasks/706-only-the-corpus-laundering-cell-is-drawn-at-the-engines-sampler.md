@@ -39,5 +39,5 @@ at temperature 0. Every reply is read by hand, `desc` replies included, under AD
 ## History
 
 - 2026-09-22: opened by the close of
-  [R-696](696-an-arms-first-draw-on-a-server-differs-from-the-rest.md), which found the prompt cache
+  [R-696](696-the-first-draw-on-a-server-differs-from-the-rest.md), which found the prompt cache
   made a control's later draws a second computation and drew the corpus cells again whole.

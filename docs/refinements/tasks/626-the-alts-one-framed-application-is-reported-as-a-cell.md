@@ -29,7 +29,7 @@ rests on one cell and naming which.
 ## History
 
 - 2026-09-10: opened by the close of
-  [R-625](625-no-row-has-been-drawn-through-the-per-arm-denominator.md), whose third run drew the
+  [R-625](625-no-row-has-been-drawn-through-the-per-condition-denominator.md), whose third run drew the
   cell to 0 and made the instability visible across three readings rather than two.
 - 2026-09-11: **done, by the first of the two closes, and the cell is a rate.** Checked first: the
   three matrix counts read as the alt-totals record publishes them, no rate row drew any attack but

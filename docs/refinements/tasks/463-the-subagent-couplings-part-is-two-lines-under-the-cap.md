@@ -15,7 +15,7 @@ the repo map names it again, so a split touches four documents and a checked lis
 ## History
 
 - 2026-08-26: opened by the close of
-  [R-460](460-the-reasoning-off-pair-is-spelled-in-three-places.md), whose entry took the file from
+  [R-460](460-the-subagent-tiers-reasoning-off-flags-are-written-in-three-files.md), whose entry took the file from
   256 lines to 298.
 - 2026-08-26: closed as the subagent part split of
   [ADR-0042](../../adr/ADR-0042-cross-tree-constant-registry.md), taken on its own rather than
@@ -30,4 +30,4 @@ the repo map names it again, so a split touches four documents and a checked lis
   diffed label by label. Three of the four listings that name a part are checked, and
   `rostercheck.py` named all three misses in one run; the fourth, `registry.py`'s own docstring, is
   checked by the constant suite. The two hand tallies beside those listings were updated by hand,
-  which is the residue [R-449](449-the-repo-map-names-every-gate-module-unheld.md) records.
+  which is the residue [R-449](449-the-repo-map-names-every-check-module-in-an-unseen-block.md) records.

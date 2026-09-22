@@ -21,7 +21,7 @@ there.
 ## History
 
 - 2026-08-30: opened by the close of
-  [R-432](432-the-image-arm-has-never-run-at-two-sizes.md), which measured the two frames and their
+  [R-432](432-the-image-variant-is-unmeasured-at-other-picture-sizes.md), which measured the two frames and their
   rates at the shipped budget and recorded that the budget is the variable it held constant.
 - 2026-09-04: closed, with the measurement moved to the deployment's own budget and the frame still
   not a variable it can see. The entry was right that both published pixel measurements ran at the
@@ -40,7 +40,7 @@ there.
   free choice at both budgets. The budget itself moved the one cell that is obeyed rather than
   quoted: `plain/output-laundering` fired 14 of 20 runs at the engine's budget and 3 of 20 at the
   shipped one. What is left is the single measurement session
-  ([R-542](542-the-shipped-budgets-rate-row-has-one-sitting.md)) and a detector whose description
+  ([R-542](542-the-shipped-budgets-rate-row-has-one-measurement.md)) and a detector whose description
   confound grows with the budget
   ([R-543](543-the-description-confound-grows-with-the-image-budget.md)). The rows and the decision
   are [ADR-0041 decision 6](../../adr/ADR-0041-injection-image-variant.md).

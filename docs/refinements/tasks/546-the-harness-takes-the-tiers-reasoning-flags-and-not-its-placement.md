@@ -46,4 +46,4 @@ publishes for the subagent tier are properties of the pick or of the card it was
   [R-556](556-no-pixel-row-has-been-replicated-at-the-tiers-own-window.md),
   [R-557](557-the-engine-image-names-are-typed-in-five-places.md),
   [R-558](558-thinking-follows-the-tiers-name-and-not-its-shipped-budget.md) and
-  [R-559](559-the-cpu-row-carries-the-cpu-quota-and-not-the-memory-cap.md).
+  [R-559](559-the-cpu-row-applies-the-cpu-quota-and-not-the-memory-cap.md).

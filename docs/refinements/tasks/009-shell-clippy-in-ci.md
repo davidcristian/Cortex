@@ -4,7 +4,7 @@
 **Area:** repo-checks
 **Origin:** [ADR-0011](../../adr/ADR-0011-body-v1.md)
 
-Left over from [R-008](008-fmt-clippy-ungated-rust-trees.md): the shell's clippy ran nowhere in
+Left over from [R-008](008-cargo-fmt-and-clippy-for-the-two-unchecked-rust-trees.md): the shell's clippy ran nowhere in
 CI, so a finding there could accumulate unreported, as two `collapsible_if` in `confirm.rs` did
 before 2026-07-16. Unlike the shell's fmt (parse only) and `os_windows`'s clippy (one target, no
 link), shell clippy needs the shell to compile, which means the Linux GTK/webkit/dbus dev packages

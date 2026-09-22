@@ -20,7 +20,7 @@ both are named, since the tier flag is only the fallback.
 ## History
 
 - 2026-08-29: opened by the close of
-  [R-474](474-the-switch-could-be-rendered-as-a-lever-that-holds.md), which added a per-request
+  [R-474](474-the-ports-thinking-switch-could-be-sent-as-a-request-value.md), which added a per-request
   trace count to the bounds a turn and its deep continuation already share.
 - 2026-09-07: the trigger has not fired. Both settings it names would have to be on together and
   neither is on at all. `CORTEX_REPLY_TRACE_TOKENS` is set by no compose file, recipe or workflow,

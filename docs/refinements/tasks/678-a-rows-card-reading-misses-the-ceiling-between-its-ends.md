@@ -29,7 +29,7 @@ killed.
 ## History
 
 - 2026-09-17: opened by the close of
-  [R-662](662-a-sitting-records-the-cards-ceiling-by-hand.md).
+  [R-662](662-a-measurement-run-records-the-cards-ceiling-by-hand.md).
 - 2026-09-19: done. Three things the entry had wrong: its trigger had already fired, since the
   unattended run of 2026-09-17 published six rows' prices from their `card reading at` lines; the
   highest clock is the figure a price should not be read against, because that run's idle start

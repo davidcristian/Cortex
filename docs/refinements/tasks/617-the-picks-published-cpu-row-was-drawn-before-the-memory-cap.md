@@ -43,7 +43,7 @@ difference between the two days is
 ## History
 
 - 2026-09-09: opened by the close of
-  [R-559](559-the-cpu-row-carries-the-cpu-quota-and-not-the-memory-cap.md), which added both memory
+  [R-559](559-the-cpu-row-applies-the-cpu-quota-and-not-the-memory-cap.md), which added both memory
   caps to the CPU placement and left the pick's published row under the older configuration.
 - 2026-09-10: the comparison above was written down, then the run was drawn, then drawn again for a
   spread. Both rows are published beside the 2026-09-05 one, the counts are the same counts, and

@@ -64,6 +64,6 @@ distributes the quota over 24 threads that never sleep. The published 1837 s is 
   0.7%. The recommendation to set `--threads` from the quota in
   `docker/docker-compose.subagents.yml` is the owner's default to set and is handled, with what
   follows from it, by
-  [R-628](628-the-subagent-cpu-servers-thread-count-is-not-pinned-to-its-quota.md). The same runs
+  [R-628](628-the-subagent-cpu-servers-thread-count-is-not-set-from-its-quota.md). The same runs
   read the memory cap binding under the harness's budget, which is
   [R-629](629-the-picks-cpu-server-reaches-its-memory-cap-under-the-harnesss-budget.md).

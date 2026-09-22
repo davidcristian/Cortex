@@ -24,4 +24,4 @@ that position, and `claimed_source` returns `None` for a non-string kind or valu
   Both test suites already assert the literals (`test_email_server.py`, `test_registry.py`) and stay
   unregistered for the reason the key's record gives. The cost shown by the fifth mutation, one
   entry's search text including another entry's binding name, is filed as
-  [539](539-a-spend-beside-another-entrys-binding-carries-that-name-as-shape.md).
+  [539](539-a-mention-written-beside-another-entrys-binding-includes.md).

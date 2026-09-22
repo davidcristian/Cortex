@@ -5,7 +5,7 @@
 **Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-checks.md)
 
 Opened 2026-08-16 by the entry that declined to fix the coverage toolchain to a date
-([R-274](274-unpinned-nightly-drifts-the-coverage-gate.md)). `check-body` prints `rustc +nightly
+([R-274](274-the-coverage-step-takes-whatever-nightly-it-finds.md)). `check-body` prints `rustc +nightly
 --version` and `cargo +nightly llvm-cov --version` before it measures, so a failing run in CI and a
 passing one on this machine each name their own compiler and tool. What that does not do is make
 anything read them: no side compares its versions against the other's, and nothing records which

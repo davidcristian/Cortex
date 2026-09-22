@@ -39,7 +39,7 @@ a document.
 ## History
 
 - 2026-09-12: opened by the close of
-  [R-445](445-three-gates-each-spell-the-markdown-fence-for-themselves.md), whose
+  [R-445](445-three-checks-each-define-the-markdown-fence-for-themselves.md), whose
   [ADR-0062](../../adr/ADR-0062-shared-check-readers.md) decision 7 records the set the requirement
   is compared over and why the suites are not in it.
 - 2026-09-14: still not a live problem, and the same correction the sibling entry has applies here.

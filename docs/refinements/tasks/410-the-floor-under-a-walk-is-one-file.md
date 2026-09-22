@@ -36,7 +36,7 @@ all, every test in both building a temporary tree instead.
 ## History
 
 - 2026-08-24: opened by the close of
-  [R-409](409-a-gates-success-line-names-no-collection.md), which gave the four remaining
+  [R-409](409-every-other-check-reports-a-result-without-saying-what.md), which gave the four remaining
   cross-tree scans a success line naming what they read and put a minimum of one file under the two
   that had none.
 - 2026-09-08: the trigger was narrowed, because the event the old one named had already happened.

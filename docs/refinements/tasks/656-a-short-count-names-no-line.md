@@ -54,6 +54,6 @@ it, so the reading caps the sum.
   that file today (lines 12 and 48). `crosscheck` passes over 92 constants, 110 declaring sites and
   313 mentions, 27 of them with an expected count.
 - 2026-09-17: done, together with
-  [R-406](406-the-carried-run-is-measured-over-a-whole-file.md). The two were separate faults on
+  [R-406](406-the-quoted-run-of-an-unmatched-search-text-covers-a-whole-file.md). The two were separate faults on
   separate branches, the zero case naming a line and the wrong one, the short case naming none, and
   one reading serves both.

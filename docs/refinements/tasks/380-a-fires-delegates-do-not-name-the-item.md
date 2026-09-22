@@ -46,7 +46,7 @@ as one value rather than as four keywords.
   audit record, so one would cost a translation at each end. Verified against a real Redis and the
   shipped formatter, where a schedule-shaped dispatch put `item_id=r-live-1` on the ticker's line
   and on its delegate's. Two entries opened,
-  [394](394-the-fired-item-has-two-spellings-in-the-logs.md) for the ticker's own lines writing the
+  [394](394-the-fired-schedule-item-has-two-field-names-across-the-brains.md) for the ticker's own lines writing the
   same id as `reminder_id`, and
   [395](395-a-work-identity-is-copied-by-hand-at-every-hop.md) for the six hand-written copies a
   work identity crosses.

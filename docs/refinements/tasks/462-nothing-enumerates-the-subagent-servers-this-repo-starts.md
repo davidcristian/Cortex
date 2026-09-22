@@ -19,7 +19,7 @@ process rather than a service. `composeservices.py` already reads what a service
 ## History
 
 - 2026-08-26: opened by the close of
-  [R-460](460-the-reasoning-off-pair-is-spelled-in-three-places.md), which checked the pair once
+  [R-460](460-the-subagent-tiers-reasoning-off-flags-are-written-in-three-files.md), which checked the pair once
   per named file and could not reach the whole set.
 - 2026-08-27: closed as the derived-set rule of
   [ADR-0043](../../adr/ADR-0043-subagent-server-flags.md): an eleventh cross-tree scan,

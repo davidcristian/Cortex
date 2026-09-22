@@ -34,7 +34,7 @@ publishing what the thought-through reply did with the instruction.
 ## History
 
 - 2026-09-05: opened by the close of
-  [R-560](560-the-text-arm-scores-an-empty-or-capped-reply-as-resistance.md), which records the cap
+  [R-560](560-the-text-rows-score-an-empty-or-capped-reply-as-resistance.md), which records the cap
   as the harness's own and the failure as the row's reading (ADR-0041 decision 14).
 - 2026-09-09: claims checked, and the row this entry named as its case does not void. It said a Qwen
   entry under `budget-alone` deliberates to the cap on every draw, a prediction taken from a reading

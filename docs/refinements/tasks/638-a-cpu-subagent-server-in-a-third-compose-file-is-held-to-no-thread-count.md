@@ -28,7 +28,7 @@ would learn the key, is at 250 lines of the 300 cap.
 ## History
 
 - 2026-09-11: opened by the close of
-  [R-628](628-the-subagent-cpu-servers-thread-count-is-not-pinned-to-its-quota.md), whose origin
+  [R-628](628-the-subagent-cpu-servers-thread-count-is-not-set-from-its-quota.md), whose origin
   record says why the count did not join `flagcheck.py`'s requirements.
 - 2026-09-11: the review of that change found a second side of the same gap, on the two files this
   entry treats as covered. The constant scan counts the substitution, not the flag in front of it,

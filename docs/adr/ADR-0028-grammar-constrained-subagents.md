@@ -205,7 +205,7 @@ envelope](../readings/reply-envelope.md).
   or role (a summary where an extraction was asked, a span the body does state given the wrong role)
   is outside it ([R-639](../refinements/tasks/639-the-envelope-judges-read-no-form.md)), and the
   subtask kinds are written in the driver and in `JUDGES` with nothing comparing the two
-  ([R-541](../refinements/tasks/541-the-swept-subtask-shapes-are-spelled-in-two-trees-and-held-by-nothing.md)).
+  ([R-541](../refinements/tasks/541-the-measured-subtask-instructions-are-written-in-two-trees.md)).
 - **Deferred until a consumer exists:** a raw GBNF `grammar`
   ([R-069](../refinements/tasks/069-raw-gbnf-alternative.md)), needed by the first constrained
   caller whose output JSON cannot express. It is not a keyword: a grammar is a string, so the port

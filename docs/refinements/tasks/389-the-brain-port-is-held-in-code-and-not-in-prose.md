@@ -47,6 +47,6 @@ is worth a sentence first.
   output. Twenty three planted changes each exited 1 and each restoration returned the check to
   passing, with three controls staying green; the suite rule is ADR-0042 decision 12. Two residues
   filed: the loopback address that appears inside a dozen of these search texts as fixed text
-  ([R-396](396-the-seam-host-rides-inside-the-ports-needles.md)), and the fact that three sortings
+  ([R-396](396-the-brains-bind-host-appears-inside-the-ports-search-texts.md)), and the fact that three sortings
   in a row have corrected their own count upward by hand because nothing counts what the registry
   does not name ([R-397](397-nothing-counts-what-the-registry-does-not-name.md)).

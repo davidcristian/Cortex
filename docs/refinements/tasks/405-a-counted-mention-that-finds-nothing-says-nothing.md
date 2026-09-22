@@ -22,7 +22,7 @@ has ever gone to zero on the real tree.
 ## History
 
 - 2026-08-23: opened by the close of
-  [R-403](403-a-needles-literal-reddens-the-wrong-entry.md), which made an unmatched search text's
+  [R-403](403-an-unmatched-search-text-fails-the-wrong-entry.md), which made an unmatched search text's
   message name whose literal stopped matching, and wired that into one of the two branches that can
   find nothing.
 - 2026-09-10: read against the tree and still not fired. `check_mention` still branched on

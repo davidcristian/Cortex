@@ -44,4 +44,4 @@ prose at all.
   one in one dimension. Two residues filed: the shape counts places and not parts
   ([R-408](408-the-registry-shape-counts-places-not-parts.md)), and the five other checks' success
   lines name no collection at all
-  ([R-409](409-a-gates-success-line-names-no-collection.md)).
+  ([R-409](409-every-other-check-reports-a-result-without-saying-what.md)).

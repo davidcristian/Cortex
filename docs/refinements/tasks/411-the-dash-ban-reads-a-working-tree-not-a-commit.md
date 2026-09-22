@@ -23,7 +23,7 @@ index, and `git ls-files` (what the repo ships, which would make the printed cou
 ## History
 
 - 2026-08-24: filed by the close of
-  [R-409](409-a-gates-success-line-names-no-collection.md), which made the dash ban print how many
+  [R-409](409-every-other-check-reports-a-result-without-saying-what.md), which made the dash ban print how many
   text files it read and made the difference between that number and the repo visible.
 - 2026-08-24: closed. The Origin line was wrong and is corrected: it named the constant-scan
   decision record, and this file's own prose already said the rule belongs to the dash ban's own

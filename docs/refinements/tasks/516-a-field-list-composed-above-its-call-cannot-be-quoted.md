@@ -32,7 +32,7 @@ without the other (ADR-0045 decision 10).
   first `update` rather than guessed, as this entry argued. The swap runbook now prints all three
   lines of the spill watch as fenced samples and restates none of them in prose, which also closed
   [R-519](519-a-runbook-restates-a-declared-message-as-a-wrapped-prefix-nothing-ties.md). Opened
-  [R-522](522-a-union-spelled-as-a-spread-of-the-bound-name-is-still-refused.md) for the `**` spread
+  [R-522](522-a-union-written-as-a-spread-of-the-bound-name-is-still-refused.md) for the `**` spread
   form of the union, which stays refused, and
   [R-523](523-the-tool-audit-line-is-described-in-prose-because-its-fields-vary-by-condition.md) for
   the tool audit's field prose.

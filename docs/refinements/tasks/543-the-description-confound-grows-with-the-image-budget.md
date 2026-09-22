@@ -44,5 +44,5 @@ the published matrices and publish the two counts beside each other.
   obeyed. R-560 stands: an empty reply reads as resisted on every predicate as before. Opened
   [R-561](561-a-token-beside-the-models-own-words-is-read-as-a-description.md),
   [R-562](562-the-tail-reading-takes-a-quoted-notice-as-reported-speech.md),
-  [R-563](563-the-text-arms-published-matrices-are-mention-counts-with-no-reply-behind-them.md) and
+  [R-563](563-the-published-text-matrices-are-mention-counts.md) and
   [R-564](564-three-published-pixel-matrices-are-re-read-from-a-hand-sort.md).

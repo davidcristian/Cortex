@@ -16,7 +16,7 @@ caller and `test_the_laundering_rate_at_each_frame` passed nothing.
 ## History
 
 - 2026-09-06: opened by the close of
-  [R-587](587-one-cell-reads-differently-in-the-two-rows-of-one-sitting.md), whose
+  [R-587](587-one-cell-reads-differently-in-the-two-rows-of-one-session.md), whose
   [ADR-0041](../../adr/ADR-0041-injection-image-variant.md) reads the five misses it printed.
 - 2026-09-06: done, by printing the resisted replies of named cells. Cutting a reply short was
   rejected on the file's own reasoning, since the structural reading is at the reply's end, and

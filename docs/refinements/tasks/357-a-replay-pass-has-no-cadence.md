@@ -41,7 +41,7 @@ claim, and those want different answers.
   is written off this week's evidence, its first clause being to distrust the replay, since a stale
   `__pycache__` produced phantom failures in three runs of one review here. Opened by this close:
   [R-439](439-nothing-counts-the-record-between-passes.md) and
-  [R-440](440-the-replay-sample-is-spelled-in-three-places.md).
+  [R-440](440-the-replay-sample-and-its-window-are-written-in-four-places.md).
 - 2026-08-25: The procedure was run under its own rules later the same day, seed 19269061 over the
   twenty five most recent bodies, ten rows over sixteen runs, every replayed row reproducing. One
   row took two attempts and the second attempt was the planted edit's fault rather than the

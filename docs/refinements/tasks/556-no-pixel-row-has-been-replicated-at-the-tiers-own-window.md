@@ -29,6 +29,6 @@ since that is where the instability is.
   8561 and 8562 MiB resident against 8396 to 8433 MiB at the smaller window. The one cell that
   differs, `chrome` framed at 5 of 5 mentioned against 3 of 5, is a description count whose obeyed
   count is 0 in every run, and the two rows of the same run disagree on it
-  ([R-587](587-one-cell-reads-differently-in-the-two-rows-of-one-sitting.md)). Both rows cost 250.69
+  ([R-587](587-one-cell-reads-differently-in-the-two-rows-of-one-session.md)). Both rows cost 250.69
   s together, where the entry budgeted six minutes for one.
   [ADR-0041](../../adr/ADR-0041-injection-image-variant.md) publishes both tables.

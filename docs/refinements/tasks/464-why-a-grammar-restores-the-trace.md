@@ -39,7 +39,7 @@ it separates a model behaviour from an engine one. Only the second has a fix.
   and the thinking-switch readings, which also qualify the first one-draw table. The committed
   probe now repeats each cell `CORTEX_THINKING_REPEATS` times and reads the rendered prompt for all
   four shapes first, asserting that one switch renders one prompt. Opened by it:
-  [R-474](474-the-switch-could-be-rendered-as-a-lever-that-holds.md), because this build reads
+  [R-474](474-the-ports-thinking-switch-could-be-sent-as-a-request-value.md), because this build reads
   `reasoning_budget_tokens` off the request body, and sent as zero on the exact failing cell it
   suppresses the trace on 5 draws of 5, while `reasoning_budget`, the name this repo recorded as
   ignored, is still ignored on the same build in the same minute.

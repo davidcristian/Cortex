@@ -47,7 +47,7 @@ unchanged and unmeasured under load.
 - 2026-09-17: satisfied, because the saturated reading this entry rests on was taken on a server
   configuration the stack no longer starts. The 1736.6 s subtask and its 0.18 tok/s decode were
   taken with the CPU server running 24 threads inside a 4 CPU quota. On 2026-09-11 the close of
-  [R-628](628-the-subagent-cpu-servers-thread-count-is-not-pinned-to-its-quota.md) took the second
+  [R-628](628-the-subagent-cpu-servers-thread-count-is-not-set-from-its-quota.md) took the second
   answer this entry offered: both CPU subagent servers in `docker/docker-compose.subagents.yml` and
   `docker/docker-compose.subagents-roster.yml` now pass `--threads` from the same
   `CORTEX_SUBAGENTS_CPU_BUDGET` substitution as their `cpus` cap. The same close took the first

@@ -51,5 +51,5 @@ cost-denominated cap.
 - 2026-08-18: Declined on a reading of the tree. The finding worth keeping is that placements and
   items are the same count in this wiring, which makes half of the proposal a rename; the other
   half bounds a resource the placer already moves to CPU rather than overspending. The sibling
-  [R-046](046-subagents-max-batch-knob.md) is a separate question, about the cap's value rather
+  [R-046](046-a-cortex-subagents-max-batch-setting.md) is a separate question, about the cap's value rather
   than its unit. Both readings are ADR-0010 decisions 11 and 12.

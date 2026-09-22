@@ -25,8 +25,8 @@ and must not be compared with the log vocabulary at all.
 ## History
 
 - 2026-08-24: opened by the close of
-  [R-339](339-two-spellings-of-one-conversation.md) and
-  [R-394](394-the-fired-item-has-two-spellings-in-the-logs.md), whose registry part covers every
+  [R-339](339-two-names-for-one-conversation-across-the-brains-log-fields.md) and
+  [R-394](394-the-fired-schedule-item-has-two-field-names-across-the-brains.md), whose registry part covers every
   place that writes the vocabulary today and no place written later. Recorded in ADR-0042.
 - 2026-08-25: the arithmetic moved and the argument did not. Two scans were added together, one
   comparing every volume an image declares with a mount some compose service makes and one

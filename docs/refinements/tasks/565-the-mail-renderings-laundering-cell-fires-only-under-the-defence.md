@@ -23,7 +23,7 @@ twenty on that rendering alone rather than five on all three.
 
 ## History
 
-- 2026-09-05: opened by the close of [R-542](542-the-shipped-budgets-rate-row-has-one-sitting.md),
+- 2026-09-05: opened by the close of [R-542](542-the-shipped-budgets-rate-row-has-one-measurement.md),
   whose session printed the third framed firing of this cell and found no control firing to put
   beside it.
 - 2026-09-06: done, with the cell drawn sixty times framed and sixty unframed in a row of its own.

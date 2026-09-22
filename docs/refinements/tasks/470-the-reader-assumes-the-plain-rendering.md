@@ -15,7 +15,7 @@ an operator who captures by hand, or a deployment that has set the packed render
 ## History
 
 - 2026-08-27: opened by the close of
-  [R-454](454-the-readers-needles-are-not-tied-to-the-sink.md), which made the reader's search text
+  [R-454](454-the-readers-search-texts-are-not-tied-to-the-sink-that-writes.md), which made the reader's search text
   answerable to the sink and left the layout it reads them in answerable to nothing.
 - 2026-09-10: the trigger has not fired and the reader is unchanged. It still cuts the field out
   with a pattern anchored on ` dropped=` and still finds a record by `[A-Z]+:[^\s:]+:memory.recall`,

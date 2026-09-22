@@ -36,7 +36,7 @@ depends on and a check that runs a different one proves less than it claims.
 
 ## History
 
-- 2026-09-07: opened by the close of [R-595](595-no-gate-compiles-the-tauri-shells-windows-half.md),
+- 2026-09-07: opened by the close of [R-595](595-no-check-compiles-the-tauri-shells-windows-half.md),
   which added the Windows clippy and recorded that its placement outside `just check` rests on the
   resource step alone.
 - 2026-09-11: read against the tree and not fired on either part. crates.io reports `tauri-build`

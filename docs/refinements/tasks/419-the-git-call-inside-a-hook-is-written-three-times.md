@@ -42,5 +42,5 @@ caller.
   writes the call that hands it an environment. Six planted mutations; the last of them is a check
   writing a correct copy of the strip again, which every behaviour test passes and only that
   obligation catches. One residue, shared with the close that added the same obligation over the
-  tree walks: [R-423](423-an-obligation-test-knows-a-caller-by-its-spelling.md), the test finding
+  tree walks: [R-423](423-the-two-obligation-tests-recognize-a-caller-by-how-it-is-written.md), the test finding
   its callers by how they are written.

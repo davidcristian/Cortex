@@ -43,11 +43,11 @@ becoming machine readable enough for a scan that only ever warns.
   the pass of 2026-08-25, which is what the dated form counts too, against a cadence of 25. The
   threshold is the recipe's own `window` default rather than a new one, the cadence and the draw
   window being one number in two roles, so the line adds no fifth copy of a number
-  [R-440](440-the-replay-sample-is-spelled-in-three-places.md) is already about. What closes is the
+  [R-440](440-the-replay-sample-and-its-window-are-written-in-four-places.md) is already about. What closes is the
   asking: the count no longer waits for somebody to hold the ledger's date and the command at the
   same time. Running a pass still starts with a person, which this file's own text declines to
   change. Two residues filed: the ledger's last row is trusted for its format and its order
-  ([R-645](645-the-standing-count-takes-the-last-dated-row.md)) and the count reaches back to
+  ([R-645](645-the-replay-count-takes-the-last-dated-row-for-the-last-pass.md)) and the count reaches back to
   midnight of the pass's own day, which puts two of today's 21 inside the pass that drew them
-  ([R-646](646-the-standing-count-includes-the-pass-day.md)). The line is ADR-0002 decision 22,
+  ([R-646](646-the-replay-count-includes-the-passs-own-day.md)). The line is ADR-0002 decision 22,
   measured over four variants of the real ledger.

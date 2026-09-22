@@ -45,5 +45,5 @@ collects rather than reads. It belongs beside `basicConfig`, and the model manag
   the formatter rather than left to callers: a field named for a secret prints `<redacted>`, and a
   URL's credential is stripped from the whole rendered line, message and traceback included.
   Verified live through `docker compose logs brain` in both renderings. The wider family of fields
-  written into their own messages is [R-323](323-a-field-spelled-into-its-own-message.md), and the
+  written into their own messages is [R-323](323-a-field-written-into-its-own-message-now-prints-twice.md), and the
   unbounded length of a rendered value is [R-324](324-a-rendered-field-has-no-bound.md).

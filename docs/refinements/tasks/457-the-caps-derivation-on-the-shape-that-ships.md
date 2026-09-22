@@ -12,7 +12,7 @@ reaching the cap shows a model talking rather than working, did not describe the
 stack runs.
 
 The cap was not the defect. The extra tokens went to a reasoning trace that the constrained request
-re-enabled, which is [R-456](456-a-constrained-request-loses-the-thinking-lever.md).
+re-enabled, which is [R-456](456-a-constrained-request-loses-the-thinking-switch.md).
 
 This entry was recorded to wait for that one to close, at which point the constrained shape would be
 measured again through `brain/packages/orchestrator/tests/test_envelope_cost_live.py` and the cap

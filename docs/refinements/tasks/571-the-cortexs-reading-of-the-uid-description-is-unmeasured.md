@@ -18,7 +18,7 @@ of the listing line.
 ## History
 
 - 2026-09-05: opened by the close of
-  [552](552-the-uid-parameter-of-read-email-carries-no-description.md), which measured the
+  [552](552-the-uid-parameter-of-read-email-has-no-description.md), which measured the
   description through the registry and not on the model.
 - 2026-09-06: measured and closed clean. `tests/test_uid_reading_live.py` drove the cortex tier
   through a search and the read it prompts, over a folder holding four messages and one holding
@@ -31,4 +31,4 @@ of the listing line.
   [docs/readings/imap-server-answers.md](../../readings/imap-server-answers.md). What the session's
   own limits left is [584](584-the-uid-rows-are-measured-where-the-listing-answers-the-ask.md), and
   a stub found in the harness this one was modelled on is
-  [583](583-the-correction-harnesss-folder-listing-step-carries-an-empty-answer.md).
+  [583](583-the-correction-harnesss-folder-listing-returns-an-empty-answer.md).

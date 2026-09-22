@@ -201,10 +201,10 @@ whenever real records existed, passing while asserting nothing.
   in the `dev` group, so the brain image (`--no-dev`) lacks it, and coverage totals do not move.
 - The weekly workflow has never run, because Actions is off for this repository, and nothing in the
   tree records a run's seed or result
-  ([R-291](../refinements/tasks/291-a-red-sweep-leaves-no-trace-in-the-repo.md)).
+  ([R-291](../refinements/tasks/291-a-failing-scheduled-run-leaves-no-trace-in-the-repo.md)).
 - The replay sample size and window are written in the recipe, its comment, the runbook and here,
   and `crosscheck.py` has no reader for a justfile or a number written as words
-  ([R-440](../refinements/tasks/440-the-replay-sample-is-spelled-in-three-places.md)).
+  ([R-440](../refinements/tasks/440-the-replay-sample-and-its-window-are-written-in-four-places.md)).
 - A rewrite of history moves recorded commits: a recorded seed stops reproducing its draw, and the
   count anchors on an older row that still resolves or falls back to the date
   ([R-667](../refinements/tasks/667-a-dateless-row-is-passed-over-by-the-commit-anchor.md)).

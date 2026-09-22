@@ -19,7 +19,7 @@ sides of that boundary and to bytes the brain trusts, so it is its own slice.
 ## History
 
 - 2026-09-05: opened by the close of
-  [552](552-the-uid-parameter-of-read-email-carries-no-description.md), which described the
+  [552](552-the-uid-parameter-of-read-email-has-no-description.md), which described the
   parameter and left the answer's bytes alone.
 - 2026-09-06: done as written. The account of the boundary held: the brain's `OwnTextToolRegistry`
   is the side that marks the result trusted, on byte equality between the result's whole content and

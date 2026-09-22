@@ -21,7 +21,7 @@ that needs it rather than the first that ran into it.
 
 ## History
 
-- 2026-08-19: Opened by the close of [304](304-spill-rides-the-residency-report.md), which chose to
+- 2026-08-19: Opened by the close of [304](304-a-spilled-handoff-is-only-ever-in-the-log.md), which chose to
   report both facts rather than let whichever wrote last win, and recorded the display compromise
   that leaves: one field, one sentence, two remedies.
 - 2026-09-13: Checked again, unchanged, and still at two notes rather than three.

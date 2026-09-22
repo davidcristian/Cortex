@@ -34,4 +34,4 @@ than a fault in the call.
   result, which crosses to the overlay and is applied to the screen-capture tool alone. Neither
   renders anything for an email answer today, so the decision changes nothing that runs, and the
   flipped flag would have written a failed audit line and a false outcome for every read of an
-  absent uid. What it left is [591](591-an-ok-audit-line-carries-a-size-where-the-correction-is.md).
+  absent uid. What it left is [591](591-an-ok-audit-line-records-a-size-where-the-correction-is.md).

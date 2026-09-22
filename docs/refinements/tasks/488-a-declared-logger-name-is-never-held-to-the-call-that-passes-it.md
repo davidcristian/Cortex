@@ -18,7 +18,7 @@ this way later.
 ## History
 
 - 2026-08-28: opened by the close of
-  [R-486](486-the-tool-audits-logger-name-is-spelled-in-four-places-and-held-in-none.md), whose
+  [R-486](486-the-tool-audits-logger-name-is-written-in-four-places.md), whose
   mutation table records the zero this entry is named for.
 - 2026-08-28: closed, as [ADR-0045](../../adr/ADR-0045-documented-log-lines.md) decision 8 and a
   rule in `scripts/logcalls.py`: a literal `getLogger` argument this module's own top level also

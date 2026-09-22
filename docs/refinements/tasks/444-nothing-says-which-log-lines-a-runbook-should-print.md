@@ -44,7 +44,7 @@ that added a line with a count printed it in `docs/runbooks/local-dev-wsl.md`.
   [R-438](438-a-documented-log-sample-can-still-print-the-wrong-fields.md), which built the
   agreement half of the question. Filed against ADR-0045.
 - 2026-08-29: sharpened by the close of
-  [R-487](487-the-tool-audits-message-is-spelled-in-three-places-and-held-in-none.md), which tried
+  [R-487](487-the-tool-audits-message-is-written-in-three-places.md), which tried
   a rendered sample of the tool audit trail on the committed tree and had it refused. Some of the
   brain's lines cannot be documented as checked samples at all: `LoggingAuditSink` builds its
   `extra=` across statements and by condition, so `logcalls.py` reports a call it cannot read a

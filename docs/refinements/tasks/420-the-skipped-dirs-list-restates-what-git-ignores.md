@@ -37,4 +37,4 @@ either making them ask or accepting that they walk more than the dash ban does.
   Six planted mutations; one of them replays the historical defect, a correct copy that no
   behaviour test in the tree can see. Two residues:
   [R-422](422-a-newly-ignored-tree-reaches-the-list-by-hand.md) and
-  [R-423](423-an-obligation-test-knows-a-caller-by-its-spelling.md).
+  [R-423](423-the-two-obligation-tests-recognize-a-caller-by-how-it-is-written.md).

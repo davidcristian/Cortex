@@ -10,7 +10,7 @@ commit it recorded and left the earlier one in place, so the replay line counts 
 not the last one and reports more unsampled work than there is.
 
 `just replay` anchors its count on the commit nearest HEAD among the ledger rows that have one. That
-ordering is what closed [R-645](645-the-standing-count-takes-the-last-dated-row.md): the anchor no
+ordering is what closed [R-645](645-the-replay-count-takes-the-last-dated-row-for-the-last-pass.md): the anchor no
 longer depends on which row is last in the file. It also means a row with no commit takes no part in
 the ordering, where the reading it replaced always took the last dated row. So the two disagree in
 one case, a later row without a commit above an earlier row with one, and the commit reading
@@ -30,8 +30,8 @@ two dates, so "differ" is an equality rather than a judgement about date formats
 ## History
 
 - 2026-09-15: opened by the close of
-  [R-645](645-the-standing-count-takes-the-last-dated-row.md) and
-  [R-646](646-the-standing-count-includes-the-pass-day.md).
+  [R-645](645-the-replay-count-takes-the-last-dated-row-for-the-last-pass.md) and
+  [R-646](646-the-replay-count-includes-the-passs-own-day.md).
 - 2026-09-19: checked again and left open, the trigger unfired. The ledger in
   `docs/runbooks/mutation-replay.md` still has two rows, and the later one, the pass of 2026-08-25,
   records `2712a6aa`, which resolves and is an ancestor of HEAD, so `just replay` anchors on the

@@ -39,7 +39,7 @@ placement-aware CPU charging entry ([R-189](189-placement-aware-cpu-charging.md)
   and no target. The roster's per-entry `gpu_endpoint` (`config_subagents.py`) is still the only
   address a GPU placement dials. The stale part was the last clause: R-189 does not wait on this
   condition, it was declined in 2026-07-16 and names a second GPU-capable executor as what would
-  reopen it. Read against [R-199](199-sweep-start-not-serialized.md), they are not one defect seen
+  reopen it. Read against [R-199](199-the-retry-passs-start-guarded-but-not-ordered.md), they are not one defect seen
   twice.
 - 2026-09-17: Checked again, still not fired, and the trigger restated, because as written it could
   only fire on a misconfiguration. `ModelHostConfig.tiers()` declares three tiers, so the only ids a

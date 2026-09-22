@@ -49,4 +49,4 @@ restored ([ADR-0008](../../adr/ADR-0008-memory-v1.md) decision 13).
   its trigger.
 - 2026-08-11: Closed the same day, ahead of a trigger that had not fired, so the area's count
   held at 8 because one entry closed as another opened. It opened
-  [R-104](104-delete-cascade-seam-mapping.md) in its place.
+  [R-104](104-the-delete-cascades-grpc-status-mapping.md) in its place.

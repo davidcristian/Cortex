@@ -28,7 +28,7 @@ hand-written cell per pass.
 ## History
 
 - 2026-09-15: opened by the close of
-  [R-646](646-the-standing-count-includes-the-pass-day.md), which added the commit a pass drew from
+  [R-646](646-the-replay-count-includes-the-passs-own-day.md), which added the commit a pass drew from
   to the ledger. Filling that column for the pass of 2026-08-25 showed the problem had already
   happened for that row.
 - 2026-09-19: done, as the documentation fix. The trigger could not wait for anything: it was

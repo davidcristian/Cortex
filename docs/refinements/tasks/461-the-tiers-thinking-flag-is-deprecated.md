@@ -33,7 +33,7 @@ and the fixtures in `test_model_roster.py`, `test_flagcheck.py` and `test_hosted
 ## History
 
 - 2026-08-26: opened by the close of
-  [R-456](456-a-constrained-request-loses-the-thinking-lever.md), whose live runs put the warning
+  [R-456](456-a-constrained-request-loses-the-thinking-switch.md), whose live runs put the warning
   in front of a reader for the first time.
 - 2026-09-02: the per-family probe this entry asked for was drawn by the close of
   [R-511](511-the-shipped-reasoning-off-pair-disarms-its-own-sampler.md) and is recorded above. The

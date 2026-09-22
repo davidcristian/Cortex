@@ -5,7 +5,7 @@
 **Origin:** [ADR-0038](../../adr/ADR-0038-ranked-recall.md)
 
 Opened 2026-08-16 by the close that passed a finish reason through `InferenceBackend`
-([R-206](206-finish-reason-not-carried.md)), which made the delegated path a consumer and declined
+([R-206](206-a-finish-reason-the-port-does-not-report.md)), which made the delegated path a consumer and declined
 to make this one.
 
 `clean_recap` rejects a summary that does not end a sentence, and that check is right whether or

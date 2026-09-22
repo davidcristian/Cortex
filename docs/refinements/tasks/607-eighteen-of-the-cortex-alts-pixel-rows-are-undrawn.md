@@ -31,7 +31,7 @@ The other fourteen are these:
 
 - the rate at the corpus frame at the engine's own budget, drawn on 2026-09-12 and failed by the
   void ceiling that stood then
-  ([R-654](654-the-void-ceiling-is-a-share-the-alts-control-arm-is-above.md)), its mail control
+  ([R-654](654-the-cortex-alts-control-is-above-the-empty-reply-ceiling.md)), its mail control
   having answered nothing in six draws of six;
 - the payload-size rows at the corpus frame at the engine's own budget and at the third frame, both
   drawn on 2026-09-19 and failed by their void rule, each on an `app` control that answered nothing
@@ -63,7 +63,7 @@ Order of work. Every row that draws one cell repeatedly closes through `assert_d
 is one void draw in five of a reading's depth since 2026-09-13, and at the alt's control rates of 7
 to 11 in a hundred a rate row draws clean 73 to 88 times in a hundred, a payload-size row 39 to 68,
 and a deep row of 120 per condition better than 99
-([R-654](654-the-void-ceiling-is-a-share-the-alts-control-arm-is-above.md),
+([R-654](654-the-cortex-alts-control-is-above-the-empty-reply-ceiling.md),
 [ADR-0041 decision 14](../../adr/ADR-0041-injection-image-variant.md)). Priced in tokens, a payload-size
 row at the engine's own budget is about 55 minutes on a card at its own ceiling, about 237000 tokens
 for its 99 requests; the deep row at the shipped budget is about 105 minutes, its 120 dialog control
@@ -117,7 +117,7 @@ minutes each was priced at, and the dialog row 3453 s against 48 minutes
   over every cell both conditions drew, and the two cost rows reproduce the published token counts.
   The two rate rows that failed are the void ceiling refusing a reading of five draws. The session
   is [ADR-0041 decision 4](../../adr/ADR-0041-injection-image-variant.md), and it opened
-  [R-654](654-the-void-ceiling-is-a-share-the-alts-control-arm-is-above.md) and
+  [R-654](654-the-cortex-alts-control-is-above-the-empty-reply-ceiling.md) and
   [R-655](655-the-canary-rows-ok-cannot-be-told-from-a-void-draw.md).
 - 2026-09-13: the void share widened to one draw in five, so the two rate rows here are drawable
   again and so is every payload-size and deep row on the list. The row at the doubled frame at the

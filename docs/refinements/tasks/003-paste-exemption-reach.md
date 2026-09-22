@@ -5,7 +5,7 @@
 **Origin:** [ADR-0026](../../adr/ADR-0026-prose-style-checks.md)
 
 Once a commit body may contain a paste, how far that exemption reaches becomes a decision rather
-than an oversight. [R-002](002-wrap-gate-exceptions.md) exempted a paste from the width rule only:
+than an oversight. [R-002](002-three-exceptions-the-wrap-check-did-not-include.md) exempted a paste from the width rule only:
 inside a fence and after a `$` prompt, the dash ban, the volatile-reference ban and the
 resolving-hash check still read every line. Measured on the committed check with one fenced
 message: `cargo llvm-cov -- --nocapture` produced `line 5 uses a spaced ASCII --`, and a

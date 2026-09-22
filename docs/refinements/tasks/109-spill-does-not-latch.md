@@ -40,7 +40,7 @@ repo's numbers is already caught twice, at boot by the required `CORTEX_SWAP_BRA
 at swap time by the free-memory check before the load, and what gets past both is the
 under-declaration the decode watch warns about. What is genuinely unanswered is the operator who
 does not read logs, and the answer is to put the spill where the operator already looks, filed as
-[R-304](304-spill-rides-the-residency-report.md).
+[R-304](304-a-spilled-handoff-is-only-ever-in-the-log.md).
 
 ## History
 
@@ -52,4 +52,4 @@ does not read logs, and the answer is to put the spill where the operator alread
   deployment doing something rather than a file saying something.
 - 2026-08-18: Declined, with two halves of its own text corrected, and the reasoning recorded at
   the origin decision. The operator half of the trigger was refiled as
-  [R-304](304-spill-rides-the-residency-report.md).
+  [R-304](304-a-spilled-handoff-is-only-ever-in-the-log.md).

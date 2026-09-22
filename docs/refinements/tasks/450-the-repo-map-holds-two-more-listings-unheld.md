@@ -41,7 +41,7 @@ reads `os_linux (cfg-gated stub) + os_macos (cfg-gated stub)`.
 ## History
 
 - 2026-08-26: opened by the close of
-  [R-449](449-the-repo-map-names-every-gate-module-unheld.md), which made the reader take a bare
+  [R-449](449-the-repo-map-names-every-check-module-in-an-unseen-block.md), which made the reader take a bare
   word inside a bounded passage and used that on one of the map's three name lists. Recorded as a
   limit ADR-0044 leaves open.
 - 2026-09-09: trigger checked and not fired, and the count repaired. `brain/packages/` still names

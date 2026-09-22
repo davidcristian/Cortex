@@ -41,7 +41,7 @@ The remaining narrower problem is
 ## History
 
 - 2026-09-08: opened by the close of
-  [R-299](299-prose-cites-an-engine-build-nothing-pins.md), recorded in
+  [R-299](299-prose-names-an-engine-build-that-no-tag-keeps-fixed.md), recorded in
   [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md) decision 8. That session measured the two fields
   above and repaired the five prose citations.
 - 2026-09-09: claims checked, and two of the three negative ones were wrong when written.

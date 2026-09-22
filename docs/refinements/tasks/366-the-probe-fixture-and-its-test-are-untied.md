@@ -37,7 +37,7 @@ test module, mentions rendering each name into the path the script writes it in.
   (`INBOX` joins `Guarded`, `Parent` and `Parent/Child`, and all four are registered), and the
   mailbox names are not the whole of what they share, the account `probe` being written in the
   suite and again inside the script's mail root
-  ([R-384](384-the-probe-account-is-spelled-twice.md)). The deliberate exclusions held: the address
+  ([R-384](384-the-probes-account-name-is-written-in-two-places.md)). The deliberate exclusions held: the address
   and the port stay out. The guarded mailbox's mention fixes 2 occurrences, the directory and the
   ACL file inside it being one set. Nine planted differences, each exiting 1 and restored by
   digest, including the half applied rename the count exists for. Recorded in ADR-0042.

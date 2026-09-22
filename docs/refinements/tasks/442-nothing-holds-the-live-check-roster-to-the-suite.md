@@ -39,7 +39,7 @@ set or dropped, since a tally restated by hand is the half that came apart first
   argued: the two scans sit beside each other and each catches what the other cannot see, one
   mutant apiece. The same mechanism closed
   [R-413](413-the-module-contracts-part-list-is-held-by-nobody.md) in the same commit. What the
-  close opened is filed as [R-446](446-the-scan-roster-is-spelled-in-seven-places.md), the list of
+  close opened is filed as [R-446](446-the-list-of-cross-tree-scans-is-written-in-seven-places.md), the list of
   cross-tree scans itself, found already short a scan in one of its seven copies, and
   [R-447](447-a-widened-passage-is-caught-only-by-accident.md), a boundary phrase moved to a wider
   point in its own document.

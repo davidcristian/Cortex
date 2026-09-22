@@ -28,7 +28,7 @@ what to do about defaults that appear in a compose file and nowhere else, which 
 
 - 2026-08-20: Opened by the close of [R-315](315-subagent-cpu-budget-and-its-siblings.md), which
   registered the four settings it had measured and left the fifty it had not, exactly as the close
-  of [R-306](306-subagent-memory-budget-spelled-twice.md) and the salience limit's close before it.
+  of [R-306](306-a-subagent-memory-budget-default-written-three-times.md) and the salience limit's close before it.
 - 2026-08-21: Done as the survey itself. The number is 70 substitutions over 56 distinct variables,
   not "around fifty"; one variable has two defaults on purpose, the subagent memory budget's `8.0`
   and `8`. They sort into 43 that restate a value some tree declares and 13 that name a path, a

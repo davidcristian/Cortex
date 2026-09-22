@@ -24,7 +24,7 @@ arrives before the handler runs produces no line at all.
 
 ## History
 
-- 2026-08-21: Opened by the close of [R-346](346-a-clamped-reading-nothing-pins.md), which asserted
+- 2026-08-21: Opened by the close of [R-346](346-a-clamped-deadline-reading-is-asserted-nowhere.md), which asserted
   the expiry reading over the wire and left the other two on values the file arranges.
 - 2026-08-22: Fixed, and larger than the entry proposed. Both missing readings got a wire case, not
   one: a caller that stops early (announce wide, wait on the handler's own entered event, cancel)

@@ -44,7 +44,7 @@ tool calls have nothing to be ordered against.
   `delegated_call_bounds` counts the walks and the check compares the product. A fixed factor was
   rejected, the endpoint count being in the config the check already holds, and widening it to a
   whole run was rejected too, that limit being one the shipped pair does not clear. Four entries
-  opened: [367](367-the-shipped-ordering-of-two-bounds-is-ungated.md) for the repo's own copy of
+  opened: [367](367-the-shipped-ordering-of-two-bounds-is-not-checked-in-the-repo.md) for the repo's own copy of
   the pair, [368](368-the-composition-root-has-no-headroom.md) for the composition root reaching
   its line cap exactly, [369](369-the-run-deadline-under-the-queue-is-prose-only.md) for the one
   relation in the same series still written only in a runbook, and

@@ -22,7 +22,7 @@ own default and keep the docstring's sentence, which needs a registry row. Or de
 fixture's own choice, drop the claim, and say instead why that resolution is the one the defence is
 measured at. The third is cheapest and is only accurate if the size does not change the result,
 which is one live run of the image variant at both sizes to find out
-([the harness](258-image-arm-injection-harness.md) is where that would go).
+([the harness](258-an-image-variant-of-the-injection-defence-tests.md) is where that would go).
 
 ## History
 
@@ -41,5 +41,5 @@ which is one live run of the image variant at both sizes to find out
   should err on, which the image variant's own Chromium control already measured.
   `test_image_variant.py` had a second copy of the old claim that this entry did not mention, and it
   is corrected too. Whether the size changes the result is unmeasured and is now
-  [R-432](432-the-image-arm-has-never-run-at-two-sizes.md). The decision is
+  [R-432](432-the-image-variant-is-unmeasured-at-other-picture-sizes.md). The decision is
   [ADR-0041 decision 4](../../adr/ADR-0041-injection-image-variant.md).

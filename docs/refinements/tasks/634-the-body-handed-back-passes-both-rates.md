@@ -21,7 +21,7 @@ with the body passes the period check, so the rule is right to fire there.
 ## History
 
 - 2026-09-11: opened by the close of
-  [R-540](540-the-judged-rate-and-the-hand-column-are-compared-on-a-probe-and-no-sweep.md), whose
+  [R-540](540-the-judged-rate-and-hand-read-column-are-compared-on-one-probe.md), whose
   reader-column review of the smallest pick names the sixteen replies. The session that found them
   had spent its time reading the review, and a threshold written against no example is a guess.
 - 2026-09-11: done. Checked against HEAD first: `Turn.lapse` read three faults, nothing compared a

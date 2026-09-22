@@ -23,7 +23,7 @@ into as many threads as the machine has, so pairs closer together than the threa
 way and only pairs further apart are genuinely redrawn. Two things the entry did not anticipate are
 recorded at the origin: libtest redraws a binary's whole permutation whenever its test list grows,
 which is not how `pytest-randomly` behaves and which gives the Rust tree for free what
-[R-288](288-nothing-schedules-the-shuffle-sweep.md) wants a schedule for elsewhere, and a test
+[R-288](288-nothing-schedules-the-shuffled-test-run.md) wants a schedule for elsewhere, and a test
 failure under the coverage step is loud and names the test.
 
 ## History
@@ -33,5 +33,5 @@ failure under the coverage step is loud and names the test.
   order-dependent pair with 58 filler tests between its halves, passing 5 unshuffled runs of 5 and
   failing 5 of 5 at the fixed seed, with the real command exiting 101 and naming the test; the
   catch rate is 10 of 20 seeds, beside `scripts/`'s 11 of 20. It narrowed
-  [R-288](288-nothing-schedules-the-shuffle-sweep.md) to the Python and overlay suites and opened
+  [R-288](288-nothing-schedules-the-shuffled-test-run.md) to the Python and overlay suites and opened
   nothing.

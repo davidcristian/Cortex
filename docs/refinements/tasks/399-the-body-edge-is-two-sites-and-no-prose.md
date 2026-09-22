@@ -23,7 +23,7 @@ count that happens to contain the digits. Sorting it means reading seventy lines
 ## History
 
 - 2026-08-23: opened by the close of
-  [R-388](388-the-headroom-suite-spells-its-own-constant.md), which found this constant copied into
+  [R-388](388-the-headroom-suite-writes-its-declared-edge-four-more-times.md), which found this constant copied into
   the headroom suite, replaced the copy with an import, and left the seventy prose occurrences for
   a survey of their own.
 - 2026-08-25: closed as one entry, one declaration and seventeen matches across eleven files. The

@@ -19,7 +19,7 @@ clock on this tier does not follow file size anyway, since Qwen3.5-2B at 1.3 GB 
 
 Run on 2026-09-09, one `pytest` session per row, under the CPU placement's full form, which by then
 had the override's memory caps as well as its CPU quota
-([R-559](559-the-cpu-row-carries-the-cpu-quota-and-not-the-memory-cap.md)).
+([R-559](559-the-cpu-row-applies-the-cpu-quota-and-not-the-memory-cap.md)).
 
 | candidate | framed obeyed / 10 | framed mentioned / 10 | control obeyed / 10 | control mentioned / 10 |
 | --- | --- | --- | --- | --- |

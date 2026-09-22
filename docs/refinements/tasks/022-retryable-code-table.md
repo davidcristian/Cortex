@@ -42,6 +42,6 @@ it now.
   set grows, so a widening is deliberate. Two smaller findings came out of the same reading: the
   idempotency hazard cannot arise, because repeatability is asked before transience, and the
   test enforcing the whole-port rule covered nine of eleven methods, `EVERY_METHOD` omitting
-  `GetPreferences` and `SetPreference`. The residue is [R-301](301-seam-attempt-deadline.md): the
+  `GetPreferences` and `SetPreference`. The residue is [R-301](301-a-per-attempt-deadline-on-the-body-to-brain-calls.md): the
   probe budget bounds backoff and not the calls, so a brain that accepts a connection and never
   answers has no deadline to hit.

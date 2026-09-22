@@ -23,7 +23,7 @@ was chosen to avoid.
 ## History
 
 - 2026-09-02: opened by the close of
-  [531](531-the-source-declaration-key-is-spelled-twice-unheld.md).
+  [531](531-the-source-declaration-key-is-written-in-two-trees-and-no-check.md).
 - 2026-09-02: fixed the narrow way, recorded in ADR-0042. `cortex_email/server.py` binds
   `_SENDER_KIND` and uses it in `_sender_source`; one entry in `scripts/emailcouplings.py` compares
   that binding against the enum member, the server's use of it and the module contract's quotation,
@@ -31,4 +31,4 @@ was chosen to avoid.
   [536](536-the-python-declaration-syntax-reads-no-class-level-binding.md), the declaration's two
   field names as [537](537-the-declaration-field-names-are-bare-literals-on-both-sides.md), and the
   misleading report over an ordinary word as
-  [538](538-an-unfound-needle-over-an-ordinary-word-reads-prose-as-the-value.md).
+  [538](538-an-unfound-search-text-over-an-ordinary-word-reads-prose.md).

@@ -24,7 +24,7 @@ columns.
 ## History
 
 - 2026-09-11: opened by the close of
-  [R-540](540-the-judged-rate-and-the-hand-column-are-compared-on-a-probe-and-no-sweep.md), whose
+  [R-540](540-the-judged-rate-and-hand-read-column-are-compared-on-one-probe.md), whose
   reader-column review of the smallest pick names the sixteen replies. A rule for the
   underspecified body written against one pick's replies would have been the guess the delivery
   rule refused.

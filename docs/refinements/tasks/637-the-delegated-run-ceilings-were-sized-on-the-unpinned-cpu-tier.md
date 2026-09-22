@@ -36,7 +36,7 @@ from them by the rules [ADR-0048](../../adr/ADR-0048-generation-bounds.md) wrote
 ## History
 
 - 2026-09-11: opened by the close of
-  [R-628](628-the-subagent-cpu-servers-thread-count-is-not-pinned-to-its-quota.md). The subagent
+  [R-628](628-the-subagent-cpu-servers-thread-count-is-not-set-from-its-quota.md). The subagent
   runbook now says its whole-subtask readings predate the change.
 - 2026-09-12: checked against the tree, and one place still using the older arithmetic was
   corrected. The three declarations are unchanged and unretuned: `DEFAULT_STALL_TIMEOUT_S` is 600.0

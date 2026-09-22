@@ -18,7 +18,7 @@ answers rather than as sizes.
 ## History
 
 - 2026-08-26: opened by the close of
-  [R-456](456-a-constrained-request-loses-the-thinking-lever.md), whose live proof left three
+  [R-456](456-a-constrained-request-loses-the-thinking-switch.md), whose live proof left three
   constrained replies that all narrated the task.
 - 2026-08-28: closed. Measured through the committed harness on llama.cpp `b10644-d7a207411`, four
   report bodies at ten draws each over four request shapes, 160 runs, judged by number recall (the

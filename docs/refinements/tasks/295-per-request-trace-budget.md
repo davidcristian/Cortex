@@ -36,9 +36,9 @@ the key, since a build that does not read it ignores it without error.
 ## History
 
 - 2026-08-29: Done as ADR-0049, together with the close of
-  [R-474](474-the-switch-could-be-rendered-as-a-lever-that-holds.md), the two being one key on one
+  [R-474](474-the-ports-thinking-switch-could-be-sent-as-a-request-value.md), the two being one key on one
   payload read twice. The engine half of the trigger had come true the day before. The residue is
   on that entry's history: [R-495](495-the-forced-thought-can-leak-its-own-start-tag.md),
-  [R-496](496-the-trace-lever-is-answered-once-per-boot.md),
+  [R-496](496-the-trace-budget-probe-runs-once-per-boot-and-is-never-repeated.md),
   [R-497](497-nothing-reports-a-trace-budget-that-went-unread.md) and
   [R-498](498-one-reply-trace-budget-for-two-tiers.md).

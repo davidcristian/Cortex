@@ -25,7 +25,7 @@ question rather than a rule about runbooks generally.
 ## History
 
 - 2026-09-12: opened by the close of
-  [591](591-an-ok-audit-line-carries-a-size-where-the-correction-is.md), which decided that the
+  [591](591-an-ok-audit-line-records-a-size-where-the-correction-is.md), which decided that the
   audit trail keeps a successful call's size, wrote down what `trust` recovers instead, and left the
   operator's document alone.
 - 2026-09-17: done, and the premise was narrower than written. The trigger had not fired:

@@ -47,5 +47,5 @@ site the scan would have to grow.
   with today's code would have to be edited to keep passing. What the close opened is filed as
   [R-444](444-nothing-says-which-log-lines-a-runbook-should-print.md), the coverage question this
   one leaves untouched, and
-  [R-445](445-three-gates-each-spell-the-markdown-fence-for-themselves.md), the third copy of the
+  [R-445](445-three-checks-each-define-the-markdown-fence-for-themselves.md), the third copy of the
   markdown fence this work added.

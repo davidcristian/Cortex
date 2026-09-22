@@ -44,5 +44,5 @@ keeps the comparison textual.
   be written at all. The close cost a file: `scripts/couplings.py` passed the line cap, so the
   entries moved to `scripts/wirecouplings.py` and the shared vocabulary stayed behind. What it
   leaves open is filed as [R-314](314-decimal-form-refusals.md);
-  [R-306](306-subagent-memory-budget-spelled-twice.md) loses half of what blocked it. Written up in
+  [R-306](306-a-subagent-memory-budget-default-written-three-times.md) loses half of what blocked it. Written up in
   ADR-0042.

@@ -39,4 +39,4 @@ emptiness rather than the uid. The in-process tests cannot see this, since `mail
   [ADR-0056](../../adr/ADR-0056-email-reader-answers.md) decisions 10 and 11. Opens
   [550](550-a-uid-search-key-in-a-folder-holding-no-mail-is-refused-by-the-bridge-and-stays-untyped.md),
   [551](551-a-read-the-server-refuses-is-measured-by-hand-and-driven-by-no-live-row.md) and
-  [552](552-the-uid-parameter-of-read-email-carries-no-description.md).
+  [552](552-the-uid-parameter-of-read-email-has-no-description.md).

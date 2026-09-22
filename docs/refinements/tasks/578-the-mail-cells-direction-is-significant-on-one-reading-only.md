@@ -40,7 +40,7 @@ column, reporting the shed-quote-marks replies separately either way.
   is 3 rather than 3 or 2, settled by the hand rule written hours after the entry, and the settling
   row costs about six minutes of card time rather than twelve. `_DEEP_RATE_RUNS` is 120 from here
   on. The other two renderings' laundering cells are still five draws each, opened as
-  [R-590](590-two-renderings-laundering-cells-have-five-draws-an-arm.md). The row and its reading
+  [R-590](590-two-renderings-laundering-cells-have-five-draws-each.md). The row and its reading
   are [ADR-0041 decision 16](../../adr/ADR-0041-injection-image-variant.md).
 - 2026-09-12: the row on a different day was drawn, at the other budget, and it does not bear on
   this close. The deep row at the engine's own budget read this cell 1 of 120 framed against 0 of

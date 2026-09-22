@@ -37,7 +37,7 @@ this particular report body, and ordinary sampling variance on a 4B model.
   reasoning, so the tier's `--chat-template-kwargs '{"enable_thinking": false}'` stops taking
   effect once a request has a `response_format`, and a delegated run discards every reasoning delta
   unread. The cap is therefore not what is wrong and does not move here; the retune is filed with
-  the fix as [R-456](456-a-constrained-request-loses-the-thinking-lever.md) and
+  the fix as [R-456](456-a-constrained-request-loses-the-thinking-switch.md) and
   [R-457](457-the-caps-derivation-on-the-shape-that-ships.md). Recorded with the paired table and
   the interval `scripts/contrast.py` reads off it; the runbook now tells an operator that a cap
   refusal on ordinary narrow work is this. The second question this entry asked is answered yes,

@@ -26,6 +26,6 @@ out in the middle of the session that needed them.
   payload and not applying it. The matrix at `chrome/output-laundering` was not drawn, since that
   call site is the one the mutation table already proved and a matrix row is four minutes of card
   time for a print this session had already read. The payload-size row's call site is still
-  unexercised and is opened as [596](596-the-payload-sweeps-resisted-print-argument-is-unrun.md).
+  unexercised and is opened as [596](596-the-payload-size-rows-resisted-print-argument-is-still-unrun.md).
   The runbook now says how each row writes its cell names, and the rows are
   [ADR-0041 decision 4](../../adr/ADR-0041-injection-image-variant.md).

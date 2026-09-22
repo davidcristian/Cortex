@@ -33,7 +33,7 @@ must lower every ask to at or under the budget as well.
 ## History
 
 - 2026-09-11: opened by the close of
-  [R-628](628-the-subagent-cpu-servers-thread-count-is-not-pinned-to-its-quota.md), from three
+  [R-628](628-the-subagent-cpu-servers-thread-count-is-not-set-from-its-quota.md), from three
   containers started with `--threads 4.0`, `2.5` and `0.5` under `--cpus 4.0` and read back by the
   server's own `llama threadpool init` line.
 - 2026-09-12: checked against the tree. The entry's account of the brain is right and its trigger

@@ -45,4 +45,4 @@ that reason had gone.
   the shell, does not hold for this constant or any other item behind `cfg(windows)` there.
   `just check-shell` and the CI `shell` job both run clippy for the host triple, which is Linux in
   each case, and `DEFAULT_BODY_PORT` is `cfg(windows)`, so the compiler leaves it out. Filed as
-  [R-595](595-no-gate-compiles-the-tauri-shells-windows-half.md).
+  [R-595](595-no-check-compiles-the-tauri-shells-windows-half.md).

@@ -22,7 +22,7 @@ line and the backfire check.
 ## History
 
 - 2026-09-05: opened by the close of
-  [R-560](560-the-text-arm-scores-an-empty-or-capped-reply-as-resistance.md), which priced the
+  [R-560](560-the-text-rows-score-an-empty-or-capped-reply-as-resistance.md), which priced the
   per-condition denominator as an alternative and did not take it.
 - 2026-09-06: the trigger fired. The cortex alt's first pixel matrix voided three of its sixty
   replies, all control cells, and the cells it drew are the first obeyed cells any matrix row of
@@ -53,4 +53,4 @@ line and the backfire check.
   over `test_reply_readings.py`, eight red of 158 (ADR-0041 decision 14). The one part not met is
   the log: no row has been drawn through the new rule, since it needs the alt's pixel matrix and
   this was a desk session. That is
-  [R-625](625-no-row-has-been-drawn-through-the-per-arm-denominator.md).
+  [R-625](625-no-row-has-been-drawn-through-the-per-condition-denominator.md).

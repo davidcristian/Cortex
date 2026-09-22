@@ -28,8 +28,8 @@ reader is already being told that this id and a turn id are the same number unde
 ## History
 
 - 2026-08-24: opened by the close of
-  [R-339](339-two-spellings-of-one-conversation.md) and
-  [R-394](394-the-fired-item-has-two-spellings-in-the-logs.md), which settled one name per work
+  [R-339](339-two-names-for-one-conversation-across-the-brains-log-fields.md) and
+  [R-394](394-the-fired-schedule-item-has-two-field-names-across-the-brains.md), which settled one name per work
   identity for the five the dispatch stamp has, and found this third instance of the same problem
   already in the tree and older than either entry. Recorded in ADR-0046 decision 1.
 - 2026-08-24: closed. The counts held: four `turn` records in the conductor, seven `handoff` ones

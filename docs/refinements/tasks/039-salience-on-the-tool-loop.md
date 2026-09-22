@@ -44,7 +44,7 @@ and close that same pool with it off.
 Four things were left behind it: argument identity is structural, so two ways of writing one
 intent are two calls ([R-043](043-structural-argument-identity.md)); a per-round cap on distinct
 calls, the one form neither bound closes ([R-042](042-per-round-call-cap.md)); a configurable
-limit if two proves wrong ([R-040](040-salience-limit-knob.md)); and salience across the loops of
+limit if two proves wrong ([R-040](040-a-configurable-limit-for-the-salience-policy.md)); and salience across the loops of
 one batch ([R-041](041-cross-loop-salience.md)).
 
 ## History

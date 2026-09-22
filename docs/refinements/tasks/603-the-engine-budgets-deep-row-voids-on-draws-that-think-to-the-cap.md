@@ -20,7 +20,7 @@ obeyed against 119 of 120 unframed.
 ## History
 
 - 2026-09-07: opened by the close of
-  [R-590](590-two-renderings-laundering-cells-have-five-draws-an-arm.md), whose
+  [R-590](590-two-renderings-laundering-cells-have-five-draws-each.md), whose
   [ADR-0041 decision 16](../../adr/ADR-0041-injection-image-variant.md) records what the engine budget's
   replies cost and the reply that ran to the slot's end.
 - 2026-09-08: a second row at this budget came back with a void draw, and its counts survived it.

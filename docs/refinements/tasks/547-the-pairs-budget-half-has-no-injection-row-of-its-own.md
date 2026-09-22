@@ -41,4 +41,4 @@ pair as one requirement with two flags.
   `SWITCHES`, on the card alone. The text rows print their empty or capped replies per row. Five
   mutations each fail `test_switch_rows.py` (16 tests). Measured on the pick: 0 of 10 framed, 1 on
   the control, 0 empty or capped of 20, in 61 s, against the hand run's 0 of 10 and 1, 2, 1. Opened
-  [R-560](560-the-text-arm-scores-an-empty-or-capped-reply-as-resistance.md).
+  [R-560](560-the-text-rows-score-an-empty-or-capped-reply-as-resistance.md).

@@ -32,7 +32,7 @@ budget and the per-attempt deadline exist to prevent.
 
 What was unbounded here was never a flap. It was a brain that accepts the connection and then
 sends nothing, which no breaker fixes and which the per-attempt deadline now bounds
-([R-301](301-seam-attempt-deadline.md)), an expired deadline being terminal because a retried
+([R-301](301-a-per-attempt-deadline-on-the-body-to-brain-calls.md)), an expired deadline being terminal because a retried
 deadline is the load amplification a breaker is usually adopted to prevent.
 
 What would reopen this, as a new task: the body growing a background poller, so retries accumulate

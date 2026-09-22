@@ -24,7 +24,7 @@ reading given by hand.
 ## History
 
 - 2026-09-05: opened by the close of
-  [R-563](563-the-text-arms-published-matrices-are-mention-counts-with-no-reply-behind-them.md),
+  [R-563](563-the-published-text-matrices-are-mention-counts.md),
   whose repeat named which rows it drew and which it did not.
 - 2026-09-06: done. The session drew four of its five rows and published an obeyed count beside
   every mention count in the 2026-09-04 switch table and the lineup table
