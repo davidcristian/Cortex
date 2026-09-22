@@ -31,12 +31,13 @@ that does not rest on decode.
   rather than a refusal, whose floor had never been read against an overcommit that small (the
   [ADR-0004](../../adr/ADR-0004-model-lineup.md) drafter recommendation).
 - 2026-09-22: done by one run on the card. The drafting deep tier started beside the E4B tier, 917
-  to 941 MiB short by the free figure (the E4B tier now costs 3294 to 3307 MiB, so the overcommit
-  was nearly the whole drafter rather than a tenth of it), decoded at 0.79 of its solo rate on a
-  reasoning prompt and 0.80 on a tool call. Against the slowest healthy drafting completion the
-  watch sees the tool call (0.82 of it) and misses the reasoning trace (1.02), and a plain floor
-  misses both, so the runbook step does not restore the watch. The readings are in
-  [co-residency](../../readings/co-residency.md). The fix that does not rest on decode is
-  [R-709](709-the-fit-check-does-not-count-the-deep-tiers-drafter.md), and the E4B pair itself
-  spilling on this image, read in the same run, is
-  [R-710](710-the-deep-tier-spills-beside-the-e4b-tier-on-the-current-image.md).
+  to 941 MiB short by the free figure (the E4B tier costs 3294 to 3307 MiB, not the 2878 read in
+  August, so the overcommit was nearly the whole drafter rather than a tenth of it), decoded at 0.79
+  of its solo rate on a reasoning prompt and 0.80 on a tool call. Against the slowest healthy
+  drafting completion the watch sees the tool call (0.82 of it) and misses the reasoning trace
+  (1.02), and a plain floor misses both, so the runbook step does not restore the watch. The
+  readings are in [co-residency](../../readings/co-residency.md). The fix that does not rest on
+  decode is [R-709](709-the-fit-check-does-not-count-the-deep-tiers-drafter.md). The E4B pair itself
+  spilled in the same run, so the [model-swap](../../runbooks/model-swap.md) runbook leaves
+  co-residency off on a 24 GB card, and the margin its fit figure needs is
+  [R-710](710-the-free-memory-the-deep-tier-needs-beside-a-peer-is-unmeasured.md).

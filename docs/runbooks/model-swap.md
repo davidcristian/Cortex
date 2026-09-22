@@ -59,16 +59,18 @@ stopped.
 
 Setting it also requires `CORTEX_SWAP_BRAIN_VRAM_MIB`, and the brain refuses to boot without it.
 That figure is how much free device memory the deep tier needs, measured on your own card by the
-procedure in [model-swap-measurements.md](model-swap-measurements.md); on this card it is
-19125 MiB. The sidecar reports what the card has free
-on `GET /health`, and a swap reads it after the evictions and before the load, which is the only
-moment the number means anything. Short of the figure, the handoff is refused with both numbers
-in the log and in the reply's note, the deep model is never started, and the recorded residency is
-put back. A model host that can see no card at all refuses the same way. Set the figure generously
-if the machine shares its card with a desktop: this one's idle floor moves by about a gigabyte,
-and the check cannot see memory taken during a load that runs for a minute or more. The same
-figure is used with co-residency off, where it is optional and guards the ordinary handoff on a
-card too small for the deep tier at all.
+procedure in [model-swap-measurements.md](model-swap-measurements.md). The sidecar reports what the
+card has free on `GET /health`, and a swap reads it after the evictions and before the load, which
+is the only moment the number means anything. Short of the figure, the handoff is refused with both
+numbers in the log and in the reply's note, the deep model is never started, and the recorded
+residency is put back. A model host that can see no card at all refuses the same way. Set the figure
+above the deep tier's own cost: the check cannot see memory taken during a load that runs for a
+minute or more. On this card the cost is 19125 MiB, the deep tier spilled beside the E4B tier with
+up to 19549 MiB free, and 20125 MiB, a gigabyte over the cost because this desktop's idle floor
+moves by that much, refuses that pair. **So on a 24 GB card leave co-residency off**: beside the E4B
+tier the check refuses every handoff, each costing a cortex reload. The same figure is used with
+co-residency off, where it is optional and guards the ordinary handoff on a card too small for the
+deep tier at all.
 
 **One pairing to keep, and the brain fails to start when you break it.** The sidecar's `stop`
 answers only once the child is dead and reaped, so it can legitimately take
@@ -157,16 +159,14 @@ multi-token-prediction drafter, which on this card decoded one reasoning prompt 
 times the plain rate and a tool-call turn and an answer-text turn at 1.34 times it. It costs 997
 to 1020 MiB more on the card and about a tenth more load time, which a handoff recovers within its
 first 1500 decoded tokens. The setting stays empty by default, because the drafter serves only
-this deep model: name both or neither. The deep model, the E4B subagent tier and the drafter
-together come to more than a 24 GB card holds, so a deployment naming it:
+this deep model: name both or neither. A deployment naming it:
 
 - adds the drafter's cost to `CORTEX_SWAP_BRAIN_VRAM_MIB`, so the fit check compares the free
   figure against the load that really runs;
 - measures `CORTEX_SWAP_BRAIN_DECODE_TPS` again with the drafter drafting, on a tool-call turn,
   since a plain floor misses a drafter-sized overcommit and a drafting one sees it only there;
-- lists the GPU subagent tier in `CORTEX_SWAP_EVICT_MODELS`, so a handoff stops it first;
-- leaves `CORTEX_SWAP_CORESIDENT` off, since with the subagent tier still resident a raised figure
-  is refused on every handoff and an unraised one lets the load onto a card it does not fit.
+- lists the GPU subagent tier in `CORTEX_SWAP_EVICT_MODELS` and leaves `CORTEX_SWAP_CORESIDENT`
+  off, so a handoff stops that tier before the load.
 
 To confirm the drafter is drafting, read `timings` on a deep-tier reply: `draft_n` and
 `draft_n_accepted` are present only while it drafts, and nothing on `GET /health` says whether a

@@ -10,9 +10,10 @@ card this repo targets that costs delegation for the whole deep phase, and the s
 1.5 times the deep model's warm load ([model swap](../readings/model-swap.md)).
 
 Measured on that card ([co-residency](../readings/co-residency.md)): the cortex and the deep pick do
-not fit together (about 4.6 GiB short), but the deep pick and the shipped GPU subagent tier do, with
-under 1 GiB to spare, and the deep model decodes at its solo rate beside that peer. The cortex stays
-evicted in every configuration.
+not fit together (about 4.6 GiB short), and the deep pick and the shipped GPU subagent tier fill the
+card with no margin: beside that peer the deep model decoded at its solo rate on 2026-08-07 and at
+0.36 and 0.62 of it in two starts on 2026-09-22, with the same tier sizes. So on that card
+co-residency has no peer that fits. The cortex stays evicted in every configuration.
 
 Measuring it is the hard part. Under WSL2 an overcommitted card does not refuse the allocation: the
 driver pages the excess out to system memory, both tiers report `ready`, and `nvidia-smi` afterwards

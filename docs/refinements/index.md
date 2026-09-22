@@ -77,7 +77,7 @@ never a reading of what the tree does now.
 - **[R-706](tasks/706-only-the-corpus-laundering-cell-is-drawn-at-the-engines-sampler.md)** Only the corpus laundering cell is drawn at the engine's sampler (vision). Its claim was checked against the code on 2026-09-22.
 - **[R-707](tasks/707-model-read-texts-keep-banned-words.md)** Texts a model reads keep words the prose table bans (brain). Its claim was checked against the code on 2026-09-22.
 - **[R-709](tasks/709-the-fit-check-does-not-count-the-deep-tiers-drafter.md)** The fit check does not count the deep tier's drafter (inference-model-manager). Its claim was checked against the code on 2026-09-22.
-- **[R-710](tasks/710-the-deep-tier-spills-beside-the-e4b-tier-on-the-current-image.md)** The deep tier spills beside the E4B tier on the current image (inference-model-manager). Its claim was checked against the code on 2026-09-22.
+- **[R-710](tasks/710-the-free-memory-the-deep-tier-needs-beside-a-peer-is-unmeasured.md)** The free memory the deep tier needs beside a peer is unmeasured (inference-model-manager). Its claim was checked against the code on 2026-09-22.
 
 ### Actionable, once a port changes (6)
 
@@ -481,7 +481,7 @@ never a reading of what the tree does now.
 - [R-665](tasks/665-a-settled-handoff-does-not-say-it-was-cut.md) A settled handoff record does not say whether the answer was cut. open, waiting for its trigger.
 - [R-698](tasks/698-a-drafter-sized-spill-is-unmeasured-against-the-decode-floor.md) A drafter-sized spill is unmeasured against the decode floor. done 2026-09-22.
 - [R-709](tasks/709-the-fit-check-does-not-count-the-deep-tiers-drafter.md) The fit check does not count the deep tier's drafter. open, actionable.
-- [R-710](tasks/710-the-deep-tier-spills-beside-the-e4b-tier-on-the-current-image.md) The deep tier spills beside the E4B tier on the current image. open, actionable.
+- [R-710](tasks/710-the-free-memory-the-deep-tier-needs-beside-a-peer-is-unmeasured.md) The free memory the deep tier needs beside a peer is unmeasured. open, actionable.
 
 ### memory
 

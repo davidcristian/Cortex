@@ -630,7 +630,8 @@ records what it could also settle:
   agent, in Docker against the real tiers**, so it was never host work in the end:
   `CORTEX_SWAP_CORESIDENT` ships off by default, the cortex and the deep model measured as not
   co-fitting (and, under WSL2, as silently paging rather than failing), and the deep model and the
-  shipped subagent tier measured as fitting with 908 MiB to spare.
+  shipped subagent tier read as fitting with 908 MiB free, a fit with no margin that spilled on
+  2026-09-22 ([two tiers on one card](../readings/co-residency.md)).
 
 **The caveat on those entries, resolved rather than left open (2026-07-19).** Each gave "the cortex
 tier does not fit the 8 GB dev GPU" as part of its reason, and that clause is false:

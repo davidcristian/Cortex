@@ -52,7 +52,7 @@ because Windows' own desktop shares the card.
 | cortex alone, 16K, projector, 1024-token image budget | 11284 to 11298 MiB | | | 8448 to 8468 MiB above floor |
 | deep alone (gemma-4-31B q4_0, 8K, `-ngl 99`) | 20671 to 20723 MiB | ~3.8 GB | 25.07 to 33.28 tok/s | 19117 to 19125 MiB above floor |
 | **cortex + deep** | 23539 to 23642 MiB | ~0.5 GB | **14.80 to 17.29 tok/s** | **spilled**, 4676 MiB short |
-| **deep + gemma-4-E4B subagent tier** | 23555 to 23642 MiB | ~0.9 GB | **28.92 to 29.82 tok/s** | **fits**, peer costs 2878 MiB |
+| **deep + gemma-4-E4B subagent tier** | 23555 to 23642 MiB | ~0.9 GB | **28.92 to 29.82 tok/s** | **fit that day**, peer read 2878 MiB |
 
 **The two bottom rows read the same on `nvidia-smi` and are opposite results.** A card 4676 MiB
 short does not refuse the second load: both tiers report `ready`, the stream works, and the WSL2
@@ -62,13 +62,18 @@ to 134. So measure `predicted_per_second` from llama.cpp's own `timings`, on eac
 after, and treat a memory reading alone as no evidence either way. The brain reads decode itself;
 prefill it does not, so that half stays a hand measurement.
 
-**On the current image the bottom row spills as well.** On 2026-09-22 (`b10680`, driver 616.92)
-the E4B tier cost 3294 to 3307 MiB, and the deep tier loaded beside it decoded at 0.36 and 0.62 of
-its solo rate in two starts, with about 750 MiB more free before the load than it needs. Every
-spilled start read 910 to 952 MiB free at ready. So the fit check passes this pair at 19125 MiB and
-it spills anyway. The spill watch reports both starts at the floor used below, 25.0, which is 0.69
-of the solo rate on this image ([two tiers on one card](../readings/co-residency.md),
-[R-710](../refinements/tasks/710-the-deep-tier-spills-beside-the-e4b-tier-on-the-current-image.md)).
+**The bottom row does not fit now, and had no margin then.** On 2026-09-22 (`b10680`, driver
+616.92) the deep tier started beside the E4B tier decoded at 0.36 and 0.62 of its solo rate in two
+starts, with 19541 and 19549 MiB of `memory.free` before the load, over 400 MiB above its 19117
+MiB cost, so a fit check at 19125 MiB passes the pair and it spills. The E4B tier costs 3286 to
+3310 MiB on both the August build and this one, and 2878 MiB is less than its own buffers, so the
+August pair was already at the card's edge. Neither the 908 MiB free that row read nor the 910 to
+952 MiB the spilled starts read is a margin the driver keeps: stacked E4B tiers took `memory.free`
+to 277 MiB. The spill watch reports both starts at the floor used below, 25.0, which is 0.69 of the
+solo rate on this image. The figure the [model-swap](model-swap.md) runbook gives for this card,
+20125 MiB, refuses the pair ([two tiers on one card](../readings/co-residency.md); the margin that
+separates a fit from a spill is unmeasured,
+[R-710](../refinements/tasks/710-the-free-memory-the-deep-tier-needs-beside-a-peer-is-unmeasured.md)).
 
 What co-residency buys, on the same run with the artifact warm in the page cache: `stop(cortex)`
 0.48 s, deep tier `ready` 70.03 s later, `stop(brain)` 0.89 s, cortex `ready` 31.43 s later, so

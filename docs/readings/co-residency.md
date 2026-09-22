@@ -67,12 +67,14 @@ requests against one server, reading the last chunk.
 `llama-server` containers running the tiers' shipped argv, the deep tier started second as a
 handoff starts it and the E4B tier idle beside it. Each start served one reasoning prompt (thinking
 on, `max_tokens` 512) and the `search_email` tool-call turn, one warm-up and three timed requests
-each, seed 42. Memory is absolute; rates are ratios of the same deep configuration alone.
+each, seed 42. Memory is absolute; rates are ratios of the same deep configuration alone. Free is
+total minus used; `memory.free`, the figure the fit check reads, is 326 MiB lower, the driver's
+`memory.reserved`.
 
 | Memory reading | MiB |
 | --- | --- |
 | deep tier alone at ready, above the idle floor | 19117 plain, 20118 to 20142 drafting |
-| E4B tier alone at ready, idle, above the idle floor (2878 on the 2026-08-07 build) | 3294 to 3307 |
+| E4B tier alone at ready, idle, above the idle floor | 3294 to 3307 |
 | free before a drafting deep load beside the E4B tier | 19201, so 917 to 941 short |
 | free before a plain deep load beside it, two starts | 19866 and 19874, so 749 and 757 spare |
 | free at ready in each of those three starts | 910 to 952 |
@@ -93,6 +95,31 @@ the plain tier's own tool-call median alone. Alone, the drafting tier decoded 1.
 tier on this reasoning prompt and 1.27 times on the tool call, at the clocks above. The idle floor
 fell by 664 MiB at some point during the drafting overcommitted start, read only once its
 containers were gone, so its shortage while the turns ran was between 253 and 941 MiB. The E4B
-pair that fitted on 2026-08-07 at 908 MiB free spilled in both starts here. Method:
+pair that read as a fit on 2026-08-07 at 908 MiB free spilled in both starts here. Method:
 `measurements/drafter-spill-2026-09-22/` (`draw.py`, `draw_plain.py`, the registration written
 before each draw), `nvidia-smi` sampled every 2 s.
+
+## Why the E4B pair read as a fit in August
+
+**2026-09-22**, same card and driver: the E4B tier alone on each build with the argv it had then,
+`nvidia-smi` read idle and 5 s after ready, then E4B tiers started one after another on `b10680`
+until they passed the card.
+
+| Reading | MiB |
+| --- | --- |
+| E4B tier on `server-cuda-b10236` (`sha256:fd68d1301314`), the 2026-08-07 argv, above idle | 3286 |
+| E4B tier on `b10680`, the current argv, above idle | 3293 |
+| llama.cpp's own buffers on both builds: model 2696.06, KV 208, compute 106.02 | 3010 |
+| each of six stacked E4B tiers, above the one before | 3297 to 3310 |
+| `memory.free` after the seventh and the eighth, 246 and about 3550 MiB past the card | 277 and 301 |
+
+Neither the engine nor the argv grew the tier: the two flags added since August, `--reasoning-budget
+0` and `--cache-ram 0`, allocate nothing on the device. The 2878 MiB recorded on 2026-08-07 is less
+than the tier's own buffers, so that day either part of the pair was already off the card or the
+idle floor moved between the two readings it was subtracted from; the 908 MiB that pair left free
+is the level every spilled start above reached. That level is not a reserve the driver keeps: the
+stacked tiers took `memory.free` to 277 MiB. Beside the peer the deep tier added 18931 and 18922
+MiB to the card against its 19117 alone, so part of it went to system memory although `memory.free`
+before the load, 19541 and 19549 MiB, was over 400 MiB above its cost; how much it holds above that
+cost while it loads is unread. Method: `measurements/e4b-cost-2026-09-22/` (`stack.sh`, the two
+servers' `-v` logs and their `nvidia-smi` readings).

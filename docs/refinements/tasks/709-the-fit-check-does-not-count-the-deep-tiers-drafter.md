@@ -6,13 +6,13 @@
 **Verified:** 2026-09-22
 
 A co-resident deployment that names `CORTEX_MODEL_FILE_BRAIN_DRAFT` and leaves
-`CORTEX_SWAP_BRAIN_VRAM_MIB` at the plain tier's 19125 MiB passes the fit check and starts a load
-about 1000 MiB larger than it declared. On 2026-09-22 that load, beside the E4B tier and 917 to 941
-MiB short by the free figure, decoded at 0.79 to 0.80 of the drafting tier's solo rate. The spill
-watch is not the check for it: the fastest completion of a handoff decides, a floor has to sit
-under the slowest healthy completion (a tool call or answer text for a drafting tier), and the
-overcommitted reasoning trace's best was 1.02 of the slowest healthy drafting tool call. A floor
-taken on the plain tier misses both turns. The readings are in
+`CORTEX_SWAP_BRAIN_VRAM_MIB` at the plain tier's figure passes the fit check wherever that figure
+fits, and starts a load about 1000 MiB larger than it declared. On 2026-09-22 that load, beside the
+E4B tier and 917 to 941 MiB short by the free figure, decoded at 0.79 to 0.80 of the drafting tier's
+solo rate. The spill watch is not the check for it: the fastest completion of a handoff decides, a
+floor has to sit under the slowest healthy completion (a tool call or answer text for a drafting
+tier), and the overcommitted reasoning trace's best was 1.02 of the slowest healthy drafting tool
+call. A floor taken on the plain tier misses both turns. The readings are in
 [co-residency](../../readings/co-residency.md).
 
 **The fix, which does not rest on decode.** The fit check counts the drafter instead of asking the
@@ -20,7 +20,8 @@ operator to. The model host already resolves the drafter's path, so `GET /health
 for each roster tier, the size on disk of the files its argv loads beside the model, and the swap
 in would compare the free figure against `CORTEX_SWAP_BRAIN_VRAM_MIB` plus the deep tier's figure,
 the runbook's drafter step then leaving the setting at the plain tier's cost. On the 2026-09-22
-card that check refuses the load: 19201 MiB free against 19125 plus the drafter's 911 MiB file.
+card that check refuses the load: 18876 MiB of `memory.free` against 19125 plus the drafter's 911
+MiB file.
 What the lander settles first:
 
 - the file is 911 MiB and costs 997 to 1020 MiB on the card, so a check from file size alone
