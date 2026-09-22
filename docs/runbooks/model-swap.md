@@ -162,7 +162,7 @@ first 1500 decoded tokens. The setting stays empty by default, because the draft
 this deep model: name both or neither. A deployment naming it:
 
 - adds the drafter's cost to `CORTEX_SWAP_BRAIN_VRAM_MIB`, so the fit check compares the free
-  figure against the load that really runs;
+  figure against the load that really runs, since nothing in the brain can see the drafter;
 - measures `CORTEX_SWAP_BRAIN_DECODE_TPS` again with the drafter drafting, on a tool-call turn,
   since a plain floor misses a drafter-sized overcommit and a drafting one sees it only there;
 - lists the GPU subagent tier in `CORTEX_SWAP_EVICT_MODELS` and leaves `CORTEX_SWAP_CORESIDENT`

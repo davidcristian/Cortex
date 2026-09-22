@@ -188,6 +188,7 @@ answer text, the turns the drafter speeds least. Against the slowest healthy dra
 the overcommitted tool call's best was 0.82 of it and the reasoning trace's best 1.02, and the
 fastest completion decides, so the watch reports this overcommit only on a handoff whose judged
 completions are all tool calls or answer text. A floor measured on the plain tier reports neither:
-the overcommitted drafting tool call decoded 1.02 times the plain tier's solo rate. A check that
-does not rest on decode is
-[R-709](../refinements/tasks/709-the-fit-check-does-not-count-the-deep-tiers-drafter.md).
+the overcommitted drafting tool call decoded 1.02 times the plain tier's solo rate. The check that
+does not rest on decode is the fit check, which counts the drafter only when
+`CORTEX_SWAP_BRAIN_VRAM_MIB` includes its cost, as the [model-swap](model-swap.md) drafter step
+says.

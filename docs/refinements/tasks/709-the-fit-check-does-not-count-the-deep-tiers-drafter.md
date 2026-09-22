@@ -1,9 +1,8 @@
 # The fit check does not count the deep tier's drafter
 
-**Status:** open, actionable
+**Status:** declined 2026-09-22
 **Area:** inference-model-manager
 **Origin:** [ADR-0055](../../adr/ADR-0055-co-residency-and-spill-watch.md)
-**Verified:** 2026-09-22
 
 A co-resident deployment that names `CORTEX_MODEL_FILE_BRAIN_DRAFT` and leaves
 `CORTEX_SWAP_BRAIN_VRAM_MIB` at the plain tier's figure passes the fit check wherever that figure
@@ -39,3 +38,13 @@ card large enough for all three.
 - 2026-09-22: opened by the close of
   [R-698](698-a-drafter-sized-spill-is-unmeasured-against-the-decode-floor.md), whose run showed
   the spill watch misses this overcommit on a reasoning trace.
+- 2026-09-22: declined. The drafting overcommit it measured is refused by the check as shipped,
+  since 18876 MiB of `memory.free` is short of the plain 19125 and of the runbook's 20125, so the
+  gap is a card whose free memory falls within about 1000 MiB above the figure. The drafter is one
+  of four settings that move the deep tier's cost with the figure unchanged, beside the model
+  file, context size and layer count, and none reaches the brain container. Counting its file sees
+  that one, counts 911 of its 997 to 1020 MiB, and turns the declared figure into a partial one; a
+  startup refusal needs the same port change and refuses a card with room for all three.
+  [ADR-0055](../../adr/ADR-0055-co-residency-and-spill-watch.md) decision 2 now says the figure
+  describes the tier's whole command line and is declared again when any of it changes, and its
+  rejected alternatives name both designs.

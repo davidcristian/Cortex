@@ -160,13 +160,13 @@ lineup](../readings/model-lineup.md) and [injection text rows](../readings/injec
   those defaults and this record together.
 - With the drafter, the deep model, the GPU subagent tier and the drafter do not fit one 24 GB
   card, so the drafter rules out co-residency on this card. Under the deployed handoff the pool is
-  drained and the evicted tier costs nothing in use. Nothing catches a co-resident deployment that
-  names the drafter later without raising its declared cost: the brain cannot see a drafter through
-  the `ModelHost` port by design, and the spill watch
-  ([ADR-0055](ADR-0055-co-residency-and-spill-watch.md)) reports the overcommit on a tool-call turn
-  and not on a reasoning trace, which the drafter speeds most ([co-residency
-  readings](../readings/co-residency.md),
-  [R-709](../refinements/tasks/709-the-fit-check-does-not-count-the-deep-tiers-drafter.md)).
+  drained and the evicted tier costs nothing in use. A deployment that names the drafter raises its
+  declared cost by the drafter's, because the fit check compares the card against that figure alone
+  and the brain cannot see a drafter through the `ModelHost` port
+  ([ADR-0055](ADR-0055-co-residency-and-spill-watch.md) decision 2,
+  [R-709](../refinements/tasks/709-the-fit-check-does-not-count-the-deep-tiers-drafter.md)). The
+  spill watch reports a drafter-sized overcommit on a tool-call turn and not on a reasoning trace,
+  which the drafter speeds most ([co-residency readings](../readings/co-residency.md)).
 - The delegated-run limits were sized on the CPU tier before its thread count was set, and are
   looser than their derivation asked for now that it is; they are re-sized only on whole-subtask
   measurements

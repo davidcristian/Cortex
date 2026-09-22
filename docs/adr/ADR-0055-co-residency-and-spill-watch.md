@@ -48,6 +48,9 @@ it.
    misconfigured deployment one cortex reload rather than a second declared figure. It cannot see a
    wrong declared figure, memory taken during the load, or a spill afterwards; a deployment that
    wants slack adds it to the figure, since an invented margin would be one more unchecked number.
+   The figure is the cost of the deep tier's whole command line, which the sidecar builds from the
+   model file, context size, layer count and drafter settings and the brain never receives, so a
+   deployment that changes any of them measures and declares the figure again.
 3. **The placer is charged for the window.** `SubagentPlacer.charge_handoff(resident_gb=)` and
    `charge_baseline()` (`ports_placement.py`) replace the cortex's reservation with the deep model's
    declared cost for the window and restore it after; the placed-spawn ledger is untouched, since a
@@ -119,6 +122,13 @@ it.
   gigabyte the desktop took mid-load produces one, and such a flag has no way back, since the only
   evidence that could clear it is the co-resident handoff it disabled.
 - **Telling the user in the reply**: telemetry in an assistant message, arriving after the answer.
+- **Counting the drafter from `GET /health`**, the sidecar reporting the size on disk of the files
+  a tier loads beside its model and the check adding it to the figure: the file is about nine
+  tenths of the drafter's card cost (911 MiB against 997 to 1020), so the rest would be an invented
+  margin; the context size and layer count move the cost too and are no file; and the figure would
+  stop being a measurement of the load that runs.
+- **Refusing co-residency at startup whenever the deep tier drafts**: the brain would need the same
+  port change to see the drafter, and the refusal forbids a card with room for all three tiers.
 
 ## Related
 
