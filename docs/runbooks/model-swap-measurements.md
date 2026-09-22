@@ -62,6 +62,14 @@ to 134. So measure `predicted_per_second` from llama.cpp's own `timings`, on eac
 after, and treat a memory reading alone as no evidence either way. The brain reads decode itself;
 prefill it does not, so that half stays a hand measurement.
 
+**On the current image the bottom row spills as well.** On 2026-09-22 (`b10680`, driver 616.92)
+the E4B tier cost 3294 to 3307 MiB, and the deep tier loaded beside it decoded at 0.36 and 0.62 of
+its solo rate in two starts, with about 750 MiB more free before the load than it needs. Every
+spilled start read 910 to 952 MiB free at ready. So the fit check passes this pair at 19125 MiB and
+it spills anyway. The spill watch reports both starts at the floor used below, 25.0, which is 0.69
+of the solo rate on this image ([two tiers on one card](../readings/co-residency.md),
+[R-710](../refinements/tasks/710-the-deep-tier-spills-beside-the-e4b-tier-on-the-current-image.md)).
+
 What co-residency buys, on the same run with the artifact warm in the page cache: `stop(cortex)`
 0.48 s, deep tier `ready` 70.03 s later, `stop(brain)` 0.89 s, cortex `ready` 31.43 s later, so
 102.9 s of swap either side of the deep phase, about 132 s cold. Without the flag every spawn is
@@ -166,3 +174,15 @@ pays depends on load order: loading the cortex second, beside an already-residen
 the deep model less (23.28 tok/s at best), the driver paging the newcomer first. A handoff always
 loads the deep model second, so the middle row is the one that matters, but a report of a slow
 cortex after a handoff is the same fault read from the other end.
+
+**A drafting deep tier hides a drafter-sized overcommit on a reasoning trace.** On 2026-09-22 the
+drafting deep tier started beside the E4B tier, 917 to 941 MiB short by the free figure, decoded at
+0.79 of its solo rate on a reasoning prompt and 0.80 on a tool call. A floor has to sit under the
+slowest healthy completion a handoff can contain, which for a drafting tier is a tool call or
+answer text, the turns the drafter speeds least. Against the slowest healthy drafting tool call,
+the overcommitted tool call's best was 0.82 of it and the reasoning trace's best 1.02, and the
+fastest completion decides, so the watch reports this overcommit only on a handoff whose judged
+completions are all tool calls or answer text. A floor measured on the plain tier reports neither:
+the overcommitted drafting tool call decoded 1.02 times the plain tier's solo rate. A check that
+does not rest on decode is
+[R-709](../refinements/tasks/709-the-fit-check-does-not-count-the-deep-tiers-drafter.md).

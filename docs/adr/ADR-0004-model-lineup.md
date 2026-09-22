@@ -163,8 +163,10 @@ lineup](../readings/model-lineup.md) and [injection text rows](../readings/injec
   drained and the evicted tier costs nothing in use. Nothing catches a co-resident deployment that
   names the drafter later without raising its declared cost: the brain cannot see a drafter through
   the `ModelHost` port by design, and the spill watch
-  ([ADR-0055](ADR-0055-co-residency-and-spill-watch.md)) is what reports a figure set too low
-  ([R-698](../refinements/tasks/698-a-drafter-sized-spill-is-unmeasured-against-the-decode-floor.md)).
+  ([ADR-0055](ADR-0055-co-residency-and-spill-watch.md)) reports the overcommit on a tool-call turn
+  and not on a reasoning trace, which the drafter speeds most ([co-residency
+  readings](../readings/co-residency.md),
+  [R-709](../refinements/tasks/709-the-fit-check-does-not-count-the-deep-tiers-drafter.md)).
 - The delegated-run limits were sized on the CPU tier before its thread count was set, and are
   looser than their derivation asked for now that it is; they are re-sized only on whole-subtask
   measurements

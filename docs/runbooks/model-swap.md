@@ -162,8 +162,8 @@ together come to more than a 24 GB card holds, so a deployment naming it:
 
 - adds the drafter's cost to `CORTEX_SWAP_BRAIN_VRAM_MIB`, so the fit check compares the free
   figure against the load that really runs;
-- measures `CORTEX_SWAP_BRAIN_DECODE_TPS` again with the drafter drafting, because a floor
-  measured on the plain tier sits further below a drafting tier's rate than it was set to;
+- measures `CORTEX_SWAP_BRAIN_DECODE_TPS` again with the drafter drafting, on a tool-call turn,
+  since a plain floor misses a drafter-sized overcommit and a drafting one sees it only there;
 - lists the GPU subagent tier in `CORTEX_SWAP_EVICT_MODELS`, so a handoff stops it first;
 - leaves `CORTEX_SWAP_CORESIDENT` off, since with the subagent tier still resident a raised figure
   is refused on every handoff and an unraised one lets the load onto a card it does not fit.

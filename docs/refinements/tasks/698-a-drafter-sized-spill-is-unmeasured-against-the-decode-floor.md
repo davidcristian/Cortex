@@ -1,9 +1,8 @@
 # A drafter-sized spill is unmeasured against the decode floor
 
-**Status:** open, actionable
+**Status:** done 2026-09-22
 **Area:** inference-model-manager
 **Origin:** [ADR-0004](../../adr/ADR-0004-model-lineup.md)
-**Verified:** 2026-09-19
 
 No guard was built for a co-resident deployment that names `CORTEX_MODEL_FILE_BRAIN_DRAFT` without
 raising `CORTEX_SWAP_BRAIN_VRAM_MIB`. Such a deployment passes its fit check and loads about
@@ -31,3 +30,13 @@ that does not rest on decode.
 - 2026-09-19: opened by the decision to cover the co-resident drafter case with the spill watch
   rather than a refusal, whose floor had never been read against an overcommit that small (the
   [ADR-0004](../../adr/ADR-0004-model-lineup.md) drafter recommendation).
+- 2026-09-22: done by one run on the card. The drafting deep tier started beside the E4B tier, 917
+  to 941 MiB short by the free figure (the E4B tier now costs 3294 to 3307 MiB, so the overcommit
+  was nearly the whole drafter rather than a tenth of it), decoded at 0.79 of its solo rate on a
+  reasoning prompt and 0.80 on a tool call. Against the slowest healthy drafting completion the
+  watch sees the tool call (0.82 of it) and misses the reasoning trace (1.02), and a plain floor
+  misses both, so the runbook step does not restore the watch. The readings are in
+  [co-residency](../../readings/co-residency.md). The fix that does not rest on decode is
+  [R-709](709-the-fit-check-does-not-count-the-deep-tiers-drafter.md), and the E4B pair itself
+  spilling on this image, read in the same run, is
+  [R-710](710-the-deep-tier-spills-beside-the-e4b-tier-on-the-current-image.md).

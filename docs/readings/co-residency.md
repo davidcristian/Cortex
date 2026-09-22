@@ -60,3 +60,39 @@ So a mostly cached prompt reads slower: the repeats' prompt rate was 0.37 to 0.3
 one server and one prompt. The streaming fixture `_TIMINGS` in
 `packages/inference/tests/test_cadence_contract.py` has the same fields. Method: two identical
 requests against one server, reading the last chunk.
+
+## A drafter-sized overcommit, and the E4B pair on the current image
+
+**2026-09-22**, same card, `server-cuda` at `sha256:952424b09abc` (`b10680`), driver 616.92, bare
+`llama-server` containers running the tiers' shipped argv, the deep tier started second as a
+handoff starts it and the E4B tier idle beside it. Each start served one reasoning prompt (thinking
+on, `max_tokens` 512) and the `search_email` tool-call turn, one warm-up and three timed requests
+each, seed 42. Memory is absolute; rates are ratios of the same deep configuration alone.
+
+| Memory reading | MiB |
+| --- | --- |
+| deep tier alone at ready, above the idle floor | 19117 plain, 20118 to 20142 drafting |
+| E4B tier alone at ready, idle, above the idle floor (2878 on the 2026-08-07 build) | 3294 to 3307 |
+| free before a drafting deep load beside the E4B tier | 19201, so 917 to 941 short |
+| free before a plain deep load beside it, two starts | 19866 and 19874, so 749 and 757 spare |
+| free at ready in each of those three starts | 910 to 952 |
+
+| Start | Reasoning decode | Tool-call decode | SM clock over max |
+| --- | --- | --- | --- |
+| drafting beside E4B, of drafting alone | 0.79 | 0.80 | 0.62 to 0.64 against 0.47 to 0.49 |
+| plain beside E4B, of plain alone, first start | 0.36 | 0.36 | 0.86 against 0.56 to 0.57 |
+| plain beside E4B, of plain alone, second start | 0.63 | 0.62 | 0.76 to 0.77 against 0.56 to 0.57 |
+
+Clocks were not matched: in every pair the slower start ran the higher clock, at 0.91 to 1.03
+times the median power of the start it is compared with. The drafting starts accepted the same drafts per
+request (299 of 632 on the reasoning prompt, 90 of 285 on the tool call), so their difference is the
+card's. Against the slowest healthy drafting completion, a tool call and the highest floor these
+readings allow without a false alarm, the overcommitted tool call's best rate was 0.82 of it and the
+overcommitted reasoning trace's best 1.02. The overcommitted drafting tool call decoded 1.02 times
+the plain tier's own tool-call median alone. Alone, the drafting tier decoded 1.62 times the plain
+tier on this reasoning prompt and 1.27 times on the tool call, at the clocks above. The idle floor
+fell by 664 MiB at some point during the drafting overcommitted start, read only once its
+containers were gone, so its shortage while the turns ran was between 253 and 941 MiB. The E4B
+pair that fitted on 2026-08-07 at 908 MiB free spilled in both starts here. Method:
+`measurements/drafter-spill-2026-09-22/` (`draw.py`, `draw_plain.py`, the registration written
+before each draw), `nvidia-smi` sampled every 2 s.
