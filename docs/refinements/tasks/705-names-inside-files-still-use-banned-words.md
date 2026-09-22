@@ -36,7 +36,8 @@ finds 576 distinct names, largest family first:
 The overlay's Vitest titles hold 42 more uses of these words. Two kinds of text are outside the
 survey on purpose: the email tool descriptions in `cortex_email/values.py` and
 `cortex_orchestrator/own_texts.py`, which the model reads, so a change there needs a model
-measurement; and the row labels in `test_reply_readings.py`, which match recorded readings.
+measurement ([R-707](707-model-read-texts-keep-banned-words.md) lists them); and the row labels in
+`test_reply_readings.py`, which match recorded readings.
 
 **What would close it.** Each family renamed as a code change, with the runbook, module doc and
 task files that quote a name changed in the same commit, or a decision in ADR-0040 that a family
