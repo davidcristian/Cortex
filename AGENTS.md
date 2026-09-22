@@ -98,7 +98,7 @@ because adding it afterwards is a rewrite.
    - `rostercheck.py`: a list of names a document keeps matches the set it describes.
    - `flagcheck.py`: every subagent server has the flags its tier requires.
    - `settingscheck.py`: every setting a brain module reads is in its compose service's environment.
-   - `backlogcheck.py`: each backlog index matches its task files, and every `#fragment` resolves.
+   - `backlogcheck.py`: each index matches its task files, every link resolves, and no task file name has a banned word.
 
    Each of them runs unconditionally, in CI too, and this list is itself compared against the recipes that run
    them. Pre-commit runs the same command. Run it before calling anything done.
