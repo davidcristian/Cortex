@@ -209,7 +209,7 @@ async def test_filter_only_restricts_never_grants() -> None:
 
 
 def test_gated_overlay_requires_a_non_empty_name_set() -> None:
-    with pytest.raises(ValueError, match="non-empty gated-name set"):
+    with pytest.raises(ValueError, match="at least one tool name to confirm"):
         GatedToolRegistry(_registry("mail", "send_email"), gated=[])
 
 

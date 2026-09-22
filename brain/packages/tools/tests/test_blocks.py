@@ -81,7 +81,7 @@ def test_a_block_in_a_format_with_no_reader_is_refused() -> None:
 
 
 def test_a_png_too_short_to_hold_a_header_is_refused() -> None:
-    with pytest.raises(ImageError, match="too few to carry a PNG header"):
+    with pytest.raises(ImageError, match="too few to hold a PNG header"):
         result_images(CallToolResult(content=[_block(PNG_BYTES[:20])]))
 
 

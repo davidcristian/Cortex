@@ -9,7 +9,7 @@ _LEADS: Mapping[BodyFailure, str] = {
     BodyFailure.REFUSED: "the body refused to {action}",
     BodyFailure.UNSUPPORTED: "this body has no way to {action}",
     BodyFailure.UNREADY: "the host is not in a state to {action}",
-    BodyFailure.OVERSIZE: "the body could not {action} within the size the seam allows",
+    BodyFailure.OVERSIZE: "the body could not {action} within the size the gRPC link allows",
     BodyFailure.FAULTED: "the body failed to {action}",
 }
 

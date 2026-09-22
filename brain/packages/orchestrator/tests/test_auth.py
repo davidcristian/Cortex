@@ -60,7 +60,7 @@ async def test_health_without_the_token_is_unauthenticated(token_server: str) ->
         with pytest.raises(aio.AioRpcError) as err:
             await _health(BrainServiceStub(channel), ())
     assert err.value.code() is grpc.StatusCode.UNAUTHENTICATED
-    assert err.value.details() == "invalid or missing seam token"
+    assert err.value.details() == "invalid or missing token"
 
 
 async def test_health_with_a_wrong_token_is_unauthenticated(token_server: str) -> None:

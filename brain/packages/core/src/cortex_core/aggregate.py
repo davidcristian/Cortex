@@ -83,7 +83,7 @@ class GatedToolRegistry:
 
     def __init__(self, inner: ToolRegistry, *, gated: Sequence[str]) -> None:
         if not gated:
-            msg = "GatedToolRegistry needs a non-empty gated-name set"
+            msg = "GatedToolRegistry needs at least one tool name to confirm"
             raise ValueError(msg)
         self._inner = inner
         self._gated = frozenset(gated)

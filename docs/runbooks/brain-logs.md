@@ -8,7 +8,7 @@ up: [local-dev-wsl.md](local-dev-wsl.md). Decision:
 A line has the fields the code attached to it rather than the message alone:
 
 ```text
-brain-1  | INFO:cortex_orchestrator.server:seam server listening host=0.0.0.0 port=50051
+brain-1  | INFO:cortex_orchestrator.server:gRPC server listening host=0.0.0.0 port=50051
 ```
 
 Everything after the message is `key=value` pairs in name order, which is what makes two lines of

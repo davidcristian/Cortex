@@ -342,7 +342,7 @@ async def test_a_reply_with_no_image_is_refused() -> None:
 
 async def test_a_blob_with_no_bytes_is_refused() -> None:
     async with _gateway(FakeBody(blob=ImageBlob(mime_type="image/png", width=4, height=4))) as g:
-        with pytest.raises(BodyGatewayError, match="carries no bytes"):
+        with pytest.raises(BodyGatewayError, match="has no bytes"):
             await g.capture_screen()
 
 
@@ -385,7 +385,7 @@ async def test_asking_for_no_bounds_holds_the_reply_to_the_domain_ceiling_alone(
 
 async def test_a_bound_the_wire_cannot_carry_fails_the_capture_rather_than_the_turn() -> None:
     async with _gateway(FakeBody(blob=_blob())) as gateway:
-        with pytest.raises(BodyGatewayError, match="a bound the wire cannot carry"):
+        with pytest.raises(BodyGatewayError, match="a bound the wire cannot hold"):
             await gateway.capture_screen(max_edge=-1)
 
 

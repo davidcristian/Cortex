@@ -149,7 +149,7 @@ class YearDays:
 
 
 DaySelector = Weekdays | MonthDays | YearDays
-"""Which dates a rule's wall time lands on. Closed, so the codec can enumerate the variants."""
+"""Which dates a rule's wall time falls on. Closed, so the codec can enumerate the variants."""
 
 DAILY = Weekdays()
 """Every day of the week: the default selector, and the shape a rule had before ``MonthDays``."""

@@ -45,7 +45,7 @@ class Ranking:
     def __post_init__(self) -> None:
         """Raise for the one combination that has no meaning: a declined rank that kept hits."""
         if self.basis is RankBasis.DEMUR and self.hits:
-            msg = "a DEMUR ranking declines, so it carries no hits"
+            msg = "a DEMUR ranking declines, so it has no hits"
             raise ValueError(msg)
 
     @property

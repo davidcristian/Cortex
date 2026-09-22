@@ -10,7 +10,7 @@ from grpc import aio
 from cortex_seam import SEAM_TOKEN_HEADER
 
 # Deliberately does not say whether the token was absent or wrong.
-_DENIED_DETAIL = "invalid or missing seam token"
+_DENIED_DETAIL = "invalid or missing token"
 
 _TRequest = TypeVar("_TRequest")
 _TResponse = TypeVar("_TResponse")

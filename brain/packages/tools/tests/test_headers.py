@@ -114,7 +114,7 @@ def test_a_lossless_webp_edge_is_read_without_the_flags_above_it() -> None:
 
 
 def test_a_riff_block_too_short_to_carry_a_webp_header_is_refused() -> None:
-    with pytest.raises(ImageError, match="19 bytes, too few to carry a WebP header"):
+    with pytest.raises(ImageError, match="19 bytes, too few to hold a WebP header"):
         image_size(LOSSY_WEBP_BYTES[:19])
 
 
@@ -129,17 +129,17 @@ def test_a_webp_opening_with_a_chunk_that_states_no_size_is_refused() -> None:
 
 
 def test_a_lossy_webp_too_short_for_its_keyframe_header_is_refused() -> None:
-    with pytest.raises(ImageError, match="too short to carry a lossy keyframe header"):
+    with pytest.raises(ImageError, match="too short to hold a lossy keyframe header"):
         image_size(LOSSY_WEBP_BYTES[:29])
 
 
 def test_a_lossy_webp_without_the_keyframe_sync_code_is_refused() -> None:
-    with pytest.raises(ImageError, match="does not carry the keyframe sync code"):
+    with pytest.raises(ImageError, match="does not contain the keyframe sync code"):
         image_size(LOSSY_WEBP_BYTES[:23] + b"\x00\x00\x00" + LOSSY_WEBP_BYTES[26:])
 
 
 def test_a_lossless_webp_too_short_for_its_header_is_refused() -> None:
-    with pytest.raises(ImageError, match="too short to carry a lossless header"):
+    with pytest.raises(ImageError, match="too short to hold a lossless header"):
         image_size(LOSSLESS_WEBP_BYTES[:24])
 
 
@@ -149,7 +149,7 @@ def test_a_lossless_webp_without_its_signature_byte_is_refused() -> None:
 
 
 def test_an_extended_webp_too_short_for_its_canvas_header_is_refused() -> None:
-    with pytest.raises(ImageError, match="too short to carry an extended canvas header"):
+    with pytest.raises(ImageError, match="too short to hold an extended canvas header"):
         image_size(EXTENDED_WEBP_BYTES[:29])
 
 

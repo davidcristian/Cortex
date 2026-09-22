@@ -31,7 +31,7 @@ def test_a_valid_part_keeps_what_it_was_given() -> None:
 
 
 def test_an_empty_part_is_refused() -> None:
-    with pytest.raises(ImageError, match="an image part carries no bytes"):
+    with pytest.raises(ImageError, match="an image part has no bytes"):
         ImagePart(data=b"", mime_type="image/png", width=4, height=4)
 
 

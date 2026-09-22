@@ -43,7 +43,7 @@ def check_tool_call_deadline(subagents: SubagentsConfig, tools: ToolsConfig) -> 
         f"CORTEX_SUBAGENTS_RUN_TIMEOUT_S is {subagents.run_timeout_s} s: one wedged tool call can "
         "outlast the whole delegated run that has to contain it, the run's deadline fires first, a "
         "stalled sidecar is reported as a subtask that would not stop talking, and the re-run a "
-        "transport failure earns is skipped. Lower the call bound, or raise the run bound above "
+        "transport failure allows is skipped. Lower the call bound, or raise the run bound above "
         "the dispatch (docs/runbooks/tools-mcp.md)"
     )
     _logger.error(_REFUSED, extra=_pairing(subagents, tools))

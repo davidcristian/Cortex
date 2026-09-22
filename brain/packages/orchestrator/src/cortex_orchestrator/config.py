@@ -132,7 +132,7 @@ class MemoryConfig(BaseSettings):
     def _dsn_authority_is_readable(self) -> "MemoryConfig":
         if self.backend == "pgvector" and not authority_is_readable(self.dsn):
             msg = (
-                "CORTEX_MEMORY_DSN carries an authority the Postgres driver cannot read; "
+                "CORTEX_MEMORY_DSN has an authority the Postgres driver cannot read; "
                 "percent-encode any password character that would end a URL's authority"
             )
             raise MemoryConfigError(msg)

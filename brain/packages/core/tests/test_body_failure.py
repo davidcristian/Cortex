@@ -7,7 +7,9 @@ _CAPTURE_LEADS = {
     BodyFailure.REFUSED: "the body refused to capture the screen",
     BodyFailure.UNSUPPORTED: "this body has no way to capture the screen",
     BodyFailure.UNREADY: "the host is not in a state to capture the screen",
-    BodyFailure.OVERSIZE: "the body could not capture the screen within the size the seam allows",
+    BodyFailure.OVERSIZE: (
+        "the body could not capture the screen within the size the gRPC link allows"
+    ),
     BodyFailure.FAULTED: "the body failed to capture the screen",
 }
 

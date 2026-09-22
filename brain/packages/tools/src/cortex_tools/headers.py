@@ -69,7 +69,7 @@ _VP8X_SIZE_END = 10
 def _png_size(data: bytes) -> tuple[int, int]:
     """The width and height PNG's IHDR chunk states."""
     if len(data) < _PNG_SIZE_END:
-        msg = f"an MCP image block is {len(data)} bytes, too few to carry a PNG header"
+        msg = f"an MCP image block is {len(data)} bytes, too few to hold a PNG header"
         raise ImageError(msg)
     width, height = struct.unpack(">II", data[_PNG_SIZE_START:_PNG_SIZE_END])
     return width, height
@@ -138,10 +138,10 @@ def _jpeg_size(data: bytes) -> tuple[int, int]:
 def _vp8_size(payload: bytes) -> tuple[int, int]:
     """The size a lossy VP8 keyframe states, 14 bits of each edge behind a sync code."""
     if len(payload) < _VP8_SIZE_END:
-        msg = "a WebP image block is too short to carry a lossy keyframe header"
+        msg = "a WebP image block is too short to hold a lossy keyframe header"
         raise ImageError(msg)
     if payload[_VP8_SYNC_START:_VP8_SYNC_END] != _VP8_SYNC:
-        msg = "a WebP lossy chunk does not carry the keyframe sync code"
+        msg = "a WebP lossy chunk does not contain the keyframe sync code"
         raise ImageError(msg)
     width, height = struct.unpack("<HH", payload[_VP8_SYNC_END:_VP8_SIZE_END])
     return width & _VP8_EDGE_MASK, height & _VP8_EDGE_MASK
@@ -150,7 +150,7 @@ def _vp8_size(payload: bytes) -> tuple[int, int]:
 def _vp8l_size(payload: bytes) -> tuple[int, int]:
     """The size a lossless VP8L header states, two 14 bit fields packed across four bytes."""
     if len(payload) < _VP8L_BITS_END:
-        msg = "a WebP image block is too short to carry a lossless header"
+        msg = "a WebP image block is too short to hold a lossless header"
         raise ImageError(msg)
     if payload[0] != _VP8L_SIGNATURE:
         msg = "a WebP lossless chunk does not open with its signature byte"
@@ -164,7 +164,7 @@ def _vp8l_size(payload: bytes) -> tuple[int, int]:
 def _vp8x_size(payload: bytes) -> tuple[int, int]:
     """The canvas size an extended VP8X chunk states, as two little-endian 24 bit fields."""
     if len(payload) < _VP8X_SIZE_END:
-        msg = "a WebP image block is too short to carry an extended canvas header"
+        msg = "a WebP image block is too short to hold an extended canvas header"
         raise ImageError(msg)
     width = int.from_bytes(payload[_VP8X_WIDTH_START:_VP8X_HEIGHT_START], "little") + 1
     height = int.from_bytes(payload[_VP8X_HEIGHT_START:_VP8X_SIZE_END], "little") + 1
@@ -181,7 +181,7 @@ _WEBP_SHAPES: dict[bytes, Callable[[bytes], tuple[int, int]]] = {
 def _webp_size(data: bytes) -> tuple[int, int]:
     """The canvas size the container's first chunk states, in whichever shape that chunk is."""
     if len(data) < _WEBP_PAYLOAD_START:
-        msg = f"an MCP image block is {len(data)} bytes, too few to carry a WebP header"
+        msg = f"an MCP image block is {len(data)} bytes, too few to hold a WebP header"
         raise ImageError(msg)
     if data[_WEBP_FORM_START:_WEBP_FORM_END] != _WEBP_FORM:
         msg = "a RIFF image block does not name WEBP as its form"

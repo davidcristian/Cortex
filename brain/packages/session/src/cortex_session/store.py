@@ -143,7 +143,7 @@ class RedisSessionStore:
             else:
                 await self._client.srem(_PINNED_KEY, session_id)
         except RedisError as err:
-            msg = f"setting the pin for session {session_id!r} failed"
+            msg = f"changing whether session {session_id!r} stays at the top failed"
             raise SessionStoreError(msg) from err
 
     async def list_sessions(self, *, limit: int) -> Sequence[SessionSummary]:

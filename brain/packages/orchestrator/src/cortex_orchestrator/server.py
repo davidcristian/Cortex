@@ -186,7 +186,7 @@ async def serve(
     """Run the server until SIGTERM/SIGINT or cancellation; always stop gracefully."""
     server, bound_port = create_server(config, make_engine, store, ports)
     await server.start()
-    _logger.info("seam server listening", extra={"host": config.host, "port": bound_port})
+    _logger.info("gRPC server listening", extra={"host": config.host, "port": bound_port})
     loop = asyncio.get_running_loop()
     stop_requested = asyncio.Event()
     for signum in _HANDLED_SIGNALS:

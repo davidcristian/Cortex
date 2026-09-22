@@ -106,7 +106,7 @@ def test_snapshot_without_a_brief_is_a_caller_bug() -> None:
 
 def test_snapshot_of_an_unarmed_slot_is_a_caller_bug() -> None:
     slot = EscalationSlot(brief="go deep on this")
-    with pytest.raises(ValueError, match="armed"):
+    with pytest.raises(ValueError, match="no turn ever filled"):
         slot.snapshot(turn_id="t1", session_id="s1", requested_at=_AT)
 
 

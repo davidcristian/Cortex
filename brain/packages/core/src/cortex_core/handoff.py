@@ -87,7 +87,7 @@ class EscalationSlot:
             msg = "EscalationSlot.snapshot requires a brief (no escalation was requested)"
             raise ValueError(msg)
         if self.refs is None:
-            msg = "EscalationSlot.snapshot requires an armed slot (no turn ever filled refs)"
+            msg = "EscalationSlot.snapshot requires refs (no turn ever filled them)"
             raise ValueError(msg)
         tail = tuple(self.refs.working[self.refs.base_len :])
         if any(message.images for message in tail):

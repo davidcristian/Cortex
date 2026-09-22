@@ -133,7 +133,7 @@ async def test_list_sessions_skips_a_dangling_pinned_entry() -> None:
 
 
 async def test_connection_failure_on_set_pinned_wraps_the_cause() -> None:
-    with pytest.raises(SessionStoreError, match="setting the pin for session 's'") as excinfo:
+    with pytest.raises(SessionStoreError, match="whether session 's' stays at the top") as excinfo:
         await _disconnected_store().set_pinned("s", pinned=True)
     assert isinstance(excinfo.value.__cause__, redis_exceptions.ConnectionError)
 

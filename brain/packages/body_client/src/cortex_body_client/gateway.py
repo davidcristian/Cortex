@@ -160,7 +160,7 @@ class GrpcBodyGateway:
         except ValueError as err:
             # A misconfigured bound must not escape as a bare ValueError: this port's only
             # failure channel is BodyGatewayError, and anything else kills the turn.
-            msg = f"body capture_screen was asked for a bound the wire cannot carry: {err}"
+            msg = f"body capture_screen was asked for a bound the wire cannot hold: {err}"
             raise BodyGatewayError(msg) from err
         method = self._stub.CaptureScreen  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
         try:

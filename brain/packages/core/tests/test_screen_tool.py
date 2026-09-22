@@ -230,7 +230,7 @@ async def test_a_capture_too_large_to_send_is_not_reported_as_a_broken_backend()
     result = await CaptureScreenTool(InMemoryBodyGateway(fail=oversize)).invoke(_call())
 
     assert result.content.startswith(
-        "the body could not capture the screen within the size the seam allows:"
+        "the body could not capture the screen within the size the gRPC link allows:"
     )
     assert result.trust is Trust.TRUSTED
     assert result.images == ()

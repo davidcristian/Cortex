@@ -31,7 +31,7 @@ class ImagePart:
     def __post_init__(self) -> None:
         """Reject anything that is not a plausible, in-budget image."""
         if not self.data:
-            msg = "an image part carries no bytes"
+            msg = "an image part has no bytes"
             raise ImageError(msg)
         if self.mime_type not in ALLOWED_MIME_TYPES:
             msg = f"unsupported image type {self.mime_type!r}"

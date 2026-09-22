@@ -13,7 +13,7 @@ BARE = f"Some prose about a stream.\n\n```text\n{SETTLE_LINE}\n```\n"
 
 PREFIXED = """\
 ```text
-brain-1  | INFO:cortex_orchestrator.server:seam server listening host=0.0.0.0 port=50051
+brain-1  | INFO:cortex_orchestrator.server:gRPC server listening host=0.0.0.0 port=50051
 ```
 """
 

@@ -548,7 +548,7 @@ class _BrokenRecallPolicy:
         turn_id: str | None = None,
     ) -> Ranking:
         del hits, query, now, k, session_id, turn_id
-        msg = "a DEMUR ranking declines, so it carries no hits"
+        msg = "a DEMUR ranking declines, so it has no hits"
         raise ValueError(msg)
 
 
