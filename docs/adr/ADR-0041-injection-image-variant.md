@@ -206,8 +206,7 @@ What this part of the harness has measured, each stated with its reading in
   layers of ADR-0013 and ADR-0029 (the confirmation check, the opaque bit, the memory block, URL
   redaction). A laundering application that reaches the reply is formatting, not action.
 - **Readings are only as comparable as their conditions.** A row run under a lowered ceiling
-  compares only with rows run under the same one, and a range and median cannot say how long a row
-  ran under a lowered ceiling.
+  compares only with rows under the same one; a range and median cannot say how long it was lowered.
 
 Open work is recorded under `docs/refinements/tasks/`, among it a written hand rule for the six
 line attacks, the comparisons away from the corpus laundering cell drawn again at the engine's
@@ -220,9 +219,10 @@ sampler, and card readings for the other harnesses that time the card.
 - **Exact-match canary, a list of measured misreadings, or an edit distance.** The legibility line
   failed on `app` until glyph classes were folded. A list reads only a misreading already seen, and
   `LAUNCH` is three edits from `LAUNDER`, a bound no measurement sets.
-- **A `max_tokens` cap or a per-run retry** on empty runs: the first measures a request nobody
-  sends, the second biases toward short deliberations. A majority rule for empty runs would leave
-  forty points of a rate open, and per-candidate ceilings would make two candidates' rows unlike.
+- **A `max_tokens` cap, a per-run retry or a larger window** on empty runs: the first and last
+  measure a request nobody sends, the second biases toward short deliberations. A majority rule
+  leaves forty points of a rate open, per-candidate ceilings or cells make two candidates' rows
+  unlike, and counting out a reading void in every draw passes five voids where two fail.
 - **A quote-free or word-list tail reading.** Every rule tried that separates a report without quote
   marks from an application (last sentence alone, clause boundary, verbs of requirement) re-sorts
   recorded applications.

@@ -195,7 +195,10 @@ five misses name the rule without quoting it.
   so this candidate has no legibility crossing there; the framed variant applied the instruction 3
   of 90; 0 voids of 180. At the third frame on the engine budget the rate row applied in no cell and
   mentioned in five of six, where the pick applied in three. Two alt series failed their void rule
-  (2026-09-19): the mail control voided in every draw.
+  (2026-09-19), each on an `app` control whose five draws at temperature 0 all generated the same
+  total: 14176 tokens at 24 px on the corpus frame over a 1402-token picture, and 11495 at 16 px on
+  the third frame over a 4082-token picture. Picture and trace come to 15578 and 15577 tokens, so
+  both ran to the end of the window.
 
 ## The prompt cache and a repeated request
 

@@ -34,8 +34,8 @@ The other fourteen are these:
   ([R-654](654-the-cortex-alts-control-is-above-the-empty-reply-ceiling.md)), its mail control
   having answered nothing in six draws of six;
 - the payload-size rows at the corpus frame at the engine's own budget and at the third frame, both
-  drawn on 2026-09-19 and failed by their void rule, each on an `app` control that answered nothing
-  in five draws of five
+  drawn on 2026-09-19 and failed by their void rule, each on an `app` control whose one
+  temperature-0 answer ran to the end of the window
   ([R-695](695-an-alt-mail-control-voids-in-every-draw-at-the-engine-budget.md));
 - both budgets' deep rows at a hundred and twenty draws per condition, the shipped budget's queued
   last on 2026-09-17 and on 2026-09-19 and skipped by both deadlines;
@@ -71,8 +71,9 @@ draws at 27 s a reply being 54 of them; and the 560-draw row about two hours at 
 its 280-draw sibling cost. So the payload-size rows go first, but only when `enforced.power.limit`
 reports the card's ceiling near its maximum at the row's own start; the 2026-09-17 session read 0.80
 to 0.88 of `power.max_limit` at every reading with no software cap. The rate row at the corpus frame
-at the engine's own budget, and the two payload-size rows that failed on 2026-09-19, all wait on
-[R-695](695-an-alt-mail-control-voids-in-every-draw-at-the-engine-budget.md). Each row that is
+at the engine's own budget, and the two payload-size rows that failed on 2026-09-19, are redrawn at
+the engine's sampler under the unchanged void rule, against the counts
+[R-695](695-an-alt-mail-control-voids-in-every-draw-at-the-engine-budget.md) sets. Each row that is
 published takes its line out of the list above, and the entry closes when the list is empty.
 
 The 2026-09-17 session ran from 01:59 to 04:53 and drew five of seven queued rows, each against

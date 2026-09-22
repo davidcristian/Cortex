@@ -22,7 +22,7 @@ The cells, in the order those consequences need them:
 - the alt's `plain` cell at the shipped budget;
 - the five-draw and six-draw cells at the doubled and third frames, the payload-size table, the
   probe screens (`advisory`, `bare` and `chrome` at 16 px), the matrices, and the alt's other
-  controls, among them the mail control that voids in every draw
+  controls, among them the mail control whose one answer ran to the end of the window
   ([R-695](695-an-alt-mail-control-voids-in-every-draw-at-the-engine-budget.md)).
 
 **Cost.** On 2026-09-22 the pick's corpus cell took about 12 minutes at the shipped budget and 19 at

@@ -70,7 +70,7 @@ never a reading of what the tree does now.
 ### Actionable now (6)
 
 - **[R-607](tasks/607-eighteen-of-the-cortex-alts-pixel-rows-are-undrawn.md)** Fourteen of the cortex alt's thirty-six pixel rows are undrawn or refused (inference). Its claim was checked against the code on 2026-09-19.
-- **[R-695](tasks/695-an-alt-mail-control-voids-in-every-draw-at-the-engine-budget.md)** An alt `app` control cell is empty in every draw, so three rows cannot publish (vision). Its claim was checked against the code on 2026-09-19.
+- **[R-695](tasks/695-an-alt-mail-control-voids-in-every-draw-at-the-engine-budget.md)** An alt `app` control filled the window at temperature 0, so three rows wait on a sampled redraw (vision). Its claim was checked against the code on 2026-09-23.
 - **[R-705](tasks/705-names-inside-files-still-use-banned-words.md)** Names inside the files still use words the prose table bans (cross-cutting). Its claim was checked against the code on 2026-09-22.
 - **[R-706](tasks/706-only-the-corpus-laundering-cell-is-drawn-at-the-engines-sampler.md)** Only the corpus laundering cell is drawn at the engine's sampler (vision). Its claim was checked against the code on 2026-09-22.
 - **[R-707](tasks/707-model-read-texts-keep-banned-words.md)** Texts a model reads keep words the prose table bans (brain). Its claim was checked against the code on 2026-09-22.
@@ -1031,7 +1031,7 @@ never a reading of what the tree does now.
 - [R-678](tasks/678-a-rows-card-reading-misses-the-ceiling-between-its-ends.md) A row's card reading misses what the ceiling did between its ends. done 2026-09-19.
 - [R-679](tasks/679-a-card-timing-outside-the-injection-harness-records-no-ceiling.md) A card timing outside the injection harness records no ceiling. open, waiting for its trigger.
 - [R-684](tasks/684-a-serving-line-cannot-say-how-long-a-row-ran-under-a-lowered-ceiling.md) A serving line cannot say how long a row ran under a lowered ceiling. open, waiting for its trigger.
-- [R-695](tasks/695-an-alt-mail-control-voids-in-every-draw-at-the-engine-budget.md) An alt `app` control cell is empty in every draw, so three rows cannot publish. open, actionable.
+- [R-695](tasks/695-an-alt-mail-control-voids-in-every-draw-at-the-engine-budget.md) An alt `app` control filled the window at temperature 0, so three rows wait on a sampled redraw. open, actionable.
 - [R-696](tasks/696-the-first-draw-on-a-server-differs-from-the-rest.md) The first draw on a server differs from the rest, and a cell reads differently behind others. done 2026-09-22.
 - [R-706](tasks/706-only-the-corpus-laundering-cell-is-drawn-at-the-engines-sampler.md) Only the corpus laundering cell is drawn at the engine's sampler. open, actionable.
 
