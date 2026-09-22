@@ -71,9 +71,10 @@ August pair was already at the card's edge. Neither the 908 MiB free that row re
 952 MiB the spilled starts read is a margin the driver keeps: stacked E4B tiers took `memory.free`
 to 277 MiB. The spill watch reports both starts at the floor used below, 25.0, which is 0.69 of the
 solo rate on this image. The figure the [model-swap](model-swap.md) runbook gives for this card,
-20125 MiB, refuses the pair ([two tiers on one card](../readings/co-residency.md); the margin that
-separates a fit from a spill is unmeasured,
-[R-710](../refinements/tasks/710-the-free-memory-the-deep-tier-needs-beside-a-peer-is-unmeasured.md)).
+20125 MiB, refuses the pair. Beside an idle filler the lowest free figure that fit was 924 MiB above
+the deep tier's own cost in one session and 734 in the next, three hours later, and the highest
+that spilled was 19967 MiB, so the figure clears every spill seen by 158 MiB ([two tiers on one
+card](../readings/co-residency.md)).
 
 What co-residency buys, on the same run with the artifact warm in the page cache: `stop(cortex)`
 0.48 s, deep tier `ready` 70.03 s later, `stop(brain)` 0.89 s, cortex `ready` 31.43 s later, so

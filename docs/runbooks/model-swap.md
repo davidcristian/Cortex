@@ -64,13 +64,13 @@ card has free on `GET /health`, and a swap reads it after the evictions and befo
 is the only moment the number means anything. Short of the figure, the handoff is refused with both
 numbers in the log and in the reply's note, the deep model is never started, and the recorded
 residency is put back. A model host that can see no card at all refuses the same way. Set the figure
-above the deep tier's own cost: the check cannot see memory taken during a load that runs for a
-minute or more. On this card the cost is 19125 MiB, the deep tier spilled beside the E4B tier with
-up to 19549 MiB free, and 20125 MiB, a gigabyte over the cost because this desktop's idle floor
-moves by that much, refuses that pair. **So on a 24 GB card leave co-residency off**: beside the E4B
-tier the check refuses every handoff, each costing a cortex reload. The same figure is used with
-co-residency off, where it is optional and guards the ordinary handoff on a card too small for the
-deep tier at all.
+above the deep tier's own cost: under WSL the driver puts part of its last buffers in system memory
+with most of a gigabyte still free, and the check cannot see memory taken during the load. On this
+card the cost is 19125 MiB and the tier spilled beside an idle peer at up to 19967 MiB free, so
+20125 refuses every spill seen by at least 158 MiB, little room for the floor rising mid-load. **So
+on a 24 GB card leave co-residency off**: beside the E4B tier the check refuses every handoff, each
+costing a cortex reload. The same figure is used with co-residency off, where it is optional and
+guards the ordinary handoff on a card too small for the deep tier at all.
 
 **One pairing to keep, and the brain fails to start when you break it.** The sidecar's `stop`
 answers only once the child is dead and reaped, so it can legitimately take

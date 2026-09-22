@@ -120,6 +120,64 @@ idle floor moved between the two readings it was subtracted from; the 908 MiB th
 is the level every spilled start above reached. That level is not a reserve the driver keeps: the
 stacked tiers took `memory.free` to 277 MiB. Beside the peer the deep tier added 18931 and 18922
 MiB to the card against its 19117 alone, so part of it went to system memory although `memory.free`
-before the load, 19541 and 19549 MiB, was over 400 MiB above its cost; how much it holds above that
-cost while it loads is unread. Method: `measurements/e4b-cost-2026-09-22/` (`stack.sh`, the two
-servers' `-v` logs and their `nvidia-smi` readings).
+before the load, 19541 and 19549 MiB, was over 400 MiB above its cost; the next section reads what
+it holds while it loads and how much free memory it needs. Method:
+`measurements/e4b-cost-2026-09-22/` (`stack.sh`, the two servers' `-v` logs and their `nvidia-smi`
+readings).
+
+## What free memory the deep tier needs beside a peer
+
+**2026-09-22 and 2026-09-23**, same card, driver 617.14, `server-cuda` `952424b09abc` (`b10680`):
+the plain deep tier's shipped argv with `-lv 4` added, started second beside an idle
+`Qwen3.5-0.8B-Q8_0` filler whose `--ctx-size` set how much of the card it held. Each start served
+one reasoning prompt (thinking on, `max_tokens` 256, seed 42), a warm-up and three timed requests,
+with `nvidia-smi` read every second. Free is `memory.free` just before the deep start, the figure
+the fit check reads. A fit decodes at 0.95 or more of its session's solo median; a spill decodes
+under 0.90 at a clock no lower than the solo's. The rules were written in
+[R-710](../refinements/tasks/710-the-free-memory-the-deep-tier-needs-beside-a-peer-is-unmeasured.md)
+before the starts.
+
+| Free before the load, MiB | 21:34 to 21:50 | 00:59 to 01:35 |
+| --- | --- | --- |
+| 20297 | | fit |
+| 20112 and 20123 | fit; the second stopped after its warm-up | |
+| 20037 to 20065 | fit | three fit; one at 0.94 at a clock 0.07 under the solo's |
+| 19960 to 19967 | two spilled, 0.61 and 0.77 | three fit |
+| 19863 and 19865 | | one fit; one at 0.92 |
+| 19758 and 19763 | | two spilled, 0.39 and 0.80 |
+| 19664 | | spilled, 0.80 |
+
+The solo starts ran at 0.62, 0.61 and 0.60 of `clocks.max.sm`, every fit at 0.61 to 0.62 and every
+spill at 0.73 to 0.86. Every timed start at 20037 MiB free or more decoded at 0.94 or more of its
+session's solo rate, and every one at 19763 or less spilled; between them the result depended on the
+session. In the first the lowest fit was 20037 and the highest spill 19967, and three hours later
+19960 fit three times and 19865 once. The deep tier alone added 19113 to 19135 MiB at ready, so the
+lowest fit was 924 MiB above its cost in the first session and 734 in the second. The 20125 the
+[model-swap](../runbooks/model-swap.md) runbook sets is 158 MiB above the highest free figure that
+spilled.
+
+- **llama.cpp cannot see the shortage.** CUDA in the container reported 23119 MiB free in every
+  start, with 1742 to 4177 MiB in use by the desktop and the filler, so the engine's fit step
+  projected 4272 MiB to spare each time and changed nothing.
+- **The shortfall is in the buffers allocated last.** The tier allocates its model buffer (16818.28
+  MiB), then its KV cache (640 and 1200) and its compute buffer (188.52), beside a context of 230 to
+  270. The model buffer reached the card whole, 16805 to 16916 MiB over one or two seconds, in every
+  start. A spill added 99 to 230 MiB less at ready than its session's solo start, against up to 70
+  less in a fit while the desktop moved: 180 once, near the compute buffer's size, otherwise no one
+  buffer's, and the decode rate did not follow the amount.
+- **The card was not full.** A spill left 749 to 1034 MiB of `memory.free` at ready and a fit 727
+  to 1161, so the driver put those buffers in system memory while the card read most of a gigabyte
+  free.
+- **Nothing is held above the at-ready size.** No sample during a load read more than 37 MiB above
+  it, and decode added at most 75 MiB.
+- **The placement rule is unread.** Inside WSL, `nvidia-smi` lists no processes and no shared
+  memory, so which rule the Windows driver applies is not readable here; the per-process dedicated
+  and shared usage on the Windows side would show it.
+
+The idle floor read 1690 to 1880 MiB used in the first session, 3339 at 00:55 after three hours of
+desktop use, 2042 at 00:59 with only filler loads between, and 1736 to 1742 by 01:33: it rose 1649
+MiB across the gap and fell 1297 in four minutes. The fit check reads that level inside
+`memory.free`; a rise during the load, after the reading, is what it cannot see, and no reading here
+bounds that rise. Method: `measurements/deep-margin-2026-09-22/` (`draw.py`, `rung.sh`,
+`analyze.py`, each start's log, `-lv 4` server log and one-second `nvidia-smi` file, and
+`session.smi.csv`).

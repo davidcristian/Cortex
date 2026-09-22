@@ -129,6 +129,12 @@ it.
   stop being a measurement of the load that runs.
 - **Refusing co-residency at startup whenever the deep tier drafts**: the brain would need the same
   port change to see the drafter, and the refusal forbids a card with room for all three tiers.
+- **A digest of each tier's command line on `GET /health`, declared beside the figure**, the brain
+  refusing a handoff when the two differ: after a change the operator copies the new digest from
+  the route the refusal points to, which shows the route was read and not that the figure was
+  measured again; the engine image and the driver move the cost without changing the command line;
+  and it adds a second declared value and a refusal to a figure only a co-resident deployment
+  relies on, which no measured card runs.
 
 ## Related
 
