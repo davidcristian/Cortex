@@ -3,8 +3,12 @@
 **Status:** open, waiting for its trigger
 **Area:** repo-checks
 **Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-checks.md)
-**Verified:** 2026-09-17
-**Trigger:** the `replay` recipe's defaults line in the `justfile` stops reading `count="5" window="25"`, or any of the prose copies stops saying five and twenty five, since the copies come apart the moment one of them moves. A caller passing other values to `just replay` changes neither default and does not fire it.
+**Verified:** 2026-09-22
+**Trigger:** `grep -n '^replay ' justfile` stops printing `count="5" window="25"`, or
+`git log --since='<Verified date> 00:00' -p -- docs/runbooks/mutation-replay.md
+docs/adr/ADR-0002-toolchain-checks.md` shows a sentence stating five or twenty five as the sample
+or the window being changed. A caller passing other values to `just replay` changes neither
+default and does not fire it.
 
 Two numbers decide a replay pass, the sample of five and the window of twenty five, and each is
 written four times: as a default parameter of the `replay` recipe in the `justfile`, in words in
@@ -14,9 +18,11 @@ them. The default is the executable copy and the other three are the argument fo
 default leaves three passages stating a rule the tool no longer follows.
 
 No coupling was registered because `crosscheck.py` ties a value only where its registry names both
-sides, and every restating place here is prose writing the numbers as words rather than digits.
-Registering it is a registry entry plus its tests plus a search text that survives a sentence being
-rewritten around it, which is more machinery than a number nobody has yet had a reason to change.
+sides. It reads a declaration only from a `.py`, `.rs` or `.ts` file, so the `justfile`'s
+executable copy cannot be one, and the justfile comment and the runbook write both numbers as words,
+a form its mentions do not render. ADR-0002 writes 25 as digits and five as a word. Registering it
+is two edits to the scan plus a search text that survives a sentence being rewritten around it,
+which is more machinery than a number nobody has yet had a reason to change.
 
 The alternative is that the prose stops naming the numbers and points at the recipe, which costs
 the ADR its argument and is probably the wrong trade.
@@ -59,3 +65,13 @@ the ADR its argument and is probably the wrong trade.
   uses `{{ window }}` and `{{ count }}` (lines 376 to 388) rather than copying them. The only
   change since the last reading, the commit that counts the current gap from the commit a pass drew
   from, moved neither number.
+- 2026-09-22: not fired. `grep -n '^replay ' justfile` prints line 204 with `count="5"
+  window="25"`, the comment above it (lines 201 to 203) still says five and twenty five, and the
+  recipe body uses `{{ window }}` and `{{ count }}` (lines 257 to 269) rather than copying them. The
+  runbook now states the rule on eleven lines rather than five, having gained the fallback that
+  replaces a drawn message with no table: twenty five on lines 18, 29, 66 and 177, and five on
+  lines 66, 67, 70, 74, 79, 80, 91 and 98. The ledger rows at 197 and 198 record what a pass drew.
+  ADR-0002 decision 20 writes 25 in digits on lines 146 to 152 and five in words on lines 147, 158
+  and 162. Nothing in AGENTS.md, `docs/modules/`, `scripts/` or the workflows writes either
+  number. `crosscheck.py` still reads declarations from three suffixes and has three mention
+  forms, none rendering a number as words. The trigger now names the commands that answer it.

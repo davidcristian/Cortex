@@ -4,10 +4,10 @@
 **Area:** repo-checks
 **Origin:** [ADR-0011](../../adr/ADR-0011-body-v1.md)
 **Trigger:** a release of `tauri-build`, `tauri-winres` or `embed-resource` within the shell's
-manifest requirement that lets a build for a target it never links skip the resource step, or the
-first `cfg(windows)` failure in the shell that reaches master because the check that would have
-caught it does not run at the hook.
-**Verified:** 2026-09-17
+manifest requirement that lets a build for a target it never links skip the resource step, or
+`just check-shell` on master, with `RC_x86_64_pc_windows_msvc` naming a GNU windres, failing at
+its Windows line over a `cfg(windows)` item.
+**Verified:** 2026-09-22
 
 `check-shell` runs two clippy lines, the host one and
 `cargo clippy --locked --target x86_64-pc-windows-msvc --all-targets -- -D warnings`, and CI
@@ -18,8 +18,9 @@ inherited by the Windows one for a narrower reason.
 
 The host line needs the Linux GTK, webkit and dbus dev packages because the shell genuinely depends
 on that stack. The Windows line needs none of them: the whole Tauri Windows graph type-checks in
-26.1 s with nothing installed but the rust target. It needs exactly one package,
-`binutils-mingw-w64-x86-64`, and only because `tauri_build::build()` compiles a VERSIONINFO resource
+about five sixths of the host run's time ([readings](../../readings/shell-clippy.md)) with none
+of the Linux packages installed. It needs exactly one package, `binutils-mingw-w64-x86-64`, and
+only because `tauri_build::build()` compiles a VERSIONINFO resource
 for every Windows target, through `tauri-winres` and from there `embed-resource`, and hands it to a
 compiler that has to exist. No argument to `tauri_build::build()` and no environment variable turns
 that step off; the switches `tauri-build` offers (`WindowsAttributes`) choose what goes into the
@@ -60,3 +61,15 @@ depends on and a check that runs a different one proves less than it claims.
   has touched `body/app/src-tauri/` since 2026-09-07, a one-line default in a doc comment in
   `brain.rs`. The six items, the one `build.rs:2` call and `check-shell` (`justfile:265`) are
   unchanged.
+- 2026-09-22: not fired on either part. The newest stable releases are still the fixed `tauri-build`
+  2.6.3, `tauri-winres` 0.3.6 and `embed-resource` 3.0.11. A second pre-release,
+  `tauri-build` 3.0.0-alpha.1, appeared on 2026-09-21, outside the manifest's `"2"`; its
+  `src/lib.rs` still builds a `WindowsResource` and calls `compile()` for any target triple
+  containing `windows`, with no switch around it (lines 771 to 855). The Windows line was run on
+  master for the first time since this opened, with the windres from `apt-get download
+  binutils-mingw-w64-x86-64` unpacked outside the repo and named by `RC_x86_64_pc_windows_msvc`,
+  from an empty target directory: it exits 0. Three commits touched `body/app/src-tauri/` since the
+  last reading, a fix in `reminders.rs`, the rename of the shell's `seam.rs` to `brain.rs` and one
+  line of `Cargo.toml`, and none touches the six items, still four in `body_server.rs` and two in
+  `hotkey.rs`. `check-shell` is at `justfile:177` and the one `tauri_build::build()` call at
+  `build.rs:2`. The trigger's second part now names the command that answers it.

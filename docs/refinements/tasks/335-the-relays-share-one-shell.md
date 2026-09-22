@@ -10,7 +10,7 @@ across recipe lines, which just runs in separate shells, or by reading either fr
 variable, a file or a CI step's output. The arrangement also depends on the `justfile` setting no
 `shell`, so each recipe line is one `sh -cu`, and on both substitutions naming the toolchain as
 `+nightly`, which no directory override can change.
-**Verified:** 2026-09-17
+**Verified:** 2026-09-22
 
 The decline of [R-313](313-a-relay-can-be-required-and-empty.md) rests entirely on the shape of one
 line in the `justfile`: both arguments are filled by two command substitutions in the same shell,
@@ -21,8 +21,9 @@ toolchain name that does not resolve, both come back empty together and the run 
 What is unchecked is the arrangement, not the check itself. Nothing fails if somebody fills either
 argument from somewhere else: a second recipe line, an environment variable, a file passed between
 shells, a CI step's output. Each is a reasonable edit for an unrelated reason, and any of them
-restores the quiet half the decline was measured against. The assumption is written in the
-`check-body` comment beside the line, which is where an editor would meet it.
+restores the quiet half the decline was measured against. Nothing in the `justfile` names the
+assumption: the comment above `check-body` covers its toolchains only, so an editor splitting the
+line meets no warning, and only a reader running this entry's trigger finds the split.
 
 If the arrangement goes, add the validator the declined entry described: one shared non-blank check
 on both arguments, so a blank or whitespace string is refused with argparse's own usage error
@@ -55,3 +56,13 @@ fields. It is three lines.
   running from `body/` and the run from `scripts/` resolve the same toolchain. Three commits
   touched the `justfile` since the last reading and none of their diffs names this recipe or the
   script.
+- 2026-09-22: Not fired. The trigger's grep returns one line, `justfile:172`, which still fills
+  `--rustc` and `--llvm-cov` from two substitutions of its own, both naming `+nightly`. The two
+  probes are their own lines (168 and 169), the `justfile` has no `set shell`, and
+  `.github/workflows/ci.yml` names the script only in the comment at line 130. The body's claim
+  that the `check-body` comment states the assumption was wrong: the comment above the recipe
+  (lines 159 to 161) names the nightly toolchain and the Windows target and nothing about the
+  shared shell, so the text now says so. `_require_version` still states the non-blank rule at
+  `scripts/rustcoverage.py:54`. Six commits touched the `justfile` since the last reading. Two
+  changed this recipe, one adding the comment above it and one renaming the script the line runs,
+  and neither moved either substitution.

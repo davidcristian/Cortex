@@ -26,8 +26,8 @@ seconds apart.
 Declined because the validator would be a check that cannot fail for a reason that happens, a shape
 this origin has declined at least three times, and the suite would contain a case its only caller
 cannot produce. The asymmetry stays: one argument is compared and the other printed, because the
-export records a tool and no compiler. The arrangement the decline rests on is written in the
-`check-body` comment beside the line, and the trigger that would reopen the question is
+export records a tool and no compiler. The arrangement the decline rests on is the shape of that
+one `check-body` line, and the trigger that would reopen the question is
 [R-335](335-the-relays-share-one-shell.md): the two arguments stop being filled by two substitutions
 in one shell. The fix, if that happens, is a shared validator on both arguments rejecting a blank
 string with argparse's own usage error; `_require_version` in the module already states that rule
