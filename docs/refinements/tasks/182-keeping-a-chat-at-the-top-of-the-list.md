@@ -4,7 +4,7 @@
 **Area:** session-read-rpc
 **Origin:** [ADR-0021](../../adr/ADR-0021-session-read-rpcs.md)
 
-A `SessionStore.set_pinned` write and a `pinned` field on `SessionSummary` across the wire and all
+A `SessionStore.set_hoisted` write and a `hoisted` field on `SessionSummary` across the wire and all
 four trees, but the real cost was a read-path decision: whether a chat kept at the top escapes the
 recency `ZREVRANGE` window and so has to be merged into the listing.
 
@@ -12,17 +12,17 @@ It does. `list_sessions` merges the kept set into every listing. Round trip one 
 in one transaction (`ZREVRANGE` for the recency window and `SMEMBERS` for the new
 `cortex:sessions:pinned` set), their union is the listed set (recency window first, then the kept
 ids outside it, deduplicated), and round trip two is the same batched ends-read, so it stays two
-round trips and two decoded records per chat. A new pure-core `merge_pinned` is the one ordering
+round trips and two decoded records per chat. A new pure-core `merge_hoisted` is the one ordering
 rule (stable-sort by recency, then by not being kept, so kept chats sort above the recency group,
 newest first within each), and both the fake and the Redis adapter build the same deduplicated
 candidate set and hand it there.
 
 Three costs the "one write plus one field" framing hid: the union is additive, so a catalog with
 many kept chats lists more than `limit`; `delete` must also `SREM` the member, or a deleted id
-lingers; and `set_pinned` takes `*, pinned` keyword-only, per the repo's boolean-argument
+lingers; and `set_hoisted` takes `*, hoisted` keyword-only, per the repo's boolean-argument
 convention.
 
-`SetSessionPinned` is protected by the same structural user-only reachability as rename and delete:
+`SetSessionHoisted` is protected by the same structural user-only reachability as rename and delete:
 no tool, never through the turn engine. Its `SeamMethod` is classified not repeatable despite being
 idempotent by value, because the convention is uniform and a lost reply must not re-assert a value
 the user's next toggle reversed.

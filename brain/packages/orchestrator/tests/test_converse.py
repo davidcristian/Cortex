@@ -111,8 +111,8 @@ class CountingFailingStore:
     async def delete(self, session_id: str) -> None:
         del session_id
 
-    async def set_pinned(self, session_id: str, *, pinned: bool) -> None:
-        del session_id, pinned
+    async def set_hoisted(self, session_id: str, *, hoisted: bool) -> None:
+        del session_id, hoisted
 
     async def set_recap(self, session_id: str, recap: HistoryRecap) -> None:
         del session_id, recap

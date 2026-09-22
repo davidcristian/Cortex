@@ -67,8 +67,8 @@ export class TauriBridge implements BrainBridge {
     return invoke<void>("delete_session", { sessionId });
   }
 
-  setSessionPinned(sessionId: string, pinned: boolean): Promise<void> {
-    return invoke<void>("set_session_pinned", { sessionId, pinned });
+  setSessionHoisted(sessionId: string, hoisted: boolean): Promise<void> {
+    return invoke<void>("set_session_hoisted", { sessionId, hoisted });
   }
 
   listDueReminders(): Promise<readonly DueReminder[]> {

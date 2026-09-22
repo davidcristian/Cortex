@@ -59,6 +59,6 @@ resends. `converse` stays unretried, `SeamMethod::Converse` not being repeatable
   turn's silence and leaves `repeatable` answering false for `Converse`. One sentence of the
   2026-09-11 line was wrong: `Converse` is not the only method `repeatable` answers false for. It
   is one of six (`plan.rs:157-162`), the others being `AckReminder`, `RenameSession`,
-  `DeleteSession`, `SetSessionPinned` and `SetPreference`. It is the only method `deadline_for`
+  `DeleteSession`, `SetSessionHoisted` and `SetPreference`. It is the only method `deadline_for`
   answers `None` for, which is the half [R-360](360-a-read-that-will-not-fit-declines-early.md)
   depends on, so that line's conclusion stands.

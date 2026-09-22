@@ -197,7 +197,7 @@ describe("Composer", () => {
     expect(field().style.height).toBe("34px");
   });
 
-  it("pins the pill's floor for the measurement and hands it back afterwards", () => {
+  it("fixes the pill's floor for the measurement and hands it back afterwards", () => {
     render(<Stage arrival={0} />);
     fakeMetrics(34, () => 34);
     fireEvent.change(field(), { target: { value: "one line" } });

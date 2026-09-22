@@ -124,7 +124,7 @@ mechanisms, file by file, are in [body-app.md](../modules/body-app.md).
     confirm's cancel, never on its destructive half, and closes on the trash. A row that leaves
     hands it to the same control in the row that takes its place (below, else above), so deleting
     several chats is one gesture repeated. A list left empty hands it to its anchor: the header's
-    chats button for the switcher, the composer for the reminder stack. The `pinned` toggle survives
+    chats button for the switcher, the composer for the reminder stack. The hoist toggle survives
     its own regroup and needs no rule. The move happens at the commit, in a layout effect, to a
     control named by `data-caret` and looked up inside the list.
 17. **Escape closes the innermost thing.** The rename editor and the delete confirm stop a

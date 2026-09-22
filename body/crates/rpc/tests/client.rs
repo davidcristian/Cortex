@@ -21,7 +21,7 @@ use body_rpc::generated::{
     ListDueRemindersReply, ListDueRemindersRequest, ListSessionsReply, ListSessionsRequest,
     Preference, RenameSessionReply, RenameSessionRequest, ServerEvent,
     SessionMessage as PbSessionMessage, SessionSummary as PbSessionSummary, SetPreferenceReply,
-    SetPreferenceRequest, SetSessionPinnedReply, SetSessionPinnedRequest,
+    SetPreferenceRequest, SetSessionHoistedReply, SetSessionHoistedRequest,
 };
 use tokio::net::TcpListener;
 use tokio::sync::oneshot;
@@ -60,9 +60,9 @@ struct FakeBrain {
     /// Records each `DeleteSession` write's `session_id`, so a test can prove the id crossed the
     /// wire (the reply is a bare ack).
     deletes: Arc<Mutex<Vec<String>>>,
-    /// Records each `SetSessionPinned` write `(session_id, pinned)`, so a test can prove both
+    /// Records each `SetSessionHoisted` write `(session_id, hoisted)`, so a test can prove both
     /// fields crossed the wire (the reply is a bare ack).
-    pins: Arc<Mutex<Vec<(String, bool)>>>,
+    hoists: Arc<Mutex<Vec<(String, bool)>>>,
     /// Records each `SetPreference` write `(key, value)`, so a test can prove both fields crossed
     /// the wire, the empty clearing value included (the reply is a bare ack).
     preference_writes: Arc<Mutex<Vec<(String, String)>>>,
@@ -80,7 +80,7 @@ impl FakeBrain {
             reminders_fail: false,
             renames: Arc::new(Mutex::new(Vec::new())),
             deletes: Arc::new(Mutex::new(Vec::new())),
-            pins: Arc::new(Mutex::new(Vec::new())),
+            hoists: Arc::new(Mutex::new(Vec::new())),
             preference_writes: Arc::new(Mutex::new(Vec::new())),
             timeouts: Arc::new(Mutex::new(Vec::new())),
         }
@@ -167,14 +167,14 @@ impl BrainService for FakeBrain {
                     title: format!("limit={limit}"),
                     preview: String::from("newest chat"),
                     last_activity_unix_ms: 2000,
-                    pinned: true,
+                    hoisted: true,
                 },
                 PbSessionSummary {
                     session_id: String::from("alpha"),
                     title: String::from("older chat"),
                     preview: String::from("oldest chat"),
                     last_activity_unix_ms: 1000,
-                    pinned: false,
+                    hoisted: false,
                 },
             ],
         }))
@@ -277,19 +277,19 @@ impl BrainService for FakeBrain {
         Ok(Response::new(DeleteSessionReply {}))
     }
 
-    async fn set_session_pinned(
+    async fn set_session_hoisted(
         &self,
-        request: Request<SetSessionPinnedRequest>,
-    ) -> Result<Response<SetSessionPinnedReply>, Status> {
+        request: Request<SetSessionHoistedRequest>,
+    ) -> Result<Response<SetSessionHoistedReply>, Status> {
         if self.sessions_fail {
             return Err(Status::unavailable("store down"));
         }
         let req = request.into_inner();
-        self.pins
+        self.hoists
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .push((req.session_id, req.pinned));
-        Ok(Response::new(SetSessionPinnedReply {}))
+            .push((req.session_id, req.hoisted));
+        Ok(Response::new(SetSessionHoistedReply {}))
     }
 
     async fn get_preferences(
@@ -499,14 +499,14 @@ async fn list_sessions_maps_summaries_in_order() {
                 title: String::from("limit=7"),
                 preview: String::from("newest chat"),
                 last_activity_unix_ms: 2000,
-                pinned: true,
+                hoisted: true,
             },
             SessionSummary {
                 session_id: String::from("alpha"),
                 title: String::from("older chat"),
                 preview: String::from("oldest chat"),
                 last_activity_unix_ms: 1000,
-                pinned: false,
+                hoisted: false,
             },
         ]
     );
@@ -647,25 +647,25 @@ async fn delete_session_store_failure_maps_to_the_rpc_variant() {
 }
 
 #[tokio::test]
-async fn set_session_pinned_writes_both_fields_across_the_wire() {
+async fn set_session_hoisted_writes_both_fields_across_the_wire() {
     let recorder = Arc::new(Mutex::new(Vec::new()));
     let mut fake = FakeBrain::new(Script::Ready);
-    fake.pins = recorder.clone();
+    fake.hoists = recorder.clone();
     let addr = spawn_fake_brain(fake).await.unwrap();
     let client = BrainSeamClient::connect(&format!("http://{addr}"))
         .await
         .unwrap();
-    client.set_session_pinned("chat-9", true).await.unwrap();
+    client.set_session_hoisted("chat-9", true).await.unwrap();
     assert_eq!(
         *recorder.lock().unwrap(),
         vec![(String::from("chat-9"), true)]
     );
-    client.set_session_pinned("chat-9", false).await.unwrap();
+    client.set_session_hoisted("chat-9", false).await.unwrap();
     assert_eq!(recorder.lock().unwrap()[1], (String::from("chat-9"), false));
 }
 
 #[tokio::test]
-async fn set_session_pinned_store_failure_maps_to_the_rpc_variant() {
+async fn set_session_hoisted_store_failure_maps_to_the_rpc_variant() {
     let mut fake = FakeBrain::new(Script::Ready);
     fake.sessions_fail = true;
     let addr = spawn_fake_brain(fake).await.unwrap();
@@ -673,7 +673,7 @@ async fn set_session_pinned_store_failure_maps_to_the_rpc_variant() {
         .await
         .unwrap();
     assert_eq!(
-        client.set_session_pinned("s", true).await.unwrap_err(),
+        client.set_session_hoisted("s", true).await.unwrap_err(),
         TransportError::Rpc {
             code: String::from("Unavailable"),
             message: String::from("store down"),

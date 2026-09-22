@@ -15,11 +15,11 @@ one constant.
   `ConfirmRequest`, `ConfirmResponse` and `ConfirmResolved` (ADR-0022).
 - **Health**: `HealthRequest` and `HealthReply`.
 - **The session catalog** (ADR-0021): `ListSessionsRequest`, `ListSessionsReply`, `SessionSummary`
-  (which has a `pinned` bool, ADR-0021 decision 12), `GetSessionMessagesRequest`,
+  (which has a `hoisted` bool, ADR-0021 decision 12), `GetSessionMessagesRequest`,
   `GetSessionMessagesReply` and `SessionMessage` are the read-only views;
   `RenameSessionRequest`/`RenameSessionReply`, `DeleteSessionRequest`/`DeleteSessionReply` (the
   destructive write, which hard-deletes a chat and cascades to its private memories) and
-  `SetSessionPinnedRequest`/`SetSessionPinnedReply` are the three user-only writes on it (ADR-0021
+  `SetSessionHoistedRequest`/`SetSessionHoistedReply` are the three user-only writes on it (ADR-0021
   decisions 10 to 12).
 - **Reminders** (ADR-0025): `ListDueRemindersRequest`, `ListDueRemindersReply`, `DueReminder`,
   `AckReminderRequest` and `AckReminderReply`.

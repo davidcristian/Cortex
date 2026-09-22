@@ -1,7 +1,7 @@
 import type { SessionSummary } from "../bridge/types";
 import { fieldKey } from "../overlay/fieldKeys";
 import { caretKey } from "../overlay/rowCaret";
-import { CheckIcon, CloseIcon, PencilIcon, PinIcon, TrashIcon } from "./icons";
+import { CheckIcon, CloseIcon, HoistIcon, PencilIcon, TrashIcon } from "./icons";
 import { relativeTime } from "./relativeTime";
 
 /** Which of its three shapes a row is in. The list holds this rather than the row, because at
@@ -26,7 +26,7 @@ interface SessionRowProps {
   readonly onStartDelete: () => void;
   readonly onConfirmDelete: () => void;
   readonly onCancelDelete: () => void;
-  readonly onPin: () => void;
+  readonly onHoist: () => void;
 }
 
 /** One chat in the switcher, in whichever of its three shapes the list has it in. All three are
@@ -46,7 +46,7 @@ export function SessionRow({
   onStartDelete,
   onConfirmDelete,
   onCancelDelete,
-  onPin,
+  onHoist,
 }: SessionRowProps) {
   const id = session.sessionId;
   if (shape === "rename") {
@@ -127,7 +127,7 @@ export function SessionRow({
     );
   }
   return (
-    <div className={`switcher-row${session.pinned ? " pinned" : ""}`}>
+    <div className={`switcher-row${session.hoisted ? " hoisted" : ""}`}>
       <button
         type="button"
         className={`switcher-item${current ? " current" : ""}`}
@@ -140,8 +140,8 @@ export function SessionRow({
         <span className="switcher-title">{session.title}</span>
         <span className="switcher-preview">{session.preview}</span>
       </button>
-      {/* Right to left: the time, then the `pin`, the pencil and the trash. The time takes the
-          edge because it is what a reader skimming for a chat looks at, and the three controls
+      {/* Right to left: the time, then the hoist toggle, the pencil and the trash. The time takes
+          the edge because it is what a reader skimming for a chat looks at, and the three controls
           stand inboard of it in the order they escalate. */}
       <button
         type="button"
@@ -163,12 +163,12 @@ export function SessionRow({
       </button>
       <button
         type="button"
-        className={`switcher-pin-btn${session.pinned ? " on" : ""}`}
-        aria-label={session.pinned ? `Unpin ${session.title}` : `Pin ${session.title}`}
-        aria-pressed={session.pinned}
-        onClick={onPin}
+        className={`switcher-hoist-btn${session.hoisted ? " on" : ""}`}
+        aria-label={session.hoisted ? `Lower ${session.title}` : `Hoist ${session.title}`}
+        aria-pressed={session.hoisted}
+        onClick={onHoist}
       >
-        <PinIcon filled={session.pinned} />
+        <HoistIcon filled={session.hoisted} />
       </button>
       <span className="switcher-time">{relativeTime(session.lastActivityUnixMs, now)}</span>
     </div>

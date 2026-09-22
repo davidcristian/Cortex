@@ -129,15 +129,15 @@ pub trait BrainTransport: Send + Sync {
         session_id: &str,
     ) -> impl Future<Output = Result<(), TransportError>> + Send;
 
-    /// Sets or clears the `pinned` mark on one chat, from the overlay's toggle.
+    /// Hoists or lowers one chat, from the overlay's toggle.
     ///
     /// # Errors
     ///
     /// As [`BrainTransport::list_sessions`].
-    fn set_session_pinned(
+    fn set_session_hoisted(
         &self,
         session_id: &str,
-        pinned: bool,
+        hoisted: bool,
     ) -> impl Future<Output = Result<(), TransportError>> + Send;
 
     /// Reads the settings whole: every stored key, as `(key, value)` pairs sorted by key.

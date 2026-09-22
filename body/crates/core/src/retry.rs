@@ -179,13 +179,13 @@ impl<T: BrainTransport, S: Sleeper, R: Randomness> BrainTransport for RetryingTr
         .await
     }
 
-    async fn set_session_pinned(
+    async fn set_session_hoisted(
         &self,
         session_id: &str,
-        pinned: bool,
+        hoisted: bool,
     ) -> Result<(), TransportError> {
-        self.guarded(SeamMethod::SetSessionPinned, || {
-            self.inner.set_session_pinned(session_id, pinned)
+        self.guarded(SeamMethod::SetSessionHoisted, || {
+            self.inner.set_session_hoisted(session_id, hoisted)
         })
         .await
     }

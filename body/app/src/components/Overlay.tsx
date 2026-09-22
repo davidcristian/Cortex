@@ -55,7 +55,7 @@ export function Overlay({
     openSession,
     renameSession,
     deleteSession,
-    setSessionPinned,
+    setSessionHoisted,
     cyclePrev,
     cycleNext,
     toggleSwitcher,
@@ -139,7 +139,7 @@ export function Overlay({
         onSelectSession={openSession}
         onRenameSession={renameSession}
         onDeleteSession={deleteSession}
-        onPinSession={setSessionPinned}
+        onHoistSession={setSessionHoisted}
         onRespondConfirm={respondConfirm}
         onDismissReminder={dismissReminder}
       />

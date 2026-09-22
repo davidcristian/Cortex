@@ -123,7 +123,10 @@ settles a wedged turn in ten minutes instead of four hours.
 Run the body and the brain from the same build. An older brain sends no heartbeats, so a newer body
 ends every turn that is quiet for two minutes; setting `CORTEX_BRAIN_TURN_HEARTBEAT_GAP_MS=14400000`
 restores the old bounds until the brain is rebuilt. An older body reads the first heartbeat as a
-protocol error and ends the turn.
+protocol error and ends the turn. The same builds renamed the call behind the switcher's hoist
+toggle to `SetSessionHoisted`, so across the two builds that toggle fails with `UNIMPLEMENTED` in
+either direction and the list keeps its grouping; the listing itself still shows which chats are
+hoisted, because the field kept its number.
 
 **The window in v1** is a fixed 640 by 720 frameless opaque always-on-top window, and the hotkey
 toggles it, with no hide-on-blur, so a check is predictable. Deferred to a later overlay-polish

@@ -20,7 +20,7 @@ column, one row down" does.
 The entry filed five gestures and there are thirteen, all measured at 900x900. Nine read `<body>` at
 0ms, and the cause is an unmount rather than the `inert` found for the swap paths. The reminder
 acknowledgement is the one that behaves as filed, holding the caret to 320ms and reading `<body>` at
-350. The `pin` toggle needs no answer, since its button survives the regrouping it causes.
+350. The hoist toggle needs no answer, since its button survives the regrouping it causes.
 
 The caret moves at the commit rather than at the end of the animation, because the control being
 aimed at is on screen all along and waiting would park the caret in two different places for 300ms.

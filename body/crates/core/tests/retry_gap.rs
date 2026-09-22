@@ -409,10 +409,10 @@ impl BrainTransport for StallingTransport {
         Err(TransportError::Connection(String::from("unused")))
     }
 
-    async fn set_session_pinned(
+    async fn set_session_hoisted(
         &self,
         _session_id: &str,
-        _pinned: bool,
+        _hoisted: bool,
     ) -> Result<(), TransportError> {
         Err(TransportError::Connection(String::from("unused")))
     }

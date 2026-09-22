@@ -95,16 +95,14 @@ export function TrashIcon() {
   );
 }
 
-/** The `pin` control: a pushpin that keeps a chat listed however old it is. `filled` draws the
- *  head solid, so one control both sets it and shows its state. */
-export function PinIcon({ filled = false }: { readonly filled?: boolean }) {
+/** The hoist control: an arrow rising to a bar, for a chat kept above newer ones however old it
+ *  is. `filled` draws the arrowhead solid, so one control both sets it and shows its state. */
+export function HoistIcon({ filled = false }: { readonly filled?: boolean }) {
   return (
     <Icon>
-      <path d="M12 17v4" />
-      <path
-        d="M9 3.5h6l-.6 5.2 2.4 2.1a1 1 0 0 1 .3.75V13H6v-1.45a1 1 0 0 1 .3-.75l2.4-2.1z"
-        fill={filled ? "currentColor" : "none"}
-      />
+      <path d="M5 4h14" />
+      <path d="M12 14V20" />
+      <path d="M12 8l4.5 6h-9z" fill={filled ? "currentColor" : "none"} />
     </Icon>
   );
 }

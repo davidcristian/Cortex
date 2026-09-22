@@ -50,7 +50,7 @@ export function sessions(): SessionSummary[] {
       title: "Summarize my unread email",
       preview: "You have three unread threads…",
       lastActivityUnixMs: Date.now() - 3 * 60 * 60 * 1000,
-      pinned: true,
+      hoisted: true,
     },
     {
       // The title is deliberately unlike this chat's first message, so opening the chat shows
@@ -59,14 +59,14 @@ export function sessions(): SessionSummary[] {
       title: "Everything about model swaps",
       preview: "The cortex is evicted and the brain loads…",
       lastActivityUnixMs: Date.now() - 5 * 60 * 1000,
-      pinned: false,
+      hoisted: false,
     },
     {
       sessionId: "demo-3",
       title: "Reminders and recurrence",
       preview: "Every weekday at nine, in your timezone…",
       lastActivityUnixMs: Date.now() - 40 * 60 * 1000,
-      pinned: false,
+      hoisted: false,
     },
   ];
 }

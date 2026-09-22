@@ -51,7 +51,7 @@ impl BrainTransport for FakeTransport {
             title: format!("limit {limit}"),
             preview: String::from("hi"),
             last_activity_unix_ms: 42,
-            pinned: false,
+            hoisted: false,
         }])
     }
 
@@ -107,10 +107,10 @@ impl BrainTransport for FakeTransport {
         Ok(())
     }
 
-    async fn set_session_pinned(
+    async fn set_session_hoisted(
         &self,
         session_id: &str,
-        pinned: bool,
+        hoisted: bool,
     ) -> Result<(), TransportError> {
         if session_id.is_empty() {
             return Err(TransportError::Rpc {
@@ -118,7 +118,7 @@ impl BrainTransport for FakeTransport {
                 message: String::from("store down"),
             });
         }
-        let _ = pinned;
+        let _ = hoisted;
         Ok(())
     }
 
@@ -548,13 +548,13 @@ async fn fake_transport_deletes_a_session_through_the_generic_bound() {
 }
 
 #[tokio::test]
-async fn fake_transport_sets_the_pin_through_the_generic_bound() {
-    async fn set_pinned<T: BrainTransport>(
+async fn fake_transport_sets_the_hoist_through_the_generic_bound() {
+    async fn set_hoisted<T: BrainTransport>(
         t: &T,
         session_id: &str,
-        pinned: bool,
+        hoisted: bool,
     ) -> Result<(), TransportError> {
-        t.set_session_pinned(session_id, pinned).await
+        t.set_session_hoisted(session_id, hoisted).await
     }
     let fake = FakeTransport {
         script: Ok(SeamHealth {
@@ -562,10 +562,10 @@ async fn fake_transport_sets_the_pin_through_the_generic_bound() {
             detail: String::new(),
         }),
     };
-    assert!(assert_send(set_pinned(&fake, "s1", true)).await.is_ok());
-    assert!(set_pinned(&fake, "s1", false).await.is_ok());
+    assert!(assert_send(set_hoisted(&fake, "s1", true)).await.is_ok());
+    assert!(set_hoisted(&fake, "s1", false).await.is_ok());
     assert_eq!(
-        set_pinned(&fake, "", true).await.unwrap_err(),
+        set_hoisted(&fake, "", true).await.unwrap_err(),
         TransportError::Rpc {
             code: String::from("Unavailable"),
             message: String::from("store down"),
@@ -611,7 +611,7 @@ fn session_summary_and_message_are_clone_eq_and_debug() {
         title: String::from("about cats"),
         preview: String::from("cats are great"),
         last_activity_unix_ms: 1000,
-        pinned: true,
+        hoisted: true,
     };
     assert_eq!(summary.clone(), summary);
     assert_ne!(
@@ -624,14 +624,14 @@ fn session_summary_and_message_are_clone_eq_and_debug() {
     assert_ne!(
         summary,
         SessionSummary {
-            pinned: false,
+            hoisted: false,
             ..summary.clone()
         }
     );
     let summary_debug = format!("{summary:?}");
     assert!(summary_debug.contains("SessionSummary"), "{summary_debug}");
     assert!(summary_debug.contains("about cats"), "{summary_debug}");
-    assert!(summary_debug.contains("pinned: true"), "{summary_debug}");
+    assert!(summary_debug.contains("hoisted: true"), "{summary_debug}");
 
     let message = SessionMessage {
         role: String::from("user"),

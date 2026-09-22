@@ -112,7 +112,7 @@ async def check_delete_removes_the_session(store: SessionStore) -> None:
     await store.append(doomed, make_message(Role.USER, "secret question", at=_AT, turn_id="d"))
     await store.append(doomed, make_message(Role.ASSISTANT, "secret answer", at=_AT, turn_id="d"))
     await store.set_title(doomed, "A private label")
-    await store.set_pinned(doomed, pinned=True)
+    await store.set_hoisted(doomed, hoisted=True)
     await store.set_recap(doomed, HistoryRecap(text="they discussed the secret", covers=2))
     await store.append(kept, make_message(Role.USER, "an unrelated chat", at=_AT, turn_id="k"))
 
@@ -128,37 +128,37 @@ async def check_delete_removes_the_session(store: SessionStore) -> None:
     await store.append(doomed, make_message(Role.USER, "a brand new topic", at=_AT, turn_id="n"))
     (reborn,) = [s for s in await store.list_sessions(limit=50) if s.session_id == doomed]
     assert reborn.title == "a brand new topic"
-    assert reborn.pinned is False
+    assert reborn.hoisted is False
 
 
-async def check_set_pinned_marks_and_clears_the_summary(store: SessionStore) -> None:
-    """``set_pinned`` toggles ``SessionSummary.pinned``; setting the same value twice is a no-op."""
+async def check_set_hoisted_marks_and_clears_the_summary(store: SessionStore) -> None:
+    """``set_hoisted`` toggles ``SessionSummary.hoisted``; setting a value twice is a no-op."""
     session_id = _session_id()
-    await store.append(session_id, make_message(Role.USER, "toggle my pin"))
+    await store.append(session_id, make_message(Role.USER, "toggle my hoist"))
 
-    async def is_pinned() -> bool:
+    async def is_hoisted() -> bool:
         (mine,) = [s for s in await store.list_sessions(limit=50) if s.session_id == session_id]
-        return mine.pinned
+        return mine.hoisted
 
-    assert await is_pinned() is False
-    await store.set_pinned(session_id, pinned=True)
-    assert await is_pinned() is True
-    await store.set_pinned(session_id, pinned=True)
-    assert await is_pinned() is True
-    await store.set_pinned(session_id, pinned=False)
-    assert await is_pinned() is False
+    assert await is_hoisted() is False
+    await store.set_hoisted(session_id, hoisted=True)
+    assert await is_hoisted() is True
+    await store.set_hoisted(session_id, hoisted=True)
+    assert await is_hoisted() is True
+    await store.set_hoisted(session_id, hoisted=False)
+    assert await is_hoisted() is False
 
 
-async def check_a_pinned_chat_escapes_the_recency_window(store: SessionStore) -> None:
-    """A `pinned` chat older than the recency window still lists, above the recency group."""
+async def check_a_hoisted_chat_escapes_the_recency_window(store: SessionStore) -> None:
+    """A hoisted chat older than the recency window still lists, above the recency group."""
     old = _session_id()
     newer = [_session_id() for _ in range(3)]
     base = datetime(2026, 7, 3, 8, 0, tzinfo=UTC)
-    await store.append(old, make_message(Role.USER, "pinned old topic", at=base, turn_id="o"))
+    await store.append(old, make_message(Role.USER, "hoisted old topic", at=base, turn_id="o"))
     for offset, session_id in enumerate(newer, start=1):
         at = base + timedelta(hours=offset)
         await store.append(session_id, make_message(Role.USER, "recent", at=at, turn_id="n"))
-    await store.set_pinned(old, pinned=True)
+    await store.set_hoisted(old, hoisted=True)
 
     listed = await store.list_sessions(limit=3)
 
@@ -166,24 +166,24 @@ async def check_a_pinned_chat_escapes_the_recency_window(store: SessionStore) ->
     assert old in ids
     assert ids.count(old) == 1
     by_id = {s.session_id: s for s in listed}
-    assert by_id[old].pinned is True
+    assert by_id[old].hoisted is True
     old_index = ids.index(old)
-    first_unpinned = next(i for i, s in enumerate(listed) if not s.pinned)
-    assert old_index < first_unpinned
+    first_plain = next(i for i, s in enumerate(listed) if not s.hoisted)
+    assert old_index < first_plain
     mine_newer = [s for s in listed if s.session_id in set(newer)]
     assert [s.session_id for s in mine_newer] == list(reversed(newer))
-    assert all(s.pinned is False for s in mine_newer)
+    assert all(s.hoisted is False for s in mine_newer)
 
 
-async def check_a_pinned_recent_chat_is_not_duplicated(store: SessionStore) -> None:
-    """A chat that is both `pinned` and inside the recency window appears exactly once."""
+async def check_a_hoisted_recent_chat_is_not_duplicated(store: SessionStore) -> None:
+    """A chat that is both hoisted and inside the recency window appears exactly once."""
     session_id = _session_id()
-    await store.append(session_id, make_message(Role.USER, "pinned and recent"))
-    await store.set_pinned(session_id, pinned=True)
+    await store.append(session_id, make_message(Role.USER, "hoisted and recent"))
+    await store.set_hoisted(session_id, hoisted=True)
     listed = await store.list_sessions(limit=50)
     matches = [s for s in listed if s.session_id == session_id]
     assert len(matches) == 1
-    assert matches[0].pinned is True
+    assert matches[0].hoisted is True
 
 
 async def check_append_refuses_an_image_bearing_message(store: SessionStore) -> None:
@@ -247,9 +247,9 @@ ALL_CHECKS = (
     check_list_sessions_orders_and_summarizes,
     check_set_title_overrides_the_first_message,
     check_delete_removes_the_session,
-    check_set_pinned_marks_and_clears_the_summary,
-    check_a_pinned_chat_escapes_the_recency_window,
-    check_a_pinned_recent_chat_is_not_duplicated,
+    check_set_hoisted_marks_and_clears_the_summary,
+    check_a_hoisted_chat_escapes_the_recency_window,
+    check_a_hoisted_recent_chat_is_not_duplicated,
     check_append_refuses_an_image_bearing_message,
     check_recap_is_absent_then_roundtrips_and_overwrites,
     check_recaps_do_not_leak_between_sessions,

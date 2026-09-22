@@ -41,7 +41,7 @@ describe("EDGES", () => {
     expect(reachOf(STILL)).toBe(0);
   });
 
-  it("uses only integer wave orders of two or higher, which close the loop and pin the centre", () => {
+  it("uses only integer wave orders of two or higher, which close the loop and hold the centre in place", () => {
     for (const edge of EDGES) {
       for (const wave of edge.waves) {
         expect(Number.isInteger(wave.waves)).toBe(true);

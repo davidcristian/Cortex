@@ -42,7 +42,7 @@ interface PanelProps {
   readonly onSelectSession: (sessionId: string, announce: boolean) => void;
   readonly onRenameSession: (sessionId: string, title: string) => void;
   readonly onDeleteSession: (sessionId: string) => void;
-  readonly onPinSession: (sessionId: string, pinned: boolean) => void;
+  readonly onHoistSession: (sessionId: string, hoisted: boolean) => void;
   readonly onRespondConfirm: (confirmId: string, approved: boolean) => void;
   readonly onDismissReminder: (reminder: DueReminder) => void;
 }

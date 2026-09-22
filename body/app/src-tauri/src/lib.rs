@@ -37,7 +37,7 @@ pub fn run() {
             sessions::session_messages,
             sessions::rename_session,
             sessions::delete_session,
-            sessions::set_session_pinned,
+            sessions::set_session_hoisted,
             preferences::get_preferences,
             preferences::set_preference,
             reminders::list_due_reminders,

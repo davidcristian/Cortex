@@ -19,8 +19,8 @@ tools in [brain-core-tools.md](brain-core-tools.md), delegated work in
   restarts: `append(session_id, message)`, `history(session_id)` (append order, empty when
   unknown), `list_sessions(*, limit)` (most recently active first), `set_title(session_id, title)`
   (a display title `list_sessions` prefers over the first-message derivation, ADR-0021 decision 9),
-  `delete(session_id)` (removes a whole chat, its history, title, recency entry and `pinned`
-  membership, idempotent and needing no tombstone), `set_pinned(session_id, *, pinned)` (ADR-0021
+  `delete(session_id)` (removes a whole chat, its history, title, recency entry and hoisted
+  membership, idempotent and needing no tombstone), `set_hoisted(session_id, *, hoisted)` (ADR-0021
   decision 12), and `set_recap(session_id, recap)` / `recap(session_id)` for the cached history
   recap below. Fake: `InMemorySessionStore`; adapter: `cortex_session`.
 - `InferenceBackend` provides
@@ -144,16 +144,16 @@ sequence and give the reader one explanation.
 
 ## Session listings and titles
 
-- `SessionSummary(session_id, title, preview, last_activity, pinned=False)` (`sessions.py`,
+- `SessionSummary(session_id, title, preview, last_activity, hoisted=False)` (`sessions.py`,
   ADR-0021) is one recent chat as the overlay's switcher shows it, and `summarize_ends(session_id,
-  first, last, *, title_override=None, pinned=False)` derives one: `title` from the first message,
+  first, last, *, title_override=None, hoisted=False)` derives one: `title` from the first message,
   `preview` from the last, each collapsed to one line and cut at `TITLE_MAX` (48) and `PREVIEW_MAX`
   (96) with an ellipsis. Taking only the two ends lets a store read two records rather than a
   history. A non-blank `title_override` replaces the derived title, and `summarize_session` is the
   whole-history form. `TITLE_MAX` is declared again in the overlay's `sessionState.ts`, and
   `scripts/crosscheck.py` compares the two.
-- `merge_pinned(summaries)` is the shared ordering rule: over an already deduplicated candidate
-  set it stable-sorts by recency and then by `not pinned`, so chats the user marked sort above the
+- `merge_hoisted(summaries)` is the shared ordering rule: over an already deduplicated candidate
+  set it stable-sorts by recency and then by `not hoisted`, so chats the user hoisted sort above the
   recency group, each group still most recently active first. It only reorders.
 - `session_title.py` is brain-generated titling (ADR-0021 decision 9): `build_title_messages`
   builds the one-message prompt, `clean_title` collapses and cuts a reply to `TITLE_MAX` with a

@@ -5,7 +5,7 @@
 **Origin:** [ADR-0052](../../adr/ADR-0052-overlay-focus-and-announcements.md)
 
 `SessionList.tsx` put `role="listbox"` on its `<ul>`, but its children were `<li>` elements holding
-four ordinary buttons each (the row, then `pin`, rename and delete) with no `role="option"` anywhere.
+four ordinary buttons each (the row, then hoist, rename and delete) with no `role="option"` anywhere.
 A listbox was announced whose required children were missing. The choice was between making the
 rows options with `aria-activedescendant`, which leaves nowhere for the three per-row buttons, and
 removing the role.

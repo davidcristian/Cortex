@@ -12,7 +12,7 @@ pub struct WireSummary {
     title: String,
     preview: String,
     last_activity_unix_ms: i64,
-    pinned: bool,
+    hoisted: bool,
 }
 
 impl From<SessionSummary> for WireSummary {
@@ -22,7 +22,7 @@ impl From<SessionSummary> for WireSummary {
             title: summary.title,
             preview: summary.preview,
             last_activity_unix_ms: summary.last_activity_unix_ms,
-            pinned: summary.pinned,
+            hoisted: summary.hoisted,
         }
     }
 }
@@ -92,12 +92,12 @@ pub async fn delete_session(session_id: String) -> Result<(), String> {
         .map_err(|error| error.to_string())
 }
 
-/// Sets or clears the `pinned` mark on one chat, from the overlay's toggle.
+/// Hoists or lowers one chat, from the overlay's toggle.
 #[tauri::command]
-pub async fn set_session_pinned(session_id: String, pinned: bool) -> Result<(), String> {
+pub async fn set_session_hoisted(session_id: String, hoisted: bool) -> Result<(), String> {
     let client = crate::brain::connect()?;
     client
-        .set_session_pinned(&session_id, pinned)
+        .set_session_hoisted(&session_id, hoisted)
         .await
         .map_err(|error| error.to_string())
 }

@@ -6,7 +6,7 @@ use body_core::{SessionMessage, SessionSummary, TransportError};
 use crate::call::SeamCall;
 use crate::generated::{
     DeleteSessionRequest, GetSessionMessagesRequest, ListSessionsRequest, RenameSessionRequest,
-    SetSessionPinnedRequest,
+    SetSessionHoistedRequest,
 };
 
 /// Lists recent chats newest-active first (`BrainService.ListSessions`).
@@ -28,7 +28,7 @@ pub(crate) async fn list_sessions(
             title: summary.title,
             preview: summary.preview,
             last_activity_unix_ms: summary.last_activity_unix_ms,
-            pinned: summary.pinned,
+            hoisted: summary.hoisted,
         })
         .collect())
 }
@@ -81,14 +81,17 @@ pub(crate) async fn delete_session(
     Ok(())
 }
 
-/// Sets or clears the `pinned` mark on one chat (`BrainService.SetSessionPinned`).
-pub(crate) async fn set_session_pinned(
+/// Hoists or lowers one chat (`BrainService.SetSessionHoisted`).
+pub(crate) async fn set_session_hoisted(
     call: SeamCall,
     session_id: String,
-    pinned: bool,
+    hoisted: bool,
 ) -> Result<(), TransportError> {
     call.client()
-        .set_session_pinned(SetSessionPinnedRequest { session_id, pinned })
+        .set_session_hoisted(SetSessionHoistedRequest {
+            session_id,
+            hoisted,
+        })
         .await
         .map_err(|status| call.error(&status))?;
     Ok(())

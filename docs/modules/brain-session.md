@@ -26,11 +26,11 @@ an injected `redis.asyncio.Redis` client or from `from_url(url)`, which builds a
 - `list_sessions(*, limit)` builds the chat list (ADR-0021) in two round trips. The first reads both
   indexes in one transaction: `ZREVRANGE` over the recency index for at most `limit` session ids,
   newest active first, and `SMEMBERS` over `cortex:sessions:pinned`. The listed set is their union,
-  the recency window first and then every marked id outside it, deduplicated, so a marked chat older
+  the recency window first and then every hoisted id outside it, deduplicated, so a hoisted chat older
   than the window still appears (ADR-0021 decision 12). The second reads only what a summary needs
   from each listed session, `LRANGE 0 0`, `LRANGE -1 -1`, `LLEN` and `GET :title`, batched into one
   transactional pipeline; the core's `summarize_ends` derives each `SessionSummary` and
-  `merge_pinned` orders the union. The cost is two round trips and two decoded records per chat
+  `merge_hoisted` orders the union. The cost is two round trips and two decoded records per chat
   whatever the chat's length (ADR-0021 decision 7). A stale index entry is skipped, and so is a
   corrupt record between the two ends, which a listing never reads. A corrupt record at either end
   fails the listing, and `history` fails on any corrupt record.
@@ -50,10 +50,10 @@ an injected `redis.asyncio.Redis` client or from `from_url(url)`, which builds a
   are stored because the text alone cannot tell a current recap from a stale one. `recap` returns
   `None` for a session that never had one, and fails on a document it cannot read rather than
   returning `None`, which would look the same. `delete` removes it in the same transaction.
-- `set_pinned(session_id, *, pinned)` adds or removes the chat's id in `cortex:sessions:pinned`
+- `set_hoisted(session_id, *, hoisted)` adds or removes the chat's id in `cortex:sessions:pinned`
   (`SADD` or `SREM`, both idempotent), which `list_sessions` unions into every listing. An id in the
   set with no message list is skipped like any other stale index entry. It is the write behind the
-  overlay's `SetSessionPinned`.
+  overlay's `SetSessionHoisted`.
 
 ### `RedisTaskStore`
 
@@ -135,7 +135,7 @@ format evolves. The sorted set `cortex:sessions` is the recency index: `append` 
 id scored by the message's `at`, so the score is the last activity. Batching the two-ended read into
 one transactional pipeline took a listing from 23.8 ms to 1.11 ms over 20 chats of 200 messages
 against real Redis; the first/last/length cache it replaced is rejected rather than deferred
-(ADR-0021 decision 7). The plain set `cortex:sessions:pinned` holds the marked session ids.
+(ADR-0021 decision 7). The plain set `cortex:sessions:pinned` holds the hoisted session ids.
 
 Task state uses two string keys per delegation, `cortex:task:{id}` and `cortex:task:{id}:result`,
 each one JSON document with a **3600 s expiry**. It is hot and short-lived, written and read back by

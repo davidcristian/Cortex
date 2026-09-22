@@ -20,7 +20,7 @@ class SessionSummary:
     title: str
     preview: str
     last_activity: datetime
-    pinned: bool = False
+    hoisted: bool = False
 
 
 # A stored recap is prepended to every windowed turn, so it is bounded to about one turn's
@@ -67,7 +67,7 @@ def summarize_ends(
     last: Message,
     *,
     title_override: str | None = None,
-    pinned: bool = False,
+    hoisted: bool = False,
 ) -> SessionSummary:
     """Derive a chat's summary from its two end messages."""
     return SessionSummary(
@@ -75,7 +75,7 @@ def summarize_ends(
         title=_title(title_override, first.text),
         preview=_one_line(last.text, PREVIEW_MAX),
         last_activity=last.at,
-        pinned=pinned,
+        hoisted=hoisted,
     )
 
 
@@ -84,16 +84,16 @@ def summarize_session(
     messages: Sequence[Message],
     *,
     title_override: str | None = None,
-    pinned: bool = False,
+    hoisted: bool = False,
 ) -> SessionSummary:
     """Derive a chat's summary from its persisted messages."""
     return summarize_ends(
-        session_id, messages[0], messages[-1], title_override=title_override, pinned=pinned
+        session_id, messages[0], messages[-1], title_override=title_override, hoisted=hoisted
     )
 
 
-def merge_pinned(summaries: Iterable[SessionSummary]) -> tuple[SessionSummary, ...]:
-    """Order a listing: `pinned` chats first, then newest first within each group."""
+def merge_hoisted(summaries: Iterable[SessionSummary]) -> tuple[SessionSummary, ...]:
+    """Order a listing: hoisted chats first, then newest first within each group."""
     by_recency = sorted(summaries, key=lambda summary: summary.last_activity, reverse=True)
-    by_recency.sort(key=lambda summary: not summary.pinned)
+    by_recency.sort(key=lambda summary: not summary.hoisted)
     return tuple(by_recency)

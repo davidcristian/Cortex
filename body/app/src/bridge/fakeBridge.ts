@@ -31,8 +31,8 @@ export class FakeBridge implements BrainBridge {
   readonly renames: { readonly sessionId: string; readonly title: string }[] = [];
   /** Delete writes received, in order: session id. */
   readonly deletes: string[] = [];
-  /** `setSessionPinned` writes received, in order: session id and target state. */
-  readonly pins: { readonly sessionId: string; readonly pinned: boolean }[] = [];
+  /** `setSessionHoisted` writes received, in order: session id and target state. */
+  readonly hoists: { readonly sessionId: string; readonly hoisted: boolean }[] = [];
   /** When set, the matching read rejects (the transport-failure path). */
   listFails = false;
   messagesFail = false;
@@ -40,8 +40,8 @@ export class FakeBridge implements BrainBridge {
   renameFails = false;
   /** When set, `deleteSession` rejects (a lost destructive write, so nothing is dropped). */
   deleteFails = false;
-  /** When set, `setSessionPinned` rejects (a lost write, so the list keeps its old grouping). */
-  pinFails = false;
+  /** When set, `setSessionHoisted` rejects (a lost write, so the list keeps its old grouping). */
+  hoistFails = false;
   /** When set, `respondConfirm` rejects (a lost answer, so deny-by-timeout brain-side). */
   confirmFails = false;
   /** What `listDueReminders` resolves with (assignable by a test; ADR-0025). */
@@ -119,14 +119,14 @@ export class FakeBridge implements BrainBridge {
     return Promise.resolve();
   }
 
-  setSessionPinned(sessionId: string, pinned: boolean): Promise<void> {
-    this.pins.push({ sessionId, pinned });
-    if (this.pinFails) {
-      return Promise.reject(new Error("pin failed"));
+  setSessionHoisted(sessionId: string, hoisted: boolean): Promise<void> {
+    this.hoists.push({ sessionId, hoisted });
+    if (this.hoistFails) {
+      return Promise.reject(new Error("hoist failed"));
     }
-    const updated = this.sessions.map((s) => (s.sessionId === sessionId ? { ...s, pinned } : s));
+    const updated = this.sessions.map((s) => (s.sessionId === sessionId ? { ...s, hoisted } : s));
     // A stable sort, so the order inside each group stays as it was.
-    this.sessions = [...updated].sort((a, b) => Number(b.pinned) - Number(a.pinned));
+    this.sessions = [...updated].sort((a, b) => Number(b.hoisted) - Number(a.hoisted));
     return Promise.resolve();
   }
 

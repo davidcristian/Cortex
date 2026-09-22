@@ -11,7 +11,7 @@ const summary = (over: Partial<SessionSummary> = {}): SessionSummary => ({
   title: "First chat",
   preview: "hello there",
   lastActivityUnixMs: Date.now() - 5 * 60_000,
-  pinned: false,
+  hoisted: false,
   ...over,
 });
 
@@ -31,7 +31,7 @@ const list = (
     onSelect={vi.fn()}
     onRename={vi.fn()}
     onDelete={onDelete}
-    onPin={vi.fn()}
+    onHoist={vi.fn()}
     anchor={anchor}
   />
 );
@@ -73,7 +73,7 @@ describe("SessionList", () => {
         onSelect={onSelect}
         onRename={vi.fn()}
         onDelete={vi.fn()}
-        onPin={vi.fn()}
+        onHoist={vi.fn()}
         anchor={nowhere}
       />,
     );
@@ -115,7 +115,7 @@ describe("SessionList", () => {
         onSelect={vi.fn()}
         onRename={vi.fn()}
         onDelete={vi.fn()}
-        onPin={vi.fn()}
+        onHoist={vi.fn()}
         anchor={nowhere}
       />,
     );
@@ -133,7 +133,7 @@ describe("SessionList", () => {
         onSelect={vi.fn()}
         onRename={onRename}
         onDelete={vi.fn()}
-        onPin={vi.fn()}
+        onHoist={vi.fn()}
         anchor={nowhere}
       />,
     );
@@ -158,7 +158,7 @@ describe("SessionList", () => {
         onSelect={vi.fn()}
         onRename={onRename}
         onDelete={vi.fn()}
-        onPin={vi.fn()}
+        onHoist={vi.fn()}
         anchor={nowhere}
       />,
     );
@@ -179,7 +179,7 @@ describe("SessionList", () => {
         onSelect={vi.fn()}
         onRename={onRename}
         onDelete={vi.fn()}
-        onPin={vi.fn()}
+        onHoist={vi.fn()}
         anchor={nowhere}
       />,
     );
@@ -203,7 +203,7 @@ describe("SessionList", () => {
         onSelect={vi.fn()}
         onRename={vi.fn()}
         onDelete={onDelete}
-        onPin={vi.fn()}
+        onHoist={vi.fn()}
         anchor={nowhere}
       />,
     );
@@ -227,7 +227,7 @@ describe("SessionList", () => {
         onSelect={vi.fn()}
         onRename={vi.fn()}
         onDelete={onDelete}
-        onPin={vi.fn()}
+        onHoist={vi.fn()}
         anchor={nowhere}
       />,
     );
@@ -238,8 +238,8 @@ describe("SessionList", () => {
     expect(screen.getByLabelText("Delete First chat")).toBeInTheDocument();
   });
 
-  it("pins an unpinned chat: the toggle offers 'Pin' and fires onPin(true)", () => {
-    const onPin = vi.fn();
+  it("hoists a plain chat: the toggle offers 'Hoist' and fires onHoist(true)", () => {
+    const onHoist = vi.fn();
     render(
       <SessionList
         open
@@ -249,41 +249,41 @@ describe("SessionList", () => {
         onSelect={vi.fn()}
         onRename={vi.fn()}
         onDelete={vi.fn()}
-        onPin={onPin}
+        onHoist={onHoist}
         anchor={nowhere}
       />,
     );
-    const toggle = screen.getByLabelText("Pin First chat");
+    const toggle = screen.getByLabelText("Hoist First chat");
     expect(toggle).toHaveAttribute("aria-pressed", "false");
     fireEvent.click(toggle);
-    expect(onPin).toHaveBeenCalledWith("c1", true);
+    expect(onHoist).toHaveBeenCalledWith("c1", true);
   });
 
-  it("unpins a pinned chat: its row is grouped/marked and the toggle fires onPin(false)", () => {
-    const onPin = vi.fn();
+  it("lowers a hoisted chat: its row is grouped/marked and the toggle fires onHoist(false)", () => {
+    const onHoist = vi.fn();
     render(
       <SessionList
         open
         arrival={0}
         sessions={[
-          summary({ sessionId: "p1", title: "Pinned", pinned: true }),
+          summary({ sessionId: "p1", title: "Hoisted", hoisted: true }),
           summary({ sessionId: "r1", title: "Recent" }),
         ]}
         currentId="r1"
         onSelect={vi.fn()}
         onRename={vi.fn()}
         onDelete={vi.fn()}
-        onPin={onPin}
+        onHoist={onHoist}
         anchor={nowhere}
       />,
     );
-    const pinnedRow = screen.getByText("Pinned").closest(".switcher-row");
-    expect(pinnedRow?.className).toContain("pinned");
-    const toggle = screen.getByLabelText("Unpin Pinned");
+    const hoistedRow = screen.getByText("Hoisted").closest(".switcher-row");
+    expect(hoistedRow?.className).toContain("hoisted");
+    const toggle = screen.getByLabelText("Lower Hoisted");
     expect(toggle).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByText("Recent").closest(".switcher-row")?.className).not.toContain("pinned");
+    expect(screen.getByText("Recent").closest(".switcher-row")?.className).not.toContain("hoisted");
     fireEvent.click(toggle);
-    expect(onPin).toHaveBeenCalledWith("p1", false);
+    expect(onHoist).toHaveBeenCalledWith("p1", false);
   });
 
   it("holds a deleted row through its own roll while its neighbours close over it", () => {
@@ -460,7 +460,7 @@ describe("SessionList", () => {
         onSelect={vi.fn()}
         onRename={onRename}
         onDelete={vi.fn()}
-        onPin={vi.fn()}
+        onHoist={vi.fn()}
         anchor={nowhere}
       />,
     );
@@ -542,12 +542,12 @@ describe("SessionList", () => {
     expect(document.activeElement).not.toBe(anchor.current);
   });
 
-  it("leaves the pin toggle's own caret alone, its gesture taking no control away", () => {
+  it("leaves the hoist toggle's own caret alone, its gesture taking no control away", () => {
     render(list([summary()]));
-    const toggle = screen.getByLabelText("Pin First chat");
+    const toggle = screen.getByLabelText("Hoist First chat");
     toggle.focus();
     fireEvent.click(toggle);
-    expect(document.activeElement).toBe(screen.getByLabelText("Pin First chat"));
+    expect(document.activeElement).toBe(screen.getByLabelText("Hoist First chat"));
   });
 
   it("puts up the list's empty line in the words the live region borrows for it", () => {

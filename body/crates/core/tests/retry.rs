@@ -102,7 +102,7 @@ impl BrainTransport for FlakyTransport {
             title: format!("limit {limit}"),
             preview: String::from("p"),
             last_activity_unix_ms: 1,
-            pinned: false,
+            hoisted: false,
         }])
     }
 
@@ -152,13 +152,13 @@ impl BrainTransport for FlakyTransport {
         Ok(())
     }
 
-    async fn set_session_pinned(
+    async fn set_session_hoisted(
         &self,
         session_id: &str,
-        pinned: bool,
+        hoisted: bool,
     ) -> Result<(), TransportError> {
         self.tick()?;
-        let _ = (session_id, pinned);
+        let _ = (session_id, hoisted);
         Ok(())
     }
 
@@ -422,17 +422,17 @@ async fn forwards_delete_session_without_retrying_it() {
 }
 
 #[tokio::test]
-async fn forwards_set_session_pinned_without_retrying_it() {
+async fn forwards_set_session_hoisted_without_retrying_it() {
     let flaky = FlakyTransport::new(FailKind::Connection, 1);
     let sleeper = FakeSleeper::default();
     let transport = RetryingTransport::new(flaky.clone(), sleeper.clone(), policy(3));
     assert_eq!(
-        transport.set_session_pinned("s1", true).await.unwrap_err(),
+        transport.set_session_hoisted("s1", true).await.unwrap_err(),
         TransportError::Connection(String::from("refused"))
     );
     assert_eq!(flaky.call_count(), 1);
     assert!(sleeper.delays().is_empty());
-    assert!(transport.set_session_pinned("s1", true).await.is_ok());
+    assert!(transport.set_session_hoisted("s1", true).await.is_ok());
 }
 
 #[tokio::test]

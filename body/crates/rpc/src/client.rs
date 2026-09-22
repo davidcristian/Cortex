@@ -200,15 +200,15 @@ impl BrainTransport for BrainSeamClient {
             .await
     }
 
-    async fn set_session_pinned(
+    async fn set_session_hoisted(
         &self,
         session_id: &str,
-        pinned: bool,
+        hoisted: bool,
     ) -> Result<(), TransportError> {
-        crate::sessions::set_session_pinned(
-            self.call(SeamMethod::SetSessionPinned),
+        crate::sessions::set_session_hoisted(
+            self.call(SeamMethod::SetSessionHoisted),
             session_id.to_owned(),
-            pinned,
+            hoisted,
         )
         .await
     }

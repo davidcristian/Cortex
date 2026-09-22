@@ -14,8 +14,8 @@ use body_rpc::generated::{
     GetSessionMessagesReply, GetSessionMessagesRequest, HealthReply, HealthRequest, Heartbeat,
     ListDueRemindersReply, ListDueRemindersRequest, ListSessionsReply, ListSessionsRequest,
     RenameSessionReply, RenameSessionRequest, SeamError, ServerEvent, SetPreferenceReply,
-    SetPreferenceRequest, SetSessionPinnedReply, SetSessionPinnedRequest, StatusUpdate, TextDelta,
-    ToolActivity, ToolOutcome, TurnComplete, client_event, server_event,
+    SetPreferenceRequest, SetSessionHoistedReply, SetSessionHoistedRequest, StatusUpdate,
+    TextDelta, ToolActivity, ToolOutcome, TurnComplete, client_event, server_event,
 };
 use tokio::net::TcpListener;
 use tokio_stream::wrappers::TcpListenerStream;
@@ -286,10 +286,10 @@ impl BrainService for FakeBrain {
         Err(Status::unimplemented("not exercised here"))
     }
 
-    async fn set_session_pinned(
+    async fn set_session_hoisted(
         &self,
-        _request: Request<SetSessionPinnedRequest>,
-    ) -> Result<Response<SetSessionPinnedReply>, Status> {
+        _request: Request<SetSessionHoistedRequest>,
+    ) -> Result<Response<SetSessionHoistedReply>, Status> {
         Err(Status::unimplemented("not exercised here"))
     }
 

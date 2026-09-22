@@ -93,8 +93,8 @@ describe("App", () => {
   it("lands the caret in the composer when a chat arrives on a row that leaves with it", async () => {
     const bridge = new FakeBridge();
     bridge.sessions = [
-      { sessionId: "s1", title: "About cats", preview: "p1", lastActivityUnixMs: 2, pinned: false },
-      { sessionId: "s2", title: "About swaps", preview: "p2", lastActivityUnixMs: 1, pinned: false },
+      { sessionId: "s1", title: "About cats", preview: "p1", lastActivityUnixMs: 2, hoisted: false },
+      { sessionId: "s2", title: "About swaps", preview: "p2", lastActivityUnixMs: 1, hoisted: false },
     ];
     bridge.messagesBySession = { s2: [{ role: "user", text: "about swaps", turnId: "t", atUnixMs: 1 }] };
     await renderApp(bridge);
@@ -115,9 +115,9 @@ describe("App", () => {
   it("keeps the caret in the switcher for a delete that swaps nothing", async () => {
     const bridge = new FakeBridge();
     bridge.sessions = [
-      { sessionId: "s1", title: "About cats", preview: "p1", lastActivityUnixMs: 3, pinned: false },
-      { sessionId: "s2", title: "About swaps", preview: "p2", lastActivityUnixMs: 2, pinned: false },
-      { sessionId: "s3", title: "About rain", preview: "p3", lastActivityUnixMs: 1, pinned: false },
+      { sessionId: "s1", title: "About cats", preview: "p1", lastActivityUnixMs: 3, hoisted: false },
+      { sessionId: "s2", title: "About swaps", preview: "p2", lastActivityUnixMs: 2, hoisted: false },
+      { sessionId: "s3", title: "About rain", preview: "p3", lastActivityUnixMs: 1, hoisted: false },
     ];
     await renderApp(bridge);
     activate();
@@ -136,8 +136,8 @@ describe("App", () => {
   it("hands the caret to the chats button when the reader closes the list from inside it", async () => {
     const bridge = new FakeBridge();
     bridge.sessions = [
-      { sessionId: "s1", title: "About cats", preview: "p1", lastActivityUnixMs: 2, pinned: false },
-      { sessionId: "s2", title: "About swaps", preview: "p2", lastActivityUnixMs: 1, pinned: false },
+      { sessionId: "s1", title: "About cats", preview: "p1", lastActivityUnixMs: 2, hoisted: false },
+      { sessionId: "s2", title: "About swaps", preview: "p2", lastActivityUnixMs: 1, hoisted: false },
     ];
     await renderApp(bridge);
     activate();
@@ -155,8 +155,8 @@ describe("App", () => {
   it("says what the list holds when the key opens it, and nothing when the button does", async () => {
     const bridge = new FakeBridge();
     bridge.sessions = [
-      { sessionId: "s1", title: "About cats", preview: "p1", lastActivityUnixMs: 2, pinned: false },
-      { sessionId: "s2", title: "About swaps", preview: "p2", lastActivityUnixMs: 1, pinned: false },
+      { sessionId: "s1", title: "About cats", preview: "p1", lastActivityUnixMs: 2, hoisted: false },
+      { sessionId: "s2", title: "About swaps", preview: "p2", lastActivityUnixMs: 1, hoisted: false },
     ];
     await renderApp(bridge);
     activate();
@@ -197,7 +197,7 @@ describe("App", () => {
   it("closes the list under a half-typed sentence without touching the caret in it", async () => {
     const bridge = new FakeBridge();
     bridge.sessions = [
-      { sessionId: "s1", title: "About cats", preview: "p1", lastActivityUnixMs: 2, pinned: false },
+      { sessionId: "s1", title: "About cats", preview: "p1", lastActivityUnixMs: 2, hoisted: false },
     ];
     await renderApp(bridge);
     activate();
@@ -216,8 +216,8 @@ describe("App", () => {
   it("keeps each chat's half-typed question with the chat it was typed into", async () => {
     const bridge = new FakeBridge();
     bridge.sessions = [
-      { sessionId: "s1", title: "About cats", preview: "p1", lastActivityUnixMs: 2, pinned: false },
-      { sessionId: "s2", title: "About swaps", preview: "p2", lastActivityUnixMs: 1, pinned: false },
+      { sessionId: "s1", title: "About cats", preview: "p1", lastActivityUnixMs: 2, hoisted: false },
+      { sessionId: "s2", title: "About swaps", preview: "p2", lastActivityUnixMs: 1, hoisted: false },
     ];
     bridge.messagesBySession = { s2: [{ role: "user", text: "about swaps", turnId: "t", atUnixMs: 1 }] };
     let minted = 0;

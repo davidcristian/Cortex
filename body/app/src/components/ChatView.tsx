@@ -42,7 +42,7 @@ export interface ChatViewProps {
   readonly onSelectSession: (sessionId: string, announce: boolean) => void;
   readonly onRenameSession: (sessionId: string, title: string) => void;
   readonly onDeleteSession: (sessionId: string) => void;
-  readonly onPinSession: (sessionId: string, pinned: boolean) => void;
+  readonly onHoistSession: (sessionId: string, hoisted: boolean) => void;
   readonly onRespondConfirm: (confirmId: string, approved: boolean) => void;
   readonly onDismissReminder: (reminder: DueReminder) => void;
 }
@@ -69,7 +69,7 @@ export function ChatView({
   onSelectSession,
   onRenameSession,
   onDeleteSession,
-  onPinSession,
+  onHoistSession,
   onRespondConfirm,
   onDismissReminder,
 }: ChatViewProps) {
@@ -128,7 +128,7 @@ export function ChatView({
           onSelect={(sessionId) => onSelectSession(sessionId, false)}
           onRename={onRenameSession}
           onDelete={onDeleteSession}
-          onPin={onPinSession}
+          onHoist={onHoistSession}
         />
       </Collapse>
       {/* Keyed by the chat, because a new chat is a content swap rather than a section toggle:

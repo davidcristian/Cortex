@@ -39,7 +39,7 @@ as one sentence doing the work of two facts.
   service. `BrainService` declares eleven RPCs ([proto/body.proto](../../../proto/body.proto)):
   `Converse` and ten others. Five of those read: `Health`, `ListSessions`, `GetSessionMessages`,
   `ListDueReminders` and `GetPreferences`. The other five write: `RenameSession`, `DeleteSession`,
-  `SetSessionPinned`, `AckReminder` and `SetPreference`. The last entry called `AckReminder` and
+  `SetSessionHoisted`, `AckReminder` and `SetPreference`. The last entry called `AckReminder` and
   `SetPreference` reads and left `Health` out. None of the five reads touches a memory port:
   `GetSessionMessages` is still `self._store.history(...)` mapped (`session_servicer.py`),
   `ListDueReminders` reads the `ScheduleStore`, `GetPreferences` the preference store, and `Health`

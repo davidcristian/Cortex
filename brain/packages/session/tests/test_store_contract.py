@@ -34,7 +34,7 @@ async def test_delete_leaves_no_orphaned_redis_key_or_index_member() -> None:
     store = RedisSessionStore(client)
     await store.append("s", contract.make_message(Role.USER, "hi"))
     await store.set_title("s", "a title")
-    await store.set_pinned("s", pinned=True)
+    await store.set_hoisted("s", hoisted=True)
 
     async def session_keys() -> list[bytes]:
         raw = await client.keys("cortex:session:s:*")  # pyright: ignore[reportUnknownMemberType]
@@ -99,18 +99,18 @@ async def test_connection_failure_on_set_title_wraps_the_cause() -> None:
     assert isinstance(excinfo.value.__cause__, redis_exceptions.ConnectionError)
 
 
-async def test_set_pinned_persists_under_the_pinned_set_key() -> None:
+async def test_set_hoisted_persists_under_the_hoisted_set_key() -> None:
     client = FakeAsyncRedis(server=FakeServer())
     store = RedisSessionStore(client)
-    await store.set_pinned("s", pinned=True)
+    await store.set_hoisted("s", hoisted=True)
     assert await client.sismember("cortex:sessions:pinned", "s")
-    await store.set_pinned("s", pinned=True)
+    await store.set_hoisted("s", hoisted=True)
     assert await client.scard("cortex:sessions:pinned") == 1
-    await store.set_pinned("s", pinned=False)
+    await store.set_hoisted("s", hoisted=False)
     assert not await client.sismember("cortex:sessions:pinned", "s")
 
 
-async def test_list_sessions_unions_a_pinned_chat_older_than_the_window() -> None:
+async def test_list_sessions_unions_a_hoisted_chat_older_than_the_window() -> None:
     client = FakeAsyncRedis(server=FakeServer())
     store = RedisSessionStore(client)
     base = datetime(2026, 7, 3, 8, 0, tzinfo=UTC)
@@ -118,12 +118,12 @@ async def test_list_sessions_unions_a_pinned_chat_older_than_the_window() -> Non
     for offset, session_id in enumerate(("n1", "n2", "n3"), start=1):
         at = datetime(2026, 7, 3, 8 + offset, tzinfo=UTC)
         await store.append(session_id, contract.make_message(Role.USER, "new", at=at))
-    await store.set_pinned("old", pinned=True)
+    await store.set_hoisted("old", hoisted=True)
     ids = [s.session_id for s in await store.list_sessions(limit=3)]
     assert ids == ["old", "n3", "n2", "n1"]
 
 
-async def test_list_sessions_skips_a_dangling_pinned_entry() -> None:
+async def test_list_sessions_skips_a_dangling_hoisted_entry() -> None:
     client = FakeAsyncRedis(server=FakeServer())
     store = RedisSessionStore(client)
     await store.append("real", contract.make_message(Role.USER, "hi"))
@@ -132,9 +132,9 @@ async def test_list_sessions_skips_a_dangling_pinned_entry() -> None:
     assert [s.session_id for s in summaries] == ["real"]
 
 
-async def test_connection_failure_on_set_pinned_wraps_the_cause() -> None:
-    with pytest.raises(SessionStoreError, match="whether session 's' stays at the top") as excinfo:
-        await _disconnected_store().set_pinned("s", pinned=True)
+async def test_connection_failure_on_set_hoisted_wraps_the_cause() -> None:
+    with pytest.raises(SessionStoreError, match="hoisting or lowering session 's'") as excinfo:
+        await _disconnected_store().set_hoisted("s", hoisted=True)
     assert isinstance(excinfo.value.__cause__, redis_exceptions.ConnectionError)
 
 

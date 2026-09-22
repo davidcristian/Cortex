@@ -22,7 +22,7 @@ values: `TurnEvent`, `TransportError`, `SessionSummary`, `SessionMessage`, `DueR
 - The session reads `listSessions(limit)` and `sessionMessages(sessionId)` (ADR-0021). A zero
   limit means the brain's default listing and a positive one cuts that listing.
 - The session writes `renameSession(sessionId, title)` (`""` clears the override),
-  `deleteSession(sessionId)` and `setSessionPinned(sessionId, pinned)` (ADR-0021 decisions 10
+  `deleteSession(sessionId)` and `setSessionHoisted(sessionId, hoisted)` (ADR-0021 decisions 10
   to 12). Each is user-driven, and `useOverlay` re-lists after it resolves. Deleting the open chat
   tears down its in-flight turn and falls back to a fresh chat, so a deleted transcript is never
   rendered.
@@ -43,8 +43,8 @@ implementation. It covers the turn handle, the probe, the catalog, the stored hi
 ack, the settings record, and a stale confirm answer being absorbed rather than rejected.
 A new claim about the port is appended there, where it reaches every implementation at once. It
 leaves out where two implementations may legitimately differ: the content of a turn's stream, what
-a cleared title falls back to, where an unpinned chat sits, and what an ack does to the due list.
-`TauriBridge` is outside it, every method of it crossing the IPC boundary.
+a cleared title falls back to, where a chat that is not hoisted sits, and what an ack does to the
+due list. `TauriBridge` is outside it, every method of it crossing the IPC boundary.
 
 ## The overlay
 
@@ -148,7 +148,7 @@ event the overlay listens on; in a plain browser `main.tsx` self-summons instead
   brain-side by timeout, so a late answer is harmless.
 - **The session commands** (`sessions.rs`, ADR-0021): `list_sessions(limit)` and
   `session_messages(session_id)` return `Vec<WireSummary>` and `Vec<WireMessage>`; `rename_session`,
-  `delete_session` and `set_session_pinned(session_id, pinned)` map success to `()`. The reads are
+  `delete_session` and `set_session_hoisted(session_id, hoisted)` map success to `()`. The reads are
   retried with backoff; the writes make one attempt, not being repeatable.
 - **`check_link()`** (`link.rs`) returns `body_core::probe_link`'s answer as `{ state, detail }`. It
   cannot fail on purpose: an unreachable brain, a bad address and a non-ASCII token are all `down`

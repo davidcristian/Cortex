@@ -38,7 +38,7 @@ from cortex_core.sessions import (
     RECAP_MAX,
     HistoryRecap,
     SessionSummary,
-    merge_pinned,
+    merge_hoisted,
     summarize_ends,
     summarize_session,
 )
@@ -115,7 +115,7 @@ __all__ = [
     "extract_urls",
     "fence_recap",
     "generate_title",
-    "merge_pinned",
+    "merge_hoisted",
     "new_nonce",
     "record_exchange",
     "render_exchange",

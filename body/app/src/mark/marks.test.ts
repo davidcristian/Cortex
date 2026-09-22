@@ -37,7 +37,7 @@ describe("MARKS", () => {
     }
   });
 
-  it("uses only harmonics of order two or higher, which is what pins the anchor", () => {
+  it("uses only harmonics of order two or higher, which is what holds the anchor in place", () => {
     for (const mark of MARKS) {
       for (const lobe of mark.lobes) {
         for (const harmonic of lobe.harmonics) {

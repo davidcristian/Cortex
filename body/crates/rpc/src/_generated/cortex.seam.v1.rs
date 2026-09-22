@@ -186,7 +186,7 @@ pub struct SessionSummary {
     pub last_activity_unix_ms: i64,
     /// listed whatever its age, above the chats sorted by recency
     #[prost(bool, tag = "5")]
-    pub pinned: bool,
+    pub hoisted: bool,
 }
 /// One session's stored history, in append order.
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
@@ -233,17 +233,17 @@ pub struct DeleteSessionRequest {
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct DeleteSessionReply {}
-/// Sets or clears the `pinned` mark on one chat. The reply is a bare acknowledgement; a store
-/// failure arrives as an UNAVAILABLE status. Setting the same value twice changes nothing.
+/// Hoists or lowers one chat. The reply is a bare acknowledgement; a store failure arrives as an
+/// UNAVAILABLE status. Setting the same value twice changes nothing.
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct SetSessionPinnedRequest {
+pub struct SetSessionHoistedRequest {
     #[prost(string, tag = "1")]
     pub session_id: ::prost::alloc::string::String,
     #[prost(bool, tag = "2")]
-    pub pinned: bool,
+    pub hoisted: bool,
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct SetSessionPinnedReply {}
+pub struct SetSessionHoistedReply {}
 /// The user's settings record. One pair is one setting; the brain stores and returns them as
 /// given and never reads a value, so adding a setting costs no change here.
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
@@ -763,14 +763,14 @@ pub mod brain_service_client {
                 .insert(GrpcMethod::new("cortex.seam.v1.BrainService", "DeleteSession"));
             self.inner.unary(req, path, codec).await
         }
-        /// Sets or clears the `pinned` mark on a chat, which lists it whatever its age, above the
-        /// chats listed by recency. Reachable only from the overlay's list controls, and the body
+        /// Hoists or lowers a chat. A hoisted chat is listed whatever its age, above the chats
+        /// listed by recency. Reachable only from the overlay's list controls, and the body
         /// makes exactly one attempt.
-        pub async fn set_session_pinned(
+        pub async fn set_session_hoisted(
             &mut self,
-            request: impl tonic::IntoRequest<super::SetSessionPinnedRequest>,
+            request: impl tonic::IntoRequest<super::SetSessionHoistedRequest>,
         ) -> std::result::Result<
-            tonic::Response<super::SetSessionPinnedReply>,
+            tonic::Response<super::SetSessionHoistedReply>,
             tonic::Status,
         > {
             self.inner
@@ -783,12 +783,12 @@ pub mod brain_service_client {
                 })?;
             let codec = tonic_prost::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/cortex.seam.v1.BrainService/SetSessionPinned",
+                "/cortex.seam.v1.BrainService/SetSessionHoisted",
             );
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(
-                    GrpcMethod::new("cortex.seam.v1.BrainService", "SetSessionPinned"),
+                    GrpcMethod::new("cortex.seam.v1.BrainService", "SetSessionHoisted"),
                 );
             self.inner.unary(req, path, codec).await
         }
@@ -930,14 +930,14 @@ pub mod brain_service_server {
             tonic::Response<super::DeleteSessionReply>,
             tonic::Status,
         >;
-        /// Sets or clears the `pinned` mark on a chat, which lists it whatever its age, above the
-        /// chats listed by recency. Reachable only from the overlay's list controls, and the body
+        /// Hoists or lowers a chat. A hoisted chat is listed whatever its age, above the chats
+        /// listed by recency. Reachable only from the overlay's list controls, and the body
         /// makes exactly one attempt.
-        async fn set_session_pinned(
+        async fn set_session_hoisted(
             &self,
-            request: tonic::Request<super::SetSessionPinnedRequest>,
+            request: tonic::Request<super::SetSessionHoistedRequest>,
         ) -> std::result::Result<
-            tonic::Response<super::SetSessionPinnedReply>,
+            tonic::Response<super::SetSessionHoistedReply>,
             tonic::Status,
         >;
         /// The user's settings: a durable key/value record the brain owns, so a choice survives a body
@@ -1400,25 +1400,25 @@ pub mod brain_service_server {
                     };
                     Box::pin(fut)
                 }
-                "/cortex.seam.v1.BrainService/SetSessionPinned" => {
+                "/cortex.seam.v1.BrainService/SetSessionHoisted" => {
                     #[allow(non_camel_case_types)]
-                    struct SetSessionPinnedSvc<T: BrainService>(pub Arc<T>);
+                    struct SetSessionHoistedSvc<T: BrainService>(pub Arc<T>);
                     impl<
                         T: BrainService,
-                    > tonic::server::UnaryService<super::SetSessionPinnedRequest>
-                    for SetSessionPinnedSvc<T> {
-                        type Response = super::SetSessionPinnedReply;
+                    > tonic::server::UnaryService<super::SetSessionHoistedRequest>
+                    for SetSessionHoistedSvc<T> {
+                        type Response = super::SetSessionHoistedReply;
                         type Future = BoxFuture<
                             tonic::Response<Self::Response>,
                             tonic::Status,
                         >;
                         fn call(
                             &mut self,
-                            request: tonic::Request<super::SetSessionPinnedRequest>,
+                            request: tonic::Request<super::SetSessionHoistedRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as BrainService>::set_session_pinned(&inner, request)
+                                <T as BrainService>::set_session_hoisted(&inner, request)
                                     .await
                             };
                             Box::pin(fut)
@@ -1430,7 +1430,7 @@ pub mod brain_service_server {
                     let max_encoding_message_size = self.max_encoding_message_size;
                     let inner = self.inner.clone();
                     let fut = async move {
-                        let method = SetSessionPinnedSvc(inner);
+                        let method = SetSessionHoistedSvc(inner);
                         let codec = tonic_prost::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(

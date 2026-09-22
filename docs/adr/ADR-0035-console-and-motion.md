@@ -206,7 +206,7 @@ caret goes and what the overlay announces is
     streaming, the stop turns `--halt` red (as the row's trash does) and its square eases to 0.84. A
     theme change sets `data-swapping` before the tokens, one transition on everything for
     `THEME_SWAP_MS` (400ms), removed on a timer; the theme applied at boot does not cross. A
-    switcher row is title and preview, then right to left time, `pin`, pencil and trash, the time
+    switcher row is title and preview, then right to left time, hoist, pencil and trash, the time
     right-aligned in a reserved `--time-col` (55 px).
 
 ## Consequences
@@ -225,7 +225,7 @@ caret goes and what the overlay announces is
   without it, Gecko in practice, `thin` picks the width and the inline-end margin reads wider, and
   nothing shifts. The switcher and the reminder stack pad by exactly one rail, so the rail is their
   inset, and each row's own padding keeps text 9 px to 11 px clear.
-- `--accent` is a gradient, so a colour that asks for it computes to `inherit`. A kept chat's `pin`
+- `--accent` is a gradient, so a colour that asks for it computes to `inherit`. A hoisted chat's toggle
   asks for `--text`; the thinking chip's label and the rename box's border are left asking.
 
 ## Alternatives rejected

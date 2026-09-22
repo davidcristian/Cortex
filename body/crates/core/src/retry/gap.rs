@@ -84,7 +84,7 @@ impl RetryPlan {
             | SeamMethod::AckReminder
             | SeamMethod::RenameSession
             | SeamMethod::DeleteSession
-            | SeamMethod::SetSessionPinned
+            | SeamMethod::SetSessionHoisted
             | SeamMethod::GetPreferences
             | SeamMethod::SetPreference => None,
         }

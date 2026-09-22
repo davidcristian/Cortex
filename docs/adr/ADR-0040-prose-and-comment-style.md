@@ -124,9 +124,8 @@ record says what it is and why.
   `waiting for a consumer`, an optional capability is an `optional feature`, a task that needs a
   port change first says so, an ongoing state is `ongoing`, the host field is `Session`, and a
   task's own record of what happened is its `## History` section.
-- A word in the table is sometimes literal: the overlay's own feature is `pin`, and a processor
-  may be `arm64`. Backticks around the identifier, or a rewording such as "keep a chat at the top
-  of the list", is the way through. There is no per-line exemption marker.
+- A word in the table is sometimes literal: a processor may be `arm64`. Backticks around the
+  identifier, or a rewording, is the way through. There is no per-line exemption marker.
 - Five other checks read prose, so editing a sentence is a change that must pass `just check`
   rather than a text substitution: `rostercheck.py` reads the lists documents keep,
   `samplecheck.py` the log lines runbooks print, `stubcheck.py` the comments in

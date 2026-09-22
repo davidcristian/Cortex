@@ -44,8 +44,8 @@ pub enum SeamMethod {
     RenameSession,
     /// `BrainService.DeleteSession`: the overlay's user-driven destructive removal of a chat.
     DeleteSession,
-    /// `BrainService.SetSessionPinned`: the overlay's user-driven `pinned` toggle on a chat.
-    SetSessionPinned,
+    /// `BrainService.SetSessionHoisted`: the overlay's user-driven hoist toggle on a chat.
+    SetSessionHoisted,
     /// `BrainService.GetPreferences`: the user's settings record, read whole.
     GetPreferences,
     /// `BrainService.SetPreference`: one setting written by the user.
@@ -67,7 +67,7 @@ impl SeamMethod {
             | Self::AckReminder
             | Self::RenameSession
             | Self::DeleteSession
-            | Self::SetSessionPinned
+            | Self::SetSessionHoisted
             | Self::SetPreference => false,
         }
     }
@@ -140,7 +140,7 @@ impl RetryPlan {
             | SeamMethod::AckReminder
             | SeamMethod::RenameSession
             | SeamMethod::DeleteSession
-            | SeamMethod::SetSessionPinned
+            | SeamMethod::SetSessionHoisted
             | SeamMethod::GetPreferences
             | SeamMethod::SetPreference => Some(self.call_deadline),
         }

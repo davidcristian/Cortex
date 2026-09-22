@@ -38,10 +38,10 @@ service BrainService {
   // this, and the body makes exactly one attempt so a lost reply cannot destroy twice.
   rpc DeleteSession(DeleteSessionRequest) returns (DeleteSessionReply);
 
-  // Sets or clears the `pinned` mark on a chat, which lists it whatever its age, above the
-  // chats listed by recency. Reachable only from the overlay's list controls, and the body
+  // Hoists or lowers a chat. A hoisted chat is listed whatever its age, above the chats
+  // listed by recency. Reachable only from the overlay's list controls, and the body
   // makes exactly one attempt.
-  rpc SetSessionPinned(SetSessionPinnedRequest) returns (SetSessionPinnedReply);
+  rpc SetSessionHoisted(SetSessionHoistedRequest) returns (SetSessionHoistedReply);
 
   // The user's settings: a durable key/value record the brain owns, so a choice survives a body
   // restart. Keys are namespaced names the caller owns ("overlay.theme"); values are short
@@ -129,7 +129,7 @@ message SessionSummary {
   string title = 2;                // derived: first user message, one line, truncated
   string preview = 3;              // derived: last message text, one line, truncated
   int64 last_activity_unix_ms = 4; // for a relative timestamp in the switcher
-  bool pinned = 5;                 // listed whatever its age, above the chats sorted by recency
+  bool hoisted = 5;                // listed whatever its age, above the chats sorted by recency
 }
 
 // One session's stored history, in append order.
@@ -159,13 +159,13 @@ message DeleteSessionRequest {
 }
 message DeleteSessionReply {}
 
-// Sets or clears the `pinned` mark on one chat. The reply is a bare acknowledgement; a store
-// failure arrives as an UNAVAILABLE status. Setting the same value twice changes nothing.
-message SetSessionPinnedRequest {
+// Hoists or lowers one chat. The reply is a bare acknowledgement; a store failure arrives as an
+// UNAVAILABLE status. Setting the same value twice changes nothing.
+message SetSessionHoistedRequest {
   string session_id = 1;
-  bool pinned = 2;
+  bool hoisted = 2;
 }
-message SetSessionPinnedReply {}
+message SetSessionHoistedReply {}
 
 // The user's settings record. One pair is one setting; the brain stores and returns them as
 // given and never reads a value, so adding a setting costs no change here.

@@ -32,11 +32,11 @@ interface SessionListProps {
   readonly onDelete: (sessionId: string) => void;
   /** Set whether the brain lists this chat however old it is. Takes effect at once, with no
    *  confirm. */
-  readonly onPin: (sessionId: string, pinned: boolean) => void;
+  readonly onHoist: (sessionId: string, hoisted: boolean) => void;
 }
 
 /** The switcher dropdown: recent chats with title, relative time, and a one-line preview, each
- *  with its own `pin`, rename and delete controls. The brain returns the `pinned` chats first, so
+ *  with its own hoist, rename and delete controls. The brain returns the hoisted chats first, so
  *  that group renders at the top. */
 export function SessionList({
   sessions,
@@ -47,7 +47,7 @@ export function SessionList({
   onSelect,
   onRename,
   onDelete,
-  onPin,
+  onHoist,
 }: SessionListProps) {
   const now = Date.now();
   // Local state only, in the list rather than the row: at most one row is renaming and at most
@@ -60,7 +60,7 @@ export function SessionList({
   // under it snapped up 50px into the gap, which was the only visible movement.
   const stack = usePresence(sessions, (session) => session.sessionId);
   // A row the list reorders animates to its new place, which matters because the brain lists the
-  // `pinned` chats first and then by recency, so one such write regroups everything around it.
+  // hoisted chats first and then by recency, so one such write regroups everything around it.
   // Rows only: the empty line below is not a row and has no second place to be in.
   const card = useRef<HTMLUListElement>(null);
   useTravel(card, ".switcher-slot");
@@ -138,7 +138,7 @@ export function SessionList({
               onStartDelete={() => startDelete(session.sessionId)}
               onConfirmDelete={() => confirmDelete(session.sessionId)}
               onCancelDelete={() => cancelDelete(session.sessionId)}
-              onPin={() => onPin(session.sessionId, !session.pinned)}
+              onHoist={() => onHoist(session.sessionId, !session.hoisted)}
             />
           </Collapse>
         </li>

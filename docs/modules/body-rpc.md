@@ -69,11 +69,11 @@ value reaches an interceptor that is otherwise built once per connection.
   stream that ends before `TurnComplete` becomes `Protocol`. The reply mapping is built with
   `async-stream` and the request chain with `tokio-stream`.
 - `list_sessions(limit)` and `session_messages(session_id)` (ADR-0021, `src/sessions.rs`) are unary
-  calls mapping each reply row to a core `SessionSummary` (its `pinned` flag included) or
+  calls mapping each reply row to a core `SessionSummary` (its `hoisted` flag included) or
   `SessionMessage`. A non-OK status maps through the `SeamCall` the client hands in, so it becomes
   `Rpc`, `Connection` or `Timeout`.
 - `rename_session(session_id, title)`, `delete_session(session_id)` and
-  `set_session_pinned(session_id, pinned)` (ADR-0021 decisions 10 to 12, same module) are unary
+  `set_session_hoisted(session_id, hoisted)` (ADR-0021 decisions 10 to 12, same module) are unary
   calls whose replies are bare acknowledgements, so success maps to `()`.
 - `get_preferences()` and `set_preference(key, value)` (ADR-0032, `src/preferences.rs`) map the
   reply rows to plain `(key, value)` tuples and the write's acknowledgement to `()`. Nothing

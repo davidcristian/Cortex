@@ -3,7 +3,7 @@
 from datetime import datetime
 
 from cortex_core import Message, SessionMemoryCascade, SessionStore, SessionSummary
-from cortex_seam import DeleteSessionReply, RenameSessionReply, SetSessionPinnedReply
+from cortex_seam import DeleteSessionReply, RenameSessionReply, SetSessionHoistedReply
 from cortex_seam import SessionMessage as SessionMessagePb
 from cortex_seam import SessionSummary as SessionSummaryPb
 
@@ -26,7 +26,7 @@ def summary_to_proto(summary: SessionSummary) -> SessionSummaryPb:
         title=summary.title,
         preview=summary.preview,
         last_activity_unix_ms=unix_ms(summary.last_activity),
-        pinned=summary.pinned,
+        hoisted=summary.hoisted,
     )
 
 
@@ -71,9 +71,9 @@ async def delete_session(
     return DeleteSessionReply()
 
 
-async def set_session_pinned(
-    store: SessionStore, session_id: str, *, pinned: bool
-) -> SetSessionPinnedReply:
-    """Add or remove one chat from the `pinned` set: a user-only catalog write."""
-    await store.set_pinned(session_id, pinned=pinned)
-    return SetSessionPinnedReply()
+async def set_session_hoisted(
+    store: SessionStore, session_id: str, *, hoisted: bool
+) -> SetSessionHoistedReply:
+    """Add or remove one chat from the hoisted set: a user-only catalog write."""
+    await store.set_hoisted(session_id, hoisted=hoisted)
+    return SetSessionHoistedReply()

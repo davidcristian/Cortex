@@ -41,8 +41,8 @@ from cortex_seam import (
     ListSessionsRequest,
     RenameSessionReply,
     RenameSessionRequest,
-    SetSessionPinnedReply,
-    SetSessionPinnedRequest,
+    SetSessionHoistedReply,
+    SetSessionHoistedRequest,
 )
 
 _T0 = datetime(2026, 7, 8, 9, 0, tzinfo=UTC)
@@ -76,13 +76,13 @@ async def _delete(stub: BrainServiceStub, session_id: str) -> DeleteSessionReply
     return cast("DeleteSessionReply", await method(DeleteSessionRequest(session_id=session_id)))
 
 
-async def _set_pinned(
-    stub: BrainServiceStub, session_id: str, *, pinned: bool
-) -> SetSessionPinnedReply:
-    method = stub.SetSessionPinned  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+async def _set_hoisted(
+    stub: BrainServiceStub, session_id: str, *, hoisted: bool
+) -> SetSessionHoistedReply:
+    method = stub.SetSessionHoisted  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
     return cast(
-        "SetSessionPinnedReply",
-        await method(SetSessionPinnedRequest(session_id=session_id, pinned=pinned)),
+        "SetSessionHoistedReply",
+        await method(SetSessionHoistedRequest(session_id=session_id, hoisted=hoisted)),
     )
 
 
@@ -127,7 +127,7 @@ async def test_list_sessions_returns_summaries_newest_first_with_unix_ms() -> No
     assert alpha.title == "about cats"
     assert alpha.preview == "cats are great"
     assert alpha.last_activity_unix_ms == int(_T1.timestamp() * 1000)
-    assert all(not s.pinned for s in reply.sessions)
+    assert all(not s.hoisted for s in reply.sessions)
 
 
 async def test_list_sessions_zero_limit_uses_the_server_default() -> None:
@@ -181,7 +181,7 @@ async def test_get_session_messages_for_an_unknown_session_is_empty() -> None:
 
 
 class FailingStore:
-    """A SessionStore whose reads and its rename, delete and `set_pinned` writes raise."""
+    """A SessionStore whose reads and its rename, delete and `set_hoisted` writes raise."""
 
     async def append(self, session_id: str, message: Message) -> None:
         del session_id, message
@@ -206,8 +206,8 @@ class FailingStore:
         msg = "redis is down"
         raise SessionStoreError(msg)
 
-    async def set_pinned(self, session_id: str, *, pinned: bool) -> None:
-        del session_id, pinned
+    async def set_hoisted(self, session_id: str, *, hoisted: bool) -> None:
+        del session_id, hoisted
         msg = "redis is down"
         raise SessionStoreError(msg)
 
@@ -366,33 +366,33 @@ async def test_delete_session_store_failure_aborts_unavailable() -> None:
     assert "redis is down" in (excinfo.value.details() or "")
 
 
-async def test_set_session_pinned_lifts_an_old_chat_above_the_recency_window() -> None:
+async def test_set_session_hoisted_lifts_an_old_chat_above_the_recency_window() -> None:
     store = await _seeded_store()
     server, address = await _serve(store)
     try:
         async with aio.insecure_channel(address) as channel:
             stub = BrainServiceStub(channel)
             before = await _list(stub, limit=1)
-            await _set_pinned(stub, "alpha", pinned=True)
-            pinned_listing = await _list(stub, limit=1)
-            await _set_pinned(stub, "alpha", pinned=False)
+            await _set_hoisted(stub, "alpha", hoisted=True)
+            hoisted_listing = await _list(stub, limit=1)
+            await _set_hoisted(stub, "alpha", hoisted=False)
             after = await _list(stub, limit=1)
     finally:
         await server.stop(grace=None)
     assert [s.session_id for s in before.sessions] == ["beta"]
-    ids = [s.session_id for s in pinned_listing.sessions]
+    ids = [s.session_id for s in hoisted_listing.sessions]
     assert ids == ["alpha", "beta"]
-    assert pinned_listing.sessions[0].pinned is True
-    assert pinned_listing.sessions[1].pinned is False
+    assert hoisted_listing.sessions[0].hoisted is True
+    assert hoisted_listing.sessions[1].hoisted is False
     assert [s.session_id for s in after.sessions] == ["beta"]
 
 
-async def test_set_session_pinned_store_failure_aborts_unavailable() -> None:
+async def test_set_session_hoisted_store_failure_aborts_unavailable() -> None:
     server, address = await _serve(FailingStore())
     try:
         async with aio.insecure_channel(address) as channel:
             with pytest.raises(aio.AioRpcError) as excinfo:
-                await _set_pinned(BrainServiceStub(channel), "alpha", pinned=True)
+                await _set_hoisted(BrainServiceStub(channel), "alpha", hoisted=True)
     finally:
         await server.stop(grace=None)
     assert excinfo.value.code() is grpc.StatusCode.UNAVAILABLE

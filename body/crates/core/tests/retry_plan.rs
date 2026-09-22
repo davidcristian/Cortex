@@ -15,7 +15,7 @@ const EVERY_METHOD: [SeamMethod; 11] = [
     SeamMethod::AckReminder,
     SeamMethod::RenameSession,
     SeamMethod::DeleteSession,
-    SeamMethod::SetSessionPinned,
+    SeamMethod::SetSessionHoisted,
     SeamMethod::GetPreferences,
     SeamMethod::SetPreference,
 ];
@@ -42,7 +42,7 @@ fn repeatable_marks_exactly_the_calls_a_repeat_cannot_change() {
     assert!(!SeamMethod::AckReminder.repeatable());
     assert!(!SeamMethod::RenameSession.repeatable());
     assert!(!SeamMethod::DeleteSession.repeatable());
-    assert!(!SeamMethod::SetSessionPinned.repeatable());
+    assert!(!SeamMethod::SetSessionHoisted.repeatable());
     assert!(SeamMethod::GetPreferences.repeatable());
     assert!(!SeamMethod::SetPreference.repeatable());
 }
@@ -70,7 +70,7 @@ fn a_refused_method_gets_no_schedule_however_generous_the_plan() {
     assert_eq!(generous.policy_for(SeamMethod::AckReminder), None);
     assert_eq!(generous.policy_for(SeamMethod::RenameSession), None);
     assert_eq!(generous.policy_for(SeamMethod::DeleteSession), None);
-    assert_eq!(generous.policy_for(SeamMethod::SetSessionPinned), None);
+    assert_eq!(generous.policy_for(SeamMethod::SetSessionHoisted), None);
 }
 
 #[test]
@@ -319,7 +319,7 @@ fn every_call_but_the_turn_is_bounded_by_a_deadline() {
         SeamMethod::AckReminder,
         SeamMethod::RenameSession,
         SeamMethod::DeleteSession,
-        SeamMethod::SetSessionPinned,
+        SeamMethod::SetSessionHoisted,
         SeamMethod::GetPreferences,
         SeamMethod::SetPreference,
     ] {

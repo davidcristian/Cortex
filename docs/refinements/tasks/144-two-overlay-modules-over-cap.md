@@ -12,7 +12,7 @@ against by any script. Both were split along the lines the entry predicted.
 helpers, `isTurnActive`, `latestReply`), which re-enters through the same re-export
 `sessionState.ts` uses, so no call site moved. `useOverlay.ts` went from 321 to 181 by handing the
 chat catalog to `overlay/useSessionCatalog.ts` (170 lines: the list refresh and its two triggers,
-cold-start adoption, `openSession`, `renameSession`, `deleteSession`, `setSessionPinned`,
+cold-start adoption, `openSession`, `renameSession`, `deleteSession`, `setSessionHoisted`,
 `cyclePrev` and `cycleNext`), whose members the controller spreads in,
 so a component still sees one flat interface. The turn half kept what a turn is and gained
 `abandonTurn`, the deny-then-close pair that four call sites had written out by hand.

@@ -11,7 +11,7 @@ kept one run's chats in memory and lost them on restart.
 
 This decision exposes read-only views of the store, so the chat list, the switcher and cycling load
 from Redis, and then adds the catalog's limited listing, generated titles, and the user's rename,
-delete and `pinned` writes.
+delete and hoist writes.
 
 ## Decision
 
@@ -20,7 +20,7 @@ delete and `pinned` writes.
 [proto/body.proto](../../proto/body.proto) has `ListSessions(ListSessionsRequest)` and
 `GetSessionMessages(GetSessionMessagesRequest)`. `ListSessionsRequest.limit` of 0 means the server
 default. A `SessionSummary` has `session_id`, `title`, `preview`, `last_activity_unix_ms` and
-`pinned` (decision 12); a `SessionMessage` has `role` (`user` or `assistant`, the only persisted
+`hoisted` (decision 12); a `SessionMessage` has `role` (`user` or `assistant`, the only persisted
 roles), `text`, `turn_id` and `at_unix_ms`. Both RPCs are unary, because a list and a history are
 snapshots, and read-only, so they add no write path and cannot violate the hard rule. They pass
 through the token interceptor ([ADR-0016](ADR-0016-shared-token.md)) unchanged. Timestamps cross as
@@ -39,7 +39,7 @@ its `last_activity` a tz-aware `datetime`.
 ### 3. Summarization is pure core; listing and ordering are the adapter's
 
 Deriving a title and a preview is domain logic, so it lives in the core.
-`summarize_ends(session_id, first, last, *, title_override, pinned)` derives the title from the
+`summarize_ends(session_id, first, last, *, title_override, hoisted)` derives the title from the
 first message (always the first user message, since the engine appends the user turn first), the
 preview from the last message, and `last_activity` from the last message's `at`;
 `summarize_session` delegates to it. Both stores build summaries through these functions, so the
@@ -53,9 +53,8 @@ switcher does not depend on it and the contract test uses distinct timestamps.
 
 ### 4. The orchestrator serves the reads straight off the store
 
-`BrainService` takes the `SessionStore` explicitly (`create_server`, `serve` and `run_from_env`
-pass the instance they build for the engine), because these are reads rather than turns and must
-not go through the turn engine. The handlers (`cortex_orchestrator/session_rpc.py`) map core to
+`BrainService` takes the `SessionStore` explicitly, because these are reads rather than turns and
+must not go through the turn engine. The handlers (`cortex_orchestrator/session_rpc.py`) map core to
 wire and clamp the request: `limit ≤ 0` becomes `DEFAULT_SESSION_LIST_LIMIT` (50), capped at
 `MAX_SESSION_LIST_LIMIT` (200). A `SessionStoreError` aborts the RPC with `UNAVAILABLE`, which the
 body reports as `TransportError::Rpc`.
@@ -71,9 +70,8 @@ factory (default `crypto.randomUUID`):
 - **New chat** (`＋` or `Ctrl+N`) creates a fresh id and clears the panel.
 - **The chat list** loads on mount, after a turn completes, and on each summon (decision 8).
 - **The switcher** (`⌄`) shows each chat's title, relative time and preview; selecting one loads
-  its history. It is a list of composite rows with no `listbox` role, the open row's button having
-  `aria-current`, as [ADR-0052](ADR-0052-overlay-focus-and-announcements.md) decision 8 records;
-  what the overlay announces on a switch is that ADR's decision 13.
+  its history. Its rows' roles and what a switch announces are decisions 8 and 13 of
+  [ADR-0052](ADR-0052-overlay-focus-and-announcements.md).
 - **Cycling** (`Ctrl+↑`/`Ctrl+↓`) walks the list in its listed order through the pure
   `cycleTarget`, clamped at the ends with no wrap, and moves no focus.
 
@@ -81,7 +79,7 @@ The session state and the cycle arithmetic live in pure reducers; the bridge cal
 
 ### 6. Cold start adopts the most recent chat
 
-On launch the overlay loads the list and adopts its first row: the topmost `pinned` chat when the
+On launch the overlay loads the list and adopts its first row: the topmost hoisted chat when the
 list has one, the newest chat otherwise. Adoption is its own reducer action, `adoptSession`
 (`overlay/sessionState.ts`), because `openSession` raises the panel and its hook cancels the
 in-flight turn and denies pending confirms, which a background restore must never do.
@@ -142,7 +140,7 @@ inference call per new session on a shared GPU.
 
 ### 10. Catalog writes are user-only RPCs, each attempted once
 
-`RenameSession`, `DeleteSession` and `SetSessionPinned` are unary `BrainService` writes whose only
+`RenameSession`, `DeleteSession` and `SetSessionHoisted` are unary `BrainService` writes whose only
 caller is the overlay's own controls. None is a tool in any registry and none runs through the turn
 engine, so no model, tool or tainted turn can reach them. That is the whole of their protection.
 The confirmation rule and `SeamConfirmer` ([ADR-0013](ADR-0013-untrusted-content.md),
@@ -151,7 +149,7 @@ and are tied to one `Converse` stream, so they do not fit a management RPC; a co
 would answer a threat the model cannot pose.
 
 The body classifies every catalog write **not repeatable** (`SeamMethod::RenameSession`,
-`DeleteSession`, `SetSessionPinned`), so the resilient transport makes one attempt. Reads are
+`DeleteSession`, `SetSessionHoisted`), so the resilient transport makes one attempt. Reads are
 repeatable. A write idempotent by value still is not retried: a lost reply followed by a silent
 retry could re-assert a value the user's next action reversed, which the retry loop cannot see.
 
@@ -181,18 +179,23 @@ The confirmation is overlay-local: the row's trash control swaps in a confirm an
 Deleting the open chat first tears down its turn (denying a pending confirm and cancelling the
 stream, so a reply cannot re-create the chat) and on success resets the panel to a new chat.
 
-### 12. A `pinned` chat is added to the recency listing
+### 12. A hoisted chat is added to the recency listing
 
-A chat the user marks `pinned` stays at the top of the list whatever its age. A Redis set
-`cortex:sessions:pinned` holds those ids. The listing's first round trip reads
-`ZREVRANGE cortex:sessions 0 limit-1` and `SMEMBERS cortex:sessions:pinned` in one pipeline; the
-listed set is the recency window followed by every `pinned` id outside it, deduplicated before any
-fetch, so an older marked chat still lists and a chat that is both marked and recent lists once.
-The pure `merge_pinned` puts the marked chats first, each group newest first; the fake and the
-adapter both hand their candidates to it. A catalog with many marks therefore lists more than
-`limit`. `set_pinned(session_id, *, pinned)` is keyword-only, and `SessionSummary.pinned` is field
-5 on the wire. The overlay row has a toggle (`aria-pressed`) that acts without a confirmation and
-re-lists; the switcher, cycling and cold-start adoption all read that order.
+A chat the user hoists stays at the top of the list whatever its age, until the user lowers it. The
+listing unions the recency window with the Redis set of hoisted ids, `cortex:sessions:pinned`, read
+in one pipeline and deduplicated before any fetch, so an old hoisted chat lists, a recent one lists
+once, and many hoisted chats list more than `limit`. The pure `merge_hoisted`, shared by the fake
+and the adapter, puts the hoisted chats first, each group newest first; the switcher, cycling and
+cold-start adoption read that order.
+
+**The name is Hoist, and its opposite is Lower.** The row's toggle (`aria-pressed`, an arrow rising
+to a bar) reads `Hoist <title>` or `Lower <title>`, acts without a confirmation and re-lists. The
+word says what the row does, rising above newer chats until it is lowered, has a natural opposite,
+and was used by no identifier or selectable family before. The keys follow it:
+`SessionSummary.hoisted` (field 5), `setSessionHoisted`, the Tauri command `set_session_hoisted`,
+`SessionStore.set_hoisted(session_id, *, hoisted)`, the row's `hoisted` class and the RPC
+`SetSessionHoisted`, whose field numbers were kept and whose method path changed, so a body and a
+brain are built together.
 
 ### 13. The open-chat header shows the switcher's title
 
@@ -217,18 +220,15 @@ rendering of the same message in that chat's row; the header box is also the wid
 
 ## Consequences
 
-- A chat outside the loaded window derives its header locally. The one path that opens such a chat
-  is the reminder card's open control, and there the switcher shows no row for it, so no
-  disagreement is visible; what the local derivation cannot know is a stored rename or generated
-  title. The `title` field on `GetSessionMessagesReply` waits for a second caller of that kind
-  ([180](../refinements/tasks/180-out-of-window-title.md)).
+- A chat outside the loaded window derives its header locally, so it cannot show a stored rename or
+  generated title. Only the reminder card's open control opens such a chat, and the switcher shows
+  no row for it, so no disagreement is visible. A `title` field on `GetSessionMessagesReply` waits
+  for a second caller of that kind ([180](../refinements/tasks/180-out-of-window-title.md)).
 - Paging is not built. A reply encoding past the body client's 4 MiB decoding cap is the trigger,
   and a window on `GetSessionMessagesRequest` is the smaller first move
   ([184](../refinements/tasks/184-paging-cursor.md)).
 - The Tauri `list_sessions` and `session_messages` commands are host-validated glue
   ([H-005](../host/tasks/005-session-read-commands.md)); the CI half is fakes on both sides.
-- The live Redis contract runs use a database of their own ([ADR-0002](ADR-0002-toolchain-checks.md)
-  decision 14), so real sessions cannot crowd the fixtures out of a recency window.
 
 ## Alternatives rejected
 

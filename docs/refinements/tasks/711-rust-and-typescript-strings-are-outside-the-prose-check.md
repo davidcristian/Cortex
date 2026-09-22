@@ -11,9 +11,9 @@ under a brain package's `src/` (decision 16 of
 it, so the strings they print keep words the table in AGENTS.md bans. A survey on 2026-09-22 used
 decision 16's rule on every tracked `.rs`, `.ts` and `.tsx` file outside generated code: a
 double-quoted literal holding a space, with paths and flags masked, matched with `bannedwords`. It
-found 97 hits in 40 files, 11 in non-test sources and 86 in tests.
+found 75 hits in 34 files, 9 in non-test sources and 66 in tests.
 
-The 11 in non-test sources:
+The 9 in non-test sources:
 
 - Four errors that call the gRPC connection `seam`: `the capture is too large for the seam even
   downscaled` in `body/crates/core/src/os/screen.rs`, `malformed seam message` in
@@ -29,9 +29,7 @@ The 11 in non-test sources:
   server's `Unimplemented` reply, `input injection lands in a later slice`, in
   `body/crates/rpc/src/server.rs`.
 - Two lines of the overlay's demo conversation in `body/app/src/bridge/demoScript.ts`, `Sending is
-  gated` and `the seam PR`, which a user of the demo reads, and `pin failed` in `fakeBridge.ts`.
-- The CSS class ` pinned` in `SessionRow.tsx`, which is a key and is renamed with
-  [R-701](701-keeping-a-chat-at-the-top-has-no-designed-name.md).
+  gated` and `the seam PR`, which a user of the demo reads.
 
 In tests, most hits are test names and assertion messages. One is printed on every `just check`:
 the `#[ignore]` reason `live seam check` on the live Rust suites, which `cargo test` shows for each

@@ -70,7 +70,7 @@ interface Handlers {
   onSelectSession?: (sessionId: string) => void;
   onRenameSession?: (sessionId: string, title: string) => void;
   onDeleteSession?: (sessionId: string) => void;
-  onPinSession?: (sessionId: string, pinned: boolean) => void;
+  onHoistSession?: (sessionId: string, hoisted: boolean) => void;
   onRespondConfirm?: (confirmId: string, approved: boolean) => void;
   onDismissReminder?: (reminder: DueReminder) => void;
 }
@@ -99,7 +99,7 @@ function panelProps(over: Partial<OverlayState>, open: boolean, dark: boolean, h
     onSelectSession: handlers.onSelectSession ?? vi.fn(),
     onRenameSession: handlers.onRenameSession ?? vi.fn(),
     onDeleteSession: handlers.onDeleteSession ?? vi.fn(),
-    onPinSession: handlers.onPinSession ?? vi.fn(),
+    onHoistSession: handlers.onHoistSession ?? vi.fn(),
     onRespondConfirm: handlers.onRespondConfirm ?? vi.fn(),
     onDismissReminder: handlers.onDismissReminder ?? vi.fn(),
   };
@@ -216,7 +216,7 @@ describe("Panel", () => {
       {
         switcherOpen: true,
         sessions: [
-          { sessionId: "c1", title: "First chat", preview: "hello", lastActivityUnixMs: 1000, pinned: false },
+          { sessionId: "c1", title: "First chat", preview: "hello", lastActivityUnixMs: 1000, hoisted: false },
         ],
       },
       true,
@@ -233,7 +233,7 @@ describe("Panel", () => {
       {
         switcherOpen: true,
         sessions: [
-          { sessionId: "c1", title: "First chat", preview: "hello", lastActivityUnixMs: 1000, pinned: false },
+          { sessionId: "c1", title: "First chat", preview: "hello", lastActivityUnixMs: 1000, hoisted: false },
         ],
       },
       true,
@@ -245,21 +245,21 @@ describe("Panel", () => {
     expect(onDeleteSession).toHaveBeenCalledWith("c1");
   });
 
-  it("threads the pin handler to the switcher: clicking a row's pin toggles it", () => {
-    const onPinSession = vi.fn();
+  it("threads the hoist handler to the switcher: clicking a row's toggle hoists it", () => {
+    const onHoistSession = vi.fn();
     renderPanel(
       {
         switcherOpen: true,
         sessions: [
-          { sessionId: "c1", title: "First chat", preview: "hello", lastActivityUnixMs: 1000, pinned: false },
+          { sessionId: "c1", title: "First chat", preview: "hello", lastActivityUnixMs: 1000, hoisted: false },
         ],
       },
       true,
       false,
-      { onPinSession },
+      { onHoistSession },
     );
-    fireEvent.click(screen.getByLabelText("Pin First chat"));
-    expect(onPinSession).toHaveBeenCalledWith("c1", true);
+    fireEvent.click(screen.getByLabelText("Hoist First chat"));
+    expect(onHoistSession).toHaveBeenCalledWith("c1", true);
   });
 
   it("shows the reminder stack only when something is due, above the scrolling history", async () => {

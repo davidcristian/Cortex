@@ -5,7 +5,7 @@
 import type { Envelope, Harmonic, Lobe, Orbit } from "./bubble";
 
 /** A lobe that does not swing: the orbit anchor is its own center, so the rotation is identity. */
-function pinned(cx: number, cy: number): Orbit {
+function stationary(cx: number, cy: number): Orbit {
   return { cx, cy, degrees: 0, periodSeconds: 1 };
 }
 
@@ -49,7 +49,7 @@ export const MULL: MarkStyle = {
       cx: 50,
       cy: 50,
       r: 38,
-      orbit: pinned(50, 50),
+      orbit: stationary(50, 50),
       harmonics: [
         wave(2, 0.055, 11, 1, "steady"),
         wave(3, 0.032, 8, -1, "steady"),
@@ -73,7 +73,7 @@ export const MUSE: MarkStyle = {
       cx: 50,
       cy: 50,
       r: 39,
-      orbit: pinned(50, 50),
+      orbit: stationary(50, 50),
       harmonics: [wave(2, 0.02, 14, 1, "steady"), wave(3, 0.012, 10, -1, "steady")],
     },
   ],
@@ -93,7 +93,7 @@ export const HUNCH: MarkStyle = {
       cx: 50,
       cy: 50,
       r: 38,
-      orbit: pinned(50, 50),
+      orbit: stationary(50, 50),
       harmonics: [wave(6, 0.032, 2.6, 1, "ping"), wave(2, 0.018, 12, 1, "steady")],
     },
   ],
@@ -128,7 +128,7 @@ export const TANGENT: MarkStyle = {
       cx: 45,
       cy: 52,
       r: 30,
-      orbit: pinned(45, 52),
+      orbit: stationary(45, 52),
       harmonics: [wave(2, 0.042, 12, 1, "steady"), wave(3, 0.024, 9, -1, "steady")],
     },
   ],

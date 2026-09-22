@@ -1786,9 +1786,9 @@
   background: color-mix(in srgb, var(--halt) 14%, transparent);
   color: var(--halt);
 }
-/* The toggle ink-reveals on hover and focus like the pencil and trash beside it. A `pinned` row is
+/* The toggle ink-reveals on hover and focus like the pencil and trash beside it. A hoisted row is
    the exception: its toggle stays lit in the accent and the row takes a thin accent rail. */
-.switcher-pin-btn {
+.switcher-hoist-btn {
   flex: none;
   display: flex;
   align-items: center;
@@ -1805,22 +1805,22 @@
     background 0.16s var(--ease),
     color 0.16s var(--ease);
 }
-.switcher-row:hover .switcher-pin-btn,
-.switcher-pin-btn:focus-visible {
+.switcher-row:hover .switcher-hoist-btn,
+.switcher-hoist-btn:focus-visible {
   opacity: 1;
 }
-.switcher-pin-btn:hover {
+.switcher-hoist-btn:hover {
   background: var(--panel);
   color: var(--text);
 }
-/* A `pinned` row's toggle stays visible and lit, so full text colour is what tells it from the
+/* A hoisted row's toggle stays visible and lit, so full text colour is what tells it from the
    muted ones. It asks for the text colour in as many words, because `var(--accent)` is a gradient
    and a declaration that fails to compute becomes `inherit`. */
-.switcher-pin-btn.on {
+.switcher-hoist-btn.on {
   opacity: 1;
   color: var(--text);
 }
-.switcher-row.pinned {
+.switcher-row.hoisted {
   border-radius: 12px;
 }
 /* A destructive write never runs on a single click, so the trash swaps the row for an explicit

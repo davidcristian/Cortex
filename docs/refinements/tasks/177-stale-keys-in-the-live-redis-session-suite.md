@@ -26,7 +26,7 @@ cannot help a check whose subject is the window. `RedisSessionStore` keeps its k
 `list_sessions` its union and its two round trips.
 
 The entry's own sizing was what went wrong. Fifty was right for the check it was looking at, but two
-days later `check_a_pinned_chat_escapes_the_recency_window` arrived, reading `limit=3` because its
+days later `check_a_hoisted_chat_escapes_the_recency_window` arrived, reading `limit=3` because its
 three newer chats must be the window. That lowered the trigger from fifty real sessions to three,
 and nobody came back to this entry. Sixteen real sessions later the live run failed.
 

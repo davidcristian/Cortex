@@ -46,8 +46,8 @@ export interface SessionSummary {
   readonly title: string;
   readonly preview: string;
   readonly lastActivityUnixMs: number;
-  /** Whether the user has `pinned` this chat. The brain lists those first, whatever their age. */
-  readonly pinned: boolean;
+  /** Whether the user has hoisted this chat. The brain lists those first, whatever their age. */
+  readonly hoisted: boolean;
 }
 
 /** One persisted message in a session's history (mirror of the proto `SessionMessage`). */
@@ -108,7 +108,7 @@ export interface BrainBridge {
    *  failure instead of repeating the delete. */
   deleteSession(sessionId: string): Promise<void>;
   /** Set whether the brain lists this chat regardless of how old it is. */
-  setSessionPinned(sessionId: string, pinned: boolean): Promise<void>;
+  setSessionHoisted(sessionId: string, hoisted: boolean): Promise<void>;
   /** Reminders that have fired and still await delivery, across every session. */
   listDueReminders(): Promise<readonly DueReminder[]>;
   /** Mark the fire a card showed as delivered, named by its `firedAtUnixMs`, so dismissing a card

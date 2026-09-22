@@ -10,7 +10,7 @@ const summary = (sessionId: string): SessionSummary => ({
   title: `title ${sessionId}`,
   preview: `preview ${sessionId}`,
   lastActivityUnixMs: 1000,
-  pinned: false,
+  hoisted: false,
 });
 
 const reminder = (reminderId: string): DueReminder => ({
@@ -77,7 +77,7 @@ describe("overlayState reducer", () => {
       title: opening,
       preview: "p",
       lastActivityUnixMs: 3,
-      pinned: false,
+      hoisted: false,
     };
     const submitted = run([{ kind: "newChat", sessionId: "chat-9", announce: false }, submit(opening)]);
     expect(submitted.title).toBe(listed.title);
@@ -392,7 +392,7 @@ describe("overlayState reducer", () => {
     const listed = reduce(initialState, {
       kind: "sessionsLoaded",
       sessions: [
-        { sessionId: "chat-7", title: "Everything about cats", preview: "p", lastActivityUnixMs: 2, pinned: false },
+        { sessionId: "chat-7", title: "Everything about cats", preview: "p", lastActivityUnixMs: 2, hoisted: false },
       ],
     });
     const open = reduce(listed, { kind: "openSession", sessionId: "chat-7", messages, announce: false });
@@ -406,7 +406,7 @@ describe("overlayState reducer", () => {
     const listed = reduce(initialState, {
       kind: "sessionsLoaded",
       sessions: [
-        { sessionId: "elsewhere", title: "unrelated chat", preview: "p", lastActivityUnixMs: 2, pinned: false },
+        { sessionId: "elsewhere", title: "unrelated chat", preview: "p", lastActivityUnixMs: 2, hoisted: false },
       ],
     });
     const open = reduce(listed, { kind: "openSession", sessionId: "chat-9", messages, announce: false });
@@ -454,7 +454,7 @@ describe("overlayState reducer", () => {
     const listed = reduce(initialState, {
       kind: "sessionsLoaded",
       sessions: [
-        { sessionId: "chat-7", title: "Everything about cats", preview: "p", lastActivityUnixMs: 2, pinned: false },
+        { sessionId: "chat-7", title: "Everything about cats", preview: "p", lastActivityUnixMs: 2, hoisted: false },
       ],
     });
     const cycled = reduce(listed, {
@@ -662,7 +662,7 @@ describe("overlayState reducer", () => {
     const listed = reduce(initialState, {
       kind: "sessionsLoaded",
       sessions: [
-        { sessionId: "chat-7", title: "Everything about cats", preview: "p", lastActivityUnixMs: 2, pinned: false },
+        { sessionId: "chat-7", title: "Everything about cats", preview: "p", lastActivityUnixMs: 2, hoisted: false },
       ],
     });
     const adopted = reduce(listed, { kind: "adoptSession", sessionId: "chat-7", messages });

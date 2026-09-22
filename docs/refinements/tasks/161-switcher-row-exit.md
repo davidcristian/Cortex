@@ -18,8 +18,8 @@ fallback.
 
 The `<li>` also had to move outside the animated box, but not for the reason the entry gave: its
 `min-height: 50px` is a lower limit the shrink cannot get under, so the row stood at 50.00px for
-the full 300ms and then vanished in one frame. The hover, `pinned`, rename and confirm CSS rules all
-read down to a descendant and worked unchanged. A row kept on screen after its chat is gone is
+the full 300ms and then vanished in one frame. The hover, `hoisted`, rename and confirm CSS rules
+all read down to a descendant and worked unchanged. A row kept on screen after its chat is gone is
 300ms of live buttons offering to open a deleted chat, so the slot is `withdrawn` while it leaves.
 
 The exit measures 50.00px to zero over 300ms, with the row below travelling 269.63 to 220.00 and

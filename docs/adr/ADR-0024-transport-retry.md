@@ -79,7 +79,7 @@ The whole loop is covered 100% without a network or a wall clock.
    reply was lost has already cleared the reminder, so its retry would return `false` about a
    reminder this very call dismissed. The five reads (`Health`, `ListSessions`,
    `GetSessionMessages`, `ListDueReminders`, `GetPreferences`) repeat. `Converse`, `AckReminder`
-   and the catalog writes (`RenameSession`, `DeleteSession`, `SetSessionPinned`, `SetPreference`)
+   and the catalog writes (`RenameSession`, `DeleteSession`, `SetSessionHoisted`, `SetPreference`)
    get one attempt, since a lost reply must not reapply a value the user's next action reversed.
 
 9. **`RetryPlan::policy_for` is the single decision point.** It returns a schedule for a repeatable

@@ -190,7 +190,7 @@ constraint is that the event follows the attribute that publishes the target hei
 
 ## Rows that travel
 
-At 900x900 before `useTravel` existed, marking the third of three chats as `pinned` took it from 270
+At 900x900 before `useTravel` existed, hoisting the third of three chats took it from 270
 to 170 and pushed the two above it 50px each, all inside the single frame the re-listing committed.
 
 A deleted row's neighbours travel 50px over its 300ms exit, and no commit happens while a roll runs,

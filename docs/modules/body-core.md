@@ -70,9 +70,10 @@ Two areas of this crate have documents of their own:
   - `Complete { turn_id }` and `Failed { code, message }` are the two terminal events.
 - `ConfirmDecision { confirm_id, approved }` is the user's answer to a `ConfirmRequest`, fed into
   `converse`'s `decisions` stream and delivered as a `ConfirmResponse` on the open stream.
-- `SessionSummary { session_id, title, preview, last_activity_unix_ms, pinned }` is one recent chat
-  as the switcher shows it, the title and preview already derived and `pinned` saying whether the
-  user marked it, which the brain lists first and above the recency window (ADR-0021 decision 12).
+- `SessionSummary { session_id, title, preview, last_activity_unix_ms, hoisted }` is one recent
+  chat as the switcher shows it, the title and preview already derived and `hoisted` saying whether
+  the user hoisted it, which the brain lists first and above the recency window (ADR-0021 decision
+  12).
   `SessionMessage { role, text, turn_id, at_unix_ms }` is one stored message.
 - `DueReminder { reminder_id, text, fired_at_unix_ms, recurring, tainted, session_id }` is one fired
   reminder still awaiting delivery (ADR-0025). `text` is display-only and **inert**: a `tainted` one
@@ -96,7 +97,7 @@ same trait for tests.
   first, at most `limit` with `0` meaning the brain's default, and `Vec<SessionMessage>` in append
   order. A store failure arrives as `TransportError::Rpc` with code `Unavailable`.
 - `rename_session(&self, session_id, title)` (`""` clears the override),
-  `delete_session(&self, session_id)` and `set_session_pinned(&self, session_id, pinned)` are the
+  `delete_session(&self, session_id)` and `set_session_hoisted(&self, session_id, hoisted)` are the
   three user-driven catalog writes (ADR-0021 decisions 10 to 12). Each is reachable only from the
   overlay's own list controls, never from a model, a tool or a tainted turn, and none is retried, so
   a lost reply is reported rather than re-applied. `delete_session` is **destructive**: the brain

@@ -29,7 +29,7 @@ turn, each absent when its capability is off.
   with unix-ms timestamps, `request.limit` clamped by `_clamp_limit` (`DEFAULT_SESSION_LIST_LIMIT`
   is 50, `MAX_SESSION_LIST_LIMIT` 200). `GetSessionMessages` returns one session's persisted
   history, empty for an unknown session.
-- `RenameSession`, `DeleteSession` and `SetSessionPinned` (ADR-0021 decisions 10 to 12) are
+- `RenameSession`, `DeleteSession` and `SetSessionHoisted` (ADR-0021 decisions 10 to 12) are
   user-only catalog writes through `session_rpc.py`. The restriction is structural: none is a tool
   in any registry and none runs through the turn engine, so no model, tool or tainted turn can
   reach them. `RenameSession` bounds the label (`clamp_title`, `MAX_TITLE_INPUT` of 200) and an

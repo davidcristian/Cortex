@@ -18,7 +18,7 @@ export interface SessionCatalog {
   openSession(sessionId: string, announce: boolean): void;
   renameSession(sessionId: string, title: string): void;
   deleteSession(sessionId: string): void;
-  setSessionPinned(sessionId: string, pinned: boolean): void;
+  setSessionHoisted(sessionId: string, hoisted: boolean): void;
   cyclePrev(): void;
   cycleNext(): void;
 }
@@ -121,11 +121,11 @@ export function useSessionCatalog(
     [state.sessionId, abandonTurn, bridge, dispatch, refreshSessions, newSessionId],
   );
 
-  // Set the chat's `pinned` state, then re-list, because the brain decides the new grouping.
-  const setSessionPinned = useCallback(
-    (sessionId: string, pinned: boolean) => {
+  // Set the chat's hoisted state, then re-list, because the brain decides the new grouping.
+  const setSessionHoisted = useCallback(
+    (sessionId: string, hoisted: boolean) => {
       bridge
-        .setSessionPinned(sessionId, pinned)
+        .setSessionHoisted(sessionId, hoisted)
         .then(refreshSessions)
         .catch(() => {
           // A lost write leaves the list as it is; the switcher keeps its old grouping.
@@ -150,5 +150,5 @@ export function useSessionCatalog(
     }
   }, [state.sessions, state.sessionId, openSession]);
 
-  return { openSession, renameSession, deleteSession, setSessionPinned, cyclePrev, cycleNext };
+  return { openSession, renameSession, deleteSession, setSessionHoisted, cyclePrev, cycleNext };
 }

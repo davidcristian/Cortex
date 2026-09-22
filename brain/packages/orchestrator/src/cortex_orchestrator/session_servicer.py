@@ -15,7 +15,7 @@ from cortex_orchestrator.session_rpc import (
     delete_session,
     message_to_proto,
     rename_session,
-    set_session_pinned,
+    set_session_hoisted,
     summary_to_proto,
 )
 from cortex_seam import (
@@ -27,8 +27,8 @@ from cortex_seam import (
     ListSessionsRequest,
     RenameSessionReply,
     RenameSessionRequest,
-    SetSessionPinnedReply,
-    SetSessionPinnedRequest,
+    SetSessionHoistedReply,
+    SetSessionHoistedRequest,
 )
 
 
@@ -43,7 +43,7 @@ class SessionRpcMixin:
         request: ListSessionsRequest,
         context: aio.ServicerContext[ListSessionsRequest, ListSessionsReply],
     ) -> ListSessionsReply:
-        """Recent chats newest first, with the `pinned` ones unioned in; a store error aborts."""
+        """Recent chats newest first, with the hoisted ones unioned in; a store error aborts."""
         try:
             summaries = await self._store.list_sessions(limit=clamp_limit(request.limit))
         except SessionStoreError as err:
@@ -86,13 +86,15 @@ class SessionRpcMixin:
         except (SessionStoreError, MemoryStoreError) as err:
             await context.abort(grpc.StatusCode.UNAVAILABLE, str(err))
 
-    async def SetSessionPinned(  # noqa: N802 - method name is fixed by the gRPC codegen interface
+    async def SetSessionHoisted(  # noqa: N802 - method name is fixed by the gRPC codegen interface
         self,
-        request: SetSessionPinnedRequest,
-        context: aio.ServicerContext[SetSessionPinnedRequest, SetSessionPinnedReply],
-    ) -> SetSessionPinnedReply:
-        """User-only `pinned` toggle via `session_rpc.set_session_pinned`."""
+        request: SetSessionHoistedRequest,
+        context: aio.ServicerContext[SetSessionHoistedRequest, SetSessionHoistedReply],
+    ) -> SetSessionHoistedReply:
+        """User-only hoist toggle via `session_rpc.set_session_hoisted`."""
         try:
-            return await set_session_pinned(self._store, request.session_id, pinned=request.pinned)
+            return await set_session_hoisted(
+                self._store, request.session_id, hoisted=request.hoisted
+            )
         except SessionStoreError as err:
             await context.abort(grpc.StatusCode.UNAVAILABLE, str(err))

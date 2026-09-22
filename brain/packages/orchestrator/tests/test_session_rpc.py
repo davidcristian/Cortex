@@ -18,9 +18,9 @@ from cortex_orchestrator.session_rpc import (
     clamp_title,
     delete_session,
     rename_session,
-    set_session_pinned,
+    set_session_hoisted,
 )
-from cortex_seam import DeleteSessionReply, RenameSessionReply, SetSessionPinnedReply
+from cortex_seam import DeleteSessionReply, RenameSessionReply, SetSessionHoistedReply
 
 
 class RecordingStore:
@@ -29,7 +29,7 @@ class RecordingStore:
     def __init__(self, events: list[str] | None = None) -> None:
         self.set_title_calls: list[tuple[str, str]] = []
         self.delete_calls: list[str] = []
-        self.set_pinned_calls: list[tuple[str, bool]] = []
+        self.set_hoisted_calls: list[tuple[str, bool]] = []
         self.events = events if events is not None else []
 
     async def append(self, session_id: str, message: Message) -> None:
@@ -50,8 +50,8 @@ class RecordingStore:
         self.delete_calls.append(session_id)
         self.events.append(f"delete:{session_id}")
 
-    async def set_pinned(self, session_id: str, *, pinned: bool) -> None:
-        self.set_pinned_calls.append((session_id, pinned))
+    async def set_hoisted(self, session_id: str, *, hoisted: bool) -> None:
+        self.set_hoisted_calls.append((session_id, hoisted))
 
     async def set_recap(self, session_id: str, recap: HistoryRecap) -> None:
         del session_id, recap
@@ -132,19 +132,19 @@ async def test_delete_session_skips_the_cascade_when_memory_is_off() -> None:
     assert store.delete_calls == ["delta"]
 
 
-async def test_set_session_pinned_writes_the_pin_through_set_pinned() -> None:
+async def test_set_session_hoisted_writes_the_flag_through_set_hoisted() -> None:
     store = RecordingStore()
-    pinned_reply = await set_session_pinned(store, "epsilon", pinned=True)
-    assert isinstance(pinned_reply, SetSessionPinnedReply)
-    await set_session_pinned(store, "epsilon", pinned=False)
-    assert store.set_pinned_calls == [("epsilon", True), ("epsilon", False)]
+    hoisted_reply = await set_session_hoisted(store, "epsilon", hoisted=True)
+    assert isinstance(hoisted_reply, SetSessionHoistedReply)
+    await set_session_hoisted(store, "epsilon", hoisted=False)
+    assert store.set_hoisted_calls == [("epsilon", True), ("epsilon", False)]
 
 
-def test_session_pinning_is_a_user_only_seam_path_never_a_tool() -> None:
-    assert callable(BrainService.SetSessionPinned)
-    assert callable(SessionStore.set_pinned)
-    handler_params = set(inspect.signature(set_session_pinned).parameters)
-    assert handler_params == {"store", "session_id", "pinned"}
+def test_session_hoisting_is_a_user_only_seam_path_never_a_tool() -> None:
+    assert callable(BrainService.SetSessionHoisted)
+    assert callable(SessionStore.set_hoisted)
+    handler_params = set(inspect.signature(set_session_hoisted).parameters)
+    assert handler_params == {"store", "session_id", "hoisted"}
 
 
 def test_session_deletion_is_a_user_only_seam_path_never_a_tool() -> None:

@@ -11,7 +11,7 @@ const summary = (sessionId: string): SessionSummary => ({
   title: `title ${sessionId}`,
   preview: `preview ${sessionId}`,
   lastActivityUnixMs: 1000,
-  pinned: false,
+  hoisted: false,
 });
 
 const confirmRequest = (confirmId: string) =>
@@ -224,7 +224,7 @@ describe("useOverlay", () => {
   it("adopts the most recent chat on cold start, staying hidden, with its switcher title", async () => {
     const bridge = new FakeBridge();
     bridge.sessions = [
-      { sessionId: "recent", title: "Everything about cats", preview: "p", lastActivityUnixMs: 1000, pinned: false },
+      { sessionId: "recent", title: "Everything about cats", preview: "p", lastActivityUnixMs: 1000, hoisted: false },
       summary("older"),
     ];
     bridge.messagesBySession = {
@@ -396,7 +396,7 @@ describe("useOverlay", () => {
     expect(result.current.state.sessions).toBe(sessionsBefore);
   });
 
-  it("setSessionPinned writes the pin and re-lists so the switcher re-groups pinned-first", async () => {
+  it("setSessionHoisted writes the flag and re-lists so the switcher re-groups hoisted-first", async () => {
     const bridge = new FakeBridge();
     bridge.sessions = [
       { ...summary("recent"), lastActivityUnixMs: 2000 },
@@ -405,26 +405,26 @@ describe("useOverlay", () => {
     const { result } = renderHook(() => useOverlay(bridge, () => "s1"));
     await flush();
     const listsBefore = bridge.listCalls;
-    act(() => result.current.setSessionPinned("old", true));
+    act(() => result.current.setSessionHoisted("old", true));
     await flush();
-    expect(bridge.pins).toEqual([{ sessionId: "old", pinned: true }]);
+    expect(bridge.hoists).toEqual([{ sessionId: "old", hoisted: true }]);
     expect(bridge.listCalls).toBe(listsBefore + 1);
     const relisted = result.current.state.sessions;
     expect(relisted.map((s) => s.sessionId)).toEqual(["old", "recent"]);
-    expect(relisted[0]?.pinned).toBe(true);
+    expect(relisted[0]?.hoisted).toBe(true);
   });
 
-  it("a failed pin is swallowed and leaves the chat list unchanged", async () => {
+  it("a failed hoist is swallowed and leaves the chat list unchanged", async () => {
     const bridge = new FakeBridge();
     bridge.sessions = [summary("a")];
-    bridge.pinFails = true;
+    bridge.hoistFails = true;
     const { result } = renderHook(() => useOverlay(bridge, () => "s1"));
     await flush();
     const listsBefore = bridge.listCalls;
     const sessionsBefore = result.current.state.sessions;
-    act(() => result.current.setSessionPinned("a", true));
+    act(() => result.current.setSessionHoisted("a", true));
     await flush();
-    expect(bridge.pins).toEqual([{ sessionId: "a", pinned: true }]);
+    expect(bridge.hoists).toEqual([{ sessionId: "a", hoisted: true }]);
     expect(bridge.listCalls).toBe(listsBefore);
     expect(result.current.state.sessions).toBe(sessionsBefore);
   });

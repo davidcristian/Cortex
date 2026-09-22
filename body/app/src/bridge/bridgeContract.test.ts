@@ -35,7 +35,7 @@ function fakeCase(): BridgeCase {
           title: deriveTitle(firstMessage),
           preview: firstMessage,
           lastActivityUnixMs: Date.now(),
-          pinned: false,
+          hoisted: false,
         },
       ];
       bridge.messagesBySession[sessionId] = [

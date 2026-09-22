@@ -77,10 +77,10 @@ class BrainServiceStub:
                 request_serializer=cortex__seam_dot___generated_dot_body__pb2.DeleteSessionRequest.SerializeToString,
                 response_deserializer=cortex__seam_dot___generated_dot_body__pb2.DeleteSessionReply.FromString,
                 _registered_method=True)
-        self.SetSessionPinned = channel.unary_unary(
-                '/cortex.seam.v1.BrainService/SetSessionPinned',
-                request_serializer=cortex__seam_dot___generated_dot_body__pb2.SetSessionPinnedRequest.SerializeToString,
-                response_deserializer=cortex__seam_dot___generated_dot_body__pb2.SetSessionPinnedReply.FromString,
+        self.SetSessionHoisted = channel.unary_unary(
+                '/cortex.seam.v1.BrainService/SetSessionHoisted',
+                request_serializer=cortex__seam_dot___generated_dot_body__pb2.SetSessionHoistedRequest.SerializeToString,
+                response_deserializer=cortex__seam_dot___generated_dot_body__pb2.SetSessionHoistedReply.FromString,
                 _registered_method=True)
         self.GetPreferences = channel.unary_unary(
                 '/cortex.seam.v1.BrainService/GetPreferences',
@@ -162,9 +162,9 @@ class BrainServiceServicer:
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def SetSessionPinned(self, request, context):
-        """Sets or clears the `pinned` mark on a chat, which lists it whatever its age, above the
-        chats listed by recency. Reachable only from the overlay's list controls, and the body
+    def SetSessionHoisted(self, request, context):
+        """Hoists or lowers a chat. A hoisted chat is listed whatever its age, above the chats
+        listed by recency. Reachable only from the overlay's list controls, and the body
         makes exactly one attempt.
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
@@ -229,10 +229,10 @@ def add_BrainServiceServicer_to_server(servicer, server):
                     request_deserializer=cortex__seam_dot___generated_dot_body__pb2.DeleteSessionRequest.FromString,
                     response_serializer=cortex__seam_dot___generated_dot_body__pb2.DeleteSessionReply.SerializeToString,
             ),
-            'SetSessionPinned': grpc.unary_unary_rpc_method_handler(
-                    servicer.SetSessionPinned,
-                    request_deserializer=cortex__seam_dot___generated_dot_body__pb2.SetSessionPinnedRequest.FromString,
-                    response_serializer=cortex__seam_dot___generated_dot_body__pb2.SetSessionPinnedReply.SerializeToString,
+            'SetSessionHoisted': grpc.unary_unary_rpc_method_handler(
+                    servicer.SetSessionHoisted,
+                    request_deserializer=cortex__seam_dot___generated_dot_body__pb2.SetSessionHoistedRequest.FromString,
+                    response_serializer=cortex__seam_dot___generated_dot_body__pb2.SetSessionHoistedReply.SerializeToString,
             ),
             'GetPreferences': grpc.unary_unary_rpc_method_handler(
                     servicer.GetPreferences,
@@ -475,7 +475,7 @@ class BrainService:
             _registered_method=True)
 
     @staticmethod
-    def SetSessionPinned(request,
+    def SetSessionHoisted(request,
             target,
             options=(),
             channel_credentials=None,
@@ -488,9 +488,9 @@ class BrainService:
         return grpc.experimental.unary_unary(
             request,
             target,
-            '/cortex.seam.v1.BrainService/SetSessionPinned',
-            cortex__seam_dot___generated_dot_body__pb2.SetSessionPinnedRequest.SerializeToString,
-            cortex__seam_dot___generated_dot_body__pb2.SetSessionPinnedReply.FromString,
+            '/cortex.seam.v1.BrainService/SetSessionHoisted',
+            cortex__seam_dot___generated_dot_body__pb2.SetSessionHoistedRequest.SerializeToString,
+            cortex__seam_dot___generated_dot_body__pb2.SetSessionHoistedReply.FromString,
             options,
             channel_credentials,
             insecure,

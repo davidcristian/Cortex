@@ -60,7 +60,7 @@ export class DemoBridge implements BrainBridge {
       title: deriveTitle(text),
       preview: text,
       lastActivityUnixMs: Date.now(),
-      pinned: false,
+      hoisted: false,
     });
   }
 
@@ -188,7 +188,7 @@ export class DemoBridge implements BrainBridge {
   listSessions(limit: number): Promise<readonly SessionSummary[]> {
     const ordered = [...this.sessions].sort(
       (a, b) =>
-        Number(b.pinned) - Number(a.pinned) || b.lastActivityUnixMs - a.lastActivityUnixMs,
+        Number(b.hoisted) - Number(a.hoisted) || b.lastActivityUnixMs - a.lastActivityUnixMs,
     );
     // `0` means the brain's own default listing, not a limit of none.
     return Promise.resolve(limit === 0 ? ordered : ordered.slice(0, limit));
@@ -237,8 +237,8 @@ export class DemoBridge implements BrainBridge {
     return Promise.resolve();
   }
 
-  setSessionPinned(sessionId: string, pinned: boolean): Promise<void> {
-    this.patch(sessionId, { pinned });
+  setSessionHoisted(sessionId: string, hoisted: boolean): Promise<void> {
+    this.patch(sessionId, { hoisted });
     return Promise.resolve();
   }
 }

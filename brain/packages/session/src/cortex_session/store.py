@@ -11,7 +11,7 @@ from cortex_core import (
     Message,
     SessionStoreError,
     SessionSummary,
-    merge_pinned,
+    merge_hoisted,
     summarize_ends,
 )
 from cortex_session.store_codec import (
@@ -29,14 +29,14 @@ DEFAULT_REDIS_URL = "redis://127.0.0.1:6379/0"
 
 _SESSIONS_KEY = "cortex:sessions"
 
-_PINNED_KEY = "cortex:sessions:pinned"
+_HOISTED_KEY = "cortex:sessions:pinned"
 
 # Reads queued per listed session, in this order: head, tail, length, title.
 _ENDS_READS = 4
 
 
 def _summarize_ends(
-    session_id: str, reads: Sequence[object], at: int, *, pinned: bool
+    session_id: str, reads: Sequence[object], at: int, *, hoisted: bool
 ) -> SessionSummary | None:
     """Summarize the session listed at ``at`` from the batched ends read (None when gone)."""
     base = at * _ENDS_READS
@@ -52,7 +52,7 @@ def _summarize_ends(
         decode_message(head[0], 0),
         decode_message(tail[0], length - 1),
         title_override=title,
-        pinned=pinned,
+        hoisted=hoisted,
     )
 
 
@@ -129,33 +129,33 @@ class RedisSessionStore:
                 pipe.delete(title_key(session_id))
                 pipe.delete(recap_key(session_id))
                 pipe.zrem(_SESSIONS_KEY, session_id)
-                pipe.srem(_PINNED_KEY, session_id)
+                pipe.srem(_HOISTED_KEY, session_id)
                 await pipe.execute()
         except RedisError as err:
             msg = f"deleting session {session_id!r} failed"
             raise SessionStoreError(msg) from err
 
-    async def set_pinned(self, session_id: str, *, pinned: bool) -> None:
-        """Add the chat to the `pinned` set, or remove it from it."""
+    async def set_hoisted(self, session_id: str, *, hoisted: bool) -> None:
+        """Add the chat to the hoisted set, or remove it from it."""
         try:
-            if pinned:
-                await self._client.sadd(_PINNED_KEY, session_id)
+            if hoisted:
+                await self._client.sadd(_HOISTED_KEY, session_id)
             else:
-                await self._client.srem(_PINNED_KEY, session_id)
+                await self._client.srem(_HOISTED_KEY, session_id)
         except RedisError as err:
-            msg = f"changing whether session {session_id!r} stays at the top failed"
+            msg = f"hoisting or lowering session {session_id!r} failed"
             raise SessionStoreError(msg) from err
 
     async def list_sessions(self, *, limit: int) -> Sequence[SessionSummary]:
-        """Return the newest ``limit`` chats plus every `pinned` chat, the `pinned` ones first."""
+        """Return the newest ``limit`` chats plus every hoisted chat, the hoisted ones first."""
         try:
             async with self._client.pipeline(transaction=True) as pipe:
                 pipe.zrevrange(_SESSIONS_KEY, 0, limit - 1)  # pyright: ignore[reportUnknownMemberType]
-                pipe.smembers(_PINNED_KEY)
-                recency_raw, pinned_raw = await pipe.execute()
+                pipe.smembers(_HOISTED_KEY)
+                recency_raw, hoisted_raw = await pipe.execute()
             recency_ids = [raw.decode("utf-8") for raw in cast("list[bytes]", recency_raw)]
-            pinned_ids = {raw.decode("utf-8") for raw in cast("set[bytes]", pinned_raw)}
-            ids = recency_ids + sorted(pinned_ids - set(recency_ids))
+            hoisted_ids = {raw.decode("utf-8") for raw in cast("set[bytes]", hoisted_raw)}
+            ids = recency_ids + sorted(hoisted_ids - set(recency_ids))
             async with self._client.pipeline(transaction=True) as pipe:
                 for session_id in ids:
                     key = messages_key(session_id)
@@ -170,7 +170,7 @@ class RedisSessionStore:
         # Decoding is outside the try above so a corrupt record keeps the error decode_message
         # already raised instead of being reported as a listing failure.
         summaries = (
-            _summarize_ends(session_id, reads, at, pinned=session_id in pinned_ids)
+            _summarize_ends(session_id, reads, at, hoisted=session_id in hoisted_ids)
             for at, session_id in enumerate(ids)
         )
-        return merge_pinned(summary for summary in summaries if summary is not None)
+        return merge_hoisted(summary for summary in summaries if summary is not None)

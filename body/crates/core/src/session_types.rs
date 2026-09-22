@@ -11,8 +11,8 @@ pub struct SessionSummary {
     pub preview: String,
     /// Last-activity time as unix-milliseconds, for a relative timestamp.
     pub last_activity_unix_ms: i64,
-    /// Whether the user marked this chat as `pinned`.
-    pub pinned: bool,
+    /// Whether the user hoisted this chat.
+    pub hoisted: bool,
 }
 
 /// One persisted message in a session's history.

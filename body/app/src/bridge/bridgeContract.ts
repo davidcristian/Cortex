@@ -49,7 +49,7 @@ async function listedIds(under: BridgeCase): Promise<string[]> {
 
 /** One chat's listed row projected onto `field`, as a one-element array. Projecting rather than
  *  indexing keeps a missing row a failure, where indexing would return `undefined`. */
-async function listedField<K extends "title" | "pinned">(
+async function listedField<K extends "title" | "hoisted">(
   under: BridgeCase,
   sessionId: string,
   field: K,
@@ -78,11 +78,11 @@ async function checkTheProbeKeepsAnsweringAStatus(under: BridgeCase): Promise<vo
   expect(second.state).toBe(first.state);
 }
 
-/** The new chat is listed, not `pinned`, and has a title of its own. */
+/** The new chat is listed, not hoisted, and has a title of its own. */
 async function checkASeededChatIsListed(under: BridgeCase): Promise<void> {
   under.addChat("contract-a", "how does the model swap work");
   expect(await listedIds(under)).toContain("contract-a");
-  expect(await listedField(under, "contract-a", "pinned")).toEqual([false]);
+  expect(await listedField(under, "contract-a", "hoisted")).toEqual([false]);
   const titles = await listedField(under, "contract-a", "title");
   expect(titles).toHaveLength(1);
   expect(titles[0]).not.toBe("");
@@ -133,16 +133,16 @@ async function checkADeletedChatStaysGone(under: BridgeCase): Promise<void> {
   expect(await listedIds(under)).not.toContain("contract-a");
 }
 
-async function checkAPinGroupsAChatAboveAnUnpinnedOne(under: BridgeCase): Promise<void> {
+async function checkAHoistListsAnOlderChatAboveANewerOne(under: BridgeCase): Promise<void> {
   under.addChat("contract-older", "how does the model swap work");
   await under.advance(TURN_MS);
   under.addChat("contract-newer", "what does a subagent cost");
-  await under.bridge.setSessionPinned("contract-older", true);
+  await under.bridge.setSessionHoisted("contract-older", true);
   const ordered = (await listedIds(under)).filter((id) => id.startsWith("contract-"));
   expect(ordered).toEqual(["contract-older", "contract-newer"]);
-  expect(await listedField(under, "contract-older", "pinned")).toEqual([true]);
-  await under.bridge.setSessionPinned("contract-older", false);
-  expect(await listedField(under, "contract-older", "pinned")).toEqual([false]);
+  expect(await listedField(under, "contract-older", "hoisted")).toEqual([true]);
+  await under.bridge.setSessionHoisted("contract-older", false);
+  expect(await listedField(under, "contract-older", "hoisted")).toEqual([false]);
 }
 
 /** A chat nobody has spoken in returns an empty list: an empty chat is normal, not a failure. */
@@ -202,7 +202,7 @@ export const ALL_CHECKS: readonly BridgeCheck[] = [
   checkARenameShowsInTheNextListing,
   checkAnEmptyRenameClearsTheCustomTitle,
   checkADeletedChatStaysGone,
-  checkAPinGroupsAChatAboveAnUnpinnedOne,
+  checkAHoistListsAnOlderChatAboveANewerOne,
   checkAHistoryAnswersRatherThanRejecting,
   checkADueReminderAcksTrueAndAnUnknownIdFalse,
   checkASettingRoundTripsAndAnEmptyValueClears,

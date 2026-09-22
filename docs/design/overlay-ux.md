@@ -197,7 +197,7 @@ fresh `session_id` and clears the panel to the empty state, and **cycling** (`Ct
 moves through recent chats, newest first. The switcher opens a slim list of titles, relative
 timestamps and a one-line preview, each title taken from its first user message.
 
-**A row** runs title and preview on the left, then right to left: the time, the `pinned` toggle, the
+**A row** runs title and preview on the left, then right to left: the time, the hoist toggle, the
 pencil, the trash, the three controls revealed on hover in the order they escalate. The time sits
 11px inside the row's right edge, which is what the title sits inside its left, and its width is
 reserved at 55px, right-aligned, so the column stays still as the clock runs.

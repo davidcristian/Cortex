@@ -52,7 +52,7 @@ describe("envelopeAt", () => {
 });
 
 describe("lobeAt", () => {
-  it("leaves a pinned lobe exactly where it is, at every instant", () => {
+  it("leaves a stationary lobe exactly where it is, at every instant", () => {
     const still = lobe();
     expect(lobeAt(still, 0)).toEqual({ cx: 50, cy: 50, r: 40 });
     expect(lobeAt(still, 4.2)).toEqual({ cx: 50, cy: 50, r: 40 });
@@ -93,7 +93,7 @@ describe("lobePath", () => {
     expect(Math.max(...radii) - Math.min(...radii)).toBeGreaterThan(2);
   });
 
-  it("holds the centroid still while the outline warps, which is what pins the anchor", () => {
+  it("holds the centroid still while the outline warps, which is what holds the anchor in place", () => {
     const shape = lobe({ harmonics: [wave(2, 0.055, 11), wave(3, 0.032, 8), wave(5, 0.011, 6)] });
     for (const seconds of [0, 1.3, 4.9, 7.2]) {
       const middle = centroid(lobePath(shape, seconds, 360));
