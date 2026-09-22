@@ -9,8 +9,8 @@ server sets no send cap. For `GetSessionMessages` the summed length of the recor
 `LRANGE cortex:session:<id>:messages 0 -1` returns is never smaller than the reply, since each
 record is JSON with the same four fields and more, with non-ASCII text escaped, so a live reading of
 that sum below 4 MiB for every session means the trigger has not fired. For `ListSessions` the reply
-holds at most `MAX_SESSION_LIST_LIMIT` (200) recent chats plus every chat kept at the top outside
-that window, and that set has no cap in the store.
+holds at most `MAX_SESSION_LIST_LIMIT` (200) recent chats plus every hoisted chat outside that
+window, and that set has no cap in the store.
 **Verified:** 2026-09-17
 
 `ListSessions` and `GetSessionMessages` are unary snapshots with no cursor, which is enough at
@@ -31,7 +31,7 @@ stubs.
   Nothing in the tree measures a history's encoded size, so that is a live reading.
 - 2026-09-17: Checked again; the trigger has not fired. One correction: a listing is not bounded by
   the clamp alone, because `list_sessions` (`store.py:213`) returns the newest `limit` chats merged
-  with every chat kept at the top, and no cap on that set exists in the session, core or
+  with every hoisted chat, and no cap on that set exists in the session, core or
   orchestrator packages. The rest held, and tonic 0.14.6 sets `DEFAULT_MAX_RECV_MESSAGE_SIZE` to
   4 MiB with the send default at `usize::MAX` (`tonic-0.14.6/src/codec/mod.rs:101-102`). The stored
   record is `encode_message`'s JSON (`store_codec.py:44`), which is why its length bounds the reply.

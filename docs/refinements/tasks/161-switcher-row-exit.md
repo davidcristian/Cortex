@@ -11,8 +11,8 @@ panel and composer did not move.
 
 Fixed by wiring the switcher to `overlay/usePresence.ts`, the same hook the reminder stack uses.
 The hook needed a change first: it put a departing row back at the index it held, which is correct
-only for a list that never reorders, and the switcher re-sorts after every write, putting chats
-kept at the top first and the rest by recency. `Leaving` now also records the key of the row above,
+only for a list that never reorders, and the switcher re-sorts after every write, putting hoisted
+chats first and the rest by recency. `Leaving` now also records the key of the row above,
 and a departing row goes back under that key while it is still on screen, with the index as a
 fallback.
 

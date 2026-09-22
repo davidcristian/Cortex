@@ -28,6 +28,6 @@ reordering reshapes the read path and deleting could not yet say accurately what
   `set_title`, while the other two opened as their own entries. The expectation that a confirmer
   would be involved was the second such premise corrected by reading the code that day. Neither
   other operation could come with the rename: reordering reshapes the tuned read path, with the open
-  question being whether a chat kept at the top escapes the recency window, and deleting could not
+  question being whether a hoisted chat escapes the recency window, and deleting could not
   then cascade to memory, since `MemoryStore` had no delete until `delete_scope` shipped the same
   day.

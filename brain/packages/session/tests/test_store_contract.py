@@ -42,13 +42,13 @@ async def test_delete_leaves_no_orphaned_redis_key_or_index_member() -> None:
 
     assert await session_keys()
     assert await client.zscore("cortex:sessions", "s") is not None
-    assert await client.sismember("cortex:sessions:pinned", "s")
+    assert await client.sismember("cortex:sessions:hoisted", "s")
 
     await store.delete("s")
 
     assert await session_keys() == []
     assert await client.zscore("cortex:sessions", "s") is None
-    assert not await client.sismember("cortex:sessions:pinned", "s")
+    assert not await client.sismember("cortex:sessions:hoisted", "s")
 
 
 async def test_connection_failure_on_delete_wraps_the_cause() -> None:
@@ -103,11 +103,11 @@ async def test_set_hoisted_persists_under_the_hoisted_set_key() -> None:
     client = FakeAsyncRedis(server=FakeServer())
     store = RedisSessionStore(client)
     await store.set_hoisted("s", hoisted=True)
-    assert await client.sismember("cortex:sessions:pinned", "s")
+    assert await client.sismember("cortex:sessions:hoisted", "s")
     await store.set_hoisted("s", hoisted=True)
-    assert await client.scard("cortex:sessions:pinned") == 1
+    assert await client.scard("cortex:sessions:hoisted") == 1
     await store.set_hoisted("s", hoisted=False)
-    assert not await client.sismember("cortex:sessions:pinned", "s")
+    assert not await client.sismember("cortex:sessions:hoisted", "s")
 
 
 async def test_list_sessions_unions_a_hoisted_chat_older_than_the_window() -> None:
@@ -127,7 +127,7 @@ async def test_list_sessions_skips_a_dangling_hoisted_entry() -> None:
     client = FakeAsyncRedis(server=FakeServer())
     store = RedisSessionStore(client)
     await store.append("real", contract.make_message(Role.USER, "hi"))
-    await client.sadd("cortex:sessions:pinned", "ghost")
+    await client.sadd("cortex:sessions:hoisted", "ghost")
     summaries = await store.list_sessions(limit=10)
     assert [s.session_id for s in summaries] == ["real"]
 

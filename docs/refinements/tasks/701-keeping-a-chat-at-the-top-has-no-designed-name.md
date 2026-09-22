@@ -1,9 +1,8 @@
 # Keeping a chat at the top of the list has no designed name
 
-**Status:** open, actionable
+**Status:** done 2026-09-22
 **Area:** body-overlay
 **Origin:** [ADR-0040](../../adr/ADR-0040-prose-and-comment-style.md)
-**Verified:** 2026-09-22
 
 The overlay lets the user keep a chat at the top of the chat list whatever its last message. Its
 only name is a word the documents may not use, so every sentence about it says "keeps a chat at the
@@ -47,7 +46,11 @@ release.
 ## History
 
 - 2026-09-19: opened when the documents around this feature were found to have no name for it.
-- 2026-09-22: the panel's edge no longer uses the word, renamed with the identifiers under
-  ADR-0040 decision 15. The mark's still orbit, `pinned()` in `body/app/src/mark/marks.ts`, does,
-  and is an identifier for [R-705](705-names-inside-files-still-use-banned-words.md) rather than
-  this feature. Three names are proposed above; the pick is the maintainer's.
+- 2026-09-22: done. The maintainer picked Hoist, with Lower as its opposite, from the three names
+  proposed above. The rename covers the proto, the brain, the body, the Tauri shell and the
+  overlay, whose toggle now draws an arrow rising to a bar, and the session store moves the ids
+  under `cortex:sessions:pinned` into `cortex:sessions:hoisted` once, before it first uses the set.
+  Decision 12 of [ADR-0021](../../adr/ADR-0021-session-read-rpcs.md) records the name and its keys.
+  The mark's still orbit, which used the same word for an unrelated thing, is now `stationary()`.
+  Opened [R-712](712-the-session-store-still-moves-the-hoisted-sets-first-key.md) for removing the
+  move once the maintainer's store has run it.

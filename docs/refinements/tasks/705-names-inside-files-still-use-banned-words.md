@@ -28,7 +28,9 @@ finds 538 distinct names, largest family first:
 - `pinned`, `pin`, `pins`, `pinning`: 24 names, none of them the chat list's hoist feature. Most
   are test names under `scripts/` and the brain tests that use the word for asserting a value; the
   rest are `_PINNED_NOTE` in `spawn_spec.py`, local variables in `composefiles.py`,
-  `test_crosscheck.py` and `test_switch_rows.py`, and the Rust `Box::pin`.
+  `test_crosscheck.py` and `test_switch_rows.py`, the Rust `Box::pin`, and the session store's
+  `_OLD_HOISTED_KEY`, `cortex:sessions:pinned`, which stays until
+  [R-712](712-the-session-store-still-moves-the-hoisted-sets-first-key.md) closes.
 - `standing`: 9 names, all but one of them test names under `scripts/`.
 - `knob` and `knobs` 9, `honest` and `honestly` 6, `robust` 4, `backstop` 2, `rederive` 1 and
   `sitting` 1.

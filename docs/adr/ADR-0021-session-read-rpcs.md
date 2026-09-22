@@ -162,7 +162,7 @@ so a label cannot inject markup or a second line.
 
 `SessionStore.delete(session_id)` removes the `:messages` list, the `:title` string, the `:recap`
 string ([ADR-0038](ADR-0038-ranked-recall.md) decision 9), the `cortex:sessions` member and the
-`cortex:sessions:pinned` member in one transactional pipeline, idempotently. A tombstone was
+`cortex:sessions:hoisted` member in one transactional pipeline, idempotently. A tombstone was
 rejected: the reads are stateless snapshots and an unknown session already reads as an empty
 history, and "forget this chat" calls for erasure.
 
@@ -182,20 +182,20 @@ stream, so a reply cannot re-create the chat) and on success resets the panel to
 ### 12. A hoisted chat is added to the recency listing
 
 A chat the user hoists stays at the top of the list whatever its age, until the user lowers it. The
-listing unions the recency window with the Redis set of hoisted ids, `cortex:sessions:pinned`, read
+listing unions the recency window with the Redis set of hoisted ids, `cortex:sessions:hoisted`, read
 in one pipeline and deduplicated before any fetch, so an old hoisted chat lists, a recent one lists
 once, and many hoisted chats list more than `limit`. The pure `merge_hoisted`, shared by the fake
 and the adapter, puts the hoisted chats first, each group newest first; the switcher, cycling and
 cold-start adoption read that order.
 
-**The name is Hoist, and its opposite is Lower.** The row's toggle (`aria-pressed`, an arrow rising
-to a bar) reads `Hoist <title>` or `Lower <title>`, acts without a confirmation and re-lists. The
-word says what the row does, rising above newer chats until it is lowered, has a natural opposite,
-and was used by no identifier or selectable family before. The keys follow it:
-`SessionSummary.hoisted` (field 5), `setSessionHoisted`, the Tauri command `set_session_hoisted`,
-`SessionStore.set_hoisted(session_id, *, hoisted)`, the row's `hoisted` class and the RPC
-`SetSessionHoisted`, whose field numbers were kept and whose method path changed, so a body and a
-brain are built together.
+**The name is Hoist, and its opposite is Lower.** The row's toggle (`aria-pressed`) reads
+`Hoist <title>` or `Lower <title>`, acts without a confirmation and re-lists. The word says what
+the row does, rising above newer chats until it is lowered, has a natural opposite, and was used
+by no identifier or selectable family before. Its keys: `SessionSummary.hoisted` (field 5),
+`setSessionHoisted`, the Tauri command `set_session_hoisted`, `SessionStore.set_hoisted`, the row's
+`hoisted` class, the stored set and the RPC `SetSessionHoisted`, whose new method path means a body
+and a brain are built together. A real store held ids under the set's first key,
+`cortex:sessions:pinned`, so the adapter moves them over once, before it first uses the set.
 
 ### 13. The open-chat header shows the switcher's title
 

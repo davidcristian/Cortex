@@ -25,11 +25,11 @@ an injected `redis.asyncio.Redis` client or from `from_url(url)`, which builds a
   history rather than an error.
 - `list_sessions(*, limit)` builds the chat list (ADR-0021) in two round trips. The first reads both
   indexes in one transaction: `ZREVRANGE` over the recency index for at most `limit` session ids,
-  newest active first, and `SMEMBERS` over `cortex:sessions:pinned`. The listed set is their union,
-  the recency window first and then every hoisted id outside it, deduplicated, so a hoisted chat older
-  than the window still appears (ADR-0021 decision 12). The second reads only what a summary needs
-  from each listed session, `LRANGE 0 0`, `LRANGE -1 -1`, `LLEN` and `GET :title`, batched into one
-  transactional pipeline; the core's `summarize_ends` derives each `SessionSummary` and
+  newest active first, and `SMEMBERS` over `cortex:sessions:hoisted`. The listed set is their union,
+  the recency window first and then every hoisted id outside it, deduplicated, so a hoisted chat
+  older than the window still appears (ADR-0021 decision 12). The second reads only what a summary
+  needs from each listed session, `LRANGE 0 0`, `LRANGE -1 -1`, `LLEN` and `GET :title`, batched
+  into one transactional pipeline; the core's `summarize_ends` derives each `SessionSummary` and
   `merge_hoisted` orders the union. The cost is two round trips and two decoded records per chat
   whatever the chat's length (ADR-0021 decision 7). A stale index entry is skipped, and so is a
   corrupt record between the two ends, which a listing never reads. A corrupt record at either end
@@ -39,7 +39,7 @@ an injected `redis.asyncio.Redis` client or from `from_url(url)`, which builds a
   overwrites it and `""` clears the override at read. It is the one write behind both the
   brain-generated title and the overlay's user-driven `RenameSession`.
 - `delete(session_id)` removes a whole chat in one transactional pipeline: the message list, the
-  title, the recap, the `cortex:sessions` index member and the `cortex:sessions:pinned` member
+  title, the recap, the `cortex:sessions` index member and the `cortex:sessions:hoisted` member
   (ADR-0021 decision 11). It is a hard delete rather than a marker, because an unknown session
   already reads as an empty history. It leaves no orphaned key and is idempotent. The memory half of
   the cascade is not here; the orchestrator's `DeleteSession` runs `SessionMemoryCascade` after this
@@ -50,10 +50,15 @@ an injected `redis.asyncio.Redis` client or from `from_url(url)`, which builds a
   are stored because the text alone cannot tell a current recap from a stale one. `recap` returns
   `None` for a session that never had one, and fails on a document it cannot read rather than
   returning `None`, which would look the same. `delete` removes it in the same transaction.
-- `set_hoisted(session_id, *, hoisted)` adds or removes the chat's id in `cortex:sessions:pinned`
+- `set_hoisted(session_id, *, hoisted)` adds or removes the chat's id in `cortex:sessions:hoisted`
   (`SADD` or `SREM`, both idempotent), which `list_sessions` unions into every listing. An id in the
   set with no message list is skipped like any other stale index entry. It is the write behind the
   overlay's `SetSessionHoisted`.
+- The hoisted set was first stored under `cortex:sessions:pinned`. Before a store first reads or
+  writes the set, it moves that key's members into `cortex:sessions:hoisted` with `SUNIONSTORE` and
+  `DEL` in one `MULTI`, then sets a flag so later calls skip it. The move is atomic and idempotent,
+  so two brains starting at once keep every member, a missing old key moves nothing, and a failed
+  move runs again on the next call. `EXISTS cortex:sessions:pinned` is 0 once it has run.
 
 ### `RedisTaskStore`
 
@@ -135,7 +140,7 @@ format evolves. The sorted set `cortex:sessions` is the recency index: `append` 
 id scored by the message's `at`, so the score is the last activity. Batching the two-ended read into
 one transactional pipeline took a listing from 23.8 ms to 1.11 ms over 20 chats of 200 messages
 against real Redis; the first/last/length cache it replaced is rejected rather than deferred
-(ADR-0021 decision 7). The plain set `cortex:sessions:pinned` holds the hoisted session ids.
+(ADR-0021 decision 7). The plain set `cortex:sessions:hoisted` holds the hoisted session ids.
 
 Task state uses two string keys per delegation, `cortex:task:{id}` and `cortex:task:{id}:result`,
 each one JSON document with a **3600 s expiry**. It is hot and short-lived, written and read back by
@@ -205,13 +210,14 @@ record is quarantined instead (ADR-0025).
 Each port has one shared behaviour suite driven over the in-memory implementation and the Redis one
 on fakeredis: `tests/contract.py`, `tests/task_contract.py`, `tests/schedule_contract.py` and
 `tests/handoff_contract.py`. Adapter-only mechanics (error wrapping per operation, codec policy,
-quarantine, stale-id tolerance, surplus release, expiry and pointer self-repair) are tested against
-the Redis adapter alone. The schedule suite is about the guarded protocol: a stale finish rejected,
-a cancel during a fire sticking, a re-claim under a fresh token after lease expiry, terminal
-cleanup, taint OR at fire time, and the delivery lifecycle. The handoff suite's central check is the
-taint ledger round trip, where a ledger built through the real `TaintLedger` API comes back exact in
-bytes, order and set membership through `HandoffRecord.taint_ledger()`, with the `opaque` bit
-checked at both values because both of its consumers start from `False` after a swap.
+quarantine, stale-id tolerance, surplus release, expiry, pointer self-repair and the hoisted set's
+move, in `tests/test_hoisted_key_move.py`) are tested against the Redis adapter alone. The schedule
+suite is about the guarded protocol: a stale finish rejected, a cancel during a fire sticking, a
+re-claim under a fresh token after lease expiry, terminal cleanup, taint OR at fire time, and the
+delivery lifecycle. The handoff suite's central check is the taint ledger round trip, where a ledger
+built through the real `TaintLedger` API comes back exact in bytes, order and set membership through
+`HandoffRecord.taint_ledger()`, with the `opaque` bit checked at both values because both of its
+consumers start from `False` after a swap.
 
 Every session check reaches CI through `contract.ALL_CHECKS`, which `tests/test_store_contract.py`
 parametrizes over the two-implementation fixture, rather than through hand-written wrappers a new

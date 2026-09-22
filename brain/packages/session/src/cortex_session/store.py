@@ -29,7 +29,10 @@ DEFAULT_REDIS_URL = "redis://127.0.0.1:6379/0"
 
 _SESSIONS_KEY = "cortex:sessions"
 
-_HOISTED_KEY = "cortex:sessions:pinned"
+_HOISTED_KEY = "cortex:sessions:hoisted"
+
+# A store written before the feature was named Hoist keeps its hoisted ids under this key.
+_OLD_HOISTED_KEY = "cortex:sessions:pinned"
 
 # Reads queued per listed session, in this order: head, tail, length, title.
 _ENDS_READS = 4
@@ -61,6 +64,7 @@ class RedisSessionStore:
 
     def __init__(self, client: Redis) -> None:
         self._client = client
+        self._hoisted_moved = False
 
     @classmethod
     def from_url(cls, url: str = DEFAULT_REDIS_URL) -> "RedisSessionStore":
@@ -121,9 +125,20 @@ class RedisSessionStore:
         # than as a read failure.
         return None if raw is None else decode_recap(cast("bytes", raw), session_id)
 
+    async def _move_old_hoisted(self) -> None:
+        """Move the ids under the old key into the hoisted set, once per store (idempotent)."""
+        if self._hoisted_moved:
+            return
+        async with self._client.pipeline(transaction=True) as pipe:
+            pipe.sunionstore(_HOISTED_KEY, [_HOISTED_KEY, _OLD_HOISTED_KEY])  # pyright: ignore[reportUnknownMemberType]
+            pipe.delete(_OLD_HOISTED_KEY)
+            await pipe.execute()
+        self._hoisted_moved = True
+
     async def delete(self, session_id: str) -> None:
         """Hard-delete a whole session: its messages, its title, its recap, its recency entry."""
         try:
+            await self._move_old_hoisted()
             async with self._client.pipeline(transaction=True) as pipe:
                 pipe.delete(messages_key(session_id))
                 pipe.delete(title_key(session_id))
@@ -138,6 +153,7 @@ class RedisSessionStore:
     async def set_hoisted(self, session_id: str, *, hoisted: bool) -> None:
         """Add the chat to the hoisted set, or remove it from it."""
         try:
+            await self._move_old_hoisted()
             if hoisted:
                 await self._client.sadd(_HOISTED_KEY, session_id)
             else:
@@ -149,6 +165,7 @@ class RedisSessionStore:
     async def list_sessions(self, *, limit: int) -> Sequence[SessionSummary]:
         """Return the newest ``limit`` chats plus every hoisted chat, the hoisted ones first."""
         try:
+            await self._move_old_hoisted()
             async with self._client.pipeline(transaction=True) as pipe:
                 pipe.zrevrange(_SESSIONS_KEY, 0, limit - 1)  # pyright: ignore[reportUnknownMemberType]
                 pipe.smembers(_HOISTED_KEY)
