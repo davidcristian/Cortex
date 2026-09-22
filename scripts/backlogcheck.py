@@ -31,6 +31,25 @@ def task_texts(tasks: list[Task]) -> list[tuple[Path, str]]:
     return [(task.path, task.path.read_text(encoding="utf-8")) for task in tasks]
 
 
+def other_texts(root: Path) -> list[tuple[Path, str]]:
+    """Return every markdown file outside the task directories and indexes, with its text."""
+    bases = [(root / base).resolve() for _, base, _ in BACKLOGS]
+    indexes = {base / "index.md" for base in bases}
+    directories = {base / "tasks" for base in bases}
+    sources: list[tuple[Path, str]] = []
+    for path in backloganchors.markdown_files(root):
+        resolved = path.resolve()
+        if resolved in indexes or resolved.parent in directories:
+            continue
+        try:
+            text = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            # backloganchors.check reports a file it cannot read.
+            continue
+        sources.append((path, text))
+    return sources
+
+
 def check_stray(directory: Path) -> list[str]:
     """Return one problem per entry in ``directory`` that is not a task file."""
     return [
@@ -101,6 +120,7 @@ def main(argv: list[str] | None = None) -> int:
         problems.extend(found)
         name = f"{base}/index.md"
         indexes[(root / name).resolve()] = backloganchors.Index(name=name, anchors=offered)
+    problems.extend(check_links(root, other_texts(root)))
     problems.extend(backloganchors.check(root, indexes))
     for problem in problems:
         print(problem, file=sys.stderr)
@@ -108,12 +128,12 @@ def main(argv: list[str] | None = None) -> int:
         print(
             f"\nbacklogcheck: {len(problems)} problem(s). A task's status is written on its own "
             f"Status line and nowhere else; the index is generated from those files by "
-            f"`just backlog`, and a fragment anywhere in the repo must name a heading the "
-            f"document it aims at really offers.",
+            f"`just backlog`. A relative link anywhere in the repo must resolve, and its "
+            f"fragment must name a heading the document it aims at really offers.",
             file=sys.stderr,
         )
         return 1
-    print("backlogcheck OK: every index matches its task files, and every fragment resolves")
+    print("backlogcheck OK: every index matches its task files, and every link resolves")
     return 0
 
 

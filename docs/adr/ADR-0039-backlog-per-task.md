@@ -53,8 +53,11 @@ cannot be edited into disagreement with the tasks, because the only supported wa
 to change a task file and regenerate. `backlogcheck.py` is one of the cross-tree scans `just check`
 runs unconditionally, in CI too.
 
-**7. Every relative link in a task file must resolve.** Tasks move and their neighbours get
-renamed, and a broken markdown link is the one kind of decay that fails silently.
+**7. Every relative link in a markdown file must resolve.** Tasks move and their neighbours get
+renamed, and a broken markdown link is the one kind of decay that fails silently. The links are
+read from every task file, from each index on its regenerated text, and from every other markdown
+file the scan in decision 9 reads, since decision records, readings, runbooks and module docs
+link to tasks by file name too.
 
 **8. Closure records stay.** A task that is done or declined keeps its file forever: several
 entries correct their own origin ADR, so the record of what a deferral became is often worth more

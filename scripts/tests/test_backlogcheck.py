@@ -82,6 +82,42 @@ def test_check_links_reads_the_text_it_is_handed_and_not_the_file(tmp_path: Path
     ]
 
 
+def test_other_texts_reads_every_markdown_file_but_the_task_files_and_indexes(
+    tmp_path: Path,
+) -> None:
+    root = _repo(tmp_path)
+    _write(root, "docs/adr/ADR-0001.md", "# The decision\n")
+    _write(root, "docs/refinements/notes.md", "# Notes beside the backlog\n")
+    names = sorted(path.relative_to(root).as_posix() for path, _ in backlogcheck.other_texts(root))
+    assert names == ["docs/adr/ADR-0001.md", "docs/refinements/notes.md"]
+
+
+def test_other_texts_skips_a_file_it_cannot_read_and_main_reports_it_once(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root = _repo(tmp_path)
+    (root / "docs" / "adr").mkdir(parents=True)
+    (root / "docs" / "adr" / "ADR-0001.md").write_bytes(b"\xff\xfe not text\n")
+    assert backlogcheck.other_texts(root) == []
+    assert backlogcheck.main(["--root", str(root), "--write"]) == 1
+    assert capsys.readouterr().err.count("cannot be read") == 1
+
+
+def test_main_reports_a_plain_link_outside_the_backlog_that_does_not_resolve(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root = _repo(tmp_path)
+    adr = _write(
+        root, "docs/adr/ADR-0001.md", "See [the task](../refinements/tasks/002-gone.md).\n"
+    )
+    assert backlogcheck.main(["--root", str(root), "--write"]) == 1
+    assert (
+        "docs/adr/ADR-0001.md: link '../refinements/tasks/002-gone.md' does not resolve"
+    ) in capsys.readouterr().err
+    adr.write_text("See [the task](../refinements/tasks/001-wire-the-memory-port.md).\n")
+    assert backlogcheck.main(["--root", str(root)]) == 0
+
+
 def test_run_one_reports_a_missing_tasks_directory(tmp_path: Path) -> None:
     _write(tmp_path, "docs/refinements/index.md", INDEX)
     problems, offered = backlogcheck.run_one(

@@ -26,6 +26,5 @@ stay, on the ground that the index is how a task is found.
   slug's hyphens read as spaces, found the same 97 refinement slugs of 693 and no host slug, and
   none of the hits was a banned word inside an ordinary one. All 97 files were renamed from their
   current titles with their numbers kept, and the 316 links to them were rewritten. No check reads
-  a slug, so a word added to the table later is not found in one: R-711. `backlogcheck.py`
-  resolves a plain link only in a task file or an index, so the links from other documents were
-  resolved by a one-off scan over all 878 markdown files, which found none broken: R-712.
+  a slug, so a word added to the table later is not found in one: R-711. A scan over all 878
+  markdown files then found no link left broken.
