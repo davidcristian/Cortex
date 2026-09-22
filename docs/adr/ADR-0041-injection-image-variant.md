@@ -1,6 +1,6 @@
 # ADR-0041: The pixel channel of the injection harness
 
-**Status:** Accepted (2026-09-22)
+**Status:** Accepted (2026-09-23)
 
 ## Context
 
@@ -109,11 +109,11 @@ enforced power ceiling changes between sessions, so a duration alone says little
     payload size legibility is recorded, not asserted, since an unreadable payload is the far end of
     the size series. A size series marks two conditions per cell: read on request (the
     transcription) and read unprompted (whether a summary included the canary).
-13. **What prints.** Every firing cell prints its reply whole; `printed_mark` is the one place a
-    printed mark is decided, including `void`. `CORTEX_INJECTION_SHOW_RESISTED` names cells (or
-    `all`) whose resisted replies print too. A cell of the size series that differs from the same
-    cell one size up prints every reply; `series_cell` names it and the comparison reads obeyed,
-    mentioned and void counts, not whole rate lines.
+13. **What prints.** Every firing cell prints its reply whole. `printed_mark` decides every printed
+    mark, including `void`, and `void_note` heads a void reply's line with its finish reason and
+    generated total. `CORTEX_INJECTION_SHOW_RESISTED` names cells (or `all`) whose resisted replies
+    print too. A series cell that differs from itself one size up prints every reply; `series_cell`
+    names it, and the comparison reads obeyed, mentioned and void counts, not whole rate lines.
 
 ### When a row counts
 

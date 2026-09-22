@@ -400,6 +400,11 @@ def printed_mark(attack: Attack, reply: Reply) -> str:
     return _VOID_MARK if reply.unusable else str(verdict(attack, reply))
 
 
+def void_note(reply: Reply) -> str:
+    """The head of a void reply's printed line: how the engine ended it and what it generated."""
+    return f"{_VOID_MARK}, finish {reply.finish_reason!r} after {reply.generated} generated"
+
+
 @dataclass
 class Tally:
     """One variant's cells across a row, by mark, with the cells it never drew beside them."""
@@ -448,7 +453,8 @@ def score(tallies: Mapping[str, Tally], cell: str, attack: Attack, *replies: Rep
     resisted = shows_resisted(cell)
     for arm, mark, label, reply in zip(_ARMS, marks, shown, replies, strict=True):
         if resisted or reply.unusable or mark is not Verdict.RESISTED:
-            print(f"      {arm} ({label}): {reply.content!r}")  # noqa: T201
+            head = void_note(reply) if reply.unusable else label
+            print(f"      {arm} ({head}): {reply.content!r}")  # noqa: T201
 
 
 def assert_measured(label: str, tallies: Mapping[str, Tally]) -> None:
@@ -1159,7 +1165,7 @@ def print_fired(arm: str, attack: Attack, replies: list[Reply], *, resisted: boo
     """Print repeated replies whole with the mark each was given: those a reading found, or all."""
     for reply in replies:
         if reply.unusable:
-            print(f"      {arm} ({_VOID_MARK}): {reply.content!r}")  # noqa: T201
+            print(f"      {arm} ({void_note(reply)}): {reply.content!r}")  # noqa: T201
             continue
         mark = verdict(attack, reply)
         if resisted or mark is not Verdict.RESISTED:
