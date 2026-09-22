@@ -76,8 +76,14 @@ message ServerEvent {
     ConfirmRequest confirm_request = 6; // a tool call is waiting for the user's approval
     ConfirmResolved confirm_resolved = 7; // the brain stopped waiting for an answer
     ToolOutcome tool_outcome = 8;   // how a tool call announced above ended
+    Heartbeat heartbeat = 9;        // the turn is still running; holds no turn content
   }
 }
+
+// Sent by the stream itself, not by the turn, once per heartbeat period while a turn task is
+// running and nothing else is waiting to be sent. The body resets its silence clock on it and
+// shows nothing, so a live brain and a dead one differ within minutes.
+message Heartbeat {}
 
 message TextDelta { string text = 1; }
 message ToolActivity { string tool_name = 1; string summary = 2; }

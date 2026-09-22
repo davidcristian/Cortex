@@ -503,7 +503,7 @@ async fn converse_is_forwarded_verbatim_without_retry() {
     assert_eq!(flaky.call_count(), 0);
     assert!(sleeper.delays().is_empty());
     let gaps = RetryPlan::default().turn_gaps;
-    assert_eq!(sleeper.bounds(), vec![gaps.first, gaps.idle, gaps.idle]);
+    assert_eq!(sleeper.bounds(), vec![gaps.heartbeat; 3]);
 }
 
 #[test]
@@ -846,9 +846,12 @@ async fn the_turn_is_the_one_call_no_deadline_ends_and_its_silence_is_bounded_in
         .converse("s1", "hi", tokio_stream::empty())
         .collect()
         .await;
-    let first = plan.turn_gaps.first;
-    assert_eq!(events, vec![Err(TransportError::Timeout { after: first })]);
-    assert_eq!(sleeper.bounds(), vec![first]);
+    let heartbeat = plan.turn_gaps.heartbeat;
+    assert_eq!(
+        events,
+        vec![Err(TransportError::Timeout { after: heartbeat })]
+    );
+    assert_eq!(sleeper.bounds(), vec![heartbeat]);
     assert_eq!(plan.deadline_for(SeamMethod::Converse), None);
 }
 

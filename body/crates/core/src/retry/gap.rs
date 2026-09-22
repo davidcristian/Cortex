@@ -1,7 +1,7 @@
 //! [`within_gaps`]: a turn's stream, bounded by its silence.
 //!
-//! A turn has no deadline, because a working turn is long by design. What is bounded is the
-//! silence between its events: every event resets the clock, so only a stalled turn ends.
+//! A turn has no deadline, because a working turn is long by design. What is bounded is its
+//! silence: every event resets the clock, and the brain's heartbeat bounds a dead brain sooner.
 
 use std::future::poll_fn;
 use std::pin::pin;
@@ -26,14 +26,27 @@ pub const DEFAULT_TURN_FIRST_GAP_MS: u64 = 600_000;
 /// it for two runs of `DEFAULT_SUBAGENT_RUN_TIMEOUT_S` (2400 s): 12000 s, plus a fifth as margin.
 pub const DEFAULT_TURN_IDLE_GAP_MS: u64 = 14_400_000;
 
-/// The two silences one streamed turn runs under: the wait for its first event, and the wait
-/// between the events after it.
+/// How often the brain sends a heartbeat while a turn runs, in milliseconds. The brain's
+/// `converse_stream.py` declares the same constant.
+pub const HEARTBEAT_PERIOD_MS: u64 = 30_000;
+
+/// How long a turn's stream may go without any item at all, a heartbeat included, in milliseconds.
+///
+/// Four heartbeat periods, so a live brain whose event loop runs late by up to three still passes.
+pub const DEFAULT_TURN_HEARTBEAT_GAP_MS: u64 = 120_000;
+
+/// The silences one streamed turn runs under: the turn's own before and between its events, and
+/// the stream's between any two items, heartbeats included.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct TurnGaps {
     /// The longest silence allowed before the turn's first event.
     pub first: Duration,
     /// The longest silence allowed between two events, reset by every one of them.
     pub idle: Duration,
+    /// The longest the stream may go without any item, reset by a heartbeat too.
+    pub heartbeat: Duration,
+    /// The brain's heartbeat period: the turn silence each heartbeat is counted as.
+    pub period: Duration,
 }
 
 impl TurnGaps {
@@ -41,15 +54,19 @@ impl TurnGaps {
     pub const UNBOUNDED: Self = Self {
         first: Duration::MAX,
         idle: Duration::MAX,
+        heartbeat: Duration::MAX,
+        period: Duration::ZERO,
     };
 }
 
 impl Default for TurnGaps {
-    /// The shipped gaps: [`DEFAULT_TURN_FIRST_GAP_MS`] and [`DEFAULT_TURN_IDLE_GAP_MS`].
+    /// The shipped gaps, from the four constants above.
     fn default() -> Self {
         Self {
             first: Duration::from_millis(DEFAULT_TURN_FIRST_GAP_MS),
             idle: Duration::from_millis(DEFAULT_TURN_IDLE_GAP_MS),
+            heartbeat: Duration::from_millis(DEFAULT_TURN_HEARTBEAT_GAP_MS),
+            period: Duration::from_millis(HEARTBEAT_PERIOD_MS),
         }
     }
 }
@@ -84,6 +101,8 @@ struct GapClock {
     seen: bool,
     /// Whether the stream is over, by its own end or by an expired gap.
     done: bool,
+    /// The turn's silence as heartbeats count it: one period per heartbeat since its last event.
+    quiet: Duration,
 }
 
 /// What one bounded poll of the inner stream saw: `None` when the gap won, `Some(None)` when the
@@ -97,6 +116,16 @@ impl GapClock {
             gaps: gaps.unwrap_or(TurnGaps::UNBOUNDED),
             seen: false,
             done: false,
+            quiet: Duration::ZERO,
+        }
+    }
+
+    /// The silence the turn itself may spend: `first` before its first event, `idle` after.
+    fn allowance(&self) -> Duration {
+        if self.seen {
+            self.gaps.idle
+        } else {
+            self.gaps.first
         }
     }
 
@@ -105,18 +134,17 @@ impl GapClock {
         if self.done {
             return None;
         }
-        Some(if self.seen {
-            self.gaps.idle
-        } else {
-            self.gaps.first
-        })
+        let left = self.allowance().saturating_sub(self.quiet);
+        Some(self.gaps.heartbeat.min(left))
     }
 
     /// Folds what the clock saw into the item to yield, or `None` to stop.
     fn step(&mut self, polled: Polled, gap: Duration) -> Option<Result<TurnEvent, TransportError>> {
         match polled {
+            Some(Some(Ok(TurnEvent::Heartbeat))) => self.beat(),
             Some(Some(item)) => {
                 self.seen = true;
+                self.quiet = Duration::ZERO;
                 Some(item)
             }
             Some(None) => {
@@ -125,8 +153,33 @@ impl GapClock {
             }
             None => {
                 self.done = true;
-                Some(Err(TransportError::Timeout { after: gap }))
+                Some(Err(TransportError::Timeout {
+                    after: self.broken(gap),
+                }))
             }
+        }
+    }
+
+    /// Counts one heartbeat as a period of the turn's silence, ending the stream once that
+    /// silence reaches the turn's allowance; a heartbeat itself is never yielded.
+    fn beat(&mut self) -> Option<Result<TurnEvent, TransportError>> {
+        self.quiet = self.quiet.saturating_add(self.gaps.period);
+        if self.quiet < self.allowance() {
+            return None;
+        }
+        self.done = true;
+        Some(Err(TransportError::Timeout {
+            after: self.allowance(),
+        }))
+    }
+
+    /// The gap a poll bounded by `gap` broke when it expired: the heartbeat gap when that was the
+    /// bound, otherwise the turn's own allowance.
+    fn broken(&self, gap: Duration) -> Duration {
+        if gap == self.gaps.heartbeat {
+            gap
+        } else {
+            self.allowance()
         }
     }
 }

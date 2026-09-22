@@ -166,8 +166,7 @@ event the overlay listens on; in a plain browser `main.tsx` self-summons instead
   that enforces the per-attempt deadline and the client that announces it as `grpc-timeout`.
   `converse` keeps its eager dial but wraps it in `retry_with`, so a turn started against a briefly
   down brain retries the dial while a turn that fails after its first event stays terminal. A
-  turn's length is unbounded, a model thinking not being a failure; its silence is not, and runs
-  under the two turn gaps below.
+  turn's length is unbounded; its silence runs under the three turn gaps below.
 - **`body_server.rs`** (ADR-0023, ADR-0025) binds `CORTEX_BODY_ADDR` (default `127.0.0.1:50151`,
   declared once as `DEFAULT_BODY_PORT` and tied by `scripts/crosscheck.py` to every other file that
   states it), reads `CORTEX_SEAM_TOKEN` and `CORTEX_TOAST_APP_ID`, and serves `body_rpc`'s
@@ -191,12 +190,13 @@ through), `CORTEX_TOAST_APP_ID` (the `AppUserModelID` the reminder toast is attr
 the ceiling on a `Health` probe's whole run, and the two per-attempt deadlines
 `CORTEX_BRAIN_PROBE_DEADLINE_MS` (250) and `CORTEX_BRAIN_CALL_DEADLINE_MS` (5000). At the defaults
 the budget leaves the probe two of the reads' three attempts, so the dot resolves within 700 ms and
-still spends one real retry on a restarting brain. The turn's two settings bound silence rather
-than a call (ADR-0024 decisions 19 and 20): `CORTEX_BRAIN_TURN_FIRST_GAP_MS`
-(`DEFAULT_TURN_FIRST_GAP_MS = 600000`) is the longest a turn may say nothing before its first event,
-and `CORTEX_BRAIN_TURN_IDLE_GAP_MS` (`DEFAULT_TURN_IDLE_GAP_MS = 14400000`) the longest between two
-of them. The second is larger because a delegated subtask may wait two hours for admission and then
-hold it for two runs of forty minutes without the stream seeing anything.
+still spends one real retry on a restarting brain. The turn's three settings bound silence rather
+than a call (ADR-0024 decisions 19 and 20, ADR-0069). `CORTEX_BRAIN_TURN_FIRST_GAP_MS`
+(`DEFAULT_TURN_FIRST_GAP_MS = 600000`) and `CORTEX_BRAIN_TURN_IDLE_GAP_MS`
+(`DEFAULT_TURN_IDLE_GAP_MS = 14400000`) bound the turn's own silence before its first event and
+between two, counting each heartbeat as silence; the second is sized by a delegated subtask's
+admission wait and runs. `CORTEX_BRAIN_TURN_HEARTBEAT_GAP_MS` bounds the stream's silence,
+heartbeats included (`DEFAULT_TURN_HEARTBEAT_GAP_MS = 120000`), so a dead brain shows in minutes.
 
 **Invariants.**
 

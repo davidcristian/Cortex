@@ -8,7 +8,10 @@ pub mod policy;
 
 pub use deadline::within_deadline;
 pub use effects::{FullDelay, Randomness, Sleeper};
-pub use gap::{DEFAULT_TURN_FIRST_GAP_MS, DEFAULT_TURN_IDLE_GAP_MS, TurnGaps, within_gaps};
+pub use gap::{
+    DEFAULT_TURN_FIRST_GAP_MS, DEFAULT_TURN_HEARTBEAT_GAP_MS, DEFAULT_TURN_IDLE_GAP_MS,
+    HEARTBEAT_PERIOD_MS, TurnGaps, within_gaps,
+};
 pub use plan::{
     ANNOUNCED_DEADLINE_GRACE_MS, DEFAULT_CALL_DEADLINE, DEFAULT_PROBE_BUDGET,
     DEFAULT_PROBE_DEADLINE, RetryPlan, SeamMethod,

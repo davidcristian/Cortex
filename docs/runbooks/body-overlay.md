@@ -103,21 +103,27 @@ against a real brain by the `body-rpc` live suite, so what Windows adds is the I
 
 **What a stalled turn looks like, and when the body gives up on one.** A turn has no time limit:
 the reply may take as long as the model and its tools take, and the thinking indicator stays up
-while events keep arriving. What is bounded is silence. If the brain accepts the turn and then
-sends nothing at all for `CORTEX_BRAIN_TURN_FIRST_GAP_MS`
-(default 600000, ten minutes), or stops sending mid reply for `CORTEX_BRAIN_TURN_IDLE_GAP_MS`
-(default 14400000, four hours), the body stops waiting: the reply settles on whatever text
-arrived, with `no reply within …`, and the header dot goes red with the same line. That is the
-same reading a dead brain gives, and it is the correct one, because from the body's side a brain
-that has stopped sending and a brain that is gone are indistinguishable. The user never has to
-wait for either bound, since the Stop control ends a turn in place at any time, keeping the
-partial text and recording no error.
+while the brain keeps sending. While a turn runs, the brain sends a heartbeat every 30 s in which it
+has nothing else to send, and the overlay does not show it. If nothing at all arrives for
+`CORTEX_BRAIN_TURN_HEARTBEAT_GAP_MS` (default 120000, two minutes), the brain or the path to it has
+stopped, and the body stops waiting: the reply settles on whatever text arrived, with
+`no reply within 120s`, and the header dot goes red with the same line. A brain that is alive but
+whose turn sends nothing except heartbeats is given longer: `CORTEX_BRAIN_TURN_FIRST_GAP_MS`
+(default 600000, ten minutes) before the first event, or `CORTEX_BRAIN_TURN_IDLE_GAP_MS`
+(default 14400000, four hours) mid reply, and then settles the same way. The user never has to
+wait for any bound, since the Stop control ends a turn in place at any time, keeping the partial
+text and recording no error.
 
 The mid-stream default is long because it has to clear a delegated subtask, which may wait two
 hours for the CPU budget and then hold that admission for two runs of forty minutes without the
 brain sending anything. A stack composed without the subagent sidecars never produces that
 silence, so turn it down: `CORTEX_BRAIN_TURN_IDLE_GAP_MS=600000` matches the first-event bound and
 settles a wedged turn in ten minutes instead of four hours.
+
+Run the body and the brain from the same build. An older brain sends no heartbeats, so a newer body
+ends every turn that is quiet for two minutes; setting `CORTEX_BRAIN_TURN_HEARTBEAT_GAP_MS=14400000`
+restores the old bounds until the brain is rebuilt. An older body reads the first heartbeat as a
+protocol error and ends the turn.
 
 **The window in v1** is a fixed 640 by 720 frameless opaque always-on-top window, and the hotkey
 toggles it, with no hide-on-blur, so a check is predictable. Deferred to a later overlay-polish

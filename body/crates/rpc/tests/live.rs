@@ -357,7 +357,8 @@ async fn converse_round_trips_one_turn_over_the_live_seam() {
             Some(
                 server_event::Event::ToolActivity(_)
                 | server_event::Event::ToolOutcome(_)
-                | server_event::Event::Status(_),
+                | server_event::Event::Status(_)
+                | server_event::Event::Heartbeat(_),
             ) => {}
             Some(server_event::Event::ConfirmRequest(request)) => panic!(
                 "unexpected confirm request for tool {tool} on session {session_id}",

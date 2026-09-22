@@ -289,6 +289,7 @@ fn every_call_is_bounded_by_exactly_one_of_the_two_clocks() {
         turn_gaps: TurnGaps {
             first: Duration::from_secs(7),
             idle: Duration::from_secs(11),
+            ..TurnGaps::default()
         },
         ..RetryPlan::default()
     };

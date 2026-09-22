@@ -96,6 +96,21 @@ WIRE_COUPLINGS: tuple[Constant, ...] = (
         ),
     ),
     Constant(
+        label="the heartbeat period",
+        why=(
+            "the brain sends a heartbeat once per period while a turn runs, and the body counts "
+            "each one it receives as a period of the turn's silence, so a disagreement ends a "
+            "delegated turn early or lets a stalled one run past its bound (ADR-0069)"
+        ),
+        sites=(
+            Site("body/crates/core/src/retry/gap.rs", "HEARTBEAT_PERIOD_MS"),
+            Site(
+                "brain/packages/orchestrator/src/cortex_orchestrator/converse_stream.py",
+                "HEARTBEAT_PERIOD_MS",
+            ),
+        ),
+    ),
+    Constant(
         label="the reasoning trace's status state",
         why=(
             "the brain sends deliberation under this state and the overlay accumulates the "

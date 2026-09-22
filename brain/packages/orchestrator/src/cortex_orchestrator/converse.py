@@ -2,7 +2,7 @@
 
 from collections.abc import AsyncGenerator, AsyncIterator
 
-from cortex_core import new_turn_id
+from cortex_core import Sleeper, new_turn_id
 from cortex_orchestrator.converse_stream import (
     DEFAULT_CONFIRM_TIMEOUT_S,
     DEFAULT_MAX_BUFFERED_EVENTS,
@@ -34,6 +34,7 @@ def converse(
     max_buffered_events: int = DEFAULT_MAX_BUFFERED_EVENTS,
     confirm_timeout_s: float = DEFAULT_CONFIRM_TIMEOUT_S,
     turn_id_factory: TurnIdFactory = new_turn_id,
+    sleeper: Sleeper | None = None,
 ) -> AsyncGenerator[ServerEvent, None]:
     """The Converse conversation loop as a server-event stream (see module docstring)."""
     stream = ConverseStream(
@@ -41,5 +42,6 @@ def converse(
         max_buffered_events=max_buffered_events,
         confirm_timeout_s=confirm_timeout_s,
         turn_id_factory=turn_id_factory,
+        sleeper=sleeper,
     )
     return stream.events(client_events)

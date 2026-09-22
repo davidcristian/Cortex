@@ -79,6 +79,7 @@ fn map_event(event: ServerEvent) -> (Result<TurnEvent, TransportError>, bool) {
             }),
             false,
         ),
+        Some(server_event::Event::Heartbeat(_)) => (Ok(TurnEvent::Heartbeat), false),
         Some(server_event::Event::TurnComplete(complete)) => (
             Ok(TurnEvent::Complete {
                 turn_id: complete.turn_id,

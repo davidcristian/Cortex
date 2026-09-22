@@ -1,9 +1,8 @@
 # A turn that goes quiet for hours is indistinguishable from a brain that died
 
-**Status:** open, needs a port change first
+**Status:** done 2026-09-22
 **Area:** rpc-transport
 **Origin:** [ADR-0024](../../adr/ADR-0024-transport-retry.md)
-**Verified:** 2026-09-19
 
 The turn stream's silence is bounded at four hours (`DEFAULT_TURN_IDLE_GAP_MS = 14_400_000`), which
 is accurate rather than useful. The bound is sized by a delegated subtask, which waits for the CPU
@@ -64,3 +63,13 @@ existing.
   the first 2026-09-13 entry was wrong: `ServerEvent` has eight event kinds, `text_delta` through
   `tool_outcome`, not five, and it already had eight when this entry was filed, `tool_outcome`
   having shipped on 2026-08-06. Nothing the entry argues rests on that number.
+- 2026-09-22: done, as [ADR-0069](../../adr/ADR-0069-turn-heartbeat.md). The shape is the second
+  one above, a proto change: a `Heartbeat` in `ServerEvent`'s oneof, sent by the `Converse`
+  stream's own task rather than by the turn or through `ProgressSink`, every 30 s while a turn task
+  runs and the output queue is empty, with a buffer credit, so it is never dropped. The claim that the body's side is one line
+  was wrong. Letting a heartbeat restart the idle gap would have removed the only bound on a turn
+  stuck on a live brain, so the body adds a two-minute gap on the stream's silence and counts each
+  heartbeat as 30 s of the turn's own, which keeps the ten-minute and four-hour bounds. HTTP/2
+  keepalive was rejected because gRPC's C core answers a ping while the Python event loop is
+  blocked. Opened [R-708](708-the-overlay-cannot-say-what-a-turn-waits-for.md) for the overlay
+  label this entry mentions.

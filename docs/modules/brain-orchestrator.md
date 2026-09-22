@@ -72,11 +72,12 @@ turn, each absent when its capability is off.
 ## The Converse stream
 
 `converse(make_engine, client_events, *, max_buffered_events=DEFAULT_MAX_BUFFERED_EVENTS,
-confirm_timeout_s=DEFAULT_CONFIRM_TIMEOUT_S, turn_id_factory=new_turn_id)` is the loop itself,
-independent of the servicer. `make_engine` is an `EngineFactory`
+confirm_timeout_s=DEFAULT_CONFIRM_TIMEOUT_S, turn_id_factory=new_turn_id, sleeper=None)` is the loop
+itself, independent of the servicer. `make_engine` is an `EngineFactory`
 (`Callable[[Confirmer, ProgressSink], TurnRunner]`): each stream builds one `SeamConfirmer` and one
 `SeamProgressSink` bound to its own output queue and runs the engine the factory returns. Closing
-the generator tears down the pump task, any in-flight turn and the queue of not-yet-started turns.
+the generator tears down the pump and heartbeat tasks, any in-flight turn and the queue of
+not-yet-started turns.
 One stream's machinery lives in `converse_stream.py`, which `converse.py` re-exports from.
 
 - A `UserTurn` runs one turn against `ClientEvent.session_id`. Each reply delta streams back as a
@@ -109,6 +110,12 @@ One stream's machinery lives in `converse_stream.py`, which `converse.py` re-exp
   effort: it takes a buffer credit only when one is free right now, else drops the event, so a
   delegating turn's many steps cannot drift the bound and a stalled consumer loses cosmetic
   progress rather than stalling the subagent.
+- **The heartbeat** ([ADR-0069](../adr/ADR-0069-turn-heartbeat.md)): one task per stream waits
+  `HEARTBEAT_PERIOD_MS` (30000) through the `Sleeper` port (`AsyncioSleeper` unless `sleeper` is
+  given) and sends `ServerEvent.heartbeat` when a turn task is running and the output queue is
+  empty, taking a buffer credit like the turn's events. So it is never dropped, never queued behind
+  an unsent event, and never sent between turns. The body counts each one as a period of the turn's
+  silence, and `crosscheck` compares this period with the body's copy.
 - **Bounded backpressure**: at most `converse_buffer` events sit unread per stream, the turn's data
   path holding a credit per buffered event and returning it on dequeue, so a consumer that stops
   reading suspends generation at the bound. The terminal `SeamError` and teardown bypass the

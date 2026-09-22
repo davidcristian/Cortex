@@ -77,9 +77,10 @@ struct WireError {
     message: String,
 }
 
-impl From<TurnEvent> for WireEvent {
-    fn from(event: TurnEvent) -> Self {
-        match event {
+impl WireEvent {
+    /// The overlay's copy of `event`, or `None` for a heartbeat, which the overlay never sees.
+    fn from_turn(event: TurnEvent) -> Option<Self> {
+        Some(match event {
             TurnEvent::Delta(text) => Self::Delta { text },
             TurnEvent::ToolActivity { tool_name, summary } => {
                 Self::ToolActivity { tool_name, summary }
@@ -104,9 +105,10 @@ impl From<TurnEvent> for WireEvent {
                 confirm_id,
                 outcome,
             },
+            TurnEvent::Heartbeat => return None,
             TurnEvent::Complete { turn_id } => Self::Complete { turn_id },
             TurnEvent::Failed { code, message } => Self::Failed { code, message },
-        }
+        })
     }
 }
 
@@ -134,11 +136,11 @@ impl From<TransportError> for WireError {
 }
 
 impl WireMessage {
-    fn event(event: TurnEvent) -> Self {
-        Self {
-            event: Some(event.into()),
+    fn event(event: TurnEvent) -> Option<Self> {
+        WireEvent::from_turn(event).map(|event| Self {
+            event: Some(event),
             error: None,
-        }
+        })
     }
 
     fn error(error: TransportError) -> Self {
@@ -194,7 +196,10 @@ pub async fn converse(
     while let Some(item) = stream.next().await {
         let message = match item {
             Ok(event) => WireMessage::event(event),
-            Err(error) => WireMessage::error(error),
+            Err(error) => Some(WireMessage::error(error)),
+        };
+        let Some(message) = message else {
+            continue;
         };
         if channel.send(message).is_err() {
             break;

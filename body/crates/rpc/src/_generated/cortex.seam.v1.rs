@@ -33,7 +33,7 @@ pub struct UserTurn {
 pub struct Cancel {}
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct ServerEvent {
-    #[prost(oneof = "server_event::Event", tags = "1, 2, 3, 4, 5, 6, 7, 8")]
+    #[prost(oneof = "server_event::Event", tags = "1, 2, 3, 4, 5, 6, 7, 8, 9")]
     pub event: ::core::option::Option<server_event::Event>,
 }
 /// Nested message and enum types in `ServerEvent`.
@@ -62,8 +62,16 @@ pub mod server_event {
         /// how a tool call announced above ended
         #[prost(message, tag = "8")]
         ToolOutcome(super::ToolOutcome),
+        /// the turn is still running; holds no turn content
+        #[prost(message, tag = "9")]
+        Heartbeat(super::Heartbeat),
     }
 }
+/// Sent by the stream itself, not by the turn, once per heartbeat period while a turn task is
+/// running and nothing else is waiting to be sent. The body resets its silence clock on it and
+/// shows nothing, so a live brain and a dead one differ within minutes.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct Heartbeat {}
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct TextDelta {
     #[prost(string, tag = "1")]

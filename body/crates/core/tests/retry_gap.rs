@@ -5,9 +5,10 @@ use std::sync::{Arc, Mutex, PoisonError};
 use std::time::Duration;
 
 use body_core::{
-    BrainTransport, ConfirmDecision, DEFAULT_TURN_FIRST_GAP_MS, DEFAULT_TURN_IDLE_GAP_MS,
-    DueReminder, RetryPlan, RetryingTransport, SeamHealth, SeamMethod, SessionMessage,
-    SessionSummary, Sleeper, TransportError, TurnEvent, TurnGaps, within_gaps,
+    BrainTransport, ConfirmDecision, DEFAULT_TURN_FIRST_GAP_MS, DEFAULT_TURN_HEARTBEAT_GAP_MS,
+    DEFAULT_TURN_IDLE_GAP_MS, DueReminder, HEARTBEAT_PERIOD_MS, RetryPlan, RetryingTransport,
+    SeamHealth, SeamMethod, SessionMessage, SessionSummary, Sleeper, TransportError, TurnEvent,
+    TurnGaps, within_gaps,
 };
 use futures_core::Stream;
 use tokio_stream::StreamExt;
@@ -85,12 +86,35 @@ impl Sleeper for GapSleeper {
     }
 }
 
-/// The gaps every scenario here runs under: two values far apart, so which one bounded a given wait
-/// is legible in the recording rather than inferred.
+/// The gaps the scenarios without a heartbeat run under: two values far apart, so which one bounded
+/// a given wait is legible in the recording rather than inferred.
 const GAPS: TurnGaps = TurnGaps {
     first: Duration::from_secs(30),
     idle: Duration::from_secs(90),
+    heartbeat: Duration::MAX,
+    period: Duration::ZERO,
 };
+
+/// The gaps the heartbeat scenarios run under: the stream may be silent 20 s, each heartbeat
+/// counts as 10 s of the turn's silence, and the turn may be quiet 30 s before its first event
+/// and 50 s after.
+const BEATING: TurnGaps = TurnGaps {
+    first: Duration::from_secs(30),
+    idle: Duration::from_secs(50),
+    heartbeat: Duration::from_secs(20),
+    period: Duration::from_secs(10),
+};
+
+/// One heartbeat, in the `Result` shape a turn's items have.
+#[allow(clippy::unnecessary_wraps)]
+fn beat() -> TurnItem {
+    Ok(TurnEvent::Heartbeat)
+}
+
+/// A number of seconds, so an expected recording reads as the figures in [`BEATING`].
+fn secs(values: &[u64]) -> Vec<Duration> {
+    values.iter().copied().map(Duration::from_secs).collect()
+}
 
 /// One streamed delta, in the `Result` shape a turn's items have.
 #[allow(clippy::unnecessary_wraps)]
@@ -197,25 +221,142 @@ async fn an_expired_gap_ends_the_stream_rather_than_waiting_again() {
 #[tokio::test]
 async fn a_stream_with_no_gaps_at_all_is_bounded_by_a_clock_that_never_wins() {
     let sleeper = GapSleeper::granting();
-    let items = drain(None, &sleeper, finished(vec![delta("only")])).await;
+    let items = drain(None, &sleeper, finished(vec![beat(), delta("only")])).await;
     assert_eq!(items, vec![delta("only")]);
-    assert_eq!(sleeper.gaps(), vec![Duration::MAX, Duration::MAX]);
+    assert_eq!(
+        sleeper.gaps(),
+        vec![Duration::MAX, Duration::MAX, Duration::MAX]
+    );
     assert_eq!(
         TurnGaps::UNBOUNDED,
         TurnGaps {
             first: Duration::MAX,
             idle: Duration::MAX,
+            heartbeat: Duration::MAX,
+            period: Duration::ZERO,
         }
     );
 }
 
 #[test]
-fn the_shipped_gaps_are_the_two_constants_and_the_idle_one_is_the_longer() {
+fn the_shipped_gaps_are_the_four_constants_and_the_heartbeat_gap_is_four_periods() {
     let gaps = TurnGaps::default();
     assert_eq!(gaps.first, Duration::from_millis(DEFAULT_TURN_FIRST_GAP_MS));
     assert_eq!(gaps.idle, Duration::from_millis(DEFAULT_TURN_IDLE_GAP_MS));
+    assert_eq!(
+        gaps.heartbeat,
+        Duration::from_millis(DEFAULT_TURN_HEARTBEAT_GAP_MS)
+    );
+    assert_eq!(gaps.period, Duration::from_millis(HEARTBEAT_PERIOD_MS));
+    assert_eq!(DEFAULT_TURN_HEARTBEAT_GAP_MS, 4 * HEARTBEAT_PERIOD_MS);
     assert!(gaps.idle > gaps.first);
+    assert!(gaps.first > gaps.heartbeat);
     assert_eq!(RetryPlan::default().turn_gaps, gaps);
+}
+
+#[tokio::test]
+async fn heartbeats_keep_a_quiet_turn_alive_and_are_never_yielded() {
+    let sleeper = GapSleeper::granting();
+    let items = drain(
+        Some(BEATING),
+        &sleeper,
+        finished(vec![
+            delta("a"),
+            beat(),
+            beat(),
+            beat(),
+            beat(),
+            delta("b"),
+            beat(),
+        ]),
+    )
+    .await;
+    assert_eq!(items, vec![delta("a"), delta("b")]);
+    assert_eq!(sleeper.gaps(), secs(&[20, 20, 20, 20, 20, 10, 20, 20]));
+}
+
+#[tokio::test]
+async fn a_brain_that_stops_beating_ends_on_the_heartbeat_gap() {
+    let sleeper = GapSleeper::expiring_at(2);
+    let items = drain(Some(BEATING), &sleeper, stalling(vec![delta("a"), beat()])).await;
+    assert_eq!(
+        items,
+        vec![
+            delta("a"),
+            Err(TransportError::Timeout {
+                after: BEATING.heartbeat
+            }),
+        ]
+    );
+    assert_eq!(sleeper.gaps(), secs(&[20, 20, 20]));
+}
+
+#[tokio::test]
+async fn heartbeats_alone_end_the_turn_once_they_add_up_to_its_idle_gap() {
+    let sleeper = GapSleeper::granting();
+    let items = drain(
+        Some(BEATING),
+        &sleeper,
+        finished(vec![
+            delta("a"),
+            beat(),
+            beat(),
+            beat(),
+            beat(),
+            beat(),
+            delta("never read"),
+        ]),
+    )
+    .await;
+    assert_eq!(
+        items,
+        vec![
+            delta("a"),
+            Err(TransportError::Timeout {
+                after: BEATING.idle
+            }),
+        ]
+    );
+    assert_eq!(sleeper.gaps(), secs(&[20, 20, 20, 20, 20, 10]));
+}
+
+#[tokio::test]
+async fn heartbeats_before_any_event_count_against_the_first_event_gap() {
+    let sleeper = GapSleeper::granting();
+    let items = drain(
+        Some(BEATING),
+        &sleeper,
+        finished(vec![beat(), beat(), beat(), delta("never read")]),
+    )
+    .await;
+    assert_eq!(
+        items,
+        vec![Err(TransportError::Timeout {
+            after: BEATING.first
+        })]
+    );
+    assert_eq!(sleeper.gaps(), secs(&[20, 20, 10]));
+}
+
+#[tokio::test]
+async fn a_silence_that_outlasts_the_turn_s_remaining_allowance_reports_the_allowance() {
+    let sleeper = GapSleeper::expiring_at(5);
+    let items = drain(
+        Some(BEATING),
+        &sleeper,
+        stalling(vec![delta("a"), beat(), beat(), beat(), beat()]),
+    )
+    .await;
+    assert_eq!(
+        items,
+        vec![
+            delta("a"),
+            Err(TransportError::Timeout {
+                after: BEATING.idle
+            }),
+        ]
+    );
+    assert_eq!(sleeper.gaps(), secs(&[20, 20, 20, 20, 20, 10]));
 }
 
 /// A transport whose turn stalls after one event, so the decorator can be driven through the port

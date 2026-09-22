@@ -1,6 +1,6 @@
 # ADR-0024: Transport retry, deadlines and turn gaps
 
-**Status:** Accepted (2026-09-13)
+**Status:** Accepted (2026-09-22)
 
 ## Context
 
@@ -67,8 +67,8 @@ The whole loop is covered 100% without a network or a wall clock.
    succeeds; and it hands the client to a `RetryingTransport` for decision 21. The settings are all
    `CORTEX_BRAIN_` variables: `RETRY_ATTEMPTS` 3, `RETRY_BASE_MS` 200, `RETRY_MULTIPLIER` 2,
    `RETRY_MAX_MS` 2000, `RETRY_JITTER` on (`off` removes the jitter), `PROBE_BUDGET_MS` 1000,
-   `PROBE_DEADLINE_MS` 250, `CALL_DEADLINE_MS` 5000, `TURN_FIRST_GAP_MS` 600000 and
-   `TURN_IDLE_GAP_MS` 14400000.
+   `PROBE_DEADLINE_MS` 250, `CALL_DEADLINE_MS` 5000, `TURN_FIRST_GAP_MS` 600000,
+   `TURN_IDLE_GAP_MS` 14400000 and `TURN_HEARTBEAT_GAP_MS` 120000 (ADR-0069).
 
 ### Repeatability and the plan
 
@@ -160,8 +160,9 @@ The whole loop is covered 100% without a network or a wall clock.
 ### A turn's silence
 
 18. **A turn is bounded by its silence, never by its length.** `retry::gap::within_gaps` bounds the
-    gap between the stream's items; every delta, tool activity, tool outcome, status and confirm
-    event restarts the clock, so a turn may run for hours while events keep arriving. It composes
+    gap between the stream's events; every delta, tool activity, tool outcome, status and confirm
+    event restarts the clock, so a turn may run for hours while events keep arriving. A heartbeat
+    counts as one period of it instead ([ADR-0069](ADR-0069-turn-heartbeat.md)). It composes
     `Sleeper::bounded` over one poll of the stream. `RetryPlan::gaps_for` is `Some` for `Converse`
     alone, and `retry_plan.rs` asserts over every variant that **each call is bounded by a clock on
     the call or on its silence, never both**. A turn still announces nothing on the wire.
@@ -181,10 +182,9 @@ The whole loop is covered 100% without a network or a wall clock.
     `spawn_subagents` requests every admission at once under one `asyncio.gather`. The gap's doc
     comment quotes both brain constants and `scripts/boundscouplings.py` compares those quotes with
     the declarations. The gap is not widened only for turns that announce a delegation, because
-    progress is sent through a sink that drops events when its buffer is full. A heartbeat from the
-    brain would bring it down to minutes
-    ([R-421](../refinements/tasks/421-a-silent-turn-owes-the-body-a-heartbeat.md)), and a
-    deployment without delegation can set it to the first-event figure.
+    progress is sent through a sink that drops events when its buffer is full. A dead brain is
+    reported within minutes by the heartbeat gap instead, so this bound only ends a turn that makes
+    no progress; a deployment without delegation can set it to the first-event figure.
 
 21. **An expired gap is reported.** The stream yields one `Err(TransportError::Timeout { after })`
     and ends, dropping the inner stream, which resets the turn. Ending silently would leave the

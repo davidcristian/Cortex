@@ -88,9 +88,9 @@ pub fn connect() -> Result<ResilientTransport, String> {
     ))
 }
 
-/// The per-method retry plan, from `CORTEX_BRAIN_RETRY_*`, `CORTEX_BRAIN_PROBE_BUDGET_MS` (1 s),
-/// `CORTEX_BRAIN_PROBE_DEADLINE_MS` (250 ms), `CORTEX_BRAIN_CALL_DEADLINE_MS` (5 s) and the two
-/// turn gaps, `CORTEX_BRAIN_TURN_FIRST_GAP_MS` (10 min) and `CORTEX_BRAIN_TURN_IDLE_GAP_MS` (4 h).
+/// The per-method retry plan, from `CORTEX_BRAIN_RETRY_*`, `CORTEX_BRAIN_PROBE_*_MS` (1 s, 250 ms),
+/// `CORTEX_BRAIN_CALL_DEADLINE_MS` (5 s) and the turn gaps `CORTEX_BRAIN_TURN_FIRST_GAP_MS` (10 min),
+/// `CORTEX_BRAIN_TURN_IDLE_GAP_MS` (4 h) and `CORTEX_BRAIN_TURN_HEARTBEAT_GAP_MS` (2 min).
 pub fn plan_from_env() -> RetryPlan {
     let default = RetryPlan::default();
     RetryPlan {
@@ -102,6 +102,9 @@ pub fn plan_from_env() -> RetryPlan {
         turn_gaps: TurnGaps {
             first: env_millis("CORTEX_BRAIN_TURN_FIRST_GAP_MS").unwrap_or(default.turn_gaps.first),
             idle: env_millis("CORTEX_BRAIN_TURN_IDLE_GAP_MS").unwrap_or(default.turn_gaps.idle),
+            heartbeat: env_millis("CORTEX_BRAIN_TURN_HEARTBEAT_GAP_MS")
+                .unwrap_or(default.turn_gaps.heartbeat),
+            ..default.turn_gaps
         },
     }
 }

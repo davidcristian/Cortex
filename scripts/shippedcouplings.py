@@ -109,6 +109,20 @@ SHIPPED_COUPLINGS: tuple[Constant, ...] = (
         ),
     ),
     Constant(
+        label="the longest a turn's stream may send nothing at all, heartbeats included",
+        why=(
+            "the same three readers contain this one, and it is the number that decides how soon "
+            "the overlay reports a brain that died mid turn: a contract or a runbook still "
+            "quoting the old one would tell a reader to wait a different time (ADR-0069)"
+        ),
+        sites=(Site(RETRY_GAP, "DEFAULT_TURN_HEARTBEAT_GAP_MS"),),
+        mentions=(
+            Mention(BODY_CORE_DOC, "`DEFAULT_TURN_HEARTBEAT_GAP_MS = {value}`"),
+            Mention(BODY_APP_DOC, "`DEFAULT_TURN_HEARTBEAT_GAP_MS = {value}`"),
+            Mention(OVERLAY_RUNBOOK, "(default {value}, two minutes)"),
+        ),
+    ),
+    Constant(
         label="the grace between the announced deadline and the enforced one",
         why=(
             "the body announces this much more than it enforces so its own bound wins the race "

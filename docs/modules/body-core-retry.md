@@ -51,12 +51,16 @@ and no wall clock. The port itself, and everything else in this crate, is in
   the mirror, `Some` for `Converse` alone. Between the last two, **every call on the port is
   bounded, by a clock on the call or a clock on its silence, and never by both**, which
   `retry_plan.rs` asserts over every variant.
-- `TurnGaps` (`retry::gap`) is that pair: `first`, the longest silence allowed before a turn's first
-  event (`DEFAULT_TURN_FIRST_GAP_MS = 600000`), and `idle`, the longest between two events
-  (`DEFAULT_TURN_IDLE_GAP_MS = 14400000`). `TurnGaps::UNBOUNDED` is both at `Duration::MAX`. **The
-  idle one is the longer, and that is not a typo**: the first is the sum of the brain's own bounds
-  on a swap and a first token, while the mid-stream one has to clear a delegated subtask waiting for
-  admission and then running (decisions 19 and 20).
+- `TurnGaps` (`retry::gap`) is what bounds a turn's silence: `first`, the longest allowed before a
+  turn's first event (`DEFAULT_TURN_FIRST_GAP_MS = 600000`), and `idle`, the longest between two
+  events (`DEFAULT_TURN_IDLE_GAP_MS = 14400000`). **The idle one is the longer, and that is not a
+  typo**: the first is the sum of the brain's own bounds on a swap and a first token, while the
+  mid-stream one has to clear a delegated subtask waiting for admission and then running (decisions
+  19 and 20). `heartbeat` is the longest the stream may send nothing at all, a heartbeat included
+  (`DEFAULT_TURN_HEARTBEAT_GAP_MS = 120000`, four periods), and `period` is the brain's heartbeat
+  period (`HEARTBEAT_PERIOD_MS`, which `crosscheck` compares with the brain's), the turn silence one
+  heartbeat counts as ([ADR-0069](../adr/ADR-0069-turn-heartbeat.md)). `TurnGaps::UNBOUNDED` has
+  the three gaps at `Duration::MAX` and a zero period, so a heartbeat counts as nothing.
 - `announced_deadline_for(method)` is what the body **tells the brain** a call will be waited on,
   which the gRPC adapter sends as `grpc-timeout` so a brain still working on an abandoned call
   learns it has been (decision 15). It is `deadline_for` plus the grace, never equal to it, and
@@ -73,11 +77,15 @@ and no wall clock. The port itself, and everything else in this crate, is in
   *retryable*; enforced here it arrives as `Timeout`, which is terminal (decisions 13 and 14).
 - `within_gaps(gaps, sleeper, stream)` (`retry::gap`) is the same composition for a stream: items
   pass through untouched and only the **silence between them** is bounded, so a turn that keeps
-  talking is never cut off. The first item is measured against `gaps.first` and every later one
-  against `gaps.idle`. An expired gap yields one final `TransportError::Timeout { after }` naming
-  the gap and ends the stream, dropping the inner one, which cancels the turn. Ending it with no
-  error was rejected: the overlay leaves a reply streaming until a terminal event or an error
-  reaches it.
+  talking is never cut off. A `TurnEvent::Heartbeat` is consumed rather than passed on: it restarts
+  only the `heartbeat` gap and adds one `period` to the turn's counted silence, which ends the
+  stream once it reaches `first` before the first event or `idle` after one. Each poll is bounded by
+  the heartbeat gap or what is left of that allowance, whichever is shorter, so a stream without
+  heartbeats runs under `first` and `idle` alone. An expired gap yields one final
+  `TransportError::Timeout { after }` naming the gap it broke and ends the stream, dropping the
+  inner one, which cancels the turn. Ending it with no error was rejected: the overlay leaves a
+  reply streaming until a terminal event or an error reaches it. Every decision about a heartbeat
+  is made in the non-generic `GapClock`.
 - `retry_with(policy, sleeper, randomness, call)` is the bounded-retry loop over any fallible async
   factory (decision 7): it re-issues `call()` each attempt, sleeping the jittered delay while
   `backoff` says so. It executes the schedule rather than deciding it, and relies on the caller

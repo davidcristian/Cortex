@@ -11,7 +11,7 @@ use body_rpc::generated::brain_service_server::{BrainService, BrainServiceServer
 use body_rpc::generated::{
     AckReminderReply, AckReminderRequest, ClientEvent, ConfirmRequest, ConfirmResolved,
     DeleteSessionReply, DeleteSessionRequest, GetPreferencesReply, GetPreferencesRequest,
-    GetSessionMessagesReply, GetSessionMessagesRequest, HealthReply, HealthRequest,
+    GetSessionMessagesReply, GetSessionMessagesRequest, HealthReply, HealthRequest, Heartbeat,
     ListDueRemindersReply, ListDueRemindersRequest, ListSessionsReply, ListSessionsRequest,
     RenameSessionReply, RenameSessionRequest, SeamError, ServerEvent, SetPreferenceReply,
     SetPreferenceRequest, SetSessionPinnedReply, SetSessionPinnedRequest, StatusUpdate, TextDelta,
@@ -159,6 +159,9 @@ impl BrainService for FakeBrain {
                             tool_name: String::from("read_email"),
                             ok: false,
                         })),
+                    }),
+                    Ok(ServerEvent {
+                        event: Some(server_event::Event::Heartbeat(Heartbeat {})),
                     }),
                     Ok(ServerEvent {
                         event: Some(server_event::Event::Status(StatusUpdate {
@@ -380,6 +383,7 @@ async fn echo_turn_round_trips_every_event_kind() {
                 tool_name: String::from("read_email"),
                 ok: false,
             },
+            TurnEvent::Heartbeat,
             TurnEvent::Status {
                 state: String::from("model_loading"),
                 detail: String::from("swapping"),

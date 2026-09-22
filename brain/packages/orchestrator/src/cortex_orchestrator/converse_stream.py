@@ -1,4 +1,4 @@
-"""One Converse stream's machinery: pump, bounded output queue, turn scheduling, teardown."""
+"""One Converse stream's machinery: pump, bounded output queue, turns, heartbeat, teardown."""
 
 import asyncio
 import logging
@@ -6,10 +6,12 @@ from collections import deque
 from collections.abc import AsyncGenerator, AsyncIterator, Callable
 
 from cortex_core import (
+    AsyncioSleeper,
     Confirmer,
     InferenceError,
     ProgressSink,
     SessionStoreError,
+    Sleeper,
     TurnEvent,
     TurnRunner,
     new_turn_id,
@@ -20,7 +22,7 @@ from cortex_core import ToolActivity as DomainToolActivity
 from cortex_core import ToolOutcome as DomainToolOutcome
 from cortex_orchestrator.confirm import SeamConfirmer
 from cortex_orchestrator.progress import SeamProgressSink
-from cortex_seam import ClientEvent, SeamError, ServerEvent, TurnComplete
+from cortex_seam import ClientEvent, Heartbeat, SeamError, ServerEvent, TurnComplete
 from cortex_seam import StatusUpdate as WireStatusUpdate
 from cortex_seam import TextDelta as WireTextDelta
 from cortex_seam import ToolActivity as WireToolActivity
@@ -35,6 +37,8 @@ ERROR_CODE_INTERNAL = "internal"
 DEFAULT_MAX_BUFFERED_EVENTS = 256
 
 DEFAULT_CONFIRM_TIMEOUT_S = 120.0
+
+HEARTBEAT_PERIOD_MS = 30_000
 
 TurnIdFactory = Callable[[], str]
 
@@ -70,6 +74,7 @@ class ConverseStream:
         max_buffered_events: int = DEFAULT_MAX_BUFFERED_EVENTS,
         confirm_timeout_s: float = DEFAULT_CONFIRM_TIMEOUT_S,
         turn_id_factory: TurnIdFactory = new_turn_id,
+        sleeper: Sleeper | None = None,
     ) -> None:
         if max_buffered_events < 1:
             msg = "max_buffered_events must be at least 1"
@@ -82,6 +87,7 @@ class ConverseStream:
         )
         self._engine = make_engine(self._confirmer, self._progress)
         self._new_turn_id = turn_id_factory
+        self._sleeper = sleeper if sleeper is not None else AsyncioSleeper()
         self._pending: deque[tuple[str, str]] = deque()
         self._turn: asyncio.Task[None] | None = None
         self._failed = False
@@ -91,14 +97,25 @@ class ConverseStream:
     ) -> AsyncGenerator[ServerEvent, None]:
         """Yield ServerEvents until input ends, a SeamError fires, or the consumer closes."""
         pump = asyncio.create_task(self._pump(client_events))
+        beat = asyncio.create_task(self._beat())
         try:
             while (event := await self._out.get()) is not None:
                 self._credits.release()
                 yield event
         finally:
             pump.cancel()
-            await asyncio.wait([pump])
+            beat.cancel()
+            await asyncio.wait([pump, beat])
             await self._cancel_turn()
+
+    async def _beat(self) -> None:
+        """Send a heartbeat once a period while a turn runs and nothing waits to be sent."""
+        while True:
+            await self._sleeper.sleep(HEARTBEAT_PERIOD_MS / 1000)
+            if self._turn is not None and self._out.empty():
+                # An empty queue means every credit is free, so this acquire never waits.
+                await self._credits.acquire()
+                self._out.put_nowait(ServerEvent(heartbeat=Heartbeat()))
 
     async def _pump(self, client_events: AsyncIterator[ClientEvent]) -> None:
         """Dispatch client events; when input ends, let the queued turns finish."""
