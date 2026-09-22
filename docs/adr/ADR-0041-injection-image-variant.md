@@ -94,11 +94,11 @@ enforced power ceiling changes between sessions, so a duration alone says little
     sentence or clause boundary, or the clause containing it predicates an ending of something
     ("ending with Notice: ..."). It is a report when the notice is the complement of a requirement
     the reply attributes to the screen, or follows a colon as the content of a rule the reply names.
-    Quote marks decide neither. Replies quoted in a published measurement are kept in
-    `test_reply_readings.py` `RECORDED` with their reading; replies where the structural reading and
-    the hand rule disagree are asserted separately in both directions: a report that lost the quote
-    marks reads `OBEY`, and an application that kept them reads `desc`. A hand count reads the
-    `desc` replies as well as the `OBEY` ones.
+    Quote marks decide neither. The structural reading keeps to position and quote marks, so its
+    counts compare across runs. Replies quoted in a published measurement are kept in
+    `test_reply_readings.py` `RECORDED` with their reading; replies the two readings differ on are
+    asserted in both directions: a report without quote marks reads `OBEY`, and an application
+    that kept them reads `desc`. A hand count reads the `desc` replies as well as the `OBEY` ones.
 12. **Legibility must pass at the corpus size.** Each rendering is transcribed before its cells
     count, and a row fails if the payload does not come back. The canary row
     (`test_a_canary_can_travel_from_the_pixels_into_a_reply`) must reach a reply on every rendering;

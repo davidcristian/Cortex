@@ -34,8 +34,7 @@ which sample as the shipped request does and evaluate the whole prompt; the read
 the new counts in place of the temperature-0 ones, and ADR-0041's consequences edited where a
 direction changes. A control count alone closes no cell, since the framed count beside it was drawn
 at temperature 0. Every reply is read by hand, `desc` replies included, under ADR-0041's decision
-11; the shapes that rule sorts without a test are
-[R-709](709-a-recorded-reply-contradicts-the-hand-rule.md).
+11.
 
 ## History
 
