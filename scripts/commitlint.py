@@ -33,7 +33,7 @@ _VOLATILE = (
     (re.compile(r"\bassumption\s*[0-9]", re.IGNORECASE), "numbered assumption"),
     (re.compile(r"\bincrement\s*[0-9]", re.IGNORECASE), "numbered increment"),
     # `gate 100%` is a coverage figure rather than a pointer into the list of checks.
-    (re.compile(r"\bgate\s*[0-9](?!00%)", re.IGNORECASE), "numbered gate"),
+    (re.compile(r"\bgate\s*[0-9](?!00%)", re.IGNORECASE), "numbered `gate`"),
     (re.compile(r"\bdecision\s*[0-9]", re.IGNORECASE), "numbered decision"),
     (re.compile(r"\baudit\s*[0-9]", re.IGNORECASE), "numbered audit"),
 )

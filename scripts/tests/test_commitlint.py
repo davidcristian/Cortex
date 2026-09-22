@@ -132,7 +132,7 @@ def test_non_punctuation_dashes_pass(line: str) -> None:
         ("update the ROADMAP status block", "roadmap reference"),
         ("this closes assumption 1", "numbered assumption"),
         ("increment 4 lands the adapter", "numbered increment"),
-        ("amend gate 3 for the new rule", "numbered gate"),
+        ("amend gate 3 for the new rule", "numbered `gate`"),
         ("supersedes decision 7", "numbered decision"),
         ("the audit 3 findings are folded in", "numbered audit"),
     ],

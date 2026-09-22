@@ -10,8 +10,10 @@ from typing import NamedTuple
 
 import bannedwords
 import commentblocks
+import proseliterals
 from commentblocks import SourceError
 from dashcheck import IgnoreQueryError, ignored_paths
+from proseliterals import ExemptionError
 from prosereaders import Prose, reader_for
 from treewalk import walk_files
 
@@ -27,10 +29,6 @@ BLOCK = "comment block"
 
 class UnreadableFileError(Exception):
     """A file cannot be read or parsed, or a path is not inside the root."""
-
-
-class ExemptionError(Exception):
-    """An exemption names a file or a docstring that is no longer there."""
 
 
 class Exemption(NamedTuple):
@@ -152,6 +150,7 @@ def scan(root: Path, paths: list[Path], pattern: re.Pattern[str], table: range) 
     files = 0
     problems: list[Problem] = []
     exempt = exempt_lines(root, EXEMPTIONS)
+    names = proseliterals.exempt_names(root, proseliterals.EXEMPTIONS, pattern, _read)
     for relative in _candidates(root, paths):
         reader = reader_for(relative.name)
         if reader is None:
@@ -159,6 +158,9 @@ def scan(root: Path, paths: list[Path], pattern: re.Pattern[str], table: range) 
         text = _read(root / relative)
         try:
             prose = reader(text)
+            if proseliterals.reads_literals(relative):
+                literals = proseliterals.prose_literals(text)
+                prose.runs.extend(proseliterals.literal_runs(literals, names.get(relative, ())))
         except SourceError as err:
             msg = f"cannot parse {relative}: {err}"
             raise UnreadableFileError(msg) from err

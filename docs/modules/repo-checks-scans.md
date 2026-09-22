@@ -43,22 +43,22 @@ exempt. Exit 1 prints `path:line: kind: text`.
 
 ## `prosecheck.py`
 
-The part of the Prose section of AGENTS.md a machine can check (ADR-0040 decisions 11 and 12): a
-word from that file's banned-word table, a docstring over three lines, and a comment block over
-three lines. With no PATH it checks the whole root. A PATH that is a file is checked even when git
-ignores it; a directory is walked with `treewalk.walk_files` minus `_generated` and what git
-ignores, so `--root` must be a git working tree.
+The part of the Prose section of AGENTS.md a machine can check (ADR-0040 decisions 11, 12 and 16):
+a banned word, and a docstring or comment block over three lines. With no PATH it checks the whole
+root. A PATH that is a file is checked even when git ignores it; a directory is walked with
+`treewalk.walk_files` minus `_generated` and what git ignores, so `--root` must be a git tree.
 
-It reads prose and nothing else: markdown outside code fences, Python docstrings, and comments in
-Python, Rust, TypeScript, CSS, protobuf, YAML, TOML, shell, SQL, the Dockerfiles and the justfile.
-String literals, identifiers, code spans, link targets, URLs and the rows of the table itself are
-never read. A word matches whole and in any case, and one line break may split a phrase.
+It reads markdown outside code fences, Python docstrings, comments in Python, Rust, TypeScript,
+CSS, protobuf, YAML, TOML, shell, SQL, the Dockerfiles and the justfile, and every string literal
+holding two words separated by a space in a non-test `scripts/` module or a brain package's `src/`.
+Identifiers, keys, code spans, link targets, URLs, a path or flag in a string and the table's own
+rows are never read. A word matches whole and in any case, and one line break may split a phrase.
 
 A comment block is a run of lines holding only comments: a line holding code ends it and a blank
 line does not, and a line counts unless its text without the comment markers is empty or is a tool
-directive such as `noqa` or `pragma`. `EXEMPTIONS` leaves two docstrings alone with a reason each,
-`registry.py`'s module docstring and the email server's `@server.tool` descriptions, and an
-exemption naming a file or a docstring that is gone is a failure.
+directive such as `noqa` or `pragma`. `EXEMPTIONS` names `registry.py`'s module docstring and the
+email server's `@server.tool` descriptions, `proseliterals.EXEMPTIONS` the strings a model reads by
+module-level name, and an exemption naming what is gone, or strings with no banned word, fails.
 
 ## `crosscheck.py`
 

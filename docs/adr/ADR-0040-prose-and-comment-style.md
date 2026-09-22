@@ -62,13 +62,14 @@ record says what it is and why.
     own threshold beside it and a reading rarely has one.
 11. **A table of banned words, and two checks that read it.** The Prose section of AGENTS.md has a
     table whose left column lists words this repo does not use and whose right column gives what
-    to write instead. `scripts/prosecheck.py` reports every use in markdown, comments and
-    docstrings, and `scripts/commitlint.py` refuses a commit message that uses one. Both run on
-    every change, the first in `just check` and in CI, the second at the `commit-msg` stage. A
-    word matches whole and in any case, and the words of a phrase may be split by one line break.
-    Text in backticks, link targets, URLs, string literals and pastes are not searched, which is
-    how a file name, an identifier, a command and the `seam` package stay writable. The table is
-    a minimum rather than the whole rule: any other figurative word is rewritten the same way.
+    to write instead. `scripts/prosecheck.py` reports every use in markdown, comments,
+    docstrings and the string literals decision 16 describes, and `scripts/commitlint.py` refuses
+    a commit message that uses one. Both run on every change, the first in `just check` and in CI,
+    the second at the `commit-msg` stage. A word matches whole and in any case, and the words of a
+    phrase may be split by one line break. Text in backticks, link targets, URLs and pastes are not
+    searched, which is how a file name, an identifier, a command and the `seam` package stay
+    writable. The table is a minimum rather than the whole rule: any other figurative word is
+    rewritten the same way.
 12. **A docstring and a comment block are at most three lines, counted by the same tool.** A
     comment block is a run of lines that hold only comments; a line that holds code ends it and a
     blank line does not. Every line of a `/* */` comment that spans several lines belongs to the
@@ -92,8 +93,25 @@ record says what it is and why.
     sets them), a proto message, field or package name (`cortex.seam.v1`), the `cortex_seam`
     package, a key in recorded data (the envelope samples' `arm`), and anything the Windows host
     reads. An identifier beside a kept name may still be renamed: a settings field keeps its
-    variable as a `validation_alias`. No check reads identifiers, so a `git grep` survey finds the
-    rest, and the backlog lists what is left. Backlog file names are a task of their own.
+    variable as a `validation_alias`. Decision 16 checks the words of a log message. No check
+    reads identifiers or log field names, so a `git grep` survey finds them, and the backlog lists
+    what is left. Backlog file names are a task of their own.
+16. **The prose check reads the strings the code prints or raises.** Its scope is every non-test
+    Python module in `scripts/` and every module under a brain package's `src/`: log messages,
+    exception text, help text and the rest. Tests, generated code and the Rust and TypeScript
+    sources are outside it. A literal is prose when it holds two words separated by a space, and
+    an f-string is read whole, each value it formats counting as a word. A docstring is left to
+    the docstring reader, and a dict key or a subscript argument is a key, not prose. Inside a
+    literal, a code span in backticks, a token holding a `/` or a file extension and a flag with
+    a leading `-` are masked, so the sentence around a path is still read; excluding every literal
+    that holds a path would have left such sentences unread. `scripts/proseliterals.py` is this
+    reader and `scripts/prosereaders.py` the one for documents and comments; both use
+    `bannedwords.py`. A string a model reads, whose wording needs a model measurement before it
+    changes (the security preamble, the recap preface, tool descriptions, the email sidecar's own
+    texts), is exempted by its module-level name in `proseliterals.EXEMPTIONS` with a reason. An
+    exemption fails once its file is gone or no string assigned to the name holds a banned word.
+    A banned word a printed sentence names as a word, such as the numbered `gate` that
+    `commitlint.py` reports, goes in backticks.
 
 ## Consequences
 

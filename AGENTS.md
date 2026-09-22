@@ -140,10 +140,11 @@ read. [ADR-0040](docs/adr/ADR-0040-prose-and-comment-style.md) gives the reasons
 
 **Banned words.** The words in the left column below may not appear in prose, in any capitalization, and a
 phrase is found even when a line break splits it. `scripts/prosecheck.py` reads this table and reports every use
-in docs, comments and docstrings, plus every docstring or comment block over three lines; `just check` runs it
-on every change. `scripts/commitlint.py` reads the same table and refuses a commit message using one of these
-words outside a paste. Backticks, link targets and URLs are not searched. The table is a minimum: rewrite any
-other figurative word the same way.
+in docs, comments, docstrings and the strings `scripts/` and the brain print or raise, plus every docstring or
+comment block over three lines; `just check` runs it on every change. `scripts/commitlint.py` reads the same
+table and refuses a commit message using one of these words outside a paste. Backticks, link targets, URLs and
+a path or flag inside a string are not searched. The table is a minimum: rewrite any other figurative word the
+same way.
 
 | Do not write | Write instead |
 | --- | --- |

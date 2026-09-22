@@ -30,5 +30,5 @@ asserted by a test, which makes it a code change.
   the tests asserting it. The measurement variant is called a variant in every sentence, while the
   sample key stays `arm`: the brain's live harnesses write it into recorded samples, so renaming it
   would leave every recorded sample unreadable. Eight hits remain and none is prose: that key, four
-  file paths, the `--rederive` flag and a label naming the words `commitlint.py` found. A check
-  that reads these strings is [R-704](704-prosecheck-reads-no-printed-string.md).
+  file paths, the `--rederive` flag and a label naming the words `commitlint.py` found.
+  `prosecheck.py` reads these strings, under decision 16 of ADR-0040.

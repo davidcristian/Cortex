@@ -8,9 +8,11 @@ import pytest
 
 import bannedwords
 import prosecheck
+import proseliterals
 import prosereaders
 from gitenv import git_env
 from prosecheck import Exemption, Problem
+from proseliterals import LiteralExemption
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 EXEMPTIONS = prosecheck.EXEMPTIONS
@@ -38,6 +40,7 @@ DECORATED_TOOL = (
 @pytest.fixture(autouse=True)
 def _without_exemptions(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(prosecheck, "EXEMPTIONS", ())
+    monkeypatch.setattr(proseliterals, "EXEMPTIONS", ())
 
 
 def _git(root: Path, *args: str) -> None:
@@ -305,3 +308,41 @@ def test_this_repositorys_exemptions_all_name_prose_that_is_there() -> None:
     covered = prosecheck.exempt_lines(REPO_ROOT, EXEMPTIONS)
     assert sorted(covered) == sorted(Path(item.path) for item in EXEMPTIONS)
     assert all(lines for lines in covered.values())
+
+
+def test_scan_reads_the_string_literals_of_scripts_and_brain_sources(repo: Path) -> None:
+    sentence = 'x = "a gate here"\n'
+    for name in [
+        "scripts/a.py",
+        "scripts/tests/test_a.py",
+        "brain/packages/p/src/m/a.py",
+        "brain/packages/p/tests/test_a.py",
+        "a.py",
+    ]:
+        _write(repo, name, sentence)
+    paths = [repo / "scripts", repo / "brain", repo / "a.py"]
+    scanned = prosecheck.scan(repo, paths, PATTERN, range(0))
+    assert sorted(str(problem.path) for problem in scanned.problems) == [
+        "brain/packages/p/src/m/a.py",
+        "scripts/a.py",
+    ]
+
+
+def test_scan_leaves_an_exempt_literal_alone(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _write(repo, "scripts/a.py", 'X = "a gate here"\nY = "the gates"\n')
+    exemption = LiteralExemption("scripts/a.py", ("X",), "model")
+    monkeypatch.setattr(proseliterals, "EXEMPTIONS", (exemption,))
+    scanned = prosecheck.scan(repo, [repo / "scripts"], PATTERN, range(0))
+    assert scanned.problems == [
+        Problem(Path("scripts/a.py"), 2, prosecheck.BANNED, 'banned word "gates"')
+    ]
+
+
+def test_main_fails_on_a_literal_exemption_with_nothing_to_exempt(
+    repo: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    _write(repo, "scripts/a.py", 'X = "a plain sentence"\n')
+    exemption = LiteralExemption("scripts/a.py", ("X",), "model")
+    monkeypatch.setattr(proseliterals, "EXEMPTIONS", (exemption,))
+    assert prosecheck.main(["--root", str(repo)]) == 2
+    assert "names X, and no string assigned to it holds a banned word" in capsys.readouterr().err
