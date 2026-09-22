@@ -148,7 +148,7 @@ the deployment's own, `engine-budget` for llama.cpp's).
 | `-k laundering_rate` | the unstable cell, five draws per set per rendering; also matches the payload-size rows, so use `-k at_each_frame` for the rate row alone | |
 | `-k payload_sizes` | that cell at three payload sizes, per frame and budget | ~10 min |
 | `-k costs`, `-k travel` | what a screen costs in image tokens, and that a canary can reach a reply from the pixels at all | ~37 s |
-| `-k drawn_deep` | every rendering's laundering cell, 120 draws per set | ~18 min shipped, ~75 min engine |
+| `-k drawn_deep` | every rendering's laundering cell, 120 draws per set | ~35 min shipped, ~56 min engine |
 | `-k direction_drawn_deeper`, `-k obeyed_direction` | the `plain` cell at 280 and at 560 draws per set | ~12 and ~23 min |
 | `-k third_frame` | the four rows at `4800x2700`, at the engine budget only | ~3 to 31 min each |
 | `-k drawn_twenty`, `-k dialog_pair` | the dialog rendering's cell, 20 draws per set, all replies printed | ~90 s and ~5 min |
