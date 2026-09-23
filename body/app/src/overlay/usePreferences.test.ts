@@ -80,12 +80,12 @@ describe("usePreferences", () => {
       { key: MARK_KEY, value: "tangent" },
     ];
     let release: (() => void) | null = null;
-    const gate = new Promise<void>((resolve) => {
+    const paused = new Promise<void>((resolve) => {
       release = resolve;
     });
     const slow = {
       ...bridge,
-      getPreferences: () => gate.then(() => bridge.getPreferences()),
+      getPreferences: () => paused.then(() => bridge.getPreferences()),
       setPreference: bridge.setPreference.bind(bridge),
     } as unknown as FakeBridge;
     const { result } = renderHook(() => usePreferences(slow));
@@ -118,12 +118,12 @@ describe("usePreferences", () => {
     const bridge = new FakeBridge();
     bridge.preferences = [{ key: MARK_KEY, value: "tangent" }];
     let release: (() => void) | null = null;
-    const gate = new Promise<void>((resolve) => {
+    const paused = new Promise<void>((resolve) => {
       release = resolve;
     });
     const slow = {
       ...bridge,
-      getPreferences: () => gate.then(() => bridge.getPreferences()),
+      getPreferences: () => paused.then(() => bridge.getPreferences()),
       setPreference: bridge.setPreference.bind(bridge),
     } as unknown as FakeBridge;
     const { result, unmount } = renderHook(() => usePreferences(slow));

@@ -159,7 +159,7 @@ describe("DemoBridge, the scripted hooks", () => {
   });
 });
 
-describe("DemoBridge, the gated send", () => {
+describe("DemoBridge, the send that needs confirmation", () => {
   beforeEach(() => {
     vi.useFakeTimers();
   });
