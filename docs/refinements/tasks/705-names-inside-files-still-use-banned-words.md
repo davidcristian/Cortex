@@ -1,9 +1,8 @@
 # Names inside the files still use words the prose table bans
 
-**Status:** open, actionable
+**Status:** done 2026-09-23
 **Area:** cross-cutting
 **Origin:** [ADR-0040](../../adr/ADR-0040-prose-and-comment-style.md)
-**Verified:** 2026-09-23
 
 Decision 15 of [ADR-0040](../../adr/ADR-0040-prose-and-comment-style.md) says the banned-word
 table reaches every name a reader meets in hand-written code and stops at names fixed outside it.
@@ -16,20 +15,8 @@ generated code. On 2026-09-23 it finds 124 distinct names in one family, `gate`,
 checks under `scripts/` use for themselves (`GATES`, `FLAG_GATE`). The variables
 `CORTEX_TOOLS_GATED` and `CORTEX_TOOLS_GATE_REASONS` stay.
 
-These names stay, because something outside the code or a designed family fixes them:
-`RankBasis.SWEEP` and `RankBasis.VERDICT`, members of a designed family (decision 5 of ADR-0040)
-whose values the recall audit logs in its `basis` field; the Rust `Pin`, `pin!`, `Box::pin` and
-`pin_mut`; the session store's `_OLD_HOISTED_KEY`, `cortex:sessions:pinned`, until
-[R-712](712-the-session-store-still-moves-the-hoisted-sets-first-key.md) closes; the eleven
-`seam` names the survey still finds, which are the `cortex_seam` package, `CORTEX_SEAM_TOKEN`, the
-proto's `SeamError` message and eight test names that name that message; and `CARRIED`,
-`CARRY_OUTCOMES` and `score_carry` in `test_uid_reading_live.py`, which name the `carried` row
-label that [imap-server-answers.md](../../readings/imap-server-answers.md) quotes. Strings are
-outside the survey: test data such as a roster entry named `robust`, the recorded model replies,
-the row labels in `test_reply_readings.py`, which match recorded readings, and the tool
-descriptions the model reads, such as `DEFAULT_SUBAGENT_DESCRIPTION`, where a change needs a model
-measurement ([R-707](707-model-read-texts-keep-banned-words.md) lists them). The overlay's Vitest
-titles are strings too, and one of them still uses a `gate` word.
+The names that stay, and why, are listed in decision 15 of
+[ADR-0040](../../adr/ADR-0040-prose-and-comment-style.md).
 
 **What would close it.** Each family renamed as a code change, with the runbook, module doc and
 task files that quote a name changed in the same commit, or a decision in ADR-0040 that a family
@@ -53,4 +40,10 @@ stays, with the reason.
   `CORTEX_ENVELOPE_ARMS` and `CORTEX_TURN_COST_ARM` stay. Then `carry`, 166 names: each test
   name now says what its test checks (`contains`, `has`, `keeps`, `passes`, `includes`), a
   guardrail test says a link split across chunks `is_held_not_lost`, `DroppedCandidates.carried`
-  became `listed`, and the eight Vitest titles that used the word changed with them.
+  became `listed`, and the eight Vitest titles that used the word changed with them. Then
+  `gate`, 124 names, which closed the task. A tool the user must approve is `confirm_required`
+  (`ConfirmRequiredToolRegistry`, `ConfirmFreeToolRegistry`, `DispatchPolicy.confirm_names`),
+  and the tools settings fields are `confirm_names` and `confirm_reasons`, which read
+  `CORTEX_TOOLS_GATED` and `CORTEX_TOOLS_GATE_REASONS` as aliases. `ReadinessGate` became
+  `ReadinessCheck`, the swap tests' `Gate` a `PausePoint`, and `scripts/` says `check` or
+  `scripts` (`FLAG_CHECK`, `SCRIPTS`). The survey now finds only the names decision 15 keeps.

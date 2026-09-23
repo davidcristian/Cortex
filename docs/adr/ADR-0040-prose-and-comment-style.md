@@ -101,9 +101,24 @@ record says what it is and why.
     contract test runs over, says `variant`, the word the readings and the envelope scripts print
     (`SHIPPED_VARIANT`, `_VARIANTS`); one that used it for making something ready to act later
     names that step: the engine prepares the escalation slot (`prepared_slot`), a fake is set to
-    fail, and a calendar item reschedules. Decision 16 checks the words of a log message. No check
-    reads identifiers or log field names, so a `git grep` survey finds them, and the backlog lists
-    what is left. It reaches a backlog task's file name too: `backlogcheck.py` reads each slug with
+    fail, and a calendar item reschedules. A name that used `gate` for a tool the user must approve
+    says `confirm`, after the `Confirmer` port: `ToolSpec.confirm_required`,
+    `ConfirmRequiredToolRegistry`, `ConfirmFreeToolRegistry` and `DispatchPolicy.confirm_names`,
+    and the settings fields `confirm_names` and `confirm_reasons` read `CORTEX_TOOLS_GATED` and
+    `CORTEX_TOOLS_GATE_REASONS` as their aliases. The wait for a loaded model to serve is the
+    readiness check (`ReadinessCheck`, `check_ready`), and the place where a test's fake stops
+    until the test releases it is a `PausePoint`. A name in `scripts/` says `check` for `just
+    check` or one of its scans (`FLAG_CHECK`, `CHECK_RECIPE`, `check_scans`) and `scripts` for
+    that directory (`SCRIPTS`, `script_modules`). The names a survey still finds are kept by this
+    rule: `RankBasis.SWEEP` and `RankBasis.VERDICT`, a designed family (decision 5) whose values
+    the recall audit logs in its `basis` field; Rust's `Pin`, `pin!`, `Box::pin` and `pin_mut`;
+    the `cortex_seam` package, `CORTEX_SEAM_TOKEN`, the proto's `SeamError` and the eight test
+    names that name it; the session store's old key `cortex:sessions:pinned`, which stored data
+    already holds; and `CARRIED`, `CARRY_OUTCOMES` and `score_carry` in
+    `test_uid_reading_live.py`, which name the `carried` row label
+    [imap-server-answers.md](../readings/imap-server-answers.md) quotes. Decision 16 checks the
+    words of a log message. No check reads identifiers or log field names, so a `git grep` survey
+    finds them. It reaches a backlog task's file name too: `backlogcheck.py` reads each slug with
     its hyphens, and those of the table's words, read as spaces.
 16. **The prose check reads the strings the code prints or raises.** Its scope is every non-test
     Python module in `scripts/` and every module under a brain package's `src/`, and every Rust and
