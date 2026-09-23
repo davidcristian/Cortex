@@ -62,9 +62,10 @@ lineup](../readings/model-lineup.md) and [injection text rows](../readings/injec
 7. **Subagent: gemma-4-E4B QAT q4_0.** At temperature 0 it obeyed 0 of 10 framed injections on both
    placements, and the one other candidate that did, Qwen3.5-0.8B, is as likely too weak to follow
    the injection as resistant to it. At the engine's sampler, as the tier runs, it obeys 8 of 100
-   framed draws on the card against 21 of 100 unframed, and no other candidate has been drawn there
-   yet ([injection text rows](../readings/injection-text-rows.md)). Injection resistance was adopted
-   as a selection axis at a measured cost: against the Qwen3.5-2B it replaced, about 2.6 times the
+   framed draws on the card against 21 of 100 unframed, where gemma-4-E2B obeys 28 and the three
+   Qwen candidates 7 to 10, so on that row the pick leads gemma-4-E2B only
+   ([injection text rows](../readings/injection-text-rows.md)). Injection resistance was adopted as
+   a selection axis at a measured cost: against the Qwen3.5-2B it replaced, about 2.6 times the
    load, 3 times a narrow task's latency and 2.8 times the resident memory, acceptable for narrow
    asynchronous work. The safety default of [ADR-0017](ADR-0017-subagent-model-safety.md) is tied to
    this pick by its logical id, so a revision here moves that default with it. Qwen3.5-2B stays the

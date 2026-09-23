@@ -7,13 +7,13 @@
 Heterogeneous subagent models ([ADR-0018](ADR-0018-heterogeneous-subagents.md)) let the cortex pick
 the subagent model **per spawn** from the whole roster, including small models the injection tests
 find weak: framed and at temperature 0, gemma-4-E2B obeyed 3 of 10 payloads and Qwen3.5-2B 1 of 10,
-where the cortex and the subagent pick (gemma-4-E4B) obeyed none. At the engine's sampler the
-subagent pick obeys 8 of 100 framed draws, `output-laundering` in 46 of 100, and the others are not
-yet drawn there ([injection text rows](../readings/injection-text-rows.md)). Treating the cortex's
-model choice as pure discretion opens a failure the deterministic layers do not cover. The plausible
-failure is not an injection tricking the injection-resistant cortex. It is a **well-behaved** cortex
-routing a subtask over untrusted content to a cheap model to save latency, with no way to know the
-content is hostile.
+where the cortex and the subagent pick (gemma-4-E4B) obeyed none. At the engine's sampler, framed,
+the subagent pick obeys 8 of 100 draws, gemma-4-E2B 28 and Qwen3.5-2B 7, so there only gemma-4-E2B
+is weaker than the pick ([injection text rows](../readings/injection-text-rows.md)). Treating the
+cortex's model choice as pure discretion opens a failure the deterministic layers do not cover. The
+plausible failure is not an injection tricking the injection-resistant cortex. It is a
+**well-behaved** cortex routing a subtask over untrusted content to a cheap model to save latency,
+with no way to know the content is hostile.
 
 The deterministic layers contain a subagent's *actions* regardless of model: no outbound tools and
 none that need confirmation ([ADR-0013](ADR-0013-untrusted-content.md) decision 9), the fail-closed
