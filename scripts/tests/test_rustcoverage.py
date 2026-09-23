@@ -53,7 +53,7 @@ def test_check_fails_each_metric_individually(name: str) -> None:
     assert rustcoverage.check(totals) == [f"FAIL {name}: 97.50% (need 100%)"]
 
 
-def test_check_ignores_producer_percent_and_gates_on_counts() -> None:
+def test_check_ignores_producer_percent_and_decides_on_counts() -> None:
     totals = make_totals()
     totals["lines"] = metric(count=10, covered=3, percent=100.0)
     assert rustcoverage.check(totals) == ["FAIL lines: 30.00% (need 100%)"]

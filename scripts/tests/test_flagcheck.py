@@ -321,7 +321,7 @@ def test_a_tree_that_starts_no_subagent_server_either_way_is_reported_rather_tha
         check(tmp_path)
 
 
-def test_a_sidecar_this_gate_cannot_read_leaves_by_the_gates_own_door(tmp_path: Path) -> None:
+def test_a_sidecar_this_check_cannot_read_raises_the_checks_own_error(tmp_path: Path) -> None:
     root = copied(tmp_path)
     (root / MODEL_MANAGER / ARGV_MODULE).unlink()
     with pytest.raises(FlagCheckError, match=f"cannot read .*{ARGV_MODULE}"):
@@ -333,7 +333,7 @@ def test_a_rule_requiring_nothing_is_reported_rather_than_passed(tmp_path: Path)
         check(copied(tmp_path), requirements=(Requirement(label="", why="", flags=()),))
 
 
-def test_a_compose_tree_that_cannot_be_read_leaves_by_the_gates_own_door(tmp_path: Path) -> None:
+def test_a_compose_tree_that_cannot_be_read_raises_the_checks_own_error(tmp_path: Path) -> None:
     (tmp_path / "docker").mkdir()
     (tmp_path / "docker" / "docker-compose.yml").write_text("services:\n  one: inline\n", "utf-8")
     with pytest.raises(FlagCheckError, match="inline service body"):
@@ -376,7 +376,7 @@ def test_the_cli_refuses_a_root_that_is_not_a_directory(
     assert "is not a directory" in capsys.readouterr().err
 
 
-def test_the_gate_defaults_to_the_registered_requirements(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_the_check_defaults_to_the_registered_requirements(monkeypatch: pytest.MonkeyPatch) -> None:
     only = (Requirement(label="l", why="w", flags=(Flag("--nothing-carries-this"),)),)
     monkeypatch.setattr(flagcheck, "REQUIREMENTS", only)
     assert check_one(_server("--jinja")) == check_one(_server("--jinja"), only)

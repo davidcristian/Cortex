@@ -7,7 +7,7 @@ import gitenv
 import moduleconstants
 import scriptcalls
 
-GATES = Path(__file__).resolve().parents[1]
+SCRIPTS = Path(__file__).resolve().parents[1]
 SHARED = "git_env"
 # The files that run git today. This is a minimum, not the whole set: a scan that found
 # nothing would otherwise pass, and a caller added later is checked without being listed.
@@ -48,10 +48,10 @@ def test_an_environment_git_never_touched_is_returned_whole(
 
 def test_every_git_call_here_is_handed_this_environment() -> None:
     calls = {
-        path.relative_to(GATES).as_posix(): scriptcalls.git_calls(
+        path.relative_to(SCRIPTS).as_posix(): scriptcalls.git_calls(
             moduleconstants.parse(path, path.name)
         )
-        for path in [*GATES.glob("*.py"), *GATES.glob("tests/*.py")]
+        for path in [*SCRIPTS.glob("*.py"), *SCRIPTS.glob("tests/*.py")]
     }
     assert {name for name, found in calls.items() if found} >= CALLERS
     assert [

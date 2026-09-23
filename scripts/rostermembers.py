@@ -9,7 +9,7 @@ import scanrecipes
 from scanrecipes import ScanReadError
 
 LIVE_RPC = Path("body/crates/rpc/tests/live.rs")
-GATES = Path("scripts")
+SCRIPTS = Path("scripts")
 PACKAGES = Path("brain/packages")
 CRATES = Path("body/crates")
 
@@ -57,7 +57,7 @@ def _listed(root: Path, tree: Path) -> list[Path]:
 
 def _filenames(root: Path, pattern: str) -> list[str]:
     """Return the file names under `scripts/` matching ``pattern``, in a fixed order."""
-    return [path.name for path in _listed(root, GATES) if fnmatchcase(path.name, pattern)]
+    return [path.name for path in _listed(root, SCRIPTS) if fnmatchcase(path.name, pattern)]
 
 
 def _directories(root: Path, tree: Path) -> list[str]:
@@ -93,9 +93,9 @@ def live_rpc_checks(root: Path) -> frozenset[str]:
     return _floored(ignored_tests(_read(root, LIVE_RPC)), f"the ignored tests in {LIVE_RPC}")
 
 
-def gate_modules(root: Path) -> frozenset[str]:
+def script_modules(root: Path) -> frozenset[str]:
     """Every module in `scripts/`, which is the set that directory's module contract describes."""
-    return _floored(_filenames(root, MODULES), f"the modules in {GATES}")
+    return _floored(_filenames(root, MODULES), f"the modules in {SCRIPTS}")
 
 
 def _with_a_cli(root: Path, *, wanted: bool) -> list[str]:
@@ -103,18 +103,18 @@ def _with_a_cli(root: Path, *, wanted: bool) -> list[str]:
     return [
         name
         for name in _filenames(root, MODULES)
-        if (MAIN_GUARD.search(_read(root, GATES / name)) is not None) == wanted
+        if (MAIN_GUARD.search(_read(root, SCRIPTS / name)) is not None) == wanted
     ]
 
 
-def cli_gate_modules(root: Path) -> frozenset[str]:
+def cli_script_modules(root: Path) -> frozenset[str]:
     """Every module in `scripts/` with a command line of its own."""
-    return _floored(_with_a_cli(root, wanted=True), f"the CLIs in {GATES}")
+    return _floored(_with_a_cli(root, wanted=True), f"the CLIs in {SCRIPTS}")
 
 
-def library_gate_modules(root: Path) -> frozenset[str]:
+def library_script_modules(root: Path) -> frozenset[str]:
     """Every module in `scripts/` that another module reads rather than a shell runs."""
-    return _floored(_with_a_cli(root, wanted=False), f"the modules in {GATES} with no CLI")
+    return _floored(_with_a_cli(root, wanted=False), f"the modules in {SCRIPTS} with no CLI")
 
 
 def cross_tree_scans(root: Path) -> frozenset[str]:
@@ -141,5 +141,5 @@ def registry_tuples(root: Path) -> frozenset[str]:
     parts = [Path(name).stem for name in _filenames(root, PARTS) if Path(name).stem != COUPLINGS]
     return _floored(
         (part.removesuffix(COUPLINGS).upper() + TUPLE for part in parts),
-        f"the registry parts in {GATES}",
+        f"the registry parts in {SCRIPTS}",
     )

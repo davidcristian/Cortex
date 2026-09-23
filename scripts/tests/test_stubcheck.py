@@ -100,7 +100,7 @@ def test_a_trailing_comment_is_compared_like_any_other(tmp_path: Path) -> None:
     assert [miss.text for miss in misses] == ["clamped to [0.0, 2.0]"]
 
 
-def test_a_doc_comment_the_proto_never_wrote_is_not_this_gates_business(tmp_path: Path) -> None:
+def test_a_doc_comment_the_proto_never_wrote_is_not_reported(tmp_path: Path) -> None:
     _tree(tmp_path)
     docs = protocomments.rust_docs(STUB)
     assert " Attempt to create a new client by connecting to a given endpoint." in docs
@@ -259,7 +259,7 @@ def test_the_repo_itself_is_clean() -> None:
     assert stubcheck.check(REPO_ROOT).misses == []
 
 
-def test_the_repo_really_has_comments_for_this_gate_to_have_checked() -> None:
+def test_the_repo_really_has_comments_for_this_check_to_read() -> None:
     scanned = stubcheck.check(REPO_ROOT)
     assert scanned.leading >= 60
     assert scanned.trailing >= 20
@@ -267,7 +267,7 @@ def test_the_repo_really_has_comments_for_this_gate_to_have_checked() -> None:
     assert scanned.docs >= 150
 
 
-def test_the_real_stub_contains_every_rewrite_this_gate_undoes() -> None:
+def test_the_real_stub_contains_every_rewrite_this_check_undoes() -> None:
     docs = protocomments.rust_docs((REPO_ROOT / stubcheck.STUB).read_text(encoding="utf-8"))
     assert any("\\[" in doc and "\\]" in doc for doc in docs)
     assert any(doc.strip().startswith("##") for doc in docs)

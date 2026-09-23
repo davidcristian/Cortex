@@ -5,7 +5,7 @@ import moduleconstants
 import scriptcalls
 from treewalk import walk_files
 
-GATES = Path(__file__).resolve().parents[1]
+SCRIPTS = Path(__file__).resolve().parents[1]
 DESCENT = "treewalk.py"
 
 
@@ -61,7 +61,7 @@ def test_what_is_not_a_regular_file_is_not_handed_on(tmp_path: Path) -> None:
 def test_every_tree_read_here_is_the_shared_one() -> None:
     readers = {
         path.name: scriptcalls.tree_reads(moduleconstants.parse(path, path.name))
-        for path in GATES.glob("*.py")
+        for path in SCRIPTS.glob("*.py")
     }
     assert {name for name, reads in readers.items() if reads} == {DESCENT}
     assert [read.called for read in readers[DESCENT]] == ["walk"]

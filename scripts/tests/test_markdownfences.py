@@ -6,7 +6,7 @@ import pytest
 import moduleconstants
 from markdownfences import MARKERS, Fences, marker_lines
 
-GATES = Path(__file__).resolve().parents[1]
+SCRIPTS = Path(__file__).resolve().parents[1]
 MARKER_MODULE = "markdownfences.py"
 
 
@@ -133,7 +133,7 @@ def test_two_docstrings_with_the_same_text_are_both_passed_over() -> None:
 def test_no_module_here_writes_a_fence_of_its_own() -> None:
     marker_modules = {
         path.name: marker_lines(moduleconstants.parse(path, path.name))
-        for path in GATES.glob("*.py")
+        for path in SCRIPTS.glob("*.py")
     }
     assert {name for name, lines in marker_modules.items() if lines} == {MARKER_MODULE}
     assert len(set(marker_modules[MARKER_MODULE])) == 1

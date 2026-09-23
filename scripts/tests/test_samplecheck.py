@@ -348,7 +348,7 @@ def test_the_repo_itself_is_clean() -> None:
     assert samplecheck.check(REPO_ROOT).misses == []
 
 
-def test_the_repo_really_has_samples_for_this_gate_to_have_checked() -> None:
+def test_the_repo_really_has_samples_for_this_check_to_read() -> None:
     scanned = samplecheck.check(REPO_ROOT)
     assert scanned.samples >= 3
     assert scanned.docs >= 10

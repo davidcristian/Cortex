@@ -12,7 +12,7 @@ CONFIG_LOGGING_SUITE = "brain/packages/orchestrator/tests/test_config_logging.py
 TRAIL_READER = "scripts/trailwidth.py"
 LOGGER_GUARD = "scripts/tests/test_loggernames.py"
 
-GATES_MODULE = "docs/modules/repo-checks-tools.md"
+CHECKS_MODULE = "docs/modules/repo-checks-tools.md"
 LOCAL_DEV_RUNBOOK = "docs/runbooks/brain-logs.md"
 MEMORY_MODULE = "docs/modules/brain-memory.md"
 MEMORY_RUNBOOK = "docs/runbooks/memory-pgvector.md"
@@ -82,7 +82,7 @@ TRAIL_COUPLINGS: tuple[Constant, ...] = (
         mentions=(
             Mention(RECALL_SINK, FIELD_KEY),
             Mention(MEMORY_RUNBOOK, "`{value}` names every"),
-            Mention(GATES_MODULE, "the recall trail's `{value}` field"),
+            Mention(CHECKS_MODULE, "the recall trail's `{value}` field"),
         ),
     ),
     Constant(

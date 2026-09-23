@@ -45,7 +45,7 @@ a document.
 - 2026-09-14: still not a live problem, and the same correction the sibling entry has applies here.
   Seven suites write a fence marker and all 48 of their markers are fixtures; none tests a line for
   a marker. What the entry did not say is that the boundary is not the whole family's:
-  `test_gitenv.py` compares over `[*GATES.glob("*.py"), *GATES.glob("tests/*.py")]`, so of the three
+  `test_gitenv.py` compares over `[*SCRIPTS.glob("*.py"), *SCRIPTS.glob("tests/*.py")]`, so of the three
   requirements here one covers the suites and two do not. This entry and
   [R-610](610-the-descent-obligation-stops-at-the-suites.md) share a cause, the comparison set
   written per rule rather than once, and nothing else: widening this one needs a rule telling a

@@ -29,7 +29,7 @@ single file.
   `rglob("*.py")` and drops any module whose parts meet `SKIPPED_DIRS`. Every other glob under
   `scripts/tests/` reads one named directory without recursing.
 - 2026-09-14: one claim here was wrong. A sibling requirement in the same family already covers the
-  suites: `test_gitenv.py` compares over `[*GATES.glob("*.py"), *GATES.glob("tests/*.py")]`. So the
+  suites: `test_gitenv.py` compares over `[*SCRIPTS.glob("*.py"), *SCRIPTS.glob("tests/*.py")]`. So the
   three requirements that read modules through `scriptcalls.py` and `markdownfences.py` disagree
   about their boundary, and no rule about all of them can be written. What is writable is the
   narrower reason: this one stops at the suites because widening it breaks the one suite that has to

@@ -278,7 +278,7 @@ def test_the_repo_itself_is_clean() -> None:
     assert bindcheck.check(REPO_ROOT).faults == []
 
 
-def test_the_repo_really_declares_binds_for_this_gate_to_have_checked() -> None:
+def test_the_repo_really_declares_binds_for_this_check_to_read() -> None:
     mounts = [
         mount
         for compose in bindcheck.compose_files(REPO_ROOT)

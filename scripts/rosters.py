@@ -64,7 +64,7 @@ ROSTERS: tuple[Roster, ...] = (
             "this sentence is where a reader learns which modules can be run and which are read "
             "by another, so a module in the wrong half of it is described as something it is not"
         ),
-        members=rostermembers.cli_gate_modules,
+        members=rostermembers.cli_script_modules,
     ),
     Roster(
         label="the modules this tree only reads",
@@ -78,8 +78,8 @@ ROSTERS: tuple[Roster, ...] = (
             "which it can only keep while every module in the tree is named on the page and "
             "named in the half of the sentence that is true of it"
         ),
-        members=rostermembers.library_gate_modules,
-        refers_to=rostermembers.cli_gate_modules,
+        members=rostermembers.library_script_modules,
+        refers_to=rostermembers.cli_script_modules,
     ),
     Roster(
         label="the cross-tree scans in the engineering contract",

@@ -274,7 +274,7 @@ def test_the_repo_itself_is_clean() -> None:
     assert volumecheck.check(REPO_ROOT).faults == []
 
 
-def test_the_repo_really_declares_volumes_for_this_gate_to_have_checked() -> None:
+def test_the_repo_really_declares_volumes_for_this_check_to_read() -> None:
     scanned = volumecheck.check(REPO_ROOT)
     assert scanned.declared >= 4, scanned
     assert scanned.definitions >= 8, scanned

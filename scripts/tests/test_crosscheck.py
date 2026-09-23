@@ -124,7 +124,7 @@ def test_check_constant_ties_two_forms_of_one_number(tmp_path: Path) -> None:
     assert crosscheck.check_constant(tmp_path, BYTE_CEILING) == []
 
 
-def test_check_constant_catches_the_drift_this_gate_exists_for(tmp_path: Path) -> None:
+def test_check_constant_catches_the_drift_this_check_exists_for(tmp_path: Path) -> None:
     _tie(tmp_path, rust="8 * 1024 * 1024", python="6 * 1024 * 1024")
     (fault,) = crosscheck.check_constant(tmp_path, BYTE_CEILING)
     assert fault.label == "a ceiling"
@@ -1116,7 +1116,7 @@ def test_the_repo_itself_is_tied() -> None:
 
 
 REASONING_OFF = "the subagent tier's reasoning-off budget"
-FLAG_GATE = "scripts/subagentflags.py"
+FLAG_CHECK = "scripts/subagentflags.py"
 MODELHOST_CONFIG = "brain/packages/model_manager/src/cortex_model_manager/config.py"
 
 DECLARED = '_NO_REASONING_BUDGET = "0"'
@@ -1192,12 +1192,14 @@ def test_the_reasoning_off_budget_holds_over_the_files_it_names(tmp_path: Path) 
     assert crosscheck.check_constant(tmp_path, constant) == []
 
 
-def test_a_gate_requiring_a_budget_the_hosted_tier_does_not_ship_is_a_fault(tmp_path: Path) -> None:
+def test_a_check_requiring_a_budget_the_hosted_tier_does_not_ship_is_a_fault(
+    tmp_path: Path,
+) -> None:
     constant = registered(REASONING_OFF)
-    copied(tmp_path, constant, {FLAG_GATE: (REQUIRED, REQUIRED.replace('"0"', '"128"'))})
+    copied(tmp_path, constant, {FLAG_CHECK: (REQUIRED, REQUIRED.replace('"0"', '"128"'))})
     faults = crosscheck.check_constant(tmp_path, constant)
     assert [fault.label for fault in faults] == [REASONING_OFF]
-    assert FLAG_GATE in faults[0].detail
+    assert FLAG_CHECK in faults[0].detail
 
 
 def test_the_hosted_tier_retuned_on_its_own_is_the_same_fault_from_the_other_side(
@@ -1217,7 +1219,7 @@ def test_the_budget_is_held_by_this_entry_and_not_by_a_neighbour(tmp_path: Path)
     )
     for constant in neighbours:
         copied(tmp_path, constant, {})
-    copied(tmp_path, pair, {FLAG_GATE: (REQUIRED, "")})
+    copied(tmp_path, pair, {FLAG_CHECK: (REQUIRED, "")})
     assert crosscheck.check(tmp_path, neighbours) == []
     assert [fault.label for fault in crosscheck.check(tmp_path, (pair,))] == [REASONING_OFF]
 

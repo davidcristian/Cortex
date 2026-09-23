@@ -8,13 +8,13 @@ from rostermembers import (
     MemberError,
     body_crates,
     brain_packages,
-    cli_gate_modules,
+    cli_script_modules,
     cross_tree_scans,
-    gate_modules,
     ignored_tests,
-    library_gate_modules,
+    library_script_modules,
     live_rpc_checks,
     registry_tuples,
+    script_modules,
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -51,9 +51,9 @@ def suite(root: Path, text: str = SUITE) -> Path:
     return root
 
 
-def gates(root: Path, *names: str) -> Path:
+def scripts_tree(root: Path, *names: str) -> Path:
     """Write a small `scripts/` with exactly ``names`` in it, and return the root above it."""
-    tree = root / rostermembers.GATES
+    tree = root / rostermembers.SCRIPTS
     tree.mkdir(parents=True, exist_ok=True)
     for name in names:
         (tree / name).write_text('"""A miniature."""\n', encoding="utf-8")
@@ -103,20 +103,20 @@ def test_a_suite_that_is_not_there_is_named(tmp_path: Path) -> None:
         live_rpc_checks(tmp_path)
 
 
-def test_every_module_in_the_gate_tree_is_a_member(tmp_path: Path) -> None:
-    assert gate_modules(gates(tmp_path, "linecap.py", "dashcheck.py")) == frozenset(
+def test_every_module_in_the_scripts_tree_is_a_member(tmp_path: Path) -> None:
+    assert script_modules(scripts_tree(tmp_path, "linecap.py", "dashcheck.py")) == frozenset(
         {"linecap.py", "dashcheck.py"}
     )
 
 
-def test_a_gate_tree_that_is_not_there_is_named(tmp_path: Path) -> None:
+def test_a_scripts_tree_that_is_not_there_is_named(tmp_path: Path) -> None:
     with pytest.raises(MemberError, match="scripts is not a directory"):
-        gate_modules(tmp_path)
+        script_modules(tmp_path)
 
 
-def test_a_gate_tree_holding_no_module_is_a_failure(tmp_path: Path) -> None:
+def test_a_scripts_tree_holding_no_module_is_a_failure(tmp_path: Path) -> None:
     with pytest.raises(MemberError, match="came back empty"):
-        gate_modules(gates(tmp_path))
+        script_modules(scripts_tree(tmp_path))
 
 
 GUARD = '"""A miniature with a command line."""\n\n\nif __name__ == "__main__":\n    main()\n'
@@ -124,8 +124,8 @@ GUARD = '"""A miniature with a command line."""\n\n\nif __name__ == "__main__":\
 
 def split(root: Path, *, runs: tuple[str, ...], read: tuple[str, ...]) -> Path:
     """Write a small `scripts/` where ``runs`` have a main guard and ``read`` do not."""
-    gates(root, *read)
-    tree = root / rostermembers.GATES
+    scripts_tree(root, *read)
+    tree = root / rostermembers.SCRIPTS
     for name in runs:
         (tree / name).write_text(GUARD, encoding="utf-8")
     return root
@@ -133,40 +133,40 @@ def split(root: Path, *, runs: tuple[str, ...], read: tuple[str, ...]) -> Path:
 
 def test_a_module_has_a_cli_exactly_when_it_has_a_main_guard(tmp_path: Path) -> None:
     root = split(tmp_path, runs=("linecap.py",), read=("skippeddirs.py", "values.py"))
-    assert cli_gate_modules(root) == frozenset({"linecap.py"})
-    assert library_gate_modules(root) == frozenset({"skippeddirs.py", "values.py"})
+    assert cli_script_modules(root) == frozenset({"linecap.py"})
+    assert library_script_modules(root) == frozenset({"skippeddirs.py", "values.py"})
 
 
 def test_the_two_halves_are_the_whole_tree_and_share_nothing(tmp_path: Path) -> None:
     root = split(tmp_path, runs=("linecap.py",), read=("values.py",))
-    assert cli_gate_modules(root) | library_gate_modules(root) == gate_modules(root)
-    assert not cli_gate_modules(root) & library_gate_modules(root)
+    assert cli_script_modules(root) | library_script_modules(root) == script_modules(root)
+    assert not cli_script_modules(root) & library_script_modules(root)
 
 
 def test_a_guard_that_is_not_at_the_top_level_is_not_a_cli(tmp_path: Path) -> None:
-    root = gates(tmp_path, "values.py")
-    (tmp_path / rostermembers.GATES / "values.py").write_text(
+    root = scripts_tree(tmp_path, "values.py")
+    (tmp_path / rostermembers.SCRIPTS / "values.py").write_text(
         '"""Prose quoting `if __name__ == "__main__":` as the thing a CLI carries."""\n'
         "\n\ndef nested() -> None:\n"
         '    if __name__ == "__main__":\n        pass\n',
         encoding="utf-8",
     )
-    assert library_gate_modules(root) == frozenset({"values.py"})
+    assert library_script_modules(root) == frozenset({"values.py"})
     with pytest.raises(MemberError, match="came back empty"):
-        cli_gate_modules(root)
+        cli_script_modules(root)
 
 
 def test_a_tree_whose_every_module_is_a_cli_leaves_the_other_half_empty(tmp_path: Path) -> None:
     root = split(tmp_path, runs=("linecap.py",), read=())
     with pytest.raises(MemberError, match="came back empty"):
-        library_gate_modules(root)
+        library_script_modules(root)
 
 
 def test_a_module_that_cannot_be_read_is_named_rather_than_sorted(tmp_path: Path) -> None:
     root = split(tmp_path, runs=("linecap.py",), read=("values.py",))
-    (root / rostermembers.GATES / "values.py").write_bytes(b"\xff\xfe not text at all")
+    (root / rostermembers.SCRIPTS / "values.py").write_bytes(b"\xff\xfe not text at all")
     with pytest.raises(MemberError, match=r"cannot read scripts/values\.py"):
-        library_gate_modules(root)
+        library_script_modules(root)
 
 
 def test_a_disagreement_between_the_two_files_arrives_as_a_member_failure(tmp_path: Path) -> None:
@@ -182,7 +182,7 @@ def test_a_disagreement_between_the_two_files_arrives_as_a_member_failure(tmp_pa
         cross_tree_scans(tmp_path)
 
 
-def test_a_gate_that_runs_no_scan_at_all_is_a_failure(tmp_path: Path) -> None:
+def test_a_check_recipe_that_runs_no_scan_at_all_is_a_failure(tmp_path: Path) -> None:
     (tmp_path / scanrecipes.JUSTFILE).write_text("check:\n    echo nothing\n", encoding="utf-8")
     workflow = tmp_path / scanrecipes.WORKFLOW
     workflow.parent.mkdir(parents=True, exist_ok=True)
@@ -191,23 +191,25 @@ def test_a_gate_that_runs_no_scan_at_all_is_a_failure(tmp_path: Path) -> None:
         cross_tree_scans(tmp_path)
 
 
-def test_the_real_gate_runs_the_scans_this_repo_documents() -> None:
+def test_the_real_check_recipe_runs_the_scans_this_repo_documents() -> None:
     assert "rostercheck.py" in cross_tree_scans(REPO_ROOT)
 
 
 def test_a_part_is_read_as_the_tuple_name_its_file_name_gives_it(tmp_path: Path) -> None:
-    root = gates(tmp_path, "wirecouplings.py", "logcouplings.py", "couplings.py", "registry.py")
+    root = scripts_tree(
+        tmp_path, "wirecouplings.py", "logcouplings.py", "couplings.py", "registry.py"
+    )
     assert registry_tuples(root) == frozenset({"WIRE_COUPLINGS", "LOG_COUPLINGS"})
 
 
 def test_the_vocabulary_file_is_not_a_part(tmp_path: Path) -> None:
-    root = gates(tmp_path, "wirecouplings.py", "couplings.py")
+    root = scripts_tree(tmp_path, "wirecouplings.py", "couplings.py")
     assert registry_tuples(root) == frozenset({"WIRE_COUPLINGS"})
 
 
 def test_a_registry_with_no_part_but_its_vocabulary_is_a_failure(tmp_path: Path) -> None:
     with pytest.raises(MemberError, match="came back empty"):
-        registry_tuples(gates(tmp_path, "couplings.py"))
+        registry_tuples(scripts_tree(tmp_path, "couplings.py"))
 
 
 def packages(root: Path, *names: str) -> Path:
@@ -270,12 +272,14 @@ def test_a_body_workspace_holding_no_crate_is_a_failure(tmp_path: Path) -> None:
 def test_the_real_suite_and_the_real_registry_are_both_read() -> None:
     assert len(live_rpc_checks(REPO_ROOT)) > 1
     assert len(registry_tuples(REPO_ROOT)) > 1
-    assert "rostermembers.py" in gate_modules(REPO_ROOT)
+    assert "rostermembers.py" in script_modules(REPO_ROOT)
     assert "orchestrator" in brain_packages(REPO_ROOT)
     assert "os_windows" in body_crates(REPO_ROOT)
 
 
 def test_the_real_tree_really_holds_both_halves() -> None:
-    assert "rostercheck.py" in cli_gate_modules(REPO_ROOT)
-    assert "rostermembers.py" in library_gate_modules(REPO_ROOT)
-    assert cli_gate_modules(REPO_ROOT) | library_gate_modules(REPO_ROOT) == gate_modules(REPO_ROOT)
+    assert "rostercheck.py" in cli_script_modules(REPO_ROOT)
+    assert "rostermembers.py" in library_script_modules(REPO_ROOT)
+    assert cli_script_modules(REPO_ROOT) | library_script_modules(REPO_ROOT) == script_modules(
+        REPO_ROOT
+    )

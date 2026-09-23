@@ -34,10 +34,10 @@ def base_project(projects: Iterable[tuple[Path, str | None]]) -> str | None:
     return named[0] if len(named) == 1 else None
 
 
-def refused_summary(gate: str, count: int, unread: str) -> str:
+def refused_summary(check: str, count: int, unread: str) -> str:
     """The summary a check prints when its reader could not read ``count`` compose files."""
     return (
-        f"\n{gate}: {count} compose file(s) could not be read, so {unread}. Rewrite a form the "
+        f"\n{check}: {count} compose file(s) could not be read, so {unread}. Rewrite a form the "
         "reader refuses in one it takes, or save the file as UTF-8 text, as the file's own fault "
         "says."
     )

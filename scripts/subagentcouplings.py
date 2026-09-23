@@ -8,7 +8,7 @@ SUBAGENTS_COMPOSE = "docker/docker-compose.subagents.yml"
 ROSTER_COMPOSE = "docker/docker-compose.subagents-roster.yml"
 MODELHOST_CONFIG = "brain/packages/model_manager/src/cortex_model_manager/config.py"
 SUBAGENTS_CONFIG = "brain/packages/orchestrator/src/cortex_orchestrator/config_subagents.py"
-FLAG_GATE = "scripts/subagentflags.py"
+FLAG_CHECK = "scripts/subagentflags.py"
 SUBAGENTS_RUNBOOK = "docs/runbooks/subagents-cpu.md"
 
 SUBAGENT_COUPLINGS: tuple[Constant, ...] = (
@@ -120,7 +120,7 @@ SUBAGENT_COUPLINGS: tuple[Constant, ...] = (
         ),
         sites=(Site(MODELHOST_CONFIG, "_NO_REASONING_BUDGET"),),
         mentions=(
-            Mention(FLAG_GATE, 'Flag("--reasoning-budget", "{value}")'),
+            Mention(FLAG_CHECK, 'Flag("--reasoning-budget", "{value}")'),
             Mention(SUBAGENTS_RUNBOOK, "`--reasoning-budget {value}`"),
             Mention(SUBAGENTS_RUNBOOK, "\n  --reasoning-budget {value}\n"),
         ),

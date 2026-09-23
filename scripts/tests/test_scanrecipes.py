@@ -5,7 +5,7 @@ import pytest
 import scanrecipes
 from scanrecipes import (
     ScanReadError,
-    gate_scans,
+    check_scans,
     job_scans,
     recipe_body,
     recipe_module,
@@ -69,18 +69,18 @@ def files(root: Path, *, justfile: str = JUSTFILE, workflow: str = WORKFLOW) -> 
     return root
 
 
-def test_the_run_a_gate_opens_with_is_what_it_runs_first() -> None:
-    assert gate_scans(JUSTFILE) == ["check-linecap", "check-backlog"]
+def test_the_run_a_check_recipe_opens_with_is_what_it_runs_first() -> None:
+    assert check_scans(JUSTFILE) == ["check-linecap", "check-backlog"]
 
 
 def test_the_run_stops_at_the_first_command_that_is_not_a_scan() -> None:
     plainly = JUSTFILE.replace('just check-brain >"$tmp/brain.log" 2>&1 &', "just check-brain")
-    assert gate_scans(plainly) == ["check-linecap", "check-backlog"]
+    assert check_scans(plainly) == ["check-linecap", "check-backlog"]
 
 
-def test_a_gate_that_is_nothing_but_its_scans_is_read_to_the_end() -> None:
+def test_a_check_recipe_that_is_nothing_but_its_scans_is_read_to_the_end() -> None:
     only = "check:\n    just check-linecap\n    just check-backlog\n"
-    assert gate_scans(only) == ["check-linecap", "check-backlog"]
+    assert check_scans(only) == ["check-linecap", "check-backlog"]
 
 
 def test_a_recipe_with_parameters_is_still_found() -> None:
@@ -134,7 +134,7 @@ def test_the_scans_are_what_both_files_run(tmp_path: Path) -> None:
     assert scan_modules(files(tmp_path)) == frozenset({"linecap.py", "backlogcheck.py"})
 
 
-def test_a_scan_added_to_the_gate_and_not_to_ci_is_refused(tmp_path: Path) -> None:
+def test_a_scan_added_to_the_check_recipe_and_not_to_ci_is_refused(tmp_path: Path) -> None:
     grown = JUSTFILE.replace(
         "    just check-backlog", "    just check-backlog\n    just check-dashcheck"
     )
@@ -142,7 +142,7 @@ def test_a_scan_added_to_the_gate_and_not_to_ci_is_refused(tmp_path: Path) -> No
         scan_modules(files(tmp_path, justfile=grown))
 
 
-def test_a_scan_added_to_ci_and_not_to_the_gate_is_refused(tmp_path: Path) -> None:
+def test_a_scan_added_to_ci_and_not_to_the_check_recipe_is_refused(tmp_path: Path) -> None:
     grown = WORKFLOW.replace(
         "      - run: just check-backlog",
         "      - run: just check-backlog\n      - run: just check-dashcheck",
@@ -173,14 +173,14 @@ def test_a_workflow_that_cannot_be_decoded_is_named(tmp_path: Path) -> None:
         scan_modules(root)
 
 
-def test_the_real_gate_and_the_real_workflow_agree() -> None:
+def test_the_real_check_recipe_and_the_real_workflow_agree() -> None:
     found = scan_modules(REPO_ROOT)
     assert "rostercheck.py" in found
     assert "backlogcheck.py" in found
     assert len(found) > 1
 
 
-def test_the_real_gate_runs_a_recipe_whose_module_has_another_name() -> None:
+def test_the_real_check_recipe_runs_a_recipe_whose_module_has_another_name() -> None:
     justfile = (REPO_ROOT / scanrecipes.JUSTFILE).read_text(encoding="utf-8")
-    named = {recipe: recipe_module(justfile, recipe) for recipe in gate_scans(justfile)}
+    named = {recipe: recipe_module(justfile, recipe) for recipe in check_scans(justfile)}
     assert any(module != f"{recipe.removeprefix('check-')}.py" for recipe, module in named.items())

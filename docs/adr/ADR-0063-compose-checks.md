@@ -31,7 +31,7 @@ each reads compose with a line reader that raises on any form it was not taught.
    finds the compose files (`docker-compose*` and `compose*`, `.yml` or `.yaml`) for every compose
    check, so no check learns about a new override its siblings miss, and each fails when it finds
    none. A file a check's reader refuses is counted apart from the check's findings:
-   `composefiles.refused_summary(gate, count, unread)` prints
+   `composefiles.refused_summary(check, count, unread)` prints
    `N compose file(s) could not be read, so no <what> in them was checked`, and `faults` lists
    refused files first. `bindcheck.py`, `defaultcheck.py` and `volumecheck.py`
    ([ADR-0067](ADR-0067-image-volume-record.md)) all call it. One level down, an entry a check read

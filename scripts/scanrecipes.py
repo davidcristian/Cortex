@@ -5,7 +5,7 @@ from pathlib import Path
 
 JUSTFILE = Path("justfile")
 WORKFLOW = Path(".github/workflows/ci.yml")
-GATE = "check"
+CHECK_RECIPE = "check"
 JOB = "cross-tree"
 
 HEADER = r"^{name}(?: [^:]*)?:$"
@@ -47,10 +47,10 @@ def recipe_body(text: str, recipe: str) -> list[str]:
     return _block(text, header, f"the {recipe!r} recipe")
 
 
-def gate_scans(text: str) -> list[str]:
+def check_scans(text: str) -> list[str]:
     """Return the recipes `just check` runs first, before the per-tree checks."""
     found: list[str] = []
-    for line in recipe_body(text, GATE):
+    for line in recipe_body(text, CHECK_RECIPE):
         invoked = INVOKES.match(line)
         if invoked is not None:
             found.append(invoked.group(1))
@@ -104,12 +104,12 @@ def _read(root: Path, name: Path) -> str:
 def scan_modules(root: Path) -> frozenset[str]:
     """Every module `just check` and CI both run as a cross-tree scan, raising when they differ."""
     justfile = _read(root, JUSTFILE)
-    gate, job = gate_scans(justfile), job_scans(_read(root, WORKFLOW))
-    if set(gate) != set(job):
+    check, job = check_scans(justfile), job_scans(_read(root, WORKFLOW))
+    if set(check) != set(job):
         msg = (
-            f"{JUSTFILE.as_posix()} runs {sorted(gate)} before the trees and "
+            f"{JUSTFILE.as_posix()} runs {sorted(check)} before the trees and "
             f"{WORKFLOW.as_posix()}'s {JOB!r} job runs {sorted(job)}; a scan is what both run, so "
             f"neither list is the answer while they disagree"
         )
         raise ScanReadError(msg)
-    return frozenset(recipe_module(justfile, recipe) for recipe in gate)
+    return frozenset(recipe_module(justfile, recipe) for recipe in check)

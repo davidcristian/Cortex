@@ -12,8 +12,8 @@ from samplecheck import runbooks
 from skippeddirs import SKIPPED_DIRS
 from treewalk import walk_files
 
-GATES = Path(__file__).resolve().parents[1]
-REPO_ROOT = GATES.parent
+SCRIPTS = Path(__file__).resolve().parents[1]
+REPO_ROOT = SCRIPTS.parent
 # A tracked directory containing none of the names below, so the answer comes from the
 # ignore rules and not from what happens to exist here.
 PROBE = "brain/packages/core"
@@ -101,7 +101,7 @@ def _read_by_a_scoped_reader() -> list[Path]:
     return found
 
 
-def _read_by_a_gate(directory: Path, scoped: Sequence[Path]) -> list[Path]:
+def _read_by_a_check(directory: Path, scoped: Sequence[Path]) -> list[Path]:
     """Every file under ``directory`` that any of the six readers with a selection would open."""
     inside = {path for path in scoped if directory in path.parents}
     return sorted(set(_read_by_a_suffix_walk(directory)) | inside)
@@ -111,7 +111,7 @@ def test_no_tree_git_ignores_and_this_list_misses_holds_a_file_a_walk_reads() ->
     scoped = _read_by_a_scoped_reader()
     reachable = {
         directory.relative_to(REPO_ROOT): [
-            path.relative_to(REPO_ROOT) for path in _read_by_a_gate(directory, scoped)
+            path.relative_to(REPO_ROOT) for path in _read_by_a_check(directory, scoped)
         ]
         for directory in _ignored_directories()
         if not any(part in SKIPPED_DIRS for part in directory.relative_to(REPO_ROOT).parts)

@@ -153,8 +153,8 @@ LIBRARIES = Roster(
     written=CodeSpans(pattern=re.compile(r"[a-z_]+\.py")),
     subject="a module in scripts/ with no command line",
     why="a module in the wrong half is described as something it is not",
-    members=rostermembers.library_gate_modules,
-    refers_to=rostermembers.cli_gate_modules,
+    members=rostermembers.library_script_modules,
+    refers_to=rostermembers.cli_script_modules,
 )
 
 GUARD = '"""A miniature."""\n\n\nif __name__ == "__main__":\n    main()\n'
@@ -165,7 +165,7 @@ def contract(root: Path, *, page: str = HALVES, runs: str = "linecap.py") -> Pat
     document = root / CONTRACT
     document.parent.mkdir(parents=True, exist_ok=True)
     document.write_text(page, encoding="utf-8")
-    tree = root / rostermembers.GATES
+    tree = root / rostermembers.SCRIPTS
     tree.mkdir(parents=True, exist_ok=True)
     (tree / runs).write_text(GUARD, encoding="utf-8")
     for name in ("skippeddirs.py", "values.py"):
@@ -193,7 +193,7 @@ def test_a_member_missing_from_a_borrowing_roster_is_still_reported(tmp_path: Pa
 
 def every_module(root: Path) -> frozenset[str]:
     """Return a set that overlaps the roster's own members, which no registry here would write."""
-    return rostermembers.gate_modules(root)
+    return rostermembers.script_modules(root)
 
 
 def test_a_borrowed_name_that_is_also_a_member_is_still_owed(tmp_path: Path) -> None:
@@ -208,13 +208,13 @@ def test_a_module_that_gained_a_cli_and_stayed_put_fails_the_half_that_lost_it(
     tmp_path: Path,
 ) -> None:
     root = contract(tmp_path)
-    (root / rostermembers.GATES / "skippeddirs.py").write_text(GUARD, encoding="utf-8")
+    (root / rostermembers.SCRIPTS / "skippeddirs.py").write_text(GUARD, encoding="utf-8")
     clis = LIBRARIES._replace(
         label="the modules this tree runs from a shell",
         opens="**Public contract**",
         closes="**The rest have no CLI of their own**",
         subject="a module in scripts/ with a command line of its own",
-        members=rostermembers.cli_gate_modules,
+        members=rostermembers.cli_script_modules,
         refers_to=None,
     )
     assert faults(root, LIBRARIES) == []
@@ -226,7 +226,9 @@ def test_a_module_that_gained_a_cli_and_stayed_put_fails_the_half_that_lost_it(
 
 def test_a_set_a_roster_refers_to_that_cannot_be_read_is_an_input_failure(tmp_path: Path) -> None:
     root = contract(tmp_path)
-    (root / rostermembers.GATES / "linecap.py").write_text('"""No CLI now."""\n', encoding="utf-8")
+    (root / rostermembers.SCRIPTS / "linecap.py").write_text(
+        '"""No CLI now."""\n', encoding="utf-8"
+    )
     with pytest.raises(RosterCheckError, match="the CLIs in scripts came back empty"):
         check_one(root, LIBRARIES)
 
