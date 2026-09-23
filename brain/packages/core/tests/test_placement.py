@@ -10,7 +10,7 @@ def test_ngl_maps_target_to_the_offload_flag() -> None:
     assert PlacementTarget.CPU.ngl == 0
 
 
-def test_a_valid_request_carries_its_resource_ask() -> None:
+def test_a_valid_request_keeps_its_resource_ask() -> None:
     request = PlacementRequest("subagent", vram_gb=2.0, cpus=1.5, memory_gb=3.0)
     assert (request.model, request.vram_gb, request.cpus, request.memory_gb) == (
         "subagent",

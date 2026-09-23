@@ -884,7 +884,7 @@ def test_an_unknown_salience_name_fails_at_boot() -> None:
         ToolsConfig(salience="sometimes")  # pyright: ignore[reportArgumentType]
 
 
-def test_the_dispatch_policy_carries_all_three_declarations() -> None:
+def test_the_dispatch_policy_includes_all_three_declarations() -> None:
     policy = ToolsConfig(
         gated=("send_email",), costs={"read_file": 3}, salience="off"
     ).dispatch_policy

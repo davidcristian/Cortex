@@ -383,7 +383,7 @@ async def test_asking_for_no_bounds_holds_the_reply_to_the_domain_ceiling_alone(
     assert (capture.image.width, capture.image.height) == (3840, 2160)
 
 
-async def test_a_bound_the_wire_cannot_carry_fails_the_capture_rather_than_the_turn() -> None:
+async def test_a_bound_the_wire_cannot_hold_fails_the_capture_rather_than_the_turn() -> None:
     async with _gateway(FakeBody(blob=_blob())) as gateway:
         with pytest.raises(BodyGatewayError, match="a bound the wire cannot hold"):
             await gateway.capture_screen(max_edge=-1)

@@ -33,8 +33,7 @@ class LoggingRecallSink:
                 for ranked in audit.ranking.hits
             ],
             "dropped": [
-                {"id": candidate.id, "score": candidate.score}
-                for candidate in audit.dropped.carried
+                {"id": candidate.id, "score": candidate.score} for candidate in audit.dropped.listed
             ],
             "dropped_omitted": audit.dropped.omitted,
             "at": audit.at.isoformat(),

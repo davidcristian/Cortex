@@ -96,7 +96,7 @@ def test_the_switch_rows_differ_by_the_setting_and_by_nothing_else() -> None:
     assert bodies[BUDGET_ALONE.label] == shipped_body
 
 
-def test_the_budget_alone_row_carries_the_budget_half_and_not_the_kwarg() -> None:
+def test_the_budget_alone_row_passes_the_budget_half_and_not_the_kwarg() -> None:
     at = SHIPPED_SUBAGENT_TAIL.index(_REASONING_BUDGET_FLAG)
     assert BUDGET_ALONE.argv == (_REASONING_BUDGET_FLAG, SHIPPED_SUBAGENT_TAIL[at + 1])
     assert BUDGET_ALONE.request_key is None

@@ -152,7 +152,7 @@ def test_an_enormous_field_leaves_a_line_the_log_driver_still_keeps_whole() -> N
     assert line.count(CUT.format(chars=97954)) == 1
 
 
-def test_the_packed_rendering_carries_a_value_the_plain_one_would_cut() -> None:
+def test_the_packed_rendering_keeps_a_value_the_plain_one_would_cut() -> None:
     payload = json.loads(PackedFormatter().format(_record(reply="y" * 100_000)))
     assert payload["fields"]["reply"] == "y" * 100_000
 
@@ -310,7 +310,7 @@ def test_the_packed_rendering_omits_the_fields_key_when_there_are_none() -> None
     assert "fields" not in json.loads(PackedFormatter().format(_record()))
 
 
-def test_the_packed_rendering_carries_a_traceback_and_withholds_the_same_secrets() -> None:
+def test_the_packed_rendering_includes_a_traceback_and_withholds_the_same_secrets() -> None:
     line = PackedFormatter().format(_raised())
     payload = json.loads(line)
     assert "ConnectionError" in str(payload["exception"])
@@ -331,7 +331,7 @@ def test_each_rendering_is_reachable_by_the_name_a_deployment_writes() -> None:
     assert set(LOG_FORMATS) == {PLAIN_FORMAT, PACKED_FORMAT}
 
 
-def test_a_rendering_this_build_does_not_carry_is_a_typed_refusal() -> None:
+def test_a_rendering_this_build_does_not_offer_is_a_typed_refusal() -> None:
     with pytest.raises(UnknownLogFormatError) as err:
         build_formatter("jsonl")
     assert "jsonl" in str(err.value)

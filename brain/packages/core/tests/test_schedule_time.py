@@ -29,7 +29,7 @@ def test_utc_rendering_is_unchanged_from_the_utc_only_v1() -> None:
     assert UTC_DISPLAY.render(moment) == "2026-07-12T18:00:00+00:00"
 
 
-def test_rendering_converts_the_instant_and_carries_the_offset() -> None:
+def test_rendering_converts_the_instant_and_includes_the_offset() -> None:
     moment = datetime(2026, 7, 12, 12, 0, 0, tzinfo=UTC)
     assert _BUCHAREST.render(moment) == "2026-07-12T15:00:00+03:00"
 
@@ -91,7 +91,7 @@ def test_the_default_zone_context_is_utc_render_and_utc_only_resolution() -> Non
     assert ZoneContext() == UTC_ZONE_CONTEXT
 
 
-def test_a_zone_context_carries_its_own_default_and_resolver() -> None:
+def test_a_zone_context_keeps_its_own_default_and_resolver() -> None:
     zone = DisplayZone(name="Europe/Bucharest", tz=ZoneInfo("Europe/Bucharest"))
     context = ZoneContext(default=zone, resolver=UTC_ONLY_RESOLVER)
     assert context.default is zone

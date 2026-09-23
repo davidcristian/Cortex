@@ -71,7 +71,7 @@ class DroppedCandidate:
 class DroppedCandidates:
     """What a rank did not keep, bounded: the candidates listed, and how many more there were."""
 
-    carried: tuple[DroppedCandidate, ...]
+    listed: tuple[DroppedCandidate, ...]
     omitted: int
 
 
@@ -82,7 +82,7 @@ def dropped_candidates(
     kept = {ranked.hit.record.id for ranked in ranking.hits}
     dropped = [hit for hit in pool if hit.record.id not in kept]
     return DroppedCandidates(
-        carried=tuple(
+        listed=tuple(
             DroppedCandidate(id=hit.record.id, score=hit.score) for hit in dropped[:limit]
         ),
         omitted=max(len(dropped) - limit, 0),

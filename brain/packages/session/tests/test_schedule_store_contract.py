@@ -247,7 +247,7 @@ async def test_claim_path_quarantines_a_corrupt_record() -> None:
     assert await store.claim_due(_NOW + _LEASE + _LEASE, lease=_LEASE, limit=8) != ()
 
 
-async def test_the_quarantine_lines_carry_the_id_and_the_key_as_fields(
+async def test_the_quarantine_lines_have_the_id_and_the_key_as_fields(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     client = FakeAsyncRedis(server=FakeServer())

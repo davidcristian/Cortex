@@ -18,7 +18,7 @@ def test_task_holds_its_fields() -> None:
     assert (task.model, task.tainted) == ("", False)
 
 
-def test_task_carries_the_requested_model_and_the_spawn_time_taint() -> None:
+def test_task_keeps_the_requested_model_and_the_spawn_time_taint() -> None:
     task = SubagentTask(id="t1", instruction="do", context="", at=_AT, model="fast", tainted=True)
     assert (task.model, task.tainted) == ("fast", True)
 
@@ -28,6 +28,6 @@ def test_result_defaults_to_a_success_with_no_detail() -> None:
     assert (result.ok, result.detail) == (True, "")
 
 
-def test_result_can_carry_a_failure_and_its_reason() -> None:
+def test_result_can_record_a_failure_and_its_reason() -> None:
     result = SubagentResult(task_id="t1", output="", ok=False, detail="boom")
     assert (result.ok, result.detail) == (False, "boom")

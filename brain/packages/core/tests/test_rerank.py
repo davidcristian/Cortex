@@ -227,7 +227,7 @@ def test_only_the_order_dependent_bases_refuse_comparison() -> None:
     assert not RankBasis.SWEEP.comparable
 
 
-def test_a_declined_ranking_may_not_carry_hits() -> None:
+def test_a_declined_ranking_may_not_have_hits() -> None:
     kept = RankedMemory(hit=_hit("a", 0.9, (1.0, 0.0)), key=0.9)
     with pytest.raises(ValueError, match="DEMUR ranking declines"):
         Ranking(hits=(kept,), basis=RankBasis.DEMUR)
@@ -250,36 +250,36 @@ _SHIPPED_POOL = 5 * 4
 async def test_the_dropped_set_is_the_pool_minus_what_the_rank_kept() -> None:
     pool = [_hit("a", 0.9, (1.0, 0.0)), _hit("b", 0.6, (0.0, 1.0)), _hit("c", 0.2, (1.0, 1.0))]
     dropped = dropped_candidates(pool, await _rank(RawRecallPolicy(), pool, k=1))
-    assert dropped.carried == (
+    assert dropped.listed == (
         DroppedCandidate(id="b", score=0.6),
         DroppedCandidate(id="c", score=0.2),
     )
     assert dropped.omitted == 0
 
 
-async def test_a_dropped_candidate_carries_the_stores_cosine_and_no_rank_key() -> None:
+async def test_a_dropped_candidate_keeps_the_stores_cosine_and_no_rank_key() -> None:
     pool = [_hit("a", 0.9, (1.0, 0.0)), _hit("b", 0.6, (0.0, 1.0))]
     ranking = await _rank(_mmr(relevance_weight=0.5), pool, k=1)
     assert ranking.hits[0].key == pytest.approx(0.45)
-    assert dropped_candidates(pool, ranking).carried == (DroppedCandidate(id="b", score=0.6),)
+    assert dropped_candidates(pool, ranking).listed == (DroppedCandidate(id="b", score=0.6),)
 
 
 async def test_a_rank_that_kept_nothing_dropped_the_whole_pool() -> None:
     pool = [_hit("a", 0.9, (1.0, 0.0)), _hit("b", 0.6, (0.0, 1.0))]
     declined = Ranking(hits=(), basis=RankBasis.DEMUR)
-    assert [candidate.id for candidate in dropped_candidates(pool, declined).carried] == ["a", "b"]
+    assert [candidate.id for candidate in dropped_candidates(pool, declined).listed] == ["a", "b"]
 
 
 async def test_the_bound_cuts_the_tail_of_the_pools_own_order_and_counts_what_it_cut() -> None:
     pool = [_hit(f"m{i}", 0.9 - i / 100, (1.0, 0.0)) for i in range(6)]
     dropped = dropped_candidates(pool, await _rank(RawRecallPolicy(), pool, k=1), limit=2)
-    assert [candidate.id for candidate in dropped.carried] == ["m1", "m2"]
+    assert [candidate.id for candidate in dropped.listed] == ["m1", "m2"]
     assert dropped.omitted == 3
 
 
 async def test_a_shipped_pool_never_reaches_the_bound() -> None:
     pool = [_hit(f"m{i}", 1.0 - i / 100, (1.0, 0.0)) for i in range(_SHIPPED_POOL)]
     dropped = dropped_candidates(pool, await _rank(RawRecallPolicy(), pool, k=5))
-    assert len(dropped.carried) == _SHIPPED_POOL - 5
+    assert len(dropped.listed) == _SHIPPED_POOL - 5
     assert dropped.omitted == 0
     assert _SHIPPED_POOL <= DROPPED_TRAIL_LIMIT

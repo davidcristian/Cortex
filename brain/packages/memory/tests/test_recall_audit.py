@@ -41,7 +41,7 @@ def _audit(
         available=available,
         k=5,
         ranking=ranking if ranking is not None else Ranking(hits=(ranked,), basis=basis),
-        dropped=dropped if dropped is not None else DroppedCandidates(carried=(), omitted=0),
+        dropped=dropped if dropped is not None else DroppedCandidates(listed=(), omitted=0),
         at=_AT,
     )
 
@@ -58,7 +58,7 @@ def _rendered(caplog: pytest.LogCaptureFixture) -> str:
     return PlainFormatter().format(record)
 
 
-async def test_the_trail_carries_the_pool_the_basis_and_each_hits_rank_key(
+async def test_the_trail_records_the_pool_the_basis_and_each_hits_rank_key(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     with caplog.at_level(logging.INFO, logger="cortex.memory.recall"):
@@ -116,7 +116,7 @@ async def test_a_declined_rank_and_an_empty_pool_are_different_lines(
     )
 
 
-async def test_the_trail_carries_no_conversation_text(caplog: pytest.LogCaptureFixture) -> None:
+async def test_the_trail_contains_no_conversation_text(caplog: pytest.LogCaptureFixture) -> None:
     with caplog.at_level(logging.INFO, logger="cortex.memory.recall"):
         await LoggingRecallSink().record(_audit())
     line = _rendered(caplog)
@@ -129,7 +129,7 @@ async def test_the_trail_names_the_candidates_the_rank_dropped(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     dropped = DroppedCandidates(
-        carried=(DroppedCandidate(id="m2", score=0.83), DroppedCandidate(id="m3", score=0.11)),
+        listed=(DroppedCandidate(id="m2", score=0.83), DroppedCandidate(id="m3", score=0.11)),
         omitted=0,
     )
     with caplog.at_level(logging.INFO, logger="cortex.memory.recall"):
@@ -142,7 +142,7 @@ async def test_the_trail_names_the_candidates_the_rank_dropped(
 async def test_the_trail_says_how_many_drops_its_bound_left_out(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    dropped = DroppedCandidates(carried=(DroppedCandidate(id="m2", score=0.83),), omitted=7)
+    dropped = DroppedCandidates(listed=(DroppedCandidate(id="m2", score=0.83),), omitted=7)
     with caplog.at_level(logging.INFO, logger="cortex.memory.recall"):
         await LoggingRecallSink().record(_audit(dropped=dropped))
     assert _logged(caplog)["dropped_omitted"] == 7

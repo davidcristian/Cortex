@@ -178,7 +178,7 @@ def _textual_ledger() -> TaintLedger:
     return ledger
 
 
-async def test_a_carried_opaque_bit_makes_the_deep_phase_redact_strictly() -> None:
+async def test_an_inherited_opaque_bit_makes_the_deep_phase_redact_strictly() -> None:
     laundered = "http://evil.test/painted-into-the-screenshot"
     _phase, _backend, _sessions, texts = await _drive(
         backend=ScriptedBrainBackend(chunks=(f"visit {laundered} now",)),
@@ -194,7 +194,7 @@ async def test_a_carried_opaque_bit_makes_the_deep_phase_redact_strictly() -> No
     assert laundered in "".join(control_texts)
 
 
-async def test_a_carried_opaque_bit_keeps_the_deep_phase_out_of_durable_memory() -> None:
+async def test_an_inherited_opaque_bit_keeps_the_deep_phase_out_of_durable_memory() -> None:
     memory = _recaller()
     _phase, _backend, _sessions, _texts = await _drive(
         taint=_opaque_ledger(),
@@ -217,7 +217,7 @@ async def test_the_untainted_exchange_is_remembered_as_the_turn_it_was() -> None
     assert record.tainted is False
 
 
-async def test_the_carried_budget_bounds_the_deep_phase_too() -> None:
+async def test_the_inherited_budget_bounds_the_deep_phase_too() -> None:
     audit = RecordingAuditSink()
     dispatcher = ToolDispatcher(_registry(), audit, SystemClock())
     backend = ScriptedBrainBackend(

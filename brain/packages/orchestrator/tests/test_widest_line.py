@@ -119,7 +119,7 @@ async def test_the_widest_recall_trail_line_fits_one_log_driver_message(
                 basis=RankBasis.EMBER,
             ),
             dropped=DroppedCandidates(
-                carried=tuple(
+                listed=tuple(
                     DroppedCandidate(id=held.id, score=_WIDEST_FLOAT) for held in stored[_HITS:]
                 ),
                 omitted=0,

@@ -91,7 +91,7 @@ def test_a_results_images_are_copied_onto_the_message_it_becomes() -> None:
     assert message.text == wrap_untrusted("screen capture", nonce="n")
 
 
-def test_a_trusted_result_may_carry_images_too() -> None:
+def test_a_trusted_result_may_have_images_too() -> None:
     picture = ImagePart(data=b"\x89PNG", mime_type="image/png", width=8, height=8)
     result = ToolResult(call_id="c0", content="plain", trust=Trust.TRUSTED, images=(picture,))
     assert result_message(result, _AT, "t-1", nonce="n").images == (picture,)

@@ -43,7 +43,7 @@ def test_an_image_block_is_read_at_the_size_its_header_states() -> None:
     )
 
 
-def test_a_result_of_text_alone_carries_no_images() -> None:
+def test_a_result_of_text_alone_has_no_images() -> None:
     assert result_images(CallToolResult(content=[TextContent(type="text", text="x")])) == ()
 
 
@@ -59,7 +59,7 @@ def test_a_block_whose_data_is_not_base64_is_refused() -> None:
         result_images(CallToolResult(content=[block]))
 
 
-def test_a_block_carrying_a_character_outside_the_base64_alphabet_is_refused() -> None:
+def test_a_block_with_a_character_outside_the_base64_alphabet_is_refused() -> None:
     # `b64decode` discards an unknown character unless it is validating, so a decoder
     # without `validate=True` would read this as the PNG and never report the lost byte.
     block = ImageContent(type="image", data=PNG_BASE64 + "!", mimeType="image/png")
@@ -70,7 +70,7 @@ def test_a_block_carrying_a_character_outside_the_base64_alphabet_is_refused() -
 @pytest.mark.parametrize(
     ("data", "mime"), [(JPEG_BYTES, "image/jpeg"), (LOSSY_WEBP_BYTES, "image/webp")]
 )
-def test_a_block_in_either_other_listed_format_is_carried(data: bytes, mime: str) -> None:
+def test_a_block_in_either_other_listed_format_is_read(data: bytes, mime: str) -> None:
     (image,) = result_images(CallToolResult(content=[_block(data, mime)]))
     assert (image.mime_type, image.width, image.height) == (mime, SAMPLE_WIDTH, SAMPLE_HEIGHT)
 

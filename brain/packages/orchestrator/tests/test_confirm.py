@@ -36,7 +36,7 @@ async def _emitted_id(emitted: list[ServerEvent]) -> str:
     raise AssertionError(msg)
 
 
-async def test_approval_resolves_true_and_the_request_carries_the_draft() -> None:
+async def test_approval_resolves_true_and_the_request_contains_the_draft() -> None:
     confirmer, emitted = _collecting_confirmer()
     ask = asyncio.ensure_future(confirmer.confirm(_REQUEST))
     confirm_id = await _emitted_id(emitted)

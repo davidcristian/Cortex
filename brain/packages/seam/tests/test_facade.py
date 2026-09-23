@@ -9,7 +9,7 @@ def test_health_reply_round_trips_on_the_wire() -> None:
     assert decoded.detail == "cortex-orchestrator 0.0.0"
 
 
-def test_client_event_oneof_carries_a_user_turn() -> None:
+def test_client_event_oneof_holds_a_user_turn() -> None:
     event = cortex_seam.ClientEvent(
         session_id="session-1",
         user_turn=cortex_seam.UserTurn(text="hello"),
@@ -19,7 +19,7 @@ def test_client_event_oneof_carries_a_user_turn() -> None:
     assert decoded.user_turn.text == "hello"
 
 
-def test_client_event_oneof_carries_a_cancel() -> None:
+def test_client_event_oneof_holds_a_cancel() -> None:
     event = cortex_seam.ClientEvent(session_id="session-1", cancel=cortex_seam.Cancel())
     decoded = cortex_seam.ClientEvent.FromString(event.SerializeToString())
     assert decoded.WhichOneof("event") == "cancel"

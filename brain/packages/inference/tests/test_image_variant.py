@@ -118,7 +118,7 @@ def _rows(png: bytes, width: int) -> list[bytes]:
     return [raw[line * stride + 1 : (line + 1) * stride] for line in range(len(raw) // stride)]
 
 
-def test_a_magnified_render_is_the_same_picture_carried_by_more_pixels() -> None:
+def test_a_magnified_render_is_the_same_picture_drawn_with_more_pixels() -> None:
     for rendering in RENDERINGS:
         small = _rows(
             rendering.build(ATTACKS[0].injection, CORPUS_FRAME, CORPUS_TYPE_SCALE),

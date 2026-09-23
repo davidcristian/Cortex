@@ -1116,7 +1116,7 @@ class _CountingBackend(EchoInferenceBackend):
             yield event
 
 
-async def test_build_history_window_carries_the_fold_floor_into_the_window() -> None:
+async def test_build_history_window_passes_the_fold_floor_into_the_window() -> None:
     backend = _CountingBackend()
     window = build_history_window(
         BrainRuntimeConfig(

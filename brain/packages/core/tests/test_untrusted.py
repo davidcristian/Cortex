@@ -205,7 +205,7 @@ def test_ingest_untrusted_notes_the_recalled_memory_it_came_from() -> None:
     assert ledger.sources == (source,)
 
 
-def test_boundary_constants_carry_the_rule() -> None:
+def test_boundary_constants_state_the_rule() -> None:
     assert "untrusted-tool-output" in SECURITY_PREAMBLE
     assert "BLOCKED" in DENIED_MSG
 
@@ -240,7 +240,7 @@ def test_untrusted_text_taints_without_making_the_turn_opaque() -> None:
     assert ledger.opaque is False
 
 
-def test_a_trusted_result_carrying_images_leaves_the_turn_transparent() -> None:
+def test_a_trusted_result_with_images_leaves_the_turn_transparent() -> None:
     ledger = TaintLedger()
     picture = ImagePart(data=b"\x89PNG", mime_type="image/png", width=8, height=8)
     ledger.observe(ToolResult(call_id="c1", content="ours", trust=Trust.TRUSTED, images=(picture,)))

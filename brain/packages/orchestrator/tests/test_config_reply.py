@@ -8,13 +8,13 @@ def test_an_unset_deployment_asks_for_no_bounds_at_all() -> None:
     assert ReplyBoundsConfig().bounds() is None
 
 
-def test_a_cap_alone_is_carried_with_thinking_left_where_the_template_put_it() -> None:
+def test_a_cap_alone_is_passed_with_thinking_left_where_the_template_put_it() -> None:
     assert ReplyBoundsConfig(max_tokens=2048).bounds() == GenerationBounds(
         max_tokens=2048, thinking=True
     )
 
 
-def test_thinking_off_alone_carries_no_cap() -> None:
+def test_thinking_off_alone_sets_no_cap() -> None:
     assert ReplyBoundsConfig(thinking=False).bounds() == GenerationBounds(
         max_tokens=None, thinking=False
     )
@@ -31,7 +31,7 @@ def test_a_negative_cap_is_refused_at_the_edge_rather_than_at_the_server() -> No
         ReplyBoundsConfig(max_tokens=-1)
 
 
-def test_a_trace_budget_alone_is_carried_with_the_other_two_left_alone() -> None:
+def test_a_trace_budget_alone_is_passed_with_the_other_two_left_alone() -> None:
     assert ReplyBoundsConfig(trace_tokens=128).bounds() == GenerationBounds(
         max_tokens=None, thinking=True, trace_tokens=128
     )

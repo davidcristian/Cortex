@@ -69,7 +69,7 @@ async def test_describe_tools_maps_server_tools_to_specs() -> None:
     assert specs[0].parameters == {"type": "object"}
 
 
-async def test_invoke_renders_text_content_and_carries_an_image_block() -> None:
+async def test_invoke_renders_text_content_and_keeps_an_image_block() -> None:
     result = CallToolResult(
         content=[
             TextContent(type="text", text="line1\n"),

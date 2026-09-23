@@ -222,7 +222,7 @@ async def test_the_spawn_tool_offers_the_model_choice_and_the_trade_off_it_is_me
 
 @pytest.mark.integration
 @_needs_a_cortex_and_a_multi_entry_roster
-async def test_a_prose_only_ask_carrying_independent_subtasks() -> None:
+async def test_a_prose_only_ask_with_independent_subtasks() -> None:
     config = SubagentsConfig()
     observed = await _one_turn(_ASK_PROSE)
     _report("prose-only", observed)

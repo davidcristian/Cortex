@@ -29,7 +29,7 @@ def test_role_values_are_stable_strings(role: Role, value: str) -> None:
     assert role.value == value
 
 
-def test_message_carries_all_fields() -> None:
+def test_message_keeps_all_fields() -> None:
     message = Message(role=Role.USER, text="hi", at=_AT, turn_id="t-1")
     assert (message.role, message.text, message.at, message.turn_id) == (
         Role.USER,
@@ -40,7 +40,7 @@ def test_message_carries_all_fields() -> None:
     assert (message.tool_calls, message.tool_call_id) == ((), None)
 
 
-def test_message_carries_tool_call_structure() -> None:
+def test_message_keeps_tool_call_structure() -> None:
     call = ToolCall(id="c1", name="read", arguments={"path": "/x"})
     assistant = Message(role=Role.ASSISTANT, text="", at=_AT, turn_id="t-1", tool_calls=(call,))
     result = Message(role=Role.TOOL, text="body", at=_AT, turn_id="t-1", tool_call_id="c1")
@@ -71,7 +71,7 @@ def test_non_utc_timezone_is_accepted() -> None:
     assert message.at.utcoffset() == timedelta(hours=5, minutes=30)
 
 
-def test_a_tool_message_may_carry_images() -> None:
+def test_a_tool_message_may_have_images() -> None:
     picture = ImagePart(data=b"\x89PNG", mime_type="image/png", width=8, height=8)
     message = Message(
         role=Role.TOOL, text="capture", at=_AT, turn_id="t1", tool_call_id="c1", images=(picture,)
@@ -80,7 +80,7 @@ def test_a_tool_message_may_carry_images() -> None:
 
 
 @pytest.mark.parametrize("role", [Role.USER, Role.ASSISTANT, Role.SYSTEM])
-def test_no_role_but_tool_may_carry_images(role: Role) -> None:
+def test_no_role_but_tool_may_have_images(role: Role) -> None:
     picture = ImagePart(data=b"\x89PNG", mime_type="image/png", width=8, height=8)
     with pytest.raises(ValueError, match="may not have images: pixels are turn-local"):
         Message(role=role, text="hi", at=_AT, turn_id="t1", images=(picture,))

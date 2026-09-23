@@ -15,7 +15,7 @@ the body's client stream stays open past the first `UserTurn` to answer `Confirm
 mid-turn.
 
 **The proto and the whole brain half are already built.** `proto/body.proto:97` has
-`Cancel cancel = 3`, round-tripped by `test_client_event_oneof_carries_a_cancel`. The server
+`Cancel cancel = 3`, round-tripped by `test_client_event_oneof_holds_a_cancel`. The server
 supports multiple turns per stream and handles `Cancel` end to end: a `UserTurn` arriving mid-turn
 is queued and starts when the running turn finishes (`_enqueue_turn`, `_start_next_turn`,
 `_drain_turns` in `converse_stream.py`), and a `Cancel` stops the in-flight turn and drops the

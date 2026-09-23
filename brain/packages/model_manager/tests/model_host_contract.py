@@ -104,7 +104,7 @@ async def check_a_swap_leaves_only_the_model_it_swapped_in(subject: HostUnderTes
     )
 
 
-async def check_an_id_this_host_does_not_carry_is_refused_by_every_verb(
+async def check_an_id_outside_the_roster_is_refused_by_every_verb(
     subject: HostUnderTest,
 ) -> None:
     """An id outside the roster fails as ``ModelNotHostedError``, from all three lifecycle verbs."""
@@ -155,7 +155,7 @@ ALL_CHECKS: tuple[Callable[[HostUnderTest], Awaitable[None]], ...] = (
     check_a_failed_model_is_restarted_without_being_stopped_first,
     check_stopping_a_model_that_already_died_settles_it,
     check_a_swap_leaves_only_the_model_it_swapped_in,
-    check_an_id_this_host_does_not_carry_is_refused_by_every_verb,
+    check_an_id_outside_the_roster_is_refused_by_every_verb,
     check_an_unhosted_refusal_is_still_a_model_host_error,
     check_a_host_with_no_card_reports_no_device_memory,
     check_a_host_with_a_card_reports_what_is_free_and_how_big_it_is,

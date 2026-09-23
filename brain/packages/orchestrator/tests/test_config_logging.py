@@ -35,7 +35,7 @@ def test_the_brain_configures_info_and_the_env_rendering(
     assert capsys.readouterr().err.strip() == "INFO:cortex.tools.audit:tool.invocation tool=read"
 
 
-def test_a_rendering_this_build_does_not_carry_stops_the_entry(
+def test_a_rendering_this_build_does_not_offer_stops_the_entry(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("CORTEX_LOG_FORMAT", "logfmt")

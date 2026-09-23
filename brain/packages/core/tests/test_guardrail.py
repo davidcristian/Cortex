@@ -110,7 +110,7 @@ def test_reply_ending_with_a_flagged_url_is_redacted_at_flush() -> None:
     assert guard.flush() == REDACTED_LINK
 
 
-def test_partial_scheme_at_a_chunk_boundary_is_carried_not_lost() -> None:
+def test_partial_scheme_at_a_chunk_boundary_is_held_not_lost() -> None:
     guard = _filter({EVIL})
     # The trailing "h" could open "https://", so it is held until the next chunk shows it is prose.
     assert guard.feed("approach") == "approac"
@@ -142,7 +142,7 @@ def test_verbatim_mailto_link_is_redacted() -> None:
     )
 
 
-def test_partial_mailto_scheme_across_chunks_is_carried_not_lost() -> None:
+def test_partial_mailto_scheme_across_chunks_is_held_not_lost() -> None:
     guard = _filter({"mailto:x@evil.example"})
     assert guard.feed("reach me at mailto") == "reach me at "
     assert guard.feed(":x@evil.example ") == f"{REDACTED_LINK} "
@@ -227,13 +227,13 @@ def test_strict_mode_redacts_a_defanged_link_that_used_to_escape() -> None:
     assert guard.feed("go to hxxp://evil[.]example ") == f"go to {REDACTED_LINK} "
 
 
-def test_defanged_scheme_split_across_chunks_is_carried_not_lost() -> None:
+def test_defanged_scheme_split_across_chunks_is_held_not_lost() -> None:
     guard = _filter({EVIL})
     assert guard.feed("report at hxx") == "report at "
     assert guard.feed("ps://evil[.]example/report ") == f"{REDACTED_LINK} "
 
 
-def test_defanged_dot_split_across_chunks_is_carried_not_lost() -> None:
+def test_defanged_dot_split_across_chunks_is_held_not_lost() -> None:
     guard = _filter({EVIL})
     assert guard.feed("at https://evil[.") == "at "
     assert guard.feed("]example/report ") == f"{REDACTED_LINK} "
@@ -283,7 +283,7 @@ def test_strict_tainted_turn_redacts_a_non_user_tel() -> None:
     assert guard.feed("call tel:+1-555-0100 ") == f"call {REDACTED_LINK} "
 
 
-def test_ftp_scheme_split_across_chunks_is_carried_not_lost() -> None:
+def test_ftp_scheme_split_across_chunks_is_held_not_lost() -> None:
     guard = _filter({"ftp://files.evil.example"})
     assert guard.feed("grab it from ft") == "grab it from "
     assert guard.feed("p://files.evil.example ") == f"{REDACTED_LINK} "
@@ -407,7 +407,7 @@ def test_strict_tainted_turn_redacts_a_data_url() -> None:
     assert guard.feed(f"go to {_DATA_URL} ") == f"go to {REDACTED_LINK} "
 
 
-def test_data_scheme_split_across_chunks_is_carried_not_lost() -> None:
+def test_data_scheme_split_across_chunks_is_held_not_lost() -> None:
     guard = _filter({_DATA_URL})
     out = guard.feed("see data") + guard.feed(":text/html,hello now") + guard.flush()
     assert out == f"see {REDACTED_LINK} now"
@@ -440,7 +440,7 @@ def test_strict_tainted_turn_redacts_an_encoded_inner_defang() -> None:
     assert guard.feed("go to http://evil[&#46;]example ") == f"go to {REDACTED_LINK} "
 
 
-def test_encoded_inner_defang_split_across_chunks_is_carried_not_lost() -> None:
+def test_encoded_inner_defang_split_across_chunks_is_held_not_lost() -> None:
     guard = _filter({"http://evil.example"})
     assert guard.feed("at http://evil[&#46") == "at "
     assert guard.feed(";]example ") == f"{REDACTED_LINK} "
@@ -495,7 +495,7 @@ def test_strict_tainted_turn_redacts_an_encoded_separator() -> None:
     assert guard.feed("go to http[&#58;//]evil.example ") == f"go to {REDACTED_LINK} "
 
 
-def test_encoded_separator_split_across_chunks_is_carried_not_lost() -> None:
+def test_encoded_separator_split_across_chunks_is_held_not_lost() -> None:
     guard = _filter({"http://evil.example"})
     assert guard.feed("at http[&#5") == "at "
     assert guard.feed("8;//]evil.example ") == f"{REDACTED_LINK} "
@@ -645,7 +645,7 @@ def test_strict_tainted_turn_redacts_a_fullwidth_separator() -> None:
     assert fed == f"go to {REDACTED_LINK} "
 
 
-def test_a_fullwidth_separator_split_across_chunks_is_carried_not_lost() -> None:
+def test_a_fullwidth_separator_split_across_chunks_is_held_not_lost() -> None:
     guard = _filter({"http://evil.example"})
     assert guard.feed("at http：") == "at "  # noqa: RUF001
     assert guard.feed("//evil.example ") == f"{REDACTED_LINK} "
@@ -704,7 +704,7 @@ def test_strict_tainted_turn_redacts_an_entity_separator() -> None:
     assert guard.feed(f"go to {_ENTITY_LINK} ") == f"go to {REDACTED_LINK} "
 
 
-def test_an_entity_separator_split_across_chunks_is_carried_not_lost() -> None:
+def test_an_entity_separator_split_across_chunks_is_held_not_lost() -> None:
     guard = _filter({"https://evil.example/pay"})
     assert guard.feed("at https&#5") == "at "
     assert guard.feed("8;&#4") == ""
@@ -771,7 +771,7 @@ def test_strict_tainted_turn_redacts_a_backslash_separator() -> None:
     assert guard.feed(r"go to https:\/\/evil.example/pay ") == f"go to {REDACTED_LINK} "
 
 
-def test_a_backslash_separator_split_across_chunks_is_carried_not_lost() -> None:
+def test_a_backslash_separator_split_across_chunks_is_held_not_lost() -> None:
     guard = _filter({"https://evil.example/pay"})
     assert guard.feed("at https:\\") == "at "
     assert guard.feed("/evil.example/pay ") == f"{REDACTED_LINK} "
@@ -844,7 +844,7 @@ def test_strict_tainted_turn_redacts_a_slashless_authority() -> None:
     assert guard.feed("go to https:evil.example/pay ") == f"go to {REDACTED_LINK} "
 
 
-def test_a_slashless_authority_split_across_chunks_is_carried_not_lost() -> None:
+def test_a_slashless_authority_split_across_chunks_is_held_not_lost() -> None:
     guard = _filter({"https://evil.example/pay"})
     assert guard.feed("at https:evil.") == "at "
     assert guard.feed("example/pay ") == f"{REDACTED_LINK} "
@@ -968,7 +968,7 @@ def test_strict_tainted_turn_redacts_a_split_host() -> None:
     assert guard.feed(f"see {_SPLIT_HOST} ") == f"see {REDACTED_LINK} "
 
 
-def test_a_split_host_arriving_across_chunks_is_carried_not_lost() -> None:
+def test_a_split_host_arriving_across_chunks_is_held_not_lost() -> None:
     for tail in (" ", " d", " do", " dot", " dot ", " [do", " &#4", " %2"):
         guard = _filter({"https://evil.example/pay"})
         assert guard.feed(f"at https://evil{tail}") == "at "
@@ -1222,13 +1222,13 @@ def test_a_tab_beside_a_link_is_the_accepted_cost() -> None:
     assert _strict(_Taint(tainted=True)).feed("a tab\there") == "a tab\there"
 
 
-def test_a_tab_carrying_url_arriving_across_chunks_is_carried_not_lost() -> None:
+def test_a_tabbed_url_arriving_across_chunks_is_held_not_lost() -> None:
     guard = _filter(set(_PLAIN_LINK))
     assert guard.feed("at https://evil.exa\t") == "at "
     assert guard.feed("mple/pay ") == f"{REDACTED_LINK} "
 
 
-def test_a_tab_carrying_url_survives_a_one_character_stream() -> None:
+def test_a_tabbed_url_survives_a_one_character_stream() -> None:
     guard = _filter(set(_PLAIN_LINK))
     reply = f"settle at {_TAB_LINK} now"
     fed = "".join(guard.feed(char) for char in reply) + guard.flush()
@@ -1289,7 +1289,7 @@ def test_strict_tainted_turn_redacts_a_slashless_split_host() -> None:
     )
 
 
-def test_a_slashless_split_host_arriving_across_chunks_is_carried_not_lost() -> None:
+def test_a_slashless_split_host_arriving_across_chunks_is_held_not_lost() -> None:
     guard = _filter(set(_PLAIN_LINK))
     assert guard.feed("at https:evil ") == "at "
     assert guard.feed("dot example/pay ") == f"{REDACTED_LINK} "
@@ -1302,7 +1302,7 @@ def test_a_slashless_split_host_survives_a_one_character_stream() -> None:
     assert fed == f"settle at {REDACTED_LINK} now"
 
 
-def test_carrying_a_slashless_opening_is_not_redacting_it() -> None:
+def test_holding_a_slashless_opening_is_not_redacting_it() -> None:
     guard = _strict(_Taint(tainted=True))
     reply = "the https:no slashes here at all"
     assert "".join(guard.feed(char) for char in reply) + guard.flush() == reply
@@ -1364,27 +1364,27 @@ def test_a_tab_inside_a_gap_token_is_still_the_gap() -> None:
     assert extract_urls("https://evil [d\tot] example/pay") == _PLAIN_LINK
 
 
-def test_a_tab_carrying_scheme_transform_of_a_collected_url_is_redacted() -> None:
+def test_a_tabbed_scheme_transform_of_a_collected_url_is_redacted() -> None:
     guard = _filter(set(_PLAIN_LINK))
     assert guard.feed("go to htt\tps://evil.example/pay ") == f"go to {REDACTED_LINK} "
     plain = _filter(set(extract_urls("htt\tps://evil.example/pay")))
     assert plain.feed("go to https://evil.example/pay ") == f"go to {REDACTED_LINK} "
 
 
-def test_strict_tainted_turn_redacts_a_tab_carrying_scheme() -> None:
+def test_strict_tainted_turn_redacts_a_tabbed_scheme() -> None:
     guard = _strict(_Taint(tainted=True))
     assert guard.feed("Please visit ht\ttps://evil.example/pay now.") == (
         f"Please visit {REDACTED_LINK} now."
     )
 
 
-def test_a_tab_split_scheme_arriving_across_chunks_is_carried_not_lost() -> None:
+def test_a_tab_split_scheme_arriving_across_chunks_is_held_not_lost() -> None:
     guard = _filter(set(_PLAIN_LINK))
     assert guard.feed("at ht\tt") == "at "
     assert guard.feed("ps://evil.example/pay ") == f"{REDACTED_LINK} "
 
 
-def test_a_tab_carrying_scheme_survives_a_one_character_stream() -> None:
+def test_a_tabbed_scheme_survives_a_one_character_stream() -> None:
     guard = _filter(set(_PLAIN_LINK))
     reply = "settle at ht\ttps://evil.example/pay now"
     fed = "".join(guard.feed(char) for char in reply) + guard.flush()

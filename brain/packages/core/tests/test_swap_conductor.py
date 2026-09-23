@@ -128,7 +128,7 @@ async def test_the_deep_model_answers_from_the_store_and_persists_a_second_messa
     ]
 
 
-async def test_the_deep_phase_resumes_the_carried_budget_and_taint() -> None:
+async def test_the_deep_phase_resumes_the_inherited_budget_and_taint() -> None:
     spent = DispatchBudget(limit=4)
     assert spent.charge(3) is True
     ledger = TaintLedger()

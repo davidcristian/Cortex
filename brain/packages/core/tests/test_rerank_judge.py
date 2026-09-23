@@ -362,7 +362,7 @@ async def test_a_recall_that_named_no_session_says_so_rather_than_leaving_the_fi
         assert f"{field}=None" in PlainFormatter().format(record)
 
 
-async def test_neither_line_carries_the_question_or_what_memory_said_about_it(
+async def test_neither_line_contains_the_question_or_what_memory_said_about_it(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     caplog.set_level(logging.WARNING, logger=_JUDGE_LOGGER)

@@ -293,7 +293,7 @@ async def test_a_pool_closed_by_an_earlier_loop_stays_closed_for_a_later_one() -
     assert [record.detail for record in second.records] == [BUDGET_EXHAUSTED_MSG] * MAX_TOOL_STEPS
 
 
-async def test_the_dispatch_stamp_carries_the_pool_to_whatever_the_call_spawns() -> None:
+async def test_the_dispatch_stamp_passes_the_pool_to_whatever_the_call_spawns() -> None:
     sink = RecordingAuditSink()
     pool = DispatchBudget(limit=1)
     registry = _StampRecordingRegistry()
@@ -323,7 +323,7 @@ def _stamp_context(registry: _StampRecordingRegistry) -> ToolLoopContext:
     )
 
 
-async def test_the_dispatch_stamp_carries_the_sources_the_turn_has_read() -> None:
+async def test_the_dispatch_stamp_names_the_sources_the_turn_has_read() -> None:
     registry = _StampRecordingRegistry(trust=Trust.UNTRUSTED)
     await _run(_MultiCallBackend(per_round=1), _stamp_context(registry))
     assert len(registry.stamps) == MAX_TOOL_STEPS
@@ -332,7 +332,7 @@ async def test_the_dispatch_stamp_carries_the_sources_the_turn_has_read() -> Non
     assert all(stamp.sources == via_noop for stamp in registry.stamps[1:])
 
 
-async def test_the_dispatch_stamp_carries_the_turns_escalation_slot() -> None:
+async def test_the_dispatch_stamp_includes_the_turns_escalation_slot() -> None:
     registry = _StampRecordingRegistry()
     slot = EscalationSlot()
     context = _stamp_context(registry)

@@ -696,7 +696,7 @@ async def test_the_servers_timings_close_the_stream_as_one_cadence() -> None:
 # A chunk holding both is the one case where the order is the adapter's own, so it is checked
 # here rather than in the shared contract: on this build the ``timings`` object arrives on a
 # content-less final chunk, which satisfies the contract's ordering check either way.
-async def test_content_precedes_the_cadence_when_one_chunk_carries_both() -> None:
+async def test_content_precedes_the_cadence_when_one_chunk_has_both() -> None:
     chunk = json.dumps(
         {
             "choices": [{"finish_reason": "stop", "index": 0, "delta": {"content": "last"}}],
@@ -788,7 +788,7 @@ async def test_a_finish_reason_that_is_not_even_a_string_still_reports_a_stop() 
 
 # llama-server puts ``finish_reason: null`` on every chunk but the final one, so a stream of
 # four chunks must yield exactly one stop and not four.
-async def test_the_chunks_before_the_last_carry_no_stop() -> None:
+async def test_the_chunks_before_the_last_have_no_stop() -> None:
     body = _sse(
         '{"choices":[{"finish_reason":null,"delta":{"content":"a"}}]}',
         '{"choices":[{"finish_reason":null,"delta":{"content":"b"}}]}',

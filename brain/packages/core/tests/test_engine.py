@@ -1221,7 +1221,7 @@ async def test_empty_reasoning_delta_emits_no_status_on_either_path() -> None:
         assert _thinking_details(events) == []
 
 
-async def test_thinking_carry_is_flushed_when_the_stream_ends_in_reasoning() -> None:
+async def test_held_thinking_is_flushed_when_the_stream_ends_in_reasoning() -> None:
     backend = ScriptedToolBackend(
         [
             [ToolCall(id="c1", name="read", arguments={"path": "/x"})],

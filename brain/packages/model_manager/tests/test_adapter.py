@@ -92,7 +92,7 @@ async def test_a_sidecar_that_is_not_there_is_a_typed_model_host_error() -> None
 @pytest.mark.parametrize(
     "code", [HTTPStatus.NOT_FOUND, HTTPStatus.SERVICE_UNAVAILABLE, HTTPStatus.INTERNAL_SERVER_ERROR]
 )
-async def test_a_refusal_carries_its_code_and_the_sidecars_reason(code: HTTPStatus) -> None:
+async def test_a_refusal_includes_its_code_and_the_sidecars_reason(code: HTTPStatus) -> None:
     def handle(request: httpx.Request) -> httpx.Response:
         del request
         return httpx.Response(code, json={"error": "unknown model 'brain'"})

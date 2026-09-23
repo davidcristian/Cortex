@@ -180,7 +180,7 @@ def _reply(events: Sequence[ServerEvent]) -> str:
     )
 
 
-async def test_one_turn_carries_the_swap_from_the_cortex_to_the_deep_model() -> None:
+async def test_one_turn_spans_the_swap_from_the_cortex_to_the_deep_model() -> None:
     store = InMemorySessionStore()
     host = ScriptedModelHost(running=["cortex"])
     client = _LiveClient()

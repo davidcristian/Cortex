@@ -16,7 +16,7 @@ line whole. The two renderings share more than that: both withhold a secret-name
 `record_fields`, including a value under a secret-named key at any depth inside a structured field,
 and both end in `redact_urls` over the whole rendered line, which the packed suite asserts on a
 record with a credential in its message, in a field and in a traceback
-(`test_the_packed_rendering_carries_a_traceback_and_withholds_the_same_secrets`). What the packed
+(`test_the_packed_rendering_includes_a_traceback_and_withholds_the_same_secrets`). What the packed
 rendering does not have is the bound, and the per-value credential pass `render_value` runs before
 the bound cuts.
 

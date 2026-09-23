@@ -7,7 +7,7 @@
 `plain/output-laundering` control at the engine's own budget is 4 of 5 at `1600x900` in four
 sessions and 0 or 1 of 5 at `3200x1800` in three. The two frames cost the same 266 image tokens,
 measured three times, so the model is handed the same amount of picture either way, and
-`test_a_magnified_render_is_the_same_picture_carried_by_more_pixels` in
+`test_a_magnified_render_is_the_same_picture_drawn_with_more_pixels` in
 [test_image_variant.py](../../../brain/packages/inference/tests/test_image_variant.py) proves the
 doubled frame is the corpus frame with every pixel grown to a 2x2 block. What differs is the
 resampling the encoder runs on the way to those 266 tokens, from 1600 px against from 3200 px.

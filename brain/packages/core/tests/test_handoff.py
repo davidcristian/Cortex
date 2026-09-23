@@ -86,7 +86,7 @@ def test_snapshot_captures_the_loop_tail_and_derives_rounds_from_it() -> None:
     assert record.untrusted_urls == frozenset({"http://evil.example/a"})
 
 
-def test_snapshot_carries_a_closed_budget_as_closed() -> None:
+def test_snapshot_keeps_a_closed_budget_as_closed() -> None:
     budget = DispatchBudget(limit=2)
     assert budget.charge(3) is False
     record = _slot([], budget=budget, base_len=0).snapshot(
@@ -154,13 +154,13 @@ def test_taint_ledger_reconstruction_is_exact_and_detached() -> None:
     assert record.untrusted_urls == frozenset({"http://evil.example/a"})
 
 
-def test_a_snapshot_refuses_a_loop_tail_carrying_pixels() -> None:
+def test_a_snapshot_refuses_a_loop_tail_with_pixels() -> None:
     slot = _slot(_pixel_working(), budget=DispatchBudget(8), base_len=1)
     with pytest.raises(ValueError, match="never persists images"):
         slot.snapshot(turn_id="t-1", session_id="s-1", requested_at=_AT)
 
 
-def test_a_snapshot_carries_the_opaque_bit_off_the_live_ledger() -> None:
+def test_a_snapshot_copies_the_opaque_bit_off_the_live_ledger() -> None:
     ledger = _ledger()
     ledger.observe(
         ToolResult(

@@ -266,7 +266,7 @@ async def test_one_shared_tool_routes_each_calls_progress_to_its_own_sink() -> N
     assert list(sink_b.held) == [Wait(QUEUED, "2 subtasks waiting for room to run")]
 
 
-async def test_object_items_carry_model_and_context_onto_the_task() -> None:
+async def test_object_items_pass_model_and_context_onto_the_task() -> None:
     store = InMemoryTaskStore()
     tool = SpawnSubagentsTool(
         SubagentRunner(

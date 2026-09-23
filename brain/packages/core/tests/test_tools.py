@@ -59,7 +59,7 @@ def test_tool_invocation_defaults_to_untrusted_provenance() -> None:
     )
 
 
-def test_confirmation_request_carries_the_action_and_reason() -> None:
+def test_confirmation_request_keeps_the_action_and_reason() -> None:
     request = ConfirmationRequest(tool_name="send_email", arguments={"to": "x"}, reason="outbound")
     assert (request.tool_name, request.arguments, request.reason) == (
         "send_email",
@@ -106,7 +106,7 @@ async def test_registry_invoke_raises_tool_not_found_for_an_unknown_tool() -> No
         await InMemoryToolRegistry({}).invoke(ToolCall(id="c", name="missing", arguments={}))
 
 
-def test_a_stamps_budget_is_carried_but_is_not_part_of_its_value() -> None:
+def test_a_stamps_budget_is_kept_but_is_not_part_of_its_value() -> None:
     pool = DispatchBudget(limit=4)
     stamped = TurnStamp(session_id="s", tainted=True, budget=pool)
     assert stamped == TurnStamp(session_id="s", tainted=True, budget=DispatchBudget(limit=9))

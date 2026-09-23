@@ -97,7 +97,7 @@ class FailingStore(InMemoryScheduleStore):
         raise self._down()
 
 
-def test_spec_carries_the_current_utc_time() -> None:
+def test_spec_includes_the_current_utc_time() -> None:
     tool, _ = _tool()
     assert "2026-07-12T12:00:00+00:00" in tool.spec.description
 

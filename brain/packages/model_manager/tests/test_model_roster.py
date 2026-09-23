@@ -55,7 +55,7 @@ def test_a_tiers_tail_goes_in_extra_rather_than_a_flag_per_setting() -> None:
     assert argv[-3:] == ("--jinja", "--chat-template-kwargs", '{"a": false}')
 
 
-def test_a_spec_carries_its_port_and_the_loopback_url_its_own_probe_uses() -> None:
+def test_a_spec_has_its_port_and_the_loopback_url_its_own_probe_uses() -> None:
     spec = tier_spec(_BIN, _tier(port=8083))
     assert (spec.model, spec.port) == ("cortex", 8083)
     assert spec.health_url == "http://127.0.0.1:8083/health"
@@ -165,7 +165,7 @@ def test_the_projector_is_resolved_under_the_read_only_models_mount(
     assert "/srv/models/mmproj.gguf" in argv
 
 
-def test_a_raised_image_budget_carries_the_micro_batch_up_with_it(
+def test_a_raised_image_budget_raises_the_micro_batch_with_it(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("CORTEX_MODEL_FILE_CORTEX_MMPROJ", "mmproj.gguf")
@@ -239,7 +239,7 @@ def test_a_zero_budget_is_a_setting_rather_than_an_absent_one(
     assert ModelHostConfig().roster()["cortex"].argv[-2:] == ("--reasoning-budget", "0")
 
 
-def test_the_deep_tier_carries_its_own_budget(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_the_deep_tier_has_its_own_budget(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("CORTEX_MODEL_FILE_BRAIN", "deep/brain.gguf")
     monkeypatch.setenv("CORTEX_REASONING_BUDGET_BRAIN", "1024")
     monkeypatch.delenv("CORTEX_REASONING_BUDGET", raising=False)

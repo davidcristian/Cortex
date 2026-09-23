@@ -72,7 +72,7 @@ def test_a_pool_is_a_handle_not_a_value_so_two_of_them_are_never_the_same_one() 
     assert DispatchBudget(limit=3) != DispatchBudget(limit=3)
 
 
-def test_a_pool_resumed_at_a_persisted_position_carries_what_was_left_and_nothing_more() -> None:
+def test_a_pool_resumed_at_a_persisted_position_keeps_what_was_left_and_nothing_more() -> None:
     resumed = DispatchBudget.resume(remaining=1, closed=False)
     assert (resumed.limit, resumed.spent, resumed.closed) == (1, 0, False)
     assert [resumed.charge(1), resumed.charge(1)] == [True, False]

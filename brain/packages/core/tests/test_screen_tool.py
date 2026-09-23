@@ -78,7 +78,7 @@ async def test_the_spec_is_ungated_and_makes_the_model_name_a_target() -> None:
     assert spec.parameters["required"] == ["target"]
 
 
-def test_the_vocabulary_the_model_sees_is_the_vocabulary_the_rpc_carries() -> None:
+def test_the_vocabulary_the_model_sees_is_the_vocabulary_the_rpc_sends() -> None:
     schema = CaptureScreenTool(InMemoryBodyGateway()).spec.parameters
     target = schema["properties"]["target"]
     assert target["enum"] == [member.value for member in CaptureTarget]
@@ -98,7 +98,7 @@ def test_the_steer_promises_only_what_the_window_crop_measurement_supports() -> 
     assert "ask again with 'display'" in spec.description
 
 
-async def test_a_capture_is_untrusted_and_carries_exactly_one_image() -> None:
+async def test_a_capture_is_untrusted_and_has_exactly_one_image() -> None:
     body = InMemoryBodyGateway(capture=_capture())
     result = await CaptureScreenTool(body).invoke(_call())
 
@@ -293,7 +293,7 @@ async def test_the_same_gated_call_is_confirmed_when_nothing_was_captured() -> N
     assert [request.tool_name for request in confirmer.requests] == ["send_email"]
 
 
-async def test_the_audit_line_carries_no_image_bytes_on_either_path() -> None:
+async def test_the_audit_line_contains_no_image_bytes_on_either_path() -> None:
     for body in (
         InMemoryBodyGateway(capture=_capture()),
         InMemoryBodyGateway(fail=BodyGatewayError("body down")),

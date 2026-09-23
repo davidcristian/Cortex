@@ -178,7 +178,7 @@ def test_the_real_backend_without_its_endpoint_fails_at_boot() -> None:
         _enabled(modelhost_backend="supervisor")
 
 
-def test_the_residency_plan_carries_the_tier_ids_and_both_bounds() -> None:
+def test_the_residency_plan_has_the_tier_ids_and_both_bounds() -> None:
     plan = _enabled(
         evict_models=("subagent-gpu",), swap_drain_timeout_s=5.0, swap_load_timeout_s=7.0
     ).residency_plan("cortex")

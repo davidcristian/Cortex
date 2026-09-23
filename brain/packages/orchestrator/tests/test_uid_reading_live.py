@@ -405,7 +405,7 @@ async def test_where_the_uid_of_the_read_comes_from() -> None:
 
 
 @pytest.mark.integration
-async def test_whether_a_uid_is_carried_into_the_folder_holding_none() -> None:
+async def test_whether_a_uid_is_taken_into_the_folder_holding_none() -> None:
     specs = await email_tool_specs()
     empty = ToolCall(
         id=_SECOND_ID,

@@ -360,7 +360,7 @@ async def test_a_summarizer_that_abandoned_its_stream_would_strand_the_lease() -
     await abandoned.aclose()
 
 
-def test_a_first_recap_prompt_carries_no_previous_account() -> None:
+def test_a_first_recap_prompt_has_no_previous_account() -> None:
     prompt = build_recap_messages(None, _turn("t0", "hello", "hi"), at=_AT, turn_id="t0")
     assert [message.role for message in prompt] == [Role.SYSTEM, Role.USER]
     assert "The account so far" not in prompt[1].text

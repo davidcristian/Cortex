@@ -475,7 +475,7 @@ async def test_the_trail_names_the_candidates_the_policy_left_behind() -> None:
     (audit,) = sink.audits
     assert [ranked.hit.record.id for ranked in audit.ranking.hits] == [pool[0].record.id]
     assert [(hit.record.id, hit.score) for hit in pool[1:]] == [
-        (candidate.id, candidate.score) for candidate in audit.dropped.carried
+        (candidate.id, candidate.score) for candidate in audit.dropped.listed
     ]
     assert audit.dropped.omitted == 0
 

@@ -28,7 +28,7 @@ def test_a_jpeg_is_read_at_the_size_its_frame_header_states() -> None:
     assert image_size(JPEG_BYTES) == SAMPLE_SIZE
 
 
-def test_a_jpeg_walk_steps_over_a_marker_that_carries_no_length() -> None:
+def test_a_jpeg_walk_steps_over_a_marker_that_has_no_length() -> None:
     assert image_size(SOI + b"\xff\x01" + JPEG_BYTES[2:]) == SAMPLE_SIZE
 
 
@@ -113,7 +113,7 @@ def test_a_lossless_webp_edge_is_read_without_the_flags_above_it() -> None:
     assert image_size(LOSSLESS_WEBP_BYTES[:21] + flagged + LOSSLESS_WEBP_BYTES[25:]) == SAMPLE_SIZE
 
 
-def test_a_riff_block_too_short_to_carry_a_webp_header_is_refused() -> None:
+def test_a_riff_block_too_short_to_hold_a_webp_header_is_refused() -> None:
     with pytest.raises(ImageError, match="19 bytes, too few to hold a WebP header"):
         image_size(LOSSY_WEBP_BYTES[:19])
 

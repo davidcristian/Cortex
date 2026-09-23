@@ -271,7 +271,7 @@ async def test_a_tools_enabled_subagents_tool_steps_reach_the_progress_sink() ->
     assert list(progress.events) == [ToolActivity(tool_name="read", summary="Read a file")]
 
 
-async def test_a_tainted_subagents_progress_carries_only_the_registry_summary() -> None:
+async def test_a_tainted_subagents_progress_contains_only_the_registry_summary() -> None:
     store = InMemoryTaskStore()
     await store.put_task(SubagentTask(id="t", instruction="read x", context="", at=_AT))
     backend = ScriptedBackend(
@@ -371,7 +371,7 @@ def _user_text(backend: SchemaRecordingBackend) -> str:
     return next(m.text for m in backend.asked[0] if m.role is Role.USER)
 
 
-async def test_a_constrained_ask_carries_the_envelopes_own_sentence_on_the_instruction() -> None:
+async def test_a_constrained_ask_adds_the_envelopes_own_sentence_to_the_instruction() -> None:
     store = InMemoryTaskStore()
     await store.put_task(SubagentTask(id="t1", instruction="name a color", context="", at=_AT))
     backend = SchemaRecordingBackend(['{"reply": "blue"}'])
@@ -379,7 +379,7 @@ async def test_a_constrained_ask_carries_the_envelopes_own_sentence_on_the_instr
     assert _user_text(backend) == f"name a color {REPLY_INSTRUCTION}"
 
 
-async def test_an_unconstrained_ask_carries_the_instruction_and_nothing_else() -> None:
+async def test_an_unconstrained_ask_is_the_instruction_and_nothing_else() -> None:
     store = InMemoryTaskStore()
     await store.put_task(SubagentTask(id="t1", instruction="name a color", context="", at=_AT))
     backend = SchemaRecordingBackend(["blue"])
@@ -399,7 +399,7 @@ async def test_a_tools_enabled_subagent_is_asked_without_the_sentence_too() -> N
     assert _user_text(backend) == "name a color"
 
 
-async def test_a_malformed_constrained_reply_is_a_failed_result_carrying_the_raw_text() -> None:
+async def test_a_malformed_constrained_reply_is_a_failed_result_keeping_the_raw_text() -> None:
     store = InMemoryTaskStore()
     await store.put_task(SubagentTask(id="t1", instruction="go", context="", at=_AT))
     backend = SchemaRecordingBackend(["not a JSON envelope"])
