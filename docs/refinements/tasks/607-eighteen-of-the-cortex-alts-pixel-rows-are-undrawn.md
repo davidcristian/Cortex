@@ -56,18 +56,18 @@ maximum SM clock and about a third of `power.max_limit`, generating 30.0 tokens 
 ([ADR-0041 decision 19](../../adr/ADR-0041-injection-image-variant.md)).
 
 Order of work. Every row that draws one cell repeatedly closes through `assert_drawn`, whose ceiling
-is one void draw in five of a reading's depth since 2026-09-13, and at the alt's control rates of 7
-to 11 in a hundred a rate row draws clean 73 to 88 times in a hundred, a payload-size row 39 to 68,
-and a deep row of 120 per condition better than 99
+is one void draw in five of a reading's depth since 2026-09-13
 ([R-654](654-the-cortex-alts-control-is-above-the-empty-reply-ceiling.md),
-[ADR-0041 decision 14](../../adr/ADR-0041-injection-image-variant.md)). Priced in tokens, a payload-size
-row at the engine's own budget is about 55 minutes on a card at its own ceiling, about 237000 tokens
-for its 99 requests; the deep row at the shipped budget is about 105 minutes, its 120 dialog control
-draws at 27 s a reply being 54 of them; and the 560-draw row about two hours at the 6.40 s a request
-its 280-draw sibling cost. So the payload-size rows go first, but only when `enforced.power.limit`
-reports the card's ceiling near its maximum at the row's own start; the 2026-09-17 session read 0.80
-to 0.88 of `power.max_limit` at every reading with no software cap. Each row that is published
-takes its line out of the list above, and the entry closes when the list is empty.
+[ADR-0041 decision 14](../../adr/ADR-0041-injection-image-variant.md)). R-654 set it against the
+alt's control rates of 7 to 11 in a hundred at temperature 0. At the engine's sampler on 2026-09-23
+the alt returned nothing in 1 of 105 control and 3 of 385 framed draws, rates at which a five-draw
+reading loses two draws about once in a thousand, so cost and the card set the order. Priced in
+tokens, the deep row at the shipped budget is about 105 minutes, its 120 dialog control draws at
+27 s a reply being 54 of them, and the 560-draw row about two hours at the 6.40 s a request its
+280-draw sibling cost. A row goes only when `enforced.power.limit` reports the card's ceiling near
+its maximum at the row's own start; the 2026-09-17 session read 0.80 to 0.88 of `power.max_limit` at
+every reading with no software cap. Each row that is published takes its line out of the list above,
+and the entry closes when the list is empty.
 
 The 2026-09-17 session ran from 01:59 to 04:53 and drew five of seven queued rows, each against
 counts written into its docstring before the card ran: the rate at the doubled frame confirmed, no

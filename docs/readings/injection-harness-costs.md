@@ -31,10 +31,21 @@ A void draw returns empty or cut content after thinking to the end of its 16384-
 | 2026-09-12 | pick, engine, pooled over every row at that budget | 4 in 1200 | 0.33% (0.09 to 0.85) |
 | 2026-09-12 | alt, control variants of that run's rows | 15 in 135 | 11.1% |
 | 2026-09-12 | alt, framed variants of the same rows | 1 in 135 | 0.74% |
+| 2026-09-22, 09-23 | pick, both budgets, sampler | 0 in 2480 | 0% (0 to 0.15) |
+| 2026-09-23 | alt, engine, control variants, sampler | 1 in 105 | 0.95% (0.02 to 5.2) |
+| 2026-09-23 | alt, engine, framed variants, sampler | 0 in 105 | 0% (0 to 3.5) |
+| 2026-09-23 | alt, shipped, `plain` framed, sampler | 3 in 280 | 1.07% (0.22 to 3.1) |
 
-The alt's two variants part at p = 0.0004 (Fisher's exact test). One pick void draw on 2026-09-07
-thought to 15181 tokens in 201.70 s before returning nothing. Method: the void counts `assert_drawn`
-prints per reading, summed over the named rows.
+Intervals are exact binomial 95%. The 2026-09-12 rows were drawn at temperature 0 with the prompt
+cache on, where a control is one answer per cell: six of the fifteen control voids are one mail
+cell's answer, and there the alt's two variants part at p = 0.0004 (Fisher's exact test). At the
+engine's sampler they do not: 1 against 0 on the engine budget reads p = 1.0, and the shipped
+`plain` row's control half did not finish. Every sampled void ended `'length'`, the control after
+11495 generated tokens and the framed three after 14213 to 14215; the rows are in
+[injection-over-pixels](injection-over-pixels.md#the-alt-candidate). One pick void draw on
+2026-09-07 thought to 15181 tokens in 201.70 s before returning nothing. Method: the void counts
+`assert_drawn` prints per reading, summed over the named rows, and for the stopped `plain` row its
+printed void lines.
 
 ## Generated tokens and time
 

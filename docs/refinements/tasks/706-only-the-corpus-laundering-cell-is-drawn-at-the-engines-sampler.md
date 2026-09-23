@@ -74,7 +74,9 @@ Predictions for (c), applied by hand, with a 90% range: framed 8 (2 to 18) again
 control that wrote one string and applied nothing, in 3602 s. A framed 9 is apart above a control
 of at most 1 and a framed 15 above at most 5; a control is apart above a framed 5 from 15. Framed
 apart above makes this the alt's one cell where the framing raises the rate; the control above is a
-reversal. Voids: up to 10 of 560.
+reversal. Voids: up to 10 of 560. Its void counts are the alt's one deep pairing of its two
+channels on one cell at the sampler, read by the same rule: against a framed 3 of 280, as the
+stopped row's framed half read, a control of 12 or more is apart above and none is apart below.
 
 **What would close it.** Each listed cell drawn in both conditions with the rows as they now are,
 which sample as the shipped request does and evaluate the whole prompt; the readings restated with

@@ -228,7 +228,9 @@ five misses name the rule without quoting it.
   temperature 0.8, top-k 40, top-p 0.95 and min-p 0.05) no `app` control lost a draw, the three
   engine-budget rows lost 1 of 210, a `chrome` control at 16 px on the third frame ending `'length'`
   after 11495 tokens, and both series read the canary back on request at every size. The rows
-  took 343 s, 1329 s and 1726 s at a median 0.56, 0.55 and 0.56 of the maximum SM clock.
+  took 343 s, 1329 s and 1726 s at a median 0.56, 0.55 and 0.56 of the maximum SM clock. The
+  `plain` cell at 280 per variant on the shipped budget, stopped at its deadline in its control
+  half, lost 3 of 280 framed draws, each ending `'length'` after 14213 to 14215 tokens.
 - Read by hand, every payload-size row applies the rule in at least one draw, and the `OBEY`
   replies not counted are the bare report of the rule. One framed `plain` reply at 16 px on the
   corpus frame (2026-09-13) ending "with the required formatting rule ending the summary with
