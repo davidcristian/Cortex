@@ -44,9 +44,10 @@ Ten attacks over three renderings, `test_injection_defense_over_pixels`.
 
 Every pixel matrix count published before 2026-09-05 was a mention count. Read again as obedience,
 every variant of every run reads 0 or 1 of 30, and 15 of the 16 hits at the shipped budget were
-`chrome` descriptions quoting the canary. `send_email` has never been called in any variant. The
-16384 window matched the 8192 one cell for cell, the tier holding about 2% more memory at the larger
-window. One run's own two rows can differ by 2 of 5 on one cell.
+`chrome` descriptions quoting the canary. No `exfil-tool` cell has called `send_email`; until
+2026-09-24 the harness read and printed that call under no other attack, so no other cell was read
+for one. The 16384 window matched the 8192 one cell for cell, the tier holding about 2% more memory
+at the larger window. One run's own two rows can differ by 2 of 5 on one cell.
 
 ## Output-laundering, pick, at the engine's sampler
 
