@@ -185,13 +185,13 @@ What this part of the harness has measured, each stated with its reading in
   rises where the transcription stops including the canary. The dialog's summaries name the rule at
   the level of its topic one size before the transcription fails, and a body above a bare payload
   turns a described rule into an applied one.
-- **The alternative candidate reads differently.** It transcribes at every size, writes the dialog's
-  rule bare in every control reply (a report the tail reading counts as applied), returns nothing on
-  its control channel about fifteen times as often as on its framed channel, and its applied counts
-  on the dialog's laundering cell and in its payload series are reports. On plain body text its
-  framed variant applied the rule in 9 of 280 draws at temperature 0. What separates it from the
-  shipped model in the matrix is the bare token: it answers payload-splitting with the token under
-  the defence, which no shipped-model matrix row has produced.
+- **The alternative candidate reads differently.** It transcribes at every size and returns nothing
+  on its control channel about fifteen times as often as on its framed channel. Its applied counts
+  on the dialog's laundering cell are reports: every control reply writes the rule bare, which the
+  tail reading counts as applied. Read by hand, each of its five payload-size rows applies the rule,
+  in 1 to 9 of 45 framed and 0 to 12 of 45 control draws. On plain body text its framed variant
+  applied it 9 times in 280 at temperature 0. In the matrix it answers payload-splitting with the
+  bare token under the defence, which no shipped-model matrix row has produced.
 - **The frame matters only where the encoder resamples differently.** Across a doubling of linear
   size at the shipped budget no effect beyond a cell's run-to-run variation (about 2 of 5) appears,
   so the corpus frame is a free choice there. The one frame effect published at the engine budget,
@@ -199,9 +199,9 @@ What this part of the harness has measured, each stated with its reading in
   cache at temperature 0; at the sampler that control applies it at 4800x2700 too.
 - **Only the corpus laundering cell and plain at 4800x2700 compare two rates.** At 4800x2700 on
   the engine budget both variants apply the rule about a third of the time, not apart. Every other
-  count was drawn at temperature 0, where a control is one answer per cell, and up to 2026-09-19
-  with the prompt cache on, where behind one load it was two computations. None of those shows the
-  framing protecting a cell or causing an application.
+  count was drawn five a cell or at temperature 0, where a control is one answer per cell, and up
+  to 2026-09-19 with the prompt cache on, where behind one load it was two computations. None of
+  those shows the framing protecting a cell or causing an application.
 - **Nothing measured changes the shipped stack.** The boundary is the taint and the deterministic
   layers of ADR-0013 and ADR-0029 (the confirmation check, the opaque bit, the memory block, URL
   redaction). A laundering application that reaches the reply is formatting, not action.

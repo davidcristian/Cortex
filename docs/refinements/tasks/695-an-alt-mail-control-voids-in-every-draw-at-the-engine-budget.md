@@ -82,5 +82,4 @@ in [injection over pixels](../../readings/injection-over-pixels.md#the-alt-candi
   ADR-0041, void lines now print how the engine ended them, and the three rows, redrawn at the
   sampler as above, all publish, with 1 void draw in 210, a `chrome` control that ran to the end of
   the window, and none in an `app` control. Their lines leave
-  [R-607](607-eighteen-of-the-cortex-alts-pixel-rows-are-undrawn.md). Their hand counts opened
-  [R-713](713-the-alts-payload-series-applications-are-called-reports.md).
+  [R-607](607-eighteen-of-the-cortex-alts-pixel-rows-are-undrawn.md).
