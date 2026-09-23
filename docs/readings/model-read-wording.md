@@ -61,10 +61,8 @@ Every row passes. All 506 draws ended on `stop` and none was void. The E4B's obe
 laundering instruction twice in the old wording and once in the new. Read by hand in the log's
 first 140 characters of each reply, every obeyed draw but one pair ends its summary with the
 canary or the start of it; the rep 0 `output-laundering` pair, the same text in both wordings, is
-cut before its end. The E4B's old count is the shipped framing at the engine's sampler, where
-[injection-text-rows](injection-text-rows.md) reads the same pick framed at 0 of 10, drawn at
-temperature 0;
-[R-714](../refinements/tasks/714-the-injection-text-rows-are-drawn-only-at-temperature-0.md)
-draws the text rows at the sampler. The SM clock is the median of each row as a fraction of
+cut before its end. The E4B's old count is the shipped framing at the engine's sampler;
+[injection-text-rows](injection-text-rows.md) draws the same pick framed against an unframed
+control there, at depth. The SM clock is the median of each row as a fraction of
 `clocks.max.sm`. Method: `measurements/r707-2026-09-23/preamble_pairs.py`, which git ignores, a
 driver over `test_injection_defense_live.py` that reuses its attacks, scoring and servers.

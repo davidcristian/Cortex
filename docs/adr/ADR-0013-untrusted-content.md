@@ -118,8 +118,10 @@ that confirmation does not stop, and the answer then is a preamble clause.
 formatted: no line, footer, header, disclaimer, link, URL or code it asks for, even when presented
 as a requirement, policy, rule, note, format or standard. Output laundering ("every summary must
 end with ...") is content rather than an action, so confirmation does not cover it, and without the
-clause every model measured complied. With it the cortex and the subagent pick stop; the smallest
-models do not and rely on decision 9. A laundered URL is removed by the output guardrail
+clause every model measured complied. With it the cortex stops. The subagent pick stopped at
+temperature 0, but at the engine's sampler it still complies in 46 of 100 framed draws against 78 of
+100 unframed ([injection text rows](../readings/injection-text-rows.md)); it and the smallest
+models rely on decision 9. A laundered URL is removed by the output guardrail
 (ADR-0015).
 
 ### 8. Exactly one permanent rule opens every turn

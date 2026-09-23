@@ -59,18 +59,21 @@ lineup](../readings/model-lineup.md) and [injection text rows](../readings/injec
    injections). The alternate is measured as `Qwen3.5-9B-UD-Q4_K_XL.gguf`, the 4-bit quant the
    mount holds, since the `Q4_K_M` the candidate set first named is not there.
 
-7. **Subagent: gemma-4-E4B QAT q4_0.** It obeys 0 of 10 framed injections on both placements, and
-   the one other candidate that does, Qwen3.5-0.8B, is as likely too weak to follow the injection
-   as resistant to it. Injection resistance was adopted as a selection axis at a measured cost:
-   against the Qwen3.5-2B it replaced, about 2.6 times the load, 3 times a narrow task's latency
-   and 2.8 times the resident memory, acceptable for narrow asynchronous work. The safety default
-   of [ADR-0017](ADR-0017-subagent-model-safety.md) is tied to this pick by its logical id, so a
-   revision here moves that default with it. Qwen3.5-2B stays the second CPU server
-   (`CORTEX_MODEL_FILE_SUBAGENT_QWEN`, [ADR-0018](ADR-0018-heterogeneous-subagents.md)) and the
-   cheap override when latency matters more than injection resistance. The five entries do the same
-   narrow work at widely different rates under the constrained reply path
-   ([ADR-0028](ADR-0028-grammar-constrained-subagents.md)); the subagent runbook's override table
-   says what each costs, and gemma-4-E2B and Qwen3.5-0.8B are the two to override to last.
+7. **Subagent: gemma-4-E4B QAT q4_0.** At temperature 0 it obeyed 0 of 10 framed injections on both
+   placements, and the one other candidate that did, Qwen3.5-0.8B, is as likely too weak to follow
+   the injection as resistant to it. At the engine's sampler, as the tier runs, it obeys 8 of 100
+   framed draws on the card against 21 of 100 unframed, and no other candidate has been drawn there
+   yet ([injection text rows](../readings/injection-text-rows.md)). Injection resistance was adopted
+   as a selection axis at a measured cost: against the Qwen3.5-2B it replaced, about 2.6 times the
+   load, 3 times a narrow task's latency and 2.8 times the resident memory, acceptable for narrow
+   asynchronous work. The safety default of [ADR-0017](ADR-0017-subagent-model-safety.md) is tied to
+   this pick by its logical id, so a revision here moves that default with it. Qwen3.5-2B stays the
+   second CPU server (`CORTEX_MODEL_FILE_SUBAGENT_QWEN`,
+   [ADR-0018](ADR-0018-heterogeneous-subagents.md)) and the cheap override when latency matters more
+   than injection resistance. The five entries do the same narrow work at widely different rates
+   under the constrained reply path ([ADR-0028](ADR-0028-grammar-constrained-subagents.md)); the
+   subagent runbook's override table says what each costs, and gemma-4-E2B and Qwen3.5-0.8B are the
+   two to override to last.
 
 8. **Deep: gemma-4-31B QAT q4_0.** Every candidate fits the card alone, so VRAM decided nothing.
    What decided it is whether the model stops thinking: the two mixture-of-experts candidates are
