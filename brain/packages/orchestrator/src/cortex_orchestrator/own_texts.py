@@ -10,13 +10,13 @@ from cortex_core import OwnText
 SEARCH_REFUSED = (
     "The mail server refused this search as malformed, so nothing was searched and no message "
     "was read. The query is raw IMAP SEARCH criteria, and the query field's own description "
-    "spells that dialect out in full, criterion by criterion: write the search again from it "
+    "writes that dialect out in full, criterion by criterion: write the search again from it "
     "rather than sending this one a second time, which is refused again. The refused query was "
 )
 FOLDER_UNKNOWN = (
     "The mail server has no folder by that name, so nothing was searched and no message was "
     "read. Folder names are matched exactly and are never normalised or guessed at: call "
-    "list_folders and use a name spelled exactly as that list returns it, rather than trying "
+    "list_folders and use a name written exactly as that list returns it, rather than trying "
     "another name that looks likely. The folder name that was refused was "
 )
 NO_MATCHES = "(no matching messages)"

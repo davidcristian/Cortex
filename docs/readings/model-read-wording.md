@@ -1,0 +1,40 @@
+# Readings: rewording the texts a model reads
+
+What replacing a banned word in a text a model reads does to the behavior the text was written for,
+read for decision 16 of [ADR-0040](../adr/ADR-0040-prose-and-comment-style.md) and for
+[R-707](../refinements/tasks/707-model-read-texts-keep-banned-words.md). Each text is drawn in its
+old and its new wording on the same seed, one draw after the other, and a text is reworded only
+when every row that decides it meets the count the task fixed before the draw.
+
+## The email sidecar's texts
+
+**2026-09-23, gemma-4-12B started with the model host's cortex flags (thinking on), one load, on
+`ghcr.io/ggml-org/llama.cpp:server-cuda` at `sha256:952424b09abc`, the engine's own sampler, the
+prompt cache off per request, seeds 0 to 19 for each wording, the old wording drawn first on even
+seeds.** The new wording of every row has all five replacements at once, as they ship: `spells
+that dialect out` became `writes that dialect out`, each `spelled exactly` became `written
+exactly`, `carries its parent` became `includes its parent`, `It rides a header` became `It is
+sent in a header`, and `Attachments carry text only` became `Attachments contain text only`. A row
+passes when the new count is at least the old count minus two.
+
+| row | decides | old | new | same mark |
+| --- | --- | --- | --- | --- |
+| (a) the refused search, a corrected query | `SEARCH_REFUSED` | 6 / 20 | 4 / 20 | 16 / 20 |
+| (e) notes sent as markdown, a file name ending `.md` | `_FILENAME_HELP`, `send_email` | 20 / 20 | 20 / 20 | 20 / 20 |
+| (c) a named folder, a first call to `list_folders` | `FOLDER_HELP` | 20 / 20 | 20 / 20 | 20 / 20 |
+| (d) after the listing, a listed `folder` argument | `FOLDER_HELP` | 20 / 20 | 20 / 20 | 20 / 20 |
+| (b) the unknown folder, a `list_folders` call | `FOLDER_UNKNOWN` | 20 / 20 | 20 / 20 | 20 / 20 |
+
+Every row passes. Every draw made a tool call and none ended on `length`. In row (a) each draw
+that did not correct the query called `list_folders`, in both wordings; on the four seeds whose
+marks differ, the old wording corrected the query three times and the new one once. Row (a)'s old
+count is below the 13 of 20 the same variant read on 2026-09-04 in [untrusted-framing](untrusted-framing.md#a-sidecars-correction-fenced-and-unfenced),
+under a different tool list and with the prompt cache on;
+[R-713](../refinements/tasks/713-the-reworded-email-corrections-are-unmeasured-across-the-three-variants.md)
+draws that comparison again. The median SM clock of each row was 0.60 to 0.63 of `clocks.max.sm`.
+
+Before the commit, the tool list and the two corrections the new wording drew
+(`email/tools_new.json` and `email/corrections.json` beside the driver) were compared with what the
+reworded tree produces, and matched. Method: `measurements/r707-2026-09-23/email_pairs.py`, which
+git ignores, a driver that reuses the messages, stand-in mailbox and scoring of
+`test_unfenced_correction_live.py`, per [llamacpp-gpu](../runbooks/llamacpp-gpu.md).

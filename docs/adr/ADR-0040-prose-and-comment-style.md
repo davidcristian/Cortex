@@ -156,8 +156,8 @@ record says what it is and why.
     a path would have left such sentences unread. `scripts/proseliterals.py` is this reader and
     `scripts/prosereaders.py` the one for documents and comments; both use `bannedwords.py`. A
     string a model reads, whose wording needs a model measurement before it changes (the security
-    preamble, the recap preface, tool descriptions, the email sidecar's own texts), is exempted by
-    its module-level name in `proseliterals.EXEMPTIONS` with a reason. An exemption fails once its
+    preamble, the recap preface, the spawn tool's model note and the default subagent's
+    description), is exempted by its module-level name in `proseliterals.EXEMPTIONS` with a reason. An exemption fails once its
     file is gone or no string assigned to the name holds a banned word. A banned word a printed
     sentence names as a word, such as the numbered `gate` that `commitlint.py` reports, goes in
     backticks.

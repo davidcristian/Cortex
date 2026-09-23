@@ -133,7 +133,7 @@ def build_server(reader: EmailReader, sender: EmailSender | None = None) -> Fast
             ``attachments`` attaches text you have written, as
             ``{"filename": "notes.md", "content": "...", "subtype": "markdown"}`` objects
             (``subtype`` is the text flavour: plain, markdown, csv, calendar; default plain).
-            Attachments carry text only, so a file on disk cannot be attached."""
+            Attachments contain text only, so a file on disk cannot be attached."""
             return await asyncio.to_thread(
                 sender.send,
                 EmailDraft(to, subject, body, cc, bcc, html, tuple(attachments)),

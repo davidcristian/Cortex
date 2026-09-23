@@ -69,16 +69,6 @@ EXEMPTIONS = (
         names=("DEFAULT_SUBAGENT_DESCRIPTION",),
         reason=MODEL_INPUT,
     ),
-    LiteralExemption(
-        path="brain/packages/email/src/cortex_email/values.py",
-        names=("_FILENAME_HELP", "SEARCH_REFUSED", "FOLDER_HELP", "FOLDER_UNKNOWN"),
-        reason=MODEL_INPUT,
-    ),
-    LiteralExemption(
-        path="brain/packages/orchestrator/src/cortex_orchestrator/own_texts.py",
-        names=("SEARCH_REFUSED", "FOLDER_UNKNOWN"),
-        reason="Each is the email sidecar's own text word for word, which crosscheck.py compares.",
-    ),
 )
 
 
