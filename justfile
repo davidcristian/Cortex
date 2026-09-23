@@ -224,7 +224,7 @@ replay seed="" since="" count="5" window="25":
     since="{{ since }}"
     if [ -n "$since" ]; then
         pool="$(git log --since="$since" "${vocabulary[@]}" --format='%H%x09%s')"
-        echo "=== replay draw: seed $seed, over the candidate bodies landed since $since ==="
+        echo "=== replay draw: seed $seed, over the candidate bodies committed since $since ==="
         echo "=== reproduce this draw with: just replay $seed $since, at $(git rev-parse --short HEAD) ==="
     else
         ledger="docs/runbooks/mutation-replay.md"
@@ -241,21 +241,21 @@ replay seed="" since="" count="5" window="25":
         last="$(sed -n 's/^| \([0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}\) |.*/\1/p' "$ledger" | tail -n 1)"
         if [ -n "$anchor" ]; then
             when="$(sed -n "s/^| *\([^|]*[^| ]\) *| *$anchor *|.*/\1/p" "$ledger" | tail -n 1)"
-            landed="$(git log "$anchor..HEAD" "${vocabulary[@]}" --format='%H')"
+            committed="$(git log "$anchor..HEAD" "${vocabulary[@]}" --format='%H')"
             read_as="the pass of $when, drawn from $(git rev-parse --short "$anchor")"
         elif [ -n "$last" ]; then
-            landed="$(git log --since="$last" "${vocabulary[@]}" --format='%H')"
+            committed="$(git log --since="$last" "${vocabulary[@]}" --format='%H')"
             read_as="midnight of the pass of $last, as no row records a commit this clone resolves"
         else
             read_as=""
         fi
         if [ -z "$read_as" ]; then
-            echo "=== $ledger carries no commit and no dated row, so there is no standing count ==="
+            echo "=== $ledger holds no commit and no dated row, so there is no current count ==="
         else
-            behind="$(printf '%s' "$landed" | grep -c . || true)"
-            verdict="no pass due"
-            [ "$behind" -lt {{ window }} ] || verdict="a pass is due"
-            echo "=== $behind candidate bodies since $read_as, cadence {{ window }}: $verdict ==="
+            behind="$(printf '%s' "$committed" | grep -c . || true)"
+            due="no pass due"
+            [ "$behind" -lt {{ window }} ] || due="a pass is due"
+            echo "=== $behind candidate bodies since $read_as, cadence {{ window }}: $due ==="
         fi
         pool="$(git log --max-count={{ window }} "${vocabulary[@]}" --format='%H%x09%s')"
         echo "=== replay draw: seed $seed, over the {{ window }} most recent candidate bodies ==="

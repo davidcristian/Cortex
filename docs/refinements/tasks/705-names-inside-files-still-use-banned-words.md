@@ -46,4 +46,5 @@ stays, with the reason.
   `backstop`, `rederive`, `sitting`, `spell` and `earn`, with the Vitest titles that used them.
   `volumecheck.py --rederive` is now `--recompute`. Then `verdict`, whose `Verdict` classes became
   `Outcome` in the injection probes, `Jobs` in `ci_paths.py`, `CheckResult` in `rustcoverage.py`
-  and `Finding` in `samplecheck.py`.
+  and `Finding` in `samplecheck.py`. The same words in the `replay` recipe's output opened
+  [R-714](714-the-text-a-recipe-prints-is-outside-the-prose-check.md).
