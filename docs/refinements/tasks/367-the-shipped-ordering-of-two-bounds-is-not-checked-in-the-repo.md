@@ -61,7 +61,7 @@ this was filed and now lives in `scripts/readings.py`:
   more than a registry row could: the whole dispatch, three call bounds at one sidecar and seven at
   two, strictly under the run bound. The row this entry proposed could not have been registered
   either: both declarations are in `cortex_core`, an ordering may have no mentions, and
-  `test_every_registered_constant_spans_more_than_one_seam_side` refuses an entry whose places are
+  `test_every_registered_constant_spans_more_than_one_boundary_side` refuses an entry whose places are
   all Python in one brain package. Measured on a copy of the tree over the whole brain workspace
   suite (3320 passing): the call bound retuned to 3000.0, or to 900.0, which the bare ordering
   admits, fails exactly those two cases by the check's own refusal, and the run bound retuned to

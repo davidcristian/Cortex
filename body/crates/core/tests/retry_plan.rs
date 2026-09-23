@@ -2,22 +2,22 @@ use std::time::Duration;
 
 use body_core::{
     ANNOUNCED_DEADLINE_GRACE_MS, DEFAULT_CALL_DEADLINE, DEFAULT_PROBE_BUDGET,
-    DEFAULT_PROBE_DEADLINE, RetryPlan, RetryPolicy, SeamMethod, TransportError, TurnGaps,
+    DEFAULT_PROBE_DEADLINE, RetryPlan, RetryPolicy, RpcMethod, TransportError, TurnGaps,
 };
 
 /// Every variant, so the invariant below is checked over the whole port rather than a sample.
-const EVERY_METHOD: [SeamMethod; 11] = [
-    SeamMethod::Health,
-    SeamMethod::Converse,
-    SeamMethod::ListSessions,
-    SeamMethod::SessionMessages,
-    SeamMethod::ListDueReminders,
-    SeamMethod::AckReminder,
-    SeamMethod::RenameSession,
-    SeamMethod::DeleteSession,
-    SeamMethod::SetSessionHoisted,
-    SeamMethod::GetPreferences,
-    SeamMethod::SetPreference,
+const EVERY_METHOD: [RpcMethod; 11] = [
+    RpcMethod::Health,
+    RpcMethod::Converse,
+    RpcMethod::ListSessions,
+    RpcMethod::SessionMessages,
+    RpcMethod::ListDueReminders,
+    RpcMethod::AckReminder,
+    RpcMethod::RenameSession,
+    RpcMethod::DeleteSession,
+    RpcMethod::SetSessionHoisted,
+    RpcMethod::GetPreferences,
+    RpcMethod::SetPreference,
 ];
 
 /// A long read schedule: 6 attempts, 500 ms base, ×2, 10 s cap, so its backoffs are 500 ms / 1 s /
@@ -34,17 +34,17 @@ fn patient() -> RetryPolicy {
 
 #[test]
 fn repeatable_marks_exactly_the_calls_a_repeat_cannot_change() {
-    assert!(SeamMethod::Health.repeatable());
-    assert!(SeamMethod::ListSessions.repeatable());
-    assert!(SeamMethod::SessionMessages.repeatable());
-    assert!(SeamMethod::ListDueReminders.repeatable());
-    assert!(!SeamMethod::Converse.repeatable());
-    assert!(!SeamMethod::AckReminder.repeatable());
-    assert!(!SeamMethod::RenameSession.repeatable());
-    assert!(!SeamMethod::DeleteSession.repeatable());
-    assert!(!SeamMethod::SetSessionHoisted.repeatable());
-    assert!(SeamMethod::GetPreferences.repeatable());
-    assert!(!SeamMethod::SetPreference.repeatable());
+    assert!(RpcMethod::Health.repeatable());
+    assert!(RpcMethod::ListSessions.repeatable());
+    assert!(RpcMethod::SessionMessages.repeatable());
+    assert!(RpcMethod::ListDueReminders.repeatable());
+    assert!(!RpcMethod::Converse.repeatable());
+    assert!(!RpcMethod::AckReminder.repeatable());
+    assert!(!RpcMethod::RenameSession.repeatable());
+    assert!(!RpcMethod::DeleteSession.repeatable());
+    assert!(!RpcMethod::SetSessionHoisted.repeatable());
+    assert!(RpcMethod::GetPreferences.repeatable());
+    assert!(!RpcMethod::SetPreference.repeatable());
 }
 
 #[test]
@@ -66,11 +66,11 @@ fn a_refused_method_gets_no_schedule_however_generous_the_plan() {
         probe_budget: Duration::from_mins(10),
         ..RetryPlan::default()
     };
-    assert_eq!(generous.policy_for(SeamMethod::Converse), None);
-    assert_eq!(generous.policy_for(SeamMethod::AckReminder), None);
-    assert_eq!(generous.policy_for(SeamMethod::RenameSession), None);
-    assert_eq!(generous.policy_for(SeamMethod::DeleteSession), None);
-    assert_eq!(generous.policy_for(SeamMethod::SetSessionHoisted), None);
+    assert_eq!(generous.policy_for(RpcMethod::Converse), None);
+    assert_eq!(generous.policy_for(RpcMethod::AckReminder), None);
+    assert_eq!(generous.policy_for(RpcMethod::RenameSession), None);
+    assert_eq!(generous.policy_for(RpcMethod::DeleteSession), None);
+    assert_eq!(generous.policy_for(RpcMethod::SetSessionHoisted), None);
 }
 
 #[test]
@@ -81,13 +81,13 @@ fn the_reads_share_one_schedule_and_the_probe_is_trimmed_to_its_budget() {
         ..RetryPlan::default()
     };
     for method in [
-        SeamMethod::ListSessions,
-        SeamMethod::SessionMessages,
-        SeamMethod::ListDueReminders,
+        RpcMethod::ListSessions,
+        RpcMethod::SessionMessages,
+        RpcMethod::ListDueReminders,
     ] {
         assert_eq!(plan.policy_for(method), Some(patient()));
     }
-    let probe = plan.policy_for(SeamMethod::Health).unwrap();
+    let probe = plan.policy_for(RpcMethod::Health).unwrap();
     assert_eq!(probe.max_attempts, 2);
     assert_eq!(probe.worst_case_backoff(), Duration::from_millis(500));
     assert_eq!(
@@ -105,7 +105,7 @@ fn the_default_budget_spends_the_probe_on_two_attempts_and_the_wait_between_them
     assert_eq!(plan.reads, RetryPolicy::default());
     assert_eq!(plan.probe_budget, DEFAULT_PROBE_BUDGET);
     assert_eq!(plan.reads.worst_case_backoff(), Duration::from_millis(600));
-    let probe = plan.policy_for(SeamMethod::Health).unwrap();
+    let probe = plan.policy_for(RpcMethod::Health).unwrap();
     assert_eq!(probe.max_attempts, 2);
     assert_eq!(
         probe.max_attempts * plan.probe_deadline + probe.worst_case_backoff(),
@@ -256,7 +256,7 @@ fn the_probe_can_never_outlive_the_budget_it_is_trimmed_to() {
                     probe_deadline,
                     ..RetryPlan::default()
                 };
-                let probe = plan.policy_for(SeamMethod::Health).unwrap();
+                let probe = plan.policy_for(RpcMethod::Health).unwrap();
                 let worst = probe.max_attempts * probe_deadline + probe.worst_case_backoff();
                 assert!(
                     worst <= probe_budget.max(probe_deadline),
@@ -282,7 +282,7 @@ fn every_call_is_bounded_by_exactly_one_of_the_two_clocks() {
         );
     }
     assert_eq!(
-        plan.gaps_for(SeamMethod::Converse),
+        plan.gaps_for(RpcMethod::Converse),
         Some(TurnGaps::default())
     );
     let tuned = RetryPlan {
@@ -293,8 +293,8 @@ fn every_call_is_bounded_by_exactly_one_of_the_two_clocks() {
         },
         ..RetryPlan::default()
     };
-    assert_eq!(tuned.gaps_for(SeamMethod::Converse), Some(tuned.turn_gaps));
-    assert_eq!(tuned.deadline_for(SeamMethod::Converse), None);
+    assert_eq!(tuned.gaps_for(RpcMethod::Converse), Some(tuned.turn_gaps));
+    assert_eq!(tuned.deadline_for(RpcMethod::Converse), None);
 }
 
 #[test]
@@ -303,25 +303,25 @@ fn every_call_but_the_turn_is_bounded_by_a_deadline() {
     for method in EVERY_METHOD {
         assert_eq!(
             plan.deadline_for(method).is_some(),
-            method != SeamMethod::Converse,
+            method != RpcMethod::Converse,
             "{method:?} disagrees with the one exemption",
         );
     }
-    assert_eq!(plan.deadline_for(SeamMethod::Converse), None);
+    assert_eq!(plan.deadline_for(RpcMethod::Converse), None);
     assert_eq!(
-        plan.deadline_for(SeamMethod::Health),
+        plan.deadline_for(RpcMethod::Health),
         Some(DEFAULT_PROBE_DEADLINE)
     );
     for method in [
-        SeamMethod::ListSessions,
-        SeamMethod::SessionMessages,
-        SeamMethod::ListDueReminders,
-        SeamMethod::AckReminder,
-        SeamMethod::RenameSession,
-        SeamMethod::DeleteSession,
-        SeamMethod::SetSessionHoisted,
-        SeamMethod::GetPreferences,
-        SeamMethod::SetPreference,
+        RpcMethod::ListSessions,
+        RpcMethod::SessionMessages,
+        RpcMethod::ListDueReminders,
+        RpcMethod::AckReminder,
+        RpcMethod::RenameSession,
+        RpcMethod::DeleteSession,
+        RpcMethod::SetSessionHoisted,
+        RpcMethod::GetPreferences,
+        RpcMethod::SetPreference,
     ] {
         assert_eq!(
             plan.deadline_for(method),
@@ -335,11 +335,11 @@ fn every_call_but_the_turn_is_bounded_by_a_deadline() {
         ..RetryPlan::default()
     };
     assert_eq!(
-        split.deadline_for(SeamMethod::Health),
+        split.deadline_for(RpcMethod::Health),
         Some(Duration::from_millis(40))
     );
     assert_eq!(
-        split.deadline_for(SeamMethod::ListSessions),
+        split.deadline_for(RpcMethod::ListSessions),
         Some(Duration::from_secs(90))
     );
 }
@@ -385,7 +385,7 @@ fn a_deadline_at_the_end_of_time_still_announces_something_a_clock_can_hold() {
         ..RetryPlan::default()
     };
     assert_eq!(
-        plan.announced_deadline_for(SeamMethod::ListSessions),
+        plan.announced_deadline_for(RpcMethod::ListSessions),
         Some(Duration::MAX)
     );
 }

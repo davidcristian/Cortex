@@ -3,7 +3,7 @@
 //! A timeout reports `Down` rather than `Degraded`, because `Degraded` would claim the brain
 //! replied, which is what the expired deadline could not establish.
 
-use crate::transport::{BrainTransport, SeamHealth, TransportError};
+use crate::transport::{BrainTransport, RpcHealth, TransportError};
 
 /// What the brain's last reply proved about it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -40,7 +40,7 @@ pub struct LinkStatus {
 impl LinkStatus {
     /// Classifies a successful `Health` reply: the brain's own readiness answer wins.
     #[must_use]
-    pub fn from_health(health: &SeamHealth) -> Self {
+    pub fn from_health(health: &RpcHealth) -> Self {
         Self {
             state: if health.ready {
                 LinkState::Ready

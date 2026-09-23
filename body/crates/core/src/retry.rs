@@ -14,7 +14,7 @@ pub use gap::{
 };
 pub use plan::{
     ANNOUNCED_DEADLINE_GRACE_MS, DEFAULT_CALL_DEADLINE, DEFAULT_PROBE_BUDGET,
-    DEFAULT_PROBE_DEADLINE, RetryPlan, SeamMethod,
+    DEFAULT_PROBE_DEADLINE, RetryPlan, RpcMethod,
 };
 pub use policy::{RetryPolicy, is_transient};
 
@@ -24,7 +24,7 @@ use futures_core::Stream;
 
 use crate::retry::effects::jittered;
 use crate::session_types::{DueReminder, SessionMessage, SessionSummary};
-use crate::transport::{BrainTransport, ConfirmDecision, SeamHealth, TransportError, TurnEvent};
+use crate::transport::{BrainTransport, ConfirmDecision, RpcHealth, TransportError, TurnEvent};
 
 /// Runs `call`, retrying while the policy allows and sleeping the jittered delay between tries.
 ///
@@ -97,7 +97,7 @@ impl<T: BrainTransport, S: Sleeper, R: Randomness> RetryingTransport<T, S, R> {
     /// waits. Each attempt is bounded by the plan's deadline for that method.
     async fn guarded<Out, Fut>(
         &self,
-        method: SeamMethod,
+        method: RpcMethod,
         mut call: impl FnMut() -> Fut,
     ) -> Result<Out, TransportError>
     where
@@ -114,8 +114,8 @@ impl<T: BrainTransport, S: Sleeper, R: Randomness> RetryingTransport<T, S, R> {
 }
 
 impl<T: BrainTransport, S: Sleeper, R: Randomness> BrainTransport for RetryingTransport<T, S, R> {
-    async fn health(&self) -> Result<SeamHealth, TransportError> {
-        self.guarded(SeamMethod::Health, || self.inner.health())
+    async fn health(&self) -> Result<RpcHealth, TransportError> {
+        self.guarded(RpcMethod::Health, || self.inner.health())
             .await
     }
 
@@ -126,14 +126,14 @@ impl<T: BrainTransport, S: Sleeper, R: Randomness> BrainTransport for RetryingTr
         decisions: impl Stream<Item = ConfirmDecision> + Send + 'static,
     ) -> impl Stream<Item = Result<TurnEvent, TransportError>> + Send {
         within_gaps(
-            self.plan.gaps_for(SeamMethod::Converse),
+            self.plan.gaps_for(RpcMethod::Converse),
             &self.sleeper,
             self.inner.converse(session_id, text, decisions),
         )
     }
 
     async fn list_sessions(&self, limit: i32) -> Result<Vec<SessionSummary>, TransportError> {
-        self.guarded(SeamMethod::ListSessions, || self.inner.list_sessions(limit))
+        self.guarded(RpcMethod::ListSessions, || self.inner.list_sessions(limit))
             .await
     }
 
@@ -141,14 +141,14 @@ impl<T: BrainTransport, S: Sleeper, R: Randomness> BrainTransport for RetryingTr
         &self,
         session_id: &str,
     ) -> Result<Vec<SessionMessage>, TransportError> {
-        self.guarded(SeamMethod::SessionMessages, || {
+        self.guarded(RpcMethod::SessionMessages, || {
             self.inner.session_messages(session_id)
         })
         .await
     }
 
     async fn list_due_reminders(&self) -> Result<Vec<DueReminder>, TransportError> {
-        self.guarded(SeamMethod::ListDueReminders, || {
+        self.guarded(RpcMethod::ListDueReminders, || {
             self.inner.list_due_reminders()
         })
         .await
@@ -159,21 +159,21 @@ impl<T: BrainTransport, S: Sleeper, R: Randomness> BrainTransport for RetryingTr
         reminder_id: &str,
         fired_at_unix_ms: i64,
     ) -> Result<bool, TransportError> {
-        self.guarded(SeamMethod::AckReminder, || {
+        self.guarded(RpcMethod::AckReminder, || {
             self.inner.ack_reminder(reminder_id, fired_at_unix_ms)
         })
         .await
     }
 
     async fn rename_session(&self, session_id: &str, title: &str) -> Result<(), TransportError> {
-        self.guarded(SeamMethod::RenameSession, || {
+        self.guarded(RpcMethod::RenameSession, || {
             self.inner.rename_session(session_id, title)
         })
         .await
     }
 
     async fn delete_session(&self, session_id: &str) -> Result<(), TransportError> {
-        self.guarded(SeamMethod::DeleteSession, || {
+        self.guarded(RpcMethod::DeleteSession, || {
             self.inner.delete_session(session_id)
         })
         .await
@@ -184,19 +184,19 @@ impl<T: BrainTransport, S: Sleeper, R: Randomness> BrainTransport for RetryingTr
         session_id: &str,
         hoisted: bool,
     ) -> Result<(), TransportError> {
-        self.guarded(SeamMethod::SetSessionHoisted, || {
+        self.guarded(RpcMethod::SetSessionHoisted, || {
             self.inner.set_session_hoisted(session_id, hoisted)
         })
         .await
     }
 
     async fn get_preferences(&self) -> Result<Vec<(String, String)>, TransportError> {
-        self.guarded(SeamMethod::GetPreferences, || self.inner.get_preferences())
+        self.guarded(RpcMethod::GetPreferences, || self.inner.get_preferences())
             .await
     }
 
     async fn set_preference(&self, key: &str, value: &str) -> Result<(), TransportError> {
-        self.guarded(SeamMethod::SetPreference, || {
+        self.guarded(RpcMethod::SetPreference, || {
             self.inner.set_preference(key, value)
         })
         .await

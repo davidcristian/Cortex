@@ -57,12 +57,12 @@ def test_read_value_reads_each_declaration_form(tmp_path: Path, name: str, line:
 
 
 def test_read_value_ties_a_string_across_both_languages(tmp_path: Path) -> None:
-    rust = 'const SEAM_TOKEN_HEADER: &str = "x-cortex-seam-token";\n'
-    python = 'SEAM_TOKEN_HEADER = "x-cortex-seam-token"  # noqa: S105 - the header NAME\n'
+    rust = 'const RPC_TOKEN_HEADER: &str = "x-cortex-seam-token";\n'
+    python = 'RPC_TOKEN_HEADER = "x-cortex-seam-token"  # noqa: S105 - the header NAME\n'
     (tmp_path / "auth.rs").write_text(rust, encoding="utf-8")
     (tmp_path / "seam.py").write_text(python, encoding="utf-8")
-    from_rust = crosscheck.read_value(tmp_path, crosscheck.Site("auth.rs", "SEAM_TOKEN_HEADER"))
-    from_python = crosscheck.read_value(tmp_path, crosscheck.Site("seam.py", "SEAM_TOKEN_HEADER"))
+    from_rust = crosscheck.read_value(tmp_path, crosscheck.Site("auth.rs", "RPC_TOKEN_HEADER"))
+    from_python = crosscheck.read_value(tmp_path, crosscheck.Site("seam.py", "RPC_TOKEN_HEADER"))
     assert from_rust == from_python == "x-cortex-seam-token"
 
 
@@ -1482,18 +1482,18 @@ def test_every_registered_site_is_in_a_language_the_scan_knows() -> None:
     assert suffixes <= set(crosscheck.DECLARATIONS)
 
 
-def _seam_side(place: str) -> tuple[str, str]:
+def _boundary_side(place: str) -> tuple[str, str]:
     """Return which side a registered file is on: its language and its brain package."""
     parts = Path(place).parts
     package = parts[2] if parts[:2] == ("brain", "packages") and len(parts) > 2 else ""
     return Path(place).suffix, package
 
 
-def test_every_registered_constant_spans_more_than_one_seam_side() -> None:
+def test_every_registered_constant_spans_more_than_one_boundary_side() -> None:
     for constant in crosscheck.CONSTANTS:
         places = [site.path for site in constant.sites]
         places.extend(mention.path for mention in constant.mentions)
-        assert len({_seam_side(place) for place in places}) > 1, constant.label
+        assert len({_boundary_side(place) for place in places}) > 1, constant.label
 
 
 def test_every_registered_mention_renders_something_the_registry_fills() -> None:

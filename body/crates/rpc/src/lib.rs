@@ -1,6 +1,6 @@
 //! The tonic adapter for the body to brain gRPC interface defined in `proto/body.proto`.
 //!
-//! It holds the committed stubs, [`BrainSeamClient`] behind the `body_core::BrainTransport`
+//! It holds the committed stubs, [`BrainRpcClient`] behind the `body_core::BrainTransport`
 //! port, and [`body_service`], the server the brain calls. No business logic lives here.
 
 mod auth;
@@ -28,7 +28,7 @@ pub mod generated {
     include!("_generated/cortex.seam.v1.rs");
 }
 
-pub use auth::SeamTokenValidator;
-pub use client::BrainSeamClient;
+pub use auth::RpcTokenValidator;
+pub use client::BrainRpcClient;
 pub use server::{OsService, body_service};
 pub use status::status_to_error;

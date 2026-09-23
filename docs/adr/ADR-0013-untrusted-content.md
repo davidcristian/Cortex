@@ -86,7 +86,7 @@ only with the user's approval, and a decline or an unreachable confirmer returns
 `Confirmer.confirm(request: ConfirmationRequest) -> bool` (`cortex_core/ports_tools.py`) is
 fail-closed: `confirmer=None` denies every such call. The human authorizes, never the model. The
 fake is `RecordingConfirmer(answer=bool)`, which also records what the user was shown; the real
-adapter is ADR-0022's `SeamConfirmer`, whose exchange travels on the `Converse` stream to the
+adapter is ADR-0022's `RpcConfirmer`, whose exchange travels on the `Converse` stream to the
 overlay.
 
 ### 5. A tainted turn records nothing to memory, by default

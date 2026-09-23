@@ -48,7 +48,7 @@ one constant.
   (`cortex_orchestrator`) and the body calls. `BodyServiceServicer`, `BodyServiceStub` and
   `add_BodyServiceServicer_to_server` cover `BodyService`, which the body hosts and
   `cortex_body_client` calls through `GrpcBodyGateway` (ADR-0023).
-- `SEAM_TOKEN_HEADER = "x-cortex-seam-token"` is the metadata key for the shared token (ADR-0016).
+- `RPC_TOKEN_HEADER = "x-cortex-seam-token"` is the metadata key for the shared token (ADR-0016).
   It lives here because both directions need it: the brain server's interceptor
   (`cortex_orchestrator`'s `auth.py`) and the `BodyService` client (`cortex_body_client`). The
   body's Rust side keeps its own constant of the same value.

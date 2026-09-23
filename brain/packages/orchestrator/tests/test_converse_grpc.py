@@ -33,7 +33,7 @@ from cortex_core.sessions import HistoryRecap
 from cortex_orchestrator import (
     ERROR_CODE_SESSION_STORE_UNAVAILABLE,
     EngineFactory,
-    SeamServerConfig,
+    RpcServerConfig,
     create_server,
 )
 from cortex_seam import (
@@ -85,7 +85,7 @@ def _engine(store: SessionStore) -> TurnEngine:
 
 async def _start_server(engine: TurnEngine, store: SessionStore) -> tuple[aio.Server, str]:
     server, port = create_server(
-        SeamServerConfig(host="127.0.0.1", port=0), lambda _confirmer, _progress: engine, store
+        RpcServerConfig(host="127.0.0.1", port=0), lambda _confirmer, _progress: engine, store
     )
     await server.start()
     return server, f"127.0.0.1:{port}"
@@ -331,7 +331,7 @@ def _gated_engine_factory(ran: list[str]) -> EngineFactory:
 async def test_confirm_round_trips_over_the_real_wire() -> None:
     ran: list[str] = []
     server, port = create_server(
-        SeamServerConfig(host="127.0.0.1", port=0),
+        RpcServerConfig(host="127.0.0.1", port=0),
         _gated_engine_factory(ran),
         InMemorySessionStore(),
     )
@@ -364,7 +364,7 @@ async def test_confirm_round_trips_over_the_real_wire() -> None:
 async def test_denied_confirm_over_the_real_wire_never_runs_the_tool() -> None:
     ran: list[str] = []
     server, port = create_server(
-        SeamServerConfig(host="127.0.0.1", port=0),
+        RpcServerConfig(host="127.0.0.1", port=0),
         _gated_engine_factory(ran),
         InMemorySessionStore(),
     )

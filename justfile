@@ -298,20 +298,20 @@ down-gpu:
 # Live check of the body to brain interface: the Rust integration suite, never run in CI. Needs a
 # running brain (`just up` or `just brain-serve`) and CORTEX_SEAM_TOKEN set to the same value the
 # brain serves with, because one test checks that a wrong token is refused.
-seam-health:
+rpc-health:
     #!/usr/bin/env bash
     set -euo pipefail
     if [ -z "${CORTEX_SEAM_TOKEN:-}" ]; then
         echo "CORTEX_SEAM_TOKEN is unset, so this suite cannot check that a wrong token is" >&2
-        echo "refused: a brain serving without one accepts every token, and that check would" >&2
-        echo "fail as if the seam had regressed. Serve with a token and present the same value:" >&2
+        echo "refused: a brain serving without one accepts every token, and that check would fail" >&2
+        echo "as if token checking had regressed. Serve with a token and present the same value:" >&2
         echo "    CORTEX_SEAM_TOKEN=<value> just up          # or just brain-serve" >&2
-        echo "    CORTEX_SEAM_TOKEN=<value> just seam-health" >&2
+        echo "    CORTEX_SEAM_TOKEN=<value> just rpc-health" >&2
         echo "A token written in .env reaches compose, which reads that file, and not this" >&2
         echo "recipe, which does not. To check a token-free brain anyway, run the rest of the" >&2
         echo "suite by hand and say so in what you report:" >&2
         echo "    cd body && cargo test -p body-rpc --test live -- --ignored --nocapture \\" >&2
-        echo "        --skip a_rejected_seam_token" >&2
+        echo "        --skip a_rejected_rpc_token" >&2
         exit 1
     fi
     cd body && cargo test -p body-rpc --test live -- --ignored --nocapture

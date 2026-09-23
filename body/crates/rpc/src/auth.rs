@@ -8,17 +8,17 @@ use tonic::service::Interceptor;
 use tonic::{Request, Status};
 
 /// The metadata key the shared token travels under. The brain declares the same key.
-const SEAM_TOKEN_HEADER: &str = "x-cortex-seam-token";
+const RPC_TOKEN_HEADER: &str = "x-cortex-seam-token";
 
 /// Validates the shared token on inbound `BodyService` calls. It must not derive `Debug`,
 /// because it holds the secret.
 #[derive(Clone)]
-pub struct SeamTokenValidator {
+pub struct RpcTokenValidator {
     /// The expected token bytes, or `None` when auth is disabled (empty token = pass-through).
     token: Option<Vec<u8>>,
 }
 
-impl SeamTokenValidator {
+impl RpcTokenValidator {
     /// Builds the validator; an empty `token` disables the check (a tokenless server).
     #[must_use]
     pub fn new(token: &str) -> Self {
@@ -31,14 +31,14 @@ impl SeamTokenValidator {
     }
 }
 
-impl Interceptor for SeamTokenValidator {
+impl Interceptor for RpcTokenValidator {
     fn call(&mut self, request: Request<()>) -> Result<Request<()>, Status> {
         let Some(expected) = &self.token else {
             return Ok(request);
         };
         let presented = request
             .metadata()
-            .get(SEAM_TOKEN_HEADER)
+            .get(RPC_TOKEN_HEADER)
             .map(MetadataValue::as_encoded_bytes);
         match presented {
             Some(value) if constant_time_eq(value, expected) => Ok(request),

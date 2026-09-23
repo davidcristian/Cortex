@@ -9,10 +9,10 @@ from grpc import aio
 
 from cortex_core import EchoInferenceBackend, InMemorySessionStore, SystemClock, TurnEngine
 from cortex_orchestrator import (
-    SEAM_TOKEN_HEADER,
+    RPC_TOKEN_HEADER,
     EngineFactory,
-    SeamServerConfig,
-    SeamTokenInterceptor,
+    RpcServerConfig,
+    RpcTokenInterceptor,
     create_server,
 )
 from cortex_seam import (
@@ -25,7 +25,7 @@ from cortex_seam import (
 )
 
 _TOKEN = "sekrit-seam-token"  # noqa: S105 - a test fixture value, not a real credential
-_METADATA = ((SEAM_TOKEN_HEADER, _TOKEN),)
+_METADATA = ((RPC_TOKEN_HEADER, _TOKEN),)
 
 
 async def _health(stub: BrainServiceStub, metadata: tuple[tuple[str, str], ...]) -> HealthReply:
@@ -42,7 +42,7 @@ def _engine_and_store() -> tuple[EngineFactory, InMemorySessionStore]:
 @pytest.fixture
 async def token_server() -> AsyncIterator[str]:
     """Serve a BrainService that requires the `seam` token, on an ephemeral loopback port."""
-    config = SeamServerConfig(host="127.0.0.1", port=0, token=_TOKEN)
+    config = RpcServerConfig(host="127.0.0.1", port=0, token=_TOKEN)
     server, port = create_server(config, *_engine_and_store())
     await server.start()
     yield f"127.0.0.1:{port}"
@@ -66,7 +66,7 @@ async def test_health_without_the_token_is_unauthenticated(token_server: str) ->
 async def test_health_with_a_wrong_token_is_unauthenticated(token_server: str) -> None:
     async with aio.insecure_channel(token_server) as channel:
         with pytest.raises(aio.AioRpcError) as err:
-            await _health(BrainServiceStub(channel), ((SEAM_TOKEN_HEADER, "guessed-wrong"),))
+            await _health(BrainServiceStub(channel), ((RPC_TOKEN_HEADER, "guessed-wrong"),))
     assert err.value.code() is grpc.StatusCode.UNAUTHENTICATED
 
 
@@ -122,16 +122,16 @@ async def _passes_through(details: grpc.HandlerCallDetails) -> bool:
         del inner
         return handler
 
-    result = await SeamTokenInterceptor(_TOKEN).intercept_service(continuation, details)
+    result = await RpcTokenInterceptor(_TOKEN).intercept_service(continuation, details)
     return result is handler
 
 
 async def test_bytes_metadata_values_authorize() -> None:
-    assert await _passes_through(_details((SEAM_TOKEN_HEADER, _TOKEN.encode()))) is True
+    assert await _passes_through(_details((RPC_TOKEN_HEADER, _TOKEN.encode()))) is True
 
 
 async def test_the_walk_skips_unrelated_metadata_keys() -> None:
-    details = _details(("user-agent", "grpc-rust/0.0"), (SEAM_TOKEN_HEADER, _TOKEN))
+    details = _details(("user-agent", "grpc-rust/0.0"), (RPC_TOKEN_HEADER, _TOKEN))
     assert await _passes_through(details) is True
 
 
@@ -141,7 +141,7 @@ async def test_absent_metadata_is_rejected() -> None:
 
 
 async def test_intercept_passes_through_an_unserviced_method() -> None:
-    interceptor = SeamTokenInterceptor(_TOKEN)
+    interceptor = RpcTokenInterceptor(_TOKEN)
 
     async def continuation(details: grpc.HandlerCallDetails) -> None:
         del details

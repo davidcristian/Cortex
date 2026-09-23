@@ -10,7 +10,7 @@ found and `crosscheck.py` reports the entry the search text belongs to. Two plan
 it: moving `docker/docker-compose.yml`'s published host-side interface, and moving
 [modules/body-app.md](../../modules/body-app.md)'s `CORTEX_BRAIN_ADDR` default, each printed that
 the brain's port is not tied, over a port that had not moved. The reader is sent to
-`DEFAULT_SEAM_PORT`, finds it correct, and has to diff the search text by hand to see which of its
+`DEFAULT_RPC_PORT`, finds it correct, and has to diff the search text by hand to see which of its
 literals stopped matching.
 
 Two remedies, not exclusive. The cheap one is a better message: when a rendered search text is not

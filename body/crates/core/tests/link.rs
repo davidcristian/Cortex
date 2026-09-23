@@ -2,8 +2,8 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
 use body_core::{
-    BrainTransport, ConfirmDecision, DueReminder, LinkState, LinkStatus, SeamHealth,
-    SessionMessage, SessionSummary, TransportError, TurnEvent, probe_link,
+    BrainTransport, ConfirmDecision, DueReminder, LinkState, LinkStatus, RpcHealth, SessionMessage,
+    SessionSummary, TransportError, TurnEvent, probe_link,
 };
 use futures_core::Stream;
 
@@ -40,14 +40,14 @@ impl ScriptedTransport {
 }
 
 impl BrainTransport for ScriptedTransport {
-    async fn health(&self) -> Result<SeamHealth, TransportError> {
+    async fn health(&self) -> Result<RpcHealth, TransportError> {
         self.health_calls.fetch_add(1, Ordering::SeqCst);
         match self.script {
-            Script::Ready(detail) => Ok(SeamHealth {
+            Script::Ready(detail) => Ok(RpcHealth {
                 ready: true,
                 detail: String::from(detail),
             }),
-            Script::NotReady(detail) => Ok(SeamHealth {
+            Script::NotReady(detail) => Ok(RpcHealth {
                 ready: false,
                 detail: String::from(detail),
             }),

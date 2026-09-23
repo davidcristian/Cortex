@@ -7,7 +7,7 @@
 Recorded at [ADR-0022](../../adr/ADR-0022-email-write-confirmer.md) decision 7. The entry read as an
 overlay refinement and is a change to the body-brain interface, because `ServerEvent` had no way to
 say a confirmation ended: `ConfirmRequest` was the only confirm event the brain could emit, and
-`SeamConfirmer.confirm` just returned `False` on timeout. So it touched the proto, both committed
+`RpcConfirmer.confirm` just returned `False` on timeout. So it touched the proto, both committed
 stub trees, the confirmer, the Rust port and adapter, the Tauri shell's serde mirror, and the
 reducer.
 

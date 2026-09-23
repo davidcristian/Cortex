@@ -14,9 +14,9 @@ from recall_corpus import MEMORIES, QUESTIONS, Category
 from cortex_core import MemoryRecord
 from cortex_embedding import LlamaCppEmbedder
 from cortex_memory import PgVectorMemoryStore
-from cortex_seam import SEAM_TOKEN_HEADER, BrainServiceStub, ClientEvent, ServerEvent, UserTurn
+from cortex_seam import RPC_TOKEN_HEADER, BrainServiceStub, ClientEvent, ServerEvent, UserTurn
 
-_SEAM_ENDPOINT = os.environ.get("CORTEX_SEAM_ENDPOINT", "127.0.0.1:50051")
+_RPC_ENDPOINT = os.environ.get("CORTEX_SEAM_ENDPOINT", "127.0.0.1:50051")
 _DSN = os.environ.get("CORTEX_MEMORY_DSN", "postgresql://cortex:cortex@127.0.0.1:5432/cortex")
 _EMBEDDER = os.environ.get("CORTEX_MEMORY_EMBEDDER_ENDPOINT", "http://127.0.0.1:8081")
 
@@ -35,7 +35,7 @@ _CORPUS_SIZE = len(MEMORIES)
 
 def _metadata() -> tuple[tuple[str, str], ...] | None:
     token = os.environ.get("CORTEX_SEAM_TOKEN", "")
-    return ((SEAM_TOKEN_HEADER, token),) if token else None
+    return ((RPC_TOKEN_HEADER, token),) if token else None
 
 
 @dataclass(frozen=True, slots=True)
@@ -125,7 +125,7 @@ def _sample(turns: list[_Turn]) -> str:
 
 
 @pytest.mark.integration
-async def test_one_turn_cost_block_over_the_live_seam() -> None:
+async def test_one_turn_cost_block_over_the_live_rpc() -> None:
     out = Path(_OUT or f"measurements/turn-cost-{_ARM}-{int(time.time())}.json")
     stamp = int(time.time())
     schedule = _schedule()
@@ -136,7 +136,7 @@ async def test_one_turn_cost_block_over_the_live_seam() -> None:
         async with httpx.AsyncClient(timeout=60.0) as http:
             embedder = LlamaCppEmbedder(http, _EMBEDDER)
             vectors = {name: tuple(await embedder.embed(text)) for name, text in MEMORIES.items()}
-        async with aio.insecure_channel(_SEAM_ENDPOINT) as channel:
+        async with aio.insecure_channel(_RPC_ENDPOINT) as channel:
             stub = BrainServiceStub(channel)
             for scope, (rep, question, category) in zip(scopes, schedule, strict=True):
                 await _seed(store, scope, vectors)

@@ -12,7 +12,7 @@ The brain reads `CORTEX_BODY_BACKEND=grpc` and `CORTEX_BODY_ENDPOINT` (default
 `host.docker.internal:50151`) and builds a `GrpcBodyGateway` from `cortex_body_client`. The body
 binds `CORTEX_BODY_ADDR` (default `127.0.0.1:50151`) and serves
 `body_rpc::body_service(WindowsAudioControl::new(), WindowsNotify::new(&app_id), &token)`, the
-`BodyService` server behind the `SeamTokenValidator`. Each handler runs its synchronous OS call on
+`BodyService` server behind the `RpcTokenValidator`. Each handler runs its synchronous OS call on
 a blocking thread, so a slow endpoint never parks the runtime.
 
 **Every call is bounded**, by `CORTEX_BODY_CALL_TIMEOUT_S` (default `5.0`) for volume and notify

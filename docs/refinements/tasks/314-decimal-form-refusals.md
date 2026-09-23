@@ -21,7 +21,7 @@ The near miss is worth naming so nobody mistakes it for a consumer. The two dead
 and body really are ordered, the short one being defensible only under the capture's, but both are
 declared in `brain/packages/body_client/src/cortex_body_client/gateway.py`, and an ordering may
 have no mentions, so an entry over them would name two places in one file, which
-`test_every_registered_constant_spans_more_than_one_seam_side` refuses. That test compares language
+`test_every_registered_constant_spans_more_than_one_boundary_side` refuses. That test compares language
 and brain package together rather than language alone, so the trigger is a decimal bound whose two
 declarations sit apart: two trees, two languages in one tree, or two brain packages.
 

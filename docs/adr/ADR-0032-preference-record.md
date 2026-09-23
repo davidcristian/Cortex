@@ -36,7 +36,7 @@ helped a user who could no longer reach the chooser that changes it.
    (ports before adapters). Redis rather than Postgres because it is where the conversation state
    already lives, it is in the base compose file rather than an optional override, and it persists
    the same way (append-only, named volume), so the record survives a brain restart, a Redis
-   restart, and the body reinstall this ADR exists for. The store is optional in `SeamPorts`: with
+   restart, and the body reinstall this ADR exists for. The store is optional in `RpcPorts`: with
    none configured, reads return empty and writes are accepted and discarded, the `ScheduleStore`
    precedent, so a brain without the capability still lets a body apply a choice for the session.
 
@@ -47,7 +47,7 @@ helped a user who could no longer reach the chooser that changes it.
    present-and-empty; a reader that found the key present would apply `""` as a choice.
 
 4. **Reads retry, writes do not.** `GetPreferences` is one of the repeatable reads.
-   `SetPreference` follows the catalog-write convention (`SeamMethod::SetPreference` is not
+   `SetPreference` follows the catalog-write convention (`RpcMethod::SetPreference` is not
    repeatable): last write wins in the store so a repeat cannot duplicate an effect, but a lost
    reply must not silently reapply a value the user's next change reversed.
 
@@ -77,8 +77,8 @@ helped a user who could no longer reach the chooser that changes it.
 ## Consequences
 
 - New in the brain: `PreferenceStore` (port, fake, contract suite), `RedisPreferenceStore`,
-  `PreferenceRpcMixin`, and the store in `SeamPorts` and `wiring`. New on the body: two
-  `BrainTransport` methods, `SeamMethod` variants, `body_rpc::preferences`, two Tauri commands,
+  `PreferenceRpcMixin`, and the store in `RpcPorts` and `wiring`. New on the body: two
+  `BrainTransport` methods, `RpcMethod` variants, `body_rpc::preferences`, two Tauri commands,
   two `BrainBridge` methods, `usePreferences`, `SettingsSheet`.
 - The hint strip ran out of room once the settings button joined it (measured: it wanted 573 px of
   a 558 px row and wrapped to two lines), so the `Esc dismiss` hint was dropped from the strip.

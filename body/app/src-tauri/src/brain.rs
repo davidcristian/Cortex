@@ -8,7 +8,7 @@ use std::hash::{BuildHasher, Hasher};
 use std::time::Duration;
 
 use body_core::{Randomness, RetryPlan, RetryPolicy, RetryingTransport, Sleeper, TurnGaps};
-use body_rpc::BrainSeamClient;
+use body_rpc::BrainRpcClient;
 
 /// The default brain address, the same one `body_rpc` uses; override with `CORTEX_BRAIN_ADDR`.
 const DEFAULT_ADDR: &str = "http://127.0.0.1:50051";
@@ -64,9 +64,9 @@ impl Randomness for ShellRandomness {
     }
 }
 
-/// The transport the read commands run over: a lazy [`BrainSeamClient`] wrapped in
+/// The transport the read commands run over: a lazy [`BrainRpcClient`] wrapped in
 /// [`RetryingTransport`] with the [`TokioSleeper`] and the [`ShellRandomness`] jitter.
-pub type ResilientTransport = RetryingTransport<BrainSeamClient, TokioSleeper, ShellRandomness>;
+pub type ResilientTransport = RetryingTransport<BrainRpcClient, TokioSleeper, ShellRandomness>;
 
 /// Builds the read transport, reading the address, the optional token and the retry settings
 /// from the environment. One `RetryPlan` is read once and handed to both the decorator that
@@ -77,7 +77,7 @@ pub fn connect() -> Result<ResilientTransport, String> {
         .ok()
         .filter(|token| !token.is_empty());
     let plan = plan_from_env();
-    let client = BrainSeamClient::connect_lazy_with_token(&addr, token.as_deref())
+    let client = BrainRpcClient::connect_lazy_with_token(&addr, token.as_deref())
         .map_err(|error| error.to_string())?
         .announcing(plan);
     Ok(RetryingTransport::with_randomness(

@@ -150,7 +150,7 @@ def test_a_short_count_over_a_search_text_holding_a_newline_says_nothing_more() 
     assert linereadings.short("ab\ncd", "ab\ncd\nab\ncX\n", bounded("ab\ncd")) == ""
 
 
-_SEAM = crosscheck.Constant(
+_RPC = crosscheck.Constant(
     label="a port",
     why="the stack publishes what the server binds",
     sites=(crosscheck.Site("config.py", "PORT"),),
@@ -164,7 +164,7 @@ def test_a_moved_interface_is_read_on_its_own_line_and_not_on_a_sibling(tmp_path
         '    ports:\n      - "0.0.0.0:50051:50051"\n\n    ports:\n      - "127.0.0.1:6379:6379"\n',
         encoding="utf-8",
     )
-    (fault,) = crosscheck.check_constant(tmp_path, _SEAM)
+    (fault,) = crosscheck.check_constant(tmp_path, _RPC)
     assert "with the most of it on line 2, 14 of its 23 characters" in fault.detail
     assert "line 5" not in fault.detail
     assert "so what moved is likely shape this search text has" in fault.detail

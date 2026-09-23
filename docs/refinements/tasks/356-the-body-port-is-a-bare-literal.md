@@ -4,7 +4,7 @@
 **Area:** repo-checks
 **Origin:** [ADR-0023](../../adr/ADR-0023-body-gateway-volume.md)
 
-The brain's own port is the worked example done right: `DEFAULT_SEAM_PORT` is declared once in
+The brain's own port is the worked example done right: `DEFAULT_RPC_PORT` is declared once in
 `brain/packages/orchestrator/src/cortex_orchestrator/config.py`, and `scripts/crosscheck.py`
 compares the compose publish, the compose healthcheck and the two Tauri modules that call it
 against that one number. The body's port had none of that.

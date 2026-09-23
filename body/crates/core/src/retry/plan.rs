@@ -1,4 +1,4 @@
-//! [`SeamMethod`] and [`RetryPlan`]: which brain call may be retried, and on what schedule.
+//! [`RpcMethod`] and [`RetryPlan`]: which brain call may be retried, and on what schedule.
 //!
 //! Repeatability is checked first, because it is a fact about the call, and only then the failure.
 
@@ -27,7 +27,7 @@ pub const ANNOUNCED_DEADLINE_GRACE_MS: u64 = 250;
 /// Every call on the [`crate::transport::BrainTransport`] port, named so a retry decision can be
 /// made about it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum SeamMethod {
+pub enum RpcMethod {
     /// `BrainService.Health`: a readiness probe.
     Health,
     /// `BrainService.Converse`: one conversational turn.
@@ -52,7 +52,7 @@ pub enum SeamMethod {
     SetPreference,
 }
 
-impl SeamMethod {
+impl RpcMethod {
     /// Whether repeating this call is observably the same as making it once. The five reads are;
     /// a turn and every write are not, so each of those gets exactly one attempt.
     #[must_use]
@@ -118,38 +118,38 @@ impl From<RetryPolicy> for RetryPlan {
 impl RetryPlan {
     /// The schedule `method` retries on, or `None` when it may not be retried at all.
     #[must_use]
-    pub fn policy_for(&self, method: SeamMethod) -> Option<RetryPolicy> {
+    pub fn policy_for(&self, method: RpcMethod) -> Option<RetryPolicy> {
         if !method.repeatable() {
             return None;
         }
         Some(match method {
-            SeamMethod::Health => self.reads.within(self.probe_budget, self.probe_deadline),
+            RpcMethod::Health => self.reads.within(self.probe_budget, self.probe_deadline),
             _ => self.reads,
         })
     }
 
     /// How long one attempt at `method` may wait for an answer, or `None` when no clock bounds it.
     #[must_use]
-    pub fn deadline_for(&self, method: SeamMethod) -> Option<Duration> {
+    pub fn deadline_for(&self, method: RpcMethod) -> Option<Duration> {
         match method {
-            SeamMethod::Health => Some(self.probe_deadline),
-            SeamMethod::Converse => None,
-            SeamMethod::ListSessions
-            | SeamMethod::SessionMessages
-            | SeamMethod::ListDueReminders
-            | SeamMethod::AckReminder
-            | SeamMethod::RenameSession
-            | SeamMethod::DeleteSession
-            | SeamMethod::SetSessionHoisted
-            | SeamMethod::GetPreferences
-            | SeamMethod::SetPreference => Some(self.call_deadline),
+            RpcMethod::Health => Some(self.probe_deadline),
+            RpcMethod::Converse => None,
+            RpcMethod::ListSessions
+            | RpcMethod::SessionMessages
+            | RpcMethod::ListDueReminders
+            | RpcMethod::AckReminder
+            | RpcMethod::RenameSession
+            | RpcMethod::DeleteSession
+            | RpcMethod::SetSessionHoisted
+            | RpcMethod::GetPreferences
+            | RpcMethod::SetPreference => Some(self.call_deadline),
         }
     }
 
     /// How long one attempt at `method` tells the brain it will be waited on, or `None` when it
     /// announces nothing.
     #[must_use]
-    pub fn announced_deadline_for(&self, method: SeamMethod) -> Option<Duration> {
+    pub fn announced_deadline_for(&self, method: RpcMethod) -> Option<Duration> {
         let grace = Duration::from_millis(ANNOUNCED_DEADLINE_GRACE_MS);
         self.deadline_for(method)
             .map(|deadline| deadline.saturating_add(grace))

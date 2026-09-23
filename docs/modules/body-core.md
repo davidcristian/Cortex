@@ -40,7 +40,7 @@ Two areas of this crate have documents of their own:
 
 ## The brain transport
 
-- `SeamHealth` is the result of a `BrainService.Health` probe: `ready: bool` and `detail: String`.
+- `RpcHealth` is the result of a `BrainService.Health` probe: `ready: bool` and `detail: String`.
 - `TransportError` (thiserror) is `Connection(String)` (the brain is unreachable: a bad address, a
   refused connection, a transport failure), `Rpc { code: String, message: String }` (it was reached
   and the RPC returned a non-OK gRPC status, `code` being the status-code name), `Protocol(String)`
@@ -86,7 +86,7 @@ Two areas of this crate have documents of their own:
 `BrainTransport` is the typed async client port to the brain, `Send + Sync`. Fakes implement the
 same trait for tests.
 
-- `health(&self)` returns `impl Future<Output = Result<SeamHealth, TransportError>> + Send`.
+- `health(&self)` returns `impl Future<Output = Result<RpcHealth, TransportError>> + Send`.
 - `converse(&self, session_id, text, decisions)` returns
   `impl Stream<Item = Result<TurnEvent, TransportError>> + Send`, one turn per call (ADR-0011:
   session continuity is external, so each prompt is a fresh call sharing the `session_id`, and
@@ -128,7 +128,7 @@ because what a failure proves is domain logic.
   own `LinkState` union uses. **`Degraded` means the brain answered and is not serving**; only
   `Down` means nothing answered. The overlay adds its own `unknown` for "not asked yet".
 - `LinkStatus { state, detail }` is one classified answer, `detail` being display-only text that is
-  never parsed and is rendered inert. `from_health(&SeamHealth)` maps `ready` to `Ready` and
+  never parsed and is rendered inert. `from_health(&RpcHealth)` maps `ready` to `Ready` and
   anything else to `Degraded` with the brain's own detail. `from_error(&TransportError)` maps
   `Connection` to `Down` with the dial failure, `Rpc { code, message }` to `Degraded` as
   `"{code}: {message}"`, `Protocol` to `Degraded` as `"unreadable reply: …"`, and

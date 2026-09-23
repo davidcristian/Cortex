@@ -70,7 +70,7 @@ in the ADR is the worklist, port by port.
   production would have thrown away. The bounds rule is domain logic rather than wire translation,
   so it moved into the core as `hold_to_the_bounds_asked_for` and both implementations call it.
 - 2026-08-11: `Confirmer` was the fourth and last, five checks over `RecordingConfirmer` and
-  `SeamConfirmer` with a scripted overlay wired into the adapter's `emit`. No behavioural
+  `RpcConfirmer` with a scripted overlay wired into the adapter's `emit`. No behavioural
   disagreement came out of them. One deliberate break made nothing fail, because through the port
   only one request is ever outstanding, which is the division of labour rather than a hole.
 - 2026-08-16: `InferenceBackend`'s streaming half closed, eight checks over the scripted twin and

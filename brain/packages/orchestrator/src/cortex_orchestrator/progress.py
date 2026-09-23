@@ -1,4 +1,4 @@
-"""SeamProgressSink: the real ``ProgressSink`` over one Converse stream's queue."""
+"""RpcProgressSink: the real ``ProgressSink`` over one Converse stream's queue."""
 
 import asyncio
 from collections.abc import Callable
@@ -8,7 +8,7 @@ from cortex_core import ProgressEvent, TurnEvent, TurnWaits, Wait, WaitHold
 from cortex_seam import ServerEvent
 
 
-class SeamProgressSink:
+class RpcProgressSink:
     """Emit progress onto the stream's queue, best-effort, and keep the waits of its turn."""
 
     def __init__(

@@ -1,4 +1,4 @@
-//! Contract tests for `BrainSeamClient`: a scripted in-process fake serves the generated
+//! Contract tests for `BrainRpcClient`: a scripted in-process fake serves the generated
 //! `BrainService` on loopback (port 0, with no network beyond 127.0.0.1, so CI can run it) and the
 //! adapter's mappings are asserted end to end.
 
@@ -8,10 +8,10 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use body_core::{
-    BrainTransport, DueReminder, LinkState, LinkStatus, RetryPlan, RetryingTransport, SeamHealth,
-    SeamMethod, SessionMessage, SessionSummary, Sleeper, TransportError, is_transient, probe_link,
+    BrainTransport, DueReminder, LinkState, LinkStatus, RetryPlan, RetryingTransport, RpcHealth,
+    RpcMethod, SessionMessage, SessionSummary, Sleeper, TransportError, is_transient, probe_link,
 };
-use body_rpc::BrainSeamClient;
+use body_rpc::BrainRpcClient;
 use body_rpc::generated::brain_service_client::BrainServiceClient;
 use body_rpc::generated::brain_service_server::{BrainService, BrainServiceServer};
 use body_rpc::generated::{
@@ -376,13 +376,13 @@ async fn health_round_trips_through_the_transport_port() {
     let addr = spawn_fake_brain(FakeBrain::new(Script::Ready))
         .await
         .unwrap();
-    let client = BrainSeamClient::connect(&format!("http://{addr}"))
+    let client = BrainRpcClient::connect(&format!("http://{addr}"))
         .await
         .unwrap();
     let health = client.health().await.unwrap();
     assert_eq!(
         health,
-        SeamHealth {
+        RpcHealth {
             ready: true,
             detail: String::from("fake brain ready"),
         }
@@ -394,7 +394,7 @@ async fn non_ok_grpc_status_maps_to_the_rpc_variant() {
     let addr = spawn_fake_brain(FakeBrain::new(Script::Failing))
         .await
         .unwrap();
-    let client = BrainSeamClient::connect(&format!("http://{addr}"))
+    let client = BrainRpcClient::connect(&format!("http://{addr}"))
         .await
         .unwrap();
     let error = client.health().await.unwrap_err();
@@ -412,7 +412,7 @@ async fn connection_refused_maps_to_the_connection_variant() {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
     drop(listener);
-    let error = BrainSeamClient::connect(&format!("http://{addr}"))
+    let error = BrainRpcClient::connect(&format!("http://{addr}"))
         .await
         .unwrap_err();
     let TransportError::Connection(message) = error else {
@@ -429,7 +429,7 @@ async fn brain_death_after_connect_maps_to_the_connection_variant() {
     let (addr, shutdown, server) = spawn_stoppable_fake_brain(FakeBrain::new(Script::Ready))
         .await
         .unwrap();
-    let client = BrainSeamClient::connect(&format!("http://{addr}"))
+    let client = BrainRpcClient::connect(&format!("http://{addr}"))
         .await
         .unwrap();
     assert!(client.health().await.unwrap().ready);
@@ -444,7 +444,7 @@ async fn brain_death_after_connect_maps_to_the_connection_variant() {
 
 #[tokio::test]
 async fn invalid_address_maps_to_the_connection_variant() {
-    let error = BrainSeamClient::connect("not a valid uri")
+    let error = BrainRpcClient::connect("not a valid uri")
         .await
         .unwrap_err();
     let TransportError::Connection(message) = error else {
@@ -458,12 +458,12 @@ async fn client_clones_share_the_connection_and_debug_formats() {
     let addr = spawn_fake_brain(FakeBrain::new(Script::Ready))
         .await
         .unwrap();
-    let client = BrainSeamClient::connect(&format!("http://{addr}"))
+    let client = BrainRpcClient::connect(&format!("http://{addr}"))
         .await
         .unwrap();
     let cloned = client.clone();
     assert!(cloned.health().await.unwrap().ready);
-    assert!(format!("{client:?}").contains("BrainSeamClient"));
+    assert!(format!("{client:?}").contains("BrainRpcClient"));
 }
 
 #[tokio::test]
@@ -487,7 +487,7 @@ async fn list_sessions_maps_summaries_in_order() {
     let addr = spawn_fake_brain(FakeBrain::new(Script::Ready))
         .await
         .unwrap();
-    let client = BrainSeamClient::connect(&format!("http://{addr}"))
+    let client = BrainRpcClient::connect(&format!("http://{addr}"))
         .await
         .unwrap();
     let sessions = client.list_sessions(7).await.unwrap();
@@ -517,7 +517,7 @@ async fn session_messages_maps_history_in_order() {
     let addr = spawn_fake_brain(FakeBrain::new(Script::Ready))
         .await
         .unwrap();
-    let client = BrainSeamClient::connect(&format!("http://{addr}"))
+    let client = BrainRpcClient::connect(&format!("http://{addr}"))
         .await
         .unwrap();
     let messages = client.session_messages("chat-9").await.unwrap();
@@ -545,7 +545,7 @@ async fn list_sessions_store_failure_maps_to_the_rpc_variant() {
     let mut fake = FakeBrain::new(Script::Ready);
     fake.sessions_fail = true;
     let addr = spawn_fake_brain(fake).await.unwrap();
-    let client = BrainSeamClient::connect(&format!("http://{addr}"))
+    let client = BrainRpcClient::connect(&format!("http://{addr}"))
         .await
         .unwrap();
     assert_eq!(
@@ -562,7 +562,7 @@ async fn session_messages_store_failure_maps_to_the_rpc_variant() {
     let mut fake = FakeBrain::new(Script::Ready);
     fake.sessions_fail = true;
     let addr = spawn_fake_brain(fake).await.unwrap();
-    let client = BrainSeamClient::connect(&format!("http://{addr}"))
+    let client = BrainRpcClient::connect(&format!("http://{addr}"))
         .await
         .unwrap();
     assert_eq!(
@@ -580,7 +580,7 @@ async fn rename_session_writes_both_fields_across_the_wire() {
     let mut fake = FakeBrain::new(Script::Ready);
     fake.renames = recorder.clone();
     let addr = spawn_fake_brain(fake).await.unwrap();
-    let client = BrainSeamClient::connect(&format!("http://{addr}"))
+    let client = BrainRpcClient::connect(&format!("http://{addr}"))
         .await
         .unwrap();
     client
@@ -604,7 +604,7 @@ async fn rename_session_store_failure_maps_to_the_rpc_variant() {
     let mut fake = FakeBrain::new(Script::Ready);
     fake.sessions_fail = true;
     let addr = spawn_fake_brain(fake).await.unwrap();
-    let client = BrainSeamClient::connect(&format!("http://{addr}"))
+    let client = BrainRpcClient::connect(&format!("http://{addr}"))
         .await
         .unwrap();
     assert_eq!(
@@ -622,7 +622,7 @@ async fn delete_session_writes_the_session_id_across_the_wire() {
     let mut fake = FakeBrain::new(Script::Ready);
     fake.deletes = recorder.clone();
     let addr = spawn_fake_brain(fake).await.unwrap();
-    let client = BrainSeamClient::connect(&format!("http://{addr}"))
+    let client = BrainRpcClient::connect(&format!("http://{addr}"))
         .await
         .unwrap();
     client.delete_session("chat-9").await.unwrap();
@@ -634,7 +634,7 @@ async fn delete_session_store_failure_maps_to_the_rpc_variant() {
     let mut fake = FakeBrain::new(Script::Ready);
     fake.sessions_fail = true;
     let addr = spawn_fake_brain(fake).await.unwrap();
-    let client = BrainSeamClient::connect(&format!("http://{addr}"))
+    let client = BrainRpcClient::connect(&format!("http://{addr}"))
         .await
         .unwrap();
     assert_eq!(
@@ -652,7 +652,7 @@ async fn set_session_hoisted_writes_both_fields_across_the_wire() {
     let mut fake = FakeBrain::new(Script::Ready);
     fake.hoists = recorder.clone();
     let addr = spawn_fake_brain(fake).await.unwrap();
-    let client = BrainSeamClient::connect(&format!("http://{addr}"))
+    let client = BrainRpcClient::connect(&format!("http://{addr}"))
         .await
         .unwrap();
     client.set_session_hoisted("chat-9", true).await.unwrap();
@@ -669,7 +669,7 @@ async fn set_session_hoisted_store_failure_maps_to_the_rpc_variant() {
     let mut fake = FakeBrain::new(Script::Ready);
     fake.sessions_fail = true;
     let addr = spawn_fake_brain(fake).await.unwrap();
-    let client = BrainSeamClient::connect(&format!("http://{addr}"))
+    let client = BrainRpcClient::connect(&format!("http://{addr}"))
         .await
         .unwrap();
     assert_eq!(
@@ -686,7 +686,7 @@ async fn list_due_reminders_maps_every_field_in_order() {
     let addr = spawn_fake_brain(FakeBrain::new(Script::Ready))
         .await
         .unwrap();
-    let client = BrainSeamClient::connect(&format!("http://{addr}"))
+    let client = BrainRpcClient::connect(&format!("http://{addr}"))
         .await
         .unwrap();
     let due = client.list_due_reminders().await.unwrap();
@@ -718,7 +718,7 @@ async fn ack_reminder_reports_what_the_brain_cleared() {
     let addr = spawn_fake_brain(FakeBrain::new(Script::Ready))
         .await
         .unwrap();
-    let client = BrainSeamClient::connect(&format!("http://{addr}"))
+    let client = BrainRpcClient::connect(&format!("http://{addr}"))
         .await
         .unwrap();
     assert!(client.ack_reminder("r1", 2000).await.unwrap());
@@ -731,7 +731,7 @@ async fn reminder_store_failure_maps_to_the_rpc_variant() {
     let mut fake = FakeBrain::new(Script::Ready);
     fake.reminders_fail = true;
     let addr = spawn_fake_brain(fake).await.unwrap();
-    let client = BrainSeamClient::connect(&format!("http://{addr}"))
+    let client = BrainRpcClient::connect(&format!("http://{addr}"))
         .await
         .unwrap();
     let unavailable = TransportError::Rpc {
@@ -746,26 +746,26 @@ async fn reminder_store_failure_maps_to_the_rpc_variant() {
 }
 
 #[tokio::test]
-async fn seam_token_round_trips_when_the_brain_requires_it() {
+async fn rpc_token_round_trips_when_the_brain_requires_it() {
     let mut fake = FakeBrain::new(Script::Ready);
     fake.expected_token = Some("sekrit-seam-token");
     let addr = spawn_fake_brain(fake).await.unwrap();
     let client =
-        BrainSeamClient::connect_with_token(&format!("http://{addr}"), Some("sekrit-seam-token"))
+        BrainRpcClient::connect_with_token(&format!("http://{addr}"), Some("sekrit-seam-token"))
             .await
             .unwrap();
     assert!(client.health().await.unwrap().ready);
     let debugged = format!("{client:?}");
-    assert!(debugged.contains("BrainSeamClient"));
+    assert!(debugged.contains("BrainRpcClient"));
     assert!(!debugged.contains("sekrit-seam-token"));
 }
 
 #[tokio::test]
-async fn missing_seam_token_maps_to_the_rpc_unauthenticated_variant() {
+async fn missing_rpc_token_maps_to_the_rpc_unauthenticated_variant() {
     let mut fake = FakeBrain::new(Script::Ready);
     fake.expected_token = Some("sekrit-seam-token");
     let addr = spawn_fake_brain(fake).await.unwrap();
-    let client = BrainSeamClient::connect(&format!("http://{addr}"))
+    let client = BrainRpcClient::connect(&format!("http://{addr}"))
         .await
         .unwrap();
     assert_eq!(
@@ -778,11 +778,11 @@ async fn missing_seam_token_maps_to_the_rpc_unauthenticated_variant() {
 }
 
 #[tokio::test]
-async fn wrong_seam_token_maps_to_the_rpc_unauthenticated_variant() {
+async fn wrong_rpc_token_maps_to_the_rpc_unauthenticated_variant() {
     let mut fake = FakeBrain::new(Script::Ready);
     fake.expected_token = Some("sekrit-seam-token");
     let addr = spawn_fake_brain(fake).await.unwrap();
-    let client = BrainSeamClient::connect_with_token(&format!("http://{addr}"), Some("guessed"))
+    let client = BrainRpcClient::connect_with_token(&format!("http://{addr}"), Some("guessed"))
         .await
         .unwrap();
     let error = client.health().await.unwrap_err();
@@ -793,8 +793,8 @@ async fn wrong_seam_token_maps_to_the_rpc_unauthenticated_variant() {
 }
 
 #[tokio::test]
-async fn non_ascii_seam_token_maps_to_the_connection_variant() {
-    let error = BrainSeamClient::connect_with_token("http://127.0.0.1:1", Some("bad\ntoken"))
+async fn non_ascii_rpc_token_maps_to_the_connection_variant() {
+    let error = BrainRpcClient::connect_with_token("http://127.0.0.1:1", Some("bad\ntoken"))
         .await
         .unwrap_err();
     let TransportError::Connection(message) = error else {
@@ -811,7 +811,7 @@ async fn lazy_connect_health_round_trips_over_a_lazy_channel() {
     let addr = spawn_fake_brain(FakeBrain::new(Script::Ready))
         .await
         .unwrap();
-    let client = BrainSeamClient::connect_lazy_with_token(&format!("http://{addr}"), None).unwrap();
+    let client = BrainRpcClient::connect_lazy_with_token(&format!("http://{addr}"), None).unwrap();
     assert!(client.health().await.unwrap().ready);
 }
 
@@ -820,7 +820,7 @@ async fn lazy_connect_to_a_dead_endpoint_constructs_then_fails_on_the_first_call
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
     drop(listener);
-    let client = BrainSeamClient::connect_lazy_with_token(&format!("http://{addr}"), None).unwrap();
+    let client = BrainRpcClient::connect_lazy_with_token(&format!("http://{addr}"), None).unwrap();
     let error = client.health().await.unwrap_err();
     let TransportError::Connection(message) = error else {
         panic!("expected the connection variant, got: {error:?}");
@@ -830,7 +830,7 @@ async fn lazy_connect_to_a_dead_endpoint_constructs_then_fails_on_the_first_call
 
 #[tokio::test]
 async fn lazy_connect_invalid_address_maps_to_the_connection_variant() {
-    let error = BrainSeamClient::connect_lazy_with_token("not a valid uri", None).unwrap_err();
+    let error = BrainRpcClient::connect_lazy_with_token("not a valid uri", None).unwrap_err();
     let TransportError::Connection(message) = error else {
         panic!("expected the connection variant, got: {error:?}");
     };
@@ -838,8 +838,8 @@ async fn lazy_connect_invalid_address_maps_to_the_connection_variant() {
 }
 
 #[tokio::test]
-async fn lazy_connect_non_ascii_seam_token_maps_to_the_connection_variant() {
-    let error = BrainSeamClient::connect_lazy_with_token("http://127.0.0.1:1", Some("bad\ntoken"))
+async fn lazy_connect_non_ascii_rpc_token_maps_to_the_connection_variant() {
+    let error = BrainRpcClient::connect_lazy_with_token("http://127.0.0.1:1", Some("bad\ntoken"))
         .unwrap_err();
     let TransportError::Connection(message) = error else {
         panic!("expected the connection variant, got: {error:?}");
@@ -855,7 +855,7 @@ async fn get_preferences_maps_every_pair_in_the_brains_order() {
     let addr = spawn_fake_brain(FakeBrain::new(Script::Ready))
         .await
         .unwrap();
-    let client = BrainSeamClient::connect(&format!("http://{addr}"))
+    let client = BrainRpcClient::connect(&format!("http://{addr}"))
         .await
         .unwrap();
     let record = client.get_preferences().await.unwrap();
@@ -874,7 +874,7 @@ async fn set_preference_writes_both_fields_across_the_wire() {
     let mut fake = FakeBrain::new(Script::Ready);
     fake.preference_writes = recorder.clone();
     let addr = spawn_fake_brain(fake).await.unwrap();
-    let client = BrainSeamClient::connect(&format!("http://{addr}"))
+    let client = BrainRpcClient::connect(&format!("http://{addr}"))
         .await
         .unwrap();
     client.set_preference("overlay.mark", "ping").await.unwrap();
@@ -893,7 +893,7 @@ async fn preference_store_failures_map_to_the_rpc_variant() {
     let mut fake = FakeBrain::new(Script::Ready);
     fake.sessions_fail = true;
     let addr = spawn_fake_brain(fake).await.unwrap();
-    let client = BrainSeamClient::connect(&format!("http://{addr}"))
+    let client = BrainRpcClient::connect(&format!("http://{addr}"))
         .await
         .unwrap();
     let read = client.get_preferences().await.unwrap_err();
@@ -934,7 +934,7 @@ async fn a_brain_that_accepts_the_call_and_never_answers_is_ended_by_the_deadlin
     let addr = spawn_fake_brain(FakeBrain::new(Script::Hanging))
         .await
         .expect("fake brain should bind a loopback port");
-    let client = BrainSeamClient::connect_lazy_with_token(&format!("http://{addr}"), None)
+    let client = BrainRpcClient::connect_lazy_with_token(&format!("http://{addr}"), None)
         .expect("a lazy client should build for a valid address");
     let deadline = Duration::from_millis(120);
     let transport = RetryingTransport::new(
@@ -994,7 +994,7 @@ async fn an_announcing_client_tells_the_brain_each_call_s_own_deadline() {
     let announced = Arc::clone(&fake.timeouts);
     let addr = spawn_fake_brain(fake).await.unwrap();
     let plan = RetryPlan::default();
-    let client = BrainSeamClient::connect(&format!("http://{addr}"))
+    let client = BrainRpcClient::connect(&format!("http://{addr}"))
         .await
         .unwrap()
         .announcing(plan);
@@ -1011,14 +1011,14 @@ async fn an_announcing_client_tells_the_brain_each_call_s_own_deadline() {
     assert_eq!(
         heard,
         vec![
-            plan.announced_deadline_for(SeamMethod::Health).unwrap(),
-            plan.announced_deadline_for(SeamMethod::ListSessions)
+            plan.announced_deadline_for(RpcMethod::Health).unwrap(),
+            plan.announced_deadline_for(RpcMethod::ListSessions)
                 .unwrap(),
         ]
     );
     for (heard, enforced) in heard.iter().zip([
-        plan.deadline_for(SeamMethod::Health).unwrap(),
-        plan.deadline_for(SeamMethod::ListSessions).unwrap(),
+        plan.deadline_for(RpcMethod::Health).unwrap(),
+        plan.deadline_for(RpcMethod::ListSessions).unwrap(),
     ]) {
         assert!(
             *heard > enforced,
@@ -1032,7 +1032,7 @@ async fn a_client_told_no_plan_announces_nothing_and_a_turn_never_does() {
     let fake = FakeBrain::new(Script::Ready);
     let announced = Arc::clone(&fake.timeouts);
     let addr = spawn_fake_brain(fake).await.unwrap();
-    let silent = BrainSeamClient::connect(&format!("http://{addr}"))
+    let silent = BrainRpcClient::connect(&format!("http://{addr}"))
         .await
         .unwrap();
     assert!(silent.health().await.unwrap().ready);
@@ -1055,7 +1055,7 @@ async fn a_deadline_the_header_cannot_express_is_dropped_rather_than_sent() {
     let fake = FakeBrain::new(Script::Ready);
     let announced = Arc::clone(&fake.timeouts);
     let addr = spawn_fake_brain(fake).await.unwrap();
-    let client = BrainSeamClient::connect(&format!("http://{addr}"))
+    let client = BrainRpcClient::connect(&format!("http://{addr}"))
         .await
         .unwrap()
         .announcing(RetryPlan {
@@ -1095,7 +1095,7 @@ async fn an_announcement_off_the_millisecond_rung_is_dropped_and_one_on_it_is_se
     let fake = FakeBrain::new(Script::Ready);
     let heard = Arc::clone(&fake.timeouts);
     let addr = spawn_fake_brain(fake).await.unwrap();
-    let over = BrainSeamClient::connect(&format!("http://{addr}"))
+    let over = BrainRpcClient::connect(&format!("http://{addr}"))
         .await
         .unwrap()
         .announcing(RetryPlan {
@@ -1108,7 +1108,7 @@ async fn an_announcement_off_the_millisecond_rung_is_dropped_and_one_on_it_is_se
         call_deadline: Duration::from_millis(99_999_749),
         ..RetryPlan::default()
     };
-    let under = BrainSeamClient::connect(&format!("http://{addr}"))
+    let under = BrainRpcClient::connect(&format!("http://{addr}"))
         .await
         .unwrap()
         .announcing(plan);
@@ -1124,11 +1124,11 @@ async fn an_announcement_off_the_millisecond_rung_is_dropped_and_one_on_it_is_se
     let sent = announced_deadline(sent.as_deref().expect("the one on the rung is"));
     assert_eq!(
         sent,
-        plan.announced_deadline_for(SeamMethod::ListSessions)
+        plan.announced_deadline_for(RpcMethod::ListSessions)
             .unwrap()
     );
     assert!(
-        sent > plan.deadline_for(SeamMethod::ListSessions).unwrap(),
+        sent > plan.deadline_for(RpcMethod::ListSessions).unwrap(),
         "announced {sent:?}, which no longer stands above what the core enforces"
     );
 }
@@ -1142,7 +1142,7 @@ async fn the_core_s_own_bound_wins_the_race_the_announcement_starts() {
         probe_deadline: Duration::from_millis(60),
         ..RetryPlan::default()
     };
-    let client = BrainSeamClient::connect_lazy_with_token(&format!("http://{addr}"), None)
+    let client = BrainRpcClient::connect_lazy_with_token(&format!("http://{addr}"), None)
         .expect("a lazy client should build for a valid address")
         .announcing(plan);
     let transport = RetryingTransport::new(client, RealSleeper, plan);
@@ -1158,7 +1158,7 @@ async fn the_core_s_own_bound_wins_the_race_the_announcement_starts() {
     );
     assert!(!is_transient(&error), "a timeout must stay terminal");
     assert!(
-        elapsed < plan.announced_deadline_for(SeamMethod::Health).unwrap(),
+        elapsed < plan.announced_deadline_for(RpcMethod::Health).unwrap(),
         "took {elapsed:?}, which is past the announcement tonic armed a clock from",
     );
 }
@@ -1169,14 +1169,14 @@ async fn a_brain_sent_deadline_exceeded_is_the_body_s_own_timeout_coming_back() 
         .await
         .unwrap();
     let plan = RetryPlan::default();
-    let client = BrainSeamClient::connect(&format!("http://{addr}"))
+    let client = BrainRpcClient::connect(&format!("http://{addr}"))
         .await
         .unwrap();
     let error = client.clone().announcing(plan).health().await.unwrap_err();
     assert_eq!(
         error,
         TransportError::Timeout {
-            after: plan.announced_deadline_for(SeamMethod::Health).unwrap(),
+            after: plan.announced_deadline_for(RpcMethod::Health).unwrap(),
         }
     );
     assert!(!is_transient(&error));
@@ -1191,12 +1191,12 @@ async fn a_brain_sent_deadline_exceeded_is_the_body_s_own_timeout_coming_back() 
 }
 
 #[tokio::test]
-async fn the_seam_token_never_reaches_a_debug_line() {
-    let client = BrainSeamClient::connect_lazy_with_token("http://127.0.0.1:1", Some("sekrit"))
+async fn the_rpc_token_never_reaches_a_debug_line() {
+    let client = BrainRpcClient::connect_lazy_with_token("http://127.0.0.1:1", Some("sekrit"))
         .unwrap()
         .announcing(RetryPlan::default());
     let printed = format!("{client:?}");
-    assert!(printed.contains("BrainSeamClient"));
+    assert!(printed.contains("BrainRpcClient"));
     assert!(!printed.contains("sekrit"), "printed: {printed}");
     assert!(printed.contains("redacted"), "printed: {printed}");
 }

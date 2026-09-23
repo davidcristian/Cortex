@@ -93,10 +93,14 @@ record says what it is and why.
     sets them), a proto message, field or package name (`cortex.seam.v1`), the `cortex_seam`
     package, a key in recorded data (the envelope samples' `arm`), and anything the Windows host
     reads. An identifier beside a kept name may still be renamed: a settings field keeps its
-    variable as a `validation_alias`. Decision 16 checks the words of a log message. No check
-    reads identifiers or log field names, so a `git grep` survey finds them, and the backlog lists
-    what is left. It reaches a backlog task's file name too: `backlogcheck.py` reads each slug
-    with its hyphens, and those of the table's words, read as spaces.
+    variable as a `validation_alias`. A name that quotes a kept name keeps its words, such as a
+    test named for the `SeamError` message. A name that used `seam` for the body to brain gRPC
+    boundary says `rpc` instead, as the `body-rpc` crate does (`BrainRpcClient`,
+    `RpcServerConfig`, the `rpc-health` recipe), and one that used it for any other boundary says
+    `boundary`. Decision 16 checks the words of a log message. No check reads identifiers or log
+    field names, so a `git grep` survey finds them, and the backlog lists what is left. It reaches
+    a backlog task's file name too: `backlogcheck.py` reads each slug with its hyphens, and those
+    of the table's words, read as spaces.
 16. **The prose check reads the strings the code prints or raises.** Its scope is every non-test
     Python module in `scripts/` and every module under a brain package's `src/`, and every Rust and
     TypeScript file under `body/` outside a `tests` directory and not named `*.test.ts` or

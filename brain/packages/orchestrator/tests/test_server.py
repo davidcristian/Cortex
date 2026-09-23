@@ -28,8 +28,8 @@ from cortex_core import (
 from cortex_orchestrator import (
     ORCHESTRATOR_VERSION,
     EngineFactory,
-    SeamPorts,
-    SeamServerConfig,
+    RpcPorts,
+    RpcServerConfig,
     create_server,
     serve,
 )
@@ -57,7 +57,7 @@ def _engine_and_store() -> tuple[EngineFactory, InMemorySessionStore]:
 @pytest.fixture
 async def running_server() -> AsyncIterator[str]:
     """A BrainService bound to an ephemeral loopback port, torn down after the test."""
-    server, port = create_server(SeamServerConfig(host="127.0.0.1", port=0), *_engine_and_store())
+    server, port = create_server(RpcServerConfig(host="127.0.0.1", port=0), *_engine_and_store())
     await server.start()
     yield f"127.0.0.1:{port}"
     await server.stop(grace=None)
@@ -84,9 +84,9 @@ def _swapping_manager(host: ScriptedModelHost) -> SwappingModelManager:
 async def _serving(manager: SwappingModelManager) -> tuple[aio.Server, str]:
     """A bound server whose Health reads this manager, exactly as the composition root wires it."""
     server, port = create_server(
-        SeamServerConfig(host="127.0.0.1", port=0),
+        RpcServerConfig(host="127.0.0.1", port=0),
         *_engine_and_store(),
-        SeamPorts(residency=manager),
+        RpcPorts(residency=manager),
     )
     await server.start()
     return server, f"127.0.0.1:{port}"
@@ -208,7 +208,7 @@ async def _hold_scope(manager: SwappingModelManager) -> None:
 async def test_create_server_binds_the_configured_port() -> None:
     port = _free_loopback_port()
     server, bound = create_server(
-        SeamServerConfig(host="127.0.0.1", port=port), *_engine_and_store()
+        RpcServerConfig(host="127.0.0.1", port=port), *_engine_and_store()
     )
     assert bound == port
     await server.stop(grace=None)
@@ -217,7 +217,7 @@ async def test_create_server_binds_the_configured_port() -> None:
 async def test_serve_answers_health_and_shuts_down_on_cancel() -> None:
     port = _free_loopback_port()
     task = asyncio.create_task(
-        serve(SeamServerConfig(host="127.0.0.1", port=port), *_engine_and_store())
+        serve(RpcServerConfig(host="127.0.0.1", port=port), *_engine_and_store())
     )
     try:
         async with aio.insecure_channel(f"127.0.0.1:{port}") as channel:
@@ -237,7 +237,7 @@ async def test_serve_answers_health_and_shuts_down_on_cancel() -> None:
 async def test_serve_stops_gracefully_on_signal(signum: signal.Signals) -> None:
     port = _free_loopback_port()
     task = asyncio.create_task(
-        serve(SeamServerConfig(host="127.0.0.1", port=port), *_engine_and_store())
+        serve(RpcServerConfig(host="127.0.0.1", port=port), *_engine_and_store())
     )
     try:
         async with aio.insecure_channel(f"127.0.0.1:{port}") as channel:

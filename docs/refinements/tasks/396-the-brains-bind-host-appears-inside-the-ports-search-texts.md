@@ -4,7 +4,7 @@
 **Area:** repo-checks
 **Origin:** [ADR-0042](../../adr/ADR-0042-cross-tree-constant-registry.md)
 
-`SeamServerConfig.host` defaults to `127.0.0.1`
+`RpcServerConfig.host` defaults to `127.0.0.1`
 (`brain/packages/orchestrator/src/cortex_orchestrator/config.py`, line 56), and every search text
 that now covers the port writes that address as part of its own template:
 `"127.0.0.1:{value}:{value}"`, `` `CORTEX_BRAIN_ADDR` (default `http://127.0.0.1:{value}`) ``,
@@ -17,7 +17,7 @@ host is an indented pydantic field, and `crosscheck.py`'s Python declaration for
 column 0, so a field cannot be a declaration without hoisting a constant. That is a change to the
 brain's config module rather than a registry row.
 
-The remedy is to hoist the host to `DEFAULT_SEAM_HOST` beside `DEFAULT_SEAM_PORT`, then decide
+The remedy is to hoist the host to `DEFAULT_RPC_HOST` beside `DEFAULT_RPC_PORT`, then decide
 whether the host and the port are one coupling or two. They are two: they move for different
 reasons, an operator binding `0.0.0.0` changes one and not the other, and the compose stack already
 publishes on a host half that differs from the container half.
@@ -28,7 +28,7 @@ publishes on a host half that differs from the container half.
   [R-389](389-the-brain-port-is-held-in-code-and-not-in-prose.md), which found the loopback address
   written as fixed text inside twelve of the port's own search texts while nothing checked it as a
   value.
-- 2026-08-23: closed as `DEFAULT_SEAM_HOST` hoisted beside the port and one entry over three
+- 2026-08-23: closed as `DEFAULT_RPC_HOST` hoisted beside the port and one entry over three
   places, not twelve. The entry was wrong about which value those search texts contain. There are
   24 of them, not twelve (18 on the brain's port, 6 on the body's listen port, which the entry
   never mentions), and the digits in them are five different values: the brain's bind default, the

@@ -13,7 +13,7 @@ from rostermembers import (
     gate_modules,
     ignored_tests,
     library_gate_modules,
-    live_seam_checks,
+    live_rpc_checks,
     registry_tuples,
 )
 
@@ -45,7 +45,7 @@ async fn the_probe_gives_up() {
 
 def suite(root: Path, text: str = SUITE) -> Path:
     """Write a small live suite where the real one lives, and return the root above it."""
-    path = root / rostermembers.LIVE_SEAM
+    path = root / rostermembers.LIVE_RPC
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")
     return root
@@ -61,7 +61,7 @@ def gates(root: Path, *names: str) -> Path:
 
 
 def test_every_ignored_check_is_read_and_nothing_else_is(tmp_path: Path) -> None:
-    assert live_seam_checks(suite(tmp_path)) == frozenset(
+    assert live_rpc_checks(suite(tmp_path)) == frozenset(
         {"the_brain_answers", "the_probe_gives_up"}
     )
 
@@ -90,17 +90,17 @@ def test_a_check_nested_in_a_module_is_still_a_check() -> None:
 def test_an_ignore_above_no_function_refuses_to_name_a_check(tmp_path: Path) -> None:
     dangling = SUITE + '\n#[ignore = "live seam check: needs nothing"]\n'
     with pytest.raises(MemberError, match="the ignore on line 22 sits above no function"):
-        live_seam_checks(suite(tmp_path, dangling))
+        live_rpc_checks(suite(tmp_path, dangling))
 
 
 def test_a_suite_with_no_ignored_check_left_is_a_failure(tmp_path: Path) -> None:
     with pytest.raises(MemberError, match="came back empty"):
-        live_seam_checks(suite(tmp_path, "//! Nothing ignored here.\n"))
+        live_rpc_checks(suite(tmp_path, "//! Nothing ignored here.\n"))
 
 
 def test_a_suite_that_is_not_there_is_named(tmp_path: Path) -> None:
     with pytest.raises(MemberError, match="cannot read body/crates/rpc/tests/live"):
-        live_seam_checks(tmp_path)
+        live_rpc_checks(tmp_path)
 
 
 def test_every_module_in_the_gate_tree_is_a_member(tmp_path: Path) -> None:
@@ -268,7 +268,7 @@ def test_a_body_workspace_holding_no_crate_is_a_failure(tmp_path: Path) -> None:
 
 
 def test_the_real_suite_and_the_real_registry_are_both_read() -> None:
-    assert len(live_seam_checks(REPO_ROOT)) > 1
+    assert len(live_rpc_checks(REPO_ROOT)) > 1
     assert len(registry_tuples(REPO_ROOT)) > 1
     assert "rostermembers.py" in gate_modules(REPO_ROOT)
     assert "orchestrator" in brain_packages(REPO_ROOT)

@@ -193,18 +193,18 @@ never under coverage; details in [modules/body-rpc.md](../modules/body-rpc.md).
 
 ```sh
 CORTEX_SEAM_TOKEN=<value> just up          # or just brain-serve
-CORTEX_SEAM_TOKEN=<value> just seam-health
+CORTEX_SEAM_TOKEN=<value> just rpc-health
 ```
 
 **The token is a precondition of the suite, not an option.** One check proves a wrong token is
 refused, and a brain serving without one accepts every token there is, so that check fails on a
-stack that is merely unconfigured. `just seam-health` stops with an error when the variable is
+stack that is merely unconfigured. `just rpc-health` stops with an error when the variable is
 unset; a token written into `.env` reaches compose, which reads that file, and not `just`, which
 does not. To check a token-free brain anyway, run the suite by hand with that one check skipped,
 and say so in what you report:
 
 ```sh
-cd body && cargo test -p body-rpc --test live -- --ignored --skip a_rejected_seam_token
+cd body && cargo test -p body-rpc --test live -- --ignored --skip a_rejected_rpc_token
 ```
 
 Set `CORTEX_BRAIN_ADDR` first if the brain is not on defaults. One check in the suite needs no

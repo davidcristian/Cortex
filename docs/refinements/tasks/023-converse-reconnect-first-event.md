@@ -30,7 +30,7 @@ outcome or re-attaches to an in-flight turn's buffered events. That is a turn-li
 machine, an idempotency store and an event-replay path, and it reverses the deliberate design that
 an in-flight turn is disposable and its partial reply dropped. That is too much at personal
 loopback scale, where reconnects are rare and a dropped turn is already terminal because the user
-resends. `converse` stays unretried, `SeamMethod::Converse` not being repeatable.
+resends. `converse` stays unretried, `RpcMethod::Converse` not being repeatable.
 
 ## History
 

@@ -9,11 +9,11 @@ Every class is pydantic-settings, read only by the composition root; explicit co
 beat the environment, and anything invalid fails at boot. Each class declares its own fields, so
 what follows is the prefix, the defaults other parts depend on, and the validation.
 
-- `SeamServerConfig`, prefix `CORTEX_SEAM_`: `host: str = DEFAULT_SEAM_HOST`
+- `RpcServerConfig`, prefix `CORTEX_SEAM_`: `host: str = DEFAULT_RPC_HOST`
   (`127.0.0.1`, `CORTEX_SEAM_HOST`; the compose stack sets `0.0.0.0` so the published port can
-  reach the server), `port: int = DEFAULT_SEAM_PORT` (50051, `CORTEX_SEAM_PORT`) and a
+  reach the server), `port: int = DEFAULT_RPC_PORT` (50051, `CORTEX_SEAM_PORT`) and a
   `bind_address` property. The body dials `CORTEX_BRAIN_ADDR` (default `http://127.0.0.1:50051`),
-  and `DEFAULT_SEAM_PORT` is module-level so `scripts/crosscheck.py` can compare it with every
+  and `DEFAULT_RPC_PORT` is module-level so `scripts/crosscheck.py` can compare it with every
   other place the port appears. `token` (`CORTEX_SEAM_TOKEN`, ADR-0016) is the shared secret: set,
   every RPC must present matching `x-cortex-seam-token` metadata. `converse_buffer: int = 256`
   bounds how many `ServerEvent`s one stream buffers unread, and `confirm_timeout_s: float = 120.0`

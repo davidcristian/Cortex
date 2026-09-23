@@ -1,4 +1,4 @@
-//! [`BrainSeamClient`] is the gRPC adapter behind `body_core::BrainTransport`.
+//! [`BrainRpcClient`] is the gRPC adapter behind `body_core::BrainTransport`.
 //!
 //! Translation only: every failure to reach the brain becomes [`TransportError::Connection`],
 //! and a non-OK status the brain reported becomes [`TransportError::Rpc`]. There are no retries.
@@ -6,20 +6,20 @@
 use std::fmt;
 
 use body_core::{
-    BrainTransport, ConfirmDecision, DueReminder, RetryPlan, SeamHealth, SeamMethod,
-    SessionMessage, SessionSummary, TransportError, TurnEvent,
+    BrainTransport, ConfirmDecision, DueReminder, RetryPlan, RpcHealth, RpcMethod, SessionMessage,
+    SessionSummary, TransportError, TurnEvent,
 };
 use futures_core::Stream;
 use tonic::metadata::{Ascii, MetadataValue};
 use tonic::transport::Channel;
 
-use crate::call::SeamCall;
+use crate::call::RpcCall;
 use crate::generated::HealthRequest;
 use crate::status::error_chain;
 
 /// gRPC client for `BrainService`, connected over a tonic [`Channel`].
 #[derive(Clone)]
-pub struct BrainSeamClient {
+pub struct BrainRpcClient {
     channel: Channel,
     token: Option<MetadataValue<Ascii>>,
     plan: Option<RetryPlan>,
@@ -27,9 +27,9 @@ pub struct BrainSeamClient {
 
 /// The token is a shared secret and must never reach a log, so this prints whether it is present
 /// and never its value.
-impl fmt::Debug for BrainSeamClient {
+impl fmt::Debug for BrainRpcClient {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("BrainSeamClient")
+        f.debug_struct("BrainRpcClient")
             .field("channel", &self.channel)
             .field("token", &self.token.as_ref().map(|_| "<redacted>"))
             .field("plan", &self.plan)
@@ -37,7 +37,7 @@ impl fmt::Debug for BrainSeamClient {
     }
 }
 
-impl BrainSeamClient {
+impl BrainRpcClient {
     /// Connects to the brain at `addr`, for example `http://127.0.0.1:50051`, sending no token.
     ///
     /// # Errors
@@ -47,7 +47,7 @@ impl BrainSeamClient {
         Self::connect_with_token(addr, None).await
     }
 
-    /// Like [`BrainSeamClient::connect`], also sending `token` as `x-cortex-seam-token` metadata.
+    /// Like [`BrainRpcClient::connect`], also sending `token` as `x-cortex-seam-token` metadata.
     ///
     /// # Errors
     ///
@@ -56,7 +56,7 @@ impl BrainSeamClient {
         addr: &str,
         token: Option<&str>,
     ) -> Result<Self, TransportError> {
-        let token = parse_seam_token(token)?;
+        let token = parse_rpc_token(token)?;
         let channel = endpoint(addr)?
             .connect()
             .await
@@ -73,7 +73,7 @@ impl BrainSeamClient {
         addr: &str,
         token: Option<&str>,
     ) -> Result<Self, TransportError> {
-        let token = parse_seam_token(token)?;
+        let token = parse_rpc_token(token)?;
         Ok(Self::with_token(endpoint(addr)?.connect_lazy(), token))
     }
 
@@ -97,8 +97,8 @@ impl BrainSeamClient {
 
     /// One call's generated client, whose interceptor holds the shared token and this method's
     /// announced deadline, paired with that announcement for the reply mapping.
-    fn call(&self, method: SeamMethod) -> SeamCall {
-        SeamCall::new(
+    fn call(&self, method: RpcMethod) -> RpcCall {
+        RpcCall::new(
             self.channel.clone(),
             self.token.clone(),
             self.plan
@@ -109,7 +109,7 @@ impl BrainSeamClient {
 
 /// Parses the optional token into ASCII metadata, or [`TransportError::Connection`] when it is
 /// not valid ASCII.
-fn parse_seam_token(token: Option<&str>) -> Result<Option<MetadataValue<Ascii>>, TransportError> {
+fn parse_rpc_token(token: Option<&str>) -> Result<Option<MetadataValue<Ascii>>, TransportError> {
     token
         .map(|value| {
             value.parse::<MetadataValue<Ascii>>().map_err(|err| {
@@ -125,16 +125,16 @@ fn endpoint(addr: &str) -> Result<tonic::transport::Endpoint, TransportError> {
         .map_err(|err| TransportError::Connection(error_chain(&err)))
 }
 
-impl BrainTransport for BrainSeamClient {
-    async fn health(&self) -> Result<SeamHealth, TransportError> {
-        let call = self.call(SeamMethod::Health);
+impl BrainTransport for BrainRpcClient {
+    async fn health(&self) -> Result<RpcHealth, TransportError> {
+        let call = self.call(RpcMethod::Health);
         let reply = call
             .client()
             .health(HealthRequest {})
             .await
             .map_err(|status| call.error(&status))?
             .into_inner();
-        Ok(SeamHealth {
+        Ok(RpcHealth {
             ready: reply.ready,
             detail: reply.detail,
         })
@@ -147,7 +147,7 @@ impl BrainTransport for BrainSeamClient {
         decisions: impl Stream<Item = ConfirmDecision> + Send + 'static,
     ) -> impl Stream<Item = Result<TurnEvent, TransportError>> + Send {
         crate::converse::converse_turn(
-            self.call(SeamMethod::Converse).client(),
+            self.call(RpcMethod::Converse).client(),
             session_id.to_owned(),
             text.to_owned(),
             decisions,
@@ -155,7 +155,7 @@ impl BrainTransport for BrainSeamClient {
     }
 
     async fn list_sessions(&self, limit: i32) -> Result<Vec<SessionSummary>, TransportError> {
-        crate::sessions::list_sessions(self.call(SeamMethod::ListSessions), limit).await
+        crate::sessions::list_sessions(self.call(RpcMethod::ListSessions), limit).await
     }
 
     async fn session_messages(
@@ -163,14 +163,14 @@ impl BrainTransport for BrainSeamClient {
         session_id: &str,
     ) -> Result<Vec<SessionMessage>, TransportError> {
         crate::sessions::session_messages(
-            self.call(SeamMethod::SessionMessages),
+            self.call(RpcMethod::SessionMessages),
             session_id.to_owned(),
         )
         .await
     }
 
     async fn list_due_reminders(&self) -> Result<Vec<DueReminder>, TransportError> {
-        crate::reminders::list_due_reminders(self.call(SeamMethod::ListDueReminders)).await
+        crate::reminders::list_due_reminders(self.call(RpcMethod::ListDueReminders)).await
     }
 
     async fn ack_reminder(
@@ -179,7 +179,7 @@ impl BrainTransport for BrainSeamClient {
         fired_at_unix_ms: i64,
     ) -> Result<bool, TransportError> {
         crate::reminders::ack_reminder(
-            self.call(SeamMethod::AckReminder),
+            self.call(RpcMethod::AckReminder),
             reminder_id.to_owned(),
             fired_at_unix_ms,
         )
@@ -188,7 +188,7 @@ impl BrainTransport for BrainSeamClient {
 
     async fn rename_session(&self, session_id: &str, title: &str) -> Result<(), TransportError> {
         crate::sessions::rename_session(
-            self.call(SeamMethod::RenameSession),
+            self.call(RpcMethod::RenameSession),
             session_id.to_owned(),
             title.to_owned(),
         )
@@ -196,7 +196,7 @@ impl BrainTransport for BrainSeamClient {
     }
 
     async fn delete_session(&self, session_id: &str) -> Result<(), TransportError> {
-        crate::sessions::delete_session(self.call(SeamMethod::DeleteSession), session_id.to_owned())
+        crate::sessions::delete_session(self.call(RpcMethod::DeleteSession), session_id.to_owned())
             .await
     }
 
@@ -206,7 +206,7 @@ impl BrainTransport for BrainSeamClient {
         hoisted: bool,
     ) -> Result<(), TransportError> {
         crate::sessions::set_session_hoisted(
-            self.call(SeamMethod::SetSessionHoisted),
+            self.call(RpcMethod::SetSessionHoisted),
             session_id.to_owned(),
             hoisted,
         )
@@ -214,12 +214,12 @@ impl BrainTransport for BrainSeamClient {
     }
 
     async fn get_preferences(&self) -> Result<Vec<(String, String)>, TransportError> {
-        crate::preferences::get_preferences(self.call(SeamMethod::GetPreferences)).await
+        crate::preferences::get_preferences(self.call(RpcMethod::GetPreferences)).await
     }
 
     async fn set_preference(&self, key: &str, value: &str) -> Result<(), TransportError> {
         crate::preferences::set_preference(
-            self.call(SeamMethod::SetPreference),
+            self.call(RpcMethod::SetPreference),
             key.to_owned(),
             value.to_owned(),
         )

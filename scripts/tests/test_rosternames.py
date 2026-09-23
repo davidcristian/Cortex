@@ -12,7 +12,7 @@ have no CLI: `couplings.py` is the vocabulary and `registry.py` names the parts.
 
 - `linecap.py [--root DIR]` implements AGENTS.md gate 1. Scans three toolchains.
 
-**Live checks**. The ignored tests, run by `just seam-health`:
+**Live checks**. The ignored tests, run by `just rpc-health`:
 
 ```sh
 cargo test -p body-rpc --test live -- --ignored

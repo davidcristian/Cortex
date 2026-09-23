@@ -1,14 +1,14 @@
-//! Preference-record translation for `BrainSeamClient`, the settings half of the
+//! Preference-record translation for `BrainRpcClient`, the settings half of the
 //! `body_core::BrainTransport` port.
 
 use body_core::TransportError;
 
-use crate::call::SeamCall;
+use crate::call::RpcCall;
 use crate::generated::{GetPreferencesRequest, SetPreferenceRequest};
 
 /// Reads every stored setting (`BrainService.GetPreferences`).
 pub(crate) async fn get_preferences(
-    call: SeamCall,
+    call: RpcCall,
 ) -> Result<Vec<(String, String)>, TransportError> {
     let mut client = call.client();
     let reply = client
@@ -25,7 +25,7 @@ pub(crate) async fn get_preferences(
 
 /// Writes one setting (`BrainService.SetPreference`).
 pub(crate) async fn set_preference(
-    call: SeamCall,
+    call: RpcCall,
     key: String,
     value: String,
 ) -> Result<(), TransportError> {

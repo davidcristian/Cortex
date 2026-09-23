@@ -583,7 +583,7 @@ async def test_health_tells_the_truth_about_residency_through_the_whole_wiring(
         task.cancel()
 
 
-async def test_a_boot_that_could_not_settle_the_cortex_leaves_the_seam_saying_so(
+async def test_a_boot_that_could_not_settle_the_cortex_leaves_the_rpc_saying_so(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     port = _free_loopback_port()
@@ -614,7 +614,7 @@ async def test_a_boot_that_could_not_settle_the_cortex_leaves_the_seam_saying_so
         task.cancel()
 
 
-async def test_a_cortex_that_comes_up_after_the_boot_result_turns_the_seam_green(
+async def test_a_cortex_that_comes_up_after_the_boot_result_turns_the_rpc_green(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     port = _free_loopback_port()

@@ -16,7 +16,7 @@ serves a token-protected brain. `just` reads nothing of the kind (the justfile s
 `dotenv-load`), so the same file leaves the live suite's own process without a token, and it must
 present one to get past the brain's interceptor. The operator's reasonable reading, that one file
 configures the stack, is half true, and the false half costs them a suite that cannot
-authenticate. The guard in `just seam-health` names this where they meet it, which is a signpost
+authenticate. The guard in `just rpc-health` names this where they meet it, which is a signpost
 rather than a fix.
 
 `set dotenv-load := true` is a justfile-wide setting: it would put every variable in that file into
@@ -31,13 +31,13 @@ documentation stops offering `.env` as a way to configure anything except the co
 
 ## History
 
-- 2026-08-25: opened by the pass that gave `just seam-health` a checked precondition
+- 2026-08-25: opened by the pass that gave `just rpc-health` a checked precondition
   ([ADR-0016](../../adr/ADR-0016-shared-token.md) decision 8).
 - 2026-09-11: both readers were run against a throwaway `.env` holding
   `CORTEX_SEAM_TOKEN=probe-token-441`, written into the checkout for the length of the check and
   removed after it. `docker compose --project-directory . -f docker/docker-compose.yml config`
   rendered `CORTEX_SEAM_TOKEN: probe-token-441` into the brain service's environment, and
-  `just seam-health`, run with the variable unset in the environment and that same `.env` in place,
+  `just rpc-health`, run with the variable unset in the environment and that same `.env` in place,
   stopped at its guard with "CORTEX_SEAM_TOKEN is unset". The justfile has no `set` line. No `.env`
   exists in this checkout, so the trigger has not fired here. The split is now stated in two
   places, the guard's own message and `docs/runbooks/local-dev-wsl.md`, and the runbook offers
@@ -47,7 +47,7 @@ documentation stops offering `.env` as a way to configure anything except the co
   unset, `docker compose --project-directory <scratch> -f docker/docker-compose.yml config`
   rendered `CORTEX_SEAM_TOKEN: probe-token-441` into the brain service, and rendered `""` with that
   file moved aside, so the file is what supplied it.
-  `just --justfile <scratch>/justfile --working-directory <scratch> seam-health` stopped at its
+  `just --justfile <scratch>/justfile --working-directory <scratch> rpc-health` stopped at its
   guard with "CORTEX_SEAM_TOKEN is unset". Three commits dated 2026-09-11 or later touched the
   justfile and it still has no `set` line, and the checkout has no `.env`. The split is wider than
   the live suite: `just brain-serve` runs the brain on the host with no `env_file` in any settings

@@ -24,7 +24,7 @@ from cortex_orchestrator import (
     InferenceConfig,
     MemoryConfig,
     MemoryConfigError,
-    SeamServerConfig,
+    RpcServerConfig,
     SubagentRosterEntry,
     SubagentsConfig,
     ToolsConfig,
@@ -69,8 +69,8 @@ def clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.mark.usefixtures("clean_env")
-def test_seam_defaults_are_loopback_50051() -> None:
-    config = SeamServerConfig()
+def test_rpc_defaults_are_loopback_50051() -> None:
+    config = RpcServerConfig()
     assert config.host == "127.0.0.1"
     assert config.port == 50051
     assert config.bind_address == "127.0.0.1:50051"
@@ -79,38 +79,38 @@ def test_seam_defaults_are_loopback_50051() -> None:
 
 
 @pytest.mark.usefixtures("clean_env")
-def test_seam_env_sets_the_token(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_rpc_env_sets_the_token(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("CORTEX_SEAM_TOKEN", "s3-seam-secret")
-    assert SeamServerConfig().token == "s3-seam-secret"  # noqa: S105 - test fixture value
+    assert RpcServerConfig().token == "s3-seam-secret"  # noqa: S105 - test fixture value
 
 
 @pytest.mark.usefixtures("clean_env")
-def test_seam_env_overrides_the_converse_buffer(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_rpc_env_overrides_the_converse_buffer(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("CORTEX_SEAM_CONVERSE_BUFFER", "8")
-    assert SeamServerConfig().converse_buffer == 8
+    assert RpcServerConfig().converse_buffer == 8
 
 
 @pytest.mark.usefixtures("clean_env")
-def test_seam_rejects_a_non_positive_converse_buffer(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_rpc_rejects_a_non_positive_converse_buffer(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("CORTEX_SEAM_CONVERSE_BUFFER", "0")
     with pytest.raises(ValidationError, match="converse_buffer"):
-        SeamServerConfig()
+        RpcServerConfig()
 
 
 @pytest.mark.usefixtures("clean_env")
-def test_seam_env_overrides_host_and_port(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_rpc_env_overrides_host_and_port(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("CORTEX_SEAM_HOST", "192.0.2.7")
     monkeypatch.setenv("CORTEX_SEAM_PORT", "50910")
-    config = SeamServerConfig()
+    config = RpcServerConfig()
     assert config.host == "192.0.2.7"
     assert config.port == 50910
     assert config.bind_address == "192.0.2.7:50910"
 
 
 @pytest.mark.usefixtures("clean_env")
-def test_seam_explicit_arguments_beat_the_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_rpc_explicit_arguments_beat_the_environment(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("CORTEX_SEAM_PORT", "50910")
-    config = SeamServerConfig(port=0)
+    config = RpcServerConfig(port=0)
     assert config.port == 0
 
 
@@ -320,7 +320,7 @@ def test_body_defaults_to_disabled() -> None:
         ("CORTEX_BODY_CALL_TIMEOUT_S", "-3"),
     ],
 )
-def test_a_capture_bound_outside_the_seam_fails_at_boot(
+def test_a_capture_bound_outside_the_rpc_fails_at_boot(
     monkeypatch: pytest.MonkeyPatch, name: str, value: str
 ) -> None:
     monkeypatch.setenv(name, value)
@@ -758,19 +758,19 @@ def test_subagents_roster_entry_requires_an_endpoint(
         SubagentsConfig()
 
 
-def test_seam_confirm_timeout_defaults_generous() -> None:
-    assert SeamServerConfig().confirm_timeout_s == 120.0
+def test_rpc_confirm_timeout_defaults_generous() -> None:
+    assert RpcServerConfig().confirm_timeout_s == 120.0
 
 
-def test_seam_env_overrides_the_confirm_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_rpc_env_overrides_the_confirm_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("CORTEX_SEAM_CONFIRM_TIMEOUT_S", "7.5")
-    assert SeamServerConfig().confirm_timeout_s == 7.5
+    assert RpcServerConfig().confirm_timeout_s == 7.5
 
 
-def test_seam_rejects_a_non_positive_confirm_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_rpc_rejects_a_non_positive_confirm_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("CORTEX_SEAM_CONFIRM_TIMEOUT_S", "0")
     with pytest.raises(ValidationError):
-        SeamServerConfig()
+        RpcServerConfig()
 
 
 def test_tools_gated_defaults_to_escalate_and_send_email() -> None:

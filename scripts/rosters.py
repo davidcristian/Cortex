@@ -51,7 +51,7 @@ ROSTERS: tuple[Roster, ...] = (
             "description of it a reader gets without opening the file, and it is what decides "
             "whether they run it at all"
         ),
-        members=rostermembers.live_seam_checks,
+        members=rostermembers.live_rpc_checks,
     ),
     Roster(
         label="the modules this tree runs from a shell",

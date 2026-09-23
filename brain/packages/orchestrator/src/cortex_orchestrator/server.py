@@ -18,8 +18,8 @@ from cortex_core import (
     SessionStore,
 )
 from cortex_orchestrator.abandon import AbandonedCallInterceptor
-from cortex_orchestrator.auth import SeamTokenInterceptor
-from cortex_orchestrator.config import SeamServerConfig
+from cortex_orchestrator.auth import RpcTokenInterceptor
+from cortex_orchestrator.config import RpcServerConfig
 from cortex_orchestrator.converse import (
     DEFAULT_CONFIRM_TIMEOUT_S,
     DEFAULT_MAX_BUFFERED_EVENTS,
@@ -54,14 +54,14 @@ __all__ = [
     "MAX_SESSION_LIST_LIMIT",
     "ORCHESTRATOR_VERSION",
     "BrainService",
-    "SeamPorts",
+    "RpcPorts",
     "create_server",
     "serve",
 ]
 
 
 @dataclass(frozen=True, slots=True)
-class SeamPorts:
+class RpcPorts:
     """The optional ports the server offers beyond a turn, bundled as one dependency."""
 
     schedules: ScheduleStore | None = None
@@ -70,7 +70,7 @@ class SeamPorts:
     preferences: PreferenceStore | None = None
 
 
-_NO_SEAM_PORTS = SeamPorts()
+_NO_RPC_PORTS = RpcPorts()
 
 
 class BrainService(SessionRpcMixin, PreferenceRpcMixin, BrainServiceServicer):
@@ -81,7 +81,7 @@ class BrainService(SessionRpcMixin, PreferenceRpcMixin, BrainServiceServicer):
         make_engine: EngineFactory,
         store: SessionStore,
         *,
-        ports: SeamPorts = _NO_SEAM_PORTS,
+        ports: RpcPorts = _NO_RPC_PORTS,
         max_buffered_events: int = DEFAULT_MAX_BUFFERED_EVENTS,
         confirm_timeout_s: float = DEFAULT_CONFIRM_TIMEOUT_S,
     ) -> None:
@@ -154,15 +154,15 @@ class BrainService(SessionRpcMixin, PreferenceRpcMixin, BrainServiceServicer):
 
 
 def create_server(
-    config: SeamServerConfig,
+    config: RpcServerConfig,
     make_engine: EngineFactory,
     store: SessionStore,
-    ports: SeamPorts = _NO_SEAM_PORTS,
+    ports: RpcPorts = _NO_RPC_PORTS,
 ) -> tuple[aio.Server, int]:
     """Build the aio server over `make_engine`/`store` and bind it (not started)."""
     guards: list[aio.ServerInterceptor] = []
     if config.token:
-        guards.append(SeamTokenInterceptor(config.token))
+        guards.append(RpcTokenInterceptor(config.token))
     guards.append(AbandonedCallInterceptor())
     server = aio.server(interceptors=guards)
     service = BrainService(
@@ -178,10 +178,10 @@ def create_server(
 
 
 async def serve(
-    config: SeamServerConfig,
+    config: RpcServerConfig,
     make_engine: EngineFactory,
     store: SessionStore,
-    ports: SeamPorts = _NO_SEAM_PORTS,
+    ports: RpcPorts = _NO_RPC_PORTS,
 ) -> None:
     """Run the server until SIGTERM/SIGINT or cancellation; always stop gracefully."""
     server, bound_port = create_server(config, make_engine, store, ports)

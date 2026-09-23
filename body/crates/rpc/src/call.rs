@@ -17,26 +17,26 @@ use crate::status::announced_status_to_error;
 
 /// The metadata key the shared token travels under. Declared again in `auth.rs` and in the
 /// brain's `cortex_seam`.
-const SEAM_TOKEN_HEADER: &str = "x-cortex-seam-token";
+const RPC_TOKEN_HEADER: &str = "x-cortex-seam-token";
 
 /// The service every call runs over: tonic's [`Channel`] fronted by the token interceptor,
 /// which passes calls through when no token is configured.
-pub(crate) type SeamChannel = InterceptedService<Channel, SeamTokenInterceptor>;
+pub(crate) type RpcChannel = InterceptedService<Channel, RpcTokenInterceptor>;
 
 /// Attaches the shared token to every outgoing request, and this call's announced deadline when
 /// it has one. It must not derive `Debug`, because it holds the secret.
 #[derive(Clone)]
-pub(crate) struct SeamTokenInterceptor {
+pub(crate) struct RpcTokenInterceptor {
     token: Option<MetadataValue<Ascii>>,
     announced: Option<Duration>,
 }
 
-impl Interceptor for SeamTokenInterceptor {
+impl Interceptor for RpcTokenInterceptor {
     fn call(&mut self, mut request: Request<()>) -> Result<Request<()>, Status> {
         if let Some(token) = &self.token {
             request
                 .metadata_mut()
-                .insert(SEAM_TOKEN_HEADER, token.clone());
+                .insert(RPC_TOKEN_HEADER, token.clone());
         }
         if let Some(announced) = self.announced {
             // This writes `grpc-timeout` and also starts a local clock, because the channel's
@@ -53,12 +53,12 @@ impl Interceptor for SeamTokenInterceptor {
 const MAX_ANNOUNCED_DEADLINE_MS: u64 = 99_999_999;
 
 /// One unary call in flight: the client that sends the announcement, and the announcement.
-pub(crate) struct SeamCall {
-    client: BrainServiceClient<SeamChannel>,
+pub(crate) struct RpcCall {
+    client: BrainServiceClient<RpcChannel>,
     announced: Option<Duration>,
 }
 
-impl SeamCall {
+impl RpcCall {
     /// Builds one call over `channel`, sending `token` and announcing `deadline` when the header
     /// can hold it.
     pub(crate) fn new(
@@ -70,14 +70,14 @@ impl SeamCall {
         Self {
             client: BrainServiceClient::with_interceptor(
                 channel,
-                SeamTokenInterceptor { token, announced },
+                RpcTokenInterceptor { token, announced },
             ),
             announced,
         }
     }
 
     /// The generated client for this call.
-    pub(crate) fn client(&self) -> BrainServiceClient<SeamChannel> {
+    pub(crate) fn client(&self) -> BrainServiceClient<RpcChannel> {
         self.client.clone()
     }
 

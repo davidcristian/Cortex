@@ -10,11 +10,11 @@ lives in this process beyond the in-flight turn. Configuration is env-only and i
 
 ## The service
 
-`BrainService(make_engine, store, *, ports=SeamPorts(), max_buffered_events=256,
+`BrainService(make_engine, store, *, ports=RpcPorts(), max_buffered_events=256,
 confirm_timeout_s=…)` implements `BrainServiceServicer` and holds no state; the engine factory, the
-session store and the optional `SeamPorts` are injected. `store` is the same instance the engine
+session store and the optional `RpcPorts` are injected. `store` is the same instance the engine
 writes, so the read-only session RPCs serve exactly what turns persist.
-`SeamPorts(schedules=None, memory_cascade=None, residency=None)` is what the wire serves beyond a
+`RpcPorts(schedules=None, memory_cascade=None, residency=None)` is what the wire serves beyond a
 turn, each absent when its capability is off.
 
 - `Health` answers `HealthReply(ready=True, detail="cortex-orchestrator <version>")` while the
@@ -52,9 +52,9 @@ turn, each absent when its capability is off.
   live in `preference_servicer.PreferenceRpcMixin`, `session_servicer.SessionRpcMixin`,
   `session_rpc.py` and `reminders.py`, with `stores.RedisStores` opening the session and preference
   stores from one URL and closing them as a pair, so `server.py` stays a thin binding.
-- `create_server(config, make_engine, store, ports=SeamPorts())` builds the aio server, binds
+- `create_server(config, make_engine, store, ports=RpcPorts())` builds the aio server, binds
   `config.bind_address` and returns it with the actually-bound port. With a token set it registers
-  the `SeamTokenInterceptor` (ADR-0016, `auth.py`), which aborts any RPC without matching metadata
+  the `RpcTokenInterceptor` (ADR-0016, `auth.py`), which aborts any RPC without matching metadata
   `UNAUTHENTICATED` before the servicer runs, on a constant-time compare. It always registers the
   `AbandonedCallInterceptor` second, so an unauthenticated call is refused rather than watched.
 - `AbandonedCallInterceptor()` (`abandon.py`,
@@ -65,7 +65,7 @@ turn, each absent when its capability is off.
   `None` is a caller that announced no deadline. Readings above the announcement are normal from a
   python caller, grpc-python rounding a `timeout=` up onto a coarse unit ladder. A handler with no
   unary-unary behaviour passes through untouched, which is how `Converse` stays unwatched.
-- `serve(config, make_engine, store, ports=SeamPorts())` starts the server and blocks until
+- `serve(config, make_engine, store, ports=RpcPorts())` starts the server and blocks until
   SIGTERM, SIGINT or cancellation; both signal handlers are installed on the running loop for the
   server's lifetime and trigger the same graceful stop, draining in-flight RPCs for up to 5 s.
 
@@ -74,8 +74,8 @@ turn, each absent when its capability is off.
 `converse(make_engine, client_events, *, max_buffered_events=DEFAULT_MAX_BUFFERED_EVENTS,
 confirm_timeout_s=DEFAULT_CONFIRM_TIMEOUT_S, turn_id_factory=new_turn_id, sleeper=None)` is the loop
 itself, independent of the servicer. `make_engine` is an `EngineFactory`
-(`Callable[[Confirmer, ProgressSink], TurnRunner]`): each stream builds one `SeamConfirmer` and one
-`SeamProgressSink` bound to its own output queue and runs the engine the factory returns. Closing
+(`Callable[[Confirmer, ProgressSink], TurnRunner]`): each stream builds one `RpcConfirmer` and one
+`RpcProgressSink` bound to its own output queue and runs the engine the factory returns. Closing
 the generator tears down the pump and heartbeat tasks, any in-flight turn and the queue of
 not-yet-started turns.
 One stream's machinery lives in `converse_stream.py`, which `converse.py` re-exports from.
@@ -98,14 +98,14 @@ One stream's machinery lives in `converse_stream.py`, which `converse.py` re-exp
   `SessionStoreError` to `session_store_unavailable`, `InferenceError` to `inference_failed`,
   anything else to `internal` (`ERROR_CODE_*`). Client disconnect tears the turn down as `Cancel`
   does, and any pending confirmation dies with it as a denial.
-- `SeamConfirmer(emit, *, timeout_s)` (`confirm.py`, ADR-0022) mints a `confirm_id`, emits
+- `RpcConfirmer(emit, *, timeout_s)` (`confirm.py`, ADR-0022) mints a `confirm_id`, emits
   `ServerEvent.confirm_request` on the stream's control path (`put_nowait`, so a stalled consumer
   cannot deadlock the ask) and awaits the matching `ConfirmResponse`. Timeout, client half-close
   and cancellation all deny, and unknown or repeated ids resolve nothing. The first two denials
   also emit `ServerEvent.confirm_resolved`, so the overlay can close a card it can no longer
   answer. Nothing is persisted, and `tests/confirmer_contract.py` holds the five checks every
   `Confirmer` owes, driven over this adapter and the core's `RecordingConfirmer`.
-- `SeamProgressSink(emit, credit_sem, *, to_wire)` (`progress.py`, ADR-0010 decision 15) is the
+- `RpcProgressSink(emit, credit_sem, *, to_wire)` (`progress.py`, ADR-0010 decision 15) is the
   real `ProgressSink`. Unlike the confirmer's control path, `emit` is credit-balanced and best
   effort: it takes a buffer credit only when one is free right now, else drops the event, so a
   delegating turn's many steps cannot drift the bound and a stalled consumer loses cosmetic
@@ -117,7 +117,7 @@ One stream's machinery lives in `converse_stream.py`, which `converse.py` re-exp
   given) and sends `ServerEvent.heartbeat` when a turn task is running and the output queue is
   empty, taking a buffer credit like the turn's events. So it is never dropped, never queued behind
   an unsent event, and never sent between turns. It contains the wait the stream's
-  `SeamProgressSink.current()` reports, key and sentence, or neither when the turn waits on
+  `RpcProgressSink.current()` reports, key and sentence, or neither when the turn waits on
   nothing (ADR-0069 decision 7). The body counts each one as a period of the turn's silence, and
   `crosscheck` compares this period with the body's copy.
 - **Bounded backpressure**: at most `converse_buffer` events sit unread per stream, the turn's data

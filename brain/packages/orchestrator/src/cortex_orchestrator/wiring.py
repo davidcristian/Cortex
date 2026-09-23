@@ -14,7 +14,7 @@ from cortex_orchestrator.config import (
     BrainRuntimeConfig,
     InferenceConfig,
     MemoryConfig,
-    SeamServerConfig,
+    RpcServerConfig,
 )
 from cortex_orchestrator.config_body import BodyConfig
 from cortex_orchestrator.config_reply import ReplyBoundsConfig
@@ -32,7 +32,7 @@ from cortex_orchestrator.schedule_builders import (
     start_ticker,
     stop_ticker,
 )
-from cortex_orchestrator.server import SeamPorts, serve
+from cortex_orchestrator.server import RpcPorts, serve
 from cortex_orchestrator.stores import RedisStores
 from cortex_orchestrator.subagent_builders import build_subagent_tools, build_subagents
 from cortex_orchestrator.swap_builders import (
@@ -51,7 +51,7 @@ async def run_from_env(
     preference_factory: Callable[[str], RedisPreferenceStore] = RedisPreferenceStore.from_url,
 ) -> None:
     """Compose the brain from the environment and serve until shutdown."""
-    seam_config = SeamServerConfig()
+    rpc_config = RpcServerConfig()
     runtime = BrainRuntimeConfig()
     inference = InferenceConfig()
     memory_config = MemoryConfig()
@@ -80,7 +80,7 @@ async def run_from_env(
     )
     tool_registry, close_tools = build_tool_registry(tools_config)
     dispatch = DispatchSetup(tools_config.dispatch_policy, tool_audit_from_config(tools_config))
-    body, close_body = await build_body_gateway(body_config, token=seam_config.token)
+    body, close_body = await build_body_gateway(body_config, token=rpc_config.token)
     spawn_tool, scheduler, close_subagents = await build_subagents(
         subagents_config,
         build_subagent_tools(tool_registry, clock, setup=dispatch),
@@ -133,10 +133,10 @@ async def run_from_env(
             deep=None if swap is None else DeepTier(swap, deep_builtins, scheduler),
         )
         await serve(
-            seam_config,
+            rpc_config,
             engines.for_stream,
             stores.sessions,
-            SeamPorts(
+            RpcPorts(
                 schedules=schedules,
                 memory_cascade=memory_cascade,
                 residency=None if swap is None else swap.manager,

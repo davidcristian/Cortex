@@ -1,4 +1,4 @@
-//! `Converse` translation for `BrainSeamClient`, forming the streaming half of the
+//! `Converse` translation for `BrainRpcClient`, forming the streaming half of the
 //! `body_core::BrainTransport` port.
 
 use async_stream::stream;
@@ -6,7 +6,7 @@ use body_core::{ConfirmDecision, TransportError, TurnEvent};
 use futures_core::Stream;
 use tokio_stream::StreamExt;
 
-use crate::call::SeamChannel;
+use crate::call::RpcChannel;
 use crate::generated::brain_service_client::BrainServiceClient;
 use crate::generated::{
     ClientEvent, ConfirmResponse, ServerEvent, UserTurn, client_event, server_event,
@@ -111,7 +111,7 @@ fn map_event(event: ServerEvent) -> (Result<TurnEvent, TransportError>, bool) {
 /// Runs one turn against the brain and yields typed `TurnEvent`s. See the module docs and
 /// `BrainTransport::converse` for the contract.
 pub(crate) fn converse_turn(
-    mut client: BrainServiceClient<SeamChannel>,
+    mut client: BrainServiceClient<RpcChannel>,
     session_id: String,
     text: String,
     decisions: impl Stream<Item = ConfirmDecision> + Send + 'static,

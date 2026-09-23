@@ -24,7 +24,7 @@ which would take a server TLS config and, for mutual authentication, a client ce
 the body-to-brain direction, the brain serves with `server.add_insecure_port` in
 `brain/packages/orchestrator/src/cortex_orchestrator/server.py`, and the body dials with
 `Channel::from_shared` in `body/crates/rpc/src/client.rs`, which the shell reaches through
-`BrainSeamClient::connect_lazy_with_token`.
+`BrainRpcClient::connect_lazy_with_token`.
 
 The dependency is the one thing here that is not a line of code: `body/Cargo.toml` declares
 `tonic = "0.14"` with default features, and tonic 0.14.6's defaults are `router`, `transport` and
@@ -32,7 +32,7 @@ The dependency is the one thing here that is not a line of code: `body/Cargo.tom
 features has to be enabled first.
 
 Splitting the one shared secret into a per-direction pair is separate and cheaper:
-`CORTEX_SEAM_TOKEN` is read by the brain's interceptor and by `SeamTokenValidator` for both
+`CORTEX_SEAM_TOKEN` is read by the brain's interceptor and by `RpcTokenValidator` for both
 directions, so a second variable means two readers, two settings tables and a change to the compose
 override's sentence about the token being shared.
 
@@ -44,7 +44,7 @@ to put a private certificate authority that the host firewall does not already c
 - 2026-09-10: Checked against the tree and not fired. The shell binds `CORTEX_BODY_ADDR`, defaulting
   to `127.0.0.1:50151` and documented in `docker/docker-compose.body.yml` as the setting an operator
   widens to `0.0.0.0:50151`, and the only authentication in front of that socket is
-  `SeamTokenValidator`, one shared `x-cortex-seam-token` compared in constant time and passing
+  `RpcTokenValidator`, one shared `x-cortex-seam-token` compared in constant time and passing
   everything through when the configured token is empty.
 - 2026-09-12: Checked again and unchanged, and the entry now names the places rather than the
   posture. The reading worth recording is the dependency: this tree compiles no TLS at all, so

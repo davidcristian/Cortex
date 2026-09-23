@@ -15,7 +15,7 @@ did not exist. What did not exist was any enforcement: the split was two hand-wr
 bodies plus a module comment, so a seventh method added by copying a retried one would have been
 retried with nothing reporting it, and this backlog already queued write RPCs for that port.
 
-The per-method half was built. `SeamMethod` names all six port calls and `repeatable()`
+The per-method half was built. `RpcMethod` names all six port calls and `repeatable()`
 classifies each in one exhaustive `match`, so a new variant does not compile until someone decides
 about it, and `RetryPlan::policy_for` is the single point every retry decision goes through,
 returning `None` for a method that may not be repeated. The decorator runs a `None` on

@@ -1,13 +1,13 @@
-//! Reminder pull-delivery translation for `BrainSeamClient`, the ADR-0025 half of the
+//! Reminder pull-delivery translation for `BrainRpcClient`, the ADR-0025 half of the
 //! `body_core::BrainTransport` port.
 
 use body_core::{DueReminder, TransportError};
 
-use crate::call::SeamCall;
+use crate::call::RpcCall;
 use crate::generated::{AckReminderRequest, ListDueRemindersRequest};
 
 /// Lists fired-but-undelivered reminders across every session (`BrainService.ListDueReminders`).
-pub(crate) async fn list_due_reminders(call: SeamCall) -> Result<Vec<DueReminder>, TransportError> {
+pub(crate) async fn list_due_reminders(call: RpcCall) -> Result<Vec<DueReminder>, TransportError> {
     let mut client = call.client();
     let reply = client
         .list_due_reminders(ListDueRemindersRequest {})
@@ -30,7 +30,7 @@ pub(crate) async fn list_due_reminders(call: SeamCall) -> Result<Vec<DueReminder
 
 /// Marks one fire delivered (`BrainService.AckReminder`).
 pub(crate) async fn ack_reminder(
-    call: SeamCall,
+    call: RpcCall,
     reminder_id: String,
     fired_at_unix_ms: i64,
 ) -> Result<bool, TransportError> {

@@ -7,7 +7,7 @@ from typing import TypeVar
 import grpc
 from grpc import aio
 
-from cortex_seam import SEAM_TOKEN_HEADER
+from cortex_seam import RPC_TOKEN_HEADER
 
 # Deliberately does not say whether the token was absent or wrong.
 _DENIED_DETAIL = "invalid or missing token"
@@ -53,7 +53,7 @@ def _rejection_like[TRequest, TResponse](
     )
 
 
-class SeamTokenInterceptor(aio.ServerInterceptor):
+class RpcTokenInterceptor(aio.ServerInterceptor):
     """Rejects any call that does not bear the shared secret (fail closed)."""
 
     def __init__(self, token: str) -> None:
@@ -76,7 +76,7 @@ class SeamTokenInterceptor(aio.ServerInterceptor):
     def _authorized(self, details: grpc.HandlerCallDetails) -> bool:
         """Whether the call's metadata has the token; the comparison is constant-time."""
         for key, value in details.invocation_metadata or ():
-            if key == SEAM_TOKEN_HEADER:
+            if key == RPC_TOKEN_HEADER:
                 presented = value.encode() if isinstance(value, str) else bytes(value)
                 return secrets.compare_digest(presented, self._token)
         return False

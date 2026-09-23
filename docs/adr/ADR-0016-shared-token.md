@@ -21,14 +21,14 @@ about local processes.
    default) disables the check, so the dev loop, CI, and existing deployments run unchanged, and
    loopback-only remains the outer boundary.
 2. **The brain enforces it in a server interceptor** (`cortex_orchestrator.auth`,
-   `SeamTokenInterceptor`, registered by `create_server` only when the token is set). Every RPC,
+   `RpcTokenInterceptor`, registered by `create_server` only when the token is set). Every RPC,
    present and future, so no per-method discipline is needed, must present the token as
    `x-cortex-seam-token` metadata or is aborted `UNAUTHENTICATED` before any servicer code runs,
    through a rejection handler matching the method's own streaming form. The comparison is
    constant-time (`secrets.compare_digest`), and the denial is identical for an absent token and a
    wrong one.
-3. **The body attaches it in a tonic client interceptor** (`SeamTokenInterceptor` in
-   `body/crates/rpc/src/call.rs`, reached through `BrainSeamClient::connect_with_token`; plain
+3. **The body attaches it in a tonic client interceptor** (`RpcTokenInterceptor` in
+   `body/crates/rpc/src/call.rs`, reached through `BrainRpcClient::connect_with_token`; plain
    `connect` sends none). The interceptor holds the parsed metadata value and deliberately does not
    derive `Debug`. Since tonic prints interceptors by type name, the secret cannot reach a log
    through `{:?}`. It is built per call rather than per client because it also holds the call's
@@ -39,7 +39,7 @@ about local processes.
 5. **No mTLS, no per-RPC authorization, by design.** Single user, loopback plaintext; the token
    authenticates "a process the user configured", nothing finer. Revisit (with the roadmap's
    assumption unchanged) only if anything ever listens beyond loopback.
-6. **The header name is checked to be the same everywhere it is written.** `SEAM_TOKEN_HEADER` is
+6. **The header name is checked to be the same everywhere it is written.** `RPC_TOKEN_HEADER` is
    declared by hand three times, in `body/crates/rpc/src/auth.rs`, `body/crates/rpc/src/call.rs`
    and `brain/packages/seam` (`cortex_seam`), and the compose healthcheck writes it a fourth time
    inside a one-line Python command. `scripts/crosscheck.py` compares all four as one entry of its
@@ -48,9 +48,9 @@ about local processes.
 7. **One token covers both directions.** The brain-to-body direction
    ([ADR-0023](ADR-0023-body-gateway-volume.md)) authenticates with the same `CORTEX_SEAM_TOKEN`,
    as `docker/docker-compose.body.yml` states. The brain reads it once, as
-   `SeamServerConfig.token`, and its wiring hands that value both to its own interceptor and to the
+   `RpcServerConfig.token`, and its wiring hands that value both to its own interceptor and to the
    outbound body gateway. In the body's shell, `converse.rs` and `brain.rs` attach it outbound and
-   `body_server.rs` checks it inbound through `SeamTokenValidator`
+   `body_server.rs` checks it inbound through `RpcTokenValidator`
    (`body/crates/rpc/src/auth.rs`). The validator is always attached and passes every call when the
    token is empty, the single-type equivalent of the brain registering its interceptor only when
    set; its comparison is constant-time and it does not derive `Debug`. Two clients and two servers
@@ -59,7 +59,7 @@ about local processes.
    token is refused at once, and a brain serving without a token accepts every token, including the
    deliberately wrong one, so against a token-free brain that check fails. It fails with that as
    its message rather than skipping, because a live check that opts out silently reports success
-   without having tested anything. `just seam-health` exits when `CORTEX_SEAM_TOKEN` is unset,
+   without having tested anything. `just rpc-health` exits when `CORTEX_SEAM_TOKEN` is unset,
    before it runs a build, and prints both ways forward: serve with a token and present the same
    value, or run the rest of the suite by hand with that one check skipped and say so in what is
    reported. The recipe comment states the same precondition. A failure meaning "configured wrong"
@@ -91,7 +91,7 @@ about local processes.
 - **The token travels over plaintext HTTP/2 on loopback.** Acceptable per the posture above; mTLS
   is the recorded next step if the connection ever leaves loopback.
 - **A token written in `.env` reaches compose, which reads that file, and never reaches `just`,
-  which does not**, so `just up` serves with a token that is absent from `just seam-health`'s
+  which does not**, so `just up` serves with a token that is absent from `just rpc-health`'s
   environment. The guard's message says so. Making the justfile load the same file changes every
   recipe rather than this one
   ([R-441](../refinements/tasks/441-a-token-in-dotenv-reaches-compose-and-not-just.md)).
@@ -120,7 +120,7 @@ about local processes.
 
 - Code: `brain/packages/orchestrator/src/cortex_orchestrator/auth.py`, `server.py`,
   `body/crates/rpc/src/auth.rs`, `call.rs`, `client.rs`, `body/crates/rpc/tests/live.rs`, the
-  `seam-health` recipe in `justfile`, `scripts/wirecouplings.py`.
+  `rpc-health` recipe in `justfile`, `scripts/wirecouplings.py`.
 - Module docs: [body-rpc](../modules/body-rpc.md),
   [brain-orchestrator](../modules/brain-orchestrator.md).
 - Runbook: [local-dev-wsl](../runbooks/local-dev-wsl.md).

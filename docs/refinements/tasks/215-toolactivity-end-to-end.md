@@ -38,5 +38,5 @@ What this left behind is the wire `phase` field, which has its own task file.
   the spawn `dispatch`, and `SpawnSubagentsTool` really is built once and shared by every stream.
   The fix passes the channel per call, a `ProgressSink` port on the dispatch `TurnStamp` beside
   `budget`, so the shared tool reads the stream's sink per call and leaks no per-stream state. The
-  real `SeamProgressSink` is credit-balanced rather than over-crediting like the confirmer's control
+  real `RpcProgressSink` is credit-balanced rather than over-crediting like the confirmer's control
   path, since a delegating turn emits many steps.

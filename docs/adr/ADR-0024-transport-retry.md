@@ -4,7 +4,7 @@
 
 ## Context
 
-The body's `BrainSeamClient` (the tonic adapter behind the `body_core::BrainTransport` port) is a
+The body's `BrainRpcClient` (the tonic adapter behind the `body_core::BrainTransport` port) is a
 thin translation with no retries. The brain is a supervised local process: it restarts after a
 model swap, or drops a loopback connection for a moment, and is back within seconds. A read from
 the overlay therefore failed outright where a retry a moment later would have succeeded. A brain
@@ -14,7 +14,7 @@ later probe, and a turn whose stream stops leaves the thinking indicator visible
 the process runs.
 
 Three rules from AGENTS.md shape the design. The adapter stays thin, so retry policy cannot live
-in `BrainSeamClient`. The core is pure, so a backoff sleep or a deadline is an injected effect.
+in `BrainRpcClient`. The core is pure, so a backoff sleep or a deadline is an injected effect.
 The whole loop is covered 100% without a network or a wall clock.
 
 ## Decision
@@ -23,7 +23,7 @@ The whole loop is covered 100% without a network or a wall clock.
 
 1. **Retry is a decorator over the port.** `RetryingTransport<T: BrainTransport, S: Sleeper>`
    (`body_core::retry`) is itself a `BrainTransport` wrapping an inner transport, so it is tested
-   in full against a fake. `BrainSeamClient` stays thin and the recovery logic sits on top of it.
+   in full against a fake. `BrainRpcClient` stays thin and the recovery logic sits on top of it.
 
 2. **Only a repeatable call is retried, and `converse` never is.** A turn may run tools, stream
    partial output and store messages before it fails, and its `decisions` stream can be consumed
@@ -72,7 +72,7 @@ The whole loop is covered 100% without a network or a wall clock.
 
 ### Repeatability and the plan
 
-8. **Repeatability is a property of the method, decided for every method.** `SeamMethod` names
+8. **Repeatability is a property of the method, decided for every method.** `RpcMethod` names
    every port call and `repeatable()` classifies each in one `match`, so a new variant does not
    compile until someone decides. A repeat must neither duplicate an effect nor change the result,
    which are two separate tests: `AckReminder` is idempotent on the brain side, but an ack whose
@@ -137,7 +137,7 @@ The whole loop is covered 100% without a network or a wall clock.
     ([abandoned-call measurements](../readings/abandoned-call-remaining.md)). The loopback round
     trip and header parse cost about a millisecond, and tonic's truncating encoder loses nothing on
     the two shipped announcements, which reach a grpc-python brain as exactly 500 ms and 5250 ms.
-    The brain works at most the margin past the moment the body stopped waiting. `SeamCall`
+    The brain works at most the margin past the moment the body stopped waiting. `RpcCall`
     (`body/crates/rpc/src/call.rs`) holds the channel, the token (redacted in a hand-written
     `Debug`) and the plan, and builds the generated client per call so the interceptor sets each
     call's header. A `DEADLINE_EXCEEDED` from the brain maps to `Timeout { after }` when the call
@@ -224,7 +224,7 @@ The whole loop is covered 100% without a network or a wall clock.
   before the error is reported. A brain returning `Unavailable` for a lasting condition is retried.
 - No call on this interface is unbounded; a read slower than 5 s now fails with a typed error. A
   turn silent past its gap ends and settles the indicator.
-- The check is only as strong as the enum: a new port method forces a `SeamMethod`, a wrong
+- The check is only as strong as the enum: a new port method forces a `RpcMethod`, a wrong
   existing variant is a misstatement rather than an accident, and `EVERY_METHOD` lists all eleven.
 - `RetryingTransport::new` and `with_randomness` take `impl Into<RetryPlan>`. `body_core` depends
   on `async-stream`, a generator macro over `futures-core`, and uses no runtime and no I/O.

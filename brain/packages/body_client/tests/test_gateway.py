@@ -15,7 +15,7 @@ from cortex_body_client import (
 )
 from cortex_core import MAX_IMAGE_BYTES, BodyFailure, BodyGatewayError, CaptureTarget
 from cortex_seam import (
-    SEAM_TOKEN_HEADER,
+    RPC_TOKEN_HEADER,
     BodyServiceServicer,
     CaptureScreenReply,
     CaptureScreenRequest,
@@ -70,7 +70,7 @@ class FakeBody(BodyServiceServicer):
         if self._require_token is None:
             return
         for key, value in context.invocation_metadata() or ():
-            if key == SEAM_TOKEN_HEADER and value == self._require_token:
+            if key == RPC_TOKEN_HEADER and value == self._require_token:
                 return
         await context.abort(grpc.StatusCode.UNAUTHENTICATED, "invalid or missing token")
 

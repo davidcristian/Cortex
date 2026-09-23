@@ -27,8 +27,8 @@ from cortex_core import (
 from cortex_core.sessions import HistoryRecap
 from cortex_orchestrator import (
     DEFAULT_SESSION_LIST_LIMIT,
-    SeamPorts,
-    SeamServerConfig,
+    RpcPorts,
+    RpcServerConfig,
     create_server,
 )
 from cortex_seam import (
@@ -92,10 +92,10 @@ async def _serve(
     """A BrainService over `store` (and an optional delete cascade) on a loopback port."""
     engine = TurnEngine(store, EchoInferenceBackend(), SystemClock())
     server, port = create_server(
-        SeamServerConfig(host="127.0.0.1", port=0),
+        RpcServerConfig(host="127.0.0.1", port=0),
         lambda _confirmer, _progress: engine,
         store,
-        SeamPorts(memory_cascade=cascade),
+        RpcPorts(memory_cascade=cascade),
     )
     await server.start()
     return server, f"127.0.0.1:{port}"

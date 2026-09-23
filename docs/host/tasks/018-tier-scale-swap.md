@@ -18,7 +18,7 @@ confirm card is **approved**. That card is not a brain-side prompt: the brain em
 `ConfirmRequest` on the Converse stream and waits `CORTEX_SEAM_CONFIRM_TIMEOUT_S` (120 s) for the
 client's `ConfirmResponse`, and an unanswered one is denied fail-closed, so nothing swaps. The only
 shipped client that answers a `ConfirmRequest` is the overlay (`body/crates/rpc/src/converse.rs`,
-`body/app/src/bridge/tauriBridge.ts`); the repo's own headless Converse driver, `just seam-health`,
+`body/app/src/bridge/tauriBridge.ts`); the repo's own headless Converse driver, `just rpc-health`,
 opens a stream, reads it, and answers no confirm. So the trigger and the amber dot are the
 overlay's, and the arithmetic is the card's. Nothing about this makes it a Windows item: no overlay
 can evict 11.3 GB and load 18 GB. If the Windows desktop and the 24 GB card are the same laptop,

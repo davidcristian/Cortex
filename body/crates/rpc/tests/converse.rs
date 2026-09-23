@@ -1,4 +1,4 @@
-//! Contract tests for `BrainSeamClient::converse`: a scripted in-process fake serves the generated
+//! Contract tests for `BrainRpcClient::converse`: a scripted in-process fake serves the generated
 //! `BrainService.Converse` on loopback (CI-safe port 0) and the adapter's `ServerEvent`→`TurnEvent`
 //! mapping is asserted end to end.
 
@@ -6,7 +6,7 @@ use std::net::SocketAddr;
 use std::pin::Pin;
 
 use body_core::{BrainTransport, ConfirmDecision, TransportError, TurnEvent};
-use body_rpc::BrainSeamClient;
+use body_rpc::BrainRpcClient;
 use body_rpc::generated::brain_service_server::{BrainService, BrainServiceServer};
 use body_rpc::generated::{
     AckReminderReply, AckReminderRequest, ClientEvent, ConfirmRequest, ConfirmResolved,
@@ -338,7 +338,7 @@ async fn run_turn(
     decisions: impl Stream<Item = ConfirmDecision> + Send + 'static,
 ) -> Result<Vec<Result<TurnEvent, TransportError>>, Box<dyn std::error::Error>> {
     let addr = spawn_fake_brain(script).await?;
-    let client = BrainSeamClient::connect(&format!("http://{addr}")).await?;
+    let client = BrainRpcClient::connect(&format!("http://{addr}")).await?;
     let stream = client.converse(session_id, text, decisions);
     tokio::pin!(stream);
     let mut out = Vec::new();
@@ -353,7 +353,7 @@ async fn run_turn(
 /// being scripted in advance.
 async fn run_confirm_turn(approved: bool) -> Result<Vec<TurnEvent>, Box<dyn std::error::Error>> {
     let addr = spawn_fake_brain(Script::Confirm { approved }).await?;
-    let client = BrainSeamClient::connect(&format!("http://{addr}")).await?;
+    let client = BrainRpcClient::connect(&format!("http://{addr}")).await?;
     let (sender, receiver) = tokio::sync::mpsc::unbounded_channel();
     let decisions = tokio_stream::wrappers::UnboundedReceiverStream::new(receiver);
     let stream = client.converse("sess-c", "send it", decisions);

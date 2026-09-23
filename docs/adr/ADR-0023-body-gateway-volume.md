@@ -91,13 +91,13 @@ remote path.
 
 ### 5. The token, reversed (mirrors ADR-0016)
 
-The body validates with a tonic server interceptor, `SeamTokenValidator` in `body_rpc::auth`: it
+The body validates with a tonic server interceptor, `RpcTokenValidator` in `body_rpc::auth`: it
 reads `x-cortex-seam-token`, compares in constant time with a dependency-free fixed-time byte
 compare, and rejects `UNAUTHENTICATED` before any method runs. It is always attached and passes
 everything through when the configured token is empty, which in Rust is simpler than a conditional
 service type, and it deliberately does not derive `Debug`. The brain attaches the token in
 `GrpcBodyGateway`, reusing the one `CORTEX_SEAM_TOKEN`. The header name lives in `cortex_seam` as
-`SEAM_TOKEN_HEADER`, re-exported from `cortex_orchestrator.auth`; `body_client` imports it from the
+`RPC_TOKEN_HEADER`, re-exported from `cortex_orchestrator.auth`; `body_client` imports it from the
 `cortex_seam` facade, never from the orchestrator. The Rust side keeps its own `const`.
 
 ### 6. Connectivity: the brain connects to the body (resolves Q3)
@@ -207,7 +207,7 @@ producer (a host change event such as `IAudioEndpointVolumeCallback`).
 
 - **Covered by `just check`:** the port, its errors and fake, the built-ins, `GrpcBodyGateway` over
   a loopback fake, the composition root wiring, `AudioControl` and its clamp, `OsService`,
-  `SeamTokenValidator`, the status mappers, and the Linux and macOS stubs.
+  `RpcTokenValidator`, the status mappers, and the Linux and macOS stubs.
 - **Validated in Docker (2026-07-08):** a containerized `GrpcBodyGateway` reached a host-side
   `BodyService` over `host.docker.internal` with the token, and got `UNAUTHENTICATED` without it.
 - **Host-only:** the real `WindowsAudioControl`, the shell's bind and serve, and "set volume to

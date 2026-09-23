@@ -11,7 +11,7 @@ use async_stream::stream;
 use futures_core::Stream;
 
 use crate::retry::effects::Sleeper;
-use crate::retry::plan::{RetryPlan, SeamMethod};
+use crate::retry::plan::{RetryPlan, RpcMethod};
 use crate::transport::{TransportError, TurnEvent};
 
 /// How long a turn may be silent before its first event, in milliseconds.
@@ -74,19 +74,19 @@ impl Default for TurnGaps {
 impl RetryPlan {
     /// The silences `method`'s stream runs under, or `None` when the method is not a stream.
     #[must_use]
-    pub fn gaps_for(&self, method: SeamMethod) -> Option<TurnGaps> {
+    pub fn gaps_for(&self, method: RpcMethod) -> Option<TurnGaps> {
         match method {
-            SeamMethod::Converse => Some(self.turn_gaps),
-            SeamMethod::Health
-            | SeamMethod::ListSessions
-            | SeamMethod::SessionMessages
-            | SeamMethod::ListDueReminders
-            | SeamMethod::AckReminder
-            | SeamMethod::RenameSession
-            | SeamMethod::DeleteSession
-            | SeamMethod::SetSessionHoisted
-            | SeamMethod::GetPreferences
-            | SeamMethod::SetPreference => None,
+            RpcMethod::Converse => Some(self.turn_gaps),
+            RpcMethod::Health
+            | RpcMethod::ListSessions
+            | RpcMethod::SessionMessages
+            | RpcMethod::ListDueReminders
+            | RpcMethod::AckReminder
+            | RpcMethod::RenameSession
+            | RpcMethod::DeleteSession
+            | RpcMethod::SetSessionHoisted
+            | RpcMethod::GetPreferences
+            | RpcMethod::SetPreference => None,
         }
     }
 }

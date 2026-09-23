@@ -2,7 +2,7 @@ import asyncio
 from datetime import UTC, datetime
 
 from cortex_core import ConfirmationRequest
-from cortex_orchestrator import SeamConfirmer
+from cortex_orchestrator import RpcConfirmer
 from cortex_orchestrator.confirm import OUTCOME_TIMEOUT, OUTCOME_UNAVAILABLE
 from cortex_seam import ServerEvent
 
@@ -13,9 +13,9 @@ _REQUEST = ConfirmationRequest(
 )
 
 
-def _collecting_confirmer(timeout_s: float = 5.0) -> tuple[SeamConfirmer, list[ServerEvent]]:
+def _collecting_confirmer(timeout_s: float = 5.0) -> tuple[RpcConfirmer, list[ServerEvent]]:
     emitted: list[ServerEvent] = []
-    return SeamConfirmer(emitted.append, timeout_s=timeout_s), emitted
+    return RpcConfirmer(emitted.append, timeout_s=timeout_s), emitted
 
 
 def _resolutions(emitted: list[ServerEvent]) -> list[tuple[str, str]]:

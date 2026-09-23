@@ -6,7 +6,7 @@ import pytest
 from progress_contract import ALL_CHECKS, Check, SinkUnderTest
 
 from cortex_core import RecordingProgressSink, StatusUpdate
-from cortex_orchestrator import SeamProgressSink
+from cortex_orchestrator import RpcProgressSink
 from cortex_orchestrator.converse_stream import to_server_event
 
 if TYPE_CHECKING:
@@ -26,9 +26,9 @@ def _recording() -> SinkUnderTest:
     )
 
 
-def _seam() -> SinkUnderTest:
+def _rpc() -> SinkUnderTest:
     emitted: list[ServerEvent] = []
-    sink = SeamProgressSink(emitted.append, asyncio.Semaphore(16), to_wire=to_server_event)
+    sink = RpcProgressSink(emitted.append, asyncio.Semaphore(16), to_wire=to_server_event)
     return SinkUnderTest(
         sink=sink,
         sent=lambda: [
@@ -41,6 +41,6 @@ def _seam() -> SinkUnderTest:
 
 
 @pytest.mark.parametrize("check", ALL_CHECKS, ids=lambda check: check.__name__)
-@pytest.mark.parametrize("build", [_recording, _seam], ids=["recording", "seam"])
+@pytest.mark.parametrize("build", [_recording, _rpc], ids=["recording", "rpc"])
 async def test_the_contract_holds(check: Check, build: Build) -> None:
     await check(build())

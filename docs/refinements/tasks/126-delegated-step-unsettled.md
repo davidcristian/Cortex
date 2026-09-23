@@ -15,7 +15,7 @@ dispatcher, with the delegate calling one tool that succeeded and one that faile
 had three `tool_activity` events and one `tool_outcome`, the failing delegated step announced
 exactly like the succeeding one.
 
-Three things the entry had wrong. The cost is two lines rather than three: `SeamProgressSink` is
+Three things the entry had wrong. The cost is two lines rather than three: `RpcProgressSink` is
 built with `to_wire=to_server_event`, and that mapper already handles a `ToolOutcome`, so only the
 `ProgressEvent` alias and one `elif` in `subagent_attempt.py` are in the way. The consumer test is
 stronger than "no surface renders it yet": the only reader of a `ToolOutcome` anywhere is the
@@ -23,7 +23,7 @@ overlay reducer, which returns the state untouched unless the name is `capture_s
 true, and `capture_screen` is a built-in that `build_builtin_tools` feeds to `build_cortex_tools`
 alone, while a subagent's dispatcher comes from `build_subagent_tools` over the MCP registry, so a
 delegated outcome could never have the one name the one reader reads. And the change could not
-deliver the pairing anyway: `SeamProgressSink.emit` returns without queuing when
+deliver the pairing anyway: `RpcProgressSink.emit` returns without queuing when
 `self._credits.locked()`, while the turn's own events block on
 `await self._credits.acquire()`, so a delegated outcome can be dropped while its activity got
 through.

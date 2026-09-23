@@ -7,7 +7,7 @@ import { LinkDot } from "./LinkDot";
 const view = (over: Partial<LinkView> = {}): LinkView => ({ ...INITIAL_LINK, ...over });
 
 describe("LinkDot", () => {
-  it("carries the colour of what the seam last proved", () => {
+  it("carries the colour of what the link last proved", () => {
     const cases: [LinkView, string][] = [
       [view({ state: "ready" }), "ok"],
       [view({ state: "degraded" }), "warn"],

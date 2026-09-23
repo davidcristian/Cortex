@@ -2,7 +2,7 @@
 
 **Purpose.** The body's gRPC adapter for both directions of the contract in
 [proto/body.proto](../../proto/body.proto), the single source of truth: the committed tonic and
-prost stubs for `cortex.seam.v1`, `BrainSeamClient` (the tonic implementation of the
+prost stubs for `cortex.seam.v1`, `BrainRpcClient` (the tonic implementation of the
 `body_core::BrainTransport` port, body to brain), and `body_service` (the `BodyService` server over
 the `AudioControl`, `Notify` and `ScreenCapture` ports, brain to body, ADR-0023 and ADR-0025). It
 translates types and errors and holds no business logic, and it performs **no retries**: bounded
@@ -21,26 +21,26 @@ strictly longer than what the core enforces and the retryable clock never fires 
 
 ## The client
 
-`BrainSeamClient` holds the channel, the token and optionally the `RetryPlan` it announces from.
+`BrainRpcClient` holds the channel, the token and optionally the `RetryPlan` it announces from.
 `Clone` lets clones share the channel. `Debug` is hand-written and prints the token's *presence* as
 `<redacted>`, and `tests/client.rs` asserts that a configured token cannot reach a `{:?}`. The
-generated client is built **per call** (`SeamCall`, `src/call.rs`), which is the only way a per-call
+generated client is built **per call** (`RpcCall`, `src/call.rs`), which is the only way a per-call
 value reaches an interceptor that is otherwise built once per connection.
 
-- `BrainSeamClient::connect(addr: &str) -> Result<Self, TransportError>` (async) dials, for example,
+- `BrainRpcClient::connect(addr: &str) -> Result<Self, TransportError>` (async) dials, for example,
   `http://127.0.0.1:50051` and sends no token; an invalid URI or unreachable endpoint maps to
   `TransportError::Connection`.
-- `BrainSeamClient::connect_with_token(addr, token: Option<&str>)` (async, ADR-0016) is the same but
+- `BrainRpcClient::connect_with_token(addr, token: Option<&str>)` (async, ADR-0016) is the same but
   attaches `token` as `x-cortex-seam-token` metadata on **every** call when `Some`, which is what a
   `CORTEX_SEAM_TOKEN`-protected brain requires. A token that is not valid ASCII metadata maps to
   `TransportError::Connection` before any dial; a wrong or missing one arrives as
   `TransportError::Rpc { code: "Unauthenticated", .. }`.
-- `BrainSeamClient::connect_lazy_with_token(addr, token)` (**sync**, ADR-0024) is the same over a
+- `BrainRpcClient::connect_lazy_with_token(addr, token)` (**sync**, ADR-0024) is the same over a
   *lazy* channel (`Channel::connect_lazy`): construction never dials, so it fails only on a bad URI
   or a non-ASCII token, and each RPC establishes the connection on demand. This is the channel
   `RetryingTransport` retries over: a call against a briefly down brain fails `Connection`, the
   decorator backs off, and tonic reconnects.
-- `BrainSeamClient::announcing(plan: RetryPlan) -> Self` turns on the `grpc-timeout` header: every
+- `BrainRpcClient::announcing(plan: RetryPlan) -> Self` turns on the `grpc-timeout` header: every
   unary call then announces `plan.announced_deadline_for(method)`, which is that method's enforced
   deadline plus `ANNOUNCED_DEADLINE_GRACE_MS` (250 ms). `Converse` announces nothing, the plan
   giving a turn no deadline, and a client nobody called this on announces nothing at all. `plan`
@@ -55,7 +55,7 @@ value reaches an interceptor that is otherwise built once per connection.
 
 `impl BrainTransport` maps each method onto its RPC:
 
-- `health()` calls `BrainService.Health`; an Ok reply maps to `SeamHealth { ready, detail }`. A
+- `health()` calls `BrainService.Health`; an Ok reply maps to `RpcHealth { ready, detail }`. A
   non-OK status splits by origin: one tonic *synthesized* from a client-local transport failure,
   detected by a `tonic::transport::Error` on the status's `source()` chain, maps to
   `TransportError::Connection`, and one the brain really sent maps to
@@ -70,7 +70,7 @@ value reaches an interceptor that is otherwise built once per connection.
   `async-stream` and the request chain with `tokio-stream`.
 - `list_sessions(limit)` and `session_messages(session_id)` (ADR-0021, `src/sessions.rs`) are unary
   calls mapping each reply row to a core `SessionSummary` (its `hoisted` flag included) or
-  `SessionMessage`. A non-OK status maps through the `SeamCall` the client hands in, so it becomes
+  `SessionMessage`. A non-OK status maps through the `RpcCall` the client hands in, so it becomes
   `Rpc`, `Connection` or `Timeout`.
 - `rename_session(session_id, title)`, `delete_session(session_id)` and
   `set_session_hoisted(session_id, hoisted)` (ADR-0021 decisions 10 to 12, same module) are unary
@@ -140,7 +140,7 @@ direction: it builds the `BodyService` server over an `AudioControl`, a `Notify`
   the closure, so nothing COM-shaped crosses a thread. A backend that panics arrives as a join
   failure and answers `Internal`, letting the panic escape having cost the brain the whole
   connection.
-- `SeamTokenValidator` (`src/auth.rs`) is a tonic server `Interceptor`, the mirror of the client one
+- `RpcTokenValidator` (`src/auth.rs`) is a tonic server `Interceptor`, the mirror of the client one
   (ADR-0016). It rejects any call without a matching `x-cortex-seam-token` with `UNAUTHENTICATED`
   before any handler runs, on a constant-time compare. It is **always attached** but is a
   **pass-through when the configured token is empty**. It is deliberately not `Debug`: it holds the
@@ -163,7 +163,7 @@ cd body && CORTEX_REGEN_PROTO=1 cargo build -p body-rpc
 `src/_generated/cortex.seam.v1.rs`. The output is deterministic for a fixed toolchain, so
 regenerating with an unchanged proto must leave `git diff` empty.
 
-**Live checks** are the `#[ignore]`d tests in `tests/live.rs`, run by `just seam-health`. The list
+**Live checks** are the `#[ignore]`d tests in `tests/live.rs`, run by `just rpc-health`. The list
 below names every one of them and nothing else, which `scripts/rostercheck.py` enforces (ADR-0044
 decision 7). No count is given, because a tally beside a list goes stale first. Each bullet says
 what its check needs, and not all of them need a brain:
@@ -175,12 +175,12 @@ cargo test -p body-rpc --test live -- --ignored
 They read `CORTEX_BRAIN_ADDR` (default `http://127.0.0.1:50051`, which matches the brain server's
 `CORTEX_SEAM_HOST` and `CORTEX_SEAM_PORT` defaults `127.0.0.1`/`50051`) and `CORTEX_SEAM_TOKEN`,
 which is **a precondition rather than an option**: one check proves a wrong token is refused, and a
-brain serving without one accepts every token, so `just seam-health` refuses to start without the
+brain serving without one accepts every token, so `just rpc-health` refuses to start without the
 variable (ADR-0016 decision 8).
 
-- `brain_reports_ready_over_the_live_seam` calls `Health` through `BrainSeamClient` and asserts
+- `brain_reports_ready_over_the_live_rpc` calls `Health` through `BrainRpcClient` and asserts
   `ready`.
-- `converse_round_trips_one_turn_over_the_live_seam` drives the raw generated `BrainServiceClient`,
+- `converse_round_trips_one_turn_over_the_live_rpc` drives the raw generated `BrainServiceClient`,
   sends one `ClientEvent{session_id, user_turn}` with a session id unique per run, collects
   `TextDelta`s until `TurnComplete`, and asserts that at least one delta arrived and that
   `TurnComplete` has a non-empty `turn_id`.
@@ -189,13 +189,13 @@ variable (ADR-0016 decision 8).
   non-empty detail, and a peer that accepts the dial and drops it must classify `Down` with the dial
   failure rather than raising. The peer is the suite's own listener rather than a closed port, this
   client having no deadline and a closed port not being refused everywhere.
-- `session_reads_round_trip_over_the_live_seam` (ADR-0021) seeds one turn over the raw `Converse`,
+- `session_reads_round_trip_over_the_live_rpc` (ADR-0021) seeds one turn over the raw `Converse`,
   then reads it back over the typed `BrainTransport`: `list_sessions(50)` must return the chat with
   its derived title and a real timestamp, and `session_messages` both messages in order. It needs
   only the brain and Redis, no GPU.
 - `the_ack_write_is_answered_once_against_the_live_brain` (ADR-0025) shows the refusal to retry on
   the wire: `ack_reminder` of an unknown id answers `false` and costs one round trip.
-- `a_rejected_seam_token_is_answered_at_once_and_never_retried` (ADR-0016) dials with a deliberately
+- `a_rejected_rpc_token_is_answered_at_once_and_never_retried` (ADR-0016) dials with a deliberately
   wrong token: the answer must be `Degraded`, the detail must open `Unauthenticated`, and it must
   arrive with no wait spent. It needs a brain serving with a token.
 - `the_probe_budget_bounds_a_down_result_against_a_dead_address` (ADR-0024) probes
@@ -230,7 +230,7 @@ Being ignored, they never run in CI and never count toward coverage.
   non-terminal and an empty decisions stream half-closing, and the reminder pull (ADR-0025). The
   `body_service` server is covered the same way, through a real loopback server over a fake
   `AudioControl` and a fake `Notify`: the volume paths, both `audio_error_to_status` cases, the
-  `Unimplemented` handlers, the `SeamTokenValidator` pass-through and its accept and reject cases, a
+  `Unimplemented` handlers, the `RpcTokenValidator` pass-through and its accept and reject cases, a
   shown toast whose recorded `Notification` proves the wire text reached the backend already inert
   and badged, a declined one answering `shown=false`, and three `off_worker` cases, where both fakes
   record **which thread** each call ran on (a backend reporting a thread other than the

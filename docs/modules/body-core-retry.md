@@ -29,7 +29,7 @@ and no wall clock. The port itself, and everything else in this crate, is in
   a retry and never sufficient, since a status says the brain could not serve the call, never that
   it did not already run it. Widening that one-entry set is safe one code at a time, because
   `policy_for` has already excluded every call with an effect (decision 3).
-- `SeamMethod` (`retry::plan`) names every `BrainTransport` method, and `repeatable()` is the safety
+- `RpcMethod` (`retry::plan`) names every `BrainTransport` method, and `repeatable()` is the safety
   property retry rests on: **repeating the call is observably the same as making it once**. It is
   true for the reads and false for `Converse`, for `AckReminder`, whose *effect* is idempotent
   brain-side but whose *answer* is not, and for the three catalog writes. `AckReminder` shows that
@@ -94,7 +94,7 @@ and no wall clock. The port itself, and everything else in this crate, is in
   compose around a non-transport future, which the shell's eager dial uses.
 - `RetryingTransport<T: BrainTransport, S: Sleeper, R: Randomness = FullDelay>` *is* a
   `BrainTransport`: it wraps an inner transport and routes every unary call through the plan's
-  answer for that `SeamMethod`, running `retry_with` on the resolved schedule when the method is
+  answer for that `RpcMethod`, running `retry_with` on the resolved schedule when the method is
   repeatable and on `RetryPolicy::ONCE` when the plan allows no retry, so a non-repeatable call
   makes **exactly one attempt**. `converse` cannot reach that decision at runtime, a stream not
   being a future the loop could re-issue; it is classified all the same so the port's methods are

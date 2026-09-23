@@ -686,7 +686,7 @@ async def test_a_claimed_handoff_still_reports_serving_because_the_cortex_still_
             assert lease.endpoint == _CORTEX_URL
 
 
-def test_every_published_report_says_what_the_seam_and_the_human_actually_read() -> None:
+def test_every_published_report_says_what_the_rpc_and_the_human_actually_read() -> None:
     published = [
         RESIDENCY_SERVING,
         RESIDENCY_LOADING,

@@ -157,7 +157,7 @@ scripts/          this repo's own checks, one module per file, written and teste
                   other modules are read by them or run by hand; modules/repo-checks.md says
                   what each one does.
 .github/          CI without a GPU, running the same `just` recipes as local dev
-justfile          check and check-*; proto, up/down, brain-serve, seam-health, backlog,
+justfile          check and check-*; proto, up/down, brain-serve, rpc-health, backlog,
                   shuffle, and the measurement recipes turn-cost, envelope-floor,
                   envelope-pairs, switch-tail and image-volumes
 docker/           the compose stack, run with `just up` / `just up-gpu`: docker-compose.yml

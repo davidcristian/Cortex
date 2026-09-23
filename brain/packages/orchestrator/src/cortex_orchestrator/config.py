@@ -21,18 +21,18 @@ OutputGuardrailName = Literal["redact", "lookalike", "strict", "off"]
 
 DEFAULT_VISION_MODE: VisionMode = "auto"
 
-DEFAULT_SEAM_PORT = 50051
+DEFAULT_RPC_PORT = 50051
 
-DEFAULT_SEAM_HOST = "127.0.0.1"
+DEFAULT_RPC_HOST = "127.0.0.1"
 
 
-class SeamServerConfig(BaseSettings):
+class RpcServerConfig(BaseSettings):
     """Where (and to whom) the brain hosts BrainService."""
 
     model_config = SettingsConfigDict(env_prefix="CORTEX_SEAM_")
 
-    host: str = DEFAULT_SEAM_HOST
-    port: int = DEFAULT_SEAM_PORT
+    host: str = DEFAULT_RPC_HOST
+    port: int = DEFAULT_RPC_PORT
     token: str = ""
     converse_buffer: int = Field(default=DEFAULT_MAX_BUFFERED_EVENTS, gt=0)
     confirm_timeout_s: float = Field(default=DEFAULT_CONFIRM_TIMEOUT_S, gt=0)

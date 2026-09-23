@@ -9,7 +9,7 @@ fold plus the reply with nothing on screen to distinguish it from a slow model: 
 whisper starts the moment they press enter, and the chip that would say otherwise renders only
 once a `StatusUpdate` or `ToolActivity` has arrived, and none did.
 
-The obstacle was the port, not the transport. `SeamProgressSink` is per Converse stream and emits
+The obstacle was the port, not the transport. `RpcProgressSink` is per Converse stream and emits
 onto that stream's own queue rather than through the turn generator, and `build_history_window` is
 already called inside the per-stream `capabilities` closure that holds one, so an event emitted
 during selection would appear while `assemble_inference_messages` is still running.

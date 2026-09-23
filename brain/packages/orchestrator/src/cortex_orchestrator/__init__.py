@@ -1,7 +1,7 @@
 """Cortex orchestrator: the thin gRPC shell hosting BrainService (logic lives in cortex_core)."""
 
 from cortex_orchestrator.abandon import ABANDONED_MESSAGE, AbandonedCallInterceptor
-from cortex_orchestrator.auth import SeamTokenInterceptor
+from cortex_orchestrator.auth import RpcTokenInterceptor
 from cortex_orchestrator.bounds import (
     ToolCallDeadlineError,
     check_tool_call_deadline,
@@ -21,14 +21,14 @@ from cortex_orchestrator.config import (
     InferenceConfig,
     MemoryConfig,
     MemoryConfigError,
-    SeamServerConfig,
+    RpcServerConfig,
 )
 from cortex_orchestrator.config_body import BodyConfig
 from cortex_orchestrator.config_schedule import ScheduleConfig
 from cortex_orchestrator.config_subagents import SubagentRosterEntry, SubagentsConfig
 from cortex_orchestrator.config_swap import DEFAULT_BRAIN_MODEL, SwapConfig
 from cortex_orchestrator.config_tools import ToolsConfig
-from cortex_orchestrator.confirm import SeamConfirmer
+from cortex_orchestrator.confirm import RpcConfirmer
 from cortex_orchestrator.converse import (
     DEFAULT_CONFIRM_TIMEOUT_S,
     DEFAULT_MAX_BUFFERED_EVENTS,
@@ -50,7 +50,7 @@ from cortex_orchestrator.memory_builders import (
     recall_audit_from_config,
     recall_policy_from_config,
 )
-from cortex_orchestrator.progress import SeamProgressSink
+from cortex_orchestrator.progress import RpcProgressSink
 from cortex_orchestrator.schedule_builders import (
     TICKER_STOP_GRACE_S,
     build_schedule,
@@ -64,7 +64,7 @@ from cortex_orchestrator.server import (
     MAX_SESSION_LIST_LIMIT,
     ORCHESTRATOR_VERSION,
     BrainService,
-    SeamPorts,
+    RpcPorts,
     create_server,
     serve,
 )
@@ -85,7 +85,7 @@ from cortex_orchestrator.ticker import (
 )
 from cortex_orchestrator.window_builders import build_history_window
 from cortex_orchestrator.wiring import run_from_env
-from cortex_seam import SEAM_TOKEN_HEADER
+from cortex_seam import RPC_TOKEN_HEADER
 
 __all__ = [
     "ABANDONED_MESSAGE",
@@ -100,7 +100,7 @@ __all__ = [
     "MAX_SESSION_LIST_LIMIT",
     "ORCHESTRATOR_VERSION",
     "REMINDER_TITLE",
-    "SEAM_TOKEN_HEADER",
+    "RPC_TOKEN_HEADER",
     "TASK_TITLE",
     "TICKER_STOP_GRACE_S",
     "AbandonedCallInterceptor",
@@ -113,13 +113,13 @@ __all__ = [
     "InferenceConfig",
     "MemoryConfig",
     "MemoryConfigError",
+    "RpcConfirmer",
+    "RpcPorts",
+    "RpcProgressSink",
+    "RpcServerConfig",
+    "RpcTokenInterceptor",
     "ScheduleConfig",
     "ScheduleTicker",
-    "SeamConfirmer",
-    "SeamPorts",
-    "SeamProgressSink",
-    "SeamServerConfig",
-    "SeamTokenInterceptor",
     "SubagentRosterEntry",
     "SubagentsConfig",
     "SwapConfig",

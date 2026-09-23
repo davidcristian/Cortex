@@ -10,7 +10,7 @@ INFERENCE_CONFIG = "brain/packages/orchestrator/src/cortex_orchestrator/config.p
 BODY_GATEWAY = "brain/packages/body_client/src/cortex_body_client/gateway.py"
 BODY_CONFIG_TEST = "brain/packages/orchestrator/tests/test_config.py"
 SCREEN_POLICY = "body/crates/core/src/os/screen_policy.rs"
-SEAM_PROTO = "proto/body.proto"
+RPC_PROTO = "proto/body.proto"
 BODY_CLIENT_DOC = "docs/modules/brain-body-client.md"
 BODY_CORE_DOC = "docs/modules/body-core-capture.md"
 CAPTURE_BYTES = "body/crates/core/tests/capture_bytes.rs"
@@ -100,7 +100,7 @@ CAPTURE_COUPLINGS: tuple[Constant, ...] = (
             Mention(BODY_CONFIG, "its own conservative {value}"),
             Mention(BODY_CONFIG_TEST, "body's own default is {value}"),
             Mention(BODY_COMPOSE, "the body's own {value}, which"),
-            Mention(SEAM_PROTO, 'default" ({value})'),
+            Mention(RPC_PROTO, 'default" ({value})'),
             Mention(BODY_CORE_DOC, "`DEFAULT_MAX_EDGE` ({value})"),
             Mention(ORCHESTRATOR_DOC, "own {value} because the pixels"),
             Mention(VISION_RUNBOOK, "body's own default ({value})"),

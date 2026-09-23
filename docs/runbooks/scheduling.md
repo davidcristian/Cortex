@@ -127,7 +127,7 @@ skips if real schedules exist, because the checks assert exact global views and 
 due, and would otherwise disturb a live deployment's items. `test_schedule_grpc_live.py` proves
 the loop end to end: it seeds a due reminder into the store, waits for the brain's ticker to fire
 it, reads it back over `ListDueReminders`, acks it over `AckReminder` (a second ack does nothing)
-and cleans up. `just seam-health` confirms the rewired turn path still converses; it needs the
+and cleans up. `just rpc-health` confirms the rewired turn path still converses; it needs the
 brain served with a token and the same value in its own environment, and fails to start without
 one ([local-dev-wsl.md](local-dev-wsl.md) says why).
 

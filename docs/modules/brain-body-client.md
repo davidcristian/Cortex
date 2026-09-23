@@ -147,5 +147,5 @@ requires only that a legal state comes back.
 - Fully typed, pyright strict clean, 100% line and branch against a real `grpc.aio` loopback server hosting a fake `BodyServiceServicer`. No live body. Live checks against the real Rust body
   are `integration`-marked, per [docs/runbooks/body-volume.md](../runbooks/body-volume.md).
 
-**Dependencies.** cortex-core (the `BodyGateway` port, the `VolumeState` value, `BodyGatewayError` and its `BodyFailure` kind), `cortex-seam` (the `BodyServiceStub`, the volume wire messages and `SEAM_TOKEN_HEADER`) and grpcio. The composition root (`cortex_orchestrator.wiring`) builds the
+**Dependencies.** cortex-core (the `BodyGateway` port, the `VolumeState` value, `BodyGatewayError` and its `BodyFailure` kind), `cortex-seam` (the `BodyServiceStub`, the volume wire messages and `RPC_TOKEN_HEADER`) and grpcio. The composition root (`cortex_orchestrator.wiring`) builds the
 channel from `CORTEX_BODY_ENDPOINT` and injects the shared `CORTEX_SEAM_TOKEN`.

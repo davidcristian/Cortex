@@ -37,7 +37,7 @@ spawned subtask or a model swap is in [brain-core-residency.md](brain-core-resid
   failure. Fake: `RecordingAuditSink`.
 - `Confirmer` provides `confirm(request) -> bool` (ADR-0013) over a
   `ConfirmationRequest(tool_name, arguments, reason)`: the user's decision, never the model's, and
-  a missing confirmer denies. Real adapter: `SeamConfirmer` (ADR-0022).
+  a missing confirmer denies. Real adapter: `RpcConfirmer` (ADR-0022).
 - `ProgressSink` (`progress.py`, ADR-0010 decision 13) is the side channel for progress a
   suspended turn cannot yield itself. `emit(event)` sends a `ToolActivity` or `StatusUpdate`, best
   effort. `hold(wait, *, announce=True)` records what the turn waits on, innermost first, in the

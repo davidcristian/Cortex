@@ -7,7 +7,7 @@ use std::time::Duration;
 use body_core::{
     BrainTransport, ConfirmDecision, DEFAULT_TURN_FIRST_GAP_MS, DEFAULT_TURN_HEARTBEAT_GAP_MS,
     DEFAULT_TURN_IDLE_GAP_MS, DueReminder, HEARTBEAT_PERIOD_MS, RetryPlan, RetryingTransport,
-    SeamHealth, SeamMethod, SessionMessage, SessionSummary, Sleeper, TransportError, TurnEvent,
+    RpcHealth, RpcMethod, SessionMessage, SessionSummary, Sleeper, TransportError, TurnEvent,
     TurnGaps, within_gaps,
 };
 use futures_core::Stream;
@@ -391,7 +391,7 @@ async fn a_silence_that_outlasts_the_turn_s_remaining_allowance_reports_the_allo
 struct StallingTransport;
 
 impl BrainTransport for StallingTransport {
-    async fn health(&self) -> Result<SeamHealth, TransportError> {
+    async fn health(&self) -> Result<RpcHealth, TransportError> {
         Err(TransportError::Connection(String::from("unused")))
     }
 
@@ -473,5 +473,5 @@ async fn the_decorator_hands_the_turn_the_plan_s_own_gaps() {
         ]
     );
     assert_eq!(sleeper.gaps(), vec![GAPS.first, GAPS.idle]);
-    assert_eq!(plan.gaps_for(SeamMethod::Converse), Some(GAPS));
+    assert_eq!(plan.gaps_for(RpcMethod::Converse), Some(GAPS));
 }

@@ -226,7 +226,7 @@ agreement is [AGENTS.md](AGENTS.md).
 | `just brain-serve` | The brain natively, no Docker |
 | `just proto` | Regenerate the committed stubs from `proto/body.proto` |
 | `just image-volumes` | Ask docker what the images declare, against the recorded answer |
-| `just seam-health` | Live check of the body to brain link, dialed from the body side |
+| `just rpc-health` | Live check of the body to brain link, dialed from the body side |
 | `just turn-cost` | The A/B/A live measurement of what a change costs a real turn |
 
 ## Documentation

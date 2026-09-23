@@ -4,7 +4,7 @@
 **Area:** repo-checks
 **Origin:** [ADR-0042](../../adr/ADR-0042-cross-tree-constant-registry.md)
 
-`DEFAULT_SEAM_PORT` is declared in `brain/packages/orchestrator/src/cortex_orchestrator/config.py`
+`DEFAULT_RPC_PORT` is declared in `brain/packages/orchestrator/src/cortex_orchestrator/config.py`
 and tied to four places, all of them code: the base compose publish, the healthcheck dial inside
 it, and the two Tauri modules that use it. No prose is covered.
 

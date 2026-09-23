@@ -73,14 +73,14 @@ The card's reason is `_GATE_REASON` ("this action is outbound or irreversible an
 your approval") unless the policy names a per-tool reason
 ([ADR-0030](ADR-0030-brain-handoff.md) decision 1).
 
-### 3. A per-stream `SeamConfirmer`, built by an engine factory
+### 3. A per-stream `RpcConfirmer`, built by an engine factory
 
 The composition root hands the servicer an `EngineFactory` (`engines.py`) rather than one engine.
-Each `ConverseStream` builds one `SeamConfirmer` (`confirm.py`) bound to its own output queue, and
+Each `ConverseStream` builds one `RpcConfirmer` (`confirm.py`) bound to its own output queue, and
 the factory builds that stream's dispatcher and engine around it. An engine is a stateless function
 over the store, so one per stream costs nothing. The subagent path keeps `confirmer=None`.
 
-`SeamConfirmer.confirm(request)` mints `confirm_id` (`uuid4().hex`), registers a future, and emits
+`RpcConfirmer.confirm(request)` mints `confirm_id` (`uuid4().hex`), registers a future, and emits
 the request on the stream's **control path** (`put_nowait`, no data credit, like the terminal
 `SeamError`): the turn task is suspended inside `dispatch`, so waiting for a credit could deadlock
 against a stalled consumer, and at most one confirmation is outstanding per stream. It then awaits
@@ -112,7 +112,7 @@ composition-root overlay that marks a remote tool's result trusted, is ADR-0013'
 
 ### 5. The body keeps the client stream open, and the overlay shows a card
 
-`BrainSeamClient::converse(session_id, text, decisions: impl Stream<Item = ConfirmDecision>)` takes
+`BrainRpcClient::converse(session_id, text, decisions: impl Stream<Item = ConfirmDecision>)` takes
 the answers as an input stream, which keeps `body_core` runtime-agnostic, and `TurnEvent` gains a
 non-terminal `ConfirmRequest`. The adapter sends
 `once(user_turn).chain(decisions.map(confirm_response))` and half-closes when the caller drops its
@@ -130,7 +130,7 @@ demo bridge scripts a confirm round, so the card can be driven without a brain.
 
 ### 6. Validation splits three ways
 
-CI covers the rule, the overlay registry and the subagent removal, `SeamConfirmer`, the send path
+CI covers the rule, the overlay registry and the subagent removal, `RpcConfirmer`, the send path
 over a scripted smtplib, and the confirm round trip in Rust and in the reducer. The agent runs the
 live SMTP round trip against the Bridge (`integration`-marked, with a cc, an HTML part and an
 attachment, read back over IMAP) and drives the card in a browser. The card through the real Tauri

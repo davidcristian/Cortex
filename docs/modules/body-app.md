@@ -134,7 +134,7 @@ the dot never claims more than the brain proved: `unknown` is a real state with 
 the window and emits the `cortex:activate` Tauri event, which `main.tsx` re-dispatches as the DOM
 event the overlay listens on; in a plain browser `main.tsx` self-summons instead.
 
-- **`converse(session_id, text, channel)`** (`converse.rs`) drives one `BrainSeamClient` turn and
+- **`converse(session_id, text, channel)`** (`converse.rs`) drives one `BrainRpcClient` turn and
   streams each event to the webview over a Tauri `Channel`, serialising every `TurnEvent` and
   `TransportError` to a `WireMessage` (`{ event }` or `{ error }`) that matches the TypeScript
   `WireMessage` in `tauriBridge.ts` field for field: tag `kind`, camelCase, so a confirm request is
@@ -157,8 +157,8 @@ event the overlay listens on; in a plain browser `main.tsx` self-summons instead
   `Vec<WireReminder>`, and `ack_reminder(reminder_id, fired_at_unix_ms)` returns a `bool` that is a
   state report rather than a failure. The list is retried; the ack is not.
 - **The read transport** (`brain.rs`, ADR-0024). `connect()` builds a
-  `body_core::RetryingTransport<BrainSeamClient, TokioSleeper, ShellRandomness>` over
-  `BrainSeamClient::connect_lazy_with_token`, a lazy channel that never fails at construction and
+  `body_core::RetryingTransport<BrainRpcClient, TokioSleeper, ShellRandomness>` over
+  `BrainRpcClient::connect_lazy_with_token`, a lazy channel that never fails at construction and
   reconnects on demand. `TokioSleeper` and `ShellRandomness` are the real `Sleeper` and
   `Randomness`, kept in the untested shell so the retry logic stays in `body_core`. Which
   calls may be retried is decided by the `RetryPlan` in `body_core` and is not configurable here.

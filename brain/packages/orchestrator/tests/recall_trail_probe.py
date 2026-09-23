@@ -18,7 +18,7 @@ from cortex_orchestrator.builders import build_inference_backend
 from cortex_orchestrator.config import BrainRuntimeConfig, InferenceConfig, MemoryConfig
 from cortex_orchestrator.config_logging import configure_from_env
 from cortex_orchestrator.memory_builders import build_memory
-from cortex_seam import SEAM_TOKEN_HEADER, BrainServiceStub, ClientEvent, ServerEvent, UserTurn
+from cortex_seam import RPC_TOKEN_HEADER, BrainServiceStub, ClientEvent, ServerEvent, UserTurn
 
 # The unanswerable questions are included on purpose: a rank that keeps nothing drops the whole
 # pool, which is the widest this field ever renders.
@@ -28,12 +28,12 @@ _ASKED: tuple[str, ...] = (*QUESTIONS, *UNRELATED, *MEMORIES.values())
 # turns phase runs a whole model reply each time, so it asks a slice.
 _DIRECT_PASSES = int(os.environ.get("CORTEX_TRAIL_DIRECT_PASSES", "3"))
 _TURNS = int(os.environ.get("CORTEX_TRAIL_TURNS", "8"))
-_SEAM = os.environ.get("CORTEX_TRAIL_SEAM", "127.0.0.1:50051")
+_RPC = os.environ.get("CORTEX_TRAIL_SEAM", "127.0.0.1:50051")
 
 
 def _metadata() -> tuple[tuple[str, str], ...] | None:
     token = os.environ.get("CORTEX_SEAM_TOKEN", "")
-    return ((SEAM_TOKEN_HEADER, token),) if token else None
+    return ((RPC_TOKEN_HEADER, token),) if token else None
 
 
 def _say(message: str) -> None:
@@ -85,7 +85,7 @@ async def _direct(recaller: MemoryRecaller, scopes: list[str], stamp: int) -> No
 
 async def _served(recaller: MemoryRecaller, scopes: list[str], stamp: int) -> None:
     """Run real turns, whose trail lines go out through the container's log driver."""
-    async with aio.insecure_channel(_SEAM) as channel:
+    async with aio.insecure_channel(_RPC) as channel:
         stub = BrainServiceStub(channel)
         for index in range(_TURNS):
             scope = f"trail-width-turn-{stamp}-{index}"

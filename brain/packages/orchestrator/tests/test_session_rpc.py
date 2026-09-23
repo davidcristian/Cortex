@@ -140,14 +140,14 @@ async def test_set_session_hoisted_writes_the_flag_through_set_hoisted() -> None
     assert store.set_hoisted_calls == [("epsilon", True), ("epsilon", False)]
 
 
-def test_session_hoisting_is_a_user_only_seam_path_never_a_tool() -> None:
+def test_session_hoisting_is_a_user_only_rpc_path_never_a_tool() -> None:
     assert callable(BrainService.SetSessionHoisted)
     assert callable(SessionStore.set_hoisted)
     handler_params = set(inspect.signature(set_session_hoisted).parameters)
     assert handler_params == {"store", "session_id", "hoisted"}
 
 
-def test_session_deletion_is_a_user_only_seam_path_never_a_tool() -> None:
+def test_session_deletion_is_a_user_only_rpc_path_never_a_tool() -> None:
     assert callable(BrainService.DeleteSession)
     assert callable(SessionStore.delete)
     tool_surface = {name for name in vars(ToolRegistry) if not name.startswith("_")}

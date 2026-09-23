@@ -113,7 +113,7 @@ async def test_a_peer_that_came_back_leaves_placement_where_it_found_it() -> Non
     assert manager.residency() == RESIDENCY_SERVING
 
 
-async def test_the_seam_says_which_peer_is_down_while_the_cortex_serves() -> None:
+async def test_the_rpc_says_which_peer_is_down_while_the_cortex_serves() -> None:
     host = ScriptedModelHost(running=["cortex", _TIER], fail={("start", _TIER): "no such device"})
     manager = _manager(host, _placer())
     async with manager.swap_scope("brain"):

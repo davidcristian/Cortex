@@ -7,7 +7,7 @@
 Deleting, renaming and reordering a chat were all out of scope for the read-only slice. Rename
 shipped on 2026-07-16; the other two opened as the two entries below.
 
-The entry expected these to go through the `SeamConfirmer`, which is wrong for a management RPC.
+The entry expected these to go through the `RpcConfirmer`, which is wrong for a management RPC.
 That confirmer (ADR-0022) checks a possibly-jailbroken model's tool call inside a turn: one per
 `Converse` stream, a mid-turn card, tainted turns denied outright. A rename is triggered by the user
 in the overlay, out of band, and its handler is no tool in any registry and never runs through the

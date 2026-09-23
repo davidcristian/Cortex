@@ -9,7 +9,7 @@ the unchanged `BrainTransport` port, so the `body_rpc` adapter stays thin and it
 contract is true. It retries the repeatable methods (`health`, `list_sessions`,
 `session_messages`) on a transient error (`Connection` or `Rpc{Unavailable}`) with bounded
 exponential backoff (`RetryPolicy`), waiting through an injected `Sleeper` port so the schedule is
-asserted against a fake with no wall clock. `BrainSeamClient::connect_lazy_with_token` gives it a
+asserted against a fake with no wall clock. `BrainRpcClient::connect_lazy_with_token` gives it a
 reconnecting channel, so a briefly-down brain is retried and tonic reconnects without the caller
 noticing; the shell composes it (`seam::connect`, the real `TokioSleeper`, env settings) for the
 session-read path. `converse` is forwarded unchanged, being non-idempotent with a one-shot

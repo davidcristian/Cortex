@@ -13,7 +13,7 @@ use crate::session_types::{DueReminder, SessionMessage, SessionSummary};
 
 /// The result of a `BrainService.Health` probe.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct SeamHealth {
+pub struct RpcHealth {
     /// Whether the brain reports itself ready to serve conversation turns.
     pub ready: bool,
     /// Human-readable status detail for the overlay (e.g. which model is up).
@@ -56,7 +56,7 @@ pub trait BrainTransport: Send + Sync {
     /// # Errors
     ///
     /// `Connection` when the brain is unreachable, `Rpc` when it answers a non-OK gRPC status.
-    fn health(&self) -> impl Future<Output = Result<SeamHealth, TransportError>> + Send;
+    fn health(&self) -> impl Future<Output = Result<RpcHealth, TransportError>> + Send;
 
     /// Runs one conversational turn: sends `text` as a user turn on a fresh `Converse` stream
     /// tagged with `session_id`, and streams the reply as [`TurnEvent`]s until the turn is terminal

@@ -62,7 +62,7 @@ body reports as `TransportError::Rpc`.
 ### 5. Body and overlay ports gain typed reads; the overlay holds the session id
 
 `body_core::BrainTransport` gains `list_sessions(limit)` and `session_messages(session_id)`,
-implemented on `BrainSeamClient` as unary calls through the shared status mapping, and served by
+implemented on `BrainRpcClient` as unary calls through the shared status mapping, and served by
 the in-process fake brain in the contract test. The overlay's `BrainBridge` mirrors them as
 `listSessions` and `sessionMessages`. The session id is `useOverlay` state, created by an injected
 factory (default `crypto.randomUUID`):
@@ -143,12 +143,12 @@ inference call per new session on a shared GPU.
 `RenameSession`, `DeleteSession` and `SetSessionHoisted` are unary `BrainService` writes whose only
 caller is the overlay's own controls. None is a tool in any registry and none runs through the turn
 engine, so no model, tool or tainted turn can reach them. That is the whole of their protection.
-The confirmation rule and `SeamConfirmer` ([ADR-0013](ADR-0013-untrusted-content.md),
+The confirmation rule and `RpcConfirmer` ([ADR-0013](ADR-0013-untrusted-content.md),
 [ADR-0022](ADR-0022-email-write-confirmer.md)) stop a model's irreversible tool call inside a turn
 and are tied to one `Converse` stream, so they do not fit a management RPC; a confirm card for one
 would answer a threat the model cannot pose.
 
-The body classifies every catalog write **not repeatable** (`SeamMethod::RenameSession`,
+The body classifies every catalog write **not repeatable** (`RpcMethod::RenameSession`,
 `DeleteSession`, `SetSessionHoisted`), so the resilient transport makes one attempt. Reads are
 repeatable. A write idempotent by value still is not retried: a lost reply followed by a silent
 retry could re-assert a value the user's next action reversed, which the retry loop cannot see.

@@ -23,7 +23,7 @@ lingers; and `set_hoisted` takes `*, hoisted` keyword-only, per the repo's boole
 convention.
 
 `SetSessionHoisted` is protected by the same structural user-only reachability as rename and delete:
-no tool, never through the turn engine. Its `SeamMethod` is classified not repeatable despite being
+no tool, never through the turn engine. Its `RpcMethod` is classified not repeatable despite being
 idempotent by value, because the convention is uniform and a lost reply must not re-assert a value
 the user's next toggle reversed.
 

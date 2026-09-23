@@ -78,7 +78,7 @@ async def test_the_spec_is_ungated_and_makes_the_model_name_a_target() -> None:
     assert spec.parameters["required"] == ["target"]
 
 
-def test_the_vocabulary_the_model_sees_is_the_vocabulary_the_seam_carries() -> None:
+def test_the_vocabulary_the_model_sees_is_the_vocabulary_the_rpc_carries() -> None:
     schema = CaptureScreenTool(InMemoryBodyGateway()).spec.parameters
     target = schema["properties"]["target"]
     assert target["enum"] == [member.value for member in CaptureTarget]

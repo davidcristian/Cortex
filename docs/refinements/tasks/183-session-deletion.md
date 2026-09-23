@@ -22,10 +22,10 @@ memories are the shared cross-conversation space, so there is nothing private to
 `GLOBAL_SCOPE` guard is checked first, so `GLOBAL_SCOPE` can never reach `delete_scope` even for a
 session whose id equals it.
 
-The confirm is in the overlay, since the `SeamConfirmer` checks in-turn tool calls rather than a
+The confirm is in the overlay, since the `RpcConfirmer` checks in-turn tool calls rather than a
 unary management RPC: the switcher row's trash swaps in an inline "Delete this chat?" pair, and
 `onDelete` fires only on the second, explicit click. `DeleteSession` has the same structural
-user-only reachability as rename, and its `SeamMethod` is classified not repeatable, so the body
+user-only reachability as rename, and its `RpcMethod` is classified not repeatable, so the body
 makes exactly one attempt at a destructive call.
 
 The overlay also handles the open-chat case: deleting the open chat tears down its in-flight turn,

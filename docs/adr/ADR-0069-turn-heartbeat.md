@@ -46,7 +46,7 @@ The third needs a bound on the turn's own progress, which ADR-0024's gaps alread
    each wait when the test says so.
 
 3. **The body bounds the stream's silence at four periods.** `TurnEvent::Heartbeat { wait,
-   detail }` is the port's form of it; `BrainSeamClient` maps it, `within_gaps` counts it and
+   detail }` is the port's form of it; `BrainRpcClient` maps it, `within_gaps` counts it and
    passes it on, and the shell's `converse` command forwards it to the webview. A third
    gap, `TurnGaps::heartbeat`, is the longest the stream may send nothing at all, a heartbeat
    included: `DEFAULT_TURN_HEARTBEAT_GAP_MS` (120000), set by

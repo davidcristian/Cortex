@@ -9,7 +9,7 @@ use body_core::{
 use tonic::service::interceptor::InterceptedService;
 use tonic::{Request, Response, Status};
 
-use crate::auth::SeamTokenValidator;
+use crate::auth::RpcTokenValidator;
 use crate::generated::VolumeState as PbVolumeState;
 use crate::generated::body_service_server::{BodyService, BodyServiceServer};
 use crate::generated::{
@@ -167,9 +167,9 @@ pub fn body_service<A: AudioControl + 'static, N: Notify + 'static, S: ScreenCap
     screen: S,
     receipts: bool,
     token: &str,
-) -> InterceptedService<BodyServiceServer<OsService<A, N, S>>, SeamTokenValidator> {
+) -> InterceptedService<BodyServiceServer<OsService<A, N, S>>, RpcTokenValidator> {
     BodyServiceServer::with_interceptor(
         OsService::new(audio, notifier, screen, receipts),
-        SeamTokenValidator::new(token),
+        RpcTokenValidator::new(token),
     )
 }

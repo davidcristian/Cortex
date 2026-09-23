@@ -18,7 +18,7 @@ calls it under session scoping, and `session_rpc.delete_session` calls that from
 
 Two of the entry's claims were wrong. It said the work included how the body reads the two codes:
 it does not distinguish them, and there is nothing to do there, since `is_transient` treats only
-`Rpc { code: "Unavailable" }` as retryable and `SeamMethod::DeleteSession` is classified
+`Rpc { code: "Unavailable" }` as retryable and `RpcMethod::DeleteSession` is classified
 non-repeatable anyway. It said the overlay would offer a retry for it; `body/app/src` has no
 per-code retry control at all. So this is an accurate label and symmetry with the two core
 catches rather than a behaviour change, and it is worth having for what an operator reads:

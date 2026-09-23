@@ -26,9 +26,9 @@ WIRE_COUPLINGS: tuple[Constant, ...] = (
             "(ADR-0016)"
         ),
         sites=(
-            Site("body/crates/rpc/src/auth.rs", "SEAM_TOKEN_HEADER"),
-            Site("body/crates/rpc/src/call.rs", "SEAM_TOKEN_HEADER"),
-            Site("brain/packages/seam/src/cortex_seam/__init__.py", "SEAM_TOKEN_HEADER"),
+            Site("body/crates/rpc/src/auth.rs", "RPC_TOKEN_HEADER"),
+            Site("body/crates/rpc/src/call.rs", "RPC_TOKEN_HEADER"),
+            Site("brain/packages/seam/src/cortex_seam/__init__.py", "RPC_TOKEN_HEADER"),
         ),
         mentions=(Mention(BASE_COMPOSE, "'{value}'"),),
     ),

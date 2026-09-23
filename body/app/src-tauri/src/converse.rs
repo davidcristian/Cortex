@@ -4,7 +4,7 @@ use body_core::{
     BrainTransport, ConfirmDecision, RetryingTransport, TransportError, TurnEvent, retry_with,
     within_deadline,
 };
-use body_rpc::BrainSeamClient;
+use body_rpc::BrainRpcClient;
 use futures_util::{StreamExt, pin_mut};
 use serde::Serialize;
 use tauri::State;
@@ -169,7 +169,7 @@ pub async fn converse(
         .ok()
         .filter(|token| !token.is_empty());
     // Fail fast on a bad address or token, which no retry can fix, before spending the budget.
-    if let Err(error) = BrainSeamClient::connect_lazy_with_token(&addr, token.as_deref()) {
+    if let Err(error) = BrainRpcClient::connect_lazy_with_token(&addr, token.as_deref()) {
         let _ = channel.send(WireMessage::error(error));
         return Ok(());
     }
@@ -182,7 +182,7 @@ pub async fn converse(
         within_deadline(
             deadline,
             &sleeper,
-            BrainSeamClient::connect_with_token(&addr, token.as_deref()),
+            BrainRpcClient::connect_with_token(&addr, token.as_deref()),
         )
     });
     let client = match dial.await {

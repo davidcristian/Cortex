@@ -8,7 +8,7 @@ from grpc import aio
 
 from cortex_core import ScheduledItem, ScheduleKind
 from cortex_seam import (
-    SEAM_TOKEN_HEADER,
+    RPC_TOKEN_HEADER,
     AckReminderReply,
     AckReminderRequest,
     BrainServiceStub,
@@ -18,14 +18,14 @@ from cortex_seam import (
 )
 from cortex_session import DEFAULT_REDIS_URL, RedisScheduleStore
 
-_SEAM_ENDPOINT = os.environ.get("CORTEX_SEAM_ENDPOINT", "127.0.0.1:50051")
+_RPC_ENDPOINT = os.environ.get("CORTEX_SEAM_ENDPOINT", "127.0.0.1:50051")
 _ATTEMPTS = 40
 _RETRY_S = 0.5
 
 
 def _metadata() -> tuple[tuple[str, str], ...] | None:
     token = os.environ.get("CORTEX_SEAM_TOKEN", "")
-    return ((SEAM_TOKEN_HEADER, token),) if token else None
+    return ((RPC_TOKEN_HEADER, token),) if token else None
 
 
 async def _list(stub: BrainServiceStub) -> ListDueRemindersReply:
@@ -54,7 +54,7 @@ async def _wait_for_fire(stub: BrainServiceStub, item_id: str) -> DueReminder | 
 
 
 @pytest.mark.integration
-async def test_reminder_fires_and_round_trips_over_the_live_seam() -> None:
+async def test_reminder_fires_and_round_trips_over_the_live_rpc() -> None:
     url = os.environ.get("CORTEX_REDIS_URL", DEFAULT_REDIS_URL)
     store = RedisScheduleStore.from_url(url)
     now = datetime.now(UTC)
@@ -70,7 +70,7 @@ async def test_reminder_fires_and_round_trips_over_the_live_seam() -> None:
         )
     )
     try:
-        async with aio.insecure_channel(_SEAM_ENDPOINT) as channel:
+        async with aio.insecure_channel(_RPC_ENDPOINT) as channel:
             stub = BrainServiceStub(channel)
             fired = await _wait_for_fire(stub, item_id)
             assert fired is not None, "the ticker did not fire the seeded reminder in time"

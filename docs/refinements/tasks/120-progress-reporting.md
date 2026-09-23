@@ -21,7 +21,7 @@ tool to show nothing leaks between them.
 It serves this entry and the tool-step chip entry at once: `SpawnSubagentsTool` emits a
 `StatusUpdate(state="delegating", "delegating N subtasks")` for the batch's size, and
 `SubagentRunner` maps each subagent's `ToolStep` onto the sink as a registry-authored
-`ToolActivity`. The real adapter `SeamProgressSink` puts onto the stream's own output queue and
+`ToolActivity`. The real adapter `RpcProgressSink` puts onto the stream's own output queue and
 takes a credit only when one is free, dropping otherwise, rather than using the confirmer's
 over-crediting path, since a delegating turn emits many steps. Order is preserved because the
 turn task is suspended in `dispatch` and puts nothing itself meanwhile.

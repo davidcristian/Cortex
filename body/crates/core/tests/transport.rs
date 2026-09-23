@@ -1,5 +1,5 @@
 use body_core::{
-    BrainTransport, ConfirmDecision, DueReminder, SeamHealth, SessionMessage, SessionSummary,
+    BrainTransport, ConfirmDecision, DueReminder, RpcHealth, SessionMessage, SessionSummary,
     TransportError, TurnEvent,
 };
 use futures_core::Stream;
@@ -7,11 +7,11 @@ use tokio_stream::StreamExt;
 
 /// A scripted in-crate fake: the simplest possible `BrainTransport`.
 struct FakeTransport {
-    script: Result<SeamHealth, TransportError>,
+    script: Result<RpcHealth, TransportError>,
 }
 
 impl BrainTransport for FakeTransport {
-    async fn health(&self) -> Result<SeamHealth, TransportError> {
+    async fn health(&self) -> Result<RpcHealth, TransportError> {
         match &self.script {
             Ok(health) => Ok(health.clone()),
             Err(TransportError::Connection(message)) => {
@@ -142,7 +142,7 @@ impl BrainTransport for FakeTransport {
 }
 
 /// Uses the trait as a generic bound, the way application code will.
-async fn probe<T: BrainTransport>(transport: &T) -> Result<SeamHealth, TransportError> {
+async fn probe<T: BrainTransport>(transport: &T) -> Result<RpcHealth, TransportError> {
     transport.health().await
 }
 
@@ -173,7 +173,7 @@ fn assert_send<F: Future + Send>(future: F) -> F {
 #[tokio::test]
 async fn fake_transport_reports_health_through_the_generic_bound() {
     let fake = FakeTransport {
-        script: Ok(SeamHealth {
+        script: Ok(RpcHealth {
             ready: true,
             detail: String::from("fake brain ready"),
         }),
@@ -218,7 +218,7 @@ async fn fake_transport_propagates_rpc_errors() {
 #[tokio::test]
 async fn fake_transport_streams_a_converse_turn_through_the_generic_bound() {
     let fake = FakeTransport {
-        script: Ok(SeamHealth {
+        script: Ok(RpcHealth {
             ready: true,
             detail: String::from("unused"),
         }),
@@ -314,25 +314,25 @@ fn confirm_decision_is_clone_eq_and_debug() {
 }
 
 #[test]
-fn seam_health_is_clone_eq_and_debug() {
-    let ready = SeamHealth {
+fn rpc_health_is_clone_eq_and_debug() {
+    let ready = RpcHealth {
         ready: true,
         detail: String::from("cortex loaded"),
     };
     let cloned = ready.clone();
     assert_eq!(cloned, ready);
-    let not_ready = SeamHealth {
+    let not_ready = RpcHealth {
         ready: false,
         detail: String::from("cortex loaded"),
     };
-    let other_detail = SeamHealth {
+    let other_detail = RpcHealth {
         ready: true,
         detail: String::from("model loading"),
     };
     assert_ne!(ready, not_ready);
     assert_ne!(ready, other_detail);
     let debug = format!("{ready:?}");
-    assert!(debug.contains("SeamHealth"), "{debug}");
+    assert!(debug.contains("RpcHealth"), "{debug}");
     assert!(debug.contains("ready: true"), "{debug}");
     assert!(debug.contains("cortex loaded"), "{debug}");
 }
@@ -435,7 +435,7 @@ async fn fake_transport_lists_sessions_through_the_generic_bound() {
         t.list_sessions(limit).await.unwrap()
     }
     let fake = FakeTransport {
-        script: Ok(SeamHealth {
+        script: Ok(RpcHealth {
             ready: true,
             detail: String::new(),
         }),
@@ -452,7 +452,7 @@ async fn fake_transport_reads_session_messages_through_the_generic_bound() {
         t.session_messages(session_id).await.unwrap()
     }
     let fake = FakeTransport {
-        script: Ok(SeamHealth {
+        script: Ok(RpcHealth {
             ready: true,
             detail: String::new(),
         }),
@@ -474,7 +474,7 @@ async fn fake_transport_pulls_and_acks_reminders_through_the_generic_bound() {
             .unwrap()
     }
     let fake = FakeTransport {
-        script: Ok(SeamHealth {
+        script: Ok(RpcHealth {
             ready: true,
             detail: String::new(),
         }),
@@ -506,7 +506,7 @@ async fn fake_transport_renames_a_session_through_the_generic_bound() {
         t.rename_session(session_id, title).await
     }
     let fake = FakeTransport {
-        script: Ok(SeamHealth {
+        script: Ok(RpcHealth {
             ready: true,
             detail: String::new(),
         }),
@@ -532,7 +532,7 @@ async fn fake_transport_deletes_a_session_through_the_generic_bound() {
         t.delete_session(session_id).await
     }
     let fake = FakeTransport {
-        script: Ok(SeamHealth {
+        script: Ok(RpcHealth {
             ready: true,
             detail: String::new(),
         }),
@@ -557,7 +557,7 @@ async fn fake_transport_sets_the_hoist_through_the_generic_bound() {
         t.set_session_hoisted(session_id, hoisted).await
     }
     let fake = FakeTransport {
-        script: Ok(SeamHealth {
+        script: Ok(RpcHealth {
             ready: true,
             detail: String::new(),
         }),

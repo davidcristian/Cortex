@@ -158,7 +158,7 @@ lock.
     injectable, the same argument the cortex's own `ToolActivity` makes. The wording claims no
     parallelism: spawns on one model do not deliver it (ADR-0018 decision 8).
 
-15. **The gRPC adapter is best-effort and credit-balanced.** `SeamProgressSink` puts onto the
+15. **The gRPC adapter is best-effort and credit-balanced.** `RpcProgressSink` puts onto the
     stream's output queue only when a buffer credit is free and otherwise drops the event, so a
     slow overlay costs cosmetic progress and never stalls a subagent, and the buffer limit stays
     exact. The order on the queue is natural because the turn task puts nothing while suspended. No

@@ -68,7 +68,7 @@ def test_parse_value_reduces_every_form(text: str, expected: values.Value) -> No
         "TRUE",
         "None",
         "6 * 1.5",
-        "cortex_seam.SEAM_TOKEN_HEADER",
+        "cortex_seam.RPC_TOKEN_HEADER",
         "",
         "frozenset()",
         'frozenset({"a"}) | OTHER',

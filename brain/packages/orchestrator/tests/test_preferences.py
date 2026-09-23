@@ -13,7 +13,7 @@ from cortex_core import (
     SystemClock,
     TurnEngine,
 )
-from cortex_orchestrator import SeamPorts, SeamServerConfig, create_server
+from cortex_orchestrator import RpcPorts, RpcServerConfig, create_server
 from cortex_seam import (
     BrainServiceStub,
     GetPreferencesReply,
@@ -38,10 +38,10 @@ async def _serve(preferences: PreferenceStore | None) -> tuple[aio.Server, str]:
     store = InMemorySessionStore()
     engine = TurnEngine(store, EchoInferenceBackend(), SystemClock())
     server, port = create_server(
-        SeamServerConfig(host="127.0.0.1", port=0),
+        RpcServerConfig(host="127.0.0.1", port=0),
         lambda _confirmer, _progress: engine,
         store,
-        SeamPorts(preferences=preferences),
+        RpcPorts(preferences=preferences),
     )
     await server.start()
     return server, f"127.0.0.1:{port}"
@@ -63,7 +63,7 @@ async def _round_trip(
     return {pair.key: pair.value for pair in reply.preferences}
 
 
-async def test_a_written_preference_reads_back_through_the_seam() -> None:
+async def test_a_written_preference_reads_back_through_the_rpc() -> None:
     stored = await _round_trip(
         InMemoryPreferenceStore(), [("overlay.theme", "midnight"), ("overlay.mark", "foam")]
     )

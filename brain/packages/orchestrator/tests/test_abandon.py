@@ -20,7 +20,7 @@ from cortex_orchestrator import (
     ABANDONED_MESSAGE,
     AbandonedCallInterceptor,
     EngineFactory,
-    SeamServerConfig,
+    RpcServerConfig,
     create_server,
 )
 from cortex_seam import BrainServiceStub, ListSessionsReply, ListSessionsRequest
@@ -78,7 +78,7 @@ class _Wire:
 @pytest.fixture
 async def never_answering_server() -> AsyncIterator[_Wire]:
     """A tokenless BrainService whose session listing never answers, on a loopback port."""
-    config = SeamServerConfig(host="127.0.0.1", port=0)
+    config = RpcServerConfig(host="127.0.0.1", port=0)
     store = _NeverListingStore()
     server, port = create_server(config, *_engine_and_store(store))
     await server.start()

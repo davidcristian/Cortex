@@ -23,7 +23,7 @@ clock from it (`tonic/src/transport/service/grpc_timeout.rs`). Method: now a per
 ## An announced deadline, end to end
 
 **2026-08-19.** A real `grpc.aio` `BrainService` on loopback whose `ListSessions` sleeps for twenty
-seconds, driven from a real `BrainSeamClient` enforcing 800 ms and announcing 1.05 s. Both ends:
+seconds, driven from a real `BrainRpcClient` enforcing 800 ms and announcing 1.05 s. Both ends:
 
 ```
 PROBE elapsed=801.000257ms error=Timeout { after: 800ms } announced=Some(1.05s)
@@ -70,7 +70,7 @@ that. The millisecond rung is read off `Request::set_timeout` itself by
 
 ## The shipped announcements against a grpc-python brain
 
-**2026-08-25.** The loopback `grpc.aio` server dialed by the repo's own `BrainSeamClient`
+**2026-08-25.** The loopback `grpc.aio` server dialed by the repo's own `BrainRpcClient`
 announcing `RetryPlan::default()`: twenty warm rounds of a probe and a read, idle.
 
 | Announced | Header the brain received | Window at handler entry | Readings above the announcement |

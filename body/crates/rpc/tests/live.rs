@@ -10,7 +10,7 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use body_core::{
     BrainTransport, LinkState, RetryPlan, RetryPolicy, RetryingTransport, Sleeper, probe_link,
 };
-use body_rpc::BrainSeamClient;
+use body_rpc::BrainRpcClient;
 use body_rpc::generated::brain_service_client::BrainServiceClient;
 use body_rpc::generated::{ClientEvent, UserTurn, client_event, server_event};
 use tokio::net::TcpListener;
@@ -21,7 +21,7 @@ fn brain_addr() -> String {
 }
 
 /// The shared token to present, when the live brain requires one.
-fn seam_token() -> Option<String> {
+fn rpc_token() -> Option<String> {
     std::env::var("CORTEX_SEAM_TOKEN")
         .ok()
         .filter(|token| !token.is_empty())
@@ -63,10 +63,10 @@ async fn dial_dropping_peer() -> (String, Arc<AtomicUsize>) {
 
 #[tokio::test]
 #[ignore = "live gRPC check: needs a real brain at CORTEX_BRAIN_ADDR (run with -- --ignored)"]
-async fn brain_reports_ready_over_the_live_seam() {
+async fn brain_reports_ready_over_the_live_rpc() {
     let addr = brain_addr();
-    let token = seam_token();
-    let client = match BrainSeamClient::connect_with_token(&addr, token.as_deref()).await {
+    let token = rpc_token();
+    let client = match BrainRpcClient::connect_with_token(&addr, token.as_deref()).await {
         Ok(client) => client,
         Err(error) => panic!("cannot reach the brain at {addr}: {error}"),
     };
@@ -85,8 +85,8 @@ async fn brain_reports_ready_over_the_live_seam() {
 #[ignore = "live gRPC check: needs a real brain at CORTEX_BRAIN_ADDR (run with -- --ignored)"]
 async fn the_link_probe_classifies_the_live_brain_and_a_peer_that_cannot_serve() {
     let addr = brain_addr();
-    let token = seam_token();
-    let client = match BrainSeamClient::connect_lazy_with_token(&addr, token.as_deref()) {
+    let token = rpc_token();
+    let client = match BrainRpcClient::connect_lazy_with_token(&addr, token.as_deref()) {
         Ok(client) => client,
         Err(error) => panic!("cannot build a lazy client for {addr}: {error}"),
     };
@@ -104,7 +104,7 @@ async fn the_link_probe_classifies_the_live_brain_and_a_peer_that_cannot_serve()
     );
 
     let (unserved, dials) = dial_dropping_peer().await;
-    let dead = match BrainSeamClient::connect_lazy_with_token(&unserved, None) {
+    let dead = match BrainRpcClient::connect_lazy_with_token(&unserved, None) {
         Ok(client) => client,
         Err(error) => panic!("cannot build a lazy client for {unserved}: {error}"),
     };
@@ -157,7 +157,7 @@ fn patient_reads() -> RetryPolicy {
 #[tokio::test]
 #[ignore = "live gRPC check: dials a dead loopback address on real time (needs no brain)"]
 async fn the_probe_budget_bounds_a_down_result_against_a_dead_address() {
-    let dead = match BrainSeamClient::connect_lazy_with_token("http://127.0.0.1:1", None) {
+    let dead = match BrainRpcClient::connect_lazy_with_token("http://127.0.0.1:1", None) {
         Ok(client) => client,
         Err(error) => panic!("cannot build a lazy client for the dead address: {error}"),
     };
@@ -191,7 +191,7 @@ async fn the_probe_budget_bounds_a_down_result_against_a_dead_address() {
 #[ignore = "live gRPC check: runs entirely against a loopback peer of its own (needs no brain)"]
 async fn the_probe_trims_its_attempts_where_a_read_spends_them_all() {
     let (unserved, dials) = dial_dropping_peer().await;
-    let client = match BrainSeamClient::connect_lazy_with_token(&unserved, None) {
+    let client = match BrainRpcClient::connect_lazy_with_token(&unserved, None) {
         Ok(client) => client,
         Err(error) => panic!("cannot build a lazy client for {unserved}: {error}"),
     };
@@ -242,9 +242,9 @@ async fn the_probe_trims_its_attempts_where_a_read_spends_them_all() {
 
 #[tokio::test]
 #[ignore = "live gRPC check: needs a TOKEN-PROTECTED brain (CORTEX_SEAM_TOKEN set on both sides)"]
-async fn a_rejected_seam_token_is_answered_at_once_and_never_retried() {
+async fn a_rejected_rpc_token_is_answered_at_once_and_never_retried() {
     let addr = brain_addr();
-    let client = match BrainSeamClient::connect_lazy_with_token(&addr, Some("not-the-token")) {
+    let client = match BrainRpcClient::connect_lazy_with_token(&addr, Some("not-the-token")) {
         Ok(client) => client,
         Err(error) => panic!("cannot build a lazy client for {addr}: {error}"),
     };
@@ -280,8 +280,8 @@ async fn a_rejected_seam_token_is_answered_at_once_and_never_retried() {
 #[ignore = "live gRPC check: needs a real brain at CORTEX_BRAIN_ADDR (run with -- --ignored)"]
 async fn the_ack_write_is_answered_once_against_the_live_brain() {
     let addr = brain_addr();
-    let token = seam_token();
-    let client = match BrainSeamClient::connect_lazy_with_token(&addr, token.as_deref()) {
+    let token = rpc_token();
+    let client = match BrainRpcClient::connect_lazy_with_token(&addr, token.as_deref()) {
         Ok(client) => client,
         Err(error) => panic!("cannot build a lazy client for {addr}: {error}"),
     };
@@ -300,7 +300,7 @@ async fn the_ack_write_is_answered_once_against_the_live_brain() {
 
 #[tokio::test]
 #[ignore = "live gRPC check: needs a real brain at CORTEX_BRAIN_ADDR (run with -- --ignored)"]
-async fn converse_round_trips_one_turn_over_the_live_seam() {
+async fn converse_round_trips_one_turn_over_the_live_rpc() {
     let addr = brain_addr();
     let mut client = match BrainServiceClient::connect(addr.clone()).await {
         Ok(client) => client,
@@ -315,7 +315,7 @@ async fn converse_round_trips_one_turn_over_the_live_seam() {
         })),
     };
     let mut request = tonic::Request::new(tokio_stream::iter(vec![turn]));
-    if let Some(token) = seam_token() {
+    if let Some(token) = rpc_token() {
         let value = match token.parse() {
             Ok(value) => value,
             Err(error) => panic!("CORTEX_SEAM_TOKEN is not valid ASCII metadata: {error}"),
@@ -401,7 +401,7 @@ async fn seed_one_turn(addr: &str, session_id: &str, text: &str) {
         })),
     };
     let mut request = tonic::Request::new(tokio_stream::iter(vec![turn]));
-    if let Some(token) = seam_token() {
+    if let Some(token) = rpc_token() {
         match token.parse() {
             Ok(value) => {
                 request.metadata_mut().insert("x-cortex-seam-token", value);
@@ -428,14 +428,14 @@ async fn seed_one_turn(addr: &str, session_id: &str, text: &str) {
 
 #[tokio::test]
 #[ignore = "live gRPC check: needs a real brain at CORTEX_BRAIN_ADDR (run with -- --ignored)"]
-async fn session_reads_round_trip_over_the_live_seam() {
+async fn session_reads_round_trip_over_the_live_rpc() {
     let addr = brain_addr();
-    let token = seam_token();
+    let token = rpc_token();
     let session_id = unique_session_id();
     let question = "list me over the seam";
     seed_one_turn(&addr, &session_id, question).await;
 
-    let client = match BrainSeamClient::connect_with_token(&addr, token.as_deref()).await {
+    let client = match BrainRpcClient::connect_with_token(&addr, token.as_deref()).await {
         Ok(client) => client,
         Err(error) => panic!("cannot reach the brain at {addr}: {error}"),
     };

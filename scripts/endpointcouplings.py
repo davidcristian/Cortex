@@ -12,7 +12,7 @@ RPC_LIVE = "body/crates/rpc/tests/live.rs"
 GATEWAY_LIVE = "brain/packages/body_client/tests/test_gateway_live.py"
 SCHEDULE_LIVE = "brain/packages/orchestrator/tests/test_schedule_grpc_live.py"
 TURN_COST_LIVE = "brain/packages/orchestrator/tests/test_turn_cost_live.py"
-SEAM_CONFIG = "brain/packages/orchestrator/src/cortex_orchestrator/config.py"
+RPC_CONFIG = "brain/packages/orchestrator/src/cortex_orchestrator/config.py"
 OVERLAY_RUNBOOK = "docs/runbooks/body-overlay.md"
 SCHEDULING_RUNBOOK = "docs/runbooks/scheduling.md"
 VOLUME_RUNBOOK = "docs/runbooks/body-volume.md"
@@ -37,7 +37,7 @@ ENDPOINT_COUPLINGS: tuple[Constant, ...] = (
             "leaves three documents telling a reader the brain answers somewhere it does not "
             "(the endpoint configuration contract in ADR-0003)"
         ),
-        sites=(Site(SEAM_CONFIG, "DEFAULT_SEAM_HOST"),),
+        sites=(Site(RPC_CONFIG, "DEFAULT_RPC_HOST"),),
         mentions=(
             Mention(ORCHESTRATOR_DOC, "(`{value}`, `CORTEX_SEAM_HOST`"),
             Mention(BODY_RPC_DOC, "defaults `{value}`/"),
@@ -57,7 +57,7 @@ ENDPOINT_COUPLINGS: tuple[Constant, ...] = (
         ),
         sites=(
             Site(
-                "brain/packages/orchestrator/src/cortex_orchestrator/config.py", "DEFAULT_SEAM_PORT"
+                "brain/packages/orchestrator/src/cortex_orchestrator/config.py", "DEFAULT_RPC_PORT"
             ),
         ),
         mentions=(
@@ -76,7 +76,7 @@ ENDPOINT_COUPLINGS: tuple[Constant, ...] = (
             Mention(BODY_APP_DOC, "`CORTEX_BRAIN_ADDR` (default `http://127.0.0.1:{value}`)"),
             Mention(BODY_RPC_DOC, "`http://127.0.0.1:{value}`", occurrences=2),
             Mention(BODY_RPC_DOC, "defaults `127.0.0.1`/`{value}`"),
-            Mention(ORCHESTRATOR_DOC, "DEFAULT_SEAM_PORT` ({value},"),
+            Mention(ORCHESTRATOR_DOC, "DEFAULT_RPC_PORT` ({value},"),
             Mention(ORCHESTRATOR_DOC, "`CORTEX_BRAIN_ADDR` (default `http://127.0.0.1:{value}`)"),
             Mention(OVERLAY_RUNBOOK, "`CORTEX_BRAIN_ADDR` (default `http://127.0.0.1:{value}`)"),
             Mention(OVERLAY_RUNBOOK, 'CORTEX_BRAIN_ADDR = "http://127.0.0.1:{value}"'),

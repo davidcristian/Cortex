@@ -6,7 +6,7 @@ import pytest
 from confirmer_contract import ALL_CHECKS, Check, ConfirmerUnderTest
 
 from cortex_core import ConfirmationRequest, RecordingConfirmer
-from cortex_orchestrator import SeamConfirmer
+from cortex_orchestrator import RpcConfirmer
 from cortex_seam import ServerEvent
 
 type Build = Callable[[], ConfirmerUnderTest]
@@ -25,11 +25,11 @@ def _recording() -> ConfirmerUnderTest:
     )
 
 
-def _seam() -> ConfirmerUnderTest:
+def _rpc() -> ConfirmerUnderTest:
     """The real adapter with a scripted overlay answering on the stream's control path."""
     shown: list[ConfirmationRequest] = []
     person = {"approves": True, "silent": False}
-    holder: list[SeamConfirmer] = []
+    holder: list[RpcConfirmer] = []
 
     def emit(event: ServerEvent) -> None:
         if event.WhichOneof("event") != "confirm_request":
@@ -42,7 +42,7 @@ def _seam() -> ConfirmerUnderTest:
         if not person["silent"]:
             holder[0].resolve(card.confirm_id, approved=person["approves"])
 
-    confirmer = SeamConfirmer(emit, timeout_s=_TIMEOUT_S)
+    confirmer = RpcConfirmer(emit, timeout_s=_TIMEOUT_S)
     holder.append(confirmer)
 
     return ConfirmerUnderTest(
@@ -55,6 +55,6 @@ def _seam() -> ConfirmerUnderTest:
 
 
 @pytest.mark.parametrize("check", ALL_CHECKS, ids=lambda check: check.__name__)
-@pytest.mark.parametrize("build", [_recording, _seam], ids=["recording", "seam"])
+@pytest.mark.parametrize("build", [_recording, _rpc], ids=["recording", "rpc"])
 async def test_the_contract_holds(check: Check, build: Build) -> None:
     await check(build())

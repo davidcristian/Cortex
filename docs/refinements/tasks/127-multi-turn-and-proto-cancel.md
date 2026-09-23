@@ -41,7 +41,7 @@ none for a cancelled turn, and `converse_turn` maps that to
 `TransportError::Protocol("converse stream ended before the turn completed")`. So client `Cancel`
 needs either multiple turns in one stream, which is also what makes it worth having, or a new
 terminal cancelled acknowledgement, which is a server-semantics change. Multiple turns per stream
-then needs per-turn keying for Slice 8.8's single-slot `ConfirmRoute` and the `SeamConfirmer`'s
+then needs per-turn keying for Slice 8.8's single-slot `ConfirmRoute` and the `RpcConfirmer`'s
 one-confirm-per-stream assumption: a map rather than one slot, contained in a route that is
 already generation-tagged.
 

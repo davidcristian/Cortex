@@ -8,7 +8,7 @@ from pathlib import Path
 import scanrecipes
 from scanrecipes import ScanReadError
 
-LIVE_SEAM = Path("body/crates/rpc/tests/live.rs")
+LIVE_RPC = Path("body/crates/rpc/tests/live.rs")
 GATES = Path("scripts")
 PACKAGES = Path("brain/packages")
 CRATES = Path("body/crates")
@@ -88,9 +88,9 @@ def _named_after(lines: list[str], number: int) -> str:
     raise MemberError(msg)
 
 
-def live_seam_checks(root: Path) -> frozenset[str]:
+def live_rpc_checks(root: Path) -> frozenset[str]:
     """Every `#[ignore]`d test in the body's live transport suite."""
-    return _floored(ignored_tests(_read(root, LIVE_SEAM)), f"the ignored tests in {LIVE_SEAM}")
+    return _floored(ignored_tests(_read(root, LIVE_RPC)), f"the ignored tests in {LIVE_RPC}")
 
 
 def gate_modules(root: Path) -> frozenset[str]:

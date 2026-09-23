@@ -84,10 +84,10 @@ add_BrainServiceServicer_to_server = cast("_AddBrainServicer", _untyped_add_brai
 
 # The metadata key the shared token travels under, in both directions. The body declares its own
 # Rust constant of the same value twice, and `scripts/crosscheck.py` fails if the three differ.
-SEAM_TOKEN_HEADER = "x-cortex-seam-token"  # noqa: S105 - the header NAME, not a secret
+RPC_TOKEN_HEADER = "x-cortex-seam-token"  # noqa: S105 - the header NAME, not a secret
 
 __all__ = [
-    "SEAM_TOKEN_HEADER",
+    "RPC_TOKEN_HEADER",
     "AckReminderReply",
     "AckReminderRequest",
     "BodyServiceServicer",

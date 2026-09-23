@@ -17,7 +17,7 @@ from cortex_core import (
     hold_to_the_bounds_asked_for,
 )
 from cortex_seam import (
-    SEAM_TOKEN_HEADER,
+    RPC_TOKEN_HEADER,
     BodyServiceStub,
     CaptureScreenReply,
     CaptureScreenRequest,
@@ -71,7 +71,7 @@ class GrpcBodyGateway:
         self._capture_timeout_s = capture_timeout_s
         self._call_timeout_s = call_timeout_s
         # An empty token means no metadata, which is what a tokenless body server expects.
-        self._metadata: _Metadata = ((SEAM_TOKEN_HEADER, token),) if token else ()
+        self._metadata: _Metadata = ((RPC_TOKEN_HEADER, token),) if token else ()
 
     @classmethod
     async def connect(

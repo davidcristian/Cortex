@@ -12,8 +12,7 @@ script passes to `echo` or `printf`, although an operator reads that text the sa
 check's failure line. On 2026-09-23 the `replay` recipe printed three words from the table: the
 bodies `landed since` a date, a ledger that `carries no commit`, and `no standing count`. Those
 lines are rewritten, and a grep of the justfile and every tracked `*.sh` file for an `echo` or a
-`printf` holding a table word now finds one line: the `seam-health` recipe says a failure looks
-`as if the seam had regressed`.
+`printf` holding a table word now finds none.
 
 **What would close it.** A reader for the double-quoted strings in the justfile's recipe bodies and
 in the `*.sh` files, joining the literals `proseliterals.py` already returns, with a test that a

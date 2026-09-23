@@ -18,8 +18,8 @@ pub use retry::{
     ANNOUNCED_DEADLINE_GRACE_MS, DEFAULT_CALL_DEADLINE, DEFAULT_PROBE_BUDGET,
     DEFAULT_PROBE_DEADLINE, DEFAULT_TURN_FIRST_GAP_MS, DEFAULT_TURN_HEARTBEAT_GAP_MS,
     DEFAULT_TURN_IDLE_GAP_MS, FullDelay, HEARTBEAT_PERIOD_MS, Randomness, RetryPlan, RetryPolicy,
-    RetryingTransport, SeamMethod, Sleeper, TurnGaps, is_transient, retry_with, within_deadline,
+    RetryingTransport, RpcMethod, Sleeper, TurnGaps, is_transient, retry_with, within_deadline,
     within_gaps,
 };
 pub use session_types::{DueReminder, SessionMessage, SessionSummary};
-pub use transport::{BrainTransport, ConfirmDecision, SeamHealth, TransportError, TurnEvent};
+pub use transport::{BrainTransport, ConfirmDecision, RpcHealth, TransportError, TurnEvent};

@@ -5,7 +5,7 @@ use std::time::Duration;
 
 use body_core::{
     BrainTransport, ConfirmDecision, DueReminder, Randomness, RetryPlan, RetryPolicy,
-    RetryingTransport, SeamHealth, SeamMethod, SessionMessage, SessionSummary, Sleeper,
+    RetryingTransport, RpcHealth, RpcMethod, SessionMessage, SessionSummary, Sleeper,
     TransportError, TurnEvent, is_transient, retry_with, within_deadline,
 };
 use futures_core::Stream;
@@ -73,9 +73,9 @@ impl FlakyTransport {
 }
 
 impl BrainTransport for FlakyTransport {
-    async fn health(&self) -> Result<SeamHealth, TransportError> {
+    async fn health(&self) -> Result<RpcHealth, TransportError> {
         self.tick()?;
-        Ok(SeamHealth {
+        Ok(RpcHealth {
             ready: true,
             detail: String::from("ok"),
         })
@@ -852,7 +852,7 @@ async fn the_turn_is_the_one_call_no_deadline_ends_and_its_silence_is_bounded_in
         vec![Err(TransportError::Timeout { after: heartbeat })]
     );
     assert_eq!(sleeper.bounds(), vec![heartbeat]);
-    assert_eq!(plan.deadline_for(SeamMethod::Converse), None);
+    assert_eq!(plan.deadline_for(RpcMethod::Converse), None);
 }
 
 #[tokio::test]

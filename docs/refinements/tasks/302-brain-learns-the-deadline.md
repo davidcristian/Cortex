@@ -28,9 +28,9 @@ wins.
 What was built is the header, its margin and the reply mapping. `RetryPlan` gained
 `announced_deadline_for(method)`, which is `deadline_for` plus `ANNOUNCED_DEADLINE_GRACE_MS`
 (250 ms) and `None` where the enforced deadline is `None`, so the number the brain is told is a
-core decision and the adapter only writes it down. `BrainSeamClient` gained `announcing(plan)`,
+core decision and the adapter only writes it down. `BrainRpcClient` gained `announcing(plan)`,
 holds the channel, the token and that plan, and builds one generated client per call
-(`body/crates/rpc/src/call.rs`, which took the interceptor and the `SEAM_TOKEN_HEADER` declaration
+(`body/crates/rpc/src/call.rs`, which took the interceptor and the `RPC_TOKEN_HEADER` declaration
 with it under the line cap); the shell's `seam::connect()` reads one plan and hands it to both the
 decorator that enforces and the client that announces. The redacting `Debug` is written out rather
 than derived, since the client now holds the token itself.
@@ -39,7 +39,7 @@ The shape was neither of the two the entry named, though closer to the first. Th
 per call, but the deadline is not passed in by a caller: the client asks the plan it was given, per
 method, which keeps the policy in the core. Threading a duration through `sessions.rs`,
 `reminders.rs`, `preferences.rs` and `converse.rs` would have put the same number in four modules'
-signatures. The reply side does need the value, so those three unary modules take a `SeamCall`
+signatures. The reply side does need the value, so those three unary modules take a `RpcCall`
 rather than a bare client.
 
 The classification did not move. A `DEADLINE_EXCEEDED` the brain sends on a call that announced

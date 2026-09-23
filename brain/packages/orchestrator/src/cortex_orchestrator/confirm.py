@@ -1,4 +1,4 @@
-"""SeamConfirmer: the real ``Confirmer`` adapter over the Converse stream."""
+"""RpcConfirmer: the real ``Confirmer`` adapter over the Converse stream."""
 
 import asyncio
 import json
@@ -17,7 +17,7 @@ OUTCOME_TIMEOUT = "timeout"
 OUTCOME_UNAVAILABLE = "unavailable"
 
 
-class SeamConfirmer:
+class RpcConfirmer:
     """Emit a ``ConfirmRequest`` to the overlay and await the user's answer (fail-closed)."""
 
     def __init__(self, emit: Callable[[ServerEvent], None], *, timeout_s: float) -> None:

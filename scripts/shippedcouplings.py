@@ -11,7 +11,7 @@ TOOLS_CONFIG = "brain/packages/orchestrator/src/cortex_orchestrator/config_tools
 BODY_CORE_DOC = "docs/modules/body-core-retry.md"
 BODY_RPC_DOC = "docs/modules/body-rpc.md"
 RETRY_PLAN = "body/crates/core/src/retry/plan.rs"
-SEAM_CALL = "body/crates/rpc/src/call.rs"
+RPC_CALL = "body/crates/rpc/src/call.rs"
 RETRY_GAP = "body/crates/core/src/retry/gap.rs"
 BODY_APP_DOC = "docs/modules/body-app.md"
 OVERLAY_RUNBOOK = "docs/runbooks/body-overlay.md"
@@ -145,7 +145,7 @@ SHIPPED_COUPLINGS: tuple[Constant, ...] = (
             "there, and its contract quotes the rung as the number a future agent reads instead "
             "of the tree (ADR-0024 decision 16)"
         ),
-        sites=(Site(SEAM_CALL, "MAX_ANNOUNCED_DEADLINE_MS"),),
+        sites=(Site(RPC_CALL, "MAX_ANNOUNCED_DEADLINE_MS"),),
         mentions=(
             Mention(BODY_RPC_DOC, "`MAX_ANNOUNCED_DEADLINE_MS` ({value} ms, about 27.8 hours)"),
         ),

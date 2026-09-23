@@ -28,7 +28,7 @@ every build.
 
 3. **The Rust live suite is `#[ignore]`-marked tests** (`body/crates/rpc/tests/live.rs`), the Rust
    equivalent of the Python `integration` marker: compiled, never run in CI or under coverage, and
-   run against a live brain by `just seam-health`. Its list in
+   run against a live brain by `just rpc-health`. Its list in
    [body-rpc](../modules/body-rpc.md) is compared with the file
    ([ADR-0044](ADR-0044-document-rosters.md) decision 7).
 

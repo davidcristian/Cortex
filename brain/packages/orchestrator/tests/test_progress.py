@@ -1,7 +1,7 @@
 import asyncio
 
 from cortex_core import StatusUpdate, ToolActivity, TurnEvent
-from cortex_orchestrator import SeamProgressSink
+from cortex_orchestrator import RpcProgressSink
 from cortex_seam import ServerEvent
 from cortex_seam import StatusUpdate as WireStatus
 from cortex_seam import ToolActivity as WireActivity
@@ -17,11 +17,11 @@ def _to_wire(event: TurnEvent) -> ServerEvent:
     return ServerEvent(status=WireStatus(state=event.state, detail=event.detail))
 
 
-def _sink(size: int) -> tuple[SeamProgressSink, list[ServerEvent], asyncio.Semaphore]:
+def _sink(size: int) -> tuple[RpcProgressSink, list[ServerEvent], asyncio.Semaphore]:
     """A sink over a fresh queue-emit list and its credit semaphore."""
     emitted: list[ServerEvent] = []
     sem = asyncio.Semaphore(size)
-    return SeamProgressSink(emitted.append, sem, to_wire=_to_wire), emitted, sem
+    return RpcProgressSink(emitted.append, sem, to_wire=_to_wire), emitted, sem
 
 
 async def test_emits_a_tool_activity_when_a_credit_is_free() -> None:

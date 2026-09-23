@@ -50,7 +50,7 @@ LIVE = Roster(
     written=Bulleted(),
     subject="an ignored test in body/crates/rpc/tests/live.rs",
     why="the live suite is the one suite no gate runs",
-    members=rostermembers.live_seam_checks,
+    members=rostermembers.live_rpc_checks,
 )
 
 
@@ -59,7 +59,7 @@ def repo(root: Path, *, page: str = PAGE, suite: str = SUITE) -> Path:
     document = root / DOCUMENT
     document.parent.mkdir(parents=True, exist_ok=True)
     document.write_text(page, encoding="utf-8")
-    source = root / rostermembers.LIVE_SEAM
+    source = root / rostermembers.LIVE_RPC
     source.parent.mkdir(parents=True, exist_ok=True)
     source.write_text(suite, encoding="utf-8")
     return root

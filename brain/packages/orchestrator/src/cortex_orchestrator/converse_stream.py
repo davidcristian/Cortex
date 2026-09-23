@@ -20,8 +20,8 @@ from cortex_core import StatusUpdate as DomainStatusUpdate
 from cortex_core import TextDelta as DomainTextDelta
 from cortex_core import ToolActivity as DomainToolActivity
 from cortex_core import ToolOutcome as DomainToolOutcome
-from cortex_orchestrator.confirm import SeamConfirmer
-from cortex_orchestrator.progress import SeamProgressSink
+from cortex_orchestrator.confirm import RpcConfirmer
+from cortex_orchestrator.progress import RpcProgressSink
 from cortex_seam import ClientEvent, Heartbeat, SeamError, ServerEvent, TurnComplete
 from cortex_seam import StatusUpdate as WireStatusUpdate
 from cortex_seam import TextDelta as WireTextDelta
@@ -81,8 +81,8 @@ class ConverseStream:
             raise ValueError(msg)
         self._out: asyncio.Queue[ServerEvent | None] = asyncio.Queue()
         self._credits = asyncio.Semaphore(max_buffered_events)
-        self._confirmer = SeamConfirmer(self._out.put_nowait, timeout_s=confirm_timeout_s)
-        self._progress = SeamProgressSink(
+        self._confirmer = RpcConfirmer(self._out.put_nowait, timeout_s=confirm_timeout_s)
+        self._progress = RpcProgressSink(
             self._out.put_nowait, self._credits, to_wire=to_server_event
         )
         self._engine = make_engine(self._confirmer, self._progress)

@@ -16,7 +16,7 @@ the rest, in four kinds.
 2. **Copies that are not declarations.** A value written inside a string is not read by a scan
    that reads constant declarations: `docker/docker-compose.yml`'s healthcheck contains
    `x-cortex-seam-token` inline in a one-line Python command, the brain's port `50051` appears in
-   the shell as `"http://127.0.0.1:50051"` against `SeamServerConfig.port`, and the body's bind
+   the shell as `"http://127.0.0.1:50051"` against `RpcServerConfig.port`, and the body's bind
    port `50151` is a bare literal argument in `body_server.rs` against a compose variable.
 3. **TypeScript, for which the scan had no declaration syntax at all.** The overlay matched wire
    values by hand: `CAPTURE_SCREEN_TOOL` against the brain's `CAPTURE_SCREEN_TOOL_NAME`, whose

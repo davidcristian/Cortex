@@ -1,9 +1,9 @@
-//! Session translation for `BrainSeamClient`, forming the unary session half of the
+//! Session translation for `BrainRpcClient`, forming the unary session half of the
 //! `body_core::BrainTransport` port.
 
 use body_core::{SessionMessage, SessionSummary, TransportError};
 
-use crate::call::SeamCall;
+use crate::call::RpcCall;
 use crate::generated::{
     DeleteSessionRequest, GetSessionMessagesRequest, ListSessionsRequest, RenameSessionRequest,
     SetSessionHoistedRequest,
@@ -11,7 +11,7 @@ use crate::generated::{
 
 /// Lists recent chats newest-active first (`BrainService.ListSessions`).
 pub(crate) async fn list_sessions(
-    call: SeamCall,
+    call: RpcCall,
     limit: i32,
 ) -> Result<Vec<SessionSummary>, TransportError> {
     let mut client = call.client();
@@ -35,7 +35,7 @@ pub(crate) async fn list_sessions(
 
 /// Loads one session's persisted history in append order (`BrainService.GetSessionMessages`).
 pub(crate) async fn session_messages(
-    call: SeamCall,
+    call: RpcCall,
     session_id: String,
 ) -> Result<Vec<SessionMessage>, TransportError> {
     let mut client = call.client();
@@ -58,7 +58,7 @@ pub(crate) async fn session_messages(
 
 /// Renames one chat (`BrainService.RenameSession`).
 pub(crate) async fn rename_session(
-    call: SeamCall,
+    call: RpcCall,
     session_id: String,
     title: String,
 ) -> Result<(), TransportError> {
@@ -71,7 +71,7 @@ pub(crate) async fn rename_session(
 
 /// Deletes one chat (`BrainService.DeleteSession`).
 pub(crate) async fn delete_session(
-    call: SeamCall,
+    call: RpcCall,
     session_id: String,
 ) -> Result<(), TransportError> {
     call.client()
@@ -83,7 +83,7 @@ pub(crate) async fn delete_session(
 
 /// Hoists or lowers one chat (`BrainService.SetSessionHoisted`).
 pub(crate) async fn set_session_hoisted(
-    call: SeamCall,
+    call: RpcCall,
     session_id: String,
     hoisted: bool,
 ) -> Result<(), TransportError> {

@@ -132,8 +132,8 @@ Python, each list in the named package's `tests/`. "Live" is an integration-mark
 | `Embedder` | `HashEmbedder` | `LlamaCppEmbedder` | `embedder_contract.py` | yes | yes, `MockTransport` | restated |
 | `ToolRegistry` | `InMemoryToolRegistry` | `McpToolRegistry`, `ReconnectingMcpToolRegistry` | `registry_contract.py`, and the own-text list | yes | yes, both, over a serving `McpSession` | yes |
 | `BodyGateway` | `InMemoryBodyGateway` | `GrpcBodyGateway` | `gateway_contract.py` | yes | yes, a loopback `BodyService` | yes |
-| `Confirmer` | `RecordingConfirmer` | `SeamConfirmer` | `confirmer_contract.py` | yes | yes, a scripted overlay | no |
-| `ProgressSink` | `RecordingProgressSink` | `SeamProgressSink` | `progress_contract.py` | yes | yes, a list of queued events | no |
+| `Confirmer` | `RecordingConfirmer` | `RpcConfirmer` | `confirmer_contract.py` | yes | yes, a scripted overlay | no |
+| `ProgressSink` | `RecordingProgressSink` | `RpcProgressSink` | `progress_contract.py` | yes | yes, a list of queued events | no |
 | `Mailbox` | `FakeMailbox` | `ImapMailbox` | `mailbox_contract.py` | yes | yes, a stand-in box | restated |
 | `EmailSender` | `FakeSender` | `SmtpSender` | `sender_contract.py` | yes | yes, a stand-in `smtplib` | restated |
 | `ToolAuditSink` | `RecordingAuditSink` | `JsonLinesAuditSink`, `TeeAuditSink` | `audit_contract.py` | yes | yes, a temporary file | no |
@@ -152,7 +152,7 @@ Rust and the overlay:
 | `AudioControl` | `FakeAudio`, written twice | `WindowsAudioControl` | none | yes | no, `cfg(windows)` |
 | `Notify` | `FakeNotify`, written twice | `WindowsNotify` | none | yes | no, `cfg(windows)` |
 | `ScreenCapture` | `FakeScreen`, written twice | `WindowsScreenCapture`, `DeniedScreenCapture` | none | yes | the denying one |
-| `BrainTransport` | `FakeTransport`, `ScriptedTransport`, `FlakyTransport` | `BrainSeamClient`, `RetryingTransport` | none | yes | yes, a loopback fake `BrainService` |
+| `BrainTransport` | `FakeTransport`, `ScriptedTransport`, `FlakyTransport` | `BrainRpcClient`, `RetryingTransport` | none | yes | yes, a loopback fake `BrainService` |
 | `Sleeper` | `FakeSleeper` | `TokioSleeper` | none | yes | no, outside the checked workspace |
 | `Randomness` | `FakeRandomness` | `FullDelay`, `ShellRandomness` | none | yes | `FullDelay` incidentally |
 | `BrainBridge` (overlay) | `FakeBridge` | `TauriBridge`, `DemoBridge` | `bridgeContract.ts` | yes | `DemoBridge` |
