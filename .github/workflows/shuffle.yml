@@ -1,7 +1,7 @@
 # Run every test suite in a shuffled order at a fresh seed, weekly and on demand. `just check`
 # uses a fixed seed, so this is where the other orders come from. It runs the same committed
 # recipe a person runs by hand, blocks nothing, and reports a failure with the seed that drew it.
-name: Shuffle sweep
+name: Shuffled test run
 
 on:
   schedule:
@@ -12,20 +12,20 @@ on:
   workflow_dispatch:
     inputs:
       seed:
-        description: "Seed to sweep at (blank draws a fresh one)"
+        description: "Seed to run every suite at (blank draws a fresh one)"
         required: false
         type: string
 
 # One run at a time. A second run queued behind the first would use a different order anyway.
 concurrency:
-  group: shuffle-sweep
+  group: shuffle
   cancel-in-progress: false
 
 permissions:
   contents: read
 
 jobs:
-  sweep:
+  shuffle:
     runs-on: ubuntu-latest
     # A bound because a hung test has no other way to end; the default is six hours.
     timeout-minutes: 45
@@ -51,7 +51,7 @@ jobs:
         with:
           tool: just
       - id: draw
-        name: Draw the seed this sweep runs at
+        name: Draw the seed this run uses
         env:
           # Passed through the environment rather than interpolated into the script: a `${{ }}`
           # expansion of text a person typed is a shell-injection risk.
@@ -72,11 +72,11 @@ jobs:
           # Written before the run, so one that fails, times out or is cancelled still names the
           # order it was using. The summary is the first thing on a run's page.
           {
-            echo "## Shuffle sweep"
+            echo "## Shuffled test run"
             echo
-            echo "Seed \`${seed}\`. Every gated suite runs its tests in that order."
+            echo "Seed \`${seed}\`. Each of the four test suites runs its tests in that order."
             echo
-            echo "Reproduce this whole sweep locally:"
+            echo "Repeat this whole run locally:"
             echo
             echo '```'
             echo "just shuffle ${seed}"
@@ -86,7 +86,7 @@ jobs:
             echo "so it is not about the commit this ran on and it blocks nothing. Fix the"
             echo "test, never the seed."
           } >> "$GITHUB_STEP_SUMMARY"
-      - name: Sweep every suite at that seed
+      - name: Run every suite at that seed
         env:
           SEED: ${{ steps.draw.outputs.seed }}
         run: just shuffle "$SEED"

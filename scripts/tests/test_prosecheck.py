@@ -358,6 +358,17 @@ def test_scan_reads_the_strings_the_justfile_and_shell_scripts_print(repo: Path)
     ]
 
 
+def test_scan_reads_the_text_in_yaml_and_toml_values(repo: Path) -> None:
+    _write(repo, ".github/a.yml", 'name: the gate\njobs:\n  gate:\n    run: echo "a gate"\n')
+    _write(repo, "a.toml", 'x = "a gate"\ny = "gate"\n')
+    scanned = prosecheck.scan(repo, [repo / ".github", repo / "a.toml"], PATTERN, range(0))
+    assert [(str(item.path), item.line) for item in scanned.problems] == [
+        (".github/a.yml", 1),
+        (".github/a.yml", 4),
+        ("a.toml", 1),
+    ]
+
+
 def test_scan_leaves_an_exempt_literal_alone(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     _write(repo, "scripts/a.py", 'X = "a gate here"\nY = "the gates"\n')
     exemption = LiteralExemption("scripts/a.py", ("X",), "model")

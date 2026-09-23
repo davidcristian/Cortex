@@ -71,7 +71,7 @@ testpaths = ["packages"]
 # module. Naming its directory here makes that import work regardless of collection order.
 pythonpath = ["packages/inference/tests"]
 markers = [
-  "integration: exercises live external systems; excluded from coverage gate and CI",
+  "integration: exercises live external systems; excluded from the coverage check and CI",
 ]
 # `--randomly-seed` is fixed, so the order is not the collection order and is the same twice. The
 # number is arbitrary and deliberately unlike the other suites' seeds, so nobody reads the four as

@@ -121,6 +121,9 @@ def test_source_that_cannot_be_parsed_is_an_error() -> None:
         "justfile",
         "docker/postgres/backup.sh",
         "scripts/a.sh",
+        ".github/workflows/a.yml",
+        "docker/a.yaml",
+        "brain/pyproject.toml",
     ],
 )
 def test_scripts_the_brain_and_the_body_sources_are_read(path: str) -> None:
@@ -185,6 +188,9 @@ def test_escapes_are_read_as_the_text_they_stand_for(source: str, hits: list[str
         ("a.py", 'x = "a gate here"\n'),
         ("justfile", 'r:\n    echo "a gate {{ gate }} here"\n'),
         ("docker/a.sh", "echo 'a gate' \"{{gate}} is shut\" >&2\n"),
+        ("a.yml", 'name: gate\ngroup: the gate\nrun: echo "a $gate" "one gate"\n'),
+        ("a.yaml", "description: 'the gate'\n"),
+        ("a.toml", '# a gate\nx = \'a gate\'\ny = "a $gate"\nz = "the gate"\n'),
     ],
 )
 def test_file_literals_read_each_language_with_its_own_reader(name: str, source: str) -> None:

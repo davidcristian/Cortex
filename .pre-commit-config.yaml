@@ -5,7 +5,7 @@ repos:
   - repo: local
     hooks:
       - id: just-check
-        name: just check (all gates, both toolchains)
+        name: just check (every check and scan)
         entry: just check
         language: system
         pass_filenames: false

@@ -121,38 +121,46 @@ record says what it is and why.
     finds them. It reaches a backlog task's file name too: `backlogcheck.py` reads each slug with
     its hyphens, and those of the table's words, read as spaces.
 16. **The prose check reads the strings the code prints or raises.** Its scope is every non-test
-    Python module in `scripts/` and every module under a brain package's `src/`, and every Rust
-    and TypeScript file under `body/` outside a `tests` directory and not named `*.test.ts` or
-    `*.test.tsx`, and the double-quoted strings of the justfile and of every `*.sh` file: log
-    messages, exception text, help text, the overlay's text, what a recipe prints and the rest.
-    Tests and generated code are outside it. A literal is prose when it holds two words
-    separated by a space, and an f-string or a template literal is read whole, each value it
-    formats counting as a word. Python literals come from `ast`; Rust and TypeScript literals
-    come from the lexer in `slashcomments.py` that already finds their comments, which knows raw
-    and byte strings, char literals, template literals and regex literals, and in a `.tsx` file
-    the text between JSX tags is read as one more literal, each `{...}` container in it a
-    formatted value. A `<` opens an element where an expression starts, the position where a `/`
-    opens a regex literal, or after `=>`; a `<` after a name or a value is a comparison or a
-    type argument. A generic arrow function written at the start of an expression, `<T,>(x) =>
-    x`, would be read as an element, and the overlay has none. An escape is read as the text it
-    stands for: `\n`, `\r` and `\t` as a space and any other as the character after its
-    backslash. Shell strings come from `shellstrings.py`, which reads each `$name`, `${...}`,
-    `$(...)` and backtick command, and in the justfile each `{{...}}` interpolation, as one
-    formatted value, and `{{{{` as the `{{` that `just` prints. Escapes are read as in the other
-    languages. A single-quoted shell string is not read, because in this tree one holds a
-    program another tool reads (a `sed` script, a `trap`, a `docker` template) or bytes a script
-    writes to a file, never a message. A heredoc is not read either, and the tree has none. A
-    docstring is left to the docstring reader, and a dict key or a subscript argument is a key,
-    not prose. Inside a literal, a code span in backticks, a token holding a `/` or a file
-    extension and a flag with a leading `-` are masked, so the sentence around a path is still
-    read; excluding every literal that holds a path would have left such sentences unread.
-    `scripts/proseliterals.py` is this reader and `scripts/prosereaders.py` the one for
-    documents and comments; both use `bannedwords.py`. A string a model reads, whose wording
-    needs a model measurement before it changes (the security preamble, the recap preface, tool
-    descriptions, the email sidecar's own texts), is exempted by its module-level name in
-    `proseliterals.EXEMPTIONS` with a reason. An exemption fails once its file is gone or no
-    string assigned to the name holds a banned word. A banned word a printed sentence names as a
-    word, such as the numbered `gate` that `commitlint.py` reports, goes in backticks.
+    Python module in `scripts/` and every module under a brain package's `src/`, and every Rust and
+    TypeScript file under `body/` outside a `tests` directory and not named `*.test.ts` or
+    `*.test.tsx`, the double-quoted strings of the justfile and of every `*.sh` and TOML file, and
+    the `name`, `description` and `run` values of every YAML file: log messages, exception text,
+    help text, the overlay's text, what a recipe prints, a workflow's step names and the rest. Tests
+    and generated code are outside it. A literal is prose when it holds two words separated by a
+    space, and an f-string or a template literal is read whole, each value it formats counting as a
+    word. Python literals come from `ast`; Rust and TypeScript literals come from the lexer in
+    `slashcomments.py` that already finds their comments, which knows raw and byte strings, char
+    literals, template literals and regex literals, and in a `.tsx` file the text between JSX tags
+    is read as one more literal, each `{...}` container in it a formatted value. A `<` opens an
+    element where an expression starts, the position where a `/` opens a regex literal, or after
+    `=>`; a `<` after a name or a value is a comparison or a type argument. A generic arrow function
+    written at the start of an expression, `<T,>(x) => x`, would be read as an element, and the
+    overlay has none. An escape is read as the text it stands for: `\n`, `\r` and `\t` as a space
+    and any other as the character after its backslash. Shell strings come from `shellstrings.py`,
+    which reads each `$name`, `${...}`, `$(...)` and backtick command, and in the justfile each
+    `{{...}}` interpolation, as one formatted value, and `{{{{` as the `{{` that `just` prints.
+    Escapes are read as in the other languages. A single-quoted shell string is not read, because in
+    this tree one holds a program another tool reads (a `sed` script, a `trap`, a `docker` template)
+    or bytes a script writes to a file, never a message. A heredoc is not read either, and the tree
+    has none. A TOML file goes through the same lexer, because a TOML basic string has a shell
+    string's double quotes and backslash escapes; a `$` in one would read as a formatted value, and
+    the tree's TOML has none. `configstrings.py` reads a YAML file line by line, because `scripts/`
+    depends on the standard library alone: the value of each `name` and `description` key, which the
+    Actions page and the pre-commit output show, plain, quoted or as a block scalar, and each `run`
+    value, which it passes to `shellstrings.py`. The other keys hold commands, paths, versions,
+    schedules and the programs a compose healthcheck runs. A plain or quoted value continued onto a
+    second line is read on its first line only, and the tree has none. A docstring is left to the
+    docstring reader, and a dict key or a subscript argument is a key, not prose. Inside a literal,
+    a code span in backticks, a token holding a `/` or a file extension and a flag with a leading
+    `-` are masked, so the sentence around a path is still read; excluding every literal that holds
+    a path would have left such sentences unread. `scripts/proseliterals.py` is this reader and
+    `scripts/prosereaders.py` the one for documents and comments; both use `bannedwords.py`. A
+    string a model reads, whose wording needs a model measurement before it changes (the security
+    preamble, the recap preface, tool descriptions, the email sidecar's own texts), is exempted by
+    its module-level name in `proseliterals.EXEMPTIONS` with a reason. An exemption fails once its
+    file is gone or no string assigned to the name holds a banned word. A banned word a printed
+    sentence names as a word, such as the numbered `gate` that `commitlint.py` reports, goes in
+    backticks.
 
 ## Consequences
 
@@ -198,5 +206,3 @@ record says what it is and why.
   [R-701](../refinements/tasks/701-keeping-a-chat-at-the-top-has-no-designed-name.md) and
   [R-705](../refinements/tasks/705-names-inside-files-still-use-banned-words.md): names that still
   hold a word from the table
-- [R-715](../refinements/tasks/715-text-in-yaml-and-toml-values-is-outside-the-prose-check.md):
-  the text of YAML and TOML values, which the prose check does not read yet

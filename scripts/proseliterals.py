@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import NamedTuple
 
 import bannedwords
+import configstrings
 import shellstrings
 import slashcomments
 from commentblocks import SourceError
@@ -22,6 +23,8 @@ _OWNERS = (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)
 SLASH_SUFFIXES = frozenset({".rs", ".ts", ".tsx"})
 SHELL_SUFFIX = ".sh"
 JUSTFILE = "justfile"
+YAML_SUFFIXES = frozenset({".yml", ".yaml"})
+TOML_SUFFIX = ".toml"
 MODEL_INPUT = "A model reads this text, so changing a word needs a model measurement first."
 
 
@@ -85,7 +88,7 @@ def _is_shell(relative: Path) -> bool:
 
 def reads_literals(relative: Path) -> bool:
     """Return whether the check reads the string literals of the file at ``relative``."""
-    if _is_shell(relative):
+    if _is_shell(relative) or relative.suffix in YAML_SUFFIXES | {TOML_SUFFIX}:
         return True
     match relative.parts:
         case ("scripts", _) | ("brain", "packages", _, "src", _, *_):
@@ -158,6 +161,10 @@ def file_literals(relative: Path, source: str) -> list[Literal]:
         return slash_literals(source, slashcomments.SYNTAXES[relative.suffix])
     if _is_shell(relative):
         return shell_literals(source, just=relative.name == JUSTFILE)
+    if relative.suffix in YAML_SUFFIXES:
+        return _lexed(configstrings.yaml_strings(source))
+    if relative.suffix == TOML_SUFFIX:
+        return shell_literals(source, just=False)
     return prose_literals(source)
 
 
