@@ -772,7 +772,7 @@ async fn retry_with_fails_fast_on_a_non_transient_error() {
 }
 
 #[tokio::test]
-async fn each_attempt_carries_the_plans_deadline_for_that_method() {
+async fn each_attempt_has_the_plans_deadline_for_that_method() {
     let flaky = FlakyTransport::new(FailKind::Connection, 1);
     let sleeper = FakeSleeper::default();
     let plan = RetryPlan {

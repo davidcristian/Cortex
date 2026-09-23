@@ -73,7 +73,7 @@ describe("usePresence", () => {
     expect(shape(result.current.entries)).toEqual(["a", "c*"]);
   });
 
-  it("carries a leaving row with its neighbour when the caller's list reorders under it", () => {
+  it("keeps a leaving row with its neighbour when the caller's list reorders under it", () => {
     const { result, rerender } = renderHook(({ items }) => usePresence(items, keyOf), {
       wrapper: StrictMode,
       initialProps: { items: [row("a"), row("b"), row("c"), row("d")] },

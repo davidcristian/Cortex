@@ -862,7 +862,7 @@ describe("usePanelMotion", () => {
     expect(moves).toHaveLength(1);
   });
 
-  it("carries a height ease that was still in the air through the roll that interrupted it", () => {
+  it("continues a height ease that was still running through the roll that interrupted it", () => {
     const { ref, element, state, moves, durations, bottom } = harness();
     state.natural = 400;
     const { rerender } = renderHook(() => usePanelMotion(ref, true, "chat"));

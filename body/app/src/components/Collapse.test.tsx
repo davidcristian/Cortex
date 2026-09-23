@@ -291,7 +291,7 @@ describe("Collapse", () => {
     expect(heard).toEqual(["end"]);
   });
 
-  it("carries on from where it had got to when reopened mid-roll", () => {
+  it("continues from where it had got to when reopened mid-roll", () => {
     const { rolls, hold } = stubBrowser();
     const view = render(
       <Collapse open>

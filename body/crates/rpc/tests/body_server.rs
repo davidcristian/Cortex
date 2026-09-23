@@ -1154,7 +1154,7 @@ async fn a_backend_that_miscounts_its_buffer_is_caught_by_the_pure_core_frame_ch
 /// The pure-core capture value is what the handler maps, so a `Capture` built here and the blob
 /// in the reply must agree byte for byte.
 #[tokio::test]
-async fn the_blob_carries_exactly_what_the_core_encoded() {
+async fn the_blob_contains_exactly_what_the_core_encoded() {
     let source = frame(30, 12);
     let expected = Capture::from_bgra(
         &CapturedFrame::display(source.clone()),

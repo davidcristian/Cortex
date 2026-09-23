@@ -141,7 +141,7 @@ async fn probe(script: Script) -> (LinkStatus, usize, usize) {
 }
 
 #[tokio::test]
-async fn a_ready_brain_probes_ready_and_carries_its_own_detail() {
+async fn a_ready_brain_probes_ready_and_keeps_its_own_detail() {
     let (status, health_calls, other_calls) =
         probe(Script::Ready("cortex-orchestrator 0.1.0")).await;
     assert_eq!(

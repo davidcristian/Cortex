@@ -81,7 +81,7 @@ fn accelerator_rejects_unsupported_keys() {
 }
 
 #[test]
-fn accelerator_carries_the_canonical_modifiers() {
+fn accelerator_has_the_canonical_modifiers() {
     let chord = HotkeyChord::parse("alt+ctrl+space").unwrap();
     let accelerator = Accelerator::from_chord(&chord).unwrap();
     assert_eq!(accelerator.modifiers, vec![Modifier::Ctrl, Modifier::Alt]);

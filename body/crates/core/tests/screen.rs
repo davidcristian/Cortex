@@ -160,7 +160,7 @@ fn the_capture_receipt_strings_are_fixed_and_body_authored() {
 }
 
 #[test]
-fn a_request_carries_what_it_was_pointed_at_and_defaults_to_the_display() {
+fn a_request_keeps_what_it_was_pointed_at_and_defaults_to_the_display() {
     assert_eq!(CaptureRequest::new(0).target(), CaptureTarget::Display);
     assert_eq!(
         CaptureRequest::bounded(0, 0).target(),

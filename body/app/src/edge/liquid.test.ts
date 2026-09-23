@@ -56,7 +56,7 @@ describe("edgePath", () => {
     }
   });
 
-  it("falls back to the plain rectangle when the box cannot carry the liquid", () => {
+  it("falls back to the plain rectangle when the box cannot hold the liquid", () => {
     expect(edgePath(LUCID, 80, 480, 1, 0)).toContain("A");
     expect(edgePath(LUCID, 560, 80, 1, 0)).toContain("A");
     expect(edgePath(LUCID, 10, 10, 1, 0)).toContain("H");

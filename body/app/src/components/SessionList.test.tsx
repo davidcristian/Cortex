@@ -309,7 +309,7 @@ describe("SessionList", () => {
     expect(slots()).toHaveLength(1);
   });
 
-  it("carries a leaving row with the neighbour it left under when the list reorders", () => {
+  it("keeps a leaving row with the neighbour it left under when the list reorders", () => {
     const finish = stubRoll();
     const { rerender } = render(list([chat("a"), chat("b"), chat("c"), chat("d")]));
     rerender(list([chat("a"), chat("b"), chat("d")]));

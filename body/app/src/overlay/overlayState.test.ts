@@ -248,7 +248,7 @@ describe("overlayState reducer", () => {
       .toBe(`Recent chats open. ${NO_OTHER_CHATS}.`);
   });
 
-  it("stays silent for the gesture that carries the state under the reader's own caret", () => {
+  it("stays silent for the gesture that puts the state under the reader's own caret", () => {
     const listed = run([{ kind: "open" }, { kind: "sessionsLoaded", sessions: [summary("a")] }]);
     expect(reduce(listed, { kind: "toggleSwitcher", announce: false }).notice).toBeNull();
   });

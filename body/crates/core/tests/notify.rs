@@ -65,7 +65,7 @@ fn a_notification_keeps_its_wire_values() {
 }
 
 #[test]
-fn a_tainted_notification_carries_the_body_authored_attribution() {
+fn a_tainted_notification_includes_the_body_authored_attribution() {
     let notification = Notification::new("Reminder", "click https://evil.example", "r2", true);
     assert!(notification.tainted());
     assert_eq!(notification.attribution(), Some(UNTRUSTED_ATTRIBUTION));

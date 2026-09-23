@@ -163,7 +163,7 @@ describe("useWhisperClock", () => {
     expect(request.mock.calls.length).toBe(scheduled);
   });
 
-  it("rolls to the height it stands on, publishing the number its own box carries", () => {
+  it("rolls to the height it stands on, publishing the number its own box holds", () => {
     const { tick } = fakeFrames();
     const { refs, bubble, lay } = rig();
     // Real metrics, so the target is a number a real bubble produces: `offsetTop` is a whole
