@@ -1,7 +1,7 @@
 from subagentflags import REQUIREMENTS, Flag, Requirement, applies, missing
 
 
-def test_a_flag_the_argv_does_not_carry_is_missing() -> None:
+def test_a_flag_the_argv_does_not_have_is_missing() -> None:
     assert missing(("--jinja",), Flag("--reasoning-budget", "0")) == "it has no --reasoning-budget"
 
 
@@ -36,7 +36,7 @@ def test_a_requirement_naming_no_argv_reaches_every_server() -> None:
     assert applies((), _requirement(None))
 
 
-def test_a_requirement_naming_an_argv_reaches_the_server_that_carries_it() -> None:
+def test_a_requirement_naming_an_argv_reaches_the_server_that_has_it() -> None:
     assert applies(("-ngl", "0"), _requirement(Flag("-ngl", "0")))
 
 
@@ -44,7 +44,7 @@ def test_a_requirement_naming_an_argv_passes_over_the_server_that_does_not() -> 
     assert not applies(("-ngl", "99"), _requirement(Flag("-ngl", "0")))
 
 
-def test_every_requirement_says_what_it_is_and_why_the_servers_it_reaches_must_carry_it() -> None:
+def test_every_requirement_says_what_it_is_and_why_the_servers_it_reaches_must_have_it() -> None:
     for requirement in REQUIREMENTS:
         assert requirement.label, requirement
         assert requirement.why, requirement

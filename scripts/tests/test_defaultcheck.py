@@ -86,7 +86,7 @@ def test_two_required_spends_may_word_their_message_differently(tmp_path: Path) 
     assert defaultcheck.check(tmp_path).faults == []
 
 
-def test_two_spends_carrying_no_default_at_all_agree(tmp_path: Path) -> None:
+def test_two_spends_with_no_default_at_all_agree(tmp_path: Path) -> None:
     _compose(tmp_path, _environment("${SEAM_TOKEN}", "${SEAM_TOKEN}"))
     assert defaultcheck.check(tmp_path).faults == []
 
@@ -146,7 +146,7 @@ def test_an_unreadable_file_does_not_stop_the_scan(tmp_path: Path) -> None:
     assert scanned.faults == scanned.refused + scanned.disagreements
 
 
-def test_the_repo_itself_carries_one_default_per_variable() -> None:
+def test_the_repo_itself_has_one_default_per_variable() -> None:
     assert defaultcheck.check(REPO_ROOT).faults == []
 
 

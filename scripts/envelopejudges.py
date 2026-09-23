@@ -72,7 +72,7 @@ def literals(text: str, *, joined: bool) -> frozenset[str]:
     return frozenset(canonical(number) for number in (JOINED if joined else PLAIN).findall(text))
 
 
-def carries_the_numbers(reply: str, body: str, reading: Reading) -> bool | None:
+def recalls_the_numbers(reply: str, body: str, reading: Reading) -> bool | None:
     """Whether ``reply`` recalls enough of ``body``'s numbers, or ``None`` when it states none."""
     wanted = literals(body, joined=True)
     if not wanted:
@@ -128,17 +128,17 @@ class Judge(NamedTuple):
 JUDGES: tuple[Judge, ...] = (
     Judge(
         "Summarize the report below, keeping every detail",
-        carries_the_numbers,
+        recalls_the_numbers,
         "number recall against the body",
     ),
     Judge(
         "Summarize the report below, keeping its figures",
-        carries_the_numbers,
+        recalls_the_numbers,
         "number recall against the body",
     ),
     Judge(
         "Extract every number from the report below",
-        carries_the_numbers,
+        recalls_the_numbers,
         "number recall against the body",
     ),
     Judge(

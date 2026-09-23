@@ -26,7 +26,7 @@ class Substitution(NamedTuple):
     argument: str
 
     @property
-    def carries_value(self) -> bool:
+    def has_value(self) -> bool:
         """Whether ``argument`` is a value the variable can take, rather than prose or nothing."""
         return self.operator in VALUE_OPERATORS
 

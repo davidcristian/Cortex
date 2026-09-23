@@ -49,7 +49,7 @@ class Inheritance(NamedTuple):
 def logical(text: str) -> list[tuple[int, str]]:
     """The file's instructions, comments dropped and continuation lines joined onto their first."""
     joined: list[tuple[int, str]] = []
-    carry = ""
+    pending = ""
     start = 0
     for number, raw in enumerate(text.splitlines(), start=1):
         line = raw.strip()
@@ -58,15 +58,15 @@ def logical(text: str) -> list[tuple[int, str]]:
             raise DockerfileError(msg)
         if not line or line.startswith("#"):
             continue
-        if not carry:
+        if not pending:
             start = number
         if line.endswith(CONTINUES):
-            carry += line[:-1]
+            pending += line[:-1]
             continue
-        joined.append((start, carry + line))
-        carry = ""
-    if carry:
-        joined.append((start, carry))
+        joined.append((start, pending + line))
+        pending = ""
+    if pending:
+        joined.append((start, pending))
     return joined
 
 
@@ -111,7 +111,7 @@ def inherited(
     dockerfile: str,
     text: str,
     reference: str,
-    carried: Iterable[str],
+    row_paths: Iterable[str],
     records: Mapping[str, Row],
 ) -> Inheritance:
     """The base this file is built from, and every path in its row that the built row lacks."""
@@ -122,7 +122,7 @@ def inherited(
     if row is None:
         detail = _UNROWED.format(dockerfile=dockerfile, reference=reference, base=base)
         return Inheritance((base,), (), (detail,))
-    held = set(carried)
+    held = set(row_paths)
     return Inheritance(
         (base,),
         row.onbuild,

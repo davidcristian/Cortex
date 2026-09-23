@@ -115,7 +115,7 @@ def test_an_argv_that_declares_itself_an_embedding_server_names_an_artifact_like
     ]
 
 
-def test_an_artifact_carries_the_file_the_service_and_the_line_it_is_named_on(
+def test_an_artifact_records_the_file_the_service_and_the_line_it_is_named_on(
     tmp_path: Path,
 ) -> None:
     found = composed(_tree(tmp_path, {"docker-compose.subagents.yml": SUBAGENT}))

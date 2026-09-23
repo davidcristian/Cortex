@@ -103,8 +103,8 @@ def said(runs: list[LineRun], search_text: str, at: int | None) -> str:
         return "with less than half of it on any line"
     run = next((each for each in runs if each.stop == at), runs[0])
     share = f"{run.length} of its {len(search_text)} characters ({_pieces(run)})"
-    carried = len(run.opening or run.closing)
-    read = quote(run.words, run.column - carried, run.column)
+    edge = len(run.opening or run.closing)
+    read = quote(run.words, run.column - edge, run.column)
     if len(runs) == 1:
         return f"with the most of it on line {run.number}, {share}, where it reads {read!r}"
     which = "the first" if at is None else "the nearest to that form"

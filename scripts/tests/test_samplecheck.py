@@ -165,7 +165,7 @@ def test_a_sample_of_a_line_the_reader_cannot_read_is_held_to_the_suite(tmp_path
     assert scanned.proven == 1
 
 
-def test_a_field_no_asserted_line_carries_is_caught(tmp_path: Path) -> None:
+def test_a_field_no_asserted_line_has_is_caught(tmp_path: Path) -> None:
     wider = AUDIT_RUNBOOK.replace(
         "ok=<whether it succeeded>", "at=<when> ok=<whether it succeeded>"
     )
@@ -348,7 +348,7 @@ def test_the_repo_itself_is_clean() -> None:
     assert samplecheck.check(REPO_ROOT).misses == []
 
 
-def test_the_repo_really_carries_samples_for_this_gate_to_have_checked() -> None:
+def test_the_repo_really_has_samples_for_this_gate_to_have_checked() -> None:
     scanned = samplecheck.check(REPO_ROOT)
     assert scanned.samples >= 3
     assert scanned.docs >= 10

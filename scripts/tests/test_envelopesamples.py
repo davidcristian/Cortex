@@ -95,7 +95,7 @@ def test_load_refuses_a_sample_that_does_not_say_whether_it_is_the_control(tmp_p
         envelopesamples.load(path)
 
 
-def test_load_refuses_a_sample_carrying_no_turns_list(tmp_path: Path) -> None:
+def test_load_refuses_a_sample_with_no_turns_list(tmp_path: Path) -> None:
     path = tmp_path / "raw.json"
     path.write_text(json.dumps({"arm": "raw", "control": True, "turns": 3}), encoding="utf-8")
     with pytest.raises(envelopesamples.FloorError, match="turns is missing"):

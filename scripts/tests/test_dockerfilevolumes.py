@@ -103,7 +103,7 @@ def test_a_trigger_that_is_not_a_volume_declares_nothing() -> None:
     assert onbuild_volumes(("RUN true", "COPY . /app")) == ()
 
 
-def test_an_image_carrying_no_trigger_declares_nothing_through_one() -> None:
+def test_an_image_with_no_trigger_declares_nothing_through_one() -> None:
     assert onbuild_volumes(()) == ()
 
 
@@ -144,7 +144,7 @@ def test_an_absolute_context_resolves_to_one_file_rather_than_twice(tmp_path: Pa
     assert build_dockerfiles(tmp_path, compose, absolute) == [tmp_path / DEFAULT_DOCKERFILE]
 
 
-def test_a_declared_path_the_row_does_not_carry_is_reported(tmp_path: Path) -> None:
+def test_a_declared_path_the_row_does_not_have_is_reported(tmp_path: Path) -> None:
     compose = _tree(tmp_path, "FROM scratch\nVOLUME /var/cache/thing\n")
     reading = undeclared(tmp_path, compose, HERE, "tree-brain", (), {})
     assert reading.dockerfiles == (DEFAULT_DOCKERFILE,)
@@ -153,7 +153,7 @@ def test_a_declared_path_the_row_does_not_carry_is_reported(tmp_path: Path) -> N
     assert "'tree-brain'" in reading.faults[0]
 
 
-def test_a_declared_path_the_row_carries_is_the_record_in_step(tmp_path: Path) -> None:
+def test_a_declared_path_the_row_has_is_the_record_in_step(tmp_path: Path) -> None:
     compose = _tree(tmp_path, "FROM scratch\nVOLUME /var/cache/thing\n")
     reading = undeclared(tmp_path, compose, HERE, "tree-brain", ("/var/cache/thing",), {})
     assert reading == ((DEFAULT_DOCKERFILE,), (), (), ())
@@ -177,7 +177,7 @@ def test_a_path_the_base_declares_and_the_row_lacks_is_reported(tmp_path: Path) 
     assert "FROM 'base:1', which declares VOLUME '/inherited'" in reading.faults[0]
 
 
-def test_a_path_the_base_declares_and_the_row_carries_is_the_record_in_step(
+def test_a_path_the_base_declares_and_the_row_has_is_the_record_in_step(
     tmp_path: Path,
 ) -> None:
     compose = _tree(tmp_path, "FROM base:1\n")
@@ -200,7 +200,7 @@ def test_a_path_a_bases_trigger_would_declare_and_the_row_lacks_is_reported(tmp_
     assert "'tree-brain'" in reading.faults[0]
 
 
-def test_a_path_a_bases_trigger_declares_and_the_row_carries_is_the_record_in_step(
+def test_a_path_a_bases_trigger_declares_and_the_row_has_is_the_record_in_step(
     tmp_path: Path,
 ) -> None:
     compose = _tree(tmp_path, "FROM base:1\n")
@@ -248,7 +248,7 @@ def test_a_file_built_on_nothing_asks_for_no_base_row(tmp_path: Path) -> None:
     assert undeclared(tmp_path, compose, HERE, "tree-brain", (), {}).bases == ()
 
 
-def test_a_row_carrying_a_trailing_slash_still_covers_the_path(tmp_path: Path) -> None:
+def test_a_row_with_a_trailing_slash_still_covers_the_path(tmp_path: Path) -> None:
     compose = _tree(tmp_path, "FROM scratch\nVOLUME /srv/mail\n")
     assert undeclared(tmp_path, compose, HERE, "tree-brain", ("/srv/mail/",), {}).faults == ()
 

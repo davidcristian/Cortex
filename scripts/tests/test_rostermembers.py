@@ -131,7 +131,7 @@ def split(root: Path, *, runs: tuple[str, ...], read: tuple[str, ...]) -> Path:
     return root
 
 
-def test_a_module_has_a_cli_exactly_when_it_carries_a_main_guard(tmp_path: Path) -> None:
+def test_a_module_has_a_cli_exactly_when_it_has_a_main_guard(tmp_path: Path) -> None:
     root = split(tmp_path, runs=("linecap.py",), read=("skippeddirs.py", "values.py"))
     assert cli_gate_modules(root) == frozenset({"linecap.py"})
     assert library_gate_modules(root) == frozenset({"skippeddirs.py", "values.py"})

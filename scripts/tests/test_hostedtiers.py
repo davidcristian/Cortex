@@ -157,7 +157,7 @@ def test_an_item_only_the_running_program_knows_occupies_its_position(tmp_path: 
     assert command[command.index("--port") + 1] == UNREADABLE
 
 
-def test_a_tier_declaring_no_tail_carries_only_what_every_tier_carries(tmp_path: Path) -> None:
+def test_a_tier_declaring_no_tail_has_only_what_every_tier_has(tmp_path: Path) -> None:
     config = CONFIG.replace(
         "self.subagent_gpu_file), extra=_REASONING_OFF", "self.subagent_gpu_file)"
     )
@@ -259,7 +259,7 @@ def test_the_committed_sidecar_hosts_the_subagent_tier_it_ships() -> None:
     assert all(tier.command for tier in found)
 
 
-def test_the_committed_tier_really_carries_the_flags_its_placement_used_to_be_trusted_for() -> None:
+def test_the_committed_tier_really_has_the_flags_its_placement_used_to_be_trusted_for() -> None:
     command = hosted(REPO_ROOT)[0].command
     assert "--jinja" in command
     assert command[-len(SUBAGENT_TAIL) :] == SUBAGENT_TAIL

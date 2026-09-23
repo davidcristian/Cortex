@@ -80,7 +80,7 @@ def test_a_string_that_only_contains_the_prefix_is_not_a_line() -> None:
     assert assertedlines.asserted(inside, "t.py") == []
 
 
-def test_a_string_carrying_a_newline_is_not_a_line_the_formatter_wrote() -> None:
+def test_a_string_with_a_newline_is_not_a_line_the_formatter_wrote() -> None:
     two = (
         "def test_two() -> None:\n"
         '    assert value == "INFO:cortex.tools.audit:tool.invocation ok=True\\ntool=read"\n'

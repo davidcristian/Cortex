@@ -108,7 +108,7 @@ def test_a_comment_beside_the_build_key_still_opens_the_block() -> None:
     assert _one(text).build == Build("./b", DEFAULT_DOCKERFILE)
 
 
-def test_a_service_that_does_not_build_carries_no_build_at_all() -> None:
+def test_a_service_that_does_not_build_has_no_build_at_all() -> None:
     assert _one("services:\n  r:\n    image: r\n").build is None
 
 
@@ -234,7 +234,7 @@ def test_a_mount_key_outside_any_entry_is_refused() -> None:
         read_services(text)
 
 
-def test_an_anchor_that_carries_no_scalar_is_not_recorded_and_its_alias_is_refused() -> None:
+def test_an_anchor_that_has_no_scalar_is_not_recorded_and_its_alias_is_refused() -> None:
     text = "x-common: &common\n  a: b\nservices:\n  r:\n    tmpfs:\n      - *common\n"
     with pytest.raises(ComposeServiceError, match="names no anchor"):
         read_services(text)

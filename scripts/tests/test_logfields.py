@@ -76,11 +76,11 @@ def test_a_name_bound_above_the_call_is_followed_to_its_mapping() -> None:
     assert attached(PHASE, 2) == ("model", "tokens_per_second", "turn_id")
 
 
-def test_a_name_unioned_with_a_mapping_at_the_call_carries_both() -> None:
+def test_a_name_unioned_with_a_mapping_at_the_call_keeps_both() -> None:
     assert attached(PHASE, 1) == ("model", "shortfall", "tokens_per_second", "turn_id")
 
 
-def test_a_key_both_halves_of_a_union_carry_is_one_field() -> None:
+def test_a_key_both_halves_of_a_union_name_is_one_field() -> None:
     text = (
         'def f(r):\n    extra = {"model": r}\n    _logger.info("m", extra=extra | {"model": r})\n'
     )

@@ -56,7 +56,7 @@ def test_load_refuses_a_sample_naming_no_variant(tmp_path: Path) -> None:
         contrast.load(write(tmp_path / "n.json", {"turns": [turn("q", 1.0, 1.5)]}))
 
 
-def test_load_refuses_a_sample_carrying_no_turns_list(tmp_path: Path) -> None:
+def test_load_refuses_a_sample_with_no_turns_list(tmp_path: Path) -> None:
     with pytest.raises(contrast.ContrastError, match="has no turns list"):
         contrast.load(write(tmp_path / "n.json", {"arm": "raw", "turns": "several"}))
 

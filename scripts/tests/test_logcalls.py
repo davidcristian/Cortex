@@ -91,7 +91,7 @@ def test_a_line_whose_level_is_chosen_while_it_runs_is_refused_by_name() -> None
         logcalls.logged(text, "a model-host request failed", "api.py")
 
 
-def test_a_dynamic_call_carrying_another_message_leaves_the_plain_fault_in_place() -> None:
+def test_a_dynamic_call_with_another_message_leaves_the_plain_fault_in_place() -> None:
     shapes = (
         "_log.log(level)\n"
         "_log.log(level, built)\n"
@@ -155,7 +155,7 @@ def test_a_call_that_is_not_a_log_call_hands_no_name() -> None:
     assert logcalls.handed(logcalls.parsed(shapes, "m.py")) == []
 
 
-def test_a_plain_function_carrying_the_same_string_is_not_a_log_call() -> None:
+def test_a_plain_function_called_with_the_same_string_is_not_a_log_call() -> None:
     with pytest.raises(logcalls.LogCallError, match="logs no message"):
         logcalls.logged('warn("a handoff ended failed")\n', "a handoff ended failed", "m.py")
 
@@ -209,7 +209,7 @@ def test_a_spread_into_extra_is_a_fault_rather_than_a_short_answer() -> None:
         logcalls.logged('_log.info("done", extra={**base, "ok": True})\n', "done", "m.py")
 
 
-def test_the_walk_answers_with_each_module_and_the_messages_its_calls_carry(
+def test_the_walk_answers_with_each_module_and_the_messages_its_calls_log(
     tmp_path: Path,
 ) -> None:
     brain(

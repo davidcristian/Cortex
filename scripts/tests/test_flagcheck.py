@@ -108,7 +108,7 @@ def _server(*command: str) -> Server:
     return Server(file="docker/docker-compose.made-up.yml", service="one", line=1, command=command)
 
 
-def test_a_server_carrying_every_required_flag_has_no_fault() -> None:
+def test_a_server_with_every_required_flag_has_no_fault() -> None:
     argv = (
         "--jinja",
         "--chat-template-kwargs",
@@ -121,7 +121,7 @@ def test_a_server_carrying_every_required_flag_has_no_fault() -> None:
     assert check_one(_server(*argv)) == []
 
 
-def test_a_fault_carries_the_requirement_that_names_it_and_the_reason_it_exists() -> None:
+def test_a_fault_states_the_requirement_that_names_it_and_the_reason_it_exists() -> None:
     faults = check_one(_server("--jinja"))
     assert len(faults) == 3, faults
     pair = [fault for fault in faults if "reasoning-off pair:" in fault.detail]
@@ -225,7 +225,7 @@ def test_a_server_no_registry_names_is_held_the_day_its_override_is_written(tmp_
     assert len(faults) == sum(len(requirement.flags) for requirement in REQUIREMENTS)
 
 
-def test_a_cpu_server_in_a_third_file_is_held_to_carrying_a_thread_count(tmp_path: Path) -> None:
+def test_a_cpu_server_in_a_third_file_is_held_to_having_a_thread_count(tmp_path: Path) -> None:
     root = copied(tmp_path)
     correct = THIRD + JINJA_ITEM + KWARG_ITEMS + BUDGET_ITEMS + CACHE_ITEMS
     (root / "docker" / "docker-compose.subagents-third.yml").write_text(correct, encoding="utf-8")

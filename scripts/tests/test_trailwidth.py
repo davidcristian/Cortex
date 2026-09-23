@@ -66,7 +66,7 @@ def test_read_line_ignores_a_message_the_trails_own_is_the_opening_of() -> None:
     assert trailwidth.read_line("INFO:cortex.memory.recall:memory.recalled dropped=[]") is None
 
 
-def test_read_line_ignores_a_trail_line_carrying_no_such_field() -> None:
+def test_read_line_ignores_a_trail_line_with_no_such_field() -> None:
     assert trailwidth.read_line(f"{PREFIX} basis=demur dropped_omitted=0 k=5") is None
 
 

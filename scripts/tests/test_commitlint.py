@@ -386,7 +386,7 @@ def test_a_wrapped_breaking_change_footer_passes() -> None:
     assert commitlint.check_widths(lines) == []
 
 
-def test_main_passes_a_message_carrying_a_fenced_command(tmp_path: Path) -> None:
+def test_main_passes_a_message_with_a_fenced_command(tmp_path: Path) -> None:
     msg = _write(
         tmp_path, f"docs: record the invocation\n\nBring the stack up:\n\n```\n{_COMMAND}\n```\n"
     )
@@ -459,7 +459,7 @@ def test_a_resolving_hash_inside_a_paste_is_still_flagged(repo: Path) -> None:
     assert "a rewrite invalidates it" in problem
 
 
-def test_main_passes_a_message_whose_fenced_paste_carries_a_separator(tmp_path: Path) -> None:
+def test_main_passes_a_message_whose_fenced_paste_contains_a_separator(tmp_path: Path) -> None:
     msg = _write(tmp_path, f"docs: record the run\n\nThe command is:\n\n```\n{_SEPARATOR}\n```\n")
     assert commitlint.main([msg, "--repo", str(tmp_path)]) == 0
 

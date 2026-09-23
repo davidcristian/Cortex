@@ -113,7 +113,7 @@ _NESTED_TAIL = (
         ),
     ],
 )
-def test_a_spend_carrying_a_brace_is_quoted_as_compose_delimits_it(text: str, fault: str) -> None:
+def test_a_spend_with_a_brace_is_quoted_as_compose_delimits_it(text: str, fault: str) -> None:
     with pytest.raises(SubstitutionReadError) as raised:
         read_line(7, text)
     assert str(raised.value) == fault
@@ -125,7 +125,7 @@ def test_a_refusal_names_the_line_it_is_on() -> None:
 
 
 @pytest.mark.parametrize(
-    ("operator", "carries"),
+    ("operator", "valued"),
     [
         (":-", True),
         ("-", True),
@@ -136,8 +136,8 @@ def test_a_refusal_names_the_line_it_is_on() -> None:
         ("", False),
     ],
 )
-def test_only_a_fallback_value_is_a_value(operator: str, *, carries: bool) -> None:
-    assert Substitution(1, "V", operator, "x").carries_value is carries
+def test_only_a_fallback_value_is_a_value(operator: str, *, valued: bool) -> None:
+    assert Substitution(1, "V", operator, "x").has_value is valued
 
 
 def test_a_spend_writes_itself_back_with_braces() -> None:

@@ -93,7 +93,7 @@ def disagreement(name: str, spends: list[Spend]) -> Fault | None:
                 f"operators, so one spend falls back where another does not ({shown})"
             ),
         )
-    if not spends[0].substitution.carries_value:
+    if not spends[0].substitution.has_value:
         return None
     if same_value([spend.substitution.argument for spend in spends]):
         return None

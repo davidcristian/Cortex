@@ -259,7 +259,7 @@ def test_the_repo_itself_is_clean() -> None:
     assert stubcheck.check(REPO_ROOT).misses == []
 
 
-def test_the_repo_really_carries_comments_for_this_gate_to_have_checked() -> None:
+def test_the_repo_really_has_comments_for_this_gate_to_have_checked() -> None:
     scanned = stubcheck.check(REPO_ROOT)
     assert scanned.leading >= 60
     assert scanned.trailing >= 20
@@ -267,7 +267,7 @@ def test_the_repo_really_carries_comments_for_this_gate_to_have_checked() -> Non
     assert scanned.docs >= 150
 
 
-def test_the_real_stub_carries_every_rewrite_this_gate_undoes() -> None:
+def test_the_real_stub_contains_every_rewrite_this_gate_undoes() -> None:
     docs = protocomments.rust_docs((REPO_ROOT / stubcheck.STUB).read_text(encoding="utf-8"))
     assert any("\\[" in doc and "\\]" in doc for doc in docs)
     assert any(doc.strip().startswith("##") for doc in docs)

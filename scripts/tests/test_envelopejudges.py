@@ -27,19 +27,19 @@ def test_a_comma_joins_digit_groups_or_ends_a_number() -> None:
 
 def test_the_charitable_comma_reads_a_joined_list_the_better_of_the_two_ways() -> None:
     reply = "1,842, 1,610, 1,795, 99.2, 14,300, 114, 34"
-    assert envelopejudges.carries_the_numbers(reply, BODY, TABLED) is True
-    assert envelopejudges.carries_the_numbers(reply, BODY, Reading(comma="thousands")) is True
-    assert envelopejudges.carries_the_numbers(reply, BODY, Reading(comma="separator")) is False
+    assert envelopejudges.recalls_the_numbers(reply, BODY, TABLED) is True
+    assert envelopejudges.recalls_the_numbers(reply, BODY, Reading(comma="thousands")) is True
+    assert envelopejudges.recalls_the_numbers(reply, BODY, Reading(comma="separator")) is False
 
 
-def test_a_narration_carries_none_of_the_bodys_numbers() -> None:
+def test_a_narration_recalls_none_of_the_bodys_numbers() -> None:
     narration = "The user wants a summary of the provided site report."
-    assert envelopejudges.carries_the_numbers(narration, BODY, TABLED) is False
+    assert envelopejudges.recalls_the_numbers(narration, BODY, TABLED) is False
 
 
 def test_a_body_stating_no_number_is_judged_by_nothing() -> None:
     blank = "a report with no numbers"
-    assert envelopejudges.carries_the_numbers("anything", blank, TABLED) is None
+    assert envelopejudges.recalls_the_numbers("anything", blank, TABLED) is None
 
 
 def test_the_strict_naming_wants_the_period_as_the_body_writes_it() -> None:

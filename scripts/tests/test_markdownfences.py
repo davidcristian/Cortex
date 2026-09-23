@@ -26,7 +26,7 @@ def test_an_indent_and_an_info_string_are_part_of_the_opening_line(line: str) ->
 
 
 @pytest.mark.parametrize("line", ["", "prose", "`` not three", "run `x` now", "text ```", " ~~ "])
-def test_what_carries_no_marker_at_the_start_of_the_line_is_not_a_fence(line: str) -> None:
+def test_what_has_no_marker_at_the_start_of_the_line_is_not_a_fence(line: str) -> None:
     assert not _opens(line)
 
 
@@ -65,7 +65,7 @@ def test_the_other_character_inside_a_block_is_text() -> None:
     assert fences.inside
 
 
-def test_a_line_carrying_no_marker_bounds_nothing_inside_a_block_or_outside_one() -> None:
+def test_a_line_with_no_marker_bounds_nothing_inside_a_block_or_outside_one() -> None:
     fences = Fences()
     assert not fences.bounds("prose")
     assert not fences.inside
@@ -117,7 +117,7 @@ def test_a_marker_inside_a_docstring_is_prose_and_not_a_form() -> None:
     assert _marker_lines(source) == []
 
 
-def test_a_literal_carrying_no_marker_is_not_reported() -> None:
+def test_a_literal_with_no_marker_is_not_reported() -> None:
     assert _marker_lines('name = "backtick"\ncount = 3\nempty = ""\n') == []
 
 

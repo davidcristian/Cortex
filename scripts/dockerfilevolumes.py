@@ -117,7 +117,7 @@ def onbuild_volumes(entries: Iterable[str]) -> tuple[str, ...]:
 
 
 def _triggered(
-    dockerfile: str, reference: str, stands: Inheritance, carried: set[str], unasked: list[str]
+    dockerfile: str, reference: str, stands: Inheritance, row_paths: set[str], unasked: list[str]
 ) -> list[str]:
     """Every path this file's base would declare through a trigger that its row does not have."""
     faults: list[str] = []
@@ -136,7 +136,7 @@ def _triggered(
                 dockerfile=dockerfile, reference=reference, base=base, path=path_here
             )
             for path_here in paths
-            if path_here not in carried
+            if path_here not in row_paths
         )
     return faults
 
@@ -170,7 +170,7 @@ def undeclared(
             reference=reference, context=build.context, dockerfile=build.dockerfile
         )
         return Reading((), (), (), (detail,))
-    carried = {normalize(path) for path in recorded}
+    row_paths = {normalize(path) for path in recorded}
     read: list[str] = []
     bases: list[str] = []
     faults: list[str] = []
@@ -181,16 +181,16 @@ def undeclared(
         try:
             text = path.read_text(encoding="utf-8")
             paths = read_volumes(text)
-            stands = inherited(name, text, reference, carried, records)
+            stands = inherited(name, text, reference, row_paths, records)
         except (OSError, UnicodeDecodeError, DockerfileError) as err:
             unasked.append(_UNREADABLE.format(dockerfile=name, reference=reference, detail=err))
             continue
         bases.extend(stands.bases)
         faults.extend(stands.faults)
-        faults.extend(_triggered(name, reference, stands, carried, unasked))
+        faults.extend(_triggered(name, reference, stands, row_paths, unasked))
         faults.extend(
             _UNDECLARED.format(dockerfile=name, path=path_here, reference=reference)
             for path_here in paths
-            if path_here not in carried
+            if path_here not in row_paths
         )
     return Reading(tuple(read), tuple(bases), tuple(faults), tuple(unasked))

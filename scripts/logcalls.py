@@ -113,7 +113,7 @@ def _logs(node: ast.AST) -> bool:
     return _levelled(node) is not None
 
 
-def carried(tree: ast.Module, shown: str) -> list[tuple[ast.Call, str, str]]:
+def log_calls(tree: ast.Module, shown: str) -> list[tuple[ast.Call, str, str]]:
     """Every logging call in one module, with the level it prints and the message it logs."""
     strings, _ = constants(tree)
     found: list[tuple[ast.Call, str, str]] = []
@@ -168,7 +168,7 @@ def _absent(tree: ast.Module, message: str, shown: str) -> str:
 def logged(source: str, message: str, shown: str) -> LogCall:
     """The one call in ``source`` that logs ``message``, or a fault naming what was found."""
     tree = parsed(source, shown)
-    found = [(call, level) for call, level, written in carried(tree, shown) if written == message]
+    found = [(call, level) for call, level, written in log_calls(tree, shown) if written == message]
     if not found:
         raise LogCallError(_absent(tree, message, shown))
     if len(found) > 1:
@@ -188,7 +188,7 @@ def messages(root: Path) -> dict[str, tuple[str, ...]]:
     found: dict[str, tuple[str, ...]] = {}
     for module, _, shown in modules(root):
         tree = parsed(read(module, shown), shown)
-        written = {message for _, _, message in carried(tree, shown)}
+        written = {message for _, _, message in log_calls(tree, shown)}
         if written:
             found[shown] = tuple(sorted(written))
     return found

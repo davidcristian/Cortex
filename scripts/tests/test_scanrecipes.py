@@ -83,11 +83,11 @@ def test_a_gate_that_is_nothing_but_its_scans_is_read_to_the_end() -> None:
     assert gate_scans(only) == ["check-linecap", "check-backlog"]
 
 
-def test_a_recipe_carrying_parameters_is_still_found() -> None:
+def test_a_recipe_with_parameters_is_still_found() -> None:
     assert recipe_body(JUSTFILE, "shuffle") == ["    cd scripts && uv run pytest"]
 
 
-def test_a_recipe_the_justfile_does_not_carry_is_named() -> None:
+def test_a_recipe_the_justfile_does_not_have_is_named() -> None:
     with pytest.raises(ScanReadError, match="the 'check-nothing' recipe is not there"):
         recipe_body(JUSTFILE, "check-nothing")
 

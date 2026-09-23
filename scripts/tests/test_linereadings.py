@@ -49,7 +49,7 @@ def _runs(search_text: str, text: str) -> list[linereadings.LineRun] | None:
     return linereadings.line_runs(search_text, text, bounded(search_text))
 
 
-def test_the_best_line_is_the_one_carrying_most_of_the_search_text() -> None:
+def test_the_best_line_is_the_one_holding_most_of_the_search_text() -> None:
     text = '- "0.0.0.0:50051:50051"\n\n- "127.0.0.1:6379:6379"\n'
     (run,) = _runs('"127.0.0.1:50051:50051"', text) or []
     assert (run.number, run.length, run.column) == (1, 14, 3)
@@ -78,7 +78,7 @@ def test_a_search_text_absent_from_every_line_names_none() -> None:
         ("abXXXX\n", False),
     ],
 )
-def test_a_line_is_named_only_when_it_carries_at_least_half(text: str, *, named: bool) -> None:
+def test_a_line_is_named_only_when_it_contains_at_least_half(text: str, *, named: bool) -> None:
     assert bool(_runs("abcdef", text)) is named
 
 
@@ -91,7 +91,7 @@ def test_a_found_occurrence_is_blanked_before_its_line_is_read() -> None:
     assert (run.number, run.opening, run.column) == (1, "port:5015", 20)
 
 
-def test_a_line_whose_only_occurrence_was_found_carries_nothing_of_it() -> None:
+def test_a_line_whose_only_occurrence_was_found_contains_nothing_of_it() -> None:
     (run,) = _runs("port:50151", "port:50151\nport:50\n") or []
     assert run.number == 2
 
@@ -120,11 +120,11 @@ def test_tied_lines_name_the_one_another_reading_was_paired_with() -> None:
     assert "where it reads 'Zbcdef'" in said
 
 
-def test_no_line_carrying_half_is_said_as_such() -> None:
+def test_no_line_holding_half_is_said_as_such() -> None:
     assert linereadings.said([], "abcdef", None) == "with less than half of it on any line"
 
 
-def test_a_long_line_is_quoted_around_the_run_it_carries() -> None:
+def test_a_long_line_is_quoted_around_the_run_it_contains() -> None:
     line = f"{'w' * 300} abcdeX {'x' * 300}"
     (run,) = _runs("abcdef", line) or []
     said = linereadings.said([run], "abcdef", None)

@@ -97,7 +97,7 @@ def test_a_check_the_roster_kept_after_a_rename_is_caught(tmp_path: Path) -> Non
     assert found[1].startswith("the roster names the_probe_gives_up, which is not an ignored test")
 
 
-def test_every_fault_carries_the_reason_the_two_sides_must_agree(tmp_path: Path) -> None:
+def test_every_fault_states_the_reason_the_two_sides_must_agree(tmp_path: Path) -> None:
     trimmed = PAGE.replace("- `the_probe_gives_up` dials a dead address and stays inside its", "")
     assert detail(repo(tmp_path, page=trimmed)).endswith(
         "the live suite is the one suite no gate runs"
@@ -349,7 +349,7 @@ def test_no_registered_boundary_phrase_names_a_member() -> None:
             assert member not in roster.closes, roster.label
 
 
-def test_every_registered_pattern_refuses_something_the_passage_carries() -> None:
+def test_every_registered_pattern_refuses_something_the_passage_contains() -> None:
     for roster in rosters.ROSTERS:
         if not isinstance(roster.written, CodeSpans):
             continue

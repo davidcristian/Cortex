@@ -115,7 +115,7 @@ def test_a_line_continued_onto_a_marker_that_closes_nothing_folds_it_in() -> Non
     assert only(text).fields == ("ok", "more")
 
 
-def test_the_committed_runbooks_carry_the_three_shapes_the_fixtures_copy() -> None:
+def test_the_committed_runbooks_contain_the_three_shapes_the_fixtures_copy() -> None:
     printed = {
         sample.logger: sample
         for runbook in sorted((REPO_ROOT / "docs" / "runbooks").glob("*.md"))

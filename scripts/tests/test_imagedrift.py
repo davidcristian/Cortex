@@ -36,7 +36,7 @@ def test_an_image_declaring_neither_answers_null_in_both_lines() -> None:
     assert parse("null\nnull\n") == Row((), ())
 
 
-def test_a_trigger_carrying_a_newline_stays_one_entry() -> None:
+def test_a_trigger_with_a_newline_stays_one_entry() -> None:
     assert parse('null\n["RUN a\\nb"]') == Row((), ("RUN a\nb",))
 
 

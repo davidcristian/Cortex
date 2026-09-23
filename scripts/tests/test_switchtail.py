@@ -127,9 +127,7 @@ def test_the_front_of_a_prompt_cannot_close_a_thought(tmp_path: Path) -> None:
         ("<|turn>model\n[reasoning][/reasoning]\n", False),
     ],
 )
-def test_a_tail_is_known_when_it_carries_either_familys_marker(
-    rendered: str, *, known: bool
-) -> None:
+def test_a_tail_is_known_when_it_has_either_familys_marker(rendered: str, *, known: bool) -> None:
     assert marked(rendered) is known
 
 
@@ -216,7 +214,7 @@ def test_a_template_that_never_read_the_key_is_named_as_such(tmp_path: Path) -> 
 
 
 @pytest.mark.parametrize("switch", [False, True])
-def test_a_rendering_that_does_not_carry_the_ask_publishes_nothing(
+def test_a_rendering_that_does_not_contain_the_ask_publishes_nothing(
     tmp_path: Path, *, switch: bool
 ) -> None:
     someone_elses = "<|im_start|>assistant\n<think>\n"

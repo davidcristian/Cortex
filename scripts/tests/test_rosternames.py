@@ -49,7 +49,7 @@ def test_a_closing_phrase_the_document_lost_is_named() -> None:
         passage(PAGE, "**Live checks**", "Being ignored, they never run in the gate")
 
 
-def test_a_phrase_the_document_started_carrying_twice_is_refused() -> None:
+def test_a_phrase_the_document_now_writes_twice_is_refused() -> None:
     doubled = PAGE + "\n**Live checks** are described above.\n"
     with pytest.raises(PassageError, match="appears 2 time"):
         passage(doubled, "**Live checks**", "Being ignored, they never run in CI")
@@ -69,7 +69,7 @@ def test_a_bulleted_roster_names_the_first_code_span_of_every_bullet() -> None:
     assert names(bullets(), Bulleted()) == ["the_brain_answers", "the_probe_gives_up"]
 
 
-def test_a_bulleted_roster_ignores_the_code_spans_its_prose_carries() -> None:
+def test_a_bulleted_roster_ignores_the_code_spans_its_prose_contains() -> None:
     assert "Health" not in names(bullets(), Bulleted())
 
 

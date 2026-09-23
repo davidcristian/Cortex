@@ -410,7 +410,7 @@ def test_a_value_left_only_inside_a_decimal_is_not_read_as_still_being_written(
     assert "the file does not write '10' as a token of its own either" in fault.detail
 
 
-def test_a_file_carrying_no_part_of_the_search_text_has_no_run_to_report(tmp_path: Path) -> None:
+def test_a_file_containing_no_part_of_the_search_text_has_no_run_to_report(tmp_path: Path) -> None:
     (tmp_path / "budget.ts").write_text('const CEILING_PROPERTY = "--ceiling";\n', encoding="utf-8")
     (tmp_path / "overlay.css").write_text(".panel { height: 100px; }\n", encoding="utf-8")
     (fault,) = crosscheck.check_constant(tmp_path, MENTIONED)
@@ -478,7 +478,7 @@ def test_a_value_in_several_places_is_counted_and_read_nearest_the_run(tmp_path:
     assert "which reads '- \"127.0.0.2:50051:50051\"'" in fault.detail
 
 
-def test_a_run_carried_in_several_places_names_the_stop_nearest_the_form(
+def test_a_run_found_in_several_places_names_the_stop_nearest_the_form(
     tmp_path: Path,
 ) -> None:
     (tmp_path / "config.py").write_text("PORT = 50051\n", encoding="utf-8")
@@ -821,7 +821,7 @@ def test_renaming_the_declared_property_leaves_the_declaration_unfound(tmp_path:
     assert "does not write '--roll: 300ms;' as a token of its own" in fault.detail
 
 
-def test_a_template_rendering_a_name_the_mention_does_not_carry_is_refused(tmp_path: Path) -> None:
+def test_a_template_rendering_a_name_the_mention_does_not_have_is_refused(tmp_path: Path) -> None:
     _restate(tmp_path, "--roll", "--roll", "--roll")
     nameless = RESTATED._replace(
         mentions=(crosscheck.Mention("overlay.css", "{name}: {value}ms;"),)
@@ -1259,7 +1259,7 @@ def test_the_trails_field_moving_in_the_sink_alone_is_a_fault(tmp_path: Path) ->
     assert RECALL_SINK in faults[0].detail
 
 
-def test_the_trails_message_moving_fails_though_the_line_still_carries_the_word(
+def test_the_trails_message_moving_fails_though_the_line_still_contains_the_word(
     tmp_path: Path,
 ) -> None:
     constant = registered(TRAIL_MESSAGE)
@@ -1783,7 +1783,7 @@ def test_read_value_reads_a_python_run_of_literals_as_one_string(tmp_path: Path)
     )
 
 
-def test_a_run_may_open_with_a_comment_and_carry_comment_lines(tmp_path: Path) -> None:
+def test_a_run_may_open_with_a_comment_and_contain_comment_lines(tmp_path: Path) -> None:
     text = 'SENTENCE = (  # why\n    "a "  # noqa\n    # a note\n\n    "b"\n)\nafter = 1\n'
     (tmp_path / "decl.py").write_text(text, encoding="utf-8")
     assert crosscheck.read_value(tmp_path, crosscheck.Site("decl.py", "SENTENCE")) == "a b"
