@@ -47,6 +47,6 @@ leaves.
   check reproduced both, and the card showed the `plain` control at the engine budget, evaluated
   whole, writing draw 1's string and not applying the rule. The rows now send
   `cache_prompt: false`, held by a case in `test_switch_rows.py`; the reading is in
-  [injection over pixels](../../readings/injection-over-pixels.md#the-prompt-cache-and-a-repeated-request),
+  [prompt cache](../../readings/prompt-cache.md#the-prompt-cache-and-a-repeated-request),
   and ADR-0041's request, depth and consequences changed with it. ADR-0029's decision did not.
   Opened [R-706](706-only-the-corpus-laundering-cell-is-drawn-at-the-engines-sampler.md).
