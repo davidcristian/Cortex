@@ -256,7 +256,7 @@ def test_a_registry_holding_no_roster_at_all_is_refused(tmp_path: Path) -> None:
         check(repo(tmp_path), ())
 
 
-def test_a_scan_states_the_collection_its_verdict_is_over(tmp_path: Path) -> None:
+def test_a_scan_states_the_collection_its_result_is_over(tmp_path: Path) -> None:
     second = LIVE._replace(label="the same suite, read twice")
     scanned = check(repo(tmp_path), (LIVE, second))
     assert (scanned.rosters, scanned.documents, scanned.members) == (2, 1, 4)

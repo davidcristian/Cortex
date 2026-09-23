@@ -521,30 +521,30 @@ async def test_a_spilled_handoff_is_published_and_not_only_logged() -> None:
     sink = RecordingPaceSink()
     backend = ScriptedBrainBackend(cadences=[DecodeCadence(tokens_per_second=17.29, tokens=96)])
     await _drive(backend=backend, cadence=CadenceTerms(22.0, sink))
-    assert list(sink.verdicts) == [True]
+    assert list(sink.reported) == [True]
 
 
 async def test_a_handoff_that_held_its_pace_publishes_that_too() -> None:
     sink = RecordingPaceSink()
     backend = ScriptedBrainBackend(cadences=[DecodeCadence(tokens_per_second=30.4, tokens=96)])
     await _drive(backend=backend, cadence=CadenceTerms(22.0, sink))
-    assert list(sink.verdicts) == [False]
+    assert list(sink.reported) == [False]
 
 
-async def test_a_deployment_that_declared_no_floor_publishes_no_verdict() -> None:
+async def test_a_deployment_that_declared_no_floor_publishes_no_result() -> None:
     sink = RecordingPaceSink()
     backend = ScriptedBrainBackend(cadences=[DecodeCadence(tokens_per_second=3.0, tokens=96)])
     await _drive(backend=backend, cadence=CadenceTerms(sink=sink))
-    assert list(sink.verdicts) == []
+    assert list(sink.reported) == []
 
 
 async def test_a_handoff_with_no_reading_publishes_nothing_at_all() -> None:
     sink = RecordingPaceSink()
     await _drive(backend=ScriptedBrainBackend(), cadence=CadenceTerms(22.0, sink))
-    assert list(sink.verdicts) == []
+    assert list(sink.reported) == []
 
 
-async def test_a_failed_phase_still_publishes_the_verdict_it_managed_to_reach() -> None:
+async def test_a_failed_phase_still_publishes_the_result_it_managed_to_reach() -> None:
     sink = RecordingPaceSink()
     dispatcher = ToolDispatcher(_registry(), RecordingAuditSink(), SystemClock())
     backend = ScriptedBrainBackend(
@@ -558,7 +558,7 @@ async def test_a_failed_phase_still_publishes_the_verdict_it_managed_to_reach() 
             backend=backend,
             cadence=CadenceTerms(22.0, sink),
         )
-    assert list(sink.verdicts) == [True]
+    assert list(sink.reported) == [True]
 
 
 class StoppingDeepBackend:

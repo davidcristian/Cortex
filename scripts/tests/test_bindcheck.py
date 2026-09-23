@@ -306,7 +306,7 @@ def test_check_counts_the_files_binds_and_landings_it_read(repo: Path) -> None:
     assert scanned.faults == []
 
 
-def test_main_states_what_it_read_beside_the_verdict(
+def test_main_states_what_it_read_beside_the_result(
     repo: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     _counted(repo)

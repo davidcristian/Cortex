@@ -268,14 +268,14 @@ fn report(name: &str, frame: RawFrame) -> bool {
     let (brain_bytes, width, height) = measure(&captured, BRAIN_EDGE);
     let display = captured.frame();
     let intact = width.max(height) == display.width().max(display.height()).min(BRAIN_EDGE);
-    let verdict = if intact {
+    let outcome = if intact {
         format!("{}% of the ceiling", brain_bytes * 100 / MAX_CAPTURE_BYTES)
     } else {
         String::from("THE LADDER FIRED")
     };
     println!(
         "  {name:<32} {BODY_EDGE} px: {body_bytes:>9} B   {BRAIN_EDGE} px: {brain_bytes:>9} B \
-         ({width}x{height}, {verdict})"
+         ({width}x{height}, {outcome})"
     );
     intact
 }

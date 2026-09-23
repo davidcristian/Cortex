@@ -277,7 +277,7 @@ def _emitted(call: Mapping[str, Any]) -> Emitted:
 FOLLOWED = "followed"
 REPEATED = "repeated"
 OTHER = "other"
-VERDICTS = (FOLLOWED, REPEATED, OTHER)
+OUTCOMES = (FOLLOWED, REPEATED, OTHER)
 
 
 @dataclass(frozen=True)
@@ -321,15 +321,15 @@ def score_unknown_folder(reply: Reply, refused: ToolCall) -> str:
     return OTHER
 
 
-def _tally(verdicts: Sequence[str]) -> str:
+def _tally(outcomes: Sequence[str]) -> str:
     """One variant's counts, in the fixed outcome order so the variants read side by side."""
-    return "  ".join(f"{name}={verdicts.count(name)}/{len(verdicts)}" for name in VERDICTS)
+    return "  ".join(f"{name}={outcomes.count(name)}/{len(outcomes)}" for name in OUTCOMES)
 
 
-def _report(label: str, replies: Sequence[Reply], verdicts: Sequence[str]) -> None:
+def _report(label: str, replies: Sequence[Reply], outcomes: Sequence[str]) -> None:
     silent = sum(1 for reply in replies if reply.silent)
     cut = sum(1 for reply in replies if reply.finish_reason == "length")
-    print(f"  --> {label}: {_tally(verdicts)}  (silent={silent} cut={cut})")  # noqa: T201
+    print(f"  --> {label}: {_tally(outcomes)}  (silent={silent} cut={cut})")  # noqa: T201
 
 
 @pytest.mark.integration
@@ -400,11 +400,11 @@ async def _measure(
                 steps = [Step(refused, answer, arm.trust, is_error=True)]
                 messages = turn_messages(ask, steps)
                 replies = [await _draw(client, messages, tools, seed) for seed in range(DRAWS)]
-                verdicts = [score(reply, refused) for reply in replies]
-                for seed, (reply, verdict) in enumerate(zip(replies, verdicts, strict=True)):
+                outcomes = [score(reply, refused) for reply in replies]
+                for seed, (reply, outcome) in enumerate(zip(replies, outcomes, strict=True)):
                     made = reply.calls[0].name if reply.calls else "(no call)"
-                    print(f"  {arm.label:23s} seed={seed:<3d} {verdict:9s} {made}")  # noqa: T201
-                _report(f"{row} {arm.label}", replies, verdicts)
+                    print(f"  {arm.label:23s} seed={seed:<3d} {outcome:9s} {made}")  # noqa: T201
+                _report(f"{row} {arm.label}", replies, outcomes)
                 emitted[arm.label] = sum(1 for reply in replies if reply.calls)
     mute = [label for label, calls in emitted.items() if calls == 0]
     assert not mute, f"{row}: {mute} emitted no tool call at all, so the counts measure silence"

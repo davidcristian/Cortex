@@ -73,11 +73,11 @@ def wilson(stood: int, runs: int) -> tuple[float, float]:
 
 def delivery(turns: tuple[Turn, ...], reading: Reading) -> Delivery | None:
     """What these runs delivered, or ``None`` when no run of them has a judge to be read by."""
-    verdicts = [
+    outcomes = [
         delivered(turn.instruction, turn.context, turn.output, ok=turn.ok, reading=reading)
         for turn in turns
     ]
-    judged = [verdict for verdict in verdicts if verdict is not None]
+    judged = [outcome for outcome in outcomes if outcome is not None]
     if not judged:
         return None
     low, high = wilson(sum(judged), len(judged))

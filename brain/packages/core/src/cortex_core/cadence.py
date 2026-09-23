@@ -28,7 +28,7 @@ class CadenceReading:
     judged: int
 
     @property
-    def verdict(self) -> bool | None:
+    def below_floor(self) -> bool | None:
         """Whether the tier ran below the floor, or ``None`` when no floor was set."""
         if self.floor <= 0:
             return None
@@ -37,7 +37,7 @@ class CadenceReading:
     @property
     def collapsed(self) -> bool:
         """Whether the tier never reached the rate its deployment measured for it."""
-        return self.verdict is True
+        return self.below_floor is True
 
     @property
     def shortfall(self) -> float:

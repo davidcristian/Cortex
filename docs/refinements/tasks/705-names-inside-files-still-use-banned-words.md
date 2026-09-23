@@ -10,7 +10,7 @@ table reaches every name a reader meets in hand-written code and stops at names 
 A survey splits every identifier in the tracked `.py`, `.rs`, `.ts` and `.tsx` files on `_` and on
 case changes and matches the parts against the table's single words. It reads Python names with
 `tokenize` and blanks the comments and strings of Rust and TypeScript first, and it leaves out
-generated code. On 2026-09-23 it finds 429 distinct names, largest family first:
+generated code. On 2026-09-23 it finds 409 distinct names in four families, largest first:
 
 - `carry`, `carries`, `carried`, `carrying`: 169 names, most of them test names.
 - `gate`, `gates`, `gated`, `ungated`: 124 names. They are the tool confirmation list
@@ -22,13 +22,11 @@ generated code. On 2026-09-23 it finds 429 distinct names, largest family first:
 - `arm`, `arms`, `armed`: 52 names, mostly the conditions of the live measurement tests
   (`SHIPPED_ARM`, `_ARMS`) and the escalation slot (`armed_slot`). The envelope samples' recorded
   `arm` key, `CORTEX_ENVELOPE_ARMS` and `CORTEX_TURN_COST_ARM` stay.
-- `verdict`, `verdicts`: 23 names, among them `Verdict` in the injection probes, `ci_paths.py`,
-  `rustcoverage.py` and `samplecheck.py`.
 
 These names stay, because something outside the code or a designed family fixes them:
 `RankBasis.SWEEP` and `RankBasis.VERDICT`, members of a designed family (decision 5 of ADR-0040)
-whose values the recall trail logs as `basis=`; the Rust `Pin`, `pin!`, `Box::pin` and `pin_mut`;
-and the session store's `_OLD_HOISTED_KEY`, `cortex:sessions:pinned`, until
+whose values the recall audit logs in its `basis` field; the Rust `Pin`, `pin!`, `Box::pin` and
+`pin_mut`; and the session store's `_OLD_HOISTED_KEY`, `cortex:sessions:pinned`, until
 [R-712](712-the-session-store-still-moves-the-hoisted-sets-first-key.md) closes. Strings are
 outside the survey: test data such as a roster entry named `robust`, the recorded model replies,
 the row labels in `test_reply_readings.py`, which match recorded readings, and the tool
@@ -46,4 +44,6 @@ stays, with the reason.
   renamed the files and left the names inside them.
 - 2026-09-23: the small families renamed: `land`, `pin`, `standing`, `knob`, `honest`, `robust`,
   `backstop`, `rederive`, `sitting`, `spell` and `earn`, with the Vitest titles that used them.
-  `volumecheck.py --rederive` is now `--recompute`.
+  `volumecheck.py --rederive` is now `--recompute`. Then `verdict`, whose `Verdict` classes became
+  `Outcome` in the injection probes, `Jobs` in `ci_paths.py`, `CheckResult` in `rustcoverage.py`
+  and `Finding` in `samplecheck.py`.

@@ -180,16 +180,16 @@ class RecordingPaceSink:
     """PaceSink that records the results a deep phase reported, in order."""
 
     def __init__(self) -> None:
-        self._verdicts: list[bool] = []
+        self._reported: list[bool] = []
 
     def note_pace(self, *, spilled: bool) -> None:
         """Record how one handoff's tier ran."""
-        self._verdicts.append(spilled)
+        self._reported.append(spilled)
 
     @property
-    def verdicts(self) -> Sequence[bool]:
+    def reported(self) -> Sequence[bool]:
         """Every result reported so far, in order, one per handoff that produced a reading."""
-        return tuple(self._verdicts)
+        return tuple(self._reported)
 
 
 class SystemClock:

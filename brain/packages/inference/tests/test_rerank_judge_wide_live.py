@@ -122,11 +122,11 @@ async def test_the_judge_is_scored_per_category_on_a_corpus_not_built_for_it() -
             control_ids = [hit.record.id for hit in reversed(candidates)][:_K]
 
             started = time.monotonic()
-            verdict = await judge.select(candidates, query=question, now=_AT, k=_K)
+            ranking = await judge.select(candidates, query=question, now=_AT, k=_K)
             elapsed = time.monotonic() - started
-            judge_ids = [r.hit.record.id for r in verdict.hits]
-            declined = verdict.basis is RankBasis.DEMUR
-            fell_back = verdict.basis not in (RankBasis.VERDICT, RankBasis.DEMUR)
+            judge_ids = [r.hit.record.id for r in ranking.hits]
+            declined = ranking.basis is RankBasis.DEMUR
+            fell_back = ranking.basis not in (RankBasis.VERDICT, RankBasis.DEMUR)
 
             arms["cosine (ships)"][category].record(cosine_ids, gold)
             arms["reversed (control)"][category].record(control_ids, gold)

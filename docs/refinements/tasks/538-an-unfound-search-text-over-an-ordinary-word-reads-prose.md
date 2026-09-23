@@ -26,6 +26,6 @@ member's own line, said so.
   changed, when the value had (ADR-0042).
 - 2026-09-04: done. Across the whole registry, 65 of 288 mentions write a value made of letters and
   underscores into a file that also contains that word away from the search text, 31 of them a
-  single word. `searchtexts.verdict` now states the strong form only where the value's line is the
+  single word. `searchtexts.conclusion` now states the strong form only where the value's line is the
   line the match run stops on, and otherwise reports both readings without saying which changed;
   both recorded misreadings were replayed in a copy of the tree before and after (ADR-0042).

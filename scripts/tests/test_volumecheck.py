@@ -292,7 +292,7 @@ def test_main_passes_the_real_repo(capsys: pytest.CaptureFixture[str]) -> None:
     assert "volumecheck OK" in capsys.readouterr().out
 
 
-def test_main_states_what_it_read_beside_the_verdict(capsys: pytest.CaptureFixture[str]) -> None:
+def test_main_states_what_it_read_beside_the_result(capsys: pytest.CaptureFixture[str]) -> None:
     assert volumecheck.main(["--root", str(REPO_ROOT)]) == 0
     out = capsys.readouterr().out
     assert "declared volume path(s)" in out

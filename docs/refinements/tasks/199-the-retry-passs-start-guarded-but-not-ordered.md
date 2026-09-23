@@ -56,6 +56,6 @@ block a pass for the whole load bound.
   `residency_pass.py`, `residency_moves.py` or the supervisor. The two outcomes each need a setting
   this entry had not named. The fit check returns at once while `plan.brain_vram_mib` is zero
   (`residency_moves.py`, `_refuse_a_load_the_card_cannot_hold`), and an overcommit result is `None`
-  while the declared floor is zero (`cadence.py`, `verdict`), so a deployment that sets neither
+  while the declared floor is zero (`cadence.py`, `below_floor`), so a deployment that sets neither
   figure cannot record either outcome. All four settings appear under `docker/` only in the comment
   block of `docker/docker-compose.gpu.yml`.

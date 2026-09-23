@@ -156,7 +156,7 @@ fn patient_reads() -> RetryPolicy {
 
 #[tokio::test]
 #[ignore = "live gRPC check: dials a dead loopback address on real time (needs no brain)"]
-async fn the_probe_budget_bounds_a_down_verdict_against_a_dead_address() {
+async fn the_probe_budget_bounds_a_down_result_against_a_dead_address() {
     let dead = match BrainSeamClient::connect_lazy_with_token("http://127.0.0.1:1", None) {
         Ok(client) => client,
         Err(error) => panic!("cannot build a lazy client for the dead address: {error}"),

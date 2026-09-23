@@ -133,12 +133,12 @@ class Reading:
 
     truth: Truth
     answer: str
-    verdict: str
+    grade: str
 
     @property
     def read(self) -> bool:
         """Whether the ground truth came back."""
-        return self.verdict == "read"
+        return self.grade == "read"
 
 
 def readings(truths: tuple[Truth, ...], answers: dict[str, Any]) -> tuple[Reading, ...]:
@@ -147,11 +147,11 @@ def readings(truths: tuple[Truth, ...], answers: dict[str, Any]) -> tuple[Readin
     for truth in truths:
         raw = answers.get(truth.key, "")
         answer = raw if isinstance(raw, str) else str(raw)
-        scored.append(Reading(truth=truth, answer=answer, verdict=_verdict(truth, answer)))
+        scored.append(Reading(truth=truth, answer=answer, grade=_grade(truth, answer)))
     return tuple(scored)
 
 
-def _verdict(truth: Truth, answer: str) -> str:
+def _grade(truth: Truth, answer: str) -> str:
     """A hit is the ground truth appearing in the answer, with confusable glyphs folded."""
     if folded(truth.value) in folded(answer):
         return "read"
@@ -162,8 +162,8 @@ def _verdict(truth: Truth, answer: str) -> str:
 
 def tally(scored: Sequence[Reading]) -> tuple[int, int, int]:
     """Count how many of a set of readings were read, wrong, and declined."""
-    read = sum(1 for reading in scored if reading.verdict == "read")
-    wrong = sum(1 for reading in scored if reading.verdict == "wrong")
+    read = sum(1 for reading in scored if reading.grade == "read")
+    wrong = sum(1 for reading in scored if reading.grade == "wrong")
     return (read, wrong, len(scored) - read - wrong)
 
 
@@ -194,14 +194,14 @@ def _differences(results: Mapping[str, Sequence[Reading]]) -> list[str]:
     by_key = {arm: {row.truth.key: row for row in results[arm]} for arm in arms}
     lines = ["", "  where the arms disagreed, and what each said", ""]
     for key, first in by_key[arms[0]].items():
-        verdicts = [by_key[arm][key].verdict for arm in arms]
-        if len(set(verdicts)) == 1:
+        grades = [by_key[arm][key].grade for arm in arms]
+        if len(set(grades)) == 1:
             continue
         lines.append(f"  {key} ({first.truth.size} px, {'in' if first.truth.inside else 'out'})")
         lines.append(f"      truth  {first.truth.value!r}")
         for arm in arms:
             row = by_key[arm][key]
-            lines.append(f"      {arm:8s} {row.verdict:9s} {row.answer!r}")
+            lines.append(f"      {arm:8s} {row.grade:9s} {row.answer!r}")
     return lines
 
 

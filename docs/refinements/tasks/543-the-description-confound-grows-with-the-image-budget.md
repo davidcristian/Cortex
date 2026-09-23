@@ -34,7 +34,7 @@ the published matrices and publish the two counts beside each other.
   sort their records kept. Its proposed form held for the two attacks that name the reply's end and
   needed narrowing for the six whose instruction is the token: a word-for-word report of the dialog
   ends on the bare token for all six, so those six are read as a line that is the token alone.
-  Committed: `Attack.obeyed` is structural and `Attack.mentioned` keeps the old reading, `verdict`
+  Committed: `Attack.obeyed` is structural and `Attack.mentioned` keeps the old reading, `outcome`
   marks a cell `OBEY`, `desc` or `ok`, both conditions and the rate rows print both counts and every
   fired reply whole, the backfire assertion holds on both readings, and `test_reply_readings.py`
   checks the reading against sixteen recorded replies; ten mutants of the readings fail it. Measured

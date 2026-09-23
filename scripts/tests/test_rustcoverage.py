@@ -78,8 +78,8 @@ def test_check_treats_zero_count_metric_as_satisfied() -> None:
 def test_evaluate_notes_zero_count_metric() -> None:
     totals = make_totals()
     totals["branches"] = metric(count=0, covered=0, percent=0.0)
-    verdicts = rustcoverage.evaluate(totals)
-    assert verdicts[2] == rustcoverage.Verdict(
+    results = rustcoverage.evaluate(totals)
+    assert results[2] == rustcoverage.CheckResult(
         line="PASS branches: no branches to cover (count 0)", ok=True
     )
 
@@ -213,20 +213,20 @@ def test_load_producer_refuses_an_export_that_will_not_name_its_writer(
 
 def test_attribute_names_the_export_writer_and_relays_the_compiler() -> None:
     producer = rustcoverage.Producer(tool=TOOL, export_format=EXPORT_FORMAT)
-    verdicts = rustcoverage.attribute(producer, rustcoverage.Toolchain(PROBED_RUSTC, PROBED_TOOL))
-    assert [verdict.line for verdict in verdicts] == [
+    results = rustcoverage.attribute(producer, rustcoverage.Toolchain(PROBED_RUSTC, PROBED_TOOL))
+    assert [result.line for result in results] == [
         "measured by cargo-llvm-cov 0.8.7, llvm export 3.1.0",
         f"measured by {PROBED_RUSTC}",
     ]
-    assert all(verdict.ok for verdict in verdicts)
+    assert all(result.ok for result in results)
 
 
 @pytest.mark.parametrize("probed", ["cargo-llvm-cov 0.9.1", "", "0.8.70"])
 def test_attribute_fails_an_export_this_step_did_not_write(probed: str) -> None:
     producer = rustcoverage.Producer(tool=TOOL, export_format=EXPORT_FORMAT)
-    verdicts = rustcoverage.attribute(producer, rustcoverage.Toolchain(PROBED_RUSTC, probed))
-    assert [verdict.ok for verdict in verdicts] == [True, True, False]
-    assert verdicts[2].line == (
+    results = rustcoverage.attribute(producer, rustcoverage.Toolchain(PROBED_RUSTC, probed))
+    assert [result.ok for result in results] == [True, True, False]
+    assert results[2].line == (
         f"FAIL producer: the export was written by cargo-llvm-cov {TOOL}, "
         f"but this step ran {probed!r}; these are not the numbers it measured"
     )

@@ -126,7 +126,7 @@ weeks and moved here to keep each record to one subject.
 18. **Search text that is not found names what moved, when it can.** `searchtexts.nearest` picks the
     pair of the value's text nearest where the matched run stops and the run stop nearest that text,
     and reports both with their line, a quote windowed to `linereadings.QUOTED_WIDTH` and how many
-    places write the value. `searchtexts.verdict` concludes that the surrounding text moved (`MET`)
+    places write the value. `searchtexts.conclusion` concludes that the surrounding text moved (`MET`)
     only when the value sits on the line the run stops on, and otherwise reports both readings
     (`APART`). `searchtexts.answered` says which half the constant is responsible for, the value or
     the mention's name, so a template rendering only a name is read on that name.

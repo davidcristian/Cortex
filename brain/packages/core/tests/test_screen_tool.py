@@ -309,9 +309,9 @@ async def test_two_captures_per_target_is_what_a_loop_gets_now() -> None:
     for _round in range(3):
         rounds.append([])
         for target in ("display", "focus"):
-            verdict = salience.admits(_call(target), rounds)
-            admitted.append((target, verdict))
-            if verdict:
+            was_admitted = salience.admits(_call(target), rounds)
+            admitted.append((target, was_admitted))
+            if was_admitted:
                 rounds[-1].append(_call(target))
 
     assert admitted == [
@@ -322,7 +322,9 @@ async def test_two_captures_per_target_is_what_a_loop_gets_now() -> None:
         ("display", False),
         ("focus", False),
     ]
-    assert sum(1 for _target, verdict in admitted if verdict) == 2 * MAX_IDENTICAL_DISPATCHES
+    assert (
+        sum(1 for _target, was_admitted in admitted if was_admitted) == 2 * MAX_IDENTICAL_DISPATCHES
+    )
     assert MAX_IDENTICAL_DISPATCHES == 2
 
 

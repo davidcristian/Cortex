@@ -90,7 +90,7 @@ def stops(text: str, run: str, ends: list[int], at: int | None) -> str:
     return f"{held}, which stops in {len(ends)} places, {which} on line {line}"
 
 
-def verdict(text: str, match: re.Match[str], at: int | None, part: str) -> str:
+def conclusion(text: str, match: re.Match[str], at: int | None, part: str) -> str:
     """What the two readings conclude: the strong form only where they name one line."""
     if at is None or line_of(text, at - 1) != line_of(text, match.start()):
         return APART
@@ -144,5 +144,5 @@ def unfound(mention: Mention, search_text: str, text: str, written: str) -> str:
         f"{stem}, {_stopped(text, search_text, run, (runs, ends), at)}; the file does still write "
         f"{held.written!r} as a "
         f"token of its own{where(text, match, len(matches), anchored=bool(ends))}, "
-        f"{verdict(text, match, at, held.word)}"
+        f"{conclusion(text, match, at, held.word)}"
     )

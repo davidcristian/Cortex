@@ -198,7 +198,7 @@ variable (ADR-0016 decision 8).
 - `a_rejected_seam_token_is_answered_at_once_and_never_retried` (ADR-0016) dials with a deliberately
   wrong token: the answer must be `Degraded`, the detail must open `Unauthenticated`, and it must
   arrive with no wait spent. It needs a brain serving with a token.
-- `the_probe_budget_bounds_a_down_verdict_against_a_dead_address` (ADR-0024) probes
+- `the_probe_budget_bounds_a_down_result_against_a_dead_address` (ADR-0024) probes
   `http://127.0.0.1:1` through `RetryingTransport` on a real `Sleeper` and asserts the answer is
   `Down` inside the budget. The bound is all it asserts: what a dial to a closed port costs is the
   host's fact.

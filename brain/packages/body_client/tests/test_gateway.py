@@ -215,7 +215,7 @@ async def test_set_volume_error_maps_to_body_gateway_error() -> None:
             await gateway.set_volume(mute=True)
 
 
-async def test_notify_round_trips_the_toast_and_the_shown_verdict() -> None:
+async def test_notify_round_trips_the_toast_and_the_shown_result() -> None:
     fake = FakeBody(shown=True)
     async with _gateway(fake) as gateway:
         shown = await gateway.notify(

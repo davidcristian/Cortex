@@ -614,7 +614,7 @@ async def test_a_boot_that_could_not_settle_the_cortex_leaves_the_seam_saying_so
         task.cancel()
 
 
-async def test_a_cortex_that_comes_up_after_the_boot_verdict_turns_the_seam_green(
+async def test_a_cortex_that_comes_up_after_the_boot_result_turns_the_seam_green(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     port = _free_loopback_port()

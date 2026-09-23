@@ -171,7 +171,7 @@ async def test_a_peer_that_will_not_start_is_recorded_and_not_counted(
     ]
 
 
-async def test_a_peer_the_daemon_does_not_serve_at_all_is_no_verdict_either(
+async def test_a_peer_the_daemon_does_not_serve_at_all_is_no_result_either(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     host = ScriptedModelHost(

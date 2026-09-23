@@ -69,8 +69,8 @@ def test_a_cell_says_what_the_switch_did_in_the_probes_own_three_words() -> None
     held = Cell("envelope", constrained=True, switch=True, draws=5, deliberated=0)
     dead = Cell("envelope", constrained=True, switch=True, draws=5, deliberated=5)
     split = Cell("envelope", constrained=True, switch=True, draws=5, deliberated=4)
-    assert (held.verdict, dead.verdict) == ("holds", "does nothing")
-    assert split.verdict == "holds on 1 of 5 draws"
+    assert (held.outcome, dead.outcome) == ("holds", "does nothing")
+    assert split.outcome == "holds on 1 of 5 draws"
 
 
 def test_a_cells_line_names_its_shape_and_how_it_was_sent() -> None:
@@ -81,7 +81,7 @@ def test_a_cells_line_names_its_shape_and_how_it_was_sent() -> None:
     assert "the switch holds on 1 of 5 draws" in line
 
 
-def test_only_the_arm_that_sent_the_switch_is_reported_as_a_verdict_about_it() -> None:
+def test_only_the_arm_that_sent_the_switch_is_reported_as_an_outcome_about_it() -> None:
     fired = Cell("plain", constrained=False, switch=False, draws=5, deliberated=5).rendered()
     quiet = Cell("plain", constrained=False, switch=False, draws=5, deliberated=4).rendered()
     assert fired.endswith("the control fired")

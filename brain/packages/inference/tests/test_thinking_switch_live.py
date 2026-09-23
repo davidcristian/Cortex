@@ -245,14 +245,14 @@ async def test_which_request_shapes_this_tier_honours_the_thinking_switch_on() -
             f"says, and `just switch-tail {written}` reads the rendering to say which"
         )
         thought = sum(1 for cell in switched if cell.reasoning_chars > 0)
-        verdict = (
+        outcome = (
             "holds"
             if thought == 0
             else "does nothing"
             if thought == _REPEATS
             else f"holds on {_REPEATS - thought} of {_REPEATS} draws"
         )
-        print(f"{shape:<9} the switch {verdict} on {_MODEL}")  # noqa: T201
+        print(f"{shape:<9} the switch {outcome} on {_MODEL}")  # noqa: T201
     served = [cell for cells in draws.values() for cell in cells]
     assert all(cell.tokens is not None for cell in served), (
         f"a cell reported no timings, so it was not served: "

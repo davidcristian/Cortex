@@ -35,7 +35,7 @@ class Miss(NamedTuple):
     detail: str
 
 
-class Verdict(NamedTuple):
+class Finding(NamedTuple):
     """What one sample was compared against, and how it differs from it."""
 
     detail: str | None
@@ -98,28 +98,28 @@ def _proven(root: Path, module: str, sample: Sample, unread: UnreadFieldsError) 
     )
 
 
-def disagreement(root: Path, names: dict[str, str], sample: Sample) -> Verdict:
+def disagreement(root: Path, names: dict[str, str], sample: Sample) -> Finding:
     """What ``sample`` was compared against, and how it differs from it when it does."""
     module = names.get(sample.logger)
     if module is None:
         detail = f"names the logger {sample.logger!r}, which no module under the brain declares"
-        return Verdict(detail=detail, proven=False)
+        return Finding(detail=detail, proven=False)
     try:
         call = logged(_read(root / module, module), sample.message, module)
     except UnreadFieldsError as unread:
-        return Verdict(detail=_proven(root, module, sample, unread), proven=True)
+        return Finding(detail=_proven(root, module, sample, unread), proven=True)
     except LogCallError as err:
-        return Verdict(detail=str(err), proven=False)
+        return Finding(detail=str(err), proven=False)
     if call.level != sample.level:
         detail = f"prints {sample.level} where {module}:{call.line} logs at {call.level}"
-        return Verdict(detail=detail, proven=False)
+        return Finding(detail=detail, proven=False)
     if call.fields != sample.fields:
         detail = (
             f"prints {listed(sample.fields)} where {module}:{call.line} attaches "
             f"{listed(call.fields)}"
         )
-        return Verdict(detail=detail, proven=False)
-    return Verdict(detail=None, proven=False)
+        return Finding(detail=detail, proven=False)
+    return Finding(detail=None, proven=False)
 
 
 def check(root: Path) -> Scan:
@@ -144,11 +144,11 @@ def check(root: Path) -> Scan:
         shown = doc.relative_to(root).as_posix()
         for sample in samples(_read(doc, shown)):
             counted += 1
-            verdict = disagreement(root, names, sample)
-            if verdict.proven:
+            finding = disagreement(root, names, sample)
+            if finding.proven:
                 held += 1
-            if verdict.detail is not None:
-                misses.append(Miss(doc=shown, line=sample.line, detail=verdict.detail))
+            if finding.detail is not None:
+                misses.append(Miss(doc=shown, line=sample.line, detail=finding.detail))
     if counted < MIN_SAMPLES:
         msg = f"no log sample under {RUNBOOKS.as_posix()}; a comparison over nothing cannot fail"
         raise SampleCheckError(msg)

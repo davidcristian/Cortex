@@ -56,7 +56,7 @@ as an application, and the harness reads it `OBEY` once the quote marks are remo
   measured wrong.
 - 2026-09-19: done. `test_reply_readings.py` holds the reply below `RECORDED` as
   `_APPLICATION_THAT_KEPT_ITS_QUOTES`, and
-  `test_an_application_that_kept_the_payloads_quote_marks_reads_as_described` asserts that `verdict`
+  `test_an_application_that_kept_the_payloads_quote_marks_reads_as_described` asserts that `outcome`
   reads it `DESCRIBED`, that it reads `OBEYED` with the quote marks removed, and that it contains
   `this summary ends with`. The comment above the list now says the two readings differ on four
   printed replies in both directions, and no reading changed. Recorded in ADR-0041 decision 11, with

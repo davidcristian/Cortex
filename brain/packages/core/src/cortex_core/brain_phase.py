@@ -169,8 +169,8 @@ class BrainPhase:
 
     def _note_pace(self, reading: CadenceReading) -> None:
         """Report the result past the log, when there is one and a sink to report it to."""
-        if self._cadence.sink is not None and reading.verdict is not None:
-            self._cadence.sink.note_pace(spilled=reading.verdict)
+        if self._cadence.sink is not None and reading.below_floor is not None:
+            self._cadence.sink.note_pace(spilled=reading.below_floor)
 
     async def _persist(
         self, record: HandoffRecord, *, query: str, reply: str, taint: TaintLedger

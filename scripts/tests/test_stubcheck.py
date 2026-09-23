@@ -219,7 +219,7 @@ def test_check_counts_the_comments_a_service_claims_two_copies_of(tmp_path: Path
     assert stubcheck.check(tmp_path).doubled == 3
 
 
-def test_main_states_what_it_read_beside_the_verdict(
+def test_main_states_what_it_read_beside_the_result(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     _tree(tmp_path)

@@ -303,22 +303,22 @@ CLEAN = "clean"
 SEARCHED = "searched"
 RETRIED = "retried"
 OTHER = "other"
-SOURCE_VERDICTS = (LISTED, UNLISTED, NO_READ)
-CARRY_VERDICTS = (CARRIED, CLEAN, OTHER)
-NEXT_VERDICTS = (SEARCHED, RETRIED, OTHER)
+SOURCE_OUTCOMES = (LISTED, UNLISTED, NO_READ)
+CARRY_OUTCOMES = (CARRIED, CLEAN, OTHER)
+NEXT_OUTCOMES = (SEARCHED, RETRIED, OTHER)
 
 
-def _tally(verdicts: Sequence[str], names: Sequence[str]) -> str:
+def _tally(outcomes: Sequence[str], names: Sequence[str]) -> str:
     """One variant's counts, in the row's fixed outcome order so the variants read side by side."""
-    return "  ".join(f"{name}={verdicts.count(name)}/{len(verdicts)}" for name in names)
+    return "  ".join(f"{name}={outcomes.count(name)}/{len(outcomes)}" for name in names)
 
 
 def _report(
-    label: str, replies: Sequence[Reply], verdicts: Sequence[str], names: Sequence[str]
+    label: str, replies: Sequence[Reply], outcomes: Sequence[str], names: Sequence[str]
 ) -> None:
     silent = sum(1 for reply in replies if reply.silent)
     cut = sum(1 for reply in replies if reply.finish_reason == "length")
-    print(f"  --> {label}: {_tally(verdicts, names)}  (silent={silent} cut={cut})")  # noqa: T201
+    print(f"  --> {label}: {_tally(outcomes, names)}  (silent={silent} cut={cut})")  # noqa: T201
 
 
 def score_source(reply: Reply) -> str:
@@ -392,13 +392,13 @@ async def test_where_the_uid_of_the_read_comes_from() -> None:
             for arm in SOURCE_ARMS:
                 tools = specs if arm.described else without_uid_help(specs)
                 replies = [await _draw(client, messages, tools, seed) for seed in range(DRAWS)]
-                verdicts = [score_source(reply) for reply in replies]
-                for seed, (reply, verdict) in enumerate(zip(replies, verdicts, strict=True)):
+                outcomes = [score_source(reply) for reply in replies]
+                for seed, (reply, outcome) in enumerate(zip(replies, outcomes, strict=True)):
                     call = reply.first(_READ_TOOL)
                     wrote = "" if call is None else f"{call.text_argument('uid')!r}"
                     made = reply.calls[0].name if reply.calls else "(no call)"
-                    print(f"  {arm.label:21s} seed={seed:<3d} {verdict:9s} {made} {wrote}")  # noqa: T201
-                _report(f"copied {arm.label}", replies, verdicts, SOURCE_VERDICTS)
+                    print(f"  {arm.label:21s} seed={seed:<3d} {outcome:9s} {made} {wrote}")  # noqa: T201
+                _report(f"copied {arm.label}", replies, outcomes, SOURCE_OUTCOMES)
                 emitted[arm.label] = sum(1 for reply in replies if reply.calls)
     mute = [label for label, calls in emitted.items() if calls == 0]
     assert not mute, f"copied: {mute} emitted no tool call at all, so the counts measure silence"
@@ -421,8 +421,8 @@ async def test_whether_a_uid_is_carried_into_the_folder_holding_none() -> None:
             for arm in SOURCE_ARMS:
                 tools = specs if arm.described else without_uid_help(specs)
                 replies = [await _draw(client, messages, tools, seed) for seed in range(DRAWS)]
-                verdicts = [score_carry(reply) for reply in replies]
-                for seed, (reply, verdict) in enumerate(zip(replies, verdicts, strict=True)):
+                outcomes = [score_carry(reply) for reply in replies]
+                for seed, (reply, outcome) in enumerate(zip(replies, outcomes, strict=True)):
                     call = reply.first(_READ_TOOL)
                     wrote = (
                         ""
@@ -430,8 +430,8 @@ async def test_whether_a_uid_is_carried_into_the_folder_holding_none() -> None:
                         else f"{call.text_argument('folder')}/{call.text_argument('uid')}"
                     )
                     made = reply.calls[0].name if reply.calls else "(no call)"
-                    print(f"  {arm.label:21s} seed={seed:<3d} {verdict:9s} {made} {wrote}")  # noqa: T201
-                _report(f"carried {arm.label}", replies, verdicts, CARRY_VERDICTS)
+                    print(f"  {arm.label:21s} seed={seed:<3d} {outcome:9s} {made} {wrote}")  # noqa: T201
+                _report(f"carried {arm.label}", replies, outcomes, CARRY_OUTCOMES)
                 emitted[arm.label] = sum(1 for reply in replies if reply.calls)
     mute = [label for label, calls in emitted.items() if calls == 0]
     assert not mute, f"carried: {mute} emitted no tool call at all, so the counts measure silence"
@@ -458,12 +458,12 @@ async def test_what_the_cortex_does_after_a_not_found_answer() -> None:
                 steps = [opening, Step(missing, answer, Trust.TRUSTED)]
                 messages = turn_messages(_READ_ASK, steps)
                 replies = [await _draw(client, messages, specs, seed) for seed in range(DRAWS)]
-                verdicts = [score_next(reply) for reply in replies]
-                for seed, (reply, verdict) in enumerate(zip(replies, verdicts, strict=True)):
+                outcomes = [score_next(reply) for reply in replies]
+                for seed, (reply, outcome) in enumerate(zip(replies, outcomes, strict=True)):
                     made = reply.calls[0].name if reply.calls else "(no call)"
                     wrote = _written(reply)
-                    print(f"  {label:23s} seed={seed:<3d} {verdict:9s} {made} {wrote}")  # noqa: T201
-                _report(f"after-not-found {label}", replies, verdicts, NEXT_VERDICTS)
+                    print(f"  {label:23s} seed={seed:<3d} {outcome:9s} {made} {wrote}")  # noqa: T201
+                _report(f"after-not-found {label}", replies, outcomes, NEXT_OUTCOMES)
                 emitted[label] = sum(1 for reply in replies if reply.calls)
     mute = [label for label, calls in emitted.items() if calls == 0]
     assert not mute, f"after-not-found: {mute} emitted no call, so the counts measure silence"

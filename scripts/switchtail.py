@@ -123,7 +123,7 @@ def read(probe: Probe) -> tuple[list[str], int]:
     if cell is None:
         return lines, 1
     predicted = "holds" if shut else "does nothing"
-    said = f"the tail predicts the switch {predicted} under a schema, and it {cell.verdict}"
+    said = f"the tail predicts the switch {predicted} under a schema, and it {cell.outcome}"
     if (cell.deliberated == 0) is shut:
         lines.append(f"  agreed: {said} on {cell.draws} draws")
         return lines, 0

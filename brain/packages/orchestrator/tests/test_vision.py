@@ -87,7 +87,7 @@ async def test_the_answered_line_names_the_engine_that_answered_it(
 
 
 @pytest.mark.parametrize("body", [{"modalities": {"vision": True}}, {"build_info": 10680}, "b1068"])
-async def test_a_server_naming_no_build_still_gets_its_verdict_read(
+async def test_a_server_naming_no_build_still_gets_its_result_read(
     body: object, caplog: pytest.LogCaptureFixture
 ) -> None:
     def handler(_request: httpx.Request) -> httpx.Response:

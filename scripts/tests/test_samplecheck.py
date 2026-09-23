@@ -297,7 +297,7 @@ def test_check_counts_the_samples_the_runbooks_the_loggers_and_the_messages(
     assert scanned.proven == 0
 
 
-def test_main_states_what_it_read_beside_the_verdict(
+def test_main_states_what_it_read_beside_the_result(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     repo(tmp_path)

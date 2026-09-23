@@ -4,7 +4,7 @@ import sys
 from typing import Literal, NamedTuple
 
 
-class Verdict(NamedTuple):
+class Jobs(NamedTuple):
     """Which toolchain jobs a changed path affects, plus a label for CI logs."""
 
     label: str
@@ -16,13 +16,13 @@ class Verdict(NamedTuple):
 
 # `shell=` here is this NamedTuple's fourth field, not subprocess's, which is what S604 is
 # about: nothing in this module runs a process. Ruff matches that rule on the keyword alone.
-ALL = Verdict("all", python=True, rust=True, overlay=True, shell=True)  # noqa: S604
-PYTHON_ONLY = Verdict("python", python=True, rust=False, overlay=False, shell=False)
-RUST_ONLY = Verdict("rust", python=False, rust=True, overlay=False, shell=False)
-OVERLAY_ONLY = Verdict("overlay", python=False, rust=False, overlay=True, shell=False)
-SHELL = Verdict("rust+shell", python=False, rust=True, overlay=False, shell=True)  # noqa: S604
-NEITHER = Verdict("neither", python=False, rust=False, overlay=False, shell=False)
-DEFAULT = Verdict(  # noqa: S604
+ALL = Jobs("all", python=True, rust=True, overlay=True, shell=True)  # noqa: S604
+PYTHON_ONLY = Jobs("python", python=True, rust=False, overlay=False, shell=False)
+RUST_ONLY = Jobs("rust", python=False, rust=True, overlay=False, shell=False)
+OVERLAY_ONLY = Jobs("overlay", python=False, rust=False, overlay=True, shell=False)
+SHELL = Jobs("rust+shell", python=False, rust=True, overlay=False, shell=True)  # noqa: S604
+NEITHER = Jobs("neither", python=False, rust=False, overlay=False, shell=False)
+DEFAULT = Jobs(  # noqa: S604
     "all (fail-closed default)",
     python=True,
     rust=True,
@@ -36,7 +36,7 @@ class Rule(NamedTuple):
 
     kind: Literal["exact", "prefix", "suffix"]
     pattern: str
-    verdict: Verdict
+    jobs: Jobs
 
 
 # Ordered, first match wins. The two `body/app/` rules come before the broader `body/` rule, and
@@ -72,11 +72,11 @@ def matches(rule: Rule, path: str) -> bool:
     return path.endswith(rule.pattern)
 
 
-def classify(path: str) -> Verdict:
+def classify(path: str) -> Jobs:
     """Classify one repo-relative path; unmatched paths fail closed to all toolchains."""
     for rule in RULES:
         if matches(rule, path):
-            return rule.verdict
+            return rule.jobs
     return DEFAULT
 
 
@@ -91,12 +91,12 @@ def main(lines: list[str] | None = None) -> int:
         path = raw.strip()
         if not path:
             continue
-        verdict = classify(path)
-        print(f"ci-paths: {path} -> {verdict.label}", file=sys.stderr)
-        python |= verdict.python
-        rust |= verdict.rust
-        overlay |= verdict.overlay
-        shell |= verdict.shell
+        jobs = classify(path)
+        print(f"ci-paths: {path} -> {jobs.label}", file=sys.stderr)
+        python |= jobs.python
+        rust |= jobs.rust
+        overlay |= jobs.overlay
+        shell |= jobs.shell
     print(f"python={'true' if python else 'false'}")
     print(f"rust={'true' if rust else 'false'}")
     print(f"overlay={'true' if overlay else 'false'}")

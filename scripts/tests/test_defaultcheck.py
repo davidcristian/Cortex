@@ -185,7 +185,7 @@ def test_check_counts_the_files_variables_and_comparisons(tmp_path: Path) -> Non
     assert scanned.faults == []
 
 
-def test_main_states_what_it_read_beside_the_verdict(
+def test_main_states_what_it_read_beside_the_result(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     _counted(tmp_path)

@@ -94,7 +94,7 @@ async def _arm(backend: LlamaCppBackend, label: str, bounds: GenerationBounds) -
     return [await _draw(backend, bounds) for _ in range(_REPEATS)]
 
 
-def _verdict(label: str, draws: list[_Draw]) -> None:
+def _print_cell(label: str, draws: list[_Draw]) -> None:
     """Print what a cell did, in the two counts this file exists to report."""
     thought = sum(1 for drawn in draws if drawn.deliberated)
     leaked = sum(1 for drawn in draws if drawn.leaked)
@@ -129,6 +129,6 @@ async def test_a_per_request_trace_budget_reaches_the_shape_the_switch_loses() -
         f"on {_MODEL}, and this run says nothing about either setting"
     )
     print()  # noqa: T201
-    _verdict("control, neither setting", control)
-    _verdict("the switch alone", switched)
-    _verdict("the switch and a budget", budgeted)
+    _print_cell("control, neither setting", control)
+    _print_cell("the switch alone", switched)
+    _print_cell("the switch and a budget", budgeted)

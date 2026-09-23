@@ -72,7 +72,7 @@ class PaceSinkUnderTest:
 
 def _fake_under_test() -> PaceSinkUnderTest:
     fake = RecordingPaceSink()
-    return PaceSinkUnderTest(fake, lambda: bool(fake.verdicts) and fake.verdicts[-1])
+    return PaceSinkUnderTest(fake, lambda: bool(fake.reported) and fake.reported[-1])
 
 
 def _record_under_test() -> PaceSinkUnderTest:
@@ -89,7 +89,7 @@ def test_a_sink_starts_with_nothing_to_say(build: Callable[[], PaceSinkUnderTest
 
 
 @pytest.mark.parametrize("build", _IMPLEMENTATIONS)
-def test_the_last_verdict_written_is_the_one_that_stands(
+def test_the_last_result_written_is_the_one_that_stands(
     build: Callable[[], PaceSinkUnderTest],
 ) -> None:
     under = build()
@@ -102,7 +102,7 @@ def test_the_last_verdict_written_is_the_one_that_stands(
 
 
 @pytest.mark.parametrize("build", _IMPLEMENTATIONS)
-def test_writing_the_same_verdict_twice_says_the_same_thing(
+def test_writing_the_same_result_twice_says_the_same_thing(
     build: Callable[[], PaceSinkUnderTest],
 ) -> None:
     under = build()

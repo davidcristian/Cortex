@@ -5,7 +5,7 @@ import pytest
 
 import ci_paths
 
-EVERY_RULE_CASES: list[tuple[str, ci_paths.Verdict]] = [
+EVERY_RULE_CASES: list[tuple[str, ci_paths.Jobs]] = [
     ("justfile", ci_paths.ALL),
     (".python-version", ci_paths.ALL),
     ("proto/body.proto", ci_paths.ALL),
@@ -26,12 +26,12 @@ EVERY_RULE_CASES: list[tuple[str, ci_paths.Verdict]] = [
 ]
 
 
-@pytest.mark.parametrize(("path", "verdict"), EVERY_RULE_CASES)
-def test_classify_matches_every_rule(path: str, verdict: ci_paths.Verdict) -> None:
-    assert ci_paths.classify(path) is verdict
+@pytest.mark.parametrize(("path", "jobs"), EVERY_RULE_CASES)
+def test_classify_matches_every_rule(path: str, jobs: ci_paths.Jobs) -> None:
+    assert ci_paths.classify(path) is jobs
 
 
-PRECEDENCE_CASES: list[tuple[str, ci_paths.Verdict]] = [
+PRECEDENCE_CASES: list[tuple[str, ci_paths.Jobs]] = [
     ("brain/README.md", ci_paths.PYTHON_ONLY),
     ("body/README.md", ci_paths.RUST_ONLY),
     ("scripts/README.md", ci_paths.ALL),
@@ -45,9 +45,9 @@ PRECEDENCE_CASES: list[tuple[str, ci_paths.Verdict]] = [
 ]
 
 
-@pytest.mark.parametrize(("path", "verdict"), PRECEDENCE_CASES)
-def test_classify_precedence_first_match_wins(path: str, verdict: ci_paths.Verdict) -> None:
-    assert ci_paths.classify(path) is verdict
+@pytest.mark.parametrize(("path", "jobs"), PRECEDENCE_CASES)
+def test_classify_precedence_first_match_wins(path: str, jobs: ci_paths.Jobs) -> None:
+    assert ci_paths.classify(path) is jobs
 
 
 @pytest.mark.parametrize(
@@ -62,12 +62,12 @@ def test_classify_precedence_first_match_wins(path: str, verdict: ci_paths.Verdi
     ],
 )
 def test_classify_fails_closed_to_all_for_unmatched_paths(path: str) -> None:
-    verdict = ci_paths.classify(path)
-    assert verdict is ci_paths.DEFAULT
-    assert verdict.python
-    assert verdict.rust
-    assert verdict.overlay
-    assert verdict.shell
+    jobs = ci_paths.classify(path)
+    assert jobs is ci_paths.DEFAULT
+    assert jobs.python
+    assert jobs.rust
+    assert jobs.overlay
+    assert jobs.shell
 
 
 def test_main_empty_input_runs_nothing(capsys: pytest.CaptureFixture[str]) -> None:
@@ -113,7 +113,7 @@ def test_main_body_change_outside_the_shell_leaves_the_shell_job_off(
     assert capsys.readouterr().out == "python=false\nrust=true\noverlay=true\nshell=false\n"
 
 
-def test_main_unions_verdicts_across_paths(capsys: pytest.CaptureFixture[str]) -> None:
+def test_main_unions_jobs_across_paths(capsys: pytest.CaptureFixture[str]) -> None:
     assert ci_paths.main(["brain/a.py\n", "body/app/x.tsx\n", "body/b.rs\n"]) == 0
     assert capsys.readouterr().out == "python=true\nrust=true\noverlay=true\nshell=false\n"
 
@@ -125,7 +125,7 @@ def test_main_neutral_changes_run_nothing(capsys: pytest.CaptureFixture[str]) ->
     assert captured.err.count("\n") == 2
 
 
-def test_main_logs_one_verdict_line_per_path_on_stderr(
+def test_main_logs_one_line_per_path_on_stderr(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     assert ci_paths.main(["docs/index.md\n", "\n", "docker-compose.yml\n"]) == 0

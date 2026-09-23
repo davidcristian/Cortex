@@ -15,7 +15,7 @@ class CoverageReportError(Exception):
     """The coverage export is unreadable, malformed, or missing required data."""
 
 
-class Verdict(NamedTuple):
+class CheckResult(NamedTuple):
     """Outcome for one check: a printable line and whether it passed."""
 
     line: str
@@ -59,10 +59,10 @@ def _require_version(entry: dict[str, object], key: str, context: str) -> str:
     return value
 
 
-def evaluate(totals: object) -> list[Verdict]:
+def evaluate(totals: object) -> list[CheckResult]:
     """Judge every required metric in a cargo-llvm-cov ``totals`` object."""
     totals_map = _require_dict(totals, "totals")
-    verdicts: list[Verdict] = []
+    results: list[CheckResult] = []
     for metric in REQUIRED_METRICS:
         if metric not in totals_map:
             msg = f"totals has no {metric!r} entry"
@@ -74,40 +74,42 @@ def evaluate(totals: object) -> list[Verdict]:
             msg = f"totals.{metric}.covered ({covered}) exceeds count ({count})"
             raise CoverageReportError(msg)
         if count == 0:
-            verdict = Verdict(f"PASS {metric}: no {metric} to cover (count 0)", ok=True)
+            result = CheckResult(f"PASS {metric}: no {metric} to cover (count 0)", ok=True)
         elif covered == count:
-            verdict = Verdict(f"PASS {metric}: {FULL_PERCENT:.2f}%", ok=True)
+            result = CheckResult(f"PASS {metric}: {FULL_PERCENT:.2f}%", ok=True)
         else:
             percent = covered / count * FULL_PERCENT
-            verdict = Verdict(f"FAIL {metric}: {percent:.2f}% (need {FULL_PERCENT:g}%)", ok=False)
-        verdicts.append(verdict)
-    return verdicts
+            result = CheckResult(
+                f"FAIL {metric}: {percent:.2f}% (need {FULL_PERCENT:g}%)", ok=False
+            )
+        results.append(result)
+    return results
 
 
-def attribute(producer: Producer, toolchain: Toolchain) -> list[Verdict]:
+def attribute(producer: Producer, toolchain: Toolchain) -> list[CheckResult]:
     """Name the run that wrote the export, and refuse one this step did not write."""
-    verdicts = [
-        Verdict(
+    results = [
+        CheckResult(
             f"measured by cargo-llvm-cov {producer.tool}, llvm export {producer.export_format}",
             ok=True,
         ),
-        Verdict(f"measured by {toolchain.rustc}", ok=True),
+        CheckResult(f"measured by {toolchain.rustc}", ok=True),
     ]
     if producer.tool not in toolchain.llvm_cov.split():
-        verdicts.append(
-            Verdict(
+        results.append(
+            CheckResult(
                 f"FAIL producer: the export was written by cargo-llvm-cov {producer.tool}, "
                 f"but this step ran {toolchain.llvm_cov!r}; "
                 f"these are not the numbers it measured",
                 ok=False,
             )
         )
-    return verdicts
+    return results
 
 
 def check(totals: object) -> list[str]:
     """Return one failure string per metric below 100%; an empty list means it passes."""
-    return [verdict.line for verdict in evaluate(totals) if not verdict.ok]
+    return [result.line for result in evaluate(totals) if not result.ok]
 
 
 def read_document(report: Path) -> dict[str, object]:
@@ -180,14 +182,14 @@ def main(argv: list[str] | None = None) -> int:
     toolchain = Toolchain(rustc=args.rustc, llvm_cov=args.llvm_cov)
     try:
         document = read_document(report_path)
-        verdicts = attribute(load_producer(document), toolchain)
-        verdicts += evaluate(load_totals(document))
+        results = attribute(load_producer(document), toolchain)
+        results += evaluate(load_totals(document))
     except CoverageReportError as err:
         print(f"rustcoverage: {err}", file=sys.stderr)
         return 1
-    for verdict in verdicts:
-        print(verdict.line)
-    if all(verdict.ok for verdict in verdicts):
+    for result in results:
+        print(result.line)
+    if all(result.ok for result in results):
         return 0
     return 1
 

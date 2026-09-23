@@ -19,7 +19,7 @@ class Cell(NamedTuple):
     deliberated: int
 
     @property
-    def verdict(self) -> str:
+    def outcome(self) -> str:
         """What this cell says about the switch, in the probe's own three words."""
         if self.deliberated == 0:
             return "holds"
@@ -31,7 +31,7 @@ class Cell(NamedTuple):
         """The one line a cell is reported as, a different sentence for each way it was sent."""
         sent = "switch" if self.switch else "no switch"
         if self.switch:
-            said = f"the switch {self.verdict}"
+            said = f"the switch {self.outcome}"
         else:
             fired = self.deliberated == self.draws
             said = "the control fired" if fired else "the control did NOT fire on every draw"
