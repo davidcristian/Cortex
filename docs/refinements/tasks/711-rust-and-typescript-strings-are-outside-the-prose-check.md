@@ -57,4 +57,4 @@ task that quote it.
   [ADR-0040](../../adr/ADR-0040-prose-and-comment-style.md) now states. The nine strings were
   rewritten, the body's refusal now reads `invalid or missing token` like the brain's, and the
   live suites' `#[ignore]` reason reads `live gRPC check`. Tests stay outside, as they do for
-  Python. JSX text is not a string literal and is not read; R-713 records that gap.
+  Python.

@@ -6,6 +6,7 @@ from slashcomments import (
     PROTO,
     RUST,
     SYNTAXES,
+    TSX,
     TYPESCRIPT,
     Syntax,
     slash_comments,
@@ -21,7 +22,7 @@ def test_every_language_has_a_syntax() -> None:
     assert SYNTAXES == {
         ".rs": RUST,
         ".ts": TYPESCRIPT,
-        ".tsx": TYPESCRIPT,
+        ".tsx": TSX,
         ".css": CSS,
         ".proto": PROTO,
     }
@@ -212,3 +213,46 @@ def test_an_unclosed_string_holds_the_text_up_to_where_it_stops(
     text: str, syntax: Syntax, found: str
 ) -> None:
     assert slash_strings(text, syntax) == [(1, found)]
+
+
+def test_jsx_text_is_a_literal_with_a_placeholder_for_each_container() -> None:
+    source = 'const a = (\n  <p className="x">\n    Ask {name}\n    anything\n  </p>\n);\n'
+    assert slash_strings(source, TSX) == [(2, "x"), (3, "Ask {} anything")]
+    assert slash_strings(source, TYPESCRIPT) == [(2, "x")]
+
+
+@pytest.mark.parametrize(
+    ("source", "strings"),
+    [
+        ("items.map((x) => <li key={x}>{x} item</li>);", [(1, "{} item")]),
+        ("const f = (y) => y < z; /* 'a' */ const g = 1 > 0 && 'b c';", [(1, "b c")]),
+        ("const b = a < c && f<T>(x) > 1; g('b c');", [(1, "b c")]),
+        ("const x = <><b>one two</b> three four</>;", [(1, "one two"), (1, "three four")]),
+        ("const x = <a><br /> text here</a>;", [(1, "text here")]),
+        ("const x = <a on={() => 'x y'}>b</a>;", [(1, "b"), (1, "x y")]),
+        ("const x = <p>open text", [(1, "open text")]),
+        ("const x = <p", []),
+    ],
+)
+def test_a_less_than_sign_opens_an_element_only_where_an_expression_starts(
+    source: str, strings: list[tuple[int, str]]
+) -> None:
+    assert slash_strings(source, TSX) == strings
+
+
+def test_an_apostrophe_or_slashes_in_jsx_text_are_text() -> None:
+    source = "const x = <p>Don't // stop</p>; // real\n"
+    assert slash_strings(source, TSX) == [(1, "Don't // stop")]
+    assert _texts(source, TSX) == [(1, " real")]
+
+
+def test_comments_inside_a_tag_are_comments() -> None:
+    source = 'const x = (\n  <a\n    // note here\n    /* and here */\n    href="u"\n  />\n);\n'
+    assert _texts(source, TSX) == [(3, " note here"), (4, " and here")]
+    assert slash_strings(source, TSX) == [(5, "u")]
+    assert slash_comments(source, TSX).code == frozenset({1, 2, 5, 6, 7})
+
+
+def test_jsx_text_lines_are_code_and_blank_ones_are_not() -> None:
+    source = "const x = <a>\n\n  text\n</a>;\n"
+    assert slash_comments(source, TSX).code == frozenset({1, 3, 4})

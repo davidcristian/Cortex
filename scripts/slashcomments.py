@@ -17,6 +17,7 @@ class Syntax(NamedTuple):
     multiline_strings: bool
     rust_literals: bool
     templates_and_regexes: bool
+    jsx: bool
 
 
 _PLAIN = Syntax(
@@ -26,12 +27,14 @@ _PLAIN = Syntax(
     multiline_strings=False,
     rust_literals=False,
     templates_and_regexes=False,
+    jsx=False,
 )
 RUST = _PLAIN._replace(nested_blocks=True, quotes='"', multiline_strings=True, rust_literals=True)
 TYPESCRIPT = _PLAIN._replace(templates_and_regexes=True)
+TSX = TYPESCRIPT._replace(jsx=True)
 CSS = _PLAIN._replace(line_comments=False)
 PROTO = _PLAIN
-SYNTAXES = {".rs": RUST, ".ts": TYPESCRIPT, ".tsx": TYPESCRIPT, ".css": CSS, ".proto": PROTO}
+SYNTAXES = {".rs": RUST, ".ts": TYPESCRIPT, ".tsx": TSX, ".css": CSS, ".proto": PROTO}
 
 _RAW_STRING = re.compile(r'[bc]?r(#*)"')
 _WORD = re.compile(r"[\w$]+")
@@ -54,6 +57,7 @@ class _Lexer:
         self.strings: list[tuple[int, str]] = []
         self.previous = ""
         self.word = ""
+        self.arrow = False
 
     def comments(self) -> Comments:
         self.code_until_brace(closing=False)
@@ -93,8 +97,8 @@ class _Lexer:
 
     def token(self, char: str) -> None:
         syntax = self.syntax
-        after = self.word
-        self.word = ""
+        after, arrow = self.word, self.arrow
+        self.word, self.arrow = "", False
         if syntax.rust_literals and self.raw_string():
             return
         if syntax.rust_literals and char == "'":
@@ -105,11 +109,15 @@ class _Lexer:
             self.template()
         elif syntax.templates_and_regexes and char == "/" and self.regex_allowed(after):
             self.regex()
+        elif syntax.jsx and char == "<" and (arrow or self.regex_allowed(after)):
+            self.element()
+            self.previous = ">"
         elif found := _WORD.match(self.text, self.pos):
             self.word = found.group()
             self.previous = self.word[-1]
             self.pos = found.end()
         else:
+            self.arrow = char == ">" and self.previous == "="
             self.previous = char
             self.pos += 1
 
@@ -199,6 +207,58 @@ class _Lexer:
         self.pos += 1
         self.previous = "`"
 
+    def element(self) -> None:
+        if not self.tag():
+            return
+        line, pieces = self.line, list[str]()
+        while self.pos < len(self.text) and not self.at("</"):
+            if self.at("<"):
+                self.jsx_text(line, pieces)
+                self.element()
+                line, pieces = self.line, []
+            elif self.at("{"):
+                pieces.append(PLACEHOLDER)
+                self.pos += 1
+                self.code_until_brace(closing=True)
+            else:
+                pieces.append(self.text[self.pos])
+                self.step()
+        self.jsx_text(line, pieces)
+        self.tag()
+
+    def tag(self) -> bool:
+        self.pos += 1
+        while self.pos < len(self.text):
+            if self.at(">") or self.at("/>"):
+                closed = self.at("/>")
+                self.code.add(self.line)
+                self.pos += 2 if closed else 1
+                return not closed
+            if self.at("{"):
+                self.pos += 1
+                self.code_until_brace(closing=True)
+            elif self.at("//"):
+                self.line_comment()
+            elif self.at("/*"):
+                self.block_comment()
+            elif self.text[self.pos] in "\"'":
+                self.string(self.text[self.pos])
+            else:
+                self.step()
+        return True
+
+    def step(self) -> None:
+        if not self.text[self.pos].isspace():
+            self.code.add(self.line)
+        self.line += self.text[self.pos] == "\n"
+        self.pos += 1
+
+    def jsx_text(self, line: int, pieces: list[str]) -> None:
+        text = "".join(pieces)
+        if text.strip():
+            lead = text[: len(text) - len(text.lstrip())]
+            self.strings.append((line + lead.count("\n"), " ".join(text.split())))
+
     def regex_allowed(self, word: str) -> bool:
         return not self.previous or self.previous in _REGEX_AFTER or word in _REGEX_KEYWORDS
 
@@ -230,7 +290,7 @@ def slash_comments(text: str, syntax: Syntax) -> Comments:
 def slash_strings(text: str, syntax: Syntax) -> list[tuple[int, str]]:
     """Return each string literal's first line and the text between its quotes, in line order.
 
-    A template literal's text holds ``PLACEHOLDER`` for each ``${...}`` it formats.
+    A template literal holds ``PLACEHOLDER`` for each ``${...}``, and JSX text for each ``{...}``.
     """
     lexer = _Lexer(text, syntax)
     lexer.comments()

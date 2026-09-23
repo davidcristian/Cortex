@@ -70,8 +70,8 @@ were split out of it to stay under the 300-line limit. Grouped by what reads the
   the prose each file type holds, and `proseliterals.py` for the string literals that hold prose.
   `prosereaders.py` uses `commentblocks.py` for comments and docstrings in Python and
   `slashcomments.py` for comments in Rust, TypeScript, CSS and protobuf, and `proseliterals.py`
-  uses `slashcomments.py` for the string literals in Rust and TypeScript and `shellstrings.py`
-  for the double-quoted strings in shell and the justfile.
+  uses `slashcomments.py` for the string literals in Rust and TypeScript and the text between
+  JSX tags, and `shellstrings.py` for the double-quoted strings in shell and the justfile.
 - `switchtail.py` reads `switchsamples.py`, the file format one run of the thinking-switch probe
   writes. `envelopefloor.py` reads `envelopesamples.py`, the format one variant of the envelope
   measurement writes, and `envelopejudges.py`, the judge declared for each subtask.

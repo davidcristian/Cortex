@@ -125,23 +125,27 @@ record says what it is and why.
     and TypeScript file under `body/` outside a `tests` directory and not named `*.test.ts` or
     `*.test.tsx`, and the double-quoted strings of the justfile and of every `*.sh` file: log
     messages, exception text, help text, the overlay's text, what a recipe prints and the rest.
-    Tests and generated code are outside it, and so is the text between JSX tags, which is not a
-    string literal. A literal is prose when it holds two words separated by a space, and an
-    f-string or a template literal is read whole, each value it formats counting as a word.
-    Python literals come from `ast`; Rust and TypeScript literals come from the lexer in
-    `slashcomments.py` that already finds their comments, which knows raw and byte strings, char
-    literals, template literals and regex literals, and an escape is read as the text it stands
-    for: `\n`, `\r` and `\t` as a space and any other as the character after its backslash.
-    Shell strings come from `shellstrings.py`, which reads each `$name`, `${...}`, `$(...)` and
-    backtick command, and in the justfile each `{{...}}` interpolation, as one formatted value,
-    and `{{{{` as the `{{` that `just` prints. Escapes are read as in the other languages. A
-    single-quoted shell string is not read, because in this tree one holds a program another
-    tool reads (a `sed` script, a `trap`, a `docker` template) or bytes a script writes to a
-    file, never a message. A heredoc is not read either, and the tree has none. A docstring is
-    left to the docstring reader, and a dict key or a subscript argument is a key, not prose.
-    Inside a literal, a code span in backticks, a token holding a `/` or a file extension and a
-    flag with a leading `-` are masked, so the sentence around a path is still read; excluding
-    every literal that holds a path would have left such sentences unread.
+    Tests and generated code are outside it. A literal is prose when it holds two words
+    separated by a space, and an f-string or a template literal is read whole, each value it
+    formats counting as a word. Python literals come from `ast`; Rust and TypeScript literals
+    come from the lexer in `slashcomments.py` that already finds their comments, which knows raw
+    and byte strings, char literals, template literals and regex literals, and in a `.tsx` file
+    the text between JSX tags is read as one more literal, each `{...}` container in it a
+    formatted value. A `<` opens an element where an expression starts, the position where a `/`
+    opens a regex literal, or after `=>`; a `<` after a name or a value is a comparison or a
+    type argument. A generic arrow function written at the start of an expression, `<T,>(x) =>
+    x`, would be read as an element, and the overlay has none. An escape is read as the text it
+    stands for: `\n`, `\r` and `\t` as a space and any other as the character after its
+    backslash. Shell strings come from `shellstrings.py`, which reads each `$name`, `${...}`,
+    `$(...)` and backtick command, and in the justfile each `{{...}}` interpolation, as one
+    formatted value, and `{{{{` as the `{{` that `just` prints. Escapes are read as in the other
+    languages. A single-quoted shell string is not read, because in this tree one holds a
+    program another tool reads (a `sed` script, a `trap`, a `docker` template) or bytes a script
+    writes to a file, never a message. A heredoc is not read either, and the tree has none. A
+    docstring is left to the docstring reader, and a dict key or a subscript argument is a key,
+    not prose. Inside a literal, a code span in backticks, a token holding a `/` or a file
+    extension and a flag with a leading `-` are masked, so the sentence around a path is still
+    read; excluding every literal that holds a path would have left such sentences unread.
     `scripts/proseliterals.py` is this reader and `scripts/prosereaders.py` the one for
     documents and comments; both use `bannedwords.py`. A string a model reads, whose wording
     needs a model measurement before it changes (the security preamble, the recap preface, tool

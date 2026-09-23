@@ -181,6 +181,7 @@ def test_escapes_are_read_as_the_text_they_stand_for(source: str, hits: list[str
         ("a.rs", 'let x = "a gate here";\n'),
         ("a.ts", "const x = 'a gate here';\n"),
         ("a.tsx", "const x = <p title={`a gate ${n}`} />;\n"),
+        ("A.tsx", "const x = <p>\n  a gate {n}\n</p>;\n"),
         ("a.py", 'x = "a gate here"\n'),
         ("justfile", 'r:\n    echo "a gate {{ gate }} here"\n'),
         ("docker/a.sh", "echo 'a gate' \"{{gate}} is shut\" >&2\n"),
