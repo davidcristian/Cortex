@@ -50,11 +50,6 @@ class LiteralExemption(NamedTuple):
 
 EXEMPTIONS = (
     LiteralExemption(
-        path="brain/packages/core/src/cortex_core/untrusted.py",
-        names=("SECURITY_PREAMBLE",),
-        reason=MODEL_INPUT,
-    ),
-    LiteralExemption(
         path="brain/packages/core/src/cortex_core/recap_prompt.py",
         names=("_PREFACE",),
         reason=MODEL_INPUT,
