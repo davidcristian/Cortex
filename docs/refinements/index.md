@@ -72,7 +72,7 @@ never a reading of what the tree does now.
 - **[R-607](tasks/607-eighteen-of-the-cortex-alts-pixel-rows-are-undrawn.md)** Fourteen of the cortex alt's thirty-six pixel rows are undrawn or refused (inference). Its claim was checked against the code on 2026-09-19.
 - **[R-695](tasks/695-an-alt-mail-control-voids-in-every-draw-at-the-engine-budget.md)** An alt `app` control filled the window at temperature 0, so three rows wait on a sampled redraw (vision). Its claim was checked against the code on 2026-09-23.
 - **[R-705](tasks/705-names-inside-files-still-use-banned-words.md)** Names inside the files still use words the prose table bans (cross-cutting). Its claim was checked against the code on 2026-09-22.
-- **[R-706](tasks/706-only-the-corpus-laundering-cell-is-drawn-at-the-engines-sampler.md)** Only the corpus laundering cell is drawn at the engine's sampler (vision). Its claim was checked against the code on 2026-09-22.
+- **[R-706](tasks/706-only-the-corpus-laundering-cell-is-drawn-at-the-engines-sampler.md)** Only the corpus laundering cell is drawn at the engine's sampler (vision). Its claim was checked against the code on 2026-09-23.
 - **[R-707](tasks/707-model-read-texts-keep-banned-words.md)** Texts a model reads keep words the prose table bans (brain). Its claim was checked against the code on 2026-09-22.
 - **[R-711](tasks/711-rust-and-typescript-strings-are-outside-the-prose-check.md)** Rust and TypeScript strings are outside the prose check (repo-checks). Its claim was checked against the code on 2026-09-22.
 

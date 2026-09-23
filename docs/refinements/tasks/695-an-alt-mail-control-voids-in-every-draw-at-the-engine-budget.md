@@ -58,6 +58,21 @@ The 2026-09-19 wall clocks, at a median SM clock of 0.52 of the card's maximum, 
 1857 s for the two payload rows. The rate row draws the three 24 px cells of the corpus-frame
 review, 100077 of its 164257 generated tokens, so about 1200 s at that pace if the cell voids again.
 
+**The redraw, queued 2026-09-23.** The unattended run logged at `measurements/sitting-2026-09-23/`
+draws the rate row, then the third-frame series, then the corpus-frame series, after
+[R-706](706-only-the-corpus-laundering-cell-is-drawn-at-the-engines-sampler.md)'s two pick cells and
+before its alt cell; that entry gives the whole order and the deadline. The rate row goes first as
+the cheapest reading of the `app` control at 24 px on the corpus frame, the third-frame series next
+because it draws a cell the rate row does not, and the corpus-frame series last because it draws the
+rate row's cell again among its sizes. Each series starts only when `enforced.power.limit` reads at
+least 0.75 of `power.max_limit`, as R-607's order of work requires, and each row saves the engine's
+`/props`, which records the alt's sampler defaults. Predicted: every `app` control reading loses 0
+or 1 draw of 5 and all three rows publish, since at the alt's control void rates of 7 to 11 in a
+hundred a rate row draws clean 73 to 88 times in a hundred and a payload row 39 to 68 (R-607). The
+reading that the temperature-0 forecast holds at the sampler is 2 or more voids of 5 in an `app`
+control, each line naming finish `'length'` near 14176 generated tokens on the corpus frame or
+11495 on the third.
+
 ## History
 
 - 2026-09-19: opened by the unattended run that drew the alt's payload reviews at the engine's own
@@ -67,4 +82,5 @@ review, 100077 of its 164257 generated tokens, so about 1200 s at that pace if t
 - 2026-09-23: checked against the sampler change. The counts were one temperature-0 answer per
   cell, and the third-frame draws filled the window by the recorded token counts. The three ways
   out were rejected in ADR-0041, void lines now print how the engine ended them, and the three rows
-  are pre-registered above for a redraw at the sampler.
+  are pre-registered above and queued in the unattended run logged at
+  `measurements/sitting-2026-09-23/`.
