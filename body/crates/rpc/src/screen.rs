@@ -120,7 +120,7 @@ fn capture_error_to_status(error: &CaptureError) -> Status {
             Status::internal(format!("screen capture backend error: {detail}"))
         }
         CaptureError::TooLarge(bytes) => Status::resource_exhausted(format!(
-            "the capture is too large for the seam: {bytes} bytes"
+            "the capture is too large to send to the brain: {bytes} bytes"
         )),
     }
 }

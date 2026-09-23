@@ -148,11 +148,11 @@ async def test_set_volume_tool_unreachable_body_is_a_trusted_error() -> None:
 
 async def test_set_volume_tool_says_the_body_refused_when_the_body_refused() -> None:
     fail = BodyGatewayError(
-        "body set_volume failed: invalid or missing seam token", kind=BodyFailure.REFUSED
+        "body set_volume failed: invalid or missing token", kind=BodyFailure.REFUSED
     )
     result = await SetVolumeTool(InMemoryBodyGateway(fail=fail)).invoke(
         _call(SET_VOLUME_TOOL_NAME, {"mute": False})
     )
     assert result.content == (
-        "the body refused to control volume: body set_volume failed: invalid or missing seam token"
+        "the body refused to control volume: body set_volume failed: invalid or missing token"
     )

@@ -1,9 +1,8 @@
 # Rust and TypeScript strings are outside the prose check
 
-**Status:** open, actionable
+**Status:** done 2026-09-23
 **Area:** repo-checks
 **Origin:** [ADR-0040](../../adr/ADR-0040-prose-and-comment-style.md)
-**Verified:** 2026-09-22
 
 The prose check reads string literals in Python only: every non-test module under `scripts/` and
 under a brain package's `src/` (decision 16 of
@@ -50,3 +49,12 @@ task that quote it.
 
 - 2026-09-22: opened after the overnight run's summary named the gap, with the survey above as its
   first reading.
+- 2026-09-23: done. The survey held at HEAD: 75 hits in 34 files, 9 in non-test sources. The
+  premise that a reader needed a new tokenizer did not hold: `slashcomments.py` already lexed raw and
+  byte strings, char literals, lifetimes, template literals and regex literals to find comments.
+  It now records each string's text too, and `proseliterals.py` reads the non-test Rust and
+  TypeScript files under `body/` with it, as decision 16 of
+  [ADR-0040](../../adr/ADR-0040-prose-and-comment-style.md) now states. The nine strings were
+  rewritten, the body's refusal now reads `invalid or missing token` like the brain's, and the
+  live suites' `#[ignore]` reason reads `live gRPC check`. Tests stay outside, as they do for
+  Python. JSX text is not a string literal and is not read; R-713 records that gap.

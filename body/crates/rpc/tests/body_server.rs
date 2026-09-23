@@ -1034,7 +1034,7 @@ fn capture_failure_table() -> [(CaptureError, Code, &'static str); 4] {
         (
             CaptureError::TooLarge(6_291_457),
             Code::ResourceExhausted,
-            "the capture is too large for the seam: 6291457 bytes",
+            "the capture is too large to send to the brain: 6291457 bytes",
         ),
     ]
 }
@@ -1147,7 +1147,7 @@ async fn a_backend_that_miscounts_its_buffer_is_caught_by_the_pure_core_frame_ch
     assert_eq!(status.code(), Code::Internal);
     assert_eq!(
         status.message(),
-        "screen capture backend error: the frame is 2x2 but carries 15 bytes, not 16"
+        "screen capture backend error: the frame is 2x2 but holds 15 bytes, not 16"
     );
 }
 
@@ -1190,7 +1190,7 @@ async fn a_ceiling_the_ladder_cannot_meet_is_refused_as_too_large() {
     assert!(
         status
             .message()
-            .starts_with("the capture is too large for the seam: "),
+            .starts_with("the capture is too large to send to the brain: "),
         "{}",
         status.message()
     );

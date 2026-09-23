@@ -38,7 +38,7 @@ pub enum TransportError {
     /// The brain was reached and streamed a reply, but the wire data could not be interpreted: an
     /// empty `ServerEvent` (no event set) or a `Converse` stream that ended before a
     /// `TurnComplete`.
-    #[error("malformed seam message: {0}")]
+    #[error("malformed message from the brain: {0}")]
     Protocol(String),
     /// The attempt was abandoned: nothing came back within the deadline the caller gave it
     /// (`after`), so the call was dropped.

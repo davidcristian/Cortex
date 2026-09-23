@@ -11,7 +11,7 @@ export const REASONING =
   "no state sits in a model process, so the answer must ground itself in the external store rather " +
   "than the KV cache. Let me phrase that plainly.";
 
-export const CONFIRM_PREAMBLE = "Here's the draft. Sending is gated, so it needs your approval first.";
+export const CONFIRM_PREAMBLE = "Here's the draft. Sending it needs your approval first.";
 export const CONFIRM_REASON =
   "this action is outbound or irreversible and runs only with your approval";
 export const CONFIRM_DRAFT = JSON.stringify({
@@ -110,7 +110,7 @@ export function transcript(sessionId: string): readonly SessionMessage[] {
       { role: "user", text: "Summarize my unread email", turnId: "t2", atUnixMs: 0 },
       {
         role: "assistant",
-        text: "You have three unread threads: a deploy failure from CI, a review request on the seam PR, and a calendar invite for Thursday.",
+        text: "You have three unread threads: a deploy failure from CI, a review request on the transport PR, and a calendar invite for Thursday.",
         turnId: "t2",
         atUnixMs: 0,
       },

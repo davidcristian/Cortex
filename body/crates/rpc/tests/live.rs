@@ -62,7 +62,7 @@ async fn dial_dropping_peer() -> (String, Arc<AtomicUsize>) {
 }
 
 #[tokio::test]
-#[ignore = "live seam check: needs a real brain at CORTEX_BRAIN_ADDR (run with -- --ignored)"]
+#[ignore = "live gRPC check: needs a real brain at CORTEX_BRAIN_ADDR (run with -- --ignored)"]
 async fn brain_reports_ready_over_the_live_seam() {
     let addr = brain_addr();
     let token = seam_token();
@@ -82,7 +82,7 @@ async fn brain_reports_ready_over_the_live_seam() {
 }
 
 #[tokio::test]
-#[ignore = "live seam check: needs a real brain at CORTEX_BRAIN_ADDR (run with -- --ignored)"]
+#[ignore = "live gRPC check: needs a real brain at CORTEX_BRAIN_ADDR (run with -- --ignored)"]
 async fn the_link_probe_classifies_the_live_brain_and_a_peer_that_cannot_serve() {
     let addr = brain_addr();
     let token = seam_token();
@@ -155,7 +155,7 @@ fn patient_reads() -> RetryPolicy {
 }
 
 #[tokio::test]
-#[ignore = "live seam check: dials a dead loopback address on real time (needs no brain)"]
+#[ignore = "live gRPC check: dials a dead loopback address on real time (needs no brain)"]
 async fn the_probe_budget_bounds_a_down_verdict_against_a_dead_address() {
     let dead = match BrainSeamClient::connect_lazy_with_token("http://127.0.0.1:1", None) {
         Ok(client) => client,
@@ -188,7 +188,7 @@ async fn the_probe_budget_bounds_a_down_verdict_against_a_dead_address() {
 }
 
 #[tokio::test]
-#[ignore = "live seam check: runs entirely against a loopback peer of its own (needs no brain)"]
+#[ignore = "live gRPC check: runs entirely against a loopback peer of its own (needs no brain)"]
 async fn the_probe_trims_its_attempts_where_a_read_spends_them_all() {
     let (unserved, dials) = dial_dropping_peer().await;
     let client = match BrainSeamClient::connect_lazy_with_token(&unserved, None) {
@@ -241,7 +241,7 @@ async fn the_probe_trims_its_attempts_where_a_read_spends_them_all() {
 }
 
 #[tokio::test]
-#[ignore = "live seam check: needs a TOKEN-PROTECTED brain (CORTEX_SEAM_TOKEN set on both sides)"]
+#[ignore = "live gRPC check: needs a TOKEN-PROTECTED brain (CORTEX_SEAM_TOKEN set on both sides)"]
 async fn a_rejected_seam_token_is_answered_at_once_and_never_retried() {
     let addr = brain_addr();
     let client = match BrainSeamClient::connect_lazy_with_token(&addr, Some("not-the-token")) {
@@ -277,7 +277,7 @@ async fn a_rejected_seam_token_is_answered_at_once_and_never_retried() {
 }
 
 #[tokio::test]
-#[ignore = "live seam check: needs a real brain at CORTEX_BRAIN_ADDR (run with -- --ignored)"]
+#[ignore = "live gRPC check: needs a real brain at CORTEX_BRAIN_ADDR (run with -- --ignored)"]
 async fn the_ack_write_is_answered_once_against_the_live_brain() {
     let addr = brain_addr();
     let token = seam_token();
@@ -299,7 +299,7 @@ async fn the_ack_write_is_answered_once_against_the_live_brain() {
 }
 
 #[tokio::test]
-#[ignore = "live seam check: needs a real brain at CORTEX_BRAIN_ADDR (run with -- --ignored)"]
+#[ignore = "live gRPC check: needs a real brain at CORTEX_BRAIN_ADDR (run with -- --ignored)"]
 async fn converse_round_trips_one_turn_over_the_live_seam() {
     let addr = brain_addr();
     let mut client = match BrainServiceClient::connect(addr.clone()).await {
@@ -427,7 +427,7 @@ async fn seed_one_turn(addr: &str, session_id: &str, text: &str) {
 }
 
 #[tokio::test]
-#[ignore = "live seam check: needs a real brain at CORTEX_BRAIN_ADDR (run with -- --ignored)"]
+#[ignore = "live gRPC check: needs a real brain at CORTEX_BRAIN_ADDR (run with -- --ignored)"]
 async fn session_reads_round_trip_over_the_live_seam() {
     let addr = brain_addr();
     let token = seam_token();

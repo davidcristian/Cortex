@@ -353,7 +353,7 @@ fn error_messages_are_descriptive() {
         ),
         (
             TransportError::Protocol(String::from("no event set")),
-            "malformed seam message: no event set",
+            "malformed message from the brain: no event set",
         ),
     ];
     for (error, message) in cases {

@@ -95,7 +95,7 @@ impl<A: AudioControl + 'static, N: Notify + 'static, S: ScreenCapture + 'static>
         _request: Request<InjectInputRequest>,
     ) -> Result<Response<InjectInputReply>, Status> {
         Err(Status::unimplemented(
-            "input injection lands in a later slice",
+            "input injection is not implemented yet",
         ))
     }
 

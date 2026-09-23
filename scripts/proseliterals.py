@@ -1,4 +1,4 @@
-"""Find the string literals in Python source that hold prose, and the ones exempted by name."""
+"""Find the string literals in source that hold prose, and the Python ones exempted by name."""
 
 import ast
 import re
@@ -7,14 +7,18 @@ from pathlib import Path
 from typing import NamedTuple
 
 import bannedwords
+import slashcomments
 from commentblocks import SourceError
+from slashcomments import PLACEHOLDER
 
-PLACEHOLDER = "{}"
 _WORD = r"(?:\w+|\{\})"
 _TWO_WORDS = re.compile(rf"{_WORD} +{_WORD}")
 _PATH_OR_FLAG = re.compile(r"(?<!\S)(?:-{1,2}[A-Za-z]\S*|\S*/\S*|\S+\.[A-Za-z]\w*)")
 _MASK = "\0"
+_ESCAPE = re.compile(r"\\(.)")
+_BLANK_ESCAPES = frozenset("nrt")
 _OWNERS = (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)
+SLASH_SUFFIXES = frozenset({".rs", ".ts", ".tsx"})
 MODEL_INPUT = "A model reads this text, so changing a word needs a model measurement first."
 
 
@@ -77,6 +81,8 @@ def reads_literals(relative: Path) -> bool:
     match relative.parts:
         case ("scripts", _) | ("brain", "packages", _, "src", _, *_):
             return relative.suffix == ".py"
+        case ("body", *inside) if "tests" not in inside:
+            return relative.suffix in SLASH_SUFFIXES and not relative.stem.endswith(".test")
         case _:
             return False
 
@@ -113,6 +119,26 @@ def _assigned(statement: ast.stmt) -> str | None:
 def _masked(text: str) -> str:
     flat = bannedwords.mask(text.replace("\n", " "))
     return _PATH_OR_FLAG.sub(lambda found: _MASK * len(found.group()), flat)
+
+
+def _unescaped(text: str) -> str:
+    return _ESCAPE.sub(lambda found: " " if found[1] in _BLANK_ESCAPES else found[1], text)
+
+
+def slash_literals(source: str, syntax: slashcomments.Syntax) -> list[Literal]:
+    """Return the Rust or TypeScript literals in ``source`` that hold two words, masked."""
+    found: list[Literal] = []
+    for line, text in slashcomments.slash_strings(source, syntax):
+        if _TWO_WORDS.search(masked := _masked(_unescaped(text))):
+            found.append(Literal(line=line, text=masked, name=None))
+    return found
+
+
+def file_literals(relative: Path, source: str) -> list[Literal]:
+    """Return the prose literals of the file at ``relative``, read by the lexer its suffix names."""
+    if relative.suffix in SLASH_SUFFIXES:
+        return slash_literals(source, slashcomments.SYNTAXES[relative.suffix])
+    return prose_literals(source)
 
 
 def prose_literals(source: str) -> list[Literal]:

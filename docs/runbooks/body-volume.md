@@ -65,8 +65,7 @@ Validated 2026-07-08: the host-side test server path, end to end. A token-requir
 `BodyService` was served on `0.0.0.0:50151` from the brain venv, and `test_gateway_live.py` ran
 from a container, the uv builder image with the brain workspace mounted, since the runtime image
 has no dev dependencies, plus `--add-host host.docker.internal:host-gateway`. The tokened round
-trip passed, and the same run without `CORTEX_SEAM_TOKEN` was rejected with
-`UNAUTHENTICATED: invalid or missing seam token`.
+trip passed, and the same run without `CORTEX_SEAM_TOKEN` was rejected with `UNAUTHENTICATED`.
 
 ## The Windows check, with real Core Audio
 

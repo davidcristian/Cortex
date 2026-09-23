@@ -196,9 +196,7 @@ fn a_frame_whose_buffer_is_the_wrong_size_is_refused() {
     let error = RawFrame::new(2, 2, vec![0; 15]).unwrap_err();
     assert_eq!(
         error,
-        CaptureError::Backend(String::from(
-            "the frame is 2x2 but carries 15 bytes, not 16"
-        ))
+        CaptureError::Backend(String::from("the frame is 2x2 but holds 15 bytes, not 16"))
     );
 }
 
@@ -511,7 +509,7 @@ fn every_capture_error_reads_as_itself() {
     );
     assert_eq!(
         CaptureError::TooLarge(7).to_string(),
-        "the capture is too large for the seam even downscaled: 7 bytes"
+        "the capture is too large to send to the brain even downscaled: 7 bytes"
     );
     assert_eq!(
         CaptureError::NoTarget(String::from("a bare desktop")).to_string(),

@@ -72,7 +72,7 @@ class FakeBody(BodyServiceServicer):
         for key, value in context.invocation_metadata() or ():
             if key == SEAM_TOKEN_HEADER and value == self._require_token:
                 return
-        await context.abort(grpc.StatusCode.UNAUTHENTICATED, "invalid or missing seam token")
+        await context.abort(grpc.StatusCode.UNAUTHENTICATED, "invalid or missing token")
 
     async def _park(self) -> None:
         """Hold the handler open, the way a COM call parks its thread on a wedged host."""
@@ -247,7 +247,7 @@ async def test_token_is_attached_when_configured() -> None:
 
 async def test_missing_token_is_rejected_as_body_gateway_error() -> None:
     async with _gateway(FakeBody(require_token=_TOKEN)) as gateway:
-        with pytest.raises(BodyGatewayError, match="invalid or missing seam token"):
+        with pytest.raises(BodyGatewayError, match="invalid or missing token"):
             await gateway.get_volume()
 
 
@@ -492,7 +492,7 @@ _BODY_STATUSES = [
     ),
     pytest.param(
         grpc.StatusCode.RESOURCE_EXHAUSTED,
-        "the capture is too large for the seam: 6291457 bytes",
+        "the capture is too large to send to the brain: 6291457 bytes",
         BodyFailure.OVERSIZE,
         id="too large even after the shrink ladder",
     ),
@@ -516,7 +516,7 @@ _BODY_STATUSES = [
     ),
     pytest.param(
         grpc.StatusCode.UNAUTHENTICATED,
-        "invalid or missing seam token",
+        "invalid or missing token",
         BodyFailure.REFUSED,
         id="a rejected seam token",
     ),

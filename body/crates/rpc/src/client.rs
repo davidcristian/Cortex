@@ -113,7 +113,7 @@ fn parse_seam_token(token: Option<&str>) -> Result<Option<MetadataValue<Ascii>>,
     token
         .map(|value| {
             value.parse::<MetadataValue<Ascii>>().map_err(|err| {
-                TransportError::Connection(format!("invalid seam token: {}", error_chain(&err)))
+                TransportError::Connection(format!("invalid token: {}", error_chain(&err)))
             })
         })
         .transpose()

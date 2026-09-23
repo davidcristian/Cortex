@@ -1,9 +1,11 @@
-"""Find the comments in Rust, TypeScript, CSS and protobuf source, skipping string literals."""
+"""Find the comments and the string literals in Rust, TypeScript, CSS and protobuf source."""
 
 import re
 from typing import NamedTuple
 
 from commentblocks import CommentLine, Comments
+
+PLACEHOLDER = "{}"
 
 
 class Syntax(NamedTuple):
@@ -49,6 +51,7 @@ class _Lexer:
         self.code: set[int] = set()
         self.spanned: set[int] = set()
         self.found: dict[int, list[str]] = {}
+        self.strings: list[tuple[int, str]] = []
         self.previous = ""
         self.word = ""
 
@@ -154,6 +157,7 @@ class _Lexer:
                 break
             index += 2 if self.text[index] == "\\" else 1
         closed = self.text[index : index + 1] == quote
+        self.strings.append((self.line, self.text[self.pos + 1 : index]))
         self.skip_to(index + 1 if closed else min(index, len(self.text)))
         self.previous = quote
 
@@ -162,6 +166,8 @@ class _Lexer:
         if found is None:
             return False
         end = self.text.find('"' + found.group(1), found.end())
+        stop = len(self.text) if end < 0 else end
+        self.strings.append((self.line, self.text[found.end() : stop]))
         self.skip_to(len(self.text) if end < 0 else end + 1 + len(found.group(1)))
         self.previous = '"'
         return True
@@ -178,13 +184,18 @@ class _Lexer:
         self.previous = "'"
 
     def template(self) -> None:
+        line, pieces = self.line, list[str]()
         self.pos += 1
         while self.pos < len(self.text) and not self.at("`"):
             if self.at("${"):
+                pieces.append(PLACEHOLDER)
                 self.pos += 2
                 self.code_until_brace(closing=True)
             else:
-                self.skip_to(self.pos + (2 if self.at("\\") else 1))
+                step = 2 if self.at("\\") else 1
+                pieces.append(self.text[self.pos : self.pos + step])
+                self.skip_to(self.pos + step)
+        self.strings.append((line, "".join(pieces)))
         self.pos += 1
         self.previous = "`"
 
@@ -214,3 +225,13 @@ def _clean(piece: str, *, first: bool) -> str:
 
 def slash_comments(text: str, syntax: Syntax) -> Comments:
     return _Lexer(text, syntax).comments()
+
+
+def slash_strings(text: str, syntax: Syntax) -> list[tuple[int, str]]:
+    """Return each string literal's first line and the text between its quotes, in line order.
+
+    A template literal's text holds ``PLACEHOLDER`` for each ``${...}`` it formats.
+    """
+    lexer = _Lexer(text, syntax)
+    lexer.comments()
+    return sorted(lexer.strings)

@@ -159,7 +159,7 @@ def scan(root: Path, paths: list[Path], pattern: re.Pattern[str], table: range) 
         try:
             prose = reader(text)
             if proseliterals.reads_literals(relative):
-                literals = proseliterals.prose_literals(text)
+                literals = proseliterals.file_literals(relative, text)
                 prose.runs.extend(proseliterals.literal_runs(literals, names.get(relative, ())))
         except SourceError as err:
             msg = f"cannot parse {relative}: {err}"

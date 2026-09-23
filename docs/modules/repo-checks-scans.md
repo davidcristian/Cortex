@@ -50,9 +50,9 @@ root. A PATH that is a file is checked even when git ignores it; a directory is 
 
 It reads markdown outside code fences, Python docstrings, comments in Python, Rust, TypeScript,
 CSS, protobuf, YAML, TOML, shell, SQL, the Dockerfiles and the justfile, and every string literal
-holding two words separated by a space in a non-test `scripts/` module or a brain package's `src/`.
-Identifiers, keys, code spans, link targets, URLs, a path or flag in a string and the table's own
-rows are never read. A word matches whole and in any case, and one line break may split a phrase.
+holding two words separated by a space in a non-test `scripts/` module, a brain package's `src/` or
+a Rust or TypeScript file under `body/`. Identifiers, keys, JSX text, code spans, link targets, URLs,
+a path or flag in a string and the table's own rows are never read. A word matches whole and in any case, and one line break may split a phrase.
 
 A comment block is a run of lines holding only comments: a line holding code ends it and a blank
 line does not, and a line counts unless its text without the comment markers is empty or is a tool

@@ -39,7 +39,7 @@ pub enum CaptureError {
     #[error("there is no window to capture: {0}")]
     NoTarget(String),
     /// The capture still exceeded [`MAX_CAPTURE_BYTES`] after the shrink ladder ran out.
-    #[error("the capture is too large for the seam even downscaled: {0} bytes")]
+    #[error("the capture is too large to send to the brain even downscaled: {0} bytes")]
     TooLarge(usize),
 }
 
@@ -68,7 +68,7 @@ impl RawFrame {
         let expected = u64::from(width) * u64::from(height) * 4;
         if pixels.len() as u64 != expected {
             return Err(CaptureError::Backend(format!(
-                "the frame is {width}x{height} but carries {} bytes, not {expected}",
+                "the frame is {width}x{height} but holds {} bytes, not {expected}",
                 pixels.len()
             )));
         }

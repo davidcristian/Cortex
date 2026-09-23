@@ -37,7 +37,7 @@ design (it is reversible). `get_volume` answers with the real level.
 
 **Fail, and what each failure means.**
 
-- `UNAUTHENTICATED: invalid or missing seam token`: the shell and the brain disagree on
+- `UNAUTHENTICATED: invalid or missing token`: the shell and the brain disagree on
   `CORTEX_SEAM_TOKEN`.
 - The assistant says it could not reach the body: the dial failed. Either the firewall blocked the
   port or `CORTEX_BODY_ADDR` bound loopback only. A dead body is a recoverable `is_error` by

@@ -6,6 +6,7 @@ import bannedwords
 import proseliterals
 from commentblocks import SourceError
 from proseliterals import ExemptionError, Literal, LiteralExemption
+from slashcomments import RUST, TYPESCRIPT, Syntax
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 PATTERN = bannedwords.compile_words(["gate", "gates"])
@@ -113,9 +114,13 @@ def test_source_that_cannot_be_parsed_is_an_error() -> None:
         "scripts/a.py",
         "brain/packages/core/src/cortex_core/a.py",
         "brain/packages/core/src/cortex_core/sub/a.py",
+        "body/crates/core/src/a.rs",
+        "body/app/src-tauri/src/a.rs",
+        "body/app/src/bridge/a.ts",
+        "body/app/src/components/A.tsx",
     ],
 )
-def test_scripts_and_the_brain_sources_are_read(path: str) -> None:
+def test_scripts_the_brain_and_the_body_sources_are_read(path: str) -> None:
     assert proseliterals.reads_literals(Path(path))
 
 
@@ -127,11 +132,58 @@ def test_scripts_and_the_brain_sources_are_read(path: str) -> None:
         "brain/packages/core/tests/test_a.py",
         "brain/packages/core/a.py",
         "body/crates/a.py",
+        "body/crates/core/tests/a.rs",
+        "body/app/src/bridge/a.test.ts",
+        "body/app/src/components/A.test.tsx",
+        "body/app/src/a.css",
         "a.py",
+        "a.rs",
     ],
 )
 def test_tests_and_other_trees_are_not_read(path: str) -> None:
     assert not proseliterals.reads_literals(Path(path))
+
+
+def _slash_hits(source: str, syntax: Syntax = RUST) -> list[str]:
+    runs = proseliterals.literal_runs(proseliterals.slash_literals(source, syntax), ())
+    return [hit.word for run in runs for hit in bannedwords.find_words(run, PATTERN)]
+
+
+def test_a_rust_or_typescript_literal_holding_two_words_is_prose() -> None:
+    source = 'let a = "gate";\nlet b = f("the gate is shut");\n'
+    assert proseliterals.slash_literals(source, RUST) == [
+        Literal(line=2, text="the gate is shut", name=None)
+    ]
+    assert _slash_hits("const s = `${n} gates`;\n", TYPESCRIPT) == ["gates"]
+
+
+@pytest.mark.parametrize(
+    ("source", "hits"),
+    [
+        ('x("one\\ngate here")', ["gate"]),
+        ('x("one\\tgate here")', ["gate"]),
+        ('x("the \\"gate\\" is shut")', ["gate"]),
+        ('x("ab\\cgate here")', []),
+        ('x("see scripts/gate.rs and `gate` now")', []),
+    ],
+)
+def test_escapes_are_read_as_the_text_they_stand_for(source: str, hits: list[str]) -> None:
+    assert _slash_hits(source) == hits
+
+
+@pytest.mark.parametrize(
+    ("name", "source"),
+    [
+        ("a.rs", 'let x = "a gate here";\n'),
+        ("a.ts", "const x = 'a gate here';\n"),
+        ("a.tsx", "const x = <p title={`a gate ${n}`} />;\n"),
+        ("a.py", 'x = "a gate here"\n'),
+    ],
+)
+def test_file_literals_read_each_language_with_its_own_reader(name: str, source: str) -> None:
+    literals = proseliterals.file_literals(Path(name), source)
+    runs = proseliterals.literal_runs(literals, ())
+    assert [hit.word for run in runs for hit in bannedwords.find_words(run, PATTERN)] == ["gate"]
 
 
 def test_literal_runs_leave_out_exempt_names() -> None:

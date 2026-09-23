@@ -1,7 +1,16 @@
 import pytest
 
 from commentblocks import Block, CommentLine, comment_blocks
-from slashcomments import CSS, PROTO, RUST, SYNTAXES, TYPESCRIPT, Syntax, slash_comments
+from slashcomments import (
+    CSS,
+    PROTO,
+    RUST,
+    SYNTAXES,
+    TYPESCRIPT,
+    Syntax,
+    slash_comments,
+    slash_strings,
+)
 
 
 def _texts(text: str, syntax: Syntax) -> list[tuple[int, str]]:
@@ -164,3 +173,42 @@ def test_css_has_no_line_comments() -> None:
 
 def test_proto_strings_take_either_quote() -> None:
     assert _texts("option x = '//'; // real\nstring s = 1;", PROTO) == [(1, " real")]
+
+
+def test_rust_strings_are_returned_with_the_line_they_start_on() -> None:
+    text = 'let a = "one two";\nlet b = r#"three "four""#;\nlet c = b"five";\nlet d = "six\nseven";'
+    assert slash_strings(text, RUST) == [
+        (1, "one two"),
+        (2, 'three "four"'),
+        (3, "five"),
+        (4, "six\nseven"),
+    ]
+
+
+def test_char_literals_lifetimes_comments_and_regexes_are_not_strings() -> None:
+    assert slash_strings("fn f<'a>(c: &'a str) { let q = '\"'; } // \"no\"", RUST) == []
+    assert slash_strings('const r = /a "b"/; /* "no" */', TYPESCRIPT) == []
+
+
+def test_a_string_keeps_its_escapes() -> None:
+    assert slash_strings('x = "a \\" b";', TYPESCRIPT) == [(1, 'a \\" b')]
+
+
+def test_a_template_holds_a_placeholder_for_each_expression() -> None:
+    text = "const s = `a ${b} c ${`d ${e}`} \\`f`;\nconst t = `g\nh`;"
+    assert slash_strings(text, TYPESCRIPT) == [(1, "a {} c {} \\`f"), (1, "d {}"), (2, "g\nh")]
+
+
+@pytest.mark.parametrize(
+    ("text", "syntax", "found"),
+    [
+        ('r#"never closed', RUST, "never closed"),
+        ('let s = "open', RUST, "open"),
+        ("x = 'open\ny", TYPESCRIPT, "open"),
+        ("const s = `open", TYPESCRIPT, "open"),
+    ],
+)
+def test_an_unclosed_string_holds_the_text_up_to_where_it_stops(
+    text: str, syntax: Syntax, found: str
+) -> None:
+    assert slash_strings(text, syntax) == [(1, found)]

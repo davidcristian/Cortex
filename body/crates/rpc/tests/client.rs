@@ -137,7 +137,7 @@ impl BrainService for FakeBrain {
         if let Some(expected) = self.expected_token {
             match request.metadata().get("x-cortex-seam-token") {
                 Some(value) if *value == *expected => {}
-                _ => return Err(Status::unauthenticated("invalid or missing seam token")),
+                _ => return Err(Status::unauthenticated("invalid or missing token")),
             }
         }
         match self.script {
@@ -772,7 +772,7 @@ async fn missing_seam_token_maps_to_the_rpc_unauthenticated_variant() {
         client.health().await.unwrap_err(),
         TransportError::Rpc {
             code: String::from("Unauthenticated"),
-            message: String::from("invalid or missing seam token"),
+            message: String::from("invalid or missing token"),
         }
     );
 }
@@ -801,7 +801,7 @@ async fn non_ascii_seam_token_maps_to_the_connection_variant() {
         panic!("expected the connection variant, got: {error:?}");
     };
     assert!(
-        message.contains("invalid seam token"),
+        message.contains("invalid token"),
         "message should name the token as the cause, got: {message}"
     );
 }
@@ -845,7 +845,7 @@ async fn lazy_connect_non_ascii_seam_token_maps_to_the_connection_variant() {
         panic!("expected the connection variant, got: {error:?}");
     };
     assert!(
-        message.contains("invalid seam token"),
+        message.contains("invalid token"),
         "message should name the token as the cause, got: {message}"
     );
 }

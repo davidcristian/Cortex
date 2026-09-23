@@ -328,6 +328,26 @@ def test_scan_reads_the_string_literals_of_scripts_and_brain_sources(repo: Path)
     ]
 
 
+def test_scan_reads_the_string_literals_of_body_sources_but_not_their_tests(repo: Path) -> None:
+    rust, typescript = 'let x = "a gate here";\n', 'const x = "a gate here";\n'
+    for name, text in [
+        ("body/crates/c/src/a.rs", rust),
+        ("body/crates/c/tests/a.rs", rust),
+        ("body/app/src/a.ts", typescript),
+        ("body/app/src/a.test.ts", typescript),
+        ("body/app/src/A.tsx", typescript),
+        ("body/app/src/A.test.tsx", typescript),
+        ("other/a.rs", rust),
+    ]:
+        _write(repo, name, text)
+    scanned = prosecheck.scan(repo, [repo / "body", repo / "other"], PATTERN, range(0))
+    assert sorted(str(problem.path) for problem in scanned.problems) == [
+        "body/app/src/A.tsx",
+        "body/app/src/a.ts",
+        "body/crates/c/src/a.rs",
+    ]
+
+
 def test_scan_leaves_an_exempt_literal_alone(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     _write(repo, "scripts/a.py", 'X = "a gate here"\nY = "the gates"\n')
     exemption = LiteralExemption("scripts/a.py", ("X",), "model")

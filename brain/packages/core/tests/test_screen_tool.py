@@ -224,7 +224,7 @@ async def test_the_shipping_default_reads_as_a_refusal_and_not_as_a_dead_body() 
 
 async def test_a_capture_too_large_to_send_is_not_reported_as_a_broken_backend() -> None:
     oversize = BodyGatewayError(
-        "body capture_screen failed: the capture is too large for the seam: 6291457 bytes",
+        "body capture_screen failed: the capture is too large to send to the brain: 6291457 bytes",
         kind=BodyFailure.OVERSIZE,
     )
     result = await CaptureScreenTool(InMemoryBodyGateway(fail=oversize)).invoke(_call())

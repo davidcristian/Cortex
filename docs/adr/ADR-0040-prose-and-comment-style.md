@@ -98,21 +98,27 @@ record says what it is and why.
     what is left. It reaches a backlog task's file name too: `backlogcheck.py` reads each slug
     with its hyphens, and those of the table's words, read as spaces.
 16. **The prose check reads the strings the code prints or raises.** Its scope is every non-test
-    Python module in `scripts/` and every module under a brain package's `src/`: log messages,
-    exception text, help text and the rest. Tests, generated code and the Rust and TypeScript
-    sources are outside it. A literal is prose when it holds two words separated by a space, and
-    an f-string is read whole, each value it formats counting as a word. A docstring is left to
-    the docstring reader, and a dict key or a subscript argument is a key, not prose. Inside a
-    literal, a code span in backticks, a token holding a `/` or a file extension and a flag with
-    a leading `-` are masked, so the sentence around a path is still read; excluding every literal
-    that holds a path would have left such sentences unread. `scripts/proseliterals.py` is this
-    reader and `scripts/prosereaders.py` the one for documents and comments; both use
-    `bannedwords.py`. A string a model reads, whose wording needs a model measurement before it
-    changes (the security preamble, the recap preface, tool descriptions, the email sidecar's own
-    texts), is exempted by its module-level name in `proseliterals.EXEMPTIONS` with a reason. An
-    exemption fails once its file is gone or no string assigned to the name holds a banned word.
-    A banned word a printed sentence names as a word, such as the numbered `gate` that
-    `commitlint.py` reports, goes in backticks.
+    Python module in `scripts/` and every module under a brain package's `src/`, and every Rust and
+    TypeScript file under `body/` outside a `tests` directory and not named `*.test.ts` or
+    `*.test.tsx`: log messages, exception text, help text, the overlay's text and the rest. Tests
+    and generated code are outside it, and so is the text between JSX tags, which is not a string
+    literal. A literal is prose when it holds two words separated by a space, and an f-string or a
+    template literal is read whole, each value it formats counting as a word. Python literals come
+    from `ast`; Rust and TypeScript literals come from the lexer in `slashcomments.py` that already
+    finds their comments, which knows raw and byte strings, char literals, template literals and
+    regex literals, and an escape is read as the text it stands for: `\n`, `\r` and `\t` as a space
+    and any other as the character after its backslash. A docstring is left to the docstring reader,
+    and a dict key or a subscript argument is a key, not prose. Inside a literal, a code span in
+    backticks, a token holding a `/` or a file extension and a flag with a leading `-` are masked,
+    so the sentence around a path is still read; excluding every literal that holds a path would
+    have left such sentences unread. `scripts/proseliterals.py` is this reader and
+    `scripts/prosereaders.py` the one for documents and comments; both use `bannedwords.py`. A
+    string a model reads, whose wording needs a model measurement before it changes (the security
+    preamble, the recap preface, tool descriptions, the email sidecar's own texts), is exempted by
+    its module-level name in `proseliterals.EXEMPTIONS` with a reason. An exemption fails once its
+    file is gone or no string assigned to the name holds a banned word. A banned word a printed
+    sentence names as a word, such as the numbered `gate` that `commitlint.py` reports, goes in
+    backticks.
 
 ## Consequences
 

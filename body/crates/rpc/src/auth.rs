@@ -42,7 +42,7 @@ impl Interceptor for SeamTokenValidator {
             .map(MetadataValue::as_encoded_bytes);
         match presented {
             Some(value) if constant_time_eq(value, expected) => Ok(request),
-            _ => Err(Status::unauthenticated("invalid or missing seam token")),
+            _ => Err(Status::unauthenticated("invalid or missing token")),
         }
     }
 }
