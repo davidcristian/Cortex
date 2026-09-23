@@ -2,11 +2,12 @@
 
 import ast
 import re
-from collections.abc import Callable, Container, Sequence
+from collections.abc import Callable, Container, Iterable, Sequence
 from pathlib import Path
 from typing import NamedTuple
 
 import bannedwords
+import shellstrings
 import slashcomments
 from commentblocks import SourceError
 from slashcomments import PLACEHOLDER
@@ -19,6 +20,8 @@ _ESCAPE = re.compile(r"\\(.)")
 _BLANK_ESCAPES = frozenset("nrt")
 _OWNERS = (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)
 SLASH_SUFFIXES = frozenset({".rs", ".ts", ".tsx"})
+SHELL_SUFFIX = ".sh"
+JUSTFILE = "justfile"
 MODEL_INPUT = "A model reads this text, so changing a word needs a model measurement first."
 
 
@@ -76,8 +79,14 @@ EXEMPTIONS = (
 )
 
 
+def _is_shell(relative: Path) -> bool:
+    return relative.suffix == SHELL_SUFFIX or relative.name == JUSTFILE
+
+
 def reads_literals(relative: Path) -> bool:
     """Return whether the check reads the string literals of the file at ``relative``."""
+    if _is_shell(relative):
+        return True
     match relative.parts:
         case ("scripts", _) | ("brain", "packages", _, "src", _, *_):
             return relative.suffix == ".py"
@@ -125,19 +134,30 @@ def _unescaped(text: str) -> str:
     return _ESCAPE.sub(lambda found: " " if found[1] in _BLANK_ESCAPES else found[1], text)
 
 
-def slash_literals(source: str, syntax: slashcomments.Syntax) -> list[Literal]:
-    """Return the Rust or TypeScript literals in ``source`` that hold two words, masked."""
+def _lexed(strings: Iterable[tuple[int, str]]) -> list[Literal]:
     found: list[Literal] = []
-    for line, text in slashcomments.slash_strings(source, syntax):
+    for line, text in strings:
         if _TWO_WORDS.search(masked := _masked(_unescaped(text))):
             found.append(Literal(line=line, text=masked, name=None))
     return found
 
 
+def slash_literals(source: str, syntax: slashcomments.Syntax) -> list[Literal]:
+    """Return the Rust or TypeScript literals in ``source`` that hold two words, masked."""
+    return _lexed(slashcomments.slash_strings(source, syntax))
+
+
+def shell_literals(source: str, *, just: bool) -> list[Literal]:
+    """Return the double-quoted shell strings in ``source`` that hold two words, masked."""
+    return _lexed(shellstrings.shell_strings(source, just=just))
+
+
 def file_literals(relative: Path, source: str) -> list[Literal]:
-    """Return the prose literals of the file at ``relative``, read by the lexer its suffix names."""
+    """Return the prose literals of the file at ``relative``, read by the lexer its name selects."""
     if relative.suffix in SLASH_SUFFIXES:
         return slash_literals(source, slashcomments.SYNTAXES[relative.suffix])
+    if _is_shell(relative):
+        return shell_literals(source, just=relative.name == JUSTFILE)
     return prose_literals(source)
 
 

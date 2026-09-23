@@ -30,11 +30,11 @@ stays, with the reason.
   `backstop`, `rederive`, `sitting`, `spell` and `earn`, with the Vitest titles that used them.
   `volumecheck.py --rederive` is now `--recompute`. Then `verdict`, whose `Verdict` classes became
   `Outcome` in the injection probes, `Jobs` in `ci_paths.py`, `CheckResult` in `rustcoverage.py`
-  and `Finding` in `samplecheck.py`. The same words in the `replay` recipe's output opened
-  [R-714](714-the-text-a-recipe-prints-is-outside-the-prose-check.md). Then `seam`, which became
-  `rpc` for the body to brain gRPC boundary (`BrainRpcClient`, `RpcServerConfig`, the
-  `rpc-health` recipe) and `boundary` in one crosscheck test. Then `arm`, 52 names: a condition of
-  a measurement or a contract test became a `variant` (`SHIPPED_VARIANT`, `_VARIANTS`, the
+  and `Finding` in `samplecheck.py`, and the `replay` recipe's output, which used the same
+  words, was rewritten with them. Then `seam`, which became `rpc` for the body to brain gRPC
+  boundary (`BrainRpcClient`, `RpcServerConfig`, the `rpc-health` recipe) and `boundary` in one
+  crosscheck test. Then `arm`, 52 names: a condition of a measurement or a contract test became a
+  `variant` (`SHIPPED_VARIANT`, `_VARIANTS`, the
   `turn-cost` recipe's `variant`), the escalation slot a `prepared_slot`, and every other use says
   the step it stood for, such as `set_to_fail` and `reschedules`. The samples' `arm` key,
   `CORTEX_ENVELOPE_ARMS` and `CORTEX_TURN_COST_ARM` stay. Then `carry`, 166 names: each test

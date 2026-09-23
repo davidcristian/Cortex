@@ -118,6 +118,9 @@ def test_source_that_cannot_be_parsed_is_an_error() -> None:
         "body/app/src-tauri/src/a.rs",
         "body/app/src/bridge/a.ts",
         "body/app/src/components/A.tsx",
+        "justfile",
+        "docker/postgres/backup.sh",
+        "scripts/a.sh",
     ],
 )
 def test_scripts_the_brain_and_the_body_sources_are_read(path: str) -> None:
@@ -138,6 +141,7 @@ def test_scripts_the_brain_and_the_body_sources_are_read(path: str) -> None:
         "body/app/src/a.css",
         "a.py",
         "a.rs",
+        "justfile.md",
     ],
 )
 def test_tests_and_other_trees_are_not_read(path: str) -> None:
@@ -178,12 +182,32 @@ def test_escapes_are_read_as_the_text_they_stand_for(source: str, hits: list[str
         ("a.ts", "const x = 'a gate here';\n"),
         ("a.tsx", "const x = <p title={`a gate ${n}`} />;\n"),
         ("a.py", 'x = "a gate here"\n'),
+        ("justfile", 'r:\n    echo "a gate {{ gate }} here"\n'),
+        ("docker/a.sh", "echo 'a gate' \"{{gate}} is shut\" >&2\n"),
     ],
 )
 def test_file_literals_read_each_language_with_its_own_reader(name: str, source: str) -> None:
     literals = proseliterals.file_literals(Path(name), source)
     runs = proseliterals.literal_runs(literals, ())
     assert [hit.word for run in runs for hit in bannedwords.find_words(run, PATTERN)] == ["gate"]
+
+
+@pytest.mark.parametrize(
+    ("source", "hits"),
+    [
+        ('echo "a gate here" >&2', ["gate"]),
+        ('echo "one\\ngate here"', ["gate"]),
+        ('echo "the $gate here"', []),
+        ('echo "the ${gate} here"', []),
+        ('echo "run --gate now"', []),
+        ("echo 'a gate here'", []),
+    ],
+)
+def test_a_shell_string_is_read_with_its_expansions_and_flags_masked(
+    source: str, hits: list[str]
+) -> None:
+    runs = proseliterals.literal_runs(proseliterals.shell_literals(source, just=False), ())
+    assert [hit.word for run in runs for hit in bannedwords.find_words(run, PATTERN)] == hits
 
 
 def test_literal_runs_leave_out_exempt_names() -> None:

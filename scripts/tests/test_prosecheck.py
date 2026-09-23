@@ -348,6 +348,16 @@ def test_scan_reads_the_string_literals_of_body_sources_but_not_their_tests(repo
     ]
 
 
+def test_scan_reads_the_strings_the_justfile_and_shell_scripts_print(repo: Path) -> None:
+    _write(repo, "justfile", 'r:\n    echo "a gate {{ gate }} here"\n')
+    _write(repo, "docker/a.sh", '#!/bin/sh\necho "the $gate is shut" >&2\necho "a gate"\n')
+    scanned = prosecheck.scan(repo, [repo / "justfile", repo / "docker"], PATTERN, range(0))
+    assert [(str(item.path), item.line) for item in scanned.problems] == [
+        ("justfile", 2),
+        ("docker/a.sh", 3),
+    ]
+
+
 def test_scan_leaves_an_exempt_literal_alone(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     _write(repo, "scripts/a.py", 'X = "a gate here"\nY = "the gates"\n')
     exemption = LiteralExemption("scripts/a.py", ("X",), "model")

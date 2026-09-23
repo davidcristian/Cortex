@@ -1,9 +1,8 @@
 # The thirteen cross-tree scans
 
-These are the checks `just check` runs before any per-toolchain work, and the ones CI runs on every
-change whatever files it touched. Each reads several trees at once, which is why none of them can
-live inside the brain's or the body's own suite. The module list and the shared readers are in
-[repo-checks.md](repo-checks.md).
+These are the checks `just check` runs before any per-toolchain work, and CI runs on every change
+whatever files it touched. Each reads several trees at once, so none can live in the brain's or the
+body's own suite. The module list and shared readers are in [repo-checks.md](repo-checks.md).
 
 **What they all share.** Exit 0 prints a summary line stating what the walk read after every
 exclusion, so a passing run cannot be equally true of a scan that read nothing. Exit 1 prints one
@@ -48,11 +47,12 @@ a banned word, and a docstring or comment block over three lines. With no PATH i
 root. A PATH that is a file is checked even when git ignores it; a directory is walked with
 `treewalk.walk_files` minus `_generated` and what git ignores, so `--root` must be a git tree.
 
-It reads markdown outside code fences, Python docstrings, comments in Python, Rust, TypeScript,
-CSS, protobuf, YAML, TOML, shell, SQL, the Dockerfiles and the justfile, and every string literal
-holding two words separated by a space in a non-test `scripts/` module, a brain package's `src/` or
-a Rust or TypeScript file under `body/`. Identifiers, keys, JSX text, code spans, link targets, URLs,
-a path or flag in a string and the table's own rows are never read. A word matches whole and in any case, and one line break may split a phrase.
+It reads markdown outside code fences, docstrings, comments in Python, Rust, TypeScript, CSS,
+protobuf, YAML, TOML, shell, SQL, the Dockerfiles and the justfile, and each string literal of two
+words or more in a non-test `scripts/` module, a brain `src/`, a `body/` Rust or TypeScript file,
+the justfile or a `*.sh` file (double quotes only). Identifiers, keys, JSX text, code spans, link
+targets, URLs, a path or flag in a string and the table's rows are never read. A word matches whole
+and in any case, and one line break may split a phrase.
 
 A comment block is a run of lines holding only comments: a line holding code ends it and a blank
 line does not, and a line counts unless its text without the comment markers is empty or is a tool

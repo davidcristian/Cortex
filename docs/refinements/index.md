@@ -73,7 +73,7 @@ never a reading of what the tree does now.
 - **[R-695](tasks/695-an-alt-mail-control-voids-in-every-draw-at-the-engine-budget.md)** An alt `app` control filled the window at temperature 0, so three rows wait on a sampled redraw (vision). Its claim was checked against the code on 2026-09-23.
 - **[R-706](tasks/706-only-the-corpus-laundering-cell-is-drawn-at-the-engines-sampler.md)** Only the corpus laundering cell is drawn at the engine's sampler (vision). Its claim was checked against the code on 2026-09-23.
 - **[R-707](tasks/707-model-read-texts-keep-banned-words.md)** Texts a model reads keep words the prose table bans (brain). Its claim was checked against the code on 2026-09-22.
-- **[R-714](tasks/714-the-text-a-recipe-prints-is-outside-the-prose-check.md)** The text a recipe prints is outside the prose check (repo-checks). Its claim was checked against the code on 2026-09-23.
+- **[R-715](tasks/715-text-in-yaml-and-toml-values-is-outside-the-prose-check.md)** Text in YAML and TOML values is outside the prose check (repo-checks). Its claim was checked against the code on 2026-09-23.
 
 ### Actionable, once a port changes (5)
 
@@ -699,7 +699,7 @@ never a reading of what the tree does now.
 - [R-703](tasks/703-check-output-uses-banned-words.md) The checks print sentences in words the prose table bans. done 2026-09-21.
 - [R-711](tasks/711-rust-and-typescript-strings-are-outside-the-prose-check.md) Rust and TypeScript strings are outside the prose check. done 2026-09-23.
 - [R-713](tasks/713-jsx-text-is-outside-the-prose-check.md) JSX text is outside the prose check. open, waiting for its trigger.
-- [R-714](tasks/714-the-text-a-recipe-prints-is-outside-the-prose-check.md) The text a recipe prints is outside the prose check. open, actionable.
+- [R-715](tasks/715-text-in-yaml-and-toml-values-is-outside-the-prose-check.md) Text in YAML and TOML values is outside the prose check. open, actionable.
 
 ### resource-governance
 
