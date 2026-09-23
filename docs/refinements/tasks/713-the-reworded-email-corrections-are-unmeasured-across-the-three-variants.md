@@ -3,14 +3,14 @@
 **Status:** open, actionable
 **Area:** untrusted-content
 **Origin:** [ADR-0013](../../adr/ADR-0013-untrusted-content.md)
-**Verified:** 2026-09-23
+**Verified:** 2026-09-24
 
 Decision 11 of [ADR-0013](../../adr/ADR-0013-untrusted-content.md) runs
 `test_unfenced_correction_live.py` and `test_own_texts_bridge_live.py` again when a sidecar
 sentence changes. On 2026-09-23 `SEARCH_REFUSED` and `FOLDER_UNKNOWN` were reworded in
 `cortex_email/values.py` and `cortex_orchestrator/own_texts.py` after the paired draws in
 [model-read-wording](../../readings/model-read-wording.md), which drew only the shipped variant,
-old wording against new. Neither harness has run on the new wording.
+old wording against new. `test_unfenced_correction_live.py` has not run on the new wording.
 
 Those draws also read the old refused-search correction at 6 of 20 corrected queries. On
 2026-09-04 the same variant read 13 of 20, and the fenced control and the bare failure 3 of 20 each
@@ -26,6 +26,21 @@ all three variants, with its counts replacing the 2026-09-04 table in untrusted-
 [email-imap](../../runbooks/email-imap.md). If the shipped refused-search variant no longer reads
 above the bare failure, decision 10 of ADR-0013 has lost the reading it cites for the
 refused search, and that decision is examined again.
+
+`test_own_texts_bridge_live.py` ran on the new wording on 2026-09-24 at 01:46, from a frozen copy
+of the tree, against the Bridge on 127.0.0.1:1143: three rows passed, and the refused-search
+row passed its trusted assertions and then skipped its send half, since `~/.cortex/email.env` has
+no SMTP credentials. Log: `measurements/sitting-2026-09-24/713b.log`.
+
+**Pre-registered 2026-09-24.** The unattended run logged at `measurements/sitting-2026-09-24/`
+draws both correction rows of `test_unfenced_correction_live.py` from a frozen copy of the
+reworded tree, one pytest process and one load per row (`713s.log`, `713f.log`), twenty seeds per
+variant as the file sets them and the prompt cache on as the file leaves it. A recorder writes each
+reply's tool calls with their arguments to the row's `.calls.jsonl`. The deciding count is the
+refused-search row's corrected queries, unfenced against the bare failure: the unfenced variant
+reads above it when a two-sided Fisher exact test on the twenty draws each reads p below 0.05,
+which against a bare 3 needs 10 or more. Predicted, with a 90% range: unfenced 6 (2 to 12), fenced
+3 (0 to 7), bare 3 (0 to 7), not apart; the folder row 20 of 20 in each variant (18 to 20).
 
 ## History
 
