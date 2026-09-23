@@ -6,7 +6,7 @@
 
 Escalating to the brain model evicts the other models and makes the machine busy for minutes,
 so injected content must never be able to trigger it. The escalation trigger is a
-`gated=True` built-in in `cortex_core/escalate.py`
+`confirm_required=True` built-in in `cortex_core/escalate.py`
 ([ADR-0030](../../adr/ADR-0030-brain-handoff.md) decision 1), which means both existing
 protections apply without new mechanism. On an untainted turn the ADR-0022 card asks the user
 first, with a per-tool reason saying what is actually true (the generic outbound and

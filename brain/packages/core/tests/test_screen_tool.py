@@ -58,23 +58,23 @@ async def _send(_arguments: Mapping[str, object]) -> str:
 
 def _email_dispatcher(confirmer: RecordingConfirmer) -> tuple[ToolDispatcher, RecordingAuditSink]:
     """A dispatcher over one tool that needs approval, used by both cases below."""
-    spec = ToolSpec(name="send_email", description="send", parameters={}, gated=True)
+    spec = ToolSpec(name="send_email", description="send", parameters={}, confirm_required=True)
     audit = RecordingAuditSink()
     dispatcher = ToolDispatcher(
         InMemoryToolRegistry({"send_email": (spec, _send)}),
         audit,
         SystemClock(),
         confirmer=confirmer,
-        policy=DispatchPolicy(gated_names=frozenset({"send_email"})),
+        policy=DispatchPolicy(confirm_names=frozenset({"send_email"})),
     )
     return dispatcher, audit
 
 
-async def test_the_spec_is_ungated_and_makes_the_model_name_a_target() -> None:
+async def test_the_spec_is_confirm_free_and_makes_the_model_name_a_target() -> None:
     tool = CaptureScreenTool(InMemoryBodyGateway())
     spec = tool.spec
     assert spec.name == "capture_screen"
-    assert spec.gated is False
+    assert spec.confirm_required is False
     assert spec.parameters["required"] == ["target"]
 
 
@@ -259,7 +259,7 @@ async def test_a_failed_capture_leaves_the_turn_clean() -> None:
     assert ledger.tainted is False
 
 
-async def test_a_gated_call_after_a_capture_is_denied_without_asking_the_user() -> None:
+async def test_a_confirm_required_call_after_a_capture_is_denied_without_asking_the_user() -> None:
     confirmer = RecordingConfirmer(answer=True)
     dispatcher, audit = _email_dispatcher(confirmer)
     ledger = TaintLedger()
@@ -280,7 +280,7 @@ async def test_a_gated_call_after_a_capture_is_denied_without_asking_the_user() 
     ], "the denial is audited like any other dispatch"
 
 
-async def test_the_same_gated_call_is_confirmed_when_nothing_was_captured() -> None:
+async def test_the_same_confirm_required_call_is_confirmed_when_nothing_was_captured() -> None:
     confirmer = RecordingConfirmer(answer=True)
     dispatcher, _audit = _email_dispatcher(confirmer)
 
@@ -338,7 +338,7 @@ async def test_a_second_identical_target_in_one_round_is_refused_outright() -> N
     assert salience.admits(_call("display"), first_round) is True
 
 
-def test_the_tool_name_is_the_one_the_owner_puts_in_the_gated_list() -> None:
+def test_the_tool_name_is_the_one_the_owner_puts_in_the_confirm_required_list() -> None:
     # The documented opt-in is CORTEX_TOOLS_GATED=send_email,capture_screen, so the advertised
     # name has to be exactly this string.
     assert CAPTURE_SCREEN_TOOL_NAME == "capture_screen"

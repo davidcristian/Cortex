@@ -38,7 +38,9 @@ from cortex_core import (
 from cortex_core.delegation_wait import batch_wait
 
 _AT = datetime(2026, 7, 3, 12, 0, tzinfo=UTC)
-_GATED = ToolSpec(name="send", description="Send it", parameters={}, gated=True)
+_CONFIRM_REQUIRED = ToolSpec(
+    name="send", description="Send it", parameters={}, confirm_required=True
+)
 
 
 class FixedClock:
@@ -152,7 +154,7 @@ async def test_a_confirmation_is_the_innermost_wait_of_its_tool_call() -> None:
     sink = RecordingProgressSink()
     confirmer = WitnessingConfirmer(sink)
     tools = ToolDispatcher(
-        InMemoryToolRegistry({"send": (_GATED, _send)}),
+        InMemoryToolRegistry({"send": (_CONFIRM_REQUIRED, _send)}),
         RecordingAuditSink(),
         FixedClock(),
         confirmer=confirmer,

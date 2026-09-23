@@ -18,11 +18,11 @@ rather than merely confirmed. One arrived and the overlay was built.
   without reading a message needed to reach the model untainted, and
   [530](530-a-sidecars-own-text-is-re-stamped-trusted.md) built the overlay that does it.
   `OwnTextToolRegistry` in `brain/packages/core/src/cortex_core/own_text.py` is the composition-root
-  trust overlay for remote tools, beside `GatedToolRegistry` and wired once over the shared root in
+  trust overlay for remote tools, beside `ConfirmRequiredToolRegistry` and wired once over the shared root in
   `build_tool_registry` (`brain/packages/orchestrator/src/cortex_orchestrator/builders.py`) over the
   five declarations in `own_texts.py`. The twin entry
   [079](079-per-remote-tool-trust-overrides.md) closed the same week and settles the shape: the
-  confirmation half had existed since `GatedToolRegistry`, and the trust half is keyed by the bytes
+  confirmation half had existed since `ConfirmRequiredToolRegistry`, and the trust half is keyed by the bytes
   the brain holds rather than by the name of the tool that returned them, since a tool's name is the
   sidecar's identity and not the brain's knowledge of its content. So the per-tool form is refused
   rather than pending.

@@ -185,7 +185,7 @@ the version string `Health` reports.
   the root confirmed the running model can see, the five schedule tools, and `escalate_to_brain`
   only when a handoff can actually run. Those built-ins need no confirmation by default, a user
   naming any in `CORTEX_TOOLS_GATED`. Subagent dispatchers keep `confirmer=None` and their registry
-  is wrapped in `UngatedToolRegistry`, so a subagent is never handed a confirmable tool.
+  is wrapped in `ConfirmFreeToolRegistry`, so a subagent is never handed a confirmable tool.
 - `StreamEngines.for_stream` (`engines.py`) is the engine factory, an object built once rather than
   closures over the root's locals. It reads no env, opens no resource and picks no adapter: per
   stream it builds that stream's `TurnCapabilities` and returns the plain `TurnEngine`, or an

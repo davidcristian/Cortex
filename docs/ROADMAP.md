@@ -71,7 +71,7 @@ adapter it deferred arrived with Slice 8.8.
 
 Anything the brain reads through a tool is **untrusted data, not instructions**. Behind the existing tool
 interfaces plus one new `Confirmer` port: a fail-closed `Trust` on every `ToolResult`, an untrusted result
-fenced behind a per-turn nonce under a security preamble, `ToolSpec.gated` with a dispatcher check, and taint
+fenced behind a per-turn nonce under a security preamble, `ToolSpec.confirm_required` with a dispatcher check, and taint
 propagation, so a subagent that reads a malicious file taints the cortex and a tainted turn records nothing to
 memory. Measured on the real cortex: the framed model cites the preamble in its own reasoning to defeat seven
 injection variants.

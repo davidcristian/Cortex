@@ -12,7 +12,7 @@ first token. So it was measured.
 configured endpoints and the called tool owned by the k-th in config order, advertising costs N
 opens and one cortex dispatch costs k + 1, because `AggregateToolRegistry.invoke` routes by
 re-listing each registry until one claims the name; a subagent dispatch costs N more again,
-because `UngatedToolRegistry.invoke` re-lists to recompute the set of tools needing confirmation
+because `ConfirmFreeToolRegistry.invoke` re-lists to recompute the set of tools needing confirmation
 before delegating. Both walks are deliberate and live, so a tool a sidecar dropped or re-flagged
 fails closed rather than routing stale, but nothing recorded that they make a delegated dispatch
 cost twice a cortex one. The count is now asserted exactly against the shipped stack in
@@ -45,9 +45,9 @@ describe/invoke" undercounts the requests: a fresh session's `invoke` issues thr
 not one, since the MCP SDK's `call_tool` caches tool output schemas per session and so pays for a
 `tools/list` it will never reuse, and `describe_tools` issues two. And "behind the same
 `ToolRegistry` port" is false: a pooled session must be closed, closing needs an explicit scope,
-and a scope is a new port method that all seven combinators (`Aggregate`, `Filtered`, `Gated`,
-`SkipUnavailable`, `Ungated`, `Composite`, `Sighted`) would have to forward. Without one the
-session gets closed by a task other than the one that opened it, which is exactly the anyio
+and a scope is a new port method that all seven combinators (`Aggregate`, `Filtered`,
+`ConfirmRequired`, `SkipUnavailable`, `ConfirmFree`, `Composite`, `Sighted`) would have to
+forward. Without one the session gets closed by a task other than the one that opened it, which is exactly the anyio
 cancel-scope corruption the per-call open was adopted to avoid, and boot tolerance would have to
 be rebuilt on the far side of it. That is a port change across the whole core, bought for 17.8 ms.
 

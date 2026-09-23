@@ -63,7 +63,7 @@ real user need.
   entry's premises did not, and the plain preamble shipped while the rest stayed open. The two
   wrong premises: a later turn is not preamble-free, since `assemble_inference_messages` already
   prepended `SECURITY_PREAMBLE` whenever tools were enabled or the turn was tainted; and the
-  outbound surface is not open, since on an untainted turn a `gated` call goes to the
+  outbound surface is not open, since on an untainted turn a `confirm_required` call goes to the
   `Confirmer` and a missing confirmer denies, so what an untainted turn loses is the outright
   refusal, not the confirmation.
 - 2026-08-08: Given its line in the index's recommended order, having been counted in the area

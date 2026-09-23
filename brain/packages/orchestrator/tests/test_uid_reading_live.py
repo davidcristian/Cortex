@@ -181,7 +181,7 @@ def without_uid_help(specs: Sequence[ToolSpec]) -> Sequence[ToolSpec]:
         parameters = copy.deepcopy(dict(spec.parameters))
         properties = cast("dict[str, dict[str, Any]]", parameters["properties"])
         properties["uid"].pop("description")
-        stripped.append(ToolSpec(spec.name, spec.description, parameters, spec.gated))
+        stripped.append(ToolSpec(spec.name, spec.description, parameters, spec.confirm_required))
     return stripped
 
 

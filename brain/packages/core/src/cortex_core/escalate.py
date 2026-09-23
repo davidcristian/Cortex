@@ -6,7 +6,7 @@ ESCALATE_TOOL_NAME = "escalate_to_brain"
 
 MAX_BRIEF_CHARS = 4000
 
-ESCALATE_GATE_REASON = (
+ESCALATE_CONFIRM_REASON = (
     "the deep model will take over this task; loading it claims the whole GPU and the machine "
     "will be busy for several minutes before the assistant answers again"
 )
@@ -46,7 +46,7 @@ class EscalateToBrainTool:
 
     @property
     def spec(self) -> ToolSpec:
-        """The spec advertised to the cortex; ``gated=True`` means the user must approve a call."""
+        """The spec advertised to the cortex; the user must approve each call to it."""
         return ToolSpec(
             name=ESCALATE_TOOL_NAME,
             description=_DESCRIPTION,
@@ -63,7 +63,7 @@ class EscalateToBrainTool:
                 },
                 "required": ["brief"],
             },
-            gated=True,
+            confirm_required=True,
         )
 
     async def invoke(self, call: ToolCall) -> ToolResult:

@@ -24,7 +24,7 @@ from cortex_core.tools import (
 from cortex_core.untrusted import DENIED_MSG, USER_DECLINED_MSG
 from cortex_core.waits import USER_ASKED
 
-_GATE_REASON = "this action is outbound or irreversible and runs only with your approval"
+_CONFIRM_REASON = "this action is outbound or irreversible and runs only with your approval"
 
 BUDGET_EXHAUSTED_MSG = (
     "REFUSED: this turn has reached its limit on tool calls, so the tool was not run. Do not "
@@ -63,14 +63,14 @@ class DispatchRefusal(Enum):
 class DispatchPolicy:
     """What the composition root declares about dispatching, in one value."""
 
-    gated_names: Collection[str] = ()
+    confirm_names: Collection[str] = ()
     costs: ToolCostPolicy = UNIFORM_COST
     salience: SaliencePolicy = REPEAT_SALIENCE
-    gate_reasons: Mapping[str, str] = field(default_factory=dict[str, str])
+    confirm_reasons: Mapping[str, str] = field(default_factory=dict[str, str])
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "gated_names", frozenset(self.gated_names))
-        object.__setattr__(self, "gate_reasons", MappingProxyType(dict(self.gate_reasons)))
+        object.__setattr__(self, "confirm_names", frozenset(self.confirm_names))
+        object.__setattr__(self, "confirm_reasons", MappingProxyType(dict(self.confirm_reasons)))
 
 
 DEFAULT_DISPATCH_POLICY = DispatchPolicy()
@@ -111,7 +111,7 @@ class ToolDispatcher:
         call: ToolCall,
         *,
         stamp: TurnStamp = UNSTAMPED,
-        gated: bool = False,
+        confirm_required: bool = False,
         refusal: DispatchRefusal | None = None,
     ) -> ToolResult:
         """Invoke ``call``, audit the outcome, and return the result the model consumes."""
@@ -127,8 +127,8 @@ class ToolDispatcher:
             )
             return await self._audited(call, refused)
         # A tool a failing sidecar left out of this turn's list still needs confirmation.
-        gated = gated or call.name in self._policy.gated_names
-        if gated:
+        confirm_required = confirm_required or call.name in self._policy.confirm_names
+        if confirm_required:
             if stamp.tainted:
                 blocked = ToolResult(
                     call_id=call.id, content=DENIED_MSG, is_error=True, trust=Trust.TRUSTED
@@ -154,7 +154,7 @@ class ToolDispatcher:
         request = ConfirmationRequest(
             tool_name=call.name,
             arguments=call.arguments,
-            reason=self._policy.gate_reasons.get(call.name, _GATE_REASON),
+            reason=self._policy.confirm_reasons.get(call.name, _CONFIRM_REASON),
         )
         async with hold_wait(call.stamp.progress, USER_ASKED):
             return await self._confirmer.confirm(request)

@@ -304,7 +304,7 @@ class _SendOnceBackend:
             yield TextChunk("done")
 
 
-def _gated_engine_factory(ran: list[str]) -> EngineFactory:
+def _confirm_required_engine_factory(ran: list[str]) -> EngineFactory:
     """A per-stream engine whose 'send' tool needs approval and records the runs it was given."""
 
     async def send(arguments: Mapping[str, object]) -> str:
@@ -313,7 +313,12 @@ def _gated_engine_factory(ran: list[str]) -> EngineFactory:
 
     def make(confirmer: Confirmer, _progress: ProgressSink) -> TurnEngine:
         registry = InMemoryToolRegistry(
-            {"send": (ToolSpec(name="send", description="", parameters={}, gated=True), send)}
+            {
+                "send": (
+                    ToolSpec(name="send", description="", parameters={}, confirm_required=True),
+                    send,
+                )
+            }
         )
         dispatcher = ToolDispatcher(
             registry, RecordingAuditSink(), SystemClock(), confirmer=confirmer
@@ -332,7 +337,7 @@ async def test_confirm_round_trips_over_the_real_wire() -> None:
     ran: list[str] = []
     server, port = create_server(
         RpcServerConfig(host="127.0.0.1", port=0),
-        _gated_engine_factory(ran),
+        _confirm_required_engine_factory(ran),
         InMemorySessionStore(),
     )
     await server.start()
@@ -365,7 +370,7 @@ async def test_denied_confirm_over_the_real_wire_never_runs_the_tool() -> None:
     ran: list[str] = []
     server, port = create_server(
         RpcServerConfig(host="127.0.0.1", port=0),
-        _gated_engine_factory(ran),
+        _confirm_required_engine_factory(ran),
         InMemorySessionStore(),
     )
     await server.start()

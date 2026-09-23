@@ -52,7 +52,7 @@ lock.
    runs the shared loop on the subagent model with the MCP tool subset, every call through its own
    audited `ToolDispatcher`. It does **not** receive `spawn_subagents`, so fan-out stops at one
    level. It is never given a tool that needs confirmation or one that sends anything outward
-   either: `build_subagent_tools` wraps the registry in `UngatedToolRegistry`
+   either: `build_subagent_tools` wraps the registry in `ConfirmFreeToolRegistry`
    ([ADR-0013](ADR-0013-untrusted-content.md) decision 9). A tools-enabled subagent always runs on
    the injection-resistant default entry ([ADR-0018](ADR-0018-heterogeneous-subagents.md) decision
    3).

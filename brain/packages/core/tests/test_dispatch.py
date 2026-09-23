@@ -114,12 +114,12 @@ async def test_audit_records_the_result_provenance() -> None:
     assert record.trust is Trust.UNTRUSTED
 
 
-async def test_gated_tool_on_a_tainted_turn_is_blocked_without_a_confirmer() -> None:
+async def test_confirm_required_tool_on_a_tainted_turn_is_blocked_without_a_confirmer() -> None:
     sink = RecordingAuditSink()
     result = await _outbound(sink, None).dispatch(
         ToolCall(id="c", name="send", arguments={"path": "/p"}),
         stamp=TurnStamp(tainted=True),
-        gated=True,
+        confirm_required=True,
     )
     assert result.is_error is True
     assert result.content == DENIED_MSG
@@ -128,25 +128,23 @@ async def test_gated_tool_on_a_tainted_turn_is_blocked_without_a_confirmer() -> 
     assert (record.ok, record.detail) == (False, DENIED_MSG)
 
 
-async def test_gated_tool_on_a_tainted_turn_is_blocked_even_when_a_confirmer_would_approve() -> (
-    None
-):
+async def test_a_tainted_turn_blocks_a_confirm_required_tool_a_confirmer_would_approve() -> None:
     confirmer = RecordingConfirmer(answer=True)
     result = await _outbound(RecordingAuditSink(), confirmer).dispatch(
         ToolCall(id="c", name="send", arguments={"path": "/p"}),
         stamp=TurnStamp(tainted=True),
-        gated=True,
+        confirm_required=True,
     )
     assert result.content == DENIED_MSG
     assert confirmer.requests == ()
 
 
-async def test_gated_tool_on_a_clean_turn_runs_when_the_user_approves() -> None:
+async def test_confirm_required_tool_on_a_clean_turn_runs_when_the_user_approves() -> None:
     confirmer = RecordingConfirmer(answer=True)
     result = await _outbound(RecordingAuditSink(), confirmer).dispatch(
         ToolCall(id="c", name="send", arguments={"path": "/p"}),
         stamp=TurnStamp(tainted=False),
-        gated=True,
+        confirm_required=True,
     )
     assert result.content == "ran:/p"
     (request,) = confirmer.requests
@@ -155,13 +153,13 @@ async def test_gated_tool_on_a_clean_turn_runs_when_the_user_approves() -> None:
     assert "approval" in request.reason
 
 
-async def test_gated_tool_on_a_clean_turn_is_declined_when_the_user_says_no() -> None:
+async def test_confirm_required_tool_on_a_clean_turn_is_declined_when_the_user_says_no() -> None:
     sink = RecordingAuditSink()
     confirmer = RecordingConfirmer(answer=False)
     result = await _outbound(sink, confirmer).dispatch(
         ToolCall(id="c", name="send", arguments={"path": "/p"}),
         stamp=TurnStamp(tainted=False),
-        gated=True,
+        confirm_required=True,
     )
     assert result.is_error is True
     assert result.content == USER_DECLINED_MSG
@@ -171,21 +169,21 @@ async def test_gated_tool_on_a_clean_turn_is_declined_when_the_user_says_no() ->
     assert (record.ok, record.detail) == (False, USER_DECLINED_MSG)
 
 
-async def test_gated_tool_on_a_clean_turn_is_declined_without_a_confirmer() -> None:
+async def test_confirm_required_tool_on_a_clean_turn_is_declined_without_a_confirmer() -> None:
     result = await _outbound(RecordingAuditSink(), None).dispatch(
         ToolCall(id="c", name="send", arguments={"path": "/p"}),
         stamp=TurnStamp(tainted=False),
-        gated=True,
+        confirm_required=True,
     )
     assert result.content == USER_DECLINED_MSG
 
 
-async def test_ungated_tool_on_a_tainted_turn_runs_without_confirmation() -> None:
+async def test_confirm_free_tool_on_a_tainted_turn_runs_without_confirmation() -> None:
     confirmer = RecordingConfirmer(answer=False)
     result = await _outbound(RecordingAuditSink(), confirmer).dispatch(
         ToolCall(id="c", name="send", arguments={"path": "/p"}),
         stamp=TurnStamp(tainted=True),
-        gated=False,
+        confirm_required=False,
     )
     assert result.content == "ran:/p"
     assert confirmer.requests == ()
@@ -245,7 +243,7 @@ async def test_dispatch_without_a_stamp_leaves_the_call_unattributed() -> None:
     assert stamped.stamp == TurnStamp(session_id="", tainted=False)
 
 
-async def test_gated_names_gate_a_call_the_snapshot_advertised_as_ungated() -> None:
+async def test_confirm_names_confirm_a_call_the_snapshot_advertised_as_confirm_free() -> None:
     sink = RecordingAuditSink()
     confirmer = RecordingConfirmer(answer=False)
     dispatcher = ToolDispatcher(
@@ -253,46 +251,46 @@ async def test_gated_names_gate_a_call_the_snapshot_advertised_as_ungated() -> N
         sink,
         _FixedClock(),
         confirmer=confirmer,
-        policy=DispatchPolicy(gated_names={"send"}),
+        policy=DispatchPolicy(confirm_names={"send"}),
     )
     result = await dispatcher.dispatch(
         ToolCall(id="c", name="send", arguments={"path": "/p"}),
         stamp=TurnStamp(tainted=False),
-        gated=False,
+        confirm_required=False,
     )
     assert result.content == USER_DECLINED_MSG
     assert confirmer.requests != ()
 
 
-async def test_gated_names_deny_a_tainted_call_the_snapshot_advertised_as_ungated() -> None:
+async def test_confirm_names_deny_a_tainted_call_the_snapshot_advertised_as_confirm_free() -> None:
     confirmer = RecordingConfirmer(answer=True)
     dispatcher = ToolDispatcher(
         InMemoryToolRegistry({"send": (_spec("send"), _ran)}),
         RecordingAuditSink(),
         _FixedClock(),
         confirmer=confirmer,
-        policy=DispatchPolicy(gated_names={"send"}),
+        policy=DispatchPolicy(confirm_names={"send"}),
     )
     result = await dispatcher.dispatch(
         ToolCall(id="c", name="send", arguments={"path": "/p"}),
         stamp=TurnStamp(tainted=True),
-        gated=False,
+        confirm_required=False,
     )
     assert result.content == DENIED_MSG
     assert confirmer.requests == ()
 
 
-async def test_a_name_outside_the_gated_set_stays_ungated() -> None:
+async def test_a_name_outside_the_confirm_required_set_stays_confirm_free() -> None:
     dispatcher = ToolDispatcher(
         InMemoryToolRegistry({"read": (_spec("read"), _ran)}),
         RecordingAuditSink(),
         _FixedClock(),
-        policy=DispatchPolicy(gated_names={"send"}),
+        policy=DispatchPolicy(confirm_names={"send"}),
     )
     result = await dispatcher.dispatch(
         ToolCall(id="c", name="read", arguments={"path": "/p"}),
         stamp=TurnStamp(tainted=True),
-        gated=False,
+        confirm_required=False,
     )
     assert result.content == "ran:/p"
 
@@ -310,23 +308,23 @@ async def test_an_over_budget_call_is_refused_without_running_the_tool_and_is_au
     assert (record.name, record.ok, record.detail) == ("send", False, BUDGET_EXHAUSTED_MSG)
 
 
-async def test_an_over_budget_gated_call_never_reaches_the_confirmer() -> None:
+async def test_an_over_budget_confirm_required_call_never_reaches_the_confirmer() -> None:
     confirmer = RecordingConfirmer(answer=True)
     result = await _outbound(RecordingAuditSink(), confirmer).dispatch(
         ToolCall(id="c", name="send", arguments={"path": "/p"}),
         stamp=TurnStamp(tainted=False),
-        gated=True,
+        confirm_required=True,
         refusal=DispatchRefusal.BUDGET,
     )
     assert result.content == BUDGET_EXHAUSTED_MSG
     assert confirmer.requests == ()
 
 
-async def test_an_over_budget_gated_call_on_a_tainted_turn_reports_the_budget() -> None:
+async def test_an_over_budget_confirm_required_call_on_a_tainted_turn_reports_the_budget() -> None:
     result = await _outbound(RecordingAuditSink(), None).dispatch(
         ToolCall(id="c", name="send", arguments={"path": "/p"}),
         stamp=TurnStamp(tainted=True),
-        gated=True,
+        confirm_required=True,
         refusal=DispatchRefusal.BUDGET,
     )
     assert result.content == BUDGET_EXHAUSTED_MSG
@@ -371,12 +369,12 @@ async def test_a_redundant_call_is_refused_without_running_the_tool_and_is_audit
     assert (record.name, record.ok, record.detail) == ("send", False, REDUNDANT_MSG)
 
 
-async def test_a_redundant_gated_call_never_reaches_the_confirmer() -> None:
+async def test_a_redundant_confirm_required_call_never_reaches_the_confirmer() -> None:
     confirmer = RecordingConfirmer(answer=True)
     result = await _outbound(RecordingAuditSink(), confirmer).dispatch(
         ToolCall(id="c", name="send", arguments={"path": "/p"}),
         stamp=TurnStamp(tainted=False),
-        gated=True,
+        confirm_required=True,
         refusal=DispatchRefusal.REDUNDANT,
     )
     assert result.content == REDUNDANT_MSG
@@ -396,11 +394,11 @@ def test_the_dispatcher_judges_salience_with_the_policy_it_was_given() -> None:
     assert permissive.admits(call, already) is True
 
 
-def test_the_policy_freezes_the_gated_names_it_was_handed() -> None:
+def test_the_policy_freezes_the_confirm_names_it_was_handed() -> None:
     names = {"send"}
-    policy = DispatchPolicy(gated_names=names)
+    policy = DispatchPolicy(confirm_names=names)
     names.add("read")
-    assert policy.gated_names == frozenset({"send"})
+    assert policy.confirm_names == frozenset({"send"})
 
 
 async def test_the_confirm_reason_is_the_policy_per_tool_text_when_declared() -> None:
@@ -410,40 +408,40 @@ async def test_the_confirm_reason_is_the_policy_per_tool_text_when_declared() ->
         RecordingAuditSink(),
         _FixedClock(),
         confirmer=confirmer,
-        policy=DispatchPolicy(gate_reasons={"send": "this hands your words to a stranger"}),
+        policy=DispatchPolicy(confirm_reasons={"send": "this hands your words to a stranger"}),
     )
     await dispatcher.dispatch(
         ToolCall(id="c", name="send", arguments={"path": "/p"}),
         stamp=TurnStamp(tainted=False),
-        gated=True,
+        confirm_required=True,
     )
     (request,) = confirmer.requests
     assert request.reason == "this hands your words to a stranger"
 
 
-async def test_a_tool_without_a_declared_reason_keeps_the_generic_gate_text() -> None:
+async def test_a_tool_without_a_declared_reason_keeps_the_generic_confirm_text() -> None:
     confirmer = RecordingConfirmer(answer=True)
     dispatcher = ToolDispatcher(
         InMemoryToolRegistry({"send": (_spec("send"), _ran)}),
         RecordingAuditSink(),
         _FixedClock(),
         confirmer=confirmer,
-        policy=DispatchPolicy(gate_reasons={"other_tool": "unrelated"}),
+        policy=DispatchPolicy(confirm_reasons={"other_tool": "unrelated"}),
     )
     await dispatcher.dispatch(
         ToolCall(id="c", name="send", arguments={"path": "/p"}),
         stamp=TurnStamp(tainted=False),
-        gated=True,
+        confirm_required=True,
     )
     (request,) = confirmer.requests
     assert "outbound or irreversible" in request.reason
 
 
-def test_the_policy_freezes_the_gate_reasons_it_was_handed() -> None:
+def test_the_policy_freezes_the_confirm_reasons_it_was_handed() -> None:
     reasons = {"send": "before"}
-    policy = DispatchPolicy(gate_reasons=reasons)
+    policy = DispatchPolicy(confirm_reasons=reasons)
     reasons["send"] = "after"
-    assert policy.gate_reasons["send"] == "before"
+    assert policy.confirm_reasons["send"] == "before"
 
 
 async def test_the_audit_line_names_the_work_the_call_was_made_for() -> None:
@@ -478,12 +476,12 @@ async def test_a_refused_call_is_named_like_every_other_dispatch() -> None:
     assert (record.ok, record.session_id, record.turn_id) == (False, "s-2", "t-2")
 
 
-async def test_a_gate_denial_is_named_too() -> None:
+async def test_a_confirmation_denial_is_named_too() -> None:
     sink = RecordingAuditSink()
     await _outbound(sink, None).dispatch(
         ToolCall(id="c", name="send", arguments={"path": "/p"}),
         stamp=TurnStamp(session_id="s-3", turn_id="t-3", tainted=True),
-        gated=True,
+        confirm_required=True,
     )
     (record,) = sink.records
     assert (record.detail, record.session_id, record.turn_id) == (DENIED_MSG, "s-3", "t-3")
@@ -520,7 +518,7 @@ async def test_a_refused_and_a_denied_call_name_themselves_too() -> None:
     await _outbound(sink, None).dispatch(
         ToolCall(id="call-9", name="send", arguments={}),
         stamp=TurnStamp(tainted=True),
-        gated=True,
+        confirm_required=True,
     )
     refused, denied = sink.records
     assert (refused.call_id, denied.call_id) == ("call-8", "call-9")

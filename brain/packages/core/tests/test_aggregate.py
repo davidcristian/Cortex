@@ -5,8 +5,9 @@ import pytest
 
 from cortex_core import (
     AggregateToolRegistry,
+    ConfirmFreeToolRegistry,
+    ConfirmRequiredToolRegistry,
     FilteredToolRegistry,
-    GatedToolRegistry,
     InMemoryToolRegistry,
     SkipUnavailableToolRegistry,
     ToolCall,
@@ -14,7 +15,6 @@ from cortex_core import (
     ToolNotFoundError,
     ToolResult,
     ToolSpec,
-    UngatedToolRegistry,
 )
 
 
@@ -147,34 +147,34 @@ def _mixed_registry() -> InMemoryToolRegistry:
         {
             "read": (ToolSpec(name="read", description="", parameters={}), _replies("fs")),
             "send": (
-                ToolSpec(name="send", description="", parameters={}, gated=True),
+                ToolSpec(name="send", description="", parameters={}, confirm_required=True),
                 _replies("mail"),
             ),
         }
     )
 
 
-async def test_ungated_advertises_only_ungated_tools() -> None:
-    ungated = UngatedToolRegistry(_mixed_registry())
-    assert [spec.name for spec in await ungated.describe_tools()] == ["read"]
+async def test_confirm_free_advertises_only_confirm_free_tools() -> None:
+    confirm_free = ConfirmFreeToolRegistry(_mixed_registry())
+    assert [spec.name for spec in await confirm_free.describe_tools()] == ["read"]
 
 
-async def test_ungated_delegates_an_ungated_call() -> None:
-    ungated = UngatedToolRegistry(_mixed_registry())
-    result = await ungated.invoke(ToolCall(id="g1", name="read", arguments={}))
+async def test_confirm_free_delegates_an_confirm_free_call() -> None:
+    confirm_free = ConfirmFreeToolRegistry(_mixed_registry())
+    result = await confirm_free.invoke(ToolCall(id="g1", name="read", arguments={}))
     assert result.content == "from fs"
 
 
-async def test_ungated_refuses_a_gated_call_the_inner_would_run() -> None:
-    ungated = UngatedToolRegistry(_mixed_registry())
+async def test_confirm_free_refuses_a_confirm_required_call_the_inner_would_run() -> None:
+    confirm_free = ConfirmFreeToolRegistry(_mixed_registry())
     with pytest.raises(ToolNotFoundError, match="unknown tool 'send'"):
-        await ungated.invoke(ToolCall(id="g2", name="send", arguments={}))
+        await confirm_free.invoke(ToolCall(id="g2", name="send", arguments={}))
 
 
-async def test_ungated_surfaces_the_inner_not_found_for_an_unknown_name() -> None:
-    ungated = UngatedToolRegistry(_mixed_registry())
+async def test_confirm_free_surfaces_the_inner_not_found_for_an_unknown_name() -> None:
+    confirm_free = ConfirmFreeToolRegistry(_mixed_registry())
     with pytest.raises(ToolNotFoundError, match="unknown tool 'ghost'"):
-        await ungated.invoke(ToolCall(id="g3", name="ghost", arguments={}))
+        await confirm_free.invoke(ToolCall(id="g3", name="ghost", arguments={}))
 
 
 def test_filter_requires_a_non_empty_allowlist() -> None:
@@ -208,33 +208,35 @@ async def test_filter_only_restricts_never_grants() -> None:
         await filtered.invoke(ToolCall(id="c7", name="ghost", arguments={}))
 
 
-def test_gated_overlay_requires_a_non_empty_name_set() -> None:
+def test_confirm_required_overlay_requires_a_non_empty_name_set() -> None:
     with pytest.raises(ValueError, match="at least one tool name to confirm"):
-        GatedToolRegistry(_registry("mail", "send_email"), gated=[])
+        ConfirmRequiredToolRegistry(_registry("mail", "send_email"), names=[])
 
 
-async def test_gated_overlay_stamps_named_tools_and_leaves_the_rest() -> None:
+async def test_confirm_required_overlay_stamps_named_tools_and_leaves_the_rest() -> None:
     inner = _registry("mail", "read_email", "send_email")
-    overlay = GatedToolRegistry(inner, gated=["send_email"])
-    specs = {spec.name: spec.gated for spec in await overlay.describe_tools()}
+    overlay = ConfirmRequiredToolRegistry(inner, names=["send_email"])
+    specs = {spec.name: spec.confirm_required for spec in await overlay.describe_tools()}
     assert specs == {"read_email": False, "send_email": True}
 
 
-async def test_gated_overlay_tolerates_a_name_that_never_appears() -> None:
-    overlay = GatedToolRegistry(_registry("fs", "read"), gated=["send_email"])
-    specs = {spec.name: spec.gated for spec in await overlay.describe_tools()}
+async def test_confirm_required_overlay_tolerates_a_name_that_never_appears() -> None:
+    overlay = ConfirmRequiredToolRegistry(_registry("fs", "read"), names=["send_email"])
+    specs = {spec.name: spec.confirm_required for spec in await overlay.describe_tools()}
     assert specs == {"read": False}
 
 
-async def test_gated_overlay_delegates_invocation_untouched() -> None:
-    overlay = GatedToolRegistry(_registry("mail", "send_email"), gated=["send_email"])
+async def test_confirm_required_overlay_delegates_invocation_untouched() -> None:
+    overlay = ConfirmRequiredToolRegistry(_registry("mail", "send_email"), names=["send_email"])
     result = await overlay.invoke(ToolCall(id="c8", name="send_email", arguments={}))
     assert result.content == "from mail"
 
 
-async def test_gated_overlay_composes_with_the_subagent_strip() -> None:
-    root = GatedToolRegistry(_registry("mail", "read_email", "send_email"), gated=["send_email"])
-    subagent_view = UngatedToolRegistry(root)
+async def test_confirm_required_overlay_composes_with_the_subagent_strip() -> None:
+    root = ConfirmRequiredToolRegistry(
+        _registry("mail", "read_email", "send_email"), names=["send_email"]
+    )
+    subagent_view = ConfirmFreeToolRegistry(root)
     assert [spec.name for spec in await subagent_view.describe_tools()] == ["read_email"]
     with pytest.raises(ToolNotFoundError, match="unknown tool 'send_email'"):
         await subagent_view.invoke(ToolCall(id="c9", name="send_email", arguments={}))

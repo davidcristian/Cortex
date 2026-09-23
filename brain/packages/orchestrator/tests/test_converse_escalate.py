@@ -2,7 +2,7 @@ import asyncio
 from collections.abc import AsyncIterator, Sequence
 
 from cortex_core import (
-    ESCALATE_GATE_REASON,
+    ESCALATE_CONFIRM_REASON,
     ESCALATE_TOOL_NAME,
     CompositeToolRegistry,
     Confirmer,
@@ -140,7 +140,7 @@ async def test_an_approved_escalation_fills_the_slot_and_snapshots_ready() -> No
     request = (await _next_of(stream, "confirm_request")).confirm_request
     assert request.tool_name == ESCALATE_TOOL_NAME
     assert request.arguments_json == '{"brief": "go deep"}'
-    assert request.reason == ESCALATE_GATE_REASON
+    assert request.reason == ESCALATE_CONFIRM_REASON
     client.send(_answer(request.confirm_id, approved=True))
     client.end()
     remaining = await _drain(stream)

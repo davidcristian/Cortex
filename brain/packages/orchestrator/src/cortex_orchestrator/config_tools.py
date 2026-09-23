@@ -8,7 +8,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from cortex_core import (
     ALWAYS_SALIENT,
     DEFAULT_TOOL_CALL_TIMEOUT_S,
-    ESCALATE_GATE_REASON,
+    ESCALATE_CONFIRM_REASON,
     ESCALATE_TOOL_NAME,
     MAX_IDENTICAL_DISPATCHES,
     MAX_TOOL_DISPATCHES,
@@ -39,8 +39,12 @@ class ToolsConfig(BaseSettings):
     endpoints: dict[str, str] = {}
     allow: dict[str, tuple[str, ...]] = {}
     on_unavailable: Literal["fail", "skip"] = "fail"
-    gated: tuple[str, ...] = (ESCALATE_TOOL_NAME, "send_email")
-    gate_reasons: dict[str, str] = {}
+    confirm_names: tuple[str, ...] = Field(
+        default=(ESCALATE_TOOL_NAME, "send_email"), validation_alias="CORTEX_TOOLS_GATED"
+    )
+    confirm_reasons: dict[str, str] = Field(
+        default_factory=dict[str, str], validation_alias="CORTEX_TOOLS_GATE_REASONS"
+    )
     costs: dict[str, int] = {}
     salience: ToolsSalienceName = DEFAULT_SALIENCE
     salience_limit: int = MAX_IDENTICAL_DISPATCHES
@@ -67,7 +71,7 @@ class ToolsConfig(BaseSettings):
         if bad := sorted(n for n, c in self.costs.items() if not 1 <= c <= MAX_TOOL_DISPATCHES):
             msg = f"CORTEX_TOOLS_COSTS must be 1..{MAX_TOOL_DISPATCHES}: {bad}"
             raise ValueError(msg)
-        if blank := sorted(n for n, r in self.gate_reasons.items() if not r.strip()):
+        if blank := sorted(n for n, r in self.confirm_reasons.items() if not r.strip()):
             msg = f"CORTEX_TOOLS_GATE_REASONS must be non-empty text: {blank}"
             raise ValueError(msg)
         if self.salience_limit < 1:
@@ -84,9 +88,9 @@ class ToolsConfig(BaseSettings):
         return ToolCostPolicy({SPAWN_TOOL_NAME: DEFAULT_SPAWN_COST} | self.costs)
 
     @property
-    def gate_reason_map(self) -> dict[str, str]:
+    def confirm_reason_map(self) -> dict[str, str]:
         """The effective per-tool confirm-card reasons."""
-        return {ESCALATE_TOOL_NAME: ESCALATE_GATE_REASON} | self.gate_reasons
+        return {ESCALATE_TOOL_NAME: ESCALATE_CONFIRM_REASON} | self.confirm_reasons
 
     @property
     def salience_policy(self) -> SaliencePolicy:
@@ -99,10 +103,10 @@ class ToolsConfig(BaseSettings):
     def dispatch_policy(self) -> DispatchPolicy:
         """The four composition-root declarations about dispatching, as one value."""
         return DispatchPolicy(
-            gated_names=self.gated,
+            confirm_names=self.confirm_names,
             costs=self.cost_policy,
             salience=self.salience_policy,
-            gate_reasons=self.gate_reason_map,
+            confirm_reasons=self.confirm_reason_map,
         )
 
     @property

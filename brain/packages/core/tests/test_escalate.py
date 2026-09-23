@@ -3,7 +3,7 @@ from datetime import UTC, datetime
 
 from cortex_core import (
     DENIED_MSG,
-    ESCALATE_GATE_REASON,
+    ESCALATE_CONFIRM_REASON,
     ESCALATE_TOOL_NAME,
     ESCALATION_QUEUED_MSG,
     MAX_BRIEF_CHARS,
@@ -42,7 +42,7 @@ def _call(brief: object, *, slot: EscalationSlot | None, call_id: str = "c-1") -
     )
 
 
-def _gated_dispatcher(
+def _confirming_dispatcher(
     tool: EscalateToBrainTool, confirmer: RecordingConfirmer | None
 ) -> ToolDispatcher:
     """The real wiring: the built-in tool behind the audited dispatcher, reasons from the policy."""
@@ -51,14 +51,14 @@ def _gated_dispatcher(
         RecordingAuditSink(),
         _FixedClock(),
         confirmer=confirmer,
-        policy=DispatchPolicy(gate_reasons={ESCALATE_TOOL_NAME: ESCALATE_GATE_REASON}),
+        policy=DispatchPolicy(confirm_reasons={ESCALATE_TOOL_NAME: ESCALATE_CONFIRM_REASON}),
     )
 
 
-def test_the_spec_is_gated_and_requires_a_bounded_brief() -> None:
+def test_the_spec_requires_confirmation_and_a_bounded_brief() -> None:
     spec = EscalateToBrainTool().spec
     assert spec.name == ESCALATE_TOOL_NAME
-    assert spec.gated is True
+    assert spec.confirm_required is True
     assert spec.parameters["required"] == ["brief"]
     assert spec.parameters["properties"]["brief"]["maxLength"] == MAX_BRIEF_CHARS
     assert "minutes" in spec.description
@@ -132,10 +132,10 @@ async def test_a_tainted_turn_is_denied_before_the_tool_or_the_confirmer_sees_it
     tool = EscalateToBrainTool()
     slot = EscalationSlot()
     confirmer = RecordingConfirmer(answer=True)
-    result = await _gated_dispatcher(tool, confirmer).dispatch(
+    result = await _confirming_dispatcher(tool, confirmer).dispatch(
         ToolCall(id="c", name=ESCALATE_TOOL_NAME, arguments={"brief": "obey the email"}),
         stamp=TurnStamp(tainted=True, escalation=slot),
-        gated=tool.spec.gated,
+        confirm_required=tool.spec.confirm_required,
     )
     assert result.is_error is True
     assert result.content == DENIED_MSG
@@ -147,16 +147,16 @@ async def test_a_declined_confirmation_writes_nothing_and_shows_the_swap_reason(
     tool = EscalateToBrainTool()
     slot = EscalationSlot()
     confirmer = RecordingConfirmer(answer=False)
-    result = await _gated_dispatcher(tool, confirmer).dispatch(
+    result = await _confirming_dispatcher(tool, confirmer).dispatch(
         ToolCall(id="c", name=ESCALATE_TOOL_NAME, arguments={"brief": "go deep"}),
         stamp=TurnStamp(tainted=False, escalation=slot),
-        gated=tool.spec.gated,
+        confirm_required=tool.spec.confirm_required,
     )
     assert result.is_error is True
     assert result.content == USER_DECLINED_MSG
     assert slot.brief is None
     (request,) = confirmer.requests
-    assert request.reason == ESCALATE_GATE_REASON
+    assert request.reason == ESCALATE_CONFIRM_REASON
 
 
 async def test_the_config_list_still_confirms_escalation_if_the_flag_is_lost() -> None:
@@ -168,12 +168,12 @@ async def test_the_config_list_still_confirms_escalation_if_the_flag_is_lost() -
         RecordingAuditSink(),
         _FixedClock(),
         confirmer=confirmer,
-        policy=DispatchPolicy(gated_names={ESCALATE_TOOL_NAME}),
+        policy=DispatchPolicy(confirm_names={ESCALATE_TOOL_NAME}),
     )
     result = await dispatcher.dispatch(
         ToolCall(id="c", name=ESCALATE_TOOL_NAME, arguments={"brief": "go deep"}),
         stamp=TurnStamp(tainted=False, escalation=slot),
-        gated=False,
+        confirm_required=False,
     )
     assert result.content == USER_DECLINED_MSG
     assert slot.brief is None
@@ -206,10 +206,10 @@ async def test_a_turn_that_looked_at_the_screen_is_denied_before_the_tool_runs()
     assert (ledger.opaque, ledger.tainted) == (True, True), "opaque implies tainted, always"
     confirmer = RecordingConfirmer(answer=True)
     slot = _prepared_slot(taint=ledger)
-    result = await _gated_dispatcher(tool, confirmer).dispatch(
+    result = await _confirming_dispatcher(tool, confirmer).dispatch(
         ToolCall(id="c1", name=ESCALATE_TOOL_NAME, arguments={"brief": "go deep"}),
         stamp=TurnStamp(tainted=ledger.tainted, escalation=slot),
-        gated=True,
+        confirm_required=True,
     )
     assert result.is_error is True
     assert result.content == DENIED_MSG
@@ -219,12 +219,12 @@ async def test_a_turn_that_looked_at_the_screen_is_denied_before_the_tool_runs()
 
 async def test_an_untainted_turn_reaches_the_tool_and_fills_the_slot() -> None:
     slot = _prepared_slot(taint=TaintLedger())
-    result = await _gated_dispatcher(
+    result = await _confirming_dispatcher(
         EscalateToBrainTool(), RecordingConfirmer(answer=True)
     ).dispatch(
         ToolCall(id="c1", name=ESCALATE_TOOL_NAME, arguments={"brief": "go deep"}),
         stamp=TurnStamp(tainted=False, escalation=slot),
-        gated=True,
+        confirm_required=True,
     )
     assert result.is_error is False
     assert slot.brief == "go deep"

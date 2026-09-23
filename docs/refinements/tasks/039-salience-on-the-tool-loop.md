@@ -31,7 +31,7 @@ reach, a resource the turn's subagents share, while a repeat is redundant only a
 `working` messages holding its answer, which a sibling cannot see.
 
 Two costs were not predicted and both were real. Ruff's argument limit made a third declaration
-impossible as a seventh parameter, so `gated_names`, `costs` and `salience` became one
+impossible as a seventh parameter, so `confirm_names`, `costs` and `salience` became one
 `DispatchPolicy`, which is the better grouping anyway. And `over_budget: bool` became
 `refusal: DispatchRefusal | None` rather than growing a second parallel boolean.
 

@@ -77,7 +77,7 @@ confirmer, so "read this email, then look at my screen" would be impossible; and
 interaction is confirmation fatigue. The residual risk is same-turn: an injected tool result can
 drive a capture in the turn it arrived (measured through the real dispatcher), while outbound tools
 stay denied. One laundering attack of ten reaches the reply as formatting, which confirmation would
-not stop. Requiring it is a one-line change to `DispatchPolicy.gated_names`.
+not stop. Requiring it is a one-line change to `DispatchPolicy.confirm_names`.
 
 ### 6. Pixels are turn-local, enforced as an invariant
 

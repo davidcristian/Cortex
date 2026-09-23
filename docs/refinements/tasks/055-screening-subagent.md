@@ -20,7 +20,7 @@ alone, before any judgement about the content
 ([untrusted.py](../../../brain/packages/core/src/cortex_core/untrusted.py)). The dispatcher denies
 a call needing approval on `stamp.tainted` before the confirmer is consulted
 ([dispatch.py](../../../brain/packages/core/src/cortex_core/dispatch.py)),
-`UngatedToolRegistry` removes such a tool from a subagent's registry rather than denying it later
+`ConfirmFreeToolRegistry` removes such a tool from a subagent's registry rather than denying it later
 ([aggregate.py](../../../brain/packages/core/src/cortex_core/aggregate.py)), `record_exchange`
 suppresses or marks the memory write
 ([turn_output.py](../../../brain/packages/core/src/cortex_core/turn_output.py)), and the guardrail

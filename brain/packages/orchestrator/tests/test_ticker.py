@@ -357,17 +357,17 @@ async def test_a_hung_fire_is_cancelled_at_the_lease_and_released() -> None:
     assert loaded.status.value == "pending"
 
 
-async def test_a_gated_spawn_is_hard_denied_on_the_autonomous_path() -> None:
+async def test_a_confirm_required_spawn_is_hard_denied_on_the_autonomous_path() -> None:
     store = InMemoryScheduleStore()
     spawn = FakeSpawnTool()
-    gated = ToolDispatcher(
+    confirming = ToolDispatcher(
         CompositeToolRegistry([spawn]),
         RecordingAuditSink(),
         FixedClock(),
-        policy=DispatchPolicy(gated_names={"spawn_subagents"}),
+        policy=DispatchPolicy(confirm_names={"spawn_subagents"}),
     )
     await store.add(_item("t1", kind=ScheduleKind.TASK, every=timedelta(hours=1)))
-    await _ticker(store, spawn=gated).run_once()
+    await _ticker(store, spawn=confirming).run_once()
     assert spawn.calls == []
     loaded = await store.get("t1")
     assert loaded is not None

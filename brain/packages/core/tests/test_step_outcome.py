@@ -101,11 +101,11 @@ def _context(dispatcher: ToolDispatcher | None, **kwargs: object) -> ToolLoopCon
 
 
 async def _capture_turn(
-    *, body: InMemoryBodyGateway, gated: bool = False, approve: bool = True
+    *, body: InMemoryBodyGateway, confirm_required: bool = False, approve: bool = True
 ) -> tuple[list[object], RecordingAuditSink]:
     """Run one capture turn through the real loop and return what it yielded plus the audit."""
     tool = CaptureScreenTool(body)
-    policy = DispatchPolicy(gated_names=(CAPTURE_SCREEN_TOOL_NAME,) if gated else ())
+    policy = DispatchPolicy(confirm_names=(CAPTURE_SCREEN_TOOL_NAME,) if confirm_required else ())
     audit = RecordingAuditSink()
     dispatcher = ToolDispatcher(
         _CaptureRegistry(tool),
@@ -156,9 +156,9 @@ async def test_a_capture_the_body_refused_or_never_answered_settles_not_ok(
     assert [record.ok for record in audit.records] == [False]
 
 
-async def test_a_gated_capture_the_user_declined_settles_not_ok() -> None:
+async def test_a_confirm_required_capture_the_user_declined_settles_not_ok() -> None:
     body = InMemoryBodyGateway()
-    yielded, audit = await _capture_turn(body=body, gated=True, approve=False)
+    yielded, audit = await _capture_turn(body=body, confirm_required=True, approve=False)
 
     assert _steps(yielded) != []
     assert _outcomes(yielded) == [StepOutcome(tool_name=CAPTURE_SCREEN_TOOL_NAME, ok=False)]
@@ -166,7 +166,7 @@ async def test_a_gated_capture_the_user_declined_settles_not_ok() -> None:
     assert body.captures == ()
 
 
-async def test_a_gated_capture_on_a_tainted_turn_settles_not_ok_without_asking_anyone() -> None:
+async def test_a_confirm_required_capture_on_a_tainted_turn_settles_not_ok_without_asking() -> None:
     tool = CaptureScreenTool(InMemoryBodyGateway())
     audit = RecordingAuditSink()
     confirmer = RecordingConfirmer(answer=True)
@@ -175,7 +175,7 @@ async def test_a_gated_capture_on_a_tainted_turn_settles_not_ok_without_asking_a
         audit,
         _Clock(),
         confirmer=confirmer,
-        policy=DispatchPolicy(gated_names=(CAPTURE_SCREEN_TOOL_NAME,)),
+        policy=DispatchPolicy(confirm_names=(CAPTURE_SCREEN_TOOL_NAME,)),
     )
     taint = TaintLedger()
     taint.observe(ToolResult(call_id="seed", content="from the web"))

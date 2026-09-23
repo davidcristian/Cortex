@@ -12,7 +12,7 @@ refusal.
 
 Read against the code first: `ToolDispatcher.dispatch` (`cortex_core/dispatch.py`) returns
 `DENIED_MSG` whenever `stamp.tainted`, and the confirmer is never consulted
-(`test_gated_tool_on_a_tainted_turn_is_blocked_even_when_a_confirmer_would_approve` asserts
+(`test_a_tainted_turn_blocks_a_confirm_required_tool_a_confirmer_would_approve` asserts
 `confirmer.requests == ()` with an approving confirmer). So there is no card on this path to add a
 source line to.
 

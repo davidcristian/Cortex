@@ -68,7 +68,7 @@ class _ScriptedToolBackend:
             yield event
 
 
-def _gated_send_factory(ran: list[str]) -> EngineFactory:
+def _confirm_required_send_factory(ran: list[str]) -> EngineFactory:
     """Build an engine whose model calls 'send', a tool needing approval, then replies 'done'."""
 
     async def send(arguments: Mapping[str, object]) -> str:
@@ -77,7 +77,12 @@ def _gated_send_factory(ran: list[str]) -> EngineFactory:
 
     def make(confirmer: Confirmer, _progress: ProgressSink) -> TurnEngine:
         registry = InMemoryToolRegistry(
-            {"send": (ToolSpec(name="send", description="", parameters={}, gated=True), send)}
+            {
+                "send": (
+                    ToolSpec(name="send", description="", parameters={}, confirm_required=True),
+                    send,
+                )
+            }
         )
         dispatcher = ToolDispatcher(
             registry, RecordingAuditSink(), SystemClock(), confirmer=confirmer
@@ -127,10 +132,10 @@ async def _drain(stream: AsyncIterator[ServerEvent]) -> list[ServerEvent]:
     return [event async for event in stream]
 
 
-async def test_an_approved_confirm_runs_the_gated_tool() -> None:
+async def test_an_approved_confirm_runs_the_confirm_required_tool() -> None:
     ran: list[str] = []
     client = _LiveClient()
-    stream = converse(_gated_send_factory(ran), client)
+    stream = converse(_confirm_required_send_factory(ran), client)
     client.send(_user_turn("send it"))
     request = (await _next_of(stream, "confirm_request")).confirm_request
     assert request.tool_name == "send"
@@ -146,7 +151,7 @@ async def test_an_approved_confirm_runs_the_gated_tool() -> None:
 async def test_a_denied_confirm_never_runs_the_tool_but_the_turn_completes() -> None:
     ran: list[str] = []
     client = _LiveClient()
-    stream = converse(_gated_send_factory(ran), client)
+    stream = converse(_confirm_required_send_factory(ran), client)
     client.send(_user_turn("send it"))
     request = (await _next_of(stream, "confirm_request")).confirm_request
     client.send(_answer(request.confirm_id, approved=False))
@@ -159,7 +164,7 @@ async def test_a_denied_confirm_never_runs_the_tool_but_the_turn_completes() -> 
 async def test_an_unanswered_confirm_times_out_as_a_denial() -> None:
     ran: list[str] = []
     client = _LiveClient()
-    stream = converse(_gated_send_factory(ran), client, confirm_timeout_s=0.05)
+    stream = converse(_confirm_required_send_factory(ran), client, confirm_timeout_s=0.05)
     client.send(_user_turn("send it"))
     request = (await _next_of(stream, "confirm_request")).confirm_request
     resolved = (await _next_of(stream, "confirm_resolved")).confirm_resolved
@@ -174,7 +179,7 @@ async def test_an_unanswered_confirm_times_out_as_a_denial() -> None:
 async def test_a_stale_confirm_id_is_ignored_and_the_real_answer_arrives() -> None:
     ran: list[str] = []
     client = _LiveClient()
-    stream = converse(_gated_send_factory(ran), client)
+    stream = converse(_confirm_required_send_factory(ran), client)
     client.send(_user_turn("send it"))
     request = (await _next_of(stream, "confirm_request")).confirm_request
     client.send(_answer("forged-or-stale-id", approved=True))
@@ -189,7 +194,7 @@ async def test_input_ending_mid_confirm_denies_immediately() -> None:
     # assertion: ending the input denied the ask rather than waiting the timeout out.
     ran: list[str] = []
     client = _LiveClient()
-    stream = converse(_gated_send_factory(ran), client, confirm_timeout_s=60.0)
+    stream = converse(_confirm_required_send_factory(ran), client, confirm_timeout_s=60.0)
     client.send(_user_turn("send it"))
     client.end()
     async with asyncio.timeout(5.0):
@@ -203,7 +208,7 @@ async def test_input_ending_mid_confirm_denies_immediately() -> None:
 async def test_input_ending_after_the_ask_resolves_the_card_as_unavailable() -> None:
     ran: list[str] = []
     client = _LiveClient()
-    stream = converse(_gated_send_factory(ran), client, confirm_timeout_s=60.0)
+    stream = converse(_confirm_required_send_factory(ran), client, confirm_timeout_s=60.0)
     client.send(_user_turn("send it"))
     request = (await _next_of(stream, "confirm_request")).confirm_request
     client.end()
@@ -219,7 +224,7 @@ async def test_input_ending_after_the_ask_resolves_the_card_as_unavailable() -> 
 async def test_stream_teardown_mid_confirm_cancels_the_turn_cleanly() -> None:
     ran: list[str] = []
     client = _LiveClient()
-    stream = converse(_gated_send_factory(ran), client, confirm_timeout_s=60.0)
+    stream = converse(_confirm_required_send_factory(ran), client, confirm_timeout_s=60.0)
     client.send(_user_turn("send it"))
     await _next_of(stream, "confirm_request")
     async with asyncio.timeout(5.0):
@@ -230,7 +235,7 @@ async def test_stream_teardown_mid_confirm_cancels_the_turn_cleanly() -> None:
 async def test_cancel_mid_confirm_drops_the_turn_and_the_stream_stays_open() -> None:
     ran: list[str] = []
     client = _LiveClient()
-    stream = converse(_gated_send_factory(ran), client)
+    stream = converse(_confirm_required_send_factory(ran), client)
     client.send(_user_turn("send it"))
     request = (await _next_of(stream, "confirm_request")).confirm_request
     client.send(ClientEvent(session_id="s", cancel=Cancel()))

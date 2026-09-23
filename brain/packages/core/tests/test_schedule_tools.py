@@ -140,7 +140,7 @@ def test_spec_advertises_tasks_and_model_only_when_wired() -> None:
     properties = dict(disabled.spec.parameters["properties"])
     assert properties["kind"]["enum"] == ["reminder"]
     assert "model" not in properties
-    assert not disabled.spec.gated
+    assert not disabled.spec.confirm_required
 
 
 async def test_schedules_a_one_shot_reminder_at_an_absolute_time() -> None:

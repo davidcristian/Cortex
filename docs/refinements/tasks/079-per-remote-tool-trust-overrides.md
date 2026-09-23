@@ -4,7 +4,7 @@
 **Area:** untrusted-content
 **Origin:** [ADR-0013](../../adr/ADR-0013-untrusted-content.md)
 
-Trust is fail-closed `UNTRUSTED`, and each `ToolSpec` sets its own `gated` flag. Giving one
+Trust is fail-closed `UNTRUSTED`, and each `ToolSpec` sets its own `confirm_required` flag. Giving one
 remote MCP tool a different trust level or a different confirmation rule would need an overlay
 applied to its spec at the composition root. None exists.
 
@@ -15,7 +15,7 @@ applied to its spec at the composition root. None exists.
   over the index table counted it twice.
 - 2026-09-02: Declined in ADR-0013 decision 10, reached while deciding
   [319](319-a-refusal-taints-the-turn.md). The two halves ended differently. The confirmation
-  overlay has existed since ADR-0022 as `GatedToolRegistry`, which marks `send_email` at the
+  overlay has existed since ADR-0022 as `ConfirmRequiredToolRegistry`, which marks `send_email` at the
   composition root. The trust half is refused: a result is marked trusted again only when its
   bytes match text the brain already holds, never because of the name of the tool it came
   through, since a tool's name is the sidecar's identity and not the brain's knowledge of the

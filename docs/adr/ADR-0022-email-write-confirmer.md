@@ -6,7 +6,7 @@
 
 Sending an email is the first outbound, irreversible action the assistant has, and it brings the
 machinery every later such action reuses. [ADR-0013](ADR-0013-untrusted-content.md) built the
-confirmation rule (`ToolSpec.gated`, the dispatcher's block, the `Confirmer` port), but the port
+confirmation rule (`ToolSpec.confirm_required`, the dispatcher's block, the `Confirmer` port), but the port
 was unused (`confirmer=None`, fail-closed) because no tool needed confirmation. The email sidecar
 (`cortex_email`, [ADR-0009](ADR-0009-tools-mcp.md)) read IMAP only. The overlay talks to the brain
 over the bidirectional `Converse` stream ([ADR-0011](ADR-0011-body-v1.md)), and a confirmation is
@@ -69,7 +69,7 @@ of this rule, so it returns before the confirmer is asked.
 A block returns one of two `is_error` results, audited, the tool never invoked: `DENIED_MSG` for
 the tainted block, and `USER_DECLINED_MSG` for an explicit or defaulted denial, so the model can
 tell "the user said no" (pass it on, do not retry) from "this turn is tainted" (explain the block).
-The card's reason is `_GATE_REASON` ("this action is outbound or irreversible and runs only with
+The card's reason is `_CONFIRM_REASON` ("this action is outbound or irreversible and runs only with
 your approval") unless the policy names a per-tool reason
 ([ADR-0030](ADR-0030-brain-handoff.md) decision 1).
 
@@ -100,10 +100,10 @@ otherwise the sidecar is the read-only server. MCP `ToolAnnotations` (`destructi
 the rest) are advisory and never authority.
 
 Which tools need confirmation is declared brain-side, in code under review, so a compromised or
-misconfigured sidecar cannot exempt itself. `GatedToolRegistry(inner, gated=...)` in
-`cortex_core/aggregate.py` sets `gated=True` on the names in `CORTEX_TOOLS_GATED` and passes
+misconfigured sidecar cannot exempt itself. `ConfirmRequiredToolRegistry(inner, names=...)` in
+`cortex_core/aggregate.py` sets `confirm_required=True` on the names in `CORTEX_TOOLS_GATED` and passes
 `invoke` through; the dispatcher enforces. It wraps the shared MCP root in `build_tool_registry`,
-so the cortex's dispatcher confirms `send_email` and the subagent wiring's `UngatedToolRegistry`
+so the cortex's dispatcher confirms `send_email` and the subagent wiring's `ConfirmFreeToolRegistry`
 removes it: **subagents never see the send tool.** The default set is `send_email` and
 `escalate_to_brain`, so enabling the write path without touching that set still requires
 confirmation; a named tool that never appears is harmless. The trust counterpart, the
@@ -152,7 +152,7 @@ brain's event.
 ### 8. The subagent dispatcher checks the declared names again
 
 `build_subagents` receives a pre-assembled `ToolDispatcher`, built at the root with
-`build_subagent_tools(..., gated_names=...)` from `CORTEX_TOOLS_GATED`. The user's set is
+`build_subagent_tools(..., setup=...)`, whose policy's `confirm_names` come from `CORTEX_TOOLS_GATED`. The user's set is
 authoritative at every dispatcher whatever a registry advertises, and with `confirmer=None` such a
 name there is a hard deny. That closes the one window the structural removal left: a sidecar down
 during the removal's walk and up for the invoke.
@@ -205,7 +205,7 @@ the user approved the card, so a wrong guess costs a second approval.
 
 ## Consequences
 
-- A later outbound action inherits the whole loop through `gated=True` (a built-in) or
+- A later outbound action inherits the whole loop through `confirm_required=True` (a built-in) or
   `CORTEX_TOOLS_GATED` (a remote tool), with no wire change. `escalate_to_brain` is the second.
 - **Confirmation fatigue:** every such call prompts, and `ToolDispatcher._confirmed` remembers
   nothing between calls. Batching or a per-tool session allowlist waits in

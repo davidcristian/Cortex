@@ -6,7 +6,7 @@ from pydantic import ValidationError
 from cortex_core import (
     ALWAYS_SALIENT,
     DEFAULT_TOOL_CALL_TIMEOUT_S,
-    ESCALATE_GATE_REASON,
+    ESCALATE_CONFIRM_REASON,
     ESCALATE_TOOL_NAME,
     MAX_IDENTICAL_DISPATCHES,
     MAX_TOOL_DISPATCHES,
@@ -773,47 +773,51 @@ def test_rpc_rejects_a_non_positive_confirm_timeout(monkeypatch: pytest.MonkeyPa
         RpcServerConfig()
 
 
-def test_tools_gated_defaults_to_escalate_and_send_email() -> None:
-    assert ToolsConfig().gated == (ESCALATE_TOOL_NAME, "send_email")
+def test_tools_confirm_names_default_to_escalate_and_send_email() -> None:
+    assert ToolsConfig().confirm_names == (ESCALATE_TOOL_NAME, "send_email")
 
 
-def test_tools_env_overrides_the_gated_names(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_tools_env_overrides_the_confirm_names(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("CORTEX_TOOLS_GATED", '["send_email", "set_volume"]')
-    assert ToolsConfig().gated == ("send_email", "set_volume")
+    assert ToolsConfig().confirm_names == ("send_email", "set_volume")
 
 
-def test_tools_env_empties_the_gated_names(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_tools_env_empties_the_confirm_names(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("CORTEX_TOOLS_GATED", "[]")
-    assert ToolsConfig().gated == ()
+    assert ToolsConfig().confirm_names == ()
 
 
-def test_gate_reasons_default_to_the_escalate_card_text() -> None:
+def test_confirm_reasons_default_to_the_escalate_card_text() -> None:
     policy = ToolsConfig().dispatch_policy
-    assert policy.gate_reasons == {ESCALATE_TOOL_NAME: ESCALATE_GATE_REASON}
+    assert policy.confirm_reasons == {ESCALATE_TOOL_NAME: ESCALATE_CONFIRM_REASON}
 
 
-def test_gate_reasons_env_sets_one_tool_per_key(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_confirm_reasons_env_sets_one_tool_per_key(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("CORTEX_TOOLS_GATE_REASONS__SEND_EMAIL", "this sends email as you")
-    assert ToolsConfig().gate_reason_map == {
-        ESCALATE_TOOL_NAME: ESCALATE_GATE_REASON,
+    assert ToolsConfig().confirm_reason_map == {
+        ESCALATE_TOOL_NAME: ESCALATE_CONFIRM_REASON,
         "send_email": "this sends email as you",
     }
 
 
-def test_setting_one_gate_reason_does_not_silently_drop_the_escalate_one() -> None:
-    merged = ToolsConfig(gate_reasons={"send_email": "sends as you"}).gate_reason_map
-    assert merged[ESCALATE_TOOL_NAME] == ESCALATE_GATE_REASON
+def test_setting_one_confirm_reason_does_not_silently_drop_the_escalate_one() -> None:
+    config = ToolsConfig.model_validate(
+        {"CORTEX_TOOLS_GATE_REASONS": {"send_email": "sends as you"}}
+    )
+    merged = config.confirm_reason_map
+    assert merged[ESCALATE_TOOL_NAME] == ESCALATE_CONFIRM_REASON
     assert merged["send_email"] == "sends as you"
 
 
-def test_restating_the_escalate_gate_reason_overrides_it() -> None:
-    merged = ToolsConfig(gate_reasons={ESCALATE_TOOL_NAME: "my own words"}).gate_reason_map
-    assert merged[ESCALATE_TOOL_NAME] == "my own words"
+def test_restating_the_escalate_confirm_reason_overrides_it() -> None:
+    config = ToolsConfig.model_validate({"CORTEX_TOOLS_GATE_REASONS": {ESCALATE_TOOL_NAME: "mine"}})
+    merged = config.confirm_reason_map
+    assert merged[ESCALATE_TOOL_NAME] == "mine"
 
 
-def test_a_blank_gate_reason_fails_at_boot() -> None:
+def test_a_blank_confirm_reason_fails_at_boot() -> None:
     with pytest.raises(ValidationError, match=r"GATE_REASONS must be non-empty.*send_email"):
-        ToolsConfig(gate_reasons={"send_email": "   "})
+        ToolsConfig.model_validate({"CORTEX_TOOLS_GATE_REASONS": {"send_email": "   "}})
 
 
 def test_tools_costs_price_only_the_fan_out_tool_by_default() -> None:
@@ -885,9 +889,9 @@ def test_an_unknown_salience_name_fails_at_boot() -> None:
 
 
 def test_the_dispatch_policy_includes_all_three_declarations() -> None:
-    policy = ToolsConfig(
-        gated=("send_email",), costs={"read_file": 3}, salience="off"
+    policy = ToolsConfig.model_validate(
+        {"CORTEX_TOOLS_GATED": ("send_email",), "costs": {"read_file": 3}, "salience": "off"}
     ).dispatch_policy
-    assert policy.gated_names == frozenset({"send_email"})
+    assert policy.confirm_names == frozenset({"send_email"})
     assert policy.costs.cost_of("read_file") == 3
     assert policy.salience is ALWAYS_SALIENT

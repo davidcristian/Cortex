@@ -32,7 +32,7 @@ it logs blames the queue.
 3. **A whole delegated dispatch fits inside the run deadline.** `check_tool_call_deadline`
    (`cortex_orchestrator/bounds.py`) multiplies the call limit by `delegated_call_bounds(tools)` and
    requires the product to be strictly under the run deadline. The limit applies per listing, not
-   per dispatch: one advertisement listing, the live listing `UngatedToolRegistry` makes to strip
+   per dispatch: one advertisement listing, the live listing `ConfirmFreeToolRegistry` makes to strip
    the tools that need confirmation, the routing listing `AggregateToolRegistry` makes when there is
    more than one endpoint, and the call itself, each costing one limit per configured sidecar. That
    is 3 with one sidecar and 7 with two, so 700 s under 900 s, ordered as typed, is refused. The

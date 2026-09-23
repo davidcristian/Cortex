@@ -39,11 +39,11 @@ async def test_in_memory_gateway_raises_the_scripted_failure() -> None:
         await gateway.set_volume(mute=True)
 
 
-async def test_get_volume_tool_spec_is_read_only_and_ungated() -> None:
+async def test_get_volume_tool_spec_is_read_only_and_confirm_free() -> None:
     tool = GetVolumeTool(InMemoryBodyGateway())
     spec = tool.spec
     assert spec.name == GET_VOLUME_TOOL_NAME
-    assert spec.gated is False
+    assert spec.confirm_required is False
     assert spec.parameters["properties"] == {}
 
 
@@ -84,11 +84,11 @@ async def test_get_volume_tool_says_the_host_is_unready_when_it_has_no_endpoint(
     assert "could not reach the body" not in result.content
 
 
-async def test_set_volume_tool_spec_is_ungated() -> None:
+async def test_set_volume_tool_spec_is_confirm_free() -> None:
     tool = SetVolumeTool(InMemoryBodyGateway())
     spec = tool.spec
     assert spec.name == SET_VOLUME_TOOL_NAME
-    assert spec.gated is False
+    assert spec.confirm_required is False
     assert set(spec.parameters["properties"]) == {"level", "mute"}
 
 

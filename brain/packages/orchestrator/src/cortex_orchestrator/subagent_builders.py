@@ -6,6 +6,7 @@ import httpx
 
 from cortex_core import (
     Clock,
+    ConfirmFreeToolRegistry,
     PlacementRequest,
     PlacementTarget,
     ResourceBudgetScheduler,
@@ -19,7 +20,6 @@ from cortex_core import (
     SubagentScheduler,
     ToolDispatcher,
     ToolRegistry,
-    UngatedToolRegistry,
 )
 from cortex_inference import LlamaCppBackend
 from cortex_orchestrator.builders import build_generation_client, noop_aclose
@@ -104,7 +104,7 @@ def build_subagent_tools(
     if tool_registry is None:
         return None
     return ToolDispatcher(
-        UngatedToolRegistry(tool_registry),
+        ConfirmFreeToolRegistry(tool_registry),
         setup.audit,
         clock,
         policy=setup.policy,

@@ -60,9 +60,10 @@ what follows is the prefix, the defaults other parts depend on, and the validati
   together as `dispatch_policy`, so none can reach one dispatcher and miss another: `costs` (built
   in is `spawn_subagents` at `DEFAULT_SPAWN_COST`, `MAX_TOOL_DISPATCHES // 4`; a price outside
   `1..MAX_TOOL_DISPATCHES` fails at boot), `salience` with `salience_limit` (below 1 fails at
-  boot), `gated` (defaulting to `(ESCALATE_TOOL_NAME, "send_email")`, ADR-0022) and `gate_reasons`
-  (ADR-0030 decision 1). The built-in prices and reasons merge **under** the user's, a nested-dict
-  env key otherwise replacing the whole mapping.
+  boot), `confirm_names` (`CORTEX_TOOLS_GATED`, defaulting to `(ESCALATE_TOOL_NAME, "send_email")`,
+  ADR-0022) and `confirm_reasons` (`CORTEX_TOOLS_GATE_REASONS`, ADR-0030 decision 1). The
+  built-in prices and reasons merge **under** the user's, a nested-dict env key otherwise
+  replacing the whole mapping.
 - `ReplyBoundsConfig`, prefix `CORTEX_REPLY_` (`config_reply.py`, ADR-0048):
   `CORTEX_REPLY_MAX_TOKENS` (0, no cap), `CORTEX_REPLY_THINKING` (true) and
   `CORTEX_REPLY_TRACE_TOKENS` (unset, the tier's own `--reasoning-budget` deciding), with

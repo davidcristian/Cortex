@@ -3,7 +3,7 @@
 from cortex_core.brain_phase import BrainPhase
 from cortex_core.engine import DEFAULT_CORTEX_MODEL, TurnEngine
 from cortex_core.escalate import (
-    ESCALATE_GATE_REASON,
+    ESCALATE_CONFIRM_REASON,
     ESCALATE_TOOL_NAME,
     ESCALATION_QUEUED_MSG,
     MAX_BRIEF_CHARS,
@@ -89,7 +89,7 @@ __all__ = [
     "DEFAULT_CORTEX_MODEL",
     "DELEGATING",
     "DENIED_MSG",
-    "ESCALATE_GATE_REASON",
+    "ESCALATE_CONFIRM_REASON",
     "ESCALATE_TOOL_NAME",
     "ESCALATION_QUEUED_MSG",
     "FOLDING",

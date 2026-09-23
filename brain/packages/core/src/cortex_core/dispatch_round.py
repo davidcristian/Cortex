@@ -106,7 +106,7 @@ async def run_round(
             result = await dispatcher.dispatch(
                 call,
                 stamp=_stamp(context),
-                gated=spec is not None and spec.gated,
+                confirm_required=spec is not None and spec.confirm_required,
                 refusal=refusal,
             )
         if refusal is None and spec is not None:

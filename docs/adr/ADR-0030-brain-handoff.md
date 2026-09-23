@@ -33,7 +33,7 @@ further tools. It is registered only when the escalating wrapper is configured, 
 could only refuse would be a misleading advertisement.
 
 The tool **needs confirmation**: an untainted turn confirms through the ADR-0022 card, whose reason
-is the tool's own (`DispatchPolicy.gate_reasons`, configured as `CORTEX_TOOLS_GATE_REASONS__<name>`),
+is the tool's own (`DispatchPolicy.confirm_reasons`, configured as `CORTEX_TOOLS_GATE_REASONS__<name>`),
 and a tainted turn is denied outright with the confirmer never consulted. Of the deny's two reasons,
 the deep tier's unmeasured injection resistance no longer applies (the model obeyed 0 of 10 framed
 injections, [ADR-0013](ADR-0013-untrusted-content.md)); the other still holds, since no model

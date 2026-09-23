@@ -39,7 +39,7 @@ second overwritten field per fact. This ADR designs the channel once.
    on `dispatch` or a second stamped field on `ToolCall` is what this decision rules out.
    `turn_id`, `task_id` and `sources` were all added that way without changing a call site.
 
-2. **The dispatcher is the one place that stamps.** `dispatch(call, *, stamp, gated)` overwrites
+2. **The dispatcher is the one place that stamps.** `dispatch(call, *, stamp, confirm_required)` overwrites
    `ToolCall.stamp` with its own argument, so a stamp the model forged is discarded, and the
    capability check decides on the dispatcher's argument (`stamp.tainted`), never on anything the
    model wrote. `UNSTAMPED` (a module constant, since a default must not be a call) is the

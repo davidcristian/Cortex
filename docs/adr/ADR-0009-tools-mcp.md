@@ -214,7 +214,7 @@ before it was closed off.
 - A stuck sidecar fails one call with a `ToolError` the model reads, and under `skip` drops out of
   the advertisement; nothing waits forever on a sidecar.
 - A per-call handshake is paid on every describe and invoke. A delegated dispatch walks the
-  registry about twice as often as a cortex one, because `UngatedToolRegistry` re-lists to remove
+  registry about twice as often as a cortex one, because `ConfirmFreeToolRegistry` re-lists to remove
   the names needing confirmation before it delegates.
 - Log lines and the audit file contain model-authored text only inside quoted values; a mislabeled
   image reaches the model under the sidecar's label.

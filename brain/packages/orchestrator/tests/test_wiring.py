@@ -1012,12 +1012,12 @@ def test_build_subagent_tools_none_when_tools_are_disabled() -> None:
     assert build_subagent_tools(None, SystemClock()) is None
 
 
-async def test_build_subagent_tools_strips_gated_tools_structurally() -> None:
+async def test_build_subagent_tools_strips_confirm_required_tools_structurally() -> None:
     registry = InMemoryToolRegistry(
         {
             "read": (ToolSpec(name="read", description="", parameters={}), _read_handler),
             "send": (
-                ToolSpec(name="send", description="", parameters={}, gated=True),
+                ToolSpec(name="send", description="", parameters={}, confirm_required=True),
                 _read_handler,
             ),
         }
@@ -1275,27 +1275,27 @@ async def test_the_capture_bounds_reach_the_body_through_the_built_tool() -> Non
     assert [(ask.max_edge, ask.max_bytes) for ask in body.captures] == [(1280, 4_000_000)]
 
 
-async def test_capture_screen_is_ungated_by_default() -> None:
+async def test_capture_screen_is_confirm_free_by_default() -> None:
     tools = build_cortex_tools(
         None,
         build_builtin_tools(None, InMemoryBodyGateway(), vision=CaptureBounds()),
         SystemClock(),
     )
     assert isinstance(tools, ToolDispatcher)
-    gated = {spec.name: spec.gated for spec in await tools.describe_tools()}
-    assert gated[CAPTURE_SCREEN_TOOL_NAME] is False
+    confirm_required = {spec.name: spec.confirm_required for spec in await tools.describe_tools()}
+    assert confirm_required[CAPTURE_SCREEN_TOOL_NAME] is False
 
 
-async def test_build_cortex_tools_volume_is_ungated_by_default() -> None:
+async def test_build_cortex_tools_volume_is_confirm_free_by_default() -> None:
     tools = build_cortex_tools(
         None, build_builtin_tools(None, InMemoryBodyGateway()), SystemClock()
     )
     assert isinstance(tools, ToolDispatcher)
-    gated = {spec.name: spec.gated for spec in await tools.describe_tools()}
-    assert gated == {GET_VOLUME_TOOL_NAME: False, SET_VOLUME_TOOL_NAME: False}
+    confirm_required = {spec.name: spec.confirm_required for spec in await tools.describe_tools()}
+    assert confirm_required == {GET_VOLUME_TOOL_NAME: False, SET_VOLUME_TOOL_NAME: False}
 
 
-async def test_build_tool_registry_stamps_gated_names_at_the_root(
+async def test_build_tool_registry_stamps_confirm_names_at_the_root(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     url = "http://mcp-email:9100/mcp"
@@ -1306,36 +1306,47 @@ async def test_build_tool_registry_stamps_gated_names_at_the_root(
     )
     registry, close = build_tool_registry(ToolsConfig(backend="mcp", endpoint=url))
     assert registry is not None
-    gated = {spec.name: spec.gated for spec in await registry.describe_tools()}
-    assert gated == {"read_email": False, "send_email": True}
+    confirm_required = {
+        spec.name: spec.confirm_required for spec in await registry.describe_tools()
+    }
+    assert confirm_required == {"read_email": False, "send_email": True}
     routed = await registry.invoke(ToolCall(id="c1", name="send_email", arguments={}))
     assert routed.content == url
     await close()
 
 
-async def test_build_tool_registry_gated_overlay_disabled_by_an_empty_list(
+async def test_build_tool_registry_confirm_required_overlay_disabled_by_an_empty_list(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     url = "http://mcp-email:9100/mcp"
     monkeypatch.setattr(
         builders_module, "streamable_http_session", _fake_opener({url: ["send_email"]}, [])
     )
-    registry, close = build_tool_registry(ToolsConfig(backend="mcp", endpoint=url, gated=()))
+    registry, close = build_tool_registry(
+        ToolsConfig.model_validate({"backend": "mcp", "endpoint": url, "CORTEX_TOOLS_GATED": ()})
+    )
     assert registry is not None
     (spec,) = await registry.describe_tools()
-    assert spec.gated is False
+    assert spec.confirm_required is False
     await close()
 
 
-async def test_build_cortex_tools_threads_the_confirmer_into_the_gate() -> None:
+async def test_build_cortex_tools_threads_the_confirmer_into_the_dispatcher() -> None:
     registry = InMemoryToolRegistry(
-        {"send": (ToolSpec(name="send", description="", parameters={}, gated=True), _reply_ok)}
+        {
+            "send": (
+                ToolSpec(name="send", description="", parameters={}, confirm_required=True),
+                _reply_ok,
+            )
+        }
     )
     confirmer = RecordingConfirmer(answer=True)
     tools = build_cortex_tools(registry, (), SystemClock(), confirmer=confirmer)
     assert tools is not None
     result = await tools.dispatch(
-        ToolCall(id="c", name="send", arguments={}), stamp=TurnStamp(tainted=False), gated=True
+        ToolCall(id="c", name="send", arguments={}),
+        stamp=TurnStamp(tainted=False),
+        confirm_required=True,
     )
     assert result.is_error is False
     assert len(confirmer.requests) == 1
@@ -1343,12 +1354,19 @@ async def test_build_cortex_tools_threads_the_confirmer_into_the_gate() -> None:
 
 async def test_build_cortex_tools_defaults_to_no_confirmer_fail_closed() -> None:
     registry = InMemoryToolRegistry(
-        {"send": (ToolSpec(name="send", description="", parameters={}, gated=True), _reply_ok)}
+        {
+            "send": (
+                ToolSpec(name="send", description="", parameters={}, confirm_required=True),
+                _reply_ok,
+            )
+        }
     )
     tools = build_cortex_tools(registry, (), SystemClock())
     assert tools is not None
     result = await tools.dispatch(
-        ToolCall(id="c", name="send", arguments={}), stamp=TurnStamp(tainted=False), gated=True
+        ToolCall(id="c", name="send", arguments={}),
+        stamp=TurnStamp(tainted=False),
+        confirm_required=True,
     )
     assert result.is_error is True
     assert result.content == USER_DECLINED_MSG
@@ -1359,7 +1377,7 @@ async def _reply_ok(arguments: Mapping[str, object]) -> str:
     return "ok"
 
 
-async def test_build_cortex_tools_gated_names_gate_a_name_the_registry_advertises_ungated() -> None:
+async def test_build_cortex_tools_confirm_names_confirm_a_name_advertised_as_confirm_free() -> None:
     registry = InMemoryToolRegistry(
         {"send_email": (ToolSpec(name="send_email", description="", parameters={}), _reply_ok)}
     )
@@ -1368,30 +1386,30 @@ async def test_build_cortex_tools_gated_names_gate_a_name_the_registry_advertise
         (),
         SystemClock(),
         confirmer=RecordingConfirmer(answer=True),
-        setup=DispatchSetup(DispatchPolicy(gated_names={"send_email"})),
+        setup=DispatchSetup(DispatchPolicy(confirm_names={"send_email"})),
     )
     assert tools is not None
     result = await tools.dispatch(
         ToolCall(id="c", name="send_email", arguments={}),
         stamp=TurnStamp(tainted=True),
-        gated=False,
+        confirm_required=False,
     )
     assert result.is_error is True
     assert result.content == DENIED_MSG
 
 
-async def test_build_subagent_tools_gated_names_are_the_fail_closed_default() -> None:
+async def test_build_subagent_tools_confirm_names_are_the_fail_closed_default() -> None:
     registry = InMemoryToolRegistry(
         {"send_email": (ToolSpec(name="send_email", description="", parameters={}), _reply_ok)}
     )
     tools = build_subagent_tools(
-        registry, SystemClock(), setup=DispatchSetup(DispatchPolicy(gated_names={"send_email"}))
+        registry, SystemClock(), setup=DispatchSetup(DispatchPolicy(confirm_names={"send_email"}))
     )
     assert tools is not None
     result = await tools.dispatch(
         ToolCall(id="c", name="send_email", arguments={}),
         stamp=TurnStamp(tainted=False),
-        gated=False,
+        confirm_required=False,
     )
     assert result.is_error is True
     assert result.content == USER_DECLINED_MSG

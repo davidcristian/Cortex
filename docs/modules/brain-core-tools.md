@@ -8,8 +8,8 @@ spawned subtask or a model swap is in [brain-core-residency.md](brain-core-resid
 
 ## Tool values
 
-- `ToolSpec(name, description, parameters, gated=False)` is what a tool advertises. `parameters`
-  is the JSON Schema the model fills, passed through and never interpreted here, and `gated` marks
+- `ToolSpec(name, description, parameters, confirm_required=False)` is what a tool advertises. `parameters`
+  is the JSON Schema the model fills, passed through and never interpreted here, and `confirm_required` marks
   an action that needs confirmation; `escalate_to_brain` is the only tool that sets it itself.
 - `ToolCall(id, name, arguments, stamp=UNSTAMPED)` is a model's request to run one tool; `id`
   matches it to its `ToolResult`. The dispatcher overwrites `stamp` at dispatch time, so a stamp
@@ -48,7 +48,7 @@ spawned subtask or a model swap is in [brain-core-residency.md](brain-core-resid
 
 `ToolDispatcher(registry, audit, clock, *, confirmer=None, policy=DEFAULT_DISPATCH_POLICY)` is the
 turn's tool gateway and its capability check (ADR-0009, ADR-0013). `dispatch(call, *,
-stamp=UNSTAMPED, gated=False, refusal=None)` runs the call through the registry, writes exactly one
+stamp=UNSTAMPED, confirm_required=False, refusal=None)` runs the call through the registry, writes exactly one
 `ToolInvocation` to the audit sink, and returns a `ToolResult`; a `ToolError` becomes a `TRUSTED`
 `is_error` result, the brain's own text, which neither fences nor taints. `cost_of(name)` and
 `admits(call, dispatched)` report what a call spends and whether it is worth running. The
@@ -59,15 +59,15 @@ dispatcher is stateless; the loop drives it and keeps the history.
   `ROUND_OVERSIZED` for a truncated round's overflow slot. The tool is not invoked, the member's
   message is returned, and the attempt is audited. A refusal is checked **before** the confirmation
   rule, so a flood of confirmable calls cannot reach the user as prompts.
-- The confirmation rule (ADR-0013, revised by ADR-0022): a `gated` call on a tainted turn is
+- The confirmation rule (ADR-0013, revised by ADR-0022): a `confirm_required` call on a tainted turn is
   refused outright with `DENIED_MSG` and the confirmer is not consulted; on an untainted turn it
   runs only when the `Confirmer` approves, else `USER_DECLINED_MSG`. Both refusals skip the tool
   and are audited.
 
-`DispatchPolicy(gated_names=(), costs=UNIFORM_COST, salience=REPEAT_SALIENCE, gate_reasons={})`
+`DispatchPolicy(confirm_names=(), costs=UNIFORM_COST, salience=REPEAT_SALIENCE, confirm_reasons={})`
 (`dispatch.py`, default `DEFAULT_DISPATCH_POLICY`) is everything the composition root declares
 about dispatching: which tools need confirmation, the prices, the salience rule, and the per-tool
-card text, where `gate_reasons[name]` replaces the generic reason in `ConfirmationRequest.reason`
+card text, where `confirm_reasons[name]` replaces the generic reason in `ConfirmationRequest.reason`
 so the escalate card can name the model swap.
 
 - `RepeatSalience(limit=MAX_IDENTICAL_DISPATCHES)` (`tool_salience.py`, the default
@@ -112,7 +112,7 @@ The overflow slot is refused as `ROUND_OVERSIZED` ahead of every other bound. Th
 `call_message` and `result_message`, the two messages a round appends.
 
 The loop draws the untrusted boundary (ADR-0013): each call is dispatched with the turn's taint
-state and the tool's `gated` flag, each result is observed by `context.taint`, and an `UNTRUSTED`
+state and the tool's `confirm_required` flag, each result is observed by `context.taint`, and an `UNTRUSTED`
 result is fenced by `wrap_untrusted` before it re-enters `working`. A call matching no advertised
 spec contributes no source.
 
@@ -131,9 +131,9 @@ Each is a `ToolRegistry` wrapping others, so the root builds a tool set the core
   never silent, and only discovery is softened, `invoke` still failing loudly.
 - `FilteredToolRegistry(inner, *, allow)` restricts the advertisement to an allowlist, refusing any
   other name as `ToolNotFoundError`. It only restricts and never grants.
-- `GatedToolRegistry(inner, *, gated)` advertises the named tools as `gated=True`
+- `ConfirmRequiredToolRegistry(inner, *, names)` advertises the named tools as `confirm_required=True`
   (`CORTEX_TOOLS_GATED`), so the brain decides which remote tool needs confirmation rather than
-  trusting sidecar metadata. `UngatedToolRegistry(inner)` is the reverse, dropping every `gated`
+  trusting sidecar metadata. `ConfirmFreeToolRegistry(inner)` is the reverse, dropping every `confirm_required`
   spec and refusing such a name; it wraps the subagent tool set so a subagent is never handed one.
 - `OwnTextToolRegistry(inner, *, own)` (`own_text.py`, ADR-0013 decision 10) re-marks a result
   `TRUSTED` exactly when its whole `content` equals the text a declared `OwnText(tool, render)`
@@ -179,8 +179,8 @@ escalate. Each is a `BuiltinTool` registered in the `CompositeToolRegistry`.
   turn's `EscalationSlot` off the dispatch stamp, checks the model-written `brief` (non-empty, at
   most `MAX_BRIEF_CHARS` of 4000, refused whole rather than truncated), writes `slot.brief`, and
   answers `ESCALATION_QUEUED_MSG`; the swap happens at the loop boundary. Its spec sets
-  `gated=True`, which buys the confirmation card on an untainted turn, under its own
-  `ESCALATE_GATE_REASON` text, and the dispatcher's refusal on a tainted one.
+  `confirm_required=True`, which buys the confirmation card on an untainted turn, under its own
+  `ESCALATE_CONFIRM_REASON` text, and the dispatcher's refusal on a tainted one.
 - `ScheduleTaskTool`, `ListScheduledTool`, `CancelScheduledTool`, `SnoozeScheduledTool` and
   `EditScheduledTool` (`schedule_tools.py` and `schedule_verbs.py`, with argument parsing in
   `schedule_args.py`, `schedule_verb_args.py` and `schedule_day_args.py`) are the five schedule

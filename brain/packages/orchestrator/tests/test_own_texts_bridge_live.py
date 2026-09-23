@@ -223,7 +223,9 @@ async def test_a_refused_search_is_audited_trusted_and_leaves_the_send_confirmab
     )
     if send is None:
         pytest.skip("the sidecar is read-only here; set CORTEX_EMAIL_SEND_ENABLED=true to run")
-    assert send.gated, "the wiring must stamp the sidecar's send gated, whatever it advertises"
+    assert send.confirm_required, (
+        "the wiring must mark the sidecar's send as needing confirmation, whatever it advertises"
+    )
     sent = await dispatcher.dispatch(
         ToolCall(
             id="d-2",
@@ -231,7 +233,7 @@ async def test_a_refused_search_is_audited_trusted_and_leaves_the_send_confirmab
             arguments={"to": "nobody@example.com", "subject": "x", "body": "x"},
         ),
         stamp=TurnStamp(tainted=ledger.tainted),
-        gated=send.gated,
+        confirm_required=send.confirm_required,
     )
     assert sent.content == USER_DECLINED_MSG
     assert sent.content != DENIED_MSG

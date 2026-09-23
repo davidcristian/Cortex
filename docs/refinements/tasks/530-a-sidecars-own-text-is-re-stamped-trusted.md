@@ -16,7 +16,7 @@ mailbox has), an empty search, and a `read_email` of a uid that is not there eac
 turn, so a `send_email` after one of them reaches the confirmation card instead of `DENIED_MSG`, and
 the correction reaches the model unfenced.
 
-The pieces: a core overlay beside `GatedToolRegistry`, `OwnTextToolRegistry(inner, own=...)`, whose
+The pieces: a core overlay beside `ConfirmRequiredToolRegistry`, `OwnTextToolRegistry(inner, own=...)`, whose
 `describe_tools` delegates untouched and whose `invoke` re-stamps a result whose content equals the
 string one `OwnText` renders from the call's `arguments`; wiring once over the root in
 `build_tool_registry` (`cortex_orchestrator/builders.py`), keyed by tool name; the four expected

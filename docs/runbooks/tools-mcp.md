@@ -223,7 +223,7 @@ loop makes, so with the two settings the wrong way round the run's deadline fire
 delegated run is lost rather than the one call, it comes back with no text, and the refusal the
 cortex reads says the subtask would not stop talking, which points at the model instead of at the
 sidecar. What has to fit is the dispatch rather than the bound, because a dispatch spends the bound
-more than once: the run lists its tools before its rounds, `UngatedToolRegistry` lists them again
+more than once: the run lists its tools before its rounds, `ConfirmFreeToolRegistry` lists them again
 on every delegated dispatch, an aggregate over several sidecars lists them a third time to route,
 and then the call itself runs. So one wedged sidecar costs a delegated dispatch three bounds with
 one sidecar configured and seven with two, and `CORTEX_TOOLS_CALL_TIMEOUT_S=700` under a 900 s run

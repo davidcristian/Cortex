@@ -72,9 +72,9 @@ subagent's own ledger and makes the spawn aggregate untrusted (decision 1), so a
 a malicious email taints the cortex that spawned it through the same mark and wrapper, with no
 special case.
 
-### 4. Confirmation: `ToolSpec.gated`, enforced in the dispatcher, through a `Confirmer` port
+### 4. Confirmation: `ToolSpec.confirm_required`, enforced in the dispatcher, through a `Confirmer` port
 
-`ToolSpec.gated` marks a tool irreversible or outbound, declared in code under review. It is
+`ToolSpec.confirm_required` marks a tool irreversible or outbound, declared in code under review. It is
 independent of trust: trust is input provenance, confirmation is output consequence. The check
 lives in `ToolDispatcher.dispatch`, because a denied call must still be audited and the dispatcher
 is the single audit authority. The rule is [ADR-0022](ADR-0022-email-write-confirmer.md) decision
@@ -102,7 +102,7 @@ recall; an opaque turn is never recorded under either
 
 Screening every external read with a small model is declined. Every deterministic consumer of
 provenance keys on the bit `observe` sets from `result.trust` before anything reads the content:
-the confirmation rule, `UngatedToolRegistry`, the memory write and the output guardrail's grounds.
+the confirmation rule, `ConfirmFreeToolRegistry`, the memory write and the output guardrail's grounds.
 A screener can only refuse a read, a judgment about attacker-written text in which the attacker
 chooses whether the payload or the user's sentence is dropped, or clear the taint bit, which turns
 a fail-closed boundary into a small model's opinion. A screener that changes neither is a model
@@ -137,7 +137,7 @@ stopped it. It is **written beside** the full rule rather than carved out of it,
 ### 9. A subagent never receives a tool that needs confirmation
 
 Framing fails on the small models the subagent tier can run, so a subagent's safety does not rest
-on its model. `UngatedToolRegistry(inner)` (`cortex_core/aggregate.py`) drops every such spec from
+on its model. `ConfirmFreeToolRegistry(inner)` (`cortex_core/aggregate.py`) drops every such spec from
 `describe_tools` and raises `ToolNotFoundError` from `invoke` for a name the inner registry
 currently advertises as needing confirmation. The walk is live on every call, because a cached view
 is what would let a removed name through after a sidecar recovers; it costs one extra listing, so a
@@ -174,7 +174,7 @@ up tainting the turn. A `_meta` declaration on a matched result travels along un
 line reads `ok=False` beside `trust=trusted` for a refusal. A per-tool trust override is refused by
 the same rule, since a tool's name is the sidecar's identity and not the brain's knowledge of the
 bytes: a tool whose every answer is trusted belongs in the brain as a built-in. The confirmation
-half of such an override is `GatedToolRegistry` (ADR-0022).
+half of such an override is `ConfirmRequiredToolRegistry` (ADR-0022).
 
 ### 11. Framing is measured on the real models, and measured again when they change
 

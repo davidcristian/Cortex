@@ -23,7 +23,7 @@ input injection of any kind: not the model, which has no tool, and not the overl
 which ADR-0023 chose as the first OS action because it is reversible and low-harm, a model-driven
 pointer is irreversible machine control (click "OK", approve a dialog, drag a file), exactly what
 an injection attack wants. Its confirmation is not separate: ADR-0023 makes a side-effectful
-OS action safe only by being a `gated=True` audited tool that inherits the confirmer and the
+OS action safe only by being a `confirm_required=True` audited tool that inherits the confirmer and the
 tainted-turn denial, and that denial lives on the brain's tool dispatch (`dispatch.py`), not on
 `BodyService`, whose only protection is the transport token. Building the Windows `SendInput`
 adapter and wiring the server handler ahead of that tool would let the body move the real mouse for

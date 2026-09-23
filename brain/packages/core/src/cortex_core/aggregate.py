@@ -59,7 +59,7 @@ class SkipUnavailableToolRegistry:
         return await self._inner.invoke(call)
 
 
-class UngatedToolRegistry:
+class ConfirmFreeToolRegistry:
     """A ``ToolRegistry`` with every tool that needs confirmation removed, for a subagent."""
 
     def __init__(self, inner: ToolRegistry) -> None:
@@ -67,31 +67,35 @@ class UngatedToolRegistry:
 
     async def describe_tools(self) -> Sequence[ToolSpec]:
         """The inner registry's tools that need no confirmation, inner order kept."""
-        return tuple(spec for spec in await self._inner.describe_tools() if not spec.gated)
+        return tuple(
+            spec for spec in await self._inner.describe_tools() if not spec.confirm_required
+        )
 
     async def invoke(self, call: ToolCall) -> ToolResult:
         """Call a tool that needs no confirmation; any other name raises ``ToolNotFoundError``."""
-        gated = {spec.name for spec in await self._inner.describe_tools() if spec.gated}
-        if call.name in gated:
+        confirm_names = {
+            spec.name for spec in await self._inner.describe_tools() if spec.confirm_required
+        }
+        if call.name in confirm_names:
             msg = f"unknown tool {call.name!r}"
             raise ToolNotFoundError(msg)
         return await self._inner.invoke(call)
 
 
-class GatedToolRegistry:
-    """A ``ToolRegistry`` that advertises the named tools with ``gated`` set."""
+class ConfirmRequiredToolRegistry:
+    """A ``ToolRegistry`` that advertises the named tools with ``confirm_required`` set."""
 
-    def __init__(self, inner: ToolRegistry, *, gated: Sequence[str]) -> None:
-        if not gated:
+    def __init__(self, inner: ToolRegistry, *, names: Sequence[str]) -> None:
+        if not names:
             msg = "GatedToolRegistry needs at least one tool name to confirm"
             raise ValueError(msg)
         self._inner = inner
-        self._gated = frozenset(gated)
+        self._names = frozenset(names)
 
     async def describe_tools(self) -> Sequence[ToolSpec]:
-        """The inner registry's tools, the named ones marked ``gated``, inner order kept."""
+        """The inner registry's tools in order, the named ones marked ``confirm_required``."""
         return tuple(
-            replace(spec, gated=True) if spec.name in self._gated else spec
+            replace(spec, confirm_required=True) if spec.name in self._names else spec
             for spec in await self._inner.describe_tools()
         )
 

@@ -44,8 +44,8 @@ def test_tool_result_declares_no_source_by_default() -> None:
     assert ToolResult(call_id="c-1", content="hi", source=declared).source == declared
 
 
-def test_tool_spec_defaults_to_ungated() -> None:
-    assert _spec("read").gated is False
+def test_tool_spec_defaults_to_confirm_free() -> None:
+    assert _spec("read").confirm_required is False
 
 
 def test_tool_invocation_names_no_work_by_default() -> None:

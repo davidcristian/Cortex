@@ -15,9 +15,9 @@ turns any MCP server into a source of audited, model-callable tools.
 - `McpToolRegistry(session: McpSession)` is a `ToolRegistry` over one already-open session.
   - `describe_tools()` calls `list_tools()` and maps each MCP `Tool` to a `ToolSpec` (name,
     description, `inputSchema` as the parameters) to advertise to the model. Every spec arrives with
-    `gated=False` and MCP annotations are deliberately dropped: a sidecar must never declare its own
+    `confirm_required=False` and MCP annotations are deliberately dropped: a sidecar must never declare its own
     policy, so which remote tools need confirmation is stamped brain-side by the composition root's
-    `GatedToolRegistry` overlay (`CORTEX_TOOLS_GATED`, ADR-0022).
+    `ConfirmRequiredToolRegistry` overlay (`CORTEX_TOOLS_GATED`, ADR-0022).
   - `invoke(call)` calls `call_tool(name, arguments)`, joins the result's text content blocks into
     `ToolResult.content` and sets `is_error` from the server's `isError`. Image blocks are read into
     `ToolResult.images` by `blocks.result_images`, beside the text rather than inside it. A source a
@@ -44,7 +44,7 @@ turns any MCP server into a source of audited, model-callable tools.
   needs a scope every combinator would have to forward and, with no scope, gets closed from a task
   other than the one that opened it, which is the cancel-scope failure this design avoids. A turn's
   open count is N per advertisement and k + 1 per cortex dispatch (N endpoints, the called tool
-  owned by the k-th), doubling per dispatch for a subagent because `UngatedToolRegistry` re-lists
+  owned by the k-th), doubling per dispatch for a subagent because `ConfirmFreeToolRegistry` re-lists
   before delegating; `packages/orchestrator/tests/test_mcp_handshake_live.py` asserts it. A fresh
   session's `invoke` is two round trips beyond the open, not one: the MCP SDK's `call_tool` caches
   tool output schemas per session, so the first call in a session also lists.

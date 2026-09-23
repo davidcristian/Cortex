@@ -152,7 +152,7 @@ task record.
 ## Alternatives rejected
 
 - **`ToolRegistry.invoke(call, *, tainted)`**: a port change through every registry (MCP,
-  aggregate, filtered, skip, `UngatedToolRegistry`, composite, fakes) to serve one built-in.
+  aggregate, filtered, skip, `ConfirmFreeToolRegistry`, composite, fakes) to serve one built-in.
 - **A context variable or a per-turn tool instance for taint**: implicit state or per-turn
   construction where a value stamp is explicit and testable.
 - **Resolving the model in the spawn tool only**: a task reaching the store by another path would

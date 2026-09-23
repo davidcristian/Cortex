@@ -30,8 +30,8 @@ def _refusal(arguments: Mapping[str, Any]) -> str | None:
     return None if not isinstance(query, str) else f"{REFUSED}{query!r}"
 
 
-def _spec(name: str, *, gated: bool = False) -> ToolSpec:
-    return ToolSpec(name=name, description="", parameters={}, gated=gated)
+def _spec(name: str, *, confirm_required: bool = False) -> ToolSpec:
+    return ToolSpec(name=name, description="", parameters={}, confirm_required=confirm_required)
 
 
 def _answering(answer: ToolResult) -> InMemoryToolRegistry:
@@ -42,7 +42,10 @@ def _answering(answer: ToolResult) -> InMemoryToolRegistry:
         return answer
 
     return InMemoryToolRegistry(
-        {"search": (_spec("search"), handle), "read": (_spec("read", gated=True), handle)}
+        {
+            "search": (_spec("search"), handle),
+            "read": (_spec("read", confirm_required=True), handle),
+        }
     )
 
 
@@ -78,7 +81,10 @@ def test_the_overlay_requires_a_non_empty_own_text_set() -> None:
 async def test_describe_tools_delegates_untouched() -> None:
     registry = _overlay(_answering(ToolResult(call_id="", content="x")))
     specs = await registry.describe_tools()
-    assert [(spec.name, spec.gated) for spec in specs] == [("search", False), ("read", True)]
+    assert [(spec.name, spec.confirm_required) for spec in specs] == [
+        ("search", False),
+        ("read", True),
+    ]
 
 
 async def test_the_exact_text_on_the_declared_tool_comes_back_trusted() -> None:

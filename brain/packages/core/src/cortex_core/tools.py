@@ -35,7 +35,7 @@ class ToolSpec:
     parameters: Mapping[str, Any]
     # Marks an outbound or irreversible action, which needs the user's confirmation and is
     # refused outright once the turn has read untrusted content.
-    gated: bool = False
+    confirm_required: bool = False
 
 
 @dataclass(frozen=True, slots=True)

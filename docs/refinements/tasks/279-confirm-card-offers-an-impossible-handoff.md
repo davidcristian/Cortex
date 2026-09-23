@@ -27,7 +27,7 @@ assembled once at boot (`build_builtin_tools`, on `escalation=swap is not None`)
 over it is built once per Converse stream (`build_cortex_tools` in `StreamEngines.for_stream`, and
 a stream covers many turns), and the advertisement itself is rebuilt once per turn by the tool
 loop's one `describe_tools` walk. The confirmation reason is static config either way
-(`DispatchPolicy.gate_reasons`, merged from `ESCALATE_GATE_REASON`). So a fix sits on
+(`DispatchPolicy.confirm_reasons`, merged from `ESCALATE_CONFIRM_REASON`). So a fix sits on
 `describe_tools`, once per turn.
 
 The cost this was declined on is one the tree already pays elsewhere. `SightedToolRegistry` asks a
@@ -58,7 +58,7 @@ is the visibility trade rather than the cost.
 - 2026-09-10: Checked against the tree and not triggered. The advertisement is still config alone:
   `build_builtin_tools` appends `EscalateToBrainTool()` on an `escalation` flag the composition
   root sets from `CORTEX_ESCALATION`, nothing there asks the model host which tiers it has, and
-  `config_tools.gate_reason_map` still merges one static `ESCALATE_GATE_REASON`. No compose file
+  `config_tools.confirm_reason_map` still merges one static `ESCALATE_CONFIRM_REASON`. No compose file
   here sets `CORTEX_ESCALATION`; `docker/docker-compose.gpu.yml` has it only as a comment telling
   an operator what to add, and says in the same block that a tier with no artifact file answers 404
   rather than starting a doomed process.
@@ -74,7 +74,7 @@ is the visibility trade rather than the cost.
   `build_builtin_tools` still appends `EscalateToBrainTool()` on the escalation flag
   (`dispatch_builders.py:73`) and is still called once for the cortex and once for the deep phase
   at boot (`wiring.py:154` and `:168`); `StreamEngines.for_stream` still builds the dispatcher per
-  stream (`engines.py:116`); `gate_reason_map` still merges the static `ESCALATE_GATE_REASON`
+  stream (`engines.py:116`); `confirm_reason_map` still merges the static `ESCALATE_CONFIRM_REASON`
   (`config_tools.py:172`). The route claim holds: the model host's `GET /health` handler takes no
   per-model lock (`api.py:67`), while `ModelSupervisor.status` takes one (`supervisor.py:187`). The
   trigger gained the in-tree precondition and the command that reports it. That command is enough

@@ -81,11 +81,11 @@ lifecycle lives in the Tauri shell, `body/app/src-tauri/src/body_server.rs`, out
 
 ### 4. Volume needs no confirmation; the confirmer is available but not used
 
-`get_volume` is a read and `set_volume` is reversible and low-harm, so both are `gated=False`: a
+`get_volume` is a read and `set_volume` is reversible and low-harm, so both are `confirm_required=False`: a
 spoken "set volume to 30%" should not raise an approval card. Both results are `Trust.TRUSTED`,
 since host state is system-generated, so a volume call never taints a turn. A later OS action with
-side effects can require confirmation by setting `gated=True` on its spec. Volume itself has a
-zero-code opt-in: adding `set_volume` to `CORTEX_TOOLS_GATED` makes the dispatcher's `gated_names`
+side effects can require confirmation by setting `confirm_required=True` on its spec. Volume itself has a
+zero-code opt-in: adding `set_volume` to `CORTEX_TOOLS_GATED` makes the dispatcher's `confirm_names`
 check require confirmation, confirming on a clean turn and denying on a tainted one, as on the
 remote path.
 
@@ -190,7 +190,7 @@ closed, so a rename in the shell fails `just check` even though only CI's `check
 
 `InjectInput` is the one `BodyService` RPC left unbuilt, and it is built only when a real feature
 drives input injection, as one slice: an input trait covering text, keys and pointer (the server
-dispatches the whole `oneof`), behind one `gated=True` audited tool that inherits the confirmer and
+dispatches the whole `oneof`), behind one `confirm_required=True` audited tool that inherits the confirmer and
 the tainted-turn denial, one Windows `SendInput` adapter under its own `unsafe` authorization, and
 a proto pointer extension designed with that consumer. Wiring the handler first would let anyone
 holding the token move the real mouse without the check that requires confirmation, since that

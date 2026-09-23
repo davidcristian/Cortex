@@ -14,7 +14,7 @@ configured endpoint alike. The endpoints are already per-sidecar in every other 
 contributes its own `CORTEX_TOOLS_ENDPOINTS__<name>` key so layered compose overrides can coexist,
 and `CORTEX_TOOLS_ALLOW__<name>` already restricts one of them by name. So the form a per-endpoint
 bound would take is there, `CORTEX_TOOLS_CALL_TIMEOUT_S__<name>`, merged under the flat default the
-way `costs` and `gate_reasons` merge their built-ins under the user's.
+way `costs` and `confirm_reasons` merge their built-ins under the user's.
 
 It was not built with the bound because one number is the defensible starting point when one of the
 two sidecars has never been measured. A per-endpoint setting shipped today would offer an operator

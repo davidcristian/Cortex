@@ -937,13 +937,13 @@ async def _blocked_send(arguments: Mapping[str, object]) -> str:
     return "SENT"
 
 
-async def test_gated_tool_is_blocked_after_an_untrusted_read() -> None:
+async def test_confirm_required_tool_is_blocked_after_an_untrusted_read() -> None:
     sink = RecordingAuditSink()
     registry = InMemoryToolRegistry(
         {
             "read": (_read_tool(), _read_handler),
             "send": (
-                ToolSpec(name="send", description="send", parameters={}, gated=True),
+                ToolSpec(name="send", description="send", parameters={}, confirm_required=True),
                 _blocked_send,
             ),
         }
@@ -1326,7 +1326,7 @@ async def test_recalled_tainted_memory_is_fenced_and_re_taints_the_turn() -> Non
     registry = InMemoryToolRegistry(
         {
             "send": (
-                ToolSpec(name="send", description="send", parameters={}, gated=True),
+                ToolSpec(name="send", description="send", parameters={}, confirm_required=True),
                 _blocked_send,
             )
         }

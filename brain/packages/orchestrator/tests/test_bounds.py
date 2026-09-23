@@ -12,11 +12,11 @@ import cortex_orchestrator.builders as builders_module
 from cortex_core import (
     DEFAULT_SUBAGENT_RUN_TIMEOUT_S,
     DEFAULT_TOOL_CALL_TIMEOUT_S,
+    ConfirmFreeToolRegistry,
     PlainFormatter,
     ToolCall,
     ToolError,
     ToolNotFoundError,
-    UngatedToolRegistry,
 )
 from cortex_orchestrator import (
     SubagentsConfig,
@@ -213,7 +213,7 @@ async def _spends_of(config: ToolsConfig, monkeypatch: pytest.MonkeyPatch) -> li
     monkeypatch.setattr(builders_module, "streamable_http_session", wedged)
     registry, close = build_tool_registry(config)
     assert registry is not None
-    delegated = UngatedToolRegistry(registry)
+    delegated = ConfirmFreeToolRegistry(registry)
     assert list(await asyncio.wait_for(delegated.describe_tools(), 10)) == []
     with pytest.raises((ToolError, ToolNotFoundError)):
         await asyncio.wait_for(delegated.invoke(ToolCall(id="c-1", name="read", arguments={})), 10)

@@ -2,10 +2,10 @@
 
 from cortex_core.aggregate import (
     AggregateToolRegistry,
+    ConfirmFreeToolRegistry,
+    ConfirmRequiredToolRegistry,
     FilteredToolRegistry,
-    GatedToolRegistry,
     SkipUnavailableToolRegistry,
-    UngatedToolRegistry,
 )
 from cortex_core.composite import BuiltinTool, CompositeToolRegistry
 from cortex_core.dispatch import (
@@ -90,12 +90,13 @@ __all__ = [
     "CaptureBounds",
     "CaptureScreenTool",
     "CompositeToolRegistry",
+    "ConfirmFreeToolRegistry",
+    "ConfirmRequiredToolRegistry",
     "ConfirmationRequest",
     "DispatchBudget",
     "DispatchPolicy",
     "DispatchRefusal",
     "FilteredToolRegistry",
-    "GatedToolRegistry",
     "GetVolumeTool",
     "OwnText",
     "OwnTextRenderer",
@@ -114,7 +115,6 @@ __all__ = [
     "ToolSpec",
     "Trust",
     "TurnStamp",
-    "UngatedToolRegistry",
     "VisionProbe",
     "call_message",
     "plan_round",

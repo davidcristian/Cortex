@@ -5,15 +5,15 @@
 **Origin:** [ADR-0022](../../adr/ADR-0022-email-write-confirmer.md)
 **Verified:** 2026-09-19
 **Trigger:** a deployment where confirmations arrive often enough that the user starts approving
-them without reading them. Which tools can produce one is read off the shipped default, `gated` in
-`brain/packages/orchestrator/src/cortex_orchestrator/config_tools.py`, and how many one turn can
-raise is `MAX_TOOL_DISPATCHES` in `brain/packages/core/src/cortex_core/tool_budget.py`. This entry's
+them without reading them. Which tools can produce one is read off the shipped default,
+`confirm_names` in `brain/packages/orchestrator/src/cortex_orchestrator/config_tools.py`, and how
+many one turn can raise is `MAX_TOOL_DISPATCHES` in `brain/packages/core/src/cortex_core/tool_budget.py`. This entry's
 history records what both said when that was last read.
 
 Every call that needs confirmation is confirmed on its own and nothing is remembered between calls.
 `ToolDispatcher._confirmed` in `brain/packages/core/src/cortex_core/dispatch.py` builds one
 `ConfirmationRequest` per call and asks the confirmer, so two sends in one turn are two cards and a
-send approved a minute ago buys the next one nothing. `DispatchPolicy.gated_names` is frozen at
+send approved a minute ago buys the next one nothing. `DispatchPolicy.confirm_names` is frozen at
 construction and read as a membership test, so there is nowhere to hold an approval.
 
 The entry was filed about sends, and the surface is wider now. The shipped `CORTEX_TOOLS_GATED`

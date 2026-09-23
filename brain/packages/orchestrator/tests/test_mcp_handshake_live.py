@@ -10,11 +10,11 @@ import pytest
 from cortex_core import (
     AggregateToolRegistry,
     CompositeToolRegistry,
+    ConfirmFreeToolRegistry,
+    ConfirmRequiredToolRegistry,
     FilteredToolRegistry,
-    GatedToolRegistry,
     ToolCall,
     ToolRegistry,
-    UngatedToolRegistry,
 )
 from cortex_tools import (
     McpSession,
@@ -29,7 +29,7 @@ _READ_PATH = os.environ.get("CORTEX_TOOLS_READ_PATH", "/projects/hello.txt")
 _LIST_TOOL = os.environ.get("CORTEX_TOOLS_LIST_TOOL", "list_directory")
 _SAMPLES = int(os.environ.get("CORTEX_TOOLS_HANDSHAKE_SAMPLES", "20"))
 
-_GATED = ("send_email", "escalate_to_brain")
+_CONFIRM_NAMES = ("send_email", "escalate_to_brain")
 
 pytestmark = pytest.mark.skipif(
     not _TOOLS, reason="needs CORTEX_TOOLS_ENDPOINT (host-only, a live MCP sidecar)"
@@ -61,7 +61,7 @@ def _roots(counters: Sequence[CountingOpener], allows: Sequence[Sequence[str]]) 
     """The shared registry root for N endpoints, aggregated when N > 1, behind the approval wrap."""
     registries = [_endpoint(c, a) for c, a in zip(counters, allows, strict=True)]
     root = registries[0] if len(registries) == 1 else AggregateToolRegistry(registries)
-    return GatedToolRegistry(root, gated=_GATED)
+    return ConfirmRequiredToolRegistry(root, names=_CONFIRM_NAMES)
 
 
 async def _opens(counters: Sequence[CountingOpener], work: Callable[[], Awaitable[object]]) -> int:
@@ -91,14 +91,14 @@ async def test_a_turn_pays_one_session_open_per_advertisement_and_per_dispatch()
     cortex = CompositeToolRegistry([], remote=root)
     assert await _opens(solo, cortex.describe_tools) == 1
     assert await _opens(solo, partial(cortex.invoke, call)) == 1
-    assert await _opens(solo, partial(UngatedToolRegistry(root).invoke, call)) == 2
+    assert await _opens(solo, partial(ConfirmFreeToolRegistry(root).invoke, call)) == 2
 
     pair = [CountingOpener(_TOOLS), CountingOpener(_TOOLS)]
     root = _roots(pair, [(_LIST_TOOL,), (_READ_TOOL,)])
     cortex = CompositeToolRegistry([], remote=root)
     assert await _opens(pair, cortex.describe_tools) == 2
     assert await _opens(pair, partial(cortex.invoke, call)) == 3
-    assert await _opens(pair, partial(UngatedToolRegistry(root).invoke, call)) == 5
+    assert await _opens(pair, partial(ConfirmFreeToolRegistry(root).invoke, call)) == 5
 
 
 @pytest.mark.integration
@@ -108,7 +108,7 @@ async def test_the_open_is_what_a_fresh_session_costs_over_a_warm_one() -> None:
     call = ToolCall(id="hs-2", name=_READ_TOOL, arguments={"path": _READ_PATH})
     fresh = ReconnectingMcpToolRegistry(partial(streamable_http_session, url))
     counter = CountingOpener(url)
-    subagent = UngatedToolRegistry(_roots([counter], [(_READ_TOOL, _LIST_TOOL)]))
+    subagent = ConfirmFreeToolRegistry(_roots([counter], [(_READ_TOOL, _LIST_TOOL)]))
 
     async def bare_open() -> None:
         async with streamable_http_session(url):
