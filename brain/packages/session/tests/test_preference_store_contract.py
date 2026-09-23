@@ -74,7 +74,7 @@ async def test_decodes_fields_a_configured_client_returns_as_text() -> None:
     assert dict(await store.all()) == {"overlay.mark": "wobble"}
 
 
-async def test_the_fake_can_be_armed_to_fail() -> None:
+async def test_the_fake_can_be_set_to_fail() -> None:
     store = InMemoryPreferenceStore(initial={"overlay.mark": "foam"})
     store.fail_with = "store is down"
     with pytest.raises(PreferenceStoreError):

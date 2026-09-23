@@ -179,7 +179,7 @@ async def test_the_config_list_still_confirms_escalation_if_the_flag_is_lost() -
     assert slot.brief is None
 
 
-def _armed_slot(*, taint: TaintLedger) -> EscalationSlot:
+def _prepared_slot(*, taint: TaintLedger) -> EscalationSlot:
     """A prepared escalation slot over a turn whose taint ledger the test controls."""
     return EscalationSlot(
         refs=EscalationRefs(
@@ -205,7 +205,7 @@ async def test_a_turn_that_looked_at_the_screen_is_denied_before_the_tool_runs()
     )
     assert (ledger.opaque, ledger.tainted) == (True, True), "opaque implies tainted, always"
     confirmer = RecordingConfirmer(answer=True)
-    slot = _armed_slot(taint=ledger)
+    slot = _prepared_slot(taint=ledger)
     result = await _gated_dispatcher(tool, confirmer).dispatch(
         ToolCall(id="c1", name=ESCALATE_TOOL_NAME, arguments={"brief": "go deep"}),
         stamp=TurnStamp(tainted=ledger.tainted, escalation=slot),
@@ -214,11 +214,11 @@ async def test_a_turn_that_looked_at_the_screen_is_denied_before_the_tool_runs()
     assert result.is_error is True
     assert result.content == DENIED_MSG
     assert list(confirmer.requests) == [], "a hard denial must never reach the confirmer"
-    assert slot.brief is None, "a denied escalation must not arm the slot"
+    assert slot.brief is None, "a denied escalation must not fill the slot"
 
 
-async def test_an_untainted_turn_reaches_the_tool_and_arms_the_slot() -> None:
-    slot = _armed_slot(taint=TaintLedger())
+async def test_an_untainted_turn_reaches_the_tool_and_fills_the_slot() -> None:
+    slot = _prepared_slot(taint=TaintLedger())
     result = await _gated_dispatcher(
         EscalateToBrainTool(), RecordingConfirmer(answer=True)
     ).dispatch(

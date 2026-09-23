@@ -29,7 +29,7 @@ _logger = logging.getLogger(__name__)
 DEFAULT_CORTEX_MODEL = "cortex"
 
 
-def _arm_escalation(
+def _prepare_escalation(
     caps: TurnCapabilities, working: list[Message], context: ToolLoopContext
 ) -> None:
     """Set up the turn's escalation slot at turn start, when the caller provided one."""
@@ -87,7 +87,7 @@ class TurnEngine:
         working = list(
             await assemble_inference_messages(text, history, self._caps, context, self._clock)
         )
-        _arm_escalation(self._caps, working, context)
+        _prepare_escalation(self._caps, working, context)
         parts: list[str] = []
         channels = open_output_channels(self._caps.guardrail, taint, text)
         loop = stream_tool_loop(self._backend, model, working, context)

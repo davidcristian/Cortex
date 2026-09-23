@@ -92,7 +92,7 @@ async def _drive(
         capabilities if capabilities is not None else TurnCapabilities(),
         cadence,
     )
-    slot = harness.armed_slot(tail=tail, taint=taint)
+    slot = harness.prepared_slot(tail=tail, taint=taint)
     record = slot.snapshot(
         turn_id=harness.TURN, session_id=harness.SESSION, requested_at=SystemClock().now()
     )
@@ -223,7 +223,7 @@ async def test_the_carried_budget_bounds_the_deep_phase_too() -> None:
     backend = ScriptedBrainBackend(
         chunks=("done",), tool_calls=(ToolCall(id="c1", name="read", arguments={}),)
     )
-    slot = harness.armed_slot(budget=_spent_budget())
+    slot = harness.prepared_slot(budget=_spent_budget())
     record = slot.snapshot(
         turn_id=harness.TURN, session_id=harness.SESSION, requested_at=SystemClock().now()
     )
@@ -286,7 +286,7 @@ async def test_a_deep_model_that_dies_releases_what_the_guardrail_still_held() -
         "brain",
         TurnCapabilities(guardrail=UrlRedactingGuardrail()),
     )
-    record = harness.armed_slot().snapshot(
+    record = harness.prepared_slot().snapshot(
         turn_id=harness.TURN, session_id=harness.SESSION, requested_at=SystemClock().now()
     )
     events = phase.run(record)
@@ -307,7 +307,7 @@ async def test_a_deep_model_that_dies_persists_its_partial_text_with_the_note() 
         Message(role=Role.USER, text=harness.USER_TEXT, at=_AT, turn_id=harness.TURN),
     )
     phase = BrainPhase(sessions, backend, TickingClock(), "brain", TurnCapabilities())
-    slot = harness.armed_slot()
+    slot = harness.prepared_slot()
     record = slot.snapshot(
         turn_id=harness.TURN, session_id=harness.SESSION, requested_at=SystemClock().now()
     )
@@ -352,7 +352,7 @@ async def test_closing_the_deep_phase_mid_stream_tears_its_loop_down() -> None:
     backend = ScriptedBrainBackend(chunks=("first ", "second"))
     sessions = InMemorySessionStore()
     phase = BrainPhase(sessions, backend, TickingClock(), "brain", TurnCapabilities())
-    record = harness.armed_slot().snapshot(
+    record = harness.prepared_slot().snapshot(
         turn_id=harness.TURN, session_id=harness.SESSION, requested_at=SystemClock().now()
     )
     events = phase.run(record)
@@ -618,7 +618,7 @@ async def _run_deep(
         "brain",
         TurnCapabilities(bounds=bounds, guardrail=guardrail),
     )
-    record = harness.armed_slot().snapshot(
+    record = harness.prepared_slot().snapshot(
         turn_id=harness.TURN, session_id=harness.SESSION, requested_at=SystemClock().now()
     )
     texts: list[str] = []
@@ -656,7 +656,7 @@ async def test_a_deep_phase_that_died_says_that_and_not_also_that_it_was_cut() -
         "brain",
         TurnCapabilities(),
     )
-    record = harness.armed_slot().snapshot(
+    record = harness.prepared_slot().snapshot(
         turn_id=harness.TURN, session_id=harness.SESSION, requested_at=SystemClock().now()
     )
     events = phase.run(record)
@@ -709,7 +709,7 @@ async def test_a_deep_server_that_dies_after_a_cap_still_fails_the_handoff() -> 
         "brain",
         TurnCapabilities(),
     )
-    record = harness.armed_slot().snapshot(
+    record = harness.prepared_slot().snapshot(
         turn_id=harness.TURN, session_id=harness.SESSION, requested_at=SystemClock().now()
     )
     events = phase.run(record)

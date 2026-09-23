@@ -220,7 +220,7 @@ async def test_the_stand_in_text_names_the_frame_the_picture_really_arrived_at()
         )
 
 
-def test_the_arm_starts_its_server_with_the_deployments_own_image_budget() -> None:
+def test_the_variant_starts_its_server_with_the_deployments_own_image_budget() -> None:
     for model in VISION_MODELS:
         argv = server_argv(model, SHIPPED_BUDGET)
         assert argv[-4:] == (
@@ -302,7 +302,7 @@ async def test_the_screen_reaches_the_wire_as_a_png_data_uri() -> None:
         assert str(images[0]["image_url"]["url"]).startswith("data:image/png;base64,"), framed
 
 
-async def test_the_two_arms_differ_by_the_defence_and_by_nothing_else() -> None:
+async def test_the_two_variants_differ_by_the_defence_and_by_nothing_else() -> None:
     result = await capture_result(_PNG)
     framed = image_messages(result, framed=True, ask=_ASK)
     control = image_messages(result, framed=False, ask=_ASK)

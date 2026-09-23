@@ -472,7 +472,7 @@ async def test_stop_before_any_pass_ends_the_loop_immediately() -> None:
 _BUCHAREST = DisplayZone(name="Europe/Bucharest", tz=ZoneInfo("Europe/Bucharest"))
 
 
-async def test_a_calendar_item_re_arms_on_its_wall_clock_in_the_configured_zone() -> None:
+async def test_a_calendar_item_reschedules_on_its_wall_clock_in_the_configured_zone() -> None:
     store = InMemoryScheduleStore()
     await store.add(_item("cal-1", rule=CalendarRule(hour=9, minute=0)))
     settings = TickerSettings(
@@ -485,7 +485,7 @@ async def test_a_calendar_item_re_arms_on_its_wall_clock_in_the_configured_zone(
     assert item.rule == CalendarRule(hour=9, minute=0)
 
 
-async def test_a_calendar_task_re_arms_from_its_rule_too() -> None:
+async def test_a_calendar_task_reschedules_from_its_rule_too() -> None:
     store = InMemoryScheduleStore()
     await store.add(_item("cal-2", kind=ScheduleKind.TASK, rule=CalendarRule(hour=9, minute=0)))
     spawn = ToolDispatcher(

@@ -125,12 +125,12 @@ _BUILDS: Sequence[tuple[str, Build]] = (
 )
 
 
-_ARMS = [build for _, build in _BUILDS]
-_ARM_IDS = [name for name, _ in _BUILDS]
+_VARIANTS = [build for _, build in _BUILDS]
+_VARIANT_IDS = [name for name, _ in _BUILDS]
 
 
 @pytest.mark.parametrize("check", ALL_CHECKS, ids=lambda check: check.__name__)
-@pytest.mark.parametrize("build", _ARMS, ids=_ARM_IDS)
+@pytest.mark.parametrize("build", _VARIANTS, ids=_VARIANT_IDS)
 async def test_the_contract_holds(check: Check, build: Build) -> None:
     await check(build())
 

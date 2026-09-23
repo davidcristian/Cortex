@@ -44,7 +44,7 @@ async def _recover(
 
 
 def _stranded() -> object:
-    return harness.armed_slot().snapshot(
+    return harness.prepared_slot().snapshot(
         turn_id=harness.TURN, session_id=harness.SESSION, requested_at=SystemClock().now()
     )
 

@@ -88,7 +88,9 @@ async def _draw(backend: LlamaCppBackend, bounds: GenerationBounds) -> _Draw:
     return drawn
 
 
-async def _arm(backend: LlamaCppBackend, label: str, bounds: GenerationBounds) -> list[_Draw]:
+async def _draw_variant(
+    backend: LlamaCppBackend, label: str, bounds: GenerationBounds
+) -> list[_Draw]:
     """Draw one cell ``_REPEATS`` times, printing each draw as it arrives."""
     print(f"{label}, {_REPEATS} draws:")  # noqa: T201
     return [await _draw(backend, bounds) for _ in range(_REPEATS)]
@@ -113,11 +115,13 @@ async def test_a_per_request_trace_budget_reaches_the_shape_the_switch_loses() -
     manager = SingleResidentModelManager(_MODEL, _ENDPOINT)
     async with httpx.AsyncClient(timeout=httpx.Timeout(10.0, read=None)) as client:
         backend = LlamaCppBackend(manager, client, send_trace_budget=reads)
-        control = await _arm(backend, "control, neither setting", GenerationBounds(max_tokens=_CAP))
-        switched = await _arm(
+        control = await _draw_variant(
+            backend, "control, neither setting", GenerationBounds(max_tokens=_CAP)
+        )
+        switched = await _draw_variant(
             backend, "the switch alone", GenerationBounds(max_tokens=_CAP, thinking=False)
         )
-        budgeted = await _arm(
+        budgeted = await _draw_variant(
             backend,
             "the switch and a budget of 0",
             GenerationBounds(max_tokens=_CAP, thinking=False, trace_tokens=0),

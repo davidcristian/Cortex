@@ -1076,7 +1076,7 @@ async fn an_announcement_off_the_millisecond_rung_is_dropped_and_one_on_it_is_se
     let enforced = Duration::from_millis(100_000_749);
     let mut request = Request::new(());
     request.set_timeout(Duration::from_millis(100_000_999));
-    let armed = announced_deadline(
+    let written = announced_deadline(
         request
             .metadata()
             .get("grpc-timeout")
@@ -1084,11 +1084,11 @@ async fn an_announcement_off_the_millisecond_rung_is_dropped_and_one_on_it_is_se
             .to_str()
             .expect("a grpc-timeout value is ascii"),
     );
-    assert_eq!(armed, Duration::from_secs(100_000));
+    assert_eq!(written, Duration::from_secs(100_000));
     assert_eq!(
         enforced
-            .checked_sub(armed)
-            .expect("tonic truncates, so the armed clock is the shorter one"),
+            .checked_sub(written)
+            .expect("tonic truncates, so the written deadline is the shorter one"),
         Duration::from_millis(749)
     );
 

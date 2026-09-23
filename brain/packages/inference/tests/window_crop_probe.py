@@ -48,7 +48,7 @@ _INSTRUCTION = (
 
 
 @dataclass(frozen=True)
-class Arm:
+class Variant:
     """One way of pointing a capture at a desktop."""
 
     name: str
@@ -61,7 +61,10 @@ class Arm:
         return Rect(0, 0, desktop.screen.width, desktop.screen.height)
 
 
-ARMS: tuple[Arm, ...] = (Arm("display", CaptureTarget.DISPLAY), Arm("focus", CaptureTarget.FOCUS))
+VARIANTS: tuple[Variant, ...] = (
+    Variant("display", CaptureTarget.DISPLAY),
+    Variant("focus", CaptureTarget.FOCUS),
+)
 
 
 @dataclass(frozen=True)
@@ -79,23 +82,23 @@ class Picture:
         return (self.width, self.height) != (self.region.width, self.region.height)
 
 
-def picture(desktop: Desktop, arm: Arm, bound: int) -> Picture:
+def picture(desktop: Desktop, variant: Variant, bound: int) -> Picture:
     """Put the desktop through the body's own crop and downscale for this variant."""
-    region = arm.region(desktop)
+    region = variant.region(desktop)
     width, height, rgb = downscale(desktop.screen, region, bound)
     return Picture(encode_png(width, height, rgb), width, height, region)
 
 
-async def messages(desktop: Desktop, arm: Arm, shot: Picture) -> list[dict[str, object]]:
+async def messages(desktop: Desktop, variant: Variant, shot: Picture) -> list[dict[str, object]]:
     """Build the whole vision conversation, serialised by the backend's own message mapper."""
     capture = ScreenCapture(
         image=ImagePart(data=shot.png, mime_type="image/png", width=shot.width, height=shot.height),
         source_width=desktop.screen.width,
         source_height=desktop.screen.height,
         captured_at=_CAPTURED_AT,
-        target=arm.target,
+        target=variant.target,
     )
-    arguments = {"target": arm.target.value}
+    arguments = {"target": variant.target.value}
     tool = CaptureScreenTool(InMemoryBodyGateway(capture=capture))
     call = ToolCall(id=_CALL_ID, name=CAPTURE_SCREEN_TOOL_NAME, arguments=arguments)
     result = await tool.invoke(call)
@@ -170,19 +173,19 @@ def tally(scored: Sequence[Reading]) -> tuple[int, int, int]:
 def report(results: Mapping[str, Sequence[Reading]]) -> str:
     """Render the whole table: totals per variant, then hits per physical type size."""
     lines = ["", "  arm       scope    read  wrong  declined  of"]
-    for arm, scored in results.items():
+    for variant, scored in results.items():
         for scope, subset in (("inside", _inside(scored)), ("outside", _outside(scored))):
             read, wrong, declined = tally(subset)
             lines.append(
-                f"  {arm:9s} {scope:8s} {read:4d} {wrong:6d} {declined:9d} {len(subset):3d}"
+                f"  {variant:9s} {scope:8s} {read:4d} {wrong:6d} {declined:9d} {len(subset):3d}"
             )
-    arms = list(results)
+    variants = list(results)
     lines += ["", "  strings inside the focused window, read per physical type size", ""]
-    lines.append("  size  cap  " + "  ".join(f"{arm:>9s}" for arm in arms))
+    lines.append("  size  cap  " + "  ".join(f"{variant:>9s}" for variant in variants))
     for size in sorted({reading.truth.size for reading in _inside(next(iter(results.values())))}):
         cells: list[str] = []
-        for arm in arms:
-            rows = [row for row in _inside(results[arm]) if row.truth.size == size]
+        for variant in variants:
+            rows = [row for row in _inside(results[variant]) if row.truth.size == size]
             cells.append(f"{sum(1 for row in rows if row.read):5d}/{len(rows):<3d}")
         lines.append(f"  {size:4d}  {cap_height(size):3d}  " + "  ".join(cells))
     return "\n".join(lines + _differences(results))
@@ -190,18 +193,18 @@ def report(results: Mapping[str, Sequence[Reading]]) -> str:
 
 def _differences(results: Mapping[str, Sequence[Reading]]) -> list[str]:
     """Render every string the two variants disagreed about, with what each of them said."""
-    arms = list(results)
-    by_key = {arm: {row.truth.key: row for row in results[arm]} for arm in arms}
+    variants = list(results)
+    by_key = {variant: {row.truth.key: row for row in results[variant]} for variant in variants}
     lines = ["", "  where the arms disagreed, and what each said", ""]
-    for key, first in by_key[arms[0]].items():
-        grades = [by_key[arm][key].grade for arm in arms]
+    for key, first in by_key[variants[0]].items():
+        grades = [by_key[variant][key].grade for variant in variants]
         if len(set(grades)) == 1:
             continue
         lines.append(f"  {key} ({first.truth.size} px, {'in' if first.truth.inside else 'out'})")
         lines.append(f"      truth  {first.truth.value!r}")
-        for arm in arms:
-            row = by_key[arm][key]
-            lines.append(f"      {arm:8s} {row.grade:9s} {row.answer!r}")
+        for variant in variants:
+            row = by_key[variant][key]
+            lines.append(f"      {variant:8s} {row.grade:9s} {row.answer!r}")
     return lines
 
 

@@ -359,7 +359,7 @@ brain-inference-live:
 # End-to-end turn-cost measurement: three blocks in A/B/A order, each a brain container recreated
 # with one environment variable changed, then `scripts/contrast.py` over the three samples. Needs
 # a real GPU and the models directory, takes about 15 minutes at the default size, never in CI.
-turn-cost arm="judge" control="raw" reps="8":
+turn-cost variant="judge" control="raw" reps="8":
     #!/usr/bin/env bash
     set -euo pipefail
     compose="docker compose --project-directory . -f docker/docker-compose.yml"
@@ -390,11 +390,11 @@ turn-cost arm="judge" control="raw" reps="8":
         cd ..
     }
     run_block 1 "{{ control }}"
-    run_block 2 "{{ arm }}"
+    run_block 2 "{{ variant }}"
     run_block 3 "{{ control }}"
     cd scripts && uv sync --locked
     uv run python contrast.py "../measurements/block-1-{{ control }}.json" \
-        "../measurements/block-2-{{ arm }}.json" "../measurements/block-3-{{ control }}.json"
+        "../measurements/block-2-{{ variant }}.json" "../measurements/block-3-{{ control }}.json"
 
 # How wide the `dropped` field of the recall audit line gets, measured on lines a real brain
 # container wrote. The probe runs inside the shipped image and `scripts/trailwidth.py` reads the

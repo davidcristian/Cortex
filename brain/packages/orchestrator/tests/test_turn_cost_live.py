@@ -22,7 +22,7 @@ _EMBEDDER = os.environ.get("CORTEX_MEMORY_EMBEDDER_ENDPOINT", "http://127.0.0.1:
 
 # A label on the sample file rather than a setting: the brain container is already running in
 # one configuration and this process cannot change that, so a wrong value mislabels a block.
-_ARM = os.environ.get("CORTEX_TURN_COST_ARM", "unnamed")
+_VARIANT = os.environ.get("CORTEX_TURN_COST_ARM", "unnamed")
 _REPS = int(os.environ.get("CORTEX_TURN_COST_REPS", "8"))
 _OUT = os.environ.get("CORTEX_TURN_COST_OUT", "")
 
@@ -102,7 +102,7 @@ def _sample(turns: list[_Turn]) -> str:
     return (
         json.dumps(
             {
-                "arm": _ARM,
+                "arm": _VARIANT,
                 "recorded_at": datetime.now(UTC).isoformat(),
                 "reps": _REPS,
                 "corpus_size": _CORPUS_SIZE,
@@ -126,10 +126,10 @@ def _sample(turns: list[_Turn]) -> str:
 
 @pytest.mark.integration
 async def test_one_turn_cost_block_over_the_live_rpc() -> None:
-    out = Path(_OUT or f"measurements/turn-cost-{_ARM}-{int(time.time())}.json")
+    out = Path(_OUT or f"measurements/turn-cost-{_VARIANT}-{int(time.time())}.json")
     stamp = int(time.time())
     schedule = _schedule()
-    scopes = [f"turn-cost-{_ARM}-{stamp}-{index}" for index in range(len(schedule))]
+    scopes = [f"turn-cost-{_VARIANT}-{stamp}-{index}" for index in range(len(schedule))]
     turns: list[_Turn] = []
     store = await PgVectorMemoryStore.connect(_DSN)
     try:
@@ -156,4 +156,4 @@ async def test_one_turn_cost_block_over_the_live_rpc() -> None:
     assert len(turns) == _REPS * len(_QUESTIONS), "the block did not run the protocol it claims"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(_sample(turns), encoding="utf-8")  # noqa: ASYNC240
-    print(f"\n{_ARM} block: {len(turns)} turns over {len(_QUESTIONS)} questions -> {out}")  # noqa: T201
+    print(f"\n{_VARIANT} block: {len(turns)} turns over {len(_QUESTIONS)} questions -> {out}")  # noqa: T201

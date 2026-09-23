@@ -281,7 +281,7 @@ OUTCOMES = (FOLLOWED, REPEATED, OTHER)
 
 
 @dataclass(frozen=True)
-class Arm:
+class Variant:
     """One variant of a correction row: what the refused call was answered with, and how stamped."""
 
     label: str
@@ -289,10 +289,10 @@ class Arm:
     trust: Trust
 
 
-SHIPPED_ARM = Arm("unfenced (shipped)", corrected=True, trust=Trust.TRUSTED)
-FENCED_ARM = Arm("fenced (control)", corrected=True, trust=Trust.UNTRUSTED)
-BARE_ARM = Arm("bare failure (baseline)", corrected=False, trust=Trust.TRUSTED)
-ARMS: tuple[Arm, ...] = (SHIPPED_ARM, FENCED_ARM, BARE_ARM)
+SHIPPED_VARIANT = Variant("unfenced (shipped)", corrected=True, trust=Trust.TRUSTED)
+FENCED_VARIANT = Variant("fenced (control)", corrected=True, trust=Trust.UNTRUSTED)
+BARE_VARIANT = Variant("bare failure (baseline)", corrected=False, trust=Trust.TRUSTED)
+VARIANTS: tuple[Variant, ...] = (SHIPPED_VARIANT, FENCED_VARIANT, BARE_VARIANT)
 
 
 def bare_failure(call: ToolCall) -> str:
@@ -361,7 +361,7 @@ async def test_the_dialect_the_cortex_writes_its_first_query_in() -> None:
 
 
 @pytest.mark.integration
-async def test_the_refused_search_correction_across_the_three_arms() -> None:
+async def test_the_refused_search_correction_across_the_three_variants() -> None:
     refused = ToolCall(
         id=_CALL_ID,
         name=_SEARCH_TOOL,
@@ -372,7 +372,7 @@ async def test_the_refused_search_correction_across_the_three_arms() -> None:
 
 
 @pytest.mark.integration
-async def test_the_unknown_folder_correction_across_the_three_arms() -> None:
+async def test_the_unknown_folder_correction_across_the_three_variants() -> None:
     refused = ToolCall(
         id=_CALL_ID,
         name=_SEARCH_TOOL,
@@ -394,17 +394,20 @@ async def _measure(
     emitted: dict[str, int] = {}
     with _server():
         async with httpx.AsyncClient(timeout=_DRAW_TIMEOUT_S) as client:
-            print(f"\n=== {row}: {', '.join(arm.label for arm in ARMS)}, {DRAWS} draws ===")  # noqa: T201
-            for arm in ARMS:
-                answer = correction if arm.corrected else bare_failure(refused)
-                steps = [Step(refused, answer, arm.trust, is_error=True)]
+            print(  # noqa: T201
+                f"\n=== {row}: {', '.join(variant.label for variant in VARIANTS)}, "
+                f"{DRAWS} draws ==="
+            )
+            for variant in VARIANTS:
+                answer = correction if variant.corrected else bare_failure(refused)
+                steps = [Step(refused, answer, variant.trust, is_error=True)]
                 messages = turn_messages(ask, steps)
                 replies = [await _draw(client, messages, tools, seed) for seed in range(DRAWS)]
                 outcomes = [score(reply, refused) for reply in replies]
                 for seed, (reply, outcome) in enumerate(zip(replies, outcomes, strict=True)):
                     made = reply.calls[0].name if reply.calls else "(no call)"
-                    print(f"  {arm.label:23s} seed={seed:<3d} {outcome:9s} {made}")  # noqa: T201
-                _report(f"{row} {arm.label}", replies, outcomes)
-                emitted[arm.label] = sum(1 for reply in replies if reply.calls)
+                    print(f"  {variant.label:23s} seed={seed:<3d} {outcome:9s} {made}")  # noqa: T201
+                _report(f"{row} {variant.label}", replies, outcomes)
+                emitted[variant.label] = sum(1 for reply in replies if reply.calls)
     mute = [label for label, calls in emitted.items() if calls == 0]
     assert not mute, f"{row}: {mute} emitted no tool call at all, so the counts measure silence"

@@ -154,7 +154,7 @@ def test_a_thinking_on_tier_changes_neither_setting_whichever_row_asks() -> None
     assert THINKING_ON.request_key is None
 
 
-def test_the_image_arms_rows_post_what_they_posted_before_the_switch_became_a_row() -> None:
+def test_the_image_variants_rows_post_what_they_posted_before_the_switch_became_a_row() -> None:
     for model in VISION_MODELS:
         body = completion_body(_MESSAGES, _TOOLS, switch=switch_for(model), max_tokens=None)
         assert "chat_template_kwargs" not in body, model.label

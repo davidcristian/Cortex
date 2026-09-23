@@ -125,7 +125,7 @@ class _YieldingHandoffStore(RecordingHandoffStore):
 async def _consume(live: Harness, events: list[TurnEvent], *, turn_id: str = harness.TURN) -> None:
     """Run one handoff, collecting its events. This is the task a failure case cancels."""
     stream = live.conductor.run_handoff(
-        harness.armed_slot(), session_id=harness.SESSION, turn_id=turn_id
+        harness.prepared_slot(), session_id=harness.SESSION, turn_id=turn_id
     )
     try:
         async for event in stream:
@@ -255,7 +255,7 @@ async def test_a_scripted_failure_converges_and_tells_the_user(
     del case  # named for the parametrize id
     live = make()
     await live.seed_session()
-    events = await harness.run_handoff(live, harness.armed_slot())
+    events = await harness.run_handoff(live, harness.prepared_slot())
     await assert_converged_on_cortex(live)
     await assert_stores_intact(live, deep_reply=deep_reply)
     assert_stream_reported_only_real_progress(live, events, killed=False)
@@ -273,7 +273,7 @@ async def test_a_drain_that_times_out_converges_without_evicting_anything() -> N
 
     task = asyncio.create_task(in_flight())
     await held.arrived()
-    events = await harness.run_handoff(live, harness.armed_slot())
+    events = await harness.run_handoff(live, harness.prepared_slot())
     assert live.host.calls == harness.PREFLIGHT_CALLS
     await assert_converged_on_cortex(live)
     await assert_stores_intact(live)
@@ -315,13 +315,13 @@ async def test_a_store_that_refuses_the_settling_write_still_frees_the_next_hand
     del case  # named for the parametrize id
     live = make()
     await live.seed_session()
-    events = await harness.run_handoff(live, harness.armed_slot())
+    events = await harness.run_handoff(live, harness.prepared_slot())
     await assert_converged_on_cortex(live)
     await assert_stores_intact(live, deep_reply=deep_reply, settled=False)
     assert_stream_reported_only_real_progress(live, events, killed=False)
     await assert_the_next_turn_still_works(live)
 
-    later = await harness.run_handoff(live, harness.armed_slot(), turn_id=_LATER_TURN)
+    later = await harness.run_handoff(live, harness.prepared_slot(), turn_id=_LATER_TURN)
     assert _texts(later) == later_text
     assert await live.handoffs.active() is None
     stranded = await live.handoffs.get(_LATER_TURN)
@@ -342,7 +342,7 @@ def _after_drain(gate: Gate) -> Harness:
     return build_harness(scheduler=_PausingScheduler(after=gate))
 
 
-def _arm(host: ScriptedModelHost, op: str, model: str, gate: Gate) -> None:
+def _pause_host(host: ScriptedModelHost, op: str, model: str, gate: Gate) -> None:
     """Make one host operation pause at this test's own pause point."""
     host.reached[(op, model)] = gate.reached
     host.release[(op, model)] = gate.release
@@ -350,7 +350,7 @@ def _arm(host: ScriptedModelHost, op: str, model: str, gate: Gate) -> None:
 
 def _after_cortex_stop(gate: Gate) -> Harness:
     host = ScriptedModelHost(running=["cortex"])
-    _arm(host, "stop", "cortex", gate)
+    _pause_host(host, "stop", "cortex", gate)
     return build_harness(Fakes(host=host))
 
 
@@ -364,7 +364,7 @@ def _after_brain_persist(gate: Gate) -> Harness:
 
 def _during_swap_back(gate: Gate) -> Harness:
     host = ScriptedModelHost(running=["cortex"])
-    _arm(host, "start", "cortex", gate)
+    _pause_host(host, "start", "cortex", gate)
     return build_harness(Fakes(host=host))
 
 
@@ -470,7 +470,7 @@ async def test_closing_the_stream_mid_handoff_unwinds_the_swap_rather_than_aband
     live = build_harness()
     await live.seed_session()
     stream = live.conductor.run_handoff(
-        harness.armed_slot(), session_id=harness.SESSION, turn_id=harness.TURN
+        harness.prepared_slot(), session_id=harness.SESSION, turn_id=harness.TURN
     )
     events: list[TurnEvent] = []
     async for event in stream:
@@ -493,7 +493,7 @@ async def test_a_second_cancellation_during_the_swap_back_still_holds_the_drain_
 ):
     gate = Gate()
     host = ScriptedModelHost(running=["cortex", "subagent-gpu"])
-    _arm(host, "start", "cortex", gate)
+    _pause_host(host, "start", "cortex", gate)
     live = build_harness(Fakes(host=host), residency=harness.plan(evict_models=("subagent-gpu",)))
     await live.seed_session()
     events: list[TurnEvent] = []
@@ -519,7 +519,7 @@ async def test_a_tier_evicted_for_the_handoff_is_running_again_when_it_ends() ->
     host = ScriptedModelHost(running=["cortex", "subagent-gpu"])
     live = build_harness(Fakes(host=host), residency=harness.plan(evict_models=("subagent-gpu",)))
     await live.seed_session()
-    events = await harness.run_handoff(live, harness.armed_slot())
+    events = await harness.run_handoff(live, harness.prepared_slot())
     assert ("stop", "subagent-gpu") in host.calls
     assert host.running == {"cortex", "subagent-gpu"}
     await assert_converged_on_cortex(live)
@@ -538,7 +538,7 @@ async def test_taint_and_its_evidence_survive_the_swap_and_still_bind_the_deep_m
         capabilities=TurnCapabilities(guardrail=UrlRedactingGuardrail()),
     )
     await live.seed_session()
-    events = await harness.run_handoff(live, harness.armed_slot(taint=ledger))
+    events = await harness.run_handoff(live, harness.prepared_slot(taint=ledger))
     shown = "".join(event.text for event in events if isinstance(event, TextDelta))
     assert shown
     assert "http://evil.test/x" not in shown
@@ -594,7 +594,7 @@ async def test_boot_recovery_fails_a_stranded_record_and_lets_the_next_handoff_r
     host = ScriptedModelHost(running=["brain"])
     live = build_harness(Fakes(host=host))
     await live.seed_session()
-    stranded = harness.armed_slot().snapshot(
+    stranded = harness.prepared_slot().snapshot(
         turn_id=harness.TURN, session_id=harness.SESSION, requested_at=harness.TickingClock().now()
     )
     await live.handoffs.put(stranded)
@@ -618,7 +618,7 @@ async def test_boot_recovery_fails_a_stranded_record_and_lets_the_next_handoff_r
     assert host.running == {"cortex"}
     await assert_the_next_turn_still_works(live)
 
-    later = await harness.run_handoff(live, harness.armed_slot())
+    later = await harness.run_handoff(live, harness.prepared_slot())
     assert _texts(later) == "a deep answer"
     assert live.backend.calls == 1
     await assert_converged_on_cortex(live)

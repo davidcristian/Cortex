@@ -350,16 +350,16 @@ def score_next(reply: Reply) -> str:
 
 
 @dataclass(frozen=True)
-class Arm:
+class Variant:
     """One variant: its label, the specs the model is prompted with, and the step's answer."""
 
     label: str
     described: bool
 
 
-DESCRIBED_ARM = Arm("described (shipped)", described=True)
-STRIPPED_ARM = Arm("stripped (baseline)", described=False)
-SOURCE_ARMS = (DESCRIBED_ARM, STRIPPED_ARM)
+DESCRIBED_VARIANT = Variant("described (shipped)", described=True)
+STRIPPED_VARIANT = Variant("stripped (baseline)", described=False)
+SOURCE_VARIANTS = (DESCRIBED_VARIANT, STRIPPED_VARIANT)
 
 PRIOR_ANSWER = f"message {MISSING_UID} not found in {WITH_MAIL}"
 
@@ -389,17 +389,17 @@ async def test_where_the_uid_of_the_read_comes_from() -> None:
     emitted: dict[str, int] = {}
     with _server():
         async with httpx.AsyncClient(timeout=_DRAW_TIMEOUT_S) as client:
-            for arm in SOURCE_ARMS:
-                tools = specs if arm.described else without_uid_help(specs)
+            for variant in SOURCE_VARIANTS:
+                tools = specs if variant.described else without_uid_help(specs)
                 replies = [await _draw(client, messages, tools, seed) for seed in range(DRAWS)]
                 outcomes = [score_source(reply) for reply in replies]
                 for seed, (reply, outcome) in enumerate(zip(replies, outcomes, strict=True)):
                     call = reply.first(_READ_TOOL)
                     wrote = "" if call is None else f"{call.text_argument('uid')!r}"
                     made = reply.calls[0].name if reply.calls else "(no call)"
-                    print(f"  {arm.label:21s} seed={seed:<3d} {outcome:9s} {made} {wrote}")  # noqa: T201
-                _report(f"copied {arm.label}", replies, outcomes, SOURCE_OUTCOMES)
-                emitted[arm.label] = sum(1 for reply in replies if reply.calls)
+                    print(f"  {variant.label:21s} seed={seed:<3d} {outcome:9s} {made} {wrote}")  # noqa: T201
+                _report(f"copied {variant.label}", replies, outcomes, SOURCE_OUTCOMES)
+                emitted[variant.label] = sum(1 for reply in replies if reply.calls)
     mute = [label for label, calls in emitted.items() if calls == 0]
     assert not mute, f"copied: {mute} emitted no tool call at all, so the counts measure silence"
 
@@ -418,8 +418,8 @@ async def test_whether_a_uid_is_carried_into_the_folder_holding_none() -> None:
     emitted: dict[str, int] = {}
     with _server():
         async with httpx.AsyncClient(timeout=_DRAW_TIMEOUT_S) as client:
-            for arm in SOURCE_ARMS:
-                tools = specs if arm.described else without_uid_help(specs)
+            for variant in SOURCE_VARIANTS:
+                tools = specs if variant.described else without_uid_help(specs)
                 replies = [await _draw(client, messages, tools, seed) for seed in range(DRAWS)]
                 outcomes = [score_carry(reply) for reply in replies]
                 for seed, (reply, outcome) in enumerate(zip(replies, outcomes, strict=True)):
@@ -430,9 +430,9 @@ async def test_whether_a_uid_is_carried_into_the_folder_holding_none() -> None:
                         else f"{call.text_argument('folder')}/{call.text_argument('uid')}"
                     )
                     made = reply.calls[0].name if reply.calls else "(no call)"
-                    print(f"  {arm.label:21s} seed={seed:<3d} {outcome:9s} {made} {wrote}")  # noqa: T201
-                _report(f"carried {arm.label}", replies, outcomes, CARRY_OUTCOMES)
-                emitted[arm.label] = sum(1 for reply in replies if reply.calls)
+                    print(f"  {variant.label:21s} seed={seed:<3d} {outcome:9s} {made} {wrote}")  # noqa: T201
+                _report(f"carried {variant.label}", replies, outcomes, CARRY_OUTCOMES)
+                emitted[variant.label] = sum(1 for reply in replies if reply.calls)
     mute = [label for label, calls in emitted.items() if calls == 0]
     assert not mute, f"carried: {mute} emitted no tool call at all, so the counts measure silence"
 
@@ -444,7 +444,7 @@ async def test_what_the_cortex_does_after_a_not_found_answer() -> None:
         id=_READ_ID, name=_READ_TOOL, arguments={"folder": WITH_MAIL, "uid": MISSING_UID}
     )
     shipped = await sidecar_answer(missing)
-    arms = (
+    variants = (
         ("corrected (shipped)", shipped),
         ("prior (no correction)", PRIOR_ANSWER),
         ("bare failure (baseline)", bare_failure(missing)),
@@ -454,7 +454,7 @@ async def test_what_the_cortex_does_after_a_not_found_answer() -> None:
     emitted: dict[str, int] = {}
     with _server():
         async with httpx.AsyncClient(timeout=_DRAW_TIMEOUT_S) as client:
-            for label, answer in arms:
+            for label, answer in variants:
                 steps = [opening, Step(missing, answer, Trust.TRUSTED)]
                 messages = turn_messages(_READ_ASK, steps)
                 replies = [await _draw(client, messages, specs, seed) for seed in range(DRAWS)]

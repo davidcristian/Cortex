@@ -17,7 +17,7 @@ class Sample(NamedTuple):
     """One condition's sample, as a paired reading reads it."""
 
     path: Path
-    arm: str
+    variant: str
     cells: tuple[Cell, ...]
 
 
@@ -43,8 +43,10 @@ def _alone(sample: Sample) -> str | None:
 
 def _against(first: Sample, other: Sample) -> str | None:
     """Why ``other`` does not line up with ``first``, or ``None`` when every cell does."""
-    if other.arm != first.arm:
-        return f"{other.path} is variant {other.arm} and {first.path} is variant {first.arm}"
+    if other.variant != first.variant:
+        return (
+            f"{other.path} is variant {other.variant} and {first.path} is variant {first.variant}"
+        )
     theirs, ours = keyed(other), keyed(first)
     if theirs.keys() != ours.keys():
         return f"{other.path} does not hold the cells {first.path} does"
@@ -86,7 +88,7 @@ def publish(samples: list[Sample]) -> tuple[str, int]:
         return f"refused: {refused}", 1
     size = len(samples[0].cells)
     lines = [
-        f"{len(samples)} samples of variant {samples[0].arm}, {size} cells each, matched on"
+        f"{len(samples)} samples of variant {samples[0].variant}, {size} cells each, matched on"
         " question, draw and seed:"
     ]
     for left, right in combinations(samples, 2):

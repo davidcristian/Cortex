@@ -26,8 +26,10 @@ def run(question: str = "warehouse", draw: int = 1, **fields: object) -> Run:
     return base | fields
 
 
-def write(path: Path, turns: list[Run], arm: str = "constrained") -> Path:
-    path.write_text(json.dumps({"arm": arm, "control": False, "turns": turns}), encoding="utf-8")
+def write(path: Path, turns: list[Run], variant: str = "constrained") -> Path:
+    path.write_text(
+        json.dumps({"arm": variant, "control": False, "turns": turns}), encoding="utf-8"
+    )
     return path
 
 
@@ -74,7 +76,7 @@ def test_cells_are_matched_on_their_place_rather_than_their_order(tmp_path: Path
 
 
 @pytest.mark.parametrize(
-    ("second", "arm", "reason"),
+    ("second", "variant", "reason"),
     [
         ([run("warehouse", 1, seed=None), run("clinic", 1)], "constrained", "has a null seed"),
         ([run("warehouse", 1), run("warehouse", 1)], "constrained", "holds one cell twice"),
@@ -94,10 +96,10 @@ def test_cells_are_matched_on_their_place_rather_than_their_order(tmp_path: Path
     ],
 )
 def test_samples_that_do_not_pair_are_refused(
-    capsys: pytest.CaptureFixture[str], tmp_path: Path, second: list[Run], arm: str, reason: str
+    capsys: pytest.CaptureFixture[str], tmp_path: Path, second: list[Run], variant: str, reason: str
 ) -> None:
     left = write(tmp_path / "a.json", two())
-    right = write(tmp_path / "b.json", second, arm)
+    right = write(tmp_path / "b.json", second, variant)
     assert envelopepairs.main([str(left), str(right)]) == 1
     out = capsys.readouterr().out
     assert out.startswith("refused: ")

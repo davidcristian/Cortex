@@ -4,16 +4,16 @@ import { useEffect, useRef } from "react";
  *  the overlay hides. The body is resident in the tray, so "on mount" happens once, days before
  *  anyone looks. A change of shape while the overlay stays visible does not re-run it. */
 export function useSummonEffect(visible: boolean, effect: () => void): void {
-  const armed = useRef(false);
+  const fired = useRef(false);
   useEffect(() => {
     if (!visible) {
-      armed.current = false;
+      fired.current = false;
       return;
     }
-    if (armed.current) {
+    if (fired.current) {
       return;
     }
-    armed.current = true;
+    fired.current = true;
     effect();
   }, [visible, effect]);
 }

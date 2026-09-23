@@ -259,7 +259,7 @@ def plan(**overrides: object) -> ResidencyPlan:
     return ResidencyPlan(**(fields | overrides))  # pyright: ignore[reportArgumentType]
 
 
-def armed_slot(
+def prepared_slot(
     *,
     brief: str | None = BRIEF,
     taint: TaintLedger | None = None,

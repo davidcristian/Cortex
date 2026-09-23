@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import NamedTuple, cast
 
 from envelopejudges import COMMAS, NAMINGS, REFUSALS, TABLED, Reading, delivered
-from envelopesamples import Arm, FloorError, Turn, load
+from envelopesamples import FloorError, Turn, Variant, load
 
 FLOOR = 0.9
 # The two-sided 95% normal quantile, which is the interval every rate in the reply-envelope
@@ -104,9 +104,9 @@ def shapes(turns: tuple[Turn, ...]) -> dict[str, tuple[Turn, ...]]:
     return {instruction: tuple(seen) for instruction, seen in grouped.items()}
 
 
-def _control_cells(arms: list[Arm]) -> dict[str, tuple[Turn, ...]]:
+def _control_cells(variants: list[Variant]) -> dict[str, tuple[Turn, ...]]:
     """Every control run in these samples, grouped by the subtask shape it was given."""
-    control = tuple(turn for arm in arms if arm.control for turn in arm.turns)
+    control = tuple(turn for variant in variants if variant.control for turn in variant.turns)
     return shapes(control)
 
 
@@ -136,11 +136,12 @@ def _refusals(cells: dict[str, tuple[Turn, ...]], rates: dict[str, Rate]) -> lis
     return lines
 
 
-def publish(arms: list[Arm], reading: Reading = TABLED) -> tuple[str, int]:
+def publish(variants: list[Variant], reading: Reading = TABLED) -> tuple[str, int]:
     """The report and the exit code: the control first, and the comparison only if it holds."""
-    cells = _control_cells(arms)
+    cells = _control_cells(variants)
     lines = [
-        f"{len(arms)} variant sample(s): {', '.join(sorted({arm.name for arm in arms}))}",
+        f"{len(variants)} variant sample(s): "
+        f"{', '.join(sorted({variant.name for variant in variants}))}",
         f"delivered read under: {reading.rendered()}; every floor held under {TABLED.rendered()}",
         "",
         "the control variant, per subtask shape (stood = accepted, not empty, not the ask or the"
@@ -161,7 +162,9 @@ def publish(arms: list[Arm], reading: Reading = TABLED) -> tuple[str, int]:
         lines.extend(under)
         return "\n".join(lines), 1
     lines.extend(["", "the comparison, per variant over every shape:"])
-    lines.extend(f"  {arm.name:<12} {rate(arm.turns, reading).rendered()}" for arm in arms)
+    lines.extend(
+        f"  {variant.name:<12} {rate(variant.turns, reading).rendered()}" for variant in variants
+    )
     return "\n".join(lines), 0
 
 
@@ -187,12 +190,12 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
     try:
-        arms = [load(path) for path in cast("list[Path]", args.samples)]
+        variants = [load(path) for path in cast("list[Path]", args.samples)]
     except FloorError as err:
         print(f"envelopefloor: {err}", file=sys.stderr)
         return 2
     reading = Reading(cast("str", args.comma), cast("str", args.refusal), cast("str", args.naming))
-    report, code = publish(arms, reading)
+    report, code = publish(variants, reading)
     print(report)
     return code
 

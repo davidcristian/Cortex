@@ -30,7 +30,7 @@ two candidates on this cell by which form each prefers, and every alt count publ
   copy, `test_the_dialogs_laundering_cell_drawn_twenty_framed`, draws twenty framed draws and no
   control.
 - 2026-09-10: done, and the form is the candidate's. No row drew this cell in both conditions, so
-  `test_the_dialogs_cell_drawn_twenty_in_both_arms` was written for it and the acceptance ranges
+  `test_the_dialogs_cell_drawn_twenty_in_both_variants` was written for it and the acceptance ranges
   went into its docstring before the card ran: more than half of the replies containing the rule
   written bare says the form is the candidate's, fewer than a quarter says the first session's eight
   were one load's answer, and a pooled mention count under 27 of 40 says the cell stopped reporting

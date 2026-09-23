@@ -10,16 +10,13 @@ table reaches every name a reader meets in hand-written code and stops at names 
 A survey splits every identifier in the tracked `.py`, `.rs`, `.ts` and `.tsx` files on `_` and on
 case changes and matches the parts against the table's single words. It reads Python names with
 `tokenize` and blanks the comments and strings of Rust and TypeScript first, and it leaves out
-generated code. On 2026-09-23 it finds 342 distinct names in three families, largest first:
+generated code. On 2026-09-23 it finds 290 distinct names in two families, largest first:
 
 - `carry`, `carries`, `carried`, `carrying`: 169 names, most of them test names.
 - `gate`, `gates`, `gated`, `ungated`: 124 names. They are the tool confirmation list
   (`GatedToolRegistry`, `UngatedToolRegistry`, `GatedBackend`), `ReadinessGate` in the residency
   code, and the word the checks under `scripts/` use for themselves (`GATES`, `FLAG_GATE`). The
   variables `CORTEX_TOOLS_GATED` and `CORTEX_TOOLS_GATE_REASONS` stay.
-- `arm`, `arms`, `armed`: 52 names, mostly the conditions of the live measurement tests
-  (`SHIPPED_ARM`, `_ARMS`) and the escalation slot (`armed_slot`). The envelope samples' recorded
-  `arm` key, `CORTEX_ENVELOPE_ARMS` and `CORTEX_TURN_COST_ARM` stay.
 
 These names stay, because something outside the code or a designed family fixes them:
 `RankBasis.SWEEP` and `RankBasis.VERDICT`, members of a designed family (decision 5 of ADR-0040)
@@ -32,7 +29,7 @@ outside the survey: test data such as a roster entry named `robust`, the recorde
 the row labels in `test_reply_readings.py`, which match recorded readings, and the tool
 descriptions the model reads, such as `DEFAULT_SUBAGENT_DESCRIPTION`, where a change needs a model
 measurement ([R-707](707-model-read-texts-keep-banned-words.md) lists them). The overlay's Vitest
-titles are strings too, and twelve of them use the `carry`, `gate` and `arm` words.
+titles are strings too, and nine of them use the `carry` and `gate` words.
 
 **What would close it.** Each family renamed as a code change, with the runbook, module doc and
 task files that quote a name changed in the same commit, or a decision in ADR-0040 that a family
@@ -49,4 +46,8 @@ stays, with the reason.
   and `Finding` in `samplecheck.py`. The same words in the `replay` recipe's output opened
   [R-714](714-the-text-a-recipe-prints-is-outside-the-prose-check.md). Then `seam`, which became
   `rpc` for the body to brain gRPC boundary (`BrainRpcClient`, `RpcServerConfig`, the
-  `rpc-health` recipe) and `boundary` in one crosscheck test.
+  `rpc-health` recipe) and `boundary` in one crosscheck test. Then `arm`, 52 names: a condition of
+  a measurement or a contract test became a `variant` (`SHIPPED_VARIANT`, `_VARIANTS`, the
+  `turn-cost` recipe's `variant`), the escalation slot a `prepared_slot`, and every other use says
+  the step it stood for, such as `set_to_fail` and `reschedules`. The samples' `arm` key,
+  `CORTEX_ENVELOPE_ARMS` and `CORTEX_TURN_COST_ARM` stay.

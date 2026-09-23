@@ -110,7 +110,7 @@ describe("FakeBridge", () => {
 });
 
 describe("FakeBridge preferences", () => {
-  it("counts reads, records writes, and can be armed to fail on either call", async () => {
+  it("counts reads, records writes, and can be set to fail on either call", async () => {
     const bridge = new FakeBridge();
     bridge.preferences = [{ key: "overlay.mark", value: "tangent" }];
     expect(await bridge.getPreferences()).toEqual([{ key: "overlay.mark", value: "tangent" }]);

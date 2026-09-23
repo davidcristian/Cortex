@@ -1549,7 +1549,7 @@ async def test_an_empty_generated_title_is_not_persisted() -> None:
     assert await _title_of(store, "s") == "the opening question"
 
 
-async def test_an_armed_escalation_slot_captures_exactly_the_turns_loop_tail() -> None:
+async def test_a_prepared_escalation_slot_captures_exactly_the_turns_loop_tail() -> None:
     slot = EscalationSlot()
     backend = ScriptedToolBackend(
         [

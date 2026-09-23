@@ -160,7 +160,7 @@ _BUILDS: Sequence[tuple[str, Build]] = (("in-memory", _over_fake), ("mcp", _over
 
 @pytest.mark.parametrize("check", ALL_CHECKS, ids=lambda check: check.__name__)
 @pytest.mark.parametrize("build", [b for _, b in _BUILDS], ids=[n for n, _ in _BUILDS])
-async def test_the_overlay_holds_over_both_arms(check: Check, build: Build) -> None:
+async def test_the_overlay_holds_over_both_variants(check: Check, build: Build) -> None:
     await check(build)
 
 

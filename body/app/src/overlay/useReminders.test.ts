@@ -60,7 +60,7 @@ describe("useReminders", () => {
     expect(bridge.reminderListCalls).toBe(1);
   });
 
-  it("re-arms on hide, so the next summon pulls again", async () => {
+  it("resets on hide, so the next summon pulls again", async () => {
     const bridge = new FakeBridge();
     const { rerender } = harness(bridge, "panel");
     await flush();

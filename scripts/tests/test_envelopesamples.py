@@ -22,9 +22,11 @@ def turn(*, instruction: str = ASK, ok: bool = True, output: str = "a summary, i
     }
 
 
-def sample(path: Path, arm: str, turns: list[Run], *, control: bool) -> Path:
+def sample(path: Path, variant: str, turns: list[Run], *, control: bool) -> Path:
     """Write one variant's sample file the way the driver writes it."""
-    path.write_text(json.dumps({"arm": arm, "control": control, "turns": turns}), encoding="utf-8")
+    path.write_text(
+        json.dumps({"arm": variant, "control": control, "turns": turns}), encoding="utf-8"
+    )
     return path
 
 
@@ -51,11 +53,13 @@ def test_an_answer_this_reader_cannot_judge_structurally_is_not_a_lapse() -> Non
     assert narrating.lapse is None
 
 
-def test_load_reads_one_arms_sample(tmp_path: Path) -> None:
-    arm = envelopesamples.load(sample(tmp_path / "raw.json", "raw", [turn(), turn()], control=True))
-    assert (arm.name, arm.control, len(arm.turns)) == ("raw", True, 2)
-    assert arm.turns[0].instruction == ASK
-    assert arm.turns[0].context == BODY
+def test_load_reads_one_variants_sample(tmp_path: Path) -> None:
+    variant = envelopesamples.load(
+        sample(tmp_path / "raw.json", "raw", [turn(), turn()], control=True)
+    )
+    assert (variant.name, variant.control, len(variant.turns)) == ("raw", True, 2)
+    assert variant.turns[0].instruction == ASK
+    assert variant.turns[0].context == BODY
 
 
 def test_load_refuses_a_file_it_cannot_read(tmp_path: Path) -> None:
@@ -77,7 +81,7 @@ def test_load_refuses_json_that_is_not_a_sample(tmp_path: Path) -> None:
         envelopesamples.load(path)
 
 
-def test_load_refuses_a_sample_that_names_no_arm(tmp_path: Path) -> None:
+def test_load_refuses_a_sample_that_names_no_variant(tmp_path: Path) -> None:
     path = tmp_path / "raw.json"
     path.write_text(json.dumps({"control": True, "turns": [turn()]}), encoding="utf-8")
     with pytest.raises(envelopesamples.FloorError, match="arm is missing"):
@@ -144,8 +148,8 @@ def paired(**fields: object) -> Run:
 
 def test_cells_reads_where_each_run_sits_and_what_it_drew(tmp_path: Path) -> None:
     path = sample(tmp_path / "a.json", "raw", [paired(), paired(draw=2, seed=None)], control=True)
-    arm, found = envelopesamples.cells(path)
-    assert arm == "raw"
+    variant, found = envelopesamples.cells(path)
+    assert variant == "raw"
     assert found[0] == envelopesamples.Cell(
         "warehouse", 1, 7, (ASK, BODY), "a summary, in full", 90
     )

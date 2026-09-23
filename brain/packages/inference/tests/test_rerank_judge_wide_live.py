@@ -99,7 +99,7 @@ async def test_the_judge_is_scored_per_category_on_a_corpus_not_built_for_it() -
         backend = LlamaCppBackend(SingleResidentModelManager(_MODEL, _ENDPOINT), client)
         judge = JudgeRecallPolicy(backend, _MODEL, pool_factor=_POOL_FACTOR)
         raw = RawRecallPolicy()
-        arms: dict[str, dict[Category, _Tally]] = {
+        variants: dict[str, dict[Category, _Tally]] = {
             label: {category: _Tally() for category in Category}
             for label in ("cosine (ships)", "judge (bounded)", "reversed (control)")
         }
@@ -128,15 +128,15 @@ async def test_the_judge_is_scored_per_category_on_a_corpus_not_built_for_it() -
             declined = ranking.basis is RankBasis.DEMUR
             fell_back = ranking.basis not in (RankBasis.VERDICT, RankBasis.DEMUR)
 
-            arms["cosine (ships)"][category].record(cosine_ids, gold)
-            arms["reversed (control)"][category].record(control_ids, gold)
-            judged = arms["judge (bounded)"][category]
+            variants["cosine (ships)"][category].record(cosine_ids, gold)
+            variants["reversed (control)"][category].record(control_ids, gold)
+            judged = variants["judge (bounded)"][category]
             judged.record(judge_ids, gold)
             judged.seconds += elapsed
             judged.fell_back += int(fell_back)
             judged.declined += int(declined)
             if gold is not None and gold in [hit.record.id for hit in candidates]:
-                arms["cosine (ships)"][category].in_pool += 1
+                variants["cosine (ships)"][category].in_pool += 1
 
             if fell_back:
                 probe = await drain_text(
@@ -156,9 +156,9 @@ async def test_the_judge_is_scored_per_category_on_a_corpus_not_built_for_it() -
                 f"{outcome}\n  control  {control_ids}"
             )
 
-        _report(arms, diagnosed)
-        assert _mean(arms["reversed (control)"]) < _mean(arms["cosine (ships)"]) / 2
-        assert sum(t.fell_back for t in arms["judge (bounded)"].values()) < len(QUESTIONS)
+        _report(variants, diagnosed)
+        assert _mean(variants["reversed (control)"]) < _mean(variants["cosine (ships)"]) / 2
+        assert sum(t.fell_back for t in variants["judge (bounded)"].values()) < len(QUESTIONS)
 
 
 def _mean(tallies: dict[Category, _Tally]) -> float:
@@ -167,25 +167,25 @@ def _mean(tallies: dict[Category, _Tally]) -> float:
     return sum(t.reciprocal for t in tallies.values()) / total if total else 0.0
 
 
-def _report(arms: dict[str, dict[Category, _Tally]], diagnosed: list[str]) -> None:
+def _report(variants: dict[str, dict[Category, _Tally]], diagnosed: list[str]) -> None:
     """Print the per-category sheet, then the aggregate that matters less than it."""
     lines = [
         f"\n\nat k={_K}, pool {_K * _POOL_FACTOR}, {len(QUESTIONS)} questions"
         f" over {len(MEMORIES)} notes"
     ]
     for category in Category:
-        counts = arms["cosine (ships)"][category]
+        counts = variants["cosine (ships)"][category]
         lines.append(
             f"\n{category.value}  (n={counts.asked}, gold in pool {counts.in_pool}"
             f"/{counts.answerable})"
         )
-        for label, tallies in arms.items():
+        for label, tallies in variants.items():
             lines.append(f"    {label:<20} {tallies[category].cell()}")
-    judge = arms["judge (bounded)"]
+    judge = variants["judge (bounded)"]
     seconds = sum(t.seconds for t in judge.values())
     lines.append(
-        f"\naggregate MRR: cosine {_mean(arms['cosine (ships)']):.3f}"
-        f"  judge {_mean(judge):.3f}  control {_mean(arms['reversed (control)']):.3f}"
+        f"\naggregate MRR: cosine {_mean(variants['cosine (ships)']):.3f}"
+        f"  judge {_mean(judge):.3f}  control {_mean(variants['reversed (control)']):.3f}"
     )
     lines.append(
         f"judge cost {seconds:.1f} s over {len(QUESTIONS)} recalls"

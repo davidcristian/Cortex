@@ -38,7 +38,7 @@ _MODEL = "stand-in"
 _GRACE_S = 0.5
 # How long the trapping shell gets to install its trap before the test gives up rather than
 # hanging.
-_ARM_TIMEOUT_S = 5.0
+_TRAP_TIMEOUT_S = 5.0
 # The control plane's own deadline, matching the brain's CORTEX_MODELHOST_TIMEOUT_S default: a
 # stop answers only once the child is reaped, so this must clear the sidecar's grace and reap
 # bounds together.
@@ -97,11 +97,11 @@ async def test_a_real_child_is_started_signalled_and_reaped() -> None:
 
 @pytest.mark.integration
 async def test_a_real_child_that_ignores_sigterm_is_killed_after_the_grace(tmp_path: Path) -> None:
-    armed = tmp_path / "armed"
-    supervisor, processes = _supervisor(f'trap "" TERM; : > {armed}; sleep 30')
+    trap_set = tmp_path / "trap-set"
+    supervisor, processes = _supervisor(f'trap "" TERM; : > {trap_set}; sleep 30')
     await supervisor.start(_MODEL)
-    async with asyncio.timeout(_ARM_TIMEOUT_S):
-        while not armed.exists():  # noqa: ASYNC110
+    async with asyncio.timeout(_TRAP_TIMEOUT_S):
+        while not trap_set.exists():  # noqa: ASYNC110
             await asyncio.sleep(0.01)
     child = processes.children[0]
     await supervisor.stop(_MODEL)

@@ -10,8 +10,8 @@ def turn(question: str, ttft: float, wall: float) -> dict[str, object]:
     return {"question": question, "ttft": ttft, "wall": wall}
 
 
-def sample(arm: str, turns: list[dict[str, object]]) -> dict[str, object]:
-    return {"arm": arm, "turns": turns}
+def sample(variant: str, turns: list[dict[str, object]]) -> dict[str, object]:
+    return {"arm": variant, "turns": turns}
 
 
 def write(path: Path, document: object) -> Path:
@@ -19,14 +19,14 @@ def write(path: Path, document: object) -> Path:
     return path
 
 
-def block(path: Path, arm: str, pairs: list[tuple[str, float]]) -> contrast.Block:
+def block(path: Path, variant: str, pairs: list[tuple[str, float]]) -> contrast.Block:
     turns = [turn(question, value, value + 0.5) for question, value in pairs]
-    return contrast.load(write(path, sample(arm, turns)))
+    return contrast.load(write(path, sample(variant, turns)))
 
 
-def test_load_reads_arm_and_every_turn(tmp_path: Path) -> None:
+def test_load_reads_variant_and_every_turn(tmp_path: Path) -> None:
     loaded = block(tmp_path / "a.json", "raw", [("q1", 1.0), ("q2", 2.0)])
-    assert loaded.arm == "raw"
+    assert loaded.variant == "raw"
     assert loaded.path.name == "a.json"
     assert loaded.turns == (
         ("q1", {"ttft": 1.0, "wall": 1.5}),
@@ -51,7 +51,7 @@ def test_load_refuses_a_sample_that_is_not_an_object(tmp_path: Path) -> None:
         contrast.load(write(tmp_path / "list.json", [1, 2, 3]))
 
 
-def test_load_refuses_a_sample_naming_no_arm(tmp_path: Path) -> None:
+def test_load_refuses_a_sample_naming_no_variant(tmp_path: Path) -> None:
     with pytest.raises(contrast.ContrastError, match="names no variant under `arm`"):
         contrast.load(write(tmp_path / "n.json", {"turns": [turn("q", 1.0, 1.5)]}))
 
@@ -98,15 +98,15 @@ def test_summarize_calls_a_single_turns_deviation_zero(tmp_path: Path) -> None:
 
 def test_differences_pairs_question_by_question(tmp_path: Path) -> None:
     baseline = block(tmp_path / "a.json", "raw", [("q1", 1.0), ("q2", 2.0)])
-    arm = block(tmp_path / "b.json", "judge", [("q2", 2.5), ("q1", 1.5)])
-    assert contrast.differences(baseline, arm, "ttft") == [0.5, 0.5]
+    variant = block(tmp_path / "b.json", "judge", [("q2", 2.5), ("q1", 1.5)])
+    assert contrast.differences(baseline, variant, "ttft") == [0.5, 0.5]
 
 
 def test_differences_refuses_blocks_that_asked_different_questions(tmp_path: Path) -> None:
     baseline = block(tmp_path / "a.json", "raw", [("q1", 1.0)])
-    arm = block(tmp_path / "b.json", "judge", [("q9", 1.0)])
+    variant = block(tmp_path / "b.json", "judge", [("q9", 1.0)])
     with pytest.raises(contrast.ContrastError, match="cannot be paired"):
-        contrast.differences(baseline, arm, "ttft")
+        contrast.differences(baseline, variant, "ttft")
 
 
 def test_percentile_of_a_single_value_is_that_value() -> None:
@@ -144,8 +144,8 @@ def test_bootstrap_refuses_a_contrast_over_nothing() -> None:
 
 def test_report_stars_an_interval_that_clears_zero(tmp_path: Path) -> None:
     baseline = block(tmp_path / "a.json", "raw", [("q1", 1.0), ("q2", 2.0), ("q3", 3.0)])
-    arm = block(tmp_path / "b.json", "judge", [("q1", 6.0), ("q2", 7.0), ("q3", 8.0)])
-    text = contrast.report([baseline, arm], resamples=200, seed=3)
+    variant = block(tmp_path / "b.json", "judge", [("q1", 6.0), ("q2", 7.0), ("q3", 8.0)])
+    text = contrast.report([baseline, variant], resamples=200, seed=3)
     assert "judge (b.json) ttft: +5.000s" in text
     assert "* an interval that does not span zero." in text
     assert "+5.000s (95% CI +5.000 to +5.000) *" in text
@@ -153,8 +153,8 @@ def test_report_stars_an_interval_that_clears_zero(tmp_path: Path) -> None:
 
 def test_report_leaves_a_null_contrast_unstarred(tmp_path: Path) -> None:
     baseline = block(tmp_path / "a.json", "raw", [("q1", 1.0), ("q2", 2.0), ("q3", 9.0)])
-    arm = block(tmp_path / "c.json", "raw", [("q1", 2.0), ("q2", 1.0), ("q3", 9.0)])
-    text = contrast.report([baseline, arm], resamples=400, seed=3)
+    variant = block(tmp_path / "c.json", "raw", [("q1", 2.0), ("q2", 1.0), ("q3", 9.0)])
+    text = contrast.report([baseline, variant], resamples=400, seed=3)
     lines = [line for line in text.splitlines() if line.startswith("  raw (c.json)")]
     assert len(lines) == len(contrast.METRICS)
     assert [line for line in lines if line.endswith("*")] == []
@@ -162,8 +162,8 @@ def test_report_leaves_a_null_contrast_unstarred(tmp_path: Path) -> None:
 
 def test_report_lays_out_every_question_the_blocking_used(tmp_path: Path) -> None:
     baseline = block(tmp_path / "a.json", "raw", [("cheap", 1.0), ("dear", 4.0)])
-    arm = block(tmp_path / "b.json", "judge", [("cheap", 1.1), ("dear", 7.0)])
-    text = contrast.report([baseline, arm], resamples=50, seed=3)
+    variant = block(tmp_path / "b.json", "judge", [("cheap", 1.1), ("dear", 7.0)])
+    text = contrast.report([baseline, variant], resamples=50, seed=3)
     assert "per question, ttft against raw (a.json):" in text
     assert "  1.00s  +0.10s  cheap" in text
     assert "  4.00s  +3.00s  dear" in text
@@ -171,8 +171,8 @@ def test_report_lays_out_every_question_the_blocking_used(tmp_path: Path) -> Non
 
 def test_report_names_every_block_and_the_seed(tmp_path: Path) -> None:
     baseline = block(tmp_path / "a.json", "raw", [("q1", 1.0)])
-    arm = block(tmp_path / "b.json", "judge", [("q1", 2.0)])
-    text = contrast.report([baseline, arm], resamples=10, seed=42)
+    variant = block(tmp_path / "b.json", "judge", [("q1", 2.0)])
+    text = contrast.report([baseline, variant], resamples=10, seed=42)
     assert "blocks: 2, resamples: 10, seed: 42" in text
     assert "raw (a.json, n=1)" in text
     assert "judge (b.json, n=1)" in text

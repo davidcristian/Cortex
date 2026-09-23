@@ -47,7 +47,7 @@ _MODEL = os.environ.get("CORTEX_SUBAGENTS_MODEL", "subagent")
 _OUT = Path(os.environ.get("CORTEX_ENVELOPE_OUT", "."))
 _LIMIT = int(os.environ.get("CORTEX_ENVELOPE_BODIES", "4"))
 _MAX_TOKENS = int(os.environ.get("CORTEX_ENVELOPE_MAX_TOKENS", str(DEFAULT_SUBAGENT_MAX_TOKENS)))
-_ARMS = tuple(os.environ.get("CORTEX_ENVELOPE_ARMS", "raw,constrained").split(","))
+_VARIANTS = tuple(os.environ.get("CORTEX_ENVELOPE_ARMS", "raw,constrained").split(","))
 _DRAWS = int(os.environ.get("CORTEX_ENVELOPE_DRAWS", "1"))
 _TAG = os.environ.get("CORTEX_ENVELOPE_TAG", "")
 _HEAD = int(os.environ.get("CORTEX_ENVELOPE_HEAD", "400"))
@@ -86,7 +86,7 @@ _SCHEMAS: dict[str, JsonSchema | None] = {
     "prefaced": _PREFACED_ENVELOPE,
 }
 
-_STRIPPING_ARMS = frozenset({"bare"})
+_STRIPPING_VARIANTS = frozenset({"bare"})
 
 _INSTRUCTION = os.environ.get(
     "CORTEX_ENVELOPE_INSTRUCTION", "Summarize the report below, keeping every detail."
@@ -262,10 +262,10 @@ def _roster(backend: InferenceBackend) -> SubagentRoster:
 
 
 async def _one(
-    client: httpx.AsyncClient, wire: _Wire, name: str, body: str, *, arm: str, draw: int
+    client: httpx.AsyncClient, wire: _Wire, name: str, body: str, *, variant: str, draw: int
 ) -> dict[str, Any]:
     """Run one body on one shape through the real runner and report what came back."""
-    schema = _SCHEMAS[arm]
+    schema = _SCHEMAS[variant]
     recorder = _Recording(
         LlamaCppBackend(
             SingleResidentModelManager(_MODEL, _ENDPOINT or ""),
@@ -273,7 +273,7 @@ async def _one(
             send_trace_budget=_TRACE_TOKENS is not None,
         ),
         substitute=schema,
-        strip_instruction=arm in _STRIPPING_ARMS,
+        strip_instruction=variant in _STRIPPING_VARIANTS,
     )
     store = InMemoryTaskStore()
     runner = SubagentRunner(
@@ -283,7 +283,7 @@ async def _one(
         constrain_output=schema is not None,
         bounds=AttemptBounds(max_tokens=_MAX_TOKENS, timeout_s=DEFAULT_SUBAGENT_RUN_TIMEOUT_S),
     )
-    task_id = f"{name}-{arm}-{draw}"
+    task_id = f"{name}-{variant}-{draw}"
     await store.put_task(
         SubagentTask(id=task_id, instruction=_INSTRUCTION, context=body, at=datetime.now(UTC))
     )
@@ -300,7 +300,7 @@ async def _one(
     )
     turn = {
         "question": name,
-        "arm": arm,
+        "arm": variant,
         "draw": draw,
         "seed": seed,
         "trace_budget": trace_budget,
@@ -326,18 +326,18 @@ async def _one(
     return turn
 
 
-def _write(arm: str, turns: list[dict[str, Any]]) -> None:
+def _write(variant: str, turns: list[dict[str, Any]]) -> None:
     """Rewrite one variant's sample file, so a run cut short still leaves the draws it finished."""
     _OUT.mkdir(parents=True, exist_ok=True)
-    path = _OUT / f"envelope-{arm}{_TAG}.json"
-    sample = {"arm": arm, "control": _SCHEMAS[arm] is None, "turns": turns}
+    path = _OUT / f"envelope-{variant}{_TAG}.json"
+    sample = {"arm": variant, "control": _SCHEMAS[variant] is None, "turns": turns}
     path.write_text(json.dumps(sample, indent=2) + "\n", encoding="utf-8")
 
 
 @pytest.mark.integration
 @pytest.mark.skipif(not _ENDPOINT, reason="set CORTEX_SUBAGENTS_ENDPOINT to a live subagent server")
 async def test_the_envelope_against_the_raw_shape_over_the_same_bodies() -> None:
-    turns: dict[str, list[dict[str, Any]]] = {arm: [] for arm in _ARMS}
+    turns: dict[str, list[dict[str, Any]]] = {variant: [] for variant in _VARIANTS}
     wire = _Wire()
     async with httpx.AsyncClient(timeout=httpx.Timeout(10.0, read=None), transport=wire) as client:
         if _TRACE_TOKENS is not None:
@@ -347,12 +347,16 @@ async def test_the_envelope_against_the_raw_shape_over_the_same_bodies() -> None
         for name, body in list(_BODIES.items())[:_LIMIT]:
             for draw in range(1, _DRAWS + 1):
                 wire.seed = None if _SEED_BASE is None else _SEED_BASE + draw - 1
-                for arm in _ARMS:
-                    turns[arm].append(await _one(client, wire, name, body, arm=arm, draw=draw))
-                    _write(arm, turns[arm])
-    written = " ".join(str((_OUT / f"envelope-{arm}{_TAG}.json").resolve()) for arm in _ARMS)
+                for variant in _VARIANTS:
+                    turns[variant].append(
+                        await _one(client, wire, name, body, variant=variant, draw=draw)
+                    )
+                    _write(variant, turns[variant])
+    written = " ".join(
+        str((_OUT / f"envelope-{variant}{_TAG}.json").resolve()) for variant in _VARIANTS
+    )
     print(  # noqa: T201 -- the report is the point
-        f"\nwrote {len(_ARMS)} arm sample(s): {written}\n"
+        f"\nwrote {len(_VARIANTS)} arm sample(s): {written}\n"
         "  none of this is a comparison until the control arm is published:\n"
         f"  just envelope-floor {written}",
         flush=True,

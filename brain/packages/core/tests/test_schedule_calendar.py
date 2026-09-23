@@ -112,7 +112,7 @@ def test_tomorrows_occurrence_is_next_once_todays_has_passed() -> None:
     assert next_calendar_due(rule, _utc(2026, 7, 20, 12, 0), UTC_DISPLAY) == _utc(2026, 7, 21, 9)
 
 
-def test_the_occurrence_is_strictly_after_so_firing_does_not_re_arm_in_place() -> None:
+def test_the_occurrence_is_strictly_after_so_firing_does_not_reschedule_in_place() -> None:
     rule = CalendarRule(hour=9, minute=0)
     fired_at = _utc(2026, 7, 20, 9, 0)
     assert next_calendar_due(rule, fired_at, UTC_DISPLAY) == _utc(2026, 7, 21, 9)
@@ -202,7 +202,7 @@ def test_the_month_search_wraps_across_a_year_boundary() -> None:
     assert next_calendar_due(rule, _utc(2026, 12, 15, 12, 0), UTC_DISPLAY) == _utc(2027, 1, 1, 9)
 
 
-def test_a_month_day_occurrence_is_strictly_after_so_firing_does_not_re_arm_in_place() -> None:
+def test_a_month_day_occurrence_is_strictly_after_so_firing_does_not_reschedule_in_place() -> None:
     rule = CalendarRule(hour=9, minute=0, on=MonthDays(days=frozenset({20})))
     fired_at = _utc(2026, 7, 20, 9, 0)
     assert next_calendar_due(rule, fired_at, UTC_DISPLAY) == _utc(2026, 8, 20, 9)
@@ -310,7 +310,7 @@ def test_the_year_search_wraps_into_the_following_year() -> None:
     assert next_calendar_due(rule, _utc(2026, 12, 26, 12, 0), UTC_DISPLAY) == _utc(2027, 12, 25, 9)
 
 
-def test_a_year_date_occurrence_is_strictly_after_so_firing_does_not_re_arm_in_place() -> None:
+def test_a_year_date_occurrence_is_strictly_after_so_firing_does_not_reschedule_in_place() -> None:
     rule = CalendarRule(hour=9, minute=0, on=YearDays(days=frozenset({MonthDay(12, 25)})))
     fired_at = _utc(2026, 12, 25, 9, 0)
     assert next_calendar_due(rule, fired_at, UTC_DISPLAY) == _utc(2027, 12, 25, 9)

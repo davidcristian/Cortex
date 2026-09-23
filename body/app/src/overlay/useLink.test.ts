@@ -69,7 +69,7 @@ describe("useLink", () => {
     expect(bridge.linkCalls).toBe(1);
   });
 
-  it("re-arms on hide, so the next summon asks again", async () => {
+  it("resets on hide, so the next summon asks again", async () => {
     const bridge = new FakeBridge();
     const { rerender } = harness(bridge, "panel");
     await flush();

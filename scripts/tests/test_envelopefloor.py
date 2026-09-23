@@ -51,9 +51,11 @@ def runs(
     return [dict(made) for _ in range(count)]
 
 
-def sample(path: Path, arm: str, rows: list[Run], *, control: bool) -> Path:
+def sample(path: Path, variant: str, rows: list[Run], *, control: bool) -> Path:
     """Write one variant's sample file the way the driver writes it."""
-    path.write_text(json.dumps({"arm": arm, "control": control, "turns": rows}), encoding="utf-8")
+    path.write_text(
+        json.dumps({"arm": variant, "control": control, "turns": rows}), encoding="utf-8"
+    )
     return path
 
 
@@ -138,7 +140,7 @@ def test_a_cell_is_judged_over_the_runs_a_judge_could_read() -> None:
     assert (found.delivery.delivered, found.delivery.judged, found.runs) == (1, 1, 2)
 
 
-def test_shapes_group_by_the_instruction_the_arm_really_sent() -> None:
+def test_shapes_group_by_the_instruction_the_variant_really_sent() -> None:
     grouped = envelopefloor.shapes(
         (
             Turn(ASK, BODY, ok=True, output="a"),
@@ -150,8 +152,8 @@ def test_shapes_group_by_the_instruction_the_arm_really_sent() -> None:
     assert len(grouped[ASK]) == 2
 
 
-def test_publish_reports_the_control_arm_then_the_comparison(tmp_path: Path) -> None:
-    arms = [
+def test_publish_reports_the_control_variant_then_the_comparison(tmp_path: Path) -> None:
+    variants = [
         load(sample(tmp_path / "raw.json", "raw", runs(32), control=True)),
         load(
             sample(
@@ -162,7 +164,7 @@ def test_publish_reports_the_control_arm_then_the_comparison(tmp_path: Path) -> 
             )
         ),
     ]
-    report, code = envelopefloor.publish(arms)
+    report, code = envelopefloor.publish(variants)
     assert code == 0
     assert "stood on 32 of 32 (0.89 to 1.00), delivered 32 of 32 (0.89 to 1.00)" in report
     assert "delivered read under: comma charitable, refusal strict, naming strict" in report
@@ -174,20 +176,20 @@ def test_publish_reports_the_control_arm_then_the_comparison(tmp_path: Path) -> 
 
 def test_publish_refuses_a_comparison_read_against_a_collapsed_control(tmp_path: Path) -> None:
     collapsed = runs(20) + runs(12, output=ASK)
-    arms = [
+    variants = [
         load(sample(tmp_path / "raw.json", "raw", collapsed, control=True)),
         load(sample(tmp_path / "con.json", "constrained", runs(32), control=False)),
     ]
-    report, code = envelopefloor.publish(arms)
+    report, code = envelopefloor.publish(variants)
     assert code == 1
     assert "refused: 1 of 1 control cell(s) stood on fewer than 90% of their own runs" in report
     assert "the comparison, per arm" not in report
 
 
-def test_publish_refuses_a_control_arm_that_stood_and_did_not_answer(tmp_path: Path) -> None:
+def test_publish_refuses_a_control_variant_that_stood_and_did_not_answer(tmp_path: Path) -> None:
     narrating = runs(30, output=NARRATION) + runs(2)
-    arms = [load(sample(tmp_path / "raw.json", "raw", narrating, control=True))]
-    report, code = envelopefloor.publish(arms)
+    variants = [load(sample(tmp_path / "raw.json", "raw", narrating, control=True))]
+    report, code = envelopefloor.publish(variants)
     assert code == 1
     assert "stood on 32 of 32" in report
     assert "refused: 1 of 1 control cell(s) delivered on fewer than 90% of the runs" in report
@@ -198,8 +200,8 @@ def test_a_floor_is_held_under_the_tabled_reading_whatever_columns_were_asked_fo
     tmp_path: Path,
 ) -> None:
     garbled = runs(32, instruction=LOOKUP, context=FORTNIGHT, output="Fortnite 18")
-    arms = [load(sample(tmp_path / "raw.json", "raw", garbled, control=True))]
-    report, code = envelopefloor.publish(arms, Reading(naming="charitable"))
+    variants = [load(sample(tmp_path / "raw.json", "raw", garbled, control=True))]
+    report, code = envelopefloor.publish(variants, Reading(naming="charitable"))
     assert code == 1
     assert "delivered 32 of 32" in report
     assert "refused: 1 of 1 control cell(s) delivered on fewer than 90%" in report
@@ -207,16 +209,16 @@ def test_a_floor_is_held_under_the_tabled_reading_whatever_columns_were_asked_fo
 
 def test_publish_refuses_when_one_shape_of_several_collapsed(tmp_path: Path) -> None:
     both = runs(32) + runs(32, instruction=EXTRACT, output=EXTRACT)
-    arms = [load(sample(tmp_path / "raw.json", "raw", both, control=True))]
-    report, code = envelopefloor.publish(arms)
+    variants = [load(sample(tmp_path / "raw.json", "raw", both, control=True))]
+    report, code = envelopefloor.publish(variants)
     assert code == 1
     assert "refused: 1 of 2 control cell(s) stood" in report
     assert "refused: 1 of 2 control cell(s) delivered" in report
 
 
-def test_publish_refuses_a_run_that_drew_no_control_arm(tmp_path: Path) -> None:
-    arms = [load(sample(tmp_path / "con.json", "constrained", runs(8), control=False))]
-    report, code = envelopefloor.publish(arms)
+def test_publish_refuses_a_run_that_drew_no_control_variant(tmp_path: Path) -> None:
+    variants = [load(sample(tmp_path / "con.json", "constrained", runs(8), control=False))]
+    report, code = envelopefloor.publish(variants)
     assert code == 1
     assert "none of these samples is the control variant" in report
     assert "the comparison, per arm" not in report

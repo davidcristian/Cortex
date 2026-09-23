@@ -84,7 +84,7 @@ def _reading_registry() -> InMemoryToolRegistry:
 async def test_a_clean_handoff_walks_the_record_through_its_states() -> None:
     live = build_harness()
     await live.seed_session()
-    events = await harness.run_handoff(live, harness.armed_slot())
+    events = await harness.run_handoff(live, harness.prepared_slot())
     assert live.handoffs.states == [
         HandoffState.READY,
         HandoffState.BRAIN_ACTIVE,
@@ -112,7 +112,7 @@ async def test_a_clean_handoff_walks_the_record_through_its_states() -> None:
 async def test_the_deep_model_answers_from_the_store_and_persists_a_second_message() -> None:
     live = build_harness()
     await live.seed_session()
-    await harness.run_handoff(live, harness.armed_slot())
+    await harness.run_handoff(live, harness.prepared_slot())
     assert live.backend.models == ["brain"]
     seen = [message.text for message in live.backend.seen]
     assert harness.USER_TEXT in seen
@@ -150,7 +150,7 @@ async def test_the_deep_phase_resumes_the_carried_budget_and_taint() -> None:
         ),
     )
     await live.seed_session()
-    events = await harness.run_handoff(live, harness.armed_slot(taint=ledger, budget=spent))
+    events = await harness.run_handoff(live, harness.prepared_slot(taint=ledger, budget=spent))
     assert [invocation.ok for invocation in audit.records] == [True, False]
     assert audit.records[-1].detail == BUDGET_EXHAUSTED_MSG
     assert "http://evil.test/x" not in _texts(events)
@@ -163,12 +163,12 @@ async def test_a_second_concurrent_handoff_is_refused_without_evicting_anything(
     live = build_harness()
     await live.seed_session()
     await live.handoffs.put(
-        harness.armed_slot().snapshot(
+        harness.prepared_slot().snapshot(
             turn_id="t-other", session_id=harness.SESSION, requested_at=SystemClock().now()
         )
     )
     with caplog.at_level(logging.WARNING, logger="cortex_core.swap_conductor"):
-        events = await harness.run_handoff(live, harness.armed_slot())
+        events = await harness.run_handoff(live, harness.prepared_slot())
     assert _texts(events) == ALREADY_ACTIVE_NOTE
     assert live.host.calls == harness.PREFLIGHT_CALLS
     assert live.backend.calls == 0
@@ -190,7 +190,7 @@ async def test_a_deployment_whose_host_has_no_deep_tier_is_refused_before_the_dr
     live = build_harness(Fakes(host=ScriptedModelHost(running=["cortex"], unhosted=["brain"])))
     await live.seed_session()
     with caplog.at_level(logging.ERROR, logger="cortex_core.swap_conductor"):
-        events = await harness.run_handoff(live, harness.armed_slot())
+        events = await harness.run_handoff(live, harness.prepared_slot())
     assert _texts(events) == UNHOSTED_TIER_NOTE
     assert _states(events) == []
     assert live.host.calls == harness.PREFLIGHT_CALLS
@@ -207,9 +207,9 @@ async def test_a_host_that_gains_the_deep_tier_stops_refusing_the_handoff() -> N
     host = ScriptedModelHost(running=["cortex"], unhosted=["brain"])
     live = build_harness(Fakes(host=host))
     await live.seed_session()
-    assert _texts(await harness.run_handoff(live, harness.armed_slot())) == UNHOSTED_TIER_NOTE
+    assert _texts(await harness.run_handoff(live, harness.prepared_slot())) == UNHOSTED_TIER_NOTE
     host.unhosted.discard("brain")
-    events = await harness.run_handoff(live, harness.armed_slot())
+    events = await harness.run_handoff(live, harness.prepared_slot())
     assert _texts(events) == "a deep answer"
     assert ("start", "brain") in host.calls
     assert host.running == {"cortex"}
@@ -222,7 +222,7 @@ async def test_a_host_that_cannot_be_asked_is_not_read_as_one_with_no_deep_tier(
     live = build_harness(Fakes(host=host))
     await live.seed_session()
     with caplog.at_level(logging.WARNING, logger="cortex_core.residency_moves"):
-        events = await harness.run_handoff(live, harness.armed_slot())
+        events = await harness.run_handoff(live, harness.prepared_slot())
     assert _texts(events) == SWAP_FAILED_NOTE
     assert ("stop", "cortex") in host.calls
     assert host.running == {"cortex"}
@@ -236,7 +236,7 @@ async def test_a_swap_that_finds_the_gpu_already_handed_over_says_so_and_not_tha
     await live.seed_session()
     async with live.manager.swap_scope(live.residency.brain_model):
         assert live.host.running == {"brain"}
-        events = await harness.run_handoff(live, harness.armed_slot())
+        events = await harness.run_handoff(live, harness.prepared_slot())
     assert _texts(events) == ALREADY_ACTIVE_NOTE
     assert live.handoffs.states == [HandoffState.READY, HandoffState.FAILED]
     assert live.backend.calls == 0
@@ -249,7 +249,7 @@ async def test_a_handoff_store_that_cannot_record_the_snapshot_changes_nothing()
         Fakes(handoffs=RecordingHandoffStore(fail=HandoffStoreError("redis is gone")))
     )
     await live.seed_session()
-    events = await harness.run_handoff(live, harness.armed_slot())
+    events = await harness.run_handoff(live, harness.prepared_slot())
     assert _texts(events) == STORE_FAILED_NOTE
     assert live.host.calls == harness.PREFLIGHT_CALLS
     assert live.backend.calls == 0
@@ -263,7 +263,7 @@ async def test_a_handoff_store_that_cannot_be_read_refuses_the_handoff_the_same_
 
     live = build_harness(Fakes(handoffs=_Unreadable()))
     await live.seed_session()
-    events = await harness.run_handoff(live, harness.armed_slot())
+    events = await harness.run_handoff(live, harness.prepared_slot())
     assert _texts(events) == STORE_FAILED_NOTE
     assert live.host.calls == harness.PREFLIGHT_CALLS
     assert live.handoffs.states == []
@@ -283,7 +283,7 @@ async def test_a_drain_that_times_out_aborts_before_anything_is_evicted() -> Non
     task = asyncio.create_task(in_flight())
     async with asyncio.timeout(5.0):
         await held.wait()
-    events = await harness.run_handoff(live, harness.armed_slot())
+    events = await harness.run_handoff(live, harness.prepared_slot())
     assert _texts(events) == DRAIN_TIMEOUT_NOTE
     assert live.host.calls == harness.PREFLIGHT_CALLS
     assert live.handoffs.states == [HandoffState.READY, HandoffState.FAILED]
@@ -300,7 +300,7 @@ async def test_a_drain_that_times_out_aborts_before_anything_is_evicted() -> Non
 async def test_a_deployment_without_a_subagent_pool_has_nothing_to_drain() -> None:
     live = build_harness(with_scheduler=False)
     await live.seed_session()
-    events = await harness.run_handoff(live, harness.armed_slot())
+    events = await harness.run_handoff(live, harness.prepared_slot())
     assert _texts(events) == "a deep answer"
     assert live.handoffs.states[-1] is HandoffState.DONE
     assert _states(events) == [DRAINING_DETAIL, LOADING_DETAIL, WORKING_DETAIL, RESTORING_DETAIL]
@@ -312,7 +312,7 @@ async def test_a_deep_model_that_will_not_load_ends_the_turn_saying_the_swap_fai
         Fakes(host=ScriptedModelHost(running=["cortex"], fail={("start", "brain"): "CUDA OOM"}))
     )
     await live.seed_session()
-    events = await harness.run_handoff(live, harness.armed_slot())
+    events = await harness.run_handoff(live, harness.prepared_slot())
     assert _texts(events) == SWAP_FAILED_NOTE
     assert live.host.running == {"cortex"}
     assert live.handoffs.states == [HandoffState.READY, HandoffState.FAILED]
@@ -333,7 +333,7 @@ async def test_a_swap_that_broke_writes_the_model_hosts_own_sentence_down(
     live = build_harness(Fakes(host=host))
     await live.seed_session()
     with caplog.at_level(logging.WARNING, logger="cortex_core.swap_settle"):
-        events = await harness.run_handoff(live, harness.armed_slot())
+        events = await harness.run_handoff(live, harness.prepared_slot())
     assert _texts(events) == SWAP_FAILED_NOTE
     settled = await live.handoffs.get(harness.TURN)
     assert settled is not None
@@ -359,7 +359,7 @@ async def test_a_deep_model_that_never_becomes_ready_ends_the_turn_saying_the_sw
         residency=harness.plan(load_timeout_s=0.0),
     )
     await live.seed_session()
-    events = await harness.run_handoff(live, harness.armed_slot())
+    events = await harness.run_handoff(live, harness.prepared_slot())
     assert _texts(events) == SWAP_FAILED_NOTE
     assert live.host.running == {"cortex"}
 
@@ -369,7 +369,7 @@ async def test_a_deep_model_that_dies_mid_answer_keeps_its_partial_text_with_a_n
         Fakes(backend=ScriptedBrainBackend(chunks=("half an ", "never streamed"), fail_after=1))
     )
     await live.seed_session()
-    events = await harness.run_handoff(live, harness.armed_slot())
+    events = await harness.run_handoff(live, harness.prepared_slot())
     assert _texts(events) == "half an " + BRAIN_FAILED_NOTE
     persisted = [message.text for message in await live.sessions.history(harness.SESSION)]
     assert persisted[-1] == "half an " + BRAIN_FAILED_NOTE
@@ -391,7 +391,7 @@ async def test_a_cortex_that_cannot_be_restored_says_so_on_the_stream() -> None:
         )
     )
     await live.seed_session()
-    events = await harness.run_handoff(live, harness.armed_slot())
+    events = await harness.run_handoff(live, harness.prepared_slot())
     assert _texts(events) == "a deep answer" + RESTORE_FAILED_NOTE
     assert live.handoffs.states[-1] is HandoffState.FAILED
     assert live.host.calls.count(("start", "cortex")) == 2
@@ -418,7 +418,7 @@ async def test_a_store_that_fails_while_settling_the_record_does_not_fail_the_tu
     live = build_harness(Fakes(handoffs=_FailsLate()))
     await live.seed_session()
     with caplog.at_level(logging.ERROR, logger="cortex_core.swap_conductor"):
-        events = await harness.run_handoff(live, harness.armed_slot())
+        events = await harness.run_handoff(live, harness.prepared_slot())
     assert _texts(events) == "a deep answer"
     assert live.host.running == {"cortex"}
     assert [record.message for record in caplog.records] == [
@@ -440,7 +440,7 @@ async def test_the_reason_reaches_the_log_even_when_the_store_cannot_keep_it(
     )
     await live.seed_session()
     with caplog.at_level(logging.WARNING, logger="cortex_core.swap_settle"):
-        events = await harness.run_handoff(live, harness.armed_slot())
+        events = await harness.run_handoff(live, harness.prepared_slot())
     assert _texts(events) == SWAP_FAILED_NOTE
     assert await live.handoffs.get(harness.TURN) is None
     logged = [
@@ -462,7 +462,7 @@ async def test_a_store_that_cannot_even_drop_the_record_says_what_is_now_stuck(
     live = build_harness(Fakes(handoffs=_AlsoRefusesTheDelete()))
     await live.seed_session()
     with caplog.at_level(logging.ERROR, logger="cortex_core.swap_conductor"):
-        events = await harness.run_handoff(live, harness.armed_slot())
+        events = await harness.run_handoff(live, harness.prepared_slot())
     assert _texts(events) == "a deep answer"
     assert live.host.running == {"cortex"}
     assert [record.message for record in caplog.records][-1] == (
@@ -478,7 +478,7 @@ async def test_a_turn_that_looked_at_the_screen_after_escalating_ends_with_a_not
         SystemClock(),
         confirmer=RecordingConfirmer(answer=True),
     )
-    slot = harness.armed_slot(brief=None)
+    slot = harness.prepared_slot(brief=None)
     assert slot.refs is not None
     working = slot.refs.working
     cortex = ScriptedBrainBackend(
@@ -543,7 +543,7 @@ async def test_the_deep_phase_cannot_escalate_to_itself() -> None:
         capabilities=TurnCapabilities(tools=dispatcher, escalation=stowaway),
     )
     await live.seed_session()
-    events = await harness.run_handoff(live, harness.armed_slot())
+    events = await harness.run_handoff(live, harness.prepared_slot())
     (invocation,) = audit.records
     assert invocation.ok is False
     assert "escalation is not available for this turn" in invocation.detail
@@ -564,7 +564,7 @@ def _coresident_harness(gate: Gate, *, coresident: bool) -> harness.Harness:
 
 async def _paused_mid_phase(live: harness.Harness, gate: Gate) -> asyncio.Task[list[TurnEvent]]:
     """Run a handoff until the deep model's stream is in progress, and hold it there."""
-    task = asyncio.create_task(harness.run_handoff(live, harness.armed_slot()))
+    task = asyncio.create_task(harness.run_handoff(live, harness.prepared_slot()))
     await gate.arrived()
     return task
 
@@ -604,7 +604,7 @@ async def test_the_shipped_default_still_evicts_its_peers_and_refuses_a_spawn() 
 async def test_a_coresident_handoff_does_not_announce_a_drain_it_never_performs() -> None:
     live = build_harness(residency=harness.plan(coresident=True))
     await live.seed_session()
-    events = await harness.run_handoff(live, harness.armed_slot())
+    events = await harness.run_handoff(live, harness.prepared_slot())
     assert _texts(events) == "a deep answer"
     assert _states(events) == [LOADING_DETAIL, WORKING_DETAIL, RESTORING_DETAIL]
     assert live.scheduler.drains == 0

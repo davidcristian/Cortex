@@ -25,7 +25,7 @@ class Block(NamedTuple):
     """One condition's sample: where it came from, what it called itself, and its turns."""
 
     path: Path
-    arm: str
+    variant: str
     turns: tuple[tuple[str, dict[str, float]], ...]
 
 
@@ -60,9 +60,9 @@ def load(path: Path) -> Block:
         raise ContrastError(msg) from err
     _require(isinstance(raw, dict), f"{path}: sample must be a JSON object")
     sample = cast("dict[str, object]", raw)
-    arm = sample.get("arm")
+    variant = sample.get("arm")
     entries = sample.get("turns")
-    _require(isinstance(arm, str), f"{path}: sample names no variant under `arm`")
+    _require(isinstance(variant, str), f"{path}: sample names no variant under `arm`")
     _require(isinstance(entries, list), f"{path}: sample has no turns list")
     turns: list[tuple[str, dict[str, float]]] = []
     for entry in cast("list[object]", entries):
@@ -79,7 +79,7 @@ def load(path: Path) -> Block:
             (cast("str", question), {k: float(cast("float", v)) for k, v in values.items()})
         )
     _require(len(turns) > 0, f"{path}: sample holds no turns")
-    return Block(path, cast("str", arm), tuple(turns))
+    return Block(path, cast("str", variant), tuple(turns))
 
 
 def by_question(block: Block, metric: str) -> dict[str, float]:
@@ -97,13 +97,13 @@ def summarize(block: Block, metric: str) -> Summary:
     return Summary(len(values), statistics.fmean(values), statistics.median(values), sd)
 
 
-def differences(baseline: Block, arm: Block, metric: str) -> list[float]:
+def differences(baseline: Block, variant: Block, metric: str) -> list[float]:
     """Per-question ``arm - baseline`` means, refusing two blocks that asked different questions."""
     left = by_question(baseline, metric)
-    right = by_question(arm, metric)
+    right = by_question(variant, metric)
     _require(
         set(left) == set(right),
-        f"{baseline.path} and {arm.path} asked different questions, so they cannot be paired",
+        f"{baseline.path} and {variant.path} asked different questions, so they cannot be paired",
     )
     return [right[question] - left[question] for question in sorted(left)]
 
@@ -140,16 +140,16 @@ def report(blocks: list[Block], *, resamples: int, seed: int) -> str:
             f" median {s.median:.3f}s sd {s.sd:.3f}s"
             for metric in METRICS
         )
-        lines.append(f"  {block.arm} ({block.path.name}, n={len(block.turns)}): {shapes}")
+        lines.append(f"  {block.variant} ({block.path.name}, n={len(block.turns)}): {shapes}")
     baseline = blocks[0]
-    lines.extend(["", f"against the baseline block {baseline.arm} ({baseline.path.name}):"])
+    lines.extend(["", f"against the baseline block {baseline.variant} ({baseline.path.name}):"])
     for block in blocks[1:]:
         for metric in METRICS:
             interval = bootstrap(
                 differences(baseline, block, metric), resamples=resamples, seed=seed
             )
             lines.append(
-                f"  {block.arm} ({block.path.name}) {metric}: {interval.point:+.3f}s"
+                f"  {block.variant} ({block.path.name}) {metric}: {interval.point:+.3f}s"
                 f" (95% CI {interval.low:+.3f} to {interval.high:+.3f})"
                 f"{'' if interval.low <= 0 <= interval.high else ' *'}"
             )
@@ -160,7 +160,7 @@ def report(blocks: list[Block], *, resamples: int, seed: int) -> str:
 def _per_question(blocks: list[Block]) -> list[str]:
     """The blocking unit laid out, because one question can account for a whole contrast."""
     baseline = blocks[0]
-    lines = [f"per question, {METRICS[0]} against {baseline.arm} ({baseline.path.name}):"]
+    lines = [f"per question, {METRICS[0]} against {baseline.variant} ({baseline.path.name}):"]
     means = [by_question(block, METRICS[0]) for block in blocks]
     for question in sorted(means[0]):
         deltas = "  ".join(f"{seen[question] - means[0][question]:+.2f}s" for seen in means[1:])

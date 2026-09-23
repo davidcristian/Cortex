@@ -33,7 +33,7 @@ class Turn(NamedTuple):
         return None
 
 
-class Arm(NamedTuple):
+class Variant(NamedTuple):
     """One condition's sample: where it came from, what it was, and whether it is the control."""
 
     path: Path
@@ -100,10 +100,10 @@ def _parsed(path: Path) -> tuple[str, bool, list[object]]:
     return name, control, entries
 
 
-def load(path: Path) -> Arm:
+def load(path: Path) -> Variant:
     """Read one condition's sample file, raising on anything it cannot read as a set of runs."""
     name, control, entries = _parsed(path)
-    return Arm(path, name, control, tuple(_turn(entry, path) for entry in entries))
+    return Variant(path, name, control, tuple(_turn(entry, path) for entry in entries))
 
 
 class Cell(NamedTuple):

@@ -13,7 +13,7 @@ import pytest
 from desktop_corpus import desktops
 from rendered_screens import Canvas
 from window_crop_probe import (
-    ARMS,
+    VARIANTS,
     Reading,
     messages,
     picture,
@@ -194,21 +194,21 @@ async def test_a_window_crop_reads_what_a_shrunk_desktop_cannot(
 ) -> None:
     edge = BodyConfig().capture_max_edge
     corpus = desktops()
-    results: dict[str, list[Reading]] = {arm.name: [] for arm in ARMS}
+    results: dict[str, list[Reading]] = {variant.name: [] for variant in VARIANTS}
     with _server(_argv_tail(ModelHostConfig().cortex_image_max_tokens, monkeypatch)):
         for desktop in corpus:
-            for arm in ARMS:
-                shot = picture(desktop, arm, edge)
-                if arm.target is CaptureTarget.FOCUS:
+            for variant in VARIANTS:
+                shot = picture(desktop, variant, edge)
+                if variant.target is CaptureTarget.FOCUS:
                     inside_edge = max(shot.region.width, shot.region.height) <= edge
                     assert shot.resampled is not inside_edge, "the identity arm did not run"
-                wire = await messages(desktop, arm, shot)
+                wire = await messages(desktop, variant, shot)
                 answers, tokens = _transcribe(wire, schema(desktop.truths))
                 scored = readings(desktop.truths, answers)
-                results[arm.name] += scored
+                results[variant.name] += scored
                 read, wrong, declined = tally(scored)
                 print(  # noqa: T201
-                    f"  {desktop.name:12s} {arm.name:8s} {shot.width}x{shot.height}"
+                    f"  {desktop.name:12s} {variant.name:8s} {shot.width}x{shot.height}"
                     f"{' resampled' if shot.resampled else ' untouched'}"
                     f" {len(shot.png) // 1000:5d} kB {tokens:6d} prompt tokens"
                     f"  read {read:2d}  wrong {wrong:2d}  declined {declined:2d}"

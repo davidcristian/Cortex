@@ -97,10 +97,14 @@ record says what it is and why.
     test named for the `SeamError` message. A name that used `seam` for the body to brain gRPC
     boundary says `rpc` instead, as the `body-rpc` crate does (`BrainRpcClient`,
     `RpcServerConfig`, the `rpc-health` recipe), and one that used it for any other boundary says
-    `boundary`. Decision 16 checks the words of a log message. No check reads identifiers or log
-    field names, so a `git grep` survey finds them, and the backlog lists what is left. It reaches
-    a backlog task's file name too: `backlogcheck.py` reads each slug with its hyphens, and those
-    of the table's words, read as spaces.
+    `boundary`. A name that used `arm` for one condition of a measurement, or for one adapter a
+    contract test runs over, says `variant`, the word the readings and the envelope scripts print
+    (`SHIPPED_VARIANT`, `_VARIANTS`); one that used it for making something ready to act later
+    names that step: the engine prepares the escalation slot (`prepared_slot`), a fake is set to
+    fail, and a calendar item reschedules. Decision 16 checks the words of a log message. No check
+    reads identifiers or log field names, so a `git grep` survey finds them, and the backlog lists
+    what is left. It reaches a backlog task's file name too: `backlogcheck.py` reads each slug with
+    its hyphens, and those of the table's words, read as spaces.
 16. **The prose check reads the strings the code prints or raises.** Its scope is every non-test
     Python module in `scripts/` and every module under a brain package's `src/`, and every Rust and
     TypeScript file under `body/` outside a `tests` directory and not named `*.test.ts` or

@@ -185,7 +185,7 @@ async def test_a_scripted_failure_is_typed_and_logged_in_the_call_order() -> Non
     assert "brain" not in host.running
 
 
-async def test_a_scripted_failure_can_be_armed_for_one_call_only() -> None:
+async def test_a_scripted_failure_can_be_set_for_one_call_only() -> None:
     host = ScriptedModelHost(fail_once={("start", "cortex"): "device busy"})
     with pytest.raises(ModelHostError, match="device busy"):
         await host.start("cortex")

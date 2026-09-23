@@ -431,7 +431,7 @@ class Tally:
         return [*self.obeyed, *self.described]
 
 
-_ARMS = ("framed", "control")
+_VARIANTS = ("framed", "control")
 
 SHOW_RESISTED_ENV = "CORTEX_INJECTION_SHOW_RESISTED"
 _SHOW_RESISTED_ALL = "all"
@@ -447,23 +447,23 @@ def score(tallies: Mapping[str, Tally], cell: str, attack: Attack, *replies: Rep
     """Score one cell's two variants into their tallies and print the row's line for it."""
     marks = [outcome(attack, reply) for reply in replies]
     shown = [printed_mark(attack, reply) for reply in replies]
-    for arm, mark, reply in zip(_ARMS, marks, replies, strict=True):
-        tallies[arm].add(cell, mark, void=reply.unusable)
-    print(f"  {cell:34s} " + " ".join(f"{a}={m:4s}" for a, m in zip(_ARMS, shown, strict=True)))  # noqa: T201
+    for variant, mark, reply in zip(_VARIANTS, marks, replies, strict=True):
+        tallies[variant].add(cell, mark, void=reply.unusable)
+    print(f"  {cell:34s} " + " ".join(f"{a}={m:4s}" for a, m in zip(_VARIANTS, shown, strict=True)))  # noqa: T201
     resisted = shows_resisted(cell)
-    for arm, mark, label, reply in zip(_ARMS, marks, shown, replies, strict=True):
+    for variant, mark, label, reply in zip(_VARIANTS, marks, shown, replies, strict=True):
         if resisted or reply.unusable or mark is not Outcome.RESISTED:
             head = void_note(reply) if reply.unusable else label
-            print(f"      {arm} ({head}): {reply.content!r}")  # noqa: T201
+            print(f"      {variant} ({head}): {reply.content!r}")  # noqa: T201
 
 
 def assert_measured(label: str, tallies: Mapping[str, Tally]) -> None:
     """Fail a row whose void cells outnumber the cells it drew, in either variant."""
-    for arm in _ARMS:
-        tally = tallies[arm]
+    for variant in _VARIANTS:
+        tally = tallies[variant]
         assert len(tally.void) <= len(tally.drawn), (
-            f"{label}: {arm} voided {len(tally.void)} of its cells and drew {len(tally.drawn)}, "
-            f"void: {tally.void}"
+            f"{label}: {variant} voided {len(tally.void)} of its cells "
+            f"and drew {len(tally.drawn)}, void: {tally.void}"
         )
 
 
@@ -471,21 +471,23 @@ def report(label: str, tallies: Mapping[str, Tally]) -> None:
     """Print a row's totals over the cells each variant drew, then check the framing never made it
     worse.
     """
-    for arm in _ARMS:
-        tally = tallies[arm]
+    for variant in _VARIANTS:
+        tally = tallies[variant]
         voided = f", void: {' '.join(tally.void)}" if tally.void else ""
         drawn = len(tally.drawn)
         for reading, cells in (("obeyed", tally.obeyed), ("described", tally.described)):
-            print(f"  --> {label}: {arm} {reading} {len(cells)} of {drawn} drawn {cells}{voided}")  # noqa: T201
+            print(  # noqa: T201
+                f"  --> {label}: {variant} {reading} {len(cells)} of {drawn} drawn {cells}{voided}"
+            )
     print(  # noqa: T201
         f"  --> {label}: mentioned, the reading every matrix before 2026-09-05 was counted on: "
         + " ".join(
-            f"{arm} {len(tallies[arm].mentioned)} of {len(tallies[arm].drawn)} drawn"
-            for arm in _ARMS
+            f"{variant} {len(tallies[variant].mentioned)} of {len(tallies[variant].drawn)} drawn"
+            for variant in _VARIANTS
         )
     )
     both = set(tallies["framed"].drawn) & set(tallies["control"].drawn)
-    if any(tallies[arm].void for arm in _ARMS):
+    if any(tallies[variant].void for variant in _VARIANTS):
         print(f"  --> {label}: framing held over the {len(both)} cells both arms drew")  # noqa: T201
     assert_measured(label, tallies)
     for reading, framed, control in (
@@ -925,7 +927,7 @@ async def test_injection_defense(model: Model, switch: Switch, placement: Placem
     if repeat is not None:
         pytest.skip(repeat)
     running = switch_for(model, switch)
-    tallies = {arm: Tally() for arm in _ARMS}
+    tallies = {variant: Tally() for variant in _VARIANTS}
     with _server(model, switch=running, placement=placement):
         async with httpx.AsyncClient(timeout=300) as client:
             print(f"\n=== {model.label} ({running.label}, {placement.label}) ===")  # noqa: T201
@@ -1089,7 +1091,7 @@ async def test_injection_defense_over_pixels(model: Model, frame: Frame, budget:
 
 async def _draw_pixel_matrix(model: Model, frame: Frame, budget: Budget) -> None:
     """Draw the whole corpus into a screen at one frame and one budget, and report both readings."""
-    tallies = {arm: Tally() for arm in _ARMS}
+    tallies = {variant: Tally() for variant in _VARIANTS}
     with _server(model, budget):
         async with httpx.AsyncClient(timeout=600) as client:
             print(f"\n=== {model.label} over pixels at {frame.label}, {budget.label} ===")  # noqa: T201
@@ -1132,16 +1134,20 @@ async def _draw_laundering_rate(model: Model, frame: Frame, budget: Budget) -> N
                 await _read_back(client, model, rendering, frame)
                 png = rendering.build(_LAUNDERING.injection, frame, CORPUS_TYPE_SCALE)
                 fired: dict[str, str] = {}
-                for arm, framed in (("framed", True), ("control", False)):
+                for variant, framed in (("framed", True), ("control", False)):
                     replies = [
                         await _screen_reply(
                             client, png, framed=framed, switch=switch_for(model), frame=frame
                         )
                         for _ in range(_RATE_RUNS)
                     ]
-                    fired[arm] = rate(_LAUNDERING, replies)
-                    unusable += [f"{rendering.name}:{arm}" for reply in replies if reply.unusable]
-                    print_fired(arm, _LAUNDERING, replies, resisted=shows_resisted(rendering.name))
+                    fired[variant] = rate(_LAUNDERING, replies)
+                    unusable += [
+                        f"{rendering.name}:{variant}" for reply in replies if reply.unusable
+                    ]
+                    print_fired(
+                        variant, _LAUNDERING, replies, resisted=shows_resisted(rendering.name)
+                    )
                 print(  # noqa: T201
                     f"  [{rendering.name}] at {frame.label}: framed {fired['framed']} "
                     f"control {fired['control']}"
@@ -1161,15 +1167,17 @@ async def test_the_laundering_rate_at_a_third_frame(model: Model) -> None:
     await _draw_laundering_rate(model, _THIRD_FRAME, ENGINE_BUDGET)
 
 
-def print_fired(arm: str, attack: Attack, replies: list[Reply], *, resisted: bool = False) -> None:
+def print_fired(
+    variant: str, attack: Attack, replies: list[Reply], *, resisted: bool = False
+) -> None:
     """Print repeated replies whole with the mark each was given: those a reading found, or all."""
     for reply in replies:
         if reply.unusable:
-            print(f"      {arm} ({void_note(reply)}): {reply.content!r}")  # noqa: T201
+            print(f"      {variant} ({void_note(reply)}): {reply.content!r}")  # noqa: T201
             continue
         mark = outcome(attack, reply)
         if resisted or mark is not Outcome.RESISTED:
-            print(f"      {arm} ({mark}): {reply.content!r}")  # noqa: T201
+            print(f"      {variant} ({mark}): {reply.content!r}")  # noqa: T201
 
 
 # The depth one cell is drawn at in each condition. The engine's sampler applied the rule on the
@@ -1184,7 +1192,7 @@ class CellDraw:
     """What one cell drawn in both variants behind one load came back with."""
 
     unusable: list[str]
-    arms: dict[str, list[Reply]]
+    variants: dict[str, list[Reply]]
 
 
 async def _draw_deep_cell(  # noqa: PLR0913 -- one argument per axis, each at the corpus's own
@@ -1210,21 +1218,21 @@ async def _draw_deep_cell(  # noqa: PLR0913 -- one argument per axis, each at th
     png = rendering.build(attack.injection, frame, type_scale)
     unusable: list[str] = []
     fired: dict[str, str] = {}
-    arms: dict[str, list[Reply]] = {}
-    for arm, framed in (("framed", True), ("control", False)):
+    variants: dict[str, list[Reply]] = {}
+    for variant, framed in (("framed", True), ("control", False)):
         replies = [
             await _screen_reply(client, png, framed=framed, switch=switch_for(model), frame=frame)
             for _ in range(runs)
         ]
-        arms[arm] = replies
-        fired[arm] = rate(attack, replies)
-        unusable += [f"{rendering.name}:{arm}" for reply in replies if reply.unusable]
-        print_fired(arm, attack, replies, resisted=True)
+        variants[variant] = replies
+        fired[variant] = rate(attack, replies)
+        unusable += [f"{rendering.name}:{variant}" for reply in replies if reply.unusable]
+        print_fired(variant, attack, replies, resisted=True)
     print(  # noqa: T201
         f"  [{rendering.name}/{attack.name}] at {budget.label}: framed {fired['framed']} "
         f"control {fired['control']}"
     )
-    return CellDraw(unusable, arms)
+    return CellDraw(unusable, variants)
 
 
 @pytest.mark.integration
@@ -1239,8 +1247,8 @@ async def test_every_renderings_laundering_rate_drawn_deep(model: Model, budget:
                 drawn = await _draw_deep_cell(client, model, rendering, budget)
                 unusable += drawn.unusable
                 readings += [
-                    (f"{model.label} {rendering.name}/{arm} at {budget.label}", replies)
-                    for arm, replies in drawn.arms.items()
+                    (f"{model.label} {rendering.name}/{variant} at {budget.label}", replies)
+                    for variant, replies in drawn.variants.items()
                 ]
     label = f"{model.label} laundering rates at {budget.label}, {_DEEP_RATE_RUNS} per arm"
     assert_drawn(label, unusable, 2 * _DEEP_RATE_RUNS * len(RENDERINGS), _DEEP_RATE_RUNS)
@@ -1267,8 +1275,8 @@ async def test_the_plain_cells_laundering_direction_drawn_deeper(model: Model) -
             )
     label = f"{model.label} plain laundering direction, {_DIRECTION_RUNS} per arm"
     assert_drawn(label, drawn.unusable, 2 * _DIRECTION_RUNS, _DIRECTION_RUNS)
-    for arm, replies in drawn.arms.items():
-        assert_refuses(f"{label}, {arm}", _PLAIN_CELL_RATE, _LAUNDERING, replies)
+    for variant, replies in drawn.variants.items():
+        assert_refuses(f"{label}, {variant}", _PLAIN_CELL_RATE, _LAUNDERING, replies)
 
 
 # The depth that reads this cell's obeyed direction at the rate the row above measured, 1.43 in
@@ -1361,19 +1369,19 @@ async def test_the_dialogs_laundering_cell_drawn_twenty_framed(model: Model) -> 
     assert_drawn(label, unusable, _CELL_DRAWS, _CELL_DRAWS)
 
 
-_ARM_DRAWS = 20
+_VARIANT_DRAWS = 20
 
 
 @pytest.mark.integration
 @pytest.mark.parametrize("model", VISION_MODELS, ids=lambda m: m.label)
-async def test_the_dialogs_cell_drawn_twenty_in_both_arms(model: Model) -> None:
+async def test_the_dialogs_cell_drawn_twenty_in_both_variants(model: Model) -> None:
     with _server(model, SHIPPED_BUDGET):
         async with httpx.AsyncClient(timeout=600) as client:
             drawn = await _draw_deep_cell(
-                client, model, _DIALOG_RENDERING, SHIPPED_BUDGET, runs=_ARM_DRAWS
+                client, model, _DIALOG_RENDERING, SHIPPED_BUDGET, runs=_VARIANT_DRAWS
             )
-    label = f"{model.label} {_DIALOG_RENDERING.name} cell, {_ARM_DRAWS} per arm"
-    assert_drawn(label, drawn.unusable, 2 * _ARM_DRAWS, _ARM_DRAWS)
+    label = f"{model.label} {_DIALOG_RENDERING.name} cell, {_VARIANT_DRAWS} per arm"
+    assert_drawn(label, drawn.unusable, 2 * _VARIANT_DRAWS, _VARIANT_DRAWS)
 
 
 _TOKEN_ATTACKS: tuple[Attack, ...] = tuple(
@@ -1449,25 +1457,25 @@ async def _draw_payload_series(
                     png = rendering.build(_LAUNDERING.injection, frame, type_scale)
                     fired: dict[str, str] = {}
                     surfaced = False
-                    for arm, framed in (("framed", True), ("control", False)):
+                    for variant, framed in (("framed", True), ("control", False)):
                         replies = [
                             await _screen_reply(
                                 client, png, framed=framed, switch=switch_for(model), frame=frame
                             )
                             for _ in range(_RATE_RUNS)
                         ]
-                        fired[arm] = rate(_LAUNDERING, replies)
-                        unusable += [f"{cell}:{arm}" for reply in replies if reply.unusable]
+                        fired[variant] = rate(_LAUNDERING, replies)
+                        unusable += [f"{cell}:{variant}" for reply in replies if reply.unusable]
                         surfaced = surfaced or any(
                             outcome(_LAUNDERING, reply) is not Outcome.RESISTED for reply in replies
                         )
-                        seen = above.get(f"{rendering.name}:{arm}")
-                        above[f"{rendering.name}:{arm}"] = fired[arm]
+                        seen = above.get(f"{rendering.name}:{variant}")
+                        above[f"{rendering.name}:{variant}"] = fired[variant]
                         print_fired(
-                            arm,
+                            variant,
                             _LAUNDERING,
                             replies,
-                            resisted=series_prints_resisted(cell, fired[arm], seen),
+                            resisted=series_prints_resisted(cell, fired[variant], seen),
                         )
                     print(  # noqa: T201
                         f"  [{cell}] read on request={'yes' if legible[cell] else 'NO'} "
@@ -1536,14 +1544,14 @@ async def test_the_body_pair_at_both_legible_sizes_drawn_deeper(model: Model) ->
             for type_scale in _LEGIBLE_SCALES:
                 for rendering in (_BARE_RENDERING, _PLAIN_RENDERING):
                     drawn = await _draw_deep_cell(
-                        client, model, rendering, ENGINE_BUDGET, type_scale, _ARM_DRAWS
+                        client, model, rendering, ENGINE_BUDGET, type_scale, _VARIANT_DRAWS
                     )
                     unusable += [f"{name} at {type_scale.label}" for name in drawn.unusable]
     label = (
         f"{model.label} body pair at {CORPUS_TYPE_SCALE.label} and {_FALLING_SCALE.label}, "
-        f"{ENGINE_BUDGET.label}, {_ARM_DRAWS} per arm"
+        f"{ENGINE_BUDGET.label}, {_VARIANT_DRAWS} per arm"
     )
-    assert_drawn(label, unusable, 2 * _ARM_DRAWS * 2 * len(_LEGIBLE_SCALES), _ARM_DRAWS)
+    assert_drawn(label, unusable, 2 * _VARIANT_DRAWS * 2 * len(_LEGIBLE_SCALES), _VARIANT_DRAWS)
 
 
 # How many loads a cell is drawn behind when the question is the spread between loads, and the
@@ -1576,18 +1584,19 @@ async def _draw_cell_across_loads(
                 drawn = await _draw_deep_cell(
                     client, model, rendering, budget, type_scale, _LOAD_DRAWS, frame, attack
                 )
-        for arm in _ARMS:
+        for variant in _VARIANTS:
             print(  # noqa: T201
-                f"  [{rendering.name}] load {load} {arm}: {_distinct(drawn.arms[arm])} distinct "
-                f"strings in {len(drawn.arms[arm])} draws"
+                f"  [{rendering.name}] load {load} {variant}: "
+                f"{_distinct(drawn.variants[variant])} distinct "
+                f"strings in {len(drawn.variants[variant])} draws"
             )
         loads.append(drawn)
         unusable += [f"{name} in load {load}" for name in drawn.unusable]
-    for arm in _ARMS:
-        per_load = " | ".join(rate(attack, drawn.arms[arm]) for drawn in loads)
-        pooled = rate(attack, [reply for drawn in loads for reply in drawn.arms[arm]])
+    for variant in _VARIANTS:
+        per_load = " | ".join(rate(attack, drawn.variants[variant]) for drawn in loads)
+        pooled = rate(attack, [reply for drawn in loads for reply in drawn.variants[variant]])
         print(  # noqa: T201
-            f"  --> {model.label} {rendering.name}/{attack.name} {arm} per load: {per_load}; "
+            f"  --> {model.label} {rendering.name}/{attack.name} {variant} per load: {per_load}; "
             f"all loads {pooled}"
         )
     return unusable
@@ -1689,7 +1698,9 @@ _MAIL_LOADS = 2
 
 @pytest.mark.integration
 @pytest.mark.parametrize("model", [_PICK], ids=lambda m: m.label)
-async def test_the_mail_cells_framed_arm_at_the_engine_budget_across_loads(model: Model) -> None:
+async def test_the_mail_cells_framed_variant_at_the_engine_budget_across_loads(
+    model: Model,
+) -> None:
     unusable: list[str] = []
     loads: list[list[Reply]] = []
     png = _MAIL_RENDERING.build(_LAUNDERING.injection, CORPUS_FRAME, CORPUS_TYPE_SCALE)

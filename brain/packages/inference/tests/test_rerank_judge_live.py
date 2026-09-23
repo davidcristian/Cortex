@@ -55,7 +55,7 @@ def _reciprocal_rank(order: list[str], gold: str) -> float:
     return 1.0 / (order.index(gold) + 1) if gold in order else 0.0
 
 
-class _Arm:
+class _Variant:
     """One ranking's score sheet over the corpus: its placings, its cost, and its fallbacks."""
 
     def __init__(self, label: str) -> None:
@@ -97,9 +97,9 @@ async def test_the_model_rank_is_measured_against_the_cosine_that_ships() -> Non
         raw = RawRecallPolicy()
         k = 3
         cosine, unbounded, bounded = (
-            _Arm("cosine (ships)"),
-            _Arm("judge, unbounded"),
-            _Arm("judge, bounded"),
+            _Variant("cosine (ships)"),
+            _Variant("judge, unbounded"),
+            _Variant("judge, bounded"),
         )
 
         for question, gold in _QUESTIONS.items():
