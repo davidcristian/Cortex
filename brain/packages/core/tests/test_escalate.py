@@ -73,7 +73,7 @@ async def test_invoking_writes_the_stripped_brief_and_tells_the_model_to_wrap_up
     assert result.content == ESCALATION_QUEUED_MSG
 
 
-async def test_without_a_slot_on_the_stamp_the_tool_refuses_honestly() -> None:
+async def test_without_a_slot_on_the_stamp_the_tool_says_it_is_not_available() -> None:
     result = await EscalateToBrainTool().invoke(_call("go deep", slot=None))
     assert result.is_error is True
     assert "not available" in result.content
@@ -159,7 +159,7 @@ async def test_a_declined_confirmation_writes_nothing_and_shows_the_swap_reason(
     assert request.reason == ESCALATE_GATE_REASON
 
 
-async def test_the_config_backstop_gates_escalation_even_if_the_flag_is_lost() -> None:
+async def test_the_config_list_still_confirms_escalation_if_the_flag_is_lost() -> None:
     tool = EscalateToBrainTool()
     slot = EscalationSlot()
     confirmer = RecordingConfirmer(answer=False)

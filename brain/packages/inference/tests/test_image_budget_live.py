@@ -168,7 +168,7 @@ def _prompt_tokens(messages: list[dict[str, object]]) -> int:
 
 
 @pytest.mark.integration
-def test_the_models_own_budget_saturates_and_the_knob_raises_it(
+def test_the_models_own_budget_saturates_and_the_setting_raises_it(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     png = _screen()
@@ -182,9 +182,9 @@ def test_the_models_own_budget_saturates_and_the_knob_raises_it(
         assert _alive(), "the raised budget aborted the server on a 4K picture"
     print(f"  CORTEX_IMAGE_MAX_TOKENS=1024 (the default): {raised} tokens, same screen")  # noqa: T201
     assert raised > 2 * declared, (
-        f"the knob bought no resolution: {declared} tokens off against {raised} raised. "
+        f"the setting bought no resolution: {declared} tokens off against {raised} raised. "
         "Either llama.cpp stopped honouring --image-max-tokens for this model, or the model's "
-        "own declared budget rose above the knob."
+        "own declared budget rose above the setting."
     )
 
 

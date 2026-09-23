@@ -238,7 +238,9 @@ async def test_a_second_turn_sent_during_the_swap_runs_after_it() -> None:
     assert host.running == {"cortex"}
 
 
-async def test_a_handoff_killed_mid_swap_ends_the_stream_honestly_and_the_next_turn_works() -> None:
+async def test_a_handoff_killed_mid_swap_ends_the_stream_accurately_and_the_next_turn_works() -> (
+    None
+):
     store = InMemorySessionStore()
     host = ScriptedModelHost(running=["cortex"], fail={("start", "brain"): "CUDA OOM at load"})
     backend = _ScriptedModel(

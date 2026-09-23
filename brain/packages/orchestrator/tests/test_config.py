@@ -705,14 +705,14 @@ def test_subagents_roster_key_naming_the_default_is_rejected(
 
 @pytest.mark.usefixtures("clean_env")
 @pytest.mark.parametrize(
-    ("knob", "value"),
+    ("variable", "value"),
     [("CORTEX_SUBAGENTS_CPUS", "8.0"), ("CORTEX_SUBAGENTS_MEMORY_GB", "16.0")],
 )
 def test_subagents_reject_a_default_ask_larger_than_the_whole_budget(
-    monkeypatch: pytest.MonkeyPatch, knob: str, value: str
+    monkeypatch: pytest.MonkeyPatch, variable: str, value: str
 ) -> None:
     _llamacpp_env(monkeypatch)
-    monkeypatch.setenv(knob, value)
+    monkeypatch.setenv(variable, value)
     with pytest.raises(ValidationError, match="no spawn of it could ever be admitted"):
         SubagentsConfig()
 

@@ -109,7 +109,7 @@ def _disagreements(reference: str, recorded: Row, found: Row) -> list[str]:
     return report
 
 
-def rederive(
+def recompute(
     references: Iterable[str],
     records: Mapping[str, Row],
     inspect: Inspector,
@@ -143,7 +143,7 @@ def report_drift(
 ) -> int:
     """Ask a real docker about the record, print every row that has drifted, and exit on it."""
     references, local = list(names), list(built)
-    report = rederive(references, records, inspect, local)
+    report = recompute(references, records, inspect, local)
     for line in report:
         print(line)
     if report:

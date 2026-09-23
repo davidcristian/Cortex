@@ -118,7 +118,7 @@ export function stubRoll(): () => void {
     });
     return animation as unknown as Animation;
   }) as typeof Element.prototype.animate;
-  return () => act(() => finishers.splice(0).forEach((land) => land()));
+  return () => act(() => finishers.splice(0).forEach((finish) => finish()));
 }
 
 afterEach(() => {

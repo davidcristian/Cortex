@@ -91,7 +91,7 @@ def test_a_line_whose_level_is_chosen_while_it_runs_is_refused_by_name() -> None
         logcalls.logged(text, "a model-host request failed", "api.py")
 
 
-def test_a_dynamic_call_carrying_another_message_leaves_the_plain_fault_standing() -> None:
+def test_a_dynamic_call_carrying_another_message_leaves_the_plain_fault_in_place() -> None:
     shapes = (
         "_log.log(level)\n"
         "_log.log(level, built)\n"

@@ -356,7 +356,7 @@ async def test_the_deadline_covers_a_tool_dispatch_the_subagent_is_waiting_on() 
     assert registry.dispatched.is_set()
 
 
-async def test_a_deadline_that_lands_mid_envelope_is_reported_as_the_deadline() -> None:
+async def test_a_deadline_that_falls_mid_envelope_is_reported_as_the_deadline() -> None:
     store = InMemoryTaskStore()
     await _stored_task(store)
     runner = _runner(
@@ -564,7 +564,7 @@ async def test_an_unbounded_run_that_a_server_capped_quotes_no_bound_of_its_own(
     assert "this run's own cap" not in result.detail
 
 
-async def test_a_cap_that_lands_mid_envelope_is_reported_as_the_cap() -> None:
+async def test_a_cap_that_falls_mid_envelope_is_reported_as_the_cap() -> None:
     store = InMemoryTaskStore()
     await _stored_task(store)
     backend = RecordingBackend(

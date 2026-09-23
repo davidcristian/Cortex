@@ -1051,7 +1051,7 @@ async fn a_client_told_no_plan_announces_nothing_and_a_turn_never_does() {
 }
 
 #[tokio::test]
-async fn a_deadline_the_header_cannot_spell_is_dropped_rather_than_sent() {
+async fn a_deadline_the_header_cannot_express_is_dropped_rather_than_sent() {
     let fake = FakeBrain::new(Script::Ready);
     let announced = Arc::clone(&fake.timeouts);
     let addr = spawn_fake_brain(fake).await.unwrap();

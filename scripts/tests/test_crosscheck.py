@@ -362,7 +362,7 @@ def test_a_number_a_longer_one_merely_contains_is_not_written(tmp_path: Path) ->
     assert "having it only inside a longer token" in fault.detail
 
 
-def test_a_template_that_pins_only_the_host_half_leaves_the_other_free(tmp_path: Path) -> None:
+def test_a_template_that_fixes_only_the_host_half_leaves_the_other_free(tmp_path: Path) -> None:
     _publish(tmp_path, declared="50051", host="50051", container="50052")
     assert crosscheck.check_constant(tmp_path, _ported("127.0.0.1:{value}")) == []
     (fault,) = crosscheck.check_constant(tmp_path, _ported("127.0.0.1:{value}:{value}"))
@@ -1546,7 +1546,7 @@ def handed_sites(
     return found
 
 
-def landed(root: Path, constant: couplings.Constant, site: couplings.Site) -> set[int]:
+def covered_lines(root: Path, constant: couplings.Constant, site: couplings.Site) -> set[int]:
     """Return every line a mention of ``site``'s own name covers in the file declaring it."""
     text = (root / site.path).read_text(encoding="utf-8")
     value = crosscheck.read_value(root, site)
@@ -1593,51 +1593,51 @@ def test_a_site_outside_the_brains_python_is_not_read(tmp_path: Path) -> None:
     assert handed_sites(tmp_path, (elsewhere,)) == []
 
 
-def test_a_call_mention_lands_on_the_line_handing_the_name(tmp_path: Path) -> None:
+def test_a_call_mention_ends_up_on_the_line_handing_the_name(tmp_path: Path) -> None:
     _sink(tmp_path, "_logger.info(_MESSAGE, extra={})")
-    assert landed(tmp_path, HELD_AT_CALL, HELD_AT_CALL.sites[0]) == {5}
+    assert covered_lines(tmp_path, HELD_AT_CALL, HELD_AT_CALL.sites[0]) == {5}
 
 
-def test_a_mention_aimed_at_the_declaration_lands_there_and_not_on_the_call(
+def test_a_mention_aimed_at_the_declaration_ends_up_there_and_not_on_the_call(
     tmp_path: Path,
 ) -> None:
     _sink(tmp_path, "_logger.info(_MESSAGE, extra={})")
     aimed = HELD_AT_CALL._replace(
         mentions=(crosscheck.Mention(SINK, '{name} = "', name="_MESSAGE"),)
     )
-    assert landed(tmp_path, aimed, aimed.sites[0]) == {1}
+    assert covered_lines(tmp_path, aimed, aimed.sites[0]) == {1}
 
 
 WRAPPED_CALL = "_logger.info(\n        _MESSAGE,\n        extra={},\n    )"
 
 
-def test_a_call_mention_naming_the_call_lands_nowhere_on_a_wrapped_one(tmp_path: Path) -> None:
+def test_a_call_mention_naming_the_call_ends_up_nowhere_on_a_wrapped_one(tmp_path: Path) -> None:
     _sink(tmp_path, WRAPPED_CALL)
     (site,) = HELD_AT_CALL.sites
     assert handed_sites(tmp_path, (HELD_AT_CALL,)) == [(HELD_AT_CALL, site, [6])]
-    assert landed(tmp_path, HELD_AT_CALL, site) == set()
+    assert covered_lines(tmp_path, HELD_AT_CALL, site) == set()
 
 
-def test_the_name_and_its_comma_land_on_a_wrapped_call(tmp_path: Path) -> None:
+def test_the_name_and_its_comma_are_covered_on_a_wrapped_call(tmp_path: Path) -> None:
     _sink(tmp_path, WRAPPED_CALL)
     shorter = HELD_AT_CALL._replace(
         mentions=(crosscheck.Mention(SINK, "{name},", name="_MESSAGE"),)
     )
-    assert landed(tmp_path, shorter, shorter.sites[0]) == {6}
+    assert covered_lines(tmp_path, shorter, shorter.sites[0]) == {6}
 
 
 def test_every_registered_binding_a_brain_log_call_is_handed_is_held_at_that_call() -> None:
     held = handed_sites(REPO_ROOT, crosscheck.CONSTANTS)
     assert held, "no registered binding is handed to a brain log call, so the fixtures are fiction"
     for constant, site, lines in held:
-        missing = sorted(set(lines) - landed(REPO_ROOT, constant, site))
+        missing = sorted(set(lines) - covered_lines(REPO_ROOT, constant, site))
         assert not missing, (
             f"{site.path} hands {site.name} to a log call on line(s) {missing} and the entry "
-            f"{constant.label!r} carries no mention landing there; add "
+            f"{constant.label!r} has no mention on that line; add "
             f"Mention({site.path!r}, '<the call>({{name}},', name={site.name!r}) beside its "
             f"other mentions, so a call handed another word fails check-crosscheck. Where the "
             f"formatter wraps that call onto more than one line, the template naming the call is "
-            f"found nowhere and '{{name}},' is the one that lands on line(s) {missing}"
+            f"found nowhere and '{{name}},' is the one that ends up on line(s) {missing}"
         )
 
 
@@ -1674,7 +1674,7 @@ def test_the_registry_holds_couplings_of_both_kinds() -> None:
     assert any(len(constant.sites) > 1 for constant in crosscheck.CONSTANTS)
 
 
-def test_the_registry_pins_at_least_one_occurrence_count() -> None:
+def test_the_registry_holds_at_least_one_occurrence_count() -> None:
     counted = [
         mention.occurrences
         for constant in crosscheck.CONSTANTS
@@ -1721,10 +1721,10 @@ def test_shape_of_an_empty_registry_is_all_zeros() -> None:
     assert registry.shape(()) == registry.Shape(entries=0, sites=0, mentions=0, counted=0)
 
 
-def test_shape_counts_a_pinned_count_once_and_not_its_occurrences() -> None:
-    pinned = registry.shape(_SHAPED).counted
-    assert pinned == 2
-    assert pinned != sum(
+def test_shape_counts_a_held_count_once_and_not_its_occurrences() -> None:
+    counted_constants = registry.shape(_SHAPED).counted
+    assert counted_constants == 2
+    assert counted_constants != sum(
         mention.occurrences or 0 for constant in _SHAPED for mention in constant.mentions
     )
 

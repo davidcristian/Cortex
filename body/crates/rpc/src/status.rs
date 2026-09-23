@@ -127,7 +127,7 @@ mod tests {
     }
 
     #[test]
-    fn an_announcement_never_moves_where_tonics_own_expiry_lands() {
+    fn an_announcement_never_moves_where_tonics_own_expiry_ends_up() {
         let status = Status::from_error(Box::new(Wrapped(transport_error())));
         assert_eq!(
             announced_status_to_error(&status, Some(Duration::from_secs(5))),

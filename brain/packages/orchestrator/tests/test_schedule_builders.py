@@ -87,7 +87,7 @@ def test_build_schedule_tools_off_when_scheduling_is_off() -> None:
     assert build_schedule_tools(ScheduleConfig(), None, FixedClock(), tasks_enabled=True) == []
 
 
-def test_build_schedule_tools_names_and_honest_advertisement() -> None:
+def test_build_schedule_tools_names_and_accurate_advertisement() -> None:
     tools = build_schedule_tools(
         ScheduleConfig(max_active=5), InMemoryScheduleStore(), FixedClock(), tasks_enabled=False
     )

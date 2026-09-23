@@ -80,7 +80,7 @@ describe("holdTail", () => {
     expect(log.top()).toBe(484);
   });
 
-  it("gives the growth back on the way shut, landing on the pixel it started from", () => {
+  it("gives the growth back on the way shut, ending on the pixel it started from", () => {
     const layout: Layout = { content: 780, window: 293, top: 484, at: 529 };
     const log = stage(layout);
     holdTail(log.box, log.section, WITHIN);
@@ -150,7 +150,7 @@ describe("holdTail", () => {
     expect(log.top()).toBe(393);
   });
 
-  it("gives a chrome roll's room back on the way shut, landing on the pixel it started from", () => {
+  it("gives a chrome roll's room back on the way shut, ending on the pixel it started from", () => {
     const layout: Layout = { content: 469, window: 73, top: 393, at: -118 };
     const log = stage(layout, "chrome");
     holdTail(log.box, log.section, WITHIN);

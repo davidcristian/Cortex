@@ -952,7 +952,7 @@ async def test_build_subagents_builds_the_config_roster_and_advertises_it() -> N
     await close()
 
 
-async def test_the_entry_every_untrusted_spawn_is_pinned_to_is_one_the_roster_hosts() -> None:
+async def test_the_entry_every_untrusted_spawn_is_locked_to_is_one_the_roster_hosts() -> None:
     spawn, _scheduler, close = await build_subagents(
         _roster_config(model="subagent-alt"),
         None,
@@ -969,7 +969,7 @@ async def test_the_entry_every_untrusted_spawn_is_pinned_to_is_one_the_roster_ho
     await close()
 
 
-async def test_build_subagents_with_tools_pins_the_spec_to_the_default() -> None:
+async def test_build_subagents_with_tools_locks_the_spec_to_the_default() -> None:
     spawn, _scheduler, close = await build_subagents(
         _roster_config(),
         build_subagent_tools(_read_registry(), SystemClock()),
@@ -1380,7 +1380,7 @@ async def test_build_cortex_tools_gated_names_gate_a_name_the_registry_advertise
     assert result.content == DENIED_MSG
 
 
-async def test_build_subagent_tools_gated_names_are_the_fail_closed_backstop() -> None:
+async def test_build_subagent_tools_gated_names_are_the_fail_closed_default() -> None:
     registry = InMemoryToolRegistry(
         {"send_email": (ToolSpec(name="send_email", description="", parameters={}), _reply_ok)}
     )

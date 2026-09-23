@@ -287,7 +287,7 @@ def test_a_compose_servers_artifact_written_another_way_is_reported_too(tmp_path
     assert "CORTEX_SUBAGENT_MODEL_FILE" in faults[0].detail
 
 
-def test_a_fourth_tier_arriving_under_a_name_no_reader_looks_at_is_held_the_day_it_lands(
+def test_a_fourth_tier_arriving_under_a_name_no_reader_looks_at_is_held_the_day_it_is_added(
     tmp_path: Path,
 ) -> None:
     field = FOURTH_FIELD + (

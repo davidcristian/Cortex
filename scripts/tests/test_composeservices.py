@@ -184,15 +184,15 @@ def test_a_deeper_block_under_an_unrelated_key_covers_nothing() -> None:
     assert _one(text).covered == ()
 
 
-def test_the_project_name_is_read_when_the_file_pins_one() -> None:
+def test_the_project_name_is_read_when_the_file_sets_one() -> None:
     assert read_services(PROBE).project == "cortex-imap-probe"
 
 
-def test_a_file_pinning_no_project_says_so() -> None:
+def test_a_file_naming_no_project_says_so() -> None:
     assert read_services("services:\n  r:\n    image: r\n").project is None
 
 
-def test_a_bare_name_key_pins_nothing() -> None:
+def test_a_bare_name_key_names_no_project() -> None:
     assert read_services("name:\nservices:\n  r:\n    image: r\n").project is None
 
 

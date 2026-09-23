@@ -189,7 +189,9 @@ async def assert_stores_intact(
         assert remembered == written
 
 
-def assert_stream_ended_honestly(live: Harness, events: list[TurnEvent], *, killed: bool) -> None:
+def assert_stream_reported_only_real_progress(
+    live: Harness, events: list[TurnEvent], *, killed: bool
+) -> None:
     """No event reported progress that had not been made."""
     details: list[str] = []
     for event in events:
@@ -256,7 +258,7 @@ async def test_a_scripted_failure_converges_and_tells_the_user(
     events = await harness.run_handoff(live, harness.armed_slot())
     await assert_converged_on_cortex(live)
     await assert_stores_intact(live, deep_reply=deep_reply)
-    assert_stream_ended_honestly(live, events, killed=False)
+    assert_stream_reported_only_real_progress(live, events, killed=False)
     await assert_the_next_turn_still_works(live)
 
 
@@ -275,7 +277,7 @@ async def test_a_drain_that_times_out_converges_without_evicting_anything() -> N
     assert live.host.calls == harness.PREFLIGHT_CALLS
     await assert_converged_on_cortex(live)
     await assert_stores_intact(live)
-    assert_stream_ended_honestly(live, events, killed=False)
+    assert_stream_reported_only_real_progress(live, events, killed=False)
     await assert_the_next_turn_still_works(live)
     assert not task.done()
     held.release.set()
@@ -316,7 +318,7 @@ async def test_a_store_that_refuses_the_settling_write_still_frees_the_next_hand
     events = await harness.run_handoff(live, harness.armed_slot())
     await assert_converged_on_cortex(live)
     await assert_stores_intact(live, deep_reply=deep_reply, settled=False)
-    assert_stream_ended_honestly(live, events, killed=False)
+    assert_stream_reported_only_real_progress(live, events, killed=False)
     await assert_the_next_turn_still_works(live)
 
     later = await harness.run_handoff(live, harness.armed_slot(), turn_id=_LATER_TURN)
@@ -402,11 +404,11 @@ async def test_a_kill_at_a_step_boundary_converges_back_onto_the_cortex(
     torn_down = await live.handoffs.get(harness.TURN)
     assert torn_down is not None
     assert torn_down.failure == TORN_DOWN_REASON
-    assert_stream_ended_honestly(live, events, killed=True)
+    assert_stream_reported_only_real_progress(live, events, killed=True)
     await assert_the_next_turn_still_works(live)
 
 
-async def test_the_mid_drain_kill_lands_while_the_pool_is_actually_quiescing() -> None:
+async def test_the_mid_drain_kill_arrives_while_the_pool_is_actually_quiescing() -> None:
     gate = Gate()
     scheduler = _PausingScheduler(mid=gate)
     live = build_harness(scheduler=scheduler)
@@ -460,7 +462,7 @@ async def test_two_escalating_turns_racing_for_the_gpu_leave_one_of_them_untouch
     assert live.backend.calls == 1
     await assert_converged_on_cortex(live)
     await assert_stores_intact(live, deep_reply="a deep answer")
-    assert_stream_ended_honestly(live, won, killed=False)
+    assert_stream_reported_only_real_progress(live, won, killed=False)
     await assert_the_next_turn_still_works(live)
 
 
@@ -482,7 +484,7 @@ async def test_closing_the_stream_mid_handoff_unwinds_the_swap_rather_than_aband
     assert live.backend.closed is True
     await assert_converged_on_cortex(live)
     await assert_stores_intact(live, killed=True)
-    assert_stream_ended_honestly(live, events, killed=True)
+    assert_stream_reported_only_real_progress(live, events, killed=True)
     await assert_the_next_turn_still_works(live)
 
 
@@ -509,7 +511,7 @@ async def test_a_second_cancellation_during_the_swap_back_still_holds_the_drain_
     await _settle()
     await assert_converged_on_cortex(live)
     await assert_stores_intact(live, deep_reply="a deep answer", killed=True)
-    assert_stream_ended_honestly(live, events, killed=True)
+    assert_stream_reported_only_real_progress(live, events, killed=True)
     await assert_the_next_turn_still_works(live)
 
 
@@ -522,7 +524,7 @@ async def test_a_tier_evicted_for_the_handoff_is_running_again_when_it_ends() ->
     assert host.running == {"cortex", "subagent-gpu"}
     await assert_converged_on_cortex(live)
     await assert_stores_intact(live, deep_reply="a deep answer")
-    assert_stream_ended_honestly(live, events, killed=False)
+    assert_stream_reported_only_real_progress(live, events, killed=False)
     await assert_the_next_turn_still_works(live)
 
 
@@ -570,7 +572,7 @@ async def test_the_swap_waits_for_an_in_flight_cortex_round_to_fall_free() -> No
     assert ("stop", "cortex") in live.host.calls
     await assert_converged_on_cortex(live)
     await assert_stores_intact(live, deep_reply="a deep answer")
-    assert_stream_ended_honestly(live, events, killed=False)
+    assert_stream_reported_only_real_progress(live, events, killed=False)
 
 
 async def test_the_record_reaches_brain_active_only_once_the_deep_model_serves() -> None:

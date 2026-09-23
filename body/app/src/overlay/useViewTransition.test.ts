@@ -36,7 +36,7 @@ describe("useViewTransition", () => {
     expect(result.current).toBeNull();
   });
 
-  it("holds the original view when a second change lands mid-morph", () => {
+  it("holds the original view when a second change arrives mid-morph", () => {
     const { result, rerender } = renderHook(({ view }) => useViewTransition(view, MORPH_MS), {
       initialProps: { view: "chat" },
     });

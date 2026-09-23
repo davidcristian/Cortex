@@ -307,7 +307,7 @@ async def test_a_deployment_without_a_subagent_pool_has_nothing_to_drain() -> No
     assert_the_window_announced_real_progress(live)
 
 
-async def test_a_deep_model_that_will_not_load_ends_the_turn_honestly() -> None:
+async def test_a_deep_model_that_will_not_load_ends_the_turn_saying_the_swap_failed() -> None:
     live = build_harness(
         Fakes(host=ScriptedModelHost(running=["cortex"], fail={("start", "brain"): "CUDA OOM"}))
     )
@@ -349,7 +349,7 @@ async def test_a_swap_that_broke_writes_the_model_hosts_own_sentence_down(
     ]
 
 
-async def test_a_deep_model_that_never_becomes_ready_ends_the_turn_honestly() -> None:
+async def test_a_deep_model_that_never_becomes_ready_ends_the_turn_saying_the_swap_failed() -> None:
     live = build_harness(
         Fakes(
             host=ScriptedModelHost(

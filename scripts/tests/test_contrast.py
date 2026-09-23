@@ -113,7 +113,7 @@ def test_percentile_of_a_single_value_is_that_value() -> None:
     assert contrast.percentile([4.0], 0.5) == 4.0
 
 
-def test_percentile_lands_exactly_on_a_sample_when_the_position_is_whole() -> None:
+def test_percentile_is_exactly_a_sample_when_the_position_is_whole() -> None:
     assert contrast.percentile([1.0, 2.0, 3.0], 0.5) == 2.0
 
 

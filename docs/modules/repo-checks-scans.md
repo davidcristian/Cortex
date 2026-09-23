@@ -142,7 +142,7 @@ a container with nothing at that path gets an anonymous volume, which `docker co
 on the host unless it was given `--volumes`.
 
 What an image declares is recorded in `imagevolumes.py` rather than read, because `just check` runs
-on a clean dev box and in CI with no docker daemon. `--rederive`, which `just image-volumes` runs,
+on a clean dev box and in CI with no docker daemon. `--recompute`, which `just image-volumes` runs,
 pulls every image it did not build, asks a real docker what each declares, and reports every row
 that has changed in either direction. The pull is what makes it a fresh measurement: most of these
 references are moving tags, and a local cache read would confirm a month-old image.

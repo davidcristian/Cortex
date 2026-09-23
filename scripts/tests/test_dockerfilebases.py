@@ -17,7 +17,7 @@ def test_the_last_stage_decides_and_a_builder_stage_does_not() -> None:
     assert read_base(text) == "runtime-image:1"
 
 
-def test_a_final_stage_standing_on_an_earlier_stage_is_followed_back_to_the_image() -> None:
+def test_a_final_stage_built_on_an_earlier_stage_is_followed_back_to_the_image() -> None:
     text = "FROM real-image:1 AS base\nFROM base AS middle\nFROM middle\n"
     assert read_base(text) == "real-image:1"
 
@@ -34,7 +34,7 @@ def test_a_stage_split_across_a_continuation_is_read_whole() -> None:
     assert read_base("FROM \\\n  real-image:1 \\\n  AS base\nFROM base\n") == "real-image:1"
 
 
-def test_a_file_standing_on_scratch_stands_on_nothing() -> None:
+def test_a_file_built_on_scratch_is_built_on_nothing() -> None:
     assert read_base("FROM scratch\nVOLUME /a\n") is None
 
 
@@ -62,12 +62,12 @@ def test_a_from_that_is_not_an_image_optionally_named_is_refused(argument: str) 
         read_base(f"FROM {argument}\n")
 
 
-def test_a_stage_standing_on_itself_is_refused_rather_than_read_as_an_image() -> None:
+def test_a_stage_built_on_itself_is_refused_rather_than_read_as_an_image() -> None:
     with pytest.raises(DockerfileError, match="stands on itself"):
         read_base("FROM loop AS loop\n")
 
 
-def test_a_stage_standing_on_one_written_after_it_is_refused() -> None:
+def test_a_stage_built_on_one_written_after_it_is_refused() -> None:
     with pytest.raises(DockerfileError, match="stands on itself or on one written after it"):
         read_base("FROM later AS first\nFROM real-image:1 AS later\nFROM first\n")
 

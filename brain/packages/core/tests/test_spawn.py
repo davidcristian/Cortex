@@ -440,7 +440,7 @@ async def test_the_spec_advertises_the_roster_to_a_tool_less_wiring() -> None:
     assert "worth parallelizing" not in spec.description
 
 
-async def test_the_spec_omits_the_model_knob_when_subagents_hold_tools() -> None:
+async def test_the_spec_omits_the_model_choice_when_subagents_hold_tools() -> None:
     store = InMemoryTaskStore()
     roster = SubagentRoster(
         entries={
@@ -457,7 +457,7 @@ async def test_the_spec_omits_the_model_knob_when_subagents_hold_tools() -> None
     assert "rather than running them in parallel" in spec.description
 
 
-async def test_the_spec_omits_the_model_knob_for_a_single_entry_roster() -> None:
+async def test_the_spec_omits_the_model_choice_for_a_single_entry_roster() -> None:
     store = InMemoryTaskStore()
     spec = _spec_of(_runner(store, EchoInferenceBackend(), "subagent"))
     assert _model_property(spec) is None

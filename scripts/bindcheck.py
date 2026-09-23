@@ -33,7 +33,7 @@ class Scan(NamedTuple):
 
     files: int
     mounts: int
-    landings: int
+    resolved_paths: int
     refused: list[Fault]
     unasked: list[Fault]
     findings: list[Fault]
@@ -56,15 +56,15 @@ def default_path(source: str) -> str | None:
     return resolved
 
 
-def landings(root: Path, compose: Path, path: str) -> list[str]:
+def resolved_paths(root: Path, compose: Path, path: str) -> list[str]:
     """Return the repo-relative paths one source resolves to, under either project directory."""
     projects = [root] if compose.parent == root else [root, compose.parent]
     found: list[str] = []
     for project in projects:
-        landed = Path(path) if Path(path).is_absolute() else Path(os.path.normpath(project / path))
-        if root not in landed.parents:
+        target = Path(path) if Path(path).is_absolute() else Path(os.path.normpath(project / path))
+        if root not in target.parents:
             continue
-        relative = landed.relative_to(root).as_posix()
+        relative = target.relative_to(root).as_posix()
         if relative not in found:
             found.append(relative)
     return found
@@ -110,7 +110,7 @@ def _spots(root: Path, compose: Path, mount: Mount) -> tuple[int, list[str]]:
     path = default_path(mount.source)
     if path is None:
         return 0, []
-    spots = landings(root, compose, path)
+    spots = resolved_paths(root, compose, path)
     return len(spots), [
         spot for spot in spots if not is_tracked(root, spot) and not is_ignored(root, spot)
     ]
@@ -123,7 +123,7 @@ def check_file(root: Path, compose: Path) -> Scan:
         mounts = read_mounts(compose.read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError, ComposeReadError) as err:
         fault = Fault(path=name, line=0, detail=str(err))
-        return Scan(files=1, mounts=0, landings=0, refused=[fault], unasked=[], findings=[])
+        return Scan(files=1, mounts=0, resolved_paths=0, refused=[fault], unasked=[], findings=[])
     asked = 0
     unasked: list[Fault] = []
     faults: list[Fault] = []
@@ -146,7 +146,12 @@ def check_file(root: Path, compose: Path) -> Scan:
             for spot in spots
         )
     return Scan(
-        files=1, mounts=len(mounts), landings=asked, refused=[], unasked=unasked, findings=faults
+        files=1,
+        mounts=len(mounts),
+        resolved_paths=asked,
+        refused=[],
+        unasked=unasked,
+        findings=faults,
     )
 
 
@@ -156,7 +161,7 @@ def check(root: Path) -> Scan:
     return Scan(
         files=len(scans),
         mounts=sum(scan.mounts for scan in scans),
-        landings=sum(scan.landings for scan in scans),
+        resolved_paths=sum(scan.resolved_paths for scan in scans),
         refused=[fault for scan in scans for fault in scan.refused],
         unasked=[fault for scan in scans for fault in scan.unasked],
         findings=[fault for scan in scans for fault in scan.findings],
@@ -208,8 +213,8 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     print(
         f"bindcheck OK: {scanned.mounts} bind mount(s) under {given} are outside, tracked, or "
-        f"ignored, over {scanned.files} compose file(s) and {scanned.landings} resolved path(s) "
-        "checked"
+        f"ignored, over {scanned.files} compose file(s) and {scanned.resolved_paths} "
+        "resolved path(s) checked"
     )
     return 0
 

@@ -20,7 +20,7 @@ def test_thinking_off_alone_carries_no_cap() -> None:
     )
 
 
-def test_both_knobs_travel_together_as_one_value() -> None:
+def test_both_settings_travel_together_as_one_value() -> None:
     assert ReplyBoundsConfig(max_tokens=512, thinking=False).bounds() == GenerationBounds(
         max_tokens=512, thinking=False
     )

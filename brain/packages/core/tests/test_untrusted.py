@@ -210,7 +210,7 @@ def test_boundary_constants_carry_the_rule() -> None:
     assert "BLOCKED" in DENIED_MSG
 
 
-def test_the_two_refusals_the_model_relays_are_pinned_word_for_word() -> None:
+def test_the_two_refusals_the_model_relays_are_asserted_word_for_word() -> None:
     assert DENIED_MSG == (
         "BLOCKED: this action is irreversible or outbound and this turn has read untrusted "
         "external content, so it was not performed and cannot be confirmed within this turn. "

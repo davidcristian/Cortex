@@ -303,7 +303,7 @@ describe("overlayState reducer", () => {
     expect(reduce(open, { kind: "toggleSwitcher", announce: false }).switcherOpen).toBe(false);
   });
 
-  it("carries a standing sentence through a silent toggle rather than clearing it", () => {
+  it("keeps a shown sentence through a silent toggle rather than clearing it", () => {
     const spoken = run([
       { kind: "open" },
       { kind: "sessionsLoaded", sessions: [summary("a")] },
@@ -384,7 +384,7 @@ describe("overlayState reducer", () => {
     expect(open.messages).toEqual([]);
   });
 
-  it("openSession shows the switcher's authoritative title, not a locally re-derived one", () => {
+  it("openSession shows the switcher's authoritative title, not a locally recomputed one", () => {
     const messages: SessionMessage[] = [
       { role: "user", text: "about cats", turnId: "t", atUnixMs: 1 },
       { role: "assistant", text: "cats are great", turnId: "t", atUnixMs: 2 },
@@ -655,7 +655,7 @@ describe("overlayState reducer", () => {
     ]);
   });
 
-  it("adoptSession shows the most recent chat's switcher title, not a re-derived one", () => {
+  it("adoptSession shows the most recent chat's switcher title, not a recomputed one", () => {
     const messages: SessionMessage[] = [
       { role: "user", text: "about cats", turnId: "t", atUnixMs: 1 },
     ];

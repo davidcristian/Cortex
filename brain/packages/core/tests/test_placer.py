@@ -21,12 +21,12 @@ def test_placer_satisfies_the_port() -> None:
     assert isinstance(placer, VramBudgetPlacer)
 
 
-def test_a_subagent_that_fits_lands_on_gpu() -> None:
+def test_a_subagent_that_fits_is_placed_on_gpu() -> None:
     placement = _placer().place(_request(2.0))
     assert placement == Placement(target=PlacementTarget.GPU, reserved_gb=2.0)
 
 
-def test_exactly_filling_the_headroom_still_lands_on_gpu_then_the_next_spills() -> None:
+def test_exactly_filling_the_headroom_is_still_placed_on_gpu_then_the_next_spills() -> None:
     placer = _placer()
     assert placer.place(_request(3.0)).target is PlacementTarget.GPU
     spill = placer.place(_request(0.1))

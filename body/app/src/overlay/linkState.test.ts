@@ -47,7 +47,7 @@ describe("link state", () => {
     expect(linkServing(down)).toEqual({ state: "ready", detail: "", probing: false });
   });
 
-  it("a streamed event keeps a detail earned while already ready, and the same view with it", () => {
+  it("a streamed event keeps a detail set while already ready, and the same view with it", () => {
     expect(linkServing(ready)).toBe(ready);
   });
 

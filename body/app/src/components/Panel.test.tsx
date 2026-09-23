@@ -478,7 +478,7 @@ describe("Panel", () => {
   });
 
   it("holds the log's place while a section rolls open in the chrome beside it", () => {
-    const land = stubRoll();
+    const finish = stubRoll();
     const frames: FrameRequestCallback[] = [];
     vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) =>
       frames.push(callback),
@@ -498,7 +498,7 @@ describe("Panel", () => {
     seen = 73;
     frames[frames.length - 1]?.(0);
     expect(el.scrollTop).toBe(628);
-    land();
+    finish();
   });
 
   it("hands the log back its place after a trip to the console, ignoring the layout's scrolling", () => {

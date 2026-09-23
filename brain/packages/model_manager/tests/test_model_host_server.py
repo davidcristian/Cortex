@@ -29,7 +29,7 @@ async def test_the_wired_app_serves_the_roster_its_env_declared(
     assert cast("dict[str, Any]", response.json())["models"] == ["cortex", "brain"]
 
 
-async def test_the_wiring_hands_over_every_timing_knob_it_reads(
+async def test_the_wiring_hands_over_every_timing_setting_it_reads(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("CORTEX_MODELHOST_STOP_GRACE_S", "7.5")

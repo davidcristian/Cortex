@@ -13,7 +13,7 @@ describe("resolveMark", () => {
     }
   });
 
-  it("resolves the keys the styles first shipped under, so an old stored pick still lands", () => {
+  it("resolves the keys the styles first shipped under, so an old stored pick still resolves", () => {
     expect(resolveMark("wobble")).toBe(MULL);
     expect(resolveMark("sheen")).toBe(MUSE);
     expect(resolveMark("ping")).toBe(HUNCH);

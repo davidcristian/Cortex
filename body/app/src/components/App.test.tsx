@@ -90,7 +90,7 @@ describe("App", () => {
     expect(screen.queryByText("Stand-up in 10 minutes")).toBeNull();
   });
 
-  it("lands the caret in the composer when a chat arrives on a row that leaves with it", async () => {
+  it("puts the caret in the composer when a chat arrives on a row that leaves with it", async () => {
     const bridge = new FakeBridge();
     bridge.sessions = [
       { sessionId: "s1", title: "About cats", preview: "p1", lastActivityUnixMs: 2, hoisted: false },

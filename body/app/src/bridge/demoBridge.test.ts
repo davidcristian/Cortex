@@ -203,7 +203,7 @@ describe("DemoBridge, the gated send", () => {
     expect(spoken(turn.events)).toBe(`${script.CONFIRM_PREAMBLE} ${script.CONFIRM_DENIED}`);
   });
 
-  it("stops waiting on its own deadline, and absorbs the answer that lands behind it", async () => {
+  it("stops waiting on its own deadline, and absorbs the answer that arrives behind it", async () => {
     const bridge = new DemoBridge();
     const turn = await asked(bridge, "send that email to Ada, and let it time out");
     await vi.advanceTimersByTimeAsync(script.CONFIRM_TIMEOUT_MS);

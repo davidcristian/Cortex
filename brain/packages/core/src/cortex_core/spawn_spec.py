@@ -24,7 +24,7 @@ _CHOICE_NOTE = (
     "spread independent subtasks across models to finish the batch sooner. On a turn that has "
     "read untrusted external content the robust default model is enforced regardless of the pick."
 )
-_PINNED_NOTE = (
+_SINGLE_MODEL_NOTE = (
     " Every subtask runs on the deployment's default subagent model, so subtasks share its one "
     "backend and run one after another, a batch that groups independent subtasks rather than "
     "running them in parallel."
@@ -63,7 +63,7 @@ def build_spawn_spec(roster: SubagentRoster, *, tools_enabled: bool) -> ToolSpec
         item_properties["model"] = _model_property(roster)
     return ToolSpec(
         name=SPAWN_TOOL_NAME,
-        description=_DESCRIPTION + (_CHOICE_NOTE if with_choice else _PINNED_NOTE),
+        description=_DESCRIPTION + (_CHOICE_NOTE if with_choice else _SINGLE_MODEL_NOTE),
         parameters={
             "type": "object",
             "properties": {

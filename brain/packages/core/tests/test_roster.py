@@ -58,7 +58,7 @@ def test_profile_description_defaults_empty() -> None:
         ("robust", False, False, "robust"),
     ],
 )
-def test_resolve_pins_every_untrusted_path_to_the_default(
+def test_resolve_locks_every_untrusted_path_to_the_default(
     requested: str, *, tainted: bool, tools_enabled: bool, expected: str
 ) -> None:
     resolved = _roster().resolve(requested, tainted=tainted, tools_enabled=tools_enabled)

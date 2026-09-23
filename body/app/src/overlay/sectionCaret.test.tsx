@@ -55,7 +55,7 @@ describe("useSectionCaret", () => {
     expect(document.activeElement).toBe(inside());
   });
 
-  it("touches nothing while the section is opening or standing open", () => {
+  it("touches nothing while the section is opening or already open", () => {
     const { rerender } = render(<Stage open={false} arrival={0} />);
     inside().focus();
     rerender(<Stage open arrival={0} />);

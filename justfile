@@ -127,7 +127,7 @@ check-settingscheck:
 # reference, after rebuilding an image here, and when a moving tag may have been republished.
 image-volumes:
     cd scripts && uv sync --locked
-    cd scripts && uv run python volumecheck.py --root .. --rederive
+    cd scripts && uv run python volumecheck.py --root .. --recompute
 
 # Each backlog index still matches its task files, and every `#fragment` link in the repo names
 # a heading its target really has. Regenerate the indexes with `just backlog`.

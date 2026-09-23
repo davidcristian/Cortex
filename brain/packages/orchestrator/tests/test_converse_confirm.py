@@ -171,7 +171,7 @@ async def test_an_unanswered_confirm_times_out_as_a_denial() -> None:
     await _drain(stream)
 
 
-async def test_a_stale_confirm_id_is_ignored_and_the_real_answer_lands() -> None:
+async def test_a_stale_confirm_id_is_ignored_and_the_real_answer_arrives() -> None:
     ran: list[str] = []
     client = _LiveClient()
     stream = converse(_gated_send_factory(ran), client)

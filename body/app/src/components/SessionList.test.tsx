@@ -287,16 +287,16 @@ describe("SessionList", () => {
   });
 
   it("holds a deleted row through its own roll while its neighbours close over it", () => {
-    const land = stubRoll();
+    const finish = stubRoll();
     const { rerender } = render(list([chat("a"), chat("b"), chat("c")]));
     rerender(list([chat("a"), chat("c")]));
     expect(rows()).toEqual(["a", "b*", "c"]);
-    land();
+    finish();
     expect(rows()).toEqual(["a", "c"]);
   });
 
   it("withdraws a leaving row, so a deleted chat cannot be opened or deleted again mid-roll", () => {
-    const land = stubRoll();
+    const finish = stubRoll();
     const { rerender } = render(list([chat("a"), chat("b")]));
     const slots = () => [...document.querySelectorAll<HTMLElement>(".switcher-slot")];
     expect(slots().map((slot) => slot.getAttribute("aria-hidden"))).toEqual(["false", "false"]);
@@ -305,81 +305,81 @@ describe("SessionList", () => {
     expect(leaving.getAttribute("aria-hidden")).toBe("true");
     expect(leaving.hasAttribute("inert")).toBe(true);
     expect(slots()[0]!.hasAttribute("inert")).toBe(false);
-    land();
+    finish();
     expect(slots()).toHaveLength(1);
   });
 
   it("carries a leaving row with the neighbour it left under when the list reorders", () => {
-    const land = stubRoll();
+    const finish = stubRoll();
     const { rerender } = render(list([chat("a"), chat("b"), chat("c"), chat("d")]));
     rerender(list([chat("a"), chat("b"), chat("d")]));
     expect(rows()).toEqual(["a", "b", "c*", "d"]);
     rerender(list([chat("d"), chat("a"), chat("b")]));
     expect(rows()).toEqual(["d", "a", "b", "c*"]);
-    land();
+    finish();
     expect(rows()).toEqual(["d", "a", "b"]);
   });
 
   it("rolls out every row a whole re-listing dropped, above the ones it brought", () => {
-    const land = stubRoll();
+    const finish = stubRoll();
     const { rerender } = render(list([chat("a"), chat("b"), chat("c")]));
     rerender(list([chat("x"), chat("y")]));
     expect(rows()).toEqual(["a*", "b*", "c*", "x", "y"]);
-    land();
+    finish();
     expect(rows()).toEqual(["x", "y"]);
   });
 
   it("holds two deletes at once, each on its own clock", () => {
-    const land = stubRoll();
+    const finish = stubRoll();
     const { rerender } = render(list([chat("a"), chat("b"), chat("c")]));
     rerender(list([chat("a"), chat("c")]));
     rerender(list([chat("a")]));
     expect(rows()).toEqual(["a", "b*", "c*"]);
-    land();
+    finish();
     expect(rows()).toEqual(["a"]);
   });
 
   it("puts back a row that returns before its exit ends, rather than holding it shut", () => {
-    const land = stubRoll();
+    const finish = stubRoll();
     const { rerender } = render(list([chat("a"), chat("b")]));
     rerender(list([chat("a")]));
     rerender(list([chat("a"), chat("b")]));
-    land();
+    finish();
     expect(rows()).toEqual(["a", "b"]);
   });
 
   it("survives being unmounted mid-exit, the switcher rolling shut being one way it happens", () => {
     const complaints = vi.spyOn(console, "error").mockImplementation(() => undefined);
-    const land = stubRoll();
+    const finish = stubRoll();
     const { rerender, unmount } = render(list([chat("a"), chat("b")]));
     rerender(list([chat("a")]));
     unmount();
-    expect(() => land()).not.toThrow();
+    expect(() => finish()).not.toThrow();
     expect(complaints).not.toHaveBeenCalled();
     expect(document.querySelectorAll(".switcher-slot")).toHaveLength(0);
   });
 
   it("grows the empty line into the gap the last row leaves, on that row's own clock", () => {
-    const land = stubRoll();
+    const finish = stubRoll();
     const { rerender } = render(list([chat("a")]));
     rerender(list([]));
     expect(rows()).toEqual(["a*"]);
     const line = screen.getByText(/no other chats/iu).closest(".collapse");
     expect(line).toHaveAttribute("data-morphing");
-    land();
+    finish();
     expect(rows()).toEqual([]);
     expect(screen.getByText(/no other chats/iu)).toBeInTheDocument();
     expect(line).not.toHaveAttribute("data-morphing");
   });
 
   it("yields the empty line in the frame a chat arrives, rather than rolling it out under one", () => {
-    const land = stubRoll();
+    const finish = stubRoll();
     const { rerender } = render(list([]));
     expect(screen.getByText(/no other chats/iu)).toBeInTheDocument();
     rerender(list([chat("a")]));
     expect(screen.queryByText(/no other chats/iu)).toBeNull();
     expect(rows()).toEqual(["a"]);
-    land();
+    finish();
     expect(screen.queryByText(/no other chats/iu)).toBeNull();
   });
 

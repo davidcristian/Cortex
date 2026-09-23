@@ -419,7 +419,7 @@ async def test_a_constrained_reply_missing_the_key_is_a_failed_result() -> None:
     assert "malformed" in result.detail
 
 
-async def test_output_is_unconstrained_when_the_knob_is_off() -> None:
+async def test_output_is_unconstrained_when_the_setting_is_off() -> None:
     store = InMemoryTaskStore()
     await store.put_task(SubagentTask(id="t1", instruction="go", context="", at=_AT))
     backend = SchemaRecordingBackend(["plain answer"])
@@ -554,16 +554,18 @@ async def test_a_spawn_that_waits_out_the_admission_bound_is_a_result_too(
 
 def _two_model_runner(
     store: InMemoryTaskStore,
-    robust: InferenceBackend,
+    default_backend: InferenceBackend,
     fast: InferenceBackend,
     *,
     tools: ToolDispatcher | None = None,
 ) -> SubagentRunner:
-    """A roster with the ``robust`` default plus a ``fast`` alternate, each on its own backend."""
+    """A roster with the ``subagent`` default plus a ``fast`` alternate, each on its own backend."""
     placer = VramBudgetPlacer(soft_cap_gb=14.0, cortex_reservation_gb=11.0)
     roster = SubagentRoster(
         entries={
-            "subagent": SubagentProfile(resources=_resources(robust, robust, placer)),
+            "subagent": SubagentProfile(
+                resources=_resources(default_backend, default_backend, placer)
+            ),
             "fast": SubagentProfile(
                 resources=SubagentResources(
                     backends={PlacementTarget.GPU: fast, PlacementTarget.CPU: fast},
@@ -581,33 +583,33 @@ def _two_model_runner(
 async def test_a_clean_tool_less_spawn_runs_on_the_requested_model() -> None:
     store = InMemoryTaskStore()
     await store.put_task(SubagentTask(id="t", instruction="go", context="", at=_AT, model="fast"))
-    robust, fast = TextBackend(["robust says"]), TextBackend(["fast says"])
-    result = await _two_model_runner(store, robust, fast).run("t")
+    default_backend, fast = TextBackend(["default says"]), TextBackend(["fast says"])
+    result = await _two_model_runner(store, default_backend, fast).run("t")
     assert result.output == "fast says"
     assert fast.seen
-    assert not robust.seen
+    assert not default_backend.seen
 
 
-async def test_a_tainted_spawn_is_forced_onto_the_robust_default() -> None:
+async def test_a_tainted_spawn_is_forced_onto_the_default_model() -> None:
     store = InMemoryTaskStore()
     await store.put_task(
         SubagentTask(id="t", instruction="go", context="", at=_AT, model="fast", tainted=True)
     )
-    robust, fast = TextBackend(["robust says"]), TextBackend(["fast says"])
-    result = await _two_model_runner(store, robust, fast).run("t")
-    assert result.output == "robust says"
-    assert robust.seen
+    default_backend, fast = TextBackend(["default says"]), TextBackend(["fast says"])
+    result = await _two_model_runner(store, default_backend, fast).run("t")
+    assert result.output == "default says"
+    assert default_backend.seen
     assert not fast.seen
 
 
-async def test_a_tools_enabled_spawn_is_forced_onto_the_robust_default() -> None:
+async def test_a_tools_enabled_spawn_is_forced_onto_the_default_model() -> None:
     store = InMemoryTaskStore()
     await store.put_task(SubagentTask(id="t", instruction="go", context="", at=_AT, model="fast"))
-    robust, fast = TextBackend(["robust says"]), TextBackend(["fast says"])
+    default_backend, fast = TextBackend(["default says"]), TextBackend(["fast says"])
     dispatcher = ToolDispatcher(InMemoryToolRegistry({}), RecordingAuditSink(), FixedClock())
-    result = await _two_model_runner(store, robust, fast, tools=dispatcher).run("t")
-    assert result.output == "robust says"
-    assert robust.seen
+    result = await _two_model_runner(store, default_backend, fast, tools=dispatcher).run("t")
+    assert result.output == "default says"
+    assert default_backend.seen
     assert not fast.seen
 
 

@@ -125,7 +125,7 @@ def test_an_override_inherits_the_base_files_project(tree: Path) -> None:
     assert volumecheck.check(tree, RECORDS).names == ("tree-brain",)
 
 
-def test_a_file_pinning_its_own_project_keys_its_builds_under_that_one(tree: Path) -> None:
+def test_a_file_naming_its_own_project_keys_its_builds_under_that_one(tree: Path) -> None:
     text = "name: probe\n" + _service("    build: ./p\n", "sidecar")
     _write(tree, "docker/docker-compose.probe.yml", text)
     assert "probe-sidecar" in volumecheck.check(tree, RECORDS).names
@@ -226,7 +226,7 @@ def test_a_build_with_no_project_to_key_it_under_is_unasked(tmp_path: Path) -> N
     assert [fault for fault in scanned.findings if fault.line] == []
 
 
-def test_two_base_files_pinning_two_projects_are_not_guessed_between(tree: Path) -> None:
+def test_two_base_files_naming_two_projects_are_not_guessed_between(tree: Path) -> None:
     _write(tree, "compose.yml", "name: other\nservices:\n  x:\n    image: cache:1\n")
     _write(tree, "docker/docker-compose.b.yml", _service("    build: ./b\n", "worker"))
     faults = [fault for fault in volumecheck.check(tree, RECORDS).faults if fault.line]
@@ -404,7 +404,7 @@ def test_main_rederiving_asks_the_registry_for_everything_it_did_not_build(
         asked[reference] = pull
         return IMAGE_VOLUMES[reference]
 
-    assert volumecheck.main(["--root", str(REPO_ROOT), "--rederive"], inspect) == 0
+    assert volumecheck.main(["--root", str(REPO_ROOT), "--recompute"], inspect) == 0
     assert sorted(name for name, pull in asked.items() if not pull) == [
         "cortex-brain",
         "cortex-mcp-email",
@@ -416,7 +416,7 @@ def test_main_rederiving_asks_the_registry_for_everything_it_did_not_build(
 def test_main_rederiving_against_a_docker_that_agrees_reports_nothing(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    argv = ["--root", str(REPO_ROOT), "--rederive"]
+    argv = ["--root", str(REPO_ROOT), "--recompute"]
     assert volumecheck.main(argv, _answering(IMAGE_VOLUMES)) == 0
     assert f"agrees with docker on all {len(IMAGE_VOLUMES)} image(s)" in capsys.readouterr().out
 
@@ -425,7 +425,7 @@ def test_main_rederiving_against_a_docker_that_has_moved_reports_the_row(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     moved = {**IMAGE_VOLUMES, "redis:8-alpine": Row(("/data",), ())}
-    argv = ["--root", str(REPO_ROOT), "--rederive"]
+    argv = ["--root", str(REPO_ROOT), "--recompute"]
     assert volumecheck.main(argv, _answering(moved)) == 1
     captured = capsys.readouterr()
     assert "redis:8-alpine: recorded nothing, docker says /data" in captured.out

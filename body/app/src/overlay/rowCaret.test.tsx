@@ -70,7 +70,7 @@ describe("useRowCaret", () => {
     expect(document.activeElement).toBe(screen.getByLabelText("delete a"));
   });
 
-  it("selects a field it lands in, a list only sending the caret into one to replace it", () => {
+  it("selects a field it ends up in, a list only sending the caret into one to replace it", () => {
     render(<Stage send="name:b" />);
     fire();
     const input = screen.getByLabelText<HTMLInputElement>("name b");

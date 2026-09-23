@@ -106,7 +106,7 @@ scripts/          repo gates: linecap.py (300-line cap), dashcheck.py (no dash a
     assert names(mapped, Bare(pattern=MODULE)) == ["linecap.py", "dashcheck.py", "couplings.py"]
 
 
-def test_a_bare_roster_ignores_a_name_sitting_inside_a_longer_word() -> None:
+def test_a_bare_roster_ignores_a_name_inside_a_longer_word() -> None:
     assert names("test_linecap.pyc is not a module", Bare(pattern=MODULE)) == []
     assert names("R2linecap.py is not one either", Bare(pattern=MODULE)) == []
     assert names("linecap.py_old is a copy of one", Bare(pattern=MODULE)) == []

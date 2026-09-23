@@ -263,12 +263,12 @@ async def test_a_subagent_reading_untrusted_content_taints_the_delegation_result
     assert "the file said hi" in spawn_msg.text
 
 
-async def test_a_tainted_turns_spawn_is_forced_onto_the_robust_model_end_to_end() -> None:
+async def test_a_tainted_turns_spawn_is_forced_onto_the_default_model_end_to_end() -> None:
     task_store = InMemoryTaskStore()
-    robust, fast = TextBackend(["robust answer"]), TextBackend(["fast answer"])
+    default_backend, fast = TextBackend(["default answer"]), TextBackend(["fast answer"])
     roster = SubagentRoster(
         entries={
-            "subagent": SubagentProfile(resources=_resources(robust, "subagent")),
+            "subagent": SubagentProfile(resources=_resources(default_backend, "subagent")),
             "fast": SubagentProfile(resources=_resources(fast, "fast")),
         },
         default="subagent",
@@ -305,7 +305,7 @@ async def test_a_tainted_turns_spawn_is_forced_onto_the_robust_model_end_to_end(
     task = await task_store.get_task("st-1")
     assert task is not None
     assert (task.model, task.tainted) == ("fast", True)
-    assert robust.seen
+    assert default_backend.seen
     assert not fast.seen
 
 

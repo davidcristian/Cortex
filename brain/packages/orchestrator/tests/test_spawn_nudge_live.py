@@ -129,8 +129,8 @@ def _advertised_models(spec: ToolSpec) -> list[str]:
     items = cast("Mapping[str, object]", instructions["items"])
     variants = cast("Sequence[Mapping[str, object]]", items["anyOf"])
     object_item = cast("Mapping[str, object]", variants[1]["properties"])
-    knob = cast("Mapping[str, object]", object_item["model"])
-    return list(cast("Sequence[str]", knob["enum"]))
+    model_field = cast("Mapping[str, object]", object_item["model"])
+    return list(cast("Sequence[str]", model_field["enum"]))
 
 
 async def _one_turn(ask: str) -> _Observed:
@@ -206,7 +206,9 @@ def _assert_the_choice_is_well_formed(observed: _Observed, config: SubagentsConf
 
 @pytest.mark.integration
 @_needs_a_cortex_and_a_multi_entry_roster
-async def test_the_spawn_tool_offers_the_knob_and_the_trade_off_it_is_meant_to_take() -> None:
+async def test_the_spawn_tool_offers_the_model_choice_and_the_trade_off_it_is_meant_to_take() -> (
+    None
+):
     config = SubagentsConfig()
     runtime = BrainRuntimeConfig()
     async with httpx.AsyncClient() as client:

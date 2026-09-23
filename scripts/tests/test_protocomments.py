@@ -88,7 +88,7 @@ def test_a_comment_inside_a_service_block_is_claimed_by_it() -> None:
     ]
 
 
-def test_the_banner_standing_directly_above_a_service_is_claimed_too() -> None:
+def test_the_banner_directly_above_a_service_is_claimed_too() -> None:
     banner = "// ---\n// S is hosted here.\nservice S {}\n"
     assert _claimed(banner) == [" ---", " S is hosted here."]
 

@@ -134,7 +134,7 @@ describe("Reminders", () => {
   });
 
   it("holds an acked row through its own roll while the rest of the stack keeps its place", () => {
-    const land = stubRoll();
+    const finish = stubRoll();
     const three = [
       reminder(),
       reminder({ reminderId: "r-2", text: "Stretch" }),
@@ -150,19 +150,19 @@ describe("Reminders", () => {
       "Stretch",
       "Drink water",
     ]);
-    land();
+    finish();
     expect(screen.queryByText("Stretch")).toBeNull();
     expect(screen.getAllByLabelText("Dismiss reminder")).toHaveLength(2);
   });
 
   it("shows a reminder that returns before its exit ends, rather than holding it shut for good", () => {
-    const land = stubRoll();
+    const finish = stubRoll();
     const two = [reminder(), reminder({ reminderId: "r-2", text: "Stretch" })];
     const { rerender } = renderStack(two);
     fireEvent.click(screen.getAllByLabelText("Dismiss reminder")[1]!);
     rerender(stack([two[0]!]));
     rerender(stack(two));
-    land();
+    finish();
     expect(screen.getByText("Stretch")).toBeTruthy();
     expect(screen.getAllByLabelText("Dismiss reminder")).toHaveLength(2);
   });
@@ -221,7 +221,7 @@ describe("Reminders", () => {
   });
 
   it("withdraws an acked row for its exit, so the tab order cannot walk back into it", () => {
-    const land = stubRoll();
+    const finish = stubRoll();
     const two = [reminder(), reminder({ reminderId: "r-2", text: "Stretch" })];
     const { rerender } = renderStack(two);
     const slots = () => [...document.querySelectorAll<HTMLElement>(".reminder-slot")];
@@ -231,7 +231,7 @@ describe("Reminders", () => {
     expect(slots()[1]!.hasAttribute("inert")).toBe(true);
     expect(slots()[1]!.getAttribute("aria-hidden")).toBe("true");
     expect(slots()[0]!.hasAttribute("inert")).toBe(false);
-    land();
+    finish();
     expect(slots()).toHaveLength(1);
   });
 });

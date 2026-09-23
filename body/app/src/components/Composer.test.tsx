@@ -100,7 +100,7 @@ describe("Composer", () => {
     expect([field().value, field().selectionStart]).toEqual([seed.a, seed.a.length]);
   });
 
-  it("never empties its own field: a send the state refuses leaves the words standing", () => {
+  it("never empties its own field: a send the state refuses leaves the words in place", () => {
     const onSubmit = vi.fn();
     render(<Stage busy={true} onSubmit={onSubmit} seed={{ a: "half a question" }} />);
     fireEvent.keyDown(field(), { key: "Enter" });

@@ -64,7 +64,7 @@ check`" into a category ([ADR-0011](ADR-0011-body-v1.md)).
 
 ### Recomputing the record
 
-5. **`just image-volumes` pulls before it asks.** `volumecheck.py --rederive` (`imagedrift.py`)
+5. **`just image-volumes` pulls before it asks.** `volumecheck.py --recompute` (`imagedrift.py`)
    pulls every image this repo does not build, then inspects it and reports each row that changed.
    `docker image inspect` answers out of the local cache, so without the pull a recomputation could
    only confirm whatever the machine held, including a month-old copy of a tag the registry had

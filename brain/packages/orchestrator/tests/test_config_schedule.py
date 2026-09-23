@@ -51,7 +51,7 @@ def test_constructor_beats_the_environment(monkeypatch: pytest.MonkeyPatch) -> N
 
 
 @pytest.mark.parametrize("field", ["poll_s", "lease_s", "claim_limit", "max_active"])
-def test_pacing_knobs_must_be_positive(field: str) -> None:
+def test_pacing_settings_must_be_positive(field: str) -> None:
     with pytest.raises(ValidationError):
         ScheduleConfig(**{field: 0})  # type: ignore[arg-type]
 

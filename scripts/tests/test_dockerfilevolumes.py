@@ -4,7 +4,7 @@ import pytest
 
 from composeservices import DEFAULT_DOCKERFILE, Build
 from dockerfilebases import DockerfileError
-from dockerfilevolumes import landings, onbuild_volumes, read_volumes, undeclared
+from dockerfilevolumes import build_dockerfiles, onbuild_volumes, read_volumes, undeclared
 from imagevolumes import Row
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -120,13 +120,13 @@ def test_a_trigger_the_reader_cannot_read_is_refused_rather_than_resolved_to_not
 
 def test_a_context_is_resolved_against_the_repo_root(tmp_path: Path) -> None:
     compose = _tree(tmp_path, "FROM scratch\n")
-    assert landings(tmp_path, compose, HERE) == [tmp_path / DEFAULT_DOCKERFILE]
+    assert build_dockerfiles(tmp_path, compose, HERE) == [tmp_path / DEFAULT_DOCKERFILE]
 
 
 def test_a_context_is_resolved_against_the_compose_files_own_directory_too(tmp_path: Path) -> None:
     compose = _tree(tmp_path, "FROM scratch\n")
     (tmp_path / "docker" / DEFAULT_DOCKERFILE).write_text("FROM scratch\n", encoding="utf-8")
-    assert landings(tmp_path, compose, HERE) == [
+    assert build_dockerfiles(tmp_path, compose, HERE) == [
         tmp_path / DEFAULT_DOCKERFILE,
         tmp_path / "docker" / DEFAULT_DOCKERFILE,
     ]
@@ -135,13 +135,13 @@ def test_a_context_is_resolved_against_the_compose_files_own_directory_too(tmp_p
 def test_a_compose_file_at_the_root_has_only_one_project_directory(tmp_path: Path) -> None:
     (tmp_path / DEFAULT_DOCKERFILE).write_text("FROM scratch\n", encoding="utf-8")
     compose = tmp_path / "compose.yml"
-    assert landings(tmp_path, compose, HERE) == [tmp_path / DEFAULT_DOCKERFILE]
+    assert build_dockerfiles(tmp_path, compose, HERE) == [tmp_path / DEFAULT_DOCKERFILE]
 
 
-def test_an_absolute_context_lands_on_one_file_rather_than_twice(tmp_path: Path) -> None:
+def test_an_absolute_context_resolves_to_one_file_rather_than_twice(tmp_path: Path) -> None:
     compose = _tree(tmp_path, "FROM scratch\n")
     absolute = Build(tmp_path.as_posix(), DEFAULT_DOCKERFILE)
-    assert landings(tmp_path, compose, absolute) == [tmp_path / DEFAULT_DOCKERFILE]
+    assert build_dockerfiles(tmp_path, compose, absolute) == [tmp_path / DEFAULT_DOCKERFILE]
 
 
 def test_a_declared_path_the_row_does_not_carry_is_reported(tmp_path: Path) -> None:
@@ -229,7 +229,7 @@ def test_a_base_with_no_row_owes_no_trigger_fault_on_top_of_the_unrecorded_one(
     assert len(reading.faults) == 1
 
 
-def test_a_file_standing_on_nothing_is_asked_about_no_trigger(tmp_path: Path) -> None:
+def test_a_file_built_on_nothing_is_asked_about_no_trigger(tmp_path: Path) -> None:
     compose = _tree(tmp_path, "FROM scratch\n")
     records = {"base:1": Row((), ("VOLUME /triggered",))}
     assert undeclared(tmp_path, compose, HERE, "tree-brain", (), records).faults == ()
@@ -243,7 +243,7 @@ def test_a_base_the_record_has_no_row_for_is_a_fault(tmp_path: Path) -> None:
     assert "has no row for" in reading.faults[0]
 
 
-def test_a_file_standing_on_nothing_asks_for_no_base_row(tmp_path: Path) -> None:
+def test_a_file_built_on_nothing_asks_for_no_base_row(tmp_path: Path) -> None:
     compose = _tree(tmp_path, "FROM scratch\n")
     assert undeclared(tmp_path, compose, HERE, "tree-brain", (), {}).bases == ()
 
@@ -253,7 +253,7 @@ def test_a_row_carrying_a_trailing_slash_still_covers_the_path(tmp_path: Path) -
     assert undeclared(tmp_path, compose, HERE, "tree-brain", ("/srv/mail/",), {}).faults == ()
 
 
-def test_a_build_pointing_where_no_dockerfile_lands_is_unasked(tmp_path: Path) -> None:
+def test_a_build_pointing_where_no_dockerfile_exists_is_unasked(tmp_path: Path) -> None:
     compose = _tree(tmp_path, "FROM scratch\n")
     reading = undeclared(tmp_path, compose, Build("./nowhere", "Dockerfile"), "tree-x", (), {})
     assert reading.faults == ()

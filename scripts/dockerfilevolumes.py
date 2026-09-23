@@ -141,14 +141,14 @@ def _triggered(
     return faults
 
 
-def landings(root: Path, compose: Path, build: Build) -> list[Path]:
+def build_dockerfiles(root: Path, compose: Path, build: Build) -> list[Path]:
     """Every path the Dockerfile a service builds from resolves to, under either project root."""
     projects = [root] if compose.parent == root else [root, compose.parent]
     found: list[Path] = []
     for project in projects:
-        landed = Path(os.path.normpath(project / build.context / build.dockerfile))
-        if landed.is_file() and landed not in found:
-            found.append(landed)
+        resolved = Path(os.path.normpath(project / build.context / build.dockerfile))
+        if resolved.is_file() and resolved not in found:
+            found.append(resolved)
     return found
 
 
@@ -164,7 +164,7 @@ def undeclared(
     if "$" in build.context or "$" in build.dockerfile:
         written = f"{build.context}/{build.dockerfile}"
         return Reading((), (), (), (_UNRESOLVED.format(reference=reference, written=written),))
-    found = landings(root, compose, build)
+    found = build_dockerfiles(root, compose, build)
     if not found:
         detail = _NOWHERE.format(
             reference=reference, context=build.context, dockerfile=build.dockerfile

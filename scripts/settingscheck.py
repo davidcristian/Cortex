@@ -10,7 +10,7 @@ from typing import NamedTuple, cast
 from composefiles import ComposeSearchError, compose_files
 from composeservices import ComposeServiceError, read_services
 from composestarts import ComposeStartError, read_starts
-from dockerfilevolumes import landings
+from dockerfilevolumes import build_dockerfiles
 from moduleconstants import ModuleReadError
 from settingsfields import Settings, SettingsReadError, module_directory, read_settings
 
@@ -135,9 +135,13 @@ def read_stack(root: Path) -> Stack:
                 raise SettingsCheckError(msg)
         for service in read_services(text).services:
             if service.build is not None:
-                built.setdefault(service.name, landings(root, path, service.build))
-    for name, landed in built.items():
-        if name not in argv and landed and (command := image_command(landed[0])) is not None:
+                built.setdefault(service.name, build_dockerfiles(root, path, service.build))
+    for name, dockerfiles in built.items():
+        if (
+            name not in argv
+            and dockerfiles
+            and (command := image_command(dockerfiles[0])) is not None
+        ):
             argv[name] = command
     return Stack(len(paths), argv, {name: frozenset(named) for name, named in keys.items()})
 

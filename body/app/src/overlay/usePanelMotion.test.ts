@@ -121,7 +121,7 @@ function view(parent: HTMLElement): HTMLElement {
 
 /** A section marked `aside` that is not rolling: the reminder stack, present in the panel while
  *  something else moves. */
-function standing(parent: HTMLElement, height: number): HTMLElement {
+function staticAside(parent: HTMLElement, height: number): HTMLElement {
   const section = document.createElement("div");
   section.className = "collapse aside";
   rolled(section, height);
@@ -394,11 +394,11 @@ describe("usePanelMotion", () => {
     expect(durations).toEqual([300]);
   });
 
-  it("counts an aside that is only STANDING off an arriving roll's prediction too", () => {
+  it("counts an aside that is not rolling off an arriving roll's prediction too", () => {
     const tick = clock();
     const { ref, element, state, bottom } = harness();
     const chat = view(element);
-    standing(chat, 190);
+    staticAside(chat, 190);
     state.natural = 666;
     const { rerender } = renderHook(({ open }) => usePanelMotion(ref, open, "chat"), {
       initialProps: { open: false },
@@ -1056,7 +1056,7 @@ describe("usePanelMotion", () => {
     expect(element.style.maxHeight).toBe("580px");
   });
 
-  it("opens a retarget on the sub-pixel the panel is standing at, and ends on the edge it wrote", () => {
+  it("opens a retarget on the sub-pixel the panel is at, and ends on the edge it wrote", () => {
     const { ref, element, state, keyed, bottom } = harness();
     state.natural = 352.8125;
     const { rerender } = renderHook(() => usePanelMotion(ref, true, "chat"));

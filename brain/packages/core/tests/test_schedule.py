@@ -146,7 +146,7 @@ def test_apply_snooze_rearms_a_delivered_one_shot_without_an_anchor() -> None:
     assert snoozed.anchor is None
 
 
-def test_apply_snooze_pins_a_recurring_grid_to_the_pre_snooze_due() -> None:
+def test_apply_snooze_keeps_a_recurring_grid_on_the_pre_snooze_due() -> None:
     item = _item(due_at=_NOW, every=timedelta(hours=1))
     snoozed = apply_snooze(item, _NOW + timedelta(minutes=20))
     assert snoozed.anchor == _NOW

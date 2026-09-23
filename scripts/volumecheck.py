@@ -190,13 +190,13 @@ def main(argv: list[str] | None = None, inspect: Inspector = docker_volumes) -> 
         help="repo root holding the compose files (default: current directory)",
     )
     parser.add_argument(
-        "--rederive",
+        "--recompute",
         action="store_true",
         help="ask a real docker instead, and report every recorded row that has drifted",
     )
     args = parser.parse_args(argv)
     given: Path = args.root
-    rederiving: bool = args.rederive
+    recomputing: bool = args.recompute
     if not given.is_dir():
         print(f"volumecheck: root {given} is not a directory", file=sys.stderr)
         return 2
@@ -205,7 +205,7 @@ def main(argv: list[str] | None = None, inspect: Inspector = docker_volumes) -> 
     except ComposeSearchError as err:
         print(f"volumecheck: {err}", file=sys.stderr)
         return 2
-    if rederiving:
+    if recomputing:
         return report_drift(scanned.names, scanned.built, IMAGE_VOLUMES, inspect)
     for fault in scanned.faults:
         print(f"{fault.path}:{fault.line}: {fault.detail}")
