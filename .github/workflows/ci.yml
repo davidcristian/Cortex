@@ -70,7 +70,7 @@ jobs:
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           enable-cache: true
-      - uses: taiki-e/install-action@37f7c5781271959fb65b6b35224e28652ff2b63d # v2
+      - uses: taiki-e/install-action@4076c08d76dba979c11a7285295b0716c1d67908 # v2
         with:
           tool: just
       - run: just check-linecap
@@ -96,7 +96,7 @@ jobs:
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           enable-cache: true
-      - uses: taiki-e/install-action@37f7c5781271959fb65b6b35224e28652ff2b63d # v2
+      - uses: taiki-e/install-action@4076c08d76dba979c11a7285295b0716c1d67908 # v2
         with:
           tool: just
       - run: just check-brain
@@ -121,7 +121,7 @@ jobs:
           # check-body runs clippy on the cfg(windows) os_windows crate for this target, which
           # the native workspace compiles to nothing. Clippy never links, so no MSVC toolchain.
           targets: x86_64-pc-windows-msvc
-      - uses: taiki-e/install-action@37f7c5781271959fb65b6b35224e28652ff2b63d # v2
+      - uses: taiki-e/install-action@4076c08d76dba979c11a7285295b0716c1d67908 # v2
         with:
           tool: cargo-llvm-cov,just
       - uses: Swatinem/rust-cache@f0d9c3887740aee45f6153b24b3a6b815192ec16 # v2
@@ -154,7 +154,7 @@ jobs:
           toolchain: stable
           components: clippy
           targets: x86_64-pc-windows-msvc
-      - uses: taiki-e/install-action@37f7c5781271959fb65b6b35224e28652ff2b63d # v2
+      - uses: taiki-e/install-action@4076c08d76dba979c11a7285295b0716c1d67908 # v2
         with:
           tool: just
       # The shell is its own cargo workspace, so it needs its own cache key.
@@ -176,7 +176,7 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: body/app/package-lock.json
-      - uses: taiki-e/install-action@37f7c5781271959fb65b6b35224e28652ff2b63d # v2
+      - uses: taiki-e/install-action@4076c08d76dba979c11a7285295b0716c1d67908 # v2
         with:
           tool: just
       - run: just check-overlay
