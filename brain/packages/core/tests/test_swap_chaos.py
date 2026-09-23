@@ -5,8 +5,8 @@ import pytest
 import swap_harness as harness
 from swap_harness import (
     Fakes,
-    Gate,
     Harness,
+    PausePoint,
     RecordingHandoffStore,
     RecordingSessionStore,
     ScriptedBrainBackend,
@@ -64,7 +64,7 @@ async def _settle(turns: int = 5) -> None:
 class _PausingScheduler(WitnessingScheduler):
     """A pool that pauses the handoff during the drain, or once it has drained."""
 
-    def __init__(self, *, mid: Gate | None = None, after: Gate | None = None) -> None:
+    def __init__(self, *, mid: PausePoint | None = None, after: PausePoint | None = None) -> None:
         super().__init__()
         self.straggler: asyncio.Task[None] | None = None
         self._mid = mid
@@ -84,18 +84,18 @@ class _PausingScheduler(WitnessingScheduler):
             await self._after.pause()
         return drained
 
-    async def _park_a_straggler(self, gate: Gate) -> None:
+    async def _park_a_straggler(self, pause: PausePoint) -> None:
         """Admit one request that outlives the start of the drain, and wait until it is held."""
-        self.straggler = asyncio.create_task(self._park(gate))
+        self.straggler = asyncio.create_task(self._park(pause))
         async with asyncio.timeout(5.0):
             await self._parked.wait()
 
-    async def _park(self, gate: Gate) -> None:
+    async def _park(self, pause: PausePoint) -> None:
         """The request admitted first, which then holds the drain open at the pause point."""
         async with self.admit(harness.request()):
             self._parked.set()
             await self._the_pool_closes_around_it()
-            await gate.pause()
+            await pause.pause()
 
     async def _the_pool_closes_around_it(self) -> None:
         """Wait for the pool's own ``drain`` to stop admitting, this request still running."""
@@ -107,7 +107,7 @@ class _PausingScheduler(WitnessingScheduler):
 class _YieldingHandoffStore(RecordingHandoffStore):
     """A store whose methods suspend, as a real network store does and an in-memory one does not."""
 
-    def __init__(self, *, hold_first_put: Gate | None = None) -> None:
+    def __init__(self, *, hold_first_put: PausePoint | None = None) -> None:
         super().__init__()
         self._hold_first_put = hold_first_put
 
@@ -116,9 +116,9 @@ class _YieldingHandoffStore(RecordingHandoffStore):
         return await super().active()
 
     async def put(self, record: HandoffRecord) -> None:
-        gate, self._hold_first_put = self._hold_first_put, None
-        if gate is not None:
-            await gate.pause()
+        pause, self._hold_first_put = self._hold_first_put, None
+        if pause is not None:
+            await pause.pause()
         await super().put(record)
 
 
@@ -217,7 +217,7 @@ def _brain_start_fails() -> Harness:
     )
 
 
-def _health_gate_times_out() -> Harness:
+def _health_check_times_out() -> Harness:
     return build_harness(
         Fakes(
             host=ScriptedModelHost(
@@ -244,7 +244,7 @@ def _brain_dies_mid_answer() -> Harness:
     ("case", "make", "deep_reply"),
     [
         ("brain-start-fails", _brain_start_fails, None),
-        ("health-gate-times-out", _health_gate_times_out, None),
+        ("health-check-times-out", _health_check_times_out, None),
         ("cortex-restore-fails-once", _cortex_restore_fails_once, "a deep answer"),
         ("mid-brain-stream-server-death", _brain_dies_mid_answer, "half an " + BRAIN_FAILED_NOTE),
     ],
@@ -265,7 +265,7 @@ async def test_a_scripted_failure_converges_and_tells_the_user(
 async def test_a_drain_that_times_out_converges_without_evicting_anything() -> None:
     live = build_harness(residency=harness.plan(drain_timeout_s=0.0))
     await live.seed_session()
-    held = Gate()
+    held = PausePoint()
 
     async def in_flight() -> None:
         async with live.scheduler.admit(harness.request()):
@@ -330,41 +330,41 @@ async def test_a_store_that_refuses_the_settling_write_still_frees_the_next_hand
     await _admit(live)
 
 
-def _after_snapshot(gate: Gate) -> Harness:
-    return build_harness(Fakes(handoffs=RecordingHandoffStore(put_gate=gate)))
+def _after_snapshot(pause: PausePoint) -> Harness:
+    return build_harness(Fakes(handoffs=RecordingHandoffStore(put_pause=pause)))
 
 
-def _mid_drain(gate: Gate) -> Harness:
-    return build_harness(scheduler=_PausingScheduler(mid=gate))
+def _mid_drain(pause: PausePoint) -> Harness:
+    return build_harness(scheduler=_PausingScheduler(mid=pause))
 
 
-def _after_drain(gate: Gate) -> Harness:
-    return build_harness(scheduler=_PausingScheduler(after=gate))
+def _after_drain(pause: PausePoint) -> Harness:
+    return build_harness(scheduler=_PausingScheduler(after=pause))
 
 
-def _pause_host(host: ScriptedModelHost, op: str, model: str, gate: Gate) -> None:
+def _pause_host(host: ScriptedModelHost, op: str, model: str, pause: PausePoint) -> None:
     """Make one host operation pause at this test's own pause point."""
-    host.reached[(op, model)] = gate.reached
-    host.release[(op, model)] = gate.release
+    host.reached[(op, model)] = pause.reached
+    host.release[(op, model)] = pause.release
 
 
-def _after_cortex_stop(gate: Gate) -> Harness:
+def _after_cortex_stop(pause: PausePoint) -> Harness:
     host = ScriptedModelHost(running=["cortex"])
-    _pause_host(host, "stop", "cortex", gate)
+    _pause_host(host, "stop", "cortex", pause)
     return build_harness(Fakes(host=host))
 
 
-def _mid_brain_stream(gate: Gate) -> Harness:
-    return build_harness(Fakes(backend=ScriptedBrainBackend(gate=gate, gate_after=1)))
+def _mid_brain_stream(pause: PausePoint) -> Harness:
+    return build_harness(Fakes(backend=ScriptedBrainBackend(pause=pause, pause_after=1)))
 
 
-def _after_brain_persist(gate: Gate) -> Harness:
-    return build_harness(Fakes(sessions=RecordingSessionStore(append_gate=gate, gate_after=3)))
+def _after_brain_persist(pause: PausePoint) -> Harness:
+    return build_harness(Fakes(sessions=RecordingSessionStore(append_pause=pause, pause_after=3)))
 
 
-def _during_swap_back(gate: Gate) -> Harness:
+def _during_swap_back(pause: PausePoint) -> Harness:
     host = ScriptedModelHost(running=["cortex"])
-    _pause_host(host, "start", "cortex", gate)
+    _pause_host(host, "start", "cortex", pause)
     return build_harness(Fakes(host=host))
 
 
@@ -382,20 +382,20 @@ def _during_swap_back(gate: Gate) -> Harness:
 )
 async def test_a_kill_at_a_step_boundary_converges_back_onto_the_cortex(
     case: str,
-    make: Callable[[Gate], Harness],
+    make: Callable[[PausePoint], Harness],
     host_touched: tuple[tuple[str, str], ...],
     deep_reply: str | None,
 ) -> None:
     del case  # named for the parametrize id
-    gate = Gate()
-    live = make(gate)
+    pause = PausePoint()
+    live = make(pause)
     await live.seed_session()
     events: list[TurnEvent] = []
     task = asyncio.create_task(_consume(live, events))
-    await gate.arrived()
+    await pause.arrived()
     assert [call for call in live.host.calls if call[0] != "status"] == list(host_touched)
     task.cancel()
-    gate.release.set()
+    pause.release.set()
     with pytest.raises(asyncio.CancelledError):
         await task
     await _settle()
@@ -409,13 +409,13 @@ async def test_a_kill_at_a_step_boundary_converges_back_onto_the_cortex(
 
 
 async def test_the_mid_drain_kill_arrives_while_the_pool_is_actually_quiescing() -> None:
-    gate = Gate()
-    scheduler = _PausingScheduler(mid=gate)
+    pause = PausePoint()
+    scheduler = _PausingScheduler(mid=pause)
     live = build_harness(scheduler=scheduler)
     await live.seed_session()
     events: list[TurnEvent] = []
     task = asyncio.create_task(_consume(live, events))
-    await gate.arrived()
+    await pause.arrived()
     assert scheduler.straggler is not None
     assert not scheduler.straggler.done()
     assert scheduler.draining is True
@@ -424,7 +424,7 @@ async def test_the_mid_drain_kill_arrives_while_the_pool_is_actually_quiescing()
     assert live.handoffs.states == [HandoffState.READY]
     assert live.host.calls == harness.PREFLIGHT_CALLS
     task.cancel()
-    gate.release.set()
+    pause.release.set()
     with pytest.raises(asyncio.CancelledError):
         await task
     await _settle()
@@ -432,11 +432,11 @@ async def test_the_mid_drain_kill_arrives_while_the_pool_is_actually_quiescing()
 
 
 async def test_two_escalating_turns_racing_for_the_gpu_leave_one_of_them_untouched() -> None:
-    put_gate, working = Gate(), Gate()
+    put_pause, working = PausePoint(), PausePoint()
     live = build_harness(
         Fakes(
-            handoffs=_YieldingHandoffStore(hold_first_put=put_gate),
-            backend=ScriptedBrainBackend(gate=working, gate_after=1),
+            handoffs=_YieldingHandoffStore(hold_first_put=put_pause),
+            backend=ScriptedBrainBackend(pause=working, pause_after=1),
         )
     )
     await live.seed_session()
@@ -444,14 +444,14 @@ async def test_two_escalating_turns_racing_for_the_gpu_leave_one_of_them_untouch
     lost: list[TurnEvent] = []
     winner = asyncio.create_task(_consume(live, won))
     loser = asyncio.create_task(_consume(live, lost, turn_id="t-loser"))
-    await put_gate.arrived()
+    await put_pause.arrived()
     await _settle()
 
     assert loser.done()
     await loser
     assert lost == [TextDelta(text=ALREADY_ACTIVE_NOTE)]
     assert await live.handoffs.get("t-loser") is None
-    put_gate.release.set()
+    put_pause.release.set()
     await working.arrived()
     with pytest.raises(SubagentAdmissionError):
         await _admit(live)
@@ -491,21 +491,21 @@ async def test_closing_the_stream_mid_handoff_unwinds_the_swap_rather_than_aband
 async def test_a_second_cancellation_during_the_swap_back_still_holds_the_drain_window_shut() -> (
     None
 ):
-    gate = Gate()
+    pause = PausePoint()
     host = ScriptedModelHost(running=["cortex", "subagent-gpu"])
-    _pause_host(host, "start", "cortex", gate)
+    _pause_host(host, "start", "cortex", pause)
     live = build_harness(Fakes(host=host), residency=harness.plan(evict_models=("subagent-gpu",)))
     await live.seed_session()
     events: list[TurnEvent] = []
     task = asyncio.create_task(_consume(live, events))
-    await gate.arrived()
+    await pause.arrived()
     assert live.host.running == {"cortex"}
     task.cancel()
     await _settle()
     task.cancel()
     await _settle()
     assert not live.scheduler.reopened
-    gate.release.set()
+    pause.release.set()
     with pytest.raises(asyncio.CancelledError):
         await task
     await _settle()
@@ -576,14 +576,14 @@ async def test_the_swap_waits_for_an_in_flight_cortex_round_to_fall_free() -> No
 
 
 async def test_the_record_reaches_brain_active_only_once_the_deep_model_serves() -> None:
-    gate = Gate()
-    live = _after_cortex_stop(gate)
+    pause = PausePoint()
+    live = _after_cortex_stop(pause)
     await live.seed_session()
     events: list[TurnEvent] = []
     task = asyncio.create_task(_consume(live, events))
-    await gate.arrived()
+    await pause.arrived()
     task.cancel()
-    gate.release.set()
+    pause.release.set()
     with pytest.raises(asyncio.CancelledError):
         await task
     assert live.handoffs.states == [HandoffState.READY, HandoffState.FAILED]

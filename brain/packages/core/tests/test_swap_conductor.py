@@ -6,7 +6,7 @@ import pytest
 import swap_harness as harness
 from swap_harness import (
     Fakes,
-    Gate,
+    PausePoint,
     RecordingHandoffStore,
     ScriptedBrainBackend,
     assert_the_window_announced_real_progress,
@@ -551,33 +551,35 @@ async def test_the_deep_phase_cannot_escalate_to_itself() -> None:
     assert _texts(events) == "thinking"
 
 
-def _coresident_harness(gate: Gate, *, coresident: bool) -> harness.Harness:
+def _coresident_harness(pause: PausePoint, *, coresident: bool) -> harness.Harness:
     """The one setting this pair of tests differs on; everything else is identical."""
     return build_harness(
         Fakes(
             host=ScriptedModelHost(running=["cortex", "subagent-gpu"]),
-            backend=ScriptedBrainBackend(gate=gate, gate_after=1),
+            backend=ScriptedBrainBackend(pause=pause, pause_after=1),
         ),
         residency=harness.plan(evict_models=("subagent-gpu",), coresident=coresident),
     )
 
 
-async def _paused_mid_phase(live: harness.Harness, gate: Gate) -> asyncio.Task[list[TurnEvent]]:
+async def _paused_mid_phase(
+    live: harness.Harness, pause: PausePoint
+) -> asyncio.Task[list[TurnEvent]]:
     """Run a handoff until the deep model's stream is in progress, and hold it there."""
     task = asyncio.create_task(harness.run_handoff(live, harness.prepared_slot()))
-    await gate.arrived()
+    await pause.arrived()
     return task
 
 
 async def test_a_coresident_handoff_keeps_its_peers_and_keeps_delegating() -> None:
-    gate = Gate()
-    live = _coresident_harness(gate, coresident=True)
+    pause = PausePoint()
+    live = _coresident_harness(pause, coresident=True)
     await live.seed_session()
-    task = await _paused_mid_phase(live, gate)
+    task = await _paused_mid_phase(live, pause)
     assert live.host.running == {"brain", "subagent-gpu"}
     async with live.scheduler.admit(harness.request()):
         pass
-    gate.release.set()
+    pause.release.set()
     events = await task
     assert live.scheduler.drains == 0
     assert ("stop", "subagent-gpu") not in live.host.calls
@@ -586,15 +588,15 @@ async def test_a_coresident_handoff_keeps_its_peers_and_keeps_delegating() -> No
 
 
 async def test_the_shipped_default_still_evicts_its_peers_and_refuses_a_spawn() -> None:
-    gate = Gate()
-    live = _coresident_harness(gate, coresident=False)
+    pause = PausePoint()
+    live = _coresident_harness(pause, coresident=False)
     await live.seed_session()
-    task = await _paused_mid_phase(live, gate)
+    task = await _paused_mid_phase(live, pause)
     assert live.host.running == {"brain"}
     with pytest.raises(SubagentAdmissionError, match=POOL_DRAINING_MSG):
         async with live.scheduler.admit(harness.request()):
             pass  # pragma: no cover - admit raises before the block is ever entered
-    gate.release.set()
+    pause.release.set()
     await task
     assert live.scheduler.drains == 1
     assert ("stop", "subagent-gpu") in live.host.calls

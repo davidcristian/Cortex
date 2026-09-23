@@ -8,7 +8,7 @@ from cortex_core.model_host import ModelHostState, ResidencyPlan
 from cortex_core.ports import ModelHost
 from cortex_core.residency_tiers import BaselineTiers
 
-type ReadinessGate = Callable[[str], Awaitable[ModelHostState]]
+type ReadinessCheck = Callable[[str], Awaitable[ModelHostState]]
 
 _logger = logging.getLogger(__name__)
 
@@ -33,7 +33,9 @@ async def is_unhosted(host: ModelHost, model: str) -> bool:
     return False
 
 
-async def swap_in(host: ModelHost, plan: ResidencyPlan, model: str, gate: ReadinessGate) -> None:
+async def swap_in(
+    host: ModelHost, plan: ResidencyPlan, model: str, check_ready: ReadinessCheck
+) -> None:
     """Evict everything, start ``model``, and hold until it is actually serving."""
     try:
         await host.stop(plan.cortex_model)
@@ -42,7 +44,7 @@ async def swap_in(host: ModelHost, plan: ResidencyPlan, model: str, gate: Readin
                 await host.stop(evicted)
         await _refuse_a_load_the_card_cannot_hold(host, plan, model)
         await host.start(model)
-        state = await gate(model)
+        state = await check_ready(model)
     except ModelNotHostedError as err:
         msg = (
             f"the model host does not serve {model!r} at all, so this deployment cannot escalate "
@@ -101,7 +103,11 @@ async def _refuse_a_load_the_card_cannot_hold(
 
 
 async def restore_baseline(
-    host: ModelHost, plan: ResidencyPlan, model: str, gate: ReadinessGate, tiers: BaselineTiers
+    host: ModelHost,
+    plan: ResidencyPlan,
+    model: str,
+    check_ready: ReadinessCheck,
+    tiers: BaselineTiers,
 ) -> str | None:
     """One attempt to restore the usual set: stop ``model``, start the cortex and its peers."""
     try:
@@ -114,7 +120,7 @@ async def restore_baseline(
         return model
     try:
         await host.start(plan.cortex_model)
-        state = await gate(plan.cortex_model)
+        state = await check_ready(plan.cortex_model)
     except ModelHostError:
         _logger.exception(
             "the model host failed while restoring the cortex", extra={"model": plan.cortex_model}

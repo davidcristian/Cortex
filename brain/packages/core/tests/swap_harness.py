@@ -71,7 +71,7 @@ class TickingClock:
         return _AT + timedelta(seconds=self._ticks)
 
 
-class Gate:
+class PausePoint:
     """A pause point: a fake sets ``reached`` and blocks until the test sets ``release``."""
 
     def __init__(self) -> None:
@@ -125,14 +125,14 @@ class RecordingHandoffStore(InMemoryHandoffStore):
     def __init__(
         self,
         *,
-        put_gate: Gate | None = None,
+        put_pause: PausePoint | None = None,
         fail: Exception | None = None,
         fail_settle: HandoffState | None = None,
     ) -> None:
         super().__init__()
         self.states: list[HandoffState] = []
         self.deleted: list[str] = []
-        self._put_gate = put_gate
+        self._put_pause = put_pause
         self._fail = fail
         self._fail_settle = fail_settle
 
@@ -141,8 +141,8 @@ class RecordingHandoffStore(InMemoryHandoffStore):
             raise self._fail
         self.states.append(record.state)
         await super().put(record)
-        if self._put_gate is not None:
-            await self._put_gate.pause()
+        if self._put_pause is not None:
+            await self._put_pause.pause()
 
     async def transition(
         self, handoff_id: str, state: HandoffState, *, failure: str | None = None
@@ -162,17 +162,17 @@ class RecordingHandoffStore(InMemoryHandoffStore):
 class RecordingSessionStore(InMemorySessionStore):
     """Session store that can pause after the deep model's reply is safely persisted."""
 
-    def __init__(self, *, append_gate: Gate | None = None, gate_after: int = 3) -> None:
+    def __init__(self, *, append_pause: PausePoint | None = None, pause_after: int = 3) -> None:
         super().__init__()
         self.appends = 0
-        self._gate = append_gate
-        self._gate_after = gate_after
+        self._pause = append_pause
+        self._pause_after = pause_after
 
     async def append(self, session_id: str, message: Message) -> None:
         await super().append(session_id, message)
         self.appends += 1
-        if self._gate is not None and self.appends == self._gate_after:
-            await self._gate.pause()
+        if self._pause is not None and self.appends == self._pause_after:
+            await self._pause.pause()
 
 
 class ScriptedBrainBackend:
@@ -182,8 +182,8 @@ class ScriptedBrainBackend:
         self,
         *,
         chunks: Sequence[str] = ("a deep ", "answer"),
-        gate: Gate | None = None,
-        gate_after: int = 1,
+        pause: PausePoint | None = None,
+        pause_after: int = 1,
         fail_after: int | None = None,
         tool_calls: Sequence[ToolCall] = (),
         cadences: Sequence[DecodeCadence | None] = (),
@@ -193,8 +193,8 @@ class ScriptedBrainBackend:
         self.seen: list[Message] = []
         self.models: list[str] = []
         self._chunks = list(chunks)
-        self._gate = gate
-        self._gate_after = gate_after
+        self._pause = pause
+        self._pause_after = pause_after
         self._fail_after = fail_after
         self._tool_calls = list(tool_calls)
         self._cadences = list(cadences)
@@ -223,8 +223,8 @@ class ScriptedBrainBackend:
                 if self._fail_after is not None and index == self._fail_after:
                     msg = "the deep model's server died mid-stream"
                     raise InferenceError(msg)
-                if self._gate is not None and index == self._gate_after:
-                    await self._gate.pause()
+                if self._pause is not None and index == self._pause_after:
+                    await self._pause.pause()
                 yield TextChunk(chunk)
             cadence = self._cadence_for_round()
             if cadence is not None:

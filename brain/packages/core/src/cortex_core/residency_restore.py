@@ -8,7 +8,7 @@ from cortex_core.errors import ResidencyRestoreError
 from cortex_core.model_host import ResidencyPlan
 from cortex_core.ports import ModelHost
 from cortex_core.residency_charge import charge_baseline
-from cortex_core.residency_moves import ReadinessGate, restore_baseline
+from cortex_core.residency_moves import ReadinessCheck, restore_baseline
 from cortex_core.residency_state import (
     RESIDENCY_LOST,
     RESIDENCY_RESTORING,
@@ -26,7 +26,7 @@ async def restore_with_retries(
     host: ModelHost,
     plan: ResidencyPlan,
     model: str,
-    gate: ReadinessGate,
+    check_ready: ReadinessCheck,
     publish: ResidencyPublisher,
     tiers: BaselineTiers,
 ) -> None:
@@ -37,7 +37,7 @@ async def restore_with_retries(
     # is what makes the failure path below typed.
     failed = cortex
     for attempt in range(1, _RESTORE_ATTEMPTS + 1):
-        failed = await restore_baseline(host, plan, model, gate, tiers)
+        failed = await restore_baseline(host, plan, model, check_ready, tiers)
         if failed is None:
             await publish(cortex, RESIDENCY_SERVING)
             # Charged only here, where the cortex is genuinely serving again. A restore that

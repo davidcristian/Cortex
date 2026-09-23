@@ -110,7 +110,7 @@ async def test_a_real_child_that_ignores_sigterm_is_killed_after_the_grace(tmp_p
 
 
 @pytest.mark.integration
-async def test_the_real_adapter_starts_health_gates_and_stops_a_real_model() -> None:
+async def test_the_real_adapter_starts_health_checks_and_stops_a_real_model() -> None:
     endpoint = os.environ.get("CORTEX_MODELHOST_ENDPOINT")
     if not endpoint:
         pytest.skip("set CORTEX_MODELHOST_ENDPOINT to a running model-host sidecar")
@@ -295,11 +295,11 @@ async def test_a_swap_refuses_the_load_the_card_has_no_room_for_and_allows_the_o
         reading = await host.device_memory()
         if reading is None:
             pytest.skip("this model-host container can see no GPU, so no fit can be checked")
-        gate = _gate_for(host)
+        check_ready = _readiness_check_for(host)
         with pytest.raises(SwapFailedError, match=f"only {reading.free_mib} of "):
-            await swap_in(host, _fit_plan(target, reading.free_mib + 1), target, gate)
+            await swap_in(host, _fit_plan(target, reading.free_mib + 1), target, check_ready)
         assert await host.status(target) is ModelHostState.STOPPED
-        await swap_in(host, _fit_plan(target, reading.free_mib), target, gate)
+        await swap_in(host, _fit_plan(target, reading.free_mib), target, check_ready)
         assert await host.status(target) is ModelHostState.READY
     finally:
         if found_running:
@@ -460,10 +460,10 @@ def _fit_plan(target: str, needed_mib: int) -> ResidencyPlan:
     )
 
 
-def _gate_for(host: HttpModelHost) -> Callable[[str], Awaitable[ModelHostState]]:
+def _readiness_check_for(host: HttpModelHost) -> Callable[[str], Awaitable[ModelHostState]]:
     """The real readiness check, bound to this host, as the manager binds its own."""
 
-    async def gate(model: str) -> ModelHostState:
+    async def check_ready(model: str) -> ModelHostState:
         return await _settled(host, model)
 
-    return gate
+    return check_ready

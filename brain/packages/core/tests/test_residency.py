@@ -349,7 +349,7 @@ async def test_a_swap_into_a_tier_the_host_never_had_says_so_rather_than_blaming
         assert lease.endpoint == _CORTEX_URL
 
 
-async def test_a_brain_that_never_becomes_ready_fails_the_swap_at_the_gate() -> None:
+async def test_a_brain_that_never_becomes_ready_fails_the_swap_at_the_readiness_check() -> None:
     host = ScriptedModelHost(running=["cortex"], status_override={"brain": ModelHostState.LOADING})
     manager = _manager(host, _plan(load_timeout_s=0.0))
     with pytest.raises(SwapFailedError, match="did not become ready in time"):
@@ -614,7 +614,7 @@ async def test_a_restore_that_can_never_evict_gives_up_naming_the_model_that_ref
     assert manager.residency() == RESIDENCY_LOST
 
 
-async def test_a_restore_whose_gate_never_reports_ready_also_gives_up() -> None:
+async def test_a_restore_whose_readiness_check_never_reports_ready_also_gives_up() -> None:
     host = ScriptedModelHost(running=["cortex"], status_override={"cortex": ModelHostState.LOADING})
     manager = _manager(host, _plan(load_timeout_s=0.0))
     with pytest.raises(ResidencyRestoreError, match=r"the last of which failed on 'cortex'"):

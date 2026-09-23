@@ -204,7 +204,7 @@ async def test_a_paused_operation_has_already_taken_effect_when_it_blocks() -> N
     await task
 
 
-async def test_the_gate_returns_ready_as_soon_as_the_model_serves() -> None:
+async def test_the_readiness_check_returns_ready_as_soon_as_the_model_serves() -> None:
     sleeper = RecordingSleeper()
     host = ScriptedModelHost(running=["brain"])
     state = await await_model_ready(
@@ -214,7 +214,7 @@ async def test_the_gate_returns_ready_as_soon_as_the_model_serves() -> None:
     assert sleeper.waits == []
 
 
-async def test_the_gate_polls_between_waits_until_the_load_finishes() -> None:
+async def test_the_readiness_check_polls_between_waits_until_the_load_finishes() -> None:
     sleeper = RecordingSleeper()
     host = _LoadingThenReady(polls=3)
     plan = _plan(poll_interval_s=0.25)
@@ -223,7 +223,7 @@ async def test_the_gate_polls_between_waits_until_the_load_finishes() -> None:
     assert (host.probes, sleeper.waits) == (4, [0.25, 0.25, 0.25])
 
 
-async def test_the_gate_returns_failed_at_once_without_waiting_out_the_bound() -> None:
+async def test_the_readiness_check_returns_failed_at_once_without_waiting_out_the_bound() -> None:
     sleeper = RecordingSleeper()
     host = ScriptedModelHost(running=["brain"], status_override={"brain": ModelHostState.FAILED})
     state = await await_model_ready(
@@ -232,7 +232,7 @@ async def test_the_gate_returns_failed_at_once_without_waiting_out_the_bound() -
     assert (state, sleeper.waits) == (ModelHostState.FAILED, [])
 
 
-async def test_the_gate_reports_the_last_state_when_the_bound_elapses() -> None:
+async def test_the_readiness_check_reports_the_last_state_when_the_bound_elapses() -> None:
     sleeper = RecordingSleeper()
     expired = _plan(load_timeout_s=0.0)
     loading = ScriptedModelHost(
@@ -254,7 +254,7 @@ async def test_the_gate_reports_the_last_state_when_the_bound_elapses() -> None:
     assert sleeper.waits == []
 
 
-async def test_the_gate_gives_up_once_the_clock_passes_the_bound_it_took_at_the_start() -> None:
+async def test_the_readiness_check_gives_up_once_the_clock_passes_its_starting_bound() -> None:
     sleeper = RecordingSleeper()
     host = ScriptedModelHost(running=["brain"], status_override={"brain": ModelHostState.LOADING})
     async with asyncio.timeout(5.0):
@@ -269,7 +269,7 @@ async def test_the_gate_gives_up_once_the_clock_passes_the_bound_it_took_at_the_
     assert 0 < len(sleeper.waits) <= 4
 
 
-async def test_a_dead_host_surfaces_from_the_gate_rather_than_being_guessed_at() -> None:
+async def test_a_dead_host_surfaces_from_the_readiness_check_rather_than_being_guessed_at() -> None:
     host = ScriptedModelHost(running=["brain"], fail={("status", "brain"): "supervisor gone"})
     with pytest.raises(ModelHostError, match="supervisor gone"):
         await await_model_ready(
@@ -307,6 +307,6 @@ async def test_the_real_sleeper_suspends_the_caller_and_resumes() -> None:
     await task
 
 
-def test_the_clock_port_is_what_bounds_the_gate() -> None:
+def test_the_clock_port_is_what_bounds_the_readiness_check() -> None:
     clock: Clock = _FixedClock()
     assert clock.now() == _AT

@@ -55,11 +55,11 @@ async def test_a_start_spawns_the_specs_argv_once_however_often_it_is_asked() ->
 
 async def test_two_concurrent_starts_spawn_one_process() -> None:
     supervisor, processes, _ = _supervisor()
-    processes.gate = asyncio.Event()
+    processes.spawn_release = asyncio.Event()
     first = asyncio.create_task(supervisor.start(CORTEX))
     second = asyncio.create_task(supervisor.start(CORTEX))
     await asyncio.sleep(0)
-    processes.gate.set()
+    processes.spawn_release.set()
     await asyncio.gather(first, second)
     assert len(processes.spawned) == 1
 

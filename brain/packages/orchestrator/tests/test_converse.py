@@ -158,7 +158,7 @@ class BrokenBackend:
         yield TextChunk("")
 
 
-class GatedBackend:
+class BlockingBackend:
     """First delta immediately, then blocks until cancelled; records calls and closure."""
 
     def __init__(self) -> None:
@@ -183,7 +183,7 @@ class GatedBackend:
             self.closed.set()
 
 
-class TeardownGatedBackend:
+class TeardownBlockingBackend:
     """Blocks mid-stream AND holds its own teardown open until `release` is set."""
 
     def __init__(self) -> None:
@@ -585,7 +585,7 @@ async def test_seam_error_bypasses_the_buffer_credits() -> None:
 
 async def test_closing_the_stream_mid_turn_tears_down_pump_and_turn() -> None:
     store = InMemorySessionStore()
-    backend = GatedBackend()
+    backend = BlockingBackend()
     engine = TurnEngine(store, backend, SystemClock())
     stream = converse(_make(engine), _events_from(_user_turn("s", "hi")))
     first = await anext(stream)
@@ -597,7 +597,7 @@ async def test_closing_the_stream_mid_turn_tears_down_pump_and_turn() -> None:
 
 async def test_cancel_behind_a_queued_turn_stops_current_and_drops_queued() -> None:
     store = InMemorySessionStore()
-    backend = GatedBackend()
+    backend = BlockingBackend()
     engine = TurnEngine(store, backend, SystemClock())
     client = ScriptedClientEvents()
     stream = converse(_make(engine), client)
@@ -616,7 +616,7 @@ async def test_cancel_behind_a_queued_turn_stops_current_and_drops_queued() -> N
 
 async def test_closing_the_stream_during_cancel_teardown_does_not_hang() -> None:
     store = InMemorySessionStore()
-    backend = TeardownGatedBackend()
+    backend = TeardownBlockingBackend()
     engine = TurnEngine(store, backend, SystemClock())
     client = ScriptedClientEvents()
     stream = converse(_make(engine), client)

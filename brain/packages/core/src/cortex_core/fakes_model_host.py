@@ -98,8 +98,8 @@ class ScriptedModelHost:
 
     async def _pause(self, op: str, model: str) -> None:
         """Block at this operation's boundary when one was set up, else return at once."""
-        gate = self.reached.get((op, model))
-        if gate is None:
+        reached = self.reached.get((op, model))
+        if reached is None:
             return
-        gate.set()
+        reached.set()
         await self.release[(op, model)].wait()

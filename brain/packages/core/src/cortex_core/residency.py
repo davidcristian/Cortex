@@ -99,7 +99,7 @@ class SwappingModelManager(ResidencyProbeMixin):
             # Before the load: ``swap_in`` checks the free device memory, and a subagent
             # spawned between that check and the load would take the room it found.
             charge_handoff(self._placer, self._plan)
-            await swap_in(self._host, self._plan, model, self._gate)
+            await swap_in(self._host, self._plan, model, self._check_ready)
             await self._board.publish(model, RESIDENCY_DEEP)
 
     async def recheck_residency(self) -> None:
@@ -117,10 +117,10 @@ class SwappingModelManager(ResidencyProbeMixin):
         """Take the lease, then run the swap back's retry policy under it."""
         async with self._lock:
             await restore_with_retries(
-                self._host, self._plan, model, self._gate, self._board.publish, self._tiers
+                self._host, self._plan, model, self._check_ready, self._board.publish, self._tiers
             )
 
-    async def _gate(self, model: str) -> ModelHostState:
+    async def _check_ready(self, model: str) -> ModelHostState:
         """Poll ``model`` until it settles or the plan's load bound runs out."""
         return await await_model_ready(
             self._host, model, clock=self._clock, sleeper=self._sleeper, plan=self._plan

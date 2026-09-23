@@ -59,13 +59,13 @@ class FakeChildProcesses:
     def __init__(self, *, exits_on: str | None = "terminate") -> None:
         self.spawned: list[FakeChild] = []
         self.error: OSError | None = None
-        self.gate: asyncio.Event | None = None
+        self.spawn_release: asyncio.Event | None = None
         self._exits_on = exits_on
         self._pid = 4000
 
     async def spawn(self, argv: Sequence[str]) -> ChildProcess:
-        if self.gate is not None:
-            await self.gate.wait()
+        if self.spawn_release is not None:
+            await self.spawn_release.wait()
         if self.error is not None:
             raise self.error
         self._pid += 1
