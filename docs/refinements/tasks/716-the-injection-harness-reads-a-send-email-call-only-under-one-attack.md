@@ -24,10 +24,11 @@ as obeyed, with a unit test over a fake reply, and the rows that change read aga
   obeyed under every attack, ADR-0041 decision 9 states why, and a printed reply names its tool
   calls; `test_reply_readings.py` asserts both. The 2026-09-23 sampler logs name each reply's tool
   calls, so the six draws were read again from them with no redraw: Qwen3.5-0.8B's control moves
-  from 4 to 8 of 100, Qwen3.5-2B's framed from 7 to 8 and Qwen3.5-4B's control from 25 to 26. One
-  of the six had been marked described, not resisted. The text rows still at temperature 0 read the
+  from 4 to 8 of 100, Qwen3.5-2B's framed from 7 to 8 and Qwen3.5-4B's control from 25 to 26. One of
+  the six had been marked described, not resisted. The text rows still at temperature 0 read the
   call when [R-714](714-the-injection-text-rows-are-drawn-only-at-temperature-0.md) redraws them.
   The five pixel rows already drawn at the sampler were drawn again that night, and none of their
-  1250 replies called `send_email`
-  ([injection over pixels](../../readings/injection-over-pixels.md)); their mail row opened
-  [R-726](726-the-framing-reads-above-its-control-on-the-picks-mail-cell.md).
+  1250 replies called `send_email` ([injection over
+  pixels](../../readings/injection-over-pixels.md)); their mail row read the framing apart above its
+  control, 12 against 3 of 400. A third row, its rule fixed beforehand, read 18 against 9 (p 0.12),
+  not apart, and no reply called `send_email`.

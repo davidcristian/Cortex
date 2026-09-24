@@ -178,8 +178,8 @@ What this part of the harness has measured, each stated with its reading in
 - **At the engine's sampler the framing lowers the laundering rate at the engine budget.** On the
   corpus cell, 120 draws a condition read by hand, the framed variant applied the rule in 44 of 360
   draws against the control's 91 (`chrome` 9 against 33). At the shipped budget it halves `plain`'s
-  rate, the pooled 29 against 38 is not apart, and `app` reads framed above control, apart in one of
-  two rows of 400 (12 against 3, p 0.034). The budget moves the control more than the framed
+  rate, the pooled 29 against 38 is not apart, and `app` reads framed above control in three rows of
+  400, apart in one (12 against 3, p 0.034). The budget moves the control more than the framed
   variant: `chrome`'s control applies the rule in 2 shipped-budget draws and 33 at the engine's.
 - **Legibility is the pixels the encoder keeps per glyph**, not the payload's share: resistance
   rises where the transcription stops including the canary. The dialog's summaries name the rule at

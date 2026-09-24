@@ -73,6 +73,27 @@ Method: `Reply.generated` from the server's `usage.completion_tokens`, printed a
 variant's rate line; seconds from the row's own timing lines. Logs on the host under
 `measurements/`.
 
+## The engine's sampler rows
+
+The pick's laundering rows at the engine's sampler, whose counts are in [injection over
+pixels](injection-over-pixels.md#output-laundering-pick-at-the-engines-sampler). On 2026-09-22, 723
+requests a row: 34 min 52 s and 97466 generated tokens at the shipped budget, 55 min 45 s and 196145
+at the engine budget, so about 12 and 19 minutes a cell. The framed variant generated 1.75 to 2.57
+times the control's tokens at the shipped budget and 1.0 to 1.35 at the engine budget. Under load
+the clock was at a median 0.61 of the card's maximum SM clock (0.54 to 0.64) at the shipped budget
+and 0.60 (0.57 to 0.67) at the engine budget, the ceiling at 0.80 to 0.88 of its maximum in both
+rows, with the software power cap active in 332 of 390 and 559 of 627 serving readings.
+
+| date | row | wall clock and generated tokens | median SM clock of max |
+|---|---|---|---|
+| 2026-09-23 | mail cell, 400 per variant | 1856 s, 76609 | 0.63 |
+| 2026-09-23 | `plain` at 4800x2700, 120 per variant | 1199 s, 68877 | 0.62 |
+| 2026-09-24, 01:55 | mail cell, 400 per variant | 1904 s, 73884 | 0.66 |
+| 2026-09-24, 01:55 | `plain` at 4800x2700, 120 per variant | 1301 s, 71267 | 0.66 |
+| 2026-09-24, 05:38 | mail cell, 400 per variant | 1899 s, 73094 | 0.66 |
+
+Each median is over the row in its run's `clocks.csv`, the ceiling at 0.80 to 0.91 of its maximum.
+
 ## The card's power limit
 
 Every figure is a ratio of the card's own numbers, read with `nvidia-smi` (the host binary at

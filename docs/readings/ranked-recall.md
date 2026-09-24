@@ -35,6 +35,18 @@ unbounded request decoded 235 to 303, the same title each run. Method:
 `test_rerank_judge_live.py` and `test_session_title_live.py`, with llama-server's `eval time`
 lines.
 
+**2026-09-24, the deep model.** The same corpus and shape against gemma-4-31B (QAT q4_0), the model
+the deep phase of a handoff asks, with every layer on the card at `--ctx-size 8192 --parallel 1` and
+each rank request sending thinking off: every MRR and `ABSENT` count equals the cortex's above, and
+no recall fell back (0 of 26). The judge kept one note on 18 of the 22 answerable questions and two
+or three on the four `STALE` ones, the current version first each time. A recall cost 0.89 s (23.3
+s over 26); the server's own time per rank was 0.74 to 1.08 s, about 290 prompt tokens and 12 to 22
+decoded, after a first request of 1.75 s. The SM clock sat at a median 0.66 of the card's maximum
+(0.61 to 0.69). One recap of the same history (`test_history_recap_live.py`) stored a 428-character
+account in a 3.8 s cold pass, and the recapped reply kept the booking reference the shipped window
+lost. Method: the two live tests against the served model, from a frozen copy of the tree
+(`measurements/sitting2-2026-09-24/`).
+
 ## Whole turns, judge against raw
 
 **2026-08-09.** Three blocks in A/B/A order (`raw`, `judge`, `raw`) through `just turn-cost`: six
