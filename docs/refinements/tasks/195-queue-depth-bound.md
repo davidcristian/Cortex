@@ -9,7 +9,7 @@ contains `outlasts the deployment's admission bound`. The brain writes that line
 own output and to no file, so it is read with `docker compose logs brain` and lasts only as long as
 the container does. The same text is also in the stored `SubagentResult` under
 `cortex:task:{id}:result` in Redis, whose TTL of 3600 s is half the shipped bound.
-**Verified:** 2026-09-17
+**Verified:** 2026-09-24
 
 The wait bound refuses late, after the caller has already paid
 `CORTEX_SUBAGENTS_ADMISSION_WAIT_S`, which ships at 7200 s. A depth bound would refuse early, once
@@ -55,3 +55,7 @@ depth refusal is a caller that does not.
   `model` and `reason`. Both places were looked at. `docker ps -a` lists no brain container, and
   Redis held 75 keys with `cortex:task:*` matching none. Every number above was read again and
   holds, and the three port signatures in `ports.py` are unchanged.
+- 2026-09-24: Not fired, read from the tree only: Docker was left to a detached GPU run, so neither
+  the brain's output nor Redis was looked at, and the 2026-09-17 line is the latest reading of
+  both. The warning, the refusal text in `scheduler.py`, the four constants, the boot validator
+  and the four `PlacementRequest` fields (`placement.py`) are unchanged.

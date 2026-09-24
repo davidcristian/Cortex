@@ -9,7 +9,7 @@ declaring a fourth `TierArgs` after `cortex`, `brain` and `subagent-gpu`; or a s
 gaining a second GPU target beside `gpu_endpoint`. Check with
 `grep -c 'TierArgs(' brain/packages/model_manager/src/cortex_model_manager/config.py`: 3 means
 neither has happened.
-**Verified:** 2026-09-17
+**Verified:** 2026-09-24
 
 The placer has a single flag for whether the GPU is available, while the residency record has one
 entry per tier, so any missing tier closes GPU placement for the whole pool. The brain has no
@@ -48,3 +48,6 @@ placement-aware CPU charging entry ([R-189](189-placement-aware-cpu-charging.md)
   (ADR-0030 decision 8), and an id no roster has closes the placer through `mark_unhosted`, which
   the runbook names as a misconfiguration to fix by dropping the id. The code is unchanged:
   `placer.py` still sets and reads `_gpu_closed` at lines 48, 61, 109 and 113.
+- 2026-09-24: Not fired. The count is 3; the drafter added on 2026-09-19 is flags on the deep
+  tier's `TierArgs`, not a fourth tier. `gpu_endpoint` is still each roster entry's one GPU
+  address, and `placer.py` sets and reads `_gpu_closed` at lines 17, 22, 41 and 45.

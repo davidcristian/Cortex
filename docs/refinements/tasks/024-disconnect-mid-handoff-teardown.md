@@ -3,11 +3,16 @@
 **Status:** open, waiting for its trigger
 **Area:** rpc-transport
 **Origin:** [ADR-0030](../../adr/ADR-0030-brain-handoff.md)
-**Trigger:** a client event that does not need the cortex, observed waiting behind a `Cancel`'s
-restore on a stack running handoffs. That observation is off-tree: no stack
-here runs a handoff, and `grep -rnE 'CORTEX_ESCALATION: *[^ ]' docker/` finding nothing says no
-shipped file turns the switch on. The gpu overlay passes it through by name, so a host `.env` can.
-**Verified:** 2026-09-17
+**Trigger:** a client event that loses by waiting for the restore, sent on a `Converse` stream
+after a `Cancel`, since that stream's pump reads nothing else until the restore ends. Neither half
+holds today. No member of `ClientEvent`'s `event` oneof in `proto/body.proto` loses by the wait: a
+`user_turn` needs the cortex the restore brings back, and a `cancel` or `confirm_response` can only
+answer the turn being cancelled. And the body sends no `Cancel`: it opens a fresh stream per turn
+(`BrainTransport::converse`, `body/crates/core/src/transport.rs`), and a stop in the overlay only
+stops delivery while the turn runs to its end (`TauriBridge.converse`), which
+`grep -rn 'Cancel' body/crates/core/src body/crates/rpc/src body/app/src-tauri/src --exclude-dir=_generated`
+finding nothing confirms. R-127 would add the `Cancel` half and not the other.
+**Verified:** 2026-09-24
 
 Swapping the cortex back in is the recovery path, so `swap_scope`'s restore runs as its own
 shielded task and every cancellation waits for it before propagating. Without that, a client who
@@ -51,3 +56,11 @@ still running. The fix belongs with the in-flight-turn lifecycle
   600 s, so a turn sent into a worst-case restore can be ended by the body before it starts. That
   holds equally for a turn arriving mid-handoff with no `Cancel`, so it belongs to
   [R-421](421-a-silent-turn-owes-the-body-a-heartbeat.md).
+- 2026-09-24: Not fired, and the trigger restated, because as written it could be met only by an
+  event that loses nothing by the wait, and only from a client this repo does not have: the body
+  sends no `Cancel`, and a stop leaves the turn running to its end, so a stream closes early only
+  when a gap bound or the connection ends it. Both sites are unchanged, now at
+  `residency.py:76` and `converse_stream.py:181`, the pump's await at `:135`. The 600 s concern
+  above was not taken up by R-421's close, which keeps the ten-minute first gap and counts each
+  heartbeat as 30 s of it, so it is filed as
+  [R-722](722-a-turn-behind-another-handoff-can-outlast-the-first-gap.md).

@@ -10,7 +10,7 @@ all default off: `CORTEX_ESCALATION`, a non-empty `CORTEX_SWAP_EVICT_MODELS`, an
 case). The gpu overlay passes all four through by name, so a host `.env` can set them, and
 `grep -rnE '(CORTEX_ESCALATION|CORTEX_SWAP_EVICT_MODELS|CORTEX_SWAP_BRAIN_VRAM_MIB|CORTEX_SWAP_BRAIN_DECODE_TPS): *[^ ]' docker/`
 finding nothing means no shipped file sets any of them.
-**Verified:** 2026-09-17
+**Verified:** 2026-09-24
 
 A retry pass reads the handoff claim and the residency scope flag synchronously in the instant
 before it starts a tier, so a handoff cannot begin between the check and the call. What is not
@@ -59,3 +59,8 @@ block a pass for the whole load bound.
   while the declared floor is zero (`cadence.py`, `below_floor`), so a deployment that sets neither
   figure cannot record either outcome. All four settings appear under `docker/` only in the comment
   block of `docker/docker-compose.gpu.yml`.
+- 2026-09-24: Not fired. Since 2026-09-17 only renames touched `residency_pass.py`,
+  `residency_moves.py` and the supervisor: `fence()` still answers immediately before the one
+  `await host.start(model)`, and both zero-figure early returns hold. The four settings are now bare
+  keys in the gpu overlay's brain environment, which the grep does not match, and no record in
+  `docs/readings/` has a retry pass starting a peer during a handoff.

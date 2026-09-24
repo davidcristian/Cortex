@@ -7,10 +7,10 @@
 a deployment configuring escalation without a deep artifact for long enough that the card becomes a
 nuisance. Both happen outside this repo. What the tree can answer is whether any stack it ships can
 reach the state: that needs `CORTEX_ESCALATION` set while `CORTEX_MODEL_FILE_BRAIN` keeps its empty
-default (`docker/docker-compose.gpu.yml:175`). The gpu overlay passes the switch through by name,
+default (`docker/docker-compose.gpu.yml:71`). The gpu overlay passes the switch through by name,
 so a host `.env` can reach the state, and `grep -rnE 'CORTEX_ESCALATION: *[^ ]' docker/` finding
 nothing says no shipped file does.
-**Verified:** 2026-09-17
+**Verified:** 2026-09-24
 
 Opened 2026-08-16 by the close that refuses an impossible handoff before the drain
 ([R-203](203-escalation-fault-not-remembered.md)), which moved the refusal from after the stall to
@@ -81,3 +81,10 @@ is the visibility trade rather than the cost.
   because no compose file here has an `env_file` key, so a `.env` alone cannot put
   `CORTEX_ESCALATION` into the brain container: an operator has to edit a compose file or add an
   override.
+- 2026-09-24: Not triggered. The grep finds nothing, and the trigger's line citation is corrected
+  to where `CORTEX_MODEL_FILE_BRAIN` is now. The gpu overlay passes `CORTEX_ESCALATION` to the brain
+  as a bare key, so the point above about `env_file` no longer decides it: a value set on the host
+  reaches the container. The advertisement is still decided at the same sites, now
+  `dispatch_builders.py:68`, `wiring.py:96` and `:103`, `engines.py:61` and `config_tools.py:93`.
+  The card is shown only on an untainted turn, since `dispatch.py` denies a tainted turn's
+  escalation without asking.

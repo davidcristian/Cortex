@@ -8,7 +8,7 @@
 run: `pip install openvino` over `python:3.12-slim`, with `/dev/dxg` and `/usr/lib/wsl` handed in,
 then read `available_devices` and that property. This entry's history records what the run returned
 when it was last taken, and the body records which half of the condition is already met.
-**Verified:** 2026-09-17
+**Verified:** 2026-09-24
 
 An OpenVINO `InferenceBackend` adapter plus a `PlacementTarget.NPU` would use the otherwise-idle NPU
 for tiny subagents or embeddings, which serves the same goal as the container limits above.
@@ -24,10 +24,10 @@ handed. Measured from a container: OpenVINO's NPU plugin ships in the wheel and 
 enumerates nothing. Not measured: whether the machine has an NPU at all, since this guest cannot see
 Windows device state.
 
-Of the 1,038 Windows driver packages WSL maps in, exactly three ship Linux user-mode libraries, the
-Intel graphics package in its two staged versions and the NVIDIA one, while both NPU packages ship
-only Windows DLLs. So the condition that revives this work has two halves, WSL projecting the device
-and the vendor shipping a Linux driver for it.
+Of the 1,103 Windows driver packages WSL maps in, exactly five ship Linux user-mode libraries, the
+Intel graphics package in its two staged versions and the NVIDIA one in its three, while both NPU
+packages ship only Windows DLLs. So the condition that revives this work has two halves, WSL
+projecting the device and the vendor shipping a Linux driver for it.
 
 The projection half is already met. `D3DKMTEnumAdapters2` asked for a count returns three where the
 list it fills has two, a buffer sized for fewer than three is refused, and the adapter the list
@@ -66,3 +66,8 @@ The second question is untouched, there being nothing to measure it on.
   2026.3.1 the two runs before it installed, and the answers did not move with it. The guest is
   unchanged: `/dev/dxg` is still the only device node and the running kernel,
   6.6.114.1-microsoft-standard-WSL2, still reports `# CONFIG_DRM_ACCEL is not set`.
+- 2026-09-24: Not fired, read from the guest only: Docker was left to a detached GPU run, so the
+  container run was not repeated. The guest is unchanged, and `npu.inf` and `npu_extension.inf`
+  still hold no `.so` file, which is the vendor half. The driver store now holds 1,103 package
+  directories beside 376 `.ini` sidecars, and a third staged NVIDIA version makes five packages
+  with Linux libraries; the count above is corrected to that.
