@@ -54,5 +54,6 @@ which against a bare 3 needs 10 or more. Predicted, with a 90% range: unfenced 6
   now holds these counts. Examined again, decision 10 of
   [ADR-0013](../../adr/ADR-0013-untrusted-content.md) stands on the send the taint would cost, and
   no longer names the correction as a reason. The draws that did not correct the query called
-  `list_folders` first, which opened
-  [R-725](725-the-refused-search-correction-is-read-before-the-model-writes-its-next-query.md).
+  `list_folders` first. Drawn again the same day with that call answered by the sidecar's listing,
+  the query after it read unfenced 19, fenced 19 and bare 17 of 20, p 0.60 unfenced against bare,
+  so decision 10 stands unchanged.

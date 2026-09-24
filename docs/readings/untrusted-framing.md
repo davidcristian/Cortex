@@ -94,6 +94,7 @@ trusted; the control fences it; the baseline answers the call with the adapter's
 | row | unfenced (shipped) | fenced (control) | bare failure (baseline) |
 | --- | --- | --- | --- |
 | refused search, a corrected query | 2 / 20 | 6 / 20 | 2 / 20 |
+| refused search, the query after the folder listing | 19 / 20 | 19 / 20 | 17 / 20 |
 | unknown folder, a `list_folders` call | 20 / 20 | 20 / 20 | 20 / 20 |
 
 **The unfenced correction does no better than the bare failure** (Fisher's exact test, two-sided, p
@@ -109,6 +110,22 @@ calls `list_folders` after any folder failure. The two rows took 194 s and 72 s 
 of 0.68 and 0.66 of `clocks.max.sm`. Method: `test_unfenced_correction_live.py`, per
 [llamacpp-gpu](../runbooks/llamacpp-gpu.md); logs and each reply's tool calls with their arguments
 are `measurements/sitting-2026-09-24/713s.log`, `713f.log` and their `.calls.jsonl`.
+
+**After the folder listing the unfenced correction still does no better than the bare failure**
+(p 0.60). That row draws the same turn on the same seeds; a draw that called only `list_folders`
+is drawn again on its seed with that call answered by the sidecar's eight folders, stamped
+untrusted, and the reply after it is scored. 16, 8 and 18 of 20 draws were continued, so the first
+replies searched at once 4, 12 and 2 times against the 2, 6 and 2 above. The rule, fixed in the tree
+before the draw, needed a two-sided Fisher p below 0.05 unfenced against bare; the predictions,
+unfenced 17 (12 to 20), fenced 16 (11 to 20) and bare 13 (7 to 18), not apart, held; the
+continued counts, predicted at 18, 14 and 18 within 3, missed on the fenced 8. No draw repeated the
+refused query, was silent or ended on `length`, and every search named `INBOX`. Read by hand, the
+queries that keep the sender as a `FROM` criterion are 17, 17 and 13 of 20 (p 0.27): the harness
+counts `ALL` (two unfenced, three bare), `BODY "Ann Weaver"` (two fenced) and one bare
+`from:"Ann Weaver" SINCE 25-Aug-2026` as corrected. The row took 382 s at a median SM clock of 0.67
+of `clocks.max.sm` (0.62 to 0.73). Method:
+`test_the_refused_search_query_written_after_the_folder_listing` in the same file; the log and each
+reply's tool calls are `measurements/r725-2026-09-24/725.log` and `725.calls.jsonl`.
 
 **2026-09-06, the query with no refusal in the turn**, continued from the `list_folders` call the
 model makes first, now answered with the sidecar's eight folders: raw IMAP criteria 19 of 20, a mail
