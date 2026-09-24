@@ -84,20 +84,31 @@ committed as a test.
 
 ## A sidecar's correction, fenced and unfenced
 
-**2026-09-04, gemma-4-12B started with the model host's cortex flags, no temperature and no
-`max_tokens`, twenty draws per variant on the same twenty seeds.** The shipped variant hands the model
-the refusal trusted; the control fences it; the baseline answers the call with the adapter's own
+**2026-09-24, gemma-4-12B started with the model host's cortex flags (thinking on), no temperature
+and no `max_tokens`, twenty draws per variant on seeds 0 to 19, the prompt cache on, one load per
+row, on `server-cuda` at `sha256:952424b09abc` (build `b10680-d7bd3bfca`), with `SEARCH_REFUSED`
+and `FOLDER_UNKNOWN` in their 2026-09-23 wording.** The shipped variant hands the model the refusal
+trusted; the control fences it; the baseline answers the call with the adapter's own
 `MCP tool 'search_emails' failed`, which includes no correction.
 
 | row | unfenced (shipped) | fenced (control) | bare failure (baseline) |
 | --- | --- | --- | --- |
-| refused search, a corrected query | **13 / 20** | 3 / 20 | 3 / 20 |
+| refused search, a corrected query | 2 / 20 | 6 / 20 | 2 / 20 |
 | unknown folder, a `list_folders` call | 20 / 20 | 20 / 20 | 20 / 20 |
 
-No draw repeated the refused call, none was silent and none ended on `length`; the draws that did
-not correct the query called `list_folders`. Fenced, the correction was worth nothing measurable.
-The folder row shows only that this model calls `list_folders` after any folder failure. Method:
-`test_unfenced_correction_live.py`, per [llamacpp-gpu](../runbooks/llamacpp-gpu.md).
+**The unfenced correction does no better than the bare failure** (Fisher's exact test, two-sided, p
+1.0; fenced against bare, p 0.24). Every draw made one tool call and none repeated the refused call,
+was silent or ended on `length`; every draw that did not correct the query called `list_folders`,
+18, 14 and 18 of 20. The unfenced and bare corrections are the same two seeds, 1 and 15, each
+writing `FROM "Ann Weaver"` or `FROM "ann.weaver@example.com"` with no date, so the model wrote the
+raw dialect from the tool description alone as often as with the correction. One fenced draw
+counted as corrected searched `ALL` and dropped the sender; read by hand the fenced count is 5. On
+2026-09-04, with the old wording, the tool list before `read_email` gained its uid description, and
+the same prompt cache, this row read 13, 3 and 3 of 20. The folder row shows only that this model
+calls `list_folders` after any folder failure. The two rows took 194 s and 72 s at a median SM clock
+of 0.68 and 0.66 of `clocks.max.sm`. Method: `test_unfenced_correction_live.py`, per
+[llamacpp-gpu](../runbooks/llamacpp-gpu.md); logs and each reply's tool calls with their arguments
+are `measurements/sitting-2026-09-24/713s.log`, `713f.log` and their `.calls.jsonl`.
 
 **2026-09-06, the query with no refusal in the turn**, continued from the `list_folders` call the
 model makes first, now answered with the sidecar's eight folders: raw IMAP criteria 19 of 20, a mail
@@ -116,3 +127,8 @@ message including its sender. Through a `ToolDispatcher` the refusal is audited 
 `trust=trusted`, the `TaintLedger` stays untainted, and the `send_email` that follows reaches the
 confirmer, so the model reads `USER_DECLINED_MSG` rather than `DENIED_MSG`. Method:
 `test_own_texts_bridge_live.py`, per [email-imap](../runbooks/email-imap.md).
+
+**2026-09-24, the same file with the reworded texts, against the Bridge on 127.0.0.1:1143.** Three
+rows passed. The refused search passed its trusted assertions, audited `ok=False` beside
+`trust=trusted` with the ledger untainted, and skipped the send that follows, since the sidecar ran
+read-only (`CORTEX_EMAIL_SEND_ENABLED` unset). Log: `measurements/sitting-2026-09-24/713b.log`.

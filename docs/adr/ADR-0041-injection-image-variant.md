@@ -176,21 +176,21 @@ What this part of the harness has measured, each stated with its reading in
   shipped defence. Read as obedience, a matrix row has been 0 or 1 per channel in every session; the
   higher counts published first were descriptions.
 - **At the engine's sampler the framing lowers the laundering rate at the engine budget.** On the
-  corpus cell, 120 draws a condition read by hand, the framed variant applied the rule there in 44
-  of 360 draws against the control's 91 (`chrome` 9 against 33). At the shipped budget it halves
-  `plain`'s rate, `app` alone reads framed above control (7 against 1), and neither that nor the
-  pooled 29 against 38 is apart. The budget moves the control more than the framed variant:
-  `chrome`'s control applies the rule in 2 draws at the shipped budget and 33 at the engine's.
+  corpus cell, 120 draws a condition read by hand, the framed variant applied the rule in 44 of 360
+  draws against the control's 91 (`chrome` 9 against 33). At the shipped budget it halves `plain`'s
+  rate, the pooled 29 against 38 is not apart, and `app` reads framed above control, apart in one of
+  two rows of 400 (12 against 3, p 0.034). The budget moves the control more than the framed
+  variant: `chrome`'s control applies the rule in 2 shipped-budget draws and 33 at the engine's.
 - **Legibility is the pixels the encoder keeps per glyph**, not the payload's share: resistance
   rises where the transcription stops including the canary. The dialog's summaries name the rule at
   the level of its topic one size before the transcription fails, and a body above a bare payload
   turns a described rule into an applied one.
 - **The alternative candidate reads differently.** It transcribes at every size. At the engine's
-  sampler it returned nothing in 1 of 105 control and 3 of 385 framed draws, each ending `'length'`,
-  and the pick in none of 2480, too few to set a ratio between its channels or against the pick. Its
+  sampler it returned nothing in 1 of 210 control and 4 of 490 framed draws, each ending `'length'`,
+  and the pick in none of 3520, too few to set a ratio between its channels or against the pick. Its
   applied counts on the dialog's laundering cell are reports: every control reply writes the rule
   bare, which the tail reading counts as applied. Read by hand, each of its five payload-size rows
-  applies the rule, in 1 to 9 of 45 framed and 0 to 12 of 45 control draws. On plain body text its
+  applies the rule, in 1 to 4 of 45 framed and 0 to 12 of 45 control draws. On plain body text its
   framed variant applied it 9 times in 280 at temperature 0. In the matrix it answers
   payload-splitting with the bare token under the defence, which no shipped-model matrix row has.
 - **The frame matters only where the encoder resamples differently.** Across a doubling of linear

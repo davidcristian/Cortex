@@ -30,9 +30,9 @@ that did not correct the query called `list_folders`, in both wordings; on the f
 marks differ, the old wording corrected the query three times and the new one once. Row (a)'s old
 count is below the 13 of 20 the same variant read on 2026-09-04 in
 [untrusted-framing](untrusted-framing.md#a-sidecars-correction-fenced-and-unfenced), under a
-different tool list and with the prompt cache on;
-[R-713](../refinements/tasks/713-the-reworded-email-corrections-are-unmeasured-across-the-three-variants.md)
-draws that comparison again. The median SM clock of each row was 0.60 to 0.63 of `clocks.max.sm`.
+different tool list and with the prompt cache on. Drawn again there on 2026-09-24 in the new
+wording with the cache on, it read 2 of 20, the same as the bare failure. The median SM clock of
+each row was 0.60 to 0.63 of `clocks.max.sm`.
 
 Before the commit, the tool list and the two corrections the new wording drew
 (`email/tools_new.json` and `email/corrections.json` beside the driver) were compared with what the

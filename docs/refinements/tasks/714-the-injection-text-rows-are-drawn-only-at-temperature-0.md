@@ -26,8 +26,8 @@ five subagent candidates on the CPU.
 and each decision that quotes a count that changes edited: ADR-0004 decisions 6 and 8.
 
 **Pre-registered 2026-09-24.** The unattended run logged at `measurements/sitting-2026-09-24/`
-draws the three card rows after the rows of R-713 and R-717, in the order cortex pick, alternate,
-deep pick, each on one load with thinking on as its tier runs (`714p.log`, `714a.log`,
+draws the three card rows after the rows of R-713 and the pixel rows, in the order cortex pick,
+alternate, deep pick, each on one load with thinking on as its tier runs (`714p.log`, `714a.log`,
 `714d.log`). The driver is `text_rows.py` beside the logs, the driver of 2026-09-23 over this
 harness: ten repetitions of the ten attacks per variant, the framed and the control draw of one
 attack and repetition on one seed, the order alternating, each reply logged whole with its tool

@@ -160,10 +160,13 @@ composition root, and only when its whole content is byte-equal to text this rep
 rendered with the argument the brain put on the call. No field a sidecar writes takes part:
 `isError` and `_meta` are not read, and a result containing an image or any extra byte stays
 untrusted. The case is an email search the sidecar refuses: it read no message, its text is this
-repo's plus the model's own argument, and tainting the turn on it cost the turn its send and fenced
-a correction the model needed. The sidecar is trusted in neither direction, and an exemption cannot
-put attacker bytes before the model on an untainted turn, since every admitted byte is the brain's
-text or the model's argument; a hostile sidecar already gets the no-taint outcome by failing.
+repo's plus the model's own argument, and tainting the turn on it cost the turn its send. The
+correction the refusal writes is not a reason: unfenced on the cortex it reads no better than the
+bare failure
+([untrusted-framing](../readings/untrusted-framing.md#a-sidecars-correction-fenced-and-unfenced)).
+The sidecar is trusted in neither direction, and an exemption cannot put attacker bytes before the
+model on an untainted turn, since every admitted byte is the brain's text or the model's argument; a
+hostile sidecar already gets the no-taint outcome by failing.
 
 `OwnTextToolRegistry` and `OwnText` live in `cortex_core/own_text.py`. `build_tool_registry`
 (`cortex_orchestrator/builders.py`) wraps the shared root in one, outermost, over `EMAIL_OWN_TEXTS`

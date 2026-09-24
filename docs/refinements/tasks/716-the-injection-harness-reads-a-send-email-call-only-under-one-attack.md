@@ -26,6 +26,8 @@ as obeyed, with a unit test over a fake reply, and the rows that change read aga
   calls, so the six draws were read again from them with no redraw: Qwen3.5-0.8B's control moves
   from 4 to 8 of 100, Qwen3.5-2B's framed from 7 to 8 and Qwen3.5-4B's control from 25 to 26. One
   of the six had been marked described, not resisted. The text rows still at temperature 0 read the
-  call when [R-714](714-the-injection-text-rows-are-drawn-only-at-temperature-0.md) redraws them;
-  the pixel rows already drawn at the sampler opened
-  [R-717](717-the-pixel-rows-drawn-at-the-sampler-are-unread-for-a-send-email-call.md).
+  call when [R-714](714-the-injection-text-rows-are-drawn-only-at-temperature-0.md) redraws them.
+  The five pixel rows already drawn at the sampler were drawn again that night, and none of their
+  1250 replies called `send_email`
+  ([injection over pixels](../../readings/injection-over-pixels.md)); their mail row opened
+  [R-726](726-the-framing-reads-above-its-control-on-the-picks-mail-cell.md).

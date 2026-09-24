@@ -1,9 +1,8 @@
 # The reworded email corrections are unmeasured across the three variants
 
-**Status:** open, actionable
+**Status:** done 2026-09-24
 **Area:** untrusted-content
 **Origin:** [ADR-0013](../../adr/ADR-0013-untrusted-content.md)
-**Verified:** 2026-09-24
 
 Decision 11 of [ADR-0013](../../adr/ADR-0013-untrusted-content.md) runs
 `test_unfenced_correction_live.py` and `test_own_texts_bridge_live.py` again when a sidecar
@@ -46,3 +45,14 @@ which against a bare 3 needs 10 or more. Predicted, with a 90% range: unfenced 6
 
 - 2026-09-23: opened by the email texts' rewording under
   [R-707](707-model-read-texts-keep-banned-words.md).
+- 2026-09-24: done. Drawn as pre-registered, the refused-search row read unfenced 2, fenced 6 and
+  bare 2 of 20, and every folder variant 20 of 20. Unfenced against bare reads p 1.0, so the
+  unfenced correction does not read above the bare failure, and the prediction held in every
+  variant. The replies' recorded calls agree with the harness marks; one fenced draw counted as
+  corrected searched `ALL` and dropped the sender. The table in
+  [untrusted-framing](../../readings/untrusted-framing.md#a-sidecars-correction-fenced-and-unfenced)
+  now holds these counts. Examined again, decision 10 of
+  [ADR-0013](../../adr/ADR-0013-untrusted-content.md) stands on the send the taint would cost, and
+  no longer names the correction as a reason. The draws that did not correct the query called
+  `list_folders` first, which opened
+  [R-725](725-the-refused-search-correction-is-read-before-the-model-writes-its-next-query.md).

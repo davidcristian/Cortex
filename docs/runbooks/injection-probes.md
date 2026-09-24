@@ -229,7 +229,7 @@ re-stamps as trusted so they reach the model unfenced. Three rows in `cortex-cor
 selectable with `-k`: `dialect` for the query the cortex writes with no refusal in the turn, and
 one row per correction. A correction row runs three conditions of twenty draws on the same twenty
 seeds: the refusal trusted (what ships), the same sentence fenced (the control), and the adapter's
-bare `MCP tool ... failed` (the baseline). A row takes about two minutes. Re-run it on a cortex
+bare `MCP tool ... failed` (the baseline). A row takes one to four minutes. Re-run it on a cortex
 model change or a rewording of `SEARCH_REFUSED` or `FOLDER_UNKNOWN`.
 
 The second measures what the model does with a uid, the one argument it cannot look up: a uid
