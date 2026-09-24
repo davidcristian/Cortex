@@ -231,3 +231,18 @@ when the capture edge, the byte ceiling or the downscale filter moves:
 cd body && cargo test -p body-core --test capture_bytes --release -- \
   --ignored --nocapture --test-threads=1
 ```
+
+## Whether a reworded model-read text still works
+
+`packages/inference/tests/test_model_read_wording_live.py` draws a text a model reads in its old
+and its new wording on the same seed, on each tier that reads it: the recap preface under the
+injection attacks and a fact question, and the spawn tool's model note with the default subagent's
+description on two delegation asks. It starts its own server as the injection probes do, prints a
+line per draw and a result per row, and reads the card once per row. `CORTEX_WORDING_DEADLINE`, in
+seconds since the epoch, skips a row whose estimate would end after it. Its rows and the counts
+that decide them are fixed in [R-707](../refinements/tasks/707-model-read-texts-keep-banned-words.md).
+
+```
+cd brain && CORTEX_MODELS_DIR=/srv/models uv run pytest -m integration --no-cov -s \
+  "packages/inference/tests/test_model_read_wording_live.py::test_each_text_draws_alike_in_its_old_and_new_wording[gemma-4-12B]"
+```

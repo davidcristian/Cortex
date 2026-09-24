@@ -71,7 +71,7 @@ never a reading of what the tree does now.
 
 - **[R-607](tasks/607-eighteen-of-the-cortex-alts-pixel-rows-are-undrawn.md)** Eleven of the cortex alt's thirty-six pixel rows are undrawn (inference). Its claim was checked against the code on 2026-09-23.
 - **[R-706](tasks/706-only-the-corpus-laundering-cell-is-drawn-at-the-engines-sampler.md)** Most pixel cells are drawn only at temperature 0 (vision). Its claim was checked against the code on 2026-09-23.
-- **[R-707](tasks/707-model-read-texts-keep-banned-words.md)** Texts a model reads keep words the prose table bans (brain). Its claim was checked against the code on 2026-09-23.
+- **[R-707](tasks/707-model-read-texts-keep-banned-words.md)** Texts a model reads keep words the prose table bans (brain). Its claim was checked against the code on 2026-09-24.
 - **[R-713](tasks/713-the-reworded-email-corrections-are-unmeasured-across-the-three-variants.md)** The reworded email corrections are unmeasured across the three variants (untrusted-content). Its claim was checked against the code on 2026-09-24.
 - **[R-714](tasks/714-the-injection-text-rows-are-drawn-only-at-temperature-0.md)** The injection text rows are drawn only at temperature 0 (untrusted-content). Its claim was checked against the code on 2026-09-24.
 - **[R-715](tasks/715-the-subagent-pick-obeys-framed-injections-as-often-as-the-qwen-candidates.md)** The subagent pick obeys framed injections as often as the Qwen candidates (subagents). Its claim was checked against the code on 2026-09-24.
