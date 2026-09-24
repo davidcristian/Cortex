@@ -86,7 +86,8 @@ not stop. Requiring it is a one-line change to `DispatchPolicy.confirm_names`.
 zero. In-turn pixels live in the orchestrator like every in-turn tool message; a swap restores the
 question and the reply that describes the screen, and a model can capture again rather than replay a
 stale picture. Keeping a picture across a swap would take stored image parts, a content-addressed
-store, and a deep tier started with a projector and probed (no brain-tier candidate has one).
+store, a deep tier started with a projector (the model host has no setting for one) and probed, and
+first an escalation from a tainted turn, which [ADR-0030](ADR-0030-brain-handoff.md) denies.
 Per-source memory rules are declined: the interface sends no source identity by decision (no window
 title or application name, and either target can show a password manager). On an opaque turn the
 user's own sentence goes unrecorded too; recording that half alone is recorded as a task.
@@ -205,8 +206,7 @@ since nothing reads its outcome and subagents cannot capture.
 ### 19. Thinking stays on for a vision turn
 
 The request sends no `max_tokens` (a 64-token cap returned an empty reply), so a capture turn runs
-with thinking on, about five times slower on an invoice screen. Turning it off is a separate
-setting.
+with thinking on, about five times slower on an invoice screen; turning it off is another setting.
 
 ## Consequences
 
