@@ -7,7 +7,7 @@
 while `CORTEX_MEMORY_SCOPE` is `global`, the size at which the exact scan costs a whole recalling
 turn's time to first token; the recall trail's `available` field reports the same count on every
 recalled turn when `CORTEX_MEMORY_RECALL_AUDIT` is on.
-**Verified:** 2026-09-17
+**Verified:** 2026-09-24
 
 Memory search is an exact cosine scan. An approximate index would need a migration
 ([ADR-0004](../../adr/ADR-0004-model-lineup.md)).
@@ -81,3 +81,11 @@ opaque turns by default, and so sets how fast the count grows.
   sizes, 21 ms at 1,000 rows and 1,478 ms at 220,000, crosses the 0.515 s time to first token at
   about 75,000 rows. Both readings came from one machine, so the row count is that machine's
   ratio of turn time to scan time per row, and another host would take its own two readings.
+- 2026-09-24: Read against the tree; the trigger has not fired and the calibration has not run.
+  `docker/postgres/init.sql` has not changed since 2026-07-06, and no compose file, brain source or
+  SQL file names `maintenance_work_mem`. The ranked `SELECT`, `_COUNT_ALL`, `DEFAULT_RECALL_K = 5`,
+  `recall_pool_factor: int = 4`, `scope` defaulting to `"global"` and `recall_audit` to `False` are
+  as above. The one change in `record_exchange` since 2026-09-17 is its comment, which now says an
+  opaque turn is any turn that saw an untrusted picture; the code that skips it is unchanged.
+  `hnsw` and `ivfflat` are named today in ADR-0004's decision and in
+  `docs/readings/model-lineup.md`, and not in `init.sql` or ADR-0008.

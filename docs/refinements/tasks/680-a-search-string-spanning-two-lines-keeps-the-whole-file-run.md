@@ -9,7 +9,7 @@ The five are listed by rendering every mention and keeping those containing `\n`
 files that have `--threads` above its substitution, and three whose newline only ties them to the
 start or the end of a line, in `docs/runbooks/subagents-cpu.md`, `docs/runbooks/llamacpp-gpu.md` and
 `brain/Dockerfile.modelhost`.
-**Verified:** 2026-09-17
+**Verified:** 2026-09-24
 
 Every search string without a newline moved to the per-line reading in `scripts/linereadings.py`.
 These five stayed on the opening run over the whole file that `searchtexts.longest_prefix`
@@ -31,3 +31,10 @@ would need measuring again over windows.
 - 2026-09-17: opened by the close of
   [R-406](406-the-quoted-run-of-an-unmatched-search-text-covers-a-whole-file.md), with the five counted by rendering
   the registry at that commit.
+- 2026-09-24: read against the tree and not fired. Rendering all 320 mentions of the registry from
+  a scratch script finds the same five containing a newline: the two `--threads` strings in
+  `docker/docker-compose.subagents.yml` and `docker/docker-compose.subagents-roster.yml`,
+  `\n  --reasoning-budget 0\n` in `docs/runbooks/subagents-cpu.md`, `\nCORTEX_IMAGE_MAX_TOKENS=1024`
+  in `docs/runbooks/llamacpp-gpu.md` and `FROM ghcr.io/ggml-org/llama.cpp:server-cuda\n` in
+  `brain/Dockerfile.modelhost`. The commits to `scripts/linereadings.py` and
+  `scripts/searchtexts.py` since then rename names and reword printed text.

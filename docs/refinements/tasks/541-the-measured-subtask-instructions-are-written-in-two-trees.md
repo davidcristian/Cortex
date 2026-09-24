@@ -8,13 +8,13 @@ harness's own of 2026-08-26; or a reading at the origin record publishing `stood
 `no judge is declared for this shape` for an instruction its measurement asked. That phrase occurs
 once in the origin record today, in the decision describing the mechanism.
 **Origin:** [ADR-0028](../../adr/ADR-0028-grammar-constrained-subagents.md)
-**Verified:** 2026-09-17
+**Verified:** 2026-09-24
 
-The summarization instruction is written in eight places, counted on 2026-09-17 with `git grep -F`
+The summarization instruction is written in seven places, counted on 2026-09-24 with `git grep -F`
 over its text: the driver's own `CORTEX_ENVELOPE_INSTRUCTION` default in
 `brain/packages/orchestrator/tests/test_envelope_cost_live.py`, the judge table in
-`scripts/envelopejudges.py`, the docstring of `scripts/envelopesamples.py`, four test files under
-`scripts/tests/` (the floor, judges, pairs and samples suites), and the origin record's prose. The
+`scripts/envelopejudges.py`, four test files under `scripts/tests/` (the floor, judges, pairs and
+samples suites), and the origin record's prose. The
 runbook does not contain it. The judge table declares four instructions, a second summarization
 asking to keep the report's figures having joined it on 2026-09-13. The other three are written in
 the judge table, in one or two of those test files and in the origin record, and nowhere in code a
@@ -65,3 +65,9 @@ person's work rather than a shipped path.
   punctuation. What the entry really needs is a module-level name for the instruction.
   `scripts/settingscheck.py` reads compose files and settings classes and does not reach the
   harness.
+- 2026-09-24: read against the tree and not fired. `git log -S` over the driver's default still
+  finds only the harness's own commit of 2026-08-26, the origin record has `no judge is declared
+  for this shape` once, the judge table still declares four instructions, and no
+  `scripts/*couplings.py` module contains any of them. The count of places was one too high:
+  `scripts/envelopesamples.py` has a one-line docstring that does not write the instruction, so it
+  is seven.

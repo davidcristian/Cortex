@@ -9,7 +9,7 @@ that tier's rows as it runs them. Read it with
 `grep -n 'CORTEX_REASONING_BUDGET' docker/docker-compose.gpu.yml`, which names both variables and
 defaults both to `-1` today, and confirm what a tier's flag tail then has with
 `ModelHostConfig(...).tiers()`.
-**Verified:** 2026-09-17
+**Verified:** 2026-09-24
 
 `Model.thinking` in
 [test_injection_defense_live.py](../../../brain/packages/inference/tests/test_injection_defense_live.py)
@@ -19,7 +19,7 @@ tier's name. The same `ModelHostConfig` the harness reads the head off answers t
 structurally, in whether the tier's `extra` ends its trace at zero, and the harness does not read it
 there.
 
-Measured 2026-09-08 and read again 2026-09-17: the two readings still agree everywhere the stack
+Measured 2026-09-08 and read again 2026-09-24: the two readings still agree everywhere the stack
 runs. Both variables default to `-1` in `docker/docker-compose.gpu.yml`, and
 `_UNRESTRICTED_REASONING` in `brain/packages/model_manager/src/cortex_model_manager/config.py` emits
 no flag at that value. Since 2026-09-13 every tail also has the tier's host-RAM prompt cache, so the
@@ -74,3 +74,11 @@ would import that constant rather than write it a second time.
   pair and not empty. A budget of `128` still produces `('--reasoning-budget', '128')` after it. The
   proposed fix is corrected to find the flag by name and to reuse the one copy of it the switch-rows
   test keeps.
+- 2026-09-24: read against the tree and not fired. The grep names both variables at lines 64 and 76
+  of `docker/docker-compose.gpu.yml`, both defaulting to `-1`, and outside the tests only
+  `scripts/modelhostcouplings.py` names either, as two mentions of those defaults. `Model.thinking`
+  is still `self.tier != SUBAGENT_TIER`, now at line 107. `ModelHostConfig().tiers()` produced the
+  table above cell for cell, and `128` still produces `('--reasoning-budget', '128')`
+  after the cache pair. One tail is new: with `CORTEX_MODEL_FILE_BRAIN_DRAFT` named, which the
+  deep tier reads since 2026-09-19, the deep tail ends with `--model-draft` and `--spec-type
+  draft-mtp` after the budget pair, a second tail in which the budget is not the last pair.

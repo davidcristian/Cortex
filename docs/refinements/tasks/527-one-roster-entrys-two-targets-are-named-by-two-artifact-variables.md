@@ -13,7 +13,7 @@ runbook sentence can wrap the variable and its file onto two lines; and count th
 aliased to a `CORTEX_MODEL_FILE_SUBAGENT` variable. Neither half reads a host's shell or `.env`,
 where a deployment would really write the second file.
 **Origin:** [ADR-0018](../../adr/ADR-0018-heterogeneous-subagents.md)
-**Verified:** 2026-09-17
+**Verified:** 2026-09-24
 
 `_entry_profile` in `cortex_orchestrator.subagent_builders` gives the default entry two backends,
 one per `PlacementTarget`, over `CORTEX_SUBAGENTS_GPU_ENDPOINT` and `CORTEX_SUBAGENTS_ENDPOINT`.
@@ -21,11 +21,11 @@ With the hosted tier opted in, those are two different servers whose weights are
 different variables: `CORTEX_MODEL_FILE_SUBAGENT` in the `command:` of
 `docker/docker-compose.subagents.yml` and `CORTEX_MODEL_FILE_SUBAGENT_GPU` in the model host's env.
 The second defaults to empty because the tier is opt-in, so no compose default connects them, and
-`docs/runbooks/subagents-cpu.md` section 2c sets them equal by hand. `VramBudgetPlacer.place` then
-picks the target by headroom, which [ADR-0012](../../adr/ADR-0012-resource-governance.md) designed
-as a decision about resources and nothing else, and
-[ADR-0017](../../adr/ADR-0017-subagent-model-safety.md) sends every tainted spawn to the default
-entry on the premise that it is the injection-resistant pick. A deployment naming two files breaks
+section 3 of `docs/runbooks/subagents-validation.md` sets them equal by hand.
+`VramBudgetPlacer.place` then picks the target by headroom, which
+[ADR-0012](../../adr/ADR-0012-resource-governance.md) designed as a decision about resources and
+nothing else, and [ADR-0017](../../adr/ADR-0017-subagent-model-safety.md) sends every tainted
+spawn to the default entry on the premise that it is the injection-resistant pick. A deployment naming two files breaks
 that premise on the GPU side only: which weights read untrusted content depends on how much VRAM was
 free at the moment of the spawn.
 
@@ -73,3 +73,15 @@ stored.
   `cortex_model_manager/config.py` aliased to a `CORTEX_MODEL_FILE_SUBAGENT` variable. The settings
   scan added the same day compares each settings field with some compose file that names it, and
   compares no two values.
+- 2026-09-24: checked again and not fired, and the tree now names either variable with a file in
+  three places, not four. The runbook split of 2026-09-19 moved the section 2c procedure into
+  section 3 of `docs/runbooks/subagents-validation.md` and left `docs/runbooks/llamacpp-gpu.md`
+  naming `CORTEX_MODEL_FILE_SUBAGENT_GPU` without a file, so the body's pointer moved with it. The
+  three are line 46 of `docker/docker-compose.subagents.yml`, lines 24 and 25 of
+  `docs/runbooks/subagents-cpu.md` (the wrapped sentence) and line 51 of
+  `docs/runbooks/subagents-validation.md`, and all three write
+  `google/gemma-4-E4B-it-qat-q4_0-gguf/gemma-4-E4B_q4_0-it.gguf`. There is no `.env`,
+  `subagent_gpu_file` still defaults to `""` and is the only field aliased to a
+  `CORTEX_MODEL_FILE_SUBAGENT` variable, and `ModelHostConfig().tiers()` declares one tier at the
+  shipped defaults and three with the subagent and brain files named. The deep tier's drafter,
+  added on 2026-09-19 under `CORTEX_MODEL_FILE_BRAIN_DRAFT`, adds flags to the deep tier and no tier.

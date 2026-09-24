@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** vision
 **Origin:** [ADR-0041](../../adr/ADR-0041-injection-image-variant.md)
-**Verified:** 2026-09-17
+**Verified:** 2026-09-24
 **Trigger:** a figure from one of the harnesses below, a turn-cost interval or a decode rate, is
 published in `docs/` with a date after 2026-09-17 and no card reading beside it.
 
@@ -31,3 +31,11 @@ two above are the ones that publish a time or a rate taken on the card.
   [R-662](662-a-measurement-run-records-the-cards-ceiling-by-hand.md), which made only the injection harness
   print the card's ceiling
   ([ADR-0041 decision 20](../../adr/ADR-0041-injection-image-variant.md)).
+- 2026-09-24: read against the tree and not fired. Neither harness nor `scripts/contrast.py`
+  imports `card_reading.py`, which only the injection harness and its own test do. The one decode
+  rate a `docs/` change since 2026-09-17 touched, 28.92 to 29.82 tok/s in
+  `docs/runbooks/model-swap-measurements.md`, is the 2026-08-07 control API reading, whose row
+  changed only its fit column on 2026-09-22, and the 2026-09-22 deep margin reading came from its
+  own script with `clocks.sm` beside each start.
+  A third live harness, `test_model_read_wording_live.py` of 2026-09-24, logs each row's wall
+  clock to price the next draw and publishes neither a turn cost nor a decode rate.
