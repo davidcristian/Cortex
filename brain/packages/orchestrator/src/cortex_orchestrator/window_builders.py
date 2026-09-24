@@ -17,8 +17,9 @@ def build_history_window(
     sessions: SessionStore,
     backend: InferenceBackend,
     clock: Clock,
+    model: str,
 ) -> HistoryWindow | None:
-    """The turn's history window, or None when windowing is disabled."""
+    """The turn's history window, whose recap ``model`` writes, or None when windowing is off."""
     if runtime.history_char_budget < 1:
         return None
     window = CharBudgetHistoryWindow(runtime.history_char_budget)
@@ -28,7 +29,7 @@ def build_history_window(
         window,
         sessions,
         backend,
-        runtime.cortex_model,
+        model,
         clock,
         min_dropped_chars=min(runtime.history_recap_min_chars, runtime.history_char_budget),
     )

@@ -1,6 +1,7 @@
 import asyncio
 from collections.abc import AsyncIterator, Mapping, Sequence
 from dataclasses import dataclass, replace
+from datetime import UTC, datetime
 
 from fakeredis import FakeAsyncRedis, FakeServer
 
@@ -27,10 +28,12 @@ from cortex_core import (
     Message,
     RecordingConfirmer,
     RecordingProgressSink,
+    Role,
     ScriptedVisionProbe,
     StatusUpdate,
     SystemClock,
     TextChunk,
+    TextDelta,
     ToolCall,
     ToolRegistry,
     ToolSpec,
@@ -300,8 +303,8 @@ async def test_a_stream_s_recall_announces_a_handoff_that_began_after_the_turn_s
     memories = InMemoryMemoryStore()
     await MemoryRecaller(memories, HashEmbedder(), SystemClock()).record("tea", session_id="s")
 
-    def recaller_for(model: InferenceBackend) -> MemoryRecaller:
-        judge = JudgeRecallPolicy(model, "cortex", pool_factor=2)
+    def recaller_for(backend: InferenceBackend, model: str) -> MemoryRecaller:
+        judge = JudgeRecallPolicy(backend, model, pool_factor=2)
         return MemoryRecaller(memories, HashEmbedder(), SystemClock(), policy=judge)
 
     sessions = _HandoffAtHistory(swap)
@@ -329,3 +332,98 @@ async def _expect_announced_wait(
     async with asyncio.timeout(5.0):
         await turn
     assert [request.model for request in backend.requests] == ["cortex"] * calls
+
+
+class _Leasing(_Model):
+    """A scripted backend that leases each model through the residency manager."""
+
+    def __init__(
+        self, script: Mapping[str, Sequence[Sequence[InferenceEvent]]], swap: SwapRuntime
+    ) -> None:
+        super().__init__(script)
+        self._manager = swap.manager
+
+    async def stream(
+        self,
+        model: str,
+        messages: Sequence[Message],
+        *,
+        tools: Sequence[ToolSpec] = (),
+        schema: JsonSchema | None = None,
+        bounds: GenerationBounds | None = None,
+    ) -> AsyncIterator[InferenceEvent]:
+        """Lease ``model``, then replay its next scripted round."""
+        async with self._manager.acquire(model):
+            async for event in super().stream(
+                model, messages, tools=tools, schema=schema, bounds=bounds
+            ):
+                yield event
+
+
+async def _escalate_under_lease(engines: StreamEngines, swap: SwapRuntime) -> list[TurnEvent]:
+    engine = engines.for_stream(RecordingConfirmer(answer=True), RecordingProgressSink())
+    try:
+        async with asyncio.timeout(5.0):
+            return await _run(engine, "hello", turn_id="t1")
+    finally:
+        await swap_closer(swap)()
+
+
+async def test_the_deep_phase_s_recall_is_judged_by_the_deep_model() -> None:
+    swap = _swap_runtime()
+    order = [TextChunk('{"order": [0]}')]
+    backend = _Leasing(
+        {
+            "cortex": [order, [_ESCALATE_CALL], [TextChunk("handing off")]],
+            "brain": [order, [TextChunk("deep answer")]],
+        },
+        swap,
+    )
+    memories = InMemoryMemoryStore()
+    await MemoryRecaller(memories, HashEmbedder(), SystemClock()).record("tea", session_id="s")
+
+    def recaller_for(backend: InferenceBackend, model: str) -> MemoryRecaller:
+        judge = JudgeRecallPolicy(backend, model, pool_factor=2)
+        return MemoryRecaller(memories, HashEmbedder(), SystemClock(), policy=judge)
+
+    events = await _escalate_under_lease(
+        replace(_escalating(backend, swap), memory=recaller_for), swap
+    )
+    assert [request.model for request in backend.requests] == [
+        "cortex",
+        "cortex",
+        "cortex",
+        "brain",
+        "brain",
+    ]
+    assert backend.requests[3].tools == ()
+    assert any(isinstance(event, TextDelta) and event.text == "deep answer" for event in events)
+
+
+async def test_the_deep_phase_s_history_recap_is_written_by_the_deep_model() -> None:
+    swap = _swap_runtime()
+    backend = _Leasing(
+        {
+            "cortex": [[TextChunk("")], [_ESCALATE_CALL], [TextChunk("handing off")]],
+            "brain": [[TextChunk("They talked about x.")], [TextChunk("deep answer")]],
+        },
+        swap,
+    )
+    sessions = InMemorySessionStore()
+    for index, role in enumerate((Role.USER, Role.ASSISTANT) * 2):
+        at = datetime(2026, 9, 24, tzinfo=UTC)
+        await sessions.append("s", Message(role=role, text="x" * 300, at=at, turn_id=f"o{index}"))
+    runtime = BrainRuntimeConfig(
+        history_char_budget=400, history_summary=True, history_recap_min_chars=100
+    )
+    engines = replace(_escalating(backend, swap), sessions=sessions, runtime=runtime)
+    events = await _escalate_under_lease(engines, swap)
+    assert [request.model for request in backend.requests] == [
+        "cortex",
+        "cortex",
+        "cortex",
+        "brain",
+        "brain",
+    ]
+    assert backend.requests[3].tools == ()
+    assert any(isinstance(event, TextDelta) and event.text == "deep answer" for event in events)

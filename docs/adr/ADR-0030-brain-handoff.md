@@ -9,14 +9,13 @@ turns that rule into a mechanism: the cortex escalates mid-turn, its context is 
 store, the model host evicts the cortex and loads the deep model, the deep model reads the store,
 works and stores its results, and the cortex comes back and resumes from the store.
 
-Most of a turn already lives in a store (history, tasks, schedules, memory). What does not, mid-turn,
-is the tool loop's tail (the assistant tool-call messages and fenced `Role.TOOL` results, which are
-never stored), the `TaintLedger`, the fence nonce, the turn-wide `DispatchBudget` and the round
-count. The GPU lease is held across one inference round, not one turn, and the body opens one
-`Converse` stream per turn, so anything the user sees during a handoff is sent on that turn's own
-stream. The deep model (gemma-4-31B QAT q4_0, about 18.7 GiB at an 8K context) does not fit beside
-the cortex (about 8.4 GiB at its peak) on the 24 GB card this repo targets, so a handoff is an
-eviction.
+Most of a turn already lives in a store (history, tasks, schedules, memory). What does not,
+mid-turn, is the tool loop's tail (the assistant tool-call messages and fenced `Role.TOOL` results,
+which are never stored), the `TaintLedger`, the fence nonce, the turn-wide `DispatchBudget` and the
+round count. The GPU lease is held across one inference round, not one turn, and the body opens one
+`Converse` stream per turn, so what the user sees during a handoff is sent on that turn's stream.
+The deep model (gemma-4-31B QAT q4_0, about 18.7 GiB at an 8K context) does not fit beside the
+cortex (about 8.4 GiB at its peak) on the 24 GB card this repo targets, so a handoff is an eviction.
 
 The supervisor sidecar is [ADR-0053](ADR-0053-model-host-supervisor.md); the residency report and
 the cortex's peers [ADR-0054](ADR-0054-baseline-residency.md); co-residency, the fit check and the
@@ -101,6 +100,7 @@ Every exit path converges back to a serving cortex; the swap back is the recover
 4. **Read the state back and run** the shared `stream_tool_loop` on the deep model over windowed
    history, recall and the record's tail, with the rebuilt ledger, the resumed budget, the same
    audited dispatcher and the guardrail seeded with the stored URLs; the rounds allowance is fresh.
+   The deep model judges that recall and writes any recap, the one model its scope can lease.
 5. **Store** the deep reply as a second assistant message under the same `turn_id`, and memory
    under the engine's taint policy; a deep model that dies mid-answer has its partial text stored
    with its failure note.
@@ -120,7 +120,8 @@ server, never a step of boot recovery, which runs first.
 - **`SwappingModelManager`** implements the unchanged `ModelManager` (`acquire` leases the resident
   model under one lock) and the separate **`ResidencyController`**: `swap_scope(model)`,
   `handoff_claim()` (non-blocking, nothing awaited between its check and set) and `unhosted(model)`
-  (decision 11). While a scope is active, `acquire` of another model waits instead of raising.
+  (decision 11). While a scope is active, `acquire` of another model waits, but raises
+  `ModelUnavailableError` at once from the task holding the scope, whose wait could never end.
 - **`SwapConductor`** runs decision 4 over the store, the drain, the controller, a `Clock` and a
   `Sleeper` port (so the health check never polls in real time under test). `HandoffSettler`
   (`swap_settle.py`) owns the settling writes; `BrainPhase` bundles step 4, built per stream so the
@@ -171,8 +172,7 @@ The evict list names peers of the cortex only: `ResidencyPlan` raises `ValueErro
 names the deep model or the cortex, reporting `CORTEX_SWAP_EVICT_MODELS` and the setting the id
 belongs to, because every reader of the list starts a listed tier that is not running (a listed deep
 model would start beside the cortex; a listed cortex would reload at every boot). Keeping peers
-resident through a handoff is the opt-in of
-[ADR-0055](ADR-0055-co-residency-and-spill-watch.md).
+resident through a handoff is the opt-in of [ADR-0055](ADR-0055-co-residency-and-spill-watch.md).
 
 ### 9. What remains on the host
 

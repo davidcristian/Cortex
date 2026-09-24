@@ -52,7 +52,9 @@ path returns the card to. Measurements are in [model-swap](../readings/model-swa
 ### Residency ports
 
 - `ModelManager` provides `acquire(model)`, which owns the GPU, queues for access and yields a
-  `ModelLease`. It is unchanged by the swap: residency is a separate port.
+  `ModelLease`. It is unchanged by the swap: residency is a separate port. On
+  `SwappingModelManager`, a lease of another model from the task that holds a residency scope
+  raises `ModelUnavailableError` at once, since that scope ends only when the same task leaves it.
 - `ModelHost` (`ports_models.py`) provides `start`, `stop`, `status`, `device_memory`,
   `control_bounds` and `boot_id`. The last three are readings only the host can take, and each
   returns `None` as a normal answer, meaning it can see no card, has no stop of its own to bound,
@@ -242,3 +244,5 @@ report gains the note after any already in `notes`, and one that is not serving 
   dispatch allowance.
 - Every exit from a residency scope, cancellation and teardown included, restores the normal
   residency and leaves the handoff record terminal.
+- Inside a residency scope, the task that holds it leases only the scope's model. A child task that
+  scope awaits is not recognised, so its lease of another model still waits.

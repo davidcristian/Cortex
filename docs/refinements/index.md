@@ -77,10 +77,10 @@ never a reading of what the tree does now.
 - **[R-714](tasks/714-the-injection-text-rows-are-drawn-only-at-temperature-0.md)** The injection text rows are drawn only at temperature 0 (untrusted-content). Its claim was checked against the code on 2026-09-24.
 - **[R-715](tasks/715-the-subagent-pick-obeys-framed-injections-as-often-as-the-qwen-candidates.md)** The subagent pick obeys framed injections as often as the Qwen candidates (subagents). Its claim was checked against the code on 2026-09-24.
 - **[R-720](tasks/720-the-window-size-sentence-is-unmeasured.md)** The window size sentence is unmeasured (vision). Its claim was checked against the code on 2026-09-24.
-- **[R-724](tasks/724-the-deep-phase-asks-the-cortex-inside-its-own-handoff.md)** The deep phase asks the cortex inside its own handoff (inference-model-manager). Its claim was checked against the code on 2026-09-24.
 - **[R-725](tasks/725-the-refused-search-correction-is-read-before-the-model-writes-its-next-query.md)** The refused-search correction is read before the model writes its next query (untrusted-content). Its claim was checked against the code on 2026-09-24.
 - **[R-726](tasks/726-the-framing-reads-above-its-control-on-the-picks-mail-cell.md)** The framing reads above its control on the pick's mail cell (vision). Its claim was checked against the code on 2026-09-24.
 - **[R-727](tasks/727-the-sampled-text-rows-keep-no-counted-reply-in-the-recorded-set.md)** The sampled text rows keep no counted reply in the recorded set (untrusted-content). Its claim was checked against the code on 2026-09-24.
+- **[R-728](tasks/728-the-deep-models-recall-judge-is-unmeasured.md)** The deep model's recall judge is unmeasured (inference-model-manager). Its claim was checked against the code on 2026-09-24.
 
 ### Actionable, once a port changes (1)
 
@@ -481,7 +481,7 @@ never a reading of what the tree does now.
 - [R-698](tasks/698-a-drafter-sized-spill-is-unmeasured-against-the-decode-floor.md) A drafter-sized spill is unmeasured against the decode floor. done 2026-09-22.
 - [R-709](tasks/709-the-fit-check-does-not-count-the-deep-tiers-drafter.md) The fit check does not count the deep tier's drafter. declined 2026-09-22.
 - [R-710](tasks/710-the-free-memory-the-deep-tier-needs-beside-a-peer-is-unmeasured.md) The free memory the deep tier needs beside a peer is unmeasured. done 2026-09-23.
-- [R-724](tasks/724-the-deep-phase-asks-the-cortex-inside-its-own-handoff.md) The deep phase asks the cortex inside its own handoff. open, actionable.
+- [R-728](tasks/728-the-deep-models-recall-judge-is-unmeasured.md) The deep model's recall judge is unmeasured. open, actionable.
 
 ### memory
 

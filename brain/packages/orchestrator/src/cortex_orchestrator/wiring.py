@@ -75,9 +75,7 @@ async def run_from_env(
     backend, close_backend = await build_inference_backend(
         inference, runtime.cortex_model, manager=None if swap is None else swap.manager
     )
-    memory, memory_cascade, close_memory = await build_memory(
-        memory_config, clock, runtime.cortex_model
-    )
+    memory, memory_cascade, close_memory = await build_memory(memory_config, clock)
     tool_registry, close_tools = build_tool_registry(tools_config)
     dispatch = DispatchSetup(tools_config.dispatch_policy, tool_audit_from_config(tools_config))
     body, close_body = await build_body_gateway(body_config, token=rpc_config.token)

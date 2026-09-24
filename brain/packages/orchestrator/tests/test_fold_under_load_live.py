@@ -317,7 +317,9 @@ async def _harness() -> AsyncGenerator[_Harness, None]:
     store = RedisSessionStore.from_url(_REDIS)
     backend = _RecordingBackend(SingleResidentModelManager(_MODEL, _ENDPOINT), client)
     runtime = BrainRuntimeConfig(history_char_budget=_BUDGET, history_summary=True)
-    window = build_history_window(runtime, sessions=store, backend=backend, clock=SystemClock())
+    window = build_history_window(
+        runtime, sessions=store, backend=backend, clock=SystemClock(), model=runtime.cortex_model
+    )
     assert window is not None, "the builder refused to build a window for this config"
     try:
         yield _Harness(store=store, backend=backend, window=window)

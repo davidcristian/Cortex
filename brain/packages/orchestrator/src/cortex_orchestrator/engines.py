@@ -12,7 +12,9 @@ from cortex_core import (
     EscalatingTurnEngine,
     GenerationBounds,
     HandoffAheadBackend,
+    HistoryWindow,
     InferenceBackend,
+    MemoryRecaller,
     ProgressSink,
     SessionStore,
     SubagentScheduler,
@@ -70,9 +72,14 @@ class StreamEngines:
         # through this backend, so each such wait is announced where the lease would queue.
         backend = HandoffAheadBackend(self.backend, deep.swap.manager, progress)
         caps = self._capabilities(confirmer, progress, backend)
+        brain = deep.swap.plan.brain_model
+        # The phase runs inside its own residency scope, where only the deep model can be leased,
+        # so its recall's judge and its history recap ask that model.
         phase = replace(
             caps,
             escalation=None,
+            memory=self._recaller(self.backend, brain),
+            window=self._window(self.backend, brain),
             tools=build_cortex_tools(
                 self.tools,
                 deep.builtins,
@@ -88,7 +95,7 @@ class StreamEngines:
                 self.sessions,
                 self.backend,
                 self.clock,
-                deep.swap.plan.brain_model,
+                brain,
                 phase,
                 CadenceTerms(deep.swap.plan.brain_decode_tps, deep.swap.manager.handoff_pace),
             ),
@@ -106,8 +113,9 @@ class StreamEngines:
         self, confirmer: Confirmer, progress: ProgressSink, backend: InferenceBackend
     ) -> TurnCapabilities:
         """One capability bundle per Converse stream, whose model calls go through ``backend``."""
+        cortex = self.runtime.cortex_model
         return TurnCapabilities(
-            memory=None if self.memory is None else self.memory(backend),
+            memory=self._recaller(backend, cortex),
             tools=build_cortex_tools(
                 self.tools,
                 self.builtins,
@@ -116,15 +124,23 @@ class StreamEngines:
                 setup=self.dispatch,
                 vision=self.sight,
             ),
-            window=build_history_window(
-                self.runtime, sessions=self.sessions, backend=backend, clock=self.clock
-            ),
+            window=self._window(backend, cortex),
             guardrail=build_output_guardrail(self.runtime.output_guardrail),
             record_tainted_memory=self.record_tainted_memory,
             generate_titles=self.runtime.generate_titles,
             progress=progress,
             bounds=self.bounds,
             residency=None if self.deep is None else self.deep.swap.manager,
+        )
+
+    def _recaller(self, backend: InferenceBackend, model: str) -> MemoryRecaller | None:
+        """The stream's recaller, whose judge asks ``model`` through ``backend``, if any."""
+        return None if self.memory is None else self.memory(backend, model)
+
+    def _window(self, backend: InferenceBackend, model: str) -> HistoryWindow | None:
+        """The stream's history window, whose recap ``model`` writes through ``backend``."""
+        return build_history_window(
+            self.runtime, sessions=self.sessions, backend=backend, clock=self.clock, model=model
         )
 
     def _turn_engine(self, caps: TurnCapabilities, backend: InferenceBackend) -> TurnEngine:

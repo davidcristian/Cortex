@@ -14,6 +14,7 @@ class ResidencyBoard:
         self._resident = resident
         self._report: ResidencyReport = RESIDENCY_SERVING
         self._scope_model: str | None = None
+        self._scope_task: asyncio.Task[object] | None = None
 
     @property
     def condition(self) -> asyncio.Condition:
@@ -63,17 +64,27 @@ class ResidencyBoard:
     async def await_scope_end(self, model: str) -> None:
         """Wait out any scope this is not about, and leave the residency check to the lease."""
         async with self._condition:
-            while self.blocks(model):
-                await self._condition.wait()
+            await self._wait_out_scope(model)
 
     async def await_resident(self, model: str) -> None:
         """Wait out any scope this is not about, then raise unless ``model`` is the resident."""
         async with self._condition:
-            while self.blocks(model):
-                await self._condition.wait()
+            await self._wait_out_scope(model)
             if model != self._resident:
                 msg = f"model {model!r} is not resident (resident: {self._resident!r})"
                 raise ModelUnavailableError(msg)
+
+    async def _wait_out_scope(self, model: str) -> None:
+        """Wait, under the condition, until no scope about another model is active."""
+        if self.blocks(model) and asyncio.current_task() is self._scope_task:
+            # The scope ends only when this task leaves it, so this wait could never end.
+            msg = (
+                f"model {model!r} was asked for inside the residency scope for "
+                f"{self._scope_model!r}, which only that model may be leased in"
+            )
+            raise ModelUnavailableError(msg)
+        while self.blocks(model):
+            await self._condition.wait()
 
     async def enter_scope(self, model: str) -> None:
         """Claim the one residency scope, so every other model's acquire starts queuing."""
@@ -85,6 +96,7 @@ class ResidencyBoard:
                 )
                 raise HandoffInProgressError(msg)
             self._scope_model = model
+            self._scope_task = asyncio.current_task()
 
     async def leave_scope(self) -> None:
         """Release the scope and wake every acquire that queued behind it."""

@@ -405,9 +405,7 @@ async def test_a_wedged_llama_server_fails_the_stream_instead_of_waiting_forever
 
 
 async def test_build_memory_defaults_to_disabled() -> None:
-    memory, cascade, close = await build_memory(
-        MemoryConfig(backend="none"), SystemClock(), "cortex"
-    )
+    memory, cascade, close = await build_memory(MemoryConfig(backend="none"), SystemClock())
     assert memory is None
     assert cascade is None
     await close()
@@ -433,9 +431,9 @@ async def test_build_memory_selects_pgvector_and_returns_a_closer(
         dsn="postgresql://cortex@db/cortex",
         embedder_endpoint="http://llama-embed:8081",
     )
-    memory, cascade, close = await build_memory(config, SystemClock(), "cortex")
+    memory, cascade, close = await build_memory(config, SystemClock())
     assert memory is not None
-    assert isinstance(memory(EchoInferenceBackend()), MemoryRecaller)
+    assert isinstance(memory(EchoInferenceBackend(), "cortex"), MemoryRecaller)
     assert isinstance(cascade, SessionMemoryCascade)
     assert seen_dsn == ["postgresql://cortex@db/cortex"]
     await close()
@@ -559,10 +557,12 @@ async def test_the_judge_asks_the_tier_the_deployment_named_to_rank(
         dsn="postgresql://cortex@db/cortex",
         embedder_endpoint="http://llama-embed:8081",
     )
-    memory, _cascade, close = await build_memory(config, SystemClock(), "cortex-alt")
+    memory, _cascade, close = await build_memory(config, SystemClock())
     assert memory is not None
     try:
-        recalled = await memory(backend).recall("which?", k=2, session_id="renamed", turn_id="t")
+        recalled = await memory(backend, "cortex-alt").recall(
+            "which?", k=2, session_id="renamed", turn_id="t"
+        )
     finally:
         await close()
     assert [hit.record.id for hit in recalled] == ["second", "first"]
@@ -1064,6 +1064,7 @@ def _window(budget: int, *, summarize: bool = False) -> HistoryWindow | None:
         sessions=InMemorySessionStore(),
         backend=EchoInferenceBackend(),
         clock=SystemClock(),
+        model="cortex",
     )
 
 
@@ -1124,6 +1125,7 @@ async def test_build_history_window_passes_the_fold_floor_into_the_window() -> N
         sessions=InMemorySessionStore(),
         backend=backend,
         clock=SystemClock(),
+        model="cortex",
     )
     assert isinstance(window, SummarizingHistoryWindow)
     selected = await window.select(_forty_char_turns(4), session_id="floored")
@@ -1141,22 +1143,24 @@ async def test_build_history_window_never_lets_the_floor_exceed_the_budget() -> 
         sessions=InMemorySessionStore(),
         backend=backend,
         clock=SystemClock(),
+        model="cortex",
     )
     assert isinstance(window, SummarizingHistoryWindow)
     await window.select(_forty_char_turns(4), session_id="clamped")
     assert backend.calls == 1
 
 
-async def test_the_recap_is_folded_by_the_tier_the_deployment_named() -> None:
+async def test_the_recap_is_folded_by_the_model_the_window_is_built_for() -> None:
     backend = ScriptedInferenceBackend(
         [[TextChunk(text="The user and the assistant exchanged four lines of x.")]],
         serves=["cortex-alt"],
     )
     window = build_history_window(
-        BrainRuntimeConfig(cortex_model="cortex-alt", history_char_budget=80, history_summary=True),
+        BrainRuntimeConfig(history_char_budget=80, history_summary=True),
         sessions=InMemorySessionStore(),
         backend=backend,
         clock=SystemClock(),
+        model="cortex-alt",
     )
     assert isinstance(window, SummarizingHistoryWindow)
     selected = await window.select(_forty_char_turns(4), session_id="renamed")

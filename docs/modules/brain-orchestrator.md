@@ -134,7 +134,8 @@ One stream's machinery lives in `converse_stream.py`, which `converse.py` re-exp
 with `RedisSessionStore.from_url`, `build_inference_backend`, `SystemClock`, the default-on history
 window and output guardrail, and six opt-in adapters, each off by default so CI and the no-GPU dev
 loop reach no external service: **memory** (`build_memory`, returning a recaller builder over a
-given `InferenceBackend`, a `SessionMemoryCascade` for `DeleteSession` and a closer), **tools** (`build_tool_registry`),
+given `InferenceBackend` and the model recall's judge asks, a `SessionMemoryCascade` for
+`DeleteSession` and a closer), **tools** (`build_tool_registry`),
 **subagents** (`build_subagents`), **body** (`build_body_gateway`), **schedules**
 (`build_schedule`, with `build_schedule_tools` and a `ScheduleTicker` started beside `serve` and
 stopped first in the `finally`), and the **brain handoff** (`build_swap_runtime`). Every adapter
@@ -149,9 +150,9 @@ the version string `Health` reports.
   with `build_subagents`: connect, write and pool take `LLAMACPP_CONNECT_TIMEOUT_S` (10 s) and the
   read phase takes the caller's per-tier ceiling, which httpx applies to one socket read, so it
   detects a stall rather than capping a generation.
-- `build_history_window(runtime, *, sessions, backend, clock)` (`window_builders.py`) returns the
-  char-budget window, `None` when the budget is `0`, or that window wrapped in
-  `SummarizingHistoryWindow`, and it is where `history_recap_min_chars` is clamped to the budget.
+- `build_history_window(runtime, *, sessions, backend, clock, model)` (`window_builders.py`)
+  returns the char-budget window, `None` when the budget is `0`, or that window wrapped in
+  `SummarizingHistoryWindow` whose recap `model` writes, and it is where `history_recap_min_chars` is clamped to the budget.
   `build_output_guardrail(mode)` takes the config's own `Literal`, so a name the config does not
   declare is a type error rather than a silently unguarded stream.
 - `build_vision(config, body_config, body)` (`vision.py`, ADR-0029) resolves `CORTEX_VISION` into
@@ -193,7 +194,9 @@ the version string `Health` reports.
   `DeepTier(swap, builtins, scheduler)` is present, whose manager is then the capabilities'
   `residency`. With a `DeepTier`, the stream's cortex calls (the turn, the recap and recall's
   judge, which is why the recaller is built per stream) go through a `HandoffAheadBackend` over
-  that manager and the stream's sink. That value keeps a handoff from being
+  that manager and the stream's sink. The deep phase's recall judge and history recap ask the deep
+  model over the plain backend, because its scope can lease no other model. That value keeps a
+  handoff from being
   half-wired, the deep tier's own vision-less built-in set travelling with the runtime that swaps
   and the subagent pool the conductor drains.
 - With escalation wired, `run_from_env` also runs `recover_handoffs` before serving, publishes what

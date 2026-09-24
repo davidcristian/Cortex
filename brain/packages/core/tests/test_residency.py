@@ -237,6 +237,29 @@ async def test_an_acquire_of_another_model_waits_out_the_scope_instead_of_failin
         assert await waiting == _CORTEX_URL
 
 
+async def test_a_lease_of_another_model_inside_its_own_scope_raises_at_once() -> None:
+    host = ScriptedModelHost(running=["cortex"])
+    manager = _manager(host)
+    async with asyncio.timeout(5.0), manager.swap_scope("brain"):
+        with pytest.raises(ModelUnavailableError, match="inside the residency scope for 'brain'"):
+            await _lease(manager, "cortex")
+        with pytest.raises(ModelUnavailableError, match="inside the residency scope for 'brain'"):
+            await manager.await_scope_end("cortex")
+        assert await _lease(manager, "brain") == _BRAIN_URL
+    assert host.running == {"cortex"}
+    assert await _lease(manager, "cortex") == _CORTEX_URL
+
+
+async def test_another_task_s_lease_still_queues_behind_the_scope() -> None:
+    manager = _manager(ScriptedModelHost(running=["cortex"]))
+    async with asyncio.timeout(5.0):
+        async with manager.swap_scope("brain"):
+            waiting = asyncio.create_task(_lease(manager, "cortex"))
+            await _settle()
+            assert not waiting.done()
+        assert await waiting == _CORTEX_URL
+
+
 async def test_a_queued_acquire_is_woken_even_when_the_swap_back_failed() -> None:
     host = ScriptedModelHost(running=["cortex"], fail={("start", "cortex"): "no such device"})
     manager = _manager(_YieldingHost(host))
