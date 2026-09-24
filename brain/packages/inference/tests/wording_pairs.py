@@ -41,6 +41,11 @@ def holds(old: int, new: int, slack: int, *, fewer_is_better: bool) -> bool:
     return new <= old + slack if fewer_is_better else new >= old - slack
 
 
+def wanted(name: str, prefixes: str) -> bool:
+    """Whether a row is drawn: every row when ``prefixes`` is empty, else those it starts."""
+    return not prefixes or any(name.startswith(prefix) for prefix in prefixes.split(","))
+
+
 def fits(estimate_s: float, now: float, deadline: float | None) -> bool:
     """Whether a row priced at ``estimate_s`` ends by ``deadline``, when there is one."""
     return deadline is None or now + estimate_s <= deadline

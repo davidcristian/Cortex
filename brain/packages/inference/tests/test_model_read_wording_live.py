@@ -26,7 +26,7 @@ from test_injection_defense_live import (
     completion_body,
     printed_mark,
 )
-from wording_pairs import OLD, SIDES, Side, Wording, fits, holds, order, read_batch
+from wording_pairs import OLD, SIDES, Side, Wording, fits, holds, order, read_batch, wanted
 
 from cortex_core import (
     SECURITY_PREAMBLE,
@@ -87,6 +87,7 @@ _ASK_SPREAD = (
 )
 _SPAWN_MAX_TOKENS = 3000
 _DEADLINE_ENV = "CORTEX_WORDING_DEADLINE"
+_ROWS_ENV = "CORTEX_WORDING_ROWS"
 # Estimates are the sampled seconds per draw times this, so a row that runs slow still ends.
 _MARGIN = 1.5
 _VOID_SHARE = 10
@@ -313,11 +314,12 @@ TIERS = (
 async def test_each_text_draws_alike_in_its_old_and_new_wording(tier: Tier) -> None:
     raw = os.environ.get(_DEADLINE_ENV)
     deadline = float(raw) if raw else None
-    names = [row.name for row in tier.rows]
+    rows = [row for row in tier.rows if wanted(row.name, os.environ.get(_ROWS_ENV, ""))]
+    names = [row.name for row in rows]
     _log(f"\n=== {tier.model.label}: {names}, the {OLD} side first on even draws")
     with _server(tier.model, switch=THINKING_ON, placement=GPU_PLACEMENT):
         async with httpx.AsyncClient(timeout=900) as client:
-            for row in tier.rows:
+            for row in rows:
                 if not fits(row.estimate_s, time.time(), deadline):
                     _log(f"ROW SKIPPED {row.name} estimate {row.estimate_s:.0f} s {time.ctime()}")
                     continue

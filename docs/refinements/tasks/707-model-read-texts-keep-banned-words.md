@@ -37,8 +37,9 @@ on the CPU tier; the paired rows read the first reply's `spawn_subagents` call a
 ## The paired draw, fixed before it is drawn
 
 Each draw posts the old and the new wording on the same seed and the same nonce, the old one first
-on even draws, at the engine's own sampler with thinking on, on one load per tier: gemma-4-12B for
-the cortex and gemma-4-31B for the deep tier, started as the injection probes start them. The new
+on even draws, at the engine's own sampler with thinking on: gemma-4-12B for the cortex and
+gemma-4-31B for the deep tier, started as the injection probes start them. The preface rows are
+drawn on both tiers before the spawn rows, so a night cut short decides one text whole. The new
 wordings are `markers that have a random id` for the preface, and `injection-resistant` for
 `robust` in both spawn texts, the term [ADR-0018](../../adr/ADR-0018-heterogeneous-subagents.md)
 uses. The two spawn texts change together, as they would ship.

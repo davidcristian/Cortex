@@ -1,7 +1,18 @@
 import json
 
 import pytest
-from wording_pairs import NEW, OLD, Batch, Wording, WordingError, fits, holds, order, read_batch
+from wording_pairs import (
+    NEW,
+    OLD,
+    Batch,
+    Wording,
+    WordingError,
+    fits,
+    holds,
+    order,
+    read_batch,
+    wanted,
+)
 
 _CLAUSE = Wording("markers carrying a random id", "markers that have a random id")
 _SHIPPED = "quoted below between markers carrying a random id. Rely on it for facts."
@@ -58,6 +69,13 @@ def test_a_row_fits_only_when_it_ends_by_the_deadline() -> None:
     assert fits(100.0, 1000.0, 1100.0)
     assert not fits(100.5, 1000.0, 1100.0)
     assert fits(1e9, 1000.0, None)
+
+
+def test_every_row_is_drawn_unless_prefixes_name_some() -> None:
+    assert wanted("spawn-spread", "")
+    assert wanted("spawn-spread", "preface,spawn")
+    assert not wanted("spawn-spread", "preface")
+    assert not wanted("preface-facts", "spawn-")
 
 
 def test_a_reply_without_the_spawn_call_did_not_delegate() -> None:
