@@ -3,15 +3,15 @@
 **Status:** open, waiting for its trigger
 **Area:** body-gateway
 **Origin:** [ADR-0023](../../adr/ADR-0023-body-gateway-volume.md)
-**Verified:** 2026-09-17
+**Verified:** 2026-09-24
 **Trigger:** either of two readings. On a Win32 desktop, the watch item in `docs/host/`: a volume or
 toast call failing with a COM error after a long uptime, or the body process's handle count climbing
 across bursts of OS actions spaced further apart than tokio's blocking thread keep-alive (10 s by
 default, and nothing under `body/` sets another), rather than returning to its idle level between
 them. The thread count is the weaker witness, because tokio exits an idle blocking thread after that
 keep-alive whatever its apartment. In the tree,
-`grep -rn 'CoInitializeEx\|CoUninitialize' body/crates/os_windows/src/` reports two initializations
-and no uninitialization as of 2026-09-17; a third initialization, or any `CoUninitialize`, means the
+`grep -rn 'CoInitializeEx(\|CoUninitialize(' body/crates/os_windows/src/` reports two calls, both
+initializations, as of 2026-09-24; a third initialization, or any `CoUninitialize`, means the
 shape below has changed and this entry needs rereading before the observation does.
 
 Two Windows backends call `CoInitializeEx(COINIT_MULTITHREADED)` per call and never
@@ -26,11 +26,11 @@ repeating the initialization. Uninitializing at the end of each call is the wron
 would tear down and rebuild apartment membership per call.
 
 Only a Windows desktop can observe it; neither CI nor a Linux run can. The observation is the watch
-item in [docs/host/windows-desktop.md](../../host/index.md#windows-desktop), and the fix stays here
-because it is code.
+item [H-009](../../host/tasks/009-unbalanced-com-initialization.md), and the fix stays here because
+it is code.
 
-`grep -rn 'CoInitializeEx\|CoUninitialize' body/crates/os_windows/src/` reports `audio.rs:43`,
-inside `WindowsAudioControl::endpoint`, and `notify.rs:61`, at the top of `WindowsNotify::show`.
+`grep -rn 'CoInitializeEx(\|CoUninitialize(' body/crates/os_windows/src/` reports `audio.rs:28`,
+inside `WindowsAudioControl::endpoint`, and `notify.rs:37`, at the top of `WindowsNotify::show`.
 Both ignore the returned status, which is what makes them idempotent per thread. `CoUninitialize`
 appears in no Rust source.
 
@@ -64,3 +64,7 @@ So the exposure grew by one handler, not by one apartment.
   not close this by itself: `volumecontrol-windows`, the nearest one
   ([R-223](223-safe-core-audio-wrapper.md)), initializes and uninitializes around every call, which
   is the fix rejected above.
+- 2026-09-24: Rechecked from the source and not fired: no commit since 2026-09-17 touches
+  `body/crates/os_windows`, the four `off_worker` call sites are as named, nothing under `body/`
+  sets the blocking pool's keep-alive, and H-009 records no Windows reading. The grep also matched
+  the two `use` lines, so it now matches calls only, and the line numbers it reports were stale.

@@ -4,12 +4,12 @@
 **Area:** body-gateway
 **Origin:** [ADR-0023](../../adr/ADR-0023-body-gateway-volume.md)
 **Trigger:** ROADMAP assumption 5, the security model in `docs/ROADMAP.md` that says the machine
-is single-user with loopback-only listeners and a shared-secret token, being revised to admit a
-second user or a body and brain on different machines; or any compose file, runbook or default in
-the tree putting a listener where a second machine reaches it past the host firewall the body
-override relies on. Whether the machine really has one user is not something the tree can record;
-that assumption is where the tree says so.
-**Verified:** 2026-09-17
+is single-user with loopback-only listeners except the body's and a shared-secret token, being
+revised to admit a second user or a body and brain on different machines; or any compose file,
+runbook or default in the tree putting a listener where a second machine reaches it past the host
+firewall the body override relies on. Whether the machine really has one user is not something
+the tree can record; that assumption is where the tree says so.
+**Verified:** 2026-09-24
 
 The body binds a configurable interface, loopback for development and `0.0.0.0` for the
 container-to-host path, behind the shared token and the host firewall. mTLS or per-direction tokens
@@ -26,10 +26,12 @@ the body-to-brain direction, the brain serves with `server.add_insecure_port` in
 `Channel::from_shared` in `body/crates/rpc/src/client.rs`, which the shell reaches through
 `BrainRpcClient::connect_lazy_with_token`.
 
-The dependency is the one thing here that is not a line of code: `body/Cargo.toml` declares
-`tonic = "0.14"` with default features, and tonic 0.14.6's defaults are `router`, `transport` and
-`codegen`, so no TLS is compiled into this tree at all and one of the `tls-ring` or `tls-aws-lc`
-features has to be enabled first.
+The dependency is the one thing here that is not a line of code: `body/Cargo.toml` and the Tauri
+shell's own `body/app/src-tauri/Cargo.toml` each declare `tonic = "0.14"` with default features,
+both lockfiles resolve it to 0.14.6, and its defaults are `router`, `transport` and `codegen`, so no
+TLS is compiled into this tree at all and one of the `tls-ring` or `tls-aws-lc` features has to be
+enabled first.
+
 
 Splitting the one shared secret into a per-direction pair is separate and cheaper:
 `CORTEX_SEAM_TOKEN` is read by the brain's interceptor and by `RpcTokenValidator` for both
@@ -54,3 +56,7 @@ to put a private certificate authority that the host firewall does not already c
   the tree cannot record, so it now names where the tree records that fact. Neither has moved: the
   assumption still reads single-user, the base compose file publishes the brain's port on
   `127.0.0.1` only, and the lockfile still resolves tonic to 0.14.6.
+- 2026-09-24: Checked again and not fired. Every compose file still publishes on `127.0.0.1` only,
+  and the four places and both token readers are as named. Two corrections: the shell declares
+  tonic in a manifest of its own, and assumption 5 said loopback-only listeners while the body
+  override has the body bind `0.0.0.0:50151`, so the ROADMAP now names that exception.

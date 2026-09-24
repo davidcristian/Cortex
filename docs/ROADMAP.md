@@ -242,9 +242,9 @@ Deferred *decisions* live in ADR-0001's open questions. These are the *assumptio
 4. **Coverage on Tauri glue.** 100% line and branch coverage on the body holds because the app wiring stays thin
    and the logic lives in `body/crates/core`. If Tauri macro-generated glue resists instrumentation, that glue
    gets a narrowly scoped exclusion with an ADR.
-5. **Security model.** A single-user machine: loopback-only listeners, a shared-secret token from the
-   environment, no mTLS. Revisit only if anything ever listens beyond loopback. *Both halves are real as of
-   2026-07-03* ([ADR-0016](adr/ADR-0016-shared-token.md)).
+5. **Security model.** A single-user machine: loopback-only listeners except the body's, which the host firewall
+   keeps host-local, a shared-secret token from the environment, no mTLS. Revisit if a second user or machine
+   joins. *The token is real as of 2026-07-03* ([ADR-0016](adr/ADR-0016-shared-token.md)), the body's bind as of 2026-07-08.
 6. **Email safety.** IMAP read-only first; the send path arrived 2026-07-08 exactly as bet: off by default,
    restricted at the composition root, confirmed per action in the overlay, never on a tainted turn.
 7. **Default hotkey.** `Ctrl+Alt+Space`, configurable from day one, because `Win+Space` is taken by Windows.

@@ -59,7 +59,7 @@ at construction, and offers a `connect(endpoint, *, token)` classmethod the comp
 It is covered to 100% against a real `grpc.aio` loopback server hosting a fake servicer
 (`test_gateway.py`); checks against a real body are `integration`-marked. The port stays abstract
 on purpose: the Q3 fallback, a tunnel over a stream the body opens, would be a different
-`BodyGateway` adapter with no core, tool or proto change.
+`BodyGateway` adapter plus one streaming RPC and the body's loop over it, with no core or tool change.
 
 ### 3. `AudioControl` OS trait; the body hosts a `BodyService` server
 

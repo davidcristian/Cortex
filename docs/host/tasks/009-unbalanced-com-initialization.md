@@ -11,8 +11,8 @@ reaped unbalanced. Only a long-uptime Windows session with occasional OS actions
 
 The fix and the argument for it stay in
 [R-224](../../refinements/tasks/224-unbalanced-com-initialization.md), which is where the code cost
-belongs. It is to be fixed when it actually happens, the trigger being any COM failure or thread
-growth the user sees on Windows after a long session.
+belongs. It is to be fixed when it actually happens, which is when one of the readings below is
+taken.
 
 **Watch for.** A volume or toast call that starts failing after the app has been up for a long
 time, or the body process's handle count climbing across bursts of OS actions spaced more than ten

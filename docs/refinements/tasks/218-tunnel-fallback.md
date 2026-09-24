@@ -5,11 +5,15 @@
 **Origin:** [ADR-0023](../../adr/ADR-0023-body-gateway-volume.md)
 **Trigger:** `host.docker.internal` failing, from a bridge-network container on this
 host, to reach a host service bound to an interface a container can see.
-**Verified:** 2026-09-17
+**Verified:** 2026-09-24
 
 The brain dials the body directly. If `host.docker.internal` proves unreliable on WSL2, tunnelling
-body-directed calls over a body-initiated bidirectional stream is a different `BodyGateway` adapter,
-with no core, tool or proto change.
+body-directed calls over a body-initiated bidirectional stream needs three things and no core or
+tool change: one new streaming RPC on `BrainService` in `proto/body.proto`, since that stream
+crosses the boundary and every call that crosses it is declared there; a body-side loop that opens
+it and serves the `BodyService` calls that arrive on it; and a different `BodyGateway` adapter in
+the brain.
+
 
 ## History
 
@@ -36,3 +40,7 @@ with no core, tool or proto change.
   `192.168.65.254`, and both GETs succeeded. The LAN address, `192.168.0.196` on `eth0` today, timed
   out after 8 s. No commit since 2026-09-11 touches `docker/docker-compose.body.yml` or
   `docker/docker-compose.yml`.
+- 2026-09-24: Checked against the tree and not measured again, because Docker was held by a
+  running measurement session, so the 2026-09-17 reading is the latest. No commit since then
+  touches the `host.docker.internal` lines in `docker/docker-compose.body.yml`. The entry said the
+  tunnel was an adapter with no proto change; it needs a new streaming RPC and a body-side loop too.

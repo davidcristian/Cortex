@@ -8,14 +8,14 @@ endpoint's master volume and mute with no `unsafe` at the call site, and which d
 and uninitialize COM around each call. The second condition is what the nearest crate today fails,
 and it is read off the crate's source. What such a crate would delete is listed by
 `grep -n unsafe body/crates/os_windows/src/audio.rs`: four `unsafe` blocks, one `unsafe fn`, and the
-module's scoped allow, six sites as of 2026-09-17.
-**Verified:** 2026-09-17
+module's scoped allow, six sites as of 2026-09-24.
+**Verified:** 2026-09-24
 
 `WindowsAudioControl` uses `unsafe` over the `windows` crate's COM API, authorized by ADR-0023. The
 hotkey backend needs none, because `global-hotkey` wraps the OS calls for it; a crate that did the
 same for `IAudioEndpointVolume` would let the audio module drop its own.
 
-[audio.rs](../../../body/crates/os_windows/src/audio.rs) is 113 lines with four `unsafe` blocks and
+[audio.rs](../../../body/crates/os_windows/src/audio.rs) is 98 lines with four `unsafe` blocks and
 one `unsafe fn`: `endpoint` wraps `CoInitializeEx`, `CoCreateInstance`, `GetDefaultAudioEndpoint`
 and `Activate` in one block; `get_volume` and `set_volume` each open one around their call into
 `read_state`, with `set_volume`'s also covering `SetMasterVolumeLevelScalar` and `SetMute`; and
@@ -48,7 +48,10 @@ things keep it out, read from its source:
   percent. Windows' own volume flyout shows whole percentages, so this one is a difference rather
   than a blocker.
 
-`wasapi` 0.24.0, the widely used WASAPI crate, has no `IAudioEndpointVolume` wrapper at all.
+`wasapi` 0.24.0, the widely used WASAPI crate, has no `IAudioEndpointVolume` wrapper at all. Two
+older crates fail the first condition: `windows-volume-control` 0.1.1 and `winmix` 0.1.3 both
+expose their volume calls as `pub unsafe fn`, and `winmix` sets per-application session volume
+rather than the endpoint's.
 
 Closing this means a crate meeting the trigger, adopted in `audio.rs`, its scoped allow deleted, and
 the result checked on a Windows desktop the way the backend itself was.
@@ -68,3 +71,7 @@ the result checked on a Windows desktop the way the backend itself was.
   `volumecontrol-windows` 0.1.2 already met the condition as written; it stays out for the three
   reasons above. The trigger now names the COM condition, which is the one that decides. The tree is
   unchanged since 2026-09-10.
+- 2026-09-24: Not fired. On crates.io `volumecontrol-windows` is still at 0.1.2, searches for
+  endpoint volume crates found none released since 2026-09-17, and the two older ones above that the
+  entry had not named fail on `unsafe`. No commit since 2026-09-17 touches `body/crates/os_windows`
+  and the six sites are unchanged. One correction: `audio.rs` is 98 lines, not 113.

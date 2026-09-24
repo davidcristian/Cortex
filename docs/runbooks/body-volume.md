@@ -36,7 +36,7 @@ host's `127.0.0.1`, so for the real dial the body must bind an interface the con
 Set `CORTEX_BODY_ADDR=0.0.0.0:50151` on the host and let the host firewall keep the port
 host-local. Once the bind is not pure loopback, the token is the boundary, so set
 `CORTEX_SEAM_TOKEN` on both sides. The `BodyGateway` and `AudioControl` ports stay abstract, so a
-body-initiated tunnel would be a pure adapter swap.
+body-initiated tunnel would change no port: it adds one streaming RPC, a body loop and an adapter.
 
 ## The dial across the container boundary
 
