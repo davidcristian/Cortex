@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** inference-model-manager
 **Origin:** [ADR-0046](../../adr/ADR-0046-work-identities-on-log-lines.md)
-**Verified:** 2026-09-17
+**Verified:** 2026-09-24
 **Trigger:** either half of the agreement moves: `EscalatingTurnEngine(` gains a construction site
 other than the one in `cortex_orchestrator/engines.py`, or that site's factory returns anything but
 `self._turn_engine(...)`; or `TurnEngine.handle_turn` in `cortex_core/engine.py` stops completing
@@ -47,3 +47,10 @@ right depends on whether a second runner ever sits behind `make_inner`.
   `test_the_wrapper_hands_the_conductor_the_turn_id_the_inner_engine_minted`, with a docstring
   saying only the engine knows the id, which the id move made false; the fix should rename it. The
   trigger now names the grep that decides it and the setting without which the path never runs.
+- 2026-09-24: Not fired. Three commits of this date rewrote the construction site in `engines.py`,
+  which now hands the inner engine a `HandoffAheadBackend`, and two of them touched both engine
+  files; the factory is still `self._turn_engine(...)`. `engines.py:106` is still the only
+  `EscalatingTurnEngine(` in any `src` tree, `escalating_engine.py` still ends the unescalated path
+  with `yield completed` (line 49) and completes an escalated one under its own id (line 62), and
+  `engine.py:126` still completes with the id it was handed. Both tests named above still exist
+  under their names.

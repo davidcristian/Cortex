@@ -3,7 +3,7 @@
 **Status:** open, waiting for a consumer
 **Area:** resource-governance
 **Origin:** [ADR-0010](../../adr/ADR-0010-subagents.md)
-**Verified:** 2026-09-17
+**Verified:** 2026-09-24
 **Trigger:** a request identity on the body/brain interface, meaning a request id on `UserTurn` or
 `ClientEvent` in `proto/body.proto` (`grep -ni request_id proto/body.proto` has no hit), which is
 what both the `Converse` reconnect entry (R-023) and the crashed-handoff resume entry (R-112) wait
@@ -50,3 +50,10 @@ resume path is a second read taken arbitrarily later.
   (`runner.py:212`); both keys sit at `_TASK_TTL_SECONDS = 3600` in `cortex_session/tasks.py`,
   against `DEFAULT_ADMISSION_WAIT_S = 7200.0` in `scheduler.py`; and no commit since 2026-09-10 has
   changed the runner, the spawn tool, the task store or the port.
+- 2026-09-24: Not fired. Both greps were run: `proto/body.proto` has no `request_id`, and
+  `get_result(` appears only in the port, the fake and the Redis adapter. R-023's trigger now names
+  a record of a lost turn rather than the switch alone, and neither it nor R-112 has built request
+  identity. The 2026-09-17 line numbers were stale: `run` reads `get_task` at `runner.py:64` and
+  `_persist` writes the result at `runner.py:142`. One commit since changed the runner and the spawn
+  tool, adding the callback that reports admission; `run` still takes the task once before it
+  admits, and `spawn.py:175` still gathers the results in the frame. Both TTLs are as stated.

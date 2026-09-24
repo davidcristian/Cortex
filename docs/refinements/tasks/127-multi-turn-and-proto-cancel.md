@@ -7,14 +7,14 @@
 whose generation went on holding the model lease against their next submit or a model swap. Until
 that is written down, muting the sink is adequate. CI cannot produce the reading, because the Tauri
 command that streams a stopped turn to its end runs only on the host.
-**Verified:** 2026-09-17
+**Verified:** 2026-09-24
 
 The body sends one turn per `Converse` call and never sends `Cancel`; dropping the stream is how
 v1 cancels (ADR-0011 decision 1 and risks). Slice 8.8 (ADR-0022) took the interleaving half, so
 the body's client stream stays open past the first `UserTurn` to answer `ConfirmRequest`s
 mid-turn.
 
-**The proto and the whole brain half are already built.** `proto/body.proto:97` has
+**The proto and the whole brain half are already built.** `proto/body.proto:57` has
 `Cancel cancel = 3`, round-tripped by `test_client_event_oneof_holds_a_cancel`. The server
 supports multiple turns per stream and handles `Cancel` end to end: a `UserTurn` arriving mid-turn
 is queued and starts when the running turn finishes (`_enqueue_turn`, `_start_next_turn`,
@@ -23,10 +23,12 @@ queue while the stream stays open (`_cancel_turn`). Two tests assert it:
 `test_cancel_behind_a_queued_turn_stops_current_and_drops_queued` and
 `test_cancel_mid_confirm_drops_the_turn_and_the_stream_stays_open`.
 
-The GPU lease releases cleanly on a mid-inference cancel. It is a non-reentrant `asyncio.Lock`
-held across the whole streaming block (`SingleResidentModelManager._lock`, taken in
-`LlamaCppBackend.stream`), and a `CancelledError` propagates out through that `async with` and
-frees it before the next turn leases it.
+The GPU lease releases cleanly on a mid-inference cancel with escalation off. The lease is then a
+non-reentrant `asyncio.Lock` held across the whole streaming block
+(`SingleResidentModelManager._lock`, taken in `LlamaCppBackend.stream`), and a `CancelledError`
+propagates out through that `async with` and frees it before the next turn leases it. With
+escalation on, the backend leases from the swap runtime's manager instead (`wiring.py:76`), which
+the test below does not use.
 `test_cancelling_mid_stream_frees_the_model_lease` suspends a turn mid-stream with the lease held,
 cancels it, and asserts a fresh acquire returns at once; it was proved able to fail by releasing
 the lock outside a `finally`, which deadlocks the re-acquire. No partial reply is persisted, since
@@ -77,3 +79,11 @@ multi-turn-plus-`Cancel` build live entirely in the Tauri shell and overlay glue
   `body/app/src-tauri/src/converse.rs:184` still leaving its loop only when `channel.send` fails.
   The comment beside `TauriBridge.converse`'s cancellation said that dropping the channel
   half-closes the RPC, which contradicted `useOverlay.ts`, and it now says the command runs on.
+- 2026-09-24: Read against the tree; not fired. No task under `docs/host/tasks/` and no runbook
+  records a stopped turn holding the lease. The handoff wait commits of this date change what a
+  waiting turn shows, not whether a stopped one keeps running. Three citations had drifted: the
+  `Cancel` field is at `proto/body.proto:57` (line 52 on 2026-09-17), the `Protocol`
+  error at `body/crates/rpc/src/converse.rs:138`, and the Tauri loop's one early exit at
+  `body/app/src-tauri/src/converse.rs:205`. The 2026-09-17 line counted five tests where the body
+  names four. The lease paragraph held only with escalation off, since `wiring.py:76` hands the
+  backend the swap manager when escalation is on, and it now says so.

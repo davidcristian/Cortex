@@ -15,7 +15,7 @@ Separately, `grep -rln time_remaining brain/packages/orchestrator/src` listing o
 means no handler branches on the clock yet. The read handlers live in three files
 (`session_servicer.py`, `preference_servicer.py` and `server.py`), so a grep of one of them cannot
 answer that.
-**Verified:** 2026-09-17
+**Verified:** 2026-09-24
 
 `ListSessions` reads `time_remaining()` nowhere. It calls `SessionStore.list_sessions` whatever the
 clock says, and a caller who has already given up gets a reply written into a stream nobody reads.
@@ -75,3 +75,11 @@ set the floor from.
   nothing, to measure the retry schedule. `ANNOUNCED_DEADLINE_GRACE_MS` is still 250 at
   `plan.rs:79`, still asserted as an equality at `retry_plan.rs:465`, and no commit since
   2026-09-11 touched either file. The paging cursor ([184](184-paging-cursor.md)) is still open.
+- 2026-09-24: The three commands were run and neither half has fired.
+  `ANNOUNCED_DEADLINE_GRACE_MS` is still 250, now at `plan.rs:25`, and the equality it is
+  asserted by is now at `retry_plan.rs:376`; `brain/packages/session` times nothing; and
+  `time_remaining` still appears only in `abandon.py`. The five read handlers have moved:
+  `ListSessions` and `GetSessionMessages` at `session_servicer.py:41` and `:53`, `GetPreferences`
+  at `preference_servicer.py:21`, and `Health` and `ListDueReminders` at `server.py:98` and `:132`.
+  `deadline_for` still answers `None` for `Converse`, now at `plan.rs:136`, and the paging cursor
+  ([184](184-paging-cursor.md)) is still open.

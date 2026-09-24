@@ -4,11 +4,11 @@
 **Trigger:** an operator keeps `CORTEX_SEAM_TOKEN` in `.env` rather than in the environment, since
 that is the first moment the two readers of that file disagree about what is configured. Two
 readings decide it: `grep -c '^CORTEX_SEAM_TOKEN=' .env` in the checkout (no `.env` exists on
-2026-09-17), and `grep -n '^set' justfile`, which prints nothing while no `dotenv-load` has been
+2026-09-24), and `grep -n '^set' justfile`, which prints nothing while no `dotenv-load` has been
 added.
 **Area:** rpc-auth
 **Origin:** [ADR-0016](../../adr/ADR-0016-shared-token.md)
-**Verified:** 2026-09-17
+**Verified:** 2026-09-24
 
 `docker/docker-compose.yml` documents the token as passed through from the host environment or
 `.env`, and compose does read that file: `just up` against a `.env` holding `CORTEX_SEAM_TOKEN`
@@ -56,3 +56,7 @@ documentation stops offering `.env` as a way to configure anything except the co
   compose brain and nothing else in the repo. The runbook's sentence names `just` as the reader
   that skips the file, which takes in `brain-serve`, and says nothing about the body, which would
   need a token exported wherever it is launched whatever `.env` holds.
+- 2026-09-24: Not fired. The checkout has no `.env`, and `grep -n '^set' justfile` prints nothing.
+  The guard in `just rpc-health` and the sentence at `docs/runbooks/local-dev-wsl.md:202` still
+  state the split. The body's three token readers have moved to `converse.rs:168`, `brain.rs:76`
+  and `body_server.rs:31`, each still reading its own process environment.

@@ -3,13 +3,14 @@
 **Status:** open, waiting for its trigger
 **Area:** rpc-transport
 **Origin:** [ADR-0024](../../adr/ADR-0024-transport-retry.md)
-**Trigger:** a deployment that sets `CORTEX_ESCALATION`, which is the switch that builds a swap
-scope at all (`brain/packages/orchestrator/src/cortex_orchestrator/swap_builders.py:103` returns
-`None` without it), together with turns costly enough that a silent re-run beats paying for dedup.
-Recheck with `grep -rnE 'CORTEX_ESCALATION: *[^ ]' docker/`: no hit means no shipped file turns
-the switch on and this has not fired. The gpu overlay passes it through by name, so a host `.env`
-can.
-**Verified:** 2026-09-17
+**Trigger:** a record in the tree, a host task or a runbook reading, of a `Converse` stream that
+dropped before its first event on a deployment with `CORTEX_ESCALATION` set, so that the person's
+resend ran a costly turn twice. The switch alone does not decide it. It is what builds a swap
+runtime at all (`brain/packages/orchestrator/src/cortex_orchestrator/swap_builders.py:61`
+returns `None` without it), and `docs/runbooks/model-swap.md:150` tells an operator to set it,
+which the gpu overlay passes through by name. `grep -rnE 'CORTEX_ESCALATION: *[^ ]' docker/`
+finding nothing says no shipped file sets it.
+**Verified:** 2026-09-24
 
 Retrying a `converse` turn after a disconnect is only safe if the brain can tell that the repeat
 is the same request. It cannot. A turn's first durable effect is
@@ -62,3 +63,13 @@ resends. `converse` stays unretried, `RpcMethod::Converse` not being repeatable.
   `DeleteSession`, `SetSessionHoisted` and `SetPreference`. It is the only method `deadline_for`
   answers `None` for, which is the half [R-360](360-a-read-that-will-not-fit-declines-early.md)
   depends on, so that line's conclusion stands.
+- 2026-09-24: Not fired, and the trigger repaired. Its second half, turns costly enough that a
+  silent re-run beats paying for dedup, had no reading in the tree, and its first half is what
+  `docs/runbooks/model-swap.md:150` tells an operator to do, so the trigger now names the record
+  that decides it. The prescribed grep now reports nothing: the gpu overlay's comment no longer
+  matches it, and `CORTEX_ESCALATION:` at `docker/docker-compose.gpu.yml:23` is a pass-through with
+  no value. The citations had moved: the switch returns `None` in `build_swap_runtime` at
+  `swap_builders.py:61-62`, the user message is appended at
+  `brain/packages/core/src/cortex_core/engine.py:72`, the turn task starts at
+  `converse_stream.py:167`, and `repeatable` is at `plan.rs:59-72`, still false for the same six
+  methods.
