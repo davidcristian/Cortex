@@ -67,6 +67,17 @@ run drawn beside them, with the counts identical down to the control's one reply
 under `refusal-suppression`). Without `--threads` the cgroup was throttled in 14,308 of 14,520
 periods.
 
+**2026-09-25, whether the load around a CPU row changes its replies.** gemma-4-E4B's first
+repetition, 20 draws at the sampler with the fence nonce fixed per seed, was drawn twice under
+`--cpuset-cpus 12-15` with the caps and `--threads 4` above: once with the processor otherwise near
+idle (load average 1 to 5), once beside 28 busy loops over all 24 cores (load average 33). Every
+reply was the same bytes both times: text, reasoning, tool calls with their arguments, finish reason
+and token count. The load changed only the clock. The server took 293.5 s to answer `/health`
+against 25.1 s, beyond the harness's own `_HEALTH_TIMEOUT_S` of 180 s, and the slowest draw took
+45.2 s against 13.1 s. So a CPU row's counts do not depend on the load around it, and a row drawn
+on cores of its own beside other work publishes its counts but not its wall clock. Logs:
+`measurements/cpu-2026-09-25/probe-e4b-idle.log` and `probe-e4b-loaded.log`.
+
 ## The subagent candidates at the engine's sampler
 
 **2026-09-23, gemma-4-E4B, `shipped-argv`, on the card, one load.** Each draw is the text row's
