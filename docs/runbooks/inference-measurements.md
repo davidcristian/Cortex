@@ -210,8 +210,9 @@ The two settings and what they cost are in
 the measurements are in [vision capture](../readings/vision-capture.md). The re-runnable part is
 `packages/inference/tests/test_image_budget_live.py`, which checks the saturation, checks that
 the budget raises it, proves the abort by removing the micro-batch from the shipped argv, and
-includes the window-crop case with its corpus. Run it when llama.cpp is upgraded or the cortex
-model changes. It needs the `cortex-model-host` image built, because the base tag moves:
+includes the window-crop case with its corpus and the window size sentence pair (`-k sentence`,
+seeds per side in `CORTEX_SENTENCE_SEEDS`). Run it when llama.cpp is upgraded or the cortex model
+changes. It needs the `cortex-model-host` image built, because the base tag moves:
 
 ```
 cd brain && CORTEX_MODELS_DIR=<the host dir holding the GGUFs> \
@@ -219,10 +220,9 @@ cd brain && CORTEX_MODELS_DIR=<the host dir holding the GGUFs> \
 ```
 
 The crop case alone is `-k window_crop`, about 80 s once the model is loaded. If the server never
-becomes healthy while `docker logs` shows it serving, the published loopback port is not
-reachable from this shell (some WSL networking modes route `127.0.0.1` past the Linux
-`docker-proxy`); add `CORTEX_PROBE_HOST=container` and the probe asks the daemon for the
-container's own address.
+becomes healthy while `docker logs` shows it serving, the published loopback port is not reachable
+from this shell (some WSL networking modes route `127.0.0.1` past the Linux `docker-proxy`); add
+`CORTEX_PROBE_HOST=container` and the probe asks the daemon for the container's own address.
 
 The byte half needs no GPU and no model, only the body's own downscaler and encoder. Re-run it
 when the capture edge, the byte ceiling or the downscale filter moves:

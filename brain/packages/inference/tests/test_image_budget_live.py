@@ -217,6 +217,61 @@ async def test_a_window_crop_reads_what_a_shrunk_desktop_cannot(
     assert all(len(scored) == len(results["display"]) for scored in results.values())
 
 
+# Seeds per side of the window size sentence row; 12 is the depth its task file registered.
+_SENTENCE_SEEDS = int(os.environ.get("CORTEX_SENTENCE_SEEDS", "12"))
+_SIDES = ("sized", "unsized")
+
+
+@pytest.mark.integration
+async def test_the_window_size_sentence_against_none(monkeypatch: pytest.MonkeyPatch) -> None:
+    edge = BodyConfig().capture_max_edge
+    (desktop,) = [each for each in desktops() if each.name == "spreadsheet"]
+    focus = next(variant for variant in VARIANTS if variant.target is CaptureTarget.FOCUS)
+    shot = picture(desktop, focus, edge)
+    assert shot.resampled, "the spreadsheet window fits the edge, so no sentence is sent"
+    results: dict[str, list[Reading]] = {side: [] for side in _SIDES}
+    with _server(_argv_tail(ModelHostConfig().cortex_image_max_tokens, monkeypatch)):
+        for seed in range(1, _SENTENCE_SEEDS + 1):
+            for side in _SIDES:
+                wire = await messages(desktop, focus, shot, sized=side == "sized")
+                started = time.monotonic()
+                content, tokens, generated = _sample(wire, schema(desktop.truths), seed)
+                try:
+                    answers: dict[str, Any] = json.loads(content)
+                except json.JSONDecodeError:
+                    answers = {}
+                    print(f"  seed {seed} {side} VOID: the reply is not JSON")  # noqa: T201
+                drawn = readings(desktop.truths, answers)
+                results[side].extend(drawn)
+                read, wrong, declined = tally([row for row in drawn if row.truth.inside])
+                print(  # noqa: T201
+                    f"  seed {seed:2d} {side:8s} {time.monotonic() - started:5.1f} s"
+                    f" {tokens:5d} prompt {generated:4d} generated  inside: read {read}"
+                    f" wrong {wrong} declined {declined}  {content}"
+                )
+    print(report(results))  # noqa: T201
+
+
+def _sample(
+    wire: list[dict[str, object]], answer_schema: dict[str, object], seed: int
+) -> tuple[str, int, int]:
+    """Post one conversation on the engine's own sampler at a fixed seed, thinking off."""
+    body: dict[str, object] = {
+        "model": "m",
+        "messages": wire,
+        "seed": seed,
+        "max_tokens": 2048,
+        "chat_template_kwargs": {"enable_thinking": False},
+        "response_format": {"type": "json_schema", "json_schema": {"schema": answer_schema}},
+    }
+    resp = httpx.post(f"{_base_url()}/v1/chat/completions", json=body, timeout=1800)
+    resp.raise_for_status()
+    data: dict[str, Any] = resp.json()
+    usage: dict[str, Any] = data["usage"]
+    content = str(data["choices"][0]["message"]["content"])
+    return (content, int(usage["prompt_tokens"]), int(usage["completion_tokens"]))
+
+
 def _transcribe(
     wire: list[dict[str, object]], answer_schema: dict[str, object]
 ) -> tuple[dict[str, Any], int]:

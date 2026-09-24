@@ -89,16 +89,20 @@ def picture(desktop: Desktop, variant: Variant, bound: int) -> Picture:
     return Picture(encode_png(width, height, rgb), width, height, region)
 
 
-async def messages(desktop: Desktop, variant: Variant, shot: Picture) -> list[dict[str, object]]:
-    """Build the whole vision conversation, serialised by the backend's own message mapper."""
+async def messages(
+    desktop: Desktop, variant: Variant, shot: Picture, *, sized: bool = True
+) -> list[dict[str, object]]:
+    """Build the vision conversation through the backend's mapper, without the window size if not
+    ``sized``.
+    """
     capture = ScreenCapture(
         image=ImagePart(data=shot.png, mime_type="image/png", width=shot.width, height=shot.height),
         source_width=desktop.screen.width,
         source_height=desktop.screen.height,
         captured_at=_CAPTURED_AT,
         target=variant.target,
-        target_width=shot.region.width,
-        target_height=shot.region.height,
+        target_width=shot.region.width if sized else 0,
+        target_height=shot.region.height if sized else 0,
     )
     arguments = {"target": variant.target.value}
     tool = CaptureScreenTool(InMemoryBodyGateway(capture=capture))
