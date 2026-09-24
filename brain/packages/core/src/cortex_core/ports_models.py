@@ -33,6 +33,14 @@ class ResidencyController(Protocol):
     async def unhosted(self, model: str) -> bool: ...
 
 
+class ResidencyQueue(Protocol):
+    """Tells a turn whether another model's handoff holds the card, and waits that handoff out."""
+
+    def blocks(self, model: str) -> bool: ...
+
+    async def await_scope_end(self, model: str) -> None: ...
+
+
 class ResidencyReporter(Protocol):
     """Reads what the GPU is serving right now, for a health report to state."""
 

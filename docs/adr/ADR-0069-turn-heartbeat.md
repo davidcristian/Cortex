@@ -83,9 +83,10 @@ The third needs a bound on the turn's own progress, which ADR-0024's gaps alread
    sentence the overlay's chip shows; the key is never shown alone. The keys are seven plain
    verbs, the `StatusUpdate.state` values the brain already used plus three: `thinking` (a model
    is generating), `queued` (a subtask waits for room in the subagent budget), `delegating`
-   (subtasks run), `swapping` (the deep model loads, or the cortex comes back), `folding` (the
-   earlier conversation is being summarized), `calling` (a tool call runs) and `asking` (a
-   confirm card waits for the user). `wait` is `""` when the turn waits on none of them. Plain
+   (subtasks run), `swapping` (a handoff holds the card: the pool drains, the deep model loads
+   or works, or the cortex comes back, for this turn's handoff or for one it waits behind),
+   `folding` (the earlier conversation is being summarized), `calling` (a tool call runs) and
+   `asking` (a confirm card waits for the user). `wait` is `""` when the turn waits on none of them. Plain
    verbs, because a chip is read at a glance, like the console's Summon and Dismiss, and each
    word starts with its own letter. Rejected: directions of attention (Inward, Aside, Deeper,
    Outward, Yours), since Aside names a queued and a running subtask alike; and free text with
@@ -104,7 +105,10 @@ The third needs a bound on the turn's own progress, which ADR-0024's gaps alread
    approval asks inside its dispatch, and the deep model's generation runs inside the swap. The holders
    are the tool loop around each model stream (`thinking`), `run_round` around each dispatch that
    was not refused (`calling`), `ToolDispatcher` around the confirmer (`asking`),
-   `SummarizingHistoryWindow` around the recap (`folding`), and the spawn tool around its batch.
+   `SummarizingHistoryWindow` around the recap (`folding`), the spawn tool around its batch, and
+   `TurnEngine` around a wait for another turn's handoff to leave the card (`swapping`, through the
+   `ResidencyQueue` port). That last one is taken before recall and the first model call and is
+   announced, because the wait can outlast the first gap and the body counts a heartbeat as silence.
    A subagent's own loop gets no sink, so its steps never replace the batch's wait. The batch is
    one wait over all its subtasks: `queued` while any has not been admitted, else `delegating`,
    with both counts in the sentence (`2 subtasks running, 1 waiting for room to run`). The runner

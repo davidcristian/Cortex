@@ -12,7 +12,7 @@ from cortex_core.guardrail import OutputGuardrail
 from cortex_core.handoff import EscalationSlot
 from cortex_core.inference import GenerationBounds
 from cortex_core.memory import ScoredMemory
-from cortex_core.ports import Clock
+from cortex_core.ports import Clock, ResidencyQueue
 from cortex_core.progress import ProgressSink
 from cortex_core.provenance import SourceKind, as_source
 from cortex_core.recall import MemoryRecaller
@@ -46,6 +46,7 @@ class TurnCapabilities:
     progress: ProgressSink | None = None
     escalation: EscalationSlot | None = None
     bounds: GenerationBounds | None = None
+    residency: ResidencyQueue | None = None
 
 
 def _render_memory_context(hits: Sequence[ScoredMemory], *, nonce: str, taint: TaintLedger) -> str:

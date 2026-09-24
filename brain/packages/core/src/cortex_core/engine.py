@@ -9,9 +9,11 @@ from cortex_core.events import TurnCompleted, TurnEvent
 from cortex_core.handoff import EscalationRefs
 from cortex_core.output_channels import open_output_channels
 from cortex_core.ports import Clock, InferenceBackend, SessionStore
+from cortex_core.progress import hold_wait
 from cortex_core.routing import RoutingHints, Tier, route_turn
 from cortex_core.session_title import build_title_messages, generate_title
 from cortex_core.stops import StopLedger
+from cortex_core.swap_notes import HANDOFF_AHEAD_DETAIL, SWAPPING_STATE
 from cortex_core.tool_loop import ToolLoopContext, stream_tool_loop
 from cortex_core.turn_context import TurnCapabilities, assemble_inference_messages
 from cortex_core.turn_output import (
@@ -22,11 +24,14 @@ from cortex_core.turn_output import (
     unreadable_call_note,
 )
 from cortex_core.untrusted import TaintLedger, new_nonce
+from cortex_core.waits import Wait
 
 _logger = logging.getLogger(__name__)
 
 # Deployments override this with CORTEX_MODEL_CORTEX, read by the orchestrator, not the core.
 DEFAULT_CORTEX_MODEL = "cortex"
+
+_HANDOFF_AHEAD = Wait(SWAPPING_STATE, HANDOFF_AHEAD_DETAIL)
 
 
 def _prepare_escalation(
@@ -69,6 +74,7 @@ class TurnEngine:
         model = self._model_by_tier[route_turn(RoutingHints())]
         user = Message(role=Role.USER, text=text, at=self._clock.now(), turn_id=turn_id)
         await self._store.append(session_id, user)
+        await self._wait_out_handoff(model)
         history = await self._store.history(session_id)
         taint = TaintLedger()
         stops = StopLedger()
@@ -122,6 +128,16 @@ class TurnEngine:
         if self._caps.generate_titles and len(history) == 1:
             await self._title_session(session_id, model, text, full_text, turn_id)
         yield TurnCompleted(turn_id=turn_id, full_text=full_text)
+
+    async def _wait_out_handoff(self, model: str) -> None:
+        """Wait, and say so, while another model's handoff holds the card ``model`` runs on."""
+        # A status is a turn event, so the body's first gap ends here instead of running on
+        # through a wait whose heartbeats it counts as this turn's own silence.
+        queue = self._caps.residency
+        if queue is None or not queue.blocks(model):
+            return
+        async with hold_wait(self._caps.progress, _HANDOFF_AHEAD):
+            await queue.await_scope_end(model)
 
     async def _title_session(
         self, session_id: str, model: str, user_text: str, assistant_text: str, turn_id: str

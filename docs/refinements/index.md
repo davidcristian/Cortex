@@ -67,7 +67,7 @@ never a reading of what the tree does now.
 
 149 of these record the day their claims were last checked against the code. On every other task here, that reading is still yours to take.
 
-### Actionable now (8)
+### Actionable now (9)
 
 - **[R-607](tasks/607-eighteen-of-the-cortex-alts-pixel-rows-are-undrawn.md)** Eleven of the cortex alt's thirty-six pixel rows are undrawn (inference). Its claim was checked against the code on 2026-09-23.
 - **[R-706](tasks/706-only-the-corpus-laundering-cell-is-drawn-at-the-engines-sampler.md)** Most pixel cells are drawn only at temperature 0 (vision). Its claim was checked against the code on 2026-09-23.
@@ -77,12 +77,13 @@ never a reading of what the tree does now.
 - **[R-715](tasks/715-the-subagent-pick-obeys-framed-injections-as-often-as-the-qwen-candidates.md)** The subagent pick obeys framed injections as often as the Qwen candidates (subagents). Its claim was checked against the code on 2026-09-24.
 - **[R-717](tasks/717-the-pixel-rows-drawn-at-the-sampler-are-unread-for-a-send-email-call.md)** The pixel rows drawn at the sampler are unread for a send_email call (vision). Its claim was checked against the code on 2026-09-24.
 - **[R-720](tasks/720-the-window-size-sentence-is-unmeasured.md)** The window size sentence is unmeasured (vision). Its claim was checked against the code on 2026-09-24.
+- **[R-723](tasks/723-a-turn-that-starts-just-before-another-handoff-waits-unannounced.md)** A turn that starts just before another handoff waits unannounced (rpc-transport). Its claim was checked against the code on 2026-09-24.
 
 ### Actionable, once a port changes (1)
 
 - **[R-129](tasks/129-streamed-brain-status.md)** Streamed brain status (body-overlay). Its claim was checked against the code on 2026-09-24.
 
-### Waiting for its trigger (106)
+### Waiting for its trigger (105)
 
 - **[R-011](tasks/011-stylesheet-outside-line-cap.md)** The overlay stylesheet outside the line cap (repo-checks). Reopens when: `find body/app/src -name '*.css'` lists a second file, or `git log --since='<Verified date> 00:00' --oneline -- body/app/src/overlay.css` lists a commit whose diff moves a rule to change which rule applies. A commit that edits only comments does not. Its claim was checked against the code on 2026-09-22.
 - **[R-013](tasks/013-couplings-widened-registry-cannot-hold.md)** The couplings the widened registry cannot cover (repo-checks). Reopens when: A third value on the capture-target enum, a reader for declarations in the `.proto` arriving in the scan for another reason, any module outside the body's rpc crate and the brain's body client that has to name one of the two gRPC status codes, or either side of that pair gaining a declaration whose value the scan can read. Its claim was checked against the code on 2026-09-19.
@@ -189,7 +190,6 @@ never a reading of what the tree does now.
 - **[R-684](tasks/684-a-serving-line-cannot-say-how-long-a-row-ran-under-a-lowered-ceiling.md)** A serving line cannot say how long a row ran under a lowered ceiling (vision). Reopens when: a row whose price is published in `docs/` prints a `card readings every` line with its lowest ceiling ratio under 0.50 of max and its highest above 0.50. Its claim was checked against the code on 2026-09-19.
 - **[R-691](tasks/691-the-substitution-reader-refuses-a-brace-compose-reads-as-text.md)** The substitution reader refuses a brace compose reads as text (repo-checks). Reopens when: a commit under `docker/` replaces a literal JSON value in a compose file with a variable substitution, which is the change that would next want the JSON as that substitution's default. Checkable with `git log -p -- 'docker/*.yml'`, reading for a removed line whose value opens with `{` and an added one using a variable in its place; today the JSON values are the subagent roster's endpoint list in `docker/docker-compose.subagents-roster.yml` and the two `enable_thinking` template arguments, all literal. Its claim was checked against the code on 2026-09-19.
 - **[R-712](tasks/712-the-session-store-still-moves-the-hoisted-sets-first-key.md)** The session store still moves the hoisted set's first key (session-read-rpc). Reopens when: the maintainer's brain has listed chats, or hoisted or lowered one, on a build that has the move, so `EXISTS cortex:sessions:pinned` on that machine's Redis returns 0. Its claim was checked against the code on 2026-09-22.
-- **[R-722](tasks/722-a-turn-behind-another-handoff-can-outlast-the-first-gap.md)** A turn behind another turn's handoff can outlast the first gap (rpc-transport). Reopens when: a stack running handoffs. No shipped file enables one: `grep -rnE 'CORTEX_ESCALATION: *[^ ]' docker/` finding nothing says so, and the gpu overlay passes the switch through by name, so a host `.env` can turn it on. Its claim was checked against the code on 2026-09-24.
 
 ### Waiting for a consumer (26)
 
@@ -772,7 +772,7 @@ never a reading of what the tree does now.
 - [R-434](tasks/434-the-stub-check-reads-one-direction-and-one-stub.md) The stub check reads one direction, and only one of the two stubs. done 2026-08-25.
 - [R-436](tasks/436-an-announcement-past-the-millisecond-ladder-loses-the-race.md) An announcement past the millisecond ladder sets tonic's clock short of our own bound. done 2026-08-25.
 - [R-719](tasks/719-a-health-note-has-no-code.md) A health note has no code. open, waiting for a consumer.
-- [R-722](tasks/722-a-turn-behind-another-handoff-can-outlast-the-first-gap.md) A turn behind another turn's handoff can outlast the first gap. open, waiting for its trigger.
+- [R-723](tasks/723-a-turn-that-starts-just-before-another-handoff-waits-unannounced.md) A turn that starts just before another handoff waits unannounced. open, actionable.
 
 ### scheduling
 

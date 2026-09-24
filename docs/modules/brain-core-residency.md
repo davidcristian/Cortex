@@ -69,6 +69,10 @@ path returns the card to. Measurements are in [model-swap](../readings/model-swa
   and raises `HandoffInProgressError` at once rather than queuing, with nothing awaited between the
   check and the claim. `unhosted` returns `True` only on an explicit refusal, and is asked every
   time rather than remembered.
+- `ResidencyQueue` provides `blocks(model)`, synchronous, whether another model's residency scope
+  is active so a lease of `model` would wait, and `await_scope_end(model)`, which waits until none
+  is and leaves the check of what is resident to the lease. A turn uses it to announce the wait
+  before its first model call (ADR-0069 decision 9).
 - `ResidencyReporter` provides `residency() -> ResidencyReport`, what the GPU is serving right now,
   for the wire's `Health`. It is **synchronous and free of I/O by contract**, because a probe
   arrives every few seconds precisely while a swap is in flight and one that queued behind the GPU
@@ -168,7 +172,8 @@ containing images, the record being durable and its schema having no field for p
 `SingleResidentModelManager(resident_model, endpoint)` is the `ModelManager` for a deployment that
 never escalates: `acquire` serializes callers with one lock and refuses any other model with
 `ModelUnavailableError`. `SwappingModelManager(host, endpoints, plan, clock, sleeper)`
-(`residency.py`) implements the lease port, `ResidencyController` and `ResidencyReporter` together,
+(`residency.py`) implements the lease port, `ResidencyController`, `ResidencyQueue` and
+`ResidencyReporter` together,
 still as pure policy with no I/O of its own. A scope rather than a swapping `acquire`, because the
 deep model's tool loop re-acquires once per round and a swapping `acquire` would thrash minutes
 each way whenever a queued cortex turn interleaved. Its parts are split along the boundary the

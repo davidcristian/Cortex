@@ -13,6 +13,7 @@ DRAINING_DETAIL = "pausing delegated work before the model swap"
 LOADING_DETAIL = "loading the deep model; this takes a few minutes"
 WORKING_DETAIL = "the deep model is working on this"
 RESTORING_DETAIL = "bringing the usual assistant back"
+HANDOFF_AHEAD_DETAIL = "waiting for another request's handoff to the deep model to finish"
 
 UNHOSTED_TIER_NOTE = (
     "\n\n(This machine has no deep model set up, so the handoff was not started and nothing was "

@@ -63,7 +63,8 @@ flushes the guarded channels, streams the note the `StopLedger` picks, logs a wa
 session and the turn, and persists once.
 
 `TurnCapabilities(memory=None, tools=None, window=None, guardrail=None,
-record_tainted_memory=False, generate_titles=False, progress=None, escalation=None)`
+record_tainted_memory=False, generate_titles=False, progress=None, escalation=None, bounds=None,
+residency=None)`
 (`turn_context.py`, with the context assembly `assemble_inference_messages`) is the frozen bundle
 of everything optional about a turn. With the bare default the turn is plain streamed inference.
 
@@ -93,6 +94,11 @@ of everything optional about a turn. With the bare default the turn is plain str
   subagent's steps reach the overlay while the turn's generator is suspended inside the spawn
   dispatch. The turn also holds its waits on it: `thinking` around each model stream, `calling`
   around each dispatch that was not refused, `asking` around a confirmation (ADR-0069 decision 9). `escalation` (an `EscalationSlot`, ADR-0030) is the turn's handoff slot, one per turn.
+- `residency` (a `ResidencyQueue`, set only where a handoff can run): after storing the user
+  message and before reading the history, a turn whose model another model's handoff keeps off the
+  card holds `swapping` with `HANDOFF_AHEAD_DETAIL` until that scope ends. The hold is announced,
+  so the body's first gap ends there, and the history read afterwards includes what that handoff
+  stored.
 
 `turn_output.py` is the half of the engine the deep model's phase shares word for word, so the two
 cannot diverge (ADR-0030). `stream_turn_events(loop, channels, parts)` maps one tool loop's deltas

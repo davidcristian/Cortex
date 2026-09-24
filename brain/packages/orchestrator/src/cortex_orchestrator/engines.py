@@ -116,6 +116,7 @@ class StreamEngines:
             generate_titles=self.runtime.generate_titles,
             progress=progress,
             bounds=self.bounds,
+            residency=None if self.deep is None else self.deep.swap.manager,
         )
 
     def _turn_engine(self, caps: TurnCapabilities) -> TurnEngine:

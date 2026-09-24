@@ -253,6 +253,35 @@ async def test_a_queued_acquire_is_woken_even_when_the_swap_back_failed() -> Non
             await waiting
 
 
+async def test_only_another_model_s_scope_blocks_a_lease() -> None:
+    manager = _manager(ScriptedModelHost(running=["cortex"]))
+    assert not manager.blocks("cortex")
+    scope = _OpenScope(manager)
+    await scope.start()
+    assert manager.blocks("cortex")
+    assert not manager.blocks("brain")
+    await scope.finish()
+    assert not manager.blocks("cortex")
+
+
+async def test_waiting_out_a_scope_leaves_the_failed_swap_back_to_the_lease() -> None:
+    host = ScriptedModelHost(running=["cortex"], fail={("start", "cortex"): "no such device"})
+    manager = _manager(_YieldingHost(host))
+    await manager.await_scope_end("cortex")
+    scope = _OpenScope(manager)
+    await scope.start()
+    waiting = asyncio.create_task(manager.await_scope_end("cortex"))
+    await _settle()
+    assert not waiting.done()
+    scope.leave.set()
+    with pytest.raises(ResidencyRestoreError):
+        await scope.task
+    async with asyncio.timeout(5.0):
+        await waiting
+    with pytest.raises(ModelUnavailableError, match="resident: None"):
+        await _lease(manager, "cortex")
+
+
 async def test_the_restore_waits_for_the_new_resident_s_own_round() -> None:
     host = ScriptedModelHost(running=["cortex"])
     manager = _manager(host)

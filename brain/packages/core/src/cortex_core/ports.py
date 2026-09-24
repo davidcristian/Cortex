@@ -15,6 +15,7 @@ from cortex_core.ports_models import (
     ModelHost,
     PaceSink,
     ResidencyController,
+    ResidencyQueue,
     ResidencyReporter,
 )
 from cortex_core.ports_placement import SubagentPlacer
@@ -48,6 +49,7 @@ __all__ = [
     "PreferenceStore",
     "RecallAuditSink",
     "ResidencyController",
+    "ResidencyQueue",
     "ResidencyReporter",
     "ScheduleStore",
     "SessionStore",

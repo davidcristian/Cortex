@@ -60,6 +60,14 @@ class SwappingModelManager(ResidencyProbeMixin):
         """Whether the daemon answering right now has no such logical model at all."""
         return await is_unhosted(self._host, model)
 
+    def blocks(self, model: str) -> bool:
+        """Whether leasing ``model`` would wait for another model's residency scope to end."""
+        return self._board.blocks(model)
+
+    async def await_scope_end(self, model: str) -> None:
+        """Wait until no other model's residency scope keeps ``model`` from being leased."""
+        await self._board.await_scope_end(model)
+
     def handoff_claim(self) -> AbstractAsyncContextManager[None]:
         """Own the whole swap sequence for this block, or raise at once."""
         return self._handoff_claim.held()

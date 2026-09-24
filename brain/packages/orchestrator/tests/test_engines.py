@@ -1,3 +1,4 @@
+import asyncio
 from collections.abc import AsyncIterator, Mapping, Sequence
 from dataclasses import dataclass, replace
 
@@ -7,6 +8,8 @@ from cortex_core import (
     CAPTURE_SCREEN_TOOL_NAME,
     ESCALATE_TOOL_NAME,
     GET_VOLUME_TOOL_NAME,
+    HANDOFF_AHEAD_DETAIL,
+    SWAPPING,
     AsyncioSleeper,
     CaptureBounds,
     EscalatingTurnEngine,
@@ -20,6 +23,7 @@ from cortex_core import (
     RecordingConfirmer,
     RecordingProgressSink,
     ScriptedVisionProbe,
+    StatusUpdate,
     SystemClock,
     TextChunk,
     ToolCall,
@@ -219,3 +223,34 @@ async def test_the_deployments_reply_bounds_reach_both_phases_of_a_turn() -> Non
 
     asked = {request.model: request.bounds for request in backend.requests}
     assert asked == {"cortex": bounds, "brain": bounds}
+
+
+async def test_a_stream_s_turn_announces_a_handoff_it_waits_behind() -> None:
+    backend = _Model({"cortex": [[TextChunk("hi")]]})
+    swap = _swap_runtime()
+    entered = asyncio.Event()
+    leave = asyncio.Event()
+
+    async def handoff_ahead() -> None:
+        async with swap.manager.swap_scope("brain"):
+            entered.set()
+            await leave.wait()
+
+    try:
+        ahead = asyncio.create_task(handoff_ahead())
+        await entered.wait()
+        progress = RecordingProgressSink()
+        engine = _escalating(backend, swap).for_stream(RecordingConfirmer(answer=True), progress)
+        turn = asyncio.create_task(_run(engine, "hello", turn_id="t2"))
+        for _ in range(10):
+            await asyncio.sleep(0)
+        assert not turn.done()
+        assert backend.requests == []
+        assert progress.events == (StatusUpdate(state=SWAPPING, detail=HANDOFF_AHEAD_DETAIL),)
+        leave.set()
+        await ahead
+        async with asyncio.timeout(5.0):
+            await turn
+        assert [request.model for request in backend.requests] == ["cortex"]
+    finally:
+        await swap_closer(swap)()

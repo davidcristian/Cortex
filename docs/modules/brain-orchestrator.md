@@ -190,7 +190,8 @@ the version string `Health` reports.
   closures over the root's locals. It reads no env, opens no resource and picks no adapter: per
   stream it builds that stream's `TurnCapabilities` and returns the plain `TurnEngine`, or an
   `EscalatingTurnEngine` over a `SwapConductor` bound to this stream's dispatcher when a
-  `DeepTier(swap, builtins, scheduler)` is present. That value keeps a handoff from being
+  `DeepTier(swap, builtins, scheduler)` is present, whose manager is then the capabilities'
+  `residency`. That value keeps a handoff from being
   half-wired, the deep tier's own vision-less built-in set travelling with the runtime that swaps
   and the subagent pool the conductor drains.
 - With escalation wired, `run_from_env` also runs `recover_handoffs` before serving, publishes what

@@ -56,10 +56,20 @@ class ResidencyBoard:
         async with self._condition:
             self._report = report
 
+    def blocks(self, model: str) -> bool:
+        """Whether a scope about another model is active, so leasing ``model`` would queue."""
+        return self._scope_model is not None and self._scope_model != model
+
+    async def await_scope_end(self, model: str) -> None:
+        """Wait out any scope this is not about, and leave the residency check to the lease."""
+        async with self._condition:
+            while self.blocks(model):
+                await self._condition.wait()
+
     async def await_resident(self, model: str) -> None:
         """Wait out any scope this is not about, then raise unless ``model`` is the resident."""
         async with self._condition:
-            while self._scope_model is not None and self._scope_model != model:
+            while self.blocks(model):
                 await self._condition.wait()
             if model != self._resident:
                 msg = f"model {model!r} is not resident (resident: {self._resident!r})"
