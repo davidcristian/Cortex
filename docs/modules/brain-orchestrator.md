@@ -19,11 +19,11 @@ turn, each absent when its capability is off.
 
 - `Health` answers `HealthReply(ready=True, detail="cortex-orchestrator <version>")` while the
   normal residency is serving, and `ready=False` with the residency's own line while a handoff
-  holds the GPU (ADR-0030 decision 6). A serving report may have a line of its own, which then wins
-  over the version string while `ready` stays true, and it may have more than one sentence joined,
-  a missing peer tier and a slow last handoff both being true of a serving brain with different
-  remedies (ADR-0054 decision 3, ADR-0055 decision 5). The read is `ResidencyReporter.residency()`,
-  synchronous and lock-free by that port's contract. With no `residency` wired the answer is
+  holds the GPU (ADR-0030 decision 6). A serving report may have notes, which then win over the
+  version string while `ready` stays true: each is one `HealthNote` in `notes`, and `detail` joins
+  them with `; `, a missing peer tier and a slow last handoff both being true of a serving brain
+  with different remedies (ADR-0054 decisions 3 and 7, ADR-0055 decision 5). The read is
+  `ResidencyReporter.residency()`, synchronous and lock-free by that port's contract. With no `residency` wired the answer is
   unconditional, and the drain before an eviction stays ready.
 - `ListSessions` returns recent chats newest-active first, each `SessionSummary` mapped to the wire
   with unix-ms timestamps, `request.limit` clamped by `_clamp_limit` (`DEFAULT_SESSION_LIST_LIMIT`

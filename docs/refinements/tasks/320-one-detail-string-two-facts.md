@@ -1,9 +1,8 @@
 # The health reply has one detail string, so two facts become one sentence
 
-**Status:** open, needs a port change first
+**Status:** done 2026-09-24
 **Area:** rpc-transport
 **Origin:** [ADR-0054](../../adr/ADR-0054-baseline-residency.md)
-**Verified:** 2026-09-19
 
 `HealthReply.detail` is one string ([body.proto](../../../proto/body.proto)), so when a peer tier is
 down and the last handoff spilled, the two notes are joined with a semicolon by
@@ -37,3 +36,11 @@ that needs it rather than the first that ran into it.
   a failed handoff's reason, was declined on 2026-09-15 by
   [R-379](379-a-settled-reason-nothing-reads-back.md), partly because `with_note` annotates only a
   serving report.
+- 2026-09-24: Built, since the reason to wait was a second client and nothing about the shape
+  depended on one. `HealthReply` gained `repeated HealthNote notes = 3`, a `HealthNote` being one
+  sentence. `ResidencyReport` keeps its notes as a tuple that `with_note` appends to, `Health`
+  sends one `HealthNote` per note and still joins them into `detail` for a client built before the
+  field, and the body passes them through `RpcHealth` and `LinkStatus` to the overlay, whose ready
+  label is `Brain ready` with one line per note. A code beside each sentence, which is what would
+  let a client style or dismiss one note, waits for a client that needs it and for its names:
+  [719](719-a-health-note-has-no-code.md).

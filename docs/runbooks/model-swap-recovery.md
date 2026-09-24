@@ -41,7 +41,7 @@ which also says where to read why a handoff failed. What the swap costs and whet
   the handoff could not be restarted`) and, because it is recorded rather than only logged, three
   further things are true. `Health` answers `ready=true` with `the model host is not running
   <tier>, so delegated work is running on the CPU`, which the overlay's connection tooltip shows
-  as `Brain ready: <that line>`. Every subagent spawn is placed on the CPU without trying the GPU
+  on a line under `Brain ready`. Every subagent spawn is placed on the CPU without trying the GPU
   first. And the brain checks every `CORTEX_SWAP_EVICT_MODELS` tier every
   `CORTEX_SWAP_TIER_HEAL_S` seconds, a `GET` of each tier's state and a `start` for any that is
   not coming, clearing all of that the first pass that sees the tier `ready`. That pass is why a

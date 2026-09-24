@@ -54,7 +54,7 @@ describe("useLink", () => {
     expect(bridge.linkCalls).toBe(1);
     expect(actions).toEqual([
       { kind: "linkProbing" },
-      { kind: "linkObserved", status: { state: "ready", detail: "fake brain" } },
+      { kind: "linkObserved", status: { state: "ready", detail: "fake brain", notes: [] } },
     ]);
   });
 
@@ -103,7 +103,7 @@ describe("useLink", () => {
 
   it("keeps re-checking an unhealthy link until it answers ready", async () => {
     const bridge = new FakeBridge();
-    bridge.link = { state: "down", detail: "refused" };
+    bridge.link = { state: "down", detail: "refused", notes: [] };
     const { view } = harness(bridge, "panel");
     await flush();
     expect(bridge.linkCalls).toBe(1);
@@ -115,13 +115,13 @@ describe("useLink", () => {
     await flush();
     expect(bridge.linkCalls).toBe(2);
 
-    bridge.link = { state: "ready", detail: "back" };
+    bridge.link = { state: "ready", detail: "back", notes: [] };
     await act(async () => {
       vi.advanceTimersByTime(LINK_RECHECK_MS);
     });
     await flush();
     expect(bridge.linkCalls).toBe(3);
-    expect(view()).toEqual({ state: "ready", detail: "back", probing: false });
+    expect(view()).toEqual({ state: "ready", detail: "back", notes: [], probing: false });
 
     await act(async () => {
       vi.advanceTimersByTime(LINK_RECHECK_MS * 3);
@@ -131,7 +131,7 @@ describe("useLink", () => {
 
   it("re-checks a degraded link too, not only an unreachable one", async () => {
     const bridge = new FakeBridge();
-    bridge.link = { state: "degraded", detail: "store down" };
+    bridge.link = { state: "degraded", detail: "store down", notes: [] };
     harness(bridge, "panel");
     await flush();
     await act(async () => {
@@ -143,7 +143,7 @@ describe("useLink", () => {
 
   it("stops re-checking as soon as the overlay hides", async () => {
     const bridge = new FakeBridge();
-    bridge.link = { state: "down", detail: "refused" };
+    bridge.link = { state: "down", detail: "refused", notes: [] };
     const { rerender } = harness(bridge, "panel");
     await flush();
     rerender({ mode: "hidden" });
@@ -155,7 +155,7 @@ describe("useLink", () => {
 
   it("holds the last known state when the probe itself cannot be delivered", async () => {
     const bridge = new FakeBridge();
-    bridge.link = { state: "degraded", detail: "store down" };
+    bridge.link = { state: "degraded", detail: "store down", notes: [] };
     const { view } = harness(bridge, "panel");
     await flush();
     expect(view().state).toBe("degraded");
@@ -166,7 +166,7 @@ describe("useLink", () => {
     });
     await flush();
     expect(bridge.linkCalls).toBe(2);
-    expect(view()).toEqual({ state: "degraded", detail: "store down", probing: false });
+    expect(view()).toEqual({ state: "degraded", detail: "store down", notes: [], probing: false });
   });
 
   it("keeps at most one probe outstanding across a hide and a re-summon", async () => {

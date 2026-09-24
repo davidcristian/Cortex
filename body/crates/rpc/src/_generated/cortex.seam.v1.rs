@@ -160,12 +160,23 @@ pub struct ConfirmResolved {
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct HealthRequest {}
-#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+/// `detail` is one line for a client that shows one: the reason when the brain is not ready, and
+/// otherwise its serving notes joined, or its version. `notes` has the same serving notes one fact
+/// per entry, in the same order, so a client can show a line per fact. It is empty when not ready.
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct HealthReply {
     #[prost(bool, tag = "1")]
     pub ready: bool,
     #[prost(string, tag = "2")]
     pub detail: ::prost::alloc::string::String,
+    #[prost(message, repeated, tag = "3")]
+    pub notes: ::prost::alloc::vec::Vec<HealthNote>,
+}
+/// One fact about a brain that is serving, as a sentence for a person to read.
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct HealthNote {
+    #[prost(string, tag = "1")]
+    pub text: ::prost::alloc::string::String,
 }
 /// Recent chats, most-recently-active first. `limit` caps the count; 0 means the server default.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]

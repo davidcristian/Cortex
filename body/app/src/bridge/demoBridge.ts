@@ -181,7 +181,7 @@ export class DemoBridge implements BrainBridge {
     // The unhappy answers are slower, so the "checking" pulse is long enough to watch by hand.
     const delay = this.link === "ready" ? 120 : 900;
     return new Promise((resolve) =>
-      setTimeout(() => resolve({ state: this.link, detail }), delay),
+      setTimeout(() => resolve({ state: this.link, detail, notes: [] }), delay),
     );
   }
 

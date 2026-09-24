@@ -9,7 +9,7 @@ it should hold the **baseline residency**: the cortex, plus every peer tier name
 `CORTEX_SWAP_EVICT_MODELS` (the GPU-placed subagent tier when one is hosted). Three things can make
 the machine differ from that: a swap in progress, a restore or a startup that could not bring the
 cortex up, and a peer that is not running. The user reads the brain's answer on the overlay's
-connection dot through `Health`, whose `HealthReply` has `ready` and one `detail` string; the
+connection dot through `Health`, whose `HealthReply` has `ready`, a `detail` line and `notes`; the
 subagent placer needs to know when no GPU tier is serving, or it sends spawns at a dead server.
 
 This record decides where that answer comes from, how startup recovery's result is scoped, and what
@@ -110,14 +110,18 @@ residency, the brain's residency is `None`, and `Health` stays unconditionally r
    or a startup re-reads it. A store would add a second writer with no locking and a record that
    outlives the daemon it described. Another process's handoff can at worst make one pass read a
    deliberately stopped tier as missing, which costs one interval of CPU placement.
-7. **Notes join a serving report in one place.** `residency_state.with_note` is the only way a note
-   reaches a report: the baseline condition first (`TIERS_MISSING_DETAIL`, "the model host is not
-   running `<tiers>`, so delegated work is running on the CPU"), the last handoff's pace second
+7. **Notes reach a serving report in one place, and stay separate.** `residency_state.with_note`
+   is the only way a note reaches a report: it appends to `ResidencyReport.notes`, the baseline
+   condition first (`TIERS_MISSING_DETAIL`, "the model host is not running `<tiers>`, so delegated
+   work is running on the CPU"), the last handoff's pace second
    ([ADR-0055](ADR-0055-co-residency-and-spill-watch.md) decision 5), and neither over a report that
    is not serving. Notes are composed at read time in `residency()` (`residency_probe.py`), so the
-   regain's bare republish cannot erase one. The overlay renders a serving detail after
-   `Brain ready: ` and keeps the dot green: turns run, and only where delegated work runs has
-   changed.
+   regain's bare republish cannot erase one. `Health` sends each note as its own `HealthNote` and
+   joins them with `; ` into `detail`, so a client built before `notes` existed still reads both.
+   The overlay shows `Brain ready` with one line per note and keeps the dot green: turns run, and
+   only where delegated work runs has changed. `HealthNote` has only its sentence; a code a client
+   could style or dismiss one note by is added beside it when a client needs one, with its names
+   picked then.
 
 ## Consequences
 

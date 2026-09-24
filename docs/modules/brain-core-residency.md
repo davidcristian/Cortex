@@ -186,13 +186,13 @@ handoff ran, and whose `publish_boot_residency(*, serving)` touches display alon
 `residency_charge.py` (which tells the optional `SubagentPlacer`, at the swap's two edges, which
 model holds the card, written before the swap in and reversed only once the cortex serves again).
 
-`ResidencyReport(serving, detail)` and the six values a swap publishes are in `residency_state.py`:
+`ResidencyReport(serving, detail, notes)` and the six values a swap publishes are in `residency_state.py`:
 `RESIDENCY_SERVING` (the normal residency, and the seed a fresh manager starts from),
 `RESIDENCY_LOADING`, `RESIDENCY_DEEP`, `RESIDENCY_RESTORING`, `RESIDENCY_LOST` (a restore that gave
 up) and `RESIDENCY_BOOT_FAILED` (boot recovery ran and did not leave the cortex serving). The drain
 is deliberately `RESIDENCY_SERVING`, the cortex being resident and answering turns while delegated
 work quiesces. `with_note(report, note)` is the one composition every annotator shares: a serving
-report gains the note, joined to any note already there, and one that is not serving is unchanged.
+report gains the note after any already in `notes`, and one that is not serving is unchanged.
 
 ### Keeping the normal residency
 

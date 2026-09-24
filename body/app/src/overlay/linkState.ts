@@ -10,12 +10,14 @@ export interface LinkView {
   readonly state: LinkState | "unknown";
   /** The detail behind that state, for the tooltip; `""` when there is nothing to add. */
   readonly detail: string;
+  /** A ready brain's notes, one fact each, shown a line apiece in place of `detail`. */
+  readonly notes: readonly string[];
   /** Whether a probe is in flight (the overlay's own fact, not the brain's). */
   readonly probing: boolean;
 }
 
 /** Before anything has been asked: no claim, no probe. */
-export const INITIAL_LINK: LinkView = { state: "unknown", detail: "", probing: false };
+export const INITIAL_LINK: LinkView = { state: "unknown", detail: "", notes: [], probing: false };
 
 /** A probe went out: keep the last known state, and say an answer is coming. */
 export function linkProbing(link: LinkView): LinkView {
@@ -24,7 +26,7 @@ export function linkProbing(link: LinkView): LinkView {
 
 /** A probe answered: it replaces both facts, because it is the freshest thing known. */
 export function linkObserved(status: LinkStatus): LinkView {
-  return { state: status.state, detail: status.detail, probing: false };
+  return { state: status.state, detail: status.detail, notes: status.notes, probing: false };
 }
 
 /** A probe could not be delivered: the IPC itself rejected, not the brain. That says nothing
@@ -48,6 +50,7 @@ export function linkFailed(link: LinkView, error: TransportError): LinkView {
     ...link,
     state: answered ? "degraded" : "down",
     detail: error.message,
+    notes: [],
   };
 }
 
@@ -70,6 +73,13 @@ function withDetail(label: string, detail: string): string {
   return detail === "" ? label : `${label}: ${detail}`;
 }
 
+/** A ready label: one line per note when the brain sent them, else the detail after a colon. */
+function readyLabel(link: LinkView): string {
+  return link.notes.length === 0
+    ? withDetail("Brain ready", link.detail)
+    : ["Brain ready", ...link.notes].join("\n");
+}
+
 /** Renders a link view as the dot's tone and its human label (the tooltip + the a11y name). */
 export function describeLink(link: LinkView): LinkReading {
   const tone = TONES[link.state];
@@ -80,7 +90,7 @@ export function describeLink(link: LinkView): LinkReading {
   }
   switch (link.state) {
     case "ready":
-      return { tone, busy, label: withDetail("Brain ready", link.detail) };
+      return { tone, busy, label: readyLabel(link) };
     case "degraded":
       return { tone, busy, label: withDetail("The brain is not serving", link.detail) };
     case "down":

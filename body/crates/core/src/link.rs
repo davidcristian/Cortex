@@ -35,6 +35,8 @@ pub struct LinkStatus {
     pub state: LinkState,
     /// Why, in one line, for the indicator's tooltip.
     pub detail: String,
+    /// A ready brain's notes, one fact each, for a tooltip that shows a line per fact.
+    pub notes: Vec<String>,
 }
 
 impl LinkStatus {
@@ -48,6 +50,7 @@ impl LinkStatus {
                 LinkState::Degraded
             },
             detail: health.detail.clone(),
+            notes: health.notes.clone(),
         }
     }
 
@@ -58,18 +61,22 @@ impl LinkStatus {
             TransportError::Connection(message) => Self {
                 state: LinkState::Down,
                 detail: message.clone(),
+                notes: Vec::new(),
             },
             TransportError::Rpc { code, message } => Self {
                 state: LinkState::Degraded,
                 detail: format!("{code}: {message}"),
+                notes: Vec::new(),
             },
             TransportError::Protocol(message) => Self {
                 state: LinkState::Degraded,
                 detail: format!("unreadable reply: {message}"),
+                notes: Vec::new(),
             },
             TransportError::Timeout { after } => Self {
                 state: LinkState::Down,
                 detail: format!("no reply within {after:?}"),
+                notes: Vec::new(),
             },
         }
     }

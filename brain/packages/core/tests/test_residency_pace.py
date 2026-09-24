@@ -77,7 +77,7 @@ def _fake_under_test() -> PaceSinkUnderTest:
 
 def _record_under_test() -> PaceSinkUnderTest:
     record = HandoffPace(_HeldClock())
-    return PaceSinkUnderTest(record, lambda: record.note_on(RESIDENCY_SERVING).detail != "")
+    return PaceSinkUnderTest(record, lambda: record.note_on(RESIDENCY_SERVING).notes != ())
 
 
 _IMPLEMENTATIONS = [_fake_under_test, _record_under_test]
@@ -125,7 +125,7 @@ def test_a_spill_is_sent_with_a_serving_report_and_names_what_it_costs() -> None
     pace = HandoffPace(_HeldClock())
     pace.note_pace(spilled=True)
     assert pace.note_on(RESIDENCY_SERVING) == ResidencyReport(
-        serving=True, detail=SPILLED_PACE_DETAIL
+        serving=True, detail="", notes=(SPILLED_PACE_DETAIL,)
     )
 
 
@@ -141,7 +141,7 @@ def test_a_note_stands_for_the_whole_dwell_and_not_a_moment_longer() -> None:
     pace = HandoffPace(clock, dwell_s=DEFAULT_SPILL_DWELL_S)
     pace.note_pace(spilled=True)
     clock.advance(DEFAULT_SPILL_DWELL_S - 1)
-    assert pace.note_on(RESIDENCY_SERVING).detail == SPILLED_PACE_DETAIL
+    assert pace.note_on(RESIDENCY_SERVING).notes == (SPILLED_PACE_DETAIL,)
     clock.advance(1)
     assert pace.note_on(RESIDENCY_SERVING) == RESIDENCY_SERVING
 
@@ -153,7 +153,7 @@ def test_a_second_spill_starts_the_dwell_again_from_when_it_happened() -> None:
     clock.advance(99)
     pace.note_pace(spilled=True)
     clock.advance(99)
-    assert pace.note_on(RESIDENCY_SERVING).detail == SPILLED_PACE_DETAIL
+    assert pace.note_on(RESIDENCY_SERVING).notes == (SPILLED_PACE_DETAIL,)
 
 
 def test_a_handoff_that_held_its_pace_clears_a_current_note_at_once() -> None:
@@ -178,16 +178,16 @@ def test_a_missing_peer_and_a_spilled_handoff_are_both_said() -> None:
     pace.note_pace(spilled=True)
     composed = pace.note_on(tiers.note_on(RESIDENCY_SERVING))
     assert composed.serving is True
-    assert composed.detail == (
-        f"{TIERS_MISSING_DETAIL.format(models=_TIER)}; {SPILLED_PACE_DETAIL}"
-    )
+    assert composed.notes == (TIERS_MISSING_DETAIL.format(models=_TIER), SPILLED_PACE_DETAIL)
 
 
 async def test_a_spilled_handoff_reaches_a_probe_through_the_manager() -> None:
     manager = _manager(ScriptedModelHost(running=[_CORTEX]))
     assert manager.residency() == RESIDENCY_SERVING
     manager.handoff_pace.note_pace(spilled=True)
-    assert manager.residency() == ResidencyReport(serving=True, detail=SPILLED_PACE_DETAIL)
+    assert manager.residency() == ResidencyReport(
+        serving=True, detail="", notes=(SPILLED_PACE_DETAIL,)
+    )
 
 
 async def test_the_pass_that_republishes_a_serving_cortex_does_not_erase_the_note() -> None:
@@ -200,7 +200,9 @@ async def test_the_pass_that_republishes_a_serving_cortex_does_not_erase_the_not
     manager.handoff_pace.note_pace(spilled=True)
     host.set_status(_CORTEX, None)
     await manager.recheck_residency()
-    assert manager.residency() == ResidencyReport(serving=True, detail=SPILLED_PACE_DETAIL)
+    assert manager.residency() == ResidencyReport(
+        serving=True, detail="", notes=(SPILLED_PACE_DETAIL,)
+    )
 
 
 async def test_a_probe_reads_a_missing_peer_and_a_spill_off_one_swap() -> None:
@@ -213,4 +215,4 @@ async def test_a_probe_reads_a_missing_peer_and_a_spill_off_one_swap() -> None:
         manager.handoff_pace.note_pace(spilled=True)
     report = manager.residency()
     assert report.serving is True
-    assert report.detail == f"{TIERS_MISSING_DETAIL.format(models=_TIER)}; {SPILLED_PACE_DETAIL}"
+    assert report.notes == (TIERS_MISSING_DETAIL.format(models=_TIER), SPILLED_PACE_DETAIL)

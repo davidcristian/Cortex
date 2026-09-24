@@ -54,7 +54,7 @@ export class FakeBridge implements BrainBridge {
   remindersFail = false;
   ackFails = false;
   /** What `checkLink` resolves with (assignable by a test; ADR-0011 decision 8). */
-  link: LinkStatus = { state: "ready", detail: "fake brain" };
+  link: LinkStatus = { state: "ready", detail: "fake brain", notes: [] };
   /** How many probes the overlay has fired (proves the summon latch + recovery cadence). */
   linkCalls = 0;
   /** When set, `checkLink` rejects: the IPC failed, which says nothing about the brain. */

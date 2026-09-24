@@ -13,7 +13,7 @@ one constant.
   `ToolActivity`, `ToolOutcome`, `StatusUpdate`, `TurnComplete` and `SeamError`, plus the
   confirmation exchange for a tool that needs approval and the brain-side end of an unanswered one,
   `ConfirmRequest`, `ConfirmResponse` and `ConfirmResolved` (ADR-0022).
-- **Health**: `HealthRequest` and `HealthReply`.
+- **Health**: `HealthRequest`, `HealthReply` and `HealthNote`.
 - **The session catalog** (ADR-0021): `ListSessionsRequest`, `ListSessionsReply`, `SessionSummary`
   (which has a `hoisted` bool, ADR-0021 decision 12), `GetSessionMessagesRequest`,
   `GetSessionMessagesReply` and `SessionMessage` are the read-only views;

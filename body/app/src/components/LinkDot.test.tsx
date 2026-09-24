@@ -22,12 +22,12 @@ describe("LinkDot", () => {
   });
 
   it("pulses while a probe is out, keeping the last known colour", () => {
-    render(<LinkDot link={view({ state: "down", detail: "refused", probing: true })} />);
+    render(<LinkDot link={view({ state: "down", detail: "refused", notes: [], probing: true })} />);
     expect(screen.getByRole("status").className).toBe("linkdot bad busy");
   });
 
   it("says what it means, for a pointer and for a screen reader alike", () => {
-    render(<LinkDot link={view({ state: "down", detail: "connection refused" })} />);
+    render(<LinkDot link={view({ state: "down", detail: "connection refused", notes: [] })} />);
     const dot = screen.getByRole("status");
     expect(dot).toHaveAttribute("title", "Cannot reach the brain: connection refused");
     expect(dot).toHaveAccessibleName("Cannot reach the brain: connection refused");

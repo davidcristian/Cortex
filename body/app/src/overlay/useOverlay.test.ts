@@ -175,10 +175,10 @@ describe("useOverlay", () => {
 
   it("probes the brain connection on summon, and not while hidden", async () => {
     const bridge = new FakeBridge();
-    bridge.link = { state: "degraded", detail: "store down" };
+    bridge.link = { state: "degraded", detail: "store down", notes: [] };
     const { result } = renderHook(() => useOverlay(bridge, () => "s1"));
     await flush();
-    expect(result.current.state.link).toEqual({ state: "unknown", detail: "", probing: false });
+    expect(result.current.state.link).toEqual({ state: "unknown", detail: "", notes: [], probing: false });
     expect(bridge.linkCalls).toBe(0);
 
     act(() => result.current.open());
@@ -186,13 +186,14 @@ describe("useOverlay", () => {
     expect(result.current.state.link).toEqual({
       state: "degraded",
       detail: "store down",
+      notes: [],
       probing: false,
     });
   });
 
   it("keeps the indicator current from the turn itself, with no probe", async () => {
     const bridge = new FakeBridge();
-    bridge.link = { state: "down", detail: "refused" };
+    bridge.link = { state: "down", detail: "refused", notes: [] };
     const { result } = renderHook(() => useOverlay(bridge, () => "s1"));
     act(() => result.current.open());
     await flush();
@@ -201,13 +202,14 @@ describe("useOverlay", () => {
 
     act(() => result.current.submit("q"));
     act(() => bridge.emit({ kind: "delta", text: "hi" }));
-    expect(result.current.state.link).toEqual({ state: "ready", detail: "", probing: false });
+    expect(result.current.state.link).toEqual({ state: "ready", detail: "", notes: [], probing: false });
     expect(bridge.linkCalls).toBe(probes);
 
     act(() => bridge.fail({ kind: "connection", message: "brain went away" }));
     expect(result.current.state.link).toEqual({
       state: "down",
       detail: "brain went away",
+      notes: [],
       probing: false,
     });
     expect(bridge.linkCalls).toBe(probes);

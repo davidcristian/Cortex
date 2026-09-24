@@ -284,7 +284,7 @@ async def test_a_boot_whose_peer_tier_is_down_still_says_the_brain_is_ready() ->
         await runtime.rechecker.aclose()
         report = runtime.manager.residency()
         assert report.serving is True
-        assert report.detail == TIERS_MISSING_DETAIL.format(models="subagent-gpu")
+        assert report.notes == (TIERS_MISSING_DETAIL.format(models="subagent-gpu"),)
         spawn = PlacementRequest("subagent", vram_gb=2.0, cpus=1.0, memory_gb=1.0)
         assert placer.place(spawn).target is PlacementTarget.CPU
     finally:

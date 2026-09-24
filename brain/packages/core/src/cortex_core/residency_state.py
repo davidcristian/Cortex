@@ -6,18 +6,18 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True, slots=True)
 class ResidencyReport:
-    """One answer about the GPU: is the usual assistant serving, and if not, what is happening."""
+    """One answer about the GPU: whether the usual assistant serves, why not, and notes on it."""
 
     serving: bool
     detail: str
+    notes: tuple[str, ...] = ()
 
 
 def with_note(report: ResidencyReport, note: str) -> ResidencyReport:
     """A serving report that also says ``note``; a report that is not serving is unchanged."""
     if not report.serving:
         return report
-    joined = f"{report.detail}; {note}" if report.detail else note
-    return ResidencyReport(serving=True, detail=joined)
+    return ResidencyReport(serving=True, detail=report.detail, notes=(*report.notes, note))
 
 
 type ResidencyPublisher = Callable[[str | None, ResidencyReport], Awaitable[None]]

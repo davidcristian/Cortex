@@ -46,7 +46,7 @@ export class TauriBridge implements BrainBridge {
     };
   }
 
-  // The Rust command never rejects: an unreachable brain comes back as `{ state: "down", detail }`.
+  // The Rust command never rejects: an unreachable brain comes back as `{ state: "down", detail, notes: [] }`.
   checkLink(): Promise<LinkStatus> {
     return invoke<LinkStatus>("check_link");
   }

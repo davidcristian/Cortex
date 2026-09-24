@@ -10,6 +10,7 @@ use serde::Serialize;
 pub struct WireLink {
     state: &'static str,
     detail: String,
+    notes: Vec<String>,
 }
 
 impl From<LinkStatus> for WireLink {
@@ -17,6 +18,7 @@ impl From<LinkStatus> for WireLink {
         Self {
             state: status.state.as_str(),
             detail: status.detail,
+            notes: status.notes,
         }
     }
 }
@@ -29,6 +31,7 @@ pub async fn check_link() -> WireLink {
         Err(error) => WireLink {
             state: LinkState::Down.as_str(),
             detail: error,
+            notes: Vec::new(),
         },
     }
 }

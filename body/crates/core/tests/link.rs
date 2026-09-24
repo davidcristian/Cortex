@@ -46,10 +46,12 @@ impl BrainTransport for ScriptedTransport {
             Script::Ready(detail) => Ok(RpcHealth {
                 ready: true,
                 detail: String::from(detail),
+                notes: Vec::new(),
             }),
             Script::NotReady(detail) => Ok(RpcHealth {
                 ready: false,
                 detail: String::from(detail),
+                notes: Vec::new(),
             }),
             Script::Connection(message) => Err(TransportError::Connection(String::from(message))),
             Script::Rpc(code, message) => Err(TransportError::Rpc {
@@ -149,6 +151,7 @@ async fn a_ready_brain_probes_ready_and_keeps_its_own_detail() {
         LinkStatus {
             state: LinkState::Ready,
             detail: String::from("cortex-orchestrator 0.1.0"),
+            notes: Vec::new(),
         }
     );
     assert_eq!(health_calls, 1);
@@ -163,6 +166,7 @@ async fn a_brain_that_reports_itself_not_ready_is_degraded_not_down() {
         LinkStatus {
             state: LinkState::Degraded,
             detail: String::from("loading the brain-tier model"),
+            notes: Vec::new(),
         }
     );
 }
@@ -175,6 +179,7 @@ async fn an_unreachable_brain_probes_down_with_the_dial_failure() {
         LinkStatus {
             state: LinkState::Down,
             detail: String::from("tcp connect error: refused"),
+            notes: Vec::new(),
         }
     );
 }
@@ -187,6 +192,7 @@ async fn a_non_ok_status_is_degraded_because_the_brain_answered_it() {
         LinkStatus {
             state: LinkState::Degraded,
             detail: String::from("Unauthenticated: invalid seam token"),
+            notes: Vec::new(),
         }
     );
 }
@@ -199,6 +205,7 @@ async fn an_unreadable_reply_is_degraded_and_says_so() {
         LinkStatus {
             state: LinkState::Degraded,
             detail: String::from("unreadable reply: empty event"),
+            notes: Vec::new(),
         }
     );
 }
@@ -211,8 +218,21 @@ async fn a_probe_that_ran_out_of_time_is_down_and_names_the_deadline() {
         LinkStatus {
             state: LinkState::Down,
             detail: String::from("no reply within 250ms"),
+            notes: Vec::new(),
         }
     );
+}
+
+#[test]
+fn a_ready_reply_keeps_each_note_in_order() {
+    let health = RpcHealth {
+        ready: true,
+        detail: String::from("first; second"),
+        notes: vec![String::from("first"), String::from("second")],
+    };
+    let status = LinkStatus::from_health(&health);
+    assert_eq!(status.state, LinkState::Ready);
+    assert_eq!(status.notes, health.notes);
 }
 
 #[test]
@@ -227,6 +247,7 @@ fn a_status_is_clone_eq_and_debug() {
     let status = LinkStatus {
         state: LinkState::Degraded,
         detail: String::from("why"),
+        notes: Vec::new(),
     };
     let copy = status.clone();
     assert_eq!(copy, status);
@@ -235,11 +256,12 @@ fn a_status_is_clone_eq_and_debug() {
         LinkStatus {
             state: LinkState::Down,
             detail: String::from("why"),
+            notes: Vec::new(),
         }
     );
     assert_eq!(
         format!("{status:?}"),
-        "LinkStatus { state: Degraded, detail: \"why\" }"
+        "LinkStatus { state: Degraded, detail: \"why\", notes: [] }"
     );
     assert_eq!(format!("{:?}", LinkState::Ready), "Ready");
 }

@@ -98,7 +98,7 @@ describe("DemoBridge, the scripted hooks", () => {
   });
 
   /** Resolve a probe, which the demo delays so the checking pulse is visible by hand. */
-  async function probe(bridge: DemoBridge): Promise<{ state: string; detail: string }> {
+  async function probe(bridge: DemoBridge): Promise<{ state: string; detail: string; notes: readonly string[] }> {
     const pending = bridge.checkLink();
     await vi.advanceTimersByTimeAsync(1000);
     return pending;
@@ -107,16 +107,16 @@ describe("DemoBridge, the scripted hooks", () => {
   it("scripts an outage a prompt asks for, and recovers from it on its own", async () => {
     const bridge = new DemoBridge();
     speak(bridge, "pretend you are offline").cancel();
-    expect(await probe(bridge)).toEqual({ state: "down", detail: script.DOWN_DETAIL });
+    expect(await probe(bridge)).toEqual({ state: "down", detail: script.DOWN_DETAIL, notes: [] });
     await vi.advanceTimersByTimeAsync(script.OUTAGE_MS);
-    expect(await probe(bridge)).toEqual({ state: "ready", detail: script.READY_DETAIL });
+    expect(await probe(bridge)).toEqual({ state: "ready", detail: script.READY_DETAIL, notes: [] });
   });
 
   it("scripts a degraded brain too, and a probe before the outage ends still reports it", async () => {
     const bridge = new DemoBridge();
     speak(bridge, "pretend you are degraded").cancel();
-    expect(await probe(bridge)).toEqual({ state: "degraded", detail: script.DEGRADED_DETAIL });
-    expect(await probe(bridge)).toEqual({ state: "degraded", detail: script.DEGRADED_DETAIL });
+    expect(await probe(bridge)).toEqual({ state: "degraded", detail: script.DEGRADED_DETAIL, notes: [] });
+    expect(await probe(bridge)).toEqual({ state: "degraded", detail: script.DEGRADED_DETAIL, notes: [] });
   });
 
   /** The gap between the activity and its outcome, long enough by hand to watch the ring change. */

@@ -145,12 +145,20 @@ class HealthRequest(_message.Message):
     def __init__(self) -> None: ...
 
 class HealthReply(_message.Message):
-    __slots__ = ("ready", "detail")
+    __slots__ = ("ready", "detail", "notes")
     READY_FIELD_NUMBER: _ClassVar[int]
     DETAIL_FIELD_NUMBER: _ClassVar[int]
+    NOTES_FIELD_NUMBER: _ClassVar[int]
     ready: bool
     detail: str
-    def __init__(self, ready: _Optional[bool] = ..., detail: _Optional[str] = ...) -> None: ...
+    notes: _containers.RepeatedCompositeFieldContainer[HealthNote]
+    def __init__(self, ready: _Optional[bool] = ..., detail: _Optional[str] = ..., notes: _Optional[_Iterable[_Union[HealthNote, _Mapping]]] = ...) -> None: ...
+
+class HealthNote(_message.Message):
+    __slots__ = ("text",)
+    TEXT_FIELD_NUMBER: _ClassVar[int]
+    text: str
+    def __init__(self, text: _Optional[str] = ...) -> None: ...
 
 class ListSessionsRequest(_message.Message):
     __slots__ = ("limit",)

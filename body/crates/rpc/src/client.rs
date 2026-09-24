@@ -137,6 +137,7 @@ impl BrainTransport for BrainRpcClient {
         Ok(RpcHealth {
             ready: reply.ready,
             detail: reply.detail,
+            notes: reply.notes.into_iter().map(|note| note.text).collect(),
         })
     }
 

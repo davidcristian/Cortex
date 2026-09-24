@@ -181,6 +181,32 @@ async def test_health_stays_ready_and_names_a_peer_tier_that_did_not_come_back()
             reply = await _health(BrainServiceStub(channel))
         assert reply.ready is True
         assert reply.detail == TIERS_MISSING_DETAIL.format(models="subagent-gpu")
+        assert [note.text for note in reply.notes] == [reply.detail]
+    finally:
+        await server.stop(grace=None)
+
+
+async def test_health_sends_each_serving_note_on_its_own_and_joins_them_for_detail() -> None:
+    host = ScriptedModelHost(
+        running=["cortex", "subagent-gpu"], fail={("start", "subagent-gpu"): "no such device"}
+    )
+    manager = SwappingModelManager(
+        host,
+        {"cortex": "http://llama-cortex:8080", "brain": "http://llama-brain:8081"},
+        ResidencyPlan(cortex_model="cortex", brain_model="brain", evict_models=("subagent-gpu",)),
+        SystemClock(),
+        AsyncioSleeper(),
+    )
+    server, address = await _serving(manager)
+    try:
+        async with manager.swap_scope("brain"):
+            manager.handoff_pace.note_pace(spilled=True)
+        async with aio.insecure_channel(address) as channel:
+            reply = await _health(BrainServiceStub(channel))
+        tiers = TIERS_MISSING_DETAIL.format(models="subagent-gpu")
+        assert reply.ready is True
+        assert [note.text for note in reply.notes] == [tiers, SPILLED_PACE_DETAIL]
+        assert reply.detail == f"{tiers}; {SPILLED_PACE_DETAIL}"
     finally:
         await server.stop(grace=None)
 
@@ -196,6 +222,7 @@ async def test_health_stays_ready_and_says_the_last_deep_task_ran_far_slower_tha
             reply = await _health(BrainServiceStub(channel))
         assert reply.ready is True
         assert reply.detail == SPILLED_PACE_DETAIL
+        assert [note.text for note in reply.notes] == [SPILLED_PACE_DETAIL]
     finally:
         await server.stop(grace=None)
 

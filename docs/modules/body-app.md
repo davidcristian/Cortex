@@ -117,10 +117,10 @@ a not-`ok` outcome changes nothing, and an `ok` outcome for an ask this side nev
 promotes, over-reporting being the safe direction here. Each rung has a fixed accessible label.
 
 **The connection indicator** (`overlay/linkState.ts`, `overlay/useLink.ts`,
-`components/LinkDot.tsx`, ADR-0011 decision 8). `state.link` is a `LinkView { state, detail,
-probing }`, where `state` is the last thing the brain proved (`ready`, `degraded`, `down`, plus the
-overlay's own `unknown`) and `probing` is the overlay's own fact, kept apart so a probe never
-overwrites what was last true, rendered as `{ tone, busy, label }` by `describeLink`. Three
+`components/LinkDot.tsx`, ADR-0011 decision 8). `state.link` is a `LinkView { state, detail, notes,
+probing }`: `state` is the last thing the brain proved (`ready`, `degraded`, `down`, plus the
+overlay's own `unknown`), `probing` is the overlay's own fact so a probe never overwrites what was
+last true, and `describeLink` renders `{ tone, busy, label }`, a ready label a line per note. Three
 sources keep it current and none is a liveness timer: the reducer folds every `TurnEvent` as proof
 of serving and every `transportError` through the same classification `body_core::link` uses;
 `useLink` probes once per summon; and it re-probes every `LINK_RECHECK_MS` (5 s) only while the
@@ -150,9 +150,9 @@ event the overlay listens on; in a plain browser `main.tsx` self-summons instead
   `session_messages(session_id)` return `Vec<WireSummary>` and `Vec<WireMessage>`; `rename_session`,
   `delete_session` and `set_session_hoisted(session_id, hoisted)` map success to `()`. The reads are
   retried with backoff; the writes make one attempt, not being repeatable.
-- **`check_link()`** (`link.rs`) returns `body_core::probe_link`'s answer as `{ state, detail }`. It
-  cannot fail on purpose: an unreachable brain, a bad address and a non-ASCII token are all `down`
-  with the reason, a failed probe being an answer about the brain rather than an error.
+- **`check_link()`** (`link.rs`) returns `body_core::probe_link`'s answer as `{ state, detail,
+  notes }`. It cannot fail on purpose: an unreachable brain, a bad address and a non-ASCII token are
+  all `down` with the reason, a failed probe being an answer about the brain rather than an error.
 - **The reminder commands** (`reminders.rs`, ADR-0025): `list_due_reminders()` returns
   `Vec<WireReminder>`, and `ack_reminder(reminder_id, fired_at_unix_ms)` returns a `bool` that is a
   state report rather than a failure. The list is retried; the ack is not.

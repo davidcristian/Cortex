@@ -120,7 +120,7 @@ async def test_the_rpc_says_which_peer_is_down_while_the_cortex_serves() -> None
         pass
     report = manager.residency()
     assert report.serving is True
-    assert report.detail == TIERS_MISSING_DETAIL.format(models=_TIER)
+    assert report.notes == (TIERS_MISSING_DETAIL.format(models=_TIER),)
 
 
 async def test_an_evicted_tier_is_not_a_missing_one() -> None:
@@ -128,7 +128,7 @@ async def test_an_evicted_tier_is_not_a_missing_one() -> None:
     manager = _manager(host, _placer())
     async with manager.swap_scope("brain"):
         pass
-    assert manager.residency().detail == TIERS_MISSING_DETAIL.format(models=_TIER)
+    assert manager.residency().notes == (TIERS_MISSING_DETAIL.format(models=_TIER),)
     async with manager.swap_scope("brain"):
         assert manager.residency() == RESIDENCY_DEEP
 
@@ -164,7 +164,7 @@ def test_a_deployment_with_no_pool_still_records_which_peer_is_down() -> None:
     assert tiers.placer is None
     tiers.mark_missing(_TIER)
     assert tiers.missing == (_TIER,)
-    assert tiers.note_on(RESIDENCY_SERVING).detail == TIERS_MISSING_DETAIL.format(models=_TIER)
+    assert tiers.note_on(RESIDENCY_SERVING).notes == (TIERS_MISSING_DETAIL.format(models=_TIER),)
     tiers.mark_unhosted(_GHOST)
     assert tiers.missing == (_TIER, _GHOST)
     assert tiers.fault_of(_GHOST) is TierFault.UNHOSTED
@@ -299,7 +299,7 @@ async def test_a_peer_that_accepted_its_start_and_then_died_is_found_by_the_next
     await manager.recheck_residency()
     assert manager.baseline_tiers.missing == (_TIER,)
     assert placer.place(_spawn()).target is PlacementTarget.CPU
-    assert manager.residency().detail == TIERS_MISSING_DETAIL.format(models=_TIER)
+    assert manager.residency().notes == (TIERS_MISSING_DETAIL.format(models=_TIER),)
 
 
 async def test_a_peer_that_died_between_handoffs_is_found_without_any_handoff(

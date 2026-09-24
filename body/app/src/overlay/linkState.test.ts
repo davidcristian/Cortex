@@ -15,10 +15,11 @@ import {
 const view = (over: Partial<LinkView> = {}): LinkView => ({ ...INITIAL_LINK, ...over });
 const ready = view({ state: "ready", detail: "cortex-orchestrator 0.1.0" });
 const down = view({ state: "down", detail: "connection refused" });
+const noted = view({ state: "ready", detail: "slow; down", notes: ["slow", "down"] });
 
 describe("link state", () => {
   it("starts claiming nothing at all", () => {
-    expect(INITIAL_LINK).toEqual({ state: "unknown", detail: "", probing: false });
+    expect(INITIAL_LINK).toEqual({ state: "unknown", detail: "", notes: [], probing: false });
   });
 
   it("a probe in flight keeps the last known state and marks the wait", () => {
@@ -27,11 +28,24 @@ describe("link state", () => {
   });
 
   it("an answered probe replaces both facts", () => {
-    expect(linkObserved({ state: "degraded", detail: "loading" })).toEqual({
+    expect(linkObserved({ state: "degraded", detail: "loading", notes: [] })).toEqual({
       state: "degraded",
       detail: "loading",
+      notes: [],
       probing: false,
     });
+  });
+
+  it("an answered probe keeps each of a ready brain's notes, in order", () => {
+    expect(linkObserved({ state: "ready", detail: "slow; down", notes: ["slow", "down"] })).toEqual(
+      noted,
+    );
+  });
+
+  it("a transport failure drops a ready brain's notes, so a later event cannot show them", () => {
+    const failed = linkFailed(noted, { kind: "connection", message: "refused" });
+    expect(failed.notes).toEqual([]);
+    expect(describeLink(linkServing(failed)).label).toBe("Brain ready");
   });
 
   it("an undelivered probe clears the wait and changes nothing else", () => {
@@ -44,7 +58,7 @@ describe("link state", () => {
   });
 
   it("a streamed event proves serving and drops a stale failure detail", () => {
-    expect(linkServing(down)).toEqual({ state: "ready", detail: "", probing: false });
+    expect(linkServing(down)).toEqual({ state: "ready", detail: "", notes: [], probing: false });
   });
 
   it("a streamed event keeps a detail set while already ready, and the same view with it", () => {
@@ -59,6 +73,7 @@ describe("link state", () => {
     expect(linkFailed(ready, connection)).toEqual({
       state: "down",
       detail: "refused",
+      notes: [],
       probing: false,
     });
     expect(linkFailed(ready, rpc).state).toBe("degraded");
@@ -67,6 +82,7 @@ describe("link state", () => {
     expect(linkFailed(ready, timeout)).toEqual({
       state: "down",
       detail: "no reply within 5s",
+      notes: [],
       probing: false,
     });
   });
@@ -75,6 +91,7 @@ describe("link state", () => {
     expect(linkFailed({ ...ready, probing: true }, { kind: "connection", message: "x" })).toEqual({
       state: "down",
       detail: "x",
+      notes: [],
       probing: true,
     });
   });
@@ -87,6 +104,10 @@ describe("describeLink", () => {
       busy: false,
       label: "Brain ready: cortex-orchestrator 0.1.0",
     });
+  });
+
+  it("gives each note its own line in place of the joined detail", () => {
+    expect(describeLink(noted).label).toBe("Brain ready\nslow\ndown");
   });
 
   it("drops the colon when there is no detail to add", () => {

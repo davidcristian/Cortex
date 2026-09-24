@@ -17,7 +17,7 @@ use body_rpc::generated::brain_service_server::{BrainService, BrainServiceServer
 use body_rpc::generated::{
     AckReminderReply, AckReminderRequest, ClientEvent, DeleteSessionReply, DeleteSessionRequest,
     DueReminder as PbDueReminder, GetPreferencesReply, GetPreferencesRequest,
-    GetSessionMessagesReply, GetSessionMessagesRequest, HealthReply, HealthRequest,
+    GetSessionMessagesReply, GetSessionMessagesRequest, HealthNote, HealthReply, HealthRequest,
     ListDueRemindersReply, ListDueRemindersRequest, ListSessionsReply, ListSessionsRequest,
     Preference, RenameSessionReply, RenameSessionRequest, ServerEvent,
     SessionMessage as PbSessionMessage, SessionSummary as PbSessionSummary, SetPreferenceReply,
@@ -144,6 +144,14 @@ impl BrainService for FakeBrain {
             Script::Ready => Ok(Response::new(HealthReply {
                 ready: true,
                 detail: String::from("fake brain ready"),
+                notes: vec![
+                    HealthNote {
+                        text: String::from("first"),
+                    },
+                    HealthNote {
+                        text: String::from("second"),
+                    },
+                ],
             })),
             Script::Failing => Err(Status::internal("scripted failure")),
             Script::Hanging => std::future::pending().await,
@@ -385,6 +393,7 @@ async fn health_round_trips_through_the_transport_port() {
         RpcHealth {
             ready: true,
             detail: String::from("fake brain ready"),
+            notes: vec![String::from("first"), String::from("second")],
         }
     );
 }

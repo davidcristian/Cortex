@@ -76,9 +76,9 @@ describe("FakeBridge", () => {
 
   it("answers a link status by default, counting the probes", async () => {
     const bridge = new FakeBridge();
-    expect(await bridge.checkLink()).toEqual({ state: "ready", detail: "fake brain" });
-    bridge.link = { state: "down", detail: "refused" };
-    expect(await bridge.checkLink()).toEqual({ state: "down", detail: "refused" });
+    expect(await bridge.checkLink()).toEqual({ state: "ready", detail: "fake brain", notes: [] });
+    bridge.link = { state: "down", detail: "refused", notes: [] };
+    expect(await bridge.checkLink()).toEqual({ state: "down", detail: "refused", notes: [] });
     expect(bridge.linkCalls).toBe(2);
   });
 

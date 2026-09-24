@@ -150,7 +150,7 @@ describe("Panel", () => {
 
   it("ends the header with the connection indicator, reading the state it was given", () => {
     renderPanel(
-      { link: { state: "degraded", detail: "store down", probing: false } },
+      { link: { state: "degraded", detail: "store down", notes: [], probing: false } },
       true,
       false,
     );

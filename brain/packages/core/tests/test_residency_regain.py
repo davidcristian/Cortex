@@ -247,7 +247,7 @@ async def test_a_pass_rechecks_the_peers_before_it_republishes_the_resident() ->
     ]
     report = manager.residency()
     assert report.serving is True
-    assert report.detail == TIERS_MISSING_DETAIL.format(models=_TIER)
+    assert report.notes == (TIERS_MISSING_DETAIL.format(models=_TIER),)
     await manager.recheck_residency()
     assert manager.residency() == RESIDENCY_SERVING
 

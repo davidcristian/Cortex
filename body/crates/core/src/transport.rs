@@ -18,6 +18,8 @@ pub struct RpcHealth {
     pub ready: bool,
     /// Human-readable status detail for the overlay (e.g. which model is up).
     pub detail: String,
+    /// The serving notes `detail` joins, one fact each, for a client that shows a line per fact.
+    pub notes: Vec<String>,
 }
 
 /// Why a call to the brain failed.

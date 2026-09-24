@@ -78,6 +78,7 @@ impl BrainTransport for FlakyTransport {
         Ok(RpcHealth {
             ready: true,
             detail: String::from("ok"),
+            notes: Vec::new(),
         })
     }
 

@@ -40,7 +40,8 @@ Two areas of this crate have documents of their own:
 
 ## The brain transport
 
-- `RpcHealth` is the result of a `BrainService.Health` probe: `ready: bool` and `detail: String`.
+- `RpcHealth` is the result of a `BrainService.Health` probe: `ready: bool`, `detail: String` and
+  `notes: Vec<String>`, a ready brain's notes one fact each, which `detail` joins into one line.
 - `TransportError` (thiserror) is `Connection(String)` (the brain is unreachable: a bad address, a
   refused connection, a transport failure), `Rpc { code: String, message: String }` (it was reached
   and the RPC returned a non-OK gRPC status, `code` being the status-code name), `Protocol(String)`
@@ -127,9 +128,10 @@ because what a failure proves is domain logic.
 - `LinkState` is `Ready | Degraded | Down`, with `as_str()` giving the stable names the overlay's
   own `LinkState` union uses. **`Degraded` means the brain answered and is not serving**; only
   `Down` means nothing answered. The overlay adds its own `unknown` for "not asked yet".
-- `LinkStatus { state, detail }` is one classified answer, `detail` being display-only text that is
-  never parsed and is rendered inert. `from_health(&RpcHealth)` maps `ready` to `Ready` and
-  anything else to `Degraded` with the brain's own detail. `from_error(&TransportError)` maps
+- `LinkStatus { state, detail, notes }` is one classified answer, `detail` and `notes` being
+  display-only text that is never parsed and is rendered inert. `from_health(&RpcHealth)` maps
+  `ready` to `Ready` and anything else to `Degraded` with the brain's own detail and notes. Every
+  `from_error` answer has no notes. `from_error(&TransportError)` maps
   `Connection` to `Down` with the dial failure, `Rpc { code, message }` to `Degraded` as
   `"{code}: {message}"`, `Protocol` to `Degraded` as `"unreadable reply: …"`, and
   `Timeout { after }` to `Down` as `"no reply within …"`, because `Degraded` means the brain

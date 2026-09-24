@@ -55,7 +55,8 @@ value reaches an interceptor that is otherwise built once per connection.
 
 `impl BrainTransport` maps each method onto its RPC:
 
-- `health()` calls `BrainService.Health`; an Ok reply maps to `RpcHealth { ready, detail }`. A
+- `health()` calls `BrainService.Health`; an Ok reply maps to `RpcHealth { ready, detail, notes }`,
+  each `HealthNote` becoming its sentence. A
   non-OK status splits by origin: one tonic *synthesized* from a client-local transport failure,
   detected by a `tonic::transport::Error` on the status's `source()` chain, maps to
   `TransportError::Connection`, and one the brain really sent maps to

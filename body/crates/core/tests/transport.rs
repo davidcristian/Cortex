@@ -176,6 +176,7 @@ async fn fake_transport_reports_health_through_the_generic_bound() {
         script: Ok(RpcHealth {
             ready: true,
             detail: String::from("fake brain ready"),
+            notes: Vec::new(),
         }),
     };
     let health = assert_send(probe(&fake)).await.unwrap();
@@ -221,6 +222,7 @@ async fn fake_transport_streams_a_converse_turn_through_the_generic_bound() {
         script: Ok(RpcHealth {
             ready: true,
             detail: String::from("unused"),
+            notes: Vec::new(),
         }),
     };
     let events = converse_probe(&fake, "sess-1", "hello").await;
@@ -318,16 +320,19 @@ fn rpc_health_is_clone_eq_and_debug() {
     let ready = RpcHealth {
         ready: true,
         detail: String::from("cortex loaded"),
+        notes: Vec::new(),
     };
     let cloned = ready.clone();
     assert_eq!(cloned, ready);
     let not_ready = RpcHealth {
         ready: false,
         detail: String::from("cortex loaded"),
+        notes: Vec::new(),
     };
     let other_detail = RpcHealth {
         ready: true,
         detail: String::from("model loading"),
+        notes: Vec::new(),
     };
     assert_ne!(ready, not_ready);
     assert_ne!(ready, other_detail);
@@ -438,6 +443,7 @@ async fn fake_transport_lists_sessions_through_the_generic_bound() {
         script: Ok(RpcHealth {
             ready: true,
             detail: String::new(),
+            notes: Vec::new(),
         }),
     };
     let sessions = assert_send(probe(&fake, 3)).await;
@@ -455,6 +461,7 @@ async fn fake_transport_reads_session_messages_through_the_generic_bound() {
         script: Ok(RpcHealth {
             ready: true,
             detail: String::new(),
+            notes: Vec::new(),
         }),
     };
     let messages = assert_send(probe(&fake, "chat-7")).await;
@@ -477,6 +484,7 @@ async fn fake_transport_pulls_and_acks_reminders_through_the_generic_bound() {
         script: Ok(RpcHealth {
             ready: true,
             detail: String::new(),
+            notes: Vec::new(),
         }),
     };
     let due = assert_send(pull(&fake)).await;
@@ -509,6 +517,7 @@ async fn fake_transport_renames_a_session_through_the_generic_bound() {
         script: Ok(RpcHealth {
             ready: true,
             detail: String::new(),
+            notes: Vec::new(),
         }),
     };
     assert!(
@@ -535,6 +544,7 @@ async fn fake_transport_deletes_a_session_through_the_generic_bound() {
         script: Ok(RpcHealth {
             ready: true,
             detail: String::new(),
+            notes: Vec::new(),
         }),
     };
     assert!(assert_send(delete(&fake, "s1")).await.is_ok());
@@ -560,6 +570,7 @@ async fn fake_transport_sets_the_hoist_through_the_generic_bound() {
         script: Ok(RpcHealth {
             ready: true,
             detail: String::new(),
+            notes: Vec::new(),
         }),
     };
     assert!(assert_send(set_hoisted(&fake, "s1", true)).await.is_ok());

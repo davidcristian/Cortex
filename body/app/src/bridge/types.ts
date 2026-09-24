@@ -85,6 +85,8 @@ export type LinkState = "ready" | "degraded" | "down";
 export interface LinkStatus {
   readonly state: LinkState;
   readonly detail: string;
+  /** A ready brain's notes, one fact each; `detail` joins the same notes into one line. */
+  readonly notes: readonly string[];
 }
 
 /** One stored setting (mirror of the proto `Preference`). Values are opaque strings that the

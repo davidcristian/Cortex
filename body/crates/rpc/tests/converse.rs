@@ -249,6 +249,7 @@ impl BrainService for FakeBrain {
         Ok(Response::new(HealthReply {
             ready: true,
             detail: String::from("fake brain ready"),
+            notes: Vec::new(),
         }))
     }
 
