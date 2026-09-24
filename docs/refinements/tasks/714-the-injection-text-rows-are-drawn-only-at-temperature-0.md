@@ -65,8 +65,8 @@ printed marks) and while the four other first repetitions ran as pricing probes,
 than their rows' (`probe-*.log` beside the run). Each row's first-repetition control replies must
 equal its probe's byte for byte; a difference refutes the byte identity above, and no count of
 that row is read until it is explained. Priced from those probes at the sampler, 20 draws after the
-load: 118 s (0.8B), 167 s (E2B), 175 s (the pick), 219 s (2B) and about 530 s (4B, projected from
-its first 9 draws), so the longest lane is about 5300 s against a deadline of 07:15.
+load: 118 s (0.8B), 167 s (E2B), 175 s (the pick), 219 s (2B) and 435 s (4B), so the longest
+lane is about 4400 s against a deadline of 07:15.
 
 ## History
 
