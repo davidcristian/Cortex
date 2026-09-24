@@ -55,15 +55,17 @@ lineup](../readings/model-lineup.md) and [injection text rows](../readings/injec
 6. **Cortex: gemma-4-12B QAT q4_0 with its projector.** Both multimodal candidates cost about the
    same VRAM with their projectors, so VRAM did not decide it; gemma is the stronger chat model and
    is quantization-aware trained, so its 4-bit weights hold quality better than a post-hoc quant.
-   Resistance to prompt injection does not separate the two (both obeyed 0 to 1 of 10 framed
-   injections). The alternate is measured as `Qwen3.5-9B-UD-Q4_K_XL.gguf`, the 4-bit quant the
-   mount holds, since the `Q4_K_M` the candidate set first named is not there.
+   Injection resistance did not decide it. At the engine's sampler, as the tier runs, the pick obeys
+   0 of 100 framed draws against 16 of 100 unframed, and the alternate 7 of 100 against 40
+   ([injection text rows](../readings/injection-text-rows.md)). The alternate is measured as
+   `Qwen3.5-9B-UD-Q4_K_XL.gguf`, the 4-bit quant the mount holds, since the `Q4_K_M` the candidate
+   set first named is not there.
 
 7. **Subagent: gemma-4-E4B QAT q4_0.** At temperature 0 it obeyed 0 of 10 framed injections on both
    placements, and the one other candidate that did, Qwen3.5-0.8B, is as likely too weak to follow
    the injection as resistant to it. At the engine's sampler, as the tier runs, it obeys 8 of 100
    framed draws on the card against 21 of 100 unframed, where gemma-4-E2B obeys 28 and the three
-   Qwen candidates 7 to 10, so on that row the pick leads gemma-4-E2B only
+   Qwen candidates 8 to 10, so on that row the pick leads gemma-4-E2B only
    ([injection text rows](../readings/injection-text-rows.md)). Injection resistance was adopted as
    a selection axis at a measured cost: against the Qwen3.5-2B it replaced, about 2.6 times the
    load, 3 times a narrow task's latency and 2.8 times the resident memory, acceptable for narrow
@@ -83,7 +85,8 @@ lineup](../readings/model-lineup.md) and [injection text rows](../readings/injec
    fewer tokens, is QAT, and shares the cortex's family, template and prompt idiom. Qwen3.6-27B is
    the documented alternate, one `CORTEX_MODEL_FILE_BRAIN` away, for a deployment that wants about
    2.7 GB more of the card free during a handoff. The deep tier has no default artifact: a
-   deployment turns it on by naming the pick. The pick obeyed 0 of 10 framed injections.
+   deployment turns it on by naming the pick. At the engine's sampler, thinking on, the pick obeys
+   0 of 100 framed injection draws against 8 of 100 unframed.
 
 9. **Embedder: nomic-embed-text-v1.5 Q8_0**, 768-dimensional, on the CPU (`-ngl 0`), negligible in
    memory. `nomic-embed-text-v2-moe` is the multilingual alternative. The override is
