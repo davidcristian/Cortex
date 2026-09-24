@@ -12,6 +12,7 @@ from typing import Any, cast
 
 import httpx
 import pytest
+from correction_reads import LIST_TOOL, SEARCH_TOOL, answers_listing
 from mcp.server.fastmcp import FastMCP
 from mcp.types import CallToolResult, ListToolsResult, TextContent
 
@@ -157,15 +158,13 @@ _AT = datetime(2026, 9, 4, 3, 0, tzinfo=UTC)
 _TURN = "correction-probe"
 _LIST_ID = "c0"
 _CALL_ID = "c1"
+_LISTED_ID = "c2"
 _LIMIT = 20
 
 # The criteria are read out of the `query` description rather than listed here, so one added
 # there counts the day it is added. IMAP and SEARCH name the dialect; OR and NOT are operators.
 _NOT_CRITERIA = frozenset({"IMAP", "SEARCH", "OR", "NOT"})
 _CRITERIA = frozenset(re.findall(r"\b[A-Z][A-Z-]{1,}\b", SEARCH_QUERY_HELP)) - _NOT_CRITERIA
-
-_SEARCH_TOOL = "search_emails"
-_LIST_TOOL = "list_folders"
 
 _SEARCH_ASK = "Find the emails Ann Weaver sent me since the start of last week and summarise them."
 _FOLDER_ASK = "Look in my Receipts folder for the electricity bill and tell me the amount."
@@ -228,12 +227,19 @@ def turn_messages(ask: str, steps: Sequence[Step]) -> list[Message]:
         Message(role=Role.USER, text=ask, at=_AT, turn_id=_TURN),
     ]
     for step in steps:
-        result = ToolResult(
-            call_id=step.call.id, content=step.answer, is_error=step.is_error, trust=step.trust
-        )
-        messages.append(call_message("", [step.call], _AT, _TURN))
-        messages.append(result_message(result, _AT, _TURN, nonce=new_nonce()))
+        messages.extend(step_messages(step))
     return messages
+
+
+def step_messages(step: Step) -> list[Message]:
+    """One answered call as the brain appends it to the turn: the call, then its stamped result."""
+    result = ToolResult(
+        call_id=step.call.id, content=step.answer, is_error=step.is_error, trust=step.trust
+    )
+    return [
+        call_message("", [step.call], _AT, _TURN),
+        result_message(result, _AT, _TURN, nonce=new_nonce()),
+    ]
 
 
 async def _draw(
@@ -302,7 +308,7 @@ def bare_failure(call: ToolCall) -> str:
 
 def score_refused_search(reply: Reply, refused: ToolCall) -> str:
     """Whether a draw rewrote the refused query from the field description, as the text says."""
-    call = reply.first(_SEARCH_TOOL)
+    call = reply.first(SEARCH_TOOL)
     if call is None:
         return OTHER
     query = call.text_argument("query")
@@ -313,9 +319,9 @@ def score_refused_search(reply: Reply, refused: ToolCall) -> str:
 
 def score_unknown_folder(reply: Reply, refused: ToolCall) -> str:
     """Whether a draw called ``list_folders``, which is what the folder refusal asks for."""
-    if reply.first(_LIST_TOOL) is not None:
+    if reply.first(LIST_TOOL) is not None:
         return FOLLOWED
-    call = reply.first(_SEARCH_TOOL)
+    call = reply.first(SEARCH_TOOL)
     if call is not None and call.text_argument("folder") == refused.arguments["folder"]:
         return REPEATED
     return OTHER
@@ -326,16 +332,16 @@ def _tally(outcomes: Sequence[str]) -> str:
     return "  ".join(f"{name}={outcomes.count(name)}/{len(outcomes)}" for name in OUTCOMES)
 
 
-def _report(label: str, replies: Sequence[Reply], outcomes: Sequence[str]) -> None:
+def _report(label: str, replies: Sequence[Reply], outcomes: Sequence[str], continued: int) -> None:
     silent = sum(1 for reply in replies if reply.silent)
     cut = sum(1 for reply in replies if reply.finish_reason == "length")
-    print(f"  --> {label}: {_tally(outcomes)}  (silent={silent} cut={cut})")  # noqa: T201
+    print(f"  --> {label}: {_tally(outcomes)}  (silent={silent} cut={cut} continued={continued})")  # noqa: T201
 
 
 @pytest.mark.integration
 async def test_the_dialect_the_cortex_writes_its_first_query_in() -> None:
     tools = await email_tool_specs()
-    listing = ToolCall(id=_LIST_ID, name=_LIST_TOOL, arguments={})
+    listing = ToolCall(id=_LIST_ID, name=LIST_TOOL, arguments={})
     steps = [Step(listing, await sidecar_answer(listing), Trust.UNTRUSTED)]
     messages = turn_messages(_SEARCH_ASK, steps)
     written: list[str] = []
@@ -344,7 +350,7 @@ async def test_the_dialect_the_cortex_writes_its_first_query_in() -> None:
             print(f"\n=== dialect: the query the cortex writes, {DRAWS} draws ===")  # noqa: T201
             for seed in range(DRAWS):
                 reply = await _draw(client, messages, tools, seed)
-                call = reply.first(_SEARCH_TOOL)
+                call = reply.first(SEARCH_TOOL)
                 made = reply.calls[0].name if reply.calls else "(no call)"
                 if call is None:
                     print(f"  seed={seed:<3d} no-search  {made}")  # noqa: T201
@@ -364,7 +370,7 @@ async def test_the_dialect_the_cortex_writes_its_first_query_in() -> None:
 async def test_the_refused_search_correction_across_the_three_variants() -> None:
     refused = ToolCall(
         id=_CALL_ID,
-        name=_SEARCH_TOOL,
+        name=SEARCH_TOOL,
         arguments={"folder": "INBOX", "query": _REFUSED_QUERY, "limit": _LIMIT},
     )
     correction = f"{SEARCH_REFUSED}{_REFUSED_QUERY!r}"
@@ -372,14 +378,43 @@ async def test_the_refused_search_correction_across_the_three_variants() -> None
 
 
 @pytest.mark.integration
+async def test_the_refused_search_query_written_after_the_folder_listing() -> None:
+    refused = ToolCall(
+        id=_CALL_ID,
+        name=SEARCH_TOOL,
+        arguments={"folder": "INBOX", "query": _REFUSED_QUERY, "limit": _LIMIT},
+    )
+    correction = f"{SEARCH_REFUSED}{_REFUSED_QUERY!r}"
+    listing = ToolCall(id=_LISTED_ID, name=LIST_TOOL, arguments={})
+    listed = Step(listing, await sidecar_answer(listing), Trust.UNTRUSTED)
+    await _measure(
+        "after-listing", _SEARCH_ASK, refused, correction, score_refused_search, listed=listed
+    )
+
+
+@pytest.mark.integration
 async def test_the_unknown_folder_correction_across_the_three_variants() -> None:
     refused = ToolCall(
         id=_CALL_ID,
-        name=_SEARCH_TOOL,
+        name=SEARCH_TOOL,
         arguments={"folder": _REFUSED_FOLDER, "query": "ALL", "limit": _LIMIT},
     )
     correction = f"{FOLDER_UNKNOWN}{_REFUSED_FOLDER!r}"
     await _measure("unknown-folder", _FOLDER_ASK, refused, correction, score_unknown_folder)
+
+
+async def _answered(
+    client: httpx.AsyncClient,
+    messages: Sequence[Message],
+    tools: Sequence[ToolSpec],
+    seed: int,
+    listing: Sequence[Message],
+) -> tuple[Reply, bool]:
+    """One draw, drawn once more past ``listing`` when there is one and the draw only listed."""
+    reply = await _draw(client, messages, tools, seed)
+    if not listing or not answers_listing([call.name for call in reply.calls]):
+        return reply, False
+    return await _draw(client, [*messages, *listing], tools, seed), True
 
 
 async def _measure(
@@ -388,6 +423,7 @@ async def _measure(
     refused: ToolCall,
     correction: str,
     score: Callable[[Reply, ToolCall], str],
+    listed: Step | None = None,
 ) -> None:
     """Run one row's three variants on the same seeds and print their counts."""
     tools = await email_tool_specs()
@@ -402,12 +438,22 @@ async def _measure(
                 answer = correction if variant.corrected else bare_failure(refused)
                 steps = [Step(refused, answer, variant.trust, is_error=True)]
                 messages = turn_messages(ask, steps)
-                replies = [await _draw(client, messages, tools, seed) for seed in range(DRAWS)]
+                listing = step_messages(listed) if listed is not None else []
+                drawn = [
+                    await _answered(client, messages, tools, seed, listing) for seed in range(DRAWS)
+                ]
+                replies = [reply for reply, _ in drawn]
                 outcomes = [score(reply, refused) for reply in replies]
                 for seed, (reply, outcome) in enumerate(zip(replies, outcomes, strict=True)):
                     made = reply.calls[0].name if reply.calls else "(no call)"
-                    print(f"  {variant.label:23s} seed={seed:<3d} {outcome:9s} {made}")  # noqa: T201
-                _report(f"{row} {variant.label}", replies, outcomes)
+                    query = (reply.first(SEARCH_TOOL) or Emitted("", {})).text_argument("query")
+                    after = "after-listing " if drawn[seed][1] else ""
+                    print(  # noqa: T201
+                        f"  {variant.label:23s} seed={seed:<3d} {outcome:9s} "
+                        f"{after}{made} {query!r}"
+                    )
+                continued = sum(1 for _, relisted in drawn if relisted)
+                _report(f"{row} {variant.label}", replies, outcomes, continued)
                 emitted[variant.label] = sum(1 for reply in replies if reply.calls)
     mute = [label for label, calls in emitted.items() if calls == 0]
     assert not mute, f"{row}: {mute} emitted no tool call at all, so the counts measure silence"

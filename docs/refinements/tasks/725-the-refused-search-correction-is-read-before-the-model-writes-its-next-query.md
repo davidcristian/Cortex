@@ -21,6 +21,21 @@ depth, the deciding count and a Fisher rule fixed in this file before the card r
 unfenced variant then reads above the bare failure, decision 10 of ADR-0013 names the correction as
 a reason again.
 
+**Pre-registered 2026-09-24.** `test_the_refused_search_query_written_after_the_folder_listing`
+in the same file draws the refused-search turn on seeds 0 to 19 in each of the three variants, one
+pytest process and one load, with the cortex flags as shipped and the prompt cache on as the file
+leaves it. A draw whose calls include `list_folders` and no `search_emails` is drawn once more on
+the same seed, with that call answered by the sidecar's own listing, stamped untrusted as the
+dialect row stamps it (`answers_listing` in `correction_reads.py`); every other draw is scored as
+it is. `score_refused_search` scores the reply that results, so a second listing scores `other`.
+The deciding count is the harness's `followed`, unfenced against bare: the unfenced variant reads
+above the bare failure when a two-sided Fisher exact test on the twenty draws each reads p below
+0.05. Against a bare count of 12 that needs 19 or more, and at a bare count of 16 or more no
+unfenced count can read above it. Every scored query is read by hand, and the count that keeps the
+sender as a `FROM` criterion is reported beside the harness's without deciding. Predicted, with a
+90% range: unfenced 17 (12 to 20), fenced 16 (11 to 20), bare 13 (7 to 18), not apart; draws
+continued past the listing 18, 14 and 18 (each within 3).
+
 ## History
 
 - 2026-09-24: opened by

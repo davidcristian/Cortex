@@ -225,12 +225,12 @@ cd brain && CORTEX_MODELS_DIR=<the host dir holding the GGUFs> \
 ```
 
 The first measures whether the model acts on the sidecar's refusals, which the own-text overlay
-re-stamps as trusted so they reach the model unfenced. Three rows in `cortex-correction-probe`,
-selectable with `-k`: `dialect` for the query the cortex writes with no refusal in the turn, and
-one row per correction. A correction row runs three conditions of twenty draws on the same twenty
-seeds: the refusal trusted (what ships), the same sentence fenced (the control), and the adapter's
-bare `MCP tool ... failed` (the baseline). A row takes one to four minutes. Re-run it on a cortex
-model change or a rewording of `SEARCH_REFUSED` or `FOLDER_UNKNOWN`.
+re-stamps as trusted so they reach the model unfenced. Four rows in `cortex-correction-probe`, for
+`-k`: `dialect`, the query written with no refusal in the turn; one row per correction; and
+`after_the_folder_listing`, the refused search with a lone `list_folders` call answered by the
+sidecar's listing and the next draw's query scored. A correction row draws twenty seeds with the
+refusal trusted (what ships), fenced (the control) and as the bare `MCP tool ... failed` (the
+baseline). Re-run it on a cortex model change or when `SEARCH_REFUSED` or `FOLDER_UNKNOWN` changes.
 
 The second measures what the model does with a uid, the one argument it cannot look up: a uid
 comes off a `search_emails` line, and `UID_HELP` and `NOT_FOUND` are the two sentences that say
