@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-09-17
+**Verified:** 2026-09-24
 **Trigger:** either ladder assertion in `body/crates/core/tests/capture_bytes.rs` failing: the four
 realistic frames on a 4K display, or the same grainy photograph on the three display sizes the
 second one draws it at, no longer fitting inside `MAX_CAPTURE_BYTES` (6291456, in
@@ -12,9 +12,10 @@ default) at the test's `BRAIN_EDGE` (2048, which crosscheck compares against the
 `CORTEX_BODY_CAPTURE_MAX_EDGE` default). Both assertions are ignored tests that `just check` never
 runs, so the reading is the hand run
 `cargo test -p body-core --test capture_bytes --release -- --ignored --nocapture` from `body/`.
-The frames are synthetic and seeded, so only those two numbers, the downscaler, or the `png`
-encoder crate can move the result. A deployment that lowers either setting in its own environment
-is not measured by the test.
+The frames are synthetic and seeded, so only those two numbers, the downscaler (`downscale` in
+`body/crates/core/src/os/screen_image.rs`), or the `png` encoder crate (its version in
+`body/Cargo.lock`) can move the result. A deployment that lowers either setting in its own
+environment is not measured by the test.
 
 JPEG q80 is roughly a quarter of PNG's bytes on incompressible content (0.97 MB against 4.33 MB at
 1600x900). It is a body-side change behind an unchanged interface: `ImageBlob.mime_type` already
@@ -58,3 +59,9 @@ ratio between the display and the requested edge: the same heavy-grain photograp
   4669961 B (74%) on 4K, 4500808 B (71%) on 1920x1080. No commit since 2026-09-09 touched
   `capture_bytes.rs` or `screen_policy.rs`. The trigger now says both assertions are ignored tests,
   so a green `just check` says nothing about it.
+- 2026-09-24: Re-run, not triggered. The hand run passed all four tests and printed the same bytes
+  as on 2026-09-17: 5016491 B (79%) on 2560x1440, 4669961 B (74%) on 4K and 4500808 B (71%) on
+  1920x1080. Since then `screen_policy.rs` gained the capture's `target_width` and `target_height`,
+  which describe the captured region and change no encoded byte, and `capture_bytes.rs` renamed one
+  local. `screen_image.rs` and `body/Cargo.lock` have no commit since 2026-09-17, and the trigger
+  now names both, so the downscaler and the encoder version are each one reading.

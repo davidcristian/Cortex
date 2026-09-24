@@ -7,9 +7,9 @@
 panel, a width read from the appearance record, or a layout that gives the log a width of its own.
 In the tree that reads as the `.panel` rule's `width: min(560px, 92vw)` in
 `body/app/src/overlay.css` changing, or as a script writing a width to anything but a whisper bubble
-or its text: `grep -rn 'style.width' body/app/src --exclude='*.test.*'` finds four writes today, all
-in `whisper/useWhisperClock.ts`.
-**Verified:** 2026-09-17
+or its text. This search finds four writes today, all in `whisper/useWhisperClock.ts`:
+`grep -rnE 'style\.(max|min)?[wW]idth|setProperty\("(max-|min-)?width"' body/app/src --exclude='*.test.*'`.
+**Verified:** 2026-09-24
 
 The whisper re-measures its wrap width and re-lays the letter DOM when the width changes. It
 listens for the window's own `resize` event (`whisper/metrics.ts`, `watchWrap`), which is a
@@ -53,3 +53,10 @@ with one caller.
   no width (`panelPlacement.ts`, `panelGeometry.ts`, `panelMemory.ts` and `usePanelMotion.ts` never
   mention `width`), so none of the three can move the wrap. The preferences record still has no
   width. The 16 tests in `useWhisperClock.test.ts` pass.
+- 2026-09-24: Read against the tree and not fired, and the script reading widened. `.panel` is
+  still `width: min(560px, 92vw)` (`overlay.css` line 135), `watchWrap` in `whisper/metrics.ts`
+  still listens to the window's `resize` alone, and the preferences record has no width. The old
+  search, `style.width`, missed a `maxWidth` or `minWidth` write and a `setProperty("width", ...)`,
+  so the trigger now reads all three forms; it finds the same four writes. The 2026-09-17 list of
+  placement files left out `panelEdge.ts` and `panelRoll.ts`, both renamed since, and neither
+  mentions `width`. The 16 tests in `useWhisperClock.test.ts` pass.

@@ -3,8 +3,8 @@
 **Status:** open, waiting for its trigger
 **Area:** memory
 **Origin:** [ADR-0038](../../adr/ADR-0038-ranked-recall.md)
-**Trigger:** a judge quality reading taken over memories nobody wrote for the measurement (neither the ten notes inline in `test_rerank_judge_live.py` nor the 41 in `recall_corpus.py`), in which the judge drops an answerable note the cosine kept or ranks worse than it; or a first-token or whole-turn latency budget written into an ADR decision or a config bound that the recorded rank cost of 0.877 s, or its +0.515 s on the first token, exceeds. Neither exists in the tree today. The first needs a deployed store's memories, which live in its Postgres volume, so it can enter the tree only as a recorded result. Both depend on `CORTEX_MEMORY_BACKEND` naming a store and `CORTEX_MEMORY_RECALL=judge`, and the cost on `CORTEX_MEMORY_RECALL_POOL_FACTOR` and `DEFAULT_RECALL_K`.
-**Verified:** 2026-09-17
+**Trigger:** a judge quality reading taken over memories nobody wrote for the measurement (neither the ten notes inline in `test_rerank_judge_live.py` nor the 41 in `recall_corpus.py`), in which the judge drops an answerable note the cosine kept or ranks worse than it; or a first-token or whole-turn latency budget written into an ADR decision or a config bound that the recorded rank cost of 0.877 s, or its +0.515 s on the first token, exceeds. Both figures are the cortex judge's; the deep phase's judge asks the deep model, and no rank cost is recorded for it. Neither exists in the tree today. The first needs a deployed store's memories, which live in its Postgres volume, so it can enter the tree only as a recorded result. Both depend on `CORTEX_MEMORY_BACKEND` naming a store and `CORTEX_MEMORY_RECALL=judge`, and the cost on `CORTEX_MEMORY_RECALL_POOL_FACTOR` and `DEFAULT_RECALL_K`.
+**Verified:** 2026-09-24
 
 The other form of a model reranker: a model that scores a query and a memory as a pair, rather
 than a chat completion that orders a numbered list. It needs a scoring-model port, so it is a new
@@ -45,3 +45,10 @@ reads the pair rather than measuring an absolute cosine.
   settings they depend on: with the memory backend at its default `none`, or
   `CORTEX_MEMORY_RECALL` set to anything but its default `judge`, the judge never runs and neither
   half can arrive.
+- 2026-09-24: Not fired. The grep for a cross-encoder or scoring model still finds nothing, no
+  ADR decision or setting states a judge latency budget, and no reading has been taken over a
+  deployed store's memories. The earlier line's "no commit touched the `rerank` modules" is no
+  longer true: `rerank.py`, `rerank_judge.py` and `rerank_policies.py` now name the turn on each
+  recall log line, and the two live tests renamed their variants, with no change to what the judge
+  does. One thing moved: the deep phase's judge now asks the deep model (`engines.py`), so the
+  0.877 s rank cost describes the cortex judge only, and the trigger now says so.

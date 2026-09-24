@@ -8,13 +8,13 @@ runs from `body/app/src/overlay/useOverlay.ts` through the shell's `converse` co
 (`body/app/src-tauri/src/converse.rs`), `RetryingTransport` (`body/crates/core/src/retry.rs`) and
 the tonic client (`body/crates/rpc/src/converse.rs`); or that command's read loop awaiting
 anything between two stream items other than the next item. Grepping `.converse(` and
-`BrainServiceStub` outside test files decides the first: on 2026-09-17 the hits are those four
+`BrainServiceStub` outside test files decides the first: on 2026-09-24 the hits are those four
 links, the bridge contract's check list `bridgeContract.ts`, and the `seam` package's re-export of
 the stub. A report of one client stalling another's turn would also fire it and cannot be read
 from the tree. The stall needs a turn that emits more events than `CORTEX_SEAM_CONVERSE_BUFFER`
 (default 256, measured at 1), and it delays only work leasing the same manager, which both
 implementations, `SingleResidentModelManager` and the swap manager, serialize behind one lock.
-**Verified:** 2026-09-17
+**Verified:** 2026-09-24
 
 The reply's lease is held for the adapter generator's whole lifetime, and the credit bound
 ([R-028](028-converse-queue-backpressure.md), `CORTEX_SEAM_CONVERSE_BUFFER`) suspends generation
@@ -64,3 +64,11 @@ rather than a setting.
   `subagent_builders.py` gives every roster entry a `SingleResidentModelManager` of its own. The
   shell does expect a newer turn to start while an older one still streams (`ConfirmRoute` clears
   by generation), and each turn's loop reads its own stream the same way.
+- 2026-09-24: Not fired. The search outside test files finds the same six hits, and the shell's
+  loop still awaits only `stream.next()` (`converse.rs` line 200) and sends each item with
+  `channel.send`, which does not wait. The brain side is unchanged in substance, at new lines:
+  `converse_stream.py` builds the semaphore at line 83 and takes a credit per turn event at line
+  210, and `backend.py` streams inside `async with self._manager.acquire(model)` at line 117. The
+  turn heartbeat added on 2026-09-22 goes out only while the output queue is empty, so it never
+  joins a stalled reader's backlog, and the body's two-minute silence bound ends a stream the brain
+  stopped sending on, not one the body stopped reading. Neither bounds this lease.

@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-09-17
+**Verified:** 2026-09-24
 **Trigger:** a report, written on this entry's history or as a host task, of a sentence a user
 asked the assistant to remember during an opaque turn and could not recall later. The loss needs
 two settings together: memory recorded at all (`CORTEX_MEMORY_BACKEND=pgvector`, which the memory
@@ -41,3 +41,10 @@ here rewrites the decision at both.
   `TaintLedger` in `untrusted.py` sets `opaque` on any untrusted result containing an image, and
   the MCP registry passes image blocks through (`result_images` in `cortex_tools/blocks.py`), so an
   image returned by an MCP tool drops the user's sentence the same way.
+- 2026-09-24: Checked, not triggered: this history and `docs/host/` hold no such report. The
+  settings the trigger names still read as written (`on_tainted` under the `CORTEX_MEMORY_` prefix,
+  `CORTEX_VISION`, and `pgvector` in `docker/docker-compose.memory.yml`). `record_exchange` still
+  returns on `taint.opaque` before it reads `record_tainted_memory`, and `render_exchange` is
+  unchanged. A comment added above that return on 2026-09-17 said a turn that read the screen is
+  never recorded; it now names the MCP image too, matching the correction above. The escalation
+  denial named in the vision decision that night bears on a model swap, not on memory.
