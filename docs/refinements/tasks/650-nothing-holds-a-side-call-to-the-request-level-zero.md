@@ -3,12 +3,12 @@
 **Status:** open, waiting for its trigger
 **Area:** inference
 **Origin:** [ADR-0049](../../adr/ADR-0049-thinking-switch-and-trace-budget.md)
-**Verified:** 2026-09-17
+**Verified:** 2026-09-24
 **Trigger:** a `GenerationBounds` call in `brain/packages/*/src` that writes `thinking=False` and no
 `trace_tokens`, read with `grep -rn 'thinking=False' brain/packages/*/src --include=*.py`. Today
-that grep prints seven lines: the three bounds named below and four lines of docstring or comment
-prose. A further code line fires it when its call names no `trace_tokens`, whether it is a fourth
-side call or `SubagentAttempt`'s bound gaining the switch.
+that grep prints three lines, one for each bound named below; `rank_bounds` writes one keyword a
+line, so its `trace_tokens=0` is on the line after. A fourth line fires it when it is a call naming
+no `trace_tokens`, whether a fourth side call or `SubagentAttempt`'s bound gaining the switch.
 
 `RECAP_BOUNDS`, `TITLE_BOUNDS` and `rank_bounds(k)` each pair a cap with `thinking=False` and
 `trace_tokens=0`, and the zero is the half that bounds the trace where the engine reads the key.
@@ -56,3 +56,8 @@ that read the tree without importing it. The two readings agree on the three bou
   bound that has none, named no bound: every `thinking=False` bound in the tree already has a cap.
   The trigger is restated as the grep that decides it, and the test-shaped alternative is recorded
   beside the scan.
+- 2026-09-24: read against the tree and not fired. The grep prints three lines, not the seven the
+  trigger counted: the four prose lines are gone, and each remaining line is one of the three
+  bounds, now at `session_title.py:16`, `recap_prompt.py:15` and `rerank_judge.py:47`, each still
+  asserted in `test_sessions.py:183`, `test_summarizing.py:504` and `test_rerank_judge.py:252`.
+  `GenerationBounds(` is on five lines, with the docstring line in `drain.py` gone.

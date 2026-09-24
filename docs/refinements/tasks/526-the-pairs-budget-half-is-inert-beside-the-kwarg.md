@@ -2,11 +2,12 @@
 
 **Status:** open, waiting for its trigger
 **Area:** inference
-**Trigger:** a llama.cpp build on which a subagent server using the kwarg alone writes into the
-reasoning channel where the pair does not, which is the reading the budget was added on; or the
-kwarg's deprecation taking effect, when the argv is being rewritten anyway.
+**Trigger:** a row in the thinking-switch readings, on a llama.cpp build past `b10680`, in which a
+subagent server using the kwarg alone writes into the reasoning channel where the pair does not,
+which is the reading the budget was added on; or the kwarg's deprecation taking effect, which
+R-461 watches, when the argv is being rewritten anyway.
 **Origin:** [ADR-0049](../../adr/ADR-0049-thinking-switch-and-trace-budget.md)
-**Verified:** 2026-09-15
+**Verified:** 2026-09-24
 
 Every subagent server this repo starts uses both `--chat-template-kwargs '{"enable_thinking":
 false}'` and `--reasoning-budget 0`, and `scripts/flagcheck.py` requires the pair on every one of
@@ -48,3 +49,9 @@ that costs nothing for a re-measurement on every image bump.
   `sha256:952424b09abc` against `sha256:e2eebf1bd901`. Re-reading the pair on the moved tags was
   declined for this entry's own stated reason, that a new build's answer either way keeps the pair,
   so the measurement costs a pull and a seeded run of forty draws and changes no decision.
+- 2026-09-24: checked again and not fired. The thinking-switch readings still hold no build past
+  `b10680`, and the trigger now names that record, since a build's behaviour reaches this tree only
+  as a row there. Both engine tags now name build 11146, which still lists the kwarg with its
+  deprecation warning and deprecates nothing about `--reasoning-budget`
+  ([R-461](461-the-tiers-thinking-flag-is-deprecated.md)). The inference adapter now logs the build
+  each model's server names, which shows a tier's image bump and measures nothing.

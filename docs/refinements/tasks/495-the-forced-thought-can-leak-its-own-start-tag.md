@@ -3,9 +3,10 @@
 **Status:** open, waiting for its trigger
 **Area:** inference
 **Origin:** [ADR-0049](../../adr/ADR-0049-thinking-switch-and-trace-budget.md)
-**Verified:** 2026-09-15
-**Trigger:** a delegated run whose answer is one word, or a budgeted cell of the committed probe
-counting two or more leaks in a hundred draws, on any tier that ends a thought at the engine.
+**Verified:** 2026-09-24
+**Trigger:** a delegated run recorded under `docs/readings/` whose answer is the channel name
+`thought` or a start tag, or a budgeted cell of the committed probe counting two or more leaks in a
+hundred draws, on any tier that ends a thought at the engine.
 
 A trace budget is a sampler: it detects the thought's start sequence and forces its end tag, so the
 forcing necessarily happens after the start has been written. What the model had already emitted of
@@ -78,3 +79,8 @@ asked for a number.
   `<|channel>` through as reply content, since it routes on the key llama.cpp put the text under and
   never on what the text says. Neither clause of the trigger has fired and no cell has been drawn,
   so the counts stand where the last review left them (thinking-switch readings).
+- 2026-09-24: checked again and not fired, and the first clause of the trigger is narrowed above. It
+  fired on any one-word answer, which the paragraph above calls correct for a subtask that asked for
+  a number, and it named no record a run reaches. The readings still count 1 leak in 258 budgeted
+  draws and no cell has been drawn since. The chunk reader now also reads the engine build from
+  each chunk, and still routes text on the key it arrives under.

@@ -3,12 +3,13 @@
 **Status:** open, waiting for its trigger
 **Area:** inference
 **Origin:** [ADR-0050](../../adr/ADR-0050-live-probe-records.md)
-**Verified:** 2026-09-15
+**Verified:** 2026-09-24
 **Trigger:** a pick entering the lineup whose chat template writes a thought marker
 `scripts/switchtail.py` does not list, or a model file of a listed family whose template changes
 the marker it writes. Both are countable by the struct walk over each GGUF header's
 `tokenizer.chat_template` that opened this entry: count the chat templates on the mount and the
-markers they write, and compare a file's template against a recorded reading of that same file.
+markers they write, and compare each file's markers with the pair `MARKERS` lists for its family,
+since only one file has a recorded template to compare a template with.
 
 `MARKERS` in `scripts/switchtail.py` is two pairs typed by hand, `<think>`/`</think>` and
 `<|channel>thought`/`<channel|>`, and nothing compares them with the lineup. The templates that
@@ -52,3 +53,9 @@ derivable from the template's own syntax.
   written into the body above: the six uncensored Qwen3.6 repackages mention two thought markers
   and two sentinels they never emit, and all eight gemma-4 templates emit `<|think|>` at the top of
   the first system turn and never in the tail this reader takes (ADR-0050 decision 4).
+- 2026-09-24: checked again and not fired, and the trigger's last step now compares markers rather
+  than whole templates, which it could do for one file of 34. `MARKERS` is the same two pairs. The
+  mount holds 69 `*.gguf` files, 34 with a chat template: 8 gemma-4 and 26 Qwen, with the same
+  markers as above, and six of the Qwen ones mention the four markers the body describes. The one
+  file new since 2026-09-15 is a vision projector with no template, named nowhere in the tree. The deep tier's drafter, which entered the lineup on
+  2026-09-19, has no chat template either, so the first clause cannot fire on it.

@@ -5,11 +5,12 @@
 **Origin:** [ADR-0049](../../adr/ADR-0049-thinking-switch-and-trace-budget.md)
 **Trigger:** a llama.cpp image whose `--chat-template-kwargs` no longer parses, or a subagent
 server that fails to start after an image bump; either arrives as a tier that will not come up.
-The compose files name the floating tag `ghcr.io/ggml-org/llama.cpp:server`, so the image is not
-in the tree: read the digest `docker buildx imagetools inspect` names for that tag, and on that
-image check that `strings` over `/app/libllama-common.so*` still contains the deprecation warning
-quoted below and that `--help` still lists `--chat-template-kwargs`, without starting a server.
-**Verified:** 2026-09-17
+The compose servers run the floating tag `ghcr.io/ggml-org/llama.cpp:server` and the model host's
+hosted tier is built from `:server-cuda`, so neither image is in the tree: read the build each tag
+names now (its `org.opencontainers.image.version` label), and on that build check that `strings`
+over `/app/libllama-common.so*` still contains the deprecation warning quoted below and that
+`--help` still lists `--chat-template-kwargs`, without starting a server.
+**Verified:** 2026-09-24
 
 `ghcr.io/ggml-org/llama.cpp:server` prints this on every subagent boot:
 
@@ -56,3 +57,9 @@ and the fixtures in `test_model_roster.py`, `test_flagcheck.py` and `test_hosted
   is now `_SUBAGENT_TAIL`, which since 2026-09-13 also sets `--cache-ram 0`, and the requirement is
   the `Flag` pair in `scripts/subagentflags.py`, read by `flagcheck.py` since the flag rules moved
   there on 2026-09-15.
+- 2026-09-24: read against both tags, and not fired. The trigger watched only `server`, while the
+  hosted tier's `_SUBAGENT_TAIL` runs on `server-cuda`, so it now names both. Both tags name build
+  11146 at commit `7fe450e19`, created 2026-09-23. On that build's `server` image, read from its
+  library layer without Docker, `libllama-common.so` still has the warning, `--help` still lists
+  `--chat-template-kwargs` and `-rea, --reasoning [on|off|auto]`, and the server library still
+  type-checks a request's `enable_thinking`. No server was started.
