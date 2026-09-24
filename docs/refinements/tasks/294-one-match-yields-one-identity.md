@@ -14,7 +14,7 @@ prints six lines, five of them the four sites; the sixth is the trim `normalize_
 inside the identity reduction in `url_identity.py`, which reads one matched string and assumes
 nothing about how many readings its span has. The second condition cannot be decided from the tree,
 since a reply lives in the session store. The first is read off `url_separators.py`.
-**Verified:** 2026-09-17
+**Verified:** 2026-09-24
 
 Opened by the pass that declined the mixed dot-and-gap host, because that decline is a symptom
 rather than the cause. `extract_urls` reduces each `URL_RE` match to exactly one identity and the
@@ -64,3 +64,7 @@ has been, since a second reading is a second chance to redact prose.
   today's 3,018 spans it adds 0, loses 0, and extends 22, changing all 22 identities. The three
   `extract_urls` callers (`untrusted.py:179` and `:191`, `output_channels.py:64`) all take the
   result as a set.
+- 2026-09-24: not triggered. The grep prints the same six lines, now at `urls.py:92`,
+  `guardrail.py:158` and `:166`, `url_identity.py:119` and `url_holdback.py:72` and `:74`. The one
+  change to `url_separators.py` and `url_holdback.py` since renamed the separator tables to
+  `COLON_FORMS`, `SOLIDUS_FORMS` and `DOT_FORMS` and added no written form.

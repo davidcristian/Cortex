@@ -7,7 +7,7 @@
 Rust; or a Rust test passing over a fake while the adapter it stands in for fails the same
 expectation, readable in CI for `BrainTransport`, `Sleeper` and `Randomness` and only on the
 Windows host for the four OS ports.
-**Verified:** 2026-09-17
+**Verified:** 2026-09-24
 
 A port with a fake and a real adapter should have one list of checks that both implementations
 run, so the fake cannot promise something the adapter does not do. A review on 2026-08-10 that
@@ -16,10 +16,10 @@ had no such list. The full inventory is in
 [ADR-0068](../../adr/ADR-0068-port-contract-lists.md), which also names the ports whose two
 implementations legitimately cannot share checks.
 
-Every Python port and the overlay's `BrainBridge` now have a list, twenty-one in all: twenty in
-Python (eighteen named `<port>_contract.py`, plus `session/tests/contract.py` and the own-text
-list inside `tools/tests/test_own_text_contract.py`) and the overlay's `bridgeContract.ts`. What
-is left is the Rust workspace, which has no shared check list for any port.
+Every Python port and the overlay's `BrainBridge` now have a list, twenty-two in all: twenty-one in
+Python (nineteen named `<port>_contract.py`, plus `session/tests/contract.py` and the own-text list
+inside `tools/tests/test_own_text_contract.py`) and the overlay's `bridgeContract.ts`. What is left
+is the Rust workspace, which has no shared check list for any port.
 
 The Rust problem is worse than a repeated list; it is a repeated fake. `FakeAudio`, `FakeNotify`
 and `FakeScreen` are each hand-written twice with independent expectations, once under
@@ -99,3 +99,9 @@ in the ADR is the worklist, port by port.
   refused while accepting the others where it used to report them all sent, and the fake now
   applies the refusals it had skipped, from `cortex_email/drafts.py`, which both implementations
   call. Only the Rust rows are left.
+- 2026-09-24: not fired. No Rust file holds a shared check list, `BrainTransport` still has eleven
+  methods, and `FakeAudio` is still written in both `core/tests/os.rs` and
+  `rpc/tests/body_server.rs`. The Python count was stale: `progress_contract.py` added a list on
+  2026-09-22, so nineteen files are named `<port>_contract.py`. The new `ResidencyQueue` port has
+  two implementations, `SwappingModelManager` and `ResidencyBoard`, both pure core, so it has no
+  list by the origin's decision 6 and now sits in that row.

@@ -11,7 +11,7 @@ tree a retune is a move of `DEFAULT_ADMISSION_WAIT_S` (7200.0, `cortex_core/sche
 `CORTEX_SUBAGENTS_RUN_TIMEOUT_S` a value, counted by
 `grep -rnE 'CORTEX_SUBAGENTS_(ADMISSION_WAIT|RUN_TIMEOUT)_S: *[^ ]' docker/`. A value set only in a
 host's shell or `.env` reaches the brain as well and is outside the tree.
-**Verified:** 2026-09-17
+**Verified:** 2026-09-24
 
 `SubagentRunner._placed` logs a warning when a GPU-placed attempt is re-run on the CPU, and that is
 the only trace the path leaves. Nothing counts the warnings, nothing passes the re-run into the
@@ -62,3 +62,9 @@ against whether the path happens at all.
   warning is sampled in `docs/runbooks/subagents-cpu.md` (line 355), and the re-run warning is
   named in that runbook's prose at line 503 but printed as no sample line, which is why no sample
   check covers it.
+- 2026-09-24: not fired. The three numbers have not moved, no compose file gives either variable a
+  value, and `SubagentResult` still has `task_id`, `output`, `ok`, `detail` and `tainted`. The only
+  runner change since added an `admitted` callback for the turn heartbeat. Two corrections to the
+  entry above: the refusal warning is sampled at line 216 of `docs/runbooks/subagents-cpu.md`, and
+  that runbook no longer names the re-run warning at all; line 149 says only that a stalled attempt
+  is re-run once on the CPU.

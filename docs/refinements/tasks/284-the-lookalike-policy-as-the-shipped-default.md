@@ -13,8 +13,8 @@ whether it is still `redact`. The corpus reading is the count of distinct non-AS
 finds across every tracked file, each read as
 `host_of(normalize_url(match.group(), confusables=False))`, the expression
 `_UrlRedactingFilter._flagged` uses for the lookalike rule; it stood at 12 on 2026-09-08,
-2026-09-11 and 2026-09-17.
-**Verified:** 2026-09-17
+2026-09-11 and 2026-09-17, and at 10 on 2026-09-24.
+**Verified:** 2026-09-24
 
 The pass that added the third `OutputGuardrail` policy shipped the answer without imposing it:
 `CORTEX_OUTPUT_GUARDRAIL` still defaults to `redact`, so the gap that pass closed is closed only
@@ -34,13 +34,13 @@ count per rule and counts a link under the lookalike rule only when no other act
 on a real problem rather than on a schedule.
 
 The corpus count is not a stand-in for that measurement, and it has been wrong in this entry once
-before: it claimed 2 where a fresh reading found 12. Every one of the twelve is a fixture, and they
-sit in four files: this ADR, `brain/packages/core/tests/test_guardrail.py`,
-`docs/modules/brain-core.md`, and [R-058](058-uts39-confusables-set.md). Three of the twelve are
-not hosts anybody wrote but artifacts of the matcher running over Markdown, since a backtick or an
-arrow is an ordinary body character to it. The count rises with every document that writes a
-homoglyph example down, so it measures how much this decision has been documented rather than how
-often a turn names such a host.
+before: it claimed 2 where a fresh reading found 12. Every one is a fixture, and on 2026-09-24 the
+ten sat in four files: this ADR, `brain/packages/core/tests/test_guardrail.py`,
+`docs/readings/output-guardrail.md`, and [R-058](058-uts39-confusables-set.md). Some are not hosts
+anybody wrote but artifacts of the matcher running over Markdown, such as a host read with its
+closing backtick, since a backtick is an ordinary body character to it. The count rises with every
+document that writes a homoglyph example down, so it measures how much this decision has been
+documented rather than how often a turn names such a host.
 
 The change itself is one word in `config.py` plus the decision record that argues it, so nothing is
 blocked on design. What this entry waits for is the evidence, and the trade this decision was
@@ -71,3 +71,9 @@ phishing link harms the user.
   substitutes one `REDACTED_LINK` for every rule, so a week under the policy would have left a
   count of removed links and no count of lookalike removals. ADR-0015 decision 9 of the same day
   added that count as a log line, and the trigger above names it.
+- 2026-09-24: not triggered, both readings taken again. `config.py:67` binds `output_guardrail` to
+  `"redact"`, and `_flagged` still reads the lookalike rule as `host_of(normalize_url(url,
+  confusables=False))`. The corpus: 1,807 tracked files, 1,781 readable, 2,672 spans reducing to
+  1,152 distinct identities, and 10 distinct non-ASCII hosts. They sit in four files,
+  `docs/readings/output-guardrail.md` in place of `docs/modules/brain-core.md`, and the lookalike
+  rule is unchanged.

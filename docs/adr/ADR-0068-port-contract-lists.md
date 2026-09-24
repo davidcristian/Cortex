@@ -141,8 +141,8 @@ Python, each list in the named package's `tests/`. "Live" is an integration-mark
 | `SubagentScheduler` | `AdmitAllScheduler` | `ResourceBudgetScheduler` | `test_scheduler_drain.py`, one driver | yes | yes, pure core | no |
 
 No list, by decision 6: `RecallAuditSink`, `Clock`, `Sleeper`, `ZoneResolver`,
-`MemoryScope`, `ModelManager`, `SubagentPlacer`, `ResidencyController`, `ResidencyReporter`,
-`PaceSink`, `TurnRunner`.
+`MemoryScope`, `ModelManager`, `SubagentPlacer`, `ResidencyController`, `ResidencyQueue`,
+`ResidencyReporter`, `PaceSink`, `TurnRunner`.
 
 Rust and the overlay:
 

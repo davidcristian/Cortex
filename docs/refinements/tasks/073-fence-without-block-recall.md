@@ -8,7 +8,7 @@ memory store holds a tainted row, and a deployment writes one only under
 `CORTEX_MEMORY_ON_TAINTED=record` (the default `skip` drops a tainted turn from memory), so the
 cheap reading is `select count(*) filter (where tainted) from memories`, which returned 0 on
 2026-09-17.
-**Verified:** 2026-09-17
+**Verified:** 2026-09-24
 
 Left behind by [R-072](072-tainted-memory-recording.md): a recall mode that fences a tainted
 memory without tainting the turn, if spreading taint on a tangential recall turns out to be too
@@ -41,3 +41,9 @@ blunt.
   `turn_output.py:189` stores a turn to memory as trusted when its ledger is clean, so an exchange
   built on a tainted memory would be stored again without the marker. A mode that fences without
   tainting has to keep those two effects while dropping the tool block.
+- 2026-09-24: not fired, read from the tree only, since this slot had no Docker to query the store.
+  `_render_memory_context` (`turn_context.py:52`) still calls `taint.ingest_untrusted` on each
+  tainted record at line 62, and `_recalled_context` is now at line 97. `on_tainted` defaults to
+  `"skip"` at `config.py:112`, and `docker-compose.memory.yml` still passes
+  `CORTEX_MEMORY_ON_TAINTED` by name without a value, so a default deployment still writes no
+  tainted row.

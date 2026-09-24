@@ -2,12 +2,12 @@
 
 **Status:** open, waiting for its trigger
 **Trigger:** an existing list's `opens` or `closes` value changes in `scripts/rosters.py`, or a
-passage's prose before its first name or after its last grows past the figures in this entry's
-2026-09-17 history entry. The event this entry is about, a widened passage containing no extra
+passage's prose before its first name or after its last grows past its own figures in this entry's
+2026-09-24 history entry. The event this entry is about, a widened passage containing no extra
 name, reports nothing, so those two readings are what a review can take.
 **Area:** repo-checks
 **Origin:** [ADR-0044](../../adr/ADR-0044-document-rosters.md)
-**Verified:** 2026-09-17
+**Verified:** 2026-09-24
 
 `scripts/rosters.py` bounds each passage with two phrases the document contains. A phrase that
 stops appearing, or starts appearing twice, is a reported fault. A phrase that moved is not a fault
@@ -57,3 +57,12 @@ its nearest name.
   1132 (the live RPC checks), and after the last from 3 (the registry's parts) to 409 (the live RPC
   checks). The trigger used to name the unreported event itself, which no reading can observe, so
   it now names the registry diff and these figures.
+- 2026-09-24: fired on its first clause and reviewed. On 2026-09-19 the two lists in the repo checks
+  module doc moved phrases, `opens` to `## Public contract` and `closes` to `## How the checks run`,
+  and the repo map's list of check modules was removed. Both lists still fall inside the range the
+  entry above records, which kept only its extremes. `just check-rostercheck` passes over 9 lists in
+  7 documents naming 163 members. Prose before the first name, then after the last, per list: live
+  gRPC checks 837 and 305, modules run from a shell 80 and 137, modules only read 186 and 89, the
+  three cross-tree scan lists 51 and 117 (AGENTS.md), 70 and 2 (`ci.yml`), 71 and 83
+  (`docs/index.md`), the brain's packages 18 and 67, the body's crates 18 and 8, the registry's
+  parts 27 and 18. The trigger now compares against these per-list figures.
