@@ -106,6 +106,8 @@ pub struct Capture {
     height: u32,
     source_width: u32,
     source_height: u32,
+    target_width: u32,
+    target_height: u32,
     covers_display: bool,
 }
 
@@ -144,6 +146,8 @@ impl Capture {
             height: image.height(),
             source_width: frame.width(),
             source_height: frame.height(),
+            target_width: region.width(),
+            target_height: region.height(),
             covers_display: region.covers(frame.width(), frame.height()),
         }
     }
@@ -182,6 +186,18 @@ impl Capture {
     #[must_use]
     pub const fn source_height(&self) -> u32 {
         self.source_height
+    }
+
+    /// The width of the part of the display the picture shows, before the downscale.
+    #[must_use]
+    pub const fn target_width(&self) -> u32 {
+        self.target_width
+    }
+
+    /// The height of the part of the display the picture shows, before the downscale.
+    #[must_use]
+    pub const fn target_height(&self) -> u32 {
+        self.target_height
     }
 
     /// Whether this picture is the whole display rather than one window of it.

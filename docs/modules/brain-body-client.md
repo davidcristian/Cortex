@@ -70,7 +70,8 @@ window and a downscaled display are the same blob with the same `source_*` value
 one. A body that sets nothing leaves the proto3 zero, which reads as `DISPLAY` and is correct for a
 body predating the field; a value this brain does not recognize also reads as `DISPLAY`, both for
 that same proto3 reason and because the display a picture came off is the widest accurate
-description of it.
+description of it. The reply's `target_width` and `target_height` are copied as they are, zeros
+included, because a zero is a body older than those fields and not a size.
 
 ## Deadlines
 

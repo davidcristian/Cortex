@@ -102,7 +102,10 @@ class ServingBody(BodyServiceServicer):
         await self._guard(context)
         self.captured.append(request)
         return CaptureScreenReply(
-            image=_contract_blob(), resolved_target=CaptureTargetPb.CAPTURE_TARGET_DISPLAY
+            image=_contract_blob(),
+            resolved_target=CaptureTargetPb.CAPTURE_TARGET_DISPLAY,
+            target_width=CONTRACT_CAPTURE.target_width,
+            target_height=CONTRACT_CAPTURE.target_height,
         )
 
 

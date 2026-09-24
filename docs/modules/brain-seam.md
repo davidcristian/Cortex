@@ -36,9 +36,11 @@ one constant.
   off the encoded picture rather than off the request, so a window filling the display reports
   `CAPTURE_TARGET_DISPLAY` and the OS receipt, picked by the same predicate, agrees. The reply names
   the resolved target and never the rectangle, because the request offers the model no rectangle to
-  choose and returning coordinates would hand it that frame anyway. `ImageBlob` has `data`,
-  `mime_type`, `width`, `height`, `source_width` and `source_height`, which are the **display's**
-  before the body's crop and downscale even when the picture is one window, and
+  choose and returning coordinates would hand it that frame anyway. `target_width` and
+  `target_height` give the size of what the picture shows, 0 being a body older than them, so the
+  brain can say whether a window was resampled without learning where it is. `ImageBlob` has
+  `data`, `mime_type`, `width`, `height`, `source_width` and `source_height`, which are the
+  **display's** before the body's crop and downscale even when the picture is one window, and
   `captured_at_unix_ms`.
 - **Volume, notifications and input**: `GetVolumeRequest`, `SetVolumeRequest`, `VolumeState`,
   `NotifyRequest`, `NotifyReply`, `InjectInputRequest`, `TypeText`, `KeyChord` and

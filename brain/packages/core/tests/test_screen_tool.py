@@ -38,6 +38,7 @@ def _capture(
     height: int = 900,
     source: tuple[int, int] = (2560, 1440),
     target: CaptureTarget = CaptureTarget.DISPLAY,
+    shown: tuple[int, int] = (0, 0),
 ) -> ScreenCapture:
     return ScreenCapture(
         image=ImagePart(data=_PNG, mime_type="image/png", width=width, height=height),
@@ -45,6 +46,8 @@ def _capture(
         source_height=source[1],
         captured_at=datetime(2026, 7, 25, 10, 14, 3, tzinfo=UTC),
         target=target,
+        target_width=shown[0],
+        target_height=shown[1],
     )
 
 
@@ -151,6 +154,35 @@ async def test_a_window_capture_is_described_as_a_crop_and_not_as_a_shrunk_scree
         "The picture is attached to this message as an image part; it cannot be fenced as text."
     )
     assert "downscaled" not in result.content
+
+
+async def test_a_window_too_large_to_send_whole_is_described_as_shrunk_from_its_own_size() -> None:
+    windowed = _capture(width=2048, height=1280, shown=(2560, 1600), target=CaptureTarget.FOCUS)
+    result = await CaptureScreenTool(InMemoryBodyGateway(capture=windowed)).invoke(_call("focus"))
+
+    assert result.content == (
+        "screen capture of one window, cropped out of the 2560x1440 primary display: "
+        "2048x1280 image/png, downscaled from the window's 2560x1600, "
+        "taken at 2026-07-25T10:14:03+00:00. The rest of the screen was not captured. "
+        "The picture is attached to this message as an image part; it cannot be fenced as text."
+    )
+
+
+async def test_a_window_sent_whole_is_described_at_its_own_size() -> None:
+    windowed = _capture(width=1720, height=1200, shown=(1720, 1200), target=CaptureTarget.FOCUS)
+    result = await CaptureScreenTool(InMemoryBodyGateway(capture=windowed)).invoke(_call("focus"))
+
+    assert "1720x1200 image/png, at the window's own size, taken at" in result.content
+    assert "downscaled" not in result.content
+
+
+async def test_a_body_that_gives_half_the_window_size_says_nothing_about_resampling() -> None:
+    for shown in ((1720, 0), (0, 1200)):
+        windowed = _capture(width=1720, height=1200, shown=shown, target=CaptureTarget.FOCUS)
+        body = InMemoryBodyGateway(capture=windowed)
+        result = await CaptureScreenTool(body).invoke(_call("focus"))
+
+        assert "1720x1200 image/png, taken at" in result.content, shown
 
 
 async def test_a_window_that_filled_the_screen_is_described_as_the_screen() -> None:

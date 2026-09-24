@@ -356,6 +356,13 @@ pub struct CaptureScreenReply {
     /// answers CAPTURE_TARGET_DISPLAY, and the zero is DISPLAY.
     #[prost(enumeration = "CaptureTarget", tag = "2")]
     pub resolved_target: i32,
+    /// The size of the part of the display the picture shows, before the downscale: the window's
+    /// on-screen part for FOCUS, the display for DISPLAY. A picture smaller than this was resampled,
+    /// which a window's picture cannot show on its own. 0 is a body older than these fields.
+    #[prost(uint32, tag = "3")]
+    pub target_width: u32,
+    #[prost(uint32, tag = "4")]
+    pub target_height: u32,
 }
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct ImageBlob {

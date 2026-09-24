@@ -76,8 +76,8 @@ size above that, and over a whole 47-string desktop corpus reads worse than the 
 to 31 against 32 to 33) because it cannot see past its window. What a window capture gains is
 being unresampled rather than being cropped, so a window wider than
 `CORTEX_BODY_CAPTURE_MAX_EDGE` is resampled to exactly what the whole screen is resampled to and
-reads no better. Nothing on the reply says which of those two happened, deliberately for now
-([../refinements/index.md#vision](../refinements/index.md#vision)).
+reads no better. The reply gives the size of what the picture shows, so the model's sentence says
+which of the two happened: "downscaled from the window's 2560x1600" or "at the window's own size".
 
 Two things to know about the focused window.
 

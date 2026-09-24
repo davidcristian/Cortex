@@ -102,8 +102,7 @@ brain's `MAX_IMAGE_BYTES` are both 6 MiB, kept equal by the constant registry
 older body ignores a field it does not know. One gRPC limit changes: `GrpcBodyGateway.connect`
 receives up to 16 MiB. 6 MiB is enough for noise at 1600 px and every realistic screen at 2048 px,
 and the last halving is a quarter of the requested edge, so `TooLarge` needs a bound under about 450
-KB at 2048 px. The policy sits in body core because `cfg(windows)` code cannot be measured by
-coverage.
+KB at 2048 px. The policy sits in body core because coverage cannot measure `cfg(windows)` code.
 
 ### 8. ScreenCapture is a synchronous Send and Sync trait in its own core submodule
 
@@ -130,8 +129,9 @@ that fails, since otherwise text an attacker gets into a reply is read back off 
 
 `CaptureScreenRequest` has `max_edge = 1`, `target = 2`, `max_bytes = 3`; `ImageBlob` has
 `source_width = 5`, `source_height = 6`, `captured_at_unix_ms = 7`; `CaptureScreenReply` has
-`resolved_target = 2`; `ServerEvent` has `ToolOutcome = 8`. Each was added with the code using it
-([ADR-0027](ADR-0027-turn-provenance.md)); `format` and `display_index` wait for that code.
+`resolved_target = 2`, `target_width = 3`, `target_height = 4`; `ServerEvent` has `ToolOutcome = 8`.
+Each was added with the code using it ([ADR-0027](ADR-0027-turn-provenance.md)); `format` and
+`display_index` wait for that code.
 
 ### 12. BodyGateway.capture_screen returns a pure-core value, once, under a deadline
 
@@ -175,7 +175,7 @@ topmost capturable window, not the foreground one (the excluded overlay): visibl
 cloaked or a tool window, not the shell desktop, titled (the length is read, never the title), not
 this process. A bare desktop or a window on another monitor is `NoTarget`, never a silent widening.
 Body core crops the display frame to the resolved rectangle inside the downscale, so a window within
-the edge travels pixel for pixel; `source_width`/`source_height` still describe the display.
+the edge travels pixel for pixel; `source_*` still describe the display and `target_*` the crop.
 `resolved_target` is read off `covers_display()`, so the notification and the model's sentence
 follow one test. A missing or unknown `target` is a tool error that never reaches the body, and
 `RepeatSalience` compares name and arguments, so each target may be captured twice a loop. A
@@ -191,8 +191,8 @@ against 6 to 8 at the engine budget, for about 400 MiB and 1.6 times the time to
 body's default stays 1600, since a caller naming no edge has a budget the body cannot know. The
 window crop reaches 15 px text inside the edge but lowers the whole-desktop reading, so it is not
 the default; it turns declines, not inventions, into reads. The tool's description says so, asserted
-by `test_the_steer_promises_only_what_the_window_crop_measurement_supports`, and the reply does not
-say a window was resampled, since a caption was measured not to change behaviour.
+by `test_the_steer_promises_only_what_the_window_crop_measurement_supports`. `describe()` says
+whether a window was resampled, from the reply's `target_*`.
 
 ### 18. The capture outcome
 
@@ -218,7 +218,7 @@ setting.
   guardrail, a residual that names no work.
 - **Open work** under `docs/refinements/tasks/`: the attachment path, an `AttachmentStore`, a
   picture across a swap, `Windows.Graphics.Capture`, multi-monitor and DPI reporting, JPEG or WebP,
-  Linux and macOS backends, pixel screening, a resampled bit, and the user's half of an opaque turn.
+  Linux and macOS backends, pixel screening, and the user's half of an opaque turn.
 
 ## Alternatives rejected
 

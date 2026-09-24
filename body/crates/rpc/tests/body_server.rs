@@ -950,6 +950,35 @@ async fn the_reply_says_which_of_the_two_things_the_picture_is() {
 }
 
 #[tokio::test]
+async fn the_reply_gives_the_size_of_what_the_picture_shows_before_the_downscale() {
+    let windowed_at = spawn_screen(
+        FakeScreen::showing(frame(40, 20), TargetRect::new(0, 0, 20, 10)),
+        FakeNotify::answering(true),
+        true,
+    )
+    .await
+    .unwrap();
+    let shrunk = capture_reply(windowed_at, 10, 0, PbCaptureTarget::Focus.into())
+        .await
+        .unwrap();
+    let blob = shrunk.image.unwrap();
+    assert_eq!((blob.width, blob.height), (10, 5));
+    assert_eq!((shrunk.target_width, shrunk.target_height), (20, 10));
+
+    let whole_at = spawn_screen(
+        FakeScreen::answering(frame(40, 20)),
+        FakeNotify::answering(true),
+        true,
+    )
+    .await
+    .unwrap();
+    let whole = capture_reply(whole_at, 10, 0, PbCaptureTarget::Display.into())
+        .await
+        .unwrap();
+    assert_eq!((whole.target_width, whole.target_height), (40, 20));
+}
+
+#[tokio::test]
 async fn a_successful_capture_shows_the_body_authored_receipt() {
     let notifier = FakeNotify::answering(true);
     let addr = spawn_screen(FakeScreen::answering(frame(4, 4)), notifier.clone(), true)

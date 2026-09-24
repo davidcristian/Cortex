@@ -325,12 +325,16 @@ class CaptureScreenRequest(_message.Message):
     def __init__(self, max_edge: _Optional[int] = ..., target: _Optional[_Union[CaptureTarget, str]] = ..., max_bytes: _Optional[int] = ...) -> None: ...
 
 class CaptureScreenReply(_message.Message):
-    __slots__ = ("image", "resolved_target")
+    __slots__ = ("image", "resolved_target", "target_width", "target_height")
     IMAGE_FIELD_NUMBER: _ClassVar[int]
     RESOLVED_TARGET_FIELD_NUMBER: _ClassVar[int]
+    TARGET_WIDTH_FIELD_NUMBER: _ClassVar[int]
+    TARGET_HEIGHT_FIELD_NUMBER: _ClassVar[int]
     image: ImageBlob
     resolved_target: CaptureTarget
-    def __init__(self, image: _Optional[_Union[ImageBlob, _Mapping]] = ..., resolved_target: _Optional[_Union[CaptureTarget, str]] = ...) -> None: ...
+    target_width: int
+    target_height: int
+    def __init__(self, image: _Optional[_Union[ImageBlob, _Mapping]] = ..., resolved_target: _Optional[_Union[CaptureTarget, str]] = ..., target_width: _Optional[int] = ..., target_height: _Optional[int] = ...) -> None: ...
 
 class ImageBlob(_message.Message):
     __slots__ = ("data", "mime_type", "width", "height", "source_width", "source_height", "captured_at_unix_ms")

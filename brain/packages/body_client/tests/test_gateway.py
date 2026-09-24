@@ -50,11 +50,13 @@ class FakeBody(BodyServiceServicer):
         capture_delay_s: float = 0.0,
         call_delay_s: float = 0.0,
         resolved_target: CaptureTargetPb = CaptureTargetPb.CAPTURE_TARGET_DISPLAY,
+        target_size: tuple[int, int] = (0, 0),
     ) -> None:
         self.level = level
         self.muted = muted
         self.blob = blob
         self.resolved_target = resolved_target
+        self.target_size = target_size
         self.no_image = no_image
         self.capture_delay_s = capture_delay_s
         self.call_delay_s = call_delay_s
@@ -133,7 +135,12 @@ class FakeBody(BodyServiceServicer):
             await asyncio.sleep(self.capture_delay_s)
         if self.no_image:
             return CaptureScreenReply()
-        return CaptureScreenReply(image=self.blob, resolved_target=self.resolved_target)
+        return CaptureScreenReply(
+            image=self.blob,
+            resolved_target=self.resolved_target,
+            target_width=self.target_size[0],
+            target_height=self.target_size[1],
+        )
 
 
 async def _serve(servicer: BodyServiceServicer) -> tuple[str, aio.Server]:
@@ -317,6 +324,24 @@ async def test_a_target_this_brain_does_not_know_reads_as_the_whole_display() ->
     async with _gateway(fake) as gateway:
         capture = await gateway.capture_screen()
     assert capture.target is CaptureTarget.DISPLAY
+
+
+async def test_the_size_of_what_the_body_pointed_at_reaches_the_capture() -> None:
+    fake = FakeBody(
+        blob=_blob(),
+        resolved_target=CaptureTargetPb.CAPTURE_TARGET_FOCUS,
+        target_size=(2560, 1600),
+    )
+    async with _gateway(fake) as gateway:
+        capture = await gateway.capture_screen(target=CaptureTarget.FOCUS)
+    assert (capture.target_width, capture.target_height) == (2560, 1600)
+
+
+async def test_a_body_that_omits_the_target_size_reports_none() -> None:
+    fake = FakeBody(blob=_blob(), resolved_target=CaptureTargetPb.CAPTURE_TARGET_FOCUS)
+    async with _gateway(fake) as gateway:
+        capture = await gateway.capture_screen(target=CaptureTarget.FOCUS)
+    assert (capture.target_width, capture.target_height) == (0, 0)
 
 
 async def test_a_capture_at_the_display_size_is_not_downscaled() -> None:

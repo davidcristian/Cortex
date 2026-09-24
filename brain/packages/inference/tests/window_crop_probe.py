@@ -97,6 +97,8 @@ async def messages(desktop: Desktop, variant: Variant, shot: Picture) -> list[di
         source_height=desktop.screen.height,
         captured_at=_CAPTURED_AT,
         target=variant.target,
+        target_width=shot.region.width,
+        target_height=shot.region.height,
     )
     arguments = {"target": variant.target.value}
     tool = CaptureScreenTool(InMemoryBodyGateway(capture=capture))

@@ -203,4 +203,6 @@ def _to_capture(reply: CaptureScreenReply, *, max_edge: int, max_bytes: int) -> 
         source_height=blob.source_height or blob.height,
         captured_at=captured_at_from_unix_ms(blob.captured_at_unix_ms),
         target=_TARGET_FROM_WIRE.get(reply.resolved_target, CaptureTarget.DISPLAY),
+        target_width=reply.target_width,
+        target_height=reply.target_height,
     )

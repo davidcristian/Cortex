@@ -34,7 +34,8 @@ per-platform backends are in [body-os.md](body-os.md) and the rest of this crate
   only order that can work, since a flat desktop is kilobytes at 1600x900 and a photograph is
   megabytes. A `Capture` exposes `data`, `mime_type` (always `CAPTURE_MIME`, `image/png`), `width`
   and `height` after the crop and downscale, `source_width` and `source_height`, which are always
-  the **display's** since three consumers read them as the size of the screen, and
+  the **display's** since three consumers read them as the size of the screen, `target_width` and
+  `target_height`, the size of the part of the display the picture shows before the downscale, and
   `covers_display()`, the one bit the receipt needs. **`TooLarge` is unreachable at this ceiling**,
   which is why the ceiling travels with the request: each step halves the edge the last one reached,
   so the third is at most a quarter of the requested edge and a 1024 px image cannot exceed 6 MiB.

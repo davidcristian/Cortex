@@ -64,6 +64,16 @@ class CaptureBounds:
     max_bytes: int = 0
 
 
+def _window_scale(capture: ScreenCapture) -> str:
+    """Whether a window's picture was resampled, or nothing when the body did not say."""
+    shown = (capture.target_width, capture.target_height)
+    if 0 in shown:
+        return ""
+    if shown == (capture.image.width, capture.image.height):
+        return ", at the window's own size"
+    return f", downscaled from the window's {shown[0]}x{shown[1]}"
+
+
 def describe(capture: ScreenCapture) -> str:
     """The brain-authored stand-in text that accompanies the picture."""
     image = capture.image
@@ -76,7 +86,8 @@ def describe(capture: ScreenCapture) -> str:
     if capture.target is CaptureTarget.FOCUS:
         return (
             f"screen capture of one window, cropped out of the {source} primary display: "
-            f"{size}, {taken} The rest of the screen was not captured. {attached}"
+            f"{size}{_window_scale(capture)}, {taken} The rest of the screen was not captured. "
+            f"{attached}"
         )
     scale = f", downscaled from {source}" if capture.downscaled else ""
     return f"screen capture of the primary display: {size}{scale}, {taken} {attached}"

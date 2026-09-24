@@ -1,11 +1,8 @@
 # Whether the reply says a window was resampled
 
-**Status:** open, needs a port change first
+**Status:** done 2026-09-24
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-09-19
-**Trigger:** The next change that opens either capture message in `proto/body.proto`, or a measured
-caption effect.
 
 `CaptureScreenReply` contains `resolved_target` and nothing else about where the picture came from,
 so a `focus` capture of a window wider than the capture edge goes through the same box filter the
@@ -60,3 +57,12 @@ most of the same ones.
   16:9 display arrives at, and both line counts are unchanged at 289 and 285. The trigger named the
   next change opening `CaptureScreenReply` while the text below counted a `display_index` among
   such changes, and that is a request field, so both now name either capture message.
+- 2026-09-24: Done, before its trigger, because the cost that held it back was gone: the two files
+  it cited were 197 and 206 lines, not 289 and 285, so a field forced no split. The reply has
+  `target_width` and `target_height`, the size of the part of the display the picture shows before
+  the downscale, rather than the one `bool` proposed above: a proto3 `bool` reads a body older than
+  the field as "not resampled", while a zero size reads as "not said", and the size lets
+  `describe()` say what a window was shrunk from, as it already does for the display. A window's
+  sentence now ends "downscaled from the window's WxH" or "at the window's own size", and says
+  neither for an older body. Whether the sentence changes what the cortex reads is unmeasured, and
+  is [720](720-the-window-size-sentence-is-unmeasured.md).

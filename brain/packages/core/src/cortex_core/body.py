@@ -32,6 +32,9 @@ class ScreenCapture:
     source_height: int
     captured_at: datetime
     target: CaptureTarget = CaptureTarget.DISPLAY
+    # The part of the display the picture shows, before the downscale; 0 when the body did not say.
+    target_width: int = 0
+    target_height: int = 0
 
     @property
     def downscaled(self) -> bool:

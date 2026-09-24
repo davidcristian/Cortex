@@ -216,6 +216,7 @@ fn a_frame_inside_the_bound_crosses_unscaled_with_its_colours_intact() {
     assert_eq!(capture.mime_type(), "image/png");
     assert_eq!((capture.width(), capture.height()), (8, 5));
     assert_eq!((capture.source_width(), capture.source_height()), (8, 5));
+    assert_eq!((capture.target_width(), capture.target_height()), (8, 5));
     assert_eq!(
         &capture.data()[..8],
         &[0x89, b'P', b'N', b'G', 13, 10, 26, 10]
@@ -234,6 +235,7 @@ fn an_oversized_frame_is_box_filtered_down_to_the_requested_edge() {
 
     assert_eq!((capture.width(), capture.height()), (10, 5));
     assert_eq!((capture.source_width(), capture.source_height()), (40, 20));
+    assert_eq!((capture.target_width(), capture.target_height()), (40, 20));
 
     let (width, height, rgb) = decode(capture.data());
     assert_eq!((width, height), (10, 5));
@@ -260,6 +262,7 @@ fn a_window_target_crops_to_the_window_and_still_reports_the_display() {
 
     assert_eq!((capture.width(), capture.height()), (10, 10));
     assert_eq!((capture.source_width(), capture.source_height()), (40, 20));
+    assert_eq!((capture.target_width(), capture.target_height()), (10, 10));
     assert!(!capture.covers_display());
 
     let (width, height, rgb) = decode(capture.data());
@@ -279,6 +282,7 @@ fn a_window_hanging_off_the_display_is_cropped_to_the_part_that_is_on_it() {
     let (width, height, rgb) = decode(capture.data());
     assert_eq!((width, height), (15, 8));
     assert_eq!(&rgb[..3], &[0x40, 0x20, 0]);
+    assert_eq!((capture.target_width(), capture.target_height()), (15, 8));
 
     let capture = Capture::from_bgra(
         &window(gradient(40, 20), 30, 12, 400, 600),
@@ -364,6 +368,7 @@ fn an_oversized_window_is_box_filtered_from_its_own_pixels_only() {
     assert_eq!(&rgb[..3], &[0x40, 0x20, 1]);
     assert_eq!(&rgb[3..6], &[0x40, 0x20, 3]);
     assert_eq!((capture.source_width(), capture.source_height()), (40, 20));
+    assert_eq!((capture.target_width(), capture.target_height()), (20, 20));
     assert!(!capture.covers_display());
 }
 

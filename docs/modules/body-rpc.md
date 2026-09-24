@@ -120,8 +120,9 @@ direction: it builds the `BodyService` server over an `AudioControl`, a `Notify`
   applies: a value this body does not name reads as `CaptureTarget::Display`. `encoded_target` fills
   the reply's `resolved_target` from `Capture::covers_display()`, the same predicate the receipt is
   picked by, so the sentence the user is shown and the one the brain shows the model cannot
-  disagree. The receipt is **best effort**, the pixels having been read by the time it runs, and
-  `receipts`, the host's `CORTEX_HOST_CAPTURE_NOTIFY` switch, turns it off.
+  disagree. The reply's `target_width` and `target_height` are the `Capture`'s own, the size of
+  the part of the display it shows. The receipt is **best effort**, the pixels having been read by
+  the time it runs, and `receipts`, the host's `CORTEX_HOST_CAPTURE_NOTIFY` switch, turns it off.
 - Error mapping is one code per variant: `NoDisplay` and `NoTarget` to `FailedPrecondition` (host
   state, which works again the moment a window is on screen), `Disabled` to `PermissionDenied`,
   `Backend` to `Internal`, `TooLarge` to `ResourceExhausted`. `audio_error_to_status` maps

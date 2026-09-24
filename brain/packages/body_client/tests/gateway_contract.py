@@ -25,6 +25,8 @@ CONTRACT_CAPTURE = ScreenCapture(
     source_height=8,
     captured_at=datetime(2026, 8, 11, 9, 30, tzinfo=UTC),
     target=CaptureTarget.DISPLAY,
+    target_width=8,
+    target_height=8,
 )
 
 
@@ -102,6 +104,7 @@ async def a_capture_reports_what_the_body_pointed_at_not_what_was_asked(
     capture = await under_test.gateway.capture_screen(target=CaptureTarget.FOCUS)
     assert capture.target is CaptureTarget.DISPLAY
     assert capture.image.width == CONTRACT_CAPTURE.image.width
+    assert (capture.target_width, capture.target_height) == (8, 8)
     assert [ask.target for ask in under_test.captures()] == [CaptureTarget.FOCUS]
 
 

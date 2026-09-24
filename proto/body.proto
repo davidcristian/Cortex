@@ -257,6 +257,11 @@ message CaptureScreenReply {
   // read off the encoded picture rather than off the request, so a window filling the display
   // answers CAPTURE_TARGET_DISPLAY, and the zero is DISPLAY.
   CaptureTarget resolved_target = 2;
+  // The size of the part of the display the picture shows, before the downscale: the window's
+  // on-screen part for FOCUS, the display for DISPLAY. A picture smaller than this was resampled,
+  // which a window's picture cannot show on its own. 0 is a body older than these fields.
+  uint32 target_width = 3;
+  uint32 target_height = 4;
 }
 
 message ImageBlob {

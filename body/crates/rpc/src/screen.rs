@@ -43,6 +43,8 @@ pub(crate) async fn capture<S: ScreenCapture + 'static, N: Notify + 'static>(
     .await?;
     Ok(CaptureScreenReply {
         resolved_target: encoded_target(&capture).into(),
+        target_width: capture.target_width(),
+        target_height: capture.target_height(),
         image: Some(blob(&capture, captured_at_unix_ms)),
     })
 }
