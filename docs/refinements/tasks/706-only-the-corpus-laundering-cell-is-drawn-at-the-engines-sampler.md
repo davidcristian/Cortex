@@ -3,7 +3,7 @@
 **Status:** open, actionable
 **Area:** vision
 **Origin:** [ADR-0041](../../adr/ADR-0041-injection-image-variant.md)
-**Verified:** 2026-09-23
+**Verified:** 2026-09-25
 
 Every framed count in [injection over pixels](../../readings/injection-over-pixels.md) outside the
 laundering cell at the corpus frame and size was drawn at temperature 0 beside a control drawn the
@@ -82,6 +82,17 @@ apart above makes this the alt's one cell where the framing raises the rate; the
 reversal. Voids: up to 10 of 560. Its void counts are the alt's one deep pairing of its two
 channels on one cell at the sampler, read by the same rule: against a framed 3 of 280, as the
 stopped row's framed half read, a control of 12 or more is apart above and none is apart below.
+
+**Checked 2026-09-25, before the redraw.** The count predictions stand, since no draw of (c) has a
+count since they were written, and each boundary above reads as stated (8 against 2, p 0.11; 9
+against 1, p 0.020; 15 against 5, p 0.038). The void prediction is revised. The stopped control half
+ran more than 4850 s where the framed half took about 3300 s with 3 voids. At 82 generated tokens a
+second a 14213-token void costs about 173 s and a reply that ends about 10 s, so the control half
+held about twelve voids or more, or replies far longer than the framed half's. Voids predicted:
+framed 3 (0 to 8) of 280 against control 14 (4 to 40) of 280, the control apart above. The row is
+queued second in the unattended run logged at `measurements/sitting-2026-09-25/` (`706c.log`, with
+each reply's finish and generated tokens in `706c.calls.jsonl`), after R-715's text row, and is
+priced at 10000 s at a median SM clock of 0.56 of the maximum.
 
 **What would close it.** Each listed cell drawn in both conditions with the rows as they now are,
 which sample as the shipped request does and evaluate the whole prompt; the readings restated with

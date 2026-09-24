@@ -69,10 +69,10 @@ never a reading of what the tree does now.
 
 ### Actionable now (4)
 
-- **[R-607](tasks/607-eighteen-of-the-cortex-alts-pixel-rows-are-undrawn.md)** Eleven of the cortex alt's thirty-six pixel rows are undrawn (inference). Its claim was checked against the code on 2026-09-23.
-- **[R-706](tasks/706-only-the-corpus-laundering-cell-is-drawn-at-the-engines-sampler.md)** Most pixel cells are drawn only at temperature 0 (vision). Its claim was checked against the code on 2026-09-23.
+- **[R-607](tasks/607-eighteen-of-the-cortex-alts-pixel-rows-are-undrawn.md)** Eleven of the cortex alt's thirty-six pixel rows are undrawn (inference). Its claim was checked against the code on 2026-09-25.
+- **[R-706](tasks/706-only-the-corpus-laundering-cell-is-drawn-at-the-engines-sampler.md)** Most pixel cells are drawn only at temperature 0 (vision). Its claim was checked against the code on 2026-09-25.
 - **[R-714](tasks/714-the-injection-text-rows-are-drawn-only-at-temperature-0.md)** The injection text rows are drawn only at temperature 0 (untrusted-content). Its claim was checked against the code on 2026-09-24.
-- **[R-715](tasks/715-the-subagent-pick-obeys-framed-injections-as-often-as-the-qwen-candidates.md)** The subagent pick obeys framed injections as often as the Qwen candidates (subagents). Its claim was checked against the code on 2026-09-24.
+- **[R-715](tasks/715-the-subagent-pick-obeys-framed-injections-as-often-as-the-qwen-candidates.md)** The subagent pick obeys framed injections as often as the Qwen candidates (subagents). Its claim was checked against the code on 2026-09-25.
 
 ### Actionable, once a port changes (1)
 
