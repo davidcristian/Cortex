@@ -74,6 +74,7 @@ class LlamaCppBackend:
         # count without reporting anything, which would leave a setting that changes nothing.
         self._send_trace_budget = send_trace_budget
         self._reported_unsent_budget = False
+        self._builds: dict[str, str] = {}
 
     def _report_unsent_budget(self, model: str, bounds: GenerationBounds | None) -> None:
         """Warn, once per backend, when a request names a trace count it will not send."""
@@ -85,6 +86,16 @@ class LlamaCppBackend:
         _logger.warning(
             "trace budget not sent because its setting is off",
             extra={"model": model, "trace_budget": bounds.trace_tokens},
+        )
+
+    def _note_build(self, model: str, endpoint: str, build: str | None) -> None:
+        """Log the build a model's server names, the first time and whenever it changes."""
+        if build is None or self._builds.get(model) == build:
+            return
+        self._builds[model] = build
+        _logger.info(
+            "model now served by engine build",
+            extra={"model": model, "endpoint": endpoint, "build": build},
         )
 
     async def stream(
@@ -114,7 +125,9 @@ class LlamaCppBackend:
                         data = stripped[len(_SSE_DATA_PREFIX) :].strip()
                         if data == _SSE_DONE:
                             break
-                        for event in _chunk_events(consume_chunk(data, pending)):
+                        chunk = consume_chunk(data, pending)
+                        self._note_build(model, lease.endpoint, chunk.build)
+                        for event in _chunk_events(chunk):
                             yield event
         except ModelManagerError as err:
             msg = f"model manager could not lease {model!r} for inference"

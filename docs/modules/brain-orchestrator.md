@@ -158,11 +158,11 @@ the version string `Health` reports.
   the `CaptureBounds` that say whether `capture_screen` may be registered at all and the
   `PropsVisionProbe` over `GET {endpoint}/props`, built only for `auto`. Every failure counts as no
   vision and logs a structured warning, and the answered line also names the engine, `/props`
-  reporting the running build as `build_info`, the only place a running stack records which build
-  an endpoint is on (ADR-0005 decision 8). The probe is asked per advertisement and per call, never
-  remembered: a `llama-server` recreated without `--mmproj` mid-session used to keep advertising
-  the tool, reproduced 2026-08-06 against the real stack. Asking costs 1.5 ms idle and 1.7 ms with
-  a generation in flight, worst of 40 samples 2.5 ms, so `PROBE_TIMEOUT_S` is 2 s.
+  reporting the running build as `build_info` (ADR-0005 decision 9; the inference adapter logs the
+  same string for every tier it streams from). The probe is asked per advertisement and per call,
+  never remembered: a `llama-server` recreated without `--mmproj` mid-session used to keep
+  advertising the tool, reproduced 2026-08-06 against the real stack. Asking costs 1.5 ms idle and
+  1.7 ms with a generation in flight, worst of 40 samples 2.5 ms, so `PROBE_TIMEOUT_S` is 2 s.
 - `ScheduleTicker(store, clock, settings, *, spawn=None, body=None)` (`ticker.py`, ADR-0025) is the
   stateless firing loop: each `run_once` claims what is due under the fencing lease, fires the
   batch together and persists each outcome. Both kinds deliver through one best-effort ladder over

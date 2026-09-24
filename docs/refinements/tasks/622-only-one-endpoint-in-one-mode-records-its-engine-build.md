@@ -1,13 +1,8 @@
 # Only one endpoint in one mode records its engine build
 
-**Status:** open, needs a port change first
+**Status:** done 2026-09-24
 **Area:** inference
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
-**Verified:** 2026-09-17
-**Trigger:** a commit that changes `HealthProbe.serving` in
-`brain/packages/model_manager/src/cortex_model_manager/probe.py` or the `InferenceEvent` union in
-`brain/packages/core/src/cortex_core/inference.py`, either of which is where a build reading for
-the remaining endpoints would go. Read it with `git log --since=<Verified date>` on those two paths.
 
 `PropsVisionProbe.can_see` reads `build_info` off the `/props` body it already parses and puts it on
 `vision probe answered` as `build`. That probe is built only for `CORTEX_VISION=auto`
@@ -46,3 +41,14 @@ it is a contract change: the port, the fake, the contract test and the proto's o
   and nothing else in `brain/packages/*/src` reads `build_info` or `system_fingerprint`. One
   correction: `build_vision` also returns no probe when no body is wired, since without a body
   there is no capture tool to ask about.
+- 2026-09-24: done by neither route, in the inference adapter with no port change. Read off a CPU
+  `server` container on `b10680-d7bd3bfca`: every streamed chunk names the build as
+  `system_fingerprint`, the same string as `/props` `build_info`, and `/health` names none.
+  `LlamaCppBackend` now logs `model now served by engine build` the first time a model names a build
+  and whenever that changes, for every generation tier in every vision mode at no request. One claim
+  was wrong: the model host supervises the GPU tiers only, so its route would have missed the CPU
+  subagent servers. The `InferenceEvent` route would pass a value no core decision reads, and no
+  readings record uses a per-completion build: each names its session's build off `/props` or the
+  image labels. Recorded in [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md) decision 9 and
+  [subagents-cpu.md](../../runbooks/subagents-cpu.md). Opened
+  [R-721](721-the-embedders-engine-build-is-recorded-nowhere.md).

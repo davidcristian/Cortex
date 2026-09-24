@@ -145,7 +145,9 @@ Fix it by unsetting the count, by setting `CORTEX_INFERENCE_TRACE_LEVER=on` on a
 reads the key, or by restarting the brain against a build whose probe answers `reads_budget=true`.
 Restart the brain after pulling a newer llama.cpp: the answer is asked once and kept for the life
 of the brain process, and neither direction of that staleness is reported. If the boot line and
-the `curl` above disagree, the brain is the stale half. Read which build a tag points at:
+the `curl` above disagree, the brain is the stale half. The brain logs the build each model's server
+names when it changes ([subagents-cpu.md](subagents-cpu.md) shows the line). Read which build a tag
+points at now, which after a pull is not the one that served earlier turns:
 
 ```
 docker image inspect ghcr.io/ggml-org/llama.cpp:server-cuda \
@@ -175,10 +177,9 @@ re-runs them is in [inference-measurements.md](inference-measurements.md).
 
 Four things to know before changing either.
 
-- **Raising one alone does little.** The budget alone leaves the body sending
-  a 1600 px picture (24 to 26 of 47); the capture edge alone sends pixels into an encoder that
-  throws them away (4 of 47 at 2048 px and at 3072 px, no better than the
-  1600 px default).
+- **Raising one alone does little.** The budget alone leaves the body sending a 1600 px picture
+  (24 to 26 of 47); the capture edge alone sends pixels into an encoder that throws them away (4 of
+  47 at 2048 px and at 3072 px, no better than the 1600 px default).
 - **Do not send the whole screen.** A 3840 px capture at the same 1010 tokens reads worse than a
   2048 px one, 30 against 36 to 38, because the encoder's internal resize is a poorer filter than
   the body's box average. Downscale to the budget.
@@ -192,9 +193,8 @@ Four things to know before changing either.
   The window must be inside `CORTEX_BODY_CAPTURE_MAX_EDGE`, and the crop cannot see anything
   outside the window. The model makes that choice per call through `capture_screen`'s `target`.
 
-A 4K frame at 2048 px costs 243 KB as a text desktop and 4.67 MB with heavy film grain over it,
-74% of the 6 MiB ceiling; only per-pixel uniform noise fires the halving ladder (dropping the
-capture to
+A 4K frame at 2048 px costs 243 KB as a text desktop and 4.67 MB with heavy film grain over it, 74%
+of the 6 MiB ceiling; only per-pixel uniform noise fires the halving ladder (dropping the capture to
 1024 px, below even the 1600 px view). The costliest realistic display is 2560x1440, at 79%.
 
 ## What fits on the card

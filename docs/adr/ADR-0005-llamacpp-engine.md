@@ -86,14 +86,21 @@ running. How a generation is bounded and a cut-off reported is
    labels (`docker image inspect`, no server needed), `build_info` at `GET /props`, and the
    `system_fingerprint` llama-server puts on every completion, both written `bNNNNN-<commit>`. A
    figure measured on the engine is dated and names the build it was taken on.
-9. **A running stack records the build it talks to, on a line it already writes.** The vision probe
-   (`PropsVisionProbe.can_see` in `vision.py`) already issues `GET /props` on the cortex endpoint,
-   so its `vision probe answered` line includes `build`, the server's `build_info`, beside
-   `endpoint` and `vision`; the vision runbook shows the line, which puts the field under
-   [ADR-0045](ADR-0045-documented-log-lines.md). An absent or non-string build renders `None`, the
-   same tolerant reading as the result beside it. The line covers one endpoint in one mode
-   (`CORTEX_VISION=auto`); per-completion provenance, a `system_fingerprint` field on
-   `InferenceEvent`, stays open.
+9. **A running stack records the build of every generation server it talks to, off the replies it
+   already reads.** llama-server names its build on every streamed chunk as `system_fingerprint`,
+   the same string as `build_info` at `/props` (read 2026-09-24 off `server` `b10680-d7bd3bfca`:
+   every chunk of a stream has it). `LlamaCppBackend` reads it in `decode.py` and logs
+   `model now served by engine build` with `model`, `endpoint` and `build` the first time a model's
+   completion names a build and again whenever that model's build changes, so the build behind any
+   logged completion is the one on the latest such line for its model. This covers the cortex in
+   every `CORTEX_VISION` mode, the deep tier and both subagent placements, and costs no request. The
+   build stays out of `InferenceEvent`: no core decision reads a build, and a tag moving under a
+   running stack makes a build comparison the wrong test (ADR-0049). The vision probe's `vision
+   probe answered` line also names `build`, the `build_info` off the `/props` body it already
+   parses. The [subagent runbook](../runbooks/subagents-cpu.md) shows the first line and the vision
+   runbook the second, which puts both fields under [ADR-0045](ADR-0045-documented-log-lines.md).
+   A chunk whose build is absent, empty or not a string logs nothing; on the probe's line an absent
+   or non-string build renders `None`.
 10. **Engine flags stay adapter and runbook concerns, and a flag the build does not know fails the
     server at startup.** The core never sees a llama.cpp flag or version. A deployment that names
     no optional setting emits no flag at all rather than the engine's default written out, so an
@@ -110,8 +117,8 @@ running. How a generation is bounded and a cut-off reported is
   somebody pulls.
 - A stall is reported as a stall. A legitimately slow first token under either timeout would be
   reported as one too, which is why both are set loose: what they remove is "forever", not "slow".
-- Only the cortex endpoint records its build, and only under `CORTEX_VISION=auto`; the subagent
-  servers and the deep model go unrecorded.
+- A server records its build only once the brain streams a completion from it. The embedder records
+  none: its `/v1/embeddings` reply names no build on `b10680`.
 
 ## Alternatives rejected
 
@@ -119,9 +126,12 @@ running. How a generation is bounded and a cut-off reported is
   not need.
 - **One stall timeout for both clients**: it would have to be the CPU tier's number.
 - **Reading the build in another probe.** The trace-setting probe's refusal body contains no
-  fingerprint, so it would need a second request; the model host's readiness probe is a boolean
-  `HealthProbe` polled for minutes during a load; adding a field to a port is a contract change.
-  None of the three is impossible; none was worth waiting for while nothing recorded a build.
+  fingerprint, so it would need a second request. The model host's readiness probe could read
+  `/props` when a child first serves, but that is a second request, a wider `HealthProbe` return
+  and new state in the supervisor, and it would miss the CPU subagent servers, which are compose
+  services rather than model host children and run `server`, pulled apart from `server-cuda`.
+- **A build field on `InferenceEvent`.** It would change the port, the fakes and every consumer of
+  the stream to pass a value no core decision reads; the adapter can log it where it reads it.
 - **An MLX adapter for macOS**, which ADR-0001 anticipated: a Metal build of this engine likely
   makes it unnecessary.
 

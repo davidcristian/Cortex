@@ -121,9 +121,9 @@ over-reporting is the direction a privacy indicator should fail in.
    The first one appears on the first turn, not at boot. A failure logs `vision probe failed` and
    counts as no vision, so the tool is not advertised and any capture already in flight is
    refused. `build` is the engine that answered, `build_info` off the same `/props` body and the
-   same string llama-server puts on every completion as `system_fingerprint`. It is the only place
-   a running stack records which build an endpoint is on. A server naming no build logs
-   `build=None`.
+   same string llama-server puts on every completion as `system_fingerprint`, which the inference
+   adapter logs for every tier ([subagents-cpu.md](subagents-cpu.md) shows that line). A server
+   naming no build logs `build=None`.
 4. To see what a forgotten projector looks like, which is the failure the inference adapter's
    bounded error excerpt exists for, start a second server on the same weights with the cortex
    tier's flags minus the `--mmproj` pair and run the canary against it:

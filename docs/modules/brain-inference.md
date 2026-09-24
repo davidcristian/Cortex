@@ -47,6 +47,10 @@ this:
    `b10680-d7bd3bfca`. Timings are read **before** the chunk's `choices` are, so a build closing on
    `{"choices": []}` is still read. The event is emitted after the text it describes, a rate being
    unknowable before the tokens are counted.
+6. Logs `model now served by engine build` at `INFO` with `model`, `endpoint` and `build` the first
+   time a model's chunk names a build in `system_fingerprint`, and again whenever it names another
+   (ADR-0005 decision 9). Every chunk of a `b10680-d7bd3bfca` stream has it. No event crosses the
+   port, since no core decision reads a build.
 
 **Images.** A `TOOL` message with `images` (ADR-0029) emits `content` as an OpenAI **content-parts
 array** instead of a string: one `{type: "text"}` part followed by one
@@ -63,7 +67,7 @@ come off different parts of it, the stop off the first choice and the cadence of
 build that offers one and not the other still reports what it has. Where both are present the order
 is the adapter's own: text, then the stop, then the cadence, then any tool calls, which are
 assembled only once the stream is over. `ChunkRead` is the record `decode.py` hands back per chunk,
-and the four independent facts on it are why it is a record rather than a tuple.
+and the five independent facts on it are why it is a record rather than a tuple.
 
 **Timeouts are the injected client's.** The adapter sets none itself, because a generation may
 legitimately stream for a long time; the composition root gives the client a short connect timeout
@@ -123,12 +127,13 @@ Every failure crosses the `InferenceBackend` port as `InferenceError` with the c
   and the `DecodeStop` has already been yielded when this raises, so a caller holding a `StopLedger`
   can pair the two into "the run was cut" rather than "the backend died". It is a subclass, so every
   `except InferenceError` still catches it;
-- **the decode cadence is the one exception, and a malformed one is dropped with no error.** A
+- **the decode cadence is an exception, and a malformed one is dropped with no error.** A
   `timings` object that is missing, not an object, missing either field, holding a non-number, a
   bool (which is an `int` in Python and would otherwise arrive as 1.0 tok/s) or a negative yields no
   cadence and changes nothing else about the stream. It is a diagnostic that arrives after the
   answer, so raising over it would discard a completed reply for the sake of a measurement, and the
-  core's `CadenceWatch` already reads "no cadence" as its own answer;
+  core's `CadenceWatch` already reads "no cadence" as its own answer. A build that is absent, empty
+  or not a string is dropped the same way and logs nothing;
 - **an unreadable stop reason becomes a value.** A `finish_reason` outside the three words above, or
   one that is not a string, is neither raised nor dropped: it crosses as `StopReason.UNKNOWN`.
   Raising would cost the reply, and dropping it would file a reason this core could not read under
@@ -147,7 +152,7 @@ bound quotes the whole of it, and `test_a_projector_less_server_says_so_when_an_
 ## Invariants
 
 - Stateless per call: nothing about a turn outlives `stream`, and no KV cache or context is held
-  here (the one hard rule). The adapter holds only its injected manager and client.
+  here (the one hard rule). Its only other state is two log records about servers, not turns.
 - **The lease is released on cancellation.** The GPU lease is a non-reentrant lock held across the
   whole streaming block, so a `CancelledError` raised mid-inference (a user Stop, a client `Cancel`,
   or an RPC teardown) propagates out through that `async with` and frees the lock before the next
@@ -223,16 +228,11 @@ All are `integration`-marked, excluded from CI and coverage, and run per
   tier's behaviour. Before the cases it reads the **rendered prompt** for all four shapes off the
   server's own `POST /apply-template` and asserts that the two shapes with one switch render the
   same prompt, which establishes that a difference between their results comes from the schema
-  rather than from the prompt. That rendering is also the **predictor**: an entry whose template
-  answers the switch with an already-closed thought block holds under a schema, and one that drops
-  the block and puts nothing in its place does not. Both renderings are recorded with the results,
-  in one JSON sample per tier (`CORTEX_THINKING_OUT`, `CORTEX_THINKING_TAG`), beside the engine
-  build, the model file and the context size the server reported on `GET /props` (ADR-0050 decision
-  5). `just switch-tail` compares the prediction against the measurement and fails instead of
-  publishing a run where the two disagree; the probe itself asserts nothing, an `integration`-marked
-  file being code no check runs. The prediction is read off the prompt's end rather than off the two
-  renderings differing at all, because the failing pick's pair differs at the front and ends byte
-  identically.
+  rather than from the prompt. That rendering is also the **predictor**, read on the prompt's tail
+  (ADR-0050 decision 2). Both renderings go into one JSON sample per tier (`CORTEX_THINKING_OUT`,
+  `CORTEX_THINKING_TAG`) beside the build, the model file and the context size `GET /props` reports,
+  and `just switch-tail` fails instead of publishing a run whose prediction and measurement
+  disagree; the probe itself asserts nothing.
 - **`tests/test_trace_budget_live.py` measures the same question for the budget** (ADR-0049). It
   asks the endpoint whether the engine parses a per-request trace budget, then draws the one case
   the switch loses, a constrained reply into the fixed envelope, with the budget and without it. It

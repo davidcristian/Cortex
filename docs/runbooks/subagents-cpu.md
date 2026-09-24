@@ -63,6 +63,18 @@ That path is `CORTEX_MODEL_FILE_SUBAGENT` joined under `/models`, so it says whi
 and nothing more: a requantized file at the same path reads the same, and the server's own
 `digest` field in `/v1/models` is empty on this build. The brain never reads it.
 
+**Which build a server runs is logged by the brain.** Every streamed chunk names the server's build
+as `system_fingerprint`, the same string `GET /props` names as `build_info`. The brain logs it the
+first time a model's completion arrives and again whenever that model's build changes, for this
+tier and every other one it streams from:
+
+```
+INFO:cortex_inference.backend:model now served by engine build build=<the system_fingerprint> endpoint=<the leased endpoint> model=<the model asked>
+```
+
+The build behind a logged run is the one on the latest such line for its model. The embedder has
+no such line, because an embeddings reply names no build.
+
 ## Bring up the server
 
 ```bash

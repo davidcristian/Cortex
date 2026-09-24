@@ -90,6 +90,12 @@ def _cadence(data: Mapping[str, object]) -> DecodeCadence | None:
     return DecodeCadence(tokens_per_second=rate, tokens=int(tokens))
 
 
+def _build(data: Mapping[str, object]) -> str | None:
+    """The engine build the chunk names in ``system_fingerprint``, or ``None``."""
+    build = data.get("system_fingerprint")
+    return build if isinstance(build, str) and build else None
+
+
 def _stop(choice: Mapping[str, object]) -> DecodeStop | None:
     """The completion's stop reason off llama.cpp's ``finish_reason``, or ``None``."""
     raw = choice.get("finish_reason")
@@ -108,6 +114,7 @@ class ChunkRead:
     reasoning: str | None = None
     cadence: DecodeCadence | None = None
     stop: DecodeStop | None = None
+    build: str | None = None
 
 
 def consume_chunk(payload: str, pending: dict[int, PendingCall]) -> ChunkRead:
@@ -115,9 +122,10 @@ def consume_chunk(payload: str, pending: dict[int, PendingCall]) -> ChunkRead:
     try:
         data = json.loads(payload)
         cadence = _cadence(data)
+        build = _build(data)
         choices = data["choices"]
         if not choices:
-            return ChunkRead(cadence=cadence)
+            return ChunkRead(cadence=cadence, build=build)
         stop = _stop(choices[0])
         delta = choices[0]["delta"]
         for fragment in delta.get("tool_calls", ()):
@@ -136,6 +144,7 @@ def consume_chunk(payload: str, pending: dict[int, PendingCall]) -> ChunkRead:
         reasoning=_require_text(reasoning, "reasoning_content"),
         cadence=cadence,
         stop=stop,
+        build=build,
     )
 
 
