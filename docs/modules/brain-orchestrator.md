@@ -133,8 +133,8 @@ One stream's machinery lives in `converse_stream.py`, which `converse.py` re-exp
 `run_from_env()` reads the env configs, checks the delegation ordering as it reads it, and serves
 with `RedisSessionStore.from_url`, `build_inference_backend`, `SystemClock`, the default-on history
 window and output guardrail, and six opt-in adapters, each off by default so CI and the no-GPU dev
-loop reach no external service: **memory** (`build_memory`, returning the recaller, a
-`SessionMemoryCascade` for `DeleteSession` and a closer), **tools** (`build_tool_registry`),
+loop reach no external service: **memory** (`build_memory`, returning a recaller builder over a
+given `InferenceBackend`, a `SessionMemoryCascade` for `DeleteSession` and a closer), **tools** (`build_tool_registry`),
 **subagents** (`build_subagents`), **body** (`build_body_gateway`), **schedules**
 (`build_schedule`, with `build_schedule_tools` and a `ScheduleTicker` started beside `serve` and
 stopped first in the `finally`), and the **brain handoff** (`build_swap_runtime`). Every adapter
@@ -191,7 +191,9 @@ the version string `Health` reports.
   stream it builds that stream's `TurnCapabilities` and returns the plain `TurnEngine`, or an
   `EscalatingTurnEngine` over a `SwapConductor` bound to this stream's dispatcher when a
   `DeepTier(swap, builtins, scheduler)` is present, whose manager is then the capabilities'
-  `residency`. That value keeps a handoff from being
+  `residency`. With a `DeepTier`, the stream's cortex calls (the turn, the recap and recall's
+  judge, which is why the recaller is built per stream) go through a `HandoffAheadBackend` over
+  that manager and the stream's sink. That value keeps a handoff from being
   half-wired, the deep tier's own vision-less built-in set travelling with the runtime that swaps
   and the subagent pool the conductor drains.
 - With escalation wired, `run_from_env` also runs `recover_handoffs` before serving, publishes what

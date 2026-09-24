@@ -8,6 +8,7 @@ from cortex_core.cadence import (
     CadenceWatch,
 )
 from cortex_core.handoff import EscalationRefs, EscalationSlot, HandoffRecord, HandoffState
+from cortex_core.handoff_wait import HANDOFF_AHEAD, HandoffAheadBackend, wait_out_handoff
 from cortex_core.model import ModelLease, SingleResidentModelManager
 from cortex_core.model_host import (
     DEFAULT_HEALTH_POLL_INTERVAL_S,
@@ -70,6 +71,7 @@ __all__ = [
     "DRAINING_DETAIL",
     "DRAIN_TIMEOUT_NOTE",
     "DRAIN_TIMEOUT_REASON",
+    "HANDOFF_AHEAD",
     "HANDOFF_AHEAD_DETAIL",
     "LOADING_DETAIL",
     "MIN_CADENCE_TOKENS",
@@ -100,6 +102,7 @@ __all__ = [
     "DeviceMemory",
     "EscalationRefs",
     "EscalationSlot",
+    "HandoffAheadBackend",
     "HandoffPace",
     "HandoffRecord",
     "HandoffState",
@@ -118,5 +121,6 @@ __all__ = [
     "recheck_tiers",
     "recover_handoffs",
     "regain_residency",
+    "wait_out_handoff",
     "with_note",
 ]

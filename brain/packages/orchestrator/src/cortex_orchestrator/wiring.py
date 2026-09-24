@@ -76,7 +76,7 @@ async def run_from_env(
         inference, runtime.cortex_model, manager=None if swap is None else swap.manager
     )
     memory, memory_cascade, close_memory = await build_memory(
-        memory_config, clock, backend, runtime.cortex_model
+        memory_config, clock, runtime.cortex_model
     )
     tool_registry, close_tools = build_tool_registry(tools_config)
     dispatch = DispatchSetup(tools_config.dispatch_policy, tool_audit_from_config(tools_config))

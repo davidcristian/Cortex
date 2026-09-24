@@ -14,11 +14,16 @@ from cortex_core import (
     CaptureBounds,
     EscalatingTurnEngine,
     GenerationBounds,
+    HashEmbedder,
+    InferenceBackend,
     InferenceEvent,
     InMemoryBodyGateway,
+    InMemoryMemoryStore,
     InMemorySessionStore,
     InMemoryToolRegistry,
     JsonSchema,
+    JudgeRecallPolicy,
+    MemoryRecaller,
     Message,
     RecordingConfirmer,
     RecordingProgressSink,
@@ -254,3 +259,73 @@ async def test_a_stream_s_turn_announces_a_handoff_it_waits_behind() -> None:
         assert [request.model for request in backend.requests] == ["cortex"]
     finally:
         await swap_closer(swap)()
+
+
+class _HandoffAtHistory(InMemorySessionStore):
+    """A store whose history read starts another turn's handoff, after the turn's own check."""
+
+    def __init__(self, swap: SwapRuntime) -> None:
+        super().__init__()
+        self._swap = swap
+        self.entered = asyncio.Event()
+        self.leave = asyncio.Event()
+        self.ahead: asyncio.Task[None] | None = None
+
+    async def _handoff(self) -> None:
+        async with self._swap.manager.swap_scope("brain"):
+            self.entered.set()
+            await self.leave.wait()
+
+    async def history(self, session_id: str) -> Sequence[Message]:
+        if self.ahead is None:
+            self.ahead = asyncio.create_task(self._handoff())
+            await self.entered.wait()
+        return await super().history(session_id)
+
+
+async def test_a_stream_s_reply_announces_a_handoff_that_began_after_the_turn_s_check() -> None:
+    backend = _Model({"cortex": [[TextChunk("hi")]]})
+    swap = _swap_runtime()
+    sessions = _HandoffAtHistory(swap)
+    engines = replace(_escalating(backend, swap), sessions=sessions)
+    try:
+        await _expect_announced_wait(engines, sessions, backend, calls=1)
+    finally:
+        await swap_closer(swap)()
+
+
+async def test_a_stream_s_recall_announces_a_handoff_that_began_after_the_turn_s_check() -> None:
+    backend = _Model({"cortex": [[TextChunk('{"order": [0]}')], [TextChunk("hi")]]})
+    swap = _swap_runtime()
+    memories = InMemoryMemoryStore()
+    await MemoryRecaller(memories, HashEmbedder(), SystemClock()).record("tea", session_id="s")
+
+    def recaller_for(model: InferenceBackend) -> MemoryRecaller:
+        judge = JudgeRecallPolicy(model, "cortex", pool_factor=2)
+        return MemoryRecaller(memories, HashEmbedder(), SystemClock(), policy=judge)
+
+    sessions = _HandoffAtHistory(swap)
+    engines = replace(_escalating(backend, swap), sessions=sessions, memory=recaller_for)
+    try:
+        await _expect_announced_wait(engines, sessions, backend, calls=2)
+    finally:
+        await swap_closer(swap)()
+
+
+async def _expect_announced_wait(
+    engines: StreamEngines, sessions: _HandoffAtHistory, backend: _Model, *, calls: int
+) -> None:
+    progress = RecordingProgressSink()
+    engine = engines.for_stream(RecordingConfirmer(answer=True), progress)
+    turn = asyncio.create_task(_run(engine, "hello", turn_id="t2"))
+    for _ in range(10):
+        await asyncio.sleep(0)
+    assert sessions.ahead is not None
+    assert not turn.done()
+    assert backend.requests == []
+    assert progress.events == (StatusUpdate(state=SWAPPING, detail=HANDOFF_AHEAD_DETAIL),)
+    sessions.leave.set()
+    await sessions.ahead
+    async with asyncio.timeout(5.0):
+        await turn
+    assert [request.model for request in backend.requests] == ["cortex"] * calls

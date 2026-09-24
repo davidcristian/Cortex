@@ -96,9 +96,13 @@ of everything optional about a turn. With the bare default the turn is plain str
   around each dispatch that was not refused, `asking` around a confirmation (ADR-0069 decision 9). `escalation` (an `EscalationSlot`, ADR-0030) is the turn's handoff slot, one per turn.
 - `residency` (a `ResidencyQueue`, set only where a handoff can run): after storing the user
   message and before reading the history, a turn whose model another model's handoff keeps off the
-  card holds `swapping` with `HANDOFF_AHEAD_DETAIL` until that scope ends. The hold is announced,
-  so the body's first gap ends there, and the history read afterwards includes what that handoff
-  stored.
+  card holds `swapping` with `HANDOFF_AHEAD_DETAIL` until that scope ends, through
+  `wait_out_handoff` (`handoff_wait.py`). The hold is announced, so the body's first gap ends
+  there, and the history read afterwards includes what that handoff stored. A handoff that begins
+  later is met at the lease instead: `HandoffAheadBackend(inner, queue, progress)` is an
+  `InferenceBackend` that takes the same wait before each stream it passes to `inner`, with
+  nothing awaited between its check and the lease, and closes the wrapped stream when it is
+  closed. The orchestrator builds one per stream that can hand off (ADR-0069 decision 9).
 
 `turn_output.py` is the half of the engine the deep model's phase shares word for word, so the two
 cannot diverge (ADR-0030). `stream_turn_events(loop, channels, parts)` maps one tool loop's deltas

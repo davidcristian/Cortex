@@ -106,9 +106,13 @@ The third needs a bound on the turn's own progress, which ADR-0024's gaps alread
    are the tool loop around each model stream (`thinking`), `run_round` around each dispatch that
    was not refused (`calling`), `ToolDispatcher` around the confirmer (`asking`),
    `SummarizingHistoryWindow` around the recap (`folding`), the spawn tool around its batch, and
-   `TurnEngine` around a wait for another turn's handoff to leave the card (`swapping`, through the
-   `ResidencyQueue` port). That last one is taken before recall and the first model call and is
-   announced, because the wait can outlast the first gap and the body counts a heartbeat as silence.
+   `wait_out_handoff` (`cortex_core/handoff_wait.py`) around a wait for another turn's handoff to
+   leave the card (`swapping`, through the `ResidencyQueue` port). That last one is announced,
+   because the wait can outlast the first gap and the body counts a heartbeat as silence. It is
+   taken where the turn would queue: by `TurnEngine` before it reads the history, so the history
+   includes what that handoff stores, and by `HandoffAheadBackend` before every model call of a
+   stream that can hand off, recall's judge and the recap included. Nothing is awaited between
+   that check and the lease, so a scope that begins after the turn starts is still announced.
    A subagent's own loop gets no sink, so its steps never replace the batch's wait. The batch is
    one wait over all its subtasks: `queued` while any has not been admitted, else `delegating`,
    with both counts in the sentence (`2 subtasks running, 1 waiting for room to run`). The runner
@@ -153,6 +157,15 @@ The third needs a bound on the turn's own progress, which ADR-0024's gaps alread
   but a turn stuck on a live brain would keep the indicator up until the user pressed Stop.
 - **A heartbeat on a timer regardless of the turn.** It would prove only that the stream exists;
   between turns no body is waiting on it.
+- **A handoff wait checked only at the turn's start**, even counting a held handoff claim as
+  blocking. A scope that begins between that check and the turn's first lease, during its history
+  read, recap or recall, still leaves the lease waiting unannounced, so every earlier check only
+  narrows that interval.
+- **The sink as an argument of `InferenceBackend.stream` and `ModelManager.acquire`.** The same
+  effect, but through every implementation of `stream`, most of them test fakes, and the recall
+  policy chain the judge sits behind, where one per-stream wrapper needs neither.
+- **The sink in a `ContextVar` read at the lease.** It routes a per-stream object through ambient
+  state, which [ADR-0022](ADR-0022-email-write-confirmer.md) rejects for the confirmer.
 - **The silence or the period inside the message.** The body would then take its own bound from
   the brain it is checking; a constant on each side, compared by `crosscheck`, is simpler.
 

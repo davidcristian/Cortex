@@ -25,6 +25,8 @@ from cortex_memory import LoggingRecallSink, PgVectorMemoryStore
 from cortex_orchestrator.builders import noop_aclose
 from cortex_orchestrator.config import MemoryConfig, MemoryScopeName
 
+type RecallerFor = Callable[[InferenceBackend], MemoryRecaller]
+
 _EMBEDDER_TIMEOUT_S = 30.0
 _SECONDS_PER_DAY = 86400.0
 
@@ -70,9 +72,9 @@ def recall_audit_from_config(config: MemoryConfig) -> RecallAuditSink | None:
 
 
 async def build_memory(
-    config: MemoryConfig, clock: Clock, backend: InferenceBackend, cortex_model: str
-) -> tuple[MemoryRecaller | None, SessionMemoryCascade | None, Callable[[], Awaitable[None]]]:
-    """Pick the memory backend from config: the recaller, the delete cascade, and a closer."""
+    config: MemoryConfig, clock: Clock, cortex_model: str
+) -> tuple[RecallerFor | None, SessionMemoryCascade | None, Callable[[], Awaitable[None]]]:
+    """Pick the memory backend from config: a recaller per backend, the cascade, and a closer."""
     if config.backend == "pgvector":
         client = httpx.AsyncClient(timeout=httpx.Timeout(_EMBEDDER_TIMEOUT_S))
         embedder = LlamaCppEmbedder(client, config.embedder_endpoint, model=config.embedder_model)
@@ -83,8 +85,11 @@ async def build_memory(
             await client.aclose()
 
         scope = memory_scope_from_name(config.scope)
-        policy = recall_policy_from_config(config, backend, cortex_model)
         audit = recall_audit_from_config(config)
-        recaller = MemoryRecaller(store, embedder, clock, scope=scope, policy=policy, audit=audit)
-        return recaller, SessionMemoryCascade(store, scope), close_memory
+
+        def recaller_for(backend: InferenceBackend) -> MemoryRecaller:
+            policy = recall_policy_from_config(config, backend, cortex_model)
+            return MemoryRecaller(store, embedder, clock, scope=scope, policy=policy, audit=audit)
+
+        return recaller_for, SessionMemoryCascade(store, scope), close_memory
     return None, None, noop_aclose

@@ -11,8 +11,8 @@ from cortex_core import (
     Confirmer,
     EscalatingTurnEngine,
     GenerationBounds,
+    HandoffAheadBackend,
     InferenceBackend,
-    MemoryRecaller,
     ProgressSink,
     SessionStore,
     SubagentScheduler,
@@ -26,6 +26,7 @@ from cortex_core import (
 from cortex_orchestrator.builders import build_cortex_tools, build_output_guardrail
 from cortex_orchestrator.config import BrainRuntimeConfig
 from cortex_orchestrator.dispatch_builders import DispatchSetup
+from cortex_orchestrator.memory_builders import RecallerFor
 from cortex_orchestrator.swap_builders import SwapRuntime
 from cortex_orchestrator.window_builders import build_history_window
 
@@ -49,7 +50,7 @@ class StreamEngines:
     backend: InferenceBackend
     clock: Clock
     runtime: BrainRuntimeConfig
-    memory: MemoryRecaller | None
+    memory: RecallerFor | None
     tools: ToolRegistry | None
     builtins: Sequence[BuiltinTool]
     dispatch: DispatchSetup
@@ -60,10 +61,15 @@ class StreamEngines:
 
     def for_stream(self, confirmer: Confirmer, progress: ProgressSink) -> TurnRunner:
         """Build the engine one Converse stream's turns run through."""
-        caps = self._capabilities(confirmer, progress)
         deep = self.deep
         if deep is None:
-            return self._turn_engine(caps)
+            return self._turn_engine(
+                self._capabilities(confirmer, progress, self.backend), self.backend
+            )
+        # Every cortex call the turn makes, recall's included, waits out another turn's handoff
+        # through this backend, so each such wait is announced where the lease would queue.
+        backend = HandoffAheadBackend(self.backend, deep.swap.manager, progress)
+        caps = self._capabilities(confirmer, progress, backend)
         phase = replace(
             caps,
             escalation=None,
@@ -91,15 +97,17 @@ class StreamEngines:
             deep.scheduler,
         )
         return EscalatingTurnEngine(
-            lambda slot: self._turn_engine(replace(caps, escalation=slot)),
+            lambda slot: self._turn_engine(replace(caps, escalation=slot), backend),
             conductor,
             progress=progress,
         )
 
-    def _capabilities(self, confirmer: Confirmer, progress: ProgressSink) -> TurnCapabilities:
-        """One capability bundle per Converse stream."""
+    def _capabilities(
+        self, confirmer: Confirmer, progress: ProgressSink, backend: InferenceBackend
+    ) -> TurnCapabilities:
+        """One capability bundle per Converse stream, whose model calls go through ``backend``."""
         return TurnCapabilities(
-            memory=self.memory,
+            memory=None if self.memory is None else self.memory(backend),
             tools=build_cortex_tools(
                 self.tools,
                 self.builtins,
@@ -109,7 +117,7 @@ class StreamEngines:
                 vision=self.sight,
             ),
             window=build_history_window(
-                self.runtime, sessions=self.sessions, backend=self.backend, clock=self.clock
+                self.runtime, sessions=self.sessions, backend=backend, clock=self.clock
             ),
             guardrail=build_output_guardrail(self.runtime.output_guardrail),
             record_tainted_memory=self.record_tainted_memory,
@@ -119,11 +127,11 @@ class StreamEngines:
             residency=None if self.deep is None else self.deep.swap.manager,
         )
 
-    def _turn_engine(self, caps: TurnCapabilities) -> TurnEngine:
+    def _turn_engine(self, caps: TurnCapabilities, backend: InferenceBackend) -> TurnEngine:
         """The plain engine over the shared ports, per stream and, under a handoff, per turn."""
         return TurnEngine(
             self.sessions,
-            self.backend,
+            backend,
             self.clock,
             cortex_model=self.runtime.cortex_model,
             capabilities=caps,

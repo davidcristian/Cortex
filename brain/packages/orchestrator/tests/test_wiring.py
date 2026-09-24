@@ -406,7 +406,7 @@ async def test_a_wedged_llama_server_fails_the_stream_instead_of_waiting_forever
 
 async def test_build_memory_defaults_to_disabled() -> None:
     memory, cascade, close = await build_memory(
-        MemoryConfig(backend="none"), SystemClock(), EchoInferenceBackend(), "cortex"
+        MemoryConfig(backend="none"), SystemClock(), "cortex"
     )
     assert memory is None
     assert cascade is None
@@ -433,10 +433,9 @@ async def test_build_memory_selects_pgvector_and_returns_a_closer(
         dsn="postgresql://cortex@db/cortex",
         embedder_endpoint="http://llama-embed:8081",
     )
-    memory, cascade, close = await build_memory(
-        config, SystemClock(), EchoInferenceBackend(), "cortex"
-    )
-    assert isinstance(memory, MemoryRecaller)
+    memory, cascade, close = await build_memory(config, SystemClock(), "cortex")
+    assert memory is not None
+    assert isinstance(memory(EchoInferenceBackend()), MemoryRecaller)
     assert isinstance(cascade, SessionMemoryCascade)
     assert seen_dsn == ["postgresql://cortex@db/cortex"]
     await close()
@@ -560,10 +559,10 @@ async def test_the_judge_asks_the_tier_the_deployment_named_to_rank(
         dsn="postgresql://cortex@db/cortex",
         embedder_endpoint="http://llama-embed:8081",
     )
-    memory, _cascade, close = await build_memory(config, SystemClock(), backend, "cortex-alt")
+    memory, _cascade, close = await build_memory(config, SystemClock(), "cortex-alt")
     assert memory is not None
     try:
-        recalled = await memory.recall("which?", k=2, session_id="renamed", turn_id="t")
+        recalled = await memory(backend).recall("which?", k=2, session_id="renamed", turn_id="t")
     finally:
         await close()
     assert [hit.record.id for hit in recalled] == ["second", "first"]

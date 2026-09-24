@@ -77,7 +77,7 @@ never a reading of what the tree does now.
 - **[R-715](tasks/715-the-subagent-pick-obeys-framed-injections-as-often-as-the-qwen-candidates.md)** The subagent pick obeys framed injections as often as the Qwen candidates (subagents). Its claim was checked against the code on 2026-09-24.
 - **[R-717](tasks/717-the-pixel-rows-drawn-at-the-sampler-are-unread-for-a-send-email-call.md)** The pixel rows drawn at the sampler are unread for a send_email call (vision). Its claim was checked against the code on 2026-09-24.
 - **[R-720](tasks/720-the-window-size-sentence-is-unmeasured.md)** The window size sentence is unmeasured (vision). Its claim was checked against the code on 2026-09-24.
-- **[R-723](tasks/723-a-turn-that-starts-just-before-another-handoff-waits-unannounced.md)** A turn that starts just before another handoff waits unannounced (rpc-transport). Its claim was checked against the code on 2026-09-24.
+- **[R-724](tasks/724-the-deep-phase-asks-the-cortex-inside-its-own-handoff.md)** The deep phase asks the cortex inside its own handoff (inference-model-manager). Its claim was checked against the code on 2026-09-24.
 
 ### Actionable, once a port changes (1)
 
@@ -444,7 +444,7 @@ never a reading of what the tree does now.
 
 ### inference-model-manager
 
-7 open of 34.
+8 open of 35.
 
 - [R-106](tasks/106-model-manager-co-residency.md) Model-manager process lifecycle, co-residency and real swap. done 2026-08-07.
 - [R-107](tasks/107-co-resident-fit-check.md) Check that a co-resident card really holds the pair. done 2026-08-07.
@@ -480,6 +480,7 @@ never a reading of what the tree does now.
 - [R-698](tasks/698-a-drafter-sized-spill-is-unmeasured-against-the-decode-floor.md) A drafter-sized spill is unmeasured against the decode floor. done 2026-09-22.
 - [R-709](tasks/709-the-fit-check-does-not-count-the-deep-tiers-drafter.md) The fit check does not count the deep tier's drafter. declined 2026-09-22.
 - [R-710](tasks/710-the-free-memory-the-deep-tier-needs-beside-a-peer-is-unmeasured.md) The free memory the deep tier needs beside a peer is unmeasured. done 2026-09-23.
+- [R-724](tasks/724-the-deep-phase-asks-the-cortex-inside-its-own-handoff.md) The deep phase asks the cortex inside its own handoff. open, actionable.
 
 ### memory
 
@@ -745,7 +746,7 @@ never a reading of what the tree does now.
 
 ### rpc-transport
 
-6 open of 26.
+5 open of 25.
 
 - [R-019](tasks/019-transport-retry-policy.md) Transport retry and reconnect policy. done 2026-07-08.
 - [R-020](tasks/020-retry-budget-circuit-breaker.md) Retry budget and circuit breaker. declined 2026-08-18.
@@ -772,7 +773,6 @@ never a reading of what the tree does now.
 - [R-434](tasks/434-the-stub-check-reads-one-direction-and-one-stub.md) The stub check reads one direction, and only one of the two stubs. done 2026-08-25.
 - [R-436](tasks/436-an-announcement-past-the-millisecond-ladder-loses-the-race.md) An announcement past the millisecond ladder sets tonic's clock short of our own bound. done 2026-08-25.
 - [R-719](tasks/719-a-health-note-has-no-code.md) A health note has no code. open, waiting for a consumer.
-- [R-723](tasks/723-a-turn-that-starts-just-before-another-handoff-waits-unannounced.md) A turn that starts just before another handoff waits unannounced. open, actionable.
 
 ### scheduling
 

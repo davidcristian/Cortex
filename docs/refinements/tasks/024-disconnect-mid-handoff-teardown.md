@@ -62,7 +62,6 @@ still running. The fix belongs with the in-flight-turn lifecycle
   when a gap bound or the connection ends it. Both sites are unchanged, now at
   `residency.py:76` and `converse_stream.py:181`, the pump's await at `:135`. The 600 s concern
   above was not taken up by R-421's close, which keeps the ten-minute first gap and counts each
-  heartbeat as 30 s of it. A turn that starts while a handoff holds the card now announces that
-  wait before its first model call, so the first gap ends there, and a handoff whose scope begins
-  after that check is
-  [R-723](723-a-turn-that-starts-just-before-another-handoff-waits-unannounced.md).
+  heartbeat as 30 s of it. A turn that waits behind another turn's handoff now announces that
+  wait where it would queue, before its history read or at any model call, so the first gap ends
+  there.
