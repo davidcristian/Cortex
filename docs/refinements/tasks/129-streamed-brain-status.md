@@ -3,8 +3,8 @@
 **Status:** open, needs a port change first
 **Area:** body-overlay
 **Origin:** [ADR-0011](../../adr/ADR-0011-body-v1.md)
-**Verified:** 2026-09-19
-**Trigger:** A consumer that needs the brain to speak first, meaning a status change the overlay must show while it is on screen and green, where today it would be read only on the next summon, because the 5 s recheck runs only while the link is already not ready.
+**Verified:** 2026-09-24
+**Trigger:** A status change that begins while no turn from this overlay is streaming and must change the dot's colour: a second client that can start a handoff, or a background job that escalates. A change that one of this overlay's own turns leaves behind is read by the probe that follows the turn, not by a push.
 
 What is deferred is the push: a server-streamed status RPC, so the brain can say what it is doing
 at the moment it changes rather than when the overlay next asks. The producer this entry was
@@ -28,6 +28,11 @@ throughout it.
 The push is a proto change plus both stubs plus something that reads it. Probing on summon,
 together with the escalating stream's chips, covers this scale.
 
+The push is a different axis from the shape of one reply, which
+[R-320](320-one-detail-string-two-facts.md) settled as a `notes` list on `HealthReply`: this entry
+is when a reply is sent. A stream would send the same message `Health` answers, so it needs nothing
+from that change and that change needed nothing from it.
+
 ## History
 
 - 2026-07-16: Opened behind the connection indicator, blocked on a producer, since nothing
@@ -49,3 +54,12 @@ together with the escalating stream's chips, covers this scale.
   starts that interval when the view is visible and unhealthy, and a green link on screen is
   probed again only on the next summon. The gap a push would close is a change away from green
   while the overlay is open, and the trigger now says so.
+- 2026-09-24: Checked again; the trigger has not fired, and it was restated so it can be decided.
+  Every status change today starts inside one of the overlay's own turns: a handoff is started only
+  by the engine `for_stream` builds in `engines.py`, and a scheduled task runs a subagent through
+  `spawn_subagents` and never escalates. A peer tier's fault is the one change from outside a turn,
+  and it changes only the tooltip under a green dot. The one gap found was at the end of a turn: a
+  swap back that gave up publishes `RESIDENCY_LOST` before the turn's last events, and every event
+  sets the dot green, so it stayed green until the next summon. The overlay knows when its own turn
+  ends, so that gap needed a pull rather than a push: `useLink` now probes once when a turn ends on
+  screen with the link green.

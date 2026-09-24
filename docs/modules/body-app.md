@@ -120,11 +120,11 @@ promotes, over-reporting being the safe direction here. Each rung has a fixed ac
 `components/LinkDot.tsx`, ADR-0011 decision 8). `state.link` is a `LinkView { state, detail, notes,
 probing }`: `state` is the last thing the brain proved (`ready`, `degraded`, `down`, plus the
 overlay's own `unknown`), `probing` is the overlay's own fact so a probe never overwrites what was
-last true, and `describeLink` renders `{ tone, busy, label }`, a ready label a line per note. Three
+last true, and `describeLink` renders `{ tone, busy, label }`, a ready label a line per note. Four
 sources keep it current and none is a liveness timer: the reducer folds every `TurnEvent` as proof
 of serving and every `transportError` through the same classification `body_core::link` uses;
-`useLink` probes once per summon; and it re-probes every `LINK_RECHECK_MS` (5 s) only while the
-overlay is visible and the link is not ready. A rejected probe changes nothing but `probing`, and
+`useLink` probes once per summon and once when a turn ends on screen with the link green, and every
+`LINK_RECHECK_MS` (5 s) while visible and not ready. A rejected probe changes only `probing`, and
 the dot never claims more than the brain proved: `unknown` is a real state with its own colour, and
 `degraded` (the brain answered, but is not serving) is never `down` (nothing answered).
 

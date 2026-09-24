@@ -215,6 +215,22 @@ describe("useOverlay", () => {
     expect(bridge.linkCalls).toBe(probes);
   });
 
+  it("asks the brain again once a turn completes, since its events only prove it answered", async () => {
+    const bridge = new FakeBridge();
+    const { result } = renderHook(() => useOverlay(bridge, () => "s1"));
+    act(() => result.current.open());
+    await flush();
+    const probes = bridge.linkCalls;
+    bridge.link = { state: "degraded", detail: "could not be reloaded", notes: [] };
+
+    act(() => result.current.submit("q"));
+    act(() => bridge.emit({ kind: "delta", text: "hi" }));
+    act(() => bridge.emit({ kind: "complete", turnId: "t" }));
+    await flush();
+    expect(bridge.linkCalls).toBe(probes + 1);
+    expect(result.current.state.link.state).toBe("degraded");
+  });
+
   it("a failed session list leaves the current list untouched", async () => {
     const bridge = new FakeBridge();
     bridge.listFails = true;

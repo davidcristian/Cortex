@@ -60,7 +60,7 @@ export function useOverlay(
   const cancelRef = useRef<Cancellation | null>(null);
   const [previewHovered, setPreviewHovered] = useState(false);
   const dismissReminder = useReminders(bridge, state.mode, dispatch);
-  useLink(bridge, state.mode, state.link, dispatch);
+  useLink(bridge, state.mode, state.link, isTurnActive(state), dispatch);
 
   // A completed preview fades on its own after PREVIEW_MS, unless an approval is pending, the turn
   // is still streaming, or the pointer is over the card. Leaving the card restarts the countdown in

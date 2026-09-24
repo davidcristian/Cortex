@@ -1,6 +1,6 @@
-// Three things keep the connection dot current: every streamed event and every transport failure
-// is already a fact about the brain, a probe on each summon, and a re-check while an unhealthy
-// link is on screen. A poll that always runs spends a request per interval with nobody looking.
+// The dot is kept current by what turns already prove, a probe on each summon and after each turn,
+// and a re-check while an unhealthy link is on screen. A poll that always runs spends a request
+// per interval with nobody looking.
 
 import { type Dispatch, useCallback, useEffect, useRef } from "react";
 
@@ -13,13 +13,13 @@ import { useSummonEffect } from "./useSummonEffect";
  *  recovery pace of a supervised local process that restarts in seconds, so it is not a setting. */
 export const LINK_RECHECK_MS = 5000;
 
-/** Keeps `state.link` current: probes the brain on each summon and, while the overlay is visible
- *  and the brain is not ready, probes again at a fixed pace until it is. Nothing runs while the
- *  overlay is hidden, and nothing runs while a healthy link is on screen. */
+/** Keeps `state.link` current: probes on each summon and when a turn ends on screen and green,
+ *  and while the brain is not ready, again at a fixed pace. Nothing runs while hidden. */
 export function useLink(
   bridge: BrainBridge,
   mode: Mode,
   link: LinkView,
+  turnActive: boolean,
   dispatch: Dispatch<Action>,
 ): void {
   const visible = mode !== "hidden";
@@ -47,10 +47,21 @@ export function useLink(
 
   useSummonEffect(visible, probe);
 
+  // Every streamed event sets the dot green, so a turn's own events cannot show what the turn left
+  // behind, such as a swap back that gave up. A turn that ended unhealthy is already rechecked.
+  const unhealthy = link.state !== "ready";
+  const wasActive = useRef(turnActive);
+  useEffect(() => {
+    const ended = wasActive.current && !turnActive;
+    wasActive.current = turnActive;
+    if (ended && visible && !unhealthy) {
+      probe();
+    }
+  }, [turnActive, visible, unhealthy, probe]);
+
   // An interval rather than a timer restarted per answer: chaining on the answer would make the
   // loop depend on React observing the in-flight flag flip, and a probe that answers within one
   // batch never renders that flip, which would end the recovery after a single retry.
-  const unhealthy = link.state !== "ready";
   useEffect(() => {
     if (!visible || !unhealthy) {
       return undefined;

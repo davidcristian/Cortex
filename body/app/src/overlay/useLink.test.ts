@@ -14,11 +14,11 @@ async function flush(): Promise<void> {
 
 /** Render the hook over a mode the test can move, feeding its dispatches through the real reducer
  *  and the resulting link back into it. */
-function harness(bridge: FakeBridge, initialMode: Mode = "hidden") {
+function harness(bridge: FakeBridge, initialMode: Mode = "hidden", initialActive = false) {
   const actions: Action[] = [];
   const seen = { link: INITIAL_LINK as LinkView };
   const rendered = renderHook(
-    ({ mode }: { mode: Mode }) => {
+    ({ mode, active }: { mode: Mode; active: boolean }) => {
       const [state, apply] = useReducer(reduce, undefined, () => createInitialState("s1"));
       const dispatch = useCallback(
         (action: Action) => {
@@ -28,9 +28,9 @@ function harness(bridge: FakeBridge, initialMode: Mode = "hidden") {
         [apply],
       );
       seen.link = state.link;
-      useLink(bridge, mode, state.link, dispatch);
+      useLink(bridge, mode, state.link, active, dispatch);
     },
-    { initialProps: { mode: initialMode } },
+    { initialProps: { mode: initialMode, active: initialActive } },
   );
   return { ...rendered, actions, view: () => seen.link };
 }
@@ -49,7 +49,7 @@ describe("useLink", () => {
     await flush();
     expect(bridge.linkCalls).toBe(0);
 
-    rerender({ mode: "panel" });
+    rerender({ mode: "panel", active: false });
     await flush();
     expect(bridge.linkCalls).toBe(1);
     expect(actions).toEqual([
@@ -63,7 +63,7 @@ describe("useLink", () => {
     const { rerender } = harness(bridge, "panel");
     await flush();
     for (const mode of ["orb", "preview", "panel"] as const) {
-      rerender({ mode });
+      rerender({ mode, active: false });
       await flush();
     }
     expect(bridge.linkCalls).toBe(1);
@@ -73,16 +73,62 @@ describe("useLink", () => {
     const bridge = new FakeBridge();
     const { rerender } = harness(bridge, "panel");
     await flush();
-    rerender({ mode: "hidden" });
+    rerender({ mode: "hidden", active: false });
     await flush();
-    rerender({ mode: "panel" });
+    rerender({ mode: "panel", active: false });
+    await flush();
+    expect(bridge.linkCalls).toBe(2);
+  });
+
+  it("probes when a turn ends on screen, and shows what the turn left behind", async () => {
+    const bridge = new FakeBridge();
+    const { rerender, view } = harness(bridge, "panel", true);
+    await flush();
+    expect(bridge.linkCalls).toBe(1);
+    bridge.link = { state: "degraded", detail: "could not be reloaded", notes: [] };
+
+    rerender({ mode: "panel", active: false });
+    await flush();
+    expect(bridge.linkCalls).toBe(2);
+    expect(view().state).toBe("degraded");
+  });
+
+  it("leaves a turn that ended unhealthy to the recheck", async () => {
+    const bridge = new FakeBridge();
+    bridge.link = { state: "down", detail: "refused", notes: [] };
+    const { rerender } = harness(bridge, "panel", true);
+    await flush();
+    rerender({ mode: "panel", active: false });
+    await flush();
+    expect(bridge.linkCalls).toBe(1);
+  });
+
+  it("does not probe when a turn starts", async () => {
+    const bridge = new FakeBridge();
+    const { rerender } = harness(bridge, "panel");
+    await flush();
+    rerender({ mode: "panel", active: true });
+    await flush();
+    expect(bridge.linkCalls).toBe(1);
+  });
+
+  it("leaves a turn that ends while hidden to the next summon", async () => {
+    const bridge = new FakeBridge();
+    const { rerender } = harness(bridge, "panel", true);
+    await flush();
+    rerender({ mode: "hidden", active: true });
+    rerender({ mode: "hidden", active: false });
+    await flush();
+    expect(bridge.linkCalls).toBe(1);
+
+    rerender({ mode: "panel", active: false });
     await flush();
     expect(bridge.linkCalls).toBe(2);
   });
 
   it("probes once under StrictMode, whose mount effect fires twice", async () => {
     const bridge = new FakeBridge();
-    renderHook(() => useLink(bridge, "panel", INITIAL_LINK, () => undefined), {
+    renderHook(() => useLink(bridge, "panel", INITIAL_LINK, false, () => undefined), {
       wrapper: StrictMode,
     });
     await flush();
@@ -146,7 +192,7 @@ describe("useLink", () => {
     bridge.link = { state: "down", detail: "refused", notes: [] };
     const { rerender } = harness(bridge, "panel");
     await flush();
-    rerender({ mode: "hidden" });
+    rerender({ mode: "hidden", active: false });
     await act(async () => {
       vi.advanceTimersByTime(LINK_RECHECK_MS * 5);
     });
@@ -176,9 +222,9 @@ describe("useLink", () => {
     await flush();
     expect(bridge.linkCalls).toBe(1);
 
-    rerender({ mode: "hidden" });
+    rerender({ mode: "hidden", active: false });
     await flush();
-    rerender({ mode: "panel" });
+    rerender({ mode: "panel", active: false });
     await flush();
     expect(bridge.linkCalls).toBe(1);
     expect(view().probing).toBe(true);

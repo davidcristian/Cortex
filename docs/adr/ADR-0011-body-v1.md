@@ -86,10 +86,13 @@ recorded in an ADR. This ADR is that exclusion, and the checks that grew around 
 
 8. **The connection indicator is derived, not polled.** A `Health` poll on a timer spends a request
    every interval for a tray app's whole uptime, mostly while hidden, and is still stale between
-   ticks. The indicator uses three sources instead: every `TurnEvent` proves the brain is serving
+   ticks. The indicator uses four sources instead: every `TurnEvent` proves the brain is serving
    and every `TransportError` that it is not; one probe on each summon's rising edge (the
-   `useSummonEffect` latch); and a recheck every `LINK_RECHECK_MS` (5000 ms) only while the overlay
-   is visible and the link is not ready, so the steady state sends nothing. The recheck is an
+   `useSummonEffect` latch); one probe when a turn ends while the overlay is visible and the link
+   green, because the turn's events prove only that the brain answered, not what the turn left
+   behind (a swap back that gave up, a slow handoff's note); and a recheck every `LINK_RECHECK_MS`
+   (5000 ms) only while the overlay is visible and the link is not ready, so the steady state sends
+   nothing. The recheck is an
    interval keyed on "visible and unhealthy" with an in-flight guard, because a timeout restarted
    when `probing` goes false dies after one retry whenever the probe answers inside one React
    batch. The probe runs through the retrying transport
@@ -180,7 +183,8 @@ recorded in an ADR. This ADR is that exclusion, and the checks that grew around 
   ([H-011](../host/tasks/011-toolchain-linked-full-build.md)).
 - The `shell` CI job has never run on a runner, Actions being off for this repository
   ([R-300](../refinements/tasks/300-shell-job-never-ran-on-a-runner.md)).
-- Readiness beyond liveness shows only between turns: a streamed turn event sets the dot green.
+- Readiness beyond liveness shows only between turns: a streamed turn event sets the dot green,
+  and the probe after the turn reads what it left.
 
 ## Alternatives rejected
 

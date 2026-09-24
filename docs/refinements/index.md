@@ -79,7 +79,7 @@ never a reading of what the tree does now.
 
 ### Actionable, once a port changes (4)
 
-- **[R-129](tasks/129-streamed-brain-status.md)** Streamed brain status (body-overlay). Its claim was checked against the code on 2026-09-19.
+- **[R-129](tasks/129-streamed-brain-status.md)** Streamed brain status (body-overlay). Its claim was checked against the code on 2026-09-24.
 - **[R-253](tasks/253-reply-says-window-resampled.md)** Whether the reply says a window was resampled (vision). Its claim was checked against the code on 2026-09-19.
 - **[R-266](tasks/266-sending-a-picture-across-a-model-swap.md)** Sending a picture across a model swap (vision). Its claim was checked against the code on 2026-09-19.
 - **[R-622](tasks/622-only-one-endpoint-in-one-mode-records-its-engine-build.md)** Only one endpoint in one mode records its engine build (inference). Its claim was checked against the code on 2026-09-17.
