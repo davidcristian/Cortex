@@ -17,7 +17,7 @@ SubagentsBackendName = Literal["none", "llamacpp"]
 
 DEFAULT_SUBAGENT_MODEL = "subagent"
 
-DEFAULT_SUBAGENT_DESCRIPTION = "the injection-robust default; safe for any subtask"
+DEFAULT_SUBAGENT_DESCRIPTION = "the injection-resistant default; safe for any subtask"
 
 # The soft admission ceilings, and the twins of the CPU subagent container's own limits: the
 # scheduler stops admitting at these sums and `docker/docker-compose.subagents.yml` caps the

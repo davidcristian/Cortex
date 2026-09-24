@@ -54,16 +54,6 @@ EXEMPTIONS = (
         names=("_PREFACE",),
         reason=MODEL_INPUT,
     ),
-    LiteralExemption(
-        path="brain/packages/core/src/cortex_core/spawn_spec.py",
-        names=("_CHOICE_NOTE",),
-        reason=MODEL_INPUT,
-    ),
-    LiteralExemption(
-        path="brain/packages/orchestrator/src/cortex_orchestrator/config_subagents.py",
-        names=("DEFAULT_SUBAGENT_DESCRIPTION",),
-        reason=MODEL_INPUT,
-    ),
 )
 
 

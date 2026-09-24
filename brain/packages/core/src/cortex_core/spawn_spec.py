@@ -22,7 +22,8 @@ _CHOICE_NOTE = (
     '{"instruction": "...", "model": "<roster name>"}. Subtasks on distinct models run in '
     "parallel, while subtasks that share one model run one after another (one backend each), so "
     "spread independent subtasks across models to finish the batch sooner. On a turn that has "
-    "read untrusted external content the robust default model is enforced regardless of the pick."
+    "read untrusted external content the injection-resistant default model is enforced "
+    "regardless of the pick."
 )
 _SINGLE_MODEL_NOTE = (
     " Every subtask runs on the deployment's default subagent model, so subtasks share its one "

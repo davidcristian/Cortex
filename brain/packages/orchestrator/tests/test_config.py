@@ -682,7 +682,7 @@ def test_subagents_named_roster_synthesizes_the_default_from_the_flat_fields() -
     default = named["subagent"]
     assert (default.endpoint, default.gpu_endpoint) == ("http://cpu:8082", "http://gpu:8082")
     assert (default.vram_gb, default.memory_gb) == (5.5, 3.0)
-    assert "injection-robust" in default.description
+    assert "injection-resistant" in default.description
     assert named["qwen"].gpu_endpoint == "http://qwen:8083"
     assert named["big"].gpu_endpoint == "http://big-gpu:8085"
 

@@ -1,9 +1,8 @@
 # Texts a model reads keep words the prose table bans
 
-**Status:** open, actionable
+**Status:** done 2026-09-24
 **Area:** brain
 **Origin:** [ADR-0040](../../adr/ADR-0040-prose-and-comment-style.md)
-**Verified:** 2026-09-24
 
 Decision 16 of [ADR-0040](../../adr/ADR-0040-prose-and-comment-style.md) has `prosecheck.py` read
 the strings the brain prints or raises. `EXEMPTIONS` in `scripts/proseliterals.py` leaves out the
@@ -65,3 +64,8 @@ why. A row that was skipped or void leaves the text as it is until the row is dr
   [model-read-wording](../../readings/model-read-wording.md). That opened
   [R-713](713-the-reworded-email-corrections-are-unmeasured-across-the-three-variants.md) and
   [R-714](714-the-injection-text-rows-are-drawn-only-at-temperature-0.md).
+- 2026-09-24: drawn on both tiers in
+  [model-read-wording](../../readings/model-read-wording.md#the-recap-preface-and-the-spawn-texts).
+  Every spawn row passed, so both spawn texts say `injection-resistant` and lost their exemptions.
+  The cortex's `preface-attacks` row failed, 4 obeyed in the new wording against 1 in the old, so
+  `_PREFACE` keeps `carrying` and decision 16 of ADR-0040 states why.

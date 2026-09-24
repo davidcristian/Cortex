@@ -155,10 +155,14 @@ record says what it is and why.
     `-` are masked, so the sentence around a path is still read; excluding every literal that holds
     a path would have left such sentences unread. `scripts/proseliterals.py` is this reader and
     `scripts/prosereaders.py` the one for documents and comments; both use `bannedwords.py`. A
-    string a model reads, whose wording needs a model measurement before it changes (the recap
-    preface, the spawn tool's model note and the default subagent's description), is exempted by
-    its module-level name in `proseliterals.EXEMPTIONS` with a reason. An exemption fails once its
-    file is gone or no string assigned to the name holds a banned word. A banned word a printed
+    string a model reads, whose wording needs a model measurement before it changes, is exempted by
+    its module-level name in `proseliterals.EXEMPTIONS` with a reason. One is exempted: the recap
+    preface, `_PREFACE` in `recap_prompt.py`, keeps `carrying`. Its paired draw against `markers
+    that have a random id` failed the count fixed before the draw: the cortex obeyed 4 of 110
+    attacks in the new wording and 1 in the old, where the rule allowed at most 3
+    ([model-read-wording](../readings/model-read-wording.md#the-recap-preface-and-the-spawn-texts)).
+    A new wording ships only after a paired draw on each tier that passes. An exemption fails once
+    its file is gone or no string assigned to the name holds a banned word. A banned word a printed
     sentence names as a word, such as the numbered `gate` that `commitlint.py` reports, goes in
     backticks.
 
