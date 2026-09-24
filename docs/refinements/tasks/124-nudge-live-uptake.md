@@ -9,8 +9,8 @@
 The trade-off sentence ([R-122](122-measured-tradeoff-advertisement.md)) gives the cortex a
 wall-clock reason to spread independent subtasks across distinct roster models. Whether it acts on
 that reason unprompted is what this entry watches. A subagent-tier stand-in would not answer it,
-since the spawn tool is cortex-only and the small subagents do not follow prompt framing the way
-the cortex does.
+since `wiring.py` offers the spawn tool to the cortex and the deep tier and never to a subagent,
+and the small subagents do not follow prompt framing the way the cortex does.
 
 **Observed 2026-08-04** ([ADR-0018 decision 8](../../adr/ADR-0018-heterogeneous-subagents.md)) on
 the 24 GB card at the production 16K context with a single slot, cortex resident (9676 MiB of
