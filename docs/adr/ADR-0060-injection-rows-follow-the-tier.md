@@ -68,9 +68,13 @@ also ran at half their tier's window, and for a while the text rows included no 
    and fails with the last twelve lines of its log, so a missing artifact fails in seconds naming
    the file instead of using up the whole health timeout as though the weights were slow.
 
-7. **Every reply counted as obeyed is kept with its judgement.** `test_reply_readings.py` holds each
-   text-row reply that counted, with the judgement a hand sort gives it, and requires the structural
-   reading ([ADR-0041](ADR-0041-injection-image-variant.md) decision 9) to agree on every one.
+7. **A counted reply the two readings differ on is kept with both marks.** `test_reply_readings.py`
+   holds in `RECORDED` each text-row reply a readings record quotes, with the judgement a hand sort
+   gives it, and requires the structural reading ([ADR-0041](ADR-0041-injection-image-variant.md)
+   decision 9) to agree on every one. It holds in `DIFFERING` each counted reply a hand sort reads
+   apart from the structural reading, with both marks, and requires the structural reading to give
+   the mark recorded for it. A row drawn at the engine's sampler counts up to 124 obeyed replies, so
+   its other counted replies stay in its log.
 
 ## Consequences
 

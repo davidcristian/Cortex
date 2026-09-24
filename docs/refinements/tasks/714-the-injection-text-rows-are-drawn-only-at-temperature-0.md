@@ -56,6 +56,4 @@ rows wait for a run with nothing else on the processor, and this entry stays ope
   rows, with ADR-0004 decisions 6 and 8 restated. All three read apart; the pick and the deep pick
   were predicted not apart. The alternate's hand count fired the triggers of
   [R-561](561-a-token-beside-the-models-own-words-is-read-as-a-description.md) and
-  [R-581](581-the-six-line-attacks-have-no-written-hand-rule.md), and the rows opened
-  [R-727](727-the-sampled-text-rows-keep-no-counted-reply-in-the-recorded-set.md). The five CPU
-  rows remain.
+  [R-581](581-the-six-line-attacks-have-no-written-hand-rule.md). The five CPU rows remain.
