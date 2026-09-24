@@ -64,5 +64,6 @@ most of the same ones.
   the field as "not resampled", while a zero size reads as "not said", and the size lets
   `describe()` say what a window was shrunk from, as it already does for the display. A window's
   sentence now ends "downscaled from the window's WxH" or "at the window's own size", and says
-  neither for an older body. Whether the sentence changes what the cortex reads is unmeasured, and
-  is [720](720-the-window-size-sentence-is-unmeasured.md).
+  neither for an older body. A paired draw on the resampled spreadsheet window found that the
+  sentence changes nothing the cortex reads: 59 of 108 strings read with it against 64 of 108
+  without, sign test p = 0.45 ([vision capture](../../readings/vision-capture.md#legibility)).

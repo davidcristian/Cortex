@@ -97,6 +97,20 @@ spends the cap. Method: five runs each on the 24 GB card, shipped request with n
   terminal's crop cost 1321 prompt tokens against 1701. Method: `desktop_corpus.py` and
   `screen_paint.py` (proven equal to `screen_image.rs` by checksum), the fourth variant of
   `test_image_budget_live.py`.
+- **2026-09-24, the window size sentence.** The spreadsheet window of the row above, 2400x1350 box
+  filtered to 2048x1152, sent at edge 2048 and budget 1024 with and without the text "downscaled
+  from the window's 2400x1350", on the engine's own sampler (no `temperature`, `seed` 1 to 12 on
+  both sides, thinking off). Of the 9 strings inside the window, the sentence read 59 of 108
+  against 64 of 108 without it, 4.9 against 5.3 a draw. The 12 seed pairs split 2 higher, 5 lower
+  and 5 level: a two-sided exact sign test gives p = 0.45 against the 0.05 fixed before the draw,
+  so no change at this depth. Wrong answers 26 against 27, declines 23 against 17. By type size:
+  20 px 32 of 72 against 38 of 72, 21 px 24 of 24 on both, 26 px 3 of 12 against 2 of 12. Read by
+  hand, the two sides fail alike: every reply is JSON, all 24 give "6,838" for "6,038", none reads
+  "Aurelia SA" (6, 9, 16 or UNREADABLE instead), and none reads the taskbar clock outside the
+  window. The sentence costs 14 to 24 prompt tokens. A draw took 3.3 to 3.5 s after the first,
+  with the SM clock at 0.67 of its maximum under load. The sentence and the sampler make this a
+  different input from the 2026-08-10 rows. Method: `test_the_window_size_sentence_against_none`
+  in `test_image_budget_live.py`, log in `measurements/r720-2026-09-24/`.
 
 ## A body call with no deadline
 

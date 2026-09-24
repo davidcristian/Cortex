@@ -217,7 +217,6 @@ async def test_a_window_crop_reads_what_a_shrunk_desktop_cannot(
     assert all(len(scored) == len(results["display"]) for scored in results.values())
 
 
-# Seeds per side of the window size sentence row; 12 is the depth its task file registered.
 _SENTENCE_SEEDS = int(os.environ.get("CORTEX_SENTENCE_SEEDS", "12"))
 _SIDES = ("sized", "unsized")
 
