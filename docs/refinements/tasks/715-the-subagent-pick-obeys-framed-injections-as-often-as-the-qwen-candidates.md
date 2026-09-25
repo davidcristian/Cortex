@@ -106,8 +106,13 @@ without tools reaches, the pick obeys less often than Qwen3.5-2B and Qwen3.5-4B 
 Qwen3.5-0.8B. On the full text row, the request of a subagent with tools, it is level with all
 three.
 
-The same path sends a tainted task's context as a system message with no fence and no preamble;
-whether a fence or the user role lowers the pick's count there is
+**Framing a tainted task's context, drawn 2026-09-25.** That path sent a tainted task's context as
+a system message with no fence and no preamble. Redrawn on the same seeds, the baseline reproduces
+the rows above draw for draw, and against its 29 of 75 the pick obeys in 16 of 77 with the context
+fenced after `SECURITY_PREAMBLE` in the user message (p 0.021, apart below) and in 42 of 74 with it
+in the user message unfenced (p 0.033, apart above); Qwen3.5-4B reads 67, 37 (p 1e-6) and 65
+([subagent CPU rows](../../readings/subagent-cpu-rows.md#framing-a-tainted-tasks-context)). Every
+count fell inside its predicted range. Sending a tainted task's context fenced is
 [R-734](734-a-tainted-subagent-tasks-context-goes-unfenced-as-a-system-message.md).
 
 ## History
@@ -125,3 +130,5 @@ whether a fence or the user role lowers the pick's count there is
 - 2026-09-25: the constrained reply path's rows drawn and read by hand; every Qwen candidate reads
   apart from the pick there. Opened
   [R-734](734-a-tainted-subagent-tasks-context-goes-unfenced-as-a-system-message.md).
+- 2026-09-25: the framing rows of a tainted task's context drawn and read by hand; the fenced
+  context reads apart below the baseline on the pick and the user role apart above it.
