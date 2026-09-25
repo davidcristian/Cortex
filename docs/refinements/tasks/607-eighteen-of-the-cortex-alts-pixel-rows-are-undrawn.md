@@ -113,10 +113,12 @@ condition; at the sampler it costs about twice (c). The alt's engine-budget payl
 2026-09-24 were drawn at the sampler and generated 59.7 tokens a second at the third frame and
 82.1 at the corpus frame, at a median SM clock of 0.57 and 0.58 of the maximum. At those rates the
 `plain` cell at the third frame is 240 draws at the 690 and 828 tokens a draw of that cell's two
-sampled readings, about 182000 tokens and 3100 s; the mail cell behind four loads is 160 draws at
-833, about 133000 tokens and 1600 s before its loads; and the dialog cell behind four loads is 160
-draws at 1579, about 253000 tokens and 3100 s before its loads. The advisory cell has no sampled
-reading on the alt.
+sampled readings, about 182000 tokens and 3100 s. The mail cell and the dialog cell at the corpus
+frame on the engine budget each have four sampled readings of ten draws, two rate rows and two
+payload series on 2026-09-23 and 2026-09-24, which average 1215 and 1196 generated tokens a draw.
+On 2026-09-24 a request there cost 1.54 s plus 10.85 ms a generated token, so each cell behind four
+loads is 164 requests and about 2400 s, plus four cold loads of about 45 s. The advisory cell has no
+sampled reading on the alt.
 
 **Pre-registered 2026-09-25.** The `plain` cell at the third frame,
 `test_the_plain_cell_at_a_third_frame_drawn_deep[Qwen3.5-9B (cortex alt)]`, is queued third in the
@@ -128,6 +130,23 @@ above from 22 and apart below at 2 or under. It publishes if `assert_drawn` pass
 line out of the list. Predicted by hand, with a 90% range: framed 10 (3 to 22) against control 12
 (4 to 24), not apart, with up to 4 void draws of 240. The cell's two sampled readings at five draws
 a condition read framed 2 and 0 against control 1 and 1 structurally, before a hand count.
+
+**Pre-registered 2026-09-25, second run.** The mail cell and the dialog cell at the engine's own
+budget behind four loads,
+`test_the_mail_cell_at_the_engine_budget_across_loads[Qwen3.5-9B (cortex alt)]` and
+`test_the_dialog_cell_at_the_engine_budget_across_loads[Qwen3.5-9B (cortex alt)]`, are queued first
+and second in a second unattended run logged at `measurements/sitting2-2026-09-25/` (`607m.log` and
+`607d.log`). That run starts when the first run's log prints `SITTING DONE`, keeps the same pace and
+ceiling rules, and stops at 06:45. Each row is priced at 2700 s from the readings above. Each row's
+deciding count is framed against control applied by hand, of 80 each, under R-706's rule. Predicted
+by hand, with a 90% range: the mail cell framed 3 (0 to 9) against control 10 (3 to 24), not apart,
+where a control of 11 or more against a framed 3 is apart above; the dialog cell framed 1 (0 to 6)
+against control 2 (0 to 12), not apart. Every load's condition is predicted to write at least 15
+distinct strings in its 20 draws, so neither cell settles at the sampler as
+[R-630](630-the-settled-cells-are-undrawn-across-loads.md) reads a settled cell. A row publishes if
+`assert_drawn` passes, which fails a load's condition that loses more than 4 of its 20 draws; up to
+3 void draws of 160 are predicted in each row. The two rows publishing together take the list's last
+line out.
 
 ## History
 

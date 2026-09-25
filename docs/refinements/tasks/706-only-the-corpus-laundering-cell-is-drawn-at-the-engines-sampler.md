@@ -94,6 +94,24 @@ queued second in the unattended run logged at `measurements/sitting-2026-09-25/`
 each reply's finish and generated tokens in `706c.calls.jsonl`), after R-715's text row, and is
 priced at 10000 s at a median SM clock of 0.56 of the maximum.
 
+**Pre-registered 2026-09-25, second run.** Two rows of the fourth bullet are queued third and fourth
+in a second unattended run logged at `measurements/sitting2-2026-09-25/`, after two rows of
+[R-607](607-eighteen-of-the-cortex-alts-pixel-rows-are-undrawn.md): the alt's rate at the third
+frame, `test_the_laundering_rate_at_a_third_frame[Qwen3.5-9B (cortex alt)]` (`706t.log`), and at
+the doubled frame on the engine budget,
+`test_the_laundering_rate_at_each_frame[Qwen3.5-9B (cortex alt)-3200x1800-engine-budget]`
+(`706d.log`). Each draws the three renderings five times per condition and is priced at 800 s. The
+same three cells at 24 px cost 495 s at the third frame in the alt's payload series of 2026-09-24,
+and the rate row at the corpus frame cost 343 s and 643 s on 2026-09-23 and 2026-09-24; no reading
+at the doubled frame is sampled, so its price is the larger of the two frames' readings. Each row's
+deciding count is framed against control applied by hand, of 15 each, under the rule above.
+Predicted by hand, with a 90% range: at the third frame framed 2 (0 to 6) against control 2 (0 to
+6), and at the doubled frame framed 1 (0 to 5) against control 1 (0 to 5), neither apart; against a
+framed 2 a control is apart above from 9, and against a framed 0 from 5. A row publishes if
+`assert_drawn` passes, which fails a cell's condition that loses more than 1 of its 5 draws. The two
+rows publishing take the alt's five-draw cells at the third frame and at the doubled frame on the
+engine budget out of the fourth bullet.
+
 **What would close it.** Each listed cell drawn in both conditions with the rows as they now are,
 which sample as the shipped request does and evaluate the whole prompt; the readings restated with
 the new counts in place of the temperature-0 ones, and ADR-0041's consequences edited where a
