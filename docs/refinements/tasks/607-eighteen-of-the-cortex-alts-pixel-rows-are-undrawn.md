@@ -100,10 +100,11 @@ every size. By hand the rate row applied the rule in 1 of 15 framed draws and no
 the corpus-frame series in 3 of 45 framed and 12 of 45 control, and the third-frame series in 9 of
 45 framed and 6 of 44 control; the other structural counts are the alt's bare report. The rows cost
 343 s, 1329 s and 1726 s at a median SM clock of 0.56, 0.55 and 0.56 of the card's maximum
-([R-695](695-an-alt-mail-control-voids-in-every-draw-at-the-engine-budget.md)). The same run redrew
-the `plain` cell at 280 draws per condition at the shipped budget, which took about 3300 s for its
-framed half and was stopped at the deadline after more than 4500 s in its control half, so at the
-sampler the 560-draw row costs well over the two hours priced above
+([R-695](695-an-alt-mail-control-voids-in-every-draw-at-the-engine-budget.md)). The `plain` cell
+at 280 draws per condition at the shipped budget, stopped at that run's deadline in its control
+half, was drawn whole at the sampler on 2026-09-25 in 8397 s, 3057 s for its framed half and 5267 s
+for its control's, at a median SM clock of 0.55 of the card's maximum, so the 560-draw row costs
+about 16800 s at that clock
 ([R-706](706-only-the-corpus-laundering-cell-is-drawn-at-the-engines-sampler.md)).
 
 **Priced 2026-09-25.** Collecting the rows still reports thirty-six for the alt. The 560-draw row

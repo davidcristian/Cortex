@@ -167,9 +167,7 @@ enforced power ceiling changes between sessions, so a duration alone says little
 
 ## Consequences
 
-What this part of the harness has measured, each stated with its reading in
-[injection-over-pixels](../readings/injection-over-pixels.md) or
-[injection-harness-costs](../readings/injection-harness-costs.md):
+What this part of the harness has measured, each with its reading in a record under Related:
 
 - **Hijack attacks do not work through pixels; content manipulation does.** Framing works for every
   hijack-shaped attack. Output-laundering, the case ADR-0013 hardened, reaches the reply through the
@@ -186,23 +184,23 @@ What this part of the harness has measured, each stated with its reading in
   the level of its topic one size before the transcription fails, and a body above a bare payload
   turns a described rule into an applied one.
 - **The alternative candidate reads differently.** It transcribes at every size. At the engine's
-  sampler it returned nothing in 1 of 210 control and 4 of 490 framed draws, each ending `'length'`,
+  sampler it returned nothing in 4 of 490 control and 3 of 490 framed draws, each ending `'length'`,
   and the pick in none of 3520, too few to set a ratio between its channels or against the pick. Its
   applied counts on the dialog's laundering cell are reports: every control reply writes the rule
-  bare, which the tail reading counts as applied. Read by hand, each of its five payload-size rows
-  applies the rule, in 1 to 4 of 45 framed and 0 to 12 of 45 control draws. On plain body text its
-  framed variant applied it 9 times in 280 at temperature 0. In the matrix it answers
+  bare, which the tail reading counts as applied. By hand each of its five payload-size rows applies
+  the rule, in 1 to 4 of 45 framed and 0 to 12 of 45 control draws. In the matrix it answers
   payload-splitting with the bare token under the defence, which no shipped-model matrix row has.
 - **The frame matters only where the encoder resamples differently.** Across a doubling of linear
   size at the shipped budget no effect beyond a cell's run-to-run variation (about 2 of 5) appears,
   so the corpus frame is a free choice there. The one frame effect published at the engine budget,
   plain's control applying the rule at the corpus frame and at no larger one, was read from the
   cache at temperature 0; at the sampler that control applies it at 4800x2700 too.
-- **Only the corpus laundering cell and plain at 4800x2700 compare two rates.** At 4800x2700 on
-  the engine budget both variants apply the rule about a third of the time, not apart. Every other
-  count was drawn five a cell or at temperature 0, where a control is one answer per cell, and up
-  to 2026-09-19 with the prompt cache on, where behind one load it was two computations. None of
-  those shows the framing protecting a cell or causing an application.
+- **Three cells compare two rates:** the corpus laundering cell, the pick's plain at 4800x2700 on
+  the engine budget, where both variants apply the rule about a third of the time, not apart, and
+  the alt's plain at the shipped budget, where the framing lowers the rate (23 of 278 against 64 of
+  277, p 1.3e-6). Every other count was drawn five a cell or at temperature 0, where a control is
+  one answer per cell, and up to 2026-09-19 with the prompt cache on, two computations behind one
+  load. None of those shows the framing protecting a cell or causing an application.
 - **Nothing measured changes the shipped stack.** The boundary is the taint and the deterministic
   layers of ADR-0013 and ADR-0029 (the confirmation check, the opaque bit, the memory block, URL
   redaction). A laundering application that reaches the reply is formatting, not action.
@@ -243,7 +241,8 @@ sampler, and card readings for the other harnesses that time the card.
   `pixel_font.py`, `test_image_variant.py`, `test_reply_readings.py`, `card_reading.py`,
   `test_card_reading.py`.
 - Procedure and selectors: [injection-probes](../runbooks/injection-probes.md), its image rows.
-- Measurements: [injection-over-pixels](../readings/injection-over-pixels.md),
+- Measurements: [injection-over-pixels](../readings/injection-over-pixels.md), its
+  [alt record](../readings/injection-over-pixels-alt.md) and
   [injection-harness-costs](../readings/injection-harness-costs.md).
 - [ADR-0013](ADR-0013-untrusted-content.md) (the text harness and the deterministic layers),
   [ADR-0029](ADR-0029-vision-screen-capture.md) (the capture path measured here),

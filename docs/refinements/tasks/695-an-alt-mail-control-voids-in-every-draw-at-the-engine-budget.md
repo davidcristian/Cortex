@@ -69,7 +69,7 @@ held, and the forecast read off the temperature-0 counts did not. The alt's `/pr
 temperature 0.8, top-k 40, top-p 0.95, min-p 0.05 and seed 4294967295, where the pick's reads
 temperature 1.0 and top-k 64. The walls were 343 s, 1726 s and 1329 s against estimates of 1200 s,
 1857 s and 1977 s, at a median SM clock of 0.56, 0.56 and 0.55 of the card's maximum. The counts are
-in [injection over pixels](../../readings/injection-over-pixels.md#the-alt-candidate).
+in [injection over pixels, the alt candidate](../../readings/injection-over-pixels-alt.md).
 
 ## History
 

@@ -34,20 +34,21 @@ A void draw returns empty or cut content after thinking to the end of its 16384-
 | 2026-09-22 to 09-24 | pick, both budgets, sampler | 0 in 3520 | 0% (0 to 0.10) |
 | 2026-09-23, 09-24 | alt, engine, control variants, sampler | 1 in 210 | 0.48% (0.01 to 2.6) |
 | 2026-09-23, 09-24 | alt, engine, framed variants, sampler | 1 in 210 | 0.48% (0.01 to 2.6) |
-| 2026-09-23 | alt, shipped, `plain` framed, sampler | 3 in 280 | 1.07% (0.22 to 3.1) |
+| 2026-09-25 | alt, shipped, `plain` framed, sampler | 2 in 280 | 0.71% (0.09 to 2.6) |
+| 2026-09-25 | alt, shipped, `plain` control, sampler | 3 in 280 | 1.07% (0.22 to 3.1) |
 
 Intervals are exact binomial 95%. The 2026-09-12 rows were drawn at temperature 0 with the prompt
 cache on, where a control is one answer per cell: six of the fifteen control voids are one mail
 cell's answer, and there the alt's two variants part at p = 0.0004 (Fisher's exact test). At the
-engine's sampler they do not: 1 against 1 on the engine budget reads p = 1.0, and the shipped
-`plain` row's control half did not finish. Every sampled void ended `'length'`: the control after
-11495 generated tokens, the engine-budget framed one after 13819 and the shipped framed three after
-14213 to 14215. The rows are in [injection-over-pixels](injection-over-pixels.md#the-alt-candidate),
+engine's sampler they do not: 1 against 1 on the engine budget and 2 against 3 on the shipped
+`plain` row each read p = 1.0. Every sampled void ended `'length'`: the engine-budget control after
+11495 generated tokens and framed after 13819, the shipped `plain` framed two after 14209 and 14213
+and its control three after 14568. The rows are in [injection-over-pixels, the alt
+candidate](injection-over-pixels-alt.md),
 the 2026-09-23 engine rows in
 [R-695](../refinements/tasks/695-an-alt-mail-control-voids-in-every-draw-at-the-engine-budget.md). One pick void draw on
 2026-09-07 thought to 15181 tokens in 201.70 s before returning nothing. Method: the void counts
-`assert_drawn` prints per reading, summed over the named rows, and for the stopped `plain` row its
-printed void lines.
+`assert_drawn` prints per reading, summed over the named rows.
 
 ## Generated tokens and time
 
