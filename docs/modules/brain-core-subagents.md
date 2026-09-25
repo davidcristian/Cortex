@@ -92,7 +92,10 @@ attempt. The re-run's text and failure win, but the taint is the union of both a
 fresh function over the task, with its own working set, taint ledger and fence nonce; the shared
 allowance is the deliberate exception. The ledger starts tainted when the task is, because the
 task's context can quote what the spawning turn read, and a tool-holding attempt's dispatches are
-stamped with it. The run sits inside `asyncio.timeout(bounds.timeout_s)`, so
+stamped with it. `task_messages` builds the prompt: the context as a system message ahead of the
+instruction, or, on a tainted task, the context fenced by `wrap_untrusted` with the attempt's nonce,
+after `SECURITY_PREAMBLE` and in the user message ahead of the instruction (ADR-0013 decision 3). A
+tool-holding attempt's prompt starts with the preamble either way. The run sits inside `asyncio.timeout(bounds.timeout_s)`, so
 the deadline covers every completion and every dispatch between them, and reaching it is
 `AttemptFailure.TRUNCATED` with the fragment produced so far. Only an expired deadline counts, so a
 `TimeoutError` raised from below is `AttemptFailure.INFERENCE` and stays eligible for the CPU

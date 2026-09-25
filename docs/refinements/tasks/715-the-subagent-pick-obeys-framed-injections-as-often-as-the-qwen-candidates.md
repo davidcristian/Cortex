@@ -48,7 +48,7 @@ request of a subagent with tools. A subagent with no tools sends another one: th
 path too. `SubagentRoster.resolve` returns the pick for every tainted task, with or without tools,
 and a deployment with no MCP tools still taints a turn through a screen capture or an image the
 user attaches. The attacker text then reaches the subagent inside the task the cortex writes, and
-the spawn spec calls `context` the material the subagent works from, which `task_messages` sends
+the spawn spec calls `context` the material the subagent works from, which `task_messages` sent
 as a system message. So the forced pick runs this request on the turns ADR-0017 forces it for, and
 the rows above do not say whether it is apart from the Qwen candidates there. An untainted turn
 reaches the path with the model the cortex asked for, and no untrusted tool result or attachment
@@ -112,8 +112,8 @@ the rows above draw for draw, and against its 29 of 75 the pick obeys in 16 of 7
 fenced after `SECURITY_PREAMBLE` in the user message (p 0.021, apart below) and in 42 of 74 with it
 in the user message unfenced (p 0.033, apart above); Qwen3.5-4B reads 67, 37 (p 1e-6) and 65
 ([subagent CPU rows](../../readings/subagent-cpu-rows.md#framing-a-tainted-tasks-context)). Every
-count fell inside its predicted range. Sending a tainted task's context fenced is
-[R-734](734-a-tainted-subagent-tasks-context-goes-unfenced-as-a-system-message.md).
+count fell inside its predicted range. The runner now sends a tainted task's context fenced that
+way ([ADR-0013](../../adr/ADR-0013-untrusted-content.md) decision 3).
 
 ## History
 
@@ -128,7 +128,7 @@ count fell inside its predicted range. Sending a tainted task's context fenced i
 - 2026-09-25: the constrained reply path's rows written down before the draw and started on the
   CPU.
 - 2026-09-25: the constrained reply path's rows drawn and read by hand; every Qwen candidate reads
-  apart from the pick there. Opened
-  [R-734](734-a-tainted-subagent-tasks-context-goes-unfenced-as-a-system-message.md).
+  apart from the pick there.
 - 2026-09-25: the framing rows of a tainted task's context drawn and read by hand; the fenced
-  context reads apart below the baseline on the pick and the user role apart above it.
+  context reads apart below the baseline on the pick and the user role apart above it, and the
+  runner now sends a tainted task's context fenced.

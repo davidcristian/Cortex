@@ -33,7 +33,12 @@ from cortex_core.subagent_reply import (
 from cortex_core.subagents import UNBOUNDED_ATTEMPT, AttemptBounds, SubagentTask
 from cortex_core.tool_budget import DispatchBudget
 from cortex_core.tool_loop import ToolLoopContext, stream_tool_loop
-from cortex_core.untrusted import TaintLedger, new_nonce, security_preamble_message
+from cortex_core.untrusted import (
+    TaintLedger,
+    new_nonce,
+    security_preamble_message,
+    wrap_untrusted,
+)
 
 __all__ = [
     "GENERATION_CAP_BOUND",
@@ -55,14 +60,16 @@ __all__ = [
 ]
 
 
-def task_messages(task: SubagentTask, *, constrain: bool) -> list[Message]:
-    """The subagent's prompt: the instruction as the user ask, context as system framing."""
+def task_messages(task: SubagentTask, *, constrain: bool, tools: bool, nonce: str) -> list[Message]:
+    """The subagent's prompt; a tainted task's context goes fenced after the security preamble."""
     asked = instruct_reply(task.instruction) if constrain else task.instruction
-    messages = [Message(role=Role.USER, text=asked, at=task.at, turn_id=task.id)]
-    if task.context:
-        framing = Message(role=Role.SYSTEM, text=task.context, at=task.at, turn_id=task.id)
-        messages.insert(0, framing)
-    return messages
+    fence = task.tainted and bool(task.context)
+    head = [security_preamble_message(task.at, task.id)] if tools or fence else []
+    if fence:
+        asked = f"{wrap_untrusted(task.context, nonce=nonce)}\n\n{asked}"
+    elif task.context:
+        head.append(Message(role=Role.SYSTEM, text=task.context, at=task.at, turn_id=task.id))
+    return [*head, Message(role=Role.USER, text=asked, at=task.at, turn_id=task.id)]
 
 
 class PlacedAttempt:
@@ -95,9 +102,9 @@ class PlacedAttempt:
     ) -> AttemptOutcome:
         """Stream ``task`` on ``backend`` as ``model`` and say what came back."""
         constrain = self._tools is None and self._constrain_output
-        working = task_messages(task, constrain=constrain)
-        if self._tools is not None:
-            working.insert(0, security_preamble_message(task.at, task.id))
+        nonce = new_nonce()
+        tools = self._tools is not None
+        working = task_messages(task, constrain=constrain, tools=tools, nonce=nonce)
         # The task's context can quote untrusted text, so a tainted task's attempt starts tainted.
         taint = TaintLedger(tainted=task.tainted)
         stops = StopLedger()
@@ -106,7 +113,7 @@ class PlacedAttempt:
             clock=self._clock,
             turn_id=task.turn_id,
             taint=taint,
-            nonce=new_nonce(),
+            nonce=nonce,
             session_id=task.session_id,
             task_id=task.id,
             item_id=task.item_id,

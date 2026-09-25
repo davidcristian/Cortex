@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import re
 from collections.abc import AsyncGenerator, AsyncIterator, Mapping, Sequence
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
@@ -43,6 +44,7 @@ from cortex_core import (
     VramBudgetPlacer,
 )
 from cortex_core.subagent_reply import REPLY_INSTRUCTION
+from cortex_core.untrusted import SECURITY_PREAMBLE, wrap_untrusted
 
 _AT = datetime(2026, 7, 3, 12, 0, tzinfo=UTC)
 _RUNNER_LOGGER = "cortex_core.runner"
@@ -613,6 +615,94 @@ async def test_a_tool_less_subagent_on_a_tainted_task_returns_a_tainted_result()
     result = await _runner(store, TextBackend(["reply"])).run("t")
     assert (result.ok, result.output, result.tainted) == (True, "reply", True)
     assert await store.get_result("t") == result
+
+
+def _fence_id(text: str) -> str:
+    found = re.match(r"<untrusted-tool-output id=([0-9a-f]+)>\n", text)
+    assert found is not None, text
+    return found.group(1)
+
+
+async def test_a_tainted_tasks_context_goes_fenced_after_the_security_preamble() -> None:
+    store = InMemoryTaskStore()
+    await store.put_task(
+        SubagentTask(id="t", instruction="go", context="a quoted page", at=_AT, tainted=True)
+    )
+    backend = TextBackend(["reply"])
+    await _runner(store, backend).run("t")
+    (messages,) = backend.seen
+    assert [m.role for m in messages] == [Role.SYSTEM, Role.USER]
+    nonce = _fence_id(messages[1].text)
+    fenced = wrap_untrusted("a quoted page", nonce=nonce)
+    assert (messages[0].text, messages[1].text) == (SECURITY_PREAMBLE, f"{fenced}\n\ngo")
+
+
+async def test_a_tainted_task_with_no_context_sends_only_its_instruction() -> None:
+    store = InMemoryTaskStore()
+    await store.put_task(SubagentTask(id="t", instruction="go", context="", at=_AT, tainted=True))
+    backend = TextBackend(["reply"])
+    await _runner(store, backend).run("t")
+    (messages,) = backend.seen
+    assert [(m.role, m.text) for m in messages] == [(Role.USER, "go")]
+
+
+async def test_a_tools_enabled_subagent_sends_the_preamble_then_its_plain_context() -> None:
+    store = InMemoryTaskStore()
+    await store.put_task(SubagentTask(id="t", instruction="go", context="notes", at=_AT))
+    backend = TextBackend(["done"])
+    dispatcher = ToolDispatcher(_StampRecordingRead(), RecordingAuditSink(), FixedClock())
+    await _runner(store, backend, tools=dispatcher).run("t")
+    (messages,) = backend.seen
+    assert [(m.role, m.text) for m in messages] == [
+        (Role.SYSTEM, SECURITY_PREAMBLE),
+        (Role.SYSTEM, "notes"),
+        (Role.USER, "go"),
+    ]
+
+
+class _UntrustedRead:
+    async def describe_tools(self) -> Sequence[ToolSpec]:
+        return [ToolSpec(name="read", description="", parameters={})]
+
+    async def invoke(self, call: ToolCall) -> ToolResult:
+        return ToolResult(call_id=call.id, content="page", trust=Trust.UNTRUSTED)
+
+
+class _SeenScriptedBackend(ScriptedBackend):
+    def __init__(self, steps: Sequence[Sequence[InferenceEvent]]) -> None:
+        super().__init__(steps)
+        self.seen: list[list[Message]] = []
+
+    async def stream(
+        self,
+        model: str,
+        messages: Sequence[Message],
+        *,
+        tools: Sequence[ToolSpec] = (),
+        schema: JsonSchema | None = None,
+        bounds: GenerationBounds | None = None,
+    ) -> AsyncIterator[InferenceEvent]:
+        self.seen.append(list(messages))
+        async for event in super().stream(
+            model, messages, tools=tools, schema=schema, bounds=bounds
+        ):
+            yield event
+
+
+async def test_a_tainted_tasks_fence_and_its_tool_results_share_one_nonce() -> None:
+    store = InMemoryTaskStore()
+    await store.put_task(
+        SubagentTask(id="t", instruction="go", context="a quoted page", at=_AT, tainted=True)
+    )
+    backend = _SeenScriptedBackend(
+        [[ToolCall(id="c1", name="read", arguments={})], [TextChunk("done")]]
+    )
+    dispatcher = ToolDispatcher(_UntrustedRead(), RecordingAuditSink(), FixedClock())
+    await _runner(store, backend, tools=dispatcher).run("t")
+    first, second = backend.seen
+    assert [m.role for m in first] == [Role.SYSTEM, Role.USER]
+    assert first[0].text == SECURITY_PREAMBLE
+    assert _fence_id(second[-1].text) == _fence_id(first[1].text)
 
 
 async def test_a_failed_attempt_at_a_tainted_task_is_tainted_too() -> None:

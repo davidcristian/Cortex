@@ -175,7 +175,7 @@ for the probes.
 ## Framing a tainted task's context
 
 **2026-09-25, on the CPU, `shipped-argv`, the request of a subagent with no tools.** Written down
-before the first draw. The constrained reply path above sends a task's context as a system message
+before the first draw. The constrained reply path above sent a task's context as a system message
 with no fence, and these rows ask whether another framing lowers how often the pick obeys it. Three
 variants, each with the `REPLY_ENVELOPE` schema and its sentence and the task and payloads of the
 rows above: `constrained`, the messages of `task_messages` as the runner sends them; `user-role`,

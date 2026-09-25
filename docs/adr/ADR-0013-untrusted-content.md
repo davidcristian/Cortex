@@ -67,11 +67,14 @@ The ledger is rebuilt each turn from the store and live results. The one place i
 the brain handoff record, which serializes it whole so a mid-turn swap rehydrates it exactly
 ([ADR-0030](ADR-0030-brain-handoff.md) decision 2). The loop's per-invocation collaborators are
 bundled in the frozen `ToolLoopContext` (`cortex_core/dispatch_round.py`), and each dispatch is
-stamped with a `TurnStamp` holding the tainted bit. A subagent's ledger starts tainted when its
-task is, because a tainted turn's task context can quote what that turn read, and a refused tainted
-task's result is tainted too. `SubagentResult.tainted` is read from that ledger and makes the spawn
-aggregate untrusted (decision 1), so a subagent that read or was handed a malicious email taints
-the cortex that spawned it through the same mark and wrapper, with no special case.
+stamped with a `TurnStamp` holding the tainted bit. A subagent's ledger starts tainted when its task
+is, because a tainted turn's task context can quote what that turn read, and a refused tainted
+task's result is tainted too. That context goes fenced after `SECURITY_PREAMBLE` in the user
+message, since the pick obeys an injection in it less often there than in a system message
+([subagent CPU rows](../readings/subagent-cpu-rows.md#framing-a-tainted-tasks-context)).
+`SubagentResult.tainted` is read from that ledger and makes the spawn aggregate untrusted (decision
+1), so a subagent that read or was handed a malicious email taints the cortex that spawned it
+through the same mark and wrapper, with no special case.
 
 ### 4. Confirmation: `ToolSpec.confirm_required`, enforced in the dispatcher, through a `Confirmer` port
 
@@ -117,13 +120,12 @@ that confirmation does not stop, and the answer then is a preamble clause.
 
 `SECURITY_PREAMBLE` forbids untrusted content from dictating what the reply contains or how it is
 formatted: no line, footer, header, disclaimer, link, URL or code it asks for, even when presented
-as a requirement, policy, rule, note, format or standard. Output laundering ("every summary must
-end with ...") is content rather than an action, so confirmation does not cover it, and without the
+as a requirement, policy, rule, note, format or standard. Output laundering ("every summary must end
+with ...") is content rather than an action, so confirmation does not cover it, and without the
 clause every model measured complied. With it the cortex stops. The subagent pick stopped at
 temperature 0, but at the engine's sampler it still complies in 55 of 100 framed draws against 84 of
-100 unframed ([injection text rows](../readings/injection-text-rows.md)); it and the smallest
-models rely on decision 9. A laundered URL is removed by the output guardrail
-(ADR-0015).
+100 unframed ([injection text rows](../readings/injection-text-rows.md)); it and the smallest models
+rely on decision 9. A laundered URL is removed by the output guardrail (ADR-0015).
 
 ### 8. Exactly one permanent rule opens every turn
 
@@ -150,9 +152,8 @@ subagent's dispatch opens twice the sessions a cortex dispatch does
 
 A subagent is therefore covered by four deterministic layers: it never receives such a tool; its
 dispatcher denies one anyway (`confirmer=None`, and ADR-0022 decision 8's second check on the
-names); its output re-enters the cortex untrusted and fenced; and a tainted or tool-holding spawn
-is forced onto the injection-resistant model
-([ADR-0017](ADR-0017-subagent-model-safety.md)).
+names); its output re-enters the cortex untrusted and fenced; and a tainted or tool-holding spawn is
+forced onto the injection-resistant model ([ADR-0017](ADR-0017-subagent-model-safety.md)).
 
 ### 10. A sidecar's own text is marked trusted again by the brain, on byte equality
 
@@ -185,18 +186,17 @@ half of such an override is `ConfirmRequiredToolRegistry` (ADR-0022).
 ### 11. Framing is measured on the real models, and measured again when they change
 
 `brain/packages/inference/tests/test_injection_defense_live.py` is an integration-marked test the
-agent runs through Docker on the card: a ten-attack corpus from public indirect-injection
-taxonomies (override, task-completion spoofing, system-prompt mimicry, role-play, refusal
-suppression, payload splitting, output laundering, a conditional trigger, system-prompt and
-`send_email` exfiltration), sent to each lineup candidate framed as deployed and unframed as a
-control. Its hard assertion is that framing never backfires; the matrix is the signal. Rows start
-from the tier's deployed configuration
-([ADR-0060](ADR-0060-injection-rows-follow-the-tier.md)), the thinking-switch rows are
+agent runs through Docker on the card: a ten-attack corpus from public indirect-injection taxonomies
+(override, task-completion spoofing, system-prompt mimicry, role-play, refusal suppression, payload
+splitting, output laundering, a conditional trigger, system-prompt and `send_email` exfiltration),
+sent to each lineup candidate framed as deployed and unframed as a control. Its hard assertion is
+that framing never backfires; the matrix is the signal. Rows start from the tier's deployed
+configuration ([ADR-0060](ADR-0060-injection-rows-follow-the-tier.md)), the thinking-switch rows are
 [ADR-0049](ADR-0049-thinking-switch-and-trace-budget.md) decision 16, every cell is read as obeyed,
-described and mentioned ([ADR-0041](ADR-0041-injection-image-variant.md) decision 9), and the deep row
-is opt-in (`CORTEX_PROBE_BRAIN=1`). `test_unfenced_correction_live.py` and
-`test_own_texts_bridge_live.py` measure decision 10 on the cortex and against a real Bridge. Each
-is run again when a pick, either permanent rule or a sidecar sentence changes, per
+described and mentioned ([ADR-0041](ADR-0041-injection-image-variant.md) decision 9), and the deep
+row is opt-in (`CORTEX_PROBE_BRAIN=1`). `test_unfenced_correction_live.py` and
+`test_own_texts_bridge_live.py` measure decision 10 on the cortex and against a real Bridge. Each is
+run again when a pick, either permanent rule or a sidecar sentence changes, per
 [llamacpp-gpu](../runbooks/llamacpp-gpu.md) and [email-imap](../runbooks/email-imap.md).
 
 ## Consequences

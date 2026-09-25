@@ -75,7 +75,7 @@ envelope](../readings/reply-envelope.md).
    summarization, an extraction or a lookup, and naming the genre gained nothing on that genre.
 
 6. **It is appended to the instruction, last, inside the user message.**
-   `task_messages(task, *, constrain)` sends `f"{task.instruction} {REPLY_INSTRUCTION}"` on the
+   `task_messages(task, *, constrain, ...)` sends `f"{task.instruction} {REPLY_INSTRUCTION}"` on the
    constrained path and exactly what the cortex wrote otherwise. Last is the position that survives
    an instruction the cortex composed out of content it read, and a subtask is one request. Decision
    3 applies the sentence to exactly the runs the envelope reaches, so the halves cannot come apart.
