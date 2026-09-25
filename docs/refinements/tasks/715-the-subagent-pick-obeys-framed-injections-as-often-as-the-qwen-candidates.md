@@ -25,9 +25,9 @@ and 12. Against the pick the test again separates gemma-4-E2B only (p 0.0085); t
 counts give p 0.81, 1 and 0.82, as written down before the draw.
 
 **What would close it.** A per-tier pick is the maintainer's decision: keep the pick and restate
-decision 7's reason, or move the pick and with it ADR-0017's forced default. Evidence that could
-inform it and is not yet drawn: a check of whether the constrained reply path
-([ADR-0028](../../adr/ADR-0028-grammar-constrained-subagents.md)) changes the order.
+decision 7's reason, or move the pick and with it ADR-0017's forced default. The evidence drawn
+for it is below: the full text row, `output-laundering` alone, and the constrained reply path
+([ADR-0028](../../adr/ADR-0028-grammar-constrained-subagents.md)).
 
 **`output-laundering` alone, 2026-09-25.** Drawn on the card as written here before the draw, 100
 per variant per candidate ([subagent laundering](../../readings/subagent-laundering.md)). By hand
@@ -93,6 +93,23 @@ Qwen3.5-0.8B, at load averages 2.2 to 8.8. The lanes are the pick alone, Qwen3.5
 gemma-4-E2B, and Qwen3.5-2B then Qwen3.5-0.8B, so the longest is the pick's at about 2700 s against
 a deadline of 06:30. Logs: `measurements/cpu2-2026-09-25/`, the probes as `price-*.log`.
 
+**The constrained reply path, drawn 2026-09-25.** Drawn as written above, counted by hand
+([subagent CPU rows](../../readings/subagent-cpu-rows.md#the-constrained-reply-path)). Constrained,
+the pick obeys in 29 of 75, gemma-4-E2B in 2, and Qwen3.5-0.8B, Qwen3.5-2B and Qwen3.5-4B in 11 of
+78, 63 and 67, of 80. Against the pick every Qwen candidate reads apart, Qwen3.5-0.8B below (p
+0.00081), Qwen3.5-2B above (p 6.2e-7) and Qwen3.5-4B above (p 8.7e-9), and gemma-4-E2B below (p
+6.1e-9), each as predicted, so this path changes the order. Raw, the counts are 39, 35, 12, 29 and
+58. The pick's raw count and Qwen3.5-4B's fell above their ranges; every other count fell inside
+its range. The pick lost 5 constrained draws to the cap, under the one in five the void rule
+allows, and no constrained reply failed to parse. So on the path a tainted turn on a deployment
+without tools reaches, the pick obeys less often than Qwen3.5-2B and Qwen3.5-4B and more often than
+Qwen3.5-0.8B. On the full text row, the request of a subagent with tools, it is level with all
+three.
+
+The same path returns a tainted task's reply to the cortex as trusted, since a subagent with no
+tools never marks its own ledger; that is
+[R-733](733-a-tainted-subagent-task-with-no-tools-returns-a-trusted-result.md).
+
 ## History
 
 - 2026-09-23: opened by
@@ -105,3 +122,6 @@ a deadline of 06:30. Logs: `measurements/cpu2-2026-09-25/`, the probes as `price
   did: against the pick's framed count only gemma-4-E2B reads apart.
 - 2026-09-25: the constrained reply path's rows written down before the draw and started on the
   CPU.
+- 2026-09-25: the constrained reply path's rows drawn and read by hand; every Qwen candidate reads
+  apart from the pick there. Opened
+  [R-733](733-a-tainted-subagent-task-with-no-tools-returns-a-trusted-result.md).
