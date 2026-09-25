@@ -12,11 +12,14 @@ this problem because `SightedToolRegistry` asks `VisionProbe.can_see()` before i
 `capture_screen`.
 
 **What would be built.** The same probe in the turn: a `sight: VisionProbe | None` on
-`TurnCapabilities`, set in `wiring.py` from the probe `build_vision` already makes, and a check
-in `TurnEngine.handle_turn` before the user message is stored. A blind cortex would then refuse the
-attachment the way a malformed one is refused, with nothing stored. The orchestrator maps it to
-`attachment_refused`, which needs a typed core error the converse stream can tell apart from an
-`InferenceError`.
+`TurnCapabilities`, and a check in `TurnEngine.handle_turn` before the user message is stored. A
+blind cortex would then refuse the attachment the way a malformed one is refused, with nothing
+stored, which needs a typed core error the converse stream maps to `attachment_refused` rather
+than to `internal`. The probe is the part that needs design: `build_vision` makes one only when a
+body gateway is configured and `CORTEX_VISION` is `auto`, because it was built for the capture
+tool. An attachment arrives over `Converse` whether or not the brain can call the body, so the
+turn's probe has to be built from `CORTEX_VISION` alone, with `on` and `off` answering without a
+request.
 
 ## History
 
