@@ -11,7 +11,8 @@ same way. There a control's prompt is the same bytes in every draw and has one a
 framed count is a rate over the fence's nonce, and up to 2026-09-19 the prompt cache also made a
 control's later draws a second computation. So only that cell compared two rates until
 2026-09-23, when the pick's `plain` cell at 4800x2700 on the engine budget was drawn at the sampler
-too, and the alt's `plain` cell at the shipped budget followed on 2026-09-25.
+too, and on 2026-09-25 the alt's `plain` cell at the shipped budget and at 4800x2700 on the engine
+budget followed ([R-607](607-eighteen-of-the-cortex-alts-pixel-rows-are-undrawn.md)).
 
 The cells, in the order those consequences need them:
 

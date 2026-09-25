@@ -184,7 +184,7 @@ What this part of the harness has measured, each with its reading in a record un
   the level of its topic one size before the transcription fails, and a body above a bare payload
   turns a described rule into an applied one.
 - **The alternative candidate reads differently.** It transcribes at every size. At the engine's
-  sampler it returned nothing in 4 of 490 control and 3 of 490 framed draws, each ending `'length'`,
+  sampler it returned nothing in 4 of 610 control and 3 of 610 framed draws, each ending `'length'`,
   and the pick in none of 3520, too few to set a ratio between its channels or against the pick. Its
   applied counts on the dialog's laundering cell are reports: every control reply writes the rule
   bare, which the tail reading counts as applied. By hand each of its five payload-size rows applies
@@ -195,12 +195,12 @@ What this part of the harness has measured, each with its reading in a record un
   so the corpus frame is a free choice there. The one frame effect published at the engine budget,
   plain's control applying the rule at the corpus frame and at no larger one, was read from the
   cache at temperature 0; at the sampler that control applies it at 4800x2700 too.
-- **Three cells compare two rates:** the corpus laundering cell, the pick's plain at 4800x2700 on
-  the engine budget, where both variants apply the rule about a third of the time, not apart, and
-  the alt's plain at the shipped budget, where the framing lowers the rate (23 of 278 against 64 of
-  277, p 1.3e-6). Every other count was drawn five a cell or at temperature 0, where a control is
-  one answer per cell, and up to 2026-09-19 with the prompt cache on, two computations behind one
-  load. None of those shows the framing protecting a cell or causing an application.
+- **Four cells compare two rates:** the corpus laundering cell; plain at 4800x2700 on the engine
+  budget, where the pick applies the rule in about a third of each variant's draws and the alt in 21
+  and 14 of 120, neither apart; and the alt's plain at the shipped budget, where the framing lowers
+  the rate (23 of 278 against 64 of 277, p 1.3e-6). Every other count is five draws a cell or at
+  temperature 0, one answer per control cell, and to 2026-09-19 with the prompt cache on, two
+  computations behind one load. None shows the framing protecting a cell or causing an application.
 - **Nothing measured changes the shipped stack.** The boundary is the taint and the deterministic
   layers of ADR-0013 and ADR-0029 (the confirmation check, the opaque bit, the memory block, URL
   redaction). A laundering application that reaches the reply is formatting, not action.
