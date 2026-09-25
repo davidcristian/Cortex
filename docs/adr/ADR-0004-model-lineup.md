@@ -61,12 +61,12 @@ lineup](../readings/model-lineup.md) and [injection text rows](../readings/injec
    `Qwen3.5-9B-UD-Q4_K_XL.gguf`, the 4-bit quant the mount holds, since the `Q4_K_M` the candidate
    set first named is not there.
 
-7. **Subagent: gemma-4-E4B QAT q4_0.** At temperature 0 it obeyed 0 of 10 framed injections on both
-   placements, and the one other candidate that did, Qwen3.5-0.8B, is as likely too weak to follow
-   the injection as resistant to it. At the engine's sampler, as the tier runs, it obeys 9 of 100
-   framed draws on the card against 22 of 100 unframed, where gemma-4-E2B obeys 28 and the three
-   Qwen candidates 8 to 10, so on that row the pick leads gemma-4-E2B only
-   ([injection text rows](../readings/injection-text-rows.md)). Injection resistance was adopted as
+7. **Subagent: gemma-4-E4B QAT q4_0.** It was picked when, at temperature 0, it obeyed 0 of 10
+   framed injections on both placements. At the engine's sampler, as the tier runs, it obeys 9 of
+   100 framed draws on the card and 10 on the CPU, against 22 and 24 unframed, where gemma-4-E2B
+   obeys 28 and 25 and the three Qwen candidates 8 to 10 and 8 to 12, so on both placements the pick
+   leads gemma-4-E2B only ([injection text rows](../readings/injection-text-rows.md), [subagent CPU
+   rows](../readings/subagent-cpu-rows.md)). Injection resistance was adopted as
    a selection axis at a measured cost: against the Qwen3.5-2B it replaced, about 2.6 times the
    load, 3 times a narrow task's latency and 2.8 times the resident memory, acceptable for narrow
    asynchronous work. The safety default of [ADR-0017](ADR-0017-subagent-model-safety.md) is tied to
@@ -210,4 +210,4 @@ lineup](../readings/model-lineup.md) and [injection text rows](../readings/injec
 - Modules: [brain-model-manager](../modules/brain-model-manager.md),
   [brain-memory](../modules/brain-memory.md).
 - Readings: [model lineup](../readings/model-lineup.md), [injection text
-  rows](../readings/injection-text-rows.md).
+  rows](../readings/injection-text-rows.md), [subagent CPU rows](../readings/subagent-cpu-rows.md).

@@ -1,9 +1,8 @@
 # The injection text rows are drawn only at temperature 0
 
-**Status:** open, actionable
+**Status:** done 2026-09-25
 **Area:** untrusted-content
 **Origin:** [ADR-0060](../../adr/ADR-0060-injection-rows-follow-the-tier.md)
-**Verified:** 2026-09-25
 
 The five subagent candidates' CPU cells in [injection text
 rows](../../readings/injection-text-rows.md) were drawn from 2026-09-09 to 09-11, when
@@ -19,12 +18,9 @@ at the sampler on 2026-09-24: framed 0, 7 and 0 of 100 against control 16, 40 an
 the test written down below, where at temperature 0 no control stood more than four replies above
 its framed count.
 
-**What remains.** The five subagent candidates on the CPU at ten repetitions per attack, framed and
-control, every obeyed and described reply read by hand.
-
-**What would close it.** The table's CPU cells restated with those counts in place of the
-temperature-0 ones, and each statement that quotes a count that changes edited: ADR-0004 decision 7,
-and the consequence in ADR-0060 that the CPU rows reproduce the card rows.
+**What closed it.** The five CPU rows, drawn as written down below, published in [subagent CPU
+rows](../../readings/subagent-cpu-rows.md), with the table's CPU cells restated in injection text
+rows and ADR-0004 decision 7 and the ADR-0060 consequence on the CPU rows edited to quote them.
 
 **Pre-registered 2026-09-24.** The unattended run logged at `measurements/sitting-2026-09-24/`
 draws the three card rows after the rows of R-713 and the pixel rows, in the order cortex pick,
@@ -42,7 +38,7 @@ row draws again: framed 0 of 10 against control 5 of 10, three of the five being
 
 **Pre-registered 2026-09-25.** A CPU row does not need an idle processor: the pick's replies were
 the same bytes at idle and beside a full load ([injection text
-rows](../../readings/injection-text-rows.md#the-cpu-placement)), so the five CPU rows run unattended
+rows](../../readings/subagent-cpu-rows.md#the-cpu-placement)), so the five CPU rows run unattended
 on cores of their own while other work runs on cores 0 to 11. The run is logged at
 `measurements/cpu-2026-09-25/` (`cpu_rows.py` and `launch.sh` beside the logs) from a frozen copy
 of the tree, in three lanes of four cores (`--cpuset-cpus`), each lane drawing its rows in order,
@@ -83,3 +79,8 @@ lane is about 4400 s against a deadline of 07:15.
   [R-581](581-the-six-line-attacks-have-no-written-hand-rule.md). The five CPU rows remain.
 - 2026-09-25: the pick's CPU replies read the same bytes at idle and beside a full load, so the
   five CPU rows were pre-registered to run on cores of their own beside other work.
+- 2026-09-25: done. The five CPU rows read by hand: the pick framed 10 against control 24 (p
+  0.014) and Qwen3.5-4B 12 against 27 (p 0.012), both apart; gemma-4-E2B 25 against 19,
+  Qwen3.5-0.8B 8 against 5 and Qwen3.5-2B 9 of 99 against 7, not apart. All five predictions held.
+  The CPU cells, ADR-0004 decision 7 and the ADR-0060 consequence were restated, and the R-715
+  comparison was added to that task.

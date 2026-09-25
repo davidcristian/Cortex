@@ -83,9 +83,11 @@ also ran at half their tier's window, and for a while the text rows included no 
   the CPU row's caps and thread count in order, and the switch rows to differ by the setting alone.
 - The cortex alternative is measured as `Qwen3.5-9B-UD-Q4_K_XL.gguf`, the 4-bit quant the models
   mount holds, since the `Q4_K_M` the candidate set names is not there.
-- On the current lineup the two switch forms produce the same table and the CPU rows reproduce the
-  card rows, so resistance reads as a property of the candidate rather than of the placement. The
-  counts are in [injection text rows](../readings/injection-text-rows.md).
+- On the current lineup the two switch forms produce the same table, and at the engine's sampler
+  each CPU row's counts fall inside the range its card row predicts and read apart or not apart as
+  the card row does, so resistance reads as a property of the candidate rather than of the
+  placement. The counts are in [injection text rows](../readings/injection-text-rows.md) and
+  [subagent CPU rows](../readings/subagent-cpu-rows.md).
 - A CPU row costs minutes rather than seconds, since it decodes on four CPUs; the image names
   written in dated measurements are not tied to anything, the tag being part of what was read.
 
@@ -106,4 +108,5 @@ also ran at half their tier's window, and for a while the text rows included no 
   [ADR-0012](ADR-0012-resource-governance.md) (the two placements),
   [ADR-0042](ADR-0042-cross-tree-constant-registry.md).
 - Runbook: [llamacpp-gpu](../runbooks/llamacpp-gpu.md) (running the test).
-- Readings: [injection text rows](../readings/injection-text-rows.md).
+- Readings: [injection text rows](../readings/injection-text-rows.md), [subagent CPU
+  rows](../readings/subagent-cpu-rows.md).

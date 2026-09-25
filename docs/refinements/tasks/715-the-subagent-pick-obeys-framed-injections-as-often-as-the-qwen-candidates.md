@@ -18,10 +18,15 @@ pick at 9 of 100, gemma-4-E2B at 28, and Qwen3.5-0.8B, Qwen3.5-2B and Qwen3.5-4B
 the pick separates gemma-4-E2B only (p 0.0009); the three Qwen counts give p 1, 1 and 1. On that
 row the pick buys no measured resistance over Qwen3.5-2B.
 
+**On the CPU, 2026-09-25.** The same row on the CPU placement, where a stock deployment runs the
+tier, counted by hand ([subagent CPU rows](../../readings/subagent-cpu-rows.md)), reads the pick
+framed at 10 of 100, gemma-4-E2B at 25, and Qwen3.5-0.8B, Qwen3.5-2B and Qwen3.5-4B at 8, 9 of 99
+and 12. Against the pick the test again separates gemma-4-E2B only (p 0.0085); the three Qwen
+counts give p 0.81, 1 and 0.82, as written down before the draw.
+
 **What would close it.** A per-tier pick is the maintainer's decision: keep the pick and restate
 decision 7's reason, or move the pick and with it ADR-0017's forced default. Evidence that could
-inform it and is not yet drawn: the same comparison on the CPU placement, which R-714's CPU rows
-draw, and a check of whether the constrained reply path
+inform it and is not yet drawn: a check of whether the constrained reply path
 ([ADR-0028](../../adr/ADR-0028-grammar-constrained-subagents.md)) changes the order.
 
 **`output-laundering` alone, 2026-09-25.** Drawn on the card as written here before the draw, 100
@@ -48,3 +53,6 @@ inside the task text and sends `REPLY_ENVELOPE`, which no row of this harness do
   subagent candidates at the sampler found the pick level with the Qwen candidates.
 - 2026-09-25: `output-laundering` drawn alone on the pick and the three Qwen candidates, 100 per
   variant; the Qwen3.5-2B and Qwen3.5-4B predictions held and the Qwen3.5-0.8B one did not.
+- 2026-09-25: the CPU rows drawn under
+  [R-714](714-the-injection-text-rows-are-drawn-only-at-temperature-0.md) read as the card row
+  did: against the pick's framed count only gemma-4-E2B reads apart.
