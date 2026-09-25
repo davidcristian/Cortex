@@ -34,6 +34,15 @@ export interface TransportError {
   readonly message: string;
 }
 
+/** A picture the user attached to a turn, already decoded, downscaled and encoded again. */
+export interface AttachedImage {
+  readonly data: Uint8Array;
+  /** `image/png`, `image/jpeg` or `image/webp`; the brain checks it against the first bytes. */
+  readonly mimeType: string;
+  readonly width: number;
+  readonly height: number;
+}
+
 /** Receives the streamed events of one `Converse` turn. */
 export interface TurnSink {
   onEvent(event: TurnEvent): void;
@@ -98,7 +107,12 @@ export interface Preference {
 
 /** The overlay's port to the brain, implemented over Tauri IPC or by a fake. */
 export interface BrainBridge {
-  converse(sessionId: string, text: string, sink: TurnSink): Cancellation;
+  converse(
+    sessionId: string,
+    text: string,
+    images: readonly AttachedImage[],
+    sink: TurnSink,
+  ): Cancellation;
   /** Probe the brain once for the connection indicator. Resolves with a state even when the
    *  brain is unreachable: a failed probe is an answer about it, not an error. */
   checkLink(): Promise<LinkStatus>;

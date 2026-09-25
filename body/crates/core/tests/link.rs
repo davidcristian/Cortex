@@ -2,8 +2,8 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
 use body_core::{
-    BrainTransport, ConfirmDecision, DueReminder, LinkState, LinkStatus, RpcHealth, SessionMessage,
-    SessionSummary, TransportError, TurnEvent, probe_link,
+    AttachedImage, BrainTransport, ConfirmDecision, DueReminder, LinkState, LinkStatus, RpcHealth,
+    SessionMessage, SessionSummary, TransportError, TurnEvent, probe_link,
 };
 use futures_core::Stream;
 
@@ -67,6 +67,7 @@ impl BrainTransport for ScriptedTransport {
         &self,
         _session_id: &str,
         _text: &str,
+        _images: Vec<AttachedImage>,
         decisions: impl Stream<Item = ConfirmDecision> + Send + 'static,
     ) -> impl Stream<Item = Result<TurnEvent, TransportError>> + Send {
         drop(decisions);

@@ -6,8 +6,8 @@
 use std::fmt;
 
 use body_core::{
-    BrainTransport, ConfirmDecision, DueReminder, RetryPlan, RpcHealth, RpcMethod, SessionMessage,
-    SessionSummary, TransportError, TurnEvent,
+    AttachedImage, BrainTransport, ConfirmDecision, DueReminder, RetryPlan, RpcHealth, RpcMethod,
+    SessionMessage, SessionSummary, TransportError, TurnEvent,
 };
 use futures_core::Stream;
 use tonic::metadata::{Ascii, MetadataValue};
@@ -145,12 +145,14 @@ impl BrainTransport for BrainRpcClient {
         &self,
         session_id: &str,
         text: &str,
+        images: Vec<AttachedImage>,
         decisions: impl Stream<Item = ConfirmDecision> + Send + 'static,
     ) -> impl Stream<Item = Result<TurnEvent, TransportError>> + Send {
         crate::converse::converse_turn(
             self.call(RpcMethod::Converse).client(),
             session_id.to_owned(),
             text.to_owned(),
+            images,
             decisions,
         )
     }

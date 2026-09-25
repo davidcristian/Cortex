@@ -90,6 +90,14 @@ of 1600 px and encoded again as PNG or JPEG, so the width and height the brain r
 body's own reading of pixels it produced. That keeps an arbitrary file's parser out of the brain
 container and gives the model the same resolution a capture has.
 
+Inside the body, the overlay's webview decodes and encodes, and the Tauri shell passes bytes on.
+Paste and drop hand the webview a `File`, the webview already decodes PNG, JPEG and WebP and encodes
+PNG and JPEG with a canvas, and the Rust crates hold only the capture path's PNG encoder. Decoding
+in the shell would add a parser for arbitrary files there and send the full-size original across
+IPC. Tauri IPC arguments are JSON, so each picture's bytes cross as standard base64 (`WireImage` in
+the shell's `converse.rs`); bytes that are not base64 end the turn as `attachment_refused` before
+the brain is called.
+
 ### 6. One of the three layers relaxes
 
 - `Message.__post_init__` accepts images on `USER` as well as `TOOL`. `ASSISTANT` and `SYSTEM`

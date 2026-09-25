@@ -1,7 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { FakeBridge } from "./fakeBridge";
-import type { DueReminder } from "./types";
+import type { AttachedImage, DueReminder } from "./types";
+
+const PICTURE: AttachedImage = {
+  data: new Uint8Array([0x89, 0x50]),
+  mimeType: "image/png",
+  width: 1600,
+  height: 900,
+};
 
 const reminder = (reminderId: string): DueReminder => ({
   reminderId,
@@ -17,8 +24,9 @@ describe("FakeBridge", () => {
     const bridge = new FakeBridge();
     const onEvent = vi.fn();
     const onError = vi.fn();
-    bridge.converse("s1", "hi", { onEvent, onError });
+    bridge.converse("s1", "hi", [PICTURE], { onEvent, onError });
     expect(bridge.calls).toEqual([{ sessionId: "s1", text: "hi" }]);
+    expect(bridge.attached).toEqual([[PICTURE]]);
     bridge.emit({ kind: "delta", text: "x" });
     bridge.fail({ kind: "rpc", message: "boom" });
     expect(onEvent).toHaveBeenCalledWith({ kind: "delta", text: "x" });
@@ -31,7 +39,7 @@ describe("FakeBridge", () => {
       bridge.emit({ kind: "delta", text: "x" });
       bridge.fail({ kind: "rpc", message: "b" });
     }).not.toThrow();
-    const cancel = bridge.converse("s", "t", { onEvent: vi.fn(), onError: vi.fn() });
+    const cancel = bridge.converse("s", "t", [], { onEvent: vi.fn(), onError: vi.fn() });
     cancel();
     expect(() => bridge.emit({ kind: "delta", text: "y" })).not.toThrow();
   });

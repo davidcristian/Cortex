@@ -10,6 +10,19 @@ pub struct ConfirmDecision {
     pub approved: bool,
 }
 
+/// A picture the user attached to a turn, already decoded, downscaled and encoded again by the body.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AttachedImage {
+    /// The encoded bytes.
+    pub data: Vec<u8>,
+    /// `image/png`, `image/jpeg` or `image/webp`; the brain checks it against the first bytes.
+    pub mime_type: String,
+    /// Width in pixels of the encoded image.
+    pub width: u32,
+    /// Height in pixels of the encoded image.
+    pub height: u32,
+}
+
 /// One event from the brain during a `Converse` turn.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum TurnEvent {

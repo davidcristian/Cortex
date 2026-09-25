@@ -22,4 +22,6 @@ pub use retry::{
     within_gaps,
 };
 pub use session_types::{DueReminder, SessionMessage, SessionSummary};
-pub use transport::{BrainTransport, ConfirmDecision, RpcHealth, TransportError, TurnEvent};
+pub use transport::{
+    AttachedImage, BrainTransport, ConfirmDecision, RpcHealth, TransportError, TurnEvent,
+};

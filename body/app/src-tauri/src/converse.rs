@@ -1,12 +1,14 @@
 //! The `converse` IPC command: run one brain turn and stream it to the webview.
 
+use base64::Engine;
+use base64::engine::general_purpose::STANDARD;
 use body_core::{
-    BrainTransport, ConfirmDecision, RetryingTransport, TransportError, TurnEvent, retry_with,
-    within_deadline,
+    AttachedImage, BrainTransport, ConfirmDecision, RetryingTransport, TransportError, TurnEvent,
+    retry_with, within_deadline,
 };
 use body_rpc::BrainRpcClient;
 use futures_util::{StreamExt, pin_mut};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use tauri::State;
 use tauri::ipc::Channel;
 use tokio_stream::wrappers::UnboundedReceiverStream;
@@ -155,15 +157,55 @@ impl WireMessage {
     }
 }
 
+/// One attached picture from the overlay (matches `AttachedImage` in types.ts), its bytes in
+/// standard base64 because IPC arguments are JSON.
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WireImage {
+    data_base64: String,
+    mime_type: String,
+    width: u32,
+    height: u32,
+}
+
+/// Decodes every picture, or names the first one whose bytes are not base64 as the brain names a
+/// refused attachment: by its 1-based position.
+fn decode_images(images: Vec<WireImage>) -> Result<Vec<AttachedImage>, TurnEvent> {
+    images
+        .into_iter()
+        .enumerate()
+        .map(|(index, image)| match STANDARD.decode(&image.data_base64) {
+            Ok(data) => Ok(AttachedImage {
+                data,
+                mime_type: image.mime_type,
+                width: image.width,
+                height: image.height,
+            }),
+            Err(error) => Err(TurnEvent::Failed {
+                code: String::from("attachment_refused"),
+                message: format!("Attachment {} could not be read: {error}.", index + 1),
+            }),
+        })
+        .collect()
+}
+
 /// Runs one conversational turn and streams it to `channel`. Connection and turn failures are
 /// delivered on the channel rather than as a command error.
 #[tauri::command]
 pub async fn converse(
     session_id: String,
     text: String,
+    images: Vec<WireImage>,
     channel: Channel<WireMessage>,
     route: State<'_, ConfirmRoute>,
 ) -> Result<(), String> {
+    let images = match decode_images(images) {
+        Ok(images) => images,
+        Err(refused) => {
+            let _ = channel.send(WireMessage::event(refused));
+            return Ok(());
+        }
+    };
     let addr = std::env::var("CORTEX_BRAIN_ADDR").unwrap_or_else(|_| DEFAULT_ADDR.to_owned());
     let token = std::env::var("CORTEX_SEAM_TOKEN")
         .ok()
@@ -195,7 +237,8 @@ pub async fn converse(
     let transport = RetryingTransport::new(client, TokioSleeper, plan);
     let (sender, receiver) = tokio::sync::mpsc::unbounded_channel::<ConfirmDecision>();
     let generation = route.set(sender);
-    let stream = transport.converse(&session_id, &text, UnboundedReceiverStream::new(receiver));
+    let decisions = UnboundedReceiverStream::new(receiver);
+    let stream = transport.converse(&session_id, &text, images, decisions);
     pin_mut!(stream);
     while let Some(item) = stream.next().await {
         let message = match item {

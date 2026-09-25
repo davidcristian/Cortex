@@ -5,10 +5,10 @@ use std::sync::{Arc, Mutex, PoisonError};
 use std::time::Duration;
 
 use body_core::{
-    BrainTransport, ConfirmDecision, DEFAULT_TURN_FIRST_GAP_MS, DEFAULT_TURN_HEARTBEAT_GAP_MS,
-    DEFAULT_TURN_IDLE_GAP_MS, DueReminder, HEARTBEAT_PERIOD_MS, RetryPlan, RetryingTransport,
-    RpcHealth, RpcMethod, SessionMessage, SessionSummary, Sleeper, TransportError, TurnEvent,
-    TurnGaps, within_gaps,
+    AttachedImage, BrainTransport, ConfirmDecision, DEFAULT_TURN_FIRST_GAP_MS,
+    DEFAULT_TURN_HEARTBEAT_GAP_MS, DEFAULT_TURN_IDLE_GAP_MS, DueReminder, HEARTBEAT_PERIOD_MS,
+    RetryPlan, RetryingTransport, RpcHealth, RpcMethod, SessionMessage, SessionSummary, Sleeper,
+    TransportError, TurnEvent, TurnGaps, within_gaps,
 };
 use futures_core::Stream;
 use tokio_stream::StreamExt;
@@ -399,6 +399,7 @@ impl BrainTransport for StallingTransport {
         &self,
         _session_id: &str,
         _text: &str,
+        _images: Vec<AttachedImage>,
         decisions: impl Stream<Item = ConfirmDecision> + Send + 'static,
     ) -> impl Stream<Item = TurnItem> + Send {
         drop(decisions);
@@ -462,7 +463,7 @@ async fn the_decorator_hands_the_turn_the_plan_s_own_gaps() {
     };
     let transport = RetryingTransport::new(StallingTransport, sleeper.clone(), plan);
     let items: Vec<_> = transport
-        .converse("s1", "hi", tokio_stream::empty())
+        .converse("s1", "hi", Vec::new(), tokio_stream::empty())
         .collect()
         .await;
     assert_eq!(

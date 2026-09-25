@@ -486,6 +486,7 @@ dependencies = [
 name = "cortex-body"
 version = "0.1.0"
 dependencies = [
+ "base64 0.22.1",
  "body-core",
  "body-rpc",
  "futures-util",

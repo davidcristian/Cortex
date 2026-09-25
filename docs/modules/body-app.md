@@ -17,8 +17,8 @@ Look and feel is [overlay-ux.md](../design/overlay-ux.md), and the motion measur
 values: `TurnEvent`, `TransportError`, `SessionSummary`, `SessionMessage`, `DueReminder`,
 `LinkState`, `LinkStatus` and `Preference`.
 
-- `converse(sessionId, text, sink) -> Cancellation` runs one turn. Nothing is delivered during the
-  call itself, and cancelling silences the turn however often it is called.
+- `converse(sessionId, text, images, sink) -> Cancellation` runs one turn with the attached pictures
+  (`AttachedImage`, ADR-0070). Nothing is delivered during the call, and cancelling is idempotent.
 - The session reads `listSessions(limit)` and `sessionMessages(sessionId)` (ADR-0021). A zero
   limit means the brain's default listing and a positive one cuts that listing.
 - The session writes `renameSession(sessionId, title)` (`""` clears the override),
@@ -134,13 +134,13 @@ the dot never claims more than the brain proved: `unknown` is a real state with 
 the window and emits the `cortex:activate` Tauri event, which `main.tsx` re-dispatches as the DOM
 event the overlay listens on; in a plain browser `main.tsx` self-summons instead.
 
-- **`converse(session_id, text, channel)`** (`converse.rs`) drives one `BrainRpcClient` turn and
-  streams each event to the webview over a Tauri `Channel`, serialising every `TurnEvent` and
-  `TransportError` to a `WireMessage` (`{ event }` or `{ error }`) that matches the TypeScript
-  `WireMessage` in `tauriBridge.ts` field for field: tag `kind`, camelCase, so a confirm request is
-  `{ kind: "confirmRequest", confirmId, toolName, argumentsJson, reason }` and the brain closing it
-  unanswered is `{ kind: "confirmResolved", confirmId, outcome }` (ADR-0022), and a heartbeat
-  `{ kind: "heartbeat", wait, detail }` (ADR-0069). A `TransportError` has its own `kind`
+- **`converse(session_id, text, images, channel)`** (`converse.rs`) decodes each `WireImage`'s
+  base64 bytes (a bad one ends the turn as `attachment_refused`), drives one `BrainRpcClient` turn,
+  and streams each event to the webview over a Tauri `Channel` as a `WireMessage` (`{ event }` or
+  `{ error }`) matching the one in `tauriBridge.ts` field for field: tag `kind`, camelCase, so a
+  confirm request is `{ kind: "confirmRequest", confirmId, toolName, argumentsJson, reason }`, the
+  brain closing it unanswered `{ kind: "confirmResolved", confirmId, outcome }` (ADR-0022), and a
+  heartbeat `{ kind: "heartbeat", wait, detail }` (ADR-0069). A `TransportError` has its own `kind`
   (`connection`, `rpc`, `protocol`, `timeout`). For the turn's duration the command parks a
   decision sender in the managed `ConfirmRoute` state, one slot, at most one turn running at once.
 - **`confirm_response(confirm_id, approved)`** (`confirm.rs`, ADR-0022) pushes the user's answer

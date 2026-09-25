@@ -5,7 +5,7 @@
 use std::net::SocketAddr;
 use std::pin::Pin;
 
-use body_core::{BrainTransport, ConfirmDecision, TransportError, TurnEvent};
+use body_core::{AttachedImage, BrainTransport, ConfirmDecision, TransportError, TurnEvent};
 use body_rpc::BrainRpcClient;
 use body_rpc::generated::brain_service_server::{BrainService, BrainServiceServer};
 use body_rpc::generated::{
@@ -50,6 +50,8 @@ enum Script {
     /// Read the user turn, then assert the inbound stream half-closes when the caller's decisions
     /// stream is empty, which is the shape that predates confirms, then complete normally.
     HalfClose,
+    /// Read the user turn and describe each attached image in one delta, then complete.
+    Images,
 }
 
 /// A scripted fake implementing the generated `BrainService` server trait.
@@ -83,6 +85,33 @@ async fn read_user_turn(inbound: &mut Streaming<ClientEvent>) -> Result<(String,
         Some((session_id, client_event::Event::UserTurn(turn))) => Ok((session_id, turn.text)),
         _ => Ok((String::from("<none>"), String::from("<none>"))),
     }
+}
+
+/// One delta per image the user turn has, naming every field the fake received, then completion.
+async fn describe_images(
+    inbound: &mut Streaming<ClientEvent>,
+) -> Result<Vec<Result<ServerEvent, Status>>, Status> {
+    let Some((_, client_event::Event::UserTurn(turn))) = read_client_event(inbound).await? else {
+        return Ok(vec![Err(Status::internal("expected the user turn"))]);
+    };
+    let described = turn.images.iter().map(|image| {
+        Ok(delta(&format!(
+            "{} {}x{} {:?} source {}x{} at {}",
+            image.mime_type,
+            image.width,
+            image.height,
+            image.data,
+            image.source_width,
+            image.source_height,
+            image.captured_at_unix_ms
+        )))
+    });
+    let complete = Ok(ServerEvent {
+        event: Some(server_event::Event::TurnComplete(TurnComplete {
+            turn_id: String::from("turn-images"),
+        })),
+    });
+    Ok(described.chain([complete]).collect())
 }
 
 /// The confirm round trip: emit a `ConfirmRequest`, then check that the client's next inbound
@@ -237,6 +266,7 @@ impl BrainService for FakeBrain {
                     )))],
                 }
             }
+            Script::Images => describe_images(&mut inbound).await?,
             Script::RejectCall | Script::Confirm { .. } => unreachable!("handled above"),
         };
         Ok(Response::new(Box::pin(tokio_stream::iter(events))))
@@ -340,7 +370,7 @@ async fn run_turn(
 ) -> Result<Vec<Result<TurnEvent, TransportError>>, Box<dyn std::error::Error>> {
     let addr = spawn_fake_brain(script).await?;
     let client = BrainRpcClient::connect(&format!("http://{addr}")).await?;
-    let stream = client.converse(session_id, text, decisions);
+    let stream = client.converse(session_id, text, Vec::new(), decisions);
     tokio::pin!(stream);
     let mut out = Vec::new();
     while let Some(item) = stream.next().await {
@@ -357,7 +387,7 @@ async fn run_confirm_turn(approved: bool) -> Result<Vec<TurnEvent>, Box<dyn std:
     let client = BrainRpcClient::connect(&format!("http://{addr}")).await?;
     let (sender, receiver) = tokio::sync::mpsc::unbounded_channel();
     let decisions = tokio_stream::wrappers::UnboundedReceiverStream::new(receiver);
-    let stream = client.converse("sess-c", "send it", decisions);
+    let stream = client.converse("sess-c", "send it", Vec::new(), decisions);
     tokio::pin!(stream);
     let mut events = Vec::new();
     while let Some(item) = stream.next().await {
@@ -576,5 +606,45 @@ async fn empty_decisions_stream_still_half_closes_and_the_turn_completes() {
                 turn_id: String::from("turn-halfclose"),
             },
         ],
+    );
+}
+
+#[tokio::test]
+async fn attached_images_reach_the_user_turn_in_order_without_a_capture_source() {
+    let addr = spawn_fake_brain(Script::Images).await.unwrap();
+    let client = BrainRpcClient::connect(&format!("http://{addr}"))
+        .await
+        .unwrap();
+    let images = vec![
+        AttachedImage {
+            data: vec![0x89, 0x50],
+            mime_type: String::from("image/png"),
+            width: 1600,
+            height: 900,
+        },
+        AttachedImage {
+            data: vec![0xff, 0xd8, 0xff],
+            mime_type: String::from("image/jpeg"),
+            width: 30,
+            height: 40,
+        },
+    ];
+    let stream = client.converse("sess-i", "what is this", images, tokio_stream::empty());
+    tokio::pin!(stream);
+    let mut events = Vec::new();
+    while let Some(item) = stream.next().await {
+        events.push(item.unwrap());
+    }
+    assert_eq!(
+        events,
+        vec![
+            TurnEvent::Delta(String::from("image/png 1600x900 [137, 80] source 0x0 at 0")),
+            TurnEvent::Delta(String::from(
+                "image/jpeg 30x40 [255, 216, 255] source 0x0 at 0"
+            )),
+            TurnEvent::Complete {
+                turn_id: String::from("turn-images"),
+            },
+        ]
     );
 }

@@ -1047,7 +1047,7 @@ async fn a_client_told_no_plan_announces_nothing_and_a_turn_never_does() {
     assert!(silent.health().await.unwrap().ready);
     let announcing = silent.clone().announcing(RetryPlan::default());
     let turn: Vec<_> = announcing
-        .converse("s1", "hi", tokio_stream::empty())
+        .converse("s1", "hi", Vec::new(), tokio_stream::empty())
         .collect()
         .await;
     assert_eq!(turn.len(), 1, "the fake refuses the turn with one status");

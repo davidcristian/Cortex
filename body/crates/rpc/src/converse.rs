@@ -2,14 +2,14 @@
 //! `body_core::BrainTransport` port.
 
 use async_stream::stream;
-use body_core::{ConfirmDecision, TransportError, TurnEvent};
+use body_core::{AttachedImage, ConfirmDecision, TransportError, TurnEvent};
 use futures_core::Stream;
 use tokio_stream::StreamExt;
 
 use crate::call::RpcChannel;
 use crate::generated::brain_service_client::BrainServiceClient;
 use crate::generated::{
-    ClientEvent, ConfirmResponse, ServerEvent, UserTurn, client_event, server_event,
+    ClientEvent, ConfirmResponse, ImageBlob, ServerEvent, UserTurn, client_event, server_event,
 };
 use crate::status::status_to_error;
 
@@ -19,13 +19,14 @@ use crate::status::status_to_error;
 fn turn_request(
     session_id: String,
     text: String,
+    images: Vec<AttachedImage>,
     decisions: impl Stream<Item = ConfirmDecision> + Send + 'static,
 ) -> impl Stream<Item = ClientEvent> + Send {
     let user_turn = ClientEvent {
         session_id: session_id.clone(),
         event: Some(client_event::Event::UserTurn(UserTurn {
             text,
-            images: Vec::new(),
+            images: images.into_iter().map(image_blob).collect(),
         })),
     };
     tokio_stream::once(user_turn).chain(decisions.map(move |decision| ClientEvent {
@@ -35,6 +36,20 @@ fn turn_request(
             approved: decision.approved,
         })),
     }))
+}
+
+/// The wire form of an attached image. The source size and capture time describe a screen capture
+/// only, so they stay 0.
+fn image_blob(image: AttachedImage) -> ImageBlob {
+    ImageBlob {
+        data: image.data,
+        mime_type: image.mime_type,
+        width: image.width,
+        height: image.height,
+        source_width: 0,
+        source_height: 0,
+        captured_at_unix_ms: 0,
+    }
 }
 
 /// Maps one `ServerEvent` to a `TurnEvent` (or a `Protocol` error for an empty event) plus whether
@@ -114,10 +129,12 @@ pub(crate) fn converse_turn(
     mut client: BrainServiceClient<RpcChannel>,
     session_id: String,
     text: String,
+    images: Vec<AttachedImage>,
     decisions: impl Stream<Item = ConfirmDecision> + Send + 'static,
 ) -> impl Stream<Item = Result<TurnEvent, TransportError>> + Send {
     stream! {
-        let mut inbound = match client.converse(turn_request(session_id, text, decisions)).await {
+        let request = turn_request(session_id, text, images, decisions);
+        let mut inbound = match client.converse(request).await {
             Ok(response) => response.into_inner(),
             Err(status) => {
                 yield Err(status_to_error(&status));

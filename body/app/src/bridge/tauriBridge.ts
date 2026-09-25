@@ -1,6 +1,8 @@
 import { Channel, invoke } from "@tauri-apps/api/core";
 
+import { toBase64 } from "./base64";
 import type {
+  AttachedImage,
   BrainBridge,
   Cancellation,
   DueReminder,
@@ -21,7 +23,12 @@ type WireMessage = { readonly event: TurnEvent } | { readonly error: TransportEr
  *  `converse` command, and forwards streamed messages to the sink. Excluded from coverage and
  *  checked on the host, like the Rust OS adapters. */
 export class TauriBridge implements BrainBridge {
-  converse(sessionId: string, text: string, sink: TurnSink): Cancellation {
+  converse(
+    sessionId: string,
+    text: string,
+    images: readonly AttachedImage[],
+    sink: TurnSink,
+  ): Cancellation {
     const channel = new Channel<WireMessage>();
     let live = true;
     channel.onmessage = (message) => {
@@ -34,7 +41,14 @@ export class TauriBridge implements BrainBridge {
         sink.onError(message.error);
       }
     };
-    invoke("converse", { sessionId, text, channel }).catch((reason: unknown) => {
+    // IPC arguments are JSON, so the bytes cross as base64 (`WireImage` in converse.rs).
+    const wire = images.map(({ data, mimeType, width, height }) => ({
+      dataBase64: toBase64(data),
+      mimeType,
+      width,
+      height,
+    }));
+    invoke("converse", { sessionId, text, images: wire, channel }).catch((reason: unknown) => {
       if (live) {
         sink.onError({ kind: "connection", message: String(reason) });
       }

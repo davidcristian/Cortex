@@ -24,7 +24,9 @@ use futures_core::Stream;
 
 use crate::retry::effects::jittered;
 use crate::session_types::{DueReminder, SessionMessage, SessionSummary};
-use crate::transport::{BrainTransport, ConfirmDecision, RpcHealth, TransportError, TurnEvent};
+use crate::transport::{
+    AttachedImage, BrainTransport, ConfirmDecision, RpcHealth, TransportError, TurnEvent,
+};
 
 /// Runs `call`, retrying while the policy allows and sleeping the jittered delay between tries.
 ///
@@ -123,12 +125,13 @@ impl<T: BrainTransport, S: Sleeper, R: Randomness> BrainTransport for RetryingTr
         &self,
         session_id: &str,
         text: &str,
+        images: Vec<AttachedImage>,
         decisions: impl Stream<Item = ConfirmDecision> + Send + 'static,
     ) -> impl Stream<Item = Result<TurnEvent, TransportError>> + Send {
         within_gaps(
             self.plan.gaps_for(RpcMethod::Converse),
             &self.sleeper,
-            self.inner.converse(session_id, text, decisions),
+            self.inner.converse(session_id, text, images, decisions),
         )
     }
 

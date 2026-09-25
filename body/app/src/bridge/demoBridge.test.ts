@@ -16,7 +16,7 @@ function speak(bridge: DemoBridge, text: string, sessionId = "demo-1"): Turn {
     onEvent: (event) => events.push(event),
     onError: () => expect.unreachable("the demo bridge never fails a turn"),
   };
-  return { events, cancel: bridge.converse(sessionId, text, sink) };
+  return { events, cancel: bridge.converse(sessionId, text, [], sink) };
 }
 
 /** Everything the turn streamed as reply text, and everything it streamed as thinking. */

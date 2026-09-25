@@ -88,11 +88,13 @@ Two areas of this crate have documents of their own:
 same trait for tests.
 
 - `health(&self)` returns `impl Future<Output = Result<RpcHealth, TransportError>> + Send`.
-- `converse(&self, session_id, text, decisions)` returns
+- `converse(&self, session_id, text, images, decisions)` returns
   `impl Stream<Item = Result<TurnEvent, TransportError>> + Send`, one turn per call (ADR-0011:
   session continuity is external, so each prompt is a fresh call sharing the `session_id`, and
   dropping the returned stream cancels the turn). `decisions: impl Stream<Item = ConfirmDecision>
-  + Send + 'static` answers mid-turn `ConfirmRequest`s (ADR-0022); the request stream half-closes
+  + Send + 'static` answers mid-turn `ConfirmRequest`s (ADR-0022). `images: Vec<AttachedImage>`
+  are the pictures the user attached, already encoded again by the body (ADR-0070), and a turn
+  without one passes an empty `Vec`; the request stream half-closes
   when it ends, so a caller with no confirmation surface passes an empty stream. An unanswered
   confirmation is denied brain-side, so a decision sent after teardown does nothing.
 - `list_sessions(&self, limit)` and `session_messages(&self, session_id)` (ADR-0021) are the

@@ -1,4 +1,5 @@
 import type {
+  AttachedImage,
   BrainBridge,
   Cancellation,
   DueReminder,
@@ -17,6 +18,8 @@ import type {
 export class FakeBridge implements BrainBridge {
   private sink: TurnSink | null = null;
   readonly calls: { readonly sessionId: string; readonly text: string }[] = [];
+  /** The pictures each `converse` call sent, parallel to `calls`. */
+  readonly attached: (readonly AttachedImage[])[] = [];
   /** Session ids `sessionMessages` was asked for, in order (proves the adopt latch fires once). */
   readonly messagesCalls: string[] = [];
   /** The confirm answers sent so far, in order (ADR-0022). */
@@ -62,8 +65,14 @@ export class FakeBridge implements BrainBridge {
   /** When set, `checkLink` never settles, so a test can hold a probe in flight. */
   linkHangs = false;
 
-  converse(sessionId: string, text: string, sink: TurnSink): Cancellation {
+  converse(
+    sessionId: string,
+    text: string,
+    images: readonly AttachedImage[],
+    sink: TurnSink,
+  ): Cancellation {
     this.calls.push({ sessionId, text });
+    this.attached.push(images);
     this.sink = sink;
     return () => {
       this.sink = null;

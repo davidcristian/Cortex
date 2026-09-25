@@ -61,8 +61,9 @@ value reaches an interceptor that is otherwise built once per connection.
   detected by a `tonic::transport::Error` on the status's `source()` chain, maps to
   `TransportError::Connection`, and one the brain really sent maps to
   `TransportError::Rpc { code, message }`.
-- `converse(session_id, text, decisions)` opens `BrainService.Converse` (`src/converse.rs`, one turn
-  per call, ADR-0011): the request stream is `once(ClientEvent{session_id, user_turn})` chained with
+- `converse(session_id, text, images, decisions)` opens `BrainService.Converse` (`src/converse.rs`,
+  ADR-0011): the request stream is `once(ClientEvent{session_id, user_turn})`, each attached image
+  an `ImageBlob` with its source size and capture time left at 0 (ADR-0070), chained with
   one `confirm_response` per `ConfirmDecision` from the caller's stream (ADR-0022), half-closing
   when that stream ends. Each `ServerEvent` maps to its `TurnEvent` of the same name, with
   `TurnComplete` becoming `Complete` and `SeamError` becoming `Failed`, the two terminal ones. A

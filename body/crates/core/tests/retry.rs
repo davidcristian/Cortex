@@ -4,8 +4,8 @@ use std::sync::{Arc, Mutex, PoisonError};
 use std::time::Duration;
 
 use body_core::{
-    BrainTransport, ConfirmDecision, DueReminder, Randomness, RetryPlan, RetryPolicy,
-    RetryingTransport, RpcHealth, RpcMethod, SessionMessage, SessionSummary, Sleeper,
+    AttachedImage, BrainTransport, ConfirmDecision, DueReminder, Randomness, RetryPlan,
+    RetryPolicy, RetryingTransport, RpcHealth, RpcMethod, SessionMessage, SessionSummary, Sleeper,
     TransportError, TurnEvent, is_transient, retry_with, within_deadline,
 };
 use futures_core::Stream;
@@ -86,12 +86,20 @@ impl BrainTransport for FlakyTransport {
         &self,
         session_id: &str,
         text: &str,
+        images: Vec<AttachedImage>,
         decisions: impl Stream<Item = ConfirmDecision> + Send + 'static,
     ) -> impl Stream<Item = Result<TurnEvent, TransportError>> + Send {
         drop(decisions);
         let _ = session_id;
+        let sizes: Vec<String> = images
+            .iter()
+            .map(|image| format!("{}x{}", image.width, image.height))
+            .collect();
         tokio_stream::iter(vec![
-            Ok(TurnEvent::Delta(format!("passed:{text}"))),
+            Ok(TurnEvent::Delta(format!(
+                "passed:{text}:{}",
+                sizes.join(",")
+            ))),
             Err(TransportError::Connection(String::from("mid-turn"))),
         ])
     }
@@ -489,14 +497,23 @@ async fn converse_is_forwarded_verbatim_without_retry() {
         confirm_id: String::from("c-1"),
         approved: true,
     }]);
-    let stream = transport.converse("sess", "hi", decisions);
+    let image = AttachedImage {
+        data: vec![1, 2, 3],
+        mime_type: String::from("image/png"),
+        width: 16,
+        height: 9,
+    };
+    let stream = transport.converse("sess", "hi", vec![image], decisions);
     tokio::pin!(stream);
     let mut events = Vec::new();
     while let Some(item) = stream.next().await {
         events.push(item);
     }
     assert_eq!(events.len(), 2);
-    assert_eq!(events[0], Ok(TurnEvent::Delta(String::from("passed:hi"))));
+    assert_eq!(
+        events[0],
+        Ok(TurnEvent::Delta(String::from("passed:hi:16x9")))
+    );
     assert_eq!(
         events[1],
         Err(TransportError::Connection(String::from("mid-turn")))
@@ -844,7 +861,7 @@ async fn the_turn_is_the_one_call_no_deadline_ends_and_its_silence_is_bounded_in
     let plan = RetryPlan::default();
     let transport = RetryingTransport::new(flaky, sleeper.clone(), plan);
     let events: Vec<_> = transport
-        .converse("s1", "hi", tokio_stream::empty())
+        .converse("s1", "hi", Vec::new(), tokio_stream::empty())
         .collect()
         .await;
     let heartbeat = plan.turn_gaps.heartbeat;

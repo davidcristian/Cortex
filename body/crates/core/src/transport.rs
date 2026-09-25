@@ -2,7 +2,7 @@
 
 pub mod turn;
 
-pub use turn::{ConfirmDecision, TurnEvent};
+pub use turn::{AttachedImage, ConfirmDecision, TurnEvent};
 
 use std::future::Future;
 use std::time::Duration;
@@ -60,13 +60,14 @@ pub trait BrainTransport: Send + Sync {
     /// `Connection` when the brain is unreachable, `Rpc` when it answers a non-OK gRPC status.
     fn health(&self) -> impl Future<Output = Result<RpcHealth, TransportError>> + Send;
 
-    /// Runs one conversational turn: sends `text` as a user turn on a fresh `Converse` stream
-    /// tagged with `session_id`, and streams the reply as [`TurnEvent`]s until the turn is terminal
-    /// ([`TurnEvent::Complete`] or [`TurnEvent::Failed`]).
+    /// Runs one conversational turn: sends `text` and `images` as a user turn on a fresh `Converse`
+    /// stream tagged with `session_id`, and streams the reply as [`TurnEvent`]s until the turn is
+    /// terminal ([`TurnEvent::Complete`] or [`TurnEvent::Failed`]).
     fn converse(
         &self,
         session_id: &str,
         text: &str,
+        images: Vec<AttachedImage>,
         decisions: impl Stream<Item = ConfirmDecision> + Send + 'static,
     ) -> impl Stream<Item = Result<TurnEvent, TransportError>> + Send;
 

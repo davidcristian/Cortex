@@ -61,7 +61,7 @@ async function listedField<K extends "title" | "hoisted">(
 /** Cancelling twice is safe, and nothing is delivered during the `converse` call itself. */
 async function checkACancelledTurnGoesSilent(under: BridgeCase): Promise<void> {
   const seen = recorder();
-  const cancel = under.bridge.converse("contract-turn", PLAIN_PROMPT, seen.sink);
+  const cancel = under.bridge.converse("contract-turn", PLAIN_PROMPT, [], seen.sink);
   expect(seen.delivered).toEqual([]);
   cancel();
   cancel();

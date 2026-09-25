@@ -113,7 +113,7 @@ export function useOverlay(
         return;
       }
       dispatch({ kind: "submit", text });
-      cancelRef.current = bridge.converse(state.sessionId, text.trim(), {
+      cancelRef.current = bridge.converse(state.sessionId, text.trim(), [], {
         onEvent: (event) => dispatch({ kind: "event", event }),
         onError: (error) => dispatch({ kind: "transportError", error }),
       });

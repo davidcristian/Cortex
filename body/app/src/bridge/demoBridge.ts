@@ -1,6 +1,7 @@
 import { deriveTitle } from "../overlay/sessionState";
 import * as script from "./demoScript";
 import type {
+  AttachedImage,
   BrainBridge,
   Cancellation,
   DueReminder,
@@ -64,7 +65,12 @@ export class DemoBridge implements BrainBridge {
     });
   }
 
-  converse(sessionId: string, text: string, sink: TurnSink): Cancellation {
+  converse(
+    sessionId: string,
+    text: string,
+    _images: readonly AttachedImage[],
+    sink: TurnSink,
+  ): Cancellation {
     this.remember(sessionId, text);
     if (/offline|unreachable/iu.test(text)) {
       this.fail("down");

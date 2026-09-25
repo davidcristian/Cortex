@@ -32,6 +32,8 @@ tokio = { version = "1", features = ["sync", "net", "rt-multi-thread", "time"] }
 tokio-stream = { version = "0.1", features = ["net"] }
 # Serve the BodyService the brain dials (ADR-0023); the adapter lives in body-rpc.
 tonic = "0.14"
+# Decodes the attached images the overlay sends as base64 text inside the JSON IPC arguments.
+base64 = "0.22"
 body-core = { path = "../../crates/core" }
 body-rpc = { path = "../../crates/rpc" }
 

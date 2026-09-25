@@ -1,6 +1,6 @@
 use body_core::{
-    BrainTransport, ConfirmDecision, DueReminder, RpcHealth, SessionMessage, SessionSummary,
-    TransportError, TurnEvent,
+    AttachedImage, BrainTransport, ConfirmDecision, DueReminder, RpcHealth, SessionMessage,
+    SessionSummary, TransportError, TurnEvent,
 };
 use futures_core::Stream;
 use tokio_stream::StreamExt;
@@ -34,6 +34,7 @@ impl BrainTransport for FakeTransport {
         &self,
         session_id: &str,
         text: &str,
+        _images: Vec<AttachedImage>,
         decisions: impl Stream<Item = ConfirmDecision> + Send + 'static,
     ) -> impl Stream<Item = Result<TurnEvent, TransportError>> + Send {
         drop(decisions);
@@ -156,7 +157,7 @@ async fn converse_probe<T: BrainTransport>(
         confirm_id: String::from("c-1"),
         approved: true,
     }]);
-    let stream = transport.converse(session_id, text, decisions);
+    let stream = transport.converse(session_id, text, Vec::new(), decisions);
     tokio::pin!(stream);
     let mut events = Vec::new();
     while let Some(event) = stream.next().await {

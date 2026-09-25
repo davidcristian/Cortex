@@ -52,7 +52,7 @@ function demoCase(): BridgeCase {
     bridge,
     // The demo bridge only learns about a chat by being spoken in. The turn is cancelled right
     // away, because these checks are about the chat list rather than the stream.
-    addChat: (sessionId, firstMessage) => bridge.converse(sessionId, firstMessage, DROPPED)(),
+    addChat: (sessionId, firstMessage) => bridge.converse(sessionId, firstMessage, [], DROPPED)(),
     advance,
   };
 }
