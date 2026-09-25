@@ -1,10 +1,8 @@
 # The liquid edge's backdrop blur
 
-**Status:** open, optional feature
+**Status:** done 2026-09-25
 **Area:** body-overlay
 **Origin:** [ADR-0036](../../adr/ADR-0036-window-edge.md)
-**Trigger:** The transparent-window pass, when the desktop shows through and a Still panel is frosted while a liquid one is merely translucent.
-**Verified:** 2026-09-19
 
 Chromium composites `backdrop-filter` output without clipping it by a `path()` clip, so a sculpted
 panel showed a sharp frosted rectangle behind the liquid outline. What shipped instead paints
@@ -30,3 +28,8 @@ compositing. Measure again first, since the engine changes.
   `blur(30px) saturate(140%)` at line 276, and the measurement is at lines 300 to 302. The trigger
   has not fired: host task 014 is still never attempted and the shell's window is still
   `"transparent": false` in `body/app/src-tauri/tauri.conf.json`.
+- 2026-09-25: Built. Measured again in headless Chromium over a busy ground: the `path()` clip does
+  bound the blur, and a `mask-image` measured the same. The real cause was the edge wrapper's
+  `drop-shadow` filter, which made the wrapper the backdrop the blur reads. The shadow is now an
+  svg layer cut out of the outline, and the slab is frosted `--panel`
+  ([readings](../../readings/liquid-edge-blur.md)). Host task 014 checks it on WebView2.

@@ -54,8 +54,8 @@ for depths of sleep, chosen in the console beside the theme and the mark. **Stil
 around the closed perimeter so the shape never tears or drifts; **Reverie** adds a soft glow along
 it, accent-coloured while a turn runs; **Trance** widens that glow and keeps a low accent light on
 at rest, the one written exception to §1. The animated clip goes on a background-only glass layer,
-text never sits on the warping layer, and a liquid panel uses `--panel-solid` rather than a backdrop
-blur, which Chromium composites without the clip path.
+text never sits on the warping layer, and a liquid panel keeps the frosted blur inside its outline,
+with its shadow cast by an svg layer, since a filter on an ancestor leaves the blur nothing to read.
 
 Five motion signatures:
 - **Whispered streaming** ([ADR-0037](../adr/ADR-0037-whisper-streaming.md)). Letters clear through

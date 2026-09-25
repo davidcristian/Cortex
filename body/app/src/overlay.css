@@ -165,7 +165,7 @@
 
 /* A liquid window style hands the panel's face to the edge layers and keeps everything else. The
    border keeps its width, since losing it would shift the layout by a pixel, and loses only its
-   colour. No backdrop blur: Chromium does not clip backdrop-filter output by a path() clip. */
+   colour. The backdrop blur moves to the glass slab, whose path() clip bounds it. */
 .panel.edge-live {
   background: transparent;
   border-color: transparent;
@@ -189,11 +189,8 @@
 .edge {
   position: absolute;
   pointer-events: none;
-  /* The liquid's own shadow follows the clipped outline frame by frame, where the panel's box-
-     shadow could only trace the rectangle. It is on the wrapper rather than the slab because
-     filters apply before clip-path on the same element, which would cut the shadow off. */
-  filter: drop-shadow(0 26px 34px rgba(0, 0, 0, 0.38));
 }
+.edge-shade,
 .edge-glass,
 .edge-under,
 .edge-over {
@@ -203,10 +200,12 @@
 }
 /* An svg clips its painting to its own viewport by default, and the glow is a blurred stroke that
    swings within a few px of that boundary, so clipped it ended in a straight line. */
+.edge-shade,
 .edge-under,
 .edge-over {
   overflow: visible;
 }
+.edge-shade,
 .edge-under,
 .edge-over {
   width: 100%;
@@ -215,8 +214,11 @@
 .edge-over {
   z-index: 2;
 }
+/* The same glass as an unclipped panel, and the path() clip bounds its blur. No ancestor may take
+   a filter: the filtered element becomes the backdrop the blur reads, and there is nothing in it. */
 .edge-glass {
-  background: var(--panel-solid);
+  background: var(--panel);
+  backdrop-filter: blur(30px) saturate(140%);
 }
 .edge-under path,
 .edge-over path {

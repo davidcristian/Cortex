@@ -45,6 +45,9 @@ is the right order.
 - Only the panel is visible over the desktop; no window border, no rectangle of tint, no bleed
   through the panel's own background.
 - Clicks on the empty margin reach the window behind, and clicks on the panel do not.
+- A liquid panel (Lucid, Reverie or Trance) is frosted exactly inside its outline, as a Still panel
+  is inside its rectangle, with no sharp frosted rectangle behind it. Headless Chromium shows this
+  ([readings](../../readings/liquid-edge-blur.md)); WebView2's engine is the part still unmeasured.
 - The minimized orb sits in a real screen corner and the morph animation still plays.
 - Hide-on-blur does not fight the hotkey toggle, and does not hide the window while a confirm card
   is open. That last one is a correctness constraint rather than taste: a card that vanishes on blur

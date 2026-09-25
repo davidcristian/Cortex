@@ -54,6 +54,28 @@ describe("PanelEdge", () => {
     expect(container.querySelector("#t1-ember")).not.toBeNull();
   });
 
+  it("casts the shadow from the outline under the slab, cut out where the glass is", () => {
+    stubBox(560, 480);
+    const { container } = render(
+      <PanelEdge style={LUCID} working={false} animated={false} idPrefix="t7" />,
+    );
+    const layers = [...(container.querySelector(".edge") as HTMLElement).children];
+    expect(layers.map((layer) => layer.getAttribute("class"))).toEqual([
+      "edge-shade",
+      "edge-glass",
+      "edge-over",
+    ]);
+    const cast = container.querySelector(".edge-shade path") as SVGPathElement;
+    expect(cast).toHaveAttribute("filter", "url(#t7-shade)");
+    expect(cast.getAttribute("d")).toBe(hairOf(container));
+    const shadow = container.querySelector("#t7-shade feDropShadow") as Element;
+    expect(shadow).toHaveAttribute("dy", "26");
+    expect(shadow).toHaveAttribute("flood-opacity", "0.38");
+    const cut = container.querySelector("#t7-shade feComposite") as Element;
+    expect(cut).toHaveAttribute("operator", "out");
+    expect(cut).toHaveAttribute("in2", "SourceGraphic");
+  });
+
   it("keeps the ember alone and flags it, for the style whose glow never sleeps", () => {
     stubBox(560, 480);
     const { container } = render(

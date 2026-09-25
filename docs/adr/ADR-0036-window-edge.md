@@ -9,9 +9,9 @@ live demonstration of five treatments, the liquid one: the panel's silhouette wa
 kind of maths that animates the bubble mark. Pushed further over two more rounds, the result was a
 family rather than one setting, and the maintainer chose to ship all of it as choices, including the
 crisp edge as a choice of its own, with the plain liquid as the default. The demonstration also
-turned up two implementation facts this ADR records so they are not relearned: Chromium does not
-clip backdrop-filter output by a `path()` clip, and text must never sit on a layer whose clip is
-re-rasterized every frame, or it goes soft.
+turned up two implementation facts this ADR records so they are not relearned: a filter on any
+ancestor of a `backdrop-filter` layer leaves it nothing to blur, and text must never sit on a layer
+whose clip is re-rasterized every frame, or it goes soft.
 
 ## Decision
 
@@ -50,8 +50,8 @@ re-rasterized every frame, or it goes soft.
    same radius), which keeps the growth reveal. The shadow moves too: cast from the border box
    it traced the original rectangle behind the liquid (worst on the light ground, where the
    maintainer read it as the old border still there), so a liquid panel drops its box-shadow and
-   the edge wrapper uses a `drop-shadow` filter instead, which falls from the clipped
-   silhouette itself, frame by frame; the glow svgs overflow visibly for the same reason, or
+   an svg under the slab casts a `feDropShadow` from the outline, cut out of the outline, frame
+   by frame; the shadow svg and the glow svgs overflow visibly for the same reason, or
    their blur shows a join at the wrapper's rectangle. The first version inset the whole liquid by
    the reach instead, to spare even the clip a change, and the maintainer saw it at once: it read
    as a window that had shrunk.
@@ -62,13 +62,12 @@ re-rasterized every frame, or it goes soft.
    blurred glow strokes paint in an svg *between* slab and content, so nothing soft can cross a
    glyph, and only the crisp one-px hairline sits above the content, where no text ever reaches.
 
-7. **Live styles trade the backdrop blur for slightly more opacity.** Measured during the
-   demonstration: Chromium composites `backdrop-filter` output without clipping it by a `path()`
-   clip, leaving a sharp frosted rectangle behind the sculpted edge. So a live edge paints
-   `--panel-solid`, a new per-theme token, instead of glass over blur. In the v1 window the ground
-   behind the panel is opaque (design/overlay-ux.md §4), so nothing is visibly lost today; the
-   trade-off is recorded again with the transparent-window work
-   ([R-157](../refinements/tasks/157-liquid-edge-backdrop-blur.md)).
+7. **Live styles keep the panel's frosted glass.** The slab paints `--panel` under the same
+   `blur(30px) saturate(140%)` as an unclipped panel, and its `path()` clip bounds the blur
+   ([readings](../readings/liquid-edge-blur.md)). No ancestor of the slab may take a filter, since
+   the filtered element becomes the backdrop the blur reads, which is why the shadow is an svg
+   layer (decision 5). In the v1 window the ground is opaque, so the blur shows only once the
+   transparent window of host task 014 exists, which checks it on WebView2's engine.
 
 8. **The glow reuses the send button's technique, and Trance is the one written exception.** A
    smolder is two strokes along the outline, cross-faded by CSS opacity (gradients cannot
@@ -125,8 +124,8 @@ re-rasterized every frame, or it goes soft.
 
 - **Insetting the whole liquid by its reach** to spare the clip a change: it read as a window that
   had shrunk (decision 5).
-- **Keeping the backdrop blur on a live edge**: Chromium does not clip its output by a `path()`
-  clip (decision 7).
+- **A `drop-shadow` filter on the edge wrapper**: it left the glass nothing to blur. A `mask-image`
+  of the outline: it measured the same as the `path()` clip (decision 7).
 - **Tile art drawn at true scale**, or on a painted ground (decision 10).
 
 ## Related

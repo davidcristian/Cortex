@@ -4,9 +4,9 @@ import type { EdgeStyle } from "../edge/edges";
 import { BLEED, approachDepth, edgePath } from "../edge/liquid";
 import { useMarkClock } from "../mark/useMarkClock";
 
-// The panel's liquid edge. Layers, back to front: the glass slab with the animated clip, the
-// blurred glow strokes, the panel's content, then the crisp hairline. The box is measured into a
-// ref, because `setState` in a per-render layout effect trips React's nested-update guard.
+// The panel's liquid edge. Layers, back to front: the shadow, the glass slab with the animated clip,
+// the glow strokes, the content, then the hairline. The box is measured into a ref, because
+// `setState` in a per-render layout effect trips React's nested-update guard.
 
 interface PanelEdgeProps {
   readonly style: EdgeStyle;
@@ -55,6 +55,7 @@ export function PanelEdge({ style, working, animated, idPrefix }: PanelEdgeProps
 
   const d = edgePath(style, size.current.width, size.current.height, seconds, depth);
   const ember = `${idPrefix}-ember`;
+  const shade = `${idPrefix}-shade`;
   return (
     // The wrapper extends past the panel so the neutral outline sits on the panel's real edge and
     // the waves have room to swing outward. The inset is the geometry module's own constant.
@@ -64,6 +65,18 @@ export function PanelEdge({ style, working, animated, idPrefix }: PanelEdgeProps
       style={{ inset: -BLEED }}
       aria-hidden="true"
     >
+      {/* The shadow, cut out of the outline so the translucent glass does not darken over it. A
+          filter on the wrapper would make it the glass's backdrop root, and the blur would see
+          nothing behind the panel. */}
+      <svg className="edge-shade">
+        <defs>
+          <filter id={shade} x="-20%" y="-20%" width="140%" height="160%">
+            <feDropShadow dx="0" dy="26" stdDeviation="17" floodColor="#000" floodOpacity="0.38" />
+            <feComposite operator="out" in2="SourceGraphic" />
+          </filter>
+        </defs>
+        <path d={d} filter={`url(#${shade})`} />
+      </svg>
       <div className="edge-glass" style={{ clipPath: `path("${d}")` }} />
       {style.glow === "none" ? null : (
         <svg className="edge-under">
