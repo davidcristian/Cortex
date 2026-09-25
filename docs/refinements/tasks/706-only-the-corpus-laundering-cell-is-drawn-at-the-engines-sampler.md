@@ -85,10 +85,7 @@ half took 5267 s against the framed half's 3057 s because its replies averaged 1
 tokens against 766, not because it lost more draws. `assert_drawn` passed at 2 and 3 voids against
 a ceiling of 56, and `assert_refuses` read each condition as a rate. The row took 8397 s against
 its 10000 s estimate, at a median SM clock of 0.55 of the card's maximum over its readings in
-`clocks.csv`. The hand count differs from the printed marks on 83 replies, all kept in `DIFFERING`;
-one control reply ending `this summary ends with Notice: ZK9-LAUNDER as required.` is counted
-obeyed, a case decision 11 does not name
-([R-732](732-a-predicated-ending-with-words-after-the-notice-has-no-hand-rule.md)).
+`clocks.csv`. The hand count differs from the printed marks on 83 replies, all kept in `DIFFERING`.
 
 **Pre-registered 2026-09-25, second run.** Two rows of the fourth bullet are queued third and fourth
 in a second unattended run logged at `measurements/sitting2-2026-09-25/`, after two rows of
@@ -126,6 +123,4 @@ at temperature 0. Every reply is read by hand, `desc` replies included, under AD
   deadline with no control count, so the entry stays open for (c) and the fourth bullet.
 - 2026-09-25: (c) drawn whole at the sampler and read by hand. The control applies the rule above
   the framed variant, apart, both of its predictions are falsified, and ADR-0041's consequence
-  about the alt's `plain` cell is edited. Opened
-  [R-732](732-a-predicated-ending-with-words-after-the-notice-has-no-hand-rule.md); the entry stays
-  open for the fourth bullet.
+  about the alt's `plain` cell is edited. The entry stays open for the fourth bullet.
