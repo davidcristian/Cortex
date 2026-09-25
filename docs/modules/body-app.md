@@ -84,7 +84,7 @@ and how it reads its own box), `panelParts.ts` (the probes into the panel's tree
 held), `panelBudget.ts` (the ceiling, as `max-height` and as a `--ceiling` property, and the split
 between the switcher and the reminder stack), `panelRoll.ts` (the slide alongside a section's roll)
 and `panelWatch.ts` (a `ResizeObserver` for an unannounced resize). `overlay/measured.ts` publishes
-`--chat-floor` off the empty state's box and `--trace-row` off a live activity chip.
+`--chat-floor`, `--trace-row` and `--hint-strip` off the empty state, a live chip and the hint strip.
 
 **Sections that roll** use `components/Collapse.tsx`, and `overlay/morph.ts` is the contract
 between a section and the panel. A rolling section sets `data-morphing` with the height it is

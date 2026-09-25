@@ -3,8 +3,10 @@ import { afterEach, describe, expect, it } from "vitest";
 import { lays, resized } from "../test-setup";
 import {
   CHAT_FLOOR_PROPERTY,
+  HINT_STRIP_PROPERTY,
   TRACE_ROW_PROPERTY,
   chatFloorRef,
+  hintStripRef,
   publishHeight,
   traceRowRef,
 } from "./measured";
@@ -29,6 +31,7 @@ const current = (property: string) =>
 afterEach(() => {
   document.documentElement.style.removeProperty(CHAT_FLOOR_PROPERTY);
   document.documentElement.style.removeProperty(TRACE_ROW_PROPERTY);
+  document.documentElement.style.removeProperty(HINT_STRIP_PROPERTY);
   document.body.innerHTML = "";
 });
 
@@ -61,6 +64,7 @@ describe("publishHeight", () => {
   it("names the two properties overlay.css reads, which is the whole of the coupling", () => {
     expect(CHAT_FLOOR_PROPERTY).toBe("--chat-floor");
     expect(TRACE_ROW_PROPERTY).toBe("--trace-row");
+    expect(HINT_STRIP_PROPERTY).toBe("--hint-strip");
   });
 });
 
@@ -80,6 +84,15 @@ describe("the refs the components attach", () => {
     expect(current(TRACE_ROW_PROPERTY)).toBe("24px");
     expect(grewTo(tool, 99) + grewTo(status, 99)).toBe(0);
     expect(current(TRACE_ROW_PROPERTY)).toBe("24px");
+  });
+
+  it("republishes the hint strip when a narrow panel wraps it onto a second row", () => {
+    const strip = tall(33);
+    hintStripRef(strip);
+    expect(current(HINT_STRIP_PROPERTY)).toBe("33px");
+    expect(grewTo(strip, 55)).toBe(1);
+    expect(current(HINT_STRIP_PROPERTY)).toBe("55px");
+    hintStripRef(null);
   });
 
   it("does nothing at all on unmount, whichever ref it is", () => {

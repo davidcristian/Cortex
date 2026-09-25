@@ -173,18 +173,18 @@ caret goes and what the overlay announces is
 34. **The panel's height is a budget and its sections use what is left.** `overlay/panelBudget.ts`
     writes `--ceiling` beside every `max-height`, which a descendant cannot read. `--reserved` takes
     the fixed parts of the column off the top (2 px of border, the 54 px header, the history's 10 px
-    padding, the composer's 11 px and 9 px margins, `--pill-floor`, the 33 px hint strip), so the
+    padding, the composer's 11 px and 9 px margins, `--pill-floor`, `--hint-strip`), so the
     composer and hints stay on the panel. With both sections open the switcher gets four sevenths of
     the rest and the reminder stack three, so each shows fewer rows rather than one showing none;
     alone, a section gets it all. The share caps the roll's frameless wrapper and the card gets the
     share less its padding, so a share of zero costs zero. It reads the roll's target
     (`.view:has(> .collapse.aside:not([data-morphing="0"]))`) and both caps ease over the roll's
     clock while both are open. The two `vh` caps inside the history stay.
-35. **The two floors are measured off the elements they copy.** `overlay/measured.ts` publishes
-    `--chat-floor` from the empty state's box (a reading on attach, then a watch, since the chips
-    settle once fonts resolve) and `--trace-row` from the live chip's box. Nothing is rendered for
-    the probe, neither reading can feed itself, and `:root` keeps 185px and 24px for when nothing
-    was measured. The empty state does not scroll: `.log.bare` shrinks, centres and clips.
+35. **Three heights are measured off the elements they copy.** `overlay/measured.ts` publishes
+    `--chat-floor` from the empty state (read on attach, then watched, since chips settle once fonts
+    resolve), `--trace-row` from the live chip, and `--hint-strip` from the strip, watched because a
+    panel narrower than its one row wraps it. Nothing is rendered to probe, no reading feeds itself,
+    and `:root` keeps 185px, 24px and 33px until measured. `.log.bare` shrinks, centres and clips.
 36. **A row leaves on its own roll, and the write does not wait for it.** `overlay/usePresence.ts`
     keeps an item that left the caller's list rendered, marked `leaving`, until its `Collapse` calls
     `onClosed`, after the `cortex:morphend` dispatch; the ack or delete goes upstream at once. Its

@@ -25,6 +25,9 @@
      minimum, so sending the first message does not shrink the panel. 185px is that measurement in
      Chromium, and it is the value a chat restored with messages already in it uses. */
   --chat-floor: 185px;
+  /* The hint strip's height, measured off it by `overlay/measured.ts`, since a panel narrower than
+     the strip's one row wraps it onto two. 33px is the one-row strip in Chromium. */
+  --hint-strip: 33px;
   /* The width every relative timestamp reserves, so a column of them holds still as the clock runs
      under it. At 11.5px the widest bounded label is 50.9px and `9999d ago` is 61.6px, so 55px
      covers up to three digits of days. Measure again if the label's size or face changes. */
@@ -317,9 +320,9 @@
   /* The air under a roll-open section, taken out of that section's share so the share bounds the
      outer box and the arithmetic below adds up. */
   --section-gap: 6px;
-  /* The furniture the panel keeps whatever else is open. The addends are read off the boxes at
-     the shipping type sizes, in the order they sit in the column. */
-  --reserved: calc(2px + 54px + 10px + 11px + var(--pill-floor) + 9px + 33px);
+  /* The furniture the panel keeps whatever else is open, in the order it sits in the column. The
+     addends are read off the boxes at the shipping type sizes, and the hint strip is measured. */
+  --reserved: calc(2px + 54px + 10px + 11px + var(--pill-floor) + 9px + var(--hint-strip));
   /* Floored at zero, because a viewport short enough to leave the sections nothing still leaves the
      composer, and the composer is what a panel that small is for. */
   --budget: max(0px, var(--ceiling, 100vh) - var(--reserved));

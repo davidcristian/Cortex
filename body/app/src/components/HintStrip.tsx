@@ -1,3 +1,4 @@
+import { hintStripRef } from "../overlay/measured";
 import type { ConsoleTab } from "../overlay/overlayState";
 import { DownArrowKey, ReturnKey, SlidersIcon, UpArrowKey } from "./icons";
 
@@ -10,7 +11,7 @@ interface HintStripProps {
  *  is not listed: the strip ran out of room, and the console's shortcut tab is the full list. */
 export function HintStrip({ onToggleConsole }: HintStripProps) {
   return (
-    <div className="hints">
+    <div className="hints" ref={hintStripRef}>
       <span>
         <b className="key">
           <ReturnKey />
