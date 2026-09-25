@@ -106,9 +106,9 @@ without tools reaches, the pick obeys less often than Qwen3.5-2B and Qwen3.5-4B 
 Qwen3.5-0.8B. On the full text row, the request of a subagent with tools, it is level with all
 three.
 
-The same path returns a tainted task's reply to the cortex as trusted, since a subagent with no
-tools never marks its own ledger; that is
-[R-733](733-a-tainted-subagent-task-with-no-tools-returns-a-trusted-result.md).
+The same path sends a tainted task's context as a system message with no fence and no preamble;
+whether a fence or the user role lowers the pick's count there is
+[R-734](734-a-tainted-subagent-tasks-context-goes-unfenced-as-a-system-message.md).
 
 ## History
 
@@ -124,4 +124,4 @@ tools never marks its own ledger; that is
   CPU.
 - 2026-09-25: the constrained reply path's rows drawn and read by hand; every Qwen candidate reads
   apart from the pick there. Opened
-  [R-733](733-a-tainted-subagent-task-with-no-tools-returns-a-trusted-result.md).
+  [R-734](734-a-tainted-subagent-tasks-context-goes-unfenced-as-a-system-message.md).

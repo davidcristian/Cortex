@@ -67,10 +67,11 @@ The ledger is rebuilt each turn from the store and live results. The one place i
 the brain handoff record, which serializes it whole so a mid-turn swap rehydrates it exactly
 ([ADR-0030](ADR-0030-brain-handoff.md) decision 2). The loop's per-invocation collaborators are
 bundled in the frozen `ToolLoopContext` (`cortex_core/dispatch_round.py`), and each dispatch is
-stamped with a `TurnStamp` holding the tainted bit. `SubagentResult.tainted` is set from the
-subagent's own ledger and makes the spawn aggregate untrusted (decision 1), so a subagent that read
-a malicious email taints the cortex that spawned it through the same mark and wrapper, with no
-special case.
+stamped with a `TurnStamp` holding the tainted bit. A subagent's ledger starts tainted when its
+task is, because a tainted turn's task context can quote what that turn read, and a refused tainted
+task's result is tainted too. `SubagentResult.tainted` is read from that ledger and makes the spawn
+aggregate untrusted (decision 1), so a subagent that read or was handed a malicious email taints
+the cortex that spawned it through the same mark and wrapper, with no special case.
 
 ### 4. Confirmation: `ToolSpec.confirm_required`, enforced in the dispatcher, through a `Confirmer` port
 

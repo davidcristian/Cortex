@@ -30,6 +30,7 @@ from cortex_core import (
     StatusUpdate,
     SubagentProfile,
     SubagentResources,
+    SubagentResult,
     SubagentRoster,
     SubagentRunner,
     TextChunk,
@@ -37,6 +38,7 @@ from cortex_core import (
     ToolCall,
     ToolDispatcher,
     ToolSpec,
+    Trust,
     TurnStamp,
     VramBudgetPlacer,
     Wait,
@@ -368,6 +370,24 @@ async def test_the_dispatchers_taint_stamp_is_copied_onto_every_task() -> None:
     assert first is not None
     assert second is not None
     assert (first.tainted, second.tainted) == (True, True)
+
+
+@pytest.mark.parametrize("trust", [Trust.UNTRUSTED, Trust.TRUSTED])
+async def test_a_tool_less_batch_is_untrusted_exactly_when_its_turn_is_tainted(
+    trust: Trust,
+) -> None:
+    tainted = trust is Trust.UNTRUSTED
+    store = InMemoryTaskStore()
+    result = await _tool(store, EchoInferenceBackend()).invoke(
+        _call({"instructions": ["a", "b"]}, tainted=tainted)
+    )
+    assert (result.is_error, result.trust) == (False, trust)
+    assert await store.get_result("st-1") == SubagentResult(
+        task_id="st-1", output="reply 1: a", tainted=tainted
+    )
+    assert await store.get_result("st-2") == SubagentResult(
+        task_id="st-2", output="reply 1: b", tainted=tainted
+    )
 
 
 _BAD_ARGUMENTS: list[tuple[dict[str, object], str]] = [

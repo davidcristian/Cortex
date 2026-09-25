@@ -18,7 +18,8 @@ ADR-0010, ADR-0012, ADR-0017, ADR-0018, ADR-0028 and ADR-0048.
   subagent works from; the cortex conversation is never shared. All of these travel on the record
   rather than as parameters, so the runner resolves and audits from the store alone.
   `SubagentResult(task_id, output, ok=True, detail="", tainted=False)` is the outcome, where
-  `ok=False` is a failure the cortex consumes as a value.
+  `ok=False` is a failure the cortex consumes as a value. `tainted` is true when the task was
+  tainted or the attempt read an untrusted tool result (ADR-0013 decision 3).
 - `PlacementTarget` is `GPU` or `CPU`, where a subagent's whole model runs, never split across
   both; `.ngl` maps it to the llama.cpp offload flag (`GPU` to 99, `CPU` to 0).
   `PlacementRequest(model, vram_gb, cpus, memory_gb)` is one subagent's resource ask and rejects a
@@ -75,8 +76,8 @@ the placement, persists and returns a `SubagentResult`, and always releases the 
 `finally`. A missing task, an unknown model and a `SubagentAdmissionError` all become `ok=False`
 results rather than exceptions, which would cross the spawn tool's `gather` and fail the turn; a
 refused spawn also writes one warning naming the task, the resolved entry and the scheduler's
-reason, the only lasting record of it. `budget=None` means the run is its own root, the ticker's
-fire.
+reason, the only lasting record of it. A refused tainted task's result is tainted. `budget=None`
+means the run is its own root, the ticker's fire.
 
 **The CPU re-run**: a GPU-placed attempt that failed with `AttemptFailure.INFERENCE` is re-run once
 on the CPU backend, and the outcome's `detail` says it happened. Only that failure kind and only a
@@ -89,7 +90,9 @@ attempt. The re-run's text and failure win, but the taint is the union of both a
 (`subagent_attempt.py`) runs one attempt on an already-placed backend and returns an
 `AttemptOutcome(text, failure, detail, tainted)` rather than storing anything. Every attempt is a
 fresh function over the task, with its own working set, taint ledger and fence nonce; the shared
-allowance is the deliberate exception. The run sits inside `asyncio.timeout(bounds.timeout_s)`, so
+allowance is the deliberate exception. The ledger starts tainted when the task is, because the
+task's context can quote what the spawning turn read, and a tool-holding attempt's dispatches are
+stamped with it. The run sits inside `asyncio.timeout(bounds.timeout_s)`, so
 the deadline covers every completion and every dispatch between them, and reaching it is
 `AttemptFailure.TRUNCATED` with the fragment produced so far. Only an expired deadline counts, so a
 `TimeoutError` raised from below is `AttemptFailure.INFERENCE` and stays eligible for the CPU
@@ -112,5 +115,6 @@ Constraining applies only on the tool-less path, a JSON grammar fighting tool ca
 
 - A subagent is a stateless function over the `TaskStore`: the runner reads the task by id and
   persists the result, keeping nothing between calls.
-- One turn's dispatch allowance is shared with every subagent it spawns, and an attempt that read
-  untrusted content taints its result whatever else happened to it.
+- One turn's dispatch allowance is shared with every subagent it spawns, and a tainted task or an
+  attempt that read untrusted content taints its result whatever else happened to it, with or
+  without tools and refused or not.

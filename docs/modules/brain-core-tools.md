@@ -163,8 +163,8 @@ escalate. Each is a `BuiltinTool` registered in the `CompositeToolRegistry`.
   runner is tools-enabled or the roster has one entry. `invoke` checks the batch size before
   parsing any item, persists one `SubagentTask` per item stamped with the call stamp's taint and
   its three work ids, runs the batch together, and returns one aggregated `ToolResult` with a
-  `[subagent N] …` block per subtask, `UNTRUSTED` when any subagent was tainted. With a progress
-  sink on the stamp it emits one `StatusUpdate(state="delegating", …)` and passes that sink on.
+  `[subagent N] …` block per subtask, `UNTRUSTED` when any result is tainted, as on every tainted
+  call. A progress sink on the stamp gets one `StatusUpdate(state="delegating", …)` and is passed on.
 - `GetVolumeTool(body)` and `SetVolumeTool(body)` (`volume.py`, ADR-0023) read and set the host's
   system volume over a `BodyGateway`. Neither needs confirmation and every result is `TRUSTED`;
   bad arguments and a `BodyGatewayError` become an `is_error` result, worded by

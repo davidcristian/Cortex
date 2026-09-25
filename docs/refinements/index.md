@@ -74,7 +74,7 @@ never a reading of what the tree does now.
 - **[R-715](tasks/715-the-subagent-pick-obeys-framed-injections-as-often-as-the-qwen-candidates.md)** The subagent pick obeys framed injections as often as the Qwen candidates (subagents). Its claim was checked against the code on 2026-09-25.
 - **[R-730](tasks/730-run-an-attached-image-through-the-real-cortex.md)** Run an attached image through the real cortex (vision). Its claim was checked against the code on 2026-09-25.
 - **[R-731](tasks/731-refuse-an-attachment-the-cortex-cannot-see.md)** Refuse an attachment the cortex cannot see (vision). Its claim was checked against the code on 2026-09-25.
-- **[R-733](tasks/733-a-tainted-subagent-task-with-no-tools-returns-a-trusted-result.md)** A tainted subagent task with no tools returns a trusted result (subagents). Its claim was checked against the code on 2026-09-25.
+- **[R-734](tasks/734-a-tainted-subagent-tasks-context-goes-unfenced-as-a-system-message.md)** A tainted subagent task's context goes unfenced as a system message (subagents). Its claim was checked against the code on 2026-09-25.
 
 ### Actionable, once a port changes (1)
 
@@ -884,7 +884,7 @@ never a reading of what the tree does now.
 - [R-675](tasks/675-the-subagent-memory-cap-is-sized-for-the-picks-artifact-alone.md) The subagent memory cap is sized for the pick's artifact alone. open, waiting for its trigger.
 - [R-676](tasks/676-a-third-compose-files-thread-count-is-held-to-no-value.md) Nothing checks a third CPU subagent server's thread count. open, waiting for its trigger.
 - [R-715](tasks/715-the-subagent-pick-obeys-framed-injections-as-often-as-the-qwen-candidates.md) The subagent pick obeys framed injections as often as the Qwen candidates. open, actionable.
-- [R-733](tasks/733-a-tainted-subagent-task-with-no-tools-returns-a-trusted-result.md) A tainted subagent task with no tools returns a trusted result. open, actionable.
+- [R-734](tasks/734-a-tainted-subagent-tasks-context-goes-unfenced-as-a-system-message.md) A tainted subagent task's context goes unfenced as a system message. open, actionable.
 
 ### tools-mcp
 

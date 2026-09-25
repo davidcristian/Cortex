@@ -36,7 +36,10 @@ from cortex_core import (
     ToolActivity,
     ToolCall,
     ToolDispatcher,
+    ToolResult,
     ToolSpec,
+    Trust,
+    TurnStamp,
     VramBudgetPlacer,
 )
 from cortex_core.subagent_reply import REPLY_INSTRUCTION
@@ -600,6 +603,62 @@ async def test_a_tainted_spawn_is_forced_onto_the_default_model() -> None:
     assert result.output == "default says"
     assert default_backend.seen
     assert not fast.seen
+
+
+async def test_a_tool_less_subagent_on_a_tainted_task_returns_a_tainted_result() -> None:
+    store = InMemoryTaskStore()
+    await store.put_task(
+        SubagentTask(id="t", instruction="go", context="a quoted page", at=_AT, tainted=True)
+    )
+    result = await _runner(store, TextBackend(["reply"])).run("t")
+    assert (result.ok, result.output, result.tainted) == (True, "reply", True)
+    assert await store.get_result("t") == result
+
+
+async def test_a_failed_attempt_at_a_tainted_task_is_tainted_too() -> None:
+    store = InMemoryTaskStore()
+    await store.put_task(SubagentTask(id="t", instruction="go", context="", at=_AT, tainted=True))
+    result = await _runner(store, FailingBackend()).run("t")
+    assert (result.ok, result.output, result.tainted) == (False, "partial ", True)
+
+
+class _StampRecordingRead:
+    def __init__(self) -> None:
+        self.stamps: list[TurnStamp] = []
+
+    async def describe_tools(self) -> Sequence[ToolSpec]:
+        return [ToolSpec(name="read", description="", parameters={})]
+
+    async def invoke(self, call: ToolCall) -> ToolResult:
+        self.stamps.append(call.stamp)
+        return ToolResult(call_id=call.id, content="read", trust=Trust.TRUSTED)
+
+
+async def test_a_tools_enabled_subagent_on_a_tainted_task_stamps_its_calls_tainted() -> None:
+    store = InMemoryTaskStore()
+    await store.put_task(SubagentTask(id="t", instruction="go", context="", at=_AT, tainted=True))
+    backend = ScriptedBackend([[ToolCall(id="c1", name="read", arguments={})], [TextChunk("done")]])
+    registry = _StampRecordingRead()
+    dispatcher = ToolDispatcher(registry, RecordingAuditSink(), FixedClock())
+    result = await _runner(store, backend, tools=dispatcher).run("t")
+    assert (result.output, result.tainted) == ("done", True)
+    assert [stamp.tainted for stamp in registry.stamps] == [True]
+
+
+async def test_a_refused_tainted_task_is_a_tainted_result() -> None:
+    store = InMemoryTaskStore()
+    await store.put_task(SubagentTask(id="t", instruction="go", context="", at=_AT, tainted=True))
+    backend = TextBackend(["never runs"])
+    resources = SubagentResources(
+        backends={PlacementTarget.GPU: backend, PlacementTarget.CPU: backend},
+        scheduler=ResourceBudgetScheduler(4.0, 8.0),
+        placer=VramBudgetPlacer(soft_cap_gb=14.0, cortex_reservation_gb=11.0),
+        request=PlacementRequest("subagent", vram_gb=2.0, cpus=8.0, memory_gb=2.0),
+    )
+    result = await SubagentRunner(store, _roster(resources), FixedClock()).run("t")
+    assert (result.ok, result.tainted) == (False, True)
+    assert "refused before running" in result.detail
+    assert await store.get_result("t") == result
 
 
 async def test_a_tools_enabled_spawn_is_forced_onto_the_default_model() -> None:

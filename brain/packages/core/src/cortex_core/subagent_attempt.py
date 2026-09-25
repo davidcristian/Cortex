@@ -98,7 +98,8 @@ class PlacedAttempt:
         working = task_messages(task, constrain=constrain)
         if self._tools is not None:
             working.insert(0, security_preamble_message(task.at, task.id))
-        taint = TaintLedger()
+        # The task's context can quote untrusted text, so a tainted task's attempt starts tainted.
+        taint = TaintLedger(tainted=task.tainted)
         stops = StopLedger()
         context = ToolLoopContext(
             dispatcher=self._tools,

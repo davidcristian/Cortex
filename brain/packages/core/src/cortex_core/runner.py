@@ -92,7 +92,9 @@ class SubagentRunner:
                 "a spawn was refused before it ran",
                 extra={"task_id": task_id, "model": res.request.model, "reason": str(err)},
             )
-            return await self._failed(task_id, _REFUSED_TEMPLATE.format(reason=err))
+            return await self._failed(
+                task_id, _REFUSED_TEMPLATE.format(reason=err), tainted=task.tainted
+            )
 
     async def _placed(
         self,
@@ -131,10 +133,10 @@ class SubagentRunner:
         )
         return reran_on_cpu(outcome, retried)
 
-    async def _failed(self, task_id: str, detail: str) -> SubagentResult:
+    async def _failed(self, task_id: str, detail: str, *, tainted: bool = False) -> SubagentResult:
         """Persist the fail-closed empty result for a task that never reached a backend."""
         return await self._persist(
-            SubagentResult(task_id=task_id, output="", ok=False, detail=detail)
+            SubagentResult(task_id=task_id, output="", ok=False, detail=detail, tainted=tainted)
         )
 
     async def _persist(self, result: SubagentResult) -> SubagentResult:
