@@ -216,12 +216,13 @@ Every item below is deliberate and worth reading before the first one surprises 
 
 ## Images the user attaches
 
-An attached picture goes in `UserTurn.images` and reaches the cortex on the user's own message for
-that turn only (ADR-0070); history keeps the text and a line such as `(Attached to this message and
-not kept: image/png 1600x900.)`. The turn is tainted and opaque, so the list above applies. A refused
-attachment ends the turn as `attachment_refused`, naming which one and why: over four, not PNG, JPEG
-or WebP, over 6 MiB, or bytes of another type. With no projector the turn fails as
-`inference_failed`. Not yet run against the real cortex.
+The overlay shrinks a pasted or dropped picture to a 1600 px long edge and checks the limits below
+([body-app-pictures.md](../modules/body-app-pictures.md)). It reaches the cortex in
+`UserTurn.images` on the user's message for that turn only (ADR-0070); history keeps the text and a
+note such as `(Attached to this message and not kept: image/png 1600x900.)`. The turn is tainted and
+opaque, so the list above applies. A refused attachment ends the turn as `attachment_refused`,
+naming which and why: over four, not PNG, JPEG or WebP, over 6 MiB, or bytes of another type. No
+projector fails the turn as `inference_failed`. Not yet run against the real cortex.
 
 ## Requiring approval before a capture
 

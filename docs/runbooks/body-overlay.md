@@ -20,8 +20,9 @@ so the design is visible immediately. This is the loop for iterating on look and
 scripted confirmation round: the reply pauses on the approval card, and Approve or Deny steers how
 the canned turn ends. A prompt containing "offline" or "degraded" scripts a connection outage for
 the header dot: the demo brain reports that state for 12 s, so red, amber, the pulse while a probe
-is out, and the recovery re-check flipping back to green can all be driven by hand. The check runs
-the same code path:
+is out, and the recovery re-check flipping back to green can all be driven by hand. A pasted or
+dropped picture shows as a thumbnail in the composer, and a prompt containing "refuse" sent with one
+comes back refused, with the text and pictures handed back. The check runs the same code path:
 
 ```bash
 just check-overlay     # npm ci + tsc --noEmit + Vitest at 100% line and branch coverage
