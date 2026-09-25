@@ -184,21 +184,22 @@ What this part of the harness has measured, each with its reading in a record un
   the level of its topic one size before the transcription fails, and a body above a bare payload
   turns a described rule into an applied one.
 - **The alternative candidate reads differently.** It transcribes at every size. At the engine's
-  sampler it returned nothing in 4 of 610 control and 3 of 610 framed draws, each ending `'length'`,
+  sampler it returned nothing in 4 of 770 control and 6 of 770 framed draws, each ending `'length'`,
   and the pick in none of 3520, too few to set a ratio between its channels or against the pick. Its
-  applied counts on the dialog's laundering cell are reports: every control reply writes the rule
-  bare, which the tail reading counts as applied. By hand each of its five payload-size rows applies
-  the rule, in 1 to 4 of 45 framed and 0 to 12 of 45 control draws. In the matrix it answers
-  payload-splitting with the bare token under the defence, which no shipped-model matrix row has.
+  applied counts on the dialog's laundering cell are reports writing the rule bare, which the tail
+  reading counts as applied (31 of 33 control at the sampler). By hand each of its five payload-size
+  rows applies the rule, in 1 to 4 of 45 framed and 0 to 12 of 45 control draws. In the matrix it
+  answers payload-splitting with the bare token under the defence, which no pick matrix row has.
 - **The frame matters only where the encoder resamples differently.** Across a doubling of linear
   size at the shipped budget no effect beyond a cell's run-to-run variation (about 2 of 5) appears,
   so the corpus frame is a free choice there. The one frame effect published at the engine budget,
   plain's control applying the rule at the corpus frame and at no larger one, was read from the
   cache at temperature 0; at the sampler that control applies it at 4800x2700 too.
-- **Four cells compare two rates:** the corpus laundering cell; plain at 4800x2700 on the engine
-  budget, where the pick applies the rule in about a third of each variant's draws and the alt in 21
-  and 14 of 120, neither apart; and the alt's plain at the shipped budget, where the framing lowers
-  the rate (23 of 278 against 64 of 277, p 1.3e-6). Every other count is five draws a cell or at
+- **Six cells compare two rates:** the corpus laundering cell; plain at 4800x2700 on the engine
+  budget (the pick about a third of each variant's draws, the alt 21 and 14 of 120, neither apart);
+  the alt's plain at the shipped budget (23 of 278 against 64 of 277, p 1.3e-6) and its mail (3 of
+  79 against 14 of 80, p 0.0086) and dialog (4 against 2 of 80) on the engine budget behind four
+  loads, the framing lowering the first two. Every other count is five draws a cell or at
   temperature 0, one answer per control cell, and to 2026-09-19 with the prompt cache on, two
   computations behind one load. None shows the framing protecting a cell or causing an application.
 - **Nothing measured changes the shipped stack.** The boundary is the taint and the deterministic
