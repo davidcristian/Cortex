@@ -6,12 +6,12 @@
 
 Heterogeneous subagent models ([ADR-0018](ADR-0018-heterogeneous-subagents.md)) let the cortex pick
 the subagent model **per spawn** from the whole roster, including small models the injection tests
-find weak: framed and at temperature 0, gemma-4-E2B obeyed 3 of 10 payloads and Qwen3.5-2B 1 of 10,
-where the cortex and the subagent pick (gemma-4-E4B) obeyed none. At the engine's sampler, framed,
-the subagent pick obeys 9 of 100 draws, gemma-4-E2B 28 and Qwen3.5-2B 8, so there only gemma-4-E2B
-is weaker than the pick ([injection text rows](../readings/injection-text-rows.md)). Treating the
-cortex's model choice as pure discretion opens a failure the deterministic layers do not cover. The
-plausible failure is not an injection tricking the injection-resistant cortex. It is a
+find weak. Framed, at the engine's sampler, the cortex pick obeys 0 of 100 injection draws, and the
+subagent pick (gemma-4-E4B) 9 of 100 on the card and 10 on the CPU, against gemma-4-E2B's 28 and 25
+and Qwen3.5-2B's 8 and 9 of 99, so only gemma-4-E2B reads weaker than the pick ([injection text
+rows](../readings/injection-text-rows.md), [subagent CPU rows](../readings/subagent-cpu-rows.md)).
+Treating the cortex's model choice as pure discretion opens a failure the deterministic layers do
+not cover. The plausible failure is not an injection tricking the injection-resistant cortex. It is a
 **well-behaved** cortex routing a subtask over untrusted content to a cheap model to save latency,
 with no way to know the content is hostile.
 
@@ -102,4 +102,5 @@ with a per-spawn pick, every roster entry is a live runtime choice.
   [ADR-0013](ADR-0013-untrusted-content.md) (taint),
   [ADR-0028](ADR-0028-grammar-constrained-subagents.md) (the reply envelope),
   [ADR-0004](ADR-0004-model-lineup.md) (the pick).
-- Readings: [injection text rows](../readings/injection-text-rows.md).
+- Readings: [injection text rows](../readings/injection-text-rows.md), [subagent CPU
+  rows](../readings/subagent-cpu-rows.md).

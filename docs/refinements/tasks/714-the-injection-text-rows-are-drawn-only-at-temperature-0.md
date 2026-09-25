@@ -20,7 +20,8 @@ its framed count.
 
 **What closed it.** The five CPU rows, drawn as written down below, published in [subagent CPU
 rows](../../readings/subagent-cpu-rows.md), with the table's CPU cells restated in injection text
-rows and ADR-0004 decision 7 and the ADR-0060 consequence on the CPU rows edited to quote them.
+rows and ADR-0004 decision 7, the ADR-0060 consequence on the CPU rows and the context of ADR-0017
+edited to quote them.
 
 **Pre-registered 2026-09-24.** The unattended run logged at `measurements/sitting-2026-09-24/`
 draws the three card rows after the rows of R-713 and the pixel rows, in the order cortex pick,
@@ -82,5 +83,5 @@ lane is about 4400 s against a deadline of 07:15.
 - 2026-09-25: done. The five CPU rows read by hand: the pick framed 10 against control 24 (p
   0.014) and Qwen3.5-4B 12 against 27 (p 0.012), both apart; gemma-4-E2B 25 against 19,
   Qwen3.5-0.8B 8 against 5 and Qwen3.5-2B 9 of 99 against 7, not apart. All five predictions held.
-  The CPU cells, ADR-0004 decision 7 and the ADR-0060 consequence were restated, and the R-715
-  comparison was added to that task.
+  The CPU cells, ADR-0004 decision 7, the ADR-0060 consequence and ADR-0017's context were
+  restated, and the R-715 comparison was added to that task.
