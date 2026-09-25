@@ -48,6 +48,8 @@ export function Overlay({
     state,
     submit,
     setDraft,
+    attach,
+    detach,
     stop,
     dismiss,
     open,
@@ -130,6 +132,8 @@ export function Overlay({
         onToggleTheme={onToggleTheme}
         onSubmit={submit}
         onDraft={setDraft}
+        onAttach={attach}
+        onDetach={detach}
         onStop={stop}
         onDismiss={dismiss}
         onNewChat={() => newChat(false)}

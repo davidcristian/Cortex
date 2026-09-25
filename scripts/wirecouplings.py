@@ -128,4 +128,38 @@ WIRE_COUPLINGS: tuple[Constant, ...] = (
             ),
         ),
     ),
+    Constant(
+        label="the attached-picture count",
+        why=(
+            "the overlay stops taking pictures at this count and the brain refuses a turn with "
+            "more, so an overlay above the brain lets the user send a turn the brain refuses "
+            "whole (ADR-0070)"
+        ),
+        sites=(
+            Site("body/app/src/overlay/pictures.ts", "MAX_ATTACHED_IMAGES"),
+            Site("brain/packages/core/src/cortex_core/attachments.py", "MAX_ATTACHED_IMAGES"),
+        ),
+    ),
+    Constant(
+        label="the attached-picture byte ceiling",
+        why=(
+            "the overlay leaves out a picture over this size and the brain refuses one, so an "
+            "overlay above the brain sends a picture the brain turns down (ADR-0070)"
+        ),
+        sites=(
+            Site("body/app/src/overlay/pictures.ts", "MAX_IMAGE_BYTES"),
+            Site("brain/packages/core/src/cortex_core/images.py", "MAX_IMAGE_BYTES"),
+        ),
+    ),
+    Constant(
+        label="the long edge a picture is downscaled to",
+        why=(
+            "an attached picture is shrunk to the capture path's default so the model sees both "
+            "at the resolution the capture default was measured at (ADR-0070 decision 5)"
+        ),
+        sites=(
+            Site("body/app/src/overlay/pictures.ts", "DEFAULT_MAX_EDGE"),
+            Site("body/crates/core/src/os/screen_policy.rs", "DEFAULT_MAX_EDGE"),
+        ),
+    ),
 )

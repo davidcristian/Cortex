@@ -1,24 +1,16 @@
 # The user-attached image path
 
-**Status:** open, optional feature
+**Status:** done 2026-09-25
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-09-25
 
 The user attaches a picture in the overlay and asks about it. The design is
-[ADR-0070](../../adr/ADR-0070-user-attached-images.md), and the brain half is built: the
-orchestrator reads `UserTurn.images` (`cortex_orchestrator/attached.py`), refuses a bad one with
-`SeamError{code="attachment_refused"}` before the turn starts, and `TurnEngine` sends the pixels on
-the working copy of the user's message while the store keeps the text and a note. The turn is
-tainted and opaque, so it records no memory and does not hand over to the deep model.
-
-**What remains is the body half.** The overlay has no way to attach a picture, and
-`body/crates/rpc/src/converse.rs` still sends `images: Vec::new()`. The overlay has to let the user
-pick or paste up to four pictures, decode each one, downscale it to a 1600 px long edge, encode it
-again as PNG or JPEG, and send it through the Tauri command and the bridge into `UserTurn.images`
-with its `mime_type`, `width` and `height`. It has to check the same limits before sending: four
-pictures, 6 MiB each, one of the three types. A `TurnEvent::Failed` with code `attachment_refused`
-shows its message and keeps the draft and the pictures, so the user can remove the one named.
+[ADR-0070](../../adr/ADR-0070-user-attached-images.md). The brain reads `UserTurn.images`
+(`cortex_orchestrator/attached.py`), refuses a bad one with `SeamError{code="attachment_refused"}`
+before the turn starts, and sends the pixels on the working copy of the user's message while the
+store keeps the text and a note. The body takes pictures by paste or drop into the composer, reads
+each in the webview's canvas (`overlay/canvasPicture.ts`), and sends it through the bridge, the
+shell's `converse` command and `BrainRpcClient::converse` into `UserTurn.images`.
 
 ## History
 
@@ -35,3 +27,9 @@ shows its message and keeps the draft and the pictures, so the user can remove t
   stores still refuse pixels. Filed [730](730-run-an-attached-image-through-the-real-cortex.md)
   for the live run and [731](731-refuse-an-attachment-the-cortex-cannot-see.md) for a blind
   cortex. The entry stays open for the body half.
+- 2026-09-25: Done. The body half was built through every layer: the transport port and gRPC client
+  take the images, the Tauri command decodes them from base64, and the composer takes pictures by
+  paste or drop, shows removable thumbnails, and gets a refused turn's text and pictures back.
+  What follows is host item [024](../../host/tasks/024-attached-picture-over-ipc.md), the paste
+  over real Tauri IPC, and [730](730-run-an-attached-image-through-the-real-cortex.md), the live
+  cortex run.

@@ -17,8 +17,8 @@ Look and feel is [overlay-ux.md](../design/overlay-ux.md), and the motion measur
 values: `TurnEvent`, `TransportError`, `SessionSummary`, `SessionMessage`, `DueReminder`,
 `LinkState`, `LinkStatus` and `Preference`.
 
-- `converse(sessionId, text, images, sink) -> Cancellation` runs one turn with the attached pictures
-  (`AttachedImage`, ADR-0070). Nothing is delivered during the call, and cancelling is idempotent.
+- `converse(sessionId, text, images, sink) -> Cancellation` runs one turn with its pictures
+  ([pictures](body-app-pictures.md)). Nothing arrives during the call; cancelling is idempotent.
 - The session reads `listSessions(limit)` and `sessionMessages(sessionId)` (ADR-0021). A zero
   limit means the brain's default listing and a positive one cuts that listing.
 - The session writes `renameSession(sessionId, title)` (`""` clears the override),

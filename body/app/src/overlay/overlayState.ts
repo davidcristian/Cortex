@@ -18,6 +18,8 @@ import {
   linkServing,
 } from "./linkState";
 import { type Notice, reminderDismissed, speak } from "./notice";
+import { NO_PICTURES, type PictureState, attach, detach } from "./pictureState";
+import type { ReadPicture } from "./pictures";
 import { NEW_CHAT_TITLE, adoptSession, deleteSession, newChat, openSession } from "./sessionState";
 import {
   type CaptureClaim,
@@ -74,6 +76,8 @@ export interface OverlayState {
    *  field on screen is this map's entry for `sessionId`, so a swap hands the arriving chat its own
    *  text in the same commit. */
   readonly drafts: Drafts;
+  /** The pictures waiting in the composer, and the one turn's that may be handed back. */
+  readonly pictures: PictureState;
   /** Fired reminders awaiting delivery, pulled on each open and acked on dismiss (ADR-0025). */
   readonly reminders: readonly DueReminder[];
   /** What the overlay knows about the brain connection, for the header indicator (`linkState`). */
@@ -94,6 +98,12 @@ export type Action =
   | { readonly kind: "submit"; readonly text: string }
   /** The composer's field changed. */
   | { readonly kind: "draft"; readonly text: string }
+  | {
+      readonly kind: "attach";
+      readonly pictures: readonly ReadPicture[];
+      readonly problem: string | null;
+    }
+  | { readonly kind: "detach"; readonly id: string }
   | { readonly kind: "event"; readonly event: TurnEvent }
   | { readonly kind: "transportError"; readonly error: TransportError }
   | { readonly kind: "dismiss" }
@@ -156,6 +166,7 @@ export function createInitialState(sessionId: string): OverlayState {
     notice: null,
     arrival: 0,
     drafts: {},
+    pictures: NO_PICTURES,
     reminders: [],
     link: INITIAL_LINK,
     capture: null,
@@ -182,6 +193,10 @@ export function reduce(state: OverlayState, action: Action): OverlayState {
         touched: true,
         drafts: parkDraft(state.drafts, state.sessionId, action.text),
       };
+    case "attach":
+      return attach({ ...state, touched: true }, action.pictures, action.problem);
+    case "detach":
+      return detach(state, action.id);
     case "event": {
       // Any event at all is the brain serving, so the indicator stays current with no probe while
       // a stream is arriving.

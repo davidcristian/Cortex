@@ -3,6 +3,7 @@ import { useRef, useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { draftOf, dropDraft, parkDraft } from "../overlay/drafts";
+import type { Picture } from "../overlay/pictures";
 import { Composer } from "./Composer";
 
 const field = () => screen.getByLabelText("Message") as HTMLTextAreaElement;
@@ -16,6 +17,10 @@ interface StageProps {
   readonly onSubmit?: (text: string) => void;
   readonly onStop?: () => void;
   readonly onResize?: () => void;
+  readonly pictures?: readonly Picture[];
+  readonly pictureNote?: string | null;
+  readonly onAttach?: (files: readonly Blob[]) => void;
+  readonly onDetach?: (id: string) => void;
 }
 
 /** The composer holds no text of its own, so a test that types needs the state that does. */
@@ -27,6 +32,10 @@ function Stage({
   onSubmit = () => undefined,
   onStop = () => undefined,
   onResize = () => undefined,
+  pictures = [],
+  pictureNote = null,
+  onAttach = () => undefined,
+  onDetach = () => undefined,
 }: StageProps) {
   const [drafts, setDrafts] = useState<Record<string, string>>(seed);
   const field = useRef<HTMLTextAreaElement>(null!);
@@ -45,6 +54,10 @@ function Stage({
       onDraft={(text) => setDrafts((held) => parkDraft(held, sessionId, text))}
       onStop={onStop}
       onResize={onResize}
+      pictures={pictures}
+      pictureNote={pictureNote}
+      onAttach={onAttach}
+      onDetach={onDetach}
     />
   );
 }

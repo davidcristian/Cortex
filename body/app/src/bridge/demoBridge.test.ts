@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DemoBridge } from "./demoBridge";
 import * as script from "./demoScript";
-import type { TurnEvent, TurnSink } from "./types";
+import type { AttachedImage, TurnEvent, TurnSink } from "./types";
 
 /** A turn under way, with everything its sink has been handed so far. */
 interface Turn {
@@ -10,13 +10,25 @@ interface Turn {
   readonly cancel: () => void;
 }
 
-function speak(bridge: DemoBridge, text: string, sessionId = "demo-1"): Turn {
+const PICTURE: AttachedImage = {
+  data: new Uint8Array([1]),
+  mimeType: "image/jpeg",
+  width: 2,
+  height: 2,
+};
+
+function speak(
+  bridge: DemoBridge,
+  text: string,
+  sessionId = "demo-1",
+  images: readonly AttachedImage[] = [],
+): Turn {
   const events: TurnEvent[] = [];
   const sink: TurnSink = {
     onEvent: (event) => events.push(event),
     onError: () => expect.unreachable("the demo bridge never fails a turn"),
   };
-  return { events, cancel: bridge.converse(sessionId, text, [], sink) };
+  return { events, cancel: bridge.converse(sessionId, text, images, sink) };
 }
 
 /** Everything the turn streamed as reply text, and everything it streamed as thinking. */
@@ -46,6 +58,29 @@ describe("DemoBridge, the recorded conversation", () => {
     expect(kinds.lastIndexOf("status")).toBeLessThan(kinds.indexOf("delta"));
     expect(kinds.filter((kind) => kind === "complete")).toEqual(["complete"]);
     expect(turn.events.at(-1)).toEqual({ kind: "complete", turnId: "demo" });
+  });
+
+  it("refuses the last picture when asked to, and ends the turn with nothing else", async () => {
+    const bridge = new DemoBridge();
+    const turn = speak(bridge, "refuse this", "demo-1", [PICTURE, PICTURE]);
+    await vi.advanceTimersByTimeAsync(WHOLE_TURN_MS);
+    expect(turn.events).toEqual([
+      {
+        kind: "failed",
+        code: "attachment_refused",
+        message: "attachment 2 is declared image/jpeg but its bytes are not",
+      },
+    ]);
+  });
+
+  it("stays silent after a refusal is cancelled, and answers a picture it keeps", async () => {
+    const bridge = new DemoBridge();
+    const refused = speak(bridge, "refuse this", "demo-1", [PICTURE]);
+    refused.cancel();
+    const kept = speak(bridge, "what is in this", "demo-2", [PICTURE]);
+    await vi.advanceTimersByTimeAsync(WHOLE_TURN_MS);
+    expect(refused.events).toEqual([]);
+    expect(kept.events.at(-1)).toEqual({ kind: "complete", turnId: "demo" });
   });
 
   it("holds the bubble on the shimmer before the first word", async () => {

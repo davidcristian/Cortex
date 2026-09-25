@@ -10,6 +10,7 @@ import { INITIAL_LINK } from "../overlay/linkState";
 import type { ConsoleTab, Message, OverlayState } from "../overlay/overlayState";
 import { laysEverything, stubRoll } from "../test-setup";
 import { Panel } from "./Panel";
+import { NO_PICTURES } from "../overlay/pictureState";
 
 const state = (over: Partial<OverlayState> = {}): OverlayState => ({
   mode: "panel",
@@ -23,6 +24,7 @@ const state = (over: Partial<OverlayState> = {}): OverlayState => ({
   notice: null,
   arrival: 0,
   drafts: {},
+  pictures: NO_PICTURES,
   reminders: [],
   link: INITIAL_LINK,
   capture: null,
@@ -92,6 +94,8 @@ function panelProps(over: Partial<OverlayState>, open: boolean, dark: boolean, h
     onToggleTheme: handlers.onToggleTheme ?? vi.fn(),
     onSubmit: handlers.onSubmit ?? vi.fn(),
     onDraft: handlers.onDraft ?? vi.fn(),
+    onAttach: vi.fn(),
+    onDetach: vi.fn(),
     onStop: vi.fn(),
     onDismiss: handlers.onDismiss ?? vi.fn(),
     onNewChat: handlers.onNewChat ?? vi.fn(),

@@ -2037,3 +2037,81 @@
   background: var(--panel);
   color: var(--text);
 }
+
+/* The pill's floor grows by the tile row (50px and a 2px gap) and the note (a 16px line, its
+   margin and a gap), so the field never yields below one row and the budget reserves them too. */
+.view:has(.composer .picture-note) {
+  --pill-floor: calc(84px + 22px);
+}
+.view:has(.composer .pictures) {
+  --pill-floor: calc(84px + 52px);
+}
+.view:has(.composer .pictures):has(.composer .picture-note) {
+  --pill-floor: calc(84px + 74px);
+}
+/* The remove control shows on hover or focus only, so a tile shows the picture and nothing else. */
+.pictures {
+  flex: none;
+  display: flex;
+  gap: 6px;
+  margin: 0;
+  padding: 4px 6px 2px;
+  list-style: none;
+}
+.picture {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 0 0 1px var(--stroke);
+  animation: picture-in 0.3s var(--spring);
+}
+.picture img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.picture-remove {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--panel-solid);
+  color: var(--text);
+  font: 13px/18px var(--font);
+  cursor: pointer;
+  opacity: 0;
+  transform: scale(0.6);
+  transition:
+    opacity 0.15s var(--ease),
+    transform 0.2s var(--spring);
+}
+.picture:hover .picture-remove,
+.picture-remove:focus-visible {
+  opacity: 1;
+  transform: scale(1);
+}
+.picture-note {
+  flex: none;
+  margin: 4px 10px 0;
+  color: var(--warn);
+  font-size: 12px;
+  line-height: 1.35;
+}
+@keyframes picture-in {
+  from {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .picture {
+    animation: none;
+  }
+}

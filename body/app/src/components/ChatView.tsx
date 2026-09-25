@@ -5,6 +5,7 @@ import type { MarkStyle } from "../mark/marks";
 import { chatFloorRef } from "../overlay/measured";
 import { RECENT_CHATS } from "../overlay/notice";
 import { type ConsoleTab, type OverlayState, draftOf, isTurnActive } from "../overlay/overlayState";
+import { waitingOf } from "../overlay/pictureState";
 import { handOff } from "../overlay/sectionCaret";
 import { useLogScroll } from "../overlay/useLogScroll";
 import { BubbleMark } from "./BubbleMark";
@@ -34,6 +35,9 @@ export interface ChatViewProps {
   readonly onSubmit: (text: string) => void;
   /** Park the composer's field under the chat on screen, keystroke by keystroke (`drafts.ts`). */
   readonly onDraft: (text: string) => void;
+  /** Read pasted or dropped files into the composer's pictures. */
+  readonly onAttach: (files: readonly Blob[]) => void;
+  readonly onDetach: (id: string) => void;
   readonly onStop: () => void;
   readonly onDismiss: () => void;
   readonly onNewChat: () => void;
@@ -62,6 +66,8 @@ export function ChatView({
   onToggleTheme,
   onSubmit,
   onDraft,
+  onAttach,
+  onDetach,
   onStop,
   onDismiss,
   onNewChat,
@@ -206,6 +212,10 @@ export function ChatView({
         arrival={open && showing ? state.arrival : null}
         onSubmit={onSubmit}
         onDraft={onDraft}
+        pictures={waitingOf(state.pictures, state.sessionId)}
+        pictureNote={state.pictures.note}
+        onAttach={onAttach}
+        onDetach={onDetach}
         onStop={onStop}
         // Growing the pill shortens the log: they are flex siblings and the log yields, while the
         // engine leaves `scrollTop` where it was. At a 720px window a two-line draft left the

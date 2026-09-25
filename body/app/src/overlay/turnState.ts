@@ -4,6 +4,8 @@
 import type { TurnEvent } from "../bridge/types";
 import { draftOf, dropDraft } from "./drafts";
 import type { OverlayState } from "./overlayState";
+import { refused, send } from "./pictureState";
+import { ATTACHMENT_REFUSED } from "./pictures";
 import { NEW_CHAT_TITLE, deriveTitle } from "./sessionState";
 
 /** The brain-side name of the screen-capture built-in. Matched by name rather than by a new event
@@ -70,6 +72,7 @@ export function submit(state: OverlayState, text: string): OverlayState {
     touched: true,
     title,
     drafts: sentTheDraft ? dropDraft(state.drafts, state.sessionId) : state.drafts,
+    pictures: send(state, trimmed),
     messages: [...state.messages, user, assistant],
     seq: state.seq + 2,
   };
@@ -122,8 +125,12 @@ export function applyEvent(state: OverlayState, event: TurnEvent): OverlayState 
         : state;
     case "complete":
       return endTurn(state, null);
-    case "failed":
-      return endTurn(state, `${event.code}: ${event.message}`);
+    case "failed": {
+      const ended = endTurn(state, `${event.code}: ${event.message}`);
+      return event.code === ATTACHMENT_REFUSED
+        ? refused(ended, state.pictures.sent, event.message)
+        : ended;
+    }
   }
 }
 
@@ -173,6 +180,7 @@ export function endTurn(state: OverlayState, error: string | null): OverlayState
     ...ended,
     mode: state.mode === "orb" ? "preview" : state.mode,
     pendingConfirm: null,
+    pictures: { ...state.pictures, sent: null },
     // The turn is over, so the picture it took is out of context and the indicator goes out with
     // it. The one place the claim is allowed to fall, and it falls all the way.
     capture: null,

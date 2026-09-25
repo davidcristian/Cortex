@@ -68,10 +68,19 @@ export class DemoBridge implements BrainBridge {
   converse(
     sessionId: string,
     text: string,
-    _images: readonly AttachedImage[],
+    images: readonly AttachedImage[],
     sink: TurnSink,
   ): Cancellation {
     this.remember(sessionId, text);
+    // Say "refuse" with a picture attached to see the brain turn the last one down.
+    const last = images.at(-1);
+    if (last !== undefined && /refus/iu.test(text)) {
+      const message = `attachment ${images.length} is declared ${last.mimeType} but its bytes are not`;
+      const refusal = setTimeout(() => {
+        sink.onEvent({ kind: "failed", code: "attachment_refused", message });
+      }, 300);
+      return () => clearTimeout(refusal);
+    }
     if (/offline|unreachable/iu.test(text)) {
       this.fail("down");
     } else if (/degraded|not ready/iu.test(text)) {

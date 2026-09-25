@@ -34,6 +34,9 @@ interface PanelProps {
   readonly onSubmit: (text: string) => void;
   /** Park the composer's field under the chat on screen, keystroke by keystroke (`drafts.ts`). */
   readonly onDraft: (text: string) => void;
+  /** Read pasted or dropped files into the composer's pictures. */
+  readonly onAttach: (files: readonly Blob[]) => void;
+  readonly onDetach: (id: string) => void;
   readonly onStop: () => void;
   readonly onDismiss: () => void;
   readonly onNewChat: () => void;

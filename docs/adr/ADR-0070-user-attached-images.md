@@ -108,6 +108,34 @@ the brain is called.
 - Both `SessionStore`s are unchanged: they still refuse any message with images. The engine
   appends the note-bearing text, so a store never sees pixels.
 
+### 7. The composer takes a picture by paste or drop, and hands a refused turn back
+
+- Paste (Ctrl+V with a picture on the clipboard) and a drop onto the composer are the ways in.
+  A file of another type, one the webview cannot decode, or one still over `MAX_IMAGE_BYTES` after
+  the downscale is left out, and one line above the thumbnails says why. At most
+  `MAX_ATTACHED_IMAGES` wait at once, and they are kept per chat, like the drafts.
+- Each waiting picture is a 44 px thumbnail in a row above the field. Its remove control shows on
+  hover or keyboard focus only, so the row shows pictures and nothing else.
+- On send the pictures leave the composer with the text. On `attachment_refused` the overlay takes
+  the exchange out of the log, because the brain stored none of it, puts the text back into an
+  empty field and the pictures back into the row, and shows the brain's sentence above them. The
+  user removes the picture it names and sends again.
+- A reopened chat shows the brain's history note as part of the stored user text; the overlay adds
+  nothing for it.
+
+**Proposal for the maintainer: a visible way in.** Nothing on screen says a picture can be
+attached. The build adds no control, since paste and drop need none. The options:
+
+1. A hint in the hint strip for Ctrl+V, the way the strip already teaches the other keys. It costs
+   one hint and nothing in the pill. This is the recommendation.
+2. A button in the pill beside send that opens the system file picker. It is the one way in that
+   needs neither the clipboard nor a second window, and it costs a permanent control.
+3. An outline on the composer only while a file is dragged over the window. It adds nothing at
+   rest, and it teaches only someone who already drags.
+
+The words on screen are "picture" and "Attached pictures", plain nouns rather than a named family,
+so none of the three needs a naming scheme.
+
 ## Consequences
 
 - `TurnRunner.handle_turn` takes `images: tuple[ImagePart, ...] = ()`. `TurnEngine` and
@@ -119,6 +147,9 @@ the brain is called.
   task.
 - Memory, titles and the history recap read the stored text, so they see the note and never the
   pixels.
+- The paste from the Windows clipboard and the drop from Explorer through WebView2 and the real
+  Tauri IPC are unvalidated until
+  [host item 024](../host/tasks/024-attached-picture-over-ipc.md) runs.
 
 ## Alternatives rejected
 

@@ -8,6 +8,9 @@ import {
   isTurnActive,
   reduce,
 } from "./overlayState";
+import { readWithCanvas } from "./canvasPicture";
+import { waitingOf } from "./pictureState";
+import { type PictureReader, readPictures } from "./pictures";
 import { useLink } from "./useLink";
 import { useReminders } from "./useReminders";
 import { type SessionCatalog, useSessionCatalog } from "./useSessionCatalog";
@@ -23,6 +26,10 @@ export interface OverlayController extends SessionCatalog {
   /** Park the composer's field under the chat on screen. The composer is controlled by that
    *  entry, so this is what typing in it does and the only thing it does. */
   setDraft(text: string): void;
+  /** Read pasted or dropped files into the composer's pictures for the chat on screen. */
+  attach(files: readonly Blob[]): void;
+  /** Take one waiting picture out of the composer. */
+  detach(id: string): void;
   stop(): void;
   dismiss(): void;
   open(): void;
@@ -53,6 +60,7 @@ export interface OverlayController extends SessionCatalog {
 export function useOverlay(
   bridge: BrainBridge,
   newSessionId: () => string = () => crypto.randomUUID(),
+  readPicture: PictureReader = readWithCanvas,
 ): OverlayController {
   const [state, dispatch] = useReducer(reduce, undefined, () =>
     createInitialState(newSessionId()),
@@ -113,7 +121,8 @@ export function useOverlay(
         return;
       }
       dispatch({ kind: "submit", text });
-      cancelRef.current = bridge.converse(state.sessionId, text.trim(), [], {
+      const images = waitingOf(state.pictures, state.sessionId).map((picture) => picture.image);
+      cancelRef.current = bridge.converse(state.sessionId, text.trim(), images, {
         onEvent: (event) => dispatch({ kind: "event", event }),
         onError: (error) => dispatch({ kind: "transportError", error }),
       });
@@ -124,6 +133,15 @@ export function useOverlay(
   // Stable, so a keystroke re-renders on the state it changed and nothing else: this is the one
   // callback that runs per character.
   const setDraft = useCallback((text: string) => dispatch({ kind: "draft", text }), []);
+  const attach = useCallback(
+    (files: readonly Blob[]) => {
+      void readPictures(files, readPicture).then(({ read, problem }) =>
+        dispatch({ kind: "attach", pictures: read, problem }),
+      );
+    },
+    [readPicture],
+  );
+  const detach = useCallback((id: string) => dispatch({ kind: "detach", id }), []);
 
   const stop = useCallback(() => {
     abandonTurn();
@@ -172,6 +190,8 @@ export function useOverlay(
     state,
     submit,
     setDraft,
+    attach,
+    detach,
     stop,
     dismiss,
     open,

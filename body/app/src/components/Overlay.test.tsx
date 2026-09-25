@@ -7,6 +7,7 @@ import { INITIAL_LINK } from "../overlay/linkState";
 import type { Message, OverlayState } from "../overlay/overlayState";
 import type { OverlayController } from "../overlay/useOverlay";
 import { Overlay } from "./Overlay";
+import { NO_PICTURES } from "../overlay/pictureState";
 
 function fakeController(
   mode: OverlayState["mode"],
@@ -26,6 +27,7 @@ function fakeController(
       notice: null,
       arrival: 0,
       drafts: {},
+      pictures: NO_PICTURES,
       reminders: [],
       link: INITIAL_LINK,
       capture: null,
@@ -35,6 +37,8 @@ function fakeController(
     },
     submit: vi.fn(),
     setDraft: vi.fn(),
+    attach: vi.fn(),
+    detach: vi.fn(),
     stop: vi.fn(),
     dismiss: vi.fn(),
     open: vi.fn(),

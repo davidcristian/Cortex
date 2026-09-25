@@ -1,4 +1,6 @@
 import {
+  type ClipboardEvent,
+  type DragEvent,
   type KeyboardEvent,
   type MutableRefObject,
   useCallback,
@@ -8,6 +10,7 @@ import {
   useState,
 } from "react";
 
+import type { Picture } from "../overlay/pictures";
 import { SendIcon, StopIcon } from "./icons";
 
 interface ComposerProps {
@@ -20,6 +23,12 @@ interface ComposerProps {
   readonly draft: string;
   /** Every keystroke, parked under the chat on screen. */
   readonly onDraft: (text: string) => void;
+  /** The pictures waiting to go with the draft, shown as thumbnails above the field. */
+  readonly pictures: readonly Picture[];
+  /** Why a picture was refused or left out, shown above the thumbnails until the next change. */
+  readonly pictureNote: string | null;
+  readonly onAttach: (files: readonly Blob[]) => void;
+  readonly onDetach: (id: string) => void;
   /** Which conversation this field belongs to, or null while the panel is shut or the console is
    *  over the chat. The field takes focus on every change. */
   readonly arrival: number | null;
@@ -46,6 +55,10 @@ export function Composer({
   arrival,
   onSubmit,
   onDraft,
+  pictures,
+  pictureNote,
+  onAttach,
+  onDetach,
   onStop,
   onResize,
 }: ComposerProps) {
@@ -74,7 +87,8 @@ export function Composer({
     field.style.height = "auto";
     // A `rows={1}` textarea's auto height is one row, so this compares against the measured
     // one-line height and a wrapped long line counts exactly like a typed newline.
-    const wraps = field.scrollHeight > field.clientHeight;
+    const holds = pictures.length > 0 || pictureNote !== null;
+    const wraps = field.scrollHeight > field.clientHeight || holds;
     // Applied before the height is read, because a stacked field is wider and may need fewer lines
     // than the decision above did.
     pill.classList.toggle(STACKED, wraps);
@@ -86,7 +100,7 @@ export function Composer({
       pillHeight.current = height;
       onResize();
     }
-  }, [onResize]);
+  }, [onResize, pictures.length, pictureNote]);
 
   // A layout effect, not a paint-time one: the measurement both chooses a layout and sizes the
   // field, so it has to run before the frame that shows the new character.
@@ -115,10 +129,62 @@ export function Composer({
     }
   };
 
+  const onPaste = (event: ClipboardEvent<HTMLTextAreaElement>) => {
+    const files = Array.from(event.clipboardData.files);
+    if (files.length > 0) {
+      event.preventDefault();
+      onAttach(files);
+    }
+  };
+
+  // Without `preventDefault` on the drag, the webview navigates to a dropped file.
+  const onDragOver = (event: DragEvent<HTMLDivElement>) => {
+    if (event.dataTransfer.types.includes("Files")) {
+      event.preventDefault();
+    }
+  };
+  const onDrop = (event: DragEvent<HTMLDivElement>) => {
+    const files = Array.from(event.dataTransfer.files);
+    if (files.length > 0) {
+      event.preventDefault();
+      onAttach(files);
+    }
+  };
+
   const live = draft.trim().length > 0 && !busy;
 
   return (
-    <div ref={pillRef} className={`composer${stacked ? ` ${STACKED}` : ""}`}>
+    <div
+      ref={pillRef}
+      className={`composer${stacked ? ` ${STACKED}` : ""}`}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
+    >
+      {pictureNote === null ? null : (
+        <p className="picture-note" role="alert">
+          {pictureNote}
+        </p>
+      )}
+      {pictures.length === 0 ? null : (
+        <ul className="pictures" aria-label="Attached pictures">
+          {pictures.map((picture, index) => (
+            <li key={picture.id} className="picture">
+              <img
+                src={picture.preview}
+                alt={`Picture ${index + 1}, ${picture.image.width} by ${picture.image.height}`}
+              />
+              <button
+                type="button"
+                className="picture-remove"
+                aria-label={`Remove picture ${index + 1}`}
+                onClick={() => onDetach(picture.id)}
+              >
+                ×
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
       {/* The caret ends up at the end of a restored draft: assigning a textarea's value puts the
           selection there, and a chat swap is the only thing that changes the value React writes.
           A keystroke's value already matches, so a caret typing mid-sentence stays put. */}
@@ -128,6 +194,7 @@ export function Composer({
         value={draft}
         onChange={(event) => onDraft(event.target.value)}
         onKeyDown={onKeyDown}
+        onPaste={onPaste}
         placeholder="Ask anything…"
         aria-label="Message"
         rows={1}
