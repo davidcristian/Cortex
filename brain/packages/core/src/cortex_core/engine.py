@@ -3,7 +3,12 @@
 import logging
 from collections.abc import AsyncGenerator, Mapping
 
-from cortex_core.attachments import attach_images, attachment_note
+from cortex_core.attachments import (
+    BLIND_ATTACHMENT_MSG,
+    AttachmentError,
+    attach_images,
+    attachment_note,
+)
 from cortex_core.conversation import Message, Role
 from cortex_core.errors import InferenceError, MalformedToolCallError
 from cortex_core.events import TurnCompleted, TurnEvent
@@ -70,6 +75,8 @@ class TurnEngine:
     ) -> AsyncGenerator[TurnEvent, None]:
         """Persist the user turn, run the inference and tool loop, then persist the reply."""
         model = self._model_by_tier[route_turn(RoutingHints())]
+        if images:
+            await self._refuse_blind(model)
         stored = text + attachment_note(images)
         user = Message(role=Role.USER, text=stored, at=self._clock.now(), turn_id=turn_id)
         await self._store.append(session_id, user)
@@ -132,6 +139,16 @@ class TurnEngine:
         if self._caps.generate_titles and len(history) == 1:
             await self._title_session(session_id, model, text, full_text, turn_id)
         yield TurnCompleted(turn_id=turn_id, full_text=full_text)
+
+    async def _refuse_blind(self, model: str) -> None:
+        """Raise ``AttachmentError``, before anything is stored, when the model cannot see."""
+        sight = self._caps.sight
+        if sight is None:
+            return
+        # A handoff ahead has the cortex unloaded, and a probe asked then would answer no.
+        await self._wait_out_handoff(model)
+        if not await sight.can_see():
+            raise AttachmentError(BLIND_ATTACHMENT_MSG)
 
     async def _wait_out_handoff(self, model: str) -> None:
         """Wait out a handoff already ahead, so the history read next includes what it stores."""

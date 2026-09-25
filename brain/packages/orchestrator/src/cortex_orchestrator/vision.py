@@ -67,14 +67,26 @@ class PropsVisionProbe:
         return vision
 
 
+class BlindVisionProbe:
+    """The ``VisionProbe`` for ``CORTEX_VISION=off``: the model cannot see, and nothing is asked."""
+
+    async def can_see(self) -> bool:
+        """Always ``False``."""
+        return False
+
+
 def build_vision(
     config: InferenceConfig, body_config: BodyConfig, body: BodyGateway | None
 ) -> tuple[CaptureBounds | None, VisionProbe | None, Callable[[], Awaitable[None]]]:
-    """Resolve ``CORTEX_VISION`` into the tool's bounds, its live probe, and a closer."""
-    if body is None or config.vision == "off":
-        return None, None, noop_aclose
-    bounds = CaptureBounds(
-        max_edge=body_config.capture_max_edge, max_bytes=body_config.max_image_bytes
+    """Resolve ``CORTEX_VISION`` into the capture tool's bounds, the model's probe, and a closer."""
+    if config.vision == "off":
+        return None, BlindVisionProbe(), noop_aclose
+    bounds = (
+        None
+        if body is None
+        else CaptureBounds(
+            max_edge=body_config.capture_max_edge, max_bytes=body_config.max_image_bytes
+        )
     )
     if config.vision == "on":
         return bounds, None, noop_aclose

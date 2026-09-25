@@ -16,6 +16,7 @@ from cortex_core.ports import Clock, ResidencyQueue
 from cortex_core.progress import ProgressSink
 from cortex_core.provenance import SourceKind, as_source
 from cortex_core.recall import MemoryRecaller
+from cortex_core.sighted import VisionProbe
 from cortex_core.tool_loop import ToolLoopContext
 from cortex_core.untrusted import (
     TaintLedger,
@@ -47,6 +48,7 @@ class TurnCapabilities:
     escalation: EscalationSlot | None = None
     bounds: GenerationBounds | None = None
     residency: ResidencyQueue | None = None
+    sight: VisionProbe | None = None
 
 
 def _render_memory_context(hits: Sequence[ScoredMemory], *, nonce: str, taint: TaintLedger) -> str:

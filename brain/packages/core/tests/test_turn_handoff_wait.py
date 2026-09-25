@@ -12,6 +12,7 @@ from cortex_core import (
     EchoInferenceBackend,
     GenerationBounds,
     HandoffAheadBackend,
+    ImagePart,
     InferenceEvent,
     InMemorySessionStore,
     JsonSchema,
@@ -24,6 +25,7 @@ from cortex_core import (
     Role,
     ScriptedInferenceBackend,
     ScriptedModelHost,
+    ScriptedVisionProbe,
     StatusUpdate,
     SwappingModelManager,
     TextChunk,
@@ -338,3 +340,35 @@ async def test_a_wrapped_stream_that_is_not_a_generator_streams_to_its_end() -> 
     backend = HandoffAheadBackend(_Plain(), _manager(), None)
 
     assert [event async for event in backend.stream("cortex", _hello())] == [TextChunk("only")]
+
+
+async def test_a_turn_with_a_picture_asks_whether_the_model_sees_only_after_the_handoff() -> None:
+    manager = _manager()
+    handoff = _HandoffAhead(manager)
+    await handoff.start()
+    store = InMemorySessionStore()
+    probe = ScriptedVisionProbe([True])
+    engine = TurnEngine(
+        store,
+        EchoInferenceBackend(),
+        _FixedClock(),
+        capabilities=TurnCapabilities(residency=manager, sight=probe),
+    )
+    picture = ImagePart(
+        data=b"\x89PNG\r\n\x1a\n" + b"\x00" * 8, mime_type="image/png", width=64, height=48
+    )
+
+    async def attached() -> list[TurnEvent]:
+        return [e async for e in engine.handle_turn("s", "hi", turn_id="t2", images=(picture,))]
+
+    turn = asyncio.create_task(attached())
+    await _settle()
+
+    assert not turn.done()
+    assert probe.asked == 0
+    assert await store.history("s") == ()
+
+    await handoff.finish()
+    async with asyncio.timeout(5.0):
+        await turn
+    assert probe.asked == 1

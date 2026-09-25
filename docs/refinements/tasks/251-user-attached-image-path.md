@@ -25,8 +25,7 @@ shell's `converse` command and `BrainRpcClient::converse` into `UserTurn.images`
 - 2026-09-25: The design became ADR-0070 and the brain half was built. Of the three invariant
   layers only `Message` relaxed, to allow images on `USER`; the handoff snapshot and both session
   stores still refuse pixels. Filed [730](730-measure-the-attachment-frame-on-the-real-cortex.md)
-  for the live run and [731](731-refuse-an-attachment-the-cortex-cannot-see.md) for a blind
-  cortex. The entry stays open for the body half.
+  for the live run. The entry stays open for the body half.
 - 2026-09-25: Done. The body half was built through every layer: the transport port and gRPC client
   take the images, the Tauri command decodes them from base64, and the composer takes pictures by
   paste or drop, shows removable thumbnails, and gets a refused turn's text and pictures back.

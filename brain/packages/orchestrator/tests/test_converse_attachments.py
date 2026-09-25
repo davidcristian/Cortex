@@ -10,7 +10,9 @@ from cortex_core import (
     EchoInferenceBackend,
     ImagePart,
     InMemorySessionStore,
+    ScriptedVisionProbe,
     SystemClock,
+    TurnCapabilities,
     TurnCompleted,
     TurnEngine,
     TurnEvent,
@@ -105,3 +107,22 @@ async def test_a_full_size_attachment_fits_through_the_brain_server() -> None:
     finally:
         await server.stop(None)
     assert kinds[-1] == "turn_complete"
+
+
+async def test_a_turn_the_model_cannot_see_ends_as_a_refused_attachment_with_nothing_stored() -> (
+    None
+):
+    store = InMemorySessionStore()
+    engine = TurnEngine(
+        store,
+        EchoInferenceBackend(),
+        SystemClock(),
+        capabilities=TurnCapabilities(sight=ScriptedVisionProbe([False])),
+    )
+    events = [
+        event async for event in converse(lambda _c, _p: engine, _events_from(_turn(_blob())))
+    ]
+    assert [event.WhichOneof("event") for event in events] == ["error"]
+    assert events[0].error.code == ERROR_CODE_ATTACHMENT_REFUSED
+    assert "the model now serving cannot read pictures" in events[0].error.message
+    assert await store.history("s") == ()

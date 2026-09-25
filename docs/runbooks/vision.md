@@ -18,7 +18,7 @@ All three must be true before a capture can happen. Each one fails closed on its
 | --- | --- | --- | --- |
 | `CORTEX_HOST_CAPTURE=1` | host (Tauri shell) | off | Whether the body wires the real GDI backend at all. Anything else serves `DeniedScreenCapture`, which answers `PermissionDenied`. |
 | overlay self-exclusion | host (automatic) | required | The shell calls `SetWindowDisplayAffinity(WDA_EXCLUDEFROMCAPTURE)` on the overlay at setup. If it fails, capture stays off even with the switch on. |
-| `CORTEX_VISION` | brain | `auto` | Whether `capture_screen` is advertised to the model. `auto` probes `GET {CORTEX_INFERENCE_ENDPOINT}/props` on every advertisement and every call; `on` and `off` fix the answer without touching the network. |
+| `CORTEX_VISION` | brain | `auto` | Whether `capture_screen` is advertised to the model and whether a turn may attach pictures. `auto` probes `GET {CORTEX_INFERENCE_ENDPOINT}/props` on every advertisement, every call and every turn with a picture, with or without a body gateway; `on` and `off` fix the answer without touching the network, and `off` refuses every attached picture. |
 
 Plus the model itself: `CORTEX_MODEL_FILE_CORTEX_MMPROJ` names the multimodal projector the model
 host loads beside the cortex tier. Without it the server reports no vision, the probe says no, and
@@ -221,8 +221,8 @@ The overlay shrinks a pasted or dropped picture to a 1600 px long edge and check
 `UserTurn.images` on the user's message for that turn only (ADR-0070); history keeps the text and a
 note such as `(Attached to this message and not kept: image/png 1600x900.)`. The turn is tainted and
 opaque, so the list above applies. A refused attachment ends the turn as `attachment_refused`,
-naming which and why: over four, not PNG, JPEG or WebP, over 6 MiB, or bytes of another type. No
-projector fails the turn as `inference_failed`. The live check is `test_attached_image_live.py`.
+naming which and why: over four, not PNG, JPEG or WebP, over 6 MiB, or bytes of another type, and
+so does a cortex without a projector. The live check is `test_attached_image_live.py`.
 
 ## Requiring approval before a capture
 

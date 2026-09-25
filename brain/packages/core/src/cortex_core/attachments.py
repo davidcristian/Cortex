@@ -27,8 +27,13 @@ ATTACHMENT_FRAME = (
 )
 
 
+BLIND_ATTACHMENT_MSG = (
+    "the attached pictures were refused: the model now serving cannot read pictures"
+)
+
+
 class AttachmentError(ValueError):
-    """A user attachment the brain refuses: too many, or bytes that are not the declared type."""
+    """An attachment the brain refuses: too many, the wrong bytes, or a model that cannot see."""
 
 
 def signature_matches(part: ImagePart) -> bool:

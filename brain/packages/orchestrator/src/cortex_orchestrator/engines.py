@@ -131,6 +131,7 @@ class StreamEngines:
             progress=progress,
             bounds=self.bounds,
             residency=None if self.deep is None else self.deep.swap.manager,
+            sight=self.sight,
         )
 
     def _recaller(self, backend: InferenceBackend, model: str) -> MemoryRecaller | None:

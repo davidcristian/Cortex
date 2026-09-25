@@ -3,6 +3,7 @@ from collections.abc import AsyncIterator, Mapping, Sequence
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 
+import pytest
 from fakeredis import FakeAsyncRedis, FakeServer
 
 from cortex_core import (
@@ -12,10 +13,12 @@ from cortex_core import (
     HANDOFF_AHEAD_DETAIL,
     SWAPPING,
     AsyncioSleeper,
+    AttachmentError,
     CaptureBounds,
     EscalatingTurnEngine,
     GenerationBounds,
     HashEmbedder,
+    ImagePart,
     InferenceBackend,
     InferenceEvent,
     InMemoryBodyGateway,
@@ -427,3 +430,17 @@ async def test_the_deep_phase_s_history_recap_is_written_by_the_deep_model() -> 
     ]
     assert backend.requests[3].tools == ()
     assert any(isinstance(event, TextDelta) and event.text == "deep answer" for event in events)
+
+
+async def test_a_stream_whose_cortex_cannot_see_refuses_an_attached_picture_unasked() -> None:
+    backend = _Model({"cortex": [[TextChunk("a cat")]]})
+    engines = replace(_engines(backend), sight=ScriptedVisionProbe((False,)))
+    engine = engines.for_stream(RecordingConfirmer(answer=True), RecordingProgressSink())
+    picture = ImagePart(
+        data=b"\x89PNG\r\n\x1a\n" + b"\x00" * 8, mime_type="image/png", width=64, height=48
+    )
+    with pytest.raises(AttachmentError):
+        async for _event in engine.handle_turn("s", "what?", turn_id="t1", images=(picture,)):
+            pass
+    assert backend.requests == []
+    assert await engines.sessions.history("s") == ()

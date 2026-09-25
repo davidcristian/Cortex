@@ -20,6 +20,7 @@ from cortex_core import (
     MemoryRecaller,
     Message,
     Role,
+    ScriptedVisionProbe,
     SystemClock,
     TaintLedger,
     TextChunk,
@@ -30,6 +31,7 @@ from cortex_core import (
 )
 from cortex_core.attachments import (
     ATTACHMENT_FRAME,
+    BLIND_ATTACHMENT_MSG,
     attach_images,
     attachment_note,
     signature_matches,
@@ -192,3 +194,40 @@ async def test_a_turn_without_attachments_stores_the_text_as_typed_and_stays_cle
     assert (await store.history("s"))[0].text == "what is this?"
     assert slot.refs is not None
     assert (slot.refs.taint.tainted, slot.refs.taint.opaque) == (False, False)
+
+
+async def test_a_model_that_cannot_see_refuses_the_turn_before_anything_is_stored() -> None:
+    store = InMemorySessionStore()
+    backend = _Recording()
+    probe = ScriptedVisionProbe([False])
+    engine = TurnEngine(store, backend, _FixedClock(), capabilities=TurnCapabilities(sight=probe))
+    with pytest.raises(AttachmentError, match=BLIND_ATTACHMENT_MSG):
+        await _turn(engine, (_part(),))
+    assert await store.history("s") == ()
+    assert backend.seen == []
+    assert probe.asked == 1
+
+
+async def test_a_model_that_can_see_is_asked_once_and_sent_the_pictures() -> None:
+    backend = _Recording()
+    probe = ScriptedVisionProbe([True])
+    engine = TurnEngine(
+        InMemorySessionStore(), backend, _FixedClock(), capabilities=TurnCapabilities(sight=probe)
+    )
+    await _turn(engine, (_part(),))
+    assert probe.asked == 1
+    assert backend.seen[0][-1].images == (_part(),)
+
+
+async def test_a_turn_without_pictures_never_asks_whether_the_model_can_see() -> None:
+    store = InMemorySessionStore()
+    probe = ScriptedVisionProbe([False])
+    engine = TurnEngine(
+        store, _Recording(), _FixedClock(), capabilities=TurnCapabilities(sight=probe)
+    )
+    await _turn(engine, ())
+    assert probe.asked == 0
+    assert [message.text for message in await store.history("s")] == [
+        "what is this?",
+        "a red bicycle",
+    ]

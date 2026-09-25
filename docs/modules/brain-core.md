@@ -99,9 +99,9 @@ capture request's `max_bytes` rather than trusting the body to have the same con
 imports only the standard library, so `tools.py`, `conversation.py` and `body.py` can all use it.
 
 `attachments.py` checks the user's own pictures (ADR-0070): `check_attachments(parts)` raises
-`AttachmentError` past `MAX_ATTACHED_IMAGES` (4) or on bytes without the declared type's signature.
-`TurnEngine` stores the text plus `attachment_note(parts)`, and `attach_images` puts the pixels,
-after `ATTACHMENT_FRAME`, on the working copy; `TaintLedger.observe_attachment()` makes it opaque.
+`AttachmentError` past `MAX_ATTACHED_IMAGES` (4) or on the wrong signature, and `TurnEngine` raises
+it before storing anything when `TurnCapabilities.sight` says the model cannot see. It stores the
+text plus `attachment_note(parts)`; `attach_images` puts the pixels on the working copy.
 
 ## Provenance and the untrusted-content boundary
 

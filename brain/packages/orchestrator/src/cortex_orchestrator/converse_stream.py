@@ -198,6 +198,9 @@ class ConverseStream:
         fields = {"session_id": turn[0], "turn_id": turn_id}
         try:
             await self._run_turn(turn, turn_id)
+        except AttachmentError as err:
+            _logger.warning("refusing a turn whose pictures the model cannot see", extra=fields)
+            self._fail(ERROR_CODE_ATTACHMENT_REFUSED, str(err))
         except SessionStoreError as err:
             _logger.exception("session store failed mid-turn", extra=fields)
             self._fail(ERROR_CODE_SESSION_STORE_UNAVAILABLE, str(err))

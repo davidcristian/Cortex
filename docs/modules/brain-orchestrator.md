@@ -88,7 +88,9 @@ One stream's machinery lives in `converse_stream.py`, which `converse.py` re-exp
   pairing being about the turn's own dispatches (ADR-0029 decision 18). `UserTurn.images` go
   through `read_attachments` (`attached.py`) into the turn's `images` (ADR-0070); one it refuses
   ends the stream with `SeamError{code="attachment_refused"}` before the turn starts, so nothing
-  is stored. The server accepts messages up to `MAX_TURN_MESSAGE_BYTES`, four images at their cap.
+  is stored. A turn whose serving cortex cannot see ends the same way, since `TurnEngine` asks the
+  stream's probe (`TurnCapabilities.sight`) before it stores the user's message. The server
+  accepts messages up to `MAX_TURN_MESSAGE_BYTES`, four images at their cap.
 - **The stream names each turn before it starts it** (`TurnIdFactory`, ADR-0046 decision 9), when
   the turn starts rather than when it is queued, so the id is a fact about a turn that ran. The
   three mid-turn failures log `session_id` and `turn_id` and never the turn's text.
@@ -159,8 +161,10 @@ the version string `Health` reports.
   `build_output_guardrail(mode)` takes the config's own `Literal`, so a name the config does not
   declare is a type error rather than a silently unguarded stream.
 - `build_vision(config, body_config, body)` (`vision.py`, ADR-0029) resolves `CORTEX_VISION` into
-  the `CaptureBounds` that say whether `capture_screen` may be registered at all and the
-  `PropsVisionProbe` over `GET {endpoint}/props`, built only for `auto`. Every failure counts as no
+  the `CaptureBounds` that say whether `capture_screen` may be registered at all, which needs a
+  body gateway, and the probe the tool and the turn's attachments share, built with or without
+  one: `PropsVisionProbe` over `GET {endpoint}/props` for `auto`, `BlindVisionProbe` for `off`,
+  none for `on`. Every failure counts as no
   vision and logs a structured warning, and the answered line also names the engine, `/props`
   reporting the running build as `build_info` (ADR-0005 decision 9; the inference adapter logs the
   same string for every tier it streams from). The probe is asked per advertisement and per call,

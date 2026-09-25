@@ -6,7 +6,12 @@ import pytest
 from cortex_core import CaptureBounds, InMemoryBodyGateway, record_fields
 from cortex_orchestrator.config import InferenceConfig
 from cortex_orchestrator.config_body import BodyConfig
-from cortex_orchestrator.vision import PROBE_TIMEOUT_S, PropsVisionProbe, build_vision
+from cortex_orchestrator.vision import (
+    PROBE_TIMEOUT_S,
+    BlindVisionProbe,
+    PropsVisionProbe,
+    build_vision,
+)
 
 _LOGGER = "cortex_orchestrator.vision"
 
@@ -146,21 +151,26 @@ async def test_on_fixes_the_answer_without_a_probe(monkeypatch: pytest.MonkeyPat
     await close()
 
 
-async def test_off_registers_no_capture_tool_at_all(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_off_registers_no_capture_tool_and_answers_blind_without_asking(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     inference, body_config = _configs(monkeypatch, "off")
     bounds, probe, close = build_vision(inference, body_config, InMemoryBodyGateway())
 
-    assert (bounds, probe) == (None, None)
+    assert bounds is None
+    assert isinstance(probe, BlindVisionProbe)
+    assert await probe.can_see() is False
     await close()
 
 
-async def test_without_a_body_there_is_nothing_to_probe_for(
+async def test_without_a_body_there_is_no_capture_tool_but_the_model_is_still_probed(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     inference, body_config = _configs(monkeypatch, "auto")
     bounds, probe, close = build_vision(inference, body_config, None)
 
-    assert (bounds, probe) == (None, None)
+    assert bounds is None
+    assert isinstance(probe, PropsVisionProbe)
     await close()
 
 

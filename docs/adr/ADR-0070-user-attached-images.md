@@ -77,7 +77,13 @@ since it covers both sources. The user asks again in a new message without the p
   refusal.
 - **Refusal.** An attachment that fails any check ends the stream with
   `SeamError{code: "attachment_refused", message}` before the turn starts, so nothing is stored.
-  The message names the attachment by its 1-based position and the check it failed. The body maps
+  The message names the attachment by its 1-based position and the check it failed.
+- **A cortex that cannot see.** `TurnEngine` asks the stream's `VisionProbe` before it stores the
+  user's message, after waiting out another turn's handoff, since the cortex is unloaded during
+  one and a probe asked then would answer no. A model that cannot see raises `AttachmentError`,
+  which ends the stream as `attachment_refused` like the checks above. The probe follows `CORTEX_VISION`
+  with or without a body gateway: `auto` asks `GET /props`, `off` answers no without a request, and
+  `on` sends the pictures unasked. The body maps
   it to `TurnEvent::Failed` like every other `SeamError`. No proto message is added: the error
   code is a string, as the other three codes are.
 
@@ -143,9 +149,8 @@ so none of the three needs a naming scheme.
   `EscalatingTurnEngine` pass it through; a runner that never receives one behaves as before.
 - A user message with images and a user message without them are two different requests on the
   wire: the first is a content-parts array, the second the plain string it always was.
-- An attachment sent to a cortex without a projector fails the turn as `inference_failed` after
-  the note is stored. Refusing it up front needs the vision probe in the turn and is filed as a
-  task.
+- With `CORTEX_VISION=auto`, a turn with a picture costs one `GET /props` before it starts, the
+  price the capture tool already pays per advertisement.
 - Memory, titles and the history recap read the stored text, so they see the note and never the
   pixels.
 - The paste from the Windows clipboard and the drop from Explorer through WebView2 and the real
