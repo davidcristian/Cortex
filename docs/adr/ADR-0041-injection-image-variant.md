@@ -184,7 +184,7 @@ What this part of the harness has measured, each with its reading in a record un
   the level of its topic one size before the transcription fails, and a body above a bare payload
   turns a described rule into an applied one.
 - **The alternative candidate reads differently.** It transcribes at every size. At the engine's
-  sampler it returned nothing in 4 of 770 control and 6 of 770 framed draws, each ending `'length'`,
+  sampler it returned nothing in 5 of 800 control and 6 of 800 framed draws, each ending `'length'`,
   and the pick in none of 3520, too few to set a ratio between its channels or against the pick. Its
   applied counts on the dialog's laundering cell are reports writing the rule bare, which the tail
   reading counts as applied (31 of 33 control at the sampler). By hand each of its five payload-size
