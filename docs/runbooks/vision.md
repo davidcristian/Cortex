@@ -222,7 +222,7 @@ The overlay shrinks a pasted or dropped picture to a 1600 px long edge and check
 note such as `(Attached to this message and not kept: image/png 1600x900.)`. The turn is tainted and
 opaque, so the list above applies. A refused attachment ends the turn as `attachment_refused`,
 naming which and why: over four, not PNG, JPEG or WebP, over 6 MiB, or bytes of another type. No
-projector fails the turn as `inference_failed`. Not yet run against the real cortex.
+projector fails the turn as `inference_failed`. The live check is `test_attached_image_live.py`.
 
 ## Requiring approval before a capture
 

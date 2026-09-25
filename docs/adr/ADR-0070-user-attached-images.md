@@ -63,8 +63,9 @@ since it covers both sources. The user asks again in a new message without the p
 
 ### 4. Limits, and what a refused attachment returns
 
-- **Count.** At most `MAX_ATTACHED_IMAGES` (4) per turn. Four is a reading of "a few pictures",
-  not a measured bound; the live check filed with this record measures what four cost the cortex.
+- **Count.** At most `MAX_ATTACHED_IMAGES` (4) per turn. Four at the body's 1600 px edge take
+  under a fifth of the cortex's context window, which leaves the rest to the tool list, the history
+  and the reply ([readings](../readings/vision-capture.md#pictures-the-user-attaches)).
 - **Each image.** The existing `ImagePart` checks: PNG, JPEG or WebP, at most `MAX_IMAGE_BYTES`
   (6 MiB), width and height declared and each in 1 to 8192. The body's capture uses the same
   6 MiB cap.

@@ -2,7 +2,8 @@
 
 What the cortex tier and its projector do with a captured screen, what a capture costs in bytes,
 tokens and memory, and what it can read. Cited by
-[ADR-0029](../adr/ADR-0029-vision-screen-capture.md). Unless a reading says otherwise the model is
+[ADR-0029](../adr/ADR-0029-vision-screen-capture.md) and, for pictures the user attaches,
+[ADR-0070](../adr/ADR-0070-user-attached-images.md). Unless a reading says otherwise the model is
 gemma-4-12B (QAT q4_0) with its projector on llama.cpp `server-cuda`, run by the agent in Docker,
 and requests are built by the shipped `CaptureScreenTool` and `LlamaCppBackend`. How injection over
 pixels was measured is in [injection-over-pixels](injection-over-pixels.md).
@@ -111,6 +112,27 @@ spends the cap. Method: five runs each on the 24 GB card, shipped request with n
   with the SM clock at 0.67 of its maximum under load. The sentence and the sampler make this a
   different input from the 2026-08-10 rows. Method: `test_the_window_size_sentence_against_none`
   in `test_image_budget_live.py`, log in `measurements/r720-2026-09-24/`.
+
+## Pictures the user attaches
+
+- **2026-09-25, the request shape.** A `role: "user"` message whose content is the typed text with
+  `ATTACHMENT_FRAME`, then one `image_url` part per picture, is accepted and read. Asked for the
+  word drawn in one 1600x900 PNG, the cortex named it; asked for the words in four, it named all
+  four in order in 5 of 5 turns. The thinking trace, which `TurnEngine` does not pass on, named
+  each picture's word and background colour. Thinking was the shipped default: no `enable_thinking`
+  switch was sent, and `reasoning_content` came back on every turn, 182 to 1041 characters. Method:
+  `test_attached_image_live.py` in `brain/packages/inference/tests/`, through `TurnEngine` and
+  `LlamaCppBackend` against the model host's cortex argv (context 16384, `--image-max-tokens`
+  1024), the 24 GB card, and four more four-picture turns through the same helpers.
+- **2026-09-25, the cost of four.** One 1600x900 picture costs 630 prompt tokens, as the 629 of the
+  capture reading above. The turn is 993 prompt tokens with one picture and 2883 with four, 18% of
+  the 16384-token window, which leaves 13501 for the tool list, the history and the reply with its
+  trace. Prompt evaluation for four took 2.3 times as long as for one in `timings.prompt_ms`, and
+  2.4 times in median wall clock, with the SM clock at 0.62 to 0.65 of `clocks.max.sm` read after
+  each request. At a 2048 px edge a picture costs 1011 tokens and four take 27% of the window; the one
+  four-picture turn drawn there listed the last word twice.
+  Method: the same test, three uncached requests of each turn's own messages with `max_tokens` 1,
+  no tool list offered; the 2048 px row set the test's `_EDGE` to 2048.
 
 ## A body call with no deadline
 

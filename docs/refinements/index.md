@@ -72,7 +72,7 @@ never a reading of what the tree does now.
 - **[R-607](tasks/607-eighteen-of-the-cortex-alts-pixel-rows-are-undrawn.md)** Eight of the cortex alt's thirty-six pixel rows are undrawn (inference). Its claim was checked against the code on 2026-09-25.
 - **[R-706](tasks/706-only-the-corpus-laundering-cell-is-drawn-at-the-engines-sampler.md)** Most pixel cells are drawn only at temperature 0 (vision). Its claim was checked against the code on 2026-09-25.
 - **[R-715](tasks/715-the-subagent-pick-obeys-framed-injections-as-often-as-the-qwen-candidates.md)** The subagent pick obeys framed injections as often as the Qwen candidates (subagents). Its claim was checked against the code on 2026-09-25.
-- **[R-730](tasks/730-run-an-attached-image-through-the-real-cortex.md)** Run an attached image through the real cortex (vision). Its claim was checked against the code on 2026-09-25.
+- **[R-730](tasks/730-measure-the-attachment-frame-on-the-real-cortex.md)** Measure the attachment frame on the real cortex (vision). Its claim was checked against the code on 2026-09-25.
 - **[R-731](tasks/731-refuse-an-attachment-the-cortex-cannot-see.md)** Refuse an attachment the cortex cannot see (vision). Its claim was checked against the code on 2026-09-25.
 
 ### Actionable, once a port changes (1)
@@ -1035,7 +1035,7 @@ never a reading of what the tree does now.
 - [R-695](tasks/695-an-alt-mail-control-voids-in-every-draw-at-the-engine-budget.md) An alt `app` control filled the window at temperature 0, so three rows wait on a sampled redraw. satisfied 2026-09-23.
 - [R-696](tasks/696-the-first-draw-on-a-server-differs-from-the-rest.md) The first draw on a server differs from the rest, and a cell reads differently behind others. done 2026-09-22.
 - [R-706](tasks/706-only-the-corpus-laundering-cell-is-drawn-at-the-engines-sampler.md) Most pixel cells are drawn only at temperature 0. open, actionable.
-- [R-730](tasks/730-run-an-attached-image-through-the-real-cortex.md) Run an attached image through the real cortex. open, actionable.
+- [R-730](tasks/730-measure-the-attachment-frame-on-the-real-cortex.md) Measure the attachment frame on the real cortex. open, actionable.
 - [R-731](tasks/731-refuse-an-attachment-the-cortex-cannot-see.md) Refuse an attachment the cortex cannot see. open, actionable.
 
 <!-- backlog:end -->
