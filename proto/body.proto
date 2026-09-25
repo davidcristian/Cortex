@@ -53,7 +53,7 @@ service BrainService {
 message ClientEvent {
   string session_id = 1;
   oneof event {
-    UserTurn user_turn = 2;   // text, and an attached capture when there is one
+    UserTurn user_turn = 2;   // text, and the images the user attached, if any
     Cancel cancel = 3;        // stop generating the current turn
     ConfirmResponse confirm_response = 4; // the user's answer to a ConfirmRequest
   }
@@ -61,7 +61,9 @@ message ClientEvent {
 
 message UserTurn {
   string text = 1;
-  repeated ImageBlob images = 2; // for example a screen capture the user attached
+  // Images the user attached, for this turn only: at most 4, each PNG, JPEG or WebP of at most
+  // 6 MiB with width and height set. Any other ends the stream with code attachment_refused.
+  repeated ImageBlob images = 2;
 }
 
 message Cancel {}

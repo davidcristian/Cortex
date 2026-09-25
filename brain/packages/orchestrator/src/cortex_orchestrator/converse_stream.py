@@ -7,7 +7,9 @@ from collections.abc import AsyncGenerator, AsyncIterator, Callable
 
 from cortex_core import (
     AsyncioSleeper,
+    AttachmentError,
     Confirmer,
+    ImagePart,
     InferenceError,
     ProgressSink,
     SessionStoreError,
@@ -20,6 +22,7 @@ from cortex_core import StatusUpdate as DomainStatusUpdate
 from cortex_core import TextDelta as DomainTextDelta
 from cortex_core import ToolActivity as DomainToolActivity
 from cortex_core import ToolOutcome as DomainToolOutcome
+from cortex_orchestrator.attached import ERROR_CODE_ATTACHMENT_REFUSED, read_attachments
 from cortex_orchestrator.confirm import RpcConfirmer
 from cortex_orchestrator.progress import RpcProgressSink
 from cortex_seam import ClientEvent, Heartbeat, SeamError, ServerEvent, TurnComplete
@@ -29,6 +32,7 @@ from cortex_seam import ToolActivity as WireToolActivity
 from cortex_seam import ToolOutcome as WireToolOutcome
 
 EngineFactory = Callable[[Confirmer, ProgressSink], TurnRunner]
+QueuedTurn = tuple[str, str, tuple[ImagePart, ...]]
 
 ERROR_CODE_SESSION_STORE_UNAVAILABLE = "session_store_unavailable"
 ERROR_CODE_INFERENCE_FAILED = "inference_failed"
@@ -88,7 +92,7 @@ class ConverseStream:
         self._engine = make_engine(self._confirmer, self._progress)
         self._new_turn_id = turn_id_factory
         self._sleeper = sleeper if sleeper is not None else AsyncioSleeper()
-        self._pending: deque[tuple[str, str]] = deque()
+        self._pending: deque[QueuedTurn] = deque()
         self._turn: asyncio.Task[None] | None = None
         self._failed = False
 
@@ -130,7 +134,16 @@ class ConverseStream:
             async for event in client_events:
                 kind = event.WhichOneof("event")
                 if kind == "user_turn":
-                    self._enqueue_turn(event.session_id, event.user_turn.text)
+                    try:
+                        images = read_attachments(event.user_turn.images)
+                    except AttachmentError as err:
+                        _logger.warning(
+                            "refusing a turn whose attachment the brain cannot use",
+                            extra={"session_id": event.session_id},
+                        )
+                        self._fail(ERROR_CODE_ATTACHMENT_REFUSED, str(err))
+                        return
+                    self._enqueue_turn((event.session_id, event.user_turn.text, images))
                 elif kind == "cancel":
                     await self._cancel_turn()
                 elif kind == "confirm_response":
@@ -154,17 +167,16 @@ class ConverseStream:
         finally:
             self._out.put_nowait(None)
 
-    def _enqueue_turn(self, session_id: str, text: str) -> None:
+    def _enqueue_turn(self, turn: QueuedTurn) -> None:
         """Queue one turn; it starts immediately when nothing is running."""
-        self._pending.append((session_id, text))
+        self._pending.append(turn)
         self._start_next_turn()
 
     def _start_next_turn(self) -> None:
         """Start the oldest queued turn unless one runs already or the stream failed."""
         if self._turn is not None or self._failed or not self._pending:
             return
-        session_id, text = self._pending.popleft()
-        self._turn = asyncio.create_task(self._turn_task(session_id, text))
+        self._turn = asyncio.create_task(self._turn_task(self._pending.popleft()))
 
     async def _drain_turns(self) -> None:
         """Client input ended: wait until the in-flight turn and the queue are done."""
@@ -180,12 +192,12 @@ class ConverseStream:
         turn.cancel()
         await asyncio.wait([turn])
 
-    async def _turn_task(self, session_id: str, text: str) -> None:
+    async def _turn_task(self, turn: QueuedTurn) -> None:
         """One turn task: typed failures become SeamError; completion chains the queue."""
         turn_id = self._new_turn_id()
-        fields = {"session_id": session_id, "turn_id": turn_id}
+        fields = {"session_id": turn[0], "turn_id": turn_id}
         try:
-            await self._run_turn(session_id, text, turn_id)
+            await self._run_turn(turn, turn_id)
         except SessionStoreError as err:
             _logger.exception("session store failed mid-turn", extra=fields)
             self._fail(ERROR_CODE_SESSION_STORE_UNAVAILABLE, str(err))
@@ -201,9 +213,10 @@ class ConverseStream:
             self._turn = None
             self._start_next_turn()
 
-    async def _run_turn(self, session_id: str, text: str, turn_id: str) -> None:
+    async def _run_turn(self, turn: QueuedTurn, turn_id: str) -> None:
         """One stateless turn over the store, streamed onto the output queue."""
-        events = self._engine.handle_turn(session_id, text, turn_id=turn_id)
+        session_id, text, images = turn
+        events = self._engine.handle_turn(session_id, text, turn_id=turn_id, images=images)
         try:
             async for event in events:
                 # Backpressure: suspends generation here until the consumer frees a credit.

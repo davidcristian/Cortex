@@ -509,8 +509,8 @@ async def test_a_turn_that_looked_at_the_screen_after_escalating_ends_with_a_not
     events = await harness.run_handoff(live, slot)
 
     assert _texts(events) == (
-        "\n\n(This turn looked at your screen, and a picture cannot be handed to the deep model, "
-        "so the handoff was not started. Nothing was unloaded. Ask again in a new message if you "
+        "\n\n(This turn holds a picture, and a picture cannot be handed to the deep model, so "
+        "the handoff was not started. Nothing was unloaded. Ask again in a new message if you "
         "still want the deep model.)"
     )
     assert _states(events) == [], "nothing was announced, because nothing was done"

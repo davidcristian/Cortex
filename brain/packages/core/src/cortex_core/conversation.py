@@ -23,9 +23,9 @@ class Role(Enum):
     TOOL = "tool"
 
 
-# Only a tool message may have images: the inference adapter sends content parts for a tool
-# message and a plain string for every other role, so an image elsewhere is dropped silently.
-_IMAGE_BEARING_ROLE = Role.TOOL
+# The inference adapter sends content parts only for these roles and a plain string for the
+# others, so an image elsewhere would be dropped silently.
+_IMAGE_BEARING_ROLES = frozenset({Role.TOOL, Role.USER})
 
 
 @dataclass(frozen=True, slots=True)
@@ -44,9 +44,9 @@ class Message:
         if self.at.tzinfo is None or self.at.tzinfo.utcoffset(self.at) is None:
             msg = "Message.at must be timezone-aware"
             raise ValueError(msg)
-        if self.images and self.role is not _IMAGE_BEARING_ROLE:
+        if self.images and self.role not in _IMAGE_BEARING_ROLES:
             msg = (
                 f"a {self.role.value} message may not have images: pixels are turn-local and "
-                "stay with the tool result they arrived on"
+                "stay with the tool result or user message they arrived on"
             )
             raise ValueError(msg)

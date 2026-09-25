@@ -50,11 +50,11 @@ out of room.
   results fed back to the model. Only `USER` and `ASSISTANT` messages are persisted.
 - `Message(role, text, at, turn_id, tool_calls=(), tool_call_id=None, images=())` is one message,
   frozen. A naive `at` raises `ValueError`, because externalized state needs its timezone.
-  `turn_id` ties a user message to the reply it produced. Images are rejected on any role but
-  `TOOL` with `ValueError`: pixels belong to one turn, and the llama.cpp adapter builds a
-  content-parts array for tool messages only, so an image anywhere else would be dropped on the way
-  to the model without a word. The rule is on the value rather than only in the stores, so a code
-  path that never touches a store cannot break it (ADR-0029).
+  `turn_id` ties a user message to the reply it produced. Images are rejected on `ASSISTANT` and
+  `SYSTEM` with `ValueError`: pixels belong to one turn, on the tool result or the user attachment
+  they arrived with, and the llama.cpp adapter builds a content-parts array only for those. The
+  stores still refuse every image, so a user message keeps them only on the turn's working copy
+  (ADR-0029, ADR-0070).
 - `new_turn_id() -> str` returns a new turn id (a uuid4 string). What an id looks like belongs to
   the domain; when one is made belongs to whoever schedules the turn, which is the orchestrator's
   `Converse` stream (ADR-0046 decision 9). A `TurnRunner` is given the id it serves.
@@ -97,6 +97,11 @@ holds the memory store. `MAX_IMAGE_BYTES` is also the body's capture limit, writ
 toolchain and compared by `scripts/crosscheck.py`; the brain sends the number to the body as the
 capture request's `max_bytes` rather than trusting the body to have the same constant. The module
 imports only the standard library, so `tools.py`, `conversation.py` and `body.py` can all use it.
+
+`attachments.py` checks the user's own pictures (ADR-0070): `check_attachments(parts)` raises
+`AttachmentError` past `MAX_ATTACHED_IMAGES` (4) or on bytes without the declared type's signature.
+`TurnEngine` stores the text plus `attachment_note(parts)`, and `attach_images` puts the pixels,
+after `ATTACHMENT_FRAME`, on the working copy; `TaintLedger.observe_attachment()` makes it opaque.
 
 ## Provenance and the untrusted-content boundary
 

@@ -7,6 +7,7 @@ from cortex_core import (
     THINKING,
     TOOL_RUNNING,
     Confirmer,
+    ImagePart,
     ProgressSink,
     TextDelta,
     TurnCompleted,
@@ -50,10 +51,10 @@ class _HeldTurn:
         self.release = asyncio.Event()
 
     async def handle_turn(
-        self, session_id: str, text: str, *, turn_id: str
+        self, session_id: str, text: str, *, turn_id: str, images: tuple[ImagePart, ...] = ()
     ) -> AsyncGenerator[TurnEvent, None]:
         """Stream two deltas, wait for the release, then finish."""
-        del session_id, text
+        del session_id, text, images
         yield TextDelta("one")
         yield TextDelta("two")
         self.said_both.set()
@@ -70,10 +71,10 @@ class _SteppedTurn:
         self.finish = asyncio.Event()
 
     async def handle_turn(
-        self, session_id: str, text: str, *, turn_id: str
+        self, session_id: str, text: str, *, turn_id: str, images: tuple[ImagePart, ...] = ()
     ) -> AsyncGenerator[TurnEvent, None]:
         """Stream one delta, then two more once released, then finish once released again."""
-        del session_id, text
+        del session_id, text, images
         yield TextDelta("one")
         await self.go.wait()
         yield TextDelta("two")
@@ -189,10 +190,10 @@ class _WaitingTurn:
         self.held = asyncio.Event()
 
     async def handle_turn(
-        self, session_id: str, text: str, *, turn_id: str
+        self, session_id: str, text: str, *, turn_id: str, images: tuple[ImagePart, ...] = ()
     ) -> AsyncGenerator[TurnEvent, None]:
         """Hold each wait in turn until the test moves it on, then finish with none held."""
-        del session_id, text
+        del session_id, text, images
         async with self._progress.hold(TOOL_RUNNING), self._progress.hold(GENERATING):
             self.held.set()
             await self.step.wait()

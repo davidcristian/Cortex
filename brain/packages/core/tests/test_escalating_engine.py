@@ -14,6 +14,7 @@ from cortex_core import (
     EscalatingTurnEngine,
     EscalationRefs,
     EscalationSlot,
+    ImagePart,
     Message,
     RecordingProgressSink,
     Role,
@@ -47,11 +48,13 @@ class _ScriptedTurn:
         self._brief = brief
         self._block = block
         self.closed = False
+        self.images: tuple[ImagePart, ...] | None = None
 
     async def handle_turn(
-        self, session_id: str, text: str, *, turn_id: str
+        self, session_id: str, text: str, *, turn_id: str, images: tuple[ImagePart, ...] = ()
     ) -> AsyncGenerator[TurnEvent, None]:
         del session_id, text, turn_id
+        self.images = images
         self._slot.refs = EscalationRefs(
             working=[Message(role=Role.USER, text=harness.USER_TEXT, at=_AT, turn_id=harness.TURN)],
             taint=TaintLedger(),
@@ -230,3 +233,16 @@ async def test_the_deep_model_generating_is_held_under_its_own_sentence() -> Non
     await _drain(engine)
     assert Wait(THINKING, WORKING_DETAIL) in sink.held
     assert GENERATING not in sink.held
+
+
+async def test_the_wrapper_hands_the_attached_images_to_the_inner_turn() -> None:
+    picture = ImagePart(data=b"\x89PNG", mime_type="image/png", width=8, height=8)
+    live = build_harness()
+    engine, built = _wrapper(
+        live.conductor, events=(TurnCompleted(turn_id=harness.TURN, full_text=""),)
+    )
+    stream = engine.handle_turn(
+        harness.SESSION, harness.USER_TEXT, turn_id=harness.TURN, images=(picture,)
+    )
+    assert [event async for event in stream] == [TurnCompleted(turn_id=harness.TURN, full_text="")]
+    assert built[0].images == (picture,)

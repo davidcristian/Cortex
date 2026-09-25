@@ -176,8 +176,8 @@ A model-initiated `capture_screen` built-in over the unchanged `BodyGateway`, so
 the dispatch budget, taint marking and cortex-only reach. A `ScreenCapture` OS trait returns **raw pixels**,
 with all downscale, encode and byte-bounding policy in pure `body_core` and a GDI `BitBlt` Windows backend under
 its own `unsafe` authorization. **Pixels are turn-local** as an invariant: images are allowed on the `Role.TOOL`
-message alone, both session stores raise on an image-bearing append, and a turn that looked at the screen cannot
-hand over to the deep model. Since no nonce can bracket an image, the boundary is taint plus a turn-local
+and `Role.USER` messages (ADR-0070), both session stores raise on an image-bearing append, and a turn holding a
+picture cannot hand over to the deep model. Since no nonce can bracket an image, the boundary is taint plus a turn-local
 `opaque` bit that forces strict URL redaction and blocks durable memory, a receipt the brain cannot suppress, a
 kill switch that fails closed, and the overlay excluding itself from capture.
 

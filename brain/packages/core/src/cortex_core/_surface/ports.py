@@ -1,5 +1,11 @@
 """Public core names for the ports themselves and the types they exchange."""
 
+from cortex_core.attachments import (
+    MAX_ATTACHED_IMAGES,
+    MAX_TURN_MESSAGE_BYTES,
+    AttachmentError,
+    check_attachments,
+)
 from cortex_core.body import (
     CaptureTarget,
     ScreenCapture,
@@ -97,10 +103,13 @@ from cortex_core.provenance import (
 
 __all__ = [
     "ALLOWED_MIME_TYPES",
+    "MAX_ATTACHED_IMAGES",
     "MAX_IMAGE_BYTES",
     "MAX_IMAGE_EDGE",
     "MAX_SOURCE_CHARS",
+    "MAX_TURN_MESSAGE_BYTES",
     "MAX_TURN_SOURCES",
+    "AttachmentError",
     "BodyFailure",
     "BodyGateway",
     "BodyGatewayError",
@@ -175,6 +184,7 @@ __all__ = [
     "as_source",
     "body_failure_message",
     "captured_at_from_unix_ms",
+    "check_attachments",
     "claimed_source",
     "data_uri",
     "hold_to_the_bounds_asked_for",

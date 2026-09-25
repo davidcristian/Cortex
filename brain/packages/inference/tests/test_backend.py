@@ -649,6 +649,31 @@ async def test_a_tool_message_without_images_is_byte_identical_to_before() -> No
     ]
 
 
+async def test_a_user_message_with_an_attached_image_becomes_a_content_parts_array() -> None:
+    sent: list[dict[str, object]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        sent.append(json.loads(request.content))
+        return httpx.Response(200, content=_sse('{"choices":[{"delta":{"content":"ok"}}]}'))
+
+    picture = ImagePart(data=b"\x89PNG", mime_type="image/png", width=640, height=480)
+    messages = [
+        Message(role=Role.USER, text="what is this?", at=_AT, turn_id="t1", images=(picture,))
+    ]
+    stream = _backend(handler).stream("cortex", messages)
+    assert [event async for event in stream] == [TextChunk("ok")]
+
+    assert sent[0]["messages"] == [
+        {
+            "role": "user",
+            "content": [
+                {"type": "text", "text": "what is this?"},
+                {"type": "image_url", "image_url": {"url": "data:image/png;base64,iVBORw=="}},
+            ],
+        }
+    ]
+
+
 async def test_several_images_on_one_message_all_go_in_the_same_parts_array() -> None:
     sent: list[dict[str, object]] = []
 

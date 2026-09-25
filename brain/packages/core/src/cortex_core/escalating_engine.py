@@ -5,6 +5,7 @@ from contextlib import AsyncExitStack
 
 from cortex_core.events import StatusUpdate, TextDelta, TurnCompleted, TurnEvent
 from cortex_core.handoff import EscalationSlot
+from cortex_core.images import ImagePart
 from cortex_core.ports import TurnRunner
 from cortex_core.progress import ProgressSink
 from cortex_core.swap_conductor import SwapConductor
@@ -26,13 +27,14 @@ class EscalatingTurnEngine:
         self._progress = progress
 
     async def handle_turn(
-        self, session_id: str, text: str, *, turn_id: str
+        self, session_id: str, text: str, *, turn_id: str, images: tuple[ImagePart, ...] = ()
     ) -> AsyncGenerator[TurnEvent, None]:
         """Run the cortex phase, then the handoff it asked for, as one turn on one stream."""
         slot = EscalationSlot()
         parts: list[str] = []
         completed: TurnCompleted | None = None
-        events = self._make_inner(slot).handle_turn(session_id, text, turn_id=turn_id)
+        inner = self._make_inner(slot)
+        events = inner.handle_turn(session_id, text, turn_id=turn_id, images=images)
         try:
             async for event in events:
                 if isinstance(event, TurnCompleted):

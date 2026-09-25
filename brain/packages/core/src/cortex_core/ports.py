@@ -7,6 +7,7 @@ from typing import Protocol
 
 from cortex_core.conversation import Message
 from cortex_core.events import TurnEvent
+from cortex_core.images import ImagePart
 from cortex_core.inference import GenerationBounds, InferenceEvent, JsonSchema
 from cortex_core.model import ModelLease
 from cortex_core.placement import PlacementRequest
@@ -105,7 +106,7 @@ class TurnRunner(Protocol):
     """Runs one user turn as a stream of domain events: what a ``Converse`` stream drives."""
 
     def handle_turn(
-        self, session_id: str, text: str, *, turn_id: str
+        self, session_id: str, text: str, *, turn_id: str, images: tuple[ImagePart, ...] = ()
     ) -> AsyncGenerator[TurnEvent, None]: ...
 
 

@@ -79,8 +79,14 @@ def test_a_tool_message_may_have_images() -> None:
     assert message.images == (picture,)
 
 
-@pytest.mark.parametrize("role", [Role.USER, Role.ASSISTANT, Role.SYSTEM])
-def test_no_role_but_tool_may_have_images(role: Role) -> None:
+def test_a_user_message_may_have_images() -> None:
+    picture = ImagePart(data=b"\x89PNG", mime_type="image/png", width=8, height=8)
+    message = Message(role=Role.USER, text="what is this", at=_AT, turn_id="t1", images=(picture,))
+    assert message.images == (picture,)
+
+
+@pytest.mark.parametrize("role", [Role.ASSISTANT, Role.SYSTEM])
+def test_no_role_but_tool_or_user_may_have_images(role: Role) -> None:
     picture = ImagePart(data=b"\x89PNG", mime_type="image/png", width=8, height=8)
     with pytest.raises(ValueError, match="may not have images: pixels are turn-local"):
         Message(role=role, text="hi", at=_AT, turn_id="t1", images=(picture,))

@@ -95,6 +95,7 @@ format is in [adr/README.md](adr/README.md). A new non-obvious decision becomes
 | [ADR-0067: The image volume record](adr/ADR-0067-image-volume-record.md) | A check whose evidence is out of reach records the answer in the tree, checks the record, and recomputes it by hand. |
 | [ADR-0068: One shared contract list per port](adr/ADR-0068-port-contract-lists.md) | The port inventory for both languages, every port with its shared check list and the implementations CI drives it against. |
 | [ADR-0069: The turn stream's heartbeat](adr/ADR-0069-turn-heartbeat.md) | The brain sends a heartbeat, with what the turn waits on, while a turn runs; the body shows the wait and ends a stream silent for four periods, counting heartbeats toward the turn's own gaps. |
+| [ADR-0070: Images the user attaches to a turn](adr/ADR-0070-user-attached-images.md) | Pixels live on the turn's working copy of the user's message and history keeps a note; an attachment taints the turn opaque, has four checks, and a refused one ends the stream as `attachment_refused`. |
 
 ## Contracts
 

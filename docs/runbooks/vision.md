@@ -214,6 +214,15 @@ Every item below is deliberate and worth reading before the first one surprises 
   a call naming no target is refused before the body is reached, and four rather than unbounded
   because the two accepted values are matched exactly, `Display` being rejected beside `display`.
 
+## Images the user attaches
+
+An attached picture goes in `UserTurn.images` and reaches the cortex on the user's own message for
+that turn only (ADR-0070); history keeps the text and a line such as `(Attached to this message and
+not kept: image/png 1600x900.)`. The turn is tainted and opaque, so the list above applies. A refused
+attachment ends the turn as `attachment_refused`, naming which one and why: over four, not PNG, JPEG
+or WebP, over 6 MiB, or bytes of another type. With no projector the turn fails as
+`inference_failed`. Not yet run against the real cortex.
+
 ## Requiring approval before a capture
 
 `capture_screen` ships without one. Turning that around is one env var and no code:

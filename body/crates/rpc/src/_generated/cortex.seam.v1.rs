@@ -10,7 +10,7 @@ pub struct ClientEvent {
 pub mod client_event {
     #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum Event {
-        /// text, and an attached capture when there is one
+        /// text, and the images the user attached, if any
         #[prost(message, tag = "2")]
         UserTurn(super::UserTurn),
         /// stop generating the current turn
@@ -25,7 +25,8 @@ pub mod client_event {
 pub struct UserTurn {
     #[prost(string, tag = "1")]
     pub text: ::prost::alloc::string::String,
-    /// for example a screen capture the user attached
+    /// Images the user attached, for this turn only: at most 4, each PNG, JPEG or WebP of at most
+    /// 6 MiB with width and height set. Any other ends the stream with code attachment_refused.
     #[prost(message, repeated, tag = "2")]
     pub images: ::prost::alloc::vec::Vec<ImageBlob>,
 }

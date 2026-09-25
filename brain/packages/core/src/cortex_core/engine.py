@@ -3,11 +3,13 @@
 import logging
 from collections.abc import AsyncGenerator, Mapping
 
+from cortex_core.attachments import attach_images, attachment_note
 from cortex_core.conversation import Message, Role
 from cortex_core.errors import InferenceError, MalformedToolCallError
 from cortex_core.events import TurnCompleted, TurnEvent
 from cortex_core.handoff import EscalationRefs
 from cortex_core.handoff_wait import wait_out_handoff
+from cortex_core.images import ImagePart
 from cortex_core.output_channels import open_output_channels
 from cortex_core.ports import Clock, InferenceBackend, SessionStore
 from cortex_core.routing import RoutingHints, Tier, route_turn
@@ -64,15 +66,18 @@ class TurnEngine:
         self._model_by_tier: Mapping[Tier, str] = {Tier.CORTEX: cortex_model}
 
     async def handle_turn(
-        self, session_id: str, text: str, *, turn_id: str
+        self, session_id: str, text: str, *, turn_id: str, images: tuple[ImagePart, ...] = ()
     ) -> AsyncGenerator[TurnEvent, None]:
         """Persist the user turn, run the inference and tool loop, then persist the reply."""
         model = self._model_by_tier[route_turn(RoutingHints())]
-        user = Message(role=Role.USER, text=text, at=self._clock.now(), turn_id=turn_id)
+        stored = text + attachment_note(images)
+        user = Message(role=Role.USER, text=stored, at=self._clock.now(), turn_id=turn_id)
         await self._store.append(session_id, user)
         await self._wait_out_handoff(model)
         history = await self._store.history(session_id)
         taint = TaintLedger()
+        if images:
+            taint.observe_attachment()
         stops = StopLedger()
         context = ToolLoopContext(
             dispatcher=self._caps.tools,
@@ -86,8 +91,11 @@ class TurnEngine:
             progress=self._caps.progress,
             escalation=self._caps.escalation,
         )
-        working = list(
-            await assemble_inference_messages(text, history, self._caps, context, self._clock)
+        working = attach_images(
+            await assemble_inference_messages(text, history, self._caps, context, self._clock),
+            user,
+            text=text,
+            images=images,
         )
         _prepare_escalation(self._caps, working, context)
         parts: list[str] = []

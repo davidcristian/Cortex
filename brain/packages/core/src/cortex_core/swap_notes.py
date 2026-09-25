@@ -28,7 +28,7 @@ STORE_FAILED_NOTE = (
     "unloaded. The answer above is what I have.)"
 )
 OPAQUE_TURN_NOTE = (
-    "\n\n(This turn looked at your screen, and a picture cannot be handed to the deep model, so "
+    "\n\n(This turn holds a picture, and a picture cannot be handed to the deep model, so "
     "the handoff was not started. Nothing was unloaded. Ask again in a new message if you still "
     "want the deep model.)"
 )

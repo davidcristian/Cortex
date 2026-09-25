@@ -85,8 +85,10 @@ One stream's machinery lives in `converse_stream.py`, which `converse.py` re-exp
   as a `ToolActivity` plus the `ToolOutcome` closing it, and the turn ends with exactly one
   `TurnComplete{turn_id}`. A turn that spawns subagents also surfaces a
   `StatusUpdate{state="delegating"}` and a `ToolActivity` per subagent step, with no outcome, the
-  pairing being about the turn's own dispatches (ADR-0029 decision 18). `UserTurn.images` are
-  ignored: vision arrived as a model-initiated capture.
+  pairing being about the turn's own dispatches (ADR-0029 decision 18). `UserTurn.images` go
+  through `read_attachments` (`attached.py`) into the turn's `images` (ADR-0070); one it refuses
+  ends the stream with `SeamError{code="attachment_refused"}` before the turn starts, so nothing
+  is stored. The server accepts messages up to `MAX_TURN_MESSAGE_BYTES`, four images at their cap.
 - **The stream names each turn before it starts it** (`TurnIdFactory`, ADR-0046 decision 9), when
   the turn starts rather than when it is queued, so the id is a fact about a turn that ran. The
   three mid-turn failures log `session_id` and `turn_id` and never the turn's text.
@@ -95,8 +97,9 @@ One stream's machinery lives in `converse_stream.py`, which `converse.py` re-exp
   once. `Cancel` stops the in-flight turn and drops every queued-but-not-started turn, whose user
   message is never persisted; the stream stays open either way.
 - Failures become exactly one terminal `SeamError{code, message}` and the stream then ends cleanly:
-  `SessionStoreError` to `session_store_unavailable`, `InferenceError` to `inference_failed`,
-  anything else to `internal` (`ERROR_CODE_*`). Client disconnect tears the turn down as `Cancel`
+  `SessionStoreError` to `session_store_unavailable`, `InferenceError` to `inference_failed`, a
+  refused attachment to `attachment_refused`, anything else to `internal` (`ERROR_CODE_*`).
+  Client disconnect tears the turn down as `Cancel`
   does, and any pending confirmation dies with it as a denial.
 - `RpcConfirmer(emit, *, timeout_s)` (`confirm.py`, ADR-0022) mints a `confirm_id`, emits
   `ServerEvent.confirm_request` on the stream's control path (`put_nowait`, so a stalled consumer

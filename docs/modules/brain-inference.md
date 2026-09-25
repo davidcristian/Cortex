@@ -52,11 +52,11 @@ this:
    (ADR-0005 decision 9). Every chunk of a `b10680-d7bd3bfca` stream has it. No event crosses the
    port, since no core decision reads a build.
 
-**Images.** A `TOOL` message with `images` (ADR-0029) emits `content` as an OpenAI **content-parts
-array** instead of a string: one `{type: "text"}` part followed by one
-`{type: "image_url", image_url: {url: "data:<mime>;base64,…"}}` part per image. A tool message is
-the only one that can have them, and `Message` rejects images on every other role precisely because
-this mapping would drop them. Measured against the real cortex: a `role: "tool"` message in that
+**Images.** A `TOOL` or `USER` message with `images` (ADR-0029, ADR-0070) emits `content` as an
+OpenAI **content-parts array** instead of a string: one `{type: "text"}` part followed by one
+`{type: "image_url", image_url: {url: "data:<mime>;base64,…"}}` part per image
+(`message_content`). `Message` rejects images on the other two roles, which this mapping sends as
+a plain string. Measured against the real cortex: a `role: "tool"` message in that
 form is accepted inside a full tool-calling exchange and answered correctly, so no user turn has to
 be forged. A message with no images emits the byte-identical plain string it always did. Native tool
 calling needs the server started with `--jinja` and a tool-capable chat template (gemma-4 ships

@@ -1,6 +1,6 @@
 # ADR-0029: Vision: screen capture, and pixels as untrusted content
 
-**Status:** Accepted (2026-08-18)
+**Status:** Accepted (2026-09-25)
 
 ## Context
 
@@ -81,16 +81,17 @@ not stop. Requiring it is a one-line change to `DispatchPolicy.confirm_names`.
 
 ### 6. Pixels are turn-local, enforced as an invariant
 
-`Message.__post_init__` refuses images on any role but `TOOL`, both `SessionStore`s raise
-`SessionStoreError` on an append containing an image (a shared contract check), and retention is
-zero. In-turn pixels live in the orchestrator like every in-turn tool message; a swap restores the
-question and the reply that describes the screen, and a model can capture again rather than replay a
-stale picture. Keeping a picture across a swap would take stored image parts, a content-addressed
-store, a deep tier started with a projector (the model host has no setting for one) and probed, and
-first an escalation from a tainted turn, which [ADR-0030](ADR-0030-brain-handoff.md) denies.
-Per-source memory rules are declined: the interface sends no source identity by decision (no window
-title or application name, and either target can show a password manager). On an opaque turn the
-user's own sentence goes unrecorded too; recording that half alone is recorded as a task.
+`Message.__post_init__` refuses images on any role but `TOOL` and a user attachment's `USER`
+message, both `SessionStore`s raise `SessionStoreError` on an image-bearing append (a shared
+contract check), and retention is zero ([ADR-0070](ADR-0070-user-attached-images.md)). In-turn
+pixels live in the orchestrator like every in-turn tool message; a swap restores the question and
+the reply that describes the screen, and a model can capture again rather than replay a stale
+picture. Keeping a picture across a swap would take stored image parts, a content-addressed store, a
+deep tier started with a projector (the model host has no setting for one) and probed, and first an
+escalation from a tainted turn, which [ADR-0030](ADR-0030-brain-handoff.md) denies. Per-source
+memory rules are declined: the interface sends no source identity (no window title or application
+name, and either target can show a password manager). On an opaque turn the user's own sentence goes
+unrecorded too, and recording it alone is a filed task.
 
 ### 7. The body downscales and encodes in pure core; one byte limit, enforced twice
 
@@ -234,8 +235,7 @@ with thinking on, about five times slower on an invoice screen; turning it off i
   Windows.Graphics.Capture** (a persistent device, COM, async frames), **encoding in `os_windows`**,
   **decoding in the brain**, **hide, capture, show** (flicker and races).
 - **A startup-only probe or a residency signal**: a swap restarts the tier from the same argv, so a
-  signal arrives on the wrong event. **`VisionGatedToolRegistry` as a name**: that word means a tool
-  needing confirmation.
+  signal arrives on the wrong event. **`VisionGatedToolRegistry`**: that word means confirmation.
 
 ## Related
 

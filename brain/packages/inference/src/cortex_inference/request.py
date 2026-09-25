@@ -9,9 +9,9 @@ from cortex_core.inference import GenerationBounds, JsonSchema
 __all__ = [
     "TRACE_BUDGET_KEY",
     "build_payload",
+    "message_content",
     "to_openai_message",
     "to_openai_tools",
-    "tool_content",
 ]
 
 # What llama.cpp calls a per-request trace budget on the wire. ``trace_probe.py`` asks a server
@@ -19,8 +19,8 @@ __all__ = [
 TRACE_BUDGET_KEY = "reasoning_budget_tokens"
 
 
-def tool_content(message: Message) -> object:
-    """The ``content`` of a tool message: a plain string, or a content-parts array with images."""
+def message_content(message: Message) -> object:
+    """A message's ``content``: a plain string, or a content-parts array when it has images."""
     if not message.images:
         return message.text
     parts: list[dict[str, object]] = [{"type": "text", "text": message.text}]
@@ -36,7 +36,7 @@ def to_openai_message(message: Message) -> dict[str, object]:
         return {
             "role": "tool",
             "tool_call_id": message.tool_call_id,
-            "content": tool_content(message),
+            "content": message_content(message),
         }
     if message.tool_calls:
         return {
@@ -51,7 +51,7 @@ def to_openai_message(message: Message) -> dict[str, object]:
                 for call in message.tool_calls
             ],
         }
-    return {"role": message.role.value, "content": message.text}
+    return {"role": message.role.value, "content": message_content(message)}
 
 
 def to_openai_tools(tools: Sequence[ToolSpec]) -> list[dict[str, object]]:

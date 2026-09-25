@@ -1,6 +1,7 @@
 """Cortex orchestrator: the thin gRPC shell hosting BrainService (logic lives in cortex_core)."""
 
 from cortex_orchestrator.abandon import ABANDONED_MESSAGE, AbandonedCallInterceptor
+from cortex_orchestrator.attached import ERROR_CODE_ATTACHMENT_REFUSED, read_attachments
 from cortex_orchestrator.auth import RpcTokenInterceptor
 from cortex_orchestrator.bounds import (
     ToolCallDeadlineError,
@@ -94,6 +95,7 @@ __all__ = [
     "DEFAULT_DISPATCH_SETUP",
     "DEFAULT_MAX_BUFFERED_EVENTS",
     "DEFAULT_SESSION_LIST_LIMIT",
+    "ERROR_CODE_ATTACHMENT_REFUSED",
     "ERROR_CODE_INFERENCE_FAILED",
     "ERROR_CODE_INTERNAL",
     "ERROR_CODE_SESSION_STORE_UNAVAILABLE",
@@ -149,6 +151,7 @@ __all__ = [
     "create_server",
     "delegated_call_bounds",
     "memory_scope_from_name",
+    "read_attachments",
     "recall_audit_from_config",
     "recall_policy_from_config",
     "recover_boot_residency",

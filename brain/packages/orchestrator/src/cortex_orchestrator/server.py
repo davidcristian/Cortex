@@ -10,6 +10,7 @@ import grpc
 from grpc import aio
 
 from cortex_core import (
+    MAX_TURN_MESSAGE_BYTES,
     PreferenceStore,
     ResidencyReporter,
     ScheduleStore,
@@ -166,7 +167,11 @@ def create_server(
     if config.token:
         guards.append(RpcTokenInterceptor(config.token))
     guards.append(AbandonedCallInterceptor())
-    server = aio.server(interceptors=guards)
+    # gRPC's 4 MiB default would refuse a turn with one full-size attached image at the transport.
+    server = aio.server(
+        interceptors=guards,
+        options=[("grpc.max_receive_message_length", MAX_TURN_MESSAGE_BYTES)],
+    )
     service = BrainService(
         make_engine,
         store,

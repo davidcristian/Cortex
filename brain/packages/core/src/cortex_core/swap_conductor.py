@@ -113,11 +113,11 @@ class SwapConductor:
         self, slot: EscalationSlot, *, session_id: str, turn_id: str
     ) -> HandoffRecord | str:
         """Serialize the slot into a ``READY`` record, or the note saying why there is none."""
-        # Pixels are turn-local and no store keeps them, so a turn that read the screen would
-        # hand the deep model a tool message promising a picture with none attached.
+        # Pixels are turn-local and no store keeps them, so a turn holding a capture or an
+        # attached image would hand the deep model a message promising a picture with none.
         if slot.refs is not None and slot.refs.taint.opaque:
             _logger.warning(
-                "refusing a handoff for a turn that read the screen",
+                "refusing a handoff for a turn that holds a picture",
                 extra={"session_id": session_id, "turn_id": turn_id},
             )
             return OPAQUE_TURN_NOTE

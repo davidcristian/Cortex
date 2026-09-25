@@ -120,6 +120,11 @@ class TaintLedger:
             self.note_source(source)
             self.note_source(result.source)
 
+    def observe_attachment(self) -> None:
+        """Taint the turn for an image the user attached, which no fence can bracket."""
+        self.mark(Trust.UNTRUSTED)
+        self.opaque = True
+
     def ingest_untrusted(self, content: str, *, source: Provenance | None = None) -> None:
         """Taint the turn from a non-tool untrusted source: mark taint, collect ``content``'s URLs,
         and note ``source``.
