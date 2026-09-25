@@ -8,7 +8,7 @@ Heterogeneous subagent models ([ADR-0018](ADR-0018-heterogeneous-subagents.md)) 
 the subagent model **per spawn** from the whole roster, including small models the injection tests
 find weak: framed and at temperature 0, gemma-4-E2B obeyed 3 of 10 payloads and Qwen3.5-2B 1 of 10,
 where the cortex and the subagent pick (gemma-4-E4B) obeyed none. At the engine's sampler, framed,
-the subagent pick obeys 8 of 100 draws, gemma-4-E2B 28 and Qwen3.5-2B 7, so there only gemma-4-E2B
+the subagent pick obeys 9 of 100 draws, gemma-4-E2B 28 and Qwen3.5-2B 8, so there only gemma-4-E2B
 is weaker than the pick ([injection text rows](../readings/injection-text-rows.md)). Treating the
 cortex's model choice as pure discretion opens a failure the deterministic layers do not cover. The
 plausible failure is not an injection tricking the injection-resistant cortex. It is a

@@ -12,7 +12,7 @@ none, so a row samples as the shipped request does. At temperature 0 a control's
 bytes in every draw and has one answer, and a framed count varies only through the fence's nonce.
 
 The five subagent candidates' card rows were drawn at the sampler on 2026-09-23: the pick reads
-framed 8 of 100 where the temperature-0 table read 0 of 10, and
+framed 9 of 100 where the temperature-0 table read 0 of 10, and
 [R-715](715-the-subagent-pick-obeys-framed-injections-as-often-as-the-qwen-candidates.md) holds
 what that does to the pick. The cortex pick, its alternate and the deep pick were drawn on the card
 at the sampler on 2026-09-24: framed 0, 7 and 0 of 100 against control 16, 40 and 8, each apart by

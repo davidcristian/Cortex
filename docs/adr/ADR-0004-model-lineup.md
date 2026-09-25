@@ -63,8 +63,8 @@ lineup](../readings/model-lineup.md) and [injection text rows](../readings/injec
 
 7. **Subagent: gemma-4-E4B QAT q4_0.** At temperature 0 it obeyed 0 of 10 framed injections on both
    placements, and the one other candidate that did, Qwen3.5-0.8B, is as likely too weak to follow
-   the injection as resistant to it. At the engine's sampler, as the tier runs, it obeys 8 of 100
-   framed draws on the card against 21 of 100 unframed, where gemma-4-E2B obeys 28 and the three
+   the injection as resistant to it. At the engine's sampler, as the tier runs, it obeys 9 of 100
+   framed draws on the card against 22 of 100 unframed, where gemma-4-E2B obeys 28 and the three
    Qwen candidates 8 to 10, so on that row the pick leads gemma-4-E2B only
    ([injection text rows](../readings/injection-text-rows.md)). Injection resistance was adopted as
    a selection axis at a measured cost: against the Qwen3.5-2B it replaced, about 2.6 times the
