@@ -1,14 +1,15 @@
 # brain/packages/memory (`cortex_memory`)
 
-**Purpose.** The pgvector adapter for the core's `MemoryStore` port, plus the logging adapter for
-its `RecallAuditSink` port (ADR-0008, ADR-0038). It is a thin SQL translator over Postgres with
+**Purpose.** The pgvector adapter for the core's `MemoryStore` port, plus the logging and file
+adapters for its `RecallAuditSink` port (ADR-0008, ADR-0038). It is a thin SQL translator over Postgres with
 pgvector: one row per memory, and `search` ranks by cosine distance (`<=>`) and returns cosine
 *similarity* as the score, so it behaves the same as `InMemoryMemoryStore` behind the port. No
 business logic and no state beyond the injected pool (the one hard rule).
 
 ## Public contract
 
-`__all__` is `Database`, `LoggingRecallSink` and `PgVectorMemoryStore`.
+`__all__` is `Database`, `JsonLinesRecallSink`, `LoggingRecallSink`, `PgVectorMemoryStore`,
+`TeeRecallSink` and `recall_fields`.
 
 ### `PgVectorMemoryStore(db: Database)`
 
@@ -54,7 +55,7 @@ many candidates were available, `k`, the rank basis, whether keys on that basis 
 each kept hit's `id`, `score`, `key` and `tainted`, the candidates the rank dropped, and the time.
 It holds **no text at all**, neither the query nor a recalled memory, which is the tool audit's
 "size not content" stance applied to conversation content. It is attached by
-`CORTEX_MEMORY_RECALL_AUDIT`.
+`CORTEX_MEMORY_RECALL_AUDIT` or `CORTEX_MEMORY_RECALL_AUDIT_FILE`.
 
 The logger it writes through is declared in the module as `_LOGGER_NAME` rather than written inside
 the `getLogger` call, because this contract and the two runbooks that turn the trail on and name it
@@ -82,6 +83,22 @@ unbelievable model shows the fallback's own basis with the hits it chose.
   cut at its requested width, so a missing memory may simply have ranked below the cut. That reading
   needs nothing of the deployment's pool factor, which is why the requested width is not logged
   beside it: where it would matter it equals `pool`, and where it would not it explains nothing.
+- `recall_fields(audit)` builds the field set, and the file sink below uses it too, so the two
+  trails cannot name different fields.
+
+### `JsonLinesRecallSink(path)` and `TeeRecallSink(sinks)`
+
+`JsonLinesRecallSink` (`audit_file.py`) is the second `RecallAuditSink`: it appends one JSON object
+per recall to `path`, the fields of `recall_fields` passed through the core's `durable_record`, the
+rule the tool trail's file uses (ADR-0038 decision 5). It keeps no more than the line prints: a
+secret-named field is withheld, and a value the line would cut or could not print whole, such as a
+`NaN` score, is kept as the line's own text. It cuts nothing itself, since `dropped` is already
+bounded by `dropped_candidates`. One record is one ASCII line; the file is opened per record with
+`O_APPEND` and mode `0600`, and a torn last line gets a newline first. A refused open or write is
+logged as a `memory.recall.gap` warning on `cortex_memory.audit_file` with `error`, `path` and
+`turn_id`, and never raises into the recall. `TeeRecallSink` records each audit to every sink it
+holds, in order. `recall_audit_from_config` builds both behind `LoggingRecallSink` when
+`CORTEX_MEMORY_RECALL_AUDIT_FILE` names a file, which turns the trail on without the flag.
 
 ## Error contract
 

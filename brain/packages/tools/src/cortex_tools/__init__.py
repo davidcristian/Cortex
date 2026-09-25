@@ -5,7 +5,6 @@ from cortex_tools.audit_file import (
     JsonLinesAuditSink,
     TeeAuditSink,
     durable_line,
-    durable_value,
 )
 from cortex_tools.registry import (
     McpSession,
@@ -22,7 +21,6 @@ __all__ = [
     "ReconnectingMcpToolRegistry",
     "TeeAuditSink",
     "durable_line",
-    "durable_value",
     "invocation_fields",
     "streamable_http_session",
 ]

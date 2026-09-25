@@ -25,7 +25,7 @@ from cortex_core import (
     Trust,
     record_fields,
 )
-from cortex_memory import LoggingRecallSink
+from cortex_memory import JsonLinesRecallSink, LoggingRecallSink
 from cortex_tools import JsonLinesAuditSink, LoggingAuditSink
 
 # A container's log driver ends a message at 16 KiB, so 16,383 characters plus the newline is
@@ -172,9 +172,38 @@ async def test_the_widest_audit_gap_line_fits_one_log_driver_message(
     assert set(record_fields(record)) == {"error", "path", "tool"}
 
 
-_MEASURED = frozenset({LoggingAuditSink, LoggingRecallSink, JsonLinesAuditSink})
+async def test_the_widest_recall_gap_line_fits_one_log_driver_message(
+    caplog: pytest.LogCaptureFixture, tmp_path: Path
+) -> None:
+    caplog.set_level(logging.WARNING, logger="cortex_memory.audit_file")
+    await JsonLinesRecallSink(tmp_path).record(
+        RecallAudit(
+            session_id=_WIDE,
+            turn_id=_WIDE,
+            query=_WIDE,
+            pool_size=0,
+            available=0,
+            k=_HITS,
+            ranking=Ranking(hits=(), basis=RankBasis.EMBER),
+            dropped=DroppedCandidates(listed=(), omitted=0),
+            at=_AT,
+        )
+    )
+    (record,) = caplog.records
+    assert record.getMessage() == "memory.recall.gap"
+    assert "IsADirectoryError" in str(record.__dict__["error"])
+    line = _line(record)
+    assert len(line) < ONE_DOCKER_MESSAGE
+    assert line.count(_MARKER) == 1
+    assert set(record_fields(record)) == {"error", "path", "turn_id"}
+
+
+_MEASURED = frozenset(
+    {LoggingAuditSink, LoggingRecallSink, JsonLinesAuditSink, JsonLinesRecallSink}
+)
 _WRITES_NO_LINE = {
     "TeeAuditSink": "records each invocation to the sinks it holds and logs nothing itself",
+    "TeeRecallSink": "records each recall to the sinks it holds and logs nothing itself",
 }
 
 _SINK_PACKAGES = frozenset({"cortex_tools", "cortex_memory"})

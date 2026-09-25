@@ -186,7 +186,8 @@ something the general one cannot:
 ## Log rendering
 
 `log_fields.py`, `log_format.py` and `log_secrets.py` decide how a brain process writes a line
-(ADR-0051 decision 1).
+(ADR-0051 decision 1). `log_durable.py` decides how a trail file keeps one: `durable_record(fields)`
+is one ASCII JSON line holding no more than the line prints, each value through `durable_value`.
 
 - `configure_logging(level, *, style=DEFAULT_LOG_FORMAT)` installs the root handler. It is called
   from a process entry only, never from a library, because it changes process-wide state. Both

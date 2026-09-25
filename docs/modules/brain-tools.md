@@ -130,14 +130,14 @@ turns any MCP server into a source of audited, model-callable tools.
   - The field set is built by `invocation_fields(invocation)`, which the file sink below also uses,
     so the two trails cannot name different fields.
 - `JsonLinesAuditSink(path)` is the second `ToolAuditSink`, off unless `CORTEX_TOOLS_AUDIT_FILE`
-  names a file (ADR-0009 decision 18). It appends one JSON object per call, built by `durable_line`,
-  so `jq 'select(.turn_id == "<turn id>")'` answers what the log line could only be grepped for. Its
-  rules:
-  - **It keeps no more than the line prints.** `durable_value` keeps a field as its parsed value
-    when the line's formatter prints it whole, and otherwise keeps the formatter's own rendering as
-    a string, cut marker included. That covers a value past `VALUE_CHARS` and a URL credential split
-    across two strings of `arguments`, which the formatter withholds over its whole rendering and a
-    string-by-string pass would miss. A successful call still keeps its size and never its content.
+  names a file (ADR-0009 decision 18). It appends one JSON object per call, built by `durable_line`
+  over the core's `durable_record`, so `jq 'select(.turn_id == "<turn id>")'` answers what the log
+  line could only be grepped for. Its rules:
+  - **It keeps no more than the line prints.** The core's `durable_value` keeps a field as its
+    parsed value when the line's formatter prints it whole, and otherwise keeps the formatter's own
+    rendering as a string, cut marker included. That covers a value past `VALUE_CHARS` and a URL
+    credential split across two strings of `arguments`, which the formatter withholds over its whole
+    rendering and a string-by-string pass would miss. A successful call still keeps its size and never its content.
     A secret-named key inside `arguments`, at any depth, is withheld first by `withhold_secrets`,
     the walk the formatter runs over every field, so the file keeps the parsed object with
     `<redacted>` in the same places the line prints it (ADR-0009 decision 17).

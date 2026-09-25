@@ -129,12 +129,11 @@ be read as an order, and two of its fields split the causes apart:
 Fields render in name order, so those two arrive adjacently as `capped=True chars=0`. Both lines
 also name `pool`, the candidates that went unjudged, `k`, the width asked of the rank, and
 `session_id`, the conversation the recall was for, written the way the audit line below writes it,
-so a fallback and the audit line for one recall are joined by
-`grep "session_id=<id>"` on one stream. `session_id=None` means the port was called by something
-that named no conversation, which nothing in the shipped brain does. Both lines name
-`turn_id` too, and so does the audit line, so
-`grep "turn_id=<id>"` returns the one audit line the fallback belongs to. No such line at all
-means the rank is working.
+so a fallback and the audit line for one recall are joined by `grep "session_id=<id>"` on one
+stream. `session_id=None` means the port was called by something that named no conversation, which
+nothing in the shipped brain does. Both lines name `turn_id` too, and so does the audit line, so
+`grep "turn_id=<id>"` returns the one audit line the fallback belongs to. No such line at all means
+the rank is working.
 
 Set `CORTEX_MEMORY_RECALL_AUDIT=1` to turn the audit on: one `cortex.memory.recall` line per
 recall, in the brain's container logs, with the conversation and turn it was made for, the pool
@@ -143,8 +142,9 @@ compared, and each kept hit's memory id, cosine score and rank key. It is a bare
 `memory.recall` message followed by those as `key=value` fields, with `hits` and `dropped` as
 compact JSON inside their own field, so one line is both readable and pasteable into `jq`
 (`CORTEX_LOG_FORMAT=packed` makes the whole line one JSON object; see
-[brain-logs.md](brain-logs.md)). It never includes text, so a line names which memories came
-back and never what they said; pair an id with the `memories` table for the content.
+[brain-logs.md](brain-logs.md)). It never includes text, so a line names which memories came back
+and never what they said; pair an id with the `memories` table for the content. To keep the trail in
+a file an operator can query with `jq`, see [memory-recall-file.md](memory-recall-file.md).
 
     docker compose --project-directory . -f docker/docker-compose.yml \
       -f docker/docker-compose.gpu.yml -f docker/docker-compose.memory.yml logs -f brain \

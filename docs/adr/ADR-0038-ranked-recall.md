@@ -62,9 +62,12 @@ what a memory says cannot do without.
    whole record inside its `audit is not None` guard, so an unaudited recall walks the pool once and
    issues no count. How the line renders is [ADR-0051](ADR-0051-log-line-rendering.md); its logger
    name is declared as [ADR-0045](ADR-0045-documented-log-lines.md) decision 13 requires.
-6. **`MemoryRecaller.recall` keeps returning `Sequence[ScoredMemory]`.** The ranking is the
-   policy's return; the recaller unwraps it, so the ranking never reaches turn assembly or the gRPC
-   layer.
+   `CORTEX_MEMORY_RECALL_AUDIT_FILE`, a path, appends the same `recall_fields` to a file through
+   `JsonLinesRecallSink` under the tool trail's file rule (ADR-0009 decision 18); only
+   `dropped_candidates` cuts `dropped`. The path turns the trail on by itself and writes the line
+   first, so a failed append, logged as `memory.recall.gap`, loses nothing.
+6. **`MemoryRecaller.recall` keeps returning `Sequence[ScoredMemory]`.** The ranking is the policy's
+   return; the recaller unwraps it, so the ranking never reaches turn assembly or the gRPC layer.
 
 ### The judge
 
@@ -177,12 +180,11 @@ what a memory says cannot do without.
     (2,000 characters) at four characters a token. `clean_recap` returns `""` for a reply that does
     not end a sentence or is longer than `RECAP_MAX`, and the window rejects it rather than
     trimming, since a stored cut account would advance `covers` past turns its tail never reached.
-    `min_dropped_chars`
-    (`CORTEX_HISTORY_RECAP_MIN_CHARS`, default 2,000) defers a fold below one account's worth of
-    new material; deferring leaves `covers` where it was, and `build_history_window` clamps the
-    floor to the character budget so the unaccounted gap stays smaller than the window. A pass that
-    will run emits `StatusUpdate(state="folding")` through the per-call `progress` sink.
-    `CORTEX_HISTORY_SUMMARY` defaults to `true`.
+    `min_dropped_chars` (`CORTEX_HISTORY_RECAP_MIN_CHARS`, default 2,000) defers a fold below one
+    account's worth of new material; deferring leaves `covers` where it was, and
+    `build_history_window` clamps the floor to the character budget so the unaccounted gap stays
+    smaller than the window. A pass that will run emits `StatusUpdate(state="folding")` through the
+    per-call `progress` sink. `CORTEX_HISTORY_SUMMARY` defaults to `true`.
 21. **A rejected fold says why.** Its line includes `capped`, read off the `StopLedger` given to
     `drain_text`, and `chars`, measured through `collapse_recap`, the normalization `clean_recap`
     itself uses, so the logged length is the one the rejection was decided on.

@@ -219,9 +219,9 @@ the version string `Health` reports.
 - The widest line each shipped sink can build still fits one message of the container's log driver,
   asserted in `tests/test_widest_line.py` (ADR-0051 decision 15). `cortex_core.VALUE_CHARS` bounds
   one rendered field and nothing bounds the line, so the question is how many fields a sink can
-  make wide at once: five on the tool audit's eleven, one on the recall trail's eleven, and one on
-  the three of the file sink's `tool.audit.gap` line. The check sits here because this is the one
-  place that sees every sink the brain ships.
+  make wide at once: five on the tool audit's eleven, one on the recall trail's twelve, and one on
+  the three of each file sink's gap line, `tool.audit.gap` and `memory.recall.gap`. The check sits
+  here because this is the one place that sees every sink the brain ships.
 
 **Dependencies.** `cortex-core`, `cortex-body-client`, `cortex-inference`, `cortex-seam` and
 `cortex-session` from the workspace, plus grpcio (`grpc.aio`), httpx, pydantic and

@@ -49,7 +49,8 @@ what follows is the prefix, the defaults other parts depend on, and the validati
   0.877 s on its own and 0.515 s of a recalling turn's time to first token and is the only value
   under which a recall may return nothing; `recall_half_life_days` (30), `recall_recency_weight`
   (0.3), `recall_dedup_threshold` (0.98), `recall_pool_factor` (4) and `recall_mmr_lambda` (0.5)
-  tune the rest.
+  tune the rest. `recall_audit` (off) logs the recall trail, and `recall_audit_file` (empty), a
+  path, turns the trail on by itself and also appends it to that file (ADR-0038 decision 5).
 - `ToolsConfig`, prefix `CORTEX_TOOLS_` with nested delimiter `__` (`config_tools.py`, ADR-0009):
   endpoints come either as the singular `CORTEX_TOOLS_ENDPOINT` or as per-sidecar
   `CORTEX_TOOLS_ENDPOINTS__<name>`, never mixed, with optional `CORTEX_TOOLS_ALLOW__<name>`

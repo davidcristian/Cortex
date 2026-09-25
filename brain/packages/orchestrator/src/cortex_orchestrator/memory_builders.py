@@ -1,6 +1,7 @@
 """Memory wiring: the recaller, its scope policy, and its recall reranking policy."""
 
 from collections.abc import Awaitable, Callable
+from pathlib import Path
 
 import httpx
 
@@ -21,7 +22,12 @@ from cortex_core import (
     SessionMemoryScope,
 )
 from cortex_embedding import LlamaCppEmbedder
-from cortex_memory import LoggingRecallSink, PgVectorMemoryStore
+from cortex_memory import (
+    JsonLinesRecallSink,
+    LoggingRecallSink,
+    PgVectorMemoryStore,
+    TeeRecallSink,
+)
 from cortex_orchestrator.builders import noop_aclose
 from cortex_orchestrator.config import MemoryConfig, MemoryScopeName
 
@@ -67,7 +73,10 @@ def recall_policy_from_config(
 
 
 def recall_audit_from_config(config: MemoryConfig) -> RecallAuditSink | None:
-    """Map ``CORTEX_MEMORY_RECALL_AUDIT`` to the recall trail, or to no trail."""
+    """Map ``CORTEX_MEMORY_RECALL_AUDIT`` and its file to the recall trail, or to no trail."""
+    if config.recall_audit_file:
+        file = JsonLinesRecallSink(Path(config.recall_audit_file))
+        return TeeRecallSink((LoggingRecallSink(), file))
     return LoggingRecallSink() if config.recall_audit else None
 
 

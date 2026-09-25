@@ -149,6 +149,7 @@ fails.
 | [local-dev-wsl.md](runbooks/local-dev-wsl.md) | The daily development loop: the brain natively or in Compose, the environment variables, the live link check, and Docker Desktop notes |
 | [llamacpp-gpu.md](runbooks/llamacpp-gpu.md) | The GPU compose override, the integration test, the VRAM measurements, and how the models were chosen |
 | [memory-pgvector.md](runbooks/memory-pgvector.md) | Postgres with pgvector and the CPU embedder, and the memory and embedder integration tests |
+| [memory-recall-file.md](runbooks/memory-recall-file.md) | Keeping the recall trail in a JSON-lines file, and reading it with `jq` |
 | [tools-mcp.md](runbooks/tools-mcp.md) | The filesystem MCP sidecar with its read-only mount, and the tools integration test |
 | [email-imap.md](runbooks/email-imap.md) | The email MCP server against a live ProtonMail Bridge, and the email tests including the opt-in SMTP round trip |
 | [subagents-cpu.md](runbooks/subagents-cpu.md) | The CPU subagent `llama-server`, and delegation checked by integration test and from a resident cortex |

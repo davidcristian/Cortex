@@ -1,19 +1,11 @@
 """JsonLinesAuditSink appends the tool audit trail to a file; TeeAuditSink writes to several."""
 
-import json
 import logging
 import os
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from pathlib import Path
-from typing import cast
 
-from cortex_core import (
-    ToolAuditSink,
-    ToolInvocation,
-    redact_urls,
-    render_value,
-    withhold_secrets,
-)
+from cortex_core import ToolAuditSink, ToolInvocation, durable_record
 from cortex_tools.audit import invocation_fields
 
 _logger = logging.getLogger(__name__)
@@ -29,48 +21,9 @@ _MODE = 0o600
 _GAP_ERRORS = (OSError, TypeError, ValueError, RecursionError)
 
 
-def _redacted(value: object) -> object:
-    """``value`` with the credential withheld from every URL in every string, keys included."""
-    if isinstance(value, str):
-        return redact_urls(value)
-    if value is None or isinstance(value, bool | int | float):
-        return value
-    if isinstance(value, Mapping):
-        mapping = cast("Mapping[object, object]", value)
-        return {redact_urls(str(key)): _redacted(item) for key, item in mapping.items()}
-    if isinstance(value, list | tuple):
-        return [_redacted(item) for item in cast("Sequence[object]", value)]
-    return redact_urls(str(value))
-
-
-def _compact(value: object) -> str:
-    """``value`` as the line's formatter writes a structure, refusing a non-finite number."""
-    return json.dumps(
-        value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False
-    )
-
-
-def durable_value(value: object) -> object:
-    """One field as the file keeps it: the value if the line prints it whole, else its text."""
-    if isinstance(value, bool | int):
-        return value
-    value = withhold_secrets(value)
-    rendered = render_value(value)
-    redacted = _redacted(value)
-    try:
-        whole = _compact(redacted)
-    except ValueError:
-        return rendered
-    return redacted if rendered in (redacted, whole) else rendered
-
-
 def durable_line(invocation: ToolInvocation) -> bytes:
     """One invocation as one line of ASCII JSON, its newline included."""
-    fields = {name: durable_value(value) for name, value in invocation_fields(invocation).items()}
-    text = json.dumps(
-        fields, ensure_ascii=True, sort_keys=True, separators=(",", ":"), allow_nan=False
-    )
-    return f"{text}\n".encode("ascii")
+    return durable_record(invocation_fields(invocation))
 
 
 class JsonLinesAuditSink:

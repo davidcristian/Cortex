@@ -39,6 +39,7 @@ from cortex_core import (
     InferenceError,
     InferenceEvent,
     InMemoryBodyGateway,
+    InMemoryMemoryStore,
     InMemorySessionStore,
     InMemoryTaskStore,
     InMemoryToolRegistry,
@@ -444,6 +445,37 @@ def test_recall_audit_from_config_is_opt_in() -> None:
     assert recall_audit_from_config(MemoryConfig()) is None
     audited = recall_audit_from_config(MemoryConfig(recall_audit=True))
     assert isinstance(audited, LoggingRecallSink)
+
+
+async def _recall_once(config: MemoryConfig) -> None:
+    audit = recall_audit_from_config(config)
+    recaller = MemoryRecaller(InMemoryMemoryStore(), HashEmbedder(), SystemClock(), audit=audit)
+    await recaller.record("the ham is glazed with cider", session_id="s1")
+    await recaller.recall("ham", k=5, session_id="s1", turn_id="t1")
+
+
+async def test_a_recall_audit_file_writes_the_line_then_the_file_without_the_flag(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level(logging.INFO, logger="cortex.memory.recall")
+    path = tmp_path / "recall.jsonl"
+    await _recall_once(MemoryConfig(recall_audit_file=str(path)))
+    (line,) = [record for record in caplog.records if record.name == "cortex.memory.recall"]
+    (row,) = [json.loads(text) for text in path.read_text(encoding="ascii").splitlines()]
+    assert (row["session_id"], row["turn_id"], row["available"]) == ("s1", "t1", 1)
+    assert row == record_fields(line)
+
+
+async def test_a_recall_audit_file_logs_the_recall_before_its_gap(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level(logging.INFO)
+    missing = tmp_path / "missing" / "recall.jsonl"
+    await _recall_once(MemoryConfig(recall_audit=True, recall_audit_file=str(missing)))
+    assert [record.getMessage() for record in caplog.records] == [
+        "memory.recall",
+        "memory.recall.gap",
+    ]
 
 
 def test_tool_audit_from_config_is_the_log_line_alone_by_default() -> None:

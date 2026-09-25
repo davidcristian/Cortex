@@ -1,5 +1,6 @@
 """Public core names for a log line's fields and the formatters that render them."""
 
+from cortex_core.log_durable import durable_record, durable_value
 from cortex_core.log_fields import (
     CUT,
     RESERVED_ATTRS,
@@ -37,6 +38,8 @@ __all__ = [
     "UnknownLogFormatError",
     "build_formatter",
     "configure_logging",
+    "durable_record",
+    "durable_value",
     "is_secret_name",
     "record_fields",
     "redact_urls",

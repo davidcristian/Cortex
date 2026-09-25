@@ -117,6 +117,7 @@ class MemoryConfig(BaseSettings):
     recall_pool_factor: int = 4
     recall_mmr_lambda: float = 0.5
     recall_audit: bool = False
+    recall_audit_file: str = ""
 
     @model_validator(mode="after")
     def _pgvector_needs_dsn_and_embedder(self) -> "MemoryConfig":

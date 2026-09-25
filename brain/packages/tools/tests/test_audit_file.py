@@ -20,7 +20,6 @@ from cortex_tools import (
     JsonLinesAuditSink,
     TeeAuditSink,
     durable_line,
-    durable_value,
     invocation_fields,
 )
 
@@ -111,15 +110,6 @@ def test_a_structure_too_deep_to_walk_is_kept_withheld_rather_than_as_a_gap() ->
 def test_a_non_finite_number_is_kept_as_the_lines_text() -> None:
     assert _stored(float("nan")) == '{"value":NaN}'
     assert _stored([float("inf")]) == '{"value":[Infinity]}'
-
-
-def test_scalars_and_short_structures_are_kept_as_values() -> None:
-    assert durable_value(value=True) is True
-    assert durable_value(7) == 7
-    assert durable_value("plain") == "plain"
-    assert durable_value("two words") == "two words"
-    assert _stored((1, 2.5, None, "x")) == {"value": [1, 2.5, None, "x"]}
-    assert _stored({1, 2} - {2}) == {"value": "{1}"}
 
 
 def test_every_record_is_one_line_of_printable_ascii() -> None:

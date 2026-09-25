@@ -1,9 +1,8 @@
 # The recall trail has no store an operator can query
 
-**Status:** open, optional feature
+**Status:** done 2026-09-25
 **Area:** memory
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
-**Verified:** 2026-09-17
 
 `RecallAuditSink` (`brain/packages/core/src/cortex_core/ports.py:209`) has one adapter,
 `LoggingRecallSink` in `cortex_memory/audit.py`, and the fake `RecordingRecallSink`.
@@ -32,3 +31,12 @@ lines.
 - 2026-09-17: filed by the close of
   [353](353-a-trail-worth-querying-has-no-store.md), which built the tool trail's file half and left
   this one for its different record. Recorded in ADR-0009 decision 18.
+- 2026-09-25: Built. `JsonLinesRecallSink` and `TeeRecallSink` in `cortex_memory/audit_file.py`
+  append `recall_fields`, the log line's own field set, through `durable_record`, which moved with
+  `durable_value` into `cortex_core/log_durable.py`, a package both trails import without a new
+  dependency. `CORTEX_MEMORY_RECALL_AUDIT_FILE` is a path that turns the trail on by itself and
+  writes the log line first. Two premises were wrong: `dropped` needs no second cut, since
+  `dropped_candidates` already bounds it, and the `ToolAuditSink` docstring no longer says adapters
+  log lines. The runbook is [memory-recall-file.md](../../runbooks/memory-recall-file.md); ADR-0038
+  decision 5 states the decision. The file-append code is now in both adapter packages, filed as
+  [729](729-the-two-trail-files-each-hold-their-own-append.md).
