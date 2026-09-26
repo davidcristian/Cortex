@@ -60,13 +60,13 @@ stopped.
 Setting it also requires `CORTEX_SWAP_BRAIN_VRAM_MIB`, and the brain refuses to boot without it.
 That figure is how much free device memory the deep tier needs, measured on your own card by the
 procedure in [model-swap-measurements.md](model-swap-measurements.md). The sidecar reports what the
-card has free on `GET /health`, and a swap reads it after the evictions and before the load, which
-is the only moment the number means anything. Short of the figure, the handoff is refused with both
-numbers in the log and in the reply's note, the deep model is never started, and the recorded
-residency is put back. A model host that can see no card at all refuses the same way. Set the figure
-above the deep tier's own cost: under WSL the driver puts part of its last buffers in system memory
-with most of a gigabyte still free, and the check cannot see memory taken during the load. On this
-card the cost is 19125 MiB and the tier spilled beside an idle peer at up to 19967 MiB free, so
+card has free on `GET /health`, and a swap reads it after the evictions and before the load. Short
+of the figure, the handoff is refused with both numbers in the log and in the reply's note, the deep
+model is never started, and the recorded residency is put back. A model host that can see no card at
+all refuses the same way. Set the figure above the deep tier's own cost: under WSL the driver puts
+part of its last buffers in system memory with most of a gigabyte still free, and the check cannot
+see memory taken during the load. On this card the pick's cost is 19125 MiB (Qwen3.8-27B's 15,770,
+its spill point not measured), and the pick spilled beside an idle peer at up to 19967 MiB free, so
 20125 refuses every spill seen by at least 158 MiB, little room for the floor rising mid-load. **So
 on a 24 GB card leave co-residency off**: beside the E4B tier the check refuses every handoff, each
 costing a cortex reload. The same figure is used with co-residency off, where it is optional and
@@ -146,11 +146,11 @@ host-side live test needs it (control API on 9300, deep tier on 9081, GPU subage
 take it down after; the cortex tier's own `127.0.0.1:8080` stays published.
 
 To give the deployment a deep tier, name its artifact in the `model-host` environment
-(`CORTEX_MODEL_FILE_BRAIN`, with `CORTEX_NGL_BRAIN` and `CORTEX_CTX_SIZE_BRAIN` to fit it) and set
-`CORTEX_ESCALATION=1` and `CORTEX_MODELHOST_BACKEND=supervisor`. The GPU override already points
-`CORTEX_BRAIN_ENDPOINT` at `http://model-host:8081`. A tier with no artifact file is not in the
-roster at all, so a stock stack answers 404 for the deep model rather than spawning a doomed
-process, and `GET /health` lists exactly the tiers it can run.
+(`CORTEX_MODEL_FILE_BRAIN`, with `CORTEX_NGL_BRAIN` and `CORTEX_CTX_SIZE_BRAIN` to fit it; each
+candidate's cost: [deep candidates](../readings/deep-candidates.md)) and set `CORTEX_ESCALATION=1`
+and `CORTEX_MODELHOST_BACKEND=supervisor`. The GPU override already points `CORTEX_BRAIN_ENDPOINT`
+at `http://model-host:8081`. A tier with no artifact is not in the roster, so a stock stack answers
+404 for the deep model, and `GET /health` lists exactly the tiers it can run.
 
 **Name the deep model's drafter beside it, and four settings move with it.** Naming
 `CORTEX_MODEL_FILE_BRAIN_DRAFT` (the drafter is

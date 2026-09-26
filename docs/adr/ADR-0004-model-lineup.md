@@ -1,6 +1,6 @@
 # ADR-0004: Model lineup
 
-**Status:** Accepted (2026-09-19)
+**Status:** Accepted (2026-09-26)
 
 ## Context
 
@@ -11,7 +11,8 @@ artifact and quantization, a placement, and the flags that make its server behav
 assumes. The candidates were fixed first and the picks measured afterwards, on VRAM, load time,
 decode rate, whether a reasoning model stops, resistance to prompt injection, and what each entry's
 chat template does with the thinking switch. The measurements are in [model
-lineup](../readings/model-lineup.md) and [injection text rows](../readings/injection-text-rows.md).
+lineup](../readings/model-lineup.md), [deep candidates](../readings/deep-candidates.md) and
+[injection text rows](../readings/injection-text-rows.md).
 
 ## Decision
 
@@ -49,7 +50,7 @@ lineup](../readings/model-lineup.md) and [injection text rows](../readings/injec
    |---|---|
    | Cortex | `gemma-4-12B-it-qat-q4_0` (pick), `Qwen3.5-9B` 4-bit (alternate) |
    | Subagent | `gemma-4-E4B-it-qat-q4_0` (pick), `Qwen3.5-2B-Q4_K_M` (alternate on a second CPU server), `gemma-4-E2B-it-qat-q4_0`, `Qwen3.5-0.8B-Q8_0`, `Qwen3.5-4B-Q4_K_M` |
-   | Deep | `gemma-4-31B-it-qat-q4_0` (pick), `Qwen3.6-27B-Q4_K_M` (alternate), `Qwen3.6-35B-A3B-UD-Q3_K_M`, `gemma-4-26B-A4B-it-qat-q4_0` |
+   | Deep | `gemma-4-31B-it-qat-q4_0` (pick), `Qwen3.6-27B-Q4_K_M` (alternate), `Qwen3.6-35B-A3B-UD-Q3_K_M`, `gemma-4-26B-A4B-it-qat-q4_0`, `Qwen3.8-27B-UD-Q4_K_M`, `Qwen3.8-Flash-Next-UD-Q3_K_XL` |
    | Embedder | `nomic-embed-text-v1.5` Q8_0 (pick), `nomic-embed-text-v2-moe` (alternate) |
 
 6. **Cortex: gemma-4-12B QAT q4_0 with its projector.** Both multimodal candidates cost about the
@@ -78,15 +79,30 @@ lineup](../readings/model-lineup.md) and [injection text rows](../readings/injec
    subagent runbook's override table says what each costs, and gemma-4-E2B and Qwen3.5-0.8B are the
    two to override to last.
 
-8. **Deep: gemma-4-31B QAT q4_0.** Every candidate fits the card alone, so VRAM decided nothing.
-   What decided it is whether the model stops thinking: the two mixture-of-experts candidates are
-   about 2.6 times faster per token and spend the whole context reasoning, returning an empty reply
-   with no limit set, which is how the tier is deployed. Between the dense pair, gemma replies in
-   fewer tokens, is QAT, and shares the cortex's family, template and prompt idiom. Qwen3.6-27B is
-   the documented alternate, one `CORTEX_MODEL_FILE_BRAIN` away, for a deployment that wants about
-   2.7 GB more of the card free during a handoff. The deep tier has no default artifact: a
-   deployment turns it on by naming the pick. At the engine's sampler, thinking on, the pick obeys
-   0 of 100 framed injection draws against 8 of 100 unframed.
+8. **Deep: gemma-4-31B QAT q4_0.** What decides is whether the model reaches its answer inside the
+   deployed context with no limit set, which is how the tier runs; VRAM decides nothing among the
+   entries that fit the card alone. The two older mixture-of-experts entries decode about 2.6 times
+   as fast and spent the whole context reasoning, returning an empty reply (build `b10236`, on
+   questions no longer recorded). Qwen3.8-Flash-Next fits neither the card nor this machine's
+   memory: with 13 layers of experts on the card and the rest read from the models mount it loads
+   inside the swap bound, but under a 20 GiB memory cap it sent no first token for a 6184-token
+   prompt within twice the stall bound, so it cannot serve this tier here; its first token at the
+   shipped cap and whether it stops were not drawn
+   ([R-735](../refinements/tasks/735-flash-nexts-feasibility-row-is-not-complete-at-the-shipped-memory-cap.md)).
+   On four written questions drawn on one build and day, three seeds each, the pick stopped on 11 of
+   12, Qwen3.8-27B on 10 at its default effort (`xhigh`) and on 12 at `low` and at `medium`, and the
+   alternate on 10; no count reads apart from the pick's. The pick reasons least of the three at
+   their defaults (a median of 1434 tokens against 2189 and 4118), is QAT, and shares the cortex's
+   family, template and prompt idiom. Qwen3.8-27B costs 0.82 of its VRAM at the same decode rate and
+   has a drafter built in, and deploying it needs settings the tier lacks, an effort level first
+   ([R-738](../refinements/tasks/738-the-deep-tier-cannot-set-a-templates-reasoning-effort-or-preserve-flag.md)).
+   Qwen3.6-27B is the documented alternate, one `CORTEX_MODEL_FILE_BRAIN` away, for a deployment
+   that wants about 2.7 GB more of the card free during a handoff; its template drops a third
+   leading system message, the history recap of a deep turn that also recalled a memory
+   ([R-737](../refinements/tasks/737-two-qwen-templates-lose-or-refuse-a-second-leading-system-message.md)).
+   The deep tier has no default artifact: a deployment turns it on by naming the pick. At the
+   engine's sampler, thinking on, the pick obeys 0 of 100 framed injection draws against 8 of 100
+   unframed, and Qwen3.8-27B 0 against 0.
 
 9. **Embedder: nomic-embed-text-v1.5 Q8_0**, 768-dimensional, on the CPU (`-ngl 0`), negligible in
    memory. `nomic-embed-text-v2-moe` is the multilingual alternative. The override is
@@ -94,7 +110,7 @@ lineup](../readings/model-lineup.md) and [injection text rows](../readings/injec
    `CORTEX_EMBED_MODEL_FILE` is read by nothing. The embedder is excluded from injection
    measurement, since it emits vectors.
 
-10. **A candidate's chat template is a selection input, read before a pick.** Every chat entry
+10. **A candidate's chat template is a selection input, read before a pick.** Every chat entry drawn
     respects the thinking switch on a plain request. Under a `response_format` the lineup splits
     inside a family: the dense gemma-4 entries and every Qwen entry respect it, and both gemma-4-E
     entries reason through it anyway. Asked for its rendered prompt with the kwarg and without it
@@ -157,7 +173,12 @@ lineup](../readings/model-lineup.md) and [injection text rows](../readings/injec
     the settings that move with it: `CORTEX_SWAP_BRAIN_VRAM_MIB` raised by the drafter's cost, the
     GPU subagent tier listed in `CORTEX_SWAP_EVICT_MODELS`, `CORTEX_SWAP_CORESIDENT` left off, and
     the decode minimum measured again with the drafter drafting. Only the deep tier reads the
-    setting; nothing on the mount drafts for the cortex or the subagent pick.
+    setting; nothing on the mount drafts for the cortex or the subagent pick. Qwen3.8-27B has a
+    multi-token-prediction layer in its own file, which the engine drafts with on
+    `--spec-type draft-mtp` alone, at 1.40 to 1.43 times the plain rate on reasoning and tool-call
+    turns and 1.16 on answer text, for about 950 MiB; the setting names a separate file, so a
+    deployment of that entry drafts nothing
+    ([R-739](../refinements/tasks/739-the-deep-tier-cannot-name-a-drafter-built-into-its-own-model.md)).
 
 ## Consequences
 
@@ -178,15 +199,20 @@ lineup](../readings/model-lineup.md) and [injection text rows](../readings/injec
   looser than their derivation asked for now that it is; they are re-sized only on whole-subtask
   measurements
   ([R-637](../refinements/tasks/637-the-delegated-run-ceilings-were-sized-on-the-unpinned-cpu-tier.md)).
-- Three deep candidates have no injection measurement, and an adopted alternate needs its own.
+- The alternate, the two older mixture-of-experts entries and Qwen3.8-Flash-Next have no injection
+  row, and an adopted alternate needs its own. Qwen3.8-27B's row was drawn at its template's default
+  effort, so a deployment that sets another effort draws it again.
 - The injection measurements for a candidate start from the tier's deployed configuration
   ([ADR-0060](ADR-0060-injection-rows-follow-the-tier.md)).
 
 ## Alternatives rejected
 
-- **Picking the cortex or the deep tier on VRAM**: every candidate fits, so VRAM separates none.
-- **A mixture-of-experts deep model for its decode rate**: it never stops reasoning, so it replies
-  with nothing at the context size deployed.
+- **Picking the cortex or the deep tier on VRAM**: every candidate but Qwen3.8-Flash-Next fits the
+  card alone, so VRAM separates none of them.
+- **A mixture-of-experts deep model for its decode rate**: the two that fit the card spent the
+  whole deployed context reasoning and replied with nothing
+  ([R-742](../refinements/tasks/742-the-mixture-of-experts-rejection-rests-on-unrecorded-questions.md)),
+  and Qwen3.8-Flash-Next, paged from the mount, misses the stall bound before its first token.
 - **An ANN index now**: see decision 4. **Storing the vector inline** (`SET STORAGE PLAIN`) bought a
   fifth of the scan back and grew the table, the arithmetic rather than the detoasting being most
   of the cost.
@@ -209,5 +235,6 @@ lineup](../readings/model-lineup.md) and [injection text rows](../readings/injec
   [memory-pgvector](../runbooks/memory-pgvector.md).
 - Modules: [brain-model-manager](../modules/brain-model-manager.md),
   [brain-memory](../modules/brain-memory.md).
-- Readings: [model lineup](../readings/model-lineup.md), [injection text
+- Readings: [model lineup](../readings/model-lineup.md), [deep
+  candidates](../readings/deep-candidates.md), [injection text
   rows](../readings/injection-text-rows.md), [subagent CPU rows](../readings/subagent-cpu-rows.md).

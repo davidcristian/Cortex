@@ -61,12 +61,12 @@ running. How a generation is bounded and a cut-off reported is
      `CORTEX_INFERENCE_STALL_TIMEOUT_S` (120 s) covers the resident tier and the deep tier behind
      it: about 2.6 times the worst measured time to first token once that is scaled by how much
      slower the deep pick loads than the cortex pick, a margin that covers the deep tier's own
-     first token, which was never measured directly. `CORTEX_SUBAGENTS_STALL_TIMEOUT_S` (600 s) is
-     twice the slow end of a whole CPU subtask, which bounds any one call's first token there. One
-     shared number would have to be the loose one, and a stuck cortex stream would then block a
-     turn for the CPU tier's whole allowance. Both are positive `pydantic-settings` fields, retuned
-     without a rebuild. The measurements are in [generation
-     bounds](../readings/generation-bounds.md).
+     first token, measured at under a twentieth of the bound on a half-context prompt.
+     `CORTEX_SUBAGENTS_STALL_TIMEOUT_S` (600 s) is twice the slow end of a whole CPU subtask, which
+     bounds any one call's first token there. One shared number would have to be the loose one,
+     and a stuck cortex stream would then block a turn for the CPU tier's whole allowance. Both are
+     positive `pydantic-settings` fields, retuned without a rebuild. The measurements are in
+     [generation bounds](../readings/generation-bounds.md).
    - **A stall crosses the port as `InferenceError`, named apart from a dead server**
      (`_transport_failure` in `backend.py`), so an operator is not sent looking for a connection
      problem when the server took the request and then stopped sending.

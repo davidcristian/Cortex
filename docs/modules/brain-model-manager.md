@@ -134,14 +134,14 @@ compares the two, so retune both or neither. `RosterError` is a boot-time miscon
   tier, where a conversation costs 3526 MiB and the engine's own ceiling holds two of three; `0` on
   the GPU-placed subagent tier, whose subtasks are one-shot.
 - `CORTEX_MODEL_FILE_BRAIN_DRAFT` names the deep tier's multi-token-prediction drafter (ADR-0004
-  decision 14), resolved under the models mount like every other artifact. Empty, the default, emits
-  nothing. A named file appends `--model-draft PATH --spec-type draft-mtp`, the four items built
-  together by `drafter_flags` in `tiers.py`, because the path alone was measured to load the drafter
-  and then draft nothing. It reaches the argv through the tier's `extra`, as the projector does,
-  rather than through a field of its own on `TierArgs`: `scripts/hostedtiers.py` reads
-  `llama_server_argv` as one fixed run of items with exactly one splat. The drafter costs 997 to
-  1020 MiB more on the card, which is what `CORTEX_SWAP_BRAIN_VRAM_MIB` grows by and why a
-  deployment naming it evicts the GPU subagent tier.
+  decision 14). Empty, the default, emits nothing. A named file appends
+  `--model-draft PATH --spec-type draft-mtp`, the four items built together by `drafter_flags` in
+  `tiers.py`, because the path alone was measured to load the drafter and then draft nothing. No
+  setting drafts with a layer inside the deep model's own file, where Qwen3.8-27B keeps its own. It
+  reaches the argv through the tier's `extra`, as the projector does, rather than through a field of
+  its own on `TierArgs`: `scripts/hostedtiers.py` reads `llama_server_argv` as one fixed run of
+  items with exactly one splat. The drafter costs 997 to 1020 MiB more on the card, which is what
+  `CORTEX_SWAP_BRAIN_VRAM_MIB` grows by and why a deployment naming it evicts the GPU subagent tier.
 
 ## Invariants
 

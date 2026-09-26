@@ -199,10 +199,10 @@ of the 6 MiB ceiling; only per-pixel uniform noise fires the halving ladder (dro
 
 ## What fits on the card
 
-VRAM is `nvidia-smi` total used with the model resident. The two cortex load times were taken
-with the card held to about a third of its full power; VRAM does not depend on power, load times
-do. Conditions and the full per-candidate tables: [model lineup](../readings/model-lineup.md),
-[two tiers on one card](../readings/co-residency.md).
+VRAM is `nvidia-smi` total used with the model resident. The two cortex load times were taken with
+the card held to about a third of its full power; VRAM does not depend on power, load times do.
+Conditions and the full per-candidate tables: [model lineup](../readings/model-lineup.md), [deep
+candidates](../readings/deep-candidates.md), [two tiers on one card](../readings/co-residency.md).
 
 | Tier | Candidate | Quant | Weights only | + vision (mmproj) | Load |
 |---|---|---|---|---|---|

@@ -26,9 +26,10 @@ and after the last measurement.
 ## Deep candidates
 
 **2026-08-04**, build `b10236-1464c62d8`, each candidate alone on the card through the model host
-with the cortex stopped, `-ngl 99`, 8192 context, one slot, the baseline 1867 to 1932 MiB.
-"Answered" counts four escalation-grade questions answered inside a 4096-token budget; rates are
-ratios of the pick's.
+with the cortex stopped, `-ngl 99`, 8192 context, one slot; "model alone" is above the baseline,
+which read 1867 to 1932 MiB. "Answered" counts four escalation-grade questions, recorded nowhere,
+answered inside a 4096-token budget; rates are ratios of the pick's. The two Qwen3.8 candidates,
+with the pick and the alternate redrawn beside them, are in [deep candidates](deep-candidates.md).
 
 | candidate | artifact | model alone | decode | answered |
 | --- | --- | --- | --- | --- |

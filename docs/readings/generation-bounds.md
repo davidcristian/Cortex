@@ -10,11 +10,17 @@ a full batch holds is in [delegated run holds](delegated-run-holds.md).
 **2026-08-08.** The cortex pick (gemma-4-12B QAT q4_0, 16K context) reached its first token in 4.6 s
 alone and in 10.3, 12.0 and 17.5 s across three overlapping `Converse` streams, those three
 including the brain-side lease wait spent before the request reaches the wire. The deep pick loads
-in 1.9 to 2.6 times the cortex pick's load time on the same card, and its own first token was not
-measured. A screen capture adds about 0.6 s for 744 more context tokens. 17.5 s scaled by the worst
-load ratio is 45.5 s, and the shipped 120 s is 2.6 times that. Method: overlapping `Converse`
-streams against the model host's cortex tier, first-token times taken at the gRPC boundary; load
-times from the lineup table in [ADR-0004](../adr/ADR-0004-model-lineup.md).
+in 1.9 to 2.6 times the cortex pick's load time on the same card. A screen capture adds about 0.6 s
+for 744 more context tokens. 17.5 s scaled by the worst load ratio is 45.5 s, and the shipped 120 s
+is 2.6 times that. Method: overlapping `Converse` streams against the model host's cortex tier,
+first-token times taken at the gRPC boundary; load times from the lineup table in
+[ADR-0004](../adr/ADR-0004-model-lineup.md).
+
+**2026-09-26**, the deep tier alone at its shipped argv on `b10680-d7bd3bfca`, streamed, a
+3400-word prompt of 4018 tokens and a fresh prefix each time: the deep pick's first delta came in
+0.037 of the 120 s bound at the median of 3, at an SM clock of 0.59, and Qwen3.8-27B's in 0.040 for
+the same text at 6184 tokens, at 0.50. Qwen3.8-Flash-Next, its experts paged from the mount under a
+20g memory cap, sent none within twice the bound. Method: [deep candidates](deep-candidates.md).
 
 The stall timeout is a per-read gap and not a total: a loopback server sending one chunk every 0.2 s
 under a 0.5 s timeout delivered all 15 chunks over 3.34 s and raised only once it stopped sending

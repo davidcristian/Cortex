@@ -38,14 +38,16 @@ image of the same build on 2026-08-30. Tails are what the template appended afte
 | Qwen3.5-9B UD-Q4_K_XL | the same | 0/5 | 0/5 |
 | Qwen3.6-27B Q4_K_M | the same | 0/5 | 0/5 |
 | Qwen3.6-35B-A3B UD-Q3_K_XL | the same | 0/5 | 0/5 |
+| Qwen3.8-27B UD-Q4_K_M, read 2026-09-26 at the deep tier's argv | the same | 0/5 | 0/5 |
 
 Every entry holds on the plain shape. The constrained column follows the tail: a template that
 renders the thought already closed holds, and one that answers the switch by dropping a `<|think|>`
 system turn at the front, leaving the tail open, does not. Both gemma handlers (`peg-gemma4`) and
 the Qwen one (`peg-native`) build a grammar under a schema that keeps a thought block reachable, and
-a schema changes no rendered prompt on any entry. The E4B's constrained cell has read 4 of 5, 5 of
-5 and 5 of 5 on builds `b10644`, `b10666` and `b10680`: 14 of 15. Two quants differ from ADR-0004's
-(UD-Q4_K_XL for Q4_K_M, UD-Q3_K_XL for UD-Q3_K_M); a quant is not a template.
+a schema changes no rendered prompt on any entry. The E4B's constrained cell has read 4 of 5, 5 of 5
+and 5 of 5 on builds `b10644`, `b10666` and `b10680`: 14 of 15. Two quants differ from ADR-0004's
+(UD-Q4_K_XL for Q4_K_M, UD-Q3_K_XL for UD-Q3_K_M); a quant is not a template. Qwen3.8-Flash-Next has
+the Qwen3.8-27B template byte for byte and was not drawn ([deep candidates](deep-candidates.md)).
 
 **2026-09-04, re-read 2026-09-15.** A walk over every GGUF header on the model mount: 68 files, 34
 with a chat template, every one writing one of the two marker pairs `switchtail.py` lists. Six
