@@ -36,6 +36,14 @@ _WEDGE_WATCHDOG_S = 5.0
 
 
 @dataclass(frozen=True, slots=True)
+class SystemLedWorld:
+    """A backend over an engine whose template takes one system message, and what it received."""
+
+    backend: InferenceBackend
+    received: Callable[[], list[str]]
+
+
+@dataclass(frozen=True, slots=True)
 class BackendUnderTest:
     """One ``InferenceBackend`` implementation plus the conditions the checks set up."""
 
@@ -43,7 +51,7 @@ class BackendUnderTest:
     calling: Callable[[], InferenceBackend]
     wordless: Callable[[], InferenceBackend]
     unreachable: Callable[[], InferenceBackend]
-    one_system_template: Callable[[], InferenceBackend]
+    one_system_template: Callable[[], SystemLedWorld]
     aclose: Callable[[], Awaitable[None]]
 
 
@@ -51,12 +59,24 @@ def _messages() -> list[Message]:
     return [Message(role=Role.USER, text="what is the answer", at=_AT, turn_id="t-1")]
 
 
+_SYSTEM_HEAD = ("answer plainly", "the user likes tea", "they asked about tea before")
+
+
 def _system_led_messages() -> list[Message]:
-    head = ("answer plainly", "the user likes tea", "they asked about tea before")
     return [
-        *(Message(role=Role.SYSTEM, text=text, at=_AT, turn_id="t-1") for text in head),
+        *(Message(role=Role.SYSTEM, text=text, at=_AT, turn_id="t-1") for text in _SYSTEM_HEAD),
         *_messages(),
     ]
+
+
+def _in_order(text: str, parts: Sequence[str]) -> bool:
+    start = 0
+    for part in parts:
+        found = text.find(part, start)
+        if found < 0:
+            return False
+        start = found + len(part)
+    return True
 
 
 async def events_of(
@@ -188,13 +208,18 @@ async def check_a_backend_answers_only_for_a_model_it_serves(subject: BackendUnd
     raise AssertionError(msg)
 
 
-async def check_a_request_opening_with_several_system_messages_is_answered(
+async def check_every_leading_system_text_reaches_the_engine_and_is_answered(
     subject: BackendUnderTest,
 ) -> None:
-    """A request led by several system messages is answered, whatever the template takes."""
-    backend = subject.one_system_template()
-    events = [event async for event in backend.stream(CONTRACT_MODEL, _system_led_messages())]
+    """A system-led request is answered, and the engine gets every system text in order."""
+    world = subject.one_system_template()
+    stream = world.backend.stream(CONTRACT_MODEL, _system_led_messages())
+    events = [event async for event in stream]
     assert _text(events) == CONTRACT_REPLY, f"the system-led request was not answered: {events!r}"
+    received = "\n".join(world.received())
+    assert _in_order(received, _SYSTEM_HEAD), (
+        f"a system text did not reach the engine: {received!r}"
+    )
 
 
 type StreamCheck = Callable[[BackendUnderTest], Awaitable[None]]
@@ -211,5 +236,5 @@ STREAM_CHECKS: tuple[StreamCheck, ...] = (
     check_an_abandoned_completion_costs_the_backend_nothing,
     check_a_backend_that_cannot_answer_fails_with_inference_error,
     check_a_backend_answers_only_for_a_model_it_serves,
-    check_a_request_opening_with_several_system_messages_is_answered,
+    check_every_leading_system_text_reaches_the_engine_and_is_answered,
 )

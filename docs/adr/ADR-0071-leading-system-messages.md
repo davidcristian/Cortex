@@ -72,8 +72,9 @@ test could fail on it.
 
 7. **The port says it.** The stream contract (`tests/stream_contract.py`) holds a twelfth
    obligation over a fifth world: a request that opens with several system messages is answered,
-   run against an engine whose template refuses a second one. The core's twin answers it as
-   before, and the adapter answers it by joining.
+   and the engine receives every system text in the core's order, run against an engine whose
+   template refuses a second one. The world records what the engine received: the body the
+   adapter posted, with the texts joined, and the messages the core's twin was handed, unchanged.
 
 8. **The log says which layout an endpoint got.** `system message probe answered` at `INFO`, with
    `endpoint`, `system_messages` and `delivers`, and `system message probe failed; joining the

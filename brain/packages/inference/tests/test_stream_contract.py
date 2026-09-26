@@ -13,9 +13,11 @@ from stream_contract import (
     STREAM_CHECKS,
     BackendUnderTest,
     StreamCheck,
+    SystemLedWorld,
     events_of,
 )
-from template_servers import TemplateServer
+from system_led import RecordingBackend
+from template_servers import TemplateServer, leading_systems
 
 from cortex_core import (
     DecodeCadence,
@@ -23,6 +25,7 @@ from cortex_core import (
     InferenceError,
     InferenceEvent,
     ReasoningChunk,
+    Role,
     ScriptedInferenceBackend,
     SingleResidentModelManager,
     StopReason,
@@ -131,6 +134,14 @@ def scripted() -> BackendUnderTest:
         backend.fail_with(InferenceError("llama-server is not answering"))
         return backend
 
+    def one_system_template() -> SystemLedWorld:
+        recorder = RecordingBackend(deliberating())
+
+        def received() -> list[str]:
+            return [m.text for sent in recorder.sent for m in sent if m.role is Role.SYSTEM]
+
+        return SystemLedWorld(backend=recorder, received=received)
+
     async def aclose() -> None:
         return None
 
@@ -139,7 +150,7 @@ def scripted() -> BackendUnderTest:
         calling=calling,
         wordless=partial(build, []),
         unreachable=unreachable,
-        one_system_template=deliberating,
+        one_system_template=one_system_template,
         aclose=aclose,
     )
 
@@ -169,14 +180,20 @@ def adapter() -> BackendUnderTest:
         for client in clients:
             await client.aclose()
 
+    def one_system_template() -> SystemLedWorld:
+        server = TemplateServer(takes_several=False, reply=_deliberating_body())
+
+        def received() -> list[str]:
+            return [text for chat in server.chats for text in leading_systems(chat)]
+
+        return SystemLedWorld(backend=over(server), received=received)
+
     return BackendUnderTest(
         deliberating=partial(build, _deliberating_body()),
         calling=partial(build, _calling_body()),
         wordless=partial(build, _sse("[DONE]")),
         unreachable=unreachable,
-        one_system_template=lambda: over(
-            TemplateServer(takes_several=False, reply=_deliberating_body())
-        ),
+        one_system_template=one_system_template,
         aclose=aclose,
     )
 

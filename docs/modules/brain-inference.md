@@ -209,8 +209,9 @@ words beside it; the two closing events arrive at most once each with the stop f
 what they describe; a completion with nothing to say owes no event at all; an abandoned completion
 costs the backend nothing; a backend that cannot answer fails its caller with `InferenceError`; a
 backend answers only for a model it serves; and a request that opens with several system messages is
-answered. Nothing in it counts events, sizes one, or asks when one arrives, because the two
-implementations produce them at different rates from different sources.
+answered, with every system text reaching the engine in order. Nothing in it counts events, sizes
+one, or asks when one arrives, because the two implementations produce them at different rates from
+different sources.
 
 **Where this adapter legitimately differs from the core's twin**, and so what the shared list does
 not say:

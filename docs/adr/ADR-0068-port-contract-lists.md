@@ -80,7 +80,8 @@ review then listed every port in both languages to find the others.
    everything they describe; a completion with nothing to say is a completion; an abandoned
    completion costs the backend nothing; a backend that cannot answer fails with `InferenceError`,
    before or on its first event; a backend answers only for a model it serves; and a request that
-   opens with several system messages is answered, whatever the served template takes
+   opens with several system messages is answered, whatever the served template takes, and every
+   one of its system texts reaches the engine in order
    ([ADR-0071](ADR-0071-leading-system-messages.md)). Which ids a deployment serves stays the
    `ModelManager`'s subject, and the port leaves who checks and when to the implementation.
    `ScriptedInferenceBackend(serves=[...])` names the ids it stands for;
