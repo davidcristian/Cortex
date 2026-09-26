@@ -17,7 +17,7 @@ What a chat template does with the second and third differs by family, measured 
 
 - **gemma-4**, every pick, renders each in a system turn of its own.
 - **Qwen3.8** merges every leading one into one system turn.
-- **Qwen3.6** and the Qwen3.5-9B file in the MTP folder merge the first two and drop the third
+- **Qwen3.6** and the Qwen3.5-9B files in the MTP folder merge the first two and drop the third
   without an error. On the deep alternate, Qwen3.6-27B, a recalling deep turn lost its recap.
 - **Qwen3.5**, one template across 0.8B, 2B, 4B and 9B, raises `System message must be at the
   beginning.`, which the server answers as HTTP 500. On the cortex alternate, Qwen3.5-9B, every
@@ -85,8 +85,9 @@ test could fail on it.
 
 - Every measured row stays valid: a server whose template renders every system message, the gemma
   picks and Qwen3.8 among them, gets the request it got before, so the injection, recap preface and
-  envelope readings describe what it receives. A failed probe is the exception: it joins that one
-  request, and the warning names the endpoint.
+  envelope readings describe what it receives. A failed probe is the exception: every request is
+  joined for as long as the probe keeps failing, and the one warning, written when it starts to
+  fail, names the endpoint.
 - A completion that opens with two or more system messages costs one extra render request. The
   worst of 240 probes over four servers, idle and beside a generation, was 0.013 of the timeout.
 - Production has two layouts, and only the probe's log line shows which one an endpoint receives.
@@ -125,7 +126,7 @@ test could fail on it.
   core, with the same cost on gemma.
 - **`chat_template_caps` from `GET /props`.** It reports the system role for every template.
 - **A per-tier flag, or a table of template hashes.** Either drifts from the file actually served;
-  the Qwen3.5-9B file in the MTP folder has a template of its own.
+  the Qwen3.5-9B files in the MTP folder have a template of their own.
 - **A probe at boot, or a cache per endpoint.** Stale once a model file changes.
 - **Retrying a 500 with the messages joined.** It misses Qwen3.6, which answers 200 and drops the
   recap.

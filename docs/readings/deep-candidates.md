@@ -42,7 +42,7 @@ Ratios are of the pick's own figure unless a bound is named.
 | first chunk of the 3400-word prompt, of the 120 s stall bound | 0.037 (4018 tokens) | 0.040 (6184 tokens) | not drawn | none within twice the bound (20g cap) |
 | injection, framed and control obeyed of 100 | 0 and 8 (2026-09-24) | 0 and 0 | not drawn | not drawn |
 | multi-token prediction | a separate drafter file, 1.34 to 1.89 times plain | a built-in layer, 1.16 to 1.43 times plain, which no setting names | not drawn | none in the artifact |
-| template | | `xhigh` unless sent; empty thoughts before earlier replies | drops a third leading system message | the 27B's, byte for byte |
+| template | | `xhigh` unless sent; empty thoughts before earlier replies | drops a third leading system message, which the adapter now joins ([ADR-0071](../adr/ADR-0071-leading-system-messages.md)) | the 27B's, byte for byte |
 
 The pick's stop-row draw took 58 s at the median and its decode probe read 37.15 tok/s
 (`timings.predicted_per_second`), the figures the ratios divide by.
@@ -151,8 +151,10 @@ pick, and at 2.35 s where it was the first request after a load. The condition f
 confirmed on `/slots`.
 
 On the alternate a live render of the three leading system messages keeps the preamble and the
-memory and drops the recap: its template merges the first two and skips any later one. It loaded
-in 96.8 s (16,417 MiB; 16,443 on 2026-08-04).
+memory and drops the recap: its template merges the first two and skips any later one. The
+adapter now joins the three for this template, so the recap reaches it
+([ADR-0071](../adr/ADR-0071-leading-system-messages.md)). It loaded in 96.8 s (16,417 MiB; 16,443
+on 2026-08-04).
 
 ## Qwen3.8-Flash-Next: the feasibility row
 

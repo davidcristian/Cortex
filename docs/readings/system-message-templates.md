@@ -21,26 +21,36 @@ The logs are in `measurements/system-join-2026-09-26/`.
   gemma 12B the posted body equals the unjoined one; on Qwen3.6-27B the joined request renders the
   recap.
 
-Every one of them held.
+Every one of them held. The live probe ran on the five servers in the second table below. The
+answers for gemma-4-E2B, Qwen3.5-0.8B and Qwen3.8-27B come from the vocabulary-only render under
+the templates, and Qwen3.8-27B's also from the live render of three system messages in the
+[deep candidates](deep-candidates.md#qwen38-27b) readings.
 
 ## The templates (2026-09-26)
 
-Six templates by SHA-256 across the files on the models mount. "Merges" means each system text is
-trimmed of the engine's whitespace (C `isspace`) and the texts are joined with one `\n`.
+Six templates by SHA-256 across the google and unsloth files on the models mount. "Merges" means
+each system text is trimmed of the engine's whitespace (C `isspace`) and the texts are joined with
+one `\n`.
 
 | template | files | two system messages | three |
 | --- | --- | --- | --- |
 | `ae53464b` | gemma-4 12B, 26B-A4B, 31B | a turn each | a turn each |
 | `0a2c8073` | gemma-4 E2B, E4B | a turn each | a turn each |
-| `7f0e5290` | Qwen3.5 0.8B, 2B, 4B, 9B | raises `System message must be at the beginning.` | raises |
-| `8452ca85` | Qwen3.5-9B UD-Q4_K_XL from the MTP folder | merges | merges the first two, drops the third |
-| `55d49314` | Qwen3.6-27B, its MTP file, the two 35B-A3B files | merges | merges the first two, drops the third |
+| `7f0e5290` | Qwen3.5 0.8B, 2B, 4B, and 9B outside the MTP folder | raises `System message must be at the beginning.` | raises |
+| `8452ca85` | Qwen3.5-9B UD-Q4_K_XL and Q8_0 from the MTP folder | merges | merges the first two, drops the third |
+| `55d49314` | Qwen3.6-27B, its MTP file, the three 35B-A3B files | merges | merges the first two, drops the third |
 | `12827f24` | Qwen3.8-27B, Qwen3.8-Flash-Next | merges | merges |
 
 gemma puts the first system text in the header turn with the tool declarations right after it, and
 each later one in a system turn of its own after them. The same held with tools and without, and
 with thinking on and off. `chat_template_caps.supports_system_role` in `GET /props` is true for all
 six, Qwen3.5 included, so it cannot tell them apart.
+
+The llmfan46 files hold five more templates, and no tier, alternate or roster entry names one. Put
+through the probe's two and three markers with the engine's template code, `a4aee8af` (the
+Qwen3.5-9B Nikusui files) raises like `7f0e5290`, and `2611268e` (Qwen3.5-9B), `e7018ebe`
+(Qwen3.6-27B and 35B-A3B), `16e455bc` (gemma-4 12B) and `24d32be0` (gemma-4 26B-A4B and 31B)
+render every marker in order, so the probe reads each of them.
 
 Method: the files were rendered through the engine's own template code at a vocabulary-only load,
 which matched live `POST /apply-template` on 64 of 64 requests (gemma-4-E2B and Qwen3.5-0.8B).
