@@ -92,14 +92,20 @@ test could fail on it.
 - Production has two layouts, and only the probe's log line shows which one an endpoint receives.
 - The joined layout has no injection or framing measurement on the Qwen alternates
   ([R-744](../refinements/tasks/744-the-joined-system-message-is-unmeasured-on-the-qwen-alternates.md)).
-- The deep alternate's prompt now includes the recap it used to drop, up to `RECAP_MAX` (2000
-  characters) plus the preface, against its 8192-token context; the fit is
+- On a turn that also recalls a memory, the deep alternate's prompt now includes the recap it used
+  to drop, up to `RECAP_MAX` (2000 characters) plus the preface, against its 8192-token context;
+  the fit is
   [R-736](../refinements/tasks/736-the-deep-phase-sends-a-history-window-sized-for-the-cortexs-context.md)'s
   subject.
 - A template that rendered every marker outside the system role would read as rendering them. None
   of the six does.
-- On a joining endpoint the preamble's "this system message" covers the memory and the recap text
-  too; both were system messages before, with the same authority.
+- On a joining endpoint the memory and the recap fall inside what the preamble calls "this system
+  message", the one text besides the user's own messages it lets direct the model. The fenced
+  memory and the recap keep their fences and prefaces byte for byte, but the trusted memory lines,
+  which include earlier assistant replies (`render_exchange`), sit inside it unfenced. Qwen3.6 at
+  two messages and Qwen3.8 at two and three already render this layout on their own. No reading
+  covers it
+  ([R-744](../refinements/tasks/744-the-joined-system-message-is-unmeasured-on-the-qwen-alternates.md)).
 - A stored system message next to the prefix would be joined into the preamble's message. No
   writer stores one, and the codecs still decode one
   ([R-743](../refinements/tasks/743-the-session-and-handoff-codecs-decode-a-system-role-no-writer-stores.md)).
