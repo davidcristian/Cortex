@@ -18,16 +18,16 @@ as its own `role: "system"` message, and what a template does with a second one 
   (`measurements/deep-2026-09-26/alt-r12c-stop/alt.render.three-system.txt`).
 - **Qwen3.5**, one template by SHA-256 across the cortex alternate `Qwen3.5-9B-UD-Q4_K_XL` and the
   subagent entries `Qwen3.5-0.8B`, `Qwen3.5-2B` and `Qwen3.5-4B`, raises
-  `System message must be at the beginning.` on any system message after the first. Two leading
-  system messages failed that way when rendered offline through the engine's own request parser,
-  built from `d7bd3bfca` (2026-09-26); not yet checked on a server, where it would fail every
-  recalling cortex turn on the alternate and every such delegated task on the Qwen roster alternate.
+  `System message must be at the beginning.` on any system message after the first. On a live
+  `Qwen3.5-2B-Q4_K_M` server (`server` image, `b10680-d7bd3bfca`, 2026-09-26) one system message
+  renders and answers with HTTP 200, and two fail both `POST /apply-template` and
+  `/v1/chat/completions` with HTTP 500 and that exception. So every recalling cortex turn on the
+  alternate and every two-system delegated task on the Qwen roster alternate fails.
 - **Qwen3.8** merges every leading system message (live, 2026-09-26), and the gemma templates render
   each later one as a system turn of its own.
 
-No probe has shown it, because the injection harness and the switch probe send one system message
-at most. What would close it: a live render of two system messages on `Qwen3.5-9B` and on
-`Qwen3.5-2B`; then one leading system message per request, merged in the core's assembly or in
+The injection harness and the switch probe send one system message at most, so neither shows it.
+What would close it: one leading system message per request, merged in the core's assembly or in
 `build_payload`, with a test asserting that a turn with memory and a recap sends one; or a recorded
 decision that those entries are never deployed with recall or subagent tools.
 
