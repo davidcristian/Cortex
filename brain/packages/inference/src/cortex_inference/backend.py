@@ -26,7 +26,8 @@ from cortex_inference.decode import (
     finish_calls,
     raise_for_status,
 )
-from cortex_inference.request import build_payload
+from cortex_inference.request import build_payload, join_leading_system, leading_system_count
+from cortex_inference.system_probe import SystemProbeError, delivers_system_messages
 
 _CHAT_COMPLETIONS_PATH = "/v1/chat/completions"
 _SSE_DATA_PREFIX = "data:"
@@ -57,8 +58,8 @@ def _chunk_events(chunk: ChunkRead) -> Iterator[InferenceEvent]:
 class LlamaCppBackend:
     """``InferenceBackend`` over a llama-server OpenAI-compatible endpoint.
 
-    The ``http_client`` is injected, so the adapter sets no request timeout of its own: a
-    generation may stream for a long time, and the root's ceiling is a per-read stall bound.
+    The ``http_client`` is injected, so a generation, which may stream for a long time, runs under
+    the root's per-read stall bound; only the system message probe sets a timeout of its own.
     """
 
     def __init__(
@@ -75,6 +76,7 @@ class LlamaCppBackend:
         self._send_trace_budget = send_trace_budget
         self._reported_unsent_budget = False
         self._builds: dict[str, str] = {}
+        self._probes: dict[tuple[str, int], str] = {}
 
     def _report_unsent_budget(self, model: str, bounds: GenerationBounds | None) -> None:
         """Warn, once per backend, when a request names a trace count it will not send."""
@@ -98,6 +100,31 @@ class LlamaCppBackend:
             extra={"model": model, "endpoint": endpoint, "build": build},
         )
 
+    def _changed(self, endpoint: str, count: int, outcome: str) -> bool:
+        """Record a probe's outcome; ``True`` when it differs from the last one for this pair."""
+        if self._probes.get((endpoint, count)) == outcome:
+            return False
+        self._probes[endpoint, count] = outcome
+        return True
+
+    async def _joins(self, endpoint: str, model: str, count: int) -> bool:
+        """Whether the leased server's template needs its leading system messages joined."""
+        try:
+            delivers = await delivers_system_messages(endpoint, model, count, self._client)
+        except SystemProbeError as err:
+            if self._changed(endpoint, count, "failed"):
+                _logger.warning(
+                    "system message probe failed; joining the leading system messages",
+                    extra={"endpoint": endpoint, "system_messages": count, "error": str(err)},
+                )
+            return True
+        if self._changed(endpoint, count, "delivers" if delivers else "joins"):
+            _logger.info(
+                "system message probe answered",
+                extra={"endpoint": endpoint, "system_messages": count, "delivers": delivers},
+            )
+        return not delivers
+
     async def stream(
         self,
         model: str,
@@ -109,12 +136,20 @@ class LlamaCppBackend:
     ) -> AsyncIterator[InferenceEvent]:
         """Stream text deltas from the leased llama-server, then any assembled tool calls."""
         self._report_unsent_budget(model, bounds)
-        payload = build_payload(
-            model, messages, tools, schema, bounds, send_trace_budget=self._send_trace_budget
-        )
+        leading = leading_system_count(messages)
         pending: dict[int, PendingCall] = {}
         try:
             async with self._manager.acquire(model) as lease:
+                joins = leading > 1 and await self._joins(lease.endpoint, model, leading)
+                sent = join_leading_system(messages) if joins else messages
+                payload = build_payload(
+                    model,
+                    sent,
+                    tools,
+                    schema,
+                    bounds,
+                    send_trace_budget=self._send_trace_budget,
+                )
                 url = f"{lease.endpoint}{_CHAT_COMPLETIONS_PATH}"
                 async with self._client.stream("POST", url, json=payload) as response:
                     await raise_for_status(response, model)

@@ -1,6 +1,6 @@
 # ADR-0068: One shared contract list per port, read by one driver
 
-**Status:** Accepted (2026-09-17)
+**Status:** Accepted (2026-09-26)
 
 ## Context
 
@@ -79,9 +79,11 @@ review then listed every port in both languages to find the others.
    the words beside it; the stop and the cadence arrive at most once each, stop first, after
    everything they describe; a completion with nothing to say is a completion; an abandoned
    completion costs the backend nothing; a backend that cannot answer fails with `InferenceError`,
-   before or on its first event; and a backend answers only for a model it serves. Which ids a
-   deployment serves stays the `ModelManager`'s subject, and the port leaves who checks and when to
-   the implementation. `ScriptedInferenceBackend(serves=[...])` names the ids it stands for;
+   before or on its first event; a backend answers only for a model it serves; and a request that
+   opens with several system messages is answered, whatever the served template takes
+   ([ADR-0071](ADR-0071-leading-system-messages.md)). Which ids a deployment serves stays the
+   `ModelManager`'s subject, and the port leaves who checks and when to the implementation.
+   `ScriptedInferenceBackend(serves=[...])` names the ids it stands for;
    `serves=None`, the default, answers for any id, because a stand-in given no deployment has made
    no claim to violate. `EchoInferenceBackend` is shipped wiring and not an implementation under
    test: it cannot think, call a tool or fail, and making it able to would turn a backend a

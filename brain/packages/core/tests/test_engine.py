@@ -25,6 +25,7 @@ from cortex_core import (
     GenerationBounds,
     HandoffState,
     HashEmbedder,
+    HistoryRecap,
     ImagePart,
     InferenceError,
     InferenceEvent,
@@ -57,6 +58,7 @@ from cortex_core import (
     StatusUpdate,
     StopReason,
     StrictUrlRedactingGuardrail,
+    SummarizingHistoryWindow,
     SystemClock,
     TextChunk,
     TextDelta,
@@ -1450,6 +1452,40 @@ async def test_recall_renders_trusted_and_tainted_memories_in_separate_sections(
     assert "derived from untrusted external content" in memory_msg.text
     assert "untrusted-tool-output id=" in memory_msg.text
     assert "hostile note" in memory_msg.text
+
+
+async def test_a_recalling_turn_with_a_recap_sends_preamble_then_memory_then_recap() -> None:
+    sessions = InMemorySessionStore()
+    for index in range(4):
+        for role in (Role.USER, Role.ASSISTANT):
+            text = f"{role.value}{index}".ljust(20, ".")
+            await sessions.append(
+                "s", Message(role=role, text=text, at=_START, turn_id=f"t{index}")
+            )
+    await sessions.set_recap("s", HistoryRecap(text="They chose the train.", covers=6))
+    mem_store = InMemoryMemoryStore()
+    embedder = HashEmbedder()
+    emb = tuple(await embedder.embed("topic"))
+    await mem_store.add(MemoryRecord(id="ok", text="I like tea", embedding=emb, at=_START))
+    backend = RecordingBackend(("ok",))
+    window = SummarizingHistoryWindow(
+        CharBudgetHistoryWindow(60), sessions, backend, "cortex", TickingClock()
+    )
+    caps = TurnCapabilities(
+        memory=MemoryRecaller(mem_store, embedder, SystemClock()), window=window
+    )
+    engine = TurnEngine(sessions, backend, TickingClock(), capabilities=caps)
+    await _collect(engine.handle_turn("s", "topic", turn_id="t-now"))
+    ((_, messages),) = backend.calls
+    assert [m.role for m in messages] == [Role.SYSTEM] * 3 + [Role.USER, Role.ASSISTANT, Role.USER]
+    assert messages[0].text == PLAIN_SECURITY_PREAMBLE
+    assert "I like tea" in messages[1].text
+    assert "They chose the train." in messages[2].text
+    assert [m.text for m in messages[3:]] == [
+        "user3".ljust(20, "."),
+        "assistant3".ljust(20, "."),
+        "topic",
+    ]
 
 
 class ScriptedTurnBackend:

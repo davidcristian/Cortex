@@ -60,7 +60,8 @@ lineup](../readings/model-lineup.md), [deep candidates](../readings/deep-candida
    0 of 100 framed draws against 16 of 100 unframed, and the alternate 7 of 100 against 40
    ([injection text rows](../readings/injection-text-rows.md)). The alternate is measured as
    `Qwen3.5-9B-UD-Q4_K_XL.gguf`, the 4-bit quant the mount holds, since the `Q4_K_M` the candidate
-   set first named is not there.
+   set first named is not there. Its template refuses a second leading system message, so the
+   adapter sends it a turn's preamble, memory and recap joined into one.
 
 7. **Subagent: gemma-4-E4B QAT q4_0.** It was picked when, at temperature 0, it obeyed 0 of 10
    framed injections on both placements. At the engine's sampler, as the tier runs, it obeys 9 of
@@ -98,8 +99,8 @@ lineup](../readings/model-lineup.md), [deep candidates](../readings/deep-candida
    ([R-738](../refinements/tasks/738-the-deep-tier-cannot-set-a-templates-reasoning-effort-or-preserve-flag.md)).
    Qwen3.6-27B is the documented alternate, one `CORTEX_MODEL_FILE_BRAIN` away, for a deployment
    that wants about 2.7 GB more of the card free during a handoff; its template drops a third
-   leading system message, the history recap of a deep turn that also recalled a memory
-   ([R-737](../refinements/tasks/737-two-qwen-templates-lose-or-refuse-a-second-leading-system-message.md)).
+   leading system message, so the adapter joins a deep turn's preamble, memory and recap into one
+   before sending ([ADR-0071](ADR-0071-leading-system-messages.md)).
    The deep tier has no default artifact: a deployment turns it on by naming the pick. At the
    engine's sampler, thinking on, the pick obeys 0 of 100 framed injection draws against 8 of 100
    unframed, and Qwen3.8-27B 0 against 0.

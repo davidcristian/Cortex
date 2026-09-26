@@ -9,6 +9,8 @@ from cortex_core.inference import GenerationBounds, JsonSchema
 __all__ = [
     "TRACE_BUDGET_KEY",
     "build_payload",
+    "join_leading_system",
+    "leading_system_count",
     "message_content",
     "to_openai_message",
     "to_openai_tools",
@@ -17,6 +19,13 @@ __all__ = [
 # What llama.cpp calls a per-request trace budget on the wire. ``trace_probe.py`` asks a server
 # whether it parses this key, so the probe and the request must name the same thing.
 TRACE_BUDGET_KEY = "reasoning_budget_tokens"
+
+# The bytes llama.cpp's Jinja ``trim`` removes (C ``isspace``), written out because Python's
+# ``str.strip()`` also removes Unicode spaces the engine keeps.
+_TEMPLATE_SPACE = " \t\n\v\f\r"
+
+# What the Qwen3.6 and Qwen3.8 templates put between the system messages they merge themselves.
+_SYSTEM_SEPARATOR = "\n"
 
 
 def message_content(message: Message) -> object:
@@ -52,6 +61,28 @@ def to_openai_message(message: Message) -> dict[str, object]:
             ],
         }
     return {"role": message.role.value, "content": message_content(message)}
+
+
+def leading_system_count(messages: Sequence[Message]) -> int:
+    """How many system messages open ``messages`` before the first message of another role."""
+    count = 0
+    for message in messages:
+        if message.role is not Role.SYSTEM:
+            break
+        count += 1
+    return count
+
+
+def join_leading_system(messages: Sequence[Message]) -> list[Message]:
+    """``messages`` with a leading run of two or more system messages sent as one."""
+    count = leading_system_count(messages)
+    if count <= 1:
+        return list(messages)
+    first = messages[0]
+    parts = (message.text.strip(_TEMPLATE_SPACE) for message in messages[:count])
+    text = _SYSTEM_SEPARATOR.join(part for part in parts if part)
+    joined = Message(role=Role.SYSTEM, text=text, at=first.at, turn_id=first.turn_id)
+    return [joined, *messages[count:]]
 
 
 def to_openai_tools(tools: Sequence[ToolSpec]) -> list[dict[str, object]]:

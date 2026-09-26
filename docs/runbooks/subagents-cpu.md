@@ -38,6 +38,10 @@ narrow work between 42 and 77 of 96 ([reply envelope](../readings/reply-envelope
 Prefer the default. The E2B and the 0.8B are the two to override to last: the E2B loses answers to
 a channel nobody reads, and the 0.8B mostly hands the instruction or the report back. A report
 handed back as a summary is the shipped sentence's doing on every entry, and it arrives `ok=True`.
+A Qwen3.5 file on the default entry also serves a task with tools and a context: its template
+refuses a second system message, so the adapter sends the preamble and the context joined into one
+([ADR-0071](../adr/ADR-0071-leading-system-messages.md)). The brain's log then shows
+`system message probe answered` for that server with `delivers` false.
 
 **No check holds those numbers, and four things move them**: the GGUF, the llama.cpp build serving
 it, `CORTEX_SUBAGENTS_MAX_TOKENS`, since a run cut at the cap counts as a non-delivery whatever its

@@ -43,11 +43,20 @@ class BackendUnderTest:
     calling: Callable[[], InferenceBackend]
     wordless: Callable[[], InferenceBackend]
     unreachable: Callable[[], InferenceBackend]
+    one_system_template: Callable[[], InferenceBackend]
     aclose: Callable[[], Awaitable[None]]
 
 
 def _messages() -> list[Message]:
     return [Message(role=Role.USER, text="what is the answer", at=_AT, turn_id="t-1")]
+
+
+def _system_led_messages() -> list[Message]:
+    head = ("answer plainly", "the user likes tea", "they asked about tea before")
+    return [
+        *(Message(role=Role.SYSTEM, text=text, at=_AT, turn_id="t-1") for text in head),
+        *_messages(),
+    ]
 
 
 async def events_of(
@@ -179,6 +188,15 @@ async def check_a_backend_answers_only_for_a_model_it_serves(subject: BackendUnd
     raise AssertionError(msg)
 
 
+async def check_a_request_opening_with_several_system_messages_is_answered(
+    subject: BackendUnderTest,
+) -> None:
+    """A request led by several system messages is answered, whatever the template takes."""
+    backend = subject.one_system_template()
+    events = [event async for event in backend.stream(CONTRACT_MODEL, _system_led_messages())]
+    assert _text(events) == CONTRACT_REPLY, f"the system-led request was not answered: {events!r}"
+
+
 type StreamCheck = Callable[[BackendUnderTest], Awaitable[None]]
 
 STREAM_CHECKS: tuple[StreamCheck, ...] = (
@@ -193,4 +211,5 @@ STREAM_CHECKS: tuple[StreamCheck, ...] = (
     check_an_abandoned_completion_costs_the_backend_nothing,
     check_a_backend_that_cannot_answer_fails_with_inference_error,
     check_a_backend_answers_only_for_a_model_it_serves,
+    check_a_request_opening_with_several_system_messages_is_answered,
 )

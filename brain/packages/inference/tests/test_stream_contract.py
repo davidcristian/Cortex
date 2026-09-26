@@ -15,6 +15,7 @@ from stream_contract import (
     StreamCheck,
     events_of,
 )
+from template_servers import TemplateServer
 
 from cortex_core import (
     DecodeCadence,
@@ -138,6 +139,7 @@ def scripted() -> BackendUnderTest:
         calling=calling,
         wordless=partial(build, []),
         unreachable=unreachable,
+        one_system_template=deliberating,
         aclose=aclose,
     )
 
@@ -172,6 +174,9 @@ def adapter() -> BackendUnderTest:
         calling=partial(build, _calling_body()),
         wordless=partial(build, _sse("[DONE]")),
         unreachable=unreachable,
+        one_system_template=lambda: over(
+            TemplateServer(takes_several=False, reply=_deliberating_body())
+        ),
         aclose=aclose,
     )
 

@@ -8,11 +8,12 @@ makes (ADR-0009), why the completion ended when the server says (ADR-0048), and 
 decode rate when the server reports one (ADR-0055 decision 4). No orchestration and no session state
 (the one hard rule); the core talks only to `InferenceBackend`.
 
-**Four modules, split by the direction a value travels.** `request.py` maps core values onto the
+**Five modules, split by the direction a value travels.** `request.py` maps core values onto the
 wire, `decode.py` maps the wire back, `backend.py` keeps what neither can own (the lease, the HTTP
-call, and the order events leave in), and `trace_probe.py` asks a server one question before any
-request is built. The three mapping modules are package-internal but have no leading underscore,
-since that prefix marks a module as private to its definer.
+call, and the order events leave in), `trace_probe.py` asks a server one question before any
+request is built, and `system_probe.py` asks the leased server one before a request that opens with
+several system messages. The package-internal modules have no leading underscore, since that prefix
+marks a module as private to its definer.
 
 ## Public contract
 
@@ -24,30 +25,32 @@ this:
 
 1. `async with model_manager.acquire(model) as lease` queues for the GPU and gets the resident
    model's endpoint, or the manager raises for a model that is not resident.
-2. POSTs `{model, messages, stream: true}` to `{lease.endpoint}/v1/chat/completions`, plus `tools`
+2. When the messages open with two or more system messages, asks the leased server whether its
+   template renders all of them, and joins them into one where it does not (the section below).
+3. POSTs `{model, messages, stream: true}` to `{lease.endpoint}/v1/chat/completions`, plus `tools`
    when any are offered, plus a `response_format` of
    `{type: json_schema, json_schema: {name: reply, schema, strict: true}}` when `schema` is set, so
    the server constrains decoding to that shape (ADR-0028). Each `Message` maps to an OpenAI
    message: `USER`, `SYSTEM` and `ASSISTANT` to `{role, content}`, an assistant with `tool_calls` to
    the OpenAI `tool_calls` array, and a `TOOL` result to `{role: "tool", tool_call_id, content}`.
-3. Parses the SSE `data:` lines: each `choices[0].delta.content` becomes a `TextChunk`, streamed
+4. Parses the SSE `data:` lines: each `choices[0].delta.content` becomes a `TextChunk`, streamed
    `delta.tool_calls` fragments are reassembled by index and yielded as `ToolCall`s once the stream
    ends, and `data: [DONE]` stops it. Chunks with no text (the role-only opening chunk, an empty
    delta, an empty `choices`) are skipped.
-4. Yields one `DecodeStop(reason)` when a chunk's first choice has a `finish_reason` (ADR-0048),
+5. Yields one `DecodeStop(reason)` when a chunk's first choice has a `finish_reason` (ADR-0048),
    translating llama.cpp's word into the core's closed set: `stop` to `FINISHED`, `length` to
    `CAPPED`, `tool_calls` to `CALLED`, and anything else, a non-string included, to `UNKNOWN`. All
    three words were read off the shipped CPU tier on build `b9879-72874f559`. A `null`, which every
    chunk but the last has, and a chunk with no `choices` yield nothing, so a stream reports one stop
    and not one per chunk.
-5. Yields one `DecodeCadence(tokens_per_second, tokens)` when a chunk has llama.cpp's own `timings`
+6. Yields one `DecodeCadence(tokens_per_second, tokens)` when a chunk has llama.cpp's own `timings`
    object, read from `predicted_per_second` and `predicted_n` (ADR-0055 decision 4). Exactly one
    chunk of a stream has it, the last, and it arrives unasked: read on 2026-08-08 off the build that
    named itself `b10298-15586e2d7` in its own `system_fingerprint`, and again on 2026-09-08 off
    `b10680-d7bd3bfca`. Timings are read **before** the chunk's `choices` are, so a build closing on
    `{"choices": []}` is still read. The event is emitted after the text it describes, a rate being
    unknowable before the tokens are counted.
-6. Logs `model now served by engine build` at `INFO` with `model`, `endpoint` and `build` the first
+7. Logs `model now served by engine build` at `INFO` with `model`, `endpoint` and `build` the first
    time a model's chunk names a build in `system_fingerprint`, and again whenever it names another
    (ADR-0005 decision 9). Every chunk of a `b10680-d7bd3bfca` stream has it. No event crosses the
    port, since no core decision reads a build.
@@ -69,14 +72,36 @@ is the adapter's own: text, then the stop, then the cadence, then any tool calls
 assembled only once the stream is over. `ChunkRead` is the record `decode.py` hands back per chunk,
 and the five independent facts on it are why it is a record rather than a tuple.
 
-**Timeouts are the injected client's.** The adapter sets none itself, because a generation may
-legitimately stream for a long time; the composition root gives the client a short connect timeout
-and a generous **per-read stall ceiling** (ADR-0005 decision 7). That ceiling bounds the gap between
+**Timeouts are the injected client's.** The adapter sets none on a generation, which may
+legitimately stream for a long time, and sets one only on the system message probe below; the
+composition root gives the client a short connect timeout and a generous **per-read stall
+ceiling** (ADR-0005 decision 7). That ceiling bounds the gap between
 SSE chunks and never the request, so a reply that keeps arriving is never cut off, while one that
 stops arriving fails instead of holding the model lease forever. It is sized per tier by the root
 (`CORTEX_INFERENCE_STALL_TIMEOUT_S` 120 s for the resident and deep models,
 `CORTEX_SUBAGENTS_STALL_TIMEOUT_S` 600 s for the CPU pool), and it has to clear the worst legitimate
 **time to first token**, which is the longest silence a healthy server produces.
+
+## Leading system messages
+
+A turn opens with the security preamble, the recalled memory and the recap, each a system message,
+and a delegated task with tools opens with the preamble and its context. Qwen3.5's template raises
+on a second system message and Qwen3.6's drops a third, while gemma renders each in a turn of its
+own, so the adapter asks the template rather than choosing one layout for every model (ADR-0071).
+
+`delivers_system_messages(endpoint, model, count, client)` in `system_probe.py` POSTs `count`
+system messages, each holding a distinct marker, and a user `.` to `{endpoint}/apply-template`,
+with no tools and a timeout of `SYSTEM_PROBE_TIMEOUT_S` (2.0 s) on that request. It returns `True`
+when the rendered `prompt` holds every marker in order, and `False` when one is missing or out of
+order or the server answers 500, which it does when a template raises. Any other answer raises
+`SystemProbeError`. `stream` asks inside the lease whenever `leading_system_count(messages)` is two
+or more, and sends `join_leading_system(messages)` on `False` or on a failure: each text stripped of
+`" \t\n\v\f\r"`, the empty ones left out, the rest joined with `\n` into one message with the first
+one's stamp. A lone system message, and one after any other role, are never touched. Nothing is
+cached, since the model file behind an endpoint can change under a running brain. The backend logs
+`system message probe answered` at `INFO` (`endpoint`, `system_messages`, `delivers`) and
+`system message probe failed; joining the leading system messages` at `WARNING` (`endpoint`,
+`system_messages`, `error`), each only when an endpoint's outcome for a count changes.
 
 ## The trace budget, and why it is a constructor argument
 
@@ -152,7 +177,7 @@ bound quotes the whole of it, and `test_a_projector_less_server_says_so_when_an_
 ## Invariants
 
 - Stateless per call: nothing about a turn outlives `stream`, and no KV cache or context is held
-  here (the one hard rule). Its only other state is two log records about servers, not turns.
+  here (the one hard rule). Its only other state is three log records about servers, not turns.
 - **The lease is released on cancellation.** The GPU lease is a non-reentrant lock held across the
   whole streaming block, so a `CancelledError` raised mid-inference (a user Stop, a client `Cancel`,
   or an RPC teardown) propagates out through that `async with` and frees the lock before the next
@@ -171,19 +196,20 @@ for the completion those two close, each run twice by its `test_*_contract.py`. 
 adapter a real llama-server body, so a pass means the parser found the fact in bytes not written for
 the test.
 
-**The streaming contract states what every stream owes, and never when it owes it.** Eleven checks
-over four worlds a fixture arranges (a reasoning model answering, a completion that asks for a tool,
-a completion with nothing to say, a backend that cannot answer): the reply is its deltas joined in
-arrival order; the thinking crosses as its own kind and is over before the reply starts; a
-deliberation that arrived despite a request asking for none crosses all the same, so an
-implementation reports what its deployment did rather than suppressing it to match the request; a
-trace that arrived despite a request budgeting it to zero tokens crosses the same way, which is a
-separate obligation because a count reads as a limit where a switch reads as a request (ADR-0049); a
-tool call crosses whole; a tool call never precedes the words beside it; the two closing events
-arrive at most once each with the stop first and both after what they describe; a completion with
-nothing to say owes no event at all; an abandoned completion costs the backend nothing; a backend
-that cannot answer fails its caller with `InferenceError`; and a backend answers only for a model it
-serves. Nothing in it counts events, sizes one, or asks when one arrives, because the two
+**The streaming contract states what every stream owes, and never when it owes it.** Twelve checks
+over five worlds a fixture arranges (a reasoning model answering, a completion that asks for a tool,
+a completion with nothing to say, a backend that cannot answer, an engine whose template refuses a
+second system message): the reply is its deltas joined in arrival order; the thinking crosses as its
+own kind and is over before the reply starts; a deliberation that arrived despite a request asking
+for none crosses all the same, so an implementation reports what its deployment did rather than
+suppressing it to match the request; a trace that arrived despite a request budgeting it to zero
+tokens crosses the same way, which is a separate obligation because a count reads as a limit where a
+switch reads as a request (ADR-0049); a tool call crosses whole; a tool call never precedes the
+words beside it; the two closing events arrive at most once each with the stop first and both after
+what they describe; a completion with nothing to say owes no event at all; an abandoned completion
+costs the backend nothing; a backend that cannot answer fails its caller with `InferenceError`; a
+backend answers only for a model it serves; and a request that opens with several system messages is
+answered. Nothing in it counts events, sizes one, or asks when one arrives, because the two
 implementations produce them at different rates from different sources.
 
 **Where this adapter legitimately differs from the core's twin**, and so what the shared list does
@@ -204,46 +230,8 @@ not say:
 
 ## Live tests
 
-All are `integration`-marked, excluded from CI and coverage, and run per
-[docs/runbooks/llamacpp-gpu.md](../runbooks/llamacpp-gpu.md).
-
-- `tests/test_backend_live.py` streams against a real `llama-server`.
-- `tests/test_finish_reason_live.py` caps a real request at eight tokens and follows the answer
-  through the shipped `PlacedAttempt`. `tests/test_cut_tool_call_live.py` caps a request while the
-  model is writing a tool call's `arguments`, asserts the server reports the cap before the assembly
-  fails, and follows the same `PlacedAttempt` to a `TRUNCATED` outcome (ADR-0048). It needs a server
-  started the way a subagent tier is, with deliberation off at the server, since the attempt sends
-  no `thinking` of its own.
-- **`tests/test_thinking_switch_live.py` measures whether a deployment honours `thinking=False` at
-  all** (ADR-0049). It sends one prompt in four shapes against one endpoint, plain and with
-  `REPLY_ENVELOPE`, each with the switch and without it, and reports per request shape rather than
-  per tier because that is how the answer came out: over every chat entry of the lineup, all of them
-  honour it plain and the two gemma-4-E entries deliberate straight through it under a
-  `response_format`, the shipped E4B pick on 14 of 15 draws across three builds and the E2B on 10 of
-  10 (the lineup table is in [thinking switch](../readings/thinking-switch.md)). It requires a
-  server started with **neither** `--chat-template-kwargs` nor `--reasoning-budget`, since either
-  flag is the deployment answering for the model, and it **asserts its control**: the requests that
-  send no switch must deliberate, or the prompt invited no thought and the run is discarded. Each
-  case is drawn `CORTEX_THINKING_REPEATS` times, 1 by default and 5 or more for anything quoted as a
-  tier's behaviour. Before the cases it reads the **rendered prompt** for all four shapes off the
-  server's own `POST /apply-template` and asserts that the two shapes with one switch render the
-  same prompt, which establishes that a difference between their results comes from the schema
-  rather than from the prompt. That rendering is also the **predictor**, read on the prompt's tail
-  (ADR-0050 decision 2). Both renderings go into one JSON sample per tier (`CORTEX_THINKING_OUT`,
-  `CORTEX_THINKING_TAG`) beside the build, the model file and the context size `GET /props` reports,
-  and `just switch-tail` fails instead of publishing a run whose prediction and measurement
-  disagree; the probe itself asserts nothing.
-- **`tests/test_trace_budget_live.py` measures the same question for the budget** (ADR-0049). It
-  asks the endpoint whether the engine parses a per-request trace budget, then draws the one case
-  the switch loses, a constrained reply into the fixed envelope, with the budget and without it. It
-  requires a server started with neither reasoning flag and **asserts the same control**, and
-  `CORTEX_TRACE_REPEATS` sets the draws, 1 by default. Measured on the shipped subagent pick at
-  `-ngl 0` on `b10666-4e97ac86e`: the switch alone deliberated on **17 of 20** and returned an empty
-  capped reply every time, while `trace_tokens=0` held on **20 of 20**. The leak the earlier build
-  showed did reproduce once, inside the payload rather than in front of it (`{"reply": "thought"}`,
-  1 of 58 budgeted draws, and 0 of 20 against a tier with the same sampler as a flag), so the file
-  prints a leak count rather than asserting on one. Re-drawn at a hundred draws a case on both
-  builds, the leak did not reappear and the budgeted case held the trace at 0 on 200 of 200.
+The `integration`-marked tests, and what each one measures, are in
+[brain-inference-live](brain-inference-live.md).
 
 **Dependencies.** cortex-core (the `InferenceBackend` and `ModelManager` ports and the typed errors)
 and httpx. The composition root (`cortex_orchestrator.wiring`) injects a concrete `ModelManager` and

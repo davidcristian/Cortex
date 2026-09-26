@@ -96,6 +96,7 @@ format is in [adr/README.md](adr/README.md). A new non-obvious decision becomes
 | [ADR-0068: One shared contract list per port](adr/ADR-0068-port-contract-lists.md) | The port inventory for both languages, every port with its shared check list and the implementations CI drives it against. |
 | [ADR-0069: The turn stream's heartbeat](adr/ADR-0069-turn-heartbeat.md) | The brain sends a heartbeat, with what the turn waits on, while a turn runs; the body shows the wait and ends a stream silent for four periods, counting heartbeats toward the turn's own gaps. |
 | [ADR-0070: Images the user attaches to a turn](adr/ADR-0070-user-attached-images.md) | Pixels live on the turn's working copy of the user's message and history keeps a note; an attachment taints the turn opaque, has four checks, and a refused one ends the stream as `attachment_refused`. |
+| [ADR-0071: Leading system messages a template cannot take](adr/ADR-0071-leading-system-messages.md) | The core keeps the preamble, memory and recap as separate system messages; the llama.cpp adapter asks the leased server's template on each request and joins them into one only where it cannot render every one. |
 
 ## Contracts
 
@@ -113,6 +114,7 @@ public contract, its invariants and what it depends on. Every module has one:
 | [`brain-core-residency.md`](modules/brain-core-residency.md) | Which model is on the GPU: the residency values and ports, the handoff record, and the swap sequence |
 | [`brain-session.md`](modules/brain-session.md) | `cortex_session`, the Redis adapters for the session, task, schedule, handoff and preference stores |
 | [`brain-inference.md`](modules/brain-inference.md) | `cortex_inference`, the llama.cpp adapter for `InferenceBackend` |
+| [`brain-inference-live.md`](modules/brain-inference-live.md) | The adapter's live tests: what each one sends to a real `llama-server` and measures |
 | [`brain-embedding.md`](modules/brain-embedding.md) | `cortex_embedding`, the llama.cpp CPU adapter for `Embedder` |
 | [`brain-memory.md`](modules/brain-memory.md) | `cortex_memory`, the pgvector adapter for `MemoryStore` and the logging recall audit sink |
 | [`brain-tools.md`](modules/brain-tools.md) | `cortex_tools`, the MCP-client adapter for `ToolRegistry` and the adapters of its audit sink |
