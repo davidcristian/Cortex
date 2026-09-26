@@ -1,4 +1,4 @@
-"""llama-server stand-ins whose chat template takes one leading system message or every one."""
+"""llama-server stand-ins whose chat template takes one leading system message, some or all."""
 
 import json
 from dataclasses import dataclass, field
@@ -46,6 +46,7 @@ class TemplateServer:
 
     takes_several: bool
     reply: bytes
+    renders_at_most: int | None = None
     probes: list[dict[str, object]] = field(default_factory=list[dict[str, object]])
     chats: list[dict[str, object]] = field(default_factory=list[dict[str, object]])
 
@@ -57,7 +58,8 @@ class TemplateServer:
             self.probes.append(body)
             if refuses:
                 return httpx.Response(500, json=TEMPLATE_REFUSAL)
-            return httpx.Response(200, json={"prompt": turn_per_system(systems)})
+            shown = systems[: self.renders_at_most]
+            return httpx.Response(200, json={"prompt": turn_per_system(shown)})
         self.chats.append(body)
         if refuses:
             return httpx.Response(500, json=TEMPLATE_REFUSAL)

@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 
 import httpx
 import pytest
-from template_servers import APPLY_TEMPLATE, TemplateServer
+from template_servers import APPLY_TEMPLATE, TemplateServer, leading_systems
 
 from cortex_core import (
     Message,
@@ -74,6 +74,20 @@ async def test_a_template_that_refuses_a_second_system_message_gets_them_joined(
         {"role": "system", "content": "a\nb\nc"},
         {"role": "user", "content": "hi"},
     ]
+
+
+async def test_the_probe_asks_about_as_many_system_messages_as_the_request_opens_with() -> None:
+    server = TemplateServer(takes_several=True, reply=_REPLY, renders_at_most=2)
+    backend = _backend(server)
+    two = [_system("a"), _system("b"), _user()]
+    assert await _reply(backend, _three()) == "ok"
+    assert await _reply(backend, two) == "ok"
+    assert [len(leading_systems(probe)) for probe in server.probes] == [3, 2]
+    assert server.chats[0]["messages"] == [
+        {"role": "system", "content": "a\nb\nc"},
+        {"role": "user", "content": "hi"},
+    ]
+    assert server.chats[1] == _wire(two)
 
 
 async def test_one_system_message_is_sent_without_asking_the_template() -> None:
