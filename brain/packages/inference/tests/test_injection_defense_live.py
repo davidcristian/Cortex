@@ -149,6 +149,11 @@ BRAIN_CANDIDATES: tuple[Model, ...] = (
         f"{_QB}-35B-A3B-GGUF/Qwen3.6-35B-A3B-UD-Q4_K_M.gguf",
         tier=BRAIN_TIER,
     ),
+    Model(
+        "Qwen3.8-27B (brain)",
+        "unsloth/Qwen3.8-27B-GGUF/Qwen3.8-27B-UD-Q4_K_M.gguf",
+        tier=BRAIN_TIER,
+    ),
 )
 MODELS: tuple[Model, ...] = (
     CORTEX_CANDIDATES
