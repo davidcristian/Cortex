@@ -105,3 +105,18 @@ in the shipped layout (a system turn each) and joined, five pairs each, reading
 
 The 2960 reused tokens are the header turn, the preamble and the tool declarations, which the
 shipped layout keeps ahead of the memory. SM clock 1815 to 1890 MHz against 3090 MHz.
+
+The shipped layout's reuse holds only on a short turn. The 12B's sliding-window layers keep the
+last `n_swa` positions plus one micro-batch (`--ubatch-size`), and the engine continues from a shared
+prefix only while those cells still cover it, or from a checkpoint, which it takes at user-turn
+starts and just before a prompt's end, never ahead of the memory (`tools/server/server-context.cpp`
+and `src/llama-kv-cache-iswa.cpp` at `b10680-d7bd3bfca`). So a slot keeps the tool block past a
+changed memory only when its last prompt ran less than about one micro-batch beyond it, as in the
+no-history row, where 244 to 248 tokens follow the shared prefix.
+
+The 16-turn row does not measure the layout. In rep 0 its first turn reused 2960 tokens straight
+after a joined request, whose prompt has no tool block ahead of the memory, so they came from a
+state the server kept in host memory (`--cache-ram`); and which turn of a pair reused anything
+changed between rep 0 and reps 1 to 4. It depends on what ran before it. A default turn with a
+recap follows the memory with about 48,000 characters of kept history, and neither layout was drawn
+at that size.

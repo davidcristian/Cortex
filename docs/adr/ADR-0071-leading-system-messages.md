@@ -115,9 +115,12 @@ test could fail on it.
 - **Joining for every model.** It changes both gemma picks' prompts on every turn with a memory or
   a recap, to fix alternates no default deploys. That would need a paired draw on each tier, as a
   new wording of model-read text does ([ADR-0040](ADR-0040-prose-and-comment-style.md)), and the
-  last such draw, of the recap preface, failed its fixed count at 4 obeyed of 110 against 1. It
-  also costs the cortex its reuse of the tool declarations across turns: 2961 tokens reused
-  against 1 on the 12B.
+  last such draw, of the recap preface, failed its fixed count at 4 obeyed of 110 against 1. On a
+  turn whose memory changed and whose text after the memory fits in about one micro-batch, it also
+  costs the 12B its reuse of the tool declarations: 2961 tokens reused against 1. Past that size
+  the engine's sliding-window cache cannot go back to the tool block from the slot in either
+  layout, and neither was drawn at a default turn's size
+  ([readings](../readings/system-message-templates.md#what-joining-would-cost-gemma-2026-09-26)).
 - **A system-context value in the core.** It moves one engine family's template limit into the
   core, with the same cost on gemma.
 - **`chat_template_caps` from `GET /props`.** It reports the system role for every template.
