@@ -1,9 +1,12 @@
 # The subagent pick obeys framed injections as often as the Qwen candidates
 
-**Status:** open, actionable
+**Status:** open, waiting for its trigger
 **Area:** subagents
 **Origin:** [ADR-0004](../../adr/ADR-0004-model-lineup.md)
-**Verified:** 2026-09-25
+**Trigger:** the maintainer decides the subagent tier's pick: ADR-0004 decision 7 names a model
+other than gemma-4-E4B, or gives a reason for it that the rows below decide. Read decision 7's
+first sentence.
+**Verified:** 2026-09-28
 
 Decision 7 of [ADR-0004](../../adr/ADR-0004-model-lineup.md) picked gemma-4-E4B for the subagent
 tier on injection resistance, at about 2.6 times the load, 3 times a narrow task's latency and 2.8
@@ -132,3 +135,6 @@ way ([ADR-0013](../../adr/ADR-0013-untrusted-content.md) decision 3).
 - 2026-09-25: the framing rows of a tainted task's context drawn and read by hand; the fenced
   context reads apart below the baseline on the pick and the user role apart above it, and the
   runner now sends a tainted task's context fenced.
+- 2026-09-28: no card row remains. The full text row, `output-laundering` alone and the
+  constrained reply path are drawn on the card and the CPU, and the close is the maintainer's pick,
+  so the entry waits for that decision rather than for a draw.

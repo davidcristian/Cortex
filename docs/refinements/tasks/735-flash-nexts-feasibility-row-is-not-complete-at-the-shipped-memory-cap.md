@@ -3,7 +3,7 @@
 **Status:** open, actionable
 **Area:** inference
 **Origin:** [ADR-0004](../../adr/ADR-0004-model-lineup.md)
-**Verified:** 2026-09-26
+**Verified:** 2026-09-28
 
 Qwen3.8-Flash-Next was drawn against three floors: ready within `CORTEX_SWAP_LOAD_TIMEOUT_S`
 (300 s), the first chunk of the 3400-word prompt within `CORTEX_INFERENCE_STALL_TIMEOUT_S` (120 s),
@@ -47,3 +47,6 @@ result; neither can be drawn here without the maintainer's decision.
   [deep candidates](../../readings/deep-candidates.md); the gaps it left elsewhere are
   [736](736-the-deep-phase-sends-a-history-window-sized-for-the-cortexs-context.md) to
   [742](742-the-mixture-of-experts-rejection-rests-on-unrecorded-questions.md).
+- 2026-09-28: not queued in the unattended run of 2026-09-28. Its first row needs the watchdog on
+  memory pressure written first, and at the 24g cap the container fills its cgroup with file pages
+  on a machine of 31 GB, where CPU slots ran `just check` beside the card all night.

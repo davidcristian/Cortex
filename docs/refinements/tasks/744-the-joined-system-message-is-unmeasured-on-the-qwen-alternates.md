@@ -3,7 +3,7 @@
 **Status:** open, actionable
 **Area:** untrusted-content
 **Origin:** [ADR-0071](../../adr/ADR-0071-leading-system-messages.md)
-**Verified:** 2026-09-26
+**Verified:** 2026-09-28
 
 Where the leased server's template cannot take several leading system messages, the adapter sends
 the security preamble, the recalled memory and the recap as one system message
@@ -32,3 +32,7 @@ before the draw.
 ## History
 
 - 2026-09-26: filed by the join of leading system messages.
+- 2026-09-28: premise checked: `test_injection_defense_live.py` still sends one system message, and
+  the recap preface rows in `test_model_read_wording_live.py` still draw only the gemma picks
+  (`TIERS`), so no harness sends the adapter's joined request with these attack rows. Not queued in
+  the unattended run of 2026-09-28; the rows wait for that driver, which needs no card to write.
