@@ -52,6 +52,9 @@ class HandoffRecord:
         if self.requested_at.tzinfo is None or self.requested_at.utcoffset() is None:
             msg = "HandoffRecord.requested_at must be timezone-aware"
             raise ValueError(msg)
+        if any(message.role is Role.SYSTEM for message in self.loop_tail):
+            msg = "a handoff loop tail never holds a system message: each phase builds its own"
+            raise ValueError(msg)
 
     def taint_ledger(self) -> TaintLedger:
         """Reconstruct the turn's ``TaintLedger`` for the brain phase."""

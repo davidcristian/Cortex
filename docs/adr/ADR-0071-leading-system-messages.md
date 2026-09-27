@@ -107,8 +107,9 @@ test could fail on it.
   two messages and Qwen3.8 at two and three already render this layout on their own. No reading
   covers it
   ([R-744](../refinements/tasks/744-the-joined-system-message-is-unmeasured-on-the-qwen-alternates.md)).
-- A stored system message next to the prefix would be joined into the preamble's message. No
-  writer stores one, and the codecs still decode one
+- A stored system message next to the prefix would be joined into the preamble's message, so the
+  session store refuses to append one, a handoff record refuses one in its loop tail, and both read
+  a stored one as a corrupt record
   ([R-743](../refinements/tasks/743-the-session-and-handoff-codecs-decode-a-system-role-no-writer-stores.md)).
 
 ## Alternatives rejected

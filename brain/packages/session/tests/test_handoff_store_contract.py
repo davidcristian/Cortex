@@ -98,6 +98,18 @@ async def test_record_with_an_unknown_source_kind_is_corrupt() -> None:
         await RedisHandoffStore(client).get("t1")
 
 
+async def test_record_with_a_system_message_in_its_loop_tail_is_corrupt() -> None:
+    client = FakeAsyncRedis(server=FakeServer())
+    fields = cast("dict[str, Any]", json.loads(encode_record(handoff_contract.make_record("t1"))))
+    fields["loop_tail"][0]["role"] = "system"
+    await client.set("cortex:handoff:t1", json.dumps(fields))
+    with pytest.raises(
+        HandoffStoreError, match="corrupt handoff record at 'cortex:handoff:t1'"
+    ) as excinfo:
+        await RedisHandoffStore(client).get("t1")
+    assert "never holds a system message" in str(excinfo.value.__cause__)
+
+
 async def test_terminal_records_expire_and_live_ones_do_not() -> None:
     client = FakeAsyncRedis(server=FakeServer())
     store = RedisHandoffStore(client)

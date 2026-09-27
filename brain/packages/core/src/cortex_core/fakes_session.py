@@ -2,7 +2,7 @@
 
 from collections.abc import Sequence
 
-from cortex_core.conversation import Message
+from cortex_core.conversation import Message, Role
 from cortex_core.errors import SessionStoreError
 from cortex_core.sessions import (
     HistoryRecap,
@@ -25,6 +25,9 @@ class InMemorySessionStore:
         """Persist one message at the end of the session's history."""
         if message.images:
             msg = "a session store never persists images: pixels are turn-local"
+            raise SessionStoreError(msg)
+        if message.role is Role.SYSTEM:
+            msg = "a session store never persists a system message: each turn builds its own"
             raise SessionStoreError(msg)
         self._sessions.setdefault(session_id, []).append(message)
 

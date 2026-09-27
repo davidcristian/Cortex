@@ -160,6 +160,17 @@ def test_a_snapshot_refuses_a_loop_tail_with_pixels() -> None:
         slot.snapshot(turn_id="t-1", session_id="s-1", requested_at=_AT)
 
 
+def test_a_loop_tail_with_a_system_message_is_refused() -> None:
+    preamble = Message(role=Role.SYSTEM, text="the preamble", at=_AT, turn_id="t-1")
+    opened = _slot([preamble, *_tail("t-1")], budget=DispatchBudget(8), base_len=1)
+    assert opened.snapshot(turn_id="t-1", session_id="s-1", requested_at=_AT).loop_tail == tuple(
+        _tail("t-1")
+    )
+    injected = _slot([*_tail("t-1"), preamble], budget=DispatchBudget(8), base_len=0)
+    with pytest.raises(ValueError, match="never holds a system message"):
+        injected.snapshot(turn_id="t-1", session_id="s-1", requested_at=_AT)
+
+
 def test_a_snapshot_copies_the_opaque_bit_off_the_live_ledger() -> None:
     ledger = _ledger()
     ledger.observe(

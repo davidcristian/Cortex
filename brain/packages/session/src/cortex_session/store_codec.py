@@ -46,6 +46,13 @@ def refuse_images(message: Message) -> None:
         raise SessionStoreError(msg)
 
 
+def refuse_system(message: Message) -> None:
+    """Raise when ``message`` is a system message, which a session never stores."""
+    if message.role is Role.SYSTEM:
+        msg = "a session store never persists a system message: each turn builds its own"
+        raise SessionStoreError(msg)
+
+
 def decode_message(raw: bytes | str, index: int) -> Message:
     """Decode the record at ``index``; every failure names that record precisely."""
     try:
@@ -58,8 +65,12 @@ def decode_message(raw: bytes | str, index: int) -> Message:
                 f" (this reader supports kind {RECORD_KIND!r} v {RECORD_VERSION})"
             )
             raise SessionStoreError(msg)
+        role = Role(fields["role"])
+        if role is Role.SYSTEM:
+            msg = f"corrupt session record at index {index}: a session never stores role 'system'"
+            raise SessionStoreError(msg)
         return Message(
-            role=Role(fields["role"]),
+            role=role,
             text=fields["text"],
             at=datetime.fromisoformat(fields["at"]),
             turn_id=fields["turn_id"],

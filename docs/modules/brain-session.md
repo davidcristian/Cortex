@@ -20,9 +20,9 @@ an injected `redis.asyncio.Redis` client or from `from_url(url)`, which builds a
 - `append(session_id, message)` RPUSHes one JSON document onto the session's list. It **raises
   `SessionStoreError` for a message with images** (ADR-0029): pixels belong to one turn, the record
   format has no field for them, and storing the message would drop the picture without saying so.
-  `InMemorySessionStore` raises the same error, checked over both.
+  It refuses a system message the same way (ADR-0071), and `InMemorySessionStore` raises both.
 - `history(session_id)` is `LRANGE 0 -1`, decoded in append order. An unknown session has an empty
-  history rather than an error.
+  history rather than an error. A stored system message is corrupt, since each turn builds its own.
 - `list_sessions(*, limit)` builds the chat list (ADR-0021) in two round trips. The first reads both
   indexes in one transaction: `ZREVRANGE` over the recency index for at most `limit` session ids,
   newest active first, and `SMEMBERS` over `cortex:sessions:hoisted`. The listed set is their union,

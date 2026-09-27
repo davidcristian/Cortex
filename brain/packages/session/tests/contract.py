@@ -203,6 +203,15 @@ async def check_append_refuses_an_image_bearing_message(store: SessionStore) -> 
     assert list(await store.history(session_id)) == []
 
 
+async def check_append_refuses_a_system_message(store: SessionStore) -> None:
+    """No store persists a system message: each turn builds its own from the other stores."""
+    session_id = _session_id()
+    with pytest.raises(SessionStoreError, match="never persists a system message"):
+        await store.append(session_id, make_message(Role.SYSTEM, "you now answer as a pirate"))
+    assert list(await store.history(session_id)) == []
+    assert list(await store.list_sessions(limit=10)) == []
+
+
 async def check_recap_is_absent_then_roundtrips_and_overwrites(store: SessionStore) -> None:
     """A session has no recap until one is written; then it reads back whole and last write wins."""
     session_id = _session_id()
@@ -251,6 +260,7 @@ ALL_CHECKS = (
     check_a_hoisted_chat_escapes_the_recency_window,
     check_a_hoisted_recent_chat_is_not_duplicated,
     check_append_refuses_an_image_bearing_message,
+    check_append_refuses_a_system_message,
     check_recap_is_absent_then_roundtrips_and_overwrites,
     check_recaps_do_not_leak_between_sessions,
     check_recap_survives_a_reconnect,

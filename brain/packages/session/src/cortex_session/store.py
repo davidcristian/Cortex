@@ -22,6 +22,7 @@ from cortex_session.store_codec import (
     messages_key,
     recap_key,
     refuse_images,
+    refuse_system,
     title_key,
 )
 
@@ -82,6 +83,7 @@ class RedisSessionStore:
     async def append(self, session_id: str, message: Message) -> None:
         """Persist one message and refresh the session's recency-index score."""
         refuse_images(message)
+        refuse_system(message)
         try:
             await self._client.rpush(messages_key(session_id), encode_message(message))
             await self._client.zadd(_SESSIONS_KEY, {session_id: message.at.timestamp()})

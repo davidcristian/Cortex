@@ -101,7 +101,9 @@ per the one hard rule, and `taint_ledger()` rebuilds an exact detached ledger fo
 `opaque` is there as defence in depth: the conductor refuses an opaque turn before it snapshots, so
 every record written today says `False` truthfully, but both readers of the field open up on a
 `False`, so the schema must never manufacture one. `failure` is the one field that is not turn
-state: what a `FAILED` record says about itself, written by the settling transition.
+state: what a `FAILED` record says about itself, written by the settling transition. Building a
+record whose `loop_tail` holds a system message raises `ValueError`, because each phase builds its
+own, and the Redis store reads a stored one as a corrupt record.
 
 `EscalationSlot(refs=None, brief=None)` is the mutable turn-local handle through which in-flight
 state reaches the record. It is built empty by whoever orchestrates the turn and serves exactly one
