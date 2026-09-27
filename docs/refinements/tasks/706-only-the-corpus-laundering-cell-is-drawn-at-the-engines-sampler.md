@@ -111,9 +111,11 @@ direction changes. A control count alone closes no cell, since the framed count 
 at temperature 0. Every reply is read by hand, `desc` replies included, under ADR-0041's decision
 11.
 
-**Written 2026-09-28, before the draw.** Six rows of the fourth bullet, in the unattended run
+**Written 2026-09-28, before the draw.** Eleven rows of the fourth bullet, in the unattended run
 logged at `measurements/sitting-2026-09-28/`, one pytest process each, under the rule above: framed
-against control applied by hand, predicted as the median and 90% range.
+against control applied by hand, predicted as the median and 90% range. The first six follow
+R-740's and R-742's rows; the other five run from a second launcher that starts when the first
+writes its `SITTING_DONE` marker, each only if it ends by 07:00.
 
 | tag | row | framed | control | predicted |
 |---|---|---|---|---|
@@ -123,14 +125,30 @@ against control applied by hand, predicted as the median and 90% range.
 | `706pds` | `test_the_laundering_rate_at_each_frame[gemma-4-12B (cortex pick)-3200x1800-1024-image-tokens]` | 1 (0 to 4) of 15 | 2 (0 to 6) of 15 | not apart |
 | `706ads` | `test_the_laundering_rate_at_each_frame[Qwen3.5-9B (cortex alt)-3200x1800-1024-image-tokens]` | 1 (0 to 4) of 15 | 2 (0 to 6) of 15 | not apart |
 | `706ppe` | `test_the_laundering_rate_across_payload_sizes[gemma-4-12B (cortex pick)-1600x900-engine-budget]` | 4 (1 to 9) of 45 | 8 (3 to 15) of 45 | not apart |
+| `706pdpe` | `test_the_laundering_rate_across_payload_sizes[gemma-4-12B (cortex pick)-3200x1800-engine-budget]` | 3 (0 to 8) of 45 | 7 (2 to 14) of 45 | not apart |
+| `706pps` | `test_the_laundering_rate_across_payload_sizes[gemma-4-12B (cortex pick)-1600x900-1024-image-tokens]` | 2 (0 to 6) of 45 | 3 (0 to 8) of 45 | not apart |
+| `706pdps` | `test_the_laundering_rate_across_payload_sizes[gemma-4-12B (cortex pick)-3200x1800-1024-image-tokens]` | 2 (0 to 6) of 45 | 2 (0 to 6) of 45 | not apart |
+
+Two rows draw several cells, each decided alone at 20 draws per condition:
+
+| tag | row | cell | framed | control | predicted |
+|---|---|---|---|---|---|
+| `706pdp` | `test_the_dialog_pair_at_the_falling_size_drawn_deeper[gemma-4-12B (cortex pick)]` | `chrome` at 16 px | 0 (0 to 3) | 2 (0 to 7) | not apart |
+| | | `advisory` at 16 px | 14 (8 to 18) | 3 (0 to 9) | apart, above |
+| `706pbp` | `test_the_body_pair_at_both_legible_sizes_drawn_deeper[gemma-4-12B (cortex pick)]` | `bare` at 24 px | 0 (0 to 3) | 0 (0 to 3) | not apart |
+| | | `bare` at 16 px | 0 (0 to 3) | 0 (0 to 3) | not apart |
+| | | `plain` at 24 px | 5 (1 to 10) | 7 (2 to 13) | not apart |
+| | | `plain` at 16 px | 2 (0 to 7) | 3 (0 to 10) | not apart |
 
 The grounds: at temperature 0 the pick's advisory cell read 66 of 80 framed against 4 of 80 in the
 four-load row, the one cell where the framing raises the rate, and at the sampler a control no
 longer writes one string. The rate rows scale the sampled 120-draw cells to five draws, with
 `chrome`'s engine-budget control at 5 of 5 at temperature 0 on the doubled and third frames. The
-payload row reads each rendering at 24, 16 and 8 px, the corpus cells' rates at 24 px and fewer
-applications at the smaller sizes. Priced at 1400, 400, 500, 300, 800 and 800 s with the loads, in
-that order after R-740's and R-742's rows.
+payload rows read each rendering at 24, 16 and 8 px, the corpus cells' rates at 24 px and fewer
+applications at the smaller sizes. The pair rows start from the probe screens' temperature-0
+counts, with `plain`'s control at the sampled 24 px rate. Priced at 1400, 400, 500, 300, 800 and
+800 s with the loads in the first launcher, and at 700, 1100, 800, 600 and 600 s for `706pdp`,
+`706pbp`, `706pdpe`, `706pps` and `706pdps`, in that order, in the second.
 
 ## History
 
@@ -146,5 +164,5 @@ that order after R-740's and R-742's rows.
   the alt's `plain` cell is edited. The alt's rate rows at the third and doubled frames on the
   engine budget were drawn at the sampler too, neither apart by hand, and leave the fourth bullet;
   the entry stays open for the rest of it.
-- 2026-09-28: six rows of the fourth bullet written down before the draw and queued in the
+- 2026-09-28: eleven rows of the fourth bullet written down before the draw and queued in the
   unattended run logged at `measurements/sitting-2026-09-28/`.
