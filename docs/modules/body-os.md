@@ -1,9 +1,10 @@
 # body/crates/os_* (per-platform OS backends)
 
 **Purpose.** The adapter side of the body's OS-capability ports (ADR-0011): each crate implements
-the `body_core::os` traits for one platform. The ports and all pure logic live in `body_core`
-([body-core.md](body-core.md) and [body-core-capture.md](body-core-capture.md)); these crates only
-translate to OS calls. They are also where the **stub coverage exemption** is used.
+the `body_core::os` traits for one platform. The ports and the logic every platform shares live in
+`body_core` ([body-core.md](body-core.md) and [body-core-capture.md](body-core-capture.md)); these
+crates translate to OS calls, and `os_linux` also holds the covered logic of the protocols it
+speaks. They are also where the **stub coverage exemption** is used.
 
 - **`os_windows`** (`cfg(windows)`) is the real backend. `WindowsHotkey` wraps the `global-hotkey`
   crate, which is what keeps `unsafe_code = forbid` outside the four modules named below.
@@ -26,18 +27,22 @@ translate to OS calls. They are also where the **stub coverage exemption** is us
   no persistent device, so it satisfies the blocking pool's `FnOnce + Send + 'static`; and it has
   the smallest `unsafe` surface. The cost is that it renders hardware-overlay and DRM-protected
   surfaces **black, with no error**.
-- **`os_linux`** provides `LinuxHotkey`, `LinuxAudioControl`, `LinuxNotify` and `LinuxScreenCapture`
-  as `unimplemented!()` stubs (this is a Windows-first project). They are compiled and measured on
-  Linux CI, so each stub method has `#[cfg_attr(coverage, coverage(off))]` with a reason.
-  **`os_macos`** provides `MacosHotkey`, `MacosAudioControl`, `MacosNotify` and
-  `MacosScreenCapture`, the same stubs for macOS.
+- **`os_linux`** (`cfg(target_os = "linux")`) has two real backends, `LinuxNotify` and
+  `LinuxAudioControl` (see [The Linux backends](#the-linux-backends)), and two `unimplemented!()`
+  stubs, `LinuxHotkey` and `LinuxScreenCapture`. The crate is compiled and measured on Linux CI,
+  so each stub method has `#[cfg_attr(coverage, coverage(off))]` with a reason.
+- **`os_macos`** provides `MacosHotkey`, `MacosAudioControl`, `MacosNotify` and
+  `MacosScreenCapture`, the same stubs for macOS. It has no `cfg` yet and compiles everywhere.
 
 ## Public contract
 
 Each crate exposes one implementor per port, and the app selects the platform's types by
 `cfg(target_os)`:
 
-- `Hotkey`: `LinuxHotkey`, `MacosHotkey`, `WindowsHotkey`.
+- `Hotkey`: `LinuxHotkey`, `MacosHotkey`, `WindowsHotkey`. `AudioControl`, `Notify` and
+  `ScreenCapture` follow the same naming; the Linux `Notify` and `AudioControl` are generic over
+  their crate-local ports, `LinuxNotify<DbusNotifications>` and
+  `LinuxAudioControl<PactlCommand>` on a real host.
 - `AudioControl` (ADR-0023): `get_volume() -> VolumeState` and
   `set_volume(VolumeChange) -> VolumeState`. The value types `VolumeState { level, muted }` and
   `VolumeChange { level, mute }` live in `body_core`, where `VolumeChange::new` clamps a present
@@ -84,6 +89,34 @@ holds none across calls, so nothing `!Send` is ever moved between threads and a 
 `CoInitializeEx` is all either needs. Neither balances it with `CoUninitialize`, which is deliberate
 and recorded in `docs/refinements/`.
 
+## The Linux backends
+
+Each is a covered core over a port of its own, an adapter tested against a peer the test
+controls, and a session step taken by the caller ([ADR-0011](../adr/ADR-0011-body-v1.md)
+decision 13).
+
+- **`LinuxNotify<B: NotificationBus>`** asks the freedesktop notification server for its
+  capabilities, then sends one `Notify` call attributed to the app name it was built with. The
+  summary is the title as plain text, which is all the specification allows there. The body is the
+  message, escaped with `escape_xml` only when the server lists `body-markup`, and for a tainted
+  reminder the fixed provenance line after a newline; the inert-text rule removes every newline
+  from the message, so that line cannot be forged. `ServiceUnknown` or `NameHasNoOwner` is
+  `NotifyError::Unavailable`, anything else `Backend`. An accepted call returns `Ok(true)`, because
+  the specification gives a server no way to decline.
+- **`DbusNotifications`** makes those two calls on a `zbus::blocking::Connection` it is given. The
+  crate re-exports `zbus`, and the host opens the session bus with
+  `zbus::blocking::Connection::session()`.
+- **`LinuxAudioControl<R: PactlRunner>`** reads and changes `@DEFAULT_SINK@` through `pactl`, so
+  it works against PulseAudio and against PipeWire's `pipewire-pulse`. The level is the mean of the
+  channels' raw volumes over `PA_VOLUME_NORM` (65536), clamped to `[0, 1]` because a server allows
+  a boost past 100%, and a set writes the raw integer. Stderr naming `No such entity` (no sink) or
+  `Connection failure` (no server) is `AudioError::NoEndpoint`; any other failure, including a
+  missing `pactl`, is `Backend`.
+- **`PactlCommand`** starts the program (`PACTL_PROGRAM`, `pactl` on `PATH`) with `LC_ALL=C`, so
+  the output it parses is never translated.
+- `just os-linux-live` runs the two `#[ignore]`d live tests: a notification shown on the session
+  bus, and a volume and mute round trip on the default sink that restores what it found.
+
 ## The coverage exemption
 
 `cargo llvm-cov` sets `cfg(coverage)`. Each stub crate opts into the nightly attribute under it,
@@ -91,22 +124,27 @@ and recorded in `docs/refinements/`.
 stub body `#[cfg_attr(coverage, coverage(off))]`. Under a normal `cargo build`, `clippy` or `test`
 the `coverage` cfg is unset, so the attributes vanish and the crates compile on stable.
 `cfg(coverage)` is declared in the workspace lints (`check-cfg`) so it is not "unexpected". Only
-genuinely unreachable code, a stub whose body is `unimplemented!()`, gets the exemption. Real
-backends are left out of the coverage measurement by being `cfg`'d out on Linux and are validated by
-host runs instead, never by silencing coverage.
+genuinely unreachable code, a stub whose body is `unimplemented!()`, gets the exemption.
+`os_windows` is left out of the measurement by being `cfg`'d out on Linux and is validated by host
+runs instead; `os_linux`'s real backends are measured in full. Neither silences coverage.
 
 ## Invariants
 
 - Thin adapters only: translate `body_core` types to OS calls, with no business logic. The level
-  clamp lives in `body_core`, and so do the toast's inert-text rule, its taint attribution and its
-  XML escaping.
+  clamp lives in `body_core`, and so do the inert-text rule, the taint attribution and the XML
+  escaping. What `os_linux` adds is protocol translation (when to escape, how to parse `pactl`),
+  covered by tests over fakes.
 - Stubs are `unimplemented!()` with a reason, and `coverage(off)` marks only genuinely unreachable
   code.
-- Coverage is measured on **Linux CI**; the Windows and macOS backends are host-validated, which is
-  where the real OS calls in `os_windows` are exercised at all.
+- Coverage is measured on **Linux CI**, including every line of `os_linux`. The Windows backends
+  are host-validated, which is where the real OS calls in `os_windows` are exercised at all.
+- A Linux backend opens no session connection itself: the caller passes the connection or picks
+  the program, so no measured line depends on a desktop session.
 - `unsafe` is `forbid` everywhere except `os_windows`, where it is COM only, under `deny` plus a
   scoped `allow` (ADR-0023).
 
-**Dependencies.** `body-core` (the ports). The real `os_windows` adds `global-hotkey` and the
-`windows` crate (`0.58`, with Core Audio plus the `UI_Notifications` and `Data_Xml_Dom` WinRT
-namespaces), both under `[target.'cfg(windows)'.dependencies]`, so they never build on Linux.
+**Dependencies.** `body-core` (the ports). `os_linux` adds `zbus` 5 (MIT, pure Rust, `async-io` and
+`blocking-api` features, plus `p2p` for its tests) under a `cfg(target_os = "linux")` target table;
+it runs `pactl` as a program and links no audio library. The real `os_windows` adds `global-hotkey`
+and the `windows` crate (`0.58`, with Core Audio plus the `UI_Notifications` and `Data_Xml_Dom`
+WinRT namespaces), both under `[target.'cfg(windows)'.dependencies]`, so they never build on Linux.

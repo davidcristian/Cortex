@@ -118,8 +118,9 @@ MCP.
 
 1. **The OS backends (Rust)**: one crate per OS behind the traits above, selected by
    `cfg(target_os)`. Windows is implemented (Core Audio through the `windows` crate,
-   `global-hotkey`, `xcap`/`scap`, WinRT toasts); macOS and Linux are `unimplemented!()` stubs with
-   coverage turned off and an inline reason until they are needed. One binary per OS.
+   `global-hotkey`, `xcap`/`scap`, WinRT toasts). Linux has real notifications (the freedesktop
+   service over D-Bus) and volume (`pactl`); its hotkey and capture, and all of macOS, are
+   `unimplemented!()` stubs with coverage turned off and an inline reason. One binary per OS.
 2. **`InferenceBackend`**: llama.cpp (ADR-0005). Engine flags and GPU quirks stay inside the adapter
    and its runbook. llama.cpp also runs on Metal and CPU, so a later move to macOS likely reuses
    this adapter rather than needing a new one.
@@ -149,7 +150,8 @@ brain/            Python workspace (uv), dockerized (brain/Dockerfile)
 body/             Rust/Tauri workspace, host-native
   crates/         core (pure logic + the Hotkey, AudioControl, ScreenCapture and Notify
                   traits + BrainTransport), rpc (tonic adapter and committed stubs),
-                  os_windows (the real Windows backends), os_linux (stub), os_macos (stub)
+                  os_windows (the real Windows backends), os_linux (notify and volume),
+                  os_macos (stub)
   app/            React+Vite overlay, tested to 100%, plus its host-native Tauri shell
                   cortex-body, its own workspace, formatted and clippy-checked in CI
 scripts/          this repo's own checks, one module per file, written and tested like the

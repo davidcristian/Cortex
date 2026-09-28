@@ -157,7 +157,7 @@ fn clamp_level(level: f32) -> f32 {
     }
 }
 
-/// The port an audio-control backend implements, real only in `os_windows`, over Core Audio.
+/// The port an audio-control backend implements: Core Audio on Windows, `pactl` on Linux.
 pub trait AudioControl: Send + Sync {
     /// Reads the host's current output volume state.
     ///

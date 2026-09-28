@@ -39,13 +39,17 @@ recorded in an ADR. This ADR is that exclusion, and the checks that grew around 
    stream ending before `TurnComplete`) is `TransportError::Protocol`. The overlay renders the two
    differently and iterates one stream.
 
-3. **`Hotkey` is the first `cfg`-conditional OS backend; Windows is real, macOS and Linux are
-   stubs.** The port and the pure `HotkeyChord` to accelerator conversion live in `body_core`,
-   fully tested. The backends live in per-platform crates `os_windows`, `os_linux` and `os_macos`,
-   each `#[cfg(target_os = ...)]`, and only the matching crate compiles. On Linux CI that is
-   `os_linux`, whose `unimplemented!()` bodies have `#[cfg_attr(coverage, coverage(off))]` with an
-   inline reason: the coverage exemption this slice existed to demonstrate. `os_windows` makes real
-   OS calls, so it is a thin adapter validated on the host, never in CI.
+3. **`Hotkey` is the first `cfg`-conditional OS backend, and each platform has its own crate.**
+   The port and the pure `HotkeyChord` to accelerator conversion live in `body_core`, fully
+   tested. The backends live in `os_windows`, `os_linux` and `os_macos`. `os_windows` is
+   `#![cfg(windows)]` with its dependencies under a `cfg(windows)` target table, so it builds to
+   nothing on Linux, and it is a thin adapter validated on the host, never in CI. `os_linux` is
+   `#![cfg(target_os = "linux")]` the same way, but CI is Linux, so it is compiled and measured
+   there, which decision 13 makes hold. `os_macos` has no `cfg` yet and compiles everywhere as four
+   stubs; a real macOS backend takes `cfg(target_os = "macos")` as `os_windows` takes
+   `cfg(windows)`. A stub is an `unimplemented!()` body under
+   `#[cfg_attr(coverage, coverage(off))]` with an inline reason, the one coverage exemption, for
+   code that nothing wires and so never runs.
 
 4. **The Windows `Hotkey` backend wraps `global-hotkey`, keeping `unsafe_code = "forbid"`.** Raw
    `RegisterHotKey` and a message pump would need `unsafe`; the crate encapsulates it and delivers
@@ -165,12 +169,34 @@ recorded in an ADR. This ADR is that exclusion, and the checks that grew around 
     hand stops being exempt. Each rule needs at least one file to pass, so a tree with no markdown
     in it fails the scan instead of leaving the rule idle.
 
+13. **A real Linux backend is a covered core over a port of its own, plus an adapter tested
+    against a peer the test controls.** `os_linux` is measured on Linux CI, so each backend is
+    split three ways and the 100% rule holds with no exemption. First, the backend type
+    (`LinuxNotify<B>`, `LinuxAudioControl<R>`) implements the `body_core` port over a small
+    crate-local port (`NotificationBus`: `GetCapabilities` and `Notify`; `PactlRunner`: run `pactl`
+    with arguments) and holds every decision: the text sent and its escaping, the parsing of
+    replies, and which failure is `Unavailable` or `NoEndpoint`. Its tests run it over a fake of
+    that port. Second, the adapter implements the crate-local port with the real mechanism and
+    nothing else, and its tests run that same code against a peer: `DbusNotifications` speaks real
+    D-Bus to a fake `org.freedesktop.Notifications` server over a socket pair (`zbus` peer to peer,
+    no bus daemon), and `PactlCommand` starts real child processes (`echo`, `sh`, a missing path).
+    Third, the one step that reaches the user's desktop session, opening the session bus or running
+    `pactl` against the sound server, is taken by the caller: the host shell, outside the checked
+    workspace (decision 5), and the `#[ignore]`d tests in `os_linux/tests/live.rs`, run by hand with
+    `just os-linux-live`. cargo-llvm-cov does not measure `tests/`, so an ignored live test costs
+    no coverage, as with `body_rpc`'s live suite. This keeps real OS calls in thin adapters, as
+    AGENTS.md requires, while measuring every line of them. The two alternatives hide a working
+    backend: `coverage(off)` is reserved for code that never runs, and a `cfg` that CI never
+    compiles would leave the Linux backend with no check at all. A backend whose mechanism no local
+    peer can stand in for, such as a compositor's global shortcut or a capture portal, keeps the
+    same split: all logic in the covered core, and an adapter holding only the calls.
+
 ## Consequences
 
-- The checks cover `body_core`, `body_rpc`, the stubs and the overlay; what they do not cover is
-  the Tauri shell and `os_windows`, which are held to fmt and the clippies above and validated on
-  the host. The exclusion is safe only while the shell stays thin, so branching logic moves into
-  the covered crates.
+- The checks cover `body_core`, `body_rpc`, `os_linux`, the stubs and the overlay; what they do
+  not cover is the Tauri shell and `os_windows`, which are held to fmt and the clippies above and
+  validated on the host. The exclusion is safe only while the shell stays thin, so branching logic
+  moves into the covered crates.
 - **Host-only**, each with its check in [docs/host/](../host/index.md): hotkey registration, the
   tray, window show and hide, and a real `converse` streaming to the webview
   ([H-001](../host/tasks/001-bring-up-and-streamed-turn.md)); `confirm_response` into an open turn
@@ -196,6 +222,10 @@ recorded in an ADR. This ADR is that exclusion, and the checks that grew around 
 - **Shell clippy inside `check-body` or `just check`**: puts a webkit install on every `body/`
   change, or makes the single command unrunnable on a clean box.
 - **A shell clippy that skips itself**: a check that cannot fail.
+- **For the Linux backends, `dbus` and `libpulse-binding`**: both link a C library whose `-dev`
+  package every CI and dev box would then need (decision 10's reason). `zbus` (MIT) is pure Rust,
+  and `pactl` reaches both PulseAudio and `pipewire-pulse`; the `pipewire` crate links
+  `libpipewire` and reaches PipeWire only.
 - **Excluding a TypeScript module from the limit by glob**: configuration that enumerates loosely
   has failed open here before; an overlay module is split instead.
 

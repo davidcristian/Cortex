@@ -1,13 +1,25 @@
 //! Linux OS backends for the Cortex body.
 //!
-//! The body targets Windows first, so every backend here is an `unimplemented!()` stub that
-//! lets the workspace build. Calling one panics, so each is `#[coverage(off)]`.
+//! `Notify` and `AudioControl` are real. `Hotkey` and `ScreenCapture` are `unimplemented!()`
+//! stubs, which panic when called, so each is `#[coverage(off)]`.
+#![cfg(target_os = "linux")]
 #![cfg_attr(coverage, feature(coverage_attribute))]
 
+mod audio;
+mod dbus;
+mod notify;
+mod pactl;
+
+pub use audio::{LinuxAudioControl, PactlFailure, PactlRunner};
+pub use dbus::DbusNotifications;
+pub use notify::{BusError, BusMessage, LinuxNotify, NotificationBus};
+pub use pactl::{PACTL_PROGRAM, PactlCommand};
+/// The D-Bus client the notification backend is built on. A host opens the session bus with it.
+pub use zbus;
+
 use body_core::{
-    AudioControl, AudioError, CaptureError, CaptureRequest, CapturedFrame, Hotkey, HotkeyCallback,
-    HotkeyChord, HotkeyError, Notification, Notify, NotifyError, ScreenCapture, VolumeChange,
-    VolumeState,
+    CaptureError, CaptureRequest, CapturedFrame, Hotkey, HotkeyCallback, HotkeyChord, HotkeyError,
+    ScreenCapture,
 };
 
 /// The Linux `Hotkey` backend, not implemented.
@@ -21,35 +33,6 @@ impl Hotkey for LinuxHotkey {
         _on_activate: HotkeyCallback,
     ) -> Result<(), HotkeyError> {
         unimplemented!("the Linux Hotkey backend is not implemented (this crate is Windows-first)")
-    }
-}
-
-/// The Linux `AudioControl` backend, not implemented.
-pub struct LinuxAudioControl;
-
-impl AudioControl for LinuxAudioControl {
-    #[cfg_attr(coverage, coverage(off))]
-    fn get_volume(&self) -> Result<VolumeState, AudioError> {
-        unimplemented!(
-            "the Linux AudioControl backend is not implemented (this crate is Windows-first)"
-        )
-    }
-
-    #[cfg_attr(coverage, coverage(off))]
-    fn set_volume(&self, _change: VolumeChange) -> Result<VolumeState, AudioError> {
-        unimplemented!(
-            "the Linux AudioControl backend is not implemented (this crate is Windows-first)"
-        )
-    }
-}
-
-/// The Linux `Notify` backend, not implemented.
-pub struct LinuxNotify;
-
-impl Notify for LinuxNotify {
-    #[cfg_attr(coverage, coverage(off))]
-    fn show(&self, _notification: &Notification) -> Result<bool, NotifyError> {
-        unimplemented!("the Linux Notify backend is not implemented (this crate is Windows-first)")
     }
 }
 

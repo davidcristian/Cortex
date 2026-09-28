@@ -3,10 +3,18 @@ name = "os-linux"
 version.workspace = true
 edition.workspace = true
 publish.workspace = true
-description = "Slice 8 stub Linux OS backends for the Cortex body (lib name: os_linux)"
+description = "Linux OS backends for the Cortex body: notifications and volume (lib name: os_linux)"
 
-[dependencies]
+# The backends speak to a Linux desktop session, so the whole crate is `cfg(target_os = "linux")`
+# and builds to nothing elsewhere, as `os_windows` does off Windows.
+[target.'cfg(target_os = "linux")'.dependencies]
 body-core.workspace = true
+# The session bus client for freedesktop notifications. Pure Rust, no unsafe in this crate.
+zbus = { version = "5.19", default-features = false, features = ["async-io", "blocking-api"] }
+
+[target.'cfg(target_os = "linux")'.dev-dependencies]
+# `p2p` lets a test serve a fake notification server over a socket pair, with no bus daemon.
+zbus = { version = "5.19", default-features = false, features = ["async-io", "blocking-api", "p2p"] }
 
 [lints]
 workspace = true

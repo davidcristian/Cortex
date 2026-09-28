@@ -17,8 +17,9 @@ dismisses and leads back to the chat the reminder came from.
 ### 1. `Notify` is an OS trait with its Windows backend in `os_windows`
 
 The port is `body_core::os::notify`: `Notify::show(&Notification) -> Result<bool, NotifyError>`,
-`Send + Sync` like `AudioControl` because the server holds it across tasks. `LinuxNotify` and
-`MacosNotify` are `unimplemented!()` stubs behind the coverage escape hatch. `WindowsNotify`, a
+`Send + Sync` like `AudioControl` because the server holds it across tasks. `MacosNotify` is an
+`unimplemented!()` stub behind the coverage escape hatch, and `LinuxNotify` calls the freedesktop
+notification service ([ADR-0011](ADR-0011-body-v1.md) decision 13). `WindowsNotify`, a
 `ToastGeneric` WinRT toast, lives in `os_windows` beside `WindowsHotkey` and `WindowsAudioControl`:
 that crate is already the per-platform backend home and already `cfg(windows)`, and the Tauri shell
 makes no branching decision, only which backend to construct and from which variable. The server is

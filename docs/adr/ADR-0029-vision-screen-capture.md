@@ -111,8 +111,8 @@ KB at 2048 px. The policy sits in body core because coverage cannot measure `cfg
 `capture(&self, &CaptureRequest) -> Result<CapturedFrame, CaptureError>`, synchronous as the OS is
 (`off_worker` moves it off the async worker). `CapturedFrame` is the display's `RawFrame` plus the
 resolved rectangle, and `CaptureError` has five variants: `NoDisplay`, `NoTarget`, `Disabled`,
-`Backend`, `TooLarge`. `DeniedScreenCapture` is covered on Linux CI, and the Linux and macOS
-backends are coverage-off stubs.
+`Backend`, `TooLarge`. `DeniedScreenCapture` is covered on Linux CI. The Linux and macOS backends
+are stubs; a real Linux one takes [ADR-0011](ADR-0011-body-v1.md) decision 13's split.
 
 ### 9. GDI BitBlt on Windows, with its own unsafe authorization
 

@@ -129,7 +129,7 @@ public contract, its invariants and what it depends on. Every module has one:
 | [`body-core-retry.md`](modules/body-core-retry.md) | The bounded retry and deadline layer over the `BrainTransport` port |
 | [`body-core-capture.md`](modules/body-core-capture.md) | The screen-capture port and the pure size policy behind it |
 | [`body-rpc.md`](modules/body-rpc.md) | `body_rpc`, the tonic adapter for both directions of the contract |
-| [`body-os.md`](modules/body-os.md) | `os_windows`, `os_linux` and `os_macos`, the per-platform backends, real on Windows and stubs elsewhere |
+| [`body-os.md`](modules/body-os.md) | `os_windows`, `os_linux` and `os_macos`, the per-platform backends: real on Windows, notifications and volume real on Linux, stubs elsewhere |
 | [`body-app.md`](modules/body-app.md) | `body/app`, the React overlay tested to 100% and its host-native Tauri shell |
 | [`body-app-pictures.md`](modules/body-app-pictures.md) | The composer's attached pictures: paste, drop, the canvas reader and the refusal hand-back |
 | [`repo-checks.md`](modules/repo-checks.md) | `scripts/`, this repo's own checks: which modules exist, which have a command line, and the shared readers |

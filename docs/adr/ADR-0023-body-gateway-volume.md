@@ -119,7 +119,7 @@ a scoped `#![allow(unsafe_code)]` naming the ADR that granted it. This ADR autho
 `audio` module. Three more have their own grants: `notify` (one `CoInitializeEx`, ADR-0025), and
 `screen` and `focus` (GDI and the Z-order walk, ADR-0029). Every other crate keeps `forbid`.
 `os_windows` is `cfg(windows)`, compiles to nothing on Linux and is validated on the host, never in
-CI; `os_linux` and `os_macos` have `unimplemented!()` stubs under `#[coverage(off)]`.
+CI. `os_linux` runs `pactl`, measured on Linux CI; `os_macos` is a `#[coverage(off)]` stub.
 
 ### 8. The port reports every failure as one error with a kind
 
@@ -207,7 +207,7 @@ producer (a host change event such as `IAudioEndpointVolumeCallback`).
 
 - **Covered by `just check`:** the port, its errors and fake, the built-ins, `GrpcBodyGateway` over
   a loopback fake, the composition root wiring, `AudioControl` and its clamp, `OsService`,
-  `RpcTokenValidator`, the status mappers, and the Linux and macOS stubs.
+  `RpcTokenValidator`, the status mappers, the Linux backend over a fake `pactl`, the macOS stub.
 - **Validated in Docker (2026-07-08):** a containerized `GrpcBodyGateway` reached a host-side
   `BodyService` over `host.docker.internal` with the token, and got `UNAUTHENTICATED` without it.
 - **Host-only:** the real `WindowsAudioControl`, the shell's bind and serve, and "set volume to

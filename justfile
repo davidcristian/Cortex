@@ -316,6 +316,12 @@ rpc-health:
     fi
     cd body && cargo test -p body-rpc --test live -- --ignored --nocapture
 
+# Live check of the Linux notification and volume backends, never run in CI. Needs a desktop
+# session bus with a notification server, and `pactl` reaching a PulseAudio or pipewire-pulse
+# server. The volume test changes the default sink's level and mute, then restores both.
+os-linux-live:
+    cd body && cargo test -p os-linux --test live -- --ignored --nocapture
+
 # A local IMAP server used for testing: it can refuse a SELECT for a mailbox that exists and will
 # not open, which the Bridge cannot be made to produce. Its own project, no mail, no password,
 # loopback only. Procedure and results: docs/runbooks/email-imap.md.

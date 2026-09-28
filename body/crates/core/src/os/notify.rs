@@ -116,7 +116,7 @@ pub fn escape_xml(text: &str) -> String {
     escaped
 }
 
-/// The port a notification backend implements. Only `os_windows` is real; the others are stubs.
+/// The port a notification backend implements: real in `os_windows` and `os_linux`, a macOS stub.
 pub trait Notify: Send + Sync {
     /// Shows `notification`, and reports whether the OS displayed it rather than declining it.
     ///
