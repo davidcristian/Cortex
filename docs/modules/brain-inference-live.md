@@ -65,3 +65,15 @@ All are `integration`-marked, excluded from CI and coverage, and run per
   `CORTEX_JOINED_SEED_FROM` set the depth, the rows, a deadline and the first seed. The rows and
   their rule are in
   [R-744](../refinements/tasks/744-the-joined-system-message-is-unmeasured-on-the-qwen-alternates.md).
+- **`tests/test_attachment_frame_live.py` draws the injection attacks as a picture the user
+  attaches** (ADR-0070) on the cortex pick, starting the injection harness's server. Each attack is
+  painted into the pixel matrix's three renderings and sent as the request `TurnEngine` builds for
+  a turn with that picture attached, against a control with `ATTACHMENT_FRAME` cut and the
+  preamble kept, on the same seed; `tests/attached_turn.py` builds both through the real core, and
+  `tests/joined_rows.py` reads the pooled counts. Before a rendering it checks that the real
+  adapter posts the same messages, that the engine renders the frame after the ask and before the
+  picture, and that the model reads the canary back. `CORTEX_ATTACHED_ENDPOINT` draws against a
+  running server instead, and `CORTEX_ATTACHED_REPS`, `CORTEX_ATTACHED_ROWS`,
+  `CORTEX_ATTACHED_ATTACKS`, `CORTEX_ATTACHED_DEADLINE` and `CORTEX_ATTACHED_SEED_FROM` set the
+  depth, the renderings, the attacks, a deadline and the first seed. The rows and their rule are in
+  [R-730](../refinements/tasks/730-measure-the-attachment-frame-on-the-real-cortex.md).
