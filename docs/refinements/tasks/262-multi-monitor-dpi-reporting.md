@@ -3,14 +3,19 @@
 **Status:** open, waiting for a consumer
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-09-19
+**Verified:** 2026-09-28
 **Trigger:** The first code in the body or the overlay that enumerates monitors, or a request to
 capture a display other than the primary one.
 
-v1 captures the primary display only, in physical pixels. Nothing enumerates monitors, which is why
-no field names one. A display index takes the next free field number when it arrives, and it
-arrives together with a body that honours it, which is the rule that put the capture target and its
-Z-order walk in one commit. The focus target already gives this entry one observable consequence: a
+The Windows backend captures the primary display only, in physical pixels. The X11 backend in
+`os_linux`, which the shell does not serve yet
+([753](753-keep-the-overlay-out-of-a-linux-capture.md)), reads the root window of one X screen,
+which under RandR contains every enabled monitor, so on a multi-monitor X session its display frame
+holds all of them rather than the primary display ADR-0029 decision 16 defines; the crop is part of
+[263](263-linux-and-macos-capture-backends.md). Nothing enumerates monitors, which is why no field
+names one. A display index takes the next free field number when it arrives, and it arrives together
+with a body that honours it, which is the rule that put the capture target and its Z-order walk in
+one commit. On Windows the focus target already gives this entry one observable consequence: a
 focused window on a second monitor resolves to a rectangle with nothing on the captured display, so
 it returns `NoTarget` rather than a wrong picture.
 
@@ -43,3 +48,7 @@ it returns `NoTarget` rather than a wrong picture.
   this tree asserts it, so a tao release that dropped the call would turn every size into logical
   points with no check failing; the per-monitor DPI row of the display capture host task (H-012) is
   where that would be seen.
+- 2026-09-28: Checked after the X11 capture backend was built, and corrected above: the primary
+  display only was true of Windows alone, since `X11Root` reads the whole root window. No code in
+  the body or the overlay enumerates monitors, and `CaptureScreenRequest` still uses fields 1 to 3,
+  so the trigger has not fired; the RandR crop recorded in 263 would fire it.

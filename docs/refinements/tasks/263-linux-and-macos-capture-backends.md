@@ -9,7 +9,7 @@
 built and covered under [ADR-0011](../../adr/ADR-0011-body-v1.md) decision 13; the shell does not
 serve it yet, which is [753](753-keep-the-overlay-out-of-a-linux-capture.md), and a Wayland
 session needs the desktop portal, which is [752](752-wayland-screen-capture-through-the-portal.md).
-Two parts remain here:
+Three parts remain here:
 
 - **A window target on X11.** `LinuxScreenCapture` refuses `CaptureTarget::Focus` as `Backend`
   without reading the screen. The Windows walk in `os_windows/src/focus.rs` takes the topmost
@@ -17,6 +17,12 @@ Two parts remain here:
   from the top, skips windows whose `_NET_WM_PID` is this process, whose `_NET_WM_STATE` holds
   `_NET_WM_STATE_HIDDEN`, or that have no `_NET_WM_NAME`, and translates the chosen frame to root
   coordinates. The choice belongs in the covered core, over requests added to `RootGrab`.
+- **The primary monitor on X11.** ADR-0029 decision 16 defines the display target as the primary
+  display, and `X11Root` reads the whole root window, which under RandR contains every enabled
+  monitor, so a multi-monitor X session returns all of them in one frame. The crop to the primary
+  output's CRTC (RandR `GetOutputPrimary`, then `GetCrtcInfo`) needs `x11rb`'s `randr` feature,
+  and it is the first code in the body that asks the OS for a monitor, the trigger of
+  [262](262-multi-monitor-dpi-reporting.md).
 - **macOS.** `MacosScreenCapture` is an `unimplemented!()` stub. `os_macos` takes
   `cfg(target_os = "macos")` first, since it compiles on every platform today.
 

@@ -4,7 +4,7 @@
 **Area:** scheduling
 **Origin:** [ADR-0066](../../adr/ADR-0066-reminder-toast-and-card.md)
 **Trigger:** a second consumer of toast interaction, such as snooze from the toast.
-**Verified:** 2026-09-19
+**Verified:** 2026-09-28
 
 Clicking a shown toast does nothing, while the overlay's reminder card offers "open the
 conversation this came from". Fixing that needs a change to the gRPC boundary: `NotifyRequest`
@@ -17,8 +17,10 @@ The push path is fire and forget. `_deliver` reads only `shown` (`ticker.py`),
 `GrpcBodyGateway.notify` returns only `reply.shown` (`gateway.py`), the body's `OsService.notify`
 builds a `body_core::Notification`, calls `Notify::show` and discards everything but `shown`
 (`body/crates/rpc/src/server.rs`), and `WindowsNotify.show` renders a `ToastGeneric` toast with
-nothing read back (`body/crates/os_windows/src/notify.rs`). The overlay never sees the call: it is
-a `BrainService` client, while `Notify` is a `BodyService` RPC the body serves.
+nothing read back (`body/crates/os_windows/src/notify.rs`). On Linux, `LinuxNotify.show` sends
+the freedesktop `Notify` call with an empty `actions` array and discards the id the server returns
+(`body/crates/os_linux/src/notify.rs`, `dbus.rs`). The overlay never sees the call: it is a
+`BrainService` client, while `Notify` is a `BodyService` RPC the body serves.
 
 The design has two parts, recorded in the Consequences of
 [ADR-0066](../../adr/ADR-0066-reminder-toast-and-card.md).
@@ -32,7 +34,7 @@ The design has two parts, recorded in the Consequences of
    so a clicked toast starts the app, reads the `launch` `session_id` back and routes the overlay
    to that chat through the same `onSelectSession`/`openSession` the reminder card already uses.
 
-Part one cannot be done alone: its last step, the `launch` attribute in `toast_xml`, is
+Part one cannot be done alone: its last step on Windows, the `launch` attribute in `toast_xml`, is
 `cfg(windows)` and not covered in CI, and the payload should be designed together with its reader,
 since snooze from the toast would want action buttons with their own arguments rather than one
 top-level `session_id`. This is the same `NotifyRequest` `session_id` that the out-of-window
@@ -51,6 +53,12 @@ needs when the process that showed the toast has exited. Whether `Activated` fir
 app's toast, and for one clicked from the notification centre rather than the popup, has never been
 tested on a desktop.
 
+On Linux neither mechanism applies. The freedesktop specification reports a click on a
+notification that listed an action keyed `default` as an `ActionInvoked` signal with that
+notification's id, so part two there is the `default` action in the `Notify` call, a map from the
+returned id to the session, and a listener for the signal on the body's session-bus connection.
+That code would be in `os_linux`, which the coverage run measures.
+
 ## History
 
 - 2026-07-16: Opened behind the body-side `Notify` trait and Windows toast, which is what made a
@@ -65,3 +73,7 @@ tested on a desktop.
   and touches no toast, so it is not the second consumer this waits for.
 - 2026-09-19: Checked again, same findings, and no surface offers snooze from a toast. What was
   wrong is part two's cost, corrected above.
+- 2026-09-28: Checked after the Linux `Notify` backend was built and served, and corrected above to
+  include it. It is a second place a toast is shown, not a second consumer of a click: it sends no
+  action and keeps no id. `NotifyRequest` still has no `session_id`, and nothing offers snooze from
+  a toast, so the trigger has not fired.

@@ -4,7 +4,7 @@
 **Area:** body-gateway
 **Origin:** [ADR-0023](../../adr/ADR-0023-body-gateway-volume.md)
 **Trigger:** A real consumer for input injection, built then as one slice, not as a wired handler.
-**Verified:** 2026-09-19
+**Verified:** 2026-09-28
 
 `InjectInput` is the only one of the five RPCs `BodyService` declares that is not built. It is
 unbuilt at every tier: the RPC and its `TypeText` and `KeyChord` messages are forward-looking
@@ -37,3 +37,8 @@ and only the real `SendInput` adapter and its validation need a Win32 desktop se
   combination, so the trigger has not fired. [270](270-pointer-input-injection.md) is declined, and
   the two feature-breadth entries that mention input injection
   ([271](271-macos-linux-os-backends.md), [272](272-more-subagent-roles.md)) wait on nothing here.
+- 2026-09-28: Checked after the Linux backends were built, and the trigger has not fired. `os_linux`
+  gained `Notify`, `AudioControl` and `ScreenCapture` adapters and no input one,
+  `body/crates/core/src/os/` still holds `notify` and four screen modules, `inject_input` in
+  `server.rs` still answers `Status::unimplemented`, and nothing under `body/`, `brain/` or `proto/`
+  names `SendInput` or XTest. Neither 271 nor 272 mentions input injection any more.

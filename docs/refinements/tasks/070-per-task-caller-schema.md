@@ -4,7 +4,7 @@
 **Area:** untrusted-content
 **Origin:** [ADR-0028](../../adr/ADR-0028-grammar-constrained-subagents.md)
 **Trigger:** a structured subagent-result feature, which is the only thing this is revisited for.
-**Verified:** 2026-09-19
+**Verified:** 2026-09-28
 
 Left behind by [R-068](068-grammar-constrained-subagent-output.md): letting the caller supply a
 schema per task instead of the fixed envelope. Rejected for now and revisited only for a
@@ -27,3 +27,9 @@ structured subagent-result feature.
   tool-less and the roster has more than one entry, so a caller still has no slot for a result
   shape; `subagent_attempt.py` still sets `REPLY_ENVELOPE` or no schema. Neither file has changed
   since 2026-09-13, and no structured subagent-result feature has been proposed.
+- 2026-09-28: Checked against subagent roles
+  ([ADR-0072](../../adr/ADR-0072-subagent-roles.md)), the nearest thing to a result feature so far,
+  and the trigger has not fired. A spawn item may now name a `role`, whose one sentence the runner
+  appends to the instruction, but a role holds no schema and decision 5 declines an output contract
+  the runner checks, naming this entry as what that waits for. `subagent_attempt.py` still sends
+  `REPLY_ENVELOPE` or no schema.

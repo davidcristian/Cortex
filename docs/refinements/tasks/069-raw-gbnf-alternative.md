@@ -4,7 +4,7 @@
 **Area:** untrusted-content
 **Origin:** [ADR-0028](../../adr/ADR-0028-grammar-constrained-subagents.md)
 **Trigger:** the first constrained caller whose output shape JSON cannot express, which neither shipped envelope is.
-**Verified:** 2026-09-19
+**Verified:** 2026-09-28
 
 Left behind by [R-068](068-grammar-constrained-subagent-output.md): a raw GBNF `grammar` as an
 alternative to the JSON envelope. The ADR defers it only if a non-JSON shape is ever wanted, and
@@ -48,3 +48,7 @@ else ([subagent_reply.py](../../../brain/packages/core/src/cortex_core/subagent_
   nothing else. Of those files only `brain_phase.py` has changed since 2026-09-13, and it still
   passes no schema. This entry and [R-070](070-per-task-caller-schema.md) do not wait on each
   other: a per-task schema would still be JSON.
+- 2026-09-28: Checked again after subagent roles were added, and the trigger has not fired. A role
+  is a sentence appended to the instruction, so the `excerpt` role's one item per line is text
+  inside the envelope's string, not a new constrained caller; every `schema=` in the brain's
+  sources still comes from `REPLY_ENVELOPE` or `ORDER_ENVELOPE`.

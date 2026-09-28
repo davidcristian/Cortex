@@ -3,7 +3,7 @@
 **Status:** open, waiting for a consumer
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-09-19
+**Verified:** 2026-09-28
 **Trigger:** Something has to read a picture after its turn ends: a reopened chat showing what the
 assistant saw, a question about a capture answered from the audit trail, or the deep tier in R-266.
 
@@ -11,10 +11,12 @@ A reopened chat shows no evidence of what the assistant saw, and the audit line 
 either: for a capture that succeeded it records the tool name, the call's arguments, the trust
 level, a timestamp, the identities of the call, and `result_chars`, the length of the sentence the
 model was given rather than the sentence itself. Written to a file (`CORTEX_TOOLS_AUDIT_FILE`),
-those fields become durable and the picture is still not among them, so a later dispute about what
-a capture contained cannot be settled from the store. That is a deliberate cost. If it ever needs
-paying, the shape is a content-addressed store with the message holding a reference, plus an answer
-for garbage collection and a `delete` cascade.
+those fields become durable and the picture is still not among them, so a later dispute about what a
+capture contained cannot be settled from the store. That is a deliberate cost. If it ever needs
+paying, the shape is a content-addressed store with a stored message holding a reference, plus an
+answer for garbage collection and a `delete` cascade. The message that holds a capture is a tool
+result, which neither session store keeps, since both refuse a tool step, so the reference goes on
+the assistant's reply or the session record gains a tool step.
 
 ## History
 
@@ -41,3 +43,9 @@ for garbage collection and a `delete` cascade.
   and `EscalationSlot.snapshot` raises on one in a handoff tail. The trigger used to read
   "accountability outweighing zero retention", which names nothing a reader could observe, so it
   now names the three readers that would have to see a picture after its turn.
+- 2026-09-28: Checked again, and the trigger has not fired; the shape above is corrected. No writer
+  stores a tool step, and both session stores now refuse one (`refuse_tool_steps` in
+  `store_codec.py`, and `InMemorySessionStore.append`), so a capture's message cannot hold a
+  reference. A user message
+  may now have images too ([ADR-0070](../../adr/ADR-0070-user-attached-images.md)), and that ADR
+  declined a store across turns and keeps a note in history, so attachments are not a reader here.
