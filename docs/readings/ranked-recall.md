@@ -47,6 +47,38 @@ account in a 3.8 s cold pass, and the recapped reply kept the booking reference 
 lost. Method: the two live tests against the served model, from a frozen copy of the tree
 (`measurements/sitting2-2026-09-24/`).
 
+**2026-09-28, the Qwen deep candidates.** The same judge corpus and server shape against
+Qwen3.8-27B (`UD-Q4_K_M`) and the alternate Qwen3.6-27B (`Q4_K_M`), on the same image
+(`sha256:952424b09abc`), then the recap test three times each, since the request sends no sampler
+field and each model answers at the thinking-mode sampler its GGUF sets. A judge answer is correct
+when the gold note comes first on an answerable question or nothing comes back on an `ABSENT` one; a
+fallback is a miss. The rule, written before the draw in
+[R-740](../refinements/tasks/740-the-recall-judge-and-the-recap-are-unmeasured-on-the-qwen-deep-candidates.md):
+a candidate reads apart from the pick's 26 at 20 or fewer (two-sided Fisher, p below 0.05), and one
+whose recapped reply keeps the booking reference in fewer than 2 of 3 files a task for the recap's
+request. Predictions are in parentheses; times are ratios of the pick's.
+
+| reading | the pick | Qwen3.8-27B | Qwen3.6-27B |
+| --- | --- | --- | --- |
+| judge correct, of 26 | 26 | 24 (25, 22 to 26) | 25 (24, 20 to 26) |
+| gold first of 22; `ABSENT` returned nothing of 4 | 22; 4 | 22; 2 | 22; 3 |
+| fell back, of 26 | 0 | 0 | 0 |
+| p, against the pick | | 0.49 | 1.0 |
+| recapped reply kept the reference | 1 of 1 | 2 of 3 (3 of 3) | 3 of 3 (3, 2 to 3) |
+| judge cost a recall | 1.0 | 1.01 | 1.20 |
+| cold recap pass | 1.0 | 0.87 and 1.45 | 0.87 to 0.92 |
+| SM clock of max, median (range) | 0.66 (0.61 to 0.69) | 0.58 (0.52 to 0.62) | 0.51 (0.44 to 0.63) |
+
+Neither candidate reads apart and both recap counts meet the rule, so no sampler field is added to
+either request. Qwen3.8-27B missed both point predictions. Its third cold recap pass decoded 4
+tokens and returned no usable text, so the window fell back to the plain one and the reply lost the
+reference; its second stored the dropped messages almost word for word, `user:` and `assistant:`
+labels included (669 characters), where every other recap was a 376 to 502-character account. The
+`ABSENT` misses returned notes for the car insurance question on both and for the parking permit
+question on Qwen3.8-27B alone. The server logs show every rank decoding 7 to 25 tokens, so no
+trace ran. Method: `judge_row.py` in `measurements/sitting-2026-09-28/drivers/`, logs `740q38.log`
+and `740q36.log` with the server logs beside them.
+
 ## Whole turns, judge against raw
 
 **2026-08-09.** Three blocks in A/B/A order (`raw`, `judge`, `raw`) through `just turn-cost`: six

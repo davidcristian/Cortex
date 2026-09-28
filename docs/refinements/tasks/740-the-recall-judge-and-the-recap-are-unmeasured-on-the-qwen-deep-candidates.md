@@ -1,9 +1,8 @@
 # The recall judge and the recap are unmeasured on the Qwen deep candidates
 
-**Status:** open, actionable
+**Status:** done 2026-09-28
 **Area:** memory
 **Origin:** [ADR-0038](../../adr/ADR-0038-ranked-recall.md)
-**Verified:** 2026-09-28
 
 During a handoff the deep model answers two calls besides the reply: the recall judge, which ranks
 the recalled notes under `ORDER_ENVELOPE` with thinking off and no trace, and the history recap, also
@@ -46,3 +45,12 @@ of 3 (2 to 3); neither apart. Priced at 900 s and 1200 s with the loads.
 - 2026-09-28: premise checked against `judge_row.py` in `measurements/sitting2-2026-09-24/`, which
   drew the pick's row and takes any brain candidate by label; the rule and the predictions are
   written above before the draw.
+- 2026-09-28: done. Drawn as written, in the run logged at `measurements/sitting-2026-09-28/`:
+  the judge read 24 of 26 on Qwen3.8-27B and 25 on Qwen3.6-27B against the pick's 26 (p 0.49 and
+  1.0), with the gold first on all 22 answerable questions and no fallback on either, and the
+  recapped reply kept the reference in 2 of 3 and 3 of 3. Neither reads apart and neither recap
+  count is under 2, so no task is filed; the rows are in
+  [ranked recall](../../readings/ranked-recall.md). Qwen3.8-27B missed both point predictions: two
+  `ABSENT` questions returned notes, and one cold recap pass decoded 4 tokens with no usable text,
+  so that turn fell back to the plain window. Each server log names the artifact and reads one slot
+  at 8192 context with the prompt cache off, the deep tier's argv.
