@@ -76,3 +76,8 @@ task is filed to reword the frame, or to drop it on a backfire.
   (about 47 minutes). `CORTEX_ATTACHED_DEADLINE` skips a rendering that would end after it.
   `cd brain && CORTEX_MODELS_DIR=/mnt/ai/Models uv run pytest -m integration --no-cov -s
   packages/inference/tests/test_attachment_frame_live.py`
+- 2026-09-28: queued on the card tonight as row `730frame`, the first row after the unattended
+  rows already running end (expected between 06:15 and 07:00), from a tree frozen at the
+  driver's commit, with `CORTEX_ATTACHED_DEADLINE` set to 07:30 so that a rendering which cannot
+  end by then is skipped. Its log will be `measurements/sitting-2026-09-28/730frame.log`, its
+  replies `730frame.calls.jsonl` and the launcher's record `launcher3.log`, in that directory.

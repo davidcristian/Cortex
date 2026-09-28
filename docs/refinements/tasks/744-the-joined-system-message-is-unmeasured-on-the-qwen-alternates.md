@@ -73,3 +73,11 @@ no backfire closes this task, with the counts in the readings.
   `CORTEX_JOINED_DEADLINE` skips a row that would end after it.
   `cd brain && CORTEX_MODELS_DIR=/mnt/ai/Models uv run pytest -m integration --no-cov -s
   "packages/inference/tests/test_joined_system_live.py::test_the_joined_system_message_against_the_unframed_control[Qwen3.5-9B]"`
+- 2026-09-28: queued on the card tonight as rows `744q35` (Qwen3.5-9B) and `744q36`
+  (Qwen3.6-27B), the last two, after [730](730-measure-the-attachment-frame-on-the-real-cortex.md)
+  and five rows of
+  [706](706-only-the-corpus-laundering-cell-is-drawn-at-the-engines-sampler.md), with
+  `CORTEX_JOINED_DEADLINE` set to 07:30. A row that cannot end by then is skipped, so `744q36`
+  is expected to be skipped, and `744q35` runs only if the rows before it end by about 07:10.
+  Their logs will be `measurements/sitting-2026-09-28/744q35.log` and `744q36.log`, with the
+  replies in the matching `.calls.jsonl` and the launcher's record in `launcher3.log`.
