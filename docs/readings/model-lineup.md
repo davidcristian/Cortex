@@ -47,6 +47,29 @@ partly in page cache took two thirds of the first. Method: `CORTEX_MODEL_FILE_BR
 `CORTEX_CTX_SIZE_BRAIN` changed between runs, the questions posted by hand, `n_predict` read off
 `/props`.
 
+**2026-09-28, the stop row.** The two mixture-of-experts entries on the four recorded questions of
+the [stop rows](deep-candidates.md#the-stop-rows), three seeds each, drawn as the pick's row was:
+build `b10680-d7bd3bfca` (`sha256:952424b09abc`), the deep tier's argv (`-ngl 99 --ctx-size 8192
+--parallel 1 --jinja --cache-ram 0`) under the model host's caps, thinking on, no `max_tokens`
+and no sampler field. Qwen3.6-35B-A3B was drawn at `UD-Q3_K_XL`, since the `UD-Q3_K_M` above is
+no longer on the mount. The count and its test are the stop rows': against the pick's 11 a row
+reads apart at 5 or fewer. Predictions, written before the draw in
+[R-742](../refinements/tasks/742-the-mixture-of-experts-rejection-rests-on-unrecorded-questions.md),
+are in parentheses; wall and decode are ratios of the pick's stop row, whose SM clock read 0.57.
+
+| entry | stopped (predicted) | p, against the pick | right | reasoning tokens, median (range) | wall a draw | decode | SM, ceiling |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| gemma-4-26B-A4B q4_0 QAT | 5 (8, 4 to 12) | 0.027, apart | 5 | 7402 (3261 to 7980) | 0.99 | 3.95 | 0.72, 0.89 |
+| Qwen3.6-35B-A3B UD-Q3_K_XL | 6 (7, 3 to 11) | 0.069 | 6 | 5933 (2488 to 7984) | 0.78 | 4.00 | 0.71, 0.88 |
+
+Both predictions said neither reads apart; the A4B does, which misses its prediction. Every draw
+that did not stop generated until the context filled (7924 to 7984 tokens), three of them partway
+into a reply. The A3B stopped on every draw of Q1 and Q3 and on none of Q2 or Q4; the A4B on every
+Q3 draw, one of Q1, one of Q2 and none of Q4, where the pick stopped on all but one Q4 draw. Every
+reply that stopped was right by hand. The A4B loaded in 82.0 s at 14,625 MiB above idle and the A3B
+in 95.5 s at 16,130 MiB. Method: `stop_row.py` in `measurements/sitting-2026-09-28/drivers/`, over
+the 2026-09-26 questions and helpers; logs in its parent's `742g26/` and `742q35/`.
+
 ## Subagent pick against the one it replaced
 
 **2026-07-03**, the subagent compose server on the CPU (`-ngl 0 --jinja`, thinking off, 8192

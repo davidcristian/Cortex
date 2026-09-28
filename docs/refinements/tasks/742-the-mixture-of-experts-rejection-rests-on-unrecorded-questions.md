@@ -1,9 +1,8 @@
 # The mixture-of-experts rejection rests on unrecorded questions
 
-**Status:** open, actionable
+**Status:** done 2026-09-28
 **Area:** inference
 **Origin:** [ADR-0004](../../adr/ADR-0004-model-lineup.md)
-**Verified:** 2026-09-28
 
 Decision 8 rejects the two mixture-of-experts deep entries, Qwen3.6-35B-A3B and gemma-4-26B-A4B,
 because on 2026-08-04 they spent the whole 8192 context reasoning and returned an empty reply
@@ -41,3 +40,11 @@ with its load.
 - 2026-09-28: premise checked: both entries are on the mount and fit the card alone, and the stop
   row's drivers take any artifact, so the row needs the card and no new code. The rule and the
   predictions are written above before the draw.
+- 2026-09-28: done. Drawn as written: gemma-4-26B-A4B stopped on 5 of 12 (p 0.027, apart) and
+  Qwen3.6-35B-A3B at `UD-Q3_K_XL` on 6 of 12 (p 0.069, not apart), and every stopped reply was
+  right by hand. The A4B missed its prediction and the A3B's held. Because the A3B does not read
+  apart, decision 8 of [ADR-0004](../../adr/ADR-0004-model-lineup.md) and its rejected alternative
+  now give the recorded row as the reason: the A4B stops less often, and the A3B reasoned to the
+  end of the context on every draw of two questions and reasons four times the pick's tokens. The
+  pick is unchanged. The row is in [model lineup](../../readings/model-lineup.md). Both loads'
+  `/props` read build `b10680-d7bd3bfca` and the artifact named.

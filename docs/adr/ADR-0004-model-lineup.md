@@ -82,20 +82,23 @@ lineup](../readings/model-lineup.md), [deep candidates](../readings/deep-candida
 
 8. **Deep: gemma-4-31B QAT q4_0.** What decides is whether the model reaches its answer inside the
    deployed context with no limit set, which is how the tier runs; VRAM decides nothing among the
-   entries that fit the card alone. The two older mixture-of-experts entries decode about 2.6 times
-   as fast and spent the whole context reasoning, returning an empty reply (build `b10236`, on
-   questions no longer recorded). Qwen3.8-Flash-Next fits neither the card nor this machine's
+   entries that fit the card alone. Qwen3.8-Flash-Next fits neither the card nor this machine's
    memory: with 13 layers of experts on the card and the rest read from the models mount it loads
    inside the swap bound, but under a 20 GiB memory cap it sent no first token for a 6184-token
    prompt within twice the stall bound, so it cannot serve this tier here; its first token at the
    shipped cap and whether it stops were not drawn
    ([R-735](../refinements/tasks/735-flash-nexts-feasibility-row-is-not-complete-at-the-shipped-memory-cap.md)).
-   On four written questions drawn on one build and day, three seeds each, the pick stopped on 11 of
-   12, Qwen3.8-27B on 10 at its default effort (`xhigh`) and on 12 at `low` and at `medium`, and the
-   alternate on 10; no count reads apart from the pick's. The pick reasons least of the three at
-   their defaults (a median of 1434 tokens against 2189 and 4118), is QAT, and shares the cortex's
-   family, template and prompt idiom. Qwen3.8-27B costs 0.82 of its VRAM at the same decode rate and
-   has a drafter built in, and deploying it needs settings the tier lacks, an effort level first
+   On four written questions drawn on one build, three seeds each, the pick stopped on 11 of 12,
+   Qwen3.8-27B on 10 at its default effort (`xhigh`) and on 12 at `low` and at `medium`, the
+   alternate on 10, Qwen3.6-35B-A3B (at `UD-Q3_K_XL`) on 6 and gemma-4-26B-A4B on 5; only the A4B's
+   count reads apart from the pick's. The two mixture-of-experts entries decode about four times as
+   fast on those draws, at 1.25 times the pick's SM clock, but every draw of theirs that did not
+   stop spent the whole context reasoning, and the A3B stopped on no draw of two of the four
+   questions, where the pick stopped on 5 of 6. Of the entries whose count does not read apart, the
+   pick reasons least at their defaults (a median of 1434 tokens against 2189 for Qwen3.8-27B, 4118
+   for the alternate and 5933 for the A3B), is QAT, and shares the cortex's family, template and
+   prompt idiom. Qwen3.8-27B costs 0.82 of its VRAM at the same decode rate and has a drafter built
+   in, and deploying it needs settings the tier lacks, an effort level first
    ([R-738](../refinements/tasks/738-the-deep-tier-cannot-set-a-templates-reasoning-effort-or-preserve-flag.md)).
    Qwen3.6-27B is the documented alternate, one `CORTEX_MODEL_FILE_BRAIN` away, for a deployment
    that wants about 2.7 GB more of the card free during a handoff; its template drops a third
@@ -210,10 +213,10 @@ lineup](../readings/model-lineup.md), [deep candidates](../readings/deep-candida
 
 - **Picking the cortex or the deep tier on VRAM**: every candidate but Qwen3.8-Flash-Next fits the
   card alone, so VRAM separates none of them.
-- **A mixture-of-experts deep model for its decode rate**: the two that fit the card spent the
-  whole deployed context reasoning and replied with nothing
-  ([R-742](../refinements/tasks/742-the-mixture-of-experts-rejection-rests-on-unrecorded-questions.md)),
-  and Qwen3.8-Flash-Next, paged from the mount, misses the stall bound before its first token.
+- **A mixture-of-experts deep model for its decode rate**: gemma-4-26B-A4B stops less often than
+  the pick, and Qwen3.6-35B-A3B, whose count does not read apart, reasoned to the end of the context
+  on every draw of two of the four questions (decision 8); Qwen3.8-Flash-Next, paged from the
+  mount, misses the stall bound before its first token.
 - **An ANN index now**: see decision 4. **Storing the vector inline** (`SET STORAGE PLAIN`) bought a
   fifth of the scan back and grew the table, the arithmetic rather than the detoasting being most
   of the cost.
