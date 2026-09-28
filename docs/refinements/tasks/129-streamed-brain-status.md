@@ -3,7 +3,7 @@
 **Status:** open, needs a port change first
 **Area:** body-overlay
 **Origin:** [ADR-0011](../../adr/ADR-0011-body-v1.md)
-**Verified:** 2026-09-24
+**Verified:** 2026-09-28
 **Trigger:** A status change that begins while no turn from this overlay is streaming and must change the dot's colour: a second client that can start a handoff, or a background job that escalates. A change that one of this overlay's own turns leaves behind is read by the probe that follows the turn, not by a push.
 
 What is deferred is the push: a server-streamed status RPC, so the brain can say what it is doing
@@ -21,16 +21,20 @@ None of that needed an overlay change: the indicator classifies a not-ready repl
 `Degraded`, shows the brain's line as given, and its 5 s recheck turns the dot green again once
 the cortex is back. Two limits are worth knowing before the push is designed against them. The
 amber shows between turns only, because the reducer treats every streamed event as proof the brain
-is serving, so during an escalating turn's own stream the dot is green and the chips tell the
-story. And a handoff's drain is deliberately still ready, the cortex being resident and answering
+is serving, so during an escalating turn's own stream the dot is green and the chips show the
+handoff's progress. And a handoff's drain is deliberately still ready, the cortex being resident and answering
 throughout it.
 
-The push is a proto change plus both stubs plus something that reads it. Probing on summon,
-together with the escalating stream's chips, covers this scale.
+The push is a proto change plus both stubs plus something that reads it. It need not be a
+server-streamed `BrainService` RPC: the brain already calls the body unprompted, through
+`BodyService.Notify` when a reminder fires, so the push could equally be a `BodyService` call made
+when the residency is published, and choosing the direction is part of its design. Probing on each
+summon and after each turn that ends on screen, together with the escalating stream's chips,
+covers this scale.
 
 The push is a different axis from the shape of one reply, which
 [R-320](320-one-detail-string-two-facts.md) settled as a `notes` list on `HealthReply`: this entry
-is when a reply is sent. A stream would send the same message `Health` answers, so it needs nothing
+is when a reply is sent. A push would send the same message `Health` answers, so it needs nothing
 from that change and that change needed nothing from it.
 
 ## History
@@ -63,3 +67,20 @@ from that change and that change needed nothing from it.
   sets the dot green, so it stayed green until the next summon. The overlay knows when its own turn
   ends, so that gap needed a pull rather than a push: `useLink` now probes once when a turn ends on
   screen with the link green.
+- 2026-09-28: Checked again; the trigger has not fired. Every not-serving residency is published
+  inside `SwappingModelManager.swap_scope`: `RESIDENCY_LOADING` and `RESIDENCY_DEEP` by
+  `_swap_in`, `RESIDENCY_LOST` by `BootWatch.reconcile` there and by the swap back's retries. Only
+  `SwapConductor.run_handoff` enters that scope, only `EscalatingTurnEngine` calls it, and only
+  `StreamEngines.for_stream` builds one, for `Converse`. `RESIDENCY_BOOT_FAILED` is published by
+  `recover_boot_residency` before `serve` binds the port. The one background loop over residency,
+  `TierRechecker`, publishes only `RESIDENCY_SERVING` through `publish_between_handoffs`, a change
+  back to green that the 5 s recheck already reads, and records peer tiers, which changes only the
+  notes under a green dot. The schedule ticker runs a task through `spawn_subagents`, whose roster
+  leases each entry's own `SingleResidentModelManager` endpoints and never the swapping manager,
+  and no memory consolidation worker exists. Nothing but the shared token stops a second client on
+  127.0.0.1, but none ships: the body's `converse` command is the only `Converse` caller, reached
+  from one place in `useOverlay.ts` for the one `overlay` window, and the compose healthcheck and
+  the session and preference RPCs are unary calls that start no turn. `BrainService` still
+  declares one streamed RPC among eleven. A brain that stops while the dot is green is also not
+  seen until the next summon or turn, but that is not a status the brain can send, and it has been
+  so since this entry opened. The remedy was widened to name `BodyService` as a second direction.

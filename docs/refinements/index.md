@@ -79,7 +79,7 @@ never a reading of what the tree does now.
 
 ### Actionable, once a port changes (1)
 
-- **[R-129](tasks/129-streamed-brain-status.md)** Streamed brain status (body-overlay). Its claim was checked against the code on 2026-09-24.
+- **[R-129](tasks/129-streamed-brain-status.md)** Streamed brain status (body-overlay). Its claim was checked against the code on 2026-09-28.
 
 ### Waiting for its trigger (109)
 
