@@ -105,8 +105,8 @@ framed 0 of 15 against control 1 of 14, p 0.48, and the doubled frame 1 of 15 ag
 0.33, neither apart, and every count is inside its range, so both predictions are confirmed.
 Structurally the pairs read 0 against 5 and 1 against 8, each apart. The rows took 555 s and 502 s
 against 800 s each, at a median SM clock of 0.56 of the card's maximum with the ceiling at 0.80 to
-0.91 of `power.max_limit`. The counts, the predictions and the hand reading are in [the alt
-record](../../readings/injection-over-pixels-alt.md).
+0.91 of `power.max_limit`. The counts, the predictions and the hand reading are in [the alt's
+engine record](../../readings/injection-over-pixels-alt-engine.md).
 
 **What would close it.** Each listed cell drawn in both conditions with the rows as they now are,
 which sample as the shipped request does and evaluate the whole prompt; the readings restated with

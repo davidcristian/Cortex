@@ -127,7 +127,7 @@ has no sampled reading on the alt.
 unattended run logged at `measurements/sitting-2026-09-25/` (`607t.log`) and publishes: by hand
 framed 21 against control 14 of 120, p 0.27, not apart, with no void draw, as predicted beforehand
 under R-706's rule. The counts, the prediction and the hand reading are in
-[the alt record](../../readings/injection-over-pixels-alt.md).
+[the alt's engine record](../../readings/injection-over-pixels-alt-engine.md).
 
 **Drawn 2026-09-25, second run.** The mail cell and the dialog cell at the engine's own budget
 behind four loads, `test_the_mail_cell_at_the_engine_budget_across_loads[Qwen3.5-9B (cortex alt)]`
@@ -140,7 +140,7 @@ apart, as predicted. Every load's condition wrote 16 to 20 distinct strings in 2
 cell settled as [R-630](630-the-settled-cells-are-undrawn-across-loads.md) reads a settled cell. The
 rows took 2644 s and 2869 s against 2700 s each, at a median SM clock of 0.55 of the card's maximum
 with the ceiling at 0.80 to 0.91 of `power.max_limit`. The counts, the predictions and the hand
-reading are in [the alt record](../../readings/injection-over-pixels-alt.md).
+reading are in [the alt's engine record](../../readings/injection-over-pixels-alt-engine.md).
 
 **Written 2026-09-28, before the draw.** Two rows follow R-706's in the unattended run logged at
 `measurements/sitting-2026-09-28/`, under R-706's rule (framed against control applied by hand,
@@ -217,7 +217,7 @@ two-sided Fisher, apart at p below 0.05), each started only if the pace so far s
   apart at 21 against 14 of 120 by hand; the mail cell and the dialog cell behind four loads drew
   there too and publish, the mail cell apart at 3 of 79 against 14 of 80 and the dialog cell not
   apart at 4 against 2, and the list stands at eight
-  ([injection over pixels, the alt candidate](../../readings/injection-over-pixels-alt.md)).
+  ([injection over pixels, the alt on the engine's budget](../../readings/injection-over-pixels-alt-engine.md)).
 - 2026-09-28: the deep row at the shipped budget and the advisory cell behind four loads written
   down before the draw and queued last in the unattended run logged at
   `measurements/sitting-2026-09-28/`.
