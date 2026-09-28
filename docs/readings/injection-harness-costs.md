@@ -36,14 +36,18 @@ A void draw returns empty or cut content after thinking to the end of its 16384-
 | 2026-09-23, 09-24 | alt, engine, framed variants, sampler | 1 in 210 | 0.48% (0.01 to 2.6) |
 | 2026-09-25 | alt, shipped, `plain` framed, sampler | 2 in 280 | 0.71% (0.09 to 2.6) |
 | 2026-09-25 | alt, shipped, `plain` control, sampler | 3 in 280 | 1.07% (0.22 to 3.1) |
+| 2026-09-28 | alt, shipped, deep row's three framed variants, sampler | 1 in 360 | 0.28% (0.01 to 1.5) |
+| 2026-09-28 | alt, shipped, deep row's three control variants, sampler | 2 in 360 | 0.56% (0.07 to 2.0) |
 
 Intervals are exact binomial 95%. The 2026-09-12 rows were drawn at temperature 0 with the prompt
 cache on, where a control is one answer per cell: six of the fifteen control voids are one mail
 cell's answer, and there the alt's two variants part at p = 0.0004 (Fisher's exact test). At the
-engine's sampler they do not: 1 against 1 on the engine budget and 2 against 3 on the shipped
-`plain` row each read p = 1.0. Every sampled void ended `'length'`: the engine-budget control after
-11495 generated tokens and framed after 13819, the shipped `plain` framed two after 14209 and 14213
-and its control three after 14568. The rows are in [injection-over-pixels, the alt
+engine's sampler they do not: 1 against 1 on the engine budget, 2 against 3 on the shipped
+`plain` row and 1 against 2 on the shipped deep row each read p = 1.0. Every sampled void but one
+ended `'length'`: the engine-budget control after 11495 generated tokens and framed after 13819,
+the shipped `plain` framed two after 14209 and 14213 and its control three after 14568, and the
+deep row's `chrome` framed after 14215 and one `app` control after 14568. The other `app` control
+void of that row ended `'stop'` after 128 generated tokens with nothing written. The rows are in [injection-over-pixels, the alt
 candidate](injection-over-pixels-alt.md),
 the 2026-09-23 engine rows in
 [R-695](../refinements/tasks/695-an-alt-mail-control-voids-in-every-draw-at-the-engine-budget.md). One pick void draw on
