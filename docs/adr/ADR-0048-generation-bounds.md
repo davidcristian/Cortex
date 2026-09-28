@@ -113,7 +113,8 @@ handoff.
     text, like `BRAIN_FAILED_NOTE`: a `TextDelta` appended to `parts` and stored, written by the app
     so it needs no guardrail pass, and nothing crosses [proto/body.proto](../../proto/body.proto).
     It names the machine's length limit and never which one. A deep phase that failed says only
-    `BRAIN_FAILED_NOTE`. The reply's own cap is a deployment setting paired with a bounded trace
+    `BRAIN_FAILED_NOTE`, or `BRAIN_OVERFLOW_NOTE` when the engine refused its prompt as longer
+    than the context. The reply's own cap is a deployment setting paired with a bounded trace
     (ADR-0049 decision 6).
 14. **A cut tool call ends the cortex's turn instead of failing it.** `handle_turn` catches
     `MalformedToolCallError`, never the wide `InferenceError` (a transport failure stays an error at

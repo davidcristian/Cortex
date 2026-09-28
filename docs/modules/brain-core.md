@@ -172,8 +172,8 @@ Failures cross a port only as these: `SessionStoreError`, `InferenceError`, `Mod
 failures into them with the cause chained. Bad values stay `ValueError`. Each narrower kind states
 something the general one cannot:
 
-- `MalformedToolCallError` (under `InferenceError`, ADR-0048): the stream arrived and the tool call
-  the model wrote will not parse, so another attempt would produce it again.
+- `MalformedToolCallError` (ADR-0048) and `ContextOverflowError`, under `InferenceError`: the tool
+  call the model wrote will not parse, or the prompt outgrew the context. A retry repeats both.
 - `ModelUnavailableError`, `SwapFailedError`, `ResidencyRestoreError` and `HandoffInProgressError`
   (under `ModelManagerError`, ADR-0030). The last is not a failure: it means the deep model is
   loaded and busy with another turn.

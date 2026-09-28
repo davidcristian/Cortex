@@ -18,6 +18,7 @@ from cortex_core.conversation import Message, Role, new_turn_id
 from cortex_core.errors import (
     BodyFailure,
     BodyGatewayError,
+    ContextOverflowError,
     EmbedderError,
     HandoffInProgressError,
     HandoffStoreError,
@@ -116,6 +117,7 @@ __all__ = [
     "CaptureTarget",
     "Clock",
     "Confirmer",
+    "ContextOverflowError",
     "DecodeCadence",
     "DecodeStop",
     "Embedder",

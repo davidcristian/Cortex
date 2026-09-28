@@ -172,7 +172,11 @@ raises `InferenceError` with the status and that excerpt. The projector-less cas
 2026-08-03: llama-server answers 500 with a 151-byte JSON body naming the missing `mmproj`, so the
 bound quotes the whole of it, and `test_a_projector_less_server_says_so_when_an_image_arrives`
 (`integration`-marked, needing a server at `CORTEX_INFERENCE_ENDPOINT_NO_MMPROJ` started without the
-`--mmproj` pair) is the warning for a llama.cpp wording change.
+`--mmproj` pair) is the warning for a llama.cpp wording change. One body is read further: a prompt
+longer than the context is answered with 400 and an error `type` of `exceed_context_size_error`
+(build b10680), which the adapter raises as `ContextOverflowError`, a narrower `InferenceError`.
+`test_context_overflow_live.py` (`integration`-marked, needing a server at
+`CORTEX_OVERFLOW_ENDPOINT`) re-takes it ([history window readings](../readings/history-window.md)).
 
 ## Invariants
 

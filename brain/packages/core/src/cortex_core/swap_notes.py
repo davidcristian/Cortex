@@ -44,6 +44,11 @@ BRAIN_FAILED_NOTE = (
     "\n\n(The deep model stopped partway through, so this answer is unfinished. The text above "
     "is everything it produced.)"
 )
+BRAIN_OVERFLOW_NOTE = (
+    "\n\n(This conversation and what the turn has read so far are longer than the deep model's "
+    "context, so it stopped here. The text above is everything it produced. A new conversation "
+    "gives the deep model its whole context.)"
+)
 RESTORE_FAILED_NOTE = (
     "\n\n(The usual assistant could not be reloaded after the handoff, so the next message may "
     "fail until the machine recovers.)"

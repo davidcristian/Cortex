@@ -9,12 +9,14 @@ from swap_harness import ScriptedBrainBackend, TickingClock
 
 from cortex_core import (
     BRAIN_FAILED_NOTE,
+    BRAIN_OVERFLOW_NOTE,
     BUDGET_EXHAUSTED_MSG,
     NO_CADENCE_TERMS,
     REDACTED,
     REPLY_CAPPED_NOTE,
     UNREADABLE_CALL_NOTE,
     CadenceTerms,
+    ContextOverflowError,
     DecodeCadence,
     DecodeStop,
     DispatchBudget,
@@ -319,6 +321,44 @@ async def test_a_deep_model_that_dies_persists_its_partial_text_with_the_note() 
     assert "".join(collected) == "half an " + BRAIN_FAILED_NOTE
     persisted = [message.text for message in await sessions.history(harness.SESSION)]
     assert persisted[-1] == "half an " + BRAIN_FAILED_NOTE
+
+
+class _OverflowingBackend:
+    """A deep model whose server refuses the prompt as longer than its context."""
+
+    async def stream(
+        self,
+        model: str,
+        messages: Sequence[Message],
+        *,
+        tools: Sequence[ToolSpec] = (),
+        schema: JsonSchema | None = None,
+        bounds: GenerationBounds | None = None,
+    ) -> AsyncGenerator[InferenceEvent, None]:
+        del model, messages, tools, schema, bounds
+        msg = "request (9120 tokens) exceeds the available context size (8192 tokens)"
+        raise ContextOverflowError(msg)
+        yield TextChunk("unreachable")
+
+
+async def test_a_prompt_longer_than_the_deep_context_ends_with_the_overflow_note() -> None:
+    sessions = InMemorySessionStore()
+    await sessions.append(
+        harness.SESSION,
+        Message(role=Role.USER, text=harness.USER_TEXT, at=_AT, turn_id=harness.TURN),
+    )
+    phase = BrainPhase(sessions, _OverflowingBackend(), TickingClock(), "brain", TurnCapabilities())
+    record = harness.prepared_slot().snapshot(
+        turn_id=harness.TURN, session_id=harness.SESSION, requested_at=SystemClock().now()
+    )
+    events = phase.run(record)
+    collected: list[str] = []
+    with pytest.raises(ContextOverflowError, match="8192 tokens"):
+        await _collect(events, collected)
+    await events.aclose()
+    assert "".join(collected) == BRAIN_OVERFLOW_NOTE
+    persisted = [message.text for message in await sessions.history(harness.SESSION)]
+    assert persisted[-1] == BRAIN_OVERFLOW_NOTE
 
 
 async def test_the_deep_phase_fences_under_the_record_s_own_nonce() -> None:

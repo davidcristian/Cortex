@@ -44,6 +44,7 @@ from cortex_core.swap_conductor import SwapConductor
 from cortex_core.swap_notes import (
     ALREADY_ACTIVE_NOTE,
     BRAIN_FAILED_NOTE,
+    BRAIN_OVERFLOW_NOTE,
     DRAIN_TIMEOUT_NOTE,
     DRAINING_DETAIL,
     HANDOFF_AHEAD_DETAIL,
@@ -63,6 +64,7 @@ from cortex_core.swap_recovery import converge_residency, recover_handoffs
 __all__ = [
     "ALREADY_ACTIVE_NOTE",
     "BRAIN_FAILED_NOTE",
+    "BRAIN_OVERFLOW_NOTE",
     "DEFAULT_HEALTH_POLL_INTERVAL_S",
     "DEFAULT_SPILL_DWELL_S",
     "DEFAULT_SWAP_DRAIN_TIMEOUT_S",

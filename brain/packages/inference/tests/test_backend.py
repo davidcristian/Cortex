@@ -9,6 +9,7 @@ import httpx
 import pytest
 
 from cortex_core import (
+    ContextOverflowError,
     DecodeCadence,
     DecodeStop,
     GenerationBounds,
@@ -194,6 +195,54 @@ async def test_an_empty_error_body_still_names_the_status() -> None:
 
     with pytest.raises(InferenceError, match=r"^llama-server answered 502 for model 'cortex'$"):
         await _collect(_backend(handler))
+
+
+# What build b10680 answered to a 1559-token prompt at a 512-token context.
+_OVERFLOW_BODY = {
+    "error": {
+        "code": 400,
+        "message": "request (1559 tokens) exceeds the available context size (512 tokens), "
+        "try increasing it",
+        "type": "exceed_context_size_error",
+        "n_prompt_tokens": 1559,
+        "n_ctx": 512,
+    }
+}
+
+
+async def test_a_prompt_longer_than_the_context_raises_the_overflow_error() -> None:
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(400, json=_OVERFLOW_BODY)
+
+    with pytest.raises(ContextOverflowError) as excinfo:
+        await _collect(_backend(handler))
+    assert "request (1559 tokens) exceeds the available context size" in str(excinfo.value)
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        {"error": {"code": 400, "type": "invalid_request_error"}},
+        {"error": "exceed_context_size_error"},
+        [{"error": {"type": "exceed_context_size_error"}}],
+    ],
+)
+async def test_an_error_of_any_other_shape_is_a_plain_inference_error(body: object) -> None:
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(400, json=body)
+
+    with pytest.raises(InferenceError) as excinfo:
+        await _collect(_backend(handler))
+    assert type(excinfo.value) is InferenceError
+
+
+async def test_an_error_body_that_is_not_json_is_a_plain_inference_error() -> None:
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(400, content=b"exceed_context_size_error")
+
+    with pytest.raises(InferenceError) as excinfo:
+        await _collect(_backend(handler))
+    assert type(excinfo.value) is InferenceError
 
 
 async def test_transport_error_wraps_into_inference_error() -> None:

@@ -46,10 +46,13 @@ recall; this ADR is about the in-context history of the current session only.
 4. **`CORTEX_HISTORY_CHAR_BUDGET`, default `48000`, `0` disables it.** Read by `BrainRuntimeConfig`
    and wired by `build_history_window` (`window_builders.py`). It is **on by default**, because a
    long session's overflow is a correctness gap, and a setting that defaults off leaves it open in
-   every deployment that does not set it. 48,000 characters is about 12K tokens of history against
-   the 16K-token cortex context, leaving about a quarter of the context for the security preamble
-   ([ADR-0013](ADR-0013-untrusted-content.md)), recalled memories, tool schemas and in-turn tool
-   steps ([ADR-0009](ADR-0009-tools-mcp.md)), and the reply.
+   every deployment that does not set it. 48,000 characters is 10,254 tokens of plain English and
+   13,401 of this repo's ADR prose on the cortex's tokenizer
+   ([readings](../readings/history-window.md)), against the 16K-token cortex context. The rest
+   holds the security preamble ([ADR-0013](ADR-0013-untrusted-content.md)), recalled memories,
+   tool schemas and in-turn tool steps ([ADR-0009](ADR-0009-tools-mcp.md)), and the reply; on the
+   denser text the preamble and the built-in tool schemas alone leave 504 tokens of it
+   ([R-747](../refinements/tasks/747-the-cortexs-history-budget-leaves-almost-no-reply-room-on-dense-text.md)).
 
 5. **The turns the budget drops come back as a cached recap.** `SummarizingHistoryWindow`
    (`summarizing.py`) wraps the character-budget window and prepends at most one model-written
@@ -80,6 +83,11 @@ recall; this ADR is about the in-context history of the current session only.
 - A single oversized newest turn is sent whole and can still overflow the model context: the window
   limits history, not one turn's size. A per-turn input cap would be a decision at the overlay, not
   silent truncation here.
+- The deep phase builds its window from the same budget, and at the deep tier's 8192-token context
+  a full window does not fit
+  ([R-736](../refinements/tasks/736-the-deep-phase-sends-a-history-window-sized-for-the-cortexs-context.md)).
+  The engine refuses such a prompt before generating, and the phase tells the user so with
+  `BRAIN_OVERFLOW_NOTE` rather than `BRAIN_FAILED_NOTE`.
 - The `EchoInferenceBackend` reply counter counts user messages in the *windowed* history, so its
   `"reply {n}"` script diverges from the stored count only past the budget, which CI-sized tests
   never reach.
@@ -99,6 +107,7 @@ recall; this ADR is about the in-context history of the current session only.
 
 - Module contracts: [brain-core.md](../modules/brain-core.md),
   [brain-orchestrator.md](../modules/brain-orchestrator.md).
-- Readings: [history recap](../readings/history-recap.md).
+- Readings: [history recap](../readings/history-recap.md),
+  [history window tokens](../readings/history-window.md).
 - [ADR-0038](ADR-0038-ranked-recall.md) (the recap's design and the selection-time lease rule),
   [ADR-0008](ADR-0008-memory-v1.md) (cross-session memory).

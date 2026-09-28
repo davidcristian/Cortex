@@ -5,13 +5,13 @@ from collections.abc import AsyncGenerator, Sequence
 
 from cortex_core.cadence import NO_CADENCE_TERMS, CadenceReading, CadenceTerms, CadenceWatch
 from cortex_core.conversation import Message, Role
-from cortex_core.errors import InferenceError, MalformedToolCallError
+from cortex_core.errors import ContextOverflowError, InferenceError, MalformedToolCallError
 from cortex_core.events import TextDelta, TurnEvent
 from cortex_core.handoff import HandoffRecord
 from cortex_core.output_channels import open_output_channels
 from cortex_core.ports import Clock, InferenceBackend, SessionStore
 from cortex_core.stops import StopLedger
-from cortex_core.swap_notes import BRAIN_FAILED_NOTE, WORKING_DETAIL
+from cortex_core.swap_notes import BRAIN_FAILED_NOTE, BRAIN_OVERFLOW_NOTE, WORKING_DETAIL
 from cortex_core.tool_budget import DispatchBudget
 from cortex_core.tool_loop import ToolLoopContext, stream_tool_loop
 from cortex_core.turn_context import TurnCapabilities, assemble_inference_messages
@@ -127,8 +127,11 @@ class BrainPhase:
             failure = err
             for held in flush_channels(channels, parts):
                 yield held
-            parts.append(BRAIN_FAILED_NOTE)
-            yield TextDelta(text=BRAIN_FAILED_NOTE)
+            note = (
+                BRAIN_OVERFLOW_NOTE if isinstance(err, ContextOverflowError) else BRAIN_FAILED_NOTE
+            )
+            parts.append(note)
+            yield TextDelta(text=note)
         finally:
             await events.aclose()
         if failure is None:

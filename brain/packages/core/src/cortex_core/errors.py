@@ -11,6 +11,10 @@ class InferenceError(Exception):
     """An InferenceBackend failed to produce or continue a completion."""
 
 
+class ContextOverflowError(InferenceError):
+    """The prompt was longer than the model's context, so the server generated nothing."""
+
+
 class MalformedToolCallError(InferenceError):
     """The server answered and the tool call the model wrote could not be assembled."""
 

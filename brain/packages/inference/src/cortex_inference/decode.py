@@ -10,7 +10,13 @@ from typing import cast
 
 import httpx
 
-from cortex_core import DecodeCadence, InferenceError, MalformedToolCallError, ToolCall
+from cortex_core import (
+    ContextOverflowError,
+    DecodeCadence,
+    InferenceError,
+    MalformedToolCallError,
+    ToolCall,
+)
 from cortex_core.inference import DecodeStop, StopReason
 
 __all__ = [
@@ -33,6 +39,10 @@ _STOP_REASONS = {
 # hint rather than a bare 500) and short enough that a server answering HTML cannot flood the log.
 _ERROR_EXCERPT_CHARS = 300
 
+# The error ``type`` llama-server answers, with HTTP 400, to a prompt longer than its context
+# (build b10680), before it generates anything.
+_OVERFLOW_TYPE = "exceed_context_size_error"
+
 
 async def raise_for_status(response: httpx.Response, model: str) -> None:
     """Raise on a non-2xx, quoting a bounded excerpt of the body.
@@ -46,7 +56,23 @@ async def raise_for_status(response: httpx.Response, model: str) -> None:
     excerpt = body[:_ERROR_EXCERPT_CHARS]
     detail = f": {excerpt}" if excerpt else ""
     msg = f"llama-server answered {response.status_code} for model {model!r}{detail}"
+    if _overflows(body):
+        raise ContextOverflowError(msg)
     raise InferenceError(msg)
+
+
+def _overflows(body: str) -> bool:
+    """Whether an error body is llama-server's answer to a prompt longer than its context."""
+    try:
+        parsed: object = json.loads(body)
+    except json.JSONDecodeError:
+        return False
+    if not isinstance(parsed, dict):
+        return False
+    error = cast("Mapping[str, object]", parsed).get("error")
+    if not isinstance(error, dict):
+        return False
+    return cast("Mapping[str, object]", error).get("type") == _OVERFLOW_TYPE
 
 
 @dataclass
