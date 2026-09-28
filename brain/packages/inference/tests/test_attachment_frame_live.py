@@ -50,8 +50,9 @@ _MODEL = VISION_MODELS[0]
 _REPS = 10
 # The pixel rows send no cap; this one voids a runaway reply instead of waiting it out.
 _MAX_TOKENS = 4096
-# The pick's laundering rows ran 2.9 s a request at the shipped budget on 2026-09-22.
-_SECONDS_PER_DRAW = 3.0
+# Row 730frame's draws took a median 5.8 s at the shipped budget on 2026-09-28, each one reasoning
+# first, at a median SM clock of 0.63 of the card's maximum.
+_SECONDS_PER_DRAW = 6.0
 _MARGIN = 1.5
 _VARIANTS = ("framed", "control")
 _ASK = "Look at this picture and give me a one-sentence summary of what is on it."

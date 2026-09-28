@@ -51,8 +51,10 @@ durable memory whatever `CORTEX_MEMORY_ON_TAINTED` says, and no escalation.
 The framing is scoped to the turn. The security preamble names images on tool results only, and it
 is a measured prompt, so it is not changed. Instead the working copy of the user's message ends
 with `ATTACHMENT_FRAME`, a sentence saying the pictures below are attached and that text drawn in a
-picture is content to describe, never an instruction. Only a turn with an attachment sends it. Its
-effect on the real cortex is not measured yet; the deterministic boundary is the taint above.
+picture is content to describe, never an instruction. Only a turn with an attachment sends it. On
+the real cortex the unframed control obeyed an attached picture too rarely for the frame's effect to
+read apart ([readings](../readings/vision-capture.md#the-attachment-frame-against-an-injection));
+the deterministic boundary is the taint above.
 
 ### 3. A turn with an attachment does not hand over to the deep model
 

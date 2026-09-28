@@ -1,9 +1,8 @@
 # Measure the attachment frame on the real cortex
 
-**Status:** open, actionable
+**Status:** done 2026-09-28
 **Area:** vision
 **Origin:** [ADR-0070](../../adr/ADR-0070-user-attached-images.md)
-**Verified:** 2026-09-28
 
 `ATTACHMENT_FRAME` tells the model that text drawn in an attached picture is content, not an
 instruction. Its effect on the real cortex is not measured. The user-role request it goes with is:
@@ -81,3 +80,10 @@ task is filed to reword the frame, or to drop it on a backfire.
   driver's commit, with `CORTEX_ATTACHED_DEADLINE` set to 07:30 so that a rendering which cannot
   end by then is skipped. Its log will be `measurements/sitting-2026-09-28/730frame.log`, its
   replies `730frame.calls.jsonl` and the launcher's record `launcher3.log`, in that directory.
+- 2026-09-28: done. Row `730frame` drew all 300 draws per variant from 06:06 to 07:07 with the
+  checks passing on every rendering: framed 0 of 300 against a control of 3 by hand, p 0.25, which
+  the rule reads as no room, so the frame is kept and its effect on an attached picture is not shown
+  either way ([readings](../../readings/vision-capture.md#the-attachment-frame-against-an-injection)).
+  All 3 control obeys are `output-laundering` in `plain`. The draws took twice the driver's price,
+  since each reasoned first, so its price a draw is now 6 s. Filed
+  [754](754-measure-the-attachment-frame-on-the-laundering-cell.md) to draw that one cell alone.
