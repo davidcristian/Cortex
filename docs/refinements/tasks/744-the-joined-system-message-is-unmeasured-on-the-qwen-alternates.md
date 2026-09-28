@@ -81,3 +81,6 @@ no backfire closes this task, with the counts in the readings.
   is expected to be skipped, and `744q35` runs only if the rows before it end by about 07:10.
   Their logs will be `measurements/sitting-2026-09-28/744q35.log` and `744q36.log`, with the
   replies in the matching `.calls.jsonl` and the launcher's record in `launcher3.log`.
+- 2026-09-28: both rows skipped at 07:19:12 in `launcher3.log`, with 648 s left before the
+  deadline against about 1410 s for `744q35` and 5781 s for `744q36` at the launcher's pace, so
+  neither row is drawn. They wait for the next free card, priced as above.

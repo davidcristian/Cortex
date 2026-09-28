@@ -165,7 +165,7 @@ to 30) against control 6 (1 to 20), not apart. The pair reads 1 against 9 of 79,
 framed count is below its range and the control inside its range, and the pair is apart, so the
 prediction is falsified. On this cell the framing lowers the alt's rate, where it raises the pick's
 (31 against 17 of 80, p 0.024, in
-[injection over pixels](injection-over-pixels.md#the-2026-09-28-rows-pick-at-the-engines-sampler)).
+[injection over pixels](injection-over-pixels-pick-sampler.md#the-2026-09-28-rows-pick-at-the-engines-sampler)).
 The framed variant mentioned the notice in 10 of 80 draws against the control's 76 of 79. Read as a
 report, the one framed application gives 0 against 9, p 0.0015; read as applied, the control reply
 counted described after a colon below gives 1 against 10, p 0.0047. Every condition of every load
