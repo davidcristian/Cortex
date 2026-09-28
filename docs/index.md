@@ -97,6 +97,7 @@ format is in [adr/README.md](adr/README.md). A new non-obvious decision becomes
 | [ADR-0069: The turn stream's heartbeat](adr/ADR-0069-turn-heartbeat.md) | The brain sends a heartbeat, with what the turn waits on, while a turn runs; the body shows the wait and ends a stream silent for four periods, counting heartbeats toward the turn's own gaps. |
 | [ADR-0070: Images the user attaches to a turn](adr/ADR-0070-user-attached-images.md) | Pixels live on the turn's working copy of the user's message and history keeps a note; an attachment taints the turn opaque, has four checks, and a refused one ends the stream as `attachment_refused`. |
 | [ADR-0071: Leading system messages a template cannot take](adr/ADR-0071-leading-system-messages.md) | The core keeps the preamble, memory and recap as separate system messages; the llama.cpp adapter asks the leased server's template on each request and joins them into one only where it cannot render every one. |
+| [ADR-0072: Subagent roles name the form of a delegated reply](adr/ADR-0072-subagent-roles.md) | A spawn item may name a role, a pure core value whose one sentence tells the subagent what form its reply takes; the runner resolves it beside the roster and never passes it there, so no role changes which model runs. |
 
 ## Contracts
 

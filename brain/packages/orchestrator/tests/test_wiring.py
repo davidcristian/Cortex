@@ -28,6 +28,7 @@ from cortex_core import (
     GET_VOLUME_TOOL_NAME,
     RAW_RECALL_POLICY,
     SET_VOLUME_TOOL_NAME,
+    SHIPPED_ROLES,
     USER_DECLINED_MSG,
     CaptureBounds,
     CharBudgetHistoryWindow,
@@ -902,6 +903,32 @@ async def test_build_subagents_hands_the_pool_its_configured_admission_bound() -
             async with scheduler.admit(whole_budget):
                 pass  # pragma: no cover - admit raises before the body runs
     await close()
+
+
+@pytest.mark.parametrize(
+    ("roles", "advertised"), [(True, sorted(SHIPPED_ROLES.entries)), (False, None)]
+)
+async def test_build_subagents_offers_the_shipped_roles_unless_they_are_turned_off(
+    *, roles: bool, advertised: list[str] | None
+) -> None:
+    spawn, _scheduler, close = await build_subagents(
+        SubagentsConfig(
+            backend="llamacpp",
+            endpoint="http://llama-subagent-cpu:8082",
+            gpu_endpoint="http://llama-subagent-gpu:8083",
+            roles=roles,
+        ),
+        None,
+        "redis://sub:6379/0",
+        SystemClock(),
+        placer=VramBudgetPlacer(soft_cap_gb=14.0, cortex_reservation_gb=11.3),
+        task_store_factory=_fake_task_store,
+    )
+    await close()
+    assert spawn is not None
+    items = spawn.spec.parameters["properties"]["instructions"]["items"]["anyOf"][1]
+    role = items["properties"].get("role")
+    assert (role["enum"] if role is not None else None) == advertised
 
 
 @asynccontextmanager

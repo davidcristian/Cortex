@@ -3,8 +3,8 @@
 **Status:** open, waiting for a consumer
 **Area:** subagents
 **Origin:** [ADR-0018](../../adr/ADR-0018-heterogeneous-subagents.md)
-**Trigger:** A role needing a cheap model on a tainted or tool path for a proven-safe reason, which cannot happen before R-272 gives the brain a role concept: `SubagentRoster.resolve` takes no role and the spawn tool's items have none.
-**Verified:** 2026-09-19
+**Trigger:** A role needing a cheap model on a tainted or tool path for a proven-safe reason. Roles exist since R-272, but a role holds no model, and `SubagentRoster.resolve` never receives one.
+**Verified:** 2026-09-28
 
 If some future subagent role needed a cheap model on a tainted or tool path for a reason proven
 safe, it would be a per-role override on the same roster port, never a relaxation of the default
@@ -31,3 +31,8 @@ that forces the safest model (ADR-0017 risks, ADR-0018 risks). Nothing justifies
   The trigger now names R-272 on its own line, because a trigger read from the index gave no sign
   that it could not fire yet. R-272 waits on nothing, being an optional feature, so the two do not
   wait on each other.
+- 2026-09-28: Checked again; not fired. [R-272](272-more-subagent-roles.md) gave the brain roles
+  ([ADR-0072](../../adr/ADR-0072-subagent-roles.md)), so the trigger no longer waits on it. A role
+  is a description and one sentence about the form of the reply; it holds no model, no tools and no
+  schema, and the runner resolves it after `SubagentRoster.resolve` without passing it there. A
+  role that needed a cheap model would first need a model preference, which that record declined.

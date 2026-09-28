@@ -105,7 +105,8 @@ what follows is the prefix, the defaults other parts depend on, and the validati
   the next overflows, and `memory_gb` the measured 3.0, about 2.5 GiB of RSS rounded up so two are
   admitted (ADR-0012 decision 14). The flat fields define the roster's default entry and each
   `CORTEX_SUBAGENTS_ROSTER__<name>` adds one alternate as a JSON `SubagentRosterEntry`, whose
-  missing asks fall back to the shipped ones. `stall_timeout_s: float = 600.0` is the pool's own
+  missing asks fall back to the shipped ones. `roles: bool = True` hands the runner
+  `SHIPPED_ROLES`, and `false` hands it none, so the spawn spec names no role (ADR-0072). `stall_timeout_s: float = 600.0` is the pool's own
   silence ceiling, covering a CPU call's time to first token on a tier decoding at 0.18 to
   1.35 tok/s; `admission_wait_s: float = 7200.0` (decision 11) is how long a spawn may queue for
   room, three run deadlines, clearing twice the 1624.6 s the last spawn of a full batch was

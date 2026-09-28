@@ -5,7 +5,7 @@ the package invariants. This document covers a subtask the cortex delegates to a
 values and ports it is placed and admitted through, and the runner that performs it. The
 `spawn_subagents` tool that starts one is in [brain-core-tools.md](brain-core-tools.md), and the
 GPU it competes for is in [brain-core-residency.md](brain-core-residency.md). The decisions are
-ADR-0010, ADR-0012, ADR-0017, ADR-0018, ADR-0028 and ADR-0048.
+ADR-0010, ADR-0012, ADR-0017, ADR-0018, ADR-0028, ADR-0048 and ADR-0072.
 
 ## Subagent values and ports
 
@@ -14,9 +14,10 @@ ADR-0010, ADR-0012, ADR-0017, ADR-0018, ADR-0028 and ADR-0048.
   production caller, so the result key is the operator's record and what a resume path would read.
   Fake: `InMemoryTaskStore`; real adapter: `cortex_session`.
 - `SubagentTask(id, instruction, context, at, model="", tainted=False, session_id="", turn_id="",
-  item_id="")` is one delegated task, persisted before it runs. `context` is the material the
-  subagent works from; the cortex conversation is never shared. All of these travel on the record
-  rather than as parameters, so the runner resolves and audits from the store alone.
+  item_id="", role="")` is one delegated task, persisted before it runs. `role` is a role's name,
+  never its sentence. `context` is the material the subagent works from; the cortex conversation
+  is never shared. All of these travel on the record rather than as parameters, so the runner
+  resolves and audits from the store alone.
   `SubagentResult(task_id, output, ok=True, detail="", tainted=False)` is the outcome, where
   `ok=False` is a failure the cortex consumes as a value. `tainted` is true when the task was
   tainted or the attempt read an untrusted tool result (ADR-0013 decision 3).
@@ -36,6 +37,14 @@ ADR-0010, ADR-0012, ADR-0017, ADR-0018, ADR-0028 and ADR-0048.
   tools-enabled path takes the `default` whatever was requested; any other path takes the requested
   entry, `""` meaning the default; an unknown name on a clean tool-less path returns `None`, which
   the runner fails closed on.
+- `SubagentRole(description, instruction)` (`roles.py`, ADR-0072) is one kind of subtask: the
+  `description` the spawn spec advertises and the one `instruction` sentence the subagent reads.
+  `applied(text)` returns the subtask's instruction with that sentence after it; `NO_ROLE` leaves it
+  unchanged. `SubagentRoles(entries)` rejects an entry with an empty name or text, and
+  `resolve(requested)` returns the entry, `NO_ROLE` for `""`, or `None` for an unknown name.
+  `SHIPPED_ROLES` holds `precis`, `excerpt` and `answer`, names proposed for the maintainer's pick,
+  and `NO_ROLES` holds none. A role holds no model, tools or schema, and `SubagentRoster.resolve`
+  never receives one, so no role changes which model runs.
 - `SubagentPlacer` provides `place(request)`, `release(placement)`, `close_gpu()` and
   `open_gpu()`, all synchronous. `place` fit-tests `request.vram_gb` against the live headroom
   (`soft_cap − resident − placed`) and reserves it on the GPU or spills to the CPU. While closed,
@@ -69,14 +78,15 @@ the shipped numbers, declared here and imported by `SubagentsConfig`, and one pa
 roster entry and both placements of each.
 
 `SubagentRunner(store, roster, clock, *, tools=None, constrain_output=False,
-bounds=UNBOUNDED_ATTEMPT)` is a subagent's body, a stateless function over the `TaskStore`.
-`run(task_id, *, budget=None, progress=None)` loads the task by id, resolves the roster entry,
-admits against the scheduler, places on GPU or CPU, runs the attempt on that entry's backend for
-the placement, persists and returns a `SubagentResult`, and always releases the VRAM in a
-`finally`. A missing task, an unknown model and a `SubagentAdmissionError` all become `ok=False`
-results rather than exceptions, which would cross the spawn tool's `gather` and fail the turn; a
-refused spawn also writes one warning naming the task, the resolved entry and the scheduler's
-reason, the only lasting record of it. A refused tainted task's result is tainted. `budget=None`
+bounds=UNBOUNDED_ATTEMPT, roles=NO_ROLES)` is a subagent's body, a stateless function over the
+`TaskStore`. `run(task_id, *, budget=None, progress=None)` loads the task by id, resolves the roster
+entry, then the task's role, whose sentence it appends to the instruction for this run only, admits
+against the scheduler, places on GPU or CPU, runs the attempt on that entry's backend for the
+placement, persists and returns a `SubagentResult`, and always releases the VRAM in a `finally`. A
+missing task, an unknown model, an unknown role and a `SubagentAdmissionError` all become
+`ok=False` results rather than exceptions, which would cross the spawn tool's `gather` and fail the
+turn; an unknown role's result keeps the task's taint, and a refused spawn also writes one warning
+naming the task, the resolved entry and the scheduler's reason, the only lasting record of it. A refused tainted task's result is tainted. `budget=None`
 means the run is its own root, the ticker's fire.
 
 **The CPU re-run**: a GPU-placed attempt that failed with `AttemptFailure.INFERENCE` is re-run once

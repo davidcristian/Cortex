@@ -2,13 +2,14 @@
 
 import asyncio
 import json
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Collection, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any, cast
 from uuid import uuid4
 
 from cortex_core.delegation_wait import DelegationBoard, batch_wait
 from cortex_core.ports import Clock, TaskStore
+from cortex_core.roles import SubagentRoles
 from cortex_core.roster import SubagentRoster
 from cortex_core.runner import SubagentRunner
 from cortex_core.spawn_spec import MAX_SPAWN_BATCH, build_spawn_spec
@@ -21,11 +22,12 @@ SUBAGENT_PROGRESS_STATE = DELEGATING
 
 @dataclass(frozen=True, slots=True)
 class _SpawnItem:
-    """One parsed instructions item: what to do, on which model, over what material."""
+    """One parsed instructions item: what to do, on which model, in which role, over what."""
 
     instruction: str
     model: str = ""
     context: str = ""
+    role: str = ""
 
 
 def _uuid4_task_id() -> str:
@@ -41,16 +43,16 @@ _ERR_BATCH = (
 )
 
 
-def _parse_item(item: object, roster: SubagentRoster) -> _SpawnItem | str:
+def _parse_item(item: object, roster: SubagentRoster, roles: SubagentRoles) -> _SpawnItem | str:
     """Validate one instructions item; return the parsed item or an error message string."""
     if isinstance(item, str):
         stringified = _stringified_object_item(item)
         if stringified is not None:
-            return _parse_object_item(stringified, roster)
+            return _parse_object_item(stringified, roster, roles)
         return _SpawnItem(instruction=item) if item.strip() else _ERR_INSTRUCTION
     if not isinstance(item, Mapping):
         return _ERR_INSTRUCTION
-    return _parse_object_item(cast("Mapping[str, object]", item), roster)
+    return _parse_object_item(cast("Mapping[str, object]", item), roster, roles)
 
 
 def _stringified_object_item(item: str) -> Mapping[str, object] | None:
@@ -66,25 +68,38 @@ def _stringified_object_item(item: str) -> Mapping[str, object] | None:
     return None
 
 
-def _parse_object_item(entry: Mapping[str, object], roster: SubagentRoster) -> _SpawnItem | str:
-    """Validate one ``{instruction, model?, context?}`` item against the roster."""
+def _named(entry: Mapping[str, object], key: str, names: Collection[str]) -> tuple[str, str]:
+    """The item's ``key`` choice and an error message, at most one of the two non-empty."""
+    value = entry.get(key, "")
+    if not isinstance(value, str):
+        return "", f"the {key!r} of a subtask must be a string"
+    if value and value not in names:
+        options = ", ".join(sorted(names)) or "none"
+        return "", f"unknown subagent {key} {value!r}; options: {options}"
+    return value, ""
+
+
+def _parse_object_item(
+    entry: Mapping[str, object], roster: SubagentRoster, roles: SubagentRoles
+) -> _SpawnItem | str:
+    """Validate one ``{instruction, model?, context?, role?}`` item against the roster and roles."""
     instruction = entry.get("instruction")
     if not isinstance(instruction, str) or not instruction.strip():
         return _ERR_INSTRUCTION
-    model = entry.get("model", "")
-    if not isinstance(model, str):
-        return "the 'model' of a subtask must be a string"
-    if model and model not in roster.entries:
-        options = ", ".join(sorted(roster.entries))
-        return f"unknown subagent model {model!r}; options: {options}"
+    model, refused = _named(entry, "model", roster.entries.keys())
+    if refused:
+        return refused
     context = entry.get("context", "")
     if not isinstance(context, str):
         return "the 'context' of a subtask must be a string"
-    return _SpawnItem(instruction=instruction, model=model, context=context)
+    role, refused = _named(entry, "role", roles.entries.keys())
+    if refused:
+        return refused
+    return _SpawnItem(instruction=instruction, model=model, context=context, role=role)
 
 
 def _parse_instructions(
-    arguments: Mapping[str, Any], roster: SubagentRoster
+    arguments: Mapping[str, Any], roster: SubagentRoster, roles: SubagentRoles
 ) -> list[_SpawnItem] | str:
     """Validate the ``instructions`` argument; return the items or an error message string."""
     raw = arguments.get("instructions")
@@ -96,7 +111,7 @@ def _parse_instructions(
         return _ERR_BATCH
     items: list[_SpawnItem] = []
     for element in elements:
-        parsed = _parse_item(element, roster)
+        parsed = _parse_item(element, roster, roles)
         if isinstance(parsed, str):
             return parsed
         items.append(parsed)
@@ -131,11 +146,13 @@ class SpawnSubagentsTool:
     @property
     def spec(self) -> ToolSpec:
         """The tool advertised to the cortex, derived from the runner it fronts."""
-        return build_spawn_spec(self._runner.roster, tools_enabled=self._runner.tools_enabled)
+        return build_spawn_spec(
+            self._runner.roster, tools_enabled=self._runner.tools_enabled, roles=self._runner.roles
+        )
 
     async def invoke(self, call: ToolCall) -> ToolResult:
         """Persist each subtask, run the subagents concurrently, and aggregate their results."""
-        parsed = _parse_instructions(call.arguments, self._runner.roster)
+        parsed = _parse_instructions(call.arguments, self._runner.roster, self._runner.roles)
         if isinstance(parsed, str):
             return ToolResult(call_id=call.id, content=parsed, is_error=True, trust=Trust.TRUSTED)
         tasks = [
@@ -149,6 +166,7 @@ class SpawnSubagentsTool:
                 session_id=call.stamp.session_id,
                 turn_id=call.stamp.turn_id,
                 item_id=call.stamp.item_id,
+                role=item.role,
             )
             for item in parsed
         ]

@@ -85,6 +85,18 @@ async def test_a_task_record_missing_an_identity_is_corrupt_rather_than_unattrib
         await RedisTaskStore(client).get_task("t1")
 
 
+async def test_a_task_record_missing_its_role_is_corrupt_rather_than_a_free_instruction() -> None:
+    client = FakeAsyncRedis(server=FakeServer())
+    await RedisTaskStore(client).put_task(task_contract.make_task("t1"))
+    raw = await client.get("cortex:task:t1")
+    assert raw is not None
+    fields = json.loads(raw)
+    del fields["role"]
+    await client.set("cortex:task:t1", json.dumps(fields))
+    with pytest.raises(TaskStoreError, match="corrupt task record at 'cortex:task:t1'"):
+        await RedisTaskStore(client).get_task("t1")
+
+
 async def test_corrupt_result_record_wraps_into_task_store_error() -> None:
     client = FakeAsyncRedis(server=FakeServer())
     await client.set("cortex:task:t1:result", json.dumps({"task_id": "t1"}))

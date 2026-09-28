@@ -34,7 +34,7 @@ async def check_missing_task_and_result_are_none(store: TaskStore) -> None:
 
 
 async def check_task_round_trips(store: TaskStore) -> None:
-    """A stored task reads back field for field, the resolution inputs included."""
+    """A stored task reads back field for field, the resolution inputs and the role included."""
     task = replace(
         make_task(
             _task_id(),
@@ -46,6 +46,7 @@ async def check_task_round_trips(store: TaskStore) -> None:
         session_id="chat-7",
         turn_id="t-7",
         item_id="r-7",
+        role="precis",
     )
     await store.put_task(task)
     assert await store.get_task(task.id) == task

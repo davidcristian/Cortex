@@ -163,6 +163,11 @@ through one. What one entry does get is an overlap of exactly two, and only whil
 pair straddles the two targets. Raising `CPU_BUDGET` past that pair buys queue depth rather than
 throughput; more than two at once needs distinct roster entries or a second GPU-capable executor.
 
+**Roles.** `CORTEX_SUBAGENTS_ROLES` (default `true`) lets the cortex name a role per subtask, one of
+`precis`, `excerpt` and `answer`, each adding one sentence to the subtask about the form of its
+reply ([ADR-0072](../adr/ADR-0072-subagent-roles.md)). Set it to `false` to send the spawn spec
+without the `role` property. A role never changes which model runs.
+
 ## Reasoning is off, by two flags
 
 Both model families in the lineup are reasoning models, and unbounded thinking on CPU is minutes

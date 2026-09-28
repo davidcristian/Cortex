@@ -2,12 +2,14 @@
 
 import logging
 from collections.abc import Awaitable, Callable
+from dataclasses import replace
 
 from cortex_core.dispatch import ToolDispatcher
 from cortex_core.errors import SubagentAdmissionError
 from cortex_core.placement import PlacementTarget
 from cortex_core.ports import Clock, TaskStore
 from cortex_core.progress import ProgressSink
+from cortex_core.roles import NO_ROLES, SubagentRoles
 from cortex_core.roster import SubagentResources, SubagentRoster
 from cortex_core.subagent_attempt import PlacedAttempt
 from cortex_core.subagent_outcome import AttemptFailure, AttemptOutcome, reran_on_cpu
@@ -25,7 +27,7 @@ _logger = logging.getLogger(__name__)
 class SubagentRunner:
     """Run a delegated task to a persisted result: resolve, admit, place, run."""
 
-    def __init__(
+    def __init__(  # noqa: PLR0913 -- the roles are resolved beside the roster, never inside it
         self,
         store: TaskStore,
         roster: SubagentRoster,
@@ -34,9 +36,11 @@ class SubagentRunner:
         tools: ToolDispatcher | None = None,
         constrain_output: bool = False,
         bounds: AttemptBounds = UNBOUNDED_ATTEMPT,
+        roles: SubagentRoles = NO_ROLES,
     ) -> None:
         self._store = store
         self._roster = roster
+        self._roles = roles
         self._tools = tools
         self._attempt = PlacedAttempt(
             clock, tools, constrain_output=constrain_output, bounds=bounds
@@ -46,6 +50,11 @@ class SubagentRunner:
     def roster(self) -> SubagentRoster:
         """The roster this runner resolves against."""
         return self._roster
+
+    @property
+    def roles(self) -> SubagentRoles:
+        """The roles a task may name, resolved beside the roster and never passed to it."""
+        return self._roles
 
     @property
     def tools_enabled(self) -> bool:
@@ -69,6 +78,12 @@ class SubagentRunner:
         )
         if name is None:
             return await self._failed(task_id, f"unknown subagent model {task.model!r}")
+        role = self._roles.resolve(task.role)
+        if role is None:
+            return await self._failed(
+                task_id, f"unknown subagent role {task.role!r}", tainted=task.tainted
+            )
+        task = replace(task, instruction=role.applied(task.instruction))
         res = self._roster.entries[name].resources
         try:
             async with res.scheduler.admit(res.request):

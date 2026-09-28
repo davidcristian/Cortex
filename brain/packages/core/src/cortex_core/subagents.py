@@ -17,6 +17,7 @@ class SubagentTask:
     session_id: str = ""
     turn_id: str = ""
     item_id: str = ""
+    role: str = ""
 
     def __post_init__(self) -> None:
         if self.at.tzinfo is None or self.at.tzinfo.utcoffset(self.at) is None:

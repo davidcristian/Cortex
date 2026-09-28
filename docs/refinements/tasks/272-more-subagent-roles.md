@@ -1,9 +1,8 @@
 # More subagent roles
 
-**Status:** open, optional feature
+**Status:** done 2026-09-28
 **Area:** cross-cutting
 **Origin:** [ADR-0018](../../adr/ADR-0018-heterogeneous-subagents.md)
-**Verified:** 2026-09-19
 
 More subagent roles. The line came from the ROADMAP's old catch-all list rather than from a
 decision record, which is why this entry read `Origin: none` until 2026-09-13. The record that owns
@@ -38,3 +37,17 @@ unimplemented, which is consistent with there being nothing to override yet.
   boundary is enforced. The 2026-09-13 note said the schema had moved off the lines the 2026-08-09
   note named, which was wrong: every version of `spawn_spec.py` since 2026-08-09 builds it at lines
   89 to 98. No commit since touched the roster, the spawn tool or the runner.
+- 2026-09-28: Built. The claims above held at the start: `Role` was still only the message-author
+  enum, the spawn item was `instruction`, `context` and an optional `model`, and
+  `SubagentRoster.resolve` (now at `roster.py:43`) was still the one place the taint boundary runs.
+  A role is now a pure core value in `brain/packages/core/src/cortex_core/roles.py`, holding a
+  description the spawn spec advertises and one sentence naming the form of the reply, which the
+  runner appends to the subtask. The spawn item gained `role`, the task record keeps its name, the
+  runner resolves it beside the roster without passing it there, and `CORTEX_SUBAGENTS_ROLES` turns
+  the three shipped roles off. The design, the fields left out and why, and the names are in
+  [ADR-0072](../../adr/ADR-0072-subagent-roles.md). The names `precis`, `excerpt` and `answer` are a
+  proposal for the maintainer's pick, with two alternative sets in that record, and nothing beyond
+  this machine stores them yet. Filed [748](748-a-role-sentence-is-unmeasured-against-the-envelope-readings.md)
+  for whether a role sentence changes delivery and
+  [749](749-the-cortex-uptake-of-the-role-property-is-unmeasured.md) for whether the cortex names a
+  role at all.

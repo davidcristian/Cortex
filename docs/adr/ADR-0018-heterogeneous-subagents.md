@@ -27,7 +27,8 @@ task record.
 1. **The spawn schema gains a per-item choice and the task's `context`.** Each `instructions` item
    is a bare string (the default model, no context) or an object `{instruction, model?, context?}`
    (`anyOf` in the advertised JSON Schema). `model` names a roster entry (an `enum` of the
-   advertised names); `context` is the material the subagent works from. A bad item (empty
+   advertised names); `context` is the material the subagent works from. An item may also name a
+   `role`, which never reaches the roster ([ADR-0072](ADR-0072-subagent-roles.md)). A bad item (empty
    instruction, unknown model, non-string context) becomes an `is_error` result the cortex can
    correct, never an exception. A string item that parses as a JSON object with an `instruction`
    key is read as the object form, because a live cortex sometimes emits the object stringified

@@ -33,6 +33,7 @@ def _encode_task(task: SubagentTask) -> str:
             "session_id": task.session_id,
             "turn_id": task.turn_id,
             "item_id": task.item_id,
+            "role": task.role,
         }
     )
 
@@ -50,6 +51,7 @@ def _decode_task(raw: bytes | str, task_id: str) -> SubagentTask:
             session_id=fields["session_id"],
             turn_id=fields["turn_id"],
             item_id=fields["item_id"],
+            role=fields["role"],
         )
     except (KeyError, TypeError, ValueError) as err:
         msg = f"corrupt task record at {_task_key(task_id)!r}"

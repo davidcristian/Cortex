@@ -2,6 +2,7 @@
 
 from cortex_core.placement import Placement, PlacementRequest, PlacementTarget
 from cortex_core.placer import VramBudgetPlacer
+from cortex_core.roles import NO_ROLE, NO_ROLES, SHIPPED_ROLES, SubagentRole, SubagentRoles
 from cortex_core.roster import SubagentProfile, SubagentResources, SubagentRoster
 from cortex_core.runner import SubagentRunner
 from cortex_core.scheduler import (
@@ -30,7 +31,10 @@ __all__ = [
     "DEFAULT_SUBAGENT_MAX_TOKENS",
     "DEFAULT_SUBAGENT_RUN_TIMEOUT_S",
     "MAX_SPAWN_BATCH",
+    "NO_ROLE",
+    "NO_ROLES",
     "POOL_DRAINING_MSG",
+    "SHIPPED_ROLES",
     "SPAWN_TOOL_NAME",
     "SUBAGENT_PROGRESS_STATE",
     "UNBOUNDED_ATTEMPT",
@@ -44,6 +48,8 @@ __all__ = [
     "SubagentProfile",
     "SubagentResources",
     "SubagentResult",
+    "SubagentRole",
+    "SubagentRoles",
     "SubagentRoster",
     "SubagentRunner",
     "SubagentTask",

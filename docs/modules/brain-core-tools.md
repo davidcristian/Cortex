@@ -157,14 +157,14 @@ All are cortex-only, so delegation is one level deep and a subagent can neither 
 escalate. Each is a `BuiltinTool` registered in the `CompositeToolRegistry`.
 
 - `SpawnSubagentsTool(runner, store, clock, *, task_id_factory=<uuid4>)` is `spawn_subagents`
-  (ADR-0010, ADR-0018). Its spec is built from the runner's roster by `build_spawn_spec`
-  (`spawn_spec.py`): an item is a bare string or `{instruction, model?, context?}`, at most
-  `MAX_SPAWN_BATCH` (8) per call, and the `model` enum lists every roster entry, left out when the
-  runner is tools-enabled or the roster has one entry. `invoke` checks the batch size before
-  parsing any item, persists one `SubagentTask` per item stamped with the call stamp's taint and
-  its three work ids, runs the batch together, and returns one aggregated `ToolResult` with a
-  `[subagent N] …` block per subtask, `UNTRUSTED` when any result is tainted, as on every tainted
-  call. A progress sink on the stamp gets one `StatusUpdate(state="delegating", …)` and is passed on.
+  (ADR-0010, ADR-0018, ADR-0072). `build_spawn_spec` (`spawn_spec.py`) builds its spec from the
+  runner: an item is a bare string or `{instruction, model?, context?, role?}`, at most
+  `MAX_SPAWN_BATCH` (8) per call; the `model` enum lists every roster entry unless the runner is
+  tools-enabled or has one entry, and the `role` enum lists every role the runner holds. `invoke`
+  checks the batch size first, persists one `SubagentTask` per item with the stamp's taint, its
+  three work ids and the role's name, runs the batch together, and returns one `ToolResult` with a
+  `[subagent N] …` block each, `UNTRUSTED` when any result is tainted. A progress sink on the stamp
+  gets one `StatusUpdate(state="delegating", …)` and is passed on.
 - `GetVolumeTool(body)` and `SetVolumeTool(body)` (`volume.py`, ADR-0023) read and set the host's
   system volume over a `BodyGateway`. Neither needs confirmation and every result is `TRUSTED`;
   bad arguments and a `BodyGatewayError` become an `is_error` result, worded by

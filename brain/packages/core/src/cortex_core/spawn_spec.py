@@ -2,6 +2,7 @@
 
 from typing import Any
 
+from cortex_core.roles import NO_ROLES, SubagentRoles
 from cortex_core.roster import SubagentRoster
 from cortex_core.tools import ToolSpec
 
@@ -30,6 +31,11 @@ _SINGLE_MODEL_NOTE = (
     "backend and run one after another, a batch that groups independent subtasks rather than "
     "running them in parallel."
 )
+_ROLE_NOTE = (
+    " A subtask may name a 'role' by using an object item, e.g. "
+    '{"instruction": "...", "role": "<role name>"}, which tells the subagent what form its reply '
+    "takes; omit it for a free instruction."
+)
 
 
 def _model_property(roster: SubagentRoster) -> dict[str, Any]:
@@ -50,8 +56,25 @@ def _model_property(roster: SubagentRoster) -> dict[str, Any]:
     }
 
 
-def build_spawn_spec(roster: SubagentRoster, *, tools_enabled: bool) -> ToolSpec:
-    """The advertised spec, built from the roster and matching the wiring."""
+def _role_property(roles: SubagentRoles) -> dict[str, Any]:
+    """The per-subtask ``role`` JSON-Schema property, listing what each role returns."""
+    options = "; ".join(
+        f"{name!r} ({roles.entries[name].description})" for name in sorted(roles.entries)
+    )
+    return {
+        "type": "string",
+        "enum": sorted(roles.entries),
+        "description": (
+            "The kind of reply this subtask returns; omit for a free instruction. "
+            f"Options: {options}."
+        ),
+    }
+
+
+def build_spawn_spec(
+    roster: SubagentRoster, *, tools_enabled: bool, roles: SubagentRoles = NO_ROLES
+) -> ToolSpec:
+    """The advertised spec, built from the roster and roles and matching the wiring."""
     item_properties: dict[str, Any] = {
         "instruction": {"type": "string", "description": "The self-contained subtask."},
         "context": {
@@ -62,9 +85,15 @@ def build_spawn_spec(roster: SubagentRoster, *, tools_enabled: bool) -> ToolSpec
     with_choice = not tools_enabled and len(roster.entries) > 1
     if with_choice:
         item_properties["model"] = _model_property(roster)
+    if roles.entries:
+        item_properties["role"] = _role_property(roles)
     return ToolSpec(
         name=SPAWN_TOOL_NAME,
-        description=_DESCRIPTION + (_CHOICE_NOTE if with_choice else _SINGLE_MODEL_NOTE),
+        description=(
+            _DESCRIPTION
+            + (_CHOICE_NOTE if with_choice else _SINGLE_MODEL_NOTE)
+            + (_ROLE_NOTE if roles.entries else "")
+        ),
         parameters={
             "type": "object",
             "properties": {

@@ -71,6 +71,7 @@ class SubagentsConfig(BaseSettings):
     max_tokens: int = Field(default=DEFAULT_SUBAGENT_MAX_TOKENS, ge=1)
     run_timeout_s: float = Field(default=DEFAULT_SUBAGENT_RUN_TIMEOUT_S, gt=0)
     constrain_output: bool = True
+    roles: bool = True
 
     @model_validator(mode="after")
     def _llamacpp_needs_both_endpoints(self) -> "SubagentsConfig":

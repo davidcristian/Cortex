@@ -30,6 +30,7 @@ services:
       CORTEX_SUBAGENTS_MAX_TOKENS:
       CORTEX_SUBAGENTS_RUN_TIMEOUT_S:
       CORTEX_SUBAGENTS_CONSTRAIN_OUTPUT:
+      CORTEX_SUBAGENTS_ROLES:
     depends_on:
       llama-subagent:
         condition: service_healthy

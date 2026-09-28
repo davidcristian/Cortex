@@ -5,6 +5,8 @@ from collections.abc import Awaitable, Callable
 import httpx
 
 from cortex_core import (
+    NO_ROLES,
+    SHIPPED_ROLES,
     Clock,
     ConfirmFreeToolRegistry,
     PlacementRequest,
@@ -85,6 +87,7 @@ async def build_subagents(
         tools=tools,
         constrain_output=config.constrain_output,
         bounds=config.attempt_bounds,
+        roles=SHIPPED_ROLES if config.roles else NO_ROLES,
     )
 
     async def close_subagents() -> None:

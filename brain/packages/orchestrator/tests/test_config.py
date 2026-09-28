@@ -54,6 +54,7 @@ def clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
         "CORTEX_SUBAGENTS_ENDPOINT",
         "CORTEX_SUBAGENTS_MODEL",
         "CORTEX_SUBAGENTS_MAX_CONCURRENCY",
+        "CORTEX_SUBAGENTS_ROLES",
         "CORTEX_BODY_BACKEND",
         "CORTEX_BODY_ENDPOINT",
         "CORTEX_BODY_CAPTURE_MAX_EDGE",
@@ -510,6 +511,15 @@ def test_subagents_default_to_disabled() -> None:
     assert (config.cpu_budget, config.mem_budget_gb) == (4.0, 8.0)
     assert config.stall_timeout_s == 600.0
     assert config.admission_wait_s == 7200.0
+    assert config.roles is True
+
+
+@pytest.mark.usefixtures("clean_env")
+def test_subagent_roles_can_be_turned_off_from_the_environment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("CORTEX_SUBAGENTS_ROLES", "false")
+    assert SubagentsConfig().roles is False
 
 
 @pytest.mark.usefixtures("clean_env")
