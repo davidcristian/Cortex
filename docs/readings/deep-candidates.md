@@ -242,6 +242,6 @@ else covers. What is the fewest hours the owner must work in a week? Give a rost
 to 14:00 Monday to Friday, the other 10:00 to 18:00 Tuesday to Saturday, the owner the rest.*
 
 Method: the drivers in `measurements/deep-2026-09-26/q27-drivers/` (stop rows `phase1.py` to
-`phase5.py` over `questions.py`), `flash-p2/` and `flash-p2-20g/` (Flash-Next), the decode probe
-`test_decode_cadence_live.py`, the switch probe through `just switch-tail`, and R-714's
-`text_rows.py` for the injection row.
+`phase5.py` over `questions.py`), `flash-p2/` and `flash-p2-20g/` (Flash-Next's logs; its driver
+was not kept), the decode probe `test_decode_cadence_live.py`, the switch probe through
+`just switch-tail`, and R-714's `text_rows.py` for the injection row.

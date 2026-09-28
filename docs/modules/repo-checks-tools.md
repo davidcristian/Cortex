@@ -2,7 +2,8 @@
 
 The thirteen cross-tree scans are in [repo-checks-scans.md](repo-checks-scans.md) and the full
 module list is in [repo-checks.md](repo-checks.md). This document covers the rest: three modules
-that check one thing each, and five that report a measurement and decide nothing.
+that check one thing each, five that report a measurement and decide nothing, and one that
+watches the host while a measurement container runs.
 
 ## `rustcoverage.py PATH --rustc TEXT --llvm-cov TEXT`
 
@@ -154,3 +155,26 @@ than guess on a sample they cannot read, and each exits 2 printing one `<module>
   sample's `build_info`, `model_path` and `n_ctx`, read once from `GET /props`, so a row copied into
   a record states the engine build, the file and the context it was measured at. The GPU layer count
   is on no route llama-server offers and is typed by hand beside it.
+
+## `memwatch.py NAME [--floor-mib N] [--full-limit P] [--late-limit S] [--every S]`
+
+Watches the host while a measurement container runs, and removes the container with `docker rm
+--force` when one reading crosses one of three limits: `MemAvailable` in `/proc/meminfo` under
+`--floor-mib` (default 2048), the `full avg10` share in `/proc/pressure/memory` over `--full-limit`
+(default 50), or its own sleep of `--every` seconds (default 1) running more than `--late-limit`
+seconds late (default 2). It never reads swap-out. Under a 24 GiB cap a Flash-Next row had idle
+pages swapped out while `MemAvailable` stayed at 24,000 MiB or more and nothing woke late, and a
+watchdog on swap-out removed that row before its first-token draw
+([deep candidates](../readings/deep-candidates.md#qwen38-flash-next-the-feasibility-row)).
+
+The pressure file covers the whole kernel, so it also counts stalls inside a container's own
+memory cap. The default limit sits above the 26.5 the 20 GiB row reached while the host kept
+24,220 MiB available, so a row that only slows itself is not removed.
+
+Before each reading it asks docker for the container's state. A container docker no longer has, or
+one that ended on its own, ends the watch with exit 0 and a line naming the state docker reports
+(`oom=true` when the kernel's OOM killer ended it). A reading that cannot be taken removes the
+container too, because the row would otherwise run unwatched. Exit 1 means the watchdog removed the
+container, and argparse exits 2 on a usage error. Every reading is printed with the time, so the
+log is also the row's memory record. The two docker calls are in `Machine`, left out of coverage
+and exercised by one `integration` test; `watch` runs against a fake host in the unit tests.

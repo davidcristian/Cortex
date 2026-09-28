@@ -458,6 +458,13 @@ switch-tail +samples:
     uv sync --locked --project scripts
     uv run --project scripts python scripts/switchtail.py {{ samples }}
 
+# Remove a measurement container when the host runs short of memory: MemAvailable under a floor,
+# the memory full share over 10 s above a limit, or the watchdog itself waking late. Start it right
+# after `docker run -d`; exit 1 means it removed the container. See docs/modules/repo-checks-tools.md.
+mem-watch name *flags:
+    uv sync --locked --project scripts
+    uv run --project scripts python scripts/memwatch.py {{ name }} {{ flags }}
+
 # The gpu stack plus a loopback publish of the model-host control API, which the gpu override
 # leaves unpublished because it can start and stop GPU processes. For live tests only;
 # `just down-gpu` takes it down. Procedure: docs/runbooks/model-swap.md.
