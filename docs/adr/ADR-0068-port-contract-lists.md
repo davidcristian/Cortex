@@ -152,9 +152,9 @@ Rust and the overlay:
 | Port | Fake | Real adapter | Shared checks | CI: fake | CI: adapter |
 | --- | --- | --- | --- | --- | --- |
 | `Hotkey` | `FakeHotkey` | `WindowsHotkey`, Linux and macOS stubs | none | yes | no, `cfg(windows)` |
-| `AudioControl` | `FakeAudio`, written twice | `WindowsAudioControl` | none | yes | no, `cfg(windows)` |
-| `Notify` | `FakeNotify`, written twice | `WindowsNotify` | none | yes | no, `cfg(windows)` |
-| `ScreenCapture` | `FakeScreen`, written twice | `WindowsScreenCapture`, `DeniedScreenCapture` | none | yes | the denying one |
+| `AudioControl` | `FakeAudio`, written twice | `WindowsAudioControl`, `LinuxAudioControl` | none | yes | Linux only, over a fake runner and real child processes |
+| `Notify` | `FakeNotify`, written twice | `WindowsNotify`, `LinuxNotify` | none | yes | Linux only, over a fake bus and a peer D-Bus server |
+| `ScreenCapture` | `FakeScreen`, written twice | `WindowsScreenCapture`, `LinuxScreenCapture`, `DeniedScreenCapture` | none | yes | the denying one, and Linux over a fake root and a peer X server |
 | `BrainTransport` | `FakeTransport`, `ScriptedTransport`, `FlakyTransport` | `BrainRpcClient`, `RetryingTransport` | none | yes | yes, a loopback fake `BrainService` |
 | `Sleeper` | `FakeSleeper` | `TokioSleeper` | none | yes | no, outside the checked workspace |
 | `Randomness` | `FakeRandomness` | `FullDelay`, `ShellRandomness` | none | yes | `FullDelay` incidentally |

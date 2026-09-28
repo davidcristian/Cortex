@@ -3,7 +3,7 @@ name = "os-linux"
 version.workspace = true
 edition.workspace = true
 publish.workspace = true
-description = "Linux OS backends for the Cortex body: notifications and volume (lib name: os_linux)"
+description = "Linux OS backends for the Cortex body: notifications, volume and capture (lib name: os_linux)"
 
 # The backends speak to a Linux desktop session, so the whole crate is `cfg(target_os = "linux")`
 # and builds to nothing elsewhere, as `os_windows` does off Windows.
@@ -11,6 +11,8 @@ description = "Linux OS backends for the Cortex body: notifications and volume (
 body-core.workspace = true
 # The session bus client for freedesktop notifications. Pure Rust, no unsafe in this crate.
 zbus = { version = "5.19", default-features = false, features = ["async-io", "blocking-api"] }
+# The X11 client for screen capture. Pure Rust with no default features, so no libxcb is linked.
+x11rb = { version = "0.13", default-features = false }
 
 [target.'cfg(target_os = "linux")'.dev-dependencies]
 # `p2p` lets a test serve a fake notification server over a socket pair, with no bus daemon.

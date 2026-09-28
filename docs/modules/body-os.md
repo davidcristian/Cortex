@@ -27,12 +27,12 @@ speaks. They are also where the **stub coverage exemption** is used.
   no persistent device, so it satisfies the blocking pool's `FnOnce + Send + 'static`; and it has
   the smallest `unsafe` surface. The cost is that it renders hardware-overlay and DRM-protected
   surfaces **black, with no error**.
-- **`os_linux`** (`cfg(target_os = "linux")`) has two real backends, `LinuxNotify` and
-  `LinuxAudioControl` (see [The Linux backends](#the-linux-backends)), and two `unimplemented!()`
-  stubs, `LinuxHotkey` and `LinuxScreenCapture`. The crate is compiled and measured on Linux CI,
-  so each stub method has `#[cfg_attr(coverage, coverage(off))]` with a reason. The shell's
-  `BodyService` serves the two real backends and `DeniedScreenCapture`, so no request reaches a
-  stub.
+- **`os_linux`** (`cfg(target_os = "linux")`) has three real backends, `LinuxNotify`,
+  `LinuxAudioControl` and `LinuxScreenCapture` (see [The Linux backends](#the-linux-backends)),
+  and one `unimplemented!()` stub, `LinuxHotkey`. The crate is compiled and measured on Linux CI,
+  so the stub method has `#[cfg_attr(coverage, coverage(off))]` with a reason. The shell's
+  `BodyService` serves the notification and volume backends with `DeniedScreenCapture`, because
+  X11 has no way to keep the overlay out of a picture (ADR-0029 decision 10 fails closed).
 - **`os_macos`** provides `MacosHotkey`, `MacosAudioControl`, `MacosNotify` and
   `MacosScreenCapture`, the same stubs for macOS. It has no `cfg` yet and compiles everywhere.
 
@@ -44,7 +44,7 @@ Each crate exposes one implementor per port, and the app selects the platform's 
 - `Hotkey`: `LinuxHotkey`, `MacosHotkey`, `WindowsHotkey`. `AudioControl`, `Notify` and
   `ScreenCapture` follow the same naming; the Linux `Notify` and `AudioControl` are generic over
   their crate-local ports, `LinuxNotify<DbusNotifications>` and
-  `LinuxAudioControl<PactlCommand>` on a real host.
+  `LinuxAudioControl<PactlCommand>` on a real host, and so is `LinuxScreenCapture<X11Root>`.
 - `AudioControl` (ADR-0023): `get_volume() -> VolumeState` and
   `set_volume(VolumeChange) -> VolumeState`. The value types `VolumeState { level, muted }` and
   `VolumeChange { level, mute }` live in `body_core`, where `VolumeChange::new` clamps a present
@@ -117,8 +117,22 @@ decision 13).
   missing `pactl`, is `Backend`.
 - **`PactlCommand`** starts the program (`PACTL_PROGRAM`, `pactl` on `PATH`) with `LC_ALL=C`, so
   the output it parses is never translated.
-- `just os-linux-live` runs the two `#[ignore]`d live tests: a notification shown on the session
-  bus, and a volume and mute round trip on the default sink that restores what it found.
+- **`LinuxScreenCapture<G: RootGrab>`** reads the whole root window and returns it as a display
+  frame. It accepts one layout, depth 24 or 32 at 32 bits per pixel with the masks `ff0000`,
+  `ff00` and `ff`, reverses each pixel when the server stores the most significant byte first,
+  and refuses any other layout as `Backend`. No server is `NoDisplay`, a failed read `Backend`,
+  and a window target is refused as `Backend` without reading the screen, since no X11 window
+  walk exists yet.
+- **`X11Root`** sends one `GetImage` (`ZPixmap`, every plane) for the root of one screen of an
+  `x11rb::rust_connection::RustConnection` it is given, and reads the bits per pixel, byte order
+  and root visual masks from the connection's setup. The crate re-exports `x11rb`, and the host
+  opens the display with `x11rb::connect(None)`. When that fails, as on a Wayland session with no
+  `DISPLAY`, `X11Root::absent(&error)` makes every read `NoDisplay`. Rootless Xwayland, such as
+  WSLg's, answers `GetImage` on its root with `BadMatch`, so the read fails as `Backend` rather
+  than returning a partial picture; a Wayland session needs the desktop portal instead.
+- `just os-linux-live` runs the three `#[ignore]`d live tests: a notification shown on the session
+  bus, a volume and mute round trip on the default sink that restores what it found, and a capture
+  of the root window on `DISPLAY` that prints its size and how many pixels are not black.
 
 ## The coverage exemption
 
@@ -135,8 +149,8 @@ runs instead; `os_linux`'s real backends are measured in full. Neither silences 
 
 - Thin adapters only: translate `body_core` types to OS calls, with no business logic. The level
   clamp lives in `body_core`, and so do the inert-text rule, the taint attribution and the XML
-  escaping. What `os_linux` adds is protocol translation (when to escape, how to parse `pactl`),
-  covered by tests over fakes.
+  escaping. What `os_linux` adds is protocol translation (when to escape, how to parse `pactl`,
+  how an X server lays out a pixel), covered by tests over fakes.
 - Stubs are `unimplemented!()` with a reason, and `coverage(off)` marks only genuinely unreachable
   code.
 - Coverage is measured on **Linux CI**, including every line of `os_linux`. The Windows backends
@@ -148,7 +162,8 @@ runs instead; `os_linux`'s real backends are measured in full. Neither silences 
   scoped `allow` (ADR-0023).
 
 **Dependencies.** `body-core` (the ports). `os_linux` adds `zbus` 5 (MIT, pure Rust, `async-io` and
-`blocking-api` features, plus `p2p` for its tests) under a `cfg(target_os = "linux")` target table;
-it runs `pactl` as a program and links no audio library. The real `os_windows` adds `global-hotkey`
+`blocking-api` features, plus `p2p` for its tests) and `x11rb` 0.13 (MIT or Apache-2.0, pure Rust,
+no default features, so no `libxcb`) under a `cfg(target_os = "linux")` target table; it runs
+`pactl` as a program and links no audio or X library. The real `os_windows` adds `global-hotkey`
 and the `windows` crate (`0.58`, with Core Audio plus the `UI_Notifications` and `Data_Xml_Dom`
 WinRT namespaces), both under `[target.'cfg(windows)'.dependencies]`, so they never build on Linux.

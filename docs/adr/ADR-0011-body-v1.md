@@ -175,27 +175,27 @@ recorded in an ADR. This ADR is that exclusion, and the checks that grew around 
 13. **A real Linux backend is a covered core over a port of its own, plus an adapter tested
     against a peer the test controls.** `os_linux` is measured on Linux CI, so each backend is
     split three ways and the 100% rule holds with no exemption. First, the backend type
-    (`LinuxNotify<B>`, `LinuxAudioControl<R>`) implements the `body_core` port over a small
-    crate-local port (`NotificationBus`: `GetCapabilities` and `Notify`; `PactlRunner`: run `pactl`
-    with arguments) and holds every decision: the text sent and its escaping, the parsing of
-    replies, and which failure is `Unavailable` or `NoEndpoint`. Its tests run it over a fake of
-    that port. Second, the adapter implements the crate-local port with the real mechanism and
-    nothing else, and its tests run that same code against a peer: `DbusNotifications` speaks real
-    D-Bus to a fake `org.freedesktop.Notifications` server over a socket pair (`zbus` peer to peer,
-    no bus daemon), and `PactlCommand` starts real child processes (`echo`, `sh`, a missing path).
-    Third, the one step that reaches the user's desktop session, opening the session bus or running
-    `pactl` against the sound server, is taken by the caller: the host shell, outside the checked
-    workspace (decision 5), and the `#[ignore]`d tests in `os_linux/tests/live.rs`, run by hand with
-    `just os-linux-live`. cargo-llvm-cov does not measure `tests/`, so an ignored live test costs
-    no coverage, as with `body_rpc`'s live suite. The shell's Linux `start` serves both backends
-    with `DeniedScreenCapture`, and a session bus that does not open becomes
-    `DbusNotifications::absent`, whose calls fail as `NoServer`, so volume is still served and
-    `Notify` answers `Unavailable`. This keeps real OS calls in thin adapters, as
-    AGENTS.md requires, while measuring every line of them. The two alternatives hide a working
-    backend: `coverage(off)` is reserved for code that never runs, and a `cfg` that CI never
-    compiles would leave the Linux backend with no check at all. A backend whose mechanism no local
-    peer can stand in for, such as a compositor's global shortcut or a capture portal, keeps the
-    same split: all logic in the covered core, and an adapter holding only the calls.
+    (`LinuxNotify<B>`, `LinuxAudioControl<R>`, `LinuxScreenCapture<G>`) implements the `body_core`
+    port over a small crate-local port (`NotificationBus`: `GetCapabilities` and `Notify`;
+    `PactlRunner`: run `pactl`; `RootGrab`: read the X root window) and holds every decision: the
+    text sent and its escaping, the parsing of replies and pixel layouts, and which failure is
+    `Unavailable`, `NoEndpoint` or `NoDisplay`. Its tests run it over a fake of that port. Second,
+    the adapter implements the crate-local port with the real mechanism and nothing else, and its
+    tests run that code against a peer over a socket pair: `DbusNotifications` speaks D-Bus to a
+    fake notification server (`zbus` peer to peer, no bus daemon), `X11Root` speaks X11 to a fake
+    server that answers the handshake and one `GetImage`, and `PactlCommand` starts real child
+    processes (`echo`, `sh`, a missing path). Third, the step that reaches the user's session,
+    opening the session bus or the display or running `pactl` against the sound server, is taken
+    by the caller: the host shell, outside the checked workspace (decision 5), and the `#[ignore]`d
+    tests in `os_linux/tests/live.rs`, run by hand with `just os-linux-live`. cargo-llvm-cov does
+    not measure `tests/`, so an ignored live test costs no coverage. The shell's Linux `start`
+    serves notifications and volume with `DeniedScreenCapture`, since X11 cannot keep the overlay
+    out of a picture ([ADR-0029](ADR-0029-vision-screen-capture.md) decision 10), and a session bus
+    that does not open becomes `DbusNotifications::absent`, whose calls fail as `NoServer`, so
+    `Notify` answers `Unavailable`. The two alternatives hide a working backend: `coverage(off)` is
+    reserved for code that never runs, and a `cfg` that CI never compiles leaves a backend with no
+    check at all. A backend whose mechanism no local peer can stand in for, such as a compositor's
+    global shortcut or a capture portal, keeps the same split: all logic in the covered core.
 
 ## Consequences
 

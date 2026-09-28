@@ -40,8 +40,8 @@ pub fn start(excluded: bool) {
 }
 
 /// Starts the `BodyService` server as the Windows `start` does, with notifications on the session
-/// bus, volume through `pactl`, and every capture refused. A bus that does not open costs only
-/// `Notify`, which then answers that no notification service is available.
+/// bus, volume through `pactl`, and every capture refused, since X11 cannot hide the overlay. A bus
+/// that does not open costs only `Notify`, which then answers that no notification service exists.
 #[cfg(target_os = "linux")]
 pub fn start(_excluded: bool) {
     use body_core::DeniedScreenCapture;
@@ -59,7 +59,7 @@ pub fn start(_excluded: bool) {
     };
     let notify = LinuxNotify::new(NOTIFY_APP_NAME, bus);
     let audio = LinuxAudioControl::new(PactlCommand::new(PACTL_PROGRAM));
-    eprintln!("cortex: screen capture is not available on this platform yet");
+    eprintln!("cortex: screen capture is off, since the overlay cannot be kept out of it here");
     tauri::async_runtime::spawn(serve(audio, notify, DeniedScreenCapture));
 }
 

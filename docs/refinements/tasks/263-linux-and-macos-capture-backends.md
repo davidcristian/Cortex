@@ -5,20 +5,23 @@
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
 **Verified:** 2026-09-28
 
-`LinuxScreenCapture` and `MacosScreenCapture` are `unimplemented!()` stubs that satisfy the trait.
-A host with capture switched off already runs the covered `DeniedScreenCapture` on every platform,
-and the shell's Linux body server always serves it. The Windows shell wires its real backend only
-after hiding the overlay from capture, and `exclude_overlay` returns `false` off Windows, so a Linux
-backend also needs a way to keep the overlay out of its pictures before the shell can serve it.
+`LinuxScreenCapture<X11Root>` in `os_linux` reads the whole X root window through `x11rb` and is
+built and covered under [ADR-0011](../../adr/ADR-0011-body-v1.md) decision 13; the shell does not
+serve it yet, which is [753](753-keep-the-overlay-out-of-a-linux-capture.md), and a Wayland
+session needs the desktop portal, which is [752](752-wayland-screen-capture-through-the-portal.md).
+Two parts remain here:
 
-On Linux, a capture on Wayland goes through the XDG desktop portal's `Screenshot` or `ScreenCast`
-interface over the session bus, and on X11 through the X server. The coverage question this entry
-used to raise is answered: [ADR-0011](../../adr/ADR-0011-body-v1.md) decision 13 structures a Linux
-backend as a covered core over a port of its own plus an adapter holding only the calls, and the
-Linux `Notify` backend already reaches the session bus that way through `zbus`. The backend returns
-raw BGRA pixels and the resolved target rectangle; every size decision stays in `body_core`
-(ADR-0029). On macOS, `os_macos` takes `cfg(target_os = "macos")` first, since it compiles on
-every platform today.
+- **A window target on X11.** `LinuxScreenCapture` refuses `CaptureTarget::Focus` as `Backend`
+  without reading the screen. The Windows walk in `os_windows/src/focus.rs` takes the topmost
+  visible, titled window that is not the body's own. The X11 form reads `_NET_CLIENT_LIST_STACKING`
+  from the top, skips windows whose `_NET_WM_PID` is this process, whose `_NET_WM_STATE` holds
+  `_NET_WM_STATE_HIDDEN`, or that have no `_NET_WM_NAME`, and translates the chosen frame to root
+  coordinates. The choice belongs in the covered core, over requests added to `RootGrab`.
+- **macOS.** `MacosScreenCapture` is an `unimplemented!()` stub. `os_macos` takes
+  `cfg(target_os = "macos")` first, since it compiles on every platform today.
+
+Every size decision stays in `body_core` (ADR-0029): a backend returns raw BGRA pixels and the
+resolved target rectangle.
 
 ## History
 
@@ -40,3 +43,9 @@ every platform today.
   two capture backends themselves.
 - 2026-09-28: The shell's Linux body server was wired with `DeniedScreenCapture`, and the overlay
   exclusion a Linux backend also needs was added above.
+- 2026-09-28: Built the Linux X11 backend: `LinuxScreenCapture` over a `RootGrab` port, and
+  `X11Root` tested against a fake X server. Against a real `Xvfb` 1280x720 display it read a filled
+  `ff8000` square back as blue 0, green 128, red 255. WSLg's rootless Xwayland answers `GetImage` on
+  its root with `BadMatch`. The shell still serves `DeniedScreenCapture`, because X11 cannot keep
+  the overlay out of a picture. Filed [752](752-wayland-screen-capture-through-the-portal.md) and
+  [753](753-keep-the-overlay-out-of-a-linux-capture.md).

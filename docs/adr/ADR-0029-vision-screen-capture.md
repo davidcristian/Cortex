@@ -111,8 +111,8 @@ KB at 2048 px. The policy sits in body core because coverage cannot measure `cfg
 `capture(&self, &CaptureRequest) -> Result<CapturedFrame, CaptureError>`, synchronous as the OS is
 (`off_worker` moves it off the async worker). `CapturedFrame` is the display's `RawFrame` plus the
 resolved rectangle, and `CaptureError` has five variants: `NoDisplay`, `NoTarget`, `Disabled`,
-`Backend`, `TooLarge`. `DeniedScreenCapture` is covered on Linux CI. The Linux and macOS backends
-are stubs; a real Linux one takes [ADR-0011](ADR-0011-body-v1.md) decision 13's split.
+`Backend`, `TooLarge`. `DeniedScreenCapture` is covered on Linux CI. The Linux backend reads the
+X root window under [ADR-0011](ADR-0011-body-v1.md) decision 13's split; macOS has a stub.
 
 ### 9. GDI BitBlt on Windows, with its own unsafe authorization
 
@@ -125,7 +125,7 @@ starts; nothing asserts that, so the DPI host row would show its loss.
 ### 10. The overlay excludes itself from capture, and fails closed
 
 The shell sets `WDA_EXCLUDEFROMCAPTURE` on the overlay at setup and wires `DeniedScreenCapture` if
-that fails, since otherwise text an attacker gets into a reply is read back off the screen.
+that fails or, as on X11, does not exist, since text an attacker gets into a reply is read back.
 
 ### 11. Proto fields are added only with a consumer
 

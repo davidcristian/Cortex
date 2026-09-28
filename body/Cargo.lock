@@ -895,6 +895,7 @@ name = "os-linux"
 version = "0.1.0"
 dependencies = [
  "body-core",
+ "x11rb",
  "zbus",
 ]
 
