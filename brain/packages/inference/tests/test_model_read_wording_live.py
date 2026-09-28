@@ -123,11 +123,12 @@ async def _post(
     *,
     seed: int,
     max_tokens: int,
+    endpoint: str = _ENDPOINT,
 ) -> tuple[Reply, list[Mapping[str, object]]]:
     """One completion on the engine's sampler at a fixed seed, and the tool calls it made."""
     body = completion_body(messages, tools, switch=THINKING_ON, max_tokens=max_tokens)
     body["seed"] = seed
-    resp = await client.post(_ENDPOINT, json=body)
+    resp = await client.post(endpoint, json=body)
     resp.raise_for_status()
     data: dict[str, Any] = resp.json()
     choice: dict[str, Any] = data["choices"][0]

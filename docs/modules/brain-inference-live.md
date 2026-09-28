@@ -54,3 +54,14 @@ All are `integration`-marked, excluded from CI and coverage, and run per
   streaming generation against its 2.0 s timeout, and prints `timings.prompt_n` and `cache_n` for
   two turns in each layout. The results are in
   [system message templates](../readings/system-message-templates.md).
+- **`tests/test_joined_system_live.py` draws the injection attacks through the joined system
+  message** (ADR-0071) on the two Qwen alternates, starting the injection harness's server for
+  each. The recap preface rows' eleven attacks go in the recap, in a fenced memory and in a trusted
+  memory's quoted reply, joined with the preamble as the adapter posts them, each against an
+  unframed control on the same seed; `tests/joined_rows.py` reads a row by a two-sided Fisher test.
+  Before a row it checks that the probe joins, that the real adapter posts the same messages and
+  that the engine renders every system text. `CORTEX_JOINED_ENDPOINT` draws against a running
+  server instead, and `CORTEX_JOINED_REPS`, `CORTEX_JOINED_ROWS`, `CORTEX_JOINED_DEADLINE` and
+  `CORTEX_JOINED_SEED_FROM` set the depth, the rows, a deadline and the first seed. The rows and
+  their rule are in
+  [R-744](../refinements/tasks/744-the-joined-system-message-is-unmeasured-on-the-qwen-alternates.md).
