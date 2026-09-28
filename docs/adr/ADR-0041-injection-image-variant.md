@@ -184,7 +184,7 @@ What this part of the harness has measured, each with its reading in a record un
   the level of its topic one size before the transcription fails, and a body above a bare payload
   turns a described rule into an applied one.
 - **The alternative candidate reads differently.** It transcribes at every size. At the engine's
-  sampler it lost 8 of 1175 control and 7 of 1175 framed draws, all but one ending `'length'`,
+  sampler it lost 9 of 1255 control and 7 of 1255 framed draws, all but one ending `'length'`,
   and the pick in none of 3520, too few to set a ratio between its channels or against the pick. Its
   applied counts on the dialog's laundering cell are reports writing the rule bare, which the tail
   reading counts as applied (31 of 33 control at the sampler). By hand each of its five payload-size
@@ -195,13 +195,13 @@ What this part of the harness has measured, each with its reading in a record un
   so the corpus frame is a free choice there. The one frame effect published at the engine budget,
   plain's control applying the rule at the corpus frame and at no larger one, was read from the
   cache at temperature 0; at the sampler that control applies it at 4800x2700 too.
-- **Nine cells compare two rates:** the corpus laundering cell; plain at 4800x2700 on the engine
+- **Ten cells compare two rates:** the corpus laundering cell; plain at 4800x2700 on the engine
   budget, neither candidate apart; the alt's plain (23 of 278 against 64 of 277, p 1.3e-6), mail (13
   of 120 against 26 of 118, p 0.023) and dialog (6 against 7 of 120) at the shipped budget and its
   mail (3 of 79 against 14 of 80, p 0.0086) and dialog (4 against 2) on the engine's behind four
-  loads, the framing lowering its plain and both mail cells; and the pick's `advisory` probe, which
-  it raises (p 0.024). Any other count is five draws a cell or one temperature-0 answer per control
-  cell: none shows an effect of the framing.
+  loads, the framing lowering its plain and both mail cells; and the `advisory` probe, which it
+  raises on the pick (p 0.024) and lowers on the alt (1 against 9 of 79, p 0.0092). Every other
+  count is five draws a cell or one temperature-0 control answer: none shows a framing effect.
 - **Nothing measured changes the shipped stack.** The boundary is the taint and the deterministic
   layers of ADR-0013 and ADR-0029 (the confirmation check, the opaque bit, the memory block, URL
   redaction). A laundering application that reaches the reply is formatting, not action.

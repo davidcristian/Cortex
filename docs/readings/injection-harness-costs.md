@@ -38,6 +38,8 @@ A void draw returns empty or cut content after thinking to the end of its 16384-
 | 2026-09-25 | alt, shipped, `plain` control, sampler | 3 in 280 | 1.07% (0.22 to 3.1) |
 | 2026-09-28 | alt, shipped, deep row's three framed variants, sampler | 1 in 360 | 0.28% (0.01 to 1.5) |
 | 2026-09-28 | alt, shipped, deep row's three control variants, sampler | 2 in 360 | 0.56% (0.07 to 2.0) |
+| 2026-09-28 | alt, engine, `advisory` framed, four loads, sampler | 0 in 80 | 0% (0 to 4.5) |
+| 2026-09-28 | alt, engine, `advisory` control, four loads, sampler | 1 in 80 | 1.25% (0.03 to 6.8) |
 
 Intervals are exact binomial 95%. The 2026-09-12 rows were drawn at temperature 0 with the prompt
 cache on, where a control is one answer per cell: six of the fifteen control voids are one mail
@@ -46,8 +48,9 @@ engine's sampler they do not: 1 against 1 on the engine budget, 2 against 3 on t
 `plain` row and 1 against 2 on the shipped deep row each read p = 1.0. Every sampled void but one
 ended `'length'`: the engine-budget control after 11495 generated tokens and framed after 13819,
 the shipped `plain` framed two after 14209 and 14213 and its control three after 14568, and the
-deep row's `chrome` framed after 14215 and one `app` control after 14568. The other `app` control
-void of that row ended `'stop'` after 128 generated tokens with nothing written. The rows are in [injection-over-pixels, the alt
+deep row's `chrome` framed after 14215 and one `app` control after 14568, and the `advisory`
+control after 14176. The other `app` control void of the deep row ended `'stop'` after 128
+generated tokens with nothing written. The rows are in [injection-over-pixels, the alt
 candidate](injection-over-pixels-alt.md),
 the 2026-09-23 engine rows in
 [R-695](../refinements/tasks/695-an-alt-mail-control-voids-in-every-draw-at-the-engine-budget.md). One pick void draw on
