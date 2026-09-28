@@ -5,7 +5,7 @@ from uuid import uuid4
 
 import pytest
 
-from cortex_core import ImagePart, Message, Role, SessionStore, SessionStoreError
+from cortex_core import ImagePart, Message, Role, SessionStore, SessionStoreError, ToolCall
 from cortex_core.sessions import HistoryRecap
 
 _AT = datetime(2026, 7, 3, 12, 0, 0, tzinfo=UTC)
@@ -212,6 +212,23 @@ async def check_append_refuses_a_system_message(store: SessionStore) -> None:
     assert list(await store.list_sessions(limit=10)) == []
 
 
+async def check_append_refuses_a_tool_step(store: SessionStore) -> None:
+    """No store persists the tool loop's messages: they stay in the turn that made them."""
+    session_id = _session_id()
+    call = ToolCall(id="c-1", name="read_email", arguments={"limit": 2})
+    steps = (
+        Message(role=Role.ASSISTANT, text="", at=_AT, turn_id="t-1", tool_calls=(call,)),
+        Message(role=Role.TOOL, text="two unread", at=_AT, turn_id="t-1", tool_call_id="c-1"),
+        Message(role=Role.TOOL, text="two unread", at=_AT, turn_id="t-1"),
+        Message(role=Role.ASSISTANT, text="done", at=_AT, turn_id="t-1", tool_call_id="c-1"),
+    )
+    for step in steps:
+        with pytest.raises(SessionStoreError, match="never persists a tool step"):
+            await store.append(session_id, step)
+    assert list(await store.history(session_id)) == []
+    assert list(await store.list_sessions(limit=10)) == []
+
+
 async def check_recap_is_absent_then_roundtrips_and_overwrites(store: SessionStore) -> None:
     """A session has no recap until one is written; then it reads back whole and last write wins."""
     session_id = _session_id()
@@ -261,6 +278,7 @@ ALL_CHECKS = (
     check_a_hoisted_recent_chat_is_not_duplicated,
     check_append_refuses_an_image_bearing_message,
     check_append_refuses_a_system_message,
+    check_append_refuses_a_tool_step,
     check_recap_is_absent_then_roundtrips_and_overwrites,
     check_recaps_do_not_leak_between_sessions,
     check_recap_survives_a_reconnect,

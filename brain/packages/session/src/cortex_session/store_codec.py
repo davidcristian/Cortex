@@ -13,6 +13,8 @@ RECORD_VERSION = 1
 
 RECAP_KIND = "recap"
 
+_UNSTORED_ROLES = frozenset({Role.SYSTEM, Role.TOOL})
+
 
 def messages_key(session_id: str) -> str:
     return f"cortex:session:{session_id}:messages"
@@ -53,6 +55,15 @@ def refuse_system(message: Message) -> None:
         raise SessionStoreError(msg)
 
 
+def refuse_tool_steps(message: Message) -> None:
+    """Raise when ``message`` is a tool result or has a tool field the record cannot hold."""
+    if message.role is Role.TOOL or message.tool_calls or message.tool_call_id is not None:
+        msg = (
+            "a session store never persists a tool step: the tool loop's messages stay in the turn"
+        )
+        raise SessionStoreError(msg)
+
+
 def decode_message(raw: bytes | str, index: int) -> Message:
     """Decode the record at ``index``; every failure names that record precisely."""
     try:
@@ -66,8 +77,11 @@ def decode_message(raw: bytes | str, index: int) -> Message:
             )
             raise SessionStoreError(msg)
         role = Role(fields["role"])
-        if role is Role.SYSTEM:
-            msg = f"corrupt session record at index {index}: a session never stores role 'system'"
+        if role in _UNSTORED_ROLES:
+            msg = (
+                f"corrupt session record at index {index}: "
+                f"a session never stores role {role.value!r}"
+            )
             raise SessionStoreError(msg)
         return Message(
             role=role,

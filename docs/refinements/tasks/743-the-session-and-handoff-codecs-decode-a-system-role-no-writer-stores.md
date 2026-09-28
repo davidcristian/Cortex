@@ -32,6 +32,4 @@ a recorded decision that the store is trusted with whatever it holds.
   refuse a system message in `append`, checked by `check_append_refuses_a_system_message` in the
   contract list, and `decode_message` reads a stored one as a corrupt record naming its index.
   `HandoffRecord` refuses one in its `loop_tail`, which covers the snapshot, both handoff stores
-  and the Redis decoder in one place, so `_decode_message` needed no change. The same divergence
-  for tool fields is
-  [R-746](746-the-redis-session-store-drops-the-tool-fields-the-in-memory-one-keeps.md).
+  and the Redis decoder in one place, so `_decode_message` needed no change.

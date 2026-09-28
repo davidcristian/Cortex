@@ -292,12 +292,13 @@ async def test_unsupported_version_raises_naming_index_kind_and_version() -> Non
         await RedisSessionStore(client).history("s")
 
 
-async def test_a_stored_system_record_is_corrupt_at_its_index() -> None:
+@pytest.mark.parametrize("role", ["system", "tool"])
+async def test_a_stored_system_or_tool_record_is_corrupt_at_its_index(role: str) -> None:
     client = FakeAsyncRedis(server=FakeServer())
     store = RedisSessionStore(client)
     await store.append("s", contract.make_message(Role.USER, "hi"))
-    await client.rpush("cortex:session:s:messages", _record(role="system"))
-    corrupt = r"corrupt session record at index 1: a session never stores role 'system'"
+    await client.rpush("cortex:session:s:messages", _record(role=role))
+    corrupt = rf"corrupt session record at index 1: a session never stores role '{role}'"
     with pytest.raises(SessionStoreError, match=corrupt):
         await store.history("s")
     with pytest.raises(SessionStoreError, match=corrupt):

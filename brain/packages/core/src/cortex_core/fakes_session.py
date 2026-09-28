@@ -29,6 +29,12 @@ class InMemorySessionStore:
         if message.role is Role.SYSTEM:
             msg = "a session store never persists a system message: each turn builds its own"
             raise SessionStoreError(msg)
+        if message.role is Role.TOOL or message.tool_calls or message.tool_call_id is not None:
+            msg = (
+                "a session store never persists a tool step: "
+                "the tool loop's messages stay in the turn"
+            )
+            raise SessionStoreError(msg)
         self._sessions.setdefault(session_id, []).append(message)
 
     async def history(self, session_id: str) -> Sequence[Message]:

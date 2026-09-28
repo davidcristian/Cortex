@@ -18,11 +18,12 @@ an injected `redis.asyncio.Redis` client or from `from_url(url)`, which builds a
 ### `RedisSessionStore`
 
 - `append(session_id, message)` RPUSHes one JSON document onto the session's list. It **raises
-  `SessionStoreError` for a message with images** (ADR-0029): pixels belong to one turn, the record
-  format has no field for them, and storing the message would drop the picture without saying so.
-  It refuses a system message the same way (ADR-0071), and `InMemorySessionStore` raises both.
+  `SessionStoreError` for a message with images** (ADR-0029), a system message (ADR-0071) or a tool
+  step, meaning a tool result or a message with tool calls or a call id (ADR-0009 decision 3). Each
+  belongs to one turn, and the record has no field for pixels or tool fields, so storing one would
+  drop them without saying so. `InMemorySessionStore` raises the same three.
 - `history(session_id)` is `LRANGE 0 -1`, decoded in append order. An unknown session has an empty
-  history rather than an error. A stored system message is corrupt, since each turn builds its own.
+  history rather than an error. A stored system or tool message is corrupt: no writer stores one.
 - `list_sessions(*, limit)` builds the chat list (ADR-0021) in two round trips. The first reads both
   indexes in one transaction: `ZREVRANGE` over the recency index for at most `limit` session ids,
   newest active first, and `SMEMBERS` over `cortex:sessions:hoisted`. The listed set is their union,
@@ -42,8 +43,7 @@ an injected `redis.asyncio.Redis` client or from `from_url(url)`, which builds a
   title, the recap, the `cortex:sessions` index member and the `cortex:sessions:hoisted` member
   (ADR-0021 decision 11). It is a hard delete rather than a marker, because an unknown session
   already reads as an empty history. It leaves no orphaned key and is idempotent. The memory half of
-  the cascade is not here; the orchestrator's `DeleteSession` runs `SessionMemoryCascade` after this
-  call.
+  the cascade is not here; the orchestrator's `DeleteSession` then runs `SessionMemoryCascade`.
 - `set_recap(session_id, recap)` and `recap(session_id)` hold the summarizing window's account of
   the turns that fell out of it (ADR-0038 decision 9), as one JSON document at
   `cortex:session:{id}:recap` with the text and `covers`, the boundary it accounts for. Both fields
