@@ -7,8 +7,8 @@
 were written on a tainted turn. The tree shows it when a session history message gains a taint
 or provenance field, and
 `grep -n taint brain/packages/core/src/cortex_core/conversation.py brain/packages/session/src/cortex_session/store_codec.py`
-prints nothing on 2026-09-24.
-**Verified:** 2026-09-24
+prints nothing on 2026-09-28.
+**Verified:** 2026-09-28
 
 The output guardrail removes URLs and nothing else, so if the cortex quotes an injected payload
 into its reply, the prose is persisted whole while the links become
@@ -87,3 +87,7 @@ real user need.
   still holds the seven fields named above. Tonight's changes to the injection detectors, the spawn
   texts and the deep phase's recap add no mark to a history message. The GPU measurements were not
   rerun.
+- 2026-09-28: **Not fired.** The `grep` prints nothing: that day's two changes to `store_codec.py`
+  refuse a system message and a tool step, so history holds only user and assistant records, still
+  encoded as `role`, `text`, `at` and `turn_id`. The picture attachment of 2026-09-25 taints the
+  turn it arrives on and adds no mark to history either.

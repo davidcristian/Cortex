@@ -10,7 +10,7 @@ reach the state: that needs `CORTEX_ESCALATION` set while `CORTEX_MODEL_FILE_BRA
 default (`docker/docker-compose.gpu.yml:71`). The gpu overlay passes the switch through by name,
 so a host `.env` can reach the state, and `grep -rnE 'CORTEX_ESCALATION: *[^ ]' docker/` finding
 nothing says no shipped file does.
-**Verified:** 2026-09-24
+**Verified:** 2026-09-28
 
 Opened 2026-08-16 by the close that refuses an impossible handoff before the drain
 ([R-203](203-escalation-fault-not-remembered.md)), which moved the refusal from after the stall to
@@ -88,3 +88,7 @@ is the visibility trade rather than the cost.
   `dispatch_builders.py:68`, `wiring.py:96` and `:103`, `engines.py:61` and `config_tools.py:93`.
   The card is shown only on an untainted turn, since `dispatch.py` denies a tainted turn's
   escalation without asking.
+- 2026-09-28: Not triggered. The grep finds nothing and the gpu overlay still sets
+  `CORTEX_MODEL_FILE_BRAIN` empty at line 71; the sites have moved to `wiring.py:94` and `:101` and
+  to `engines.py:119`, where `StreamEngines._capabilities` builds the cortex's dispatcher once per
+  stream, and the context overflow notes added that day do not touch the advertisement.

@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** inference-model-manager
 **Origin:** [ADR-0048](../../adr/ADR-0048-generation-bounds.md)
-**Verified:** 2026-09-19
+**Verified:** 2026-09-28
 **Trigger:** a consumer in this tree reads a settled handoff's outcome: code that counts handoffs
 by outcome, or a runbook step that tells a clean `done` record from a cut one
 
@@ -45,3 +45,7 @@ outside the expiring record, which is a store's port and its contract test rathe
   handoff `done` (`swap_conductor.py`), `brain_phase.py` still logs `capped` on the warning, and the
   store reads a record's state only to tell terminal from live, so no code counts or reports records
   by outcome.
+- 2026-09-28: Not fired: nothing counts records by outcome, and the swap runbook still says nothing
+  reads the reason back. A deep phase whose prompt outgrew the context now raises
+  `ContextOverflowError`, so it settles `failed` with the engine's answer as `failure`, while a cut
+  answer still settles `done` with no field.

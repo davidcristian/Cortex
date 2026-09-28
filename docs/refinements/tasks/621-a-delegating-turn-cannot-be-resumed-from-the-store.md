@@ -3,7 +3,7 @@
 **Status:** open, waiting for a consumer
 **Area:** resource-governance
 **Origin:** [ADR-0010](../../adr/ADR-0010-subagents.md)
-**Verified:** 2026-09-24
+**Verified:** 2026-09-28
 **Trigger:** a request identity on the body/brain interface, meaning a request id on `UserTurn` or
 `ClientEvent` in `proto/body.proto` (`grep -ni request_id proto/body.proto` has no hit), which is
 what both the `Converse` reconnect entry (R-023) and the crashed-handoff resume entry (R-112) wait
@@ -57,3 +57,6 @@ resume path is a second read taken arbitrarily later.
   `_persist` writes the result at `runner.py:142`. One commit since changed the runner and the spawn
   tool, adding the callback that reports admission; `run` still takes the task once before it
   admits, and `spawn.py:175` still gathers the results in the frame. Both TTLs are as stated.
+- 2026-09-28: Not fired. Both greps give the same answer, and no commit since 2026-09-24 has
+  touched `runner.py`, `spawn.py` or `cortex_session/tasks.py`; the handoff record's new refusal of
+  a system message in its loop tail adds no request identity either.

@@ -3,7 +3,7 @@
 **Status:** open, waiting for a consumer
 **Area:** rpc-transport
 **Origin:** [ADR-0054](../../adr/ADR-0054-baseline-residency.md)
-**Verified:** 2026-09-24
+**Verified:** 2026-09-28
 **Trigger:** A client that must treat one serving note apart from the others: style a missing peer tier differently from a slow last handoff, order them by its own rule, or let the user dismiss one.
 
 `HealthNote` in [body.proto](../../../proto/body.proto) has one field, the sentence. The overlay
@@ -18,3 +18,7 @@ code with the sentence.
 
 - 2026-09-24: Opened by the close of [R-320](320-one-detail-string-two-facts.md), which gave the
   health reply one note per fact and left the code out until a client needs one.
+- 2026-09-28: Not fired. `HealthNote` still has only `text`, `with_note` is still called at
+  `residency_tiers.py:63` and `residency_pace.py:34`, the body (`link.rs`) passes notes on as plain
+  strings and the overlay (`linkState.ts`) shows each as one line. The two context overflow notes
+  added that day are reply text, not health notes.
