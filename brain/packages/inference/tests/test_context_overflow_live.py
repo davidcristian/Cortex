@@ -7,6 +7,7 @@ import pytest
 
 from cortex_core import (
     BRAIN_OVERFLOW_NOTE,
+    CONTEXT_OVERFLOW_NOTE,
     BrainPhase,
     ContextOverflowError,
     HandoffRecord,
@@ -18,6 +19,7 @@ from cortex_core import (
     SystemClock,
     TextDelta,
     TurnCapabilities,
+    TurnEngine,
     TurnEvent,
 )
 from cortex_inference import LlamaCppBackend
@@ -89,3 +91,17 @@ async def test_an_over_length_handoff_tells_the_user_it_did_not_fit() -> None:
     print(f"\ntold: {''.join(told)!r}")  # noqa: T201
     assert "".join(told) == BRAIN_OVERFLOW_NOTE
     assert persisted[-1].text == BRAIN_OVERFLOW_NOTE
+
+
+async def test_an_over_length_cortex_turn_ends_with_the_overflow_note() -> None:
+    sessions = InMemorySessionStore()
+    async with httpx.AsyncClient(timeout=_TIMEOUT_S) as client:
+        text = await _over_length_text(client)
+        backend = LlamaCppBackend(SingleResidentModelManager(_MODEL, _ENDPOINT), client)
+        engine = TurnEngine(sessions, backend, SystemClock(), cortex_model=_MODEL)
+        told: list[str] = []
+        await _collect(engine.handle_turn(_SESSION, text, turn_id=_TURN), told)
+    persisted = await sessions.history(_SESSION)
+    print(f"\ntold: {''.join(told)!r}")  # noqa: T201
+    assert "".join(told) == CONTEXT_OVERFLOW_NOTE
+    assert persisted[-1].text == CONTEXT_OVERFLOW_NOTE

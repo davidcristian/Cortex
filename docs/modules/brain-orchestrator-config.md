@@ -24,7 +24,7 @@ what follows is the prefix, the defaults other parts depend on, and the validati
   decision 9). `vram_soft_cap_gb: float = 14.0` and `cortex_reservation_gb: float = 8.6` are the
   GPU budget the `SubagentPlacer` fit-tests against, re-measured 2026-08-07: the shipped tier peaks
   at 8573 MiB above the desktop's own floor, leaving 5.4 GiB of subagent headroom (ADR-0012
-  decision 14). `history_char_budget: int = 48000` (`0` turns windowing off),
+  decision 14). `history_char_budget: int = 24000` (`0` turns windowing off, ADR-0014 decision 4),
   `history_summary: bool = True` (ADR-0038 decision 20; a fold decodes 61 to 163 tokens and costs
   2.9 s to 6.2 s) and `history_recap_min_chars: int = 2000`, clamped to the budget by the builder,
   size the history one turn sends. `output_guardrail = "redact"` (ADR-0015) is one of `redact`,

@@ -6,7 +6,9 @@ from uuid import UUID
 import pytest
 
 from cortex_core import (
+    CONTEXT_OVERFLOW_NOTE,
     REPLY_CAPPED_NOTE,
+    ContextOverflowError,
     DecodeStop,
     EchoInferenceBackend,
     GenerationBounds,
@@ -668,4 +670,49 @@ async def test_a_cut_tool_call_completes_the_turn_instead_of_failing_the_stream(
     assert [(m.role, m.text) for m in await store.history("s")] == [
         (Role.USER, "hi"),
         (Role.ASSISTANT, f"partial {REPLY_CAPPED_NOTE}"),
+    ]
+
+
+class OverflowOnceBackend:
+    """Backend that refuses the first request as longer than the context, then answers."""
+
+    def __init__(self) -> None:
+        self.requests = 0
+
+    async def stream(
+        self,
+        model: str,
+        messages: Sequence[Message],
+        *,
+        tools: Sequence[ToolSpec] = (),
+        schema: JsonSchema | None = None,
+        bounds: GenerationBounds | None = None,
+    ) -> AsyncIterator[InferenceEvent]:
+        del model, messages, tools, schema, bounds
+        self.requests += 1
+        if self.requests == 1:
+            msg = "request (18274 tokens) exceeds the available context size (16384 tokens)"
+            raise ContextOverflowError(msg)
+        yield TextChunk("fits now")
+
+
+async def test_an_overflowing_turn_completes_with_its_note_and_the_stream_takes_the_next() -> None:
+    store = InMemorySessionStore()
+    engine = TurnEngine(store, OverflowOnceBackend(), SystemClock())
+    client = _events_from(_user_turn("s", "all of it"), _user_turn("s", "less"))
+
+    events = await _collect(converse(_make(engine), client))
+
+    assert [e.WhichOneof("event") for e in events] == [
+        "text_delta",
+        "turn_complete",
+        "text_delta",
+        "turn_complete",
+    ]
+    assert _delta_texts(events) == [CONTEXT_OVERFLOW_NOTE, "fits now"]
+    assert [m.text for m in await store.history("s")] == [
+        "all of it",
+        CONTEXT_OVERFLOW_NOTE,
+        "less",
+        "fits now",
     ]

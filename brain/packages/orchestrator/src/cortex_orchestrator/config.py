@@ -57,9 +57,9 @@ class BrainRuntimeConfig(BaseSettings):
     cortex_reservation_gb: float = Field(
         default=8.6, ge=0, validation_alias="CORTEX_VRAM_CORTEX_GB"
     )
-    # About 12K tokens against the cortex's 16K-token context, which leaves room for the
-    # preamble, the recalled memories, the tool specs and the reply. 0 disables windowing.
-    history_char_budget: int = Field(default=48_000, ge=0)
+    # At most 6,360 gemma-4 tokens of the densest text counted, so beside the preamble and the full
+    # tool stack about 5,150 of the cortex's 16,384 are left for recall, the recap and the reply.
+    history_char_budget: int = Field(default=24_000, ge=0)
     history_summary: bool = True
     # Matches ``RECAP_MAX``: below one account's worth of new material there is less to fold in
     # than the account being folded into, and folding again is what compounds a recap's losses.

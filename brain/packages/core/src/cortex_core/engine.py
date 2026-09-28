@@ -10,7 +10,7 @@ from cortex_core.attachments import (
     attachment_note,
 )
 from cortex_core.conversation import Message, Role
-from cortex_core.errors import InferenceError, MalformedToolCallError
+from cortex_core.errors import ContextOverflowError, InferenceError, MalformedToolCallError
 from cortex_core.events import TurnCompleted, TurnEvent
 from cortex_core.handoff import EscalationRefs
 from cortex_core.handoff_wait import wait_out_handoff
@@ -25,6 +25,7 @@ from cortex_core.turn_context import TurnCapabilities, assemble_inference_messag
 from cortex_core.turn_output import (
     cap_note,
     flush_channels,
+    overflow_note,
     record_exchange,
     stream_turn_events,
     unreadable_call_note,
@@ -32,6 +33,11 @@ from cortex_core.turn_output import (
 from cortex_core.untrusted import TaintLedger, new_nonce
 
 _logger = logging.getLogger(__name__)
+
+_UNREADABLE_CALL_LOG_MSG = (
+    "a tool call the model wrote could not be read; ending this turn where it broke"
+)
+_OVERFLOW_LOG_MSG = "the prompt is longer than the model's context; ending this turn with a note"
 
 # Deployments override this with CORTEX_MODEL_CORTEX, read by the orchestrator, not the core.
 DEFAULT_CORTEX_MODEL = "cortex"
@@ -109,26 +115,30 @@ class TurnEngine:
         channels = open_output_channels(self._caps.guardrail, taint, text)
         loop = stream_tool_loop(self._backend, model, working, context)
         events = stream_turn_events(loop, channels, parts)
+        overflowed = False
         try:
             async for event in events:
                 yield event
-        except MalformedToolCallError:
+        except (MalformedToolCallError, ContextOverflowError) as err:
+            overflowed = isinstance(err, ContextOverflowError)
             _logger.warning(
-                "a tool call the model wrote could not be read; ending this turn where it broke",
+                _OVERFLOW_LOG_MSG if overflowed else _UNREADABLE_CALL_LOG_MSG,
                 extra={"session_id": session_id, "turn_id": turn_id, "capped": stops.capped},
                 exc_info=True,
             )
             # ``stream_turn_events`` flushes only on a clean end, so this path flushes.
             for held in flush_channels(channels, parts):
                 yield held
-            for event in unreadable_call_note(stops, parts):
+            ending = overflow_note(parts) if overflowed else unreadable_call_note(stops, parts)
+            for event in ending:
                 yield event
         finally:
             await events.aclose()
         # After the channels flush and before the text is joined, so the note comes under the
         # whole reply and what is saved is what was shown.
-        for event in cap_note(stops, parts):
-            yield event
+        if not overflowed:
+            for event in cap_note(stops, parts):
+                yield event
         full_text = "".join(parts)
         assistant = Message(
             role=Role.ASSISTANT, text=full_text, at=self._clock.now(), turn_id=turn_id

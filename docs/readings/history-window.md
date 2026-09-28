@@ -2,7 +2,7 @@
 
 What the history window's character budget comes to in tokens on the cortex's and the deep
 candidates' tokenizers, and what else a turn's prompt holds beside it. Cited by
-[ADR-0014](../adr/ADR-0014-history-windowing.md) decision 4. Token counts depend on the text and
+[ADR-0014](../adr/ADR-0014-history-windowing.md) decisions 4 and 7. Token counts depend on the text and
 the vocabulary, not on the machine, so they are given as counts.
 
 ## A full window and what comes with it
@@ -51,5 +51,52 @@ prompt tokens was answered at once with HTTP 400 and this body, before any token
 
 `test_context_overflow_live.py` (`integration`-marked) re-takes it against the server at
 `CORTEX_OVERFLOW_ENDPOINT` serving `CORTEX_OVERFLOW_MODEL`, sized from that server's own `/props`
-context, and checks both that the adapter raises `ContextOverflowError` and that a deep phase over
-the real adapter ends with `BRAIN_OVERFLOW_NOTE`. Both passed on this server.
+context. It checks that the adapter raises `ContextOverflowError`, that a deep phase over the real
+adapter ends with `BRAIN_OVERFLOW_NOTE`, and that a cortex turn over it completes with
+`CONTEXT_OVERFLOW_NOTE`. All three passed on this server, and the cortex case failed with the
+engine catching only `MalformedToolCallError`.
+
+## The cortex's whole prompt
+
+**2026-09-28**, llama.cpp `server` (CPU) build `b10680-d7bd3bfca` serving the cortex's gemma-4-12B
+artifact with `--jinja` at `--ctx-size 16384`. It rendered each request with `POST /apply-template`
+and counted it with `POST /tokenize` (special tokens parsed, no start token added), so no request
+generated a token. The tool stack's two sidecars (`docker-compose.tools.yml`,
+`docker-compose.email.yml`) ran on the CPU, and the tools were listed through the brain's own
+`build_tool_registry` and `build_cortex_tools`, with every built-in a full deployment offers.
+
+| tools | count | request JSON, characters | request JSON, tokens | as the template renders them |
+| --- | --- | --- | --- | --- |
+| built-ins: `spawn_subagents`, the volume pair, `capture_screen`, `escalate_to_brain`, five schedule tools | 10 | 9,982 | 2,804 | 2,635 |
+| MCP: three email tools and the ten allowlisted filesystem tools | 13 | 9,651 | 2,383 | 1,910 |
+| all of them, what a cortex turn is offered | 23 | 19,633 | 5,185 | 4,545 |
+| the deep phase's set, without `capture_screen` | 22 | 18,032 | | 4,175 |
+| the eight built-ins of the first table | 8 | 7,293 | | 2,009 |
+
+`send_email` is offered only when sending is on, and was not counted. The template adds 15 tokens
+to a system message and one user message beyond their text, and 5 for each further message. The
+window's texts, counted the same way:
+
+| characters | plain English | ADR prose | Python source |
+| --- | --- | --- | --- |
+| 16,000 | 3,378 | 4,311 | 4,242 |
+| 24,000 | 5,008 | 6,293 | 6,360 |
+| 32,000 | 6,731 | 8,540 | 8,556 |
+| 48,000 | 10,253 | 13,400 | 12,759 |
+
+At 48,000 the plain and prose counts are the first table's less its start token, and the source
+count is 16 tokens over it; the cause was not read. With the preamble (313), the template (15) and
+all 23 tools (4,545), 4,873 tokens are fixed before the window:
+
+| window | plain English | ADR prose | Python source |
+| --- | --- | --- | --- |
+| 48,000 in the cortex's 16,384 | 15,126, 1,258 left | 18,273, 1,889 over | 17,632, 1,248 over |
+| 24,000 in the cortex's 16,384 | 9,881, 6,503 left | 11,166, 5,218 left | 11,233, 5,151 left |
+| 24,000 in the deep tier's 8,192, its 22 tools | 9,511, 1.16 times | 10,796, 1.32 times | 10,863, 1.33 times |
+| 24,000 at a deep context of 16,384 | 6,873 left | 5,588 left | 5,521 left |
+
+The deep rows are rendered on the cortex artifact's template, not the deep pick's own. Recalled
+memories, the recap (at most 2,000 characters) and in-turn tool steps come on top of every row.
+The 48,000-character ADR prose row, sent to the same server as a streamed chat request with the 23
+tools, was refused at once with `exceed_context_size_error` and `n_prompt_tokens` 18274, the count
+above plus the start token.

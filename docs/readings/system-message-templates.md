@@ -128,5 +128,5 @@ The 16-turn row does not measure the layout. In rep 0 its first turn reused 2960
 after a joined request, whose prompt has no tool block ahead of the memory, so they came from a
 state the server kept in host memory (`--cache-ram`); and which turn of a pair reused anything
 changed between rep 0 and reps 1 to 4. It depends on what ran before it. A default turn with a
-recap follows the memory with about 48,000 characters of kept history, and neither layout was drawn
+recap follows the memory with up to 24,000 characters of kept history, and neither layout was drawn
 at that size.

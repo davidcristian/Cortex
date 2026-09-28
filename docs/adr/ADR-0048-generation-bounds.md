@@ -117,14 +117,15 @@ handoff.
     than the context. The reply's own cap is a deployment setting paired with a bounded trace
     (ADR-0049 decision 6).
 14. **A cut tool call ends the cortex's turn instead of failing it.** `handle_turn` catches
-    `MalformedToolCallError`, never the wide `InferenceError` (a transport failure stays an error at
-    the gRPC boundary), flushes the guarded channels itself because `stream_turn_events` flushes
-    only on a clean end, and falls through to the one store path. The ledger picks exactly one
-    sentence: capped, `cap_note` speaks; uncapped or silent, `UNREADABLE_CALL_NOTE` says the call
-    could not be read without naming a limit that never applied. `unreadable_call_note` reads the
-    same boolean the opposite way, so a reader never gets two explanations. A `warning` names the
-    session, the turn and `capped`, with the error as `exc_info`, since no error at the gRPC
-    boundary now includes the fragment.
+    `MalformedToolCallError`, and `ContextOverflowError` with a note of its own
+    ([ADR-0014](ADR-0014-history-windowing.md) decision 7), never the wide `InferenceError` (a
+    transport failure stays an error at the gRPC boundary), flushes the guarded channels itself
+    because `stream_turn_events` flushes only on a clean end, and falls through to the one store
+    path. For a cut call the ledger picks exactly one sentence: capped, `cap_note` speaks;
+    uncapped or silent, `UNREADABLE_CALL_NOTE` says the call could not be read without naming a
+    limit that never applied. `unreadable_call_note` reads the same boolean the opposite way, so a
+    reader never gets two explanations. A `warning` names the session, the turn and `capped`, with
+    the error as `exc_info`, since no error at the gRPC boundary now includes the fragment.
 15. **The deep phase does the same and does not re-raise.** `BrainPhase` catches the narrow error
     ahead of its wide branch, flushes, lets the ledger pick the note, logs the model, session, turn
     and `capped`, and the handoff settles `DONE`. `FAILED` is a claim about the swap machinery (the

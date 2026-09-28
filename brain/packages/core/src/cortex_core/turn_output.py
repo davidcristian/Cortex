@@ -28,6 +28,12 @@ UNREADABLE_CALL_NOTE = (
     "ran and this answer is unfinished. The text above is everything I produced. Ask again.)"
 )
 
+CONTEXT_OVERFLOW_NOTE = (
+    "\n\n(This conversation and what this turn has read so far are longer than my context, so I "
+    "stopped here. The text above is everything I produced. Start a new conversation, or send a "
+    "shorter message.)"
+)
+
 
 def cap_note(stops: StopLedger, parts: list[str]) -> Iterator[TurnEvent]:
     """Say so when one of this turn's completions was cut, appending the note to ``parts``."""
@@ -45,6 +51,12 @@ def unreadable_call_note(stops: StopLedger, parts: list[str]) -> Iterator[TurnEv
         return
     parts.append(UNREADABLE_CALL_NOTE)
     yield TextDelta(text=UNREADABLE_CALL_NOTE)
+
+
+def overflow_note(parts: list[str]) -> Iterator[TurnEvent]:
+    """Say so when the engine refused the prompt as longer than the context."""
+    parts.append(CONTEXT_OVERFLOW_NOTE)
+    yield TextDelta(text=CONTEXT_OVERFLOW_NOTE)
 
 
 def render_exchange(user_text: str, assistant_text: str) -> str:

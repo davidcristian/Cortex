@@ -121,7 +121,7 @@ def test_runtime_defaults_match_the_dictated_contract() -> None:
     assert config.cortex_model == "cortex"
     assert config.vram_soft_cap_gb == 14.0
     assert config.cortex_reservation_gb == 8.6
-    assert config.history_char_budget == 48_000
+    assert config.history_char_budget == 24_000
     assert config.output_guardrail == "redact"
     assert config.generate_titles is False
     assert config.history_summary is True

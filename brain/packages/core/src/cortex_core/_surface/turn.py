@@ -49,6 +49,7 @@ from cortex_core.summarizing import (
 )
 from cortex_core.turn_context import FORGOING_DETAIL, FORGOING_STATE, TurnCapabilities
 from cortex_core.turn_output import (
+    CONTEXT_OVERFLOW_NOTE,
     REPLY_CAPPED_NOTE,
     UNREADABLE_CALL_NOTE,
     record_exchange,
@@ -86,6 +87,7 @@ from cortex_core.windowing import CharBudgetHistoryWindow, HistoryWindow
 __all__ = [
     "ASKING",
     "CALLING",
+    "CONTEXT_OVERFLOW_NOTE",
     "DEFAULT_CORTEX_MODEL",
     "DELEGATING",
     "DENIED_MSG",

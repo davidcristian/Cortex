@@ -57,10 +57,12 @@ inference and tool loop over the stored history, yields one `TextDelta` per stre
 persists the assistant `Message` and yields one `TurnCompleted`. Closing the stream part way
 (`aclose()`) keeps the persisted user message, does not persist the partial reply, and closes the
 abandoned backend stream. A backend failure surfaces as `InferenceError` after the user message
-was persisted, with one exception that **ends** the turn instead of failing it (ADR-0048): a
-`MalformedToolCallError` says the unparsable fragment is the model's own tokens, so that path
-flushes the guarded channels, streams the note the `StopLedger` picks, logs a warning naming the
-session and the turn, and persists once.
+was persisted, with two exceptions that **end** the turn instead of failing it. A
+`MalformedToolCallError` says the unparsable fragment is the model's own tokens (ADR-0048), and a
+`ContextOverflowError` says the engine refused the prompt as longer than its context (ADR-0014
+decision 7). Either path flushes the guarded channels, streams its note, logs a warning naming the
+session and the turn, and persists once: the cut call's note is the one the `StopLedger` picks,
+and the overflow's is `CONTEXT_OVERFLOW_NOTE`, with no cap note after it.
 
 `TurnCapabilities(memory=None, tools=None, window=None, guardrail=None,
 record_tainted_memory=False, generate_titles=False, progress=None, escalation=None, bounds=None,
@@ -112,12 +114,13 @@ is that flush alone, for a caller that has to persist a partial reply after a fa
 `record_exchange(caps, taint, *, session_id, query, reply)` applies the tainted-memory policy both
 phases share and **drops an opaque turn whatever `record_tainted_memory` says** (ADR-0029).
 
-`cap_note` and `unreadable_call_note(stops, parts)` are the two sentences a turn can end with, read
-off a `StopLedger` (`stops.py`, ADR-0048). `StopLedger.observe(stop)` takes one completion's
-`DecodeStop` and `capped` reports whether any of them stopped at a token limit, any completion
-counting rather than the last. `REPLY_CAPPED_NOTE` is streamed and appended to `parts` when one was
-cut at a limit, and `UNREADABLE_CALL_NOTE` only when none was, so both callers can run them in
-sequence and give the reader one explanation.
+`cap_note`, `unreadable_call_note(stops, parts)` and `overflow_note(parts)` are the sentences a turn
+can end with. The first two are read off a `StopLedger` (`stops.py`, ADR-0048).
+`StopLedger.observe(stop)` takes one completion's `DecodeStop` and `capped` reports whether any of
+them stopped at a token limit, any completion counting rather than the last. `REPLY_CAPPED_NOTE`
+is streamed and appended to `parts` when one was cut at a limit, and `UNREADABLE_CALL_NOTE` only
+when none was, so both callers can run them in sequence and give the reader one explanation.
+`overflow_note` streams and appends `CONTEXT_OVERFLOW_NOTE` whatever the ledger holds.
 
 ## The history one turn sends
 
@@ -130,7 +133,8 @@ sequence and give the reader one explanation.
 - `CharBudgetHistoryWindow(max_chars)` is the shipped policy: the newest whole turns, grouped by
   consecutive `turn_id`, whose summed text fits `max_chars`, kept or dropped whole, stopping at the
   first overflow, with the newest turn always kept even when oversized. Characters stand in for
-  tokens at about four per token, so the core needs no tokenizer, and `max_chars < 1` raises.
+  tokens, 3.6 to 4.7 a token on the cortex's tokenizer, so the core needs no tokenizer, and
+  `max_chars < 1` raises.
 - `SummarizingHistoryWindow(inner, store, backend, model, clock, *, min_dropped_chars=0)`
   (`summarizing.py`, ADR-0038 decision 9) wraps a window so the turns it drops arrive as a
   model-written recap. Five properties define it. It only **adds**: the inner selection is returned
