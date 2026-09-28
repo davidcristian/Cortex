@@ -195,13 +195,13 @@ What this part of the harness has measured, each with its reading in a record un
   so the corpus frame is a free choice there. The one frame effect published at the engine budget,
   plain's control applying the rule at the corpus frame and at no larger one, was read from the
   cache at temperature 0; at the sampler that control applies it at 4800x2700 too.
-- **Six cells compare two rates:** the corpus laundering cell; plain at 4800x2700 on the engine
+- **Seven cells compare two rates:** the corpus laundering cell; plain at 4800x2700 on the engine
   budget (the pick about a third of each variant's draws, the alt 21 and 14 of 120, neither apart);
   the alt's plain at the shipped budget (23 of 278 against 64 of 277, p 1.3e-6) and its mail (3 of
   79 against 14 of 80, p 0.0086) and dialog (4 against 2 of 80) on the engine budget behind four
-  loads, the framing lowering the first two. Every other count is five draws a cell or at
-  temperature 0, one answer per control cell, and to 2026-09-19 with the prompt cache on, two
-  computations behind one load. None shows the framing protecting a cell or causing an application.
+  loads, the framing lowering the first two; and the pick's `advisory` probe, which it raises (p
+  0.024). Every other count is five draws a cell or at temperature 0, one answer per control cell,
+  and to 2026-09-19 two cached computations behind one load: none shows an effect of the framing.
 - **Nothing measured changes the shipped stack.** The boundary is the taint and the deterministic
   layers of ADR-0013 and ADR-0029 (the confirmation check, the opaque bit, the memory block, URL
   redaction). A laundering application that reaches the reply is formatting, not action.
