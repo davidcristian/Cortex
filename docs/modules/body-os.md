@@ -117,13 +117,20 @@ decision 13).
   missing `pactl`, is `Backend`.
 - **`PactlCommand`** starts the program (`PACTL_PROGRAM`, `pactl` on `PATH`) with `LC_ALL=C`, so
   the output it parses is never translated.
-- **`LinuxScreenCapture<G: RootGrab>`** reads the whole root window and returns it as a display
-  frame. It accepts one layout, depth 24 or 32 at 32 bits per pixel with the masks `ff0000`,
-  `ff00` and `ff`, reverses each pixel when the server stores the most significant byte first,
-  and refuses any other layout as `Backend`. No server is `NoDisplay`, a failed read `Backend`,
-  and a window target is refused as `Backend` without reading the screen, since no X11 window
-  walk exists yet.
-- **`X11Root`** sends one `GetImage` (`ZPixmap`, every plane) for the root of one screen of an
+- **`LinuxScreenCapture<G: RootGrab>`** reads one monitor of the root window and returns it as a
+  display frame. It asks the port for the layout, then reads the monitor RandR marks primary, else
+  the first one it lists, else the whole root. The display target promises one display (ADR-0029
+  decision 16), so no fallback reads the union of several; the first listed stands in because a
+  session that never ran `xrandr --primary`, Xvfb among them, marks none, and a server with no
+  RandR has only the core protocol's one display per screen. It accepts one pixel layout, depth 24
+  or 32 at 32 bits per pixel with the masks `ff0000`, `ff00` and `ff`, reverses each pixel when
+  the server stores the most significant byte first, and refuses any other layout as `Backend`.
+  No server is `NoDisplay`, a failed layout or read `Backend`, and a window target is refused as
+  `Backend` without reading the screen, since no X11 window walk exists yet.
+- **`X11Root`** lists the active monitors with RandR 1.5's `GetMonitors`, which reports each
+  monitor's primary flag and rectangle in one request; a server without the extension lists none,
+  and an X error to the request fails the capture as `Backend`. It then sends one `GetImage`
+  (`ZPixmap`, every plane) for the chosen rectangle of the root of one screen of an
   `x11rb::rust_connection::RustConnection` it is given, and reads the bits per pixel, byte order
   and root visual masks from the connection's setup. The crate re-exports `x11rb`, and the host
   opens the display with `x11rb::connect(None)`. When that fails, as on a Wayland session with no

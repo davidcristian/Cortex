@@ -1,12 +1,13 @@
-//! The X11 adapter for [`RootGrab`](crate::RootGrab), over `x11rb`.
+//! The X11 adapter for [`RootGrab`](crate::RootGrab), over `x11rb` and its `RandR` extension.
 
 use x11rb::connection::Connection;
 use x11rb::cookie::Cookie;
-use x11rb::errors::{ConnectError, ReplyError};
-use x11rb::protocol::xproto::{ConnectionExt, ImageFormat, ImageOrder};
+use x11rb::errors::{ConnectError, ConnectionError, ReplyError};
+use x11rb::protocol::randr::{ConnectionExt as _, MonitorInfo};
+use x11rb::protocol::xproto::{ConnectionExt, ImageFormat, ImageOrder, Screen};
 use x11rb::rust_connection::RustConnection;
 
-use crate::screen::{GrabError, RootGrab, RootImage};
+use crate::screen::{Area, GrabError, Layout, Monitor, RootGrab, RootImage};
 
 /// One screen of an X server connection, or a server that could not be reached.
 pub struct X11Root {
@@ -31,14 +32,43 @@ impl X11Root {
     }
 }
 
-impl RootGrab for X11Root {
-    fn grab(&self) -> Result<RootImage, GrabError> {
+impl X11Root {
+    /// The connection and its screen, or why neither can be read.
+    fn screen(&self) -> Result<(&RustConnection, &Screen), GrabError> {
         let (connection, number) = self.connection.as_ref().map_err(Clone::clone)?;
-        let setup = connection.setup();
-        let screen = setup
+        let screen = connection
+            .setup()
             .roots
             .get(*number)
             .ok_or_else(|| GrabError::Failed(format!("the X server has no screen {number}")))?;
+        Ok((connection, screen))
+    }
+}
+
+impl RootGrab for X11Root {
+    fn layout(&self) -> Result<Layout, GrabError> {
+        let (connection, screen) = self.screen()?;
+        let root = Area {
+            x: 0,
+            y: 0,
+            width: screen.width_in_pixels,
+            height: screen.height_in_pixels,
+        };
+        let listed = connection
+            .randr_get_monitors(screen.root, true)
+            .map_err(ReplyError::from)
+            .and_then(Cookie::reply);
+        let monitors = match listed {
+            Ok(reply) => reply.monitors.iter().map(monitor).collect(),
+            Err(ReplyError::ConnectionError(ConnectionError::UnsupportedExtension)) => Vec::new(),
+            Err(error) => return Err(GrabError::Failed(error.to_string())),
+        };
+        Ok(Layout { root, monitors })
+    }
+
+    fn grab(&self, area: Area) -> Result<RootImage, GrabError> {
+        let (connection, screen) = self.screen()?;
+        let setup = connection.setup();
         let bits_per_pixel = setup
             .pixmap_formats
             .iter()
@@ -52,9 +82,14 @@ impl RootGrab for X11Root {
             .map_or((0, 0, 0), |visual| {
                 (visual.red_mask, visual.green_mask, visual.blue_mask)
             });
-        let (width, height) = (screen.width_in_pixels, screen.height_in_pixels);
+        let Area {
+            x,
+            y,
+            width,
+            height,
+        } = area;
         let reply = connection
-            .get_image(ImageFormat::Z_PIXMAP, screen.root, 0, 0, width, height, !0)
+            .get_image(ImageFormat::Z_PIXMAP, screen.root, x, y, width, height, !0)
             .map_err(ReplyError::from)
             .and_then(Cookie::reply)
             .map_err(|error| GrabError::Failed(error.to_string()))?;
@@ -67,5 +102,18 @@ impl RootGrab for X11Root {
             masks,
             data: reply.data,
         })
+    }
+}
+
+/// Translates one `RandR` monitor to the core's.
+const fn monitor(info: &MonitorInfo) -> Monitor {
+    Monitor {
+        primary: info.primary,
+        area: Area {
+            x: info.x,
+            y: info.y,
+            width: info.width,
+            height: info.height,
+        },
     }
 }

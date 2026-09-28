@@ -12,7 +12,8 @@ body-core.workspace = true
 # The session bus client for freedesktop notifications. Pure Rust, no unsafe in this crate.
 zbus = { version = "5.19", default-features = false, features = ["async-io", "blocking-api"] }
 # The X11 client for screen capture. Pure Rust with no default features, so no libxcb is linked.
-x11rb = { version = "0.13", default-features = false }
+# `randr` lists the monitors, so a capture reads the primary one rather than the whole root.
+x11rb = { version = "0.13", default-features = false, features = ["randr"] }
 
 [target.'cfg(target_os = "linux")'.dev-dependencies]
 # `p2p` lets a test serve a fake notification server over a socket pair, with no bus daemon.

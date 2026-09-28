@@ -3,20 +3,59 @@
 use std::sync::{Arc, Mutex, PoisonError};
 
 use body_core::{CaptureError, CaptureRequest, CaptureTarget, ScreenCapture};
-use os_linux::{GrabError, LinuxScreenCapture, RootGrab, RootImage};
+use os_linux::{Area, GrabError, Layout, LinuxScreenCapture, Monitor, RootGrab, RootImage};
 
 const MASKS: (u32, u32, u32) = (0x00ff_0000, 0x0000_ff00, 0x0000_00ff);
+const ROOT: Area = Area {
+    x: 0,
+    y: 0,
+    width: 2,
+    height: 1,
+};
 
-/// A fake root window that answers one scripted grab and counts the calls.
+type Calls = Arc<Mutex<Vec<Option<Area>>>>;
+
+/// A fake root window with a scripted layout and grab; it records each call, `None` for a layout.
 struct FakeRoot {
+    layout: Result<Layout, GrabError>,
     answer: Result<RootImage, GrabError>,
-    calls: Arc<Mutex<usize>>,
+    calls: Calls,
 }
 
 impl RootGrab for FakeRoot {
-    fn grab(&self) -> Result<RootImage, GrabError> {
-        *self.calls.lock().unwrap_or_else(PoisonError::into_inner) += 1;
+    fn layout(&self) -> Result<Layout, GrabError> {
+        self.calls
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .push(None);
+        self.layout.clone()
+    }
+
+    fn grab(&self, area: Area) -> Result<RootImage, GrabError> {
+        self.calls
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .push(Some(area));
         self.answer.clone()
+    }
+}
+
+fn monitor(primary: bool, x: i16) -> Monitor {
+    Monitor {
+        primary,
+        area: Area {
+            x,
+            y: 0,
+            width: 1,
+            height: 1,
+        },
+    }
+}
+
+fn root_only() -> Layout {
+    Layout {
+        root: ROOT,
+        monitors: Vec::new(),
     }
 }
 
@@ -33,10 +72,12 @@ fn image(lsb_first: bool, data: Vec<u8>) -> RootImage {
 }
 
 fn counted(
+    layout: Result<Layout, GrabError>,
     answer: Result<RootImage, GrabError>,
-) -> (LinuxScreenCapture<FakeRoot>, Arc<Mutex<usize>>) {
-    let calls = Arc::new(Mutex::new(0));
+) -> (LinuxScreenCapture<FakeRoot>, Calls) {
+    let calls = Arc::new(Mutex::new(Vec::new()));
     let root = FakeRoot {
+        layout,
         answer,
         calls: Arc::clone(&calls),
     };
@@ -44,7 +85,21 @@ fn counted(
 }
 
 fn backend(answer: Result<RootImage, GrabError>) -> LinuxScreenCapture<FakeRoot> {
-    counted(answer).0
+    counted(Ok(root_only()), answer).0
+}
+
+fn calls_for(monitors: Vec<Monitor>) -> Vec<Option<Area>> {
+    let layout = Layout {
+        root: ROOT,
+        monitors,
+    };
+    let (capture, calls) = counted(Ok(layout), Ok(image(true, vec![0; 8])));
+
+    capture
+        .capture(&display())
+        .unwrap_or_else(|error| panic!("{error:?}"));
+
+    calls.lock().unwrap_or_else(PoisonError::into_inner).clone()
 }
 
 fn display() -> CaptureRequest {
@@ -131,11 +186,55 @@ fn a_short_buffer_is_a_backend_failure() {
 }
 
 #[test]
+fn the_primary_monitor_is_read_rather_than_the_whole_root() {
+    let primary = monitor(true, 1);
+
+    let calls = calls_for(vec![monitor(false, 0), primary]);
+
+    assert_eq!(calls, vec![None, Some(primary.area)]);
+}
+
+#[test]
+fn with_no_primary_the_first_listed_monitor_is_read() {
+    let first = monitor(false, 1);
+
+    let calls = calls_for(vec![first, monitor(false, 0)]);
+
+    assert_eq!(calls, vec![None, Some(first.area)]);
+}
+
+#[test]
+fn with_no_monitors_listed_the_whole_root_is_read() {
+    assert_eq!(calls_for(Vec::new()), vec![None, Some(ROOT)]);
+}
+
+#[test]
+fn a_failed_layout_is_a_backend_failure_without_a_read() {
+    let (capture, calls) = counted(
+        Err(GrabError::Failed(String::from("BadRequest"))),
+        Ok(image(true, vec![0; 8])),
+    );
+
+    let captured = capture.capture(&display());
+
+    assert_eq!(
+        captured,
+        Err(CaptureError::Backend(String::from("BadRequest")))
+    );
+    assert_eq!(
+        *calls.lock().unwrap_or_else(PoisonError::into_inner),
+        vec![None]
+    );
+}
+
+#[test]
 fn no_server_is_no_display() {
-    let captured = backend(Err(GrabError::NoDisplay(String::from(
-        "DISPLAY is not set",
-    ))))
-    .capture(&display());
+    let (capture, _) = counted(
+        Err(GrabError::NoDisplay(String::from("DISPLAY is not set"))),
+        Ok(image(true, vec![0; 8])),
+    );
+
+    let captured = capture.capture(&display());
 
     assert_eq!(
         captured,
@@ -155,7 +254,7 @@ fn a_failed_read_is_a_backend_failure() {
 
 #[test]
 fn a_window_target_is_refused_without_reading_the_screen() {
-    let (capture, calls) = counted(Ok(image(true, vec![0; 8])));
+    let (capture, calls) = counted(Ok(root_only()), Ok(image(true, vec![0; 8])));
 
     let captured = capture.capture(&CaptureRequest::targeted(0, 0, CaptureTarget::Focus));
 
@@ -165,5 +264,10 @@ fn a_window_target_is_refused_without_reading_the_screen() {
             "capturing one window is not implemented on X11"
         )))
     );
-    assert_eq!(*calls.lock().unwrap_or_else(PoisonError::into_inner), 0);
+    assert!(
+        calls
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .is_empty()
+    );
 }

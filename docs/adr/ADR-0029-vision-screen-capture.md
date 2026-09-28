@@ -132,8 +132,7 @@ that fails or, as on X11, does not exist, since text an attacker gets into a rep
 `CaptureScreenRequest` has `max_edge = 1`, `target = 2`, `max_bytes = 3`; `ImageBlob` has
 `source_width = 5`, `source_height = 6`, `captured_at_unix_ms = 7`; `CaptureScreenReply` has
 `resolved_target = 2`, `target_width = 3`, `target_height = 4`; `ServerEvent` has `ToolOutcome = 8`.
-Each was added with the code using it ([ADR-0027](ADR-0027-turn-provenance.md)); `format` and
-`display_index` wait for that code.
+`format` and `display_index` wait for a consumer ([ADR-0027](ADR-0027-turn-provenance.md)).
 
 ### 12. BodyGateway.capture_screen returns a pure-core value, once, under a deadline
 
@@ -182,7 +181,8 @@ the edge travels pixel for pixel; `source_*` still describe the display and `tar
 follow one test. A missing or unknown `target` is a tool error that never reaches the body, and
 `RepeatSalience` compares name and arguments, so each target may be captured twice a loop. A
 model-named rectangle is declined: at the engine budget the model invented 38 of 47 answers rather
-than decline, so it would name wrong rectangles.
+than decline, so it would name wrong rectangles. On X11 the primary display is the monitor RandR
+marks primary, else the first one it lists, else the whole root: one display, never their union.
 
 ### 17. What the model can read, and what the budget costs
 

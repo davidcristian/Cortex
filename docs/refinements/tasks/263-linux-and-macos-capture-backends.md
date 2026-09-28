@@ -5,11 +5,11 @@
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
 **Verified:** 2026-09-28
 
-`LinuxScreenCapture<X11Root>` in `os_linux` reads the whole X root window through `x11rb` and is
-built and covered under [ADR-0011](../../adr/ADR-0011-body-v1.md) decision 13; the shell does not
-serve it yet, which is [753](753-keep-the-overlay-out-of-a-linux-capture.md), and a Wayland
-session needs the desktop portal, which is [752](752-wayland-screen-capture-through-the-portal.md).
-Three parts remain here:
+`LinuxScreenCapture<X11Root>` in `os_linux` reads the primary RandR monitor of the X root window
+through `x11rb` and is built and covered under [ADR-0011](../../adr/ADR-0011-body-v1.md) decision
+13; the shell does not serve it yet, which is [753](753-keep-the-overlay-out-of-a-linux-capture.md),
+and a Wayland session needs the desktop portal, which is
+[752](752-wayland-screen-capture-through-the-portal.md). Two parts remain here:
 
 - **A window target on X11.** `LinuxScreenCapture` refuses `CaptureTarget::Focus` as `Backend`
   without reading the screen. The Windows walk in `os_windows/src/focus.rs` takes the topmost
@@ -17,12 +17,6 @@ Three parts remain here:
   from the top, skips windows whose `_NET_WM_PID` is this process, whose `_NET_WM_STATE` holds
   `_NET_WM_STATE_HIDDEN`, or that have no `_NET_WM_NAME`, and translates the chosen frame to root
   coordinates. The choice belongs in the covered core, over requests added to `RootGrab`.
-- **The primary monitor on X11.** ADR-0029 decision 16 defines the display target as the primary
-  display, and `X11Root` reads the whole root window, which under RandR contains every enabled
-  monitor, so a multi-monitor X session returns all of them in one frame. The crop to the primary
-  output's CRTC (RandR `GetOutputPrimary`, then `GetCrtcInfo`) needs `x11rb`'s `randr` feature,
-  and it is the first code in the body that asks the OS for a monitor, the trigger of
-  [262](262-multi-monitor-dpi-reporting.md).
 - **macOS.** `MacosScreenCapture` is an `unimplemented!()` stub. `os_macos` takes
   `cfg(target_os = "macos")` first, since it compiles on every platform today.
 
@@ -50,8 +44,16 @@ resolved target rectangle.
 - 2026-09-28: The shell's Linux body server was wired with `DeniedScreenCapture`, and the overlay
   exclusion a Linux backend also needs was added above.
 - 2026-09-28: Built the Linux X11 backend: `LinuxScreenCapture` over a `RootGrab` port, and
-  `X11Root` tested against a fake X server. Against a real `Xvfb` 1280x720 display it read a filled
-  `ff8000` square back as blue 0, green 128, red 255. WSLg's rootless Xwayland answers `GetImage` on
-  its root with `BadMatch`. The shell still serves `DeniedScreenCapture`, because X11 cannot keep
-  the overlay out of a picture. Filed [752](752-wayland-screen-capture-through-the-portal.md) and
+  `X11Root` tested against a fake X server. The display target reads one monitor, which
+  `X11Root::layout` lists with RandR 1.5's `GetMonitors` (the primary flag and rectangle in one
+  request, where `GetOutputPrimary` needs `GetOutputInfo` and `GetCrtcInfo` after it): the primary
+  one, else the first listed, else the whole root, for the reasons in
+  [body-os.md](../../modules/body-os.md). Against a real `Xvfb` 1280x720 display, RandR 1.6, it read
+  a filled `ff8000` square back as blue 0, green 128, red 255; the one automatic monitor is not
+  marked primary, so the first listed, the whole 1280x720, was read. With two 640x720 monitors added
+  by `SetMonitor` and the right half filled `ff8000`, it returned the right one's 640x720 in that
+  colour, and with neither marked primary the left one's, in black. WSLg's rootless Xwayland answers
+  `GetImage` on its root with `BadMatch`. The shell still serves `DeniedScreenCapture`, because X11
+  cannot keep the overlay out of a picture. Filed
+  [752](752-wayland-screen-capture-through-the-portal.md) and
   [753](753-keep-the-overlay-out-of-a-linux-capture.md).

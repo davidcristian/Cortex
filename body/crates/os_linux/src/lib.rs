@@ -16,7 +16,7 @@ pub use audio::{LinuxAudioControl, PactlFailure, PactlRunner};
 pub use dbus::DbusNotifications;
 pub use notify::{BusError, BusMessage, LinuxNotify, NotificationBus};
 pub use pactl::{PACTL_PROGRAM, PactlCommand};
-pub use screen::{GrabError, LinuxScreenCapture, RootGrab, RootImage};
+pub use screen::{Area, GrabError, Layout, LinuxScreenCapture, Monitor, RootGrab, RootImage};
 pub use x11::X11Root;
 /// The X11 client the capture backend is built on. A host opens the display with it.
 pub use x11rb;
