@@ -3,28 +3,25 @@
 **Status:** open, optional feature
 **Area:** cross-cutting
 **Origin:** none, this area is the old catch-all list and has no single origin decision record
-**Verified:** 2026-09-13
+**Verified:** 2026-09-28
 
-Real macOS and Linux backends behind the existing OS traits. Today both crates satisfy `Hotkey`,
-`AudioControl`, `Notify` and `ScreenCapture` with `unimplemented!()`.
+Real backends behind the existing OS traits where they are still `unimplemented!()` stubs. Two
+ports are left on Linux and four on macOS:
 
-The Linux half costs more than one line suggests, because of a coverage problem no document
-records. `os_windows` is excluded from the Linux coverage run by construction, being
-`#[cfg(windows)]` with even its dependencies declared under
-`[target.'cfg(windows)'.dependencies]`, while `body/crates/os_linux/src/lib.rs` and
-`body/crates/os_macos/src/lib.rs` are plain workspace members with a bare `[dependencies]`, whose
-stubs sit under `#[cfg_attr(coverage, coverage(off))]` with an inline reason. Since the coverage
-run passes `--workspace`, a real Linux backend would compile in CI and be measured, putting live
-X11 or Wayland calls inside the 100% line and branch requirement, which is exactly where AGENTS.md
-does not put real OS calls: those belong in thin adapters under `integration` marking, run on the
-host. Both halves of that collision are written down separately, in
-[body-os.md](../../modules/body-os.md), which records `os_linux` as compiled and measured on Linux
-CI, and in the crate's own header, which records that real backends are host-validated and never in
-CI. Whoever picks this up needs the integration-marking answer before writing a line of X11. The
-macOS half does not have the problem, because a real macOS backend could not compile on Linux at
-all and would have to take `os_windows`'s `cfg` attribute, which also means
-[ADR-0011](../../adr/ADR-0011-body-v1.md) decision 3 describes `os_macos` as `cfg(macos)` where the
-crate has no such attribute.
+- **Linux `Hotkey`.** `LinuxHotkey` is a stub. A global shortcut needs the XDG desktop portal's
+  `GlobalShortcuts` interface on Wayland and a key grab on X11, and the shell's
+  `hotkey::register` is a stub off Windows.
+- **macOS `Hotkey`, `AudioControl` and `Notify`.** All three are stubs in `os_macos`, which has no
+  `cfg` attribute yet and compiles on every platform. A real macOS backend takes
+  `cfg(target_os = "macos")` as `os_windows` takes `cfg(windows)`, which also leaves it out of the
+  Linux coverage run.
+- **`ScreenCapture` on both** is [263](263-linux-and-macos-capture-backends.md).
+
+Linux `Notify` and `AudioControl` are built. How a Linux backend is structured so the 100% coverage
+rule holds, a covered core over a port of its own plus an adapter tested against a peer the test
+controls, is [ADR-0011](../../adr/ADR-0011-body-v1.md) decision 13, and a Linux `Hotkey` follows
+it. The shell does not start the body server off Windows, so neither Linux backend is wired yet
+([750](750-the-shell-serves-no-body-actions-on-linux.md)).
 
 This stays a refinement rather than moving to [docs/host/](../../host/index.md), which holds work
 needing a Win32 desktop session or a 24 GB GPU: a Linux or macOS backend needs neither.
@@ -40,3 +37,11 @@ needing a Win32 desktop session or a 24 GB GPU: a Linux or macOS backend needs n
   `justfile:233` rather than 95 and still passes `--workspace`, the two halves of the collision are
   at [body-os.md](../../modules/body-os.md) line 51 rather than 42 and at the crate header lines 7
   to 8 rather than 7 to 9, and the origin decision still describes `os_macos` as `cfg(macos)`.
+- 2026-09-28: Checked again and the coverage problem holds as written: `os_linux` was a plain
+  workspace member measured by `cargo llvm-cov --workspace`, and ADR-0011 decision 3 described
+  `cfg` attributes neither stub crate had. Resolved it as ADR-0011 decision 13, made `os_linux`
+  `cfg(target_os = "linux")`, corrected decision 3, and built Linux `Notify` over the session bus
+  (`zbus`) and `AudioControl` over `pactl`, both at 100% coverage. Both live tests passed on this
+  host, against a real session bus with `dunst` 1.9.2 serving notifications and against the WSLg
+  PulseAudio 17.0 server. What remains is listed above, and the shell wiring is filed as
+  [750](750-the-shell-serves-no-body-actions-on-linux.md).

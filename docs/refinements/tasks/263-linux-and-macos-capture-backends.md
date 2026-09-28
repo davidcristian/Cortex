@@ -3,25 +3,19 @@
 **Status:** open, optional feature
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-09-13
+**Verified:** 2026-09-28
 
-Both crates have `unimplemented!()` stubs that satisfy the trait, like every other OS port.
+`LinuxScreenCapture` and `MacosScreenCapture` are `unimplemented!()` stubs that satisfy the trait.
+A host with capture switched off already runs the covered `DeniedScreenCapture` on every platform.
 
-The Linux half costs more than that suggests, because of a coverage problem no document records.
-`os_windows` is excluded from the Linux coverage run by construction: the crate is
-`#[cfg(windows)]`, with even its dependencies declared under `[target.'cfg(windows)'.dependencies]`,
-so on Linux it builds to nothing. The two stub crates are not written that way.
-`body/crates/os_linux/src/lib.rs` and `body/crates/os_macos/src/lib.rs` are plain workspace members
-with a bare `[dependencies]`, each satisfying `Hotkey`, `AudioControl`, `Notify` and
-`ScreenCapture` with `unimplemented!()` under `#[cfg_attr(coverage, coverage(off))]` and an inline
-reason. Since the check runs `cargo llvm-cov --workspace`, a real Linux backend would compile in CI
-and be measured, putting live X11 or Wayland calls inside the 100% line and branch requirement,
-which is exactly where AGENTS.md does not put real OS calls. Both halves of that collision are
-written down separately and never joined, in [body-os.md](../../modules/body-os.md) and the crate's
-own header, so whoever picks this up needs the integration-marking answer before writing a line of
-X11. The macOS half does not have the problem, because a real macOS backend could not compile on
-Linux at all and would have to take `os_windows`'s `cfg` attribute, which also means ADR-0011's
-decision 3 describes an attribute `os_macos` does not have.
+On Linux, a capture on Wayland goes through the XDG desktop portal's `Screenshot` or `ScreenCast`
+interface over the session bus, and on X11 through the X server. The coverage question this entry
+used to raise is answered: [ADR-0011](../../adr/ADR-0011-body-v1.md) decision 13 structures a Linux
+backend as a covered core over a port of its own plus an adapter holding only the calls, and the
+Linux `Notify` backend already reaches the session bus that way through `zbus`. The backend returns
+raw BGRA pixels and the resolved target rectangle; every size decision stays in `body_core`
+(ADR-0029). On macOS, `os_macos` takes `cfg(target_os = "macos")` first, since it compiles on
+every platform today.
 
 ## History
 
@@ -36,3 +30,8 @@ decision 3 describes an attribute `os_macos` does not have.
   section rather than at line 42. Neither stub crate has a `cfg(target_os)` attribute, in its
   source or its manifest, so both still compile and are measured on Linux while `os_windows` still
   builds to nothing there.
+- 2026-09-28: Checked again. The coverage problem held and is now resolved by ADR-0011 decision 13,
+  written while building the Linux `Notify` and `AudioControl` backends under
+  [271](271-macos-linux-os-backends.md); `os_linux` is now `cfg(target_os = "linux")` and still
+  measured on Linux CI, and `os_macos` still has no `cfg`. Rewrote the entry to what remains: the
+  two capture backends themselves.
