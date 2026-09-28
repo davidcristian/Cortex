@@ -57,7 +57,8 @@ recorded in an ADR. This ADR is that exclusion, and the checks that grew around 
    fallback is Tauri's `global-shortcut` plugin behind the same `Hotkey` port.
 
 5. **The Tauri app is a host-native shell outside the checked workspace.** `body/app/src-tauri` is
-   its own Cargo workspace root, path-depending on `body/crates/{core,rpc}` and `os_windows`, and
+   its own Cargo workspace root, path-depending on `body/crates/{core,rpc}`, `os_windows` under a
+   `cfg(windows)` target table and `os_linux` under a `cfg(target_os = "linux")` one, and
    `body/Cargo.toml` excludes it, so `just check` never builds Tauri and the coverage step never
    sees it. Its Rust is thin wiring: tray, hidden window, `#[command]` handlers, forwarding the
    `TurnEvent` stream to the webview. Every branching decision (accelerator conversion, event
@@ -137,9 +138,11 @@ recorded in an ADR. This ADR is that exclusion, and the checks that grew around 
     ([ADR-0067](ADR-0067-image-volume-record.md) decision 1). Nothing else may join it.
 
 11. **`check-shell` runs clippy twice, for the host and for `x86_64-pc-windows-msvc`.** The host run
-    configures out every `#[cfg(windows)]` item (the real `start` and `DEFAULT_BODY_PORT` in
-    `body_server.rs`, the real hotkey registration), and the Windows run configures out the stubs,
-    so the two lines cover complementary halves of the same files and sit in one recipe. The
+    configures out every `#[cfg(windows)]` item (the Windows `start` in `body_server.rs`, the real
+    hotkey registration) and checks the Linux `start`, and the Windows run configures out the Linux
+    `start` and the stubs. Both check the shared `serve`, so the two lines cover complementary
+    halves of the same files and sit in one recipe. The `start` stub for a platform with neither
+    backend crate is compiled by neither run. The
     Windows run needs none of the Linux `-dev` roots, but `tauri_build` compiles a VERSIONINFO
     resource for every Windows target through `tauri-winres` and `embed-resource`, which panics
     without a resource compiler. The recipe sets `RC_x86_64_pc_windows_msvc`, defaulting to
@@ -184,7 +187,10 @@ recorded in an ADR. This ADR is that exclusion, and the checks that grew around 
     `pactl` against the sound server, is taken by the caller: the host shell, outside the checked
     workspace (decision 5), and the `#[ignore]`d tests in `os_linux/tests/live.rs`, run by hand with
     `just os-linux-live`. cargo-llvm-cov does not measure `tests/`, so an ignored live test costs
-    no coverage, as with `body_rpc`'s live suite. This keeps real OS calls in thin adapters, as
+    no coverage, as with `body_rpc`'s live suite. The shell's Linux `start` serves both backends
+    with `DeniedScreenCapture`, and a session bus that does not open becomes
+    `DbusNotifications::absent`, whose calls fail as `NoServer`, so volume is still served and
+    `Notify` answers `Unavailable`. This keeps real OS calls in thin adapters, as
     AGENTS.md requires, while measuring every line of them. The two alternatives hide a working
     backend: `coverage(off)` is reserved for code that never runs, and a `cfg` that CI never
     compiles would leave the Linux backend with no check at all. A backend whose mechanism no local

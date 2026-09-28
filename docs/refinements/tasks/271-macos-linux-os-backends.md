@@ -17,11 +17,10 @@ ports are left on Linux and four on macOS:
   Linux coverage run.
 - **`ScreenCapture` on both** is [263](263-linux-and-macos-capture-backends.md).
 
-Linux `Notify` and `AudioControl` are built. How a Linux backend is structured so the 100% coverage
-rule holds, a covered core over a port of its own plus an adapter tested against a peer the test
-controls, is [ADR-0011](../../adr/ADR-0011-body-v1.md) decision 13, and a Linux `Hotkey` follows
-it. The shell does not start the body server off Windows, so neither Linux backend is wired yet
-([750](750-the-shell-serves-no-body-actions-on-linux.md)).
+Linux `Notify` and `AudioControl` are built, and the shell's body server serves both, with every
+capture refused. How a Linux backend is structured so the 100% coverage rule holds, a covered core
+over a port of its own plus an adapter tested against a peer the test controls, is
+[ADR-0011](../../adr/ADR-0011-body-v1.md) decision 13, and a Linux `Hotkey` follows it.
 
 This stays a refinement rather than moving to [docs/host/](../../host/index.md), which holds work
 needing a Win32 desktop session or a 24 GB GPU: a Linux or macOS backend needs neither.
@@ -43,5 +42,7 @@ needing a Win32 desktop session or a 24 GB GPU: a Linux or macOS backend needs n
   `cfg(target_os = "linux")`, corrected decision 3, and built Linux `Notify` over the session bus
   (`zbus`) and `AudioControl` over `pactl`, both at 100% coverage. Both live tests passed on this
   host, against a real session bus with `dunst` 1.9.2 serving notifications and against the WSLg
-  PulseAudio 17.0 server. What remains is listed above, and the shell wiring is filed as
-  [750](750-the-shell-serves-no-body-actions-on-linux.md).
+  PulseAudio 17.0 server. The shell's Linux `start` now serves both through `BodyService`, and a
+  run of that composition outside Tauri showed a reminder on `dunst` and changed and restored the
+  volume over gRPC. What remains is listed above, and a linked Linux build of the shell is
+  [751](751-the-shell-has-never-been-linked-or-run-on-linux.md).

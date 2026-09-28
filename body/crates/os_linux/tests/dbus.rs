@@ -258,3 +258,48 @@ fn a_notify_reply_of_the_wrong_type_is_an_unnamed_failure() {
     assert_eq!(error.name, None);
     assert!(!error.message.is_empty());
 }
+
+/// The error a real connect returns for a bus socket that does not exist.
+fn no_bus() -> os_linux::zbus::Error {
+    let Err(error) =
+        Builder::address("unix:path=/nonexistent-cortex-test/bus").and_then(Builder::build)
+    else {
+        panic!("a bus with no socket opened");
+    };
+    error
+}
+
+#[test]
+fn every_call_on_a_bus_that_did_not_open_fails_as_no_server() {
+    let error = no_bus();
+    let bus = DbusNotifications::absent(&error);
+
+    let calls = [
+        bus.capabilities().map(|_| ()),
+        bus.notify(&BusMessage {
+            app_name: String::from("Cortex"),
+            summary: String::from("t"),
+            body: String::from("b"),
+        })
+        .map(|_| ()),
+    ];
+
+    for call in calls {
+        let failure = call.unwrap_err();
+        assert_eq!(
+            failure.name.as_deref(),
+            Some("org.freedesktop.DBus.Error.NoServer")
+        );
+        assert_eq!(failure.message, error.to_string());
+    }
+}
+
+#[test]
+fn the_backend_over_a_bus_that_did_not_open_is_unavailable() {
+    let error = no_bus();
+    let notify = LinuxNotify::new("Cortex", DbusNotifications::absent(&error));
+
+    let result = notify.show(&Notification::new("t", "b", "r1", false));
+
+    assert_eq!(result, Err(NotifyError::Unavailable(error.to_string())));
+}

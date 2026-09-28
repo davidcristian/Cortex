@@ -229,7 +229,7 @@ never a reading of what the tree does now.
 - **[R-261](tasks/261-windows-graphics-capture-backend.md)** A `Windows.Graphics.Capture` backend (vision). Its claim was checked against the code on 2026-09-13.
 - **[R-263](tasks/263-linux-and-macos-capture-backends.md)** Linux and macOS `ScreenCapture` backends (vision). Its claim was checked against the code on 2026-09-28.
 - **[R-271](tasks/271-macos-linux-os-backends.md)** macOS and Linux OS backends (cross-cutting). Its claim was checked against the code on 2026-09-28.
-- **[R-750](tasks/750-the-shell-serves-no-body-actions-on-linux.md)** The shell serves no body actions on Linux (body-gateway). Its claim was checked against the code on 2026-09-28.
+- **[R-751](tasks/751-the-shell-has-never-been-linked-or-run-on-linux.md)** The shell has never been linked or run on Linux (body-gateway). Its claim was checked against the code on 2026-09-28.
 
 ## Every task, by area
 
@@ -245,7 +245,7 @@ never a reading of what the tree does now.
 - [R-223](tasks/223-safe-core-audio-wrapper.md) A safe Core Audio wrapper. open, waiting for its trigger.
 - [R-224](tasks/224-unbalanced-com-initialization.md) Unbalanced COM initialization on the blocking pool. open, waiting for its trigger.
 - [R-745](tasks/745-device-control-reaches-only-the-system-volume.md) Device control reaches only the system volume. open, waiting for its trigger.
-- [R-750](tasks/750-the-shell-serves-no-body-actions-on-linux.md) The shell serves no body actions on Linux. open, optional feature.
+- [R-751](tasks/751-the-shell-has-never-been-linked-or-run-on-linux.md) The shell has never been linked or run on Linux. open, optional feature.
 
 ### body-overlay
 

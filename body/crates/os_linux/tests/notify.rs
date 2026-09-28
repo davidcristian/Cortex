@@ -127,10 +127,11 @@ fn the_provenance_line_is_escaped_with_the_body_under_markup() {
 }
 
 #[test]
-fn no_owner_for_the_service_name_is_unavailable() {
+fn no_bus_or_no_owner_for_the_service_name_is_unavailable() {
     for name in [
         "org.freedesktop.DBus.Error.ServiceUnknown",
         "org.freedesktop.DBus.Error.NameHasNoOwner",
+        "org.freedesktop.DBus.Error.NoServer",
     ] {
         let bus = FakeBus {
             capabilities: Err(named(Some(name), "nobody serves it")),

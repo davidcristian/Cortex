@@ -12,7 +12,7 @@ its Windows line over a `cfg(windows)` item.
 `check-shell` runs two clippy lines, the host one and
 `cargo clippy --locked --target x86_64-pc-windows-msvc --all-targets -- -D warnings`, and CI
 schedules both. Neither runs at the pre-commit hook, so a rename or a signature change inside the
-shell's six items behind `cfg(windows)` is caught on a runner rather than before the commit. That is
+shell's five items behind `cfg(windows)` is caught on a runner rather than before the commit. That is
 the divergence [ADR-0011](../../adr/ADR-0011-body-v1.md) decision 10 accepted for the host line,
 inherited by the Windows one for a narrower reason.
 
@@ -73,3 +73,8 @@ depends on and a check that runs a different one proves less than it claims.
   line of `Cargo.toml`, and none touches the six items, still four in `body_server.rs` and two in
   `hotkey.rs`. `check-shell` is at `justfile:177` and the one `tauri_build::build()` call at
   `build.rs:2`. The trigger's second part now names the command that answers it.
+- 2026-09-28: The shell's body server gained a Linux `start`, which moved `DEFAULT_BODY_PORT` and a
+  new shared `serve` under `cfg(any(windows, target_os = "linux"))`, so five items stay behind
+  `cfg(windows)` alone: three in `body_server.rs` and two in `hotkey.rs`. `check-shell` passed both
+  lines with that change, the Windows one with an unpacked windres named by
+  `RC_x86_64_pc_windows_msvc`. The release half of the trigger was not read again.

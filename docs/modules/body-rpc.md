@@ -102,9 +102,9 @@ nothing stays `Rpc`. All three are terminal.
 
 ## The server
 
-`body_service(audio, notifier, token)` (`src/server.rs`, ADR-0023 and ADR-0025) is the brain to body
-direction: it builds the `BodyService` server over an `AudioControl`, a `Notify` and a
-`ScreenCapture` backend, behind the token validator.
+`body_service(audio, notifier, screen, receipts, token)` (`src/server.rs`, ADR-0023 and ADR-0025)
+is the brain to body direction: it builds the `BodyService` server over an `AudioControl`, a
+`Notify` and a `ScreenCapture` backend, behind the token validator.
 
 - `OsService<A: AudioControl, N: Notify, S: ScreenCapture>` implements the generated `BodyService`
   trait over the injected backends. `get_volume` and `set_volume` map the wire messages onto the

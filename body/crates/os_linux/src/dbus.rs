@@ -6,28 +6,45 @@ use zbus::blocking::Connection;
 use zbus::message::Message;
 use zbus::zvariant::Value;
 
-use crate::notify::{BusError, BusMessage, NotificationBus};
+use crate::notify::{BusError, BusMessage, NO_BUS, NotificationBus};
 
 const DESTINATION: &str = "org.freedesktop.Notifications";
 const PATH: &str = "/org/freedesktop/Notifications";
 
-/// `org.freedesktop.Notifications` on an open D-Bus connection.
+/// `org.freedesktop.Notifications` on a D-Bus connection, or on a bus that did not open.
 pub struct DbusNotifications {
-    connection: Connection,
+    connection: Result<Connection, BusError>,
 }
 
 impl DbusNotifications {
     /// Wraps `connection`, normally the user's session bus.
     #[must_use]
     pub const fn new(connection: Connection) -> Self {
-        Self { connection }
+        Self {
+            connection: Ok(connection),
+        }
+    }
+
+    /// Stands in for a bus that failed to open with `error`: every call fails as `NoServer`.
+    #[must_use]
+    pub fn absent(error: &zbus::Error) -> Self {
+        Self {
+            connection: Err(BusError {
+                name: Some(String::from(NO_BUS)),
+                message: error.to_string(),
+            }),
+        }
+    }
+
+    fn connection(&self) -> Result<&Connection, BusError> {
+        self.connection.as_ref().map_err(Clone::clone)
     }
 }
 
 impl NotificationBus for DbusNotifications {
     fn capabilities(&self) -> Result<Vec<String>, BusError> {
         let reply = self
-            .connection
+            .connection()?
             .call_method(
                 Some(DESTINATION),
                 PATH,
@@ -57,7 +74,7 @@ impl NotificationBus for DbusNotifications {
             -1_i32,
         );
         let reply: Message = self
-            .connection
+            .connection()?
             .call_method(
                 Some(DESTINATION),
                 PATH,

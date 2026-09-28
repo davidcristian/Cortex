@@ -169,17 +169,17 @@ event the overlay listens on; in a plain browser `main.tsx` self-summons instead
   turn's length is unbounded; its silence runs under the three turn gaps below.
 - **`body_server.rs`** (ADR-0023, ADR-0025) binds `CORTEX_BODY_ADDR` (default `127.0.0.1:50151`,
   declared once as `DEFAULT_BODY_PORT` and tied by `scripts/crosscheck.py` to every other file that
-  states it), reads `CORTEX_SEAM_TOKEN` and `CORTEX_TOAST_APP_ID`, and serves `body_rpc`'s
-  `body_service` on Tauri's async runtime with the audio backend, the toast backend, a
-  screen-capture backend, whether capture receipts are on, and the token. The real
-  `WindowsScreenCapture` is wired only when `CORTEX_HOST_CAPTURE=1` and the setup call that hid the
-  overlay's own window from capture succeeded; on either failure it wires `DeniedScreenCapture`,
-  which answers `PermissionDenied` to every `CaptureScreen`. Both conditions are required, because
-  a capture including the overlay is a self-injection loop: the overlay is always on top and
-  opaque, so the prompt, the prior reply and any confirm card would be read back as screen content.
-  `CORTEX_HOST_CAPTURE_NOTIFY=0` turns off the body-authored receipt, and a non-windows build logs
-  and does nothing. Nothing on this path has ever touched a real screen (`docs/runbooks/vision.md`
-  has the check nothing else stands in for, capturing while the overlay is visible).
+  states it), reads `CORTEX_SEAM_TOKEN`, and serves `body_rpc`'s `body_service` on Tauri's async
+  runtime with the audio, notification and screen-capture backends, whether capture receipts are
+  on, and the token. On Windows these are Core Audio, a toast attributed to `CORTEX_TOAST_APP_ID`,
+  and `WindowsScreenCapture` only when `CORTEX_HOST_CAPTURE=1` and the setup call that hid the
+  overlay's own window from capture succeeded, else `DeniedScreenCapture`, which answers
+  `PermissionDenied` to every `CaptureScreen`. Both conditions are required: the overlay is always
+  on top, so a capture including it reads the prompt, the prior reply and any confirm card back as
+  screen content. On Linux they are `pactl`, the session bus (ADR-0011 decision 13) and
+  `DeniedScreenCapture`; on other platforms `start` only logs. `CORTEX_HOST_CAPTURE_NOTIFY=0` turns
+  off the body-authored receipt. Nothing on this path has ever touched a real screen
+  (`docs/runbooks/vision.md` has the check nothing else stands in for).
 
 **Config** (shell only): `CORTEX_HOTKEY` (chord, default `ctrl+alt+space`),
 `CORTEX_BRAIN_ADDR` (default `http://127.0.0.1:50051`), `CORTEX_BODY_ADDR` (the `BodyService`

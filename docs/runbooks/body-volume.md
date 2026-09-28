@@ -10,9 +10,9 @@ which only the host can run.
 
 The brain reads `CORTEX_BODY_BACKEND=grpc` and `CORTEX_BODY_ENDPOINT` (default
 `host.docker.internal:50151`) and builds a `GrpcBodyGateway` from `cortex_body_client`. The body
-binds `CORTEX_BODY_ADDR` (default `127.0.0.1:50151`) and serves
-`body_rpc::body_service(WindowsAudioControl::new(), WindowsNotify::new(&app_id), &token)`, the
-`BodyService` server behind the `RpcTokenValidator`. Each handler runs its synchronous OS call on
+binds `CORTEX_BODY_ADDR` (default `127.0.0.1:50151`) and serves `body_rpc::body_service` over
+the platform's backends (`WindowsAudioControl` and `WindowsNotify`, or on Linux
+`LinuxAudioControl` and `LinuxNotify`), the `BodyService` server behind the `RpcTokenValidator`. Each handler runs its synchronous OS call on
 a blocking thread, so a slow endpoint never parks the runtime.
 
 **Every call is bounded**, by `CORTEX_BODY_CALL_TIMEOUT_S` (default `5.0`) for volume and notify
@@ -58,8 +58,8 @@ template), bind it where the container can reach it, and run the same live test 
 so it leaves the host as it found it.
 
 What this checks directly is the gRPC path, the gateway and the tool path. A cortex-driven
-`set_volume`, where the model emits the tool call, additionally needs a real Windows desktop,
-because the audio backend is `cfg(windows)`.
+`set_volume`, where the model emits the tool call, additionally needs the shell running on a
+desktop with a real audio backend: Windows, or Linux with a PulseAudio or `pipewire-pulse` server.
 
 Validated 2026-07-08: the host-side test server path, end to end. A token-requiring fake
 `BodyService` was served on `0.0.0.0:50151` from the brain venv, and `test_gateway_live.py` ran

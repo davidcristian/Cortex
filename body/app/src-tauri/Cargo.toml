@@ -37,7 +37,10 @@ base64 = "0.22"
 body-core = { path = "../../crates/core" }
 body-rpc = { path = "../../crates/rpc" }
 
-# The real global-hotkey backend is Windows-only (ADR-0011); other platforms have
-# no summon hotkey yet, so the crate is not depended on there.
+# One OS backend crate per platform (ADR-0011). Linux has notifications and volume but no
+# summon hotkey or capture yet, and other platforms have no backend crate wired.
 [target.'cfg(windows)'.dependencies]
 os-windows = { path = "../../crates/os_windows" }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+os-linux = { path = "../../crates/os_linux" }

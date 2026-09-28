@@ -6,10 +6,14 @@ use body_core::{Notification, Notify, NotifyError};
 /// The capability a server lists when it renders a subset of markup in the body.
 const BODY_MARKUP: &str = "body-markup";
 
-/// D-Bus error names that mean no notification server owns the well-known name.
-const NO_SERVER: [&str; 2] = [
+/// The D-Bus error name for a bus that could not be reached at all.
+pub(crate) const NO_BUS: &str = "org.freedesktop.DBus.Error.NoServer";
+
+/// D-Bus error names that mean no bus or no notification server owns the well-known name.
+const NO_SERVER: [&str; 3] = [
     "org.freedesktop.DBus.Error.ServiceUnknown",
     "org.freedesktop.DBus.Error.NameHasNoOwner",
+    NO_BUS,
 ];
 
 /// One `Notify` call's text: the application name, the summary line and the body.

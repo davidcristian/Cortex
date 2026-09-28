@@ -6,7 +6,10 @@
 **Verified:** 2026-09-28
 
 `LinuxScreenCapture` and `MacosScreenCapture` are `unimplemented!()` stubs that satisfy the trait.
-A host with capture switched off already runs the covered `DeniedScreenCapture` on every platform.
+A host with capture switched off already runs the covered `DeniedScreenCapture` on every platform,
+and the shell's Linux body server always serves it. The Windows shell wires its real backend only
+after hiding the overlay from capture, and `exclude_overlay` returns `false` off Windows, so a Linux
+backend also needs a way to keep the overlay out of its pictures before the shell can serve it.
 
 On Linux, a capture on Wayland goes through the XDG desktop portal's `Screenshot` or `ScreenCast`
 interface over the session bus, and on X11 through the X server. The coverage question this entry
@@ -35,3 +38,5 @@ every platform today.
   [271](271-macos-linux-os-backends.md); `os_linux` is now `cfg(target_os = "linux")` and still
   measured on Linux CI, and `os_macos` still has no `cfg`. Rewrote the entry to what remains: the
   two capture backends themselves.
+- 2026-09-28: The shell's Linux body server was wired with `DeniedScreenCapture`, and the overlay
+  exclusion a Linux backend also needs was added above.

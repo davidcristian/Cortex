@@ -30,7 +30,9 @@ speaks. They are also where the **stub coverage exemption** is used.
 - **`os_linux`** (`cfg(target_os = "linux")`) has two real backends, `LinuxNotify` and
   `LinuxAudioControl` (see [The Linux backends](#the-linux-backends)), and two `unimplemented!()`
   stubs, `LinuxHotkey` and `LinuxScreenCapture`. The crate is compiled and measured on Linux CI,
-  so each stub method has `#[cfg_attr(coverage, coverage(off))]` with a reason.
+  so each stub method has `#[cfg_attr(coverage, coverage(off))]` with a reason. The shell's
+  `BodyService` serves the two real backends and `DeniedScreenCapture`, so no request reaches a
+  stub.
 - **`os_macos`** provides `MacosHotkey`, `MacosAudioControl`, `MacosNotify` and
   `MacosScreenCapture`, the same stubs for macOS. It has no `cfg` yet and compiles everywhere.
 
@@ -100,12 +102,13 @@ decision 13).
   summary is the title as plain text, which is all the specification allows there. The body is the
   message, escaped with `escape_xml` only when the server lists `body-markup`, and for a tainted
   reminder the fixed provenance line after a newline; the inert-text rule removes every newline
-  from the message, so that line cannot be forged. `ServiceUnknown` or `NameHasNoOwner` is
-  `NotifyError::Unavailable`, anything else `Backend`. An accepted call returns `Ok(true)`, because
-  the specification gives a server no way to decline.
+  from the message, so that line cannot be forged. `ServiceUnknown`, `NameHasNoOwner` or
+  `NoServer` is `NotifyError::Unavailable`, anything else `Backend`. An accepted call returns
+  `Ok(true)`, because the specification gives a server no way to decline.
 - **`DbusNotifications`** makes those two calls on a `zbus::blocking::Connection` it is given. The
   crate re-exports `zbus`, and the host opens the session bus with
-  `zbus::blocking::Connection::session()`.
+  `zbus::blocking::Connection::session()`. When that fails, `DbusNotifications::absent(&error)`
+  stands in for the bus, and each call fails with the error's text under the name `NoServer`.
 - **`LinuxAudioControl<R: PactlRunner>`** reads and changes `@DEFAULT_SINK@` through `pactl`, so
   it works against PulseAudio and against PipeWire's `pipewire-pulse`. The level is the mean of the
   channels' raw volumes over `PA_VOLUME_NORM` (65536), clamped to `[0, 1]` because a server allows
@@ -138,8 +141,9 @@ runs instead; `os_linux`'s real backends are measured in full. Neither silences 
   code.
 - Coverage is measured on **Linux CI**, including every line of `os_linux`. The Windows backends
   are host-validated, which is where the real OS calls in `os_windows` are exercised at all.
-- A Linux backend opens no session connection itself: the caller passes the connection or picks
-  the program, so no measured line depends on a desktop session.
+- A Linux backend opens no session connection itself: the caller passes the connection, or the
+  error of one that did not open, or picks the program, so no measured line depends on a desktop
+  session.
 - `unsafe` is `forbid` everywhere except `os_windows`, where it is COM only, under `deny` plus a
   scoped `allow` (ADR-0023).
 
