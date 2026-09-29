@@ -189,6 +189,21 @@ them on different subagent models") produced one call naming both entries and on
 in each server's log, which is what proves the setting reachable before a silence is read as a
 decision.
 
+The last test reads the `role` property instead. It puts twelve asks, one summary, one extraction
+or one lookup over each of four notes, stops each turn at its first dispatch, and prints the role
+each spawn item names beside the kind asked for, with the roles the spec offered and each item as
+written. No subagent runs, so it needs only the cortex, and a one-entry roster is the deployment's
+own spec. Set `CORTEX_ROLE_UPTAKE_DRAWS` for more than one draw of each ask, and
+`CORTEX_SUBAGENTS_ROLES=false` for the spec without the property, which is the spec the 2026-08-04
+turns above were read against:
+
+```bash
+CORTEX_INFERENCE_ENDPOINT=http://127.0.0.1:8080 CORTEX_SUBAGENTS_BACKEND=llamacpp \
+  CORTEX_SUBAGENTS_ENDPOINT=http://127.0.0.1:8082 CORTEX_SUBAGENTS_GPU_ENDPOINT=http://127.0.0.1:8082 \
+  CORTEX_ROLE_UPTAKE_DRAWS=4 uv run pytest -m integration --no-cov -s \
+  packages/orchestrator/tests/test_spawn_nudge_live.py -k role | grep role-uptake
+```
+
 **Budget your time by the CPU tier rather than by the cortex.** gemma-4-E4B generates at between
 3.0 and 12.4 tok/s under its 4 CPU cap here with its thread count set to that cap: 12.2 to 12.4
 with one slot decoding on an idle host, 8.5 to 9.2 a slot with both, and 4.9 to 5.0 and 3.0 to 3.1

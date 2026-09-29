@@ -1,6 +1,6 @@
 # The cortex uptake of the role property is unmeasured
 
-**Status:** open, actionable
+**Status:** done 2026-09-29
 **Area:** subagents
 **Origin:** [ADR-0072](../../adr/ADR-0072-subagent-roles.md)
 
@@ -24,3 +24,11 @@ ADR-0072 states them.
 
 - 2026-09-28: Filed when [R-272](272-more-subagent-roles.md) added the property without a reading
   of the cortex using it.
+- 2026-09-29: The premise held: the shipped wiring passes `SHIPPED_ROLES` while
+  `CORTEX_SUBAGENTS_ROLES` is on, and the probe's own runner passed none. The probe now builds its
+  runner as the wiring does, and a new test stops each turn at its first dispatch and prints the
+  role each item names. The card was taken, so the row was drawn on CPU: 24 invited turns, each
+  delegating one item that named a role, `precis` and `answer` matching 8 of 8 and every extraction
+  naming `answer`. The rows are in [spawn spec uptake](../../readings/spawn-spec-uptake.md) and
+  ADR-0072 states them. Filed [R-756](756-the-cortex-names-answer-for-an-extraction.md) for the
+  extraction cell's replication on the card.

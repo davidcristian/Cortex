@@ -106,8 +106,13 @@ in `scripts/envelopejudges.py`).
   25 without it, the one cell apart, with 6 copies of the body and 13 cap refusals. It ships
   unchanged until the replication on the card and the Qwen3.5-2B rows
   ([755](../refinements/tasks/755-the-precis-sentence-read-lower-on-one-condition.md)) are drawn.
-  Whether the cortex names a role at all is unmeasured
-  ([749](../refinements/tasks/749-the-cortex-uptake-of-the-role-property-is-unmeasured.md)).
+- The cortex pick names a role on every item it delegates. Drawn on CPU with `spawn_subagents` the
+  only tool, 24 invited turns each named one role: `precis` for each summary and `answer` for each
+  lookup, 8 of 8 each, and `answer` for each of 8 extractions, never `excerpt`
+  ([spawn spec uptake](../readings/spawn-spec-uptake.md)). The property is used, and on extraction
+  the names or descriptions mislead the cortex, so such a subtask reads the one-fact sentence. That
+  is evidence for the pick of decision 7, and the names ship unchanged until the replication on the
+  card ([756](../refinements/tasks/756-the-cortex-names-answer-for-an-extraction.md)) is drawn.
 - On a constrained run the `excerpt` sentence asks for items as the text writes them, and
   `REPLY_INSTRUCTION` then forbids repeating the input back. No extraction copied the body with that
   sentence or without it, so the two do not conflict on the default pick.
