@@ -98,14 +98,19 @@ in `scripts/envelopejudges.py`).
 
 - The cortex can name a role per subtask, and a subagent reads a form sentence written once in the
   brain rather than whatever the cortex wrote that turn.
-- Whether a role sentence changes delivery is unmeasured
-  ([748](../refinements/tasks/748-a-role-sentence-is-unmeasured-against-the-envelope-readings.md)), and so
-  is whether the cortex names a role at all
-  ([749](../refinements/tasks/749-the-cortex-uptake-of-the-role-property-is-unmeasured.md)). Until then the
-  shipped sentences rest on the readings of related wordings, not on readings of their own.
+- On the default pick, drawn on CPU, the `excerpt` and `answer` sentences are not shown to change
+  delivery: 26 and 30 of 32 against 30 and 31 without them, each inside the other's interval
+  ([reply envelope](../readings/reply-envelope.md), "The role sentences"). They stay as a form the
+  cortex can name.
+- On that pick the `precis` sentence delivered the figures-keeping summarization 13 of 32 against
+  25 without it, the one cell apart, with 6 copies of the body and 13 cap refusals. It ships
+  unchanged until the replication on the card and the Qwen3.5-2B rows
+  ([755](../refinements/tasks/755-the-precis-sentence-read-lower-on-one-condition.md)) are drawn.
+  Whether the cortex names a role at all is unmeasured
+  ([749](../refinements/tasks/749-the-cortex-uptake-of-the-role-property-is-unmeasured.md)).
 - On a constrained run the `excerpt` sentence asks for items as the text writes them, and
-  `REPLY_INSTRUCTION` then forbids repeating the input back. The extraction shape delivered 32 of 32
-  on the default under that sentence, so the two are not known to conflict; 748 reads it.
+  `REPLY_INSTRUCTION` then forbids repeating the input back. No extraction copied the body with that
+  sentence or without it, so the two do not conflict on the default pick.
 - The per-role escape hatch of ADR-0017
   ([125](../refinements/tasks/125-per-role-escape-hatch.md)) still has no consumer: a role holds no
   model to override.

@@ -128,6 +128,35 @@ against 77 and 59 for the first wording and 71 and 70 for the envelope alone; ov
 97 of 128 against 102 and 87. Cap refusals on the default were 5 of 96 under each wording. The E2B,
 the 0.8B and the 4B have not been drawn under the shipped wording.
 
+## The role sentences
+
+**2026-09-29**, gemma-4-E4B on CPU while another run held the card: `ghcr.io/ggml-org/llama.cpp:server`
+at `sha256:db057ec90de0`, `build_info` `b10680-d7bd3bfca`, under `docker --cpuset-cpus 12-23`, with
+`-ngl 0 --jinja`, the reasoning-off pair, `--cache-ram 0`, `--ctx-size 16384 --parallel 4` (4096
+tokens a slot, as the compose file's 8192 over 2) and `--threads 12`. Up to twelve harness processes
+shared the four slots. Every run is the shipped constrained path. The role column appends the
+matching `SHIPPED_ROLES` sentence to the shape's instruction, as `SubagentRole.applied` does, so it
+comes ahead of `REPLY_INSTRUCTION`. Written before the first row: a role changes delivery only where
+the two intervals do not overlap, and the `excerpt` sentence conflicts with `REPLY_INSTRUCTION` only
+if the extraction copies with it and not without it. Samples are under
+`measurements/envelope-roles-2026-09-29/`.
+
+| shape | role | without | with | copies | cap refusals | channel writes |
+| --- | --- | --- | --- | --- | --- | --- |
+| summarization, its figures | `precis` | 25/32 (0.61 to 0.89) | **13/32 (0.26 to 0.58)** | 0, 6 | 7, 13 | 12, 15 |
+| extraction | `excerpt` | 30/32 (0.80 to 0.98) | 26/32 (0.65 to 0.91) | 0, 0 | 2, 5 | 2, 6 |
+| lookup | `answer` | 31/32 (0.84 to 0.99) | 30/32 (0.80 to 0.98) | 0, 0 | 1, 1 | 2, 3 |
+
+The pairs read without, then with. "Channel writes" counts runs with any text in the reasoning
+channel, which a delegated run drops. The `excerpt` and `answer` sentences read inside the plain
+column's interval, and no extraction copied, so the two sentences are not shown to change delivery
+and `excerpt` does not conflict with `REPLY_INSTRUCTION` on this pick. The `precis` sentence reads
+apart and lower: 6 of its 19 non-deliveries hand the body back `ok=True`, 5 of them on the network
+body, and 13 stop at the cap. This is one cell under one condition, and its replication is written
+down in [R-755](../refinements/tasks/755-the-precis-sentence-read-lower-on-one-condition.md). The
+CPU columns are not comparable with the card columns above: the same plain shapes wrote into the
+channel on 16 of 96 runs here.
+
 ## A tier judging its own reply
 
 **2026-09-11**, the constrained samples of the table above, each replayed with its reply as the

@@ -1,6 +1,6 @@
 # A role sentence is unmeasured against the envelope readings
 
-**Status:** open, actionable
+**Status:** done 2026-09-29
 **Area:** subagents
 **Origin:** [ADR-0072](../../adr/ADR-0072-subagent-roles.md)
 
@@ -33,3 +33,12 @@ the readings record and ADR-0072 states the result.
 
 - 2026-09-28: Filed when [R-272](272-more-subagent-roles.md) shipped the roles without a reading of
   their own.
+- 2026-09-29: The method held against the code: the harness reads `CORTEX_ENVELOPE_INSTRUCTION`,
+  the runner appends the role sentence ahead of `REPLY_INSTRUCTION`, and `declared` in
+  `scripts/envelopejudges.py` matches each role row by its opening. The card was taken, so the
+  default pick was drawn on CPU, which needed its own plain column: the CPU plain shapes wrote into
+  the reasoning channel on 16 of 96 runs. The `excerpt` and `answer` sentences read inside the plain
+  interval, and no extraction copied under `excerpt`. The `precis` sentence read 13 of 32 against 25.
+  The rows are in [reply envelope](../../readings/reply-envelope.md) and ADR-0072 states the result.
+  Filed [R-755](755-the-precis-sentence-read-lower-on-one-condition.md) for that cell's replication
+  on the card and for the Qwen3.5-2B rows, which did not fit beside the default's 192 runs.
