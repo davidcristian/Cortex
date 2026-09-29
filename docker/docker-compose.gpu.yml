@@ -70,7 +70,7 @@ services:
       # The pick and what it was measured at: docs/runbooks/model-swap.md.
       CORTEX_MODEL_FILE_BRAIN: "${CORTEX_MODEL_FILE_BRAIN:-}"
       CORTEX_NGL_BRAIN: "${CORTEX_NGL_BRAIN:-99}"
-      CORTEX_CTX_SIZE_BRAIN: "${CORTEX_CTX_SIZE_BRAIN:-8192}"
+      CORTEX_CTX_SIZE_BRAIN: "${CORTEX_CTX_SIZE_BRAIN:-16384}"
       # The deep tier's own thinking budget, separate from the cortex's because that tier was
       # picked for reaching its answer inside the trace.
       CORTEX_REASONING_BUDGET_BRAIN: "${CORTEX_REASONING_BUDGET_BRAIN:--1}"

@@ -135,6 +135,20 @@ def test_naming_every_tiers_artifact_hosts_all_three_on_the_documented_ports(
     assert roster["subagent-gpu"].argv[roster["subagent-gpu"].argv.index("-ngl") + 1] == "99"
 
 
+def test_the_deep_tier_starts_at_the_context_the_shared_history_window_was_sized_on(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("CORTEX_MODEL_FILE_BRAIN", "deep/brain.gguf")
+    for name in ("CORTEX_CTX_SIZE", "CORTEX_CTX_SIZE_BRAIN", "CORTEX_MODEL_BRAIN"):
+        monkeypatch.delenv(name, raising=False)
+    roster = ModelHostConfig().roster()
+    contexts = [
+        roster[model].argv[roster[model].argv.index("--ctx-size") + 1]
+        for model in ("cortex", "brain")
+    ]
+    assert contexts == ["16384", "16384"]
+
+
 def test_the_models_root_is_joined_without_doubling_a_separator(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

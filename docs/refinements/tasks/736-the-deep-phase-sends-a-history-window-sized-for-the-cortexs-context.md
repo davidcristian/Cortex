@@ -3,42 +3,35 @@
 **Status:** open, actionable
 **Area:** session-history
 **Origin:** [ADR-0014](../../adr/ADR-0014-history-windowing.md)
-**Verified:** 2026-09-28
+**Verified:** 2026-09-29
 
 `CORTEX_HISTORY_CHAR_BUDGET`, 24,000 characters, is the one budget `build_history_window` reads,
-and `for_stream` in `engines.py` builds the deep phase's window from it too
-(`window=self._window(self.backend, brain)`), while the model host starts the deep tier at
-`CORTEX_CTX_SIZE_BRAIN` 8192 ([ADR-0004](../../adr/ADR-0004-model-lineup.md) decision 11). The
-brain never reads the deep tier's context, so nothing compares the two.
+and `for_stream` in `engines.py` builds the deep phase's window from it too. At the deep tier's
+earlier context of 8192 a full window with the deep phase's 22 tools was 1.16 to 1.33 times the
+context ([history window readings](../../readings/history-window.md#the-cortexs-whole-prompt)).
+`CORTEX_CTX_SIZE_BRAIN` now defaults to 16384, the cortex's context, which leaves 5,521 to 6,873
+tokens after a full window, and a deep budget of its own was rejected because of the one stored
+recap ([ADR-0014](../../adr/ADR-0014-history-windowing.md) decision 8). No row has been drawn on
+the pick at 16384 on the current engine build, and its 658 MiB context cost was read on an earlier
+one.
 
-A full window does not fit. Counted on the cortex's tokenizer and template
-([history window readings](../../readings/history-window.md#the-cortexs-whole-prompt)), 24,000
-characters is 5,008 gemma-4 tokens of plain English and 6,360 of Python source, so with the
-security preamble and the 22 tool schemas the tool stack gives the deep phase, a handoff's prompt
-is 1.16 to 1.33 times the 8192 context before recalled memory, the recap and the loop tail. The
-engine refuses such a prompt with HTTP 400 before generating, and the phase now tells the user
-that the conversation outgrew the deep model's context (`BRAIN_OVERFLOW_NOTE`), where it used to
-say the model had stopped partway. The handoff still costs a full swap before the refusal.
+**What would close it.** Draw the stop row at 16384 on the pick: the four questions of the [stop
+rows](../../readings/deep-candidates.md#the-stop-rows), three seeds each, drawn as the pick's row
+was, then one fit probe, the plain preamble and the first 48,000 characters of `cortex_core` in
+file order (12,759 gemma-4 tokens, more than a full handoff prompt) with `max_tokens` 32. Record
+the VRAM above idle at ready, the SM clock and the free memory before the load. The driver is
+`measurements/sitting-736/drivers/stop_row_16k.py`, started by `launch_736.sh` beside it from a
+`git archive` copy of HEAD once no other run holds the card; about 25 minutes at the pick's 8192
+pace, under a 65 minute cap.
 
-The two remedies:
-
-- **A larger `CORTEX_CTX_SIZE_BRAIN` of 16384** leaves 6,873 tokens after a full window of plain
-  English and 5,521 after one of source code, the cortex's own margin, against the pick's median
-  of 1434 reasoning and 643 reply tokens a stop-row draw. It costs 658 MiB more than 8192 on the
-  pick.
-- **A history budget of the deep tier's own** fights the recap. `SummarizingHistoryWindow` keeps
-  one stored recap a session, and a stored recap that covers more than the current boundary is
-  refolded from the start. A smaller deep budget would fold a recap past the cortex's boundary
-  during the handoff, and the cortex's next turn would then refold the whole dropped prefix,
-  itself possibly longer than its context. A deep budget needs either a recap the deep phase
-  reads without storing, or a trim that keeps the stored recap and drops the turns between.
-
-What would close it:
-
-1. Decide between a deep context of 16384 and a deep budget with one of the two recap designs
-   above.
-2. Draw the stop row at the chosen context, the four questions in the readings with three seeds
-   each, the pick first, its prediction written here before the draw.
+**Prediction, written 2026-09-29 before the draw.** Stopped with a reply: 12 of 12 (10 to 12), the
+8192 row's one runaway draw now having room to stop; apart from the pick's 11 of 12 only at 5 or
+fewer. Reasoning tokens a draw, median 1434 (1000 to 2000). VRAM above idle at ready 19,796 MiB
+(19,700 to 20,000), 658 more than the 19,138 at 8192. Decode 1.0 of the 8192 row's rate (0.95 to
+1.05) at a matched SM clock. The fit probe answers 200 with `prompt_n` 13,050 to 13,150 and a first
+event inside a quarter of the 120 s stall bound. A null result is a stop count of 5 or fewer, a
+refused probe or a cost over 1,150 MiB above the 8192 figure: the first two reopen the decision,
+the third moves the runbook's 20783 MiB fit figure.
 
 ## History
 
@@ -48,3 +41,8 @@ What would close it:
   typed `ContextOverflowError`. The proposed remedy was corrected: a deep budget conflicts with the
   single stored recap, and with the history budget at 24,000 characters, sized on the cortex's
   whole prompt with the tool stack, a deep context of 16384 leaves the cortex's own margin.
+- 2026-09-29: decided and built the larger context. `CORTEX_CTX_SIZE_BRAIN` defaults to 16384 in
+  the model host and the GPU override, and a roster test fails at 8192. With the other tiers
+  evicted the pick at 16384 costs 19,796 MiB above an idle floor recorded at 1,529 to 3,339 MiB on
+  a 24,463 MiB card; the fit figure for this card rose by the same 658 MiB. The stop row waits for
+  the card, and its prediction is above.

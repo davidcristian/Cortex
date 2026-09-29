@@ -134,8 +134,10 @@ lineup](../readings/model-lineup.md), [deep candidates](../readings/deep-candida
     rather than a measurement; the cortex's measured footprint, `CORTEX_VRAM_CORTEX_GB` at 8.6, is
     ADR-0012's. Context is set explicitly, never left to llama-server's default of the model's
     maximum across four slots: the cortex runs 16384 tokens in one slot (`CORTEX_CTX_SIZE`), the
-    deep tier 8192 in one (`CORTEX_CTX_SIZE_BRAIN`, doubling it costs well under a gigabyte), and a
-    subagent server 8192 over two slots.
+    deep tier the same 16384 in one (`CORTEX_CTX_SIZE_BRAIN`, 658 MiB more than 8192 on the pick),
+    because both phases read one history window
+    ([ADR-0014](ADR-0014-history-windowing.md) decision 8), and a subagent server 8192 over two
+    slots.
 
 12. **A CPU subagent server's thread count is set to its CPU quota.** Both CPU servers pass
     `--threads "${CORTEX_SUBAGENTS_CPU_BUDGET:-4.0}"`, the substitution their `cpus` cap reads, so

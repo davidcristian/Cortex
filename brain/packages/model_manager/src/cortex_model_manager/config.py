@@ -21,11 +21,11 @@ DEFAULT_BRAIN_MODEL = "brain"
 DEFAULT_SUBAGENT_GPU_MODEL = "subagent-gpu"
 
 # The tier defaults the compose stack repeats as its own substitution defaults, named here so
-# `scripts/crosscheck.py` can compare the two. The two 8192s are separate constants because the
-# deep and subagent contexts are sized on different arguments and may move apart.
+# `scripts/crosscheck.py` can compare the two. The deep context equals the cortex's because both
+# phases read the one history window, which is sized on the cortex's whole prompt.
 DEFAULT_NGL = 99
 DEFAULT_CORTEX_CTX_SIZE = 16384
-DEFAULT_BRAIN_CTX_SIZE = 8192
+DEFAULT_BRAIN_CTX_SIZE = 16384
 DEFAULT_SUBAGENT_CTX_SIZE = 8192
 DEFAULT_SUBAGENT_PARALLEL = 2
 DEFAULT_IMAGE_MAX_TOKENS = 1024

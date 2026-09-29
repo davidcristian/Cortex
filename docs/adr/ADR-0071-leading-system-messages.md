@@ -94,10 +94,8 @@ test could fail on it.
 - The joined layout has no injection or framing measurement on the Qwen alternates
   ([R-744](../refinements/tasks/744-the-joined-system-message-is-unmeasured-on-the-qwen-alternates.md)).
 - On a turn that also recalls a memory, the deep alternate's prompt now includes the recap it used
-  to drop, up to `RECAP_MAX` (2000 characters) plus the preface, against its 8192-token context;
-  the fit is
-  [R-736](../refinements/tasks/736-the-deep-phase-sends-a-history-window-sized-for-the-cortexs-context.md)'s
-  subject.
+  to drop, up to `RECAP_MAX` (2000 characters) plus the preface, inside the margin
+  [ADR-0014](ADR-0014-history-windowing.md) decision 8 leaves the deep tier's context.
 - A template that rendered every marker outside the system role would read as rendering them. None
   of the six does.
 - On a joining endpoint the memory and the recap fall inside what the preamble calls "this system

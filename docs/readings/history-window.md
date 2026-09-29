@@ -2,7 +2,7 @@
 
 What the history window's character budget comes to in tokens on the cortex's and the deep
 candidates' tokenizers, and what else a turn's prompt holds beside it. Cited by
-[ADR-0014](../adr/ADR-0014-history-windowing.md) decisions 4 and 7. Token counts depend on the text and
+[ADR-0014](../adr/ADR-0014-history-windowing.md) decisions 4, 7 and 8. Token counts depend on the text and
 the vocabulary, not on the machine, so they are given as counts.
 
 ## A full window and what comes with it

@@ -70,8 +70,8 @@ MiB cost, so a fit check at 19125 MiB passes the pair and it spills. The E4B tie
 August pair was already at the card's edge. Neither the 908 MiB free that row read nor the 910 to
 952 MiB the spilled starts read is a margin the driver keeps: stacked E4B tiers took `memory.free`
 to 277 MiB. The spill watch reports both starts at the floor used below, 25.0, which is 0.69 of the
-solo rate on this image. The figure the [model-swap](model-swap.md) runbook gives for this card,
-20125 MiB, refuses the pair. Beside an idle filler the lowest free figure that fit was 924 MiB above
+solo rate on this image. The figure the [model-swap](model-swap.md) runbook gives for this card
+at an 8192 context, 20125 MiB, refuses the pair. Beside an idle filler the lowest free figure that fit was 924 MiB above
 the deep tier's own cost in one session and 734 in the next, three hours later, and the highest
 that spilled was 19967 MiB, so the figure clears every spill seen by 158 MiB ([two tiers on one
 card](../readings/co-residency.md)).

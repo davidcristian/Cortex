@@ -59,18 +59,18 @@ stopped.
 
 Setting it also requires `CORTEX_SWAP_BRAIN_VRAM_MIB`, and the brain refuses to boot without it.
 That figure is how much free device memory the deep tier needs, measured on your own card by the
-procedure in [model-swap-measurements.md](model-swap-measurements.md). The sidecar reports what the
-card has free on `GET /health`, and a swap reads it after the evictions and before the load. Short
-of the figure, the handoff is refused with both numbers in the log and in the reply's note, the deep
-model is never started, and the recorded residency is put back. A model host that can see no card at
-all refuses the same way. Set the figure above the deep tier's own cost: under WSL the driver puts
-part of its last buffers in system memory with most of a gigabyte still free, and the check cannot
-see memory taken during the load. On this card the pick's cost is 19125 MiB (Qwen3.8-27B's 15,770,
-its spill point not measured), and the pick spilled beside an idle peer at up to 19967 MiB free, so
-20125 refuses every spill seen by at least 158 MiB, little room for the floor rising mid-load. **So
-on a 24 GB card leave co-residency off**: beside the E4B tier the check refuses every handoff, each
-costing a cortex reload. The same figure is used with co-residency off, where it is optional and
-guards the ordinary handoff on a card too small for the deep tier at all.
+procedure in [model-swap-measurements.md](model-swap-measurements.md). Short of the free figure a
+swap reads on `GET /health` after the evictions, the handoff is refused with both numbers in the log
+and in the reply's note, the deep model is never started, and the recorded residency is put back. A
+model host that can see no card at all refuses the same way. Set the figure above the deep tier's
+own cost: under WSL the driver puts part of its last buffers in system memory with most of a
+gigabyte still free, and the check cannot see memory taken during the load. On this card the pick
+costs 19125 MiB at an 8192 context, and the pick spilled beside an idle peer at up to 19967 MiB
+free, so 20125 refuses every spill seen by at least 158 MiB, little room for the floor rising
+mid-load. At the shipped 16384 context it costs 658 MiB more, and the same margin gives 20783, with
+no spill drawn there. **So on a 24 GB card leave co-residency off**: beside the E4B tier the check
+refuses every handoff, each costing a cortex reload. The same figure is used with co-residency off,
+where it is optional and guards the ordinary handoff on a card too small for the deep tier at all.
 
 **One pairing to keep, and the brain fails to start when you break it.** The sidecar's `stop`
 answers only once the child is dead and reaped, so it can legitimately take

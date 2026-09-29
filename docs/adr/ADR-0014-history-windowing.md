@@ -88,6 +88,19 @@ recall; this ADR is about the in-context history of the current session only.
    so the handoff settles `FAILED`. An escalation approved earlier in an overflowing cortex turn
    still runs, since a deployment may give the deep tier the larger context.
 
+8. **The deep tier starts at the cortex's context, so both phases read the one budget.**
+   `for_stream` in `engines.py` builds the deep phase's window from `CORTEX_HISTORY_CHAR_BUDGET`
+   too, and `CORTEX_CTX_SIZE_BRAIN` defaults to 16384, the cortex's `CORTEX_CTX_SIZE`. A full
+   window with the deep phase's 22 tools then leaves 5,521 to 6,873 tokens, the cortex's own
+   margin; at 8192 the same prompt was 1.16 to 1.33 times the context
+   ([readings](../readings/history-window.md#the-cortexs-whole-prompt)). The pick costs 658 MiB
+   more at 16384 and runs alone on the card ([ADR-0030](ADR-0030-brain-handoff.md) decision 8). A
+   deep budget of its own was rejected: `SummarizingHistoryWindow` stores one recap a session and
+   folds again from the start when the stored one covers more than the boundary, so a smaller
+   deep window would store a recap past the cortex's boundary and the cortex's next turn would
+   fold the whole dropped prefix again. A deployment that lowers `CORTEX_CTX_SIZE_BRAIN` lowers
+   `CORTEX_HISTORY_CHAR_BUDGET` with it, which shortens the cortex's window too.
+
 ## Consequences
 
 - Long sessions no longer grow past the model's context. What the budget drops is the oldest turns,
@@ -97,10 +110,9 @@ recall; this ADR is about the in-context history of the current session only.
   limits history, not one turn's size, and such a turn ends with the note of decision 7. Long
   recalled memories and large tool results reach the same note. A per-turn input cap would be a
   decision at the overlay, not silent truncation here.
-- The deep phase builds its window from the same budget, and at the deep tier's 8192-token context
-  a full window with the tool stack does not fit
+- The deep tier at 16384 has no stop row drawn at that context yet
   ([R-736](../refinements/tasks/736-the-deep-phase-sends-a-history-window-sized-for-the-cortexs-context.md)),
-  so a long handoff ends with `BRAIN_OVERFLOW_NOTE` after a full swap.
+  and its 658 MiB was measured on an earlier engine build.
 - The `EchoInferenceBackend` reply counter counts user messages in the *windowed* history, so its
   `"reply {n}"` script diverges from the stored count only past the budget, which CI-sized tests
   never reach.
