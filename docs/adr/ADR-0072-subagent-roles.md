@@ -23,9 +23,10 @@ in `scripts/envelopejudges.py`).
 
 1. **A role is a pure core value with two fields** (`cortex_core/roles.py`).
    `SubagentRole(description, instruction)` is one role and `SubagentRoles(entries)` maps names to
-   roles; an entry with an empty name, description or instruction fails construction.
+   roles; an entry with an empty name or description fails construction.
    - `instruction` is one sentence the subagent reads after the subtask's own instruction, naming the
-     form its reply takes. It goes in the user message, which is where the measured wordings went,
+     form its reply takes, or empty for a role whose sentence lowered delivery, which leaves the
+     subtask's instruction as the cortex wrote it. It goes in the user message, which is where the measured wordings went,
      and ahead of `REPLY_INSTRUCTION` on a constrained run. It is not a system message: no reading
      measured one, and it would lengthen the leading run of system messages the adapter must probe
      and join ([ADR-0071](ADR-0071-leading-system-messages.md)).
@@ -76,6 +77,9 @@ in `scripts/envelopejudges.py`).
    | `excerpt` | a list of every item of one kind, as the text writes it, rather than one fact | "Extract every number from the report below" |
    | `answer` | the one fact a question asks for, or that the text does not state it | "What reporting period does the report below cover" |
 
+   `excerpt` has no sentence: the cortex names it by its description, and its sentence lowered the
+   extraction on the roster alternate (Consequences).
+
 7. **The names are a proposal for the maintainer's pick.** Roles are a family, so the naming rule in
    `AGENTS.md` applies. Three sets were drawn up:
    - **Recommended: `precis`, `excerpt`, `answer`.** Nouns for the text a subagent returns, ordered
@@ -96,11 +100,11 @@ in `scripts/envelopejudges.py`).
 
 ## Consequences
 
-- The cortex can name a role per subtask, and a subagent reads a form sentence written once in the
-  brain rather than whatever the cortex wrote that turn.
+- The cortex can name a role per subtask, and for a role with a sentence a subagent reads a form
+  sentence written once in the brain rather than whatever the cortex wrote that turn.
 - On the default pick, drawn on CPU, the `excerpt` and `answer` sentences are not shown to change
   delivery: 26 and 30 of 32 against 30 and 31 without them, each inside the other's interval
-  ([role sentences](../readings/role-sentences.md)). They stay as a form the
+  ([role sentences](../readings/role-sentences.md)). The `answer` sentence stays as a form the
   cortex can name.
 - On that pick the first `precis` sentence, "Reply with the text you were given made shorter,
   keeping every figure, name and date it states and adding nothing it does not state.", lowered the
@@ -119,17 +123,15 @@ in `scripts/envelopejudges.py`).
   [760](../refinements/tasks/760-the-reworded-precis-sentence-reads-below-the-plain-summary.md).
 - On Qwen3.5-2B, the roster alternate, drawn on the card (build `b10680-d7bd3bfca`, the
   `llama-subagent-qwen` argv at `-ngl 99`, SM clock 2070 and 2077 MHz at the median of a 3090
-  maximum on the two seed bases), the `excerpt` sentence lowers the extraction: 10 of 32 against 27
+  maximum on the two seed bases), the `excerpt` sentence lowered the extraction: 10 of 32 against 27
   at seeds 1 to 8 and 8 of 32 against 22 at seeds 9 to 16, apart from the plain cell both times, so
   by the rule written before the second row the drop replicates. The runs it loses mostly write the
   instructions back or stop at the cap repeating numbers. The shipped `precis` sentence read 17 of
   32 against 31 at seeds 1 to 8, apart, and 23 against 27 at seeds 9 to 16, inside, so it stays
   shipped; the first `precis` sentence read 9. The `answer` sentence read 30 of 32 against 24,
   inside the plain interval ([role sentences](../readings/role-sentences.md)). The `excerpt`
-  sentence is not shown to help on either model, so the evidence supports taking it off the role
-  rather than choosing a sentence per model, which would key a role to roster entries (decision 5);
-  [762](../refinements/tasks/762-the-excerpt-sentence-lowers-the-extraction-on-the-roster-alternate.md)
-  makes that change.
+  sentence is not shown to help on either model, so the role has none, rather than a sentence
+  chosen per model, which would key a role to roster entries (decision 5).
 - The cortex pick names a role on every item it delegates. Under the first `excerpt` description,
   "each item the subtask asks for, written exactly as the text writes it", with `spawn_subagents` the
   only tool, every extraction named `answer` and none `excerpt`: 8 of 8 on CPU, 8 of 8 on a second
@@ -140,9 +142,10 @@ in `scripts/envelopejudges.py`).
   1927 MHz at the median of a 3090 maximum) the extractions named `excerpt` 29 of 32 and `answer` 2,
   while the summaries named `precis` 15 of 16 and the lookups `answer` 16 of 16. That meets the rule
   written before the card row, so the description ships. The names stay a proposal (decision 7).
-- On a constrained run the `excerpt` sentence asks for items as the text writes them, and
-  `REPLY_INSTRUCTION` then forbids repeating the input back. No extraction copied the body with that
-  sentence or without it, so the two do not conflict on the default pick or on the alternate.
+- The `excerpt` sentence asked for items as the text writes them, and `REPLY_INSTRUCTION` forbids
+  repeating the input back. No extraction copied the body on the default pick, with it or without
+  it; on the alternate 3 of 32 did with it at seeds 9 to 16, and none without it. With no sentence
+  on the role the two no longer meet.
 - The per-role escape hatch of ADR-0017
   ([125](../refinements/tasks/125-per-role-escape-hatch.md)) still has no consumer: a role holds no
   model to override.

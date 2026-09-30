@@ -19,8 +19,10 @@ at `sha256:db057ec90de0`, `build_info` `b10680-d7bd3bfca`, under `docker --cpuse
 `-ngl 0 --jinja`, the reasoning-off pair, `--cache-ram 0`, `--ctx-size 16384 --parallel 4` (4096
 tokens a slot, as the compose file's 8192 over 2) and `--threads 12`. Up to twelve harness processes
 shared the four slots. The `precis` sentence then read "Reply with the text you were given made
-shorter, keeping every figure, name and date it states and adding nothing it does not state."
-Written before the first row: a role changes delivery only where the two intervals do not overlap,
+shorter, keeping every figure, name and date it states and adding nothing it does not state." The
+`excerpt` sentence, drawn in every row here and no longer shipped, read "Reply with each item the
+subtask asks for, written exactly as the text you were given writes it, one per line, and nothing
+else." Written before the first row: a role changes delivery only where the two intervals do not overlap,
 and the `excerpt` sentence conflicts with `REPLY_INSTRUCTION` only if the extraction copies with it
 and not without it. Samples are under `measurements/envelope-roles-2026-09-29/`.
 

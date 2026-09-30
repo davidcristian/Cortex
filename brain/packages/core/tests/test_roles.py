@@ -31,14 +31,19 @@ def test_no_role_leaves_the_instruction_as_it_was() -> None:
     [
         ("", _BRIEF),
         ("brief", SubagentRole(description=" ", instruction="Reply in one line.")),
-        ("brief", SubagentRole(description="a short reply", instruction="")),
     ],
 )
-def test_an_entry_missing_a_name_or_either_text_is_a_wiring_error(
+def test_an_entry_missing_a_name_or_a_description_is_a_wiring_error(
     name: str, role: SubagentRole
 ) -> None:
-    with pytest.raises(ValueError, match="needs a name, a description and an instruction"):
+    with pytest.raises(ValueError, match="needs a name and a description"):
         SubagentRoles(entries={name: role})
+
+
+def test_an_entry_without_a_sentence_leaves_the_instruction_as_it_was() -> None:
+    bare = SubagentRole(description="a short reply", instruction="")
+    assert SubagentRoles(entries={"bare": bare}).resolve("bare") is bare
+    assert bare.applied("name a color") == "name a color"
 
 
 def test_the_excerpt_description_sets_a_list_against_the_one_fact_of_an_answer() -> None:
@@ -54,9 +59,9 @@ def test_the_precis_sentence_asks_for_a_new_version_and_not_the_given_text() -> 
     assert "you were given" not in sentence
 
 
-def test_every_shipped_role_resolves_and_changes_the_instruction() -> None:
-    assert SHIPPED_ROLES.entries
+def test_every_shipped_role_but_excerpt_changes_the_instruction() -> None:
+    assert sorted(SHIPPED_ROLES.entries) == ["answer", "excerpt", "precis"]
     for name in SHIPPED_ROLES.entries:
         role = SHIPPED_ROLES.resolve(name)
         assert role is not None
-        assert role.applied("go") != "go"
+        assert (role.applied("go") == "go") == (name == "excerpt")

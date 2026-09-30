@@ -29,9 +29,9 @@ Written down before a row is drawn:
    the sentence stays and the task closes as not shown to lower delivery. Priced at about 500 s on
    the card, from row `760`'s 291 s for two cells of 32 and a server load.
 2. **No sentence for the role**: the cortex still names `precis`, and the subtask's own instruction
-   sets the form. `SubagentRoles` rejects an entry with an empty instruction today, so this is a
-   change to that check and its tests; `SubagentRole.applied` already leaves the instruction
-   unchanged when the sentence is empty.
+   sets the form. `SubagentRoles` accepts an entry with an empty instruction, as `excerpt` has, and
+   `SubagentRole.applied` then leaves the instruction unchanged, so this is an empty `precis`
+   instruction in `SHIPPED_ROLES` and a change to `test_roles.py`.
 
 Record the engine build, the argv and an `nvidia-smi` SM clock beside the row. Done when the row is
 in the readings record and ADR-0072 states the result.

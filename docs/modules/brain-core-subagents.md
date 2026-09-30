@@ -38,12 +38,13 @@ ADR-0010, ADR-0012, ADR-0017, ADR-0018, ADR-0028, ADR-0048 and ADR-0072.
   entry, `""` meaning the default; an unknown name on a clean tool-less path returns `None`, which
   the runner fails closed on.
 - `SubagentRole(description, instruction)` (`roles.py`, ADR-0072) is one kind of subtask: the
-  `description` the spawn spec advertises and the one `instruction` sentence the subagent reads.
-  `applied(text)` returns the subtask's instruction with that sentence after it; `NO_ROLE` leaves it
-  unchanged. `SubagentRoles(entries)` rejects an entry with an empty name or text, and
+  `description` the spawn spec advertises and the `instruction` sentence the subagent reads, empty
+  for a role with none. `applied(text)` returns the subtask's instruction with that sentence after
+  it, and a role with no sentence, `NO_ROLE` among them, leaves it unchanged.
+  `SubagentRoles(entries)` rejects an entry with an empty name or description, and
   `resolve(requested)` returns the entry, `NO_ROLE` for `""`, or `None` for an unknown name.
   `SHIPPED_ROLES` holds `precis`, `excerpt` and `answer`, names proposed for the maintainer's pick,
-  and `NO_ROLES` holds none. A role holds no model, tools or schema, and `SubagentRoster.resolve`
+  `excerpt` with no sentence, and `NO_ROLES` holds none. A role holds no model, tools or schema, and `SubagentRoster.resolve`
   never receives one, so no role changes which model runs.
 - `SubagentPlacer` provides `place(request)`, `release(placement)`, `close_gpu()` and
   `open_gpu()`, all synchronous. `place` fit-tests `request.vram_gb` against the live headroom

@@ -45,7 +45,6 @@ the readings record and ADR-0072 states the result.
 - 2026-09-30: Both drawn on the card. The `precis` cell read 12 of 32 against 27, apart again, and a
   rewording ships in its place, which
   [R-760](760-the-reworded-precis-sentence-reads-below-the-plain-summary.md) draws again. On
-  Qwen3.5-2B the `excerpt` sentence read apart and lower on two seed bases, and
-  [R-762](762-the-excerpt-sentence-lowers-the-extraction-on-the-roster-alternate.md) takes it off
-  the role; the `precis` rewording read apart on one of the two, and `answer` inside the plain
+  Qwen3.5-2B the `excerpt` sentence read apart and lower on two seed bases, so the role now has
+  none; the `precis` rewording read apart on one of the two, and `answer` inside the plain
   interval.

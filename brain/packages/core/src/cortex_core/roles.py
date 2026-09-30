@@ -12,7 +12,7 @@ class SubagentRole:
     instruction: str
 
     def applied(self, instruction: str) -> str:
-        """``instruction`` with this role's sentence after it, or unchanged for ``NO_ROLE``."""
+        """``instruction`` with this role's sentence after it, or unchanged for a role with none."""
         return f"{instruction} {self.instruction}" if self.instruction else instruction
 
 
@@ -27,8 +27,8 @@ class SubagentRoles:
 
     def __post_init__(self) -> None:
         for name, role in self.entries.items():
-            if not name or not role.description.strip() or not role.instruction.strip():
-                msg = f"SubagentRoles entry {name!r} needs a name, a description and an instruction"
+            if not name or not role.description.strip():
+                msg = f"SubagentRoles entry {name!r} needs a name and a description"
                 raise ValueError(msg)
 
     def resolve(self, requested: str) -> SubagentRole | None:
@@ -56,10 +56,9 @@ SHIPPED_ROLES = SubagentRoles(
                 "a list of every item of one kind the text states, each written exactly as the "
                 "text writes it, for a subtask that asks for all of them rather than one fact"
             ),
-            instruction=(
-                "Reply with each item the subtask asks for, written exactly as the text you "
-                "were given writes it, one per line, and nothing else."
-            ),
+            # No sentence: on the roster alternate it lowered the extraction on two seed bases
+            # (docs/readings/role-sentences.md), and it read no higher on the default pick.
+            instruction="",
         ),
         "answer": SubagentRole(
             description="the one fact a question asks for, as the text states it",
