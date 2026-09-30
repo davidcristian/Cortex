@@ -136,7 +136,9 @@ at `sha256:db057ec90de0`, `build_info` `b10680-d7bd3bfca`, under `docker --cpuse
 tokens a slot, as the compose file's 8192 over 2) and `--threads 12`. Up to twelve harness processes
 shared the four slots. Every run is the shipped constrained path. The role column appends the
 matching `SHIPPED_ROLES` sentence to the shape's instruction, as `SubagentRole.applied` does, so it
-comes ahead of `REPLY_INSTRUCTION`. Written before the first row: a role changes delivery only where
+comes ahead of `REPLY_INSTRUCTION`. The `precis` sentence then read "Reply with the text you were
+given made shorter, keeping every figure, name and date it states and adding nothing it does not
+state." Written before the first row: a role changes delivery only where
 the two intervals do not overlap, and the `excerpt` sentence conflicts with `REPLY_INSTRUCTION` only
 if the extraction copies with it and not without it. Samples are under
 `measurements/envelope-roles-2026-09-29/`.
@@ -163,7 +165,7 @@ same plain shapes wrote into the channel on 16 of 96 runs here.
 the build of the CPU row. The figures shape, constrained, four bodies at eight seeded draws a cell,
 without and then with the sentence, in one server session of an unattended run. The SM clock read
 2092 to 2392 MHz over the row's 19 samples, 2250 at the median, of a 3090 MHz maximum, with the
-software power cap not active. The judge is `delivered` in `scripts/envelopejudges.py` under the
+software power cap active on 17. The judge is `delivered` in `scripts/envelopejudges.py` under the
 tabled reading, counted as the CPU row was: the same count reproduces that row cell for cell. The
 rule: it replicates if the role column is again lower with the two intervals apart. The samples
 and the log are under `measurements/sitting-2026-09-30/`, row `755`.
@@ -175,6 +177,28 @@ and the log are under `measurements/sitting-2026-09-30/`, row `755`.
 The intervals are apart again, so the drop replicates on the card. The plain column repeats the
 card's shipped-wording reading of 2026-09-13, 26 of 32. With the sentence, 7 runs hand the body back
 `ok=True`, 3 of them on the network body, and the 13 cap refusals fall on the other three bodies.
+
+**2026-09-30**, a rewording on the card, written down before it was drawn: "Reply with a shorter
+version that keeps every figure, name and date and adds nothing the text does not state.", which
+does not name the given text as the reply that `REPLY_INSTRUCTION` then forbids. The argv, image and
+build of the row above, the figures shape at its four bodies and seeds 1 to 8, three cells in one
+server session: no sentence, the rewording, and the sentence of the row above. The SM clock read
+2047 to 2302 MHz over the 27 samples taken while it drew, 2250 at the median, of a 3090 MHz maximum,
+with the software power cap active on 22. Judged as the row above. The rule: the rewording ships if
+its interval overlaps the plain cell's. The samples and the log are under
+`measurements/sitting-2026-09-30b/`, row `758`.
+
+| sentence | delivered | copies | cap refusals | channel writes |
+| --- | --- | --- | --- | --- |
+| none | 27/32 (0.68 to 0.93) | 0 | 5 | 9 |
+| the rewording | 20/32 (0.45 to 0.77) | 4 | 8 | 11 |
+| the sentence of the row above | 12/32 (0.23 to 0.55) | 7 | 13 | 17 |
+
+The rewording's interval overlaps the plain cell's, so by the rule it is the shipped `precis`
+sentence. It reads 7 runs below the plain cell and 8 above the sentence it replaces, and still
+hands the body back `ok=True` on 4 runs, 3 of them on the network body. The other two cells repeat
+the row above reply for reply, 32 of 32 each: at one build a seeded draw returns the same reply, so
+a cell drawn again at the same seeds repeats the first draw rather than sampling again.
 
 ## A tier judging its own reply
 

@@ -30,5 +30,4 @@ ADR-0072 states them.
   role each item names. The card was taken, so the row was drawn on CPU: 24 invited turns, each
   delegating one item that named a role, `precis` and `answer` matching 8 of 8 and every extraction
   naming `answer`. The rows are in [spawn spec uptake](../../readings/spawn-spec-uptake.md) and
-  ADR-0072 states them. Filed [R-756](756-the-cortex-names-answer-for-an-extraction.md) for the
-  extraction cell's replication on the card.
+  ADR-0072 states them.

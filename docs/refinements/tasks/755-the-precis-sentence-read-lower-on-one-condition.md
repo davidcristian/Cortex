@@ -19,14 +19,12 @@ Written down before the replication is drawn:
    role column is again lower with the two intervals apart. A replication is the evidence for
    rewording or removing `precis`; an overlap leaves it shipped, with the CPU reading kept as one
    condition's result. Drawn: 27 of 32 without the sentence and 12 of 32 with it, the intervals
-   apart, so it replicates, and the rewording or removal is
-   [R-758](758-the-precis-sentence-lowers-the-figures-summary-on-both-conditions.md).
+   apart, so it replicates. A rewording drawn next on the card ships in its place (ADR-0072).
 2. **Qwen3.5-2B, the roster alternate**, which the rows did not reach: the three shapes with and
    without their role, drawn the same way. No card or CPU row of it exists. The row: the argv of
    `llama-subagent-qwen` in the roster compose file with `-ngl 99`, each shape constrained at four
-   bodies and eight seeded draws a cell, and the figures shape with
-   [R-758](758-the-precis-sentence-lowers-the-figures-summary-on-both-conditions.md)'s rewording,
-   all in one server session. A role changes delivery on this model only where its interval and the
+   bodies and eight seeded draws a cell, and the figures shape with the shipped rewording, all in
+   one server session. A role changes delivery on this model only where its interval and the
    plain cell's do not overlap; overlap on all three shapes is the null result.
 
 Record the engine build, the argv and an `nvidia-smi` SM clock beside any card row. Done when both
@@ -39,7 +37,5 @@ are in the readings record and ADR-0072 states the result.
   the default pick read this cell apart and did not reach the alternate.
 - 2026-09-30: Item 1 drawn on the card: 27 of 32 without the `precis` sentence and 12 of 32 with
   it, 7 copies and 13 cap refusals, the intervals apart, so the CPU drop replicates. Recorded in the
-  readings record and ADR-0072, and the rewording or removal filed as
-  [R-758](758-the-precis-sentence-lowers-the-figures-summary-on-both-conditions.md). Open on
-  item 2.
+  readings record and ADR-0072. Open on item 2.
 - 2026-09-30: Item 2's row and its rule written down before the draw.

@@ -41,6 +41,19 @@ def test_an_entry_missing_a_name_or_either_text_is_a_wiring_error(
         SubagentRoles(entries={name: role})
 
 
+def test_the_excerpt_description_sets_a_list_against_the_one_fact_of_an_answer() -> None:
+    excerpt = SHIPPED_ROLES.entries["excerpt"].description
+    assert "every item of one kind" in excerpt
+    assert "rather than one fact" in excerpt
+    assert "the one fact" in SHIPPED_ROLES.entries["answer"].description
+
+
+def test_the_precis_sentence_asks_for_a_new_version_and_not_the_given_text() -> None:
+    sentence = SHIPPED_ROLES.entries["precis"].instruction
+    assert sentence.startswith("Reply with a shorter version")
+    assert "you were given" not in sentence
+
+
 def test_every_shipped_role_resolves_and_changes_the_instruction() -> None:
     assert SHIPPED_ROLES.entries
     for name in SHIPPED_ROLES.entries:

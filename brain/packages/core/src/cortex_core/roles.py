@@ -47,12 +47,15 @@ SHIPPED_ROLES = SubagentRoles(
         "precis": SubagentRole(
             description="the whole text made shorter, keeping its figures, names and dates",
             instruction=(
-                "Reply with the text you were given made shorter, keeping every figure, name "
-                "and date it states and adding nothing it does not state."
+                "Reply with a shorter version that keeps every figure, name and date and adds "
+                "nothing the text does not state."
             ),
         ),
         "excerpt": SubagentRole(
-            description="each item the subtask asks for, written exactly as the text writes it",
+            description=(
+                "a list of every item of one kind the text states, each written exactly as the "
+                "text writes it, for a subtask that asks for all of them rather than one fact"
+            ),
             instruction=(
                 "Reply with each item the subtask asks for, written exactly as the text you "
                 "were given writes it, one per line, and nothing else."

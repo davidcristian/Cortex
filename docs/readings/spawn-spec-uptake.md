@@ -13,9 +13,10 @@ decision 8.
 --jinja --cache-ram 8192`, no projector, no reasoning budget) and `--threads 12`. Requests were
 unseeded at the server's default sampler, temperature 1.0. `spawn_subagents` was the only tool,
 built as the shipped wiring builds it: the default one-entry roster, so no `model` property, and
-`SHIPPED_ROLES`. Each turn is one ask inviting delegation ("I would rather you hand this to a
-subagent than do it yourself.") of one summary, one extraction or one lookup over one of four short
-notes, and stops at its first dispatch, so no subagent ran. Written before the first row: no item
+`SHIPPED_ROLES`, whose `excerpt` description read "each item the subtask asks for, written exactly
+as the text writes it" for every row before the last two. Each turn is one ask inviting delegation
+("I would rather you hand this to a subagent than do it yourself.") of one summary, one extraction
+or one lookup over one of four short notes, and stops at its first dispatch, so no subagent ran. Written before the first row: no item
 naming a role is the null result, and a kind whose items name a wrong role more often than the
 matching one says the names or descriptions mislead the cortex. The row is two passes of the twelve
 asks, drawn by `test_the_cortex_names_the_role_of_the_subtask_it_delegates` in
@@ -60,7 +61,7 @@ dates. A turn wrote 260 to 553 tokens of reasoning and call, 306 at the median.
 argv as `llama_server_argv` builds it (`-ngl 99 --ctx-size 16384 --parallel 1 --jinja --cache-ram
 8192`), `ghcr.io/ggml-org/llama.cpp:server-cuda` at `sha256:952424b09abc`, `build_info`
 `b10680-d7bd3bfca`, the build of the CPU rows. The SM clock read 1830 to 2070 MHz over the row's 19
-samples, 1912 at the median, of a 3090 MHz maximum, with the software power cap not active. The
+samples, 1912 at the median, of a 3090 MHz maximum, with the software power cap active on 16. The
 row ran unattended from a copy of the tree taken before the probe gained its `numbers` ask, so
 `-k role` at `CORTEX_ROLE_UPTAKE_DRAWS=4` drew the first row's three asks over the four notes, four
 draws each: 48 turns. The rule: it replicates if the extraction asks again name `answer` more often
@@ -80,11 +81,11 @@ of reasoning and call, 330 at the median.
 **2026-09-30**, a new `excerpt` description, on CPU in the condition of the CPU rows above (image,
 build, argv, threads and cpuset), from a copy of the tree whose one change is that description: "a
 list of every item of one kind the text states, each written exactly as the text writes it, for a
-subtask that asks for all of them rather than one fact", in place of the shipped "each item the
-subtask asks for, written exactly as the text writes it". All four asks over the four notes, one
-draw each: 16 turns, fixed before the first draw. The rule: the description moves the cortex if
-the extraction asks name `excerpt` more often than `answer`, and it pulls another kind if the
-summary or the lookup names its own role on fewer than 3 of 4. The logs are under
+subtask that asks for all of them rather than one fact", in place of the one quoted above. All four
+asks over the four notes, one draw each: 16 turns, fixed before the first draw. The rule: the
+description moves the cortex if the extraction asks name `excerpt` more often than `answer`, and it
+pulls another kind if the summary or the lookup names its own role on fewer than 3 of 4. The logs
+are under
 `measurements/role-uptake-2026-09-30-excerpt/`.
 
 | ask | expected | turns delegating | items naming a role | naming the expected one | named instead |
@@ -96,6 +97,28 @@ summary or the lookup names its own role on fewer than 3 of 4. The logs are unde
 
 The extractions named `excerpt` 7 of 8 (0.53 to 0.98), against 0 of 8 on each earlier CPU row, and
 the summaries and lookups kept their own role, so on this condition the description moves the
-cortex. It is one condition's row; the card row is written down in
-[R-756](../refinements/tasks/756-the-cortex-names-answer-for-an-extraction.md). A turn wrote 191 to
-735 tokens of reasoning and call, 372 at the median.
+cortex. It is one condition's row, and the card row follows. A turn wrote 191 to 735 tokens of
+reasoning and call, 372 at the median.
+
+**2026-09-30**, that description on the card, written down before it was drawn: the argv, image and
+build of the card row above, from a copy of the tree whose probe has the `numbers` ask, with
+`CORTEX_ROLE_UPTAKE_EXCERPT` set to the new description. `-k role` at `CORTEX_ROLE_UPTAKE_DRAWS=4`
+drew all four asks over the four notes, four draws each: 64 turns. The SM clock read 1770 to 2100
+MHz over the 29 samples taken while it drew, 1927 at the median, of a 3090 MHz maximum, with the
+software power cap active on 28. The rule: it replicates if the two extraction asks together name
+`excerpt` more often than `answer`, and the summary and the lookup each name their own role on at
+least 14 of 16. The log is `measurements/sitting-2026-09-30b/756x.log`.
+
+| ask | expected | turns delegating | items naming a role | naming the expected one | named instead |
+| --- | --- | --- | --- | --- | --- |
+| "Summarize the note below in two sentences, keeping its figures, names and dates." | `precis` | 16/16 | 16/16 | 15/16 (0.72 to 0.99) | `answer`, 1 |
+| "List every date the note below mentions." | `excerpt` | 16/16 | 15/16 | 14/16 (0.64 to 0.97) | `answer`, 1 |
+| "Extract every number from the note below." | `excerpt` | 16/16 | 16/16 | 15/16 (0.72 to 0.99) | `answer`, 1 |
+| "What total cost does the note below state?" | `answer` | 16/16 | 16/16 | 16/16 (0.81 to 1.00) | none |
+
+Each turn wrote one batch of one item. The extractions named `excerpt` 29 of 32 (0.76 to 0.97) and
+`answer` 2; the one item naming no role wrote `excerpt` under a malformed key. The summary and the
+lookup named their own role on 15 and 16 of 16. By the rule the description replicates on the card,
+so it is the shipped `excerpt` description. The extraction items put the note inside the instruction
+on 26 of 32 and in `context` on 6. A turn wrote 190 to 1147 tokens of reasoning and call, 416 at the
+median.
