@@ -6,7 +6,7 @@
 **Trigger:** the first run this repository records under `shuffle.yml`, since every remedy below
 needs a run to exist and none can. Actions is off for the whole repository, which is a setting on
 the account rather than a change in this tree, and R-594 is the entry that waits on the setting.
-**Verified:** 2026-09-19
+**Verified:** 2026-09-30
 
 Opened 2026-08-17 by the pass that put the shuffled test run on a weekly schedule
 ([R-288](288-nothing-schedules-the-shuffled-test-run.md),
@@ -62,3 +62,8 @@ a history that is deliberately one author's. All three need a run to exist first
   What changed is outside this entry: the local-dev runbook said the weekly run redraws orders
   without anyone remembering, and it now says the workflow has never run and that `just shuffle` by
   hand is the only way until it does.
+- 2026-09-30: Checked again, not triggered. Both counts still 0 and the permissions endpoint still
+  answers 403. Mondays 2026-09-21 and 2026-09-28 at 03:41 UTC passed with no run. The runs listing
+  now shows three Dependabot updates (2026-09-21, 2026-09-22, 2026-09-28) and none of the four
+  listed on 2026-09-19, so it is not a complete record of past runs; why those left it was not
+  found.

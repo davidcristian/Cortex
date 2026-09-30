@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** repo-checks
 **Origin:** [ADR-0042](../../adr/ADR-0042-cross-tree-constant-registry.md)
-**Verified:** 2026-09-19
+**Verified:** 2026-09-30
 **Trigger:** A third value on the capture-target enum, a reader for declarations in the `.proto`
 arriving in the scan for another reason, any module outside the body's rpc crate and the brain's
 body client that has to name one of the two gRPC status codes, or either side of that pair gaining
@@ -50,7 +50,7 @@ The three that closed:
   300: the value forms and comparators moved to `scripts/values.py` (later split again into
   `scripts/readings.py`) and the overlay's half of the registry to `scripts/overlaycouplings.py`.
   The registry is now several parts, listed in `scripts/registry.py`'s docstring (fourteen on
-  2026-09-19), and nothing in the scan asks which part an entry is in.
+  2026-09-30), and nothing in the scan asks which part an entry is in.
 - **A custom property's use, where the TypeScript declares the value and not the name.** A mention
   renders a value, so it reaches `--roll: 300ms` on `:root` but not the two `var(--roll)` that
   read it, and the same was true of `--ease`. Closed 2026-08-11 by `Mention.name`, which renders
@@ -59,10 +59,10 @@ The three that closed:
   name constant in `overlay/morph.ts` that nothing imports, was rejected as a declaration written
   only to be read by a check. `var(--roll)` is fixed at 2 occurrences, those two rules being a set
   that moves together; `var(--ease)` is a presence check, since the transitions using that curve
-  span unrelated features and numbered 52 that day and 49 later, so a count would fail on every
-  unrelated change. What it does not reach, recorded rather than left to be found: a mistyped use
-  of a presence-checked property is still undetected, and closing that needs a stylesheet-wide
-  check that every `var()` names a property something declares.
+  span unrelated features and numbered 52 that day, 49 on 2026-09-09 and 50 on 2026-09-30, so a
+  count would fail on every unrelated change. What it does not reach, recorded rather than left to
+  be found: a mistyped use of a presence-checked property is still undetected, and closing that
+  needs a stylesheet-wide check that every `var()` names a property something declares.
 - **The body's bind port 50151**, a bare literal in `body/app/src-tauri/src/body_server.rs`
   against `docker-compose.body.yml`. Its argument was that a constant there would be a source edit
   nothing type-checks, and its trigger was the shell entering CI, which happened on 2026-08-17
@@ -122,3 +122,8 @@ not also retune.
   trigger fired. Two things here had gone stale: the registry part count, fourteen since
   2026-09-13, and the trigger line, which named two of the four events the sub-entries wait on. It
   now names all four.
+- 2026-09-30: Both checked again and neither trigger fired. `CaptureTarget` still has two values
+  in `proto/body.proto`, `crosscheck.DECLARATIONS` still reads `.py`, `.rs` and `.ts` only, and
+  the two codes are still written in the same three non-test modules. Since 2026-09-19 the proto's
+  comment on `CAPTURE_TARGET_FOCUS` also names `FAILED_PRECONDITION`, which is prose like the two
+  module docs and declares nothing the scan could read. The `var(--ease)` count had moved to 50.

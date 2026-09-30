@@ -8,7 +8,7 @@ after the body was reachable again until the overlay was next opened, late enoug
 says it mattered. The brain's `push failed; pull will deliver` line marks each fire that fell to
 the pull path; nothing on either side logs when the overlay pulled it, so how late it was is the
 user's own report.
-**Verified:** 2026-09-19
+**Verified:** 2026-09-30
 
 The only retry today is the deliverable-until-acked pull. A proactive re-push would deliver twice,
 because `NotifyRequest.reminder_id` is the item id, which is stable across a recurring item's
@@ -39,6 +39,12 @@ covers both `UNAVAILABLE` and `DEADLINE_EXCEEDED`
 (`brain/packages/body_client/src/cortex_body_client/failures.py`), and an `UNAVAILABLE` can follow
 a request the body received, so no kind proves a toast was not shown.
 
+That record is Windows only. The Linux backend (`body/crates/os_linux/src/notify.rs`) discards
+the id its `Notify` call returns, and the freedesktop notification service offers
+`GetCapabilities`, `Notify`, `CloseNotification` and `GetServerInformation`, none of which lists
+what is showing. On Linux a re-push either keeps the pull as its only retry or needs a record of
+its own.
+
 ## History
 
 - 2026-07-16: Unblocked when the body-side `Notify` trait and Windows toast were added, and still
@@ -62,3 +68,8 @@ a request the body received, so no kind proves a toast was not shown.
   log line. The trigger has not occurred. The same stamp now fences the ack as well, which fixed a
   later fire's task outcome being cleared when an earlier card was dismissed
   ([ADR-0025](../../adr/ADR-0025-scheduling-reminders.md) decision 5).
+- 2026-09-30: Checked again. `NotifyRequest` still has `reminder_id` and no stamp, `_deliver`
+  still logs `push failed; pull will deliver` and returns, and `failures.py` still maps both
+  `UNAVAILABLE` and `DEADLINE_EXCEEDED` to `UNREACHABLE`. The remedy was incomplete: a Linux
+  notification backend was added on 2026-09-28 with no list of shown notifications to read, so the
+  paragraph on it is new. No report of the trigger exists.

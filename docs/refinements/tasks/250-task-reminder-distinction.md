@@ -4,7 +4,7 @@
 **Area:** scheduling
 **Origin:** [ADR-0025](../../adr/ADR-0025-scheduling-reminders.md)
 **Trigger:** the surface must distinguish them (a task icon, a "task ran" label, a task-only action).
-**Verified:** 2026-09-19
+**Verified:** 2026-09-30
 
 A fired task uses the same `DueReminder` and `Reminders.tsx` card as a reminder, with nothing to
 tell them apart: `DueReminder` has no `kind`, and the overlay labels the list "Due reminders" with
@@ -44,3 +44,8 @@ seeded rows ([demoScript.ts](../../../body/app/src/bridge/demoScript.ts)) and `R
   `DueReminder` pass it through. Nothing in the overlay asks which kind a row is. A different
   problem on the same card, a task's outcome lost to an ack rather than mislabelled, was fixed the
   same day ([ADR-0025](../../adr/ADR-0025-scheduling-reminders.md) decision 5).
+- 2026-09-30: Checked again and every claim holds. `DueReminder` still has no `kind`,
+  `Reminders.tsx` still labels the list "Due reminders" with a `BellIcon` on every row, and
+  `reminder_to_proto` still sends a task's `last_outcome` as the text. The Linux notification
+  backend added on 2026-09-28 sends the title as the summary, so its toast names the kind too.
+  The trigger has not occurred.

@@ -4,7 +4,7 @@
 **Area:** repo-checks
 **Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-checks.md)
 **Trigger:** the next failing `just check` whose whole output is kept, which names its tree in a `=== check-<tree>: FAILED ===` marker and its seed in the failing suite's own header, that being the one form of this failure a later pass can reproduce from.
-**Verified:** 2026-09-19
+**Verified:** 2026-09-30
 
 Twice on 2026-08-17, `just check` run by the pre-commit hook exited 1 on a tree that passed on both
 sides of it with nothing changed in between. The first was on the commit that taught the backlog
@@ -61,3 +61,6 @@ measured; they are the first two places to look.
   intermittent or `FAILED` run finds only mutation-table rows and the brain handoff record's
   failed-reason decision, none of them about `just check`. The `check` recipe still prints `===
   check-$tree: $status ===` ahead of each buffered log, and the four seeds are unchanged.
+- 2026-09-30: Checked, not triggered. No document changed since 2026-09-19 describes an
+  intermittent `just check` failure, and the twelve `just check` logs the backlog passes of this
+  night kept in full each end in four `OK` markers. The recipe and the four seeds are unchanged.
