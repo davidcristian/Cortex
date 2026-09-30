@@ -8,7 +8,7 @@
 unit test scripts the class itself; or a search on a real server drops its connection and comes back
 as `SearchRefusedError`, sending a model to rewrite a query that was never the problem.
 **Origin:** [ADR-0056](../../adr/ADR-0056-email-reader-answers.md)
-**Verified:** 2026-09-19
+**Verified:** 2026-09-30
 
 `_search_failure` in `brain/packages/email/src/cortex_email/imap.py` reads the type of what imaplib
 raised. A plain `IMAP4.error` is the server refusing to parse the query, which crosses the port as
@@ -60,3 +60,10 @@ published port and a second address for `just email-folder-probe` to find.
   wrote first and rejected: the search is still sent, and running the test's shape over an empty
   folder raised the same dropped-connection `MailboxError`. The comment is corrected in
   `brain/packages/email/tests/test_imap.py`.
+- 2026-09-30: the code claims held and the trigger has not fired. `brain/Dockerfile` still builds on
+  `python:3.12-slim-trixie` and `brain/uv.lock` still resolves imap-tools 1.13.0, neither with a
+  commit since 2026-09-19. `_search_failure` in `imap.py` still returns the base `MailboxError` for
+  `IMAP4.abort` and `SearchRefusedError` for any other `IMAP4.error`, the unit test still scripts
+  `IMAP4.abort("socket error: EOF")`, and `docker/dovecot/probe.conf` still sets
+  `imap_fetch_failure = no-after`. The last part needs a live search and was not read, and it cannot
+  occur without one of the first two or an edit to `_search_failure`.

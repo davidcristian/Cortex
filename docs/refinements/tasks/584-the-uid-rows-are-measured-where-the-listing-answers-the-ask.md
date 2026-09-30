@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** email
 **Origin:** [ADR-0056](../../adr/ADR-0056-email-reader-answers.md)
-**Verified:** 2026-09-19
+**Verified:** 2026-09-30
 **Trigger:** `UID_HELP` or `NOT_FOUND` in `brain/packages/email/src/cortex_email/values.py` is
 reworded, the shipped cortex pick changes (`DEFAULT_CORTEX_FILE` in
 `brain/packages/model_manager/src/cortex_model_manager/config.py`), or a second run of
@@ -51,3 +51,9 @@ search.
   harness. `_READ_ASK` and `DRAWS = 20` are unchanged, and the sixty draws are the three
   after-not-found conditions of the 2026-09-06 session, each `retried=20/20`
   ([docs/readings/imap-server-answers.md](../../readings/imap-server-answers.md)).
+- 2026-09-30: the claims held and the trigger has not fired. `values.py` changed once since
+  2026-09-19, on 2026-09-23, when the search refusal and the folder texts were reworded, and that
+  diff leaves `UID_HELP` and `NOT_FOUND` as they were. `DEFAULT_CORTEX_FILE` and the
+  `CORTEX_MODEL_FILE_CORTEX` default are still the gemma-4-12B pick. `test_uid_reading_live.py` has
+  four commits since, all on 2026-09-23 and all renames, and no run under `measurements/` names it.
+  `_READ_ASK` and `DRAWS = 20` are unchanged.

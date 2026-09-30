@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** email-confirmer
 **Origin:** [ADR-0056](../../adr/ADR-0056-email-reader-answers.md)
-**Verified:** 2026-09-19
+**Verified:** 2026-09-30
 **Trigger:** a second server this repo can reach starts flagging a name in a plain LIST and opening
 it, or the Bridge account whose two flagged parents are the current proof stops being reachable.
 Both parts come off one reading, a plain `LIST "" "*"` taken through the port with every listed
@@ -90,11 +90,11 @@ avoiding: a stub answering with the two lines it was given proves no more than t
   `(\HasChildren \UnMarked)`. The probe's live suite passed 9 of 9. The Bridge part was not read,
   so the account's reachability is still the reading of 2026-09-09, now eight days old; the next
   review of this entry should read it live. The stand-in's `OPEN_NODE_FLAGS` is still the Bridge's
-  own pair, at `brain/packages/email/tests/imap_stub.py:124`.
+  own pair, at `brain/packages/email/tests/imap_stub.py:71`.
 - 2026-09-19: claims checked against the code; the probe part is unchanged by its own rule, and the
   Bridge part was not read again. `flagged_unselectable` and `kept_after_opening` in `folders.py`
   have no commit since 2026-09-15, `OPEN_NODE_FLAGS` is still the Bridge's pair at
-  `brain/packages/email/tests/imap_stub.py:124`, and the live row still reaches
+  `brain/packages/email/tests/imap_stub.py:71`, and the live row still reaches
   `_assert_no_name_this_server_opens_is_withheld`. Neither `docker/dovecot/` nor the probe's
   compose file has a commit since 2026-09-05, and the local `dovecot/dovecot:2.3.21` resolves to
   the digest recorded in
@@ -102,3 +102,13 @@ avoiding: a stub answering with the two lines it was given proves no more than t
   read on 2026-09-17 still applies without restarting the probe. Tonight's run ruled out a live run
   against the account, so its reachability is still the reading of 2026-09-09, now ten days old,
   and the note of 2026-09-17 that the next review should read it live still applies.
+- 2026-09-30: claims checked against the code, and a line number in the two notes above corrected;
+  neither part was read live. `list_folders` in `imap.py` still reads `box.folder.list()`,
+  imap-tools' plain `LIST "" "*"`, and `flagged_unselectable` and `kept_after_opening` in
+  `folders.py` have no commit since 2026-09-15. `OPEN_NODE_FLAGS` is at `imap_stub.py:71`, where it
+  has been since 2026-09-15, and those notes had given `:124`, the line of
+  `_assert_no_name_this_server_opens_is_withheld` in `test_email_live.py`; the live row still calls
+  it. The probe part is unchanged by its own rule: no commit to `docker/dovecot/` or the probe's
+  compose file since 2026-09-05, and the local image still resolves to the recorded digest. The
+  Bridge part is still the reading of 2026-09-09, now 21 days old, since tonight's run ruled out a
+  live run against the account.

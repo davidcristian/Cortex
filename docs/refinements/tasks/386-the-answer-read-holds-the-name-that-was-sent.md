@@ -10,7 +10,7 @@ its image line or `docker/dovecot/` changes, and it is taken after `just up-imap
 EXAMINE of `Guarded`, the mailbox there that is closed, through the port. The Bridge part needs a
 live run against the account. The history below records both readings.
 **Origin:** [ADR-0056](../../adr/ADR-0056-email-reader-answers.md)
-**Verified:** 2026-09-19
+**Verified:** 2026-09-30
 
 `select` in `brain/packages/email/src/cortex_email/folders.py` classifies a refused SELECT with
 `_says_folder_missing`, which lower-cases `str(err)` and looks for a measured phrase or an
@@ -104,3 +104,11 @@ RFC 5530 allows a code.
   a commit since 2026-09-05, so the reading of 2026-09-17 still applies without a restart. The
   Bridge part is still the reading of 2026-09-09, tonight's run having ruled out a live run
   against the account.
+- 2026-09-30: claims checked against the code, neither part fired, and the probe was not started.
+  `folders.py` still has no commit since 2026-09-15: `_says_folder_missing` lower-cases `str(err)`
+  at line 29 and matches anywhere in it, and `select` raises `FolderUnknownError` on a match.
+  imap-tools is still 1.13.0, whose `UnexpectedCommandStatusError.__str__` renders
+  `command_result[1]` after `Data: `. Still one IMAP server image, and the local
+  `dovecot/dovecot:2.3.21` still resolves to the recorded digest; neither its image line nor
+  `docker/dovecot/` has a commit since 2026-09-05, so the reading of 2026-09-17 still applies. The
+  Bridge part is still the reading of 2026-09-09, a live run being out of scope tonight.
