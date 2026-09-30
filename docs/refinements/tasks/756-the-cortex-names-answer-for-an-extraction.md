@@ -25,8 +25,8 @@ Each row below was written down before it was drawn:
    and the summaries and lookups kept their own role 4 of 4 each, so it moves the cortex on this
    condition.
 4. **That description on the card**, next: the condition of item 1, all four asks at
-   `CORTEX_ROLE_UPTAKE_DRAWS=4`, 64 turns, `-k role`, from a copy of the tree holding the new
-   description. It replicates if the two extraction asks together name `excerpt` more often than
+   `CORTEX_ROLE_UPTAKE_DRAWS=4`, 64 turns, `-k role`, with `CORTEX_ROLE_UPTAKE_EXCERPT` set to the
+   new description. It replicates if the two extraction asks together name `excerpt` more often than
    `answer`, and the summary and the lookup each name their own role on at least 14 of 16. If it
    replicates, the description ships in `SHIPPED_ROLES` and ADR-0072 decision 6 states it. If it
    does not, the change is item 5.

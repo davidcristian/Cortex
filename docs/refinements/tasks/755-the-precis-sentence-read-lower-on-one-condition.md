@@ -22,7 +22,12 @@ Written down before the replication is drawn:
    apart, so it replicates, and the rewording or removal is
    [R-758](758-the-precis-sentence-lowers-the-figures-summary-on-both-conditions.md).
 2. **Qwen3.5-2B, the roster alternate**, which the rows did not reach: the three shapes with and
-   without their role, drawn the same way. No card or CPU row of it exists.
+   without their role, drawn the same way. No card or CPU row of it exists. The row: the argv of
+   `llama-subagent-qwen` in the roster compose file with `-ngl 99`, each shape constrained at four
+   bodies and eight seeded draws a cell, and the figures shape with
+   [R-758](758-the-precis-sentence-lowers-the-figures-summary-on-both-conditions.md)'s rewording,
+   all in one server session. A role changes delivery on this model only where its interval and the
+   plain cell's do not overlap; overlap on all three shapes is the null result.
 
 Record the engine build, the argv and an `nvidia-smi` SM clock beside any card row. Done when both
 are in the readings record and ADR-0072 states the result.
@@ -37,3 +42,4 @@ are in the readings record and ADR-0072 states the result.
   readings record and ADR-0072, and the rewording or removal filed as
   [R-758](758-the-precis-sentence-lowers-the-figures-summary-on-both-conditions.md). Open on
   item 2.
+- 2026-09-30: Item 2's row and its rule written down before the draw.
