@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** inference-model-manager
 **Origin:** [ADR-0054](../../adr/ADR-0054-baseline-residency.md)
-**Verified:** 2026-09-19
+**Verified:** 2026-09-30
 **Trigger:** a cortex that stops while the brain and the model host both keep running, which is the
 one state neither boot path covers, or a second visit to the runbook's step 2. Both are operator
 events, so the cheap recheck is whether the code has moved:
@@ -43,9 +43,10 @@ boot recovery starts the cortex and waits for it
 either container brings a down cortex back.
 
 With N peers in `CORTEX_SWAP_EVICT_MODELS` a pass makes at most 2N + 2 control calls, one `status`
-and one `start` per peer plus the regain's two readings, and `TierRechecker.aclose`'s docstring has
-said so since 2026-09-19. Until then it said two, which holds only while the variable is unset, the
-shipped default (`config_swap.py` gives `evict_models` the empty tuple). On a deployment that sets
+and one `start` per peer plus the regain's two readings, as decision 4 of
+[ADR-0054](../../adr/ADR-0054-baseline-residency.md) states; `TierRechecker.aclose`'s docstring
+gives no count. Two calls is the bound only while the variable is unset, the shipped default
+(`config_swap.py` gives `evict_models` the empty tuple). On a deployment that sets
 the variable, the shutdown wait a readiness-waiting start would lengthen is already longer than two
 calls. The bound itself is unaffected, every call being cut off by the model host client's own
 deadline.
@@ -81,3 +82,10 @@ deadline.
   which still said two control calls, was corrected to 2N + 2 later the same day. The 2026-09-17
   rule that refuses an evict list naming the cortex or the deep model leaves the 2N + 2 count
   unchanged, since N only ever counted peers. The trigger has not fired.
+- 2026-09-30: The four readings were taken again and none has moved. `regain_residency` still calls
+  `host.status` twice and `host.start` never; [proto/body.proto](../../../proto/body.proto) still
+  declares 16 RPCs, 11 on `BrainService` and 5 on `BodyService`, its changes since 2026-09-19 being
+  message fields only; the control API still routes the same four paths; and `evict_models` still
+  defaults to the empty tuple. One claim was wrong and is corrected: `TierRechecker.aclose`'s
+  docstring states no call count, and the 2N + 2 bound is written in ADR-0054's decision 4. The
+  trigger has not fired.

@@ -9,7 +9,7 @@ subagents overrides) reporting a llama.cpp build other than b10680 on the GPU ru
 property of one build's chat handlers, and a handler that started reading `enable_thinking` in its
 reasoning rule would break it with nothing reporting the break.
 **Origin:** [ADR-0050](../../adr/ADR-0050-live-probe-records.md)
-**Verified:** 2026-09-19
+**Verified:** 2026-09-30
 
 Every row of the lineup section's rendering column stands on a sample the reader published, and
 every one was drawn on one build. The rule the column states, that a template rendering the thought
@@ -20,7 +20,9 @@ loop: start a fixed llama-server on one pick off the mount with neither reasonin
 `/health`, run the probe with `CORTEX_THINKING_MODEL` naming the pick and `CORTEX_THINKING_REPEATS=5`,
 stop the server, publish the sample, and move to the next pick. It served nine picks in about 26
 minutes on the 24 GB card, the three rows the lineup section places at `-ngl 0` among them, and it
-is recorded nowhere but in the session that used it.
+is recorded nowhere but in the session that used it. The column has twelve rows since
+2026-09-26, when Qwen3.8-27B was read on the same build at the deep tier's argv, which has no
+reasoning flag by default, so a re-run draws twelve picks.
 
 Re-running the lineup on a new build and publishing every row through `just switch-tail` is what
 closes it. The cheaper half is a `just switch-lineup` recipe holding the loop above. The recipe
@@ -69,3 +71,9 @@ sample the re-run writes has the context size the server reported, so only `-ngl
   pair is exactly what these servers must not have. The body's other claims hold: nine rows in about
   26 minutes, eleven in the column, three owed their `-ngl 0` placement. The sample's `n_ctx` field,
   added 2026-09-15, is now named in the remedy.
+- 2026-09-30: the trigger has still not fired. `docker images` lists the same two cached digests,
+  `sha256:952424b09abc` for `server-cuda` and `sha256:db057ec90de0` for `server`, and the runbook's
+  label command reads `b10680 d7bd3bfca` on each. The column grew to twelve rows on 2026-09-26, the
+  Qwen3.8-27B row read on the same build, and the body now says so. The remedy still stands:
+  `_SUBAGENT_TAIL` still has the reasoning-off pair, and the cortex and deep tiers still start with
+  no reasoning flag unless a budget is set.

@@ -10,7 +10,7 @@ nothing in the brain keeps a per handoff row that outlives its handoff, `Handoff
 deleting a `DONE` record outright and the Redis adapter expiring a `FAILED` one after an hour, so a
 count still has nowhere to live.
 **Origin:** [ADR-0055](../../adr/ADR-0055-co-residency-and-spill-watch.md)
-**Verified:** 2026-09-19
+**Verified:** 2026-09-30
 
 The spill note lives in the process, lasts an hour, and is cleared by the next handoff that keeps
 its pace, so a handoff that spilled at 03:00 is gone by morning and a brain that restarted takes it
@@ -71,3 +71,11 @@ is finished, so a store built for swap survival is not a store for history.
   fields were renamed on 2026-09-17 to `decode_rate`, `decoded` and `floor_rate`, because the log
   formatter had been printing them as `<redacted>`, so the observed rate and the floor are readable
   only since then. No second per handoff result has arrived. The trigger has not fired.
+- 2026-09-30: Claims checked again and all stand. `HandoffSettler._settle` still deletes a `DONE`
+  record through `_release_claim`, `_TERMINAL_TTL_SECONDS` is still 3600 and
+  `DEFAULT_SPILL_DWELL_S` still 3600.0, `residency_pace.py` still has no logger, and the spill's
+  only history is still the one `WARNING` in `brain_phase.py`, beside an `INFO` line with the same
+  rate fields for a handoff that kept its pace. The one per handoff result added since, the note
+  saying a prompt outgrew the deep model's context, is displayed and not counted; and the decline
+  of prefill as a spill sign in [110](110-prefill-second-witness.md) leaves decode the only sign a
+  count would read. The trigger has not fired.

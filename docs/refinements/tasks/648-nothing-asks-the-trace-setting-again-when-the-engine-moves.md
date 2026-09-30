@@ -3,10 +3,11 @@
 **Status:** open, waiting for its trigger
 **Area:** inference
 **Origin:** [ADR-0049](../../adr/ADR-0049-thinking-switch-and-trace-budget.md)
-**Verified:** 2026-09-19
+**Verified:** 2026-09-30
 **Trigger:** a newer llama.cpp pulled under a brain that keeps running, where the new build answers
 the trace question differently from the answer that brain cached and the documented restart was
-skipped, which shows as the GPU runbook's own `curl` contradicting the brain's boot line.
+skipped, which shows as the GPU runbook's own `curl` contradicting the brain's boot line, or as a
+second `model now served by engine build` line for the cortex model in one brain's log.
 
 `resolve_send_trace_budget` is called once, inside `build_inference_backend`, and its answer reaches
 `LlamaCppBackend` as a `bool` that lives as long as the process. The vision probe beside it is the
@@ -20,7 +21,10 @@ the model swap, because `SwappingModelManager.swap_scope` already knows a child 
 things narrow it. That scope exists only with `CORTEX_ESCALATION` on, which is off by default, so
 the shipped stack has no boundary after boot at all. And a swap starts another child of the same
 image, so the answer would be the same answer unless the image moved under the sidecar in the
-meantime, which is a `docker compose pull` and a recreate the brain never observes.
+meantime, which is a `docker compose pull` and a recreate. Since 2026-09-24 the brain does observe
+that recreate: `LlamaCppBackend._note_build` reads the build each streamed chunk names in
+`system_fingerprint` and logs `model now served by engine build` when a model's build changes. It
+only logs; the cached `bool` stays as it was.
 
 **Why it was left.** The direction of the staleness is the safe one, and both directions are fixed
 by a restart the GPU runbook prints. A brain that booted before the key existed goes on sending the
@@ -29,8 +33,10 @@ the key and now talks to one that does not sends a key the engine drops silently
 was priced when the setting was designed: a probe per call adds a round trip to every completion and
 decodes a token on the servers that most need not to.
 
-**What would close it.** Asking again on a boundary that already exists, the swap scope being the
-only candidate and reaching only the escalating case; or asking again on a schedule, which is the
+**What would close it.** Asking again on a boundary that already exists: the build change
+`_note_build` already detects, which the default stack has and which costs one probe per new build
+rather than one per call, though it is seen only on a reply, after one request went with the old
+answer; or the swap scope, which reaches only the escalating case; or asking again on a schedule, which is the
 probe-per-call cost spread thinner and still a token on a busy server; or keeping the cached `bool`
 with the documented restart as the repair. The third is what was decided, so anything built here has
 to argue against it with a deployment that actually hit the problem.
@@ -59,3 +65,10 @@ to argue against it with a deployment that actually hit the problem.
   still the only boundary after boot. The one change nearby is in the entry about a budget that went
   unread, which now names a third place a dropped count could be reported; that place reports the
   cached answer and does not ask it again.
+- 2026-09-30: the trigger has not fired. The runbook's label command still reads `b10680 d7bd3bfca`
+  off both cached tags at the same two digests, and no brain container runs on this host.
+  `resolve_send_trace_budget` is still called once, in `build_inference_backend`'s llama.cpp branch
+  in `builders.py`, and `CORTEX_ESCALATION` still defaults off. One claim was wrong and is
+  corrected: the swap scope is no longer the only boundary after boot, since
+  `LlamaCppBackend._note_build` has logged a model's build change since 2026-09-24, so the body
+  names that as a place to ask again and the trigger names its log line.
