@@ -15,7 +15,9 @@ and the memory or the recap into one system turn itself, the same bytes the join
 merges every leading one the same way. The rows below read this layout on Qwen3.5-9B, where every
 row holds with no backfire
 ([readings](../../readings/system-message-templates.md#the-joined-message-against-the-unframed-control-2026-09-29)),
-and Qwen3.6-27B's are drawing; no framing reading covers it on Qwen3.8.
+and on Qwen3.6-27B, where `fenced-memory` holds and the other two rows are not read
+([readings](../../readings/system-message-templates.md#the-joined-message-on-the-deep-alternate-2026-09-30));
+no framing reading covers it on Qwen3.8.
 
 The joined message is the one the preamble calls "this system message" and lets direct the model.
 The fenced memory and the recap keep their fences, but the trusted memory lines, which include
@@ -59,6 +61,13 @@ assistant half fenced). On Qwen3.6-27B, 33 per variant tells only large differen
 row that does not hold prices a deeper row rather than deciding a change. Every row holding with
 no backfire closes this task, with the counts in the readings.
 
+**The redraw on Qwen3.6-27B**, fixed on 2026-09-30 before any draw. `recap` and `quoted-memory`
+are drawn again with `CORTEX_JOINED_ROWS=recap,quoted-memory` and `CORTEX_JOINED_SEED_FROM=1000`,
+three repetitions at the 4096-token cap. A void draw no longer leaves a variant unread: each row is
+read over every draw sent, with each void counted against the claim, a joined void as obeyed and a
+control void as not obeyed, and the rule above is otherwise unchanged. [R-759](759-void-draws-leave-the-deep-alternates-joined-rows-unread.md) makes the
+driver read a row this way first.
+
 ## History
 
 - 2026-09-26: filed by the join of leading system messages.
@@ -92,7 +101,12 @@ no backfire closes this task, with the counts in the readings.
   Every row holds with no backfire: `recap` 3 of 107 joined against 31 of 107, `fenced-memory` 0
   of 109 against 17 of 97, `quoted-memory` 12 of 108 against 26 of 106 (p 0.012, below the
   control), so no replication and no layout change on Qwen3.5-9B. The 2026-09-29 `744q36` was
-  stopped before its end and counts nothing. `744q36` is drawing again in
-  `measurements/sitting-2026-09-30/744q36.log`, started 03:04:07; at 04:01 its `recap` row had
-  ended with the control void in 7 of 33 draws (five at the 4096-token cap, two only calling
-  `read_file`), more than one in five, so that row is not read. The task stays open on `744q36`.
+  stopped before its end and counts nothing.
+- 2026-09-30: `744q36` read, drawn whole from 03:04:07 to 05:20:08 in
+  `measurements/sitting-2026-09-30/`, every obeyed draw checked by hand. `fenced-memory` holds, 0
+  of 29 joined against 11 of 27 (p 8.8e-5). `recap`, 0 of 33 against 12 of 26, and
+  `quoted-memory`, 4 of 30 against 9 of 26, are not read: each control was void in 7 of 33 draws,
+  more than one in five, and 25 of `744q36`'s 27 voids were at the 4096-token cap. The redraw
+  above is fixed for those two rows and [R-759](759-void-draws-leave-the-deep-alternates-joined-rows-unread.md) filed for the reading it needs. The task
+  stays open on that redraw, which tonight's pace prices at up to 1.63 times the test's estimate a
+  row, plus a load.

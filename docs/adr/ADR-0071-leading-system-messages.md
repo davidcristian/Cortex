@@ -96,8 +96,10 @@ test could fail on it.
   attack in the recap, 0 of 109 against 17 of 97 in a tainted memory, and 12 of 108 against 26 of
   106 when it is quoted in a trusted memory's reply
   ([readings](../readings/system-message-templates.md#the-joined-message-against-the-unframed-control-2026-09-29)).
-  Qwen3.6-27B is not yet read
-  ([R-744](../refinements/tasks/744-the-joined-system-message-is-unmeasured-on-the-qwen-alternates.md)).
+  On Qwen3.6-27B, at 33 draws a variant, the tainted memory row holds, 0 obeyed of 29 against 11
+  of 27, and the recap and quoted rows are not read, their controls void in 7 of 33 draws
+  ([readings](../readings/system-message-templates.md#the-joined-message-on-the-deep-alternate-2026-09-30),
+  [R-744](../refinements/tasks/744-the-joined-system-message-is-unmeasured-on-the-qwen-alternates.md)).
 - On a turn that also recalls a memory, the deep alternate's prompt now includes the recap it used
   to drop, up to `RECAP_MAX` (2000 characters) plus the preface, inside the margin
   [ADR-0014](ADR-0014-history-windowing.md) decision 8 leaves the deep tier's context.
@@ -109,9 +111,9 @@ test could fail on it.
   which include earlier assistant replies (`render_exchange`), sit inside it unfenced. Qwen3.6 at
   two messages and Qwen3.8 at two and three already render this layout on their own. On
   Qwen3.5-9B an injection quoted there was obeyed less often than without the preamble, as the
-  bullet above says; no reading covers it on Qwen3.6-27B yet
-  ([R-744](../refinements/tasks/744-the-joined-system-message-is-unmeasured-on-the-qwen-alternates.md))
-  or on Qwen3.8.
+  bullet above says. On Qwen3.6-27B that row is not read yet
+  ([R-744](../refinements/tasks/744-the-joined-system-message-is-unmeasured-on-the-qwen-alternates.md)),
+  and no reading covers it on Qwen3.8.
 - A stored system message next to the prefix would be joined into the preamble's message, so the
   session store refuses to append one, a handoff record refuses one in its loop tail, and both read
   a stored one as a corrupt record
