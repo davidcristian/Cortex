@@ -6,7 +6,7 @@
 **Trigger:** One recall's pool can draw from more than one non-empty scope: the union read of
 R-084 ships, or a store already holding per-session scopes is read under
 `CORTEX_MEMORY_SCOPE=global`, whose unfiltered search mixes them.
-**Verified:** 2026-09-19
+**Verified:** 2026-09-30
 
 Weighting a recall hit by the scope it came from. It was one of three refinements left behind the
 `MemoryScope` port when per-session scoping shipped
@@ -34,3 +34,8 @@ Weighting a recall hit by the scope it came from. It was one of three refinement
   has scopes to weigh without anything writing durable global facts, so the trigger now fires
   when a single pool can mix scopes, either by the union of R-084 or by that switch. ADR-0008
   decision 9 now states this.
+- 2026-09-30: Checked again; the trigger has not fired. `RecallPolicy.select` (`rerank.py:11`)
+  still receives `ScoredMemory` values holding `record.scope`, `RankBasis` (`ranking.py:11`) still
+  has its six members, and the commits to the recall code since 2026-09-19 added the turn id to
+  the recall trail and reworded names and log text. The union read of R-084 has not shipped, and
+  no store has been seen switched from `session` to `global`.

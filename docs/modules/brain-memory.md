@@ -37,8 +37,9 @@ business logic and no state beyond the injected pool (the one hard rule).
   `DELETE n` command tag: 0 when the scope holds none, and a malformed tag wrapped as
   `MemoryStoreError`. It is a hard delete rather than a marker, because `search` is a stateless
   top-k scan with no in-flight read of one id to fail cleanly, so a removed row simply drops out of
-  the candidate pool (ADR-0008 decision 11). It is the forget primitive that both the session-delete
-  cascade and per-scope eviction call.
+  the candidate pool (ADR-0008 decision 11). It is the forget primitive the session-delete cascade
+  calls, and the one a per-scope retention policy would call
+  ([task 085](../refinements/tasks/085-per-scope-retention-eviction.md)).
 - `aclose()` releases the pool. `PgVectorMemoryStore.connect(dsn)` is the classmethod that builds a
   store owning a fresh asyncpg pool for `dsn`.
 

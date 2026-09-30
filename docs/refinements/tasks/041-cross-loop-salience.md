@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** tools-mcp
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
-**Verified:** 2026-09-19
+**Verified:** 2026-09-30
 **Trigger:** the tool audit trail shows two subagent tasks of one turn (one `turn_id`, two `task_id`
 values) dispatching the same tool with the same arguments.
 
@@ -47,3 +47,11 @@ once per member.
   `cortex.tools.audit` line has `tool`, `arguments`, `turn_id` and `task_id`, and the audit trail
   can be written to the file `CORTEX_TOOLS_AUDIT_FILE` names, so the question is one query over
   that file. Nothing in the tree records such a pair.
+- 2026-09-30: Checked again; the trigger has not fired. `SaliencePolicy.admits(call,
+  dispatched)` still reads nothing else (`tool_salience.py:17`), and `dispatched` is still a local
+  of `stream_tool_loop`, now declared at `tool_loop.py:47` and handed to `run_round`
+  (`dispatch_round.py:83`) each round; the line 126 cited above was already stale on 2026-09-19.
+  Each subagent attempt runs its own `stream_tool_loop` (`subagent_attempt.py:130`), so nothing
+  joins the list across a batch. The audit record still has `turn_id` and `task_id`
+  (`cortex_tools/audit.py:39`), and no tool audit file under this host's measurements holds a
+  `task_id`, so no pair of the kind the trigger names has been recorded.

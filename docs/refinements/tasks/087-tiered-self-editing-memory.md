@@ -5,8 +5,9 @@
 **Origin:** [ADR-0008](../../adr/ADR-0008-memory-v1.md)
 **Trigger:** A recall on a real deployment keeps a memory beside a later one that contradicts it,
 so a turn is handed a superseded fact next to its correction. Read it by joining the kept hit ids
-on the recall trail (`CORTEX_MEMORY_RECALL_AUDIT`) against the `memories` table.
-**Verified:** 2026-09-19
+on the recall trail (`CORTEX_MEMORY_RECALL_AUDIT`, or the JSON-lines file
+`CORTEX_MEMORY_RECALL_AUDIT_FILE` names) against the `memories` table.
+**Verified:** 2026-09-30
 
 Letta's ideas about memory tiers and a model that edits its own memories, adoptable later without
 the framework (ADR-0008 decision 1). This is not behind an unchanged port: tiering (promote,
@@ -28,7 +29,7 @@ Still deferred, each for want of a consumer rather than a missing verb: update i
 promote, demote and expire, write salience
 ([R-093](093-write-salience-policy.md)), and the per-scope retention policy
 ([R-085](085-per-scope-retention-eviction.md)). Per-provenance eviction
-([untrusted-content.md](../index.md#untrusted-content)) needs a different filter, since a memory
+([R-074](074-per-provenance-eviction.md)) needs a different filter, since a memory
 record stores only the `tainted` flag and not the ADR-0027 structured provenance.
 
 ## History
@@ -54,3 +55,10 @@ record stores only the `tainted` flag and not the ADR-0027 structured provenance
   logs record ids and no text, hence the join. `MemoryRecaller.record` is still the only caller
   of `MemoryStore.add`, `SessionMemoryCascade` the only caller of `delete_scope`, and no tool in
   any registry reaches memory. No commit under `brain/` since 2026-09-13 changed any of that.
+- 2026-09-30: Checked again; the trigger has not fired as far as the tree and this host show:
+  no Postgres was running to join a trail against. Since 2026-09-25 the recall trail can also be
+  written as JSON lines to the file `CORTEX_MEMORY_RECALL_AUDIT_FILE` names
+  (`memory_builders.py:75`), each line listing the kept hits' ids (`cortex_memory/audit.py:23`),
+  so the trigger names that file. `MemoryStore` still has no verb that rewrites a record,
+  `MemoryRecaller.record` is still the only caller of `add`, and `SessionMemoryCascade` the only
+  caller of `delete_scope`. The link to per-provenance eviction now points at its task.

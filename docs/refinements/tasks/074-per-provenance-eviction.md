@@ -4,7 +4,7 @@
 **Area:** untrusted-content
 **Origin:** [ADR-0019](../../adr/ADR-0019-tainted-memory-recording.md)
 **Trigger:** a source found hostile after the fact, whose derived memories must be forgotten by where they came from rather than by the scope they were stored in.
-**Verified:** 2026-09-19
+**Verified:** 2026-09-30
 
 Left behind by [R-072](072-tainted-memory-recording.md): removing memories by the source they came
 from.
@@ -13,7 +13,7 @@ Both halves of it are missing. A `MemoryRecord` has `id`, `text`, `embedding`, `
 `tainted` ([memory.py](../../../brain/packages/core/src/cortex_core/memory.py)), the Postgres
 table has those same columns behind a single `memories_scope_idx`
 ([init.sql](../../../docker/postgres/init.sql)), and `Provenance` lives entirely in the pure core,
-on a ledger whose own docstring says it is rebuilt each turn and never stored
+on the turn-local `TaintLedger`
 ([untrusted.py](../../../brain/packages/core/src/cortex_core/untrusted.py)), surviving a store
 only on the mid-turn `HandoffRecord` that expires in an hour. And there is no verb to filter with:
 `delete_scope` is the only removal on the port, it is string equality on one namespace, and its
@@ -24,9 +24,10 @@ origin's heading that this sits behind the unchanged `MemoryStore` port does not
 delete is a port change, as [R-085](085-per-scope-retention-eviction.md) found from the memory
 side.
 
-The code names this entry as its own unbuilt consumer, which is the strongest evidence that what
-it waits for is a consumer: `provenance.py` opens by saying that two consumers are designed for
-and neither is built, the confirmation card and eviction of memories derived from one source.
+What it waits for is a consumer. [ADR-0027](../../adr/ADR-0027-turn-provenance.md)'s
+consequences name two consumers of the claimed kinds: the confirmation card, declined in
+[R-208](208-confirm-with-provenance.md), and this entry. Nothing reads `SENDER` or `URI`
+provenance yet.
 
 ## History
 
@@ -56,3 +57,11 @@ and neither is built, the confirmation card and eviction of memories derived fro
   [R-077](077-provenance-across-stores.md), whose subject is `ScheduledItem` and `SubagentResult`.
   The two entries do not wait on each other: this one needs a provenance column on memory records
   and a predicate delete on the port, and neither row R-077 names is a memory.
+- 2026-09-30: Checked again; the trigger has not fired, and two sentences in the body were
+  wrong and are corrected. `provenance.py` no longer opens by naming its consumers, its module
+  docstring being one line, and the `TaintLedger` docstring says only that the ledger is
+  turn-local; ADR-0027's consequences are where the two consumers are named. Of the files this
+  entry names only `untrusted.py` changed since 2026-09-19, to taint a turn for an attached picture
+  and to reword the preamble, neither touching provenance or storage. `MemoryStore` still has the
+  four verbs (`ports_stores.py:36`), `MemoryRecord` six fields (`memory.py:10`) and the table six
+  columns under one index (`init.sql:6`).

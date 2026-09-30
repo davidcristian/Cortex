@@ -6,7 +6,7 @@
 **Trigger:** Something writes durable global facts under scoping, or a deployment that recorded
 under `CORTEX_MEMORY_SCOPE=global` switches to `session` and its operator asks for the memories
 recorded before the switch to be recalled again.
-**Verified:** 2026-09-19
+**Verified:** 2026-09-30
 
 A read policy that returns hits from the session scope and the global scope at once. It was one
 of three refinements left behind the `MemoryScope` port when per-session scoping shipped
@@ -38,3 +38,8 @@ of three refinements left behind the `MemoryScope` port when per-session scoping
   and the memory runbook's scoping section says what a switch in either direction does to the
   rows already stored. The host's pgvector store was not queried for the scopes it holds,
   because no Postgres was running. ADR-0008 decision 9 now states this.
+- 2026-09-30: Checked again; the trigger has not fired. `memory_scope_from_name` still builds
+  only the global and session policies (`memory_builders.py:40`), and `MemoryRecaller.record` is
+  still the only caller of `MemoryStore.add` (`recall.py:51`). The brain's memory commits since
+  2026-09-19 add a JSON-lines file for the recall trail and the turn id on each recall line, and
+  neither writes a memory. No Postgres was running, so the host store's scopes were not read.

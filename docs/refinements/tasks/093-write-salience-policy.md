@@ -5,7 +5,7 @@
 **Origin:** [ADR-0008](../../adr/ADR-0008-memory-v1.md)
 **Trigger:** A memory-compaction or self-editing feature (R-087) needs a record-time salience
 decision.
-**Verified:** 2026-09-19
+**Verified:** 2026-09-30
 
 v1 records the raw exchange text on every turn. Deciding at record time what is worth remembering
 is a later policy (ADR-0008). Its summarization half sits next to the tiered-memory entry
@@ -35,3 +35,8 @@ Naming note for whoever builds it: `SaliencePolicy` is already taken by the tool
   record-time filter would repeat a decision the read side makes per recall, at the one point
   where it cannot be revised. What a drop at record time saves is the embedding call and the row
   itself, which is why the trigger waits for a feature that needs the store to hold less.
+- 2026-09-30: Checked again; the trigger has not fired, since R-087 has built nothing.
+  `record_exchange` (`turn_output.py:122`) is still the only caller of `MemoryRecaller.record`,
+  reached from `TurnEngine` (`engine.py:147`) and `BrainPhase` (`brain_phase.py:186`). Its opaque
+  skip now also covers a turn with a picture the user attached, which `observe_attachment` marks
+  opaque (`untrusted.py:123`). The shipped recall default is still `judge` (`config.py:113`).

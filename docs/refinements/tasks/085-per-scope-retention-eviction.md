@@ -4,7 +4,7 @@
 **Area:** memory
 **Origin:** [ADR-0008](../../adr/ADR-0008-memory-v1.md)
 **Trigger:** A memory-compaction or self-editing feature (R-087) needs a retention scheduler.
-**Verified:** 2026-09-19
+**Verified:** 2026-09-30
 
 A policy that decides which memories to drop and when. The eviction verb exists; the policy and
 whatever would run it do not.
@@ -41,3 +41,11 @@ it.
   serve, and there a policy can drop whole conversations, sized by `count_candidates`, but never
   part of one. The port also lists no scopes, so such a policy would take its candidates from the
   session store. ADR-0008's consequences now state this.
+- 2026-09-30: Checked again; the trigger has not fired, since R-087 has built nothing. Two
+  claims of 2026-09-19 were wrong. `ScheduleTicker` is not the brain's only recurring pass:
+  `TierRechecker` (`residency_recheck.py:15`) has rechecked the cortex's peer tiers every 30 s
+  since 2026-08-09. And no port docstring forbids `GLOBAL_SCOPE`: ADR-0008 decision 11 states that
+  rule, `SessionMemoryCascade` is the only code that enforces it (`memory_cascade.py:18`), and the
+  fake and the pgvector adapter delete whatever scope they are given. Neither changes the finding:
+  under the default scope a retention policy still needs a delete by id or by timestamp. The
+  memory module doc no longer says per-scope eviction calls `delete_scope`, since nothing does.
