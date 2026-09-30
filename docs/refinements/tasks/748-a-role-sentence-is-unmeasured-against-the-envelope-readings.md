@@ -40,5 +40,10 @@ the readings record and ADR-0072 states the result.
   the reasoning channel on 16 of 96 runs. The `excerpt` and `answer` sentences read inside the plain
   interval, and no extraction copied under `excerpt`. The `precis` sentence read 13 of 32 against 25.
   The rows are in [reply envelope](../../readings/reply-envelope.md) and ADR-0072 states the result.
-  Filed [R-755](755-the-precis-sentence-read-lower-on-one-condition.md) for that cell's replication
-  on the card and for the Qwen3.5-2B rows, which did not fit beside the default's 192 runs.
+  That cell's replication on the card and the Qwen3.5-2B rows, which did not fit beside the
+  default's 192 runs, were left for the next card run.
+- 2026-09-30: Both drawn on the card. The `precis` cell read 12 of 32 against 27, apart again, and a
+  rewording ships in its place, whose second seed base is
+  [R-760](760-the-reworded-precis-sentence-reads-below-the-plain-summary.md). On Qwen3.5-2B the
+  `precis` and `excerpt` sentences read apart and lower and `answer` did not, on one seed base; the
+  second is [R-761](761-two-role-sentences-read-lower-on-the-roster-alternate.md).

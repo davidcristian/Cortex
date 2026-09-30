@@ -154,10 +154,9 @@ channel, which a delegated run drops. The `excerpt` and `answer` sentences read 
 column's interval, and no extraction copied, so the two sentences are not shown to change delivery
 and `excerpt` does not conflict with `REPLY_INSTRUCTION` on this pick. The `precis` sentence reads
 apart and lower: 6 of its 19 non-deliveries hand the body back `ok=True`, 5 of them on the network
-body, and 13 stop at the cap. Its replication was written down in
-[R-755](../refinements/tasks/755-the-precis-sentence-read-lower-on-one-condition.md) before it was
-drawn, and is the next row. The CPU columns are not comparable with the card columns above: the
-same plain shapes wrote into the channel on 16 of 96 runs here.
+body, and 13 stop at the cap. Its replication, written down before it was drawn, is the next row.
+The CPU columns are not comparable with the card columns above: the same plain shapes wrote into
+the channel on 16 of 96 runs here.
 
 **2026-09-30**, the `precis` cell on the card: gemma-4-E4B at the compose file's argv with `-ngl 99`
 (`--jinja`, the reasoning-off pair, `--cache-ram 0 --ctx-size 8192 --parallel 2 --threads 4`),
@@ -185,8 +184,7 @@ build of the row above, the figures shape at its four bodies and seeds 1 to 8, t
 server session: no sentence, the rewording, and the sentence of the row above. The SM clock read
 2047 to 2302 MHz over the 27 samples taken while it drew, 2250 at the median, of a 3090 MHz maximum,
 with the software power cap active on 22. Judged as the row above. The rule: the rewording ships if
-its interval overlaps the plain cell's. The samples and the log are under
-`measurements/sitting-2026-09-30b/`, row `758`.
+its interval overlaps the plain cell's. Samples and log: row `758` under `measurements/sitting-2026-09-30b/`.
 
 | sentence | delivered | copies | cap refusals | channel writes |
 | --- | --- | --- | --- | --- |
@@ -199,6 +197,26 @@ sentence. It reads 7 runs below the plain cell and 8 above the sentence it repla
 hands the body back `ok=True` on 4 runs, 3 of them on the network body. The other two cells repeat
 the row above reply for reply, 32 of 32 each: at one build a seeded draw returns the same reply, so
 a cell drawn again at the same seeds repeats the first draw rather than sampling again.
+
+**2026-09-30**, Qwen3.5-2B, the roster alternate, on the card: the `llama-subagent-qwen` argv at
+`-ngl 99`, the image and build above, each shape at four bodies and seeds 1 to 8, seven cells in one
+server session, row `755q` under `measurements/sitting-2026-09-30b/`. The `precis` cell drew the
+2026-09-29 sentence, still shipped in the tree the row ran from, and the rewording cell the one
+shipped now. SM clock 2017 to 2160 MHz over 15 samples, 2070 at the median, power cap active on 14.
+The rule: a role changes delivery here only where its interval and the plain cell's do not overlap.
+
+| shape | sentence | without | with | copies | cap refusals |
+| --- | --- | --- | --- | --- | --- |
+| summarization, its figures | `precis`, the first | 31/32 (0.84 to 0.99) | **9/32 (0.16 to 0.45)** | 1, 21 | 0, 1 |
+| summarization, its figures | `precis`, the rewording | the same cell | **17/32 (0.36 to 0.69)** | 1, 14 | 0, 1 |
+| extraction | `excerpt` | 27/32 (0.68 to 0.93) | **10/32 (0.18 to 0.49)** | 0, 0 | 5, 8 |
+| lookup | `answer` | 24/32 (0.58 to 0.87) | 30/32 (0.80 to 0.98) | 0, 0 | 0, 0 |
+
+Both `precis` sentences and `excerpt` read apart and lower here, `answer` inside the plain interval.
+The plain cells repeat the 2B's shipped-wording column above reply for reply. No run wrote into the
+channel, and every copy is the body handed back `ok=True`. Under `excerpt` 8 runs stop at the cap
+repeating numbers; of 14 others not delivered, 6 give one number and 4 write the sentence back.
+[R-761](../refinements/tasks/761-two-role-sentences-read-lower-on-the-roster-alternate.md) is the second seed base.
 
 ## A tier judging its own reply
 

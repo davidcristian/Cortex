@@ -30,3 +30,5 @@ in the readings record and ADR-0072 states the result.
 ## History
 
 - 2026-09-30: Filed when the rewording shipped on one seed base, 20 of 32 against 27 of 32 plain.
+- 2026-09-30: Item 1 queued as row `760` of the unattended run at
+  `measurements/sitting-2026-09-30c/`, its rule copied into that run's `prereg.md` before launch.

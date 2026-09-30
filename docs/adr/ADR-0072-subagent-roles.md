@@ -113,9 +113,17 @@ in `scripts/envelopejudges.py`).
   a plain cell at the same seeds, it read 20 of 32 against 27, the intervals overlapping, so by the
   rule written before that row it ships, with 4 copies of the body against none
   ([reply envelope](../readings/reply-envelope.md), "The role sentences"). Whether a second seed
-  base separates the two is [760](../refinements/tasks/760-the-reworded-precis-sentence-reads-below-the-plain-summary.md),
-  and the Qwen3.5-2B rows ([755](../refinements/tasks/755-the-precis-sentence-read-lower-on-one-condition.md))
-  are undrawn.
+  base separates the two is [760](../refinements/tasks/760-the-reworded-precis-sentence-reads-below-the-plain-summary.md).
+- On Qwen3.5-2B, the roster alternate, the `precis` and `excerpt` sentences lowered delivery on the
+  card (build `b10680-d7bd3bfca`, the `llama-subagent-qwen` argv at `-ngl 99`, SM clock 2070 MHz at
+  the median of a 3090 maximum), each apart from its plain cell. The figures-keeping summarization
+  read 31 of 32 without a sentence, 17 with the shipped `precis` sentence and 9 with the first, the
+  lost runs mostly the body handed back `ok=True` (14 and 21 copies). The extraction read 27 of 32
+  without and 10 with `excerpt`: 8 runs stopped at the cap, and others gave one number or wrote the
+  sentence back. The `answer` sentence read 30 of 32 against 24, inside the plain interval. That is
+  one seed base, so the sentences stay shipped; a second
+  ([761](../refinements/tasks/761-two-role-sentences-read-lower-on-the-roster-alternate.md)) decides
+  whether a role's sentence changes on this model.
 - The cortex pick names a role on every item it delegates. Under the first `excerpt` description,
   "each item the subtask asks for, written exactly as the text writes it", with `spawn_subagents` the
   only tool, every extraction named `answer` and none `excerpt`: 8 of 8 on CPU, 8 of 8 on a second
@@ -128,7 +136,7 @@ in `scripts/envelopejudges.py`).
   written before the card row, so the description ships. The names stay a proposal (decision 7).
 - On a constrained run the `excerpt` sentence asks for items as the text writes them, and
   `REPLY_INSTRUCTION` then forbids repeating the input back. No extraction copied the body with that
-  sentence or without it, so the two do not conflict on the default pick.
+  sentence or without it, so the two do not conflict on the default pick or on the alternate.
 - The per-role escape hatch of ADR-0017
   ([125](../refinements/tasks/125-per-role-escape-hatch.md)) still has no consumer: a role holds no
   model to override.

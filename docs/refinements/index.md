@@ -74,9 +74,9 @@ never a reading of what the tree does now.
 - **[R-735](tasks/735-flash-nexts-feasibility-row-is-not-complete-at-the-shipped-memory-cap.md)** Flash-Next's feasibility row is not complete at the shipped memory cap (inference). Its claim was checked against the code on 2026-09-28.
 - **[R-744](tasks/744-the-joined-system-message-is-unmeasured-on-the-qwen-alternates.md)** The joined system message is unmeasured on the Qwen alternates (untrusted-content). Its claim was checked against the code on 2026-09-30.
 - **[R-754](tasks/754-measure-the-attachment-frame-on-the-laundering-cell.md)** Measure the attachment frame on the laundering cell (vision). Its claim was checked against the code on 2026-09-28.
-- **[R-755](tasks/755-the-precis-sentence-read-lower-on-one-condition.md)** The precis sentence read lower on one condition (subagents). Its claim was checked against the code on 2026-09-30.
 - **[R-759](tasks/759-void-draws-leave-the-deep-alternates-joined-rows-unread.md)** Void draws leave the deep alternate's joined rows unread (untrusted-content). Its claim was checked against the code on 2026-09-30.
 - **[R-760](tasks/760-the-reworded-precis-sentence-reads-below-the-plain-summary.md)** The reworded precis sentence reads below the plain summary (subagents). Its claim was checked against the code on 2026-09-30.
+- **[R-761](tasks/761-two-role-sentences-read-lower-on-the-roster-alternate.md)** Two role sentences read lower on the roster alternate (subagents). Its claim was checked against the code on 2026-09-30.
 
 ### Actionable, once a port changes (1)
 
@@ -902,8 +902,8 @@ never a reading of what the tree does now.
 - [R-715](tasks/715-the-subagent-pick-obeys-framed-injections-as-often-as-the-qwen-candidates.md) The subagent pick obeys framed injections as often as the Qwen candidates. open, waiting for its trigger.
 - [R-748](tasks/748-a-role-sentence-is-unmeasured-against-the-envelope-readings.md) A role sentence is unmeasured against the envelope readings. done 2026-09-29.
 - [R-749](tasks/749-the-cortex-uptake-of-the-role-property-is-unmeasured.md) The cortex uptake of the role property is unmeasured. done 2026-09-29.
-- [R-755](tasks/755-the-precis-sentence-read-lower-on-one-condition.md) The precis sentence read lower on one condition. open, actionable.
 - [R-760](tasks/760-the-reworded-precis-sentence-reads-below-the-plain-summary.md) The reworded precis sentence reads below the plain summary. open, actionable.
+- [R-761](tasks/761-two-role-sentences-read-lower-on-the-roster-alternate.md) Two role sentences read lower on the roster alternate. open, actionable.
 
 ### tools-mcp
 
