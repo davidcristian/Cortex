@@ -4,10 +4,10 @@
 **Area:** inference
 **Trigger:** a recorded run of the text row, `test_injection_defense`, prints a void cell or fails
 `assert_measured`: a run with `CORTEX_PROBE_BRAIN` set that reaches either mixture-of-experts deep
-candidate, which the GPU runbook records consuming a whole context and answering nothing, or any
-later text row whose totals line names a void cell.
+candidate, which the deep-model pick recorded consuming a whole context and answering nothing, or
+any later text row whose totals line names a void cell.
 **Origin:** [ADR-0041](../../adr/ADR-0041-injection-image-variant.md)
-**Verified:** 2026-09-19
+**Verified:** 2026-09-30
 
 The text row posts `max_tokens: 1600` on every completion, the number its published matrices were
 measured under, and the shipped path posts no cap at all (ADR-0029 decision 19 and the comment on
@@ -21,10 +21,12 @@ more cells voided than were drawn, six or more of the ten.
 
 On the gemma pick nothing binds: the longest completion the brain-tier row ever drew was 773 tokens
 against that cap. The case is the two mixture-of-experts deep candidates in `BRAIN_CANDIDATES`,
-which the GPU runbook's brain-tier section records consuming an entire 8192-token context and
-returning `"content":""`: such a candidate voids every cell, so its row fails with the count in the
-message rather than printing a 0 of 10. What that failure does not say is what such a model does
-with the injected instruction once it finishes thinking, since no row lets it.
+which the deep-model pick ([H-017](../../host/tasks/017-deep-model-pick.md)) recorded consuming
+the whole of the deep tier's context, then 8192 tokens, and returning `"content":""`; the text
+row's cap of 1600 is far below that context or the shipped 16384. Such a candidate voids every
+cell, so its row fails with the count in the message rather than printing a 0 of 10. What that
+failure does not say is what such a model does with the injected instruction once it finishes
+thinking, since no row lets it.
 
 Raising the cap changes the request every published text row was measured under. Closing it means a
 cap that is a property of the row rather than of the whole harness: the tier's own budget where a
@@ -58,3 +60,9 @@ publishing what the thought-through reply did with the instruction.
   of 2026-09-17 and 2026-09-19 is an image row. The rest holds: `_MAX_TOKENS` is still 1600,
   `BRAIN_CANDIDATES` still has both mixture-of-experts entries, and the GPU runbook still records
   both consuming an entire 8192-token context and returning `"content":""`.
+- 2026-09-30: not fired. The one text row recorded since, Qwen3.8-27B's on 2026-09-26 through the
+  harness's `_MAX_TOKENS`, still 1600 at `test_injection_defense_live.py:364`, voided no cell
+  framed or unframed (`measurements/deep-2026-09-26/q27-r11-injection/row.log`), and no run
+  reached a mixture-of-experts candidate. The empty replies are recorded in the deep-model pick,
+  not the GPU runbook, at the deep tier's 8192 context before it moved to 16384; the body now says
+  so. Neither context changes the case, since the cap is far below both.

@@ -5,13 +5,16 @@
 **Origin:** [ADR-0004](../../adr/ADR-0004-model-lineup.md)
 **Trigger:** ADR-0004 names a Qwen3.8 artifact as a pick or alternate for any tier, or the maintainer
 picks the step two names below.
-**Verified:** 2026-09-26
+**Verified:** 2026-09-30
 
 The Qwen3.8 template reads `reasoning_effort` (`xhigh` by default, `high` rendered as `xhigh`,
 `medium`, `low`; any other value raises with thinking on) and `preserve_thinking` (on by default).
-The deep tier sends neither, so a Qwen3.8 deep tier runs at `xhigh`. At the 8192 context that
-stopped on 10 of 12 draws against 12 of 12 at `medium` and `low`, the misses filling the context
-with reasoning ([deep candidates](../../readings/deep-candidates.md)).
+The deep tier sends neither, so a Qwen3.8 deep tier runs at `xhigh`. At the deep tier's earlier
+8192 context that stopped on 10 of 12 draws against 12 of 12 at `medium` and `low`, the misses
+filling the context with reasoning ([deep candidates](../../readings/deep-candidates.md)). No
+Qwen3.8 draw was taken at the shipped 16384, where the pick's one miss at 8192 reasoned 418 tokens
+further and replied
+([deep tier at 16384](../../readings/history-window.md#the-deep-tier-at-16384)).
 
 No shipped pick or alternate reads the effort: the gemma, Qwen3.5 and Qwen3.6 templates render every
 value the same as none ([thinking-switch readings](../../readings/thinking-switch.md#the-effort-and-preserve-settings)).
@@ -44,3 +47,6 @@ and the maintainer declines step two.
 ## History
 
 - 2026-09-26: filed by the deep candidates' measurement.
+- 2026-09-30: not fired: ADR-0004 decision 8 names gemma-4-31B as the deep pick and Qwen3.6-27B
+  as its alternate, and no tier's decision names a Qwen3.8 artifact. The deep tier now starts at
+  16384, so the body marks the stop counts as drawn at 8192.

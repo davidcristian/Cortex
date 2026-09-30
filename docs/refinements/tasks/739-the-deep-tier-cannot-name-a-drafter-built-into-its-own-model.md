@@ -7,7 +7,7 @@
 or an env file in this tree, or ADR-0004 decision 8 naming Qwen3.8-27B as the deep pick or its
 alternate. Read it with `grep -rn 'CORTEX_MODEL_FILE_BRAIN' docker/ justfile` and decision 8's
 first sentence.
-**Verified:** 2026-09-26
+**Verified:** 2026-09-30
 
 `drafter_flags` in `tiers.py` returns `--model-draft PATH --spec-type draft-mtp` for a named
 `CORTEX_MODEL_FILE_BRAIN_DRAFT` and nothing otherwise (ADR-0004 decision 14), because the pick's
@@ -18,8 +18,9 @@ second time, which was read from the engine source and not run.
 
 Measured 2026-09-26 ([deep candidates](../../readings/deep-candidates.md)): 1.40 to 1.43 times the
 plain rate on reasoning and tool-call turns and 1.16 times on answer text, for 952 to 954 MiB more
-on the card. Not drawn: the pick with its own drafter on the same day, so the two drafters compare
-only across a week, and the `Qwen3.6-27B-MTP-GGUF` variant of the alternate on the mount.
+on the card, at the 8192 context the deep tier then started at. Not drawn: the pick with its own
+drafter on the same day, so the two drafters compare only across a week, and the
+`Qwen3.6-27B-MTP-GGUF` variant of the alternate on the mount.
 
 A fix lets the tier emit the type without a file, keeping `scripts/hostedtiers.py`'s single splat
 and the roster test's reading of the brain argv, and a deployment using it measures
@@ -29,3 +30,7 @@ asks of the pick's drafter.
 ## History
 
 - 2026-09-26: filed by the deep candidates' measurement.
+- 2026-09-30: not fired: `CORTEX_MODEL_FILE_BRAIN` defaults to empty in
+  `docker/docker-compose.gpu.yml:71`, the justfile names no artifact, and ADR-0004 decision 8 names
+  gemma-4-31B and Qwen3.6-27B. The deep tier now starts at 16384, so the body marks the drafting
+  layer's cost as read at 8192; the fix's own re-measure of `CORTEX_SWAP_BRAIN_VRAM_MIB` covers it.
