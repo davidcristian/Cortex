@@ -189,10 +189,10 @@ them on different subagent models") produced one call naming both entries and on
 in each server's log, which is what proves the setting reachable before a silence is read as a
 decision.
 
-The last test reads the `role` property instead. It puts twelve asks, one summary, one extraction
-or one lookup over each of four notes, stops each turn at its first dispatch, and prints the role
-each spawn item names beside the kind asked for, with the roles the spec offered and each item as
-written. No subagent runs, so it needs only the cortex, and a one-entry roster is the deployment's
+The last test reads the `role` property instead. It puts sixteen asks, one summary, one of two
+extraction wordings or one lookup over each of four notes, stops each turn at its first dispatch,
+and prints the role each spawn item names beside the ask and the role expected for it, with the
+roles the spec offered and each item as written. No subagent runs, so it needs only the cortex, and a one-entry roster is the deployment's
 own spec. Set `CORTEX_ROLE_UPTAKE_DRAWS` for more than one draw of each ask, and
 `CORTEX_SUBAGENTS_ROLES=false` for the spec without the property, which is the spec the 2026-08-04
 turns above were read against:

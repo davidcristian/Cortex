@@ -109,7 +109,9 @@ in `scripts/envelopejudges.py`).
 - The cortex pick names a role on every item it delegates. Drawn on CPU with `spawn_subagents` the
   only tool, 24 invited turns each named one role: `precis` for each summary and `answer` for each
   lookup, 8 of 8 each, and `answer` for each of 8 extractions, never `excerpt`
-  ([spawn spec uptake](../readings/spawn-spec-uptake.md)). The property is used, and on extraction
+  ([spawn spec uptake](../readings/spawn-spec-uptake.md)). A second extraction wording, "Extract
+  every number", named `answer` 8 of 8 as well, beside the first wording's 8 of 8 again in the same
+  session, so the result does not rest on one ask's wording. The property is used, and on extraction
   the names or descriptions mislead the cortex, so such a subtask reads the one-fact sentence. That
   is evidence for the pick of decision 7, and the names ship unchanged until the replication on the
   card ([756](../refinements/tasks/756-the-cortex-names-answer-for-an-extraction.md)) is drawn.

@@ -73,9 +73,13 @@ _needs_a_cortex_and_a_roster = pytest.mark.skipif(
 _ROLE_DRAWS = int(os.environ.get("CORTEX_ROLE_UPTAKE_DRAWS", "1"))
 _INVITE = "I would rather you hand this to a subagent than do it yourself."
 _ROLE_ASKS = {
-    "precis": "Summarize the note below in two sentences, keeping its figures, names and dates.",
-    "excerpt": "List every date the note below mentions.",
-    "answer": "What total cost does the note below state?",
+    "precis": (
+        "precis",
+        "Summarize the note below in two sentences, keeping its figures, names and dates.",
+    ),
+    "excerpt": ("excerpt", "List every date the note below mentions."),
+    "numbers": ("excerpt", "Extract every number from the note below."),
+    "answer": ("answer", "What total cost does the note below state?"),
 }
 _NOTES = (
     "Minutes, 14 March 2025. Priya Nair reported that the roof repair at the Leeds depot finished "
@@ -330,17 +334,18 @@ def _role_of(item: object) -> str:
 @_needs_a_cortex_and_a_roster
 @pytest.mark.parametrize("draw", range(_ROLE_DRAWS))
 @pytest.mark.parametrize("note", range(len(_NOTES)))
-@pytest.mark.parametrize("expected", sorted(_ROLE_ASKS))
+@pytest.mark.parametrize("ask", sorted(_ROLE_ASKS))
 async def test_the_cortex_names_the_role_of_the_subtask_it_delegates(
-    expected: str, note: int, draw: int
+    ask: str, note: int, draw: int
 ) -> None:
-    batches = await _first_spawn(f"{_INVITE} {_ROLE_ASKS[expected]}\n\n{_NOTES[note]}")
+    expected, wording = _ROLE_ASKS[ask]
+    batches = await _first_spawn(f"{_INVITE} {wording}\n\n{_NOTES[note]}")
     named = [_role_of(item) for items in batches for item in items]
     async with httpx.AsyncClient() as client:
         spec = _spawn_tool(SubagentsConfig(), BrainRuntimeConfig(), client).spec
     offered = _advertised(spec, "role")
     print(  # noqa: T201
-        f"\n[role-uptake] expected={expected} note={note} draw={draw} offered={offered} "
+        f"\n[role-uptake] ask={ask} expected={expected} note={note} draw={draw} offered={offered} "
         f"batches={[len(items) for items in batches]} named={named}"
     )
     for items in batches:

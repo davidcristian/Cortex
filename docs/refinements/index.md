@@ -76,7 +76,7 @@ never a reading of what the tree does now.
 - **[R-744](tasks/744-the-joined-system-message-is-unmeasured-on-the-qwen-alternates.md)** The joined system message is unmeasured on the Qwen alternates (untrusted-content). Its claim was checked against the code on 2026-09-28.
 - **[R-754](tasks/754-measure-the-attachment-frame-on-the-laundering-cell.md)** Measure the attachment frame on the laundering cell (vision). Its claim was checked against the code on 2026-09-28.
 - **[R-755](tasks/755-the-precis-sentence-read-lower-on-one-condition.md)** The precis sentence read lower on one condition (subagents). Its claim was checked against the code on 2026-09-29.
-- **[R-756](tasks/756-the-cortex-names-answer-for-an-extraction.md)** The cortex names answer for an extraction (subagents). Its claim was checked against the code on 2026-09-29.
+- **[R-756](tasks/756-the-cortex-names-answer-for-an-extraction.md)** The cortex names answer for an extraction (subagents). Its claim was checked against the code on 2026-09-30.
 
 ### Actionable, once a port changes (1)
 

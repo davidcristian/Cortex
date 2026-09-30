@@ -38,3 +38,20 @@ again and put the note inside the instruction with no `context`.
 A turn evaluated 857 prompt tokens cold and 111 to 127 once the engine's prompt cache held the
 header and the tool declaration, and wrote 186 to 1024 tokens of reasoning and call, 318 at the
 median. No wall clock is quoted: the other run shared the machine throughout.
+
+**2026-09-30**, the same condition, image, build and argv, to read whether the extraction result
+rests on the one ask's "List": a second extraction wording, "Extract every number from the note
+below.", the verb of the measured extraction shape, drawn beside the first extraction ask as a
+same-session control. Two draws of each over the four notes, 16 turns, fixed before the first
+draw with the null result and the rule above; the new ask is the `numbers` entry of the probe's
+`_ROLE_ASKS`, and the logs are under `measurements/role-uptake-2026-09-30/`.
+
+| ask | expected | turns delegating | items naming a role | naming the expected one | named instead |
+| --- | --- | --- | --- | --- | --- |
+| "Extract every number from the note below." | `excerpt` | 8/8 | 8/8 | **0/8 (0.00 to 0.32)** | `answer`, 8 |
+| "List every date the note below mentions." | `excerpt` | 8/8 | 8/8 | **0/8 (0.00 to 0.32)** | `answer`, 8 |
+
+Each turn again wrote one batch of one item holding only `instruction` and `role`, with the note
+inside the instruction. The control repeats the first row, and the second wording names `answer`
+every time too, so on this condition the extraction result does not rest on the verb "List" or on
+dates. A turn wrote 260 to 553 tokens of reasoning and call, 306 at the median.
