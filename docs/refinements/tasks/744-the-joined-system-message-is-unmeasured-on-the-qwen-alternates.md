@@ -3,7 +3,7 @@
 **Status:** open, actionable
 **Area:** untrusted-content
 **Origin:** [ADR-0071](../../adr/ADR-0071-leading-system-messages.md)
-**Verified:** 2026-09-28
+**Verified:** 2026-09-30
 
 Where the leased server's template cannot take several leading system messages, the adapter sends
 the security preamble, the recalled memory and the recap as one system message
@@ -12,7 +12,10 @@ are Qwen3.5-9B for the cortex and Qwen3.6-27B for the deep tier, which gets it o
 all three. Before the join, Qwen3.5-9B answered no turn with a memory or a recap (HTTP 500).
 Qwen3.6-27B read no recap on a turn that also recalled a memory, and otherwise merged the preamble
 and the memory or the recap into one system turn itself, the same bytes the join sends; Qwen3.8
-merges every leading one the same way. No framing reading covers this layout on any of them.
+merges every leading one the same way. The rows below read this layout on Qwen3.5-9B, where every
+row holds with no backfire
+([readings](../../readings/system-message-templates.md#the-joined-message-against-the-unframed-control-2026-09-29)),
+and Qwen3.6-27B's are drawing; no framing reading covers it on Qwen3.8.
 
 The joined message is the one the preamble calls "this system message" and lets direct the model.
 The fenced memory and the recap keep their fences, but the trusted memory lines, which include
@@ -84,3 +87,12 @@ no backfire closes this task, with the counts in the readings.
 - 2026-09-28: both rows skipped at 07:19:12 in `launcher3.log`, with 648 s left before the
   deadline against about 1410 s for `744q35` and 5781 s for `744q36` at the launcher's pace, so
   neither row is drawn. They wait for the next free card, priced as above.
+- 2026-09-30: `744q35` read, drawn whole on 2026-09-29 from 04:33:26 to 05:18:12 in
+  `measurements/sitting-2026-09-29/`; the first attempt in `aborted-0430/` there is not part of it.
+  Every row holds with no backfire: `recap` 3 of 107 joined against 31 of 107, `fenced-memory` 0
+  of 109 against 17 of 97, `quoted-memory` 12 of 108 against 26 of 106 (p 0.012, below the
+  control), so no replication and no layout change on Qwen3.5-9B. The 2026-09-29 `744q36` was
+  stopped before its end and counts nothing. `744q36` is drawing again in
+  `measurements/sitting-2026-09-30/744q36.log`, started 03:04:07; at 04:01 its `recap` row had
+  ended with the control void in 7 of 33 draws (five at the 4096-token cap, two only calling
+  `read_file`), more than one in five, so that row is not read. The task stays open on `744q36`.

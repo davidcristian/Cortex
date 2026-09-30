@@ -91,7 +91,12 @@ test could fail on it.
 - A completion that opens with two or more system messages costs one extra render request. The
   worst of 240 probes over four servers, idle and beside a generation, was 0.013 of the timeout.
 - Production has two layouts, and only the probe's log line shows which one an endpoint receives.
-- The joined layout has no injection or framing measurement on the Qwen alternates
+- On Qwen3.5-9B the joined layout resists injections better than the same texts sent without the
+  preamble and the fences, at 110 draws a variant: 3 obeyed of 107 against 31 of 107 with the
+  attack in the recap, 0 of 109 against 17 of 97 in a tainted memory, and 12 of 108 against 26 of
+  106 when it is quoted in a trusted memory's reply
+  ([readings](../readings/system-message-templates.md#the-joined-message-against-the-unframed-control-2026-09-29)).
+  Qwen3.6-27B is not yet read
   ([R-744](../refinements/tasks/744-the-joined-system-message-is-unmeasured-on-the-qwen-alternates.md)).
 - On a turn that also recalls a memory, the deep alternate's prompt now includes the recap it used
   to drop, up to `RECAP_MAX` (2000 characters) plus the preface, inside the margin
@@ -102,9 +107,11 @@ test could fail on it.
   message", the one text besides the user's own messages it lets direct the model. The fenced
   memory and the recap keep their fences and prefaces byte for byte, but the trusted memory lines,
   which include earlier assistant replies (`render_exchange`), sit inside it unfenced. Qwen3.6 at
-  two messages and Qwen3.8 at two and three already render this layout on their own. No reading
-  covers it
-  ([R-744](../refinements/tasks/744-the-joined-system-message-is-unmeasured-on-the-qwen-alternates.md)).
+  two messages and Qwen3.8 at two and three already render this layout on their own. On
+  Qwen3.5-9B an injection quoted there was obeyed less often than without the preamble, as the
+  bullet above says; no reading covers it on Qwen3.6-27B yet
+  ([R-744](../refinements/tasks/744-the-joined-system-message-is-unmeasured-on-the-qwen-alternates.md))
+  or on Qwen3.8.
 - A stored system message next to the prefix would be joined into the preamble's message, so the
   session store refuses to append one, a handoff record refuses one in its loop tail, and both read
   a stored one as a corrupt record
