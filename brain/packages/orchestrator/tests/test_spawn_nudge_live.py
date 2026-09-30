@@ -2,7 +2,7 @@ import json
 import os
 from collections.abc import Mapping, Sequence
 from contextlib import aclosing
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import cast
 
 import httpx
@@ -23,6 +23,7 @@ from cortex_core import (
     SubagentPlacer,
     SubagentProfile,
     SubagentResources,
+    SubagentRoles,
     SubagentRoster,
     SubagentRunner,
     SubagentScheduler,
@@ -71,6 +72,17 @@ _needs_a_cortex_and_a_roster = pytest.mark.skipif(
     reason="set CORTEX_INFERENCE_ENDPOINT and CORTEX_SUBAGENTS_BACKEND=llamacpp with its endpoints",
 )
 _ROLE_DRAWS = int(os.environ.get("CORTEX_ROLE_UPTAKE_DRAWS", "1"))
+_EXCERPT_DESCRIPTION = os.environ.get("CORTEX_ROLE_UPTAKE_EXCERPT", "")
+
+
+def _roles() -> SubagentRoles:
+    """``SHIPPED_ROLES``, with the `excerpt` description a row sets drawn in its place."""
+    if not _EXCERPT_DESCRIPTION:
+        return SHIPPED_ROLES
+    excerpt = replace(SHIPPED_ROLES.entries["excerpt"], description=_EXCERPT_DESCRIPTION)
+    return SubagentRoles(entries={**SHIPPED_ROLES.entries, "excerpt": excerpt})
+
+
 _INVITE = "I would rather you hand this to a subagent than do it yourself."
 _ROLE_ASKS = {
     "precis": (
@@ -156,7 +168,7 @@ def _spawn_tool(
         roster,
         clock,
         constrain_output=config.constrain_output,
-        roles=SHIPPED_ROLES if config.roles else NO_ROLES,
+        roles=_roles() if config.roles else NO_ROLES,
     )
     return SpawnSubagentsTool(runner, store, clock)
 
@@ -346,7 +358,8 @@ async def test_the_cortex_names_the_role_of_the_subtask_it_delegates(
     offered = _advertised(spec, "role")
     print(  # noqa: T201
         f"\n[role-uptake] ask={ask} expected={expected} note={note} draw={draw} offered={offered} "
-        f"batches={[len(items) for items in batches]} named={named}"
+        f"batches={[len(items) for items in batches]} named={named} "
+        f"excerpt_description={_roles().entries['excerpt'].description!r}"
     )
     for items in batches:
         for item in items:
