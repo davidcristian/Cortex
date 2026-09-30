@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** email-confirmer
 **Origin:** [ADR-0022](../../adr/ADR-0022-email-write-confirmer.md)
-**Verified:** 2026-09-19
+**Verified:** 2026-09-30
 **Trigger:** a deployment where confirmations arrive often enough that the user starts approving
 them without reading them. Which tools can produce one is read off the shipped default,
 `confirm_names` in `brain/packages/orchestrator/src/cortex_orchestrator/config_tools.py`, and how
@@ -24,7 +24,8 @@ aimed at sends would leave the other half where it is.
 One direction is already bounded. Within a turn, a model emitting such calls cannot flood the user,
 because `dispatch` checks the caller's refusal ahead of the confirmation, so a spent budget or a
 recognized repeat returns before the confirmer is consulted, and `MAX_TOOL_DISPATCHES` is 32.
-`config_tools.py` relies on exactly that where it says why `send_email` is deliberately unpriced.
+The budget decision in [ADR-0009](../../adr/ADR-0009-tools-mcp.md) leaves `send_email` unpriced
+because a human already approves each send, which relies on the same bound.
 What is unbounded is the count across turns.
 
 Either shape works behind the unchanged `Confirmer` port, since both are decisions the dispatcher
@@ -51,3 +52,8 @@ allowlist over `send_email` is a permanent approval to send mail.
   and the refusal check still returns first. The default is still the whole set that can raise a
   card: `dispatch` checks the advertised flag or the set, the only built-in advertising its own flag
   is `escalate_to_brain`, and the tools adapter builds no remote spec with the flag set.
+- 2026-09-30: Claims held and both readings are unchanged: `confirm_names` defaults to
+  `escalate_to_brain` and `send_email` (`config_tools.py` lines 42 and 43, still read from
+  `CORTEX_TOOLS_GATED`), `MAX_TOOL_DISPATCHES` is 32, and `dispatch` returns a refusal before line
+  130 checks the confirm set. One pointer was wrong: `config_tools.py` no longer says why
+  `send_email` is unpriced, and ADR-0009 does, so the body now cites it. No deployment runs here.

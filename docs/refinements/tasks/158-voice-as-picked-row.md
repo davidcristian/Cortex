@@ -4,7 +4,7 @@
 **Area:** body-overlay
 **Origin:** [ADR-0037](../../adr/ADR-0037-whisper-streaming.md)
 **Trigger:** The user wanting a second voice back, or any second streaming treatment being asked for.
-**Verified:** 2026-09-19
+**Verified:** 2026-09-30
 
 The whisper shipped as the only streaming effect (ADR-0037 decision 1), but it was chosen from a
 pitched family of four, each with a breath, words and settle lifecycle. Promoting it to a pickable
@@ -31,3 +31,9 @@ row is left to the maintainer.
   `body/app/src/whisper/` has changed. The tile's neighbours are still `EdgeMini.tsx` at 87 lines
   and `BubbleMark.tsx` at 203. One detail to note: `overlay/usePreferences.ts` records a fixed
   triple of theme, mark and window, so a fourth key widens that type.
+- 2026-09-30: Checked again; the shape holds and the trigger has not fired, since nothing in the
+  tree or the backlog asks for a second voice. The only commit under `body/app/src/whisper/` since
+  2026-09-19 renamed a test. The counts from 2026-09-13 were read before long comments were cut:
+  `useWhisperClock.ts` is 264 lines, 36 under the limit, with its `requestAnimationFrame` loop at
+  line 231; `EdgeMini.tsx` is 82 and `BubbleMark.tsx` 198. `usePreferences.ts` still holds the fixed
+  triple at lines 17 to 19.

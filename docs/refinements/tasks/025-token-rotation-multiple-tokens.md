@@ -4,7 +4,7 @@
 **Area:** rpc-auth
 **Origin:** [ADR-0016](../../adr/ADR-0016-shared-token.md)
 **Trigger:** A second party on this connection, meaning a client the pair's own operator does not run, whose credential has to be withdrawn without disturbing the other.
-**Verified:** 2026-09-19
+**Verified:** 2026-09-30
 
 Rotating or issuing several tokens buys nothing for one body and brain pair run by one person.
 The other deferred item from the same ADR, mTLS on a non-loopback link, is recorded at
@@ -12,8 +12,9 @@ The other deferred item from the same ADR, mTLS on a non-loopback link, is recor
 splitting the shared secret into a per-direction pair.
 
 The trigger as first worded asked for a second client, and a second client exists: the brain is a
-client of the body's `BodyService`, and `docker/docker-compose.body.yml` gives that direction the
-same shared `CORTEX_SEAM_TOKEN` the Tauri body presents to `BrainService`. The one secret reaches
+client of the body's `BodyService`. `docker/docker-compose.body.yml` turns that direction on, and
+the brain presents on it the same shared `CORTEX_SEAM_TOKEN` the Tauri body presents to
+`BrainService`, passed in by `docker/docker-compose.yml`. The one secret reaches
 four readers: `converse.rs` and `brain.rs` in the body's shell attach it outbound, `body_server.rs`
 compares it inbound, and the brain reads it once as `RpcServerConfig.token`, which `wiring.py`
 hands both to its own interceptor and to the outbound body gateway. Nothing follows from that for
@@ -36,3 +37,8 @@ another keeps working, which is what the trigger now asks for.
   runs `body/crates/rpc/tests/live.rs`, and the brain's `integration`-marked live tests. Those run
   under the same operator on the same machine. No compose file, runbook or default gives the token
   to anything the pair's operator does not run.
+- 2026-09-30: Checked again, and the trigger has not fired. The four readers are
+  `converse.rs` line 210, `brain.rs` line 76 and `body_server.rs` line 86 in the shell, the last now
+  shared by the Linux `start` as well, and `RpcServerConfig` (prefix `CORTEX_SEAM_`), which
+  `wiring.py` line 81 and `server.py` line 168 use. The body said the body overlay passed the
+  token; it only sets the backend and endpoint, so the paragraph now names `docker-compose.yml`.
