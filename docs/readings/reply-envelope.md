@@ -152,10 +152,29 @@ channel, which a delegated run drops. The `excerpt` and `answer` sentences read 
 column's interval, and no extraction copied, so the two sentences are not shown to change delivery
 and `excerpt` does not conflict with `REPLY_INSTRUCTION` on this pick. The `precis` sentence reads
 apart and lower: 6 of its 19 non-deliveries hand the body back `ok=True`, 5 of them on the network
-body, and 13 stop at the cap. This is one cell under one condition, and its replication is written
-down in [R-755](../refinements/tasks/755-the-precis-sentence-read-lower-on-one-condition.md). The
-CPU columns are not comparable with the card columns above: the same plain shapes wrote into the
-channel on 16 of 96 runs here.
+body, and 13 stop at the cap. Its replication was written down in
+[R-755](../refinements/tasks/755-the-precis-sentence-read-lower-on-one-condition.md) before it was
+drawn, and is the next row. The CPU columns are not comparable with the card columns above: the
+same plain shapes wrote into the channel on 16 of 96 runs here.
+
+**2026-09-30**, the `precis` cell on the card: gemma-4-E4B at the compose file's argv with `-ngl 99`
+(`--jinja`, the reasoning-off pair, `--cache-ram 0 --ctx-size 8192 --parallel 2 --threads 4`),
+`ghcr.io/ggml-org/llama.cpp:server-cuda` at `sha256:952424b09abc`, `build_info` `b10680-d7bd3bfca`,
+the build of the CPU row. The figures shape, constrained, four bodies at eight seeded draws a cell,
+without and then with the sentence, in one server session of an unattended run. The SM clock read
+2092 to 2392 MHz over the row's 19 samples, 2250 at the median, of a 3090 MHz maximum, with the
+software power cap not active. The judge is `delivered` in `scripts/envelopejudges.py` under the
+tabled reading, counted as the CPU row was: the same count reproduces that row cell for cell. The
+rule: it replicates if the role column is again lower with the two intervals apart. The samples
+and the log are under `measurements/sitting-2026-09-30/`, row `755`.
+
+| shape | role | without | with | copies | cap refusals | channel writes |
+| --- | --- | --- | --- | --- | --- | --- |
+| summarization, its figures | `precis` | 27/32 (0.68 to 0.93) | **12/32 (0.23 to 0.55)** | 0, 7 | 5, 13 | 9, 17 |
+
+The intervals are apart again, so the drop replicates on the card. The plain column repeats the
+card's shipped-wording reading of 2026-09-13, 26 of 32. With the sentence, 7 runs hand the body back
+`ok=True`, 3 of them on the network body, and the 13 cap refusals fall on the other three bodies.
 
 ## A tier judging its own reply
 

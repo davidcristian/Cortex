@@ -102,19 +102,26 @@ in `scripts/envelopejudges.py`).
   delivery: 26 and 30 of 32 against 30 and 31 without them, each inside the other's interval
   ([reply envelope](../readings/reply-envelope.md), "The role sentences"). They stay as a form the
   cortex can name.
-- On that pick the `precis` sentence delivered the figures-keeping summarization 13 of 32 against
-  25 without it, the one cell apart, with 6 copies of the body and 13 cap refusals. It ships
-  unchanged until the replication on the card and the Qwen3.5-2B rows
-  ([755](../refinements/tasks/755-the-precis-sentence-read-lower-on-one-condition.md)) are drawn.
-- The cortex pick names a role on every item it delegates. Drawn on CPU with `spawn_subagents` the
-  only tool, 24 invited turns each named one role: `precis` for each summary and `answer` for each
-  lookup, 8 of 8 each, and `answer` for each of 8 extractions, never `excerpt`
-  ([spawn spec uptake](../readings/spawn-spec-uptake.md)). A second extraction wording, "Extract
-  every number", named `answer` 8 of 8 as well, beside the first wording's 8 of 8 again in the same
-  session, so the result does not rest on one ask's wording. The property is used, and on extraction
-  the names or descriptions mislead the cortex, so such a subtask reads the one-fact sentence. That
-  is evidence for the pick of decision 7, and the names ship unchanged until the replication on the
-  card ([756](../refinements/tasks/756-the-cortex-names-answer-for-an-extraction.md)) is drawn.
+- On that pick the `precis` sentence lowers the figures-keeping summarization on both conditions
+  drawn: 13 of 32 against 25 without it on CPU, and 12 of 32 against 27 on the card (build
+  `b10680-d7bd3bfca`, the compose argv at `-ngl 99`, SM clock 2250 MHz at the median of a 3090
+  maximum), the intervals apart each time, with 6 and 7 copies of the body and 13 cap refusals
+  each. By the rule written before the card row, the drop replicates, so the sentence is to be
+  reworded or removed ([758](../refinements/tasks/758-the-precis-sentence-lowers-the-figures-summary-on-both-conditions.md)).
+  Until a replacement is drawn it ships unchanged, and the Qwen3.5-2B rows
+  ([755](../refinements/tasks/755-the-precis-sentence-read-lower-on-one-condition.md)) are undrawn.
+- The cortex pick names a role on every item it delegates, and names `answer` for an extraction.
+  With `spawn_subagents` the only tool, every extraction named `answer` and none `excerpt`: 8 of 8
+  on CPU, 8 of 8 on a second wording ("Extract every number"), and 16 of 16 on the card (build
+  `b10680-d7bd3bfca`, the cortex tier's argv at `-ngl 99`, SM clock 1912 MHz at the median of a 3090
+  maximum), while the summaries named `precis` 8 of 8 and 15 of 16 and the lookups `answer` 8 of 8
+  and 16 of 16 ([spawn spec uptake](../readings/spawn-spec-uptake.md)). The card row replicates the
+  CPU reading by the rule written before it, so on extraction the shipped names and descriptions
+  mislead the cortex, and such a subtask reads the one-fact sentence. On CPU a new `excerpt`
+  description, naming a list of every item of one kind rather than one fact, drew `excerpt` 7 of 8
+  with the other kinds unchanged. The names and descriptions ship unchanged until that description
+  is drawn on the card, or the maintainer picks a name set of decision 7
+  ([756](../refinements/tasks/756-the-cortex-names-answer-for-an-extraction.md)).
 - On a constrained run the `excerpt` sentence asks for items as the text writes them, and
   `REPLY_INSTRUCTION` then forbids repeating the input back. No extraction copied the body with that
   sentence or without it, so the two do not conflict on the default pick.

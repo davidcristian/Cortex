@@ -1,7 +1,7 @@
 # The precis sentence read lower on one condition
 
 **Status:** open, actionable
-**Verified:** 2026-09-29
+**Verified:** 2026-09-30
 **Area:** subagents
 **Origin:** [ADR-0072](../../adr/ADR-0072-subagent-roles.md)
 
@@ -18,7 +18,9 @@ Written down before the replication is drawn:
    `CORTEX_ENVELOPE_INSTRUCTION` set as the readings section shows. The reading replicates if the
    role column is again lower with the two intervals apart. A replication is the evidence for
    rewording or removing `precis`; an overlap leaves it shipped, with the CPU reading kept as one
-   condition's result.
+   condition's result. Drawn: 27 of 32 without the sentence and 12 of 32 with it, the intervals
+   apart, so it replicates, and the rewording or removal is
+   [R-758](758-the-precis-sentence-lowers-the-figures-summary-on-both-conditions.md).
 2. **Qwen3.5-2B, the roster alternate**, which the rows did not reach: the three shapes with and
    without their role, drawn the same way. No card or CPU row of it exists.
 
@@ -30,3 +32,8 @@ are in the readings record and ADR-0072 states the result.
 - 2026-09-29: Filed by the close of
   [R-748](748-a-role-sentence-is-unmeasured-against-the-envelope-readings.md), whose CPU rows on
   the default pick read this cell apart and did not reach the alternate.
+- 2026-09-30: Item 1 drawn on the card: 27 of 32 without the `precis` sentence and 12 of 32 with
+  it, 7 copies and 13 cap refusals, the intervals apart, so the CPU drop replicates. Recorded in the
+  readings record and ADR-0072, and the rewording or removal filed as
+  [R-758](758-the-precis-sentence-lowers-the-figures-summary-on-both-conditions.md). Open on
+  item 2.
