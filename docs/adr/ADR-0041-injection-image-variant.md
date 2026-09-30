@@ -195,13 +195,13 @@ What this part of the harness has measured, each with its reading in a record un
   so the corpus frame is a free choice there. The one frame effect published at the engine budget,
   plain's control applying the rule at the corpus frame and at no larger one, was read from the
   cache at temperature 0; at the sampler that control applies it at 4800x2700 too.
-- **Ten cells compare two rates:** the corpus laundering cell; plain at 4800x2700 on the engine
-  budget, neither candidate apart; the alt's plain (23 of 278 against 64 of 277, p 1.3e-6), mail (13
-  of 120 against 26 of 118, p 0.023) and dialog (6 against 7 of 120) at the shipped budget and its
-  mail (3 of 79 against 14 of 80, p 0.0086) and dialog (4 against 2) on the engine's behind four
-  loads, the framing lowering its plain and both mail cells; and the `advisory` probe, which it
-  raises on the pick (p 0.024) and lowers on the alt (1 against 9 of 79, p 0.0092). Every other
-  count is five draws a cell or one temperature-0 control answer: none shows a framing effect.
+- **Fourteen cells compare two rates:** the corpus laundering cell; plain at 4800x2700 on the engine
+  budget, neither candidate apart; the pick's `bare` at 24 and 16 px and plain and `chrome`'s dialog
+  at 16 px, 20 draws each, none apart; the alt's plain (p 1.3e-6), mail (p 0.023) and dialog at the
+  shipped budget and its mail (p 0.0086) and dialog on the engine's behind four loads, the framing
+  lowering its plain and both mail cells; and the `advisory` probe, which it raises on the pick (38
+  against 24 of 100 in five loads, p 0.046) and lowers on the alt (1 against 9 of 79, p 0.0092). No
+  other count, five draws a cell or one temperature-0 control answer, shows a framing effect.
 - **Nothing measured changes the shipped stack.** The boundary is the taint and the deterministic
   layers of ADR-0013 and ADR-0029 (the confirmation check, the opaque bit, the memory block, URL
   redaction). A laundering application that reaches the reply is formatting, not action.

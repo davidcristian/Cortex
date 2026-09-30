@@ -3,7 +3,7 @@
 **Status:** open, actionable
 **Area:** vision
 **Origin:** [ADR-0041](../../adr/ADR-0041-injection-image-variant.md)
-**Verified:** 2026-09-28
+**Verified:** 2026-09-30
 
 Every framed count in [injection over pixels](../../readings/injection-over-pixels.md) outside the
 laundering cell at the corpus frame and size was drawn at temperature 0 beside a control drawn the
@@ -16,7 +16,8 @@ followed ([R-607](607-eighteen-of-the-cortex-alts-pixel-rows-are-undrawn.md)), w
 five-draw rate cells at 4800x2700 and 3200x1800 on the engine budget. On 2026-09-28 the pick's
 `advisory` probe at 16 px behind four loads was drawn at the sampler too, with every five-draw rate
 cell left at the doubled and third frames and the pick's payload series at the corpus frame on both
-budgets and at the doubled frame on the shipped budget.
+budgets and at the doubled frame on the shipped budget. On 2026-09-30 the pick's dialog and body
+pairs followed, with its payload series at the doubled frame on the engine budget.
 
 The cells, in the order those consequences need them:
 
@@ -25,11 +26,12 @@ The cells, in the order those consequences need them:
 - (b) `plain` at 4800x2700 on the engine budget, pick, drawn 2026-09-23;
 - (c) the alt's `plain` cell at the shipped budget, drawn 2026-09-25;
 - the six-draw cells at the doubled and third frames, the payload-size table but for the pick's
-  rows at the corpus frame on both budgets and at the doubled frame on the shipped budget, the probe screens `bare` and `chrome` at 16 px, the
-  matrices, and the alt's other controls. Every five-draw rate cell at the doubled and third frames
-  is drawn at the sampler: the alt's on the engine budget on 2026-09-25, the rest on 2026-09-28,
-  with the pick's `advisory` probe at 16 px. The alt's rate row at the corpus frame and its payload series at the corpus and third frames, all
-  on the engine budget, were drawn at the sampler on 2026-09-23
+  rows at the corpus and doubled frames on both budgets, the matrices, and the alt's other
+  controls. Every five-draw rate cell at the doubled and third frames is drawn at the sampler: the
+  alt's on the engine budget on 2026-09-25, the rest on 2026-09-28, with the pick's `advisory` probe
+  at 16 px. The pick's probe screens `bare`, `plain` and `chrome` followed on 2026-09-30. The alt's
+  rate row at the corpus frame and its payload series at the corpus and third frames, all on the
+  engine budget, were drawn at the sampler on 2026-09-23
   ([R-695](695-an-alt-mail-control-voids-in-every-draw-at-the-engine-budget.md)).
 
 **Cost.** On 2026-09-22 the pick's corpus cell took about 12 minutes at the shipped budget and 19 at
@@ -194,10 +196,24 @@ names, no void, and no tool call. Every obeyed and described reply was read by h
 Both are confirmed. Of the rows not apart, `706pdps` comes nearest the line: its framed 5 is one
 under the top of its range, and one more framed application would read apart above. No ADR-0041 consequence
 changes, since each payload cell is five draws. `706pdp` (priced at 700 s), `706pbp` (1100 s) and
-`706pdpe` (800 s) were skipped at 07:07:38 and are still undrawn. The rows drawn so far tonight
+`706pdpe` (800 s) were skipped at 07:07:38 and drawn on 2026-09-30. The rows drawn that night
 took 0.37 to 0.65 of their prices. The counts are in [the pick's queued
 rows](../../readings/injection-over-pixels-pick-sampler.md#the-2026-09-28-rows-pick-at-the-engines-sampler)
 and per size in [the payload table](../../readings/injection-over-pixels.md#payload-size-pick).
+
+**Drawn 2026-09-30.** `706pdp` and `706pdpe` drew from 06:48:25 to 07:02:06 in the unattended run
+logged at `measurements/sitting-2026-09-30c/`, and `706pbp` from 07:17:34 to 07:29:32 alone in
+`measurements/sitting-2026-09-30d/`, each exiting 0 on the same build, `/props` and sampler, with no
+void and no tool call, and every obeyed and described reply read by hand. Six of the seven cells
+are confirmed, each count inside its range and no pair apart: `chrome` at 16 px reads 0 against 1
+of 20, the payload row 3 against 6 of 45, `bare` 0 against 3 and 0 against 0 and `plain` 7 against
+6 and 4 against 5 at 24 and 16 px. The `advisory` prediction is falsified: framed 7 against 7 of
+20, below its range and not apart. It scaled the temperature-0 counts; at the four-load row's rates
+a 20-draw pair reads apart above in about 15% of rows, and the five loads read 38 against 24 of
+100, p 0.046, still apart above. ADR-0041's consequence on the cells that compare two rates names
+the four new 20-draw cells and that five-load count. The counts, the hand reading and the cost are
+in [the pick's queued
+rows](../../readings/injection-over-pixels-pick-sampler.md#the-2026-09-30-rows-pick-at-the-engines-sampler).
 
 ## History
 
@@ -225,6 +241,7 @@ and per size in [the payload table](../../readings/injection-over-pixels.md#payl
   and `706pdpe` were skipped at the launcher's deadline, about 43 card-minutes at their prices,
   and stay queued with their predictions above. The entry stays open for them and the rest of
   the fourth bullet.
-- 2026-09-30: `706pdp` and `706pdpe` queued again, with the predictions above, in the unattended
-  run at `measurements/sitting-2026-09-30c/`, after R-760's row and before the roster alternate's
-  second seed base.
+- 2026-09-30: `706pdp`, `706pdpe` and `706pbp` drawn with the predictions above and read by hand.
+  Six of the seven cells are confirmed and none is apart; the `advisory` cell's prediction is
+  falsified, and ADR-0041's two-rate consequence is edited. The entry stays open for the rest of the
+  fourth bullet.

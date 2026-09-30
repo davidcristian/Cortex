@@ -70,7 +70,7 @@ never a reading of what the tree does now.
 ### Actionable now (6)
 
 - **[R-607](tasks/607-eighteen-of-the-cortex-alts-pixel-rows-are-undrawn.md)** Six of the cortex alt's thirty-six pixel rows are undrawn (inference). Its claim was checked against the code on 2026-09-28.
-- **[R-706](tasks/706-only-the-corpus-laundering-cell-is-drawn-at-the-engines-sampler.md)** Most pixel cells are drawn only at temperature 0 (vision). Its claim was checked against the code on 2026-09-28.
+- **[R-706](tasks/706-only-the-corpus-laundering-cell-is-drawn-at-the-engines-sampler.md)** Most pixel cells are drawn only at temperature 0 (vision). Its claim was checked against the code on 2026-09-30.
 - **[R-735](tasks/735-flash-nexts-feasibility-row-is-not-complete-at-the-shipped-memory-cap.md)** Flash-Next's feasibility row is not complete at the shipped memory cap (inference). Its claim was checked against the code on 2026-09-28.
 - **[R-744](tasks/744-the-joined-system-message-is-unmeasured-on-the-qwen-alternates.md)** The joined system message is unmeasured on the Qwen alternates (untrusted-content). Its claim was checked against the code on 2026-09-30.
 - **[R-759](tasks/759-void-draws-leave-the-deep-alternates-joined-rows-unread.md)** Void draws leave the deep alternate's joined rows unread (untrusted-content). Its claim was checked against the code on 2026-09-30.
