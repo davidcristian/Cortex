@@ -87,7 +87,7 @@ class ConfirmRequiredToolRegistry:
 
     def __init__(self, inner: ToolRegistry, *, names: Sequence[str]) -> None:
         if not names:
-            msg = "GatedToolRegistry needs at least one tool name to confirm"
+            msg = "ConfirmRequiredToolRegistry needs at least one tool name to confirm"
             raise ValueError(msg)
         self._inner = inner
         self._names = frozenset(names)

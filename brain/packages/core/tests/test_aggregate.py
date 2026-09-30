@@ -209,7 +209,9 @@ async def test_filter_only_restricts_never_grants() -> None:
 
 
 def test_confirm_required_overlay_requires_a_non_empty_name_set() -> None:
-    with pytest.raises(ValueError, match="at least one tool name to confirm"):
+    with pytest.raises(
+        ValueError, match="ConfirmRequiredToolRegistry needs at least one tool name to confirm"
+    ):
         ConfirmRequiredToolRegistry(_registry("mail", "send_email"), names=[])
 
 
