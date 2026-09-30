@@ -1,14 +1,13 @@
 # Prefill as the second sign of a spill
 
-**Status:** open, waiting for its trigger
+**Status:** declined 2026-09-30
 **Area:** inference-model-manager
 **Origin:** [ADR-0055](../../adr/ADR-0055-co-residency-and-spill-watch.md)
-**Verified:** 2026-09-19
-**Trigger:** A spill that decode misses, or a deployment whose deep answers are short enough that decode rarely clears `MIN_CADENCE_TOKENS`, which reads in the log as successful handoffs that mostly write the deep phase's no-decode-rate INFO line rather than its decode-rate line.
 
 llama.cpp's `timings` object reports `prompt_per_second` beside the decode rate, and the
 co-residency run recorded it collapsing to 13.8 tok/s on the first request after a switch, where a
-fitting pair holds 105 to 134 ([model-swap.md](../../runbooks/model-swap.md)). That is a sharper
+fitting pair holds 105 to 134
+([model-swap-measurements.md](../../runbooks/model-swap-measurements.md)). That is a sharper
 contrast than decode's. It was left out because prompt rate varies with prompt length far more
 than decode does, so the floor a deployment would have to measure is a harder number and a wrongly
 set one produces false collapses.
@@ -69,3 +68,11 @@ was used, so they are quoted only as ratios of their own server's numbers.
   phase writes its no-decode-rate INFO line for an answer shorter than `MIN_CADENCE_TOKENS`. The
   rename of the decode-rate log fields on 2026-09-17 touched neither rate's source. The trigger
   has not fired.
+- 2026-09-30: Declined. The trigger's first clause fired on 2026-09-22: the spill watch missed a
+  drafting deep tier overcommitted beside the E4B tier on a reasoning trace
+  ([R-698](698-a-drafter-sized-spill-is-unmeasured-against-the-decode-floor.md)). That run recorded
+  prompt rates too, and its cold ones fell less than decode in every start: 0.94 to 1.03 of solo on
+  the reasoning prompt decode missed, and 0.87 to 0.96 on the plain pairs decode read at 0.36 and
+  0.63 ([co-residency](../../readings/co-residency.md)). So prefill misses the one spill decode
+  misses, and the calibration objection still stands. The 13.8 contrast moved to the swap measurements
+  runbook on 2026-09-19, and the link above now points there.

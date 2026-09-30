@@ -99,6 +99,17 @@ pair that read as a fit on 2026-08-07 at 908 MiB free spilled in both starts her
 `measurements/drafter-spill-2026-09-22/` (`draw.py`, `draw_plain.py`, the registration written
 before each draw), `nvidia-smi` sampled every 2 s.
 
+## Prefill in the drafter overcommit run
+
+**2026-09-22 run, read 2026-09-30** from the `timings` its JSON files recorded. Each start's
+warm-up was its only request with nothing cached (`cache_n` 0, 88 prompt tokens on the reasoning
+prompt, 101 on the tool call); every timed request processed 5. On those cold requests the
+overcommitted drafting start's prompt rate was 0.94 to 1.03 of drafting alone on the reasoning
+prompt and 0.90 to 0.94 on the tool call. The plain pairs' was 0.87 to 0.96 of plain alone, in the
+starts whose decode fell to 0.36 and 0.63. So prefill fell less than decode in every start, and it
+missed the drafting overcommit the reasoning trace's decode missed. Clocks are as in the table
+above. Method: the warm-up rows of `measurements/drafter-spill-2026-09-22/*.json`.
+
 ## Why the E4B pair read as a fit in August
 
 **2026-09-22**, same card and driver: the E4B tier alone on each build with the argv it had then,

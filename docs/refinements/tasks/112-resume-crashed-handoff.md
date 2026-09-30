@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** inference-model-manager
 **Origin:** [ADR-0030](../../adr/ADR-0030-brain-handoff.md)
-**Verified:** 2026-09-19
+**Verified:** 2026-09-30
 **Trigger:** the dedup design the `Converse` reconnect entry (R-023) needs, a request id on
 `UserTurn` or `ClientEvent` plus an idempotency and resume registry keyed by it, after which
 resuming is a conductor entry point run beside the gRPC server. Recheck with
@@ -58,3 +58,9 @@ prevent.
   things had moved. The escalation switch became settable from a host `.env` on 2026-09-17, so the
   earlier claim that no deployment can strand a handoff was removed. And the remedy was wrong
   about where the resume runs, corrected above. The trigger has not fired.
+- 2026-09-30: Claims checked and all held. `HandoffRecord` (`handoff.py:32`) gained no field,
+  only a check, added 2026-09-28, that its loop tail holds no system message.
+  `recover_boot_residency` is still awaited at `wiring.py:117` before the stream engines are
+  built, and `_run_claimed` (`swap_conductor.py:80`) still runs `_prepare`, the drain and `_swap`
+  in that order. The deep tier's context moving to 16384 tonight
+  changes none of this. The recheck grep has no hit, so the trigger has not fired.

@@ -4,7 +4,7 @@
 **Area:** subagents
 **Origin:** [ADR-0018](../../adr/ADR-0018-heterogeneous-subagents.md)
 **Trigger:** A deployment that delegates unprompted and pays for the pile in the user's wall clock.
-**Verified:** 2026-09-19
+**Verified:** 2026-09-30
 
 The trade-off sentence ([R-122](122-measured-tradeoff-advertisement.md)) gives the cortex a
 wall-clock reason to spread independent subtasks across distinct roster models. Whether it acts on
@@ -43,11 +43,11 @@ fits the headroom once and overlaps the same way.
 
 The sentence a model reads was deliberately left as written, because it understates the benefit of
 spreading rather than overstating it, and one deployment's behaviour does not say which wording
-would be taken. Five places now describe that as a deliberate understatement rather than asserting
-the serial premise as fact: `spawn_spec.py`'s advertised text and the fixed-roster note beside
-it, the two assertions in `packages/core/tests/test_spawn.py`, and the live probe's docstring in
-`packages/orchestrator/tests/test_spawn_nudge_live.py`. Bring-up for the probe is
-[runbooks/subagents-cpu.md](../../runbooks/subagents-cpu.md) section 3c.
+would be taken. [ADR-0018](../../adr/ADR-0018-heterogeneous-subagents.md) decision 8 is the one
+place that calls it an understatement. `_CHOICE_NOTE` and `_SINGLE_MODEL_NOTE` in `spawn_spec.py`
+say "one after another" as written, and three assertions in `packages/core/tests/test_spawn.py`
+check that text. The probe is `packages/orchestrator/tests/test_spawn_nudge_live.py`, and its
+bring-up is section 6 of [subagents-validation.md](../../runbooks/subagents-validation.md).
 
 The fix, when the trigger fires, is stronger prompting behind the same spec port (a worked
 example, a sharper phrasing), never a schema change.
@@ -90,3 +90,11 @@ example, a sharper phrasing), never a schema change.
   measured what a pile costs on one server: two attempts decoding at once each took about 1.4
   times as long as one alone. Whether spreading onto a second entry avoids that depends on the two
   servers not sharing cores, which nothing has measured. The trigger has not fired.
+- 2026-09-30: The code half holds and the trigger has not fired; one paragraph was wrong. The
+  advertised text and `build_spawn_spec`'s `not tools_enabled and len(roster.entries) > 1`
+  condition (`spawn_spec.py:85`) are unchanged, beside a role note added 2026-09-28. The five
+  places said to call the sentence an understatement are now one, the ADR: neither the code nor
+  the probe has such a comment, and the tests assert the text itself. The probe's bring-up moved
+  to the validation runbook on 2026-09-19. Tonight's probe
+  extensions read which role an invited cortex names, not whether it delegates unprompted, and no
+  reading records an unprompted delegation.
