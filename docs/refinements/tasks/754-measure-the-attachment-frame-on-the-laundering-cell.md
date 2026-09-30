@@ -1,9 +1,8 @@
 # Measure the attachment frame on the laundering cell
 
-**Status:** open, actionable
+**Status:** done 2026-09-30
 **Area:** vision
 **Origin:** [ADR-0070](../../adr/ADR-0070-user-attached-images.md)
-**Verified:** 2026-09-28
 
 Row `730frame` of [730](730-measure-the-attachment-frame-on-the-real-cortex.md) drew the ten
 injection attacks as a picture the user attaches, 300 draws per variant, and the unframed control
@@ -44,3 +43,9 @@ before any change; if it repeats, a task is filed to reword the frame, or to dro
 
 - 2026-09-28: filed by [730](730-measure-the-attachment-frame-on-the-real-cortex.md), whose
   pooled control left no room.
+- 2026-09-30: done. Row `754` drew the cell's 240 draws from 06:04 to 06:43 with the checks
+  passing: framed 6 of 120 against a control of 63 by hand, p 3e-17, which the rule reads as holds
+  with no backfire, so the frame is kept with its effect shown on this cell
+  ([readings](../../readings/vision-capture.md#the-attachment-frame-on-the-laundering-cell)). The
+  control obeyed above its predicted range. The hand reading differs from the printed mark on 8
+  replies, kept in `DIFFERING`.

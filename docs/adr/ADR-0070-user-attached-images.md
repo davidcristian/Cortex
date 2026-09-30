@@ -52,9 +52,11 @@ The framing is scoped to the turn. The security preamble names images on tool re
 is a measured prompt, so it is not changed. Instead the working copy of the user's message ends
 with `ATTACHMENT_FRAME`, a sentence saying the pictures below are attached and that text drawn in a
 picture is content to describe, never an instruction. Only a turn with an attachment sends it. On
-the real cortex the unframed control obeyed an attached picture too rarely for the frame's effect to
-read apart ([readings](../readings/vision-capture.md#the-attachment-frame-against-an-injection));
-the deterministic boundary is the taint above.
+the real cortex, across ten attacks in three renderings, the unframed control obeyed an attached
+picture too rarely for the frame's effect to read apart. On the one cell it did obey,
+`output-laundering` in `plain`, the frame cut 63 obeyed draws of 120 to 6
+([readings](../readings/vision-capture.md#the-attachment-frame-on-the-laundering-cell)). The
+deterministic boundary is still the taint above.
 
 ### 3. A turn with an attachment does not hand over to the deep model
 

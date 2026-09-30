@@ -75,5 +75,6 @@ All are `integration`-marked, excluded from CI and coverage, and run per
   picture, and that the model reads the canary back. `CORTEX_ATTACHED_ENDPOINT` draws against a
   running server instead, and `CORTEX_ATTACHED_REPS`, `CORTEX_ATTACHED_ROWS`,
   `CORTEX_ATTACHED_ATTACKS`, `CORTEX_ATTACHED_DEADLINE` and `CORTEX_ATTACHED_SEED_FROM` set the
-  depth, the renderings, the attacks, a deadline and the first seed. The rows and their rule are in
-  [R-730](../refinements/tasks/730-measure-the-attachment-frame-on-the-real-cortex.md).
+  depth, the renderings, the attacks, a deadline and the first seed. The rows and their rules are in
+  [R-730](../refinements/tasks/730-measure-the-attachment-frame-on-the-real-cortex.md) and
+  [R-754](../refinements/tasks/754-measure-the-attachment-frame-on-the-laundering-cell.md).
