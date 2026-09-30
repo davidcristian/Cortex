@@ -138,15 +138,17 @@ earlier build ([model lineup](model-lineup.md)). The two loads are on different 
 rows read about the same memory used at the median of their busy readings (21,806 and 21,810 MiB),
 so the step between them is the difference in the idle floor read before each load. That floor
 moves: it fell 233 MiB during this row, and against the 2,006 MiB read after the removal the cost
-is 19,836. The null bound, 1,150 over the 8192 figure, was not reached.
+is 19,836. The null bound, 1,150 over the 8192 figure, was not reached. Read in one session
+([below](#decode-at-16384-in-one-session)), the step is 664 to 667 MiB and the cost 19,788 to
+19,803, inside the prediction.
 
 **The decode rate.** The 8192 row decoded the same tokens, so each draw's work was the same. The SM
 clock does not account for the gap: the Q3 draws read 0.85 to 0.87 at SM 0.59 to 0.60 against 0.56
 to 0.57, and Q4 d1, at the same 150 W enforced limit and 148 W draw in both rows, read 0.91. The
 ratio rose over this row, 0.83 on the first draw to 0.92 on the eleventh, and neither row recorded
-the memory clock. Whether the larger context costs decode is
-[R-757](../refinements/tasks/757-measure-whether-the-deep-tiers-16384-context-slows-decode.md)'s
-question. The stop-row wall a draw was 1.20 of the 8192 row's median at the median.
+the memory clock. In one session the two contexts decode at the same rate
+([below](#decode-at-16384-in-one-session)), so the gap is the two sessions' card state, and so is
+most of the stop-row wall a draw, 1.20 of the 8192 row's median at the median.
 
 **The fit probe** sent the plain preamble and the first 48,000 characters of `cortex_core`'s modules
 in sorted order, then "Reply with the single word OK.", with `max_tokens` 32. It was answered with
@@ -158,3 +160,36 @@ plain preamble, a difference of about the gap's size that was not counted on its
 Method: `measurements/sitting-2026-09-30/736.log` and `736pick16k/` (draws, clock readings, the fit
 probe and the server log), driver `stop_row_16k.py` over `deeplib.py` and `questions.py` in that
 run's `drivers/`, run from a `git archive` copy of the tree.
+
+## Decode at 16384 in one session
+
+**2026-09-30**, 05:35 to 06:00, three hours after the stop row above: the same pick, build and image,
+alone on the card, loaded four times in the order 8192, 16384, 8192, 16384, each the tier's argv
+with only `--ctx-size` changed. Each load drew the stop row's Q1 and Q3 at seeds 101 to 103 and 301
+to 303, and a sampler read the card every 5 s, now with `clocks.current.memory`. Written before the
+draw: each 16384 load's median rate over its six draws, against the same draws on the 8192 loads
+beside it, reads 0.80 to 0.93 on both if the context costs decode; 0.97 to 1.03 on both is the null
+result, which puts the stop row's 0.86 on that night's card.
+
+| load | context | decode median, of load 1's | draws, of load 1's | above idle at ready, MiB | SM of max, median (range) | memory clock, MHz | power ceiling of max | cap active |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | 8192 | 1.000 | 0.973 to 1.012 | 19,121 | 0.58 (0.51 to 0.64) | 14001 | 0.89 | 58 of 58 |
+| 2 | 16384 | 0.999 | 0.970 to 1.007 | 19,788 | 0.58 (0.51 to 0.60) | 14001 | 0.88 | 58 of 58 |
+| 3 | 8192 | 1.000 | 0.982 to 1.013 | 19,139 | 0.58 (0.45 to 0.62) | 14001 | 0.88 | 58 of 58 |
+| 4 | 16384 | 1.002 | 0.998 to 1.005 | 19,803 | 0.58 (0.55 to 0.63) | 14001 | 0.89 | 57 of 57 |
+
+Clock columns are the busy readings (utilization 50% or more) over each load's draws; the memory
+clock read 14001 MHz on every reading of the row. All 24 draws stopped, and each seed gave the same
+tokens on all four loads.
+
+**The null result on both loads.** Against the same draws on the 8192 loads beside it, load 2 read
+0.999 at the median draw (0.978 to 1.009) and load 4 0.998 (0.991 to 1.024); the ratio of the
+medians is 1.001 and 1.003. The 16384 context does not slow decode, and the clocks, the power
+ceiling and the cap state were the same on every load. The stop row's draws decoded at 0.91 (0.88
+to 0.92) of this session's 16384 loads on the same argv and seeds, and the 2026-09-26 8192 row's at
+1.06 (1.04 to 1.07) of its 8192 loads, all at SM 0.56 to 0.60. Decode rates from different sessions
+therefore differ by up to a seventh at one SM clock, for a reason those rows did not record.
+
+Method: `measurements/sitting-2026-09-30b/757.log` and `757ctx/` (draws, the row's clock readings,
+props per load and the server log), driver `ctx_alt.py` over `deeplib.py` and `questions.py` in that
+run's `drivers/`, pre-registration in its `prereg.md`, run from a `git archive` copy of the tree.

@@ -67,8 +67,8 @@ own cost: under WSL the driver puts part of its last buffers in system memory wi
 gigabyte still free, and the check cannot see memory taken during the load. On this card the pick
 costs 19125 MiB at an 8192 context, and the pick spilled beside an idle peer at up to 19967 MiB
 free, so 20125 refuses every spill seen by at least 158 MiB, little room for the floor rising
-mid-load. At the shipped 16384 context it cost 19603 MiB, and 20783, set with an earlier build's
-658 MiB step, keeps more than that margin; no spill was drawn there. **So on a 24 GB card leave
+mid-load. The shipped 16384 context costs 664 to 667 MiB more, and 20783, set with an earlier
+build's 658, keeps 149 of those 158 MiB; no spill was drawn there. **So on a 24 GB card leave
 co-residency off**: beside the E4B tier the check refuses every handoff, each costing a reload. The
 same figure guards the ordinary handoff, optionally, on a card too small for the deep tier at all.
 

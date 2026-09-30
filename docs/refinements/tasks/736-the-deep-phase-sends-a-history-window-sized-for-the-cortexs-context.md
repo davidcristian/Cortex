@@ -50,7 +50,7 @@ the third moves the runbook's 20783 MiB fit figure.
   8192 row's draw token for token, whose one miss was cut by the context mid-reasoning. The fit
   probe was answered with 12,909 prompt tokens (held on status, not on the count, which assumed
   the longer preamble). The pick read 19,603 MiB above idle (not held, 97 under) and decoded 0.86
-  of the 8192 rate (not held), filed as
-  [R-757](757-measure-whether-the-deep-tiers-16384-context-slows-decode.md). No null bound fired,
-  so the decision and the 20783 MiB fit figure stay
+  of the 8192 rate on another night (not held). With the loads alternating in one session it read
+  664 to 667 MiB more than at 8192 and decoded at 0.998 and 0.999 of it, so neither miss is the
+  context's. No null bound fired, so the decision and the 20783 MiB fit figure stay
   ([readings](../../readings/history-window.md#the-deep-tier-at-16384)).

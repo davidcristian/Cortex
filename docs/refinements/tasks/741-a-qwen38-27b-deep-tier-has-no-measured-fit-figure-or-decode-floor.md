@@ -12,8 +12,8 @@ first sentence.
 A deployment declares the deep tier's cost in `CORTEX_SWAP_BRAIN_VRAM_MIB`, the figure the fit check
 compares free memory against, and its spill-watch minimum in `CORTEX_SWAP_BRAIN_DECODE_TPS`. The
 [model-swap](../../runbooks/model-swap.md) runbook gives the pick's cost at the shipped 16384
-context as 19603 MiB and declares 20783; at 8192 it cost 19125 and 20125 was set above the highest
-free figure at which the pick spilled beside a filler (19967 MiB,
+context as 664 to 667 MiB more than 8192 and declares 20783; at 8192 it cost 19125 and 20125 was set
+above the highest free figure at which the pick spilled beside a filler (19967 MiB,
 [co-residency](../../readings/co-residency.md)). For Qwen3.8-27B only the cost was read: at 8192,
 15,744 to 15,770 MiB above the idle card plain and 16,703 to 16,705 with its own prediction layer
 drafting, and at 16384 16,273 plain (2026-09-26,

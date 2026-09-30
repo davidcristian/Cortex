@@ -94,9 +94,11 @@ recall; this ADR is about the in-context history of the current session only.
    window with the deep phase's 22 tools then leaves 5,521 to 6,873 tokens, the cortex's own
    margin; at 8192 the same prompt was 1.16 to 1.33 times the context
    ([readings](../readings/history-window.md#the-cortexs-whole-prompt)). At 16384 the pick stopped
-   with a reply on 12 of 12 stop-row draws, where 8192 cut one mid-reasoning, and read 19,603 MiB
-   above idle ([readings](../readings/history-window.md#the-deep-tier-at-16384)); it runs alone on
-   the card ([ADR-0030](ADR-0030-brain-handoff.md) decision 8). A
+   with a reply on 12 of 12 stop-row draws, where 8192 cut one mid-reasoning
+   ([readings](../readings/history-window.md#the-deep-tier-at-16384)); in one session it reads
+   664 to 667 MiB more above idle than at 8192 and decodes at the same rate
+   ([readings](../readings/history-window.md#decode-at-16384-in-one-session)), and it runs alone
+   on the card ([ADR-0030](ADR-0030-brain-handoff.md) decision 8). A
    deep budget of its own was rejected: `SummarizingHistoryWindow` stores one recap a session and
    folds again from the start when the stored one covers more than the boundary, so a smaller
    deep window would store a recap past the cortex's boundary and the cortex's next turn would
@@ -112,9 +114,9 @@ recall; this ADR is about the in-context history of the current session only.
   limits history, not one turn's size, and such a turn ends with the note of decision 7. Long
   recalled memories and large tool results reach the same note. A per-turn input cap would be a
   decision at the overlay, not silent truncation here.
-- At 16384 the pick decoded the same tokens at 0.86 of its 8192 rate, the two drawn on different
-  nights, so whether the larger context slows decode is open
-  ([R-757](../refinements/tasks/757-measure-whether-the-deep-tiers-16384-context-slows-decode.md)).
+- A context's decode cost is read with both contexts in one session: the pick's rate differs by up
+  to a seventh between sessions at one SM clock, so a 16384 row first read 0.86 of an 8192 row
+  drawn on another night ([readings](../readings/history-window.md#decode-at-16384-in-one-session)).
 - The `EchoInferenceBackend` reply counter counts user messages in the *windowed* history, so its
   `"reply {n}"` script diverges from the stored count only past the budget, which CI-sized tests
   never reach.

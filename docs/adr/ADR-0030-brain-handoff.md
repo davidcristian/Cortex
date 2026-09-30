@@ -14,7 +14,7 @@ mid-turn, is the tool loop's tail (the assistant tool-call messages and fenced `
 which are never stored), the `TaintLedger`, the fence nonce, the turn-wide `DispatchBudget` and the
 round count. The GPU lease is held across one inference round, not one turn, and the body opens one
 `Converse` stream per turn, so what the user sees during a handoff is sent on that turn's stream.
-The deep model (gemma-4-31B QAT q4_0, about 19.1 GiB at its 16K context) does not fit beside the
+The deep model (gemma-4-31B QAT q4_0, about 19.3 GiB at its 16K context) does not fit beside the
 cortex (about 8.4 GiB at its peak) on the 24 GB card this repo targets, so a handoff is an eviction.
 
 The supervisor sidecar is [ADR-0053](ADR-0053-model-host-supervisor.md); the residency report and
