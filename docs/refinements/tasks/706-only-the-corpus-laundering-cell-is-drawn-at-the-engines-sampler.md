@@ -226,4 +226,5 @@ and per size in [the payload table](../../readings/injection-over-pixels.md#payl
   and stay queued with their predictions above. The entry stays open for them and the rest of
   the fourth bullet.
 - 2026-09-30: `706pdp` and `706pdpe` queued again, with the predictions above, in the unattended
-  run at `measurements/sitting-2026-09-30c/`, after R-760's row and before R-761's.
+  run at `measurements/sitting-2026-09-30c/`, after R-760's row and before the roster alternate's
+  second seed base.

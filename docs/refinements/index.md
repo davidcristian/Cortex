@@ -75,7 +75,7 @@ never a reading of what the tree does now.
 - **[R-744](tasks/744-the-joined-system-message-is-unmeasured-on-the-qwen-alternates.md)** The joined system message is unmeasured on the Qwen alternates (untrusted-content). Its claim was checked against the code on 2026-09-30.
 - **[R-759](tasks/759-void-draws-leave-the-deep-alternates-joined-rows-unread.md)** Void draws leave the deep alternate's joined rows unread (untrusted-content). Its claim was checked against the code on 2026-09-30.
 - **[R-760](tasks/760-the-reworded-precis-sentence-reads-below-the-plain-summary.md)** The reworded precis sentence reads below the plain summary (subagents). Its claim was checked against the code on 2026-09-30.
-- **[R-761](tasks/761-two-role-sentences-read-lower-on-the-roster-alternate.md)** Two role sentences read lower on the roster alternate (subagents). Its claim was checked against the code on 2026-09-30.
+- **[R-762](tasks/762-the-excerpt-sentence-lowers-the-extraction-on-the-roster-alternate.md)** The excerpt sentence lowers the extraction on the roster alternate (subagents). Its claim was checked against the code on 2026-09-30.
 
 ### Actionable, once a port changes (1)
 
@@ -902,7 +902,7 @@ never a reading of what the tree does now.
 - [R-748](tasks/748-a-role-sentence-is-unmeasured-against-the-envelope-readings.md) A role sentence is unmeasured against the envelope readings. done 2026-09-29.
 - [R-749](tasks/749-the-cortex-uptake-of-the-role-property-is-unmeasured.md) The cortex uptake of the role property is unmeasured. done 2026-09-29.
 - [R-760](tasks/760-the-reworded-precis-sentence-reads-below-the-plain-summary.md) The reworded precis sentence reads below the plain summary. open, actionable.
-- [R-761](tasks/761-two-role-sentences-read-lower-on-the-roster-alternate.md) Two role sentences read lower on the roster alternate. open, actionable.
+- [R-762](tasks/762-the-excerpt-sentence-lowers-the-extraction-on-the-roster-alternate.md) The excerpt sentence lowers the extraction on the roster alternate. open, actionable.
 
 ### tools-mcp
 

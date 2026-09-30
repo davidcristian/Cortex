@@ -39,11 +39,13 @@ the readings record and ADR-0072 states the result.
   default pick was drawn on CPU, which needed its own plain column: the CPU plain shapes wrote into
   the reasoning channel on 16 of 96 runs. The `excerpt` and `answer` sentences read inside the plain
   interval, and no extraction copied under `excerpt`. The `precis` sentence read 13 of 32 against 25.
-  The rows are in [reply envelope](../../readings/reply-envelope.md) and ADR-0072 states the result.
+  The rows are in [role sentences](../../readings/role-sentences.md) and ADR-0072 states the result.
   That cell's replication on the card and the Qwen3.5-2B rows, which did not fit beside the
   default's 192 runs, were left for the next card run.
 - 2026-09-30: Both drawn on the card. The `precis` cell read 12 of 32 against 27, apart again, and a
-  rewording ships in its place, whose second seed base is
-  [R-760](760-the-reworded-precis-sentence-reads-below-the-plain-summary.md). On Qwen3.5-2B the
-  `precis` and `excerpt` sentences read apart and lower and `answer` did not, on one seed base; the
-  second is [R-761](761-two-role-sentences-read-lower-on-the-roster-alternate.md).
+  rewording ships in its place, which
+  [R-760](760-the-reworded-precis-sentence-reads-below-the-plain-summary.md) draws again. On
+  Qwen3.5-2B the `excerpt` sentence read apart and lower on two seed bases, and
+  [R-762](762-the-excerpt-sentence-lowers-the-extraction-on-the-roster-alternate.md) takes it off
+  the role; the `precis` rewording read apart on one of the two, and `answer` inside the plain
+  interval.

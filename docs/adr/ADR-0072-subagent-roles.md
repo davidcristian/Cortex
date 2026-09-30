@@ -100,7 +100,7 @@ in `scripts/envelopejudges.py`).
   brain rather than whatever the cortex wrote that turn.
 - On the default pick, drawn on CPU, the `excerpt` and `answer` sentences are not shown to change
   delivery: 26 and 30 of 32 against 30 and 31 without them, each inside the other's interval
-  ([reply envelope](../readings/reply-envelope.md), "The role sentences"). They stay as a form the
+  ([role sentences](../readings/role-sentences.md)). They stay as a form the
   cortex can name.
 - On that pick the first `precis` sentence, "Reply with the text you were given made shorter,
   keeping every figure, name and date it states and adding nothing it does not state.", lowered the
@@ -110,20 +110,26 @@ in `scripts/envelopejudges.py`).
   the body and 13 cap refusals each. The shipped sentence, "Reply with a shorter version that keeps
   every figure, name and date and adds nothing the text does not state.", does not name the given
   text as the reply, which `REPLY_INSTRUCTION` then forbids. On the card, in one server session with
-  a plain cell at the same seeds, it read 20 of 32 against 27, the intervals overlapping, so by the
-  rule written before that row it ships, with 4 copies of the body against none
-  ([reply envelope](../readings/reply-envelope.md), "The role sentences"). Whether a second seed
-  base separates the two is [760](../refinements/tasks/760-the-reworded-precis-sentence-reads-below-the-plain-summary.md).
-- On Qwen3.5-2B, the roster alternate, the `precis` and `excerpt` sentences lowered delivery on the
-  card (build `b10680-d7bd3bfca`, the `llama-subagent-qwen` argv at `-ngl 99`, SM clock 2070 MHz at
-  the median of a 3090 maximum), each apart from its plain cell. The figures-keeping summarization
-  read 31 of 32 without a sentence, 17 with the shipped `precis` sentence and 9 with the first, the
-  lost runs mostly the body handed back `ok=True` (14 and 21 copies). The extraction read 27 of 32
-  without and 10 with `excerpt`: 8 runs stopped at the cap, and others gave one number or wrote the
-  sentence back. The `answer` sentence read 30 of 32 against 24, inside the plain interval. That is
-  one seed base, so the sentences stay shipped; a second
-  ([761](../refinements/tasks/761-two-role-sentences-read-lower-on-the-roster-alternate.md)) decides
-  whether a role's sentence changes on this model.
+  a plain cell at the same seeds, it read 20 of 32 against 27 at seeds 1 to 8 and 16 of 32 against
+  23 at seeds 9 to 16 (SM clock 2250 and 2243 MHz at the median), the intervals overlapping each
+  time, so by the rule written before each row it ships, with 4 and 7 copies of the body against
+  none ([role sentences](../readings/role-sentences.md)). It reads 7 runs below the plain cell on
+  both seed bases. Whether a row at twice the draws separates the two, which would take the
+  sentence off the role, is
+  [760](../refinements/tasks/760-the-reworded-precis-sentence-reads-below-the-plain-summary.md).
+- On Qwen3.5-2B, the roster alternate, drawn on the card (build `b10680-d7bd3bfca`, the
+  `llama-subagent-qwen` argv at `-ngl 99`, SM clock 2070 and 2077 MHz at the median of a 3090
+  maximum on the two seed bases), the `excerpt` sentence lowers the extraction: 10 of 32 against 27
+  at seeds 1 to 8 and 8 of 32 against 22 at seeds 9 to 16, apart from the plain cell both times, so
+  by the rule written before the second row the drop replicates. The runs it loses mostly write the
+  instructions back or stop at the cap repeating numbers. The shipped `precis` sentence read 17 of
+  32 against 31 at seeds 1 to 8, apart, and 23 against 27 at seeds 9 to 16, inside, so it stays
+  shipped; the first `precis` sentence read 9. The `answer` sentence read 30 of 32 against 24,
+  inside the plain interval ([role sentences](../readings/role-sentences.md)). The `excerpt`
+  sentence is not shown to help on either model, so the evidence supports taking it off the role
+  rather than choosing a sentence per model, which would key a role to roster entries (decision 5);
+  [762](../refinements/tasks/762-the-excerpt-sentence-lowers-the-extraction-on-the-roster-alternate.md)
+  makes that change.
 - The cortex pick names a role on every item it delegates. Under the first `excerpt` description,
   "each item the subtask asks for, written exactly as the text writes it", with `spawn_subagents` the
   only tool, every extraction named `answer` and none `excerpt`: 8 of 8 on CPU, 8 of 8 on a second
@@ -158,5 +164,5 @@ in `scripts/envelopejudges.py`).
   [ADR-0028](ADR-0028-grammar-constrained-subagents.md),
   [ADR-0071](ADR-0071-leading-system-messages.md).
 - [brain-core-subagents](../modules/brain-core-subagents.md),
-  [brain-core-tools](../modules/brain-core-tools.md),
-  [reply envelope](../readings/reply-envelope.md).
+  [brain-core-tools](../modules/brain-core-tools.md), [reply envelope](../readings/reply-envelope.md),
+  [role sentences](../readings/role-sentences.md).
