@@ -1,9 +1,8 @@
 # The deep phase sends a history window sized for the cortex's context
 
-**Status:** open, actionable
+**Status:** done 2026-09-30
 **Area:** session-history
 **Origin:** [ADR-0014](../../adr/ADR-0014-history-windowing.md)
-**Verified:** 2026-09-29
 
 `CORTEX_HISTORY_CHAR_BUDGET`, 24,000 characters, is the one budget `build_history_window` reads,
 and `for_stream` in `engines.py` builds the deep phase's window from it too. At the deep tier's
@@ -43,6 +42,15 @@ the third moves the runbook's 20783 MiB fit figure.
   whole prompt with the tool stack, a deep context of 16384 leaves the cortex's own margin.
 - 2026-09-29: decided and built the larger context. `CORTEX_CTX_SIZE_BRAIN` defaults to 16384 in
   the model host and the GPU override, and a roster test fails at 8192. With the other tiers
-  evicted the pick at 16384 costs 19,796 MiB above an idle floor recorded at 1,529 to 3,339 MiB on
-  a 24,463 MiB card; the fit figure for this card rose by the same 658 MiB. The stop row waits for
-  the card, and its prediction is above.
+  evicted the pick at 16384 was put at 19,796 MiB above idle, the 8192 row's 19,138 plus the 658
+  MiB step an earlier build read, on a 24,463 MiB card whose idle floor was recorded at 1,529 to
+  3,339 MiB; the fit figure for this card rose by the same 658 MiB. The stop row waits for the
+  card, and its prediction is above.
+- 2026-09-30: done. The stop row at 16384 stopped with a reply on 12 of 12 draws (held), each the
+  8192 row's draw token for token, whose one miss was cut by the context mid-reasoning. The fit
+  probe was answered with 12,909 prompt tokens (held on status, not on the count, which assumed
+  the longer preamble). The pick read 19,603 MiB above idle (not held, 97 under) and decoded 0.86
+  of the 8192 rate (not held), filed as
+  [R-757](757-measure-whether-the-deep-tiers-16384-context-slows-decode.md). No null bound fired,
+  so the decision and the 20783 MiB fit figure stay
+  ([readings](../../readings/history-window.md#the-deep-tier-at-16384)).

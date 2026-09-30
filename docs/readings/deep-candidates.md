@@ -137,6 +137,7 @@ fewer. Right by hand is read beside it and decides nothing.
 | Qwen3.8 `reasoning_effort: "medium"` | 12 (11, 7 to 12) | yes | 1.0; 0.48 | 11 | 1357 (912 to 7004) | 0.97 | 0.49, 0.88 |
 | Qwen3.8 `xhigh` and `min_p: 0` | 9 (as `xhigh`, not apart) | yes, p 1.0 | 0.59 | 9 | 2594 (1204 to 7888) | 1.43 | 0.49, 0.88 |
 | Qwen3.6-27B, the alternate | 10 (11, 7 to 12) | yes | 1.0 | 9 | 4118 (2280 to 7984) | 2.36 | 0.46, 0.90 |
+| the pick at a 16384 context, [2026-09-30](history-window.md#the-deep-tier-at-16384) | 12 (12, 10 to 12) | yes | 1.0 | 11 | 1434 (832 to 8341) | 1.20 | 0.58, 0.85 |
 
 Every draw that did not stop spent the whole context reasoning (7888 to 7984 tokens) and returned an
 empty reply: on Q4, the roster, Qwen3.8 at `xhigh` 2 of 3, with min_p 0 3 of 3, the pick 1 of 3; on

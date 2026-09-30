@@ -100,3 +100,61 @@ memories, the recap (at most 2,000 characters) and in-turn tool steps come on to
 The 48,000-character ADR prose row, sent to the same server as a streamed chat request with the 23
 tools, was refused at once with `exceed_context_size_error` and `n_prompt_tokens` 18274, the count
 above plus the start token.
+
+## The deep tier at 16384
+
+**2026-09-30**, the deep pick `gemma-4-31B-it-qat-q4_0` alone on the card, llama.cpp `server-cuda`
+`b10680-d7bd3bfca` (`sha256:952424b09abc`), the build of the pick's 8192 [stop
+row](deep-candidates.md#the-stop-rows), started with the argv `ModelHostConfig(...).tiers()` builds
+at the shipped default (`-ngl 99 --ctx-size 16384 --parallel 1 --jinja --cache-ram 0`) under the
+model host's caps. The stop row was redrawn as the 8192 one was, and one fit probe followed. Before
+the load the card read 2,239 MiB used of 24,463 and an SM clock of 0.71 of max. The predictions are
+R-736's, written before the draw.
+
+| reading | predicted | read | held |
+| --- | --- | --- | --- |
+| stopped with a reply, of 12 | 12 (10 to 12) | 12 | yes |
+| right by hand, of 12 | | 11 | |
+| reasoning tokens a draw, median (range) | 1434 (1000 to 2000) | 1434 (832 to 8341) | yes |
+| reply tokens a draw, median (range) | | 680 (69 to 895) | |
+| VRAM above idle at ready | 19,796 MiB (19,700 to 20,000) | 19,603 MiB | no, 97 under |
+| decode, of the 8192 row's rate on the same draw | 1.0 (0.95 to 1.05) | 0.86 (0.83 to 0.92) | no |
+| fit probe status | 200 | 200 | yes |
+| fit probe prompt tokens | 13,050 to 13,150 | 12,909 | no |
+| fit probe first event, of the 120 s stall bound | under 0.25 | 0.097 | yes |
+
+The stop row ran at SM 0.58 of max (0.43 to 0.68) under a power ceiling of 0.85, against 0.57 and
+0.87 for the 8192 row, and the fit probe at 0.51. The load took 0.39 of the 300 s load bound.
+
+**The draws are the 8192 row's.** Eleven of the twelve replies match the 8192 row's character for
+character. On Q4 d3, the one 8192 draw that did not stop, the reasoning repeats all 7,923 tokens
+that draw spent, then runs 418 more and replies in 788: its 266 prompt tokens and 9,134 generated
+are 1,208 past 8192. That draw was cut by the context, not a runaway, and the larger context changed
+no sampled token. Its reply is right (16 hours, a roster that covers every shift); the wrong one is
+Q4 d1, as at 8192.
+
+**The cost.** 19,603 MiB is 465 over the 8192 row's 19,138, where 658 was read on 2026-08-04 on an
+earlier build ([model lineup](model-lineup.md)). The two loads are on different nights, and both
+rows read about the same memory used at the median of their busy readings (21,806 and 21,810 MiB),
+so the step between them is the difference in the idle floor read before each load. That floor
+moves: it fell 233 MiB during this row, and against the 2,006 MiB read after the removal the cost
+is 19,836. The null bound, 1,150 over the 8192 figure, was not reached.
+
+**The decode rate.** The 8192 row decoded the same tokens, so each draw's work was the same. The SM
+clock does not account for the gap: the Q3 draws read 0.85 to 0.87 at SM 0.59 to 0.60 against 0.56
+to 0.57, and Q4 d1, at the same 150 W enforced limit and 148 W draw in both rows, read 0.91. The
+ratio rose over this row, 0.83 on the first draw to 0.92 on the eleventh, and neither row recorded
+the memory clock. Whether the larger context costs decode is
+[R-757](../refinements/tasks/757-measure-whether-the-deep-tiers-16384-context-slows-decode.md)'s
+question. The stop-row wall a draw was 1.20 of the 8192 row's median at the median.
+
+**The fit probe** sent the plain preamble and the first 48,000 characters of `cortex_core`'s modules
+in sorted order, then "Reply with the single word OK.", with `max_tokens` 32. It was answered with
+12,909 prompt tokens, 2,046 more than the largest full handoff prompt above (10,863), leaving 3,475.
+The engine reported 12,768 as `prompt_n` and 141 reused from the previous draw. The prediction added
+the 313 tokens of the 1,386-character `SECURITY_PREAMBLE`, where the driver sends the 598-character
+plain preamble, a difference of about the gap's size that was not counted on its own.
+
+Method: `measurements/sitting-2026-09-30/736.log` and `736pick16k/` (draws, clock readings, the fit
+probe and the server log), driver `stop_row_16k.py` over `deeplib.py` and `questions.py` in that
+run's `drivers/`, run from a `git archive` copy of the tree.

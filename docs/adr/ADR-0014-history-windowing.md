@@ -93,8 +93,10 @@ recall; this ADR is about the in-context history of the current session only.
    too, and `CORTEX_CTX_SIZE_BRAIN` defaults to 16384, the cortex's `CORTEX_CTX_SIZE`. A full
    window with the deep phase's 22 tools then leaves 5,521 to 6,873 tokens, the cortex's own
    margin; at 8192 the same prompt was 1.16 to 1.33 times the context
-   ([readings](../readings/history-window.md#the-cortexs-whole-prompt)). The pick costs 658 MiB
-   more at 16384 and runs alone on the card ([ADR-0030](ADR-0030-brain-handoff.md) decision 8). A
+   ([readings](../readings/history-window.md#the-cortexs-whole-prompt)). At 16384 the pick stopped
+   with a reply on 12 of 12 stop-row draws, where 8192 cut one mid-reasoning, and read 19,603 MiB
+   above idle ([readings](../readings/history-window.md#the-deep-tier-at-16384)); it runs alone on
+   the card ([ADR-0030](ADR-0030-brain-handoff.md) decision 8). A
    deep budget of its own was rejected: `SummarizingHistoryWindow` stores one recap a session and
    folds again from the start when the stored one covers more than the boundary, so a smaller
    deep window would store a recap past the cortex's boundary and the cortex's next turn would
@@ -110,9 +112,9 @@ recall; this ADR is about the in-context history of the current session only.
   limits history, not one turn's size, and such a turn ends with the note of decision 7. Long
   recalled memories and large tool results reach the same note. A per-turn input cap would be a
   decision at the overlay, not silent truncation here.
-- The deep tier at 16384 has no stop row drawn at that context yet
-  ([R-736](../refinements/tasks/736-the-deep-phase-sends-a-history-window-sized-for-the-cortexs-context.md)),
-  and its 658 MiB was measured on an earlier engine build.
+- At 16384 the pick decoded the same tokens at 0.86 of its 8192 rate, the two drawn on different
+  nights, so whether the larger context slows decode is open
+  ([R-757](../refinements/tasks/757-measure-whether-the-deep-tiers-16384-context-slows-decode.md)).
 - The `EchoInferenceBackend` reply counter counts user messages in the *windowed* history, so its
   `"reply {n}"` script diverges from the stored count only past the budget, which CI-sized tests
   never reach.
