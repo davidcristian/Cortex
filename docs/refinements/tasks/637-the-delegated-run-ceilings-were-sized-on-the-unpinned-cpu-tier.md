@@ -3,10 +3,9 @@
 **Status:** open, waiting for its trigger
 **Area:** subagents
 **Origin:** [ADR-0004](../../adr/ADR-0004-model-lineup.md)
-**Verified:** 2026-09-19
-**Trigger:** a delegated run on the CPU server that holds its admission for the whole stall ceiling
-or the whole run deadline while a peer queues behind it, a spawn refused at the admission wait, or
-any retune of `CORTEX_SUBAGENTS_STALL_TIMEOUT_S`, `CORTEX_SUBAGENTS_RUN_TIMEOUT_S` or
+**Verified:** 2026-10-01
+**Trigger:** a delegated run on the CPU server ended by the stall ceiling or the run deadline
+while a peer queues behind it, a spawn refused at the admission wait, or any retune of `CORTEX_SUBAGENTS_STALL_TIMEOUT_S`, `CORTEX_SUBAGENTS_RUN_TIMEOUT_S` or
 `CORTEX_SUBAGENTS_ADMISSION_WAIT_S`.
 
 The stall ceiling (600 s), the run deadline (2400 s) and the admission wait each rest on
@@ -71,3 +70,15 @@ from them by the rules [ADR-0048](../../adr/ADR-0048-generation-bounds.md) wrote
   above said `SubagentRosterEntry` declares nothing beyond an endpoint, a GPU endpoint and three
   asks, when it has declared a `description` since before this entry was opened; what the argument
   needs is that it declares no bound, and the sentence now says that.
+- 2026-10-01: not fired, and the trigger's first clause is corrected. The three declarations are
+  still 600.0, 2400.0 and 7200.0, the subagents overlay passes the three variables by name with no
+  value, this machine has no `.env` and exports no `CORTEX_` variable, and no reading added since
+  2026-09-19 records a delegated CPU run ended by a bound or a refused spawn. The clause asked for
+  a run holding its admission for the whole stall ceiling, but that ceiling bounds the gap between
+  two chunks and never a hold, so a 600 s hold was ordinary under the older count (the longest
+  measured was 595.2 s) and says nothing about the bound; it now names a run the ceiling or the
+  deadline ends. The runbook's bounds section no longer said that its whole-subtask figures were
+  taken before the count was set, so the first line of this History did not hold; that sentence
+  is back. Shortening the stall ceiling is also the trigger of
+  [R-763](763-the-stall-bound-times-a-whole-prompt-evaluation-as-one-silence.md), since without
+  progress chunks that ceiling has to clear a whole prompt evaluation.

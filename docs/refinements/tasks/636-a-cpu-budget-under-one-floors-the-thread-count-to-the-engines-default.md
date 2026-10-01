@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** subagents
 **Origin:** [ADR-0004](../../adr/ADR-0004-model-lineup.md)
-**Verified:** 2026-09-19
+**Verified:** 2026-10-01
 **Trigger:** a deployment that sets `CORTEX_SUBAGENTS_CPU_BUDGET` below 1.0, or a brain config
 change that lets the budget reach a CPU subagent server by any route other than the compose
 substitution both CPU servers read.
@@ -58,3 +58,11 @@ must lower every ask to at or under the budget as well.
   `--threads` and to `cpus`, in `docker/docker-compose.subagents.yml` and
   `docker/docker-compose.subagents-roster.yml`, and the model host builds no argv from the budget.
   The 2026-09-17 pass-through of the brain's settings by name left this variable as it was.
+- 2026-10-01: checked again, and neither half of the trigger has fired. `DEFAULT_CPU_BUDGET` is
+  still 4.0 and `cpu_budget` still `Field(default=DEFAULT_CPU_BUDGET, gt=0)`, `DEFAULT_CPUS` is 2.0
+  and the roster override's `cpus` 2.0. Both CPU servers still pass
+  `"${CORTEX_SUBAGENTS_CPU_BUDGET:-4.0}"` to `--threads` and to `cpus`, and in the brain only the
+  scheduler, through `subagent_builders.py`, reads the budget, so no other route reaches a server.
+  The deployment clause is decided by the environment compose starts with: this machine has no
+  `.env` in the repo root or in `docker/` and its shell exports no `CORTEX_` variable, so the 4.0
+  default applies.

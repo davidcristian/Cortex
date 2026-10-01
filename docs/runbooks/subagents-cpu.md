@@ -110,7 +110,10 @@ subagent a long file does not need it raised; a slower CPU than this one might. 
 about twice a whole subtask measured here. That subtask figure is an interval rather than a point,
 and what sets it is what else the host is doing: the same shape took 222.8 to 324.3 s across a
 full batch on an idle box and 1736.6 s beside a saturated one, and even the saturated run's
-slowest stretch put a chunk every 14 s.
+slowest stretch put a chunk every 14 s. Every whole-subtask figure in this section was taken before
+the server's thread count was set to its quota. With it set, the server decodes about ten times
+faster on an idle host and seventeen to twenty-eight times faster on a saturated one, and none of
+the bounds has been sized again on those rates.
 
 **A subagent that keeps talking is bounded in both of its units.**
 `CORTEX_SUBAGENTS_MAX_TOKENS` (default 1024) is how far any one of a run's completions may decode,

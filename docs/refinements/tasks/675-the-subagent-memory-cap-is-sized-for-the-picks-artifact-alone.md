@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** subagents
 **Origin:** [ADR-0004](../../adr/ADR-0004-model-lineup.md)
-**Verified:** 2026-09-19
+**Verified:** 2026-10-01
 **Trigger:** a deployment that names a `CORTEX_MODEL_FILE_SUBAGENT` or
 `CORTEX_MODEL_FILE_SUBAGENT_QWEN` artifact larger than about 5.6 GB, or that raises
 `CORTEX_SUBAGENTS_MAX_TOKENS` or `CORTEX_SUBAGENT_CTX_SIZE` above their shipped defaults, on a
@@ -46,3 +46,12 @@ deployment rather than shipped, which is the memory-cap change's to revise.
   threshold sits about 0.14 GB under what the published peak leaves for a larger artifact at
   unchanged `anon` (8,589,934,592 less 8,007,458,816, added to the pick's size), and a larger model
   also brings a larger `anon`, so the lower figure stands.
+- 2026-10-01: not fired. The two artifacts the CPU servers default to are unchanged on the mount at
+  5,154,941,280 and 1,280,835,840 bytes, and the largest other candidate the subagent tier is
+  offered, gemma-4-E2B at Q4_0, is 3,349,516,256, so none is larger than the pick; the
+  Qwen3.8-Flash-Next rows of 2026-10-01 are the deep tier's. `CORTEX_SUBAGENT_CTX_SIZE` still
+  defaults to 8192 in both files, `DEFAULT_SUBAGENT_MAX_TOKENS` is 1024, both containers are capped
+  at `CORTEX_SUBAGENTS_MEM_BUDGET_GB` 8, and this machine has no `.env` and exports no `CORTEX_`
+  variable. The token clause has a reading behind it: under the injection harness's 1600-token
+  budget the same server reached the cap in every run
+  ([model lineup](../../readings/model-lineup.md)).
