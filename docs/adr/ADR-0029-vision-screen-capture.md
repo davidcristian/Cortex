@@ -124,8 +124,9 @@ starts; nothing asserts that, so the DPI host row would show its loss.
 
 ### 10. The overlay excludes itself from capture, and fails closed
 
-The shell sets `WDA_EXCLUDEFROMCAPTURE` on the overlay at setup and wires `DeniedScreenCapture` if
-that fails or, as on X11, does not exist, since text an attacker gets into a reply is read back.
+No picture may hold the overlay, since text an attacker gets into a reply is read back. The Windows
+shell sets `WDA_EXCLUDEFROMCAPTURE`, wiring `DeniedScreenCapture` if that fails; the X11 capture paints
+black, under `GrabServer`, each viewable window whose `_NET_WM_PID` is the body's, refusing when none does.
 
 ### 11. Proto fields are added only with a consumer
 
@@ -216,7 +217,7 @@ with thinking on, about five times slower on an invoice screen; turning it off i
   halving and error mapping. Real pixels need the host: [windows-capture](../host/index.md#windows-capture).
 - **Accepted risks.** GDI renders hardware-overlay and DRM surfaces black with no error; a capture
   turn pays a second inference pass; a URL the model retypes, defangs or describes passes the
-  guardrail, a residual that names no work.
+  guardrail, a residual that names no work; on X11 the overlay's rectangle is lost, not seen through.
 - **Open work** under `docs/refinements/tasks/`: the attachment path, an `AttachmentStore`, a
   picture across a swap, `Windows.Graphics.Capture`, multi-monitor and DPI reporting, JPEG or WebP,
   Linux and macOS backends, pixel screening, and the user's half of an opaque turn.
@@ -225,8 +226,7 @@ with thinking on, about five times slower on an invoice screen; turning it off i
 
 - **The attachment path first** (a second inbound payload, a foreign image decoded in the brain);
   **inline base64 in the session store** (no TTL, re-read every turn, counted as zero characters);
-  an `AttachmentStore` now, a `stream` keyword, or a handle attached out of band (taint separated
-  from arrival).
+  an `AttachmentStore` now, a `stream` keyword, or an out-of-band handle (taint apart from arrival).
 - **Bytes in `content`**, a **TRUSTED stamp**, or **the preamble as the boundary**, measured false.
   **A strict guardrail by default** penalises text-only deployments, and choosing strict at the
   composition root when capture is on states the policy twice.

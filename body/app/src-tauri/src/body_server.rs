@@ -40,14 +40,15 @@ pub fn start(excluded: bool) {
 }
 
 /// Starts the `BodyService` server as the Windows `start` does, with notifications on the session
-/// bus, volume through `pactl`, and every capture refused, since X11 cannot hide the overlay. A bus
-/// that does not open costs only `Notify`, which then answers that no notification service exists.
+/// bus, volume through `pactl`, and capture only when `CORTEX_HOST_CAPTURE=1` on an X11 session.
+/// A bus that does not open costs only `Notify`, which then answers that no service exists.
 #[cfg(target_os = "linux")]
 pub fn start(_excluded: bool) {
     use body_core::DeniedScreenCapture;
     use os_linux::zbus::blocking::Connection;
     use os_linux::{
-        DbusNotifications, LinuxAudioControl, LinuxNotify, PACTL_PROGRAM, PactlCommand,
+        DbusNotifications, LinuxAudioControl, LinuxNotify, LinuxScreenCapture, PACTL_PROGRAM,
+        PactlCommand, X11Root,
     };
 
     let bus = match Connection::session() {
@@ -59,8 +60,26 @@ pub fn start(_excluded: bool) {
     };
     let notify = LinuxNotify::new(NOTIFY_APP_NAME, bus);
     let audio = LinuxAudioControl::new(PactlCommand::new(PACTL_PROGRAM));
-    eprintln!("cortex: screen capture is off, since the overlay cannot be kept out of it here");
-    tauri::async_runtime::spawn(serve(audio, notify, DeniedScreenCapture));
+    let wanted = std::env::var("CORTEX_HOST_CAPTURE").as_deref() == Ok("1");
+    let wayland = std::env::var_os("WAYLAND_DISPLAY").is_some_and(|name| !name.is_empty());
+    let display = if wanted && !wayland {
+        os_linux::x11rb::connect(None)
+            .map_err(|error| eprintln!("cortex: screen capture is off, no X display: {error}"))
+            .ok()
+    } else {
+        eprintln!("cortex: screen capture is off (CORTEX_HOST_CAPTURE=1 on an X11 session)");
+        None
+    };
+    match display {
+        Some((connection, screen)) => {
+            let capture =
+                LinuxScreenCapture::new(X11Root::new(connection, screen), std::process::id());
+            tauri::async_runtime::spawn(serve(audio, notify, capture));
+        }
+        None => {
+            tauri::async_runtime::spawn(serve(audio, notify, DeniedScreenCapture));
+        }
+    }
 }
 
 /// Binds the listener and serves `body_rpc`'s `body_service` over the three backends until it
@@ -125,7 +144,7 @@ pub fn start(_excluded: bool) {
     eprintln!("cortex: BodyService is not available on this platform yet");
 }
 
-/// Non-Windows stub: nothing to exclude, and nothing that could capture it.
+/// Off Windows nothing hides the overlay at setup; the Linux capture paints it black in each picture.
 #[cfg(not(windows))]
 pub fn exclude_overlay(_handle: &tauri::AppHandle) -> bool {
     false

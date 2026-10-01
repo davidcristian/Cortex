@@ -3,11 +3,11 @@
 **Status:** open, waiting for a consumer
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-09-28
+**Verified:** 2026-10-01
 **Trigger:** A request to capture a display other than the primary one.
 
 The Windows backend captures the primary display only, in physical pixels. The X11 backend in
-`os_linux`, which the shell does not serve yet
+`os_linux`, which the shell serves on an X11 session
 ([753](753-keep-the-overlay-out-of-a-linux-capture.md)), captures one monitor too, in device pixels,
 since X11 does not scale the root window: the one RandR marks primary, else the first listed, else
 the whole root. Its `X11Root::layout` lists the monitors with RandR's `GetMonitors`, the only code in
@@ -54,3 +54,5 @@ it returns `NoTarget` rather than a wrong picture.
   decision 16 defines, and decision 11 adds a proto field only with its consumer, so no display
   index is added until something asks for another display. The trigger is now that second half
   alone. `CaptureScreenRequest` still uses fields 1 to 3.
+- 2026-10-01: Checked again. The shell now serves the X11 backend, which still captures one
+  monitor; no request names another display, so the trigger has not fired.

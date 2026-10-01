@@ -30,10 +30,11 @@ speaks. They are also where the **stub coverage exemption** is used.
 - **`os_linux`** (`cfg(target_os = "linux")`) has four real backends, `LinuxNotify`,
   `LinuxAudioControl`, `LinuxScreenCapture` and the X11 `LinuxHotkey` (see
   [The Linux backends](#the-linux-backends)), and no stub. The crate is compiled and measured on
-  Linux CI. The shell's `BodyService` serves the notification and volume backends with
-  `DeniedScreenCapture`, because X11 has no way to keep the overlay out of a picture (ADR-0029
-  decision 10 fails closed). The shell registers the hotkey through `X11Keys`, except on a Wayland
-  session, where it logs why and registers none ([overlay runbook](../runbooks/body-overlay.md)).
+  Linux CI. The shell's `BodyService` serves the notification and volume backends, and
+  `LinuxScreenCapture<X11Root>` only when `CORTEX_HOST_CAPTURE=1`, `WAYLAND_DISPLAY` is unset or
+  empty and the X display opens, else `DeniedScreenCapture`. The shell registers the hotkey through
+  `X11Keys`, except on a Wayland session, where it logs why and registers none
+  ([overlay runbook](../runbooks/body-overlay.md)).
 - **`os_macos`** provides `MacosHotkey`, `MacosAudioControl`, `MacosNotify` and
   `MacosScreenCapture`, the same stubs for macOS. It has no `cfg` yet and compiles everywhere.
 
@@ -129,13 +130,25 @@ decision 13).
   or 32 at 32 bits per pixel with the masks `ff0000`, `ff00` and `ff`, reverses each pixel when
   the server stores the most significant byte first, and refuses any other layout as `Backend`.
   No server is `NoDisplay`, a failed layout or read `Backend`, and a window target is refused as
-  `Backend` without reading the screen, since no X11 window walk exists yet.
+  `Backend` without reading the screen, since nothing picks one window on X11 yet.
+- **The overlay is kept out by its process id** (ADR-0029 decision 10). X11 has no
+  `WDA_EXCLUDEFROMCAPTURE`, so `LinuxScreenCapture::new(root, process)` paints black, border
+  included, every viewable window whose `_NET_WM_PID` is `process`, placed by summing its
+  ancestors' offsets. GTK writes that property on each window it creates directly under the root:
+  under `Xvfb` it was on the overlay and on the override-redirect context menu, and missing only
+  from GTK's 1 by 1 child windows. The walk covers the whole tree, so a window manager's frame
+  between the root and the overlay does not hide it. The capture is refused as `Backend` when no
+  window in the tree names `process`, since the property is then not being written, and when a
+  window's parent is not listed before it. The shell passes `std::process::id()`.
 - **`X11Root`** lists the active monitors with RandR 1.5's `GetMonitors`, which reports each
   monitor's primary flag and rectangle in one request; a server without the extension lists none,
-  and an X error to the request fails the capture as `Backend`. It then sends one `GetImage`
-  (`ZPixmap`, every plane) for the chosen rectangle of the root of one screen of an
-  `x11rb::rust_connection::RustConnection` it is given, and reads the bits per pixel, byte order
-  and root visual masks from the connection's setup. The crate re-exports `x11rb`, and the host
+  and an X error to the request fails the capture as `Backend`. It then sends `GrabServer`, one
+  `GetImage` (`ZPixmap`, every plane) for the chosen rectangle of the root of one screen of an
+  `x11rb::rust_connection::RustConnection` it is given, and lists the window tree a level at a
+  time with `QueryTree`, `GetWindowAttributes`, `GetGeometry` and a `CARDINAL` `GetProperty` of
+  `_NET_WM_PID` per window, then sends and flushes `UngrabServer`, also after a failed read. No
+  other client can map, move or draw a window between the read and the list. It reads the bits per
+  pixel, byte order and root visual masks from the connection's setup. The crate re-exports `x11rb`, and the host
   opens the display with `x11rb::connect(None)`. When that fails, as on a Wayland session with no
   `DISPLAY`, `X11Root::absent(&error)` makes every read `NoDisplay`. Rootless Xwayland, such as
   WSLg's, answers `GetImage` on its root with `BadMatch`, so the read fails as `Backend` rather
@@ -165,7 +178,8 @@ decision 13).
   ([765](../refinements/tasks/765-a-wayland-hotkey-through-the-globalshortcuts-portal.md)).
 - `just os-linux-live` runs the four `#[ignore]`d live tests: a notification shown on the session
   bus, a volume and mute round trip on the default sink that restores what it found, a capture
-  of the root window on `DISPLAY` that prints its size and how many pixels are not black, and a
+  on `DISPLAY` that is refused before the test maps a window naming its own process and, after,
+  comes back with that window black and a white window of no process around it still white, and a
   `ctrl+alt+space` grab that XTEST presses with Num Lock off and on and holds for 1.5 s, each of
   which must run the callback once, and that `ctrl+space` must not run.
 

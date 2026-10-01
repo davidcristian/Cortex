@@ -63,25 +63,81 @@ fn the_default_sink_volume_round_trips() {
     assert_eq!(restored.muted, before.muted);
 }
 
+/// Maps a white `size` square at `at` on the root, naming `pid` in `_NET_WM_PID` when given one.
+fn white_square(
+    at: i16,
+    size: u16,
+    pid: Option<u32>,
+) -> os_linux::x11rb::rust_connection::RustConnection {
+    use os_linux::x11rb::protocol::xproto::{
+        AtomEnum, ConnectionExt as _, CreateWindowAux, PropMode, WindowClass,
+    };
+
+    let (connection, screen) =
+        os_linux::x11rb::connect(None).unwrap_or_else(|error| panic!("{error:?}"));
+    let root = &connection.setup().roots[screen];
+    let window = connection
+        .generate_id()
+        .unwrap_or_else(|error| panic!("{error:?}"));
+    let aux = CreateWindowAux::new().background_pixel(root.white_pixel);
+    connection
+        .create_window(
+            0,
+            window,
+            root.root,
+            at,
+            at,
+            size,
+            size,
+            0,
+            WindowClass::INPUT_OUTPUT,
+            0,
+            &aux,
+        )
+        .unwrap_or_else(|error| panic!("{error:?}"));
+    if let Some(pid) = pid {
+        let name = connection
+            .intern_atom(false, b"_NET_WM_PID")
+            .unwrap_or_else(|error| panic!("{error:?}"))
+            .reply()
+            .unwrap_or_else(|error| panic!("{error:?}"));
+        connection
+            .change_property32(
+                PropMode::REPLACE,
+                window,
+                name.atom,
+                AtomEnum::CARDINAL,
+                &[pid],
+            )
+            .unwrap_or_else(|error| panic!("{error:?}"));
+    }
+    connection
+        .map_window(window)
+        .unwrap_or_else(|error| panic!("{error:?}"));
+    connection
+        .sync()
+        .unwrap_or_else(|error| panic!("{error:?}"));
+    thread::sleep(Duration::from_millis(200));
+    connection
+}
+
 #[test]
 #[ignore = "needs an X server on DISPLAY"]
-fn the_root_window_is_captured() {
+fn the_root_window_is_captured_with_this_process_painted_black() {
     let (connection, screen) = os_linux::x11rb::connect(None).unwrap();
-    let capture = LinuxScreenCapture::new(X11Root::new(connection, screen));
+    let capture = LinuxScreenCapture::new(X11Root::new(connection, screen), std::process::id());
+    assert!(capture.capture(&CaptureRequest::new(0)).is_err());
+    let _below = white_square(0, 40, None);
+    let _ours = white_square(10, 20, Some(std::process::id()));
 
     let frame = capture.capture(&CaptureRequest::new(0)).unwrap();
-    let pixels = frame.frame().pixels();
-    let lit = pixels
-        .chunks_exact(4)
-        .filter(|pixel| pixel[..3] != [0, 0, 0])
-        .count();
+    let width = usize::try_from(frame.frame().width()).unwrap();
+    let pixel = |x: usize, y: usize| &frame.frame().pixels()[(y * width + x) * 4..][..3];
 
-    eprintln!(
-        "captured {}x{}, {lit} of {} pixels not black",
-        frame.frame().width(),
-        frame.frame().height(),
-        pixels.len() / 4
-    );
+    assert_eq!(pixel(5, 5), [255, 255, 255]);
+    assert_eq!(pixel(15, 15), [0, 0, 0]);
+    assert_eq!(pixel(29, 29), [0, 0, 0]);
+    assert_eq!(pixel(30, 30), [255, 255, 255]);
 }
 
 #[test]

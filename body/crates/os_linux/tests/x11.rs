@@ -7,15 +7,26 @@ use std::thread;
 use os_linux::x11rb::errors::{ConnectError, DisplayParsingError};
 use os_linux::x11rb::protocol::randr::{GetMonitorsReply, MonitorInfo};
 use os_linux::x11rb::protocol::xproto::{
-    Depth, Format, GetImageReply, ImageOrder, QueryExtensionReply, Screen, Setup, Visualtype,
+    BackingStore, Depth, EventMask, Format, GetGeometryReply, GetImageReply, GetPropertyReply,
+    GetWindowAttributesReply, Gravity, ImageOrder, InternAtomReply, MapState, QueryExtensionReply,
+    QueryTreeReply, Screen, Setup, Visualtype, WindowClass,
 };
 use os_linux::x11rb::rust_connection::{DefaultStream, RustConnection};
 use os_linux::x11rb::x11_utils::Serialize;
-use os_linux::{Area, GrabError, Layout, Monitor, RootGrab, RootImage, X11Root};
+use os_linux::{
+    Area, GrabError, Layout, Monitor, RootGrab, RootImage, Snapshot, TreeWindow, X11Root,
+};
 
 const ROOT: u32 = 0x0000_0100;
 const VISUAL: u32 = 0x0000_0021;
 const GET_IMAGE: u8 = 73;
+const GRAB_SERVER: u8 = 36;
+const UNGRAB_SERVER: u8 = 37;
+const INTERN_ATOM: u8 = 16;
+const QUERY_TREE: u8 = 15;
+const GET_PROPERTY: u8 = 20;
+const PID_ATOM: u32 = 0x0000_01a7;
+const CARDINAL: u32 = 6;
 const RANDR: u8 = 140;
 const GET_MONITORS: u8 = 42;
 const WHOLE: Area = Area {
@@ -83,6 +94,102 @@ fn image(sequence: u16, data: Vec<u8>) -> Vec<u8> {
         data,
     };
     reply.serialize()
+}
+
+fn padded(mut bytes: Vec<u8>) -> Vec<u8> {
+    bytes.resize(bytes.len().max(32), 0);
+    bytes
+}
+
+fn atom(sequence: u16) -> Vec<u8> {
+    padded(
+        InternAtomReply {
+            sequence,
+            length: 0,
+            atom: PID_ATOM,
+        }
+        .serialize()
+        .to_vec(),
+    )
+}
+
+fn tree(sequence: u16, children: Vec<u32>) -> Vec<u8> {
+    QueryTreeReply {
+        sequence,
+        length: u32::try_from(children.len()).unwrap_or_else(|error| panic!("{error:?}")),
+        root: ROOT,
+        parent: 0,
+        children,
+    }
+    .serialize()
+}
+
+fn attributes(sequence: u16, map_state: MapState) -> Vec<u8> {
+    GetWindowAttributesReply {
+        backing_store: BackingStore::NOT_USEFUL,
+        sequence,
+        length: 3,
+        visual: VISUAL,
+        class: WindowClass::INPUT_OUTPUT,
+        bit_gravity: Gravity::BIT_FORGET,
+        win_gravity: Gravity::NORTH_WEST,
+        backing_planes: 0,
+        backing_pixel: 0,
+        save_under: false,
+        map_is_installed: true,
+        map_state,
+        override_redirect: false,
+        colormap: 0,
+        all_event_masks: EventMask::NO_EVENT,
+        your_event_mask: EventMask::NO_EVENT,
+        do_not_propagate_mask: EventMask::NO_EVENT,
+    }
+    .serialize()
+    .to_vec()
+}
+
+fn geometry(sequence: u16, x: i16, y: i16, border_width: u16) -> Vec<u8> {
+    padded(
+        GetGeometryReply {
+            depth: 24,
+            sequence,
+            length: 0,
+            root: ROOT,
+            x,
+            y,
+            width: 5,
+            height: 6,
+            border_width,
+        }
+        .serialize()
+        .to_vec(),
+    )
+}
+
+fn pid(sequence: u16, value: Option<u32>) -> Vec<u8> {
+    let value = value.map_or_else(Vec::new, |pid| pid.to_le_bytes().to_vec());
+    let words = u32::try_from(value.len() / 4).unwrap_or_else(|error| panic!("{error:?}"));
+    GetPropertyReply {
+        format: if value.is_empty() { 0 } else { 32 },
+        sequence,
+        length: words,
+        type_: if value.is_empty() { 0 } else { CARDINAL },
+        bytes_after: 0,
+        value_len: words,
+        value,
+    }
+    .serialize()
+}
+
+/// The answers to a grab of an empty root: the server grab, the image, the atom, no windows, the release.
+fn bare(data: Vec<u8>) -> Vec<Answer> {
+    vec![
+        Some(Vec::new()),
+        Some(image(2, data)),
+        Some(atom(3)),
+        Some(tree(4, Vec::new())),
+        Some(Vec::new()),
+    ]
 }
 
 fn error(sequence: u16, code: u8, major: u8, minor: u8) -> Vec<u8> {
@@ -191,8 +298,12 @@ fn against<T>(
     )
 }
 
-fn grab_against(setup: Setup, answer: Answer) -> (Result<RootImage, GrabError>, Vec<Vec<u8>>) {
-    against(setup, 0, vec![answer], |root| root.grab(WHOLE))
+fn grab_against(setup: Setup, answers: Vec<Answer>) -> (Result<Snapshot, GrabError>, Vec<Vec<u8>>) {
+    against(setup, 0, answers, |root| root.grab(WHOLE))
+}
+
+fn image_of(grabbed: Result<Snapshot, GrabError>) -> RootImage {
+    grabbed.unwrap_or_else(|error| panic!("{error:?}")).image
 }
 
 fn layout_against(answers: Vec<Answer>) -> (Result<Layout, GrabError>, Vec<Vec<u8>>) {
@@ -217,12 +328,12 @@ fn a_grab_reads_the_given_area_in_the_servers_format() {
     let (grabbed, requests) = against(
         setup(ImageOrder::LSB_FIRST, VISUAL),
         0,
-        vec![Some(image(1, pixels.clone()))],
+        bare(pixels.clone()),
         |root| root.grab(area),
     );
 
     assert_eq!(
-        grabbed,
+        grabbed.map(|snapshot| snapshot.image),
         Ok(RootImage {
             width: 2,
             height: 1,
@@ -233,7 +344,7 @@ fn a_grab_reads_the_given_area_in_the_servers_format() {
             data: pixels,
         })
     );
-    let request = &requests[0];
+    let request = &requests[1];
     let format_zpixmap = 2;
     assert_eq!(&request[..2], &[GET_IMAGE, format_zpixmap]);
     assert_eq!(&request[4..8], &ROOT.to_le_bytes());
@@ -308,29 +419,16 @@ fn a_server_that_closes_before_the_monitor_list_is_a_failed_layout() {
 
 #[test]
 fn a_most_significant_byte_first_server_is_reported_as_such() {
-    let (grabbed, _) = grab_against(
-        setup(ImageOrder::MSB_FIRST, VISUAL),
-        Some(image(1, vec![0; 8])),
-    );
+    let (grabbed, _) = grab_against(setup(ImageOrder::MSB_FIRST, VISUAL), bare(vec![0; 8]));
 
-    assert!(
-        !grabbed
-            .unwrap_or_else(|error| panic!("{error:?}"))
-            .lsb_first
-    );
+    assert!(!image_of(grabbed).lsb_first);
 }
 
 #[test]
 fn a_root_visual_the_setup_does_not_list_has_no_masks() {
-    let (grabbed, _) = grab_against(
-        setup(ImageOrder::LSB_FIRST, 0x99),
-        Some(image(1, vec![0; 8])),
-    );
+    let (grabbed, _) = grab_against(setup(ImageOrder::LSB_FIRST, 0x99), bare(vec![0; 8]));
 
-    assert_eq!(
-        grabbed.unwrap_or_else(|error| panic!("{error:?}")).masks,
-        (0, 0, 0)
-    );
+    assert_eq!(image_of(grabbed).masks, (0, 0, 0));
 }
 
 #[test]
@@ -340,34 +438,38 @@ fn a_depth_with_no_pixmap_format_has_no_bits_per_pixel() {
     setup.length = u16::try_from((setup.serialize().len() - 8) / 4)
         .unwrap_or_else(|error| panic!("{error:?}"));
 
-    let (grabbed, _) = grab_against(setup, Some(image(1, vec![0; 8])));
+    let (grabbed, _) = grab_against(setup, bare(vec![0; 8]));
 
-    assert_eq!(
-        grabbed
-            .unwrap_or_else(|error| panic!("{error:?}"))
-            .bits_per_pixel,
-        0
-    );
+    assert_eq!(image_of(grabbed).bits_per_pixel, 0);
 }
 
 #[test]
-fn an_x_error_reply_is_a_failed_grab() {
+fn an_x_error_reply_is_a_failed_grab_that_still_releases_the_server() {
     let bad_match = 8;
 
-    let (grabbed, _) = grab_against(
+    let (grabbed, requests) = grab_against(
         setup(ImageOrder::LSB_FIRST, VISUAL),
-        Some(error(1, bad_match, GET_IMAGE, 0)),
+        vec![
+            Some(Vec::new()),
+            Some(error(2, bad_match, GET_IMAGE, 0)),
+            Some(Vec::new()),
+        ],
     );
 
     let Err(GrabError::Failed(reason)) = grabbed else {
         panic!("expected a failed grab, got {grabbed:?}");
     };
     assert!(reason.contains("Match"), "{reason}");
+    let opcodes: Vec<u8> = requests.iter().map(|request| request[0]).collect();
+    assert_eq!(opcodes, vec![GRAB_SERVER, GET_IMAGE, UNGRAB_SERVER]);
 }
 
 #[test]
 fn a_server_that_closes_before_replying_is_a_failed_grab() {
-    let (grabbed, _) = grab_against(setup(ImageOrder::LSB_FIRST, VISUAL), None);
+    let (grabbed, _) = grab_against(
+        setup(ImageOrder::LSB_FIRST, VISUAL),
+        vec![Some(Vec::new()), None],
+    );
 
     assert!(matches!(grabbed, Err(GrabError::Failed(_))), "{grabbed:?}");
 }
@@ -421,4 +523,113 @@ fn a_session_with_no_display_set_is_no_display() {
         root.grab(WHOLE),
         Err(GrabError::NoDisplay(error.to_string()))
     );
+}
+
+#[test]
+fn a_grab_lists_every_window_under_the_root_inside_one_server_grab() {
+    let (frame, popup, client) = (0x0040_0001, 0x0040_0002, 0x0040_0003);
+    let mut answers = vec![
+        Some(Vec::new()),
+        Some(image(2, vec![0; 8])),
+        Some(atom(3)),
+        Some(tree(4, vec![frame, popup])),
+    ];
+    answers.extend(
+        [
+            attributes(5, MapState::VIEWABLE),
+            geometry(6, 7, 8, 1),
+            pid(7, None),
+            tree(8, vec![client]),
+            attributes(9, MapState::UNMAPPED),
+            geometry(10, -2, 3, 0),
+            pid(11, Some(4242)),
+            tree(12, Vec::new()),
+            attributes(13, MapState::UNVIEWABLE),
+            geometry(14, 0, 0, 0),
+            pid(15, Some(77)),
+            tree(16, Vec::new()),
+            Vec::new(),
+        ]
+        .map(Some),
+    );
+
+    let (grabbed, requests) = grab_against(setup(ImageOrder::LSB_FIRST, VISUAL), answers);
+
+    let at = |x, y| Area {
+        x,
+        y,
+        width: 5,
+        height: 6,
+    };
+    let window = |parent, area, border, viewable, pid| TreeWindow {
+        parent,
+        area,
+        border,
+        viewable,
+        pid,
+    };
+    assert_eq!(
+        grabbed.unwrap_or_else(|error| panic!("{error:?}")).windows,
+        vec![
+            window(None, at(7, 8), 1, true, None),
+            window(None, at(-2, 3), 0, false, Some(4242)),
+            window(Some(0), at(0, 0), 0, false, Some(77)),
+        ]
+    );
+    assert_eq!(
+        requests.first().map(|request| request[0]),
+        Some(GRAB_SERVER)
+    );
+    assert_eq!(
+        requests.last().map(|request| request[0]),
+        Some(UNGRAB_SERVER)
+    );
+    assert_eq!(&requests[2][..2], &[INTERN_ATOM, 0]);
+    assert_eq!(&requests[2][8..19], b"_NET_WM_PID");
+    assert_eq!(&requests[3][..1], &[QUERY_TREE]);
+    assert_eq!(&requests[3][4..8], &ROOT.to_le_bytes());
+    let property = &requests[14];
+    assert_eq!(property[0], GET_PROPERTY);
+    assert_eq!(&property[4..8], &client.to_le_bytes());
+    assert_eq!(&property[8..12], &PID_ATOM.to_le_bytes());
+    assert_eq!(&property[12..16], &CARDINAL.to_le_bytes());
+}
+
+#[test]
+fn an_x_error_while_listing_windows_is_a_failed_grab_that_releases_the_server() {
+    let bad_window = 3;
+    let get_window_attributes = 3;
+    let at_the_root = vec![
+        Some(Vec::new()),
+        Some(image(2, vec![0; 8])),
+        Some(atom(3)),
+        Some(error(4, bad_window, QUERY_TREE, 0)),
+        Some(Vec::new()),
+    ];
+    let mut at_a_window = bare(vec![0; 8]);
+    at_a_window[3] = Some(tree(4, vec![0x0040_0001]));
+    at_a_window.pop();
+    at_a_window.extend(
+        [
+            error(5, bad_window, get_window_attributes, 0),
+            geometry(6, 0, 0, 0),
+            pid(7, None),
+            tree(8, Vec::new()),
+            Vec::new(),
+        ]
+        .map(Some),
+    );
+
+    for answers in [at_the_root, at_a_window] {
+        let (grabbed, requests) = grab_against(setup(ImageOrder::LSB_FIRST, VISUAL), answers);
+
+        let Err(GrabError::Failed(reason)) = grabbed else {
+            panic!("expected a failed grab, got {grabbed:?}");
+        };
+        assert!(reason.contains("Window"), "{reason}");
+        assert_eq!(
+            requests.last().map(|request| request[0]),
+            Some(UNGRAB_SERVER)
+        );
+    }
 }

@@ -3,9 +3,12 @@
 use std::sync::{Arc, Mutex, PoisonError};
 
 use body_core::{CaptureError, CaptureRequest, CaptureTarget, ScreenCapture};
-use os_linux::{Area, GrabError, Layout, LinuxScreenCapture, Monitor, RootGrab, RootImage};
+use os_linux::{
+    Area, GrabError, Layout, LinuxScreenCapture, Monitor, RootGrab, RootImage, Snapshot, TreeWindow,
+};
 
 const MASKS: (u32, u32, u32) = (0x00ff_0000, 0x0000_ff00, 0x0000_00ff);
+const PROCESS: u32 = 4242;
 const ROOT: Area = Area {
     x: 0,
     y: 0,
@@ -19,6 +22,7 @@ type Calls = Arc<Mutex<Vec<Option<Area>>>>;
 struct FakeRoot {
     layout: Result<Layout, GrabError>,
     answer: Result<RootImage, GrabError>,
+    windows: Vec<TreeWindow>,
     calls: Calls,
 }
 
@@ -31,12 +35,15 @@ impl RootGrab for FakeRoot {
         self.layout.clone()
     }
 
-    fn grab(&self, area: Area) -> Result<RootImage, GrabError> {
+    fn grab(&self, area: Area) -> Result<Snapshot, GrabError> {
         self.calls
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
             .push(Some(area));
-        self.answer.clone()
+        self.answer.clone().map(|image| Snapshot {
+            image,
+            windows: self.windows.clone(),
+        })
     }
 }
 
@@ -71,6 +78,30 @@ fn image(lsb_first: bool, data: Vec<u8>) -> RootImage {
     }
 }
 
+/// A window of `pid` at `x`, `y` with a one pixel inside and the given border.
+fn window(parent: Option<usize>, x: i16, y: i16, border: u16, pid: Option<u32>) -> TreeWindow {
+    TreeWindow {
+        parent,
+        area: Area {
+            x,
+            y,
+            width: 1,
+            height: 1,
+        },
+        border,
+        viewable: true,
+        pid,
+    }
+}
+
+/// A hidden window of this process, so a capture finds the process and paints nothing.
+fn hidden() -> TreeWindow {
+    TreeWindow {
+        viewable: false,
+        ..window(None, 0, 0, 0, Some(PROCESS))
+    }
+}
+
 fn counted(
     layout: Result<Layout, GrabError>,
     answer: Result<RootImage, GrabError>,
@@ -79,9 +110,43 @@ fn counted(
     let root = FakeRoot {
         layout,
         answer,
+        windows: vec![hidden()],
         calls: Arc::clone(&calls),
     };
-    (LinuxScreenCapture::new(root), calls)
+    (LinuxScreenCapture::new(root, PROCESS), calls)
+}
+
+/// Captures a 4 by 3 monitor at 1, 1 of the root with `windows` over it, and returns which of its
+/// pixels came back black, row by row.
+fn blacked(windows: Vec<TreeWindow>) -> Result<Vec<String>, CaptureError> {
+    let area = Area {
+        x: 1,
+        y: 1,
+        width: 4,
+        height: 3,
+    };
+    let layout = Layout {
+        root: ROOT,
+        monitors: vec![Monitor {
+            primary: true,
+            area,
+        }],
+    };
+    let mut lit = image(true, vec![7; 48]);
+    (lit.width, lit.height) = (4, 3);
+    let root = FakeRoot {
+        layout: Ok(layout),
+        answer: Ok(lit),
+        windows,
+        calls: Arc::new(Mutex::new(Vec::new())),
+    };
+    let frame = LinuxScreenCapture::new(root, PROCESS).capture(&display())?;
+    let marks = frame.frame().pixels().chunks_exact(16).map(|row| {
+        row.chunks_exact(4)
+            .map(|pixel| if pixel == [0; 4] { '#' } else { '.' })
+            .collect()
+    });
+    Ok(marks.collect())
 }
 
 fn backend(answer: Result<RootImage, GrabError>) -> LinuxScreenCapture<FakeRoot> {
@@ -270,4 +335,75 @@ fn a_window_target_is_refused_without_reading_the_screen() {
             .unwrap_or_else(PoisonError::into_inner)
             .is_empty()
     );
+}
+
+fn rows(marks: [&str; 3]) -> Vec<String> {
+    marks.map(String::from).to_vec()
+}
+
+#[test]
+fn a_viewable_window_of_this_process_is_painted_black() {
+    let painted = blacked(vec![window(None, 2, 1, 0, Some(PROCESS))]);
+
+    assert_eq!(painted, Ok(rows([".#..", "....", "...."])));
+}
+
+#[test]
+fn a_border_is_painted_with_its_window() {
+    let painted = blacked(vec![window(None, 1, 1, 1, Some(PROCESS))]);
+
+    assert_eq!(painted, Ok(rows(["###.", "###.", "###."])));
+}
+
+#[test]
+fn a_window_inside_a_frame_is_placed_from_the_frames_inside_corner() {
+    let frame = window(None, 1, 2, 1, None);
+
+    let painted = blacked(vec![frame, window(Some(0), 1, 0, 0, Some(PROCESS))]);
+
+    assert_eq!(painted, Ok(rows(["....", "....", "..#."])));
+}
+
+#[test]
+fn a_window_partly_off_the_monitor_is_painted_where_it_overlaps() {
+    let painted = blacked(vec![window(None, -1, 0, 1, Some(PROCESS))]);
+
+    assert_eq!(painted, Ok(rows(["#...", "#...", "...."])));
+}
+
+#[test]
+fn hidden_windows_and_other_processes_windows_are_left_alone() {
+    let mut unmapped = window(None, 1, 1, 0, Some(PROCESS));
+    unmapped.viewable = false;
+
+    let painted = blacked(vec![unmapped, window(None, 2, 1, 0, Some(77))]);
+
+    assert_eq!(painted, Ok(rows(["....", "....", "...."])));
+}
+
+#[test]
+fn a_tree_with_no_window_of_this_process_is_refused() {
+    let painted = blacked(vec![
+        window(None, 1, 1, 0, None),
+        window(None, 2, 1, 0, Some(77)),
+    ]);
+
+    let Err(CaptureError::Backend(reason)) = painted else {
+        panic!("expected a refusal, got {painted:?}");
+    };
+    assert!(reason.contains("_NET_WM_PID"), "{reason}");
+}
+
+#[test]
+fn a_parent_listed_after_its_child_is_refused() {
+    let painted = blacked(vec![
+        window(None, 0, 0, 0, None),
+        window(Some(2), 0, 0, 0, Some(PROCESS)),
+        window(None, 0, 0, 0, None),
+    ]);
+
+    let Err(CaptureError::Backend(reason)) = painted else {
+        panic!("expected a refusal, got {painted:?}");
+    };
+    assert!(reason.contains("parent"), "{reason}");
 }

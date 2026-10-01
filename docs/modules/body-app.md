@@ -22,10 +22,9 @@ values: `TurnEvent`, `TransportError`, `SessionSummary`, `SessionMessage`, `DueR
 - The session reads `listSessions(limit)` and `sessionMessages(sessionId)` (ADR-0021). A zero
   limit means the brain's default listing and a positive one cuts that listing.
 - The session writes `renameSession(sessionId, title)` (`""` clears the override),
-  `deleteSession(sessionId)` and `setSessionHoisted(sessionId, hoisted)` (ADR-0021 decisions 10
-  to 12). Each is user-driven, and `useOverlay` re-lists after it resolves. Deleting the open chat
-  tears down its in-flight turn and falls back to a fresh chat, so a deleted transcript is never
-  rendered.
+  `deleteSession(sessionId)` and `setSessionHoisted(sessionId, hoisted)` (ADR-0021 decisions 10 to
+  12). Each is user-driven, and `useOverlay` re-lists after it resolves. Deleting the open chat tears
+  down its in-flight turn and falls back to a fresh chat, so a deleted transcript is never rendered.
 - `listDueReminders()` and `ackReminder(reminderId, firedAtUnixMs)` (ADR-0025), and `checkLink()`,
   the connection probe (ADR-0011 decision 8).
 - `getPreferences()` and `setPreference(key, value)` (ADR-0032) store opaque pairs the overlay
@@ -176,8 +175,9 @@ re-dispatches as the DOM event the overlay listens on; in a browser `main.tsx` s
   overlay's own window from capture succeeded, else `DeniedScreenCapture`, which answers
   `PermissionDenied` to every `CaptureScreen`. Both conditions are required: the overlay is always
   on top, so a capture including it reads the prompt, the prior reply and any confirm card back as
-  screen content. On Linux they are `pactl`, the session bus (ADR-0011 decision 13) and
-  `DeniedScreenCapture`; on other platforms `start` only logs. `CORTEX_HOST_CAPTURE_NOTIFY=0` turns
+  screen content. On Linux they are `pactl`, the session bus (ADR-0011 decision 13) and, with the
+  switch set on an X11 session, `LinuxScreenCapture<X11Root>` over the shell's own process id,
+  else `DeniedScreenCapture`; on other platforms `start` only logs. `CORTEX_HOST_CAPTURE_NOTIFY=0` turns
   off the body-authored receipt. Nothing on this path has ever touched a real screen
   (`docs/runbooks/vision.md` has the check nothing else stands in for).
 

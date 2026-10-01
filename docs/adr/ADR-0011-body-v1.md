@@ -189,8 +189,8 @@ recorded in an ADR. This ADR is that exclusion, and the checks that grew around 
     server, is taken by the caller: the host shell, outside the checked workspace (decision 5), and
     the `#[ignore]`d tests in `os_linux/tests/live.rs`, run by hand with `just os-linux-live`.
     cargo-llvm-cov does not measure `tests/`, so an ignored live test costs no coverage. The shell's
-    Linux `start` serves notifications and volume with `DeniedScreenCapture`, since X11 cannot keep
-    the overlay out of a picture ([ADR-0029](ADR-0029-vision-screen-capture.md) decision 10), and a
+    Linux `start` serves notifications, volume and, on the conditions of
+    [ADR-0029](ADR-0029-vision-screen-capture.md) decision 10, the X11 capture, and a
     session bus that does not open becomes `DbusNotifications::absent`, so `Notify` answers
     `Unavailable`. On a Wayland session its hotkey `register` grabs nothing, since an Xwayland grab
     fires only over X windows. The two alternatives hide a working backend: `coverage(off)` is

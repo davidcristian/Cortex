@@ -3,21 +3,20 @@
 **Status:** open, waiting for a consumer
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-09-30
+**Verified:** 2026-10-01
 **Trigger:** A capture that has to go ahead with part of the screen removed rather than be refused,
 over a window or a region Cortex does not own, since the body's own windows are the OS's to exclude
-on Windows and task 753's on X11.
+on Windows and the X11 capture's own fill on X11.
 
 The body is the only side holding the pixels before they cross the wire, so it is the only side
 that could redact a region (a password field, a specific window) rather than refuse a whole
 capture. Nothing in the design prevents it: the policy already lives in pure core, where a
 screening pass would join it. On Windows one window is already excluded, by the OS rather than by
 Cortex: the overlay sets `WDA_EXCLUDEFROMCAPTURE` on itself at setup, and the shell wires the
-refusing backend if that call fails. X11 has no such call, so the Linux shell refuses every
-capture, and keeping the body's own windows out there by filling them black is
-[753](753-keep-the-overlay-out-of-a-linux-capture.md), which would be the body's first pixel pass.
-Both cover windows Cortex owns, which is why the trigger names one it does not, and a pass for
-those would sit beside 753's fill.
+refusing backend if that call fails. X11 has no such call, so the X11 capture paints every window
+of the body's process black, the body's first pixel pass, in `os_linux/src/exclude.rs`
+([753](753-keep-the-overlay-out-of-a-linux-capture.md)). Both cover windows Cortex owns, which is
+why the trigger names one it does not, and a pass for those would sit beside that fill.
 
 ## History
 
@@ -41,3 +40,7 @@ those would sit beside 753's fill.
   130). Nothing masks pixels yet: the masks in `os_linux` are colour channel masks. `screen_policy.rs`
   is 213 lines. The trigger has not fired: nothing asks for a capture with another program's window
   or a region removed.
+- 2026-10-01: Checked again. The X11 capture now fills the body's own windows black, which the
+  entry described as future work, and the shell serves it on an X11 session. That fill finds
+  windows by `_NET_WM_PID`, so it still covers only windows Cortex owns. The trigger has not
+  fired.

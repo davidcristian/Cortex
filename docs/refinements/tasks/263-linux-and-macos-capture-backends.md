@@ -3,12 +3,13 @@
 **Status:** open, optional feature
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-09-28
+**Verified:** 2026-10-01
 
 `LinuxScreenCapture<X11Root>` in `os_linux` reads the primary RandR monitor of the X root window
 through `x11rb` and is built and covered under [ADR-0011](../../adr/ADR-0011-body-v1.md) decision
-13; the shell does not serve it yet, which is [753](753-keep-the-overlay-out-of-a-linux-capture.md),
-and a Wayland session needs the desktop portal, which is
+13. The shell serves it on an X11 session when `CORTEX_HOST_CAPTURE=1`, with the body's own windows
+painted black ([753](753-keep-the-overlay-out-of-a-linux-capture.md)), and a Wayland session needs
+the desktop portal, which is
 [752](752-wayland-screen-capture-through-the-portal.md). Two parts remain here:
 
 - **A window target on X11.** `LinuxScreenCapture` refuses `CaptureTarget::Focus` as `Backend`
@@ -57,3 +58,6 @@ resolved target rectangle.
   cannot keep the overlay out of a picture. Filed
   [752](752-wayland-screen-capture-through-the-portal.md) and
   [753](753-keep-the-overlay-out-of-a-linux-capture.md).
+- 2026-10-01: Checked again. The shell's Linux `start` now serves `LinuxScreenCapture<X11Root>`,
+  which paints the body's own windows black, so only the two parts above remain. The window target
+  is still refused as `Backend`, and `MacosScreenCapture` is still a stub.

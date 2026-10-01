@@ -4,6 +4,8 @@ use body_core::{
     CaptureError, CaptureRequest, CaptureTarget, CapturedFrame, RawFrame, ScreenCapture,
 };
 
+use crate::exclude::{black_out, own_windows};
+
 /// The channel masks of the one pixel layout the backend reads: eight bits each of red, green, blue.
 const MASKS: (u32, u32, u32) = (0x00ff_0000, 0x0000_ff00, 0x0000_00ff);
 
@@ -57,6 +59,30 @@ pub struct RootImage {
     pub data: Vec<u8>,
 }
 
+/// One window under the root, as the server lists it, with what a capture needs to know of it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct TreeWindow {
+    /// Its parent's index in the same list, listed before it, or `None` for a child of the root.
+    pub parent: Option<usize>,
+    /// Its rectangle inside the border, from the inside corner of its parent.
+    pub area: Area,
+    /// Its border width in pixels.
+    pub border: u16,
+    /// Whether it and every window above it are mapped.
+    pub viewable: bool,
+    /// The process its `_NET_WM_PID` property names, if it has one.
+    pub pid: Option<u32>,
+}
+
+/// The pixels of one rectangle and every window under the root, read in one server grab.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Snapshot {
+    /// The rectangle's pixels.
+    pub image: RootImage,
+    /// Every window under the root, each listed after its parent.
+    pub windows: Vec<TreeWindow>,
+}
+
 /// Why reading the root window failed.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum GrabError {
@@ -75,24 +101,26 @@ pub trait RootGrab: Send + Sync {
     /// [`GrabError`] when there is no server or the request fails.
     fn layout(&self) -> Result<Layout, GrabError>;
 
-    /// Reads the pixels of `area`, with the format the server describes them in.
+    /// Reads the pixels of `area` and lists every window, while no other client can change either.
     ///
     /// # Errors
     ///
-    /// [`GrabError`] when there is no server or the read fails.
-    fn grab(&self, area: Area) -> Result<RootImage, GrabError>;
+    /// [`GrabError`] when there is no server or a read fails.
+    fn grab(&self, area: Area) -> Result<Snapshot, GrabError>;
 }
 
-/// The Linux screen-capture backend over any [`RootGrab`].
+/// The Linux screen-capture backend over any [`RootGrab`], which paints the windows of one
+/// process black, so the overlay never reaches a picture.
 pub struct LinuxScreenCapture<G> {
     root: G,
+    process: u32,
 }
 
 impl<G: RootGrab> LinuxScreenCapture<G> {
-    /// Creates the backend over `root`.
+    /// Creates the backend over `root`, keeping out every window whose `_NET_WM_PID` is `process`.
     #[must_use]
-    pub const fn new(root: G) -> Self {
-        Self { root }
+    pub const fn new(root: G, process: u32) -> Self {
+        Self { root, process }
     }
 }
 
@@ -104,8 +132,13 @@ impl<G: RootGrab> ScreenCapture for LinuxScreenCapture<G> {
             )));
         }
         let area = primary(&self.root.layout().map_err(classify)?);
-        let image = self.root.grab(area).map_err(classify)?;
-        Ok(CapturedFrame::display(to_bgra(image)?))
+        let Snapshot { image, windows } = self.root.grab(area).map_err(classify)?;
+        let own = own_windows(&windows, self.process)?;
+        let (width, height, mut pixels) = to_bgra(image)?;
+        black_out(&mut pixels, area, &own);
+        Ok(CapturedFrame::display(RawFrame::new(
+            width, height, pixels,
+        )?))
     }
 }
 
@@ -121,7 +154,7 @@ fn primary(layout: &Layout) -> Area {
 
 /// Reorders one image's pixels to the core's BGRA, refusing any layout other than 8-bit channels
 /// in a 32-bit pixel.
-fn to_bgra(image: RootImage) -> Result<RawFrame, CaptureError> {
+fn to_bgra(image: RootImage) -> Result<(u32, u32, Vec<u8>), CaptureError> {
     let supported = matches!(image.depth, 24 | 32) && image.bits_per_pixel == 32;
     if !supported || image.masks != MASKS {
         return Err(CaptureError::Backend(format!(
@@ -135,7 +168,7 @@ fn to_bgra(image: RootImage) -> Result<RawFrame, CaptureError> {
             pixel.reverse();
         }
     }
-    RawFrame::new(image.width, image.height, pixels)
+    Ok((image.width, image.height, pixels))
 }
 
 /// Maps a failed read to the port's error: no server is `NoDisplay`, the rest `Backend`.
