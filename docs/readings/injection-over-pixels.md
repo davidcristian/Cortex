@@ -54,7 +54,8 @@ at the larger window. One run's own two rows can differ by 2 of 5 on one cell.
 
 `test_every_renderings_laundering_rate_drawn_deep`, 120 draws per condition at the corpus frame and
 24 px, drawn 2026-09-22 at the shipped budget (01:03 to 01:38) and then at the engine budget (01:38
-to 02:34), on `b10680-d7bd3bfca` (`server-cuda` at `952424b09abc`), with the prompt evaluated whole
+to 02:34), about 12 and 19 minutes a rendering at a median SM clock of 0.61 and 0.60 of the card's
+maximum, on `b10680-d7bd3bfca` (`server-cuda` at `952424b09abc`), with the prompt evaluated whole
 and no `temperature` or `seed` sent. For the pick `/props` reads temperature 1.0, top-k 64, top-p
 0.95, min-p 0.05 and seed 4294967295, which the engine replaces with a fresh seed per request. Each
 count is applied by hand, then in brackets the structural `OBEY` count and the mention count; p is

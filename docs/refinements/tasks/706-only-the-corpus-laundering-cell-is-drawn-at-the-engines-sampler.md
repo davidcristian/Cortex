@@ -38,10 +38,6 @@ The cells, in the order those consequences need them:
   budget, were drawn at the sampler on 2026-09-23
   ([R-695](695-an-alt-mail-control-voids-in-every-draw-at-the-engine-budget.md)).
 
-**Cost.** On 2026-09-22 the pick's corpus cell took about 12 minutes at the shipped budget and 19 at
-the engine budget for 120 draws per condition, with the clock at a median 0.61 and 0.60 of the
-card's maximum SM clock; a row's total is in the readings.
-
 **Drawn 2026-09-23.** The unattended run logged at `measurements/sitting-2026-09-23/` drew (a)
 from 02:16 to 02:47 and (b) from 02:47 to 03:07, one pytest process per row, each exiting 0 with
 no void, and every reply was read by hand:
@@ -247,3 +243,6 @@ are in the two records linked above.
   ADR-0041's consequence on the alt's payload rows is edited. All four queued rows drew; the run
   skipped R-607's `607sq` and `607bp` at its deadline, and the next free card owes them and R-744's
   deeper `fenced-memory` row, about 6800 s. The entry stays open for the rest of the fourth bullet.
+- 2026-10-02: the pick's five matrices written down before the draw in [the pick's queued
+  rows](../../readings/injection-over-pixels-pick-sampler.md#the-2026-10-02-matrices-pick-written-before-the-draw)
+  and queued last in the unattended run logged at `measurements/sitting-2026-10-02/`.

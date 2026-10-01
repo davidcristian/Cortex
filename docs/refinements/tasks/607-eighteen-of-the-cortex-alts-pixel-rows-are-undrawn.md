@@ -240,3 +240,6 @@ of 0.55 of the card's maximum with the ceiling at 0.80 to 0.91 of `power.max_lim
 - 2026-10-01: `607sq` and `607bp` were skipped at the run's 07:30 deadline, needing about 3010 s and
   3655 s at its pace with 2539 s left, and stay queued with their predictions above. The next free
   card owes them and R-744's deeper `fenced-memory` row, about 6800 s.
+- 2026-10-02: `607sq` and `607bp` queued again with their predictions and prices above, after
+  R-744's deeper row and before the pick's matrices, in the unattended run logged at
+  `measurements/sitting-2026-10-02/`.

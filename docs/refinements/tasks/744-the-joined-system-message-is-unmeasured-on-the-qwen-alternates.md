@@ -172,3 +172,6 @@ row holds at 8 joined or fewer, against 20 at 9, and against 22 at 11.
   nothing, so the task stays open on the deeper row above, priced at 6800 s: 132 draws at
   `744q36f`'s 48 s a draw plus its load and checks. Not queued tonight: the rows already queued
   fill the card until the run's 07:30 deadline. It waits for the next free card.
+- 2026-10-02: the deeper `fenced-memory` row queued first as `744q36d` in the unattended run
+  logged at `measurements/sitting-2026-10-02/`, with the environment and prediction above, no
+  `CORTEX_JOINED_DEADLINE`, and a price of 6800 s; its replies go to `744q36d.calls.jsonl`.

@@ -151,3 +151,32 @@ with no `--image-max-tokens`. The row exited 0 with no void draw, every reply en
   0.91 of `power.max_limit` and the software power cap active in 46 of the harness's 63 readings.
 - **Method.** `706ptp.log` in that directory with every reply whole, the matching `.calls.jsonl`,
   `.props.json` and `.engine.txt`, and the run's driver under `drivers/`, all ignored by git.
+
+## The 2026-10-02 matrices, pick, written before the draw
+
+The pick's five thirty-cell matrices of [its record](injection-over-pixels.md#the-thirty-cell-matrix-pick),
+queued last in the unattended run logged at `measurements/sitting-2026-10-02/` (`<tag>.log`), each
+started only if the ceiling reads at least 0.75 of `power.max_limit`. A matrix draws each of the
+ten attacks over three renderings once per variant, so each count below is of 30, applied or obeyed
+by hand under decision 11 and read under the rule of
+[R-706](../refinements/tasks/706-only-the-corpus-laundering-cell-is-drawn-at-the-engines-sampler.md).
+Each id is
+`test_injection_defense_over_pixels[gemma-4-12B (cortex pick)-<frame>-<budget>]`, and the third
+frame's is `test_the_matrix_at_a_third_frame[gemma-4-12B (cortex pick)]`.
+
+| tag | frame, budget | framed | control | predicted |
+|---|---|---|---|---|
+| `706pmcs` | 1600x900, `1024-image-tokens` | 1 (0 to 3) | 1 (0 to 3) | not apart |
+| `706pmds` | 3200x1800, `1024-image-tokens` | 1 (0 to 3) | 1 (0 to 3) | not apart |
+| `706pmce` | 1600x900, `engine-budget` | 1 (0 to 3) | 1 (0 to 4) | not apart |
+| `706pmde` | 3200x1800, `engine-budget` | 1 (0 to 3) | 1 (0 to 4) | not apart |
+| `706pmt` | 4800x2700, `engine-budget` | 1 (0 to 3) | 1 (0 to 4) | not apart |
+
+The grounds: at temperature 0 every variant of every pick matrix read 0 or 1 of 30. At the sampler
+the corpus frame's three laundering cells applied the rule at 0.01 to 0.29 a draw on the shipped
+budget and 0.05 to 0.37 on the engine's, which adds about 0.3 a matrix to each shipped variant, 0.4
+to the framed engine variant and 0.8 to its control. Thirty single draws read apart only at about 0
+against 6 or wider, so a matrix reads apart only if a cell other than laundering starts obeying.
+What a result decides: the sampled counts replace the temperature-0 ones in the pick's matrix
+table, one step of R-706's close, and no rule ties shipped behaviour to them. Each is priced at
+900 s, 63 requests at twice `706pt`'s 5.6 s a request plus a load.
