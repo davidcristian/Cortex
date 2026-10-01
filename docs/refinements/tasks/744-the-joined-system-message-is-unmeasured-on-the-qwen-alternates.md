@@ -15,7 +15,8 @@ and the memory or the recap into one system turn itself, the same bytes the join
 merges every leading one the same way. The rows below read this layout on Qwen3.5-9B, where every
 row holds with no backfire
 ([readings](../../readings/system-message-templates.md#the-joined-message-against-the-unframed-control-2026-09-29)),
-and on Qwen3.6-27B, where `fenced-memory` holds and the other two rows are not read
+and on Qwen3.6-27B, where `fenced-memory` holds under the share rule and the other two rows are
+not read
 ([readings](../../readings/system-message-templates.md#the-joined-message-on-the-deep-alternate-2026-09-30));
 no framing reading covers it on Qwen3.8.
 
@@ -67,6 +68,15 @@ three repetitions at the 4096-token cap. A void draw no longer leaves a variant 
 read over every draw sent, with each void counted against the claim, a joined void as obeyed and a
 control void as not obeyed, and the rule above is otherwise unchanged. `read_voids_against` in
 `tests/joined_rows.py` reads a row this way.
+
+**`fenced-memory` on Qwen3.6-27B under the same rule**, fixed on 2026-10-01 before any draw.
+`744q36` read this row under the share rule, which left its 4 joined and 6 control voids out, so
+its `holds` depends on what those voids were, and a `holds` under the redraw's rule does not. The
+row is drawn again with `CORTEX_JOINED_ROWS=fenced-memory` and `CORTEX_JOINED_SEED_FROM=1000`, a
+seed base this row has not drawn, three repetitions (33 draws a variant) at the 4096-token cap, and
+read by the redraw's rule. On Qwen3.6-27B this task closes only when all three rows hold with no
+backfire under that one rule; `744q36`'s reading of this row stays as read and is not counted
+again. A result of `does not hold` prices a deeper row of six repetitions and changes nothing.
 
 ## History
 
@@ -125,5 +135,17 @@ control void as not obeyed, and the rule above is otherwise unchanged. `read_voi
   from the hand-checked counts: `brain/.venv/bin/python
   brain/packages/inference/tests/joined_rows.py JO JV CO CV 33`, the joined and control obeyed and
   void counts, with `--backfire` for `quoted-memory`. Read this way, `744q36`'s `fenced-memory`
-  would be 4 of 33 against 11 of 33 (p 0.076) and would not hold; it was read under the share rule
-  then in effect, and the redraw's rule covers only the two redrawn rows.
+  would be 4 of 33 against 11 of 33 (p 0.076) and would not hold; it stays as read under the share
+  rule then in effect, and is drawn fresh under the redraw's rule instead (the rule above).
+- 2026-10-01: the fresh `fenced-memory` row queued as `744q36f` in the same unattended run, after
+  `760s17` and before the pixel rows, from the same driver copy, so it too is counted by hand.
+  Priced at 3000 s: 66 draws at 41 s plus the load `744q36r` is priced with. Predicted from
+  `744q36` read the redraw's way, an expectation and not a reading: joined 4 (1 to 8), all voids at
+  the cap, since no joined draw obeyed there, against control 11 (6 to 17) of 33, p 0.076, so it
+  does not hold, at the boundary. Against a control of 9 or 10 the row holds at 2 joined or fewer,
+  against 11 at 3, and against 12 or 13 at 4. If it holds and `744q36r`'s two rows hold with no
+  backfire, the task closes; if not, the deeper row is priced from this one. Ahead of the pixel
+  rows, its 3000 s most likely leaves
+  [R-607](607-eighteen-of-the-cortex-alts-pixel-rows-are-undrawn.md)'s `607sq` (3500 s) too little
+  time before 07:30; at the queue's written estimates `607sq` and `607bp` miss it either way and
+  `706adpe` still fits, with 83 s to spare.
