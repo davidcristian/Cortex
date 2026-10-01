@@ -1,9 +1,8 @@
 # The shell has never been run on Linux
 
-**Status:** open, optional feature
+**Status:** done 2026-10-01
 **Area:** body-gateway
 **Origin:** [ADR-0011](../../adr/ADR-0011-body-v1.md)
-**Verified:** 2026-10-01
 
 The shell's Linux `start` in `body/app/src-tauri/src/body_server.rs` serves `LinuxAudioControl`
 and `LinuxNotify` over the session bus, with `DeniedScreenCapture`, and its Linux
@@ -28,6 +27,14 @@ overlay on an X11 session.
   `dunst` 1.9.2, set and restored the volume on a PulseAudio 17.0 server, answered
   `PermissionDenied` to a capture, and with no session bus answered `FailedPrecondition` to
   `Notify` while volume still worked.
-- 2026-10-01: The shell's Linux `hotkey::register` was wired to `LinuxHotkey`, which adds the
-  hotkey to what a run checks. `cargo build --locked` linked the shell on this host from the
-  userspace prefix in the [shell clippy readings](../../readings/shell-clippy.md); it was not run.
+- 2026-10-01: Done. The shell's Linux `hotkey::register` was wired to `LinuxHotkey`, and a debug
+  build linked on this host from the userspace prefix in the
+  [shell clippy readings](../../readings/shell-clippy.md) ran under `Xvfb` 21.1.12 as the
+  [overlay runbook](../../runbooks/body-overlay.md) describes. Over gRPC to its `BodyService`, on
+  Tauri's runtime, the volume went from 1.0 to 0.5 and back on the WSLg PulseAudio server, `Notify`
+  answered `shown` with `dunst` 1.9.2 printing the notification on the session bus `start` opened
+  during setup, and a capture answered `PermissionDenied`. An XTEST press of `ctrl+alt+space` showed
+  the 640 by 720 overlay window and the next hid it, while another client's `GrabKey` of the chord
+  failed with `BadAccess`. With `WAYLAND_DISPLAY` set, the shell logged its Wayland line and the
+  chord stayed free. The page rendered its stage and theme toggle, but the panel never opened:
+  filed [767](767-the-overlay-panel-does-not-open-in-the-linux-webview.md).

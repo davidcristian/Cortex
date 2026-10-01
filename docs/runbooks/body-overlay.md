@@ -155,3 +155,21 @@ where `WAYLAND_DISPLAY` is set and not empty, the shell grabs nothing and logs
 assumed to get a key only while one of its own windows has focus, so a grab there would toggle the
 overlay over some windows and not others. A Wayland hotkey needs the desktop portal,
 [R-765](../refinements/tasks/765-a-wayland-hotkey-through-the-globalshortcuts-portal.md).
+
+**To run the shell on Linux without sudo**, link a debug build against the userspace prefix in the
+[shell clippy readings](../readings/shell-clippy.md). WebKitGTK starts its helper processes from
+the compiled-in `/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1`, so the run happens in a user and mount
+namespace that overlays the prefix's library directory on the system one:
+
+```
+unshare --user --map-root-user --mount bash -c "mount -t overlay overlay \
+  -o lowerdir=<prefix>/usr/lib/x86_64-linux-gnu:/usr/lib/x86_64-linux-gnu \
+  /usr/lib/x86_64-linux-gnu && exec dbus-run-session -- target/debug/cortex-body"
+```
+
+The run that worked set `WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS=1`, `DISPLAY` to an `Xvfb`
+display and `GDK_BACKEND=x11`. Without the last, with `WAYLAND_DISPLAY` unset and WSLg's
+`wayland-0` socket in `XDG_RUNTIME_DIR`, no window appeared on `Xvfb`, which fits GTK opening that
+socket while the shell grabbed the chord on X. A notification server such as `dunst` started inside
+the same `dbus-run-session` shows `Notify`, and `pactl` on `PATH` serves the volume. A debug build
+loads the overlay from `devUrl`, `http://localhost:5173`, so serve `body/app/dist` or run Vite there.

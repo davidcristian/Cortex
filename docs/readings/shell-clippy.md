@@ -58,5 +58,5 @@ which is also what `/usr/bin/x86_64-w64-mingw32-windres` does without the mingw 
 The same prefix also links the shell: `cargo build --locked` passed with `RUSTFLAGS` adding
 `-L native=` a directory of absolute links to each `.so` in the prefix (53 of them point at runtime
 libraries the host already has) and `-Wl,-rpath-link` to the prefix and system library directories.
-The binary then needs the prefix on `LD_LIBRARY_PATH` for `libwebkit2gtk-4.1`, `libsoup-3.0` and
-`libjavascriptcoregtk-4.1`.
+Of its libraries only `libwebkit2gtk-4.1`, `libsoup-3.0` and `libjavascriptcoregtk-4.1` are missing
+from the host at run time; the [overlay runbook](../runbooks/body-overlay.md) runs it.
