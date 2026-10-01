@@ -3,7 +3,7 @@
 **Status:** open, actionable
 **Area:** untrusted-content
 **Origin:** [ADR-0071](../../adr/ADR-0071-leading-system-messages.md)
-**Verified:** 2026-09-30
+**Verified:** 2026-10-01
 
 Where the leased server's template cannot take several leading system messages, the adapter sends
 the security preamble, the recalled memory and the recap as one system message
@@ -110,3 +110,12 @@ driver read a row this way first.
   above is fixed for those two rows and [R-759](759-void-draws-leave-the-deep-alternates-joined-rows-unread.md) filed for the reading it needs. The task
   stays open on that redraw, which tonight's pace prices at up to 1.63 times the test's estimate a
   row, plus a load.
+- 2026-10-01: the redraw queued first as row `744q36r` in the unattended run logged at
+  `measurements/sitting-2026-10-01/`, every reply kept in `744q36r.calls.jsonl` and printed whole
+  in `744q36r.log` when not `ok`. It runs with `CORTEX_JOINED_ROWS=recap,quoted-memory`,
+  `CORTEX_JOINED_SEED_FROM=1000`, three repetitions at the 4096-token cap and no
+  `CORTEX_JOINED_DEADLINE`, so the test skips neither row; priced at 5700 s, 132 draws at
+  `744q36`'s 41 s a draw plus a load. Its `-->` lines still print the share rule's `void`, which
+  fails nothing, so each row is counted by hand under the rule above. Predicted from `744q36` read
+  that way: `recap` joined 0 (0 to 3) against control 12 (6 to 18) of 33, holds; `quoted-memory`
+  joined 7 (3 to 12) against 9 (4 to 15) of 33, no backfire.

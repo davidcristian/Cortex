@@ -1,7 +1,7 @@
 # The reworded precis sentence reads below the plain summary
 
 **Status:** open, actionable
-**Verified:** 2026-09-30
+**Verified:** 2026-10-01
 **Area:** subagents
 **Origin:** [ADR-0072](../../adr/ADR-0072-subagent-roles.md)
 
@@ -42,3 +42,8 @@ in the readings record and ADR-0072 states the result.
 - 2026-09-30: The second seed base, row `760` of the unattended run at
   `measurements/sitting-2026-09-30c/`, read 16 of 32 against 23, the intervals overlapping, so the
   rewording stays; the third seed base at sixteen draws a cell is item 1 now.
+- 2026-10-01: item 1 queued second as row `760s17` in the unattended run logged at
+  `measurements/sitting-2026-10-01/` (`760s17.log`, the replies under `760s17/`), on the compose
+  argv at `-ngl 99` with `CORTEX_ENVELOPE_DRAWS=16` and `CORTEX_ENVELOPE_SEED=17`, the plain cell
+  and then the shipped sentence in one server session; priced at 600 s. Predicted from the two
+  seed bases pooled: plain 50 (44 to 56) against the sentence 36 (29 to 43) of 64, apart below.
