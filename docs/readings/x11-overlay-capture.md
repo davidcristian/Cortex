@@ -1,8 +1,8 @@
 # Readings: what an X11 capture shows of the overlay
 
 Pixel counts of `CaptureScreen` replies from the linked Linux shell under the conditions a real X11
-desktop adds to a bare `Xvfb`. Cited by [ADR-0029](../adr/ADR-0029-vision-screen-capture.md)
-decision 10.
+desktop adds to a bare `Xvfb`, and of single windows read directly under a compositor. Cited by
+[ADR-0029](../adr/ADR-0029-vision-screen-capture.md) decision 10.
 
 ## Method
 
@@ -53,3 +53,35 @@ overlay and shadow pixels. On bare `Xvfb` and under openbox the counts were thos
 
 Method: the commands above, from a scratch directory outside the repo; the shell's capture is
 `LinuxScreenCapture` over `X11Root`.
+
+## A window read directly under a compositor
+
+**2026-10-01.** The same `Xvfb` and compositors, with no shell. A probe client mapped window A,
+400 by 300 at 100, 100, white with a red 100 by 100 square drawn at 20, 20 inside it, and window B,
+200 by 200 of blue at 400, 300, above A's bottom right corner, so 100 by 100 of A lay under B. Each
+figure counts a `GetImage` (`ZPixmap`, every plane) of the window named, as white, red, blue, black
+and other pixels.
+
+| Read | picom, fading | xcompmgr, fading | No compositor |
+| --- | --- | --- | --- |
+| A, whole | 110,000 white, 10,000 red | the same | 100,000 white, 10,000 red, 10,000 black |
+| A, the part under B | 10,000 white | 10,000 white | 10,000 black |
+| Root, the part of A under B | 10,000 blue | 10,000 blue | 10,000 blue |
+| A, 0.3 s after B is unmapped | 110,000 white, 10,000 red | the same | the same |
+| B, 0.3 s after it is unmapped | `BadMatch` | `BadMatch` | `BadMatch` |
+| Root, the part of A under B, then | 10,000 other | 10,000 other | 10,000 white |
+| D, 200 by 200 at 1200, 700, whole | 40,000 blue | 40,000 blue | `BadMatch` |
+
+- **A frame.** Under openbox and picom, A's frame was a 402 by 325 child of the root with A at
+  1, 20 inside it. A read of the frame held all 120,000 of A's white and red pixels and 10,650 of
+  decoration.
+- **A depth-32 window**, background ARGB `0x80000080`, read as depth 32, each pixel 0, 0, 128 with
+  alpha 128, under picom and with no compositor.
+- **`NameWindowPixmap`** of the Composite extension, on A's top-level window and read with
+  `GetImage`, gave the window read's counts under both compositors, and `BadMatch` with no
+  compositor, where A was not redirected.
+- **The composite overlay window** that picom paints, as `GetOverlayWindow` named it, was viewable
+  and not among the root's children that `QueryTree` listed.
+
+Method: a scratch `x11rb` client outside the repo makes the windows and reads them; the
+compositors ran with the flags above.
