@@ -96,9 +96,10 @@ test could fail on it.
   attack in the recap, 0 of 109 against 17 of 97 in a tainted memory, and 12 of 108 against 26 of
   106 when it is quoted in a trusted memory's reply
   ([readings](../readings/system-message-templates.md#the-joined-message-against-the-unframed-control-2026-09-29)).
-  On Qwen3.6-27B, at 33 draws a variant, the tainted memory row holds, 0 obeyed of 29 against 11
-  of 27, and the recap and quoted rows are not read, their controls void in 7 of 33 draws
-  ([readings](../readings/system-message-templates.md#the-joined-message-on-the-deep-alternate-2026-09-30),
+  On Qwen3.6-27B, at 33 draws a variant with every void draw counted against the claim, the recap
+  row holds, 2 of 33 against 13 of 33, and the tainted memory row does not, 5 of 33 against 10 of
+  33, all five joined counts being void draws, so it is drawn deeper
+  ([readings](../readings/system-message-templates.md#the-deep-alternate-with-every-void-counted-against-the-claim-2026-10-01),
   [R-744](../refinements/tasks/744-the-joined-system-message-is-unmeasured-on-the-qwen-alternates.md)).
 - On a turn that also recalls a memory, the deep alternate's prompt now includes the recap it used
   to drop, up to `RECAP_MAX` (2000 characters) plus the preface, inside the margin
@@ -111,9 +112,8 @@ test could fail on it.
   which include earlier assistant replies (`render_exchange`), sit inside it unfenced. Qwen3.6 at
   two messages and Qwen3.8 at two and three already render this layout on their own. On
   Qwen3.5-9B an injection quoted there was obeyed less often than without the preamble, as the
-  bullet above says. On Qwen3.6-27B that row is not read yet
-  ([R-744](../refinements/tasks/744-the-joined-system-message-is-unmeasured-on-the-qwen-alternates.md)),
-  and no reading covers it on Qwen3.8.
+  bullet above says. On Qwen3.6-27B it did not backfire, 10 of 33 against 6 of 33 with every
+  joined void counted as obeyed, p 0.39, and no reading covers it on Qwen3.8.
 - A stored system message next to the prefix would be joined into the preamble's message, so the
   session store refuses to append one, a handoff record refuses one in its loop tail, and both read
   a stored one as a corrupt record

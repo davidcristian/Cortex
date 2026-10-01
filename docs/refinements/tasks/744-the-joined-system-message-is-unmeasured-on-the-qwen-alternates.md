@@ -15,9 +15,9 @@ and the memory or the recap into one system turn itself, the same bytes the join
 merges every leading one the same way. The rows below read this layout on Qwen3.5-9B, where every
 row holds with no backfire
 ([readings](../../readings/system-message-templates.md#the-joined-message-against-the-unframed-control-2026-09-29)),
-and on Qwen3.6-27B, where `fenced-memory` holds under the share rule and the other two rows are
-not read
-([readings](../../readings/system-message-templates.md#the-joined-message-on-the-deep-alternate-2026-09-30));
+and on Qwen3.6-27B, where with every void draw counted against the claim `recap` holds,
+`quoted-memory` does not backfire and `fenced-memory` does not hold
+([readings](../../readings/system-message-templates.md#the-deep-alternate-with-every-void-counted-against-the-claim-2026-10-01));
 no framing reading covers it on Qwen3.8.
 
 The joined message is the one the preamble calls "this system message" and lets direct the model.
@@ -77,6 +77,17 @@ seed base this row has not drawn, three repetitions (33 draws a variant) at the 
 read by the redraw's rule. On Qwen3.6-27B this task closes only when all three rows hold with no
 backfire under that one rule; `744q36`'s reading of this row stays as read and is not counted
 again. A result of `does not hold` prices a deeper row of six repetitions and changes nothing.
+
+**The deeper `fenced-memory` row on Qwen3.6-27B**, fixed on 2026-10-01 before any draw. `744q36f`
+did not hold, so the row is drawn at six repetitions, 66 draws a variant, with
+`CORTEX_JOINED_ROWS=fenced-memory`, `CORTEX_JOINED_REPS=6` and `CORTEX_JOINED_SEED_FROM=2000`,
+seeds no draw of this row has used, at the 4096-token cap, and read alone by the redraw's rule,
+with `744q36f` not pooled into it. If it holds, this task closes, since `744q36r`'s `recap` holds
+and its `quoted-memory` does not backfire under the same rule. If it does not hold, nothing in the
+joined layout changes, and the next step is written from its counts before any further draw.
+Predicted from `744q36f`, an expectation and not a reading: joined 10 (4 to 16) against control
+20 (13 to 27) of 66, p 0.060, so it does not hold, at the boundary. Against a control of 18 the
+row holds at 8 joined or fewer, against 20 at 9, and against 22 at 11.
 
 ## History
 
@@ -149,3 +160,15 @@ again. A result of `does not hold` prices a deeper row of six repetitions and ch
   [R-607](607-eighteen-of-the-cortex-alts-pixel-rows-are-undrawn.md)'s `607sq` (3500 s) too little
   time before 07:30; at the queue's written estimates `607sq` and `607bp` miss it either way and
   `706adpe` still fits, with 83 s to spare.
+- 2026-10-01: `744q36r` read, drawn whole from 02:30:17 to 04:05:32 in
+  `measurements/sitting-2026-10-01/`, every obeyed draw checked by hand and each row counted by the
+  redraw's rule with `joined_rows.py`. `recap` holds, joined 2 of 33 (0 obeyed, 2 void) against
+  control 13 of 33 (6 void), p 0.0025. `quoted-memory` does not backfire, 10 of 33 (6 obeyed, 4
+  void) against 6 of 33 (11 void), p 0.39. Both are inside the predictions above
+  ([readings](../../readings/system-message-templates.md#the-deep-alternate-with-every-void-counted-against-the-claim-2026-10-01)).
+- 2026-10-01: `744q36f` read, drawn whole from 04:14:39 to 05:13:46 there. `fenced-memory` does
+  not hold, joined 5 of 33 (0 obeyed, 5 void) against control 10 of 33 (11 void), p 0.24, inside
+  the prediction; no joined draw the model finished obeyed. A miss prices a deeper row and changes
+  nothing, so the task stays open on the deeper row above, priced at 6800 s: 132 draws at
+  `744q36f`'s 48 s a draw plus its load and checks. Not queued tonight: the rows already queued
+  fill the card until the run's 07:30 deadline. It waits for the next free card.
