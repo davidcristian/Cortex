@@ -35,3 +35,7 @@ What to check before building it:
 - 2026-10-01: filed by
   [735](735-flash-nexts-feasibility-row-is-not-complete-at-the-shipped-memory-cap.md), whose first
   row at the shipped cap logged the progress chunks its driver asked for.
+- 2026-10-02: trigger not fired. With context checkpoints off at a prompt batch of 8192 the server
+  took the 6184-token prompt in one step, its progress chunks coming at 0 s and at 186.8 s with the
+  first delta ([771](771-flash-nexts-first-prompt-step-is-a-54-token-checkpoint.md)), so this
+  route bounds a step only where the batch or a checkpoint splits the prompt.

@@ -114,8 +114,36 @@ memory `full avg10` peaked at 19.78 and the watchdog never woke late. Run C's VR
 samples, 22,278 MiB at ready against an idle 1,868. At `-lv 4` the loader logged
 `per_layer_token_embd.weight`, 27,465 MiB, with lazy read enabled.
 
+## Context checkpoints off, 2026-10-02
+
+Run F is run E with `--ctx-checkpoints 0` added and nothing else changed. The server logged
+`context checkpoints disabled`. The rule and prediction were written into
+[R-771](../refinements/tasks/771-flash-nexts-first-prompt-step-is-a-54-token-checkpoint.md) before
+the draw, with nothing else on the machine.
+
+| reading | run E, checkpoints on | run F, checkpoints off | floor | predicted | held |
+| --- | --- | --- | --- | --- | --- |
+| ready, `docker run` to health | 168.9 s | 208.3 s | 300 s: passes | | |
+| prompt steps | 54, 6110, 16, 4 | 6184 | | the 54-token step gone (0.8) | yes |
+| mount read by the longest prompt step | about 24.5 GB | 33.9 GB | | 24.5 to 36.5 GB | yes |
+| first delta of the 3400-word prompt | 163.9 s, 1.37 of the bound | 186.8 s, 1.56 of the bound | 120 s: fails | fails, at 128 s (100 to 150) | fails, yes; the time, no |
+| SM clock during the request | 0.59 | 0.59 | | | |
+| power ceiling during the request | 0.87 | 0.88 | | | |
+
+Run F's mount read went on for the first 174 s of the request at about 195 MB/s, after which the
+card computed for about 13 s at full utilization with no read. Its load took 208.3 s, as run C's
+first load of its day took 207.1 s, where run E's followed run D's; its step read at 0.77 of the
+252 MB/s of run E's 6110-token step. At that rate 33.9 GB is about 135 s before the card's 13 s
+(computed, not drawn), still past the bound, and only a mount read of 317 MB/s or more through the
+whole step would clear it, a rate one load (run B) reached and no prompt step has. So the 54-token
+step is not what keeps the first token past the bound at the 24g cap: without it the step reads
+the off-card experts in one pass. With checkpoints off a whole prompt is one step and so one gap
+between progress chunks. The host swapped out 14 MiB during the request and 59 MiB during the
+load, memory `full avg10` peaked at 6.92 and the watchdog never woke late.
+
 Method: `measurements/deep-2026-09-26/flash-p2/` and `flash-p2-20g/` hold runs A and B (their
 driver was not kept); `measurements/flash24-2026-09-28/flash24.py` drew run C,
-`measurements/flash-decode-2026-10-01/decode.py` run D and
-`measurements/flash-batch-2026-10-01/flashbatch.py` run E, each from the repo root, with its logs
+`measurements/flash-decode-2026-10-01/decode.py` run D,
+`measurements/flash-batch-2026-10-01/flashbatch.py` run E and
+`measurements/flash-ckpt-2026-10-02/flashckpt.py` run F, each from the repo root, with its logs
 and 5 s card, mount and memory samples under `row/`.

@@ -86,9 +86,9 @@ lineup](../readings/model-lineup.md), [deep candidates](../readings/deep-candida
    memory: with 13 layers of experts on the card and the rest read from the models mount it loads
    inside the swap bound and decodes a fresh 2000-token reply above its floor, but at the shipped
    24 GiB memory cap its first token for a 6184-token prompt came in 1.65 times the stall bound, so it
-   cannot serve this tier here ([Qwen3.8-Flash-Next](../readings/flash-next.md)). Evaluating the
-   prompt in one step of 8192 tokens still put it at 1.37 times the bound, and whether the model
-   stops was not drawn.
+   cannot serve this tier here ([Qwen3.8-Flash-Next](../readings/flash-next.md)). A prompt batch of
+   8192 still put it at 1.37 times the bound, one step with context checkpoints off at 1.56, and
+   whether the model stops was not drawn.
    On four written questions drawn on one build, three seeds each, the pick stopped on 11 of 12,
    Qwen3.8-27B on 10 at its default effort (`xhigh`) and on 12 at `low` and at `medium`, the
    alternate on 10, Qwen3.6-35B-A3B (at `UD-Q3_K_XL`) on 6 and gemma-4-26B-A4B on 5; only the A4B's
