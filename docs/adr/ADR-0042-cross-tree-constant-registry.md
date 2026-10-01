@@ -101,7 +101,7 @@ weeks and moved here to keep each record to one subject.
     deployment runs.
 15. **Search by name, never by digits.** Finding the other places is a method, not a scan: search
     for the name a value is declared under, and read each hit against the tense test. Two constants
-    can share a number (`DEFAULT_SPILL_DWELL_S` and `DEFAULT_ADMISSION_WAIT_S` are both 3600).
+    can share a number (`DEFAULT_SPILL_DWELL_S` and `_TASK_TTL_SECONDS` are both 3600).
 
 ### Structure
 
