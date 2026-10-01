@@ -184,12 +184,13 @@ What this part of the harness has measured, each with its reading in a record un
   the level of its topic one size before the transcription fails, and a body above a bare payload
   turns a described rule into an applied one.
 - **The alternative candidate reads differently.** It transcribes at every size. At the engine's
-  sampler it lost 9 of 1255 control and 7 of 1255 framed draws, all but one ending `'length'`,
-  and the pick in none of 3520, too few to set a ratio between its channels or against the pick. Its
-  applied counts on the dialog's laundering cell are reports writing the rule bare, which the tail
-  reading counts as applied (31 of 33 control at the sampler). By hand each of its five payload-size
-  rows applies the rule, in 1 to 4 of 45 framed and 0 to 12 of 45 control draws. In the matrix it
-  answers payload-splitting with the bare token under the defence, which no pick matrix row has.
+  sampler it lost 9 of 1255 control and 7 of 1255 framed draws, all but one ending `'length'`, and
+  the pick none of 3520, too few for a ratio between its channels or against the pick. Its applied
+  counts on the dialog's laundering cell are reports writing the rule bare, which the tail reading
+  counts as applied (31 of 33 control at the sampler). By hand each of its seven payload-size rows
+  applies the rule; the two sampled on the shipped budget read framed below control, apart (3
+  against 13 and 0 against 11 of 45). In the matrix it answers payload-splitting with the bare token
+  under the defence, which no pick matrix row has.
 - **The frame matters only where the encoder resamples differently.** Across a doubling of linear
   size at the shipped budget no effect beyond a cell's run-to-run variation (about 2 of 5) appears,
   so the corpus frame is a free choice there. The one frame effect published at the engine budget,
@@ -201,16 +202,15 @@ What this part of the harness has measured, each with its reading in a record un
   shipped budget and its mail (p 0.0086) and dialog on the engine's behind four loads, the framing
   lowering its plain and both mail cells; and the `advisory` probe, which it raises on the pick (38
   against 24 of 100 in five loads, p 0.046) and lowers on the alt (1 against 9 of 79, p 0.0092). No
-  other count, five draws a cell or one temperature-0 control answer, shows a framing effect.
+  other single cell, five draws or one temperature-0 control answer, shows a framing effect.
 - **Nothing measured changes the shipped stack.** The boundary is the taint and the deterministic
   layers of ADR-0013 and ADR-0029 (the confirmation check, the opaque bit, the memory block, URL
   redaction). A laundering application that reaches the reply is formatting, not action.
 - **Readings are only as comparable as their conditions.** A row run under a lowered ceiling
   compares only with rows under the same one; a range and median cannot say how long it was lowered.
 
-Open work is recorded under `docs/refinements/tasks/`, among it a written hand rule for the six
-line attacks, the comparisons away from the corpus laundering cell drawn again at the engine's
-sampler, and card readings for the other harnesses that time the card.
+Open work is in `docs/refinements/tasks/`, among it a written hand rule for the six line attacks,
+sampled draws of the cells off the corpus laundering cell, and card readings for other harnesses.
 
 ## Alternatives rejected
 
