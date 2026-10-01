@@ -130,9 +130,9 @@ the dot never claims more than the brain proved: `unknown` is a real state with 
 
 ## The Tauri shell
 
-`src-tauri/` is a tray plus a hidden always-on-top window. The global hotkey (`os_windows`) toggles
-the window and emits the `cortex:activate` Tauri event, which `main.tsx` re-dispatches as the DOM
-event the overlay listens on; in a plain browser `main.tsx` self-summons instead.
+`src-tauri/` is a tray plus a hidden always-on-top window. The global hotkey (`os_windows`, or
+`os_linux` on X11) toggles the window and emits the `cortex:activate` Tauri event, which `main.tsx`
+re-dispatches as the DOM event the overlay listens on; in a browser `main.tsx` self-summons instead.
 
 - **`converse(session_id, text, images, channel)`** (`converse.rs`) decodes each `WireImage`'s
   base64 bytes (a bad one ends the turn as `attachment_refused`), drives one `BrainRpcClient` turn,

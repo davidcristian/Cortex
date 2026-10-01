@@ -119,7 +119,7 @@ MCP.
 1. **The OS backends (Rust)**: one crate per OS behind the traits above, selected by
    `cfg(target_os)`. Windows is implemented (Core Audio through the `windows` crate,
    `global-hotkey`, `xcap`/`scap`, WinRT toasts). Linux has real notifications (the freedesktop
-   service over D-Bus) and volume (`pactl`); its hotkey and capture, and all of macOS, are
+   service over D-Bus), volume (`pactl`), and an X11 hotkey and capture; all of macOS is
    `unimplemented!()` stubs with coverage turned off and an inline reason. One binary per OS.
 2. **`InferenceBackend`**: llama.cpp (ADR-0005). Engine flags and GPU quirks stay inside the adapter
    and its runbook. llama.cpp also runs on Metal and CPU, so a later move to macOS likely reuses

@@ -20,9 +20,9 @@ trigger, so the chord the user sees can differ from `CORTEX_HOTKEY`; the runbook
 `zbus` is already a dependency. Build it under [ADR-0011](../../adr/ADR-0011-body-v1.md) decision
 13: the session and bind requests, the trigger text a chord becomes and the response codes in a
 covered core over a small portal port, and a `zbus` adapter tested against a fake portal over a
-socket pair. The shell picks the portal when `WAYLAND_DISPLAY` is set, which is
-[766](766-register-the-linux-hotkey-in-the-shell.md). The portal side shares its request and
-response handling with the screenshot portal in
+socket pair. The shell's Linux `hotkey::register` grabs nothing and logs why when `WAYLAND_DISPLAY`
+is set and not empty, and that branch is where it would open the portal instead. The portal side
+shares its request and response handling with the screenshot portal in
 [752](752-wayland-screen-capture-through-the-portal.md).
 
 ## History

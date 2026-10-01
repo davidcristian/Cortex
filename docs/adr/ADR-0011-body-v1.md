@@ -39,17 +39,16 @@ recorded in an ADR. This ADR is that exclusion, and the checks that grew around 
    stream ending before `TurnComplete`) is `TransportError::Protocol`. The overlay renders the two
    differently and iterates one stream.
 
-3. **`Hotkey` is the first `cfg`-conditional OS backend, and each platform has its own crate.**
-   The port and the pure `HotkeyChord` to accelerator conversion live in `body_core`, fully
-   tested. The backends live in `os_windows`, `os_linux` and `os_macos`. `os_windows` is
-   `#![cfg(windows)]` with its dependencies under a `cfg(windows)` target table, so it builds to
-   nothing on Linux, and it is a thin adapter validated on the host, never in CI. `os_linux` is
-   `#![cfg(target_os = "linux")]` the same way, but CI is Linux, so it is compiled and measured
-   there, which decision 13 makes hold. `os_macos` has no `cfg` yet and compiles everywhere as four
-   stubs; a real macOS backend takes `cfg(target_os = "macos")` as `os_windows` takes
-   `cfg(windows)`. A stub is an `unimplemented!()` body under
-   `#[cfg_attr(coverage, coverage(off))]` with an inline reason, the one coverage exemption, for
-   code that nothing wires and so never runs.
+3. **`Hotkey` is the first `cfg`-conditional OS backend, and each platform has its own crate.** The
+   port and the pure `HotkeyChord` to accelerator conversion live in `body_core`, fully tested. The
+   backends live in `os_windows`, `os_linux` and `os_macos`. `os_windows` is `#![cfg(windows)]` with
+   its dependencies under a `cfg(windows)` target table, so it builds to nothing on Linux, and it is
+   a thin adapter validated on the host, never in CI. `os_linux` is `#![cfg(target_os = "linux")]`
+   the same way, but CI is Linux, so it is compiled and measured there, which decision 13 makes
+   hold. `os_macos` has no `cfg` yet and compiles everywhere as four stubs; a real macOS backend
+   takes `cfg(target_os = "macos")` as `os_windows` takes `cfg(windows)`. A stub is an
+   `unimplemented!()` body under `#[cfg_attr(coverage, coverage(off))]` with an inline reason, the
+   one coverage exemption, for code that nothing wires and so never runs.
 
 4. **The Windows `Hotkey` backend wraps `global-hotkey`, keeping `unsafe_code = "forbid"`.** Raw
    `RegisterHotKey` and a message pump would need `unsafe`; the crate encapsulates it and delivers
@@ -138,11 +137,11 @@ recorded in an ADR. This ADR is that exclusion, and the checks that grew around 
     ([ADR-0067](ADR-0067-image-volume-record.md) decision 1). Nothing else may join it.
 
 11. **`check-shell` runs clippy twice, for the host and for `x86_64-pc-windows-msvc`.** The host run
-    configures out every `#[cfg(windows)]` item (the Windows `start` in `body_server.rs`, the real
-    hotkey registration) and checks the Linux `start`, and the Windows run configures out the Linux
-    `start` and the stubs. Both check the shared `serve`, so the two lines cover complementary
-    halves of the same files and sit in one recipe. The `start` stub for a platform with neither
-    backend crate is compiled by neither run. The
+    configures out every `#[cfg(windows)]` item (the Windows `start` in `body_server.rs` and hotkey
+    `register`) and checks the Linux ones, and the Windows run configures out the Linux ones and the
+    stubs. Both check the shared `serve` and `configured_chord`, so the two lines cover
+    complementary halves of the same files and sit in one recipe. The `start` and `register` stubs
+    for a platform with neither backend crate are compiled by neither run. The
     Windows run needs none of the Linux `-dev` roots, but `tauri_build` compiles a VERSIONINFO
     resource for every Windows target through `tauri-winres` and `embed-resource`, which panics
     without a resource compiler. The recipe sets `RC_x86_64_pc_windows_msvc`, defaulting to
@@ -193,10 +192,11 @@ recorded in an ADR. This ADR is that exclusion, and the checks that grew around 
     Linux `start` serves notifications and volume with `DeniedScreenCapture`, since X11 cannot keep
     the overlay out of a picture ([ADR-0029](ADR-0029-vision-screen-capture.md) decision 10), and a
     session bus that does not open becomes `DbusNotifications::absent`, so `Notify` answers
-    `Unavailable`. The two alternatives hide a working backend: `coverage(off)` is reserved for code
-    that never runs, and a `cfg` that CI never compiles leaves a backend with no check at all. A
-    backend whose mechanism no local peer can stand in for, such as a compositor's global shortcut
-    or a capture portal, keeps the same split: all logic in the covered core.
+    `Unavailable`. On a Wayland session its hotkey `register` grabs nothing, since an Xwayland grab
+    fires only over X windows. The two alternatives hide a working backend: `coverage(off)` is
+    reserved for code that never runs, and a `cfg` that CI never compiles leaves a backend with no
+    check at all. A backend whose mechanism no local peer can stand in for, such as a compositor's
+    global shortcut or a capture portal, keeps the same split: all logic in the covered core.
 
 ## Consequences
 

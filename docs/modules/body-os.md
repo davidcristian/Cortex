@@ -32,7 +32,8 @@ speaks. They are also where the **stub coverage exemption** is used.
   [The Linux backends](#the-linux-backends)), and no stub. The crate is compiled and measured on
   Linux CI. The shell's `BodyService` serves the notification and volume backends with
   `DeniedScreenCapture`, because X11 has no way to keep the overlay out of a picture (ADR-0029
-  decision 10 fails closed), and the shell does not register the Linux hotkey yet.
+  decision 10 fails closed). The shell registers the hotkey through `X11Keys`, except on a Wayland
+  session, where it logs why and registers none ([overlay runbook](../runbooks/body-overlay.md)).
 - **`os_macos`** provides `MacosHotkey`, `MacosAudioControl`, `MacosNotify` and
   `MacosScreenCapture`, the same stubs for macOS. It has no `cfg` yet and compiles everywhere.
 

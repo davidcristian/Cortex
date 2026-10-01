@@ -146,3 +146,12 @@ are settled on the host.
 failure is logged to stderr and is not fatal, and the tray still summons the overlay. If
 `global-hotkey` event delivery ever misbehaves, the fallback is Tauri's `global-shortcut` plugin
 behind the same unchanged `Hotkey` port.
+
+**On Linux** the shell grabs the chord on the root window of the X display that `DISPLAY` names,
+so a press toggles the overlay whichever window has focus. A chord another X client has grabbed
+fails with `BadAccess` and is logged like any other registration failure. On a Wayland session,
+where `WAYLAND_DISPLAY` is set and not empty, the shell grabs nothing and logs
+`cortex: no global hotkey on Wayland yet; an X11 grab fires only over X windows`. Xwayland is
+assumed to get a key only while one of its own windows has focus, so a grab there would toggle the
+overlay over some windows and not others. A Wayland hotkey needs the desktop portal,
+[R-765](../refinements/tasks/765-a-wayland-hotkey-through-the-globalshortcuts-portal.md).

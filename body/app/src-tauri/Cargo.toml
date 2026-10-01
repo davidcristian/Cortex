@@ -37,8 +37,8 @@ base64 = "0.22"
 body-core = { path = "../../crates/core" }
 body-rpc = { path = "../../crates/rpc" }
 
-# One OS backend crate per platform (ADR-0011). Linux serves notifications and volume, but no
-# summon hotkey or capture yet, and other platforms have no backend crate wired.
+# One OS backend crate per platform (ADR-0011). Linux serves notifications and volume and grabs the
+# summon hotkey on X11, but has no capture yet, and other platforms have no backend crate wired.
 [target.'cfg(windows)'.dependencies]
 os-windows = { path = "../../crates/os_windows" }
 

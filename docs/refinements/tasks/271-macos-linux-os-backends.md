@@ -14,14 +14,13 @@ Linux stub is left, and four macOS ports still are:
   Linux coverage run.
 - **`ScreenCapture` on both** is [263](263-linux-and-macos-capture-backends.md).
 
-Linux `Notify`, `AudioControl`, an X11 `ScreenCapture` and an X11 `Hotkey` are built, and the
-shell's body server serves the first two, with every capture refused. What the Linux hotkey still
-needs is filed: the Wayland portal
-([765](765-a-wayland-hotkey-through-the-globalshortcuts-portal.md)) and the shell's registration
-([766](766-register-the-linux-hotkey-in-the-shell.md)). How a Linux backend is structured so the
-100% coverage rule holds, a covered core over a port of its own plus an adapter tested against a
-peer the test controls, is [ADR-0011](../../adr/ADR-0011-body-v1.md) decision 13, and every Linux
-backend follows it.
+Linux `Notify`, `AudioControl`, an X11 `ScreenCapture` and an X11 `Hotkey` are built. The shell's
+body server serves the first two, with every capture refused, and the shell registers the hotkey
+except on a Wayland session, which needs the portal
+([765](765-a-wayland-hotkey-through-the-globalshortcuts-portal.md)). How a Linux backend is
+structured so the 100% coverage rule holds, a covered core over a port of its own plus an adapter
+tested against a peer the test controls, is [ADR-0011](../../adr/ADR-0011-body-v1.md) decision 13,
+and every Linux backend follows it.
 
 This stays a refinement rather than moving to [docs/host/](../../host/index.md), which holds work
 needing a Win32 desktop session or a 24 GB GPU: a Linux or macOS backend needs neither.
@@ -57,6 +56,8 @@ needing a Win32 desktop session or a 24 GB GPU: a Linux or macOS backend needs n
   22 times on Xvfb and on WSLg's Xwayland, one per auto-repeat, which Windows avoids with
   `MOD_NOREPEAT`; the backend now skips a press with the time of the release before it, and the same
   hold runs it once on both servers, three runs out of three on WSLg. The first WSLg run, before
-  that change, missed the first press of the chord and the next four did not. Filed
-  [765](765-a-wayland-hotkey-through-the-globalshortcuts-portal.md) and
-  [766](766-register-the-linux-hotkey-in-the-shell.md).
+  that change, missed the first press of the chord and the next four did not. The shell's Linux
+  `hotkey::register` grabs the configured chord through it and grabs nothing when `WAYLAND_DISPLAY`
+  is set, and both `just check-shell` halves passed on this host from a userspace prefix built
+  without sudo ([readings](../../readings/shell-clippy.md)). Filed
+  [765](765-a-wayland-hotkey-through-the-globalshortcuts-portal.md).

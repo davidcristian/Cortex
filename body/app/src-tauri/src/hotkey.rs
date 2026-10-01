@@ -26,14 +26,37 @@ pub fn register(handle: &AppHandle) {
     Box::leak(Box::new(backend));
 }
 
-/// Non-Windows stub: no global hotkey until that platform has a backend.
-#[cfg(not(windows))]
+/// Registers the global hotkey as a passive grab on the X display, and none on a Wayland session.
+#[cfg(target_os = "linux")]
+pub fn register(handle: &AppHandle) {
+    use body_core::Hotkey;
+    use os_linux::{LinuxHotkey, X11Keys};
+
+    if std::env::var_os("WAYLAND_DISPLAY").is_some_and(|name| !name.is_empty()) {
+        eprintln!("cortex: no global hotkey on Wayland yet; an X11 grab fires only over X windows");
+        return;
+    }
+    let chord = configured_chord();
+    let keys = match os_linux::x11rb::connect(None) {
+        Ok((connection, screen)) => X11Keys::new(connection, screen),
+        Err(error) => X11Keys::absent(&error),
+    };
+    let activate = handle.clone();
+    let callback = Box::new(move || crate::toggle_overlay(&activate));
+    // The listener thread keeps its own handle on the connection, so the backend can be dropped.
+    if let Err(error) = LinuxHotkey::new(keys).register(&chord, callback) {
+        eprintln!("cortex: could not register {chord}: {error}");
+    }
+}
+
+/// Stub for a platform with no hotkey backend yet.
+#[cfg(not(any(windows, target_os = "linux")))]
 pub fn register(_handle: &AppHandle) {
     eprintln!("cortex: global hotkey is not implemented on this platform yet");
 }
 
 /// The chord from `CORTEX_HOTKEY`, or the default if unset or unparseable.
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "linux"))]
 fn configured_chord() -> body_core::HotkeyChord {
     use body_core::HotkeyChord;
 
