@@ -17,7 +17,8 @@ step instead, and a stuck server would still be caught within it.
 On Qwen3.8-Flash-Next at the shipped 24g cap the 6184-token prompt sent its first delta at 198.0 s,
 while the longest gap between two progress chunks was 88.1 s
 ([Qwen3.8-Flash-Next](../../readings/flash-next.md)). Under progress chunks that row would clear
-the 120 s bound.
+the 120 s bound. At a prompt batch of 8192 the longest gap rose to 97.2 s, so this route suits the
+engine's default batch better.
 
 What to check before building it:
 

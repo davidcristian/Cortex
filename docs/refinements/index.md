@@ -72,7 +72,7 @@ never a reading of what the tree does now.
 - **[R-607](tasks/607-eighteen-of-the-cortex-alts-pixel-rows-are-undrawn.md)** Five of the cortex alt's thirty-six pixel rows are undrawn (inference). Its claim was checked against the code on 2026-10-01.
 - **[R-706](tasks/706-only-the-corpus-laundering-cell-is-drawn-at-the-engines-sampler.md)** Most pixel cells are drawn only at temperature 0 (vision). Its claim was checked against the code on 2026-10-01.
 - **[R-744](tasks/744-the-joined-system-message-is-unmeasured-on-the-qwen-alternates.md)** The joined system message is unmeasured on the Qwen alternates (untrusted-content). Its claim was checked against the code on 2026-10-01.
-- **[R-764](tasks/764-flash-nexts-first-token-is-undrawn-at-a-batch-the-length-of-the-prompt.md)** Flash-Next's first token is undrawn at a batch the length of the prompt (inference). Its claim was checked against the code on 2026-10-01.
+- **[R-771](tasks/771-flash-nexts-first-prompt-step-is-a-54-token-checkpoint.md)** Flash-Next's first prompt step is a 54-token checkpoint (inference). Its claim was checked against the code on 2026-10-01.
 
 ### Actionable, once a port changes (1)
 
@@ -445,7 +445,7 @@ never a reading of what the tree does now.
 - [R-735](tasks/735-flash-nexts-feasibility-row-is-not-complete-at-the-shipped-memory-cap.md) Flash-Next's feasibility row is not complete at the shipped memory cap. done 2026-10-01.
 - [R-742](tasks/742-the-mixture-of-experts-rejection-rests-on-unrecorded-questions.md) The mixture-of-experts rejection rests on unrecorded questions. done 2026-09-28.
 - [R-763](tasks/763-the-stall-bound-times-a-whole-prompt-evaluation-as-one-silence.md) The stall bound times a whole prompt evaluation as one silence. open, waiting for its trigger.
-- [R-764](tasks/764-flash-nexts-first-token-is-undrawn-at-a-batch-the-length-of-the-prompt.md) Flash-Next's first token is undrawn at a batch the length of the prompt. open, actionable.
+- [R-771](tasks/771-flash-nexts-first-prompt-step-is-a-54-token-checkpoint.md) Flash-Next's first prompt step is a 54-token checkpoint. open, actionable.
 
 ### inference-model-manager
 

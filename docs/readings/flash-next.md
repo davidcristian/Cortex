@@ -85,7 +85,37 @@ before an answer. The decode read 71.8 GB from the mount, about 36 MB a token at
 side of the mount probably still held part of the file from run C; a decode drawn on a colder mount
 may read slower.
 
+## A prompt batch of 8192, 2026-10-01
+
+Run E is run C with `--batch-size 8192 --ubatch-size 8192` added, so that the prompt is evaluated in
+one step, and `-lv 4`, which only makes the server log its buffers. The engine logged `n_batch` and
+`n_ubatch` 8192 at a context of 8192, the one every Flash-Next row used, where the deep tier
+deploys 16384 (`CORTEX_CTX_SIZE_BRAIN`). Its fit step projected 23,131 MiB on the card against
+23,005 MiB free and changed nothing, because `-ngl` was set: the card held 19,072 MiB of weights,
+with `--n-cpu-moe 35` as before, and a compute buffer of 3,683 MiB. The rule and prediction were written into the backlog before
+the draw, with nothing else on the machine.
+
+| reading | run C, batch 2048 | run E, batch 8192 | floor | predicted | held |
+| --- | --- | --- | --- | --- | --- |
+| ready, `docker run` to health | 207.1 s | 168.9 s | 300 s: passes | | |
+| VRAM above idle at ready | 20,410 MiB | 22,313 MiB | | a load failure (0.4); else 21,000 to 22,500 | the load, no; VRAM, yes |
+| first delta of the 3400-word prompt | 198.0 s, 1.65 of the bound | 163.9 s, 1.37 of the bound | 120 s: fails | fails, at 150 s (110 to 200) | yes |
+| SM clock during the request | 0.59 | 0.59 | | | |
+| power ceiling during the request | 0.87 | 0.87 | | | |
+
+Run E's prompt went in steps of 54, 6110, 16 and 4 tokens, ended at 59.1, 156.3, 162.7 and 163.9
+s. The server ends a step wherever it stores a context checkpoint, which this model needs because
+its memory cannot drop part of a sequence, and its first checkpoint falls after 54 tokens. That
+step took 59.1 s, about as long as run C's 58.3 s, and read about 12 GB from the mount; the
+6110-token step took 97.2 s and read about 24.5 GB, both from the 5 s samples. So one step saved
+34.1 s against run C, but not the read of the off-card experts that the first token waits on. The
+request read 45.4 GB in all, the host swapped out 11 MiB during it and 192 MiB during the load,
+memory `full avg10` peaked at 19.78 and the watchdog never woke late. Run C's VRAM is read from its
+samples, 22,278 MiB at ready against an idle 1,868. At `-lv 4` the loader logged
+`per_layer_token_embd.weight`, 27,465 MiB, with lazy read enabled.
+
 Method: `measurements/deep-2026-09-26/flash-p2/` and `flash-p2-20g/` hold runs A and B (their
-driver was not kept); `measurements/flash24-2026-09-28/flash24.py` drew run C and
-`measurements/flash-decode-2026-10-01/decode.py` run D, each from the repo root, with its logs and
-5 s card, mount and memory samples under `row/`.
+driver was not kept); `measurements/flash24-2026-09-28/flash24.py` drew run C,
+`measurements/flash-decode-2026-10-01/decode.py` run D and
+`measurements/flash-batch-2026-10-01/flashbatch.py` run E, each from the repo root, with its logs
+and 5 s card, mount and memory samples under `row/`.

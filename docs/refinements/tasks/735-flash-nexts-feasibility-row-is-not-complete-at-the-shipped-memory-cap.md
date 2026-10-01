@@ -86,9 +86,14 @@ result; neither can be drawn here without the maintainer's decision.
   2000-token reply at an SM clock of 0.69, so the decode floor passes and the predicted failure did
   not hold; its load took 0.66 of run C's time, so the mount was probably not cold. The whole row
   is now in [Qwen3.8-Flash-Next](../../readings/flash-next.md), and
-  [ADR-0004](../../adr/ADR-0004-model-lineup.md) decision 8 states the shipped-cap result. Item 3
-  and the rows after it move to
-  [764](764-flash-nexts-first-token-is-undrawn-at-a-batch-the-length-of-the-prompt.md), and
+  [ADR-0004](../../adr/ADR-0004-model-lineup.md) decision 8 states the shipped-cap result. Item 3,
+  run E, had its rule written first: a first delta after 120 s fails and leaves decision 8 as it
+  is, since the deployed context of 16384 adds memory on the card and nothing that shortens a step.
+  At `--batch-size 8192 --ubatch-size 8192` the load passed with 22,313 MiB above idle and the
+  first delta came at 163.9 s, 1.37 of the bound, at an SM clock of 0.59, so the floor fails at
+  both batch shapes, the predicted 150 s (110 to 200) held, and the rows after it are not drawn.
+  [771](771-flash-nexts-first-prompt-step-is-a-54-token-checkpoint.md) files the checkpoint step
+  that took half the bound, and
   [763](763-the-stall-bound-times-a-whole-prompt-evaluation-as-one-silence.md) files counting
   progress chunks against the stall bound. Item 4 is declined: the load passes at 0.45 to 0.69 of
   its bound, and whether the engine reads the n-gram table lazily decides no floor.
