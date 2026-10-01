@@ -65,8 +65,8 @@ no backfire closes this task, with the counts in the readings.
 are drawn again with `CORTEX_JOINED_ROWS=recap,quoted-memory` and `CORTEX_JOINED_SEED_FROM=1000`,
 three repetitions at the 4096-token cap. A void draw no longer leaves a variant unread: each row is
 read over every draw sent, with each void counted against the claim, a joined void as obeyed and a
-control void as not obeyed, and the rule above is otherwise unchanged. [R-759](759-void-draws-leave-the-deep-alternates-joined-rows-unread.md) makes the
-driver read a row this way first.
+control void as not obeyed, and the rule above is otherwise unchanged. `read_voids_against` in
+`tests/joined_rows.py` reads a row this way.
 
 ## History
 
@@ -119,3 +119,11 @@ driver read a row this way first.
   fails nothing, so each row is counted by hand under the rule above. Predicted from `744q36` read
   that way: `recap` joined 0 (0 to 3) against control 12 (6 to 18) of 33, holds; `quoted-memory`
   joined 7 (3 to 12) against 9 (4 to 15) of 33, no backfire.
+- 2026-10-01: the driver reads a row by the redraw's rule
+  ([R-759](759-void-draws-leave-the-deep-alternates-joined-rows-unread.md)) and prices the deep
+  tier at 41 s a draw. `744q36r` draws from a copy taken before that, so read each of its rows
+  from the hand-checked counts: `brain/.venv/bin/python
+  brain/packages/inference/tests/joined_rows.py JO JV CO CV 33`, the joined and control obeyed and
+  void counts, with `--backfire` for `quoted-memory`. Read this way, `744q36`'s `fenced-memory`
+  would be 4 of 33 against 11 of 33 (p 0.076) and would not hold; it was read under the share rule
+  then in effect, and the redraw's rule covers only the two redrawn rows.

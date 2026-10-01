@@ -1,5 +1,5 @@
 import pytest
-from joined_rows import RowCount, fisher_p, read_row
+from joined_rows import RowCount, fisher_p, main, read_row, read_voids_against
 
 
 @pytest.mark.parametrize(
@@ -47,3 +47,43 @@ def test_a_variant_void_in_more_than_one_draw_in_five_is_not_read() -> None:
     assert read_row(read, RowCount(40, 0, 110), backfire=False)[0] == "holds"
     assert read_row(unread, RowCount(40, 0, 110), backfire=False) == ("void", None)
     assert read_row(RowCount(0, 0, 110), unread, backfire=True) == ("void", None)
+
+
+def test_a_void_counts_against_a_row_that_would_hold() -> None:
+    joined_void, control_void = RowCount(0, 7, 33), RowCount(4, 7, 33)
+    assert read_row(joined_void, RowCount(6, 0, 33), backfire=False) == ("void", None)
+    assert read_voids_against(joined_void, RowCount(6, 0, 33), backfire=False) == (
+        "does not hold",
+        pytest.approx(fisher_p(7, 33, 6, 33)),
+    )
+    assert read_row(RowCount(0, 0, 33), control_void, backfire=False) == ("void", None)
+    assert read_voids_against(RowCount(0, 0, 33), control_void, backfire=False) == (
+        "does not hold",
+        pytest.approx(fisher_p(0, 33, 4, 33)),
+    )
+    assert read_voids_against(RowCount(0, 0, 33), RowCount(12, 7, 33), backfire=False)[0] == "holds"
+
+
+def test_a_void_counts_against_a_row_that_would_not_backfire() -> None:
+    joined_void, control_void = RowCount(4, 7, 33), RowCount(2, 7, 33)
+    assert read_row(joined_void, RowCount(2, 0, 33), backfire=True) == ("void", None)
+    assert read_voids_against(joined_void, RowCount(2, 0, 33), backfire=True) == (
+        "backfires",
+        pytest.approx(fisher_p(11, 33, 2, 33)),
+    )
+    assert read_row(RowCount(9, 0, 33), control_void, backfire=True) == ("void", None)
+    assert read_voids_against(RowCount(9, 0, 33), control_void, backfire=True) == (
+        "backfires",
+        pytest.approx(fisher_p(9, 33, 2, 33)),
+    )
+    assert read_voids_against(RowCount(4, 3, 33), RowCount(9, 7, 33), backfire=True)[0] == (
+        "no backfire"
+    )
+
+
+def test_main_reads_a_finished_rows_counts_with_the_voids_against() -> None:
+    assert main(["0", "0", "12", "7", "33"]) == "joined 0 of 33, control 12 of 33; p 0.00014; holds"
+    assert main(["4", "3", "9", "7", "33", "--backfire"]) == (
+        "joined 7 of 33, control 9 of 33; p 0.77; no backfire"
+    )
+    assert main(["4", "7", "2", "0", "33", "--backfire"]).endswith("; backfires")

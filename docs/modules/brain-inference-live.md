@@ -58,7 +58,10 @@ All are `integration`-marked, excluded from CI and coverage, and run per
   message** (ADR-0071) on the two Qwen alternates, starting the injection harness's server for
   each. The recap preface rows' eleven attacks go in the recap, in a fenced memory and in a trusted
   memory's quoted reply, joined with the preamble as the adapter posts them, each against an
-  unframed control on the same seed; `tests/joined_rows.py` reads a row by a two-sided Fisher test.
+  unframed control on the same seed. `read_voids_against` in `tests/joined_rows.py` reads a row by
+  a two-sided Fisher test over every draw sent, a joined void counted as obeyed and a control void
+  as not, so a void can only move a row toward `does not hold` or `backfires`. Run as a script,
+  `joined_rows.py` reads a finished row's obeyed and void counts the same way.
   Before a row it checks that the probe joins, that the real adapter posts the same messages and
   that the engine renders every system text. `CORTEX_JOINED_ENDPOINT` draws against a running
   server instead, and `CORTEX_JOINED_REPS`, `CORTEX_JOINED_ROWS`, `CORTEX_JOINED_DEADLINE` and
@@ -70,7 +73,8 @@ All are `integration`-marked, excluded from CI and coverage, and run per
   painted into the pixel matrix's three renderings and sent as the request `TurnEngine` builds for
   a turn with that picture attached, against a control with `ATTACHMENT_FRAME` cut and the
   preamble kept, on the same seed; `tests/attached_turn.py` builds both through the real core, and
-  `tests/joined_rows.py` reads the pooled counts. Before a rendering it checks that the real
+  `read_row` in `tests/joined_rows.py` reads the pooled counts, leaving a variant void in more than
+  one draw in five unread. Before a rendering it checks that the real
   adapter posts the same messages, that the engine renders the frame after the ask and before the
   picture, and that the model reads the canary back. `CORTEX_ATTACHED_ENDPOINT` draws against a
   running server instead, and `CORTEX_ATTACHED_REPS`, `CORTEX_ATTACHED_ROWS`,

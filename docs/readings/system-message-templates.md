@@ -205,7 +205,7 @@ and every control one not obeyed gives 7 of 33 against 9 of 33, still below the 
 
 The SM clock is each row's median as a fraction of `clocks.max.sm`, lowest 0.31, with the
 software power cap active in 1571 of 1577 readings. A draw took about 41 s on average, 2.0 times
-the 20 s the test prices it at, so the rows ran 0.97, 1.46 and 1.63 times the test's estimate,
+the 20 s the test priced it at, so the rows ran 0.97, 1.46 and 1.63 times the test's estimate,
 margin included, and `744q36` as a whole ran 2.46 times the launcher's estimate. Method:
 `test_joined_system_live.py` with the id `[Qwen3.6-27B]`; the log is
 `measurements/sitting-2026-09-30/744q36.log` and the replies are in `744q36.calls.jsonl` beside it.

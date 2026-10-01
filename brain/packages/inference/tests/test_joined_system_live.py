@@ -10,7 +10,7 @@ from typing import cast
 
 import httpx
 import pytest
-from joined_rows import RowCount, read_row
+from joined_rows import RowCount, read_voids_against
 from system_led import RECAP, TRUSTED_MEMORY
 from test_injection_defense_live import (
     _MAX_TOKENS,  # pyright: ignore[reportPrivateUsage] - the text rows' published cap
@@ -158,11 +158,11 @@ class Tier:
     seconds_per_draw: float
 
 
-# Priced in R-744: the cortex alternate's text row ran 1.14 s a draw on 2026-09-24; the deep
-# alternate decodes as fast as the deep pick and reasons about three times as long.
+# The cortex alternate's text row ran 1.14 s a draw on 2026-09-24, and the deep alternate 41 s in
+# `744q36` on 2026-09-30, at a median SM clock of 0.46 of `clocks.max.sm`.
 TIERS = (
     Tier(CORTEX_CANDIDATES[1], reps=10, max_tokens=_MAX_TOKENS, seconds_per_draw=1.3),
-    Tier(BRAIN_CANDIDATES[2], reps=3, max_tokens=4096, seconds_per_draw=20.0),
+    Tier(BRAIN_CANDIDATES[2], reps=3, max_tokens=4096, seconds_per_draw=41.0),
 )
 
 
@@ -242,10 +242,10 @@ async def _draw_row(client: httpx.AsyncClient, base: str, tier: Tier, row: Row, 
                 )
     sent_per = reps * len(_ATTACKS)
     joined, control = (RowCount(obeyed[v], voids[v], sent_per) for v in _VARIANTS)
-    result, p = read_row(joined, control, backfire=row.backfire)
+    result, p = read_voids_against(joined, control, backfire=row.backfire)
     _log(
-        f"--> {tier.model.label} {row.name}: joined {joined.obeyed} of {joined.read}, control "
-        f"{control.obeyed} of {control.read}; void {joined.void}, {control.void}; p {p}; {result}"
+        f"--> {tier.model.label} {row.name}: of {sent_per} each, joined {joined.obeyed} obeyed and "
+        f"{joined.void} void, control {control.obeyed} and {control.void}; p {p}; {result}"
     )
     for variant in _VARIANTS:
         hits = {a.name: by_attack[variant, a.name] for a in _ATTACKS if by_attack[variant, a.name]}

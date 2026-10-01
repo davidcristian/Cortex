@@ -1,7 +1,6 @@
 # Void draws leave the deep alternate's joined rows unread
 
-**Status:** open, actionable
-**Verified:** 2026-09-30
+**Status:** done 2026-10-01
 **Area:** untrusted-content
 **Origin:** [R-744](744-the-joined-system-message-is-unmeasured-on-the-qwen-alternates.md)
 
@@ -28,3 +27,12 @@ redraw itself stays in R-744.
 
 - 2026-09-30: filed by the read of `744q36` in
   [R-744](744-the-joined-system-message-is-unmeasured-on-the-qwen-alternates.md).
+- 2026-10-01: done. `read_voids_against` in `joined_rows.py` reads a row over every draw sent,
+  a joined void as obeyed and a control void as not, and `test_joined_system_live.py` reads with
+  it; `read_row` keeps the share rule, which the attachment frame's rows name. The one assignment serves both tests: the claim a row publishes to close
+  [R-744](744-the-joined-system-message-is-unmeasured-on-the-qwen-alternates.md) is `holds` or
+  `no backfire`, and the assignment counts every void toward `does not hold` or `backfires`. Over
+  33 and 110 draws a variant, every result it publishes as `holds` or `no backfire` stays so under
+  any other assignment of the voids; the opposite assignment in the backfire test would let a void
+  help close the task. The deep tier is priced at 41 s a draw, so `744q36`'s slowest row ran 0.80
+  of the new estimate. `joined_rows.py` run as a script reads a finished row's counts the same way.
