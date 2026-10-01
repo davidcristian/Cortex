@@ -316,9 +316,9 @@ rpc-health:
     fi
     cd body && cargo test -p body-rpc --test live -- --ignored --nocapture
 
-# Live check of the Linux notification, volume and capture backends, never run in CI. Needs a
-# session bus with a notification server, `pactl` reaching a PulseAudio or pipewire-pulse server,
-# and an X server on DISPLAY. The volume test changes the sink's level and mute, then restores both.
+# Live check of the Linux backends, never run in CI. Needs a session bus with a notification server,
+# a sound server `pactl` reaches and an X server with XTEST on DISPLAY. It changes and restores the
+# volume and presses ctrl+alt+space and Num Lock, so point DISPLAY at a spare server like `Xvfb :93`.
 os-linux-live:
     cd body && cargo test -p os-linux --test live -- --ignored --nocapture
 

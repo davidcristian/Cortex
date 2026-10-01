@@ -27,12 +27,12 @@ speaks. They are also where the **stub coverage exemption** is used.
   no persistent device, so it satisfies the blocking pool's `FnOnce + Send + 'static`; and it has
   the smallest `unsafe` surface. The cost is that it renders hardware-overlay and DRM-protected
   surfaces **black, with no error**.
-- **`os_linux`** (`cfg(target_os = "linux")`) has three real backends, `LinuxNotify`,
-  `LinuxAudioControl` and `LinuxScreenCapture` (see [The Linux backends](#the-linux-backends)),
-  and one `unimplemented!()` stub, `LinuxHotkey`. The crate is compiled and measured on Linux CI,
-  so the stub method has `#[cfg_attr(coverage, coverage(off))]` with a reason. The shell's
-  `BodyService` serves the notification and volume backends with `DeniedScreenCapture`, because
-  X11 has no way to keep the overlay out of a picture (ADR-0029 decision 10 fails closed).
+- **`os_linux`** (`cfg(target_os = "linux")`) has four real backends, `LinuxNotify`,
+  `LinuxAudioControl`, `LinuxScreenCapture` and the X11 `LinuxHotkey` (see
+  [The Linux backends](#the-linux-backends)), and no stub. The crate is compiled and measured on
+  Linux CI. The shell's `BodyService` serves the notification and volume backends with
+  `DeniedScreenCapture`, because X11 has no way to keep the overlay out of a picture (ADR-0029
+  decision 10 fails closed), and the shell does not register the Linux hotkey yet.
 - **`os_macos`** provides `MacosHotkey`, `MacosAudioControl`, `MacosNotify` and
   `MacosScreenCapture`, the same stubs for macOS. It has no `cfg` yet and compiles everywhere.
 
@@ -45,6 +45,8 @@ Each crate exposes one implementor per port, and the app selects the platform's 
   `ScreenCapture` follow the same naming; the Linux `Notify` and `AudioControl` are generic over
   their crate-local ports, `LinuxNotify<DbusNotifications>` and
   `LinuxAudioControl<PactlCommand>` on a real host, and so is `LinuxScreenCapture<X11Root>`.
+  `LinuxHotkey` is not generic: it keeps its `KeyGrab` as an `Arc<dyn KeyGrab>`, which its listener
+  thread shares, and a real host builds it with `LinuxHotkey::new(X11Keys::new(..))`.
 - `AudioControl` (ADR-0023): `get_volume() -> VolumeState` and
   `set_volume(VolumeChange) -> VolumeState`. The value types `VolumeState { level, muted }` and
   `VolumeChange { level, mute }` live in `body_core`, where `VolumeChange::new` clamps a present
@@ -137,9 +139,34 @@ decision 13).
   `DISPLAY`, `X11Root::absent(&error)` makes every read `NoDisplay`. Rootless Xwayland, such as
   WSLg's, answers `GetImage` on its root with `BadMatch`, so the read fails as `Backend` rather
   than returning a partial picture; a Wayland session needs the desktop portal instead.
-- `just os-linux-live` runs the three `#[ignore]`d live tests: a notification shown on the session
-  bus, a volume and mute round trip on the default sink that restores what it found, and a capture
-  of the root window on `DISPLAY` that prints its size and how many pixels are not black.
+- **`LinuxHotkey`** resolves a chord to the X keysym of its `KeyboardEvent.code` (`keysym`: a
+  letter is its lower-case keysym, `F1` to `F35` are `ffbe` to `ffe0`, the named keys are their
+  keysyms), finds the lowest keycode that types it, and takes Shift and Control from the core
+  protocol's fixed bits and Alt, Super and Num Lock from whichever modifier holds `Alt_L` or
+  `Alt_R`, `Super_L` or `Super_R`, and `Num_Lock`. A passive grab matches the modifier state
+  exactly, so it grabs the key with each combination of Caps Lock and Num Lock added. A key the
+  keyboard lacks, or Alt or Super on no modifier, fails as `Registration` before any grab; a
+  refused grab, such as `BadAccess` when another client holds the chord, fails it at that variant.
+  The first successful registration starts one thread that reads key events until the connection
+  fails and runs each binding whose keycode matches and whose state, without the pointer buttons
+  and the two locks, equals its modifiers. It skips a press with the keycode and time of the
+  release just before it, which is how the server sends each auto-repeat, so a held chord runs
+  once, as on Windows, where `global-hotkey` registers with `MOD_NOREPEAT`. A failed registration
+  starts no thread, so dropping the backend closes the connection and the server releases any
+  variant it did grab.
+- **`X11Keys`** reads the keyboard with `GetKeyboardMapping` over every keycode the setup lists and
+  `GetModifierMapping`, grabs with `GrabKey` on the root of its screen (no owner events,
+  asynchronous pointer and keyboard) checked for an error before it returns, and reads events until
+  a `KeyPress` or `KeyRelease`. The host opens the display with `x11rb::connect(None)` as for
+  capture, and `X11Keys::absent(&error)` fails every request with the error's text. On a Wayland
+  session an X grab is assumed to see keys only while an X window has focus, so a Wayland session
+  needs the desktop portal's `GlobalShortcuts`
+  ([765](../refinements/tasks/765-a-wayland-hotkey-through-the-globalshortcuts-portal.md)).
+- `just os-linux-live` runs the four `#[ignore]`d live tests: a notification shown on the session
+  bus, a volume and mute round trip on the default sink that restores what it found, a capture
+  of the root window on `DISPLAY` that prints its size and how many pixels are not black, and a
+  `ctrl+alt+space` grab that XTEST presses with Num Lock off and on and holds for 1.5 s, each of
+  which must run the callback once, and that `ctrl+space` must not run.
 
 ## The coverage exemption
 
@@ -170,7 +197,8 @@ runs instead; `os_linux`'s real backends are measured in full. Neither silences 
 
 **Dependencies.** `body-core` (the ports). `os_linux` adds `zbus` 5 (MIT, pure Rust, `async-io` and
 `blocking-api` features, plus `p2p` for its tests) and `x11rb` 0.13 (MIT or Apache-2.0, pure Rust,
-no default features, so no `libxcb`) under a `cfg(target_os = "linux")` target table; it runs
+no default features, so no `libxcb`, with `randr`, plus `xtest` for its live test) under a
+`cfg(target_os = "linux")` target table; it runs
 `pactl` as a program and links no audio or X library. The real `os_windows` adds `global-hotkey`
 and the `windows` crate (`0.58`, with Core Audio plus the `UI_Notifications` and `Data_Xml_Dom`
 WinRT namespaces), both under `[target.'cfg(windows)'.dependencies]`, so they never build on Linux.

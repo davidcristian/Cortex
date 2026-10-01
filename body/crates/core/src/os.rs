@@ -38,7 +38,7 @@ pub enum HotkeyError {
     Registration(String),
 }
 
-/// The port a global-hotkey backend implements. Only `os_windows` is real; the others are stubs.
+/// The port a global-hotkey backend implements: real on Windows and on Linux under X11.
 pub trait Hotkey {
     /// Registers `chord` as a global hotkey, invoking `on_activate` on each press.
     ///

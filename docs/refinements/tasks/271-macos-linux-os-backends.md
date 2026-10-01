@@ -3,24 +3,25 @@
 **Status:** open, optional feature
 **Area:** cross-cutting
 **Origin:** none, this area is the old catch-all list and has no single origin decision record
-**Verified:** 2026-09-28
+**Verified:** 2026-10-01
 
-Real backends behind the existing OS traits where they are still `unimplemented!()` stubs. One
-port is left on Linux and four on macOS:
+Real backends behind the existing OS traits where they are still `unimplemented!()` stubs. No
+Linux stub is left, and four macOS ports still are:
 
-- **Linux `Hotkey`.** `LinuxHotkey` is a stub. A global shortcut needs the XDG desktop portal's
-  `GlobalShortcuts` interface on Wayland and a key grab on X11, and the shell's
-  `hotkey::register` is a stub off Windows.
 - **macOS `Hotkey`, `AudioControl` and `Notify`.** All three are stubs in `os_macos`, which has no
   `cfg` attribute yet and compiles on every platform. A real macOS backend takes
   `cfg(target_os = "macos")` as `os_windows` takes `cfg(windows)`, which also leaves it out of the
   Linux coverage run.
 - **`ScreenCapture` on both** is [263](263-linux-and-macos-capture-backends.md).
 
-Linux `Notify`, `AudioControl` and an X11 `ScreenCapture` are built, and the shell's body server
-serves the first two, with every capture refused. How a Linux backend is structured so the 100% coverage rule holds, a covered core
-over a port of its own plus an adapter tested against a peer the test controls, is
-[ADR-0011](../../adr/ADR-0011-body-v1.md) decision 13, and a Linux `Hotkey` follows it.
+Linux `Notify`, `AudioControl`, an X11 `ScreenCapture` and an X11 `Hotkey` are built, and the
+shell's body server serves the first two, with every capture refused. What the Linux hotkey still
+needs is filed: the Wayland portal
+([765](765-a-wayland-hotkey-through-the-globalshortcuts-portal.md)) and the shell's registration
+([766](766-register-the-linux-hotkey-in-the-shell.md)). How a Linux backend is structured so the
+100% coverage rule holds, a covered core over a port of its own plus an adapter tested against a
+peer the test controls, is [ADR-0011](../../adr/ADR-0011-body-v1.md) decision 13, and every Linux
+backend follows it.
 
 This stays a refinement rather than moving to [docs/host/](../../host/index.md), which holds work
 needing a Win32 desktop session or a 24 GB GPU: a Linux or macOS backend needs neither.
@@ -49,3 +50,13 @@ needing a Win32 desktop session or a 24 GB GPU: a Linux or macOS backend needs n
 - 2026-09-28: The Linux X11 capture backend was built under
   [263](263-linux-and-macos-capture-backends.md), which leaves the Linux `Hotkey` as the one Linux
   stub.
+- 2026-10-01: Built the X11 `Hotkey`: `LinuxHotkey` over a `KeyGrab` port, and `X11Keys` tested
+  against a fake X server, at 100% line and branch coverage. Against `Xvfb` 21.1.12 the live test
+  grabbed `ctrl+alt+space`, and XTEST presses of it ran the callback once with Num Lock off and once
+  with it on, while `ctrl+space` did not run it. Holding the chord for 1.5 s first ran the callback
+  22 times on Xvfb and on WSLg's Xwayland, one per auto-repeat, which Windows avoids with
+  `MOD_NOREPEAT`; the backend now skips a press with the time of the release before it, and the same
+  hold runs it once on both servers, three runs out of three on WSLg. The first WSLg run, before
+  that change, missed the first press of the chord and the next four did not. Filed
+  [765](765-a-wayland-hotkey-through-the-globalshortcuts-portal.md) and
+  [766](766-register-the-linux-hotkey-in-the-shell.md).
