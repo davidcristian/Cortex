@@ -77,8 +77,8 @@ in `scripts/envelopejudges.py`).
    | `excerpt` | a list of every item of one kind, as the text writes it, rather than one fact | "Extract every number from the report below" |
    | `answer` | the one fact a question asks for, or that the text does not state it | "What reporting period does the report below cover" |
 
-   `excerpt` has no sentence: the cortex names it by its description, and its sentence lowered the
-   extraction on the roster alternate (Consequences).
+   `excerpt` and `precis` have no sentence: the cortex names each by its description, and each
+   sentence drawn for them lowered its shape's delivery (Consequences).
 
 7. **The names are a proposal for the maintainer's pick.** Roles are a family, so the naming rule in
    `AGENTS.md` applies. Three sets were drawn up:
@@ -111,27 +111,28 @@ in `scripts/envelopejudges.py`).
   figures-keeping summarization on both conditions drawn: 13 of 32 against 25 without it on CPU, and
   12 of 32 against 27 on the card (build `b10680-d7bd3bfca`, the compose argv at `-ngl 99`, SM clock
   2250 MHz at the median of a 3090 maximum), the intervals apart each time, with 6 and 7 copies of
-  the body and 13 cap refusals each. The shipped sentence, "Reply with a shorter version that keeps
-  every figure, name and date and adds nothing the text does not state.", does not name the given
-  text as the reply, which `REPLY_INSTRUCTION` then forbids. On the card, in one server session with
-  a plain cell at the same seeds, it read 20 of 32 against 27 at seeds 1 to 8 and 16 of 32 against
-  23 at seeds 9 to 16 (SM clock 2250 and 2243 MHz at the median), the intervals overlapping each
-  time, so by the rule written before each row it ships, with 4 and 7 copies of the body against
-  none ([role sentences](../readings/role-sentences.md)). It reads 7 runs below the plain cell on
-  both seed bases. Whether a row at twice the draws separates the two, which would take the
-  sentence off the role, is
-  [760](../refinements/tasks/760-the-reworded-precis-sentence-reads-below-the-plain-summary.md).
+  the body and 13 cap refusals each. A rewording, "Reply with a shorter version that keeps every
+  figure, name and date and adds nothing the text does not state.", does not name the given text as
+  the reply, which `REPLY_INSTRUCTION` then forbids. On the card, in one server session with a plain
+  cell at the same seeds, it read 20 of 32 against 27 at seeds 1 to 8 and 16 of 32 against 23 at
+  seeds 9 to 16, the intervals overlapping each time, and 32 of 64 against 44 at seeds 17 to 32
+  (SM clock 2250, 2243 and 2246 MHz at the median). The rule written before that third row, Fisher's
+  exact test below p = 0.05 with the sentence lower, gave p = 0.047, so `precis` has no sentence and
+  the subtask's own instruction sets the form. Most of the runs the rewording loses are the body
+  handed back `ok=True`: 13 copies against 1 plain at seeds 17 to 32
+  ([role sentences](../readings/role-sentences.md)).
 - On Qwen3.5-2B, the roster alternate, drawn on the card (build `b10680-d7bd3bfca`, the
   `llama-subagent-qwen` argv at `-ngl 99`, SM clock 2070 and 2077 MHz at the median of a 3090
   maximum on the two seed bases), the `excerpt` sentence lowered the extraction: 10 of 32 against 27
   at seeds 1 to 8 and 8 of 32 against 22 at seeds 9 to 16, apart from the plain cell both times, so
   by the rule written before the second row the drop replicates. The runs it loses mostly write the
-  instructions back or stop at the cap repeating numbers. The shipped `precis` sentence read 17 of
-  32 against 31 at seeds 1 to 8, apart, and 23 against 27 at seeds 9 to 16, inside, so it stays
-  shipped; the first `precis` sentence read 9. The `answer` sentence read 30 of 32 against 24,
-  inside the plain interval ([role sentences](../readings/role-sentences.md)). The `excerpt`
-  sentence is not shown to help on either model, so the role has none, rather than a sentence
-  chosen per model, which would key a role to roster entries (decision 5).
+  instructions back or stop at the cap repeating numbers. The `precis` rewording read 17 of 32
+  against 31 at seeds 1 to 8, apart, and 23 against 27 at seeds 9 to 16, inside; the first `precis`
+  sentence read 9. The `answer` sentence read 30 of 32 against 24, inside the plain interval
+  ([role sentences](../readings/role-sentences.md)). Neither the
+  `excerpt` sentence nor the `precis` rewording is shown to help on either model, so each role has
+  none, rather than a sentence chosen per model, which would key a role to roster entries
+  (decision 5).
 - The cortex pick names a role on every item it delegates. Under the first `excerpt` description,
   "each item the subtask asks for, written exactly as the text writes it", with `spawn_subagents` the
   only tool, every extraction named `answer` and none `excerpt`: 8 of 8 on CPU, 8 of 8 on a second

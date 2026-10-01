@@ -4,8 +4,9 @@ What the sentence of each shipped subagent role ([ADR-0072](../adr/ADR-0072-suba
 to delivery on the constrained path. The harness, the report bodies, the judge and the terms are
 those of [reply envelope](reply-envelope.md): "delivered" is read by `delivered` in
 `scripts/envelopejudges.py` at the tabled reading, a "copy" is the report body handed back, and
-intervals are Wilson 95%. Every cell is four report bodies at eight seeded draws, drawn by
-`brain/packages/orchestrator/tests/test_envelope_cost_live.py` through `CORTEX_ENVELOPE_INSTRUCTION`.
+intervals are Wilson 95%. Every cell is four report bodies at eight seeded draws, or sixteen where
+its entry says so, drawn by `brain/packages/orchestrator/tests/test_envelope_cost_live.py` through
+`CORTEX_ENVELOPE_INSTRUCTION`.
 Every run is the shipped constrained path. The role column appends the matching `SHIPPED_ROLES`
 sentence to the shape's instruction, as `SubagentRole.applied` does, so it comes ahead of
 `REPLY_INSTRUCTION`. "Channel writes" counts runs with any text in the reasoning channel, which a
@@ -103,6 +104,35 @@ network body; the cap refusals are level. Over both seed bases the rewording del
 (0.44 to 0.68) against 50 of 64 (0.67 to 0.87) plain, with 11 copies against none. That pooled count
 was not written down before either row, so it decides nothing; the next row's rule is
 [R-760](../refinements/tasks/760-the-reworded-precis-sentence-reads-below-the-plain-summary.md).
+
+**2026-10-01**, the shipped rewording on a third seed base at twice the draws, seeds 17 to 32 at
+sixteen draws a body, the plain cell and the rewording in one server session, the sentence read from
+the `SHIPPED_ROLES` of the tree the run was launched from. SM clock 2040 to 2325 MHz over the 34
+samples taken while it drew, 2246 at the median, power cap active on 33, the enforced limit between
+140 and 160 W of a 175 W maximum. The rule, written before the draw: Fisher's exact test, two-sided,
+on the two counts of 64; where p is below 0.05 and the rewording reads lower, the role gets no
+sentence, and otherwise the rewording stays. Samples and log: row `760s17` under
+`measurements/sitting-2026-10-01/`.
+
+| sentence | delivered | copies | cap refusals | channel writes |
+| --- | --- | --- | --- | --- |
+| none | 44/64 (0.57 to 0.79) | 1 | 18 | 19 |
+| the rewording | 32/64 (0.38 to 0.62) | 13 | 19 | 27 |
+
+Fisher's exact test gives p = 0.047, two-sided, and the rewording reads lower, so by the rule it
+lowers delivery on this pick and `precis` ships with no sentence. The result rests on one run: 43
+against 32, or 44 against 33, gives p = 0.07. Read by hand, every count above matches the replies.
+The plain cell's 20 misses are the 18 cap refusals, one reply that is the report's title alone, and
+one copy, the network body lightly reworded, the first copy a plain cell on this pick has returned
+in this record. The rewording's 32 misses are the 19 cap refusals and 13 copies, every one handed
+back `ok=True`: 4 on the clinic body, 4 on the fleet body and 5 on the network body, 4 of them the
+body letter for letter. Every cap refusal also wrote into the channel, and 15 and 16 of them left
+an empty reply.
+
+Named by no rule, so they decide nothing: the cap refusals differ by one, and the rewording returns
+12 more copies, the size of the gap between the cells. Over the three seed bases the rewording
+delivers 68 of 128 (0.45 to 0.62) against 94 of 128 (0.65 to 0.80) plain, with 24 copies against
+one; Fisher's test on those would give p = 0.001.
 
 ## The roster alternate on the card
 

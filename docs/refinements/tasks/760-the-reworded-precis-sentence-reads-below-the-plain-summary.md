@@ -1,7 +1,6 @@
 # The reworded precis sentence reads below the plain summary
 
-**Status:** open, actionable
-**Verified:** 2026-10-01
+**Status:** done 2026-10-01
 **Area:** subagents
 **Origin:** [ADR-0072](../../adr/ADR-0072-subagent-roles.md)
 
@@ -47,3 +46,9 @@ in the readings record and ADR-0072 states the result.
   argv at `-ngl 99` with `CORTEX_ENVELOPE_DRAWS=16` and `CORTEX_ENVELOPE_SEED=17`, the plain cell
   and then the shipped sentence in one server session; priced at 600 s. Predicted from the two
   seed bases pooled: plain 50 (44 to 56) against the sentence 36 (29 to 43) of 64, apart below.
+- 2026-10-01: Done. Row `760s17` read 32 of 64 against 44 plain (`760s17.log` and `760s17/` under
+  `measurements/sitting-2026-10-01/`), and Fisher's exact test gave p = 0.047, two-sided, with the
+  sentence lower, so by the rule item 2 shipped: `precis` has an empty instruction in
+  `SHIPPED_ROLES`, and `test_roles.py` asserts that only `answer` changes the instruction. Pooled
+  over the three seed bases it reads 68 of 128 against 94, which no rule named. Both counts fell
+  inside the predicted ranges, the plain cell at its low edge.

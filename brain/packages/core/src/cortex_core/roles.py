@@ -46,10 +46,9 @@ SHIPPED_ROLES = SubagentRoles(
     entries={
         "precis": SubagentRole(
             description="the whole text made shorter, keeping its figures, names and dates",
-            instruction=(
-                "Reply with a shorter version that keeps every figure, name and date and adds "
-                "nothing the text does not state."
-            ),
+            # No sentence: both sentences drawn lowered the figures-keeping summary on the
+            # default pick (docs/readings/role-sentences.md).
+            instruction="",
         ),
         "excerpt": SubagentRole(
             description=(

@@ -44,8 +44,8 @@ ADR-0010, ADR-0012, ADR-0017, ADR-0018, ADR-0028, ADR-0048 and ADR-0072.
   `SubagentRoles(entries)` rejects an entry with an empty name or description, and
   `resolve(requested)` returns the entry, `NO_ROLE` for `""`, or `None` for an unknown name.
   `SHIPPED_ROLES` holds `precis`, `excerpt` and `answer`, names proposed for the maintainer's pick,
-  `excerpt` with no sentence, and `NO_ROLES` holds none. A role holds no model, tools or schema, and `SubagentRoster.resolve`
-  never receives one, so no role changes which model runs.
+  only `answer` with a sentence, and `NO_ROLES` holds none. A role holds no model, tools or schema,
+  and `SubagentRoster.resolve` never receives one, so no role changes which model runs.
 - `SubagentPlacer` provides `place(request)`, `release(placement)`, `close_gpu()` and
   `open_gpu()`, all synchronous. `place` fit-tests `request.vram_gb` against the live headroom
   (`soft_cap − resident − placed`) and reserves it on the GPU or spills to the CPU. While closed,

@@ -53,15 +53,9 @@ def test_the_excerpt_description_sets_a_list_against_the_one_fact_of_an_answer()
     assert "the one fact" in SHIPPED_ROLES.entries["answer"].description
 
 
-def test_the_precis_sentence_asks_for_a_new_version_and_not_the_given_text() -> None:
-    sentence = SHIPPED_ROLES.entries["precis"].instruction
-    assert sentence.startswith("Reply with a shorter version")
-    assert "you were given" not in sentence
-
-
-def test_every_shipped_role_but_excerpt_changes_the_instruction() -> None:
+def test_only_the_answer_role_changes_the_instruction() -> None:
     assert sorted(SHIPPED_ROLES.entries) == ["answer", "excerpt", "precis"]
     for name in SHIPPED_ROLES.entries:
         role = SHIPPED_ROLES.resolve(name)
         assert role is not None
-        assert (role.applied("go") == "go") == (name == "excerpt")
+        assert (role.applied("go") == "go") == (name != "answer")
