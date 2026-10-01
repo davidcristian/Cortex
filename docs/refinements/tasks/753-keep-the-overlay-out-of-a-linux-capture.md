@@ -37,5 +37,8 @@ the real shell waits on [751](751-the-shell-has-never-been-linked-or-run-on-linu
   placed through any frame, and refuses the capture when no window names it. The shell serves it
   when `CORTEX_HOST_CAPTURE=1` on an X11 session. Over a white window, a capture with the overlay
   hidden had no black pixel; with it shown, exactly its 640 by 720 rectangle came back black, while
-  a plain root read showed it painted. A window manager, a compositor and WebKit's compositing
-  mode are [768](768-check-the-linux-capture-under-a-window-manager-and-a-compositor.md).
+  a plain root read showed it painted. Under openbox and with WebKit's compositing mode on the
+  counts were the same. Under picom and xcompmgr a capture during a fade after a hide held the
+  whole overlay, so a screen with a compositing manager is refused
+  ([x11-overlay-capture](../../readings/x11-overlay-capture.md)), and composing the picture from
+  the windows' own contents is [769](769-compose-the-linux-capture-from-window-contents-under-a-compositor.md).

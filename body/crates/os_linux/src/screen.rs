@@ -81,6 +81,8 @@ pub struct Snapshot {
     pub image: RootImage,
     /// Every window under the root, each listed after its parent.
     pub windows: Vec<TreeWindow>,
+    /// Whether a compositing manager owns the screen's `_NET_WM_CM_S` selection.
+    pub composited: bool,
 }
 
 /// Why reading the root window failed.
@@ -101,7 +103,7 @@ pub trait RootGrab: Send + Sync {
     /// [`GrabError`] when there is no server or the request fails.
     fn layout(&self) -> Result<Layout, GrabError>;
 
-    /// Reads the pixels of `area` and lists every window, while no other client can change either.
+    /// Reads the pixels of `area`, every window and any compositing manager in one server grab.
     ///
     /// # Errors
     ///
@@ -110,7 +112,7 @@ pub trait RootGrab: Send + Sync {
 }
 
 /// The Linux screen-capture backend over any [`RootGrab`], which paints the windows of one
-/// process black, so the overlay never reaches a picture.
+/// process black and refuses a composited screen, so the overlay never reaches a picture.
 pub struct LinuxScreenCapture<G> {
     root: G,
     process: u32,
@@ -132,7 +134,17 @@ impl<G: RootGrab> ScreenCapture for LinuxScreenCapture<G> {
             )));
         }
         let area = primary(&self.root.layout().map_err(classify)?);
-        let Snapshot { image, windows } = self.root.grab(area).map_err(classify)?;
+        let Snapshot {
+            image,
+            windows,
+            composited,
+        } = self.root.grab(area).map_err(classify)?;
+        if composited {
+            return Err(CaptureError::Backend(String::from(
+                "a compositing manager paints this screen, and it can show the overlay where no \
+                 window lists it, such as in a fade after a hide",
+            )));
+        }
         let own = own_windows(&windows, self.process)?;
         let (width, height, mut pixels) = to_bgra(image)?;
         black_out(&mut pixels, area, &own);

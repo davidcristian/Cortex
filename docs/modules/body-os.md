@@ -138,16 +138,23 @@ decision 13).
   under `Xvfb` it was on the overlay and on the override-redirect context menu, and missing only
   from GTK's 1 by 1 child windows. The walk covers the whole tree, so a window manager's frame
   between the root and the overlay does not hide it. The capture is refused as `Backend` when no
-  window in the tree names `process`, since the property is then not being written, and when a
-  window's parent is not listed before it. The shell passes `std::process::id()`.
+  window in the tree names `process`, since the property is then not being written, when a
+  window's parent is not listed before it, and when a compositing manager owns the screen. Its
+  picture is its own copy of each window, so a fade after a hide keeps the overlay on screen while
+  the tree lists it unmapped, and its shadow lies outside the overlay's rectangle
+  ([x11-overlay-capture](../readings/x11-overlay-capture.md)); composing the picture from the
+  windows' own contents is
+  [769](../refinements/tasks/769-compose-the-linux-capture-from-window-contents-under-a-compositor.md).
+  The shell passes `std::process::id()`.
 - **`X11Root`** lists the active monitors with RandR 1.5's `GetMonitors`, which reports each
   monitor's primary flag and rectangle in one request; a server without the extension lists none,
   and an X error to the request fails the capture as `Backend`. It then sends `GrabServer`, one
   `GetImage` (`ZPixmap`, every plane) for the chosen rectangle of the root of one screen of an
   `x11rb::rust_connection::RustConnection` it is given, and lists the window tree a level at a
   time with `QueryTree`, `GetWindowAttributes`, `GetGeometry` and a `CARDINAL` `GetProperty` of
-  `_NET_WM_PID` per window, then sends and flushes `UngrabServer`, also after a failed read. No
-  other client can map, move or draw a window between the read and the list. It reads the bits per
+  `_NET_WM_PID` per window, then `GetSelectionOwner` of `_NET_WM_CM_S` and the screen's number,
+  and then sends and flushes `UngrabServer`, also after a failed read. No other client can map,
+  move or draw a window between the read and the list. It reads the bits per
   pixel, byte order and root visual masks from the connection's setup. The crate re-exports `x11rb`, and the host
   opens the display with `x11rb::connect(None)`. When that fails, as on a Wayland session with no
   `DISPLAY`, `X11Root::absent(&error)` makes every read `NoDisplay`. Rootless Xwayland, such as

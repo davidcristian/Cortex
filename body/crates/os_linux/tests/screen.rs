@@ -23,6 +23,7 @@ struct FakeRoot {
     layout: Result<Layout, GrabError>,
     answer: Result<RootImage, GrabError>,
     windows: Vec<TreeWindow>,
+    composited: bool,
     calls: Calls,
 }
 
@@ -43,6 +44,7 @@ impl RootGrab for FakeRoot {
         self.answer.clone().map(|image| Snapshot {
             image,
             windows: self.windows.clone(),
+            composited: self.composited,
         })
     }
 }
@@ -111,6 +113,7 @@ fn counted(
         layout,
         answer,
         windows: vec![hidden()],
+        composited: false,
         calls: Arc::clone(&calls),
     };
     (LinuxScreenCapture::new(root, PROCESS), calls)
@@ -138,6 +141,7 @@ fn blacked(windows: Vec<TreeWindow>) -> Result<Vec<String>, CaptureError> {
         layout: Ok(layout),
         answer: Ok(lit),
         windows,
+        composited: false,
         calls: Arc::new(Mutex::new(Vec::new())),
     };
     let frame = LinuxScreenCapture::new(root, PROCESS).capture(&display())?;
@@ -406,4 +410,24 @@ fn a_parent_listed_after_its_child_is_refused() {
         panic!("expected a refusal, got {painted:?}");
     };
     assert!(reason.contains("parent"), "{reason}");
+}
+
+#[test]
+fn a_screen_a_compositing_manager_paints_is_refused() {
+    let root = FakeRoot {
+        layout: Ok(root_only()),
+        answer: Ok(image(true, vec![7; 8])),
+        windows: vec![window(None, 0, 0, 0, Some(PROCESS))],
+        composited: true,
+        calls: Arc::new(Mutex::new(Vec::new())),
+    };
+
+    let captured = LinuxScreenCapture::new(root, PROCESS)
+        .capture(&display())
+        .map(|_| ());
+
+    let Err(CaptureError::Backend(reason)) = captured else {
+        panic!("expected a refusal, got {captured:?}");
+    };
+    assert!(reason.contains("compositing manager"), "{reason}");
 }

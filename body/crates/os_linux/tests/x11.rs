@@ -8,8 +8,8 @@ use os_linux::x11rb::errors::{ConnectError, DisplayParsingError};
 use os_linux::x11rb::protocol::randr::{GetMonitorsReply, MonitorInfo};
 use os_linux::x11rb::protocol::xproto::{
     BackingStore, Depth, EventMask, Format, GetGeometryReply, GetImageReply, GetPropertyReply,
-    GetWindowAttributesReply, Gravity, ImageOrder, InternAtomReply, MapState, QueryExtensionReply,
-    QueryTreeReply, Screen, Setup, Visualtype, WindowClass,
+    GetSelectionOwnerReply, GetWindowAttributesReply, Gravity, ImageOrder, InternAtomReply,
+    MapState, QueryExtensionReply, QueryTreeReply, Screen, Setup, Visualtype, WindowClass,
 };
 use os_linux::x11rb::rust_connection::{DefaultStream, RustConnection};
 use os_linux::x11rb::x11_utils::Serialize;
@@ -26,6 +26,8 @@ const INTERN_ATOM: u8 = 16;
 const QUERY_TREE: u8 = 15;
 const GET_PROPERTY: u8 = 20;
 const PID_ATOM: u32 = 0x0000_01a7;
+const CM_ATOM: u32 = 0x0000_01b0;
+const GET_SELECTION_OWNER: u8 = 23;
 const CARDINAL: u32 = 6;
 const RANDR: u8 = 140;
 const GET_MONITORS: u8 = 42;
@@ -113,6 +115,24 @@ fn atom(sequence: u16) -> Vec<u8> {
     )
 }
 
+/// The two answers that name the compositing manager's selection and report `owner` holding it.
+fn owner(sequence: u16, owner: u32) -> [Vec<u8>; 2] {
+    let name = InternAtomReply {
+        sequence,
+        length: 0,
+        atom: CM_ATOM,
+    };
+    let held = GetSelectionOwnerReply {
+        sequence: sequence + 1,
+        length: 0,
+        owner,
+    };
+    [
+        padded(name.serialize().to_vec()),
+        padded(held.serialize().to_vec()),
+    ]
+}
+
 fn tree(sequence: u16, children: Vec<u32>) -> Vec<u8> {
     QueryTreeReply {
         sequence,
@@ -183,11 +203,18 @@ fn pid(sequence: u16, value: Option<u32>) -> Vec<u8> {
 
 /// The answers to a grab of an empty root: the server grab, the image, the atom, no windows, the release.
 fn bare(data: Vec<u8>) -> Vec<Answer> {
+    composited_by(0, data)
+}
+
+fn composited_by(holder: u32, data: Vec<u8>) -> Vec<Answer> {
+    let [name, held] = owner(5, holder);
     vec![
         Some(Vec::new()),
         Some(image(2, data)),
         Some(atom(3)),
         Some(tree(4, Vec::new())),
+        Some(name),
+        Some(held),
         Some(Vec::new()),
     ]
 }
@@ -548,10 +575,11 @@ fn a_grab_lists_every_window_under_the_root_inside_one_server_grab() {
             geometry(14, 0, 0, 0),
             pid(15, Some(77)),
             tree(16, Vec::new()),
-            Vec::new(),
         ]
         .map(Some),
     );
+    answers.extend(owner(17, 0).map(Some));
+    answers.push(Some(Vec::new()));
 
     let (grabbed, requests) = grab_against(setup(ImageOrder::LSB_FIRST, VISUAL), answers);
 
@@ -606,9 +634,12 @@ fn an_x_error_while_listing_windows_is_a_failed_grab_that_releases_the_server() 
         Some(error(4, bad_window, QUERY_TREE, 0)),
         Some(Vec::new()),
     ];
-    let mut at_a_window = bare(vec![0; 8]);
-    at_a_window[3] = Some(tree(4, vec![0x0040_0001]));
-    at_a_window.pop();
+    let mut at_a_window = vec![
+        Some(Vec::new()),
+        Some(image(2, vec![0; 8])),
+        Some(atom(3)),
+        Some(tree(4, vec![0x0040_0001])),
+    ];
     at_a_window.extend(
         [
             error(5, bad_window, get_window_attributes, 0),
@@ -632,4 +663,37 @@ fn an_x_error_while_listing_windows_is_a_failed_grab_that_releases_the_server() 
             Some(UNGRAB_SERVER)
         );
     }
+}
+
+#[test]
+fn a_grab_reports_whether_a_compositing_manager_owns_the_screen() {
+    for (holder, composited) in [(0, false), (0x0060_0001, true)] {
+        let (grabbed, requests) = grab_against(
+            setup(ImageOrder::LSB_FIRST, VISUAL),
+            composited_by(holder, vec![0; 8]),
+        );
+
+        assert_eq!(grabbed.map(|snapshot| snapshot.composited), Ok(composited));
+        assert_eq!(&requests[4][..2], &[INTERN_ATOM, 0]);
+        assert_eq!(&requests[4][8..21], b"_NET_WM_CM_S0");
+        assert_eq!(requests[5][0], GET_SELECTION_OWNER);
+        assert_eq!(&requests[5][4..8], &CM_ATOM.to_le_bytes());
+        assert_eq!(
+            requests.last().map(|request| request[0]),
+            Some(UNGRAB_SERVER)
+        );
+    }
+}
+
+#[test]
+fn the_compositing_manager_selection_is_named_for_the_screen_read() {
+    let mut two = setup(ImageOrder::LSB_FIRST, VISUAL);
+    two.roots.push(two.roots[0].clone());
+    two.length =
+        u16::try_from((two.serialize().len() - 8) / 4).unwrap_or_else(|error| panic!("{error:?}"));
+
+    let (grabbed, requests) = against(two, 1, bare(vec![0; 8]), |root| root.grab(WHOLE));
+
+    assert!(grabbed.is_ok(), "{grabbed:?}");
+    assert_eq!(&requests[4][8..21], b"_NET_WM_CM_S1");
 }

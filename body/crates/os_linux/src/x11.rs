@@ -37,21 +37,21 @@ impl X11Root {
 }
 
 impl X11Root {
-    /// The connection and its screen, or why neither can be read.
-    fn screen(&self) -> Result<(&RustConnection, &Screen), GrabError> {
+    /// The connection, its screen and that screen's number, or why none can be read.
+    fn screen(&self) -> Result<(&RustConnection, &Screen, usize), GrabError> {
         let (connection, number) = self.connection.as_ref().map_err(Clone::clone)?;
         let screen = connection
             .setup()
             .roots
             .get(*number)
             .ok_or_else(|| GrabError::Failed(format!("the X server has no screen {number}")))?;
-        Ok((connection, screen))
+        Ok((connection, screen, *number))
     }
 }
 
 impl RootGrab for X11Root {
     fn layout(&self) -> Result<Layout, GrabError> {
-        let (connection, screen) = self.screen()?;
+        let (connection, screen, _) = self.screen()?;
         let root = Area {
             x: 0,
             y: 0,
@@ -71,23 +71,38 @@ impl RootGrab for X11Root {
     }
 
     fn grab(&self, area: Area) -> Result<Snapshot, GrabError> {
-        let (connection, screen) = self.screen()?;
+        let (connection, screen, number) = self.screen()?;
         let read = connection
             .grab_server()
             .map_err(ReplyError::from)
-            .and_then(|_| read(connection, screen, area));
+            .and_then(|_| read(connection, screen, number, area));
         let released = connection.ungrab_server().and_then(|_| connection.flush());
         read.and_then(|snapshot| released.map(|()| snapshot).map_err(ReplyError::from))
             .map_err(|error| GrabError::Failed(error.to_string()))
     }
 }
 
-/// Reads `area` of the root window, then lists every window under it.
-fn read(connection: &RustConnection, screen: &Screen, area: Area) -> Result<Snapshot, ReplyError> {
+/// Reads `area` of the root window of screen `number`, lists every window under it, then asks
+/// whether a compositing manager owns the screen.
+fn read(
+    connection: &RustConnection,
+    screen: &Screen,
+    number: usize,
+    area: Area,
+) -> Result<Snapshot, ReplyError> {
     image(connection, screen, area).and_then(|image| {
         answer(connection.intern_atom(false, b"_NET_WM_PID"))
             .and_then(|pid| windows(connection, screen.root, pid.atom))
-            .map(|windows| Snapshot { image, windows })
+            .and_then(|windows| {
+                let selection = format!("_NET_WM_CM_S{number}");
+                answer(connection.intern_atom(false, selection.as_bytes()))
+                    .and_then(|name| answer(connection.get_selection_owner(name.atom)))
+                    .map(|owner| Snapshot {
+                        image,
+                        windows,
+                        composited: owner.owner != x11rb::NONE,
+                    })
+            })
     })
 }
 

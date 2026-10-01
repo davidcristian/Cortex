@@ -124,9 +124,9 @@ starts; nothing asserts that, so the DPI host row would show its loss.
 
 ### 10. The overlay excludes itself from capture, and fails closed
 
-No picture may hold the overlay, since text an attacker gets into a reply is read back. The Windows
-shell sets `WDA_EXCLUDEFROMCAPTURE`, wiring `DeniedScreenCapture` if that fails; the X11 capture paints
-black, under `GrabServer`, each viewable window whose `_NET_WM_PID` is the body's, refusing when none does.
+No picture may hold the overlay, since text an attacker gets into a reply is read back. Windows sets
+`WDA_EXCLUDEFROMCAPTURE`, else serves `DeniedScreenCapture`; X11 paints black, under `GrabServer`, each
+viewable window whose `_NET_WM_PID` is the body's, refusing when none does or a compositing manager runs.
 
 ### 11. Proto fields are added only with a consumer
 
@@ -245,6 +245,6 @@ with thinking on, about five times slower on an invoice screen; turning it off i
   [brain-core](../modules/brain-core.md), [brain-orchestrator](../modules/brain-orchestrator.md),
   [brain-body-client](../modules/brain-body-client.md), [body-core](../modules/body-core.md);
   measurements [vision-capture](../readings/vision-capture.md),
-  [injection-over-pixels](../readings/injection-over-pixels.md).
+  [injection-over-pixels](../readings/injection-over-pixels.md), [x11-overlay-capture](../readings/x11-overlay-capture.md).
 - [ADR-0019](ADR-0019-tainted-memory-recording.md), [ADR-0023](ADR-0023-body-gateway-volume.md),
   [ADR-0030](ADR-0030-brain-handoff.md), [ADR-0041](ADR-0041-injection-image-variant.md).
