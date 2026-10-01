@@ -4,7 +4,8 @@ use std::sync::{Arc, Mutex, PoisonError};
 
 use body_core::{CaptureError, CaptureRequest, CaptureTarget, ScreenCapture};
 use os_linux::{
-    Area, GrabError, Layout, LinuxScreenCapture, Monitor, RootGrab, RootImage, Snapshot, TreeWindow,
+    Area, GrabError, Layer, Layout, LinuxScreenCapture, Monitor, RootGrab, RootImage, Snapshot,
+    TreeWindow,
 };
 
 const MASKS: (u32, u32, u32) = (0x00ff_0000, 0x0000_ff00, 0x0000_00ff);
@@ -24,6 +25,7 @@ struct FakeRoot {
     answer: Result<RootImage, GrabError>,
     windows: Vec<TreeWindow>,
     composited: bool,
+    layers: Vec<Layer>,
     calls: Calls,
 }
 
@@ -45,6 +47,7 @@ impl RootGrab for FakeRoot {
             image,
             windows: self.windows.clone(),
             composited: self.composited,
+            layers: self.layers.clone(),
         })
     }
 }
@@ -93,6 +96,7 @@ fn window(parent: Option<usize>, x: i16, y: i16, border: u16, pid: Option<u32>) 
         border,
         viewable: true,
         pid,
+        input_only: false,
     }
 }
 
@@ -114,6 +118,7 @@ fn counted(
         answer,
         windows: vec![hidden()],
         composited: false,
+        layers: Vec::new(),
         calls: Arc::clone(&calls),
     };
     (LinuxScreenCapture::new(root, PROCESS), calls)
@@ -142,6 +147,7 @@ fn blacked(windows: Vec<TreeWindow>) -> Result<Vec<String>, CaptureError> {
         answer: Ok(lit),
         windows,
         composited: false,
+        layers: Vec::new(),
         calls: Arc::new(Mutex::new(Vec::new())),
     };
     let frame = LinuxScreenCapture::new(root, PROCESS).capture(&display())?;
@@ -412,22 +418,108 @@ fn a_parent_listed_after_its_child_is_refused() {
     assert!(reason.contains("parent"), "{reason}");
 }
 
-#[test]
-fn a_screen_a_compositing_manager_paints_is_refused() {
+/// A layer of `shade` at `x`, `y` of the root, `width` by `height`.
+fn layer(x: i16, y: i16, width: u16, height: u16, shade: u8) -> Layer {
+    let mut image = image(true, vec![shade; usize::from(width * height) * 4]);
+    (image.width, image.height) = (u32::from(width), u32::from(height));
+    Layer {
+        place: Area {
+            x,
+            y,
+            width,
+            height,
+        },
+        image,
+    }
+}
+
+/// Captures a 4 by 2 monitor at 1, 1 of a composited root lit with 7, built from `layers` with
+/// `windows` listed, and returns each pixel's first byte, row by row.
+fn composed(windows: Vec<TreeWindow>, layers: Vec<Layer>) -> Result<Vec<Vec<u8>>, CaptureError> {
+    let area = Area {
+        x: 1,
+        y: 1,
+        width: 4,
+        height: 2,
+    };
+    let layout = Layout {
+        root: ROOT,
+        monitors: vec![Monitor {
+            primary: true,
+            area,
+        }],
+    };
+    let mut lit = image(true, vec![7; 32]);
+    (lit.width, lit.height) = (4, 2);
     let root = FakeRoot {
-        layout: Ok(root_only()),
-        answer: Ok(image(true, vec![7; 8])),
-        windows: vec![window(None, 0, 0, 0, Some(PROCESS))],
+        layout: Ok(layout),
+        answer: Ok(lit),
+        windows,
         composited: true,
+        layers,
         calls: Arc::new(Mutex::new(Vec::new())),
     };
+    let frame = LinuxScreenCapture::new(root, PROCESS).capture(&display())?;
+    let rows = frame
+        .frame()
+        .pixels()
+        .chunks_exact(16)
+        .map(|row| row.chunks_exact(4).map(|pixel| pixel[0]).collect());
+    Ok(rows.collect())
+}
 
-    let captured = LinuxScreenCapture::new(root, PROCESS)
-        .capture(&display())
-        .map(|_| ());
+#[test]
+fn a_composited_screen_is_its_windows_bottom_up_over_black_without_the_root_pixels() {
+    let below = layer(1, 1, 3, 2, 5);
+    let above = layer(2, 2, 2, 1, 9);
 
-    let Err(CaptureError::Backend(reason)) = captured else {
-        panic!("expected a refusal, got {captured:?}");
+    let painted = composed(vec![hidden()], vec![below, above]);
+
+    assert_eq!(painted, Ok(vec![vec![5, 5, 5, 0], vec![5, 9, 9, 0]]));
+}
+
+#[test]
+fn a_composited_screen_still_paints_this_processes_windows_black() {
+    let mut own = window(None, 2, 1, 0, Some(PROCESS));
+    own.area.width = 2;
+
+    let painted = composed(vec![own], vec![layer(1, 1, 4, 2, 5)]);
+
+    assert_eq!(painted, Ok(vec![vec![5, 0, 0, 5], vec![5, 5, 5, 5]]));
+}
+
+#[test]
+fn a_layer_past_the_monitor_is_painted_only_where_it_overlaps() {
+    let painted = composed(
+        vec![hidden()],
+        vec![layer(0, 0, 2, 3, 5), layer(4, 2, 3, 1, 9)],
+    );
+
+    assert_eq!(painted, Ok(vec![vec![5, 0, 0, 0], vec![5, 0, 0, 9]]));
+}
+
+#[test]
+fn a_layer_in_a_format_other_than_eight_bit_rgb_is_refused() {
+    let mut odd = layer(1, 1, 1, 1, 5);
+    odd.image.depth = 16;
+
+    let painted = composed(vec![hidden()], vec![layer(1, 1, 1, 1, 5), odd]);
+
+    let Err(CaptureError::Backend(reason)) = painted else {
+        panic!("expected a refusal, got {painted:?}");
     };
-    assert!(reason.contains("compositing manager"), "{reason}");
+    assert!(reason.contains("depth 16 at 32 bits"), "{reason}");
+}
+
+#[test]
+fn a_layer_whose_pixels_do_not_fill_its_place_is_refused() {
+    let mut short = layer(1, 1, 2, 1, 5);
+    short.image.data.truncate(4);
+
+    let painted = composed(vec![hidden()], vec![short]);
+
+    let Err(CaptureError::Backend(reason)) = painted else {
+        panic!("expected a refusal, got {painted:?}");
+    };
+    assert!(reason.contains("2 by 1 returned 4 bytes"), "{reason}");
 }

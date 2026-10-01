@@ -39,6 +39,6 @@ the real shell waits on [751](751-the-shell-has-never-been-linked-or-run-on-linu
   hidden had no black pixel; with it shown, exactly its 640 by 720 rectangle came back black, while
   a plain root read showed it painted. Under openbox and with WebKit's compositing mode on the
   counts were the same. Under picom and xcompmgr a capture during a fade after a hide held the
-  whole overlay, so a screen with a compositing manager is refused
-  ([x11-overlay-capture](../../readings/x11-overlay-capture.md)), and composing the picture from
-  the windows' own contents is [769](769-compose-the-linux-capture-from-window-contents-under-a-compositor.md).
+  whole overlay, so under a compositing manager the picture is built from each viewable top-level
+  window read on its own, bottom up over black, and holds no fade or shadow
+  ([x11-overlay-capture](../../readings/x11-overlay-capture.md)).

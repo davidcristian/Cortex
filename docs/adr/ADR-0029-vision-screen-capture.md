@@ -126,7 +126,7 @@ starts; nothing asserts that, so the DPI host row would show its loss.
 
 No picture may hold the overlay, since text an attacker gets into a reply is read back. Windows sets
 `WDA_EXCLUDEFROMCAPTURE`, else serves `DeniedScreenCapture`; X11 paints black, under `GrabServer`, each
-viewable window whose `_NET_WM_PID` is the body's, refusing when none does or a compositing manager runs.
+viewable window naming the body in `_NET_WM_PID`, refusing if none does, over the root's pixels or, under a compositing manager, each top-level window's own.
 
 ### 11. Proto fields are added only with a consumer
 

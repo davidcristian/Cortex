@@ -4,6 +4,7 @@
 #![cfg(target_os = "linux")]
 
 mod audio;
+mod compose;
 mod dbus;
 mod exclude;
 mod hotkey;
@@ -14,13 +15,15 @@ mod screen;
 mod x11;
 
 pub use audio::{LinuxAudioControl, PactlFailure, PactlRunner};
+pub use compose::{Piece, pieces};
 pub use dbus::DbusNotifications;
 pub use hotkey::{KeyError, KeyEvent, KeyGrab, Keyboard, LinuxHotkey, keysym};
 pub use keys::X11Keys;
 pub use notify::{BusError, BusMessage, LinuxNotify, NotificationBus};
 pub use pactl::{PACTL_PROGRAM, PactlCommand};
 pub use screen::{
-    Area, GrabError, Layout, LinuxScreenCapture, Monitor, RootGrab, RootImage, Snapshot, TreeWindow,
+    Area, GrabError, Layer, Layout, LinuxScreenCapture, Monitor, RootGrab, RootImage, Snapshot,
+    TreeWindow,
 };
 pub use x11::X11Root;
 /// The X11 client the capture and hotkey backends are built on. A host opens the display with it.

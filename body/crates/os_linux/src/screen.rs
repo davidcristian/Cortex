@@ -4,6 +4,7 @@ use body_core::{
     CaptureError, CaptureRequest, CaptureTarget, CapturedFrame, RawFrame, ScreenCapture,
 };
 
+use crate::compose::compose;
 use crate::exclude::{black_out, own_windows};
 
 /// The channel masks of the one pixel layout the backend reads: eight bits each of red, green, blue.
@@ -40,20 +41,20 @@ pub struct Layout {
     pub monitors: Vec<Monitor>,
 }
 
-/// One rectangle of the root window as the X server returned it, with the format that describes it.
+/// One rectangle of a window as the X server returned it, with the format that describes it.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RootImage {
     /// The width in pixels.
     pub width: u32,
     /// The height in pixels.
     pub height: u32,
-    /// The root window's depth, in significant bits per pixel.
+    /// The window's depth, in significant bits per pixel.
     pub depth: u8,
     /// How many bits each pixel takes in `data`, from the server's pixmap format for `depth`.
     pub bits_per_pixel: u8,
     /// Whether each pixel is stored least significant byte first.
     pub lsb_first: bool,
-    /// The root visual's red, green and blue masks, all zero when the visual was not found.
+    /// The window visual's red, green and blue masks, all zero when the visual was not found.
     pub masks: (u32, u32, u32),
     /// The `ZPixmap` bytes, top-down rows.
     pub data: Vec<u8>,
@@ -72,6 +73,17 @@ pub struct TreeWindow {
     pub viewable: bool,
     /// The process its `_NET_WM_PID` property names, if it has one.
     pub pid: Option<u32>,
+    /// Whether it is an `InputOnly` window, which has no pixels to read.
+    pub input_only: bool,
+}
+
+/// One top-level window's own pixels inside the captured rectangle.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Layer {
+    /// Where the pixels lie, from the root's corner.
+    pub place: Area,
+    /// The pixels, read from the window itself in its own format.
+    pub image: RootImage,
 }
 
 /// The pixels of one rectangle and every window under the root, read in one server grab.
@@ -83,6 +95,8 @@ pub struct Snapshot {
     pub windows: Vec<TreeWindow>,
     /// Whether a compositing manager owns the screen's `_NET_WM_CM_S` selection.
     pub composited: bool,
+    /// When `composited`, each top-level window's pixels, bottom to top; otherwise none.
+    pub layers: Vec<Layer>,
 }
 
 /// Why reading the root window failed.
@@ -103,7 +117,7 @@ pub trait RootGrab: Send + Sync {
     /// [`GrabError`] when there is no server or the request fails.
     fn layout(&self) -> Result<Layout, GrabError>;
 
-    /// Reads the pixels of `area`, every window and any compositing manager in one server grab.
+    /// Reads `area`, every window, any compositing manager and its windows' pixels in one grab.
     ///
     /// # Errors
     ///
@@ -112,7 +126,7 @@ pub trait RootGrab: Send + Sync {
 }
 
 /// The Linux screen-capture backend over any [`RootGrab`], which paints the windows of one
-/// process black and refuses a composited screen, so the overlay never reaches a picture.
+/// process black and builds a composited screen from its windows, so the overlay never shows.
 pub struct LinuxScreenCapture<G> {
     root: G,
     process: u32,
@@ -138,15 +152,15 @@ impl<G: RootGrab> ScreenCapture for LinuxScreenCapture<G> {
             image,
             windows,
             composited,
+            layers,
         } = self.root.grab(area).map_err(classify)?;
-        if composited {
-            return Err(CaptureError::Backend(String::from(
-                "a compositing manager paints this screen, and it can show the overlay where no \
-                 window lists it, such as in a fade after a hide",
-            )));
-        }
         let own = own_windows(&windows, self.process)?;
-        let (width, height, mut pixels) = to_bgra(image)?;
+        let (width, height, mut pixels) = if composited {
+            let pixels = compose(area, layers)?;
+            (u32::from(area.width), u32::from(area.height), pixels)
+        } else {
+            to_bgra(image)?
+        };
         black_out(&mut pixels, area, &own);
         Ok(CapturedFrame::display(RawFrame::new(
             width, height, pixels,
@@ -166,11 +180,11 @@ fn primary(layout: &Layout) -> Area {
 
 /// Reorders one image's pixels to the core's BGRA, refusing any layout other than 8-bit channels
 /// in a 32-bit pixel.
-fn to_bgra(image: RootImage) -> Result<(u32, u32, Vec<u8>), CaptureError> {
+pub fn to_bgra(image: RootImage) -> Result<(u32, u32, Vec<u8>), CaptureError> {
     let supported = matches!(image.depth, 24 | 32) && image.bits_per_pixel == 32;
     if !supported || image.masks != MASKS {
         return Err(CaptureError::Backend(format!(
-            "the root window is depth {} at {} bits per pixel with masks {:x?}, not 8-bit RGB",
+            "a window read is depth {} at {} bits per pixel with masks {:x?}, not 8-bit RGB",
             image.depth, image.bits_per_pixel, image.masks
         )));
     }

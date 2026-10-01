@@ -14,7 +14,7 @@ use os_linux::x11rb::protocol::xproto::{
 use os_linux::x11rb::rust_connection::{DefaultStream, RustConnection};
 use os_linux::x11rb::x11_utils::Serialize;
 use os_linux::{
-    Area, GrabError, Layout, Monitor, RootGrab, RootImage, Snapshot, TreeWindow, X11Root,
+    Area, GrabError, Layer, Layout, Monitor, RootGrab, RootImage, Snapshot, TreeWindow, X11Root,
 };
 
 const ROOT: u32 = 0x0000_0100;
@@ -31,6 +31,7 @@ const GET_SELECTION_OWNER: u8 = 23;
 const CARDINAL: u32 = 6;
 const RANDR: u8 = 140;
 const GET_MONITORS: u8 = 42;
+const COMPOSITOR: u32 = 0x0060_0001;
 const WHOLE: Area = Area {
     x: 0,
     y: 0,
@@ -89,10 +90,14 @@ fn setup(order: ImageOrder, visual: u32) -> Setup {
 }
 
 fn image(sequence: u16, data: Vec<u8>) -> Vec<u8> {
+    image_as(sequence, 24, VISUAL, data)
+}
+
+fn image_as(sequence: u16, depth: u8, visual: u32, data: Vec<u8>) -> Vec<u8> {
     let reply = GetImageReply {
-        depth: 24,
+        depth,
         sequence,
-        visual: VISUAL,
+        visual,
         data,
     };
     reply.serialize()
@@ -145,12 +150,16 @@ fn tree(sequence: u16, children: Vec<u32>) -> Vec<u8> {
 }
 
 fn attributes(sequence: u16, map_state: MapState) -> Vec<u8> {
+    attributes_of(sequence, map_state, WindowClass::INPUT_OUTPUT)
+}
+
+fn attributes_of(sequence: u16, map_state: MapState, class: WindowClass) -> Vec<u8> {
     GetWindowAttributesReply {
         backing_store: BackingStore::NOT_USEFUL,
         sequence,
         length: 3,
         visual: VISUAL,
-        class: WindowClass::INPUT_OUTPUT,
+        class,
         bit_gravity: Gravity::BIT_FORGET,
         win_gravity: Gravity::NORTH_WEST,
         backing_planes: 0,
@@ -571,7 +580,7 @@ fn a_grab_lists_every_window_under_the_root_inside_one_server_grab() {
             geometry(10, -2, 3, 0),
             pid(11, Some(4242)),
             tree(12, Vec::new()),
-            attributes(13, MapState::UNVIEWABLE),
+            attributes_of(13, MapState::UNVIEWABLE, WindowClass::INPUT_ONLY),
             geometry(14, 0, 0, 0),
             pid(15, Some(77)),
             tree(16, Vec::new()),
@@ -589,19 +598,20 @@ fn a_grab_lists_every_window_under_the_root_inside_one_server_grab() {
         width: 5,
         height: 6,
     };
-    let window = |parent, area, border, viewable, pid| TreeWindow {
+    let window = |parent, area, border, viewable, pid, input_only| TreeWindow {
         parent,
         area,
         border,
         viewable,
         pid,
+        input_only,
     };
     assert_eq!(
         grabbed.unwrap_or_else(|error| panic!("{error:?}")).windows,
         vec![
-            window(None, at(7, 8), 1, true, None),
-            window(None, at(-2, 3), 0, false, Some(4242)),
-            window(Some(0), at(0, 0), 0, false, Some(77)),
+            window(None, at(7, 8), 1, true, None, false),
+            window(None, at(-2, 3), 0, false, Some(4242), false),
+            window(Some(0), at(0, 0), 0, false, Some(77), true),
         ]
     );
     assert_eq!(
@@ -696,4 +706,107 @@ fn the_compositing_manager_selection_is_named_for_the_screen_read() {
 
     assert!(grabbed.is_ok(), "{grabbed:?}");
     assert_eq!(&requests[4][8..21], b"_NET_WM_CM_S1");
+}
+
+/// The answers to a grab of `WHOLE` listing two viewable top-level windows, the first at the
+/// origin and the second one pixel right, with `holder` owning the selection, `reads` and the release.
+fn two_windows(holder: u32, reads: Vec<Vec<u8>>) -> Vec<Answer> {
+    let mut answers = vec![
+        Some(Vec::new()),
+        Some(image(2, vec![9; 8])),
+        Some(atom(3)),
+        Some(tree(4, vec![0x0040_0001, 0x0040_0002])),
+    ];
+    answers.extend(
+        [
+            attributes(5, MapState::VIEWABLE),
+            geometry(6, 0, 0, 0),
+            pid(7, None),
+            tree(8, Vec::new()),
+            attributes(9, MapState::VIEWABLE),
+            geometry(10, 1, 0, 0),
+            pid(11, None),
+            tree(12, Vec::new()),
+        ]
+        .map(Some),
+    );
+    answers.extend(owner(13, holder).map(Some));
+    answers.extend(reads.into_iter().map(Some));
+    answers.push(Some(Vec::new()));
+    answers
+}
+
+#[test]
+fn a_composited_grab_reads_each_top_level_window_inside_the_area_from_the_window() {
+    let unlisted = 0x99;
+    let answers = two_windows(
+        COMPOSITOR,
+        vec![
+            image(15, vec![1; 8]),
+            image_as(16, 32, unlisted, vec![2; 4]),
+        ],
+    );
+
+    let (grabbed, requests) = grab_against(setup(ImageOrder::LSB_FIRST, VISUAL), answers);
+
+    let layer = |x, width, shade, (depth, bits_per_pixel, masks)| Layer {
+        place: Area {
+            x,
+            y: 0,
+            width,
+            height: 1,
+        },
+        image: RootImage {
+            width: u32::from(width),
+            height: 1,
+            depth,
+            bits_per_pixel,
+            lsb_first: true,
+            masks,
+            data: vec![shade; usize::from(width) * 4],
+        },
+    };
+    let rgb = (24, 32, (0x00ff_0000, 0x0000_ff00, 0x0000_00ff));
+    let unknown = (32, 0, (0, 0, 0));
+    assert_eq!(
+        grabbed.map(|snapshot| snapshot.layers),
+        Ok(vec![layer(0, 2, 1, rgb), layer(1, 1, 2, unknown)])
+    );
+    let (first, second) = (&requests[14], &requests[15]);
+    assert_eq!(&first[..2], &[GET_IMAGE, 2]);
+    assert_eq!(&first[4..16], &[1, 0, 0x40, 0, 0, 0, 0, 0, 2, 0, 1, 0]);
+    assert_eq!(&second[4..16], &[2, 0, 0x40, 0, 0, 0, 0, 0, 1, 0, 1, 0]);
+    assert_eq!(
+        requests.last().map(|request| request[0]),
+        Some(UNGRAB_SERVER)
+    );
+}
+
+#[test]
+fn an_x_error_reading_a_window_is_a_failed_grab_that_releases_the_server() {
+    let bad_match = 8;
+    let answers = two_windows(COMPOSITOR, vec![error(15, bad_match, GET_IMAGE, 0)]);
+
+    let (grabbed, requests) = grab_against(setup(ImageOrder::LSB_FIRST, VISUAL), answers);
+
+    let Err(GrabError::Failed(reason)) = grabbed else {
+        panic!("expected a failed grab, got {grabbed:?}");
+    };
+    assert!(reason.contains("Match"), "{reason}");
+    assert_eq!(
+        requests.last().map(|request| request[0]),
+        Some(UNGRAB_SERVER)
+    );
+}
+
+#[test]
+fn a_grab_with_no_compositing_manager_reads_no_window() {
+    let (grabbed, requests) = grab_against(
+        setup(ImageOrder::LSB_FIRST, VISUAL),
+        two_windows(0, Vec::new()),
+    );
+
+    assert_eq!(grabbed.map(|snapshot| snapshot.layers), Ok(Vec::new()));
+    assert_eq!(requests.len(), 15);
+    assert_eq!(requests[14][0], UNGRAB_SERVER);
 }

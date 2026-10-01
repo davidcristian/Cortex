@@ -15,8 +15,26 @@ pub struct Span {
 }
 
 impl Span {
-    const fn holds(self, x: i32, y: i32) -> bool {
+    /// The rectangle `area` covers.
+    pub fn of(area: Area) -> Self {
+        let (left, top) = (i32::from(area.x), i32::from(area.y));
+        Self {
+            left,
+            top,
+            right: left + i32::from(area.width),
+            bottom: top + i32::from(area.height),
+        }
+    }
+
+    /// Whether the span holds pixel `x`, `y`.
+    pub const fn holds(self, x: i32, y: i32) -> bool {
         self.left <= x && x < self.right && self.top <= y && y < self.bottom
+    }
+
+    /// The index of pixel `x`, `y`, which the span holds, in a BGRA image of the span.
+    pub fn offset(self, x: i32, y: i32) -> usize {
+        let pixel = (y - self.top) * (self.right - self.left) + x - self.left;
+        usize::try_from(pixel * 4).unwrap_or_default()
     }
 }
 
@@ -60,15 +78,18 @@ pub fn own_windows(windows: &[TreeWindow], process: u32) -> Result<Vec<Span>, Ca
 
 /// Paints black every pixel of `pixels`, a BGRA image of `area`, that lies inside one of `spans`.
 pub fn black_out(pixels: &mut [u8], area: Area, spans: &[Span]) {
-    let (left, top) = (i32::from(area.x), i32::from(area.y));
-    let columns = left..left + i32::from(area.width);
-    let points =
-        (top..top + i32::from(area.height)).flat_map(|y| columns.clone().map(move |x| (x, y)));
-    for (pixel, (x, y)) in pixels.chunks_exact_mut(4).zip(points) {
+    for (pixel, (x, y)) in pixels.chunks_exact_mut(4).zip(points(area)) {
         if spans.iter().any(|span| span.holds(x, y)) {
             pixel.fill(0);
         }
     }
+}
+
+/// Lists the root position of every pixel of `area`, row by row.
+pub fn points(area: Area) -> impl Iterator<Item = (i32, i32)> {
+    let (left, top) = (i32::from(area.x), i32::from(area.y));
+    let columns = left..left + i32::from(area.width);
+    (top..top + i32::from(area.height)).flat_map(move |y| columns.clone().map(move |x| (x, y)))
 }
 
 fn refuse(reason: &str) -> CaptureError {

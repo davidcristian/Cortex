@@ -1,7 +1,8 @@
 # Readings: what an X11 capture shows of the overlay
 
 Pixel counts of `CaptureScreen` replies from the linked Linux shell under the conditions a real X11
-desktop adds to a bare `Xvfb`, and of single windows read directly under a compositor. Cited by
+desktop adds to a bare `Xvfb`, of single windows read directly under a compositor, and of the
+capture built from those reads. Cited by
 [ADR-0029](../adr/ADR-0029-vision-screen-capture.md) decision 10.
 
 ## Method
@@ -85,3 +86,28 @@ and other pixels.
 
 Method: a scratch `x11rb` client outside the repo makes the windows and reads them; the
 compositors ran with the flags above.
+
+## With the capture built from window reads
+
+**2026-10-01.** The shell rebuilt so that, when the `_NET_WM_CM_S0` selection has an owner, it
+paints each viewable top-level window read on its own over black and then the overlay black, run as
+in the method above. "Fade" is a capture 0.3 s after the hide; the plain read is the root's.
+
+| Condition | Shown: black, other | Plain read, shown: other | Fade: other | Plain read, fade: other |
+| --- | --- | --- | --- | --- |
+| bare, WebKit compositing and DMA-BUF off | 460,800, 0 | 460,800 | 0 | 0 |
+| openbox | 460,800, 0 | 460,800 | 0 | 0 |
+| picom, shadows, fading | 460,800, 0 | 504,952 | 0 | 504,952 |
+| xcompmgr, shadows, fading | 460,800, 0 | 507,904 | 0 | 504,772 |
+| openbox and picom, shadows, fading | 460,800, 0 | 504,952 | 0 | 0 |
+
+- In every row the black box was exactly columns 320 to 959 and rows 40 to 759, the rest of each
+  capture was white, and the captures with the overlay hidden and seven seconds after the hide were
+  all white. No capture was refused.
+- **Under picom and xcompmgr** the fade capture was all white while the plain read held the fading
+  overlay and its shadow, and the shown capture had no shadow pixel.
+- **Under openbox with picom** the plain read showed no fade, so that row checks the frame and not
+  the fade: the overlay inside openbox's frame came back black at the same rectangle.
+
+Method: the shell linked as in the method above from the tree that adds the composition; the
+captures are `LinuxScreenCapture` over `X11Root`.
