@@ -171,5 +171,13 @@ The run that worked set `WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS=1`, `DISPLAY` 
 display and `GDK_BACKEND=x11`. Without the last, with `WAYLAND_DISPLAY` unset and WSLg's
 `wayland-0` socket in `XDG_RUNTIME_DIR`, no window appeared on `Xvfb`, which fits GTK opening that
 socket while the shell grabbed the chord on X. A notification server such as `dunst` started inside
-the same `dbus-run-session` shows `Notify`, and `pactl` on `PATH` serves the volume. A debug build
-loads the overlay from `devUrl`, `http://localhost:5173`, so serve `body/app/dist` or run Vite there.
+the same `dbus-run-session` shows `Notify`, and `pactl` on `PATH` serves the volume.
+
+A debug build loads the overlay from `devUrl`, `http://localhost:5173`, so run `npm run dev` in
+`body/app` first. A press then opens the panel even with no brain reachable, and its link dot shows
+red. Avoid a plain static server of `body/app/dist`: git ignores that directory, so it holds
+whatever build last ran there. WebKitGTK also keeps pages in a disk cache under
+`$XDG_DATA_HOME/dev.cortex.body/WebKitCache`, by default in `~/.local/share`, and serves a page
+whose server sent no `Cache-Control`, such as `python3 -m http.server`, from that cache without a
+request, even after Vite holds the port. If the window shows only the stage and the panel never
+opens, delete that directory or point `XDG_DATA_HOME` at an empty one.

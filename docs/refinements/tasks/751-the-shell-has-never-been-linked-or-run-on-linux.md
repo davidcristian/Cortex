@@ -36,5 +36,8 @@ overlay on an X11 session.
   during setup, and a capture answered `PermissionDenied`. An XTEST press of `ctrl+alt+space` showed
   the 640 by 720 overlay window and the next hid it, while another client's `GrabKey` of the chord
   failed with `BadAccess`. With `WAYLAND_DISPLAY` set, the shell logged its Wayland line and the
-  chord stayed free. The page rendered its stage and theme toggle, but the panel never opened:
-  filed [767](767-the-overlay-panel-does-not-open-in-the-linux-webview.md).
+  chord stayed free. With the overlay served by Vite and no brain reachable, the first press and a
+  press after a hide each opened the panel, painted under `Xvfb`, and a script in the page saw
+  `cortex:activate` arrive through `listen` on each show. WebKitGTK 2.52.6 served a page cached
+  from `python3 -m http.server`, which sends `Last-Modified` and no `Cache-Control`, with no request
+  to the server, even after Vite, which sends `Cache-Control: no-cache`, held the port.
