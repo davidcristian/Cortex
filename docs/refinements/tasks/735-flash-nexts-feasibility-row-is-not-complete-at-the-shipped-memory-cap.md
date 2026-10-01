@@ -1,15 +1,14 @@
 # Flash-Next's feasibility row is not complete at the shipped memory cap
 
-**Status:** open, actionable
+**Status:** done 2026-10-01
 **Area:** inference
 **Origin:** [ADR-0004](../../adr/ADR-0004-model-lineup.md)
-**Verified:** 2026-09-28
 
 Qwen3.8-Flash-Next was drawn against three floors: ready within `CORTEX_SWAP_LOAD_TIMEOUT_S`
 (300 s), the first chunk of the 3400-word prompt within `CORTEX_INFERENCE_STALL_TIMEOUT_S` (120 s),
 and at least 7.5 tok/s over two draws of the decode probe at `max_tokens` 128
-([deep candidates](../../readings/deep-candidates.md#qwen38-flash-next-the-feasibility-row)). The
-load passed at both memory caps tried. Two parts are not settled.
+([Qwen3.8-Flash-Next](../../readings/flash-next.md)). The load passed at both memory caps tried.
+Two parts are not settled.
 
 - **The first token at the shipped cap.** The run at the model host's 24g cap was stopped by a
   watchdog written just before it, which removed the container at 512 MiB of host swap-out, before
@@ -70,3 +69,26 @@ result; neither can be drawn here without the maintainer's decision.
   3829 MiB more file pages, which can take about that much off a step; a first delta within 120 s
   would need over 630 MB/s from the mount. The second part is unchanged: no decode past 128 tokens
   has been drawn.
+- 2026-10-01: item 2's row, written before its draw. The driver is
+  `measurements/flash-decode-2026-10-01/decode.py`, run from the repo root with nothing else on the
+  machine: a fresh load with item 1's argv and cap under the same watchdog, then the stop rows' Q2
+  as the only message, thinking on, effort unset, `max_tokens` 2000, streamed, cut at 720 s. Price:
+  about 15 minutes of card. Rule: the decode floor passes when the rate over the whole reply, the
+  streamed deltas after the first over the time from the first delta to the last, is at least 7.5
+  per second; the server's `timings` are read beside it. Prediction: it fails, at 7 per second (4.5
+  to 11), the rate rising through the reply as the page cache fills. Run A read 65 MB from the mount
+  a decoded token at 5.07 tok/s and its second draw 13.35, so a cache that keeps one topic's experts
+  could clear the floor.
+- 2026-10-01: done. Item 1, run C: the first delta of the 3400-word prompt came at 198.0 s at an
+  SM clock of 0.59, so the first-token floor fails at the shipped cap. The predicted failure held
+  and its 230 s bound did not, because the 24g cap kept most of the experts a 2048-token step
+  reads, so the steps after the first took 12 to 23 s. Item 2, run D: 8.59 tok/s over a fresh
+  2000-token reply at an SM clock of 0.69, so the decode floor passes and the predicted failure did
+  not hold; its load took 0.66 of run C's time, so the mount was probably not cold. The whole row
+  is now in [Qwen3.8-Flash-Next](../../readings/flash-next.md), and
+  [ADR-0004](../../adr/ADR-0004-model-lineup.md) decision 8 states the shipped-cap result. Item 3
+  and the rows after it move to
+  [764](764-flash-nexts-first-token-is-undrawn-at-a-batch-the-length-of-the-prompt.md), and
+  [763](763-the-stall-bound-times-a-whole-prompt-evaluation-as-one-silence.md) files counting
+  progress chunks against the stall bound. Item 4 is declined: the load passes at 0.45 to 0.69 of
+  its bound, and whether the engine reads the n-gram table lazily decides no floor.

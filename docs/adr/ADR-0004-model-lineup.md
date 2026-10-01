@@ -84,10 +84,11 @@ lineup](../readings/model-lineup.md), [deep candidates](../readings/deep-candida
    deployed context with no limit set, which is how the tier runs; VRAM decides nothing among the
    entries that fit the card alone. Qwen3.8-Flash-Next fits neither the card nor this machine's
    memory: with 13 layers of experts on the card and the rest read from the models mount it loads
-   inside the swap bound, but under a 20 GiB memory cap it sent no first token for a 6184-token
-   prompt within twice the stall bound, so it cannot serve this tier here; its first token at the
-   shipped cap and whether it stops were not drawn
-   ([R-735](../refinements/tasks/735-flash-nexts-feasibility-row-is-not-complete-at-the-shipped-memory-cap.md)).
+   inside the swap bound and decodes a fresh 2000-token reply above its floor, but at the shipped
+   24 GiB memory cap its first token for a 6184-token prompt came in 1.65 times the stall bound, so it
+   cannot serve this tier here ([Qwen3.8-Flash-Next](../readings/flash-next.md)); a prompt batch
+   the length of the prompt may change that, and whether it stops was not drawn
+   ([R-764](../refinements/tasks/764-flash-nexts-first-token-is-undrawn-at-a-batch-the-length-of-the-prompt.md)).
    On four written questions drawn on one build, three seeds each, the pick stopped on 11 of 12,
    Qwen3.8-27B on 10 at its default effort (`xhigh`) and on 12 at `low` and at `medium`, the
    alternate on 10, Qwen3.6-35B-A3B (at `UD-Q3_K_XL`) on 6 and gemma-4-26B-A4B on 5; only the A4B's
@@ -242,5 +243,6 @@ lineup](../readings/model-lineup.md), [deep candidates](../readings/deep-candida
 - Modules: [brain-model-manager](../modules/brain-model-manager.md),
   [brain-memory](../modules/brain-memory.md).
 - Readings: [model lineup](../readings/model-lineup.md), [deep
-  candidates](../readings/deep-candidates.md), [injection text
-  rows](../readings/injection-text-rows.md), [subagent CPU rows](../readings/subagent-cpu-rows.md).
+  candidates](../readings/deep-candidates.md), [Qwen3.8-Flash-Next](../readings/flash-next.md),
+  [injection text rows](../readings/injection-text-rows.md), [subagent CPU
+  rows](../readings/subagent-cpu-rows.md).

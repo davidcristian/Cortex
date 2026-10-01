@@ -165,7 +165,7 @@ Watches the host while a measurement container runs, and removes the container w
 seconds late (default 2). It never reads swap-out. Under a 24 GiB cap a Flash-Next row had idle
 pages swapped out while `MemAvailable` stayed at 24,000 MiB or more and nothing woke late, and a
 watchdog on swap-out removed that row before its first-token draw
-([deep candidates](../readings/deep-candidates.md#qwen38-flash-next-the-feasibility-row)).
+([Qwen3.8-Flash-Next](../readings/flash-next.md)).
 
 The pressure file covers the whole kernel, so it also counts stalls inside a container's own
 memory cap. The default limit sits above the 26.5 the 20 GiB row reached while the host kept

@@ -34,12 +34,12 @@ Ratios are of the pick's own figure unless a bound is named.
 | --- | --- | --- | --- | --- |
 | artifact | 17.65 GB, QAT | 16.46 GB | 16.82 GB | 89.98 GB in three files |
 | VRAM above idle, 8192 context | 19,138 MiB | 15,744 to 15,770 MiB | 16,417 MiB | 20,150 to 20,655 MiB, the rest paged from the mount |
-| ready, of the 300 s load bound | 0.32 | 0.29 the first time, 0.20 to 0.22 after | 0.32 | 0.47 to 0.69 |
+| ready, of the 300 s load bound | 0.32 | 0.29 the first time, 0.20 to 0.22 after | 0.32 | 0.45 to 0.69 |
 | stop row: stopped, right by hand, of 12 | 11, 10 | 10, 10 at `xhigh`; 12, 10 at `low`; 12, 11 at `medium` | 10, 9 | not drawn |
 | reasoning tokens a stop-row draw, median | 1434 | 2189 `xhigh`, 1122 `low`, 1357 `medium` | 4118 | not drawn |
 | stop-row wall a draw, median | 1.0 | 1.28 `xhigh`, 0.78 `low`, 0.97 `medium` | 2.36 | not drawn |
-| decode | 1.0 | 1.01, at SM 0.50 against 0.59 | 1.02 on the stop draws, at SM 0.46 against 0.57 | 0.09 to 0.14 on a fresh prompt |
-| first chunk of the 3400-word prompt, of the 120 s stall bound | 0.037 (4018 tokens) | 0.040 (6184 tokens) | not drawn | none within twice the bound (20g cap) |
+| decode | 1.0 | 1.01, at SM 0.50 against 0.59 | 1.02 on the stop draws, at SM 0.46 against 0.57 | 0.09 to 0.14 over 128 tokens, 0.23 over 2000 at SM 0.69 |
+| first chunk of the 3400-word prompt, of the 120 s stall bound | 0.037 (4018 tokens) | 0.040 (6184 tokens) | not drawn | 1.65 at the shipped 24g cap; none within twice the bound at 20g |
 | injection, framed and control obeyed of 100 | 0 and 8 (2026-09-24) | 0 and 0 | not drawn | not drawn |
 | multi-token prediction | a separate drafter file, 1.34 to 1.89 times plain | a built-in layer, 1.16 to 1.43 times plain, which no setting names | not drawn | none in the artifact |
 | template | | `xhigh` unless sent; empty thoughts before earlier replies | drops a third leading system message, which the adapter now joins ([ADR-0071](../adr/ADR-0071-leading-system-messages.md)) | the 27B's, byte for byte |
@@ -157,51 +157,10 @@ adapter now joins the three for this template, so the recap reaches it
 ([ADR-0071](../adr/ADR-0071-leading-system-messages.md)). It loaded in 96.8 s (16,417 MiB; 16,443
 on 2026-08-04).
 
-## Qwen3.8-Flash-Next: the feasibility row
+## Qwen3.8-Flash-Next
 
-Placement `--n-cpu-moe 35 --threads 8` added to the tier's argv: every dense weight and the
-experts of layers 35 to 47 on the card, the other experts and the n-gram table mapped from the
-models mount, a 9p share. Floors written before the draw: ready within 300 s
-(`CORTEX_SWAP_LOAD_TIMEOUT_S`), the first chunk of the 3400-word prompt within 120 s
-(`CORTEX_INFERENCE_STALL_TIMEOUT_S`), and at least 7.5 tok/s over two draws of the decode probe at
-`max_tokens` 128, thinking on, effort unset. Run A kept the model host's 24g cap; a watchdog written
-just before it, and not in the backlog, removed the container after 520 MiB of host swap-out,
-during the second decode draw and before the first-token draw. Run B, a departure, used a 20g cap
-so that the host would not swap, leaving about 4 GiB less page cache.
-
-| reading | 24g (run A) | 20g (run B) | floor | predicted | held |
-| --- | --- | --- | --- | --- | --- |
-| ready, `docker run` to health | 205.5 s | 141.2 s | 300 s: passes | 420 s (250 to 900) | no, below |
-| decode, first draw (72-token prompt) | 5.07 tok/s | 3.48 tok/s | 7.5 tok/s | 0.8 (0.3 to 2.5) | no, above |
-| decode, second draw (the prompt reused) | 13.35 over 74 tokens, cut | 7.54 tok/s | | | |
-| first chunk of the 3400-word prompt | not drawn | none by the 240 s cut | 120 s: fails | over 240 s | yes |
-| VRAM above idle at ready | 20,150 MiB | 20,655 MiB | | | |
-| mount read a decoded token, first draw | 65 MB | 119 MB | | | |
-
-The floors, as written: the load passes at both caps. The decode rule named two draws and not which
-decides; each run's first draw is under 7.5 and its second, which reused the prompt and the experts
-the first had paged in, is over it, so the decode floor is undecided. The first-token floor fails at
-20g: 4150 of 6184 prompt tokens were evaluated by 235.8 s, 2048 at a time in 91 to 131 s a step,
-which puts the first token near 330 to 370 s (extrapolated). At 24g it was not drawn; the 72-token
-prompt both runs evaluated took 61.3 s there and 59.2 s at 20g, so the larger cap did not speed
-prompt evaluation. Predicted, memory at the cap with pages read on every token: held. Predicted, the
-row fails all three floors: not held, since the load passes.
-
-The build loads `qwen4exp` and wrote coherent reasoning for 128 tokens after a short prompt; no
-answer, tool call or sequence past 2048 tokens (the attention indexer's `top_k`) was drawn, and only
-run B's server log survives to show no error line. The software power cap was never active: the card
-drew about 40 W at an SM clock of 0.59 while the experts were read. The loads read 46.2 and 46.7 GB
-from the mount (`read_bytes` in `/proc/1/io`, which counts mmap faults on this mount), at 225 and
-330 MB/s, and the card's memory rose by about 19 GB only near the end of each load. Decode sped up
-within a draw as the page cache filled (5.07 by quarters: 4.13, 4.43, 6.26, 6.21). At 24g the cgroup
-filled its cap with file pages and host `MemFree` fell to 190 MiB: 521 MiB of idle pages were
-swapped out and 1.3 MiB in, `MemAvailable` stayed at 24,000 MiB or more and the sampler was never
-late. At 20g nothing was swapped out, and memory stall (`/proc/pressure/memory` full, 10 s) reached
-26.5 against 10.5. The fit map drawn before the row
-(`measurements/deep-2026-09-26/map-fit/flashfit.py`) assumed uniform routing and put the mount read
-at 282 to 324 MB a token, 2.4 to 5 times what was measured; its decode bounds (2.0 to 2.5 tok/s on
-the WSL side, 0.76 to 0.88 at a container's rate) are refuted, and with them its estimate of the
-memory a host needs to hold every expert.
+Its feasibility rows, at the shipped 24g cap and at a 20g cap, are in
+[Qwen3.8-Flash-Next](flash-next.md).
 
 ## The four stop-row questions
 
@@ -243,6 +202,5 @@ else covers. What is the fewest hours the owner must work in a week? Give a rost
 to 14:00 Monday to Friday, the other 10:00 to 18:00 Tuesday to Saturday, the owner the rest.*
 
 Method: the drivers in `measurements/deep-2026-09-26/q27-drivers/` (stop rows `phase1.py` to
-`phase5.py` over `questions.py`), `flash-p2/` and `flash-p2-20g/` (Flash-Next's logs; its driver
-was not kept), the decode probe `test_decode_cadence_live.py`, the switch probe through
-`just switch-tail`, and R-714's `text_rows.py` for the injection row.
+`phase5.py` over `questions.py`), the decode probe `test_decode_cadence_live.py`, the switch
+probe through `just switch-tail`, and R-714's `text_rows.py` for the injection row.
