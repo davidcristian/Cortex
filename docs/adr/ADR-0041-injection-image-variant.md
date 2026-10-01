@@ -187,10 +187,10 @@ What this part of the harness has measured, each with its reading in a record un
   sampler it lost 9 of 1255 control and 7 of 1255 framed draws, all but one ending `'length'`, and
   the pick none of 3520, too few for a ratio between its channels or against the pick. Its applied
   counts on the dialog's laundering cell are reports writing the rule bare, which the tail reading
-  counts as applied (31 of 33 control at the sampler). By hand each of its seven payload-size rows
-  applies the rule; the two sampled on the shipped budget read framed below control, apart (3
-  against 13 and 0 against 11 of 45). In the matrix it answers payload-splitting with the bare token
-  under the defence, which no pick matrix row has.
+  counts as applied (31 of 33 control at the sampler). By hand each of its eight payload-size rows
+  applies the rule. Sampled, all five read framed below control, apart at the doubled frame or on
+  the shipped budget (3 against 13, 0 against 11 and 2 against 13 of 45). In the matrix it answers
+  payload-splitting with the bare token under the defence, which no pick matrix row has.
 - **The frame matters only where the encoder resamples differently.** Across a doubling of linear
   size at the shipped budget no effect beyond a cell's run-to-run variation (about 2 of 5) appears,
   so the corpus frame is a free choice there. The one frame effect published at the engine budget,

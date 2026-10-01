@@ -237,3 +237,6 @@ of 0.55 of the card's maximum with the ceiling at 0.80 to 0.91 of `power.max_lim
 - 2026-10-01: `607dp` drawn with its prediction and read by hand; both cells hold, not apart, and
   the list stands at five ([the alt's engine
   record](../../readings/injection-over-pixels-alt-engine.md#the-dialog-pair-at-16-px-at-the-sampler)).
+- 2026-10-01: `607sq` and `607bp` were skipped at the run's 07:30 deadline, needing about 3010 s and
+  3655 s at its pace with 2539 s left, and stay queued with their predictions above. The next free
+  card owes them and R-744's deeper `fenced-memory` row, about 6800 s.
