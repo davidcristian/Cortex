@@ -3,7 +3,7 @@
 **Status:** open, actionable
 **Area:** untrusted-content
 **Origin:** [ADR-0071](../../adr/ADR-0071-leading-system-messages.md)
-**Verified:** 2026-10-01
+**Verified:** 2026-10-02
 
 Where the leased server's template cannot take several leading system messages, the adapter sends
 the security preamble, the recalled memory and the recap as one system message
@@ -17,7 +17,9 @@ row holds with no backfire
 ([readings](../../readings/system-message-templates.md#the-joined-message-against-the-unframed-control-2026-09-29)),
 and on Qwen3.6-27B, where with every void draw counted against the claim `recap` holds,
 `quoted-memory` does not backfire and `fenced-memory` does not hold
-([readings](../../readings/system-message-templates.md#the-deep-alternate-with-every-void-counted-against-the-claim-2026-10-01));
+([readings](../../readings/system-message-templates.md#the-deep-alternate-with-every-void-counted-against-the-claim-2026-10-01)),
+at 33 draws a variant and again at 66
+([readings](../../readings/joined-message-deep-fenced-memory.md));
 no framing reading covers it on Qwen3.8.
 
 The joined message is the one the preamble calls "this system message" and lets direct the model.
@@ -88,6 +90,19 @@ joined layout changes, and the next step is written from its counts before any f
 Predicted from `744q36f`, an expectation and not a reading: joined 10 (4 to 16) against control
 20 (13 to 27) of 66, p 0.060, so it does not hold, at the boundary. Against a control of 18 the
 row holds at 8 joined or fewer, against 20 at 9, and against 22 at 11.
+
+**The next step, written 2026-10-02 from `744q36d`'s counts.** The deeper row did not hold, 12
+against 19 of 66, and every joined draw it counts is a void: across `744q36f` and `744q36d` the
+joined variant finished 82 draws and obeyed in none, while the control finished 76 and obeyed in
+29. Ten of the twelve joined voids stopped at the 4096-token cap, so the row reads the cap more than
+the layout. The next row draws `fenced-memory` once more at six repetitions with
+`CORTEX_JOINED_SEED_FROM=3000`, at an 8192-token cap that the server's 16384-token context holds,
+and is read alone by the redraw's rule. The driver has no cap setting yet, so it needs one first
+(`CORTEX_JOINED_CAP`, the tier's cap when unset). Priced at 9400 s: `744q36d`'s 6609 s plus up to
+4096 more tokens on each of its 22 capped draws at its 32.7 tokens a second. Expected, not a
+reading: joined 5 (1 to 10) against control 22 (15 to 30) of 66, so it holds. If it holds, this task
+closes. If it does not, nothing in the layout changes and a task is filed for the layout change
+named above, decided on its own evidence. It waits for the next free card.
 
 ## History
 
@@ -175,3 +190,9 @@ row holds at 8 joined or fewer, against 20 at 9, and against 22 at 11.
 - 2026-10-02: the deeper `fenced-memory` row queued first as `744q36d` in the unattended run
   logged at `measurements/sitting-2026-10-02/`, with the environment and prediction above, no
   `CORTEX_JOINED_DEADLINE`, and a price of 6800 s; its replies go to `744q36d.calls.jsonl`.
+- 2026-10-02: `744q36d` read, drawn whole from 02:03:43 to 03:53:52 there. `fenced-memory` does
+  not hold, joined 12 of 66 (0 obeyed, 12 void) against control 19 of 66 (12 void), p 0.22, inside
+  the prediction, and no joined draw the model finished obeyed
+  ([readings](../../readings/joined-message-deep-fenced-memory.md)). Nothing in the layout changes;
+  the next step above, a row at an 8192-token cap, is written from these counts and waits for the
+  next free card, since the driver needs a cap setting first and the row needs about 9400 s.
