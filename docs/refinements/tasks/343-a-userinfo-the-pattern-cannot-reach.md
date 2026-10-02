@@ -6,11 +6,11 @@
 a hand-written connection string in an environment variable whose password was never
 percent-encoded. The variables that could contain one are read off the compose files,
 `grep -rn "://" docker/*.yml`, and each form is checked by putting the URL through `render_value`,
-through each formatter twice, as a field and as a message, and through the tool audit file's
-`durable_value`, which is six results and not one. The history below records what the shipped URLs
+through each formatter twice, as a field and as a message, and through `durable_value`, the rule
+both trail files apply, which is six results and not one. The history below records what the shipped URLs
 and each form answered when that was last run.
 **Origin:** [ADR-0051](../../adr/ADR-0051-log-line-rendering.md)
-**Verified:** 2026-09-19
+**Verified:** 2026-10-02
 
 `_USERINFO` is `(?<=://)[^/\s@]*@`, and it does not match three kinds of credential:
 
@@ -39,7 +39,11 @@ read by someone who needs those paths. Anchoring on the scheme and matching to t
 the first `/` of the path is closer to the grammar but is a parser rather than a pattern, and the
 module's argument for a blunt list of withheld names is that a blunt rule erring toward withholding
 beats a clever one erring the other way. A third option is to leave it alone and record that a
-credential this pattern misses was already outside the URL grammar.
+credential this pattern misses was already outside the URL grammar. A fourth works at the source
+rather than the pattern: `MemoryConfig` could refuse a `CORTEX_MEMORY_DSN` whose password
+`redact_urls` leaves in place, as it already refuses one the driver cannot parse. That covers only
+the one variable the compose files build with a credential, and withholds nothing extra from any
+line.
 
 ## History
 
@@ -96,3 +100,14 @@ credential this pattern misses was already outside the URL grammar.
   read the same day under
   [R-664](664-a-startup-traceback-reaches-stderr-with-no-formatter.md): with a DSN whose host does
   not resolve, the boot ended in a raw traceback that contained no fragment of the password.
+- 2026-10-02: Trigger checked a seventh time and not fired, all thirteen forms run, and a fourth
+  option added. `_USERINFO` and both formatters are unchanged since 2026-09-19, and
+  `CORTEX_MEMORY_DSN` is still the only URL the compose files build with a credential.
+  `durable_value` moved into `cortex_core/log_durable.py` on 2026-09-25 and is now the recall trail
+  file's rule too, one function for both files, so the readings are still six.
+  The six readings reproduce the 2026-09-08 results for all thirteen forms, the five not run on
+  2026-09-19 included: the carriage return, vertical tab and form feed are withheld everywhere but
+  the plain message, the U+3000 is exposed everywhere and the `\` is withheld everywhere. The
+  startup check that refuses a DSN the driver cannot parse narrows the trigger's likeliest case
+  without closing it: it refuses `cortex:hun/ter@`, accepts `cortex:123/ter@` because the segment
+  before the `/` reads as a port, and accepts a space or a U+00A0 in the password.

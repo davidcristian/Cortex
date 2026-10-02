@@ -8,7 +8,7 @@ it that reads entries rather than lines. Both come off the compose files:
 those files declare are where a collector would be. The history below records what that reading
 answered when it was last taken, and what a packed line of the widest shipped record measures.
 **Origin:** [ADR-0051](../../adr/ADR-0051-log-line-rendering.md)
-**Verified:** 2026-09-19
+**Verified:** 2026-10-02
 
 The per-value bound is in `render_value`, which only the plain rendering uses. `PackedFormatter`
 passes `record_fields(record)` straight to `json.dumps`, so a field of any size reaches a packed
@@ -33,12 +33,12 @@ nothing else uses. The packed rendering could pass values through `render_value`
 of rendered strings, which is a different rendering rather than a bounded one. The bound could stay
 a plain-rendering rule and the packed one be documented as unbounded on purpose, which is where it
 stands today and is only accurate while nobody runs it. Or `durable_value` in
-`brain/packages/tools/src/cortex_tools/audit_file.py`, written for the tool audit file on
-2026-09-17, could be reused: it keeps a field as its parsed JSON value when the plain line prints
-it whole, and as the plain line's own rendering, cut marker included, when the bound cut it or a
-credential was withheld across a string boundary. The object still parses and only a cut field
-changes type, to a string. Reusing it means moving it into `cortex_core`, since `PackedFormatter`
-lives there and `cortex_core` imports no adapter package.
+`brain/packages/core/src/cortex_core/log_durable.py`, the rule the tool audit file and the recall
+trail file both apply, could be applied to each packed field: it keeps a field as its parsed JSON
+value when the plain line prints it whole, and as the plain line's own rendering, cut marker
+included, when the bound cut it or a credential was withheld across a string boundary. The object
+still parses and only a cut field changes type, to a string. It already lives in `cortex_core`
+beside `PackedFormatter`, so this is now the cheapest of the four: a change to one formatter.
 
 ## History
 
@@ -100,3 +100,11 @@ lives there and `cortex_core` imports no adapter package.
   a value under a secret-named key nested inside a structured field, and the tool audit file added
   `durable_value`, recorded above as a fourth option. The widths were not re-measured, since the
   only change between `record_fields` and either formatter makes a line shorter rather than wider.
+- 2026-10-02: Trigger checked a seventh time and not fired, and the fourth option corrected.
+  `docker/docker-compose.yml` still ships `CORTEX_LOG_FORMAT` as `plain` and
+  `docker/docker-compose.gpu.yml` ships `CORTEX_MODELHOST_LOG_FORMAT` the same way, no `.env` is
+  tracked, and the eleven services the compose files declare include no collector. `log_format.py`,
+  `log_fields.py` and `log_secrets.py` are unchanged since 2026-09-19. What changed is the fourth
+  option's cost: the recall trail file added on 2026-09-25 moved `durable_value` and
+  `durable_record` into `cortex_core/log_durable.py` so both trail files share them, which is the
+  move this entry named as that option's cost.
