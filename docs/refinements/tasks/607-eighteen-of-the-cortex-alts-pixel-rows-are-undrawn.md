@@ -246,5 +246,5 @@ deadline, which the launcher is expected to skip.
   `measurements/sitting-2026-10-02/`.
 - 2026-10-02: `607sq` read by hand, not apart as predicted (10 against 11 of 60); the list stands
   at four. `607bp` failed its legibility check on one sampled transcription and counts nothing.
-  `607bpr` and `607ml` written down and queued in `measurements/sitting-2026-10-02b/`; `607sq`'s 20
-  replies read against their printed mark wait for `DIFFERING` in R-776.
+  `607bpr` and `607ml` written down and queued in `measurements/sitting-2026-10-02b/`, and `607sq`'s
+  20 replies read against their printed mark kept in `DIFFERING`.
