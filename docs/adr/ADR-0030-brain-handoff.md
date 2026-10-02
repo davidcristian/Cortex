@@ -156,8 +156,7 @@ stream at the conductor, the wrapper and the deep phase. Every case asserts the 
 model running with the evicted tiers asked back, the pool admits again, no partial reply is stored as
 complete, memory holds the exchange or nothing, the record is terminal and `active()` is `None`, a
 later escalation still runs, and the stream ends with an accurate sentence or a `SeamError`. Every
-property is proven able to fail by mutation. The host half (`kill -9` on the deep child) needs the
-24 GB card **and** a Windows desktop, since only the overlay shows the confirm card.
+property is proven able to fail by mutation. The real `kill -9` on the deep child is decision 9's.
 
 ### 8. VRAM: the deep model runs alone by default
 
@@ -177,7 +176,8 @@ resident through a handoff is the opt-in of [ADR-0055](ADR-0055-co-residency-and
 ### 9. What remains on the host
 
 The mechanism is validated in Docker with small stand-in tiers and with the real cortex on the 24 GB
-card; the tier-scale swap through the overlay is in [docs/host/](../host/index.md#gpu-tier-scale).
+card. A tier-scale handoff, its kill and its timings need a client that approves the confirm card,
+headless or the overlay. The overlay's own view: [docs/host/](../host/index.md#gpu-tier-scale).
 
 ### 10. A handoff that failed says why, on the record
 

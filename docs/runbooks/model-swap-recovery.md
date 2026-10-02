@@ -224,9 +224,10 @@ boot recovery marks the stranded record `FAILED` and escalation works again.
 
 ## The chaos kill, host-side
 
-At tier scale on the 24 GB machine, from the overlay, since a handoff to kill in the middle of
-begins at an approved confirm card. The small-scale equivalent is the third and fourth failure
-modes above.
+At tier scale on the 24 GB machine, during a handoff whose confirm card a client has approved:
+the overlay, or a headless client that answers the `ConfirmRequest`
+([R-772](../refinements/tasks/772-a-headless-client-that-approves-the-handoff-card.md)). The
+small-scale equivalent is the third and fourth failure modes above.
 
 ```
 docker compose --project-directory . -f docker/docker-compose.yml \

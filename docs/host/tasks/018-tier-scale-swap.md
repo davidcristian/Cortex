@@ -4,52 +4,40 @@
 **Session:** gpu-tier-scale
 **Capability:** W+G
 **Origin:** [ADR-0030](../../adr/ADR-0030-brain-handoff.md)
+**Verified:** 2026-10-02
 
-Blocked on the overlay. Tag **W+G**, corrected 2026-07-19: this item sat under G alone, and both its
-procedure and its pass line need the Windows overlay.
+Blocked on the overlay, for what the user sees and nothing else. Re-scoped 2026-10-02: the VRAM
+arithmetic, the phases of the swap and the `Health` readings during the window are agent work on
+the 24 GB card through a client that approves the confirm card, filed as
+[R-772](../../refinements/tasks/772-a-headless-client-that-approves-the-handoff-card.md). The
+approval is a `ConfirmResponse` on the `Converse` stream, which any client holding the stream can
+send, and the body's own client already sends one, so the overlay was never the only way to start a
+handoff. What stays here is the overlay's view of one.
 
-**What only this proves.** The VRAM arithmetic. The agent's validation ran two small artifacts
-through every code path, which is not the same thing: evicting about 11.3 GB and loading 15 to
-18 GB alone is the part that was never exercised.
-
-**Why it needs the overlay too.** `escalate_to_brain` requires approval in its own spec
-(`brain/packages/core/src/cortex_core/escalate.py`), so a handoff begins only after the ADR-0022
-confirm card is **approved**. That card is not a brain-side prompt: the brain emits a
-`ConfirmRequest` on the Converse stream and waits `CORTEX_SEAM_CONFIRM_TIMEOUT_S` (120 s) for the
-client's `ConfirmResponse`, and an unanswered one is denied fail-closed, so nothing swaps. The only
-shipped client that answers a `ConfirmRequest` is the overlay (`body/crates/rpc/src/converse.rs`,
-`body/app/src/bridge/tauriBridge.ts`); the repo's own headless Converse driver, `just rpc-health`,
-opens a stream, reads it, and answers no confirm. So the trigger and the amber dot are the
-overlay's, and the arithmetic is the card's. Nothing about this makes it a Windows item: no overlay
-can evict 11.3 GB and load 18 GB. If the Windows desktop and the 24 GB card are the same laptop,
-this costs one bring-up of each side and nothing more.
+**What only this proves.** That the overlay shows a real handoff accurately: the
+`escalate_to_brain` card with the tool's reason as written, the approval sent by a click, the
+window's status lines (pausing delegated work, loading the deep model, the deep model working,
+bringing the usual assistant back) shown in order over the minutes the swap takes, and the
+connection dot amber while `Health` reads `ready=false` between turns, then green once the cortex
+serves again.
 
 **Do.** With "Before you start" done **including step 10**, bring the overlay up beside the brain
 ([windows-desktop.md](../index.md#windows-desktop) has that bring-up), then ask something that
-escalates and **approve the card** when it appears. Watch the swap window's `StatusUpdate`s. To see
-the swap from the other side while it runs, `GET /models/brain` on the sidecar flips `stopped` to
-`loading` to `ready` and the cortex flips the other way; that is also how you tell an escalation
-that was never approved from one that was.
+escalates and **approve the card** when it appears. Run it after R-772 has drawn its swap row, so a
+failure here is about the overlay and not about the swap. `GET /models/brain` on the sidecar flips
+`stopped` to `loading` to `ready` while it runs, which tells an escalation that was never approved
+from one that was.
 
-**Pass.** The cortex is evicted, the deep model loads, the answer returns, and the cortex is
-restored. `Health` reads `ready=false` with an accurate residency detail between turns during the
-window, which turns the overlay's connection dot amber.
+**Pass.** The card shows the tool's reason, the approval starts the swap, each status line appears
+when the stream sends it, the dot turns amber during the window and green after it, and the deep
+model's answer appears in the panel.
 
-**Fail.** A load that never completes inside `CORTEX_SWAP_LOAD_TIMEOUT_S` is item 4's problem, not
-this one. The failure that matters here is a restore that does not happen:
+**Fail.** A card that stays open after the approval, a status line that never appears, or a dot that
+stays amber once the cortex is serving. A swap or a restore that fails is R-772's finding, not this
+one's: [runbooks/model-swap.md](../../runbooks/model-swap.md) says how to read it.
 
-```
-could not restore '<cortex model>' after 2 attempts, the last of which failed on '<tier>';
-manual recovery is needed
-```
-
-which is `ResidencyRestoreError`, and [runbooks/model-swap.md](../../runbooks/model-swap.md) has the
-section on what to do about it.
-
-**Record it.** Put the reading in the readings record under
-[docs/readings/](../../readings/README.md) that [ADR-0030](../../adr/ADR-0030-brain-handoff.md)
-rests on and in the tier-scale half of [runbooks/model-swap.md](../../runbooks/model-swap.md), and
-edit that ADR in place where the run changes what it states.
+**Record it.** In this file's History, and in [runbooks/model-swap.md](../../runbooks/model-swap.md)
+wherever the overlay shows the window differently from what that runbook says.
 
 ## History
 
@@ -66,3 +54,7 @@ edit that ADR in place where the run changes what it states.
   restarted it forever. `CORTEX_MODELHOST_ENDPOINT` is already set by the GPU override.
 - 2026-08-04: the deep-model pick closed, which unblocked this item along with the chaos kill, the
   timings and the injection-harness run, leaving the overlay as what still blocks this one.
+- 2026-10-02: re-scoped to the overlay's view of a handoff. A probe of the code found that the
+  confirm card is answered by any client holding the `Converse` stream and that the body's own
+  client already sends a `ConfirmDecision`, so the swap, its arithmetic and the `Health` readings
+  went to [R-772](../../refinements/tasks/772-a-headless-client-that-approves-the-handoff-card.md).
