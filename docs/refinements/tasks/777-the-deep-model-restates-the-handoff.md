@@ -35,10 +35,12 @@ model instead of forbidding one (`body/crates/rpc/tests/handoff_live.rs`), so la
 the deep model to refuse.
 
 **The verifying row, written before its draw.** `777swap`
-(`measurements/sitting-2026-10-02b/drivers/777swap.sh`, appended after `772killb`) rebuilds
-`cortex-brain:latest` from the fix's commit, then runs three approved handoffs on one stack at the
-shipped caps. h1 and h2 send the old prompt, which forbids an answer; h3 sends the new one. A
-reply answers when it explains the sum (it names odd numbers and a square, n^2 or n squared) and
+(`measurements/sitting-2026-10-02b/drivers/777swap.sh`, appended after `772killb`) first tags
+`cortex-brain:r777`, built from the fix's commit under its own tag so no 772 row could draw it, as
+`cortex-brain:latest`, then runs three approved handoffs on one stack at the shipped caps. h1 and
+h2 send the old prompt, which forbids an answer; h3 sends the new one. The replies are in
+`measurements/sitting-2026-10-02b/777swap.h1.txt` to `h3.txt`, the brain log in `777swap.logs.txt`.
+A reply answers when it explains the sum (it names odd numbers and a square, n^2 or n squared) and
 is more than a sentence about the handoff.
 
 - Prediction: h1, h2 and h3 all answer. The context cause alone explains 7 of 7, so the old prompt
