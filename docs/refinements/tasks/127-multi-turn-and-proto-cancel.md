@@ -5,9 +5,11 @@
 **Origin:** [ADR-0011](../../adr/ADR-0011-body-v1.md)
 **Trigger:** a record in the tree, a host task or a runbook reading, of a turn the person stopped
 whose generation went on holding the model lease against their next submit or a model swap. Until
-that is written down, muting the sink is adequate. CI cannot produce the reading, because the Tauri
-command that streams a stopped turn to its end runs only on the host.
-**Verified:** 2026-09-24
+that is written down, muting the sink is adequate. The wait itself needs no host to read: the
+brain cannot tell a stopped turn from one whose client keeps reading, so any client that sends a
+second turn while the first still generates shows it. What only use can show is a person
+submitting again soon enough after a Stop for that wait to matter.
+**Verified:** 2026-10-02
 
 The body sends one turn per `Converse` call and never sends `Cancel`; dropping the stream is how
 v1 cancels (ADR-0011 decision 1 and risks). Slice 8.8 (ADR-0022) took the interleaving half, so
@@ -87,3 +89,13 @@ multi-turn-plus-`Cancel` build live entirely in the Tauri shell and overlay glue
   `body/app/src-tauri/src/converse.rs:205`. The 2026-09-17 line counted five tests where the body
   names four. The lease paragraph held only with escalation off, since `wiring.py:76` hands the
   backend the swap manager when escalation is on, and it now says so.
+- 2026-10-02: Read against the tree; not fired. No task under `docs/host/tasks/` and no runbook
+  records a stopped turn holding the lease. The headless handoff client added that day sends one
+  `UserTurn` and its `ConfirmResponse`s through the same `turn_request` and reads to the terminal
+  event, so it adds a second caller of the one-turn shape and no `Cancel`. The trigger said CI
+  could not take the reading because the Tauri command runs only on the host; the brain cannot tell
+  a stopped turn from one whose client keeps reading, so the trigger now names what only use shows.
+  The attached-image commits moved two sites: the `Protocol` error is at
+  `body/crates/rpc/src/converse.rs:154` and the Tauri loop's one early exit at
+  `body/app/src-tauri/src/converse.rs:248`. The `Cancel` field is still at `proto/body.proto:57`,
+  the escalation lease still at `wiring.py:76`, and the four tests named above still exist.

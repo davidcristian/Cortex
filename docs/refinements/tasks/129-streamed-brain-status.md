@@ -3,8 +3,8 @@
 **Status:** open, needs a port change first
 **Area:** body-overlay
 **Origin:** [ADR-0011](../../adr/ADR-0011-body-v1.md)
-**Verified:** 2026-09-28
-**Trigger:** A status change that begins while no turn from this overlay is streaming and must change the dot's colour: a second client that can start a handoff, or a background job that escalates. A change that one of this overlay's own turns leaves behind is read by the probe that follows the turn, not by a push.
+**Verified:** 2026-10-02
+**Trigger:** A status change that begins while no turn from this overlay is streaming and must change the dot's colour: a second client that can start a handoff, or a background job that escalates. The hand-run handoff client (`just rpc-handoff`) is not such a client: its runbook points it only at a stack no overlay is using, so no dot can see a handoff it starts. A change that one of this overlay's own turns leaves behind is read by the probe that follows the turn, not by a push.
 
 What is deferred is the push: a server-streamed status RPC, so the brain can say what it is doing
 at the moment it changes rather than when the overlay next asks. The producer this entry was
@@ -84,3 +84,13 @@ from that change and that change needed nothing from it.
   declares one streamed RPC among eleven. A brain that stops while the dot is green is also not
   seen until the next summon or turn, but that is not a status the brain can send, and it has been
   so since this entry opened. The remedy was widened to name `BodyService` as a second direction.
+- 2026-10-02: Checked again; the trigger has not fired. The handoff client added that day
+  (`body/crates/rpc/tests/handoff_live.rs`) starts a handoff from outside the overlay, but it is an
+  `#[ignore]`d test run by hand, built into no shipped binary, and the runbook section that
+  documents it says never to point it at a stack the overlay is using. The trigger now says so.
+  Outside that test the body's `converse` command is still the only `Converse` caller, reached from
+  `useOverlay.ts`, `EscalatingTurnEngine` is still built only in `StreamEngines.for_stream`, `swap_scope` is still entered only from
+  `SwapConductor._swap`, `BrainService` still declares one streamed RPC among eleven, and
+  `LINK_RECHECK_MS` is still 5000. The client reads `Health` every 2 s beside each handoff, so the
+  tier-scale rows queued that night (R-772), once they run, are the first reading against real
+  weights of the not-ready replies this entry depends on.

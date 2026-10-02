@@ -10,7 +10,7 @@ reach the state: that needs `CORTEX_ESCALATION` set while `CORTEX_MODEL_FILE_BRA
 default (`docker/docker-compose.gpu.yml:71`). The gpu overlay passes the switch through by name,
 so a host `.env` can reach the state, and `grep -rnE 'CORTEX_ESCALATION: *[^ ]' docker/` finding
 nothing says no shipped file does.
-**Verified:** 2026-09-28
+**Verified:** 2026-10-02
 
 Opened 2026-08-16 by the close that refuses an impossible handoff before the drain
 ([R-203](203-escalation-fault-not-remembered.md)), which moved the refusal from after the stall to
@@ -92,3 +92,10 @@ is the visibility trade rather than the cost.
   `CORTEX_MODEL_FILE_BRAIN` empty at line 71; the sites have moved to `wiring.py:94` and `:101` and
   to `engines.py:119`, where `StreamEngines._capabilities` builds the cortex's dispatcher once per
   stream, and the context overflow notes added that day do not touch the advertisement.
+- 2026-10-02: Not triggered. The grep finds nothing, `CORTEX_MODEL_FILE_BRAIN` still defaults
+  empty at `docker/docker-compose.gpu.yml:71`, and the sites are where the last line put them. The
+  handoff client added that day answers the card from outside the overlay, and nothing it brought
+  reaches the state: the stack its runbook points to, the real host in `model-swap.md`, names the
+  deep artifact in the same step that sets `CORTEX_ESCALATION=1`, and the tier-scale rows queued
+  that night set the switch only beside the deep artifact
+  (`measurements/sitting-2026-10-02b/drivers/stack.sh`).

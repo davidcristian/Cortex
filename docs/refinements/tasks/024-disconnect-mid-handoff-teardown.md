@@ -12,7 +12,7 @@ answer the turn being cancelled. And the body sends no `Cancel`: it opens a fres
 stops delivery while the turn runs to its end (`TauriBridge.converse`), which
 `grep -rn 'Cancel' body/crates/core/src body/crates/rpc/src body/app/src-tauri/src --exclude-dir=_generated`
 finding nothing confirms. R-127 would add the `Cancel` half and not the other.
-**Verified:** 2026-09-24
+**Verified:** 2026-10-02
 
 Swapping the cortex back in is the recovery path, so `swap_scope`'s restore runs as its own
 shielded task and every cancellation waits for it before propagating. Without that, a client who
@@ -65,3 +65,12 @@ still running. The fix belongs with the in-flight-turn lifecycle
   heartbeat as 30 s of it. A turn that waits behind another turn's handoff now announces that
   wait where it would queue, before its history read or at any model call, so the first gap ends
   there.
+- 2026-10-02: Not fired. The headless handoff client added that day is a second `Converse` client
+  that reaches a handoff, and it meets neither half. Its request stream is the body's
+  `turn_request`, one `UserTurn` then `ConfirmResponse`s, so it sends no `Cancel`, and it keeps the
+  stream open until a terminal event: it calls `BrainRpcClient` directly, without the
+  `RetryingTransport` gap bounds that could end a stream mid-handoff. The kill row queued that night
+  kills the deep child inside the model host, not the client's stream. The recheck grep still finds
+  nothing. Both sites are unchanged: `swap_scope` at `residency.py:76` with its shielded restore at
+  `:84`, and `_cancel_turn` at `converse_stream.py:186` awaiting the turn at `:193`; the pump's
+  await is at `:148` after the attached-image commits.

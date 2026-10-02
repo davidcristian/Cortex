@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** inference-model-manager
 **Origin:** [ADR-0030](../../adr/ADR-0030-brain-handoff.md)
-**Verified:** 2026-09-30
+**Verified:** 2026-10-02
 **Trigger:** the dedup design the `Converse` reconnect entry (R-023) needs, a request id on
 `UserTurn` or `ClientEvent` plus an idempotency and resume registry keyed by it, after which
 resuming is a conductor entry point run beside the gRPC server. Recheck with
@@ -64,3 +64,9 @@ prevent.
   built, and `_run_claimed` (`swap_conductor.py:80`) still runs `_prepare`, the drain and `_swap`
   in that order. The deep tier's context moving to 16384 tonight
   changes none of this. The recheck grep has no hit, so the trigger has not fired.
+- 2026-10-02: Claims checked and all held; no commit since 2026-09-30 touched `handoff.py`,
+  `swap_conductor.py`, `swap_recovery.py` or `wiring.py`, and the recheck grep has no hit, so the
+  trigger has not fired. The handoff client added that day reaches a handoff from outside the
+  overlay but sends no request id, and the kill row queued that night kills the deep child inside
+  the model host while the brain process lives, so the conductor fails the record in process and
+  boot recovery never sees it. No row that night strands a record.
