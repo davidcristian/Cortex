@@ -3,13 +3,13 @@
 **Status:** open, waiting for its trigger
 **Area:** repo-checks
 **Origin:** [ADR-0045](../../adr/ADR-0045-documented-log-lines.md)
-**Verified:** 2026-09-19
+**Verified:** 2026-10-02
 **Trigger:** a whole-line assertion whose expected line is not a plain string constant (an f-string,
 a name the expected line is bound to above the assert, or a helper that builds or compares it) and
 whose logger and message belong to a call whose field list the code reader cannot read, since only
 such a call's samples go through this reader. Count it in two steps: list the calls the reader
 cannot read by running `logcalls.logged` over every message `logcalls.messages` returns and keeping
-those that raise `UnreadFieldsError`, five calls in four modules on 2026-09-19; then read the
+those that raise `UnreadFieldsError`, six calls in five modules on 2026-10-02; then read the
 package suite beside each for an `assert` whose test is one `==`, with neither side a one-line
 string constant, that would produce one of those calls' logger and message. Binding the produced
 side to a name does not count, and the audit suite already writes one assertion that way.
@@ -32,9 +32,10 @@ parts with a hole where each expression stands, and matched against a sample by 
 values are dropped anyway. That is one more case in `_rendered` plus a fixture per part form, and a
 refusal for an f-string whose expression stands where a field name would, which no reading of the
 source can supply. A helper cannot be read without running it and stays refused. It is not built
-because no line anybody could document is asserted either way, and because every f-string whole line
-in the tree interpolates its logger from a constant the test module binds, which the planned reading
-could not match.
+because no line anybody could document is asserted either way. Of the six f-string whole lines in
+the brain's suites, three interpolate their logger from a constant the test module binds, which the
+planned reading could not match, and three write logger and message out with a hole only at a value,
+which it could; but none of the six belongs to a call whose field list the source cannot read.
 
 ## History
 
@@ -83,3 +84,9 @@ could not match.
   `test_log_format.py:334`, and the one cited above has moved to line 415. `test_audit.py` still
   writes fifteen single-`==` asserts, ten with a one-line string constant; the orchestrator's suite
   now writes 558.
+- 2026-10-02: checked again, with the count and one reason corrected. The trigger has not fired.
+  The reader cannot read six calls in five modules now: on 2026-09-25 the recall sink began
+  attaching `recall_fields(audit)`, and `brain/packages/memory/tests` asserts no whole line in any
+  form. Across the four suites consulted, no single-`==` assert without a one-line string constant
+  would produce one of the six calls' lines. The body said every f-string whole line interpolates
+  its logger; `test_log_format.py:229` and `:280` and `test_device_memory.py:89` write it out.

@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** repo-checks
 **Origin:** [ADR-0045](../../adr/ADR-0045-documented-log-lines.md)
-**Verified:** 2026-09-19
+**Verified:** 2026-10-02
 **Trigger:** a printed sample of the tool audit's line in `docs/runbooks/tools-mcp.md` whose
 introducing sentence names a condition other than the one its fields describe, or a whole-line
 assertion of that line added anywhere under `brain/packages/tools/tests` with a field set the
@@ -30,12 +30,13 @@ The which-condition half needs a grammar for the clause introducing a sample, wh
 reading the sample check declined to do at its founding. The coverage half is a set comparison over
 two readings the tree already makes, and the rule it would add is that a sink checked against its
 suite has every asserted condition printed; whether that rule is right is the open question, since a
-suite may assert a line for a reason that is not an operator's. `samplecheck.py` stands at 289 lines
-against the 300-line cap, so the rule costs a split of that file as well. `_proven` also reads the
+suite may assert a line for a reason that is not an operator's. `samplecheck.py` stands at 207 lines
+of the 300-line cap, so the rule fits beside the reading it needs. `assertedlines.proven` reads the
 whole package suite rather than one module, so the set it returns includes lines other modules
-print: the orchestrator's suite asserts a whole `cortex.tools.audit` line written straight through
-the logger to prove the shipped level, which no module in that package writes, and a rule over every
-asserted condition would demand that one be printed. Widening the reader, as
+print: the orchestrator's suite asserts a whole `cortex.tools.audit` line to prove the shipped level.
+A rule over everything `proven` returns would demand that line be printed. A rule over the lines
+sharing the call's logger and message, the filter `_proven` already applies, never reaches it, since
+no orchestrator call writes that logger. Widening the reader, as
 [R-554](554-a-whole-line-asserted-through-an-f-string-or-a-helper-is-not-read-as-proven.md)
 proposes, would grow the set a coverage rule compares against.
 
@@ -73,3 +74,9 @@ proposes, would grow the set a coverage rule compares against.
   Neither of that day's audit changes adds a condition: the file sink keeps what the line prints,
   and withholding a nested secret key changes a value, not a field. `samplecheck.py` still stands at
   289 lines.
+- 2026-10-02: checked again, with two claims in the body corrected. Neither clause has fired: the
+  five samples in `docs/runbooks/tools-mcp.md` match their introducing sentence in the same order,
+  and `assertedlines.proven` returns the same six lines from `test_audit.py`, over five field sets.
+  `samplecheck.py` stands at 207 lines rather than 289, so the coverage half no longer costs a
+  split. The orchestrator's `cortex.tools.audit` line constrains only a rule over the unfiltered set;
+  filtered by the call's logger and message, as the agreement check already is, it drops out.

@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** repo-checks
 **Origin:** [ADR-0045](../../adr/ADR-0045-documented-log-lines.md)
-**Verified:** 2026-09-19
+**Verified:** 2026-10-02
 **Trigger:** a line somebody wanted during a real failure, and no runbook named, is written down in
 this file's History section. That is the evidence this entry says nobody has collected, and it is
 what decides between the two closes below: a criterion a check enforces needs at least one such
@@ -14,7 +14,7 @@ entry here names one, which a reader can check by reading this file.
 them by walking `docs/runbooks/`. That makes agreement automatic: a sample cannot go on printing a
 field the code stopped attaching. It says nothing about coverage. A line the brain writes and no
 runbook mentions is invisible to that scan, because a scan over what a document prints can only be
-as complete as the document. The brain writes far more lines than the seventeen the runbooks print,
+as complete as the document. The brain writes far more lines than the nineteen the runbooks print,
 and which of them an operator would want documented is a question nobody has asked in one place.
 
 The two questions are different and the second is harder. Agreement is decidable: a sample either
@@ -37,6 +37,9 @@ was that this line is the only durable record of the event. On 2026-09-17 the sa
 again for a different reason: the output guardrail removed links without writing any line, so
 nothing could count how many links the lookalike rule removed beyond the default's, and the commit
 that added a line with a count printed it in `docs/runbooks/local-dev-wsl.md`.
+It happened twice more: on 2026-09-19 for a trace budget the adapter drops unsent, printed in
+`docs/runbooks/llamacpp-gpu.md`, and on 2026-09-24 for the engine build a model is served by,
+printed in `docs/runbooks/subagents-cpu.md`. Both were lines the brain did not write before.
 
 ## History
 
@@ -88,3 +91,12 @@ that added a line with a count printed it in `docs/runbooks/local-dev-wsl.md`.
   whose one line, the `tool.audit.gap` warning written when an append to the audit file fails, is
   named with its `error` field in the prose of `docs/runbooks/tools-mcp.md` rather than printed as
   a sample, so no check compares that sentence with the call.
+- 2026-10-02: checked again. The trigger has not fired: no History entry names a line somebody
+  wanted. `scripts/samplecheck.py` reports 19 samples across 22 runbooks, the runbooks having been
+  split under the line cap, against 41 loggers and 109 messages, with the same 6 covered through a
+  suite assertion. The two new samples are the third and fourth precedents above. The two new
+  loggers are `cortex_inference.backend` and `cortex_memory.audit_file`, whose `memory.recall.gap`
+  warning is named in the prose of `docs/runbooks/memory-recall-file.md` rather than printed. The
+  second half moved too: since 2026-09-25 the recall sink attaches `recall_fields(audit)`, so its
+  `memory.recall` line has no field list the source can read, and its package suite asserts no
+  whole line, so a runbook sample of it would fail.
