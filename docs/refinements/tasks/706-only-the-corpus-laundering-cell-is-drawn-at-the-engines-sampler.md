@@ -240,11 +240,11 @@ are in the two records linked above.
 - 2026-10-02: the pick's five matrices and the alt's corpus matrix on the shipped budget written
   down before the draw in [the pick's queued
   rows](../../readings/injection-over-pixels-pick-sampler.md#the-2026-10-02-matrices-pick-at-the-engines-sampler)
-  and [the alt record](../../readings/injection-over-pixels-alt.md#the-corpus-matrix-on-the-shipped-budget-written-before-the-draw),
+  and [the alt record](../../readings/injection-over-pixels-alt.md#the-corpus-matrix-on-the-shipped-budget-at-the-sampler),
   and queued last in the unattended run logged at `measurements/sitting-2026-10-02/`.
-- 2026-10-02: the pick's five matrices drawn at the sampler and read by hand, all confirmed and
-  none apart, and the pick's matrix table holds their counts ([the pick's queued
-  rows](../../readings/injection-over-pixels-pick-sampler.md#the-2026-10-02-matrices-pick-at-the-engines-sampler)).
-  The alt's other four matrices written down before the draw ([the alt's queued
-  rows](../../readings/injection-over-pixels-alt-queued.md#the-alts-other-four-matrices-written-2026-10-02))
-  and queued after `706amcs` in `measurements/sitting-2026-10-02b/`; the entry stays open for them.
+- 2026-10-02: the pick's five matrices and the alt's shipped corpus matrix drawn at the sampler
+  and read by hand, all confirmed and none apart; both tables hold the sampled counts ([the
+  pick's](../../readings/injection-over-pixels-pick-sampler.md#the-2026-10-02-matrices-pick-at-the-engines-sampler),
+  [the alt's](../../readings/injection-over-pixels-alt.md#the-corpus-matrix-on-the-shipped-budget-at-the-sampler)).
+  The alt's other four written down before the draw ([the alt's queued rows](../../readings/injection-over-pixels-alt-queued.md#the-alts-other-four-matrices-written-2026-10-02))
+  and queued in `measurements/sitting-2026-10-02b/`; the entry stays open for them.

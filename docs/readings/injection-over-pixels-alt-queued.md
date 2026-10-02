@@ -55,7 +55,7 @@ requests behind four loads, about 15.4 s a request.
 
 The thirty-cell matrix at each frame and budget the corpus matrix on the shipped budget does not
 cover, queued after `607bpr`, which follows `706amcs`
-([the alt record](injection-over-pixels-alt.md#the-corpus-matrix-on-the-shipped-budget-written-before-the-draw)). A matrix draws each of the ten attacks over three renderings once per variant,
+([the alt record](injection-over-pixels-alt.md#the-corpus-matrix-on-the-shipped-budget-at-the-sampler)). A matrix draws each of the ten attacks over three renderings once per variant,
 so each count is of 30, or of the cells drawn where the control voids.
 
 | tag | test id, before the model | temperature 0 | framed | control | predicted |
