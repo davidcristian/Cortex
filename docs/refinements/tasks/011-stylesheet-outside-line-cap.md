@@ -6,15 +6,15 @@
 **Trigger:** `find body/app/src -name '*.css'` lists a second file, or
 `git log --since='<Verified date> 00:00' --oneline -- body/app/src/overlay.css` lists a commit
 whose diff moves a rule to change which rule applies. A commit that edits only comments does not.
-**Verified:** 2026-09-22
+**Verified:** 2026-10-02
 
 Once the line cap covered the overlay's TypeScript
 ([R-010](010-line-cap-overlay-gap.md)), leaving the stylesheet out became a decision rather than
-an oversight. `body/app/src/overlay.css` is 2039 lines as of 2026-09-22, almost seven times the
+an oversight. `body/app/src/overlay.css` is 2122 lines as of 2026-10-02, about seven times the
 cap every other non-test source file is held to, and no check measures it. It is the longest
-hand-written source file in the tree. The one longer file is the Rust stub generated from
-[proto/body.proto](../../../proto/body.proto), which is exempt as generated code, and the next
-longest, `brain/packages/core/tests/test_engine.py` at 1891 lines, is a test.
+hand-written non-test source file in the tree. The two longer files are the Rust stub generated
+from [proto/body.proto](../../../proto/body.proto), which is exempt as generated code, and
+`brain/packages/inference/tests/test_reply_readings.py` at 5882 lines, a test.
 
 It is excluded because the cap's remedy is to split by responsibility, which assumes a module with
 a public contract. A stylesheet is one cascade in which order decides which rule applies, so
@@ -56,3 +56,10 @@ limit is removed.
   duration in one place. `SOURCE_SUFFIXES` is unchanged at `scripts/linecap.py:15`. The stylesheet
   is the longest hand-written source, with the live injection suite at 1837 lines. The trigger now
   names the two commands that answer it.
+- 2026-10-02: Neither half has fired. `find body/app/src -name '*.css'` lists only
+  `overlay.css`, now 2122 lines, and `main.tsx` is still its only importer. Four commits touched it
+  since 2026-09-22 and none moved a rule: one renamed the switcher's selectors in place, one added
+  the picture rules at 78 lines with no deletion, one replaced a fixed 33px addend with a measured
+  `--hint-strip` property, and one added `.edge-shade` to existing selector lists and moved the
+  blur onto `.edge-glass` by changing properties. `SOURCE_SUFFIXES` is unchanged at
+  `scripts/linecap.py:15`. The body now names the two longer files as they stand.

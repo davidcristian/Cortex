@@ -7,7 +7,7 @@
 run in the checkout, answers more than 0. The first run of `ci.yml` is the first run of this job,
 since every push touching a shared check file sets `shell=true`. None can happen while Actions stays
 off for the repository, which is R-594's subject.
-**Verified:** 2026-09-22
+**Verified:** 2026-10-02
 
 Everything about the shell clippy job was verified locally except the runner half. The check
 itself: `just check-shell` exits 0 over the shell and 101 on a planted `useless_format`, and the
@@ -61,3 +61,13 @@ fix at a known place rather than a re-argued design. The measurements it should 
   in `scripts/tests/test_ci_paths.py`, and `scripts/ci_paths.py` still routes
   `body/app/src-tauri/` to `rust+shell` and `.github/workflows/` to every job. The trigger now names
   a command that runs as written, `gh` filling in the owner and repository.
+- 2026-10-02: Not triggered. The trigger's command answers 0, `gh run list` shows only Dependabot
+  update jobs, the newest on 2026-09-28, and the permissions call still answers 403. Commits on
+  `origin/master` since the last reading that each set `shell=true` started no run, among them the
+  2026-09-28 Linux notification and volume serving and the 2026-10-01 X11 hotkey registration,
+  both editing `body/app/src-tauri/`. The job is still at `.github/workflows/ci.yml:139` with the
+  six apt packages, the Windows target, the cache keyed on `body/app/src-tauri` and
+  `just check-shell`. The shell now depends on `os-linux`, whose `zbus` and `x11rb` are built
+  without `libxcb` or `libdbus`, so the apt line needs no new package. The one commit to touch the routing renamed its result class to `Jobs`;
+  `scripts/ci_paths.py` still routes `body/app/src-tauri/` to `rust+shell` and the two routing
+  tests are unchanged.

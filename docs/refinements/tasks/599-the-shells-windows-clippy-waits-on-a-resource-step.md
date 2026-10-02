@@ -7,12 +7,12 @@
 manifest requirement that lets a build for a target it never links skip the resource step, or
 `just check-shell` on master, with `RC_x86_64_pc_windows_msvc` naming a GNU windres, failing at
 its Windows line over a `cfg(windows)` item.
-**Verified:** 2026-09-22
+**Verified:** 2026-10-02
 
 `check-shell` runs two clippy lines, the host one and
 `cargo clippy --locked --target x86_64-pc-windows-msvc --all-targets -- -D warnings`, and CI
 schedules both. Neither runs at the pre-commit hook, so a rename or a signature change inside the
-shell's five items behind `cfg(windows)` is caught on a runner rather than before the commit. That is
+shell's four items behind `cfg(windows)` is caught on a runner rather than before the commit. That is
 the divergence [ADR-0011](../../adr/ADR-0011-body-v1.md) decision 10 accepted for the host line,
 inherited by the Windows one for a narrower reason.
 
@@ -78,3 +78,12 @@ depends on and a check that runs a different one proves less than it claims.
   `cfg(windows)` alone: three in `body_server.rs` and two in `hotkey.rs`. `check-shell` passed both
   lines with that change, the Windows one with an unpacked windres named by
   `RC_x86_64_pc_windows_msvc`. The release half of the trigger was not read again.
+- 2026-10-02: Not fired on either part. `tauri-build` 2.7.0 of 2026-09-26 and 2.7.1 of 2026-09-30
+  are stable releases inside the manifest's `"2"`, while `body/app/src-tauri/Cargo.lock` still fixes
+  2.6.3; the 2.7.1 `src/lib.rs` still builds a `WindowsResource` and calls `compile()` for any
+  target triple containing `windows` (lines 794 to 878), and `WindowsAttributes` still has no
+  switch to skip it. `tauri-winres` 0.3.6 and `embed-resource` 3.0.11 are still the newest. The
+  X11 hotkey commit of 2026-10-01 moved `configured_chord` under
+  `cfg(any(windows, target_os = "linux"))`, so four items stay behind `cfg(windows)` alone: three
+  in `body_server.rs` and the hotkey `register`. The Windows line, run on HEAD with an unpacked
+  windres named by `RC_x86_64_pc_windows_msvc`, exits 0.
