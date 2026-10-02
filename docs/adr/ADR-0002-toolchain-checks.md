@@ -232,10 +232,10 @@ whenever real records existed, passing while asserting nothing.
   one puts an order nobody chose where a failure blocks a commit. A `schedule:` trigger on `ci.yml`
   runs all three toolchains, since its `changes` job has no diff to classify.
 - **`cargo-nextest` as a second test runner.** libtest's own shuffle needs none.
-- **A `commitlint.py` rule requiring a body with a mutation table to name a tracked path.** Most
-  bodies matching the vocabulary name none ([reading](../readings/mutation-replay.md)), so it would
-  fail accurate messages, and any path would satisfy it
-  ([R-359](../refinements/tasks/359-the-table-detector-is-refused-not-impossible.md)).
+- **A `commitlint.py` rule requiring a body with a mutation table to name a tracked path.** Of the
+  50 latest matching bodies, 29 write no tracked path as listed and 2 name no file, though all 50
+  name their tests ([reading](../readings/mutation-replay.md)): it would fail accurate messages,
+  and any path would satisfy it ([R-359](../refinements/tasks/359-the-table-detector-is-refused-not-impossible.md)).
 - **A wider replay window.** The older a table, the likelier the tree under it has moved on.
 
 ## Related

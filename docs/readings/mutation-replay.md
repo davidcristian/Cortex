@@ -5,14 +5,20 @@ What the record of mutation tables looks like to a replay pass, and what a pass 
 and the rejected `commitlint.py` rule. The result of each pass is the ledger in
 [docs/runbooks/mutation-replay.md](../runbooks/mutation-replay.md).
 
-## Most matching commit bodies mention no tracked path
+## Matching commit bodies hold a table and name a test file
 
-**2026-09-19.** Of 954 commits, 17 messages match the `replay` recipe's four patterns. Of the 17,
-16 name no path or file name this repository tracks, and none names both a path and a suite.
+**2026-10-02.** Of 1,175 commits, 94 messages match the `replay` recipe's four patterns. Each of
+the 77 committed since 2026-09-20 holds a fenced table, and none of the 17 before them does: those
+name the practice, and the tables of that period for the repository's own checks are in
+[check-mutations.md](check-mutations.md). Of the 50 most recent, committed from 2026-09-24, all 50
+contain the word suite, a test command or a test file name. As for a tracked path, 21 write one as
+`git ls-files` lists it, 5 write one relative to a package root, such as
+`packages/inference/tests/test_joined_rows.py`, 22 name a tracked file by its name alone, and 2
+name no file, giving their suite as `cargo test -p os-linux --test x11`.
 
 Method: `git log -i -E --grep=redden --grep=mutant --grep=mutation --grep='prove[a-z]* able to
-fail'`, with each matching message checked against `git ls-files` by a scratch detector that is
-not committed.
+fail'`, with each matching message checked for a fence and against `git ls-files` by a scratch
+detector that is not committed.
 
 ## Candidate bodies appear unevenly
 
@@ -22,16 +28,6 @@ and 5 in the next seven.
 
 Method: `just replay`, whose first line gives the count since the last pass in the ledger; the
 first three were read with `just replay "" 2026-08-25` before the recipe read the ledger itself.
-
-## No candidate body holds a table of its own
-
-**2026-09-19.** None of the 17 matching bodies contains a fenced table. The vocabulary is used to
-say that a change was proved by mutation, and the table itself is written where the practice of
-the day put it, which is why a detector keyed on the wording would draw bodies that have nothing
-to replay. The tables for the repository's own checks are in
-[check-mutations.md](check-mutations.md).
-
-Method: `git show <sha>` on each matching body, reading the message and the diff.
 
 ## What a pass costs
 

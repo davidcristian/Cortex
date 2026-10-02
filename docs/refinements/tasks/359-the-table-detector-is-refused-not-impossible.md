@@ -1,14 +1,8 @@
 # A check on a mutation table's wording was refused by the corpus, not by the idea
 
-**Status:** open, waiting for its trigger
+**Status:** declined 2026-10-02
 **Area:** repo-checks
-**Trigger:** at least fifty commit messages match the `replay` recipe's vocabulary (`git log -i -E
---grep=redden --grep=mutant --grep=mutation --grep='prove[a-z]* able to fail'`, 17 on 2026-09-19),
-and the most recent fifty of them all name a path this repository tracks and the suite their counts
-are over, at which point the refusal rate that refused the check is zero. The path half is a script
-over `git ls-files`; the suite half is a reader's judgement, having no machine form
 **Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-checks.md)
-**Verified:** 2026-09-19
 
 This was opened on 2026-08-21 by the close of [R-349](349-a-mutation-table-nobody-replayed.md),
 which weighed making replayability a requirement `commitlint.py` enforces and declined it on a
@@ -49,3 +43,11 @@ table names the suite its counts are over, has no machine form, a suite being pr
 - 2026-09-19: Not fired. The recipe's four patterns match 17 messages of 954, and 16 of the 17
   name no path this repository tracks. A body of two or three sentences names the practice rather
   than describing it, so the vocabulary the detector would read is not growing toward fifty.
+- 2026-10-02: declined. The population half of the trigger fired and the path half did not: the
+  recipe's patterns now match 94 messages of 1,175, and each of the 77 since 2026-09-20 holds a
+  fenced table, so the AGENTS.md rule took hold with no machine to check it. Of the 50 most recent,
+  all 50 name their tests, yet 29 write no tracked path as `git ls-files` lists it and 2 name no
+  file at all, giving their suite as `cargo test -p os-linux --test x11`. Those messages are
+  accurate, so a path rule refuses correct work at any reading of "a path", and a reading lenient
+  enough to accept them all would accept any test coordinate, the presence check this entry calls
+  weak. The readings record and the rejected rule in the origin ADR now give these figures.

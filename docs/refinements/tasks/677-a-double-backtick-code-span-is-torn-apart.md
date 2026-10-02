@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** repo-checks
 **Origin:** [ADR-0039](../../adr/ADR-0039-backlog-per-task.md)
-**Verified:** 2026-09-19
+**Verified:** 2026-10-02
 **Trigger:** the first heading quoting something in a double backtick code span, which
 `backlogcheck` refuses whenever what is quoted has brackets, an angle-bracket tag or an entity
 reference. For brackets the printed advice is the code span the author already wrote; for a tag or
@@ -48,3 +48,7 @@ should say so.
   is wrong advice for a quote rather than a repeat of what was done. The trigger now says both. Over
   the 781 markdown files git tracks, no heading has a double backtick, and `problems()` refuses none
   of their headings.
+- 2026-10-02: the trigger has not fired. `CODE_SPAN` is unchanged, and the four headings above
+  reproduce exactly through `problems()`: the bracket, tag and entity forms refused with the
+  advice the trigger names, the closed run accepted. Over the 933 markdown files git tracks, no
+  heading has a double backtick and `problems()` refuses none.

@@ -6,7 +6,7 @@
 **Trigger:** the first run this repository records under either workflow, which needs Actions
 enabled for the whole repository and is therefore a setting on the account rather than a change in
 this tree.
-**Verified:** 2026-09-19
+**Verified:** 2026-10-02
 
 Read on 2026-09-06 over the account's token, in three calls. The runs listing for `shuffle.yml`
 under `repos/<owner>/<repo>/actions/workflows` reports `total_count` 0, and the same call for
@@ -59,3 +59,10 @@ should turn the setting on to close this entry.
   workflow has run, and the runbook names the `gh api` call that reads a workflow's run count, so a
   reader can tell when that changes. Nothing in reach is left and this entry waits only on the
   setting.
+- 2026-10-02: read again on both halves, not fired. `gh api` reports `total_count` 0 for `ci.yml`
+  and 0 for `shuffle.yml`, and the permissions call still answers 403 to the token here. The
+  repository's run history now lists three Dependabot updates, on 2026-09-21, 2026-09-22 and
+  2026-09-28, and none of the four listed above. The tree still says neither workflow has run: the
+  runbook passage that names the `gh api` call is now in
+  [docs/runbooks/test-order.md](../../runbooks/test-order.md), and `docs/modules/repo-checks.md`
+  keeps its sentence.

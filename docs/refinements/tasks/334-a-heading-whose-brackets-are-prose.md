@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** repo-checks
 **Origin:** [ADR-0039](../../adr/ADR-0039-backlog-per-task.md)
-**Verified:** 2026-09-19
+**Verified:** 2026-10-02
 **Trigger:** the first heading somebody wants to write with a pair of brackets in prose, which the
 heading rule refuses whatever follows them and which a code span cannot express, monospace being
 wrong for prose.
@@ -51,3 +51,8 @@ escape is the interesting one, since it makes the source say what it means.
   remedy, and so is the backslash escape, `\[prose\]`, because `BRACKETED` in
   `scripts/headingshapes.py` still matches the bracket after the backslash. The escape named above
   is therefore still unbuilt rather than already accepted.
+- 2026-10-02: The trigger has not fired, and `scripts/headingshapes.py` has changed only in the
+  wording of two other refusals. Over the 933 markdown files git tracks, two headings now have
+  brackets, both usage lines in `docs/modules/repo-checks-tools.md` quoted in a single backtick
+  code span, which the rule accepts; no heading has a pair of brackets in prose, and `problems()`
+  refuses none. A pair in prose and the escaped form `\[prose\]` are both still refused.
