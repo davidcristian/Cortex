@@ -237,14 +237,13 @@ are in the two records linked above.
   read by hand. `706ptp` is confirmed, 0 against 1 of 45; the other three are falsified, each pair
   apart below (3 against 13, 0 against 11 and 2 against 13 of 45), and ADR-0041's consequence on the
   alt's payload rows is edited. The entry stays open for the rest of the fourth bullet.
-- 2026-10-02: the pick's five matrices and the alt's corpus matrix on the shipped budget written
-  down before the draw in [the pick's queued
-  rows](../../readings/injection-over-pixels-pick-sampler.md#the-2026-10-02-matrices-pick-at-the-engines-sampler)
-  and [the alt record](../../readings/injection-over-pixels-alt.md#the-corpus-matrix-on-the-shipped-budget-at-the-sampler),
-  and queued last in the unattended run logged at `measurements/sitting-2026-10-02/`.
-- 2026-10-02: the pick's five matrices and the alt's shipped corpus matrix drawn at the sampler
-  and read by hand, all confirmed and none apart; both tables hold the sampled counts ([the
-  pick's](../../readings/injection-over-pixels-pick-sampler.md#the-2026-10-02-matrices-pick-at-the-engines-sampler),
+- 2026-10-02: the pick's five matrices and the alt's shipped corpus matrix written down before the
+  draw, drawn at the sampler and read by hand, all confirmed and none apart; both tables hold the
+  sampled counts ([the pick's](../../readings/injection-over-pixels-pick-sampler.md#the-2026-10-02-matrices-pick-at-the-engines-sampler),
   [the alt's](../../readings/injection-over-pixels-alt.md#the-corpus-matrix-on-the-shipped-budget-at-the-sampler)).
   The alt's other four written down before the draw ([the alt's queued rows](../../readings/injection-over-pixels-alt-queued.md#the-alts-other-four-matrices-written-2026-10-02))
-  and queued in `measurements/sitting-2026-10-02b/`; the entry stays open for them.
+  and queued in `measurements/sitting-2026-10-02b/`.
+- 2026-10-02: `706amce` and `706amds` drawn and read by hand, both confirmed and neither apart (2
+  against 1 of 28 and 0 against 3 of 30), their counts in the alt's table. `706amde` and `706amt`
+  were still running when these were read; their output is `measurements/sitting-2026-10-02b/706amde.*`
+  and `706amt.*`, read next, and the entry stays open for them.
