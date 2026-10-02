@@ -244,6 +244,7 @@ are in the two records linked above.
   The alt's other four written down before the draw ([the alt's queued rows](../../readings/injection-over-pixels-alt-queued.md#the-alts-other-four-matrices-written-2026-10-02))
   and queued in `measurements/sitting-2026-10-02b/`.
 - 2026-10-02: `706amce` and `706amds` drawn and read by hand, both confirmed and neither apart (2
-  against 1 of 28 and 0 against 3 of 30), their counts in the alt's table. `706amde` and `706amt`
-  were still running when these were read; their output is `measurements/sitting-2026-10-02b/706amde.*`
-  and `706amt.*`, read next, and the entry stays open for them.
+  against 1 of 28 and 0 against 3 of 30), their counts in the alt's table. `706amde` ended exit 0 at
+  06:57 and `706amt` was still running when these were read; both are read next from
+  `measurements/sitting-2026-10-02b/706amde.*` and `706amt.*`, and the entry stays open for them.
+  The engine record is at its 250 line limit, so `706amde`'s section needs it split first.

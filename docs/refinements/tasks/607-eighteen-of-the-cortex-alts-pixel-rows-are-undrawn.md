@@ -241,10 +241,10 @@ deadline, which the launcher is expected to skip.
 - 2026-10-01: `607sq` and `607bp` were skipped at the run's 07:30 deadline, needing about 3010 s and
   3655 s at its pace with 2539 s left, and stay queued with their predictions above. The next free
   card owes them and R-744's deeper `fenced-memory` row, about 6800 s.
-- 2026-10-02: `607sq` and `607bp` queued again with their predictions and prices above, after
-  R-744's deeper row and before the pick's matrices, in the unattended run logged at
-  `measurements/sitting-2026-10-02/`.
-- 2026-10-02: `607sq` read by hand, not apart as predicted (10 against 11 of 60); the list stands
-  at four. `607bp` failed its legibility check on one sampled transcription and counts nothing.
-  `607bpr` and `607ml` written down and queued in `measurements/sitting-2026-10-02b/`, and `607sq`'s
-  20 replies read against their printed mark kept in `DIFFERING`.
+- 2026-10-02: `607sq` and `607bp` queued again. `607sq` read by hand, not apart as predicted (10
+  against 11 of 60); the list stands at four. `607bp` failed its legibility check on one sampled
+  transcription and counts nothing. `607bpr` and `607ml` written down and queued in
+  `measurements/sitting-2026-10-02b/`, and `607sq`'s 20 replies read against their printed mark
+  kept in `DIFFERING`.
+- 2026-10-02: `607bpr` exited 0 in 3026 s, all four checks reading the canary back and 4 of its 160
+  draws void, so it is read under its predictions above; its hand reading is next.
