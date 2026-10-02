@@ -110,20 +110,20 @@ in `scripts/envelopejudges.py`).
   keeping every figure, name and date it states and adding nothing it does not state.", lowered the
   figures-keeping summarization on both conditions drawn: 13 of 32 against 25 without it on CPU, and
   12 of 32 against 27 on the card (build `b10680-d7bd3bfca`, the compose argv at `-ngl 99`, SM clock
-  2250 MHz at the median of a 3090 maximum), the intervals apart each time, with 6 and 7 copies of
+  0.73 of its maximum at the median), the intervals apart each time, with 6 and 7 copies of
   the body and 13 cap refusals each. A rewording, "Reply with a shorter version that keeps every
   figure, name and date and adds nothing the text does not state.", does not name the given text as
   the reply, which `REPLY_INSTRUCTION` then forbids. On the card, in one server session with a plain
   cell at the same seeds, it read 20 of 32 against 27 at seeds 1 to 8 and 16 of 32 against 23 at
   seeds 9 to 16, the intervals overlapping each time, and 32 of 64 against 44 at seeds 17 to 32
-  (SM clock 2250, 2243 and 2246 MHz at the median). The rule written before that third row, Fisher's
+  (SM clock 0.73 of its maximum at each median). The rule written before that third row, Fisher's
   exact test below p = 0.05 with the sentence lower, gave p = 0.047, so `precis` has no sentence and
   the subtask's own instruction sets the form. Most of the runs the rewording loses are the body
   handed back `ok=True`: 13 copies against 1 plain at seeds 17 to 32
   ([role sentences](../readings/role-sentences.md)).
 - On Qwen3.5-2B, the roster alternate, drawn on the card (build `b10680-d7bd3bfca`, the
-  `llama-subagent-qwen` argv at `-ngl 99`, SM clock 2070 and 2077 MHz at the median of a 3090
-  maximum on the two seed bases), the `excerpt` sentence lowered the extraction: 10 of 32 against 27
+  `llama-subagent-qwen` argv at `-ngl 99`, SM clock 0.67 of its maximum at the median
+  on both seed bases), the `excerpt` sentence lowered the extraction: 10 of 32 against 27
   at seeds 1 to 8 and 8 of 32 against 22 at seeds 9 to 16, apart from the plain cell both times, so
   by the rule written before the second row the drop replicates. The runs it loses mostly write the
   instructions back or stop at the cap repeating numbers. The `precis` rewording read 17 of 32
@@ -140,7 +140,7 @@ in `scripts/envelopejudges.py`).
   named their own role ([spawn spec uptake](../readings/spawn-spec-uptake.md)). The shipped
   description names a list of every item of one kind rather than one fact. It drew `excerpt` 7 of 8
   on CPU, and on the card (build `b10680-d7bd3bfca`, the cortex tier's argv at `-ngl 99`, SM clock
-  1927 MHz at the median of a 3090 maximum) the extractions named `excerpt` 29 of 32 and `answer` 2,
+  0.62 of its maximum at the median) the extractions named `excerpt` 29 of 32 and `answer` 2,
   while the summaries named `precis` 15 of 16 and the lookups `answer` 16 of 16. That meets the rule
   written before the card row, so the description ships. The names stay a proposal (decision 7).
 - The `excerpt` sentence asked for items as the text writes them, and `REPLY_INSTRUCTION` forbids

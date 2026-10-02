@@ -60,9 +60,9 @@ dates. A turn wrote 260 to 553 tokens of reasoning and call, 306 at the median.
 **2026-09-30**, the replication on the card, written down before it was drawn: the cortex tier's
 argv as `llama_server_argv` builds it (`-ngl 99 --ctx-size 16384 --parallel 1 --jinja --cache-ram
 8192`), `ghcr.io/ggml-org/llama.cpp:server-cuda` at `sha256:952424b09abc`, `build_info`
-`b10680-d7bd3bfca`, the build of the CPU rows. The SM clock read 1830 to 2070 MHz over the row's 19
-samples, 1912 at the median, of a 3090 MHz maximum, with the software power cap active on 16. The
-row ran unattended from a copy of the tree taken before the probe gained its `numbers` ask, so
+`b10680-d7bd3bfca`, the build of the CPU rows. The SM clock read 0.59 to 0.67 of its
+maximum over the row's 19 samples, 0.62 at the median, with the software power cap active on 16.
+The row ran unattended from a copy of the tree taken before the probe gained its `numbers` ask, so
 `-k role` at `CORTEX_ROLE_UPTAKE_DRAWS=4` drew the first row's three asks over the four notes, four
 draws each: 48 turns. The rule: it replicates if the extraction asks again name `answer` more often
 than `excerpt`. The log is `measurements/sitting-2026-09-30/756.log`.
@@ -103,8 +103,8 @@ reasoning and call, 372 at the median.
 **2026-09-30**, that description on the card, written down before it was drawn: the argv, image and
 build of the card row above, from a copy of the tree whose probe has the `numbers` ask, with
 `CORTEX_ROLE_UPTAKE_EXCERPT` set to the new description. `-k role` at `CORTEX_ROLE_UPTAKE_DRAWS=4`
-drew all four asks over the four notes, four draws each: 64 turns. The SM clock read 1770 to 2100
-MHz over the 29 samples taken while it drew, 1927 at the median, of a 3090 MHz maximum, with the
+drew all four asks over the four notes, four draws each: 64 turns. The SM clock read 0.57 to 0.68
+of its maximum over the 29 samples taken while it drew, 0.62 at the median, with the
 software power cap active on 28. The rule: it replicates if the two extraction asks together name
 `excerpt` more often than `answer`, and the summary and the lookup each name their own role on at
 least 14 of 16. The log is `measurements/sitting-2026-09-30b/756x.log`.

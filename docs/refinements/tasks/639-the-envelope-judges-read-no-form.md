@@ -7,7 +7,7 @@ whole interval lies under the floor, or lower a published cell's delivered rate 
 interval quoted beside it.
 **Area:** subagents
 **Origin:** [ADR-0028](../../adr/ADR-0028-grammar-constrained-subagents.md)
-**Verified:** 2026-09-19
+**Verified:** 2026-10-02
 
 The rules in `scripts/envelopejudges.py` read a reply's letters, digits and calendar instances. Two
 kinds of wrong answer contain nothing those rules read.
@@ -63,3 +63,13 @@ and shortened by a tenth sits under the copy line by that change's decision and 
   the two picks that ship still holds: their counts are 0 of 435 and 1 of 403, and the lowest cell
   either delivers across the re-table and sentence samples is 4 of 32, on the alternate, which needs
   three taken away.
+- 2026-10-02: checked again, and the trigger has not fired. Three seeded reviews were drawn since,
+  published in the [role sentences](../../readings/role-sentences.md) record: gemma-4-E4B on CPU
+  under `measurements/envelope-roles-2026-09-29/`, and Qwen3.5-2B on the card as rows `755q` and
+  `761` under `measurements/sitting-2026-09-30b/` and `sitting-2026-09-30c/`. Read with a scratch
+  copy of the reader the 2026-09-13 entry describes, at the tabled reading, the 123 delivered
+  extractions in them hold no prose answer: it flags two, and read by eye both are lists of numbers
+  on one line. None of the 128 lookups drawn, delivered or not, names the clinic body's "second
+  half of the month". So no published cell moves. `scripts/envelopejudges.py` has changed since
+  only in renames and printed wording, and still reads letters, digits and calendar instances, so
+  neither kind has a reader in the tree.

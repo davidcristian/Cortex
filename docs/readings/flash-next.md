@@ -40,14 +40,14 @@ row fails all three floors: not held, since the load passes.
 The build loads `qwen4exp` and wrote coherent reasoning for 128 tokens after a short prompt; no
 answer, tool call or sequence past 2048 tokens (the attention indexer's `top_k`) was drawn, and only
 run B's server log survives to show no error line. The software power cap was never active: the card
-drew about 40 W at an SM clock of 0.59 while the experts were read. The loads read 46.2 and 46.7 GB
-from the mount (`read_bytes` in `/proc/1/io`, which counts mmap faults on this mount), at 225 and
-330 MB/s, and the card's memory rose by about 19 GB only near the end of each load. Decode sped up
-within a draw as the page cache filled (5.07 by quarters: 4.13, 4.43, 6.26, 6.21). At 24g the cgroup
-filled its cap with file pages and host `MemFree` fell to 190 MiB: 521 MiB of idle pages were
-swapped out and 1.3 MiB in, `MemAvailable` stayed at 24,000 MiB or more and the sampler was never
-late. At 20g nothing was swapped out, and memory stall (`/proc/pressure/memory` full, 10 s) reached
-26.5 against 10.5. The fit map drawn before the row
+drew about 0.23 of `power.max_limit` at an SM clock of 0.59 while the experts were read. The loads
+read 46.2 and 46.7 GB from the mount (`read_bytes` in `/proc/1/io`, which counts mmap faults on this
+mount), at 225 and 330 MB/s, and the card's memory rose by about 19 GB only near the end of each
+load. Decode sped up within a draw as the page cache filled (5.07 by quarters: 4.13, 4.43, 6.26,
+6.21). At 24g the cgroup filled its cap with file pages and host `MemFree` fell to 190 MiB: 521 MiB
+of idle pages were swapped out and 1.3 MiB in, `MemAvailable` stayed at 24,000 MiB or more and the
+sampler was never late. At 20g nothing was swapped out, and memory stall (`/proc/pressure/memory`
+full, 10 s) reached 26.5 against 10.5. The fit map drawn before the row
 (`measurements/deep-2026-09-26/map-fit/flashfit.py`) assumed uniform routing and put the mount read
 at 282 to 324 MB a token, 2.4 to 5 times what was measured; its decode bounds (2.0 to 2.5 tok/s on
 the WSL side, 0.76 to 0.88 at a container's rate) are refuted, and with them its estimate of the

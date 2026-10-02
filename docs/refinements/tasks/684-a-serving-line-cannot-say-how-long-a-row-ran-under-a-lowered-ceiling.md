@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** vision
 **Origin:** [ADR-0041](../../adr/ADR-0041-injection-image-variant.md)
-**Verified:** 2026-09-19
+**Verified:** 2026-10-02
 **Trigger:** a row whose price is published in `docs/` prints a `card readings every` line with its
 lowest ceiling ratio under 0.50 of max and its highest above 0.50.
 
@@ -31,3 +31,14 @@ with the row that fired it as the example.
 
 - 2026-09-19: opened by the close of
   [R-678](678-a-rows-card-reading-misses-the-ceiling-between-its-ends.md).
+- 2026-10-02: checked again, and the trigger has not fired. All 73 `card readings every` lines in
+  the unattended runs from 2026-09-22 to tonight read their lowest ceiling at 0.80 to 0.91 of max,
+  and the launchers' own samplers agree: every `clocks.csv` from 2026-09-23 on, tonight's two
+  included, reads `enforced.power.limit` at 0.80 to 0.91 of `power.max_limit` (the 2026-09-22 one
+  read no limit). `render_serving` in `card_reading.py` is unchanged. One part of the premise is
+  out of date: every card row since 2026-09-22 has run under a launcher that writes every reading,
+  timestamped, to `clocks.csv` every 15 s beside its `ROW START` and `ROW END` lines, and readings
+  records already quote a row's range from it. So the share of a launcher row's time under any
+  ceiling can be taken after the run today. The remedy above still matters for a row run outside a
+  launcher, and for keeping that record in the tree, since each launcher is a script under the
+  ignored `measurements/` directory.

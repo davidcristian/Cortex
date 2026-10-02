@@ -47,11 +47,11 @@ Every row here is gemma-4-E4B at the compose file's argv with `-ngl 99` (`--jinj
 reasoning-off pair, `--cache-ram 0 --ctx-size 8192 --parallel 2 --threads 4`),
 `ghcr.io/ggml-org/llama.cpp:server-cuda` at `sha256:952424b09abc`, `build_info` `b10680-d7bd3bfca`,
 the build of the CPU row, drawn by an unattended run with its cells in one server session. The SM
-clock is read from that run's sampler, of a 3090 MHz maximum. The shape is the figures-keeping
-summarization, "Summarize the report below, keeping its figures", constrained.
+clock is read from that run's sampler as a fraction of `clocks.max.sm`. The shape is the
+figures-keeping summarization, "Summarize the report below, keeping its figures", constrained.
 
-**2026-09-30**, the first `precis` sentence, seeds 1 to 8, without and then with it. SM clock 2092
-to 2392 MHz over the row's 19 samples, 2250 at the median, with the software power cap active on
+**2026-09-30**, the first `precis` sentence, seeds 1 to 8, without and then with it. SM clock 0.68
+to 0.77 over the row's 19 samples, 0.73 at the median, with the software power cap active on
 17. Counted as the CPU row was, the same count over the CPU samples reproduces that row cell for
 cell. The rule: it replicates if the role column is
 again lower with the two intervals apart. Samples and log: row `755` under
@@ -70,8 +70,8 @@ bodies.
 **2026-09-30**, a rewording, written down before it was drawn: "Reply with a shorter version that
 keeps every figure, name and date and adds nothing the text does not state.", which does not name
 the given text as the reply that `REPLY_INSTRUCTION` then forbids. Seeds 1 to 8, three cells: no
-sentence, the rewording, and the first sentence. SM clock 2047 to 2302 MHz over the 27 samples taken
-while it drew, 2250 at the median, power cap active on 22. The rule: the rewording ships if its
+sentence, the rewording, and the first sentence. SM clock 0.66 to 0.74 over the 27 samples taken
+while it drew, 0.73 at the median, power cap active on 22. The rule: the rewording ships if its
 interval overlaps the plain cell's. Samples and log: row `758` under
 `measurements/sitting-2026-09-30b/`.
 
@@ -87,9 +87,9 @@ hands the body back `ok=True` on 4 runs, 3 of them on the network body. The othe
 row `755` reply for reply, 32 of 32 each.
 
 **2026-09-30**, the shipped rewording on a second seed base, seeds 9 to 16, the plain cell and the
-rewording, read from the `SHIPPED_ROLES` of the tree the run was launched from. SM clock 1995 to
-2385 MHz over the 18 samples taken while it drew, 2243 at the median, power cap active on 16, the
-enforced limit between 140 and 156 W of a 175 W maximum. The rule, written before the draw: the
+rewording, read from the `SHIPPED_ROLES` of the tree the run was launched from. SM clock 0.65 to
+0.77 over the 18 samples taken while it drew, 0.73 at the median, power cap active on 16, the
+enforced limit between 0.80 and 0.89 of `power.max_limit`. The rule, written before the draw: the
 rewording stays if its interval overlaps the plain cell's; apart and lower, the role gets no
 sentence. Samples and log: row `760` under `measurements/sitting-2026-09-30c/`.
 
@@ -107,9 +107,9 @@ was not written down before either row, so it decides nothing; the next row's ru
 
 **2026-10-01**, the shipped rewording on a third seed base at twice the draws, seeds 17 to 32 at
 sixteen draws a body, the plain cell and the rewording in one server session, the sentence read from
-the `SHIPPED_ROLES` of the tree the run was launched from. SM clock 2040 to 2325 MHz over the 34
-samples taken while it drew, 2246 at the median, power cap active on 33, the enforced limit between
-140 and 160 W of a 175 W maximum. The rule, written before the draw: Fisher's exact test, two-sided,
+the `SHIPPED_ROLES` of the tree the run was launched from. SM clock 0.66 to 0.75 over the 34
+samples taken while it drew, 0.73 at the median, power cap active on 33, the enforced limit between
+0.80 and 0.91 of `power.max_limit`. The rule, written before the draw: Fisher's exact test, two-sided,
 on the two counts of 64; where p is below 0.05 and the rewording reads lower, the role gets no
 sentence, and otherwise the rewording stays. Samples and log: row `760s17` under
 `measurements/sitting-2026-10-01/`.
@@ -139,8 +139,8 @@ one; Fisher's test on those would give p = 0.001.
 **2026-09-30**, Qwen3.5-2B: the `llama-subagent-qwen` argv at `-ngl 99`, the image and build above,
 each shape at four bodies and seeds 1 to 8, seven cells in one server session, row `755q` under
 `measurements/sitting-2026-09-30b/`. The `precis` cell drew the first sentence, still shipped in the
-tree the row ran from, and the rewording cell the one shipped now. SM clock 2017 to 2160 MHz over
-15 samples, 2070 at the median, power cap active on 14. The rule: a role changes delivery here only
+tree the row ran from, and the rewording cell the one shipped now. SM clock 0.65 to 0.70 over
+15 samples, 0.67 at the median, power cap active on 14. The rule: a role changes delivery here only
 where its interval and the plain cell's do not overlap.
 
 | shape | sentence | without | with | copies | cap refusals |
@@ -158,9 +158,9 @@ and 4 write the sentence back.
 
 **2026-09-30**, the same argv, image and build on a second seed base, seeds 9 to 16, four cells in
 one server session: figures `none` and the shipped `precis` sentence, extract `none` and `excerpt`,
-each sentence read from the `SHIPPED_ROLES` of the tree the run was launched from. SM clock 1897 to
-2130 MHz over the 11 samples taken while it drew, 2077 at the median, power cap active on 6, the
-enforced limit between 140 and 154 W of a 175 W maximum. The rule, written before the draw: a
+each sentence read from the `SHIPPED_ROLES` of the tree the run was launched from. SM clock 0.61 to
+0.69 over the 11 samples taken while it drew, 0.67 at the median, power cap active on 6, the
+enforced limit between 0.80 and 0.88 of `power.max_limit`. The rule, written before the draw: a
 sentence's drop replicates where its interval is again apart from and lower than the plain cell's;
 an overlap leaves the first row as one seed base's result and the sentence shipped. Samples and log:
 row `761` under `measurements/sitting-2026-09-30c/`.

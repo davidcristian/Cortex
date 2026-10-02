@@ -1,13 +1,9 @@
 # A figure that describes only this machine is caught by eye
 
-**Status:** open, waiting for its trigger
+**Status:** open, actionable
 **Area:** repo-checks
 **Origin:** [ADR-0040](../../adr/ADR-0040-prose-and-comment-style.md)
-**Trigger:** a power, clock, temperature or fan reading stands as an absolute in a tracked text file
-on a line other than the five named as remaining in the 2026-09-19 history entry, or a document
-tells an operator to take a card reading and gives a value where it should give the fields to
-query. The search is `git grep` for a number followed by W, watts, MHz, GHz, °C, a bare C or MT/s.
-**Verified:** 2026-09-19
+**Verified:** 2026-10-02
 
 The measurement rule in the Prose section of [AGENTS.md](../../../AGENTS.md) says that a figure
 describing only the machine it was read from is written as a ratio of that machine's own numbers;
@@ -54,7 +50,8 @@ that produced it; and those figures were legal until the rule was added, so the 
 thirteenth cross-tree scan is an addition to the set the contract, the workflow comment and the
 documentation index all name, so it costs a module and its tests at full coverage, a `check-*`
 recipe, a step in CI's `cross-tree` job, those three rosters and the repo checks module doc. What it
-buys is a guard against the next wattage, and one has already been written since the rule was added.
+buys is a guard against the next wattage, and two sets of them
+have been written since the rule was added.
 
 ## History
 
@@ -82,3 +79,19 @@ buys is a guard against the next wattage, and one has already been written since
   temperatures. The proposal is unchanged and still the maintainer's: a scan now has one caught
   regression to show for itself, and its unit set must include the bare C. Recorded in
   [ADR-0040](../../adr/ADR-0040-prose-and-comment-style.md) rule 10.
+- 2026-10-02: **the trigger fired again**, so the task is actionable and its trigger line is gone.
+  The search returned 21 lines: the README sentence, this file's quotation of it, and 19 lines in
+  six files written from 2026-09-26 to 2026-10-01, in the records of the role sentences, the spawn
+  spec uptake, the system message templates, the history window and Flash-Next, and in
+  [ADR-0072](../../adr/ADR-0072-subagent-roles.md). They give an SM clock in MHz beside the card's
+  maximum, and an enforced limit or a draw in watts beside `power.max_limit`. Each is rewritten as a
+  fraction of `clocks.max.sm` or `power.max_limit`, using the maxima those records state, which
+  every run's `clocks.csv` reads unchanged. The history window record also had a memory clock column
+  whose unit was only in the table header, which the search does not read; it is now a fraction of
+  load 1's. Of the five lines the previous entry named, the two temperatures and the 2026-09-14
+  record's quotation are gone from the tree. Tonight's records (Flash-Next's first token, the X11
+  capture, the matrix predictions) give durations, mount read rates and memory sizes, none in a unit
+  the trigger named. So the narrow search found every violation but the table column, with no false
+  positive beyond the two lines kept on purpose. The proposal above is unchanged and still the
+  maintainer's to decide, now with two caught regressions and one known miss: a unit written only
+  in a table header.

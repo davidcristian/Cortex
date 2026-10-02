@@ -144,11 +144,11 @@ is 19,836. The null bound, 1,150 over the 8192 figure, was not reached. Read in 
 
 **The decode rate.** The 8192 row decoded the same tokens, so each draw's work was the same. The SM
 clock does not account for the gap: the Q3 draws read 0.85 to 0.87 at SM 0.59 to 0.60 against 0.56
-to 0.57, and Q4 d1, at the same 150 W enforced limit and 148 W draw in both rows, read 0.91. The
-ratio rose over this row, 0.83 on the first draw to 0.92 on the eleventh, and neither row recorded
-the memory clock. In one session the two contexts decode at the same rate
-([below](#decode-at-16384-in-one-session)), so the gap is the two sessions' card state, and so is
-most of the stop-row wall a draw, 1.20 of the 8192 row's median at the median.
+to 0.57, and Q4 d1, at the same enforced limit, 0.86 of `power.max_limit`, and a draw of 0.85 of it
+in both rows, read 0.91. The ratio rose over this row, 0.83 on the first draw to 0.92 on the
+eleventh, and neither row recorded the memory clock. In one session the two contexts decode at the
+same rate ([below](#decode-at-16384-in-one-session)), so the gap is the two sessions' card state,
+and so is most of the stop-row wall a draw, 1.20 of the 8192 row's median at the median.
 
 **The fit probe** sent the plain preamble and the first 48,000 characters of `cortex_core`'s modules
 in sorted order, then "Reply with the single word OK.", with `max_tokens` 32. It was answered with
@@ -171,15 +171,15 @@ draw: each 16384 load's median rate over its six draws, against the same draws o
 beside it, reads 0.80 to 0.93 on both if the context costs decode; 0.97 to 1.03 on both is the null
 result, which puts the stop row's 0.86 on that night's card.
 
-| load | context | decode median, of load 1's | draws, of load 1's | above idle at ready, MiB | SM of max, median (range) | memory clock, MHz | power ceiling of max | cap active |
+| load | context | decode median, of load 1's | draws, of load 1's | above idle at ready, MiB | SM of max, median (range) | memory clock, of load 1's | power ceiling of max | cap active |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 | 8192 | 1.000 | 0.973 to 1.012 | 19,121 | 0.58 (0.51 to 0.64) | 14001 | 0.89 | 58 of 58 |
-| 2 | 16384 | 0.999 | 0.970 to 1.007 | 19,788 | 0.58 (0.51 to 0.60) | 14001 | 0.88 | 58 of 58 |
-| 3 | 8192 | 1.000 | 0.982 to 1.013 | 19,139 | 0.58 (0.45 to 0.62) | 14001 | 0.88 | 58 of 58 |
-| 4 | 16384 | 1.002 | 0.998 to 1.005 | 19,803 | 0.58 (0.55 to 0.63) | 14001 | 0.89 | 57 of 57 |
+| 1 | 8192 | 1.000 | 0.973 to 1.012 | 19,121 | 0.58 (0.51 to 0.64) | 1.00 | 0.89 | 58 of 58 |
+| 2 | 16384 | 0.999 | 0.970 to 1.007 | 19,788 | 0.58 (0.51 to 0.60) | 1.00 | 0.88 | 58 of 58 |
+| 3 | 8192 | 1.000 | 0.982 to 1.013 | 19,139 | 0.58 (0.45 to 0.62) | 1.00 | 0.88 | 58 of 58 |
+| 4 | 16384 | 1.002 | 0.998 to 1.005 | 19,803 | 0.58 (0.55 to 0.63) | 1.00 | 0.89 | 57 of 57 |
 
 Clock columns are the busy readings (utilization 50% or more) over each load's draws; the memory
-clock read 14001 MHz on every reading of the row. All 24 draws stopped, and each seed gave the same
+clock read one value on every reading of the row. All 24 draws stopped, and each seed gave the same
 tokens on all four loads.
 
 **The null result on both loads.** Against the same draws on the 8192 loads beside it, load 2 read

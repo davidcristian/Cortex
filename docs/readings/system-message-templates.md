@@ -97,7 +97,7 @@ then the same number while a completion streams on the server.
 | Qwen3.5-2B, CPU, two slots | 20 | 1.10 | 0.002 |
 
 The deciding row's median beside a generation was 2.41 ms on the 12B, under the 10 ms written
-before the run; the card's SM clock read 1815 to 1867 MHz against a 3090 MHz ceiling. A probe
+before the run; the card's SM clock read 0.59 to 0.60 of its maximum. A probe
 takes no slot: on a one-slot server it answered while the slot was decoding.
 
 ## What joining would cost gemma (2026-09-26)
@@ -114,7 +114,7 @@ in the shipped layout (a system turn each) and joined, five pairs each, reading
 | 16 turns, about 6570 tokens in all | one turn of each pair reuses 2960, 5 of 5 | every turn reuses 1, 10 of 10 |
 
 The 2960 reused tokens are the header turn, the preamble and the tool declarations, which the
-shipped layout keeps ahead of the memory. SM clock 1815 to 1890 MHz against 3090 MHz.
+shipped layout keeps ahead of the memory. SM clock 0.59 to 0.61 of its maximum.
 
 The shipped layout's reuse holds only on a short turn. The 12B's sliding-window layers keep the
 last `n_swa` positions plus one micro-batch (`--ubatch-size`), and the engine continues from a shared

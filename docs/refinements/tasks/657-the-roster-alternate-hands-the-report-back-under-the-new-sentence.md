@@ -6,7 +6,7 @@
 **Trigger:** a deployment runs the roster alternate, as the `qwen` entry the roster overlay adds or
 as the default `CORTEX_MODEL_FILE_SUBAGENT` names, and a delegated summarization comes back as the
 report body it was given.
-**Verified:** 2026-09-19
+**Verified:** 2026-10-02
 
 The reworded `REPLY_INSTRUCTION` names the input as well as the answer, which removes the copy on
 the default pick, 14 of 32 to none. It does not remove it on the roster alternate: on the
@@ -52,3 +52,12 @@ finds its own report in it.
   under the old wording and 7 under the envelope alone were not read again. `copied` in
   `scripts/envelopejudges.py` still compares letters and digits at `COPIED = 0.9`, and
   `REPLY_INSTRUCTION` in `subagent_reply.py` is still the wording those samples drew.
+- 2026-10-02: checked again, and the trigger has not fired: no deployment is recorded. Since the
+  previous entry, `REPLY_INSTRUCTION` and the roster overlay are unchanged and `copied` in
+  `scripts/envelopejudges.py` changed only in names around it. Nothing under `brain/` compares a
+  reply with its context, so the runner-side refusal is still unbuilt. New evidence on the
+  alternate, from the [role sentences](../../readings/role-sentences.md) record's card rows `755q`
+  and `761`: under the shipped wording alone, which is what a summarization gets now that `precis`
+  has no sentence, the figures-keeping summarization hands the body back 1 of 32 at seeds 1 to 8
+  and 5 of 32 at seeds 9 to 16, and the two `precis` sentences raised that to 21 and 14, then 8.
+  So the copy on this pick is not confined to the wording that asks for every detail.
