@@ -21,26 +21,28 @@ Method: timed `start`, `stop` and `status` polls against the control API.
 **2026-10-02**, 24 GB card, the shipped cortex and deep pick (deep context 16384, no drafter), each
 row on its own `cortexswap` stack, every handoff approved by the headless handoff client. The rows
 were drawn twice: a first draw read by hand after the client failed its own phase check, and a
-replication of the swap and kill rows with the client fixed, which passed every check. Other
-agents' CPU work ran on host cores 0 to 11 throughout and shared them with the model host's 8-CPU
-quota, so every timing here is from a loaded host. The SM clock read 0.51 to 0.67 of
-`clocks.max.sm` in the 5 s samples beside the handoffs and 0.46 to 0.66 in the run's 15 s samples,
-with the power cap active in 5 of 111; no sampler caught the deep decode, which lasted 2 to 4 s.
+replication of the swap and kill rows with the client fixed, which passed every check. A last swap
+row ran a brain image whose deep model context ends with a message addressed to it; every earlier
+row ran the image before that change, the old image below. Other agents' CPU work ran on host cores
+0 to 11 throughout and shared them with the model host's 8-CPU quota, so every timing here is from
+a loaded host. The SM clock read 0.51 to 0.67 of `clocks.max.sm` in the 5 s samples beside the
+handoffs and 0.46 to 0.66 in the run's 15 s samples, with the power cap active in 9 of 139.
 
-- **The phases**, fourteen approved handoffs over five rows. The drain took no time, since the
+- **The phases**, seventeen approved handoffs over six rows. The drain took no time, since the
   stack ran no subagent pool. The cortex left `ready` within the sidecar's 1 s poll of the loading
   detail. The load, from the loading detail to the working detail, was 0.87 to 0.96 times the
-  control API's warm 70.03 s in eleven handoffs and 1.36 times it for the first draw's first deep
-  load; that slowest load is 0.32 of `CORTEX_SWAP_LOAD_TIMEOUT_S`. The deep phase, from the
-  working detail to the end of generation, was under 0.06 times the warm load, for replies of 35 to
-  97 tokens decoded at 32.0 to 35.7 tokens/s. The swap back, from the restoring detail to
-  `TurnComplete`, was 0.93 to 1.09 times the control API's 31.43 s cortex return. A whole handoff
-  turn, from the client's send to `TurnComplete`, was 1.54 to 1.65 times its own load, and 1.38
-  times it for the first. `Health` read `ready=false` from the first poll after the loading detail
-  until the turn ended. The brain sent the working detail twice in every handoff that reached it,
-  once when the deep generation started and once when it ended.
-- **The memory.** The card's `memory.used` peaked 19801 and 19823 MiB above the 630 and 619 MiB it
-  read before each draw's swap row, leaving at least 4021 of its 24463 MiB free. The model-host
+  control API's warm 70.03 s in fourteen handoffs and 1.36 times it for the first draw's first deep
+  load; that slowest load is 0.32 of `CORTEX_SWAP_LOAD_TIMEOUT_S`. The swap back, from the
+  restoring detail to `TurnComplete`, was 0.92 to 1.09 times the control API's 31.43 s cortex
+  return. On the old image the deep phase, from the working detail to the end of generation, was
+  under 0.06 times the warm load, for replies of 35 to 97 tokens decoded at 32.0 to 35.7 tokens/s,
+  and a whole handoff turn, from the client's send to `TurnComplete`, was 1.54 to 1.65 times its
+  own load, and 1.38 times it for the first; no 5 s sampler caught that decode. `Health` read
+  `ready=false` from the first poll after the loading detail until the turn ended. The brain sent
+  the working detail twice in every handoff that reached it, once when the deep generation started
+  and once when it ended.
+- **The memory.** The card's `memory.used` peaked 19801 to 19823 MiB above the 619 to 638 MiB it
+  read before each swap row, leaving at least 4021 of its 24463 MiB free. The model-host
   cgroup's `memory.peak` was 19.29 to 19.44 GB in every stack, 1.09 to 1.10 times the 17.65 GB
   artifact, whatever the memory cap.
 - **The caps**, one approved handoff per stack. Against the stack at 24g and 8 CPUs, the load was
@@ -53,13 +55,18 @@ with the power cap active in 5 of 111; no sampler caught the deep decode, which 
   through" note and no restoring detail. The cortex was `ready` again 0.84 to 0.96 times its
   31.43 s return after the deep child stopped, and the ordinary turn sent next in each chat named
   the earlier question.
-- **The reply.** In all ten completed handoffs the deep model wrote that the task had been handed
-  to the deep model, and never answered it
-  ([R-777](../refinements/tasks/777-the-deep-model-restates-the-handoff.md)).
+- **The reply.** On the old image, in all ten completed handoffs, the deep model wrote one sentence
+  saying the task had been handed to the deep model, and never answered it. Its context ended with
+  the escalation's result, which tells the cortex to tell the user what is being handed off, after
+  the cortex's own reply saying so. With the context ending in `HANDOFF_TAKEN_MSG` and that reply
+  left out, all three handoffs answered in two sentences, the first two under the old client
+  prompt that told the model not to answer. The deep model then reasoned first: the deep phase was
+  0.19 to 0.33 times the warm load, for 439 to 756 tokens at 34.1 to 35.7 tokens/s, and a whole
+  handoff turn 1.74 to 1.90 times its own load.
 
 Method: run 2 of `measurements/sitting-2026-10-02b/`, rows `772swap`, `772kill` and `772caps`
-(drivers `swap.sh`, `kill.sh`, `caps.sh`) and their replication `772swapb` and `772killb`, with the
-client of [a handoff without the overlay](../runbooks/model-swap-measurements.md#a-handoff-without-the-overlay).
+(drivers `swap.sh`, `kill.sh`, `caps.sh`), their replication `772swapb` and `772killb`, and
+`777swap` (driver `777swap.sh`, the brain image built from the context change), with the client of [a handoff without the overlay](../runbooks/model-swap-measurements.md#a-handoff-without-the-overlay).
 Phase times are the client's own clock, sidecar states its 1 s polls of `GET /models/{model}`, and
 decode rates the brain's `the deep model's decode rate for this handoff` log line.
 

@@ -100,9 +100,10 @@ Every exit path converges back to a serving cortex; the swap back is the recover
 4. **Read the state back and run** the shared `stream_tool_loop` on the deep model over windowed
    history, recall and the record's tail, with the rebuilt ledger, the resumed budget, the same
    audited dispatcher and the guardrail seeded with the stored URLs; the rounds allowance is fresh.
-   The context ends with a message to the deep model: the escalation's result becomes
-   `HANDOFF_TAKEN_MSG` with the brief, and the cortex's reply to this turn is left out. The deep
-   model judges that recall and writes any recap, the one model its scope can lease.
+   The context ends with a message to the deep model, because one ending in the cortex's wrap-up
+   made it restate the handoff ([readings](../readings/model-swap.md)): the escalation's result
+   becomes `HANDOFF_TAKEN_MSG` with the brief, and the cortex's reply to this turn is left out. The
+   deep model judges that recall and writes any recap, the one model its scope can lease.
 5. **Store** the deep reply as a second assistant message under the same `turn_id`, and memory
    under the engine's taint policy; a deep model that dies mid-answer has its partial text stored
    with its failure note.
@@ -218,10 +219,9 @@ the cortex unloaded.
 ## Risks flagged for maintainer review
 
 1. **The tainted-turn deny** rests on the eviction argument alone, with 0 of 10 measured beside it.
-2. **The model-host sidecar** is privileged (GPU, models mount, process control), on the compose
-   network only.
+2. **The model-host sidecar** is privileged (GPU, models mount, processes), compose network only.
 3. **Swap latency** is the loads: an eviction costs about 1% of a deep load, a handoff turn 1.5
-   to 1.65 times it, and the slowest load 0.32 of the 300 s bound ([readings](../readings/model-swap.md)).
+   to 1.9 times it, and the slowest load 0.32 of the 300 s bound ([readings](../readings/model-swap.md)).
 4. **Two assistant messages share one turn id**, and **the deep phase uses the cortex's
    dispatcher**, spawn included; narrowing it is wiring.
 

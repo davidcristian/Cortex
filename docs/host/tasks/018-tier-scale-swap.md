@@ -14,10 +14,8 @@ The approval is a `ConfirmResponse` on the `Converse` stream, which any client h
 can send, and the body's own client already sends one, so the overlay was never the only way to
 start a handoff. What stays here is the overlay's view of one. The headless swap rows drew on
 2026-10-02: every approved handoff completed with the four details and returned the cortex
-([readings](../../readings/model-swap.md#a-handoff-through-the-conductor)). The deep reply restated
-the handoff instead of answering
-([R-777](../../refinements/tasks/777-the-deep-model-restates-the-handoff.md)), so until that is
-fixed the panel shows that sentence where the answer belongs.
+([readings](../../readings/model-swap.md#a-handoff-through-the-conductor)), and the deep model
+answered once its context ended with a message addressed to it.
 
 **What only this proves.** That the overlay shows a real handoff accurately: the
 `escalate_to_brain` card with the tool's reason as written, the approval sent by a click, the
