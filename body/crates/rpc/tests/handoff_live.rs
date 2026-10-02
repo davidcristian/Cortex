@@ -24,8 +24,8 @@ const PHASES: [&str; 4] = [
     RESTORING_DETAIL,
 ];
 const DEFAULT_PROMPT: &str = "Hand this task to the deep model now by calling the \
-    escalate_to_brain tool, and do not answer it yourself: in two sentences, explain why the sum \
-    of the first n odd numbers is n squared.";
+    escalate_to_brain tool, and leave the answer to the deep model: in two sentences, explain why \
+    the sum of the first n odd numbers is n squared.";
 
 /// What the command line told the client to do with an `escalate_to_brain` card.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
