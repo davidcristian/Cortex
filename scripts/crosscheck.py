@@ -28,7 +28,7 @@ MIN_OCCURRENCES = 1
 RECOUNT = "move the whole set, or correct occurrences in the registry"
 
 # One declaration form per language. `{name}` is replaced with the constant's name before the
-# search, and the `value` group is the value expression.
+# search, and the `value` group is the value expression, where a quoted string may hold a `;`.
 DECLARATIONS = {
     ".py": (
         r"^{name}(?:\s*:[^=\n]*)?\s*=(?P<value>[ \t]*\([ \t]*(?:#[^\n]*)?\n"
@@ -36,9 +36,12 @@ DECLARATIONS = {
     ),
     ".rs": (
         r"^[ \t]*(?:pub(?:\([^)]*\))?[ \t]+)?(?:const|static)[ \t]+{name}"
-        r"[ \t]*:[^=\n]*=(?P<value>[^;\n]*);"
+        r'[ \t]*:[^=\n]*=(?P<value>(?:"[^"\n]*"|[^;\n"])*);'
     ),
-    ".ts": r"^(?:export[ \t]+)?const[ \t]+{name}(?:[ \t]*:[^=\n]*)?[ \t]*=(?P<value>[^;\n]*);",
+    ".ts": (
+        r"^(?:export[ \t]+)?const[ \t]+{name}(?:[ \t]*:[^=\n]*)?[ \t]*"
+        r'=(?P<value>(?:"[^"\n]*"|[^;\n"])*);'
+    ),
 }
 
 

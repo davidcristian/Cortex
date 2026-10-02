@@ -67,6 +67,22 @@ def test_read_value_ties_a_string_across_both_languages(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize(
+    ("name", "line"),
+    [
+        ("decl.rs", 'const LOADING_DETAIL: &str = "loading; it takes minutes";'),
+        ("decl.ts", 'export const LOADING_DETAIL = "loading; it takes minutes";'),
+        ("decl.py", 'LOADING_DETAIL = "loading; it takes minutes"'),
+    ],
+)
+def test_read_value_reads_a_string_holding_a_semicolon(
+    tmp_path: Path, name: str, line: str
+) -> None:
+    (tmp_path / name).write_text(f"{line}\n", encoding="utf-8")
+    site = crosscheck.Site(name, "LOADING_DETAIL")
+    assert crosscheck.read_value(tmp_path, site) == "loading; it takes minutes"
+
+
+@pytest.mark.parametrize(
     ("name", "text"),
     [
         ("decl.rs", "pub const MAX_CAPTURE_BYTES_EXTRA: usize = 1;\n"),

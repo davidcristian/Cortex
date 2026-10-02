@@ -4,6 +4,13 @@ from couplings import Constant, Mention, Relation, Site
 
 BASE_COMPOSE = "docker/docker-compose.yml"
 BODY_GATEWAY = "brain/packages/body_client/src/cortex_body_client/gateway.py"
+HANDOFF_CLIENT = "body/crates/rpc/tests/handoff_live.rs"
+SWAP_NOTES = "brain/packages/core/src/cortex_core/swap_notes.py"
+HANDOFF_WHY = (
+    "the headless handoff client approves a confirm card by this tool name and reads the swap's "
+    "phases off the stream by these texts, so a brain that renames one leaves the card row "
+    "denying every handoff or failing a swap that ran correctly (ADR-0030)"
+)
 
 WIRE_COUPLINGS: tuple[Constant, ...] = (
     Constant(
@@ -161,5 +168,29 @@ WIRE_COUPLINGS: tuple[Constant, ...] = (
             Site("body/app/src/overlay/pictures.ts", "DEFAULT_MAX_EDGE"),
             Site("body/crates/core/src/os/screen_policy.rs", "DEFAULT_MAX_EDGE"),
         ),
+    ),
+    Constant(
+        label="the handoff tool's name",
+        why=HANDOFF_WHY,
+        sites=(
+            Site("brain/packages/core/src/cortex_core/escalate.py", "ESCALATE_TOOL_NAME"),
+            Site(HANDOFF_CLIENT, "ESCALATE_TOOL_NAME"),
+        ),
+    ),
+    Constant(
+        label="the swap's status state",
+        why=HANDOFF_WHY,
+        sites=(
+            Site("brain/packages/core/src/cortex_core/waits.py", "SWAPPING"),
+            Site(HANDOFF_CLIENT, "SWAPPING"),
+        ),
+    ),
+    *(
+        Constant(
+            label=f"the swap's {name.split('_')[0].lower()} detail",
+            why=HANDOFF_WHY,
+            sites=(Site(SWAP_NOTES, name), Site(HANDOFF_CLIENT, name)),
+        )
+        for name in ("DRAINING_DETAIL", "LOADING_DETAIL", "WORKING_DETAIL", "RESTORING_DETAIL")
     ),
 )

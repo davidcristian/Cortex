@@ -193,3 +193,39 @@ the overcommitted drafting tool call decoded 1.02 times the plain tier's solo ra
 does not rest on decode is the fit check, which counts the drafter only when
 `CORTEX_SWAP_BRAIN_VRAM_MIB` includes its cost, as the [model-swap](model-swap.md) drafter step
 says.
+
+## A handoff without the overlay
+
+A handoff starts only after the user approves the `escalate_to_brain` confirm card. The brain
+resolves a pending card on a `ConfirmResponse` from whatever client holds the `Converse` stream and
+the RPC token, so a measurement drives the whole handoff headless with the handoff client, an
+`#[ignore]`d test in `body/crates/rpc/tests/handoff_live.rs`:
+
+```bash
+CORTEX_SEAM_TOKEN=<value> just rpc-handoff approve   # or: just rpc-handoff deny
+```
+
+The recipe passes its argument as `CORTEX_HANDOFF_DECISION`, and nothing else makes the client
+approve a card. With `approve` it approves a card whose tool is `escalate_to_brain`; with `deny` it
+denies that card too, and every other card is denied either way. Nothing in the brain changes for it. Point it only at a stack you started for
+the measurement, never at one the overlay is using. It keeps the request stream open until the turn
+ends, because a half-closed stream denies every pending card at once. Settings, read from the
+environment:
+
+- `CORTEX_BRAIN_ADDR` and `CORTEX_SEAM_TOKEN`, as for `just rpc-health`.
+- `CORTEX_HANDOFF_PROMPT`: the turn's text. The default asks the cortex to call the tool by name.
+- `CORTEX_HANDOFF_SESSION`: the chat id, unique per run by default. Set it to send an ordinary
+  turn into the chat a handoff just used.
+- `CORTEX_HANDOFF_EXPECT`: `complete` (the default) fails unless the four `swapping` details arrive
+  in their order; `cut`, for a run that kills the deep tier, accepts an ordered prefix that
+  reaches the loading detail.
+- `CORTEX_HANDOFF_HEALTH_MS`: how often a second connection reads `Health`, 2000 by default; 0
+  turns it off.
+
+Every line the client prints starts with `+<ms>`, the milliseconds since it sent the turn: one per
+event as `body_core::TurnEvent` debug text, one per `ConfirmResponse` it sends (`answer <id>
+<tool> approved=<bool>`), one per `Health` read, and a last `end` line with the details seen. It fails
+when the turn does not end in `Complete`, when an `approve` run sees no `escalate_to_brain` card or
+the details out of order, and when a `deny` run swaps. The stack a handoff needs is in
+[model-swap.md](model-swap.md#bringing-the-real-host-up); layer
+`docker/docker-compose.modelhost-loopback.yml` to read the sidecar's own `GET /models/*` beside it.

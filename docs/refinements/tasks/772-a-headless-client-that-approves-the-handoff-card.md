@@ -43,16 +43,16 @@ is a handoff through the brain's conductor, from an approved card to the cortex 
 
 **What to build.**
 
-1. **The approving client**, an `#[ignore]`d live test in `body/crates/rpc/tests/` beside
-   `live.rs`, with a `just` recipe beside `rpc-health`. It drives `BrainRpcClient::converse` with a
-   channel-backed `decisions` stream, approves a `ConfirmRequest` only when `tool_name` is
-   `escalate_to_brain`, denies every other one, keeps the stream open until it has answered, and
-   prints one line per `TurnEvent` with the milliseconds since the turn was sent. The prompt comes
-   from an environment variable whose default asks for the handoff by name. It fails when no
-   `escalate_to_brain` request arrives, when the four `swapping` details do not arrive in order, or
-   when the turn ends without `Complete`. Nothing in the brain changes: the confirm boundary stays
-   on the client the user runs, which is where [ADR-0022](../../adr/ADR-0022-email-write-confirmer.md)
-   puts it. No CPU run proves it first, since the Echo fake calls no tool; the first card row does.
+1. **The approving client** is built: `just rpc-handoff approve` (or `deny`), an `#[ignore]`d live
+   test in `body/crates/rpc/tests/handoff_live.rs`, with its settings and output in
+   [model-swap-measurements](../../runbooks/model-swap-measurements.md#a-handoff-without-the-overlay).
+   It drives `BrainRpcClient::converse` with a channel-backed `decisions` stream, approves an
+   `escalate_to_brain` card only when its command line says `approve`, denies every other card,
+   keeps the stream open until the turn ends, and reads `Health` on a second connection every 2 s.
+   Nothing in the brain changed: the confirm boundary stays on the client the operator runs, which
+   is where [ADR-0022](../../adr/ADR-0022-email-write-confirmer.md) puts it. Against the Echo brain
+   on CPU a `deny` turn completed and an `approve` turn failed on the missing card, as it should;
+   the Echo fake calls no tool, so the first card row is the first run of the approve path.
 2. **The rows**, each written here with its command, price, rule and prediction before the draw,
    priced at twice the estimate because both tiers think before they answer. The stack image is
    five weeks old, so build it first, which is CPU work beside any card run.
@@ -79,3 +79,6 @@ is a handoff through the brain's conductor, from an approved card to the cortex 
   only for what the user sees and that the GPU half is the agent's once a client answers the card.
   H-018, H-019 and H-023 now keep only that half, H-020 is declined into this task, and ADR-0030
   decisions 7 and 9 and the host index no longer give the confirm card as a reason for the desktop.
+- 2026-10-02: the client is built and checked on CPU against the Echo brain. The four swapping
+  details, the state and the tool name are tied to the brain's constants by `crosscheck.py`, which
+  now reads a Rust or TypeScript string holding a `;`.

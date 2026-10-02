@@ -56,11 +56,10 @@ value reaches an interceptor that is otherwise built once per connection.
 `impl BrainTransport` maps each method onto its RPC:
 
 - `health()` calls `BrainService.Health`; an Ok reply maps to `RpcHealth { ready, detail, notes }`,
-  each `HealthNote` becoming its sentence. A
-  non-OK status splits by origin: one tonic *synthesized* from a client-local transport failure,
-  detected by a `tonic::transport::Error` on the status's `source()` chain, maps to
-  `TransportError::Connection`, and one the brain really sent maps to
-  `TransportError::Rpc { code, message }`.
+  each `HealthNote` becoming its sentence. A non-OK status splits by origin: one tonic
+  *synthesized* from a client-local transport failure, detected by a `tonic::transport::Error` on
+  the status's `source()` chain, maps to `TransportError::Connection`, and one the brain really
+  sent maps to `TransportError::Rpc { code, message }`.
 - `converse(session_id, text, images, decisions)` opens `BrainService.Converse` (`src/converse.rs`,
   ADR-0011): the request stream is `once(ClientEvent{session_id, user_turn})`, each attached image
   an `ImageBlob` with its source size and capture time left at 0 (ADR-0070), chained with
@@ -168,8 +167,7 @@ regenerating with an unchanged proto must leave `git diff` empty.
 
 **Live checks** are the `#[ignore]`d tests in `tests/live.rs`, run by `just rpc-health`. The list
 below names every one of them and nothing else, which `scripts/rostercheck.py` enforces (ADR-0044
-decision 7). No count is given, because a tally beside a list goes stale first. Each bullet says
-what its check needs, and not all of them need a brain:
+decision 7). Each bullet says what its check needs, and not all of them need a brain:
 
 ```sh
 cargo test -p body-rpc --test live -- --ignored
@@ -210,7 +208,9 @@ variable (ADR-0016 decision 8).
   drops it, **counting dials on the wire**, the probe must spend exactly 2 attempts with one real
   400 ms wait between them while the same schedule leaves the read all 5.
 
-Being ignored, they never run in CI and never count toward coverage.
+Being ignored, they never run in CI and never count toward coverage. Neither does the handoff
+client in `tests/handoff_live.rs`, run by `just rpc-handoff approve` or `deny`, which approves the
+`escalate_to_brain` card only when its command line says so: [model-swap-measurements.md](../runbooks/model-swap-measurements.md#a-handoff-without-the-overlay).
 
 ## Invariants
 

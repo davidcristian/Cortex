@@ -295,6 +295,12 @@ up-gpu:
 down-gpu:
     docker compose --project-directory . -f docker/docker-compose.yml -f docker/docker-compose.gpu.yml down
 
+# One turn that asks the cortex for the deep model, never run in CI: approve or deny is the only
+# thing that decides the escalate_to_brain card, and every other card is denied. Needs a brain with
+# escalation on and a deep tier. Settings and output: docs/runbooks/model-swap-measurements.md.
+rpc-handoff decision:
+    cd body && CORTEX_HANDOFF_DECISION={{decision}} cargo test -p body-rpc --test handoff_live -- --ignored --nocapture
+
 # Live check of the body to brain interface: the Rust integration suite, never run in CI. Needs a
 # running brain (`just up` or `just brain-serve`) and CORTEX_SEAM_TOKEN set to the same value the
 # brain serves with, because one test checks that a wrong token is refused.

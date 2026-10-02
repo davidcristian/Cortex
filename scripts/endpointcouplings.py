@@ -9,6 +9,7 @@ BODY_GATEWAY = "brain/packages/body_client/src/cortex_body_client/gateway.py"
 BODY_SERVER = "body/app/src-tauri/src/body_server.rs"
 RPC_CLIENT = "body/crates/rpc/src/client.rs"
 RPC_LIVE = "body/crates/rpc/tests/live.rs"
+HANDOFF_LIVE = "body/crates/rpc/tests/handoff_live.rs"
 GATEWAY_LIVE = "brain/packages/body_client/tests/test_gateway_live.py"
 SCHEDULE_LIVE = "brain/packages/orchestrator/tests/test_schedule_grpc_live.py"
 TURN_COST_LIVE = "brain/packages/orchestrator/tests/test_turn_cost_live.py"
@@ -50,7 +51,7 @@ ENDPOINT_COUPLINGS: tuple[Constant, ...] = (
             "the compose stack publishes this port and dials it in its own healthcheck, the image "
             "declares it, the host body's default endpoints name it, two runbooks and four module "
             "contracts quote it to a reader as the address the brain answers on, the host "
-            "measurement session's prerequisites tell an operator to expect it, and three live "
+            "measurement session's prerequisites tell an operator to expect it, and four live "
             "suites fall back to it when no endpoint is exported, so a change to the server "
             "default alone leaves every one of them pointed at a port nothing listens on "
             "(ADR-0003/0016)"
@@ -70,6 +71,7 @@ ENDPOINT_COUPLINGS: tuple[Constant, ...] = (
             Mention(BODY_SERVER, "`BrainService` being {value}"),
             Mention(RPC_CLIENT, "`http://127.0.0.1:{value}`"),
             Mention(RPC_LIVE, "http://127.0.0.1:{value}", occurrences=2),
+            Mention(HANDOFF_LIVE, "http://127.0.0.1:{value}"),
             Mention(SCHEDULE_LIVE, 'os.environ.get("CORTEX_SEAM_ENDPOINT", "127.0.0.1:{value}")'),
             Mention(TURN_COST_LIVE, 'os.environ.get("CORTEX_SEAM_ENDPOINT", "127.0.0.1:{value}")'),
             Mention(HOST_INDEX, "`CORTEX_BRAIN_ADDR` (default `http://127.0.0.1:{value}`)"),
