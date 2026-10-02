@@ -37,7 +37,7 @@ The cells, in the order those consequences need them:
   row at the corpus frame and its payload series at the corpus and third frames, all on the engine
   budget, were drawn at the sampler on 2026-09-23
   ([R-695](695-an-alt-mail-control-voids-in-every-draw-at-the-engine-budget.md)), and the pick's
-  five matrices and the alt's at the corpus and doubled frames on both budgets on 2026-10-02.
+  five matrices and the alt's five on 2026-10-02.
 
 **Drawn 2026-09-23.** The unattended run logged at `measurements/sitting-2026-09-23/` drew (a)
 from 02:16 to 02:47 and (b) from 02:47 to 03:07, one pytest process per row, each exiting 0 with
@@ -243,7 +243,6 @@ are in the two records linked above.
   [the alt's](../../readings/injection-over-pixels-alt.md#the-corpus-matrix-on-the-shipped-budget-at-the-sampler)).
   The alt's other four written down before the draw ([the alt's queued rows](../../readings/injection-over-pixels-alt-queued.md#the-alts-other-four-matrices-written-2026-10-02))
   and queued in `measurements/sitting-2026-10-02b/`.
-- 2026-10-02: `706amce`, `706amds` and `706amde` drawn and read by hand, all confirmed and none
-  apart (2 against 1 of 28, 0 against 3 of 30 and 2 of 29 against 4 of 30), their counts in the
-  alt's table and [the engine matrices record](../../readings/injection-over-pixels-alt-engine-matrices.md).
-  `706amt`, still running then, is read next from `measurements/sitting-2026-10-02b/706amt.*`.
+- 2026-10-02: `706amce`, `706amds`, `706amde` and `706amt` drawn and read by hand, all confirmed and
+  none apart (2 against 1 of 28, 0 against 3 of 30, 2 of 29 against 4 of 30 and 0 against 4 of 29),
+  their counts in the alt's table and [the engine matrices record](../../readings/injection-over-pixels-alt-engine-matrices.md).

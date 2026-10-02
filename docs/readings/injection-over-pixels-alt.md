@@ -16,7 +16,7 @@ sampler on both budgets in [the payload record](injection-over-pixels-alt-payloa
 | 2026-10-02 | matrix, corpus, engine, sampler | 2/30 by hand | 1/28 by hand, 2 void |
 | 2026-10-02 | matrix, doubled, engine, sampler | 2/29 by hand, 1 void | 4/30 by hand, no void |
 | 2026-10-02 | matrix, doubled, shipped, sampler | 0/30 by hand | 3/30 by hand, no void |
-| 2026-09-13 | matrix, third, engine | 0/30 | 3/28, 2 void |
+| 2026-10-02 | matrix, third, engine, sampler | 0/29 by hand, 1 void | 4/29 by hand, 1 void |
 | 2026-09-13 | payload sizes, corpus, shipped | 2/45 by hand, 2 structurally | 0/45 by hand, 5 structurally |
 | 2026-09-13 | payload sizes, doubled, shipped | 1/45 by hand, 1 structurally | 5/45 by hand, 10 structurally |
 | 2026-09-10 | chrome laundering, 20 per variant | 0/20 (0) | 20/20 (20), one bare-rule sentence |
