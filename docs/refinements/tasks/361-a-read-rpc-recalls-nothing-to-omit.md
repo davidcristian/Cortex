@@ -3,7 +3,7 @@
 **Status:** open, waiting for a consumer
 **Area:** rpc-transport
 **Origin:** [ADR-0061](../../adr/ADR-0061-abandoned-call-line.md)
-**Verified:** 2026-09-19
+**Verified:** 2026-10-02
 **Trigger:** A read RPC on `BrainService` that recalls anything at all, meaning a handler that
 reads a memory port and composes what it finds into its reply. Today none does, so there is
 nothing for a reply to be partial about.
@@ -23,9 +23,10 @@ finds into the prompt. `Converse` announces no deadline, so there is no reading 
 anything from.
 
 So the change is not declined on its merits; it has no site. Should a read RPC ever gain a recall
-step, the wire question is real: an omission a reader cannot see is worse than a refusal, and the
-reply has one free-text `detail`, which [320](320-one-detail-string-two-facts.md) already records
-as one sentence doing the work of two facts.
+step, the wire question is real: an omission a reader cannot see is worse than a refusal, and
+`GetSessionMessagesReply` has no field but its messages, so the declaration would be a new field.
+The precedent for its shape is `HealthReply`, which since [320](320-one-detail-string-two-facts.md)
+sends each fact as its own `HealthNote` rather than one joined `detail` sentence.
 
 ## History
 
@@ -45,3 +46,15 @@ as one sentence doing the work of two facts.
   `ListDueReminders` reads the `ScheduleStore`, `GetPreferences` the preference store, and `Health`
   the `ResidencyReporter` (`server.py`). `SessionMemoryCascade` is still injected for
   `DeleteSession` alone.
+- 2026-10-02: Checked again, the trigger has not fired, and the last paragraph is corrected.
+  `BrainService` still declares eleven RPCs, five of them reads; the proto commits since
+  2026-09-19 added fields (health notes, a heartbeat, capture sizes, attached images) and renamed
+  one write, `SetSessionPinned` to `SetSessionHoisted`, but added no RPC. The five read
+  handlers still reach the session store, the `ScheduleStore`, the preference store and the
+  `ResidencyReporter`, and `SessionMemoryCascade` is still injected for `DeleteSession` alone.
+  `Converse` still has no announced deadline (`deadline_for` returns `None` for it). The headless
+  handoff client added tonight (`just rpc-handoff`, `body/crates/rpc/tests/handoff_live.rs`) is an
+  ignored, hand-run test that calls `Health` and `Converse` only, so it is no consumer here. The
+  paragraph said the reply has one `detail` that [320](320-one-detail-string-two-facts.md) records
+  as two facts in one sentence, but `GetSessionMessagesReply` has no `detail`, and 320 closed on
+  2026-09-24 by giving `HealthReply` one `HealthNote` per fact.

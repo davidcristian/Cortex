@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** tools-mcp
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
-**Verified:** 2026-09-19
+**Verified:** 2026-10-02
 **Trigger:** A legitimate call on one sidecar that a bound sized for another cuts, or a deployment
 that wants a tight bound on the fast sidecar without loosening the slow one. Neither has happened:
 the only two sidecars this repo ships are a filesystem server measured at 154 ms a call and an
@@ -12,9 +12,13 @@ email server nobody has timed.
 `CORTEX_TOOLS_CALL_TIMEOUT_S` is one number, used by the `BoundedToolRegistry` wrapped around every
 configured endpoint alike. The endpoints are already per-sidecar in every other respect: each
 contributes its own `CORTEX_TOOLS_ENDPOINTS__<name>` key so layered compose overrides can coexist,
-and `CORTEX_TOOLS_ALLOW__<name>` already restricts one of them by name. So the form a per-endpoint
-bound would take is there, `CORTEX_TOOLS_CALL_TIMEOUT_S__<name>`, merged under the flat default the
-way `costs` and `confirm_reasons` merge their built-ins under the user's.
+and `CORTEX_TOOLS_ALLOW__<name>` already restricts one of them by name. A per-endpoint bound would
+be a mapping field of its own beside the flat number, merged over it the way `costs` and
+`confirm_reasons` merge their built-ins under the user's. It cannot be read as
+`CORTEX_TOOLS_CALL_TIMEOUT_S__<name>`: `call_timeout_s` is a float, and pydantic-settings drops a
+nested key under a scalar field with no error, so `CORTEX_TOOLS_CALL_TIMEOUT_S__EMAIL=5` beside the
+flat 60 reads as 60 today. The mapping needs a name that does not begin with the flat field's;
+`allow` and `costs` read by name because neither has a flat sibling.
 
 It was not built with the bound because one number is the defensible starting point when one of the
 two sidecars has never been measured. A per-endpoint setting shipped today would offer an operator
@@ -58,3 +62,13 @@ boot. The refusal text and the fields `_pairing` logs (`call_timeout_s`,
   the delegated run bound arrived the same day and multiplies it by a walk count derived from the
   sidecar count, so the sum a listing costs across an aggregate is already computed there for one
   number and is what a per-endpoint bound would have to rewrite (ADR-0047 decision 3).
+- 2026-10-02: Checked again and left open, with the form a per-endpoint bound would take
+  corrected. The trigger has not fired: `docker/` still has the two endpoint keys, the flat
+  default is still 60.0, the two commits since 2026-09-19 on `bounds.py` and `config_tools.py`
+  only reworded log text and renamed the confirmation fields, and nothing in the tree records a
+  call the bound cut or a timed call on the email sidecar itself (the 17.8 ms session open in the
+  readings is a control server on its transport). `delegated_call_bounds` still counts three
+  bounds for one sidecar and seven for two.
+  The form the entry named was wrong: a `ToolsConfig` built with `CORTEX_TOOLS_CALL_TIMEOUT_S=60`
+  and `CORTEX_TOOLS_CALL_TIMEOUT_S__EMAIL=5` set read `call_timeout_s` as 60.0, the nested key
+  dropped silently, so a per-endpoint bound needs a separately named mapping field.

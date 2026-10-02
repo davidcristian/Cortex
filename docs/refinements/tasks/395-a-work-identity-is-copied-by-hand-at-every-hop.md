@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** tools-mcp
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
-**Verified:** 2026-09-19
+**Verified:** 2026-10-02
 **Trigger:** a fifth work identity arriving on `TurnStamp`, or a step found dropping one of the
 four that are there.
 
@@ -18,12 +18,13 @@ each under its log field, the one list both audit sinks write. Nothing ties the 
 A new identity can be added to the stamp and stop at any of them, and only a test written for that
 identity end to end catches it.
 
-The bundle that would have tied them was weighed when the item was added and declined, and the
-argument is in the ADR: these four are independently present or absent, every combination is a
-caller this tree really has, so a value object would exclude no invalid state, and the same four
-are deliberately flat on `TurnStamp` and on `ToolInvocation`, so bundling the loop context alone
-would add a translation at each end. That argument is about four; a fifth is what would change it,
-which is why this is filed with that as its trigger rather than closed as decided.
+The bundle that would have tied them was weighed when the item was added and declined.
+[ADR-0009](../../adr/ADR-0009-tools-mcp.md) decision 16 keeps the first reason: these four are
+independently present or absent. The rest of the argument is recorded only here: every combination
+is a caller this tree really has, so a value object would exclude no invalid state, and the same
+four are deliberately flat on `TurnStamp` and on `ToolInvocation`, so bundling the loop context
+alone would add a translation at each end. That argument is about four; a fifth is what would
+change it, which is why this is filed with that as its trigger rather than closed as decided.
 
 Two cheaper answers need no bundle. One is a test that lists the identity fields of `TurnStamp` and
 checks that each survives the task record and reaches the record `invocation_fields` builds, so a
@@ -33,10 +34,11 @@ reaches neither audit sink. The test has to pick the identities out of `TurnStam
 four are its only `str` fields today. The other answer is to leave it and keep paying a
 per-identity end-to-end case, which is what the item's own arrival paid.
 
-The measurement to weigh them against is in the ADR: of the five mutations made when the fired item
-was added, three made no test fail but that single end-to-end case, one made the store's contract
-fail and one the codec's corrupt-record case. So the per-identity case does cover the chain today,
-and what it does not cover is an identity nobody wrote a case for.
+The measurement to weigh them against was taken when the fired item was added, on 2026-08-23, and
+this entry is now its only record: of the five mutations made then, three made no test fail but that
+single end-to-end case, one made the store's contract fail and one the codec's corrupt-record case.
+So the per-identity case does cover the chain today, and what it does not cover is an identity
+nobody wrote a case for.
 
 ## History
 
@@ -69,3 +71,13 @@ and what it does not cover is an identity nobody wrote a case for.
   shared function when the audit trail gained its file, which both sinks call, so the file added no
   ninth copy. The test this entry offered checked arrival at `ToolInvocation`, one step short of
   both sinks, and now names the record `invocation_fields` builds.
+- 2026-10-02: checked again and left open, with the two pointers into the ADR corrected. Neither
+  half has fired: `TurnStamp` still has the four identities as its only `str` fields beside the
+  same five others, and no step drops one it holds, in `spawn.py`, `_encode_task` and
+  `_decode_task`, `PlacedAttempt` building its `ToolLoopContext` in `subagent_attempt.py`, `_stamp`
+  in `dispatch_round.py`, `ToolDispatcher._audited` and `invocation_fields`. The five commits since
+  2026-09-19 on those files added a task's taint bit, subagent roles and the wait a heartbeat
+  names, and renamed the confirmation names; none adds or moves a work identity, and no test lists
+  the stamp's fields. ADR-0009 decision 16, rewritten on 2026-09-19, keeps one sentence of the
+  bundle argument and none of the five-mutation measurement, and neither commit that added the
+  item states it, so the body now says this entry holds both.
