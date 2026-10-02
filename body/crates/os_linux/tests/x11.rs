@@ -701,21 +701,18 @@ fn an_x_error_while_listing_windows_is_a_failed_grab_that_releases_the_server() 
         Some(error(bad_window, QUERY_TREE, 0)),
         Some(Vec::new()),
     ];
-    let mut at_a_window = vec![
+    // The grab stops reading at the error, so the window's other three requests get no reply: a
+    // reply left unread resets the socket at close, or meets a closed one if written late.
+    let at_a_window = vec![
         Some(Vec::new()),
         Some(atom(PID_ATOM)),
         Some(tree(vec![0x0040_0001])),
+        Some(error(bad_window, get_window_attributes, 0)),
+        Some(Vec::new()),
+        Some(Vec::new()),
+        Some(Vec::new()),
+        Some(Vec::new()),
     ];
-    at_a_window.extend(
-        [
-            error(bad_window, get_window_attributes, 0),
-            geometry(0, 0, 0),
-            pid(None),
-            tree(Vec::new()),
-            Vec::new(),
-        ]
-        .map(Some),
-    );
 
     for answers in [at_the_root, at_a_window] {
         let (grabbed, requests) = grab_against(setup(ImageOrder::LSB_FIRST, VISUAL), answers);
