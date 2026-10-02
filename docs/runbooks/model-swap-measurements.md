@@ -218,7 +218,8 @@ environment:
   turn into the chat a handoff just used.
 - `CORTEX_HANDOFF_EXPECT`: `complete` (the default) fails unless the four `swapping` details arrive
   in their order; `cut`, for a run that kills the deep tier, accepts an ordered prefix that
-  reaches the loading detail.
+  reaches the loading detail. A detail repeated in place counts once, because the brain sends the
+  working detail again when the deep model's generation or one of its tool calls ends.
 - `CORTEX_HANDOFF_HEALTH_MS`: how often a second connection reads `Health`, 2000 by default; 0
   turns it off.
 

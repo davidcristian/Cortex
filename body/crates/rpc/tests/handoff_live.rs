@@ -97,7 +97,7 @@ async fn poll_health(
 
 /// The swapping details seen, checked against the order the conductor sends them in.
 fn check_phases(seen: &[String], expect: Expect) {
-    let order: Vec<usize> = seen
+    let mut order: Vec<usize> = seen
         .iter()
         .map(
             |detail| match PHASES.iter().position(|phase| phase == detail) {
@@ -106,6 +106,9 @@ fn check_phases(seen: &[String], expect: Expect) {
             },
         )
         .collect();
+    // The brain sends a swap's detail again when a wait nested in it closes, such as the deep
+    // model's generation or a tool call it made, so a detail may repeat in place.
+    order.dedup();
     let in_order = order.iter().enumerate().all(|(at, index)| *index == at);
     match expect {
         Expect::Complete => assert!(
@@ -224,4 +227,46 @@ async fn one_turn_sends_the_decision_its_command_line_names() {
             "a denied turn still swapped on session {session}: {phases:?}"
         ),
     }
+}
+
+fn details(phases: &[usize]) -> Vec<String> {
+    phases.iter().map(|at| PHASES[*at].to_owned()).collect()
+}
+
+#[test]
+fn a_detail_repeated_in_place_still_reads_as_the_whole_swap() {
+    check_phases(&details(&[0, 1, 2, 2, 3]), Expect::Complete);
+    check_phases(&details(&[0, 1, 2, 2, 2, 3, 3]), Expect::Complete);
+}
+
+#[test]
+fn a_kill_after_the_working_detail_repeats_it_and_is_still_a_prefix() {
+    check_phases(&details(&[0, 1, 2, 2]), Expect::Cut);
+}
+
+#[test]
+#[should_panic(expected = "the four swapping details in order")]
+fn two_details_in_the_wrong_order_fail() {
+    check_phases(&details(&[0, 2, 1, 3]), Expect::Complete);
+}
+
+#[test]
+#[should_panic(expected = "the four swapping details in order")]
+fn a_complete_turn_without_the_restore_fails() {
+    check_phases(&details(&[0, 1, 2, 2]), Expect::Complete);
+}
+
+#[test]
+#[should_panic(expected = "an ordered prefix of the swap reaching loading")]
+fn a_cut_turn_that_never_reached_loading_fails() {
+    check_phases(&details(&[0, 0]), Expect::Cut);
+}
+
+#[test]
+#[should_panic(expected = "an unknown swapping detail arrived")]
+fn a_detail_outside_the_four_fails() {
+    check_phases(
+        &[String::from("waiting for another request's handoff")],
+        Expect::Cut,
+    );
 }
