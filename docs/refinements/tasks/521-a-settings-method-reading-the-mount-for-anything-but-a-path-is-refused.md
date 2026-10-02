@@ -1,13 +1,8 @@
 # A settings method reading the mount for anything but a path is refused
 
-**Status:** open, waiting for its trigger
+**Status:** declined 2026-10-02
 **Area:** repo-checks
-**Trigger:** a `ModelHostConfig` method other than `_path` needs `models_root` for something that
-is not an artifact path, reporting the mount on `GET /health` or checking that it exists at
-startup, which nothing in the sidecar does today. That is countable by reading every method of
-`ModelHostConfig` and asking which of them name `self.models_root`
 **Origin:** [ADR-0043](../../adr/ADR-0043-subagent-server-flags.md)
-**Verified:** 2026-09-19
 
 `artifactnames.resolved` raises on any method of `ModelHostConfig` other than `_path` that reads
 `self.models_root`, naming the method and what to do. The refusal exists for one shape: a path
@@ -46,3 +41,19 @@ lets through, and the message should say which shape was refused.
   `/models`, the default the field names; that is a read of the field's declaration, not a method
   reading `self.models_root`. The account of the refusal's message was short: it has offered a
   second remedy since it was added, and the paragraph above now quotes both.
+- 2026-10-02: declined. The trigger has not fired: `ModelHostConfig` now has five methods,
+  `tiers`, `roster`, `_vision`, `_reasoning` and `_path`, the image budget having become the module
+  function `image_budget_flags`, and `self.models_root` is read in `_path` alone, which now resolves
+  five fields, the deep tier's drafter `brain_draft_file` among them. The remedy is wrong. Written
+  as stated on a scratch reader, a refusal of joins alone refuses an f-string join and an
+  `os.path.join`, and passes a local alias (`root = self.models_root`, then
+  `f"{root}/{self.brain_file}"`), `Path(self.models_root) / self.brain_file`, and a method returning
+  the root for another method to join onto, which is the reporting case this entry wanted to let
+  through. Each is the silent second resolver the refusal exists for. And the refusal costs neither
+  case the trigger names: `server.py` already builds the daemon from `config.<field>` reads, so a
+  mount reported on `GET /health` or checked at startup is written there, and a `field_validator`
+  on `models_root` receives the value rather than `self` and is not refused either. That the reader
+  does not look outside `config.py` is a gap of its own, filed as
+  [R-774](774-a-second-model-host-module-joining-a-file-onto-the-mount-is-not-read.md). The
+  refusal stays as wide as any read, and [ADR-0043](../../adr/ADR-0043-subagent-server-flags.md)
+  decision 4 now says why.

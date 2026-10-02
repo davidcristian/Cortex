@@ -7,7 +7,7 @@
 vector, which no service here does today. That is countable by reading the command of every
 service the compose files start and listing the flags it uses
 **Origin:** [ADR-0043](../../adr/ADR-0043-subagent-server-flags.md)
-**Verified:** 2026-09-19
+**Verified:** 2026-10-02
 
 `artifactnames.spends` reads the item after either entry of `ARTIFACT_FLAGS`, which names `--model`
 and `--mmproj`. Those are the two file flags every server this tree starts uses, and llama.cpp
@@ -49,3 +49,10 @@ whatever flag precedes it, which needs a name for which mount is the models moun
   the same fifteen distinct flags appear. The only file flag among them is `--model`, used by
   `llama-embed`, `llama-subagent` and `llama-subagent-qwen`, and `artifactnames.ARTIFACT_FLAGS` is
   still `("--model", "--mmproj")`, with `--mmproj` in no compose command.
+- 2026-10-02: counted again and the trigger has not fired. The same fifteen distinct flags appear
+  across the ten compose files, and `--model` is still the only file flag among them. The tree's
+  first use of another file flag arrived on the model host's side instead: since 2026-09-19 the deep
+  tier appends `--model-draft` when `CORTEX_MODEL_FILE_BRAIN_DRAFT` names a file, and the resolver
+  reading found that artifact with no list of flags, because the sidecar hands `brain_draft_file` to
+  `_path`. `test_artifactnames.py` asserts it among the artifacts the tree names. The four commits
+  that changed a compose file since then wrote no command.

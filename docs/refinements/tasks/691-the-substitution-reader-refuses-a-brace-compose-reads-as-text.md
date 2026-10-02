@@ -9,7 +9,7 @@ roster's endpoint list in `docker/docker-compose.subagents-roster.yml` and the t
 `enable_thinking` template arguments, all literal
 **Area:** repo-checks
 **Origin:** [ADR-0063](../../adr/ADR-0063-compose-checks.md)
-**Verified:** 2026-09-19
+**Verified:** 2026-10-02
 
 `scripts/composedefaults.py` raises `SubstitutionReadError` on any substitution whose body contains
 a `{`, and a bare `{` in an argument now gets its own message: `${A:-{x}} carries a brace in its
@@ -37,3 +37,9 @@ confirm `bindcheck.py`, whose own pattern reduces a bind source, is unaffected.
 - 2026-09-19: opened by the change that made the reader quote a brace-bearing substitution whole,
   recorded in [ADR-0063](../../adr/ADR-0063-compose-checks.md) decision 9; the measurement is in
   [compose interpolation](../../readings/compose-interpolation.md).
+- 2026-10-02: checked again and the trigger has not fired. None of the four commits that changed a
+  compose file since 2026-09-19 replaced a value with a substitution, and the JSON values are still
+  the three literals the trigger names: the roster's endpoint list in
+  `docker/docker-compose.subagents-roster.yml` and the two `'{"enable_thinking": false}'` arguments.
+  `_braced` still raises on any body containing a `{`, `_brace_fault` still names a bare brace apart
+  from a nesting, and the fix above still fits the code.

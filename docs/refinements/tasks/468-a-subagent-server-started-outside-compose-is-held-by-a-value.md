@@ -6,7 +6,7 @@
 that exists is found missing a flag the flag rule requires or writing one with a value the shipped
 stack does not use
 **Origin:** [ADR-0043](../../adr/ADR-0043-subagent-server-flags.md)
-**Verified:** 2026-09-19
+**Verified:** 2026-10-02
 
 `docs/runbooks/subagents-cpu.md` gives an operator a `docker run` that starts a standalone CPU
 subagent server on loopback, outside any stack, with `--jinja`, the template kwarg,
@@ -62,3 +62,11 @@ wrong here was the rule moving while the paste did not.
   flag the command drops or rewrites. The remedy was wrong about the kwarg: the value forms reduce
   no tuple of `_SUBAGENT_TAIL`'s shape and no single-quoted string, so only the counts have
   constants, `_NO_REASONING_BUDGET` (already registered) and `_NO_PROMPT_CACHE`.
+- 2026-10-02: checked again and neither half of the trigger fired. `subagentflags.REQUIREMENTS`
+  still has four requirements, and the runbook's `docker run` still writes every flag they ask for;
+  the runbook around it changed five times since 2026-09-19 and the command block did not. No other
+  subagent server is started by hand in a runbook or a host task: the `docker run` blocks under
+  `docs/runbooks/` start the cortex tier (`budget-probe`, `cortex-nommproj`), and the injection
+  harness's subagent rows take the sidecar's own `llama_server_argv` rather than a paste. The
+  registry still compares the budget's count here twice, in the block and in the prose, and the CPU
+  budget's five entries still name compose files only.

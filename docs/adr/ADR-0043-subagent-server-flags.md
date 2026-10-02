@@ -62,10 +62,13 @@ to keep each record to one subject.
    the prefix: in compose, the item after either of `ARTIFACT_FLAGS` (`--model`, `--mmproj`), read
    for the variables it uses; in the model host's settings, every field handed to the resolver
    `_path` that joins a file onto `models_root`. A settings method other than the resolver reading
-   `models_root` is refused by name, and a resolver handed no field fails (`MIN_RESOLVED`). The
-   short `-m` form is not read (`python -m` uses it), and an item using no variable names nothing to
-   check. The naming rule runs inside `flagcheck.py` as the flag rule's precondition, not as a scan
-   of its own.
+   `models_root` is refused by name, whatever it does with the value: a refusal of joins alone
+   passes a local alias, a `Path` join and a method returning the root for another to join onto, and
+   a read that only reports the mount is written in `server.py`
+   ([R-521](../refinements/tasks/521-a-settings-method-reading-the-mount-for-anything-but-a-path-is-refused.md),
+   declined). A resolver handed no field fails (`MIN_RESOLVED`). The short `-m` form is not read
+   (`python -m` uses it), and an item using no variable names nothing to check. The naming rule
+   runs inside `flagcheck.py` as the flag rule's precondition, not as a scan of its own.
 5. **Minimums.** A rule requiring no flag (`MIN_FLAGS`) and a tree starting no subagent server
    (`MIN_SERVERS`) each fail. The success line states the servers, the files starting them, the
    flags required and the artifacts named ([ADR-0042](ADR-0042-cross-tree-constant-registry.md)
@@ -84,8 +87,8 @@ to keep each record to one subject.
 - Not checked, each recorded under `docs/refinements/tasks/`: a server started outside compose (the
   runbook's `docker run`, whose template argument no search text can cover yet, since the
   argument's only declaration sits inside the model host's mixed `_SUBAGENT_TAIL` tuple, which the
-  registry cannot reduce); engine file flags other than `--model` and `--mmproj` (`--model-draft`,
-  `--lora`); narrowing the resolver refusal; a family member naming a subagent without saying so
+  registry cannot reduce); engine file flags other than `--model` and `--mmproj` in a compose
+  command (`--model-draft`, `--lora`); a family member naming a subagent without saying so
   (`CORTEX_MODEL_FILE_HELPER`); a second Python module naming an artifact.
 
 ## Alternatives rejected
