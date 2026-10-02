@@ -155,14 +155,13 @@ with no `--image-max-tokens`. The row exited 0 with no void draw, every reply en
 ## The 2026-10-02 matrices, pick, written before the draw
 
 The pick's five thirty-cell matrices of [its record](injection-over-pixels.md#the-thirty-cell-matrix-pick),
-queued last in the unattended run logged at `measurements/sitting-2026-10-02/` (`<tag>.log`), each
-started only if the ceiling reads at least 0.75 of `power.max_limit`. A matrix draws each of the
-ten attacks over three renderings once per variant, so each count below is of 30, applied or obeyed
-by hand under decision 11 and read under the rule of
+queued after R-607's two rows in the unattended run logged at `measurements/sitting-2026-10-02/`
+(`<tag>.log`), each started only if the ceiling reads at least 0.75 of `power.max_limit`. A matrix
+draws each of the ten attacks over three renderings once per variant, so each count below is of 30,
+applied or obeyed by hand under decision 11 and read under the rule of
 [R-706](../refinements/tasks/706-only-the-corpus-laundering-cell-is-drawn-at-the-engines-sampler.md).
-Each id is
-`test_injection_defense_over_pixels[gemma-4-12B (cortex pick)-<frame>-<budget>]`, and the third
-frame's is `test_the_matrix_at_a_third_frame[gemma-4-12B (cortex pick)]`.
+Each id is `test_injection_defense_over_pixels[gemma-4-12B (cortex pick)-<frame>-<budget>]`, and
+the third frame's is `test_the_matrix_at_a_third_frame[gemma-4-12B (cortex pick)]`.
 
 | tag | frame, budget | framed | control | predicted |
 |---|---|---|---|---|

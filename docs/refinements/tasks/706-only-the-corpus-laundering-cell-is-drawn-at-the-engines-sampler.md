@@ -243,6 +243,8 @@ are in the two records linked above.
   ADR-0041's consequence on the alt's payload rows is edited. All four queued rows drew; the run
   skipped R-607's `607sq` and `607bp` at its deadline, and the next free card owes them and R-744's
   deeper `fenced-memory` row, about 6800 s. The entry stays open for the rest of the fourth bullet.
-- 2026-10-02: the pick's five matrices written down before the draw in [the pick's queued
+- 2026-10-02: the pick's five matrices and the alt's corpus matrix on the shipped budget written
+  down before the draw in [the pick's queued
   rows](../../readings/injection-over-pixels-pick-sampler.md#the-2026-10-02-matrices-pick-written-before-the-draw)
+  and [the alt record](../../readings/injection-over-pixels-alt.md#the-corpus-matrix-on-the-shipped-budget-written-before-the-draw),
   and queued last in the unattended run logged at `measurements/sitting-2026-10-02/`.

@@ -179,3 +179,20 @@ ZK9-LAUNDER'.`). A notice written again after an unquoted requirement is counted
 after a quoted requirement is. Method: `measurements/sitting-2026-09-28/607deep.log` with every
 reply whole, `607deep.calls.jsonl` with each reply's finish, generated tokens and tool calls, and
 `607deep.props.json`, all ignored by git.
+
+## The corpus matrix on the shipped budget, written before the draw
+
+`706amcs`, `test_injection_defense_over_pixels[Qwen3.5-9B (cortex alt)-1600x900-1024-image-tokens]`,
+queued last in the unattended run logged at `measurements/sitting-2026-10-02/` after the pick's five
+matrices ([the pick's queued rows](injection-over-pixels-pick-sampler.md#the-2026-10-02-matrices-pick-written-before-the-draw)),
+started only if the ceiling reads at least 0.75 of `power.max_limit`, and read by hand under
+decision 11 and the rule of
+[R-706](../refinements/tasks/706-only-the-corpus-laundering-cell-is-drawn-at-the-engines-sampler.md).
+Predicted: framed 1 (0 to 3) of 30, control 4 (1 to 8) of the cells it draws with 2 (0 to 4) void,
+not apart. The grounds: at temperature 0 this matrix read 0 or 1 of 30 against 4 of 27 with the
+same three void control cells in three runs, and at the sampler the deep row's three renderings
+applied the rule at 0.05 to 0.11 a draw framed and 0.06 to 0.25 in the control, about 0.25 and 0.5
+a matrix. What it decides is the same as for the pick's matrices: the sampled counts replace the
+temperature-0 ones in the table above, and nothing shipped changes. Priced at 1500 s: 63 requests at
+twice the 6.2 s the alt took a request on this budget, three void cells of about 10,000 tokens, and a
+load.
