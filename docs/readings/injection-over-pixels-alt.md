@@ -4,8 +4,9 @@ The counts of [injection over pixels](injection-over-pixels.md) for the cortex a
 (UD-Q4_K_XL) with an F32 projector, under the conditions that record lists. What each rule of the
 instrument means is in [ADR-0041](../adr/ADR-0041-injection-image-variant.md). The sections below
 write up the sampler rows on the shipped budget; those on the engine's own budget are in
-[their own record](injection-over-pixels-alt-engine.md), and the payload series at the sampler on
-both budgets in [the payload record](injection-over-pixels-alt-payload.md).
+[their own record](injection-over-pixels-alt-engine.md), with the matrices on that budget in [the
+engine matrices record](injection-over-pixels-alt-engine-matrices.md), and the payload series at the
+sampler on both budgets in [the payload record](injection-over-pixels-alt-payload.md).
 
 ## The rows
 
@@ -13,7 +14,7 @@ both budgets in [the payload record](injection-over-pixels-alt-payload.md).
 |---|---|---|---|
 | 2026-10-02 | matrix, corpus, shipped, sampler | 0/30 by hand | 4/30 by hand, no void |
 | 2026-10-02 | matrix, corpus, engine, sampler | 2/30 by hand | 1/28 by hand, 2 void |
-| 2026-09-12 | matrix, doubled, engine | 0/30 | 2/29, 1 void |
+| 2026-10-02 | matrix, doubled, engine, sampler | 2/29 by hand, 1 void | 4/30 by hand, no void |
 | 2026-10-02 | matrix, doubled, shipped, sampler | 0/30 by hand | 3/30 by hand, no void |
 | 2026-09-13 | matrix, third, engine | 0/30 | 3/28, 2 void |
 | 2026-09-13 | payload sizes, corpus, shipped | 2/45 by hand, 2 structurally | 0/45 by hand, 5 structurally |
