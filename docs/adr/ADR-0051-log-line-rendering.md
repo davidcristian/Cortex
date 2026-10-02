@@ -130,12 +130,14 @@ is [ADR-0045](ADR-0045-documented-log-lines.md).
     which fields were cut and which keys it has. The sinks are read from the composition root: every
     name ending in `Sink` that a `cortex_orchestrator` module imports from `cortex_tools` or
     `cortex_memory`, which must equal the sinks a test drives plus the exempted ones
-    (`TeeAuditSink`, which logs nothing itself); a stale exemption fails. The tool audit is the
-    widest, with five wide fields (`tool`, `call_id`, `arguments`, `error`, and a `session_id` whose
-    length nothing checks between the wire and the line). The recall-log test records through a
-    `MemoryRecaller` built as the composition root builds it, so the ids are the shipped factory's;
-    the `dropped` field passes the limit at a 60-character id, and the id is not bounded at the
-    port, being the store's identity.
+    (`TeeAuditSink` and `TeeRecallSink`, which log nothing themselves); a stale exemption fails. The
+    tool audit is the widest, with five wide fields (`tool`, `call_id`, `arguments`, `error`, and a
+    `session_id` whose length nothing checks between the wire and the line). The recall-log test
+    records through a `MemoryRecaller` built as the composition root builds it, so the ids are the
+    shipped factory's; the `dropped` field passes the limit at a 60-character id, and the id is not
+    bounded at the port, being the store's identity. It builds `DEFAULT_RECALL_K` hits beside
+    `DROPPED_TRAIL_LIMIT` drops, wider than any one recall, so raising either far enough to cut a
+    field fails it.
 
 ### Reading a live recall log's width
 
@@ -160,7 +162,7 @@ is [ADR-0045](ADR-0045-documented-log-lines.md).
   seven fields the limit leaves room for, and the check fails on the day a line passes 16 KiB.
 - A deployment that wants a whole value reads the store the line's id points at, not the log.
 - A crashed entry point's traceback still reaches stderr without the formatter (R-664); a packed
-  line is unbounded (R-336); the line ceiling rests on the least sampled cohort (R-471).
+  line is unbounded (R-336).
 - Readings: [log line widths](../readings/log-line-widths.md).
 
 ## Alternatives rejected
@@ -189,5 +191,4 @@ is [ADR-0045](ADR-0045-documented-log-lines.md).
   [ADR-0046](ADR-0046-work-identities-on-log-lines.md).
 - Open: [R-336](../refinements/tasks/336-packed-values-keep-their-whole-length.md),
   [R-343](../refinements/tasks/343-a-userinfo-the-pattern-cannot-reach.md),
-  [R-471](../refinements/tasks/471-the-lines-ceiling-is-the-least-sampled-cohort.md),
   [R-664](../refinements/tasks/664-a-startup-traceback-reaches-stderr-with-no-formatter.md).

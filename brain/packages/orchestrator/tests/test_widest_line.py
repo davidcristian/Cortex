@@ -8,6 +8,7 @@ import pytest
 import cortex_orchestrator
 from cortex_core import (
     CUT,
+    DROPPED_TRAIL_LIMIT,
     VALUE_CHARS,
     DroppedCandidate,
     DroppedCandidates,
@@ -25,6 +26,7 @@ from cortex_core import (
     Trust,
     record_fields,
 )
+from cortex_core.turn_context import DEFAULT_RECALL_K
 from cortex_memory import JsonLinesRecallSink, LoggingRecallSink
 from cortex_tools import JsonLinesAuditSink, LoggingAuditSink
 
@@ -45,8 +47,8 @@ _WIDEST_FLOAT = -1.7976931348623157e308
 
 # The widest candidate count and the widest hit count a real recall writes. They come from
 # different lines, so the record built below is wider than any one recall can produce.
-_DROPPED = 20
-_HITS = 5
+_DROPPED = DROPPED_TRAIL_LIMIT
+_HITS = DEFAULT_RECALL_K
 
 
 def _line(record: logging.LogRecord) -> str:

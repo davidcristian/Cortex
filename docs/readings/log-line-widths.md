@@ -39,6 +39,11 @@ On 2026-09-12, four million-character audit fields rendered at 8,437 characters 
 Method: `brain/packages/orchestrator/tests/test_widest_line.py`, which asserts the line against the
 cliff rather than any width.
 
+On 2026-10-02, the shape a judge keeping all of `k` writes at the shipped pool (five kept, fifteen
+dropped, uuid4 ids, `turn_id` included) rendered at 1,935 characters `plain` with 18-character
+scores and 2,085 with the widest float, 13% of the cliff. Method: the shipped `LoggingRecallSink`
+and `PlainFormatter` over a `MemoryRecaller`'s ids, built rather than drawn.
+
 ## The recall trail on a live stack
 
 **2026-08-26 and 2026-08-27.** 466 trail lines over two blocks with the shipped `judge` rank and

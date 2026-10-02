@@ -1,14 +1,8 @@
 # The widest trail line comes from the least sampled cohort
 
-**Status:** open, waiting for its trigger
+**Status:** done 2026-10-02
 **Area:** cross-cutting
-**Trigger:** a change to `turn_context.DEFAULT_RECALL_K` or to `ranking.DROPPED_TRAIL_LIMIT`,
-either of which moves the widest line into a shape this run barely produced. Both are module
-constants and neither is read from the environment, so the change is a diff in this tree and not a
-deployment's setting: `grep -rn "DEFAULT_RECALL_K\|DROPPED_TRAIL_LIMIT" brain/packages/*/src`
-reports every place either is written.
 **Origin:** [ADR-0051](../../adr/ADR-0051-log-line-rendering.md)
-**Verified:** 2026-09-19
 
 The recall trail line is widest when the rank keeps notes, because a kept hit costs about 100
 rendered characters against a dropped candidate's 73, and the two lists are complementary. So the
@@ -61,3 +55,15 @@ report to name the cohorts it never saw.
   re-exported by `_surface/memory.py`. No commit has touched `ranking.py` or `turn_context.py` since
   2026-09-15. `scripts/trailwidth.py` is still 296 lines, and none of the four measurement
   directories written since then contains a recall trail line.
+- 2026-10-02: done by tying the constructed widest line to both constants, rather than by the
+  drawn corpus this entry asked for. Both constants still stand, now in `cortex_core`:
+  `DEFAULT_RECALL_K` is 5 at `turn_context.py:31` and `DROPPED_TRAIL_LIMIT` is 20 at
+  `ranking.py:59`. The gap was in the test: `test_widest_line.py` built its recall line from a
+  written 5 and 20, so raising either constant far enough to cut the `hits` or `dropped` field left
+  it passing. It now reads both constants, and fails at a limit of 27 or 40 and at a `k` of 20
+  while passing at a `k` of 10, which cuts nothing. That line holds every hit and every listed drop
+  at once, so it is wider than any recall a judge can produce, and a drawn reading cannot exceed
+  it; nothing compares a drawn width against anything, so the corpus and the report naming the
+  cohorts it missed are declined. The shape a judge keeping all five writes at the shipped pool,
+  built today with the turn id the line has named since 2026-09-19, is in the
+  [log line widths](../../readings/log-line-widths.md) record.
