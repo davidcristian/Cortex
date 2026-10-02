@@ -3,7 +3,7 @@
 **Status:** open, actionable
 **Area:** vision
 **Origin:** [ADR-0041](../../adr/ADR-0041-injection-image-variant.md)
-**Verified:** 2026-10-01
+**Verified:** 2026-10-02
 
 Every framed count in [injection over pixels](../../readings/injection-over-pixels.md) outside the
 laundering cell at the corpus frame and size was drawn at temperature 0 beside a control drawn the
@@ -36,7 +36,8 @@ The cells, in the order those consequences need them:
   px. The pick's probe screens `bare`, `plain` and `chrome` followed on 2026-09-30. The alt's rate
   row at the corpus frame and its payload series at the corpus and third frames, all on the engine
   budget, were drawn at the sampler on 2026-09-23
-  ([R-695](695-an-alt-mail-control-voids-in-every-draw-at-the-engine-budget.md)).
+  ([R-695](695-an-alt-mail-control-voids-in-every-draw-at-the-engine-budget.md)), and the pick's
+  five matrices on 2026-10-02.
 
 **Drawn 2026-09-23.** The unattended run logged at `measurements/sitting-2026-09-23/` drew (a)
 from 02:16 to 02:47 and (b) from 02:47 to 03:07, one pytest process per row, each exiting 0 with
@@ -224,27 +225,26 @@ are in the two records linked above.
   second launcher's five rows and the rest of the fourth bullet.
 - 2026-09-28: `706pps` and `706pdps` drawn and read by hand, both confirmed and neither apart;
   the pick's pixel readings split so the queued rows have their own record. `706pdp`, `706pbp`
-  and `706pdpe` were skipped at the launcher's deadline, about 43 card-minutes at their prices,
-  and stay queued with their predictions above. The entry stays open for them and the rest of
-  the fourth bullet.
+  and `706pdpe` were skipped at the launcher's deadline, about 43 card-minutes at their prices, and
+  stay queued with their predictions above; the entry stays open for them and the fourth bullet.
 - 2026-09-30: `706pdp`, `706pdpe` and `706pbp` drawn with the predictions above and read by hand.
   Six of the seven cells are confirmed and none is apart; the `advisory` cell's prediction is
   falsified, and ADR-0041's two-rate consequence is edited. The entry stays open for the rest of the
   fourth bullet.
 - 2026-10-01: `706ptp`, `706aps`, `706adps` and `706adpe` written down before the draw
   and queued in the unattended run logged at `measurements/sitting-2026-10-01/`.
-- 2026-10-01: `706ptp`, `706aps` and `706adps` drawn with the predictions above and read by hand.
-  `706ptp` is confirmed, 0 against 1 of 45; `706aps` and `706adps` are falsified, each control above
-  its range and each pair apart below (3 against 13 and 0 against 11 of 45), and ADR-0041's
-  consequence on the alt's payload rows is edited. The entry stays open for `706adpe` and the rest
-  of the fourth bullet.
-- 2026-10-01: `706adpe` drawn with its prediction and read by hand, falsified: 2 against 13 of 45,
-  apart below with both counts inside their ranges, the direction of `706aps` and `706adps`, and
-  ADR-0041's consequence on the alt's payload rows is edited. All four queued rows drew; the run
-  skipped R-607's `607sq` and `607bp` at its deadline, and the next free card owes them and R-744's
-  deeper `fenced-memory` row, about 6800 s. The entry stays open for the rest of the fourth bullet.
+- 2026-10-01: `706ptp`, `706aps`, `706adps` and `706adpe` drawn with the predictions above and
+  read by hand. `706ptp` is confirmed, 0 against 1 of 45; the other three are falsified, each pair
+  apart below (3 against 13, 0 against 11 and 2 against 13 of 45), and ADR-0041's consequence on the
+  alt's payload rows is edited. The entry stays open for the rest of the fourth bullet.
 - 2026-10-02: the pick's five matrices and the alt's corpus matrix on the shipped budget written
   down before the draw in [the pick's queued
-  rows](../../readings/injection-over-pixels-pick-sampler.md#the-2026-10-02-matrices-pick-written-before-the-draw)
+  rows](../../readings/injection-over-pixels-pick-sampler.md#the-2026-10-02-matrices-pick-at-the-engines-sampler)
   and [the alt record](../../readings/injection-over-pixels-alt.md#the-corpus-matrix-on-the-shipped-budget-written-before-the-draw),
   and queued last in the unattended run logged at `measurements/sitting-2026-10-02/`.
+- 2026-10-02: the pick's five matrices drawn at the sampler and read by hand, all confirmed and
+  none apart, and the pick's matrix table holds their counts ([the pick's queued
+  rows](../../readings/injection-over-pixels-pick-sampler.md#the-2026-10-02-matrices-pick-at-the-engines-sampler)).
+  The alt's other four matrices written down before the draw ([the alt's queued
+  rows](../../readings/injection-over-pixels-alt-queued.md#the-alts-other-four-matrices-written-2026-10-02))
+  and queued after `706amcs` in `measurements/sitting-2026-10-02b/`; the entry stays open for them.

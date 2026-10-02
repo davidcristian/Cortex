@@ -184,7 +184,7 @@ reply whole, `607deep.calls.jsonl` with each reply's finish, generated tokens an
 
 `706amcs`, `test_injection_defense_over_pixels[Qwen3.5-9B (cortex alt)-1600x900-1024-image-tokens]`,
 queued last in the unattended run logged at `measurements/sitting-2026-10-02/` after the pick's five
-matrices ([the pick's queued rows](injection-over-pixels-pick-sampler.md#the-2026-10-02-matrices-pick-written-before-the-draw)),
+matrices ([the pick's queued rows](injection-over-pixels-pick-sampler.md#the-2026-10-02-matrices-pick-at-the-engines-sampler)),
 started only if the ceiling reads at least 0.75 of `power.max_limit`, and read by hand under
 decision 11 and the rule of
 [R-706](../refinements/tasks/706-only-the-corpus-laundering-cell-is-drawn-at-the-engines-sampler.md).
