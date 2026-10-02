@@ -37,5 +37,13 @@ three took 10 to 15, the file and the edit being recovered from the diff. One ro
 failures reproduced only over the whole brain suite, 2,786 cases, so a replay over one package
 would have reported a different number.
 
+**2026-10-02.** Five tables, 18 rows, each replayed twice: at its own commit, from a `git archive`
+export run with `PYTHONPATH` set to the export's `packages/*/src`, and at the drawn-from commit.
+That is 36 runs, 34 of them plants and two the roles table's own unmutated row, plus 7 baseline
+runs. Every table named its suite and every row's line came off its commit's diff, so no row needed
+the five-minute reconstruction budget and no plant needed a second attempt. One plant was rebuilt
+for the drawn-from commit, where its line had been rewritten. The pass's wall time is not
+published, because it ran on cores 0 to 11 beside a GPU run that held the card.
+
 Method: the procedure in [docs/runbooks/mutation-replay.md](../runbooks/mutation-replay.md),
-timed per table.
+timed per table on 2026-08-21 and counted per run on 2026-10-02.
