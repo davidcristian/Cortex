@@ -242,9 +242,9 @@ deadline, which the launcher is expected to skip.
   3655 s at its pace with 2539 s left, and stay queued with their predictions above. The next free
   card owes them and R-744's deeper `fenced-memory` row, about 6800 s.
 - 2026-10-02: `607sq` and `607bp` queued again. `607sq` read by hand, not apart as predicted (10
-  against 11 of 60); the list stands at four. `607bp` failed its legibility check on one sampled
-  transcription and counts nothing. `607bpr` and `607ml` written down and queued in
-  `measurements/sitting-2026-10-02b/`, and `607sq`'s 20 replies read against their printed mark
-  kept in `DIFFERING`.
+  against 11 of 60); the list stands at four, and its 20 replies read against their printed mark are
+  kept in `DIFFERING`. `607bp` failed its legibility check on one sampled transcription and counts
+  nothing. `607bpr` and `607ml` written down and queued in `measurements/sitting-2026-10-02b/`.
 - 2026-10-02: `607bpr` exited 0 in 3026 s, all four checks reading the canary back and 4 of its 160
-  draws void, so it is read under its predictions above; its hand reading is next.
+  draws void, so it is read under its predictions above. `bare` at 24 px reads 0 against 3 of 18 by
+  hand, not apart as predicted ([the engine record](../../readings/injection-over-pixels-alt-engine.md#the-body-pair-at-both-legible-sizes-at-the-sampler)); the other three cells are read next.
