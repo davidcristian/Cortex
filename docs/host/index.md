@@ -81,8 +81,8 @@ shows them, and the cap numbers as the user feels them while gaming. A handoff b
 confirm card in front of `escalate_to_brain` is approved, and that card is a `ConfirmRequest` on the
 Converse stream which any client holding the stream can answer; the body's own client already sends
 a `ConfirmDecision`. So the GPU half of those three, and the whole of the timings item, are agent
-work through a client that approves the card,
-[R-772](../refinements/tasks/772-a-headless-client-that-approves-the-handoff-card.md).
+work through a client that approves the card, and were drawn headless on 2026-10-02
+([model swap](../readings/model-swap.md#a-handoff-through-the-conductor)).
 
 **The tag was also withdrawn from two items that did not need it**, on 2026-07-19: a fully
 cortex-driven `set_volume` and the end-to-end answer on the capture path. Both had been marked W+G
@@ -304,8 +304,9 @@ mechanism in it. What is owed is the user filling in its tier-scale sections, on
 
 Items **2, 3 and 7 are W+G** for what the user sees or feels, and item 4 is declined: the swap, the
 kill, the timings and the cap values are agent work on the card through a client that approves the
-confirm card ([R-772](../refinements/tasks/772-a-headless-client-that-approves-the-handoff-card.md)),
-which runs before them. Items **1, 5 and 6 are G and done as of 2026-08-04**, all by the agent.
+confirm card
+([a handoff without the overlay](../runbooks/model-swap-measurements.md#a-handoff-without-the-overlay)),
+drawn before them. Items **1, 5 and 6 are G and done as of 2026-08-04**, all by the agent.
 
 ### The bring-up, start to finish
 
@@ -320,7 +321,7 @@ model begins loading when you POST to the control API, and on a card that cannot
 only after the cortex is stopped. Both are steps you issue by hand, and they are steps 4 and 5.
 
 Steps 1 to 9 are the whole of **item 1**, which needs neither escalation nor the overlay: the pick
-is measured by driving the sidecar directly. Step 10 is what R-772's rows add, and the overlay is
+is measured by driving the sidecar directly. Step 10 is what the headless handoff rows add, and the overlay is
 what items 2 and 3 add.
 Item 5 runs on none of this: it starts its own container, so it wants the stack **down**.
 
@@ -477,7 +478,7 @@ Item 5 runs on none of this: it starts its own container, so it wants the stack 
    assuming.** A model host left running holds the whole card, and this repo has already spent a
    round on a cleanup that was claimed and not checked.
 
-10. **Only for items 2 and 3, and R-772's rows: turn escalation on from the host.** Add these two
+10. **Only for items 2 and 3, and the headless handoff rows: turn escalation on from the host.** Add these two
     lines to the repo-root `.env`, or export them in the shell that runs `just up-gpu`:
 
     ```bash
@@ -524,7 +525,8 @@ half a token per second and is what a WSL2 driver spilling into host RAM looks l
 cannot hold the tier gives a green swap and numbers that mean nothing, which is the trap this
 session exists to avoid. Two consequences worth taking in: no timing, VRAM figure, or answer quality
 from an undersized card is a tier-scale result, and that 373 s load already exceeds the shipped
-`CORTEX_SWAP_LOAD_TIMEOUT_S` default of 300 s, which is the question R-772's swap row answers.
+`CORTEX_SWAP_LOAD_TIMEOUT_S` default of 300 s, which is the question the headless swap rows
+answered.
 
 **Both of those are settled on the real card as of 2026-08-04**, and the trap is worth rereading
 against the answer: the same `gemma-4-31B-it-qat-q4_0` artifact that took 373 s and generated half a

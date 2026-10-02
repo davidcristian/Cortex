@@ -8,12 +8,12 @@
 
 Blocked on the overlay, for what the user sees and nothing else. Re-scoped 2026-10-02: the VRAM
 arithmetic, the phases of the swap and the `Health` readings during the window are agent work on the
-24 GB card through a client that approves the confirm card, filed as
-[R-772](../../refinements/tasks/772-a-headless-client-that-approves-the-handoff-card.md). The
-approval is a `ConfirmResponse` on the `Converse` stream, which any client holding the stream can
-send, and the body's own client already sends one, so the overlay was never the only way to start a
-handoff. What stays here is the overlay's view of one. R-772's swap row drew on 2026-10-02: every
-approved handoff completed with the four details and returned the cortex
+24 GB card through a client that approves the confirm card, the handoff client of
+[a handoff without the overlay](../../runbooks/model-swap-measurements.md#a-handoff-without-the-overlay).
+The approval is a `ConfirmResponse` on the `Converse` stream, which any client holding the stream
+can send, and the body's own client already sends one, so the overlay was never the only way to
+start a handoff. What stays here is the overlay's view of one. The headless swap rows drew on
+2026-10-02: every approved handoff completed with the four details and returned the cortex
 ([readings](../../readings/model-swap.md#a-handoff-through-the-conductor)). The deep reply restated
 the handoff instead of answering
 ([R-777](../../refinements/tasks/777-the-deep-model-restates-the-handoff.md)), so until that is
@@ -28,8 +28,8 @@ serves again.
 
 **Do.** With "Before you start" done **including step 10**, bring the overlay up beside the brain
 ([windows-desktop.md](../index.md#windows-desktop) has that bring-up), then ask something that
-escalates and **approve the card** when it appears. Run it after R-772 has drawn its swap row, so a
-failure here is about the overlay and not about the swap. `GET /models/brain` on the sidecar flips
+escalates and **approve the card** when it appears. The headless swap rows have passed, so a failure
+here is about the overlay and not about the swap. `GET /models/brain` on the sidecar flips
 `stopped` to `loading` to `ready` while it runs, which tells an escalation that was never approved
 from one that was.
 
@@ -38,8 +38,8 @@ when the stream sends it, the dot turns amber during the window and green after 
 model's answer appears in the panel.
 
 **Fail.** A card that stays open after the approval, a status line that never appears, or a dot that
-stays amber once the cortex is serving. A swap or a restore that fails is R-772's finding, not this
-one's: [runbooks/model-swap.md](../../runbooks/model-swap.md) says how to read it.
+stays amber once the cortex is serving. A swap or a restore that fails is a finding against the
+swap, not this one's: [runbooks/model-swap.md](../../runbooks/model-swap.md) says how to read it.
 
 **Record it.** In this file's History, and in [runbooks/model-swap.md](../../runbooks/model-swap.md)
 wherever the overlay shows the window differently from what that runbook says.
@@ -62,6 +62,6 @@ wherever the overlay shows the window differently from what that runbook says.
 - 2026-10-02: re-scoped to the overlay's view of a handoff. A probe of the code found that the
   confirm card is answered by any client holding the `Converse` stream and that the body's own
   client already sends a `ConfirmDecision`, so the swap, its arithmetic and the `Health` readings
-  went to [R-772](../../refinements/tasks/772-a-headless-client-that-approves-the-handoff-card.md).
-- 2026-10-02: drawn by R-772 headless: the swap passed its rule, read by hand after a client fix,
-  so what stays here is the overlay alone.
+  were drawn headless on the card that night with the handoff client, and passed
+  ([readings](../../readings/model-swap.md#a-handoff-through-the-conductor)). What stays here is
+  the overlay alone.

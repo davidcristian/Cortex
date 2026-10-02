@@ -226,7 +226,7 @@ boot recovery marks the stranded record `FAILED` and escalation works again.
 
 At tier scale on the 24 GB machine, during a handoff whose confirm card a client has approved:
 the overlay, or a headless client that answers the `ConfirmRequest`
-([R-772](../refinements/tasks/772-a-headless-client-that-approves-the-handoff-card.md)). The
+([a handoff without the overlay](model-swap-measurements.md#a-handoff-without-the-overlay)). The
 small-scale equivalent is the third and fourth failure modes above.
 
 ```

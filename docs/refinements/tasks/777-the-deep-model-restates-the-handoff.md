@@ -5,7 +5,7 @@
 **Origin:** [ADR-0030](../../adr/ADR-0030-brain-handoff.md)
 **Verified:** 2026-10-02
 
-In every handoff R-772's card rows completed on 2026-10-02, 7 of 7 on the 24 GB card with the
+In every handoff the headless handoff client's first card rows completed on 2026-10-02, 7 of 7 on the 24 GB card with the
 shipped deep pick, the deep model's whole reply was one sentence saying the task had been handed to
 the deep model ("I have handed this task over to the deep model, which will provide a two-sentence
 explanation of why the sum of the first n odd numbers equals n^2."), 35 to 97 tokens, and never the
@@ -53,7 +53,7 @@ is more than a sentence about the handoff.
 
 ## History
 
-- 2026-10-02: filed from R-772's card rows, where every completed handoff produced this reply.
+- 2026-10-02: filed from the handoff client's card rows, where every completed handoff produced this reply.
 - 2026-10-02: the cause found in the code (the tail's last message and the cortex's reply both
   addressed the turn's wrap-up), the deep model's context changed to end with a message to it,
   and the client's prompt changed; `777swap` queued with its prediction above.

@@ -9,10 +9,10 @@ Declined as host work: nothing in it needs the overlay. These are the phases of 
 (drain, evict, load, work, restore), timed against the shipped 300 s `CORTEX_SWAP_LOAD_TIMEOUT_S`,
 and a handoff starts at any client that approves the confirm card, not only at the overlay. The
 brain sends each phase as a `swapping` status on the `Converse` stream, so a headless client reads
-them as well as the panel does. The measurement is the swap row of
-[R-772](../../refinements/tasks/772-a-headless-client-that-approves-the-handoff-card.md), and its
-readings go in [model swap](../../readings/model-swap.md), whose control-API figures from
-2026-08-07 it is compared against.
+them as well as the panel does. The phases were drawn headless on 2026-10-02 with the handoff client
+of [a handoff without the overlay](../../runbooks/model-swap-measurements.md#a-handoff-without-the-overlay),
+and are in [model swap](../../readings/model-swap.md#a-handoff-through-the-conductor) beside the
+control-API figures from 2026-08-07 they are compared against.
 
 ## History
 
@@ -23,9 +23,7 @@ readings go in [model swap](../../readings/model-swap.md), whose control-API fig
   against, the deep tier loading cold in 99.6 s, which leaves the shipped 300 s
   `CORTEX_SWAP_LOAD_TIMEOUT_S` about two thirds unspent. That close unblocked this item along with
   the swap and the chaos kill, leaving the overlay as what still blocks it.
-- 2026-10-02: declined into
-  [R-772](../../refinements/tasks/772-a-headless-client-that-approves-the-handoff-card.md). The
-  only reason it was host work was the confirm card, which any client holding the `Converse`
+- 2026-10-02: declined, and the phases drawn headless on the card that night. The only reason it was host work was the confirm card, which any client holding the `Converse`
   stream can answer. The runbook instruction it pointed at now survives only as "record the
   timings here" in the chaos kill section of
   [model-swap-recovery.md](../../runbooks/model-swap-recovery.md); the readings record is where the

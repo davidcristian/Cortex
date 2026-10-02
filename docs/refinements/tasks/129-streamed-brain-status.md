@@ -91,6 +91,7 @@ from that change and that change needed nothing from it.
   Outside that test the body's `converse` command is still the only `Converse` caller, reached from
   `useOverlay.ts`, `EscalatingTurnEngine` is still built only in `StreamEngines.for_stream`, `swap_scope` is still entered only from
   `SwapConductor._swap`, `BrainService` still declares one streamed RPC among eleven, and
-  `LINK_RECHECK_MS` is still 5000. The client reads `Health` every 2 s beside each handoff, so the
-  tier-scale rows queued that night (R-772), once they run, are the first reading against real
-  weights of the not-ready replies this entry depends on.
+  `LINK_RECHECK_MS` is still 5000. The client reads `Health` every 2 s beside each handoff, and
+  the tier-scale rows drawn that night are the first reading against real weights of the not-ready
+  replies this entry depends on: `Health` read `ready=false` from the loading detail until each
+  turn ended ([model swap](../../readings/model-swap.md#a-handoff-through-the-conductor)).
