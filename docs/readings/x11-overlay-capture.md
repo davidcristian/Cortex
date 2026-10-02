@@ -1,8 +1,8 @@
 # Readings: what an X11 capture shows of the overlay
 
 Pixel counts of `CaptureScreen` replies from the linked Linux shell under the conditions a real X11
-desktop adds to a bare `Xvfb`, of single windows read directly under a compositor, and of the
-capture built from those reads. Cited by
+desktop adds to a bare `Xvfb`, of single windows read directly under a compositor, of the
+capture built from those reads, and of the root background a compositor paints. Cited by
 [ADR-0029](../adr/ADR-0029-vision-screen-capture.md) decision 10.
 
 ## Method
@@ -111,3 +111,29 @@ in the method above. "Fade" is a capture 0.3 s after the hide; the plain read is
 
 Method: the shell linked as in the method above from the tree that adds the composition; the
 captures are `LinuxScreenCapture` over `X11Root`.
+
+## The root background under a compositor
+
+**2026-10-02.** The same `Xvfb`, picom and xcompmgr, with no window manager and no desktop window.
+A probe client set a background as feh does: a pixmap at the root's depth, green with a 32 by 32
+yellow square at its origin, named by `_XROOTPMAP_ID` and `ESETROOT_PMAP_ID` and set as the root's
+background pixmap, kept after the client left. `xsetroot -solid` came from x11-xserver-utils
+7.7+10build2, extracted as above. The probe then mapped a white 400 by 300 window at 100, 100, and
+each cell is a root read of the 904,000 pixels outside that window two seconds later.
+
+| Background | No compositor | picom | xcompmgr |
+| --- | --- | --- | --- |
+| 1280 by 800 pixmap | the pixmap | the pixmap, 23,032 shadow pixels | the pixmap, 24,664 shadow pixels |
+| 64 by 64 pixmap | tiled | once at the origin, black elsewhere | tiled, with the shadow |
+| `xsetroot -solid`, green | green | black | gray 128, 128, 128 |
+| none | black | black | gray 128, 128, 128 |
+
+- **`xsetroot -solid`** on the TrueColor root visual set the root's background colour and wrote no
+  `_XROOTPMAP_ID`, `ESETROOT_PMAP_ID` or `_XSETROOT_ID`, so neither compositor painted it. Those
+  rows ran `Xvfb -noreset`, since without it the server resets when xsetroot, its last client,
+  leaves.
+- **A `GetImage` of the pixmap** `_XROOTPMAP_ID` names returned it whole at depth 24 under both
+  compositors, and under picom the reply named visual 0 (None), as the protocol gives for a pixmap.
+
+Method: a scratch `x11rb` client outside the repo sets the background and reads the root and the
+pixmap; the compositors ran with the fading flags above.

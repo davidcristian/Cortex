@@ -227,7 +227,7 @@ never a reading of what the tree does now.
 - **[R-271](tasks/271-macos-linux-os-backends.md)** macOS and Linux OS backends (cross-cutting). Its claim was checked against the code on 2026-10-01.
 - **[R-752](tasks/752-wayland-screen-capture-through-the-portal.md)** Wayland screen capture through the desktop portal (vision). Its claim was checked against the code on 2026-10-01.
 - **[R-765](tasks/765-a-wayland-hotkey-through-the-globalshortcuts-portal.md)** A Wayland hotkey through the GlobalShortcuts portal (cross-cutting). Its claim was checked against the code on 2026-10-01.
-- **[R-770](tasks/770-read-the-root-background-under-a-compositing-manager.md)** Read the root background under a compositing manager (vision). Its claim was checked against the code on 2026-10-01.
+- **[R-770](tasks/770-read-the-root-background-under-a-compositing-manager.md)** Read the root background under a compositing manager (vision). Its claim was checked against the code on 2026-10-02.
 
 ## Every task, by area
 
