@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import NamedTuple
 
 import rostermembers
-from rosternames import Bare, Bulleted, CodeSpans, Written
+from rosternames import Bare, Bulleted, CodeSpans, Headed, Written
 
 MODULE = re.compile(r"[a-z_]+\.py")
 PART = re.compile(r"[A-Z][A-Z_]*_COUPLINGS")
@@ -112,6 +112,19 @@ ROSTERS: tuple[Roster, ...] = (
         written=CodeSpans(pattern=MODULE),
         subject="a cross-tree scan `just check` and CI both run",
         why=SCANS,
+        members=rostermembers.cross_tree_scans,
+    ),
+    Roster(
+        label="the cross-tree scans in their own document's headings",
+        document=Path("docs/modules/repo-checks-scans.md"),
+        opens="**What they all share.**",
+        closes="a stale index is one problem, not a hundred",
+        written=Headed(),
+        subject="a cross-tree scan `just check` and CI both run",
+        why=(
+            "this page is where a reader learns what each scan compares and what fails it, and a "
+            "scan with no section here is one whose rules they can only learn from its source"
+        ),
         members=rostermembers.cross_tree_scans,
     ),
     Roster(

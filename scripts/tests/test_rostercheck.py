@@ -8,7 +8,7 @@ import rostermembers
 import rosternames
 import rosters
 from rostercheck import Fault, RosterCheckError, check, check_one, main
-from rosternames import Bare, Bulleted, CodeSpans
+from rosternames import Bare, Bulleted, CodeSpans, Headed
 from rosters import Roster
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -323,7 +323,7 @@ def test_the_repos_own_rosters_are_over_something() -> None:
 
 def test_the_repo_really_writes_a_roster_in_every_shape() -> None:
     shapes = {type(roster.written) for roster in rosters.ROSTERS}
-    assert shapes == {Bulleted, CodeSpans, Bare}
+    assert shapes == {Bulleted, Headed, CodeSpans, Bare}
 
 
 def test_the_repo_really_spends_the_allowance_for_a_borrowed_name() -> None:

@@ -47,7 +47,8 @@ Whether that covered a list of names as well as a count was open.
    is, and that name belongs to the other half. Borrowing widens what a passage may name, never
    what it may leave out, so a module that gains a CLI and stays in the second sentence is still
    reported by the first. Which direction a borrowed name's sentence points stays unread.
-5. **Three written forms.** `Bulleted` reads a list; `CodeSpans` reads code spans matching a pattern
+5. **Four written forms.** `Bulleted` reads a list; `Headed` reads the first code span of every
+   heading, for a page with one section per member; `CodeSpans` reads code spans matching a pattern
    (a module is a bare `name.py`, a part a `*_COUPLINGS` tuple name); `Bare` reads every whole word
    in the passage matching the pattern, with a guard that a match touching a word character is
    inside a longer word (a slash beside it is fine). `Bare` exists for the repo map, whose fenced
@@ -81,10 +82,11 @@ Whether that covered a list of names as well as a count was open.
     those recipes, and maps a recipe to its module through the recipe's own body. A disagreement
     between the two files is a fault rather than a union, since a document could otherwise agree
     with the half that moved; they are compared as sets.
-11. **Three copies of the scan list write the names out, and those are compared.** The list in
+11. **Four copies of the scan list write the names out, and those are compared.** The list in
     AGENTS.md and the module-doc line in [docs/index.md](../index.md) are read as code spans; the
     comment above the `cross-tree` job in `.github/workflows/ci.yml` is read as bare words, because
-    a comment counts as a roster when it names its members. The counts in the README, the justfile
+    a comment counts as a roster when it names its members; and the section headings of
+    [repo-checks-scans.md](../modules/repo-checks-scans.md) are read as headings. The counts in the README, the justfile
     comment and the repo map stay unchecked, by decision 1.
 12. **A description is not a roster.** A passage that runs through the scans as phrases names none
     of them, and checking it would mean registering each phrase per member per document, a
@@ -93,8 +95,8 @@ Whether that covered a list of names as well as a count was open.
     The workflow's header therefore no longer lists the scans: it keeps its argument that they are
     exempt from the path filter and points at the checked comment below it, because it was that
     unchecked second copy that fell out of date both times the list was found short. The Purpose
-    paragraph of the [repo-checks module doc](../modules/repo-checks.md) stays prose, left to the eye
-    ([R-631](../refinements/tasks/631-the-purpose-paragraph-describes-the-scans-by-eye.md)).
+    paragraph of the [repo-checks module doc](../modules/repo-checks.md) gives only their count, and
+    each description sits under its scan's name in the companion page that decision 11 reads.
 
 ## Consequences
 

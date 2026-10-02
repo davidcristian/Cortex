@@ -2,7 +2,18 @@ import re
 
 import pytest
 
-from rosternames import BULLET, CODE_SPAN, Bare, Bulleted, CodeSpans, PassageError, names, passage
+from rosternames import (
+    BULLET,
+    CODE_SPAN,
+    HEADING,
+    Bare,
+    Bulleted,
+    CodeSpans,
+    Headed,
+    PassageError,
+    names,
+    passage,
+)
 
 PAGE = """\
 # scripts/ (`repo-checks`)
@@ -77,6 +88,35 @@ def test_a_bullet_that_opens_without_a_name_is_a_fault_and_not_a_skip() -> None:
     unnamed = bullets().replace("- `the_probe_gives_up`", "- the probe gives up")
     with pytest.raises(PassageError, match="opens with no name"):
         names(unnamed, Bulleted())
+
+
+SECTIONS = """\
+## `linecap.py`
+
+Reads `treewalk.py` and skips `tests`.
+
+### `dashcheck.py` and its flags
+"""
+
+
+def test_a_headed_roster_names_the_first_code_span_of_every_heading() -> None:
+    assert names(SECTIONS, Headed()) == ["linecap.py", "dashcheck.py"]
+
+
+def test_a_headed_roster_ignores_the_code_spans_its_sections_contain() -> None:
+    assert "treewalk.py" not in names(SECTIONS, Headed())
+
+
+def test_a_heading_that_opens_without_a_name_is_a_fault_and_not_a_skip() -> None:
+    unnamed = SECTIONS.replace("## `linecap.py`", "## The line cap")
+    with pytest.raises(PassageError, match="the heading 'The line cap' opens with no name"):
+        names(unnamed, Headed())
+
+
+def test_a_heading_is_read_from_its_marker_at_the_start_of_the_line() -> None:
+    assert HEADING.match("#### `deep.py`") is not None
+    assert HEADING.match("#no space is no heading") is None
+    assert HEADING.match("see # `inline.py`") is None
 
 
 def test_a_written_roster_takes_every_code_span_matching_its_pattern() -> None:

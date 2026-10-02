@@ -5,14 +5,19 @@ from typing import NamedTuple
 
 CODE_SPAN = re.compile(r"`([^`]+)`")
 BULLET = re.compile(r"^ *[-*] +(.+)$")
+HEADING = re.compile(r"^#{1,6} +(.+)$")
 
 
 class PassageError(Exception):
-    """A document no longer has the passage a roster is written in, or a bullet inside it."""
+    """A document no longer has the passage a roster is written in, or a named line inside it."""
 
 
 class Bulleted(NamedTuple):
     """One bullet per member, its name the bullet's first code span."""
+
+
+class Headed(NamedTuple):
+    """One heading per member, its name the heading's first code span."""
 
 
 class CodeSpans(NamedTuple):
@@ -27,7 +32,7 @@ class Bare(NamedTuple):
     pattern: re.Pattern[str]
 
 
-Written = Bulleted | CodeSpans | Bare
+Written = Bulleted | Headed | CodeSpans | Bare
 
 
 def _once(text: str, phrase: str, which: str) -> int:
@@ -52,18 +57,18 @@ def passage(text: str, opens: str, closes: str) -> str:
     return text[start:end]
 
 
-def _bulleted(text: str) -> list[str]:
-    """Return the first code span of every bullet in ``text``, raising on a bullet without one."""
+def _leading(text: str, opener: re.Pattern[str], kind: str) -> list[str]:
+    """Return the first code span of every ``kind`` in ``text``, raising on one without one."""
     found: list[str] = []
     for line in text.splitlines():
-        bullet = BULLET.match(line)
-        if bullet is None:
+        opened = opener.match(line)
+        if opened is None:
             continue
-        span = CODE_SPAN.match(bullet.group(1))
+        span = CODE_SPAN.match(opened.group(1))
         if span is None:
             msg = (
-                f"the bullet {bullet.group(1)!r} opens with no name; a bulleted roster is one "
-                f"bullet per member, opening with the name of it"
+                f"the {kind} {opened.group(1)!r} opens with no name; a roster written as {kind}s "
+                f"is one {kind} per member, opening with the name of it"
             )
             raise PassageError(msg)
         found.append(span.group(1))
@@ -91,4 +96,6 @@ def names(text: str, written: Written) -> list[str]:
         return [span for span in spans if written.pattern.fullmatch(span)]
     if isinstance(written, Bare):
         return _bare(text, written.pattern)
-    return _bulleted(text)
+    if isinstance(written, Headed):
+        return _leading(text, HEADING, "heading")
+    return _leading(text, BULLET, "bullet")

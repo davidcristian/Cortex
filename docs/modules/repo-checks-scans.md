@@ -190,18 +190,18 @@ today, is compared instead against a whole rendered line its own package suite a
 ## `rostercheck.py`
 
 Every list a document keeps for a set the tree really has must name exactly that set (ADR-0044).
-The lists are registered in `rosters.py`: the ignored tests in the body's live suite, the modules
-in `scripts/` and the two halves the contract sorts them into, the packages and crates the repo map
-describes, and the tuples the constant registry is joined from.
+The lists are registered in `rosters.py`: the ignored tests in the body's live suite, the two halves
+the contract sorts the `scripts/` modules into, the cross-tree scans in four documents (this page's
+headings among them), the packages and crates the repo map describes, and the registry's tuples.
 
 Only the names are compared. The sentence beside each name is free, at any length and in any order,
 which is why the list is written by hand. Counts are not compared, because a number beside a list
 stops matching before the list does. Where a list begins and ends is data: two phrases the document
 already contains, each exactly once, so several lists can share one page and one sentence can close
-one and open the next. Names are read in three forms: as bullets whose name is the bullet's first
-code span, as every code span matching the list's own pattern, or bare, as every whole word matching
-it, which reaches a repo map written inside a fenced block. A name the sibling list owns is a
-reference rather than an entry, which lets one paragraph hold two lists.
+one and open the next. Names are read in four forms: as bullets or as headings, each named by its
+first code span, as every code span matching the list's own pattern, or bare, as every whole word
+matching it, which reaches a repo map written inside a fenced block. A name the sibling list owns is
+a reference rather than an entry, which lets one paragraph hold two lists.
 
 ## `flagcheck.py`
 

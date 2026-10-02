@@ -69,7 +69,7 @@ format is in [adr/README.md](adr/README.md). A new non-obvious decision becomes
 | [ADR-0041: The image variant of the injection harness](adr/ADR-0041-injection-image-variant.md) | The live harness that paints ten text attacks into three screen renderings and asks whether the framing holds over pixels. |
 | [ADR-0042: The cross-tree constant registry](adr/ADR-0042-cross-tree-constant-registry.md) | `crosscheck.py` holds every value written in more than one place, over six reducible value forms and three relations. |
 | [ADR-0043: Subagent server flags](adr/ADR-0043-subagent-server-flags.md) | `flagcheck.py` derives every subagent server from the stack's own wiring and argv. |
-| [ADR-0044: Document rosters](adr/ADR-0044-document-rosters.md) | A list of names a document keeps for a real set is compared both ways by `rostercheck.py`, in three written forms, while a tally beside it is not. |
+| [ADR-0044: Document rosters](adr/ADR-0044-document-rosters.md) | A list of names a document keeps for a real set is compared both ways by `rostercheck.py`, in four written forms, while a tally beside it is not. |
 | [ADR-0045: Documented log lines](adr/ADR-0045-documented-log-lines.md) | `samplecheck.py` compares every log line a runbook prints with the call that writes it, on level, logger, message and field names. |
 | [ADR-0046: Work identities on log lines](adr/ADR-0046-work-identities-on-log-lines.md) | A log line names its work as `session_id`, `turn_id`, `task_id`, `item_id` or `call_id`, declared once. |
 | [ADR-0047: Ordering the bounds on a delegated run](adr/ADR-0047-delegated-run-bound-ordering.md) | The stall timeout, a whole delegated dispatch, the run deadline over its attempts and the admission wait nest strictly. |

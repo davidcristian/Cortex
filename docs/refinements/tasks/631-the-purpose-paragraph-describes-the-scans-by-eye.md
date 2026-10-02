@@ -1,12 +1,8 @@
 # The Purpose paragraph describes the scans by eye
 
-**Status:** open, waiting for its trigger
+**Status:** done 2026-10-02
 **Area:** repo-checks
 **Origin:** [ADR-0044](../../adr/ADR-0044-document-rosters.md)
-**Trigger:** The Purpose paragraph of `docs/modules/repo-checks.md` is found describing a set of
-cross-tree scans other than the one `scripts/scanrecipes.py` reads out of the justfile and the
-workflow.
-**Verified:** 2026-09-19
 
 The paragraph runs through the fifteen checks as phrases, the cross-tree line cap, the
 punctuating-dash ban and so on, and names no module. The roster scan compares names, so it cannot
@@ -47,3 +43,10 @@ says it is.
   raised the count edited the paragraph in the commit that added it, so the argument above held a
   second time on a real addition. This entry's own body did not move with it and still counted
   fourteen checks; that count is repaired above.
+- 2026-10-02: done. The trigger never fired, and its subject went away: the module doc was split,
+  the Purpose paragraph now gives only a count, and each scan's description moved under a heading
+  naming its module in `docs/modules/repo-checks-scans.md`. That is the first way out named above,
+  each description beside its name, so the headings are a fourth copy of the scan list, and now a
+  checked one. A `Headed` form in `scripts/rosternames.py` reads each heading's first code span, and
+  `rosters.py` registers the page. `Bare` could not be used, because a test requires every bare
+  roster to name something no code span reaches, and `CodeSpans` would read the body's names too.
