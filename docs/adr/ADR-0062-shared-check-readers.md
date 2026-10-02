@@ -72,9 +72,9 @@ that lists what it measures is blind to a new module nobody added to the list.
    stands, and `closes(line)` whether a line would close the open block. A marker may be indented to
    any width and have an info string; a block closes only on a marker of the same character at least
    as long as the opener, so a four-backtick block holds a three-backtick line as text. The anchor
-   scan, the commit hook and the log-sample check all read it. `rosternames.py` does not strip
-   fences before cutting a roster out of a passage, because the repo map is a roster written inside
-   a fenced block.
+   scan, the commit hook, the log-sample check and the prose check all read it. `rosternames.py`
+   does not strip fences before cutting a roster out of a passage, because the repo map is a roster
+   written inside a fenced block.
 
 ### The tests read the calls
 

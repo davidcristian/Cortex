@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** repo-checks
 **Origin:** [ADR-0062](../../adr/ADR-0062-shared-check-readers.md)
-**Verified:** 2026-09-19
+**Verified:** 2026-10-02
 **Trigger:** a directory git ignores that `SKIPPED_DIRS` does not prune is itself named `tests` or
 `_generated`, the two names only the line cap skips, or sits below one, and holds a file the cap
 selects by suffix and name. The check then reports a file the line cap would never have read.
@@ -46,3 +46,9 @@ already contains a name in `EXTRA_SKIPS`.
   `backloganchors.markdown_files` walks with no skip beyond the shared list, so only the cap's half
   is imprecise. The fix assumed each repo-wide reader could be asked for its files, and the line cap
   cannot yet, which it now says.
+- 2026-10-02: checked again and left open, the trigger unfired. Git reports the same four ignored
+  directories that `SKIPPED_DIRS` does not prune, none named or below `tests` or `_generated`, and
+  the inward half still walks from each with the cap's `EXTRA_SKIPS`. `linecap.scan` still returns
+  only the files over the cap, so the remedy's split is still needed. The two repo-wide walks added
+  since, the prose and dash checks, ask git for its ignored paths and never enter one, so the
+  inward check is right to leave them out. The commits since touched the test only to rename.

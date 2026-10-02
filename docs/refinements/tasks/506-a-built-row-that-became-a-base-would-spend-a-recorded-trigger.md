@@ -4,7 +4,7 @@
 **Area:** repo-checks
 **Trigger:** a Dockerfile in this tree is built `FROM` an image this repo builds
 **Origin:** [ADR-0067](../../adr/ADR-0067-image-volume-record.md)
-**Verified:** 2026-09-19
+**Verified:** 2026-10-02
 
 A base's row now has two dimensions, and the second is read by the rule comparing a built row with
 what its base would declare into it. Every base that dimension is read from is a pulled reference
@@ -44,3 +44,9 @@ whose row cannot be refreshed, and saying so is a two-line failure.
   `brain/Dockerfile.modelhost` as `cortex-model-host`; every `image:` elsewhere is a pulled
   reference. The two failures the entry relies on are still in `scripts/dockerfilevolumes.py`, and
   `read_volumes` still returns nothing for an `ONBUILD VOLUME` line.
+- 2026-10-02: checked again, and the trigger has not fired. The tree still has only
+  `brain/Dockerfile` and `brain/Dockerfile.modelhost`, with the same four `FROM` lines, all pulled
+  references, and no `ONBUILD`. The compose files still build `./brain` twice and the model host
+  once, and no other build stanza exists. `read_volumes` still ignores an `ONBUILD VOLUME` line,
+  and the two failures for a recorded trigger are still in `scripts/dockerfilevolumes.py`; the
+  commits since changed only their wording and names.

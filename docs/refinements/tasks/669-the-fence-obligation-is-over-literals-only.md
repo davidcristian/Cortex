@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** repo-checks
 **Origin:** [ADR-0062](../../adr/ADR-0062-shared-check-readers.md)
-**Verified:** 2026-09-19
+**Verified:** 2026-10-02
 **Trigger:** a module under `scripts/` decides whether a line is a fence by testing it against
 `markdownfences.MARKERS`, or against anything read off that tuple, rather than by asking `Fences`.
 One search over the modules importing any name from `markdownfences` other than `Fences` and
@@ -18,10 +18,10 @@ about the reading being in one place, and the second is what the closing rule ma
 module testing a line against a marker has no opening run to compare against, so it is back to the
 toggle the shared reader stopped using.
 
-**Why it was left.** Nothing in this tree does it. The four modules that read markdown take their
-answer from `Fences`, three by importing it and `backloganchors.py` through the headings
+**Why it was left.** Nothing in this tree does it. The five modules that read markdown take their
+answer from `Fences`, four by importing it and `backloganchors.py` through the headings
 `headingshapes.py` hands it, and the one that deliberately does not, `rosternames.py`, reads no
-fence at all and says in its docstring why. Writing the rule now means deciding what counts as a
+fence at all, for the reason ADR-0062 decision 6 gives. Writing the rule now means deciding what counts as a
 reading built on the shared names, which is the same question
 [R-644](644-the-fence-obligation-stops-at-the-suites.md) declined to answer by shape for the suites,
 and answering it for the modules first would leave the two halves of one rule written differently.
@@ -49,3 +49,10 @@ reading kept in one place by there being one module to import from.
   holds a model's thought markers and has nothing to do with fences. No commit since the one that
   filed this entry has touched `markdownfences.py`, and the one that touched an importer since
   changed no line reading a fence.
+- 2026-10-02: checked again and left open, the trigger unfired. Four modules now import from
+  `markdownfences`, `commitlint.py`, `headingshapes.py`, `logsamples.py` and `prosereaders.py`, the
+  last split out of `prosecheck.py` on 2026-09-22, and each imports `Fences` alone. The only
+  importer of `MARKERS` is still `tests/test_markdownfences.py`, and no other `scripts/*.py` writes
+  a fence marker. The one change to `markdownfences.py` since was renaming `spelled` to
+  `marker_lines`. The paragraph above counted four readers and pointed at a docstring that has since
+  been cut to one line; it now counts five and points at the ADR. The remedy stands.
