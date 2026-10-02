@@ -128,9 +128,9 @@ services:
       retries: 5
       start_period: 180s
       start_interval: 2s
-    # Per-container caps. The cortex, the deep model and the GPU subagent are processes in one
-    # cgroup, so these cap all three together. llama.cpp maps the GGUF into memory, so model pages
-    # count against the memory cap and a cap below the file size makes a load thrash.
+    # Caps on one cgroup holding the cortex, the deep model and the GPU subagent. Mapped GGUF pages
+    # count against the memory cap, so a cap below the file makes a load thrash. A handoff measured
+    # safe at 19g and at 4 CPUs, the floors in docs/readings/model-swap.md.
     cpus: "${CORTEX_MODELHOST_CPUS:-8.0}"
     mem_limit: "${CORTEX_MODELHOST_MEMORY:-24g}"
     memswap_limit: "${CORTEX_MODELHOST_MEMSWAP:-24g}"

@@ -153,7 +153,13 @@ The one hard rule, 100% coverage without a GPU, and ports before adapters all ho
     the hard twin of decision 4's soft budgets, and inside the supervisor the cortex, the deep
     model and the GPU subagent share one cgroup, so no per-model cap exists. llama.cpp maps the
     GGUF, so mapped pages count against the memory cap and a cap below the artifact makes a load
-    thrash rather than fail.
+    thrash rather than fail. The model host defaults to 24g and 8 CPUs. A tier-scale handoff was
+    safe at 19g and at 4 CPUs, its load within 1.25 times and its decode within 0.9 of the default
+    stack's, so those are the measured floors; the cgroup's `memory.peak` stayed 1.09 to 1.10 times
+    the deep artifact under every cap
+    ([readings](../readings/model-swap.md#a-handoff-through-the-conductor)). The default stays 24g:
+    each lower memory cap decoded 0.93 times on one short reply, inside the safe line but not shown
+    to cost nothing.
 
 16. **A task record may expire before its spawn is admitted.** `RedisTaskStore` keeps
     `cortex:task:{id}` and its result for 3600 s against a 7200 s wait. That is deliberate: `run`
@@ -211,7 +217,7 @@ The one hard rule, 100% coverage without a GPU, and ports before adapters all ho
 
 ## Related
 
-- Readings: [subagent budget](../readings/subagent-budget.md),
+- Readings: [subagent budget](../readings/subagent-budget.md), [model swap](../readings/model-swap.md),
   [delegated run holds](../readings/delegated-run-holds.md),
   [co-residency](../readings/co-residency.md).
 - Runbook: [subagents-cpu](../runbooks/subagents-cpu.md); host items in

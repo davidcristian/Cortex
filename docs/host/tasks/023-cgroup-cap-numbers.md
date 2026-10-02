@@ -6,12 +6,17 @@
 **Origin:** [ADR-0012](../../adr/ADR-0012-resource-governance.md)
 **Verified:** 2026-10-02
 
-Tag **W+G**, re-scoped 2026-10-02. The numbers themselves, measured under a real handoff, are
-agent work on the 24 GB card through a client that approves the confirm card, filed as
+Tag **W+G**, re-scoped 2026-10-02. The numbers themselves, measured under a real handoff, are agent
+work on the 24 GB card through a client that approves the confirm card, filed as
 [R-772](../../refinements/tasks/772-a-headless-client-that-approves-the-handoff-card.md): its caps
 row reads load time, decode rate and the cgroup's `memory.peak` at the shipped values and below
 them, and sets the defaults. What stays here is the one bar no agent can read: the user's own "is
 this machine still usable while gaming" judgement on the Windows desktop while a handoff runs.
+R-772's caps row drew on 2026-10-02: 21g and 19g with 8 CPUs and 24g with 4 CPUs were each safe
+under its rule, and every load took at most 0.32 of `CORTEX_SWAP_LOAD_TIMEOUT_S`, so
+[ADR-0012](../../adr/ADR-0012-resource-governance.md) names 19g and 4 CPUs as the measured floors
+and keeps 24g and 8 CPUs as the defaults
+([readings](../../readings/model-swap.md#a-handoff-through-the-conductor)).
 
 **What only this proves.** That the values R-772 sets leave the machine usable for the person at
 it. [ADR-0012](../../adr/ADR-0012-resource-governance.md) ships `CORTEX_MODELHOST_CPUS`,
@@ -53,3 +58,5 @@ where the user's values differ from R-772's.
   handoff it was waiting for can be started by any client that answers the confirm card, so the
   cap numbers went to
   [R-772](../../refinements/tasks/772-a-headless-client-that-approves-the-handoff-card.md).
+- 2026-10-02: R-772 drew the caps headless; the floors it measured, 19g and 4 CPUs, are the
+  lower bound for the CPU value this item lowers.

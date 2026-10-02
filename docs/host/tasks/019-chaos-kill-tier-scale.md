@@ -7,10 +7,13 @@
 **Verified:** 2026-10-02
 
 Blocked on the overlay, for what the user sees and nothing else. Re-scoped 2026-10-02: the kill
-itself, and the checks that the cortex comes back, the session survives and the next turn works,
-are agent work on the 24 GB card through a client that approves the confirm card, filed as
+itself, and the checks that the cortex comes back, the session survives and the next turn works, are
+agent work on the 24 GB card through a client that approves the confirm card, filed as
 [R-772](../../refinements/tasks/772-a-headless-client-that-approves-the-handoff-card.md). What stays
-here is how the overlay shows a handoff that died.
+here is how the overlay shows a handoff that died. R-772's kill row drew on 2026-10-02 and the hard
+rule held for a kill at load and one mid reply: each turn ended with its note, the cortex came back
+and the next turn in the chat named the earlier question
+([readings](../../readings/model-swap.md#a-handoff-through-the-conductor)).
 
 **What only this proves.** That the user sees an accurate failure. When the deep tier's
 `llama-server` dies mid answer or mid load, the panel shows the turn's failure as the stream sends
@@ -52,3 +55,5 @@ the failure differently from what it says.
   handoff in flight can come from any client holding the `Converse` stream, so the kill and the
   hard-rule checks went to
   [R-772](../../refinements/tasks/772-a-headless-client-that-approves-the-handoff-card.md).
+- 2026-10-02: R-772 drew the kill headless and the hard rule held, so what stays here is the
+  overlay alone.

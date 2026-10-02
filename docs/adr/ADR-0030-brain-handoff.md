@@ -175,9 +175,9 @@ resident through a handoff is the opt-in of [ADR-0055](ADR-0055-co-residency-and
 
 ### 9. What remains on the host
 
-The mechanism is validated in Docker with small stand-in tiers and with the real cortex on the 24 GB
-card. A tier-scale handoff, its kill and its timings need a client that approves the confirm card,
-headless or the overlay. The overlay's own view: [docs/host/](../host/index.md#gpu-tier-scale).
+The mechanism is validated at tier scale on the 24 GB card through a headless client approving the
+card ([readings](../readings/model-swap.md#a-handoff-through-the-conductor)): handoffs complete and
+a kill keeps the chat and the cortex. The overlay's view: [docs/host/](../host/index.md#gpu-tier-scale).
 
 ### 10. A handoff that failed says why, on the record
 
@@ -220,8 +220,8 @@ the cortex unloaded.
 1. **The tainted-turn deny** rests on the eviction argument alone, with 0 of 10 measured beside it.
 2. **The model-host sidecar** is privileged (GPU, models mount, process control), on the compose
    network only.
-3. **Swap latency** is the loads: an eviction costs about 1% of the deep load, and the whole swap
-   about 1.5 times that load warm ([model swap](../readings/model-swap.md)).
+3. **Swap latency** is the loads: an eviction costs about 1% of a deep load, a handoff turn 1.5
+   to 1.65 times it, and the slowest load 0.32 of the 300 s bound ([readings](../readings/model-swap.md)).
 4. **Two assistant messages share one turn id**, and **the deep phase uses the cortex's
    dispatcher**, spawn included; narrowing it is wiring.
 

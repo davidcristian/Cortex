@@ -53,14 +53,14 @@ is a handoff through the brain's conductor, from an approved card to the cortex 
    is where [ADR-0022](../../adr/ADR-0022-email-write-confirmer.md) puts it. Against the Echo brain
    on CPU a `deny` turn completed and an `approve` turn failed on the missing card, as it should;
    the Echo fake calls no tool, so the first card row is the first run of the approve path.
-2. **The rows** are queued, not drawn: `measurements/sitting-2026-10-02b/drivers/` holds the
-   launcher, the queue and one driver per row, and each row below was written here before any
-   draw. The prices are twice the estimate, because both tiers think before they answer. The
-   `cortex-brain` and `cortex-model-host` images were rebuilt on 2026-10-02 from the tree that
-   filed this task, the second on the local `server-cuda` engine image the night's other card rows
-   use. Every row runs the stack as compose project `cortexswap`, with its own Redis volume: the
-   deep tier named at 16384 with no drafter, `CORTEX_ESCALATION=1`,
-   `CORTEX_MODELHOST_BACKEND=supervisor`, the loopback override, and a fresh `CORTEX_SEAM_TOKEN`.
+2. **The rows**: `measurements/sitting-2026-10-02b/drivers/` holds the launcher, the queue and one
+   driver per row, and each row below was written here before any draw. The prices are twice the
+   estimate, because both tiers think before they answer. The `cortex-brain` and `cortex-model-host`
+   images were rebuilt on 2026-10-02 from the tree that filed this task, the second on the local
+   `server-cuda` engine image the night's other card rows use. Every row runs the stack as compose
+   project `cortexswap`, with its own Redis volume: the deep tier named at 16384 with no drafter,
+   `CORTEX_ESCALATION=1`, `CORTEX_MODELHOST_BACKEND=supervisor`, the loopback override, and a fresh
+   `CORTEX_SEAM_TOKEN`.
    Beside each handoff it reads the sidecar's `GET /models/cortex` and `/models/brain` every 1 s,
    `nvidia-smi` used memory and SM clock every 5 s, the container cgroup's `memory.current` and
    `memory.peak` every 5 s, and `Health` every 2 s through the client.
@@ -108,6 +108,32 @@ is a handoff through the brain's conductor, from an approved card to the cortex 
    runbooks, edits ADR-0030 where a row changes what it states, and edits
    [ADR-0012](../../adr/ADR-0012-resource-governance.md) and the compose comment on the caps for
    the values the caps row sets.
+4. **The draw and its replication.** All three rows exited 1 on one client defect, fixed: the brain
+   sends the working detail again when the deep generation ends, and the client read that as a
+   phase out of order. Read by hand under the rules above, every approved handoff completed and
+   the cortex came back, both kills kept the chat, and every cap pair is safe; the figures are in
+   [model swap](../../readings/model-swap.md#a-handoff-through-the-conductor). In 7 of 7 completed
+   handoffs the deep reply restated the handoff instead of answering, filed as
+   [R-777](777-the-deep-model-restates-the-handoff.md). Against the predictions: the cortex called
+   the tool in every turn. Five of seven later loads came in just under the 0.9 to 1.6 band, at
+   0.88 to 0.90 times the control load, and the first was 1.36 against at most 1.9. The swap back
+   was 0.95 to 1.08 against 0.8 to 1.5. The card peaked 19801 MiB above a floor that read 630 MiB,
+   not 3.4 GB, so the absolute 22.6 to 23.6 GB missed while the deep tier's own cost matched.
+   `memory.peak` reached no cap, against the page cache filling each one, and 4 CPUs loaded at 0.99
+   and decoded at 1.00. No load came near 240 s, so `CORTEX_SWAP_LOAD_TIMEOUT_S` stays 300 s.
+   - **`772swapb`** and **`772killb`**, appended to run 2's queue after its last written row, run
+     `swap.sh` and `kill.sh` unchanged with the client rebuilt at the fix (its commit in
+     `drivers/handoff_live.commit`), priced at about twice their first walls (800 s and 400 s).
+     *Decides* whether the fixed client passes what the first draw passed by hand. *Prediction:*
+     both exit 0. Every handoff ends `Complete` with the working detail sent twice. A load is
+     0.85 to 1.0 times the control API's 70.03 s, and the stack's first is 0.85 to 1.4 times it,
+     depending on whether the night's other rows left the artifact in the page cache. The swap back
+     is 0.9 to 1.1 times 31.43 s, the cgroup's `memory.peak` 19.2 to 19.6 GB, and the deep reply
+     restates the handoff in at least two of the three swap turns. Both kills end as they did and
+     both ordinary turns name the question. *Null result:* a client failure that is not a new
+     defect means the fix missed a case, and it is read before anything else changes.
+   - **The close** is the slot that reads the replication: this task was filed on 2026-10-02 and
+     is unpublished, so that slot deletes the file and its mentions instead of closing it.
 
 ## History
 
@@ -120,3 +146,7 @@ is a handoff through the brain's conductor, from an approved card to the cortex 
   now reads a Rust or TypeScript string holding a `;`.
 - 2026-10-02: the three card rows are written above with their drivers, rules and predictions, and
   queued behind the night's first card run in `measurements/sitting-2026-10-02b/`, none drawn yet.
+- 2026-10-02: drawn in run 2 from 04:22 to 04:41. Every failure was the client's phase assertion,
+  fixed on the client side, since the repeat is the wait record's designed restatement of the swap
+  wait when a nested wait closes. Readings recorded, ADR-0030, ADR-0012, the runbooks and the
+  compose comment edited, R-777 filed, and the replication queued as `772swapb` and `772killb`.

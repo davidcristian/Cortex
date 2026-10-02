@@ -7,12 +7,17 @@
 **Verified:** 2026-10-02
 
 Blocked on the overlay, for what the user sees and nothing else. Re-scoped 2026-10-02: the VRAM
-arithmetic, the phases of the swap and the `Health` readings during the window are agent work on
-the 24 GB card through a client that approves the confirm card, filed as
+arithmetic, the phases of the swap and the `Health` readings during the window are agent work on the
+24 GB card through a client that approves the confirm card, filed as
 [R-772](../../refinements/tasks/772-a-headless-client-that-approves-the-handoff-card.md). The
 approval is a `ConfirmResponse` on the `Converse` stream, which any client holding the stream can
 send, and the body's own client already sends one, so the overlay was never the only way to start a
-handoff. What stays here is the overlay's view of one.
+handoff. What stays here is the overlay's view of one. R-772's swap row drew on 2026-10-02: every
+approved handoff completed with the four details and returned the cortex
+([readings](../../readings/model-swap.md#a-handoff-through-the-conductor)). The deep reply restated
+the handoff instead of answering
+([R-777](../../refinements/tasks/777-the-deep-model-restates-the-handoff.md)), so until that is
+fixed the panel shows that sentence where the answer belongs.
 
 **What only this proves.** That the overlay shows a real handoff accurately: the
 `escalate_to_brain` card with the tool's reason as written, the approval sent by a click, the
@@ -58,3 +63,5 @@ wherever the overlay shows the window differently from what that runbook says.
   confirm card is answered by any client holding the `Converse` stream and that the body's own
   client already sends a `ConfirmDecision`, so the swap, its arithmetic and the `Health` readings
   went to [R-772](../../refinements/tasks/772-a-headless-client-that-approves-the-handoff-card.md).
+- 2026-10-02: drawn by R-772 headless: the swap passed its rule, read by hand after a client fix,
+  so what stays here is the overlay alone.
