@@ -2,7 +2,8 @@
 
 Pixel counts of `CaptureScreen` replies from the linked Linux shell under the conditions a real X11
 desktop adds to a bare `Xvfb`, of single windows read directly under a compositor, of the
-capture built from those reads, and of the root background a compositor paints. Cited by
+capture built from those reads, of the root background a compositor paints, and of the capture
+that reads that background. Cited by
 [ADR-0029](../adr/ADR-0029-vision-screen-capture.md) decision 10.
 
 ## Method
@@ -137,3 +138,29 @@ each cell is a root read of the 904,000 pixels outside that window two seconds l
 
 Method: a scratch `x11rb` client outside the repo sets the background and reads the root and the
 pixmap; the compositors ran with the fading flags above.
+
+## With the background read
+
+**2026-10-02.** The same `Xvfb` with no window manager. A probe client set a background as in the
+section above, mapped a white window A, 400 by 300 at 100, 100, naming the probe's process in
+`_NET_WM_PID`, and a white window B, 200 by 200 at 700, 400, naming none, and two seconds later
+took a capture and a plain read of the root. Each cell counts the 864,000 pixels outside both
+windows: "once" is the pixmap from the root's corner, "tiled" the pixmap repeated past its edge.
+
+| Background | Manager | Capture | Plain read |
+| --- | --- | --- | --- |
+| 1280 by 800 | none | 864,000 once | 864,000 once |
+| 1280 by 800 | picom | 864,000 once | 827,536 once, 36,464 shadow |
+| 1280 by 800 | xcompmgr | 864,000 once | 824,872 once, 39,128 shadow |
+| 64 by 64 | none | 4,096 once, 859,904 tiled | the same |
+| 64 by 64 | picom | 4,096 once, 859,904 black | the same |
+| 64 by 64 | xcompmgr | 4,096 once, 859,904 black | 4,096 once, 820,776 tiled, 39,128 shadow |
+| none | none or picom | 864,000 black | 864,000 black |
+| none | xcompmgr | 864,000 black | 824,872 gray, 39,128 shadow |
+
+- In every capture A was all black, its 120,000 pixels, and B all white, its 40,000.
+- **Before the background read**, the same probe linked from the tree without it gave 864,000
+  black outside the windows under picom with the 1280 by 800 pixmap.
+
+Method: a scratch crate outside the repo links `os-linux` from the working tree and captures with
+`LinuxScreenCapture` over `X11Root`; the compositors ran with the fading flags above.

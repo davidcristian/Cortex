@@ -1,21 +1,17 @@
 //! The X11 adapter for [`RootGrab`](crate::RootGrab), over `x11rb` and its `RandR` extension.
 
+mod pixels;
+mod tree;
+
 use x11rb::connection::Connection;
 use x11rb::cookie::Cookie;
 use x11rb::errors::{ConnectError, ConnectionError, ReplyError};
 use x11rb::protocol::randr::{ConnectionExt as _, MonitorInfo};
-use x11rb::protocol::xproto::{
-    Atom, AtomEnum, ConnectionExt, GetGeometryReply, GetImageReply, GetPropertyReply,
-    GetWindowAttributesReply, ImageFormat, ImageOrder, MapState, QueryTreeReply, Screen, Window,
-    WindowClass,
-};
+use x11rb::protocol::xproto::{ConnectionExt, Screen};
 use x11rb::rust_connection::RustConnection;
 use x11rb::x11_utils::TryParse;
 
-use crate::compose::{Piece, pieces};
-use crate::screen::{
-    Area, GrabError, Layer, Layout, Monitor, RootGrab, RootImage, Snapshot, TreeWindow,
-};
+use crate::screen::{Area, GrabError, Layout, Monitor, Pixels, RootGrab, Snapshot};
 
 /// One screen of an X server connection, or a server that could not be reached.
 pub struct X11Root {
@@ -86,187 +82,32 @@ impl RootGrab for X11Root {
     }
 }
 
-/// Reads `area` of the root window of screen `number`, lists every window under it, asks whether
-/// a compositing manager owns the screen and, if one does, reads each top-level window inside `area`.
+/// Lists every window under the root of screen `number`, asks whether a compositing manager owns
+/// the screen, then reads `area` from the root if none does, or in layers if one does.
 fn read(
     connection: &RustConnection,
     screen: &Screen,
     number: usize,
     area: Area,
 ) -> Result<Snapshot, ReplyError> {
-    image(connection, screen, area).and_then(|image| {
-        answer(connection.intern_atom(false, b"_NET_WM_PID"))
-            .and_then(|pid| windows(connection, screen.root, pid.atom))
-            .and_then(|(windows, ids)| {
-                let selection = format!("_NET_WM_CM_S{number}");
-                answer(connection.intern_atom(false, selection.as_bytes()))
-                    .and_then(|name| answer(connection.get_selection_owner(name.atom)))
-                    .and_then(|owner| {
-                        let composited = owner.owner != x11rb::NONE;
-                        let layers = if composited {
-                            layers(connection, screen, &windows, &ids, area)?
-                        } else {
-                            Vec::new()
-                        };
-                        Ok(Snapshot {
-                            image,
-                            windows,
-                            composited,
-                            layers,
-                        })
-                    })
-            })
-    })
-}
-
-/// Reads the pixels of `area` with the format the setup describes them in.
-fn image(
-    connection: &RustConnection,
-    screen: &Screen,
-    area: Area,
-) -> Result<RootImage, ReplyError> {
-    let Area {
-        x,
-        y,
-        width,
-        height,
-    } = area;
-    answer(connection.get_image(ImageFormat::Z_PIXMAP, screen.root, x, y, width, height, !0))
-        .map(|reply| picture(connection, screen, area, reply))
-}
-
-/// Reads the part of each viewable top-level window inside `area`, bottom to top.
-fn layers(
-    connection: &RustConnection,
-    screen: &Screen,
-    windows: &[TreeWindow],
-    ids: &[Window],
-    area: Area,
-) -> Result<Vec<Layer>, ReplyError> {
-    let read = |piece: Piece| {
-        let Area {
-            x,
-            y,
-            width,
-            height,
-        } = piece.inside;
-        let id = ids[piece.window];
-        answer(connection.get_image(ImageFormat::Z_PIXMAP, id, x, y, width, height, !0)).map(
-            |reply| Layer {
-                place: piece.place,
-                image: picture(connection, screen, piece.inside, reply),
-            },
-        )
-    };
-    pieces(windows, area).into_iter().map(read).collect()
-}
-
-/// Describes the pixels of one read of `area` by its depth's pixmap format and its visual's masks.
-fn picture(
-    connection: &RustConnection,
-    screen: &Screen,
-    area: Area,
-    reply: GetImageReply,
-) -> RootImage {
-    let setup = connection.setup();
-    let bits_per_pixel = setup
-        .pixmap_formats
-        .iter()
-        .find(|format| format.depth == reply.depth)
-        .map_or(0, |format| format.bits_per_pixel);
-    let masks = screen
-        .allowed_depths
-        .iter()
-        .flat_map(|depth| &depth.visuals)
-        .find(|visual| visual.visual_id == reply.visual)
-        .map_or((0, 0, 0), |visual| {
-            (visual.red_mask, visual.green_mask, visual.blue_mask)
-        });
-    RootImage {
-        width: u32::from(area.width),
-        height: u32::from(area.height),
-        depth: reply.depth,
-        bits_per_pixel,
-        lsb_first: setup.image_byte_order == ImageOrder::LSB_FIRST,
-        masks,
-        data: reply.data,
-    }
-}
-
-/// The four requests sent for one window, in the order they are answered.
-type Asked<'c> = (
-    Option<usize>,
-    Sent<'c, GetWindowAttributesReply>,
-    Sent<'c, GetGeometryReply>,
-    Sent<'c, GetPropertyReply>,
-    Sent<'c, QueryTreeReply>,
-);
-type Sent<'c, R> = Result<Cookie<'c, RustConnection, R>, ConnectionError>;
-
-/// Lists every window under `root` one level at a time, each after its parent, with their ids.
-fn windows(
-    connection: &RustConnection,
-    root: Window,
-    pid: Atom,
-) -> Result<(Vec<TreeWindow>, Vec<Window>), ReplyError> {
-    let mut windows = Vec::new();
-    let mut ids = Vec::new();
-    let mut level: Vec<(Option<usize>, Window)> = answer(connection.query_tree(root))?
-        .children
-        .into_iter()
-        .map(|child| (None, child))
-        .collect();
-    while !level.is_empty() {
-        ids.extend(level.iter().map(|(_, window)| *window));
-        let asked: Vec<Asked<'_>> = level
-            .into_iter()
-            .map(|(parent, window)| {
-                (
-                    parent,
-                    connection.get_window_attributes(window),
-                    connection.get_geometry(window),
-                    connection.get_property(false, window, pid, AtomEnum::CARDINAL, 0, 1),
-                    connection.query_tree(window),
-                )
-            })
-            .collect();
-        level = Vec::new();
-        for asked in asked {
-            let index = windows.len();
-            let (window, children) = window(asked)?;
-            windows.push(window);
-            level.extend(children.into_iter().map(|child| (Some(index), child)));
-        }
-    }
-    Ok((windows, ids))
-}
-
-/// Reads the four answers about one window: the window, then its children.
-fn window(asked: Asked<'_>) -> Result<(TreeWindow, Vec<Window>), ReplyError> {
-    let (parent, attributes, geometry, property, tree) = asked;
-    answer(attributes).and_then(|attributes| {
-        answer(geometry).and_then(|geometry| {
-            answer(property).and_then(|property| {
-                answer(tree).map(|tree| {
-                    let window = TreeWindow {
-                        parent,
-                        area: Area {
-                            x: geometry.x,
-                            y: geometry.y,
-                            width: geometry.width,
-                            height: geometry.height,
-                        },
-                        border: geometry.border_width,
-                        viewable: attributes.map_state == MapState::VIEWABLE,
-                        pid: property.value32().and_then(|mut values| values.next()),
-                        input_only: attributes.class == WindowClass::INPUT_ONLY,
-                    };
-                    (window, tree.children)
+    answer(connection.intern_atom(false, b"_NET_WM_PID"))
+        .and_then(|pid| tree::windows(connection, screen.root, pid.atom))
+        .and_then(|(windows, ids)| {
+            let selection = format!("_NET_WM_CM_S{number}");
+            answer(connection.intern_atom(false, selection.as_bytes()))
+                .and_then(|name| answer(connection.get_selection_owner(name.atom)))
+                .and_then(|owner| {
+                    if owner.owner == x11rb::NONE {
+                        pixels::root(connection, screen, area).map(Pixels::Root)
+                    } else {
+                        pixels::layers(connection, screen, &windows, &ids, area).map(Pixels::Layers)
+                    }
                 })
-            })
+                .map(|pixels| Snapshot { windows, pixels })
         })
-    })
 }
+
+type Sent<'c, R> = Result<Cookie<'c, RustConnection, R>, ConnectionError>;
 
 /// Waits for the reply to a request, or returns why it was not sent or failed.
 fn answer<R: TryParse>(sent: Sent<'_, R>) -> Result<R, ReplyError> {

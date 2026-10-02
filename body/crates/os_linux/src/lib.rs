@@ -22,8 +22,8 @@ pub use keys::X11Keys;
 pub use notify::{BusError, BusMessage, LinuxNotify, NotificationBus};
 pub use pactl::{PACTL_PROGRAM, PactlCommand};
 pub use screen::{
-    Area, GrabError, Layer, Layout, LinuxScreenCapture, Monitor, RootGrab, RootImage, Snapshot,
-    TreeWindow,
+    Area, GrabError, Layer, Layout, LinuxScreenCapture, Monitor, Pixels, RootGrab, RootImage,
+    Snapshot, TreeWindow,
 };
 pub use x11::X11Root;
 /// The X11 client the capture and hotkey backends are built on. A host opens the display with it.

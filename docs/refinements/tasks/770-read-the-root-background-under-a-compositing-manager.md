@@ -1,9 +1,8 @@
 # Read the root background under a compositing manager
 
-**Status:** open, optional feature
+**Status:** done 2026-10-02
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-10-02
 
 Under a compositing manager the Linux capture paints each viewable top-level window read on its own
 over black ([body-os](../../modules/body-os.md)), so where no window lies the picture is black. A
@@ -40,7 +39,12 @@ whose pixels outside every window match the pixmap, with no shadow pixel.
 
 - 2026-10-01: Filed when the capture under a compositing manager was built from window reads over
   black.
-- 2026-10-02: Checked on `Xvfb` under picom and xcompmgr. The black and the discarded root read
-  hold, but `xsetroot` writes no property, picom paints a small pixmap once rather than tiled, and a
-  pixmap read names no visual, so the change now names the property's writers, the origin rule, the
-  root visual and the fallbacks. Left open.
+- 2026-10-02: Checked on `Xvfb` under picom and xcompmgr: `xsetroot` writes no property, picom
+  paints a small pixmap once rather than tiled, and a pixmap read names no visual, so the plan above
+  names the property's writers, the origin rule, the root visual and the fallbacks. Built to it:
+  the grab asks for the selection's owner before any pixel read and returns `Pixels::Root` or
+  `Pixels::Layers`, the background pixmap is the bottom layer, `x11.rs` is split into the grab,
+  `x11/tree.rs` and `x11/pixels.rs`, and the `x11` suite's fake server numbers each reply itself.
+  Under picom with a screen-sized pixmap the capture matched it on all 864,000 pixels outside the
+  windows, with no shadow pixel, against 864,000 black before
+  ([x11-overlay-capture](../../readings/x11-overlay-capture.md)). Closed.

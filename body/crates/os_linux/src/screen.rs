@@ -86,17 +86,22 @@ pub struct Layer {
     pub image: RootImage,
 }
 
+/// The pixels of one rectangle, read from the root or, under a compositing manager, in layers.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Pixels {
+    /// The root's own pixels, when no compositing manager owns the screen's `_NET_WM_CM_S` selection.
+    Root(RootImage),
+    /// When one does, the root background if one is read, then each top-level window, bottom to top.
+    Layers(Vec<Layer>),
+}
+
 /// The pixels of one rectangle and every window under the root, read in one server grab.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Snapshot {
-    /// The rectangle's pixels.
-    pub image: RootImage,
     /// Every window under the root, each listed after its parent.
     pub windows: Vec<TreeWindow>,
-    /// Whether a compositing manager owns the screen's `_NET_WM_CM_S` selection.
-    pub composited: bool,
-    /// When `composited`, each top-level window's pixels, bottom to top; otherwise none.
-    pub layers: Vec<Layer>,
+    /// The rectangle's pixels.
+    pub pixels: Pixels,
 }
 
 /// Why reading the root window failed.
@@ -117,7 +122,7 @@ pub trait RootGrab: Send + Sync {
     /// [`GrabError`] when there is no server or the request fails.
     fn layout(&self) -> Result<Layout, GrabError>;
 
-    /// Reads `area`, every window, any compositing manager and its windows' pixels in one grab.
+    /// Reads every window and the pixels of `area`, from the root or in layers, in one grab.
     ///
     /// # Errors
     ///
@@ -148,18 +153,14 @@ impl<G: RootGrab> ScreenCapture for LinuxScreenCapture<G> {
             )));
         }
         let area = primary(&self.root.layout().map_err(classify)?);
-        let Snapshot {
-            image,
-            windows,
-            composited,
-            layers,
-        } = self.root.grab(area).map_err(classify)?;
+        let Snapshot { windows, pixels } = self.root.grab(area).map_err(classify)?;
         let own = own_windows(&windows, self.process)?;
-        let (width, height, mut pixels) = if composited {
-            let pixels = compose(area, layers)?;
-            (u32::from(area.width), u32::from(area.height), pixels)
-        } else {
-            to_bgra(image)?
+        let (width, height, mut pixels) = match pixels {
+            Pixels::Root(image) => to_bgra(image)?,
+            Pixels::Layers(layers) => {
+                let pixels = compose(area, layers)?;
+                (u32::from(area.width), u32::from(area.height), pixels)
+            }
         };
         black_out(&mut pixels, area, &own);
         Ok(CapturedFrame::display(RawFrame::new(

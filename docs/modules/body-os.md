@@ -150,21 +150,30 @@ decision 13).
   output reaches the picture, and the body's windows are then painted black as above. A window
   read is clipped to the monitor, because an off-screen part of a window the manager does not
   redirect fails with `BadMatch`. Each part is converted in its own depth and visual by the same
-  rule as the root, and the alpha of a depth-32 window is dropped, so it is painted opaque. Where
-  no window lies the picture is black rather than the root background
-  ([770](../refinements/tasks/770-read-the-root-background-under-a-compositing-manager.md)), and a
+  rule as the root, and the alpha of a depth-32 window is dropped, so it is painted opaque. A
   top-level window's border is not read.
+- **The root background is the bottom layer.** When the root's `_XROOTPMAP_ID` names a pixmap at
+  the root's depth, as feh and similar setters write it, the port reads the part of it inside the
+  monitor, from the root's corner and not tiled, as picom paints it, and describes that read by
+  the root visual, since a pixmap's `GetImage` reply names visual 0. With no property, a pixmap of
+  another depth, a pixmap the server no longer has, or none of it on the monitor, the base stays
+  black and the capture goes on. picom paints black where it has no background, so the capture
+  matches its screen; xcompmgr tiles a small pixmap and paints gray where there is none, so there
+  the capture differs ([x11-overlay-capture](../readings/x11-overlay-capture.md)). `xsetroot
+  -solid` writes no property, so neither manager nor the capture shows its colour.
 - **`X11Root`** lists the active monitors with RandR 1.5's `GetMonitors`, which reports each
   monitor's primary flag and rectangle in one request; a server without the extension lists none,
-  and an X error to the request fails the capture as `Backend`. It then sends `GrabServer`, one
-  `GetImage` (`ZPixmap`, every plane) for the chosen rectangle of the root of one screen of an
-  `x11rb::rust_connection::RustConnection` it is given, and lists the window tree a level at a
-  time with `QueryTree`, `GetWindowAttributes`, `GetGeometry` and a `CARDINAL` `GetProperty` of
-  `_NET_WM_PID` per window, then `GetSelectionOwner` of `_NET_WM_CM_S` and the screen's number,
-  then, when the selection has an owner, one `GetImage` per part `pieces` lists, on the window
-  itself, and then sends and flushes `UngrabServer`, also after a failed read. No other client can map,
-  move or draw a window between the read and the list. It reads the bits per pixel, byte order
-  and visual masks of each read from the connection's setup. The crate re-exports `x11rb`, and the
+  and an X error to the request fails the capture as `Backend`. It then sends `GrabServer` on one
+  screen of an `x11rb::rust_connection::RustConnection` it is given, lists the window tree a level
+  at a time with `QueryTree`, `GetWindowAttributes`, `GetGeometry` and a `CARDINAL` `GetProperty`
+  of `_NET_WM_PID` per window, and asks `GetSelectionOwner` of `_NET_WM_CM_S` and the screen's
+  number. With no owner it sends one `GetImage` (`ZPixmap`, every plane) for the chosen rectangle
+  of the root, and returns `Pixels::Root`. With an owner it sends a `PIXMAP` `GetProperty` of
+  `_XROOTPMAP_ID` on the root, `GetGeometry` and `GetImage` of the pixmap named, then one
+  `GetImage` per part `pieces` lists, on the window itself, and returns `Pixels::Layers`, so the
+  root's own pixels are never read there. It then sends and flushes `UngrabServer`, also after a
+  failed read. No other client can map, move or draw a window between the reads and the list. It
+  reads the bits per pixel, byte order and visual masks of each read from the connection's setup. The crate re-exports `x11rb`, and the
   host opens the display with `x11rb::connect(None)`. When that fails, as on a Wayland session with no
   `DISPLAY`, `X11Root::absent(&error)` makes every read `NoDisplay`. Rootless Xwayland, such as
   WSLg's, answers `GetImage` on its root with `BadMatch`, so the read fails as `Backend` rather

@@ -4,8 +4,8 @@ use std::sync::{Arc, Mutex, PoisonError};
 
 use body_core::{CaptureError, CaptureRequest, CaptureTarget, ScreenCapture};
 use os_linux::{
-    Area, GrabError, Layer, Layout, LinuxScreenCapture, Monitor, RootGrab, RootImage, Snapshot,
-    TreeWindow,
+    Area, GrabError, Layer, Layout, LinuxScreenCapture, Monitor, Pixels, RootGrab, RootImage,
+    Snapshot, TreeWindow,
 };
 
 const MASKS: (u32, u32, u32) = (0x00ff_0000, 0x0000_ff00, 0x0000_00ff);
@@ -22,10 +22,8 @@ type Calls = Arc<Mutex<Vec<Option<Area>>>>;
 /// A fake root window with a scripted layout and grab; it records each call, `None` for a layout.
 struct FakeRoot {
     layout: Result<Layout, GrabError>,
-    answer: Result<RootImage, GrabError>,
+    answer: Result<Pixels, GrabError>,
     windows: Vec<TreeWindow>,
-    composited: bool,
-    layers: Vec<Layer>,
     calls: Calls,
 }
 
@@ -43,11 +41,9 @@ impl RootGrab for FakeRoot {
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
             .push(Some(area));
-        self.answer.clone().map(|image| Snapshot {
-            image,
+        self.answer.clone().map(|pixels| Snapshot {
             windows: self.windows.clone(),
-            composited: self.composited,
-            layers: self.layers.clone(),
+            pixels,
         })
     }
 }
@@ -115,10 +111,8 @@ fn counted(
     let calls = Arc::new(Mutex::new(Vec::new()));
     let root = FakeRoot {
         layout,
-        answer,
+        answer: answer.map(Pixels::Root),
         windows: vec![hidden()],
-        composited: false,
-        layers: Vec::new(),
         calls: Arc::clone(&calls),
     };
     (LinuxScreenCapture::new(root, PROCESS), calls)
@@ -144,10 +138,8 @@ fn blacked(windows: Vec<TreeWindow>) -> Result<Vec<String>, CaptureError> {
     (lit.width, lit.height) = (4, 3);
     let root = FakeRoot {
         layout: Ok(layout),
-        answer: Ok(lit),
+        answer: Ok(Pixels::Root(lit)),
         windows,
-        composited: false,
-        layers: Vec::new(),
         calls: Arc::new(Mutex::new(Vec::new())),
     };
     let frame = LinuxScreenCapture::new(root, PROCESS).capture(&display())?;
@@ -433,8 +425,8 @@ fn layer(x: i16, y: i16, width: u16, height: u16, shade: u8) -> Layer {
     }
 }
 
-/// Captures a 4 by 2 monitor at 1, 1 of a composited root lit with 7, built from `layers` with
-/// `windows` listed, and returns each pixel's first byte, row by row.
+/// Captures a 4 by 2 monitor at 1, 1 of a composited root, built from `layers` with `windows`
+/// listed, and returns each pixel's first byte, row by row.
 fn composed(windows: Vec<TreeWindow>, layers: Vec<Layer>) -> Result<Vec<Vec<u8>>, CaptureError> {
     let area = Area {
         x: 1,
@@ -449,14 +441,10 @@ fn composed(windows: Vec<TreeWindow>, layers: Vec<Layer>) -> Result<Vec<Vec<u8>>
             area,
         }],
     };
-    let mut lit = image(true, vec![7; 32]);
-    (lit.width, lit.height) = (4, 2);
     let root = FakeRoot {
         layout: Ok(layout),
-        answer: Ok(lit),
+        answer: Ok(Pixels::Layers(layers)),
         windows,
-        composited: true,
-        layers,
         calls: Arc::new(Mutex::new(Vec::new())),
     };
     let frame = LinuxScreenCapture::new(root, PROCESS).capture(&display())?;
@@ -469,7 +457,7 @@ fn composed(windows: Vec<TreeWindow>, layers: Vec<Layer>) -> Result<Vec<Vec<u8>>
 }
 
 #[test]
-fn a_composited_screen_is_its_windows_bottom_up_over_black_without_the_root_pixels() {
+fn a_composited_screen_is_its_layers_bottom_up_over_black() {
     let below = layer(1, 1, 3, 2, 5);
     let above = layer(2, 2, 2, 1, 9);
 
