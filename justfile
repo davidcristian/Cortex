@@ -223,9 +223,11 @@ replay seed="" since="" count="5" window="25":
     vocabulary=(-i -E --grep='redden' --grep='mutant' --grep='mutation' --grep='prove[a-z]* able to fail')
     since="{{ since }}"
     if [ -n "$since" ]; then
-        pool="$(git log --since="$since" "${vocabulary[@]}" --format='%H%x09%s')"
+        pool="$(git log --since="$(cd scripts && uv run python replaysince.py "$since")" "${vocabulary[@]}" --format='%H%x09%s')"
+        shown="$since"
+        case "$since" in *" "*) shown="\"$since\"" ;; esac
         echo "=== replay draw: seed $seed, over the candidate bodies committed since $since ==="
-        echo "=== reproduce this draw with: just replay $seed $since, at $(git rev-parse --short HEAD) ==="
+        echo "=== reproduce this draw with: just replay $seed $shown, at $(git rev-parse --short HEAD) ==="
     else
         ledger="docs/runbooks/mutation-replay.md"
         anchor=""
@@ -244,7 +246,7 @@ replay seed="" since="" count="5" window="25":
             committed="$(git log "$anchor..HEAD" "${vocabulary[@]}" --format='%H')"
             read_as="the pass of $when, drawn from $(git rev-parse --short "$anchor")"
         elif [ -n "$last" ]; then
-            committed="$(git log --since="$last" "${vocabulary[@]}" --format='%H')"
+            committed="$(git log --since="$(cd scripts && uv run python replaysince.py "$last")" "${vocabulary[@]}" --format='%H')"
             read_as="midnight of the pass of $last, as no row records a commit this clone resolves"
         else
             read_as=""

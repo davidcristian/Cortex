@@ -17,7 +17,7 @@ The detail lives in two companion documents:
 
 ## Public contract
 
-Twenty-two modules have a command line. `just` recipes run `linecap.py`, `dashcheck.py`,
+Twenty-three modules have a command line. `just` recipes run `linecap.py`, `dashcheck.py`,
 `prosecheck.py`, `crosscheck.py`, `bindcheck.py`, `defaultcheck.py`, `volumecheck.py`,
 `stubcheck.py`, `samplecheck.py`, `rostercheck.py`, `flagcheck.py`, `settingscheck.py`,
 `backlogcheck.py` and `rustcoverage.py`. The CI workflow runs `ci_paths.py`, and the `commit-msg`
@@ -25,7 +25,8 @@ hook runs `commitlint.py`. Five measurement reporters have a recipe each: `contr
 `just turn-cost`, `trailwidth.py` under `just recall-width`, `envelopefloor.py` under
 `just envelope-floor`, `envelopepairs.py` under `just envelope-pairs` and `switchtail.py` under
 `just switch-tail`. `memwatch.py` under `just mem-watch` removes a measurement container when
-the host runs short of memory. Every one of them also exposes a pure function that another module can import
+the host runs short of memory. `replaysince.py` under `just replay` reads a bare date from that
+day's midnight. Every one of them also exposes a pure function that another module can import
 and a test can call directly.
 
 **The rest have no command line of their own.** Each is read by one of the modules above, and most

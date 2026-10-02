@@ -2,8 +2,8 @@
 
 The thirteen cross-tree scans are in [repo-checks-scans.md](repo-checks-scans.md) and the full
 module list is in [repo-checks.md](repo-checks.md). This document covers the rest: three modules
-that check one thing each, five that report a measurement and decide nothing, and one that
-watches the host while a measurement container runs.
+that check one thing each, five that report a measurement and decide nothing, one that
+watches the host while a measurement container runs, and one that reads a replay date.
 
 ## `rustcoverage.py PATH --rustc TEXT --llvm-cov TEXT`
 
@@ -178,3 +178,13 @@ container too, because the row would otherwise run unwatched. Exit 1 means the w
 container, and argparse exits 2 on a usage error. Every reading is printed with the time, so the
 log is also the row's memory record. The two docker calls are in `Machine`, left out of coverage
 and exercised by one `integration` test; `watch` runs against a fake host in the unit tests.
+
+## `replaysince.py WHEN`
+
+Prints the value `just replay` hands to `git log --since` for one date. Git reads a bare
+`YYYY-MM-DD` as that day at the current time of day, so a count would depend on the hour it ran.
+The module appends ` 00:00` to a bare date and prints any other value unchanged, a date with a time
+included. The recipe calls it for a late pass's date and for the count from the last dated ledger
+row. Its tests commit at the first and last second of one day in a scratch repository under
+`TZ=UTC` and check that git lists both commits, and another fails when a `--since=` line in the
+`replay` recipe does not call it.
