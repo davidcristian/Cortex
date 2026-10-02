@@ -11,6 +11,7 @@ from cortex_core import (
     BRAIN_FAILED_NOTE,
     BRAIN_OVERFLOW_NOTE,
     BUDGET_EXHAUSTED_MSG,
+    ESCALATION_QUEUED_MSG,
     NO_CADENCE_TERMS,
     REDACTED,
     REPLY_CAPPED_NOTE,
@@ -52,6 +53,7 @@ from cortex_core import (
     wrap_untrusted,
 )
 from cortex_core.brain_phase import SPILLED_LOG_MSG, BrainPhase
+from cortex_core.handoff_view import HANDOFF_TAKEN_MSG
 from cortex_core.memory import MemoryRecord
 from cortex_core.recall import MemoryRecaller
 
@@ -121,9 +123,37 @@ async def test_the_deep_model_sees_the_history_and_the_tool_loop_tail_it_never_p
     _phase, backend, _sessions, _deltas = await _drive(tail=tail)
     seen = [(message.role, message.text) for message in backend.seen]
     assert (Role.USER, harness.USER_TEXT) in seen
-    assert (Role.ASSISTANT, harness.CORTEX_TEXT) in seen
     assert [message.role for message in backend.seen[-2:]] == [Role.ASSISTANT, Role.TOOL]
     assert backend.seen[-2].tool_calls[0].arguments == {"brief": "go"}
+    assert backend.seen[-1].text == "queued", "only the escalation's own result is rewritten"
+
+
+async def test_the_deep_model_reads_earlier_replies_but_not_the_cortexs_reply_to_this_turn() -> (
+    None
+):
+    sessions = InMemorySessionStore()
+    for role, text, turn in (
+        (Role.USER, "an earlier question", "earlier"),
+        (Role.ASSISTANT, "an earlier answer", "earlier"),
+        (Role.USER, harness.USER_TEXT, harness.TURN),
+        (Role.ASSISTANT, harness.CORTEX_TEXT, harness.TURN),
+    ):
+        await sessions.append(harness.SESSION, Message(role=role, text=text, at=_AT, turn_id=turn))
+    tail = (
+        Message(role=Role.TOOL, text="a read page", at=_AT, turn_id=harness.TURN),
+        Message(role=Role.TOOL, text=ESCALATION_QUEUED_MSG, at=_AT, turn_id=harness.TURN),
+    )
+    _phase, backend, stored, _deltas = await _drive(tail=tail, store=sessions)
+    seen = [message.text for message in backend.seen if message.role is not Role.SYSTEM]
+    assert seen == [
+        "an earlier question",
+        "an earlier answer",
+        harness.USER_TEXT,
+        "a read page",
+        HANDOFF_TAKEN_MSG.format(brief=harness.BRIEF),
+    ]
+    history = [message.text for message in await stored.history(harness.SESSION)]
+    assert history[-2:] == [harness.CORTEX_TEXT, "a deep answer"]
 
 
 async def test_a_tainted_turn_stays_tainted_and_keeps_its_laundering_evidence() -> None:

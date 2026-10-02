@@ -22,6 +22,7 @@ from cortex_core import (
     DRAIN_TIMEOUT_REASON,
     DRAINING_DETAIL,
     ESCALATE_TOOL_NAME,
+    ESCALATION_QUEUED_MSG,
     LOADING_DETAIL,
     POOL_DRAINING_MSG,
     RESTORE_FAILED_NOTE,
@@ -43,6 +44,7 @@ from cortex_core import (
     PlainFormatter,
     RecordingAuditSink,
     RecordingConfirmer,
+    Role,
     ScriptedModelHost,
     StatusUpdate,
     SubagentAdmissionError,
@@ -58,6 +60,7 @@ from cortex_core import (
     record_fields,
 )
 from cortex_core.composite import CompositeToolRegistry
+from cortex_core.handoff_view import HANDOFF_TAKEN_MSG
 from cortex_core.tool_loop import ToolLoopContext, stream_tool_loop
 
 
@@ -116,7 +119,7 @@ async def test_the_deep_model_answers_from_the_store_and_persists_a_second_messa
     assert live.backend.models == ["brain"]
     seen = [message.text for message in live.backend.seen]
     assert harness.USER_TEXT in seen
-    assert harness.CORTEX_TEXT in seen
+    assert harness.CORTEX_TEXT not in seen, "the cortex's reply to this turn follows its tail"
     history = [
         (message.role.value, message.text)
         for message in await live.sessions.history(harness.SESSION)
@@ -518,6 +521,46 @@ async def test_a_turn_that_looked_at_the_screen_after_escalating_ends_with_a_not
     assert live.host.calls == []
     assert live.backend.calls == 0
     assert live.handoffs.states == []
+
+
+async def test_the_deep_models_context_ends_with_the_handoff_addressed_to_it() -> None:
+    dispatcher = ToolDispatcher(
+        CompositeToolRegistry([EscalateToBrainTool()]),
+        RecordingAuditSink(),
+        SystemClock(),
+        confirmer=RecordingConfirmer(answer=True),
+    )
+    slot = harness.prepared_slot(brief=None)
+    assert slot.refs is not None
+    cortex = ScriptedBrainBackend(
+        chunks=(harness.CORTEX_TEXT,),
+        tool_calls=(
+            ToolCall(id="c1", name=ESCALATE_TOOL_NAME, arguments={"brief": harness.BRIEF}),
+        ),
+    )
+    context = ToolLoopContext(
+        dispatcher=dispatcher,
+        clock=SystemClock(),
+        turn_id=harness.TURN,
+        taint=slot.refs.taint,
+        nonce=slot.refs.nonce,
+        session_id=harness.SESSION,
+        escalation=slot,
+    )
+    async for _delta in stream_tool_loop(cortex, "cortex", slot.refs.working, context):
+        pass
+    assert slot.refs.working[-1].text == ESCALATION_QUEUED_MSG
+
+    live = build_harness()
+    await live.seed_session()
+    await harness.run_handoff(live, slot)
+
+    last = live.backend.seen[-1]
+    assert (last.role, last.tool_call_id) == (Role.TOOL, "c1")
+    assert last.text == HANDOFF_TAKEN_MSG.format(brief=harness.BRIEF)
+    seen = [message.text for message in live.backend.seen]
+    assert ESCALATION_QUEUED_MSG not in seen
+    assert harness.CORTEX_TEXT not in seen
 
 
 async def test_the_deep_phase_cannot_escalate_to_itself() -> None:

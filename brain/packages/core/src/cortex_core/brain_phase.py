@@ -8,6 +8,7 @@ from cortex_core.conversation import Message, Role
 from cortex_core.errors import ContextOverflowError, InferenceError, MalformedToolCallError
 from cortex_core.events import TextDelta, TurnEvent
 from cortex_core.handoff import HandoffRecord
+from cortex_core.handoff_view import deep_history, deep_tail
 from cortex_core.output_channels import open_output_channels
 from cortex_core.ports import Clock, InferenceBackend, SessionStore
 from cortex_core.stops import StopLedger
@@ -71,7 +72,7 @@ class BrainPhase:
 
     async def run(self, record: HandoffRecord) -> AsyncGenerator[TurnEvent, None]:
         """Rehydrate, run the shared tool loop on the deep model, persist, and stream it out."""
-        history = await self._store.history(record.session_id)
+        history = deep_history(await self._store.history(record.session_id), record)
         query = _user_query(history, record)
         taint = record.taint_ledger()
         watch = CadenceWatch(self._cadence.floor_tps)
@@ -96,7 +97,7 @@ class BrainPhase:
         assembled = await assemble_inference_messages(
             query, history, self._caps, context, self._clock
         )
-        working = [*assembled, *record.loop_tail]
+        working = [*assembled, *deep_tail(record)]
         channels = open_output_channels(self._caps.guardrail, taint, query)
         parts: list[str] = []
         failure: InferenceError | None = None

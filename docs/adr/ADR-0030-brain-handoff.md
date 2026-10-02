@@ -100,7 +100,9 @@ Every exit path converges back to a serving cortex; the swap back is the recover
 4. **Read the state back and run** the shared `stream_tool_loop` on the deep model over windowed
    history, recall and the record's tail, with the rebuilt ledger, the resumed budget, the same
    audited dispatcher and the guardrail seeded with the stored URLs; the rounds allowance is fresh.
-   The deep model judges that recall and writes any recap, the one model its scope can lease.
+   The context ends with a message to the deep model: the escalation's result becomes
+   `HANDOFF_TAKEN_MSG` with the brief, and the cortex's reply to this turn is left out. The deep
+   model judges that recall and writes any recap, the one model its scope can lease.
 5. **Store** the deep reply as a second assistant message under the same `turn_id`, and memory
    under the engine's taint policy; a deep model that dies mid-answer has its partial text stored
    with its failure note.
@@ -146,7 +148,7 @@ its work is next; the deep reply streams as the same turn's `TextDelta`s; `TurnC
 A refusal or failure streams a fixed note from `swap_notes.py` describing the GPU, never the fault, and
 is not stored except for the deep model's failure note beside its partial text. `Health` returns
 `ready=false` with a truthful detail while the cortex is not serving, and ready through the drain
-([ADR-0054](ADR-0054-baseline-residency.md) decision 1). No proto change was needed.
+([ADR-0054](ADR-0054-baseline-residency.md) decision 1).
 
 ### 7. The failure test: kill points over fakes in CI, the real kill on the host
 
@@ -163,9 +165,8 @@ property is proven able to fail by mutation. The real `kill -9` on the deep chil
 A handoff evicts the cortex and every `CORTEX_SWAP_EVICT_MODELS` tier and drains the pool, so
 admission never reopens onto an evicted tier. The window suspends the 14 GB soft cap, the user
 having confirmed a handoff that takes the card; `CORTEX_NGL_BRAIN` and `CORTEX_CTX_SIZE_BRAIN` bring
-the deep tier under a budget. In normal operation the card holds the cortex and one GPU-placed
-subagent tier ([ADR-0012](ADR-0012-resource-governance.md)), which a deployment hosting it lists for
-eviction.
+the deep tier under a budget. Normally the card holds the cortex and one GPU-placed subagent tier
+([ADR-0012](ADR-0012-resource-governance.md)), which a deployment hosting it lists for eviction.
 
 The evict list names peers of the cortex only: `ResidencyPlan` raises `ValueError` at boot when it
 names the deep model or the cortex, reporting `CORTEX_SWAP_EVICT_MODELS` and the setting the id
@@ -212,8 +213,7 @@ the cortex unloaded.
   ([ADR-0054](ADR-0054-baseline-residency.md) decision 6).
 - A turn can hold its stream for minutes, and a teardown mid-handoff waits for the cortex. Swap-path
   log lines name their work `turn_id`, and the handoff still in the store `active_turn_id`
-  ([ADR-0046](ADR-0046-work-identities-on-log-lines.md)). CI stays GPU-less, and the failure suite
-  must pass.
+  ([ADR-0046](ADR-0046-work-identities-on-log-lines.md)). CI stays GPU-less.
 
 ## Risks flagged for maintainer review
 
@@ -237,10 +237,10 @@ the cortex unloaded.
 - **`acquire` performing the swap**: the deep loop re-acquires per round, so an interleaved cortex
   `acquire` would swap back mid-task. **Answering in a new turn**: one turn per call.
 - **Hiding `escalate_to_brain` when the deep tier is missing**: an absent tool says nothing, so
-  nobody learns why no handoff happens. The per-turn cost first argued against it is not prohibitive
-  (a live capability read per turn exists at about 1.5 ms); the lost sentence is the reason.
+  nobody learns why no handoff happens.
 - **A cross-process claim with a fence** (`SET NX`): it breaks `active()`'s ability to recover on
   its own and would be one cross-process guard above four in-process ones.
+- **A later system message for the deep model**: the Qwen3.5 template refuses one that is not first.
 
 ## Related
 

@@ -133,15 +133,15 @@ containing images, the record being durable and its schema having no field for p
   releases the store's active pointer, so a settling write the store rejects is followed by
   deleting the record anyway.
 - `BrainPhase(store, backend, clock, brain_model, capabilities, cadence=NO_CADENCE_TERMS)`
-  (`brain_phase.py`) rehydrates from the stores and the record alone: history from `SessionStore`,
-  the working set as preamble plus recalled context plus history plus the record's `loop_tail`, the
-  taint ledger and nonce from the record, and the dispatch allowance resumed at its recorded
-  position. It runs the shared tool loop with a fresh rounds allowance, no escalation slot and no
-  `capture_screen`, then persists its reply as a second assistant message under the same `turn_id`.
-  A mid-work `InferenceError` persists the partial text with a note and re-raises, so the conductor
-  fails the record, with the same `MalformedToolCallError` exception the cortex turn makes. It is
-  the only caller that watches decode rate, logging the tier's rate once after the stream and
-  before persisting and handing the same judgement to `cadence.sink`.
+  (`brain_phase.py`) rehydrates from the stores and the record alone. Its working set is preamble,
+  recalled context, the history without the cortex's reply to this turn, and the `loop_tail` with
+  the escalation's result replaced by `HANDOFF_TAKEN_MSG` and the brief (`handoff_view.py`), so the
+  last message is to the deep model; ledger, nonce and allowance resume from it. It runs the shared
+  tool loop with a fresh rounds allowance, no escalation slot and no `capture_screen`, then persists
+  its reply as a second assistant message under the same `turn_id`. A mid-work `InferenceError`
+  persists the partial text with a note and re-raises, so the conductor fails the record, with the
+  same `MalformedToolCallError` exception the cortex turn makes. It alone watches decode rate,
+  logging the tier's rate once before persisting and handing the same judgement to `cadence.sink`.
 - `CadenceWatch(floor=0.0, *, min_tokens=MIN_CADENCE_TOKENS)` (`cadence.py`, ADR-0055 decision 4)
   is the policy behind that: `observe(sample)` takes one completion's `DecodeCadence` and
   `reading()` settles them into a `CadenceReading(observed, floor, samples, judged)` or `None`. A
