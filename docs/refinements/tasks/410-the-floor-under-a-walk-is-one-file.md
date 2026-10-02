@@ -1,13 +1,15 @@
 # The minimum under a walk is one file, so a collapsed scan still clears it
 
 **Status:** open, waiting for its trigger
-**Trigger:** a printed count comes in below the reading recorded in this entry's history, with no
-commit between the two runs that changed an exclusion, a root or a suffix. An exclusion changing
-and a count dropping is not by itself the trigger: that happened two and a half hours after this
-entry was opened, in a commit whose own subject was the exclusion.
+**Trigger:** a printed count of files, or of the items a compose, settings, volume or flag scan
+reads, comes in below the reading recorded last in this entry's history, with no commit between
+the two runs that changed an exclusion, a root or a suffix, or deleted that many files. A line
+count is not the trigger, since it falls whenever comments or prose are cut, and neither is a
+count that drops in the commit that changes an exclusion: each has happened while the walk still
+read the whole tree.
 **Area:** repo-checks
 **Origin:** [ADR-0042](../../adr/ADR-0042-cross-tree-constant-registry.md)
-**Verified:** 2026-09-19
+**Verified:** 2026-10-02
 
 `linecap.MIN_FILES` and `dashcheck.MIN_FILES` are both 1, `composefiles.py` raises on a walk that
 found no compose file, and since 2026-09-17 `settingscheck.MIN_CLASSES` is 1, raising when no
@@ -106,3 +108,18 @@ all, every test in both building a temporary tree instead.
 - 2026-09-19: that second rule now covers every markdown file, not decision and readings records
   alone, so the reading later runs are compared against is `linecap OK: 863 markdown file(s) under
   .. are within 250 lines, over 58683 line(s) counted`, and the record count of 99 is not.
+- 2026-10-02: the readings again, and the trigger as then written fired on the two line counts
+  alone, so it now leaves line counts out. `linecap OK: 472 non-test source file(s) under .. are
+  within 300 lines, over 48678 line(s) counted` and `linecap OK: 928 markdown file(s) under .. are
+  within 250 lines, over 67382 line(s) counted`. `dashcheck OK: 1892 text file(s) under .. use no
+  banned dash, over 244853 line(s) read`. The compose walks still read 10 files, at 11 bind mounts,
+  8 variables used more than once, 4 declared volume paths over 11 service definitions and 3
+  subagent servers, and `settingscheck` reads 137 fields of the same 14 classes in the same three
+  services. Every file count rose, but source lines fell from 63011 and dash ban lines from 326587.
+  No walk read less of the tree: no commit since 2026-09-19 changed an exclusion, a root or a suffix
+  in `linecap.py`, `dashcheck.py` or `skippeddirs.py`. The lines went with comment blocks and
+  docstrings cut to the three lines and one line AGENTS.md's Prose section allows, and with markdown
+  files cut to 250 lines, two rules set later on the day of those readings: Python and TypeScript
+  files lost lines while gaining files. This is the second count to fall for a deliberate change,
+  and a suite minimum over lines would have failed on it, which counts against the middle shape for
+  any count but files.

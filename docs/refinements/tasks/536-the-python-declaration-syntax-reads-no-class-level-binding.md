@@ -8,7 +8,7 @@ entry whose only copy of a value on one side is a member of a class body. Count 
 each mention's text in its target file and checking whether the matching line assigns a name inside
 a `class`.
 **Origin:** [ADR-0042](../../adr/ADR-0042-cross-tree-constant-registry.md)
-**Verified:** 2026-09-19
+**Verified:** 2026-10-02
 
 The Python pattern in `crosscheck.DECLARATIONS` starts with `^` under `re.MULTILINE` and takes the
 name at column 0, so a binding inside any block is not a declaration. That anchor stops a name bound
@@ -59,3 +59,11 @@ are compared with each other while a mention is only a presence check.
   class body, so the class-level reader is a few lines over existing code rather than a new parser.
   That scan is not a consumer, since it reads field names and their environment variables and never
   a value the registry compares.
+- 2026-10-02: checked again and left open, neither condition met. `cortex_email/server.py` is
+  still the only module outside the core that writes a `cortex/source` declaration, and
+  `SourceKind.URI` still has no producer. The registry holds 103 entries over 131 declarations and
+  321 mentions; rendering each Python mention with its entry's value and reading the target file
+  with `ast` finds one line inside a class body, the same `SENDER = "sender"` under `class
+  SourceKind` in `cortex_core/provenance.py`. The column 0 pattern in `crosscheck.DECLARATIONS` is
+  unchanged, and so are the parts the fix would reuse: `moduleconstants.parse` and `bound`, and the
+  walk over top-level class bodies in `settingsfields.py`.

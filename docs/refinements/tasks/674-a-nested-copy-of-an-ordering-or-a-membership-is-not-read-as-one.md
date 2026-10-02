@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** repo-checks
 **Origin:** [ADR-0042](../../adr/ADR-0042-cross-tree-constant-registry.md)
-**Verified:** 2026-09-19
+**Verified:** 2026-10-02
 **Trigger:** a second ordering or membership over sites another entry of the same relation already
 reads, which is countable by walking `crosscheck.CONSTANTS` pairwise over the entries whose relation
 is not `EQUAL` and asking whether either one's sites are a subsequence of the other's.
@@ -22,9 +22,9 @@ subsequence of another ordering's sites is implied by it, and a membership over 
 at the same collection is implied by it. So the rule is a second shape beside the one that exists,
 not a widening of it.
 
-**Why it was left.** Two shapes for three entries. The registry has 89 equalities, 2 orderings and 1
-membership today, and the two orderings have two sites each, which is the fewest a registry entry
-can be written over, so no copy of either could drop a site and still be a registry entry.
+**Why it was left.** Two shapes for three entries. The registry has two orderings and one
+membership, each over two sites, which is the fewest a registry entry can be written over, so no
+copy of any of them could drop a site and still be a registry entry.
 
 **What would close it.** One predicate beside `_narrower` in `scripts/tests/test_crosscheck.py`,
 reading an ordering's sites as a subsequence of another ordering's and a membership's as a
@@ -52,3 +52,11 @@ the narrower one's.
   one language, narrows a nested copy further without changing this entry: its subsequence would
   have to span two sides as well. `_narrower` is still in `scripts/tests/test_crosscheck.py` and
   still reads two equalities only.
+- 2026-10-02: checked again by the walk the trigger names, and it has not fired.
+  `crosscheck.CONSTANTS` has grown to 103 entries, but all eleven new ones are equalities: 100
+  equalities, 2 orderings and 1 membership, the same three non-equalities over two sites each, and
+  the two orderings still share no site. `crosscheck.registry_fault` still refuses an entry over
+  fewer than two places and any mention on a relation other than `EQUAL`, and `_narrower` in
+  `scripts/tests/test_crosscheck.py` still reads two equalities only. The body's count of
+  equalities was dropped, since it changes with every new entry and the argument rests only on the
+  three non-equalities.

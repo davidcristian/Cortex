@@ -3,7 +3,7 @@
 **Status:** open, waiting for a consumer
 **Area:** repo-checks
 **Origin:** [ADR-0042](../../adr/ADR-0042-cross-tree-constant-registry.md)
-**Verified:** 2026-09-19
+**Verified:** 2026-10-02
 **Trigger:** A decimal pair that needs ordering rather than equality, or one whose far side is a
 Rust literal with its own type suffix.
 
@@ -28,10 +28,10 @@ declarations sit apart: two trees, two languages in one tree, or two brain packa
 A decimal with a language's type suffix does not reduce. `10.0f64` and `10.0_f64` are refused along
 with the exponent and the sign, for the same reason the reducer rejects a `frozenset` written in
 Rust: no pair in this repo uses one, and guessing at a form nothing writes would have the scan
-compare values on syntax it has never seen. Nothing in the body declares a float constant at all
-today (`const NAME: f64` finds nothing under `body/crates` or `body/app/src-tauri`), so the trigger
-is the first Rust decimal that has to agree with a Python one, and the fix is a suffix the reducer
-strips rather than a new form.
+compare values on syntax it has never seen. The body's one float constant, `VOLUME_NORM: f32 =
+65536.0` in `body/crates/os_linux/src/audio.rs`, is written without a suffix and agrees with nothing
+in Python, so the trigger is the first Rust decimal that has to agree with a Python one, and the fix
+is a suffix the reducer strips rather than a new form.
 
 ## History
 
@@ -64,3 +64,14 @@ strips rather than a new form.
   subagent stall ceiling (600.0, orchestrator) must stay under the run deadline (2400.0, core),
   which is two packages and so registrable, but `SubagentsConfig`'s validator raises when it does
   not, and `test_config.py` builds that config from its shipped defaults.
+- 2026-10-02: Checked again and left open, neither trigger fired, with one correction. The body
+  now declares a float constant: `const VOLUME_NORM: f32 = 65536.0;` in
+  `body/crates/os_linux/src/audio.rs`, added on 2026-09-28. It has no type suffix, and
+  `crosscheck.read_value` reduces it to `Digits` `65536.0`, while `65536.0f32` and `65536.0_f32`
+  are still refused. It is PulseAudio's `PA_VOLUME_NORM`, which no Python file states, and the
+  `65536` in `docs/modules/body-os.md` is a fact about PulseAudio rather than a second place. The
+  registry has grown to 103 entries, but its decimal sites are the same fourteen, all equalities,
+  from `DEFAULT_CPUS` at 2.0 to `DEFAULT_ADMISSION_WAIT_S` at 7200.0. The two orderings are still
+  the integer capture edge pair and receive limit pair, the two gateway deadlines are still both
+  in `gateway.py`, and `relation_fault` in `scripts/readings.py` and `values.DECIMAL` are
+  unchanged.
