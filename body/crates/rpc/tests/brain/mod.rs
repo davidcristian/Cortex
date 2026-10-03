@@ -10,7 +10,7 @@ use std::pin::Pin;
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
 use body_contract::transport::Held;
-use body_core::RpcHealth;
+use body_core::{RpcHealth, SessionMessage, TurnEvent};
 use body_rpc::generated::brain_service_server::{BrainService, BrainServiceServer};
 use body_rpc::generated::{
     AckReminderReply, AckReminderRequest, ClientEvent, ConfirmRequest, ConfirmResolved,
@@ -47,17 +47,8 @@ pub enum Script {
 /// What the scripted fake brain streams back for a `Converse` turn.
 #[derive(Clone, Copy)]
 pub enum Turn {
-    /// Read the user turn and echo its text and session id, then a tool activity, a status update,
-    /// and `TurnComplete`.
-    Echo,
-    /// One delta, then a brain-reported `SeamError` (terminal).
-    PartialThenError,
     /// A single `ServerEvent` with no event set (malformed).
     EmptyEvent,
-    /// One delta, then the stream ends with no `TurnComplete`.
-    EarlyClose,
-    /// The `Converse` call is rejected before any streaming.
-    RejectCall,
     /// One delta, then a non-OK status raised mid-stream.
     MidStreamError,
     /// Read the user turn, emit a `ConfirmRequest`, then read the next inbound client event and
@@ -73,6 +64,10 @@ pub enum Turn {
     HalfClose,
     /// Read the user turn and describe each attached image in one delta, then complete.
     Images,
+    /// Read the user turn, append its words to the asked chat in `held`, then stream `held.reply`.
+    Held,
+    /// The `Converse` call is rejected `Unavailable` with the message `store down`.
+    Unavailable,
 }
 
 /// A scripted fake implementing the generated `BrainService` server trait.
@@ -95,7 +90,7 @@ impl FakeBrain {
     pub fn new(script: Script) -> Self {
         Self {
             script,
-            turn: Turn::RejectCall,
+            turn: Turn::Held,
             held: Mutex::new(Held {
                 health: RpcHealth {
                     ready: true,
@@ -105,6 +100,7 @@ impl FakeBrain {
                 chats: Vec::new(),
                 reminders: Vec::new(),
                 preferences: Vec::new(),
+                reply: Vec::new(),
             }),
             expected_token: None,
             sessions_fail: false,
@@ -225,14 +221,48 @@ fn confirm_script(
     }
 }
 
-/// A heartbeat whose turn waits on a tool call.
-fn calling_heartbeat() -> ServerEvent {
-    ServerEvent {
-        event: Some(server_event::Event::Heartbeat(Heartbeat {
-            wait: String::from("calling"),
-            detail: String::from("waiting for a tool to finish"),
-        })),
-    }
+/// The wire form of one event a turn streams.
+fn server_event(event: &TurnEvent) -> ServerEvent {
+    let event = match event.clone() {
+        TurnEvent::Delta(text) => server_event::Event::TextDelta(TextDelta { text }),
+        TurnEvent::ToolActivity { tool_name, summary } => {
+            server_event::Event::ToolActivity(ToolActivity { tool_name, summary })
+        }
+        TurnEvent::ToolOutcome { tool_name, ok } => {
+            server_event::Event::ToolOutcome(ToolOutcome { tool_name, ok })
+        }
+        TurnEvent::Status { state, detail } => {
+            server_event::Event::Status(StatusUpdate { state, detail })
+        }
+        TurnEvent::ConfirmRequest {
+            confirm_id,
+            tool_name,
+            arguments_json,
+            reason,
+        } => server_event::Event::ConfirmRequest(ConfirmRequest {
+            confirm_id,
+            tool_name,
+            arguments_json,
+            reason,
+        }),
+        TurnEvent::ConfirmResolved {
+            confirm_id,
+            outcome,
+        } => server_event::Event::ConfirmResolved(ConfirmResolved {
+            confirm_id,
+            outcome,
+        }),
+        TurnEvent::Heartbeat { wait, detail } => {
+            server_event::Event::Heartbeat(Heartbeat { wait, detail })
+        }
+        TurnEvent::Complete { turn_id } => {
+            server_event::Event::TurnComplete(TurnComplete { turn_id })
+        }
+        TurnEvent::Failed { code, message } => {
+            server_event::Event::Error(SeamError { code, message })
+        }
+    };
+    ServerEvent { event: Some(event) }
 }
 
 #[tonic::async_trait]
@@ -244,8 +274,8 @@ impl BrainService for FakeBrain {
         request: Request<Streaming<ClientEvent>>,
     ) -> Result<Response<Self::ConverseStream>, Status> {
         self.record_timeout(&request);
-        if let Turn::RejectCall = self.turn {
-            return Err(Status::internal("cannot start turn"));
+        if let Turn::Unavailable = self.turn {
+            return Err(Status::unavailable("store down"));
         }
         let mut inbound = request.into_inner();
         if let Turn::Confirm { approved } = self.turn {
@@ -255,48 +285,7 @@ impl BrainService for FakeBrain {
             ))));
         }
         let events: Vec<Result<ServerEvent, Status>> = match self.turn {
-            Turn::Echo => {
-                let (session_id, text) = read_user_turn(&mut inbound).await?;
-                vec![
-                    Ok(delta(&format!("echo:{text}"))),
-                    Ok(delta(&format!("sid:{session_id}"))),
-                    Ok(ServerEvent {
-                        event: Some(server_event::Event::ToolActivity(ToolActivity {
-                            tool_name: String::from("read_email"),
-                            summary: String::from("reading inbox"),
-                        })),
-                    }),
-                    Ok(ServerEvent {
-                        event: Some(server_event::Event::ToolOutcome(ToolOutcome {
-                            tool_name: String::from("read_email"),
-                            ok: false,
-                        })),
-                    }),
-                    Ok(calling_heartbeat()),
-                    Ok(ServerEvent {
-                        event: Some(server_event::Event::Status(StatusUpdate {
-                            state: String::from("model_loading"),
-                            detail: String::from("swapping"),
-                        })),
-                    }),
-                    Ok(ServerEvent {
-                        event: Some(server_event::Event::TurnComplete(TurnComplete {
-                            turn_id: String::from("turn-echo"),
-                        })),
-                    }),
-                ]
-            }
-            Turn::PartialThenError => vec![
-                Ok(delta("partial")),
-                Ok(ServerEvent {
-                    event: Some(server_event::Event::Error(SeamError {
-                        code: String::from("overloaded"),
-                        message: String::from("brain is busy"),
-                    })),
-                }),
-            ],
             Turn::EmptyEvent => vec![Ok(ServerEvent { event: None })],
-            Turn::EarlyClose => vec![Ok(delta("hi"))],
             Turn::MidStreamError => vec![Ok(delta("hi")), Err(Status::internal("boom"))],
             Turn::ConfirmTimeout => {
                 let _ = read_user_turn(&mut inbound).await?;
@@ -340,7 +329,27 @@ impl BrainService for FakeBrain {
                 }
             }
             Turn::Images => describe_images(&mut inbound).await?,
-            Turn::RejectCall | Turn::Confirm { .. } => unreachable!("handled above"),
+            Turn::Held => {
+                let (session_id, text) = read_user_turn(&mut inbound).await?;
+                let mut held = self.held();
+                for chat in &mut held.chats {
+                    if chat.summary.session_id == session_id {
+                        chat.messages.push(SessionMessage {
+                            role: String::from("user"),
+                            text: text.clone(),
+                            turn_id: String::new(),
+                            at_unix_ms: 0,
+                        });
+                    }
+                }
+                held.reply
+                    .iter()
+                    .map(|event| Ok(server_event(event)))
+                    .collect()
+            }
+            Turn::Unavailable | Turn::Confirm { .. } => {
+                unreachable!("handled above")
+            }
         };
         Ok(Response::new(Box::pin(tokio_stream::iter(events))))
     }

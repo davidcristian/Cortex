@@ -61,59 +61,6 @@ async fn run_confirm_turn(approved: bool) -> Result<Vec<TurnEvent>, Box<dyn std:
 }
 
 #[tokio::test]
-async fn echo_turn_round_trips_every_event_kind() {
-    let events = run_turn(Turn::Echo, "sess-42", "ping", tokio_stream::empty())
-        .await
-        .unwrap();
-    let events: Vec<TurnEvent> = events.into_iter().map(Result::unwrap).collect();
-    assert_eq!(
-        events,
-        vec![
-            TurnEvent::Delta(String::from("echo:ping")),
-            TurnEvent::Delta(String::from("sid:sess-42")),
-            TurnEvent::ToolActivity {
-                tool_name: String::from("read_email"),
-                summary: String::from("reading inbox"),
-            },
-            TurnEvent::ToolOutcome {
-                tool_name: String::from("read_email"),
-                ok: false,
-            },
-            TurnEvent::Heartbeat {
-                wait: String::from("calling"),
-                detail: String::from("waiting for a tool to finish"),
-            },
-            TurnEvent::Status {
-                state: String::from("model_loading"),
-                detail: String::from("swapping"),
-            },
-            TurnEvent::Complete {
-                turn_id: String::from("turn-echo"),
-            },
-        ],
-    );
-}
-
-#[tokio::test]
-async fn brain_reported_seam_error_maps_to_failed_and_is_terminal() {
-    let events = run_turn(Turn::PartialThenError, "s", "hi", tokio_stream::empty())
-        .await
-        .unwrap();
-    assert_eq!(events.len(), 2);
-    assert_eq!(
-        events[0].as_ref().unwrap(),
-        &TurnEvent::Delta(String::from("partial"))
-    );
-    assert_eq!(
-        events[1].as_ref().unwrap(),
-        &TurnEvent::Failed {
-            code: String::from("overloaded"),
-            message: String::from("brain is busy"),
-        },
-    );
-}
-
-#[tokio::test]
 async fn empty_server_event_maps_to_protocol_error() {
     let events = run_turn(Turn::EmptyEvent, "s", "hi", tokio_stream::empty())
         .await
@@ -122,39 +69,6 @@ async fn empty_server_event_maps_to_protocol_error() {
     assert_eq!(
         events[0].as_ref().unwrap_err(),
         &TransportError::Protocol(String::from("converse server event had no event set")),
-    );
-}
-
-#[tokio::test]
-async fn stream_ending_before_completion_maps_to_protocol_error() {
-    let events = run_turn(Turn::EarlyClose, "s", "hi", tokio_stream::empty())
-        .await
-        .unwrap();
-    assert_eq!(events.len(), 2);
-    assert_eq!(
-        events[0].as_ref().unwrap(),
-        &TurnEvent::Delta(String::from("hi"))
-    );
-    assert_eq!(
-        events[1].as_ref().unwrap_err(),
-        &TransportError::Protocol(String::from(
-            "converse stream ended before the turn completed"
-        )),
-    );
-}
-
-#[tokio::test]
-async fn rejected_converse_call_maps_to_rpc_error() {
-    let events = run_turn(Turn::RejectCall, "s", "hi", tokio_stream::empty())
-        .await
-        .unwrap();
-    assert_eq!(events.len(), 1);
-    assert_eq!(
-        events[0].as_ref().unwrap_err(),
-        &TransportError::Rpc {
-            code: String::from("Internal"),
-            message: String::from("cannot start turn"),
-        },
     );
 }
 

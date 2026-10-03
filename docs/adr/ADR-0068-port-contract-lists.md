@@ -146,20 +146,29 @@ review then listed every port in both languages to find the others.
 
 14. **The transport's list runs through a dyn-compatible twin of the port.** `BrainTransport`
     returns `impl Future` and `impl Stream`, so `dyn BrainTransport` does not compile.
-    `body_contract::transport` declares `Calls`, every call but `converse` with each result boxed as
-    a `Reply`, and implements it once for every `T: BrainTransport`. That impl is generic but has no
-    branch, so any instantiation a driver runs covers it whole, and the checks stay plain functions
-    over `&dyn TransportSubject` that return a boxed future for `run` to await. A twin written in
-    each driver was rejected: it is test code, which coverage does not measure, and a slip in one
-    would hide a defect. The twin returns the port's own `Result`, so a check compares the whole
-    `TransportError` where implementations return the same one (a brain's `Unavailable` status
-    reaches the caller as `Rpc` with its code and message) and only the variant where they do not (a
-    connection failure's text). A write is checked by the read that shows it, so both fakes apply
-    each write to the state they hold. `RetryingTransport` runs the list over `FakeTransport`, with
-    a `Sleeper` that waits for nothing. The fake stays in `body/crates/core/tests/transport.rs`
-    until the list covers `converse`, since a fake in this crate is measured and an unlisted method
-    would need tests of its own; `body-core` names `body-contract` as a dev-dependency to run it.
-    The rpc tests share one scripted `BrainService`, `body/crates/rpc/tests/brain/mod.rs`.
+    `body_contract::transport` declares `Calls`, every call with its result boxed: a `Reply` future,
+    and for `converse` an `Events` stream that takes the caller's decisions as a boxed `Decisions`
+    stream. It implements `Calls` once for every `T: BrainTransport`. That impl is generic but has
+    no branch, so any instantiation a driver runs covers it whole, and the checks stay plain
+    functions over `&dyn TransportSubject` that return a boxed future for `run` to await. A twin
+    written in each driver was rejected: it is test code, which coverage does not measure, and a
+    slip in one would hide a defect. The twin returns the port's own `Result`, so a check compares
+    the whole `TransportError` where implementations return the same one (a brain's `Unavailable`
+    status reaches the caller as `Rpc` with its code and message) and only the variant where they
+    do not (a connection failure's text, a malformed reply's). A write is checked by the read that
+    shows it, so both fakes apply each write to the state they hold, and a turn appends the user's
+    words to the asked chat before it streams the reply `Held` names. A turn ends at its first
+    `Complete` or `Failed`, and a reply with neither ends in a `Protocol` error. The confirm round
+    trip, the attached images and the wire's own faults (an event with nothing set, a status in
+    mid-stream) are checked on `BrainRpcClient` alone in `body/crates/rpc/tests/converse.rs`, since
+    no read through the port shows what the brain received. `RetryingTransport` runs the list over
+    `FakeTransport`, with a `Sleeper` that waits for nothing. The fake stays in
+    `body/crates/core/tests/transport.rs` until it moves into this crate; `body-core` names
+    `body-contract` as a dev-dependency to run it. The rpc tests share one scripted `BrainService`,
+    `body/crates/rpc/tests/brain/mod.rs`. `ScriptedTransport`, `FlakyTransport` and
+    `StallingTransport` run no list: each is one suite's stub, answering one question (a health
+    script, a count of failures, a turn that stops sending) and a fixed value or `Connection` for
+    every other call, so none stands for a brain, and its suite checks the caller it drives.
 
 ## The inventory
 
@@ -199,7 +208,7 @@ Rust and the overlay:
 | `AudioControl` | `FakeAudio`, in `body/crates/contract` | `WindowsAudioControl`, `LinuxAudioControl` | `body_contract::audio` | yes | Linux only, over a stand-in sound server behind `pactl` |
 | `Notify` | `FakeNotify`, in `body/crates/contract` | `WindowsNotify`, `LinuxNotify` | `body_contract::notify` | yes | Linux only, over a fake bus and a peer D-Bus server |
 | `ScreenCapture` | `FakeScreen`, in `body/crates/contract` | `WindowsScreenCapture`, `LinuxScreenCapture`, `DeniedScreenCapture` | `body_contract::screen` | yes | Linux over a fake root and a peer X server; the denying one by its own test |
-| `BrainTransport` | `FakeTransport`, `ScriptedTransport`, `FlakyTransport`, `StallingTransport` | `BrainRpcClient`, `RetryingTransport` | `body_contract::transport`, all but `converse` | yes | `BrainRpcClient` over a loopback fake `BrainService`; `RetryingTransport` over `FakeTransport` |
+| `BrainTransport` | `FakeTransport` | `BrainRpcClient`, `RetryingTransport` | `body_contract::transport` | yes | `BrainRpcClient` over a loopback fake `BrainService`; `RetryingTransport` over `FakeTransport` |
 | `Sleeper` | `FakeSleeper` | `TokioSleeper` | none | yes | no, outside the checked workspace |
 | `Randomness` | `FakeRandomness` | `FullDelay`, `ShellRandomness` | none | yes | `FullDelay` incidentally |
 | `BrainBridge` (overlay) | `FakeBridge` | `TauriBridge`, `DemoBridge` | `bridgeContract.ts` | yes | `DemoBridge` |
@@ -213,8 +222,8 @@ Rust and the overlay:
 - Six configured model ids cannot be mis-wired without a failing test, at no startup cost and no
   port change.
 - The Windows backends run no list in CI, so they can disagree with their fakes until a host run
-  finds it. Until R-781 is done, a turn can differ between the transport's fakes and
-  `BrainRpcClient`.
+  finds it. `FakeTransport` drops the caller's confirm decisions, so a core test cannot watch a
+  confirm round trip that `BrainRpcClient` makes.
 
 ## Alternatives rejected
 

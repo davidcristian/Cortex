@@ -42,19 +42,24 @@ crate; nothing that ships links it.
   with no code fails with `UnsupportedKey`; a taken chord fails with `Registration` and a press runs
   nothing; a broken backend fails with `Registration`. `CHORDS` names the chords a driver's
   keyboard must have.
-- **`transport`**, the `BrainTransport` list for every call but `converse`. The port is not
-  dyn-compatible, so `Calls` is its twin, each call returning a boxed `Reply`, implemented once
-  for every `T: BrainTransport`. `TransportSubject` builds `serving(&Held)`, a brain that starts
-  from a health, its `Chat`s (hoisted first, then newest first), its due reminders and its settings
-  sorted by key, and applies each write to them; `refusing()`, a brain failing every call with
-  `Unavailable`, `store down`; and `unreachable()`. Each check returns a boxed future, and
-  `run(&dyn TransportSubject)` awaits them in order. The fourteen checks: the health is what the
+- **`transport`**, the `BrainTransport` list. The port is not dyn-compatible, so `Calls` is its
+  twin, each call returning a boxed `Reply` future, and `converse` taking a boxed `Decisions`
+  stream and returning a boxed `Events` stream, implemented once for every `T: BrainTransport`.
+  `TransportSubject` builds `serving(&Held)`, a brain that starts from a health, its `Chat`s
+  (hoisted first, then newest first), its due reminders, its settings sorted by key and the `reply`
+  it streams for every turn, and applies each write to them; `refusing()`, a brain failing every
+  call with `Unavailable`, `store down`; and `unreachable()`. Each check returns a boxed future,
+  and `run(&dyn TransportSubject)` awaits them in order. The twenty checks: the health is what the
   brain holds, ready or not; a listing names every chat; a listing stops at its limit; a history is
   the asked chat's, in order; a rename shows in the next listing; a delete drops the chat from it; a
   hoist moves the chat above the rest; the due reminders are what the brain holds; an ack clears
   only the fire it names, once; the settings are what the brain holds; a written setting reads
   back in key order; an empty value clears its setting; a refusing brain fails every call with
-  `Rpc` and its code and message; an unreachable one fails every call with `Connection`.
+  `Rpc` and its code and message; an unreachable one fails every call with `Connection`; a turn
+  streams the held reply in order, one event of every kind; a turn adds the user's words to its
+  chat's history and no other; a turn ends at its first `Failed` or `Complete`; a reply with
+  neither ends in a `Protocol` error; a refusing brain fails a turn with its status, as its one
+  item; an unreachable one fails it with `Connection`, as its one item.
 - **`FakeAudio`**, the one stand-in `AudioControl` every body test uses: `new(level, muted)` holds
   a state in memory, `failing(AudioError)` answers every call with that error, and `panicking()`
   panics inside every call. `threads()` returns the `Threads` handle on the thread each call ran on,
@@ -106,4 +111,5 @@ crate; nothing that ships links it.
 
 **Dependencies.** `body-core` (the ports). Dev-dependency of `body-rpc` (for the fakes and the
 transport list), of `os-linux` (for the lists) and of `body-core` (for the transport list). The
-transport's turn is [R-781](../refinements/tasks/781-a-shared-check-list-for-the-brain-transport.md).
+transport fake's move here, and a confirm round trip on the list, are
+[R-781](../refinements/tasks/781-a-shared-check-list-for-the-brain-transport.md).

@@ -264,6 +264,7 @@ name = "body-contract"
 version = "0.1.0"
 dependencies = [
  "body-core",
+ "futures-core",
 ]
 
 [[package]]

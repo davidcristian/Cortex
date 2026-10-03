@@ -8,7 +8,6 @@ use body_core::{
     RpcHealth, SessionMessage, SessionSummary, Sleeper, TransportError, TurnEvent,
 };
 use futures_core::Stream;
-use tokio_stream::StreamExt;
 
 /// A fake brain in memory: it answers from what it holds and applies each write to it, or fails
 /// every call with `failure`.
@@ -35,6 +34,7 @@ impl FakeTransport {
             chats: Vec::new(),
             reminders: Vec::new(),
             preferences: Vec::new(),
+            reply: Vec::new(),
         })
     }
 
@@ -64,6 +64,37 @@ impl FakeTransport {
             }
         }
     }
+
+    /// Appends the user's words to the asked chat, then the held reply up to its first terminal
+    /// event, or a `Protocol` error when the reply has none.
+    fn turn(&self, session_id: &str, text: &str) -> Vec<Result<TurnEvent, TransportError>> {
+        let mut held = match self.held() {
+            Ok(held) => held,
+            Err(error) => return vec![Err(error)],
+        };
+        for chat in &mut held.chats {
+            if chat.summary.session_id == session_id {
+                chat.messages.push(SessionMessage {
+                    role: String::from("user"),
+                    text: String::from(text),
+                    turn_id: String::new(),
+                    at_unix_ms: 0,
+                });
+            }
+        }
+        let mut events = Vec::new();
+        for event in held.reply.iter().cloned() {
+            let terminal = matches!(event, TurnEvent::Complete { .. } | TurnEvent::Failed { .. });
+            events.push(Ok(event));
+            if terminal {
+                return events;
+            }
+        }
+        events.push(Err(TransportError::Protocol(String::from(
+            "the reply ended before the turn completed",
+        ))));
+        events
+    }
 }
 
 impl BrainTransport for FakeTransport {
@@ -79,12 +110,7 @@ impl BrainTransport for FakeTransport {
         decisions: impl Stream<Item = ConfirmDecision> + Send + 'static,
     ) -> impl Stream<Item = Result<TurnEvent, TransportError>> + Send {
         drop(decisions);
-        tokio_stream::iter(vec![
-            Ok(TurnEvent::Delta(format!("turn:{text}"))),
-            Ok(TurnEvent::Complete {
-                turn_id: String::from(session_id),
-            }),
-        ])
+        tokio_stream::iter(self.turn(session_id, text))
     }
 
     async fn list_sessions(&self, limit: i32) -> Result<Vec<SessionSummary>, TransportError> {
@@ -238,41 +264,6 @@ async fn the_fake_meets_every_transport_check() {
 #[tokio::test]
 async fn retrying_over_the_fake_meets_every_transport_check() {
     run(&Fake { retrying: true }).await;
-}
-
-/// Drains a `converse` turn through a generic bound, collecting every item.
-async fn converse_probe<T: BrainTransport>(
-    transport: &T,
-    session_id: &str,
-    text: &str,
-) -> Vec<Result<TurnEvent, TransportError>> {
-    let decisions = tokio_stream::iter(vec![ConfirmDecision {
-        confirm_id: String::from("c-1"),
-        approved: true,
-    }]);
-    let stream = transport.converse(session_id, text, Vec::new(), decisions);
-    tokio::pin!(stream);
-    let mut events = Vec::new();
-    while let Some(event) = stream.next().await {
-        events.push(event);
-    }
-    events
-}
-
-#[tokio::test]
-async fn fake_transport_streams_a_converse_turn_through_the_generic_bound() {
-    let fake = FakeTransport::idle();
-    let events = converse_probe(&fake, "sess-1", "hello").await;
-    let events: Vec<TurnEvent> = events.into_iter().map(Result::unwrap).collect();
-    assert_eq!(
-        events,
-        vec![
-            TurnEvent::Delta(String::from("turn:hello")),
-            TurnEvent::Complete {
-                turn_id: String::from("sess-1"),
-            },
-        ],
-    );
 }
 
 #[test]

@@ -8,7 +8,7 @@ use std::sync::Mutex;
 use body_contract::transport::{Calls, Held, TransportSubject, run};
 use body_rpc::BrainRpcClient;
 use body_rpc::generated::brain_service_server::BrainServiceServer;
-use brain::{FakeBrain, Script};
+use brain::{FakeBrain, Script, Turn};
 use tokio_stream::wrappers::TcpListenerStream;
 use tonic::transport::Server;
 
@@ -49,12 +49,14 @@ struct Rpc;
 impl TransportSubject for Rpc {
     fn serving(&self, held: &Held) -> Box<dyn Calls> {
         let mut fake = FakeBrain::new(Script::Ready);
+        fake.turn = Turn::Held;
         fake.held = Mutex::new(held.clone());
         client(serve(fake))
     }
 
     fn refusing(&self) -> Box<dyn Calls> {
         let mut fake = FakeBrain::new(Script::Unavailable);
+        fake.turn = Turn::Unavailable;
         fake.sessions_fail = true;
         fake.reminders_fail = true;
         client(serve(fake))

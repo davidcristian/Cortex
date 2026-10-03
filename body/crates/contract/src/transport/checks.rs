@@ -45,7 +45,7 @@ fn setting(key: &str, value: &str) -> (String, String) {
 }
 
 /// A ready brain holding two chats, the newer one hoisted, two due reminders and two settings.
-fn two_chats() -> Held {
+pub(super) fn two_chats() -> Held {
     Held {
         health: RpcHealth {
             ready: true,
@@ -71,6 +71,7 @@ fn two_chats() -> Held {
             setting("overlay.mark", "foam"),
             setting("overlay.theme", "midnight"),
         ],
+        reply: Vec::new(),
     }
 }
 
@@ -82,7 +83,7 @@ async fn rows(transport: &dyn Calls) -> Vec<(String, String, bool)> {
 }
 
 /// The error a refusing brain's status becomes, code and message both.
-fn refused() -> TransportError {
+pub(super) fn refused() -> TransportError {
     TransportError::Rpc {
         code: String::from("Unavailable"),
         message: String::from("store down"),
@@ -90,7 +91,7 @@ fn refused() -> TransportError {
 }
 
 /// Which error a call failed with, without its text, which each transport writes its own way.
-fn kind(error: Option<TransportError>) -> Option<Discriminant<TransportError>> {
+pub(super) fn kind(error: Option<TransportError>) -> Option<Discriminant<TransportError>> {
     error.map(|found| discriminant(&found))
 }
 
