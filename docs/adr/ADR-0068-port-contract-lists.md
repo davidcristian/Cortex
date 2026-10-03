@@ -155,10 +155,11 @@ review then listed every port in both languages to find the others.
     `TransportError` where implementations return the same one (a brain's `Unavailable` status
     reaches the caller as `Rpc` with its code and message) and only the variant where they do not (a
     connection failure's text). A write is checked by the read that shows it, so both fakes apply
-    each write to the state they hold. The fake stays in `body/crates/core/tests/transport.rs` until
-    the list covers `converse`, since a fake in this crate is measured and an unlisted method would
-    need tests of its own; `body-core` names `body-contract` as a dev-dependency to run it. The rpc
-    tests share one scripted `BrainService`, `body/crates/rpc/tests/brain/mod.rs`.
+    each write to the state they hold. `RetryingTransport` runs the list over `FakeTransport`, with
+    a `Sleeper` that waits for nothing. The fake stays in `body/crates/core/tests/transport.rs`
+    until the list covers `converse`, since a fake in this crate is measured and an unlisted method
+    would need tests of its own; `body-core` names `body-contract` as a dev-dependency to run it.
+    The rpc tests share one scripted `BrainService`, `body/crates/rpc/tests/brain/mod.rs`.
 
 ## The inventory
 
@@ -198,7 +199,7 @@ Rust and the overlay:
 | `AudioControl` | `FakeAudio`, in `body/crates/contract` | `WindowsAudioControl`, `LinuxAudioControl` | `body_contract::audio` | yes | Linux only, over a stand-in sound server behind `pactl` |
 | `Notify` | `FakeNotify`, in `body/crates/contract` | `WindowsNotify`, `LinuxNotify` | `body_contract::notify` | yes | Linux only, over a fake bus and a peer D-Bus server |
 | `ScreenCapture` | `FakeScreen`, in `body/crates/contract` | `WindowsScreenCapture`, `LinuxScreenCapture`, `DeniedScreenCapture` | `body_contract::screen` | yes | Linux over a fake root and a peer X server; the denying one by its own test |
-| `BrainTransport` | `FakeTransport`, `ScriptedTransport`, `FlakyTransport`, `StallingTransport` | `BrainRpcClient`, `RetryingTransport` | `body_contract::transport`, all but `converse` | yes | `BrainRpcClient`, over a loopback fake `BrainService` |
+| `BrainTransport` | `FakeTransport`, `ScriptedTransport`, `FlakyTransport`, `StallingTransport` | `BrainRpcClient`, `RetryingTransport` | `body_contract::transport`, all but `converse` | yes | `BrainRpcClient` over a loopback fake `BrainService`; `RetryingTransport` over `FakeTransport` |
 | `Sleeper` | `FakeSleeper` | `TokioSleeper` | none | yes | no, outside the checked workspace |
 | `Randomness` | `FakeRandomness` | `FullDelay`, `ShellRandomness` | none | yes | `FullDelay` incidentally |
 | `BrainBridge` (overlay) | `FakeBridge` | `TauriBridge`, `DemoBridge` | `bridgeContract.ts` | yes | `DemoBridge` |
@@ -213,7 +214,7 @@ Rust and the overlay:
   port change.
 - The Windows backends run no list in CI, so they can disagree with their fakes until a host run
   finds it. Until R-781 is done, a turn can differ between the transport's fakes and
-  `BrainRpcClient`, and `RetryingTransport` runs no list.
+  `BrainRpcClient`.
 
 ## Alternatives rejected
 

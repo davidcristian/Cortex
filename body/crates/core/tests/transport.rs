@@ -1,10 +1,11 @@
 use std::cmp::Reverse;
 use std::sync::{Mutex, MutexGuard, PoisonError};
+use std::time::Duration;
 
 use body_contract::transport::{Calls, Held, TransportSubject, run};
 use body_core::{
-    AttachedImage, BrainTransport, ConfirmDecision, DueReminder, RpcHealth, SessionMessage,
-    SessionSummary, TransportError, TurnEvent,
+    AttachedImage, BrainTransport, ConfirmDecision, DueReminder, RetryPlan, RetryingTransport,
+    RpcHealth, SessionMessage, SessionSummary, Sleeper, TransportError, TurnEvent,
 };
 use futures_core::Stream;
 use tokio_stream::StreamExt;
@@ -178,22 +179,52 @@ impl BrainTransport for FakeTransport {
     }
 }
 
-struct Fake;
+/// A `Sleeper` that waits for nothing, so a retried call ends at once.
+struct NoWait;
+
+impl Sleeper for NoWait {
+    fn sleep(&self, _duration: Duration) -> impl Future<Output = ()> + Send {
+        std::future::ready(())
+    }
+
+    async fn bounded<F>(&self, _deadline: Duration, call: F) -> Option<F::Output>
+    where
+        F: Future + Send,
+        F::Output: Send,
+    {
+        Some(call.await)
+    }
+}
+
+/// The fake alone, or the fake inside a `RetryingTransport` when `retrying` is set.
+struct Fake {
+    retrying: bool,
+}
+
+impl Fake {
+    fn wrap(&self, fake: FakeTransport) -> Box<dyn Calls> {
+        if self.retrying {
+            Box::new(RetryingTransport::new(fake, NoWait, RetryPlan::default()))
+        } else {
+            Box::new(fake)
+        }
+    }
+}
 
 impl TransportSubject for Fake {
     fn serving(&self, held: &Held) -> Box<dyn Calls> {
-        Box::new(FakeTransport::holding(held))
+        self.wrap(FakeTransport::holding(held))
     }
 
     fn refusing(&self) -> Box<dyn Calls> {
-        Box::new(FakeTransport::failing(TransportError::Rpc {
+        self.wrap(FakeTransport::failing(TransportError::Rpc {
             code: String::from("Unavailable"),
             message: String::from("store down"),
         }))
     }
 
     fn unreachable(&self) -> Box<dyn Calls> {
-        Box::new(FakeTransport::failing(TransportError::Connection(
+        self.wrap(FakeTransport::failing(TransportError::Connection(
             String::from("connection refused"),
         )))
     }
@@ -201,7 +232,12 @@ impl TransportSubject for Fake {
 
 #[tokio::test]
 async fn the_fake_meets_every_transport_check() {
-    run(&Fake).await;
+    run(&Fake { retrying: false }).await;
+}
+
+#[tokio::test]
+async fn retrying_over_the_fake_meets_every_transport_check() {
+    run(&Fake { retrying: true }).await;
 }
 
 /// Drains a `converse` turn through a generic bound, collecting every item.

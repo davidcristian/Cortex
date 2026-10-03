@@ -84,7 +84,9 @@ crate; nothing that ships links it.
   in `body/crates/os_linux/tests/hotkey.rs`, over `LinuxHotkey` on that file's `FakeKeys`, whose
   `Rig` presses each chord as the key and state a `PRESSES` table names. The transport's drivers
   are `the_fake_meets_every_transport_check` in `body/crates/core/tests/transport.rs`, over that
-  file's `FakeTransport`, and `body/crates/rpc/tests/transport_contract.rs`, over `BrainRpcClient`
+  file's `FakeTransport`; `retrying_over_the_fake_meets_every_transport_check` beside it, over
+  `RetryingTransport` wrapping that fake; and `body/crates/rpc/tests/transport_contract.rs`, over
+  `BrainRpcClient`
   on the scripted `BrainService` in `body/crates/rpc/tests/brain/mod.rs` that every rpc test
   serves.
 
@@ -104,5 +106,4 @@ crate; nothing that ships links it.
 
 **Dependencies.** `body-core` (the ports). Dev-dependency of `body-rpc` (for the fakes and the
 transport list), of `os-linux` (for the lists) and of `body-core` (for the transport list). The
-transport's turn and `RetryingTransport` are
-[R-781](../refinements/tasks/781-a-shared-check-list-for-the-brain-transport.md).
+transport's turn is [R-781](../refinements/tasks/781-a-shared-check-list-for-the-brain-transport.md).
