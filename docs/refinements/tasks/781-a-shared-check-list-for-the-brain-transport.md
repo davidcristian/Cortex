@@ -9,19 +9,12 @@
 eleven methods from `health` to `set_preference`. Its shared list, `body_contract::transport`,
 covers all eleven through `Calls`, a dyn-compatible twin of the port (ADR-0068 decision 14), with
 `converse` taking a boxed `Decisions` stream and returning a boxed `Events` stream. It runs over
-`FakeTransport` in `core/tests/transport.rs`, over `RetryingTransport` wrapping that fake, and over
-`BrainRpcClient` on the one scripted `BrainService` in `rpc/tests/brain/mod.rs`. What remains:
-
-- **`FakeTransport` moves into `body/crates/contract`**, as ADR-0068 decision 11 says of a port's
-  fake. Its `held()` matches all four `TransportError` variants and the list fails it only with
-  `Rpc` and `Connection`, so in a measured crate the other two branches are uncovered: build the
-  failure from the subject's two conditions, or give `TransportError` `Clone`. Its turn needs a
-  stream that crate can build without `tokio-stream`.
-- **The confirm round trip.** The fake drops the caller's decisions, and the list checks no
-  decision, so only `rpc/tests/converse.rs` shows one reaching the brain. Listing it needs a
-  brain behavior both fakes share after a `ConfirmRequest` in the held reply (wait for the
-  decision naming it, then show which it was), and a decision stream the check feeds in reaction
-  to the request.
+`FakeTransport` in `body/crates/contract`, over `RetryingTransport` wrapping that fake, and over
+`BrainRpcClient` on the one scripted `BrainService` in `rpc/tests/brain/mod.rs`. What remains is
+the confirm round trip. The fake drops the caller's decisions, and the list checks no decision, so
+only `rpc/tests/converse.rs` shows one reaching the brain. Listing it needs a brain behavior both
+fakes share after a `ConfirmRequest` in the held reply (wait for the decision naming it, then show
+which it was), and a decision stream the check feeds in reaction to the request.
 
 ## History
 
@@ -33,3 +26,6 @@ covers all eleven through `Calls`, a dyn-compatible twin of the port (ADR-0068 d
   tests and the one core turn test that the list now covers. `ScriptedTransport`, `FlakyTransport` and
   `StallingTransport` stay off the list: each is one suite's stub that stands for no brain, as
   ADR-0068 decision 14 now says.
+- 2026-10-04: Moved `FakeTransport` into `body/crates/contract`, where it is measured. Its failure
+  is now a clone of the error it was built with, since `TransportError` derives `Clone` as the
+  other port errors do.

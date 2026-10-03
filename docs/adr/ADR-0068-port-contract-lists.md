@@ -162,9 +162,8 @@ review then listed every port in both languages to find the others.
     trip, the attached images and the wire's own faults (an event with nothing set, a status in
     mid-stream) are checked on `BrainRpcClient` alone in `body/crates/rpc/tests/converse.rs`, since
     no read through the port shows what the brain received. `RetryingTransport` runs the list over
-    `FakeTransport`, with a `Sleeper` that waits for nothing. The fake stays in
-    `body/crates/core/tests/transport.rs` until it moves into this crate; `body-core` names
-    `body-contract` as a dev-dependency to run it. The rpc tests share one scripted `BrainService`,
+    `FakeTransport`, with a `Sleeper` that waits for nothing. The fake is in `body/crates/contract`,
+    and `body-core` names `body-contract` as a dev-dependency to run both drivers. The rpc tests share one scripted `BrainService`,
     `body/crates/rpc/tests/brain/mod.rs`. `ScriptedTransport`, `FlakyTransport` and
     `StallingTransport` run no list: each is one suite's stub, answering one question (a health
     script, a count of failures, a turn that stops sending) and a fixed value or `Connection` for
@@ -208,7 +207,7 @@ Rust and the overlay:
 | `AudioControl` | `FakeAudio`, in `body/crates/contract` | `WindowsAudioControl`, `LinuxAudioControl` | `body_contract::audio` | yes | Linux only, over a stand-in sound server behind `pactl` |
 | `Notify` | `FakeNotify`, in `body/crates/contract` | `WindowsNotify`, `LinuxNotify` | `body_contract::notify` | yes | Linux only, over a fake bus and a peer D-Bus server |
 | `ScreenCapture` | `FakeScreen`, in `body/crates/contract` | `WindowsScreenCapture`, `LinuxScreenCapture`, `DeniedScreenCapture` | `body_contract::screen` | yes | Linux over a fake root and a peer X server; the denying one by its own test |
-| `BrainTransport` | `FakeTransport` | `BrainRpcClient`, `RetryingTransport` | `body_contract::transport` | yes | `BrainRpcClient` over a loopback fake `BrainService`; `RetryingTransport` over `FakeTransport` |
+| `BrainTransport` | `FakeTransport`, in `body/crates/contract` | `BrainRpcClient`, `RetryingTransport` | `body_contract::transport` | yes | `BrainRpcClient` over a loopback fake `BrainService`; `RetryingTransport` over `FakeTransport` |
 | `Sleeper` | `FakeSleeper` | `TokioSleeper` | none | yes | no, outside the checked workspace |
 | `Randomness` | `FakeRandomness` | `FullDelay`, `ShellRandomness` | none | yes | `FullDelay` incidentally |
 | `BrainBridge` (overlay) | `FakeBridge` | `TauriBridge`, `DemoBridge` | `bridgeContract.ts` | yes | `DemoBridge` |

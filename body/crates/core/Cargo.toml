@@ -16,13 +16,13 @@ png.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
-# The transport's shared check list, run over this crate's fake.
+# The transport's shared check list and its fake, run alone and inside `RetryingTransport`.
 body-contract.workspace = true
 # The capture tests decode the PNGs the policy produces, so a size claim is read back out of the
 # bytes themselves rather than out of the value that wrote them.
 png.workspace = true
 tokio = { workspace = true, features = ["macros", "rt"] }
-# The converse contract test builds a fake TurnEvent stream and drains it.
+# The supervisor and retry tests build fake TurnEvent streams and drain them.
 tokio-stream.workspace = true
 
 [lints]

@@ -23,7 +23,7 @@ pub struct RpcHealth {
 }
 
 /// Why a call to the brain failed.
-#[derive(Debug, PartialEq, Eq, thiserror::Error)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 pub enum TransportError {
     /// The brain could not be reached at all: bad address, refused connection, or transport-level
     /// failure before any RPC completed.
