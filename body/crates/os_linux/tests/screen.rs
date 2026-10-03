@@ -2,7 +2,8 @@
 
 use std::sync::{Arc, Mutex, PoisonError};
 
-use body_core::{CaptureError, CaptureRequest, CaptureTarget, ScreenCapture};
+use body_contract::screen::{ScreenSubject, run};
+use body_core::{CaptureError, CaptureRequest, CaptureTarget, RawFrame, ScreenCapture, TargetRect};
 use os_linux::{
     Area, GrabError, Layer, Layout, LinuxScreenCapture, Monitor, Pixels, RootGrab, RootImage,
     Snapshot, TreeWindow,
@@ -510,4 +511,46 @@ fn a_layer_whose_pixels_do_not_fill_its_place_is_refused() {
         panic!("expected a refusal, got {painted:?}");
     };
     assert!(reason.contains("2 by 1 returned 4 bytes"), "{reason}");
+}
+
+struct Linux;
+
+impl ScreenSubject for Linux {
+    fn showing(&self, frame: RawFrame) -> Box<dyn ScreenCapture> {
+        let root = Area {
+            x: 0,
+            y: 0,
+            width: u16::try_from(frame.width()).unwrap_or(u16::MAX),
+            height: u16::try_from(frame.height()).unwrap_or(u16::MAX),
+        };
+        let read = RootImage {
+            width: frame.width(),
+            height: frame.height(),
+            ..image(true, frame.pixels().to_vec())
+        };
+        let layout = Layout {
+            root,
+            monitors: Vec::new(),
+        };
+        Box::new(counted(Ok(layout), Ok(read)).0)
+    }
+
+    // Capturing one window is not implemented on X11, so no focus resolves to one.
+    fn pointing_at(&self, _frame: RawFrame, _window: TargetRect) -> Option<Box<dyn ScreenCapture>> {
+        None
+    }
+
+    fn without_display(&self) -> Box<dyn ScreenCapture> {
+        let unset = GrabError::NoDisplay(String::from("DISPLAY is not set"));
+        Box::new(counted(Err(unset), Ok(image(true, vec![0; 8]))).0)
+    }
+
+    fn broken(&self) -> Box<dyn ScreenCapture> {
+        Box::new(backend(Err(GrabError::Failed(String::from("BadMatch")))))
+    }
+}
+
+#[test]
+fn the_linux_backend_meets_every_screen_check() {
+    run(&Linux);
 }

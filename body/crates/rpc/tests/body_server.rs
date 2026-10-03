@@ -1,10 +1,10 @@
 //! Contract tests for the `BodyService` server.
 
 use std::net::SocketAddr;
-use std::sync::{Arc, Mutex, PoisonError};
+use std::sync::PoisonError;
 use std::thread::{self, ThreadId};
 
-use body_contract::{FakeAudio, FakeNotify, Threads};
+use body_contract::{FakeAudio, FakeNotify, FakeScreen, Threads};
 use body_core::{
     AudioError, Capture, CaptureError, CaptureRequest, CaptureTarget, CapturedFrame,
     DeniedScreenCapture, NotifyError, RawFrame, ScreenCapture, TargetRect,
@@ -23,14 +23,6 @@ use tonic::transport::{Channel, Server};
 use tonic::{Code, Request};
 
 const TOKEN: &str = "sekrit-seam-token";
-
-/// Records `thread` as one call site.
-fn record(threads: &Threads, thread: ThreadId) {
-    threads
-        .lock()
-        .unwrap_or_else(PoisonError::into_inner)
-        .push(thread);
-}
 
 /// Reads back the recorded call sites.
 fn recorded(threads: &Threads) -> Vec<ThreadId> {
@@ -456,80 +448,6 @@ async fn a_wrong_length_token_is_unauthenticated() {
         .await
         .unwrap_err();
     assert_eq!(status.code(), Code::Unauthenticated);
-}
-
-/// A fake `ScreenCapture`: answers a scripted frame or failure, records the resolved requests it
-/// was handed and the thread each ran on.
-struct FakeScreen {
-    answer: Answer,
-    seen: Arc<Mutex<Vec<CaptureRequest>>>,
-    threads: Threads,
-}
-
-/// What a fake backend hands back.
-enum Answer {
-    Frame(RawFrame),
-    Window(RawFrame, TargetRect),
-    Failure(CaptureError),
-    Raw(u32, u32, Vec<u8>),
-}
-
-impl FakeScreen {
-    fn answering(frame: RawFrame) -> Self {
-        Self::with(Answer::Frame(frame))
-    }
-
-    /// A backend that resolved a target to a window inside the frame, which is what the real one
-    /// does after its Z-order walk.
-    fn showing(frame: RawFrame, window: TargetRect) -> Self {
-        Self::with(Answer::Window(frame, window))
-    }
-
-    fn failing(error: CaptureError) -> Self {
-        Self::with(Answer::Failure(error))
-    }
-
-    /// A backend that reports a size its buffer does not match, as a real one would if it
-    /// miscounted a `GetDIBits` stride.
-    fn miscounting(width: u32, height: u32, pixels: Vec<u8>) -> Self {
-        Self::with(Answer::Raw(width, height, pixels))
-    }
-
-    fn with(answer: Answer) -> Self {
-        Self {
-            answer,
-            seen: Arc::default(),
-            threads: Threads::default(),
-        }
-    }
-
-    /// A handle on the requests, taken before the fake moves into the server.
-    fn requests(&self) -> Arc<Mutex<Vec<CaptureRequest>>> {
-        Arc::clone(&self.seen)
-    }
-
-    /// A handle on the call sites, taken before the fake moves into the server.
-    fn threads(&self) -> Threads {
-        Arc::clone(&self.threads)
-    }
-}
-
-impl ScreenCapture for FakeScreen {
-    fn capture(&self, request: &CaptureRequest) -> Result<CapturedFrame, CaptureError> {
-        record(&self.threads, thread::current().id());
-        self.seen
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner)
-            .push(*request);
-        match &self.answer {
-            Answer::Frame(frame) => Ok(CapturedFrame::display(frame.clone())),
-            Answer::Window(frame, window) => Ok(CapturedFrame::window(frame.clone(), *window)),
-            Answer::Failure(error) => Err(error.clone()),
-            Answer::Raw(width, height, pixels) => {
-                RawFrame::new(*width, *height, pixels.clone()).map(CapturedFrame::display)
-            }
-        }
-    }
 }
 
 /// A flat BGRA frame of the given size.

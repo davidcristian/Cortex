@@ -98,7 +98,7 @@ impl RawFrame {
     }
 }
 
-/// The port a screen-capture backend implements, real only in `os_windows`, over GDI.
+/// The port a screen-capture backend implements: GDI in `os_windows`, the X root in `os_linux`.
 pub trait ScreenCapture: Send + Sync {
     /// Reads the primary display, with the request's target resolved to a rectangle in its pixels.
     ///

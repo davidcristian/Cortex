@@ -15,27 +15,24 @@ implementations legitimately cannot share checks.
 Every Python port and the overlay's `BrainBridge` have a list, twenty-two in all: twenty-one in
 Python (nineteen named `<port>_contract.py`, plus `session/tests/contract.py` and the own-text list
 inside `tools/tests/test_own_text_contract.py`) and the overlay's `bridgeContract.ts`. In Rust,
-`AudioControl` and `Notify` have one each in `body/crates/contract`: `body_contract::audio`, run
-over the one `FakeAudio` and over `LinuxAudioControl` on a stand-in sound server, and
-`body_contract::notify`, run over the one `FakeNotify` and over `LinuxNotify` on `FakeBus`.
-ADR-0068 decisions 11 and 12 settle the shape every other Rust list takes and what a write-only
-port owes. `BrainTransport` cannot take that shape and is
+`AudioControl`, `Notify` and `ScreenCapture` have one each in `body/crates/contract`, each run
+over the port's one fake and over its Linux adapter: `body_contract::audio` over `FakeAudio` and
+`LinuxAudioControl` on a stand-in sound server, `body_contract::notify` over `FakeNotify` and
+`LinuxNotify` on `FakeBus`, and `body_contract::screen` over `FakeScreen` and `LinuxScreenCapture`
+on `FakeRoot`. ADR-0068 decisions 11 and 12 settle the shape every other Rust list takes and what
+a write-only port owes. `BrainTransport` cannot take that shape and is
 [R-781](781-a-shared-check-list-for-the-brain-transport.md).
 
-What is left is two OS ports, each a module in `body/crates/contract` with a subject trait, a
+What is left is one OS port, `Hotkey`: a module in `body/crates/contract` with a subject trait, a
 `named!` table and a `run`, a driver over the fake in that crate's tests and one over the Linux
-adapter in `body/crates/os_linux/tests/`, with the port's fake moved into the crate:
+adapter in `body/crates/os_linux/tests/`, with the port's fake moved into the crate. `FakeHotkey`
+is written once, in `core/tests/os.rs`, and it runs the callback when it registers, which no real
+backend does, so its subject needs a press. `LinuxHotkey` runs over `FakeKeys`. `Hotkey` is not
+`Send + Sync`, unlike the other three.
 
-- `ScreenCapture`: `FakeScreen` is written twice, in `core/tests/screen.rs` and
-  `rpc/tests/body_server.rs`. The list runs over it, over `DeniedScreenCapture` and over
-  `LinuxScreenCapture` on `FakeRoot`.
-- `Hotkey`: `FakeHotkey` is written once, in `core/tests/os.rs`, and it runs the callback when it
-  registers, which no real backend does, so its subject needs a press. `LinuxHotkey` runs over
-  `FakeKeys`. `Hotkey` is not `Send + Sync`, unlike the other three.
-
-The generic helpers that look like drivers and assert nothing (`register_via` and `capture_via`
-in `core/tests/`) go with their port's fake. The Windows backends run no list in CI; a host run
-over one would leave out the conditions a real desktop cannot be put in.
+The generic helper that looks like a driver and asserts nothing, `register_via` in
+`core/tests/os.rs`, goes with the fake. The Windows backends run no list in CI; a host run over
+one would leave out the conditions a real desktop cannot be put in.
 
 ## History
 
@@ -126,3 +123,10 @@ over one would leave out the conditions a real desktop cannot be put in.
   which now owns its sent log through an `Arc` so the subject can hand the adapter out boxed. The
   two `FakeNotify` copies became one in `body/crates/contract`, and `show_via` and the three core
   tests that only exercised the fake went with them. The list found no disagreement.
+- 2026-10-03: `ScreenCapture` closed, six checks over `FakeScreen` and over `LinuxScreenCapture` on
+  `FakeRoot`. The list paid twice, both times on the fake the rpc server's tests used: it named its
+  window when asked for the whole display, and answered the whole display to a focus request on a
+  desktop with no window, where `WindowsScreenCapture` answers the display and `NoTarget`. The fake
+  now does what the Windows backend does, and the two copies became one in `body/crates/contract`.
+  `DeniedScreenCapture` runs no driver, against this entry's plan: it is the switched-off
+  condition alone, which its own core test checks for every request.

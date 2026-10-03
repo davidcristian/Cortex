@@ -1,5 +1,4 @@
 use std::fmt::Debug;
-use std::sync::{Mutex, PoisonError};
 
 use body_core::os::screen::{
     CAPTURE_RECEIPT_BODY_DISPLAY, CAPTURE_RECEIPT_BODY_WINDOW, CAPTURE_RECEIPT_ID,
@@ -17,54 +16,6 @@ use body_core::{
 /// Unwraps a fixture's result.
 fn ok<T, E: Debug>(result: Result<T, E>) -> T {
     result.unwrap_or_else(|error| panic!("the fixture failed: {error:?}"))
-}
-
-/// A fake `ScreenCapture` backend: answers a scripted frame or failure and records the requests it
-/// was handed (the port is `Send + Sync`, so the interior mutability is a `Mutex`).
-struct FakeScreen {
-    frame: Result<CapturedFrame, CaptureError>,
-    seen: Mutex<Vec<CaptureRequest>>,
-}
-
-impl FakeScreen {
-    fn answering(frame: RawFrame) -> Self {
-        Self {
-            frame: Ok(CapturedFrame::display(frame)),
-            seen: Mutex::new(Vec::new()),
-        }
-    }
-
-    fn failing(error: CaptureError) -> Self {
-        Self {
-            frame: Err(error),
-            seen: Mutex::new(Vec::new()),
-        }
-    }
-
-    fn seen(&self) -> Vec<CaptureRequest> {
-        self.seen
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner)
-            .clone()
-    }
-}
-
-impl ScreenCapture for FakeScreen {
-    fn capture(&self, request: &CaptureRequest) -> Result<CapturedFrame, CaptureError> {
-        self.seen
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner)
-            .push(*request);
-        self.frame.clone()
-    }
-}
-
-/// Captures through a generic bound, the way the `BodyService` server does.
-fn capture_via<S: ScreenCapture>(
-    backend: &S,
-    request: &CaptureRequest,
-) -> Result<CapturedFrame, CaptureError> {
-    backend.capture(request)
 }
 
 /// The whole display, which is what an untargeted request answers.
@@ -449,7 +400,7 @@ fn the_encoder_refuses_an_image_with_no_pixels() {
 fn a_denied_backend_answers_disabled_whatever_it_is_asked() {
     let request = CaptureRequest::new(0);
     assert_eq!(
-        capture_via(&DeniedScreenCapture, &request).unwrap_err(),
+        DeniedScreenCapture.capture(&request).unwrap_err(),
         CaptureError::Disabled
     );
     assert_eq!(
@@ -457,44 +408,6 @@ fn a_denied_backend_answers_disabled_whatever_it_is_asked() {
             .capture(&CaptureRequest::new(4096))
             .unwrap_err(),
         CaptureError::Disabled
-    );
-}
-
-#[test]
-fn a_backend_receives_the_resolved_request_through_the_port() {
-    let backend = FakeScreen::answering(flat(4, 4, 1, 2, 3));
-    let captured = capture_via(&backend, &CaptureRequest::new(0)).unwrap();
-    assert_eq!(
-        (captured.frame().width(), captured.frame().height()),
-        (4, 4)
-    );
-    assert_eq!(captured, CapturedFrame::display(flat(4, 4, 1, 2, 3)));
-    assert_eq!(
-        backend.seen(),
-        vec![CaptureRequest::new(DEFAULT_MAX_EDGE)],
-        "the backend must see the resolved edge, not the raw zero"
-    );
-}
-
-#[test]
-fn a_backend_is_told_what_to_point_at() {
-    let backend = FakeScreen::answering(flat(4, 4, 1, 2, 3));
-    let request = CaptureRequest::targeted(800, 0, CaptureTarget::Focus);
-    drop(capture_via(&backend, &request).unwrap());
-    assert_eq!(
-        backend.seen(),
-        vec![request],
-        "only the backend can resolve a target, so it has to be told there is one"
-    );
-    assert_eq!(backend.seen()[0].target(), CaptureTarget::Focus);
-}
-
-#[test]
-fn a_failing_backend_reports_its_reason_through_the_port() {
-    let backend = FakeScreen::failing(CaptureError::NoDisplay(String::from("lid shut")));
-    assert_eq!(
-        capture_via(&backend, &CaptureRequest::new(0)).unwrap_err(),
-        CaptureError::NoDisplay(String::from("lid shut"))
     );
 }
 

@@ -23,6 +23,16 @@ crate; nothing that ships links it.
   The five checks, each over three reminders that differ in taint, markup and length: a shown
   notification answers `true`; one backend answers each of several calls; a declined one answers
   `false`; no service fails with `Unavailable`; a broken backend fails with `Backend`.
+- **`screen`**, the `ScreenCapture` list. `ScreenSubject` builds `showing(RawFrame)`, a display
+  with no window to point at; `pointing_at(RawFrame, TargetRect)`, an `Option` because
+  `LinuxScreenCapture` cannot capture one window; `without_display()`; and `broken()`. The six
+  checks, over two frames and three edges: a display capture answers the whole display at its own
+  size with no window; a focus capture names the window on the whole display; a display capture
+  leaves a focused window out; a focus capture with no window fails; no display fails with
+  `NoDisplay`; a broken backend fails with `Backend`. A frame is compared by size and its blue,
+  green and red bytes, since no backend promises the fourth. `DeniedScreenCapture` runs no driver:
+  it is the switched-off condition alone, and `body/crates/core/tests/screen.rs` checks it refuses
+  every request with `Disabled`.
 - **`FakeAudio`**, the one stand-in `AudioControl` every body test uses: `new(level, muted)` holds
   a state in memory, `failing(AudioError)` answers every call with that error, and `panicking()`
   panics inside every call. `threads()` returns the `Threads` handle on the thread each call ran on,
@@ -30,12 +40,20 @@ crate; nothing that ships links it.
 - **`FakeNotify`**, the one stand-in `Notify`: `answering(shown)`, `failing(NotifyError)` and
   `panicking()`, with `seen()` returning every notification a call answered and `threads()` as
   above. A clone shares both records, so a test keeps one after the other moves into a server.
-- The drivers: `tests/audio.rs` and `tests/notify.rs` here, over the fakes;
+- **`FakeScreen`**, the one stand-in `ScreenCapture`: `answering(RawFrame)` is a display with no
+  window, so a focus request fails with `NoTarget`; `showing(RawFrame, TargetRect)` resolves a focus
+  request to that window and answers a display request with the display; `failing(CaptureError)`;
+  and `miscounting(width, height, pixels)`, a buffer that does not match its size, which
+  `RawFrame::new` refuses. `requests()` returns the `Requests` handle on every request it was
+  handed, and `threads()` as above.
+- The drivers: `tests/audio.rs`, `tests/notify.rs` and `tests/screen.rs` here, over the fakes;
   `body/crates/os_linux/tests/audio_contract.rs`, over `LinuxAudioControl` on `SoundServer`, a
   stand-in `pactl` holding one default sink that the set commands change and the get commands
-  print; and `the_linux_backend_meets_every_notify_check` in `body/crates/os_linux/tests/notify.rs`,
+  print; `the_linux_backend_meets_every_notify_check` in `body/crates/os_linux/tests/notify.rs`,
   over `LinuxNotify` on that file's `FakeBus`, `declining` returning `None` because the
-  freedesktop specification gives a server no way to decline.
+  freedesktop specification gives a server no way to decline; and
+  `the_linux_backend_meets_every_screen_check` in `body/crates/os_linux/tests/screen.rs`, over
+  `LinuxScreenCapture` on that file's `FakeRoot`.
 
 ## Invariants
 

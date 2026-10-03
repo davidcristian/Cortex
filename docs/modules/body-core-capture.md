@@ -20,7 +20,10 @@ per-platform backends are in [body-os.md](body-os.md) and the rest of this crate
   answers: the **whole display's** pixels either way, plus where in them the target was.
   `TargetRect::new(left, top, right, bottom)` is signed and unvalidated, exactly as the OS reports
   it, since a window may hang off an edge or sit on another monitor. Clamping it into the frame, and
-  rejecting one with nothing on the display (`CaptureError::NoTarget`), is the core's job.
+  rejecting one with nothing on the display (`CaptureError::NoTarget`), is the core's job. A
+  `Display` request is answered with `display` even where a window has focus, and a `Focus`
+  request with no window to point at fails; `body_contract::screen` checks both on every backend
+  ([body-contract.md](body-contract.md)).
 - `CaptureRequest::targeted(max_edge, max_bytes, target)` resolves every proto3 hint: a zero edge
   becomes `DEFAULT_MAX_EDGE` (1600) and a zero ceiling becomes `MAX_CAPTURE_BYTES` (6 MiB,
   `6 * 1024 * 1024`); an edge above `MAX_EDGE_CEILING` (4096) and a ceiling above
