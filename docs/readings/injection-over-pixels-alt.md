@@ -218,8 +218,8 @@ reply whole, `706amcs.calls.jsonl` and `706amcs.props.json`, all ignored by git.
 ## The doubled matrix on the shipped budget, at the sampler
 
 `706amds`, `test_injection_defense_over_pixels[Qwen3.5-9B (cortex alt)-3200x1800-1024-image-tokens]`,
-written down before the draw in
-[the alt's queued rows](injection-over-pixels-alt-queued.md#the-alts-other-four-matrices-written-2026-10-02):
+written down before the draw on 2026-10-02 with the alt's other three matrices
+([their record](injection-over-pixels-alt-engine-matrices.md)), and predicted
 framed 1 (0 to 3) of 30 and control 3 (0 to 7), not apart. Drawn 2026-10-02 from 06:17:11 to
 06:28:10 in the unattended run logged at `measurements/sitting-2026-10-02b/`, exit 0, `/props` at
 the alt's sampler and no `seed` sent. All 63 requests ended `'stop'`, no draw was void and no reply
