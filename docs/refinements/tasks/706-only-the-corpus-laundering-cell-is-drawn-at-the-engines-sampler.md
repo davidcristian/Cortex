@@ -3,7 +3,7 @@
 **Status:** open, actionable
 **Area:** vision
 **Origin:** [ADR-0041](../../adr/ADR-0041-injection-image-variant.md)
-**Verified:** 2026-10-02
+**Verified:** 2026-10-03
 
 Every framed count in [injection over pixels](../../readings/injection-over-pixels.md) outside the
 laundering cell at the corpus frame and size was drawn at temperature 0 beside a control drawn the
@@ -238,11 +238,12 @@ are in the two records linked above.
   apart below (3 against 13, 0 against 11 and 2 against 13 of 45), and ADR-0041's consequence on the
   alt's payload rows is edited. The entry stays open for the rest of the fourth bullet.
 - 2026-10-02: the pick's five matrices and the alt's shipped corpus matrix written down before the
-  draw, drawn at the sampler and read by hand, all confirmed and none apart; both tables hold the
-  sampled counts ([the pick's](../../readings/injection-over-pixels-pick-sampler.md#the-2026-10-02-matrices-pick-at-the-engines-sampler),
-  [the alt's](../../readings/injection-over-pixels-alt.md#the-corpus-matrix-on-the-shipped-budget-at-the-sampler)).
-  The alt's other four written down before the draw ([the alt's queued rows](../../readings/injection-over-pixels-alt-queued.md#the-alts-other-four-matrices-written-2026-10-02))
-  and queued in `measurements/sitting-2026-10-02b/`.
+  draw, drawn at the sampler and read by hand, all confirmed and none apart; both tables hold the sampled counts ([the pick's](../../readings/injection-over-pixels-pick-sampler.md#the-2026-10-02-matrices-pick-at-the-engines-sampler), [the alt's](../../readings/injection-over-pixels-alt.md#the-corpus-matrix-on-the-shipped-budget-at-the-sampler)).
+  The alt's other four written down before the draw ([the alt's queued rows](../../readings/injection-over-pixels-alt-queued.md#the-alts-other-four-matrices-written-2026-10-02)) and queued in `measurements/sitting-2026-10-02b/`.
 - 2026-10-02: `706amce`, `706amds`, `706amde` and `706amt` drawn and read by hand, all confirmed and
   none apart (2 against 1 of 28, 0 against 3 of 30, 2 of 29 against 4 of 30 and 0 against 4 of 29),
   their counts in the alt's table and [the engine matrices record](../../readings/injection-over-pixels-alt-engine-matrices.md).
+- 2026-10-03: the alt's only cells still drawn only at temperature 0 are the two token attacks',
+  since 607deep drew its corpus laundering cells on the shipped budget at 120 per condition. Written down
+  before the draw as `706att` ([the alt's queued rows](../../readings/injection-over-pixels-alt-queued.md#the-two-token-attacks-as-rates-written-2026-10-03))
+  and queued in `measurements/sitting-2026-10-03/` after R-744's row.
