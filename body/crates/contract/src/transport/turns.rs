@@ -3,6 +3,7 @@
 use std::future::poll_fn;
 use std::pin::Pin;
 use std::task::{Context, Poll};
+use std::vec::IntoIter;
 
 use body_core::{ConfirmDecision, TransportError, TurnEvent};
 use futures_core::Stream;
@@ -10,24 +11,35 @@ use futures_core::Stream;
 use super::checks::{kind, refused, two_chats};
 use super::{Calls, Held, Pending, TransportSubject};
 
-/// A caller with no confirm decisions to send, whose stream ends at once.
-struct NoDecisions;
+/// The confirm decisions a caller sends, all ready before the turn starts.
+struct Answers(IntoIter<ConfirmDecision>);
 
-impl Stream for NoDecisions {
+impl Stream for Answers {
     type Item = ConfirmDecision;
 
     fn poll_next(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Option<ConfirmDecision>> {
-        Poll::Ready(None)
+        Poll::Ready(self.get_mut().0.next())
     }
 }
 
-/// Runs one turn on `session_id` and collects every item the transport streams.
+/// Runs one turn on `session_id` with no decisions and collects every item the transport streams.
 async fn turn(
     transport: &dyn Calls,
     session_id: &str,
     text: &str,
 ) -> Vec<Result<TurnEvent, TransportError>> {
-    let mut events = transport.converse(session_id, text, Vec::new(), Box::pin(NoDecisions));
+    answered(transport, session_id, text, Vec::new()).await
+}
+
+/// Runs one turn that sends `decisions`, and collects every item the transport streams.
+async fn answered(
+    transport: &dyn Calls,
+    session_id: &str,
+    text: &str,
+    decisions: Vec<ConfirmDecision>,
+) -> Vec<Result<TurnEvent, TransportError>> {
+    let decisions = Box::pin(Answers(decisions.into_iter()));
+    let mut events = transport.converse(session_id, text, Vec::new(), decisions);
     let mut items = Vec::new();
     while let Some(item) = poll_fn(|cx| events.as_mut().poll_next(cx)).await {
         items.push(item);
@@ -54,7 +66,24 @@ fn overloaded() -> TurnEvent {
     }
 }
 
-/// One event of every kind, in the order a brain may send them, ending at the completion.
+/// A request to confirm one email before it is sent.
+fn ask() -> TurnEvent {
+    TurnEvent::ConfirmRequest {
+        confirm_id: String::from("confirm-7"),
+        tool_name: String::from("send_email"),
+        arguments_json: String::from("{\"to\":\"x@y\"}"),
+        reason: String::from("outbound and irreversible"),
+    }
+}
+
+fn completed() -> TurnEvent {
+    TurnEvent::Complete {
+        turn_id: String::from("turn-1"),
+    }
+}
+
+/// One event of every kind but a confirm request, in an order a brain may send them, ending at the
+/// completion.
 fn every_kind() -> Vec<TurnEvent> {
     vec![
         delta("checking your mail"),
@@ -74,19 +103,11 @@ fn every_kind() -> Vec<TurnEvent> {
             state: String::from("model_loading"),
             detail: String::from("swapping"),
         },
-        TurnEvent::ConfirmRequest {
-            confirm_id: String::from("confirm-7"),
-            tool_name: String::from("send_email"),
-            arguments_json: String::from("{\"to\":\"x@y\"}"),
-            reason: String::from("outbound and irreversible"),
-        },
         TurnEvent::ConfirmResolved {
             confirm_id: String::from("confirm-7"),
             outcome: String::from("timeout"),
         },
-        TurnEvent::Complete {
-            turn_id: String::from("turn-1"),
-        },
+        completed(),
     ]
 }
 
@@ -171,5 +192,47 @@ pub(super) fn an_unreachable_brain_fails_the_turn_as_a_connection(
         let kinds = items.into_iter().map(|item| kind(item.err()));
         let lost = kind(Some(TransportError::Connection(String::new())));
         assert_eq!(kinds.collect::<Vec<_>>(), vec![lost]);
+    })
+}
+
+pub(super) fn a_decision_reaches_the_brain_that_asked(
+    subject: &dyn TransportSubject,
+) -> Pending<'_> {
+    Box::pin(async move {
+        let transport = subject.serving(&replying(vec![ask(), completed()]));
+        for approved in [true, false] {
+            let decision = ConfirmDecision {
+                confirm_id: String::from("confirm-7"),
+                approved,
+            };
+            let outcome = TurnEvent::ToolOutcome {
+                tool_name: String::from("send_email"),
+                ok: approved,
+            };
+            let expected = vec![Ok(ask()), Ok(outcome), Ok(completed())];
+            let found = answered(transport.as_ref(), "beta", "send it", vec![decision]).await;
+            assert_eq!(found, expected);
+        }
+    })
+}
+
+pub(super) fn an_unanswered_ask_is_resolved_without_a_decision(
+    subject: &dyn TransportSubject,
+) -> Pending<'_> {
+    Box::pin(async move {
+        let transport = subject.serving(&replying(vec![ask(), completed()]));
+        let other = ConfirmDecision {
+            confirm_id: String::from("confirm-8"),
+            approved: true,
+        };
+        let resolved = TurnEvent::ConfirmResolved {
+            confirm_id: String::from("confirm-7"),
+            outcome: String::from("timeout"),
+        };
+        let expected = vec![Ok(ask()), Ok(resolved), Ok(completed())];
+        for decisions in [Vec::new(), vec![other]] {
+            let found = answered(transport.as_ref(), "beta", "send it", decisions).await;
+            assert_eq!(found, expected);
+        }
     })
 }

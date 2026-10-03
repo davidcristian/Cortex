@@ -47,19 +47,24 @@ crate; nothing that ships links it.
   stream and returning a boxed `Events` stream, implemented once for every `T: BrainTransport`.
   `TransportSubject` builds `serving(&Held)`, a brain that starts from a health, its `Chat`s
   (hoisted first, then newest first), its due reminders, its settings sorted by key and the `reply`
-  it streams for every turn, and applies each write to them; `refusing()`, a brain failing every
-  call with `Unavailable`, `store down`; and `unreachable()`. Each check returns a boxed future,
-  and `run(&dyn TransportSubject)` awaits them in order. The twenty checks: the health is what the
-  brain holds, ready or not; a listing names every chat; a listing stops at its limit; a history is
-  the asked chat's, in order; a rename shows in the next listing; a delete drops the chat from it; a
-  hoist moves the chat above the rest; the due reminders are what the brain holds; an ack clears
-  only the fire it names, once; the settings are what the brain holds; a written setting reads
-  back in key order; an empty value clears its setting; a refusing brain fails every call with
-  `Rpc` and its code and message; an unreachable one fails every call with `Connection`; a turn
-  streams the held reply in order, one event of every kind; a turn adds the user's words to its
-  chat's history and no other; a turn ends at its first `Failed` or `Complete`; a reply with
-  neither ends in a `Protocol` error; a refusing brain fails a turn with its status, as its one
-  item; an unreachable one fails it with `Connection`, as its one item.
+  it streams for every turn, and applies each write to them. After a confirm request in the reply
+  it reads the next decision, and answers one naming the request with that tool's `ToolOutcome`,
+  `ok` when approved, and anything else with `ConfirmResolved` `timeout`. The other conditions are
+  `refusing()`, a brain failing every call with `Unavailable`, `store down`, and `unreachable()`.
+  Each check returns a boxed future, and `run(&dyn TransportSubject)` awaits them in order. The
+  twenty-two checks: the health is what the brain holds, ready or not; a listing names every chat;
+  a listing stops at its limit; a history is the asked chat's, in order; a rename shows in the next
+  listing; a delete drops the chat from it; a hoist moves the chat above the rest; the due
+  reminders are what the brain holds; an ack clears only the fire it names, once; the settings are
+  what the brain holds; a written setting reads back in key order; an empty value clears its
+  setting; a refusing brain fails every call with `Rpc` and its code and message; an unreachable
+  one fails every call with `Connection`; a turn streams the held reply in order, one event of
+  every kind but a confirm request; a turn adds the user's words to its chat's history and no
+  other; a turn ends at its first `Failed` or `Complete`; a reply with neither ends in a `Protocol`
+  error; a refusing brain fails a turn with its status, as its one item; an unreachable one fails
+  it with `Connection`, as its one item; a decision naming a confirm request reaches the brain,
+  approved or not; an ask with no decision, or one naming another request, is resolved as
+  `timeout`.
 - **`FakeAudio`**, the one stand-in `AudioControl` every body test uses: `new(level, muted)` holds
   a state in memory, `failing(AudioError)` answers every call with that error, and `panicking()`
   panics inside every call. `threads()` returns the `Threads` handle on the thread each call ran on,
@@ -80,8 +85,8 @@ crate; nothing that ships links it.
 - **`FakeTransport`**, the one stand-in `BrainTransport`: `holding(&Held)` answers from that state
   and applies each write to it, and a turn appends the user's words to the asked chat and streams
   the held reply up to its first terminal event, ending in a `Protocol` error when it has none;
-  `failing(TransportError)` answers every call, a turn included, with that error. It drops the
-  caller's confirm decisions and the attached images.
+  `failing(TransportError)` answers every call, a turn included, with that error. It reads a
+  decision after each confirm request, as `serving` describes, and drops the attached images.
 - The drivers: `tests/audio.rs`, `tests/hotkey.rs`, `tests/notify.rs` and `tests/screen.rs` here,
   over the fakes;
   `body/crates/os_linux/tests/audio_contract.rs`, over `LinuxAudioControl` on `SoundServer`, a
@@ -115,6 +120,4 @@ crate; nothing that ships links it.
   fakes' failure and panic paths are reached by the rpc server's tests and the lists.
 
 **Dependencies.** `body-core` (the ports). Dev-dependency of `body-rpc` (for the fakes and the
-transport list), of `os-linux` (for the lists) and of `body-core` (for the transport list). A
-confirm round trip on the transport's list is
-[R-781](../refinements/tasks/781-a-shared-check-list-for-the-brain-transport.md).
+transport list), of `os-linux` (for the lists) and of `body-core` (for the transport list).

@@ -22,6 +22,9 @@ use checks::{
     health_is_what_the_brain_holds, the_settings_are_what_the_brain_holds,
 };
 use turns::{
+    a_decision_reaches_the_brain_that_asked, an_unanswered_ask_is_resolved_without_a_decision,
+};
+use turns::{
     a_refusing_brain_fails_the_turn_with_its_status, a_reply_without_a_completion_fails_the_turn,
     a_turn_adds_the_user_s_words_to_its_chat, a_turn_ends_at_its_first_terminal_event,
     a_turn_streams_the_held_reply_in_order, an_unreachable_brain_fails_the_turn_as_a_connection,
@@ -146,8 +149,9 @@ pub struct Held {
 
 /// Builds the transport under test in each condition a check needs.
 pub trait TransportSubject {
-    /// A transport whose brain starts from `held`, reads from it, and applies each write to it.
-    /// A turn appends the user's words to the asked chat's history, then streams `held.reply`.
+    /// A brain that starts from `held` and applies each write to it. A turn adds the user's words to
+    /// the asked chat, then streams `held.reply`, answering a confirm request with the tool's
+    /// `ToolOutcome`, `ok` if approved, or `ConfirmResolved` `timeout` when no decision names it.
     fn serving(&self, held: &Held) -> Box<dyn Calls>;
 
     /// A transport whose brain fails every call with the status `Unavailable`, `store down`.
@@ -161,7 +165,7 @@ pub trait TransportSubject {
 pub type TransportCheck = (&'static str, fn(&dyn TransportSubject) -> Pending<'_>);
 
 /// Every check a transport's calls owe, in the order a driver runs them.
-pub const TRANSPORT_CHECKS: [TransportCheck; 20] = named![fn(&dyn TransportSubject) -> Pending<'_>;
+pub const TRANSPORT_CHECKS: [TransportCheck; 22] = named![fn(&dyn TransportSubject) -> Pending<'_>;
     health_is_what_the_brain_holds,
     a_listing_names_every_chat_newest_first,
     a_listing_stops_at_its_limit,
@@ -182,6 +186,8 @@ pub const TRANSPORT_CHECKS: [TransportCheck; 20] = named![fn(&dyn TransportSubje
     a_reply_without_a_completion_fails_the_turn,
     a_refusing_brain_fails_the_turn_with_its_status,
     an_unreachable_brain_fails_the_turn_as_a_connection,
+    a_decision_reaches_the_brain_that_asked,
+    an_unanswered_ask_is_resolved_without_a_decision,
 ];
 
 /// Runs every check against `subject`, naming each on stderr first so a failure shows which.

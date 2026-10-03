@@ -55,16 +55,13 @@ pub enum Turn {
     /// assert it is the matching `ConfirmResponse` with this `approved` value, which shows the
     /// client kept its sender open and relayed the caller's decision.
     Confirm { approved: bool },
-    /// Read the user turn, emit a `ConfirmRequest`, then end the wait without any answer, as the
-    /// brain's confirm timeout does: `ConfirmResolved{timeout}`, the declined turn's reply, and
-    /// `TurnComplete`.
-    ConfirmTimeout,
     /// Read the user turn, then assert the inbound stream half-closes when the caller's decisions
     /// stream is empty, which is the shape that predates confirms, then complete normally.
     HalfClose,
     /// Read the user turn and describe each attached image in one delta, then complete.
     Images,
-    /// Read the user turn, append its words to the asked chat in `held`, then stream `held.reply`.
+    /// Read the user turn, append its words to the asked chat in `held`, then stream `held.reply`,
+    /// reading the next client event after each confirm request.
     Held,
     /// The `Converse` call is rejected `Unavailable` with the message `store down`.
     Unavailable,
@@ -221,6 +218,42 @@ fn confirm_script(
     }
 }
 
+/// Streams `reply`, answering each confirm request with the next client event: the tool's
+/// outcome for a response naming it, and `ConfirmResolved` `timeout` for anything else.
+fn held_script(
+    mut inbound: Streaming<ClientEvent>,
+    reply: Vec<TurnEvent>,
+) -> impl Stream<Item = Result<ServerEvent, Status>> + Send {
+    async_stream::stream! {
+        for event in reply {
+            let asked = match &event {
+                TurnEvent::ConfirmRequest { confirm_id, tool_name, .. } => {
+                    Some((confirm_id.clone(), tool_name.clone()))
+                }
+                _ => None,
+            };
+            yield Ok(server_event(&event));
+            if let Some((confirm_id, tool_name)) = asked {
+                let answer = match read_client_event(&mut inbound).await {
+                    Ok(Some((_, client_event::Event::ConfirmResponse(response))))
+                        if response.confirm_id == confirm_id =>
+                    {
+                        TurnEvent::ToolOutcome {
+                            tool_name,
+                            ok: response.approved,
+                        }
+                    }
+                    _ => TurnEvent::ConfirmResolved {
+                        confirm_id,
+                        outcome: String::from("timeout"),
+                    },
+                };
+                yield Ok(server_event(&answer));
+            }
+        }
+    }
+}
+
 /// The wire form of one event a turn streams.
 fn server_event(event: &TurnEvent) -> ServerEvent {
     let event = match event.clone() {
@@ -278,6 +311,23 @@ impl BrainService for FakeBrain {
             return Err(Status::unavailable("store down"));
         }
         let mut inbound = request.into_inner();
+        if let Turn::Held = self.turn {
+            let (session_id, text) = read_user_turn(&mut inbound).await?;
+            let mut held = self.held();
+            for chat in &mut held.chats {
+                if chat.summary.session_id == session_id {
+                    chat.messages.push(SessionMessage {
+                        role: String::from("user"),
+                        text: text.clone(),
+                        turn_id: String::new(),
+                        at_unix_ms: 0,
+                    });
+                }
+            }
+            let reply = held.reply.clone();
+            drop(held);
+            return Ok(Response::new(Box::pin(held_script(inbound, reply))));
+        }
         if let Turn::Confirm { approved } = self.turn {
             let (session_id, _text) = read_user_turn(&mut inbound).await?;
             return Ok(Response::new(Box::pin(confirm_script(
@@ -287,31 +337,6 @@ impl BrainService for FakeBrain {
         let events: Vec<Result<ServerEvent, Status>> = match self.turn {
             Turn::EmptyEvent => vec![Ok(ServerEvent { event: None })],
             Turn::MidStreamError => vec![Ok(delta("hi")), Err(Status::internal("boom"))],
-            Turn::ConfirmTimeout => {
-                let _ = read_user_turn(&mut inbound).await?;
-                vec![
-                    Ok(ServerEvent {
-                        event: Some(server_event::Event::ConfirmRequest(ConfirmRequest {
-                            confirm_id: String::from("confirm-9"),
-                            tool_name: String::from("send_email"),
-                            arguments_json: String::from("{\"to\":\"x@y\"}"),
-                            reason: String::from("outbound and irreversible"),
-                        })),
-                    }),
-                    Ok(ServerEvent {
-                        event: Some(server_event::Event::ConfirmResolved(ConfirmResolved {
-                            confirm_id: String::from("confirm-9"),
-                            outcome: String::from("timeout"),
-                        })),
-                    }),
-                    Ok(delta("not sent")),
-                    Ok(ServerEvent {
-                        event: Some(server_event::Event::TurnComplete(TurnComplete {
-                            turn_id: String::from("turn-timeout"),
-                        })),
-                    }),
-                ]
-            }
             Turn::HalfClose => {
                 let _ = read_user_turn(&mut inbound).await?;
                 match read_client_event(&mut inbound).await? {
@@ -329,25 +354,7 @@ impl BrainService for FakeBrain {
                 }
             }
             Turn::Images => describe_images(&mut inbound).await?,
-            Turn::Held => {
-                let (session_id, text) = read_user_turn(&mut inbound).await?;
-                let mut held = self.held();
-                for chat in &mut held.chats {
-                    if chat.summary.session_id == session_id {
-                        chat.messages.push(SessionMessage {
-                            role: String::from("user"),
-                            text: text.clone(),
-                            turn_id: String::new(),
-                            at_unix_ms: 0,
-                        });
-                    }
-                }
-                held.reply
-                    .iter()
-                    .map(|event| Ok(server_event(event)))
-                    .collect()
-            }
-            Turn::Unavailable | Turn::Confirm { .. } => {
+            Turn::Held | Turn::Unavailable | Turn::Confirm { .. } => {
                 unreachable!("handled above")
             }
         };

@@ -154,20 +154,22 @@ review then listed every port in both languages to find the others.
     written in each driver was rejected: it is test code, which coverage does not measure, and a
     slip in one would hide a defect. The twin returns the port's own `Result`, so a check compares
     the whole `TransportError` where implementations return the same one (a brain's `Unavailable`
-    status reaches the caller as `Rpc` with its code and message) and only the variant where they
-    do not (a connection failure's text, a malformed reply's). A write is checked by the read that
+    status reaches the caller as `Rpc` with its code and message) and only the variant where they do
+    not (a connection failure's text, a malformed reply's). A write is checked by the read that
     shows it, so both fakes apply each write to the state they hold, and a turn appends the user's
     words to the asked chat before it streams the reply `Held` names. A turn ends at its first
-    `Complete` or `Failed`, and a reply with neither ends in a `Protocol` error. The confirm round
-    trip, the attached images and the wire's own faults (an event with nothing set, a status in
-    mid-stream) are checked on `BrainRpcClient` alone in `body/crates/rpc/tests/converse.rs`, since
-    no read through the port shows what the brain received. `RetryingTransport` runs the list over
-    `FakeTransport`, with a `Sleeper` that waits for nothing. The fake is in `body/crates/contract`,
-    and `body-core` names `body-contract` as a dev-dependency to run both drivers. The rpc tests share one scripted `BrainService`,
-    `body/crates/rpc/tests/brain/mod.rs`. `ScriptedTransport`, `FlakyTransport` and
-    `StallingTransport` run no list: each is one suite's stub, answering one question (a health
-    script, a count of failures, a turn that stops sending) and a fixed value or `Connection` for
-    every other call, so none stands for a brain, and its suite checks the caller it drives.
+    `Complete` or `Failed`, and a reply with neither ends in a `Protocol` error. After a confirm
+    request both fakes read the next decision and answer one naming it with that tool's
+    `ToolOutcome`, `ok` when approved, and anything else with `ConfirmResolved` `timeout`. The
+    images, a decision sent in reaction to the request, and the wire's own faults are checked on
+    `BrainRpcClient` alone, in `body/crates/rpc/tests/converse.rs`. `RetryingTransport` runs the
+    list over `FakeTransport`, with a `Sleeper` that waits for nothing. The fake is in
+    `body/crates/contract`, and `body-core` names `body-contract` as a dev-dependency to run both
+    drivers. The rpc tests share one scripted `BrainService`, `body/crates/rpc/tests/brain/mod.rs`.
+    `ScriptedTransport`, `FlakyTransport` and `StallingTransport` run no list: each is one suite's
+    stub, answering one question (a health script, a count of failures, a turn that stops sending)
+    and a fixed value or `Connection` for every other call, so none stands for a brain, and its
+    suite checks the caller it drives.
 
 ## The inventory
 
@@ -221,8 +223,7 @@ Rust and the overlay:
 - Six configured model ids cannot be mis-wired without a failing test, at no startup cost and no
   port change.
 - The Windows backends run no list in CI, so they can disagree with their fakes until a host run
-  finds it. `FakeTransport` drops the caller's confirm decisions, so a core test cannot watch a
-  confirm round trip that `BrainRpcClient` makes.
+  finds it.
 
 ## Alternatives rejected
 
@@ -244,4 +245,4 @@ Rust and the overlay:
   [brain-tools](../modules/brain-tools.md), [body-app](../modules/body-app.md),
   [body-contract](../modules/body-contract.md).
 - Backlog: [R-018](../refinements/tasks/018-ports-without-contract-suite.md) (closed),
-  [R-781](../refinements/tasks/781-a-shared-check-list-for-the-brain-transport.md).
+  [R-781](../refinements/tasks/781-a-shared-check-list-for-the-brain-transport.md) (closed).

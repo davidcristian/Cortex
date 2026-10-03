@@ -1,10 +1,10 @@
 //! `FakeTransport`, the one stand-in `BrainTransport` the body's tests use.
 
 use std::cmp::Reverse;
-use std::pin::Pin;
+use std::future::poll_fn;
 use std::sync::{Mutex, MutexGuard, PoisonError};
-use std::task::{Context, Poll};
-use std::vec::IntoIter;
+
+use async_stream::stream;
 
 use body_core::{
     AttachedImage, BrainTransport, ConfirmDecision, DueReminder, RpcHealth, SessionMessage,
@@ -90,14 +90,19 @@ impl FakeTransport {
     }
 }
 
-/// A turn's events, streamed in order from a list built when the turn starts.
-struct Replay(IntoIter<Result<TurnEvent, TransportError>>);
-
-impl Stream for Replay {
-    type Item = Result<TurnEvent, TransportError>;
-
-    fn poll_next(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        Poll::Ready(self.get_mut().0.next())
+/// What the brain streams after asking `confirm_id`: the tool's outcome for a decision naming
+/// it, and an unanswered ask's resolution for anything else.
+fn answer(decision: Option<ConfirmDecision>, confirm_id: String, tool_name: String) -> TurnEvent {
+    let named = decision.filter(|found| found.confirm_id == confirm_id);
+    match named {
+        Some(found) => TurnEvent::ToolOutcome {
+            tool_name,
+            ok: found.approved,
+        },
+        None => TurnEvent::ConfirmResolved {
+            confirm_id,
+            outcome: String::from("timeout"),
+        },
     }
 }
 
@@ -113,8 +118,23 @@ impl BrainTransport for FakeTransport {
         _images: Vec<AttachedImage>,
         decisions: impl Stream<Item = ConfirmDecision> + Send + 'static,
     ) -> impl Stream<Item = Result<TurnEvent, TransportError>> + Send {
-        drop(decisions);
-        Replay(self.turn(session_id, text).into_iter())
+        let planned = self.turn(session_id, text);
+        let mut decisions = Box::pin(decisions);
+        stream! {
+            for item in planned {
+                let asked = match &item {
+                    Ok(TurnEvent::ConfirmRequest { confirm_id, tool_name, .. }) => {
+                        Some((confirm_id.clone(), tool_name.clone()))
+                    }
+                    _ => None,
+                };
+                yield item;
+                if let Some((confirm_id, tool_name)) = asked {
+                    let decision = poll_fn(|cx| decisions.as_mut().poll_next(cx)).await;
+                    yield Ok(answer(decision, confirm_id, tool_name));
+                }
+            }
+        }
     }
 
     async fn list_sessions(&self, limit: i32) -> Result<Vec<SessionSummary>, TransportError> {

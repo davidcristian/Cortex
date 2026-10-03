@@ -6,6 +6,7 @@ publish.workspace = true
 description = "The body's shared port check lists and the fakes held to them (lib name: body_contract)"
 
 [dependencies]
+async-stream.workspace = true
 body-core.workspace = true
 futures-core.workspace = true
 

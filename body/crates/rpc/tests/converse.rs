@@ -132,33 +132,6 @@ async fn denied_confirm_round_trips_over_the_open_request_stream() {
 }
 
 #[tokio::test]
-async fn an_unanswered_confirm_resolves_mid_turn_without_ending_it() {
-    let events = run_turn(Turn::ConfirmTimeout, "s", "send it", tokio_stream::empty())
-        .await
-        .unwrap();
-    let events: Vec<TurnEvent> = events.into_iter().map(Result::unwrap).collect();
-    assert_eq!(
-        events,
-        vec![
-            TurnEvent::ConfirmRequest {
-                confirm_id: String::from("confirm-9"),
-                tool_name: String::from("send_email"),
-                arguments_json: String::from("{\"to\":\"x@y\"}"),
-                reason: String::from("outbound and irreversible"),
-            },
-            TurnEvent::ConfirmResolved {
-                confirm_id: String::from("confirm-9"),
-                outcome: String::from("timeout"),
-            },
-            TurnEvent::Delta(String::from("not sent")),
-            TurnEvent::Complete {
-                turn_id: String::from("turn-timeout"),
-            },
-        ],
-    );
-}
-
-#[tokio::test]
 async fn empty_decisions_stream_still_half_closes_and_the_turn_completes() {
     let events = run_turn(Turn::HalfClose, "s", "hi", tokio_stream::empty())
         .await
