@@ -30,7 +30,7 @@ The deduplication is the harder half. The body server holds no state by design
 (`body/crates/rpc/src/server.rs`), and a set of shown ids kept there would be lost on the body
 restart that is exactly the case a re-push serves. The record that outlives the body process is the
 OS's own: a Windows toast has a `Tag` and a `Group` (`SetTag` and `SetGroup` on `ToastNotification`
-in the fixed `windows` 0.58), and `ToastNotificationManager::History` lists the toasts the app
+in the fixed `windows` 0.61), and `ToastNotificationManager::History` lists the toasts the app
 still has in the notification centre, so the body could return `shown` for a fire whose tagged
 toast is already there instead of showing it twice. Whether that history lists an unpackaged app's
 toasts, and for how long, is Win32 behaviour nobody has tested on a desktop, so whoever builds this
@@ -73,3 +73,6 @@ its own.
   `UNAVAILABLE` and `DEADLINE_EXCEEDED` to `UNREACHABLE`. The remedy was incomplete: a Linux
   notification backend was added on 2026-09-28 with no list of shown notifications to read, so the
   paragraph on it is new. No report of the trigger exists.
+- 2026-10-03: `os_windows` moved from `windows` 0.58 to the 0.61.3 the Tauri shell resolves. In
+  0.61.3 `ToastNotification` still has `SetTag` and `SetGroup` and `ToastNotificationManager` still
+  has `History`, so only the version named above changed.

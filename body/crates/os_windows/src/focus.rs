@@ -16,9 +16,6 @@ use windows::Win32::UI::WindowsAndMessaging::{
     IsWindowVisible, WDA_NONE, WS_EX_TOOLWINDOW,
 };
 
-/// The desktop, whose child list is the top-level windows: the null handle, by Win32 convention.
-const DESKTOP: HWND = HWND(std::ptr::null_mut());
-
 /// How many windows down the Z-order the walk will look before giving up.
 ///
 /// A bound on the loop rather than a policy: `GetWindow` is not guaranteed to end on a list
@@ -33,8 +30,8 @@ const MAX_WALK: usize = 512;
 pub(crate) fn topmost_window() -> Result<TargetRect, CaptureError> {
     // SAFETY: three pure reads of process-wide state, no handles owned and no out-parameters.
     let (ours, shell) = unsafe { (GetCurrentProcessId(), GetShellWindow()) };
-    // SAFETY: a null handle names the desktop, whose children are the top-level windows.
-    let mut next = unsafe { GetTopWindow(DESKTOP) }.ok();
+    // SAFETY: no handle names the desktop, whose children are the top-level windows.
+    let mut next = unsafe { GetTopWindow(None) }.ok();
     for _ in 0..MAX_WALK {
         let Some(window) = next else { break };
         if is_capturable(window, ours, shell) {

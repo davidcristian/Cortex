@@ -48,9 +48,9 @@ things keep it out, read from its source:
   proposes, the same guard is harmless: its `CoInitializeEx` returns `S_FALSE`, which it balances
   with one `CoUninitialize`, and Microsoft documents that pair as a reference count rather than a
   teardown;
-- it depends on `windows` 0.62. `os_windows` uses 0.58 and the Tauri stack (`tauri`, `tao`, `wry`,
-  `webview2-com`) uses 0.61.3, so the shell's lockfile already holds two versions and adopting it
-  would add a third ([R-780](780-os-windows-builds-a-second-windows-crate.md));
+- it depends on `windows` 0.62, while `os_windows` and the Tauri stack (`tauri`, `tao`, `wry`,
+  `webview2-com`) share 0.61.3, so adopting it would add a second `windows` version to the shell's
+  lockfile;
 - its volume is a `u8` percentage, rounded on read and divided by 100 on write, where the port's
   `VolumeState::level` is an `f32` fraction, so a level set elsewhere reads back rounded to one
   percent. Windows' own volume flyout shows whole percentages, so this one is a difference rather
@@ -95,5 +95,6 @@ the result checked on a Windows desktop the way the backend itself was.
   from the 0.1.2 source, does balance an `S_FALSE` initialization. Three corrections: `cpvc` 0.6.0,
   not named before, passes both stated COM and `unsafe` conditions yet panics on a missing
   endpoint, so the trigger now also asks for an error value, and it names the R-224 route; the
-  shell already builds two `windows` versions, filed as R-780; and the scoped allows name their API,
-  not their decision record. The six sites in `audio.rs` are unchanged.
+  crate's `windows` 0.62 would be a second version beside the 0.61.3 the shell resolves; and the
+  scoped allows name their API, not their decision record. The six sites in `audio.rs` are
+  unchanged.

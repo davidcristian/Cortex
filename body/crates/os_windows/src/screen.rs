@@ -18,9 +18,6 @@ use windows::Win32::UI::WindowsAndMessaging::{GetSystemMetrics, SM_CXSCREEN, SM_
 /// Bytes per pixel in the DIB this backend asks for: 32-bit BGRA, matching [`RawFrame`].
 const BYTES_PER_PIXEL: usize = 4;
 
-/// The window whose device context is the whole screen: the null handle, by Win32 convention.
-const SCREEN: HWND = HWND(std::ptr::null_mut());
-
 /// The Windows GDI screen-capture backend.
 pub struct WindowsScreenCapture;
 
@@ -47,17 +44,17 @@ impl ScreenCapture for WindowsScreenCapture {
             CaptureTarget::Focus => Some(crate::focus::topmost_window()?),
         };
         let (width, height) = display_size()?;
-        // SAFETY: a null window handle names the whole screen, which is what is being captured.
-        let screen = unsafe { GetDC(SCREEN) };
+        // SAFETY: no window handle names the whole screen, which is what is being captured.
+        let screen = unsafe { GetDC(None) };
         if screen.is_invalid() {
             return Err(CaptureError::NoDisplay(String::from(
                 "GetDC returned no device context for the screen",
             )));
         }
         let taken = blit(screen, width, height);
-        // SAFETY: `screen` came from `GetDC(SCREEN)`, so it is released against the same window.
+        // SAFETY: `screen` came from `GetDC(None)`, so it is released against the same window.
         unsafe {
-            ReleaseDC(SCREEN, screen);
+            ReleaseDC(None, screen);
         }
         let frame = RawFrame::new(width, height, taken?)?;
         Ok(framed(frame, target))
@@ -91,7 +88,7 @@ fn display_size() -> Result<(u32, u32), CaptureError> {
 /// path. The handles created here are released here, in reverse creation order.
 fn blit(screen: HDC, width: u32, height: u32) -> Result<Vec<u8>, CaptureError> {
     // SAFETY: `screen` is a live DC from `GetDC`; the memory DC is deleted below.
-    let memory = unsafe { CreateCompatibleDC(screen) };
+    let memory = unsafe { CreateCompatibleDC(Some(screen)) };
     if memory.is_invalid() {
         return Err(CaptureError::Backend(String::from(
             "CreateCompatibleDC could not make a memory device context",
@@ -136,7 +133,7 @@ fn copy_pixels(
     // SAFETY: both handles are live and the bitmap is compatible with `screen`.
     let previous = unsafe { SelectObject(memory, HGDIOBJ(bitmap.0)) };
     // SAFETY: a straight copy of the whole screen into the selected bitmap.
-    let blitted = unsafe { BitBlt(memory, 0, 0, w, h, screen, 0, 0, SRCCOPY | CAPTUREBLT) };
+    let blitted = unsafe { BitBlt(memory, 0, 0, w, h, Some(screen), 0, 0, SRCCOPY | CAPTUREBLT) };
     let taken = match blitted {
         Ok(()) => read_back(memory, bitmap, width, height),
         Err(error) => Err(CaptureError::Backend(format!("BitBlt failed: {error}"))),

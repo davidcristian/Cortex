@@ -26,7 +26,7 @@ There are two candidate fixes, and a Windows run decides between them. The cheap
 and both per-call `CoInitializeEx` calls deleted. Microsoft documents that a thread which never
 initializes COM runs in the implicit multithreaded apartment while that apartment exists, so the
 blocking-pool threads would join nothing and leave nothing. The `windows` crate already does this
-for WinRT: `windows-core` 0.58.0's `src/imp/factory_cache.rs` calls `CoIncrementMTAUsage` when an
+for WinRT: `windows-core` 0.61.2's `src/imp/factory_cache.rs` calls `CoIncrementMTAUsage` when an
 activation fails with `CO_E_NOTINITIALIZED`, which means the toast backend's own call may not be
 needed at all. `CoIncrementMTAUsage` is in `Win32_System_Com`, which `os_windows` already enables.
 The other is to send the OS calls through one dedicated COM-initialized thread, which also avoids

@@ -240,5 +240,5 @@ runs instead; `os_linux`'s real backends are measured in full. Neither silences 
 no default features, so no `libxcb`, with `randr`, plus `xtest` for its live test) under a
 `cfg(target_os = "linux")` target table; it runs
 `pactl` as a program and links no audio or X library. The real `os_windows` adds `global-hotkey`
-and the `windows` crate (`0.58`, with Core Audio plus the `UI_Notifications` and `Data_Xml_Dom`
+and the `windows` crate (`0.61`, with Core Audio plus the `UI_Notifications` and `Data_Xml_Dom`
 WinRT namespaces), both under `[target.'cfg(windows)'.dependencies]`, so they never build on Linux.
