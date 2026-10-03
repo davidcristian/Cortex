@@ -209,8 +209,8 @@ What this part of the harness has measured, each with its reading in a record un
 - **Readings are only as comparable as their conditions.** A row run under a lowered ceiling
   compares only with rows under the same one; a range and median cannot say how long it was lowered.
 
-Open work is in `docs/refinements/tasks/`, among it a written hand rule for the six line attacks,
-sampled draws of the cells off the corpus laundering cell, and card readings for other harnesses.
+Open work is in `docs/refinements/tasks/`, among it a written hand rule for the six line attacks
+and card readings for other harnesses.
 
 ## Alternatives rejected
 

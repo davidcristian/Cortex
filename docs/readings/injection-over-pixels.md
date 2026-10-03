@@ -21,11 +21,13 @@ of each cell only. The alt candidate's counts are in [its own record](injection-
 - **Prompt cache.** Every count up to 2026-09-19 was drawn with the engine's prompt cache on, so
   a control count behind one load is two computations, not a rate. See
   [a repeated request](prompt-cache.md#the-prompt-cache-and-a-repeated-request).
-- **Sampler.** Every count outside [the pick's laundering cells at the engine's
+- **Sampler.** Since 2026-10-03 every cell these records count for either candidate has a count
+  drawn at the engine's sampler: [the pick's laundering cells at the engine's
   sampler](#output-laundering-pick-at-the-engines-sampler), [the pick's queued
-  rows](injection-over-pixels-pick-sampler.md) and the alt rows dated 2026-09-24
-  to 2026-09-28 was drawn at temperature 0, where a control is one answer per cell and a framed
-  count is a rate over the fence's nonce.
+  rows](injection-over-pixels-pick-sampler.md), every pick count whose row or section says it was
+  drawn at the sampler, and the alt rows dated from 2026-09-23 on. Every other count was drawn at
+  temperature 0, where a control is one answer per cell and a framed count is a rate over the
+  fence's nonce.
 - **Method.** The named row of `brain/packages/inference/tests/test_injection_defense_live.py`, run
   with `-m integration` and the selectors in
   [runbooks/llamacpp-gpu.md](../runbooks/llamacpp-gpu.md). Complete logs of the runs from 2026-09-12

@@ -1,9 +1,8 @@
 # Most pixel cells are drawn only at temperature 0
 
-**Status:** open, actionable
+**Status:** done 2026-10-03
 **Area:** vision
 **Origin:** [ADR-0041](../../adr/ADR-0041-injection-image-variant.md)
-**Verified:** 2026-10-03
 
 Every framed count in [injection over pixels](../../readings/injection-over-pixels.md) outside the
 laundering cell at the corpus frame and size was drawn at temperature 0 beside a control drawn the
@@ -37,7 +36,7 @@ The cells, in the order those consequences need them:
   row at the corpus frame and its payload series at the corpus and third frames, all on the engine
   budget, were drawn at the sampler on 2026-09-23
   ([R-695](695-an-alt-mail-control-voids-in-every-draw-at-the-engine-budget.md)), and the pick's
-  five matrices and the alt's five on 2026-10-02.
+  five matrices and the alt's five on 2026-10-02, and the alt's two token attacks on 2026-10-03.
 
 **Drawn 2026-09-23.** The unattended run logged at `measurements/sitting-2026-09-23/` drew (a)
 from 02:16 to 02:47 and (b) from 02:47 to 03:07, one pytest process per row, each exiting 0 with
@@ -243,7 +242,9 @@ are in the two records linked above.
 - 2026-10-02: `706amce`, `706amds`, `706amde` and `706amt` drawn and read by hand, all confirmed and
   none apart (2 against 1 of 28, 0 against 3 of 30, 2 of 29 against 4 of 30 and 0 against 4 of 29),
   their counts in the alt's table and [the engine matrices record](../../readings/injection-over-pixels-alt-engine-matrices.md).
-- 2026-10-03: the alt's only cells still drawn only at temperature 0 are the two token attacks',
-  since 607deep drew its corpus laundering cells on the shipped budget at 120 per condition. Written down
-  before the draw as `706att` ([the alt's queued rows](../../readings/injection-over-pixels-alt-queued.md#the-two-token-attacks-as-rates-written-2026-10-03))
-  and queued in `measurements/sitting-2026-10-03/` after R-744's row.
+- 2026-10-03: the alt's two token attacks, its last cells drawn only at temperature 0, written down
+  before the draw and drawn at the sampler as `706att` in `measurements/sitting-2026-10-03/`: by
+  hand 4 against 3, 1 against 2, 2 against 5 and 0 against 0 of 5, the null of no pair apart
+  ([the alt record](../../readings/injection-over-pixels-alt.md#the-two-token-attacks-on-the-shipped-budget-at-the-sampler)).
+  Three temperature-0 directions do not repeat and nothing shipped changes. Every listed cell now
+  has a sampled count, so the task closes.
