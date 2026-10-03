@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-09-24
+**Verified:** 2026-10-03
 **Trigger:** either ladder assertion in `body/crates/core/tests/capture_bytes.rs` failing: the four
 realistic frames on a 4K display, or the same grainy photograph on the three display sizes the
 second one draws it at, no longer fitting inside `MAX_CAPTURE_BYTES` (6291456, in
@@ -13,14 +13,16 @@ default) at the test's `BRAIN_EDGE` (2048, which crosscheck compares against the
 runs, so the reading is the hand run
 `cargo test -p body-core --test capture_bytes --release -- --ignored --nocapture` from `body/`.
 The frames are synthetic and seeded, so only those two numbers, the downscaler (`downscale` in
-`body/crates/core/src/os/screen_image.rs`), or the `png` encoder crate (its version in
-`body/Cargo.lock`) can move the result. A deployment that lowers either setting in its own
+`body/crates/core/src/os/screen_image.rs`), or the encoder can move the result: `png` and the
+deflate crates it depends on, `png` 0.18.1, `fdeflate` 0.3.7, `flate2` 1.1.9 and `miniz_oxide`
+0.8.9 in `body/Cargo.lock` today. A deployment that lowers either setting in its own
 environment is not measured by the test.
 
 JPEG q80 is roughly a quarter of PNG's bytes on incompressible content (0.97 MB against 4.33 MB at
 1600x900). It is a body-side change behind an unchanged interface: `ImageBlob.mime_type` already
-states the format, the brain's allow-list already lists both, and nothing in the brain decodes.
-Worth doing when bytes on the wire start to cost something; PNG being lossless is worth more while
+states the format, the brain's allow-list already lists both, and nothing in the brain decodes. A
+JPEG already crosses that interface: the overlay sends a pasted or dropped JPEG file as
+`image/jpeg` in the same `ImageBlob` (`body/app/src/overlay/canvasPicture.ts`). Worth doing when bytes on the wire start to cost something; PNG being lossless is worth more while
 legibility is the open risk.
 
 The margin is narrower than a 4K measurement alone shows. On a 4K display a photographic screen
@@ -65,3 +67,10 @@ ratio between the display and the requested edge: the same heavy-grain photograp
   which describe the captured region and change no encoded byte, and `capture_bytes.rs` renamed one
   local. `screen_image.rs` and `body/Cargo.lock` have no commit since 2026-09-17, and the trigger
   now names both, so the downscaler and the encoder version are each one reading.
+- 2026-10-03: Re-run, not triggered. The hand run passed all four tests and printed the same bytes
+  as on 2026-09-24: 5016491 B (79%) on 2560x1440, 4669961 B (74%) on 4K and 4500808 B (71%) on
+  1920x1080. `capture_bytes.rs`, `screen_policy.rs` and `screen_image.rs` have no commit since
+  2026-09-24; `body/Cargo.lock` gained the Linux backends' crates with `png` still at 0.18.1. The
+  trigger named `png` alone, while the bytes also depend on the deflate crates `png` lists, so it now
+  names those four versions. Since 2026-09-25 an attached JPEG crosses the same `ImageBlob`, which
+  the body text now says.

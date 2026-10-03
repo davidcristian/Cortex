@@ -3,21 +3,28 @@
 **Status:** open, waiting for its trigger
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-09-24
+**Verified:** 2026-10-03
 **Trigger:** `escalate_to_brain` can run on a tainted turn: its spec in `escalate.py` stops setting
-`confirm_required`, or the tainted-turn denial in `ToolDispatcher.dispatch` gains an exception for
-it. The work then starts with R-257's store, a brain-tier projector setting, and a probe of that
-tier.
+`confirm_required` (`grep -n confirm_required brain/packages/core/src/cortex_core/escalate.py`
+prints `confirm_required=True` today), or the tainted-turn denial in `ToolDispatcher.dispatch`
+(`dispatch.py`, the `if stamp.tainted:` branch) gains an exception for it. The work then starts
+with R-257's store, a brain-tier projector setting, and a probe of that tier.
 
 Nothing persists an in-turn image: not the session store, and not the handoff record. The record's
 codec lists message fields by name, so a `Message.images` would be dropped without error, which is
-why `EscalationSlot.snapshot` raises on a tail message containing one before any record exists. The
-user-visible consequence is live: a turn that looked at the screen cannot hand over to the deep
-model at all. In the usual order, looking and then escalating, the capture taints the turn and
-`escalate_to_brain` needs confirmation, which a tainted turn is denied without being asked, so the
-cortex answers on its own and no note is shown. Only a turn that escalates first and captures
-afterwards reaches the conductor, which ends it with a note telling the user to ask again in a
-fresh message, and there the brief was written before the picture existed.
+why `EscalationSlot.snapshot` raises on a tail message containing one before any record exists. A
+picture the user attaches sits on the user's message in the working list's base, outside the tail
+that check reads, so for that source the conductor's refusal on the `opaque` bit is the only check.
+
+The user-visible consequence is live: a turn that holds a picture cannot hand over to the deep model
+at all, whether a capture, an MCP tool's image block or the user's attachment put it there
+([ADR-0070](../../adr/ADR-0070-user-attached-images.md) decision 3). An attachment taints the turn
+before the first model call, so that turn is always denied. In the usual order for the other two,
+looking and then escalating, the picture taints the turn and `escalate_to_brain` needs
+confirmation, which a tainted turn is denied without being asked, so the cortex answers on its own
+and no note is shown. Only a turn that escalates first and looks afterwards reaches the conductor,
+which ends it with a note telling the user to ask again in a fresh message, and there the brief was
+written before the picture existed.
 
 The expensive half is the pixels themselves, which needs the `AttachmentStore` in
 [257](257-content-addressed-attachment-store.md) and a deep tier that can read one. That capability
@@ -102,3 +109,12 @@ exactly on the record and on the ledger rebuilt from it.
   of them has a turn to serve until a tainted turn may escalate, and the old trigger named a demand
   that this denial answers first. ADR-0029's list of what a picture across a swap needs gained that
   step and lost its claim that no brain-tier candidate has a projector.
+- 2026-10-03: Checked, not fired. `EscalateToBrainTool.spec` still sets `confirm_required=True`, and
+  `ToolDispatcher.dispatch` still denies every call needing confirmation on a tainted turn, with no
+  exception. The entry named screen captures only, but since 2026-09-25 a picture the user attaches
+  also makes a turn opaque, and taints it before the first model call; the body now names both,
+  and notes that `EscalationSlot.snapshot` cannot see an attachment, which sits in the base. The
+  three prerequisites are still missing. The headless handoff added on 2026-10-02
+  (`just rpc-handoff`) does not bear on the trigger: it approves the card on an untainted turn,
+  which the denial never reaches. It does mean the follow-on work's end to end check, a picture
+  sent across a real swap, can run on this machine without a desktop session.

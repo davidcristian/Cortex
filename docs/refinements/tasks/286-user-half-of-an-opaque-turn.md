@@ -3,21 +3,24 @@
 **Status:** open, waiting for its trigger
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-09-24
+**Verified:** 2026-10-03
 **Trigger:** a report, written on this entry's history or as a host task, of a sentence a user
 asked the assistant to remember during an opaque turn and could not recall later. The loss needs
 two settings together: memory recorded at all (`CORTEX_MEMORY_BACKEND=pgvector`, which the memory
-overlay sets), and a turn that can go opaque, meaning `capture_screen` registered
-(`CORTEX_BODY_BACKEND=grpc` with `CORTEX_VISION` at `on` or its `auto` default) or an MCP tool that
-returns an image block. `CORTEX_MEMORY_ON_TAINTED` does not change it, because the opaque return
-comes before that setting is read.
+overlay sets), and a turn that can go opaque. That is `capture_screen` registered
+(`CORTEX_BODY_BACKEND=grpc` with `CORTEX_VISION` at `on` or its `auto` default), an MCP tool that
+returns an image block, or a picture the user attaches in the overlay, which needs no body backend
+setting and is accepted while `CORTEX_VISION` is `on`, or `auto` with a cortex whose `/props`
+reports vision. `CORTEX_MEMORY_ON_TAINTED` does not change it, because the opaque return comes
+before that setting is read.
 
 Opened 2026-08-16 by the per-source memory rules decline
 ([R-260](260-per-source-memory-rules.md)), which found that the loss that entry was written around
 needs no source identifier at all. `record_exchange` returns before the write on `taint.opaque`,
 and the text it would have written is `render_exchange`'s `User: <message>\nAssistant: <reply>`
-([turn_output.py](../../../brain/packages/core/src/cortex_core/turn_output.py)), so a capture turn
-drops the user's own sentence along with the transcription the drop exists for. The drop exists
+([turn_output.py](../../../brain/packages/core/src/cortex_core/turn_output.py)), so a capture turn,
+or a turn the user attached a picture to, drops the user's own sentence along with the
+transcription the drop exists for. The drop exists
 because the assistant half of a capture turn is the untrusted payload in the one form that
 survives; the user's half is text the user typed and an attacker cannot write. Recording only that
 half preserves "remember that my invoice number is 4021" while persisting no pixel-derived prose at
@@ -28,8 +31,9 @@ capture turns open with a question, and `User: what does this say?` stored alone
 recall would rank against real memories, so this needs either a judgement of what is worth storing
 at record time ([R-093](093-write-salience-policy.md)) or a rule narrow enough to state without
 one. It also needs the origin's permission rewritten rather than assumed: the opaque drop is an
-explicit decision in the vision record and in the tainted-recording record beside it, so a change
-here rewrites the decision at both.
+explicit decision in the vision record, in the tainted-recording record beside it, and in the
+attached-image record ([ADR-0070](../../adr/ADR-0070-user-attached-images.md) decision 2), so a
+change here rewrites the decision at all three.
 
 ## History
 
@@ -48,3 +52,10 @@ here rewrites the decision at both.
   unchanged. A comment added above that return on 2026-09-17 said a turn that read the screen is
   never recorded; it now names the MCP image too, matching the correction above. The escalation
   denial named in the vision decision that night bears on a model swap, not on memory.
+- 2026-10-03: Checked, not fired: this history and `docs/host/` hold no such report.
+  `record_exchange` still returns on `taint.opaque` before it reads `record_tainted_memory`, and
+  `render_exchange` is unchanged. The entry missed a third source: since 2026-09-25 a picture the
+  user attaches in the overlay sets `opaque` through `TaintLedger.observe_attachment` and needs no
+  body backend. The trigger and the body now name it, and the decision to rewrite is stated in three
+  records, the attached-image one included. The comment above that return, which the line above
+  calls matching, named captures and MCP images only and now names the attachment too.

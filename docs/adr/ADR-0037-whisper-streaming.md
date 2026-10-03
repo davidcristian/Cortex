@@ -152,8 +152,8 @@ visible.
   mark's own measurement did ([ADR-0031](ADR-0031-bubble-mark.md)); the measurements are in
   [panel motion](../readings/panel-motion.md#the-whisper-bubble).
 - Kerning pairs across letter boundaries are lost while a streamed message is on screen, because
-  element boundaries split shaping runs. Invisible at 13.5px in the system stack, checked by eye in
-  both themes; a different font stack needs checking first
+  element boundaries split shaping runs. Invisible at the reply bubble's 14.5px in the system stack,
+  checked by eye in both themes; a different font stack needs checking first
   ([task 162](../refinements/tasks/162-per-letter-kerning-pairs.md)).
 - jsdom has no layout, so a re-wrap, the roll's frames and the per-frame cost are validated in
   headless Chromium. A listener that throws is reported to the window rather than to whoever

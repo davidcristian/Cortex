@@ -123,8 +123,8 @@ async def record_exchange(
     caps: TurnCapabilities, taint: TaintLedger, *, session_id: str, query: str, reply: str
 ) -> None:
     """Record the completed exchange to memory under the turn's taint policy."""
-    # A turn that saw an untrusted picture (a screen capture or an MCP image) is never recorded,
-    # whatever the deployment's taint policy says: its reply may transcribe that picture.
+    # A turn that holds a picture (a screen capture, an MCP image or an attachment) is never
+    # recorded, whatever the deployment's taint policy says: its reply may transcribe it.
     if taint.opaque:
         return
     if caps.memory is not None and (not taint.tainted or caps.record_tainted_memory):

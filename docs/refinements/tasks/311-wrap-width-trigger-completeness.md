@@ -9,7 +9,7 @@ In the tree that reads as the `.panel` rule's `width: min(560px, 92vw)` in
 `body/app/src/overlay.css` changing, or as a script writing a width to anything but a whisper bubble
 or its text. This search finds four writes today, all in `whisper/useWhisperClock.ts`:
 `grep -rnE 'style\.(max|min)?[wW]idth|setProperty\("(max-|min-)?width"' body/app/src --exclude='*.test.*'`.
-**Verified:** 2026-09-24
+**Verified:** 2026-10-03
 
 The whisper re-measures its wrap width and re-lays the letter DOM when the width changes. It
 listens for the window's own `resize` event (`whisper/metrics.ts`, `watchWrap`), which is a
@@ -60,3 +60,11 @@ with one caller.
   so the trigger now reads all three forms; it finds the same four writes. The 2026-09-17 list of
   placement files left out `panelEdge.ts` and `panelRoll.ts`, both renamed since, and neither
   mentions `width`. The 16 tests in `useWhisperClock.test.ts` pass.
+- 2026-10-03: Read against the tree and not fired. `.panel` is still `width: min(560px, 92vw)`
+  (`overlay.css` line 138), the script search still finds the same four writes in
+  `whisper/useWhisperClock.ts` (lines 116, 128, 188 and 223), and `watchWrap` still listens to the
+  window's `resize` alone, with its one caller. Three commits since 2026-09-24 touch the overlay's
+  layout, and none sets a width the log follows: the attachment thumbnails sit in the composer at a
+  fixed 44px, `measured.ts` now also publishes the hint strip's height, and `PanelEdge.tsx` gained
+  a shadow layer. The preferences record still has no width. The 16 tests in
+  `useWhisperClock.test.ts` pass.

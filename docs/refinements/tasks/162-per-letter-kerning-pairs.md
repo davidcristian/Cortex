@@ -5,18 +5,22 @@
 **Origin:** [ADR-0037](../../adr/ADR-0037-whisper-streaming.md)
 **Trigger:** The overlay adopting a licensed face, which shows up in the tree as `--font` in
 `body/app/src/overlay.css` naming anything other than the system stack it declares today
-(`-apple-system, "Segoe UI", system-ui, "Helvetica Neue", sans-serif`), or as any `@font-face` rule
-in a tracked file under `body/app/` (`git grep -n '@font-face' -- body/app` finds none today; a
-plain `grep -r` also reads `node_modules`, where three `@adobe/css-tools` files name the rule), or
-as a font arriving with no rule in the tree: a font stylesheet linked from `body/app/index.html`
-or a font package in `body/app/package.json`, where this search finds nothing today:
+(`-apple-system, "Segoe UI", system-ui, "Helvetica Neue", sans-serif`), or as a declaration naming
+a face directly, which this search finds none of today:
+`grep -nE '(^|[^-])font(-family)?:' body/app/src/overlay.css | grep -vE 'var\(--(font|mono)\)|font: inherit'`.
+It also shows up as any `@font-face` rule in a tracked file under `body/app/`
+(`git grep -n '@font-face' -- body/app` finds none today; a plain `grep -r` also reads
+`node_modules`, where installed packages such as `@adobe/css-tools` name the rule), or as a font
+arriving with no rule in the tree: a font stylesheet linked from `body/app/index.html` or a font
+package in `body/app/package.json`, where this search finds nothing today:
 `git grep -n -i font -- body/app/index.html body/app/package.json`.
-**Verified:** 2026-09-24
+**Verified:** 2026-10-03
 
 A whispered message puts each letter in its own box inside an unbreakable word box (ADR-0037
 decision 6), so kerning inside a word is lost while that message's DOM is on screen. It renders as
-plain text the next time its chat is loaded. Checked by eye at 13.5px in the system font stack in
-both themes, where it is invisible. It would be worth checking again against a licensed face, which
+plain text the next time its chat is loaded. Checked by eye in the system font stack in both
+themes, where it is invisible. The reply bubble renders at the `.bubble` rule's 14.5px, as it did
+when the whisper shipped. It would be worth checking again against a licensed face, which
 `docs/design/overlay-ux.md` section 2 leaves open as an option.
 
 ## History
@@ -36,3 +40,12 @@ both themes, where it is invisible. It would be worth checking again against a l
   search there reads `node_modules` and finds the text; the trigger now reads tracked files, and
   also names a linked stylesheet and a font package, the two ways a face arrives with no
   `@font-face` in the tree. `WhisperBubble.tsx` has no commit since 2026-09-17.
+- 2026-10-03: Checked, not fired, and two claims corrected. Every reading finds nothing,
+  `WhisperBubble.tsx` has no commit since 2026-09-17, and the whisper suite's 41 tests pass. The
+  three commits to `overlay.css` since 2026-09-24 add the attachment thumbnails, the frosted glass
+  and the hint strip, and the one new `font` declaration among them uses `var(--font)`. The entry
+  and the design record said the eye check was at 13.5px, but the reply bubble has been the
+  `.bubble` rule's 14.5px since before the whisper shipped, and no rule gives the letter boxes
+  another size; both now say 14.5px. The count of `@adobe/css-tools` files naming `@font-face` was
+  three and is nine on this install, so the trigger no longer counts them. A face named on one
+  selector rather than in `--font` was not read at all, and the trigger now searches for it.
