@@ -3,7 +3,7 @@
 **Status:** open, actionable
 **Area:** inference
 **Origin:** [ADR-0041](../../adr/ADR-0041-injection-image-variant.md)
-**Verified:** 2026-10-02
+**Verified:** 2026-10-03
 
 Every vision row in
 [test_injection_defense_live.py](../../../brain/packages/inference/tests/test_injection_defense_live.py)
@@ -135,11 +135,6 @@ was predicted, and the rest as predicted; neither cell behind four loads settled
 predictions, the hand readings and the costs are in [the alt record](../../readings/injection-over-pixels-alt.md)
 and [its engine record](../../readings/injection-over-pixels-alt-engine.md).
 
-**Written 2026-10-01, before the draw.** `607sq`, `607bp` and `607dp`, all at the corpus frame on
-the engine's own budget, each cell decided alone under R-706's rule. `607sq`'s and `607dp`'s
-predictions stand beside their counts in the alt's payload and engine records, and `607bp`'s in
-[the alt's queued rows](../../readings/injection-over-pixels-alt-queued.md#the-body-pair-at-both-legible-sizes-written-2026-10-01).
-
 **Drawn 2026-10-01.** `607dp` exited 0 and both of its cells hold, not apart: `chrome` 2 against 2
 of 20 and `advisory` 1 against 2 of 19 by hand, every count inside its range, so no ADR-0041
 consequence changes ([the engine record](../../readings/injection-over-pixels-alt-engine.md#the-dialog-pair-at-16-px-at-the-sampler)).
@@ -155,16 +150,16 @@ nor a fall: the row is not published, its line stays on the list and its predict
 The same request read the canary back in all twelve of `607sq`'s transcriptions an hour earlier, so
 one sampled draw failed, not a screen the alt cannot read.
 
-**Written 2026-10-02, before the draw.** Two rows, with their predictions, grounds and prices in
-[the alt's queued rows](../../readings/injection-over-pixels-alt-queued.md), queued in the
-unattended run logged at `measurements/sitting-2026-10-02b/`, each started only if the ceiling
-reads at least 0.75 of `power.max_limit`. `607bpr` draws `607bp` again unchanged: if all four
-transcriptions read the canary back, the row is read under its predictions and, published, takes
-its line off the list; if any fails, the row is void again and keeps its line, and a task is filed
-to make the check pass on the canary in one of several transcriptions before a third draw. `607ml`
-draws the mail line at 400 draws per condition, the replication of `607m`'s apart below, and takes
-that line off the list once published; nothing shipped changes. At 12400 s it is the row past the
-deadline, which the launcher is expected to skip.
+**Written before the draw.** Each queued row's predictions, grounds and price are in [the alt's
+queued rows](../../readings/injection-over-pixels-alt-queued.md), and each starts only if the
+ceiling reads at least 0.75 of `power.max_limit`. `607ml` draws the mail line at 400 draws per
+condition, the replication of `607m`'s apart below; it was skipped at the 2026-10-02 run's deadline
+and needs about 12100 s at `607m`'s 8.2 s framed and 22.0 s control a draw. `607ed`, written
+2026-10-03, draws the engine budget's deep row, about 12400 s, in the 9900 s left after `706att`:
+it is queued at the price of its `plain` and `chrome` pairs, and the deadline stops it inside the
+`app` pair. Each pair printed whole is read alone and leaves this row's line. `607edr` repeats the
+row only if `607ed` ends early on a failed check. The 560-draw row needs about 16700 s at `706c`'s
+10.9 and 18.9 s a draw.
 
 ## History
 
@@ -248,3 +243,5 @@ deadline, which the launcher is expected to skip.
 - 2026-10-02: `607bpr` exited 0 in 3026 s, all four checks reading the canary back and 4 of its 160
   draws void, so it is read under its predictions above. `bare` at 24 px reads 0 against 3 of 18 by
   hand, not apart as predicted ([the engine record](../../readings/injection-over-pixels-alt-engine.md#the-body-pair-at-both-legible-sizes-at-the-sampler)); the other three cells are read next.
+- 2026-10-03: `607ed` and `607edr` written down before the draw and queued after `706att` in
+  `measurements/sitting-2026-10-03/`, priced so only the deep row's first two pairs finish.

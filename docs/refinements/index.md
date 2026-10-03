@@ -70,7 +70,7 @@ never a reading of what the tree does now.
 ### Actionable now (5)
 
 - **[R-018](tasks/018-ports-without-contract-suite.md)** Ports without a shared contract suite (repo-checks). Its claim was checked against the code on 2026-10-03.
-- **[R-607](tasks/607-eighteen-of-the-cortex-alts-pixel-rows-are-undrawn.md)** Four of the cortex alt's thirty-six pixel rows are undrawn (inference). Its claim was checked against the code on 2026-10-02.
+- **[R-607](tasks/607-eighteen-of-the-cortex-alts-pixel-rows-are-undrawn.md)** Four of the cortex alt's thirty-six pixel rows are undrawn (inference). Its claim was checked against the code on 2026-10-03.
 - **[R-706](tasks/706-only-the-corpus-laundering-cell-is-drawn-at-the-engines-sampler.md)** Most pixel cells are drawn only at temperature 0 (vision). Its claim was checked against the code on 2026-10-03.
 - **[R-744](tasks/744-the-joined-system-message-is-unmeasured-on-the-qwen-alternates.md)** The joined system message is unmeasured on the Qwen alternates (untrusted-content). Its claim was checked against the code on 2026-10-03.
 - **[R-780](tasks/780-os-windows-builds-a-second-windows-crate.md)** The Windows backends build a second windows crate beside Tauri's (body-gateway).
