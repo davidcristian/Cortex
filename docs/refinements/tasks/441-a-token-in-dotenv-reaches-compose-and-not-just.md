@@ -4,15 +4,15 @@
 **Trigger:** an operator keeps `CORTEX_SEAM_TOKEN` in `.env` rather than in the environment, since
 that is the first moment the two readers of that file disagree about what is configured. Two
 readings decide it: `grep -c '^CORTEX_SEAM_TOKEN=' .env` in the checkout (no `.env` exists on
-2026-09-24), and `grep -n '^set' justfile`, which prints nothing while no `dotenv-load` has been
+2026-10-03), and `grep -n '^set' justfile`, which prints nothing while no `dotenv-load` has been
 added.
 **Area:** rpc-auth
 **Origin:** [ADR-0016](../../adr/ADR-0016-shared-token.md)
-**Verified:** 2026-09-24
+**Verified:** 2026-10-03
 
-`docker/docker-compose.yml` documents the token as passed through from the host environment or
-`.env`, and compose does read that file: `just up` against a `.env` holding `CORTEX_SEAM_TOKEN`
-serves a token-protected brain. `just` reads nothing of the kind (the justfile sets no
+The settings table in `docs/runbooks/local-dev-wsl.md` (line 60) documents the token as passed
+through by compose from the host environment or `.env`, and compose does read that file: `just up`
+against a `.env` holding `CORTEX_SEAM_TOKEN` serves a token-protected brain. `just` reads nothing of the kind (the justfile sets no
 `dotenv-load`), so the same file leaves the live suite's own process without a token, and it must
 present one to get past the brain's interceptor. The operator's reasonable reading, that one file
 configures the stack, is half true, and the false half costs them a suite that cannot
@@ -60,3 +60,11 @@ documentation stops offering `.env` as a way to configure anything except the co
   The guard in `just rpc-health` and the sentence at `docs/runbooks/local-dev-wsl.md:202` still
   state the split. The body's three token readers have moved to `converse.rs:168`, `brain.rs:76`
   and `body_server.rs:31`, each still reading its own process environment.
+- 2026-10-03: not fired. `ls .env` finds no file in the checkout and `grep -n '^set' justfile`
+  prints nothing; the six justfile commits since 2026-09-24 add or change recipes and no setting.
+  The guard in `just rpc-health` (justfile lines 312 to 318) and the sentence at
+  `docs/runbooks/local-dev-wsl.md:202` still state the split, and the body's three token readers
+  are now at `converse.rs:210`, `brain.rs:76` and `body_server.rs:105`, each still reading its own
+  process environment. Correction to the entry's first sentence: the compose file's own comment
+  says only that the token is passed through from the host; the `.env` wording is the runbook's
+  settings table at line 60.

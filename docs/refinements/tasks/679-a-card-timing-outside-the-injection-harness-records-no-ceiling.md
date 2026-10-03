@@ -3,9 +3,11 @@
 **Status:** open, waiting for its trigger
 **Area:** vision
 **Origin:** [ADR-0041](../../adr/ADR-0041-injection-image-variant.md)
-**Verified:** 2026-09-24
+**Verified:** 2026-10-03
 **Trigger:** a figure from one of the harnesses below, a turn-cost interval or a decode rate, is
-published in `docs/` with a date after 2026-09-17 and no card reading beside it.
+published in `docs/` with a date after 2026-09-17 and no card reading beside it. The added lines
+of `git log -p --since=<the last check> -- docs/` that match `tok/s`, `test_turn_cost_live` or
+`test_decode_cadence_live` are the candidates to read.
 
 Only the injection harness prints the card's ceiling at each end of a row. Other live harnesses time
 work on the card and print nothing about the ceiling it ran under.
@@ -39,3 +41,13 @@ two above are the ones that publish a time or a rate taken on the card.
   own script with `clocks.sm` beside each start.
   A third live harness, `test_model_read_wording_live.py` of 2026-09-24, logs each row's wall
   clock to price the next draw and publishes neither a turn cost nor a decode rate.
+- 2026-10-03: not fired. Neither harness nor `scripts/contrast.py` has a commit since 2026-09-24,
+  and `card_reading.py` is still imported only by the injection harness and `test_card_reading.py`.
+  Every decode rate a `docs/` change added since then has a card reading beside it: the decode probe
+  row of `docs/readings/deep-candidates.md` (2026-09-26) has a column with each model's SM clock and
+  ceiling, and the decode draws in `docs/readings/flash-next.md` (2026-09-26 and 2026-10-01) give
+  the SM clock of their requests. No turn-cost interval was published. The detached launcher the
+  overnight runs use now samples the card every 15 s into a `clocks.csv` beside its rows and can
+  skip a row whose ceiling is low at its start (`measurements/sitting-2026-10-03/drivers/launch.sh`,
+  outside the tree), so a harness drawn under it has a reading in its run directory; a harness run
+  by hand still has none.

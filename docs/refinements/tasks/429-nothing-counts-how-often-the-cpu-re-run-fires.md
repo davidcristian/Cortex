@@ -11,7 +11,7 @@ tree a retune is a move of `DEFAULT_ADMISSION_WAIT_S` (7200.0, `cortex_core/sche
 `CORTEX_SUBAGENTS_RUN_TIMEOUT_S` a value, counted by
 `grep -rnE 'CORTEX_SUBAGENTS_(ADMISSION_WAIT|RUN_TIMEOUT)_S: *[^ ]' docker/`. A value set only in a
 host's shell or `.env` reaches the brain as well and is outside the tree.
-**Verified:** 2026-09-24
+**Verified:** 2026-10-03
 
 `SubagentRunner._placed` logs a warning when a GPU-placed attempt is re-run on the CPU, and that is
 the only trace the path leaves. Nothing counts the warnings, nothing passes the re-run into the
@@ -68,3 +68,12 @@ against whether the path happens at all.
   entry above: the refusal warning is sampled at line 216 of `docs/runbooks/subagents-cpu.md`, and
   that runbook no longer names the re-run warning at all; line 149 says only that a stalled attempt
   is re-run once on the CPU.
+- 2026-10-03: not fired. The three numbers are unchanged at `scheduler.py:21`, `subagents.py:53`
+  and `subagents.py:57`, the trigger's grep over `docker/` prints nothing (the subagents override
+  still names both variables bare, at lines 29 and 31), and no log under `measurements/` holds the
+  refusal warning or the re-run warning. The two runner commits since 2026-09-24 taint every result
+  of a tainted task and add subagent roles; `_placed` still writes its one warning with `task_id`,
+  `model` and `detail`, and `SubagentResult` still has the same five fields. Two corrections to the
+  entry above: the refusal warning is sampled at line 228 of `docs/runbooks/subagents-cpu.md`, and
+  the sentence saying a GPU-placed run whose backend fails is re-run once on the CPU ends at line
+  156.

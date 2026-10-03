@@ -1,13 +1,13 @@
 # A list's passage widened past the names it bounds is caught only by accident
 
 **Status:** open, waiting for its trigger
-**Trigger:** an existing list's `opens` or `closes` value changes in `scripts/rosters.py`, or a
-passage's prose before its first name or after its last grows past its own figures in this entry's
-2026-09-24 history entry. The event this entry is about, a widened passage containing no extra
-name, reports nothing, so those two readings are what a review can take.
+**Trigger:** an existing list's `opens` or `closes` value changes in `scripts/rosters.py`, which
+`git log -p -- scripts/rosters.py` shows as a changed phrase line on a list registered before that
+commit. The event this entry is about, a widened passage containing no extra name, reports nothing,
+so the registry diff is the reading a review can take.
 **Area:** repo-checks
 **Origin:** [ADR-0044](../../adr/ADR-0044-document-rosters.md)
-**Verified:** 2026-09-24
+**Verified:** 2026-10-03
 
 `scripts/rosters.py` bounds each passage with two phrases the document contains. A phrase that
 stops appearing, or starts appearing twice, is a reported fault. A phrase that moved is not a fault
@@ -20,8 +20,9 @@ prose, and the run failed on those, which is the accident working. Moving the mo
 phrase back one sentence covered a run of text containing no code span the module pattern matches,
 and `rostercheck.py` exited 0 with the same summary line it prints when nothing moved.
 
-The exposure is small and one-sided: a widened passage can only make the check see more names,
-which fails on any name that is not a member, and can never hide a member the list lost. What it
+The exposure is small and mostly one-sided: a widened passage makes the check see more names,
+which fails on any name that is not a member. It hides a member the list lost only when the wider
+run writes that member's name a second time, since the check compares the set of names. What it
 can do is make the passage's own claim untrue while the check still passes, so a later reader
 trusts a boundary that no longer bounds the list.
 
@@ -66,3 +67,17 @@ its nearest name.
   three cross-tree scan lists 51 and 117 (AGENTS.md), 70 and 2 (`ci.yml`), 71 and 83
   (`docs/index.md`), the brain's packages 18 and 67, the body's crates 18 and 8, the registry's
   parts 27 and 18. The trigger now compares against these per-list figures.
+- 2026-10-03: fired on its second clause and reviewed; no boundary widened. The one registry commit
+  since, on 2026-10-02, adds a tenth list, the scan headings in `docs/modules/repo-checks-scans.md`,
+  and changes no phrase of an existing list. Measured as before (characters from a passage's start
+  to the first occurrence of any of its names, and from the last occurrence to its end), two lists
+  grew, each from members added at its end with both phrases unmoved: the modules run from a shell
+  82 and 175, after `memwatch.py` and `replaysince.py` were added last with their descriptions and
+  the count before the first name became twenty-three, and the body's crates 18 and 81, after
+  `contract`. The live gRPC checks fell to 770 before; the new list reads 495 and 1109; the rest
+  are unchanged. `just check-rostercheck` passes over 10 lists in 7 documents naming 180 members.
+  Every rise here came from an ordinary member edit and none from a moved phrase, so the trigger now
+  names the registry diff alone. Correction to the body: the modules-only-read list already writes
+  six names twice inside its passage (`backlogindex.py`, `bannedwords.py`, `envelopesamples.py`,
+  `prosereaders.py`, `proseliterals.py`, `slashcomments.py`), so a widened passage is not the only
+  way the check can count a member whose own entry is gone.

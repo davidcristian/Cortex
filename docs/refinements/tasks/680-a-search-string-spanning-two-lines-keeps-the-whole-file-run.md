@@ -9,7 +9,7 @@ The five are listed by rendering every mention and keeping those containing `\n`
 files that have `--threads` above its substitution, and three whose newline only ties them to the
 start or the end of a line, in `docs/runbooks/subagents-cpu.md`, `docs/runbooks/llamacpp-gpu.md` and
 `brain/Dockerfile.modelhost`.
-**Verified:** 2026-09-24
+**Verified:** 2026-10-03
 
 Every search string without a newline moved to the per-line reading in `scripts/linereadings.py`.
 These five stayed on the opening run over the whole file that `searchtexts.longest_prefix`
@@ -38,3 +38,11 @@ would need measuring again over windows.
   in `docs/runbooks/llamacpp-gpu.md` and `FROM ghcr.io/ggml-org/llama.cpp:server-cuda\n` in
   `brain/Dockerfile.modelhost`. The commits to `scripts/linereadings.py` and
   `scripts/searchtexts.py` since then rename names and reword printed text.
+- 2026-10-03: not fired. Rendering all 321 mentions of the registry from a scratch script that
+  calls `crosscheck.read_value` and `crosscheck.rendered` finds the same five containing a newline,
+  each still a presence check with no occurrence count. `line_runs` in `scripts/linereadings.py`
+  still returns nothing for a search string with a newline, so `searchtexts.unfound` reads those
+  five by the run over the whole file. Neither module has a commit since 2026-09-24. The two
+  registry commits since change entries in `scripts/endpointcouplings.py` and
+  `scripts/wirecouplings.py`, add a TypeScript declaration form to `crosscheck.py` and let a Rust
+  declaration hold a quoted `;`, and the newline count above is taken after them.
