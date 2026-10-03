@@ -108,10 +108,11 @@ review then listed every port in both languages to find the others.
     ([ADR-0008](ADR-0008-memory-v1.md), [ADR-0038](ADR-0038-ranked-recall.md)). The four with a pool
     factor refuse one below one with the same message.
 
-11. **The Rust rows stay open.** No Rust port has a shared list, and `FakeAudio`, `FakeNotify`,
-    `FakeScreen` and `FakeBrain` are each written twice, under `body/crates/core/tests/` and
-    `body/crates/rpc/tests/`. The generic helpers that look like drivers (`register_via`, `get_via`,
-    `show_via`, `capture_via`, `probe`) contain no assertions. Building the lists is
+11. **The Rust rows stay open.** No Rust port has a shared list. `FakeAudio`, `FakeNotify` and
+    `FakeScreen` are each written twice, under `body/crates/core/tests/` and
+    `body/crates/rpc/tests/`, and `FakeBrain` twice inside the latter. The generic helpers that
+    look like drivers (`register_via`, `get_via`, `show_via`, `capture_via`, `probe`) contain no
+    assertions. Building the lists is
     [R-018](../refinements/tasks/018-ports-without-contract-suite.md).
 
 12. **A list is proven able to fail on each implementation when it is committed**, by breaking
@@ -151,11 +152,11 @@ Rust and the overlay:
 
 | Port | Fake | Real adapter | Shared checks | CI: fake | CI: adapter |
 | --- | --- | --- | --- | --- | --- |
-| `Hotkey` | `FakeHotkey` | `WindowsHotkey`, Linux and macOS stubs | none | yes | no, `cfg(windows)` |
+| `Hotkey` | `FakeHotkey` | `WindowsHotkey`, `LinuxHotkey`, a macOS stub | none | yes | Linux only, over a fake key grab and a peer X server |
 | `AudioControl` | `FakeAudio`, written twice | `WindowsAudioControl`, `LinuxAudioControl` | none | yes | Linux only, over a fake runner and real child processes |
 | `Notify` | `FakeNotify`, written twice | `WindowsNotify`, `LinuxNotify` | none | yes | Linux only, over a fake bus and a peer D-Bus server |
 | `ScreenCapture` | `FakeScreen`, written twice | `WindowsScreenCapture`, `LinuxScreenCapture`, `DeniedScreenCapture` | none | yes | the denying one, and Linux over a fake root and a peer X server |
-| `BrainTransport` | `FakeTransport`, `ScriptedTransport`, `FlakyTransport` | `BrainRpcClient`, `RetryingTransport` | none | yes | yes, a loopback fake `BrainService` |
+| `BrainTransport` | `FakeTransport`, `ScriptedTransport`, `FlakyTransport`, `StallingTransport` | `BrainRpcClient`, `RetryingTransport` | none | yes | yes, a loopback fake `BrainService` |
 | `Sleeper` | `FakeSleeper` | `TokioSleeper` | none | yes | no, outside the checked workspace |
 | `Randomness` | `FakeRandomness` | `FullDelay`, `ShellRandomness` | none | yes | `FullDelay` incidentally |
 | `BrainBridge` (overlay) | `FakeBridge` | `TauriBridge`, `DemoBridge` | `bridgeContract.ts` | yes | `DemoBridge` |
@@ -168,7 +169,8 @@ Rust and the overlay:
   written in the port's description or the module doc, never in one implementation's test.
 - Six configured model ids cannot be mis-wired without a failing test, at no startup cost and no
   port change.
-- Until R-018 is done, the Rust fakes can disagree with each other and with the Windows adapters.
+- Until R-018 is done, the Rust fakes can disagree with each other and with the Windows and Linux
+  adapters.
 
 ## Alternatives rejected
 

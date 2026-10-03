@@ -3,21 +3,22 @@
 **Status:** open, waiting for its trigger
 **Area:** resource-governance
 **Origin:** [ADR-0054](../../adr/ADR-0054-baseline-residency.md)
-**Trigger:** A handoff refused at its fit check, or recorded as having overcommitted, with a peer a
-retry pass had just started. Either needs a live handoff, which is off-tree, and four settings that
-all default off: `CORTEX_ESCALATION`, a non-empty `CORTEX_SWAP_EVICT_MODELS`, and
-`CORTEX_SWAP_BRAIN_VRAM_MIB` (the refusal case) or `CORTEX_SWAP_BRAIN_DECODE_TPS` (the overcommit
-case). The gpu overlay passes all four through by name, so a host `.env` can set them, and
-`grep -rnE '(CORTEX_ESCALATION|CORTEX_SWAP_EVICT_MODELS|CORTEX_SWAP_BRAIN_VRAM_MIB|CORTEX_SWAP_BRAIN_DECODE_TPS): *[^ ]' docker/`
-finding nothing means no shipped file sets any of them.
-**Verified:** 2026-09-24
+**Trigger:** a record under `docs/readings/`, `docs/host/` or `docs/runbooks/` of a live handoff
+run with `CORTEX_ESCALATION` and a non-empty `CORTEX_SWAP_EVICT_MODELS`, in which a peer a retry
+pass had just started made the fit check refuse (with `CORTEX_SWAP_BRAIN_VRAM_MIB` set) or left the
+handoff overcommitted (with `CORTEX_SWAP_BRAIN_DECODE_TPS` set). All four default off.
+`grep -rlni 'retry pass' docs/readings docs/host docs/runbooks` finding nothing says there is no
+such record.
+**Verified:** 2026-10-03
 
 A retry pass reads the handoff claim and the residency scope flag synchronously in the instant
 before it starts a tier, so a handoff cannot begin between the check and the call. What is not
 excluded is the other order: a `start` already sent when a handoff begins, whose request the daemon
 serves after the swap in's own `stop` of that same tier, leaving a peer loading beside the deep
 model. Reaching it means one loopback request outliving the claim, the whole drain, the lease wait,
-a `boot_id` round trip and a full cortex stop, so it is narrow.
+a `boot_id` round trip and a full cortex stop, so it is narrow. Under `CORTEX_SWAP_CORESIDENT` the
+swap stops no peer and skips the drain, so there the start need only allocate after the fit
+check's reading.
 
 The two outcomes are not equally cheap. The fit check reads the card between the last eviction and
 the deep load, so it refuses the handoff only when the peer had already allocated by that reading. A
@@ -64,3 +65,12 @@ block a pass for the whole load bound.
   `await host.start(model)`, and both zero-figure early returns hold. The four settings are now bare
   keys in the gpu overlay's brain environment, which the grep does not match, and no record in
   `docs/readings/` has a retry pass starting a peer during a handoff.
+- 2026-10-03: Not fired, and the trigger rewritten to name the record that decides it, since it
+  named an event and a grep of shipped settings that could not decide it. `fence()` still answers
+  at `residency_pass.py:61`, immediately before the one `await host.start(model)` at line 64, and
+  both zero-figure early returns hold (`residency_moves.py:66`, `cadence.py:33`). The agent now
+  runs live handoffs on this machine, but the stacks of 2026-10-02
+  (`measurements/sitting-2026-10-02b/drivers/stack.sh`) unset `CORTEX_SWAP_EVICT_MODELS`, so no
+  retry pass could act during one, and the grep finds no record. The body had not named the
+  co-resident case, where `swap_in` stops no peer (`residency_moves.py:42`) and the conductor
+  skips the drain (`swap_conductor.py:187`).

@@ -3,14 +3,14 @@
 **Status:** open, waiting for its trigger
 **Area:** rpc-transport
 **Origin:** [ADR-0024](../../adr/ADR-0024-transport-retry.md)
-**Trigger:** a record in the tree, a host task or a runbook reading, of a `Converse` stream that
-dropped before its first event on a deployment with `CORTEX_ESCALATION` set, so that the person's
-resend ran a costly turn twice. The switch alone does not decide it. It is what builds a swap
-runtime at all (`brain/packages/orchestrator/src/cortex_orchestrator/swap_builders.py:61`
-returns `None` without it), and `docs/runbooks/model-swap.md:150` tells an operator to set it,
-which the gpu overlay passes through by name. `grep -rnE 'CORTEX_ESCALATION: *[^ ]' docker/`
-finding nothing says no shipped file sets it.
-**Verified:** 2026-09-24
+**Trigger:** a record under `docs/readings/`, `docs/host/` or `docs/runbooks/` of a `Converse`
+stream that dropped before its first event on a deployment with `CORTEX_ESCALATION` set, so that
+the person's resend ran a costly turn twice. The switch alone does not decide it: it is what builds
+a swap runtime at all (`brain/packages/orchestrator/src/cortex_orchestrator/swap_builders.py:61`
+returns `None` without it), and `docs/runbooks/model-swap.md:150` tells an operator to set it.
+`grep -rlniE 'turn twice' docs/readings docs/host docs/runbooks` finding nothing says there is no
+such record.
+**Verified:** 2026-10-03
 
 Retrying a `converse` turn after a disconnect is only safe if the brain can tell that the repeat
 is the same request. It cannot. A turn's first durable effect is
@@ -73,3 +73,11 @@ resends. `converse` stays unretried, `RpcMethod::Converse` not being repeatable.
   `brain/packages/core/src/cortex_core/engine.py:72`, the turn task starts at
   `converse_stream.py:167`, and `repeatable` is at `plan.rs:59-72`, still false for the same six
   methods.
+- 2026-10-03: Not fired, and the trigger given the command that decides it in place of a compose
+  grep that could not. The switch is no longer rare here: the live handoff stacks of 2026-10-02
+  (`measurements/sitting-2026-10-02b/drivers/stack.sh`) export `CORTEX_ESCALATION=1`, and their
+  readings in `docs/readings/model-swap.md` record no stream that dropped before its first event.
+  `ClientEvent` and `UserTurn` (`proto/body.proto:53`, `:62`) still identify no request, and
+  `repeatable` (`plan.rs:59-72`) is still false for the same six methods. Two citations had moved:
+  the user message is appended at `engine.py:88`, before a turn waits out another turn's handoff,
+  and the turn task starts at `converse_stream.py:179`.

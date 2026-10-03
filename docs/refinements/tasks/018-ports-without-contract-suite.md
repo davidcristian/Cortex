@@ -1,13 +1,9 @@
 # Ports without a shared contract suite
 
-**Status:** open, waiting for its trigger
+**Status:** open, actionable
 **Area:** repo-checks
 **Origin:** [ADR-0068](../../adr/ADR-0068-port-contract-lists.md)
-**Trigger:** a Rust port gaining a shared check list, which answers the design question below for
-Rust; or a Rust test passing over a fake while the adapter it stands in for fails the same
-expectation, readable in CI for `BrainTransport`, `Sleeper` and `Randomness` and only on the
-Windows host for the four OS ports.
-**Verified:** 2026-09-24
+**Verified:** 2026-10-03
 
 A port with a fake and a real adapter should have one list of checks that both implementations
 run, so the fake cannot promise something the adapter does not do. A review on 2026-08-10 that
@@ -27,14 +23,17 @@ and `FakeScreen` are each hand-written twice with independent expectations, once
 written twice inside `body/crates/rpc/tests/`, in `converse.rs` and in `client.rs`. The generic
 helpers that look like the missing driver (`register_via`, `get_via`, `show_via`, `capture_via`,
 `probe`) contain no assertions at all; they only show that the trait is usable as a bound.
-`BrainTransport` has eleven methods and three independent suites. The real OS adapters are
-`cfg(windows)`, so CI neither compiles nor runs them, which is deliberate; it does mean a shared
-list would be the only thing holding the Windows backends to the same description their fakes are
-held to, and it would be ready the day the host runs it.
+`BrainTransport` has eleven methods and four test fakes, each in its own suite: `FakeTransport`,
+`ScriptedTransport`, `FlakyTransport` and `StallingTransport`. Each of the four OS ports now has a
+Linux adapter in `body/crates/os_linux/` that CI compiles and runs, each over test doubles of its
+own (a fake `pactl` runner, a fake bus, a fake key grab, peer D-Bus and X servers). So a shared
+list would run in CI over a fake and a real adapter for every Rust port except `Sleeper`, whose
+`TokioSleeper` is in the Tauri shell outside the checked workspace, and it would hold the Windows
+backends, which CI does not run, to the same description the day the host runs it.
 
-It is deferred rather than done because it has its own design questions: what a write-only port
-owes, and whether a Rust list is a generic function or a table of function pointers. The inventory
-in the ADR is the worklist, port by port.
+Two design questions come first: what a write-only port owes, and whether a Rust list is a generic
+function or a table of function pointers. The inventory in the ADR is the worklist, port by
+port.
 
 ## History
 
@@ -105,3 +104,12 @@ in the ADR is the worklist, port by port.
   2026-09-22, so nineteen files are named `<port>_contract.py`. The new `ResidencyQueue` port has
   two implementations, `SwappingModelManager` and `ResidencyBoard`, both pure core, so it has no
   list by the origin's decision 6 and now sits in that row.
+- 2026-10-03: Made actionable. The trigger was a defect: a Rust fake and its adapter disagreeing
+  can only be found by the list this task writes. Its premise, that the four OS ports are readable
+  only on the Windows host, is what decides the task, and it no longer holds: `grep -rhE '^impl(<[^>]*>)? (Hotkey|AudioControl|Notify|ScreenCapture)(<[^>]*>)? for Linux' body/crates/os_linux/src`
+  now finds four adapters, notification and volume added on 2026-09-28, screen capture the same
+  day and the hotkey on 2026-10-01, and `os_linux` is a workspace member CI tests. Rechecked: no
+  Rust file holds a shared list, `BrainTransport` has eleven methods, and `FakeAudio`, `FakeNotify`
+  and `FakeScreen` are each still written twice. `BrainTransport` has four test fakes, not three:
+  `StallingTransport` in `core/tests/retry_gap.rs` was added on 2026-08-24. The origin's Rust table
+  gained that fake and `LinuxHotkey`.

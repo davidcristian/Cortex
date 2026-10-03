@@ -7,9 +7,10 @@
 tier, meaning `ModelHostConfig.tiers()` (`brain/packages/model_manager/src/cortex_model_manager/config.py`)
 declaring a fourth `TierArgs` after `cortex`, `brain` and `subagent-gpu`; or a subagent roster entry
 gaining a second GPU target beside `gpu_endpoint`. Check with
-`grep -c 'TierArgs(' brain/packages/model_manager/src/cortex_model_manager/config.py`: 3 means
-neither has happened.
-**Verified:** 2026-09-24
+`grep -c 'TierArgs(' brain/packages/model_manager/src/cortex_model_manager/config.py` and
+`grep -c 'endpoint: str' brain/packages/orchestrator/src/cortex_orchestrator/config_subagents.py`:
+3 and 4 mean neither has happened.
+**Verified:** 2026-10-03
 
 The placer has a single flag for whether the GPU is available, while the residency record has one
 entry per tier, so any missing tier closes GPU placement for the whole pool. The brain has no
@@ -23,8 +24,9 @@ loses GPU placement it did not need, which is decode rate rather than correctnes
 direction is deliberate, since refusing too little costs a dead load per spawn.
 
 The fix is a declared tier id per roster entry, threaded into `PlacementRequest` so the placer can
-skip one target rather than all of them. That is also what would reopen the declined
-placement-aware CPU charging entry ([R-189](189-placement-aware-cpu-charging.md)).
+skip one target rather than all of them. It would not reopen the declined placement-aware CPU
+charging entry ([R-189](189-placement-aware-cpu-charging.md)), which names a second GPU-capable
+executor as what reopens it; that is this entry's second trigger condition, not its fix.
 
 ## History
 
@@ -51,3 +53,10 @@ placement-aware CPU charging entry ([R-189](189-placement-aware-cpu-charging.md)
 - 2026-09-24: Not fired. The count is 3; the drafter added on 2026-09-19 is flags on the deep
   tier's `TierArgs`, not a fourth tier. `gpu_endpoint` is still each roster entry's one GPU
   address, and `placer.py` sets and reads `_gpu_closed` at lines 17, 22, 41 and 45.
+- 2026-10-03: Not fired. The `TierArgs(` count is 3, and the `endpoint: str` count is 4, an
+  `endpoint` and a `gpu_endpoint` on `SubagentRosterEntry` and on `SubagentsConfig`, so a roster
+  entry still has one GPU target; the trigger now names that second count, since the first alone
+  could not show the roster half. `placer.py` sets and reads `_gpu_closed` at lines 17, 22, 41 and
+  45, and `PlacementRequest` (`placement.py:23-29`) still has a model id and three resource figures.
+  The body's last paragraph still said this fix would reopen R-189, which the 2026-09-12 line had
+  found wrong, and now says what does.
