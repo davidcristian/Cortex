@@ -10,13 +10,15 @@ of the records that `LRANGE cortex:session:<id>:messages 0 -1` returns is never 
 reply, since each record is JSON with the same four fields and more, with non-ASCII text escaped, so
 a live reading of that sum below 4 MiB for every session means the trigger has not fired. For
 `ListSessions` the reply holds at most `MAX_SESSION_LIST_LIMIT` (200) recent chats plus every
-hoisted chat outside that window, and that set has no cap in the store.
-**Verified:** 2026-09-24
+hoisted chat outside that window, and that set has no cap in the store. On 2026-10-03 the stored
+`cortex_redis-data` volume held 76 histories, the largest summing to 2,351 bytes, and 68 chats in
+`cortex:sessions` with no hoisted set.
+**Verified:** 2026-10-03
 
 `ListSessions` and `GetSessionMessages` are unary snapshots with no cursor, which is enough at
 personal scale. If a single history is the one that grows too large first, the smaller move is a
 window on `GetSessionMessagesRequest`: a count of the newest records, mapped to `LRANGE -n -1`,
-which is the index arithmetic `list_sessions` already uses. Raising the body's decoding cap instead
+the form `list_sessions` already uses with n = 1 to read a chat's newest record. Raising the body's decoding cap instead
 only moves the point where one reply fails. Either way the proto change regenerates both committed
 stubs.
 
@@ -39,3 +41,10 @@ stubs.
   because Redis runs in Docker and Docker was held by a running measurement session. The request
   messages, the clamp, the unbounded hoisted set and the record shape are unchanged. Line citations
   that no longer matched their files are replaced by names.
+- 2026-10-03: not fired, and for the first time read from the store. A throwaway Redis with no
+  network on the stored `cortex_redis-data` volume, stopped after the reads, held 76
+  `cortex:session:<id>:messages` lists with 158 records in all, at most 4 in one list; the
+  largest list's records sum to 2,351 bytes, far below 4 MiB. `cortex:sessions` holds 68 ids and
+  neither hoisted key exists. The request messages, the clamp, the record shape (images are
+  refused before a write, by `refuse_images` in `store_codec.py`), tonic 0.14.6's 4 MiB receive
+  default and the brain server setting only `grpc.max_receive_message_length` are unchanged.

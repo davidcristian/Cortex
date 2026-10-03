@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** inference-model-manager
 **Origin:** [ADR-0046](../../adr/ADR-0046-work-identities-on-log-lines.md)
-**Verified:** 2026-09-24
+**Verified:** 2026-10-03
 **Trigger:** either half of the agreement moves: `EscalatingTurnEngine(` gains a construction site
 other than the one in `cortex_orchestrator/engines.py`, or that site's factory returns anything but
 `self._turn_engine(...)`; or `TurnEngine.handle_turn` in `cortex_core/engine.py` stops completing
@@ -53,4 +53,12 @@ right depends on whether a second runner ever sits behind `make_inner`.
   `EscalatingTurnEngine(` in any `src` tree, `escalating_engine.py` still ends the unescalated path
   with `yield completed` (line 49) and completes an escalated one under its own id (line 62), and
   `engine.py:126` still completes with the id it was handed. Both tests named above still exist
+  under their names.
+- 2026-10-03: Not fired. `engines.py:106` is still the only `EscalatingTurnEngine(` in any `src`
+  tree, and its factory is still `self._turn_engine(replace(caps, escalation=slot), backend)`.
+  `escalating_engine.py` still ends the unescalated path with `yield completed` (line 51) and
+  completes an escalated one under its own id (line 64), and `TurnEngine.handle_turn` still
+  completes with `TurnCompleted(turn_id=turn_id, ...)` at `engine.py:151`. The three commits that
+  touched these files since 2026-09-24 accept attached images, refuse one the cortex cannot see
+  and lower the history budget, and leave both halves alone. Both tests named above still exist
   under their names.

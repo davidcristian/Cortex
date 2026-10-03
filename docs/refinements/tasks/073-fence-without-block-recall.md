@@ -6,9 +6,9 @@
 **Trigger:** taint-spread on tangential recall proving too blunt. It can only show itself once the
 memory store holds a tainted row, and a deployment writes one only under
 `CORTEX_MEMORY_ON_TAINTED=record` (the default `skip` drops a tainted turn from memory), so the
-cheap reading is `select count(*) filter (where tainted) from memories`, which returned 0 on
-2026-09-17.
-**Verified:** 2026-09-24
+cheap reading is `select count(*) filter (where tainted) from memories`, which returned 0 of 2
+rows on 2026-09-17 and again on 2026-10-03.
+**Verified:** 2026-10-03
 
 Left behind by [R-072](072-tainted-memory-recording.md): a recall mode that fences a tainted
 memory without tainting the turn, if spreading taint on a tangential recall turns out to be too
@@ -47,3 +47,10 @@ blunt.
   `"skip"` at `config.py:112`, and `docker-compose.memory.yml` still passes
   `CORTEX_MEMORY_ON_TAINTED` by name without a value, so a default deployment still writes no
   tainted row.
+- 2026-10-03: not fired, read from the store and the tree. A throwaway postgres with no network on
+  the stored `cortex_cortex-pgdata` volume, stopped after the query, returned 2 rows, 0 tainted,
+  the newest written 2026-08-11. `_render_memory_context` (`turn_context.py:54`) still calls
+  `taint.ingest_untrusted` on each tainted record at line 64, `on_tainted` still defaults to
+  `"skip"` (`config.py:112`), `record_exchange` still skips a tainted turn unless
+  `record_tainted_memory` is set, and `docker/docker-compose.memory.yml` still passes
+  `CORTEX_MEMORY_ON_TAINTED` by name without a value.

@@ -12,9 +12,11 @@ trailing-punctuation trim in `brain/packages/core/src/cortex_core/guardrail.py`,
 `grep -rn 'URL_RE\.\|rstrip(TRAILING_PUNCTUATION)\|last\.end()' brain/packages/core/src/cortex_core/`
 prints six lines, five of them the four sites; the sixth is the trim `normalize_url` performs
 inside the identity reduction in `url_identity.py`, which reads one matched string and assumes
-nothing about how many readings its span has. The second condition cannot be decided from the tree,
-since a reply lives in the session store. The first is read off `url_separators.py`.
-**Verified:** 2026-09-24
+nothing about how many readings its span has. The first condition is read off `url_separators.py`.
+The second is read off the session store: an assistant record in any
+`cortex:session:<id>:messages` list that `SPACED_DOT` from `url_separators.py` matches, which no
+mixed host can avoid. On 2026-10-03 none of the 79 stored replies matched, and none held a URL.
+**Verified:** 2026-10-03
 
 Opened by the pass that declined the mixed dot-and-gap host, because that decline is a symptom
 rather than the cause. `extract_urls` reduces each `URL_RE` match to exactly one identity and the
@@ -68,3 +70,8 @@ has been, since a second reading is a second chance to redact prose.
   `guardrail.py:158` and `:166`, `url_identity.py:119` and `url_holdback.py:72` and `:74`. The one
   change to `url_separators.py` and `url_holdback.py` since renamed the separator tables to
   `COLON_FORMS`, `SOLIDUS_FORMS` and `DOT_FORMS` and added no written form.
+- 2026-10-03: not triggered, and the second condition, which this entry called undecidable from
+  the tree, was read from the store and the trigger now names that reading. A throwaway Redis with
+  no network on the stored `cortex_redis-data` volume held 158 records, 79 of them replies; none
+  matches `SPACED_DOT` and none contains a `URL_RE` match. The grep prints the same six lines at the
+  same lines as on 2026-09-24, and `url_separators.py` has not changed since 2026-09-22.

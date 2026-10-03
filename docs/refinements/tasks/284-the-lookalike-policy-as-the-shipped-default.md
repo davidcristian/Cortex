@@ -13,8 +13,8 @@ whether it is still `redact`. The corpus reading is the count of distinct non-AS
 finds across every tracked file, each read as
 `host_of(normalize_url(match.group(), confusables=False))`, the expression
 `_UrlRedactingFilter._flagged` uses for the lookalike rule; it stood at 12 on 2026-09-08,
-2026-09-11 and 2026-09-17, and at 10 on 2026-09-24.
-**Verified:** 2026-09-24
+2026-09-11 and 2026-09-17, and at 10 on 2026-09-24 and 2026-10-03.
+**Verified:** 2026-10-03
 
 The pass that added the third `OutputGuardrail` policy shipped the answer without imposing it:
 `CORTEX_OUTPUT_GUARDRAIL` still defaults to `redact`, so the gap that pass closed is closed only
@@ -34,7 +34,7 @@ count per rule and counts a link under the lookalike rule only when no other act
 on a real problem rather than on a schedule.
 
 The corpus count is not a stand-in for that measurement, and it has been wrong in this entry once
-before: it claimed 2 where a fresh reading found 12. Every one is a fixture, and on 2026-09-24 the
+before: it claimed 2 where a fresh reading found 12. Every one is a fixture, and on 2026-10-03 the
 ten sat in four files: this ADR, `brain/packages/core/tests/test_guardrail.py`,
 `docs/readings/output-guardrail.md`, and [R-058](058-uts39-confusables-set.md). Some are not hosts
 anybody wrote but artifacts of the matcher running over Markdown, such as a host read with its
@@ -77,3 +77,9 @@ phishing link harms the user.
   1,152 distinct identities, and 10 distinct non-ASCII hosts. They sit in four files,
   `docs/readings/output-guardrail.md` in place of `docs/modules/brain-core.md`, and the lookalike
   rule is unchanged.
+- 2026-10-03: not triggered, both readings taken again. `config.py:67` binds `output_guardrail` to
+  `"redact"`, this checkout has no `.env`, and `_flagged` (`guardrail.py:169`) still reads the
+  lookalike rule as `host_of(normalize_url(url, confusables=False))`. The corpus: 1,949 tracked
+  files, 1,923 readable, 2,766 spans reducing to 1,162 distinct identities, and 10 distinct
+  non-ASCII hosts in the same four files. Neither ADR-0015 nor any guardrail or URL source has
+  changed since 2026-09-24.

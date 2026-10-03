@@ -6,8 +6,9 @@
 **Trigger:** `SELECT count(*) FROM memories` in a deployment's pgvector database reaching 75,000 rows
 while `CORTEX_MEMORY_SCOPE` is `global`, the size at which the exact scan costs a whole recalling
 turn's time to first token; the recall trail's `available` field reports the same count on every
-recalled turn when `CORTEX_MEMORY_RECALL_AUDIT` is on.
-**Verified:** 2026-09-24
+recalled turn when `CORTEX_MEMORY_RECALL_AUDIT` is on or `CORTEX_MEMORY_RECALL_AUDIT_FILE` names a
+file, which also receives it as a JSON line. The count was 2 on 2026-10-03.
+**Verified:** 2026-10-03
 
 Memory search is an exact cosine scan. An approximate index would need a migration
 ([ADR-0004](../../adr/ADR-0004-model-lineup.md)).
@@ -46,7 +47,7 @@ and its result decides between the index and scoping or retention.
 The trigger depends on four settings: the pgvector backend (`CORTEX_MEMORY_BACKEND`), since the
 default `none` records and recalls nothing; the global scope, since a session-scoped read ranks
 one conversation; the recall trail, which is off by default, for reading the count off the log
-rather than off the database; and the write policy in `record_exchange`
+or the trail's file rather than off the database; and the write policy in `record_exchange`
 (`cortex_core/turn_output.py`), which records at most one memory per turn and skips tainted and
 opaque turns by default, and so sets how fast the count grows.
 `CORTEX_MEMORY_RECALL_POOL_FACTOR` does not move it, since k=5 and k=20 measured the same.
@@ -89,3 +90,11 @@ opaque turns by default, and so sets how fast the count grows.
   opaque turn is any turn that saw an untrusted picture; the code that skips it is unchanged.
   `hnsw` and `ivfflat` are named today in ADR-0004's decision and in
   `docs/readings/model-lineup.md`, and not in `init.sql` or ADR-0008.
+- 2026-10-03: not fired. A throwaway postgres with no network on the stored
+  `cortex_cortex-pgdata` volume, stopped after the query, counted 2 rows in `memories`, the newest
+  written 2026-08-11. The schema, the ranked `SELECT`, `_COUNT_ALL`, `DEFAULT_RECALL_K = 5`,
+  `recall_pool_factor: int = 4`, `scope` defaulting to `"global"` and `GlobalMemoryScope` reading
+  every scope are unchanged, and no compose file, brain source or SQL file names
+  `maintenance_work_mem`. One correction: since 2026-09-25 the trail is also on whenever
+  `CORTEX_MEMORY_RECALL_AUDIT_FILE` is set (`recall_audit_from_config` in `memory_builders.py`),
+  and that file holds `available` too, so the trigger names both.
