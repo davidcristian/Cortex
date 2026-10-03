@@ -4,11 +4,12 @@
 **Area:** repo-checks
 **Trigger:** the driver's default instruction changing, which `git log -S` over its text in
 `brain/packages/orchestrator/tests/test_envelope_cost_live.py` shows as any commit after the
-harness's own of 2026-08-26; or a reading at the origin record publishing `stood` alone with
-`no judge is declared for this shape` for an instruction its measurement asked. That phrase occurs
-once in the origin record today, in the decision describing the mechanism.
+harness's own of 2026-08-26; or a readings record publishing `stood` alone with
+`no judge is declared for this shape` for an instruction its measurement asked, which
+`git grep -n 'no judge is declared' docs/readings` finds and finds nowhere today. The phrase occurs
+once in the origin record, in the decision describing the mechanism.
 **Origin:** [ADR-0028](../../adr/ADR-0028-grammar-constrained-subagents.md)
-**Verified:** 2026-09-24
+**Verified:** 2026-10-03
 
 The summarization instruction is written in seven places, counted on 2026-09-24 with `git grep -F`
 over its text: the driver's own `CORTEX_ENVELOPE_INSTRUCTION` default in
@@ -17,7 +18,8 @@ over its text: the driver's own `CORTEX_ENVELOPE_INSTRUCTION` default in
 samples suites), and the origin record's prose. The
 runbook does not contain it. The judge table declares four instructions, a second summarization
 asking to keep the report's figures having joined it on 2026-09-13. The other three are written in
-the judge table, in one or two of those test files and in the origin record, and nowhere in code a
+the judge table, in one or two of those test files and in ADR-0072's prose; the two older ones are
+also in the origin record, and the figures one in two readings records instead. None is in code a
 measurement runs, since a measurement passes them through the environment variable. No check
 compares any of the four: no `scripts/*couplings.py` module contains one, so `scripts/crosscheck.py`
 has no entry over them, and `scripts/settingscheck.py` compares compose files with the brain's
@@ -71,3 +73,12 @@ person's work rather than a shipped path.
   `scripts/*couplings.py` module contains any of them. The count of places was one too high:
   `scripts/envelopesamples.py` has a one-line docstring that does not write the instruction, so it
   is seven.
+- 2026-10-03: read against the tree and not fired. `git log -S` over the driver's default, final
+  period included, still finds only the harness's own commit of 2026-08-26; no readings record has
+  `no judge is declared for this shape`, and the origin record has it once; the judge table still
+  declares four instructions, each a positional argument to `Judge(...)`; and no
+  `scripts/*couplings.py` module contains any of them. The summarization instruction is still in
+  seven places. The other three were miscounted: all three are also in ADR-0072, and the figures
+  instruction is in `docs/readings/reply-envelope.md` and `docs/readings/role-sentences.md` and not
+  in the origin record. The trigger's second clause pointed at readings in the origin record, which
+  keeps none since readings moved to `docs/readings/`, and now names the search that decides it.

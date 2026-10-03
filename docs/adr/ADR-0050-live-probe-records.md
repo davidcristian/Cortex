@@ -51,10 +51,11 @@ inside an `integration`-marked file is code no check runs.
    the control too, after writing its sample, so a failed run still leaves a sample for the reader.
 4. **The marker vocabulary stays in the probe's tree and never reaches the port.** `MARKERS` holds
    two pairs, `<|channel>thought` and `<channel|>`, `<think>` and `</think>`, typed by hand. Every
-   chat template on the model mount writes one of them; `<|think|>` falls before the prompt and is
-   out of scope by position. A recorded answer derived from the model files would have to read the
-   literals each template emits in its output expressions, since some templates read marker-shaped
-   strings they never emit.
+   chat template a tier or candidate names writes one of them, and so does every other template on
+   the model mount but one, which nothing in the tree names; `<|think|>` falls before the prompt and
+   is out of scope by position. A recorded answer derived from the model files would have to read
+   the literals each template emits in its output expressions, since some templates read
+   marker-shaped strings they never emit.
 5. **A sample names what served it.** The probe reads `GET /props` once, before the renderings, and
    fails when `build_info` or `model_path` is absent, since a row nobody can place is not worth
    publishing and a placeholder would pass the reader's required-field rule while saying nothing. It
@@ -108,7 +109,7 @@ inside an `integration`-marked file is code no check runs.
 
 - **A hard assertion of the rule inside the probe**: no check runs the file, and a new handler would
   look like a broken test rather than a finding.
-- **A third marker pair typed against no template**: no file on the mount writes one.
+- **A third marker pair typed against no named template**: no file the tree names writes one.
 - **A seed field on `GenerationBounds`, or a request the test posts itself**: see decision 7.
 - **Naming**: `tailverdict.py` hides where the rule is read, and `thoughtdoor.py` is a metaphor that
   sends a reader of the `scripts/` tree nowhere; `switchtail.py` names what the rule reads.

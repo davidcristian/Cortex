@@ -13,12 +13,13 @@ runbook sentence can wrap the variable and its file onto two lines; and count th
 aliased to a `CORTEX_MODEL_FILE_SUBAGENT` variable. Neither half reads a host's shell or `.env`,
 where a deployment would really write the second file.
 **Origin:** [ADR-0018](../../adr/ADR-0018-heterogeneous-subagents.md)
-**Verified:** 2026-09-24
+**Verified:** 2026-10-03
 
 `_entry_profile` in `cortex_orchestrator.subagent_builders` gives the default entry two backends,
 one per `PlacementTarget`, over `CORTEX_SUBAGENTS_GPU_ENDPOINT` and `CORTEX_SUBAGENTS_ENDPOINT`.
-With the hosted tier opted in, those are two different servers whose weights are named by two
-different variables: `CORTEX_MODEL_FILE_SUBAGENT` in the `command:` of
+Both default to the one CPU server, `http://llama-subagent:8082`. With the hosted tier opted in and
+the GPU endpoint pointed at `http://model-host:8083`, they are two different servers whose weights
+are named by two different variables: `CORTEX_MODEL_FILE_SUBAGENT` in the `command:` of
 `docker/docker-compose.subagents.yml` and `CORTEX_MODEL_FILE_SUBAGENT_GPU` in the model host's env.
 The second defaults to empty because the tier is opt-in, so no compose default connects them, and
 section 3 of `docs/runbooks/subagents-validation.md` sets them equal by hand.
@@ -85,3 +86,15 @@ stored.
   `CORTEX_MODEL_FILE_SUBAGENT` variable, and `ModelHostConfig().tiers()` declares one tier at the
   shipped defaults and three with the subagent and brain files named. The deep tier's drafter,
   added on 2026-09-19 under `CORTEX_MODEL_FILE_BRAIN_DRAFT`, adds flags to the deep tier and no tier.
+- 2026-10-03: checked again and not fired. The tree names either variable with a file in the same
+  three places, line 47 of `docker/docker-compose.subagents.yml`, lines 24 and 25 of
+  `docs/runbooks/subagents-cpu.md` and line 51 of `docs/runbooks/subagents-validation.md`, and all
+  three write `google/gemma-4-E4B-it-qat-q4_0-gguf/gemma-4-E4B_q4_0-it.gguf`. There is no `.env`,
+  `subagent_gpu_file` still defaults to `""` and is the only field aliased to a
+  `CORTEX_MODEL_FILE_SUBAGENT` variable, and `ModelHostConfig().tiers()` declares one tier at the
+  shipped defaults and three, one of them `subagent-gpu`, with the subagent and brain files named.
+  The body said the two targets are two servers once the tier is opted in; naming the file is not
+  enough, since `CORTEX_SUBAGENTS_GPU_ENDPOINT` defaults to the CPU server, so the body now says
+  both steps. `docs/runbooks/llamacpp-gpu.md` sent a reader to a section 2c of
+  `docs/runbooks/subagents-cpu.md` that the runbook split removed, and to `docker-compose.gpu.yml`
+  for settings it does not list; it now names the compose file and the validation runbook.

@@ -9,7 +9,7 @@ that tier's rows as it runs them. Read it with
 `grep -n 'CORTEX_REASONING_BUDGET' docker/docker-compose.gpu.yml`, which names both variables and
 defaults both to `-1` today, and confirm what a tier's flag tail then has with
 `ModelHostConfig(...).tiers()`.
-**Verified:** 2026-09-24
+**Verified:** 2026-10-03
 
 `Model.thinking` in
 [test_injection_defense_live.py](../../../brain/packages/inference/tests/test_injection_defense_live.py)
@@ -19,7 +19,7 @@ tier's name. The same `ModelHostConfig` the harness reads the head off answers t
 structurally, in whether the tier's `extra` ends its trace at zero, and the harness does not read it
 there.
 
-Measured 2026-09-08 and read again 2026-09-24: the two readings still agree everywhere the stack
+Measured 2026-09-08 and read again 2026-10-03: the two readings still agree everywhere the stack
 runs. Both variables default to `-1` in `docker/docker-compose.gpu.yml`, and
 `_UNRESTRICTED_REASONING` in `brain/packages/model_manager/src/cortex_model_manager/config.py` emits
 no flag at that value. Since 2026-09-13 every tail also has the tier's host-RAM prompt cache, so the
@@ -38,17 +38,20 @@ Reading it structurally means naming the budget flag and telling a zero budget f
 (`--reasoning-budget 128` is still thinking), which is the flag naming the harness keeps to one
 place. The zero column adds a second reason for care: a cortex tier at zero has the budget alone,
 without the `--chat-template-kwargs` half that the subagent tier's `_REASONING_OFF` pairs with it,
-and ADR-0049 measured the budget alone to do one thing on the gemma family and another on the Qwen
-one, emptying gemma-4-E4B's channel on 40 draws of 40 while leaving Qwen3.5-2B deliberating on 40 of
-40. Both cortex candidates are in the lineup, one of each family, so a structural reading of that
-tail answers what the tier was told and not what the model then does, which is what `repeat_of`
-needs.
+and the budget alone does one thing on the gemma family and another on the Qwen one (ADR-0049
+decision 8): in the thinking-switch reading it emptied gemma-4-E4B's channel on 40 draws of 40,
+the thought arriving in the reply instead, while Qwen3.5-2B wrote to the channel and ran to the cap
+on 20 draws of 20. Both cortex candidates are in the lineup, one of each family, so a structural
+reading of that tail says what the tier was told, while `repeat_of` needs what the model then does,
+and on the Qwen candidate the two differ.
 
 Closing it means reading `thinking` off the tier's tail: absent, or present with a count above zero,
-is thinking; present at zero is not. The flag has to be found by name rather than by position,
-because the budget is no longer the last pair of every tail, and the name is written today as
-`_REASONING_BUDGET_FLAG` in `brain/packages/inference/tests/test_switch_rows.py`, so the harness
-would import that constant rather than write it a second time.
+is thinking; present at zero beside the template kwarg is not; present at zero alone is read per
+family, from the measurement above. The flag has to be found by name rather than by position,
+because the budget is no longer the last pair of every tail. The harness has both parts already:
+it writes the name as `_REASONING_BUDGET_FLAG` itself, and `flag_and_value` reads a flag's value by
+name and raises `LookupError` when the tail has none, so the fix checks membership first and adds
+no constant.
 
 ## History
 
@@ -82,3 +85,12 @@ would import that constant rather than write it a second time.
   after the cache pair. One tail is new: with `CORTEX_MODEL_FILE_BRAIN_DRAFT` named, which the
   deep tier reads since 2026-09-19, the deep tail ends with `--model-draft` and `--spec-type
   draft-mtp` after the budget pair, a second tail in which the budget is not the last pair.
+- 2026-10-03: read against the tree and not fired. The grep names both variables at lines 64 and 76
+  of `docker/docker-compose.gpu.yml`, both defaulting to `-1`, there is no `.env`, and outside the
+  tests only the two mentions in `scripts/modelhostcouplings.py` name either. `Model.thinking` is
+  still `self.tier != SUBAGENT_TIER` at line 107. `ModelHostConfig().tiers()` produced the table
+  cell for cell, `128` still adds `('--reasoning-budget', '128')` after the cache pair, and the
+  drafter still follows the deep tail's cache pair. Two corrections. The Qwen3.5-2B row of the
+  budget alone is 20 draws, not 40. And the harness does not need the switch-rows test's constant:
+  it defines `_REASONING_BUDGET_FLAG` at line 582 and finds a flag by name with `flag_and_value` at
+  line 587, so `test_switch_rows.py` has the second copy of the name, not the first.

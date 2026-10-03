@@ -3,13 +3,15 @@
 **Status:** open, waiting for its trigger
 **Area:** inference
 **Origin:** [ADR-0050](../../adr/ADR-0050-live-probe-records.md)
-**Verified:** 2026-09-24
+**Verified:** 2026-10-03
 **Trigger:** a pick entering the lineup whose chat template writes a thought marker
 `scripts/switchtail.py` does not list, or a model file of a listed family whose template changes
 the marker it writes. Both are countable by the struct walk over each GGUF header's
 `tokenizer.chat_template` that opened this entry: count the chat templates on the mount and the
-markers they write, and compare each file's markers with the pair `MARKERS` lists for its family,
-since only one file has a recorded template to compare a template with.
+markers they write, and compare each file's markers with the pair `MARKERS` lists for its family.
+One file on the mount would fire the first clause if the tree named it:
+`unsloth/Muse-Glimmer-30B-GGUF/Muse-Glimmer-30B-UD-Q4_K_XL.gguf`, whose template writes neither
+pair, and `git grep -i glimmer` finds nothing today.
 
 `MARKERS` in `scripts/switchtail.py` is two pairs typed by hand, `<think>`/`</think>` and
 `<|channel>thought`/`<channel|>`, and nothing compares them with the lineup. The templates that
@@ -20,7 +22,7 @@ image declares: a committed record of the markers each lineup file's template wr
 compares `MARKERS` with the record, and a hand-run recipe that recomputes the record from the mount,
 since the check cannot reach `/mnt/ai/Models` any more than it can run docker.
 
-The record has to say what a template emits, not what it mentions. Six of the 34 templates on the
+The record has to say what a template emits, not what it mentions. Six of the 37 templates on the
 mount have thought markers they only read: `<thinking>` and `</thinking>` in the branch that splits
 a previous assistant message into reasoning, and the sentinels `<|think_on|>` and `<|think_off|>`
 that they strip out of a system message. A record scanning each template's text for marker-shaped
@@ -59,3 +61,14 @@ derivable from the template's own syntax.
   markers as above, and six of the Qwen ones mention the four markers the body describes. The one
   file new since 2026-09-15 is a vision projector with no template, named nowhere in the tree. The deep tier's drafter, which entered the lineup on
   2026-09-19, has no chat template either, so the first clause cannot fire on it.
+- 2026-10-03: checked again and not fired. `MARKERS` is the same two pairs. The mount holds 73
+  `*.gguf` files, 37 with a chat template: 8 gemma-4 that write the channel pair and `<|think|>`,
+  28 Qwen that write `<think>` and `</think>`, six of them the same repackages that mention the four
+  markers the body describes, and one file of a third family. Four files are new since 2026-09-24:
+  two quants of a Qwen3.8-27B repackage under `llmfan46/`, which share one new template writing
+  `<think>` and `</think>`, its projector, and the Muse-Glimmer-30B file the trigger now names. That
+  template renders a previous message's reasoning between `<|start|>assistant to=self<|message|>`
+  and `<|eom|>`, and its generation prompt ends at `<|start|>assistant`, so it writes no marker in
+  the tail `switchtail.tail` reads. No tier, candidate or document names it, so no pick has entered
+  the lineup with it. ADR-0050 said every template on the mount writes a listed pair and that no
+  file writes a third, and now says it of every template the tree names.

@@ -228,8 +228,8 @@ GPU, embedder on the CPU (`CORTEX_NGL=0`), subagents into a pool the cortex size
 deep model hybrid if it does not fit, all as per-`llama-server` flags. A GPU placement decision is
 not a GPU process: `CORTEX_SUBAGENTS_GPU_ENDPOINT` still defaults to the CPU server, so a stack
 that has not named `CORTEX_MODEL_FILE_SUBAGENT_GPU` and repointed that endpoint runs a GPU-placed
-spawn on the CPU server. The three settings to change are listed in
-`docker/docker-compose.gpu.yml`; the procedure is [subagents-cpu.md](subagents-cpu.md) section 2c.
+spawn on the CPU server. A comment in `docker/docker-compose.subagents.yml` names both settings;
+the procedure is [subagents-validation.md](subagents-validation.md) section 3.
 
 The cortex and the deep model do not both fit: 29139 MiB wanted against 24463. The pair still
 reports `ready`, because WSL2 pages the overcommit, and the deep model's decode falls to 14.80 to
