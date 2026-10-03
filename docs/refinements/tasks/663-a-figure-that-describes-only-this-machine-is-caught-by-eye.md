@@ -1,9 +1,8 @@
 # A figure that describes only this machine is caught by eye
 
-**Status:** open, actionable
+**Status:** done 2026-10-03
 **Area:** repo-checks
 **Origin:** [ADR-0040](../../adr/ADR-0040-prose-and-comment-style.md)
-**Verified:** 2026-10-02
 
 The measurement rule in the Prose section of [AGENTS.md](../../../AGENTS.md) says that a figure
 describing only the machine it was read from is written as a ratio of that machine's own numbers;
@@ -15,7 +14,7 @@ reads a figure, so the rule holds only as long as each reader applies it.
 **Why no scan is obvious.** The rule does not ban figures, so nothing can run on "a number with a
 unit". Three classes sit behind that sentence and only the first is decidable by a scan.
 
-- **Units with no cross-machine reading**: watts, an SM clock in MHz or GHz, a temperature, a fan
+- **Units with no cross-machine reading**: watts, an SM clock in `MHz` or `GHz`, a temperature, a fan
   speed, a memory transfer rate. Nothing here compares its own hardware against a wattage to decide
   whether something fits, so a figure in one of these units is a violation by its unit alone.
 - **Units this repo uses for both kinds of figure**: a memory size, a duration, a token rate. The
@@ -62,7 +61,7 @@ have been written since the rule was added.
   same day on what a scan over this rule could and could not decide.
 - 2026-09-19: **the trigger fired, and the 2026-09-14 reading was short by two lines.** The record
   of the 2026-09-17 unattended run published the launcher's between-row card readings as absolutes,
-  a clock in MHz of the card's maximum and an enforced ceiling in watts of `power.max_limit`, three
+  a clock in `MHz` of the card's maximum and an enforced ceiling in watts of `power.max_limit`, three
   days after the rule was added. Each run's launcher, a script under the ignored `measurements/`
   directory, prints its `host card` lines in those units, and the record copied them; the harness's
   own `card reading` lines print ratios and were published correctly beside them. That sentence is
@@ -83,7 +82,7 @@ have been written since the rule was added.
   The search returned 21 lines: the README sentence, this file's quotation of it, and 19 lines in
   six files written from 2026-09-26 to 2026-10-01, in the records of the role sentences, the spawn
   spec uptake, the system message templates, the history window and Flash-Next, and in
-  [ADR-0072](../../adr/ADR-0072-subagent-roles.md). They give an SM clock in MHz beside the card's
+  [ADR-0072](../../adr/ADR-0072-subagent-roles.md). They give an SM clock in `MHz` beside the card's
   maximum, and an enforced limit or a draw in watts beside `power.max_limit`. Each is rewritten as a
   fraction of `clocks.max.sm` or `power.max_limit`, using the maxima those records state, which
   every run's `clocks.csv` reads unchanged. The history window record also had a memory clock column
@@ -95,3 +94,19 @@ have been written since the rule was added.
   positive beyond the two lines kept on purpose. The proposal above is unchanged and still the
   maintainer's to decide, now with two caught regressions and one known miss: a unit written only
   in a table header.
+- 2026-10-03: **done**, with the decision taken by the agent on evidence. The rule is a third kind
+  of problem in `scripts/prosecheck.py`, found by `scripts/machinefigures.py`, rather than a
+  fourteenth scan: `prosecheck.py` already reads this prose and masks code spans, links and URLs,
+  so the fold changes no roster, recipe or CI step. A figure is a number before `W`, `kW`, `watts`, `MHz` or
+  `GHz`, across a line break too, or `MHz` or `GHz` alone, which finds the table header the search
+  above missed. Three units are left out: a temperature, which ADR-0040 decision 10 keeps as read; a
+  fan speed, which `nvidia-smi` reports as a percentage; and `MT/s`, whose one use in the history is
+  the README's rating of the laptop's memory, a figure a reader compares with their own. With those
+  out no line needs an exemption, so none was built. Over the prose the check reads: at the commit
+  before the rule, 5 figures on 4 lines in 2 files (the seven lines in three files above do not
+  reproduce); before the 2026-10-02 rewrite, 37 on 28 lines in 8 files, 24 of them the rewritten
+  lines with the header, and 4 lines in the index and this file naming a unit as a word; now none,
+  once this file wrote those names in backticks. None of the 368 commit messages since the rule
+  has a figure, so `commitlint.py` stays as it is. The header that writes a power unit alone is
+  filed as [R-779](779-a-power-column-with-its-unit-only-in-the-header-is-not-searched.md).
+  Recorded in [ADR-0040](../../adr/ADR-0040-prose-and-comment-style.md) decision 10.

@@ -1,4 +1,4 @@
-"""Report banned words in prose, and docstrings or comment blocks longer than three lines."""
+"""Report banned words and machine figures in prose, and docstrings or comments over three lines."""
 
 import argparse
 import re
@@ -10,6 +10,7 @@ from typing import NamedTuple
 
 import bannedwords
 import commentblocks
+import machinefigures
 import proseliterals
 from commentblocks import SourceError
 from dashcheck import IgnoreQueryError, ignored_paths
@@ -23,6 +24,7 @@ EXTRA_SKIPS = frozenset({"_generated"})
 MIN_FILES = 1
 
 BANNED = "banned word"
+FIGURE = "machine figure"
 DOCSTRING = "docstring"
 BLOCK = "comment block"
 
@@ -75,11 +77,17 @@ def check_prose(
     path: Path, prose: Prose, pattern: re.Pattern[str], exempt: Container[int] = ()
 ) -> list[Problem]:
     """Return the problems in one file's prose; lines in ``exempt`` are not checked at all."""
+    runs = [[line for line in run if line[0] not in exempt] for run in prose.runs]
     problems = [
         Problem(path, hit.line, BANNED, f'banned word "{hit.word}"')
-        for run in prose.runs
-        for hit in bannedwords.find_words([line for line in run if line[0] not in exempt], pattern)
+        for run in runs
+        for hit in bannedwords.find_words(run, pattern)
     ]
+    problems.extend(
+        Problem(path, hit.line, FIGURE, f'"{hit.word}" describes only this machine: write a ratio')
+        for run in runs
+        for hit in machinefigures.find_figures(run)
+    )
     for kind, found in [(DOCSTRING, prose.docstrings), (BLOCK, prose.blocks)]:
         problems.extend(
             Problem(path, item.first, kind, f"{kind} has {item.lines} lines, at most {MAX_LINES}")
@@ -212,14 +220,15 @@ def main(argv: list[str] | None = None) -> int:
     if scanned.problems:
         kinds = Counter(problem.kind for problem in scanned.problems)
         print(
-            f"\nprosecheck: {kinds[BANNED]} banned word(s), {kinds[DOCSTRING]} long docstring(s) "
-            f"and {kinds[BLOCK]} long comment block(s) in {scanned.files} file(s) read",
+            f"\nprosecheck: {kinds[BANNED]} banned word(s), {kinds[FIGURE]} machine figure(s), "
+            f"{kinds[DOCSTRING]} long docstring(s) and {kinds[BLOCK]} long comment block(s) "
+            f"in {scanned.files} file(s) read",
             file=sys.stderr,
         )
         return 1
     print(
-        f"prosecheck OK: {scanned.files} file(s) read, with no banned word and no docstring "
-        f"or comment block over {MAX_LINES} lines"
+        f"prosecheck OK: {scanned.files} file(s) read, with no banned word, no machine figure "
+        f"and no docstring or comment block over {MAX_LINES} lines"
     )
     return 0
 

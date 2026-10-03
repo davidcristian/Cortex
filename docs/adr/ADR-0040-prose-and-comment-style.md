@@ -59,7 +59,14 @@ record says what it is and why.
     to decide whether something fits: the card's memory, a model's weights, a context size, the
     VRAM cap. A timing in seconds stays absolute too, with the sentence around it saying under
     what conditions it was taken. A temperature stays as read, because a ratio needs the card's
-    own threshold beside it and a reading rarely has one.
+    own threshold beside it and a reading rarely has one. `scripts/prosecheck.py` reports the part
+    a unit decides, in the prose decision 11 reads: a number before `W`, `kW`, `watts`, `MHz` or
+    `GHz`, even across a line break, and `MHz` or `GHz` alone, as a table header names a column's
+    unit. No reader compares a power draw or a clock with their own hardware, so a figure in those
+    units fails by its unit. A memory transfer rate (`MT/s`) is a part's rating a reader does
+    compare with their own memory, and a fan speed is already a percentage, so neither is searched,
+    and nor is a temperature. A figure quoted from a log goes in backticks, as a banned word that
+    is a name does; there is no per-line exemption.
 11. **A table of banned words, and two checks that read it.** The Prose section of AGENTS.md has a
     table whose left column lists words this repo does not use and whose right column gives what
     to write instead. `scripts/prosecheck.py` reports every use in markdown, comments,
@@ -168,9 +175,11 @@ record says what it is and why.
 
 ## Consequences
 
-- The checks cover the mechanical half of the rule: a word from the table, and a docstring or
-  comment block that is too long. Decisions 3 to 9 are read by a person in review, as imperative
-  mood in a commit subject already is.
+- The checks cover the mechanical half of the rule: a word from the table, a figure in watts or a
+  clock unit, and a docstring or comment block that is too long. Decisions 3 to 9 are read by a
+  person in review, as imperative mood in a commit subject already is, and so is a figure in a
+  unit this repo uses both for a reading and for a size a reader compares: a memory size, a
+  duration or a token rate.
 - The backlog's own grammar is written in the plain words rather than exempted from the table: a
   closed task reads `done <date>`, an open one `waiting for its trigger` or
   `waiting for a consumer`, an optional capability is an `optional feature`, a task that needs a
@@ -193,7 +202,11 @@ record says what it is and why.
   positives. A check that is wrong one time in three is a check people turn off.
 - **A per-line exemption marker**, the way `dashcheck: allow` works for a dash that means rather
   than punctuates. A banned word almost always has a plain replacement, and backticks already
-  cover the case where the word is a name.
+  cover the case where the word is a name. A figure in watts or a clock unit can be written as a
+  fraction of the card's own maximum, and the tree keeps none on purpose.
+- **A fourteenth cross-tree scan for figures.** It would read the same prose `prosecheck.py`
+  already reads, and cost a recipe, a step in CI and three rosters of the scans; a third kind of
+  problem in that scan costs none of them.
 - **Rules without a table.** A rule stated in prose alone has nothing that reads the tree for it,
   so nothing fails when the prose drifts and the rule becomes advice.
 

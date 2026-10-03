@@ -88,7 +88,7 @@ because adding it afterwards is a rewrite.
 
    - `linecap.py`: the two line limits above.
    - `dashcheck.py`: no dash used as punctuation in any text file.
-   - `prosecheck.py`: no banned word from the table below, and no docstring or comment block over three lines.
+   - `prosecheck.py`: no banned word from the table below, no watt or clock figure, no long docstring or comment.
    - `crosscheck.py`: a value written in more than one place still agrees everywhere.
    - `bindcheck.py`: no compose bind mount can create an untracked directory in the repo.
    - `defaultcheck.py`: a variable named in several compose files has one default.
@@ -136,7 +136,7 @@ read. [ADR-0040](docs/adr/ADR-0040-prose-and-comment-style.md) gives the reasons
 - **Measurements.** Write a figure that describes only the machine it was taken on as a ratio of that machine's
   own numbers, and name the fields an operator queries on their own hardware. Keep a figure absolute when a
   reader compares it with their own hardware to decide whether something fits, such as a memory budget or the
-  size of a model.
+  size of a model. `scripts/prosecheck.py` reports a figure in watts or a clock unit.
 
 **Banned words.** The words in the left column below may not appear in prose, in any capitalization, and a phrase is
 found even when a line break splits it. `scripts/prosecheck.py` reads this table and reports every use in docs,

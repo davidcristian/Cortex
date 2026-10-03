@@ -42,10 +42,10 @@ exempt. Exit 1 prints `path:line: kind: text`.
 
 ## `prosecheck.py`
 
-The part of the Prose section of AGENTS.md a machine can check (ADR-0040 decisions 11, 12 and 16):
-a banned word, and a docstring or comment block over three lines. With no PATH it checks the whole
-root. A PATH that is a file is checked even when git ignores it; a directory is walked with
-`treewalk.walk_files` minus `_generated` and what git ignores, so `--root` must be a git tree.
+The part of the Prose section of AGENTS.md a machine can check (ADR-0040 decisions 10 to 12 and 16):
+a banned word, a figure in watts or a clock unit, and a docstring or comment block over three lines.
+With no PATH it checks the root. A file PATH is read even if git ignores it; a directory is walked
+with `treewalk.walk_files` minus `_generated` and what git ignores, so `--root` must be a git tree.
 
 It reads markdown outside code fences, docstrings, comments in Python, Rust, TypeScript, CSS,
 protobuf, YAML, TOML, shell, SQL, the Dockerfiles and the justfile, and each string of two words or

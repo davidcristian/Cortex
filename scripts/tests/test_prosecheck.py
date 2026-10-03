@@ -116,6 +116,27 @@ def test_string_literals_and_code_are_not_searched() -> None:
     assert _check("a.py", 'gate = "a gate"\n') == []
 
 
+@pytest.mark.parametrize(
+    ("name", "text"),
+    [
+        ("README.md", "It drew 40 W.\n"),
+        ("a.py", "x = 1  # drew 40 W\n"),
+        ("a.py", '"""Drew 40 W."""\n'),
+        ("a.rs", "// drew 40 W\n"),
+    ],
+)
+def test_a_machine_figure_is_reported_in_docs_comments_and_docstrings(name: str, text: str) -> None:
+    assert _check(name, text) == ['"40 W" describes only this machine: write a ratio']
+
+
+def test_a_machine_figure_in_a_printed_string_is_reported(repo: Path) -> None:
+    _write(repo, "scripts/probe.py", 'print("the card drew 40 W")\n')
+    scanned = prosecheck.scan(repo, [repo], PATTERN, range(5, 9))
+    assert [(problem.path, problem.kind) for problem in scanned.problems] == [
+        (Path("scripts/probe.py"), prosecheck.FIGURE)
+    ]
+
+
 def test_long_docstrings_and_comment_blocks_are_reported() -> None:
     assert _check("a.py", LONG_DOCSTRING + LONG_BLOCK) == [
         "docstring has 4 lines, at most 3",
@@ -134,10 +155,10 @@ def test_problems_are_sorted_by_line() -> None:
     assert [problem.line for problem in problems] == [1, 2]
 
 
-def test_exempt_lines_are_not_searched_for_words() -> None:
+def test_exempt_lines_are_not_searched_for_words_or_figures() -> None:
     reader = prosereaders.reader_for("AGENTS.md")
     assert reader is not None
-    prose = reader("a gate\nthe gates\nin\nforce\n")
+    prose = reader("a gate\nthe gates at 40 W\nin\nforce\n")
     problems = prosecheck.check_prose(Path("AGENTS.md"), prose, PATTERN, range(2, 4))
     assert problems == [Problem(Path("AGENTS.md"), 1, prosecheck.BANNED, 'banned word "gate"')]
 
@@ -199,22 +220,24 @@ def test_main_passes_a_clean_tree_and_exempts_the_table(
     _write(repo, "a.py", '"""Plain."""\n')
     assert prosecheck.main(["--root", str(repo)]) == 0
     assert capsys.readouterr().out == (
-        "prosecheck OK: 2 file(s) read, with no banned word and no docstring "
-        "or comment block over 3 lines\n"
+        "prosecheck OK: 2 file(s) read, with no banned word, no machine figure "
+        "and no docstring or comment block over 3 lines\n"
     )
 
 
 def test_main_reports_every_problem(repo: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    _write(repo, "a.py", "# gate\n" + LONG_DOCSTRING + LONG_BLOCK)
+    _write(repo, "a.py", "# gate at 2250 MHz and 40 W\n" + LONG_DOCSTRING + LONG_BLOCK)
     assert prosecheck.main(["--root", str(repo), str(repo / "a.py")]) == 1
     captured = capsys.readouterr()
     assert captured.out == (
         'a.py:1: banned word "gate"\n'
+        'a.py:1: "2250 MHz" describes only this machine: write a ratio\n'
+        'a.py:1: "40 W" describes only this machine: write a ratio\n'
         "a.py:2: docstring has 4 lines, at most 3\n"
         "a.py:8: comment block has 4 lines, at most 3\n"
     )
     assert captured.err == (
-        "\nprosecheck: 1 banned word(s), 1 long docstring(s) "
+        "\nprosecheck: 1 banned word(s), 2 machine figure(s), 1 long docstring(s) "
         "and 1 long comment block(s) in 1 file(s) read\n"
     )
 

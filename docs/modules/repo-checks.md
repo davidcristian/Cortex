@@ -69,8 +69,9 @@ were split out of it to stay under the 300-line limit. Grouped by what reads the
   `headingshapes.py` for which headings a slug can be computed from, and `bannedwords.py` for the
   words a task file name may not use. `linecap.py` reads `backlogindex.py` too, for the comment
   that shows a backlog index is generated.
-- `prosecheck.py` reads `bannedwords.py` for the word table in AGENTS.md, `prosereaders.py` for
-  the prose each file type holds, and `proseliterals.py` for the string literals that hold prose.
+- `prosecheck.py` reads `bannedwords.py` for the word table in AGENTS.md, `machinefigures.py` for
+  a figure in watts or a clock unit, `prosereaders.py` for the prose each file type holds, and
+  `proseliterals.py` for the string literals that hold prose.
   `prosereaders.py` uses `commentblocks.py` for comments and docstrings in Python and
   `slashcomments.py` for comments in Rust, TypeScript, CSS and protobuf, and `proseliterals.py`
   uses `slashcomments.py` for the string literals in Rust and TypeScript and the text between
