@@ -15,7 +15,7 @@ Separately, `grep -rln time_remaining brain/packages/orchestrator/src` listing o
 means no handler branches on the clock yet. The read handlers live in three files
 (`session_servicer.py`, `preference_servicer.py` and `server.py`), so a grep of one of them cannot
 answer that.
-**Verified:** 2026-09-28
+**Verified:** 2026-10-03
 
 `ListSessions` reads `time_remaining()` nowhere. It calls `SessionStore.list_sessions` whatever the
 clock says, and a caller who has already given up gets a reply written into a stream nobody reads.
@@ -87,3 +87,12 @@ set the floor from.
   250 at `plan.rs:25`, `brain/packages/session` still times nothing after the two refusals added to
   its `append` on 2026-09-28, and `time_remaining` appears only in `abandon.py`. `Health` and
   `ListDueReminders` are now at `server.py:99` and `:133`; the other handlers have not moved.
+- 2026-10-03: The three commands were run and neither half has fired: the grace constant is still
+  250 at `plan.rs:25` and still asserted as an equality at `retry_plan.rs:376`,
+  `brain/packages/session` still times nothing, and `time_remaining` appears only in `abandon.py`.
+  No commit since 2026-09-28 touched `plan.rs`, the session package or the three handler files, so
+  the handlers have not moved. The 2026-09-17 count of clock-reading test files that touch a read
+  missed `body/crates/rpc/tests/client.rs`, which calls `list_sessions` and whose clock at line 490
+  times a `Health` against a fake brain that never answers, so it does not time a served read
+  either. The paging cursor
+  ([184](184-paging-cursor.md)) is still open.

@@ -138,7 +138,8 @@ handoff.
 
 - Every backend and every consumer must handle the `DecodeStop` case, and pyright collects it: a
   consumer that ignores the event fails to type-check on the branch that assumed text.
-- A cut handoff and a clean one both settle `DONE`; only the reply text and the log say which.
+- A handoff whose answer a limit cut and a clean one both settle `DONE`, and a `DONE` record is
+  deleted as it settles. The reply text says which, and the log says so only for a cut tool call.
 - Every limit is sized on measurements of one machine; how a busy host moves them is in the
   measurement record.
 - A turn whose first round was capped and whose later round produced an unparsable call for its own

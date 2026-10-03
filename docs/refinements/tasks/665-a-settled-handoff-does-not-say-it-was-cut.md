@@ -1,35 +1,36 @@
-# A settled handoff record does not say whether the answer was cut
+# Nothing records whether a settled handoff's answer was cut
 
 **Status:** open, waiting for its trigger
 **Area:** inference-model-manager
 **Origin:** [ADR-0048](../../adr/ADR-0048-generation-bounds.md)
-**Verified:** 2026-09-28
-**Trigger:** a consumer in this tree reads a settled handoff's outcome: code that counts handoffs
-by outcome, or a runbook step that tells a clean `done` record from a cut one
+**Verified:** 2026-10-03
+**Trigger:** a consumer in this tree asks how often a deep answer was cut: code that counts
+handoffs or deep completions by how they stopped, or a runbook step that asks an operator that
+question. On 2026-10-03
+`grep -rn 'HandoffState\.\(DONE\|FAILED\)' brain/packages/*/src scripts` prints five lines, the
+terminal set, three settling writes and the check that deletes a `done` record, and none of them
+counts; the swap runbook reads a record only when it is `failed`.
 
-The deep phase used to settle a cut tool call as a machine failure. It now settles `DONE`, which is
-the right state and says less than the old wrong one did: `FAILED` came with a `failure` sentence on
-the record, and `DONE` has no field at all. So a handoff whose answer a token limit cut and one that
-finished cleanly are the same record.
+The deep phase settles a handoff whose tool call a token limit cut as `DONE` rather than
+`FAILED` (decision 15 of ADR-0048), and a handoff whose prose answer a limit cut settles `DONE` as
+well. A `DONE` record does not outlive that settle. `HandoffSettler._settle` in `swap_settle.py`
+deletes the record as soon as it writes `DONE`, which frees the active pointer, so a finished
+handoff leaves no record (decision 2 of ADR-0030). Only a `failed` record is kept, for
+`_TERMINAL_TTL_SECONDS`, 3600, in `cortex_session/handoffs.py`.
 
-The difference lives in two other places. The reply text has the note, which survives in the session
-history for as long as the session does, but it is the sentence every capped reply gets, so it does
-not say the deep tier wrote it. The `WARNING` from `cortex_core.brain_phase` has `capped`, which
-survives until the log rolls. The record is the shortest-lived of the three: a terminal record is
-written under `_TERMINAL_TTL_SECONDS`, 3600, in `cortex_session/handoffs.py` (ADR-0030 decision 4),
-and the swap runbook sends an operator to it for that diagnosis hour.
+So a cut is written in two places, and nothing counts either. The reply ends with the capped
+note, which stays in the session history for as long as the chat does, but every capped reply gets
+that sentence, so it does not say the deep tier wrote it. A cut tool call also logs the `WARNING`
+from `cortex_core.brain_phase` with `capped`. A cut prose answer logs nothing: `cap_note` only
+appends the note, and the deep phase's decode rate line has no `capped` field.
 
-Nothing needs this yet. No consumer counts handoffs by outcome, and the diagnosis path the runbook
-describes reaches the log first. It would matter the first time somebody asks how often the deep
-tier is running out of room, which is the question the whole cut-call work exists to make
-answerable.
+Nothing needs this yet. It would matter the first time somebody asks how often the deep tier runs
+out of room, which is the question the cut-call work exists to make answerable.
 
-The cheap fix is a field on the record beside `failure`, written on the same non-raising path that
-leaves `failure` unset, so a settled record says `done` and says whether it was cut. The cost is a
-`HandoffRecord` field and the store's serialization. That field answers whether one handoff was cut,
-for an hour after it settled. It does not answer how often: a count over settled records is a count
-over the last hour, shorter than the log already covers. The how-often question needs a count kept
-outside the expiring record, which is a store's port and its contract test rather than a field.
+**What would close it.** A field on the handoff record cannot, because the record is deleted in
+the same settle that would write it. The question needs either `capped` on a line every deep phase
+writes, such as the decode rate line, so the log answers it for as long as the log is kept, or a
+count kept outside the handoff store, which is a port, a fake and a contract test.
 
 ## History
 
@@ -49,3 +50,13 @@ outside the expiring record, which is a store's port and its contract test rathe
   reads the reason back. A deep phase whose prompt outgrew the context now raises
   `ContextOverflowError`, so it settles `failed` with the engine's answer as `failure`, while a cut
   answer still settles `done` with no field.
+- 2026-10-03: Not fired, and the entry was wrong about its own subject: a `done` record is not
+  kept for an hour, it is deleted. `_settle` (`swap_settle.py:42`) calls `_release_claim`, which
+  deletes the record, whenever it writes `DONE`, so only a `failed` record lives out
+  `_TERMINAL_TTL_SECONDS`, and the proposed field would have been deleted with the record it was
+  written to. The entry also said the `WARNING` with `capped` covers a cut answer; it covers only a
+  cut tool call, and a deep prose answer a limit cut logs nothing. The remedy now names a log field
+  or a count outside the store, and the trigger names the command that answers it. The tier-scale
+  handoffs drawn on 2026-10-02 through `just rpc-handoff` read the client's status events and the
+  reply, never a record, and their readings name no capped reply, so they do not bear on it. The
+  rule that deletes a finished record is decision 2 of ADR-0030, not decision 4.

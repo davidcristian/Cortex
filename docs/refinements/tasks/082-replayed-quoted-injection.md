@@ -6,9 +6,9 @@
 **Trigger:** a design that needs a later turn to know which of its replayed assistant messages
 were written on a tainted turn. The tree shows it when a session history message gains a taint
 or provenance field, and
-`grep -n taint brain/packages/core/src/cortex_core/conversation.py brain/packages/session/src/cortex_session/store_codec.py`
-prints nothing on 2026-09-28.
-**Verified:** 2026-09-28
+`grep -n -i 'taint\|provenance\|trust' brain/packages/core/src/cortex_core/conversation.py brain/packages/session/src/cortex_session/store_codec.py`
+prints nothing on 2026-10-03.
+**Verified:** 2026-10-03
 
 The output guardrail removes URLs and nothing else, so if the cortex quotes an injected payload
 into its reply, the prose is persisted whole while the links become
@@ -91,3 +91,11 @@ real user need.
   refuse a system message and a tool step, so history holds only user and assistant records, still
   encoded as `role`, `text`, `at` and `turn_id`. The picture attachment of 2026-09-25 taints the
   turn it arrives on and adds no mark to history either.
+- 2026-10-03: **Not fired.** Neither file has changed since the 2026-09-28 reading, `Message` still
+  holds the seven fields named above, and `store_codec.py` still encodes `role`, `text`, `at` and
+  `turn_id`. The trigger's `grep` searched only for `taint` while its sentence also names a
+  provenance field, so it now searches for `provenance` and `trust` too, and prints nothing. The
+  rest holds: the three guardrails in `guardrail.py` redact links and nothing else,
+  `turn_context.py` picks `SECURITY_PREAMBLE` when tools are on or the turn is tainted and
+  `PLAIN_SECURITY_PREAMBLE` otherwise, and `HandoffRecord` stores all four `TaintLedger` fields.
+  The GPU measurements were not rerun.
