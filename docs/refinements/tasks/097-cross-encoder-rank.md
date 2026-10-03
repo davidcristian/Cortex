@@ -3,15 +3,32 @@
 **Status:** open, waiting for its trigger
 **Area:** memory
 **Origin:** [ADR-0038](../../adr/ADR-0038-ranked-recall.md)
-**Trigger:** a judge quality reading taken over memories nobody wrote for the measurement (neither the ten notes inline in `test_rerank_judge_live.py` nor the 41 in `recall_corpus.py`), in which the judge drops an answerable note the cosine kept or ranks worse than it; or a first-token or whole-turn latency budget written into an ADR decision or a config bound that the recorded rank cost of 0.877 s, or its +0.515 s on the first token, exceeds. Both figures are the cortex judge's; the deep phase's judge asks the deep model, whose rank alone costs 0.89 s at `k` 3 over a pool of 12. Neither exists in the tree today. The first needs a deployed store's memories, which live in its Postgres volume, so it can enter the tree only as a recorded result. Both depend on `CORTEX_MEMORY_BACKEND` naming a store and `CORTEX_MEMORY_RECALL=judge`, and the cost on `CORTEX_MEMORY_RECALL_POOL_FACTOR` and `DEFAULT_RECALL_K`.
-**Verified:** 2026-09-24
+**Trigger:** a reading in `docs/readings/ranked-recall.md` taken over memories nobody wrote for the
+measurement (neither the ten notes inline in `test_rerank_judge_live.py` nor the 41 in
+`recall_corpus.py`) in which the judge drops an answerable note the cosine kept or ranks it lower;
+or a first-token or whole-turn latency bound, in an ADR decision or a setting, that the judge's
+recorded cost exceeds: a rank at `k` 5 over a pool of 20 costs 0.877 s, and a judged turn's first
+token comes 0.539 s after a raw one's.
+**Verified:** 2026-10-03
 
-The other form of a model reranker: a model that scores a query and a memory as a pair, rather
-than a chat completion that orders a numbered list. It needs a scoring-model port, so it is a new
-adapter rather than a new policy. It was opened by the ranked-recall close
+The other form of a model reranker: a model that scores a query and a memory as a pair, rather than
+a chat completion that orders a numbered list. It was opened by the ranked-recall close
 ([R-096](096-ranked-recall-widening.md)), and the geometric relevance floor
-([R-101](101-geometric-relevance-floor.md)) later named it as the candidate signal, since it
-reads the pair rather than measuring an absolute cosine.
+([R-101](101-geometric-relevance-floor.md)) later named it as the candidate signal, since it reads
+the pair rather than measuring an absolute cosine.
+
+Building it takes four parts: a scoring port beside `InferenceBackend`, whose one call is a streamed
+completion; an adapter for it, which the engine already offers (the cached `server` image, build
+10680, lists `--rerank`); a reranker model, of which the model mount's 73 GGUF files hold none; and
+a policy beside `JudgeRecallPolicy` that calls the port.
+
+Both halves of the trigger need the judge to run: `CORTEX_MEMORY_BACKEND` naming a store (the code
+default is `none`, and `docker-compose.memory.yml` sets `pgvector`) and `CORTEX_MEMORY_RECALL` at
+its default `judge`. A deployed store's memories live in its Postgres volume, so the first half can
+reach the tree only as a recorded reading. The recall trail (`CORTEX_MEMORY_RECALL_AUDIT_FILE`)
+keeps each recall's kept and dropped ids with their cosine scores, but never the query or a text, so
+judging which note was answerable still needs the store. The cost figures are the cortex judge's;
+the deep phase's judge asks the deep model, where a recall cost 0.89 s at `k` 3 over a pool of 12.
 
 ## History
 
@@ -52,3 +69,13 @@ reads the pair rather than measuring an absolute cosine.
   recall log line, and the two live tests renamed their variants, with no change to what the judge
   does. One thing moved: the deep phase's judge now asks the deep model (`engines.py`), so the
   0.877 s rank cost describes the cortex judge only, and the trigger now says so.
+- 2026-10-03: Not fired. The search for a cross-encoder or scoring model in `brain/packages/*/src`
+  still finds nothing, every judge reading in the ranked recall record is still over the two written
+  corpora (the 2026-09-28 rows on the Qwen deep candidates reuse the 41 notes), and no ADR decision
+  or setting bounds a turn's first token or whole turn below minutes: the shortest such bound is the
+  cortex client's read stall, `CORTEX_INFERENCE_STALL_TIMEOUT_S` at 120 s, against a judge cost
+  under a second. Three corrections. The trigger cited the 2026-08-08 first-token cost of 0.515 s,
+  where the later A/B/A run of 2026-08-09 recorded 0.539 s. The deep judge's 0.89 s is a recall's
+  cost, not a rank's. And the build needs a reranker model as well as a port and an adapter, since
+  the mount holds none. The settings the trigger listed moved into the text, beside the recall
+  trail, which now records judged recalls without their texts.

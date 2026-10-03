@@ -3,36 +3,41 @@
 **Status:** open, waiting for its trigger
 **Area:** session-history
 **Origin:** [ADR-0038](../../adr/ADR-0038-ranked-recall.md)
-**Trigger:** a production path to the `Converse` RPC other than the overlay's one chain, which
-runs from `body/app/src/overlay/useOverlay.ts` through the shell's `converse` command
-(`body/app/src-tauri/src/converse.rs`), `RetryingTransport` (`body/crates/core/src/retry.rs`) and
-the tonic client (`body/crates/rpc/src/converse.rs`); or that command's read loop awaiting
-anything between two stream items other than the next item. Grepping `.converse(` and
-`BrainServiceStub` outside test files decides the first: on 2026-09-24 the hits are those four
-links, the bridge contract's check list `bridgeContract.ts`, and the `seam` package's re-export of
-the stub. A report of one client stalling another's turn would also fire it and cannot be read
-from the tree. The stall needs a turn that emits more events than `CORTEX_SEAM_CONVERSE_BUFFER`
-(default 256, measured at 1), and it delays only work leasing the same manager, which both
-implementations, `SingleResidentModelManager` and the swap manager, serialize behind one lock.
-**Verified:** 2026-09-24
+**Trigger:** a production caller of the `Converse` RPC beyond the overlay's one chain, or a wait in
+that chain's read loop. Two readings of the tree decide it. Outside tests, generated stubs and
+builds, `grep -rn '\.converse(\|BrainServiceStub' body brain` finds on 2026-10-03 six files: the
+chain's four links (`body/app/src/overlay/useOverlay.ts`, the shell's `converse` command in
+`body/app/src-tauri/src/converse.rs`, `RetryingTransport` in `body/crates/core/src/retry.rs` and the
+tonic client in `body/crates/rpc/src/converse.rs`), the bridge contract's check list
+`bridgeContract.ts` and the `seam` package's re-export of the stub. Any other file fires it. The
+shell command's `while let` loop awaits only `stream.next()`; any other await between two items
+fires it.
+**Verified:** 2026-10-03
 
 The reply's lease is held for the adapter generator's whole lifetime, and the credit bound
 ([R-028](028-converse-queue-backpressure.md), `CORTEX_SEAM_CONVERSE_BUFFER`) suspends generation
 inside that lease once the consumer stops dequeuing and the credits are spent, so a stalled reader
-does not only stall itself. At the shipped bound of 256 events, a turn that emits fewer finishes
-and releases the lease even when nobody reads it. Measured on the
+does not only stall itself. At the shipped bound of 256 events (`DEFAULT_MAX_BUFFERED_EVENTS` in
+`converse_stream.py`), a turn that emits fewer finishes and releases the lease even when nobody
+reads it. The stall delays only work leasing the same manager, and both implementations,
+`SingleResidentModelManager` and `SwappingModelManager`, serialize the lease behind one
+`asyncio.Lock`. Measured on the
 [fold-under-load run](../../readings/history-recap.md#folds-under-concurrent-streams) at a
-one-credit bound with the reader stalling 12 s: the stalled stream's reply held the lease 16.52 s
-against the 2.2 s to 3.6 s an unstalled reply holds it, and the next stream's fold waited 16.51 s
-behind it.
+one-credit bound with the reader stalling 12 s, the stalled stream's reply held the lease four to
+seven times as long as an unstalled reply holds it, and the next stream's fold waited for the whole
+of that hold.
 
 This predates the summary ([R-027](027-session-history-summarization.md)) and is not caused by it;
 what the default-on fold changes is who pays, since a fold is now among the things that queue.
 Neither obvious direction is free: the bound exists to cap a stalled stream's memory, and letting
 generation run ahead of the consumer to release the lease sooner is the exact thing that bound
-prevents. A real fix is more likely a bound on how long a suspended generation may hold the lease,
-which means the adapter abandoning a stream nobody is draining, and that is a change to a port
-rather than a setting.
+prevents. A fix is a limit on how long a suspended generation may hold the lease, and it needs no
+port change. `ConverseStream` already cancels a turn on a client's `cancel` (`_cancel_turn`), and
+cancelling unwinds `_run_turn`, whose `finally` closes the engine's event stream; the tool loop
+closes the backend's stream in turn (`deltas.aclose()` in `tool_loop.py`), which leaves the
+backend's `async with self._manager.acquire(model)` and frees the lease. What is missing is a time
+limit on the credit wait in `_run_turn` that takes that path, a setting for the limit, and a
+decision about what the stream sends the client when it fires.
 
 ## History
 
@@ -72,3 +77,13 @@ rather than a setting.
   turn heartbeat added on 2026-09-22 goes out only while the output queue is empty, so it never
   joins a stalled reader's backlog, and the body's two-minute silence bound ends a stream the brain
   stopped sending on, not one the body stopped reading. Neither bounds this lease.
+- 2026-10-03: Not fired. Outside test files the search finds the same six files, and the shell's
+  loop still awaits only `stream.next()` (`converse.rs` line 243) and sends each item with
+  `channel.send`, which does not wait. The brain side is unchanged at new lines:
+  `converse_stream.py` builds the semaphore at line 87 and takes a credit per turn event at line
+  226, and `backend.py` streams inside the lease at line 142. Three corrections. The trigger's
+  clause about a report of one client stalling another could not be decided from the tree and is
+  removed, and the stall's preconditions moved into the text. The measured hold is written as a
+  ratio of the unstalled one. And the remedy needs no port change: a turn's cancellation already
+  closes the engine's stream and frees the lease, so a bound adds a time limit on the credit wait, a
+  setting and what the client is sent.
