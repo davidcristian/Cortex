@@ -3,12 +3,24 @@
 **Status:** open, waiting for a consumer
 **Area:** untrusted-content
 **Origin:** [ADR-0028](../../adr/ADR-0028-grammar-constrained-subagents.md)
-**Trigger:** a structured subagent-result feature, which is the only thing this is revisited for.
-**Verified:** 2026-09-28
+**Trigger:** a task file or ADR proposes a subagent result the cortex reads as fields. None does: `SubagentResult.output` is one `str`, and `grep -rli 'structured result' docs/refinements/tasks` finds only this file.
+**Verified:** 2026-10-03
 
 Left behind by [R-068](068-grammar-constrained-subagent-output.md): letting the caller supply a
-schema per task instead of the fixed envelope. Rejected for now and revisited only for a
-structured subagent-result feature.
+schema per task instead of the fixed `{"reply": <string>}` envelope. ADR-0028 decision 2 rejects it
+for now: a schema the cortex writes is one an injected instruction could shape, and the field names
+in a schema never reach the model on this engine, so a richer one would constrain the output and
+explain nothing.
+
+A caller has no slot to state a result shape in. A spawn item has `instruction`, `context`, `model`
+when the spawn is tool-less and the roster has more than one entry, and `role` when roles are
+configured ([spawn_spec.py:79](../../../brain/packages/core/src/cortex_core/spawn_spec.py)). A role
+has a description and one sentence and no schema
+([roles.py:8](../../../brain/packages/core/src/cortex_core/roles.py)). The attempt sends
+`REPLY_ENVELOPE` or no schema
+([subagent_attempt.py:120](../../../brain/packages/core/src/cortex_core/subagent_attempt.py)), and
+the result hands the turn one string
+([subagents.py:61](../../../brain/packages/core/src/cortex_core/subagents.py)).
 
 ## History
 
@@ -33,3 +45,8 @@ structured subagent-result feature.
   appends to the instruction, but a role holds no schema and decision 5 declines an output contract
   the runner checks, naming this entry as what that waits for. `subagent_attempt.py` still sends
   `REPLY_ENVELOPE` or no schema.
+- 2026-10-03: Checked again, and the trigger has not fired. `SubagentResult` still has
+  `task_id`, `output: str`, `ok`, `detail` and `tainted`, the spawn item still has no slot for a
+  result shape, `SubagentRole` still has only `description` and `instruction`, and
+  `subagent_attempt.py:120` still sets `REPLY_ENVELOPE` or nothing. The trigger now names the field
+  and the search that decide it, and the body states the current code.

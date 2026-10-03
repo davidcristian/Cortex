@@ -84,8 +84,8 @@ with a per-spawn pick, every roster entry is a live runtime choice.
 - **Deliberate loss** of the "cheap model for a trivial *untrusted* lookup" optimization, as that
   path is precisely what is being closed.
 - **Per-role exception, if ever justified:** a future subagent role needing a cheap model on a
-  tainted or tool path for a proven-safe reason is a per-role override on the same port, not a
-  relaxation of the default.
+  tainted or tool path for a proven-safe reason is a per-role override inside
+  `SubagentRoster.resolve`, not a relaxation of the default.
 
 ## Alternatives rejected
 
