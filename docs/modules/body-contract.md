@@ -17,14 +17,25 @@ crate; nothing that ships links it.
   read reports the change; a level alone keeps the mute flag; a mute flag alone keeps the level;
   an empty change changes nothing; no endpoint fails both calls with `NoEndpoint`; a broken backend
   fails both with `Backend`.
+- **`notify`**, the `Notify` list, the same shape. `NotifySubject` builds `showing()`,
+  `declining()`, `without_service()` and `broken()`; `declining` returns an `Option`, since a
+  backend whose service cannot decline returns `None` and the check that needs it returns early.
+  The five checks, each over three reminders that differ in taint, markup and length: a shown
+  notification answers `true`; one backend answers each of several calls; a declined one answers
+  `false`; no service fails with `Unavailable`; a broken backend fails with `Backend`.
 - **`FakeAudio`**, the one stand-in `AudioControl` every body test uses: `new(level, muted)` holds
   a state in memory, `failing(AudioError)` answers every call with that error, and `panicking()`
   panics inside every call. `threads()` returns the `Threads` handle on the thread each call ran on,
   which the `BodyService` tests read after the fake has moved into a server.
-- The drivers: `tests/audio.rs` here, over `FakeAudio`, and
+- **`FakeNotify`**, the one stand-in `Notify`: `answering(shown)`, `failing(NotifyError)` and
+  `panicking()`, with `seen()` returning every notification a call answered and `threads()` as
+  above. A clone shares both records, so a test keeps one after the other moves into a server.
+- The drivers: `tests/audio.rs` and `tests/notify.rs` here, over the fakes;
   `body/crates/os_linux/tests/audio_contract.rs`, over `LinuxAudioControl` on `SoundServer`, a
   stand-in `pactl` holding one default sink that the set commands change and the get commands
-  print.
+  print; and `the_linux_backend_meets_every_notify_check` in `body/crates/os_linux/tests/notify.rs`,
+  over `LinuxNotify` on that file's `FakeBus`, `declining` returning `None` because the
+  freedesktop specification gives a server no way to decline.
 
 ## Invariants
 
@@ -34,11 +45,12 @@ crate; nothing that ships links it.
 - A check compares only what every implementation agrees on. A level is compared at a sound
   server's resolution of 1/65536, because `LinuxAudioControl` rounds to it, and an error by its
   variant through `std::mem::discriminant`, because each backend writes its own text.
-- What an adapter sends to the OS (the `pactl` arguments, the raw volume) is not on the list. It
-  is checked in that adapter's own tests ([body-os.md](body-os.md)).
+- What an adapter sends to the OS (the `pactl` arguments, the raw volume, the bus message and
+  its escaping) is not on the list. It is checked in that adapter's own tests
+  ([body-os.md](body-os.md)), and what a fake was handed in the `BodyService` tests.
 - The crate is measured at 100% line, region and branch coverage like every workspace member. The
-  `FakeAudio` failure and panic paths are reached by the rpc server's tests and the list.
+  fakes' failure and panic paths are reached by the rpc server's tests and the lists.
 
-**Dependencies.** `body-core` (the ports). Dev-dependency of `body-rpc` (for `FakeAudio`) and of
-`os-linux` (for the list). The ports still without a list are in
+**Dependencies.** `body-core` (the ports). Dev-dependency of `body-rpc` (for the fakes) and of
+`os-linux` (for the lists). The ports still without a list are in
 [R-018](../refinements/tasks/018-ports-without-contract-suite.md).

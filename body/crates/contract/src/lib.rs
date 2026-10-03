@@ -9,5 +9,8 @@ macro_rules! named {
 
 pub mod audio;
 mod fake_audio;
+mod fake_notify;
+pub mod notify;
 
 pub use fake_audio::{FakeAudio, Threads};
+pub use fake_notify::FakeNotify;

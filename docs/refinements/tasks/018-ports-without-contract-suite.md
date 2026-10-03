@@ -15,19 +15,17 @@ implementations legitimately cannot share checks.
 Every Python port and the overlay's `BrainBridge` have a list, twenty-two in all: twenty-one in
 Python (nineteen named `<port>_contract.py`, plus `session/tests/contract.py` and the own-text list
 inside `tools/tests/test_own_text_contract.py`) and the overlay's `bridgeContract.ts`. In Rust,
-`AudioControl` has one: `body_contract::audio` in `body/crates/contract`, run over the one
-`FakeAudio` and over `LinuxAudioControl` on a stand-in sound server. ADR-0068 decisions 11 and 12
-settle the shape every other Rust list takes and what a write-only port owes. `BrainTransport`
-cannot take that shape and is [R-781](781-a-shared-check-list-for-the-brain-transport.md).
+`AudioControl` and `Notify` have one each in `body/crates/contract`: `body_contract::audio`, run
+over the one `FakeAudio` and over `LinuxAudioControl` on a stand-in sound server, and
+`body_contract::notify`, run over the one `FakeNotify` and over `LinuxNotify` on `FakeBus`.
+ADR-0068 decisions 11 and 12 settle the shape every other Rust list takes and what a write-only
+port owes. `BrainTransport` cannot take that shape and is
+[R-781](781-a-shared-check-list-for-the-brain-transport.md).
 
-What is left is three OS ports, each a module in `body/crates/contract` with a subject trait, a
+What is left is two OS ports, each a module in `body/crates/contract` with a subject trait, a
 `named!` table and a `run`, a driver over the fake in that crate's tests and one over the Linux
 adapter in `body/crates/os_linux/tests/`, with the port's fake moved into the crate:
 
-- `Notify`: `FakeNotify` is written twice, in `core/tests/notify.rs` and
-  `rpc/tests/body_server.rs`, and `LinuxNotify` runs over `FakeBus`. The list checks the answer
-  and the error variant only; a declining subject returns `None` for `LinuxNotify`, which cannot
-  answer `false`.
 - `ScreenCapture`: `FakeScreen` is written twice, in `core/tests/screen.rs` and
   `rpc/tests/body_server.rs`. The list runs over it, over `DeniedScreenCapture` and over
   `LinuxScreenCapture` on `FakeRoot`.
@@ -35,9 +33,9 @@ adapter in `body/crates/os_linux/tests/`, with the port's fake moved into the cr
   registers, which no real backend does, so its subject needs a press. `LinuxHotkey` runs over
   `FakeKeys`. `Hotkey` is not `Send + Sync`, unlike the other three.
 
-The generic helpers that look like drivers and assert nothing (`register_via`, `show_via`,
-`capture_via` in `core/tests/`) go with their port's fake. The Windows backends run no list in CI;
-a host run over one would leave out the conditions a real desktop cannot be put in.
+The generic helpers that look like drivers and assert nothing (`register_via` and `capture_via`
+in `core/tests/`) go with their port's fake. The Windows backends run no list in CI; a host run
+over one would leave out the conditions a real desktop cannot be put in.
 
 ## History
 
@@ -124,3 +122,7 @@ a host run over one would leave out the conditions a real desktop cannot be put 
   table of named functions over trait objects, chosen because a generic check keeps one coverage
   record per implementation, and what a write-only port owes. `BrainTransport` moved to
   [R-781](781-a-shared-check-list-for-the-brain-transport.md).
+- 2026-10-03: `Notify` closed, five checks over `FakeNotify` and over `LinuxNotify` on `FakeBus`,
+  which now owns its sent log through an `Arc` so the subject can hand the adapter out boxed. The
+  two `FakeNotify` copies became one in `body/crates/contract`, and `show_via` and the three core
+  tests that only exercised the fake went with them. The list found no disagreement.

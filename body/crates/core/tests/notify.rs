@@ -1,58 +1,5 @@
-use std::sync::{Mutex, PoisonError};
-
 use body_core::os::{MAX_TEXT_CHARS, UNTRUSTED_ATTRIBUTION, escape_xml};
-use body_core::{Notification, Notify, NotifyError};
-
-/// A fake `Notify` backend: records what it was asked to show and answers a scripted result, or
-/// fails.
-struct FakeNotify {
-    shown: bool,
-    fail: Option<NotifyError>,
-    seen: Mutex<Vec<Notification>>,
-}
-
-impl FakeNotify {
-    fn answering(shown: bool) -> Self {
-        Self {
-            shown,
-            fail: None,
-            seen: Mutex::new(Vec::new()),
-        }
-    }
-
-    fn failing(error: NotifyError) -> Self {
-        Self {
-            shown: true,
-            fail: Some(error),
-            seen: Mutex::new(Vec::new()),
-        }
-    }
-
-    fn seen(&self) -> Vec<Notification> {
-        self.seen
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner)
-            .clone()
-    }
-}
-
-impl Notify for FakeNotify {
-    fn show(&self, notification: &Notification) -> Result<bool, NotifyError> {
-        if let Some(error) = &self.fail {
-            return Err(error.clone());
-        }
-        self.seen
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner)
-            .push(notification.clone());
-        Ok(self.shown)
-    }
-}
-
-/// Shows through a generic bound, the way the `BodyService` server does.
-fn show_via<N: Notify>(backend: &N, notification: &Notification) -> Result<bool, NotifyError> {
-    backend.show(notification)
-}
+use body_core::{Notification, NotifyError};
 
 #[test]
 fn a_notification_keeps_its_wire_values() {
@@ -107,30 +54,6 @@ fn escape_xml_neutralizes_the_five_predefined_entities_only() {
     );
     assert_eq!(escape_xml("café ☕"), "café ☕");
     assert_eq!(escape_xml(""), "");
-}
-
-#[test]
-fn notify_backend_reports_a_shown_notification() {
-    let backend = FakeNotify::answering(true);
-    let notification = Notification::new("Reminder", "stretch", "r7", true);
-    assert!(show_via(&backend, &notification).unwrap());
-    assert_eq!(backend.seen(), vec![notification]);
-}
-
-#[test]
-fn a_declined_notification_is_an_answer_not_an_error() {
-    let backend = FakeNotify::answering(false);
-    let notification = Notification::new("Reminder", "stretch", "r8", false);
-    assert!(!show_via(&backend, &notification).unwrap());
-    assert_eq!(backend.seen().len(), 1);
-}
-
-#[test]
-fn notify_backend_surfaces_its_error_without_recording_the_call() {
-    let backend = FakeNotify::failing(NotifyError::Unavailable(String::from("no notifier")));
-    let error = show_via(&backend, &Notification::new("t", "b", "r9", false)).unwrap_err();
-    assert_eq!(error, NotifyError::Unavailable(String::from("no notifier")));
-    assert!(backend.seen().is_empty());
 }
 
 #[test]

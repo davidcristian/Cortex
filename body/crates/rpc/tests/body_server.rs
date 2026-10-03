@@ -4,10 +4,10 @@ use std::net::SocketAddr;
 use std::sync::{Arc, Mutex, PoisonError};
 use std::thread::{self, ThreadId};
 
-use body_contract::{FakeAudio, Threads};
+use body_contract::{FakeAudio, FakeNotify, Threads};
 use body_core::{
     AudioError, Capture, CaptureError, CaptureRequest, CaptureTarget, CapturedFrame,
-    DeniedScreenCapture, Notification, Notify, NotifyError, RawFrame, ScreenCapture, TargetRect,
+    DeniedScreenCapture, NotifyError, RawFrame, ScreenCapture, TargetRect,
 };
 use body_rpc::body_service;
 use body_rpc::generated::body_service_client::BodyServiceClient;
@@ -38,74 +38,6 @@ fn recorded(threads: &Threads) -> Vec<ThreadId> {
         .lock()
         .unwrap_or_else(PoisonError::into_inner)
         .clone()
-}
-
-/// What a fake `Notify` does when called.
-#[derive(Clone)]
-enum NotifyBehaviour {
-    Answer(bool),
-    Fail(NotifyError),
-    Panic,
-}
-
-/// A fake `Notify`: records every notification it is shown and answers a scripted result, or
-/// fails on every call.
-#[derive(Clone)]
-struct FakeNotify {
-    behaviour: NotifyBehaviour,
-    seen: Arc<Mutex<Vec<Notification>>>,
-    threads: Threads,
-}
-
-impl FakeNotify {
-    fn scripted(behaviour: NotifyBehaviour) -> Self {
-        Self {
-            behaviour,
-            seen: Arc::default(),
-            threads: Threads::default(),
-        }
-    }
-
-    fn answering(shown: bool) -> Self {
-        Self::scripted(NotifyBehaviour::Answer(shown))
-    }
-
-    fn failing(error: NotifyError) -> Self {
-        Self::scripted(NotifyBehaviour::Fail(error))
-    }
-
-    fn panicking() -> Self {
-        Self::scripted(NotifyBehaviour::Panic)
-    }
-
-    fn seen(&self) -> Vec<Notification> {
-        self.seen
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner)
-            .clone()
-    }
-
-    /// A handle on the call sites, taken before the fake moves into the server.
-    fn threads(&self) -> Threads {
-        Arc::clone(&self.threads)
-    }
-}
-
-impl Notify for FakeNotify {
-    fn show(&self, notification: &Notification) -> Result<bool, NotifyError> {
-        record(&self.threads, thread::current().id());
-        match &self.behaviour {
-            NotifyBehaviour::Fail(error) => Err(error.clone()),
-            NotifyBehaviour::Panic => panic!("the notification backend died mid-call"),
-            NotifyBehaviour::Answer(shown) => {
-                self.seen
-                    .lock()
-                    .unwrap_or_else(PoisonError::into_inner)
-                    .push(notification.clone());
-                Ok(*shown)
-            }
-        }
-    }
 }
 
 /// Serves `fake`, with a notification backend that always shows, behind the token validator on

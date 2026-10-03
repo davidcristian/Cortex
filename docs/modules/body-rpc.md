@@ -232,7 +232,7 @@ client in `tests/handoff_live.rs`, run by `just rpc-handoff approve` or `deny`, 
   trip (ADR-0022) for approve, deny, a `ConfirmResolved` the caller never answers staying
   non-terminal and an empty decisions stream half-closing, and the reminder pull (ADR-0025). The
   `body_service` server is covered the same way, through a real loopback server over
-  `body_contract`'s `FakeAudio` and a fake `Notify`: the volume paths, both `audio_error_to_status`
+  `body_contract`'s `FakeAudio` and `FakeNotify`: the volume paths, both `audio_error_to_status`
   cases, the `Unimplemented` handlers, the `RpcTokenValidator` pass-through and its accept and
   reject cases, a shown toast whose recorded `Notification` proves the wire text reached the backend
   already inert and badged, a declined one answering `shown=false`, and three `off_worker` cases,

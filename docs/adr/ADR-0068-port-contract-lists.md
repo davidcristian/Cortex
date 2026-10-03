@@ -179,7 +179,7 @@ Rust and the overlay:
 | --- | --- | --- | --- | --- | --- |
 | `Hotkey` | `FakeHotkey` | `WindowsHotkey`, `LinuxHotkey`, a macOS stub | none | yes | Linux only, over a fake key grab and a peer X server |
 | `AudioControl` | `FakeAudio`, in `body/crates/contract` | `WindowsAudioControl`, `LinuxAudioControl` | `body_contract::audio` | yes | Linux only, over a stand-in sound server behind `pactl` |
-| `Notify` | `FakeNotify`, written twice | `WindowsNotify`, `LinuxNotify` | none | yes | Linux only, over a fake bus and a peer D-Bus server |
+| `Notify` | `FakeNotify`, in `body/crates/contract` | `WindowsNotify`, `LinuxNotify` | `body_contract::notify` | yes | Linux only, over a fake bus and a peer D-Bus server |
 | `ScreenCapture` | `FakeScreen`, written twice | `WindowsScreenCapture`, `LinuxScreenCapture`, `DeniedScreenCapture` | none | yes | the denying one, and Linux over a fake root and a peer X server |
 | `BrainTransport` | `FakeTransport`, `ScriptedTransport`, `FlakyTransport`, `StallingTransport` | `BrainRpcClient`, `RetryingTransport` | none | yes | yes, a loopback fake `BrainService` |
 | `Sleeper` | `FakeSleeper` | `TokioSleeper` | none | yes | no, outside the checked workspace |

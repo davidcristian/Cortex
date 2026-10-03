@@ -225,9 +225,10 @@ runs instead; `os_linux`'s real backends are measured in full. Neither silences 
   clamp lives in `body_core`, and so do the inert-text rule, the taint attribution and the XML
   escaping. What `os_linux` adds is protocol translation (when to escape, how to parse `pactl`,
   how an X server lays out a pixel), covered by tests over fakes.
-- `LinuxAudioControl` also runs the shared `AudioControl` list over a stand-in sound server
-  (`tests/audio_contract.rs`, [body-contract.md](body-contract.md)), so it and `FakeAudio` are held
-  to one description. The other three Linux backends have no shared list yet
+- `LinuxAudioControl` runs the shared `AudioControl` list over a stand-in sound server
+  (`tests/audio_contract.rs`) and `LinuxNotify` the `Notify` list over `FakeBus`
+  (`tests/notify.rs`), so each is held to one description with its fake
+  ([body-contract.md](body-contract.md)). The other two Linux backends have no shared list yet
   ([R-018](../refinements/tasks/018-ports-without-contract-suite.md)).
 - Stubs are `unimplemented!()` with a reason, and `coverage(off)` marks only genuinely unreachable
   code.
