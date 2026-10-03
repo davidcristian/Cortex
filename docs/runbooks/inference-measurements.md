@@ -80,8 +80,8 @@ cd brain && CORTEX_INFERENCE_ENDPOINT=http://127.0.0.1:8080 \
 ```
 
 The title run needs the GPU stack alone and takes about half a minute. The rank run also needs
-the memory override's CPU embedder on `:8081` and takes about two minutes. The same
-`docker logs cortex-model-host-1 | grep "eval time ="` says where the wall time went.
+the memory override's CPU embedder on `:8081`, takes about two minutes, and prints that embedder's
+engine build first. `docker logs cortex-model-host-1 | grep "eval time ="` says where the wall time went.
 
 What this means for an operator: `CORTEX_GENERATE_TITLES=1` costs about a third of a second per
 new session, and `CORTEX_MEMORY_RECALL=judge` costs about a second per recalling turn.

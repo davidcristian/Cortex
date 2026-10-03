@@ -44,6 +44,10 @@ All are `integration`-marked, excluded from CI and coverage, and run per
   1 of 58 budgeted draws, and 0 of 20 against a tier with the same sampler as a flag), so the file
   prints a leak count rather than asserting on one. Re-drawn at a hundred draws a case on both
   builds, the leak did not reappear and the budgeted case held the trace at 0 on 200 of 200.
+- `tests/test_rerank_judge_live.py`, `tests/test_rerank_judge_wide_live.py` and
+  `tests/test_recall_floor_live.py` measure recall ranking through the memory override's embedder
+  (method and numbers in [ranked recall](../readings/ranked-recall.md)). Each prints the embedder's
+  engine build first, read off its `GET /props` by `served_build` in `tests/served_build.py`.
 - **`tests/test_system_join_live.py` checks the join of leading system messages** (ADR-0071)
   against the server at `CORTEX_SYSTEM_JOIN_ENDPOINT`. It asks the probe's question for two and
   three messages, checked against `CORTEX_SYSTEM_JOIN_EXPECT` (`2=yes,3=no`) when set. It sends

@@ -4,6 +4,7 @@ from datetime import UTC, datetime
 
 import httpx
 import pytest
+from served_build import served_build
 
 from cortex_core import (
     JudgeRecallPolicy,
@@ -80,6 +81,7 @@ class _Variant:
 @pytest.mark.integration
 async def test_the_model_rank_is_measured_against_the_cosine_that_ships() -> None:
     async with httpx.AsyncClient(timeout=httpx.Timeout(600.0)) as client:
+        await served_build(client, _EMBEDDER, "embedder")
         embedder = LlamaCppEmbedder(client, _EMBEDDER, model="embedding")
         pool: list[ScoredMemory] = []
         vectors: dict[str, tuple[float, ...]] = {}

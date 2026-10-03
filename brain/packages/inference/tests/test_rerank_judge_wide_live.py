@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 import httpx
 import pytest
 from recall_corpus import MEMORIES, QUESTIONS, Category
+from served_build import served_build
 
 from cortex_core import (
     JudgeRecallPolicy,
@@ -87,6 +88,7 @@ def _cosine(a: tuple[float, ...], b: tuple[float, ...]) -> float:
 @pytest.mark.integration
 async def test_the_judge_is_scored_per_category_on_a_corpus_not_built_for_it() -> None:
     async with httpx.AsyncClient(timeout=httpx.Timeout(600.0)) as client:
+        await served_build(client, _EMBEDDER, "embedder")
         embedder = LlamaCppEmbedder(client, _EMBEDDER, model="embedding")
         vectors = {rid: tuple(await embedder.embed(text)) for rid, text in MEMORIES.items()}
         pool = [

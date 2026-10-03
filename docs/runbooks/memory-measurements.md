@@ -34,6 +34,12 @@ memory can answer and the questions it cannot overlap on cosine, so every floor 
 second silences the first. Reproduce that with
 `packages/inference/tests/test_recall_floor_live.py`, which needs only the CPU embedder below.
 
+That test and both judge tests, `test_rerank_judge_live.py` and `test_rerank_judge_wide_live.py`,
+print the embedder's engine build before the first embed: the `build_info` its `GET /props`
+returns, written `bNNNNN-<commit>`. The memory override starts the embedder from the moving
+`server` tag, so a recall reading that compares two dates names that build beside its numbers. A
+run whose `/props` names no build fails before it embeds anything.
+
 ## Measuring what a ranking policy costs a whole turn
 
 ```

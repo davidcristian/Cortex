@@ -5,6 +5,7 @@ from collections.abc import Sequence
 import httpx
 import pytest
 from recall_corpus import MEMORIES, QUESTIONS, UNRELATED, Category
+from served_build import served_build
 
 from cortex_embedding import LlamaCppEmbedder
 
@@ -84,6 +85,7 @@ def _mean(values: Sequence[float]) -> float:
 @pytest.mark.integration
 async def test_no_similarity_floor_separates_answerable_questions_from_unanswerable_ones() -> None:
     async with httpx.AsyncClient(timeout=httpx.Timeout(600.0)) as client:
+        await served_build(client, _EMBEDDER, "embedder")
         embedder = LlamaCppEmbedder(client, _EMBEDDER, model=_EMBED_MODEL)
         vectors = {rid: tuple(await embedder.embed(text)) for rid, text in MEMORIES.items()}
 
