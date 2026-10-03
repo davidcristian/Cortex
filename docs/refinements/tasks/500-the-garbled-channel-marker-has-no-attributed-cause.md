@@ -32,12 +32,12 @@ explanation: nobody read the handler that writes those markers, and one build wa
   byte identical to an unflagged server's. Measured one flag at a time, `--reasoning-budget 0` alone
   wrote no reasoning character on 30 draws over two builds, while the kwarg alone reproduced the
   trace, the fragments and the empty reply and matched the shipped pair on 20 of 20 matched seeds,
-  so on the pair the budget has no effect. The fragments are this template's own closing marker
-  `<channel|>` written with a slash in it. That rules out the forced close, since the kwarg-alone
-  case sets no budget anywhere; it rules out the build, the same interaction appearing on the build
-  the origin measured; and it rules out the cap by position, the fragment being at character zero of
-  the trace. What is left is the parser step, why an unmatched close takes the whole answer into the
-  channel, which is inference from the marker's shape and is recorded in ADR-0049 rather than as its
-  own entry. Opened by this close:
+  so on that request the budget changes nothing. The fragments are this template's own closing
+  marker `<channel|>` written with a slash in it. That rules out the forced close, since the
+  kwarg-alone case sets no budget anywhere; it rules out the build, the same interaction appearing
+  on the build the origin measured; and it rules out the cap by position, the fragment being at
+  character zero of the trace. What is left is the parser step, why an unmatched close takes the
+  whole answer into the channel, which is inference from the marker's shape and is recorded in
+  ADR-0049 rather than as its own entry. Opened by this close:
   [R-511](511-the-shipped-reasoning-off-pair-disarms-its-own-sampler.md), the repair, and
   [R-512](512-no-committed-probe-splits-the-reasoning-off-pair.md), the probe half.

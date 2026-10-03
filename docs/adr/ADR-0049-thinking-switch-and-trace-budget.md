@@ -78,14 +78,17 @@ how those measurements are taken is [ADR-0050](ADR-0050-live-probe-records.md).
    `--chat-template-kwargs '{"enable_thinking": false}'` and `--reasoning-budget 0`, in both
    subagent compose files and in the model host's `_SUBAGENT_TAIL`, enforced as one requirement by
    `scripts/flagcheck.py` ([ADR-0043](ADR-0043-subagent-server-flags.md)). Each model family needs a
-   different half. On the gemma-4-E picks the kwarg renders the thought away; the budget alone
+   different half. On the gemma-4-E picks the kwarg drops the `<|think|>` turn the template adds,
+   but leaves the thought open, so under a schema the model can still start one; the budget alone
    empties the reasoning channel but the thought then arrives inside the reply and more answers are
    lost, most of them reported as answers. On the Qwen picks the kwarg renders the thought already
    closed, and the budget alone does nothing, because the template opens the thought inside the
-   prompt and the sampler never sees it start. Beside the kwarg the budget has no effect on the
-   gemma pick, draw for draw, and the pair stays because no per-family flag set measured better.
-   When the kwarg stops parsing, the replacement is `--reasoning off`, which rendered and drew
-   identically, with the budget kept beside it.
+   prompt and the sampler never sees it start. Beside the kwarg, the budget is what ends a thought
+   on the gemma pick: the two drew alike on the delegated request, and on a constrained question
+   that invites deliberation the kwarg alone ran to the cap and returned nothing where the pair
+   answered, through the tier flags as through the request key. The pair stays because no per-family
+   flag set measured better. When the kwarg stops parsing, the replacement is `--reasoning off`,
+   which rendered and drew identically, with the budget kept beside it.
 9. **The delegated path sets no count.** `PlacedAttempt` sends `GenerationBounds(max_tokens=...)`
    and nothing else: a request zero on top of the tier's flag measured identical to the flag alone.
    A per-request thinking key on the constrained attempt was built, measured with no effect, and
