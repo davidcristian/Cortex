@@ -41,7 +41,8 @@ is parametrized over `VISION_MODELS`, which holds the pick and the alt. Collecti
 
 The other three are these:
 
-- the engine budget's deep row at a hundred and twenty draws per condition;
+- the engine budget's deep row at 120 draws per condition, whose `app` pair is undrawn
+  ([R-782](782-the-engine-budget-deep-rows-app-pair-is-undrawn.md));
 - the `plain` cell's obeyed direction at 560 draws per condition at the corpus frame, queued and
   skipped on both nights;
 - the mail cell's rate drawn alone at 400 draws per condition at the engine's own budget.
@@ -142,23 +143,22 @@ consequence changes ([the engine record](../../readings/injection-over-pixels-al
 hand framed 10 against control 11 of 60, p 1.0, not apart as predicted, with the framed count above
 its range of 0 to 7. It took 1708 s, 0.49 of its price, at a median SM clock of 0.54 of
 `clocks.max.sm` ([the alt's payload record](../../readings/injection-over-pixels-alt-payload.md#the-four-screens-on-the-engine-budget-at-the-sampler)).
-`607bp` drew nothing: its first check, one sampled transcription of `bare` at 24 px, came back as
-a refusal with no canary after 43 s, a void draw and neither a defence nor a fall, since all twelve
-of `607sq`'s transcriptions read the canary back an hour earlier. `607bpr` drew the body pair
-unchanged and exited 0: by hand `bare` reads 0 against 3 of 18 at 24 px and 8 of 19 against 8 of 20 at 16 px,
-`plain` 2 against 2 of 19 and 3 against 7 of 20, all four not apart as predicted, with three counts
-at 16 px above their ranges ([the deep record](../../readings/injection-over-pixels-alt-engine-deep.md#the-body-pair-at-both-legible-sizes-at-the-sampler)).
+`607bp` drew nothing, its first check a refusal with no canary after 43 s, and `607bpr` drew the
+body pair unchanged: all four cells not apart as predicted, three counts at 16 px above their ranges
+([the deep record](../../readings/injection-over-pixels-alt-engine-deep.md#the-body-pair-at-both-legible-sizes-at-the-sampler)).
+
+**Drawn 2026-10-03.** `607ed` drew the engine budget's deep row until the run's deadline stopped
+it, exit 124, inside the `app` pair's control half. By hand `plain` reads 19 against 11 of 120,
+p 0.17, not apart where apart below was predicted, and `chrome` 6 against 9, p 0.44, not apart as
+predicted ([the deep record](../../readings/injection-over-pixels-alt-engine-deep.md#the-deep-row-over-three-renderings-at-the-sampler)).
 
 **Written before the draw.** Each queued row's predictions, grounds and price are in [the alt's
 queued rows](../../readings/injection-over-pixels-alt-queued.md), and each starts only if the
 ceiling reads at least 0.75 of `power.max_limit`. `607ml` draws the mail line at 400 draws per
 condition, the replication of `607m`'s apart below; it was skipped at the 2026-10-02 run's deadline
-and needs about 12100 s at `607m`'s 8.2 s framed and 22.0 s control a draw. `607ed`, written
-2026-10-03, draws the engine budget's deep row, about 12400 s, in the 9900 s left after `706att`:
-it is queued at the price of its `plain` and `chrome` pairs, and the deadline stops it inside the
-`app` pair. Each pair printed whole is read alone and leaves this row's line. `607edr` repeats the
-row only if `607ed` ends early on a failed check. The 560-draw row needs about 16700 s at `706c`'s
-10.9 and 18.9 s a draw.
+and needs about 12100 s at `607m`'s 8.2 s framed and 22.0 s control a draw. The deep row's `app`
+pair is in [R-782](782-the-engine-budget-deep-rows-app-pair-is-undrawn.md). The 560-draw row needs
+about 16700 s at `706c`'s 10.9 and 18.9 s a draw.
 
 ## History
 
@@ -246,3 +246,5 @@ row only if `607ed` ends early on a failed check. The 560-draw row needs about 1
   `measurements/sitting-2026-10-03/`, priced so only the deep row's first two pairs finish.
 - 2026-10-03: `607bpr`'s other three cells read by hand, all not apart as predicted, and the list
   stands at three. The queued-rows record drops the body pair and the four matrices drawn 2026-10-02.
+- 2026-10-03: `607ed`'s `plain` and `chrome` pairs read by hand, `plain` falsifying its prediction
+  and `chrome` holding; its `app` pair, cut by the deadline, goes to R-782 and keeps the row's line.
