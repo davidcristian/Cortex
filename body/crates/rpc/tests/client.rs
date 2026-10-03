@@ -2,102 +2,28 @@
 //! `BrainService` on loopback (port 0, with no network beyond 127.0.0.1, so CI can run it) and the
 //! adapter's mappings are asserted end to end.
 
+mod brain;
+
 use std::net::SocketAddr;
-use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use body_core::{
-    BrainTransport, DueReminder, LinkState, LinkStatus, RetryPlan, RetryingTransport, RpcHealth,
-    RpcMethod, SessionMessage, SessionSummary, Sleeper, TransportError, is_transient, probe_link,
+    BrainTransport, DueReminder, LinkState, LinkStatus, RetryPlan, RetryingTransport, RpcMethod,
+    Sleeper, TransportError, is_transient, probe_link,
 };
 use body_rpc::BrainRpcClient;
+use body_rpc::generated::HealthRequest;
 use body_rpc::generated::brain_service_client::BrainServiceClient;
-use body_rpc::generated::brain_service_server::{BrainService, BrainServiceServer};
-use body_rpc::generated::{
-    AckReminderReply, AckReminderRequest, ClientEvent, DeleteSessionReply, DeleteSessionRequest,
-    DueReminder as PbDueReminder, GetPreferencesReply, GetPreferencesRequest,
-    GetSessionMessagesReply, GetSessionMessagesRequest, HealthNote, HealthReply, HealthRequest,
-    ListDueRemindersReply, ListDueRemindersRequest, ListSessionsReply, ListSessionsRequest,
-    Preference, RenameSessionReply, RenameSessionRequest, ServerEvent,
-    SessionMessage as PbSessionMessage, SessionSummary as PbSessionSummary, SetPreferenceReply,
-    SetPreferenceRequest, SetSessionHoistedReply, SetSessionHoistedRequest,
-};
+use body_rpc::generated::brain_service_server::BrainServiceServer;
+use brain::{FakeBrain, Script, spawn_fake_brain};
 use tokio::net::TcpListener;
 use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
+use tokio_stream::StreamExt;
 use tokio_stream::wrappers::TcpListenerStream;
-use tokio_stream::{Stream, StreamExt};
+use tonic::Request;
 use tonic::transport::Server;
-use tonic::{Request, Response, Status, Streaming};
-
-/// What the scripted fake brain answers to `Health`.
-#[derive(Clone, Copy)]
-enum Script {
-    /// `Health` succeeds with `ready = true` and a detail string.
-    Ready,
-    /// `Health` fails with a gRPC `Internal` status.
-    Failing,
-    /// `Health` never answers: the connection is accepted and the call hangs forever.
-    Hanging,
-    /// `Health` fails `DEADLINE_EXCEEDED`: the brain gave up on the call itself, which is what the
-    /// announced `grpc-timeout` invites it to do.
-    Expired,
-}
-
-/// A scripted fake implementing the generated `BrainService` server trait.
-struct FakeBrain {
-    script: Script,
-    expected_token: Option<&'static str>,
-    /// When set, the read-only session RPCs fail `Unavailable` (a store-down abort); otherwise they
-    /// answer with canned rows.
-    sessions_fail: bool,
-    /// The same for the reminder RPCs: a `ScheduleStoreError` aborts `Unavailable`.
-    reminders_fail: bool,
-    /// Records each `RenameSession` write `(session_id, title)` the fake received, so a test can
-    /// prove both fields crossed the wire (the reply is a bare ack).
-    renames: Arc<Mutex<Vec<(String, String)>>>,
-    /// Records each `DeleteSession` write's `session_id`, so a test can prove the id crossed the
-    /// wire (the reply is a bare ack).
-    deletes: Arc<Mutex<Vec<String>>>,
-    /// Records each `SetSessionHoisted` write `(session_id, hoisted)`, so a test can prove both
-    /// fields crossed the wire (the reply is a bare ack).
-    hoists: Arc<Mutex<Vec<(String, bool)>>>,
-    /// Records each `SetPreference` write `(key, value)`, so a test can prove both fields crossed
-    /// the wire, the empty clearing value included (the reply is a bare ack).
-    preference_writes: Arc<Mutex<Vec<(String, String)>>>,
-    /// Records the `grpc-timeout` metadata of every call the fake serves, `None` when a call
-    /// sent none.
-    timeouts: Arc<Mutex<Vec<Option<String>>>>,
-}
-
-impl FakeBrain {
-    fn new(script: Script) -> Self {
-        Self {
-            script,
-            expected_token: None,
-            sessions_fail: false,
-            reminders_fail: false,
-            renames: Arc::new(Mutex::new(Vec::new())),
-            deletes: Arc::new(Mutex::new(Vec::new())),
-            hoists: Arc::new(Mutex::new(Vec::new())),
-            preference_writes: Arc::new(Mutex::new(Vec::new())),
-            timeouts: Arc::new(Mutex::new(Vec::new())),
-        }
-    }
-
-    /// Records what `request` announced as its deadline, before answering it.
-    fn record_timeout<T>(&self, request: &Request<T>) {
-        let announced = request
-            .metadata()
-            .get("grpc-timeout")
-            .map(|value| String::from(value.to_str().unwrap_or("not ascii")));
-        self.timeouts
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .push(announced);
-    }
-}
 
 /// The `grpc-timeout` header read back as a duration, over the gRPC unit suffixes: hours,
 /// minutes, seconds, milli-, micro- and nanoseconds.
@@ -117,241 +43,7 @@ fn announced_deadline(header: &str) -> Duration {
     }
 }
 
-#[tonic::async_trait]
-impl BrainService for FakeBrain {
-    type ConverseStream = Pin<Box<dyn Stream<Item = Result<ServerEvent, Status>> + Send>>;
-
-    async fn converse(
-        &self,
-        request: Request<Streaming<ClientEvent>>,
-    ) -> Result<Response<Self::ConverseStream>, Status> {
-        self.record_timeout(&request);
-        Err(Status::unimplemented("converse lands in a later slice"))
-    }
-
-    async fn health(
-        &self,
-        request: Request<HealthRequest>,
-    ) -> Result<Response<HealthReply>, Status> {
-        self.record_timeout(&request);
-        if let Some(expected) = self.expected_token {
-            match request.metadata().get("x-cortex-seam-token") {
-                Some(value) if *value == *expected => {}
-                _ => return Err(Status::unauthenticated("invalid or missing token")),
-            }
-        }
-        match self.script {
-            Script::Ready => Ok(Response::new(HealthReply {
-                ready: true,
-                detail: String::from("fake brain ready"),
-                notes: vec![
-                    HealthNote {
-                        text: String::from("first"),
-                    },
-                    HealthNote {
-                        text: String::from("second"),
-                    },
-                ],
-            })),
-            Script::Failing => Err(Status::internal("scripted failure")),
-            Script::Hanging => std::future::pending().await,
-            Script::Expired => Err(Status::deadline_exceeded("the brain stopped working on it")),
-        }
-    }
-
-    async fn list_sessions(
-        &self,
-        request: Request<ListSessionsRequest>,
-    ) -> Result<Response<ListSessionsReply>, Status> {
-        self.record_timeout(&request);
-        if self.sessions_fail {
-            return Err(Status::unavailable("store down"));
-        }
-        let limit = request.into_inner().limit;
-        Ok(Response::new(ListSessionsReply {
-            sessions: vec![
-                PbSessionSummary {
-                    session_id: String::from("beta"),
-                    title: format!("limit={limit}"),
-                    preview: String::from("newest chat"),
-                    last_activity_unix_ms: 2000,
-                    hoisted: true,
-                },
-                PbSessionSummary {
-                    session_id: String::from("alpha"),
-                    title: String::from("older chat"),
-                    preview: String::from("oldest chat"),
-                    last_activity_unix_ms: 1000,
-                    hoisted: false,
-                },
-            ],
-        }))
-    }
-
-    async fn get_session_messages(
-        &self,
-        request: Request<GetSessionMessagesRequest>,
-    ) -> Result<Response<GetSessionMessagesReply>, Status> {
-        if self.sessions_fail {
-            return Err(Status::unavailable("store down"));
-        }
-        let session_id = request.into_inner().session_id;
-        Ok(Response::new(GetSessionMessagesReply {
-            messages: vec![
-                PbSessionMessage {
-                    role: String::from("user"),
-                    text: session_id,
-                    turn_id: String::from("t1"),
-                    at_unix_ms: 1000,
-                },
-                PbSessionMessage {
-                    role: String::from("assistant"),
-                    text: String::from("hi there"),
-                    turn_id: String::from("t1"),
-                    at_unix_ms: 1500,
-                },
-            ],
-        }))
-    }
-
-    async fn list_due_reminders(
-        &self,
-        _request: Request<ListDueRemindersRequest>,
-    ) -> Result<Response<ListDueRemindersReply>, Status> {
-        if self.reminders_fail {
-            return Err(Status::unavailable("schedule store down"));
-        }
-        Ok(Response::new(ListDueRemindersReply {
-            reminders: vec![
-                PbDueReminder {
-                    reminder_id: String::from("r1"),
-                    text: String::from("stand up"),
-                    fired_at_unix_ms: 2000,
-                    recurring: true,
-                    tainted: false,
-                    session_id: String::from("chat-1"),
-                },
-                PbDueReminder {
-                    reminder_id: String::from("r2"),
-                    text: String::from("read the flagged mail"),
-                    fired_at_unix_ms: 3000,
-                    recurring: false,
-                    tainted: true,
-                    session_id: String::new(),
-                },
-            ],
-        }))
-    }
-
-    async fn ack_reminder(
-        &self,
-        request: Request<AckReminderRequest>,
-    ) -> Result<Response<AckReminderReply>, Status> {
-        if self.reminders_fail {
-            return Err(Status::unavailable("schedule store down"));
-        }
-        let request = request.into_inner();
-        Ok(Response::new(AckReminderReply {
-            acked: request.reminder_id == "r1" && request.fired_at_unix_ms == 2000,
-        }))
-    }
-
-    async fn rename_session(
-        &self,
-        request: Request<RenameSessionRequest>,
-    ) -> Result<Response<RenameSessionReply>, Status> {
-        if self.sessions_fail {
-            return Err(Status::unavailable("store down"));
-        }
-        let req = request.into_inner();
-        self.renames
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .push((req.session_id, req.title));
-        Ok(Response::new(RenameSessionReply {}))
-    }
-
-    async fn delete_session(
-        &self,
-        request: Request<DeleteSessionRequest>,
-    ) -> Result<Response<DeleteSessionReply>, Status> {
-        if self.sessions_fail {
-            return Err(Status::unavailable("store down"));
-        }
-        self.deletes
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .push(request.into_inner().session_id);
-        Ok(Response::new(DeleteSessionReply {}))
-    }
-
-    async fn set_session_hoisted(
-        &self,
-        request: Request<SetSessionHoistedRequest>,
-    ) -> Result<Response<SetSessionHoistedReply>, Status> {
-        if self.sessions_fail {
-            return Err(Status::unavailable("store down"));
-        }
-        let req = request.into_inner();
-        self.hoists
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .push((req.session_id, req.hoisted));
-        Ok(Response::new(SetSessionHoistedReply {}))
-    }
-
-    async fn get_preferences(
-        &self,
-        _request: Request<GetPreferencesRequest>,
-    ) -> Result<Response<GetPreferencesReply>, Status> {
-        if self.sessions_fail {
-            return Err(Status::unavailable("store down"));
-        }
-        Ok(Response::new(GetPreferencesReply {
-            preferences: vec![
-                Preference {
-                    key: String::from("overlay.mark"),
-                    value: String::from("foam"),
-                },
-                Preference {
-                    key: String::from("overlay.theme"),
-                    value: String::from("midnight"),
-                },
-            ],
-        }))
-    }
-
-    async fn set_preference(
-        &self,
-        request: Request<SetPreferenceRequest>,
-    ) -> Result<Response<SetPreferenceReply>, Status> {
-        if self.sessions_fail {
-            return Err(Status::unavailable("store down"));
-        }
-        let req = request.into_inner();
-        self.preference_writes
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .push((req.key, req.value));
-        Ok(Response::new(SetPreferenceReply {}))
-    }
-}
-
-/// Serves `fake` on an ephemeral loopback port; returns the bound address.
-async fn spawn_fake_brain(fake: FakeBrain) -> Result<SocketAddr, std::io::Error> {
-    let listener = TcpListener::bind("127.0.0.1:0").await?;
-    let addr = listener.local_addr()?;
-    let incoming = TcpListenerStream::new(listener);
-    tokio::spawn(async move {
-        Server::builder()
-            .add_service(BrainServiceServer::new(fake))
-            .serve_with_incoming(incoming)
-            .await
-    });
-    Ok(addr)
-}
-
-/// Like [`spawn_fake_brain`], but with graceful shutdown wired to the returned sender; awaiting the
+/// Like `spawn_fake_brain`, but with graceful shutdown wired to the returned sender; awaiting the
 /// returned handle after firing it guarantees the listener is released and nothing serves on the
 /// address anymore.
 async fn spawn_stoppable_fake_brain(
@@ -377,25 +69,6 @@ async fn spawn_stoppable_fake_brain(
             .await
     });
     Ok((addr, shutdown, server))
-}
-
-#[tokio::test]
-async fn health_round_trips_through_the_transport_port() {
-    let addr = spawn_fake_brain(FakeBrain::new(Script::Ready))
-        .await
-        .unwrap();
-    let client = BrainRpcClient::connect(&format!("http://{addr}"))
-        .await
-        .unwrap();
-    let health = client.health().await.unwrap();
-    assert_eq!(
-        health,
-        RpcHealth {
-            ready: true,
-            detail: String::from("fake brain ready"),
-            notes: vec![String::from("first"), String::from("second")],
-        }
-    );
 }
 
 #[tokio::test]
@@ -473,114 +146,6 @@ async fn client_clones_share_the_connection_and_debug_formats() {
     let cloned = client.clone();
     assert!(cloned.health().await.unwrap().ready);
     assert!(format!("{client:?}").contains("BrainRpcClient"));
-}
-
-#[tokio::test]
-async fn fake_brain_scripts_converse_as_unimplemented() {
-    let addr = spawn_fake_brain(FakeBrain::new(Script::Ready))
-        .await
-        .unwrap();
-    let mut raw = BrainServiceClient::connect(format!("http://{addr}"))
-        .await
-        .unwrap();
-    let status = raw
-        .converse(tokio_stream::iter(Vec::<ClientEvent>::new()))
-        .await
-        .unwrap_err();
-    assert_eq!(status.code(), tonic::Code::Unimplemented);
-    assert_eq!(status.message(), "converse lands in a later slice");
-}
-
-#[tokio::test]
-async fn list_sessions_maps_summaries_in_order() {
-    let addr = spawn_fake_brain(FakeBrain::new(Script::Ready))
-        .await
-        .unwrap();
-    let client = BrainRpcClient::connect(&format!("http://{addr}"))
-        .await
-        .unwrap();
-    let sessions = client.list_sessions(7).await.unwrap();
-    assert_eq!(
-        sessions,
-        vec![
-            SessionSummary {
-                session_id: String::from("beta"),
-                title: String::from("limit=7"),
-                preview: String::from("newest chat"),
-                last_activity_unix_ms: 2000,
-                hoisted: true,
-            },
-            SessionSummary {
-                session_id: String::from("alpha"),
-                title: String::from("older chat"),
-                preview: String::from("oldest chat"),
-                last_activity_unix_ms: 1000,
-                hoisted: false,
-            },
-        ]
-    );
-}
-
-#[tokio::test]
-async fn session_messages_maps_history_in_order() {
-    let addr = spawn_fake_brain(FakeBrain::new(Script::Ready))
-        .await
-        .unwrap();
-    let client = BrainRpcClient::connect(&format!("http://{addr}"))
-        .await
-        .unwrap();
-    let messages = client.session_messages("chat-9").await.unwrap();
-    assert_eq!(
-        messages,
-        vec![
-            SessionMessage {
-                role: String::from("user"),
-                text: String::from("chat-9"),
-                turn_id: String::from("t1"),
-                at_unix_ms: 1000,
-            },
-            SessionMessage {
-                role: String::from("assistant"),
-                text: String::from("hi there"),
-                turn_id: String::from("t1"),
-                at_unix_ms: 1500,
-            },
-        ]
-    );
-}
-
-#[tokio::test]
-async fn list_sessions_store_failure_maps_to_the_rpc_variant() {
-    let mut fake = FakeBrain::new(Script::Ready);
-    fake.sessions_fail = true;
-    let addr = spawn_fake_brain(fake).await.unwrap();
-    let client = BrainRpcClient::connect(&format!("http://{addr}"))
-        .await
-        .unwrap();
-    assert_eq!(
-        client.list_sessions(10).await.unwrap_err(),
-        TransportError::Rpc {
-            code: String::from("Unavailable"),
-            message: String::from("store down"),
-        }
-    );
-}
-
-#[tokio::test]
-async fn session_messages_store_failure_maps_to_the_rpc_variant() {
-    let mut fake = FakeBrain::new(Script::Ready);
-    fake.sessions_fail = true;
-    let addr = spawn_fake_brain(fake).await.unwrap();
-    let client = BrainRpcClient::connect(&format!("http://{addr}"))
-        .await
-        .unwrap();
-    assert_eq!(
-        client.session_messages("s").await.unwrap_err(),
-        TransportError::Rpc {
-            code: String::from("Unavailable"),
-            message: String::from("store down"),
-        }
-    );
 }
 
 #[tokio::test]
@@ -1008,7 +573,7 @@ async fn an_announcing_client_tells_the_brain_each_call_s_own_deadline() {
         .unwrap()
         .announcing(plan);
     assert!(client.health().await.unwrap().ready);
-    assert_eq!(client.list_sessions(2).await.unwrap().len(), 2);
+    assert_eq!(client.list_sessions(2).await, Ok(Vec::new()));
     let recorded = announced
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner)
@@ -1071,7 +636,7 @@ async fn a_deadline_the_header_cannot_express_is_dropped_rather_than_sent() {
             call_deadline: Duration::from_secs(u64::MAX / 2),
             ..RetryPlan::default()
         });
-    assert_eq!(client.list_sessions(1).await.unwrap().len(), 2);
+    assert_eq!(client.list_sessions(1).await, Ok(Vec::new()));
     assert_eq!(
         *announced
             .lock()
@@ -1111,7 +676,7 @@ async fn an_announcement_off_the_millisecond_rung_is_dropped_and_one_on_it_is_se
             call_deadline: enforced,
             ..RetryPlan::default()
         });
-    assert_eq!(over.list_sessions(1).await.unwrap().len(), 2);
+    assert_eq!(over.list_sessions(1).await, Ok(Vec::new()));
 
     let plan = RetryPlan {
         call_deadline: Duration::from_millis(99_999_749),
@@ -1121,7 +686,7 @@ async fn an_announcement_off_the_millisecond_rung_is_dropped_and_one_on_it_is_se
         .await
         .unwrap()
         .announcing(plan);
-    assert_eq!(under.list_sessions(1).await.unwrap().len(), 2);
+    assert_eq!(under.list_sessions(1).await, Ok(Vec::new()));
     let recorded = heard
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner)

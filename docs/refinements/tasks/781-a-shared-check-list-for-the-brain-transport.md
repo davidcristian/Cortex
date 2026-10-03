@@ -6,23 +6,26 @@
 **Verified:** 2026-10-03
 
 `BrainTransport` in `body/crates/core/src/transport.rs` is the body's client port to the brain,
-eleven methods from `health` to `set_preference`. It has no shared check list. Its four test
-implementations each live in one suite and promise only what that suite needs: `FakeTransport`
-in `core/tests/transport.rs`, `ScriptedTransport` in `core/tests/link.rs`, `FlakyTransport` in
-`core/tests/retry.rs` and `StallingTransport` in `core/tests/retry_gap.rs`. The adapters are
-`BrainRpcClient`, tested over a loopback fake `BrainService` that is itself written twice, as
-`FakeBrain` in both `rpc/tests/client.rs` and `rpc/tests/converse.rs`, and `RetryingTransport`,
-which wraps any transport.
+eleven methods from `health` to `set_preference`. Its shared list, `body_contract::transport`,
+covers the three read calls (`health`, `list_sessions`, `session_messages`) through `Reads`, a
+dyn-compatible twin of the port (ADR-0068 decision 14). It runs over `FakeTransport` in
+`core/tests/transport.rs` and over `BrainRpcClient` on the one scripted `BrainService` in
+`rpc/tests/brain/mod.rs`. What remains, call by call:
 
-The OS ports' lists are tables of plain functions over trait objects, which is what keeps each
-check one coverage record (ADR-0068 decision 11). That shape does not fit here: ten methods
-return `impl Future` and `converse` takes and returns `impl Stream`, so `dyn BrainTransport` does
-not compile.
-The list needs a subject that hands each check a boxed, object-safe view of the transport, or an
-object-safe twin trait the checks call, and the choice decides how much of each method's error
-mapping the list can state. The first slice is the read methods (`health`, `list_sessions`,
-`session_messages`) over `FakeTransport` and over `BrainRpcClient` on the loopback server, with the
-two `FakeBrain` copies reduced to one.
+- **The reminder calls**, `list_due_reminders` and `ack_reminder`: `Held` gains the due
+  reminders, and an ack answers whether it cleared the fire it names.
+- **The chat writes**, `rename_session`, `delete_session` and `set_session_hoisted`, each checked
+  by the listing after it. The scripted `BrainService` and `FakeTransport` record a write today
+  rather than apply it, so both need to hold their chats where a write can change them.
+- **The settings**, `get_preferences` and `set_preference`, the same way: a written key read back,
+  and an empty value clearing the key.
+- **`converse`**, whose twin method boxes the decision stream it takes and the event stream it
+  returns, with the turn's scripts in the shared `BrainService` as the conditions.
+- **`RetryingTransport`** as a subject over `FakeTransport`. The other test transports
+  (`ScriptedTransport`, `FlakyTransport`, `StallingTransport`) each misbehave in one way for one
+  suite, and whether they run the list is open.
+- When every call is listed, `FakeTransport` moves into `body/crates/contract`, as ADR-0068
+  decision 11 says of a port's fake.
 
 ## History
 

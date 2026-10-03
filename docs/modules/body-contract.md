@@ -42,6 +42,15 @@ crate; nothing that ships links it.
   with no code fails with `UnsupportedKey`; a taken chord fails with `Registration` and a press runs
   nothing; a broken backend fails with `Registration`. `CHORDS` names the chords a driver's
   keyboard must have.
+- **`transport`**, the `BrainTransport` list for the read calls. The port is not dyn-compatible, so
+  `Reads` is its twin, `health`, `list_sessions` and `session_messages` each answering a boxed
+  `Reply`, implemented once for every `T: BrainTransport`. `TransportSubject` builds
+  `serving(&Held)`, a brain holding a health and its `Chat`s newest first; `refusing()`, a brain
+  answering every read `Unavailable`, `store down`; and `unreachable()`. Each check returns a
+  boxed future, and `run(&dyn TransportSubject)` awaits them in order. The six checks: the health
+  is what the brain holds, ready or not; a listing names every chat newest first; a listing stops
+  at its limit; a history is the asked chat's, in order; a refusing brain fails every read with
+  `Rpc` and its code and message; an unreachable one fails every read with `Connection`.
 - **`FakeAudio`**, the one stand-in `AudioControl` every body test uses: `new(level, muted)` holds
   a state in memory, `failing(AudioError)` answers every call with that error, and `panicking()`
   panics inside every call. `threads()` returns the `Threads` handle on the thread each call ran on,
@@ -69,7 +78,10 @@ crate; nothing that ships links it.
   `the_linux_backend_meets_every_screen_check` in `body/crates/os_linux/tests/screen.rs`, over
   `LinuxScreenCapture` on that file's `FakeRoot`; and `the_linux_backend_meets_every_hotkey_check`
   in `body/crates/os_linux/tests/hotkey.rs`, over `LinuxHotkey` on that file's `FakeKeys`, whose
-  `Rig` presses each chord as the key and state a `PRESSES` table names.
+  `Rig` presses each chord as the key and state a `PRESSES` table names. The transport's drivers
+  are `the_fake_meets_every_read_check` in `body/crates/core/tests/transport.rs`, over that file's
+  `FakeTransport`, and `body/crates/rpc/tests/transport_contract.rs`, over `BrainRpcClient` on the
+  scripted `BrainService` in `body/crates/rpc/tests/brain/mod.rs` that every rpc test serves.
 
 ## Invariants
 
@@ -85,6 +97,7 @@ crate; nothing that ships links it.
 - The crate is measured at 100% line, region and branch coverage like every workspace member. The
   fakes' failure and panic paths are reached by the rpc server's tests and the lists.
 
-**Dependencies.** `body-core` (the ports). Dev-dependency of `body-rpc` (for the fakes) and of
-`os-linux` (for the lists). The one Rust port still without a list, `BrainTransport`, is
+**Dependencies.** `body-core` (the ports). Dev-dependency of `body-rpc` (for the fakes and the
+transport list), of `os-linux` (for the lists) and of `body-core` (for the transport list). The
+transport's other calls, its turn and `RetryingTransport` are
 [R-781](../refinements/tasks/781-a-shared-check-list-for-the-brain-transport.md).

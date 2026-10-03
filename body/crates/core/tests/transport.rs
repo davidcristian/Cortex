@@ -1,3 +1,4 @@
+use body_contract::transport::{Held, Reads, TransportSubject, run};
 use body_core::{
     AttachedImage, BrainTransport, ConfirmDecision, DueReminder, RpcHealth, SessionMessage,
     SessionSummary, TransportError, TurnEvent,
@@ -5,29 +6,58 @@ use body_core::{
 use futures_core::Stream;
 use tokio_stream::StreamExt;
 
-/// A scripted in-crate fake: the simplest possible `BrainTransport`.
+/// A fake that answers the read calls from what it holds, or fails every one with `failure`.
 struct FakeTransport {
-    script: Result<RpcHealth, TransportError>,
+    held: Held,
+    failure: Option<TransportError>,
+}
+
+impl FakeTransport {
+    fn idle() -> Self {
+        Self {
+            held: Held {
+                health: RpcHealth {
+                    ready: true,
+                    detail: String::new(),
+                    notes: Vec::new(),
+                },
+                chats: Vec::new(),
+            },
+            failure: None,
+        }
+    }
+
+    fn failing(error: TransportError) -> Self {
+        Self {
+            failure: Some(error),
+            ..Self::idle()
+        }
+    }
+
+    fn fail(&self) -> Result<(), TransportError> {
+        match &self.failure {
+            None => Ok(()),
+            Some(TransportError::Connection(message)) => {
+                Err(TransportError::Connection(message.clone()))
+            }
+            Some(TransportError::Rpc { code, message }) => Err(TransportError::Rpc {
+                code: code.clone(),
+                message: message.clone(),
+            }),
+            Some(TransportError::Protocol(message)) => {
+                Err(TransportError::Protocol(message.clone()))
+            }
+            Some(TransportError::Timeout { after }) => {
+                Err(TransportError::Timeout { after: *after })
+            }
+        }
+    }
 }
 
 impl BrainTransport for FakeTransport {
     async fn health(&self) -> Result<RpcHealth, TransportError> {
-        match &self.script {
-            Ok(health) => Ok(health.clone()),
-            Err(TransportError::Connection(message)) => {
-                Err(TransportError::Connection(message.clone()))
-            }
-            Err(TransportError::Rpc { code, message }) => Err(TransportError::Rpc {
-                code: code.clone(),
-                message: message.clone(),
-            }),
-            Err(TransportError::Protocol(message)) => {
-                Err(TransportError::Protocol(message.clone()))
-            }
-            Err(TransportError::Timeout { after }) => {
-                Err(TransportError::Timeout { after: *after })
-            }
-        }
+        self.fail()?;
+        Ok(self.held.health.clone())
     }
 
     fn converse(
@@ -47,25 +77,23 @@ impl BrainTransport for FakeTransport {
     }
 
     async fn list_sessions(&self, limit: i32) -> Result<Vec<SessionSummary>, TransportError> {
-        Ok(vec![SessionSummary {
-            session_id: String::from("s1"),
-            title: format!("limit {limit}"),
-            preview: String::from("hi"),
-            last_activity_unix_ms: 42,
-            hoisted: false,
-        }])
+        self.fail()?;
+        let limit = usize::try_from(limit).unwrap_or(0);
+        let rows = self.held.chats.iter().take(limit);
+        Ok(rows.map(|chat| chat.summary.clone()).collect())
     }
 
     async fn session_messages(
         &self,
         session_id: &str,
     ) -> Result<Vec<SessionMessage>, TransportError> {
-        Ok(vec![SessionMessage {
-            role: String::from("user"),
-            text: String::from(session_id),
-            turn_id: String::from("t"),
-            at_unix_ms: 7,
-        }])
+        self.fail()?;
+        let chat = self.held.chats.iter();
+        let mut asked = chat.filter(|chat| chat.summary.session_id == session_id);
+        Ok(asked
+            .next()
+            .map(|chat| chat.messages.clone())
+            .unwrap_or_default())
     }
 
     async fn list_due_reminders(&self) -> Result<Vec<DueReminder>, TransportError> {
@@ -142,9 +170,33 @@ impl BrainTransport for FakeTransport {
     }
 }
 
-/// Uses the trait as a generic bound, the way application code will.
-async fn probe<T: BrainTransport>(transport: &T) -> Result<RpcHealth, TransportError> {
-    transport.health().await
+struct Fake;
+
+impl TransportSubject for Fake {
+    fn serving(&self, held: &Held) -> Box<dyn Reads> {
+        Box::new(FakeTransport {
+            held: held.clone(),
+            failure: None,
+        })
+    }
+
+    fn refusing(&self) -> Box<dyn Reads> {
+        Box::new(FakeTransport::failing(TransportError::Rpc {
+            code: String::from("Unavailable"),
+            message: String::from("store down"),
+        }))
+    }
+
+    fn unreachable(&self) -> Box<dyn Reads> {
+        Box::new(FakeTransport::failing(TransportError::Connection(
+            String::from("connection refused"),
+        )))
+    }
+}
+
+#[tokio::test]
+async fn the_fake_meets_every_read_check() {
+    run(&Fake).await;
 }
 
 /// Drains a `converse` turn through a generic bound, collecting every item.
@@ -172,60 +224,8 @@ fn assert_send<F: Future + Send>(future: F) -> F {
 }
 
 #[tokio::test]
-async fn fake_transport_reports_health_through_the_generic_bound() {
-    let fake = FakeTransport {
-        script: Ok(RpcHealth {
-            ready: true,
-            detail: String::from("fake brain ready"),
-            notes: Vec::new(),
-        }),
-    };
-    let health = assert_send(probe(&fake)).await.unwrap();
-    assert!(health.ready);
-    assert_eq!(health.detail, "fake brain ready");
-}
-
-#[tokio::test]
-async fn fake_transport_propagates_connection_errors() {
-    let fake = FakeTransport {
-        script: Err(TransportError::Connection(String::from(
-            "connection refused",
-        ))),
-    };
-    let error = probe(&fake).await.unwrap_err();
-    assert_eq!(
-        error,
-        TransportError::Connection(String::from("connection refused"))
-    );
-}
-
-#[tokio::test]
-async fn fake_transport_propagates_rpc_errors() {
-    let fake = FakeTransport {
-        script: Err(TransportError::Rpc {
-            code: String::from("Internal"),
-            message: String::from("scripted failure"),
-        }),
-    };
-    let error = probe(&fake).await.unwrap_err();
-    assert_eq!(
-        error,
-        TransportError::Rpc {
-            code: String::from("Internal"),
-            message: String::from("scripted failure"),
-        }
-    );
-}
-
-#[tokio::test]
 async fn fake_transport_streams_a_converse_turn_through_the_generic_bound() {
-    let fake = FakeTransport {
-        script: Ok(RpcHealth {
-            ready: true,
-            detail: String::from("unused"),
-            notes: Vec::new(),
-        }),
-    };
+    let fake = FakeTransport::idle();
     let events = converse_probe(&fake, "sess-1", "hello").await;
     let events: Vec<TurnEvent> = events.into_iter().map(Result::unwrap).collect();
     assert_eq!(
@@ -436,42 +436,6 @@ fn error_equality_compares_variant_and_payload() {
 }
 
 #[tokio::test]
-async fn fake_transport_lists_sessions_through_the_generic_bound() {
-    async fn probe<T: BrainTransport>(t: &T, limit: i32) -> Vec<SessionSummary> {
-        t.list_sessions(limit).await.unwrap()
-    }
-    let fake = FakeTransport {
-        script: Ok(RpcHealth {
-            ready: true,
-            detail: String::new(),
-            notes: Vec::new(),
-        }),
-    };
-    let sessions = assert_send(probe(&fake, 3)).await;
-    assert_eq!(sessions.len(), 1);
-    assert_eq!(sessions[0].title, "limit 3");
-    assert_eq!(sessions[0].last_activity_unix_ms, 42);
-}
-
-#[tokio::test]
-async fn fake_transport_reads_session_messages_through_the_generic_bound() {
-    async fn probe<T: BrainTransport>(t: &T, session_id: &str) -> Vec<SessionMessage> {
-        t.session_messages(session_id).await.unwrap()
-    }
-    let fake = FakeTransport {
-        script: Ok(RpcHealth {
-            ready: true,
-            detail: String::new(),
-            notes: Vec::new(),
-        }),
-    };
-    let messages = assert_send(probe(&fake, "chat-7")).await;
-    assert_eq!(messages.len(), 1);
-    assert_eq!(messages[0].role, "user");
-    assert_eq!(messages[0].text, "chat-7");
-}
-
-#[tokio::test]
 async fn fake_transport_pulls_and_acks_reminders_through_the_generic_bound() {
     async fn pull<T: BrainTransport>(t: &T) -> Vec<DueReminder> {
         t.list_due_reminders().await.unwrap()
@@ -481,13 +445,7 @@ async fn fake_transport_pulls_and_acks_reminders_through_the_generic_bound() {
             .await
             .unwrap()
     }
-    let fake = FakeTransport {
-        script: Ok(RpcHealth {
-            ready: true,
-            detail: String::new(),
-            notes: Vec::new(),
-        }),
-    };
+    let fake = FakeTransport::idle();
     let due = assert_send(pull(&fake)).await;
     assert_eq!(due.len(), 1);
     assert_eq!(due[0].text, "stand up");
@@ -514,13 +472,7 @@ async fn fake_transport_renames_a_session_through_the_generic_bound() {
     ) -> Result<(), TransportError> {
         t.rename_session(session_id, title).await
     }
-    let fake = FakeTransport {
-        script: Ok(RpcHealth {
-            ready: true,
-            detail: String::new(),
-            notes: Vec::new(),
-        }),
-    };
+    let fake = FakeTransport::idle();
     assert!(
         assert_send(rename(&fake, "s1", "Everything about cats"))
             .await
@@ -541,13 +493,7 @@ async fn fake_transport_deletes_a_session_through_the_generic_bound() {
     async fn delete<T: BrainTransport>(t: &T, session_id: &str) -> Result<(), TransportError> {
         t.delete_session(session_id).await
     }
-    let fake = FakeTransport {
-        script: Ok(RpcHealth {
-            ready: true,
-            detail: String::new(),
-            notes: Vec::new(),
-        }),
-    };
+    let fake = FakeTransport::idle();
     assert!(assert_send(delete(&fake, "s1")).await.is_ok());
     assert_eq!(
         delete(&fake, "").await.unwrap_err(),
@@ -567,13 +513,7 @@ async fn fake_transport_sets_the_hoist_through_the_generic_bound() {
     ) -> Result<(), TransportError> {
         t.set_session_hoisted(session_id, hoisted).await
     }
-    let fake = FakeTransport {
-        script: Ok(RpcHealth {
-            ready: true,
-            detail: String::new(),
-            notes: Vec::new(),
-        }),
-    };
+    let fake = FakeTransport::idle();
     assert!(assert_send(set_hoisted(&fake, "s1", true)).await.is_ok());
     assert!(set_hoisted(&fake, "s1", false).await.is_ok());
     assert_eq!(

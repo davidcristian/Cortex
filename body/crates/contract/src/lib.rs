@@ -15,6 +15,7 @@ mod fake_screen;
 pub mod hotkey;
 pub mod notify;
 pub mod screen;
+pub mod transport;
 
 pub use fake_audio::{FakeAudio, Threads};
 pub use fake_hotkey::FakeHotkey;

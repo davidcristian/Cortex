@@ -126,8 +126,7 @@ review then listed every port in both languages to find the others.
     compares only what every implementation agrees on: the level at a sound server's resolution of
     1/65536, and an error's variant through `std::mem::discriminant` without its text, since
     `matches!` leaves a region for the branch a passing check never takes. A port whose methods
-    return `impl Future` is not dyn-compatible, so `BrainTransport` needs its own shape
-    ([R-781](../refinements/tasks/781-a-shared-check-list-for-the-brain-transport.md)).
+    return `impl Future` is not dyn-compatible, and decision 14 gives `BrainTransport` its shape.
 
 12. **A write-only port's list checks what comes back through the port.** `Notify::show` answers
     whether the notification was shown, and `Hotkey::register` answers success or an error and later
@@ -144,6 +143,21 @@ review then listed every port in both languages to find the others.
 
 13. **A list is proven able to fail on each implementation when it is committed**, by breaking
     production code on one side and seeing the check fail on that side alone, per AGENTS.md.
+
+14. **The transport's list runs through a dyn-compatible twin of the port.** `BrainTransport`
+    returns `impl Future` and `impl Stream`, so `dyn BrainTransport` does not compile.
+    `body_contract::transport` declares `Reads`, the read calls with each answer boxed as a
+    `Reply`, and implements it once for every `T: BrainTransport`. That impl is generic but has no
+    branch, so any instantiation a driver runs covers it whole, and the checks stay plain
+    functions over `&dyn TransportSubject` that return a boxed future for `run` to await. A twin
+    written in each driver was rejected: it is test code, which coverage does not measure, and a
+    slip in one would hide a defect. The twin returns the port's own `Result`, so a check compares
+    the whole `TransportError` where implementations agree (a brain's `Unavailable` status reaches
+    the caller as `Rpc` with its code and message) and only the variant where they do not (a
+    connection failure's text). The fake stays in `body/crates/core/tests/transport.rs` until the
+    list covers every method, since a fake in this crate is measured and its unlisted methods
+    would need tests of their own; `body-core` names `body-contract` as a dev-dependency to run it.
+    The rpc tests share one scripted `BrainService`, `body/crates/rpc/tests/brain/mod.rs`.
 
 ## The inventory
 
@@ -183,7 +197,7 @@ Rust and the overlay:
 | `AudioControl` | `FakeAudio`, in `body/crates/contract` | `WindowsAudioControl`, `LinuxAudioControl` | `body_contract::audio` | yes | Linux only, over a stand-in sound server behind `pactl` |
 | `Notify` | `FakeNotify`, in `body/crates/contract` | `WindowsNotify`, `LinuxNotify` | `body_contract::notify` | yes | Linux only, over a fake bus and a peer D-Bus server |
 | `ScreenCapture` | `FakeScreen`, in `body/crates/contract` | `WindowsScreenCapture`, `LinuxScreenCapture`, `DeniedScreenCapture` | `body_contract::screen` | yes | Linux over a fake root and a peer X server; the denying one by its own test |
-| `BrainTransport` | `FakeTransport`, `ScriptedTransport`, `FlakyTransport`, `StallingTransport` | `BrainRpcClient`, `RetryingTransport` | none | yes | yes, a loopback fake `BrainService` |
+| `BrainTransport` | `FakeTransport`, `ScriptedTransport`, `FlakyTransport`, `StallingTransport` | `BrainRpcClient`, `RetryingTransport` | `body_contract::transport`, the read calls | yes | `BrainRpcClient`, over a loopback fake `BrainService` |
 | `Sleeper` | `FakeSleeper` | `TokioSleeper` | none | yes | no, outside the checked workspace |
 | `Randomness` | `FakeRandomness` | `FullDelay`, `ShellRandomness` | none | yes | `FullDelay` incidentally |
 | `BrainBridge` (overlay) | `FakeBridge` | `TauriBridge`, `DemoBridge` | `bridgeContract.ts` | yes | `DemoBridge` |
@@ -197,8 +211,8 @@ Rust and the overlay:
 - Six configured model ids cannot be mis-wired without a failing test, at no startup cost and no
   port change.
 - The Windows backends run no list in CI, so they can disagree with their fakes until a host run
-  finds it. Until R-781 is done, the `BrainTransport` fakes can disagree with each other and with
-  `BrainRpcClient`.
+  finds it. Until R-781 is done, the transport's other calls can disagree between its fakes and
+  `BrainRpcClient`, and `RetryingTransport` runs no list.
 
 ## Alternatives rejected
 

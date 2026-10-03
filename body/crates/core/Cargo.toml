@@ -16,6 +16,8 @@ png.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
+# The transport's shared check list, run over this crate's fake.
+body-contract.workspace = true
 # The capture tests decode the PNGs the policy produces, so a size claim is read back out of the
 # bytes themselves rather than out of the value that wrote them.
 png.workspace = true
