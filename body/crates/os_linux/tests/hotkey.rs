@@ -5,6 +5,7 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
+use body_contract::hotkey::{HotkeyRig, HotkeySubject, run};
 use body_core::{Hotkey, HotkeyCallback, HotkeyChord, HotkeyError};
 use os_linux::{KeyError, KeyEvent, KeyGrab, Keyboard, LinuxHotkey, keysym};
 
@@ -378,4 +379,51 @@ fn a_release_alone_runs_nothing() {
     rig.close();
 
     assert_eq!(fired.try_iter().count(), 0);
+}
+
+/// The key and modifier state a press of each chord the shared list names sends on [`keyboard`].
+const PRESSES: [(&str, u8, u16); 4] = [
+    ("ctrl+alt+space", SPACE, CONTROL | MOD1),
+    ("super+a", A, MOD4),
+    ("super+1", ONE, MOD4),
+    ("shift+1", ONE, SHIFT),
+];
+
+impl HotkeyRig for Rig {
+    fn hotkey(&self) -> &dyn Hotkey {
+        &self.hotkey
+    }
+
+    fn press(&self, chord: &HotkeyChord) {
+        let name = chord.to_string();
+        PRESSES
+            .iter()
+            .filter(|(pressed, _, _)| *pressed == name)
+            .for_each(|&(_, keycode, state)| Self::press(self, keycode, state));
+    }
+
+    fn finish(self: Box<Self>) {
+        self.close();
+    }
+}
+
+struct Linux;
+
+impl HotkeySubject for Linux {
+    fn listening(&self) -> Box<dyn HotkeyRig> {
+        Box::new(rig(Ok(keyboard()), None))
+    }
+
+    fn taken(&self) -> Box<dyn HotkeyRig> {
+        Box::new(rig(Ok(keyboard()), Some(CONTROL | MOD1)))
+    }
+
+    fn broken(&self) -> Box<dyn HotkeyRig> {
+        Box::new(rig(Err(KeyError(String::from("DISPLAY not set"))), None))
+    }
+}
+
+#[test]
+fn the_linux_backend_meets_every_hotkey_check() {
+    run(&Linux);
 }

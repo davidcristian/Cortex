@@ -1,42 +1,6 @@
-use std::cell::RefCell;
-use std::sync::Arc;
-use std::sync::atomic::{AtomicUsize, Ordering};
-
 use body_core::{
-    Accelerator, AudioError, Hotkey, HotkeyCallback, HotkeyChord, HotkeyError, Modifier,
-    VolumeChange, VolumeState,
+    Accelerator, AudioError, HotkeyChord, HotkeyError, Modifier, VolumeChange, VolumeState,
 };
-
-/// A fake `Hotkey` backend: records the chords it registers and fires the callback once per
-/// successful registration, or fails on demand.
-struct FakeHotkey {
-    fail: Option<HotkeyError>,
-    registered: RefCell<Vec<String>>,
-}
-
-impl Hotkey for FakeHotkey {
-    fn register(
-        &self,
-        chord: &HotkeyChord,
-        on_activate: HotkeyCallback,
-    ) -> Result<(), HotkeyError> {
-        if let Some(error) = &self.fail {
-            return Err(error.clone());
-        }
-        self.registered.borrow_mut().push(chord.to_string());
-        on_activate();
-        Ok(())
-    }
-}
-
-/// Registers through a generic bound, the way the app will.
-fn register_via<H: Hotkey>(
-    backend: &H,
-    chord: &HotkeyChord,
-    on_activate: HotkeyCallback,
-) -> Result<(), HotkeyError> {
-    backend.register(chord, on_activate)
-}
 
 #[test]
 fn accelerator_maps_supported_keys_to_codes() {
@@ -118,47 +82,6 @@ fn hotkey_error_messages_and_debug() {
     let unsupported = HotkeyError::UnsupportedKey(String::from("x"));
     assert!(format!("{unsupported:?}").contains("UnsupportedKey"));
     assert_ne!(unsupported, HotkeyError::Registration(String::from("x")));
-}
-
-#[test]
-fn hotkey_backend_registers_and_fires_the_callback() {
-    let backend = FakeHotkey {
-        fail: None,
-        registered: RefCell::new(Vec::new()),
-    };
-    let hits = Arc::new(AtomicUsize::new(0));
-    let hits_cb = Arc::clone(&hits);
-    register_via(
-        &backend,
-        &HotkeyChord::default(),
-        Box::new(move || {
-            hits_cb.fetch_add(1, Ordering::SeqCst);
-        }),
-    )
-    .unwrap();
-    assert_eq!(hits.load(Ordering::SeqCst), 1);
-    assert_eq!(backend.registered.borrow().as_slice(), ["ctrl+alt+space"],);
-}
-
-#[test]
-fn hotkey_backend_reports_registration_failure_without_firing() {
-    let backend = FakeHotkey {
-        fail: Some(HotkeyError::Registration(String::from("taken"))),
-        registered: RefCell::new(Vec::new()),
-    };
-    let hits = Arc::new(AtomicUsize::new(0));
-    let hits_cb = Arc::clone(&hits);
-    let error = register_via(
-        &backend,
-        &HotkeyChord::default(),
-        Box::new(move || {
-            hits_cb.fetch_add(1, Ordering::SeqCst);
-        }),
-    )
-    .unwrap_err();
-    assert_eq!(error, HotkeyError::Registration(String::from("taken")));
-    assert_eq!(hits.load(Ordering::SeqCst), 0);
-    assert!(backend.registered.borrow().is_empty());
 }
 
 #[test]

@@ -1,9 +1,8 @@
 # Ports without a shared contract suite
 
-**Status:** open, actionable
+**Status:** done 2026-10-03
 **Area:** repo-checks
 **Origin:** [ADR-0068](../../adr/ADR-0068-port-contract-lists.md)
-**Verified:** 2026-10-03
 
 A port with a fake and a real adapter should have one list of checks that both implementations
 run, so the fake cannot promise something the adapter does not do. A review on 2026-08-10 that
@@ -14,25 +13,12 @@ implementations legitimately cannot share checks.
 
 Every Python port and the overlay's `BrainBridge` have a list, twenty-two in all: twenty-one in
 Python (nineteen named `<port>_contract.py`, plus `session/tests/contract.py` and the own-text list
-inside `tools/tests/test_own_text_contract.py`) and the overlay's `bridgeContract.ts`. In Rust,
-`AudioControl`, `Notify` and `ScreenCapture` have one each in `body/crates/contract`, each run
-over the port's one fake and over its Linux adapter: `body_contract::audio` over `FakeAudio` and
-`LinuxAudioControl` on a stand-in sound server, `body_contract::notify` over `FakeNotify` and
-`LinuxNotify` on `FakeBus`, and `body_contract::screen` over `FakeScreen` and `LinuxScreenCapture`
-on `FakeRoot`. ADR-0068 decisions 11 and 12 settle the shape every other Rust list takes and what
-a write-only port owes. `BrainTransport` cannot take that shape and is
+inside `tools/tests/test_own_text_contract.py`) and the overlay's `bridgeContract.ts`. The four
+Rust OS ports have one each in `body/crates/contract`, run over the port's one fake and over its
+Linux adapter: `body_contract::audio`, `notify`, `screen` and `hotkey`. ADR-0068 decisions 11 and
+12 state the shape and what a write-only port owes. The Windows backends run no list in CI.
+`BrainTransport` cannot take that shape and is
 [R-781](781-a-shared-check-list-for-the-brain-transport.md).
-
-What is left is one OS port, `Hotkey`: a module in `body/crates/contract` with a subject trait, a
-`named!` table and a `run`, a driver over the fake in that crate's tests and one over the Linux
-adapter in `body/crates/os_linux/tests/`, with the port's fake moved into the crate. `FakeHotkey`
-is written once, in `core/tests/os.rs`, and it runs the callback when it registers, which no real
-backend does, so its subject needs a press. `LinuxHotkey` runs over `FakeKeys`. `Hotkey` is not
-`Send + Sync`, unlike the other three.
-
-The generic helper that looks like a driver and asserts nothing, `register_via` in
-`core/tests/os.rs`, goes with the fake. The Windows backends run no list in CI; a host run over
-one would leave out the conditions a real desktop cannot be put in.
 
 ## History
 
@@ -130,3 +116,9 @@ one would leave out the conditions a real desktop cannot be put in.
   now does what the Windows backend does, and the two copies became one in `body/crates/contract`.
   `DeniedScreenCapture` runs no driver, against this entry's plan: it is the switched-off
   condition alone, which its own core test checks for every request.
+- 2026-10-03: `Hotkey` closed the task, six checks over `FakeHotkey` and over `LinuxHotkey` on
+  `FakeKeys`. The subject returns a rig that presses a chord and waits until every press is read,
+  since the port answers through a callback. The list paid twice on the fake: it ran the callback
+  when a chord was registered, which no backend does, and accepted a key with no code, which every
+  backend refuses as `UnsupportedKey`. `FakeHotkey` moved into `body/crates/contract` and
+  `register_via` went with it.

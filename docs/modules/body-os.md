@@ -225,11 +225,11 @@ runs instead; `os_linux`'s real backends are measured in full. Neither silences 
   clamp lives in `body_core`, and so do the inert-text rule, the taint attribution and the XML
   escaping. What `os_linux` adds is protocol translation (when to escape, how to parse `pactl`,
   how an X server lays out a pixel), covered by tests over fakes.
-- `LinuxAudioControl` runs the shared `AudioControl` list over a stand-in sound server
-  (`tests/audio_contract.rs`), `LinuxNotify` the `Notify` list over `FakeBus` (`tests/notify.rs`)
-  and `LinuxScreenCapture` the `ScreenCapture` list over `FakeRoot` (`tests/screen.rs`), so each is
-  held to one description with its fake ([body-contract.md](body-contract.md)). `LinuxHotkey` has
-  no shared list yet ([R-018](../refinements/tasks/018-ports-without-contract-suite.md)).
+- Each Linux backend runs its port's shared list ([body-contract.md](body-contract.md)), so it and
+  its fake are held to one description: `LinuxAudioControl` over a stand-in sound server
+  (`tests/audio_contract.rs`), `LinuxNotify` over `FakeBus` (`tests/notify.rs`),
+  `LinuxScreenCapture` over `FakeRoot` (`tests/screen.rs`) and `LinuxHotkey` over `FakeKeys`
+  (`tests/hotkey.rs`).
 - Stubs are `unimplemented!()` with a reason, and `coverage(off)` marks only genuinely unreachable
   code.
 - Coverage is measured on **Linux CI**, including every line of `os_linux`. The Windows backends

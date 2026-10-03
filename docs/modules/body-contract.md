@@ -33,10 +33,23 @@ crate; nothing that ships links it.
   green and red bytes, since no backend promises the fourth. `DeniedScreenCapture` runs no driver:
   it is the switched-off condition alone, and `body/crates/core/tests/screen.rs` checks it refuses
   every request with `Disabled`.
+- **`hotkey`**, the `Hotkey` list. A callback runs later, on a press, so `HotkeySubject` builds a
+  `HotkeyRig` in each condition: `listening()`, `taken()` (another program holds
+  `HotkeyChord::default()`) and `broken()`. A rig gives the `hotkey()` under test, `press(chord)`,
+  and `finish()`, which returns once every press so far has reached the backend. The six checks: a
+  press runs the callback once; registering runs nothing until a press; each press runs only its
+  own chord's callback, over two keys under one modifier and the second key under another; a key
+  with no code fails with `UnsupportedKey`; a taken chord fails with `Registration` and a press runs
+  nothing; a broken backend fails with `Registration`. `CHORDS` names the chords a driver's
+  keyboard must have.
 - **`FakeAudio`**, the one stand-in `AudioControl` every body test uses: `new(level, muted)` holds
   a state in memory, `failing(AudioError)` answers every call with that error, and `panicking()`
   panics inside every call. `threads()` returns the `Threads` handle on the thread each call ran on,
   which the `BodyService` tests read after the fake has moved into a server.
+- **`FakeHotkey`**, the one stand-in `Hotkey`: `default()` keeps each callback it registers and
+  `press(chord)` runs those registered for that chord; `failing(HotkeyError)` refuses every chord.
+  Both refuse a key with no code first, through `Accelerator::from_chord`, as the real backends do.
+  It holds its callbacks in a `RefCell`, so it is not `Sync`, which the port does not require.
 - **`FakeNotify`**, the one stand-in `Notify`: `answering(shown)`, `failing(NotifyError)` and
   `panicking()`, with `seen()` returning every notification a call answered and `threads()` as
   above. A clone shares both records, so a test keeps one after the other moves into a server.
@@ -46,14 +59,17 @@ crate; nothing that ships links it.
   and `miscounting(width, height, pixels)`, a buffer that does not match its size, which
   `RawFrame::new` refuses. `requests()` returns the `Requests` handle on every request it was
   handed, and `threads()` as above.
-- The drivers: `tests/audio.rs`, `tests/notify.rs` and `tests/screen.rs` here, over the fakes;
+- The drivers: `tests/audio.rs`, `tests/hotkey.rs`, `tests/notify.rs` and `tests/screen.rs` here,
+  over the fakes;
   `body/crates/os_linux/tests/audio_contract.rs`, over `LinuxAudioControl` on `SoundServer`, a
   stand-in `pactl` holding one default sink that the set commands change and the get commands
   print; `the_linux_backend_meets_every_notify_check` in `body/crates/os_linux/tests/notify.rs`,
   over `LinuxNotify` on that file's `FakeBus`, `declining` returning `None` because the
   freedesktop specification gives a server no way to decline; and
   `the_linux_backend_meets_every_screen_check` in `body/crates/os_linux/tests/screen.rs`, over
-  `LinuxScreenCapture` on that file's `FakeRoot`.
+  `LinuxScreenCapture` on that file's `FakeRoot`; and `the_linux_backend_meets_every_hotkey_check`
+  in `body/crates/os_linux/tests/hotkey.rs`, over `LinuxHotkey` on that file's `FakeKeys`, whose
+  `Rig` presses each chord as the key and state a `PRESSES` table names.
 
 ## Invariants
 
@@ -70,5 +86,5 @@ crate; nothing that ships links it.
   fakes' failure and panic paths are reached by the rpc server's tests and the lists.
 
 **Dependencies.** `body-core` (the ports). Dev-dependency of `body-rpc` (for the fakes) and of
-`os-linux` (for the lists). The ports still without a list are in
-[R-018](../refinements/tasks/018-ports-without-contract-suite.md).
+`os-linux` (for the lists). The one Rust port still without a list, `BrainTransport`, is
+[R-781](../refinements/tasks/781-a-shared-check-list-for-the-brain-transport.md).
