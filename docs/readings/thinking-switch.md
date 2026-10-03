@@ -112,11 +112,11 @@ the live HTTP 500's message.
 
 On the plain shape the E4B under the budget alone wrote the thought as its reply on 38 of 40. The
 CPU image of the same build agreed on 76 draws. On the E4B the kwarg alone and the pair were
-identical on 20 of 20 seed-paired draws, so beside the kwarg the budget is inert; the kwarg drops
-the `<|think|>` the template injects, and the budget leaves the prompt byte-identical to an
-unflagged server's. Framed injection obedience was 0 of 10 on the pair, on the budget alone, and on
-an unflagged server sent the switch per request. Method: servers started by hand, rendering off
-`POST /apply-template`.
+identical on 20 of 20 seed-paired draws, so on this request the budget is inert beside the kwarg;
+the kwarg drops the `<|think|>` the template injects, and the budget leaves the prompt
+byte-identical to an unflagged server's. Framed injection obedience was 0 of 10 on the pair, on
+the budget alone, and on an unflagged server sent the switch per request. Method: servers started
+by hand, rendering off `POST /apply-template`.
 
 **2026-08-29**, build `b10666-4e97ac86e`, the same request against a server started with the pair:
 13 of 76 draws (7 of 38 seeds) wrote 1582 to 4078 characters into the reasoning channel, 8 came back
@@ -124,6 +124,15 @@ empty at the cap, and 11 of the 13 opened with a misspelled closing marker (`</c
 `t</channell>`, `h</c>`). With `reasoning_budget_tokens: 0` added, 1 of 20. Re-drawn by seed on
 `b10680` on 2026-09-11 through `test_envelope_cost_live.py`, the same fragments recur at the same
 seeds, and the request key on top of the pair changed 0 of 4 cells.
+
+**2026-10-03**, build `b10680-d7bd3bfca`, the CPU `server` image under `--cpuset-cpus 12-23`, the
+E4B at `-ngl 0`, the request key table's question sent constrained at a cap of 256, seeds 1 to 5 on
+each server. With the kwarg alone on the argv, 3 of 5 draws deliberated to the cap and came back
+empty; with the pair, none did, and the two draws the kwarg alone left undeliberated were identical
+on both servers. So the 20 of 20 above holds for the delegated request: on a question that invites
+deliberation, the budget is the half that ends the thought the schema keeps reachable, at the tier
+flags as with the request key below. Method: two servers started by hand, one at a time, requests
+posted to `/v1/chat/completions`.
 
 ## The request key
 
@@ -144,6 +153,7 @@ flag, a count of 128 or 32 let an answer through where an unbounded trace return
 
 **The leak.** A forced end of thought returned `{"reply": "thought"}` once in the 58 budgeted draws
 of 2026-08-29 (28 through the raw wire and 30 through the probe), and in none of the 200 of
-2026-09-07: 1 in 258 through the request key against 0 in 140 through the tier flag. Put through
+2026-09-07, nor in the five pair draws of 2026-10-03: 1 in 258 through the request key against 0 in
+145 through the tier flag. Put through
 `settle_reply` (2026-09-15), that envelope is reported as an answer, while a start tag leaked in
 front of the envelope is `MALFORMED`.

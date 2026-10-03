@@ -3,10 +3,11 @@
 **Status:** open, waiting for its trigger
 **Area:** inference
 **Origin:** [ADR-0049](../../adr/ADR-0049-thinking-switch-and-trace-budget.md)
-**Verified:** 2026-09-24
-**Trigger:** a delegated run recorded under `docs/readings/` whose answer is the channel name
-`thought` or a start tag, or a budgeted cell of the committed probe counting two or more leaks in a
-hundred draws, on any tier that ends a thought at the engine.
+**Verified:** 2026-10-03
+**Trigger:** a record under `docs/readings/` of a second draw whose answer is the channel name
+`thought` or a bare start tag, or of a budgeted cell counting 2 or more such draws in 100. Today
+`grep -rnE 'reply": "(thought|<)' docs/readings` prints one line, the 2026-08-29 draw in the
+thinking-switch readings, whose leak paragraph counts 1 in 258 budgeted draws.
 
 A trace budget is a sampler: it detects the thought's start sequence and forces its end tag, so the
 forcing necessarily happens after the start has been written. What the model had already emitted of
@@ -24,11 +25,11 @@ a whole, valid envelope whose entire answer is the channel name. It is not a pre
 break the JSON and reach the `MALFORMED` outcome ADR-0028 already has words for; this parses,
 unwraps, and is reported to the spawning cortex as the subtask's answer.
 
-The counts are 1 of 58 draws sending `reasoning_budget_tokens: 0` across the raw wire and the
-shipped adapter, and 0 of 20 of the identical request against a tier using `--reasoning-budget 0` on
-its argv, which is how every subagent server this repo ships is started. Those two set the same
-sampler and at these sizes the counts do not separate, so this is a rare engine behaviour the
-per-request key inherits rather than introduces. No repair shipped: removing the tag means knowing
+The counts are 1 in 258 draws sending `reasoning_budget_tokens: 0`, through the raw wire and the
+shipped adapter on two builds, and 0 in 145 against a tier using `--reasoning-budget 0` on its argv,
+which is how every subagent server this repo ships is started. Those two set the same sampler and at
+these sizes the counts do not separate, so this is a rare engine behaviour the per-request key
+inherits rather than introduces. No repair shipped: removing the tag means knowing
 the start sequence, a per-pick token (`<|channel>thought` on the gemma-4 family, `<think>` on the
 Qwen one) that the port exists not to know, and a rule over the answer's shape cannot stand in,
 since the probe's own detector calls a one-word answer a leak, which is wrong for a subtask that
@@ -84,3 +85,12 @@ asked for a number.
   a number, and it named no record a run reaches. The readings still count 1 leak in 258 budgeted
   draws and no cell has been drawn since. The chunk reader now also reads the engine build from
   each chunk, and still routes text on the key it arrives under.
+- 2026-10-03: checked again and not fired, and the trigger now names the grep that decides it: no
+  record under `docs/readings/` holds a second such answer, and no budgeted cell has been drawn
+  since 2026-09-07. `settle_reply` still reports `{"reply": "thought"}` as the answer `thought`
+  and each start tag in front of the envelope, or alone, as `MALFORMED`. The body's counts were the
+  opening session's 1 of 58 and 0 of 20 and now read the readings' totals. The tier flag's count
+  gained five pair draws on the CPU image of `b10680`, drawn for the decline of
+  [R-526](526-the-pairs-budget-half-is-inert-beside-the-kwarg.md): on the question that invites
+  deliberation the kwarg alone deliberated on 3 of the 5 seeds and the pair on none, so the forced
+  close acted there, and no reply leaked.

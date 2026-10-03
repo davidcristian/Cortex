@@ -1,13 +1,8 @@
 # The pair's budget half has no effect beside the kwarg, on both families and both builds measured
 
-**Status:** open, waiting for its trigger
+**Status:** declined 2026-10-03
 **Area:** inference
-**Trigger:** a row in the thinking-switch readings, on a llama.cpp build past `b10680`, in which a
-subagent server using the kwarg alone writes into the reasoning channel where the pair does not,
-which is the reading the budget was added on; or the kwarg's deprecation taking effect, which
-R-461 watches, when the argv is being rewritten anyway.
 **Origin:** [ADR-0049](../../adr/ADR-0049-thinking-switch-and-trace-budget.md)
-**Verified:** 2026-09-24
 
 Every subagent server this repo starts uses both `--chat-template-kwargs '{"enable_thinking":
 false}'` and `--reasoning-budget 0`, and `scripts/flagcheck.py` requires the pair on every one of
@@ -55,3 +50,12 @@ that costs nothing for a re-measurement on every image bump.
   deprecation warning and deprecates nothing about `--reasoning-budget`
   ([R-461](461-the-tiers-thinking-flag-is-deprecated.md)). The inference adapter now logs the build
   each model's server names, which shows a tier's image bump and measures nothing.
+- 2026-10-03: declined, because the budget is not inert beside the kwarg. The 20 of 20 this entry
+  rests on is one cell of the delegated request over four report bodies, on which the two drew
+  alike. On a constrained question that invites deliberation, the
+  thinking-switch readings already held the switch alone deliberating on 85 and 86 of 100 draws on
+  `b10680` and `b10666` against 0 of 100 with a zero budget beside it, through the request key. Drawn
+  again at the tier flags on the CPU image of `b10680`, the kwarg alone deliberated to the cap and
+  came back empty on 3 of 5 seeds and the pair on none (thinking-switch readings, 2026-10-03). So
+  the budget ends the thought the schema keeps reachable on the gemma pick, which is what it was
+  added for, and the pair stays on every subagent server as ADR-0049 decides.

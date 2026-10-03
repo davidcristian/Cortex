@@ -3,12 +3,12 @@
 **Status:** open, waiting for its trigger
 **Area:** inference
 **Origin:** [ADR-0049](../../adr/ADR-0049-thinking-switch-and-trace-budget.md)
-**Verified:** 2026-09-24
+**Verified:** 2026-10-03
 **Trigger:** a `GenerationBounds` call in `brain/packages/*/src` that writes `thinking=False` and no
 `trace_tokens`, read with `grep -rn 'thinking=False' brain/packages/*/src --include=*.py`. Today
 that grep prints three lines, one for each bound named below; `rank_bounds` writes one keyword a
 line, so its `trace_tokens=0` is on the line after. A fourth line fires it when it is a call naming
-no `trace_tokens`, whether a fourth side call or `SubagentAttempt`'s bound gaining the switch.
+no `trace_tokens`, whether a fourth side call or `PlacedAttempt`'s bound gaining the switch.
 
 `RECAP_BOUNDS`, `TITLE_BOUNDS` and `rank_bounds(k)` each pair a cap with `thinking=False` and
 `trace_tokens=0`, and the zero is the half that bounds the trace where the engine reads the key.
@@ -16,7 +16,7 @@ Each is asserted by its own test, so none can lose the zero silently. A fourth c
 nothing covers: it would arrive with its own test, and a test written beside a bound asserts what
 that bound says rather than what it should have said.
 
-A rule in the constructor is refuted by one caller each: `SubagentAttempt` names a cap with no
+A rule in the constructor is refuted by one caller each: `PlacedAttempt` names a cap with no
 switch and relies on the flags its tier is started with, and `ReplyBoundsConfig` renders a
 deployment's own cap with the switch it was given, so a `__post_init__` that raised on a cap without
 a count would reject one caller that is safe and one configuration that is a person's choice.
@@ -61,3 +61,11 @@ that read the tree without importing it. The two readings agree on the three bou
   bounds, now at `session_title.py:16`, `recap_prompt.py:15` and `rerank_judge.py:47`, each still
   asserted in `test_sessions.py:183`, `test_summarizing.py:504` and `test_rerank_judge.py:252`.
   `GenerationBounds(` is on five lines, with the docstring line in `drain.py` gone.
+- 2026-10-03: read against the tree and not fired. The grep prints the same three lines, at
+  `recap_prompt.py:15`, `rerank_judge.py:49` and `session_title.py:16`; the rank's line has been 49
+  since that file last changed on 2026-09-19, and the 47 recorded above is where its call opens.
+  `GenerationBounds(` is on the same five lines, the other two now at `subagent_attempt.py:91` and
+  `config_reply.py:33`, and the three tests still assert the zero at `test_sessions.py:185`,
+  `test_summarizing.py:506` and `test_rerank_judge.py:254`. The class that names a cap with no
+  switch is `PlacedAttempt`, as it has been since `subagent_attempt.py` was written; the body and
+  trigger called it `SubagentAttempt`, a class this tree has never had.
