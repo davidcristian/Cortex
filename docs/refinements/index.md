@@ -69,10 +69,10 @@ never a reading of what the tree does now.
 
 ### Actionable now (4)
 
-- **[R-607](tasks/607-eighteen-of-the-cortex-alts-pixel-rows-are-undrawn.md)** Three of the cortex alt's thirty-six pixel rows are undrawn (inference). Its claim was checked against the code on 2026-10-03.
+- **[R-607](tasks/607-eighteen-of-the-cortex-alts-pixel-rows-are-undrawn.md)** Three of the cortex alt's thirty-six pixel rows are undrawn (inference). Its claim was checked against the code on 2026-10-04.
 - **[R-721](tasks/721-the-embedders-engine-build-is-recorded-nowhere.md)** The embedder's engine build is recorded nowhere (memory). Its claim was checked against the code on 2026-10-03.
 - **[R-781](tasks/781-a-shared-check-list-for-the-brain-transport.md)** A shared check list for the brain transport (repo-checks). Its claim was checked against the code on 2026-10-03.
-- **[R-782](tasks/782-the-engine-budget-deep-rows-app-pair-is-undrawn.md)** The engine budget deep row's app pair is undrawn (inference). Its claim was checked against the code on 2026-10-03.
+- **[R-782](tasks/782-the-engine-budget-deep-rows-app-pair-is-undrawn.md)** The engine budget deep row's app pair is undrawn (inference). Its claim was checked against the code on 2026-10-04.
 
 ### Actionable, once a port changes (1)
 

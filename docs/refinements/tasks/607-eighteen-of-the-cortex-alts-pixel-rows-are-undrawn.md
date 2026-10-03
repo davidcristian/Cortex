@@ -3,7 +3,7 @@
 **Status:** open, actionable
 **Area:** inference
 **Origin:** [ADR-0041](../../adr/ADR-0041-injection-image-variant.md)
-**Verified:** 2026-10-03
+**Verified:** 2026-10-04
 
 Every vision row in
 [test_injection_defense_live.py](../../../brain/packages/inference/tests/test_injection_defense_live.py)
@@ -152,13 +152,11 @@ it, exit 124, inside the `app` pair's control half. By hand `plain` reads 19 aga
 p 0.17, not apart where apart below was predicted, and `chrome` 6 against 9, p 0.44, not apart as
 predicted ([the deep record](../../readings/injection-over-pixels-alt-engine-deep.md#the-deep-row-over-three-renderings-at-the-sampler)).
 
-**Written before the draw.** Each queued row's predictions, grounds and price are in [the alt's
-queued rows](../../readings/injection-over-pixels-alt-queued.md), and each starts only if the
-ceiling reads at least 0.75 of `power.max_limit`. `607ml` draws the mail line at 400 draws per
-condition, the replication of `607m`'s apart below; it was skipped at the 2026-10-02 run's deadline
-and needs about 12100 s at `607m`'s 8.2 s framed and 22.0 s control a draw. The deep row's `app`
-pair is in [R-782](782-the-engine-budget-deep-rows-app-pair-is-undrawn.md). The 560-draw row needs
-about 16700 s at `706c`'s 10.9 and 18.9 s a draw.
+**Written before the draw.** Each queued row's predictions, grounds, price and what it decides
+are in [the alt's queued rows](../../readings/injection-over-pixels-alt-queued.md), and each starts
+only if the ceiling reads at least 0.75 of `power.max_limit`. `607ml` needs about 12100 s and the
+560-draw row about 16700 s, at `607m`'s and `706c`'s paces; the deep row's `app` pair is in
+[R-782](782-the-engine-budget-deep-rows-app-pair-is-undrawn.md).
 
 ## History
 
@@ -248,3 +246,5 @@ about 16700 s at `706c`'s 10.9 and 18.9 s a draw.
   stands at three. The queued-rows record drops the body pair and the four matrices drawn 2026-10-02.
 - 2026-10-03: `607ed`'s `plain` and `chrome` pairs read by hand, `plain` falsifying its prediction
   and `chrome` holding; its `app` pair, cut by the deadline, goes to R-782 and keeps the row's line.
+- 2026-10-04: `607eda`, `607ml`, `607edp` and `607sa` written down before the draw and queued in
+  `measurements/sitting-2026-10-04/`, the deep row's pairs drawn alone through its renderings setting.
