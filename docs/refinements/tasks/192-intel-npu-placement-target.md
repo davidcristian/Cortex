@@ -6,12 +6,15 @@
 **Trigger:** An NPU device enumerating from inside a container, meaning
 `Core().get_property("NPU", "AVAILABLE_DEVICES")` returns anything at all. That is one container
 run: `pip install openvino` over `python:3.12-slim`, with `/dev/dxg` and `/usr/lib/wsl` handed in,
-then read `available_devices` and that property. This entry's history records what the run returned
-when it was last taken, and the body records which half of the condition is already met.
-**Verified:** 2026-09-24
+then read `available_devices` and that property. The guest decides first whether that run is worth
+taking: while `find /usr/lib/wsl/drivers -ipath '*npu*' -name '*.so*'` prints nothing, the vendor
+half below is unmet and no container has a driver to enumerate the NPU through. This entry's
+history records what each was when last read, and the body records which half is already met.
+**Verified:** 2026-10-03
 
-An OpenVINO `InferenceBackend` adapter plus a `PlacementTarget.NPU` would use the otherwise-idle NPU
-for tiny subagents or embeddings, which serves the same goal as the container limits above.
+An OpenVINO `InferenceBackend` adapter and a third `PlacementTarget` would use the otherwise idle
+NPU for tiny subagents or embeddings, which serves the same goal as the subagent container limits
+in ADR-0012.
 OpenVINO GenAI is the engine, because llama.cpp has no NPU path. The hardware is present (an Intel
 Core Ultra 9 275HX, confirmed 2026-07-01), so two questions decide it: whether the NPU is reachable
 from the dockerized WSL2 brain at all, and whether NPU inference for a 2-4B model is fast and mature
@@ -24,10 +27,11 @@ handed. Measured from a container: OpenVINO's NPU plugin ships in the wheel and 
 enumerates nothing. Not measured: whether the machine has an NPU at all, since this guest cannot see
 Windows device state.
 
-Of the 1,103 Windows driver packages WSL maps in, exactly five ship Linux user-mode libraries, the
-Intel graphics package in its two staged versions and the NVIDIA one in its three, while both NPU
-packages ship only Windows DLLs. So the condition that revives this work has two halves, WSL
-projecting the device and the vendor shipping a Linux driver for it.
+Of the 1,105 Windows driver packages WSL maps in, exactly five ship Linux user-mode libraries, the
+Intel graphics package in its two staged versions and the NVIDIA one in its three, while the NPU
+package ships only Windows DLLs and its extension package only its `.inf`, `.cat` and `.PNF`. So
+the condition that revives this work has two halves, WSL projecting the device and the vendor
+shipping a Linux driver for it.
 
 The projection half is already met. `D3DKMTEnumAdapters2` asked for a count returns three where the
 list it fills has two, a buffer sized for fewer than three is refused, and the adapter the list
@@ -40,6 +44,14 @@ missing is the Linux user-mode driver. The count reconciliation this came out of
 [R-348](348-three-devices-against-two-adapters.md).
 
 The second question is untouched, there being nothing to measure it on.
+
+The third target is a port change, not one more enum member. `PlacementTarget` keys each roster
+entry's backend map, one `LlamaCppBackend` per member (`subagent_builders.py` lines 43 to 49);
+`VramBudgetPlacer.place` chooses between the two members by VRAM headroom (`placer.py` lines 19 to
+25); the runner re-runs a failed GPU attempt on `PlacementTarget.CPU` (`runner.py` lines 134 to
+145); and `PlacementTarget.ngl` is the llama.cpp `-ngl` flag, read only by three test files and
+meaningless for a target llama.cpp cannot run. So the work is a third endpoint per roster entry, a
+placer rule for when a spawn goes to the NPU, and an `ngl` moved off the enum.
 
 ## History
 
@@ -71,3 +83,12 @@ The second question is untouched, there being nothing to measure it on.
   still hold no `.so` file, which is the vendor half. The driver store now holds 1,103 package
   directories beside 376 `.ini` sidecars, and a third staged NVIDIA version makes five packages
   with Linux libraries; the count above is corrected to that.
+- 2026-10-03: Not fired, read from the guest only: a detached GPU run held Docker, and the
+  container run hands in `/dev/dxg`, so it was not repeated. `/dev/dxg` is still the only device
+  node, the kernel is still 6.6.114.1-microsoft-standard-WSL2 with `# CONFIG_DRM_ACCEL is not set`,
+  `/sys/bus/pci/devices` lists five devices with no Intel vendor id, and the CPU reads as an Intel
+  Core Ultra 9 275HX. The driver store holds 1,105 package directories beside 378 `.ini`
+  sidecars, the same five with Linux libraries, and `npu.inf` still lists `DEV_AD1D` under class
+  `ComputeAccelerator`. Two claims were corrected: `npu_extension.inf` ships no DLL at all, and a
+  third `PlacementTarget` touches the backend map, the placer and the CPU re-run, as the body now
+  says. The trigger gains the guest read that decides whether the container run is worth taking.

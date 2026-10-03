@@ -8,9 +8,9 @@ returning exactly one line, the `check-body` recipe's run of the check; or that 
 `--rustc` and `--llvm-cov` from two command substitutions of its own, whether by splitting them
 across recipe lines, which just runs in separate shells, or by reading either from an environment
 variable, a file or a CI step's output. The arrangement also depends on the `justfile` setting no
-`shell`, so each recipe line is one `sh -cu`, and on both substitutions naming the toolchain as
-`+nightly`, which no directory override can change.
-**Verified:** 2026-09-22
+`shell` (`grep -n '^set ' justfile` prints nothing), so each recipe line is one `sh -cu`, and on
+both substitutions naming the toolchain as `+nightly`, which no directory override can change.
+**Verified:** 2026-10-03
 
 The decline of [R-313](313-a-relay-can-be-required-and-empty.md) rests entirely on the shape of one
 line in the `justfile`: both arguments are filled by two command substitutions in the same shell,
@@ -28,7 +28,7 @@ line meets no warning, and only a reader running this entry's trigger finds the 
 If the arrangement goes, add the validator the declined entry described: one shared non-blank check
 on both arguments, so a blank or whitespace string is refused with argparse's own usage error
 before any result prints, the way `_require_version` already states that rule for the export's own
-fields. It is three lines.
+fields. It is one five-line function, passed as `type=` to both arguments.
 
 ## History
 
@@ -66,3 +66,11 @@ fields. It is three lines.
   `scripts/rustcoverage.py:54`. Six commits touched the `justfile` since the last reading. Two
   changed this recipe, one adding the comment above it and one renaming the script the line runs,
   and neither moved either substitution.
+- 2026-10-03: Not fired. The trigger's grep returns one line, `justfile:172`, filling `--rustc`
+  and `--llvm-cov` from two substitutions of its own, both naming `+nightly`; the probes are lines
+  168 and 169, `grep -n '^set ' justfile` prints nothing, and `.github/workflows/ci.yml:130` names
+  the script only in a comment. No commit since the last reading changed the recipe or the
+  script's arguments. Run against the current `body/coverage.json`, `--rustc ""` printed
+  `measured by` and exited 0, and `--llvm-cov ""` failed the producer line and exited 1, as the
+  body says. The remedy's size is corrected: a non-blank `type=` function with its message bound
+  to `msg` before the raise is five lines, not three.
