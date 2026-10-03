@@ -1,4 +1,7 @@
-use body_contract::transport::{Held, Reads, TransportSubject, run};
+use std::cmp::Reverse;
+use std::sync::{Mutex, MutexGuard, PoisonError};
+
+use body_contract::transport::{Calls, Held, TransportSubject, run};
 use body_core::{
     AttachedImage, BrainTransport, ConfirmDecision, DueReminder, RpcHealth, SessionMessage,
     SessionSummary, TransportError, TurnEvent,
@@ -6,25 +9,32 @@ use body_core::{
 use futures_core::Stream;
 use tokio_stream::StreamExt;
 
-/// A fake that answers the read calls from what it holds, or fails every one with `failure`.
+/// A fake brain in memory: it answers from what it holds and applies each write to it, or fails
+/// every call with `failure`.
 struct FakeTransport {
-    held: Held,
+    held: Mutex<Held>,
     failure: Option<TransportError>,
 }
 
 impl FakeTransport {
-    fn idle() -> Self {
+    fn holding(held: &Held) -> Self {
         Self {
-            held: Held {
-                health: RpcHealth {
-                    ready: true,
-                    detail: String::new(),
-                    notes: Vec::new(),
-                },
-                chats: Vec::new(),
-            },
+            held: Mutex::new(held.clone()),
             failure: None,
         }
+    }
+
+    fn idle() -> Self {
+        Self::holding(&Held {
+            health: RpcHealth {
+                ready: true,
+                detail: String::new(),
+                notes: Vec::new(),
+            },
+            chats: Vec::new(),
+            reminders: Vec::new(),
+            preferences: Vec::new(),
+        })
     }
 
     fn failing(error: TransportError) -> Self {
@@ -34,9 +44,10 @@ impl FakeTransport {
         }
     }
 
-    fn fail(&self) -> Result<(), TransportError> {
+    /// The held state, or the failure every call answers with.
+    fn held(&self) -> Result<MutexGuard<'_, Held>, TransportError> {
         match &self.failure {
-            None => Ok(()),
+            None => Ok(self.held.lock().unwrap_or_else(PoisonError::into_inner)),
             Some(TransportError::Connection(message)) => {
                 Err(TransportError::Connection(message.clone()))
             }
@@ -56,8 +67,7 @@ impl FakeTransport {
 
 impl BrainTransport for FakeTransport {
     async fn health(&self) -> Result<RpcHealth, TransportError> {
-        self.fail()?;
-        Ok(self.held.health.clone())
+        Ok(self.held()?.health.clone())
     }
 
     fn converse(
@@ -77,9 +87,9 @@ impl BrainTransport for FakeTransport {
     }
 
     async fn list_sessions(&self, limit: i32) -> Result<Vec<SessionSummary>, TransportError> {
-        self.fail()?;
+        let held = self.held()?;
         let limit = usize::try_from(limit).unwrap_or(0);
-        let rows = self.held.chats.iter().take(limit);
+        let rows = held.chats.iter().take(limit);
         Ok(rows.map(|chat| chat.summary.clone()).collect())
     }
 
@@ -87,9 +97,11 @@ impl BrainTransport for FakeTransport {
         &self,
         session_id: &str,
     ) -> Result<Vec<SessionMessage>, TransportError> {
-        self.fail()?;
-        let chat = self.held.chats.iter();
-        let mut asked = chat.filter(|chat| chat.summary.session_id == session_id);
+        let held = self.held()?;
+        let mut asked = held
+            .chats
+            .iter()
+            .filter(|chat| chat.summary.session_id == session_id);
         Ok(asked
             .next()
             .map(|chat| chat.messages.clone())
@@ -97,14 +109,7 @@ impl BrainTransport for FakeTransport {
     }
 
     async fn list_due_reminders(&self) -> Result<Vec<DueReminder>, TransportError> {
-        Ok(vec![DueReminder {
-            reminder_id: String::from("r1"),
-            text: String::from("stand up"),
-            fired_at_unix_ms: 9,
-            recurring: true,
-            tainted: false,
-            session_id: String::from("s1"),
-        }])
+        Ok(self.held()?.reminders.clone())
     }
 
     async fn ack_reminder(
@@ -112,27 +117,28 @@ impl BrainTransport for FakeTransport {
         reminder_id: &str,
         fired_at_unix_ms: i64,
     ) -> Result<bool, TransportError> {
-        Ok(reminder_id == "r1" && fired_at_unix_ms == 9)
+        let mut held = self.held()?;
+        let before = held.reminders.len();
+        held.reminders.retain(|due| {
+            due.reminder_id != reminder_id || due.fired_at_unix_ms != fired_at_unix_ms
+        });
+        Ok(held.reminders.len() < before)
     }
 
     async fn rename_session(&self, session_id: &str, title: &str) -> Result<(), TransportError> {
-        if session_id.is_empty() {
-            return Err(TransportError::Rpc {
-                code: String::from("Unavailable"),
-                message: String::from("store down"),
-            });
+        let mut held = self.held()?;
+        for chat in &mut held.chats {
+            if chat.summary.session_id == session_id {
+                chat.summary.title = String::from(title);
+            }
         }
-        let _ = title;
         Ok(())
     }
 
     async fn delete_session(&self, session_id: &str) -> Result<(), TransportError> {
-        if session_id.is_empty() {
-            return Err(TransportError::Rpc {
-                code: String::from("Unavailable"),
-                message: String::from("store down"),
-            });
-        }
+        let mut held = self.held()?;
+        held.chats
+            .retain(|chat| chat.summary.session_id != session_id);
         Ok(())
     }
 
@@ -141,31 +147,33 @@ impl BrainTransport for FakeTransport {
         session_id: &str,
         hoisted: bool,
     ) -> Result<(), TransportError> {
-        if session_id.is_empty() {
-            return Err(TransportError::Rpc {
-                code: String::from("Unavailable"),
-                message: String::from("store down"),
-            });
+        let mut held = self.held()?;
+        for chat in &mut held.chats {
+            if chat.summary.session_id == session_id {
+                chat.summary.hoisted = hoisted;
+            }
         }
-        let _ = hoisted;
+        held.chats.sort_by_key(|chat| {
+            (
+                !chat.summary.hoisted,
+                Reverse(chat.summary.last_activity_unix_ms),
+            )
+        });
         Ok(())
     }
 
     async fn get_preferences(&self) -> Result<Vec<(String, String)>, TransportError> {
-        Ok(vec![
-            (String::from("overlay.mark"), String::from("foam")),
-            (String::from("overlay.theme"), String::from("midnight")),
-        ])
+        Ok(self.held()?.preferences.clone())
     }
 
     async fn set_preference(&self, key: &str, value: &str) -> Result<(), TransportError> {
-        if key.is_empty() {
-            return Err(TransportError::Rpc {
-                code: String::from("Unavailable"),
-                message: String::from("store down"),
-            });
+        let mut held = self.held()?;
+        held.preferences.retain(|(held_key, _)| held_key != key);
+        if !value.is_empty() {
+            held.preferences
+                .push((String::from(key), String::from(value)));
+            held.preferences.sort();
         }
-        let _ = value;
         Ok(())
     }
 }
@@ -173,21 +181,18 @@ impl BrainTransport for FakeTransport {
 struct Fake;
 
 impl TransportSubject for Fake {
-    fn serving(&self, held: &Held) -> Box<dyn Reads> {
-        Box::new(FakeTransport {
-            held: held.clone(),
-            failure: None,
-        })
+    fn serving(&self, held: &Held) -> Box<dyn Calls> {
+        Box::new(FakeTransport::holding(held))
     }
 
-    fn refusing(&self) -> Box<dyn Reads> {
+    fn refusing(&self) -> Box<dyn Calls> {
         Box::new(FakeTransport::failing(TransportError::Rpc {
             code: String::from("Unavailable"),
             message: String::from("store down"),
         }))
     }
 
-    fn unreachable(&self) -> Box<dyn Reads> {
+    fn unreachable(&self) -> Box<dyn Calls> {
         Box::new(FakeTransport::failing(TransportError::Connection(
             String::from("connection refused"),
         )))
@@ -195,7 +200,7 @@ impl TransportSubject for Fake {
 }
 
 #[tokio::test]
-async fn the_fake_meets_every_read_check() {
+async fn the_fake_meets_every_transport_check() {
     run(&Fake).await;
 }
 
@@ -216,11 +221,6 @@ async fn converse_probe<T: BrainTransport>(
         events.push(event);
     }
     events
-}
-
-/// Compile-time check that a `BrainTransport::health` future is `Send`.
-fn assert_send<F: Future + Send>(future: F) -> F {
-    future
 }
 
 #[tokio::test]
@@ -431,96 +431,6 @@ fn error_equality_compares_variant_and_payload() {
         TransportError::Rpc {
             code: String::from("Internal"),
             message: String::from("a"),
-        }
-    );
-}
-
-#[tokio::test]
-async fn fake_transport_pulls_and_acks_reminders_through_the_generic_bound() {
-    async fn pull<T: BrainTransport>(t: &T) -> Vec<DueReminder> {
-        t.list_due_reminders().await.unwrap()
-    }
-    async fn ack<T: BrainTransport>(t: &T, reminder: &DueReminder) -> bool {
-        t.ack_reminder(&reminder.reminder_id, reminder.fired_at_unix_ms)
-            .await
-            .unwrap()
-    }
-    let fake = FakeTransport::idle();
-    let due = assert_send(pull(&fake)).await;
-    assert_eq!(due.len(), 1);
-    assert_eq!(due[0].text, "stand up");
-    assert!(due[0].recurring);
-    assert!(assert_send(ack(&fake, &due[0])).await);
-    let gone = DueReminder {
-        reminder_id: String::from("gone"),
-        ..due[0].clone()
-    };
-    assert!(!ack(&fake, &gone).await);
-    let earlier = DueReminder {
-        fired_at_unix_ms: 8,
-        ..due[0].clone()
-    };
-    assert!(!ack(&fake, &earlier).await);
-}
-
-#[tokio::test]
-async fn fake_transport_renames_a_session_through_the_generic_bound() {
-    async fn rename<T: BrainTransport>(
-        t: &T,
-        session_id: &str,
-        title: &str,
-    ) -> Result<(), TransportError> {
-        t.rename_session(session_id, title).await
-    }
-    let fake = FakeTransport::idle();
-    assert!(
-        assert_send(rename(&fake, "s1", "Everything about cats"))
-            .await
-            .is_ok()
-    );
-    assert!(rename(&fake, "s1", "").await.is_ok());
-    assert_eq!(
-        rename(&fake, "", "x").await.unwrap_err(),
-        TransportError::Rpc {
-            code: String::from("Unavailable"),
-            message: String::from("store down"),
-        }
-    );
-}
-
-#[tokio::test]
-async fn fake_transport_deletes_a_session_through_the_generic_bound() {
-    async fn delete<T: BrainTransport>(t: &T, session_id: &str) -> Result<(), TransportError> {
-        t.delete_session(session_id).await
-    }
-    let fake = FakeTransport::idle();
-    assert!(assert_send(delete(&fake, "s1")).await.is_ok());
-    assert_eq!(
-        delete(&fake, "").await.unwrap_err(),
-        TransportError::Rpc {
-            code: String::from("Unavailable"),
-            message: String::from("store down"),
-        }
-    );
-}
-
-#[tokio::test]
-async fn fake_transport_sets_the_hoist_through_the_generic_bound() {
-    async fn set_hoisted<T: BrainTransport>(
-        t: &T,
-        session_id: &str,
-        hoisted: bool,
-    ) -> Result<(), TransportError> {
-        t.set_session_hoisted(session_id, hoisted).await
-    }
-    let fake = FakeTransport::idle();
-    assert!(assert_send(set_hoisted(&fake, "s1", true)).await.is_ok());
-    assert!(set_hoisted(&fake, "s1", false).await.is_ok());
-    assert_eq!(
-        set_hoisted(&fake, "", true).await.unwrap_err(),
-        TransportError::Rpc {
-            code: String::from("Unavailable"),
-            message: String::from("store down"),
         }
     );
 }

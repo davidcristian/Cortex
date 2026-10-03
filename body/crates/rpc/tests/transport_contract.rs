@@ -1,10 +1,11 @@
-//! The shared `BrainTransport` read checks, run over `BrainRpcClient` on a loopback fake brain.
+//! The shared `BrainTransport` checks, run over `BrainRpcClient` on a loopback fake brain.
 
 mod brain;
 
 use std::net::{SocketAddr, TcpListener};
+use std::sync::Mutex;
 
-use body_contract::transport::{Held, Reads, TransportSubject, run};
+use body_contract::transport::{Calls, Held, TransportSubject, run};
 use body_rpc::BrainRpcClient;
 use body_rpc::generated::brain_service_server::BrainServiceServer;
 use brain::{FakeBrain, Script};
@@ -32,7 +33,7 @@ fn dead_address() -> Result<SocketAddr, Failure> {
     Ok(TcpListener::bind("127.0.0.1:0")?.local_addr()?)
 }
 
-fn client(addr: Result<SocketAddr, Failure>) -> Box<dyn Reads> {
+fn client(addr: Result<SocketAddr, Failure>) -> Box<dyn Calls> {
     let made = addr.and_then(|addr| {
         let client = BrainRpcClient::connect_lazy_with_token(&format!("http://{addr}"), None)?;
         Ok(client)
@@ -46,24 +47,25 @@ fn client(addr: Result<SocketAddr, Failure>) -> Box<dyn Reads> {
 struct Rpc;
 
 impl TransportSubject for Rpc {
-    fn serving(&self, held: &Held) -> Box<dyn Reads> {
+    fn serving(&self, held: &Held) -> Box<dyn Calls> {
         let mut fake = FakeBrain::new(Script::Ready);
-        fake.held = held.clone();
+        fake.held = Mutex::new(held.clone());
         client(serve(fake))
     }
 
-    fn refusing(&self) -> Box<dyn Reads> {
+    fn refusing(&self) -> Box<dyn Calls> {
         let mut fake = FakeBrain::new(Script::Unavailable);
         fake.sessions_fail = true;
+        fake.reminders_fail = true;
         client(serve(fake))
     }
 
-    fn unreachable(&self) -> Box<dyn Reads> {
+    fn unreachable(&self) -> Box<dyn Calls> {
         client(dead_address())
     }
 }
 
 #[tokio::test]
-async fn the_rpc_client_meets_every_read_check() {
+async fn the_rpc_client_meets_every_transport_check() {
     run(&Rpc).await;
 }

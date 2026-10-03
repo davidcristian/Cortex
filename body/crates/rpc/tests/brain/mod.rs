@@ -4,9 +4,10 @@
     reason = "each test binary builds only the scripts it needs"
 )]
 
+use std::cmp::Reverse;
 use std::net::SocketAddr;
 use std::pin::Pin;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
 use body_contract::transport::Held;
 use body_core::RpcHealth;
@@ -78,26 +79,13 @@ pub enum Turn {
 pub struct FakeBrain {
     pub script: Script,
     pub turn: Turn,
-    /// The health `Script::Ready` answers and the chats the session reads answer from.
-    pub held: Held,
+    /// The health `Script::Ready` answers, and the state every other call reads and writes.
+    pub held: Mutex<Held>,
     pub expected_token: Option<&'static str>,
-    /// When set, the read-only session RPCs fail `Unavailable` (a store-down abort); otherwise they
-    /// answer from `held`.
+    /// When set, the session and settings RPCs fail `Unavailable`, as a store that is down does.
     pub sessions_fail: bool,
-    /// The same for the reminder RPCs: a `ScheduleStoreError` aborts `Unavailable`.
+    /// The same for the reminder RPCs, as a `ScheduleStoreError` does.
     pub reminders_fail: bool,
-    /// Records each `RenameSession` write `(session_id, title)` the fake received, so a test can
-    /// prove both fields crossed the wire (the reply is a bare ack).
-    pub renames: Arc<Mutex<Vec<(String, String)>>>,
-    /// Records each `DeleteSession` write's `session_id`, so a test can prove the id crossed the
-    /// wire (the reply is a bare ack).
-    pub deletes: Arc<Mutex<Vec<String>>>,
-    /// Records each `SetSessionHoisted` write `(session_id, hoisted)`, so a test can prove both
-    /// fields crossed the wire (the reply is a bare ack).
-    pub hoists: Arc<Mutex<Vec<(String, bool)>>>,
-    /// Records each `SetPreference` write `(key, value)`, so a test can prove both fields crossed
-    /// the wire, the empty clearing value included (the reply is a bare ack).
-    pub preference_writes: Arc<Mutex<Vec<(String, String)>>>,
     /// Records the `grpc-timeout` metadata of every call the fake serves, `None` when a call
     /// sent none.
     pub timeouts: Arc<Mutex<Vec<Option<String>>>>,
@@ -108,23 +96,26 @@ impl FakeBrain {
         Self {
             script,
             turn: Turn::RejectCall,
-            held: Held {
+            held: Mutex::new(Held {
                 health: RpcHealth {
                     ready: true,
                     detail: String::from("fake brain ready"),
                     notes: vec![String::from("first"), String::from("second")],
                 },
                 chats: Vec::new(),
-            },
+                reminders: Vec::new(),
+                preferences: Vec::new(),
+            }),
             expected_token: None,
             sessions_fail: false,
             reminders_fail: false,
-            renames: Arc::new(Mutex::new(Vec::new())),
-            deletes: Arc::new(Mutex::new(Vec::new())),
-            hoists: Arc::new(Mutex::new(Vec::new())),
-            preference_writes: Arc::new(Mutex::new(Vec::new())),
             timeouts: Arc::new(Mutex::new(Vec::new())),
         }
+    }
+
+    /// What the fake holds now, for a handler to read or change.
+    fn held(&self) -> MutexGuard<'_, Held> {
+        self.held.lock().unwrap_or_else(PoisonError::into_inner)
     }
 
     /// Records what `request` announced as its deadline, before answering it.
@@ -365,12 +356,13 @@ impl BrainService for FakeBrain {
                 _ => return Err(Status::unauthenticated("invalid or missing token")),
             }
         }
+        let health = self.held().health.clone();
         match self.script {
             Script::Ready => Ok(Response::new(HealthReply {
-                ready: self.held.health.ready,
-                detail: self.held.health.detail.clone(),
-                notes: (self.held.health.notes.iter())
-                    .map(|text| HealthNote { text: text.clone() })
+                ready: health.ready,
+                detail: health.detail,
+                notes: (health.notes.into_iter())
+                    .map(|text| HealthNote { text })
                     .collect(),
             })),
             Script::Failing => Err(Status::internal("scripted failure")),
@@ -389,7 +381,8 @@ impl BrainService for FakeBrain {
             return Err(Status::unavailable("store down"));
         }
         let limit = usize::try_from(request.into_inner().limit).unwrap_or(0);
-        let rows = self.held.chats.iter().take(limit);
+        let held = self.held();
+        let rows = held.chats.iter().take(limit);
         Ok(Response::new(ListSessionsReply {
             sessions: rows
                 .map(|chat| PbSessionSummary {
@@ -411,7 +404,8 @@ impl BrainService for FakeBrain {
             return Err(Status::unavailable("store down"));
         }
         let session_id = request.into_inner().session_id;
-        let chats = self.held.chats.iter();
+        let held = self.held();
+        let chats = held.chats.iter();
         let asked = chats.filter(|chat| chat.summary.session_id == session_id);
         Ok(Response::new(GetSessionMessagesReply {
             messages: asked
@@ -431,27 +425,19 @@ impl BrainService for FakeBrain {
         _request: Request<ListDueRemindersRequest>,
     ) -> Result<Response<ListDueRemindersReply>, Status> {
         if self.reminders_fail {
-            return Err(Status::unavailable("schedule store down"));
+            return Err(Status::unavailable("store down"));
         }
         Ok(Response::new(ListDueRemindersReply {
-            reminders: vec![
-                PbDueReminder {
-                    reminder_id: String::from("r1"),
-                    text: String::from("stand up"),
-                    fired_at_unix_ms: 2000,
-                    recurring: true,
-                    tainted: false,
-                    session_id: String::from("chat-1"),
-                },
-                PbDueReminder {
-                    reminder_id: String::from("r2"),
-                    text: String::from("read the flagged mail"),
-                    fired_at_unix_ms: 3000,
-                    recurring: false,
-                    tainted: true,
-                    session_id: String::new(),
-                },
-            ],
+            reminders: (self.held().reminders.iter())
+                .map(|due| PbDueReminder {
+                    reminder_id: due.reminder_id.clone(),
+                    text: due.text.clone(),
+                    fired_at_unix_ms: due.fired_at_unix_ms,
+                    recurring: due.recurring,
+                    tainted: due.tainted,
+                    session_id: due.session_id.clone(),
+                })
+                .collect(),
         }))
     }
 
@@ -460,11 +446,17 @@ impl BrainService for FakeBrain {
         request: Request<AckReminderRequest>,
     ) -> Result<Response<AckReminderReply>, Status> {
         if self.reminders_fail {
-            return Err(Status::unavailable("schedule store down"));
+            return Err(Status::unavailable("store down"));
         }
         let request = request.into_inner();
+        let mut held = self.held();
+        let before = held.reminders.len();
+        held.reminders.retain(|due| {
+            due.reminder_id != request.reminder_id
+                || due.fired_at_unix_ms != request.fired_at_unix_ms
+        });
         Ok(Response::new(AckReminderReply {
-            acked: request.reminder_id == "r1" && request.fired_at_unix_ms == 2000,
+            acked: held.reminders.len() < before,
         }))
     }
 
@@ -476,10 +468,11 @@ impl BrainService for FakeBrain {
             return Err(Status::unavailable("store down"));
         }
         let req = request.into_inner();
-        self.renames
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .push((req.session_id, req.title));
+        for chat in &mut self.held().chats {
+            if chat.summary.session_id == req.session_id {
+                chat.summary.title.clone_from(&req.title);
+            }
+        }
         Ok(Response::new(RenameSessionReply {}))
     }
 
@@ -490,10 +483,10 @@ impl BrainService for FakeBrain {
         if self.sessions_fail {
             return Err(Status::unavailable("store down"));
         }
-        self.deletes
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .push(request.into_inner().session_id);
+        let session_id = request.into_inner().session_id;
+        let mut held = self.held();
+        held.chats
+            .retain(|chat| chat.summary.session_id != session_id);
         Ok(Response::new(DeleteSessionReply {}))
     }
 
@@ -505,10 +498,18 @@ impl BrainService for FakeBrain {
             return Err(Status::unavailable("store down"));
         }
         let req = request.into_inner();
-        self.hoists
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .push((req.session_id, req.hoisted));
+        let mut held = self.held();
+        for chat in &mut held.chats {
+            if chat.summary.session_id == req.session_id {
+                chat.summary.hoisted = req.hoisted;
+            }
+        }
+        held.chats.sort_by_key(|chat| {
+            (
+                !chat.summary.hoisted,
+                Reverse(chat.summary.last_activity_unix_ms),
+            )
+        });
         Ok(Response::new(SetSessionHoistedReply {}))
     }
 
@@ -520,16 +521,12 @@ impl BrainService for FakeBrain {
             return Err(Status::unavailable("store down"));
         }
         Ok(Response::new(GetPreferencesReply {
-            preferences: vec![
-                Preference {
-                    key: String::from("overlay.mark"),
-                    value: String::from("foam"),
-                },
-                Preference {
-                    key: String::from("overlay.theme"),
-                    value: String::from("midnight"),
-                },
-            ],
+            preferences: (self.held().preferences.iter())
+                .map(|(key, value)| Preference {
+                    key: key.clone(),
+                    value: value.clone(),
+                })
+                .collect(),
         }))
     }
 
@@ -541,10 +538,12 @@ impl BrainService for FakeBrain {
             return Err(Status::unavailable("store down"));
         }
         let req = request.into_inner();
-        self.preference_writes
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .push((req.key, req.value));
+        let mut held = self.held();
+        held.preferences.retain(|(key, _)| *key != req.key);
+        if !req.value.is_empty() {
+            held.preferences.push((req.key, req.value));
+            held.preferences.sort();
+        }
         Ok(Response::new(SetPreferenceReply {}))
     }
 }

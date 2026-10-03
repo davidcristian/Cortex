@@ -5,12 +5,12 @@
 mod brain;
 
 use std::net::SocketAddr;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::time::Duration;
 
 use body_core::{
-    BrainTransport, DueReminder, LinkState, LinkStatus, RetryPlan, RetryingTransport, RpcMethod,
-    Sleeper, TransportError, is_transient, probe_link,
+    BrainTransport, LinkState, LinkStatus, RetryPlan, RetryingTransport, RpcMethod, Sleeper,
+    TransportError, is_transient, probe_link,
 };
 use body_rpc::BrainRpcClient;
 use body_rpc::generated::HealthRequest;
@@ -149,177 +149,6 @@ async fn client_clones_share_the_connection_and_debug_formats() {
 }
 
 #[tokio::test]
-async fn rename_session_writes_both_fields_across_the_wire() {
-    let recorder = Arc::new(Mutex::new(Vec::new()));
-    let mut fake = FakeBrain::new(Script::Ready);
-    fake.renames = recorder.clone();
-    let addr = spawn_fake_brain(fake).await.unwrap();
-    let client = BrainRpcClient::connect(&format!("http://{addr}"))
-        .await
-        .unwrap();
-    client
-        .rename_session("chat-9", "Everything about cats")
-        .await
-        .unwrap();
-    assert_eq!(
-        *recorder.lock().unwrap(),
-        vec![(
-            String::from("chat-9"),
-            String::from("Everything about cats"),
-        )]
-    );
-    client.rename_session("chat-9", "").await.unwrap();
-    assert_eq!(recorder.lock().unwrap().len(), 2);
-    assert_eq!(recorder.lock().unwrap()[1].1, "");
-}
-
-#[tokio::test]
-async fn rename_session_store_failure_maps_to_the_rpc_variant() {
-    let mut fake = FakeBrain::new(Script::Ready);
-    fake.sessions_fail = true;
-    let addr = spawn_fake_brain(fake).await.unwrap();
-    let client = BrainRpcClient::connect(&format!("http://{addr}"))
-        .await
-        .unwrap();
-    assert_eq!(
-        client.rename_session("s", "x").await.unwrap_err(),
-        TransportError::Rpc {
-            code: String::from("Unavailable"),
-            message: String::from("store down"),
-        }
-    );
-}
-
-#[tokio::test]
-async fn delete_session_writes_the_session_id_across_the_wire() {
-    let recorder = Arc::new(Mutex::new(Vec::new()));
-    let mut fake = FakeBrain::new(Script::Ready);
-    fake.deletes = recorder.clone();
-    let addr = spawn_fake_brain(fake).await.unwrap();
-    let client = BrainRpcClient::connect(&format!("http://{addr}"))
-        .await
-        .unwrap();
-    client.delete_session("chat-9").await.unwrap();
-    assert_eq!(*recorder.lock().unwrap(), vec![String::from("chat-9")]);
-}
-
-#[tokio::test]
-async fn delete_session_store_failure_maps_to_the_rpc_variant() {
-    let mut fake = FakeBrain::new(Script::Ready);
-    fake.sessions_fail = true;
-    let addr = spawn_fake_brain(fake).await.unwrap();
-    let client = BrainRpcClient::connect(&format!("http://{addr}"))
-        .await
-        .unwrap();
-    assert_eq!(
-        client.delete_session("s").await.unwrap_err(),
-        TransportError::Rpc {
-            code: String::from("Unavailable"),
-            message: String::from("store down"),
-        }
-    );
-}
-
-#[tokio::test]
-async fn set_session_hoisted_writes_both_fields_across_the_wire() {
-    let recorder = Arc::new(Mutex::new(Vec::new()));
-    let mut fake = FakeBrain::new(Script::Ready);
-    fake.hoists = recorder.clone();
-    let addr = spawn_fake_brain(fake).await.unwrap();
-    let client = BrainRpcClient::connect(&format!("http://{addr}"))
-        .await
-        .unwrap();
-    client.set_session_hoisted("chat-9", true).await.unwrap();
-    assert_eq!(
-        *recorder.lock().unwrap(),
-        vec![(String::from("chat-9"), true)]
-    );
-    client.set_session_hoisted("chat-9", false).await.unwrap();
-    assert_eq!(recorder.lock().unwrap()[1], (String::from("chat-9"), false));
-}
-
-#[tokio::test]
-async fn set_session_hoisted_store_failure_maps_to_the_rpc_variant() {
-    let mut fake = FakeBrain::new(Script::Ready);
-    fake.sessions_fail = true;
-    let addr = spawn_fake_brain(fake).await.unwrap();
-    let client = BrainRpcClient::connect(&format!("http://{addr}"))
-        .await
-        .unwrap();
-    assert_eq!(
-        client.set_session_hoisted("s", true).await.unwrap_err(),
-        TransportError::Rpc {
-            code: String::from("Unavailable"),
-            message: String::from("store down"),
-        }
-    );
-}
-
-#[tokio::test]
-async fn list_due_reminders_maps_every_field_in_order() {
-    let addr = spawn_fake_brain(FakeBrain::new(Script::Ready))
-        .await
-        .unwrap();
-    let client = BrainRpcClient::connect(&format!("http://{addr}"))
-        .await
-        .unwrap();
-    let due = client.list_due_reminders().await.unwrap();
-    assert_eq!(
-        due,
-        vec![
-            DueReminder {
-                reminder_id: String::from("r1"),
-                text: String::from("stand up"),
-                fired_at_unix_ms: 2000,
-                recurring: true,
-                tainted: false,
-                session_id: String::from("chat-1"),
-            },
-            DueReminder {
-                reminder_id: String::from("r2"),
-                text: String::from("read the flagged mail"),
-                fired_at_unix_ms: 3000,
-                recurring: false,
-                tainted: true,
-                session_id: String::new(),
-            },
-        ]
-    );
-}
-
-#[tokio::test]
-async fn ack_reminder_reports_what_the_brain_cleared() {
-    let addr = spawn_fake_brain(FakeBrain::new(Script::Ready))
-        .await
-        .unwrap();
-    let client = BrainRpcClient::connect(&format!("http://{addr}"))
-        .await
-        .unwrap();
-    assert!(client.ack_reminder("r1", 2000).await.unwrap());
-    assert!(!client.ack_reminder("r-gone", 2000).await.unwrap());
-    assert!(!client.ack_reminder("r1", 1999).await.unwrap());
-}
-
-#[tokio::test]
-async fn reminder_store_failure_maps_to_the_rpc_variant() {
-    let mut fake = FakeBrain::new(Script::Ready);
-    fake.reminders_fail = true;
-    let addr = spawn_fake_brain(fake).await.unwrap();
-    let client = BrainRpcClient::connect(&format!("http://{addr}"))
-        .await
-        .unwrap();
-    let unavailable = TransportError::Rpc {
-        code: String::from("Unavailable"),
-        message: String::from("schedule store down"),
-    };
-    assert_eq!(client.list_due_reminders().await.unwrap_err(), unavailable);
-    assert_eq!(
-        client.ack_reminder("r1", 2000).await.unwrap_err(),
-        unavailable
-    );
-}
-
-#[tokio::test]
 async fn rpc_token_round_trips_when_the_brain_requires_it() {
     let mut fake = FakeBrain::new(Script::Ready);
     fake.expected_token = Some("sekrit-seam-token");
@@ -422,68 +251,6 @@ async fn lazy_connect_non_ascii_rpc_token_maps_to_the_connection_variant() {
         message.contains("invalid token"),
         "message should name the token as the cause, got: {message}"
     );
-}
-
-#[tokio::test]
-async fn get_preferences_maps_every_pair_in_the_brains_order() {
-    let addr = spawn_fake_brain(FakeBrain::new(Script::Ready))
-        .await
-        .unwrap();
-    let client = BrainRpcClient::connect(&format!("http://{addr}"))
-        .await
-        .unwrap();
-    let record = client.get_preferences().await.unwrap();
-    assert_eq!(
-        record,
-        vec![
-            (String::from("overlay.mark"), String::from("foam")),
-            (String::from("overlay.theme"), String::from("midnight")),
-        ]
-    );
-}
-
-#[tokio::test]
-async fn set_preference_writes_both_fields_across_the_wire() {
-    let recorder = Arc::new(Mutex::new(Vec::new()));
-    let mut fake = FakeBrain::new(Script::Ready);
-    fake.preference_writes = recorder.clone();
-    let addr = spawn_fake_brain(fake).await.unwrap();
-    let client = BrainRpcClient::connect(&format!("http://{addr}"))
-        .await
-        .unwrap();
-    client.set_preference("overlay.mark", "ping").await.unwrap();
-    client.set_preference("overlay.theme", "").await.unwrap();
-    assert_eq!(
-        *recorder.lock().unwrap(),
-        vec![
-            (String::from("overlay.mark"), String::from("ping")),
-            (String::from("overlay.theme"), String::new()),
-        ]
-    );
-}
-
-#[tokio::test]
-async fn preference_store_failures_map_to_the_rpc_variant() {
-    let mut fake = FakeBrain::new(Script::Ready);
-    fake.sessions_fail = true;
-    let addr = spawn_fake_brain(fake).await.unwrap();
-    let client = BrainRpcClient::connect(&format!("http://{addr}"))
-        .await
-        .unwrap();
-    let read = client.get_preferences().await.unwrap_err();
-    let write = client
-        .set_preference("overlay.mark", "ping")
-        .await
-        .unwrap_err();
-    for error in [read, write] {
-        match error {
-            TransportError::Rpc { code, message } => {
-                assert_eq!(code, "Unavailable");
-                assert!(message.contains("store down"));
-            }
-            other => panic!("expected an Rpc error, got {other:?}"),
-        }
-    }
 }
 
 /// The real `Sleeper` over `tokio::time`, as the shell composes it.
