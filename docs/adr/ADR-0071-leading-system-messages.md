@@ -96,11 +96,12 @@ test could fail on it.
   attack in the recap, 0 of 109 against 17 of 97 in a tainted memory, and 12 of 108 against 26 of
   106 when it is quoted in a trusted memory's reply
   ([readings](../readings/system-message-templates.md#the-joined-message-against-the-unframed-control-2026-09-29)).
-  On Qwen3.6-27B, at 33 draws a variant with every void draw counted against the claim, the recap
-  row holds, 2 of 33 against 13 of 33, and the tainted memory row does not, 5 of 33 against 10 of
-  33, all five joined counts being void draws, so it is drawn deeper
-  ([readings](../readings/system-message-templates.md#the-deep-alternate-with-every-void-counted-against-the-claim-2026-10-01),
-  [R-744](../refinements/tasks/744-the-joined-system-message-is-unmeasured-on-the-qwen-alternates.md)).
+  On Qwen3.6-27B, with every void draw counted against the claim, the recap row holds, 2 of 33
+  against 13 of 33
+  ([readings](../readings/system-message-templates.md#the-deep-alternate-with-every-void-counted-against-the-claim-2026-10-01)),
+  and the tainted memory row holds at an 8192-token cap, 2 of 66 against 18 of 66. At the test's
+  4096-token cap it did not, 12 of 66 against 19 of 66, every joined count a void draw
+  ([readings](../readings/joined-message-deep-fenced-memory.md)).
 - On a turn that also recalls a memory, the deep alternate's prompt now includes the recap it used
   to drop, up to `RECAP_MAX` (2000 characters) plus the preface, inside the margin
   [ADR-0014](ADR-0014-history-windowing.md) decision 8 leaves the deep tier's context.

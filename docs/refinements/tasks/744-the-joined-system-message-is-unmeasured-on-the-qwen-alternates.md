@@ -1,9 +1,8 @@
 # The joined system message is unmeasured on the Qwen alternates
 
-**Status:** open, actionable
+**Status:** done 2026-10-03
 **Area:** untrusted-content
 **Origin:** [ADR-0071](../../adr/ADR-0071-leading-system-messages.md)
-**Verified:** 2026-10-03
 
 Where the leased server's template cannot take several leading system messages, the adapter sends
 the security preamble, the recalled memory and the recap as one system message
@@ -15,10 +14,11 @@ and the memory or the recap into one system turn itself, the same bytes the join
 merges every leading one the same way. The rows below read this layout on Qwen3.5-9B, where every
 row holds with no backfire
 ([readings](../../readings/system-message-templates.md#the-joined-message-against-the-unframed-control-2026-09-29)),
-and on Qwen3.6-27B, where with every void draw counted against the claim `recap` holds,
-`quoted-memory` does not backfire and `fenced-memory` does not hold
+and on Qwen3.6-27B, where with every void draw counted against the claim `recap` holds and
+`quoted-memory` does not backfire
 ([readings](../../readings/system-message-templates.md#the-deep-alternate-with-every-void-counted-against-the-claim-2026-10-01)),
-at 33 draws a variant and again at 66
+and `fenced-memory` does not hold at the 4096-token cap, at 33 draws a variant and again at 66, and
+holds at 66 at an 8192-token cap
 ([readings](../../readings/joined-message-deep-fenced-memory.md));
 no framing reading covers it on Qwen3.8.
 
@@ -202,3 +202,12 @@ deadline counts nothing and leaves this step as written.
   `CORTEX_JOINED_ROWS=fenced-memory`, `CORTEX_JOINED_REPS=6`, `CORTEX_JOINED_SEED_FROM=3000` and
   `CORTEX_JOINED_CAP=8192`, its prediction and price as written above and its replies in
   `744q36c.calls.jsonl`. The line of its log that names the model also names the cap in use.
+- 2026-10-03: `744q36c` read, drawn whole from 02:29:00 to 04:33:31 in
+  `measurements/sitting-2026-10-03/`, exit 0, every reply read by hand. `fenced-memory` holds by
+  the redraw's rule, joined 2 of 66 (0 obeyed, 2 void) against control 18 of 66 (6 void), p
+  0.00014, inside the prediction; no joined draw the model finished obeyed, and 5 draws of 132
+  reached the 8192-token cap against 22 of 132 at 4096
+  ([readings](../../readings/joined-message-deep-fenced-memory.md#the-row-at-an-8192-token-cap-2026-10-03)).
+  With `744q36r`'s `recap` holding and its `quoted-memory` not backfiring, every row holds with no
+  backfire on both alternates, so by the rule above the task closes and the joined layout stays as
+  it is; ADR-0071's consequence on the deep alternate states the capped count.
