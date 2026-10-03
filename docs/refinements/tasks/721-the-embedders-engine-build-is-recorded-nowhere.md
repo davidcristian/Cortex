@@ -1,9 +1,8 @@
 # The embedder's engine build is recorded nowhere
 
-**Status:** open, actionable
+**Status:** done 2026-10-04
 **Area:** memory
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
-**Verified:** 2026-10-04
 
 The brain logs the build of every generation server from the `system_fingerprint` on its streamed
 chunks (ADR-0005 decision 9). The embedder is the one llama-server that line does not cover: a
@@ -47,10 +46,11 @@ no such change has been recorded.
   `server-cuda` tag alone. The remedy moved from the brain's embedder to the three live tests
   above, since a log line in `LlamaCppEmbedder` would not reach a reading those tests produce. Not
   built tonight: the card was in use and the print needs a live run to check.
-- 2026-10-04: the print is built: `served_build` reads `build_info` off `GET /props`, fails the
-  run before it embeds when the body names no build, and is unit-tested against a scripted
-  `/props`; the three tests call it and both measurement runbooks say so. Not run live, because a
-  detached run held the machine. The local `server` tag reads `b10680` at revision `d7bd3bfca` on
-  its image labels and was last tagged 2026-08-30, before both September rows, so both embedded
-  on that build unless the tag moved and moved back; the 2026-08-07 row predates the tag.
-  Owed: one `test_recall_floor_live.py` run against the CPU embedder, and its row.
+- 2026-10-04: done. `served_build` reads `build_info` off `GET /props`, fails the run before it
+  embeds when the body names no build, and is unit-tested against a scripted `/props`; the three
+  tests call it and both measurement runbooks say so. One `test_recall_floor_live.py` run against
+  the CPU embedder (`server` tag, `-ngl 0`) printed `embedder  b10680-d7bd3bfca`, and the
+  relevance floor section of `docs/readings/ranked-recall.md` names that build beside numbers
+  equal to its 2026-08-08 column to the printed precision. The local `server` tag reads `b10680`
+  at revision `d7bd3bfca` on its image labels and was last tagged 2026-08-30, before both
+  September rows, so both embedded on that build unless the tag moved and moved back.

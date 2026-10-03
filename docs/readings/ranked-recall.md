@@ -126,6 +126,12 @@ behind the shipped embedder, crossing by 0.0253, and 0.0068 wide behind the othe
 plus `ABSENT` alone the populations do separate, by +0.2104, which is the reopening condition the
 test asserts. Method: `packages/inference/tests/test_recall_floor_live.py`, CPU embedder only.
 
+**2026-10-04.** The shipped column taken again on embedder build `b10680-d7bd3bfca`, the build the
+test printed off the embedder's `GET /props`, from the memory override's `server` tag with `-ngl 0`.
+All three bands, the -0.1582 separation, the 0.6325 floor and its MRR and `TRAP` figures equal the
+2026-08-08 column to the printed precision. The v2-moe column was not taken again, and no
+record names the build of either 2026-08-08 run.
+
 ## Counting the candidate set
 
 **2026-08-10.** Postgres 16 with pgvector, the shipped `memories` schema, 768-dimension vectors,
