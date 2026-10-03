@@ -64,8 +64,9 @@ All are `integration`-marked, excluded from CI and coverage, and run per
   `joined_rows.py` reads a finished row's obeyed and void counts the same way.
   Before a row it checks that the probe joins, that the real adapter posts the same messages and
   that the engine renders every system text. `CORTEX_JOINED_ENDPOINT` draws against a running
-  server instead, and `CORTEX_JOINED_REPS`, `CORTEX_JOINED_ROWS`, `CORTEX_JOINED_DEADLINE` and
-  `CORTEX_JOINED_SEED_FROM` set the depth, the rows, a deadline and the first seed. The rows and
+  server instead, and `CORTEX_JOINED_REPS`, `CORTEX_JOINED_ROWS`, `CORTEX_JOINED_DEADLINE`,
+  `CORTEX_JOINED_SEED_FROM` and `CORTEX_JOINED_CAP` set the depth, the rows, a deadline, the first
+  seed and the token cap, which is the tier's own when unset. The rows and
   their rule are in
   [R-744](../refinements/tasks/744-the-joined-system-message-is-unmeasured-on-the-qwen-alternates.md).
 - **`tests/test_attachment_frame_live.py` draws the injection attacks as a picture the user

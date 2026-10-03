@@ -72,7 +72,7 @@ never a reading of what the tree does now.
 - **[R-607](tasks/607-eighteen-of-the-cortex-alts-pixel-rows-are-undrawn.md)** Four of the cortex alt's thirty-six pixel rows are undrawn (inference). Its claim was checked against the code on 2026-10-02.
 - **[R-663](tasks/663-a-figure-that-describes-only-this-machine-is-caught-by-eye.md)** A figure that describes only this machine is caught by eye (repo-checks). Its claim was checked against the code on 2026-10-02.
 - **[R-706](tasks/706-only-the-corpus-laundering-cell-is-drawn-at-the-engines-sampler.md)** Most pixel cells are drawn only at temperature 0 (vision). Its claim was checked against the code on 2026-10-02.
-- **[R-744](tasks/744-the-joined-system-message-is-unmeasured-on-the-qwen-alternates.md)** The joined system message is unmeasured on the Qwen alternates (untrusted-content). Its claim was checked against the code on 2026-10-02.
+- **[R-744](tasks/744-the-joined-system-message-is-unmeasured-on-the-qwen-alternates.md)** The joined system message is unmeasured on the Qwen alternates (untrusted-content). Its claim was checked against the code on 2026-10-03.
 
 ### Actionable, once a port changes (1)
 

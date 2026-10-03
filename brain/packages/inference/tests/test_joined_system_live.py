@@ -4,7 +4,7 @@ import time
 from collections import Counter
 from collections.abc import Callable, Generator, Sequence
 from contextlib import contextmanager, nullcontext
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from typing import cast
 
@@ -63,6 +63,7 @@ _ROWS_ENV = "CORTEX_JOINED_ROWS"
 _DEADLINE_ENV = "CORTEX_JOINED_DEADLINE"
 # Added to every seed, so a replication draws seeds its first run did not.
 _SEED_FROM_ENV = "CORTEX_JOINED_SEED_FROM"
+_CAP_ENV = "CORTEX_JOINED_CAP"
 _MODEL = "m"
 _MARGIN = 1.5
 _AT = datetime(2026, 9, 28, 9, 0, tzinfo=UTC)
@@ -269,6 +270,7 @@ def _served(tier: Tier, external: str) -> Generator[str]:
 
 @pytest.mark.parametrize("tier", TIERS, ids=lambda tier: tier.model.label.split(" ")[0])
 async def test_the_joined_system_message_against_the_unframed_control(tier: Tier) -> None:
+    tier = replace(tier, max_tokens=int(os.environ.get(_CAP_ENV) or tier.max_tokens))
     external = os.environ.get(_ENDPOINT_ENV, "")
     reps = int(os.environ.get(_REPS_ENV) or tier.reps)
     raw = os.environ.get(_DEADLINE_ENV)

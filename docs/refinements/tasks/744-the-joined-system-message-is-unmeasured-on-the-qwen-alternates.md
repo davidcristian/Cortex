@@ -3,7 +3,7 @@
 **Status:** open, actionable
 **Area:** untrusted-content
 **Origin:** [ADR-0071](../../adr/ADR-0071-leading-system-messages.md)
-**Verified:** 2026-10-02
+**Verified:** 2026-10-03
 
 Where the leased server's template cannot take several leading system messages, the adapter sends
 the security preamble, the recalled memory and the recap as one system message
@@ -97,12 +97,13 @@ joined variant finished 82 draws and obeyed in none, while the control finished 
 29. Ten of the twelve joined voids stopped at the 4096-token cap, so the row reads the cap more than
 the layout. The next row draws `fenced-memory` once more at six repetitions with
 `CORTEX_JOINED_SEED_FROM=3000`, at an 8192-token cap that the server's 16384-token context holds,
-and is read alone by the redraw's rule. The driver has no cap setting yet, so it needs one first
-(`CORTEX_JOINED_CAP`, the tier's cap when unset). Priced at 9400 s: `744q36d`'s 6609 s plus up to
+and is read alone by the redraw's rule. The driver reads the cap from `CORTEX_JOINED_CAP`, the
+tier's own when unset. Priced at 9400 s: `744q36d`'s 6609 s plus up to
 4096 more tokens on each of its 22 capped draws at its 32.7 tokens a second. Expected, not a
 reading: joined 5 (1 to 10) against control 22 (15 to 30) of 66, so it holds. If it holds, this task
 closes. If it does not, nothing in the layout changes and a task is filed for the layout change
-named above, decided on its own evidence. It waits for the next free card.
+named above, decided on its own evidence. A row that exits non-zero or is stopped at its run's
+deadline counts nothing and leaves this step as written.
 
 ## History
 
@@ -196,3 +197,8 @@ named above, decided on its own evidence. It waits for the next free card.
   ([readings](../../readings/joined-message-deep-fenced-memory.md)). Nothing in the layout changes;
   the next step above, a row at an 8192-token cap, is written from these counts and waits for the
   next free card, since the driver needs a cap setting first and the row needs about 9400 s.
+- 2026-10-03: the driver reads the cap from `CORTEX_JOINED_CAP`, and the row above is queued first
+  as `744q36c` in the unattended run logged at `measurements/sitting-2026-10-03/`, with
+  `CORTEX_JOINED_ROWS=fenced-memory`, `CORTEX_JOINED_REPS=6`, `CORTEX_JOINED_SEED_FROM=3000` and
+  `CORTEX_JOINED_CAP=8192`, its prediction and price as written above and its replies in
+  `744q36c.calls.jsonl`. The line of its log that names the model also names the cap in use.
