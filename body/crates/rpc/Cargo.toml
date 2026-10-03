@@ -21,6 +21,8 @@ tonic.workspace = true
 tonic-prost.workspace = true
 
 [dev-dependencies]
+# `FakeAudio`, the one fake the shared `AudioControl` check list holds to the adapters.
+body-contract.workspace = true
 # "sync" is dev-only: the contract tests' stoppable fake brain uses a oneshot
 # to trigger graceful shutdown (brain-death-after-connect scenario).
 tokio = { workspace = true, features = ["macros", "net", "rt-multi-thread", "sync"] }

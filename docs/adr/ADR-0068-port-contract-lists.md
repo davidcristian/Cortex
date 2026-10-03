@@ -108,14 +108,39 @@ review then listed every port in both languages to find the others.
     ([ADR-0008](ADR-0008-memory-v1.md), [ADR-0038](ADR-0038-ranked-recall.md)). The four with a pool
     factor refuse one below one with the same message.
 
-11. **The Rust rows stay open.** No Rust port has a shared list. `FakeAudio`, `FakeNotify` and
-    `FakeScreen` are each written twice, under `body/crates/core/tests/` and
-    `body/crates/rpc/tests/`, and `FakeBrain` twice inside the latter. The generic helpers that
-    look like drivers (`register_via`, `get_via`, `show_via`, `capture_via`, `probe`) contain no
-    assertions. Building the lists is
-    [R-018](../refinements/tasks/018-ports-without-contract-suite.md).
+11. **A Rust list is a table of named functions over trait objects, in `body/crates/contract`.**
+    Each port's module in that crate (`body_contract::audio`) holds a subject trait, which builds
+    the implementation under test in each condition a check needs (`holding`, `without_endpoint`,
+    `broken`); a `const` table of checks, each a plain `fn(&dyn AudioSubject)` that the `named!`
+    macro pairs with its own name; and a `run` that calls every check in order, writing each name to
+    stderr first. A driver is one `#[test]` per implementation that calls `run`, so the first
+    failing check stops it and is named in its output. The crate is a workspace member named only in
+    other crates' dev-dependencies, so it is linted and measured like any other, and a port's fake
+    moves into it when the port's list is written, replacing the copies in each crate's tests.
 
-12. **A list is proven able to fail on each implementation when it is committed**, by breaking
+    A generic list is rejected for the coverage rule. A generic check is compiled once per
+    implementation, and `cargo llvm-cov` keeps one record per instantiation without merging them: on
+    2026-10-03 (rustc 1.98.0-nightly of 2026-07-01, cargo-llvm-cov 0.8.7) an `if` that each of two
+    implementations took a different way read 1 of 2 branches when generic and 2 of 2 over `&dyn`.
+    Over trait objects each check is one function, so the drivers together cover it. A check
+    compares only what every implementation agrees on: the level at a sound server's resolution of
+    1/65536, and an error's variant through `std::mem::discriminant` without its text, since
+    `matches!` leaves a region for the branch a passing check never takes. A port whose methods
+    return `impl Future` is not dyn-compatible, so `BrainTransport` needs its own shape
+    ([R-781](../refinements/tasks/781-a-shared-check-list-for-the-brain-transport.md)).
+
+12. **A write-only port's list checks what comes back through the port.** `Notify::show` answers
+    whether the notification was shown, and `Hotkey::register` answers success or an error and later
+    runs a callback. Their lists check the answer and the error variant in each condition the
+    subject builds, and how often the callback runs after a press the subject makes. What reached
+    the OS (the toast's text, the bus message, the key grab) is readable only through one side's own
+    double, so it is checked on that side, as decision 6 says of the Python sinks. A condition only
+    some implementations can be put in is a subject method returning `Option`, and the check returns
+    on `None`: `LinuxNotify` cannot answer `false`, because the freedesktop specification gives a
+    server no way to decline. The fake takes one branch and the adapter the other, which covers
+    both.
+
+13. **A list is proven able to fail on each implementation when it is committed**, by breaking
     production code on one side and seeing the check fail on that side alone, per AGENTS.md.
 
 ## The inventory
@@ -153,7 +178,7 @@ Rust and the overlay:
 | Port | Fake | Real adapter | Shared checks | CI: fake | CI: adapter |
 | --- | --- | --- | --- | --- | --- |
 | `Hotkey` | `FakeHotkey` | `WindowsHotkey`, `LinuxHotkey`, a macOS stub | none | yes | Linux only, over a fake key grab and a peer X server |
-| `AudioControl` | `FakeAudio`, written twice | `WindowsAudioControl`, `LinuxAudioControl` | none | yes | Linux only, over a fake runner and real child processes |
+| `AudioControl` | `FakeAudio`, in `body/crates/contract` | `WindowsAudioControl`, `LinuxAudioControl` | `body_contract::audio` | yes | Linux only, over a stand-in sound server behind `pactl` |
 | `Notify` | `FakeNotify`, written twice | `WindowsNotify`, `LinuxNotify` | none | yes | Linux only, over a fake bus and a peer D-Bus server |
 | `ScreenCapture` | `FakeScreen`, written twice | `WindowsScreenCapture`, `LinuxScreenCapture`, `DeniedScreenCapture` | none | yes | the denying one, and Linux over a fake root and a peer X server |
 | `BrainTransport` | `FakeTransport`, `ScriptedTransport`, `FlakyTransport`, `StallingTransport` | `BrainRpcClient`, `RetryingTransport` | none | yes | yes, a loopback fake `BrainService` |
@@ -169,8 +194,8 @@ Rust and the overlay:
   written in the port's description or the module doc, never in one implementation's test.
 - Six configured model ids cannot be mis-wired without a failing test, at no startup cost and no
   port change.
-- Until R-018 is done, the Rust fakes can disagree with each other and with the Windows and Linux
-  adapters.
+- Until R-018 and R-781 are done, the other Rust fakes can disagree with each other and with the
+  Windows and Linux adapters.
 
 ## Alternatives rejected
 
@@ -189,5 +214,6 @@ Rust and the overlay:
   checks the drivers run under).
 - Modules: [brain-core](../modules/brain-core.md), [brain-inference](../modules/brain-inference.md),
   [brain-session](../modules/brain-session.md), [brain-email](../modules/brain-email.md),
-  [brain-tools](../modules/brain-tools.md), [body-app](../modules/body-app.md).
+  [brain-tools](../modules/brain-tools.md), [body-app](../modules/body-app.md),
+  [body-contract](../modules/body-contract.md).
 - Backlog: [R-018](../refinements/tasks/018-ports-without-contract-suite.md).

@@ -225,6 +225,10 @@ runs instead; `os_linux`'s real backends are measured in full. Neither silences 
   clamp lives in `body_core`, and so do the inert-text rule, the taint attribution and the XML
   escaping. What `os_linux` adds is protocol translation (when to escape, how to parse `pactl`,
   how an X server lays out a pixel), covered by tests over fakes.
+- `LinuxAudioControl` also runs the shared `AudioControl` list over a stand-in sound server
+  (`tests/audio_contract.rs`, [body-contract.md](body-contract.md)), so it and `FakeAudio` are held
+  to one description. The other three Linux backends have no shared list yet
+  ([R-018](../refinements/tasks/018-ports-without-contract-suite.md)).
 - Stubs are `unimplemented!()` with a reason, and `coverage(off)` marks only genuinely unreachable
   code.
 - Coverage is measured on **Linux CI**, including every line of `os_linux`. The Windows backends
@@ -238,7 +242,7 @@ runs instead; `os_linux`'s real backends are measured in full. Neither silences 
 **Dependencies.** `body-core` (the ports). `os_linux` adds `zbus` 5 (MIT, pure Rust, `async-io` and
 `blocking-api` features, plus `p2p` for its tests) and `x11rb` 0.13 (MIT or Apache-2.0, pure Rust,
 no default features, so no `libxcb`, with `randr`, plus `xtest` for its live test) under a
-`cfg(target_os = "linux")` target table; it runs
+`cfg(target_os = "linux")` target table, and `body-contract` for its tests; it runs
 `pactl` as a program and links no audio or X library. The real `os_windows` adds `global-hotkey`
 and the `windows` crate (`0.61`, with Core Audio plus the `UI_Notifications` and `Data_Xml_Dom`
 WinRT namespaces), both under `[target.'cfg(windows)'.dependencies]`, so they never build on Linux.

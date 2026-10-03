@@ -260,6 +260,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "body-contract"
+version = "0.1.0"
+dependencies = [
+ "body-core",
+]
+
+[[package]]
 name = "body-core"
 version = "0.1.0"
 dependencies = [
@@ -276,6 +283,7 @@ name = "body-rpc"
 version = "0.1.0"
 dependencies = [
  "async-stream",
+ "body-contract",
  "body-core",
  "futures-core",
  "prost",
@@ -894,6 +902,7 @@ dependencies = [
 name = "os-linux"
 version = "0.1.0"
 dependencies = [
+ "body-contract",
  "body-core",
  "x11rb",
  "zbus",

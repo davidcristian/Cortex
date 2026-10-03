@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/core", "crates/rpc", "crates/os_linux", "crates/os_macos", "crates/os_windows"]
+members = ["crates/contract", "crates/core", "crates/rpc", "crates/os_linux", "crates/os_macos", "crates/os_windows"]
 # The Tauri app (body/app/src-tauri) is its own workspace root, built and checked on the
 # host, so `cargo --workspace` must never descend into it.
 exclude = ["app"]
@@ -11,6 +11,7 @@ edition = "2024"
 publish = false
 
 [workspace.dependencies]
+body-contract = { path = "crates/contract" }
 body-core = { path = "crates/core" }
 async-stream = "0.3"
 futures-core = "0.3"

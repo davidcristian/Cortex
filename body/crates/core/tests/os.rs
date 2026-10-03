@@ -1,10 +1,10 @@
 use std::cell::RefCell;
+use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Arc, Mutex, PoisonError};
 
 use body_core::{
-    Accelerator, AudioControl, AudioError, Hotkey, HotkeyCallback, HotkeyChord, HotkeyError,
-    Modifier, VolumeChange, VolumeState,
+    Accelerator, AudioError, Hotkey, HotkeyCallback, HotkeyChord, HotkeyError, Modifier,
+    VolumeChange, VolumeState,
 };
 
 /// A fake `Hotkey` backend: records the chords it registers and fires the callback once per
@@ -159,97 +159,6 @@ fn hotkey_backend_reports_registration_failure_without_firing() {
     assert_eq!(error, HotkeyError::Registration(String::from("taken")));
     assert_eq!(hits.load(Ordering::SeqCst), 0);
     assert!(backend.registered.borrow().is_empty());
-}
-
-/// A fake `AudioControl` backend: reads and writes a `Mutex`-held state, or returns a scripted
-/// error.
-struct FakeAudio {
-    state: Mutex<VolumeState>,
-    fail: Option<AudioError>,
-}
-
-impl AudioControl for FakeAudio {
-    fn get_volume(&self) -> Result<VolumeState, AudioError> {
-        if let Some(error) = &self.fail {
-            return Err(error.clone());
-        }
-        Ok(*self.state.lock().unwrap_or_else(PoisonError::into_inner))
-    }
-
-    fn set_volume(&self, change: VolumeChange) -> Result<VolumeState, AudioError> {
-        if let Some(error) = &self.fail {
-            return Err(error.clone());
-        }
-        let mut state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
-        if let Some(level) = change.level {
-            state.level = level;
-        }
-        if let Some(mute) = change.mute {
-            state.muted = mute;
-        }
-        Ok(*state)
-    }
-}
-
-/// Reads through a generic bound, the way the `BodyService` server does.
-fn get_via<A: AudioControl>(backend: &A) -> Result<VolumeState, AudioError> {
-    backend.get_volume()
-}
-
-/// Writes through a generic bound.
-fn set_via<A: AudioControl>(backend: &A, change: VolumeChange) -> Result<VolumeState, AudioError> {
-    backend.set_volume(change)
-}
-
-#[test]
-fn audio_backend_reads_and_writes_through_the_bound() {
-    let backend = FakeAudio {
-        state: Mutex::new(VolumeState {
-            level: 0.4,
-            muted: false,
-        }),
-        fail: None,
-    };
-    assert_eq!(
-        get_via(&backend).unwrap(),
-        VolumeState {
-            level: 0.4,
-            muted: false,
-        },
-    );
-    assert_eq!(
-        set_via(&backend, VolumeChange::new(Some(0.9), Some(true))).unwrap(),
-        VolumeState {
-            level: 0.9,
-            muted: true,
-        },
-    );
-    assert_eq!(
-        set_via(&backend, VolumeChange::new(None, Some(false))).unwrap(),
-        VolumeState {
-            level: 0.9,
-            muted: false,
-        },
-    );
-}
-
-#[test]
-fn audio_backend_surfaces_its_error() {
-    let backend = FakeAudio {
-        state: Mutex::new(VolumeState {
-            level: 0.5,
-            muted: false,
-        }),
-        fail: Some(AudioError::NoEndpoint(String::from("no device"))),
-    };
-    assert_eq!(
-        get_via(&backend).unwrap_err(),
-        AudioError::NoEndpoint(String::from("no device")),
-    );
-    assert_eq!(
-        set_via(&backend, VolumeChange::new(Some(0.1), None)).unwrap_err(),
-        AudioError::NoEndpoint(String::from("no device")),
-    );
 }
 
 #[test]

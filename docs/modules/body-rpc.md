@@ -231,14 +231,14 @@ client in `tests/handoff_live.rs`, run by `just rpc-handoff approve` or `deny`, 
   including brain death after a successful connect, the lazy constructor, the confirmation round
   trip (ADR-0022) for approve, deny, a `ConfirmResolved` the caller never answers staying
   non-terminal and an empty decisions stream half-closing, and the reminder pull (ADR-0025). The
-  `body_service` server is covered the same way, through a real loopback server over a fake
-  `AudioControl` and a fake `Notify`: the volume paths, both `audio_error_to_status` cases, the
-  `Unimplemented` handlers, the `RpcTokenValidator` pass-through and its accept and reject cases, a
-  shown toast whose recorded `Notification` proves the wire text reached the backend already inert
-  and badged, a declined one answering `shown=false`, and three `off_worker` cases, where both fakes
-  record **which thread** each call ran on (a backend reporting a thread other than the
-  current-thread test runtime's is the proof the call left the async worker) and a panicking backend
-  answers `Internal` twice over the *same* channel, proving the connection survives it.
+  `body_service` server is covered the same way, through a real loopback server over
+  `body_contract`'s `FakeAudio` and a fake `Notify`: the volume paths, both `audio_error_to_status`
+  cases, the `Unimplemented` handlers, the `RpcTokenValidator` pass-through and its accept and
+  reject cases, a shown toast whose recorded `Notification` proves the wire text reached the backend
+  already inert and badged, a declined one answering `shown=false`, and three `off_worker` cases,
+  where both fakes record **which thread** each call ran on (a backend reporting a thread other than
+  the current-thread test runtime's is the proof the call left the async worker) and a panicking
+  backend answers `Internal` twice over the *same* channel, proving the connection survives it.
 - Every one of those runs twice per check, alphabetically under the stable `cargo test` and permuted
   under the nightly coverage step's fixed shuffle seed; the rule for adding a test to the biggest
   binaries in this workspace is in [body-core.md](body-core.md).
@@ -247,4 +247,4 @@ client in `tests/handoff_live.rs`, run by `just rpc-handoff approve` or `deny`, 
 (the `converse` reply mapping), `tokio-stream` (chaining the confirmation decisions onto the request
 stream), `futures-core` (the `Stream` trait) and `tokio` with `rt` only (`spawn_blocking` for the
 synchronous OS calls). Build dependency: `tonic-prost-build`, idle unless `CORTEX_REGEN_PROTO=1`.
-Dev-only `tokio` features: `macros`, `net`, `rt-multi-thread` and `sync`.
+Dev-only: `body-contract` and the `tokio` features `macros`, `net`, `rt-multi-thread` and `sync`.

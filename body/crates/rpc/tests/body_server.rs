@@ -4,10 +4,10 @@ use std::net::SocketAddr;
 use std::sync::{Arc, Mutex, PoisonError};
 use std::thread::{self, ThreadId};
 
+use body_contract::{FakeAudio, Threads};
 use body_core::{
-    AudioControl, AudioError, Capture, CaptureError, CaptureRequest, CaptureTarget, CapturedFrame,
+    AudioError, Capture, CaptureError, CaptureRequest, CaptureTarget, CapturedFrame,
     DeniedScreenCapture, Notification, Notify, NotifyError, RawFrame, ScreenCapture, TargetRect,
-    VolumeChange, VolumeState,
 };
 use body_rpc::body_service;
 use body_rpc::generated::body_service_client::BodyServiceClient;
@@ -23,10 +23,6 @@ use tonic::transport::{Channel, Server};
 use tonic::{Code, Request};
 
 const TOKEN: &str = "sekrit-seam-token";
-
-/// The threads a fake backend was called on, shared with the test after the fake itself has moved
-/// into the server task.
-type Threads = Arc<Mutex<Vec<ThreadId>>>;
 
 /// Records `thread` as one call site.
 fn record(threads: &Threads, thread: ThreadId) {
@@ -44,78 +40,7 @@ fn recorded(threads: &Threads) -> Vec<ThreadId> {
         .clone()
 }
 
-/// What a fake `AudioControl` does when called.
-enum AudioBehaviour {
-    Answer,
-    Fail(AudioError),
-    Panic,
-}
-
-/// A fake `AudioControl`: reads/writes a `Mutex`-held state (the port is `Send + Sync`), or applies
-/// a scripted failure on every call.
-struct FakeAudio {
-    state: Mutex<VolumeState>,
-    behaviour: AudioBehaviour,
-    threads: Threads,
-}
-
-impl FakeAudio {
-    fn scripted(level: f32, muted: bool, behaviour: AudioBehaviour) -> Self {
-        Self {
-            state: Mutex::new(VolumeState { level, muted }),
-            behaviour,
-            threads: Threads::default(),
-        }
-    }
-
-    fn new(level: f32, muted: bool) -> Self {
-        Self::scripted(level, muted, AudioBehaviour::Answer)
-    }
-
-    fn failing(error: AudioError) -> Self {
-        Self::scripted(0.5, false, AudioBehaviour::Fail(error))
-    }
-
-    fn panicking() -> Self {
-        Self::scripted(0.5, false, AudioBehaviour::Panic)
-    }
-
-    /// A handle on the call sites, taken before the fake moves into the server.
-    fn threads(&self) -> Threads {
-        Arc::clone(&self.threads)
-    }
-
-    /// Records the calling thread, then applies the scripted behaviour.
-    fn enter(&self) -> Result<(), AudioError> {
-        record(&self.threads, thread::current().id());
-        match &self.behaviour {
-            AudioBehaviour::Answer => Ok(()),
-            AudioBehaviour::Fail(error) => Err(error.clone()),
-            AudioBehaviour::Panic => panic!("the audio backend died mid-call"),
-        }
-    }
-}
-
-impl AudioControl for FakeAudio {
-    fn get_volume(&self) -> Result<VolumeState, AudioError> {
-        self.enter()?;
-        Ok(*self.state.lock().unwrap_or_else(PoisonError::into_inner))
-    }
-
-    fn set_volume(&self, change: VolumeChange) -> Result<VolumeState, AudioError> {
-        self.enter()?;
-        let mut state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
-        if let Some(level) = change.level {
-            state.level = level;
-        }
-        if let Some(mute) = change.mute {
-            state.muted = mute;
-        }
-        Ok(*state)
-    }
-}
-
-/// What a fake `Notify` does when called, mirroring [`AudioBehaviour`].
+/// What a fake `Notify` does when called.
 #[derive(Clone)]
 enum NotifyBehaviour {
     Answer(bool),

@@ -150,8 +150,9 @@ brain/            Python workspace (uv), dockerized (brain/Dockerfile)
 body/             Rust/Tauri workspace, host-native
   crates/         core (pure logic + the Hotkey, AudioControl, ScreenCapture and Notify
                   traits + BrainTransport), rpc (tonic adapter and committed stubs),
-                  os_windows (the real Windows backends), os_linux (notify and volume),
-                  os_macos (stub)
+                  os_windows (the real Windows backends), os_linux (notify, volume, capture
+                  and the X11 hotkey), os_macos (stub), contract (the shared port check
+                  lists and their fakes, for tests only)
   app/            React+Vite overlay, tested to 100%, plus its host-native Tauri shell
                   cortex-body, its own workspace, formatted and clippy-checked in CI
 scripts/          this repo's own checks, one module per file, written and tested like the

@@ -1,0 +1,12 @@
+[package]
+name = "body-contract"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+description = "The body's shared port check lists and the fakes held to them (lib name: body_contract)"
+
+[dependencies]
+body-core.workspace = true
+
+[lints]
+workspace = true

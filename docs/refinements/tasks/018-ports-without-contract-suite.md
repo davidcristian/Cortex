@@ -12,28 +12,32 @@ had no such list. The full inventory is in
 [ADR-0068](../../adr/ADR-0068-port-contract-lists.md), which also names the ports whose two
 implementations legitimately cannot share checks.
 
-Every Python port and the overlay's `BrainBridge` now have a list, twenty-two in all: twenty-one in
+Every Python port and the overlay's `BrainBridge` have a list, twenty-two in all: twenty-one in
 Python (nineteen named `<port>_contract.py`, plus `session/tests/contract.py` and the own-text list
-inside `tools/tests/test_own_text_contract.py`) and the overlay's `bridgeContract.ts`. What is left
-is the Rust workspace, which has no shared check list for any port.
+inside `tools/tests/test_own_text_contract.py`) and the overlay's `bridgeContract.ts`. In Rust,
+`AudioControl` has one: `body_contract::audio` in `body/crates/contract`, run over the one
+`FakeAudio` and over `LinuxAudioControl` on a stand-in sound server. ADR-0068 decisions 11 and 12
+settle the shape every other Rust list takes and what a write-only port owes. `BrainTransport`
+cannot take that shape and is [R-781](781-a-shared-check-list-for-the-brain-transport.md).
 
-The Rust problem is worse than a repeated list; it is a repeated fake. `FakeAudio`, `FakeNotify`
-and `FakeScreen` are each hand-written twice with independent expectations, once under
-`body/crates/core/tests/` and again in `body/crates/rpc/tests/body_server.rs`, and `FakeBrain` is
-written twice inside `body/crates/rpc/tests/`, in `converse.rs` and in `client.rs`. The generic
-helpers that look like the missing driver (`register_via`, `get_via`, `show_via`, `capture_via`,
-`probe`) contain no assertions at all; they only show that the trait is usable as a bound.
-`BrainTransport` has eleven methods and four test fakes, each in its own suite: `FakeTransport`,
-`ScriptedTransport`, `FlakyTransport` and `StallingTransport`. Each of the four OS ports now has a
-Linux adapter in `body/crates/os_linux/` that CI compiles and runs, each over test doubles of its
-own (a fake `pactl` runner, a fake bus, a fake key grab, peer D-Bus and X servers). So a shared
-list would run in CI over a fake and a real adapter for every Rust port except `Sleeper`, whose
-`TokioSleeper` is in the Tauri shell outside the checked workspace, and it would hold the Windows
-backends, which CI does not run, to the same description the day the host runs it.
+What is left is three OS ports, each a module in `body/crates/contract` with a subject trait, a
+`named!` table and a `run`, a driver over the fake in that crate's tests and one over the Linux
+adapter in `body/crates/os_linux/tests/`, with the port's fake moved into the crate:
 
-Two design questions come first: what a write-only port owes, and whether a Rust list is a generic
-function or a table of function pointers. The inventory in the ADR is the worklist, port by
-port.
+- `Notify`: `FakeNotify` is written twice, in `core/tests/notify.rs` and
+  `rpc/tests/body_server.rs`, and `LinuxNotify` runs over `FakeBus`. The list checks the answer
+  and the error variant only; a declining subject returns `None` for `LinuxNotify`, which cannot
+  answer `false`.
+- `ScreenCapture`: `FakeScreen` is written twice, in `core/tests/screen.rs` and
+  `rpc/tests/body_server.rs`. The list runs over it, over `DeniedScreenCapture` and over
+  `LinuxScreenCapture` on `FakeRoot`.
+- `Hotkey`: `FakeHotkey` is written once, in `core/tests/os.rs`, and it runs the callback when it
+  registers, which no real backend does, so its subject needs a press. `LinuxHotkey` runs over
+  `FakeKeys`. `Hotkey` is not `Send + Sync`, unlike the other three.
+
+The generic helpers that look like drivers and assert nothing (`register_via`, `show_via`,
+`capture_via` in `core/tests/`) go with their port's fake. The Windows backends run no list in CI;
+a host run over one would leave out the conditions a real desktop cannot be put in.
 
 ## History
 
@@ -113,3 +117,10 @@ port.
   and `FakeScreen` are each still written twice. `BrainTransport` has four test fakes, not three:
   `StallingTransport` in `core/tests/retry_gap.rs` was added on 2026-08-24. The origin's Rust table
   gained that fake and `LinuxHotkey`.
+- 2026-10-03: `AudioControl` closed, eight checks in `body/crates/contract`, the new crate that
+  holds the Rust lists and their fakes, over `FakeAudio` and over `LinuxAudioControl` on a stand-in
+  sound server. The two `FakeAudio` copies became one, the rpc server's tests use it, and the
+  assertion-free `get_via` and `set_via` went with them. ADR-0068 now states the list shape, a
+  table of named functions over trait objects, chosen because a generic check keeps one coverage
+  record per implementation, and what a write-only port owes. `BrainTransport` moved to
+  [R-781](781-a-shared-check-list-for-the-brain-transport.md).
