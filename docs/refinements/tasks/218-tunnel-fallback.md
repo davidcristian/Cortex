@@ -3,16 +3,21 @@
 **Status:** open, waiting for its trigger
 **Area:** body-gateway
 **Origin:** [ADR-0023](../../adr/ADR-0023-body-gateway-volume.md)
-**Trigger:** `host.docker.internal` failing, from a bridge-network container on this
-host, to reach a host service bound to an interface a container can see.
-**Verified:** 2026-09-24
+**Trigger:** a GET from `alpine:latest` on the default bridge network to
+`host.docker.internal:<port>` failing while a `python3 -m http.server` bound to `0.0.0.0` on this
+host listens on that port, which `ss -ltn` confirms before the dial. The same reach to the
+Windows-side body is observed by host task 002, not here.
+**Verified:** 2026-10-03
 
-The brain dials the body directly. If `host.docker.internal` proves unreliable on WSL2, tunnelling
-body-directed calls over a body-initiated bidirectional stream needs three things and no core or
-tool change: one new streaming RPC on `BrainService` in `proto/body.proto`, since that stream
-crosses the boundary and every call that crosses it is declared there; a body-side loop that opens
-it and serves the `BodyService` calls that arrive on it; and a different `BodyGateway` adapter in
-the brain.
+The brain dials the body directly, at `CORTEX_BODY_ENDPOINT` through `GrpcBodyGateway.connect`. If
+`host.docker.internal` proves unreliable on WSL2, tunnelling body-directed calls over a
+body-initiated bidirectional stream needs four things and no core or tool change: one new streaming
+RPC on `BrainService` in `proto/body.proto`, since that stream crosses the boundary and every call
+that crosses it is declared there; a body-side loop that opens it and serves the `BodyService`
+calls that arrive on it; a different `BodyGateway` adapter in the brain; and the composition root's
+part, a `BrainService` handler that hands the stream to that adapter and a third value in
+`BodyBackendName` (`cortex_orchestrator/config_body.py`, today `none` and `grpc`) that
+`build_body_gateway` in `builders.py` selects it by.
 
 
 ## History
@@ -44,3 +49,12 @@ the brain.
   running measurement session, so the 2026-09-17 reading is the latest. No commit since then
   touches the `host.docker.internal` lines in `docker/docker-compose.body.yml`. The entry said the
   tunnel was an adapter with no proto change; it needs a new streaming RPC and a body-side loop too.
+- 2026-10-03: Measured again and not fired, beside a running measurement container, with a dial
+  that used no GPU and published no port. A `python3 -m http.server` on `0.0.0.0`
+  at the kernel-chosen port 43772, confirmed with `ss -ltnp` first, was dialled from
+  `alpine:latest` on the default bridge under Docker Desktop 4.92.0 (engine 29.8.0): with the
+  `host-gateway` alias the name resolved to `fdc4:f303:9324::254` and without it to
+  `192.168.65.254`, and both GETs succeeded. The LAN address, `192.168.0.33` on `eth1` today, timed
+  out after 8 s. The listener is on the WSL side; the dial to the Windows-side body is host task
+  002's. Two corrections: the trigger now names the command that decides it, and the tunnel also
+  needs the composition root's selection and stream handler, which the entry had not counted.

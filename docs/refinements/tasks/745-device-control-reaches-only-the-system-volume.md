@@ -3,8 +3,9 @@
 **Status:** open, waiting for its trigger
 **Area:** body-gateway
 **Origin:** [ADR-0023](../../adr/ADR-0023-body-gateway-volume.md)
-**Trigger:** The maintainer picks a route below, or names the native actions a first slice builds.
-**Verified:** 2026-09-26
+**Trigger:** a History line in this file recording the maintainer's pick: route one with the
+native actions its first slice builds, or route two.
+**Verified:** 2026-10-03
 
 The assistant changes one thing on its machine, the system volume, through the cortex-only built-ins
 `get_volume` and `set_volume` over `BodyGateway`. `notify` and `capture_screen` use the same port but
@@ -17,7 +18,9 @@ history, so the plan to use them was never written down until now.
 Two routes that work together: native actions for this machine, Home Assistant for every other device.
 
 **Route one, more native actions.** Each is a `BodyService` RPC, a `cfg` OS trait with a Windows
-adapter, and a built-in tool, the way volume was built. Each Windows adapter is validated as a host
+adapter, and a built-in tool, the way volume was built. The shell has served `BodyService` on Linux
+too since 2026-09-28, with volume through `pactl`, so each action also needs a Linux adapter or an
+answer the brain classifies as `UNSUPPORTED`. Each Windows adapter is validated as a host
 task. Native actions work with no network and no Home Assistant. The confirmation column follows
 ADR-0023 decision 4: a reversible change to host state needs none. The Windows calls are
 assumptions until each is built.
@@ -69,3 +72,9 @@ the maintainer to pick an action group, which is then built. Declined if neither
 ## History
 
 - 2026-09-26: filed on the maintainer's request, as a proposal with no implementation.
+- 2026-10-03: Not fired: no commit since this file was filed records a pick. Every code claim
+  checked out: `streamable_http_session(url)` in `cortex_tools/registry.py` opens
+  `streamable_http_client(url)` with no headers, `build_subagent_tools` wraps the MCP registry in
+  `ConfirmFreeToolRegistry`, `CORTEX_TOOLS_GATED` is a list of names, and ADR-0017 still reads 9 of
+  100 against 0. Two corrections: the trigger named a choice the tree could not see, so it now names
+  where the pick is recorded; and route one now counts the Linux body the shell serves.

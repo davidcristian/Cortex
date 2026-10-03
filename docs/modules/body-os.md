@@ -81,8 +81,8 @@ worker is the server's job (`body_rpc::off_worker`), not the port's.
 `os_windows` is the **only** crate that opts out of the workspace `unsafe_code = forbid`, narrowly
 authorized by ADR-0023. It uses its own `[lints.rust] unsafe_code = deny` plus a scoped
 `#![allow(unsafe_code)]` per module, re-declaring the other workspace lints; every other crate keeps
-`forbid`. There are four such modules, each with its own authorization line naming its own decision
-record: `audio` (Core Audio, ADR-0023), `notify` (one apartment initialization, ADR-0025), `screen`
+`forbid`. There are four such modules, each allow's comment naming the API that needs it and each
+resting on its own decision record: `audio` (Core Audio, ADR-0023), `notify` (one apartment initialization, ADR-0025), `screen`
 (GDI plus the display-affinity call, ADR-0029) and `focus` (the Z-order walk behind a targeted
 capture, ADR-0029).
 

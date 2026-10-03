@@ -115,7 +115,7 @@ Windows Core Audio (`IMMDeviceEnumerator` to `IAudioEndpointVolume`) is COM, and
 crate presents every COM call as `unsafe`. The body workspace sets `unsafe_code = "forbid"`, which
 a crate cannot relax locally, so `os_windows` opts out with its own `unsafe_code = "deny"`
 (re-declaring the other workspace lints); each module that has an authorization re-enables it with
-a scoped `#![allow(unsafe_code)]` naming the ADR that granted it. This ADR authorizes the
+a scoped `#![allow(unsafe_code)]` whose comment names the API that needs it. This ADR authorizes the
 `audio` module. Three more have their own grants: `notify` (one `CoInitializeEx`, ADR-0025), and
 `screen` and `focus` (GDI and the Z-order walk, ADR-0029). Every other crate keeps `forbid`.
 `os_windows` is `cfg(windows)`, compiles to nothing on Linux and is validated on the host, never in
@@ -178,7 +178,7 @@ each backend behind an `Arc` only to lend it to that thread. A backend that pani
 ### 12. The body's port number is declared in the shell
 
 `DEFAULT_BODY_PORT` (`50151`) is a `const` in `body/app/src-tauri/src/body_server.rs`, the module
-that binds it, `cfg(windows)` like `start` itself. Hoisting it into `body_core` or `body_rpc`,
+that binds it, compiled for Windows and Linux like `serve` itself. Hoisting it into `body_core` or `body_rpc`,
 which `just check` compiles, was declined: neither crate binds anything, so the value would be
 exported for one consumer outside the workspace to buy a compiler's opinion of a `u16`. What can
 diverge is the compose default, the runbooks, the module contracts, the `docs/host/`
@@ -213,15 +213,15 @@ producer (a host change event such as `IAudioEndpointVolumeCallback`).
 - **Host-only:** the real `WindowsAudioControl`, the shell's bind and serve, and "set volume to
   30%" spoken end to end ([H-002](../host/tasks/002-core-audio-volume-action.md)). It needs a
   Windows desktop and any GPU that holds the cortex, not a 24 GB one specifically.
-- Both Windows backends call `CoInitializeEx` per call without a matching `CoUninitialize`, now on
-  blocking-pool threads tokio reclaims after its idle keep-alive; the fix is one dedicated
-  COM-initialized thread ([R-224](../refinements/tasks/224-unbalanced-com-initialization.md),
+- The audio and toast backends call `CoInitializeEx` per call without a matching `CoUninitialize`,
+  on blocking-pool threads tokio reclaims after its idle keep-alive; the fix is one startup
+  `CoIncrementMTAUsage` or one COM-initialized thread ([R-224](../refinements/tasks/224-unbalanced-com-initialization.md),
   observed on the host by [H-009](../host/tasks/009-unbalanced-com-initialization.md)).
-- A safe Core Audio crate would retire only the `audio` module's allow; the one examined
-  initializes COM per call, which R-224 rejects ([R-223](../refinements/tasks/223-safe-core-audio-wrapper.md)).
+- A safe Core Audio crate would retire only the `audio` module's allow; none examined fits, and
+  the nearest initializes COM per call, which R-224 rejects ([R-223](../refinements/tasks/223-safe-core-audio-wrapper.md)).
 - The non-loopback setup stays one shared token over plaintext. Transport credentials would touch
   four places (`aio.insecure_channel` in `GrpcBodyGateway.connect`, `Server::builder()` in
-  `body_server::start`, the brain's `add_insecure_port` and the body's `Channel::from_shared`), and
+  `body_server::serve`, the brain's `add_insecure_port` and the body's `Channel::from_shared`), and
   the tree builds tonic without TLS features, so enabling one is the first step
   ([R-219](../refinements/tasks/219-hardened-non-loopback-posture.md), triggered by the machine
   leaving single-user). The tunnel fallback stays deferred while `host.docker.internal` from a

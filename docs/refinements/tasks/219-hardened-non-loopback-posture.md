@@ -8,8 +8,9 @@ is single-user with loopback-only listeners except the body's and a shared-secre
 revised to admit a second user or a body and brain on different machines; or any compose file,
 runbook or default in the tree putting a listener where a second machine reaches it past the host
 firewall the body override relies on. Whether the machine really has one user is not something
-the tree can record; that assumption is where the tree says so.
-**Verified:** 2026-09-24
+the tree can record; that assumption is where the tree says so. The compose half is decided by
+listing every `ports:` entry under `docker/`: each starts with `127.0.0.1:` while not fired.
+**Verified:** 2026-10-03
 
 The body binds a configurable interface, loopback for development and `0.0.0.0` for the
 container-to-host path, behind the shared token and the host firewall. mTLS or per-direction tokens
@@ -19,8 +20,9 @@ Transport credentials reach four places, one per end of each direction, plus one
 brain-to-body direction, the brain opens the channel with `aio.insecure_channel` in
 `GrpcBodyGateway.connect` (`brain/packages/body_client/src/cortex_body_client/gateway.py`), which
 would take channel credentials and a trust root from configuration, and the body serves
-`Server::builder()` over a plain `TcpListenerStream` in the Tauri shell's `body_server::start`,
-which would take a server TLS config and, for mutual authentication, a client certificate root. On
+`Server::builder()` over a plain `TcpListenerStream` in the Tauri shell's `body_server::serve`,
+which the Windows and the Linux `start` both call and which would take a server TLS config and,
+for mutual authentication, a client certificate root. On
 the body-to-brain direction, the brain serves with `server.add_insecure_port` in
 `brain/packages/orchestrator/src/cortex_orchestrator/server.py`, and the body dials with
 `Channel::from_shared` in `body/crates/rpc/src/client.rs`, which the shell reaches through
@@ -32,11 +34,15 @@ both lockfiles resolve it to 0.14.6, and its defaults are `router`, `transport` 
 TLS is compiled into this tree at all and one of the `tls-ring` or `tls-aws-lc` features has to be
 enabled first.
 
-
-Splitting the one shared secret into a per-direction pair is separate and cheaper:
-`CORTEX_SEAM_TOKEN` is read by the brain's interceptor and by `RpcTokenValidator` for both
-directions, so a second variable means two readers, two settings tables and a change to the compose
-override's sentence about the token being shared.
+Splitting the one shared secret into a per-direction pair is separate and cheaper. Each side reads
+`CORTEX_SEAM_TOKEN` for both directions: the brain reads it once, as `token` on the `CORTEX_SEAM_`
+settings in `cortex_orchestrator/config.py`, and hands it to `RpcTokenInterceptor` in `server.py`
+and to `build_body_gateway` in `wiring.py`; the shell reads it three times, for its two brain
+clients in `brain.rs` and `converse.rs` and for `RpcTokenValidator` in `body_server.rs`. A second
+variable means a second setting in the brain, a new read in `body_server.rs`, and the docs that
+describe one token for both directions: the row in the `docs/runbooks/local-dev-wsl.md` settings
+table, the sentence in `docs/runbooks/body-volume.md`, and the `body-app` and
+`brain-orchestrator-config` module docs.
 
 The certificate lifecycle, not the code, is what makes this wait: a single-user machine has nowhere
 to put a private certificate authority that the host firewall does not already cover.
@@ -60,3 +66,9 @@ to put a private certificate authority that the host firewall does not already c
   and the four places and both token readers are as named. Two corrections: the shell declares
   tonic in a manifest of its own, and assumption 5 said loopback-only listeners while the body
   override has the body bind `0.0.0.0:50151`, so the ROADMAP now names that exception.
+- 2026-10-03: Checked again and not fired. Assumption 5 still reads single-user, and all 13
+  `ports:` entries under `docker/` publish on `127.0.0.1`. Both lockfiles still resolve tonic to
+  0.14.6 with no TLS crate in either. Two corrections: since the shell started serving on Linux, the
+  server is built in `body_server::serve`, which both platforms' `start` call; and the token
+  paragraph had each checker reading the variable for both directions and cited a compose sentence
+  that is not there, so it now names the brain's one read, the shell's three, and the runbook.

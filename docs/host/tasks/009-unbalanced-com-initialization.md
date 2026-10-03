@@ -5,7 +5,7 @@
 **Capability:** W
 **Origin:** [ADR-0023](../../adr/ADR-0023-body-gateway-volume.md)
 
-Not a check to run. Both Windows backends call `CoInitializeEx(COINIT_MULTITHREADED)` per call and
+Not a check to run. The audio and toast backends call `CoInitializeEx(COINIT_MULTITHREADED)` per call and
 never `CoUninitialize`, which on tokio's blocking pool means threads join the MTA and are later
 reaped unbalanced. Only a long-uptime Windows session with occasional OS actions can show it.
 

@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** body-gateway
 **Origin:** [ADR-0023](../../adr/ADR-0023-body-gateway-volume.md)
-**Verified:** 2026-09-24
+**Verified:** 2026-10-03
 **Trigger:** either of two readings. On a Win32 desktop, the watch item in `docs/host/`: a volume or
 toast call failing with a COM error after a long uptime, or the body process's handle count climbing
 across bursts of OS actions spaced further apart than tokio's blocking thread keep-alive (10 s by
@@ -11,7 +11,7 @@ default, and nothing under `body/` sets another), rather than returning to its i
 them. The thread count is the weaker witness, because tokio exits an idle blocking thread after that
 keep-alive whatever its apartment. In the tree,
 `grep -rn 'CoInitializeEx(\|CoUninitialize(' body/crates/os_windows/src/` reports two calls, both
-initializations, as of 2026-09-24; a third initialization, or any `CoUninitialize`, means the
+initializations, as of 2026-10-03; a third initialization, or any `CoUninitialize`, means the
 shape below has changed and this entry needs rereading before the observation does.
 
 Two Windows backends call `CoInitializeEx(COINIT_MULTITHREADED)` per call and never
@@ -21,7 +21,15 @@ reaps after an idle timeout, so a long uptime with sporadic OS actions joins the
 apartment from many threads that then exit without leaving it. Nothing observed has gone wrong, and
 it is arguably the behaviour a resident body wants, but it is documented as incorrect.
 
-The fix is to send the OS calls through one dedicated COM-initialized thread, which also avoids
+There are two candidate fixes, and a Windows run decides between them. The cheaper one is a single
+`CoIncrementMTAUsage` call when the body starts, with its cookie kept for the life of the process,
+and both per-call `CoInitializeEx` calls deleted. Microsoft documents that a thread which never
+initializes COM runs in the implicit multithreaded apartment while that apartment exists, so the
+blocking-pool threads would join nothing and leave nothing. The `windows` crate already does this
+for WinRT: `windows-core` 0.58.0's `src/imp/factory_cache.rs` calls `CoIncrementMTAUsage` when an
+activation fails with `CO_E_NOTINITIALIZED`, which means the toast backend's own call may not be
+needed at all. `CoIncrementMTAUsage` is in `Win32_System_Com`, which `os_windows` already enables.
+The other is to send the OS calls through one dedicated COM-initialized thread, which also avoids
 repeating the initialization. Uninitializing at the end of each call is the wrong fix, since it
 would tear down and rebuild apartment membership per call.
 
@@ -37,8 +45,9 @@ appears in no Rust source.
 The crate holds five modules: `audio` and `notify` initialize; `windows` reaches the OS through
 `global-hotkey`, which owns whatever it needs; and `screen` and `focus`, added on 2026-07-18 and
 2026-08-10, are raw Win32 with no COM at all. That was a decision rather than an accident, recorded
-in ADR-0029: GDI was chosen over DXGI Desktop Duplication and `Windows.Graphics.Capture` partly so
-that screen capture would not put a third initialized backend on the blocking pool.
+in ADR-0029 decision 9: GDI needs no COM apartment and no persistent device, so the capture fits
+`off_worker`'s `FnOnce + Send + 'static` closure, and its rejected alternatives name COM among the
+reasons DXGI Desktop Duplication and `Windows.Graphics.Capture` were not chosen.
 
 `body_rpc::server::off_worker` has four call sites: `get_volume` and `set_volume` in
 [server.rs](../../../body/crates/rpc/src/server.rs), which both reach `endpoint`, `notify` in the
@@ -68,3 +77,8 @@ So the exposure grew by one handler, not by one apartment.
   `body/crates/os_windows`, the four `off_worker` call sites are as named, nothing under `body/`
   sets the blocking pool's keep-alive, and H-009 records no Windows reading. The grep also matched
   the two `use` lines, so it now matches calls only, and the line numbers it reports were stale.
+- 2026-10-03: Rechecked from the source and not fired: the grep reports the same two calls, no
+  commit since 2026-09-24 touches `body/crates/os_windows`, the four `off_worker` call sites are as
+  named, and H-009 records no reading and agrees with this entry on both readings. Two corrections:
+  the fix now names the cheaper `CoIncrementMTAUsage` route beside the dedicated thread, and ADR-0029
+  states a closure and COM reason for GDI, not the blocking pool.
