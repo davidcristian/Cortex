@@ -2,7 +2,8 @@
 
 **Purpose.** The Linux implementations of the body's OS-capability ports: notifications over the
 freedesktop D-Bus service, volume through `pactl`, screen capture from the X root window or through
-the desktop portal's `Screenshot` call, and the global hotkey as an X key grab. What every
+the desktop portal's `Screenshot` call, and the global hotkey as an X key grab or through the
+portal's `GlobalShortcuts` calls. What every
 platform crate shares (the public contract, the coverage exemption, the invariants and the
 dependencies) is in [body-os.md](body-os.md).
 
@@ -173,8 +174,33 @@ decision 13).
   a `KeyPress` or `KeyRelease`. The host opens the display with `x11rb::connect(None)` as for
   capture, and `X11Keys::absent(&error)` fails every request with the error's text. On a Wayland
   session an X grab is assumed to see keys only while an X window has focus, so a Wayland session
-  needs the desktop portal's `GlobalShortcuts`
-  ([765](../refinements/tasks/765-a-wayland-hotkey-through-the-globalshortcuts-portal.md)).
+  needs the portal backend below.
+- **`LinuxPortalHotkey`** registers a chord through `org.freedesktop.portal.GlobalShortcuts`
+  (version 1). Each registration creates its own session (`CreateSession` with `handle_token` and
+  `session_handle_token`), then binds one shortcut in it (`BindShortcuts`): the id is the chord's
+  text, such as `ctrl+alt+space`, so a trigger the user changed in the compositor is kept per
+  chord; the description is the one the backend was built with; the preferred trigger is the chord
+  in the XDG shortcuts form (`trigger`: `CTRL`, `ALT`, `SHIFT` and `LOGO`, then the key's xkb
+  keysym name from `keysym_name`, such as `space`, `Return` or `F5`). A response must have code 0
+  and name the computed session handle, then the shortcut id; code 1 (cancelled), any other code,
+  or a success without the name fails as `Registration` and binds or keeps nothing. Request and
+  session handles come from the unique bus name as for `Screenshot`, with a fresh token
+  `cortex<n>` per request. The first successful registration starts one thread that reads
+  `Activated` signals and runs each binding whose session and id the signal names. `Deactivated`
+  (the release) is not read, since the port needs only the press.
+- **`DbusShortcuts`** makes those calls through the same request module as `DbusPortal`: the
+  `Response` match before the call, the returned handle checked, and the wait bounded, here by
+  `SHORTCUTS_LIMIT` (1 min), because a compositor may ask the user to confirm or change the
+  trigger first. It subscribes to `Activated` when it is built, so a press between a bind and the
+  first read is kept. It reads the session handle as a string, which the 1.18 frontend sends, or
+  as an object path, and the bound ids from the `shortcuts` result. The tests run the hotkey
+  check list over the core with an in-process fake, and the adapter against a fake portal over a
+  socket pair. No live test exists: of this distribution's portal backends only
+  `xdg-desktop-portal-kde` implements `GlobalShortcuts`, and the shell does not use this backend
+  yet ([788](../refinements/tasks/788-wire-the-portal-hotkey-into-the-wayland-shell.md)). Three
+  points are read from the specification and not tested against a backend: the trigger form,
+  whether a held chord sends one `Activated` or one per repeat, and what a backend answers when
+  the preferred trigger is taken.
 - `just os-linux-live` runs the five `#[ignore]`d live tests: a notification shown on the session
   bus, a volume and mute round trip on the default sink that restores what it found, a capture on
   `DISPLAY` that is refused before the test maps a window naming its own process and, after, comes

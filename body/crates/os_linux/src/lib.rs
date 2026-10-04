@@ -1,7 +1,7 @@
 //! Linux OS backends for the Cortex body.
 //!
-//! `Notify`, `AudioControl`, `ScreenCapture` (X11 and the screenshot portal) and the X11 `Hotkey`
-//! are real.
+//! `Notify`, `AudioControl`, `ScreenCapture` (X11 and the screenshot portal) and `Hotkey` (X11 and
+//! the global shortcuts portal) are real.
 #![cfg(target_os = "linux")]
 
 mod audio;
@@ -19,6 +19,8 @@ mod portal;
 mod portal_dbus;
 mod request;
 mod screen;
+mod shortcuts;
+mod shortcuts_dbus;
 mod x11;
 
 pub use audio::{LinuxAudioControl, PactlFailure, PactlRunner};
@@ -38,6 +40,10 @@ pub use screen::{
     Area, GrabError, Layer, Layout, LinuxScreenCapture, Monitor, Pixels, RootGrab, RootImage,
     Snapshot, TreeWindow,
 };
+pub use shortcuts::{
+    Activation, LinuxPortalHotkey, Shortcut, ShortcutsPortal, ShortcutsReply, keysym_name, trigger,
+};
+pub use shortcuts_dbus::{DbusShortcuts, SHORTCUTS_LIMIT};
 pub use x11::X11Root;
 /// The X11 client the capture and hotkey backends are built on. A host opens the display with it.
 pub use x11rb;

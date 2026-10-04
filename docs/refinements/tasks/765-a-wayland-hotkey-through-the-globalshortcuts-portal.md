@@ -1,9 +1,8 @@
 # A Wayland hotkey through the GlobalShortcuts portal
 
-**Status:** open, optional feature
+**Status:** done 2026-10-04
 **Area:** cross-cutting
 **Origin:** [ADR-0011](../../adr/ADR-0011-body-v1.md)
-**Verified:** 2026-10-04
 
 The Linux `Hotkey` backend grabs a key on an X server's root window, so a Wayland session gets no
 global hotkey from it. With no `DISPLAY`, `x11rb::connect(None)` fails and `X11Keys::absent` makes
@@ -38,3 +37,11 @@ shares its request and response handling with the screenshot portal in
   covered core and a `zbus` adapter tested against a fake portal over a socket pair can be built
   and checked here, and share their request handling with
   [752](752-wayland-screen-capture-through-the-portal.md).
+- 2026-10-04: Done for the backend. The premise held: the port needs a press and a registration
+  error, both of which the portal gives, and the screenshot adapter's request exchange moved into
+  a shared module with its tests unchanged. `LinuxPortalHotkey` creates one session per chord and
+  binds one shortcut in it; `DbusShortcuts` makes the calls; the hotkey check list runs over the
+  core, and the adapter is tested against a fake portal over a socket pair
+  ([body-os-linux](../../modules/body-os-linux.md)). No live test, since no backend here serves the
+  interface. The shell wiring, which needs its own thread because a bind may wait on a user dialog,
+  is [788](788-wire-the-portal-hotkey-into-the-wayland-shell.md).

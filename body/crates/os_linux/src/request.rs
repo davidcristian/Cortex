@@ -34,10 +34,10 @@ pub fn request(
         .and_then(|rule| rule.path(handle))
         .and_then(|rule| MessageIterator::for_match_rule(rule.build(), connection, None))
         .map(MessageIterator::into_inner)
-        .map_err(|error| failure(&error))?;
+        .map_err(PortalError::from)?;
     let returned: OwnedObjectPath = call()
         .and_then(|reply| reply.body().deserialize())
-        .map_err(|error| failure(&error))?;
+        .map_err(PortalError::from)?;
     if returned.as_str() != handle {
         return Err(PortalError(format!(
             "the portal answered on {returned}, not on {handle}"
@@ -50,17 +50,14 @@ pub fn request(
         Ok(None)
     };
     let Some(message) =
-        async_io::block_on(future::or(answered, expired)).map_err(|error| failure(&error))?
+        async_io::block_on(future::or(answered, expired)).map_err(PortalError::from)?
     else {
         close(connection, handle);
         return Err(PortalError(format!(
             "the portal sent no response on {handle} within {limit:?}"
         )));
     };
-    message
-        .body()
-        .deserialize()
-        .map_err(|error| failure(&error))
+    message.body().deserialize().map_err(PortalError::from)
 }
 
 /// Asks the portal to end a request this side stopped waiting for, so it sends no late answer.
@@ -75,6 +72,8 @@ fn close(connection: &Connection, handle: &str) {
         .and_then(|message| connection.send(&message));
 }
 
-pub fn failure(error: &zbus::Error) -> PortalError {
-    PortalError(error.to_string())
+impl From<zbus::Error> for PortalError {
+    fn from(error: zbus::Error) -> Self {
+        Self(error.to_string())
+    }
 }
