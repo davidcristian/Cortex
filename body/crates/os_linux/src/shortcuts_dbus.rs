@@ -15,8 +15,8 @@ use crate::shortcuts::{Activation, Shortcut, ShortcutsPortal, ShortcutsReply};
 
 const SHORTCUTS: &str = "org.freedesktop.portal.GlobalShortcuts";
 
-/// How long [`DbusShortcuts::new`] waits for each `Response`; a compositor may first ask the user
-/// to confirm or change the trigger.
+/// How long [`DbusShortcuts::new`] waits for each call's reply and `Response` together; a
+/// compositor may first ask the user to confirm or change the trigger.
 pub const SHORTCUTS_LIMIT: Duration = Duration::from_mins(1);
 
 /// The arguments of an `Activated` signal: session, shortcut id, timestamp and options.
@@ -36,7 +36,7 @@ impl DbusShortcuts {
         Self::with_limit(connection, SHORTCUTS_LIMIT)
     }
 
-    /// Wraps `connection`, waiting at most `limit` for each `Response`.
+    /// Wraps `connection`, waiting at most `limit` for each call's reply and `Response`.
     #[must_use]
     pub fn with_limit(connection: Connection, limit: Duration) -> Self {
         // Subscribed before any bind, so a press between a bind and the first read is kept.
@@ -89,16 +89,15 @@ impl ShortcutsPortal for DbusShortcuts {
             ("handle_token", Value::from(token)),
             ("session_handle_token", Value::from(session_token)),
         ]);
-        let call = || {
-            connection.call_method(
-                Some(DESTINATION),
-                PATH,
-                Some(SHORTCUTS),
-                "CreateSession",
-                &(&options,),
-            )
-        };
-        let (code, results) = request(connection, handle, self.limit, &call)?;
+        let body = (&options,);
+        let call = connection.inner().call_method(
+            Some(DESTINATION),
+            PATH,
+            Some(SHORTCUTS),
+            "CreateSession",
+            &body,
+        );
+        let (code, results) = request(connection, handle, self.limit, Box::pin(call))?;
         let names = results.get("session_handle").and_then(text);
         Ok(ShortcutsReply {
             code,
@@ -122,16 +121,15 @@ impl ShortcutsPortal for DbusShortcuts {
         ]);
         let shortcuts = vec![(shortcut.id.as_str(), details)];
         let options = HashMap::from([("handle_token", Value::from(token))]);
-        let call = || {
-            connection.call_method(
-                Some(DESTINATION),
-                PATH,
-                Some(SHORTCUTS),
-                "BindShortcuts",
-                &(&session, &shortcuts, "", &options),
-            )
-        };
-        let (code, results) = request(connection, handle, self.limit, &call)?;
+        let body = (&session, &shortcuts, "", &options);
+        let call = connection.inner().call_method(
+            Some(DESTINATION),
+            PATH,
+            Some(SHORTCUTS),
+            "BindShortcuts",
+            &body,
+        );
+        let (code, results) = request(connection, handle, self.limit, Box::pin(call))?;
         Ok(ShortcutsReply {
             code,
             names: bound(&results),

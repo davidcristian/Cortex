@@ -13,7 +13,8 @@ use crate::request::{DESTINATION, PATH, request};
 
 const SCREENSHOT: &str = "org.freedesktop.portal.Screenshot";
 
-/// How long [`DbusPortal::new`] waits for a `Response`: the brain's default capture deadline.
+/// How long [`DbusPortal::new`] waits for the method reply and the `Response` together: the
+/// brain's default capture deadline.
 pub const RESPONSE_LIMIT: Duration = Duration::from_secs(10);
 
 /// `org.freedesktop.portal.Screenshot` on a D-Bus connection, or on a bus that did not open.
@@ -29,7 +30,7 @@ impl DbusPortal {
         Self::with_limit(connection, RESPONSE_LIMIT)
     }
 
-    /// Wraps `connection`, waiting at most `limit` for each `Response`.
+    /// Wraps `connection`, waiting at most `limit` for each call's reply and `Response`.
     #[must_use]
     pub const fn with_limit(connection: Connection, limit: Duration) -> Self {
         Self {
@@ -66,16 +67,15 @@ impl ScreenshotPortal for DbusPortal {
             ("handle_token", Value::from(token)),
             ("interactive", Value::from(false)),
         ]);
-        let call = || {
-            connection.call_method(
-                Some(DESTINATION),
-                PATH,
-                Some(SCREENSHOT),
-                "Screenshot",
-                &("", &options),
-            )
-        };
-        let (code, results) = request(connection, handle, self.limit, &call)?;
+        let body = ("", &options);
+        let call = connection.inner().call_method(
+            Some(DESTINATION),
+            PATH,
+            Some(SCREENSHOT),
+            "Screenshot",
+            &body,
+        );
+        let (code, results) = request(connection, handle, self.limit, Box::pin(call))?;
         let uri = results
             .get("uri")
             .and_then(|value| String::try_from(&**value).ok());

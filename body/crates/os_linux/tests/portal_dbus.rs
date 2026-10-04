@@ -42,6 +42,8 @@ enum Uri {
 enum Answer {
     Respond(u32, Option<Uri>),
     Silent,
+    Hang,
+    LateSilent(Duration),
     Elsewhere,
     WrongSignal,
     Refuse,
@@ -89,6 +91,11 @@ impl FakePortal {
         let code = match self.next_answer() {
             Answer::Refuse => return Err(fdo::Error::AccessDenied(String::from("not allowed"))),
             Answer::Silent => return Ok(path(&handle)),
+            Answer::Hang => return Ok(std::future::pending().await),
+            Answer::LateSilent(delay) => {
+                async_io::Timer::after(delay).await;
+                return Ok(path(&handle));
+            }
             Answer::Elsewhere => return Ok(path(&format!("{PATH}/request/1_16/other"))),
             Answer::WrongSignal => None,
             Answer::Respond(code, uri) => {
@@ -411,6 +418,48 @@ fn a_portal_that_never_answers_fails_at_the_limit_and_its_request_is_closed() {
     );
     assert!(eventually(|| closed.lock().unwrap().len() == 1));
     assert_eq!(*closed.lock().unwrap(), [handle("t")]);
+}
+
+#[test]
+fn a_portal_that_never_replies_fails_at_the_limit_and_its_request_is_closed() {
+    let (client, server, received) = fake(Answer::Hang);
+    let closed = Arc::new(Mutex::new(Vec::new()));
+    let request = FakeRequest {
+        closed: Arc::clone(&closed),
+    };
+    assert!(ok(server.object_server().at(handle("t"), request)));
+    let started = Instant::now();
+
+    let error =
+        within_limit(move || DbusPortal::with_limit(client, SHORT).screenshot(&handle("t"), "t"))
+            .unwrap_err();
+
+    let waited = started.elapsed();
+    assert!(waited >= SHORT && waited < LIMIT, "{waited:?}");
+    assert!(
+        error
+            .0
+            .contains(&format!("no method reply on {}", handle("t"))),
+        "{error:?}"
+    );
+    assert_eq!(received.lock().unwrap().len(), 1);
+    assert!(eventually(|| closed.lock().unwrap().len() == 1));
+    assert_eq!(*closed.lock().unwrap(), [handle("t")]);
+}
+
+#[test]
+fn a_slow_method_reply_leaves_the_response_only_the_rest_of_the_limit() {
+    let (limit, delay) = (Duration::from_millis(800), Duration::from_millis(600));
+    let (client, _server, _) = fake(Answer::LateSilent(delay));
+    let started = Instant::now();
+
+    let error =
+        within_limit(move || DbusPortal::with_limit(client, limit).screenshot(&handle("t"), "t"))
+            .unwrap_err();
+
+    let waited = started.elapsed();
+    assert!(waited >= limit && waited < limit + delay / 2, "{waited:?}");
+    assert!(error.0.contains("no response on"), "{error:?}");
 }
 
 #[test]

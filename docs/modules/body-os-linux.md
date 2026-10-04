@@ -122,14 +122,18 @@ decision 13).
   since no `Response` would come on it, and a `uri` that is not a string counts as none. It reads
   and removes the file with `std::fs`. The host opens the session bus as for notifications, and
   `DbusPortal::absent(&error)` fails each portal call with the error's text.
-- **The wait for `Response` ends at a limit**: `RESPONSE_LIMIT` (10 s) for `DbusPortal::new`, or
-  the `limit` given to `DbusPortal::with_limit`. A portal that never answers, such as one whose
-  permission dialog nobody closes, would otherwise hold the blocking thread the `BodyService`
-  server gave the call and, through the capture lock, every later capture. The value is the
+- **The wait for the method reply and then the `Response` ends at one limit**, counted from the
+  call: `RESPONSE_LIMIT` (10 s) for `DbusPortal::new`, or the `limit` given to
+  `DbusPortal::with_limit`. `Connection::session()` sets no method timeout, so the reply is raced
+  against the same deadline as the `Response`. A portal that never answers, such as one whose
+  permission dialog nobody closes or a frontend that never replies, would otherwise hold the
+  blocking thread the `BodyService` server gave the call and, through the capture lock, every
+  later capture. The value is the
   default of the brain's `CORTEX_BODY_CAPTURE_TIMEOUT_S`, after which no caller waits for the
   picture, and several hundred times the median `Response` time measured on headless sway
   ([wayland-screenshot-portal](../readings/wayland-screenshot-portal.md)). At the limit the call
-  fails as `Backend`, the `Response` match is dropped, and `Close` is sent to the request with no
+  fails as `Backend`, naming the reply or the `Response` as the message that did not come, the
+  `Response` match is dropped, and `Close` is sent to the request with no
   reply awaited, so the portal ends any dialog and sends no late answer. A file the backend wrote
   before the `Close` stays; the wlr backend's fixed path is overwritten and removed by the next
   capture.
@@ -189,9 +193,10 @@ decision 13).
   `Activated` signals and runs each binding whose session and id the signal names. `Deactivated`
   (the release) is not read, since the port needs only the press.
 - **`DbusShortcuts`** makes those calls through the same request module as `DbusPortal`: the
-  `Response` match before the call, the returned handle checked, and the wait bounded, here by
-  `SHORTCUTS_LIMIT` (1 min), because a compositor may ask the user to confirm or change the
-  trigger first. It subscribes to `Activated` when it is built, so a press between a bind and the
+  `Response` match before the call, the returned handle checked, and the wait for the reply and
+  the `Response` ended at one limit, here `SHORTCUTS_LIMIT` (1 min), because a compositor may ask
+  the user to confirm or change the trigger first. Since the reply and the `Response` share it, a
+  dialog has the whole minute whichever of the two it delays, so no second bound is needed. It subscribes to `Activated` when it is built, so a press between a bind and the
   first read is kept. It reads the session handle as a string, which the 1.18 frontend sends, or
   as an object path, and the bound ids from the `shortcuts` result. The tests run the hotkey
   check list over the core with an in-process fake, and the adapter against a fake portal over a
