@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** inference-model-manager
 **Origin:** [ADR-0049](../../adr/ADR-0049-thinking-switch-and-trace-budget.md)
-**Verified:** 2026-09-30
+**Verified:** 2026-10-04
 **Trigger:** a `CORTEX_REASONING_BUDGET` or `CORTEX_REASONING_BUDGET_BRAIN` default in
 `docker/docker-compose.gpu.yml` other than `-1`, or `CORTEX_REPLY_TRACE_TOKENS` given a value by
 any compose file, recipe or env file in this tree, or a recorded run in this repo where the cortex
@@ -78,3 +78,8 @@ user reads and treat anything lower as a trade, is the placeholder until this ex
   2026-09-19 compare no bounded budget against the unbounded one on answers: the deep candidates
   ran with no reasoning budget, and the effort-level readings of 2026-09-26 render templates
   rather than grade replies. ADR-0049 still gives 512 as the starting advice.
+- 2026-10-04: Neither clause has come true. Both shipped defaults are still `-1` at
+  `docker/docker-compose.gpu.yml` lines 64 and 76, and `CORTEX_REPLY_TRACE_TOKENS` is still passed
+  through by name with no value at `docker/docker-compose.yml:53` and set nowhere else. The only
+  reading added since that compares budgets, of 2026-10-03, draws on the E4B subagent pick, a tier
+  nobody reads a trace from.

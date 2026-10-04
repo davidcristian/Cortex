@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** inference
 **Origin:** [ADR-0049](../../adr/ADR-0049-thinking-switch-and-trace-budget.md)
-**Verified:** 2026-09-30
+**Verified:** 2026-10-04
 **Trigger:** a newer llama.cpp pulled under a brain that keeps running, where the new build answers
 the trace question differently from the answer that brain cached and the documented restart was
 skipped, which shows as the GPU runbook's own `curl` contradicting the brain's boot line, or as a
@@ -21,8 +21,9 @@ the model swap, because `SwappingModelManager.swap_scope` already knows a child 
 things narrow it. That scope exists only with `CORTEX_ESCALATION` on, which is off by default, so
 the shipped stack has no boundary after boot at all. And a swap starts another child of the same
 image, so the answer would be the same answer unless the image moved under the sidecar in the
-meantime, which is a `docker compose pull` and a recreate. Since 2026-09-24 the brain does observe
-that recreate: `LlamaCppBackend._note_build` reads the build each streamed chunk names in
+meantime, which takes a recreate from a newer image: a `docker compose pull`, or a build of
+`cortex-model-host` whose base is newer than the `:server-cuda` the host has cached, which is how the
+engine moved on 2026-10-02. Since 2026-09-24 the brain does observe that recreate: `LlamaCppBackend._note_build` reads the build each streamed chunk names in
 `system_fingerprint` and logs `model now served by engine build` when a model's build changes. It
 only logs; the cached `bool` stays as it was.
 
@@ -72,3 +73,11 @@ to argue against it with a deployment that actually hit the problem.
   corrected: the swap scope is no longer the only boundary after boot, since
   `LlamaCppBackend._note_build` has logged a model's build change since 2026-09-24, so the body
   names that as a place to ask again and the trigger names its log line.
+- 2026-10-04: the engine moved and the trigger has not fired, because the new build gives the
+  same answer. `cortex-model-host`, built 2026-10-02, has the labels `b11312 0c1e57098`, while
+  the `:server-cuda` tag cached on this host still reads `b10680 d7bd3bfca`, so the runbook's label
+  command, which read the tag, no longer named the build the GPU stack runs; it now reads the model
+  host image. The nine brain boots kept in `measurements/sitting-2026-10-02b/*.logs.txt` all log
+  `reads_budget=True` against b11312, the answer b10680 gave, and each logs one cortex build line.
+  No brain container runs here now. No card row is owed: the probe's answer is already read on both
+  builds.

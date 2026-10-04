@@ -143,19 +143,19 @@ WARNING:cortex_inference.backend:trace budget not sent because its setting is of
 
 Fix it by unsetting the count, by setting `CORTEX_INFERENCE_TRACE_LEVER=on` on a build you know
 reads the key, or by restarting the brain against a build whose probe answers `reads_budget=true`.
-Restart the brain after pulling a newer llama.cpp: the answer is asked once and kept for the life
-of the brain process, and neither direction of that staleness is reported. If the boot line and
-the `curl` above disagree, the brain is the stale half. The brain logs the build each model's server
-names when it changes ([subagents-cpu.md](subagents-cpu.md) shows the line). Read which build a tag
-points at now, which after a pull is not the one that served earlier turns:
+Restart the brain after pulling a newer llama.cpp or rebuilding the model host: the answer is asked
+once and kept for the life of the brain process, and neither direction of that staleness is
+reported. If the boot line and the `curl` above disagree, the brain is the stale half. The brain
+logs the build each model's server names when it changes ([subagents-cpu.md](subagents-cpu.md) shows
+the line). Read the build off the model host image, since its build can use a newer base than the
+cached `:server-cuda` tag:
 
 ```
-docker image inspect ghcr.io/ggml-org/llama.cpp:server-cuda \
+docker image inspect cortex-model-host \
   --format '{{index .Config.Labels "org.opencontainers.image.version"}} {{index .Config.Labels "org.opencontainers.image.revision"}}'
 ```
 
-The version label plus the first nine characters of the revision label make the build id, so both
-mutable tags cached on this host read as `b10680-d7bd3bfca` (2026-09-12).
+The build id is the version label plus the first nine characters of the revision label.
 
 ## The two settings that decide how much of a screen the cortex reads
 

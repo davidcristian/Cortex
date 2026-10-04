@@ -8,7 +8,7 @@ withhold, most plausibly a connection URL with a credential inside it. Two readi
 point, and raising from inside `run_from_env` says what the container's last line looks like. This
 entry's history records what both answered when they were last taken.
 **Origin:** [ADR-0051](../../adr/ADR-0051-log-line-rendering.md)
-**Verified:** 2026-09-30
+**Verified:** 2026-10-04
 
 `__main__.py` runs `asyncio.run(run_from_env())` under a bare entry guard with no `except` around
 it, and `run_from_env` builds every adapter, several of which dial a remote with a credential in the
@@ -56,3 +56,8 @@ scheme and no `@` around it passes through every pattern this repo owns.
   whose host does not resolve and whose password is a marked fragment, the boot again ended with exit
   1 and a raw 66-line traceback ending in `socket.gaierror`, and the fragment appeared in neither
   stream.
+- 2026-10-04: both readings taken again, and the trigger has not fired. The grep finds the one
+  `asyncio.run` at `cortex_orchestrator/__main__.py` line 12, still under the bare entry guard, and
+  nothing on the startup path has changed since 2026-09-30. The same pgvector boot with an
+  unresolvable host and a marked password fragment ended with exit 1 and a raw 66-line traceback
+  ending in `socket.gaierror`, and the fragment appeared in neither stream.
