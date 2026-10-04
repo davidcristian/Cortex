@@ -27,16 +27,15 @@ reasoning-off pair, where every row of this measurement is served with neither r
 sample the re-run writes has the context size the server reported, so only `-ngl` is typed by hand.
 That loop now exists as `measurements/sitting-2026-10-04/drivers/529sw.sh`, run end to end on CPU.
 
-## The row owed on b11312
+## The column on b11312
 
-The stack's engine is now `b11312-0c1e57098` (History, 2026-10-04), so the column is owed again. Row
-`529sw` of the card run of 2026-10-04 draws it: a driver row of 2400 s queued after `607edp` and
-before `607sa`. Per pick it runs `/app/llama-server` from the `cortex-model-host` image at `-ngl 99
---ctx-size 8192 --parallel 1 --jinja --cache-ram 0` on `127.0.0.1:8091`, then the probe from the
-run's frozen tree at `CORTEX_THINKING_REPEATS=5`, then `scripts/switchtail.py` over every sample
-under `measurements/sitting-2026-10-04/529/`. The price is the spacing of the 2026-09-02 samples'
-write times, from about a minute for a pick under 5 GB to six for the 31B, about 1980 s for twelve,
-plus a fifth for the card's throttled clock. What each result decides, written before the draw:
+The stack's engine is now `b11312-0c1e57098` (History, 2026-10-04), so the column was owed again.
+Row `529sw` of the card run of 2026-10-04 drew it. Per pick it runs `/app/llama-server` from the
+`cortex-model-host` image at `-ngl 99 --ctx-size 8192 --parallel 1 --jinja --cache-ram 0` on
+`127.0.0.1:8091`, then the probe from the run's frozen tree at `CORTEX_THINKING_REPEATS=5`, then
+`scripts/switchtail.py` over every sample under `measurements/sitting-2026-10-04/529/`. It was
+priced at 2400 s from the spacing of the 2026-09-02 samples' write times plus a fifth for the
+card's throttled clock. What each result decides, written before the draw:
 
 - **The reader agrees on every pick.** The column holds on `b11312`. The readings record the build
   and the twelve counts, this task waits for the next build, and the recipe stays its open half.
@@ -50,6 +49,24 @@ plus a fifth for the card's throttled clock. What each result decides, written b
 - **A null result** is a pick with no sample, from a failed load or a control that did not
   deliberate on all five draws: that row stays owed on `b11312`. A skipped or failed row leaves
   all twelve owed, and this task stays actionable.
+
+**Drawn 2026-10-04**, exit 0 in 1424 s, every pick loaded and the reader exiting 0 on all twelve
+samples ([thinking-switch readings](../../readings/thinking-switch.md#the-lineups-switched-tails)).
+Eleven picks agree with their `b10680` rows, so under the first rule the column holds on `b11312`
+for them. The E4B is a null under the third: its plain control deliberated on 4 of 5, and on 3 of 5
+in a second draw of that pick alone, so the probe failed both times and its row stays owed on
+`b11312`. Its constrained cells read as before, control 5 of 5 and switch 4 of 5 in both draws.
+Nothing shipped changes, and the task stays open.
+
+**The next row, written before its draw.** The E4B's `b10680` row was read on the CPU image, so a
+plain control that no longer fires on every draw may be the placement and not the build. The row
+draws that pick on `b11312` at `-ngl 0` on CPU cores 12 to 23, the driver above with `R529_DRY=1`
+and `R529_ONLY=gemma-4-E4B-qat-q4_0`, and on the cached `b10680` `:server-cuda` image at `-ngl 99`,
+at the same argv and five draws a cell: about 80 s on the card and an unpriced CPU run. A control firing on 5 of 5 on the CPU on `b11312` reads the E4B row on this build under
+the rules above, and all twelve rows are then read on it. A control failing on `b11312` at both
+placements and firing on 5 of 5 on `b10680` is the build's change to the E4B's plain control, which
+the readings record and which leaves that cell unmeasured by this prompt on `b11312`. Any other
+result is a null and the row stays owed. Nothing shipped changes either way.
 
 ## History
 
@@ -104,3 +121,6 @@ plus a fifth for the card's throttled clock. What each result decides, written b
   tag against the registry. The trigger line is gone and the task is actionable, with row `529sw`
   queued (section above). The driver's CPU run on the Qwen3.5-0.8B pick already read one row on
   `b11312`, recorded in the thinking-switch readings.
+- 2026-10-04: `529sw` drawn and read: eleven picks hold on `b11312`, the reader agreeing on all
+  twelve, and the E4B is a null twice over, its plain control deliberating on 4 and 3 of 5. Its row
+  stays owed, with the next row written above.

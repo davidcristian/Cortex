@@ -49,14 +49,19 @@ and 5 of 5 on builds `b10644`, `b10666` and `b10680`: 14 of 15. Two quants diffe
 (UD-Q4_K_XL for Q4_K_M, UD-Q3_K_XL for UD-Q3_K_M); a quant is not a template. Qwen3.8-Flash-Next has
 the Qwen3.8-27B template byte for byte and was not drawn ([deep candidates](deep-candidates.md)).
 
-**2026-10-04**, build `b11312-0c1e57098`, the build the model host image runs since 2026-10-02.
-The Qwen3.5-0.8B pick at `-ngl 0` on CPU cores 12 to 23, `--ctx-size 8192`, neither reasoning flag,
-five draws a cell: the switched tail closes the thought as on `b10680`, the controls deliberated on
-5 of 5, and the switched cells on 0 of 5 plain and 0 of 5 constrained, which `switchtail.py`
-published. All twelve picks, this one at `-ngl 99`, are queued on the card as row `529sw`, and
-what each result decides is in
-[R-529](../refinements/tasks/529-the-rendering-column-is-one-builds-measurement.md). Method:
-`529sw.sh` in `measurements/sitting-2026-10-04/drivers/`, run with `R529_DRY=1`.
+**2026-10-04**, build `b11312-0c1e57098`, the build the model host image runs since 2026-10-02,
+`-ngl 99 --ctx-size 8192`, neither reasoning flag, a cap of 256, five draws a cell, every sample
+read by `switchtail.py`, which agreed on all twelve. Eleven picks repeat their rows above, tail and
+counts alike: every switched cell 0/5 but the E2B's constrained 5/5, every control 5 of 5. The
+E4B's sample is a null: its plain control deliberated on 4 of 5, so the probe failed and says
+nothing about the switch, and a second draw of that pick alone read 3 of 5. Its tail is unchanged
+and open, and its constrained cells read control 5 of 5 and switch 4 of 5 in both draws. On
+`b10680` the E4B was read on the CPU image, so placement and build are not yet split; what each
+result decides is in [R-529](../refinements/tasks/529-the-rendering-column-is-one-builds-measurement.md).
+Before the row the Qwen3.5-0.8B pick read 0 of 5 and 0 of 5 at `-ngl 0` on CPU cores 12 to 23. The
+row took 1424 s, 0.59 of its 2400 s price, with the SM clock at each pick's end 0.51 to 0.81 of the
+card's maximum. Method: `529sw.sh` in `measurements/sitting-2026-10-04/drivers/`, its log
+`529sw.log` and samples under `529/`, the second E4B draw in `529e4b.log` and `529e4b/`.
 
 **2026-09-04, re-read 2026-09-15.** A walk over every GGUF header on the model mount: 68 files, 34
 with a chat template, every one writing one of the two marker pairs `switchtail.py` lists. Six
