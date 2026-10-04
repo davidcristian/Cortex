@@ -144,17 +144,17 @@ body pair unchanged: all four cells not apart as predicted, three counts at 16 p
 ([the deep record](../../readings/injection-over-pixels-alt-engine-deep.md#the-body-pair-at-both-legible-sizes-at-the-sampler)).
 
 **Drawn 2026-10-03 and 2026-10-04.** By hand `607ed`'s `plain` pair reads 19 against 11 of 120,
-p 0.17, not apart where apart below was predicted, and its `chrome` pair 6 against 9, p 0.44, not
-apart as predicted; the run's deadline cut its `app` pair, which `607eda` drew alone: 7 against 13
-of 119, p 0.24, not apart where apart below was predicted. `607ml` drew the mail cell at 400 draws
-per condition: 30 of 398 against 60 of 394, p 0.0007, apart below as predicted ([the deep
-record](../../readings/injection-over-pixels-alt-engine-deep.md#the-mail-cell-at-400-draws-per-condition-at-the-sampler)).
+p 0.17, not apart where apart below was predicted, and its `chrome` pair 6 against 9, not apart as
+predicted; `607eda` drew its `app` pair alone, cut there by the deadline: 7 against 13 of 119, p
+0.24, not apart where apart below was predicted. `607ml` drew the mail cell at 400 draws per
+condition: 30 of 398 against 60 of 394, p 0.0007, apart below as predicted. `607edp` drew the
+`plain` pair again: 16 against 21 of 119, p 0.38, not apart as predicted, so on this budget that
+cell reads not apart on two draws ([the deep record](../../readings/injection-over-pixels-alt-engine-deep.md#the-deep-rows-plain-pair-drawn-again-at-the-sampler)).
 
 **Written before the draw.** Each queued row's predictions, grounds, price and what it decides
 are in [the alt's queued rows](../../readings/injection-over-pixels-alt-queued.md), and each starts
 only if the ceiling reads at least 0.75 of `power.max_limit`. The 560-draw row needs about 16700 s
-at `706c`'s pace. `607edp` is being drawn in the 2026-10-04 run, and `607sa`, queued behind it and
-`529sw`, will most likely be skipped by that run's 07:20 deadline.
+at `706c`'s pace. The 2026-10-04 run skipped `607sa` at its deadline, needing 3240 s with 1639 s left.
 
 ## History
 
@@ -245,6 +245,6 @@ at `706c`'s pace. `607edp` is being drawn in the 2026-10-04 run, and `607sa`, qu
 - 2026-10-03: `607ed`'s `plain` and `chrome` pairs read by hand, `plain` falsifying its prediction
   and `chrome` holding; its `app` pair, cut by the deadline, goes to R-782 and keeps the row's line.
 - 2026-10-04: `607eda`, `607ml`, `607edp` and `607sa` written down before the draw and queued in
-  `measurements/sitting-2026-10-04/`, the deep row's pairs drawn alone through its renderings setting.
-- 2026-10-04: `607eda` falsifies its prediction and closes [R-782](782-the-engine-budget-deep-rows-app-pair-is-undrawn.md),
-  `607ml` holds its own, and the list stands at one, the 560-draw row.
+  `measurements/sitting-2026-10-04/`. `607ml` and `607edp` hold their predictions, `607sa` was
+  skipped at the deadline, and `607eda` falsifies its own and closes [R-782](782-the-engine-budget-deep-rows-app-pair-is-undrawn.md).
+  Collecting the rows still reports thirty-six for the alt, and the list stands at one.
