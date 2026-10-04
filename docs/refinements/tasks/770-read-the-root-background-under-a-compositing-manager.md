@@ -5,7 +5,7 @@
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
 
 Under a compositing manager the Linux capture paints each viewable top-level window read on its own
-over black ([body-os](../../modules/body-os.md)), so where no window lies the picture is black. A
+over black ([body-os-linux](../../modules/body-os-linux.md)), so where no window lies the picture is black. A
 desktop environment usually maps a full-screen desktop window, which is read like any other, so the
 black shows only on a bare window manager. There picom and xcompmgr paint the pixmap that a setter
 such as feh names in the root's `_XROOTPMAP_ID`; with no such property picom paints black and

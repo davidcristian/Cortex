@@ -130,6 +130,7 @@ public contract, its invariants and what it depends on. Every module has one:
 | [`body-core-capture.md`](modules/body-core-capture.md) | The screen-capture port and the pure size policy behind it |
 | [`body-rpc.md`](modules/body-rpc.md) | `body_rpc`, the tonic adapter for both directions of the contract |
 | [`body-os.md`](modules/body-os.md) | `os_windows`, `os_linux` and `os_macos`, the per-platform backends: real on Windows and Linux, stubs on macOS |
+| [`body-os-linux.md`](modules/body-os-linux.md) | The Linux backends one by one: D-Bus notifications, `pactl` volume, X11 capture and the X key grab |
 | [`body-contract.md`](modules/body-contract.md) | `body_contract`, the shared port check lists and the fakes held to them |
 | [`body-app.md`](modules/body-app.md) | `body/app`, the React overlay tested to 100% and its host-native Tauri shell |
 | [`body-app-pictures.md`](modules/body-app-pictures.md) | The composer's attached pictures: paste, drop, the canvas reader and the refusal hand-back |

@@ -115,7 +115,7 @@ crate; nothing that ships links it.
   variant through `std::mem::discriminant`, because each backend writes its own text.
 - What an adapter sends to the OS (the `pactl` arguments, the raw volume, the bus message and
   its escaping) is not on the list. It is checked in that adapter's own tests
-  ([body-os.md](body-os.md)), and what a fake was handed in the `BodyService` tests.
+  ([body-os-linux.md](body-os-linux.md)), and what a fake was handed in the `BodyService` tests.
 - The crate is measured at 100% line, region and branch coverage like every workspace member. The
   fakes' failure and panic paths are reached by the rpc server's tests and the lists.
 
