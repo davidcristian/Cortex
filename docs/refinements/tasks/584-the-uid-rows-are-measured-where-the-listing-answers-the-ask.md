@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** email
 **Origin:** [ADR-0056](../../adr/ADR-0056-email-reader-answers.md)
-**Verified:** 2026-09-30
+**Verified:** 2026-10-04
 **Trigger:** `UID_HELP` or `NOT_FOUND` in `brain/packages/email/src/cortex_email/values.py` is
 reworded, the shipped cortex pick changes (`DEFAULT_CORTEX_FILE` in
 `brain/packages/model_manager/src/cortex_model_manager/config.py`), or a second run of
@@ -57,3 +57,10 @@ search.
   `CORTEX_MODEL_FILE_CORTEX` default are still the gemma-4-12B pick. `test_uid_reading_live.py` has
   four commits since, all on 2026-09-23 and all renames, and no run under `measurements/` names it.
   `_READ_ASK` and `DRAWS = 20` are unchanged.
+- 2026-10-04: the claims held and the trigger has not fired. `values.py` has no commit since
+  2026-09-23, `UID_HELP` and `NOT_FOUND` read as they did then, and `NOT_FOUND` still sends the
+  model to search the folder again. `DEFAULT_CORTEX_FILE` and the `CORTEX_MODEL_FILE_CORTEX` default
+  are still the gemma-4-12B pick; the one commit to either file since 2026-09-30 rewrote a comment
+  on the model host's caps in `docker/docker-compose.gpu.yml`. No run under `measurements/` names
+  `test_uid_reading_live.py`, tonight's queue included, and `_READ_ASK` and `DRAWS = 20` are
+  unchanged.

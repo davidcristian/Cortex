@@ -9,7 +9,7 @@ rather than the messages the server did deliver. Read it past the port by search
 test `test_a_folder_no_mailbox_has_is_refused_by_name_and_by_the_folder_list` searches each folder
 at a limit of 1, so it fetches only the first message each search returns.
 **Origin:** [ADR-0056](../../adr/ADR-0056-email-reader-answers.md)
-**Verified:** 2026-09-30
+**Verified:** 2026-10-04
 
 `ImapMailbox.search` in `brain/packages/email/src/cortex_email/imap.py` runs imap-tools' `fetch`,
 which at its default `bulk=False` sends one `UID FETCH` per uid through `_fetch_by_one` and raises
@@ -70,3 +70,10 @@ fixture holding one unreadable message beside readable ones.
   1.13.0, whose `fetch` cuts the uids to the limit and then sends one FETCH per uid at `bulk=False`.
   The probe's `Sealed` and the live test's limit of 1 are unchanged, so the last live reading is
   still that of 2026-09-15.
+- 2026-10-04: the code claims held and the trigger was not read, since it needs a live search of the
+  Bridge account and this run ruled that out. `imap.py` has no commit since 2026-09-15, and `search`
+  still builds `list(box.fetch(...))` at line 86. imap-tools is 1.13.0 both in `brain/uv.lock` and
+  in the built `cortex-brain` image, and its `fetch` still cuts the uids to the limit before
+  `_fetch_by_one` sends one FETCH per uid. `fetch_by_uid` in `uidfetch.py`, the pattern the fix
+  would follow, still sends its own `UID FETCH` and raises `MailboxFetchError` on any status but
+  `OK`. The last live reading is still that of 2026-09-15.

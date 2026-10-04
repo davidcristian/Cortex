@@ -3,12 +3,15 @@
 **Status:** open, waiting for its trigger
 **Area:** email
 **Trigger:** the brain image moves off Python 3.12 (`FROM python:3.12-slim-trixie` in
-`brain/Dockerfile`, the image the email sidecar runs) or imap-tools moves off 1.13.0 in
-`brain/uv.lock`, since which class a dropped connection raises is those libraries' choice and the
-unit test scripts the class itself; or a search on a real server drops its connection and comes back
-as `SearchRefusedError`, sending a model to rewrite a query that was never the problem.
+`brain/Dockerfile`, the image the email sidecar runs), its imaplib changes how a lost connection
+raises, or imap-tools moves off 1.13.0 in `brain/uv.lock`, since which class a dropped connection
+raises is those libraries' choice and the unit test scripts the class itself. That tag follows 3.12
+patch releases with no commit, so the middle part is read by comparing a rebuilt image's
+`imaplib.py` with that of 3.12.15, the last one read. Or a search on a real server drops its
+connection and comes back as `SearchRefusedError`, sending a model to rewrite a query that was never
+the problem.
 **Origin:** [ADR-0056](../../adr/ADR-0056-email-reader-answers.md)
-**Verified:** 2026-09-30
+**Verified:** 2026-10-04
 
 `_search_failure` in `brain/packages/email/src/cortex_email/imap.py` reads the type of what imaplib
 raised. A plain `IMAP4.error` is the server refusing to parse the query, which crosses the port as
@@ -67,3 +70,12 @@ published port and a second address for `just email-folder-probe` to find.
   `IMAP4.abort("socket error: EOF")`, and `docker/dovecot/probe.conf` still sets
   `imap_fetch_failure = no-after`. The last part needs a live search and was not read, and it cannot
   occur without one of the first two or an edit to `_search_failure`.
+- 2026-10-04: the code claims held, the trigger has not fired, and the library reading of 2026-09-19
+  now covers the image the sidecar runs. That reading was of the host venv's Python 3.12.3, while
+  `python:3.12-slim-trixie` follows 3.12 patch releases with no commit, and the built `cortex-brain`
+  image runs Python 3.12.15. Its `imaplib.py` differs from 3.12.3 only in reading a literal in
+  chunks of at most 1 MiB, which changes no raise, so a lost connection still raises `IMAP4.abort`
+  there. The image's imap-tools is 1.13.0, as `brain/uv.lock` resolves. `_search_failure`, the unit
+  test's scripted `IMAP4.abort("socket error: EOF")` and `imap_fetch_failure = no-after` in
+  `docker/dovecot/probe.conf` are unchanged. The trigger now names an imaplib change within 3.12 and
+  how to read one.
