@@ -3,7 +3,7 @@
 **Status:** open, waiting for a consumer
 **Area:** rpc-transport
 **Origin:** [ADR-0054](../../adr/ADR-0054-baseline-residency.md)
-**Verified:** 2026-09-28
+**Verified:** 2026-10-04
 **Trigger:** A client that must treat one serving note apart from the others: style a missing peer tier differently from a slow last handoff, order them by its own rule, or let the user dismiss one.
 
 `HealthNote` in [body.proto](../../../proto/body.proto) has one field, the sentence. The overlay
@@ -22,3 +22,7 @@ code with the sentence.
   `residency_tiers.py:63` and `residency_pace.py:34`, the body (`link.rs`) passes notes on as plain
   strings and the overlay (`linkState.ts`) shows each as one line. The two context overflow notes
   added that day are reply text, not health notes.
+- 2026-10-04: rechecked; not fired. `HealthNote` is still `string text = 1` alone, `with_note`
+  still has the same two callers (`residency_tiers.py:63`, `residency_pace.py:34`), the body's
+  `link.rs` still keeps notes as a `Vec<String>`, and the overlay's `linkState.ts` still joins them
+  one per line under "Brain ready". No client reads one note apart from the others.

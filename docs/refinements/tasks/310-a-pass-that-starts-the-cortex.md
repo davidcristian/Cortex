@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** inference-model-manager
 **Origin:** [ADR-0054](../../adr/ADR-0054-baseline-residency.md)
-**Verified:** 2026-09-30
+**Verified:** 2026-10-04
 **Trigger:** a cortex that stops while the brain and the model host both keep running, which is the
 one state neither boot path covers, or a second visit to the runbook's step 2. Both are operator
 events, so the cheap recheck is whether the code has moved:
@@ -89,3 +89,9 @@ deadline.
   defaults to the empty tuple. One claim was wrong and is corrected: `TierRechecker.aclose`'s
   docstring states no call count, and the 2N + 2 bound is written in ADR-0054's decision 4. The
   trigger has not fired.
+- 2026-10-04: rechecked; the trigger has not fired. `regain_residency` still calls `host.status`
+  twice and `host.start` never, the only `host.start` in the background pass being the peer restart
+  in `residency_pass.py`; [proto/body.proto](../../../proto/body.proto) still declares 16 RPCs, 11
+  on `BrainService` and 5 on `BodyService`, none an operator command; the control API still routes
+  the same four paths; `evict_models` still defaults to the empty tuple; and none of those files
+  changed since 2026-09-30. The runbook's step 2 still recovers with one `POST /models/cortex/start`.

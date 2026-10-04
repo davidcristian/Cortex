@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** repo-checks
 **Origin:** [ADR-0042](../../adr/ADR-0042-cross-tree-constant-registry.md)
-**Verified:** 2026-09-30
+**Verified:** 2026-10-04
 **Trigger:** A third value on the capture-target enum, a reader for declarations in the `.proto`
 arriving in the scan for another reason, any module outside the body's rpc crate and the brain's
 body client that has to name one of the two gRPC status codes, or either side of that pair gaining
@@ -127,3 +127,8 @@ not also retune.
   the two codes are still written in the same three non-test modules. Since 2026-09-19 the proto's
   comment on `CAPTURE_TARGET_FOCUS` also names `FAILED_PRECONDITION`, which is prose like the two
   module docs and declares nothing the scan could read. The `var(--ease)` count had moved to 50.
+- 2026-10-04: both checked again and neither trigger fired. `CaptureTarget` still has two values,
+  the two codes are still written in the same three non-test modules (`screen.rs`, `server.rs`,
+  `failures.py`), and the registry still has fourteen parts. The one change to the scan since,
+  on 2026-10-02, lets a quoted `.rs` or `.ts` value hold a `;`: `DECLARATIONS` still reads `.py`,
+  `.rs` and `.ts` only, so no `.proto` reader has arrived and neither code gained a declaration.

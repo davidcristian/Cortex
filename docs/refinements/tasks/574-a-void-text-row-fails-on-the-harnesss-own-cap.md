@@ -7,7 +7,7 @@
 candidate, which the deep-model pick recorded consuming a whole context and answering nothing, or
 any later text row whose totals line names a void cell.
 **Origin:** [ADR-0041](../../adr/ADR-0041-injection-image-variant.md)
-**Verified:** 2026-09-30
+**Verified:** 2026-10-04
 
 The text row posts `max_tokens: 1600` on every completion, the number its published matrices were
 measured under, and the shipped path posts no cap at all (ADR-0029 decision 19 and the comment on
@@ -66,3 +66,8 @@ publishing what the thought-through reply did with the instruction.
   reached a mixture-of-experts candidate. The empty replies are recorded in the deep-model pick,
   not the GPU runbook, at the deep tier's 8192 context before it moved to 16384; the body now says
   so. Neither context changes the case, since the cap is far below both.
+- 2026-10-04: rechecked; neither part has fired. No run since 2026-09-30 drew the text row: the 51
+  rows the card runs from 2026-09-30 to 2026-10-04 started include no `test_injection_defense[`
+  row, and the void cells their logs print belong to other harnesses and their own caps.
+  `_MAX_TOKENS` is still 1600, now at line 365, its one use is still `_reply`, and
+  `BRAIN_CANDIDATES` still lists both mixture-of-experts candidates.
