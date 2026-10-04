@@ -49,6 +49,22 @@ whose centre pixel was 51, 102, 204 in R, G, B order, and `/tmp/out.png` was gon
 the core's removal step taken out, the same test failed naming `/tmp/out.png`, which was left at
 mode 664.
 
+## A call slower than the response limit
+
+**2026-10-04.** The same stack, with the wlr backend's `PATH` starting at a directory whose `grim`
+script slept 3 s and then ran the real `grim`. A scratch ignored test, not kept in the tree,
+captured once through `DbusPortal::with_limit` with a 1 s limit, slept 4 s, then captured once
+through `DbusPortal::new` on a second connection.
+
+- The first capture failed as `Backend` with "the portal sent no response on
+  /org/freedesktop/portal/desktop/request/1_16/cortex0 within 1s", returning at 1.002 times the
+  limit.
+- `/tmp/out.png` did not exist right after that failure and did exist 4 s later: the wlr backend
+  finished its `grim` run after the `Close`.
+- The frontend logged `Handle Screenshot` twice and `sending response: 0` once, so it sent no
+  `Response` for the closed request.
+- The second capture returned a 1280 by 720 frame and removed `/tmp/out.png`.
+
 ## How long a call takes
 
 | Measure, two runs of 15 calls | Ratio |
