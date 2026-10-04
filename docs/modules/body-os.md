@@ -29,12 +29,11 @@ speaks. They are also where the **stub coverage exemption** is used.
   surfaces **black, with no error**.
 - **`os_linux`** (`cfg(target_os = "linux")`) has four real backends, `LinuxNotify`,
   `LinuxAudioControl`, `LinuxScreenCapture` and the X11 `LinuxHotkey` (see
-  [The Linux backends](#the-linux-backends)), and no stub. The crate is compiled and measured on
-  Linux CI. The shell's `BodyService` serves the notification and volume backends, and
-  `LinuxScreenCapture<X11Root>` only when `CORTEX_HOST_CAPTURE=1`, `WAYLAND_DISPLAY` is unset or
-  empty and the X display opens, else `DeniedScreenCapture`. The shell registers the hotkey through
-  `X11Keys`, except on a Wayland session, where it logs why and registers none
-  ([overlay runbook](../runbooks/body-overlay.md)).
+  [The Linux backends](#the-linux-backends)), and no stub. The shell's `BodyService` serves the
+  notification and volume backends, and `LinuxScreenCapture<X11Root>` only when
+  `CORTEX_HOST_CAPTURE=1`, `WAYLAND_DISPLAY` is unset or empty and the X display opens, else
+  `DeniedScreenCapture`. The shell registers the hotkey through `X11Keys`, except on a Wayland
+  session, where it logs why and registers none ([overlay runbook](../runbooks/body-overlay.md)).
 - **`os_macos`** provides `MacosHotkey`, `MacosAudioControl`, `MacosNotify` and
   `MacosScreenCapture`, the same stubs for macOS. It has no `cfg` yet and compiles everywhere.
 
@@ -61,14 +60,13 @@ Each crate exposes one implementor per port, and the app selects the platform's 
   which hands back **raw BGRA pixels and no policy at all**. Every size decision (crop, downscale,
   PNG encode, the byte ceiling and its shrink steps) lives in pure `body_core`, because a
   `cfg(windows)` backend does not compile where CI measures coverage and the size guarantee may not
-  rest on code CI never measures. That is the `escape_xml` argument again. The one step only a
-  backend can perform is resolving the request's `CaptureTarget`, since window positions are known
-  only to the OS, and the backend returns that as a rectangle beside the whole frame rather than as
-  a crop: widening the **return value** instead of the trait method keeps the port one line and the
-  crop arithmetic covered. `DeniedScreenCapture` (in `body_core`, not in a platform crate) is the
-  real, covered backend a host wires when capture is switched off, and it returns
-  `CaptureError::Disabled` from ordinary code on every platform, so a host with capture off runs a
-  tested path rather than an `unimplemented!()` stub.
+  rest on code CI never measures. The one step only a backend can perform is resolving the request's
+  `CaptureTarget`, since window positions are known only to the OS, and the backend returns that as
+  a rectangle beside the whole frame rather than as a crop: widening the **return value** instead of
+  the trait method keeps the port one line and the crop arithmetic covered. `DeniedScreenCapture`
+  (in `body_core`, not in a platform crate) is the real, covered backend a host wires when capture
+  is switched off, and it returns `CaptureError::Disabled` from ordinary code on every platform, so
+  a host with capture off runs a tested path rather than an `unimplemented!()` stub.
 
 `AudioControl`, `Notify` and `ScreenCapture` are `Send + Sync`, because the `body_rpc` `BodyService`
 server holds all three and lends each to a blocking thread per call, unlike the single-threaded
@@ -82,16 +80,15 @@ worker is the server's job (`body_rpc::off_worker`), not the port's.
 authorized by ADR-0023. It uses its own `[lints.rust] unsafe_code = deny` plus a scoped
 `#![allow(unsafe_code)]` per module, re-declaring the other workspace lints; every other crate keeps
 `forbid`. There are four such modules, each allow's comment naming the API that needs it and each
-resting on its own decision record: `audio` (Core Audio, ADR-0023), `notify` (one apartment initialization, ADR-0025), `screen`
-(GDI plus the display-affinity call, ADR-0029) and `focus` (the Z-order walk behind a targeted
-capture, ADR-0029).
+resting on its own decision record: `audio` (Core Audio, ADR-0023), `notify` (one apartment
+initialization, ADR-0025), `screen` (GDI plus the display-affinity call, ADR-0029) and `focus` (the
+Z-order walk behind a targeted capture, ADR-0029).
 
-The toast module has the same scoped allow for one line: WinRT projections are safe, but
-activating a WinRT factory needs a COM-initialized thread and the `BodyService` server's threads
-have none, so it makes the same idempotent `CoInitializeEx` call the audio backend does. Since
-2026-07-16 that thread is a **tokio blocking-pool** thread rather than an async worker, which is why
-both backends are shaped the way they are: each resolves its own COM interface inside the call and
-holds none across calls, so nothing `!Send` is ever moved between threads and a per-call
+The toast module has the same scoped allow for one line: WinRT projections are safe, but activating
+a WinRT factory needs a COM-initialized thread and the `BodyService` server's threads have none, so
+it makes the same idempotent `CoInitializeEx` call the audio backend does. That thread is a **tokio
+blocking-pool** thread rather than an async worker, so each backend resolves its own COM interface
+inside the call and holds none across calls: nothing `!Send` moves between threads, and a per-call
 `CoInitializeEx` is all either needs. Neither balances it with `CoUninitialize`, which is deliberate
 and recorded in `docs/refinements/`.
 
@@ -129,8 +126,12 @@ decision 13).
   RandR has only the core protocol's one display per screen. It accepts one pixel layout, depth 24
   or 32 at 32 bits per pixel with the masks `ff0000`, `ff00` and `ff`, reverses each pixel when
   the server stores the most significant byte first, and refuses any other layout as `Backend`.
-  No server is `NoDisplay`, a failed layout or read `Backend`, and a window target is refused as
-  `Backend` without reading the screen, since nothing picks one window on X11 yet.
+  No server is `NoDisplay`, and a failed layout or read is `Backend`.
+- **A window target** is picked by `focus` from the same read: the topmost viewable top-level
+  window, not `InputOnly` or override-redirect (menus, tooltips), with a non-empty `WM_NAME` on it
+  or a window under it (a window manager's frame has none, its client has one) and no window of this
+  process under it. Its rectangle, frame and border included, is measured from the monitor's corner,
+  and no such window is `NoTarget`.
 - **The overlay is kept out by its process id** (ADR-0029 decision 10). X11 has no
   `WDA_EXCLUDEFROMCAPTURE`, so `LinuxScreenCapture::new(root, process)` paints black, border
   included, every viewable window whose `_NET_WM_PID` is `process`, placed by summing its
@@ -165,19 +166,20 @@ decision 13).
   monitor's primary flag and rectangle in one request; a server without the extension lists none,
   and an X error to the request fails the capture as `Backend`. It then sends `GrabServer` on one
   screen of an `x11rb::rust_connection::RustConnection` it is given, lists the window tree a level
-  at a time with `QueryTree`, `GetWindowAttributes`, `GetGeometry` and a `CARDINAL` `GetProperty`
-  of `_NET_WM_PID` per window, and asks `GetSelectionOwner` of `_NET_WM_CM_S` and the screen's
-  number. With no owner it sends one `GetImage` (`ZPixmap`, every plane) for the chosen rectangle
-  of the root, and returns `Pixels::Root`. With an owner it sends a `PIXMAP` `GetProperty` of
-  `_XROOTPMAP_ID` on the root, `GetGeometry` and `GetImage` of the pixmap named, then one
-  `GetImage` per part `pieces` lists, on the window itself, and returns `Pixels::Layers`, so the
-  root's own pixels are never read there. It then sends and flushes `UngrabServer`, also after a
-  failed read. No other client can map, move or draw a window between the reads and the list. It
-  reads the bits per pixel, byte order and visual masks of each read from the connection's setup. The crate re-exports `x11rb`, and the
-  host opens the display with `x11rb::connect(None)`. When that fails, as on a Wayland session with no
+  at a time with `QueryTree`, `GetWindowAttributes`, `GetGeometry` and a `CARDINAL` `GetProperty` of
+  `_NET_WM_PID` and a zero-length `GetProperty` of `WM_NAME`, whose length tells a titled window,
+  per window, and asks `GetSelectionOwner` of `_NET_WM_CM_S` and the screen's number. With no owner
+  it sends one `GetImage` (`ZPixmap`, every plane) for the chosen rectangle of the root, and returns
+  `Pixels::Root`. With an owner it sends a `PIXMAP` `GetProperty` of `_XROOTPMAP_ID` on the root,
+  `GetGeometry` and `GetImage` of the pixmap named, then one `GetImage` per part `pieces` lists, on
+  the window itself, and returns `Pixels::Layers`, so the root's own pixels are never read there. It
+  then sends and flushes `UngrabServer`, also after a failed read. No other client can map, move or
+  draw a window between the reads and the list. It reads the bits per pixel, byte order and visual
+  masks of each read from the connection's setup. The crate re-exports `x11rb`, and the host opens
+  the display with `x11rb::connect(None)`. When that fails, as on a Wayland session with no
   `DISPLAY`, `X11Root::absent(&error)` makes every read `NoDisplay`. Rootless Xwayland, such as
-  WSLg's, answers `GetImage` on its root with `BadMatch`, so the read fails as `Backend` rather
-  than returning a partial picture; a Wayland session needs the desktop portal instead.
+  WSLg's, answers `GetImage` on its root with `BadMatch`, so the read fails as `Backend` rather than
+  returning a partial picture; a Wayland session needs the desktop portal instead.
 - **`LinuxHotkey`** resolves a chord to the X keysym of its `KeyboardEvent.code` (`keysym`: a
   letter is its lower-case keysym, `F1` to `F35` are `ffbe` to `ffe0`, the named keys are their
   keysyms), finds the lowest keycode that types it, and takes Shift and Control from the core
@@ -201,10 +203,11 @@ decision 13).
   session an X grab is assumed to see keys only while an X window has focus, so a Wayland session
   needs the desktop portal's `GlobalShortcuts`
   ([765](../refinements/tasks/765-a-wayland-hotkey-through-the-globalshortcuts-portal.md)).
-- `just os-linux-live` runs the four `#[ignore]`d live tests: a notification shown on the session
-  bus, a volume and mute round trip on the default sink that restores what it found, a capture
-  on `DISPLAY` that is refused before the test maps a window naming its own process and, after,
-  comes back with that window black and a white window of no process around it still white, and a
+- `just os-linux-live` runs the five `#[ignore]`d live tests: a notification shown on the session
+  bus, a volume and mute round trip on the default sink that restores what it found, a capture on
+  `DISPLAY` that is refused before the test maps a window naming its own process and, after, comes
+  back with that window black and a white window of no process around it still white, a window
+  capture that is `NoTarget` until it names the topmost titled window not the test's own, and a
   `ctrl+alt+space` grab that XTEST presses with Num Lock off and on and holds for 1.5 s, each of
   which must run the callback once, and that `ctrl+space` must not run.
 
@@ -216,8 +219,6 @@ stub body `#[cfg_attr(coverage, coverage(off))]`. Under a normal `cargo build`, 
 the `coverage` cfg is unset, so the attributes vanish and the crates compile on stable.
 `cfg(coverage)` is declared in the workspace lints (`check-cfg`) so it is not "unexpected". Only
 genuinely unreachable code, a stub whose body is `unimplemented!()`, gets the exemption.
-`os_windows` is left out of the measurement by being `cfg`'d out on Linux and is validated by host
-runs instead; `os_linux`'s real backends are measured in full. Neither silences coverage.
 
 ## Invariants
 

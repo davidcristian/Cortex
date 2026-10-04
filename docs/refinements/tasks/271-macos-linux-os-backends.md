@@ -3,7 +3,7 @@
 **Status:** open, optional feature
 **Area:** cross-cutting
 **Origin:** none, this area is the old catch-all list and has no single origin decision record
-**Verified:** 2026-10-01
+**Verified:** 2026-10-04
 
 Real backends behind the existing OS traits where they are still `unimplemented!()` stubs. No
 Linux stub is left, and four macOS ports still are:
@@ -61,3 +61,7 @@ needing a Win32 desktop session or a 24 GB GPU: a Linux or macOS backend needs n
   is set, and both `just check-shell` halves passed on this host from a userspace prefix built
   without sudo ([readings](../../readings/shell-clippy.md)). Filed
   [765](765-a-wayland-hotkey-through-the-globalshortcuts-portal.md).
+- 2026-10-04: Checked again. The four macOS ports are still `unimplemented!()` stubs, and
+  `os_macos` still has no `cfg(target_os)` in its source or manifest, so it compiles and is measured
+  here. None of it can be built or checked on this Linux host. The X11 window target was built under
+  [263](263-linux-and-macos-capture-backends.md), so no Linux capture part is left in either entry.

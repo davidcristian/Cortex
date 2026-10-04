@@ -10,11 +10,12 @@ use x11rb::rust_connection::RustConnection;
 use super::{Sent, answer};
 use crate::screen::{Area, TreeWindow};
 
-/// The four requests sent for one window, in the order they are answered.
+/// The five requests sent for one window, in the order they are answered.
 type Asked<'c> = (
     Option<usize>,
     Sent<'c, GetWindowAttributesReply>,
     Sent<'c, GetGeometryReply>,
+    Sent<'c, GetPropertyReply>,
     Sent<'c, GetPropertyReply>,
     Sent<'c, QueryTreeReply>,
 );
@@ -42,6 +43,7 @@ pub fn windows(
                     connection.get_window_attributes(window),
                     connection.get_geometry(window),
                     connection.get_property(false, window, pid, AtomEnum::CARDINAL, 0, 1),
+                    connection.get_property(false, window, AtomEnum::WM_NAME, AtomEnum::ANY, 0, 0),
                     connection.query_tree(window),
                 )
             })
@@ -57,27 +59,31 @@ pub fn windows(
     Ok((windows, ids))
 }
 
-/// Reads the four answers about one window: the window, then its children.
+/// Reads the five answers about one window: the window, then its children.
 fn window(asked: Asked<'_>) -> Result<(TreeWindow, Vec<Window>), ReplyError> {
-    let (parent, attributes, geometry, property, tree) = asked;
+    let (parent, attributes, geometry, property, name, tree) = asked;
     answer(attributes).and_then(|attributes| {
         answer(geometry).and_then(|geometry| {
             answer(property).and_then(|property| {
-                answer(tree).map(|tree| {
-                    let window = TreeWindow {
-                        parent,
-                        area: Area {
-                            x: geometry.x,
-                            y: geometry.y,
-                            width: geometry.width,
-                            height: geometry.height,
-                        },
-                        border: geometry.border_width,
-                        viewable: attributes.map_state == MapState::VIEWABLE,
-                        pid: property.value32().and_then(|mut values| values.next()),
-                        input_only: attributes.class == WindowClass::INPUT_ONLY,
-                    };
-                    (window, tree.children)
+                answer(name).and_then(|name| {
+                    answer(tree).map(|tree| {
+                        let window = TreeWindow {
+                            parent,
+                            area: Area {
+                                x: geometry.x,
+                                y: geometry.y,
+                                width: geometry.width,
+                                height: geometry.height,
+                            },
+                            border: geometry.border_width,
+                            viewable: attributes.map_state == MapState::VIEWABLE,
+                            pid: property.value32().and_then(|mut values| values.next()),
+                            input_only: attributes.class == WindowClass::INPUT_ONLY,
+                            titled: name.bytes_after > 0,
+                            override_redirect: attributes.override_redirect,
+                        };
+                        (window, tree.children)
+                    })
                 })
             })
         })

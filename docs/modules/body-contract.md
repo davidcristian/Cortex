@@ -24,8 +24,8 @@ crate; nothing that ships links it.
   notification answers `true`; one backend answers each of several calls; a declined one answers
   `false`; no service fails with `Unavailable`; a broken backend fails with `Backend`.
 - **`screen`**, the `ScreenCapture` list. `ScreenSubject` builds `showing(RawFrame)`, a display
-  with no window to point at; `pointing_at(RawFrame, TargetRect)`, an `Option` because
-  `LinuxScreenCapture` cannot capture one window; `without_display()`; and `broken()`. The six
+  with no window to point at; `pointing_at(RawFrame, TargetRect)`, a display whose window target
+  resolves to that rectangle; `without_display()`; and `broken()`. The six
   checks, over two frames and three edges: a display capture answers the whole display at its own
   size with no window; a focus capture names the window on the whole display; a display capture
   leaves a focused window out; a focus capture with no window fails; no display fails with

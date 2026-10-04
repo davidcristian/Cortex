@@ -26,6 +26,8 @@ fn shown(area: Area, border: u16) -> TreeWindow {
         viewable: true,
         pid: None,
         input_only: false,
+        titled: false,
+        override_redirect: false,
     }
 }
 

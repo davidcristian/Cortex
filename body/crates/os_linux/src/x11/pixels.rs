@@ -71,6 +71,8 @@ fn background(
         viewable: true,
         pid: None,
         input_only: false,
+        titled: false,
+        override_redirect: false,
     };
     let visual = Some(screen.root_visual);
     pieces(&[sheet], area)

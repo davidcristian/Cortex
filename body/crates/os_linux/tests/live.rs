@@ -8,8 +8,8 @@ use std::thread;
 use std::time::Duration;
 
 use body_core::{
-    AudioControl, CaptureRequest, Hotkey, HotkeyChord, Notification, Notify, ScreenCapture,
-    VolumeChange,
+    AudioControl, CaptureError, CaptureRequest, CaptureTarget, CapturedFrame, Hotkey, HotkeyChord,
+    Notification, Notify, ScreenCapture, TargetRect, VolumeChange,
 };
 use os_linux::x11rb::connection::Connection as _;
 use os_linux::x11rb::protocol::xproto::{KEY_PRESS_EVENT, KEY_RELEASE_EVENT};
@@ -63,11 +63,13 @@ fn the_default_sink_volume_round_trips() {
     assert_eq!(restored.muted, before.muted);
 }
 
-/// Maps a white `size` square at `at` on the root, naming `pid` in `_NET_WM_PID` when given one.
+/// Maps a white `size` square at `at` on the root, naming `pid` in `_NET_WM_PID` and `title` in
+/// `WM_NAME` when given them.
 fn white_square(
     at: i16,
     size: u16,
     pid: Option<u32>,
+    title: Option<&[u8]>,
 ) -> os_linux::x11rb::rust_connection::RustConnection {
     use os_linux::x11rb::protocol::xproto::{
         AtomEnum, ConnectionExt as _, CreateWindowAux, PropMode, WindowClass,
@@ -111,6 +113,17 @@ fn white_square(
             )
             .unwrap_or_else(|error| panic!("{error:?}"));
     }
+    if let Some(title) = title {
+        connection
+            .change_property8(
+                PropMode::REPLACE,
+                window,
+                AtomEnum::WM_NAME,
+                AtomEnum::STRING,
+                title,
+            )
+            .unwrap_or_else(|error| panic!("{error:?}"));
+    }
     connection
         .map_window(window)
         .unwrap_or_else(|error| panic!("{error:?}"));
@@ -127,8 +140,8 @@ fn the_root_window_is_captured_with_this_process_painted_black() {
     let (connection, screen) = os_linux::x11rb::connect(None).unwrap();
     let capture = LinuxScreenCapture::new(X11Root::new(connection, screen), std::process::id());
     assert!(capture.capture(&CaptureRequest::new(0)).is_err());
-    let _below = white_square(0, 40, None);
-    let _ours = white_square(10, 20, Some(std::process::id()));
+    let _below = white_square(0, 40, None, None);
+    let _ours = white_square(10, 20, Some(std::process::id()), None);
 
     let frame = capture.capture(&CaptureRequest::new(0)).unwrap();
     let width = usize::try_from(frame.frame().width()).unwrap();
@@ -138,6 +151,31 @@ fn the_root_window_is_captured_with_this_process_painted_black() {
     assert_eq!(pixel(15, 15), [0, 0, 0]);
     assert_eq!(pixel(29, 29), [0, 0, 0]);
     assert_eq!(pixel(30, 30), [255, 255, 255]);
+}
+
+#[test]
+#[ignore = "needs an X server on DISPLAY"]
+fn a_focus_capture_points_at_the_topmost_titled_window_that_is_not_ours() {
+    let (connection, screen) = os_linux::x11rb::connect(None).unwrap();
+    let capture = LinuxScreenCapture::new(X11Root::new(connection, screen), std::process::id());
+    let focus = CaptureRequest::targeted(0, 0, CaptureTarget::Focus);
+    let _ours = white_square(0, 5, Some(std::process::id()), Some(b"overlay"));
+    assert!(matches!(
+        capture.capture(&focus),
+        Err(CaptureError::NoTarget(_))
+    ));
+    let _lower = white_square(40, 10, None, Some(b"lower"));
+    let _target = white_square(10, 20, None, Some(b"target"));
+    let _untitled = white_square(20, 30, None, None);
+    let _overlay = white_square(25, 5, Some(std::process::id()), Some(b"overlay"));
+
+    let captured = capture.capture(&focus).unwrap();
+
+    let rect = TargetRect::new(10, 10, 30, 30);
+    assert_eq!(
+        captured,
+        CapturedFrame::window(captured.frame().clone(), rect)
+    );
 }
 
 #[test]

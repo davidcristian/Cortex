@@ -3,7 +3,7 @@
 **Status:** open, optional feature
 **Area:** cross-cutting
 **Origin:** [ADR-0011](../../adr/ADR-0011-body-v1.md)
-**Verified:** 2026-10-01
+**Verified:** 2026-10-04
 
 The Linux `Hotkey` backend grabs a key on an X server's root window, so a Wayland session gets no
 global hotkey from it. With no `DISPLAY`, `x11rb::connect(None)` fails and `X11Keys::absent` makes
@@ -29,3 +29,12 @@ shares its request and response handling with the screenshot portal in
 
 - 2026-10-01: Filed when the X11 hotkey backend was built under
   [271](271-macos-linux-os-backends.md).
+- 2026-10-04: Checked which portal backends serve `GlobalShortcuts` on this host's Ubuntu 24.04
+  archive. The `xdg-desktop-portal` 1.18.4 frontend has the interface. Of the backends, only
+  `xdg-desktop-portal-kde` 5.27.11 lists `org.freedesktop.impl.portal.GlobalShortcuts` in its
+  portal file; `xdg-desktop-portal-wlr` 0.7.1 lists `Screenshot` and `ScreenCast` only,
+  `xdg-desktop-portal-gnome` 46.2 does not list it, and no Hyprland backend is packaged. A live test
+  here would need a KDE Wayland session (`kwin_wayland` with `kglobalaccel`) and was not tried. The
+  covered core and a `zbus` adapter tested against a fake portal over a socket pair can be built
+  and checked here, and share their request handling with
+  [752](752-wayland-screen-capture-through-the-portal.md).

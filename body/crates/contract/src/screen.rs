@@ -13,9 +13,8 @@ pub trait ScreenSubject {
     /// An implementation whose primary display shows `frame` with no window to point at.
     fn showing(&self, frame: RawFrame) -> Box<dyn ScreenCapture>;
 
-    /// An implementation whose display shows `frame` and whose focus resolves to `window`, or
-    /// `None` for a backend that cannot capture one window.
-    fn pointing_at(&self, frame: RawFrame, window: TargetRect) -> Option<Box<dyn ScreenCapture>>;
+    /// An implementation whose display shows `frame` and whose focus resolves to `window`.
+    fn pointing_at(&self, frame: RawFrame, window: TargetRect) -> Box<dyn ScreenCapture>;
 
     /// An implementation with no display to capture.
     fn without_display(&self) -> Box<dyn ScreenCapture>;
@@ -126,9 +125,7 @@ fn a_display_capture_answers_the_whole_display(subject: &dyn ScreenSubject) {
 
 fn a_focus_capture_names_the_window_on_the_whole_display(subject: &dyn ScreenSubject) {
     for shown in displays() {
-        let Some(screen) = subject.pointing_at(shown.clone(), WINDOW) else {
-            return;
-        };
+        let screen = subject.pointing_at(shown.clone(), WINDOW);
         for edge in EDGES {
             let captured = screen.capture(&request(edge, CaptureTarget::Focus));
             assert_eq!(seen(&captured, Some(WINDOW)), whole(&shown));
@@ -138,9 +135,7 @@ fn a_focus_capture_names_the_window_on_the_whole_display(subject: &dyn ScreenSub
 
 fn a_display_capture_leaves_the_focused_window_out(subject: &dyn ScreenSubject) {
     for shown in displays() {
-        let Some(screen) = subject.pointing_at(shown.clone(), WINDOW) else {
-            return;
-        };
+        let screen = subject.pointing_at(shown.clone(), WINDOW);
         let captured = screen.capture(&request(0, CaptureTarget::Display));
         assert_eq!(seen(&captured, None), whole(&shown));
     }

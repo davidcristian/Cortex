@@ -33,6 +33,8 @@ const BACKGROUND_ATOM: u32 = 0x0000_01c4;
 const GET_SELECTION_OWNER: u8 = 23;
 const GET_GEOMETRY: u8 = 14;
 const CARDINAL: u32 = 6;
+const STRING: u32 = 31;
+const WM_NAME: u32 = 39;
 const PIXMAP: u32 = 20;
 const SHEET: u32 = 0x0080_0001;
 const RANDR: u8 = 140;
@@ -153,6 +155,10 @@ fn attributes(map_state: MapState) -> Vec<u8> {
 }
 
 fn attributes_of(map_state: MapState, class: WindowClass) -> Vec<u8> {
+    attributes_with(map_state, class, false)
+}
+
+fn attributes_with(map_state: MapState, class: WindowClass, override_redirect: bool) -> Vec<u8> {
     GetWindowAttributesReply {
         backing_store: BackingStore::NOT_USEFUL,
         sequence: 0,
@@ -166,7 +172,7 @@ fn attributes_of(map_state: MapState, class: WindowClass) -> Vec<u8> {
         save_under: false,
         map_is_installed: true,
         map_state,
-        override_redirect: false,
+        override_redirect,
         colormap: 0,
         all_event_masks: EventMask::NO_EVENT,
         your_event_mask: EventMask::NO_EVENT,
@@ -222,6 +228,20 @@ fn property(kind: u32, value: Option<u32>) -> Vec<u8> {
         bytes_after: 0,
         value_len: words,
         value,
+    }
+    .serialize()
+}
+
+/// The answer naming a window `WM_NAME` of six bytes, or one that is empty when not `titled`.
+fn name(titled: bool) -> Vec<u8> {
+    GetPropertyReply {
+        format: 8,
+        sequence: 0,
+        length: 0,
+        type_: STRING,
+        bytes_after: if titled { 6 } else { 0 },
+        value_len: 0,
+        value: Vec::new(),
     }
     .serialize()
 }
@@ -633,14 +653,17 @@ fn a_grab_lists_every_window_under_the_root_inside_one_server_grab() {
             attributes(MapState::VIEWABLE),
             geometry(7, 8, 1),
             pid(None),
+            name(false),
             tree(vec![client]),
-            attributes(MapState::UNMAPPED),
+            attributes_with(MapState::UNMAPPED, WindowClass::INPUT_OUTPUT, true),
             geometry(-2, 3, 0),
             pid(Some(4242)),
+            name(true),
             tree(Vec::new()),
             attributes_of(MapState::UNVIEWABLE, WindowClass::INPUT_ONLY),
             geometry(0, 0, 0),
             pid(Some(77)),
+            name(true),
             tree(Vec::new()),
         ]
         .map(Some),
@@ -663,12 +686,20 @@ fn a_grab_lists_every_window_under_the_root_inside_one_server_grab() {
         viewable,
         pid,
         input_only,
+        titled: true,
+        override_redirect: false,
     };
     assert_eq!(
         grabbed.unwrap_or_else(|error| panic!("{error:?}")).windows,
         vec![
-            window(None, at(7, 8), 1, true, None, false),
-            window(None, at(-2, 3), 0, false, Some(4242), false),
+            TreeWindow {
+                titled: false,
+                ..window(None, at(7, 8), 1, true, None, false)
+            },
+            TreeWindow {
+                override_redirect: true,
+                ..window(None, at(-2, 3), 0, false, Some(4242), false)
+            },
             window(Some(0), at(0, 0), 0, false, Some(77), true),
         ]
     );
@@ -684,11 +715,16 @@ fn a_grab_lists_every_window_under_the_root_inside_one_server_grab() {
     assert_eq!(&requests[1][8..19], b"_NET_WM_PID");
     assert_eq!(&requests[2][..1], &[QUERY_TREE]);
     assert_eq!(&requests[2][4..8], &ROOT.to_le_bytes());
-    let property = &requests[13];
+    let property = &requests[15];
     assert_eq!(property[0], GET_PROPERTY);
     assert_eq!(&property[4..8], &client.to_le_bytes());
     assert_eq!(&property[8..12], &PID_ATOM.to_le_bytes());
     assert_eq!(&property[12..16], &CARDINAL.to_le_bytes());
+    let title = &requests[16];
+    assert_eq!(title[0], GET_PROPERTY);
+    assert_eq!(&title[4..8], &client.to_le_bytes());
+    assert_eq!(&title[8..12], &WM_NAME.to_le_bytes());
+    assert_eq!(&title[12..24], &[0; 12]);
 }
 
 #[test]
@@ -701,13 +737,14 @@ fn an_x_error_while_listing_windows_is_a_failed_grab_that_releases_the_server() 
         Some(error(bad_window, QUERY_TREE, 0)),
         Some(Vec::new()),
     ];
-    // The grab stops reading at the error, so the window's other three requests get no reply: a
+    // The grab stops reading at the error, so the window's other four requests get no reply: a
     // reply left unread resets the socket at close, or meets a closed one if written late.
     let at_a_window = vec![
         Some(Vec::new()),
         Some(atom(PID_ATOM)),
         Some(tree(vec![0x0040_0001])),
         Some(error(bad_window, get_window_attributes, 0)),
+        Some(Vec::new()),
         Some(Vec::new()),
         Some(Vec::new()),
         Some(Vec::new()),
@@ -782,10 +819,12 @@ fn two_windows(holder: u32, reads: Vec<Vec<u8>>) -> Vec<Answer> {
             attributes(MapState::VIEWABLE),
             geometry(0, 0, 0),
             pid(None),
+            name(false),
             tree(Vec::new()),
             attributes(MapState::VIEWABLE),
             geometry(1, 0, 0),
             pid(None),
+            name(false),
             tree(Vec::new()),
         ]
         .map(Some),
@@ -845,7 +884,7 @@ fn a_composited_grab_reads_each_top_level_window_inside_the_area_from_the_window
         layers_of(grabbed),
         vec![layer(0, 2, 1, RGB), layer(1, 1, 2, unknown)]
     );
-    let (first, second) = (&requests[15], &requests[16]);
+    let (first, second) = (&requests[17], &requests[18]);
     assert_eq!(&first[..2], &[GET_IMAGE, 2]);
     assert_eq!(&first[4..16], &[1, 0, 0x40, 0, 0, 0, 0, 0, 2, 0, 1, 0]);
     assert_eq!(&second[4..16], &[2, 0, 0x40, 0, 0, 0, 0, 0, 1, 0, 1, 0]);
@@ -884,10 +923,10 @@ fn a_grab_with_no_compositing_manager_reads_no_window() {
     );
 
     assert_eq!(image_of(grabbed).data, vec![0; 8]);
-    assert_eq!(requests.len(), 15);
-    assert_eq!(requests[13][0], GET_IMAGE);
-    assert_eq!(&requests[13][4..8], &ROOT.to_le_bytes());
-    assert_eq!(requests[14][0], UNGRAB_SERVER);
+    assert_eq!(requests.len(), 17);
+    assert_eq!(requests[15][0], GET_IMAGE);
+    assert_eq!(&requests[15][4..8], &ROOT.to_le_bytes());
+    assert_eq!(requests[16][0], UNGRAB_SERVER);
 }
 
 #[test]
@@ -920,7 +959,7 @@ fn a_composited_grab_reads_the_background_pixmap_from_the_roots_corner_below_eve
         ]
     );
     let (name, property, geometry, read) =
-        (&requests[13], &requests[14], &requests[15], &requests[16]);
+        (&requests[15], &requests[16], &requests[17], &requests[18]);
     assert_eq!(&name[..2], &[INTERN_ATOM, 0]);
     assert_eq!(&name[8..21], b"_XROOTPMAP_ID");
     assert_eq!(property[0], GET_PROPERTY);

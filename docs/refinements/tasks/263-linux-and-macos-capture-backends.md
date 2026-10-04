@@ -3,23 +3,18 @@
 **Status:** open, optional feature
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-10-01
+**Verified:** 2026-10-04
 
 `LinuxScreenCapture<X11Root>` in `os_linux` reads the primary RandR monitor of the X root window
-through `x11rb` and is built and covered under [ADR-0011](../../adr/ADR-0011-body-v1.md) decision
-13. The shell serves it on an X11 session when `CORTEX_HOST_CAPTURE=1`, with the body's own windows
-painted black ([753](753-keep-the-overlay-out-of-a-linux-capture.md)), and a Wayland session needs
-the desktop portal, which is
-[752](752-wayland-screen-capture-through-the-portal.md). Two parts remain here:
+through `x11rb`, built and covered under [ADR-0011](../../adr/ADR-0011-body-v1.md) decision 13, and
+answers both targets. The shell serves it on an X11 session when `CORTEX_HOST_CAPTURE=1`, with the
+body's own windows painted black ([753](753-keep-the-overlay-out-of-a-linux-capture.md)); a Wayland
+session needs the desktop portal, which is
+[752](752-wayland-screen-capture-through-the-portal.md). One part remains here:
 
-- **A window target on X11.** `LinuxScreenCapture` refuses `CaptureTarget::Focus` as `Backend`
-  without reading the screen. The Windows walk in `os_windows/src/focus.rs` takes the topmost
-  visible, titled window that is not the body's own. The X11 form reads `_NET_CLIENT_LIST_STACKING`
-  from the top, skips windows whose `_NET_WM_PID` is this process, whose `_NET_WM_STATE` holds
-  `_NET_WM_STATE_HIDDEN`, or that have no `_NET_WM_NAME`, and translates the chosen frame to root
-  coordinates. The choice belongs in the covered core, over requests added to `RootGrab`.
 - **macOS.** `MacosScreenCapture` is an `unimplemented!()` stub. `os_macos` takes
-  `cfg(target_os = "macos")` first, since it compiles on every platform today.
+  `cfg(target_os = "macos")` first, since it compiles on every platform today. It cannot be built
+  or checked on this Linux host.
 
 Every size decision stays in `body_core` (ADR-0029): a backend returns raw BGRA pixels and the
 resolved target rectangle.
@@ -61,3 +56,16 @@ resolved target rectangle.
 - 2026-10-01: Checked again. The shell's Linux `start` now serves `LinuxScreenCapture<X11Root>`,
   which paints the body's own windows black, so only the two parts above remain. The window target
   is still refused as `Backend`, and `MacosScreenCapture` is still a stub.
+- 2026-10-04: Built the X11 window target, in `os_linux/src/focus.rs` over the window tree the grab
+  already reads, rather than over `_NET_CLIENT_LIST_STACKING` as this entry proposed: that list
+  exists only under an EWMH window manager, while the tree is there on every server and is read in
+  the same server grab as the pixels. It takes the topmost viewable top-level window that is not
+  `InputOnly` or override-redirect, has a non-empty `WM_NAME` on it or a window under it, and holds
+  no window of this process, with its frame and border, measured from the monitor's corner; none is
+  `NoTarget`. `X11Root` adds a zero-length `GetProperty` of `WM_NAME` per window, and the Linux
+  subject now runs the two focus checks of the screen check list. On `Xvfb` with no window manager
+  the live test got the 20 by 20 window at 10, 10 exactly, past an untitled window and the test's
+  own titled one above it. Under `twm` 1.0.10, a reparenting manager run from a userspace
+  extraction, it got that client's 26 by 46 frame, title bar and 3 pixel border included; the live
+  tests place windows at fixed points, so both capture tests expect no window manager. A dock panel
+  is still picked: filed [785](785-pass-over-dock-panels-in-the-x11-focus-target.md).

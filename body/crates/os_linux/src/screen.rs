@@ -6,6 +6,7 @@ use body_core::{
 
 use crate::compose::compose;
 use crate::exclude::{black_out, own_windows};
+use crate::focus::topmost;
 
 /// The channel masks of the one pixel layout the backend reads: eight bits each of red, green, blue.
 const MASKS: (u32, u32, u32) = (0x00ff_0000, 0x0000_ff00, 0x0000_00ff);
@@ -61,6 +62,8 @@ pub struct RootImage {
 }
 
 /// One window under the root, as the server lists it, with what a capture needs to know of it.
+// Each flag is a separate fact the server reports about the window, not a state to fold together.
+#[allow(clippy::struct_excessive_bools)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct TreeWindow {
     /// Its parent's index in the same list, listed before it, or `None` for a child of the root.
@@ -75,6 +78,10 @@ pub struct TreeWindow {
     pub pid: Option<u32>,
     /// Whether it is an `InputOnly` window, which has no pixels to read.
     pub input_only: bool,
+    /// Whether it has a `WM_NAME` that is not empty, the title a window manager shows.
+    pub titled: bool,
+    /// Whether it bypasses the window manager, as menus, tooltips and notifications do.
+    pub override_redirect: bool,
 }
 
 /// One top-level window's own pixels inside the captured rectangle.
@@ -147,26 +154,39 @@ impl<G: RootGrab> LinuxScreenCapture<G> {
 
 impl<G: RootGrab> ScreenCapture for LinuxScreenCapture<G> {
     fn capture(&self, request: &CaptureRequest) -> Result<CapturedFrame, CaptureError> {
-        if request.target() == CaptureTarget::Focus {
-            return Err(CaptureError::Backend(String::from(
-                "capturing one window is not implemented on X11",
-            )));
-        }
         let area = primary(&self.root.layout().map_err(classify)?);
-        let Snapshot { windows, pixels } = self.root.grab(area).map_err(classify)?;
-        let own = own_windows(&windows, self.process)?;
-        let (width, height, mut pixels) = match pixels {
-            Pixels::Root(image) => to_bgra(image)?,
-            Pixels::Layers(layers) => {
-                let pixels = compose(area, layers)?;
-                (u32::from(area.width), u32::from(area.height), pixels)
-            }
-        };
-        black_out(&mut pixels, area, &own);
-        Ok(CapturedFrame::display(RawFrame::new(
-            width, height, pixels,
-        )?))
+        let snapshot = self.root.grab(area).map_err(classify)?;
+        answer(request.target(), area, snapshot, self.process)
     }
+}
+
+/// Builds the answer from one read of `area`: the pixels with the windows of `process` painted
+/// black, and for a focus target the window it resolves to.
+fn answer(
+    target: CaptureTarget,
+    area: Area,
+    snapshot: Snapshot,
+    process: u32,
+) -> Result<CapturedFrame, CaptureError> {
+    let Snapshot { windows, pixels } = snapshot;
+    let own = own_windows(&windows, process)?;
+    let window = match target {
+        CaptureTarget::Display => None,
+        CaptureTarget::Focus => Some(topmost(&windows, process, area)?),
+    };
+    let (width, height, mut pixels) = match pixels {
+        Pixels::Root(image) => to_bgra(image)?,
+        Pixels::Layers(layers) => {
+            let pixels = compose(area, layers)?;
+            (u32::from(area.width), u32::from(area.height), pixels)
+        }
+    };
+    black_out(&mut pixels, area, &own);
+    let frame = RawFrame::new(width, height, pixels)?;
+    Ok(match window {
+        None => CapturedFrame::display(frame),
+        Some(rect) => CapturedFrame::window(frame, rect),
+    })
 }
 
 /// Picks the display target: the primary monitor, else the first listed, else the whole root.

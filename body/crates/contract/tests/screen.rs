@@ -9,8 +9,8 @@ impl ScreenSubject for Fake {
         Box::new(FakeScreen::answering(frame))
     }
 
-    fn pointing_at(&self, frame: RawFrame, window: TargetRect) -> Option<Box<dyn ScreenCapture>> {
-        Some(Box::new(FakeScreen::showing(frame, window)))
+    fn pointing_at(&self, frame: RawFrame, window: TargetRect) -> Box<dyn ScreenCapture> {
+        Box::new(FakeScreen::showing(frame, window))
     }
 
     fn without_display(&self) -> Box<dyn ScreenCapture> {

@@ -7,6 +7,7 @@ mod audio;
 mod compose;
 mod dbus;
 mod exclude;
+mod focus;
 mod hotkey;
 mod keys;
 mod notify;

@@ -3,7 +3,7 @@
 **Status:** open, waiting for a consumer
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-10-01
+**Verified:** 2026-10-04
 **Trigger:** A request to capture a display other than the primary one.
 
 The Windows backend captures the primary display only, in physical pixels. The X11 backend in
@@ -56,3 +56,7 @@ it returns `NoTarget` rather than a wrong picture.
   alone. `CaptureScreenRequest` still uses fields 1 to 3.
 - 2026-10-01: Checked again. The shell now serves the X11 backend, which still captures one
   monitor; no request names another display, so the trigger has not fired.
+- 2026-10-04: Checked again after the X11 window target was built. It reads the same one monitor
+  and measures the window from its corner, so a window on another monitor is still `NoTarget`. No
+  request names another display, and `CaptureScreenRequest` still uses fields 1 to 3, so the
+  trigger has not fired.

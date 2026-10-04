@@ -3,7 +3,7 @@
 **Status:** open, optional feature
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-10-01
+**Verified:** 2026-10-04
 
 The Linux capture backend reads an X server's root window, so a Wayland session gets no picture
 from it. With no `DISPLAY`, `x11rb::connect(None)` fails and `X11Root::absent` makes every capture
@@ -30,3 +30,12 @@ tree, which a portal picture of a Wayland session does not come with, so it does
 - 2026-10-01: Corrected. The entry named 753 as the overlay's exclusion here, but 753's fill reads
   window positions from the X tree, which a Wayland session's portal picture has no counterpart
   for. The shell still serves `DeniedScreenCapture` whenever `WAYLAND_DISPLAY` is set.
+- 2026-10-04: Checked whether a portal stack can run on this host without sudo. The Ubuntu 24.04
+  archive has `xdg-desktop-portal` 1.18.4, `xdg-desktop-portal-wlr` 0.7.1, whose portal file lists
+  `Screenshot` and `ScreenCast` with `UseIn=wlroots;sway`, and `sway` 1.9, which runs headless with
+  `WLR_BACKENDS=headless`. `apt-cache depends --recurse` lists 275 packages for `sway` and the wlr
+  backend, many already installed, so a userspace extraction like the one that ran `twm` under
+  [263](263-linux-and-macos-capture-backends.md) is the next live step, under `dbus-run-session`
+  with `XDG_CURRENT_DESKTOP=sway`. It was not run. The covered core and a `zbus` adapter tested
+  against a fake portal over a socket pair, as `DbusNotifications` is, need none of that and are the
+  first step.

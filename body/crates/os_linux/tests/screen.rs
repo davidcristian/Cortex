@@ -3,7 +3,9 @@
 use std::sync::{Arc, Mutex, PoisonError};
 
 use body_contract::screen::{ScreenSubject, run};
-use body_core::{CaptureError, CaptureRequest, CaptureTarget, RawFrame, ScreenCapture, TargetRect};
+use body_core::{
+    CaptureError, CaptureRequest, CaptureTarget, CapturedFrame, RawFrame, ScreenCapture, TargetRect,
+};
 use os_linux::{
     Area, GrabError, Layer, Layout, LinuxScreenCapture, Monitor, Pixels, RootGrab, RootImage,
     Snapshot, TreeWindow,
@@ -94,6 +96,8 @@ fn window(parent: Option<usize>, x: i16, y: i16, border: u16, pid: Option<u32>) 
         viewable: true,
         pid,
         input_only: false,
+        titled: false,
+        override_redirect: false,
     }
 }
 
@@ -320,28 +324,106 @@ fn a_failed_read_is_a_backend_failure() {
     );
 }
 
-#[test]
-fn a_window_target_is_refused_without_reading_the_screen() {
-    let (capture, calls) = counted(Ok(root_only()), Ok(image(true, vec![0; 8])));
+fn rows(marks: [&str; 3]) -> Vec<String> {
+    marks.map(String::from).to_vec()
+}
 
-    let captured = capture.capture(&CaptureRequest::targeted(0, 0, CaptureTarget::Focus));
+/// Captures the 4 by 3 monitor at 1, 1 of the root with `windows` over it, pointed at a window.
+fn focused(windows: Vec<TreeWindow>) -> Result<CapturedFrame, CaptureError> {
+    let area = Area {
+        x: 1,
+        y: 1,
+        width: 4,
+        height: 3,
+    };
+    let layout = Layout {
+        root: ROOT,
+        monitors: vec![Monitor {
+            primary: true,
+            area,
+        }],
+    };
+    let mut lit = image(true, vec![7; 48]);
+    (lit.width, lit.height) = (4, 3);
+    let root = FakeRoot {
+        layout: Ok(layout),
+        answer: Ok(Pixels::Root(lit)),
+        windows,
+        calls: Arc::new(Mutex::new(Vec::new())),
+    };
+    LinuxScreenCapture::new(root, PROCESS).capture(&CaptureRequest::targeted(
+        0,
+        0,
+        CaptureTarget::Focus,
+    ))
+}
 
+fn assert_points_at(windows: Vec<TreeWindow>, rect: TargetRect) {
+    let captured = focused(windows).unwrap_or_else(|error| panic!("{error:?}"));
     assert_eq!(
         captured,
-        Err(CaptureError::Backend(String::from(
-            "capturing one window is not implemented on X11"
-        )))
-    );
-    assert!(
-        calls
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner)
-            .is_empty()
+        CapturedFrame::window(captured.frame().clone(), rect)
     );
 }
 
-fn rows(marks: [&str; 3]) -> Vec<String> {
-    marks.map(String::from).to_vec()
+/// A window with a title, as `window` places it.
+fn titled(parent: Option<usize>, x: i16, y: i16, border: u16, pid: Option<u32>) -> TreeWindow {
+    TreeWindow {
+        titled: true,
+        ..window(parent, x, y, border, pid)
+    }
+}
+
+#[test]
+fn a_focus_capture_points_at_the_topmost_titled_window_from_the_monitor_corner() {
+    let windows = vec![
+        hidden(),
+        titled(None, 1, 1, 0, None),
+        titled(None, 3, 2, 1, None),
+    ];
+
+    assert_points_at(windows, TargetRect::new(2, 1, 5, 4));
+}
+
+#[test]
+fn a_focus_capture_passes_over_windows_it_cannot_point_at() {
+    let windows = vec![
+        hidden(),
+        window(None, 2, 2, 0, None),
+        window(None, 0, 0, 0, None),
+        window(None, 0, 0, 0, None),
+        TreeWindow {
+            viewable: false,
+            ..titled(None, 0, 0, 0, None)
+        },
+        TreeWindow {
+            input_only: true,
+            ..titled(None, 0, 0, 0, None)
+        },
+        TreeWindow {
+            override_redirect: true,
+            ..titled(None, 0, 0, 0, None)
+        },
+        titled(Some(1), 0, 0, 0, None),
+        titled(Some(2), 0, 0, 0, Some(PROCESS)),
+    ];
+
+    assert_points_at(windows, TargetRect::new(1, 1, 2, 2));
+}
+
+#[test]
+fn a_focus_capture_with_nothing_to_point_at_is_no_target() {
+    let captured = focused(vec![TreeWindow {
+        titled: true,
+        ..hidden()
+    }]);
+
+    assert_eq!(
+        captured,
+        Err(CaptureError::NoTarget(String::from(
+            "no top-level window on this X screen is viewable, titled and not the body's own"
+        )))
+    );
 }
 
 #[test]
@@ -535,9 +617,38 @@ impl ScreenSubject for Linux {
         Box::new(counted(Ok(layout), Ok(read)).0)
     }
 
-    // Capturing one window is not implemented on X11, so no focus resolves to one.
-    fn pointing_at(&self, _frame: RawFrame, _window: TargetRect) -> Option<Box<dyn ScreenCapture>> {
-        None
+    fn pointing_at(&self, frame: RawFrame, window: TargetRect) -> Box<dyn ScreenCapture> {
+        let size = |from: i32, to: i32| u16::try_from(to - from).unwrap_or(u16::MAX);
+        let place = |at: i32| i16::try_from(at).unwrap_or(i16::MAX);
+        let target = TreeWindow {
+            area: Area {
+                x: place(window.left()),
+                y: place(window.top()),
+                width: size(window.left(), window.right()),
+                height: size(window.top(), window.bottom()),
+            },
+            ..titled(None, 0, 0, 0, None)
+        };
+        let (width, height) = (frame.width(), frame.height());
+        let root = FakeRoot {
+            layout: Ok(Layout {
+                root: Area {
+                    x: 0,
+                    y: 0,
+                    width: u16::try_from(width).unwrap_or(u16::MAX),
+                    height: u16::try_from(height).unwrap_or(u16::MAX),
+                },
+                monitors: Vec::new(),
+            }),
+            answer: Ok(Pixels::Root(RootImage {
+                width,
+                height,
+                ..image(true, frame.pixels().to_vec())
+            })),
+            windows: vec![hidden(), target],
+            calls: Arc::new(Mutex::new(Vec::new())),
+        };
+        Box::new(LinuxScreenCapture::new(root, PROCESS))
     }
 
     fn without_display(&self) -> Box<dyn ScreenCapture> {
