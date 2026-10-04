@@ -4,7 +4,7 @@
 **Area:** rpc-auth
 **Origin:** [ADR-0016](../../adr/ADR-0016-shared-token.md)
 **Trigger:** A second party on this connection, meaning a client the pair's own operator does not run, whose credential has to be withdrawn without disturbing the other.
-**Verified:** 2026-09-30
+**Verified:** 2026-10-04
 
 Rotating or issuing several tokens buys nothing for one body and brain pair run by one person.
 The other deferred item from the same ADR, mTLS on a non-loopback link, is recorded at
@@ -42,3 +42,8 @@ another keeps working, which is what the trigger now asks for.
   shared by the Linux `start` as well, and `RpcServerConfig` (prefix `CORTEX_SEAM_`), which
   `wiring.py` line 81 and `server.py` line 168 use. The body said the body overlay passed the
   token; it only sets the backend and endpoint, so the paragraph now names `docker-compose.yml`.
+- 2026-10-04: Checked again, and the trigger has not fired. The four readers hold, `body_server.rs`
+  now reading the token at line 105. One more client presents it since 2026-10-02: `just
+  rpc-handoff` runs `body/crates/rpc/tests/handoff_live.rs`, a headless client that approves the
+  handoff card, and like the other live checks it is run by the pair's own operator on the same
+  machine.

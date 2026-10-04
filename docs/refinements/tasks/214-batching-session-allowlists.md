@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** email-confirmer
 **Origin:** [ADR-0022](../../adr/ADR-0022-email-write-confirmer.md)
-**Verified:** 2026-09-30
+**Verified:** 2026-10-04
 **Trigger:** a deployment where confirmations arrive often enough that the user starts approving
 them without reading them. Which tools can produce one is read off the shipped default,
 `confirm_names` in `brain/packages/orchestrator/src/cortex_orchestrator/config_tools.py`, and how
@@ -57,3 +57,7 @@ allowlist over `send_email` is a permanent approval to send mail.
   `CORTEX_TOOLS_GATED`), `MAX_TOOL_DISPATCHES` is 32, and `dispatch` returns a refusal before line
   130 checks the confirm set. One pointer was wrong: `config_tools.py` no longer says why
   `send_email` is unpriced, and ADR-0009 does, so the body now cites it. No deployment runs here.
+- 2026-10-04: Claims held and both readings are unchanged. No commit since 2026-09-29 touches
+  `config_tools.py`, `dispatch.py`, `tool_budget.py` or ADR-0009: `confirm_names` still defaults to
+  `escalate_to_brain` and `send_email` (lines 42 and 43), `MAX_TOOL_DISPATCHES` is 32, and
+  `escalate.py` is still the only built-in that sets `confirm_required`. No deployment runs here.

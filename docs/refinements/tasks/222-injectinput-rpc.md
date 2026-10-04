@@ -3,8 +3,8 @@
 **Status:** open, waiting for a consumer
 **Area:** body-gateway
 **Origin:** [ADR-0023](../../adr/ADR-0023-body-gateway-volume.md)
-**Trigger:** A real consumer for input injection, built then as one slice, not as a wired handler.
-**Verified:** 2026-09-28
+**Trigger:** A tool, surface or task that types text or presses a key combination on the host, so that `InjectInput` or `inject_input` is named outside `proto/`, the generated stubs, `cortex_seam`'s exports, the unimplemented handler in `body/crates/rpc/src/server.rs` and its test. It is then built as one slice, not as a wired handler.
+**Verified:** 2026-10-04
 
 `InjectInput` is the only one of the five RPCs `BodyService` declares that is not built. It is
 unbuilt at every tier: the RPC and its `TypeText` and `KeyChord` messages are forward-looking
@@ -15,7 +15,9 @@ waiting for the confirmation that would make it safe.
 
 It stays a refinement rather than moving to [docs/host/](../../host/index.md): the proto field, the
 core trait, the gateway method, the fake and its contract test are all reachable and covered here,
-and only the real `SendInput` adapter and its validation need a Win32 desktop session.
+and only the real `SendInput` adapter and its validation need a Win32 desktop session. A Linux
+adapter can use the XTEST extension that `os_linux` already enables for its live hotkey test, and
+can be checked here against an Xvfb server.
 
 ## History
 
@@ -42,3 +44,11 @@ and only the real `SendInput` adapter and its validation need a Win32 desktop se
   `body/crates/core/src/os/` still holds `notify` and four screen modules, `inject_input` in
   `server.rs` still answers `Status::unimplemented`, and nothing under `body/`, `brain/` or `proto/`
   names `SendInput` or XTest. Neither 271 nor 272 mentions input injection any more.
+- 2026-10-04: Checked again, and the trigger has not fired. Outside `proto/`, the generated stubs
+  and `cortex_seam`'s exports, `InjectInput` is named only by the unimplemented handler
+  (`server.rs` line 93) and its test, and the gateway has no inject method. The proto lines
+  moved, to 224 and 293 to 301. The 2026-09-28 note that nothing names XTest no longer holds: the
+  Linux hotkey backend added 2026-10-01 enables x11rb's `xtest` feature in `os_linux`, and its live
+  test presses a chord with `xtest_fake_input` on an X server. That is a test helper, not a
+  consumer, but a Linux adapter for the slice can now be built and checked here, so the body says
+  so, and the trigger now names something a grep decides.

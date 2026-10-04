@@ -4,7 +4,7 @@
 **Area:** session-read-rpc
 **Origin:** [ADR-0021](../../adr/ADR-0021-session-read-rpcs.md)
 **Trigger:** A second caller that opens a chat by id from outside the loaded window, beside the reminder card's open control, such as toast activation routing once `NotifyRequest` has a `session_id` (R-230) or a search.
-**Verified:** 2026-09-30
+**Verified:** 2026-10-04
 
 `headerTitle` reads the title from `state.sessions`, so a chat that is not in the loaded recency
 window still derives its header locally. The only path today that opens such a chat is a reminder
@@ -42,3 +42,9 @@ user rename or a generated title stored against that chat.
   card's `onOpen` (`body/app/src/components/ChatView.tsx` line 155) is still the only opener outside
   the loaded list. `NotifyRequest` still has no `session_id`, the Linux notification backend added
   since included, [230](230-toast-activation-routing.md) is still open, and no search exists.
+- 2026-10-04: Checked again; every claim holds and the trigger has not fired. No commit since
+  2026-09-29 touches `sessionState.ts`, `ChatView.tsx`, `Reminders.tsx`, `useSessionCatalog.ts`
+  or `proto/body.proto`. `openSession` is still reached from the switcher, the reminder card's open
+  control and the previous and next chat keys, and the last two walk the loaded list.
+  `NotifyRequest` still has no `session_id`, [230](230-toast-activation-routing.md) is still open,
+  and no search exists.

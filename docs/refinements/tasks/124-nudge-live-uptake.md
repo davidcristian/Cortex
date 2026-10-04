@@ -3,8 +3,8 @@
 **Status:** open, waiting for its trigger
 **Area:** subagents
 **Origin:** [ADR-0018](../../adr/ADR-0018-heterogeneous-subagents.md)
-**Trigger:** A deployment that delegates unprompted and pays for the pile in the user's wall clock.
-**Verified:** 2026-09-30
+**Trigger:** A record in `docs/readings/spawn-spec-uptake.md`, a runbook or a host task, from a probe or from real use, of the cortex calling `spawn_subagents` on a turn whose ask did not invite delegation and putting the batch on one roster entry while a second was up. None exists: the only uninvited reading is the 2026-08-04 one, twenty prose-only turns and zero spawn calls.
+**Verified:** 2026-10-04
 
 The trade-off sentence ([R-122](122-measured-tradeoff-advertisement.md)) gives the cortex a
 wall-clock reason to spread independent subtasks across distinct roster models. Whether it acts on
@@ -98,3 +98,9 @@ example, a sharper phrasing), never a schema change.
   to the validation runbook on 2026-09-19. Tonight's probe
   extensions read which role an invited cortex names, not whether it delegates unprompted, and no
   reading records an unprompted delegation.
+- 2026-10-04: Checked again; the code half holds and the trigger has not fired. The condition is
+  still at `spawn_spec.py` line 85, both notes still say "one after another", and the three
+  assertions in `test_spawn.py` (lines 458, 476 and 485) still check that text. No commit since
+  2026-09-30 touches the spec, its tests or the probe, and no reading records an unprompted
+  delegation. The trigger named a deployment and a cost nobody could read off the tree, so it now
+  names the record that would show both.
