@@ -4,7 +4,7 @@
 **Area:** scheduling
 **Origin:** [ADR-0025](../../adr/ADR-0025-scheduling-reminders.md)
 **Trigger:** the surface must distinguish them (a task icon, a "task ran" label, a task-only action).
-**Verified:** 2026-09-30
+**Verified:** 2026-10-04
 
 A fired task uses the same `DueReminder` and `Reminders.tsx` card as a reminder, with nothing to
 tell them apart: `DueReminder` has no `kind`, and the overlay labels the list "Due reminders" with
@@ -26,7 +26,8 @@ body's `DueReminder` struct
 [rpc/reminders.rs](../../../body/crates/rpc/src/reminders.rs); the shell's `WireReminder`
 ([src-tauri/reminders.rs](../../../body/app/src-tauri/src/reminders.rs)); and in the overlay the
 `DueReminder` interface ([types.ts](../../../body/app/src/bridge/types.ts)), the demo bridge's
-seeded rows ([demoScript.ts](../../../body/app/src/bridge/demoScript.ts)) and `Reminders.tsx`.
+seeded rows ([demoScript.ts](../../../body/app/src/bridge/demoScript.ts)) and
+[Reminders.tsx](../../../body/app/src/components/Reminders.tsx).
 
 ## History
 
@@ -49,3 +50,8 @@ seeded rows ([demoScript.ts](../../../body/app/src/bridge/demoScript.ts)) and `R
   `reminder_to_proto` still sends a task's `last_outcome` as the text. The Linux notification
   backend added on 2026-09-28 sends the title as the summary, so its toast names the kind too.
   The trigger has not occurred.
+- 2026-10-04: Checked again and every claim holds. `DueReminder` still has six fields and no
+  `kind`, `Reminders.tsx` still labels the list "Due reminders" with a `BellIcon` on every row, and
+  `reminder_to_proto` still sends a task's `last_outcome` as the text. The card's file is in
+  `body/app/src/components/`, and the list above now links it. No design doc, ADR or task asks the
+  card to tell a task from a reminder, so the trigger has not occurred.

@@ -4,7 +4,7 @@
 **Area:** body-overlay
 **Origin:** [ADR-0035](../../adr/ADR-0035-console-and-motion.md) decision 22, scrollbars as reserved chrome ([overlay-ux.md §2](../../design/overlay-ux.md))
 **Trigger:** The overlay running on an engine without `::-webkit-scrollbar`, such as Gecko, since only such an engine takes the fenced branch.
-**Verified:** 2026-09-30
+**Verified:** 2026-10-04
 
 Every scroll container sets `scrollbar-gutter: stable` and pays for the rail out of its own
 inline-end padding, either subtracted from a padding big enough to hold it
@@ -63,3 +63,10 @@ reading first: `.reminders` answers 8px for a 6px rail inside two 1px edges.
   width at lines 60 to 63, the fence at 98 to 103, and the funding shapes at 537 (`.history`), 759
   (`.thoughts-body`), 902 (`.confirm-draft`), 1026 (`.field`), 1203 (`.rows`), 1659 (`.switcher`)
   and 1915 (`.reminders`, still inside a 1px border).
+- 2026-10-04: Checked again; the premise holds, the stylesheet has not changed since 2026-09-25,
+  so every pointer above is still right, and the trigger has not fired. The Linux shell has now run
+  ([751](751-the-shell-has-never-been-linked-or-run-on-linux.md), closed 2026-10-01) and painted
+  the overlay through WebKitGTK 2.52.6, which has `::-webkit-scrollbar` and so does not reach the
+  fenced branch. That run did not read the band WebKit reserves under `scrollbar-gutter: stable`,
+  which decides whether the subtraction balances on the Linux shell. That reading is
+  [783](783-the-reserved-rail-is-unmeasured-on-webkitgtk.md).

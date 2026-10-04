@@ -3,7 +3,7 @@
 **Status:** open, waiting for a consumer
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-09-28
+**Verified:** 2026-10-04
 **Trigger:** Something has to read a picture after its turn ends: a reopened chat showing what the
 assistant saw, a question about a capture answered from the audit trail, or the deep tier in R-266.
 
@@ -49,3 +49,9 @@ the assistant's reply or the session record gains a tool step.
   reference. A user message
   may now have images too ([ADR-0070](../../adr/ADR-0070-user-attached-images.md)), and that ADR
   declined a store across turns and keeps a note in history, so attachments are not a reader here.
+- 2026-10-04: Checked again, and the trigger has not fired. A reopened chat has nothing to show:
+  `SessionMessage` in [proto/body.proto](../../../proto/body.proto) and in the overlay's `types.ts`
+  has a role, text, turn id and time and no picture. `invocation_fields` still writes
+  `result_chars` and not the sentence, both session stores still refuse images and tool steps, and
+  the deep tier's [266](266-sending-a-picture-across-a-model-swap.md) still waits, since
+  `escalate.py` still sets `confirm_required=True`.

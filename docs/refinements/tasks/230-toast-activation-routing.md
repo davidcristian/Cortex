@@ -4,7 +4,7 @@
 **Area:** scheduling
 **Origin:** [ADR-0066](../../adr/ADR-0066-reminder-toast-and-card.md)
 **Trigger:** a second consumer of toast interaction, such as snooze from the toast.
-**Verified:** 2026-09-28
+**Verified:** 2026-10-04
 
 Clicking a shown toast does nothing, while the overlay's reminder card offers "open the
 conversation this came from". Fixing that needs a change to the gRPC boundary: `NotifyRequest`
@@ -46,7 +46,7 @@ from the Tauri shell into the running overlay already exists, since the shell em
 `cortex:activate` on the hotkey and the tray (`body/app/src-tauri/src/lib.rs`) and the overlay
 handles it (`body/app/src/overlay/activation.ts`), as it has since 2026-07-01. It has no payload, so
 part two adds a session id to that event or a sibling of it. And the COM activator is only one of
-two ways to hear a click: `ToastNotification` in the fixed `windows` 0.58 exposes an in-process
+two ways to hear a click: `ToastNotification` in the fixed `windows` 0.61 exposes an in-process
 `Activated` event, and the body runs in the tray, so a click while the body runs could reach a
 handler registered when the toast is shown, with no COM registration. The activator is what a click
 needs when the process that showed the toast has exited. Whether `Activated` fires for an unpackaged
@@ -77,3 +77,9 @@ That code would be in `os_linux`, which the coverage run measures.
   include it. It is a second place a toast is shown, not a second consumer of a click: it sends no
   action and keeps no id. `NotifyRequest` still has no `session_id`, and nothing offers snooze from
   a toast, so the trigger has not fired.
+- 2026-10-04: Checked again and corrected: the paragraph on part two named `windows` 0.58, and
+  `os_windows` has used 0.61 since 2026-10-03; in the locked 0.61.3 `ToastNotification` still has
+  the `Activated` event. Every other claim holds. `NotifyRequest` has no `session_id`, `toast_xml`
+  renders one `ToastGeneric` binding with no `launch` and no `<actions>`, the Linux `Notify` call
+  sends an empty `actions` array, and the shell emits `cortex:activate` with an empty payload.
+  Nothing under `body/` or in the proto mentions snooze, so the trigger has not fired.

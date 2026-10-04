@@ -8,7 +8,7 @@ after the body was reachable again until the overlay was next opened, late enoug
 says it mattered. The brain's `push failed; pull will deliver` line marks each fire that fell to
 the pull path; nothing on either side logs when the overlay pulled it, so how late it was is the
 user's own report.
-**Verified:** 2026-09-30
+**Verified:** 2026-10-04
 
 The only retry today is the deliverable-until-acked pull. A proactive re-push would deliver twice,
 because `NotifyRequest.reminder_id` is the item id, which is stable across a recurring item's
@@ -76,3 +76,8 @@ its own.
 - 2026-10-03: `os_windows` moved from `windows` 0.58 to the 0.61.3 the Tauri shell resolves. In
   0.61.3 `ToastNotification` still has `SetTag` and `SetGroup` and `ToastNotificationManager` still
   has `History`, so only the version named above changed.
+- 2026-10-04: Checked again and every claim holds. `NotifyRequest` still has its four fields and
+  no stamp, `_deliver` still logs `push failed; pull will deliver` and returns, `failures.py` still
+  maps `UNAVAILABLE` and `DEADLINE_EXCEEDED` to `UNREACHABLE`, the Linux `dbus.rs` still returns
+  the server's id and `LinuxNotify.show` still drops it, and `ToastNotification` in the locked
+  `windows` 0.61.3 still has `SetTag` and `SetGroup`. No report of the trigger exists.
