@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** subagents
 **Origin:** [ADR-0004](../../adr/ADR-0004-model-lineup.md)
-**Verified:** 2026-10-01
+**Verified:** 2026-10-04
 **Trigger:** any compose file, either shipped subagent file included, starts a third subagent server
 with `-ngl 0`, which `uv run python flagcheck.py --root ..` in `scripts/` counts in its success line
 as a fourth server (three on 2026-09-19: the two CPU servers and the model host's hosted tier)
@@ -52,3 +52,7 @@ so the case now refused is the one that mattered.
   are corrected. `composestarts.py` is 212 lines, as it was on 2026-09-19, so the line cap is no
   ground for declining the fix; and the alternatives of ADR-0004 keep one of the three grounds, not
   all three. The decode figure was a twentieth where the reading says a twenty-fifth.
+- 2026-10-04: not fired. `uv run python flagcheck.py --root ..` in `scripts/` reads three subagent
+  servers in three files and exits 0. The thread rule in `scripts/subagentflags.py` still requires
+  the flag when `-ngl 0` is set and reads no value, `scripts/subagentcouplings.py` and the two
+  subagent compose files are unchanged since 2026-10-01, and `composestarts.py` is still 212 lines.

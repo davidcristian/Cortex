@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** subagents
 **Origin:** [ADR-0004](../../adr/ADR-0004-model-lineup.md)
-**Verified:** 2026-10-01
+**Verified:** 2026-10-04
 **Trigger:** a delegated run on the CPU server ended by the stall ceiling or the run deadline
 while a peer queues behind it, a spawn refused at the admission wait, or any retune of `CORTEX_SUBAGENTS_STALL_TIMEOUT_S`, `CORTEX_SUBAGENTS_RUN_TIMEOUT_S` or
 `CORTEX_SUBAGENTS_ADMISSION_WAIT_S`.
@@ -82,3 +82,8 @@ from them by the rules [ADR-0048](../../adr/ADR-0048-generation-bounds.md) wrote
   is back. Shortening the stall ceiling is also the trigger of
   [R-763](763-the-stall-bound-times-a-whole-prompt-evaluation-as-one-silence.md), since without
   progress chunks that ceiling has to clear a whole prompt evaluation.
+- 2026-10-04: not fired. `DEFAULT_STALL_TIMEOUT_S` is 600.0, `DEFAULT_SUBAGENT_RUN_TIMEOUT_S`
+  2400.0 and `DEFAULT_ADMISSION_WAIT_S` 7200.0, and none of the three files that declare them has
+  changed since 2026-10-01. The subagents overlay still passes the three variables by name with no
+  value, this machine has no `.env` and exports no `CORTEX_` variable, and no reading committed
+  since 2026-10-01 records a delegated CPU run ended by a bound or a refused spawn.

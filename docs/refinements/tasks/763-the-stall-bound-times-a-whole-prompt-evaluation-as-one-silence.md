@@ -5,7 +5,7 @@
 first-token floor, or a change sets out to shorten the CPU pool's 600 s stall ceiling.
 **Area:** inference
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
-**Verified:** 2026-10-01
+**Verified:** 2026-10-04
 
 The adapter's per-read stall ceiling (`CORTEX_INFERENCE_STALL_TIMEOUT_S`, 120 s, and
 `CORTEX_SUBAGENTS_STALL_TIMEOUT_S`, 600 s) bounds the gap between two streamed chunks, and
@@ -39,3 +39,10 @@ What to check before building it:
   took the 6184-token prompt in one step, its progress chunks coming at 0 s and at 186.8 s with the
   first delta ([771](771-flash-nexts-first-prompt-step-is-a-54-token-checkpoint.md)), so this
   route bounds a step only where the batch or a checkpoint splits the prompt.
+- 2026-10-04: trigger not fired. Qwen3.8-Flash-Next has not cleared every row its pick needs:
+  ADR-0004 decision 8 says whether it stops was not drawn, and that is the row the deep pick is
+  decided on. The ADR records no other candidate missing the stall bound before its first token,
+  `DEFAULT_STALL_TIMEOUT_S` is still 600.0 in `config_subagents.py` and the cortex's
+  `stall_timeout_s` still 120.0. The request body in `cortex_inference/request.py` still sets
+  `stream` and no `return_progress`. `consume_chunk` reads a chunk whose `choices` list is empty as
+  one with no text and raises on one with no `choices` key, so item 1 still decides the shape.

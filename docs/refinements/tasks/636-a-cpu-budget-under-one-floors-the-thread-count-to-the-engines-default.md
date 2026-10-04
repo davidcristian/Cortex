@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** subagents
 **Origin:** [ADR-0004](../../adr/ADR-0004-model-lineup.md)
-**Verified:** 2026-10-01
+**Verified:** 2026-10-04
 **Trigger:** a deployment that sets `CORTEX_SUBAGENTS_CPU_BUDGET` below 1.0, or a brain config
 change that lets the budget reach a CPU subagent server by any route other than the compose
 substitution both CPU servers read.
@@ -66,3 +66,11 @@ must lower every ask to at or under the budget as well.
   The deployment clause is decided by the environment compose starts with: this machine has no
   `.env` in the repo root or in `docker/` and its shell exports no `CORTEX_` variable, so the 4.0
   default applies.
+- 2026-10-04: checked again, and neither half of the trigger has fired. `DEFAULT_CPU_BUDGET` is
+  still 4.0, `cpu_budget` still `Field(default=DEFAULT_CPU_BUDGET, gt=0)` and `DEFAULT_CPUS` 2.0;
+  both CPU servers still pass `"${CORTEX_SUBAGENTS_CPU_BUDGET:-4.0}"` to `--threads` and to `cpus`,
+  and this machine has no `.env` and exports no `CORTEX_` variable. The parse the entry rests on is
+  still the shipped one: both CPU servers run `ghcr.io/ggml-org/llama.cpp:server`, whose
+  `--version` reads build 10680, commit `d7bd3bfca`. The model host image now runs build 11312,
+  but `tiers.py` builds its argv with `-ngl` and no thread count, so the budget reaches no server
+  that way.
