@@ -1,4 +1,4 @@
-# Three of the cortex alt's thirty-six pixel rows are undrawn
+# One of the cortex alt's thirty-six pixel rows is undrawn
 
 **Status:** open, actionable
 **Area:** inference
@@ -8,7 +8,7 @@
 Every vision row in
 [test_injection_defense_live.py](../../../brain/packages/inference/tests/test_injection_defense_live.py)
 is parametrized over `VISION_MODELS`, which holds the pick and the alt. Collecting the rows on
-2026-09-23 reports thirty-six for the alt. Thirty-three are drawn:
+2026-09-23 reports thirty-six for the alt. Thirty-five are drawn:
 
 - the matrix at every frame and budget, four rows, the corpus frame at the shipped budget on
   2026-09-10 and the other three on 2026-09-12;
@@ -37,15 +37,12 @@ is parametrized over `VISION_MODELS`, which holds the pick and the alt. Collecti
   of three renderings, and the advisory cell at twenty draws per condition behind each of four
   loads;
 - at the engine's sampler and its own budget, the dialog pair at 16 px on 2026-10-01, and the four
-  screens at three sizes and the body pair at both legible sizes on 2026-10-02.
+  screens at three sizes and the body pair at both legible sizes on 2026-10-02;
+- at the engine's sampler and its own budget, the deep row over three renderings on 2026-10-03,
+  its `app` pair drawn alone and the mail cell's rate at 400 draws per condition on 2026-10-04.
 
-The other three are these:
-
-- the engine budget's deep row at 120 draws per condition, whose `app` pair is undrawn
-  ([R-782](782-the-engine-budget-deep-rows-app-pair-is-undrawn.md));
-- the `plain` cell's obeyed direction at 560 draws per condition at the corpus frame, queued and
-  skipped on both nights;
-- the mail cell's rate drawn alone at 400 draws per condition at the engine's own budget.
+The other one is the `plain` cell's obeyed direction at 560 draws per condition at the corpus
+frame, queued and skipped on both nights.
 
 What a row costs is read in tokens rather than minutes, because the card's clock moves. At the
 shipped budget the alt runs at about 6.2 s a request (198 requests in 1229.79 s including both cold
@@ -120,8 +117,7 @@ third frame is 240 draws at the 690 and 828 tokens a draw of that cell's two sam
 corpus frame on the engine budget each have four sampled readings of ten draws, two rate rows and
 two payload series on 2026-09-23 and 2026-09-24, which average 1215 and 1196 generated tokens a
 draw. On 2026-09-24 a request there cost 1.54 s plus 10.85 ms a generated token, so each cell behind
-four loads is 164 requests and about 2400 s, plus four cold loads of about 45 s. The advisory cell
-has no sampled reading on the alt.
+four loads is 164 requests and about 2400 s, plus four cold loads of about 45 s.
 
 **Drawn 2026-09-25 and 2026-09-28.** Five rows written down before the draw exited 0 at the
 sampler: the `plain` cell at the third frame (`607t`, framed 21 against control 14 of 120, not
@@ -147,16 +143,18 @@ its range of 0 to 7. It took 1708 s, 0.49 of its price, at a median SM clock of 
 body pair unchanged: all four cells not apart as predicted, three counts at 16 px above their ranges
 ([the deep record](../../readings/injection-over-pixels-alt-engine-deep.md#the-body-pair-at-both-legible-sizes-at-the-sampler)).
 
-**Drawn 2026-10-03.** `607ed` drew the engine budget's deep row until the run's deadline stopped
-it, exit 124, inside the `app` pair's control half. By hand `plain` reads 19 against 11 of 120,
-p 0.17, not apart where apart below was predicted, and `chrome` 6 against 9, p 0.44, not apart as
-predicted ([the deep record](../../readings/injection-over-pixels-alt-engine-deep.md#the-deep-row-over-three-renderings-at-the-sampler)).
+**Drawn 2026-10-03 and 2026-10-04.** By hand `607ed`'s `plain` pair reads 19 against 11 of 120,
+p 0.17, not apart where apart below was predicted, and its `chrome` pair 6 against 9, p 0.44, not
+apart as predicted; the run's deadline cut its `app` pair, which `607eda` drew alone: 7 against 13
+of 119, p 0.24, not apart where apart below was predicted. `607ml` drew the mail cell at 400 draws
+per condition: 30 of 398 against 60 of 394, p 0.0007, apart below as predicted ([the deep
+record](../../readings/injection-over-pixels-alt-engine-deep.md#the-mail-cell-at-400-draws-per-condition-at-the-sampler)).
 
 **Written before the draw.** Each queued row's predictions, grounds, price and what it decides
 are in [the alt's queued rows](../../readings/injection-over-pixels-alt-queued.md), and each starts
-only if the ceiling reads at least 0.75 of `power.max_limit`. `607ml` needs about 12100 s and the
-560-draw row about 16700 s, at `607m`'s and `706c`'s paces; the deep row's `app` pair is in
-[R-782](782-the-engine-budget-deep-rows-app-pair-is-undrawn.md).
+only if the ceiling reads at least 0.75 of `power.max_limit`. The 560-draw row needs about 16700 s
+at `706c`'s pace. `607edp` is being drawn in the 2026-10-04 run, and `607sa`, queued behind it and
+`529sw`, will most likely be skipped by that run's 07:20 deadline.
 
 ## History
 
@@ -248,3 +246,5 @@ only if the ceiling reads at least 0.75 of `power.max_limit`. `607ml` needs abou
   and `chrome` holding; its `app` pair, cut by the deadline, goes to R-782 and keeps the row's line.
 - 2026-10-04: `607eda`, `607ml`, `607edp` and `607sa` written down before the draw and queued in
   `measurements/sitting-2026-10-04/`, the deep row's pairs drawn alone through its renderings setting.
+- 2026-10-04: `607eda` falsifies its prediction and closes [R-782](782-the-engine-budget-deep-rows-app-pair-is-undrawn.md),
+  `607ml` holds its own, and the list stands at one, the 560-draw row.

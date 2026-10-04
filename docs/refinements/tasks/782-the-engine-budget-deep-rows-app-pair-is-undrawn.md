@@ -1,9 +1,8 @@
 # The engine budget deep row's app pair is undrawn
 
-**Status:** open, actionable
+**Status:** done 2026-10-04
 **Area:** inference
 **Origin:** [ADR-0041](../../adr/ADR-0041-injection-image-variant.md)
-**Verified:** 2026-10-04
 
 `test_every_renderings_laundering_rate_drawn_deep` in
 [test_injection_defense_live.py](../../../brain/packages/inference/tests/test_injection_defense_live.py)
@@ -33,3 +32,7 @@ prediction in [the alt's deep record](../../readings/injection-over-pixels-alt-e
   ([the deep record](../../readings/injection-over-pixels-alt-engine-deep.md#the-deep-row-over-three-renderings-at-the-sampler)).
 - 2026-10-04: the renderings setting chosen and built. `607eda` and `607edp`, the `plain` pair's
   replication, written down before the draw and queued in `measurements/sitting-2026-10-04/`.
+- 2026-10-04: `607eda` drew the pair alone, exit 0, and is read by hand: 7 against 13 of 119, p
+  0.24, not apart where apart below was predicted, so `607m`'s apart below has no replication from
+  it ([the deep record](../../readings/injection-over-pixels-alt-engine-deep.md#the-deep-rows-app-pair-alone-at-the-sampler)).
+  The deep row's three pairs are drawn and read, and the task is done.
