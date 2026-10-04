@@ -26,25 +26,54 @@ pub fn register(handle: &AppHandle) {
     Box::leak(Box::new(backend));
 }
 
-/// Registers the global hotkey as a passive grab on the X display, and none on a Wayland session.
+/// The text a Wayland compositor shows the user for the hotkey.
+#[cfg(target_os = "linux")]
+const SHORTCUT_DESCRIPTION: &str = "Show or hide the Cortex overlay";
+
+/// Registers the global hotkey through the desktop portal on a Wayland session, else as a passive
+/// grab on the X display.
 #[cfg(target_os = "linux")]
 pub fn register(handle: &AppHandle) {
     use body_core::Hotkey;
     use os_linux::{LinuxHotkey, X11Keys};
 
+    let chord = configured_chord();
+    let activate = handle.clone();
+    let callback = Box::new(move || crate::toggle_overlay(&activate));
     if std::env::var_os("WAYLAND_DISPLAY").is_some_and(|name| !name.is_empty()) {
-        eprintln!("cortex: no global hotkey on Wayland yet; an X11 grab fires only over X windows");
+        // A bind can wait up to SHORTCUTS_LIMIT on a compositor dialog, so it must not hold setup.
+        let spawned = std::thread::Builder::new()
+            .name(String::from("cortex-hotkey"))
+            .spawn(move || register_portal(&chord, callback));
+        if let Err(error) = spawned {
+            eprintln!("cortex: could not start the hotkey registration: {error}");
+        }
         return;
     }
-    let chord = configured_chord();
     let keys = match os_linux::x11rb::connect(None) {
         Ok((connection, screen)) => X11Keys::new(connection, screen),
         Err(error) => X11Keys::absent(&error),
     };
-    let activate = handle.clone();
-    let callback = Box::new(move || crate::toggle_overlay(&activate));
     // The listener thread keeps its own handle on the connection, so the backend can be dropped.
     if let Err(error) = LinuxHotkey::new(keys).register(&chord, callback) {
+        eprintln!("cortex: could not register {chord}: {error}");
+    }
+}
+
+/// Binds `chord` through the `GlobalShortcuts` portal on a session bus connection of its own.
+#[cfg(target_os = "linux")]
+fn register_portal(chord: &body_core::HotkeyChord, callback: body_core::HotkeyCallback) {
+    use body_core::Hotkey;
+    use os_linux::zbus::blocking::Connection;
+    use os_linux::{DbusShortcuts, LinuxPortalHotkey};
+
+    let portal = match Connection::session() {
+        Ok(connection) => DbusShortcuts::new(connection),
+        Err(error) => DbusShortcuts::absent(&error),
+    };
+    // The listener thread keeps the portal, and so the connection its session lives on.
+    let hotkey = LinuxPortalHotkey::new(portal, SHORTCUT_DESCRIPTION);
+    if let Err(error) = hotkey.register(chord, callback) {
         eprintln!("cortex: could not register {chord}: {error}");
     }
 }

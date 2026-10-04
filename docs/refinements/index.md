@@ -219,7 +219,7 @@ never a reading of what the tree does now.
 - **[R-263](tasks/263-linux-and-macos-capture-backends.md)** Linux and macOS `ScreenCapture` backends (vision). Its claim was checked against the code on 2026-10-04.
 - **[R-271](tasks/271-macos-linux-os-backends.md)** macOS and Linux OS backends (cross-cutting). Its claim was checked against the code on 2026-10-04.
 - **[R-787](tasks/787-read-a-wayland-window-through-the-screencast-portal.md)** Read a Wayland window through the ScreenCast portal (vision). Its claim was checked against the code on 2026-10-04.
-- **[R-788](tasks/788-wire-the-portal-hotkey-into-the-wayland-shell.md)** Wire the portal hotkey into the Wayland shell (cross-cutting). Its claim was checked against the code on 2026-10-04.
+- **[R-788](tasks/788-test-the-portal-hotkey-on-a-kde-wayland-session.md)** Test the portal hotkey on a KDE Wayland session (cross-cutting). Its claim was checked against the code on 2026-10-04.
 
 ## Every task, by area
 
@@ -327,7 +327,7 @@ never a reading of what the tree does now.
 - [R-699](tasks/699-source-file-names-use-banned-words.md) Source file names use words the prose table bans. done 2026-09-21.
 - [R-705](tasks/705-names-inside-files-still-use-banned-words.md) Names inside the files still use words the prose table bans. done 2026-09-23.
 - [R-765](tasks/765-a-wayland-hotkey-through-the-globalshortcuts-portal.md) A Wayland hotkey through the GlobalShortcuts portal. done 2026-10-04.
-- [R-788](tasks/788-wire-the-portal-hotkey-into-the-wayland-shell.md) Wire the portal hotkey into the Wayland shell. open, optional feature.
+- [R-788](tasks/788-test-the-portal-hotkey-on-a-kde-wayland-session.md) Test the portal hotkey on a KDE Wayland session. open, optional feature.
 
 ### docs
 

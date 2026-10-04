@@ -37,11 +37,15 @@ shares its request and response handling with the screenshot portal in
   covered core and a `zbus` adapter tested against a fake portal over a socket pair can be built
   and checked here, and share their request handling with
   [752](752-wayland-screen-capture-through-the-portal.md).
-- 2026-10-04: Done for the backend. The premise held: the port needs a press and a registration
-  error, both of which the portal gives, and the screenshot adapter's request exchange moved into
-  a shared module with its tests unchanged. `LinuxPortalHotkey` creates one session per chord and
-  binds one shortcut in it; `DbusShortcuts` makes the calls; the hotkey check list runs over the
-  core, and the adapter is tested against a fake portal over a socket pair
-  ([body-os-linux](../../modules/body-os-linux.md)). No live test, since no backend here serves the
-  interface. The shell wiring, which needs its own thread because a bind may wait on a user dialog,
-  is [788](788-wire-the-portal-hotkey-into-the-wayland-shell.md).
+- 2026-10-04: Done. The premise held: the port needs a press and a registration error, both of
+  which the portal gives, and the screenshot adapter's request exchange moved into a shared module
+  that ends the wait for the method reply and the `Response` at one limit, since
+  `Connection::session()` sets no method timeout. `LinuxPortalHotkey` creates one session per
+  chord and binds one shortcut in it; `DbusShortcuts` makes the calls; the hotkey check list runs
+  over the core, and the adapter is tested against a fake portal over a socket pair
+  ([body-os-linux](../../modules/body-os-linux.md)). The shell binds through it when
+  `WAYLAND_DISPLAY` is set and not empty, on a thread of its own, because a bind can wait up to
+  `SHORTCUTS_LIMIT` (1 min) on a compositor dialog and setup must not; the overlay runbook says the
+  trigger can differ from `CORTEX_HOTKEY`. `just check-shell` passed for both targets. No live
+  test, since no backend here serves the interface:
+  [788](788-test-the-portal-hotkey-on-a-kde-wayland-session.md).

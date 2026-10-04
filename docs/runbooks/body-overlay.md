@@ -150,11 +150,14 @@ behind the same unchanged `Hotkey` port.
 **On Linux** the shell grabs the chord on the root window of the X display that `DISPLAY` names,
 so a press toggles the overlay whichever window has focus. A chord another X client has grabbed
 fails with `BadAccess` and is logged like any other registration failure. On a Wayland session,
-where `WAYLAND_DISPLAY` is set and not empty, the shell grabs nothing and logs
-`cortex: no global hotkey on Wayland yet; an X11 grab fires only over X windows`. Xwayland is
-assumed to get a key only while one of its own windows has focus, so a grab there would toggle the
-overlay over some windows and not others. A Wayland hotkey needs the desktop portal,
-[R-765](../refinements/tasks/765-a-wayland-hotkey-through-the-globalshortcuts-portal.md).
+where `WAYLAND_DISPLAY` is set and not empty, the shell binds the chord through the desktop
+portal's `GlobalShortcuts` instead, because Xwayland is assumed to get a key only while one of its
+own windows has focus. The compositor may ask the user to confirm or change the trigger, so the
+trigger that toggles the overlay can differ from `CORTEX_HOTKEY`; the description it shows the
+user is "Show or hide the Cortex overlay". The bind runs on its own thread and fails if the portal
+has not answered within a minute. Of the Ubuntu 24.04 archive's portal backends only
+`xdg-desktop-portal-kde` implements the interface; where none does, the registration fails and is
+logged.
 
 **To run the shell on Linux without sudo**, link a debug build against the userspace prefix in the
 [shell clippy readings](../readings/shell-clippy.md). WebKitGTK starts its helper processes from

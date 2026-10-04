@@ -201,11 +201,15 @@ decision 13).
   as an object path, and the bound ids from the `shortcuts` result. The tests run the hotkey
   check list over the core with an in-process fake, and the adapter against a fake portal over a
   socket pair. No live test exists: of this distribution's portal backends only
-  `xdg-desktop-portal-kde` implements `GlobalShortcuts`, and the shell does not use this backend
-  yet ([788](../refinements/tasks/788-wire-the-portal-hotkey-into-the-wayland-shell.md)). Three
+  `xdg-desktop-portal-kde` implements `GlobalShortcuts`
+  ([788](../refinements/tasks/788-test-the-portal-hotkey-on-a-kde-wayland-session.md)). Three
   points are read from the specification and not tested against a backend: the trigger form,
   whether a held chord sends one `Activated` or one per repeat, and what a backend answers when
   the preferred trigger is taken.
+- **The shell** registers through `LinuxPortalHotkey` over `DbusShortcuts` when `WAYLAND_DISPLAY`
+  is set and not empty, on a thread of its own with its own session bus connection, since a bind
+  can wait up to `SHORTCUTS_LIMIT` on the user and setup must not; else it grabs through
+  `X11Keys`. The description the compositor shows is "Show or hide the Cortex overlay".
 - `just os-linux-live` runs the five `#[ignore]`d live tests: a notification shown on the session
   bus, a volume and mute round trip on the default sink that restores what it found, a capture on
   `DISPLAY` that is refused before the test maps a window naming its own process and, after, comes

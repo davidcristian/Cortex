@@ -34,8 +34,8 @@ speaks. They are also where the **stub coverage exemption** is used.
   serves the notification and volume backends, and `LinuxScreenCapture<X11Root>` only when
   `CORTEX_HOST_CAPTURE=1`, `WAYLAND_DISPLAY` is unset or empty and the X display opens; with the
   switch and `WAYLAND_DISPLAY` set it serves `LinuxPortalCapture` inside `HiddenOverlayCapture`,
-  else `DeniedScreenCapture`. The shell registers the hotkey
-  through `X11Keys`, except on a Wayland session, where it logs why and registers none
+  else `DeniedScreenCapture`. The shell registers the hotkey through `X11Keys`, or on a Wayland
+  session through `LinuxPortalHotkey` on a thread of its own
   ([overlay runbook](../runbooks/body-overlay.md)).
 - **`os_macos`** provides `MacosHotkey`, `MacosAudioControl`, `MacosNotify` and
   `MacosScreenCapture`, the same stubs for macOS. It has no `cfg` yet and compiles everywhere.
