@@ -5,7 +5,7 @@
 **Origin:** [ADR-0004](../../adr/ADR-0004-model-lineup.md)
 **Trigger:** ADR-0004 names a Qwen3.8 artifact as a pick or alternate for any tier, or the maintainer
 picks the step two names below.
-**Verified:** 2026-09-30
+**Verified:** 2026-10-04
 
 The Qwen3.8 template reads `reasoning_effort` (`xhigh` by default, `high` rendered as `xhigh`,
 `medium`, `low`; any other value raises with thinking on) and `preserve_thinking` (on by default).
@@ -26,7 +26,8 @@ On them depth is set only by the thinking switch and the trace budget.
 three, sent by `build_payload` as the request field `reasoning_effort` (`low`, `medium`, `high`),
 never a value the template raises on. The adapter checks the leased server's
 `chat_template_caps.supports_reasoning_effort` in `GET /props` and drops the field with a warning
-where it is false, caching nothing, as ADR-0071 decision 3 does. The default is a brain setting
+where it is false, caching nothing, as ADR-0071 decision 3 does. The model host's b11312 build
+has the capability and both flags; the effort readings were rendered on b10680. The default is a brain setting
 validated at wiring, so a typo fails the start, not every handoff; nothing is held by a model
 server, so a swap changes nothing. Recommended for a Qwen3.8 deep tier: `medium`. The model host's
 `--reasoning-effort` flag is rejected: it passes any value unchecked and a bad one fails every reply
@@ -50,3 +51,8 @@ and the maintainer declines step two.
 - 2026-09-30: not fired: ADR-0004 decision 8 names gemma-4-31B as the deep pick and Qwen3.6-27B
   as its alternate, and no tier's decision names a Qwen3.8 artifact. The deep tier now starts at
   16384, so the body marks the stop counts as drawn at 8192.
+- 2026-10-04: not fired: decision 8 names gemma-4-31B and Qwen3.6-27B, and decision 5 lists the
+  two Qwen3.8 files as candidates only. A third Qwen3.8-27B file, a `llmfan46/` repackage with its
+  own template, is on the mount since 2026-09-30 and is no candidate. The model host image is now
+  b11312: its `--help` lists `--reasoning-effort` and `--no-reasoning-preserve`, and its binary
+  holds `supports_reasoning_effort`, so the proposal is still writable.

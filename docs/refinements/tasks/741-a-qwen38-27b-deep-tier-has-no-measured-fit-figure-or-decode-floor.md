@@ -7,7 +7,7 @@
 or an env file in this tree, or ADR-0004 decision 8 naming Qwen3.8-27B as the deep pick or its
 alternate. Read it with `grep -rn 'CORTEX_MODEL_FILE_BRAIN' docker/ justfile` and decision 8's
 first sentence.
-**Verified:** 2026-09-30
+**Verified:** 2026-10-04
 
 A deployment declares the deep tier's cost in `CORTEX_SWAP_BRAIN_VRAM_MIB`, the figure the fit check
 compares free memory against, and its spill-watch minimum in `CORTEX_SWAP_BRAIN_DECODE_TPS`. The
@@ -40,3 +40,8 @@ of the pick's row, the decode floor from `test_decode_cadence_live.py`, and the 
   `docker/docker-compose.gpu.yml:71`, the justfile names no artifact, and ADR-0004 decision 8 names
   gemma-4-31B and Qwen3.6-27B. The deep tier now starts at 16384, so the body gives the pick's
   figures at that context and Qwen3.8-27B's 16,273 MiB there, with the 8192 figures marked as such.
+- 2026-10-04: not fired: `CORTEX_MODEL_FILE_BRAIN` still defaults to empty in
+  `docker/docker-compose.gpu.yml:71`, the justfile names no artifact, and decision 8 is unchanged.
+  The runbook's 19125, 20125, 20783 and 664 to 667 MiB, the co-residency 19967, 19866 and 19874
+  MiB, the Qwen3.8-27B figures and the three measurement paths all stand. The `llmfan46/`
+  Qwen3.8-27B repackage on the mount since 2026-09-30 is no candidate and does not fire it.

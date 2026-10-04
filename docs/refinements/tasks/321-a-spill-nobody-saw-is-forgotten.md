@@ -2,15 +2,12 @@
 
 **Status:** open, waiting for its trigger
 **Area:** inference-model-manager
-**Trigger:** an operator asks whether a slow deep task has happened before, or a second per handoff
-result arrives that is worth counting rather than displaying. The failed handoff's reason arrived
-three days after this entry was opened and is not one of those: it was decided on 2026-09-15 as
-neither counted nor displayed, and R-379 closed on that. Checking the counting half is one reading:
-nothing in the brain keeps a per handoff row that outlives its handoff, `HandoffSettler._settle`
-deleting a `DONE` record outright and the Redis adapter expiring a `FAILED` one after an hour, so a
-count still has nowhere to live.
+**Trigger:** a task file, runbook step or ADR decision asks how often handoffs spilled over a
+period, or a second per handoff result is filed to be counted across handoffs rather than
+displayed. Either still needs a home first: nothing in the brain keeps a per handoff row that
+outlives its handoff.
 **Origin:** [ADR-0055](../../adr/ADR-0055-co-residency-and-spill-watch.md)
-**Verified:** 2026-09-30
+**Verified:** 2026-10-04
 
 The spill note lives in the process, lasts an hour, and is cleared by the next handoff that keeps
 its pace, so a handoff that spilled at 03:00 is gone by morning and a brain that restarted takes it
@@ -79,3 +76,11 @@ is finished, so a store built for swap survival is not a store for history.
   saying a prompt outgrew the deep model's context, is displayed and not counted; and the decline
   of prefill as a spill sign in [110](110-prefill-second-witness.md) leaves decode the only sign a
   count would read. The trigger has not fired.
+- 2026-10-04: Claims checked again and all stand: `residency_pace.py`, `swap_settle.py`,
+  `handoffs.py` and `residency_moves.py` are unchanged since 2026-09-29, `_TERMINAL_TTL_SECONDS` is
+  3600, `DEFAULT_SPILL_DWELL_S` 3600.0, and `brain_phase.py` still writes the one spill `WARNING`
+  beside the `INFO` line. The one deep phase change since, the context ending on a message addressed
+  to the deep model, adds no per handoff result. The trigger now names an event a reading of the
+  backlog decides; the failed handoff's reason, decided neither counted nor displayed when
+  [R-379](379-a-settled-reason-nothing-reads-back.md) closed, is not one. The trigger has not
+  fired.

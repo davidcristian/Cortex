@@ -4,9 +4,9 @@
 **Area:** subagents
 **Origin:** [ADR-0004](../../adr/ADR-0004-model-lineup.md)
 **Trigger:** the maintainer decides the subagent tier's pick: ADR-0004 decision 7 names a model
-other than gemma-4-E4B, or gives a reason for it that the rows below decide. Read decision 7's
-first sentence.
-**Verified:** 2026-09-28
+other than gemma-4-E4B, or its reason cites the constrained reply path rows this file records.
+Read decision 7's first sentence and `grep -n 'constrained-reply-path' docs/adr/ADR-0004-model-lineup.md`.
+**Verified:** 2026-10-04
 
 Decision 7 of [ADR-0004](../../adr/ADR-0004-model-lineup.md) picked gemma-4-E4B for the subagent
 tier on injection resistance, at about 2.6 times the load, 3 times a narrow task's latency and 2.8
@@ -45,14 +45,14 @@ appends the notice framed less often than Qwen3.5-2B and Qwen3.5-4B, while on th
 level with them.
 
 **The constrained reply path, written 2026-09-25 before the draw.** Every row above sends the
-request of a subagent with tools. A subagent with no tools sends another one: the messages of
-`task_messages(task, constrain=True)`, no preamble, no tools and the `REPLY_ENVELOPE` schema
-([ADR-0028](../../adr/ADR-0028-grammar-constrained-subagents.md)). A tainted turn reaches that
+request of a subagent with tools. A subagent with no tools sends another one: the messages
+`task_messages` then built with `constrain=True`, no preamble, no tools and the `REPLY_ENVELOPE`
+schema ([ADR-0028](../../adr/ADR-0028-grammar-constrained-subagents.md)). A tainted turn reaches that
 path too. `SubagentRoster.resolve` returns the pick for every tainted task, with or without tools,
 and a deployment with no MCP tools still taints a turn through a screen capture or an image the
 user attaches. The attacker text then reaches the subagent inside the task the cortex writes, and
-the spawn spec calls `context` the material the subagent works from, which `task_messages` sent
-as a system message. So the forced pick runs this request on the turns ADR-0017 forces it for, and
+the spawn spec calls `context` the material the subagent works from, which `task_messages` then
+sent as a system message, before the change the last section describes. So the forced pick runs this request on the turns ADR-0017 forces it for, and
 the rows above do not say whether it is apart from the Qwen candidates there. An untainted turn
 reaches the path with the model the cortex asked for, and no untrusted tool result or attachment
 has entered such a turn.
@@ -138,3 +138,7 @@ way ([ADR-0013](../../adr/ADR-0013-untrusted-content.md) decision 3).
 - 2026-09-28: no card row remains. The full text row, `output-laundering` alone and the
   constrained reply path are drawn on the card and the CPU, and the close is the maintainer's pick,
   so the entry waits for that decision rather than for a draw.
+- 2026-10-04: not fired: decision 7 still names gemma-4-E4B, and its reason cites the sampler
+  counts of the full text row and not the constrained reply path, which no line of ADR-0004 links.
+  The trigger now names that grep. `task_messages` now also takes `tools` and `nonce`, so the body
+  says the 2026-09-25 rows sent the messages it then built.
