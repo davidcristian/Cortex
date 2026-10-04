@@ -1,9 +1,8 @@
 # Wayland screen capture through the desktop portal
 
-**Status:** open, optional feature
+**Status:** done 2026-10-04
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-10-04
 
 The Linux capture backend reads an X server's root window, so a Wayland session gets no picture
 from it. With no `DISPLAY`, `x11rb::connect(None)` fails and `X11Root::absent` makes every capture
@@ -38,12 +37,11 @@ measured what the build rests on:
 
 The core and its adapter are built under [ADR-0011](../../adr/ADR-0011-body-v1.md) decision 13:
 `LinuxPortalCapture` over the `ScreenshotPortal` port and `DbusPortal`
-([body-os-linux](../../modules/body-os-linux.md)). What remains is the shell step: serve the
-portal backend when `WAYLAND_DISPLAY` is set, and keep the overlay out of the picture, which needs
-a decision of its own. The
-X11 answer, [753](753-keep-the-overlay-out-of-a-linux-capture.md), finds the body's windows in the X
-window tree, which a portal picture of a Wayland session does not come with, so it does not apply
-there.
+([body-os-linux](../../modules/body-os-linux.md)). The shell serves it when `WAYLAND_DISPLAY` is
+set, inside `HiddenOverlayCapture`, which refuses while the overlay is shown or just hidden
+([ADR-0029](../../adr/ADR-0029-vision-screen-capture.md) decision 10). The X11 answer,
+[753](753-keep-the-overlay-out-of-a-linux-capture.md), finds the body's windows in the X window
+tree, which a portal picture of a Wayland session does not come with, so it does not apply there.
 
 ## History
 
@@ -67,3 +65,12 @@ there.
   live test passed on the headless sway stack above. The wait for `Response` ends at a limit that
   fails the call and closes the request, so a portal that never answers cannot hold the capture
   lock. The shell is not wired.
+- 2026-10-04: Done. The shell serves `LinuxPortalCapture` over `DbusPortal` when
+  `CORTEX_HOST_CAPTURE=1` and `WAYLAND_DISPLAY` is set and not empty, inside
+  `HiddenOverlayCapture`: refused while the overlay is shown and for 1 s after a hide, and
+  discarded when a show was recorded during the call. Hiding the overlay around the call was
+  rejected, since a compositor's fade kept a hidden overlay in the X11 picture and no Wayland
+  protocol tells a client when it has gone. `XDG_SESSION_TYPE` read `tty` in the headless sway run,
+  so the rule reads `WAYLAND_DISPLAY`. `just check-shell` passed for both targets; the linked shell
+  was not run on sway. A Wayland capture while the overlay is open is
+  [787](787-read-a-wayland-window-through-the-screencast-portal.md).

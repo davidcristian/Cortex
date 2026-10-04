@@ -120,9 +120,7 @@ decision 13).
   answer before the method reply arrives. A returned handle other than the computed one fails,
   since no `Response` would come on it, and a `uri` that is not a string counts as none. It reads
   and removes the file with `std::fs`. The host opens the session bus as for notifications, and
-  `DbusPortal::absent(&error)` fails each portal call with the error's text. The shell does not
-  serve this backend yet
-  ([752](../refinements/tasks/752-wayland-screen-capture-through-the-portal.md)).
+  `DbusPortal::absent(&error)` fails each portal call with the error's text.
 - **The wait for `Response` ends at a limit**: `RESPONSE_LIMIT` (10 s) for `DbusPortal::new`, or
   the `limit` given to `DbusPortal::with_limit`. A portal that never answers, such as one whose
   permission dialog nobody closes, would otherwise hold the blocking thread the `BodyService`
@@ -134,6 +132,26 @@ decision 13).
   reply awaited, so the portal ends any dialog and sends no late answer. A file the backend wrote
   before the `Close` stays; the wlr backend's fixed path is overwritten and removed by the next
   capture.
+- **`HiddenOverlayCapture<S: ScreenCapture>`** keeps the overlay out of a picture that cannot
+  leave a window out, which a portal picture cannot (ADR-0029 decision 10). The shell reports each
+  show of the overlay to an `OverlayWatch` before showing it, and each hide only after the hide
+  succeeded. A capture is refused as `Backend` while the overlay is shown and until `settle` has
+  passed since the last hide, before the inner capture runs; a picture is discarded the same way
+  when a show was recorded while it was being taken, so a summon during the call cannot reach the
+  brain. The shell passes `OVERLAY_SETTLE` (1 s), about three times picom's default fade
+  (`fade-out-step` 0.03 every `fade-delta` 10 ms, read from its defaults, not run). The shell
+  never hides the overlay to take a picture: a compositing manager's fade kept a hidden overlay in
+  the picture ([x11-overlay-capture](../readings/x11-overlay-capture.md)), a Wayland compositor
+  always composites, and no protocol tells a client when its hidden window has left the screen. A
+  fade set longer than the settle time is the accepted risk.
+- **The shell picks the portal when `WAYLAND_DISPLAY` is set and not empty**, the variable a
+  Wayland client connects by and GTK chooses its backend by, and the one the hotkey uses.
+  `XDG_SESSION_TYPE` describes the login, not the display: it read `tty` in the headless sway run
+  that served the portal. There is no X11 fallback through Xwayland, since rootless Xwayland
+  answers a root `GetImage` with `BadMatch`. It opens one session bus for notifications and the
+  portal, serves `LinuxPortalCapture` over `DbusPortal` inside `HiddenOverlayCapture`, and still
+  needs `CORTEX_HOST_CAPTURE=1`. A Wayland capture is refused while the overlay is open, which is
+  most of a turn, so it reads the screen when the user hides the overlay before the model asks.
 - **`LinuxHotkey`** resolves a chord to the X keysym of its `KeyboardEvent.code` (`keysym`: a
   letter is its lower-case keysym, `F1` to `F35` are `ffbe` to `ffe0`, the named keys are their
   keysyms), finds the lowest keycode that types it, and takes Shift and Control from the core

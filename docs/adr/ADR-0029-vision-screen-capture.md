@@ -111,8 +111,7 @@ KB at 2048 px. The policy sits in body core because coverage cannot measure `cfg
 `capture(&self, &CaptureRequest) -> Result<CapturedFrame, CaptureError>`, synchronous as the OS is
 (`off_worker` moves it off the async worker). `CapturedFrame` is the display's `RawFrame` plus the
 resolved rectangle, and `CaptureError` has five variants: `NoDisplay`, `NoTarget`, `Disabled`,
-`Backend`, `TooLarge`. `DeniedScreenCapture` is covered on Linux CI. The Linux backend reads the
-X root window under [ADR-0011](ADR-0011-body-v1.md) decision 13's split; macOS has a stub.
+`Backend`, `TooLarge`. `DeniedScreenCapture` is covered on Linux CI.
 
 ### 9. GDI BitBlt on Windows, with its own unsafe authorization
 
@@ -125,8 +124,10 @@ starts; nothing asserts that, so the DPI host row would show its loss.
 ### 10. The overlay excludes itself from capture, and fails closed
 
 No picture may hold the overlay, since text an attacker gets into a reply is read back. Windows sets
-`WDA_EXCLUDEFROMCAPTURE`, else serves `DeniedScreenCapture`; X11 paints black, under `GrabServer`, each
-viewable window naming the body in `_NET_WM_PID`, refusing if none does, over the root's pixels or, under a compositing manager, each top-level window's own.
+`WDA_EXCLUDEFROMCAPTURE`, else serves `DeniedScreenCapture`; X11 paints black, under `GrabServer`,
+each viewable window naming the body in `_NET_WM_PID`, refusing if none does, over the root's pixels
+or, under a compositing manager, each top-level window's own. A Wayland portal picture lists no
+windows, so it is refused while the overlay is shown, within 1 s of a hide, or if shown during it.
 
 ### 11. Proto fields are added only with a consumer
 
@@ -141,12 +142,11 @@ viewable window naming the body in `_NET_WM_PID`, refusing if none does, over th
 `cortex_core/body.py`, fails only with `BodyGatewayError`, and is never retried, since a second
 attempt photographs a different screen and shows a second notification. Every `BodyService` call has
 a deadline, `CORTEX_BODY_CAPTURE_TIMEOUT_S` (10.0) for a capture and `CORTEX_BODY_CALL_TIMEOUT_S`
-(5.0) for volume and notify, declared in `cortex_body_client.gateway`, because each call occupies a
-host thread and a body that is not running otherwise takes 20 s to fail on connect backoff. A
-timeout is classified unreachable; bounding a call does not make it repeatable. `body_rpc` maps
-`NoDisplay` and `NoTarget` to `FailedPrecondition`, `Disabled` to `PermissionDenied`, `Backend` to
-`Internal` and `TooLarge` to `ResourceExhausted`, never `Unavailable`, which tonic produces for a
-channel that never connected.
+(5.0) for volume and notify because each call occupies a host thread and a body that is not running
+otherwise takes 20 s to fail on connect backoff. A timeout is classified unreachable; bounding a
+call does not make it repeatable. `body_rpc` maps `NoDisplay` and `NoTarget` to
+`FailedPrecondition`, `Disabled` to `PermissionDenied`, `Backend` to `Internal` and `TooLarge` to
+`ResourceExhausted`, never `Unavailable`, which tonic produces for a channel that never connected.
 
 ### 13. Vision is asked of the running server at each use
 
@@ -233,7 +233,7 @@ with thinking on, about five times slower on an invoice screen; turning it off i
 - **A synthetic user message** containing the image forges a user turn (the fallback if a template
   rejects a tool-role parts array). **An MCP sidecar tool** would reach subagents. **DXGI or
   Windows.Graphics.Capture** (a persistent device, COM, async frames), **encoding in `os_windows`**,
-  **decoding in the brain**, **hide, capture, show** (flicker and races).
+  **decoding in the brain**, **hide, capture, show** (flicker, races, a fade no signal ends).
 - **A startup-only probe or a residency signal**: a swap restarts the tier from the same argv, so a
   signal arrives on the wrong event. **`VisionGatedToolRegistry`**: that word means confirmation.
 

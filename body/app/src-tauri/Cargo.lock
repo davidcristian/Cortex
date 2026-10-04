@@ -2488,7 +2488,10 @@ dependencies = [
 name = "os-linux"
 version = "0.1.0"
 dependencies = [
+ "async-io",
  "body-core",
+ "futures-lite",
+ "png 0.18.1",
  "x11rb",
  "zbus",
 ]

@@ -176,8 +176,8 @@ re-dispatches as the DOM event the overlay listens on; in a browser `main.tsx` s
   `PermissionDenied` to every `CaptureScreen`. Both conditions are required: the overlay is always
   on top, so a capture including it reads the prompt, the prior reply and any confirm card back as
   screen content. On Linux they are `pactl`, the session bus (ADR-0011 decision 13) and, with the
-  switch set on an X11 session, `LinuxScreenCapture<X11Root>` over the shell's own process id,
-  else `DeniedScreenCapture`; on other platforms `start` only logs. `CORTEX_HOST_CAPTURE_NOTIFY=0` turns
+  switch set, `LinuxScreenCapture<X11Root>` over the shell's process id on X11 or the portal inside
+  `HiddenOverlayCapture` on Wayland, else `DeniedScreenCapture`; elsewhere `start` only logs. `CORTEX_HOST_CAPTURE_NOTIFY=0` turns
   off the body-authored receipt. Nothing on this path has ever touched a real screen
   (`docs/runbooks/vision.md` has the check nothing else stands in for).
 

@@ -23,11 +23,13 @@ pub fn run() {
     tauri::Builder::default()
         .manage(confirm::ConfirmRoute::default())
         .setup(|app| {
+            #[cfg(target_os = "linux")]
+            app.manage(std::sync::Arc::new(os_linux::OverlayWatch::default()));
             tray::build(app.handle())?;
             hotkey::register(app.handle());
             // The overlay must hide itself from screen capture before any capture can happen:
             // a picture of the always-on-top window would feed the model its own prior output.
-            body_server::start(body_server::exclude_overlay(app.handle()));
+            body_server::start(app.handle(), body_server::exclude_overlay(app.handle()));
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -54,10 +56,29 @@ pub(crate) fn toggle_overlay(handle: &AppHandle) {
         return;
     };
     if window.is_visible().unwrap_or(false) {
-        let _ = window.hide();
+        if window.hide().is_ok() {
+            record_overlay(handle, false);
+        }
     } else {
+        record_overlay(handle, true);
         let _ = window.show();
         let _ = window.set_focus();
         let _ = window.emit(ACTIVATE_EVENT, ());
     }
 }
+
+/// Tells the Wayland capture guard that the overlay is about to show or has hidden.
+#[cfg(target_os = "linux")]
+fn record_overlay(handle: &AppHandle, shown: bool) {
+    if let Some(overlay) = handle.try_state::<std::sync::Arc<os_linux::OverlayWatch>>() {
+        if shown {
+            overlay.showing();
+        } else {
+            overlay.hidden();
+        }
+    }
+}
+
+/// Off Linux no capture reads the overlay's state, so there is nothing to tell.
+#[cfg(not(target_os = "linux"))]
+fn record_overlay(_handle: &AppHandle, _shown: bool) {}

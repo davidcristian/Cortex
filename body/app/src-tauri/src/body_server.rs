@@ -18,7 +18,7 @@ const NOTIFY_APP_NAME: &str = "Cortex";
 /// shared `CORTEX_SEAM_TOKEN`. A bind failure is logged, not fatal. For a dockerized brain the
 /// user sets `CORTEX_BODY_ADDR=0.0.0.0:50151` so the container can reach it.
 #[cfg(windows)]
-pub fn start(excluded: bool) {
+pub fn start(_handle: &tauri::AppHandle, excluded: bool) {
     use body_core::DeniedScreenCapture;
     use os_windows::{WindowsAudioControl, WindowsNotify, WindowsScreenCapture};
 
@@ -40,34 +40,50 @@ pub fn start(excluded: bool) {
 }
 
 /// Starts the `BodyService` server as the Windows `start` does, with notifications on the session
-/// bus, volume through `pactl`, and capture only when `CORTEX_HOST_CAPTURE=1` on an X11 session.
-/// A bus that does not open costs only `Notify`, which then answers that no service exists.
+/// bus, volume through `pactl`, and capture only when `CORTEX_HOST_CAPTURE=1`: through the desktop
+/// portal when `WAYLAND_DISPLAY` is set, else from the X display.
 #[cfg(target_os = "linux")]
-pub fn start(_excluded: bool) {
+pub fn start(handle: &tauri::AppHandle, _excluded: bool) {
+    use std::sync::Arc;
+
     use body_core::DeniedScreenCapture;
     use os_linux::zbus::blocking::Connection;
     use os_linux::{
-        DbusNotifications, LinuxAudioControl, LinuxNotify, LinuxScreenCapture, PACTL_PROGRAM,
+        DbusNotifications, DbusPortal, HiddenOverlayCapture, LinuxAudioControl, LinuxNotify,
+        LinuxPortalCapture, LinuxScreenCapture, OVERLAY_SETTLE, OverlayWatch, PACTL_PROGRAM,
         PactlCommand, X11Root,
     };
+    use tauri::Manager;
 
-    let bus = match Connection::session() {
-        Ok(connection) => DbusNotifications::new(connection),
+    let session = Connection::session();
+    let bus = match &session {
+        Ok(connection) => DbusNotifications::new(connection.clone()),
         Err(error) => {
             eprintln!("cortex: no session bus, so reminders cannot be shown: {error}");
-            DbusNotifications::absent(&error)
+            DbusNotifications::absent(error)
         }
     };
     let notify = LinuxNotify::new(NOTIFY_APP_NAME, bus);
     let audio = LinuxAudioControl::new(PactlCommand::new(PACTL_PROGRAM));
     let wanted = std::env::var("CORTEX_HOST_CAPTURE").as_deref() == Ok("1");
     let wayland = std::env::var_os("WAYLAND_DISPLAY").is_some_and(|name| !name.is_empty());
+    let watch = handle.try_state::<Arc<OverlayWatch>>();
+    if let (true, true, Some(watch)) = (wanted, wayland, watch) {
+        let portal = match session {
+            Ok(connection) => DbusPortal::new(connection),
+            Err(error) => DbusPortal::absent(&error),
+        };
+        let portal = LinuxPortalCapture::new(portal);
+        let capture = HiddenOverlayCapture::new(portal, Arc::clone(&watch), OVERLAY_SETTLE);
+        tauri::async_runtime::spawn(serve(audio, notify, capture));
+        return;
+    }
     let display = if wanted && !wayland {
         os_linux::x11rb::connect(None)
             .map_err(|error| eprintln!("cortex: screen capture is off, no X display: {error}"))
             .ok()
     } else {
-        eprintln!("cortex: screen capture is off (CORTEX_HOST_CAPTURE=1 on an X11 session)");
+        eprintln!("cortex: screen capture is off (CORTEX_HOST_CAPTURE=1)");
         None
     };
     match display {
@@ -140,7 +156,7 @@ pub fn exclude_overlay(handle: &tauri::AppHandle) -> bool {
 
 /// Stub for a platform with no OS-action backends yet, so the body server is not started.
 #[cfg(not(any(windows, target_os = "linux")))]
-pub fn start(_excluded: bool) {
+pub fn start(_handle: &tauri::AppHandle, _excluded: bool) {
     eprintln!("cortex: BodyService is not available on this platform yet");
 }
 

@@ -13,6 +13,7 @@ mod focus;
 mod hotkey;
 mod keys;
 mod notify;
+mod overlay;
 mod pactl;
 mod portal;
 mod portal_dbus;
@@ -26,6 +27,7 @@ pub use decode::{MAX_DECODED_BYTES, decode_png};
 pub use hotkey::{KeyError, KeyEvent, KeyGrab, Keyboard, LinuxHotkey, keysym};
 pub use keys::X11Keys;
 pub use notify::{BusError, BusMessage, LinuxNotify, NotificationBus};
+pub use overlay::{HiddenOverlayCapture, OVERLAY_SETTLE, OverlayWatch};
 pub use pactl::{PACTL_PROGRAM, PactlCommand};
 pub use portal::{
     LinuxPortalCapture, PortalError, PortalReply, ScreenshotPortal, file_path, request_path,
