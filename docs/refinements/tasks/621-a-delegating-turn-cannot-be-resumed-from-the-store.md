@@ -3,7 +3,7 @@
 **Status:** open, waiting for a consumer
 **Area:** resource-governance
 **Origin:** [ADR-0010](../../adr/ADR-0010-subagents.md)
-**Verified:** 2026-09-28
+**Verified:** 2026-10-04
 **Trigger:** a request identity on the body/brain interface, meaning a request id on `UserTurn` or
 `ClientEvent` in `proto/body.proto` (`grep -ni request_id proto/body.proto` has no hit), which is
 what both the `Converse` reconnect entry (R-023) and the crashed-handoff resume entry (R-112) wait
@@ -36,6 +36,20 @@ spawn may queue for, which [ADR-0012](../../adr/ADR-0012-resource-governance.md)
 explains is harmless because the only read either key has is taken before the queue starts. A
 resume path is a second read taken arbitrarily later.
 
+**Why this is not a breach of the one hard rule.** That rule covers a model swap, and no swap
+runs while a delegation is in flight. `EscalatingEngine.handle_turn` starts the handoff only after
+the cortex phase ends, so the escalating turn's own `spawn_subagents` calls have all returned. A
+subtask of another turn holds the swap back: `SwapConductor._drain` waits up to
+`CORTEX_SWAP_DRAIN_TIMEOUT_S` (60 s by default) for the in-flight count to reach zero, and on a
+timeout fails the handoff with nothing evicted; a spawn still queued is refused with
+`POOL_DRAINING_MSG` and comes back as a failed result. A co-resident handoff stops no tier a
+subtask can reach. The batch's frame lives in the orchestrator process, which a swap does not
+restart. The one reachable path that loses a delegation is that process ending mid-batch (a crash,
+an out-of-memory kill, a restart of the brain service), and it loses the whole turn, which is the
+half R-023 and R-112 own. This entry alone is therefore a read nothing can reach, and its whole
+size is a port change across both languages: request identity on the proto, a turn record of the
+task ids it spawned, and a new decision on the 3600 s record life.
+
 ## History
 
 - 2026-09-10: opened by the close of
@@ -60,3 +74,7 @@ resume path is a second read taken arbitrarily later.
 - 2026-09-28: Not fired. Both greps give the same answer, and no commit since 2026-09-24 has
   touched `runner.py`, `spawn.py` or `cortex_session/tasks.py`; the handoff record's new refusal of
   a system message in its loop tail adds no request identity either.
+- 2026-10-04: Not fired, and read against the one hard rule: it is not a breach, for the reasons
+  the body now gives. Both greps still answer no; `run` reads `get_task` at `runner.py:73` before
+  it admits, `_persist` writes the result at `runner.py:157`, and `spawn.py:193` gathers the batch
+  in the frame. No commit since 2026-09-28 touched the runner, the spawn tool or the task store.

@@ -4,7 +4,7 @@
 **Area:** untrusted-content
 **Origin:** [ADR-0019](../../adr/ADR-0019-tainted-memory-recording.md)
 **Trigger:** a source found hostile after the fact, whose derived memories must be forgotten by where they came from rather than by the scope they were stored in.
-**Verified:** 2026-09-30
+**Verified:** 2026-10-04
 
 Left behind by [R-072](072-tainted-memory-recording.md): removing memories by the source they came
 from.
@@ -65,3 +65,8 @@ provenance yet.
   and to reword the preamble, neither touching provenance or storage. `MemoryStore` still has the
   four verbs (`ports_stores.py:36`), `MemoryRecord` six fields (`memory.py:10`) and the table six
   columns under one index (`init.sql:6`).
+- 2026-10-04: Checked again; the trigger has not fired and the body holds. None of
+  `memory.py`, `ports_stores.py`, `memory_cascade.py`, `provenance.py`, `handoff.py`,
+  `untrusted.py` or `init.sql` changed since 2026-09-30; `delete_scope` still has the one caller
+  in `memory_cascade.py`, and outside the ledger its `sources` are read only to build a stamp,
+  which nothing reads them from, or a handoff record.

@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** tools-mcp
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
-**Verified:** 2026-09-30
+**Verified:** 2026-10-04
 **Trigger:** the tool audit trail shows two subagent tasks of one turn (one `turn_id`, two `task_id`
 values) dispatching the same tool with the same arguments.
 
@@ -55,3 +55,9 @@ once per member.
   joins the list across a batch. The audit record still has `turn_id` and `task_id`
   (`cortex_tools/audit.py:39`), and no tool audit file under this host's measurements holds a
   `task_id`, so no pair of the kind the trigger names has been recorded.
+- 2026-10-04: Checked again; the trigger has not fired. `SaliencePolicy.admits(call,
+  dispatched)` (`tool_salience.py:17`) still reads nothing else, `dispatched` is still the local at
+  `tool_loop.py:47` handed to `run_round` (`dispatch_round.py:83`), and none of those files,
+  `subagent_attempt.py` or `cortex_tools/audit.py` changed since 2026-09-30. The newest audit lines
+  on this host, six brain logs from the 2026-10-02 swap rows, hold escalation calls with no
+  `task_id`.

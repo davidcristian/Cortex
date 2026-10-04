@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** tools-mcp
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
-**Verified:** 2026-09-30
+**Verified:** 2026-10-04
 **Trigger:** the tool audit trail shows a subagent task refused by the spent turn pool while a
 sibling task of the same `turn_id` made most of that turn's dispatches.
 
@@ -41,3 +41,8 @@ the refusal and reports stopping short, so it stays deferred until it happens in
   still one shared handle (`tools.py:51`), and `invocation_fields` in `cortex_tools/audit.py`
   still writes `turn_id`, `task_id` and a failed call's `error`. The runner case is now
   `test_runner.py:344`, under the same name.
+- 2026-10-04: Checked again; the trigger has not fired. `MAX_TOOL_DISPATCHES` is still 32,
+  `DEFAULT_SPAWN_COST` a quarter of it, `TurnStamp.budget` one shared handle (`tools.py:51`), and
+  nothing bounds one subagent's share, `AttemptBounds` holding only `max_tokens` and `timeout_s`.
+  No audit line on this host has a `task_id`, so no refused subagent call has been recorded. The
+  runner case is still `test_runner.py:344`.
