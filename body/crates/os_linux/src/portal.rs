@@ -9,8 +9,8 @@ use body_core::{CaptureError, CaptureRequest, CaptureTarget, CapturedFrame, Scre
 
 use crate::decode::decode_png;
 
-/// The object path every request handle of the portal frontend sits under.
-const REQUEST_ROOT: &str = "/org/freedesktop/portal/desktop/request";
+/// The object path the portal frontend's request and session handles sit under.
+const HANDLE_ROOT: &str = "/org/freedesktop/portal/desktop";
 
 /// The `Response` code of a request the user cancelled.
 const CANCELLED: u32 = 1;
@@ -108,12 +108,21 @@ fn display_only(target: CaptureTarget) -> Result<(), CaptureError> {
 ///
 /// [`CaptureError::Backend`] when `sender` is not a unique name.
 pub fn request_path(sender: &str, token: &str) -> Result<String, CaptureError> {
-    let Some(name) = sender.strip_prefix(':') else {
-        return Err(CaptureError::Backend(format!(
+    handle_path("request", sender, token).ok_or_else(|| {
+        CaptureError::Backend(format!(
             "the bus named this connection {sender:?}, which is not a unique name"
-        )));
-    };
-    Ok(format!("{REQUEST_ROOT}/{}/{token}", name.replace('.', "_")))
+        ))
+    })
+}
+
+/// The `kind` handle, `request` or `session`, the frontend creates for `sender` and `token`, or
+/// `None` when `sender` is not a unique name.
+pub(crate) fn handle_path(kind: &str, sender: &str, token: &str) -> Option<String> {
+    let name = sender.strip_prefix(':')?;
+    Some(format!(
+        "{HANDLE_ROOT}/{kind}/{}/{token}",
+        name.replace('.', "_")
+    ))
 }
 
 /// The local file a reply names, refusing every reply that is not a success with a `uri`.

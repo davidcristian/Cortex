@@ -17,6 +17,7 @@ mod overlay;
 mod pactl;
 mod portal;
 mod portal_dbus;
+mod request;
 mod screen;
 mod x11;
 
