@@ -53,15 +53,18 @@ the Qwen3.8-27B template byte for byte and was not drawn ([deep candidates](deep
 `-ngl 99 --ctx-size 8192`, neither reasoning flag, a cap of 256, five draws a cell, every sample
 read by `switchtail.py`, which agreed on all twelve. Eleven picks repeat their rows above, tail and
 counts alike: every switched cell 0/5 but the E2B's constrained 5/5, every control 5 of 5. The
-E4B's sample is a null: its plain control deliberated on 4 of 5, so the probe failed and says
-nothing about the switch, and a second draw of that pick alone read 3 of 5. Its tail is unchanged
-and open, and its constrained cells read control 5 of 5 and switch 4 of 5 in both draws. On
-`b10680` the E4B was read on the CPU image, so placement and build are not yet split; what each
-result decides is in [R-529](../refinements/tasks/529-the-rendering-column-is-one-builds-measurement.md).
-Before the row the Qwen3.5-0.8B pick read 0 of 5 and 0 of 5 at `-ngl 0` on CPU cores 12 to 23. The
-row took 1424 s, 0.59 of its 2400 s price, with the SM clock at each pick's end 0.51 to 0.81 of the
-card's maximum. Method: `529sw.sh` in `measurements/sitting-2026-10-04/drivers/`, its log
-`529sw.log` and samples under `529/`, the second E4B draw in `529e4b.log` and `529e4b/`.
+E4B's two samples at `-ngl 99` are nulls: its plain control deliberated on 4 of 5 and then 3 of 5,
+so the probe failed and says nothing about the switch. Its tail is unchanged and open, and its
+constrained cells read control 5 of 5 and switch 4 of 5 in both draws. Drawn on CPU cores 12 to 23
+at `-ngl 0`, as its `b10680` row was, every control deliberated on 5 of 5 and the switch read 0/5
+plain and 5/5 constrained, the reader agreeing: its row above, so all twelve rows hold on `b11312`,
+two of them read at `-ngl 0`. The cached `b10680` `:server-cuda` image at `-ngl 99` read controls 5
+of 5, plain 0/5 and constrained 4/5. The E4B's constrained cell has now read 4/5 at `-ngl 99` on
+both builds and 5/5 at `-ngl 0` on `b11312`. Before the row the Qwen3.5-0.8B pick read 0 of 5 and 0
+of 5 at `-ngl 0`. The row took 1424 s, 0.59 of its 2400 s price, with the SM clock at each pick's
+end 0.51 to 0.81 of the card's maximum. Method: `529sw.sh` in `measurements/sitting-2026-10-04/drivers/`,
+its log `529sw.log` and samples under `529/`, the second E4B draw in `529e4b.log` and `529e4b/`,
+the CPU draw in `529cpu.log` and `529cpu/`, the `b10680` draw in `529old.log` and `529old/`.
 
 **2026-09-04, re-read 2026-09-15.** A walk over every GGUF header on the model mount: 68 files, 34
 with a chat template, every one writing one of the two marker pairs `switchtail.py` lists. Six

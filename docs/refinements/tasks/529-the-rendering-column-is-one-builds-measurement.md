@@ -1,7 +1,11 @@
 # The rendering column is one build's measurement, and an engine bump reopens every row of it
 
-**Status:** open, actionable
+**Status:** open, waiting for its trigger
 **Area:** inference
+**Trigger:** an engine bump under this stack, meaning the GPU runbook's `docker image inspect`
+label command reporting a llama.cpp build other than b11312 for `cortex-model-host` (the three GPU
+tiers) or other than b10680 for the cached `server` tag (both CPU subagent overrides). Nothing fixes
+a digest, so a pull or a rebuild is the bump.
 **Origin:** [ADR-0050](../../adr/ADR-0050-live-probe-records.md)
 **Verified:** 2026-10-04
 
@@ -68,6 +72,15 @@ placements and firing on 5 of 5 on `b10680` is the build's change to the E4B's p
 the readings record and which leaves that cell unmeasured by this prompt on `b11312`. Any other
 result is a null and the row stays owed. Nothing shipped changes either way.
 
+**Drawn 2026-10-04.** On CPU cores 12 to 23 at `-ngl 0` on `b11312`, every control deliberated on
+5 of 5, the switch read 0/5 plain and 5/5 constrained, and the reader agreed: the E4B's `b10680` row
+exactly. So the E4B row is read on `b11312`, all twelve rows hold on it, and under the first rule
+this task waits for the next build with the recipe as its open half. The recipe draws the E4B at
+`-ngl 0`, where its control fires on every draw. The cached `b10680` `:server-cuda` image at
+`-ngl 99` read controls 5 of 5, plain 0/5 and constrained 4/5, the reader agreeing. Samples under
+`measurements/sitting-2026-10-04/529cpu/` and `529old/`, from copies of the driver differing only in
+container name and, for `b10680`, image.
+
 ## History
 
 - 2026-09-02: opened by the close of
@@ -124,3 +137,6 @@ result is a null and the row stays owed. Nothing shipped changes either way.
 - 2026-10-04: `529sw` drawn and read: eleven picks hold on `b11312`, the reader agreeing on all
   twelve, and the E4B is a null twice over, its plain control deliberating on 4 and 3 of 5. Its row
   stays owed, with the next row written above.
+- 2026-10-04: the E4B row drawn on `b11312` at `-ngl 0`, its control firing on 5 of 5 and its row
+  matching `b10680`, so all twelve rows hold on `b11312`. The task waits for the next build again,
+  with the trigger naming both builds the stack starts.
