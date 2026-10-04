@@ -49,6 +49,15 @@ and 5 of 5 on builds `b10644`, `b10666` and `b10680`: 14 of 15. Two quants diffe
 (UD-Q4_K_XL for Q4_K_M, UD-Q3_K_XL for UD-Q3_K_M); a quant is not a template. Qwen3.8-Flash-Next has
 the Qwen3.8-27B template byte for byte and was not drawn ([deep candidates](deep-candidates.md)).
 
+**2026-10-04**, build `b11312-0c1e57098`, the build the model host image runs since 2026-10-02.
+The Qwen3.5-0.8B pick at `-ngl 0` on CPU cores 12 to 23, `--ctx-size 8192`, neither reasoning flag,
+five draws a cell: the switched tail closes the thought as on `b10680`, the controls deliberated on
+5 of 5, and the switched cells on 0 of 5 plain and 0 of 5 constrained, which `switchtail.py`
+published. All twelve picks, this one at `-ngl 99`, are queued on the card as row `529sw`, and
+what each result decides is in
+[R-529](../refinements/tasks/529-the-rendering-column-is-one-builds-measurement.md). Method:
+`529sw.sh` in `measurements/sitting-2026-10-04/drivers/`, run with `R529_DRY=1`.
+
 **2026-09-04, re-read 2026-09-15.** A walk over every GGUF header on the model mount: 68 files, 34
 with a chat template, every one writing one of the two marker pairs `switchtail.py` lists. Six
 Qwen3.6 repackages also read `<thinking>`, `</thinking>`, `<|think_on|>` and `<|think_off|>`, and

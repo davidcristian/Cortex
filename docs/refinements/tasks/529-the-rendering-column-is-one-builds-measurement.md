@@ -1,15 +1,9 @@
 # The rendering column is one build's measurement, and an engine bump reopens every row of it
 
-**Status:** open, waiting for its trigger
+**Status:** open, actionable
 **Area:** inference
-**Trigger:** an engine bump under this stack, meaning the cached image compose starts for the
-`server-cuda` tag (the model-host base in `brain/Dockerfile.modelhost`) or the `server` tag (both
-subagents overrides) reporting a llama.cpp build other than b10680 on the GPU runbook's
-`docker image inspect` label command. Nothing fixes a digest, so a pull is the bump. The column is a
-property of one build's chat handlers, and a handler that started reading `enable_thinking` in its
-reasoning rule would break it with nothing reporting the break.
 **Origin:** [ADR-0050](../../adr/ADR-0050-live-probe-records.md)
-**Verified:** 2026-09-30
+**Verified:** 2026-10-04
 
 Every row of the lineup section's rendering column stands on a sample the reader published, and
 every one was drawn on one build. The rule the column states, that a template rendering the thought
@@ -31,6 +25,31 @@ control API takes a logical id and nothing else, its roster is whatever `CORTEX_
 variables it booted with, it runs only on the card, and its subagent tier's argv has the
 reasoning-off pair, where every row of this measurement is served with neither reasoning flag. Every
 sample the re-run writes has the context size the server reported, so only `-ngl` is typed by hand.
+That loop now exists as `measurements/sitting-2026-10-04/drivers/529sw.sh`, run end to end on CPU.
+
+## The row owed on b11312
+
+The stack's engine is now `b11312-0c1e57098` (History, 2026-10-04), so the column is owed again. Row
+`529sw` of the card run of 2026-10-04 draws it: a driver row of 2400 s queued after `607edp` and
+before `607sa`. Per pick it runs `/app/llama-server` from the `cortex-model-host` image at `-ngl 99
+--ctx-size 8192 --parallel 1 --jinja --cache-ram 0` on `127.0.0.1:8091`, then the probe from the
+run's frozen tree at `CORTEX_THINKING_REPEATS=5`, then `scripts/switchtail.py` over every sample
+under `measurements/sitting-2026-10-04/529/`. The price is the spacing of the 2026-09-02 samples'
+write times, from about a minute for a pick under 5 GB to six for the 31B, about 1980 s for twelve,
+plus a fifth for the card's throttled clock. What each result decides, written before the draw:
+
+- **The reader agrees on every pick.** The column holds on `b11312`. The readings record the build
+  and the twelve counts, this task waits for the next build, and the recipe stays its open half.
+- **The reader exits 1 on a pick**: a closed tail that deliberates, an open tail that holds on all
+  five draws, or a tail of another form. The readings record that row beside its `b10680` row, and
+  no ADR prose changes until the same pick is drawn again at five draws a cell on `b11312` and on
+  the cached `b10680` `:server-cuda` image at the same argv, which splits the build from the day.
+  The E4B matters most: its open tail deliberated on 14 of 15 draws over three builds, and 0 of 5
+  would be a handler that reads `enable_thinking`, the break this task names. Nothing shipped
+  changes either way, since the subagent tier's pair ends the thought whatever the template says.
+- **A null result** is a pick with no sample, from a failed load or a control that did not
+  deliberate on all five draws: that row stays owed on `b11312`. A skipped or failed row leaves
+  all twelve owed, and this task stays actionable.
 
 ## History
 
@@ -77,3 +96,11 @@ sample the re-run writes has the context size the server reported, so only `-ngl
   Qwen3.8-27B row read on the same build, and the body now says so. The remedy still stands:
   `_SUBAGENT_TAIL` still has the reasoning-off pair, and the cortex and deep tiers still start with
   no reasoning flag unless a budget is set.
+- 2026-10-04: the trigger fired. The GPU runbook's label command now reads `cortex-model-host`,
+  which reports `b11312 0c1e57098` and was built 2026-10-02, while the cached `:server-cuda` and
+  `:server` tags still read `b10680 d7bd3bfca`. So the stack's three GPU tiers start `b11312`, and
+  only the CPU subagent overrides still start `b10680`. That also corrects the 2026-09-09 line: a
+  `--build` did not take the cached base, and the inferred cause is that the build resolved the
+  tag against the registry. The trigger line is gone and the task is actionable, with row `529sw`
+  queued (section above). The driver's CPU run on the Qwen3.5-0.8B pick already read one row on
+  `b11312`, recorded in the thinking-switch readings.
