@@ -82,6 +82,9 @@ pub struct TreeWindow {
     pub titled: bool,
     /// Whether it bypasses the window manager, as menus, tooltips and notifications do.
     pub override_redirect: bool,
+    /// Whether its `_NET_WM_WINDOW_TYPE` lists the dock or desktop type, as panels and the
+    /// window that draws the desktop icons set.
+    pub dock_or_desktop: bool,
 }
 
 /// One top-level window's own pixels inside the captured rectangle.

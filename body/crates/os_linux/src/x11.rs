@@ -90,8 +90,8 @@ fn read(
     number: usize,
     area: Area,
 ) -> Result<Snapshot, ReplyError> {
-    answer(connection.intern_atom(false, b"_NET_WM_PID"))
-        .and_then(|pid| tree::windows(connection, screen.root, pid.atom))
+    tree::Atoms::intern(connection)
+        .and_then(|atoms| tree::windows(connection, screen.root, &atoms))
         .and_then(|(windows, ids)| {
             let selection = format!("_NET_WM_CM_S{number}");
             answer(connection.intern_atom(false, selection.as_bytes()))

@@ -73,6 +73,7 @@ fn background(
         input_only: false,
         titled: false,
         override_redirect: false,
+        dock_or_desktop: false,
     };
     let visual = Some(screen.root_visual);
     pieces(&[sheet], area)

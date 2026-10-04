@@ -98,6 +98,7 @@ fn window(parent: Option<usize>, x: i16, y: i16, border: u16, pid: Option<u32>) 
         input_only: false,
         titled: false,
         override_redirect: false,
+        dock_or_desktop: false,
     }
 }
 
@@ -404,8 +405,17 @@ fn a_focus_capture_passes_over_windows_it_cannot_point_at() {
             override_redirect: true,
             ..titled(None, 0, 0, 0, None)
         },
+        TreeWindow {
+            dock_or_desktop: true,
+            ..titled(None, 0, 0, 0, None)
+        },
+        window(None, 0, 0, 0, None),
         titled(Some(1), 0, 0, 0, None),
         titled(Some(2), 0, 0, 0, Some(PROCESS)),
+        TreeWindow {
+            dock_or_desktop: true,
+            ..titled(Some(8), 0, 0, 0, None)
+        },
     ];
 
     assert_points_at(windows, TargetRect::new(1, 1, 2, 2));
@@ -421,7 +431,8 @@ fn a_focus_capture_with_nothing_to_point_at_is_no_target() {
     assert_eq!(
         captured,
         Err(CaptureError::NoTarget(String::from(
-            "no top-level window on this X screen is viewable, titled and not the body's own"
+            "no top-level window on this X screen is viewable, titled, not a dock or desktop and \
+             not the body's own"
         )))
     );
 }

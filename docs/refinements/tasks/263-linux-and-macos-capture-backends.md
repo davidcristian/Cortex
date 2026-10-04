@@ -61,11 +61,14 @@ resolved target rectangle.
   exists only under an EWMH window manager, while the tree is there on every server and is read in
   the same server grab as the pixels. It takes the topmost viewable top-level window that is not
   `InputOnly` or override-redirect, has a non-empty `WM_NAME` on it or a window under it, and holds
-  no window of this process, with its frame and border, measured from the monitor's corner; none is
-  `NoTarget`. `X11Root` adds a zero-length `GetProperty` of `WM_NAME` per window, and the Linux
-  subject now runs the two focus checks of the screen check list. On `Xvfb` with no window manager
-  the live test got the 20 by 20 window at 10, 10 exactly, past an untitled window and the test's
-  own titled one above it. Under `twm` 1.0.10, a reparenting manager run from a userspace
-  extraction, it got that client's 26 by 46 frame, title bar and 3 pixel border included; the live
-  tests place windows at fixed points, so both capture tests expect no window manager. A dock panel
-  is still picked: filed [785](785-pass-over-dock-panels-in-the-x11-focus-target.md).
+  no window of this process and none whose `_NET_WM_WINDOW_TYPE` lists the EWMH dock or desktop
+  type, with its frame and border, measured from the monitor's corner; none is `NoTarget`. Without
+  that type check a panel would be picked, since EWMH stacks docks above normal windows. `X11Root`
+  adds a zero-length `GetProperty` of `WM_NAME` and an `ATOM` `GetProperty` of
+  `_NET_WM_WINDOW_TYPE` per window, and the Linux subject now runs the two focus checks of the
+  screen check list. On `Xvfb` with no window manager the live test got no target over a titled
+  desktop window and its own, then the 20 by 20 window at 10, 10 exactly, past an untitled window,
+  the test's own titled one and a titled dock above it. Under `twm` 1.0.10, a reparenting manager
+  run from a userspace extraction, it got that client's 26 by 46 frame, title bar and 3 pixel border
+  included; the live tests place windows at fixed points, so both capture tests expect no window
+  manager.

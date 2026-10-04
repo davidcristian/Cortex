@@ -5,7 +5,8 @@ use body_core::{CaptureError, TargetRect};
 use crate::screen::{Area, TreeWindow};
 
 /// Returns the topmost viewable top-level window that holds a title and no window of `process`,
-/// border included, in the pixels of `area`. Override-redirect and `InputOnly` windows are skipped.
+/// border included, in the pixels of `area`. Override-redirect, `InputOnly`, dock and desktop
+/// windows are skipped.
 pub fn topmost(
     windows: &[TreeWindow],
     process: u32,
@@ -25,11 +26,13 @@ pub fn topmost(
         .find(|(index, _)| {
             under(windows, &heads, *index).any(|window| window.titled)
                 && !under(windows, &heads, *index).any(|window| window.pid == Some(process))
+                && !under(windows, &heads, *index).any(|window| window.dock_or_desktop)
         })
         .map(|(_, window)| rect(window, area))
         .ok_or_else(|| {
             CaptureError::NoTarget(String::from(
-                "no top-level window on this X screen is viewable, titled and not the body's own",
+                "no top-level window on this X screen is viewable, titled, not a dock or desktop \
+                 and not the body's own",
             ))
         })
 }

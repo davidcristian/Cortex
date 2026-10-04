@@ -28,6 +28,7 @@ fn shown(area: Area, border: u16) -> TreeWindow {
         input_only: false,
         titled: false,
         override_redirect: false,
+        dock_or_desktop: false,
     }
 }
 

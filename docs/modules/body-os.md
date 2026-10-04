@@ -129,9 +129,9 @@ decision 13).
   No server is `NoDisplay`, and a failed layout or read is `Backend`.
 - **A window target** is picked by `focus` from the same read: the topmost viewable top-level
   window, not `InputOnly` or override-redirect (menus, tooltips), with a non-empty `WM_NAME` on it
-  or a window under it (a window manager's frame has none, its client has one) and no window of this
-  process under it. Its rectangle, frame and border included, is measured from the monitor's corner,
-  and no such window is `NoTarget`.
+  or a window under it (a frame has none, its client has one), and no window under it of this
+  process or whose `_NET_WM_WINDOW_TYPE` lists the dock type (a panel on top) or the desktop type.
+  Its rectangle, with frame and border, is measured from the monitor's corner; none is `NoTarget`.
 - **The overlay is kept out by its process id** (ADR-0029 decision 10). X11 has no
   `WDA_EXCLUDEFROMCAPTURE`, so `LinuxScreenCapture::new(root, process)` paints black, border
   included, every viewable window whose `_NET_WM_PID` is `process`, placed by summing its
@@ -166,20 +166,21 @@ decision 13).
   monitor's primary flag and rectangle in one request; a server without the extension lists none,
   and an X error to the request fails the capture as `Backend`. It then sends `GrabServer` on one
   screen of an `x11rb::rust_connection::RustConnection` it is given, lists the window tree a level
-  at a time with `QueryTree`, `GetWindowAttributes`, `GetGeometry` and a `CARDINAL` `GetProperty` of
-  `_NET_WM_PID` and a zero-length `GetProperty` of `WM_NAME`, whose length tells a titled window,
-  per window, and asks `GetSelectionOwner` of `_NET_WM_CM_S` and the screen's number. With no owner
-  it sends one `GetImage` (`ZPixmap`, every plane) for the chosen rectangle of the root, and returns
-  `Pixels::Root`. With an owner it sends a `PIXMAP` `GetProperty` of `_XROOTPMAP_ID` on the root,
-  `GetGeometry` and `GetImage` of the pixmap named, then one `GetImage` per part `pieces` lists, on
-  the window itself, and returns `Pixels::Layers`, so the root's own pixels are never read there. It
-  then sends and flushes `UngrabServer`, also after a failed read. No other client can map, move or
-  draw a window between the reads and the list. It reads the bits per pixel, byte order and visual
-  masks of each read from the connection's setup. The crate re-exports `x11rb`, and the host opens
-  the display with `x11rb::connect(None)`. When that fails, as on a Wayland session with no
-  `DISPLAY`, `X11Root::absent(&error)` makes every read `NoDisplay`. Rootless Xwayland, such as
-  WSLg's, answers `GetImage` on its root with `BadMatch`, so the read fails as `Backend` rather than
-  returning a partial picture; a Wayland session needs the desktop portal instead.
+  at a time with `QueryTree`, `GetWindowAttributes`, `GetGeometry` and a `GetProperty` each of
+  `_NET_WM_PID` (`CARDINAL`), `WM_NAME` (zero length, which tells a titled window) and
+  `_NET_WM_WINDOW_TYPE` (`ATOM`) per window, and asks `GetSelectionOwner` of `_NET_WM_CM_S` and the
+  screen's number. With no owner it sends one `GetImage` (`ZPixmap`, every plane) for the chosen
+  rectangle of the root, and returns `Pixels::Root`. With an owner it sends a `PIXMAP` `GetProperty`
+  of `_XROOTPMAP_ID` on the root, `GetGeometry` and `GetImage` of the pixmap named, then one
+  `GetImage` per part `pieces` lists, on the window itself, and returns `Pixels::Layers`, so the
+  root's own pixels are never read there. It then sends and flushes `UngrabServer`, also after a
+  failed read. No other client can map, move or draw a window between the reads and the list. It
+  reads the bits per pixel, byte order and visual masks of each read from the connection's setup.
+  The crate re-exports `x11rb`, and the host opens the display with `x11rb::connect(None)`. When
+  that fails, as on a Wayland session with no `DISPLAY`, `X11Root::absent(&error)` makes every read
+  `NoDisplay`. Rootless Xwayland, such as WSLg's, answers `GetImage` on its root with `BadMatch`, so
+  the read fails as `Backend` rather than returning a partial picture; a Wayland session needs the
+  desktop portal instead.
 - **`LinuxHotkey`** resolves a chord to the X keysym of its `KeyboardEvent.code` (`keysym`: a
   letter is its lower-case keysym, `F1` to `F35` are `ffbe` to `ffe0`, the named keys are their
   keysyms), finds the lowest keycode that types it, and takes Shift and Control from the core
@@ -207,9 +208,9 @@ decision 13).
   bus, a volume and mute round trip on the default sink that restores what it found, a capture on
   `DISPLAY` that is refused before the test maps a window naming its own process and, after, comes
   back with that window black and a white window of no process around it still white, a window
-  capture that is `NoTarget` until it names the topmost titled window not the test's own, and a
-  `ctrl+alt+space` grab that XTEST presses with Num Lock off and on and holds for 1.5 s, each of
-  which must run the callback once, and that `ctrl+space` must not run.
+  capture that is `NoTarget` over a desktop window and its own, then names the topmost titled window
+  not its own or a dock, and a `ctrl+alt+space` grab that XTEST presses with Num Lock off and on and
+  holds for 1.5 s, each of which must run the callback once, and that `ctrl+space` must not run.
 
 ## The coverage exemption
 
@@ -231,8 +232,7 @@ genuinely unreachable code, a stub whose body is `unimplemented!()`, gets the ex
   (`tests/audio_contract.rs`), `LinuxNotify` over `FakeBus` (`tests/notify.rs`),
   `LinuxScreenCapture` over `FakeRoot` (`tests/screen.rs`) and `LinuxHotkey` over `FakeKeys`
   (`tests/hotkey.rs`).
-- Stubs are `unimplemented!()` with a reason, and `coverage(off)` marks only genuinely unreachable
-  code.
+- Stubs are `unimplemented!()` with a reason, and only they are marked `coverage(off)`.
 - Coverage is measured on **Linux CI**, including every line of `os_linux`. The Windows backends
   are host-validated, which is where the real OS calls in `os_windows` are exercised at all.
 - A Linux backend opens no session connection itself: the caller passes the connection, or the

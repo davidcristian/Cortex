@@ -63,13 +63,14 @@ fn the_default_sink_volume_round_trips() {
     assert_eq!(restored.muted, before.muted);
 }
 
-/// Maps a white `size` square at `at` on the root, naming `pid` in `_NET_WM_PID` and `title` in
-/// `WM_NAME` when given them.
+/// Maps a white `size` square at `at` on the root, naming `pid` in `_NET_WM_PID`, `title` in
+/// `WM_NAME` and the window type atom `kind` in `_NET_WM_WINDOW_TYPE` when given them.
 fn white_square(
     at: i16,
     size: u16,
     pid: Option<u32>,
     title: Option<&[u8]>,
+    kind: Option<&[u8]>,
 ) -> os_linux::x11rb::rust_connection::RustConnection {
     use os_linux::x11rb::protocol::xproto::{
         AtomEnum, ConnectionExt as _, CreateWindowAux, PropMode, WindowClass,
@@ -113,6 +114,26 @@ fn white_square(
             )
             .unwrap_or_else(|error| panic!("{error:?}"));
     }
+    if let Some(kind) = kind {
+        let intern = |name: &[u8]| {
+            connection
+                .intern_atom(false, name)
+                .unwrap_or_else(|error| panic!("{error:?}"))
+                .reply()
+                .unwrap_or_else(|error| panic!("{error:?}"))
+                .atom
+        };
+        let (property, value) = (intern(b"_NET_WM_WINDOW_TYPE"), intern(kind));
+        connection
+            .change_property32(
+                PropMode::REPLACE,
+                window,
+                property,
+                AtomEnum::ATOM,
+                &[value],
+            )
+            .unwrap_or_else(|error| panic!("{error:?}"));
+    }
     if let Some(title) = title {
         connection
             .change_property8(
@@ -140,8 +161,8 @@ fn the_root_window_is_captured_with_this_process_painted_black() {
     let (connection, screen) = os_linux::x11rb::connect(None).unwrap();
     let capture = LinuxScreenCapture::new(X11Root::new(connection, screen), std::process::id());
     assert!(capture.capture(&CaptureRequest::new(0)).is_err());
-    let _below = white_square(0, 40, None, None);
-    let _ours = white_square(10, 20, Some(std::process::id()), None);
+    let _below = white_square(0, 40, None, None, None);
+    let _ours = white_square(10, 20, Some(std::process::id()), None, None);
 
     let frame = capture.capture(&CaptureRequest::new(0)).unwrap();
     let width = usize::try_from(frame.frame().width()).unwrap();
@@ -159,15 +180,19 @@ fn a_focus_capture_points_at_the_topmost_titled_window_that_is_not_ours() {
     let (connection, screen) = os_linux::x11rb::connect(None).unwrap();
     let capture = LinuxScreenCapture::new(X11Root::new(connection, screen), std::process::id());
     let focus = CaptureRequest::targeted(0, 0, CaptureTarget::Focus);
-    let _ours = white_square(0, 5, Some(std::process::id()), Some(b"overlay"));
+    let desktop = Some(b"_NET_WM_WINDOW_TYPE_DESKTOP".as_slice());
+    let _desktop = white_square(0, 100, None, Some(b"desktop"), desktop);
+    let _ours = white_square(0, 5, Some(std::process::id()), Some(b"overlay"), None);
     assert!(matches!(
         capture.capture(&focus),
         Err(CaptureError::NoTarget(_))
     ));
-    let _lower = white_square(40, 10, None, Some(b"lower"));
-    let _target = white_square(10, 20, None, Some(b"target"));
-    let _untitled = white_square(20, 30, None, None);
-    let _overlay = white_square(25, 5, Some(std::process::id()), Some(b"overlay"));
+    let _lower = white_square(40, 10, None, Some(b"lower"), None);
+    let _target = white_square(10, 20, None, Some(b"target"), None);
+    let _untitled = white_square(20, 30, None, None, None);
+    let _overlay = white_square(25, 5, Some(std::process::id()), Some(b"overlay"), None);
+    let dock = Some(b"_NET_WM_WINDOW_TYPE_DOCK".as_slice());
+    let _panel = white_square(0, 8, None, Some(b"panel"), dock);
 
     let captured = capture.capture(&focus).unwrap();
 

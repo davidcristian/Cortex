@@ -28,10 +28,15 @@ const INTERN_ATOM: u8 = 16;
 const QUERY_TREE: u8 = 15;
 const GET_PROPERTY: u8 = 20;
 const PID_ATOM: u32 = 0x0000_01a7;
+const TYPE_ATOM: u32 = 0x0000_01a8;
+const DOCK_ATOM: u32 = 0x0000_01a9;
+const DESKTOP_ATOM: u32 = 0x0000_01aa;
+const NORMAL_ATOM: u32 = 0x0000_01ab;
 const CM_ATOM: u32 = 0x0000_01b0;
 const BACKGROUND_ATOM: u32 = 0x0000_01c4;
 const GET_SELECTION_OWNER: u8 = 23;
 const GET_GEOMETRY: u8 = 14;
+const ATOM: u32 = 4;
 const CARDINAL: u32 = 6;
 const STRING: u32 = 31;
 const WM_NAME: u32 = 39;
@@ -127,6 +132,16 @@ fn atom(atom: u32) -> Vec<u8> {
         .serialize()
         .to_vec(),
     )
+}
+
+/// The four answers that name the atoms a grab reads the window tree by.
+fn interned() -> [Vec<u8>; 4] {
+    [
+        atom(PID_ATOM),
+        atom(TYPE_ATOM),
+        atom(DOCK_ATOM),
+        atom(DESKTOP_ATOM),
+    ]
 }
 
 /// The two answers that name the compositing manager's selection and report `owner` holding it.
@@ -232,6 +247,22 @@ fn property(kind: u32, value: Option<u32>) -> Vec<u8> {
     .serialize()
 }
 
+/// The answer listing `types` as a window's `_NET_WM_WINDOW_TYPE`, or no property when empty.
+fn kinds(types: &[u32]) -> Vec<u8> {
+    let value: Vec<u8> = types.iter().flat_map(|atom| atom.to_le_bytes()).collect();
+    let words = u32::try_from(types.len()).unwrap_or_else(|error| panic!("{error:?}"));
+    GetPropertyReply {
+        format: if types.is_empty() { 0 } else { 32 },
+        sequence: 0,
+        length: words,
+        type_: if types.is_empty() { 0 } else { ATOM },
+        bytes_after: 0,
+        value_len: words,
+        value,
+    }
+    .serialize()
+}
+
 /// The answer naming a window `WM_NAME` of six bytes, or one that is empty when not `titled`.
 fn name(titled: bool) -> Vec<u8> {
     GetPropertyReply {
@@ -248,11 +279,9 @@ fn name(titled: bool) -> Vec<u8> {
 
 /// The answers to a grab of a root with no windows up to the selection's owner, `holder`.
 fn empty_tree(holder: u32) -> Vec<Answer> {
-    let mut answers = vec![
-        Some(Vec::new()),
-        Some(atom(PID_ATOM)),
-        Some(tree(Vec::new())),
-    ];
+    let mut answers = vec![Some(Vec::new())];
+    answers.extend(interned().map(Some));
+    answers.push(Some(tree(Vec::new())));
     answers.extend(owner(holder).map(Some));
     answers
 }
@@ -451,7 +480,7 @@ fn a_grab_reads_the_given_area_in_the_servers_format() {
             data: pixels,
         }
     );
-    let request = &requests[5];
+    let request = &requests[8];
     let format_zpixmap = 2;
     assert_eq!(&request[..2], &[GET_IMAGE, format_zpixmap]);
     assert_eq!(&request[4..8], &ROOT.to_le_bytes());
@@ -570,6 +599,9 @@ fn an_x_error_reply_is_a_failed_grab_that_still_releases_the_server() {
         vec![
             GRAB_SERVER,
             INTERN_ATOM,
+            INTERN_ATOM,
+            INTERN_ATOM,
+            INTERN_ATOM,
             QUERY_TREE,
             INTERN_ATOM,
             GET_SELECTION_OWNER,
@@ -643,27 +675,28 @@ fn a_session_with_no_display_set_is_no_display() {
 #[test]
 fn a_grab_lists_every_window_under_the_root_inside_one_server_grab() {
     let (frame, popup, client) = (0x0040_0001, 0x0040_0002, 0x0040_0003);
-    let mut answers = vec![
-        Some(Vec::new()),
-        Some(atom(PID_ATOM)),
-        Some(tree(vec![frame, popup])),
-    ];
+    let mut answers = vec![Some(Vec::new())];
+    answers.extend(interned().map(Some));
+    answers.push(Some(tree(vec![frame, popup])));
     answers.extend(
         [
             attributes(MapState::VIEWABLE),
             geometry(7, 8, 1),
             pid(None),
             name(false),
+            kinds(&[NORMAL_ATOM]),
             tree(vec![client]),
             attributes_with(MapState::UNMAPPED, WindowClass::INPUT_OUTPUT, true),
             geometry(-2, 3, 0),
             pid(Some(4242)),
             name(true),
+            kinds(&[DESKTOP_ATOM]),
             tree(Vec::new()),
             attributes_of(MapState::UNVIEWABLE, WindowClass::INPUT_ONLY),
             geometry(0, 0, 0),
             pid(Some(77)),
             name(true),
+            kinds(&[NORMAL_ATOM, DOCK_ATOM]),
             tree(Vec::new()),
         ]
         .map(Some),
@@ -688,12 +721,14 @@ fn a_grab_lists_every_window_under_the_root_inside_one_server_grab() {
         input_only,
         titled: true,
         override_redirect: false,
+        dock_or_desktop: true,
     };
     assert_eq!(
         grabbed.unwrap_or_else(|error| panic!("{error:?}")).windows,
         vec![
             TreeWindow {
                 titled: false,
+                dock_or_desktop: false,
                 ..window(None, at(7, 8), 1, true, None, false)
             },
             TreeWindow {
@@ -711,45 +746,52 @@ fn a_grab_lists_every_window_under_the_root_inside_one_server_grab() {
         requests.last().map(|request| request[0]),
         Some(UNGRAB_SERVER)
     );
-    assert_eq!(&requests[1][..2], &[INTERN_ATOM, 0]);
-    assert_eq!(&requests[1][8..19], b"_NET_WM_PID");
-    assert_eq!(&requests[2][..1], &[QUERY_TREE]);
-    assert_eq!(&requests[2][4..8], &ROOT.to_le_bytes());
-    let property = &requests[15];
+    let names: [&[u8]; 4] = [
+        b"_NET_WM_PID",
+        b"_NET_WM_WINDOW_TYPE",
+        b"_NET_WM_WINDOW_TYPE_DOCK",
+        b"_NET_WM_WINDOW_TYPE_DESKTOP",
+    ];
+    for (request, name) in requests[1..5].iter().zip(names) {
+        assert_eq!(&request[..2], &[INTERN_ATOM, 0]);
+        assert_eq!(&request[8..8 + name.len()], name);
+    }
+    assert_eq!(&requests[5][..1], &[QUERY_TREE]);
+    assert_eq!(&requests[5][4..8], &ROOT.to_le_bytes());
+    let property = &requests[20];
     assert_eq!(property[0], GET_PROPERTY);
     assert_eq!(&property[4..8], &client.to_le_bytes());
     assert_eq!(&property[8..12], &PID_ATOM.to_le_bytes());
     assert_eq!(&property[12..16], &CARDINAL.to_le_bytes());
-    let title = &requests[16];
+    let title = &requests[21];
     assert_eq!(title[0], GET_PROPERTY);
     assert_eq!(&title[4..8], &client.to_le_bytes());
     assert_eq!(&title[8..12], &WM_NAME.to_le_bytes());
     assert_eq!(&title[12..24], &[0; 12]);
+    let types = &requests[22];
+    assert_eq!(types[0], GET_PROPERTY);
+    assert_eq!(&types[4..8], &client.to_le_bytes());
+    assert_eq!(&types[8..12], &TYPE_ATOM.to_le_bytes());
+    assert_eq!(&types[12..16], &ATOM.to_le_bytes());
+    assert_eq!(&types[16..24], &[0, 0, 0, 0, 32, 0, 0, 0]);
 }
 
 #[test]
 fn an_x_error_while_listing_windows_is_a_failed_grab_that_releases_the_server() {
     let bad_window = 3;
     let get_window_attributes = 3;
-    let at_the_root = vec![
-        Some(Vec::new()),
-        Some(atom(PID_ATOM)),
-        Some(error(bad_window, QUERY_TREE, 0)),
-        Some(Vec::new()),
-    ];
-    // The grab stops reading at the error, so the window's other four requests get no reply: a
+    let mut at_the_root = vec![Some(Vec::new())];
+    at_the_root.extend(interned().map(Some));
+    at_the_root.extend([Some(error(bad_window, QUERY_TREE, 0)), Some(Vec::new())]);
+    // The grab stops reading at the error, so the window's other five requests get no reply: a
     // reply left unread resets the socket at close, or meets a closed one if written late.
-    let at_a_window = vec![
-        Some(Vec::new()),
-        Some(atom(PID_ATOM)),
+    let mut at_a_window = vec![Some(Vec::new())];
+    at_a_window.extend(interned().map(Some));
+    at_a_window.extend([
         Some(tree(vec![0x0040_0001])),
         Some(error(bad_window, get_window_attributes, 0)),
-        Some(Vec::new()),
-        Some(Vec::new()),
-        Some(Vec::new()),
-        Some(Vec::new()),
-        Some(Vec::new()),
-    ];
+    ]);
+    at_a_window.extend([(); 6].map(|()| Some(Vec::new())));
 
     for answers in [at_the_root, at_a_window] {
         let (grabbed, requests) = grab_against(setup(ImageOrder::LSB_FIRST, VISUAL), answers);
@@ -780,11 +822,11 @@ fn a_grab_reads_the_root_only_when_no_compositing_manager_owns_the_screen() {
             Pixels::Layers(Vec::new())
         };
         assert_eq!(grabbed.map(|snapshot| snapshot.pixels), Ok(expected));
-        assert_eq!(&requests[3][..2], &[INTERN_ATOM, 0]);
-        assert_eq!(&requests[3][8..21], b"_NET_WM_CM_S0");
-        assert_eq!(requests[4][0], GET_SELECTION_OWNER);
-        assert_eq!(&requests[4][4..8], &CM_ATOM.to_le_bytes());
-        assert_eq!(requests[5][0], read);
+        assert_eq!(&requests[6][..2], &[INTERN_ATOM, 0]);
+        assert_eq!(&requests[6][8..21], b"_NET_WM_CM_S0");
+        assert_eq!(requests[7][0], GET_SELECTION_OWNER);
+        assert_eq!(&requests[7][4..8], &CM_ATOM.to_le_bytes());
+        assert_eq!(requests[8][0], read);
         assert_eq!(
             requests.last().map(|request| request[0]),
             Some(UNGRAB_SERVER)
@@ -802,29 +844,29 @@ fn the_compositing_manager_selection_is_named_for_the_screen_read() {
     let (grabbed, requests) = against(two, 1, bare(vec![0; 8]), |root| root.grab(WHOLE));
 
     assert!(grabbed.is_ok(), "{grabbed:?}");
-    assert_eq!(&requests[3][8..21], b"_NET_WM_CM_S1");
+    assert_eq!(&requests[6][8..21], b"_NET_WM_CM_S1");
 }
 
 /// The answers to a grab of `WHOLE` listing two viewable top-level windows, the first at the
 /// origin and the second one pixel right, with `holder` owning the selection, then `reads` and
 /// the release.
 fn two_windows(holder: u32, reads: Vec<Vec<u8>>) -> Vec<Answer> {
-    let mut answers = vec![
-        Some(Vec::new()),
-        Some(atom(PID_ATOM)),
-        Some(tree(vec![0x0040_0001, 0x0040_0002])),
-    ];
+    let mut answers = vec![Some(Vec::new())];
+    answers.extend(interned().map(Some));
+    answers.push(Some(tree(vec![0x0040_0001, 0x0040_0002])));
     answers.extend(
         [
             attributes(MapState::VIEWABLE),
             geometry(0, 0, 0),
             pid(None),
             name(false),
+            kinds(&[]),
             tree(Vec::new()),
             attributes(MapState::VIEWABLE),
             geometry(1, 0, 0),
             pid(None),
             name(false),
+            kinds(&[]),
             tree(Vec::new()),
         ]
         .map(Some),
@@ -884,7 +926,7 @@ fn a_composited_grab_reads_each_top_level_window_inside_the_area_from_the_window
         layers_of(grabbed),
         vec![layer(0, 2, 1, RGB), layer(1, 1, 2, unknown)]
     );
-    let (first, second) = (&requests[17], &requests[18]);
+    let (first, second) = (&requests[22], &requests[23]);
     assert_eq!(&first[..2], &[GET_IMAGE, 2]);
     assert_eq!(&first[4..16], &[1, 0, 0x40, 0, 0, 0, 0, 0, 2, 0, 1, 0]);
     assert_eq!(&second[4..16], &[2, 0, 0x40, 0, 0, 0, 0, 0, 1, 0, 1, 0]);
@@ -923,10 +965,10 @@ fn a_grab_with_no_compositing_manager_reads_no_window() {
     );
 
     assert_eq!(image_of(grabbed).data, vec![0; 8]);
-    assert_eq!(requests.len(), 17);
-    assert_eq!(requests[15][0], GET_IMAGE);
-    assert_eq!(&requests[15][4..8], &ROOT.to_le_bytes());
-    assert_eq!(requests[16][0], UNGRAB_SERVER);
+    assert_eq!(requests.len(), 22);
+    assert_eq!(requests[20][0], GET_IMAGE);
+    assert_eq!(&requests[20][4..8], &ROOT.to_le_bytes());
+    assert_eq!(requests[21][0], UNGRAB_SERVER);
 }
 
 #[test]
@@ -959,7 +1001,7 @@ fn a_composited_grab_reads_the_background_pixmap_from_the_roots_corner_below_eve
         ]
     );
     let (name, property, geometry, read) =
-        (&requests[15], &requests[16], &requests[17], &requests[18]);
+        (&requests[20], &requests[21], &requests[22], &requests[23]);
     assert_eq!(&name[..2], &[INTERN_ATOM, 0]);
     assert_eq!(&name[8..21], b"_XROOTPMAP_ID");
     assert_eq!(property[0], GET_PROPERTY);
@@ -1018,7 +1060,7 @@ fn a_background_the_server_cannot_paint_from_leaves_the_base_black() {
         let (grabbed, requests) = background_against(area, reads.into_iter().map(Some).collect());
 
         assert_eq!(layers_of(grabbed), Vec::new());
-        assert_eq!(requests.len(), 5 + count + 1);
+        assert_eq!(requests.len(), 8 + count + 1);
     }
 }
 
