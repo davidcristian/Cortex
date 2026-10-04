@@ -1,9 +1,10 @@
 # body/crates/os_linux (the Linux OS backends)
 
 **Purpose.** The Linux implementations of the body's OS-capability ports: notifications over the
-freedesktop D-Bus service, volume through `pactl`, screen capture from the X root window and the
-global hotkey as an X key grab. What every platform crate shares (the public contract, the
-coverage exemption, the invariants and the dependencies) is in [body-os.md](body-os.md).
+freedesktop D-Bus service, volume through `pactl`, screen capture from the X root window or through
+the desktop portal's `Screenshot` call, and the global hotkey as an X key grab. What every
+platform crate shares (the public contract, the coverage exemption, the invariants and the
+dependencies) is in [body-os.md](body-os.md).
 
 ## The backends
 
@@ -94,6 +95,36 @@ decision 13).
   `NoDisplay`. Rootless Xwayland, such as WSLg's, answers `GetImage` on its root with `BadMatch`, so
   the read fails as `Backend` rather than returning a partial picture; a Wayland session needs the
   desktop portal instead.
+- **`LinuxPortalCapture<P: ScreenshotPortal>`** captures a Wayland session through
+  `org.freedesktop.portal.Screenshot`. It builds the request handle
+  `/org/freedesktop/portal/desktop/request/<sender>/<token>` from the port's unique bus name,
+  without its `:` and with each `.` as `_`, and a token `cortex<n>` from a counter. It asks for a
+  non-interactive screenshot and reads the `Response`: code 0 with a `uri` is a picture; 0 without
+  one, 1 (cancelled) and any other code fail as `Backend`. The `uri` must be `file://` with an empty
+  host, and its `%XX` escapes are decoded. It reads the file, removes it, then decodes it. A focus
+  target is `NoTarget` before any call, because a portal picture does not say where any window is,
+  so this backend does not run the shared screen list, whose focus checks need one. One capture
+  runs at a time, since the wlr backend writes every picture to the same `/tmp/out.png`.
+- **The picture file is removed after it is read**, whether or not it decodes, and a failed removal
+  fails the capture as `Backend`, so the body never sends a picture whose copy it left on disk. The
+  wlr backend's file is the whole screen, in `/tmp`, mode 664 under a 002 umask
+  ([wayland-screenshot-portal](../readings/wayland-screenshot-portal.md)), and the user did not ask
+  to keep it.
+- **`decode_png`** lives here rather than in `body_core`, which only encodes, because this backend
+  is the one that reads a PNG; it uses the `png` crate `body_core` already depends on. It expands
+  palette and 16-bit pictures to 8-bit channels, accepts RGB and RGBA, refuses grey, and writes
+  BGRA with a fourth byte of 255. A header whose decoded size is over `MAX_DECODED_BYTES` (256
+  MiB) is refused before the buffer is made.
+- **`DbusPortal`** adds a match rule for `Response` on the handle before it calls `Screenshot("",
+  {handle_token, interactive: false})` on `org.freedesktop.portal.Desktop`, because a backend can
+  answer before the method reply arrives. A returned handle other than the computed one fails,
+  since no `Response` would come on it, and a `uri` that is not a string counts as none. It waits
+  for the `Response` with no time limit
+  ([786](../refinements/tasks/786-a-time-limit-on-the-screenshot-portal-response.md)), and reads
+  and removes the file with `std::fs`. The host opens the session bus as for notifications, and
+  `DbusPortal::absent(&error)` fails each portal call with the error's text. The shell does not
+  serve this backend yet
+  ([752](../refinements/tasks/752-wayland-screen-capture-through-the-portal.md)).
 - **`LinuxHotkey`** resolves a chord to the X keysym of its `KeyboardEvent.code` (`keysym`: a
   letter is its lower-case keysym, `F1` to `F35` are `ffbe` to `ffe0`, the named keys are their
   keysyms), finds the lowest keycode that types it, and takes Shift and Control from the core
@@ -124,3 +155,7 @@ decision 13).
   capture that is `NoTarget` over a desktop window and its own, then names the topmost titled window
   not its own or a dock, and a `ctrl+alt+space` grab that XTEST presses with Num Lock off and on and
   holds for 1.5 s, each of which must run the callback once, and that `ctrl+space` must not run.
+- `cargo test -p os-linux --test portal_live -- --ignored --nocapture` runs the portal's live test
+  on a session bus whose portal serves `Screenshot`: two display captures of the same size, and
+  each file the backend read gone afterwards. It is outside `just os-linux-live`, which needs an X
+  server rather than a portal.

@@ -907,6 +907,7 @@ version = "0.1.0"
 dependencies = [
  "body-contract",
  "body-core",
+ "png",
  "x11rb",
  "zbus",
 ]

@@ -14,12 +14,15 @@ zbus = { version = "5.19", default-features = false, features = ["async-io", "bl
 # The X11 client for screen capture and key grabs. Pure Rust with no default features, so no libxcb is linked.
 # `randr` lists the monitors, so a capture reads the primary one rather than the whole root.
 x11rb = { version = "0.13", default-features = false, features = ["randr"] }
+# Decodes the PNG file the screenshot portal writes. Already a body-core dependency.
+png.workspace = true
 
 [target.'cfg(target_os = "linux")'.dev-dependencies]
 # The shared port check lists the adapters are run against.
 body-contract.workspace = true
-# `p2p` lets a test serve a fake notification server over a socket pair, with no bus daemon.
-zbus = { version = "5.19", default-features = false, features = ["async-io", "blocking-api", "p2p"] }
+# `p2p` lets a test serve a fake notification server or portal over a socket pair, with no bus
+# daemon, and `bus-impl` gives that client the unique name a portal request handle is built from.
+zbus = { version = "5.19", default-features = false, features = ["async-io", "blocking-api", "bus-impl", "p2p"] }
 # `xtest` lets the live hotkey test press a chord on the X server.
 x11rb = { version = "0.13", default-features = false, features = ["randr", "xtest"] }
 

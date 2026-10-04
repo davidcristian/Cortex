@@ -29,17 +29,19 @@ measured what the build rests on:
   `grim`: without it the call answers 2 with no results. The runbook must name all four.
 - **The answer** is response 0 with `uri` `file:///tmp/out.png`, one fixed path every call
   overwrites, readable by other local users under a 002 umask. The core reads it right after the
-  `Response`; whether the body then deletes it is the build's decision. The file is an 8-bit RGB
-  PNG (colour type 2, no alpha) of the whole output, so the decode handles RGB as well as RGBA.
+  `Response` and then removes it. The file is an 8-bit RGB PNG (colour type 2, no alpha) of the
+  whole output, so the decode handles RGB as well as RGBA.
   The frontend can also answer 0 with no `uri`, which the core treats as a failure.
 - **The handle** is `/org/freedesktop/portal/desktop/request/<sender>/<token>`: the caller's unique
   name without its `:` and with each `.` as `_`, then the `handle_token` option. It matched the
   returned path in every call, so the client subscribes to `Response` on it before calling.
 
-Build it under [ADR-0011](../../adr/ADR-0011-body-v1.md) decision 13: the handle path, the
-response codes 0, 1 and 2, the `uri` read and the PNG decode to BGRA in a covered core over a small
-portal port, and a `zbus` adapter tested against a fake portal over a socket pair. The shell picks
-the portal when `WAYLAND_DISPLAY` is set, and the overlay must still be kept out of the picture. The
+The core and its adapter are built under [ADR-0011](../../adr/ADR-0011-body-v1.md) decision 13:
+`LinuxPortalCapture` over the `ScreenshotPortal` port and `DbusPortal`
+([body-os-linux](../../modules/body-os-linux.md)). What remains is the shell step: serve the
+portal backend when `WAYLAND_DISPLAY` is set, after
+[786](786-a-time-limit-on-the-screenshot-portal-response.md) puts a time limit on its wait, and keep
+the overlay out of the picture, which needs a decision of its own. The
 X11 answer, [753](753-keep-the-overlay-out-of-a-linux-capture.md), finds the body's windows in the X
 window tree, which a portal picture of a Wayland session does not come with, so it does not apply
 there.
@@ -59,3 +61,9 @@ there.
   frontend also needs an `Access` backend, and the wlr backend a PipeWire daemon and `grim`.
   Readings in
   [wayland-screenshot-portal](../../readings/wayland-screenshot-portal.md).
+- 2026-10-04: The core and the adapter were built. `LinuxPortalCapture` reads, removes, then
+  decodes the file, refuses a focus target as `NoTarget` and runs one capture at a time;
+  `decode_png` lives in `os_linux` with the `png` crate `body-core` already used. `DbusPortal` is
+  tested over a socket pair against a fake portal that answers before its method reply, and its
+  live test passed on the headless sway stack above. The wait for `Response` has no time limit,
+  filed as [786](786-a-time-limit-on-the-screenshot-portal-response.md). The shell is not wired.

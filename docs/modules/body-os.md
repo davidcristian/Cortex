@@ -27,13 +27,14 @@ speaks. They are also where the **stub coverage exemption** is used.
   no persistent device, so it satisfies the blocking pool's `FnOnce + Send + 'static`; and it has
   the smallest `unsafe` surface. The cost is that it renders hardware-overlay and DRM-protected
   surfaces **black, with no error**.
-- **`os_linux`** (`cfg(target_os = "linux")`) has four real backends, `LinuxNotify`,
-  `LinuxAudioControl`, `LinuxScreenCapture` and the X11 `LinuxHotkey` (see
-  [body-os-linux.md](body-os-linux.md)), and no stub. The shell's `BodyService` serves the
-  notification and volume backends, and `LinuxScreenCapture<X11Root>` only when
+- **`os_linux`** (`cfg(target_os = "linux")`) has five real backends, `LinuxNotify`,
+  `LinuxAudioControl`, the X11 `LinuxScreenCapture`, the portal's `LinuxPortalCapture` and the X11
+  `LinuxHotkey` (see [body-os-linux.md](body-os-linux.md)), and no stub. The shell's `BodyService`
+  serves the notification and volume backends, and `LinuxScreenCapture<X11Root>` only when
   `CORTEX_HOST_CAPTURE=1`, `WAYLAND_DISPLAY` is unset or empty and the X display opens, else
-  `DeniedScreenCapture`. The shell registers the hotkey through `X11Keys`, except on a Wayland
-  session, where it logs why and registers none ([overlay runbook](../runbooks/body-overlay.md)).
+  `DeniedScreenCapture`; it does not serve `LinuxPortalCapture` yet. The shell registers the hotkey
+  through `X11Keys`, except on a Wayland session, where it logs why and registers none
+  ([overlay runbook](../runbooks/body-overlay.md)).
 - **`os_macos`** provides `MacosHotkey`, `MacosAudioControl`, `MacosNotify` and
   `MacosScreenCapture`, the same stubs for macOS. It has no `cfg` yet and compiles everywhere.
 
@@ -45,7 +46,8 @@ Each crate exposes one implementor per port, and the app selects the platform's 
 - `Hotkey`: `LinuxHotkey`, `MacosHotkey`, `WindowsHotkey`. `AudioControl`, `Notify` and
   `ScreenCapture` follow the same naming; the Linux `Notify` and `AudioControl` are generic over
   their crate-local ports, `LinuxNotify<DbusNotifications>` and
-  `LinuxAudioControl<PactlCommand>` on a real host, and so is `LinuxScreenCapture<X11Root>`.
+  `LinuxAudioControl<PactlCommand>` on a real host, and so are `LinuxScreenCapture<X11Root>` and
+  `LinuxPortalCapture<DbusPortal>`.
   `LinuxHotkey` is not generic: it keeps its `KeyGrab` as an `Arc<dyn KeyGrab>`, which its listener
   thread shares, and a real host builds it with `LinuxHotkey::new(X11Keys::new(..))`.
 - `AudioControl` (ADR-0023): `get_volume() -> VolumeState` and
@@ -111,7 +113,8 @@ genuinely unreachable code, a stub whose body is `unimplemented!()`, gets the ex
   its fake are held to one description: `LinuxAudioControl` over a stand-in sound server
   (`tests/audio_contract.rs`), `LinuxNotify` over `FakeBus` (`tests/notify.rs`),
   `LinuxScreenCapture` over `FakeRoot` (`tests/screen.rs`) and `LinuxHotkey` over `FakeKeys`
-  (`tests/hotkey.rs`).
+  (`tests/hotkey.rs`). `LinuxPortalCapture` does not, because the list's focus checks need a window
+  and a portal picture names none; its own tests are `tests/portal.rs` and `tests/portal_dbus.rs`.
 - Stubs are `unimplemented!()` with a reason, and only they are marked `coverage(off)`.
 - Coverage is measured on **Linux CI**, including every line of `os_linux`. The Windows backends
   are host-validated, which is where the real OS calls in `os_windows` are exercised at all.
@@ -122,7 +125,8 @@ genuinely unreachable code, a stub whose body is `unimplemented!()`, gets the ex
   scoped `allow` (ADR-0023).
 
 **Dependencies.** `body-core` (the ports). `os_linux` adds `zbus` 5 (MIT, pure Rust, `async-io` and
-`blocking-api` features, plus `p2p` for its tests) and `x11rb` 0.13 (MIT or Apache-2.0, pure Rust,
+`blocking-api` features, plus `p2p` and `bus-impl` for its tests), `png` 0.18 (MIT or
+Apache-2.0, the version `body-core` encodes with) and `x11rb` 0.13 (MIT or Apache-2.0, pure Rust,
 no default features, so no `libxcb`, with `randr`, plus `xtest` for its live test) under a
 `cfg(target_os = "linux")` target table, and `body-contract` for its tests; it runs
 `pactl` as a program and links no audio or X library. The real `os_windows` adds `global-hotkey`

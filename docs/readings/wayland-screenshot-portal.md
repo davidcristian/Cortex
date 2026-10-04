@@ -40,6 +40,15 @@ file of a fake `org.freedesktop.impl.portal.Access` backend, a short Python scri
 - **Without `grim`** the wlr backend logged `execvp: No such file or directory` and the frontend
   "A backend call failed: Operation not permitted".
 
+## The Rust adapter on the same stack
+
+**2026-10-04.** The ignored test `the_portal_captures_the_display_twice_and_leaves_no_file` in
+`body/crates/os_linux/tests/portal_live.rs` ran `LinuxPortalCapture` over `DbusPortal` on the
+session bus of the setup above, with a PipeWire daemon. Both captures returned a 1280 by 720 frame
+whose centre pixel was 51, 102, 204 in R, G, B order, and `/tmp/out.png` was gone after each. With
+the core's removal step taken out, the same test failed naming `/tmp/out.png`, which was left at
+mode 664.
+
 ## How long a call takes
 
 | Measure, two runs of 15 calls | Ratio |
