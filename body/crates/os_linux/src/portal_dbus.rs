@@ -3,11 +3,14 @@
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
+use std::time::Duration;
 
-use zbus::MatchRule;
+use async_io::Timer;
+use futures_lite::{StreamExt, future};
 use zbus::blocking::{Connection, MessageIterator};
-use zbus::message::Type;
+use zbus::message::{Flags, Type};
 use zbus::zvariant::{OwnedObjectPath, OwnedValue, Value};
+use zbus::{MatchRule, Message};
 
 use crate::portal::{PortalError, PortalReply, ScreenshotPortal};
 
@@ -16,17 +19,28 @@ const PATH: &str = "/org/freedesktop/portal/desktop";
 const SCREENSHOT: &str = "org.freedesktop.portal.Screenshot";
 const REQUEST: &str = "org.freedesktop.portal.Request";
 
+/// How long [`DbusPortal::new`] waits for a `Response`: the brain's default capture deadline.
+pub const RESPONSE_LIMIT: Duration = Duration::from_secs(10);
+
 /// `org.freedesktop.portal.Screenshot` on a D-Bus connection, or on a bus that did not open.
 pub struct DbusPortal {
     connection: Result<Connection, PortalError>,
+    limit: Duration,
 }
 
 impl DbusPortal {
-    /// Wraps `connection`, normally the user's session bus.
+    /// Wraps `connection`, normally the user's session bus, waiting [`RESPONSE_LIMIT`].
     #[must_use]
     pub const fn new(connection: Connection) -> Self {
+        Self::with_limit(connection, RESPONSE_LIMIT)
+    }
+
+    /// Wraps `connection`, waiting at most `limit` for each `Response`.
+    #[must_use]
+    pub const fn with_limit(connection: Connection, limit: Duration) -> Self {
         Self {
             connection: Ok(connection),
+            limit,
         }
     }
 
@@ -35,6 +49,7 @@ impl DbusPortal {
     pub fn absent(error: &zbus::Error) -> Self {
         Self {
             connection: Err(PortalError(error.to_string())),
+            limit: RESPONSE_LIMIT,
         }
     }
 
@@ -60,6 +75,7 @@ impl ScreenshotPortal for DbusPortal {
             .and_then(|rule| rule.member("Response"))
             .and_then(|rule| rule.path(handle))
             .and_then(|rule| MessageIterator::for_match_rule(rule.build(), connection, None))
+            .map(MessageIterator::into_inner)
             .map_err(|error| failure(&error))?;
         let options = HashMap::from([
             ("handle_token", Value::from(token)),
@@ -81,10 +97,23 @@ impl ScreenshotPortal for DbusPortal {
             )));
         }
         let closed = zbus::Error::Failure(String::from("the bus closed before the response"));
-        let (code, results): (u32, HashMap<String, OwnedValue>) = responses
-            .next()
-            .unwrap_or(Err(closed))
-            .and_then(|message| message.body().deserialize())
+        let answered = async { responses.next().await.unwrap_or(Err(closed)).map(Some) };
+        let expired = async {
+            Timer::after(self.limit).await;
+            Ok(None)
+        };
+        let Some(message) =
+            async_io::block_on(future::or(answered, expired)).map_err(|error| failure(&error))?
+        else {
+            close(connection, handle);
+            return Err(PortalError(format!(
+                "the portal sent no response on {handle} within {:?}",
+                self.limit
+            )));
+        };
+        let (code, results): (u32, HashMap<String, OwnedValue>) = message
+            .body()
+            .deserialize()
             .map_err(|error| failure(&error))?;
         let uri = results
             .get("uri")
@@ -99,6 +128,18 @@ impl ScreenshotPortal for DbusPortal {
     fn remove(&self, path: &Path) -> Result<(), PortalError> {
         fs::remove_file(path).map_err(|error| file_failure("remove", path, &error))
     }
+}
+
+/// Asks the portal to end a request this side stopped waiting for, so it sends no late answer.
+fn close(connection: &Connection, handle: &str) {
+    // No reply is awaited, so a portal that stopped answering cannot hold this call as well. A
+    // send error is dropped: the caller gets the timeout, and a broken bus fails the next call.
+    let _ = Message::method_call(handle, "Close")
+        .and_then(|call| call.destination(DESTINATION))
+        .and_then(|call| call.interface(REQUEST))
+        .and_then(|call| call.with_flags(Flags::NoReplyExpected))
+        .and_then(|call| call.build(&()))
+        .and_then(|message| connection.send(&message));
 }
 
 fn failure(error: &zbus::Error) -> PortalError {

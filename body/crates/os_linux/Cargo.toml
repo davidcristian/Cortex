@@ -16,6 +16,9 @@ zbus = { version = "5.19", default-features = false, features = ["async-io", "bl
 x11rb = { version = "0.13", default-features = false, features = ["randr"] }
 # Decodes the PNG file the screenshot portal writes. Already a body-core dependency.
 png.workspace = true
+# The timer and the race that bound the wait for the portal's `Response`; zbus already uses both.
+async-io = "2.6"
+futures-lite = "2.6"
 
 [target.'cfg(target_os = "linux")'.dev-dependencies]
 # The shared port check lists the adapters are run against.

@@ -30,7 +30,7 @@ pub use pactl::{PACTL_PROGRAM, PactlCommand};
 pub use portal::{
     LinuxPortalCapture, PortalError, PortalReply, ScreenshotPortal, file_path, request_path,
 };
-pub use portal_dbus::DbusPortal;
+pub use portal_dbus::{DbusPortal, RESPONSE_LIMIT};
 pub use screen::{
     Area, GrabError, Layer, Layout, LinuxScreenCapture, Monitor, Pixels, RootGrab, RootImage,
     Snapshot, TreeWindow,

@@ -118,13 +118,22 @@ decision 13).
 - **`DbusPortal`** adds a match rule for `Response` on the handle before it calls `Screenshot("",
   {handle_token, interactive: false})` on `org.freedesktop.portal.Desktop`, because a backend can
   answer before the method reply arrives. A returned handle other than the computed one fails,
-  since no `Response` would come on it, and a `uri` that is not a string counts as none. It waits
-  for the `Response` with no time limit
-  ([786](../refinements/tasks/786-a-time-limit-on-the-screenshot-portal-response.md)), and reads
+  since no `Response` would come on it, and a `uri` that is not a string counts as none. It reads
   and removes the file with `std::fs`. The host opens the session bus as for notifications, and
   `DbusPortal::absent(&error)` fails each portal call with the error's text. The shell does not
   serve this backend yet
   ([752](../refinements/tasks/752-wayland-screen-capture-through-the-portal.md)).
+- **The wait for `Response` ends at a limit**: `RESPONSE_LIMIT` (10 s) for `DbusPortal::new`, or
+  the `limit` given to `DbusPortal::with_limit`. A portal that never answers, such as one whose
+  permission dialog nobody closes, would otherwise hold the blocking thread the `BodyService`
+  server gave the call and, through the capture lock, every later capture. The value is the
+  default of the brain's `CORTEX_BODY_CAPTURE_TIMEOUT_S`, after which no caller waits for the
+  picture, and several hundred times the median `Response` time measured on headless sway
+  ([wayland-screenshot-portal](../readings/wayland-screenshot-portal.md)). At the limit the call
+  fails as `Backend`, the `Response` match is dropped, and `Close` is sent to the request with no
+  reply awaited, so the portal ends any dialog and sends no late answer. A file the backend wrote
+  before the `Close` stays; the wlr backend's fixed path is overwritten and removed by the next
+  capture.
 - **`LinuxHotkey`** resolves a chord to the X keysym of its `KeyboardEvent.code` (`keysym`: a
   letter is its lower-case keysym, `F1` to `F35` are `ffbe` to `ffe0`, the named keys are their
   keysyms), finds the lowest keycode that types it, and takes Shift and Control from the core

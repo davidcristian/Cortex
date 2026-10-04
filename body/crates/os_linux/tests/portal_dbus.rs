@@ -6,10 +6,12 @@ use std::os::unix::net::UnixStream;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, PoisonError};
 use std::thread;
+use std::time::{Duration, Instant};
 
-use body_core::{CaptureRequest, ScreenCapture};
+use body_core::{CaptureError, CaptureRequest, ScreenCapture};
 use os_linux::zbus::blocking::Connection;
 use os_linux::zbus::blocking::connection::Builder;
+use os_linux::zbus::message::Header;
 use os_linux::zbus::names::BusName;
 use os_linux::zbus::zvariant::{OwnedObjectPath, OwnedValue, Value};
 use os_linux::zbus::{Guid, fdo, interface};
@@ -18,6 +20,10 @@ use os_linux::{DbusPortal, LinuxPortalCapture, PortalReply, ScreenshotPortal, re
 const PATH: &str = "/org/freedesktop/portal/desktop";
 const SENDER: &str = ":1.16";
 const REQUEST: &str = "org.freedesktop.portal.Request";
+/// The limit every exchange that is answered runs under: far above a socket-pair round trip.
+const LIMIT: Duration = Duration::from_secs(3);
+/// The limit a test that expects no answer waits.
+const SHORT: Duration = Duration::from_millis(100);
 
 /// The value of a setup step that cannot fail in a working test environment.
 fn ok<T, E: std::fmt::Debug>(result: Result<T, E>) -> T {
@@ -35,6 +41,7 @@ enum Uri {
 #[derive(Clone)]
 enum Answer {
     Respond(u32, Option<Uri>),
+    Silent,
     Elsewhere,
     WrongSignal,
     Refuse,
@@ -44,9 +51,21 @@ enum Answer {
 type Received = (String, HashMap<String, OwnedValue>);
 
 /// A fake portal frontend that emits its `Response` before its method reply, as a fast one can.
+/// It gives its answers in order and repeats the last one.
 struct FakePortal {
-    answer: Answer,
+    answers: Mutex<Vec<Answer>>,
     received: Arc<Mutex<Vec<Received>>>,
+}
+
+impl FakePortal {
+    fn next_answer(&self) -> Answer {
+        let mut answers = self.answers.lock().unwrap_or_else(PoisonError::into_inner);
+        if answers.len() > 1 {
+            answers.remove(0)
+        } else {
+            answers[0].clone()
+        }
+    }
 }
 
 #[interface(name = "org.freedesktop.portal.Screenshot")]
@@ -67,8 +86,9 @@ impl FakePortal {
             .push((parent_window, options));
         let handle = format!("{PATH}/request/1_16/{token}");
         let mut results: HashMap<&str, Value<'_>> = HashMap::new();
-        let code = match self.answer.clone() {
+        let code = match self.next_answer() {
             Answer::Refuse => return Err(fdo::Error::AccessDenied(String::from("not allowed"))),
+            Answer::Silent => return Ok(path(&handle)),
             Answer::Elsewhere => return Ok(path(&format!("{PATH}/request/1_16/other"))),
             Answer::WrongSignal => None,
             Answer::Respond(code, uri) => {
@@ -109,6 +129,23 @@ impl FakePortal {
     }
 }
 
+/// A portal request object that writes down the path of every `Close` call it is sent.
+struct FakeRequest {
+    closed: Arc<Mutex<Vec<String>>>,
+}
+
+#[interface(name = "org.freedesktop.portal.Request")]
+impl FakeRequest {
+    #[allow(clippy::needless_pass_by_value)]
+    fn close(&self, #[zbus(header)] header: Header<'_>) {
+        let path = header.path().map(ToString::to_string).unwrap_or_default();
+        self.closed
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .push(path);
+    }
+}
+
 fn path(text: &str) -> OwnedObjectPath {
     ok(OwnedObjectPath::try_from(text))
 }
@@ -145,13 +182,21 @@ fn peer<I: os_linux::zbus::object_server::Interface>(
 }
 
 fn fake(answer: Answer) -> (Connection, Connection, Arc<Mutex<Vec<Received>>>) {
+    fake_in_order(vec![answer])
+}
+
+fn fake_in_order(answers: Vec<Answer>) -> (Connection, Connection, Arc<Mutex<Vec<Received>>>) {
     let received = Arc::new(Mutex::new(Vec::new()));
     let server = FakePortal {
-        answer,
+        answers: Mutex::new(answers),
         received: Arc::clone(&received),
     };
     let (client, server) = peer(server, Some(SENDER));
     (client, server, received)
+}
+
+fn portal(client: Connection) -> DbusPortal {
+    DbusPortal::with_limit(client, LIMIT)
 }
 
 fn handle(token: &str) -> String {
@@ -182,7 +227,7 @@ fn a_connection_with_no_unique_name_has_no_sender() {
 fn a_response_sent_before_the_method_reply_reaches_the_client() {
     let (client, _server, received) = fake(Answer::Respond(0, Some(uri("file:///tmp/out.png"))));
 
-    let reply = DbusPortal::new(client).screenshot(&handle("cortex7"), "cortex7");
+    let reply = portal(client).screenshot(&handle("cortex7"), "cortex7");
 
     assert_eq!(
         reply,
@@ -207,7 +252,7 @@ fn a_uri_that_is_not_a_string_or_is_missing_is_no_uri() {
     for (code, uri) in [(0, Some(Uri::Number(5))), (2, None)] {
         let (client, _server, _) = fake(Answer::Respond(code, uri));
 
-        let reply = DbusPortal::new(client).screenshot(&handle("t"), "t");
+        let reply = portal(client).screenshot(&handle("t"), "t");
 
         assert_eq!(reply, Ok(PortalReply { code, uri: None }));
     }
@@ -226,9 +271,7 @@ fn a_failed_exchange_is_an_error_with_its_text() {
     for (answer, expected) in cases {
         let (client, _server, _) = fake(answer);
 
-        let error = DbusPortal::new(client)
-            .screenshot(&handle("t"), "t")
-            .unwrap_err();
+        let error = portal(client).screenshot(&handle("t"), "t").unwrap_err();
 
         assert!(error.0.contains(expected), "{expected}: {error:?}");
     }
@@ -238,9 +281,7 @@ fn a_failed_exchange_is_an_error_with_its_text() {
 fn a_method_reply_that_is_not_a_handle_is_an_error() {
     let (client, _server) = peer(WrongReplyPortal, Some(SENDER));
 
-    let error = DbusPortal::new(client)
-        .screenshot(&handle("t"), "t")
-        .unwrap_err();
+    let error = portal(client).screenshot(&handle("t"), "t").unwrap_err();
 
     assert!(error.0.contains("Signature mismatch"), "{error:?}");
 }
@@ -249,9 +290,7 @@ fn a_method_reply_that_is_not_a_handle_is_an_error() {
 fn a_handle_that_is_not_an_object_path_is_an_error_before_any_call() {
     let (client, _server, received) = fake(Answer::Respond(0, None));
 
-    let error = DbusPortal::new(client)
-        .screenshot("not a path", "t")
-        .unwrap_err();
+    let error = portal(client).screenshot("not a path", "t").unwrap_err();
 
     assert!(!error.0.is_empty());
     assert!(received.lock().unwrap().is_empty());
@@ -282,7 +321,7 @@ fn a_file_is_read_then_removed_and_a_missing_one_names_its_path() {
     let file = scratch("read");
     fs::write(&file, b"picture").unwrap();
     let (client, _server, _) = fake(Answer::Elsewhere);
-    let portal = DbusPortal::new(client);
+    let portal = portal(client);
 
     assert_eq!(portal.read(&file), Ok(b"picture".to_vec()));
     assert_eq!(portal.remove(&file), Ok(()));
@@ -327,4 +366,103 @@ fn the_backend_captures_through_the_portal_end_to_end() {
         String::try_from(&*calls[0].1["handle_token"]).unwrap(),
         "cortex0"
     );
+}
+
+/// Waits up to [`LIMIT`] for `done`, checking it every few milliseconds.
+fn eventually(done: impl Fn() -> bool) -> bool {
+    let started = Instant::now();
+    while started.elapsed() < LIMIT {
+        if done() {
+            return true;
+        }
+        thread::sleep(Duration::from_millis(5));
+    }
+    done()
+}
+
+/// Runs `call` on its own thread and returns its value, failing the test if it takes [`LIMIT`].
+fn within_limit<T: Send + 'static>(call: impl FnOnce() -> T + Send + 'static) -> T {
+    let (sender, receiver) = std::sync::mpsc::channel();
+    thread::spawn(move || sender.send(call()));
+    receiver
+        .recv_timeout(LIMIT)
+        .unwrap_or_else(|error| panic!("the call did not return within {LIMIT:?}: {error}"))
+}
+
+#[test]
+fn a_portal_that_never_answers_fails_at_the_limit_and_its_request_is_closed() {
+    let (client, server, _) = fake(Answer::Silent);
+    let closed = Arc::new(Mutex::new(Vec::new()));
+    let request = FakeRequest {
+        closed: Arc::clone(&closed),
+    };
+    assert!(ok(server.object_server().at(handle("t"), request)));
+    let started = Instant::now();
+
+    let error =
+        within_limit(move || DbusPortal::with_limit(client, SHORT).screenshot(&handle("t"), "t"))
+            .unwrap_err();
+
+    let waited = started.elapsed();
+    assert!(waited >= SHORT && waited < LIMIT, "{waited:?}");
+    assert!(
+        error.0.contains(&format!("no response on {}", handle("t"))),
+        "{error:?}"
+    );
+    assert!(eventually(|| closed.lock().unwrap().len() == 1));
+    assert_eq!(*closed.lock().unwrap(), [handle("t")]);
+}
+
+#[test]
+fn a_capture_after_one_that_timed_out_succeeds_and_reads_no_late_answer() {
+    let file = scratch("late.png");
+    rgb_png(&file);
+    let answer = Answer::Respond(0, Some(uri(&format!("file://{}", file.display()))));
+    let (client, server, received) = fake_in_order(vec![Answer::Silent, answer]);
+    let backend = Arc::new(LinuxPortalCapture::new(DbusPortal::with_limit(
+        client, SHORT,
+    )));
+
+    let capturing = Arc::clone(&backend);
+    let first = within_limit(move || capturing.capture(&CaptureRequest::new(0))).unwrap_err();
+    let late = HashMap::from([("uri", Value::from("file:///nonexistent-cortex-late.png"))]);
+    let late_path = handle("cortex0");
+    ok(server.emit_signal(
+        None::<BusName<'_>>,
+        late_path.as_str(),
+        REQUEST,
+        "Response",
+        &(0_u32, late),
+    ));
+    let second = backend.capture(&CaptureRequest::new(0)).unwrap();
+
+    assert!(
+        matches!(&first, CaptureError::Backend(text) if text.contains("no response on")),
+        "{first:?}"
+    );
+    assert_eq!(second.frame().pixels(), [204, 102, 51, 255]);
+    assert!(!file.exists());
+    let calls = received.lock().unwrap();
+    let tokens: Vec<String> = calls
+        .iter()
+        .map(|(_, options)| String::try_from(&*options["handle_token"]).unwrap())
+        .collect();
+    assert_eq!(tokens, ["cortex0", "cortex1"]);
+}
+
+#[test]
+fn a_bus_that_closes_before_the_response_is_an_error_before_the_limit() {
+    let (client, server, received) = fake(Answer::Silent);
+    let closing = thread::spawn(move || {
+        assert!(eventually(|| received.lock().unwrap().len() == 1));
+        thread::sleep(Duration::from_millis(200));
+        ok(server.close());
+    });
+    let started = Instant::now();
+
+    let error = portal(client).screenshot(&handle("t"), "t").unwrap_err();
+
+    assert!(started.elapsed() < LIMIT, "{:?}", started.elapsed());
+    assert!(!error.0.contains("no response"), "{error:?}");
+    ok(closing.join());
 }
