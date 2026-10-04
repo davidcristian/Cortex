@@ -10,8 +10,10 @@ Every scroll container sets `scrollbar-gutter: stable` and pays for the rail out
 inline-end padding, either subtracted from a padding big enough to hold it
 (`calc(16px - var(--rail))` on `.history` and `.rows`, the whole 6px inset on `.switcher` and
 `.reminders`) or added beside a padding that had none (`.thoughts-body`, `.confirm-draft`,
-`.field`). Every one of those numbers assumes the reserved rail really is `--rail`, which is true
-wherever `::-webkit-scrollbar` sets the width and nowhere else.
+`.field`). Every one of those numbers assumes the reserved rail really is `--rail`. That is true
+in Chromium, true in WebKitGTK only while a box overflows
+([784](784-a-fitting-box-reserves-the-wrong-rail-on-webkitgtk.md)), and false on an engine without
+`::-webkit-scrollbar`, which is the case this task is about.
 
 Chromium honours the standards properties over the pseudo-elements when both are set, so leaving
 them both unfenced would reserve a band the padding never accounted for: measured 2026-07-20 on
@@ -67,6 +69,9 @@ reading first: `.reminders` answers 8px for a 6px rail inside two 1px edges.
   so every pointer above is still right, and the trigger has not fired. The Linux shell has now run
   ([751](751-the-shell-has-never-been-linked-or-run-on-linux.md), closed 2026-10-01) and painted
   the overlay through WebKitGTK 2.52.6, which has `::-webkit-scrollbar` and so does not reach the
-  fenced branch. That run did not read the band WebKit reserves under `scrollbar-gutter: stable`,
-  which decides whether the subtraction balances on the Linux shell. That reading is
-  [783](783-the-reserved-rail-is-unmeasured-on-webkitgtk.md).
+  fenced branch. The band it reserves under `scrollbar-gutter: stable` was then read with the
+  overlay's stylesheet ([scrollbar-gutter readings](../../readings/scrollbar-gutter.md)): 6px while
+  a box overflows, and the GTK theme's band while it fits. The subtraction therefore does not
+  balance on the Linux shell either, through a different path with a different fix, filed as
+  [784](784-a-fitting-box-reserves-the-wrong-rail-on-webkitgtk.md). The measured-width probe here
+  cannot fix that one, since the band changes with the box's state.

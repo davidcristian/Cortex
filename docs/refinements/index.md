@@ -72,7 +72,7 @@ never a reading of what the tree does now.
 - **[R-529](tasks/529-the-rendering-column-is-one-builds-measurement.md)** The rendering column is one build's measurement, and an engine bump reopens every row of it (inference). Its claim was checked against the code on 2026-10-04.
 - **[R-607](tasks/607-eighteen-of-the-cortex-alts-pixel-rows-are-undrawn.md)** Three of the cortex alt's thirty-six pixel rows are undrawn (inference). Its claim was checked against the code on 2026-10-04.
 - **[R-782](tasks/782-the-engine-budget-deep-rows-app-pair-is-undrawn.md)** The engine budget deep row's app pair is undrawn (inference). Its claim was checked against the code on 2026-10-04.
-- **[R-783](tasks/783-the-reserved-rail-is-unmeasured-on-webkitgtk.md)** The reserved rail is unmeasured on WebKitGTK (body-overlay). Its claim was checked against the code on 2026-10-04.
+- **[R-784](tasks/784-a-fitting-box-reserves-the-wrong-rail-on-webkitgtk.md)** A box that fits reserves the wrong rail on WebKitGTK (body-overlay). Its claim was checked against the code on 2026-10-04.
 
 ### Actionable, once a port changes (1)
 
@@ -292,7 +292,7 @@ never a reading of what the tree does now.
 - [R-174](tasks/174-switcher-instant-motions.md) Two instant motions in the switcher's list. done 2026-08-03.
 - [R-311](tasks/311-wrap-width-trigger-completeness.md) A wrap width change with no resize event behind it. open, waiting for its trigger.
 - [R-701](tasks/701-keeping-a-chat-at-the-top-has-no-designed-name.md) Keeping a chat at the top of the list has no designed name. done 2026-09-22.
-- [R-783](tasks/783-the-reserved-rail-is-unmeasured-on-webkitgtk.md) The reserved rail is unmeasured on WebKitGTK. open, actionable.
+- [R-784](tasks/784-a-fitting-box-reserves-the-wrong-rail-on-webkitgtk.md) A box that fits reserves the wrong rail on WebKitGTK. open, actionable.
 
 ### brain
 

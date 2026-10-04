@@ -220,11 +220,11 @@ caret goes and what the overlay announces is
   a first send shows the spare height above the bubbles; both are deliberate.
 - Below a 218 px viewport the column holds only the header, a history and a pill at their minimum
   heights, and the hint strip is clipped. The body's window is 640x720 and does not resize.
-- The rail's width is assumed: the padding arithmetic takes the reserved band to be `--rail`, true
-  wherever `::-webkit-scrollbar` sets it (Chromium; WebKit's gutter is unmeasured). On an engine
-  without it, Gecko in practice, `thin` picks the width and the inline-end margin reads wider, and
-  nothing shifts. The switcher and the reminder stack pad by exactly one rail, so the rail is their
-  inset, and each row's own padding keeps text 9 px to 11 px clear.
+- The rail's width is assumed: the padding takes the reserved band to be `--rail`, true in Chromium
+  and in WebKitGTK only while a box overflows ([readings](../readings/scrollbar-gutter.md)). On an
+  engine without `::-webkit-scrollbar`, Gecko in practice, `thin` picks the width, the inline-end
+  margin reads wider, and nothing shifts. The switcher and the reminder stack pad by exactly one
+  rail, so the rail is their inset, and each row's own padding keeps text 9 px to 11 px clear.
 - `--accent` is a gradient, so a colour that asks for it computes to `inherit`. A hoisted chat's toggle
   asks for `--text`; the thinking chip's label and the rename box's border are left asking.
 
