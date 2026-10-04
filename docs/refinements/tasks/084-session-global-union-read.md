@@ -6,7 +6,7 @@
 **Trigger:** Something writes durable global facts under scoping, or a deployment that recorded
 under `CORTEX_MEMORY_SCOPE=global` switches to `session` and its operator asks for the memories
 recorded before the switch to be recalled again.
-**Verified:** 2026-09-30
+**Verified:** 2026-10-04
 
 A read policy that returns hits from the session scope and the global scope at once. It was one
 of three refinements left behind the `MemoryScope` port when per-session scoping shipped
@@ -43,3 +43,10 @@ of three refinements left behind the `MemoryScope` port when per-session scoping
   still the only caller of `MemoryStore.add` (`recall.py:51`). The brain's memory commits since
   2026-09-19 add a JSON-lines file for the recall trail and the turn id on each recall line, and
   neither writes a memory. No Postgres was running, so the host store's scopes were not read.
+- 2026-10-04: Checked again; the trigger has not fired. `memory_scope_from_name`
+  (`memory_builders.py:40`) still builds only the global and session policies,
+  `MemoryRecaller.record` (`recall.py:51`) is still the only caller of `MemoryStore.add`, and no
+  brain commit since 2026-09-30 writes a memory. The host store was read this time, from the
+  `cortex_cortex-pgdata` volume: its `memories` table holds two rows, both in `global`, both probe
+  rows written 2026-08-11. A switch to `session` there would hide two probe rows and no memory an
+  operator asked for.

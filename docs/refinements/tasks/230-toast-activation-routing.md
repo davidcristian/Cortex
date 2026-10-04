@@ -38,7 +38,7 @@ Part one cannot be done alone: its last step on Windows, the `launch` attribute 
 `cfg(windows)` and not covered in CI, and the payload should be designed together with its reader,
 since snooze from the toast would want action buttons with their own arguments rather than one
 top-level `session_id`. This is the same `NotifyRequest` `session_id` that the out-of-window
-authoritative title entry ([session-read-rpc.md](../index.md#session-read-rpc)) names as one of
+authoritative title entry ([R-180](180-out-of-window-title.md)) names as one of
 its reopen paths.
 
 Corrected 2026-09-19, neither half measured: part two is smaller than described above. The channel

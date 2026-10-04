@@ -7,7 +7,7 @@
 so a turn is handed a superseded fact next to its correction. Read it by joining the kept hit ids
 on the recall trail (`CORTEX_MEMORY_RECALL_AUDIT`, or the JSON-lines file
 `CORTEX_MEMORY_RECALL_AUDIT_FILE` names) against the `memories` table.
-**Verified:** 2026-09-30
+**Verified:** 2026-10-04
 
 Letta's ideas about memory tiers and a model that edits its own memories, adoptable later without
 the framework (ADR-0008 decision 1). This is not behind an unchanged port: tiering (promote,
@@ -38,7 +38,7 @@ record stores only the `tainted` flag and not the ADR-0027 structured provenance
   with a port change to waiting for a consumer. Update in place, tiered promote, demote and
   expire, write salience and the per-scope retention policy all stayed deferred, and the area's
   count did not move. The session-delete cascade that shipped the same day could finally delete
-  a session's derived memories ([session-read-rpc.md](../index.md#session-read-rpc)).
+  a session's derived memories ([R-183](183-session-deletion.md)).
 - 2026-07-16: The delete is a real delete rather than a tombstone because search is a stateless
   top-k scan, so there is no in-flight id a tombstone would protect. The session-delete cascade
   cited that reasoning for its own delete.
@@ -62,3 +62,9 @@ record stores only the `tainted` flag and not the ADR-0027 structured provenance
   so the trigger names that file. `MemoryStore` still has no verb that rewrites a record,
   `MemoryRecaller.record` is still the only caller of `add`, and `SessionMemoryCascade` the only
   caller of `delete_scope`. The link to per-provenance eviction now points at its task.
+- 2026-10-04: Checked again; the trigger has not fired. The host store, read this time from the
+  `cortex_cortex-pgdata` volume, holds two probe rows written 2026-08-11 that state no conflicting
+  facts, and no environment file in the repo sets a recall trail. `MemoryStore` is still `add`,
+  `search`, `count_candidates` and `delete_scope` (`ports_stores.py:36`), with no verb that
+  rewrites a record. The 2026-07-16 link to the session-delete cascade pointed at an index anchor
+  that does not exist and now points at the task that shipped it.

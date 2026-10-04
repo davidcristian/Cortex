@@ -3,8 +3,10 @@
 **Status:** open, waiting for a consumer
 **Area:** memory
 **Origin:** [ADR-0008](../../adr/ADR-0008-memory-v1.md)
-**Trigger:** A memory-compaction or self-editing feature (R-087) needs a retention scheduler.
-**Verified:** 2026-09-30
+**Trigger:** R-087 adds a verb that expires or deletes some records of a scope, or a store's
+`memories` table reaches 20,000 rows (`SELECT count(*) FROM memories`), the smallest table the
+ranked recall readings measured search over.
+**Verified:** 2026-10-04
 
 A policy that decides which memories to drop and when. The eviction verb exists; the policy and
 whatever would run it do not.
@@ -13,7 +15,8 @@ It was one of three refinements left behind the `MemoryScope` port when per-sess
 shipped ([R-083](083-namespaced-memory-scoping.md)), and the tiered and self-editing memory entry
 ([R-087](087-tiered-self-editing-memory.md)) names it again.
 
-Per-provenance eviction is a different entry and needs a different filter: a memory record stores
+Per-provenance eviction ([R-074](074-per-provenance-eviction.md)) is a different entry and
+needs a different filter: a memory record stores
 only the `tainted` flag, not the ADR-0027 structured provenance, so `delete_scope` does not serve
 it.
 
@@ -49,3 +52,9 @@ it.
   fake and the pgvector adapter delete whatever scope they are given. Neither changes the finding:
   under the default scope a retention policy still needs a delete by id or by timestamp. The
   memory module doc no longer says per-scope eviction calls `delete_scope`, since nothing does.
+- 2026-10-04: Checked again; the trigger has not fired. R-087 has built nothing, the only caller
+  of `delete_scope` is still `SessionMemoryCascade` (`memory_cascade.py:20`), and the only caller
+  of `count_candidates` is still `MemoryRecaller` (`recall.py:86`). The trigger waited only on
+  R-087, so it now also names the store growing, which is why retention exists, at the size the
+  "Counting the candidate set" section of `docs/readings/ranked-recall.md` starts from. The host
+  store's `memories` table holds two probe rows.
