@@ -23,19 +23,30 @@ The measured-width probe [146](146-reserved-rail-assumed-width.md) proposes does
 band depends on the box's state, not only on the engine, so one reading at startup is wrong in one
 of the two states.
 
-The proposed fix is `overflow-y: scroll` in place of `auto` on the seven containers. In the same
-readings it reserves 6 px in both states on Chromium and on WebKitGTK in both GTK modes, so the
-existing subtraction balances wherever `::-webkit-scrollbar` exists. Before it ships, three things
-need a reading:
+The proposed fix is `overflow-y: scroll` on the seven containers inside an
+`@supports selector(::-webkit-scrollbar)` block, so an engine without the pseudo-element keeps
+`auto`. `.field` has no `overflow-y` of its own, so the block names the seven as
+`.stage :is(.history, .thoughts-body, .confirm-draft, .field, .rows, .switcher, .reminders)`, which
+outranks each container's own rule. On WebKitGTK it reserves 6 px in both states and both GTK
+modes and paints nothing in a fitting box's band, and on Chromium every probe page is pixel for
+pixel unchanged ([scrollbar-gutter readings](../../readings/scrollbar-gutter.md)).
 
-- What WebKitGTK paints in a fitting `textarea.field` under `scroll`: the readings record found 17
-  black pixels in the band's bottom corner there, and nothing in a fitting `div`.
-- What Chromium and WebView2 paint in a fitting box under `scroll`. A headed screenshot is needed,
-  since the headless shell drew no thumb at all.
-- What `scroll` does on an engine without the pseudo-element, where an empty track may show. If it
-  shows one, the change goes inside an `@supports selector(::-webkit-scrollbar)` block.
+It does not ship yet, because it changes what Chromium paints in the built overlay: in the demo
+view the reminder stack's bottom border is drawn one row higher, and setting `.reminders` alone
+back to `auto` removes the difference. No probe page reproduces it. Before it ships:
+
+- Find the condition in the overlay that makes Chromium draw that edge one row higher under
+  `scroll`, by removing the stack's ancestors' rules one at a time in the demo view. Then either
+  avoid it or show that it is the paint an overflowing stack already gets under `auto`.
+- Read what WebView2 paints in a fitting and an overflowing box, which needs the Windows shell.
+
+If the row cannot be avoided, one row on Chromium against a fitting box's band being 6 px too
+narrow or 15 px too wide on WebKitGTK is a visual decision for the maintainer.
 
 ## History
 
 - 2026-10-04: Filed when the gutter was read on WebKitGTK with the overlay's own stylesheet, and the
   6 px the padding assumes turned out to hold there only while a box overflows.
+- 2026-10-04: The paint checks were run on WebKitGTK and on headed Chromium with the rule fenced to
+  engines that have the pseudo-element. Both engines pass on probe pages, but the built overlay
+  draws the reminder stack's bottom edge one row higher on Chromium, so the rule was not shipped.

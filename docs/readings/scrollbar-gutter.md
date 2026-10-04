@@ -42,16 +42,51 @@ overflows. The Chromium figures match the 6 px read on `.history` and `.field` o
 ## What a box paints in the band
 
 **2026-10-04.** The same WebKitGTK runs, with `--muted` black on a white page and the boxes at
-fixed positions, grabbed from `Xvfb` with `ffmpeg -f x11grab` and counted pixel by pixel in the
-6 px band at each box's inline-end edge. Both GTK modes gave the same counts.
+fixed positions, grabbed from `Xvfb` with `ffmpeg -f x11grab -draw_mouse 0` and counted pixel by
+pixel in the 6 px band at each box's inline-end edge. `x11grab` draws the pointer unless told not
+to, and at the screen's centre it falls inside a band of this page. Both GTK modes gave the same
+counts.
 
 | Box | Overflows | Fits |
 | --- | --- | --- |
 | `div.history`, `auto` | thumb, 104 px | nothing |
 | `div.history`, `scroll` | thumb, 104 px | nothing |
 | `textarea.field`, `auto` | thumb, 104 px | nothing |
-| `textarea.field`, `scroll` | thumb, 104 px | 17 black px in the bottom corner |
+| `textarea.field`, `scroll` | thumb, 104 px | nothing |
 
-The 17 pixels are pure black and form a small triangle in the last four rows of the band; nothing
-on the page explains them yet. Chromium's headless shell drew no thumb even on an overflowing box,
-so its screenshot cannot show paint in the band, and Chromium's paint was not read.
+## The fenced `scroll` rule
+
+**2026-10-04.** A copy of the stylesheet with this block after the standards fence:
+
+```css
+@supports selector(::-webkit-scrollbar) {
+  .stage :is(.history, .thoughts-body, .confirm-draft, .field, .rows, .switcher, .reminders) {
+    overflow-y: scroll;
+  }
+}
+```
+
+On WebKitGTK it reserves 6 px in every cell of the band table above, all seven classes in both
+states and both GTK modes. A page of all seven classes, fitting and overflowing, painted the same
+band pixels under it as under the shipped rules: the thumb in an overflowing box, and nothing but
+the box's own border in a fitting one.
+
+Chromium was Chrome for Testing 149's headed `chrome --app` on the same `Xvfb` display, grabbed the
+same way, since the headless shell draws no thumb. Each row compares the shipped stylesheet with
+the copy:
+
+| Page | Pixels that differ |
+| --- | --- |
+| all seven classes, fitting and overflowing, text hidden and text shown | 0 |
+| the same boxes at a 0.625 px vertical offset | 0 |
+| in-flow boxes of fractional height, under translated ancestors and in a clipping box | 0 |
+| the built overlay's demo view, `--force-prefers-reduced-motion`, 15 s after load | 1,130 |
+
+On the probe pages a fitting box paints nothing in the band under either rule, as on WebKitGTK. In
+the demo view the 1,130 pixels are the last 17 rows of the reminder stack across its whole width:
+its bottom border is drawn one row higher under `scroll`. Two grabs of one build are identical, and
+the stack's layout, read in the headless shell at the same viewport, is the same under both rules
+(top 134.625 px, `offsetHeight` 188, `clientHeight` 186). Setting `.reminders` alone back to `auto`
+in the new build gives the shipped pixels, and setting it alone to `scroll` in the shipped build
+gives the new ones. Which condition in the overlay makes Chromium draw that edge differently is not
+known; no probe page above has it.
