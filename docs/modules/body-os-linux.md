@@ -204,12 +204,18 @@ decision 13).
   first read is kept. It reads the session handle as a string, which the 1.18 frontend sends, or
   as an object path, and the bound ids from the `shortcuts` result. The tests run the hotkey
   check list over the core with an in-process fake, and the adapter against a fake portal over a
-  socket pair. No live test exists: of this distribution's portal backends only
-  `xdg-desktop-portal-kde` implements `GlobalShortcuts`
-  ([788](../refinements/tasks/788-test-the-portal-hotkey-on-a-kde-wayland-session.md)). Three
-  points are read from the specification and not tested against a backend: the trigger form,
-  whether a held chord sends one `Activated` or one per repeat, and what a backend answers when
-  the preferred trigger is taken.
+  socket pair. No live test exists
+  ([788](../refinements/tasks/788-test-the-portal-hotkey-on-a-kde-wayland-session.md)):
+  this distribution's one backend with `GlobalShortcuts`, `xdg-desktop-portal-kde` 5.27.11,
+  registers shortcuts only from a `CreateSession` option the 1.18 frontend does not forward, and
+  its `BindShortcuts` answers success with no shortcut after running `xdg-open` on System
+  Settings' shortcuts page, so `register` fails there
+  ([globalshortcuts-portal](../readings/globalshortcuts-portal.md),
+  [791](../refinements/tasks/791-bind-the-wayland-hotkey-on-plasma-5-27.md)). Given the
+  shortcuts directly, that backend parsed the form `trigger` writes (`CTRL+ALT+space` became
+  `Ctrl+Alt+Space`) and not a mixed-case `Ctrl`, sent one `Activated` per auto-repeat of a held
+  chord ([790](../refinements/tasks/790-run-a-held-portal-chord-once.md)), and answered success
+  for a trigger another session held, leaving that shortcut with no key.
 - **The shell** registers through `LinuxPortalHotkey` over `DbusShortcuts` when `WAYLAND_DISPLAY`
   is set and not empty, on a thread of its own with its own session bus connection, since a bind
   can wait up to `SHORTCUTS_LIMIT` on the user and setup must not; else it grabs through
