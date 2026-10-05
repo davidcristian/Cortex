@@ -22,8 +22,7 @@ has. A backend that implements `BindShortcuts`, such as Plasma 6's, is assumed a
 **What the test does then.** Start the stack of the readings record with `XDG_CONFIG_HOME`
 emptied, register `ctrl+alt+space` through `LinuxPortalHotkey` over `DbusShortcuts`, and press
 it with a fake input client over the Wayland socket, which needs no new crate. It asserts one
-callback for a tap, one for a held chord once
-[790](790-run-a-held-portal-chord-once.md) is done, and none for `ctrl+space`. The 5.27.11
+callback for a tap, one for a held chord, and none for `ctrl+space`. The 5.27.11
 backend opened no dialog and answered every call at once, so a test on a backend that behaves the
 same runs unattended; a newer backend may ask the user first.
 
@@ -42,5 +41,4 @@ same runs unattended; a newer backend may ask the user first.
   `register` failed. Called directly, the backend answered the three points: it parses
   `CTRL+ALT+space`, sends one `Activated` per auto-repeat, and reports a taken trigger as bound
   ([globalshortcuts-portal](../../readings/globalshortcuts-portal.md)). Filed
-  [790](790-run-a-held-portal-chord-once.md) and
   [791](791-bind-the-wayland-hotkey-on-plasma-5-27.md).

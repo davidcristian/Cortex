@@ -402,6 +402,18 @@ impl HotkeyRig for Rig {
             .for_each(|&(_, keycode, state)| Self::press(self, keycode, state));
     }
 
+    fn hold(&self, chord: &HotkeyChord) {
+        let name = chord.to_string();
+        for &(_, keycode, state) in PRESSES.iter().filter(|(held, _, _)| *held == name) {
+            self.key(keycode, state, 100, true);
+            for time in [700, 740, 780] {
+                self.key(keycode, state, time, false);
+                self.key(keycode, state, time, true);
+            }
+            self.key(keycode, state, 800, false);
+        }
+    }
+
     fn finish(self: Box<Self>) {
         self.close();
     }

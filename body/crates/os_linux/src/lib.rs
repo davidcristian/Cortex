@@ -21,6 +21,7 @@ mod request;
 mod screen;
 mod shortcuts;
 mod shortcuts_dbus;
+mod trigger;
 mod x11;
 
 pub use audio::{LinuxAudioControl, PactlFailure, PactlRunner};
@@ -41,9 +42,10 @@ pub use screen::{
     Snapshot, TreeWindow,
 };
 pub use shortcuts::{
-    Activation, LinuxPortalHotkey, Shortcut, ShortcutsPortal, ShortcutsReply, keysym_name, trigger,
+    Activation, Hold, LinuxPortalHotkey, REPEAT_GAP, Shortcut, ShortcutsPortal, ShortcutsReply,
 };
 pub use shortcuts_dbus::{DbusShortcuts, SHORTCUTS_LIMIT};
+pub use trigger::{keysym_name, trigger};
 pub use x11::X11Root;
 /// The X11 client the capture and hotkey backends are built on. A host opens the display with it.
 pub use x11rb;

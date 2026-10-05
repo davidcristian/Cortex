@@ -3,8 +3,7 @@
 What `xdg-desktop-portal-kde` 5.27.11, this distribution's one backend with
 `org.freedesktop.portal.GlobalShortcuts`, does with each call, and what a press of a bound chord
 sends. Cited by [body-os-linux](../modules/body-os-linux.md) and by
-[788](../refinements/tasks/788-test-the-portal-hotkey-on-a-kde-wayland-session.md),
-[790](../refinements/tasks/790-run-a-held-portal-chord-once.md) and
+[788](../refinements/tasks/788-test-the-portal-hotkey-on-a-kde-wayland-session.md) and
 [791](../refinements/tasks/791-bind-the-wayland-hotkey-on-plasma-5-27.md).
 
 ## Method

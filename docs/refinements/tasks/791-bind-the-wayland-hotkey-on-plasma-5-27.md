@@ -18,8 +18,8 @@ assumed to open System Settings' shortcuts page at every shell start; that was n
 `globalShortcutPressed` for each press of a shortcut the backend had given it and
 `globalShortcutReleased` at each release. A `Hotkey` adapter over that interface, chosen when
 `org.kde.kglobalaccel` is on the bus, would bind on 5.27 and skip the settings page. It needs its
-own port, fake and check-list run, and the repeat handling of
-[790](790-run-a-held-portal-chord-once.md), since it sends one press per auto-repeat too.
+own port, fake and check-list run, and the `Hold` rule `LinuxPortalHotkey` follows
+([body-os-linux](../../modules/body-os-linux.md)), since it sends one press per auto-repeat too.
 
 To decide first: whether to prefer that adapter on every KDE session or only where the portal
 fails. A portal `register` that fails has already opened the page, and the frontend reports

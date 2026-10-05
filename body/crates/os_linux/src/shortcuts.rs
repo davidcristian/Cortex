@@ -2,13 +2,19 @@
 
 use std::sync::{Arc, Mutex, MutexGuard, Once, PoisonError};
 use std::thread;
+use std::time::{Duration, Instant};
 
-use body_core::{Accelerator, Hotkey, HotkeyCallback, HotkeyChord, HotkeyError, Modifier};
+use body_core::{Hotkey, HotkeyCallback, HotkeyChord, HotkeyError};
 
 use crate::portal::{PortalError, handle_path};
+use crate::trigger::trigger;
 
 /// The `Response` code of a request the user cancelled.
 const CANCELLED: u32 = 1;
+
+/// How long a shortcut stays held with no signal for it: above the 600 ms repeat delay of
+/// `kwin_wayland`'s defaults, and short for a backend that sends no `Deactivated`.
+pub const REPEAT_GAP: Duration = Duration::from_secs(1);
 
 /// One shortcut a session asks the portal to bind.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -30,13 +36,15 @@ pub struct ShortcutsReply {
     pub names: Vec<String>,
 }
 
-/// One `Activated` signal: the session and the id of the shortcut the user pressed.
+/// One `Activated` or `Deactivated` signal: the session and the id of the shortcut it names.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Activation {
     /// The session handle the shortcut belongs to.
     pub session: String,
     /// The shortcut's id.
     pub shortcut: String,
+    /// True for `Activated`, a press or one auto-repeat of it, and false for `Deactivated`.
+    pub active: bool,
 }
 
 /// The calls the backend makes on `org.freedesktop.portal.GlobalShortcuts`.
@@ -73,7 +81,7 @@ pub trait ShortcutsPortal: Send + Sync {
         shortcut: &Shortcut,
     ) -> Result<ShortcutsReply, PortalError>;
 
-    /// Blocks until the next `Activated` signal.
+    /// Blocks until the next `Activated` or `Deactivated` signal, in the order the portal sent them.
     ///
     /// # Errors
     ///
@@ -81,11 +89,32 @@ pub trait ShortcutsPortal: Send + Sync {
     fn next_activation(&self) -> Result<Activation, PortalError>;
 }
 
-/// One bound shortcut: its session, its id and what to run on each press.
+/// Tells a new press of one shortcut from the auto-repeats the portal sends while it is held.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Hold {
+    last: Option<Instant>,
+}
+
+impl Hold {
+    /// Whether a signal at `now` is a press: an `Activated` (`active`) that comes after a
+    /// `Deactivated`, or `gap` or more after the shortcut's last `Activated`.
+    pub fn pressed(&mut self, active: bool, now: Instant, gap: Duration) -> bool {
+        if !active {
+            self.last = None;
+            return false;
+        }
+        let repeat = self.last.is_some_and(|last| now.duration_since(last) < gap);
+        self.last = Some(now);
+        !repeat
+    }
+}
+
+/// One bound shortcut: its session, its id, its callback and whether it is held.
 struct Binding {
     session: String,
     shortcut: String,
     on_activate: HotkeyCallback,
+    hold: Hold,
 }
 
 /// The Linux global-hotkey backend for a Wayland session, over any [`ShortcutsPortal`].
@@ -95,18 +124,30 @@ pub struct LinuxPortalHotkey {
     tokens: Mutex<u64>,
     bindings: Arc<Mutex<Vec<Binding>>>,
     listener: Once,
+    gap: Duration,
 }
 
 impl LinuxPortalHotkey {
     /// Creates the backend over `portal`, naming each shortcut to the user with `description`.
     #[must_use]
     pub fn new(portal: impl ShortcutsPortal + 'static, description: &str) -> Self {
+        Self::with_gap(portal, description, REPEAT_GAP)
+    }
+
+    /// Creates the backend, ending a hold after `gap` with no signal for its shortcut.
+    #[must_use]
+    pub fn with_gap(
+        portal: impl ShortcutsPortal + 'static,
+        description: &str,
+        gap: Duration,
+    ) -> Self {
         Self {
             portal: Arc::new(portal),
             description: String::from(description),
             tokens: Mutex::new(0),
             bindings: Arc::new(Mutex::new(Vec::new())),
             listener: Once::new(),
+            gap,
         }
     }
 
@@ -176,79 +217,15 @@ impl Hotkey for LinuxPortalHotkey {
             session,
             shortcut: shortcut.id,
             on_activate,
+            hold: Hold::default(),
         });
         self.listener.call_once(|| {
             let portal = Arc::clone(&self.portal);
             let bindings = Arc::clone(&self.bindings);
-            thread::spawn(move || listen(portal.as_ref(), &bindings));
+            let gap = self.gap;
+            thread::spawn(move || listen(portal.as_ref(), &bindings, gap));
         });
         Ok(())
-    }
-}
-
-/// The trigger a chord asks for, in the XDG shortcuts form: modifiers, then the key's keysym name.
-///
-/// # Errors
-///
-/// [`HotkeyError::UnsupportedKey`] when the chord's key has no code or no keysym name here.
-pub fn trigger(chord: &HotkeyChord) -> Result<String, HotkeyError> {
-    let key = key(chord)?;
-    let mut parts: Vec<&str> = chord
-        .modifiers()
-        .iter()
-        .map(|&each| modifier(each))
-        .collect();
-    parts.push(&key);
-    Ok(parts.join("+"))
-}
-
-/// The keysym name of a chord's key, or [`HotkeyError::UnsupportedKey`].
-fn key(chord: &HotkeyChord) -> Result<String, HotkeyError> {
-    let code = Accelerator::from_chord(chord)?.code;
-    keysym_name(&code).ok_or(HotkeyError::UnsupportedKey(code))
-}
-
-/// The modifier's name in the XDG shortcuts form.
-const fn modifier(modifier: Modifier) -> &'static str {
-    match modifier {
-        Modifier::Ctrl => "CTRL",
-        Modifier::Alt => "ALT",
-        Modifier::Shift => "SHIFT",
-        Modifier::Super => "LOGO",
-    }
-}
-
-/// The xkb keysym name of a `KeyboardEvent.code` name, or `None` for a code with none here.
-#[must_use]
-pub fn keysym_name(code: &str) -> Option<String> {
-    let named = match code {
-        "Space" => "space",
-        "Enter" => "Return",
-        "Escape" => "Escape",
-        "Tab" => "Tab",
-        "Backspace" => "BackSpace",
-        "ArrowUp" => "Up",
-        "ArrowDown" => "Down",
-        "ArrowLeft" => "Left",
-        "ArrowRight" => "Right",
-        _ => return printable(code),
-    };
-    Some(String::from(named))
-}
-
-/// The keysym name of a letter, digit or function key code: `KeyA` is `a`, `Digit1` is `1`.
-fn printable(code: &str) -> Option<String> {
-    match code.as_bytes() {
-        [b'K', b'e', b'y', letter @ b'A'..=b'Z'] => {
-            Some(char::from(letter.to_ascii_lowercase()).to_string())
-        }
-        [b'D', b'i', b'g', b'i', b't', digit @ b'0'..=b'9'] => Some(char::from(*digit).to_string()),
-        [b'F', ..] => code[1..]
-            .parse::<u32>()
-            .ok()
-            .filter(|number| (1..=35).contains(number))
-            .map(|number| format!("F{number}")),
-        _ => None,
     }
 }
 
@@ -268,11 +245,15 @@ fn answered(what: &str, reply: &ShortcutsReply, expected: &str) -> Result<(), Ho
     }
 }
 
-/// Reads `Activated` signals until the connection fails, running each binding a signal names.
-fn listen(portal: &dyn ShortcutsPortal, bindings: &Mutex<Vec<Binding>>) {
-    while let Ok(activation) = portal.next_activation() {
-        for binding in lock(bindings).iter() {
-            if binding.session == activation.session && binding.shortcut == activation.shortcut {
+/// Reads signals until the connection fails, running each binding a new press names once.
+fn listen(portal: &dyn ShortcutsPortal, bindings: &Mutex<Vec<Binding>>, gap: Duration) {
+    while let Ok(signal) = portal.next_activation() {
+        let now = Instant::now();
+        for binding in lock(bindings).iter_mut() {
+            if binding.session == signal.session
+                && binding.shortcut == signal.shortcut
+                && binding.hold.pressed(signal.active, now, gap)
+            {
                 (binding.on_activate)();
             }
         }

@@ -13,6 +13,10 @@ impl HotkeyRig for FakeRig {
         self.0.press(chord);
     }
 
+    fn hold(&self, chord: &HotkeyChord) {
+        self.0.press(chord);
+    }
+
     fn finish(self: Box<Self>) {}
 }
 

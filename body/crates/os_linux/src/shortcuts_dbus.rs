@@ -19,8 +19,9 @@ const SHORTCUTS: &str = "org.freedesktop.portal.GlobalShortcuts";
 /// compositor may first ask the user to confirm or change the trigger.
 pub const SHORTCUTS_LIMIT: Duration = Duration::from_mins(1);
 
-/// The arguments of an `Activated` signal: session, shortcut id, timestamp and options.
-type Activated = (OwnedObjectPath, String, u64, HashMap<String, OwnedValue>);
+/// The arguments of an `Activated` or `Deactivated` signal: session, shortcut id, timestamp and
+/// options.
+type Signal = (OwnedObjectPath, String, u64, HashMap<String, OwnedValue>);
 
 /// `org.freedesktop.portal.GlobalShortcuts` on a D-Bus connection, or on a bus that did not open.
 pub struct DbusShortcuts {
@@ -39,11 +40,11 @@ impl DbusShortcuts {
     /// Wraps `connection`, waiting at most `limit` for each call's reply and `Response`.
     #[must_use]
     pub fn with_limit(connection: Connection, limit: Duration) -> Self {
-        // Subscribed before any bind, so a press between a bind and the first read is kept.
+        // Subscribed before any bind, so a press between a bind and the first read is kept, and
+        // to every signal on one stream, so a release is never read before the press it ends.
         let activations = MatchRule::builder()
             .msg_type(Type::Signal)
             .interface(SHORTCUTS)
-            .and_then(|rule| rule.member("Activated"))
             .and_then(|rule| rule.path(PATH))
             .and_then(|rule| MessageIterator::for_match_rule(rule.build(), &connection, None))
             .map_err(PortalError::from);
@@ -141,19 +142,30 @@ impl ShortcutsPortal for DbusShortcuts {
             .activations
             .lock()
             .unwrap_or_else(PoisonError::into_inner);
-        let closed = || Err(zbus::Error::Failure(String::from("the bus closed")));
-        let message = activations
-            .as_mut()
-            .map_err(|error| error.clone())?
-            .next()
-            .unwrap_or_else(closed)
-            .map_err(PortalError::from)?;
-        let (session, shortcut, _, _): Activated =
-            message.body().deserialize().map_err(PortalError::from)?;
-        Ok(Activation {
-            session: session.to_string(),
-            shortcut,
-        })
+        let signals = activations.as_mut().map_err(|error| error.clone())?;
+        loop {
+            let closed = || Err(zbus::Error::Failure(String::from("the bus closed")));
+            let message = signals
+                .next()
+                .unwrap_or_else(closed)
+                .map_err(PortalError::from)?;
+            let active = match message
+                .header()
+                .member()
+                .map(zbus::names::MemberName::as_str)
+            {
+                Some("Activated") => true,
+                Some("Deactivated") => false,
+                _ => continue,
+            };
+            let (session, shortcut, _, _): Signal =
+                message.body().deserialize().map_err(PortalError::from)?;
+            return Ok(Activation {
+                session: session.to_string(),
+                shortcut,
+                active,
+            });
+        }
     }
 }
 

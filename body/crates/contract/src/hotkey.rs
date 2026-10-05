@@ -14,6 +14,9 @@ pub trait HotkeyRig {
     /// Presses `chord` once on the keyboard the backend listens to.
     fn press(&self, chord: &HotkeyChord);
 
+    /// Presses `chord` and holds it until the keyboard has sent auto-repeats, then releases it.
+    fn hold(&self, chord: &HotkeyChord);
+
     /// Ends the backend once every press so far has reached it.
     fn finish(self: Box<Self>);
 }
@@ -34,8 +37,9 @@ pub trait HotkeySubject {
 pub type HotkeyCheck = (&'static str, fn(&dyn HotkeySubject));
 
 /// Every check a hotkey backend owes, in the order a driver runs them.
-pub const HOTKEY_CHECKS: [HotkeyCheck; 6] = named![fn(&dyn HotkeySubject);
+pub const HOTKEY_CHECKS: [HotkeyCheck; 7] = named![fn(&dyn HotkeySubject);
     a_press_runs_the_callback_once,
+    a_held_chord_runs_the_callback_once,
     registering_runs_nothing_until_a_press,
     each_press_runs_only_its_own_chords_callback,
     a_key_with_no_code_is_unsupported,
@@ -94,6 +98,17 @@ fn a_press_runs_the_callback_once(subject: &dyn HotkeySubject) {
     }
     rig.finish();
     assert_eq!(runs(&count), 3);
+}
+
+fn a_held_chord_runs_the_callback_once(subject: &dyn HotkeySubject) {
+    let rig = subject.listening();
+    let (count, callback) = counted();
+    let chord = HotkeyChord::default();
+    assert_eq!(kind(&rig.hotkey().register(&chord, callback)), None);
+    rig.hold(&chord);
+    rig.press(&chord);
+    rig.finish();
+    assert_eq!(runs(&count), 2);
 }
 
 fn registering_runs_nothing_until_a_press(subject: &dyn HotkeySubject) {

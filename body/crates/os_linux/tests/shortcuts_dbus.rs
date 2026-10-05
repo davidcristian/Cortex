@@ -195,11 +195,27 @@ fn received(record: &Received) -> Vec<Vec<String>> {
         .clone()
 }
 
-fn activated(server: &Connection, id: &str) {
+fn emit(server: &Connection, member: &str, id: &str) {
     let session = ok(ObjectPath::try_from(SESSION));
     let options = HashMap::<&str, Value<'_>>::new();
     let body = (session, id, 7_u64, options);
-    ok(server.emit_signal(None::<BusName<'_>>, PATH, SHORTCUTS, "Activated", &body));
+    ok(server.emit_signal(None::<BusName<'_>>, PATH, SHORTCUTS, member, &body));
+}
+
+fn activated(server: &Connection, id: &str) {
+    emit(server, "Activated", id);
+}
+
+fn deactivated(server: &Connection, id: &str) {
+    emit(server, "Deactivated", id);
+}
+
+fn signal(id: &str, active: bool) -> Activation {
+    Activation {
+        session: String::from(SESSION),
+        shortcut: String::from(id),
+        active,
+    }
 }
 
 #[test]
@@ -311,19 +327,32 @@ fn a_refused_call_fails_with_the_portal_error() {
 }
 
 #[test]
-fn an_activated_signal_names_its_session_and_shortcut() {
+fn each_press_and_release_is_read_in_order_and_other_signals_are_skipped() {
     let (portal, server, _) = working();
     let wrong = ("not an activation",);
+    let changed = (
+        ok(ObjectPath::try_from(SESSION)),
+        Vec::<(String, HashMap<String, Value<'_>>)>::new(),
+    );
 
     ok(server.emit_signal(None::<BusName<'_>>, PATH, SHORTCUTS, "Activated", &wrong));
+    ok(server.emit_signal(
+        None::<BusName<'_>>,
+        PATH,
+        SHORTCUTS,
+        "ShortcutsChanged",
+        &changed,
+    ));
     activated(&server, "ctrl+alt+space");
+    deactivated(&server, "ctrl+alt+space");
+    activated(&server, "super+a");
 
     assert!(portal.next_activation().is_err());
-    let activation = Activation {
-        session: String::from(SESSION),
-        shortcut: String::from("ctrl+alt+space"),
-    };
-    assert_eq!(portal.next_activation(), Ok(activation));
+    assert_eq!(portal.next_activation(), Ok(signal("ctrl+alt+space", true)));
+    assert_eq!(
+        portal.next_activation(),
+        Ok(signal("ctrl+alt+space", false))
+    );
 }
 
 #[test]
@@ -356,9 +385,10 @@ fn a_bus_that_did_not_open_fails_every_call_with_its_text() {
 }
 
 #[test]
-fn the_hotkey_over_the_bus_runs_its_callback_on_each_activation() {
+fn the_hotkey_over_the_bus_runs_once_per_press_however_long_it_is_held() {
     let (portal, server, _) = working();
-    let hotkey = LinuxPortalHotkey::new(portal, "Show or hide the overlay");
+    let hour = Duration::from_hours(1);
+    let hotkey = LinuxPortalHotkey::with_gap(portal, "Show or hide the overlay", hour);
     let (fired, on_fire) = mpsc::channel();
     let chord = ok(HotkeyChord::parse("ctrl+alt+space"));
 
@@ -366,12 +396,16 @@ fn the_hotkey_over_the_bus_runs_its_callback_on_each_activation() {
         &chord,
         Box::new(move || fired.send(()).unwrap_or_else(|error| panic!("{error:?}"))),
     );
-    for _ in 0..2 {
-        activated(&server, "ctrl+alt+space");
+    for presses in [3, 1, 1] {
+        for _ in 0..presses {
+            activated(&server, "ctrl+alt+space");
+        }
+        deactivated(&server, "ctrl+alt+space");
     }
 
     assert_eq!(registered, Ok(()));
-    for _ in 0..2 {
+    for _ in 0..3 {
         assert_eq!(on_fire.recv_timeout(LIMIT), Ok(()));
     }
+    assert!(on_fire.recv_timeout(Duration::from_millis(200)).is_err());
 }

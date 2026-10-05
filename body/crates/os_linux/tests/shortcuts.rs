@@ -8,13 +8,18 @@ use std::time::{Duration, Instant};
 use body_contract::hotkey::{HotkeyRig, HotkeySubject, run};
 use body_core::{Hotkey, HotkeyCallback, HotkeyChord, HotkeyError};
 use os_linux::{
-    Activation, LinuxPortalHotkey, PortalError, Shortcut, ShortcutsPortal, ShortcutsReply,
+    Activation, Hold, LinuxPortalHotkey, PortalError, Shortcut, ShortcutsPortal, ShortcutsReply,
     keysym_name, trigger,
 };
 
 const SENDER: &str = ":1.16";
 const ROOT: &str = "/org/freedesktop/portal/desktop";
 const DESCRIPTION: &str = "Show or hide the overlay";
+const SESSION: &str = "/org/freedesktop/portal/desktop/session/1_16/cortex1";
+/// A gap no test run reaches between two signals, so a hold ends only at its `Deactivated`.
+const HOUR: Duration = Duration::from_hours(1);
+/// The `Activated` signals the KDE backend sent for a chord held 1.5 s, before its `Deactivated`.
+const HELD: usize = 24;
 
 /// How a fake portal answers one kind of request.
 #[derive(Clone)]
@@ -121,6 +126,14 @@ struct Rig {
 }
 
 fn rig(sender: &str, create: Answer, bind: Answer) -> Rig {
+    build(sender, create, bind, None)
+}
+
+fn gapped(gap: Duration) -> Rig {
+    build(SENDER, Answer::Named(0), Answer::Named(0), Some(gap))
+}
+
+fn build(sender: &str, create: Answer, bind: Answer, gap: Option<Duration>) -> Rig {
     let calls = Arc::new(Mutex::new(Vec::new()));
     let (activations, received) = mpsc::channel();
     let alive = Arc::new(());
@@ -136,8 +149,12 @@ fn rig(sender: &str, create: Answer, bind: Answer) -> Rig {
         activations: Mutex::new(received),
         _alive: Arc::clone(&alive),
     };
+    let hotkey = match gap {
+        Some(gap) => LinuxPortalHotkey::with_gap(portal, DESCRIPTION, gap),
+        None => LinuxPortalHotkey::new(portal, DESCRIPTION),
+    };
     Rig {
-        hotkey: LinuxPortalHotkey::new(portal, DESCRIPTION),
+        hotkey,
         calls,
         activations,
         alive,
@@ -145,7 +162,7 @@ fn rig(sender: &str, create: Answer, bind: Answer) -> Rig {
 }
 
 fn working() -> Rig {
-    rig(SENDER, Answer::Named(0), Answer::Named(0))
+    gapped(HOUR)
 }
 
 fn chord(text: &str) -> HotkeyChord {
@@ -168,13 +185,37 @@ impl Rig {
         (self.hotkey.register(&chord(text), callback), on_fire)
     }
 
-    fn activate(&self, session: &str, shortcut: &str) {
+    fn signal(&self, session: &str, shortcut: &str, active: bool) {
         self.activations
             .send(Activation {
                 session: session.to_owned(),
                 shortcut: shortcut.to_owned(),
+                active,
             })
             .unwrap_or_else(|error| panic!("{error:?}"));
+    }
+
+    fn activate(&self, session: &str, shortcut: &str) {
+        self.signal(session, shortcut, true);
+    }
+
+    fn deactivate(&self, session: &str, shortcut: &str) {
+        self.signal(session, shortcut, false);
+    }
+
+    /// Sends `activations` signals to each shortcut bound for `chord`, then one `Deactivated`.
+    fn signals(&self, chord: &HotkeyChord, activations: usize) {
+        let id = chord.to_string();
+        for call in self.calls() {
+            if let Call::Bind(session, _, _, shortcut) = call
+                && shortcut.id == id
+            {
+                for _ in 0..activations {
+                    self.activate(&session, &id);
+                }
+                self.deactivate(&session, &id);
+            }
+        }
     }
 
     /// Ends the listener and waits for it to drop the fake, so every signal sent has been read.
@@ -384,20 +425,89 @@ fn an_activation_runs_only_the_binding_with_its_session_and_id() {
     assert_eq!(fired.try_iter().count(), 1);
 }
 
+#[test]
+fn a_held_chord_runs_once_and_a_press_after_its_release_runs_again() {
+    let rig = working();
+    let (_, fired) = rig.register("ctrl+alt+space");
+
+    for _ in 0..HELD {
+        rig.activate(SESSION, "ctrl+alt+space");
+    }
+    rig.deactivate(SESSION, "ctrl+alt+space");
+    rig.activate(SESSION, "ctrl+alt+space");
+    rig.close();
+
+    assert_eq!(fired.try_iter().count(), 2);
+}
+
+#[test]
+fn a_hold_ends_at_a_release_or_a_gap_after_its_last_activation() {
+    let start = Instant::now();
+    let gap = Duration::from_secs(1);
+    let signals = [
+        (true, 0, true),
+        (true, 600, false),
+        (true, 1580, false),
+        (false, 1600, false),
+        (true, 1610, true),
+        (true, 2609, false),
+        (true, 3609, true),
+    ];
+    let mut hold = Hold::default();
+
+    let pressed: Vec<bool> = signals
+        .iter()
+        .map(|&(active, at, _)| hold.pressed(active, start + Duration::from_millis(at), gap))
+        .collect();
+
+    let expected: Vec<bool> = signals.iter().map(|&(_, _, press)| press).collect();
+    assert_eq!(pressed, expected);
+}
+
+#[test]
+fn with_no_release_an_activation_runs_again_only_after_the_gap() {
+    for (gap, runs) in [(Duration::ZERO, 3), (HOUR, 1)] {
+        let rig = gapped(gap);
+        let (_, fired) = rig.register("ctrl+alt+space");
+
+        for _ in 0..3 {
+            rig.activate(SESSION, "ctrl+alt+space");
+        }
+        rig.close();
+
+        assert_eq!(fired.try_iter().count(), runs, "{gap:?}");
+    }
+}
+
+#[test]
+fn a_release_runs_nothing_and_ends_only_its_own_shortcuts_hold() {
+    let rig = working();
+    let (_, space) = rig.register("ctrl+alt+space");
+    let (_, letter) = rig.register("super+a");
+    let other = format!("{ROOT}/session/1_16/cortex3");
+
+    rig.deactivate(SESSION, "ctrl+alt+space");
+    rig.activate(SESSION, "ctrl+alt+space");
+    rig.deactivate(&other, "super+a");
+    rig.deactivate(SESSION, "super+a");
+    rig.activate(SESSION, "ctrl+alt+space");
+    rig.close();
+
+    assert_eq!(space.try_iter().count(), 1);
+    assert_eq!(letter.try_iter().count(), 0);
+}
+
 impl HotkeyRig for Rig {
     fn hotkey(&self) -> &dyn Hotkey {
         &self.hotkey
     }
 
     fn press(&self, chord: &HotkeyChord) {
-        let id = chord.to_string();
-        for call in self.calls() {
-            if let Call::Bind(session, _, _, shortcut) = call
-                && shortcut.id == id
-            {
-                self.activate(&session, &id);
-            }
-        }
+        self.signals(chord, 1);
+    }
+
+    fn hold(&self, chord: &HotkeyChord) {
+        self.signals(chord, HELD);
     }
 
     fn finish(self: Box<Self>) {

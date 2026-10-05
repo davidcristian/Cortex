@@ -194,14 +194,25 @@ decision 13).
   or a success without the name fails as `Registration` and binds or keeps nothing. Request and
   session handles come from the unique bus name as for `Screenshot`, with a fresh token
   `cortex<n>` per request. The first successful registration starts one thread that reads
-  `Activated` signals and runs each binding whose session and id the signal names. `Deactivated`
-  (the release) is not read, since the port needs only the press.
+  `Activated` and `Deactivated` signals and passes each to the `Hold` of the binding whose
+  session and id it names; the binding runs when its `Hold` counts the signal as a press.
+- **A held chord runs once**, as on X11 and Windows. A portal backend may send one `Activated`
+  per auto-repeat of a held chord, and the KDE one does, then one `Deactivated` at the release
+  ([globalshortcuts-portal](../readings/globalshortcuts-portal.md)). `Hold` counts an
+  `Activated` as a press when it is the first after a `Deactivated`, or comes `REPEAT_GAP` (1 s)
+  or more after the binding's last `Activated`, read by the listener's clock. The gap is the
+  rule on a backend that sends no `Deactivated`, and it ends a hold whose `Deactivated` never
+  came. It is above the 600 ms repeat delay of `kwin_wayland`'s defaults; a repeat delay set
+  longer runs a held chord a second time at its first repeat.
 - **`DbusShortcuts`** makes those calls through the same request module as `DbusPortal`: the
   `Response` match before the call, the returned handle checked, and the wait for the reply and
   the `Response` ended at one limit, here `SHORTCUTS_LIMIT` (1 min), because a compositor may ask
   the user to confirm or change the trigger first. Since the reply and the `Response` share it, a
-  dialog has the whole minute whichever of the two it delays, so no second bound is needed. It subscribes to `Activated` when it is built, so a press between a bind and the
-  first read is kept. It reads the session handle as a string, which the 1.18 frontend sends, or
+  dialog has the whole minute whichever of the two it delays, so no second bound is needed. It
+  subscribes to every `GlobalShortcuts` signal on the portal's path when it is built, so a press
+  between a bind and the first read is kept and a `Deactivated` is never read before the
+  `Activated` it ends; it returns `Activated` and `Deactivated` and skips any other signal, such
+  as `ShortcutsChanged`. It reads the session handle as a string, which the 1.18 frontend sends, or
   as an object path, and the bound ids from the `shortcuts` result. The tests run the hotkey
   check list over the core with an in-process fake, and the adapter against a fake portal over a
   socket pair. No live test exists
@@ -214,8 +225,8 @@ decision 13).
   [791](../refinements/tasks/791-bind-the-wayland-hotkey-on-plasma-5-27.md)). Given the
   shortcuts directly, that backend parsed the form `trigger` writes (`CTRL+ALT+space` became
   `Ctrl+Alt+Space`) and not a mixed-case `Ctrl`, sent one `Activated` per auto-repeat of a held
-  chord ([790](../refinements/tasks/790-run-a-held-portal-chord-once.md)), and answered success
-  for a trigger another session held, leaving that shortcut with no key.
+  chord, and answered success for a trigger another session held, leaving that shortcut with no
+  key.
 - **The shell** registers through `LinuxPortalHotkey` over `DbusShortcuts` when `WAYLAND_DISPLAY`
   is set and not empty, on a thread of its own with its own session bus connection, since a bind
   can wait up to `SHORTCUTS_LIMIT` on the user and setup must not; else it grabs through

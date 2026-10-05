@@ -36,8 +36,10 @@ crate; nothing that ships links it.
 - **`hotkey`**, the `Hotkey` list. A callback runs later, on a press, so `HotkeySubject` builds a
   `HotkeyRig` in each condition: `listening()`, `taken()` (another program holds
   `HotkeyChord::default()`) and `broken()`. A rig gives the `hotkey()` under test, `press(chord)`,
-  and `finish()`, which returns once every press so far has reached the backend. The six checks: a
-  press runs the callback once; registering runs nothing until a press; each press runs only its
+  `hold(chord)`, which presses it until the keyboard has sent auto-repeats and then releases it,
+  and `finish()`, which returns once every press so far has reached the backend. The seven checks:
+  a press runs the callback once; a held chord runs it once, and a press after the release runs it
+  again; registering runs nothing until a press; each press runs only its
   own chord's callback, over two keys under one modifier and the second key under another; a key
   with no code fails with `UnsupportedKey`; a taken chord fails with `Registration` and a press runs
   nothing; a broken backend fails with `Registration`. `CHORDS` names the chords a driver's
