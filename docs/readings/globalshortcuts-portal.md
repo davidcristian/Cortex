@@ -1,8 +1,9 @@
 # Readings: the GlobalShortcuts portal on KDE
 
 What `xdg-desktop-portal-kde` 5.27.11, this distribution's one backend with
-`org.freedesktop.portal.GlobalShortcuts`, does with each call, and what a press of a bound chord
-sends. Cited by [body-os-linux](../modules/body-os-linux.md) and by
+`org.freedesktop.portal.GlobalShortcuts`, does with each call, what a press of a bound chord
+sends, and what a direct `kglobalaccel` registration does instead. Cited by
+[body-os-linux](../modules/body-os-linux.md) and by
 [788](../refinements/tasks/788-test-the-portal-hotkey-on-a-kde-wayland-session.md) and
 [791](../refinements/tasks/791-bind-the-wayland-hotkey-on-plasma-5-27.md).
 
@@ -76,5 +77,53 @@ description.
 - **No call opened a dialog or waited for one.** Every answer came at once, so a bind on this
   backend runs unattended; the settings page that `BindShortcuts` opens is not waited for.
 
+## Registering with `kglobalaccel` directly
+
+**2026-10-05**, on the same stack. A Python `Gio` client, with no portal call, registered one
+action with `org.kde.kglobalaccel` at `/kglobalaccel` (interface `org.kde.KGlobalAccel`), the
+interface KDE applications register through, and pressed keys as above.
+
+| Call | Arguments | Answer |
+| --- | --- | --- |
+| `doRegister` | `["cortex", "toggle", "Cortex", "Show or hide the overlay"]` | none |
+| `setShortcut`, flag 1 (`IsDefault`) | that action id, `[201326624]` | `[201326624]` |
+| `setShortcut`, flag 2 (`SetPresent`) | the same | `[201326624]` |
+| `getComponent` | `"cortex"` | `/component/cortex` |
+
+201326624 is `0x0C000020`, Qt's key code for Space (`0x20`) with its Ctrl (`0x04000000`) and
+Alt (`0x08000000`) modifier bits. `allMainComponents` then listed `cortex` beside KWin's own.
+
+| Keys pressed | `globalShortcutPressed` | `globalShortcutReleased` |
+| --- | --- | --- |
+| Ctrl, Alt, space, released at once | 1 | 1 |
+| Ctrl, Alt, space, held 1.5 s | 24 | 1 |
+| Ctrl, space | 0 | 0 |
+
+- **This binds the chord on 5.27 with no portal and no settings page.** Each signal came on
+  `/component/cortex`, interface `org.kde.kglobalaccel.Component`, naming `cortex` and `toggle`,
+  from `:1.0`, the owner of `org.kde.kglobalaccel`.
+- **A held chord sends one `globalShortcutPressed` per auto-repeat**, the same count as the
+  portal's `Activated` above, so the `Hold` rule applies here too.
+
+## Who sends each signal
+
+A fourth client created a session through the frontend with session token `cortex1`, bound
+`ctrl+alt+space` (answered with an empty list, as above), then registered that id with
+`kglobalaccel` directly under the component `cortex1`, and pressed the chord once.
+
+| Signal | Sender | Owner of |
+| --- | --- | --- |
+| `globalShortcutPressed`, `/component/cortex1` | `:1.0` | `org.kde.kglobalaccel` |
+| backend `Activated`, the frontend's session handle | `:1.4` | `org.freedesktop.impl.portal.desktop.kde` |
+| `org.freedesktop.portal.GlobalShortcuts.Activated`, the same handle | `:1.8` | `org.freedesktop.portal.Desktop` |
+
+`Deactivated` followed the same path at the release, and each `Response` came from `:1.8` too.
+
+- **The frontend sends `Activated` from the connection that owns `org.freedesktop.portal.Desktop`**,
+  so a client that reads only that owner's signals reads every press.
+- **The backend listens on the component named after the session token** whether or not
+  `BindShortcuts` registered anything, so an action any client registers there makes the
+  backend send `Activated` for that session.
+
 Method: a scratch directory outside the repo held one shell script that starts the stack on a
-private session bus, the fake input client, and the two Python `Gio` clients.
+private session bus, the fake input client, and the four Python `Gio` clients.

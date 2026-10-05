@@ -13,17 +13,30 @@ frontend does not forward, and its `BindShortcuts` answers success with no short
 `BindShortcuts` runs `xdg-open systemsettings://kcm_keys/cortex1`, which on a Plasma desktop is
 assumed to open System Settings' shortcuts page at every shell start; that was not run.
 
-`kglobalaccel`, the KDE service under that backend, has its own D-Bus interface
-(`org.kde.kglobalaccel`), which KDE applications register through. Under KWin 5.27.11 it sent
-`globalShortcutPressed` for each press of a shortcut the backend had given it and
-`globalShortcutReleased` at each release. A `Hotkey` adapter over that interface, chosen when
-`org.kde.kglobalaccel` is on the bus, would bind on 5.27 and skip the settings page. It needs its
-own port, fake and check-list run, and the `Hold` rule `LinuxPortalHotkey` follows
-([body-os-linux](../../modules/body-os-linux.md)), since it sends one press per auto-repeat too.
+So nothing the shell sends through the portal binds a chord there. Registering with
+`kglobalaccel` directly does. On KWin 5.27.11,
+`doRegister` and `setShortcut` on `org.kde.kglobalaccel` bound Ctrl+Alt+Space with no settings
+page, and each press sent `globalShortcutPressed` on `/component/<component>`, one per
+auto-repeat, then one `globalShortcutReleased`
+([globalshortcuts-portal](../../readings/globalshortcuts-portal.md)).
 
-To decide first: whether to prefer that adapter on every KDE session or only where the portal
-fails. A portal `register` that fails has already opened the page, and the frontend reports
-`GlobalShortcuts` version 1 for the 5.27.11 backend; a newer backend's version was not read.
+The build is a `Hotkey` adapter over that interface with its own small D-Bus port and fake, the
+hotkey check list, and the `Hold` rule `LinuxPortalHotkey` follows
+([body-os-linux](../../modules/body-os-linux.md)). Its parts:
+
+- The chord as a Qt key code: the key's code with Qt's modifier bits, as `0x0C000020` for
+  Ctrl+Alt+Space. Only that chord was run; each other key's Qt code is to be checked on the stack.
+- One fixed component name and action id, so a restart registers the same action again.
+- Signals read only from the unique name that owns `org.kde.kglobalaccel`, and a malformed one
+  skipped, as `DbusShortcuts` does for the portal.
+- The shell choosing it whenever `org.kde.kglobalaccel` has an owner, before any portal call,
+  since a portal `register` that fails has already opened the settings page, and the choice then
+  needs no fact about newer backends, whose `GlobalShortcuts` version was not read.
+
+The backend also runs a portal session's shortcut when a client registers its id with
+`kglobalaccel` under the component named after the session token, so a portal session plus that
+registration, with no `BindShortcuts`, binds as well. It is not the plan: it depends on how this
+backend names its component, which no portal document states.
 
 ## History
 
