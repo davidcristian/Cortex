@@ -116,7 +116,7 @@ is the brain to body direction: it builds the `BodyService` server over an `Audi
   `max_bytes` and `target` into a `body_core::CaptureRequest`, then runs the blit, the pure
   `Capture::from_bgra` policy, the clock read and the receipt inside **one** `off_worker` hop, and
   maps the `Capture` onto `ImageBlob` (`source_width` and `source_height` staying the **display's**
-  even when the picture is one window). `resolve_target` is where proto3's unknown-enum rule
+  for a crop and 0 for a window read alone). `resolve_target` is where proto3's unknown-enum rule
   applies: a value this body does not name reads as `CaptureTarget::Display`. `encoded_target` fills
   the reply's `resolved_target` from `Capture::covers_display()`, the same predicate the receipt is
   picked by, so the sentence the user is shown and the one the brain shows the model cannot

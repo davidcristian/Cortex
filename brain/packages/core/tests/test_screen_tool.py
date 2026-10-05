@@ -168,6 +168,29 @@ async def test_a_window_too_large_to_send_whole_is_described_as_shrunk_from_its_
     )
 
 
+async def test_a_window_read_alone_is_described_without_a_display_size() -> None:
+    alone = _capture(
+        width=400, height=300, source=(0, 0), shown=(400, 300), target=CaptureTarget.FOCUS
+    )
+    result = await CaptureScreenTool(InMemoryBodyGateway(capture=alone)).invoke(_call("focus"))
+
+    assert result.content == (
+        "screen capture of one window, read on its own, so the display's size is unknown: "
+        "400x300 image/png, at the window's own size, taken at 2026-07-25T10:14:03+00:00. "
+        "The rest of the screen was not captured. "
+        "The picture is attached to this message as an image part; it cannot be fenced as text."
+    )
+
+
+async def test_a_window_with_half_a_display_size_names_no_display() -> None:
+    for source in ((2560, 0), (0, 1440)):
+        windowed = _capture(width=400, height=300, source=source, target=CaptureTarget.FOCUS)
+        body = InMemoryBodyGateway(capture=windowed)
+        result = await CaptureScreenTool(body).invoke(_call("focus"))
+
+        assert "read on its own, so the display's size is unknown: " in result.content, source
+
+
 async def test_a_window_sent_whole_is_described_at_its_own_size() -> None:
     windowed = _capture(width=1720, height=1200, shown=(1720, 1200), target=CaptureTarget.FOCUS)
     result = await CaptureScreenTool(InMemoryBodyGateway(capture=windowed)).invoke(_call("focus"))

@@ -40,8 +40,8 @@ one constant.
   `target_height` give the size of what the picture shows, 0 being a body older than them, so the
   brain can say whether a window was resampled without learning where it is. `ImageBlob` has
   `data`, `mime_type`, `width`, `height`, `source_width` and `source_height`, which are the
-  **display's** before the body's crop and downscale even when the picture is one window, and
-  `captured_at_unix_ms`.
+  **display's** before the body's crop and downscale even when the picture is a window cut out of
+  it, or 0 with `CAPTURE_TARGET_FOCUS` for a window read alone, and `captured_at_unix_ms`.
 - **Volume, notifications and input**: `GetVolumeRequest`, `SetVolumeRequest`, `VolumeState`,
   `NotifyRequest`, `NotifyReply`, `InjectInputRequest`, `TypeText`, `KeyChord` and
   `InjectInputReply`.

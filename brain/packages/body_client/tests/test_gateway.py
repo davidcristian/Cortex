@@ -351,12 +351,23 @@ async def test_a_capture_at_the_display_size_is_not_downscaled() -> None:
     assert capture.downscaled is False
 
 
-async def test_a_body_that_omits_the_source_size_reports_the_image_size() -> None:
+async def test_a_display_capture_that_omits_the_source_size_reports_the_image_size() -> None:
     fake = FakeBody(blob=_blob(width=640, height=360, source_width=0, source_height=0))
     async with _gateway(fake) as gateway:
         capture = await gateway.capture_screen()
     assert (capture.source_width, capture.source_height) == (640, 360)
     assert capture.downscaled is False
+
+
+async def test_a_window_read_alone_keeps_the_zero_source_size() -> None:
+    fake = FakeBody(
+        blob=_blob(width=400, height=300, source_width=0, source_height=0),
+        resolved_target=CaptureTargetPb.CAPTURE_TARGET_FOCUS,
+    )
+    async with _gateway(fake) as gateway:
+        capture = await gateway.capture_screen(target=CaptureTarget.FOCUS)
+    assert capture.target is CaptureTarget.FOCUS
+    assert (capture.source_width, capture.source_height) == (0, 0)
 
 
 async def test_a_reply_with_no_image_is_refused() -> None:

@@ -97,8 +97,9 @@ reply says `CAPTURE_TARGET_FOCUS`; and `source_width` and `source_height` are 0,
 because the display was never read. A window placed in a frame of its own size with
 `CapturedFrame::window` would cover the frame and be reported as the display, in the receipt and in
 the model's sentence. A body before this decision never sends `FOCUS` with a zero source size, so
-the brain can read that pair as a window with no known display. The proto comment and the brain's
-sentence change with the adapter, since nothing sends this frame before it.
+the brain reads that pair as a window with no known display: the proto comment says so, the
+gateway keeps the 0 rather than the image's size, and the model's sentence says the window was read
+on its own and that the display's size is unknown.
 
 ## Consequences
 

@@ -24,9 +24,9 @@ orchestration and no state (the one hard rule); the composition root owns the ch
     `ImagePart` (which re-checks the mime type, the declared size and the byte count) and reading
     `captured_at_unix_ms` as an aware UTC datetime. A reply with no blob at all raises instead of
     mapping, because a body that returned OK for a capture it never took would otherwise be read as
-    a screen of zeros. A body that leaves `source_width` and `source_height` at their proto3 zeros
+    a screen of zeros. A display capture whose `source_width` and `source_height` are proto3 zeros
     reports the image's own size, so the model is never told it is looking at a downscaled view of a
-    zero-sized display.
+    zero-sized display. A focus capture keeps the zeros, which mean one window read alone.
   - All of them attach the token as `x-cortex-seam-token` metadata when `token` is non-empty, built
     once at construction (ADR-0016, mirrored for this direction), and no metadata when it is empty,
     which matches the tokenless body server.

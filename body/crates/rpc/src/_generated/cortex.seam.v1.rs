@@ -378,7 +378,8 @@ pub struct ImageBlob {
     #[prost(uint32, tag = "4")]
     pub height: u32,
     /// The display's own size before the downscale, so the model can say the text is too small to
-    /// read instead of guessing.
+    /// read instead of guessing. 0 with CAPTURE_TARGET_FOCUS is one window read alone, whose display
+    /// was never read.
     #[prost(uint32, tag = "5")]
     pub source_width: u32,
     #[prost(uint32, tag = "6")]

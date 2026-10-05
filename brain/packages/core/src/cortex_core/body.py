@@ -28,6 +28,7 @@ class ScreenCapture:
     """One picture of the host's display, as the body returned it."""
 
     image: ImagePart
+    # The display's size before the downscale; 0 for a FOCUS capture of one window read alone.
     source_width: int
     source_height: int
     captured_at: datetime

@@ -272,7 +272,8 @@ message ImageBlob {
   uint32 width = 3;     // physical pixels, after the body's downscale
   uint32 height = 4;
   // The display's own size before the downscale, so the model can say the text is too small to
-  // read instead of guessing.
+  // read instead of guessing. 0 with CAPTURE_TARGET_FOCUS is one window read alone, whose display
+  // was never read.
   uint32 source_width = 5;
   uint32 source_height = 6;
   // When the pixels were read, so a multi-round turn can tell how old they are.

@@ -197,12 +197,15 @@ def _to_capture(reply: CaptureScreenReply, *, max_edge: int, max_bytes: int) -> 
     except ImageError as err:
         msg = f"body capture_screen returned an unusable image: {err}"
         raise BodyGatewayError(msg) from err
+    target = _TARGET_FROM_WIRE.get(reply.resolved_target, CaptureTarget.DISPLAY)
+    # Only a display capture's image is the display; a window's 0 means it was read alone.
+    fallback = (blob.width, blob.height) if target is CaptureTarget.DISPLAY else (0, 0)
     return ScreenCapture(
         image=image,
-        source_width=blob.source_width or blob.width,
-        source_height=blob.source_height or blob.height,
+        source_width=blob.source_width or fallback[0],
+        source_height=blob.source_height or fallback[1],
         captured_at=captured_at_from_unix_ms(blob.captured_at_unix_ms),
-        target=_TARGET_FROM_WIRE.get(reply.resolved_target, CaptureTarget.DISPLAY),
+        target=target,
         target_width=reply.target_width,
         target_height=reply.target_height,
     )

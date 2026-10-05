@@ -84,8 +84,13 @@ def describe(capture: ScreenCapture) -> str:
         "The picture is attached to this message as an image part; it cannot be fenced as text."
     )
     if capture.target is CaptureTarget.FOCUS:
+        origin = (
+            "read on its own, so the display's size is unknown"
+            if 0 in (capture.source_width, capture.source_height)
+            else f"cropped out of the {source} primary display"
+        )
         return (
-            f"screen capture of one window, cropped out of the {source} primary display: "
+            f"screen capture of one window, {origin}: "
             f"{size}{_window_scale(capture)}, {taken} The rest of the screen was not captured. "
             f"{attached}"
         )
