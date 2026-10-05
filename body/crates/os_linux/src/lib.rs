@@ -21,6 +21,7 @@ mod portal;
 mod portal_dbus;
 mod request;
 mod screen;
+mod screencast;
 mod shortcuts;
 mod shortcuts_dbus;
 mod trigger;
@@ -44,6 +45,10 @@ pub use portal_dbus::{DbusPortal, RESPONSE_LIMIT};
 pub use screen::{
     Area, GrabError, Layer, Layout, LinuxScreenCapture, Monitor, Pixels, RootGrab, RootImage,
     Snapshot, TreeWindow,
+};
+pub use screencast::{
+    CastSession, FrameError, FrameReader, LinuxWindowCapture, NO_WINDOW, RESTORE_LIMIT,
+    ScreenCastPortal, Started, WINDOW_SOURCE, WindowStream, offers_window,
 };
 pub use shortcuts::{
     Activation, Hold, LinuxPortalHotkey, REPEAT_GAP, Shortcut, ShortcutsPortal, ShortcutsReply,

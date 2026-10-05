@@ -126,7 +126,7 @@ on its own and that the display's size is unknown.
 
 - [ADR-0029](ADR-0029-vision-screen-capture.md) (decisions 10 and 16),
   [ADR-0011](ADR-0011-body-v1.md); modules [body-core-capture](../modules/body-core-capture.md),
-  [body-os-linux](../modules/body-os-linux.md); readings
+  [body-os-linux-capture](../modules/body-os-linux-capture.md); readings
   [wayland-screencast-portal](../readings/wayland-screencast-portal.md),
   [wayland-screenshot-portal](../readings/wayland-screenshot-portal.md); task
   [787](../refinements/tasks/787-read-a-wayland-window-through-the-screencast-portal.md).

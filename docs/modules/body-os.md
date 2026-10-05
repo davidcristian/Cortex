@@ -27,10 +27,10 @@ speaks. They are also where the **stub coverage exemption** is used.
   no persistent device, so it satisfies the blocking pool's `FnOnce + Send + 'static`; and it has
   the smallest `unsafe` surface. The cost is that it renders hardware-overlay and DRM-protected
   surfaces **black, with no error**.
-- **`os_linux`** (`cfg(target_os = "linux")`) has six real backends, `LinuxNotify`,
+- **`os_linux`** (`cfg(target_os = "linux")`) has seven real backends, `LinuxNotify`,
   `LinuxAudioControl`, the X11 `LinuxScreenCapture`, the portal's `LinuxPortalCapture`, the X11
   `LinuxHotkey`, `LinuxKdeHotkey` and the portal's `LinuxPortalHotkey` (see
-  [body-os-linux.md](body-os-linux.md)),
+  [body-os-linux.md](body-os-linux.md) and [body-os-linux-capture.md](body-os-linux-capture.md)),
   and no stub. The shell's `BodyService`
   serves the notification and volume backends, and `LinuxScreenCapture<X11Root>` only when
   `CORTEX_HOST_CAPTURE=1`, `WAYLAND_DISPLAY` is unset or empty and the X display opens; with the
