@@ -5,14 +5,15 @@
 **Origin:** [ADR-0038](../../adr/ADR-0038-ranked-recall.md)
 **Trigger:** a production caller of the `Converse` RPC beyond the overlay's one chain, or a wait in
 that chain's read loop. Two readings of the tree decide it. Outside tests, generated stubs and
-builds, `grep -rn '\.converse(\|BrainServiceStub' body brain` finds on 2026-10-03 six files: the
+builds, `grep -rn '\.converse(\|BrainServiceStub' body brain` finds on 2026-10-05 seven files: the
 chain's four links (`body/app/src/overlay/useOverlay.ts`, the shell's `converse` command in
 `body/app/src-tauri/src/converse.rs`, `RetryingTransport` in `body/crates/core/src/retry.rs` and the
-tonic client in `body/crates/rpc/src/converse.rs`), the bridge contract's check list
-`bridgeContract.ts` and the `seam` package's re-export of the stub. Any other file fires it. The
-shell command's `while let` loop awaits only `stream.next()`; any other await between two items
-fires it.
-**Verified:** 2026-10-03
+tonic client in `body/crates/rpc/src/converse.rs`), two check lists that drive a transport under
+test, the bridge contract's `bridgeContract.ts` and the brain transport's
+`body/crates/contract/src/transport/turns.rs`, and the `seam` package's re-export of the stub. Any
+other file fires it. The shell command's `while let` loop awaits only `stream.next()`; any other
+await between two items fires it.
+**Verified:** 2026-10-05
 
 The reply's lease is held for the adapter generator's whole lifetime, and the credit bound
 ([R-028](028-converse-queue-backpressure.md), `CORTEX_SEAM_CONVERSE_BUFFER`) suspends generation
@@ -87,3 +88,8 @@ decision about what the stream sends the client when it fires.
   ratio of the unstalled one. And the remedy needs no port change: a turn's cancellation already
   closes the engine's stream and frees the lease, so a bound adds a time limit on the credit wait, a
   setting and what the client is sent.
+- 2026-10-05: Not fired, and the trigger's file list corrected. The search now finds a seventh
+  file, `turns.rs` in the body's contract crate, added on 2026-10-04 as the turn checks of the
+  `BrainTransport` check list. It calls `converse` on the transport a contract test hands it, and the
+  crate is a dev-dependency of `body-core` and `body-rpc` only, so it is not a production caller.
+  The shell's loop is unchanged since the last check.

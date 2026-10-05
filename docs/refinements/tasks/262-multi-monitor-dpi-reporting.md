@@ -3,7 +3,7 @@
 **Status:** open, waiting for a consumer
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-10-04
+**Verified:** 2026-10-05
 **Trigger:** A request to capture a display other than the primary one.
 
 The Windows backend captures the primary display only, in physical pixels. The X11 backend in
@@ -12,10 +12,13 @@ The Windows backend captures the primary display only, in physical pixels. The X
 since X11 does not scale the root window: the one RandR marks primary, else the first listed, else
 the whole root. Its `X11Root::layout` lists the monitors with RandR's `GetMonitors`, the only code in
 the body that asks the OS for monitors; nothing on Windows does, so a display index there needs an
-`EnumDisplayMonitors` walk. No field names a display. A display index takes the next free field
-number, 4, when a caller asks for another display, and it arrives together with a body that honours
-it on both platforms, which is the rule that put the capture target and its Z-order walk in one
-commit. On Windows the focus target already gives this entry one observable consequence: a
+`EnumDisplayMonitors` walk. The Wayland backend sends whatever picture the screenshot portal
+returns: its call passes only `handle_token` and `interactive: false`, so nothing in it names an
+output, and the portal was read on one headless output only
+([wayland-screenshot-portal](../../readings/wayland-screenshot-portal.md)). No field names a display.
+A display index takes the next free field number, 4, when a caller asks for another display, and it
+arrives together with a body that honours it on every backend, which is the rule that put the
+capture target and its Z-order walk in one commit. On Windows the focus target already gives this entry one observable consequence: a
 focused window on a second monitor resolves to a rectangle with nothing on the captured display, so
 it returns `NoTarget` rather than a wrong picture.
 
@@ -60,3 +63,7 @@ it returns `NoTarget` rather than a wrong picture.
   and measures the window from its corner, so a window on another monitor is still `NoTarget`. No
   request names another display, and `CaptureScreenRequest` still uses fields 1 to 3, so the
   trigger has not fired.
+- 2026-10-05: Not fired, and the entry corrected for the Wayland backend added after the last
+  check. It captures through the screenshot portal with no output named in the call and lists no
+  monitors, so a display index needs a way to pick an output there as well. No request names
+  another display, and `CaptureScreenRequest` still uses fields 1 to 3.

@@ -3,10 +3,10 @@
 **Status:** open, waiting for a consumer
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-10-01
+**Verified:** 2026-10-05
 **Trigger:** A capture that has to go ahead with part of the screen removed rather than be refused,
 over a window or a region Cortex does not own, since the body's own windows are the OS's to exclude
-on Windows and the X11 capture's own fill on X11.
+on Windows, the X11 capture's own fill on X11, and a refusal while the overlay is shown on Wayland.
 
 The body is the only side holding the pixels before they cross the wire, so it is the only side
 that could redact a region (a password field, a specific window) rather than refuse a whole
@@ -15,8 +15,12 @@ screening pass would join it. On Windows one window is already excluded, by the 
 Cortex: the overlay sets `WDA_EXCLUDEFROMCAPTURE` on itself at setup, and the shell wires the
 refusing backend if that call fails. X11 has no such call, so the X11 capture paints every window
 of the body's process black, the body's first pixel pass, in `os_linux/src/exclude.rs`
-([753](753-keep-the-overlay-out-of-a-linux-capture.md)). Both cover windows Cortex owns, which is
-why the trigger names one it does not, and a pass for those would sit beside that fill.
+([753](753-keep-the-overlay-out-of-a-linux-capture.md)). A Wayland capture goes through the
+screenshot portal, whose picture says where no window is, so nothing can be painted out of it:
+`HiddenOverlayCapture` in `os_linux/src/overlay.rs` refuses the capture while the overlay is shown
+or has just been hidden. All three cover windows Cortex owns, which is why the trigger names one it
+does not. A pass for those would sit beside the X11 fill, and on Wayland it would first need a
+source for where another program's window is, which the portal does not give.
 
 ## History
 
@@ -44,3 +48,8 @@ why the trigger names one it does not, and a pass for those would sit beside tha
   entry described as future work, and the shell serves it on an X11 session. That fill finds
   windows by `_NET_WM_PID`, so it still covers only windows Cortex owns. The trigger has not
   fired.
+- 2026-10-05: Not fired, and the entry corrected for Wayland. Since 2026-10-04 the shell serves a
+  Wayland capture through the screenshot portal inside `HiddenOverlayCapture`, which refuses while
+  the overlay is shown or within `OVERLAY_SETTLE` (1 s) of a hide, because a portal picture cannot
+  leave a window out. The entry named only Windows and X11. Nothing in the body crates or the shell
+  masks or redacts pixels of a window Cortex does not own.
