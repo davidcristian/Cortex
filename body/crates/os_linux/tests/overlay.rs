@@ -1,15 +1,18 @@
 #![cfg(target_os = "linux")]
 
 use std::sync::Arc;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::thread;
 use std::time::Duration;
 
 use body_core::{
     CaptureError, CaptureRequest, CaptureTarget, CapturedFrame, RawFrame, ScreenCapture,
 };
-use os_linux::{HiddenOverlayCapture, OverlayWatch};
+use os_linux::{HiddenOverlayCapture, HideSignal, OverlayWatch};
 
 const HOUR: Duration = Duration::from_hours(1);
+/// Time for a reader thread to start and block before the test acts, as the portal tests allow.
+const SETTLE_IN: Duration = Duration::from_millis(200);
 
 #[derive(Clone, Copy)]
 enum During {
@@ -147,4 +150,61 @@ fn a_failed_capture_keeps_its_own_error() {
         matches!(result, Err(CaptureError::NoDisplay(ref text)) if text == "gone"),
         "{result:?}"
     );
+}
+
+#[test]
+fn a_hide_not_yet_seen_is_returned_at_once_even_when_stopped() {
+    let watch = OverlayWatch::default();
+    watch.showing();
+    watch.hidden();
+    watch.showing();
+    watch.hidden();
+
+    assert_eq!(watch.next_hide(0, &AtomicBool::new(true)), Some(2));
+    assert_eq!(watch.next_hide(1, &AtomicBool::new(false)), Some(2));
+}
+
+#[test]
+fn a_hide_already_seen_or_followed_by_a_show_is_not_returned() {
+    let stopped = AtomicBool::new(true);
+    let watch = OverlayWatch::default();
+    assert_eq!(watch.next_hide(0, &stopped), None);
+    watch.hidden();
+    assert_eq!(watch.next_hide(1, &stopped), None);
+
+    watch.showing();
+
+    assert_eq!(watch.next_hide(0, &stopped), None);
+}
+
+#[test]
+fn a_waiting_reader_is_woken_by_the_next_hide() {
+    let watch = OverlayWatch::default();
+    let stop = AtomicBool::new(false);
+
+    let hide = thread::scope(|scope| {
+        let waiting = scope.spawn(|| watch.next_hide(0, &stop));
+        thread::sleep(SETTLE_IN);
+        watch.showing();
+        watch.hidden();
+        waiting.join()
+    });
+
+    assert_eq!(hide.ok(), Some(Some(1)));
+}
+
+#[test]
+fn a_waiting_reader_is_woken_to_stop() {
+    let watch = OverlayWatch::default();
+    let stop = AtomicBool::new(false);
+
+    let hide = thread::scope(|scope| {
+        let waiting = scope.spawn(|| watch.next_hide(0, &stop));
+        thread::sleep(SETTLE_IN);
+        stop.store(true, Ordering::SeqCst);
+        watch.wake();
+        waiting.join()
+    });
+
+    assert_eq!(hide.ok(), Some(None));
 }

@@ -49,9 +49,8 @@ pub fn start(handle: &tauri::AppHandle, _excluded: bool) {
     use body_core::DeniedScreenCapture;
     use os_linux::zbus::blocking::Connection;
     use os_linux::{
-        DbusNotifications, DbusPortal, HiddenOverlayCapture, LinuxAudioControl, LinuxNotify,
-        LinuxPortalCapture, LinuxScreenCapture, OVERLAY_SETTLE, OverlayWatch, PACTL_PROGRAM,
-        PactlCommand, X11Root,
+        DbusNotifications, LinuxAudioControl, LinuxNotify, LinuxScreenCapture, OverlayWatch,
+        PACTL_PROGRAM, PactlCommand, X11Root,
     };
     use tauri::Manager;
 
@@ -69,13 +68,9 @@ pub fn start(handle: &tauri::AppHandle, _excluded: bool) {
     let wayland = std::env::var_os("WAYLAND_DISPLAY").is_some_and(|name| !name.is_empty());
     let watch = handle.try_state::<Arc<OverlayWatch>>();
     if let (true, true, Some(watch)) = (wanted, wayland, watch) {
-        let portal = match session {
-            Ok(connection) => DbusPortal::new(connection),
-            Err(error) => DbusPortal::absent(&error),
-        };
-        let portal = LinuxPortalCapture::new(portal);
-        let capture = HiddenOverlayCapture::new(portal, Arc::clone(&watch), OVERLAY_SETTLE);
-        tauri::async_runtime::spawn(serve(audio, notify, capture));
+        let watch = Arc::clone(&watch);
+        // Reading the portal's source types waits on the bus, which setup must not do.
+        tauri::async_runtime::spawn_blocking(move || serve_wayland(audio, notify, session, watch));
         return;
     }
     let display = if wanted && !wayland {
@@ -94,6 +89,54 @@ pub fn start(handle: &tauri::AppHandle, _excluded: bool) {
         }
         None => {
             tauri::async_runtime::spawn(serve(audio, notify, DeniedScreenCapture));
+        }
+    }
+}
+
+/// Serves the display through the screenshot portal while the overlay is hidden, and focus as the
+/// window the user chose when the `ScreenCast` portal offers a window source.
+#[cfg(target_os = "linux")]
+fn serve_wayland<A, N>(
+    audio: A,
+    notify: N,
+    session: Result<os_linux::zbus::blocking::Connection, os_linux::zbus::Error>,
+    watch: std::sync::Arc<os_linux::OverlayWatch>,
+) where
+    A: body_core::AudioControl + 'static,
+    N: body_core::Notify + 'static,
+{
+    use std::sync::Arc;
+
+    use os_linux::{
+        CHOOSER_LIMIT, DbusPortal, DbusScreenCast, FRAME_LIMIT, GST_LAUNCH_PROGRAM, GstLaunch,
+        HiddenOverlayCapture, LinuxPortalCapture, LinuxWindowCapture, OVERLAY_SETTLE, TargetRouter,
+        offers_window,
+    };
+
+    let (portal, cast) = match &session {
+        Ok(connection) => (
+            DbusPortal::new(connection.clone()),
+            DbusScreenCast::new(connection.clone()),
+        ),
+        Err(error) => (DbusPortal::absent(error), DbusScreenCast::absent(error)),
+    };
+    let portal = LinuxPortalCapture::new(portal);
+    let display = HiddenOverlayCapture::new(portal, Arc::clone(&watch), OVERLAY_SETTLE);
+    match offers_window(&cast) {
+        Ok(true) => {
+            let reader = GstLaunch::new(GST_LAUNCH_PROGRAM, FRAME_LIMIT);
+            let window = LinuxWindowCapture::new(cast, reader).watch_hides(watch, CHOOSER_LIMIT);
+            let capture = TargetRouter::new(window, display);
+            tauri::async_runtime::spawn(serve(audio, notify, capture));
+        }
+        offered => {
+            if let Err(error) = offered {
+                eprintln!(
+                    "cortex: the portal's source types are unreadable, so focus captures fail: {}",
+                    error.0
+                );
+            }
+            tauri::async_runtime::spawn(serve(audio, notify, display));
         }
     }
 }

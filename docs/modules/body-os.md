@@ -27,15 +27,17 @@ speaks. They are also where the **stub coverage exemption** is used.
   no persistent device, so it satisfies the blocking pool's `FnOnce + Send + 'static`; and it has
   the smallest `unsafe` surface. The cost is that it renders hardware-overlay and DRM-protected
   surfaces **black, with no error**.
-- **`os_linux`** (`cfg(target_os = "linux")`) has seven real backends, `LinuxNotify`,
-  `LinuxAudioControl`, the X11 `LinuxScreenCapture`, the portal's `LinuxPortalCapture`, the X11
+- **`os_linux`** (`cfg(target_os = "linux")`) has eight real backends, `LinuxNotify`,
+  `LinuxAudioControl`, the X11 `LinuxScreenCapture`, the portal's `LinuxPortalCapture` and
+  `LinuxWindowCapture`, the X11
   `LinuxHotkey`, `LinuxKdeHotkey` and the portal's `LinuxPortalHotkey` (see
   [body-os-linux.md](body-os-linux.md) and [body-os-linux-capture.md](body-os-linux-capture.md)),
   and no stub. The shell's `BodyService`
   serves the notification and volume backends, and `LinuxScreenCapture<X11Root>` only when
   `CORTEX_HOST_CAPTURE=1`, `WAYLAND_DISPLAY` is unset or empty and the X display opens; with the
   switch and `WAYLAND_DISPLAY` set it serves `LinuxPortalCapture` inside `HiddenOverlayCapture`,
-  else `DeniedScreenCapture`. The shell registers the hotkey through `X11Keys`, or on a Wayland
+  behind a `TargetRouter` that sends a focus request to `LinuxWindowCapture` when the `ScreenCast`
+  portal offers a window source, else `DeniedScreenCapture`. The shell registers the hotkey through `X11Keys`, or on a Wayland
   session on a thread of its own through `LinuxKdeHotkey` where `kglobalaccel` runs, else
   `LinuxPortalHotkey`
   ([overlay runbook](../runbooks/body-overlay.md)).

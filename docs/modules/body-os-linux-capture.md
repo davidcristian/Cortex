@@ -1,8 +1,9 @@
 # body/crates/os_linux: screen capture (the Linux capture backends)
 
 **Purpose.** The `ScreenCapture` backends of the Linux crate: the X root window, the desktop
-portal's `Screenshot` call, the covered core of a window read through its `ScreenCast` calls, and
-the wrapper that keeps the overlay out of a picture that cannot leave it out. The crate's other
+portal's `Screenshot` call, a window read through its `ScreenCast` calls with the chooser opened
+at the overlay's hides, the router between the last two, and the wrapper that keeps the overlay out
+of a picture that cannot leave it out. The crate's other
 backends and its live tests are in [body-os-linux.md](body-os-linux.md), and what every platform
 crate shares is in [body-os.md](body-os.md).
 
@@ -142,18 +143,22 @@ decision 13).
   `XDG_SESSION_TYPE` describes the login, not the display: it read `tty` in the headless sway run
   that served the portal. There is no X11 fallback through Xwayland, since rootless Xwayland
   answers a root `GetImage` with `BadMatch`. It opens one session bus for notifications and the
-  portal, serves `LinuxPortalCapture` over `DbusPortal` inside `HiddenOverlayCapture`, and still
-  needs `CORTEX_HOST_CAPTURE=1`. A Wayland capture is refused while the overlay is open, which is
-  most of a turn, so it reads the screen when the user hides the overlay before the model asks.
-  A `ScreenCast` window source would leave the overlay out: `xdg-desktop-portal-wlr` 0.7.1 offers
-  none, and `xdg-desktop-portal-kde` 5.27.11 does, designed in [ADR-0073](../adr/ADR-0073-wayland-window-capture.md)
+  portals, and still needs `CORTEX_HOST_CAPTURE=1`. A display capture is `LinuxPortalCapture`
+  over `DbusPortal` inside `HiddenOverlayCapture`, refused while the overlay is open, which is most
+  of a turn, so it reads the screen when the user hides the overlay before the model asks.
+- **The shell asks `offers_window` once**, on a blocking task so that setup does not wait on the
+  bus. When the `ScreenCast` portal offers a window source, as `xdg-desktop-portal-kde` 5.27.11
+  does, it serves a `TargetRouter` that sends a focus request to the `LinuxWindowCapture` over
+  `DbusScreenCast` and `GstLaunch::new(GST_LAUNCH_PROGRAM, FRAME_LIMIT)`, watching the
+  `OverlayWatch` with `CHOOSER_LIMIT`, and a display request to the capture above. Otherwise, as
+  under `xdg-desktop-portal-wlr` 0.7.1, which offers none, it serves the display capture alone,
+  logging the error when the property could not be read
   ([wayland-screencast-portal](../readings/wayland-screencast-portal.md),
   [787](../refinements/tasks/787-read-a-wayland-window-through-the-screencast-portal.md)).
-- **`LinuxWindowCapture<P: ScreenCastPortal, R: FrameReader>`** is the covered core of the
-  Wayland window capture of [ADR-0073](../adr/ADR-0073-wayland-window-capture.md); no shell path
-  serves it yet
-  ([787](../refinements/tasks/787-read-a-wayland-window-through-the-screencast-portal.md)). It
-  answers a focus request; a display request is `Backend` before any call. It keeps the portal's
+- **`TargetRouter<F, D>`** sends a `CAPTURE_TARGET_FOCUS` request to `F` and a
+  `CAPTURE_TARGET_DISPLAY` request to `D`, and does nothing else.
+- **`LinuxWindowCapture<P: ScreenCastPortal, R: FrameReader>`** is the core of the Wayland window
+  capture of [ADR-0073](../adr/ADR-0073-wayland-window-capture.md). It answers a focus request; a display request is `Backend` before any call. It keeps the portal's
   last `restore_token` in a `Mutex<Option<String>>`, held for the whole capture, since a token
   starts one session only. With no token a focus capture makes no call, records that a choice is
   wanted (`choice_wanted`), and is `NoTarget` with the fixed `NO_WINDOW` message. With one it asks
@@ -168,8 +173,19 @@ decision 13).
   `Start` ends is `Backend` and keeps the token.
 - **`choose(limit)`** clears the wanted flag, opens a session with no token, so the portal shows
   its chooser, sends `Close` whatever the answer, and keeps the token only from a stream that has
-  one, returning whether it kept one. `offers_window` reads bit 2 (`WINDOW_SOURCE`) of
-  `AvailableSourceTypes`.
+  one, returning whether it kept one. Keeping one clears the flag again, since a focus capture
+  refused while the chooser was open wanted the window just kept. `offers_window` reads bit 2
+  (`WINDOW_SOURCE`) of `AvailableSourceTypes`.
+- **`watch_hides(signal, limit)`** wraps the capture in a `WatchedWindowCapture` and starts one
+  thread that waits on the `HideSignal` port, which `OverlayWatch` implements: `next_hide(seen,
+  stop)` returns the hide count once the overlay is hidden with a count other than `seen`, so hides
+  in quick succession are read as one, and a show after the hide waits for the next one. At each
+  such hide, while `choice_wanted` is set, the thread calls `choose(limit)`; the shell passes
+  `CHOOSER_LIMIT` (1 min). One thread opens one chooser at a time; a hide recorded while a chooser
+  is open is read when it closes, and opens another only if a capture wanted one since. A chooser
+  whose call failed keeps nothing, as a cancelled one does. Dropping the `WatchedWindowCapture`
+  sets `stop` and calls `wake`, so the thread ends once any open chooser has closed; it is not
+  joined, and a Rust process does not wait for its threads at exit.
 - **`GstLaunch`** is the `FrameReader` adapter. It starts the program (`GST_LAUNCH_PROGRAM`,
   `gst-launch-1.0` on `PATH`) with the pipeline of ADR-0073 decision 4 for the node, `LC_ALL=C`,
   the descriptor as standard input, and both output pipes read on threads of their own. It kills

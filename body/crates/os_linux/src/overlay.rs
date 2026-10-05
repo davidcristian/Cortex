@@ -1,9 +1,12 @@
 //! Keeps the overlay out of a capture whose picture cannot leave a window out, as on Wayland.
 
-use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Condvar, Mutex, MutexGuard, PoisonError};
 use std::time::{Duration, Instant};
 
 use body_core::{CaptureError, CaptureRequest, CapturedFrame, ScreenCapture};
+
+use crate::chooser::HideSignal;
 
 /// How long a capture stays refused after the overlay is hidden, so that a compositor's close
 /// animation has left the screen: about three times picom's default fade.
@@ -13,12 +16,14 @@ pub const OVERLAY_SETTLE: Duration = Duration::from_secs(1);
 #[derive(Debug, Default)]
 pub struct OverlayWatch {
     seen: Mutex<Seen>,
+    hidden: Condvar,
 }
 
 #[derive(Clone, Copy, Debug, Default)]
 struct Seen {
     shown: bool,
     shows: u64,
+    hides: u64,
     hidden_at: Option<Instant>,
 }
 
@@ -34,7 +39,9 @@ impl OverlayWatch {
     pub fn hidden(&self) {
         let mut seen = self.lock();
         seen.shown = false;
+        seen.hides = seen.hides.wrapping_add(1);
         seen.hidden_at = Some(Instant::now());
+        self.hidden.notify_all();
     }
 
     fn seen(&self) -> Seen {
@@ -43,6 +50,30 @@ impl OverlayWatch {
 
     fn lock(&self) -> MutexGuard<'_, Seen> {
         self.seen.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+}
+
+impl HideSignal for OverlayWatch {
+    fn next_hide(&self, seen: u64, stop: &AtomicBool) -> Option<u64> {
+        let mut state = self.lock();
+        loop {
+            if state.hides != seen && !state.shown {
+                return Some(state.hides);
+            }
+            if stop.load(Ordering::SeqCst) {
+                return None;
+            }
+            state = self
+                .hidden
+                .wait(state)
+                .unwrap_or_else(PoisonError::into_inner);
+        }
+    }
+
+    fn wake(&self) {
+        // Notified under the lock, so a waiter that read `stop` as unset is already waiting.
+        let _seen = self.lock();
+        self.hidden.notify_all();
     }
 }
 

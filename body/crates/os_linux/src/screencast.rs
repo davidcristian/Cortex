@@ -101,13 +101,13 @@ pub fn offers_window(portal: &dyn ScreenCastPortal) -> Result<bool, PortalError>
 
 /// The Linux capture of the window the user chose in the portal's chooser.
 pub struct LinuxWindowCapture<P, R> {
-    portal: P,
+    pub(crate) portal: P,
     reader: R,
-    grant: Grant,
+    pub(crate) grant: Grant,
 }
 
 /// The restore token the portal last gave, and whether a focus capture found none to use.
-struct Grant {
+pub(crate) struct Grant {
     token: Mutex<Option<String>>,
     wanted: AtomicBool,
 }
@@ -126,9 +126,9 @@ impl<P: ScreenCastPortal, R: FrameReader> LinuxWindowCapture<P, R> {
         }
     }
 
-    /// Whether a focus capture found no window chosen since the last [`Self::choose`].
+    /// Whether a focus capture found no window chosen, and no [`Self::choose`] has kept one since.
     pub fn choice_wanted(&self) -> bool {
-        self.grant.wanted.load(Ordering::SeqCst)
+        self.grant.wanted()
     }
 
     /// Opens the chooser with no token, waiting at most `limit`; returns whether a token was kept.
@@ -189,7 +189,7 @@ fn capture(
     Ok(CapturedFrame::window_only(decode_png(&bytes)?))
 }
 
-fn choose(
+pub(crate) fn choose(
     portal: &dyn ScreenCastPortal,
     grant: &Grant,
     limit: Duration,
@@ -205,10 +205,17 @@ fn choose(
         return Ok(false);
     };
     *lock(&grant.token) = Some(restore);
+    // A focus capture refused while the chooser was open wanted the window just kept.
+    grant.wanted.store(false, Ordering::SeqCst);
     Ok(true)
 }
 
 impl Grant {
+    /// Whether a focus capture found no token since the last chooser.
+    pub(crate) fn wanted(&self) -> bool {
+        self.wanted.load(Ordering::SeqCst)
+    }
+
     /// Records that a choice is wanted, and returns the error a focus capture answers then.
     fn want(&self) -> CaptureError {
         self.wanted.store(true, Ordering::SeqCst);
