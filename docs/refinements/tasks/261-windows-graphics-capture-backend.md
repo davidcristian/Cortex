@@ -3,7 +3,7 @@
 **Status:** open, optional feature
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-09-30
+**Verified:** 2026-10-05
 
 GDI renders hardware-overlay and DRM-protected surfaces black with no message, and no
 `CaptureError` distinguishes that from a genuinely dark screen. WGC also draws a yellow OS capture
@@ -13,11 +13,21 @@ staging copy, and a Windows 11 22H2 minimum to control the border. Two more cost
 [body-os.md](../../modules/body-os.md) and decision 9 of
 [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md): WGC needs a COM apartment, which GDI was
 picked partly to avoid, because two backends (`audio.rs`, `notify.rs`) already initialize COM on
-the body's blocking-pool threads without balancing it; and WGC keeps a persistent capture device,
+the body's blocking-pool threads without balancing it
+([224](224-unbalanced-com-initialization.md)); and WGC keeps a persistent capture device,
 where `off_worker` in `body/crates/rpc/src/server.rs` hands each capture to an arbitrary
 blocking-pool thread as an `FnOnce + Send + 'static` closure. One thing a change does not
 cost is the overlay's self-exclusion: `WDA_EXCLUDEFROMCAPTURE` is set at DWM level, so it applies
 to WGC exactly as to GDI. Behind the unchanged `ScreenCapture` trait either way.
+
+Two parts of the Wayland window capture ([ADR-0073](../../adr/ADR-0073-wayland-window-capture.md))
+bear on those costs. `CapturedFrame::window_only` in `body_core` reports one window read with no
+display around it, which a WGC capture item made for the focus window could return, where the GDI
+backend returns the display and a rectangle to crop. And `LinuxWindowCapture` in `os_linux` reads a
+frame stream behind the synchronous port: each `capture` starts one `ScreenCast` session, waits a
+bounded time for one frame, closes the session, and keeps only the portal's restore token between
+calls. Whether WGC can work the same way, with its device and frame pool made per capture, at an
+acceptable cost per call is not checked.
 
 ## History
 
@@ -40,3 +50,12 @@ to WGC exactly as to GDI. Behind the unchanged `ScreenCapture` trait either way.
   Windows file changed, and the X11 backend and its primary-monitor crop added on 2026-09-28 are
   Linux only. No blit has run yet: [H-012](../../host/tasks/012-display-capture-path.md) is still
   never attempted.
+- 2026-10-05: Checked against the tree and every claim holds. `audio.rs` and `notify.rs` still call
+  `CoInitializeEx` with no `CoUninitialize`, `off_worker` in `body/crates/rpc/src/server.rs` still
+  takes an `FnOnce + Send + 'static` closure to `spawn_blocking` for both of them and for every
+  capture, decision 9 of ADR-0029 and [body-os.md](../../modules/body-os.md) still give the same
+  reasons for GDI, and `CaptureError` still has no variant for a black surface. One Windows change
+  since the last check: on 2026-10-03 `os_windows` moved to the `windows` 0.61 crate the shell's
+  Tauri stack resolves, which changed call shapes in `screen.rs` and `focus.rs` and nothing they do,
+  so a WGC backend adds its features to that version. Added the two parts of the Wayland window
+  capture above, built since the last check.

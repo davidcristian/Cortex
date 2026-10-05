@@ -1,29 +1,33 @@
-# macOS and Linux OS backends
+# macOS OS backends
 
 **Status:** open, optional feature
 **Area:** cross-cutting
 **Origin:** none, this area is the old catch-all list and has no single origin decision record
-**Verified:** 2026-10-04
+**Verified:** 2026-10-05
 
-Real backends behind the existing OS traits where they are still `unimplemented!()` stubs. No
-Linux stub is left, and four macOS ports still are:
+Real macOS backends behind the four OS ports in `body_core`: `Hotkey`, `AudioControl`, `Notify`
+and `ScreenCapture`. The Linux half is done. `os_linux` has a real backend behind each port and no
+stub, and the shell serves or registers every one of them on X11 and on Wayland
+([body-os.md](../../modules/body-os.md)). What is left is macOS, in three parts:
 
-- **macOS `Hotkey`, `AudioControl` and `Notify`.** All three are stubs in `os_macos`, which has no
-  `cfg` attribute yet and compiles on every platform. A real macOS backend takes
-  `cfg(target_os = "macos")` as `os_windows` takes `cfg(windows)`, which also leaves it out of the
-  Linux coverage run.
-- **`ScreenCapture` on both** is [263](263-linux-and-macos-capture-backends.md).
+- **`MacosHotkey`, `MacosAudioControl` and `MacosNotify`**, which are `unimplemented!()` stubs in
+  `os_macos`.
+- **`MacosScreenCapture`**, also a stub, which is [263](263-linux-and-macos-capture-backends.md).
+- **The crate and the shell around them.** `os_macos` has no `cfg` attribute in its source or
+  manifest, so it compiles on every platform and the Linux coverage run measures it. A real backend
+  takes `cfg(target_os = "macos")` as `os_windows` takes `cfg(windows)` (ADR-0011 decision 3). The
+  shell does not depend on `os_macos`: off Windows and Linux, `body_server::start` and
+  `hotkey::register` only print that the platform has no backend, so a macOS backend also adds a
+  `cfg(target_os = "macos")` dependency table to the shell and both functions.
 
-Linux `Notify`, `AudioControl`, an X11 `ScreenCapture` and an X11 `Hotkey` are built. The shell's
-body server serves the first two, with every capture refused, and the shell registers the hotkey
-except on a Wayland session, which needs the portal
-([765](765-a-wayland-hotkey-through-the-globalshortcuts-portal.md)). How a Linux backend is
-structured so the 100% coverage rule holds, a covered core over a port of its own plus an adapter
-tested against a peer the test controls, is [ADR-0011](../../adr/ADR-0011-body-v1.md) decision 13,
-and every Linux backend follows it.
+How the 100% coverage rule holds for a Linux backend, a covered core over a port of its own plus an
+adapter tested against a peer the test controls, is [ADR-0011](../../adr/ADR-0011-body-v1.md)
+decision 13. Every CI job runs on Ubuntu. `os_windows` is clippied for its own target from Linux
+(decision 9); whether a macOS adapter can be type-checked the same way, for `aarch64-apple-darwin`,
+is not checked, and running one needs a Mac.
 
 This stays a refinement rather than moving to [docs/host/](../../host/index.md), which holds work
-needing a Win32 desktop session or a 24 GB GPU: a Linux or macOS backend needs neither.
+needing a Win32 desktop session or a 24 GB GPU: a macOS backend needs neither, only a Mac.
 
 ## History
 
@@ -65,3 +69,12 @@ needing a Win32 desktop session or a 24 GB GPU: a Linux or macOS backend needs n
   `os_macos` still has no `cfg(target_os)` in its source or manifest, so it compiles and is measured
   here. None of it can be built or checked on this Linux host. The X11 window target was built under
   [263](263-linux-and-macos-capture-backends.md), so no Linux capture part is left in either entry.
+- 2026-10-05: Checked again after the Wayland work, and narrowed to macOS. Two Linux claims were
+  wrong. The shell serves a capture when `CORTEX_HOST_CAPTURE=1`, `LinuxScreenCapture` on X11 and
+  `LinuxPortalCapture` on Wayland with a focus request sent to `LinuxWindowCapture`, rather than
+  refusing every capture. And on Wayland it registers the hotkey through `LinuxKdeHotkey` where
+  `kglobalaccel` runs, else `LinuxPortalHotkey`, so
+  [765](765-a-wayland-hotkey-through-the-globalshortcuts-portal.md) is done. The capture bullet named
+  both platforms, while 263 now holds only `MacosScreenCapture`. The shell wiring a macOS backend
+  also needs was never named and is added. A live test of the portal hotkey on a real backend is
+  [788](788-test-the-portal-hotkey-on-a-kde-wayland-session.md).

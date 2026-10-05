@@ -211,9 +211,9 @@ never a reading of what the tree does now.
 ### Optional feature, on request (4)
 
 - **[R-158](tasks/158-voice-as-picked-row.md)** The voice as a fourth pickable row (body-overlay). Its claim was checked against the code on 2026-09-30.
-- **[R-261](tasks/261-windows-graphics-capture-backend.md)** A `Windows.Graphics.Capture` backend (vision). Its claim was checked against the code on 2026-09-30.
+- **[R-261](tasks/261-windows-graphics-capture-backend.md)** A `Windows.Graphics.Capture` backend (vision). Its claim was checked against the code on 2026-10-05.
 - **[R-263](tasks/263-linux-and-macos-capture-backends.md)** Linux and macOS `ScreenCapture` backends (vision). Its claim was checked against the code on 2026-10-05.
-- **[R-271](tasks/271-macos-linux-os-backends.md)** macOS and Linux OS backends (cross-cutting). Its claim was checked against the code on 2026-10-04.
+- **[R-271](tasks/271-macos-linux-os-backends.md)** macOS OS backends (cross-cutting). Its claim was checked against the code on 2026-10-05.
 
 ### Blocked on hardware this repo is not developed on (1)
 
@@ -303,7 +303,7 @@ never a reading of what the tree does now.
 4 open of 24.
 
 - [R-270](tasks/270-pointer-input-injection.md) Pointer-input injection. declined 2026-07-16.
-- [R-271](tasks/271-macos-linux-os-backends.md) macOS and Linux OS backends. open, optional feature.
+- [R-271](tasks/271-macos-linux-os-backends.md) macOS OS backends. open, optional feature.
 - [R-272](tasks/272-more-subagent-roles.md) More subagent roles. done 2026-09-28.
 - [R-317](tasks/317-shipped-handler-drops-every-field.md) The shipped handler drops every structured field. done 2026-08-19.
 - [R-323](tasks/323-a-field-written-into-its-own-message-now-prints-twice.md) A field written into its own message now prints twice. done 2026-08-19.
