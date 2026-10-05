@@ -146,7 +146,8 @@ decision 13).
   portals, and still needs `CORTEX_HOST_CAPTURE=1`. A display capture is `LinuxPortalCapture`
   over `DbusPortal` inside `HiddenOverlayCapture`, refused while the overlay is open, which is most
   of a turn, so it reads the screen when the user hides the overlay before the model asks.
-- **The shell asks `offers_window` once**, on a blocking task so that setup does not wait on the
+- **The shell asks `offers_window` once**, in `serve_wayland` of
+  `body/app/src-tauri/src/body_server.rs`, on a blocking task so that setup does not wait on the
   bus. When the `ScreenCast` portal offers a window source, as `xdg-desktop-portal-kde` 5.27.11
   does, it serves a `TargetRouter` that sends a focus request to the `LinuxWindowCapture` over
   `DbusScreenCast` and `GstLaunch::new(GST_LAUNCH_PROGRAM, FRAME_LIMIT)`, watching the

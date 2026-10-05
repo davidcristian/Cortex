@@ -3,14 +3,16 @@
 **Status:** open, optional feature
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-10-04
+**Verified:** 2026-10-05
 
 `LinuxScreenCapture<X11Root>` in `os_linux` reads the primary RandR monitor of the X root window
 through `x11rb`, built and covered under [ADR-0011](../../adr/ADR-0011-body-v1.md) decision 13, and
 answers both targets. The shell serves it on an X11 session when `CORTEX_HOST_CAPTURE=1`, with the
 body's own windows painted black ([753](753-keep-the-overlay-out-of-a-linux-capture.md)); a Wayland
 session needs the desktop portal, which is
-[752](752-wayland-screen-capture-through-the-portal.md). One part remains here:
+[752](752-wayland-screen-capture-through-the-portal.md) for the display and
+[787](787-read-a-wayland-window-through-the-screencast-portal.md) for a window. One part remains
+here:
 
 - **macOS.** `MacosScreenCapture` is an `unimplemented!()` stub. `os_macos` takes
   `cfg(target_os = "macos")` first, since it compiles on every platform today. It cannot be built
@@ -72,3 +74,7 @@ resolved target rectangle.
   run from a userspace extraction, it got that client's 26 by 46 frame, title bar and 3 pixel border
   included; the live tests place windows at fixed points, so both capture tests expect no window
   manager.
+- 2026-10-05: Checked again. A Wayland focus capture now reads the window the user chose through
+  the `ScreenCast` portal, built and run live under
+  [787](787-read-a-wayland-window-through-the-screencast-portal.md), so the body names both Wayland
+  tasks. Only `MacosScreenCapture` remains, still a stub.

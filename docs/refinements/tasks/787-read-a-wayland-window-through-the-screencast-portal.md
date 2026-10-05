@@ -1,9 +1,8 @@
 # Read a Wayland window through the ScreenCast portal
 
-**Status:** open, optional feature
+**Status:** done 2026-10-05
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-10-05
 
 On a Wayland session the shell captures through the portal's `Screenshot`, whose picture is the
 whole output with no window list, so `HiddenOverlayCapture` refuses every capture while the overlay
@@ -24,14 +23,9 @@ next hide. The probes
 behind each step are in [wayland-screencast-portal](../../readings/wayland-screencast-portal.md),
 whose headless KWin stack the live test reuses.
 
-**What remains.** The live test and the runbook.
-
-1. **The live test.** `cargo test -p os-linux --test screencast_live -- --ignored` on the headless
-   KWin stack: a first focus capture refused with the message, a hide that opens the chooser, a
-   click, then a frame of that window alone with a covering window over it. The same run answers
-   the one open question: whether a chooser opened while a GTK window is hidden lists that window.
-2. **The runbook.** The vision runbook names the runtime packages of decision 4 and the model's
-   sentence for a window read alone.
+The live test, `screencast_live`, is described in
+[body-os-linux](../../modules/body-os-linux.md), and the vision runbook names the runtime packages
+and the model's sentence for a window read alone.
 
 ## History
 
@@ -74,3 +68,11 @@ whose headless KWin stack the live test reuses.
   sends focus to the window capture and display to the screenshot capture, and the shell serves it
   when `offers_window` is true. `just check-shell` passed on both targets. The task stays open for
   the steps above.
+- 2026-10-05: Added the `#[ignore]`d live test `screencast_live` and ran it on headless KWin. The
+  first focus capture was `NoTarget` with `NO_WINDOW`, the hide the test reported opened the
+  chooser, a click on the covered window's card answered it, and the next capture read that window
+  alone with another window over it. The test reports its own hide to `OverlayWatch`, so a GTK 3
+  window hidden just before stood in for the overlay: the chooser did not list it, and listed it in
+  a control run where it stayed shown, which ADR-0073 decision 2 now states. The frame also needed
+  `gstreamer1.0-plugins-base` for `videoconvert`, added to decision 4 and the vision runbook with
+  the other packages and the model's sentence. Closed.

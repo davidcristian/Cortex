@@ -24,16 +24,12 @@ Plus the model itself: `CORTEX_MODEL_FILE_CORTEX_MMPROJ` names the multimodal pr
 host loads beside the cortex tier. Without it the server reports no vision, the probe says no, and
 the tool is never advertised. **That variable was `CORTEX_MMPROJ_FILE_CORTEX` until 2026-08-30**,
 and an `.env` still setting the old name is not an error anywhere: the model host reads no
-projector, the cortex tier starts text-only, and `capture_screen` quietly leaves the
-advertisement. If vision disappeared after an update, this is the first line to check.
+projector, the cortex tier starts text-only, and `capture_screen` leaves the advertisement. If
+vision disappeared after an update, this is the first line to check.
 
 **Changing the projector needs no brain restart, in either direction.** Recreate the `model-host`
-service with the variable set or cleared and the next turn follows it. This is worth knowing
-because it used to be the opposite, and the failure was silent and expensive: measured 2026-08-06,
-with the answer taken once at startup, a recreate without a projector left the tool advertised,
-and the next "look at my screen" copied the display, showed the user the capture notification,
-tainted the turn, and then died on `image input is not supported`. To watch either direction
-happen:
+service with the variable set or cleared and the next turn follows it, since the probe below
+asks on every turn. To watch either direction happen:
 
 ```
 CORTEX_MODEL_FILE_CORTEX_MMPROJ= docker compose --project-directory . -f docker/docker-compose.yml \
@@ -79,13 +75,20 @@ being unresampled rather than being cropped, so a window wider than
 reads no better. The reply gives the size of what the picture shows, so the model's sentence says
 which of the two happened: "downscaled from the window's 2560x1600" or "at the window's own size".
 
-Two things to know about the focused window.
+Three things to know about the focused window.
 
 - It is **not** the foreground window. The user summons the overlay with the hotkey and types the
   question into it, so the overlay is the foreground window when a capture runs, and it hides
   itself from capture. The body walks the desktop's Z-order from the front instead and takes the
   first window that is visible, not minimized, not DWM-cloaked, not a tool window (the taskbar is
   one), not the shell's desktop, titled, not the body's own, and not excluded from capture.
+- On a **Wayland session** it is the window the user chose in the portal's chooser, in front or
+  not ([ADR-0073](../adr/ADR-0073-wayland-window-capture.md)). The first capture fails with "no
+  window is chosen to read", the chooser opens at the next hide, and the choice lasts until the
+  body restarts. The model reads "screen capture of one window, read on its own, so the display's
+  size is unknown". It needs a `ScreenCast` portal with a window source (KDE's, not wlr's),
+  PipeWire with WirePlumber, and on Ubuntu `gstreamer1.0-tools`, `gstreamer1.0-pipewire`,
+  `gstreamer1.0-plugins-base` and `gstreamer1.0-plugins-good`.
 - A bare desktop is an **error**, not a whole-screen capture. The body answers
   `FAILED_PRECONDITION`, which the brain reads as "the host is not in a state to capture the
   screen". Falling back to the display would send more of the screen than was asked for, and
@@ -143,9 +146,8 @@ over-reporting is the direction a privacy indicator should fail in.
 turning it on spends budget the placer was already charging and subagent headroom is unchanged. It
 is 8.6 GiB since 2026-08-07, measured with the projector loaded at the shipped 16K shape, where
 the tier peaks at 8573 MiB above the idle floor. An image costs 266 prompt tokens at any size from
-720p up when the budget is left to the model, and 1010 at the shipped
-`CORTEX_IMAGE_MAX_TOKENS=1024` with the shipped
-2048 px capture, for about 400 MiB more VRAM.
+720p up when the budget is left to the model, and 1010 at the shipped `CORTEX_IMAGE_MAX_TOKENS=1024`
+with the shipped 2048 px capture, for about 400 MiB more VRAM.
 
 **What a picture costs in time.** The cortex thinks before it answers, and on an open-ended
 question a picture makes that near-certain: measured 2026-08-03, 10 of 10 image runs of "what is
@@ -188,8 +190,6 @@ What this closes and where to record the results:
    to fail.
 
 ## What a capture does to the turn
-
-Every item below is deliberate and worth reading before the first one surprises you.
 
 - The turn becomes **tainted**, so every tool that needs approval (`send_email`,
   `escalate_to_brain`) is denied outright for the rest of it, with no confirmation offered. "Read

@@ -47,8 +47,9 @@ next focus capture asks again.
 - **A person does not fit a capture call.** The brain waits `CORTEX_BODY_CAPTURE_TIMEOUT_S` (10 s
   by default) and the portal call the same, and at that limit `Close` ends the dialog.
 - **The overlay must not be choosable.** While it is shown the chooser lists it, and a stream of
-  the overlay is the picture decision 10 forbids. A hidden GTK window is unmapped, so a chooser
-  opened after a hide is assumed not to list it (not run).
+  the overlay is the picture decision 10 forbids. A hidden GTK window is unmapped: on headless
+  KWin a chooser opened after a GTK 3 window was hidden did not list it, and one opened while it
+  was shown did.
 - **A token whose window has closed** opens the chooser inside the capture call. A restored
   session's `Start` therefore waits only `RESTORE_LIMIT` (2 s; a restored `Start` answered at once
   in the probe), then sends `Close`, forgets the token and fails as `NoTarget` as above.
@@ -93,7 +94,8 @@ first and from a restored session.
 - **A client of PipeWire's native protocol** written in the crate would be a protocol
   implementation, buffers passed by descriptor included, kept up to date by this repo.
 - The runtime needs `gst-launch-1.0` with the `pipewiresrc`, `videoconvert` and `pngenc` elements
-  (`gstreamer1.0-tools`, `gstreamer1.0-pipewire`, `gstreamer1.0-plugins-good` on Ubuntu) and a
+  (`gstreamer1.0-tools`, `gstreamer1.0-pipewire`, `gstreamer1.0-plugins-base` and
+  `gstreamer1.0-plugins-good` on Ubuntu, the last two holding `videoconvert` and `pngenc`) and a
   session manager such as WirePlumber, without which the stream never started.
 
 ### 5. Body core has a frame for a window read alone

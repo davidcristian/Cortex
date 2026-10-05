@@ -124,3 +124,35 @@ pressed Enter 2.5 s after each chooser opened.
   `/org/freedesktop/portal/desktop/session/1_20/cortexcast1`, and each `Response` came from the
   unique name owning `org.freedesktop.portal.Desktop`, the only sender the adapter reads.
 - **The restored session started with no dialog** and no input, within `RESTORE_LIMIT`.
+
+## The live test on headless KWin
+
+**2026-10-05**, `cargo test -p os-linux --test screencast_live -- --ignored --nocapture` on the
+same KWin stack, with `gst-launch-1.0` and its plugins on `PATH`. Before the test started, the red
+window was open, the blue window was moved over its middle and made active, and a GTK 3.24.41
+window titled `cortex overlay`, opened from Python with `GDK_BACKEND=wayland`, was hidden with
+`hide` 2 s after it was shown. The test reports its own hide to `OverlayWatch`, so the overlay's
+hide in the shell is stood in for by that GTK window's. KWin's `ScreenShot2.CaptureWorkspace` read
+the screen 4 s after the test started, while the chooser was open.
+
+| Run | The GTK window | The chooser listed | Input | The test |
+| --- | --- | --- | --- | --- |
+| 1 | hidden | the red and blue windows | Escape | stopped after the screen was read |
+| 2, a control | shown | the red, blue and `cortex overlay` windows | Escape | stopped after the screen was read |
+| 3 | hidden | not kept | a click on the red card, then Enter | passed |
+| 4, through `cargo test` | hidden | not kept | a click on the red card, then Enter | passed |
+| 5 | hidden | the red and blue windows | Escape, then Enter | failed at `CHOOSER_LIMIT` |
+
+- **Both passing runs** read a 400 by 300 frame whose centre pixel was 204, 51, 51 while the blue
+  window covered that point. 119,744 of its 120,000 pixels had that colour, and the other 256 are
+  as many as the green 16 by 16 square has. The encoded capture was not the display and had a zero
+  source size.
+- **The first focus capture** was `NoTarget` with `NO_WINDOW` in every run.
+- **A hidden GTK window is not listed**: the chooser listed `cortex overlay` while it was shown and
+  did not once it was hidden, answering the question
+  [ADR-0073](../adr/ADR-0073-wayland-window-capture.md) decision 2 left open.
+- **The cancelled chooser** kept no token, so every later capture was `NoTarget` until the test's
+  deadline, which is how the test fails.
+- **The packages the frame needed**, from the Ubuntu 24.04 archive: `gstreamer1.0-tools` for
+  `gst-launch-1.0`, `gstreamer1.0-pipewire` for `pipewiresrc`, `gstreamer1.0-plugins-base` for
+  `videoconvert`, `gstreamer1.0-plugins-good` for `pngenc`, `pipewire` and `wireplumber`.

@@ -122,5 +122,9 @@ decision 13).
 - `cargo test -p os-linux --test portal_live -- --ignored --nocapture` runs the portal's live test
   on a session bus whose portal serves `Screenshot`: two display captures of the same size, and
   each file the backend read gone afterwards; `--test accel_live` waits on a KDE session bus for a
-  tap, a hold and a tap of `ctrl+alt+space`, which must run the callback three times. Both are
-  outside `just os-linux-live`, which needs an X server.
+  tap, a hold and a tap of `ctrl+alt+space`, which must run the callback three times; and
+  `--test screencast_live` needs a `ScreenCast` portal with a window source and `gst-launch-1.0`
+  on `PATH`. Its first focus capture must be `NoTarget` with `NO_WINDOW`, the hide it then reports
+  opens the chooser, and once a person picks a window, a later capture must be that window read
+  alone, with no display size. All three are outside `just os-linux-live`, which needs an X server
+  ([wayland-screencast-portal](../readings/wayland-screencast-portal.md) has the headless KWin run).
