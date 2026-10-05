@@ -217,8 +217,8 @@ never a reading of what the tree does now.
 - **[R-261](tasks/261-windows-graphics-capture-backend.md)** A `Windows.Graphics.Capture` backend (vision). Its claim was checked against the code on 2026-09-30.
 - **[R-263](tasks/263-linux-and-macos-capture-backends.md)** Linux and macOS `ScreenCapture` backends (vision). Its claim was checked against the code on 2026-10-04.
 - **[R-271](tasks/271-macos-linux-os-backends.md)** macOS and Linux OS backends (cross-cutting). Its claim was checked against the code on 2026-10-04.
-- **[R-787](tasks/787-read-a-wayland-window-through-the-screencast-portal.md)** Read a Wayland window through the ScreenCast portal (vision). Its claim was checked against the code on 2026-10-04.
-- **[R-788](tasks/788-test-the-portal-hotkey-on-a-kde-wayland-session.md)** Test the portal hotkey on a KDE Wayland session (cross-cutting). Its claim was checked against the code on 2026-10-04.
+- **[R-787](tasks/787-read-a-wayland-window-through-the-screencast-portal.md)** Read a Wayland window through the ScreenCast portal (vision). Its claim was checked against the code on 2026-10-05.
+- **[R-788](tasks/788-test-the-portal-hotkey-on-a-kde-wayland-session.md)** Test the portal hotkey on a KDE Wayland session (cross-cutting). Its claim was checked against the code on 2026-10-05.
 
 ### Blocked on hardware this repo is not developed on (1)
 

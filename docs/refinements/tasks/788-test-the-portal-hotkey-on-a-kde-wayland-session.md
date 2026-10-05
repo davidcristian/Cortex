@@ -3,7 +3,7 @@
 **Status:** open, optional feature
 **Area:** cross-cutting
 **Origin:** [ADR-0011](../../adr/ADR-0011-body-v1.md)
-**Verified:** 2026-10-04
+**Verified:** 2026-10-05
 
 The shell registers the hotkey on a Wayland session through `LinuxPortalHotkey` over
 `DbusShortcuts` ([body-os-linux](../../modules/body-os-linux.md)), and both are tested only
@@ -21,3 +21,8 @@ a headless session cannot answer, which decides whether the test can run unatten
 
 - 2026-10-04: Filed when the portal backend and its shell wiring were built under
   [765](765-a-wayland-hotkey-through-the-globalshortcuts-portal.md).
+- 2026-10-05: The KDE stack runs here without sudo. `kwin_wayland --virtual` 5.27.11 and
+  `xdg-desktop-portal-kde` 5.27.11 ran from a userspace prefix on a private bus, and the backend
+  exported `GlobalShortcuts` at `version` 1
+  ([wayland-screencast-portal](../../readings/wayland-screencast-portal.md)). KWin ran with
+  `--no-global-shortcuts` and no `kglobalaccel` was started, so no bind was tried.
