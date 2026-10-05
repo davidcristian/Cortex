@@ -20,26 +20,28 @@ across calls. A monitor source does not help, since it is the whole output, over
 ([wayland-screencast-portal](../../readings/wayland-screencast-portal.md)). `xdg-desktop-portal-wlr`
 0.7.1 on sway 1.9 does not: its `AvailableSourceTypes` is 1, monitor only, and sway 1.9 lists no
 protocol that copies one window's buffer. So on sway the overlay refusal stays. This distribution's
-`xdg-desktop-portal-kde` 5.27.11 does (3), and it runs from a userspace prefix on a headless
-`kwin_wayland --virtual`, where a window session reaches the chooser dialog and waits there.
-GNOME's backend was not read.
+`xdg-desktop-portal-kde` 5.27.11 does (3). On a headless `kwin_wayland --virtual` run from a
+userspace prefix, a window session gave one frame of the picked window alone: a window opened over
+it and made active left no pixel in the frame. After one choice in the dialog, a second session
+given the `restore_token` started with no dialog. The 5.27.11 chooser does not select a lone window
+by itself, so the first choice always takes a click. GNOME's backend was not read.
 
-**The next step is a probe on that KWin stack, before any body code.** It needs a way past the
-chooser that needs no person: input into the dialog through `org_kde_kwin_fake_input`, which
-KWin is assumed to offer any client while its permission checks are off, or a restore token from one
-such choice. It needs a window to pick, such as a `qmlscene` window, and a consumer that reads one
-frame from the stream's PipeWire node through the descriptor `OpenPipeWireRemote` returns, such as
-GStreamer's `pipewiresrc`, which the prefix does not have yet. The probe decides whether a window
-frame arrives at all, and whether a second `Start` with the restore token skips the dialog, which an
-unattended capture needs.
+**The next step is the design, in the origin ADR, before any body code.** Three decisions:
 
-**What the body would need after it.** A PipeWire client in `os_linux`, a new crate dependency
-that also changes the Tauri shell's lock file; a store for the restore token; and a frame kind of
-its own in body core. `ScreenCapture::capture` fits as it is, but `CapturedFrame::window` places a
-window inside a display frame, and `covers_display()` would read a frame that is the window alone
-as the whole display, so the receipt and the model would both say display. The window would be the
-one the user picked, not the topmost one that decision 16 of the origin ADR defines as focus, so
-that decision changes with it.
+- **The target.** On a Wayland session the focus target would be the window the user picked once
+  and the restore token keeps, not the topmost window that decision 16 defines. The first capture
+  opens the chooser, which a person must answer, so the decision says whether that call waits
+  within the brain's capture deadline or fails at once and asks the user to pick, and where the
+  body stores the token.
+- **The PipeWire client.** The `pipewire` crate binds `libpipewire-0.3` at build time (assumed from
+  the crate, not built here), which would add its headers to every `os_linux` build and change the
+  Tauri shell's lock file. The alternatives are GStreamer's `pipewiresrc`, which the probe used, or
+  a client of PipeWire's native protocol written in the crate. A live test also needs a session
+  manager such as WirePlumber running, since without one the stream never reached `streaming`.
+- **The frame.** `ScreenCapture::capture` fits as it is, but `CapturedFrame::window` places a
+  window inside a display frame, and `covers_display()` would read a frame that is the window alone
+  as the whole display, so the receipt and the model would both say display. Body core needs a
+  frame kind of its own for it.
 
 ## History
 
@@ -47,5 +49,6 @@ that decision changes with it.
   [752](752-wayland-screen-capture-through-the-portal.md) with the overlay refusal.
 - 2026-10-05: Read the property on two backends. The wlr backend on sway offers monitor sources
   only (1), with cursor modes 3 and interface version 4 under a frontend at 5; the KDE backend
-  offers monitor and window (3), with cursor modes 7, and ran headless under KWin. That answer
-  closes the sway path the premise asked about; the task stays open for the probe on KWin.
+  offers monitor and window (3), with cursor modes 7. On headless KWin a window session, answered
+  by injected input, gave a frame without the window covering it, and its restore token skipped
+  the dialog the second time. The task stays open for the design above.

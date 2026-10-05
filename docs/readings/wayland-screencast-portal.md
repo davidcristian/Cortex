@@ -1,7 +1,7 @@
 # Readings: the ScreenCast portal's window source
 
 Which of this distribution's `org.freedesktop.portal.ScreenCast` backends offer a window source,
-and how far a window session gets on a headless desktop. Cited by
+and what a window session gives on a headless desktop. Cited by
 [787](../refinements/tasks/787-read-a-wayland-window-through-the-screencast-portal.md), the task
 for a Wayland capture while the overlay is open.
 
@@ -16,7 +16,9 @@ for a Wayland capture while the overlay is open.
 - **KWin**: `kwin_wayland` 5.27.11 with `--virtual`, rendering through Mesa's llvmpipe, then
   `xdg-desktop-portal-kde` 5.27.11 with `qtwayland5` and the QML modules its window chooser
   imports, from `plasma-workspace` 5.27.12, `plasma-framework` and `qml-module-org-kde-pipewire`.
-  `XDG_CURRENT_DESKTOP` was `KDE` and the portal file directory held `kde.portal`.
+  `XDG_CURRENT_DESKTOP` was `KDE` and the portal file directory held `kde.portal`. For the frame,
+  also `wireplumber` 0.4.17, `qmlscene` 5.15.13, and GStreamer 1.24.2 with `gstreamer1.0-pipewire`
+  1.0.5.
 
 `gdbus call` read `org.freedesktop.DBus.Properties.GetAll` on the frontend's
 `org.freedesktop.portal.ScreenCast` and on the backend's `org.freedesktop.impl.portal.ScreenCast`.
@@ -49,7 +51,9 @@ and 4 metadata. The frontend reported each backend's two masks unchanged.
 | --- | --- | --- | --- |
 | backend run from the prefix | 2 | `AccessDenied`, invalid session | not called |
 | `KWIN_WAYLAND_NO_PERMISSION_CHECKS=1`, chooser modules missing | 0 | 0 | 1 at once |
-| the same, with the chooser modules | 0 | 0 | no `Response` in 12 s |
+| the same, with the chooser modules, nobody choosing | 0 | 0 | no `Response` in 12 s |
+| the same, a click on the window's card, then Enter | 0 | 0 | 0, one stream, `source_type` 2 |
+| a second session given the first one's `restore_token`, no input | 0 | 0 | 0 at once, no dialog |
 
 - **From the prefix** the backend logged `zkde_screencast_unstable_v1 does not seem to be
   available`. KWin offers that protocol only to a client whose executable a desktop file names
@@ -59,8 +63,23 @@ and 4 metadata. The frontend reported each backend's two masks unchanged.
   need no variable; that was not run.
 - **Without** `org.kde.taskmanager` and `org.kde.plasma.workspace.dialogs`, the backend logged
   "Failed to load dialog, cannot exec" and answered 1, cancelled.
-- **With them** the chooser loaded and `Start` waited for a choice nobody made. The session had no
-  other window, so no window frame was read.
+- **The chooser** listed the one other window, a 400 by 300 `qmlscene` window filled with
+  `#cc3333`, and did not select it: the dialog's code to select a lone window raised `TypeError:
+  Cannot call method 'index' of null` at line 141 of `ScreenChooserDialog.qml`. A script loaded
+  through KWin's `org.kde.kwin.Scripting` read the dialog's place, and a minimal Wayland client
+  sent the click and the key through `org_kde_kwin_fake_input` version 4. Escape alone answered 1.
+- **The answer** held one stream, a PipeWire node id with `source_type` 2, and a `restore_token`.
+  The second session's `Start` returned the same token and a new node id.
+- **The frame.** After the choice a second `qmlscene` window, 200 by 150 in `#3333cc`, was opened,
+  moved by a KWin script over the middle of the first and made the active window. GStreamer's
+  `pipewiresrc` then read one buffer from the first stream's node through the descriptor
+  `OpenPipeWireRemote` returned. It was 400 by 300, the window's content without its title bar;
+  every pixel was 204, 51, 51 except the 256 of a green 16 by 16 square turning in its corner, and
+  none had the covering window's colour.
+- **A session manager is needed.** With only the PipeWire daemon, `pipewiresrc` stayed in the
+  `paused` state and read nothing; with `wireplumber` 0.4.17 also running, the stream reached
+  `streaming` and gave the buffer.
 
-Method: a scratch directory outside the repo held both prefixes, one shell script per stack that
-starts it on a private session bus, and the Python client.
+Method: a scratch directory outside the repo held the prefixes, one shell script per stack that
+starts it on a private session bus, the KWin scripts, the fake input client and the Python `Gio`
+client, which ran the two sessions and the `gst-launch-1.0` read.

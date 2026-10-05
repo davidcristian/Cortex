@@ -157,8 +157,9 @@ decision 13).
   portal, serves `LinuxPortalCapture` over `DbusPortal` inside `HiddenOverlayCapture`, and still
   needs `CORTEX_HOST_CAPTURE=1`. A Wayland capture is refused while the overlay is open, which is
   most of a turn, so it reads the screen when the user hides the overlay before the model asks.
-  A `ScreenCast` window source would leave the overlay out, but `xdg-desktop-portal-wlr` 0.7.1
-  offers none ([wayland-screencast-portal](../readings/wayland-screencast-portal.md),
+  A `ScreenCast` window source would leave the overlay out: `xdg-desktop-portal-wlr` 0.7.1 offers
+  none, and `xdg-desktop-portal-kde` 5.27.11 does
+  ([wayland-screencast-portal](../readings/wayland-screencast-portal.md),
   [787](../refinements/tasks/787-read-a-wayland-window-through-the-screencast-portal.md)).
 - **`LinuxHotkey`** resolves a chord to the X keysym of its `KeyboardEvent.code` (`keysym`: a
   letter is its lower-case keysym, `F1` to `F35` are `ffbe` to `ffe0`, the named keys are their
