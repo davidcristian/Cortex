@@ -11,7 +11,6 @@ use crate::portal::PortalError;
 use crate::portal_dbus::RESPONSE_LIMIT;
 use crate::request::{Answer, DESTINATION, PATH, Pending, Results, answered, before, close};
 use crate::screencast::{CastSession, ScreenCastPortal, Started, WINDOW_SOURCE, WindowStream};
-use crate::shortcuts_dbus::owner;
 
 const SCREENCAST: &str = "org.freedesktop.portal.ScreenCast";
 const SESSION: &str = "org.freedesktop.portal.Session";
@@ -34,7 +33,6 @@ pub struct DbusScreenCast {
 /// The handles one session's calls use, under this connection's part of the handle paths.
 struct Handles {
     session: OwnedObjectPath,
-    owner: String,
     base: String,
     token: String,
 }
@@ -84,11 +82,8 @@ impl DbusScreenCast {
             .ok_or_else(|| PortalError(String::from("the connection has no unique bus name")))?;
         let session = OwnedObjectPath::try_from(format!("{PATH}/session/{base}/{token}"))
             .map_err(|error| PortalError::from(zbus::Error::from(error)))?;
-        let owner = owner(connection, DESTINATION)
-            .ok_or_else(|| PortalError(format!("the bus names no owner of {DESTINATION}")))?;
         Ok(Handles {
             session,
-            owner,
             base,
             token,
         })
@@ -156,7 +151,7 @@ fn open(
     ]);
     let body = (&options,);
     let reply = screencast(connection, "CreateSession", &body);
-    let (code, _) = wait(connection, handles, &handle, deadline, reply)??;
+    let (code, _) = wait(connection, &handle, deadline, reply)??;
     succeeded("CreateSession", code)?;
     let (handle, token) = handles.request("select");
     let mut options = HashMap::from([
@@ -171,13 +166,13 @@ fn open(
     }
     let body = (session, &options);
     let reply = screencast(connection, "SelectSources", &body);
-    let (code, _) = wait(connection, handles, &handle, deadline, reply)??;
+    let (code, _) = wait(connection, &handle, deadline, reply)??;
     succeeded("SelectSources", code)?;
     let (handle, token) = handles.request("start");
     let options = HashMap::from([("handle_token", Value::from(token.as_str()))]);
     let body = (session, "", &options);
     let reply = screencast(connection, "Start", &body);
-    let Ok((code, results)) = wait(connection, handles, &handle, deadline, reply)? else {
+    let Ok((code, results)) = wait(connection, &handle, deadline, reply)? else {
         return Ok(Started::Expired);
     };
     if code != 0 {
@@ -227,16 +222,15 @@ where
     ))
 }
 
-/// Waits until `deadline` for the `Response` on `handle` that the portal's owner sends.
+/// Waits until `deadline` for the `Response` on `handle` that the portal sends.
 fn wait(
     connection: &Connection,
-    handles: &Handles,
     handle: &str,
     deadline: Instant,
     reply: Pending<'_>,
 ) -> Result<Answer, PortalError> {
     let limit = deadline.saturating_duration_since(Instant::now());
-    answered(connection, Some(&handles.owner), handle, limit, reply)
+    answered(connection, handle, limit, reply)
 }
 
 /// Refuses a response code other than 0 to a call before `Start`.

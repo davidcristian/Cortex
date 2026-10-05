@@ -72,9 +72,6 @@ whose headless KWin stack the live test reuses.
   in place of the program. The shell reads no new setting: the program is a constant, as `pactl`
   is. The task stays open for the steps above.
 - 2026-10-05: Built `DbusScreenCast`, the `ScreenCastPortal` adapter, over the request module,
-  which now takes the portal owner's unique name and reads only its `Response`, tested against a
-  fake portal over a socket pair. Filed
-  [792](792-read-only-the-portal-owner-response-in-every-adapter.md) for the same filter in the
-  Screenshot and shortcuts adapters. On headless KWin, with the chooser answered by injected
+  tested against a fake portal over a socket pair. On headless KWin, with the chooser answered by injected
   input, `start` returned node and descriptor, `choose` kept a token, and a focus capture through
   `GstLaunch` read the window alone. The task stays open for the steps above.

@@ -101,6 +101,15 @@ decision 13).
   since no `Response` would come on it, and a `uri` that is not a string counts as none. It reads
   and removes the file with `std::fs`. The host opens the session bus as for notifications, and
   `DbusPortal::absent(&error)` fails each portal call with the error's text.
+- **The request module reads only the `Response` the replying portal sent.** Any process on the
+  session bus can send a `Response` on a handle, and a forged `uri` would make the backend read and
+  remove a file of the sender's choosing. The bus sends the call to the owner of
+  `org.freedesktop.portal.Desktop` and passes a reply only from that connection, so the module
+  reads only a `Response` whose sender is the method reply's, and fails a reply with no sender.
+  It asks the bus for no owner first: the call itself starts a portal that is not running yet,
+  which a `GetNameOwner` before the call would find with none. The `uri`'s directory is not
+  checked, since the frontend passes on whatever path the backend wrote, and the wlr backend
+  writes `/tmp/out.png` ([wayland-screenshot-portal](../readings/wayland-screenshot-portal.md)).
 - **The wait for the method reply and then the `Response` ends at one limit**, counted from the
   call: `RESPONSE_LIMIT` (10 s) for `DbusPortal::new`, or the `limit` given to
   `DbusPortal::with_limit`. `Connection::session()` sets no method timeout, so the reply is raced
@@ -171,11 +180,8 @@ decision 13).
 - **`DbusScreenCast`** is the `ScreenCastPortal` adapter, over the request module `DbusPortal` uses.
   `start` builds the session handle `/org/freedesktop/portal/desktop/session/<sender>/cortexcast<n>`
   and a request token per call (`cortexcast<n>_create`, `_select`, `_start`), a prefix of its own
-  because `DbusShortcuts` numbers `cortex<n>` tokens and may share the connection. It asks the bus
-  which unique name owns `org.freedesktop.portal.Desktop` and reads only a `Response` that name
-  sent, since any process on the bus can send one on a handle; the other two adapters do not yet
-  ([792](../refinements/tasks/792-read-only-the-portal-owner-response-in-every-adapter.md)).
-  It calls `CreateSession`, `SelectSources` with `types` 2, `multiple` false, `cursor_mode` 1,
+  because `DbusShortcuts` numbers `cortex<n>` tokens and may share the connection. It calls
+  `CreateSession`, `SelectSources` with `types` 2, `multiple` false, `cursor_mode` 1,
   `persist_mode` 1 and the `restore_token` when one is given, `Start` with no parent window, and
   `OpenPipeWireRemote`, whose reply is the descriptor; `zbus` passes descriptors over its Unix
   socket with no added feature. One deadline, `limit` after the start, bounds every reply and

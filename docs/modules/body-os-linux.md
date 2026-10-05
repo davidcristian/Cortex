@@ -79,8 +79,9 @@ decision 13).
   `Deactivated` or loses one. It is above `kwin_wayland`'s default 600 ms repeat delay; a longer
   delay runs a held chord again at its first repeat.
 - **`DbusShortcuts`** makes those calls through the same request module as `DbusPortal`: the
-  `Response` match before the call, the returned handle checked, and the reply and the `Response`
-  waited for under one limit, `SHORTCUTS_LIMIT` (1 min), since a compositor may first ask the user
+  `Response` match before the call, the returned handle checked, only a `Response` from the
+  connection that sent the method reply read, and the reply and the `Response` waited for under
+  one limit, `SHORTCUTS_LIMIT` (1 min), since a compositor may first ask the user
   to confirm or change the trigger. It subscribes to every `GlobalShortcuts` signal on the
   portal's path when it is built, so a press between a bind and the first read is kept and a
   `Deactivated` is never read before its `Activated`, and skips any other signal, such as

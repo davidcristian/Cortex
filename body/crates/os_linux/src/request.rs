@@ -8,6 +8,7 @@ use async_io::Timer;
 use futures_lite::{StreamExt, future};
 use zbus::blocking::{Connection, MessageIterator};
 use zbus::message::{Flags, Type};
+use zbus::names::UniqueName;
 use zbus::zvariant::{OwnedObjectPath, OwnedValue};
 use zbus::{MatchRule, Message};
 
@@ -27,21 +28,19 @@ pub type Pending<'a> = Pin<Box<dyn Future<Output = zbus::Result<Message>> + 'a>>
 pub type Answer = Result<(u32, Results), PortalError>;
 
 /// Subscribes to `Response` on `handle`, sends `call`, and waits at most `limit` in all for the
-/// method reply and then the response.
+/// method reply and then the response the replying portal sends.
 pub fn request(
     connection: &Connection,
     handle: &str,
     limit: Duration,
     call: Pending<'_>,
 ) -> Result<(u32, Results), PortalError> {
-    answered(connection, None, handle, limit, call)?
+    answered(connection, handle, limit, call)?
 }
 
-/// As [`request`], reading only a `Response` that `owner` sent when it is given; the outer error
-/// is a failed call and the inner one a limit that passed.
+/// As [`request`]; the outer error is a failed call and the inner one a limit that passed.
 pub fn answered(
     connection: &Connection,
-    owner: Option<&str>,
     handle: &str,
     limit: Duration,
     call: Pending<'_>,
@@ -53,10 +52,6 @@ pub fn answered(
         .interface(REQUEST)
         .and_then(|rule| rule.member("Response"))
         .and_then(|rule| rule.path(handle))
-        .and_then(|rule| match owner {
-            Some(owner) => rule.sender(owner),
-            None => Ok(rule),
-        })
         .and_then(|rule| MessageIterator::for_match_rule(rule.build(), connection, None))
         .map(MessageIterator::into_inner)
         .map_err(PortalError::from)?;
@@ -69,8 +64,22 @@ pub fn answered(
             "the portal answered on {returned}, not on {handle}"
         )));
     }
-    let closed = zbus::Error::Failure(String::from("the bus closed before the response"));
-    let response = Box::pin(async { responses.next().await.unwrap_or(Err(closed)) });
+    // Any process on the bus can send a `Response` on the handle. The bus routes the call to the
+    // portal and passes only that connection's reply, so only the replier's `Response` is read.
+    let portal = reply
+        .header()
+        .sender()
+        .map(UniqueName::to_owned)
+        .ok_or_else(|| PortalError(String::from("the portal's method reply names no sender")))?;
+    let response = Box::pin(async move {
+        loop {
+            let closed = zbus::Error::Failure(String::from("the bus closed before the response"));
+            let message = responses.next().await.unwrap_or(Err(closed))?;
+            if message.header().sender() == Some(&portal) {
+                return Ok(message);
+            }
+        }
+    });
     let Some(message) = before(deadline, response)? else {
         return Ok(Err(expired(connection, handle, "response", limit)));
     };

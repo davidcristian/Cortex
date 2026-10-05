@@ -229,22 +229,6 @@ impl FakeCast {
     }
 }
 
-/// A fake bus that names the portal's owner, or names none.
-struct FakeBus {
-    owner: bool,
-}
-
-#[interface(name = "org.freedesktop.DBus")]
-impl FakeBus {
-    fn get_name_owner(&self, name: String) -> fdo::Result<String> {
-        if self.owner {
-            Ok(String::from(PORTAL))
-        } else {
-            Err(fdo::Error::NameHasNoOwner(name))
-        }
-    }
-}
-
 /// A portal session object that writes down the path of every `Close` call it is sent.
 struct FakeSession {
     calls: Calls,
@@ -266,7 +250,7 @@ struct Fake {
     peers: Arc<Mutex<Vec<UnixStream>>>,
 }
 
-fn serve(faults: Vec<(Step, Fault)>, name: Option<&str>, owner: bool) -> Fake {
+fn serve(faults: Vec<(Step, Fault)>, name: Option<&str>) -> Fake {
     let calls = Arc::new(Mutex::new(Vec::new()));
     let peers = Arc::new(Mutex::new(Vec::new()));
     let cast = FakeCast {
@@ -282,7 +266,6 @@ fn serve(faults: Vec<(Step, Fault)>, name: Option<&str>, owner: bool) -> Fake {
         Builder::async_io_unix_stream(server_end)
             .server(Guid::generate())
             .and_then(|builder| builder.p2p().serve_at(PATH, cast))
-            .and_then(|builder| builder.serve_at("/org/freedesktop/DBus", FakeBus { owner }))
             .and_then(|builder| builder.serve_at(SESSION, session))
             .and_then(Builder::build)
     });
@@ -301,7 +284,7 @@ fn serve(faults: Vec<(Step, Fault)>, name: Option<&str>, owner: bool) -> Fake {
 }
 
 fn working(fault: Option<(Step, Fault)>) -> (DbusScreenCast, Fake) {
-    let fake = serve(fault.into_iter().collect(), Some(SENDER), true);
+    let fake = serve(fault.into_iter().collect(), Some(SENDER));
     (DbusScreenCast::with_limit(fake.client.clone(), SHORT), fake)
 }
 
@@ -461,7 +444,7 @@ fn one_limit_bounds_every_call_of_a_session_together() {
         (Step::Create, Fault::Late(delay)),
         (Step::Start, Fault::Silent),
     ];
-    let fake = serve(faults, Some(SENDER), true);
+    let fake = serve(faults, Some(SENDER));
     let portal = DbusScreenCast::new(fake.client.clone());
     let started = Instant::now();
 
@@ -473,14 +456,13 @@ fn one_limit_bounds_every_call_of_a_session_together() {
 }
 
 #[test]
-fn a_bus_with_no_portal_owner_or_a_nameless_connection_fails_before_any_call() {
+fn a_nameless_connection_fails_before_any_call() {
     let cases = [
-        (Some(SENDER), false, "the bus names no owner"),
-        (None, true, "no unique bus name"),
-        (Some(":1-6.16"), true, "Invalid object path"),
+        (None, "no unique bus name"),
+        (Some(":1-6.16"), "Invalid object path"),
     ];
-    for (name, owner, message) in cases {
-        let fake = serve(Vec::new(), name, owner);
+    for (name, message) in cases {
+        let fake = serve(Vec::new(), name);
         let portal = DbusScreenCast::new(fake.client.clone());
 
         let error = portal.start(None, LIMIT).unwrap_err();

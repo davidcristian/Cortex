@@ -23,6 +23,7 @@ const SENDER: &str = ":1.16";
 /// The unique name of the fake portal, which signs every signal it sends.
 const PORTAL: &str = ":1.7";
 const SHORTCUTS: &str = "org.freedesktop.portal.GlobalShortcuts";
+const REQUEST: &str = "org.freedesktop.portal.Request";
 const SESSION: &str = "/org/freedesktop/portal/desktop/session/1_16/cortex1";
 /// The limit every exchange runs under: far above a socket-pair round trip.
 const LIMIT: Duration = Duration::from_secs(3);
@@ -68,11 +69,12 @@ impl FakeShortcuts {
             return Err(fdo::Error::AccessDenied(String::from("not allowed")));
         }
         let handle = format!("{PATH}/request/1_16/{token}");
+        forge(connection, &handle).await?;
         connection
             .emit_signal(
                 None::<BusName<'_>>,
                 handle.as_str(),
-                "org.freedesktop.portal.Request",
+                REQUEST,
                 "Response",
                 &(0_u32, results),
             )
@@ -84,6 +86,22 @@ impl FakeShortcuts {
     fn record(&self, values: Vec<String>) {
         record(&self.received, values);
     }
+}
+
+/// Sends a successful `Response` on `handle` that names another session and binds nothing,
+/// signed by another connection and then by none, as any process on the bus can.
+async fn forge(connection: &os_linux::zbus::Connection, handle: &str) -> fdo::Result<()> {
+    let failed = |error: os_linux::zbus::Error| fdo::Error::Failed(error.to_string());
+    let results = HashMap::from([("session_handle", Value::from("/forged"))]);
+    for sender in [Some(":1.99"), None] {
+        let mut builder = Message::signal(handle, REQUEST, "Response").map_err(failed)?;
+        if let Some(sender) = sender {
+            builder = builder.sender(sender).map_err(failed)?;
+        }
+        let forged = builder.build(&(0_u32, &results)).map_err(failed)?;
+        connection.send(&forged).await.map_err(failed)?;
+    }
+    Ok(())
 }
 
 #[interface(name = "org.freedesktop.portal.GlobalShortcuts")]

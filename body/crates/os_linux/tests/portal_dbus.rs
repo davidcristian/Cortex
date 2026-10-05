@@ -14,11 +14,13 @@ use os_linux::zbus::blocking::connection::Builder;
 use os_linux::zbus::message::Header;
 use os_linux::zbus::names::BusName;
 use os_linux::zbus::zvariant::{OwnedObjectPath, OwnedValue, Value};
-use os_linux::zbus::{Guid, fdo, interface};
+use os_linux::zbus::{Guid, Message, fdo, interface};
 use os_linux::{DbusPortal, LinuxPortalCapture, PortalReply, ScreenshotPortal, request_path};
 
 const PATH: &str = "/org/freedesktop/portal/desktop";
 const SENDER: &str = ":1.16";
+/// The unique name of the fake portal, which signs every message it sends.
+const PORTAL: &str = ":1.7";
 const REQUEST: &str = "org.freedesktop.portal.Request";
 /// The limit every exchange that is answered runs under: far above a socket-pair round trip.
 const LIMIT: Duration = Duration::from_secs(3);
@@ -41,6 +43,8 @@ enum Uri {
 #[derive(Clone)]
 enum Answer {
     Respond(u32, Option<Uri>),
+    /// A success naming the second uri, after a forged one naming the first.
+    Forged(String, String),
     Silent,
     Hang,
     LateSilent(Duration),
@@ -98,6 +102,11 @@ impl FakePortal {
             }
             Answer::Elsewhere => return Ok(path(&format!("{PATH}/request/1_16/other"))),
             Answer::WrongSignal => None,
+            Answer::Forged(decoy, uri) => {
+                forge(connection, &handle, &decoy).await?;
+                results.insert("uri", Value::from(uri));
+                Some(0)
+            }
             Answer::Respond(code, uri) => {
                 match uri {
                     Some(Uri::Text(text)) => results.insert("uri", Value::from(text)),
@@ -134,6 +143,26 @@ impl FakePortal {
         emitted.map_err(|error| fdo::Error::Failed(error.to_string()))?;
         Ok(path(&handle))
     }
+}
+
+/// Sends a successful `Response` naming `uri` on `handle`, signed by another connection and then
+/// by none, as any process on the bus can.
+async fn forge(
+    connection: &os_linux::zbus::Connection,
+    handle: &str,
+    uri: &str,
+) -> fdo::Result<()> {
+    let failed = |error: os_linux::zbus::Error| fdo::Error::Failed(error.to_string());
+    let results = HashMap::from([("uri", Value::from(uri))]);
+    for sender in [Some(":1.99"), None] {
+        let mut builder = Message::signal(handle, REQUEST, "Response").map_err(failed)?;
+        if let Some(sender) = sender {
+            builder = builder.sender(sender).map_err(failed)?;
+        }
+        let forged = builder.build(&(0_u32, &results)).map_err(failed)?;
+        connection.send(&forged).await.map_err(failed)?;
+    }
+    Ok(())
 }
 
 /// A portal request object that writes down the path of every `Close` call it is sent.
@@ -199,6 +228,7 @@ fn fake_in_order(answers: Vec<Answer>) -> (Connection, Connection, Arc<Mutex<Vec
         received: Arc::clone(&received),
     };
     let (client, server) = peer(server, Some(SENDER));
+    ok(server.inner().set_unique_name(PORTAL));
     (client, server, received)
 }
 
@@ -294,6 +324,22 @@ fn a_method_reply_that_is_not_a_handle_is_an_error() {
 }
 
 #[test]
+fn a_method_reply_that_names_no_sender_is_an_error() {
+    let server = FakePortal {
+        answers: Mutex::new(vec![Answer::Respond(0, None)]),
+        received: Arc::default(),
+    };
+    let (client, _server) = peer(server, Some(SENDER));
+
+    let error = portal(client).screenshot(&handle("t"), "t").unwrap_err();
+
+    assert!(
+        error.0.contains("method reply names no sender"),
+        "{error:?}"
+    );
+}
+
+#[test]
 fn a_handle_that_is_not_an_object_path_is_an_error_before_any_call() {
     let (client, _server, received) = fake(Answer::Respond(0, None));
 
@@ -373,6 +419,26 @@ fn the_backend_captures_through_the_portal_end_to_end() {
         String::try_from(&*calls[0].1["handle_token"]).unwrap(),
         "cortex0"
     );
+}
+
+#[test]
+fn a_response_the_portal_did_not_send_is_ignored_and_its_file_kept() {
+    let (decoy, file) = (scratch("decoy"), scratch("real.png"));
+    ok(fs::write(&decoy, b"not a picture"));
+    rgb_png(&file);
+    let answer = Answer::Forged(
+        format!("file://{}", decoy.display()),
+        format!("file://{}", file.display()),
+    );
+    let (client, _server, _) = fake(answer);
+    let backend = LinuxPortalCapture::new(DbusPortal::new(client));
+
+    let captured = backend.capture(&CaptureRequest::new(0));
+
+    assert_eq!(captured.unwrap().frame().pixels(), [204, 102, 51, 255]);
+    assert!(!file.exists());
+    assert_eq!(fs::read(&decoy).ok(), Some(b"not a picture".to_vec()));
+    ok(fs::remove_file(&decoy));
 }
 
 /// Waits up to [`LIMIT`] for `done`, checking it every few milliseconds.
