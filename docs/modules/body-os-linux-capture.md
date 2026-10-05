@@ -161,3 +161,10 @@ decision 13).
   its chooser, sends `Close` whatever the answer, and keeps the token only from a stream that has
   one, returning whether it kept one. `offers_window` reads bit 2 (`WINDOW_SOURCE`) of
   `AvailableSourceTypes`.
+- **`GstLaunch`** is the `FrameReader` adapter. It starts the program (`GST_LAUNCH_PROGRAM`,
+  `gst-launch-1.0` on `PATH`) with the pipeline of ADR-0073 decision 4 for the node, `LC_ALL=C`,
+  the descriptor as standard input, and both output pipes read on threads of their own. It kills
+  the child once `FRAME_LIMIT` (5 s) has passed. A program that cannot start, a nonzero exit (with
+  its standard error), the limit, or an output that does not begin with the PNG signature is a
+  `FrameError`, which the core returns as `Backend`. It is tested with a shell script in place of
+  the program.

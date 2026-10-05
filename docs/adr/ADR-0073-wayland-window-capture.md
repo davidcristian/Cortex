@@ -79,8 +79,9 @@ never on disk, in an environment variable or in the brain. A restart asks once m
 The body runs `gst-launch-1.0 -q pipewiresrc fd=0 path=<node> num-buffers=1 always-copy=true !
 videoconvert ! video/x-raw,format=RGB ! pngenc ! fdsink` with the `OpenPipeWireRemote` descriptor
 as its standard input, reads the PNG from its standard output, and decodes it with the existing
-`decode_png`. It sets `LC_ALL=C`, as `PactlCommand` does for `pactl`, and kills the child at the
-capture limit. On headless KWin this exact command gave a 400 by 300 frame of the picked window, from a
+`decode_png`. It sets `LC_ALL=C`, as `PactlCommand` does for `pactl`, and kills the child at
+`FRAME_LIMIT` (5 s), so a restore's `RESTORE_LIMIT` and the read stay under the brain's 10 s
+wait. On headless KWin this exact command gave a 400 by 300 frame of the picked window, from a
 first and from a restored session.
 
 - **No new native dependency.** No crate is added, neither lock file changes, CI is unchanged, and

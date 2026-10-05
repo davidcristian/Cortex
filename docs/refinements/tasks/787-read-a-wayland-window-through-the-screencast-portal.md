@@ -18,29 +18,27 @@ capture and a restore token kept in the body's memory; the chooser opens only wh
 hidden; `gst-launch-1.0` reads the frame with the PipeWire descriptor as its standard input; and
 `CapturedFrame::window_only` in body core reports it as one window of a display never read. The
 frame kind is built and covered, the wire and the brain read its zero source size, and
-`LinuxWindowCapture` is a covered core over its two ports, served by nothing yet. The probes
+`LinuxWindowCapture` is a covered core over its two ports, served by nothing yet, with
+`GstLaunch` as its covered frame reader. The probes
 behind each step are in [wayland-screencast-portal](../../readings/wayland-screencast-portal.md),
 whose headless KWin stack the live test reuses.
 
 **The remaining steps, in order.**
 
-1. **`GstLaunch`**, the `FrameReader` adapter: runs `GST_LAUNCH_PROGRAM` (`gst-launch-1.0` on
-   `PATH`) with the pipeline of ADR-0073 decision 4, the descriptor as standard input, standard
-   output read whole, `LC_ALL=C`, killed at its limit; a missing program, a nonzero exit or no PNG
-   is a `FrameError`. Tested with `sh` run in place of the program, as `PactlCommand` is.
-2. **`DbusScreenCast`**, the `ScreenCastPortal` adapter, through the request module `DbusPortal`
+1. **`DbusScreenCast`**, the `ScreenCastPortal` adapter, through the request module `DbusPortal`
    and `DbusShortcuts` use (the `Response` match before the call, the returned handle checked, one
    limit), with `SelectSources` options as in ADR-0073 decision 1, `OpenPipeWireRemote` read with
    its descriptor, `AvailableSourceTypes` read as the source mask, and its own session closed when
    a call fails before `Start` ends. Tested against a fake portal over a socket pair.
-3. **The chooser at the next hide.** `OverlayWatch` signals each recorded hide; when
+2. **The chooser at the next hide.** `OverlayWatch` signals each recorded hide; when
    `choice_wanted` is set, a thread of the window capture calls `choose(CHOOSER_LIMIT)` (1 min).
    Covered with the fakes and a fake signal.
-4. **The router and the shell.** A `ScreenCapture` that sends a focus request to the window capture
+3. **The router and the shell.** A `ScreenCapture` that sends a focus request to the window capture
    and a display request to the current `HiddenOverlayCapture` over `LinuxPortalCapture`; the
-   shell's `body_server.rs` asks `offers_window` once and serves the router when it is true, else
-   what it serves today. Run `just check-shell`.
-5. **The live test and the docs.** `cargo test -p os-linux --test screencast_live -- --ignored` on
+   shell's `body_server.rs` asks `offers_window` once and serves the router when it is true, with
+   `GstLaunch::new(GST_LAUNCH_PROGRAM, FRAME_LIMIT)` as the reader, else what it serves today. Run
+   `just check-shell`.
+4. **The live test and the docs.** `cargo test -p os-linux --test screencast_live -- --ignored` on
    the headless KWin stack: a first focus capture refused with the message, a hide that opens the
    chooser, a click, then a frame of that window alone with a covering window over it. The same run
    answers the one open question: whether a chooser opened while a GTK window is hidden lists that
@@ -74,3 +72,7 @@ whose headless KWin stack the live test reuses.
   forgotten and a choice wanted, so the chooser opens at the next hide. Since the spec shows the
   chooser for a token that cannot be restored, 1, cancelled, now fails as `NoTarget` with the
   fixed message, and 2 stays `Backend` naming the code, recorded in ADR-0073 decision 2.
+- 2026-10-05: Built `GstLaunch`, the `FrameReader` adapter, which runs `gst-launch-1.0` with the
+  pipeline of ADR-0073 decision 4 and kills it at `FRAME_LIMIT` (5 s), tested with a shell script
+  in place of the program. The shell reads no new setting: the program is a constant, as `pactl`
+  is. The task stays open for the steps above.
