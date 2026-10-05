@@ -140,15 +140,21 @@ impl Capture {
     /// Assembles the value once a rung of the ladder has come in under the ceiling.
     fn encoded(data: Vec<u8>, image: &Rgb, captured: &CapturedFrame, region: Region) -> Self {
         let frame = captured.frame();
+        let display = captured.shows_display();
+        let (source_width, source_height) = if display {
+            (frame.width(), frame.height())
+        } else {
+            (0, 0)
+        };
         Self {
             data,
             width: image.width(),
             height: image.height(),
-            source_width: frame.width(),
-            source_height: frame.height(),
+            source_width,
+            source_height,
             target_width: region.width(),
             target_height: region.height(),
-            covers_display: region.covers(frame.width(), frame.height()),
+            covers_display: display && region.covers(frame.width(), frame.height()),
         }
     }
 
@@ -176,19 +182,20 @@ impl Capture {
         self.height
     }
 
-    /// The display's own width, before the downscale.
+    /// The display's own width, before the downscale, or 0 when one window was read alone.
     #[must_use]
     pub const fn source_width(&self) -> u32 {
         self.source_width
     }
 
-    /// The display's own height, before the downscale.
+    /// The display's own height, before the downscale, or 0 when one window was read alone.
     #[must_use]
     pub const fn source_height(&self) -> u32 {
         self.source_height
     }
 
-    /// The width of the part of the display the picture shows, before the downscale.
+    /// The width of the part of the display the picture shows, or of the window read alone,
+    /// before the downscale.
     #[must_use]
     pub const fn target_width(&self) -> u32 {
         self.target_width

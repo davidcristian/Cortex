@@ -11,37 +11,53 @@ is shown and for 1 s after it hides ([body-os-linux](../../modules/body-os-linux
 is shown for most of a turn, so a model's `capture_screen` is refused unless the user hid the
 overlay first. A focus capture is `NoTarget` there as well.
 
-`org.freedesktop.portal.ScreenCast` with a window source streams one window's own buffer over
-PipeWire, which a compositor renders without the windows above it, so the overlay cannot be in it.
-The user picks the window in a dialog, and `persist_mode` with a restore token can keep that choice
-across calls. A monitor source does not help, since it is the whole output, overlay included.
+[ADR-0073](../../adr/ADR-0073-wayland-window-capture.md) is the design: on a backend with a window
+source, focus reads the window the user chose once, through a fresh `ScreenCast` session per
+capture and a restore token kept in the body's memory; the chooser opens only while the overlay is
+hidden; `gst-launch-1.0` reads the frame with the PipeWire descriptor as its standard input; and
+`CapturedFrame::window_only` in body core reports it as one window of a display never read. The
+frame kind is built and covered. The probes behind each step are in
+[wayland-screencast-portal](../../readings/wayland-screencast-portal.md), whose headless KWin stack
+the live test reuses.
 
-**Which backends offer a window source**
-([wayland-screencast-portal](../../readings/wayland-screencast-portal.md)). `xdg-desktop-portal-wlr`
-0.7.1 on sway 1.9 does not: its `AvailableSourceTypes` is 1, monitor only, and sway 1.9 lists no
-protocol that copies one window's buffer. So on sway the overlay refusal stays. This distribution's
-`xdg-desktop-portal-kde` 5.27.11 does (3). On a headless `kwin_wayland --virtual` run from a
-userspace prefix, a window session gave one frame of the picked window alone: a window opened over
-it and made active left no pixel in the frame. After one choice in the dialog, a second session
-given the `restore_token` started with no dialog. The 5.27.11 chooser does not select a lone window
-by itself, so the first choice always takes a click. GNOME's backend was not read.
+**The remaining steps, in order.**
 
-**The next step is the design, in the origin ADR, before any body code.** Three decisions:
-
-- **The target.** On a Wayland session the focus target would be the window the user picked once
-  and the restore token keeps, not the topmost window that decision 16 defines. The first capture
-  opens the chooser, which a person must answer, so the decision says whether that call waits
-  within the brain's capture deadline or fails at once and asks the user to pick, and where the
-  body stores the token.
-- **The PipeWire client.** The `pipewire` crate binds `libpipewire-0.3` at build time (assumed from
-  the crate, not built here), which would add its headers to every `os_linux` build and change the
-  Tauri shell's lock file. The alternatives are GStreamer's `pipewiresrc`, which the probe used, or
-  a client of PipeWire's native protocol written in the crate. A live test also needs a session
-  manager such as WirePlumber running, since without one the stream never reached `streaming`.
-- **The frame.** `ScreenCapture::capture` fits as it is, but `CapturedFrame::window` places a
-  window inside a display frame, and `covers_display()` would read a frame that is the window alone
-  as the whole display, so the receipt and the model would both say display. Body core needs a
-  frame kind of its own for it.
+1. **The wire and the brain.** Document on `ImageBlob.source_width` and `source_height` in
+   `proto/body.proto` that 0 with `CAPTURE_TARGET_FOCUS` is a window read alone, regenerate the
+   stubs (`just proto`), and keep that 0 in `cortex_body_client/gateway.py`, which today falls
+   back to the image's size. `describe` in `cortex_core/screen_tool.py` then says one window was
+   read on its own, with no display size, for a focus capture whose source is 0. Covered tests in
+   both packages.
+2. **The ports and the covered core in `os_linux`.** A `ScreenCastPortal` port (the source mask,
+   one session's `Start` with an optional token under a limit returning the node, the token and
+   the `OpenPipeWireRemote` descriptor, and `Close`) and a `FrameReader` port (descriptor and node
+   in, PNG bytes out). `LinuxWindowCapture<P, R>` keeps the token in a `Mutex<Option<String>>`:
+   no token is `NoTarget` with the fixed message of ADR-0073 decision 2 and records that a choice
+   is wanted; a token runs `Start` under `RESTORE_LIMIT` (2 s), and at the limit sends `Close`,
+   forgets the token and answers `NoTarget`; a frame is `decode_png` into
+   `CapturedFrame::window_only`. A display request is not its job. Tests over fakes of both ports.
+3. **`GstLaunch`**, the `FrameReader` adapter: runs `GST_LAUNCH_PROGRAM` (`gst-launch-1.0` on
+   `PATH`) with the pipeline of ADR-0073 decision 4, the descriptor as standard input, standard
+   output read whole, `LC_ALL=C`, killed at its limit; a missing program, a nonzero exit or no PNG
+   is `Backend`. Tested with `sh` run in place of the program, as `PactlCommand` is.
+4. **`DbusScreenCast`**, the portal adapter, through the request module `DbusPortal` and
+   `DbusShortcuts` use (the `Response` match before the call, the returned handle checked, one
+   limit), with `SelectSources` options as in ADR-0073 decision 1 and `OpenPipeWireRemote` read
+   with its descriptor. Tested against a fake portal over a socket pair.
+5. **The chooser at the next hide.** `OverlayWatch` signals each recorded hide; when a choice is
+   wanted, a thread of the window capture opens a session with no token, waits `CHOOSER_LIMIT`
+   (1 min), sends `Close` at the limit, and keeps the token only from a code 0 answer. Covered
+   with the fakes and a fake clock or limit.
+6. **The router and the shell.** A `ScreenCapture` that sends a focus request to the window capture
+   and a display request to the current `HiddenOverlayCapture` over `LinuxPortalCapture`; the
+   shell's `body_server.rs` reads `AvailableSourceTypes` once and serves the router when bit 2 is
+   set, else what it serves today. Run `just check-shell`.
+7. **The live test and the docs.** `cargo test -p os-linux --test screencast_live -- --ignored` on
+   the headless KWin stack: a first focus capture refused with the message, a hide that opens the
+   chooser, a click, then a frame of that window alone with a covering window over it. The same run
+   answers the one open question: whether a chooser opened while a GTK window is hidden lists that
+   window. `body-os-linux.md` is at its 250-line limit, so move its capture backends into a
+   `body-os-linux-capture.md` first; the vision runbook names the runtime packages of decision 4.
 
 ## History
 
@@ -51,4 +67,9 @@ by itself, so the first choice always takes a click. GNOME's backend was not rea
   only (1), with cursor modes 3 and interface version 4 under a frontend at 5; the KDE backend
   offers monitor and window (3), with cursor modes 7. On headless KWin a window session, answered
   by injected input, gave a frame without the window covering it, and its restore token skipped
-  the dialog the second time. The task stays open for the design above.
+  the dialog the second time.
+- 2026-10-05: Made the target, client and frame decisions in ADR-0073 and built the frame kind,
+  `CapturedFrame::window_only`, in body core. On headless KWin `gst-launch-1.0` read the window
+  with the PipeWire descriptor as its standard input and wrote the PNG to its standard output,
+  `persist_mode` 1 returned a token that restored the session, and a token whose window had closed
+  left `Start` unanswered. The task stays open for the steps above.

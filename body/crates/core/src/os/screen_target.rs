@@ -60,11 +60,20 @@ impl TargetRect {
     }
 }
 
-/// One backend answer: the display's pixels, and where in them the resolved target sits.
+/// One backend answer: the pixels it read, and what part of the display they are.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CapturedFrame {
     frame: RawFrame,
-    window: Option<TargetRect>,
+    extent: Extent,
+}
+
+/// What a frame's pixels are: the display, the display with a window placed in it, or one window
+/// read on its own with no display around it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Extent {
+    Display,
+    Within(TargetRect),
+    Alone,
 }
 
 impl CapturedFrame {
@@ -73,7 +82,7 @@ impl CapturedFrame {
     pub const fn display(frame: RawFrame) -> Self {
         Self {
             frame,
-            window: None,
+            extent: Extent::Display,
         }
     }
 
@@ -82,14 +91,29 @@ impl CapturedFrame {
     pub const fn window(frame: RawFrame, window: TargetRect) -> Self {
         Self {
             frame,
-            window: Some(window),
+            extent: Extent::Within(window),
         }
     }
 
-    /// The display's own pixels, whole, whatever the target was.
+    /// One window's own pixels with no display around them, as a `ScreenCast` window stream
+    /// gives them, so the display's size is not known.
+    #[must_use]
+    pub const fn window_only(frame: RawFrame) -> Self {
+        Self {
+            frame,
+            extent: Extent::Alone,
+        }
+    }
+
+    /// The pixels the backend read, whole: the display, or one window alone.
     #[must_use]
     pub const fn frame(&self) -> &RawFrame {
         &self.frame
+    }
+
+    /// Whether the frame is the display's pixels rather than one window read alone.
+    pub(crate) const fn shows_display(&self) -> bool {
+        !matches!(self.extent, Extent::Alone)
     }
 
     /// The part of the frame this capture encodes, in the frame's own pixels.
@@ -99,7 +123,7 @@ impl CapturedFrame {
     /// [`CaptureError::NoTarget`] when the clamped rectangle has no pixels on the display.
     pub(crate) fn region(&self) -> Result<Region, CaptureError> {
         let (width, height) = (self.frame.width(), self.frame.height());
-        let Some(rect) = self.window else {
+        let Extent::Within(rect) = self.extent else {
             return Ok(Region {
                 x: 0,
                 y: 0,

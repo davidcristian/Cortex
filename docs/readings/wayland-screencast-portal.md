@@ -3,7 +3,8 @@
 Which of this distribution's `org.freedesktop.portal.ScreenCast` backends offer a window source,
 and what a window session gives on a headless desktop. Cited by
 [787](../refinements/tasks/787-read-a-wayland-window-through-the-screencast-portal.md), the task
-for a Wayland capture while the overlay is open.
+for a Wayland capture while the overlay is open, and by
+[ADR-0073](../adr/ADR-0073-wayland-window-capture.md).
 
 ## Method
 
@@ -79,6 +80,26 @@ and 4 metadata. The frontend reported each backend's two masks unchanged.
 - **A session manager is needed.** With only the PipeWire daemon, `pipewiresrc` stayed in the
   `paused` state and read nothing; with `wireplumber` 0.4.17 also running, the stream reached
   `streaming` and gave the buffer.
+
+## The frame through a child's standard streams
+
+**2026-10-05**, the same KWin stack and windows, for
+[ADR-0073](../adr/ADR-0073-wayland-window-capture.md). `persist_mode` was 1, and `gst-launch-1.0
+-q pipewiresrc fd=0 path=<node> num-buffers=1 always-copy=true ! videoconvert !
+video/x-raw,format=RGB ! pngenc ! fdsink` ran with the `OpenPipeWireRemote` descriptor as its
+standard input and its standard output read into memory.
+
+| Session | `Start` | The child | Its standard output |
+| --- | --- | --- | --- |
+| first, a click on the window's card, then Enter | 0, a `restore_token` | exit 0 | a 400 by 300 PNG |
+| second, given that token, no input | 0 at once, the same token | exit 0 | a 400 by 300 PNG |
+| third, given that token after the picked window closed | no `Response` in 14 s | not run | none |
+
+- **Both frames** were the picked window alone: every pixel 204, 51, 51 except the green square
+  (256 and 260 pixels), and none in the covering window's colour.
+- **`persist_mode` 1** returned a token, as 2 did, and it skipped the dialog within the run.
+- **A token whose window has closed** did not fail the `Start`: it waited, as a session with no
+  token does while the chooser is open.
 
 Method: a scratch directory outside the repo held the prefixes, one shell script per stack that
 starts it on a private session bus, the KWin scripts, the fake input client and the Python `Gio`

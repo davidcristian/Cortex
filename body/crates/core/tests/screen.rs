@@ -308,6 +308,39 @@ fn a_window_that_covers_the_display_reports_a_screen_capture() {
 }
 
 #[test]
+fn a_window_read_alone_is_never_reported_as_the_display() {
+    let capture = Capture::from_bgra(
+        &CapturedFrame::window_only(gradient(40, 20)),
+        &CaptureRequest::targeted(1600, 0, CaptureTarget::Focus),
+    )
+    .unwrap();
+
+    assert!(!capture.covers_display());
+    assert_eq!((capture.width(), capture.height()), (40, 20));
+    assert_eq!((capture.target_width(), capture.target_height()), (40, 20));
+    assert_eq!(
+        (capture.source_width(), capture.source_height()),
+        (0, 0),
+        "the display was never read, so its size is not known"
+    );
+    let (width, height, rgb) = decode(capture.data());
+    assert_eq!((width, height), (40, 20));
+    assert_eq!(&rgb[..3], &[0x40, 0x20, 0]);
+}
+
+#[test]
+fn a_window_read_alone_is_downscaled_whole_and_keeps_its_own_size() {
+    let captured = CapturedFrame::window_only(gradient(40, 20));
+    assert_eq!(captured.frame(), &gradient(40, 20));
+
+    let capture = Capture::from_bgra(&captured, &CaptureRequest::new(10)).unwrap();
+    assert_eq!((capture.width(), capture.height()), (10, 5));
+    assert_eq!((capture.target_width(), capture.target_height()), (40, 20));
+    assert!(!capture.covers_display());
+    assert_ne!(captured, CapturedFrame::display(gradient(40, 20)));
+}
+
+#[test]
 fn an_oversized_window_is_box_filtered_from_its_own_pixels_only() {
     let capture = Capture::from_bgra(
         &window(gradient(40, 20), 0, 0, 20, 20),

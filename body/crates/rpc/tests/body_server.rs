@@ -697,6 +697,43 @@ async fn a_window_filling_the_display_is_announced_as_a_screen_capture() {
     );
 }
 
+/// A backend that reads one window on its own, as a `ScreenCast` window stream does.
+struct LoneWindow(RawFrame);
+
+impl ScreenCapture for LoneWindow {
+    fn capture(&self, _request: &CaptureRequest) -> Result<CapturedFrame, CaptureError> {
+        Ok(CapturedFrame::window_only(self.0.clone()))
+    }
+}
+
+#[tokio::test]
+async fn a_window_read_alone_crosses_as_a_window_of_a_display_never_read() {
+    let notifier = FakeNotify::answering(true);
+    let addr = serve(
+        FakeAudio::new(0.5, false),
+        notifier.clone(),
+        LoneWindow(frame(40, 20)),
+        true,
+        "",
+    )
+    .await
+    .unwrap();
+
+    let reply = capture_reply(addr, 0, 0, PbCaptureTarget::Focus.into())
+        .await
+        .unwrap();
+
+    assert_eq!(reply.resolved_target, i32::from(PbCaptureTarget::Focus));
+    assert_eq!((reply.target_width, reply.target_height), (40, 20));
+    let blob = reply.image.unwrap();
+    assert_eq!((blob.width, blob.height), (40, 20));
+    assert_eq!((blob.source_width, blob.source_height), (0, 0));
+    assert_eq!(
+        notifier.seen()[0].body(),
+        "A picture of one window was sent to the assistant."
+    );
+}
+
 #[tokio::test]
 async fn the_reply_says_which_of_the_two_things_the_picture_is() {
     let windowed_at = spawn_screen(

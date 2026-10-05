@@ -1,6 +1,6 @@
 # ADR-0029: Vision: screen capture, and pixels as untrusted content
 
-**Status:** Accepted (2026-09-25)
+**Status:** Accepted (2026-10-05)
 
 ## Context
 
@@ -172,18 +172,18 @@ Context assembly lives in `cortex_core/turn_context.py` behind `TurnCapabilities
 ### 16. The capture target
 
 `target` is a closed vocabulary the body resolves, `CAPTURE_TARGET_DISPLAY` (0, the primary display)
-or `CAPTURE_TARGET_FOCUS`, named plainly because a model reads them in a schema. Focus is the
-topmost capturable window, not the foreground one (the excluded overlay): visible, not minimised,
-cloaked or a tool window, not the shell desktop, titled (the length is read, never the title), not
-this process. A bare desktop or a window on another monitor is `NoTarget`, never a silent widening.
-Body core crops the display frame to the resolved rectangle inside the downscale, so a window within
-the edge travels pixel for pixel; `source_*` still describe the display and `target_*` the crop.
-`resolved_target` is read off `covers_display()`, so the notification and the model's sentence
-follow one test. A missing or unknown `target` is a tool error that never reaches the body, and
-`RepeatSalience` compares name and arguments, so each target may be captured twice a loop. A
-model-named rectangle is declined: at the engine budget the model invented 38 of 47 answers rather
-than decline, so it would name wrong rectangles. On X11 the primary display is the monitor RandR
-marks primary, else the first one it lists, else the whole root: one display, never their union.
+or `CAPTURE_TARGET_FOCUS`, plain names because a model reads them in a schema. Focus is the topmost
+capturable window, not the foreground one (the excluded overlay): visible, not minimised, cloaked or
+a tool window, not the shell desktop, titled (the length is read, never the title), not this
+process. A bare desktop or a window on another monitor is `NoTarget`, never a silent widening. Body
+core crops to the resolved rectangle inside the downscale, so a window within the edge keeps every
+pixel; `source_*` describe the display, 0 if it was not read, and `target_*` the crop.
+`resolved_target` and the notification both follow `covers_display()`. A missing or unknown `target`
+is a tool error that never reaches the body, and `RepeatSalience` compares name and arguments, so
+each target may be captured twice a loop. A model-named rectangle is declined: at the engine budget
+the model invented 38 of 47 answers rather than decline, so it would name wrong rectangles. On X11
+the display is the monitor RandR marks primary, else the first listed, else the root: never a union.
+On Wayland focus is the window the user chose, read alone ([ADR-0073](ADR-0073-wayland-window-capture.md)).
 
 ### 17. What the model can read, and what the budget costs
 
@@ -218,9 +218,9 @@ with thinking on, about five times slower on an invoice screen; turning it off i
 - **Accepted risks.** GDI renders hardware-overlay and DRM surfaces black with no error; a capture
   turn pays a second inference pass; a URL the model retypes, defangs or describes passes the
   guardrail, a residual that names no work; on X11 the overlay's rectangle is lost, not seen through.
-- **Open work** under `docs/refinements/tasks/`: the attachment path, an `AttachmentStore`, a
-  picture across a swap, `Windows.Graphics.Capture`, multi-monitor and DPI reporting, JPEG or WebP,
-  Linux and macOS backends, pixel screening, and the user's half of an opaque turn.
+- **Open work** under `docs/refinements/tasks/`: an `AttachmentStore`, a picture across a swap,
+  `Windows.Graphics.Capture`, multi-monitor and DPI reporting, JPEG or WebP, Linux and macOS
+  backends, pixel screening, and the user's half of an opaque turn.
 
 ## Alternatives rejected
 

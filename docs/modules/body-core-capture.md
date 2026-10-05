@@ -24,6 +24,10 @@ per-platform backends are in [body-os.md](body-os.md) and the rest of this crate
   `Display` request is answered with `display` even where a window has focus, and a `Focus`
   request with no window to point at fails; `body_contract::screen` checks both on every backend
   ([body-contract.md](body-contract.md)).
+- `CapturedFrame::window_only(frame)` is one window's own pixels with no display around them, as a
+  `ScreenCast` window stream gives them on Wayland
+  ([ADR-0073](../adr/ADR-0073-wayland-window-capture.md)). The whole frame is encoded, and it is
+  never reported as the display, even though the region covers the frame.
 - `CaptureRequest::targeted(max_edge, max_bytes, target)` resolves every proto3 hint: a zero edge
   becomes `DEFAULT_MAX_EDGE` (1600) and a zero ceiling becomes `MAX_CAPTURE_BYTES` (6 MiB,
   `6 * 1024 * 1024`); an edge above `MAX_EDGE_CEILING` (4096) and a ceiling above
@@ -37,9 +41,10 @@ per-platform backends are in [body-os.md](body-os.md) and the rest of this crate
   only order that can work, since a flat desktop is kilobytes at 1600x900 and a photograph is
   megabytes. A `Capture` exposes `data`, `mime_type` (always `CAPTURE_MIME`, `image/png`), `width`
   and `height` after the crop and downscale, `source_width` and `source_height`, which are always
-  the **display's** since three consumers read them as the size of the screen, `target_width` and
-  `target_height`, the size of the part of the display the picture shows before the downscale, and
-  `covers_display()`, the one bit the receipt needs. **`TooLarge` is unreachable at this ceiling**,
+  the **display's** since three consumers read them as the size of the screen, or 0 for a window
+  read alone, whose display was never read, `target_width` and `target_height`, the size of the part
+  of the display the picture shows (or of the lone window) before the downscale, and
+  `covers_display()`, the one bit the receipt needs, false for a window read alone. **`TooLarge` is unreachable at this ceiling**,
   which is why the ceiling travels with the request: each step halves the edge the last one reached,
   so the third is at most a quarter of the requested edge and a 1024 px image cannot exceed 6 MiB.
   Only a caller naming a much tighter `max_bytes` reaches it, which is what the covered test for it
