@@ -88,5 +88,33 @@ its bottom border is drawn one row higher under `scroll`. Two grabs of one build
 the stack's layout, read in the headless shell at the same viewport, is the same under both rules
 (top 134.625 px, `offsetHeight` 188, `clientHeight` 186). Setting `.reminders` alone back to `auto`
 in the new build gives the shipped pixels, and setting it alone to `scroll` in the shipped build
-gives the new ones. Which condition in the overlay makes Chromium draw that edge differently is not
-known; no probe page above has it.
+gives the new ones. The next section reads why.
+
+## Where Chromium paints the reminder stack's edges
+
+**2026-10-05.** The same headed Chromium on `Xvfb`, the shipped build served once as built and once
+with the fenced block in a `<style>` after its stylesheet, each optionally with a `max-height` set
+on `.stage .reminders` to make the stack overflow. 15 s after load the page's
+`getBoundingClientRect()` was read over the DevTools protocol and the screen grabbed; the painted
+rows are where the stack's border colour sits in one column. Rows are viewport pixels.
+
+| Stack | Rule | Layout top to bottom (height) | Rows painted | Rows nearest the layout edges |
+| --- | --- | --- | --- | --- |
+| fits, demo view | `auto` | 134.625 to 322.375 (187.75) | 135 to 322 | 135 to 321 |
+| fits, demo view | `scroll` | 134.625 to 322.375 (187.75) | 135 to 321 | 135 to 321 |
+| fits, `max-height: 187.5px` | `auto` | 134.75 to 322.25 (187.5) | 135 to 322 | 135 to 321 |
+| overflows, `max-height: 150.25px` | `auto` | 134.375 to 284.625 (150.25) | 134 to 284 | 134 to 284 |
+| overflows, `max-height: 150px` | both | 134.5 to 284.5 (150) | 135 to 284 | 135 to 284 |
+| overflows, `max-height: 150.75px` | both | 135.125 to 285.875 (150.75) | 135 to 285 | 135 to 285 |
+
+The demo stack is 187.75 px tall, which `offsetHeight` rounds to 188, and starts at a fractional
+top. A stack that fits under `auto` is painted from its rounded top for its rounded height, so its
+bottom border lies a row below the one nearest its layout edge. Under `scroll`, and in an
+overflowing stack under either rule, each edge is painted on the row nearest its layout edge. The
+two overflowing pairs painted no pixel differently. The 150.25 px row tells the two snappings
+apart, since a rounded height there would end on row 283.
+
+At `--force-device-scale-factor=1.25` the demo stack fits at 182.15 px and the two rules painted no
+pixel differently. At 1.5 the panel's own `max-height` differed by up to 2 px between loads of one
+build under both rules, so that pair says nothing. The three bell icons' antialiasing changed between
+two loads of the shipped build at scale 1, so the counts above leave them out.

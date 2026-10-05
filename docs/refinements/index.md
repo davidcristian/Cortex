@@ -67,10 +67,9 @@ never a reading of what the tree does now.
 
 139 of these record the day their claims were last checked against the code. On every other task here, that reading is still yours to take.
 
-### Actionable now (2)
+### Actionable now (1)
 
 - **[R-607](tasks/607-eighteen-of-the-cortex-alts-pixel-rows-are-undrawn.md)** One of the cortex alt's thirty-six pixel rows is undrawn (inference). Its claim was checked against the code on 2026-10-05.
-- **[R-784](tasks/784-a-fitting-box-reserves-the-wrong-rail-on-webkitgtk.md)** A box that fits reserves the wrong rail on WebKitGTK (body-overlay). Its claim was checked against the code on 2026-10-04.
 
 ### Actionable, once a port changes (1)
 
@@ -221,6 +220,10 @@ never a reading of what the tree does now.
 - **[R-787](tasks/787-read-a-wayland-window-through-the-screencast-portal.md)** Read a Wayland window through the ScreenCast portal (vision). Its claim was checked against the code on 2026-10-04.
 - **[R-788](tasks/788-test-the-portal-hotkey-on-a-kde-wayland-session.md)** Test the portal hotkey on a KDE Wayland session (cross-cutting). Its claim was checked against the code on 2026-10-04.
 
+### Blocked on hardware this repo is not developed on (1)
+
+- **[R-784](tasks/784-a-fitting-box-reserves-the-wrong-rail-on-webkitgtk.md)** A box that fits reserves the wrong rail on WebKitGTK (body-overlay). Its claim was checked against the code on 2026-10-05.
+
 ## Every task, by area
 
 ### body-gateway
@@ -291,7 +294,7 @@ never a reading of what the tree does now.
 - [R-174](tasks/174-switcher-instant-motions.md) Two instant motions in the switcher's list. done 2026-08-03.
 - [R-311](tasks/311-wrap-width-trigger-completeness.md) A wrap width change with no resize event behind it. open, waiting for its trigger.
 - [R-701](tasks/701-keeping-a-chat-at-the-top-has-no-designed-name.md) Keeping a chat at the top of the list has no designed name. done 2026-09-22.
-- [R-784](tasks/784-a-fitting-box-reserves-the-wrong-rail-on-webkitgtk.md) A box that fits reserves the wrong rail on WebKitGTK. open, actionable.
+- [R-784](tasks/784-a-fitting-box-reserves-the-wrong-rail-on-webkitgtk.md) A box that fits reserves the wrong rail on WebKitGTK. open, blocked on host hardware.
 
 ### brain
 

@@ -1,9 +1,9 @@
 # A box that fits reserves the wrong rail on WebKitGTK
 
-**Status:** open, actionable
+**Status:** open, blocked on host hardware
 **Area:** body-overlay
 **Origin:** [ADR-0035](../../adr/ADR-0035-console-and-motion.md) decision 22
-**Verified:** 2026-10-04
+**Verified:** 2026-10-05
 
 Every scroll container in `body/app/src/overlay.css` has `overflow-y: auto` and
 `scrollbar-gutter: stable`, and takes the reserved band out of its inline-end padding on the
@@ -31,17 +31,19 @@ outranks each container's own rule. On WebKitGTK it reserves 6 px in both states
 modes and paints nothing in a fitting box's band, and on Chromium every probe page is pixel for
 pixel unchanged ([scrollbar-gutter readings](../../readings/scrollbar-gutter.md)).
 
-It does not ship yet, because it changes what Chromium paints in the built overlay: in the demo
-view the reminder stack's bottom border is drawn one row higher, and setting `.reminders` alone
-back to `auto` removes the difference. No probe page reproduces it. Before it ships:
+It changes one thing Chromium paints in the built overlay: in the demo view the reminder stack's
+bottom border is drawn one row higher. The stack is 187.75 px tall at a fractional top. Under
+`auto`, a stack that fits is painted for its rounded height from its rounded top, which puts the
+border a row below the one nearest its layout edge. Under `scroll` it is painted on the nearest
+row, as an overflowing stack already is under either rule
+([readings](../../readings/scrollbar-gutter.md#where-chromium-paints-the-reminder-stacks-edges)).
+So the row is the paint an overflowing stack gets today, and not a new condition to avoid.
 
-- Find the condition in the overlay that makes Chromium draw that edge one row higher under
-  `scroll`, by removing the stack's ancestors' rules one at a time in the demo view. Then either
-  avoid it or show that it is the paint an overflowing stack already gets under `auto`.
-- Read what WebView2 paints in a fitting and an overflowing box, which needs the Windows shell.
-
-If the row cannot be avoided, one row on Chromium against a fitting box's band being 6 px too
-narrow or 15 px too wide on WebKitGTK is a visual decision for the maintainer.
+It does not ship yet, because the engine the overlay ships on is WebView2 and nobody has read what
+WebView2 paints under the rule: whether a fitting box shows a track or a disabled thumb in its
+band, and whether anything moves beyond the stack's edge. That read needs the Windows shell and is
+[H-789](../../host/tasks/789-what-webview2-paints-under-the-fenced-scroll-rule.md). When it passes,
+the block above ships as written.
 
 ## History
 
@@ -50,3 +52,7 @@ narrow or 15 px too wide on WebKitGTK is a visual decision for the maintainer.
 - 2026-10-04: The paint checks were run on WebKitGTK and on headed Chromium with the rule fenced to
   engines that have the pseudo-element. Both engines pass on probe pages, but the built overlay
   draws the reminder stack's bottom edge one row higher on Chromium, so the rule was not shipped.
+- 2026-10-05: The demo view's row was read with the stack's layout beside it: Chromium paints a
+  fitting stack under `scroll` the way it paints an overflowing one under either rule, each edge on
+  the row nearest its layout edge. The remaining condition, the WebView2 read, was filed as
+  [H-789](../../host/tasks/789-what-webview2-paints-under-the-fenced-scroll-rule.md).
