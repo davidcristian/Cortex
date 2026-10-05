@@ -69,7 +69,7 @@ never a reading of what the tree does now.
 
 ### Actionable now (2)
 
-- **[R-607](tasks/607-eighteen-of-the-cortex-alts-pixel-rows-are-undrawn.md)** One of the cortex alt's thirty-six pixel rows is undrawn (inference). Its claim was checked against the code on 2026-10-04.
+- **[R-607](tasks/607-eighteen-of-the-cortex-alts-pixel-rows-are-undrawn.md)** One of the cortex alt's thirty-six pixel rows is undrawn (inference). Its claim was checked against the code on 2026-10-05.
 - **[R-784](tasks/784-a-fitting-box-reserves-the-wrong-rail-on-webkitgtk.md)** A box that fits reserves the wrong rail on WebKitGTK (body-overlay). Its claim was checked against the code on 2026-10-04.
 
 ### Actionable, once a port changes (1)

@@ -27,4 +27,6 @@ lowers this cell's rate on the shipped budget; a null, not apart, falsifies the 
 leaves `607deep`'s pair one draw against one. The price is `607deep`'s `app` pair plus a load, 0.33
 of that row's generated tokens and 10107 s, at a median SM clock of 0.54 to 0.55 of the card's
 maximum. The 2026-10-04 run skipped it at 06:52:41, needing about 3240 s with 1639 s left before
-its deadline (`measurements/sitting-2026-10-04/launcher.log`).
+its deadline (`measurements/sitting-2026-10-04/launcher.log`). The 2026-10-05 run queues it again,
+with the deadline rule pricing it at twice its estimate, 7200 s, because the alt reasons before it
+answers (`measurements/sitting-2026-10-05/launcher.log`).
