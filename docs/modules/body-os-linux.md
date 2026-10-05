@@ -2,8 +2,8 @@
 
 **Purpose.** The Linux implementations of the body's OS-capability ports: notifications over the
 freedesktop D-Bus service, volume through `pactl`, screen capture from the X root window or through
-the desktop portal's `Screenshot` call, and the global hotkey as an X key grab or through the
-portal's `GlobalShortcuts` calls. What every
+the desktop portal's `Screenshot` call, and the global hotkey as an X key grab, through
+`kglobalaccel` on KDE Plasma, or through the portal's `GlobalShortcuts` calls. What every
 platform crate shares (the public contract, the coverage exemption, the invariants and the
 dependencies) is in [body-os.md](body-os.md).
 
@@ -196,44 +196,46 @@ decision 13).
   `cortex<n>` per request. The first successful registration starts one thread that reads
   `Activated` and `Deactivated` signals and passes each to the `Hold` of the binding whose
   session and id it names; the binding runs when its `Hold` counts the signal as a press.
-- **A held chord runs once**, as on X11 and Windows. A portal backend may send one `Activated`
-  per auto-repeat of a held chord, and the KDE one does, then one `Deactivated` at the release
-  ([globalshortcuts-portal](../readings/globalshortcuts-portal.md)). `Hold` counts an
-  `Activated` as a press when it is the first after a `Deactivated`, or comes `REPEAT_GAP` (1 s)
-  or more after the binding's last `Activated`, read by the listener's clock. The gap is the
-  rule on a backend that sends no `Deactivated`, and it ends a hold whose `Deactivated` never
-  came. It is above the 600 ms repeat delay of `kwin_wayland`'s defaults; a repeat delay set
-  longer runs a held chord a second time at its first repeat.
+- **A held chord runs once**, as on X11 and Windows. A backend may send one `Activated` per
+  auto-repeat, as the KDE one does, then one `Deactivated` at the release
+  ([globalshortcuts-portal](../readings/globalshortcuts-portal.md)). `Hold` counts an `Activated`
+  as a press when it is the first after a `Deactivated`, or comes `REPEAT_GAP` (1 s) or more after
+  the binding's last `Activated`, by the listener's clock; the gap serves a backend that sends no
+  `Deactivated` or loses one. It is above `kwin_wayland`'s default 600 ms repeat delay; a longer
+  delay runs a held chord again at its first repeat.
 - **`DbusShortcuts`** makes those calls through the same request module as `DbusPortal`: the
-  `Response` match before the call, the returned handle checked, and the wait for the reply and
-  the `Response` ended at one limit, here `SHORTCUTS_LIMIT` (1 min), because a compositor may ask
-  the user to confirm or change the trigger first. Since the reply and the `Response` share it, a
-  dialog has the whole minute whichever of the two it delays, so no second bound is needed. It
-  subscribes to every `GlobalShortcuts` signal on the portal's path when it is built, so a press
-  between a bind and the first read is kept and a `Deactivated` is never read before the
-  `Activated` it ends; it returns `Activated` and `Deactivated` and skips any other signal, such
-  as `ShortcutsChanged`. Any process on the session bus can send those signals, so it reads one
-  only when its sender is the unique name the bus gives for `org.freedesktop.portal.Desktop`
-  (`GetNameOwner`, asked at the first signal and kept once named), and skips one whose arguments
-  do not parse; only a failed connection ends the listener. It reads the session handle as a string, which the 1.18 frontend sends, or
-  as an object path, and the bound ids from the `shortcuts` result. The tests run the hotkey
-  check list over the core with an in-process fake, and the adapter against a fake portal over a
+  `Response` match before the call, the returned handle checked, and the reply and the `Response`
+  waited for under one limit, `SHORTCUTS_LIMIT` (1 min), since a compositor may first ask the user
+  to confirm or change the trigger. It subscribes to every `GlobalShortcuts` signal on the
+  portal's path when it is built, so a press between a bind and the first read is kept and a
+  `Deactivated` is never read before its `Activated`, and skips any other signal, such as
+  `ShortcutsChanged`. Any process on the bus can send those signals, so it reads one only from
+  the unique name the bus gives for `org.freedesktop.portal.Desktop` (`GetNameOwner`, asked at
+  the first signal and kept once named), and skips one whose arguments do not parse; only a
+  failed connection ends the listener. It reads the session handle as a string, which the 1.18
+  frontend sends, or as an object path, and the bound ids from the `shortcuts` result. The tests
+  run the check list over the core with a fake, and the adapter against a fake portal over a
   socket pair. No live test exists
-  ([788](../refinements/tasks/788-test-the-portal-hotkey-on-a-kde-wayland-session.md)):
-  this distribution's one backend with `GlobalShortcuts`, `xdg-desktop-portal-kde` 5.27.11,
-  registers shortcuts only from a `CreateSession` option the 1.18 frontend does not forward, and
-  its `BindShortcuts` answers success with no shortcut after running `xdg-open` on System
-  Settings' shortcuts page, so `register` fails there
-  ([globalshortcuts-portal](../readings/globalshortcuts-portal.md),
-  [791](../refinements/tasks/791-bind-the-wayland-hotkey-on-plasma-5-27.md)). Given the
-  shortcuts directly, that backend parsed the form `trigger` writes (`CTRL+ALT+space` became
-  `Ctrl+Alt+Space`) and not a mixed-case `Ctrl`, sent one `Activated` per auto-repeat of a held
-  chord, and answered success for a trigger another session held, leaving that shortcut with no
-  key.
-- **The shell** registers through `LinuxPortalHotkey` over `DbusShortcuts` when `WAYLAND_DISPLAY`
-  is set and not empty, on a thread of its own with its own session bus connection, since a bind
-  can wait up to `SHORTCUTS_LIMIT` on the user and setup must not; else it grabs through
-  `X11Keys`. The description the compositor shows is "Show or hide the Cortex overlay".
+  ([788](../refinements/tasks/788-test-the-portal-hotkey-on-a-kde-wayland-session.md)): the one
+  backend here, `xdg-desktop-portal-kde` 5.27.11, binds nothing through the 1.18 frontend and
+  runs `xdg-open` on System Settings' shortcuts page at each `BindShortcuts`
+  ([globalshortcuts-portal](../readings/globalshortcuts-portal.md)).
+- **`LinuxKdeHotkey`** registers each chord with `org.kde.kglobalaccel`, which KWin runs on Plasma,
+  as an action of the fixed component `cortex` named by the chord's text, so a restart registers
+  the same action, with the chord as a Qt key code (`qt_key`, `qt_code`: `0x0C00_0020` for
+  Ctrl+Alt+Space, the one chord run live). A reply without the key (0 when another action holds
+  it) fails as `Registration` and removes the action. Signals go to each binding's `Hold` as
+  above. Dropping the backend removes its actions, which `kglobalaccel` keeps grabbed with no
+  client; a run that ends without the drop leaves them, and the next run takes the key back.
+- **`DbusGlobalAccel`** calls `doRegister`, `setShortcut` with flags 6 (`NoAutoloading`: the chord
+  given replaces a key a past run kept; `SetPresent`: it is grabbed now) and `unregister`, and
+  reads `globalShortcutPressed` and `globalShortcutReleased` on `/component/cortex` only from the
+  owner of `org.kde.kglobalaccel`, which `kglobalaccel_running` asks for. Tested as the portal is.
+- **The shell** grabs through `X11Keys` unless `WAYLAND_DISPLAY` is set and not empty. Then, on a
+  thread and bus connection of its own, since a portal bind can wait `SHORTCUTS_LIMIT` on the user,
+  it keeps a `LinuxKdeHotkey` for the run whenever `kglobalaccel_running`, before any portal call,
+  since a failed portal bind on Plasma 5.27 has already opened the settings page, else it uses
+  `LinuxPortalHotkey`. Both show the user "Show or hide the Cortex overlay".
 - `just os-linux-live` runs the five `#[ignore]`d live tests: a notification shown on the session
   bus, a volume and mute round trip on the default sink that restores what it found, a capture on
   `DISPLAY` that is refused before the test maps a window naming its own process and, after, comes
@@ -243,5 +245,6 @@ decision 13).
   holds for 1.5 s, each of which must run the callback once, and that `ctrl+space` must not run.
 - `cargo test -p os-linux --test portal_live -- --ignored --nocapture` runs the portal's live test
   on a session bus whose portal serves `Screenshot`: two display captures of the same size, and
-  each file the backend read gone afterwards. It is outside `just os-linux-live`, which needs an X
-  server rather than a portal.
+  each file the backend read gone afterwards; `--test accel_live` waits on a KDE session bus for a
+  tap, a hold and a tap of `ctrl+alt+space`, which must run the callback three times. Both are
+  outside `just os-linux-live`, which needs an X server.

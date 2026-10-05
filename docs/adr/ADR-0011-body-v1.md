@@ -190,10 +190,10 @@ recorded in an ADR. This ADR is that exclusion, and the checks that grew around 
     the `#[ignore]`d tests in `os_linux/tests/live.rs`, run by hand with `just os-linux-live`.
     cargo-llvm-cov does not measure `tests/`, so an ignored live test costs no coverage. The shell's
     Linux `start` serves notifications, volume and, on the conditions of
-    [ADR-0029](ADR-0029-vision-screen-capture.md) decision 10, the X11 capture, and a
-    session bus that does not open becomes `DbusNotifications::absent`, so `Notify` answers
-    `Unavailable`. On a Wayland session its hotkey `register` binds through the `GlobalShortcuts`
-    portal on a thread of its own instead, since an Xwayland grab fires only over X windows. The two alternatives hide a working backend: `coverage(off)` is
+    [ADR-0029](ADR-0029-vision-screen-capture.md) decision 10, the X11 capture, and a session bus
+    that does not open becomes `DbusNotifications::absent`, so `Notify` answers `Unavailable`. A
+    Wayland hotkey binds through `kglobalaccel` where that runs, else the `GlobalShortcuts` portal,
+    as an X grab sees only X windows. The two alternatives hide a working backend: `coverage(off)` is
     reserved for code that never runs, and a `cfg` that CI never compiles leaves a backend with no
     check at all. A backend whose mechanism no local peer can stand in for, such as a compositor's
     global shortcut or a capture portal, keeps the same split: all logic in the covered core.

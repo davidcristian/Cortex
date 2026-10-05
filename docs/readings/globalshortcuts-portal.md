@@ -4,8 +4,7 @@ What `xdg-desktop-portal-kde` 5.27.11, this distribution's one backend with
 `org.freedesktop.portal.GlobalShortcuts`, does with each call, what a press of a bound chord
 sends, and what a direct `kglobalaccel` registration does instead. Cited by
 [body-os-linux](../modules/body-os-linux.md) and by
-[788](../refinements/tasks/788-test-the-portal-hotkey-on-a-kde-wayland-session.md) and
-[791](../refinements/tasks/791-bind-the-wayland-hotkey-on-plasma-5-27.md).
+[788](../refinements/tasks/788-test-the-portal-hotkey-on-a-kde-wayland-session.md).
 
 ## Method
 
@@ -104,6 +103,29 @@ Alt (`0x08000000`) modifier bits. `allMainComponents` then listed `cortex` besid
   from `:1.0`, the owner of `org.kde.kglobalaccel`.
 - **A held chord sends one `globalShortcutPressed` per auto-repeat**, the same count as the
   portal's `Activated` above, so the `Hold` rule applies here too.
+
+## The `LinuxKdeHotkey` adapter
+
+**2026-10-05**, on the same stack with an empty `XDG_CONFIG_HOME`. The ignored test
+`os_linux/tests/accel_live.rs` built `LinuxKdeHotkey` over `DbusGlobalAccel` on the session bus
+and registered `ctrl+alt+space`, while a script pressed keys as above and read the component with
+`allActionsForComponent(["cortex"])`. Introspection listed `unregister(s componentUnique, s
+shortcutUnique)` on `org.kde.KGlobalAccel`.
+
+| Case | `register` | Callback runs | `cortex` actions after |
+| --- | --- | --- | --- |
+| Tap, hold 1.5 s, tap, then the backend dropped | `Ok` | 3, none in the next 2 s | none |
+| `other` registered first with the same key (flags 6) | `Registration`, key given to another action | 0 | none |
+| A run killed after registering, then a new run: tap, hold, tap | `Ok` | 3 | none |
+
+- **`setShortcut` with flags 6 binds the chord given**, on an empty configuration and over an
+  action a killed run left with that key, and answers `[0]`, which the adapter refuses, when
+  another component holds it.
+- **The drop removes the action.** While registered, the component listed
+  `["cortex", "ctrl+alt+space", "Cortex", "Cortex live test"]`; after the drop, or after a refused
+  register, it listed nothing. The killed run left that action listed until the next run.
+- Only `ctrl+alt+space` was run; the Qt codes of the other keys `qt_code` names are Qt's values,
+  unchecked here.
 
 ## Who sends each signal
 

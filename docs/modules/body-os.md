@@ -29,13 +29,15 @@ speaks. They are also where the **stub coverage exemption** is used.
   surfaces **black, with no error**.
 - **`os_linux`** (`cfg(target_os = "linux")`) has six real backends, `LinuxNotify`,
   `LinuxAudioControl`, the X11 `LinuxScreenCapture`, the portal's `LinuxPortalCapture`, the X11
-  `LinuxHotkey` and the portal's `LinuxPortalHotkey` (see [body-os-linux.md](body-os-linux.md)),
+  `LinuxHotkey`, `LinuxKdeHotkey` and the portal's `LinuxPortalHotkey` (see
+  [body-os-linux.md](body-os-linux.md)),
   and no stub. The shell's `BodyService`
   serves the notification and volume backends, and `LinuxScreenCapture<X11Root>` only when
   `CORTEX_HOST_CAPTURE=1`, `WAYLAND_DISPLAY` is unset or empty and the X display opens; with the
   switch and `WAYLAND_DISPLAY` set it serves `LinuxPortalCapture` inside `HiddenOverlayCapture`,
   else `DeniedScreenCapture`. The shell registers the hotkey through `X11Keys`, or on a Wayland
-  session through `LinuxPortalHotkey` on a thread of its own
+  session on a thread of its own through `LinuxKdeHotkey` where `kglobalaccel` runs, else
+  `LinuxPortalHotkey`
   ([overlay runbook](../runbooks/body-overlay.md)).
 - **`os_macos`** provides `MacosHotkey`, `MacosAudioControl`, `MacosNotify` and
   `MacosScreenCapture`, the same stubs for macOS. It has no `cfg` yet and compiles everywhere.
@@ -52,7 +54,8 @@ Each crate exposes one implementor per port, and the app selects the platform's 
   `LinuxPortalCapture<DbusPortal>`.
   `LinuxHotkey` is not generic: it keeps its `KeyGrab` as an `Arc<dyn KeyGrab>`, which its listener
   thread shares, and a real host builds it with `LinuxHotkey::new(X11Keys::new(..))`.
-  `LinuxPortalHotkey` keeps its `ShortcutsPortal` the same way, built over `DbusShortcuts`.
+  `LinuxPortalHotkey` keeps its `ShortcutsPortal` the same way, built over `DbusShortcuts`, and
+  `LinuxKdeHotkey` its `GlobalAccel`, built over `DbusGlobalAccel`.
 - `AudioControl` (ADR-0023): `get_volume() -> VolumeState` and
   `set_volume(VolumeChange) -> VolumeState`. The value types `VolumeState { level, muted }` and
   `VolumeChange { level, mute }` live in `body_core`, where `VolumeChange::new` clamps a present

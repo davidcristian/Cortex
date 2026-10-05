@@ -30,8 +30,8 @@ pub fn register(handle: &AppHandle) {
 #[cfg(target_os = "linux")]
 const SHORTCUT_DESCRIPTION: &str = "Show or hide the Cortex overlay";
 
-/// Registers the global hotkey through the desktop portal on a Wayland session, else as a passive
-/// grab on the X display.
+/// Registers the global hotkey through `kglobalaccel` or the desktop portal on a Wayland session,
+/// else as a passive grab on the X display.
 #[cfg(target_os = "linux")]
 pub fn register(handle: &AppHandle) {
     use body_core::Hotkey;
@@ -44,7 +44,7 @@ pub fn register(handle: &AppHandle) {
         // A bind can wait up to SHORTCUTS_LIMIT on a compositor dialog, so it must not hold setup.
         let spawned = std::thread::Builder::new()
             .name(String::from("cortex-hotkey"))
-            .spawn(move || register_portal(&chord, callback));
+            .spawn(move || register_wayland(&chord, callback));
         if let Err(error) = spawned {
             eprintln!("cortex: could not start the hotkey registration: {error}");
         }
@@ -60,20 +60,32 @@ pub fn register(handle: &AppHandle) {
     }
 }
 
-/// Binds `chord` through the `GlobalShortcuts` portal on a session bus connection of its own.
+/// Binds `chord` through `kglobalaccel` where it runs, as on KDE Plasma, else through the
+/// `GlobalShortcuts` portal, on a session bus connection of its own.
 #[cfg(target_os = "linux")]
-fn register_portal(chord: &body_core::HotkeyChord, callback: body_core::HotkeyCallback) {
+fn register_wayland(chord: &body_core::HotkeyChord, callback: body_core::HotkeyCallback) {
     use body_core::Hotkey;
     use os_linux::zbus::blocking::Connection;
-    use os_linux::{DbusShortcuts, LinuxPortalHotkey};
-
-    let portal = match Connection::session() {
-        Ok(connection) => DbusShortcuts::new(connection),
-        Err(error) => DbusShortcuts::absent(&error),
+    use os_linux::{
+        DbusGlobalAccel, DbusShortcuts, LinuxKdeHotkey, LinuxPortalHotkey, kglobalaccel_running,
     };
-    // The listener thread keeps the portal, and so the connection its session lives on.
-    let hotkey = LinuxPortalHotkey::new(portal, SHORTCUT_DESCRIPTION);
-    if let Err(error) = hotkey.register(chord, callback) {
+
+    let registered = match Connection::session() {
+        Ok(connection) if kglobalaccel_running(&connection) => {
+            // Dropping the backend removes its action from kglobalaccel, so it is kept for the run.
+            let accel = DbusGlobalAccel::new(connection);
+            let hotkey = Box::leak(Box::new(LinuxKdeHotkey::new(accel, SHORTCUT_DESCRIPTION)));
+            hotkey.register(chord, callback)
+        }
+        // The listener thread keeps the portal, and so the connection its session lives on.
+        Ok(connection) => {
+            LinuxPortalHotkey::new(DbusShortcuts::new(connection), SHORTCUT_DESCRIPTION)
+                .register(chord, callback)
+        }
+        Err(error) => LinuxPortalHotkey::new(DbusShortcuts::absent(&error), SHORTCUT_DESCRIPTION)
+            .register(chord, callback),
+    };
+    if let Err(error) = registered {
         eprintln!("cortex: could not register {chord}: {error}");
     }
 }

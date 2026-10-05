@@ -1,9 +1,11 @@
 //! Linux OS backends for the Cortex body.
 //!
-//! `Notify`, `AudioControl`, `ScreenCapture` (X11 and the screenshot portal) and `Hotkey` (X11 and
-//! the global shortcuts portal) are real.
+//! `Notify`, `AudioControl`, `ScreenCapture` (X11 and the screenshot portal) and `Hotkey` (X11,
+//! `kglobalaccel` and the global shortcuts portal) are real.
 #![cfg(target_os = "linux")]
 
+mod accel;
+mod accel_dbus;
 mod audio;
 mod compose;
 mod dbus;
@@ -24,6 +26,8 @@ mod shortcuts_dbus;
 mod trigger;
 mod x11;
 
+pub use accel::{AccelError, COMPONENT, GlobalAccel, LinuxKdeHotkey, Press, qt_code, qt_key};
+pub use accel_dbus::{DbusGlobalAccel, kglobalaccel_running};
 pub use audio::{LinuxAudioControl, PactlFailure, PactlRunner};
 pub use compose::{Piece, pieces};
 pub use dbus::DbusNotifications;

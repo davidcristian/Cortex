@@ -172,7 +172,7 @@ impl ShortcutsPortal for DbusShortcuts {
                 _ => continue,
             };
             if listener.owner.is_none() {
-                listener.owner = owner(&listener.connection);
+                listener.owner = owner(&listener.connection, DESTINATION);
             }
             // Any process on the bus can send these signals, so only the portal's are read, and
             // a malformed one is skipped rather than ending the listener.
@@ -192,16 +192,10 @@ impl ShortcutsPortal for DbusShortcuts {
     }
 }
 
-/// The unique name owning the portal's well-known name, or `None` when the bus names no owner.
-fn owner(connection: &Connection) -> Option<String> {
+/// The unique name owning the well-known `name`, or `None` when the bus names no owner.
+pub fn owner(connection: &Connection, name: &str) -> Option<String> {
     connection
-        .call_method(
-            Some(BUS),
-            BUS_PATH,
-            Some(BUS),
-            "GetNameOwner",
-            &(DESTINATION,),
-        )
+        .call_method(Some(BUS), BUS_PATH, Some(BUS), "GetNameOwner", &(name,))
         .ok()
         .and_then(|reply| reply.body().deserialize::<String>().ok())
 }

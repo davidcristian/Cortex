@@ -6,9 +6,9 @@
 **Trigger:** a `GlobalShortcuts` backend that registers what `BindShortcuts` names can be installed here. None can yet: the Ubuntu 24.04 archive has one backend with the interface, `xdg-desktop-portal-kde` 5.27.11, and its `BindShortcuts` registers nothing.
 **Verified:** 2026-10-05
 
-The shell registers the hotkey on a Wayland session through `LinuxPortalHotkey` over
-`DbusShortcuts` ([body-os-linux](../../modules/body-os-linux.md)), and both are tested only
-against a fake portal over a socket pair. The task is an `#[ignore]`d test beside `portal_live`
+The shell registers the hotkey on a Wayland session where `kglobalaccel` does not run through
+`LinuxPortalHotkey` over `DbusShortcuts` ([body-os-linux](../../modules/body-os-linux.md)), and
+both are tested only against a fake portal over a socket pair. The task is an `#[ignore]`d test beside `portal_live`
 that binds a chord through them on a real backend and presses it.
 
 **What blocks it** ([globalshortcuts-portal](../../readings/globalshortcuts-portal.md)). The KDE
@@ -40,5 +40,6 @@ same runs unattended; a newer backend may ask the user first.
   ran `xdg-open` on System Settings' shortcuts page at each `BindShortcuts`, and the adapter's
   `register` failed. Called directly, the backend answered the three points: it parses
   `CTRL+ALT+space`, sends one `Activated` per auto-repeat, and reports a taken trigger as bound
-  ([globalshortcuts-portal](../../readings/globalshortcuts-portal.md)). Filed
-  [791](791-bind-the-wayland-hotkey-on-plasma-5-27.md).
+  ([globalshortcuts-portal](../../readings/globalshortcuts-portal.md)).
+- 2026-10-05: The shell now binds through `kglobalaccel` wherever it runs, KDE included, so there
+  the portal adapter is reached only by this test, which calls it directly; the task is unchanged.

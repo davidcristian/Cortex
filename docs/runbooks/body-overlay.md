@@ -150,14 +150,17 @@ behind the same unchanged `Hotkey` port.
 **On Linux** the shell grabs the chord on the root window of the X display that `DISPLAY` names,
 so a press toggles the overlay whichever window has focus. A chord another X client has grabbed
 fails with `BadAccess` and is logged like any other registration failure. On a Wayland session,
-where `WAYLAND_DISPLAY` is set and not empty, the shell binds the chord through the desktop
-portal's `GlobalShortcuts` instead, because Xwayland is assumed to get a key only while one of its
-own windows has focus. The compositor may ask the user to confirm or change the trigger, so the
-trigger that toggles the overlay can differ from `CORTEX_HOTKEY`; the description it shows the
-user is "Show or hide the Cortex overlay". The bind runs on its own thread and fails if the portal
-has not answered within a minute. Of the Ubuntu 24.04 archive's portal backends only
-`xdg-desktop-portal-kde` implements the interface; where none does, the registration fails and is
-logged.
+where `WAYLAND_DISPLAY` is set and not empty, the shell binds the chord another way, because
+Xwayland is assumed to get a key only while one of its own windows has focus. Where
+`org.kde.kglobalaccel` runs, as on KDE Plasma, it registers the chord there as an action of the
+component "Cortex" named by the chord's text, such as `ctrl+alt+space`, which System Settings'
+shortcuts page lists; a chord another program holds fails and is logged. Elsewhere it binds
+through the desktop portal's `GlobalShortcuts`. The compositor may ask the user to confirm or
+change the trigger, so the trigger that toggles the overlay can differ from `CORTEX_HOTKEY`; the
+description it shows the user is "Show or hide the Cortex overlay". The bind runs on its own
+thread and fails if the portal has not answered within a minute. Of the Ubuntu 24.04 archive's portal backends only
+`xdg-desktop-portal-kde` implements the interface, and on Plasma 5.27 it binds nothing, which is
+why KDE goes through `kglobalaccel`; where no backend does, the registration fails and is logged.
 
 **To run the shell on Linux without sudo**, link a debug build against the userspace prefix in the
 [shell clippy readings](../readings/shell-clippy.md). WebKitGTK starts its helper processes from
