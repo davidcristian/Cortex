@@ -81,11 +81,11 @@ pub trait ShortcutsPortal: Send + Sync {
         shortcut: &Shortcut,
     ) -> Result<ShortcutsReply, PortalError>;
 
-    /// Blocks until the next `Activated` or `Deactivated` signal, in the order the portal sent them.
+    /// Blocks until the next `Activated` or `Deactivated` signal the portal sent, in its order.
     ///
     /// # Errors
     ///
-    /// [`PortalError`] when the connection closes or a signal cannot be read.
+    /// [`PortalError`] when the connection closes or a message cannot be read from it.
     fn next_activation(&self) -> Result<Activation, PortalError>;
 }
 

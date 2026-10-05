@@ -2,6 +2,7 @@
 
 use std::collections::HashMap;
 use std::os::unix::net::UnixStream;
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::mpsc;
 use std::sync::{Arc, Mutex, PoisonError};
 use std::thread;
@@ -12,13 +13,15 @@ use os_linux::zbus::blocking::Connection;
 use os_linux::zbus::blocking::connection::Builder;
 use os_linux::zbus::names::BusName;
 use os_linux::zbus::zvariant::{ObjectPath, OwnedObjectPath, OwnedValue, Value};
-use os_linux::zbus::{Guid, fdo, interface};
+use os_linux::zbus::{Guid, Message, fdo, interface};
 use os_linux::{
     Activation, DbusShortcuts, LinuxPortalHotkey, Shortcut, ShortcutsPortal, ShortcutsReply,
 };
 
 const PATH: &str = "/org/freedesktop/portal/desktop";
 const SENDER: &str = ":1.16";
+/// The unique name of the fake portal, which signs every signal it sends.
+const PORTAL: &str = ":1.7";
 const SHORTCUTS: &str = "org.freedesktop.portal.GlobalShortcuts";
 const SESSION: &str = "/org/freedesktop/portal/desktop/session/1_16/cortex1";
 /// The limit every exchange runs under: far above a socket-pair round trip.
@@ -79,10 +82,7 @@ impl FakeShortcuts {
     }
 
     fn record(&self, values: Vec<String>) {
-        self.received
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner)
-            .push(values);
+        record(&self.received, values);
     }
 }
 
@@ -140,8 +140,36 @@ impl FakeShortcuts {
     }
 }
 
+/// A fake bus that names the portal's owner, after naming none for its first `refusals` asks.
+struct FakeBus {
+    refusals: AtomicU32,
+    received: Received,
+}
+
+#[interface(name = "org.freedesktop.DBus")]
+impl FakeBus {
+    fn get_name_owner(&self, name: String) -> fdo::Result<String> {
+        record(&self.received, vec![String::from("owner"), name.clone()]);
+        let next = |left: u32| left.checked_sub(1);
+        match self
+            .refusals
+            .fetch_update(Ordering::SeqCst, Ordering::SeqCst, next)
+        {
+            Ok(_) => Err(fdo::Error::NameHasNoOwner(name)),
+            Err(_) => Ok(String::from(PORTAL)),
+        }
+    }
+}
+
+fn record(received: &Received, values: Vec<String>) {
+    received
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .push(values);
+}
+
 fn fake(session: Session, malformed: bool, refuse: bool) -> (Connection, Connection, Received) {
-    named(session, malformed, refuse, Some(SENDER))
+    named(session, malformed, refuse, Some(SENDER), 0)
 }
 
 fn named(
@@ -149,6 +177,7 @@ fn named(
     malformed: bool,
     refuse: bool,
     name: Option<&str>,
+    refusals: u32,
 ) -> (Connection, Connection, Received) {
     let received = Arc::new(Mutex::new(Vec::new()));
     let server = FakeShortcuts {
@@ -157,18 +186,25 @@ fn named(
         refuse,
         received: Arc::clone(&received),
     };
+    let bus = FakeBus {
+        refusals: AtomicU32::new(refusals),
+        received: Arc::clone(&received),
+    };
     let (client_end, server_end) = ok(UnixStream::pair());
     let serving = thread::spawn(move || {
         Builder::async_io_unix_stream(server_end)
             .server(Guid::generate())
             .and_then(|builder| builder.p2p().serve_at(PATH, server))
+            .and_then(|builder| builder.serve_at("/org/freedesktop/DBus", bus))
             .and_then(Builder::build)
     });
     let client = ok(Builder::async_io_unix_stream(client_end).p2p().build());
     if let Some(name) = name {
         ok(client.inner().set_unique_name(name));
     }
-    (client, ok(ok(serving.join())), received)
+    let server = ok(ok(serving.join()));
+    ok(server.inner().set_unique_name(PORTAL));
+    (client, server, received)
 }
 
 fn working() -> (DbusShortcuts, Connection, Received) {
@@ -202,6 +238,17 @@ fn emit(server: &Connection, member: &str, id: &str) {
     ok(server.emit_signal(None::<BusName<'_>>, PATH, SHORTCUTS, member, &body));
 }
 
+/// Sends an `Activated` for `id` that names `sender`, or no sender, in place of the portal's.
+fn forged(server: &Connection, sender: Option<&str>, id: &str) {
+    let session = ok(ObjectPath::try_from(SESSION));
+    let body = (session, id, 7_u64, HashMap::<&str, Value<'_>>::new());
+    let mut builder = ok(Message::signal(PATH, SHORTCUTS, "Activated"));
+    if let Some(sender) = sender {
+        builder = ok(builder.sender(sender));
+    }
+    ok(server.send(&ok(builder.build(&body))));
+}
+
 fn activated(server: &Connection, id: &str) {
     emit(server, "Activated", id);
 }
@@ -227,7 +274,7 @@ fn the_sender_is_the_connection_unique_name() {
 
 #[test]
 fn a_connection_with_no_unique_name_has_no_sender() {
-    let (client, _server, _) = named(Session::Text, false, false, None);
+    let (client, _server, _) = named(Session::Text, false, false, None, 0);
 
     let error = DbusShortcuts::new(client).sender().unwrap_err();
 
@@ -327,7 +374,7 @@ fn a_refused_call_fails_with_the_portal_error() {
 }
 
 #[test]
-fn each_press_and_release_is_read_in_order_and_other_signals_are_skipped() {
+fn each_press_and_release_is_read_in_order_and_malformed_or_other_signals_are_skipped() {
     let (portal, server, _) = working();
     let wrong = ("not an activation",);
     let changed = (
@@ -347,12 +394,37 @@ fn each_press_and_release_is_read_in_order_and_other_signals_are_skipped() {
     deactivated(&server, "ctrl+alt+space");
     activated(&server, "super+a");
 
-    assert!(portal.next_activation().is_err());
     assert_eq!(portal.next_activation(), Ok(signal("ctrl+alt+space", true)));
     assert_eq!(
         portal.next_activation(),
         Ok(signal("ctrl+alt+space", false))
     );
+}
+
+#[test]
+fn a_signal_the_portal_did_not_send_is_skipped() {
+    let (portal, server, _) = working();
+
+    forged(&server, Some(":1.99"), "ctrl+alt+space");
+    forged(&server, None, "ctrl+alt+space");
+    activated(&server, "super+a");
+
+    assert_eq!(portal.next_activation(), Ok(signal("super+a", true)));
+}
+
+#[test]
+fn the_portal_owner_is_asked_until_the_bus_names_one_then_kept() {
+    let (client, server, record) = named(Session::Text, false, false, Some(SENDER), 1);
+    let portal = DbusShortcuts::with_limit(client, LIMIT);
+
+    forged(&server, None, "ctrl+alt+space");
+    activated(&server, "super+a");
+    deactivated(&server, "super+a");
+
+    assert_eq!(portal.next_activation(), Ok(signal("super+a", true)));
+    assert_eq!(portal.next_activation(), Ok(signal("super+a", false)));
+    let asked = vec!["owner", "org.freedesktop.portal.Desktop"];
+    assert_eq!(received(&record), vec![asked.clone(), asked]);
 }
 
 #[test]
@@ -407,5 +479,26 @@ fn the_hotkey_over_the_bus_runs_once_per_press_however_long_it_is_held() {
     for _ in 0..3 {
         assert_eq!(on_fire.recv_timeout(LIMIT), Ok(()));
     }
+    assert!(on_fire.recv_timeout(Duration::from_millis(200)).is_err());
+}
+
+#[test]
+fn a_malformed_or_forged_signal_leaves_the_hotkey_listening() {
+    let (portal, server, _) = working();
+    let hotkey = LinuxPortalHotkey::new(portal, "Show or hide the overlay");
+    let (fired, on_fire) = mpsc::channel();
+    let chord = ok(HotkeyChord::parse("ctrl+alt+space"));
+
+    let registered = hotkey.register(
+        &chord,
+        Box::new(move || fired.send(()).unwrap_or_else(|error| panic!("{error:?}"))),
+    );
+    let wrong = ("not an activation",);
+    ok(server.emit_signal(None::<BusName<'_>>, PATH, SHORTCUTS, "Activated", &wrong));
+    forged(&server, Some(":1.99"), "ctrl+alt+space");
+    activated(&server, "ctrl+alt+space");
+
+    assert_eq!(registered, Ok(()));
+    assert_eq!(on_fire.recv_timeout(LIMIT), Ok(()));
     assert!(on_fire.recv_timeout(Duration::from_millis(200)).is_err());
 }

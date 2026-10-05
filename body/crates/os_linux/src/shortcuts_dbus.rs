@@ -7,6 +7,7 @@ use std::time::Duration;
 use zbus::MatchRule;
 use zbus::blocking::{Connection, MessageIterator};
 use zbus::message::Type;
+use zbus::names::{MemberName, UniqueName};
 use zbus::zvariant::{ObjectPath, OwnedObjectPath, OwnedValue, Value};
 
 use crate::portal::PortalError;
@@ -14,6 +15,8 @@ use crate::request::{DESTINATION, PATH, Results, request};
 use crate::shortcuts::{Activation, Shortcut, ShortcutsPortal, ShortcutsReply};
 
 const SHORTCUTS: &str = "org.freedesktop.portal.GlobalShortcuts";
+const BUS: &str = "org.freedesktop.DBus";
+const BUS_PATH: &str = "/org/freedesktop/DBus";
 
 /// How long [`DbusShortcuts::new`] waits for each call's reply and `Response` together; a
 /// compositor may first ask the user to confirm or change the trigger.
@@ -23,10 +26,17 @@ pub const SHORTCUTS_LIMIT: Duration = Duration::from_mins(1);
 /// options.
 type Signal = (OwnedObjectPath, String, u64, HashMap<String, OwnedValue>);
 
+/// The signals a connection subscribed to, and the portal's unique bus name once the bus named it.
+struct Listener {
+    signals: MessageIterator,
+    connection: Connection,
+    owner: Option<String>,
+}
+
 /// `org.freedesktop.portal.GlobalShortcuts` on a D-Bus connection, or on a bus that did not open.
 pub struct DbusShortcuts {
     connection: Result<Connection, PortalError>,
-    activations: Mutex<Result<MessageIterator, PortalError>>,
+    activations: Mutex<Result<Listener, PortalError>>,
     limit: Duration,
 }
 
@@ -47,6 +57,11 @@ impl DbusShortcuts {
             .interface(SHORTCUTS)
             .and_then(|rule| rule.path(PATH))
             .and_then(|rule| MessageIterator::for_match_rule(rule.build(), &connection, None))
+            .map(|signals| Listener {
+                signals,
+                connection: connection.clone(),
+                owner: None,
+            })
             .map_err(PortalError::from);
         Self {
             connection: Ok(connection),
@@ -142,24 +157,32 @@ impl ShortcutsPortal for DbusShortcuts {
             .activations
             .lock()
             .unwrap_or_else(PoisonError::into_inner);
-        let signals = activations.as_mut().map_err(|error| error.clone())?;
+        let listener = activations.as_mut().map_err(|error| error.clone())?;
         loop {
             let closed = || Err(zbus::Error::Failure(String::from("the bus closed")));
-            let message = signals
+            let message = listener
+                .signals
                 .next()
                 .unwrap_or_else(closed)
                 .map_err(PortalError::from)?;
-            let active = match message
-                .header()
-                .member()
-                .map(zbus::names::MemberName::as_str)
-            {
+            let header = message.header();
+            let active = match header.member().map(MemberName::as_str) {
                 Some("Activated") => true,
                 Some("Deactivated") => false,
                 _ => continue,
             };
-            let (session, shortcut, _, _): Signal =
-                message.body().deserialize().map_err(PortalError::from)?;
+            if listener.owner.is_none() {
+                listener.owner = owner(&listener.connection);
+            }
+            // Any process on the bus can send these signals, so only the portal's are read, and
+            // a malformed one is skipped rather than ending the listener.
+            let sender = header.sender().map(UniqueName::as_str);
+            if sender.is_none() || sender != listener.owner.as_deref() {
+                continue;
+            }
+            let Ok((session, shortcut, _, _)) = message.body().deserialize::<Signal>() else {
+                continue;
+            };
             return Ok(Activation {
                 session: session.to_string(),
                 shortcut,
@@ -167,6 +190,20 @@ impl ShortcutsPortal for DbusShortcuts {
             });
         }
     }
+}
+
+/// The unique name owning the portal's well-known name, or `None` when the bus names no owner.
+fn owner(connection: &Connection) -> Option<String> {
+    connection
+        .call_method(
+            Some(BUS),
+            BUS_PATH,
+            Some(BUS),
+            "GetNameOwner",
+            &(DESTINATION,),
+        )
+        .ok()
+        .and_then(|reply| reply.body().deserialize::<String>().ok())
 }
 
 /// A result that is a string or an object path, as text; the frontend sends a session handle as

@@ -212,7 +212,10 @@ decision 13).
   subscribes to every `GlobalShortcuts` signal on the portal's path when it is built, so a press
   between a bind and the first read is kept and a `Deactivated` is never read before the
   `Activated` it ends; it returns `Activated` and `Deactivated` and skips any other signal, such
-  as `ShortcutsChanged`. It reads the session handle as a string, which the 1.18 frontend sends, or
+  as `ShortcutsChanged`. Any process on the session bus can send those signals, so it reads one
+  only when its sender is the unique name the bus gives for `org.freedesktop.portal.Desktop`
+  (`GetNameOwner`, asked at the first signal and kept once named), and skips one whose arguments
+  do not parse; only a failed connection ends the listener. It reads the session handle as a string, which the 1.18 frontend sends, or
   as an object path, and the bound ids from the `shortcuts` result. The tests run the hotkey
   check list over the core with an in-process fake, and the adapter against a fake portal over a
   socket pair. No live test exists
