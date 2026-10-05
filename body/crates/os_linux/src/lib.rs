@@ -23,6 +23,7 @@ mod portal_dbus;
 mod request;
 mod screen;
 mod screencast;
+mod screencast_dbus;
 mod shortcuts;
 mod shortcuts_dbus;
 mod trigger;
@@ -52,6 +53,7 @@ pub use screencast::{
     CANCELLED, CastSession, FrameError, FrameReader, LinuxWindowCapture, NO_WINDOW, RESTORE_LIMIT,
     ScreenCastPortal, Started, WINDOW_SOURCE, WindowStream, offers_window,
 };
+pub use screencast_dbus::DbusScreenCast;
 pub use shortcuts::{
     Activation, Hold, LinuxPortalHotkey, REPEAT_GAP, Shortcut, ShortcutsPortal, ShortcutsReply,
 };

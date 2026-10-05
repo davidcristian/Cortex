@@ -141,8 +141,8 @@ decision 13).
   ([wayland-screencast-portal](../readings/wayland-screencast-portal.md),
   [787](../refinements/tasks/787-read-a-wayland-window-through-the-screencast-portal.md)).
 - **`LinuxWindowCapture<P: ScreenCastPortal, R: FrameReader>`** is the covered core of the
-  Wayland window capture of [ADR-0073](../adr/ADR-0073-wayland-window-capture.md); no adapter or
-  shell path serves it yet
+  Wayland window capture of [ADR-0073](../adr/ADR-0073-wayland-window-capture.md); no shell path
+  serves it yet
   ([787](../refinements/tasks/787-read-a-wayland-window-through-the-screencast-portal.md)). It
   answers a focus request; a display request is `Backend` before any call. It keeps the portal's
   last `restore_token` in a `Mutex<Option<String>>`, held for the whole capture, since a token
@@ -168,3 +168,21 @@ decision 13).
   its standard error), the limit, or an output that does not begin with the PNG signature is a
   `FrameError`, which the core returns as `Backend`. It is tested with a shell script in place of
   the program.
+- **`DbusScreenCast`** is the `ScreenCastPortal` adapter, over the request module `DbusPortal` uses.
+  `start` builds the session handle `/org/freedesktop/portal/desktop/session/<sender>/cortexcast<n>`
+  and a request token per call (`cortexcast<n>_create`, `_select`, `_start`), a prefix of its own
+  because `DbusShortcuts` numbers `cortex<n>` tokens and may share the connection. It asks the bus
+  which unique name owns `org.freedesktop.portal.Desktop` and reads only a `Response` that name
+  sent, since any process on the bus can send one on a handle; the other two adapters do not yet
+  ([792](../refinements/tasks/792-read-only-the-portal-owner-response-in-every-adapter.md)).
+  It calls `CreateSession`, `SelectSources` with `types` 2, `multiple` false, `cursor_mode` 1,
+  `persist_mode` 1 and the `restore_token` when one is given, `Start` with no parent window, and
+  `OpenPipeWireRemote`, whose reply is the descriptor; `zbus` passes descriptors over its Unix
+  socket with no added feature. One deadline, `limit` after the start, bounds every reply and
+  `Response`. A nonzero `Start` is `Started::Refused` and an unanswered one `Started::Expired`,
+  both left for the core to close. A nonzero code before `Start`, a failed call, a `Start` listing
+  no stream, or no descriptor by the deadline fails, and the adapter sends `Close` on the session
+  itself. `close` sends the session's `Close` with no reply awaited. `source_types` reads
+  `AvailableSourceTypes` through `Properties.Get`, raced against `RESPONSE_LIMIT` or the
+  `with_limit` value, and `absent` fails each call with the bus error's text. It is tested against
+  a fake portal over a socket pair that sends a forged `Response` before each `Start` answer.

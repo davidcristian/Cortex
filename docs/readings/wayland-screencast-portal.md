@@ -104,3 +104,23 @@ standard input and its standard output read into memory.
 Method: a scratch directory outside the repo held the prefixes, one shell script per stack that
 starts it on a private session bus, the KWin scripts, the fake input client and the Python `Gio`
 client, which ran the two sessions and the `gst-launch-1.0` read.
+
+## The body's adapters on headless KWin
+
+**2026-10-05**, the same KWin stack and red window, with no covering window. A scratch binary built
+against `os_linux` ran `DbusScreenCast` alone and then `LinuxWindowCapture` over `DbusScreenCast`
+and `GstLaunch`, on the private session bus. The fake input client clicked the window's card and
+pressed Enter 2.5 s after each chooser opened.
+
+| Step | Result |
+| --- | --- |
+| `source_types` | 3, so `offers_window` is true |
+| `start` with no token, then a click | `Started::Stream`: node 45, a `restore_token`, a descriptor that is a Unix socket |
+| a focus capture before any choice | `NoTarget` with `NO_WINDOW`, and `choice_wanted` true |
+| `choose`, then a click | true, a token kept |
+| a focus capture | a 400 by 300 frame of the window alone, its centre pixel 204, 51, 51 |
+
+- **The frontend accepted the adapter's handles**: the session was
+  `/org/freedesktop/portal/desktop/session/1_20/cortexcast1`, and each `Response` came from the
+  unique name owning `org.freedesktop.portal.Desktop`, the only sender the adapter reads.
+- **The restored session started with no dialog** and no input, within `RESTORE_LIMIT`.
