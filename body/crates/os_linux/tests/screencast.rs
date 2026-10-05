@@ -11,7 +11,7 @@ use std::time::Duration;
 
 use body_core::{CaptureError, CaptureRequest, CaptureTarget, CapturedFrame, ScreenCapture};
 use os_linux::{
-    CastSession, FrameError, FrameReader, LinuxWindowCapture, NO_WINDOW, PortalError,
+    CANCELLED, CastSession, FrameError, FrameReader, LinuxWindowCapture, NO_WINDOW, PortalError,
     RESTORE_LIMIT, ScreenCastPortal, Started, WindowStream, decode_png, offers_window,
 };
 use png::{BitDepth, ColorType};
@@ -243,7 +243,11 @@ fn a_chosen_window_is_read_alone_through_a_restored_session() {
 
 #[test]
 fn a_restored_session_that_does_not_start_is_closed_and_its_token_forgotten() {
-    for refusal in [Answer::Expired, Answer::Refused(2)] {
+    for refusal in [
+        Answer::Expired,
+        Answer::Refused(CANCELLED),
+        Answer::Refused(2),
+    ] {
         let fake = Fake::answering(&[Answer::Stream(1, Some("t1")), refusal]);
         let capture = chosen(&fake);
 
@@ -252,7 +256,12 @@ fn a_restored_session_that_does_not_start_is_closed_and_its_token_forgotten() {
         let second = capture.capture(&focus());
 
         match refusal {
-            Answer::Refused(_) => assert!(backend(first).contains("with response 2")),
+            Answer::Refused(2) => assert_eq!(
+                backend(first),
+                format!(
+                    "the portal failed the restored window session with response 2, so {NO_WINDOW}"
+                )
+            ),
             _ => no_window(first),
         }
         assert!(wanted);
@@ -344,7 +353,11 @@ fn captures_from_two_threads_start_one_session_at_a_time() {
 
 #[test]
 fn a_chooser_that_ends_without_a_token_keeps_nothing() {
-    for answer in [Answer::Refused(1), Answer::Expired, Answer::Stream(4, None)] {
+    for answer in [
+        Answer::Refused(CANCELLED),
+        Answer::Expired,
+        Answer::Stream(4, None),
+    ] {
         let fake = Fake::answering(&[answer]);
         let capture = window(&fake);
         no_window(capture.capture(&focus()));

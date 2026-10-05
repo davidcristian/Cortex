@@ -52,6 +52,12 @@ next focus capture asks again.
 - **A token whose window has closed** opens the chooser inside the capture call. A restored
   session's `Start` therefore waits only `RESTORE_LIMIT` (2 s; a restored `Start` answered at once
   in the probe), then sends `Close`, forgets the token and fails as `NoTarget` as above.
+- **A restored session that answers nonzero** gave no stream from its token, and it is closed and
+  its token forgotten as well, because a kept token would fail every later focus capture the same
+  way and the chooser opens only when there is none. The portal shows the chooser when a token
+  cannot be restored, so 1, cancelled, means that chooser was closed, and the capture fails as
+  `NoTarget` as above. 2, ended in another way, is a portal failure: `Backend` with the code, then
+  the same sentence.
 
 ### 3. The restore token lives in the body's memory for one run
 

@@ -70,3 +70,7 @@ whose headless KWin stack the live test reuses.
   covered core with its restore token, `RESTORE_LIMIT` and `choose`, tested over fakes of both
   ports, and moved the capture backends of `body-os-linux.md` into `body-os-linux-capture.md`. The
   task stays open for the steps above.
+- 2026-10-05: Decided what a restored session answering nonzero does. Its token was already
+  forgotten and a choice wanted, so the chooser opens at the next hide. Since the spec shows the
+  chooser for a token that cannot be restored, 1, cancelled, now fails as `NoTarget` with the
+  fixed message, and 2 stays `Backend` naming the code, recorded in ADR-0073 decision 2.

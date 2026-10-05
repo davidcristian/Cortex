@@ -47,7 +47,7 @@ pub use screen::{
     Snapshot, TreeWindow,
 };
 pub use screencast::{
-    CastSession, FrameError, FrameReader, LinuxWindowCapture, NO_WINDOW, RESTORE_LIMIT,
+    CANCELLED, CastSession, FrameError, FrameReader, LinuxWindowCapture, NO_WINDOW, RESTORE_LIMIT,
     ScreenCastPortal, Started, WINDOW_SOURCE, WindowStream, offers_window,
 };
 pub use shortcuts::{

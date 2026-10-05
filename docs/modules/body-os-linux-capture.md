@@ -154,8 +154,9 @@ decision 13).
   the session whether or not the read worked, and `decode_png` makes the bytes a
   `CapturedFrame::window_only`.
 - **A restored session that does not start** is closed, its token forgotten and a choice wanted:
-  past the limit the capture is `NoTarget` with `NO_WINDOW`, and a nonzero response code is
-  `Backend` naming the code. A port error before `Start` ends is `Backend` and keeps the token.
+  past the limit or on `CANCELLED` (1) the capture is `NoTarget` with `NO_WINDOW`, and any other
+  nonzero response code is `Backend` naming the code, then `NO_WINDOW`. A port error before
+  `Start` ends is `Backend` and keeps the token.
 - **`choose(limit)`** clears the wanted flag, opens a session with no token, so the portal shows
   its chooser, sends `Close` whatever the answer, and keeps the token only from a stream that has
   one, returning whether it kept one. `offers_window` reads bit 2 (`WINDOW_SOURCE`) of

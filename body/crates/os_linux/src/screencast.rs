@@ -17,6 +17,10 @@ pub const WINDOW_SOURCE: u32 = 2;
 /// once on headless `KWin`, and a token whose window closed opens the chooser instead.
 pub const RESTORE_LIMIT: Duration = Duration::from_secs(2);
 
+/// The `Response` code of a request the user cancelled; a token that no longer restores shows the
+/// chooser, so a restored session answers it when that chooser is cancelled.
+pub const CANCELLED: u32 = 1;
+
 /// What a focus capture answers when no window is chosen.
 pub const NO_WINDOW: &str =
     "no window is chosen to read; the user is asked to choose one when the overlay next hides";
@@ -37,7 +41,7 @@ pub struct WindowStream {
 pub enum Started {
     /// The portal answered 0 with a stream.
     Stream(WindowStream),
-    /// The portal answered with this response code: 1 when the user cancelled, 2 for a failure.
+    /// The portal answered with this response code: [`CANCELLED`], or 2 when it ended otherwise.
     Refused(u32),
     /// The limit passed before the portal answered.
     Expired,
@@ -165,18 +169,17 @@ fn capture(
         .map_err(|error| CaptureError::Backend(error.0))?;
     let stream = match started {
         Started::Stream(stream) => stream,
-        Started::Refused(code) => {
+        ended => {
             portal.close(&handle);
             *token = None;
-            grant.want();
-            return Err(CaptureError::Backend(format!(
-                "the portal failed the restored window session with response {code}"
-            )));
-        }
-        Started::Expired => {
-            portal.close(&handle);
-            *token = None;
-            return Err(grant.want());
+            let no_window = grant.want();
+            return Err(match ended {
+                Started::Refused(code) if code != CANCELLED => CaptureError::Backend(format!(
+                    "the portal failed the restored window session with response {code}, so \
+                     {NO_WINDOW}"
+                )),
+                _ => no_window,
+            });
         }
     };
     *token = stream.restore;
