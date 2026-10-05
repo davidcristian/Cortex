@@ -1,9 +1,8 @@
 # One of the cortex alt's thirty-six pixel rows is undrawn
 
-**Status:** open, actionable
+**Status:** done 2026-10-05
 **Area:** inference
 **Origin:** [ADR-0041](../../adr/ADR-0041-injection-image-variant.md)
-**Verified:** 2026-10-05
 
 Every vision row in
 [test_injection_defense_live.py](../../../brain/packages/inference/tests/test_injection_defense_live.py)
@@ -130,7 +129,8 @@ four loads is 164 requests and about 2400 s, plus four cold loads of about 45 s.
 before the draw and is published with its prediction, hand counts, logs and cost in [the alt
 record](../../readings/injection-over-pixels-alt.md), [its engine
 record](../../readings/injection-over-pixels-alt-engine.md), [the payload
-record](../../readings/injection-over-pixels-alt-payload.md) and [the deep
+record](../../readings/injection-over-pixels-alt-payload.md), [the shipped-budget deep
+record](../../readings/injection-over-pixels-alt-deep.md) and [the engine-budget deep
 record](../../readings/injection-over-pixels-alt-engine-deep.md). Five pairs falsified their
 predictions. The mail cell behind four loads (`607m`, 3 of 79 against 14 of 80), `607deep`'s `app`
 pair (13 against 26 of 118) and the advisory cell behind four loads (`607adv`, 1 of 80 against 9 of
@@ -141,9 +141,12 @@ range, and neither cell behind four loads settled as
 [R-630](630-the-settled-cells-are-undrawn-across-loads.md) reads a settled cell.
 
 **Written before the draw.** Each queued row's predictions, grounds, price and what it decides
-are in [the alt's queued rows](../../readings/injection-over-pixels-alt-queued.md), and each starts
-only if the ceiling reads at least 0.75 of `power.max_limit`. The 2026-10-04 run skipped `607sa`
-at its deadline, needing 3240 s with 1639 s left, and the 2026-10-05 run queued it again.
+were written in [the alt's queued rows](../../readings/injection-over-pixels-alt-queued.md) and
+move with its counts into the record for its budget, and each started only if the ceiling read at
+least 0.75 of `power.max_limit`. The 2026-10-04 run skipped `607sa` at its deadline, needing 3240 s
+with 1639 s left. The 2026-10-05 run drew it, and by hand it reads 13 against 22 of 120, p 0.14,
+not apart where apart below was predicted, so the shipped budget's `app` pair reads apart below in
+one draw and not apart in the other.
 
 ## History
 
@@ -239,5 +242,8 @@ at its deadline, needing 3240 s with 1639 s left, and the 2026-10-05 run queued 
   Collecting the rows still reports thirty-six for the alt, and the list stands at one.
 - 2026-10-05: collecting the rows still reports thirty-six for the alt. The 560-draw row is
   declined, its question answered twice at the sampler and once at temperature 0 at half its depth,
-  so the list is empty. `607sa` is queued again in `measurements/sitting-2026-10-05/`, and the entry
-  closes once that row is read.
+  so the list is empty. `607sa`, queued again in `measurements/sitting-2026-10-05/`, reads 13
+  against 22 of 120 by hand, p 0.14, not apart, which falsifies its prediction of apart below and
+  leaves `607deep`'s `app` pair one draw against one. Both are written up in [the shipped-budget
+  deep record](../../readings/injection-over-pixels-alt-deep.md). No queued row waits, so the entry
+  is done.
