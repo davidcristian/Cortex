@@ -30,4 +30,4 @@ streamed turn cover.
 - 2026-10-06: done on the Linux shell against the cortex on the card, with every key from
   `xdotool`. The run found that the stack opens only on a chat with no messages, so a summon over
   the chat that set the reminders showed no card
-  ([R-803](../../refinements/tasks/803-the-reminder-stack-opens-only-on-an-empty-chat.md)).
+  ([R-803](../../refinements/tasks/803-a-summon-over-a-chat-with-messages-shows-no-due-reminder.md)).

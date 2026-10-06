@@ -67,16 +67,15 @@ never a reading of what the tree does now.
 
 141 of these record the day their claims were last checked against the code. On every other task here, that reading is still yours to take.
 
-### Actionable now (2)
+### Actionable now (1)
 
 - **[R-802](tasks/802-the-linux-shell-attaches-no-pasted-or-dropped-picture.md)** The Linux shell attaches no pasted or dropped picture (body-overlay). Its claim was checked against the code on 2026-10-06.
-- **[R-803](tasks/803-the-reminder-stack-opens-only-on-an-empty-chat.md)** The reminder stack opens only on an empty chat (body-overlay). Its claim was checked against the code on 2026-10-06.
 
 ### Actionable, once a port changes (1)
 
 - **[R-129](tasks/129-streamed-brain-status.md)** Streamed brain status (body-overlay). Its claim was checked against the code on 2026-10-02.
 
-### Waiting for its trigger (108)
+### Waiting for its trigger (109)
 
 - **[R-011](tasks/011-stylesheet-outside-line-cap.md)** The overlay stylesheet outside the line cap (repo-checks). Reopens when: `find body/app/src -name '*.css'` lists a second file, or `git log --since='<Verified date> 00:00' --oneline -- body/app/src/overlay.css` lists a commit whose diff moves a rule to change which rule applies. A commit that edits only comments does not. Its claim was checked against the code on 2026-10-02.
 - **[R-013](tasks/013-couplings-widened-registry-cannot-hold.md)** The couplings the widened registry cannot cover (repo-checks). Reopens when: A third value on the capture-target enum, a reader for declarations in the `.proto` arriving in the scan for another reason, any module outside the body's rpc crate and the brain's body client that has to name one of the two gRPC status codes, or either side of that pair gaining a declaration whose value the scan can read. Its claim was checked against the code on 2026-10-04.
@@ -186,6 +185,7 @@ never a reading of what the tree does now.
 - **[R-788](tasks/788-test-the-portal-hotkey-on-a-kde-wayland-session.md)** Test the portal hotkey on a KDE Wayland session (cross-cutting). Reopens when: a `GlobalShortcuts` backend that registers what `BindShortcuts` names can be installed here. None can yet: the Ubuntu 24.04 archive has one backend with the interface, `xdg-desktop-portal-kde` 5.27.11, and its `BindShortcuts` registers nothing. Its claim was checked against the code on 2026-10-05.
 - **[R-794](tasks/794-a-paused-stream-keeps-its-last-letters-blurred.md)** A paused stream keeps its last letters blurred (body-overlay). Reopens when: a History line in this file recording the maintainer's pick of a pause signal, a finish and a rule for the last word, from the three choices in the proposal. Its claim was checked against the code on 2026-10-06.
 - **[R-800](tasks/800-the-preview-of-a-failed-turn-has-no-tint.md)** The preview of a failed turn has no tint (body-overlay). Reopens when: a History line in this file recording the maintainer's pick of tint A, B or C. Its claim was checked against the code on 2026-10-06.
+- **[R-803](tasks/803-a-summon-over-a-chat-with-messages-shows-no-due-reminder.md)** A summon over a chat with messages shows no due reminder (body-overlay). Reopens when: a History line in this file recording the maintainer's pick of what shows a waiting card over a chat with messages, from the options in the proposal. Its claim was checked against the code on 2026-10-06.
 
 ### Waiting for a consumer (25)
 
@@ -300,7 +300,7 @@ never a reading of what the tree does now.
 - [R-794](tasks/794-a-paused-stream-keeps-its-last-letters-blurred.md) A paused stream keeps its last letters blurred. open, waiting for its trigger.
 - [R-800](tasks/800-the-preview-of-a-failed-turn-has-no-tint.md) The preview of a failed turn has no tint. open, waiting for its trigger.
 - [R-802](tasks/802-the-linux-shell-attaches-no-pasted-or-dropped-picture.md) The Linux shell attaches no pasted or dropped picture. open, actionable.
-- [R-803](tasks/803-the-reminder-stack-opens-only-on-an-empty-chat.md) The reminder stack opens only on an empty chat. open, actionable.
+- [R-803](tasks/803-a-summon-over-a-chat-with-messages-shows-no-due-reminder.md) A summon over a chat with messages shows no due reminder. open, waiting for its trigger.
 
 ### brain
 

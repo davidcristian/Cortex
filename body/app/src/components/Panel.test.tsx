@@ -266,7 +266,7 @@ describe("Panel", () => {
     expect(onHoistSession).toHaveBeenCalledWith("c1", true);
   });
 
-  it("shows the reminder stack only when something is due, above the scrolling history", async () => {
+  it("shows the reminder stack on an empty chat when something is due, outside the history", async () => {
     const onDismissReminder = vi.fn();
     const onSelectSession = vi.fn();
     const { container, rerender } = render(<Panel {...panelProps({}, true, false)} />);
@@ -409,6 +409,20 @@ describe("Panel", () => {
     const panel = open.container.querySelector(".panel") as HTMLElement;
     expect(panel.getAttribute("aria-hidden")).toBe("false");
     expect(panel.hasAttribute("inert")).toBe(false);
+  });
+
+  it("keeps the reminder stack shut over a chat with messages", () => {
+    const due: DueReminder = {
+      reminderId: "r-1",
+      text: "Stretch",
+      firedAtUnixMs: 1000,
+      recurring: false,
+      tainted: false,
+      sessionId: "c9",
+    };
+    renderPanel({ messages: [userMsg], reminders: [due] }, true, false);
+    expect(screen.queryByLabelText("Due reminders")).toBeNull();
+    expect(screen.queryByText("Stretch")).toBeNull();
   });
 
   it("greets an empty chat with the mark and tappable example prompts that submit", () => {

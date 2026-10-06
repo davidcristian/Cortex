@@ -126,6 +126,10 @@ offsets are written beside the rules in `overlay.css`.
   check reaches is the call sequence into the OS and the look of a real toast, which need the
   Windows host ([docs/host/](../host/index.md#windows-desktop)). A toast that appears for a plain
   reminder but not for one containing hostile markup is an escaping break.
+- The cards show on the empty chat only, where ADR-0035 decision 29 puts the stack, so a summon
+  over a chat with messages pulls them and shows nothing until a new chat opens. What should show
+  there is a pick
+  ([R-803](../refinements/tasks/803-a-summon-over-a-chat-with-messages-shows-no-due-reminder.md)).
 - **Toast activation is not built.** Clicking a toast does nothing: the push path reads back only
   `shown`, and nothing on the body reads a clicked toast. Routing a click to the origin chat needs a
   `session_id` on `NotifyRequest`, passed into the toast's `launch` payload, and on the shell's
