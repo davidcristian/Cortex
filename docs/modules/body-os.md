@@ -140,8 +140,11 @@ genuinely unreachable code, a stub whose body is `unimplemented!()`, gets the ex
 **Dependencies.** `body-core` (the ports). `os_linux` adds `zbus` 5 (MIT, pure Rust, `async-io` and
 `blocking-api` features, plus `p2p` and `bus-impl` for its tests), `png` 0.18 (MIT or
 Apache-2.0, the version `body-core` encodes with) and `x11rb` 0.13 (MIT or Apache-2.0, pure Rust,
-no default features, so no `libxcb`, with `randr`, plus `xtest` for its live test) under a
-`cfg(target_os = "linux")` target table, and `body-contract` for its tests; it runs
-`pactl` as a program and links no audio or X library. The real `os_windows` adds `global-hotkey`
+no default features, so no `libxcb`, with `randr`, plus `xtest` for its live test),
+`wayland-client` 0.31 with `wayland-protocols` 0.32 (`staging`) and `wayland-protocols-wlr` 0.3
+(all MIT, pure Rust backend, so no `libwayland-client`, plus `wayland-server` 0.31 for its tests)
+and `rustix` 1 (`event`, for `poll`) under a `cfg(target_os = "linux")` target table, and
+`body-contract` for its tests; it runs `pactl` as a program and links no audio, X or Wayland
+library. The real `os_windows` adds `global-hotkey`
 and the `windows` crate (`0.61`, with Core Audio plus the `UI_Notifications` and `Data_Xml_Dom`
 WinRT namespaces), both under `[target.'cfg(windows)'.dependencies]`, so they never build on Linux.

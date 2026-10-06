@@ -19,6 +19,13 @@ png.workspace = true
 # The timer and the race that bound the wait for the portal's `Response`; zbus already uses both.
 async-io = "2.6"
 futures-lite = "2.6"
+# The Wayland client the clipboard read speaks the `ext` and `wlr` data control protocols with.
+# Pure Rust: the default backend links no `libwayland-client`.
+wayland-client = "0.31"
+wayland-protocols = { version = "0.32", features = ["client", "staging"] }
+wayland-protocols-wlr = { version = "0.3", features = ["client"] }
+# `poll` bounds the wait for the clipboard's owner to write to the read's pipe.
+rustix = { version = "1.1", default-features = false, features = ["event", "std"] }
 
 [target.'cfg(target_os = "linux")'.dev-dependencies]
 # The shared port check lists the adapters are run against.
@@ -28,6 +35,10 @@ body-contract.workspace = true
 zbus = { version = "5.19", default-features = false, features = ["async-io", "blocking-api", "bus-impl", "p2p"] }
 # `xtest` lets the live hotkey test press a chord on the X server.
 x11rb = { version = "0.13", default-features = false, features = ["randr", "xtest"] }
+# The fake compositor the Wayland clipboard read is tested against, over a socket pair.
+wayland-server = "0.31"
+wayland-protocols = { version = "0.32", features = ["client", "server", "staging"] }
+wayland-protocols-wlr = { version = "0.3", features = ["client", "server"] }
 
 [lints]
 workspace = true

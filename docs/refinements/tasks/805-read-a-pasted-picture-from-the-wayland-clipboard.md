@@ -19,30 +19,27 @@ and `items` are all empty, as on X. The composer then calls `clipboard_picture`,
 the shell's own Wayland window is the active one, the X `CLIPBOARD` has no owner after a
 `wl-copy`, so the paste attaches nothing. The shell needs a Wayland reader for this case.
 
-**The build.**
+`WaylandSelection` in `os_linux` is that reader: it implements `SelectionRead` over
+`ext_data_control_manager_v1`, else `zwlr_data_control_manager_v1` (KWin 5.27 lists only version
+2 of the `wlr` one), and is tested against a fake compositor serving either protocol
+([body-os-linux](../../modules/body-os-linux.md)). The shell does not use it yet.
 
-1. **The adapter.** A `WaylandSelection` in `os_linux` implements `SelectionRead` through a pure
-   Rust Wayland client. It binds `ext_data_control_manager_v1` where the compositor lists it, else
-   `zwlr_data_control_manager_v1` (KWin 5.27 lists version 2 and no `ext` one), takes the device
-   for the seat, and keeps the last `selection` offer with the types its `offer` events listed.
-   `offered()` returns those types, empty with no selection. `convert(target, limit)` sends
-   `receive` with a pipe and reads its far end to the end, `Over` past `limit` and `Silent` after
-   `SELECTION_LIMIT`, as `X11Selection` does. A compositor with neither protocol is `Failed`
-   with that reason.
-2. **The connection.** Connect to `WAYLAND_DISPLAY`, else to `wayland-0`, where GDK connects when
-   the variable is unset.
-3. **The choice.** `clipboard_picture` takes the calling window and reads through
-   `WaylandSelection` when that window's GTK display is a `GdkWaylandDisplay`, else through
-   `X11Selection`. `WAYLAND_DISPLAY` alone cannot choose, as it does for the hotkey and capture
-   backends, because a shell forced onto `XWayland` with `GDK_BACKEND=x11` reads X and works.
-4. **Tests.** The `LinuxClipboardPicture` tests over a fake `SelectionRead` stay. The adapter is
-   tested against a fake compositor, as `X11Selection` is against a fake X server, and an
-   `integration` test reads a `wl-copy --type image/png` picture on headless KWin and sway with
-   the readings' recipe.
-5. **Docs.** The `WaylandSelection` entry and the shell's choice in
-   [body-os-linux](../../modules/body-os-linux.md), decision 5 of ADR-0070, and a row in
-   [wayland-clipboard](../../readings/wayland-clipboard.md) showing the thumbnail from a
-   Wayland-client shell on both compositors.
+**What remains.**
+
+1. **The connection.** The shell connects to `WAYLAND_DISPLAY`, else to `wayland-0`, where GDK
+   connects when the variable is unset, under `XDG_RUNTIME_DIR` unless the name is absolute.
+   `wayland_client::Connection::connect_to_env` fails when the variable is unset, so the shell
+   opens the socket and passes it to `Connection::from_socket`, once per paste.
+2. **The choice.** `clipboard_picture` reads through `WaylandSelection` when the shell's GTK
+   display is a `GdkWaylandDisplay`, else through `X11Selection`. GTK objects are read on the
+   main thread, so the shell records the display's type at setup and the command reads that
+   record. `WAYLAND_DISPLAY` alone cannot choose, as it does for the hotkey and capture backends,
+   because a shell forced onto `XWayland` with `GDK_BACKEND=x11` reads X and works.
+3. **The live test.** An `integration` test in `os_linux` reads a `wl-copy --type image/png`
+   picture through `WaylandSelection` on headless KWin and sway, with the readings' recipe.
+4. **Docs.** The shell's choice in [body-os-linux](../../modules/body-os-linux.md), decision 5 of
+   ADR-0070, and a row in [wayland-clipboard](../../readings/wayland-clipboard.md) showing the
+   thumbnail from a Wayland-client shell on both compositors.
 
 ## History
 
@@ -53,3 +50,5 @@ the shell's own Wayland window is the active one, the X `CLIPBOARD` has no owner
 - 2026-10-06: the Wayland-client paste reached on headless KWin, with `Ctrl+V` sent through
   `org_kde_kwin_fake_input` after a plain GTK 3 entry pasted text the same way. The page got no
   `File`, so the check became the build above and the task was renamed to it.
+- 2026-10-06: built `WaylandSelection` and its fake-compositor tests. The shell's connection and
+  choice, the live test and the remaining docs are the steps above.

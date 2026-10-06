@@ -1,7 +1,8 @@
 //! Linux OS backends for the Cortex body: `Notify`, `AudioControl`, `ScreenCapture` (X11 and the
 //! screenshot and screencast portals), `Hotkey` (X11, `kglobalaccel` and the global shortcuts
-//! portal), `ClipboardPicture` (X11) and the file read of a native drop.
+//! portal), `ClipboardPicture` (X11 and Wayland) and the file read of a native drop.
 #![cfg(target_os = "linux")]
+#![cfg_attr(coverage, feature(coverage_attribute))]
 
 mod accel;
 mod accel_dbus;
@@ -31,6 +32,8 @@ mod selection;
 mod shortcuts;
 mod shortcuts_dbus;
 mod trigger;
+mod wayland;
+mod wayland_state;
 mod x11;
 
 pub use accel::{AccelError, COMPONENT, GlobalAccel, LinuxKdeHotkey, Press, qt_code, qt_key};
@@ -68,6 +71,9 @@ pub use shortcuts::{
 };
 pub use shortcuts_dbus::{DbusShortcuts, SHORTCUTS_LIMIT};
 pub use trigger::{keysym_name, trigger};
+pub use wayland::WaylandSelection;
+/// The Wayland client the clipboard read is built on. A host connects to the compositor with it.
+pub use wayland_client;
 pub use x11::X11Root;
 /// The X11 client the capture and hotkey backends are built on. A host opens the display with it.
 pub use x11rb;

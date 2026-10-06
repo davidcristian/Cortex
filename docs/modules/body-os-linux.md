@@ -4,7 +4,7 @@
 freedesktop D-Bus service, volume through `pactl`, screen capture from the X root window or through
 the desktop portal's `Screenshot` call, and the global hotkey as an X key grab, through
 `kglobalaccel` on KDE Plasma, or through the portal's `GlobalShortcuts` calls, and a pasted
-picture from the X clipboard. What every
+picture from the X clipboard or the Wayland one. What every
 platform crate shares (the public contract, the coverage exemption, the invariants and the
 dependencies) is in [body-os.md](body-os.md).
 
@@ -128,6 +128,17 @@ decision 13).
   `Over` past the limit. A `SelectionNotify` naming no property is `None`. Each wait for the owner
   lasts at most `SELECTION_LIMIT` (1 s), after which the read is `Silent`, and the window is
   destroyed after every read. Tested against a fake X server as `X11Keys` is.
+- **`WaylandSelection`** binds the first `wl_seat` and gets its data control device from
+  `ext_data_control_manager_v1` where the compositor lists it, else from
+  `zwlr_data_control_manager_v1`, then makes a round trip, after which the compositor has sent
+  the current selection's offer and its types. A read with neither manager or no seat is `Failed`
+  with that reason, and no selection lists nothing and converts to `None`. A conversion sends
+  `receive` with the write end of a pipe, closes its own copy, makes a round trip so the
+  compositor has passed the pipe on, and reads the pipe to its end, `Over` past the limit. A wait
+  of `SELECTION_LIMIT` with no new bytes is `Silent`, and so is a failed wait or read on the pipe.
+  Each read binds new objects, which go with the connection, so the caller connects once per
+  paste. Tested against a fake compositor (`wayland-server` over a socket pair) serving either
+  protocol. The shell does not use it yet: it reads through `X11Selection` only.
 - **The shell** grabs through `X11Keys` unless `WAYLAND_DISPLAY` is set and not empty. Then, on a
   thread and bus connection of its own, since a portal bind can wait `SHORTCUTS_LIMIT` on the user,
   it keeps a `LinuxKdeHotkey` for the run whenever `kglobalaccel_running`, before any portal call,
