@@ -73,7 +73,7 @@ never a reading of what the tree does now.
 - **[R-794](tasks/794-a-paused-stream-keeps-its-last-letters-blurred.md)** A paused stream keeps its last letters blurred (body-overlay). Its claim was checked against the code on 2026-10-06.
 - **[R-795](tasks/795-the-load-failure-note-calls-the-hand-over-sentence-an-answer.md)** The load-failure note calls the hand-over sentence an answer (inference-model-manager). Its claim was checked against the code on 2026-10-06.
 - **[R-797](tasks/797-the-hotkey-hides-the-window-without-telling-the-overlay.md)** The hotkey hides the window without telling the overlay (body-overlay). Its claim was checked against the code on 2026-10-06.
-- **[R-798](tasks/798-the-preview-of-a-pending-card-is-empty.md)** The preview of a pending card is empty (body-overlay). Its claim was checked against the code on 2026-10-06.
+- **[R-799](tasks/799-the-preview-of-a-failed-turn-fades.md)** The preview of a failed turn fades like a finished one (body-overlay). Its claim was checked against the code on 2026-10-06.
 
 ### Actionable, once a port changes (1)
 
@@ -300,7 +300,7 @@ never a reading of what the tree does now.
 - [R-784](tasks/784-a-fitting-box-reserves-the-wrong-rail-on-webkitgtk.md) A box that fits reserves the wrong rail on WebKitGTK. open, blocked on host hardware.
 - [R-794](tasks/794-a-paused-stream-keeps-its-last-letters-blurred.md) A paused stream keeps its last letters blurred. open, actionable.
 - [R-797](tasks/797-the-hotkey-hides-the-window-without-telling-the-overlay.md) The hotkey hides the window without telling the overlay. open, actionable.
-- [R-798](tasks/798-the-preview-of-a-pending-card-is-empty.md) The preview of a pending card is empty. open, actionable.
+- [R-799](tasks/799-the-preview-of-a-failed-turn-fades.md) The preview of a failed turn fades like a finished one. open, actionable.
 
 ### brain
 

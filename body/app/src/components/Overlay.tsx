@@ -3,7 +3,7 @@ import { useEffect } from "react";
 import type { EdgeStyle } from "../edge/edges";
 import type { MarkStyle } from "../mark/marks";
 import { chord } from "../overlay/fieldKeys";
-import { latestReply } from "../overlay/overlayState";
+import { isTurnActive, latestReply } from "../overlay/overlayState";
 import type { OverlayController } from "../overlay/useOverlay";
 import { Announcer } from "./Announcer";
 import { Orb } from "./Orb";
@@ -149,7 +149,13 @@ export function Overlay({
       />
       {state.mode === "orb" ? <Orb style={mark} onClick={open} /> : null}
       {state.mode === "preview" ? (
-        <Preview reply={latestReply(state)} onClick={open} onHover={previewHover} />
+        <Preview
+          reply={latestReply(state)}
+          approval={state.pendingConfirm?.toolName ?? null}
+          fading={!isTurnActive(state)}
+          onClick={open}
+          onHover={previewHover}
+        />
       ) : null}
     </>
   );

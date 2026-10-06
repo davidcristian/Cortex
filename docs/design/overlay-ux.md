@@ -180,7 +180,7 @@ JSON string when the arguments are not one JSON object, since what you approve i
 brain's reason line, and **Deny** and **Approve**. Approve takes the accent gradient because it runs
 the action. Everything else denies by construction: dismissing, stopping the turn, switching chats
 or walking away all drop the question, and the brain denies on its own timeout. A confirmation while
-minimized raises the preview, which does not fade while it is open.
+minimized raises the preview, which names the tool and has no countdown bar, since it never fades.
 
 **v1 window scope.** The state machine ships inside a fixed, frameless, opaque, always-on-top window
 of 640x720, centred, and every animation plays inside it. Three moves at the level of the OS window

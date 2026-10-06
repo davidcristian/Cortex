@@ -117,6 +117,27 @@ describe("Overlay", () => {
     expect(controller.open).toHaveBeenCalledOnce();
   });
 
+  it("hands the preview the pending approval and leaves out its bar while the turn runs", () => {
+    const asking = { ...reply, content: "", streaming: true };
+    const pendingConfirm = {
+      confirmId: "c1",
+      toolName: "schedule_task",
+      argumentsJson: "{}",
+      reason: "r",
+    };
+    const controller = fakeController("preview", [asking], { pendingConfirm });
+    const { container } = renderOverlay(controller);
+    expect(container.querySelector(".pv-b")?.textContent).toBe(
+      "Waiting for your approval to run schedule_task",
+    );
+    expect(container.querySelector(".preview .bar")).toBeNull();
+  });
+
+  it("drains the preview's bar once the turn has ended", () => {
+    const { container } = renderOverlay(fakeController("preview", [reply]));
+    expect(container.querySelector(".preview .bar")).not.toBeNull();
+  });
+
   it("Escape dismisses when visible, but not when hidden", () => {
     const visible = fakeController("panel");
     const { unmount } = renderOverlay(visible);

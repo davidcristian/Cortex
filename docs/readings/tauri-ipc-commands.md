@@ -25,8 +25,8 @@ timing that depends on it.
   after its countdown. One Approve click that came 0.6 s after the brain's timeout scheduled
   nothing.
 - **The preview of a pending card** was an empty card: the turn had sent no text before the call,
-  and the countdown bar drained in the first seconds though the preview did not fade
-  ([R-798](../refinements/tasks/798-the-preview-of-a-pending-card-is-empty.md)).
+  and the countdown bar drained in the first seconds though the preview did not fade. The overlay
+  now names the waiting tool there and draws no bar.
 - **The hotkey during a turn** hid the window while the overlay stayed in its panel state, so the
   card raised after it was never on screen and the brain denied on its timeout. The next press
   showed the window without a link probe, a chat list refresh or a reminder pull
