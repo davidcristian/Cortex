@@ -147,7 +147,9 @@ holds both plain and under a `response_format`, and on the shipped subagent mode
 and fails under a `response_format`. The cause is the chat template, not the model. With thinking
 off the cortex's template opens and closes an empty thought in the prompt while the subagent's
 drops a marker, and the grammar llama.cpp builds for a `response_format` leaves the thought open
-either way. Rates and the whole lineup are in [thinking switch](../readings/thinking-switch.md).
+either way. Rates and the whole lineup are in [thinking switch](../readings/thinking-switch.md);
+after an engine bump, `just switch-lineup` with `CORTEX_MODELS_DIR` set draws that lineup again on
+a free card ([what it serves](../modules/repo-checks-tools.md)).
 
 Ask your own tier, with a server started with **neither** reasoning flag:
 
@@ -168,11 +170,9 @@ just switch-tail measurements/switch-<model>.json
 
 That compares the rendered prompt against the cells the same run drew and says whether this
 tier's template still predicts its own constrained result. **Read the prompt's tail, not the
-difference between the two renderings.** Both models change their prompt when the switch is sent
-and only one changes it where it counts: on build `b10666-4e97ac86e` the E4B's two prompts are
-194 and 162 characters and drop a whole `<|think|>` system turn at the front while ending byte
-identically at `<|turn>model\n`, and the Qwen3.5-2B's grows from `<think>\n` to
-`<think>\n\n</think>\n\n` at the end.
+difference between the two renderings.** On build `b10666-4e97ac86e` the E4B's two prompts are 194
+and 162 characters, the switch dropping a whole `<|think|>` system turn at the front and both
+ending at `<|turn>model\n`, while the Qwen3.5-2B's tail grows from `<think>\n` to `<think>\n\n</think>\n\n`.
 
 The command's second line names the engine build, the model file and the context size the server
 reported on `GET /props`. Exit 0 published the agreement. Exit 1 is either a refusal to publish

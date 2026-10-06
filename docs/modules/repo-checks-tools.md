@@ -157,6 +157,22 @@ than guess on a sample they cannot read, and each exits 2 printing one `<module>
   a record states the engine build, the file and the context it was measured at. The GPU layer count
   is on no route llama-server offers and is typed by hand beside it.
 
+## `switchlineup.py [--only PICK] [--image IMAGE] [--port N] [--out DIR] [--cpuset CPUS]`
+
+Draws the rendering column of the [thinking switch](../readings/thinking-switch.md) readings on one
+engine image. For each pick in `PICKS`, or each `--only` name, it deletes that pick's old sample,
+runs `/app/llama-server` from `--image` (default `cortex-model-host`) as `cortex-switch-lineup` on
+`127.0.0.1` at `--port` (default 8091) with the pick's file under `CORTEX_MODELS_DIR`, `--ctx-size
+8192 --parallel 1 --jinja --cache-ram 0` and neither reasoning flag, waits up to ten minutes for
+`/health`, runs the brain's `test_thinking_switch_live.py` at five draws a cell into `--out`
+(default `measurements/switch-lineup`), and removes the container. The E4B is the one pick at
+`-ngl 0`, with no GPU and on `--cpuset` when given, the placement its row was first read at; every
+other pick runs at `-ngl 99`. The samples then go to `switchtail.py`, whose
+exit code it returns, or 1 when a pick wrote no sample, which it names. An unknown `--only` name
+or an unset `CORTEX_MODELS_DIR` exits 2 before anything runs. It drives `docker run` and not the
+model host sidecar, whose API takes a logical id with no file or argv and whose subagent tier
+starts with the reasoning-off pair.
+
 ## `memwatch.py NAME [--floor-mib N] [--full-limit P] [--late-limit S] [--every S]`
 
 Watches the host while a measurement container runs, and removes the container with `docker rm

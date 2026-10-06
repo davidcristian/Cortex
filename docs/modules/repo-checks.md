@@ -12,22 +12,23 @@ The detail lives in two companion documents:
 - [repo-checks-scans.md](repo-checks-scans.md): what each of the thirteen cross-tree scans
   compares, what fails it, and what it prints.
 - [repo-checks-tools.md](repo-checks-tools.md): the Rust coverage check, the CI path classifier,
-  the commit-message check, the five modules that only report a measurement, and the watchdog
-  that guards a measurement container.
+  the commit-message check, the five modules that only report a measurement, the driver that draws
+  the thinking-switch lineup, and the watchdog that guards a measurement container.
 
 ## Public contract
 
-Twenty-three modules have a command line. `just` recipes run `linecap.py`, `dashcheck.py`,
+Twenty-four modules have a command line. `just` recipes run `linecap.py`, `dashcheck.py`,
 `prosecheck.py`, `crosscheck.py`, `bindcheck.py`, `defaultcheck.py`, `volumecheck.py`,
 `stubcheck.py`, `samplecheck.py`, `rostercheck.py`, `flagcheck.py`, `settingscheck.py`,
 `backlogcheck.py` and `rustcoverage.py`. The CI workflow runs `ci_paths.py`, and the `commit-msg`
 hook runs `commitlint.py`. Five measurement reporters have a recipe each: `contrast.py` under
 `just turn-cost`, `trailwidth.py` under `just recall-width`, `envelopefloor.py` under
 `just envelope-floor`, `envelopepairs.py` under `just envelope-pairs` and `switchtail.py` under
-`just switch-tail`. `memwatch.py` under `just mem-watch` removes a measurement container when
-the host runs short of memory. `replaysince.py` under `just replay` reads a bare date from that
-day's midnight. Every one of them also exposes a pure function that another module can import
-and a test can call directly.
+`just switch-tail`. `switchlineup.py` under `just switch-lineup` draws the thinking-switch
+record's picks one server at a time and publishes them through `switchtail.py`. `memwatch.py`
+under `just mem-watch` removes a measurement container when the host runs short of memory.
+`replaysince.py` under `just replay` reads a bare date from that day's midnight. Every one of them
+also exposes a pure function that another module can import and a test can call directly.
 
 **The rest have no command line of their own.** Each is read by one of the modules above, and most
 were split out of it to stay under the 300-line limit. Grouped by what reads them:
