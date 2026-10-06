@@ -124,4 +124,11 @@ image/png` served 300,000 bytes, and `WAYLAND_DEBUG=1` logged the read's request
 - **Neither lists `ext_data_control_manager_v1`**, so both reads used the `wlr` protocol.
 - **`wl-copy` answers every type with its data**, as `xclip` does: a read that asked for
   `text/plain` still received the picture, so the live test checks the listed types instead.
-- **No shell ran.** The thumbnail from a Wayland-client shell is not yet recorded on either stack.
+
+**The shell on KWin.** The debug shell built from the commit that wired this read ran on the KWin
+stack as a Wayland client with `WAYLAND_DISPLAY` unset and `WAYLAND_DEBUG=1`, summoned through its
+X grab. The 14,145-byte PNG of `LIGHTHOUSE` went on the clipboard with `wl-copy --type image/png`,
+and `Ctrl+V` went through `org_kde_kwin_fake_input` as above. At the press the shell connected to
+`wayland-0`, bound `zwlr_data_control_manager_v1` at version 1, was offered `image/png` and sent
+`receive` for it, and logged no error. No frame was taken, so the thumbnail was not seen, and no
+shell ran on sway.

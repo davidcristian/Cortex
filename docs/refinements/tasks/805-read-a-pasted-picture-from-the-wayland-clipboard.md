@@ -26,13 +26,12 @@ and its live test read a `wl-copy` picture whole on headless sway and KWin
 through it when the overlay's GTK display is a `GdkWaylandDisplay`, connecting where GDK does
 ([body-os-linux](../../modules/body-os-linux.md)).
 
-**What remains.** Run the shell as a Wayland client (`GDK_BACKEND=wayland`) on headless KWin and
-sway with the readings' recipe, paste a `wl-copy --type image/png` picture into the composer, and
-add a row to [wayland-clipboard](../../readings/wayland-clipboard.md) with the thumbnail on both.
-On KWin, `Ctrl+V` goes through `org_kde_kwin_fake_input` from a client started with
-`nsenter -U -m`; on sway, `wtype` reached no Wayland-client paste, so the press needs another
-route. If the paste attaches nothing, the shell's display record or its connection is the first
-suspect, since the reader itself is checked live.
+**What remains.** See the thumbnail. On headless KWin the Wayland-client shell sent the read at
+`Ctrl+V` ([wayland-clipboard](../../readings/wayland-clipboard.md#the-wayland-read)), but no frame
+of a Wayland window was taken there: KWin's `Xwayland` root reads black, and its screenshot
+interface was not tried. On sway, `grim` reads the output, but `wtype` reached no Wayland-client
+paste, so the press needs another route. A row in the readings with the thumbnail on both closes
+this task.
 
 ## History
 
@@ -44,4 +43,5 @@ suspect, since the reader itself is checked live.
   `org_kde_kwin_fake_input` after a plain GTK 3 entry pasted text the same way. The page got no
   `File`, so the check became the build above and the task was renamed to it.
 - 2026-10-06: built `WaylandSelection` with its fake-compositor and live tests, and the shell's
-  choice of reader. The shell run on both compositors remains.
+  choice of reader. The Wayland-client shell on KWin read the clipboard at `Ctrl+V`; the
+  thumbnail remains unseen.
