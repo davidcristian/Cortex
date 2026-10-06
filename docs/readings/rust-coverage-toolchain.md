@@ -2,7 +2,7 @@
 
 What the nightly coverage step does under the toolchains it has run on. Cited by
 [ADR-0002](../adr/ADR-0002-toolchain-checks.md#rust-coverage-on-an-unpinned-nightly), decisions 10
-and 12.
+and 12, and by [body-os-linux.md](../modules/body-os-linux.md).
 
 ## Build scripts enter the report on newer nightlies
 
@@ -25,3 +25,20 @@ left on stdout the per-file table prints, and still no line names the threshold.
 
 Method: the coverage line of `just check-body` with the flag appended, once with
 `--output-path coverage.json` and once without it.
+
+## A thread still in a loop at exit shifts the loop's counts
+
+**2026-10-06.** llvm-cov derives most region counts by subtracting one counter from another, so a
+thread that has entered a loop and not left it when the test binary exits is counted on a path it
+never took. The `os_linux` hotkey tests left each listener thread waiting in `next_press` or
+`next_activation` after their last assertion. When the binary exited before that thread read the
+closed bus, the skip of a malformed signal (`accel_dbus.rs` line 131, `shortcuts_dbus.rs` line
+184) read 0 although the tests send one, and the file fell short of full coverage. Of 32 runs
+before the fix, 20 on an idle machine and 12 beside busy loops at twice its core count, 4 missed
+the `accel_dbus.rs` line (1 idle, 3 loaded) and 1 missed the `shortcuts_dbus.rs` line (loaded),
+and every miss came with one fewer read error than the tests cause. Keeping the bus open past the
+exit missed the line in 4 runs of 4. With each test closing the bus and waiting for the listener
+to drop its callback, 27 runs, 12 idle and 15 loaded, read both lines covered.
+
+Method: `cargo +nightly llvm-cov --branch -p os-linux --all-targets --json` with the check's
+shuffle seed, reading the two files' segments from each run's export.

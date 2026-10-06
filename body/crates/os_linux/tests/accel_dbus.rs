@@ -2,7 +2,7 @@
 
 use std::os::unix::net::UnixStream;
 use std::sync::atomic::{AtomicU32, Ordering};
-use std::sync::mpsc;
+use std::sync::mpsc::{self, RecvTimeoutError};
 use std::sync::{Arc, Mutex, PoisonError};
 use std::thread;
 use std::time::Duration;
@@ -157,6 +157,19 @@ fn forged(server: &Connection, sender: Option<&str>, action: &str) {
     ok(server.send(&ok(builder.build(&("cortex", action, 7_i64)))));
 }
 
+/// Drops the hotkey, then the bus, and waits for the listener to return and drop the callback.
+fn stop(
+    hotkey: impl Hotkey,
+    server: Connection,
+    on_fire: &mpsc::Receiver<()>,
+) -> Result<(), RecvTimeoutError> {
+    drop(hotkey);
+    drop(server);
+    // A listener still in `next_press` when the test binary exits makes llvm-cov miscount the
+    // read loop's branches, so each test that starts one waits for it to end.
+    on_fire.recv_timeout(LIMIT)
+}
+
 fn press(action: &str, active: bool) -> Press {
     Press {
         action: String::from(action),
@@ -290,7 +303,7 @@ fn a_bus_that_did_not_open_fails_every_call_with_its_text() {
 }
 
 #[test]
-fn the_hotkey_over_the_bus_runs_once_per_press_and_removes_its_action_when_dropped() {
+fn the_hotkey_over_the_bus_runs_once_per_press_then_removes_its_action_and_ends_with_the_bus() {
     let (accel, server, record) = working();
     let hotkey =
         LinuxKdeHotkey::with_gap(accel, "Show or hide the overlay", Duration::from_hours(1));
@@ -313,7 +326,10 @@ fn the_hotkey_over_the_bus_runs_once_per_press_and_removes_its_action_when_dropp
         assert_eq!(on_fire.recv_timeout(LIMIT), Ok(()));
     }
     assert!(on_fire.recv_timeout(Duration::from_millis(200)).is_err());
-    drop(hotkey);
+    assert_eq!(
+        stop(hotkey, server, &on_fire),
+        Err(RecvTimeoutError::Disconnected)
+    );
     let last = received(&record).pop();
     assert_eq!(
         last,

@@ -91,7 +91,9 @@ decision 13).
   failed connection ends the listener. It reads the session handle as a string, which the 1.18
   frontend sends, or as an object path, and the bound ids from the `shortcuts` result. The tests
   run the check list over the core with a fake, and the adapter against a fake portal over a
-  socket pair. No live test exists
+  socket pair. Each test that starts the listener then closes the bus and waits for it to return,
+  since llvm-cov miscounts a loop that a thread is still in when the test binary exits
+  ([rust-coverage-toolchain](../readings/rust-coverage-toolchain.md)). No live test exists
   ([788](../refinements/tasks/788-test-the-portal-hotkey-on-a-kde-wayland-session.md)): the one
   backend here, `xdg-desktop-portal-kde` 5.27.11, binds nothing through the 1.18 frontend and
   runs `xdg-open` on System Settings' shortcuts page at each `BindShortcuts`

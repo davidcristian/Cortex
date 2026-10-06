@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 use std::os::unix::net::UnixStream;
 use std::sync::atomic::{AtomicU32, Ordering};
-use std::sync::mpsc;
+use std::sync::mpsc::{self, RecvTimeoutError};
 use std::sync::{Arc, Mutex, PoisonError};
 use std::thread;
 use std::time::Duration;
@@ -474,8 +474,21 @@ fn a_bus_that_did_not_open_fails_every_call_with_its_text() {
     }
 }
 
+/// Drops the hotkey, then the bus, and waits for the listener to return and drop the callback.
+fn stop(
+    hotkey: impl Hotkey,
+    server: Connection,
+    on_fire: &mpsc::Receiver<()>,
+) -> Result<(), RecvTimeoutError> {
+    drop(hotkey);
+    drop(server);
+    // A listener still in `next_activation` when the test binary exits makes llvm-cov miscount
+    // the read loop's branches, so each test that starts one waits for it to end.
+    on_fire.recv_timeout(LIMIT)
+}
+
 #[test]
-fn the_hotkey_over_the_bus_runs_once_per_press_however_long_it_is_held() {
+fn the_hotkey_over_the_bus_runs_once_per_press_however_long_it_is_held_and_ends_with_the_bus() {
     let (portal, server, _) = working();
     let hour = Duration::from_hours(1);
     let hotkey = LinuxPortalHotkey::with_gap(portal, "Show or hide the overlay", hour);
@@ -498,6 +511,10 @@ fn the_hotkey_over_the_bus_runs_once_per_press_however_long_it_is_held() {
         assert_eq!(on_fire.recv_timeout(LIMIT), Ok(()));
     }
     assert!(on_fire.recv_timeout(Duration::from_millis(200)).is_err());
+    assert_eq!(
+        stop(hotkey, server, &on_fire),
+        Err(RecvTimeoutError::Disconnected)
+    );
 }
 
 #[test]
@@ -519,4 +536,8 @@ fn a_malformed_or_forged_signal_leaves_the_hotkey_listening() {
     assert_eq!(registered, Ok(()));
     assert_eq!(on_fire.recv_timeout(LIMIT), Ok(()));
     assert!(on_fire.recv_timeout(Duration::from_millis(200)).is_err());
+    assert_eq!(
+        stop(hotkey, server, &on_fire),
+        Err(RecvTimeoutError::Disconnected)
+    );
 }
