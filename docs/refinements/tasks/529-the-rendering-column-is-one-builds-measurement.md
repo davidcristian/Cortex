@@ -8,24 +8,18 @@
 Every row of the lineup section's rendering column stands on a sample the reader published, and
 every one was drawn on one build. The rule the column states, that a template rendering the thought
 already closed honours the switch under a `response_format` and one leaving it open does not, is a
-reading of that build's handlers rather than a theorem. Nothing in the tree runs the measurement
-that would say when it stops being true. The session that read the nine rows was a scratch shell
-loop: start a fixed llama-server on one pick off the mount with neither reasoning flag, wait on
-`/health`, run the probe with `CORTEX_THINKING_MODEL` naming the pick and `CORTEX_THINKING_REPEATS=5`,
-stop the server, publish the sample, and move to the next pick. It served nine picks in about 26
-minutes on the 24 GB card, the three rows the lineup section places at `-ngl 0` among them, and it
-is recorded nowhere but in the session that used it. The column has twelve rows since
-2026-09-26, when Qwen3.8-27B was read on the same build at the deep tier's argv, which has no
-reasoning flag by default, so a re-run draws twelve picks.
+reading of that build's handlers rather than a theorem, so every engine bump owes the column
+again. The column has twelve rows since 2026-09-26, when Qwen3.8-27B was read at the deep tier's
+argv, which has no reasoning flag by default.
 
-Re-running the lineup on a new build and publishing every row through `just switch-tail` is what
-closes it. The cheaper half is a `just switch-lineup` recipe holding the loop above. The recipe
-drives `docker run` of the fixed image per pick and not the model-host sidecar: that sidecar's
-control API takes a logical id and nothing else, its roster is whatever `CORTEX_MODEL_FILE_*`
-variables it booted with, it runs only on the card, and its subagent tier's argv has the
-reasoning-off pair, where every row of this measurement is served with neither reasoning flag. Every
-sample the re-run writes has the context size the server reported, so only `-ngl` is typed by hand.
-That loop now exists as `measurements/sitting-2026-10-04/drivers/529sw.sh`, run end to end on CPU.
+`just switch-lineup` (`scripts/switchlineup.py`, since 2026-10-07) draws the column on one engine
+image: one llama-server per pick with neither reasoning flag, the E4B at `-ngl 0` and the rest at
+`-ngl 99`, the probe at five draws a cell, and every sample through `switchtail.py`. It drives
+`docker run` of the fixed image per pick and not the model-host sidecar: that sidecar's control API
+takes a logical id and nothing else, its roster is whatever `CORTEX_MODEL_FILE_*` variables it
+booted with, and its subagent tier's argv has the reasoning-off pair, where every row of this
+measurement is served with neither reasoning flag. When the trigger fires, run the recipe on the new
+build and record the twelve rows in the readings under the rules below.
 
 ## The column on b11312
 
@@ -76,6 +70,45 @@ this task waits for the next build with the recipe as its open half. The recipe 
 `-ngl 99` read controls 5 of 5, plain 0/5 and constrained 4/5, the reader agreeing. Samples under
 `measurements/sitting-2026-10-04/529cpu/` and `529old/`, from copies of the driver differing only in
 container name and, for `b10680`, image.
+
+## The column on b11429
+
+The model host image was rebuilt on 2026-10-06 and reads `b11429 d81235049`, image
+`sha256:246f5bf127e4`; the `b11312` image is no longer cached. Row `529sw` of the card run of
+2026-10-07 draws the twelve picks at `-ngl 99` with the 2026-10-04 driver and argv, then row
+`529cpu` draws the E4B at `-ngl 0` on CPU cores 12 to 23. The E4B row is read from `529cpu`, as on
+`b11312`; its `-ngl 99` sample is recorded and decides nothing. What each result decides, written
+before the draw:
+
+- **Every probe exits 0 and the reader agrees on every pick.** The column holds on `b11429`. The
+  readings record the build and the twelve rows, and this task waits for the next build.
+- **The reader exits 1 on a pick.** The readings record that row beside its `b11312` row, and no
+  ADR prose changes until the same pick is drawn again at five draws a cell on `b11429` and on the
+  cached `b10680` `:server-cuda` image at the same argv. That row stays owed and the task stays
+  actionable.
+- **A null** is a pick with no sample, from a failed load, or a control that did not deliberate on
+  all five draws: that row stays owed on `b11429`, and the task stays actionable.
+
+**Drawn 2026-10-07**, both rows exit 0 and the reader exiting 0 on all thirteen samples
+([thinking-switch readings](../../readings/thinking-switch.md#the-lineups-switched-tails)). Eleven
+picks agree with their `b11312` rows, so under the first rule the column holds on `b11429` for
+them. The E4B is a null under the third at both placements: its plain control deliberated on 4 of
+5 at `-ngl 99` and on 3 of 5 at `-ngl 0`, so its row stays owed on `b11429`. Nothing shipped
+changes, and the task stays actionable.
+
+**The next row, written before its draw.** The E4B's plain control has failed in four of five runs
+on `b11312` and `b11429`, at both placements, and fired on all five in both `b10680` runs. Five
+draws cannot tell a lower rate from chance. The row draws the E4B at `-ngl 99` at 20 draws a cell,
+a copy of the 2026-10-07 driver with `CORTEX_THINKING_REPEATS=20`, on `cortex-model-host` and on
+the cached `b10680` `:server-cuda` image at the same argv: about 10 minutes on the card.
+
+- **The control deliberates on all 20 on `b11429`.** The probe reads the E4B row on `b11429`
+  under the rules above, and all twelve rows are read on it.
+- **It deliberates on all 20 on `b10680` and on 16 or fewer on `b11429`.** The build lowered the
+  plain control's rate on this prompt. The readings record it, the E4B's plain cell is unmeasured
+  by this prompt on `b11429`, its row is read from its constrained cells, which the reader judges,
+  and a task is filed for a question the E4B's control deliberates on every time.
+- **Any other result** is a null, and the row stays owed.
 
 ## History
 
@@ -143,3 +176,7 @@ container name and, for `b10680`, image.
   on 2026-10-04. The registry's `:server-cuda` tag names `b11434` today, so a rebuild before the
   draw moves the engine again: read the label first and draw on the image as it stands. The
   trigger line is gone and the task is actionable.
+- 2026-10-07: drawn on `b11429`. Eleven rows hold, the reader agreeing on all thirteen samples;
+  the E4B is a null at both placements, its plain control deliberating on 4 and 3 of 5, so its row
+  stays owed, with the next row written above. The recipe half is done: `just switch-lineup`
+  (`scripts/switchlineup.py`) holds the loop, run live on one pick on `b11429`.

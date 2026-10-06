@@ -66,6 +66,20 @@ end 0.51 to 0.81 of the card's maximum. Method: `529sw.sh` in `measurements/sitt
 its log `529sw.log` and samples under `529/`, the second E4B draw in `529e4b.log` and `529e4b/`,
 the CPU draw in `529cpu.log` and `529cpu/`, the `b10680` draw in `529old.log` and `529old/`.
 
+**2026-10-07**, build `b11429-d81235049`, the model host image rebuilt on 2026-10-06, the same
+argv and five draws a cell, every sample read by `switchtail.py`, which agreed on all thirteen.
+Eleven picks at `-ngl 99` repeat their rows above, tail and counts alike, every control 5 of 5, so
+those eleven rows hold on `b11429`. The E4B is a null at both placements: its plain control
+deliberated on 4 of 5 at `-ngl 99` and on 3 of 5 on CPU cores 12 to 23 at `-ngl 0`, so its row is
+owed on `b11429`. Its tail is unchanged and open, and its constrained cells read control 5 of 5
+both times, switch 5 of 5 at `-ngl 99` and 4 of 5 at `-ngl 0`. Its plain control has now failed in
+four of five runs on `b11312` and `b11429`, at both placements, and fired on all five in both
+`b10680` runs. The twelve took 1443 s, 0.85 of their 1700 s price, with the SM clock sampled every
+15 s at 0.44 to 0.83 of the card's maximum and the enforced power limit at 0.80 to 0.91 of its own.
+Method: `529sw.sh` and `launch.sh` in `measurements/sitting-2026-10-07/drivers/`, the logs
+`529sw.log` and `529cpu.log`, the samples under `529/` and `529cpu/`. `just switch-lineup` now
+holds the same loop.
+
 **2026-09-04, re-read 2026-09-15.** A walk over every GGUF header on the model mount: 68 files, 34
 with a chat template, every one writing one of the two marker pairs `switchtail.py` lists. Six
 Qwen3.6 repackages also read `<thinking>`, `</thinking>`, `<|think_on|>` and `<|think_off|>`, and
