@@ -5,7 +5,7 @@ import type { MarkStyle } from "../mark/marks";
 import { chatFloorRef } from "../overlay/measured";
 import { RECENT_CHATS } from "../overlay/notice";
 import { type ConsoleTab, type OverlayState, draftOf, isTurnActive } from "../overlay/overlayState";
-import { waitingOf } from "../overlay/pictureState";
+import { noteOf, waitingOf } from "../overlay/pictureState";
 import { handOff } from "../overlay/sectionCaret";
 import { useLogScroll } from "../overlay/useLogScroll";
 import { BubbleMark } from "./BubbleMark";
@@ -213,7 +213,7 @@ export function ChatView({
         onSubmit={onSubmit}
         onDraft={onDraft}
         pictures={waitingOf(state.pictures, state.sessionId)}
-        pictureNote={state.pictures.note}
+        pictureNote={noteOf(state.pictures, state.sessionId)}
         onAttach={onAttach}
         onDetach={onDetach}
         onStop={onStop}

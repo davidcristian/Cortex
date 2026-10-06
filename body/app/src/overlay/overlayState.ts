@@ -18,7 +18,7 @@ import {
   linkServing,
 } from "./linkState";
 import { type Notice, reminderDismissed, speak } from "./notice";
-import { NO_PICTURES, type PictureState, attach, detach } from "./pictureState";
+import { NO_PICTURES, type PictureState, attach, detach, forget } from "./pictureState";
 import type { ReadPicture } from "./pictures";
 import { NEW_CHAT_TITLE, adoptSession, deleteSession, newChat, openSession } from "./sessionState";
 import {
@@ -252,8 +252,10 @@ export function reduce(state: OverlayState, action: Action): OverlayState {
       return openSession(state, action.sessionId, action.messages, action.announce);
     case "adoptSession":
       return adoptSession(state, action.sessionId, action.messages);
-    case "sessionDeleted":
-      return deleteSession(state, action.sessionId, action.fallbackSessionId);
+    case "sessionDeleted": {
+      const deleted = deleteSession(state, action.sessionId, action.fallbackSessionId);
+      return forget(deleted, action.sessionId);
+    }
     case "remindersLoaded":
       // Each open re-reads: the brain is the authority on what is still deliverable, so the list is
       // replaced whole rather than merged.

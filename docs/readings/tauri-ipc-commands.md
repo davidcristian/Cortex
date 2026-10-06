@@ -124,8 +124,7 @@ needing approval, and WebKitGTK 2.52.6. A temporary listener in the page reporte
 - **A refusal.** With the brain recreated under `CORTEX_VISION=off`, a question with two pictures
   ended at once: the brain logged `refusing a turn whose pictures the model cannot see`, the
   composer showed its sentence above both thumbnails with the question back in the field, the
-  title read "New chat" again, and the session set held only the earlier chat. After `Ctrl+N` the
-  new, empty chat still showed that sentence over no pictures.
+  title read "New chat" again, and the session set held only the earlier chat.
 - **Reminder cards.** The cortex scheduled a one-shot `stretch`, a `drink water` repeating every
   60 s, and, from a turn holding a picture, a third whose stored record was `tainted`. With the
   overlay hidden until all three had fired, a summon over the chat that held those turns showed no

@@ -2,7 +2,7 @@ import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { FakeBridge } from "../bridge/fakeBridge";
-import { waitingOf } from "./pictureState";
+import { noteOf, waitingOf } from "./pictureState";
 import type { ReadPicture } from "./pictures";
 import { useOverlay } from "./useOverlay";
 
@@ -47,7 +47,7 @@ describe("useOverlay with pictures", () => {
       result.current.attach([new Blob(["x"], { type: "text/plain" })]);
     });
     await vi.waitFor(() =>
-      expect(result.current.state.pictures.note).toBe(
+      expect(noteOf(result.current.state.pictures, "s1")).toBe(
         "Only PNG, JPEG and WebP pictures can be attached.",
       ),
     );

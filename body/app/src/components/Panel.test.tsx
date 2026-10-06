@@ -425,6 +425,15 @@ describe("Panel", () => {
     expect(screen.queryByText("Ask me anything")).toBeNull();
   });
 
+  it("shows the picture note of the chat on screen and no other chat's", () => {
+    const notes = { s1: "That picture could not be read.", s2: "the attached pictures were refused" };
+    renderPanel({ pictures: { ...NO_PICTURES, notes } }, true, false);
+    expect(screen.getByRole("alert").textContent).toBe("That picture could not be read.");
+    cleanup();
+    renderPanel({ sessionId: "s3", pictures: { ...NO_PICTURES, notes } }, true, false);
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
   it("keeps the invitation and the bubbles that replace it in the same floored column", () => {
     const empty = renderPanel({}, true, false).container;
     expect(empty.querySelector(".history > .log > .empty")).not.toBeNull();

@@ -43,7 +43,6 @@ this as pending; then delete this section.
   Win32 desktop has the clipboard and the WebView2 drop target this needs.
 - 2026-10-06: narrowed after the Linux shell run sent pictures through the real IPC hop into the
   brain. The run filed
-  [R-802](../../refinements/tasks/802-the-linux-shell-attaches-no-pasted-or-dropped-picture.md) and
-  [R-804](../../refinements/tasks/804-the-picture-note-follows-the-user-to-another-chat.md), a
-  refusal's sentence left over the composer of the next chat. The overlay window's native drop
-  handler was turned off the same night, so the drop half now checks that change on WebView2.
+  [R-802](../../refinements/tasks/802-the-linux-shell-attaches-no-pasted-or-dropped-picture.md).
+  The overlay window's native drop handler was turned off the same night, so the drop half now
+  checks that change on WebView2.

@@ -16,10 +16,10 @@ to the brain with the text, as [ADR-0070](../adr/ADR-0070-user-attached-images.m
   1600 px long edge and encodes JPEG as JPEG and anything else as PNG, and an 88 px canvas copy
   becomes the thumbnail as a data URL. jsdom has no canvas, so it is excluded from coverage and run
   in headless Chromium; tests inject a fake reader through `useOverlay`'s third argument.
-- `pictureState.ts` holds `OverlayState.pictures`: the waiting pictures keyed by session id, the
-  note shown above them, and the text and pictures of the turn in flight. The reducer handles
-  `attach` and `detach`; `submit` moves the pictures into the turn; a `failed` event with code
-  `attachment_refused` hands them back.
+- `pictureState.ts` holds `OverlayState.pictures`: the waiting pictures and the note shown above
+  them, both keyed by session id and read with `waitingOf` and `noteOf`, and the text and pictures
+  of the turn in flight. The reducer handles `attach` and `detach`; `submit` moves the pictures
+  into the turn; a `failed` event with code `attachment_refused` hands them back.
 - `Composer` takes pictures from `paste` on the field and `drop` on the pill, claims a drag only
   when it holds files, and shows each waiting picture as a thumbnail with a remove control.
 - `guardDrops(window)` in `dropGuard.ts`, installed by `App`, cancels the webview's default for
@@ -34,6 +34,8 @@ to the brain with the text, as [ADR-0070](../adr/ADR-0070-user-attached-images.m
   and a new chat's title goes back to "New chat". Text typed during the turn is kept over the sent
   text, and pictures attached since are added after the sent ones.
 - Any other end of a turn drops the sent pictures; nothing holds them after the turn.
+- A chat's waiting pictures and note stay with that chat: another chat shows neither, coming back
+  shows both, and deleting the chat drops both, as it drops the chat's draft.
 - `MAX_ATTACHED_IMAGES` and `MAX_IMAGE_BYTES` equal the brain's, and `DEFAULT_MAX_EDGE` equals the
   capture path's in `screen_policy.rs`; `scripts/wirecouplings.py` checks all three.
 - The overlay window's `dragDropEnabled` is false in `src-tauri/tauri.conf.json`, so a drop

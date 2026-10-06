@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { type OverlayState, createInitialState, reduce } from "./overlayState";
-import { refused, waitingOf } from "./pictureState";
+import { noteOf, refused, waitingOf } from "./pictureState";
 import { NEW_CHAT_TITLE } from "./sessionState";
 import type { ReadPicture } from "./pictures";
 
@@ -36,19 +36,19 @@ describe("the composer's pictures", () => {
       pictures: [],
       problem: "That picture could not be read.",
     });
-    expect(problem.pictures.note).toBe("That picture could not be read.");
+    expect(noteOf(problem.pictures, "s1")).toBe("That picture could not be read.");
     const five = ["1", "2", "3", "4", "5"].map(read);
     const full = reduce(problem, { kind: "attach", pictures: five, problem: "unread" });
-    expect(full.pictures.note).toBe("A message holds at most 4 pictures.");
+    expect(noteOf(full.pictures, "s1")).toBe("A message holds at most 4 pictures.");
     expect(previews(full)).toEqual(["1", "2", "3", "4"]);
   });
 
   it("removes one picture and the note with it, and forgets an emptied chat", () => {
-    const state = { ...withTwo(), pictures: { ...withTwo().pictures, note: "old" } };
+    const state = { ...withTwo(), pictures: { ...withTwo().pictures, notes: { s1: "old" } } };
     const [first, second] = waitingOf(state.pictures, "s1");
     const one = reduce(state, { kind: "detach", id: first!.id });
     expect(previews(one)).toEqual(["data:b"]);
-    expect(one.pictures.note).toBeNull();
+    expect(noteOf(one.pictures, "s1")).toBeNull();
     const none = reduce(one, { kind: "detach", id: second!.id });
     expect(none.pictures.waiting).toEqual({});
   });
@@ -68,7 +68,7 @@ describe("the composer's pictures", () => {
     });
     expect(failed.drafts).toEqual({ s1: "look" });
     expect(previews(failed)).toEqual(["data:a", "data:b"]);
-    expect(failed.pictures.note).toBe("attachment 2 is bad");
+    expect(noteOf(failed.pictures, "s1")).toBe("attachment 2 is bad");
     expect(failed.pictures.sent).toBeNull();
     expect(failed.messages).toEqual([]);
     expect(failed.title).toBe(NEW_CHAT_TITLE);
@@ -94,7 +94,7 @@ describe("the composer's pictures", () => {
       event: { kind: "failed", code: "inference_failed", message: "no" },
     });
     expect(failed.pictures.sent).toBeNull();
-    expect(failed.pictures.note).toBeNull();
+    expect(noteOf(failed.pictures, "s1")).toBeNull();
     expect(failed.messages.map((message) => message.role)).toEqual(["user", "assistant"]);
     expect(previews(failed)).toEqual([]);
     expect(failed.drafts).toEqual({});
@@ -111,6 +111,44 @@ describe("the composer's pictures", () => {
     });
     expect(failed.messages.map((message) => message.content)).toEqual(["hello there", ""]);
     expect(failed.title).toBe(done.title);
+  });
+
+  it("keeps a refusal's note with its chat when the user leaves and comes back", () => {
+    const sent = reduce(withTwo(), { kind: "submit", text: "look" });
+    const failed = reduce(sent, {
+      kind: "event",
+      event: { kind: "failed", code: "attachment_refused", message: "attachment 2 is bad" },
+    });
+    const away = reduce(failed, { kind: "newChat", sessionId: "s2", announce: true });
+    expect(noteOf(away.pictures, "s2")).toBeNull();
+    const back = reduce(away, { kind: "openSession", sessionId: "s1", messages: [], announce: true });
+    expect(noteOf(back.pictures, back.sessionId)).toBe("attachment 2 is bad");
+    expect(previews(back)).toEqual(["data:a", "data:b"]);
+  });
+
+  it("leaves another chat's note alone while this chat attaches, detaches and sends", () => {
+    const noted = reduce(createInitialState("s1"), { kind: "attach", pictures: [], problem: "unread" });
+    const here = reduce(noted, { kind: "newChat", sessionId: "s2", announce: true });
+    const attached = reduce(here, { kind: "attach", pictures: [read("data:c")], problem: "too big" });
+    expect(noteOf(attached.pictures, "s2")).toBe("too big");
+    const [only] = waitingOf(attached.pictures, "s2");
+    const detached = reduce(attached, { kind: "detach", id: only!.id });
+    const sent = reduce(detached, { kind: "submit", text: "hello" });
+    expect(noteOf(sent.pictures, "s2")).toBeNull();
+    expect(noteOf(sent.pictures, "s1")).toBe("unread");
+  });
+
+  it("forgets a deleted chat's pictures and note, open or not", () => {
+    const noted = reduce(withTwo(), { kind: "attach", pictures: [], problem: "unread" });
+    const elsewhere = reduce(noted, { kind: "newChat", sessionId: "s2", announce: true });
+    const other = reduce(elsewhere, { kind: "sessionDeleted", sessionId: "s1", fallbackSessionId: "s3" });
+    expect(other.sessionId).toBe("s2");
+    expect(other.pictures.waiting).toEqual({});
+    expect(other.pictures.notes).toEqual({});
+    const open = reduce(noted, { kind: "sessionDeleted", sessionId: "s1", fallbackSessionId: "s3" });
+    expect(open.sessionId).toBe("s3");
+    expect(open.pictures.waiting).toEqual({});
+    expect(open.pictures.notes).toEqual({});
   });
 
   it("changes nothing when a refusal arrives with no turn to hand back", () => {

@@ -124,7 +124,8 @@ the brain is called.
 - Paste (Ctrl+V with a picture on the clipboard) and a drop onto the composer are the ways in.
   A file of another type, one the webview cannot decode, or one still over `MAX_IMAGE_BYTES` after
   the downscale is left out, and one line above the thumbnails says why. At most
-  `MAX_ATTACHED_IMAGES` wait at once, and they are kept per chat, like the drafts.
+  `MAX_ATTACHED_IMAGES` wait at once. The pictures and that line are kept per chat, like the
+  drafts.
 - A drop goes to the page. The overlay window sets Tauri's `dragDropEnabled` to false, because
   the native handler Tauri otherwise installs takes every drop first: on Windows wry turns
   WebView2's external drop off and registers its own drop target, and on Linux it stops WebKit's.
