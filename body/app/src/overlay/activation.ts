@@ -4,6 +4,9 @@
 /** The DOM event both the host bridge and the browser self-summon dispatch on `window`. */
 export const ACTIVATE_EVENT = "cortex:activate";
 
+/** The DOM event the host bridge dispatches for a press of the hotkey while the window is shown. */
+export const TOGGLE_EVENT = "cortex:toggle";
+
 let pending = false;
 
 /** Ask for the overlay: record the request, then announce it to whoever is already listening. */

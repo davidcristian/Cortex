@@ -7,6 +7,7 @@ import type {
   Cancellation,
   DueReminder,
   LinkStatus,
+  OverlayWindow,
   Preference,
   SessionMessage,
   SessionSummary,
@@ -107,5 +108,15 @@ export class TauriBridge implements BrainBridge {
   // A failure here is not fatal for the caller, because the brain denies by timeout.
   respondConfirm(confirmId: string, approved: boolean): Promise<void> {
     return invoke<void>("confirm_response", { confirmId, approved });
+  }
+}
+
+/** The real `OverlayWindow`: the shell's `set_overlay_shown` command, which also tells the Linux
+ *  capture guard. Excluded from coverage with the bridge above. */
+export class TauriWindow implements OverlayWindow {
+  setShown(shown: boolean): void {
+    invoke<void>("set_overlay_shown", { shown }).catch(() => {
+      // The window stays as it was, and the next change of mode asks again.
+    });
   }
 }

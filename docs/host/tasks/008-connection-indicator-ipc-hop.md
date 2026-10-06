@@ -18,7 +18,4 @@ file for both shells. What WebView2 adds is the transport that every command sha
 - 2026-10-06: done on the Linux shell, the brain stopped and started with `docker compose`
   ([readings](../../readings/tauri-ipc-commands.md#the-commands-on-the-linux-shell)). The runbook
   said the chat list fills in when the dot turns green; nothing refreshes the list on recovery, as
-  ADR-0021 decision 8 states, and the runbook now says so. The dot stayed green through a brain
-  outage when the summon followed a hotkey hide, which
-  [R-797](../../refinements/tasks/797-the-hotkey-hides-the-window-without-telling-the-overlay.md)
-  records.
+  ADR-0021 decision 8 states, and the runbook now says so.

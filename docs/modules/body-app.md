@@ -129,9 +129,10 @@ the dot never claims more than the brain proved: `unknown` is a real state with 
 
 ## The Tauri shell
 
-`src-tauri/` is a tray plus a hidden always-on-top window. The global hotkey (`os_windows`, or
-`os_linux` on X11 or Wayland) toggles the window, emitting the `cortex:activate` event only on show,
-which `main.tsx` re-dispatches as the DOM event the overlay listens on; a browser self-summons.
+`src-tauri/` is a tray plus a hidden always-on-top window. The hotkey (`os_windows`, or `os_linux`
+on X11 or Wayland) shows a hidden window with `cortex:activate` or sends a shown one `cortex:toggle`,
+both re-dispatched as DOM events by `main.tsx`. `overlay/useOverlayWindow.ts` calls
+`set_overlay_shown` as the mode leaves or reaches hidden; each show and hide reaches `OverlayWatch`.
 
 - **`converse(session_id, text, images, channel)`** (`converse.rs`) decodes each `WireImage`'s
   base64 bytes (a bad one ends the turn as `attachment_refused`), drives one `BrainRpcClient` turn,
@@ -143,8 +144,7 @@ which `main.tsx` re-dispatches as the DOM event the overlay listens on; a browse
   (`connection`, `rpc`, `protocol`, `timeout`). For the turn's duration the command parks a
   decision sender in the managed `ConfirmRoute` state, one slot, at most one turn running at once.
 - **`confirm_response(confirm_id, approved)`** (`confirm.rs`, ADR-0022) pushes the user's answer
-  into that slot. An absent or closed route is silently ok: an unanswered confirm is denied
-  brain-side by timeout, so a late answer is harmless.
+  into that slot. An absent or closed route is ok: the brain denies an unanswered confirm on timeout.
 - **The session commands** (`sessions.rs`, ADR-0021): `list_sessions(limit)` and
   `session_messages(session_id)` return `Vec<WireSummary>` and `Vec<WireMessage>`; `rename_session`,
   `delete_session` and `set_session_hoisted(session_id, hoisted)` map success to `()`. The reads are

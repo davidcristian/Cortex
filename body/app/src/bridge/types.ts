@@ -143,3 +143,10 @@ export interface BrainBridge {
   /** Write one setting. An empty `value` clears the key, so the reader's own default applies. */
   setPreference(key: string, value: string): Promise<void>;
 }
+
+/** The OS window the overlay draws in. The shell shows it on a summon; the overlay shows it for a
+ *  preview and hides it when nothing is left on screen, so the window follows the overlay's mode. */
+export interface OverlayWindow {
+  /** Show or hide the window. A failure is dropped: the next change of mode asks again. */
+  setShown(shown: boolean): void;
+}

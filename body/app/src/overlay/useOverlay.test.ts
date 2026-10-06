@@ -693,4 +693,30 @@ describe("useOverlay", () => {
     act(() => vi.advanceTimersByTime(6000));
     expect(result.current.state.mode).toBe("hidden");
   });
+
+  it("toggle over the panel denies the question on screen and hides the overlay", async () => {
+    const bridge = new FakeBridge();
+    const { result } = renderHook(() => useOverlay(bridge, () => "s1"));
+    await flush();
+    act(() => result.current.submit("send it"));
+    act(() => bridge.emit(confirmRequest("c-1")));
+    act(() => result.current.toggle());
+    expect(bridge.confirms).toEqual([{ confirmId: "c-1", approved: false }]);
+    expect(result.current.state.mode).toBe("hidden");
+    act(() => bridge.emit(confirmRequest("c-2")));
+    expect(result.current.state.mode).toBe("preview");
+  });
+
+  it("toggle over the preview opens the panel and leaves its question to be answered", async () => {
+    const bridge = new FakeBridge();
+    const { result } = renderHook(() => useOverlay(bridge, () => "s1"));
+    await flush();
+    act(() => result.current.submit("send it"));
+    act(() => result.current.dismiss());
+    act(() => bridge.emit(confirmRequest("c-1")));
+    act(() => result.current.toggle());
+    expect(bridge.confirms).toEqual([]);
+    expect(result.current.state.mode).toBe("panel");
+    expect(result.current.state.pendingConfirm?.confirmId).toBe("c-1");
+  });
 });

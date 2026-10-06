@@ -129,9 +129,9 @@ Five motion signatures:
 The overlay is a small explicit state machine over four states, HIDDEN, PANEL (composing, streaming
 or done), ORB and PREVIEW. A summon opens the panel and a submit starts streaming; a dismiss while
 idle hides it and a dismiss while streaming minimizes it to the orb, which a click or the hotkey
-opens again; a turn completing while minimized opens the preview, which a click takes to PANEL(done)
-and its own countdown takes to HIDDEN. Its signature behaviour is that dismissing the panel while a
-turn is running must not lose the turn.
+opens again; the hotkey over the panel hides it, a running turn going on out of sight; a turn that
+ends or asks while minimized or hidden opens the preview, which a click takes to PANEL and its own
+countdown to HIDDEN. Dismissing the panel while a turn is running must not lose the turn.
 
 - **PANEL** is the full centred panel, almost monochrome except while streaming, where the whisper
   of §2 is the only colour. **Dismissing while idle** springs it out at the centre, a scale and fade

@@ -151,8 +151,9 @@ function applyHeartbeat(
   );
 }
 
-/** A call is waiting for approval: raise the card, showing it as a completed turn does (orb then
- *  preview). Only a live turn can ask, so a cancelled turn's late request revives nothing. */
+/** A call is waiting for approval: raise the card, showing it as a completed turn does (orb or
+ *  hidden, then preview). Only a live turn can ask, so a cancelled turn's late request revives
+ *  nothing. */
 function applyConfirmRequest(
   state: OverlayState,
   event: Extract<TurnEvent, { kind: "confirmRequest" }>,
@@ -162,7 +163,7 @@ function applyConfirmRequest(
   }
   return {
     ...state,
-    mode: state.mode === "orb" ? "preview" : state.mode,
+    mode: raised(state),
     pendingConfirm: {
       confirmId: event.confirmId,
       toolName: event.toolName,
@@ -172,19 +173,26 @@ function applyConfirmRequest(
   };
 }
 
-/** End the streaming turn, with an error or without, and show it: orb then preview. Any pending
- *  approval dies with its turn, the stream being gone and that being the deny. */
+/** End the streaming turn, with an error or without, and show it: orb or hidden, then preview.
+ *  Any pending approval dies with its turn, the stream being gone and that being the deny. */
 export function endTurn(state: OverlayState, error: string | null): OverlayState {
   const ended = patchStreaming(state, (m) => ({ ...m, streaming: false, error }));
   return {
     ...ended,
-    mode: state.mode === "orb" ? "preview" : state.mode,
+    mode: raised(state),
     pendingConfirm: null,
     pictures: { ...state.pictures, sent: null },
     // The turn is over, so the picture it took is out of context and the indicator goes out with
     // it. The one place the claim is allowed to fall, and it falls all the way.
     capture: null,
   };
+}
+
+/** Where a turn that ends or asks puts the overlay: the orb raises the preview, and so does a
+ *  hidden overlay while its turn runs, so a late error after the turn reopens nothing. */
+function raised(state: OverlayState): OverlayState["mode"] {
+  const away = state.mode === "hidden" && isTurnActive(state);
+  return state.mode === "orb" || away ? "preview" : state.mode;
 }
 
 function patchStreaming(state: OverlayState, patch: (m: Message) => Message): OverlayState {

@@ -950,3 +950,54 @@ describe("the screen-capture indicator", () => {
     expect(dead.capture).toBeNull();
   });
 });
+
+describe("the hotkey over a shown window", () => {
+  const toggle: Action = { kind: "toggle" };
+  const open: Action = { kind: "open" };
+  const dismiss: Action = { kind: "dismiss" };
+  const transportError: Action = {
+    kind: "transportError",
+    error: { kind: "connection", message: "gone" },
+  };
+
+  it("hides an idle panel", () => {
+    expect(run([open, toggle]).mode).toBe("hidden");
+  });
+
+  it("hides the panel during a turn, which goes on out of sight", () => {
+    const state = run([open, submit("hi"), toggle]);
+    expect(state.mode).toBe("hidden");
+    expect(isTurnActive(state)).toBe(true);
+  });
+
+  it("drops the question on screen, as a dismiss does", () => {
+    const state = run([open, submit("hi"), confirmRequest, toggle]);
+    expect(state.pendingConfirm).toBeNull();
+  });
+
+  it("raises the preview for a question asked after it hid the panel", () => {
+    const state = run([open, submit("hi"), toggle, confirmRequest]);
+    expect(state.mode).toBe("preview");
+    expect(state.pendingConfirm?.toolName).toBe("send_email");
+  });
+
+  it("raises the preview for a turn that ends after it hid the panel", () => {
+    expect(run([open, submit("hi"), toggle, complete]).mode).toBe("preview");
+    expect(run([open, submit("hi"), toggle, transportError]).mode).toBe("preview");
+  });
+
+  it("raises nothing for an error that comes after the turn has ended", () => {
+    expect(run([open, submit("hi"), complete, dismiss, transportError]).mode).toBe("hidden");
+  });
+
+  it("opens the panel from the orb and from the preview", () => {
+    expect(run([open, submit("hi"), dismiss, toggle]).mode).toBe("panel");
+    expect(run([open, submit("hi"), dismiss, complete, toggle]).mode).toBe("panel");
+  });
+
+  it("summons over a window left empty, closing the console as a summon does", () => {
+    const state = run([open, { kind: "openConsole", tab: "shortcuts" }, dismiss, toggle]);
+    expect(state.mode).toBe("panel");
+    expect(state.consoleTab).toBeNull();
+  });
+});

@@ -42,6 +42,7 @@ function fakeController(
     stop: vi.fn(),
     dismiss: vi.fn(),
     open: vi.fn(),
+    toggle: vi.fn(),
     newChat: vi.fn(),
     openSession: vi.fn(),
     renameSession: vi.fn(),

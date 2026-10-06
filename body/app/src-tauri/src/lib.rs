@@ -17,6 +17,8 @@ use tauri::{AppHandle, Emitter, Manager};
 const OVERLAY_LABEL: &str = "overlay";
 /// The event the overlay listens on to open (emitted on the hotkey / tray).
 const ACTIVATE_EVENT: &str = "cortex:activate";
+/// The event a press sends while the window is shown, for the overlay to hide or open by its mode.
+const TOGGLE_EVENT: &str = "cortex:toggle";
 
 /// Builds and runs the Tauri application.
 pub fn run() {
@@ -44,26 +46,40 @@ pub fn run() {
             preferences::set_preference,
             reminders::list_due_reminders,
             reminders::ack_reminder,
-            link::check_link
+            link::check_link,
+            set_overlay_shown
         ])
         .run(tauri::generate_context!())
         .expect("error while running the Cortex body");
 }
 
-/// Toggles the overlay: shows and summons it, or hides it if already visible.
+/// Shows and summons a hidden overlay, or hands a press over a shown one to the overlay, which
+/// hides its panel or opens its orb or preview and then hides the window itself.
 pub(crate) fn toggle_overlay(handle: &AppHandle) {
     let Some(window) = handle.get_webview_window(OVERLAY_LABEL) else {
         return;
     };
     if window.is_visible().unwrap_or(false) {
-        if window.hide().is_ok() {
-            record_overlay(handle, false);
-        }
+        let _ = window.emit(TOGGLE_EVENT, ());
     } else {
         record_overlay(handle, true);
         let _ = window.show();
         let _ = window.set_focus();
         let _ = window.emit(ACTIVATE_EVENT, ());
+    }
+}
+
+/// Shows or hides the overlay window as the overlay's mode asks, without taking focus.
+#[tauri::command]
+fn set_overlay_shown(handle: AppHandle, shown: bool) {
+    let Some(window) = handle.get_webview_window(OVERLAY_LABEL) else {
+        return;
+    };
+    if shown {
+        record_overlay(&handle, true);
+        let _ = window.show();
+    } else if window.hide().is_ok() {
+        record_overlay(&handle, false);
     }
 }
 

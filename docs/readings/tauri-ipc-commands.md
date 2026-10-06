@@ -25,12 +25,12 @@ timing that depends on it.
   after its countdown. One Approve click that came 0.6 s after the brain's timeout scheduled
   nothing.
 - **The preview of a pending card** was an empty card: the turn had sent no text before the call,
-  and the countdown bar drained in the first seconds though the preview did not fade. The overlay
-  now names the waiting tool there and draws no bar.
+  and the countdown bar drained in the first seconds though the preview did not fade.
 - **The hotkey during a turn** hid the window while the overlay stayed in its panel state, so the
   card raised after it was never on screen and the brain denied on its timeout. The next press
-  showed the window without a link probe, a chat list refresh or a reminder pull
-  ([R-797](../refinements/tasks/797-the-hotkey-hides-the-window-without-telling-the-overlay.md)).
+  showed the window without a link probe, a chat list refresh or a reminder pull. These two
+  bullets describe the build this section ran; [the next section](#the-window-following-the-overlay)
+  has the one that names the waiting tool and hands a press on a shown window to the overlay.
 - **The session reads** (`list_sessions`, `session_messages`). `Ctrl+K` listed the five chats in
   the order of the `cortex:sessions` sorted set, newest first, each titled by its first message
   with the last reply as its preview. `Ctrl+Down` twice and `Ctrl+Up` once loaded the second, third
@@ -63,3 +63,23 @@ which every command shares with the `converse` stream.
 Method: `measurements/tauri-ipc-2026-10-06/`, holding the scripts that ran the shell and drove it
 (`scripts/`), the event log, frames in `shots/`, the dot captures in `dot-outage/` and
 `dot-recovery/`, the brain's log and the Redis reads.
+
+## The window following the overlay
+
+**2026-10-06**, the same rig an hour later, with the shell sending `cortex:toggle` for a press on a
+shown window and the overlay calling `set_overlay_shown`. Window visibility was read with
+`xdotool search --onlyvisible --name '^Cortex$'`.
+
+- **A press during a turn** hid the window within 0.6 s. When `schedule_task` asked, the window came
+  back with the preview reading "Waiting for your approval to run schedule_task" and no bar. A
+  click opened the panel on the card, Approve was clicked, the audit line logged `ok=True`, and
+  Redis held one `cortex:schedule:<id>` with the text `stretch` due 30 minutes later.
+- **The summon after a hotkey hide.** A press over the idle panel hid the window, the brain's
+  container was stopped, and the next press showed the panel with the dot green in the first frame
+  of a 4 frame/s capture that showed it and red from the next on, which is the summon's probe.
+- **Escape** left the window shown at 0.1 s and hidden at 0.7 s, and the next single press summoned.
+- **Escape during a turn** left the window shown with the orb, and a press opened the streaming
+  panel.
+
+Method: `measurements/tauri-ipc-2026-10-06/after-fix/`, with the scripts, the event log, frames in
+`shots/` and the dot capture in `dot-outage/`.

@@ -95,6 +95,8 @@ export interface OverlayState {
 
 export type Action =
   | { readonly kind: "open" }
+  /** The hotkey or the tray, pressed while the window is shown. */
+  | { readonly kind: "toggle" }
   | { readonly kind: "submit"; readonly text: string }
   /** The composer's field changed. */
   | { readonly kind: "draft"; readonly text: string }
@@ -183,6 +185,13 @@ export function reduce(state: OverlayState, action: Action): OverlayState {
       // A summon always arrives at the chat. Clearing the console here rather than on dismiss is
       // what lets the panel fade out showing whatever it had up.
       return { ...state, mode: "panel", consoleTab: null, touched: true };
+    case "toggle":
+      // Over the panel a press hides the overlay, a running turn going on out of sight until it
+      // ends or asks, and the question on screen is dropped as a dismiss drops it. Over the orb or
+      // the preview it opens the panel, and over a window left empty it summons.
+      return state.mode === "panel"
+        ? { ...state, mode: "hidden", pendingConfirm: null }
+        : reduce(state, { kind: "open" });
     case "submit":
       return submit(state, action.text);
     case "draft":

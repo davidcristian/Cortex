@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Overlay window: listen for the host activate event; window ops are called from Rust.",
+  "description": "Overlay window: listen for the host activate and toggle events; window ops run in Rust commands.",
   "windows": ["overlay"],
   "permissions": ["core:default", "core:event:allow-listen", "core:event:allow-unlisten"]
 }

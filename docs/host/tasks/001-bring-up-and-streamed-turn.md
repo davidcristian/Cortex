@@ -73,6 +73,4 @@ lines named above, and put any figure the run took in its readings record under
   an origin ADR's user list against the item list is the cheap way to catch a host line with no
   item behind it, and it is worth doing whenever an ADR gains a host line.
 - 2026-10-06: the confirm card, session-read, preference and connection indicator checks closed on
-  the Linux shell, leaving their WebView2 half to the streamed turn here. A press that hides the
-  panel leaves the overlay in its panel state, so the summon after it runs no link probe
-  ([R-797](../../refinements/tasks/797-the-hotkey-hides-the-window-without-telling-the-overlay.md)).
+  the Linux shell, leaving their WebView2 half to the streamed turn here.

@@ -33,11 +33,3 @@ Consequences name the look of a real card; then delete this section.
   [ADR-0025](../../adr/ADR-0025-scheduling-reminders.md)'s host line has named the overlay's
   reminder surface on the real hotkey path since the slice was added, and the procedure is in the
   runbook.
-
-## History
-
-- 2026-10-06: the Linux shell showed that a hotkey press which hides the panel leaves the overlay in
-  its panel state, so the next press pulls no reminders
-  ([R-797](../../refinements/tasks/797-the-hotkey-hides-the-window-without-telling-the-overlay.md)).
-  Until that is fixed, a "cards stay with the brain down" here passes without any pull having run,
-  so dismiss with Escape before the summon that is meant to pull.

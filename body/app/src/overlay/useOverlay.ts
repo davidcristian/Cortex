@@ -33,6 +33,8 @@ export interface OverlayController extends SessionCatalog {
   stop(): void;
   dismiss(): void;
   open(): void;
+  /** The hotkey pressed while the window is shown: hides the panel, or opens anything else. */
+  toggle(): void;
   /** Start a fresh chat over whatever is on screen. `announce` is true for Ctrl+N, which names
    *  nothing, and false for the header's pencil, which is labelled with what arrives. */
   newChat(announce: boolean): void;
@@ -166,6 +168,12 @@ export function useOverlay(
     dispatch({ kind: "dismiss" });
   }, [denyPendingConfirm]);
   const open = useCallback(() => dispatch({ kind: "open" }), []);
+  const toggle = useCallback(() => {
+    if (state.mode === "panel") {
+      denyPendingConfirm();
+    }
+    dispatch({ kind: "toggle" });
+  }, [state.mode, denyPendingConfirm]);
   const newChat = useCallback(
     (announce: boolean) => {
       abandonTurn();
@@ -195,6 +203,7 @@ export function useOverlay(
     stop,
     dismiss,
     open,
+    toggle,
     newChat,
     toggleSwitcher,
     openConsole,

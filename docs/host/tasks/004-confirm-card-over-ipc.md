@@ -21,6 +21,4 @@ one file for both shells. What WebView2 adds is the transport that every command
   doc so the trail from an ADR through that backlog still resolves.
 - 2026-10-06: done on the Linux shell against the cortex on the card, `schedule_task` needing
   approval and every click sent by `xdotool`
-  ([readings](../../readings/tauri-ipc-commands.md#the-commands-on-the-linux-shell)). The run filed
-  [R-797](../../refinements/tasks/797-the-hotkey-hides-the-window-without-telling-the-overlay.md), a
-  hotkey press during a turn hiding the window so that a card raised after it times out unseen.
+  ([readings](../../readings/tauri-ipc-commands.md#the-commands-on-the-linux-shell)).

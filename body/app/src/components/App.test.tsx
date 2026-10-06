@@ -1,8 +1,10 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { FakeBridge } from "../bridge/fakeBridge";
+import type { OverlayWindow } from "../bridge/types";
 import { requestActivation, takePendingActivation } from "../overlay/activation";
+import { WINDOW_HIDE_MS } from "../overlay/useOverlayWindow";
 import { App } from "./App";
 
 const activate = () => {
@@ -10,6 +12,20 @@ const activate = () => {
     window.dispatchEvent(new Event("cortex:activate"));
   });
 };
+
+const press = () => {
+  act(() => {
+    window.dispatchEvent(new Event("cortex:toggle"));
+  });
+};
+
+/** A window that records what the overlay asked of it. */
+class RecordingWindow implements OverlayWindow {
+  readonly asked: boolean[] = [];
+  setShown(shown: boolean): void {
+    this.asked.push(shown);
+  }
+}
 
 /** Render App with a fixed session id, flushing the mount chat-list load. */
 async function renderApp(bridge: FakeBridge) {
@@ -284,5 +300,77 @@ describe("App", () => {
     document.removeEventListener("cortex:morphend", heard);
     expect(screen.getByText("Stand-up in 10 minutes")).toBeTruthy();
     expect(rolls).toEqual([]);
+  });
+
+  it("hides the window a press takes the panel from, so the next summon probes the link", async () => {
+    vi.useFakeTimers();
+    try {
+      const bridge = new FakeBridge();
+      const osWindow = new RecordingWindow();
+      render(<App bridge={bridge} newSessionId={() => "s1"} osWindow={osWindow} />);
+      await act(async () => {});
+      activate();
+      await act(async () => {});
+      expect(osWindow.asked).toEqual([true]);
+      expect(bridge.linkCalls).toBe(1);
+      press();
+      expect(screen.getByRole("dialog", { hidden: true }).className).not.toContain("open");
+      act(() => vi.advanceTimersByTime(WINDOW_HIDE_MS));
+      expect(osWindow.asked).toEqual([true, false]);
+      activate();
+      await act(async () => {});
+      expect(osWindow.asked).toEqual([true, false, true]);
+      expect(bridge.linkCalls).toBe(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("shows the window again for a question asked after a press hid the panel", async () => {
+    vi.useFakeTimers();
+    try {
+      const bridge = new FakeBridge();
+      const osWindow = new RecordingWindow();
+      render(<App bridge={bridge} newSessionId={() => "s1"} osWindow={osWindow} />);
+      await act(async () => {});
+      activate();
+      fireEvent.change(screen.getByLabelText("Message"), { target: { value: "remind me" } });
+      fireEvent.keyDown(screen.getByLabelText("Message"), { key: "Enter" });
+      press();
+      act(() => vi.advanceTimersByTime(WINDOW_HIDE_MS));
+      expect(osWindow.asked).toEqual([true, false]);
+      act(() =>
+        bridge.emit({
+          kind: "confirmRequest",
+          confirmId: "c-1",
+          toolName: "schedule_task",
+          argumentsJson: "{}",
+          reason: "r",
+        }),
+      );
+      expect(osWindow.asked).toEqual([true, false, true]);
+      fireEvent.click(screen.getByLabelText("Open the approval"));
+      fireEvent.click(screen.getByRole("button", { name: "Approve" }));
+      expect(bridge.confirms).toEqual([{ confirmId: "c-1", approved: true }]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps the window when a summon comes back before the hide has run", async () => {
+    vi.useFakeTimers();
+    try {
+      const osWindow = new RecordingWindow();
+      render(<App bridge={new FakeBridge()} newSessionId={() => "s1"} osWindow={osWindow} />);
+      await act(async () => {});
+      activate();
+      fireEvent.keyDown(document.body, { key: "Escape" });
+      press();
+      act(() => vi.advanceTimersByTime(WINDOW_HIDE_MS));
+      expect(osWindow.asked).toEqual([true]);
+      expect(screen.getByRole("dialog").className).toContain("open");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

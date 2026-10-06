@@ -1,10 +1,11 @@
 import { type MouseEvent, useEffect } from "react";
 
-import type { BrainBridge } from "../bridge/types";
+import type { BrainBridge, OverlayWindow } from "../bridge/types";
 import { resolveEdge } from "../edge/edges";
 import { resolveMark } from "../mark/marks";
-import { ACTIVATE_EVENT, takePendingActivation } from "../overlay/activation";
+import { ACTIVATE_EVENT, TOGGLE_EVENT, takePendingActivation } from "../overlay/activation";
 import { useOverlay } from "../overlay/useOverlay";
+import { NO_WINDOW, useOverlayWindow } from "../overlay/useOverlayWindow";
 import { usePreferences } from "../overlay/usePreferences";
 import { applyTheme, resolveTheme } from "../theme/themes";
 import { Overlay } from "./Overlay";
@@ -17,12 +18,15 @@ interface AppProps {
   readonly bridge: BrainBridge;
   /** The factory for new chat ids. Tests set their own; production uses the default uuid. */
   readonly newSessionId?: () => string;
+  /** The OS window the overlay draws in; the browser build has none. */
+  readonly osWindow?: OverlayWindow;
 }
 
 /** Connects the appearance settings read from the brain, and host activation, to the overlay
  *  controller. */
-export function App({ bridge, newSessionId }: AppProps) {
+export function App({ bridge, newSessionId, osWindow = NO_WINDOW }: AppProps) {
   const controller = useOverlay(bridge, newSessionId);
+  useOverlayWindow(controller.state.mode, osWindow);
   const { appearance, setTheme, setMark, setWindow } = usePreferences(bridge);
   const theme = resolveTheme(appearance.theme, systemPrefersDark());
   const mark = resolveMark(appearance.mark);
@@ -45,6 +49,12 @@ export function App({ bridge, newSessionId }: AppProps) {
     }
     return () => window.removeEventListener(ACTIVATE_EVENT, summon);
   }, [controller.open]);
+
+  useEffect(() => {
+    const toggle = controller.toggle;
+    window.addEventListener(TOGGLE_EVENT, toggle);
+    return () => window.removeEventListener(TOGGLE_EVENT, toggle);
+  }, [controller.toggle]);
 
   const toggleTheme = () => setTheme(theme.scheme === "dark" ? "daylight" : "midnight");
 

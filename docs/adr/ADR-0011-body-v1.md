@@ -80,13 +80,13 @@ recorded in an ADR. This ADR is that exclusion, and the checks that grew around 
    [ADR-0035](ADR-0035-console-and-motion.md) (console, scrollbars in decision 22, and the header
    row in decision 23: the title's inset is 10px, with 27px clearances).
 
-7. **A summon is recorded state, not a one-off event.** The shell re-dispatches the host hotkey as
-   a `cortex:activate` DOM event, and the browser build summons itself on load. A plain dispatch
-   reaches only listeners that already exist, and the app attaches its listener in a passive effect
-   that React flushes after paint, so an early summon was lost: the dev self-summon every time, and
-   a hotkey press during a cold webview mount. `overlay/activation.ts` records a request
-   (`requestActivation`) and the app takes any outstanding one when its listener attaches
-   (`takePendingActivation`); both paths consume it, so a remount cannot replay an answered summon.
+7. **A summon is recorded state, and the window follows the overlay's mode.** A press on a hidden
+   window is a `cortex:activate` DOM event, kept by `overlay/activation.ts` until the app's
+   listener, attached after paint, takes it, so a summon during a cold mount is not lost. A press on
+   a shown window is `cortex:toggle`: over the panel it hides the overlay, a running turn going on
+   out of sight until it ends or asks and raises the preview, and over the orb or preview it opens
+   the panel. The overlay hides the window through `set_overlay_shown` once its mode is hidden and
+   the panel's fade is over, and shows it for a preview, so a press after any dismiss is a summon.
 
 8. **The connection indicator is derived, not polled.** A `Health` poll on a timer spends a request
    every interval for a tray app's whole uptime, mostly while hidden, and is still stale between

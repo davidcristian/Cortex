@@ -121,11 +121,7 @@ taken this way.
 6. **Drive it.** `xdotool key ctrl+alt+space` summons, and `mousemove X Y click 1`, `type` and
    `key` do the rest; `xdotool` from the prefix needs the prefix's library directory on
    `LD_LIBRARY_PATH`. `ffmpeg -f x11grab -video_size 1600x1000 -i :78 -frames:v 1 shot.png` grabs
-   a frame, and `-framerate 4 -t 30` in place of `-frames:v 1` a sequence. Until
-   [R-797](../refinements/tasks/797-the-hotkey-hides-the-window-without-telling-the-overlay.md) is
-   fixed, a press that hides the panel leaves the overlay in its panel state and the next summon
-   runs no probe, chat list refresh or reminder pull; for a summon that runs them, press Escape and
-   then the chord twice.
+   a frame, and `-framerate 4 -t 30` in place of `-frames:v 1` a sequence.
 7. **Stop it.** Stop the shell by its exact name, `pkill -x cortex-body`: `pkill -f` with the
    binary's path also matches the shell that runs the command. Then stop `Xvfb`, the Vite server
    and the stack (`docker compose -p <name> down -v`). A shell killed with its session bus can
