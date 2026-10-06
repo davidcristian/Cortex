@@ -3,7 +3,7 @@ from collections.abc import AsyncGenerator
 from datetime import UTC, datetime
 
 import swap_harness as harness
-from swap_harness import build_harness
+from swap_harness import Fakes, build_harness
 
 from cortex_core import (
     GENERATING,
@@ -18,6 +18,7 @@ from cortex_core import (
     Message,
     RecordingProgressSink,
     Role,
+    ScriptedModelHost,
     StatusUpdate,
     SwapConductor,
     TaintLedger,
@@ -142,9 +143,59 @@ async def test_an_escalating_turn_completes_once_at_the_true_end() -> None:
     assert len(completions) == 1
     assert events[-1] is completions[0]
     assert completions[0].turn_id == harness.TURN
-    assert completions[0].full_text == harness.CORTEX_TEXT + "a deep answer"
+    assert completions[0].full_text == harness.CORTEX_TEXT + "\n\na deep answer"
     assert any(isinstance(event, StatusUpdate) for event in events)
     assert live.host.calls.count(("start", "brain")) == 1
+
+
+def _text(events: list[TurnEvent]) -> str:
+    return "".join(event.text for event in events if isinstance(event, TextDelta))
+
+
+def _unloadable() -> SwapConductor:
+    host = ScriptedModelHost(running=["cortex"], fail={("start", "brain"): "CUDA OOM"})
+    return build_harness(Fakes(host=host)).conductor
+
+
+async def test_the_deep_reply_starts_a_paragraph_below_the_cortex_text() -> None:
+    live = build_harness()
+    await live.seed_session()
+    engine, _built = _wrapper(
+        live.conductor,
+        events=(TextDelta(text=harness.CORTEX_TEXT), TurnCompleted(harness.TURN, "cortex text")),
+        brief=harness.BRIEF,
+    )
+    events = await _drain(engine)
+    deltas = [event.text for event in events if isinstance(event, TextDelta)]
+    assert deltas == [harness.CORTEX_TEXT, "\n\na deep ", "answer"]
+
+
+async def test_a_note_below_the_cortex_text_keeps_a_single_blank_line() -> None:
+    engine, _built = _wrapper(
+        _unloadable(),
+        events=(TextDelta(text=harness.CORTEX_TEXT), TurnCompleted(harness.TURN, "cortex text")),
+        brief=harness.BRIEF,
+    )
+    text = _text(await _drain(engine))
+    assert text.startswith(harness.CORTEX_TEXT + "\n\n(The deep model could not be loaded")
+
+
+async def test_a_note_after_a_silent_cortex_opens_the_reply_without_a_blank_line() -> None:
+    engine, _built = _wrapper(
+        _unloadable(), events=(TurnCompleted(harness.TURN, ""),), brief=harness.BRIEF
+    )
+    assert _text(await _drain(engine)).startswith("(The deep model could not be loaded")
+
+
+async def test_a_cortex_that_wrote_only_whitespace_gets_no_blank_line_added() -> None:
+    live = build_harness()
+    await live.seed_session()
+    engine, _built = _wrapper(
+        live.conductor,
+        events=(TextDelta(text="\n"), TurnCompleted(harness.TURN, "\n")),
+        brief=harness.BRIEF,
+    )
+    assert _text(await _drain(engine)) == "\na deep answer"
 
 
 async def test_the_wrapper_hands_the_conductor_the_turn_id_the_inner_engine_minted() -> None:

@@ -11,6 +11,14 @@ from cortex_core.progress import ProgressSink
 from cortex_core.swap_conductor import SwapConductor
 from cortex_core.waits import SWAPPING, Wait, WaitHold
 
+_PARAGRAPH = "\n\n"
+
+
+def _opening(first: TextDelta, lead: str) -> TextDelta:
+    """The handoff's first text, opened by ``lead`` in place of the line breaks it starts with."""
+    # Every swap note opens with its own blank line, so ``lead`` replaces it rather than adding one.
+    return TextDelta(text=lead + first.text.lstrip("\n"))
+
 
 class EscalatingTurnEngine:
     """A ``TurnRunner`` that can hand its turn to the deep model without ending it."""
@@ -51,12 +59,17 @@ class EscalatingTurnEngine:
             yield completed
             return
         handoff = self._conductor.run_handoff(slot, session_id=session_id, turn_id=turn_id)
+        lead: str | None = _PARAGRAPH if any(part.strip() for part in parts) else ""
         async with AsyncExitStack() as held:
             swap: WaitHold | None = None
             try:
                 async for event in handoff:
                     if isinstance(event, TextDelta):
-                        parts.append(event.text)
+                        delta = event if lead is None else _opening(event, lead)
+                        lead = None
+                        parts.append(delta.text)
+                        yield delta
+                        continue
                     swap = await self._record_swap(held, swap, event)
                     yield event
             finally:

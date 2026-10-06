@@ -64,5 +64,4 @@ WebView2 shows the window differently.
   because each streamed event marks the brain as serving and a dismiss mid turn minimizes rather
   than hides, so nothing probes `Health` until the turn ends, after the cortex is back
   ([readings](../../readings/model-swap.md#the-overlays-view-of-a-handoff)). The run filed
-  [R-793](../../refinements/tasks/793-the-deep-reply-is-joined-to-the-hand-over-sentence.md) and
   [R-794](../../refinements/tasks/794-a-paused-stream-keeps-its-last-letters-blurred.md).

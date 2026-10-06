@@ -154,8 +154,8 @@ containing images, the record being durable and its schema having no field for p
   deployment with escalation enabled serves turns through. Per turn it builds an `EscalationSlot`,
   constructs the inner engine around it, passes every event through, suppresses the inner
   `TurnCompleted`, and, only when the cortex asked to escalate, runs the conductor on the same
-  stream before emitting one real `TurnCompleted` whose text is the whole turn's. Both the handoff
-  and the completion are named by the `turn_id` it was handed.
+  stream, a paragraph below any cortex text, before emitting one `TurnCompleted` for the whole turn.
+  Both the handoff and the completion are named by the `turn_id` it was handed.
 - `recover_handoffs(...)` and `converge_residency(...)` (`swap_recovery.py`) are boot recovery. The
   composition root calls the first once at startup: it marks any non-terminal record `FAILED` with
   `STRANDED_REASON`, then converges the GPU back onto the normal residency in the conductor's own

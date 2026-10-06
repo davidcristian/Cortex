@@ -194,7 +194,7 @@ async def test_one_turn_spans_the_swap_from_the_cortex_to_the_deep_model() -> No
     client.end()
     events = await _drain(stream)
 
-    assert _reply(events) == "handing this over. the deep answer"
+    assert _reply(events) == "handing this over. \n\nthe deep answer"
     assert _kinds(events).count("turn_complete") == 1
     assert _kinds(events)[-1] == "turn_complete"
     swapping = [e.status for e in events if e.WhichOneof("event") == "status"]
@@ -233,7 +233,7 @@ async def test_a_second_turn_sent_during_the_swap_runs_after_it() -> None:
     client.end()
     events = await _drain(stream)
 
-    assert _reply(events) == "handing over. the deep answerand now the follow-up"
+    assert _reply(events) == "handing over. \n\nthe deep answerand now the follow-up"
     assert _kinds(events).count("turn_complete") == 2
     assert host.running == {"cortex"}
 

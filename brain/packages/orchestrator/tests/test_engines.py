@@ -400,7 +400,9 @@ async def test_the_deep_phase_s_recall_is_judged_by_the_deep_model() -> None:
         "brain",
     ]
     assert backend.requests[3].tools == ()
-    assert any(isinstance(event, TextDelta) and event.text == "deep answer" for event in events)
+    assert any(
+        isinstance(event, TextDelta) and event.text.strip() == "deep answer" for event in events
+    )
 
 
 async def test_the_deep_phase_s_history_recap_is_written_by_the_deep_model() -> None:
@@ -429,7 +431,9 @@ async def test_the_deep_phase_s_history_recap_is_written_by_the_deep_model() -> 
         "brain",
     ]
     assert backend.requests[3].tools == ()
-    assert any(isinstance(event, TextDelta) and event.text == "deep answer" for event in events)
+    assert any(
+        isinstance(event, TextDelta) and event.text.strip() == "deep answer" for event in events
+    )
 
 
 async def test_a_stream_whose_cortex_cannot_see_refuses_an_attached_picture_unasked() -> None:

@@ -93,7 +93,7 @@ the stack started. The SM clock read 0.51 to 0.68 of `clocks.max.sm`. No timing 
   the link ready, and a dismiss during a turn minimizes to the orb rather than hiding, so the
   summon probe does not run again until the turn ends. Each turn ended after the cortex was
   `ready`, so the probe after it read green.
-- **The reply.** The deep model's text is appended to the cortex's hand-over sentence with no
+- **The reply.** The deep model's text was appended to the cortex's hand-over sentence with no
   break ("equals $n^2$.Visually", "zero.The number") in all four. While the stream paused for the
   swap, the last nine letters the cortex sent stayed blurred, from the loading line until the deep
   model's first text.
