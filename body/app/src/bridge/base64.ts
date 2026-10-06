@@ -9,3 +9,8 @@ export function toBase64(bytes: Uint8Array): string {
   }
   return btoa(binary);
 }
+
+/** The bytes standard base64 `text` holds. */
+export function fromBase64(text: string): Uint8Array<ArrayBuffer> {
+  return Uint8Array.from(atob(text), (character) => character.charCodeAt(0));
+}

@@ -36,6 +36,8 @@ interface PanelProps {
   readonly onDraft: (text: string) => void;
   /** Read pasted or dropped files into the composer's pictures. */
   readonly onAttach: (files: readonly Blob[]) => void;
+  /** Attach the host clipboard's picture, for a paste the webview gave no file or text for. */
+  readonly onPastePicture: () => void;
   readonly onDetach: (id: string) => void;
   readonly onStop: () => void;
   readonly onDismiss: () => void;

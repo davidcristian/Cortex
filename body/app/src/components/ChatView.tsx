@@ -37,6 +37,8 @@ export interface ChatViewProps {
   readonly onDraft: (text: string) => void;
   /** Read pasted or dropped files into the composer's pictures. */
   readonly onAttach: (files: readonly Blob[]) => void;
+  /** Attach the host clipboard's picture, for a paste the webview gave no file or text for. */
+  readonly onPastePicture: () => void;
   readonly onDetach: (id: string) => void;
   readonly onStop: () => void;
   readonly onDismiss: () => void;
@@ -67,6 +69,7 @@ export function ChatView({
   onSubmit,
   onDraft,
   onAttach,
+  onPastePicture,
   onDetach,
   onStop,
   onDismiss,
@@ -215,6 +218,7 @@ export function ChatView({
         pictures={waitingOf(state.pictures, state.sessionId)}
         pictureNote={noteOf(state.pictures, state.sessionId)}
         onAttach={onAttach}
+        onPastePicture={onPastePicture}
         onDetach={onDetach}
         onStop={onStop}
         // Growing the pill shortens the log: they are flex siblings and the log yields, while the

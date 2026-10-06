@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { FakeBridge } from "../bridge/fakeBridge";
 import type { OverlayWindow } from "../bridge/types";
 import { requestActivation, takePendingActivation } from "../overlay/activation";
+import { CLIPBOARD_UNREAD } from "../overlay/useOverlay";
 import { WINDOW_HIDE_MS } from "../overlay/useOverlayWindow";
 import { App } from "./App";
 
@@ -53,6 +54,18 @@ describe("App", () => {
     expect(drop()).toBe(false);
     await renderApp(new FakeBridge());
     expect(drop()).toBe(true);
+  });
+
+  it("asks the host clipboard it was given for a paste the webview gave no file or text", async () => {
+    const picture = vi.fn(() => Promise.reject(new Error("no display")));
+    render(<App bridge={new FakeBridge()} newSessionId={() => "s1"} clipboard={{ picture }} />);
+    activate();
+    const paste = { clipboardData: { files: [], types: [] } };
+    await act(async () => {
+      fireEvent.paste(screen.getByLabelText("Message"), paste);
+    });
+    expect(picture).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("alert").textContent).toBe(CLIPBOARD_UNREAD);
   });
 
   it("leaves the overlay hidden when nothing asked for it", async () => {

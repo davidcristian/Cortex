@@ -27,10 +27,11 @@ speaks. They are also where the **stub coverage exemption** is used.
   no persistent device, so it satisfies the blocking pool's `FnOnce + Send + 'static`; and it has
   the smallest `unsafe` surface. The cost is that it renders hardware-overlay and DRM-protected
   surfaces **black, with no error**.
-- **`os_linux`** (`cfg(target_os = "linux")`) has eight real backends, `LinuxNotify`,
+- **`os_linux`** (`cfg(target_os = "linux")`) has nine real backends, `LinuxNotify`,
   `LinuxAudioControl`, the X11 `LinuxScreenCapture`, the portal's `LinuxPortalCapture` and
   `LinuxWindowCapture`, the X11
-  `LinuxHotkey`, `LinuxKdeHotkey` and the portal's `LinuxPortalHotkey` (see
+  `LinuxHotkey`, `LinuxKdeHotkey`, the portal's `LinuxPortalHotkey` and the X11
+  `LinuxClipboardPicture` (see
   [body-os-linux.md](body-os-linux.md) and [body-os-linux-capture.md](body-os-linux-capture.md)),
   and no stub. The shell's `BodyService`
   serves the notification and volume backends, and `LinuxScreenCapture<X11Root>` only when
@@ -40,9 +41,11 @@ speaks. They are also where the **stub coverage exemption** is used.
   portal offers a window source, else `DeniedScreenCapture`. The shell registers the hotkey through `X11Keys`, or on a Wayland
   session on a thread of its own through `LinuxKdeHotkey` where `kglobalaccel` runs, else
   `LinuxPortalHotkey`
-  ([overlay runbook](../runbooks/body-overlay.md)).
-- **`os_macos`** provides `MacosHotkey`, `MacosAudioControl`, `MacosNotify` and
-  `MacosScreenCapture`, the same stubs for macOS. It has no `cfg` yet and compiles everywhere.
+  ([overlay runbook](../runbooks/body-overlay.md)). The shell's `clipboard_picture` command opens
+  the X display on each paste and reads through `LinuxClipboardPicture<X11Selection>`; the other
+  platforms answer with `body_core::NoClipboardPicture`.
+- **`os_macos`** provides `MacosHotkey`, `MacosAudioControl`, `MacosNotify`,
+  `MacosScreenCapture` and `MacosClipboardPicture`, the same stubs for macOS. It has no `cfg` yet and compiles everywhere.
 
 ## Public contract
 

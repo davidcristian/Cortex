@@ -3,7 +3,8 @@
 **Purpose.** The Linux implementations of the body's OS-capability ports: notifications over the
 freedesktop D-Bus service, volume through `pactl`, screen capture from the X root window or through
 the desktop portal's `Screenshot` call, and the global hotkey as an X key grab, through
-`kglobalaccel` on KDE Plasma, or through the portal's `GlobalShortcuts` calls. What every
+`kglobalaccel` on KDE Plasma, or through the portal's `GlobalShortcuts` calls, and a pasted
+picture from the X clipboard. What every
 platform crate shares (the public contract, the coverage exemption, the invariants and the
 dependencies) is in [body-os.md](body-os.md).
 
@@ -109,6 +110,21 @@ decision 13).
   given replaces a key a past run kept; `SetPresent`: it is grabbed now) and `unregister`, and
   reads `globalShortcutPressed` and `globalShortcutReleased` on `/component/cortex` only from the
   owner of `org.kde.kglobalaccel`, which `kglobalaccel_running` asks for. Tested as the portal is.
+- **`LinuxClipboardPicture<S: SelectionRead>`** reads the owner's list of types, then asks for
+  `image/png`, `image/jpeg` and `image/webp` in that order, only those listed, each with the
+  `MAX_PASTED_BYTES` limit, and returns the first non-empty answer with its type. A request the
+  owner was silent on is sent once more, as `xclip` drops one that arrives while it sends the
+  webview a large picture; an owner that answers every type with its data, as `xclip` does, is
+  asked only for what it lists. `SelectionError::Over` is `ClipboardError::TooLarge`, a second
+  silence or `Failed` is `Failed`, and each ends the read at once.
+- **`X11Selection`** lists the types by converting to `TARGETS` (at most 4096 bytes) and asking
+  the server for each atom's name. It converts the `CLIPBOARD` selection to one type through an
+  unmapped `InputOnly` window of its own that watches property changes: `ConvertSelection` into
+  `CORTEX_PASTE`, then a `GetProperty` that deletes it, asking for one word more than the limit
+  allows. An `INCR` answer is read chunk by chunk on each new value until an empty one, failing as
+  `Over` past the limit. A `SelectionNotify` naming no property is `None`. Each wait for the owner
+  lasts at most `SELECTION_LIMIT` (1 s), after which the read is `Silent`, and the window is
+  destroyed after every read. Tested against a fake X server as `X11Keys` is.
 - **The shell** grabs through `X11Keys` unless `WAYLAND_DISPLAY` is set and not empty. Then, on a
   thread and bus connection of its own, since a portal bind can wait `SHORTCUTS_LIMIT` on the user,
   it keeps a `LinuxKdeHotkey` for the run whenever `kglobalaccel_running`, before any portal call,

@@ -57,6 +57,7 @@ function Stage({
       pictures={pictures}
       pictureNote={pictureNote}
       onAttach={onAttach}
+      onPastePicture={() => undefined}
       onDetach={onDetach}
     />
   );

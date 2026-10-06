@@ -1,13 +1,13 @@
-//! Linux OS backends for the Cortex body.
-//!
-//! `Notify`, `AudioControl`, `ScreenCapture` (X11 and the screenshot and screencast portals) and
-//! `Hotkey` (X11, `kglobalaccel` and the global shortcuts portal) are real.
+//! Linux OS backends for the Cortex body: `Notify`, `AudioControl`, `ScreenCapture` (X11 and the
+//! screenshot and screencast portals), `Hotkey` (X11, `kglobalaccel` and the global shortcuts
+//! portal) and `ClipboardPicture` (X11).
 #![cfg(target_os = "linux")]
 
 mod accel;
 mod accel_dbus;
 mod audio;
 mod chooser;
+mod clipboard;
 mod compose;
 mod dbus;
 mod decode;
@@ -26,6 +26,7 @@ mod router;
 mod screen;
 mod screencast;
 mod screencast_dbus;
+mod selection;
 mod shortcuts;
 mod shortcuts_dbus;
 mod trigger;
@@ -35,6 +36,7 @@ pub use accel::{AccelError, COMPONENT, GlobalAccel, LinuxKdeHotkey, Press, qt_co
 pub use accel_dbus::{DbusGlobalAccel, kglobalaccel_running};
 pub use audio::{LinuxAudioControl, PactlFailure, PactlRunner};
 pub use chooser::{CHOOSER_LIMIT, HideSignal, WatchedWindowCapture};
+pub use clipboard::{LinuxClipboardPicture, SelectionError, SelectionRead};
 pub use compose::{Piece, pieces};
 pub use dbus::DbusNotifications;
 pub use decode::{MAX_DECODED_BYTES, decode_png};
@@ -58,6 +60,7 @@ pub use screencast::{
     ScreenCastPortal, Started, WINDOW_SOURCE, WindowStream, offers_window,
 };
 pub use screencast_dbus::DbusScreenCast;
+pub use selection::{SELECTION_LIMIT, X11Selection};
 pub use shortcuts::{
     Activation, Hold, LinuxPortalHotkey, REPEAT_GAP, Shortcut, ShortcutsPortal, ShortcutsReply,
 };

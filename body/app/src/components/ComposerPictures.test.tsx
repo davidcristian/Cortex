@@ -15,10 +15,17 @@ interface StageProps {
   readonly pictures?: readonly Picture[];
   readonly note?: string | null;
   readonly onAttach?: (files: readonly Blob[]) => void;
+  readonly onPastePicture?: () => void;
   readonly onDetach?: (id: string) => void;
 }
 
-function Stage({ pictures = [], note = null, onAttach = vi.fn(), onDetach = vi.fn() }: StageProps) {
+function Stage({
+  pictures = [],
+  note = null,
+  onAttach = vi.fn(),
+  onPastePicture = vi.fn(),
+  onDetach = vi.fn(),
+}: StageProps) {
   const field = useRef<HTMLTextAreaElement>(null!);
   return (
     <Composer
@@ -33,6 +40,7 @@ function Stage({ pictures = [], note = null, onAttach = vi.fn(), onDetach = vi.f
       pictures={pictures}
       pictureNote={note}
       onAttach={onAttach}
+      onPastePicture={onPastePicture}
       onDetach={onDetach}
     />
   );
@@ -84,11 +92,32 @@ describe("Composer pictures", () => {
 
   it("lets a paste of text through untouched", () => {
     const onAttach = vi.fn();
-    render(<Stage onAttach={onAttach} />);
-    const paste = createEvent.paste(field(), { clipboardData: { files: [] } });
+    const onPastePicture = vi.fn();
+    render(<Stage onAttach={onAttach} onPastePicture={onPastePicture} />);
+    const clipboardData = { files: [], types: ["text/html", "text/plain"] };
+    const paste = createEvent.paste(field(), { clipboardData });
     fireEvent(field(), paste);
     expect(onAttach).not.toHaveBeenCalled();
+    expect(onPastePicture).not.toHaveBeenCalled();
     expect(paste.defaultPrevented).toBe(false);
+  });
+
+  it("asks the host for a paste that holds neither a file nor text", () => {
+    const onAttach = vi.fn();
+    const onPastePicture = vi.fn();
+    render(<Stage onAttach={onAttach} onPastePicture={onPastePicture} />);
+    const paste = createEvent.paste(field(), { clipboardData: { files: [], types: [] } });
+    fireEvent(field(), paste);
+    expect(onPastePicture).toHaveBeenCalledTimes(1);
+    expect(onAttach).not.toHaveBeenCalled();
+  });
+
+  it("reads a pasted file itself and does not ask the host", () => {
+    const onPastePicture = vi.fn();
+    render(<Stage onPastePicture={onPastePicture} />);
+    const paste = createEvent.paste(field(), { clipboardData: { files: [png()], types: [] } });
+    fireEvent(field(), paste);
+    expect(onPastePicture).not.toHaveBeenCalled();
   });
 
   it("takes dropped files, and claims only a drag that holds files", () => {

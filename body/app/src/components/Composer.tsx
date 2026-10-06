@@ -28,6 +28,8 @@ interface ComposerProps {
   /** Why a picture was refused or left out, shown above the thumbnails until the next change. */
   readonly pictureNote: string | null;
   readonly onAttach: (files: readonly Blob[]) => void;
+  /** A paste whose event lists no file and no text, as every WebKitGTK paste does. */
+  readonly onPastePicture: () => void;
   readonly onDetach: (id: string) => void;
   /** Which conversation this field belongs to, or null while the panel is shut or the console is
    *  over the chat. The field takes focus on every change. */
@@ -58,6 +60,7 @@ export function Composer({
   pictures,
   pictureNote,
   onAttach,
+  onPastePicture,
   onDetach,
   onStop,
   onResize,
@@ -134,6 +137,8 @@ export function Composer({
     if (files.length > 0) {
       event.preventDefault();
       onAttach(files);
+    } else if (!event.clipboardData.types.includes("text/plain")) {
+      onPastePicture();
     }
   };
 

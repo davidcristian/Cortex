@@ -2,6 +2,7 @@
 
 mod body_server;
 mod brain;
+mod clipboard;
 mod confirm;
 mod converse;
 mod hotkey;
@@ -36,6 +37,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             converse::converse,
+            clipboard::clipboard_picture,
             confirm::confirm_response,
             sessions::list_sessions,
             sessions::session_messages,

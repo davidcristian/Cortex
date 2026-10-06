@@ -139,6 +139,32 @@ Method: `measurements/tauri-ipc-2026-10-06/pictures-and-reminders/`, with the sc
 source, the clipboard owners, the listener's server and the vision override), the test pictures,
 the event log, the listener's log, frames in `shots/` and the Redis and `ListDueReminders` reads.
 
+## A paste through the shell
+
+**2026-10-06**, the same rig and cortex with the `clipboard_picture` command, `xclip` owning the X
+clipboard under one type at a time, and a shell built with a temporary line that logged each
+result of the command. No reading here is a timing.
+
+- **A 14,145-byte PNG** of the word `LIGHTHOUSE` over a green bar, pasted with `Ctrl+V`, showed as
+  a thumbnail. Asked which word was written and what colour the bar was, the cortex answered
+  `LIGHTHOUSE` and green.
+- **A 2,639,370-byte PNG** failed on the first build: the command answered that the owner did not
+  answer, after no `SelectionNotify` reached the read within its wait, while `xclip -verbose`
+  counted requests from the webview. That fits `xclip` sending the webview its own copy in `INCR`
+  chunks and dropping a request that arrives meanwhile. With the request sent once more after a
+  silence, the read returned all 2,639,370 bytes and the thumbnail showed.
+- **A 36,975,550-byte PNG**, over `MAX_PASTED_BYTES`, answered `TooLarge`, and the composer showed
+  "The clipboard's picture could not be read." `xclip` then exited on a `BadWindow` error, its
+  next chunk going to the read's window after it was destroyed.
+- **Text** owned under `UTF8_STRING` went into the field by the webview's default, and the command
+  was asked as well, so WebKitGTK's `paste` event listed no `text/plain` for text either. On the
+  first build the read asked for `image/png`, `xclip` answered with the 11 text bytes, and the
+  composer said "That picture could not be read." With the owner's `TARGETS` list read first, the
+  command answered with no picture and only the text arrived.
+
+Method: `measurements/tauri-ipc-2026-10-06/paste-through-shell/`, with the scripts, the three
+pictures, the shell's logs and frames in `shots/`.
+
 ## The drop guard
 
 **2026-10-06**, the same rig with the overlay window's `dragDropEnabled` set to false and the

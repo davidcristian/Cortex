@@ -151,12 +151,13 @@ whose server sent no `Cache-Control`, such as `python3 -m http.server`, from tha
 request, even after Vite holds the port. If the window shows only the stage and the panel never
 opens, delete that directory or point `XDG_DATA_HOME` at an empty one.
 
-**Pictures.** WebKitGTK gives the page no file for a picture on the clipboard or a dragged file
-([R-802](../refinements/tasks/802-the-linux-shell-attaches-no-pasted-or-dropped-picture.md)), so a
-run of the attached-picture path appends a listener to `src/main.tsx` that fetches a test file,
-wraps it in a `File` inside a `DataTransfer`, and dispatches a `paste` holding it on the focused
-field. Everything after that event is the shipped code. Remove the listener after the run. A file
-dragged onto the window changes nothing, since the overlay's drop guard cancels the drop.
+**Pictures.** WebKitGTK gives the page no file for a picture on the clipboard or a dragged file,
+so a paste reads the X clipboard through the shell's `clipboard_picture` command. Own the
+clipboard with `xclip -selection clipboard -t image/png -i <file>` on the display, focus the field
+and press `Ctrl+V`: the thumbnail shows, and a file over 32 MiB shows "The clipboard's picture
+could not be read." instead. A file dragged onto the window still changes nothing, since the
+overlay's drop guard cancels the drop
+([R-802](../refinements/tasks/802-the-linux-shell-attaches-no-pasted-or-dropped-picture.md)).
 
 ## Notes
 

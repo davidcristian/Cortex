@@ -3,12 +3,17 @@
 //! Pure traits and value types live here; the per-platform adapters are in the `os_windows`,
 //! `os_linux` and `os_macos` crates.
 
+pub mod clipboard;
 pub mod notify;
 pub mod screen;
 mod screen_image;
 pub mod screen_policy;
 pub mod screen_target;
 
+pub use clipboard::{
+    ClipboardError, ClipboardPicture, MAX_PASTED_BYTES, NoClipboardPicture, PICTURE_TYPES,
+    PastedPicture,
+};
 pub use notify::{
     MAX_TEXT_CHARS, Notification, Notify, NotifyError, UNTRUSTED_ATTRIBUTION, escape_xml,
 };

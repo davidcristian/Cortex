@@ -5,9 +5,9 @@
 #![cfg_attr(coverage, feature(coverage_attribute))]
 
 use body_core::{
-    AudioControl, AudioError, CaptureError, CaptureRequest, CapturedFrame, Hotkey, HotkeyCallback,
-    HotkeyChord, HotkeyError, Notification, Notify, NotifyError, ScreenCapture, VolumeChange,
-    VolumeState,
+    AudioControl, AudioError, CaptureError, CaptureRequest, CapturedFrame, ClipboardError,
+    ClipboardPicture, Hotkey, HotkeyCallback, HotkeyChord, HotkeyError, Notification, Notify,
+    NotifyError, PastedPicture, ScreenCapture, VolumeChange, VolumeState,
 };
 
 /// The macOS `Hotkey` backend, not implemented.
@@ -61,6 +61,18 @@ impl ScreenCapture for MacosScreenCapture {
     fn capture(&self, _request: &CaptureRequest) -> Result<CapturedFrame, CaptureError> {
         unimplemented!(
             "the macOS ScreenCapture backend is not implemented (this crate is Windows-first)"
+        )
+    }
+}
+
+/// The macOS `ClipboardPicture` backend, not implemented.
+pub struct MacosClipboardPicture;
+
+impl ClipboardPicture for MacosClipboardPicture {
+    #[cfg_attr(coverage, coverage(off))]
+    fn picture(&self) -> Result<Option<PastedPicture>, ClipboardError> {
+        unimplemented!(
+            "the macOS ClipboardPicture backend is not implemented (this crate is Windows-first)"
         )
     }
 }

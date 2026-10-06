@@ -17,6 +17,13 @@ crate; nothing that ships links it.
   read reports the change; a level alone keeps the mute flag; a mute flag alone keeps the level;
   an empty change changes nothing; no endpoint fails both calls with `NoEndpoint`; a broken backend
   fails both with `Backend`.
+- **`clipboard`**, the `ClipboardPicture` list. `ClipboardSubject` builds `offering(offers)`, a
+  clipboard whose owner offers each `(type, bytes)` pair listed, and `broken()`. The seven checks:
+  each of `PICTURE_TYPES` is read with its type; the first of them in that order is read, whatever
+  order the owner lists; an owner offering none of them answers `None`; an empty offer is passed
+  over; a picture of `MAX_PASTED_BYTES` is read; one byte more is refused as `TooLarge`, also when
+  a smaller type follows; a broken clipboard fails with `Failed`. `NoClipboardPicture` runs no
+  driver, and `body/crates/core/tests/clipboard.rs` checks it answers `None`.
 - **`notify`**, the `Notify` list, the same shape. `NotifySubject` builds `showing()`,
   `declining()`, `without_service()` and `broken()`; `declining` returns an `Option`, since a
   backend whose service cannot decline returns `None` and the check that needs it returns early.
@@ -71,6 +78,8 @@ crate; nothing that ships links it.
   a state in memory, `failing(AudioError)` answers every call with that error, and `panicking()`
   panics inside every call. `threads()` returns the `Threads` handle on the thread each call ran on,
   which the `BodyService` tests read after the fake has moved into a server.
+- **`FakeClipboard`**, the stand-in `ClipboardPicture`: `offering(offers)` and
+  `failing(ClipboardError)`.
 - **`FakeHotkey`**, the one stand-in `Hotkey`: `default()` keeps each callback it registers and
   `press(chord)` runs those registered for that chord; `failing(HotkeyError)` refuses every chord.
   Both refuse a key with no code first, through `Accelerator::from_chord`, as the real backends do.
@@ -89,8 +98,9 @@ crate; nothing that ships links it.
   the held reply up to its first terminal event, ending in a `Protocol` error when it has none;
   `failing(TransportError)` answers every call, a turn included, with that error. It reads a
   decision after each confirm request, as `serving` describes, and drops the attached images.
-- The drivers: `tests/audio.rs`, `tests/hotkey.rs`, `tests/notify.rs` and `tests/screen.rs` here,
-  over the fakes;
+- The drivers: `tests/audio.rs`, `tests/clipboard.rs`, `tests/hotkey.rs`, `tests/notify.rs` and
+  `tests/screen.rs` here, over the fakes; `the_linux_clipboard_meets_every_clipboard_check` in
+  `body/crates/os_linux/tests/clipboard.rs`, over `LinuxClipboardPicture` on that file's `Owner`;
   `body/crates/os_linux/tests/audio_contract.rs`, over `LinuxAudioControl` on `SoundServer`, a
   stand-in `pactl` holding one default sink that the set commands change and the get commands
   print; `the_linux_backend_meets_every_notify_check` in `body/crates/os_linux/tests/notify.rs`,

@@ -8,7 +8,9 @@ macro_rules! named {
 }
 
 pub mod audio;
+pub mod clipboard;
 mod fake_audio;
+mod fake_clipboard;
 mod fake_hotkey;
 mod fake_notify;
 mod fake_screen;
@@ -19,6 +21,7 @@ pub mod screen;
 pub mod transport;
 
 pub use fake_audio::{FakeAudio, Threads};
+pub use fake_clipboard::FakeClipboard;
 pub use fake_hotkey::FakeHotkey;
 pub use fake_notify::FakeNotify;
 pub use fake_screen::{FakeScreen, Requests};

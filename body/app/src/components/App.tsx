@@ -1,6 +1,7 @@
 import { type MouseEvent, useEffect } from "react";
 
-import type { BrainBridge, OverlayWindow } from "../bridge/types";
+import { NO_CLIPBOARD } from "../bridge/clipboard";
+import type { BrainBridge, HostClipboard, OverlayWindow } from "../bridge/types";
 import { resolveEdge } from "../edge/edges";
 import { resolveMark } from "../mark/marks";
 import { ACTIVATE_EVENT, TOGGLE_EVENT, takePendingActivation } from "../overlay/activation";
@@ -21,12 +22,19 @@ interface AppProps {
   readonly newSessionId?: () => string;
   /** The OS window the overlay draws in; the browser build has none. */
   readonly osWindow?: OverlayWindow;
+  /** The host clipboard a paste with no file reads; the browser build has none. */
+  readonly clipboard?: HostClipboard;
 }
 
 /** Connects the appearance settings read from the brain, and host activation, to the overlay
  *  controller. */
-export function App({ bridge, newSessionId, osWindow = NO_WINDOW }: AppProps) {
-  const controller = useOverlay(bridge, newSessionId);
+export function App({
+  bridge,
+  newSessionId,
+  osWindow = NO_WINDOW,
+  clipboard = NO_CLIPBOARD,
+}: AppProps) {
+  const controller = useOverlay(bridge, newSessionId, undefined, clipboard);
   useOverlayWindow(controller.state.mode, osWindow);
   const { appearance, setTheme, setMark, setWindow } = usePreferences(bridge);
   const theme = resolveTheme(appearance.theme, systemPrefersDark());

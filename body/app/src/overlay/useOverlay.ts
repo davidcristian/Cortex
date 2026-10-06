@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 
-import type { BrainBridge, Cancellation, DueReminder } from "../bridge/types";
+import { NO_CLIPBOARD } from "../bridge/clipboard";
+import type { BrainBridge, Cancellation, DueReminder, HostClipboard } from "../bridge/types";
 import {
   type ConsoleTab,
   type OverlayState,
@@ -18,6 +19,9 @@ import { type SessionCatalog, useSessionCatalog } from "./useSessionCatalog";
 
 const PREVIEW_MS = 6000;
 
+/** The note a paste shows when the host clipboard could not be read. */
+export const CLIPBOARD_UNREAD = "The clipboard's picture could not be read.";
+
 /** The overlay controller: the reducer wired to the brain bridge plus the preview auto-fade timer.
  *  The chat-catalog half is `useSessionCatalog`'s and is spread in as it is, so a component still
  *  sees one flat controller. */
@@ -29,6 +33,8 @@ export interface OverlayController extends SessionCatalog {
   setDraft(text: string): void;
   /** Read pasted or dropped files into the composer's pictures for the chat on screen. */
   attach(files: readonly Blob[]): void;
+  /** Attach the host clipboard's picture, for a paste the webview gave no file or text for. */
+  pastePicture(): void;
   /** Take one waiting picture out of the composer. */
   detach(id: string): void;
   stop(): void;
@@ -64,6 +70,7 @@ export function useOverlay(
   bridge: BrainBridge,
   newSessionId: () => string = () => crypto.randomUUID(),
   readPicture: PictureReader = readWithCanvas,
+  clipboard: HostClipboard = NO_CLIPBOARD,
 ): OverlayController {
   const [state, dispatch] = useReducer(reduce, undefined, () =>
     createInitialState(newSessionId()),
@@ -138,6 +145,16 @@ export function useOverlay(
     },
     [readPicture],
   );
+  const pastePicture = useCallback(() => {
+    void clipboard.picture().then(
+      (picture) => {
+        if (picture !== null) {
+          attach([picture]);
+        }
+      },
+      () => dispatch({ kind: "attach", pictures: [], problem: CLIPBOARD_UNREAD }),
+    );
+  }, [clipboard, attach]);
   const detach = useCallback((id: string) => dispatch({ kind: "detach", id }), []);
 
   const stop = useCallback(() => {
@@ -194,6 +211,7 @@ export function useOverlay(
     submit,
     setDraft,
     attach,
+    pastePicture,
     detach,
     stop,
     dismiss,

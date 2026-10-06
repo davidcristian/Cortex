@@ -2,9 +2,10 @@ import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { FakeBridge } from "../bridge/fakeBridge";
+import type { HostClipboard } from "../bridge/types";
 import { noteOf, waitingOf } from "./pictureState";
 import type { ReadPicture } from "./pictures";
-import { useOverlay } from "./useOverlay";
+import { CLIPBOARD_UNREAD, useOverlay } from "./useOverlay";
 
 const reader = (from: Blob): Promise<ReadPicture> =>
   Promise.resolve({
@@ -51,5 +52,44 @@ describe("useOverlay with pictures", () => {
         "Only PNG, JPEG and WebP pictures can be attached.",
       ),
     );
+  });
+
+  it("attaches the host clipboard's picture for a paste the webview gave no file", async () => {
+    const bridge = new FakeBridge();
+    const clipboard: HostClipboard = {
+      picture: () => Promise.resolve(new Blob(["x"], { type: "image/webp" })),
+    };
+    const { result } = renderHook(() => useOverlay(bridge, () => "s1", reader, clipboard));
+    await act(async () => {
+      result.current.pastePicture();
+    });
+    await vi.waitFor(() => expect(waitingOf(result.current.state.pictures, "s1")).toHaveLength(1));
+    const [pasted] = waitingOf(result.current.state.pictures, "s1");
+    expect(pasted!.preview).toBe("data:image/webp");
+  });
+
+  it("attaches nothing and says nothing when the host clipboard holds no picture", async () => {
+    const bridge = new FakeBridge();
+    const picture = vi.fn(() => Promise.resolve(null));
+    const { result } = renderHook(() => useOverlay(bridge, () => "s1", reader, { picture }));
+    await act(async () => {
+      result.current.pastePicture();
+    });
+    expect(picture).toHaveBeenCalledTimes(1);
+    expect(waitingOf(result.current.state.pictures, "s1")).toEqual([]);
+    expect(noteOf(result.current.state.pictures, "s1")).toBeNull();
+  });
+
+  it("says so when the host clipboard cannot be read", async () => {
+    const bridge = new FakeBridge();
+    const clipboard: HostClipboard = { picture: () => Promise.reject(new Error("over the limit")) };
+    const { result } = renderHook(() => useOverlay(bridge, () => "s1", reader, clipboard));
+    await act(async () => {
+      result.current.pastePicture();
+    });
+    await vi.waitFor(() =>
+      expect(noteOf(result.current.state.pictures, "s1")).toBe(CLIPBOARD_UNREAD),
+    );
+    expect(waitingOf(result.current.state.pictures, "s1")).toEqual([]);
   });
 });

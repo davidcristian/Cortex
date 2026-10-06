@@ -21,7 +21,14 @@ to the brain with the text, as [ADR-0070](../adr/ADR-0070-user-attached-images.m
   of the turn in flight. The reducer handles `attach` and `detach`; `submit` moves the pictures
   into the turn; a `failed` event with code `attachment_refused` hands them back.
 - `Composer` takes pictures from `paste` on the field and `drop` on the pill, claims a drag only
-  when it holds files, and shows each waiting picture as a thumbnail with a remove control.
+  when it holds files, and shows each waiting picture as a thumbnail with a remove control. A paste
+  with no file and no `text/plain`, which on WebKitGTK is every paste, calls `onPastePicture`, the
+  controller's `pastePicture`.
+- `HostClipboard` (`bridge/types.ts`) is the port `pastePicture` reads: `picture()` resolves to a
+  `Blob` of the picture's type or null. `TauriClipboard` calls the shell's `clipboard_picture`,
+  which returns `{ dataBase64, mimeType }` or null and fails past `MAX_PASTED_BYTES`;
+  `pictureBlob` in `bridge/clipboard.ts` decodes it. The browser build passes `NO_CLIPBOARD`. A
+  picture goes to `attach` like a pasted file; a failed read shows `CLIPBOARD_UNREAD`.
 - `guardDrops(window)` in `dropGuard.ts`, installed by `App`, cancels the webview's default for
   any drag holding `Files` or `text/uri-list`, so a file or link dropped beside the composer
   neither opens as the window nor types its address into the field.
@@ -46,8 +53,9 @@ to the brain with the text, as [ADR-0070](../adr/ADR-0070-user-attached-images.m
 ## Dependencies
 
 The `BrainBridge` port (`AttachedImage`), the drafts in `drafts.ts`, and the webview's
-`createImageBitmap` and canvas. Both ways in also depend on the webview handing the page a `File`:
-WebKitGTK on the Linux shell does not
+`createImageBitmap` and canvas. A drop depends on the webview handing the page a `File`, which
+WebKitGTK on the Linux shell does not, for a paste either; a paste there reads the X clipboard
+through the shell instead
 ([R-802](../refinements/tasks/802-the-linux-shell-attaches-no-pasted-or-dropped-picture.md)). The
 demo bridge refuses the last picture of a prompt that says "refuse", so the headless overlay shows
 the refusal state.

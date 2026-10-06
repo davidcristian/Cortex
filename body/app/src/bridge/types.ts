@@ -150,3 +150,9 @@ export interface OverlayWindow {
   /** Show or hide the window. A failure is dropped: the next change of mode asks again. */
   setShown(shown: boolean): void;
 }
+
+/** The host's clipboard, read for a paste the webview gave the page no file for. */
+export interface HostClipboard {
+  /** The clipboard's picture as a `Blob` of its type, or null; rejects when it cannot be read. */
+  picture(): Promise<Blob | null>;
+}

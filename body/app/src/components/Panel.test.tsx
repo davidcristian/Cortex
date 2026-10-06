@@ -95,6 +95,7 @@ function panelProps(over: Partial<OverlayState>, open: boolean, dark: boolean, h
     onSubmit: handlers.onSubmit ?? vi.fn(),
     onDraft: handlers.onDraft ?? vi.fn(),
     onAttach: vi.fn(),
+    onPastePicture: vi.fn(),
     onDetach: vi.fn(),
     onStop: vi.fn(),
     onDismiss: handlers.onDismiss ?? vi.fn(),

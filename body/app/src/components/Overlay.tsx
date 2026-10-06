@@ -49,6 +49,7 @@ export function Overlay({
     submit,
     setDraft,
     attach,
+    pastePicture,
     detach,
     stop,
     dismiss,
@@ -133,6 +134,7 @@ export function Overlay({
         onSubmit={submit}
         onDraft={setDraft}
         onAttach={attach}
+        onPastePicture={pastePicture}
         onDetach={detach}
         onStop={stop}
         onDismiss={dismiss}

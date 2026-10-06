@@ -1,11 +1,13 @@
 import { Channel, invoke } from "@tauri-apps/api/core";
 
 import { toBase64 } from "./base64";
+import { type WirePicture, pictureBlob } from "./clipboard";
 import type {
   AttachedImage,
   BrainBridge,
   Cancellation,
   DueReminder,
+  HostClipboard,
   LinkStatus,
   OverlayWindow,
   Preference,
@@ -118,5 +120,13 @@ export class TauriWindow implements OverlayWindow {
     invoke<void>("set_overlay_shown", { shown }).catch(() => {
       // The window stays as it was, and the next change of mode asks again.
     });
+  }
+}
+
+/** The real `HostClipboard`: the shell's `clipboard_picture` command, which reads the X clipboard
+ *  on Linux and answers null elsewhere. Excluded from coverage with the bridge above. */
+export class TauriClipboard implements HostClipboard {
+  picture(): Promise<Blob | null> {
+    return invoke<WirePicture | null>("clipboard_picture").then(pictureBlob);
   }
 }

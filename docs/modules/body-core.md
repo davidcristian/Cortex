@@ -157,6 +157,12 @@ because what a failure proves is domain logic.
   or event-loop thread. `HotkeyError` (thiserror, `Clone`) is `UnsupportedKey(String)` (the key has
   no `code` mapping) or `Registration(String)` (the OS rejected the binding).
 - `AudioControl` (ADR-0023) is documented with its adapters in [body-os.md](body-os.md).
+- `ClipboardPicture` (`os::clipboard`, ADR-0070 decision 5) reads the clipboard's picture for a
+  paste the webview gave the page no file for: `picture(&self) -> Result<Option<PastedPicture>,
+  ClipboardError>`. `PastedPicture` is the bytes, never decoded, and the first of `PICTURE_TYPES`
+  (`image/png`, `image/jpeg`, `image/webp`) the owner offers. `ClipboardError` is `TooLarge`, past
+  `MAX_PASTED_BYTES` (32 MiB), or `Failed(String)`. `NoClipboardPicture` always answers `None`, for
+  a webview that hands the page a pasted picture itself.
 - `Notify` (`os::notify`, ADR-0025) is the push half of reminder delivery:
   `show(&self, &Notification) -> Result<bool, NotifyError>`, `Send + Sync` because the `BodyService`
   server holds it across async tasks. `Ok(false)` is a **state report**, not a failure: the host was
