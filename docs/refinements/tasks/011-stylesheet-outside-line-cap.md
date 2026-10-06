@@ -6,7 +6,7 @@
 **Trigger:** `find body/app/src -name '*.css'` lists a second file, or
 `git log --since='<Verified date> 00:00' --oneline -- body/app/src/overlay.css` lists a commit
 whose diff moves a rule to change which rule applies. A commit that edits only comments does not.
-**Verified:** 2026-10-02
+**Verified:** 2026-10-06
 
 Once the line cap covered the overlay's TypeScript
 ([R-010](010-line-cap-overlay-gap.md)), leaving the stylesheet out became a decision rather than

@@ -4,7 +4,7 @@
 **Area:** body-overlay
 **Origin:** [ADR-0035](../../adr/ADR-0035-console-and-motion.md) decision 22, scrollbars as reserved chrome ([overlay-ux.md §2](../../design/overlay-ux.md))
 **Trigger:** The overlay running on an engine without `::-webkit-scrollbar`, such as Gecko, since only such an engine takes the fenced branch.
-**Verified:** 2026-10-04
+**Verified:** 2026-10-06
 
 Every scroll container sets `scrollbar-gutter: stable` and pays for the rail out of its own
 inline-end padding, either subtracted from a padding big enough to hold it

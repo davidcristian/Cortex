@@ -14,7 +14,7 @@ It also shows up as any `@font-face` rule in a tracked file under `body/app/`
 arriving with no rule in the tree: a font stylesheet linked from `body/app/index.html` or a font
 package in `body/app/package.json`, where this search finds nothing today:
 `git grep -n -i font -- body/app/index.html body/app/package.json`.
-**Verified:** 2026-10-03
+**Verified:** 2026-10-06
 
 A whispered message puts each letter in its own box inside an unbreakable word box (ADR-0037
 decision 6), so kerning inside a word is lost while that message's DOM is on screen. It renders as

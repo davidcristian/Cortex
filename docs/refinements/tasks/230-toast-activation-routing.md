@@ -4,7 +4,7 @@
 **Area:** scheduling
 **Origin:** [ADR-0066](../../adr/ADR-0066-reminder-toast-and-card.md)
 **Trigger:** a second consumer of toast interaction, such as snooze from the toast.
-**Verified:** 2026-10-04
+**Verified:** 2026-10-06
 
 Clicking a shown toast does nothing, while the overlay's reminder card offers "open the
 conversation this came from". Fixing that needs a change to the gRPC boundary: `NotifyRequest`

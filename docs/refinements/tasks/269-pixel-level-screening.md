@@ -3,7 +3,7 @@
 **Status:** open, waiting for a consumer
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-10-05
+**Verified:** 2026-10-06
 **Trigger:** A capture that has to go ahead with part of the screen removed rather than be refused,
 over a window or a region Cortex does not own, since the body's own windows are the OS's to exclude
 on Windows, the X11 capture's own fill on X11, and a refusal while the overlay is shown on Wayland.

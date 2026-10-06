@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-10-03
+**Verified:** 2026-10-06
 **Trigger:** a report, written on this entry's history or as a host task, of a sentence a user
 asked the assistant to remember during an opaque turn and could not recall later. The loss needs
 two settings together: memory recorded at all (`CORTEX_MEMORY_BACKEND=pgvector`, which the memory

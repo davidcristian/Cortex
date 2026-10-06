@@ -7,7 +7,7 @@ period, or a second per handoff result is filed to be counted across handoffs ra
 displayed. Either still needs a home first: nothing in the brain keeps a per handoff row that
 outlives its handoff.
 **Origin:** [ADR-0055](../../adr/ADR-0055-co-residency-and-spill-watch.md)
-**Verified:** 2026-10-04
+**Verified:** 2026-10-06
 
 The spill note lives in the process, lasts an hour, and is cleared by the next handoff that keeps
 its pace, so a handoff that spilled at 03:00 is gone by morning and a brain that restarted takes it

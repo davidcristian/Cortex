@@ -4,7 +4,7 @@
 **Area:** body-gateway
 **Origin:** [ADR-0023](../../adr/ADR-0023-body-gateway-volume.md)
 **Trigger:** A tool, surface or task that types text or presses a key combination on the host, so that `InjectInput` or `inject_input` is named outside `proto/`, the generated stubs, `cortex_seam`'s exports, the unimplemented handler in `body/crates/rpc/src/server.rs` and its test. It is then built as one slice, not as a wired handler.
-**Verified:** 2026-10-04
+**Verified:** 2026-10-06
 
 `InjectInput` is the only one of the five RPCs `BodyService` declares that is not built. It is
 unbuilt at every tier: the RPC and its `TypeText` and `KeyChord` messages are forward-looking

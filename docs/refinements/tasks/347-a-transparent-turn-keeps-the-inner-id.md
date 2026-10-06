@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** inference-model-manager
 **Origin:** [ADR-0046](../../adr/ADR-0046-work-identities-on-log-lines.md)
-**Verified:** 2026-10-03
+**Verified:** 2026-10-06
 **Trigger:** either half of the agreement moves: `EscalatingTurnEngine(` gains a construction site
 other than the one in `cortex_orchestrator/engines.py`, or that site's factory returns anything but
 `self._turn_engine(...)`; or `TurnEngine.handle_turn` in `cortex_core/engine.py` stops completing

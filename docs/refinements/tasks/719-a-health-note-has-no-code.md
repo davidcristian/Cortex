@@ -3,7 +3,7 @@
 **Status:** open, waiting for a consumer
 **Area:** rpc-transport
 **Origin:** [ADR-0054](../../adr/ADR-0054-baseline-residency.md)
-**Verified:** 2026-10-04
+**Verified:** 2026-10-06
 **Trigger:** A client that must treat one serving note apart from the others: style a missing peer tier differently from a slow last handoff, order them by its own rule, or let the user dismiss one.
 
 `HealthNote` in [body.proto](../../../proto/body.proto) has one field, the sentence. The overlay

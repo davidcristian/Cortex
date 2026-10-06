@@ -9,7 +9,7 @@ that is written down, muting the sink is adequate. The wait itself needs no host
 brain cannot tell a stopped turn from one whose client keeps reading, so any client that sends a
 second turn while the first still generates shows it. What only use can show is a person
 submitting again soon enough after a Stop for that wait to matter.
-**Verified:** 2026-10-02
+**Verified:** 2026-10-06
 
 The body sends one turn per `Converse` call and never sends `Cancel`; dropping the stream is how
 v1 cancels (ADR-0011 decision 1 and risks). Slice 8.8 (ADR-0022) took the interleaving half, so

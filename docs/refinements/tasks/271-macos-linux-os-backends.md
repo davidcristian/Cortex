@@ -3,15 +3,19 @@
 **Status:** open, optional feature
 **Area:** cross-cutting
 **Origin:** none, this area is the old catch-all list and has no single origin decision record
-**Verified:** 2026-10-05
+**Verified:** 2026-10-06
 
-Real macOS backends behind the four OS ports in `body_core`: `Hotkey`, `AudioControl`, `Notify`
-and `ScreenCapture`. The Linux half is done. `os_linux` has a real backend behind each port and no
-stub, and the shell serves or registers every one of them on X11 and on Wayland
-([body-os.md](../../modules/body-os.md)). What is left is macOS, in three parts:
+Real macOS backends behind the five OS ports in `body_core`: `Hotkey`, `AudioControl`, `Notify`,
+`ScreenCapture` and `ClipboardPicture`. The Linux half is done. `os_linux` has a real backend
+behind each port and no stub, and the shell serves or registers every one of them on X11 and on
+Wayland ([body-os.md](../../modules/body-os.md)). On Wayland the clipboard reader reads the X
+clipboard through `XWayland`, and whether that finds a picture a Wayland client copied is
+[805](805-check-a-pasted-picture-on-a-wayland-session.md). What is left is macOS, in three parts:
 
-- **`MacosHotkey`, `MacosAudioControl` and `MacosNotify`**, which are `unimplemented!()` stubs in
-  `os_macos`.
+- **`MacosHotkey`, `MacosAudioControl`, `MacosNotify` and `MacosClipboardPicture`**, which are
+  `unimplemented!()` stubs in `os_macos`. The shell's `clipboard_picture` command answers with
+  `NoClipboardPicture` off Linux, so the last one is needed only if the macOS webview gives the
+  page no file for a pasted picture, as WebKitGTK does.
 - **`MacosScreenCapture`**, also a stub, which is [263](263-linux-and-macos-capture-backends.md).
 - **The crate and the shell around them.** `os_macos` has no `cfg` attribute in its source or
   manifest, so it compiles on every platform and the Linux coverage run measures it. A real backend
@@ -78,3 +82,8 @@ needing a Win32 desktop session or a 24 GB GPU: a macOS backend needs neither, o
   both platforms, while 263 now holds only `MacosScreenCapture`. The shell wiring a macOS backend
   also needs was never named and is added. A live test of the portal hotkey on a real backend is
   [788](788-test-the-portal-hotkey-on-a-kde-wayland-session.md).
+- 2026-10-06: Corrected after the paste path moved. `body_core` has a fifth OS port,
+  `ClipboardPicture`, with `LinuxClipboardPicture` behind it in `os_linux` and a
+  `MacosClipboardPicture` stub in `os_macos`, and the entry named four ports and three stubs. The
+  Linux reader reaches a Wayland client's copy only through `XWayland`, which
+  [805](805-check-a-pasted-picture-on-a-wayland-session.md) checks.

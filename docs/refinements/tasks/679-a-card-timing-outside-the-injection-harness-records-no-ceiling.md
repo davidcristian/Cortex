@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** vision
 **Origin:** [ADR-0041](../../adr/ADR-0041-injection-image-variant.md)
-**Verified:** 2026-10-03
+**Verified:** 2026-10-06
 **Trigger:** a figure from one of the harnesses below, a turn-cost interval or a decode rate, is
 published in `docs/` with a date after 2026-09-17 and no card reading beside it. The added lines
 of `git log -p --since=<the last check> -- docs/` that match `tok/s`, `test_turn_cost_live` or

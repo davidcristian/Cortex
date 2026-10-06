@@ -3,7 +3,7 @@
 **Status:** open, needs a port change first
 **Area:** body-overlay
 **Origin:** [ADR-0011](../../adr/ADR-0011-body-v1.md)
-**Verified:** 2026-10-02
+**Verified:** 2026-10-06
 **Trigger:** A status change that begins while no turn from this overlay is streaming and must change the dot's colour: a second client that can start a handoff, or a background job that escalates. The hand-run handoff client (`just rpc-handoff`) is not such a client: its runbook points it only at a stack no overlay is using, so no dot can see a handoff it starts. A change that one of this overlay's own turns leaves behind is read by the probe that follows the turn, not by a push.
 
 What is deferred is the push: a server-streamed status RPC, so the brain can say what it is doing

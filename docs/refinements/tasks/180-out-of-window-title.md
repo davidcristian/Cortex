@@ -4,7 +4,7 @@
 **Area:** session-read-rpc
 **Origin:** [ADR-0021](../../adr/ADR-0021-session-read-rpcs.md)
 **Trigger:** A second caller that opens a chat by id from outside the loaded window, beside the reminder card's open control, such as toast activation routing once `NotifyRequest` has a `session_id` (R-230) or a search.
-**Verified:** 2026-10-04
+**Verified:** 2026-10-06
 
 `headerTitle` reads the title from `state.sessions`, so a chat that is not in the loaded recency
 window still derives its header locally. The only path today that opens such a chat is a reminder

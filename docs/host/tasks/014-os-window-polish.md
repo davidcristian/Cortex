@@ -20,8 +20,10 @@ a tighter CSP (`null` in v1). The design doc's smaller "later" marks, custom the
 licensed `@font-face` and a `Ctrl+K` command palette, come with them in sections 2 and 3 of that
 doc.
 
-Today v1 is a fixed 640x720 frameless **opaque** always-on-top window that the hotkey toggles, with
-no hide-on-blur so validation is predictable, and CSP `null` for a fully local app loading only
+Today v1 is a fixed 640x720 frameless **opaque** always-on-top window. The hotkey shows it when it
+is hidden; over a shown window the press goes to the overlay, which hides the window through the
+shell's `set_overlay_shown` once its mode reaches hidden. There is no hide-on-blur, so validation is
+predictable, and CSP `null` for a fully local app loading only
 bundled assets. The opaqueness is deliberate: a transparent window makes every other Windows check
 less predictable, so v1 chose predictability while the checks in
 [windows-desktop.md](../index.md#windows-desktop) were still owed. Doing them first and this second
@@ -49,7 +51,8 @@ is the right order.
   is inside its rectangle, with no sharp frosted rectangle behind it. Headless Chromium shows this
   ([readings](../../readings/liquid-edge-blur.md)); WebView2's engine is the part still unmeasured.
 - The minimized orb sits in a real screen corner and the morph animation still plays.
-- Hide-on-blur does not fight the hotkey toggle, and does not hide the window while a confirm card
+- Hide-on-blur does not fight the hotkey toggle, hides the window through the overlay's mode as a
+  press does, so the mode and the window agree, and does not hide the window while a confirm card
   is open. That last one is a correctness constraint rather than taste: a card that vanishes on blur
   is an action awaiting approval timing out where nobody sees it.
 - `just check` still passes. The overlay tree is covered at 100% and the shell is fmt-checked in CI;
@@ -80,3 +83,6 @@ why, because "done together" is this entry's own recorded finding.
   finish line, which would then have waited on the maintainer writing Rust.
 - 2026-07-19: filed as a work session rather than a validation session, blocked on nothing, and
   named the one piece of host work that is not urgent for correctness.
+- 2026-10-06: corrected after the overlay window began following the overlay's mode. The task said
+  the hotkey toggles the window; a press over a shown window now goes to the overlay, which hides
+  the window through `set_overlay_shown`, so a hide-on-blur goes the same way.

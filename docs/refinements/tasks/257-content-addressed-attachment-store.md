@@ -3,7 +3,7 @@
 **Status:** open, waiting for a consumer
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-10-04
+**Verified:** 2026-10-06
 **Trigger:** Something has to read a picture after its turn ends: a reopened chat showing what the
 assistant saw, a question about a capture answered from the audit trail, or the deep tier in R-266.
 
