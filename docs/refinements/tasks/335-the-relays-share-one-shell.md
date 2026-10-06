@@ -10,7 +10,7 @@ across recipe lines, which just runs in separate shells, or by reading either fr
 variable, a file or a CI step's output. The arrangement also depends on the `justfile` setting no
 `shell` (`grep -n '^set ' justfile` prints nothing), so each recipe line is one `sh -cu`, and on
 both substitutions naming the toolchain as `+nightly`, which no directory override can change.
-**Verified:** 2026-10-03
+**Verified:** 2026-10-07
 
 The decline of [R-313](313-a-relay-can-be-required-and-empty.md) rests entirely on the shape of one
 line in the `justfile`: both arguments are filled by two command substitutions in the same shell,

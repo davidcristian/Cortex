@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** subagents
 **Origin:** [ADR-0004](../../adr/ADR-0004-model-lineup.md)
-**Verified:** 2026-10-04
+**Verified:** 2026-10-07
 **Trigger:** a delegated run on the CPU server ended by the stall ceiling or the run deadline
 while a peer queues behind it, a spawn refused at the admission wait, or any retune of `CORTEX_SUBAGENTS_STALL_TIMEOUT_S`, `CORTEX_SUBAGENTS_RUN_TIMEOUT_S` or
 `CORTEX_SUBAGENTS_ADMISSION_WAIT_S`.

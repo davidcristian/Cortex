@@ -8,7 +8,7 @@ withhold, most plausibly a connection URL with a credential inside it. Two readi
 point, and raising from inside `run_from_env` says what the container's last line looks like. This
 entry's history records what both answered when they were last taken.
 **Origin:** [ADR-0051](../../adr/ADR-0051-log-line-rendering.md)
-**Verified:** 2026-10-04
+**Verified:** 2026-10-07
 
 `__main__.py` runs `asyncio.run(run_from_env())` under a bare entry guard with no `except` around
 it, and `run_from_env` builds every adapter, several of which dial a remote with a credential in the

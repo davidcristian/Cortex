@@ -7,7 +7,7 @@ commit. The event this entry is about, a widened passage containing no extra nam
 so the registry diff is the reading a review can take.
 **Area:** repo-checks
 **Origin:** [ADR-0044](../../adr/ADR-0044-document-rosters.md)
-**Verified:** 2026-10-03
+**Verified:** 2026-10-07
 
 `scripts/rosters.py` bounds each passage with two phrases the document contains. A phrase that
 stops appearing, or starts appearing twice, is a reported fault. A phrase that moved is not a fault

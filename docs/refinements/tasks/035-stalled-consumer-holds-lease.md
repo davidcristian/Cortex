@@ -13,7 +13,7 @@ test, the bridge contract's `bridgeContract.ts` and the brain transport's
 `body/crates/contract/src/transport/turns.rs`, and the `seam` package's re-export of the stub. Any
 other file fires it. The shell command's `while let` loop awaits only `stream.next()`; any other
 await between two items fires it.
-**Verified:** 2026-10-06
+**Verified:** 2026-10-07
 
 The reply's lease is held for the adapter generator's whole lifetime, and the credit bound
 ([R-028](028-converse-queue-backpressure.md), `CORTEX_SEAM_CONVERSE_BUFFER`) suspends generation

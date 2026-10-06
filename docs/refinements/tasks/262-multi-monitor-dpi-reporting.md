@@ -3,7 +3,7 @@
 **Status:** open, waiting for a consumer
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-10-05
+**Verified:** 2026-10-07
 **Trigger:** A request to capture a display other than the primary one.
 
 The Windows backend captures the primary display only, in physical pixels. The X11 backend in

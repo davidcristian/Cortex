@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** body-gateway
 **Origin:** [ADR-0023](../../adr/ADR-0023-body-gateway-volume.md)
-**Verified:** 2026-10-03
+**Verified:** 2026-10-07
 **Trigger:** either of two readings. On a Win32 desktop, the watch item in `docs/host/`: a volume or
 toast call failing with a COM error after a long uptime, or the body process's handle count climbing
 across bursts of OS actions spaced further apart than tokio's blocking thread keep-alive (10 s by

@@ -5,7 +5,7 @@
 first-token floor, or a change sets out to shorten the CPU pool's 600 s stall ceiling.
 **Area:** inference
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
-**Verified:** 2026-10-04
+**Verified:** 2026-10-07
 
 The adapter's per-read stall ceiling (`CORTEX_INFERENCE_STALL_TIMEOUT_S`, 120 s, and
 `CORTEX_SUBAGENTS_STALL_TIMEOUT_S`, 600 s) bounds the gap between two streamed chunks, and

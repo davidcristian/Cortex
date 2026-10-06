@@ -6,7 +6,7 @@
 **Trigger:** the maintainer decides the subagent tier's pick: ADR-0004 decision 7 names a model
 other than gemma-4-E4B, or its reason cites the constrained reply path rows this file records.
 Read decision 7's first sentence and `grep -n 'constrained-reply-path' docs/adr/ADR-0004-model-lineup.md`.
-**Verified:** 2026-10-04
+**Verified:** 2026-10-07
 
 Decision 7 of [ADR-0004](../../adr/ADR-0004-model-lineup.md) picked gemma-4-E4B for the subagent
 tier on injection resistance, at about 2.6 times the load, 3 times a narrow task's latency and 2.8

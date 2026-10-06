@@ -3,7 +3,7 @@
 **Status:** open, waiting for a consumer
 **Area:** resource-governance
 **Origin:** [ADR-0010](../../adr/ADR-0010-subagents.md)
-**Verified:** 2026-10-04
+**Verified:** 2026-10-07
 **Trigger:** a request identity on the body/brain interface, meaning a request id on `UserTurn` or
 `ClientEvent` in `proto/body.proto` (`grep -ni request_id proto/body.proto` has no hit), which is
 what both the `Converse` reconnect entry (R-023) and the crashed-handoff resume entry (R-112) wait

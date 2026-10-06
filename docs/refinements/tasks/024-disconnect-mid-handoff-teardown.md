@@ -12,7 +12,7 @@ answer the turn being cancelled. And the body sends no `Cancel`: it opens a fres
 stops delivery while the turn runs to its end (`TauriBridge.converse`), which
 `grep -rn 'Cancel' body/crates/core/src body/crates/rpc/src body/app/src-tauri/src --exclude-dir=_generated`
 finding nothing confirms. R-127 would add the `Cancel` half and not the other.
-**Verified:** 2026-10-06
+**Verified:** 2026-10-07
 
 Swapping the cortex back in is the recovery path, so `swap_scope`'s restore runs as its own
 shielded task and every cancellation waits for it before propagating. Without that, a client who

@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-10-03
+**Verified:** 2026-10-07
 **Trigger:** either ladder assertion in `body/crates/core/tests/capture_bytes.rs` failing: the four
 realistic frames on a 4K display, or the same grainy photograph on the three display sizes the
 second one draws it at, no longer fitting inside `MAX_CAPTURE_BYTES` (6291456, in

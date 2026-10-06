@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** repo-checks
 **Origin:** [ADR-0039](../../adr/ADR-0039-backlog-per-task.md)
-**Verified:** 2026-10-02
+**Verified:** 2026-10-07
 **Trigger:** the first heading quoting something in a double backtick code span, which
 `backlogcheck` refuses whenever what is quoted has brackets, an angle-bracket tag or an entity
 reference. For brackets the printed advice is the code span the author already wrote; for a tag or

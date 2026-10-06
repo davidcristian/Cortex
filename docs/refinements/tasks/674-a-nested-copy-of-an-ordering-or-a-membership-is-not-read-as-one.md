@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** repo-checks
 **Origin:** [ADR-0042](../../adr/ADR-0042-cross-tree-constant-registry.md)
-**Verified:** 2026-10-02
+**Verified:** 2026-10-07
 **Trigger:** a second ordering or membership over sites another entry of the same relation already
 reads, which is countable by walking `crosscheck.CONSTANTS` pairwise over the entries whose relation
 is not `EQUAL` and asking whether either one's sites are a subsequence of the other's.

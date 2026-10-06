@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** inference-model-manager
 **Origin:** [ADR-0030](../../adr/ADR-0030-brain-handoff.md)
-**Verified:** 2026-10-02
+**Verified:** 2026-10-07
 **Trigger:** the dedup design the `Converse` reconnect entry (R-023) needs, a request id on
 `UserTurn` or `ClientEvent` plus an idempotency and resume registry keyed by it, after which
 resuming is a conductor entry point run beside the gRPC server. Recheck with

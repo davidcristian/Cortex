@@ -3,10 +3,12 @@
 **Status:** open, waiting for its trigger
 **Area:** repo-checks
 **Origin:** [ADR-0039](../../adr/ADR-0039-backlog-per-task.md)
-**Verified:** 2026-10-02
-**Trigger:** the first heading somebody wants to write with a pair of brackets in prose, which the
-heading rule refuses whatever follows them and which a code span cannot express, monospace being
-wrong for prose.
+**Verified:** 2026-10-07
+**Trigger:** a heading with a pair of brackets in prose, which the heading rule refuses whatever
+follows them and which a code span cannot express, monospace being wrong for prose, recorded where
+the tree keeps it: a History line in this file or a commit body naming a heading that was reworded
+or left unwritten because the rule refused it. `git log --format=%B -i --grep=bracket` lists the
+candidate bodies, and a heading that quotes its brackets in a code span is not one.
 
 `scripts/headingshapes.py` refuses a bracketed span in a heading with or without a target after it.
 That reaches the shortcut reference form, which has no marker of its own, and it also reaches a
@@ -56,3 +58,8 @@ escape is the interesting one, since it makes the source say what it means.
   brackets, both usage lines in `docs/modules/repo-checks-tools.md` quoted in a single backtick
   code span, which the rule accepts; no heading has a pair of brackets in prose, and `problems()`
   refuses none. A pair in prose and the escaped form `\[prose\]` are both still refused.
+- 2026-10-07: The trigger has not fired, and it is restated so the tree can decide it: a wish to
+  write a heading leaves no trace, so it now names the record that would. The two bracketed
+  headings are still the usage lines in `docs/modules/repo-checks-tools.md`, each in a code span,
+  `scripts/headingshapes.py` has not changed since 2026-10-02, and no commit body since names a
+  heading reworded for its brackets.

@@ -8,8 +8,8 @@
 which `:server-cuda` names too. Neither image is in the tree. To decide it, read the tag's amd64
 `org.opencontainers.image.version` label from the registry, extract that image's `/app` layer, and
 run its `llama-server` with the pair against a missing model file under `docker run --network none`:
-it has not fired while the first error is the missing model. Today both tags name build 11347.
-**Verified:** 2026-10-03
+it has not fired while the first error is the missing model. Today both tags name build 11434.
+**Verified:** 2026-10-07
 
 `ghcr.io/ggml-org/llama.cpp:server` prints this on every subagent boot:
 
@@ -77,3 +77,8 @@ subagents-cpu and injection-probes runbooks, and the brain-inference-live module
   now names the check that decides it rather than the warning, which is a proxy. The rename list
   above missed the injection test's two `_TEMPLATE_KWARGS_FLAG` constants and the docs, and the
   Qwen figure was quoted as a match with the pair when no pair row was drawn on that pick.
+- 2026-10-07: read against both tags, and not fired. Both now name build 11434 at commit
+  `5e03bdd87`. The `:server` image, pulled by digest so the cached tags did not move and removed
+  after, printed the deprecation warning and then failed on the missing model. So did
+  `cortex-model-host`, rebuilt on 2026-10-06 on build 11429, which is the hosted subagent tier's
+  engine.

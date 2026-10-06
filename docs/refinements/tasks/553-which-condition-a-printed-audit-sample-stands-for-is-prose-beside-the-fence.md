@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** repo-checks
 **Origin:** [ADR-0045](../../adr/ADR-0045-documented-log-lines.md)
-**Verified:** 2026-10-02
+**Verified:** 2026-10-07
 **Trigger:** a printed sample of the tool audit's line in `docs/runbooks/tools-mcp.md` whose
 introducing sentence names a condition other than the one its fields describe, or a whole-line
 assertion of that line added anywhere under `brain/packages/tools/tests` with a field set the

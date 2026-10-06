@@ -9,7 +9,7 @@ measurement (neither the ten notes inline in `test_rerank_judge_live.py` nor the
 or a first-token or whole-turn latency bound, in an ADR decision or a setting, that the judge's
 recorded cost exceeds: a rank at `k` 5 over a pool of 20 costs 0.877 s, and a judged turn's first
 token comes 0.539 s after a raw one's.
-**Verified:** 2026-10-03
+**Verified:** 2026-10-07
 
 The other form of a model reranker: a model that scores a query and a memory as a pair, rather than
 a chat completion that orders a numbered list. It was opened by the ranked-recall close

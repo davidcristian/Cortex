@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** inference-model-manager
 **Origin:** [ADR-0054](../../adr/ADR-0054-baseline-residency.md)
-**Verified:** 2026-10-04
+**Verified:** 2026-10-07
 **Trigger:** a cortex that stops while the brain and the model host both keep running, which is the
 one state neither boot path covers, or a second visit to the runbook's step 2. Both are operator
 events, so the cheap recheck is whether the code has moved:

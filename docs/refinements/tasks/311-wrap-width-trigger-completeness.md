@@ -9,7 +9,7 @@ In the tree that reads as the `.panel` rule's `width: min(560px, 92vw)` in
 `body/app/src/overlay.css` changing, or as a script writing a width to anything but a whisper bubble
 or its text. This search finds four writes today, all in `whisper/useWhisperClock.ts`:
 `grep -rnE 'style\.(max|min)?[wW]idth|setProperty\("(max-|min-)?width"' body/app/src --exclude='*.test.*'`.
-**Verified:** 2026-10-06
+**Verified:** 2026-10-07
 
 The whisper re-measures its wrap width and re-lays the letter DOM when the width changes. It
 listens for the window's own `resize` event (`whisper/metrics.ts`, `watchWrap`), which is a

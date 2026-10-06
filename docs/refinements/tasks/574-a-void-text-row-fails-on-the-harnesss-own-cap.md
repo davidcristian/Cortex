@@ -7,7 +7,7 @@
 candidate, which the deep-model pick recorded consuming a whole context and answering nothing, or
 any later text row whose totals line names a void cell.
 **Origin:** [ADR-0041](../../adr/ADR-0041-injection-image-variant.md)
-**Verified:** 2026-10-04
+**Verified:** 2026-10-07
 
 The text row posts `max_tokens: 1600` on every completion, the number its published matrices were
 measured under, and the shipped path posts no cap at all (ADR-0029 decision 19 and the comment on

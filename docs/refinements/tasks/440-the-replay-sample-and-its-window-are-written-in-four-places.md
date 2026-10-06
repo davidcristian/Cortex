@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** repo-checks
 **Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-checks.md)
-**Verified:** 2026-10-03
+**Verified:** 2026-10-07
 **Trigger:** `grep -n '^replay ' justfile` stops printing `count="5" window="25"`, or
 `git log --since='<Verified date> 00:00' -p -- docs/runbooks/mutation-replay.md
 docs/adr/ADR-0002-toolchain-checks.md` shows a sentence stating five or twenty five as the sample

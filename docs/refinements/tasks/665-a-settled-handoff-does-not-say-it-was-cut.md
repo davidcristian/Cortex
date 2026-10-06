@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** inference-model-manager
 **Origin:** [ADR-0048](../../adr/ADR-0048-generation-bounds.md)
-**Verified:** 2026-10-06
+**Verified:** 2026-10-07
 **Trigger:** a consumer in this tree asks how often a deep answer was cut: code that counts
 handoffs or deep completions by how they stopped, or a runbook step that asks an operator that
 question. On 2026-10-03

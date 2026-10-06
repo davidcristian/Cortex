@@ -10,7 +10,7 @@ runbook or default in the tree putting a listener where a second machine reaches
 firewall the body override relies on. Whether the machine really has one user is not something
 the tree can record; that assumption is where the tree says so. The compose half is decided by
 listing every `ports:` entry under `docker/`: each starts with `127.0.0.1:` while not fired.
-**Verified:** 2026-10-03
+**Verified:** 2026-10-07
 
 The body binds a configurable interface, loopback for development and `0.0.0.0` for the
 container-to-host path, behind the shared token and the host firewall. mTLS or per-direction tokens

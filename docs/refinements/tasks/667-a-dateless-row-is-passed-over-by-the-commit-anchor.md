@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** repo-checks
 **Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-checks.md)
-**Verified:** 2026-10-02
+**Verified:** 2026-10-07
 **Trigger:** the ledger's latest pass has a "Drawn from" cell with no commit this clone resolves
 while an earlier row's does, whether its pass wrote the row without one or a rewrite moved the
 commit it recorded and left the earlier one in place, so the replay line counts from a pass that is

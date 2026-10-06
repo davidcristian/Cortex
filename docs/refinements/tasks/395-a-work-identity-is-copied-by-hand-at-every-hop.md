@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** tools-mcp
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
-**Verified:** 2026-10-02
+**Verified:** 2026-10-07
 **Trigger:** a fifth work identity arriving on `TurnStamp`, or a step found dropping one of the
 four that are there.
 

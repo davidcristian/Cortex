@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** repo-checks
 **Origin:** [ADR-0045](../../adr/ADR-0045-documented-log-lines.md)
-**Verified:** 2026-10-02
+**Verified:** 2026-10-07
 **Trigger:** a whole-line assertion whose expected line is not a plain string constant (an f-string,
 a name the expected line is bound to above the assert, or a helper that builds or compares it) and
 whose logger and message belong to a call whose field list the code reader cannot read, since only

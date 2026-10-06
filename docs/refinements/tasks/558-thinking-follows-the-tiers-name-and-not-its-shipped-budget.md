@@ -9,7 +9,7 @@ that tier's rows as it runs them. Read it with
 `grep -n 'CORTEX_REASONING_BUDGET' docker/docker-compose.gpu.yml`, which names both variables and
 defaults both to `-1` today, and confirm what a tier's flag tail then has with
 `ModelHostConfig(...).tiers()`.
-**Verified:** 2026-10-03
+**Verified:** 2026-10-07
 
 `Model.thinking` in
 [test_injection_defense_live.py](../../../brain/packages/inference/tests/test_injection_defense_live.py)

@@ -6,7 +6,7 @@
 **Trigger:** the first run this repository records under either workflow, which needs Actions
 enabled for the whole repository and is therefore a setting on the account rather than a change in
 this tree.
-**Verified:** 2026-10-02
+**Verified:** 2026-10-07
 
 Read on 2026-09-06 over the account's token, in three calls. The runs listing for `shuffle.yml`
 under `repos/<owner>/<repo>/actions/workflows` reports `total_count` 0, and the same call for

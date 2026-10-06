@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** repo-checks
 **Origin:** [ADR-0040](../../adr/ADR-0040-prose-and-comment-style.md)
-**Verified:** 2026-10-03
+**Verified:** 2026-10-07
 **Trigger:** a tracked document has a table column of power readings whose unit `W` is written
 only in its header, such as `draw, W` or `(W)`, with bare numbers in the rows.
 

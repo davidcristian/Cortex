@@ -7,7 +7,7 @@
 `CORTEX_MODEL_FILE_BRAIN` by a compose default, a recipe or an env file in this tree, or ADR-0004
 decision 8 naming Qwen3.8-27B as the deep pick or its alternate. Read it with
 `grep -rn 'CORTEX_MODEL_FILE_BRAIN' docker/ justfile` and decision 8's first sentence.
-**Verified:** 2026-10-04
+**Verified:** 2026-10-07
 
 `drafter_flags` in `tiers.py` returns `--model-draft PATH --spec-type draft-mtp` for a named
 `CORTEX_MODEL_FILE_BRAIN_DRAFT` and nothing otherwise (ADR-0004 decision 14), because the pick's

@@ -4,7 +4,7 @@
 **Area:** repo-checks
 **Trigger:** a Dockerfile in this tree is built `FROM` an image this repo builds
 **Origin:** [ADR-0067](../../adr/ADR-0067-image-volume-record.md)
-**Verified:** 2026-10-02
+**Verified:** 2026-10-07
 
 A base's row now has two dimensions, and the second is read by the rule comparing a built row with
 what its base would declare into it. Every base that dimension is read from is a pulled reference

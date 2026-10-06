@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** repo-checks
 **Origin:** [ADR-0045](../../adr/ADR-0045-documented-log-lines.md)
-**Verified:** 2026-10-02
+**Verified:** 2026-10-07
 **Trigger:** a registry mention whose template is the name and a comma alone, which is what a
 wrapped call takes. Countable by reading `crosscheck.CONSTANTS` for mentions with a `name` whose
 template renders nothing but `{name},`, and, for each, counting the bounded matches of the rendered

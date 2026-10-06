@@ -9,7 +9,7 @@ pass had just started made the fit check refuse (with `CORTEX_SWAP_BRAIN_VRAM_MI
 handoff overcommitted (with `CORTEX_SWAP_BRAIN_DECODE_TPS` set). All four default off.
 `grep -rlni 'retry pass' docs/readings docs/host docs/runbooks` finding nothing says there is no
 such record.
-**Verified:** 2026-10-06
+**Verified:** 2026-10-07
 
 A retry pass reads the handoff claim and the residency scope flag synchronously in the instant
 before it starts a tier, so a handoff cannot begin between the check and the call. What is not

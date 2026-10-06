@@ -4,7 +4,7 @@
 **Area:** cross-cutting
 **Origin:** [ADR-0011](../../adr/ADR-0011-body-v1.md)
 **Trigger:** a `GlobalShortcuts` backend that registers what `BindShortcuts` names can be installed here. None can yet: the Ubuntu 24.04 archive has one backend with the interface, `xdg-desktop-portal-kde` 5.27.11, and its `BindShortcuts` registers nothing.
-**Verified:** 2026-10-05
+**Verified:** 2026-10-07
 
 The shell registers the hotkey on a Wayland session where `kglobalaccel` does not run through
 `LinuxPortalHotkey` over `DbusShortcuts` ([body-os-linux](../../modules/body-os-linux.md)), and

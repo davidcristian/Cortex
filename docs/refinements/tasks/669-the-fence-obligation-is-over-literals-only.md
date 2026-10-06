@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** repo-checks
 **Origin:** [ADR-0062](../../adr/ADR-0062-shared-check-readers.md)
-**Verified:** 2026-10-02
+**Verified:** 2026-10-07
 **Trigger:** a module under `scripts/` decides whether a line is a fence by testing it against
 `markdownfences.MARKERS`, or against anything read off that tuple, rather than by asking `Fences`.
 One search over the modules importing any name from `markdownfences` other than `Fences` and

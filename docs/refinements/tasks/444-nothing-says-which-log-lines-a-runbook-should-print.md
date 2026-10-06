@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** repo-checks
 **Origin:** [ADR-0045](../../adr/ADR-0045-documented-log-lines.md)
-**Verified:** 2026-10-02
+**Verified:** 2026-10-07
 **Trigger:** a line somebody wanted during a real failure, and no runbook named, is written down in
 this file's History section. That is the evidence this entry says nobody has collected, and it is
 what decides between the two closes below: a criterion a check enforces needs at least one such

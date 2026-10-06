@@ -9,7 +9,7 @@ harness's own of 2026-08-26; or a readings record publishing `stood` alone with
 `git grep -n 'no judge is declared' docs/readings` finds and finds nowhere today. The phrase occurs
 once in the origin record, in the decision describing the mechanism.
 **Origin:** [ADR-0028](../../adr/ADR-0028-grammar-constrained-subagents.md)
-**Verified:** 2026-10-03
+**Verified:** 2026-10-07
 
 The summarization instruction is written in seven places, counted on 2026-09-24 with `git grep -F`
 over its text: the driver's own `CORTEX_ENVELOPE_INSTRUCTION` default in

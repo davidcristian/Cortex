@@ -3,8 +3,8 @@
 **Status:** open, waiting for a consumer
 **Area:** rpc-auth
 **Origin:** [ADR-0016](../../adr/ADR-0016-shared-token.md)
-**Trigger:** A second party on this connection, meaning a client the pair's own operator does not run, whose credential has to be withdrawn without disturbing the other.
-**Verified:** 2026-10-04
+**Trigger:** A second party on this connection, meaning a client the pair's own operator does not run, whose credential has to be withdrawn without disturbing the other. In the tree that is the ROADMAP's security model, assumption 5, being revised to admit a second user, or a runbook, compose file or client handing `CORTEX_SEAM_TOKEN` to a process the operator does not start; `git grep -l CORTEX_SEAM_TOKEN` lists every file that names it.
+**Verified:** 2026-10-07
 
 Rotating or issuing several tokens buys nothing for one body and brain pair run by one person.
 The other deferred item from the same ADR, mTLS on a non-loopback link, is recorded at
@@ -47,3 +47,6 @@ another keeps working, which is what the trigger now asks for.
   rpc-handoff` runs `body/crates/rpc/tests/handoff_live.rs`, a headless client that approves the
   handoff card, and like the other live checks it is run by the pair's own operator on the same
   machine.
+- 2026-10-07: Not fired, and the trigger is restated so the tree can decide it: it named a party
+  and no reading. The security model still describes a single-user machine, and no file that
+  names the token hands it to a process outside the pair and its live checks.

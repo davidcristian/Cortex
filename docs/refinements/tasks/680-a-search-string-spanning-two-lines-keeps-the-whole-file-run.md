@@ -9,7 +9,7 @@ The five are listed by rendering every mention and keeping those containing `\n`
 files that have `--threads` above its substitution, and three whose newline only ties them to the
 start or the end of a line, in `docs/runbooks/subagents-cpu.md`, `docs/runbooks/llamacpp-gpu.md` and
 `brain/Dockerfile.modelhost`.
-**Verified:** 2026-10-03
+**Verified:** 2026-10-07
 
 Every search string without a newline moved to the per-line reading in `scripts/linereadings.py`.
 These five stayed on the opening run over the whole file that `searchtexts.longest_prefix`

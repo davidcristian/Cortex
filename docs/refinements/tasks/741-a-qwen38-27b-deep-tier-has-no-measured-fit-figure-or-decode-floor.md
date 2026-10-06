@@ -7,7 +7,7 @@
 or an env file in this tree, or ADR-0004 decision 8 naming Qwen3.8-27B as the deep pick or its
 alternate. Read it with `grep -rn 'CORTEX_MODEL_FILE_BRAIN' docker/ justfile` and decision 8's
 first sentence.
-**Verified:** 2026-10-04
+**Verified:** 2026-10-07
 
 A deployment declares the deep tier's cost in `CORTEX_SWAP_BRAIN_VRAM_MIB`, the figure the fit check
 compares free memory against, and its spill-watch minimum in `CORTEX_SWAP_BRAIN_DECODE_TPS`. The

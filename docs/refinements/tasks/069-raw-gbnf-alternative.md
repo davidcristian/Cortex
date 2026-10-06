@@ -4,7 +4,7 @@
 **Area:** untrusted-content
 **Origin:** [ADR-0028](../../adr/ADR-0028-grammar-constrained-subagents.md)
 **Trigger:** a task file or ADR asks for a constrained reply whose shape JSON Schema cannot express. None does: `grep -rn 'schema=' brain/packages/*/src` finds two values a caller sets, `REPLY_ENVELOPE` and `ORDER_ENVELOPE`, both JSON objects.
-**Verified:** 2026-10-03
+**Verified:** 2026-10-07
 
 Left behind by [R-068](068-grammar-constrained-subagent-output.md): a raw GBNF `grammar` as an
 alternative to the JSON envelope. The ADR defers it until a caller needs a shape JSON cannot

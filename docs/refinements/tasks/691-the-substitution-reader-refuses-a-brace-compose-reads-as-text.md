@@ -9,7 +9,7 @@ roster's endpoint list in `docker/docker-compose.subagents-roster.yml` and the t
 `enable_thinking` template arguments, all literal
 **Area:** repo-checks
 **Origin:** [ADR-0063](../../adr/ADR-0063-compose-checks.md)
-**Verified:** 2026-10-02
+**Verified:** 2026-10-07
 
 `scripts/composedefaults.py` raises `SubstitutionReadError` on any substitution whose body contains
 a `{`, and a bare `{` in an argument now gets its own message: `${A:-{x}} carries a brace in its

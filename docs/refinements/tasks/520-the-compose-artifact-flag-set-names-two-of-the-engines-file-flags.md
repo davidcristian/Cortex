@@ -7,7 +7,7 @@
 vector, which no service here does today. That is countable by reading the command of every
 service the compose files start and listing the flags it uses
 **Origin:** [ADR-0043](../../adr/ADR-0043-subagent-server-flags.md)
-**Verified:** 2026-10-02
+**Verified:** 2026-10-07
 
 `artifactnames.spends` reads the item after either entry of `ARTIFACT_FLAGS`, which names `--model`
 and `--mmproj`. Those are the two file flags every server this tree starts uses, and llama.cpp

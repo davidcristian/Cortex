@@ -7,7 +7,7 @@ begins `CORTEX_MODEL_FILE_SUBAGENT` nor is the embedder's `CORTEX_MODEL_FILE_EMB
 listing `artifactnames.composed` over the tree, which today returns those three: `EMBED`,
 `SUBAGENT` and `SUBAGENT_QWEN`
 **Origin:** [ADR-0043](../../adr/ADR-0043-subagent-server-flags.md)
-**Verified:** 2026-10-02
+**Verified:** 2026-10-07
 
 `subagentservers.py` counts a compose service as a subagent server when a compose file writes an
 address that dials it (`CORTEX_SUBAGENTS_ENDPOINT`, `CORTEX_SUBAGENTS_GPU_ENDPOINT` or a

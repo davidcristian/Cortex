@@ -3,7 +3,7 @@
 **Status:** open, waiting for a consumer
 **Area:** repo-checks
 **Origin:** [ADR-0042](../../adr/ADR-0042-cross-tree-constant-registry.md)
-**Verified:** 2026-10-02
+**Verified:** 2026-10-07
 **Trigger:** A decimal pair that needs ordering rather than equality, or one whose far side is a
 Rust literal with its own type suffix.
 

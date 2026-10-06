@@ -8,7 +8,7 @@
 `/models` also finds the control API's routes `/models/{model}` in `api.py` and `adapter.py`, which
 are URLs and not the mount
 **Origin:** [ADR-0043](../../adr/ADR-0043-subagent-server-flags.md)
-**Verified:** 2026-10-02
+**Verified:** 2026-10-07
 
 `artifactnames.tiered` reads one module, the model host's `config.py`, and in it the fields
 `ModelHostConfig` hands to its resolver `_path`. A second module joining a file onto the mount,

@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** subagents
 **Origin:** [ADR-0004](../../adr/ADR-0004-model-lineup.md)
-**Verified:** 2026-10-04
+**Verified:** 2026-10-07
 **Trigger:** any compose file, either shipped subagent file included, starts a third subagent server
 with `-ngl 0`, which `uv run python flagcheck.py --root ..` in `scripts/` counts in its success line
 as a fourth server (three on 2026-09-19: the two CPU servers and the model host's hosted tier)

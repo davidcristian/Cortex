@@ -7,7 +7,7 @@
 run in the checkout, answers more than 0. The first run of `ci.yml` is the first run of this job,
 since every push touching a shared check file sets `shell=true`. None can happen while Actions stays
 off for the repository, which is R-594's subject.
-**Verified:** 2026-10-02
+**Verified:** 2026-10-07
 
 Everything about the shell clippy job was verified locally except the runner half. The check
 itself: `just check-shell` exits 0 over the shell and 101 on a planted `useless_format`, and the

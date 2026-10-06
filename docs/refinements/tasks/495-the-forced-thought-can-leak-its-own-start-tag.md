@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** inference
 **Origin:** [ADR-0049](../../adr/ADR-0049-thinking-switch-and-trace-budget.md)
-**Verified:** 2026-10-03
+**Verified:** 2026-10-07
 **Trigger:** a record under `docs/readings/` of a second draw whose answer is the channel name
 `thought` or a bare start tag, or of a budgeted cell counting 2 or more such draws in 100. Today
 `grep -rnE 'reply": "(thought|<)' docs/readings` prints one line, the 2026-08-29 draw in the

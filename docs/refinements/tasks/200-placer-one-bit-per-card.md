@@ -10,7 +10,7 @@ gaining a second GPU target beside `gpu_endpoint`. Check with
 `grep -c 'TierArgs(' brain/packages/model_manager/src/cortex_model_manager/config.py` and
 `grep -c 'endpoint: str' brain/packages/orchestrator/src/cortex_orchestrator/config_subagents.py`:
 3 and 4 mean neither has happened.
-**Verified:** 2026-10-03
+**Verified:** 2026-10-07
 
 The placer has a single flag for whether the GPU is available, while the residency record has one
 entry per tier, so any missing tier closes GPU placement for the whole pool. The brain has no

@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** repo-checks
 **Origin:** [ADR-0062](../../adr/ADR-0062-shared-check-readers.md)
-**Verified:** 2026-10-02
+**Verified:** 2026-10-07
 **Trigger:** a directory git ignores that `SKIPPED_DIRS` does not prune is itself named `tests` or
 `_generated`, the two names only the line cap skips, or sits below one, and holds a file the cap
 selects by suffix and name. The check then reports a file the line cap would never have read.

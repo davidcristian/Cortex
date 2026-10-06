@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** vision
 **Origin:** [ADR-0041](../../adr/ADR-0041-injection-image-variant.md)
-**Verified:** 2026-10-06
+**Verified:** 2026-10-07
 **Trigger:** a row whose price is published in `docs/` prints a `card readings every` line with its
 lowest ceiling ratio under 0.50 of max and its highest above 0.50.
 

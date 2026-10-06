@@ -5,7 +5,7 @@
 **Origin:** [ADR-0023](../../adr/ADR-0023-body-gateway-volume.md)
 **Trigger:** a History line in this file recording the maintainer's pick: route one with the
 native actions its first slice builds, or route two.
-**Verified:** 2026-10-03
+**Verified:** 2026-10-07
 
 The assistant changes one thing on its machine, the system volume, through the cortex-only built-ins
 `get_volume` and `set_volume` over `BodyGateway`. `notify` and `capture_screen` use the same port but

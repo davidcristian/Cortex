@@ -4,7 +4,7 @@
 **Area:** untrusted-content
 **Origin:** [ADR-0028](../../adr/ADR-0028-grammar-constrained-subagents.md)
 **Trigger:** a task file or ADR proposes a subagent result the cortex reads as fields. None does: `SubagentResult.output` is one `str`, and `grep -rli 'structured result' docs/refinements/tasks` finds only this file.
-**Verified:** 2026-10-03
+**Verified:** 2026-10-07
 
 Left behind by [R-068](068-grammar-constrained-subagent-output.md): letting the caller supply a
 schema per task instead of the fixed `{"reply": <string>}` envelope. ADR-0028 decision 2 rejects it

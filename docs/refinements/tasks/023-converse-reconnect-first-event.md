@@ -10,7 +10,7 @@ a swap runtime at all (`brain/packages/orchestrator/src/cortex_orchestrator/swap
 returns `None` without it), and `docs/runbooks/model-swap.md:150` tells an operator to set it.
 `grep -rlniE 'turn twice' docs/readings docs/host docs/runbooks` finding nothing says there is no
 such record.
-**Verified:** 2026-10-06
+**Verified:** 2026-10-07
 
 Retrying a `converse` turn after a disconnect is only safe if the brain can tell that the repeat
 is the same request. It cannot. A turn's first durable effect is

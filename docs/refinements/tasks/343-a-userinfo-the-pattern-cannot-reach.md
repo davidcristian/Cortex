@@ -10,7 +10,7 @@ through each formatter twice, as a field and as a message, and through `durable_
 both trail files apply, which is six results and not one. The history below records what the shipped URLs
 and each form answered when that was last run.
 **Origin:** [ADR-0051](../../adr/ADR-0051-log-line-rendering.md)
-**Verified:** 2026-10-02
+**Verified:** 2026-10-07
 
 `_USERINFO` is `(?<=://)[^/\s@]*@`, and it does not match three kinds of credential:
 

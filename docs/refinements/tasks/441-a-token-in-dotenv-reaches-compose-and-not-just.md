@@ -8,7 +8,7 @@ readings decide it: `grep -c '^CORTEX_SEAM_TOKEN=' .env` in the checkout (no `.e
 added.
 **Area:** rpc-auth
 **Origin:** [ADR-0016](../../adr/ADR-0016-shared-token.md)
-**Verified:** 2026-10-03
+**Verified:** 2026-10-07
 
 The settings table in `docs/runbooks/local-dev-wsl.md` (line 60) documents the token as passed
 through by compose from the host environment or `.env`, and compose does read that file: `just up`

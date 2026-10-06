@@ -4,7 +4,7 @@
 **Area:** subagents
 **Origin:** [ADR-0018](../../adr/ADR-0018-heterogeneous-subagents.md)
 **Trigger:** a readings record shows a role on a tainted or tools-enabled spawn reading higher on a non-default roster entry, with the reason that entry is safe there. None does: `docs/readings/role-sentences.md` is the only roles record, and `grep -ci 'taint' docs/readings/role-sentences.md` returns 0.
-**Verified:** 2026-10-03
+**Verified:** 2026-10-07
 
 If a subagent role ever needed a cheap model on a tainted or tool path for a reason proven safe, it
 would be a per-role override inside `SubagentRoster.resolve`
