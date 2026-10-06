@@ -161,14 +161,15 @@ appears and reads well.
 Clicking the toast does nothing, by design for now
 ([docs/refinements/index.md#scheduling](../refinements/index.md#scheduling)).
 
-**The overlay reminder surface**, the pull half, is covered by CI over the fake bridge, so what
-remains is looking at it on the real hotkey path: summon the overlay with something due and the
-card stack sits above the history, each card with its text, how long ago it fired, `repeats` on a
-recurring series, and a dashed, faintly red-tinted `untrusted source` badge when `tainted`.
-Dismissing with the check button acks it. Both themes and the eleven-card scroll case were checked
-in headless Chromium against the demo bridge, so what is genuinely host-side is whether the stack
-reads well over the live window and whether killing the brain mid-session leaves the cards in
-place, which it should, since a failed pull dispatches nothing.
+**The overlay reminder surface**, the pull half, is covered by CI over the fake bridge and was run
+on the Linux shell against a real brain
+([readings](../readings/tauri-ipc-commands.md#attached-pictures-and-reminder-cards)). Summon the
+overlay with something due, on an empty chat (`Ctrl+N`), since the stack opens only there
+([R-803](../refinements/tasks/803-the-reminder-stack-opens-only-on-an-empty-chat.md)): each card
+has its text, how long ago it fired, `repeats` on a recurring series, and a dashed, faintly
+red-tinted `untrusted source` badge when `tainted`. Dismissing with the check button acks it, and
+stopping the brain leaves the cards in place, since a failed pull dispatches nothing. Both themes
+and the eleven-card scroll case were checked in headless Chromium against the demo bridge.
 
 ## Troubleshooting
 

@@ -12,9 +12,9 @@ already covered by tests: the chord parser is pure and 100% covered in `body_cor
 overlay's streaming reducer is covered in `body/app`. What no test reaches is a real registration
 against a real desktop that other software is competing for. The IPC hop here is WebView2's
 transport, which every other command shares: `confirm_response`, the session reads, the preference
-commands and `check_link` ran over a real hop on the Linux shell on 2026-10-06
-([readings](../../readings/tauri-ipc-commands.md)), so a turn that streams here is their Windows
-half too.
+commands, `check_link`, the reminder pull and the `images` argument of `converse` ran over a real
+hop on the Linux shell on 2026-10-06 ([readings](../../readings/tauri-ipc-commands.md)), so a turn
+that streams here is their Windows half too.
 
 [ADR-0011](../../adr/ADR-0011-body-v1.md)'s host-only consequence names the `os_windows`
 `global-hotkey` registration, the tray and window show and hide, and the real `converse` command
@@ -74,3 +74,6 @@ lines named above, and put any figure the run took in its readings record under
   item behind it, and it is worth doing whenever an ADR gains a host line.
 - 2026-10-06: the confirm card, session-read, preference and connection indicator checks closed on
   the Linux shell, leaving their WebView2 half to the streamed turn here.
+- 2026-10-06: the reminder pull surface closed on the Linux shell too, leaving the hotkey that
+  summons it and WebView2's transport to this check
+  ([H-007](007-reminder-pull-surface.md)).

@@ -151,14 +151,21 @@ whose server sent no `Cache-Control`, such as `python3 -m http.server`, from tha
 request, even after Vite holds the port. If the window shows only the stage and the panel never
 opens, delete that directory or point `XDG_DATA_HOME` at an empty one.
 
+**Pictures.** WebKitGTK gives the page no file for a picture on the clipboard or a dragged file
+([R-802](../refinements/tasks/802-the-linux-shell-attaches-no-pasted-or-dropped-picture.md)), so a
+run of the attached-picture path appends a listener to `src/main.tsx` that fetches a test file,
+wraps it in a `File` inside a `DataTransfer`, and dispatches a `paste` holding it on the focused
+field. Everything after that event is the shipped code. Remove the listener after the run.
+
 ## Notes
 
 **What is already proven, and what is still the user's to confirm.** The frontend (prompt to
 stream to render, the mode machine, theming) is browser-checked here and covered at 100%. Steps 2
 to 5 ran on the Linux shell, through a real Tauri IPC hop
 ([readings](../readings/tauri-ipc-commands.md)). Still the user's to confirm on Windows: the
-`os_windows` `global-hotkey` registration, the tray, window show and hide, and a turn streaming
-through WebView2, whose transport every command shares.
+`os_windows` `global-hotkey` registration, the tray, window show and hide, a turn streaming
+through WebView2, whose transport every command shares, and a picture pasted or dropped into
+WebView2.
 
 **What a stalled turn looks like, and when the body gives up on one.** A turn has no time limit:
 the reply may take as long as the model and its tools take, and the thinking indicator stays up

@@ -157,9 +157,17 @@ so none of the three needs a naming scheme.
   price the capture tool already pays per advertisement.
 - Memory, titles and the history recap read the stored text, so they see the note and never the
   pixels.
-- The paste from the Windows clipboard and the drop from Explorer through WebView2 and the real
-  Tauri IPC are unvalidated until
-  [host item 024](../host/tasks/024-attached-picture-over-ipc.md) runs.
+- Pictures crossed the real Tauri IPC hop into the brain on the Linux shell, where the reply
+  described them, the history kept the note and a refusal handed them back
+  ([readings](../readings/tauri-ipc-commands.md#attached-pictures-and-reminder-cards)). The canvas
+  encodes every picture again, so the type check above never refuses the overlay's pictures; it
+  guards a client that sends bytes it did not decode.
+- The paste from the Windows clipboard and the drop from Explorer through WebView2 are unvalidated
+  until [host item 024](../host/tasks/024-attached-picture-over-ipc.md) runs. Under the shipped
+  window config Tauri's native drop handler takes a drop before the page
+  ([R-801](../refinements/tasks/801-a-dropped-file-never-reaches-the-composer.md)), and WebKitGTK
+  gives the Linux shell no file for either way in
+  ([R-802](../refinements/tasks/802-the-linux-shell-attaches-no-pasted-or-dropped-picture.md)).
 
 ## Alternatives rejected
 

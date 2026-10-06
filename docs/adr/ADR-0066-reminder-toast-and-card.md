@@ -120,11 +120,12 @@ offsets are written beside the rules in `overlay.css`.
 ## Consequences
 
 - The inert-text rule, the attribution, `escape_xml`, the error mapping, the server's handling of a
-  declined toast and the card's behaviour are covered at 100% on Linux; what no check reaches is the
-  call sequence into the OS and the look of a real toast and card, which need the Windows host
-  ([docs/host/](../host/index.md#windows-desktop)). A toast that appears for a plain reminder but
-  not for one containing hostile markup is an escaping break; cards that vanish when the brain goes
-  away mean a failed pull is clearing state.
+  declined toast and the card's behaviour are covered at 100% on Linux. The cards were read at the
+  real window size on the Linux shell, over a real pull, ack and brain outage
+  ([readings](../readings/tauri-ipc-commands.md#attached-pictures-and-reminder-cards)). What no
+  check reaches is the call sequence into the OS and the look of a real toast, which need the
+  Windows host ([docs/host/](../host/index.md#windows-desktop)). A toast that appears for a plain
+  reminder but not for one containing hostile markup is an escaping break.
 - **Toast activation is not built.** Clicking a toast does nothing: the push path reads back only
   `shown`, and nothing on the body reads a clicked toast. Routing a click to the origin chat needs a
   `session_id` on `NotifyRequest`, passed into the toast's `launch` payload, and on the shell's

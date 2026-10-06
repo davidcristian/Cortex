@@ -39,5 +39,10 @@ to the brain with the text, as [ADR-0070](../adr/ADR-0070-user-attached-images.m
 ## Dependencies
 
 The `BrainBridge` port (`AttachedImage`), the drafts in `drafts.ts`, and the webview's
-`createImageBitmap` and canvas. The demo bridge refuses the last picture of a prompt that says
-"refuse", so the headless overlay shows the refusal state.
+`createImageBitmap` and canvas. Both ways in also depend on the webview handing the page a `File`:
+WebKitGTK on the Linux shell does not
+([R-802](../refinements/tasks/802-the-linux-shell-attaches-no-pasted-or-dropped-picture.md)), and
+Tauri's native drop handler, on by default, takes a drop first
+([R-801](../refinements/tasks/801-a-dropped-file-never-reaches-the-composer.md)). The demo bridge
+refuses the last picture of a prompt that says "refuse", so the headless overlay shows the refusal
+state.

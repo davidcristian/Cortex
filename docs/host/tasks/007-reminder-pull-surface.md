@@ -1,35 +1,33 @@
 # The reminder pull surface on the hotkey path
 
-**Status:** never attempted
+**Status:** done 2026-10-06
 **Session:** windows-desktop
 **Capability:** W
 **Origin:** [ADR-0066](../../adr/ADR-0066-reminder-toast-and-card.md)
 
-**What only this proves.** That the card stack validated in the browser reads correctly at real
-window size, and that a failed pull does nothing on the live path rather than emptying the surface.
-[runbooks/scheduling.md](../../runbooks/scheduling.md) has the procedure and says the same: what is
-host-side is the real hotkey path, whether the stack reads well over the live window and whether
-killing the brain mid-session leaves the cards in place, which it should, since a failed pull
-dispatches nothing.
-
-**Do.** Summon the overlay with something due. Read the stack. Then stop the brain (`just down`)
-and summon again.
-
-**Pass.** The card stack sits above the history; each card has its text, how long ago it fired,
-`repeats` on a recurring series, and a dashed, faintly red-tinted `untrusted source` badge when
-tainted. Dismissing a card acknowledges it. With the brain down, the cards stay.
-
-**Fail.** Cards vanishing when the brain goes away means a failed pull is clearing state, which is
-the regression this check exists to catch.
-
-**Record it.** Edit [ADR-0066](../../adr/ADR-0066-reminder-toast-and-card.md) in place where its
-Consequences name the look of a real card; then delete this section.
+The card stack read correctly at the real 640 by 720 window on the Linux shell on 2026-10-06, with
+reminders the cortex had scheduled and fired: each card had its text and its age, `repeats` on the
+series and the dashed, red-tinted `untrusted source` badge on the reminder set from a turn holding a
+picture. Dismissing a card acked its fire, and with the brain's container stopped a summon turned
+the dot red and left the cards in place
+([readings](../../readings/tauri-ipc-commands.md#attached-pictures-and-reminder-cards)). Nothing in
+that path is Windows code: `reminders.rs` has no `cfg` item, and the pull runs on the summon that
+both shells raise through `cortex:activate`. What Windows adds is the `os_windows` hotkey and
+WebView2's transport and paint, which [H-001](001-bring-up-and-streamed-turn.md)'s bring-up and
+streamed turn cover.
 
 ## Notes
 
-- The session doc numbers this check **5**; ADR-0066 links the section that lists it.
-- It pairs with the reminder toast check and uses the same seeded reminder.
-- It had no backlog line until 2026-07-19, though it was never unrecorded:
+- It pairs with the reminder toast check, [H-003](003-real-reminder-toast.md), which stays: the
+  push half is the Windows toast backend.
+
+## History
+
+- 2026-07-19: given a backlog line, though it was never unrecorded:
   [ADR-0025](../../adr/ADR-0025-scheduling-reminders.md)'s host line has named the overlay's
   reminder surface on the real hotkey path since the slice was added, and the procedure is in the
   runbook.
+- 2026-10-06: done on the Linux shell against the cortex on the card, with every key from
+  `xdotool`. The run found that the stack opens only on a chat with no messages, so a summon over
+  the chat that set the reminders showed no card
+  ([R-803](../../refinements/tasks/803-the-reminder-stack-opens-only-on-an-empty-chat.md)).
