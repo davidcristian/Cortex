@@ -125,6 +125,12 @@ the brain is called.
   A file of another type, one the webview cannot decode, or one still over `MAX_IMAGE_BYTES` after
   the downscale is left out, and one line above the thumbnails says why. At most
   `MAX_ATTACHED_IMAGES` wait at once, and they are kept per chat, like the drafts.
+- A drop goes to the page. The overlay window sets Tauri's `dragDropEnabled` to false, because
+  the native handler Tauri otherwise installs takes every drop first: on Windows wry turns
+  WebView2's external drop off and registers its own drop target, and on Linux it stops WebKit's.
+  A window-level guard cancels the webview's default for any drag holding `Files` or
+  `text/uri-list`, so a file or link dropped where the composer does not take it neither opens as
+  the window nor types its address into the field. A plain text drag keeps its default.
 - Each waiting picture is a 44 px thumbnail in a row above the field. Its remove control shows on
   hover or keyboard focus only, so the row shows pictures and nothing else.
 - On send the pictures leave the composer with the text. On `attachment_refused` the overlay takes
@@ -163,10 +169,8 @@ so none of the three needs a naming scheme.
   encodes every picture again, so the type check above never refuses the overlay's pictures; it
   guards a client that sends bytes it did not decode.
 - The paste from the Windows clipboard and the drop from Explorer through WebView2 are unvalidated
-  until [host item 024](../host/tasks/024-attached-picture-over-ipc.md) runs. Under the shipped
-  window config Tauri's native drop handler takes a drop before the page
-  ([R-801](../refinements/tasks/801-a-dropped-file-never-reaches-the-composer.md)), and WebKitGTK
-  gives the Linux shell no file for either way in
+  until [host item 024](../host/tasks/024-attached-picture-over-ipc.md) runs. WebKitGTK gives the
+  Linux shell no file for either way in, with the native drop handler off as well
   ([R-802](../refinements/tasks/802-the-linux-shell-attaches-no-pasted-or-dropped-picture.md)).
 
 ## Alternatives rejected

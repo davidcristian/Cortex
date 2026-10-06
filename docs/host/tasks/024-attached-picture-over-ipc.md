@@ -18,20 +18,21 @@ attached and accepted, not refused: the canvas encodes it again as PNG before it
 **What only this proves.** That WebView2 hands the composer a `File` for a picture pasted from the
 Windows clipboard and for one dropped from Explorer. WebKitGTK gives neither
 ([R-802](../../refinements/tasks/802-the-linux-shell-attaches-no-pasted-or-dropped-picture.md)),
-so the Linux run built its paste in the page. The drop cannot pass yet: under the shipped window
-config, Tauri's native drop handler takes every Explorer drop before the page sees it
-([R-801](../../refinements/tasks/801-a-dropped-file-never-reaches-the-composer.md)).
+so the Linux run built its paste in the page. The overlay window sets `dragDropEnabled` to false,
+which by wry 0.55's source leaves WebView2's own external drop on, so an Explorer drop should reach
+the composer as a `File`; that is read from the source and not run.
 
-**Do.** Once R-801 is done, with the brain up and a vision-capable cortex, copy a screenshot
-(Win+Shift+S), paste it into the composer with Ctrl+V, drop a JPEG from Explorer beside it, type a
-question and send it. Then drag a link from a browser over the window and let go.
+**Do.** With the brain up and a vision-capable cortex, copy a screenshot (Win+Shift+S), paste it
+into the composer with Ctrl+V, drop a JPEG from Explorer beside it, type a question and send it.
+Then drag a link from a browser over the window and let go.
 
 **Pass.** Two thumbnails show and the reply describes both pictures. The dragged link changes
 nothing: the window stays on the overlay.
 
 **Fail.** A paste that inserts nothing is WebView2 offering the screenshot in a format it does not
-give the page as a file. A drop that does nothing, or that navigates the window to the file or the
-link, is the drop handling R-801 names.
+give the page as a file. A drop that does nothing is WebView2 refusing an external drop with Tauri's
+handler off. A drop that navigates the window to the file or the link is a drag whose types the
+window's drop guard (`body/app/src/overlay/dropGuard.ts`) does not cancel.
 
 **Record it.** Edit [ADR-0070](../../adr/ADR-0070-user-attached-images.md) in place where it names
 this as pending; then delete this section.
@@ -41,7 +42,8 @@ this as pending; then delete this section.
 - 2026-09-25: Filed when the overlay half of the attached-picture path was built, since only a
   Win32 desktop has the clipboard and the WebView2 drop target this needs.
 - 2026-10-06: narrowed after the Linux shell run sent pictures through the real IPC hop into the
-  brain. The run filed [R-801](../../refinements/tasks/801-a-dropped-file-never-reaches-the-composer.md),
+  brain. The run filed
   [R-802](../../refinements/tasks/802-the-linux-shell-attaches-no-pasted-or-dropped-picture.md) and
   [R-804](../../refinements/tasks/804-the-picture-note-follows-the-user-to-another-chat.md), a
-  refusal's sentence left over the composer of the next chat.
+  refusal's sentence left over the composer of the next chat. The overlay window's native drop
+  handler was turned off the same night, so the drop half now checks that change on WebView2.

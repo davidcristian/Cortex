@@ -16,6 +16,7 @@ EVERY_RULE_CASES: list[tuple[str, ci_paths.Jobs]] = [
     ("body/app/src/components/App.tsx", ci_paths.OVERLAY_ONLY),
     ("body/crates/core/src/lib.rs", ci_paths.RUST_ONLY),
     ("body/app/src-tauri/src/tray.rs", ci_paths.SHELL),
+    ("body/app/src-tauri/tauri.conf.json", ci_paths.SHELL_AND_OVERLAY),
     ("docs/index.md", ci_paths.NEITHER),
     (".claude/settings.json", ci_paths.NEITHER),
     (".gitignore", ci_paths.NEITHER),

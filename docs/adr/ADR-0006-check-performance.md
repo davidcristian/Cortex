@@ -25,13 +25,15 @@ for a CI that nobody watches run by run.
    - **all:** `justfile`, `.python-version` (exact); `proto/`, `scripts/`,
      `.github/workflows/` (prefix);
    - **python:** `ruff.toml` (exact); `brain/` (prefix);
+   - **rust+shell+overlay:** `body/app/src-tauri/tauri.conf.json` (exact), ordered before the
+     shell rule, because an overlay test reads the window config the composer's drop depends on;
    - **rust+shell (shell carve-out):** `body/app/src-tauri/` (prefix) is the host-native
      Tauri shell, which is Rust rather than node and is fmt-checked by `check-body`
      (ADR-0011), so it is separated from the overlay by a rule ordered BEFORE `body/app/`.
      It sets `shell=` as well, the one output whose job installs system libraries, so the
      webkit provisioning `check-shell` needs is paid on a shell edit and on nothing else.
-     The overlay's tests use a fake bridge and never exercise the shell's Rust, so routing a
-     shell edit away from the node job under-tests nothing;
+     The overlay's tests use a fake bridge and never exercise the shell's Rust, so routing any
+     other shell edit away from the node job under-tests nothing;
    - **overlay:** `body/app/` (prefix) is the React overlay tree; ordered BEFORE the
      `body/` rule so overlay changes run the node toolchain, not Rust (the overlay is
      excluded from the checked Rust workspace, ADR-0011);

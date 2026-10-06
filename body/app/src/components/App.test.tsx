@@ -42,6 +42,19 @@ describe("App", () => {
     expect(takePendingActivation()).toBe(false);
   });
 
+  it("keeps a dropped file from opening as the window while mounted", async () => {
+    const drop = () => {
+      const event = new Event("drop", { cancelable: true });
+      Object.defineProperty(event, "dataTransfer", { value: { types: ["text/uri-list"] } });
+      window.dispatchEvent(event);
+      return event.defaultPrevented;
+    };
+    render(<App bridge={new FakeBridge()} newSessionId={() => "s1"} />).unmount();
+    expect(drop()).toBe(false);
+    await renderApp(new FakeBridge());
+    expect(drop()).toBe(true);
+  });
+
   it("leaves the overlay hidden when nothing asked for it", async () => {
     takePendingActivation();
     await renderApp(new FakeBridge());

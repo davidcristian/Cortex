@@ -22,9 +22,9 @@ by ADR-0070's reading, in WebView2 gets a `File` for both.
 which says the shell only passes bytes on. One way: a shell command that reads the clipboard's
 image (GTK's `wait_for_image`, or the `arboard` crate on every platform) and returns PNG bytes,
 called by the overlay when a paste holds no file; for a drop, the native drop event's paths read
-in the shell, which conflicts with [R-801](801-a-dropped-file-never-reaches-the-composer.md)'s
-need to turn that handler off on Windows, so the choice may differ per platform. Either feeds the
-same canvas reader. Check it on the Linux shell with the runbook's Linux section.
+in the shell, which conflicts with the overlay window turning that handler off for WebView2, so
+the choice may differ per platform. Either feeds the same canvas reader. Check it on the Linux
+shell with the runbook's Linux section.
 
 ## History
 

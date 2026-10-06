@@ -155,7 +155,8 @@ opens, delete that directory or point `XDG_DATA_HOME` at an empty one.
 ([R-802](../refinements/tasks/802-the-linux-shell-attaches-no-pasted-or-dropped-picture.md)), so a
 run of the attached-picture path appends a listener to `src/main.tsx` that fetches a test file,
 wraps it in a `File` inside a `DataTransfer`, and dispatches a `paste` holding it on the focused
-field. Everything after that event is the shipped code. Remove the listener after the run.
+field. Everything after that event is the shipped code. Remove the listener after the run. A file
+dragged onto the window changes nothing, since the overlay's drop guard cancels the drop.
 
 ## Notes
 

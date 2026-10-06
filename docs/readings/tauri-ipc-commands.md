@@ -139,3 +139,22 @@ needing approval, and WebKitGTK 2.52.6. A temporary listener in the page reporte
 Method: `measurements/tauri-ipc-2026-10-06/pictures-and-reminders/`, with the scripts (the drag
 source, the clipboard owners, the listener's server and the vision override), the test pictures,
 the event log, the listener's log, frames in `shots/` and the Redis and `ListDueReminders` reads.
+
+## The drop guard
+
+**2026-10-06**, the same rig with the overlay window's `dragDropEnabled` set to false and the
+overlay's window-level drop guard (`dropGuard.ts`) installed, and no brain. Each source dragged
+`drop.jpg` onto the field and onto the empty panel above it; the listener reported each `drop`
+event's types and files, whether its default was cancelled, the field's text 300 ms later and the
+page address.
+
+- **With the guard**, from the source offering only `text/uri-list` and from the one offering file
+  manager targets, every `drop` reached the page with the types `text/uri-list` and `text/html` and
+  no file. The guard cancelled each one: the field stayed empty and the window stayed on the
+  overlay. WebKitGTK gives the page no `File` for a dropped file with Tauri's handler off as well.
+- **Without it**, in the same build with the guard's effect replaced through Vite's hot reload, a
+  drop on the field put the file's `file://` address into it, and a drop on the panel opened the
+  JPEG as the whole window with no `drop` event reaching the page.
+
+Method: `measurements/tauri-ipc-2026-10-06/drop-guard/`, with the scripts, the listener's log and
+frames in `shots/`.

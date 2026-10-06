@@ -22,6 +22,9 @@ to the brain with the text, as [ADR-0070](../adr/ADR-0070-user-attached-images.m
   `attachment_refused` hands them back.
 - `Composer` takes pictures from `paste` on the field and `drop` on the pill, claims a drag only
   when it holds files, and shows each waiting picture as a thumbnail with a remove control.
+- `guardDrops(window)` in `dropGuard.ts`, installed by `App`, cancels the webview's default for
+  any drag holding `Files` or `text/uri-list`, so a file or link dropped beside the composer
+  neither opens as the window nor types its address into the field.
 - `TauriBridge.converse` sends each picture's bytes as base64 in the `images` argument, which the
   shell's `converse` command decodes (`src/bridge/base64.ts`).
 
@@ -33,6 +36,8 @@ to the brain with the text, as [ADR-0070](../adr/ADR-0070-user-attached-images.m
 - Any other end of a turn drops the sent pictures; nothing holds them after the turn.
 - `MAX_ATTACHED_IMAGES` and `MAX_IMAGE_BYTES` equal the brain's, and `DEFAULT_MAX_EDGE` equals the
   capture path's in `screen_policy.rs`; `scripts/wirecouplings.py` checks all three.
+- The overlay window's `dragDropEnabled` is false in `src-tauri/tauri.conf.json`, so a drop
+  reaches the page rather than Tauri's native handler; `dropGuard.test.ts` reads the config.
 - The composer stacks into two rows while it shows pictures or a note, and `--pill-floor` on the
   view grows by their height, so the roll-open sections yield the room rather than the field.
 
@@ -41,8 +46,6 @@ to the brain with the text, as [ADR-0070](../adr/ADR-0070-user-attached-images.m
 The `BrainBridge` port (`AttachedImage`), the drafts in `drafts.ts`, and the webview's
 `createImageBitmap` and canvas. Both ways in also depend on the webview handing the page a `File`:
 WebKitGTK on the Linux shell does not
-([R-802](../refinements/tasks/802-the-linux-shell-attaches-no-pasted-or-dropped-picture.md)), and
-Tauri's native drop handler, on by default, takes a drop first
-([R-801](../refinements/tasks/801-a-dropped-file-never-reaches-the-composer.md)). The demo bridge
-refuses the last picture of a prompt that says "refuse", so the headless overlay shows the refusal
-state.
+([R-802](../refinements/tasks/802-the-linux-shell-attaches-no-pasted-or-dropped-picture.md)). The
+demo bridge refuses the last picture of a prompt that says "refuse", so the headless overlay shows
+the refusal state.

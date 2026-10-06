@@ -4,6 +4,7 @@ import type { BrainBridge, OverlayWindow } from "../bridge/types";
 import { resolveEdge } from "../edge/edges";
 import { resolveMark } from "../mark/marks";
 import { ACTIVATE_EVENT, TOGGLE_EVENT, takePendingActivation } from "../overlay/activation";
+import { guardDrops } from "../overlay/dropGuard";
 import { useOverlay } from "../overlay/useOverlay";
 import { NO_WINDOW, useOverlayWindow } from "../overlay/useOverlayWindow";
 import { usePreferences } from "../overlay/usePreferences";
@@ -49,6 +50,8 @@ export function App({ bridge, newSessionId, osWindow = NO_WINDOW }: AppProps) {
     }
     return () => window.removeEventListener(ACTIVATE_EVENT, summon);
   }, [controller.open]);
+
+  useEffect(() => guardDrops(window), []);
 
   useEffect(() => {
     const toggle = controller.toggle;

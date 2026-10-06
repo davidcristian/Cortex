@@ -21,6 +21,13 @@ PYTHON_ONLY = Jobs("python", python=True, rust=False, overlay=False, shell=False
 RUST_ONLY = Jobs("rust", python=False, rust=True, overlay=False, shell=False)
 OVERLAY_ONLY = Jobs("overlay", python=False, rust=False, overlay=True, shell=False)
 SHELL = Jobs("rust+shell", python=False, rust=True, overlay=False, shell=True)  # noqa: S604
+SHELL_AND_OVERLAY = Jobs(  # noqa: S604
+    "rust+shell+overlay",
+    python=False,
+    rust=True,
+    overlay=True,
+    shell=True,
+)
 NEITHER = Jobs("neither", python=False, rust=False, overlay=False, shell=False)
 DEFAULT = Jobs(  # noqa: S604
     "all (fail-closed default)",
@@ -39,9 +46,9 @@ class Rule(NamedTuple):
     jobs: Jobs
 
 
-# Ordered, first match wins. The two `body/app/` rules come before the broader `body/` rule, and
+# Ordered, first match wins. The three `body/app/` rules come before the broader `body/` rule, and
 # the `.md` suffix rule comes last, so a markdown file inside a toolchain tree stays that
-# toolchain's.
+# toolchain's. The overlay's tests read the shell's window config, so that file runs both jobs.
 RULES: tuple[Rule, ...] = (
     Rule("exact", "justfile", ALL),
     Rule("exact", ".python-version", ALL),
@@ -50,6 +57,7 @@ RULES: tuple[Rule, ...] = (
     Rule("prefix", ".github/workflows/", ALL),
     Rule("exact", "ruff.toml", PYTHON_ONLY),
     Rule("prefix", "brain/", PYTHON_ONLY),
+    Rule("exact", "body/app/src-tauri/tauri.conf.json", SHELL_AND_OVERLAY),
     Rule("prefix", "body/app/src-tauri/", SHELL),
     Rule("prefix", "body/app/", OVERLAY_ONLY),
     Rule("prefix", "body/", RUST_ONLY),
