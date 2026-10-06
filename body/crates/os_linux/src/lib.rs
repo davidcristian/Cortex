@@ -1,6 +1,6 @@
 //! Linux OS backends for the Cortex body: `Notify`, `AudioControl`, `ScreenCapture` (X11 and the
 //! screenshot and screencast portals), `Hotkey` (X11, `kglobalaccel` and the global shortcuts
-//! portal) and `ClipboardPicture` (X11).
+//! portal), `ClipboardPicture` (X11) and the file read of a native drop.
 #![cfg(target_os = "linux")]
 
 mod accel;
@@ -11,6 +11,7 @@ mod clipboard;
 mod compose;
 mod dbus;
 mod decode;
+mod dropped;
 mod exclude;
 mod focus;
 mod gst;
@@ -40,6 +41,7 @@ pub use clipboard::{LinuxClipboardPicture, SelectionError, SelectionRead};
 pub use compose::{Piece, pieces};
 pub use dbus::DbusNotifications;
 pub use decode::{MAX_DECODED_BYTES, decode_png};
+pub use dropped::read_dropped_file;
 pub use gst::{FRAME_LIMIT, GST_LAUNCH_PROGRAM, GstLaunch};
 pub use hotkey::{KeyError, KeyEvent, KeyGrab, Keyboard, LinuxHotkey, keysym};
 pub use keys::X11Keys;

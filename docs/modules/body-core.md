@@ -163,6 +163,11 @@ because what a failure proves is domain logic.
   (`image/png`, `image/jpeg`, `image/webp`) the owner offers. `ClipboardError` is `TooLarge`, past
   `MAX_PASTED_BYTES` (32 MiB), or `Failed(String)`. `NoClipboardPicture` always answers `None`, for
   a webview that hands the page a pasted picture itself.
+- `DropBox` (`os::dropped`) keeps the absolute paths of the window's last native drop: `keep`
+  replaces them, and `take` returns them as `Dropped`, leaving none, so a drop is read once.
+  `Dropped` has no public constructor, so `dropped_pictures(Dropped, read)` reads only paths a
+  drop gave, each through `read` with the `MAX_PASTED_BYTES` limit, and keeps a file whose leading
+  bytes `picture_type` names as one of `PICTURE_TYPES`.
 - `Notify` (`os::notify`, ADR-0025) is the push half of reminder delivery:
   `show(&self, &Notification) -> Result<bool, NotifyError>`, `Send + Sync` because the `BodyService`
   server holds it across async tasks. `Ok(false)` is a **state report**, not a failure: the host was

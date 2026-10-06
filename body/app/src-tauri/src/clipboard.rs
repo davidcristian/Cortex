@@ -7,6 +7,7 @@ use body_core::{ClipboardError, ClipboardPicture, PastedPicture};
 use serde::Serialize;
 
 /// The overlay's `WirePicture` (matches `bridge/clipboard.ts`): base64, as IPC results are JSON.
+/// A paste answers one and a drop a list.
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WirePicture {
@@ -23,7 +24,7 @@ pub async fn clipboard_picture() -> Result<Option<WirePicture>, String> {
         .map_err(|error: ClipboardError| error.to_string())
 }
 
-fn wire(picture: PastedPicture) -> WirePicture {
+pub(crate) fn wire(picture: PastedPicture) -> WirePicture {
     WirePicture {
         data_base64: STANDARD.encode(picture.data),
         mime_type: picture.mime_type,

@@ -5,6 +5,7 @@ mod brain;
 mod clipboard;
 mod confirm;
 mod converse;
+mod dropped;
 mod hotkey;
 mod link;
 mod preferences;
@@ -25,6 +26,8 @@ const TOGGLE_EVENT: &str = "cortex:toggle";
 pub fn run() {
     tauri::Builder::default()
         .manage(confirm::ConfirmRoute::default())
+        .manage(body_core::DropBox::default())
+        .on_window_event(dropped::keep)
         .setup(|app| {
             #[cfg(target_os = "linux")]
             app.manage(std::sync::Arc::new(os_linux::OverlayWatch::default()));
@@ -38,6 +41,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             converse::converse,
             clipboard::clipboard_picture,
+            dropped::dropped_pictures,
             confirm::confirm_response,
             sessions::list_sessions,
             sessions::session_messages,

@@ -151,6 +151,14 @@ export interface OverlayWindow {
   setShown(shown: boolean): void;
 }
 
+/** The host's native drops, for a webview that gives the page no file for a drop. */
+export interface HostDrops {
+  /** Calls `onDrop` with the point, in CSS pixels, of each native drop; returns the undo. */
+  listen(onDrop: (x: number, y: number) => void): () => void;
+  /** The pictures among the last drop's files, read once; rejects when they cannot be read. */
+  pictures(): Promise<readonly Blob[]>;
+}
+
 /** The host's clipboard, read for a paste the webview gave the page no file for. */
 export interface HostClipboard {
   /** The clipboard's picture as a `Blob` of its type, or null; rejects when it cannot be read. */

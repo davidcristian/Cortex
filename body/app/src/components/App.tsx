@@ -1,7 +1,7 @@
 import { type MouseEvent, useEffect } from "react";
 
-import { NO_CLIPBOARD } from "../bridge/clipboard";
-import type { BrainBridge, HostClipboard, OverlayWindow } from "../bridge/types";
+import { NO_CLIPBOARD, NO_DROPS } from "../bridge/clipboard";
+import type { BrainBridge, HostClipboard, HostDrops, OverlayWindow } from "../bridge/types";
 import { resolveEdge } from "../edge/edges";
 import { resolveMark } from "../mark/marks";
 import { ACTIVATE_EVENT, TOGGLE_EVENT, takePendingActivation } from "../overlay/activation";
@@ -24,6 +24,9 @@ interface AppProps {
   readonly osWindow?: OverlayWindow;
   /** The host clipboard a paste with no file reads; the browser build has none. */
   readonly clipboard?: HostClipboard;
+  /** The host's native drops, for a webview that gives the page no dropped file; the browser
+   *  build has none. */
+  readonly drops?: HostDrops;
 }
 
 /** Connects the appearance settings read from the brain, and host activation, to the overlay
@@ -33,8 +36,9 @@ export function App({
   newSessionId,
   osWindow = NO_WINDOW,
   clipboard = NO_CLIPBOARD,
+  drops = NO_DROPS,
 }: AppProps) {
-  const controller = useOverlay(bridge, newSessionId, undefined, clipboard);
+  const controller = useOverlay(bridge, newSessionId, undefined, clipboard, drops);
   useOverlayWindow(controller.state.mode, osWindow);
   const { appearance, setTheme, setMark, setWindow } = usePreferences(bridge);
   const theme = resolveTheme(appearance.theme, systemPrefersDark());
@@ -60,6 +64,18 @@ export function App({
   }, [controller.open]);
 
   useEffect(() => guardDrops(window), []);
+
+  // The composer takes a native drop that ends over it, as it takes a page drop.
+  const dropPictures = controller.dropPictures;
+  useEffect(
+    () =>
+      drops.listen((x, y) => {
+        if (document.elementFromPoint(x, y)?.closest(".composer")) {
+          dropPictures();
+        }
+      }),
+    [drops, dropPictures],
+  );
 
   useEffect(() => {
     const toggle = controller.toggle;

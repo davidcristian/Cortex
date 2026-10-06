@@ -183,3 +183,26 @@ page address.
 
 Method: `measurements/tauri-ipc-2026-10-06/drop-guard/`, with the scripts, the listener's log and
 frames in `shots/`.
+
+## A drop through the shell
+
+**2026-10-06**, the same rig and cortex with `tauri.linux.conf.json` turning the native drop
+handler on for the Linux window, the `dropped_pictures` command, and a GTK drag source offering
+one URI under `text/uri-list`, dragged with `xdotool`. No reading here is a timing.
+
+- **Tauri 2.11 merges the Linux file.** `tauri-build` and `generate_context!` read
+  `tauri.linux.conf.json` for a Linux target and apply it to `tauri.conf.json` as a JSON merge
+  patch (RFC 7396), which replaces an array whole, so the Linux file repeats the window entry.
+- **The PNG of `LIGHTHOUSE`** dropped on the composer showed as a thumbnail, the field stayed
+  empty, and asked which word was written and the bar's colour, the cortex answered `LIGHTHOUSE`
+  and green. Tauri's drop point matched the composer under `document.elementFromPoint` with no
+  scaling: wry reports WebKitGTK's widget coordinates, which are CSS pixels, though Tauri types
+  them as physical. Only a scale of 1 was run.
+- **A link**, `https://example.com/cat.png` under `text/uri-list`, dropped on the composer changed
+  nothing: wry turns the URI into a relative path, which the shell does not keep.
+- **The same PNG dropped on the chat log** above the composer changed nothing.
+- The page still sees `dragenter` and `dragover`, which the drop guard cancels: wry's handler
+  stops only WebKit's drop.
+
+Method: `measurements/tauri-ipc-2026-10-06/drop-through-shell/`, with the scripts, the picture
+and frames in `shots/`.

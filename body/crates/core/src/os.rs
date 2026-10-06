@@ -4,6 +4,7 @@
 //! `os_linux` and `os_macos` crates.
 
 pub mod clipboard;
+pub mod dropped;
 pub mod notify;
 pub mod screen;
 mod screen_image;
@@ -14,6 +15,7 @@ pub use clipboard::{
     ClipboardError, ClipboardPicture, MAX_PASTED_BYTES, NoClipboardPicture, PICTURE_TYPES,
     PastedPicture,
 };
+pub use dropped::{DropBox, Dropped, dropped_pictures, picture_type};
 pub use notify::{
     MAX_TEXT_CHARS, Notification, Notify, NotifyError, UNTRUSTED_ATTRIBUTION, escape_xml,
 };

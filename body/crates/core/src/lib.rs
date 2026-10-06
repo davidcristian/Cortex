@@ -11,9 +11,10 @@ pub use hotkey::{HotkeyChord, HotkeyParseError, Modifier};
 pub use link::{LinkState, LinkStatus, probe_link};
 pub use os::{
     Accelerator, AudioControl, AudioError, Capture, CaptureError, CaptureRequest, CaptureTarget,
-    CapturedFrame, ClipboardError, ClipboardPicture, DeniedScreenCapture, Hotkey, HotkeyCallback,
-    HotkeyError, MAX_PASTED_BYTES, NoClipboardPicture, Notification, Notify, NotifyError,
-    PICTURE_TYPES, PastedPicture, RawFrame, ScreenCapture, TargetRect, VolumeChange, VolumeState,
+    CapturedFrame, ClipboardError, ClipboardPicture, DeniedScreenCapture, DropBox, Dropped, Hotkey,
+    HotkeyCallback, HotkeyError, MAX_PASTED_BYTES, NoClipboardPicture, Notification, Notify,
+    NotifyError, PICTURE_TYPES, PastedPicture, RawFrame, ScreenCapture, TargetRect, VolumeChange,
+    VolumeState, dropped_pictures, picture_type,
 };
 pub use retry::{
     ANNOUNCED_DEADLINE_GRACE_MS, DEFAULT_CALL_DEADLINE, DEFAULT_PROBE_BUDGET,

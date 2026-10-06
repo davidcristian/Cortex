@@ -117,6 +117,9 @@ decision 13).
   webview a large picture; an owner that answers every type with its data, as `xclip` does, is
   asked only for what it lists. `SelectionError::Over` is `ClipboardError::TooLarge`, a second
   silence or `Failed` is `Failed`, and each ends the read at once.
+- **`read_dropped_file(path, limit)`** reads a native drop's file for `dropped_pictures`: at most
+  `limit` bytes of a regular file of at most `limit` bytes, else `None`, so a directory, a device
+  or a missing path is never read.
 - **`X11Selection`** lists the types by converting to `TARGETS` (at most 4096 bytes) and asking
   the server for each atom's name. It converts the `CLIPBOARD` selection to one type through an
   unmapped `InputOnly` window of its own that watches property changes: `ConvertSelection` into

@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { FakeBridge } from "../bridge/fakeBridge";
 import type { OverlayWindow } from "../bridge/types";
 import { requestActivation, takePendingActivation } from "../overlay/activation";
-import { CLIPBOARD_UNREAD } from "../overlay/useOverlay";
+import { CLIPBOARD_UNREAD, DROP_UNREAD } from "../overlay/useOverlay";
 import { WINDOW_HIDE_MS } from "../overlay/useOverlayWindow";
 import { App } from "./App";
 
@@ -66,6 +66,38 @@ describe("App", () => {
     });
     expect(picture).toHaveBeenCalledTimes(1);
     expect(screen.getByRole("alert").textContent).toBe(CLIPBOARD_UNREAD);
+  });
+
+  it("asks the host drops for a native drop over the composer and no other", async () => {
+    let onDrop = (_x: number, _y: number) => {};
+    const undo = vi.fn();
+    const listen = vi.fn((handler: typeof onDrop) => {
+      onDrop = handler;
+      return undo;
+    });
+    const pictures = vi.fn(() => Promise.reject(new Error("no runtime")));
+    const view = render(
+      <App bridge={new FakeBridge()} newSessionId={() => "s1"} drops={{ listen, pictures }} />,
+    );
+    activate();
+    const field = screen.getByLabelText("Message");
+    const under = new Map<string, Element | null>([
+      ["1,2", field],
+      ["3,4", document.querySelector(".stage")],
+      ["5,6", null],
+    ]);
+    const before = document.elementFromPoint;
+    document.elementFromPoint = (x: number, y: number) => under.get(`${x},${y}`) ?? null;
+    await act(async () => onDrop(3, 4));
+    await act(async () => onDrop(5, 6));
+    expect(pictures).not.toHaveBeenCalled();
+    await act(async () => onDrop(1, 2));
+    expect(pictures).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("alert").textContent).toBe(DROP_UNREAD);
+    expect(undo).not.toHaveBeenCalled();
+    view.unmount();
+    expect(undo).toHaveBeenCalled();
+    document.elementFromPoint = before;
   });
 
   it("leaves the overlay hidden when nothing asked for it", async () => {

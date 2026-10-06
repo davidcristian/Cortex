@@ -16,11 +16,11 @@ path has no Windows code. The same run showed that a file named `.png` holding J
 attached and accepted, not refused: the canvas encodes it again as PNG before it is sent.
 
 **What only this proves.** That WebView2 hands the composer a `File` for a picture pasted from the
-Windows clipboard and for one dropped from Explorer. WebKitGTK gives neither
-([R-802](../../refinements/tasks/802-the-linux-shell-attaches-no-pasted-or-dropped-picture.md)),
-so the Linux run built its paste in the page. The overlay window sets `dragDropEnabled` to false,
-which by wry 0.55's source leaves WebView2's own external drop on, so an Explorer drop should reach
-the composer as a `File`; that is read from the source and not run.
+Windows clipboard and for one dropped from Explorer. WebKitGTK gives neither, so the Linux shell
+reads both itself ([readings](../../readings/tauri-ipc-commands.md#a-drop-through-the-shell)).
+Outside Linux the overlay window sets `dragDropEnabled` to false, which by wry 0.55's source leaves
+WebView2's own external drop on, so an Explorer drop should reach the composer as a `File`; that
+is read from the source and not run.
 
 **Do.** With the brain up and a vision-capable cortex, copy a screenshot (Win+Shift+S), paste it
 into the composer with Ctrl+V, drop a JPEG from Explorer beside it, type a question and send it.
@@ -42,7 +42,5 @@ this as pending; then delete this section.
 - 2026-09-25: Filed when the overlay half of the attached-picture path was built, since only a
   Win32 desktop has the clipboard and the WebView2 drop target this needs.
 - 2026-10-06: narrowed after the Linux shell run sent pictures through the real IPC hop into the
-  brain. The run filed
-  [R-802](../../refinements/tasks/802-the-linux-shell-attaches-no-pasted-or-dropped-picture.md).
-  The overlay window's native drop handler was turned off the same night, so the drop half now
-  checks that change on WebView2.
+  brain. The overlay window's native drop handler was turned off the same night, so the drop half
+  now checks that change on WebView2.

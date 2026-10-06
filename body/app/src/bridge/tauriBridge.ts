@@ -1,13 +1,15 @@
 import { Channel, invoke } from "@tauri-apps/api/core";
+import { getCurrentWebview } from "@tauri-apps/api/webview";
 
 import { toBase64 } from "./base64";
-import { type WirePicture, pictureBlob } from "./clipboard";
+import { type WirePicture, pictureBlob, pictureBlobs } from "./clipboard";
 import type {
   AttachedImage,
   BrainBridge,
   Cancellation,
   DueReminder,
   HostClipboard,
+  HostDrops,
   LinkStatus,
   OverlayWindow,
   Preference,
@@ -128,5 +130,23 @@ export class TauriWindow implements OverlayWindow {
 export class TauriClipboard implements HostClipboard {
   picture(): Promise<Blob | null> {
     return invoke<WirePicture | null>("clipboard_picture").then(pictureBlob);
+  }
+}
+
+/** The real `HostDrops`: Tauri's native drop events, which only the Linux window turns on, and the
+ *  shell's `dropped_pictures` command. WebKitGTK's drop point is already in CSS pixels, though
+ *  Tauri types it as physical. Excluded from coverage with the bridge above. */
+export class TauriDrops implements HostDrops {
+  listen(onDrop: (x: number, y: number) => void): () => void {
+    const unlisten = getCurrentWebview().onDragDropEvent(({ payload }) => {
+      if (payload.type === "drop") {
+        onDrop(payload.position.x, payload.position.y);
+      }
+    });
+    return () => void unlisten.then((stop) => stop());
+  }
+
+  pictures(): Promise<readonly Blob[]> {
+    return invoke<WirePicture[]>("dropped_pictures").then(pictureBlobs);
   }
 }

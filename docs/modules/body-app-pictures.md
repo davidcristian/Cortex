@@ -29,6 +29,12 @@ to the brain with the text, as [ADR-0070](../adr/ADR-0070-user-attached-images.m
   which returns `{ dataBase64, mimeType }` or null and fails past `MAX_PASTED_BYTES`;
   `pictureBlob` in `bridge/clipboard.ts` decodes it. The browser build passes `NO_CLIPBOARD`. A
   picture goes to `attach` like a pasted file; a failed read shows `CLIPBOARD_UNREAD`.
+- `HostDrops` is the port for a native drop: `listen(onDrop)` calls back with each drop's point
+  in CSS pixels and returns the undo, and `pictures()` resolves to the last drop's pictures.
+  `App` calls the controller's `dropPictures` for a drop whose point is inside `.composer`, and
+  `dropPictures` attaches what it gets, does nothing for an empty list and shows `DROP_UNREAD` on
+  a failed read. `TauriDrops` listens with `onDragDropEvent` and calls `dropped_pictures`, decoded
+  by `pictureBlobs`; the browser build passes `NO_DROPS`.
 - `guardDrops(window)` in `dropGuard.ts`, installed by `App`, cancels the webview's default for
   any drag holding `Files` or `text/uri-list`, so a file or link dropped beside the composer
   neither opens as the window nor types its address into the field.
@@ -45,17 +51,17 @@ to the brain with the text, as [ADR-0070](../adr/ADR-0070-user-attached-images.m
   shows both, and deleting the chat drops both, as it drops the chat's draft.
 - `MAX_ATTACHED_IMAGES` and `MAX_IMAGE_BYTES` equal the brain's, and `DEFAULT_MAX_EDGE` equals the
   capture path's in `screen_policy.rs`; `scripts/wirecouplings.py` checks all three.
-- The overlay window's `dragDropEnabled` is false in `src-tauri/tauri.conf.json`, so a drop
-  reaches the page rather than Tauri's native handler; `dropGuard.test.ts` reads the config.
+- The overlay window's `dragDropEnabled` is false in `src-tauri/tauri.conf.json`, so a WebView2
+  drop reaches the page, and true in `tauri.linux.conf.json`, so a WebKitGTK drop reaches the
+  native handler. Tauri merges the Linux file as a JSON merge patch, which replaces the whole
+  window list, so `dropGuard.test.ts` checks that the Linux window differs in that key alone.
 - The composer stacks into two rows while it shows pictures or a note, and `--pill-floor` on the
   view grows by their height, so the roll-open sections yield the room rather than the field.
 
 ## Dependencies
 
 The `BrainBridge` port (`AttachedImage`), the drafts in `drafts.ts`, and the webview's
-`createImageBitmap` and canvas. A drop depends on the webview handing the page a `File`, which
-WebKitGTK on the Linux shell does not, for a paste either; a paste there reads the X clipboard
-through the shell instead
-([R-802](../refinements/tasks/802-the-linux-shell-attaches-no-pasted-or-dropped-picture.md)). The
-demo bridge refuses the last picture of a prompt that says "refuse", so the headless overlay shows
+`createImageBitmap` and canvas. A page drop depends on the webview handing the page a `File`,
+which WebKitGTK on the Linux shell does not, for a paste either, so there both read through the
+shell. The demo bridge refuses the last picture of a prompt that says "refuse", so the headless overlay shows
 the refusal state.

@@ -46,9 +46,9 @@ class Rule(NamedTuple):
     jobs: Jobs
 
 
-# Ordered, first match wins. The three `body/app/` rules come before the broader `body/` rule, and
+# Ordered, first match wins. The four `body/app/` rules come before the broader `body/` rule, and
 # the `.md` suffix rule comes last, so a markdown file inside a toolchain tree stays that
-# toolchain's. The overlay's tests read the shell's window config, so that file runs both jobs.
+# toolchain's. The overlay's tests read the shell's two window configs, so they run both jobs.
 RULES: tuple[Rule, ...] = (
     Rule("exact", "justfile", ALL),
     Rule("exact", ".python-version", ALL),
@@ -58,6 +58,7 @@ RULES: tuple[Rule, ...] = (
     Rule("exact", "ruff.toml", PYTHON_ONLY),
     Rule("prefix", "brain/", PYTHON_ONLY),
     Rule("exact", "body/app/src-tauri/tauri.conf.json", SHELL_AND_OVERLAY),
+    Rule("exact", "body/app/src-tauri/tauri.linux.conf.json", SHELL_AND_OVERLAY),
     Rule("prefix", "body/app/src-tauri/", SHELL),
     Rule("prefix", "body/app/", OVERLAY_ONLY),
     Rule("prefix", "body/", RUST_ONLY),

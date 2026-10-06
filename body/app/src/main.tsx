@@ -1,12 +1,12 @@
-// Mounts the overlay. Inside the Tauri shell it uses the real bridge, window and clipboard, and
-// forwards the host's `cortex:activate` and `cortex:toggle` events as DOM events; in a plain
+// Mounts the overlay. Inside the Tauri shell it uses the real bridge, window, clipboard and drops,
+// and forwards the host's `cortex:activate` and `cortex:toggle` events as DOM events; in a plain
 // browser it uses the demo bridge and summons itself. Excluded from coverage.
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
-import { NO_CLIPBOARD } from "./bridge/clipboard";
+import { NO_CLIPBOARD, NO_DROPS } from "./bridge/clipboard";
 import { DemoBridge } from "./bridge/demoBridge";
-import { TauriBridge, TauriClipboard, TauriWindow } from "./bridge/tauriBridge";
+import { TauriBridge, TauriClipboard, TauriDrops, TauriWindow } from "./bridge/tauriBridge";
 import type { BrainBridge } from "./bridge/types";
 import { App } from "./components/App";
 import { TOGGLE_EVENT, requestActivation } from "./overlay/activation";
@@ -20,9 +20,10 @@ if (root) {
   const bridge: BrainBridge = inTauri ? new TauriBridge() : new DemoBridge();
   const osWindow = inTauri ? new TauriWindow() : NO_WINDOW;
   const clipboard = inTauri ? new TauriClipboard() : NO_CLIPBOARD;
+  const drops = inTauri ? new TauriDrops() : NO_DROPS;
   createRoot(root).render(
     <StrictMode>
-      <App bridge={bridge} osWindow={osWindow} clipboard={clipboard} />
+      <App bridge={bridge} osWindow={osWindow} clipboard={clipboard} drops={drops} />
     </StrictMode>,
   );
   if (inTauri) {

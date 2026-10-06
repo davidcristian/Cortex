@@ -43,7 +43,9 @@ speaks. They are also where the **stub coverage exemption** is used.
   `LinuxPortalHotkey`
   ([overlay runbook](../runbooks/body-overlay.md)). The shell's `clipboard_picture` command opens
   the X display on each paste and reads through `LinuxClipboardPicture<X11Selection>`; the other
-  platforms answer with `body_core::NoClipboardPicture`.
+  platforms answer with `body_core::NoClipboardPicture`. Its `dropped_pictures` command reads a
+  native drop's files through `os_linux::read_dropped_file`; only the Linux window turns that
+  handler on, so no other platform has a path to read.
 - **`os_macos`** provides `MacosHotkey`, `MacosAudioControl`, `MacosNotify`,
   `MacosScreenCapture` and `MacosClipboardPicture`, the same stubs for macOS. It has no `cfg` yet and compiles everywhere.
 

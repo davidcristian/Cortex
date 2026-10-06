@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 
-import { NO_CLIPBOARD } from "../bridge/clipboard";
-import type { BrainBridge, Cancellation, DueReminder, HostClipboard } from "../bridge/types";
+import { NO_CLIPBOARD, NO_DROPS } from "../bridge/clipboard";
+import type {
+  BrainBridge,
+  Cancellation,
+  DueReminder,
+  HostClipboard,
+  HostDrops,
+} from "../bridge/types";
 import {
   type ConsoleTab,
   type OverlayState,
@@ -22,6 +28,9 @@ const PREVIEW_MS = 6000;
 /** The note a paste shows when the host clipboard could not be read. */
 export const CLIPBOARD_UNREAD = "The clipboard's picture could not be read.";
 
+/** The note a native drop shows when its files could not be read. */
+export const DROP_UNREAD = "The dropped pictures could not be read.";
+
 /** The overlay controller: the reducer wired to the brain bridge plus the preview auto-fade timer.
  *  The chat-catalog half is `useSessionCatalog`'s and is spread in as it is, so a component still
  *  sees one flat controller. */
@@ -35,6 +44,8 @@ export interface OverlayController extends SessionCatalog {
   attach(files: readonly Blob[]): void;
   /** Attach the host clipboard's picture, for a paste the webview gave no file or text for. */
   pastePicture(): void;
+  /** Attach the pictures of the host's last native drop, for a webview that gave the page none. */
+  dropPictures(): void;
   /** Take one waiting picture out of the composer. */
   detach(id: string): void;
   stop(): void;
@@ -71,6 +82,7 @@ export function useOverlay(
   newSessionId: () => string = () => crypto.randomUUID(),
   readPicture: PictureReader = readWithCanvas,
   clipboard: HostClipboard = NO_CLIPBOARD,
+  drops: HostDrops = NO_DROPS,
 ): OverlayController {
   const [state, dispatch] = useReducer(reduce, undefined, () =>
     createInitialState(newSessionId()),
@@ -155,6 +167,16 @@ export function useOverlay(
       () => dispatch({ kind: "attach", pictures: [], problem: CLIPBOARD_UNREAD }),
     );
   }, [clipboard, attach]);
+  const dropPictures = useCallback(() => {
+    void drops.pictures().then(
+      (pictures) => {
+        if (pictures.length > 0) {
+          attach(pictures);
+        }
+      },
+      () => dispatch({ kind: "attach", pictures: [], problem: DROP_UNREAD }),
+    );
+  }, [drops, attach]);
   const detach = useCallback((id: string) => dispatch({ kind: "detach", id }), []);
 
   const stop = useCallback(() => {
@@ -212,6 +234,7 @@ export function useOverlay(
     setDraft,
     attach,
     pastePicture,
+    dropPictures,
     detach,
     stop,
     dismiss,

@@ -42,9 +42,9 @@ It writes exactly four `GITHUB_OUTPUT`-format lines to stdout, in order: `python
 the `body/app/` React tree, checked by `check-overlay`; its Tauri subtree `body/app/src-tauri/` is
 Rust and is split off the overlay to a `rust+shell` result, which sets `rust` for that subtree's
 format check inside `check-body` and `shell` for the separate job that runs `check-shell`. Its
-window config, `tauri.conf.json`, also sets `overlay`, because an overlay test reads it. One
-`ci-paths: PATH -> RESULT` line per path goes to stderr so CI logs show why a job ran. Empty input
-gives four falses. An unmatched path sets all four, because unknown means over-testing rather than
+window configs, `tauri.conf.json` and `tauri.linux.conf.json`, also set `overlay`, because an
+overlay test reads them. One `ci-paths: PATH -> RESULT` line per path goes to stderr so CI logs
+show why a job ran. Empty input gives four falses. An unmatched path sets all four, because unknown means over-testing rather than
 under-testing. It always exits 0, classification having no failure mode. `shell` is the one output
 no other job reads, so two tests check that routing from both sides.
 

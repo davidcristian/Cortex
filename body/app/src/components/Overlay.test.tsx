@@ -39,6 +39,7 @@ function fakeController(
     setDraft: vi.fn(),
     attach: vi.fn(),
     pastePicture: vi.fn(),
+    dropPictures: vi.fn(),
     detach: vi.fn(),
     stop: vi.fn(),
     dismiss: vi.fn(),

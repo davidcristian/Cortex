@@ -2,10 +2,11 @@ import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { FakeBridge } from "../bridge/fakeBridge";
-import type { HostClipboard } from "../bridge/types";
+import { NO_CLIPBOARD } from "../bridge/clipboard";
+import type { HostClipboard, HostDrops } from "../bridge/types";
 import { noteOf, waitingOf } from "./pictureState";
 import type { ReadPicture } from "./pictures";
-import { CLIPBOARD_UNREAD, useOverlay } from "./useOverlay";
+import { CLIPBOARD_UNREAD, DROP_UNREAD, useOverlay } from "./useOverlay";
 
 const reader = (from: Blob): Promise<ReadPicture> =>
   Promise.resolve({
@@ -91,5 +92,62 @@ describe("useOverlay with pictures", () => {
       expect(noteOf(result.current.state.pictures, "s1")).toBe(CLIPBOARD_UNREAD),
     );
     expect(waitingOf(result.current.state.pictures, "s1")).toEqual([]);
+  });
+
+  it("attaches every picture of the host's last native drop", async () => {
+    const bridge = new FakeBridge();
+    const drops: HostDrops = {
+      listen: () => () => {},
+      pictures: () =>
+        Promise.resolve([
+          new Blob(["x"], { type: "image/png" }),
+          new Blob(["y"], { type: "image/jpeg" }),
+        ]),
+    };
+    const { result } = renderHook(() =>
+      useOverlay(bridge, () => "s1", reader, NO_CLIPBOARD, drops),
+    );
+    await act(async () => {
+      result.current.dropPictures();
+    });
+    await vi.waitFor(() => expect(waitingOf(result.current.state.pictures, "s1")).toHaveLength(2));
+    const waiting = waitingOf(result.current.state.pictures, "s1");
+    const previews = waiting.map((picture) => picture.preview);
+    expect(previews).toEqual(["data:image/png", "data:image/jpeg"]);
+  });
+
+  it("leaves the composer as it was when a native drop held no picture", async () => {
+    const bridge = new FakeBridge();
+    const pictures = vi.fn(() => Promise.resolve([]));
+    const drops: HostDrops = { listen: () => () => {}, pictures };
+    const { result } = renderHook(() =>
+      useOverlay(bridge, () => "s1", reader, NO_CLIPBOARD, drops),
+    );
+    await act(async () => {
+      result.current.attach([new Blob(["x"], { type: "text/plain" })]);
+    });
+    await vi.waitFor(() => expect(noteOf(result.current.state.pictures, "s1")).not.toBeNull());
+    const note = noteOf(result.current.state.pictures, "s1");
+    await act(async () => {
+      result.current.dropPictures();
+    });
+    expect(pictures).toHaveBeenCalledTimes(1);
+    expect(noteOf(result.current.state.pictures, "s1")).toBe(note);
+    expect(waitingOf(result.current.state.pictures, "s1")).toEqual([]);
+  });
+
+  it("says so when the native drop's files cannot be read", async () => {
+    const bridge = new FakeBridge();
+    const drops: HostDrops = {
+      listen: () => () => {},
+      pictures: () => Promise.reject(new Error("no runtime")),
+    };
+    const { result } = renderHook(() =>
+      useOverlay(bridge, () => "s1", reader, NO_CLIPBOARD, drops),
+    );
+    await act(async () => {
+      result.current.dropPictures();
+    });
+    await vi.waitFor(() => expect(noteOf(result.current.state.pictures, "s1")).toBe(DROP_UNREAD));
   });
 });

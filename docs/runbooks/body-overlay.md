@@ -152,12 +152,13 @@ request, even after Vite holds the port. If the window shows only the stage and 
 opens, delete that directory or point `XDG_DATA_HOME` at an empty one.
 
 **Pictures.** WebKitGTK gives the page no file for a picture on the clipboard or a dragged file,
-so a paste reads the X clipboard through the shell's `clipboard_picture` command. Own the
-clipboard with `xclip -selection clipboard -t image/png -i <file>` on the display, focus the field
-and press `Ctrl+V`: the thumbnail shows, and a file over 32 MiB shows "The clipboard's picture
-could not be read." instead. A file dragged onto the window still changes nothing, since the
-overlay's drop guard cancels the drop
-([R-802](../refinements/tasks/802-the-linux-shell-attaches-no-pasted-or-dropped-picture.md)).
+so both read through the shell. Own the clipboard with
+`xclip -selection clipboard -t image/png -i <file>` on the display, focus the field and press
+`Ctrl+V`: the thumbnail shows, and a file over 32 MiB shows "The clipboard's picture could not be
+read." instead. For a drop, run a GTK drag source offering the file under `text/uri-list` and
+drag it with `xdotool mousedown 1`, steps of `mousemove` and `mouseup 1` onto the composer: the
+thumbnail shows. A link dragged the same way, or a file dropped beside the composer, changes
+nothing.
 
 ## Notes
 

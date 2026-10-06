@@ -25,8 +25,9 @@ for a CI that nobody watches run by run.
    - **all:** `justfile`, `.python-version` (exact); `proto/`, `scripts/`,
      `.github/workflows/` (prefix);
    - **python:** `ruff.toml` (exact); `brain/` (prefix);
-   - **rust+shell+overlay:** `body/app/src-tauri/tauri.conf.json` (exact), ordered before the
-     shell rule, because an overlay test reads the window config the composer's drop depends on;
+   - **rust+shell+overlay:** `body/app/src-tauri/tauri.conf.json` and `tauri.linux.conf.json`
+     (exact), ordered before the shell rule, because an overlay test reads the window configs
+     the composer's drop depends on;
    - **rust+shell (shell carve-out):** `body/app/src-tauri/` (prefix) is the host-native
      Tauri shell, which is Rust rather than node and is fmt-checked by `check-body`
      (ADR-0011), so it is separated from the overlay by a rule ordered BEFORE `body/app/`.

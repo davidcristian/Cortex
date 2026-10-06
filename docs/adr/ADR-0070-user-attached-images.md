@@ -105,13 +105,18 @@ Inside the body, the overlay's webview decodes and encodes, and the Tauri shell 
 Paste and drop hand the webview a `File`, the webview already decodes PNG, JPEG and WebP and encodes
 PNG and JPEG with a canvas, and the Rust crates hold only the capture path's PNG encoder. Decoding
 in the shell would add a parser for arbitrary files there and send the full-size original across
-IPC. WebKitGTK gives the page no `File` for a pasted picture, so a paste whose event lists neither
-a file nor `text/plain`, which on WebKitGTK is every paste, asks the shell's `clipboard_picture`
-command. It reads the X `CLIPBOARD` selection's bytes
-as the first of PNG, JPEG and WebP its owner offers, refuses one over `MAX_PASTED_BYTES` (32 MiB)
-and returns them still encoded, and the overlay hands them to the same canvas reader as a `Blob`. Tauri IPC arguments are JSON, so each picture's bytes cross as standard base64 (`WireImage` in
-the shell's `converse.rs`); bytes that are not base64 end the turn as `attachment_refused` before
-the brain is called.
+IPC. WebKitGTK gives the page no `File` for a pasted or dropped picture, so on Linux the shell
+reads the bytes and the overlay hands them to the same canvas reader as a `Blob`. A paste whose
+event lists neither a file nor `text/plain`, which on WebKitGTK is every paste, asks the
+`clipboard_picture` command, which reads the X `CLIPBOARD` selection as the first of PNG, JPEG
+and WebP its owner offers and refuses one over `MAX_PASTED_BYTES` (32 MiB). A drop is taken by
+Tauri's native handler, which `tauri.linux.conf.json` turns on for the Linux window only. The shell
+keeps the absolute paths of the last native drop, and the `dropped_pictures` command reads each
+one once, skipping any that is not a regular file of at most `MAX_PASTED_BYTES` or whose leading
+bytes name none of the three types. The command takes no path: one that read a path the page
+names would give page script every local file. Tauri IPC arguments are JSON, so each picture's
+bytes cross as standard base64 (`WireImage` in the shell's `converse.rs`); bytes that are not
+base64 end the turn as `attachment_refused` before the brain is called.
 
 ### 6. One of the three layers relaxes
 
@@ -175,9 +180,9 @@ so none of the three needs a naming scheme.
   guards a client that sends bytes it did not decode.
 - The paste from the Windows clipboard and the drop from Explorer through WebView2 are unvalidated
   until [host item 024](../host/tasks/024-attached-picture-over-ipc.md) runs. WebKitGTK gives the
-  Linux shell no file for either way in, with the native drop handler off as well. A paste reads
-  the X clipboard through the shell (decision 5), and a drop still attaches nothing on Linux
-  ([R-802](../refinements/tasks/802-the-linux-shell-attaches-no-pasted-or-dropped-picture.md)).
+  Linux shell no file for either way in, so both read through the shell (decision 5), and a
+  pasted and a dropped PNG reached a vision cortex on the Linux shell
+  ([readings](../readings/tauri-ipc-commands.md#a-drop-through-the-shell)).
 
 ## Alternatives rejected
 

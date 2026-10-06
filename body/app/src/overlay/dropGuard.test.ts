@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 
 import config from "../../src-tauri/tauri.conf.json";
+import linux from "../../src-tauri/tauri.linux.conf.json";
 import { guardDrops } from "./dropGuard";
 
 function drag(kind: string, types: readonly string[] | null): Event {
@@ -36,5 +37,12 @@ describe("guardDrops", () => {
 
   it("matches a window config that leaves every drop to the page", () => {
     expect(config.app.windows.map((entry) => entry.dragDropEnabled)).toEqual([false]);
+  });
+
+  // Tauri merges the Linux file over the main one as a JSON merge patch, which replaces the whole
+  // window list, so the Linux list must repeat every other window setting.
+  it("turns the native drop handler on for the Linux window and changes nothing else", () => {
+    const windows = config.app.windows.map((entry) => ({ ...entry, dragDropEnabled: true }));
+    expect(linux).toEqual({ $schema: config.$schema, app: { windows } });
   });
 });

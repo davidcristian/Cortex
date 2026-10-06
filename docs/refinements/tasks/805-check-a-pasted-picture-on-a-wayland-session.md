@@ -24,5 +24,5 @@ client, chosen when `WAYLAND_DISPLAY` is set as the capture and hotkey backends 
 
 ## History
 
-- 2026-10-06: filed by [R-802](802-the-linux-shell-attaches-no-pasted-or-dropped-picture.md),
-  whose paste half reads the X clipboard and was checked on `Xvfb` only.
+- 2026-10-06: filed when the Linux shell's paste was built, since it reads the X clipboard and
+  was checked on `Xvfb` only.
