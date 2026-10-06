@@ -29,8 +29,20 @@ parts:
 How the 100% coverage rule holds for a Linux backend, a covered core over a port of its own plus an
 adapter tested against a peer the test controls, is [ADR-0011](../../adr/ADR-0011-body-v1.md)
 decision 13. Every CI job runs on Ubuntu. `os_windows` is clippied for its own target from Linux
-(decision 9); whether a macOS adapter can be type-checked the same way, for `aarch64-apple-darwin`,
-is not checked, and running one needs a Mac.
+(decision 9), and a macOS adapter can be type-checked the same way, measured in
+[macos-cross-check.md](../../readings/macos-cross-check.md): `os_macos` passes clippy for
+`aarch64-apple-darwin` on this host with no SDK and no system package, and so do calls into the
+`objc2` framework crates, `global-hotkey`, `xcap` and `arboard`. The `screencapturekit` crate
+fails, since its build scripts run `swift`, while `objc2-screen-capture-kit` passes. A test binary
+for that target fails to link without the SDK, so testing and running one needs a Mac.
+
+The check costs little to add, but adds nothing yet: `os_macos` has no `cfg`, so the workspace
+clippy already checks the same code on Linux. Once it takes `cfg(target_os = "macos")` and compiles
+to nothing here, `check-body` takes a line beside the `os_windows` one, inside `just check` because
+it needs no system library. That is one `cargo clippy` line, `aarch64-apple-darwin` in the
+`targets` of the CI job that runs `check-body`, the `rustup target add` step in
+[local-dev-wsl.md](../../runbooks/local-dev-wsl.md), and a sentence in ADR-0011 decision 9. Each
+machine pays a 127 MB target download, and a cold run took under a twentieth of a warm `just check`.
 
 This stays a refinement rather than moving to [docs/host/](../../host/index.md), which holds work
 needing a Win32 desktop session or a 24 GB GPU: a macOS backend needs neither, only a Mac.
@@ -89,3 +101,7 @@ needing a Win32 desktop session or a 24 GB GPU: a macOS backend needs neither, o
   `MacosClipboardPicture` stub in `os_macos`, and the entry named four ports and three stubs. The
   Linux reader reaches a Wayland client's copy only through `XWayland`, and
   [805](805-read-a-pasted-picture-from-the-wayland-clipboard.md) adds a Wayland reader.
+- 2026-10-06: Measured whether a macOS backend can be checked here, which the entry left open. With
+  the `aarch64-apple-darwin` target added, clippy passes on `os_macos` and on a scratch crate per
+  likely dependency except `screencapturekit`, whose build scripts need `swift`; linking needs the
+  SDK. Wrote the results and what wiring the check into `just check` costs, without adding it.

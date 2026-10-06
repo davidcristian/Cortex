@@ -219,7 +219,7 @@ never a reading of what the tree does now.
 
 - **[R-158](tasks/158-voice-as-picked-row.md)** The voice as a fourth pickable row (body-overlay). Its claim was checked against the code on 2026-09-30.
 - **[R-261](tasks/261-windows-graphics-capture-backend.md)** A `Windows.Graphics.Capture` backend (vision). Its claim was checked against the code on 2026-10-05.
-- **[R-263](tasks/263-linux-and-macos-capture-backends.md)** Linux and macOS `ScreenCapture` backends (vision). Its claim was checked against the code on 2026-10-05.
+- **[R-263](tasks/263-linux-and-macos-capture-backends.md)** Linux and macOS `ScreenCapture` backends (vision). Its claim was checked against the code on 2026-10-06.
 - **[R-271](tasks/271-macos-linux-os-backends.md)** macOS OS backends (cross-cutting). Its claim was checked against the code on 2026-10-06.
 
 ### Blocked on hardware this repo is not developed on (1)

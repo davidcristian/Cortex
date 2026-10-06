@@ -3,7 +3,7 @@
 **Status:** open, optional feature
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-10-05
+**Verified:** 2026-10-06
 
 `LinuxScreenCapture<X11Root>` in `os_linux` reads the primary RandR monitor of the X root window
 through `x11rb`, built and covered under [ADR-0011](../../adr/ADR-0011-body-v1.md) decision 13, and
@@ -15,8 +15,11 @@ session needs the desktop portal, which is
 here:
 
 - **macOS.** `MacosScreenCapture` is an `unimplemented!()` stub. `os_macos` takes
-  `cfg(target_os = "macos")` first, since it compiles on every platform today. It cannot be built
-  or checked on this Linux host.
+  `cfg(target_os = "macos")` first, since it compiles on every platform today. It can be
+  type-checked on this Linux host for `aarch64-apple-darwin` but not linked, tested or run
+  ([macos-cross-check.md](../../readings/macos-cross-check.md)). Calls into
+  `objc2-screen-capture-kit`, `objc2-core-graphics` and `xcap` pass clippy for that target with no
+  SDK, while the `screencapturekit` crate fails there, since its build scripts run `swift`.
 
 Every size decision stays in `body_core` (ADR-0029): a backend returns raw BGRA pixels and the
 resolved target rectangle.
@@ -78,3 +81,7 @@ resolved target rectangle.
   the `ScreenCast` portal, built and run live under
   [787](787-read-a-wayland-window-through-the-screencast-portal.md), so the body names both Wayland
   tasks. Only `MacosScreenCapture` remains, still a stub.
+- 2026-10-06: Corrected. The entry said the macOS backend cannot be built or checked on Linux, and
+  it can be type-checked: with the `aarch64-apple-darwin` target added, clippy passes on `os_macos`
+  and on scratch calls into three capture crates. Only linking, testing and running need a Mac, and
+  the `screencapturekit` crate is the one candidate that fails, in a build script needing `swift`.
