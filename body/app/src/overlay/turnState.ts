@@ -48,10 +48,24 @@ export function isTurnActive(state: OverlayState): boolean {
   return state.messages.some((message) => message.streaming);
 }
 
+function latest(state: OverlayState): Message | undefined {
+  return [...state.messages].reverse().find((message) => message.role === "assistant");
+}
+
 /** The most recent assistant reply's text (for the minimized preview); "" if none yet. */
 export function latestReply(state: OverlayState): string {
-  const reply = [...state.messages].reverse().find((message) => message.role === "assistant");
-  return reply?.content ?? "";
+  return latest(state)?.content ?? "";
+}
+
+/** The most recent assistant reply's error, or null when it did not fail. */
+export function latestError(state: OverlayState): string | null {
+  return latest(state)?.error ?? null;
+}
+
+/** Whether the preview stays until it is clicked or dismissed: an approval waits, the turn still
+ *  runs, or the turn failed, since an error waits to be seen. */
+export function previewStays(state: OverlayState): boolean {
+  return state.pendingConfirm !== null || isTurnActive(state) || latestError(state) !== null;
 }
 
 /** Start a turn: the user's line plus the empty assistant bubble the stream fills. A blank draft

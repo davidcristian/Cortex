@@ -629,6 +629,25 @@ describe("useOverlay", () => {
     expect(result.current.state.mode).toBe("hidden");
   });
 
+  it("a failed turn's preview never fades on its own, and a later turn's preview still does", async () => {
+    const bridge = new FakeBridge();
+    const { result } = renderHook(() => useOverlay(bridge, () => "s1"));
+    await flush();
+    act(() => result.current.submit("q"));
+    act(() => result.current.dismiss());
+    act(() => bridge.emit({ kind: "failed", code: "INTERNAL", message: "boom" }));
+    expect(result.current.state.mode).toBe("preview");
+    act(() => vi.advanceTimersByTime(60_000));
+    expect(result.current.state.mode).toBe("preview");
+    act(() => result.current.open());
+    act(() => result.current.submit("again"));
+    act(() => result.current.dismiss());
+    act(() => bridge.emit({ kind: "complete", turnId: "t2" }));
+    expect(result.current.state.mode).toBe("preview");
+    act(() => vi.advanceTimersByTime(6000));
+    expect(result.current.state.mode).toBe("hidden");
+  });
+
   it("defaults the session id to a freshly minted uuid", async () => {
     const bridge = new FakeBridge();
     const { result } = renderHook(() => useOverlay(bridge));

@@ -6,6 +6,7 @@ import {
   type OverlayState,
   createInitialState,
   isTurnActive,
+  previewStays,
   reduce,
 } from "./overlayState";
 import { readWithCanvas } from "./canvasPicture";
@@ -72,22 +73,16 @@ export function useOverlay(
   const dismissReminder = useReminders(bridge, state.mode, dispatch);
   useLink(bridge, state.mode, state.link, isTurnActive(state), dispatch);
 
-  // A completed preview fades on its own after PREVIEW_MS, unless an approval is pending, the turn
-  // is still streaming, or the pointer is over the card. Leaving the card restarts the countdown in
-  // full, and the card's drain bar remounts with it.
-  const previewActive = isTurnActive(state);
+  // A preview fades on its own after PREVIEW_MS unless it stays (`previewStays`) or the pointer is
+  // over the card. Leaving the card restarts the countdown in full, and the drain bar with it.
+  const stays = previewStays(state);
   useEffect(() => {
-    if (
-      state.mode !== "preview" ||
-      state.pendingConfirm !== null ||
-      previewActive ||
-      previewHovered
-    ) {
+    if (state.mode !== "preview" || stays || previewHovered) {
       return undefined;
     }
     const timer = setTimeout(() => dispatch({ kind: "previewFade" }), PREVIEW_MS);
     return () => clearTimeout(timer);
-  }, [state.mode, state.pendingConfirm, previewActive, previewHovered]);
+  }, [state.mode, stays, previewHovered]);
 
   // Leaving preview mode clears the hover latch, so the next preview always starts its fade.
   useEffect(() => {

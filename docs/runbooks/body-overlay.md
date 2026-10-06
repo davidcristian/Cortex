@@ -73,7 +73,8 @@ And check the loop end to end.
    it was not sent. Then check that it fails closed: trigger another approval and ignore it, or
    dismiss to the orb. The brain denies on timeout, 120 s by default, and the reply says the user
    declined. An approval arriving while minimized surfaces the preview, which must not auto-fade
-   while the question is open.
+   while the question is open. A turn that fails while minimized, such as one cut off by
+   `just down`, surfaces a preview showing the error, which stays until it is clicked or dismissed.
 5. **The connection indicator.** The header dot is green on summon while the brain is up. Stop the
    brain (`just down`) and summon again: it turns red within the retry budget and stays red,
    re-checking every 5 s while the panel is open. Start the brain again and the dot goes green on

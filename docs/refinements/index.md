@@ -67,16 +67,15 @@ never a reading of what the tree does now.
 
 139 of these record the day their claims were last checked against the code. On every other task here, that reading is still yours to take.
 
-### Actionable now (2)
+### Actionable now (1)
 
 - **[R-794](tasks/794-a-paused-stream-keeps-its-last-letters-blurred.md)** A paused stream keeps its last letters blurred (body-overlay). Its claim was checked against the code on 2026-10-06.
-- **[R-799](tasks/799-the-preview-of-a-failed-turn-fades.md)** The preview of a failed turn fades like a finished one (body-overlay). Its claim was checked against the code on 2026-10-06.
 
 ### Actionable, once a port changes (1)
 
 - **[R-129](tasks/129-streamed-brain-status.md)** Streamed brain status (body-overlay). Its claim was checked against the code on 2026-10-02.
 
-### Waiting for its trigger (106)
+### Waiting for its trigger (107)
 
 - **[R-011](tasks/011-stylesheet-outside-line-cap.md)** The overlay stylesheet outside the line cap (repo-checks). Reopens when: `find body/app/src -name '*.css'` lists a second file, or `git log --since='<Verified date> 00:00' --oneline -- body/app/src/overlay.css` lists a commit whose diff moves a rule to change which rule applies. A commit that edits only comments does not. Its claim was checked against the code on 2026-10-02.
 - **[R-013](tasks/013-couplings-widened-registry-cannot-hold.md)** The couplings the widened registry cannot cover (repo-checks). Reopens when: A third value on the capture-target enum, a reader for declarations in the `.proto` arriving in the scan for another reason, any module outside the body's rpc crate and the brain's body client that has to name one of the two gRPC status codes, or either side of that pair gaining a declaration whose value the scan can read. Its claim was checked against the code on 2026-10-04.
@@ -184,6 +183,7 @@ never a reading of what the tree does now.
 - **[R-774](tasks/774-a-second-model-host-module-joining-a-file-onto-the-mount-is-not-read.md)** A second model host module joining a file onto the mount is not read (repo-checks). Reopens when: a module under `brain/packages/*/src` other than the model host's `config.py` reads `models_root` or builds a path under the models mount. Countable with `grep -rn models_root brain/packages/*/src`, which today finds `config.py` alone; a search for `/models` also finds the control API's routes `/models/{model}` in `api.py` and `adapter.py`, which are URLs and not the mount. Its claim was checked against the code on 2026-10-02.
 - **[R-779](tasks/779-a-power-column-with-its-unit-only-in-the-header-is-not-searched.md)** A power column with its unit only in the header is not searched (repo-checks). Reopens when: a tracked document has a table column of power readings whose unit `W` is written only in its header, such as `draw, W` or `(W)`, with bare numbers in the rows. Its claim was checked against the code on 2026-10-03.
 - **[R-788](tasks/788-test-the-portal-hotkey-on-a-kde-wayland-session.md)** Test the portal hotkey on a KDE Wayland session (cross-cutting). Reopens when: a `GlobalShortcuts` backend that registers what `BindShortcuts` names can be installed here. None can yet: the Ubuntu 24.04 archive has one backend with the interface, `xdg-desktop-portal-kde` 5.27.11, and its `BindShortcuts` registers nothing. Its claim was checked against the code on 2026-10-05.
+- **[R-800](tasks/800-the-preview-of-a-failed-turn-has-no-tint.md)** The preview of a failed turn has no tint (body-overlay). Reopens when: a History line in this file recording the maintainer's pick of tint A, B or C. Its claim was checked against the code on 2026-10-06.
 
 ### Waiting for a consumer (25)
 
@@ -296,7 +296,7 @@ never a reading of what the tree does now.
 - [R-701](tasks/701-keeping-a-chat-at-the-top-has-no-designed-name.md) Keeping a chat at the top of the list has no designed name. done 2026-09-22.
 - [R-784](tasks/784-a-fitting-box-reserves-the-wrong-rail-on-webkitgtk.md) A box that fits reserves the wrong rail on WebKitGTK. open, blocked on host hardware.
 - [R-794](tasks/794-a-paused-stream-keeps-its-last-letters-blurred.md) A paused stream keeps its last letters blurred. open, actionable.
-- [R-799](tasks/799-the-preview-of-a-failed-turn-fades.md) The preview of a failed turn fades like a finished one. open, actionable.
+- [R-800](tasks/800-the-preview-of-a-failed-turn-has-no-tint.md) The preview of a failed turn has no tint. open, waiting for its trigger.
 
 ### brain
 

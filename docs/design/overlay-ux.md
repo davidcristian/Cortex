@@ -169,8 +169,8 @@ countdown to HIDDEN. Dismissing the panel while a turn is running must not lose 
   corner: the answer clamped to a few lines, a hairline accent bar counting down the automatic
   dismiss of about 6s, and nothing else. Hovering pauses the timer itself and leaving restarts the
   full countdown, with the bar remounting in step. Clicking morphs to PANEL(done); ignoring it fades
-  to HIDDEN, still stored, and a failed turn previews as a red-tinted card that does not fade on its
-  own. **The card always uses Lucid**, because it is the one surface that arrives unbidden.
+  to HIDDEN, still stored, and a failed turn previews its error, with no bar, and does not fade on
+  its own. **The card always uses Lucid**, because it is the one surface that arrives unbidden.
 
 **The approval card** ([ADR-0022](../adr/ADR-0022-email-write-confirmer.md)). A tool call that sends
 something out or cannot be undone pauses its turn until the user approves it. The card renders in

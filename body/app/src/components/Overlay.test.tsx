@@ -139,6 +139,13 @@ describe("Overlay", () => {
     expect(container.querySelector(".preview .bar")).not.toBeNull();
   });
 
+  it("hands the preview a failed turn's error in place of its text, and leaves out its bar", () => {
+    const failed = { ...reply, content: "half an ans", error: "connection: gone" };
+    const { container } = renderOverlay(fakeController("preview", [failed]));
+    expect(container.querySelector(".pv-b")?.textContent).toBe("connection: gone");
+    expect(container.querySelector(".preview .bar")).toBeNull();
+  });
+
   it("Escape dismisses when visible, but not when hidden", () => {
     const visible = fakeController("panel");
     const { unmount } = renderOverlay(visible);

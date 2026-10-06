@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { DueReminder, SessionMessage, SessionSummary, TurnEvent } from "../bridge/types";
 import { NO_OTHER_CHATS } from "./notice";
 import type { Action, OverlayState } from "./overlayState";
-import { createInitialState, cycleTarget, draftOf, initialState, isTurnActive, latestReply, reduce } from "./overlayState";
+import { createInitialState, cycleTarget, draftOf, initialState, isTurnActive, latestError, latestReply, reduce } from "./overlayState";
 
 const summary = (sessionId: string): SessionSummary => ({
   sessionId,
@@ -774,6 +774,28 @@ describe("overlayState reducer", () => {
     expect(reduce(resolved, { kind: "previewFade" })).toBe(resolved);
     const done = reduce(resolved, { kind: "event", event: { kind: "complete", turnId: "t" } });
     expect(reduce(done, { kind: "previewFade" }).mode).toBe("hidden");
+  });
+
+  it("previewFade leaves a failed turn's preview up, and a dismiss still hides it", () => {
+    const minimized = run([{ kind: "open" }, submit("q"), { kind: "dismiss" }]);
+    const failures: Action[] = [
+      { kind: "event", event: { kind: "failed", code: "INTERNAL", message: "boom" } },
+      { kind: "transportError", error: { kind: "connection", message: "gone" } },
+    ];
+    for (const failure of failures) {
+      const failed = reduce(minimized, failure);
+      expect(failed.mode).toBe("preview");
+      expect(reduce(failed, { kind: "previewFade" })).toBe(failed);
+      expect(reduce(failed, { kind: "dismiss" }).mode).toBe("hidden");
+    }
+  });
+
+  it("latestError returns the last reply's error, and null when it did not fail", () => {
+    expect(latestError(initialState)).toBeNull();
+    const asked = run([submit("q")]);
+    expect(latestError(reduce(asked, complete))).toBeNull();
+    const failed = reduce(asked, { kind: "event", event: { kind: "failed", code: "INTERNAL", message: "boom" } });
+    expect(latestError(failed)).toBe("INTERNAL: boom");
   });
 
   it("latestReply returns the last assistant reply, or empty when there is none", () => {

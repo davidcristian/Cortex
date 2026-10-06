@@ -28,6 +28,7 @@ import {
   applyEvent,
   endTurn,
   isTurnActive,
+  previewStays,
   submit,
 } from "./turnState";
 
@@ -37,7 +38,13 @@ import {
 
 export { draftOf } from "./drafts";
 export { cycleTarget } from "./sessionState";
-export { CAPTURE_SCREEN_TOOL, isTurnActive, latestReply } from "./turnState";
+export {
+  CAPTURE_SCREEN_TOOL,
+  isTurnActive,
+  latestError,
+  latestReply,
+  previewStays,
+} from "./turnState";
 export type { CaptureClaim, Message, PendingConfirm } from "./turnState";
 
 /** Where the overlay is on screen. */
@@ -236,10 +243,7 @@ export function reduce(state: OverlayState, action: Action): OverlayState {
     case "confirmAnswered":
       return { ...state, pendingConfirm: null };
     case "previewFade":
-      // A pending approval waits to be seen, and a still-streaming turn is never faded from under.
-      return state.mode === "preview" && state.pendingConfirm === null && !isTurnActive(state)
-        ? { ...state, mode: "hidden" }
-        : state;
+      return state.mode === "preview" && !previewStays(state) ? { ...state, mode: "hidden" } : state;
     case "newChat":
       return newChat(state, action.sessionId, action.announce);
     case "sessionsLoaded":
