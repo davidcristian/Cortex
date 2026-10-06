@@ -125,8 +125,8 @@ export class TauriWindow implements OverlayWindow {
   }
 }
 
-/** The real `HostClipboard`: the shell's `clipboard_picture` command, which reads the X clipboard
- *  on Linux and answers null elsewhere. Excluded from coverage with the bridge above. */
+/** The real `HostClipboard`: the shell's `clipboard_picture` command, which reads the Wayland or X
+ *  clipboard on Linux and answers null elsewhere. Excluded from coverage with the bridge above. */
 export class TauriClipboard implements HostClipboard {
   picture(): Promise<Blob | null> {
     return invoke<WirePicture | null>("clipboard_picture").then(pictureBlob);
