@@ -70,6 +70,43 @@ Method: run 2 of `measurements/sitting-2026-10-02b/`, rows `772swap`, `772kill` 
 Phase times are the client's own clock, sidecar states its 1 s polls of `GET /models/{model}`, and
 decode rates the brain's `the deep model's decode rate for this handoff` log line.
 
+## The overlay's view of a handoff
+
+**2026-10-06**, 24 GB card, the shipped cortex and deep pick (deep context 16384), one `cortexov`
+stack built from the tree, and the Linux shell: a debug build rendering through WebKitGTK in
+software on an `Xvfb` display, its brain address and token the stack's. Every turn was typed and
+every card approved by `xdotool` clicks. Four handoffs: one completed, one completed while a kill
+waited for its answer, one killed about 6 s into its load and one killed at its first answer text.
+The card's `memory.used` peaked at 22304 of 24463 MiB during the deep phase, from 3202 MiB before
+the stack started. The SM clock read 0.51 to 0.68 of `clocks.max.sm`. No timing is published here.
+
+- **The card** showed `escalate_to_brain`, the cortex's `brief` argument as a row, and the tool's
+  reason as written. It stayed open until the click; the click closed it and the swap started.
+- **The status lines.** "waiting for a tool to finish", then "loading the deep model; this takes a
+  few minutes" for the whole load. The draining line arrives in the same millisecond as the loading
+  line when no delegated work runs (the client's log of 2026-10-02 shows both at one `+ms`), so no
+  frame showed it. "the deep model is working on this" showed for one 1 s frame, then the chip
+  showed the deep model's reasoning a delta at a time (ADR-0020 decision 9), then "bringing the
+  usual assistant back" until the turn ended. The chips dropped when the turn settled.
+- **The dot** stayed green in all 868 frames of the run, sampled once a second, and its tooltip
+  kept the pre-turn "Brain ready" line while `Health` read `ready=false`. Each streamed event marks
+  the link ready, and a dismiss during a turn minimizes to the orb rather than hiding, so the
+  summon probe does not run again until the turn ends. Each turn ended after the cortex was
+  `ready`, so the probe after it read green.
+- **The reply.** The deep model's text is appended to the cortex's hand-over sentence with no
+  break ("equals $n^2$.Visually", "zero.The number") in all four. While the stream paused for the
+  swap, the last nine letters the cortex sent stayed blurred, from the loading line until the deep
+  model's first text.
+- **The kills.** At load, the turn ended with the "could not be loaded" note, which calls the
+  cortex's hand-over sentence "the answer above". At the answer, the partial essay stayed in the
+  bubble above the "stopped partway through" note. Both settled with the send button back and the
+  dot green, and the ordinary turn typed next in each chat named the earlier request.
+
+Method: `measurements/overlay-handoff-2026-10-06/`, with the shell started by `shell.sh`, frames
+from `ffmpeg -f x11grab` at 1 frame/s, sidecar states 1 s polls of `GET /models/{model}`, and the
+kill at the answer fired by `grab.py` when the reply area changed. The shell's Linux run is in
+[the overlay runbook](../runbooks/body-overlay.md).
+
 ## What an eviction costs
 
 **2026-07-18**, 8 GB card, small stand-ins (`Qwen3.5-0.8B-Q8_0` as the cortex tier,

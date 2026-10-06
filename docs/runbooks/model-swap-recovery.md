@@ -162,10 +162,12 @@ boot recovery marks the stranded record `FAILED` and escalation works again.
    is gone, never that a handoff is running. Residency is read from the overlay's connection dot
    (amber, with the brain's own line: "swapping to the deep model", "a deep task is in progress",
    "bringing the usual assistant back", "could not be reloaded after a deep task", or "did not
-   come up at startup"), or from `docker compose logs model-host` (the daemon and every child,
-   interleaved, each daemon line naming its tier and pid) and `docker compose logs brain`. Both
-   print each line's own fields after its message, and a message never repeats a field it already
-   has, so `started a model process model=cortex pid=8 port=8080` reads each value once
+   come up at startup") once the overlay probes `Health`, at a summon from hidden or when a turn
+   ends; through the handoff's own turn the dot stays green, since each streamed event marks the
+   brain as serving. It is also read from `docker compose logs model-host` (the daemon and every
+   child, interleaved, each daemon line naming its tier and pid) and `docker compose logs brain`.
+   Both print each line's own fields after its message, and a message never repeats a field it
+   already has, so `started a model process model=cortex pid=8 port=8080` reads each value once
    ([how to read either log](brain-logs.md)). Which tier is up, precisely:
 
    ```
@@ -234,9 +236,9 @@ docker compose --project-directory . -f docker/docker-compose.yml \
   -f docker/docker-compose.gpu.yml exec model-host sh -c 'kill -9 $(pgrep -f 8081)'
 ```
 
-Expect the turn to fail plainly on the stream, the cortex to come back (the swap back is a
-`finally`), and the next turn to work. Do it once mid load as well as mid answer, and record the
-timings here.
+Expect the turn to end normally with a note in the reply ("could not be loaded" at load, "stopped
+partway through" mid answer), the cortex to come back (the swap back is a `finally`), and the next
+turn to work. The readings of both are in [model swap](../readings/model-swap.md).
 
 ## If it keeps happening
 

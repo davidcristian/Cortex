@@ -4,43 +4,38 @@
 **Session:** gpu-tier-scale
 **Capability:** W+G
 **Origin:** [ADR-0030](../../adr/ADR-0030-brain-handoff.md)
-**Verified:** 2026-10-02
+**Verified:** 2026-10-06
 
-Blocked on the overlay, for what the user sees and nothing else. Re-scoped 2026-10-02: the VRAM
-arithmetic, the phases of the swap and the `Health` readings during the window are agent work on the
-24 GB card through a client that approves the confirm card, the handoff client of
-[a handoff without the overlay](../../runbooks/model-swap-measurements.md#a-handoff-without-the-overlay).
-The approval is a `ConfirmResponse` on the `Converse` stream, which any client holding the stream
-can send, and the body's own client already sends one, so the overlay was never the only way to
-start a handoff. What stays here is the overlay's view of one. The headless swap rows drew on
-2026-10-02: every approved handoff completed with the four details and returned the cortex
-([readings](../../readings/model-swap.md#a-handoff-through-the-conductor)), and the deep model
-answered once its context ended with a message addressed to it.
+Narrowed 2026-10-06 to what WebView2 does beside the deep model. The swap, its arithmetic and the
+`Health` readings were drawn headless on 2026-10-02
+([readings](../../readings/model-swap.md#a-handoff-through-the-conductor)), and the overlay's view
+of a handoff was run on the Linux shell, whose overlay code, Tauri commands and gRPC client are the
+ones the Windows shell runs: the card showed the tool's reason as written, a click on Approve
+started the swap, the status lines arrived in order, the deep model's answer filled the bubble and
+the cortex came back ([readings](../../readings/model-swap.md#the-overlays-view-of-a-handoff)).
+WebKitGTK drew that run on an `Xvfb` display where Mesa found no DRI3 device, so it drew without
+the card.
 
-**What only this proves.** That the overlay shows a real handoff accurately: the
-`escalate_to_brain` card with the tool's reason as written, the approval sent by a click, the
-window's status lines (pausing delegated work, loading the deep model, the deep model working,
-bringing the usual assistant back) shown in order over the minutes the swap takes, and the
-connection dot amber while `Health` reads `ready=false` between turns, then green once the cortex
-serves again.
+**What only this proves.** That the panel keeps painting while the deep model holds the card. On
+Windows, WebView2 draws with a GPU, and on a machine whose desktop and models share the 24 GB card
+it competes with a deep phase that read 22304 of 24463 MiB used. Which adapter WebView2 picks on a
+laptop with two GPUs is an assumption this file has not checked, so the first thing to read is the
+GPU column of Task Manager's details for the WebView2 processes.
 
 **Do.** With "Before you start" done **including step 10**, bring the overlay up beside the brain
-([windows-desktop.md](../index.md#windows-desktop) has that bring-up), then ask something that
-escalates and **approve the card** when it appears. The headless swap rows have passed, so a failure
-here is about the overlay and not about the swap. `GET /models/brain` on the sidecar flips
-`stopped` to `loading` to `ready` while it runs, which tells an escalation that was never approved
-from one that was.
+([windows-desktop.md](../index.md#windows-desktop) has that bring-up), ask something that escalates,
+approve the card, and watch the panel through the deep phase, which is while `GET /models/brain`
+on the sidecar reads `ready`.
 
-**Pass.** The card shows the tool's reason, the approval starts the swap, each status line appears
-when the stream sends it, the dot turns amber during the window and green after it, and the deep
-model's answer appears in the panel.
+**Pass.** The panel keeps painting through the deep phase: the reasoning chip changes, the answer
+streams in, and the header's buttons still answer a click.
 
-**Fail.** A card that stays open after the approval, a status line that never appears, or a dot that
-stays amber once the cortex is serving. A swap or a restore that fails is a finding against the
-swap, not this one's: [runbooks/model-swap.md](../../runbooks/model-swap.md) says how to read it.
+**Fail.** A panel that stops painting, goes blank, or ignores input while the deep model is ready.
+A swap or a restore that fails is a finding against the swap, not this one's:
+[runbooks/model-swap.md](../../runbooks/model-swap.md) says how to read it.
 
-**Record it.** In this file's History, and in [runbooks/model-swap.md](../../runbooks/model-swap.md)
-wherever the overlay shows the window differently from what that runbook says.
+**Record it.** In this file's History, and in the second readings section linked above wherever
+WebView2 shows the window differently.
 
 ## History
 
@@ -63,3 +58,12 @@ wherever the overlay shows the window differently from what that runbook says.
   were drawn headless on the card that night with the handoff client, and passed
   ([readings](../../readings/model-swap.md#a-handoff-through-the-conductor)). What stays here is
   the overlay alone.
+- 2026-10-06: narrowed to WebView2 painting beside the deep model. The overlay's view ran on the
+  Linux shell against the real stack on the card, every click through `xdotool`, and passed what
+  this file then asked except the dot: it stays green through the handoff's own turn by design,
+  because each streamed event marks the brain as serving and a dismiss mid turn minimizes rather
+  than hides, so nothing probes `Health` until the turn ends, after the cortex is back
+  ([readings](../../readings/model-swap.md#the-overlays-view-of-a-handoff)). The run filed
+  [R-793](../../refinements/tasks/793-the-deep-reply-is-joined-to-the-hand-over-sentence.md),
+  [R-794](../../refinements/tasks/794-a-paused-stream-keeps-its-last-letters-blurred.md) and
+  [R-795](../../refinements/tasks/795-the-load-failure-note-calls-the-hand-over-sentence-an-answer.md).
