@@ -17,7 +17,8 @@ HANDOFF_AHEAD_DETAIL = "waiting for another request's handoff to the deep model 
 
 UNHOSTED_TIER_NOTE = (
     "\n\n(This machine has no deep model set up, so the handoff was not started and nothing was "
-    "unloaded. The answer above is what I have.)"
+    "unloaded. The deep model has not answered this request. No handoff can run until a deep "
+    "model is set up.)"
 )
 ALREADY_ACTIVE_NOTE = (
     "\n\n(A handoff to the deep model is already running, so this one was not started. "
@@ -25,7 +26,8 @@ ALREADY_ACTIVE_NOTE = (
 )
 STORE_FAILED_NOTE = (
     "\n\n(The handoff could not be recorded, so the deep model was not loaded and nothing was "
-    "unloaded. The answer above is what I have.)"
+    "unloaded. The deep model has not answered this request. Ask again to try the handoff once "
+    "more.)"
 )
 OPAQUE_TURN_NOTE = (
     "\n\n(This turn holds a picture, and a picture cannot be handed to the deep model, so "
@@ -33,21 +35,22 @@ OPAQUE_TURN_NOTE = (
     "want the deep model.)"
 )
 DRAIN_TIMEOUT_NOTE = (
-    "\n\n(Delegated work was still running when the handoff was due to start, so nothing was "
-    "unloaded and the deep model did not take over. The answer above is what I have.)"
+    "\n\n(Delegated work was still running when the handoff was due to start, so the deep model "
+    "was not loaded and nothing was unloaded. The deep model has not answered this request. Ask "
+    "again once the delegated work has finished.)"
 )
 SWAP_FAILED_NOTE = (
-    "\n\n(The deep model could not be loaded, so the handoff was cancelled. The usual assistant "
-    "is back and the answer above is what I have.)"
+    "\n\n(The deep model could not be loaded, so the handoff was cancelled and the usual "
+    "assistant is back. The deep model has not answered this request. Ask again to try the "
+    "handoff once more.)"
 )
 BRAIN_FAILED_NOTE = (
-    "\n\n(The deep model stopped partway through, so this answer is unfinished. The text above "
-    "is everything it produced.)"
+    "\n\n(The deep model stopped partway through and did not finish its answer to this request.)"
 )
 BRAIN_OVERFLOW_NOTE = (
     "\n\n(This conversation and what the turn has read so far are longer than the deep model's "
-    "context, so it stopped here. The text above is everything it produced. A new conversation "
-    "gives the deep model its whole context.)"
+    "context, so it stopped before it finished its answer. A new conversation gives the deep "
+    "model its whole context.)"
 )
 RESTORE_FAILED_NOTE = (
     "\n\n(The usual assistant could not be reloaded after the handoff, so the next message may "

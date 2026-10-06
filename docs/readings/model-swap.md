@@ -97,7 +97,7 @@ the stack started. The SM clock read 0.51 to 0.68 of `clocks.max.sm`. No timing 
   break ("equals $n^2$.Visually", "zero.The number") in all four. While the stream paused for the
   swap, the last nine letters the cortex sent stayed blurred, from the loading line until the deep
   model's first text.
-- **The kills.** At load, the turn ended with the "could not be loaded" note, which calls the
+- **The kills.** At load, the turn ended with the "could not be loaded" note, which called the
   cortex's hand-over sentence "the answer above". At the answer, the partial essay stayed in the
   bubble above the "stopped partway through" note. Both settled with the send button back and the
   dot green, and the ordinary turn typed next in each chat named the earlier request.

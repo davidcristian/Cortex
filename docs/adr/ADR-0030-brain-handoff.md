@@ -146,10 +146,10 @@ a second process that can swap needs a distributed-residency decision over all f
 The cortex's pre-handoff text is stored as its assistant message; the wrapper yields
 `StatusUpdate(state="swapping")` for the drain, the load, the deep work and the restore, each only when
 its work is next; the deep reply streams as the same turn's `TextDelta`s; `TurnComplete` is sent once.
-A refusal or failure streams a fixed note from `swap_notes.py` describing the GPU, never the fault, and
-is not stored except for the deep model's failure note beside its partial text. `Health` returns
-`ready=false` with a truthful detail while the cortex is not serving, and ready through the drain
-([ADR-0054](ADR-0054-baseline-residency.md) decision 1).
+A refusal or failure streams a fixed note from `swap_notes.py` describing the GPU, never the fault or
+the text above, and is not stored except for the deep model's failure note beside its partial text.
+`Health` returns `ready=false` with a truthful detail while the cortex is not serving, and ready
+through the drain ([ADR-0054](ADR-0054-baseline-residency.md) decision 1).
 
 ### 7. The failure test: kill points over fakes in CI, the real kill on the host
 

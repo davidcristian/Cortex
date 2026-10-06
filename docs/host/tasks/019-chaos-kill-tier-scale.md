@@ -28,6 +28,4 @@ WebView2 renderer adds, painting while the deep model holds the card, is
   rule held ([readings](../../readings/model-swap.md#a-handoff-through-the-conductor)). What stays
   here is the overlay alone.
 - 2026-10-06: done on the Linux shell, through `xdotool` clicks against the real stack on the card
-  ([readings](../../readings/model-swap.md#the-overlays-view-of-a-handoff)). The load-failure note
-  calls the cortex's hand-over sentence an answer, filed as
-  [R-795](../../refinements/tasks/795-the-load-failure-note-calls-the-hand-over-sentence-an-answer.md).
+  ([readings](../../readings/model-swap.md#the-overlays-view-of-a-handoff)).
