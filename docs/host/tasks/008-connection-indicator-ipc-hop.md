@@ -1,30 +1,24 @@
 # The connection indicator's real IPC hop
 
-**Status:** never attempted
+**Status:** done 2026-10-06
 **Session:** windows-desktop
 **Capability:** W
 **Origin:** [ADR-0011](../../adr/ADR-0011-body-v1.md)
 
-**What only this proves.** The `check_link` command across the real IPC hop. The classification
-itself is covered in `body_core::link` and checked against a real brain by the `body-rpc` live
-suite, so Windows adds the hop and nothing else.
+`check_link` crossed a real Tauri IPC hop on the Linux shell on 2026-10-06: green with the brain up,
+red on a summon with it stopped and re-checked every 5 s, green on its own once it was back, and
+amber with a wrong token
+([readings](../../readings/tauri-ipc-commands.md#the-commands-on-the-linux-shell)). Nothing in that
+path is Windows code: `link.rs` and `brain.rs` have no `cfg` item, and the overlay's bridge is one
+file for both shells. What WebView2 adds is the transport that every command shares with the
+`converse` stream, which [H-001](001-bring-up-and-streamed-turn.md)'s streamed turn covers.
 
-**Do.** [runbooks/body-overlay.md](../../runbooks/body-overlay.md) section B, validation step 5.
+## History
 
-**Pass.** Green on summon with the brain up. Stop the brain and summon: red within the retry
-budget, staying red and re-checking every 5 s while the panel is open. Start the brain: green on
-its own, without a re-summon, and the chat list fills in with it. Point at a live brain with the
-**wrong** `CORTEX_SEAM_TOKEN`: amber, because the brain answered `Unauthenticated` and so is
-reachable and rejecting the token.
-
-**Fail.** A dot that never leaves green is the failure ADR-0011 decision 8 was written to avoid: an
-always-green dot means nothing.
-
-**Record it.** Edit [ADR-0011](../../adr/ADR-0011-body-v1.md) in place where the run changes what it
-states; then delete this section.
-
-## Notes
-
-- The session doc numbers this check **6**, and ADRs cite it by that number.
-- It costs one brain stop and restart.
-- Until 2026-07-19 it was recorded in one place only, a runbook paragraph.
+- 2026-10-06: done on the Linux shell, the brain stopped and started with `docker compose`
+  ([readings](../../readings/tauri-ipc-commands.md#the-commands-on-the-linux-shell)). The runbook
+  said the chat list fills in when the dot turns green; nothing refreshes the list on recovery, as
+  ADR-0021 decision 8 states, and the runbook now says so. The dot stayed green through a brain
+  outage when the summon followed a hotkey hide, which
+  [R-797](../../refinements/tasks/797-the-hotkey-hides-the-window-without-telling-the-overlay.md)
+  records.

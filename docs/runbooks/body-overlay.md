@@ -1,10 +1,10 @@
 # Runbook: the overlay and the Tauri shell
 
-Two ways to run the body overlay: in a plain browser against a fake bridge, with no host and no
-Tauri, which is what CI and `just check-overlay` cover; and as the real Tauri app on Windows, with
-the global hotkey and the real brain, which only the host can run. Tauri is a GUI with a webview
-and a real OS event loop, so it is built and checked on the host, never in CI
-([ADR-0011](../adr/ADR-0011-body-v1.md)).
+Three ways to run the body overlay: in a plain browser against a fake bridge, with no host and no
+Tauri, which is what CI and `just check-overlay` cover; as the real Tauri app on Windows, with the
+global hotkey and the real brain, which only the host can run; and as the Linux shell on a headless
+display, which the agent drives against the real brain. Tauri is a GUI with a webview and a real OS
+event loop, so it is never run in CI ([ADR-0011](../adr/ADR-0011-body-v1.md)).
 
 ## In a browser, with no host and no Tauri
 
@@ -77,7 +77,8 @@ And check the loop end to end.
 5. **The connection indicator.** The header dot is green on summon while the brain is up. Stop the
    brain (`just down`) and summon again: it turns red within the retry budget and stays red,
    re-checking every 5 s while the panel is open. Start the brain again and the dot goes green on
-   its own, without a re-summon, and the chat list fills in with it. Point `CORTEX_BRAIN_ADDR` at
+   its own, without a re-summon. The chat list does not refresh with it: it reloads on a summon and
+   when a turn ends, so a list that was empty stays empty until then. Point `CORTEX_BRAIN_ADDR` at
    a live brain with the wrong `CORTEX_SEAM_TOKEN` to see amber instead of red: the brain answered
    `Unauthenticated`, so it is reachable and rejecting the token.
 
@@ -92,15 +93,75 @@ $env:CORTEX_SEAM_TOKEN = "<the same secret the brain serves with>"
 npm run tauri dev
 ```
 
+## The Tauri app on Linux, headless
+
+The Linux shell runs the overlay, the Tauri commands and the gRPC client that the Windows shell
+runs, so a real IPC hop can be driven on the development machine with no desktop and no sudo:
+WebKitGTK draws in software on an `Xvfb` display, `xdotool` types and clicks, and `ffmpeg` grabs
+frames. [The Tauri command readings](../readings/tauri-ipc-commands.md) and
+[the overlay's view of a handoff](../readings/model-swap.md#the-overlays-view-of-a-handoff) were
+taken this way.
+
+1. **The library prefix.** Build the userspace prefix of the
+   [shell clippy readings](../readings/shell-clippy.md): `apt-get download` of the closure of the
+   WebKitGTK, GTK, appindicator, librsvg and D-Bus development packages plus `xdotool`, each one
+   extracted with `dpkg-deb -x` into a directory outside the repo.
+2. **Build.** In `body/app/src-tauri`, run `cargo build --locked` with `PKG_CONFIG_PATH` naming the
+   prefix's two `pkgconfig` directories, and `RUSTFLAGS` set to `-L native=<links>` plus
+   `-C link-arg=-Wl,-rpath-link,<prefix>/usr/lib/x86_64-linux-gnu:/usr/lib/x86_64-linux-gnu`, where
+   `<links>` is a directory of absolute links to each `.so` in the prefix.
+3. **The stack and the page.** Start the brain stack with its own project name
+   (`docker compose -p <name> ...`) and `CORTEX_SEAM_TOKEN` set, then `npm run dev` in `body/app`:
+   a debug build loads the overlay from `devUrl`, `http://localhost:5173`.
+4. **The display.** `Xvfb :78 -screen 0 1600x1000x24`. The 640 by 720 window opens centred, at
+   (480, 140) on that screen.
+5. **The shell**, with `DISPLAY=:78`, `GDK_BACKEND=x11`, `WAYLAND_DISPLAY` unset,
+   `WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS=1`, `XDG_DATA_HOME` pointing at an empty directory and
+   the stack's `CORTEX_SEAM_TOKEN`, started as the next paragraph shows.
+6. **Drive it.** `xdotool key ctrl+alt+space` summons, and `mousemove X Y click 1`, `type` and
+   `key` do the rest; `xdotool` from the prefix needs the prefix's library directory on
+   `LD_LIBRARY_PATH`. `ffmpeg -f x11grab -video_size 1600x1000 -i :78 -frames:v 1 shot.png` grabs
+   a frame, and `-framerate 4 -t 30` in place of `-frames:v 1` a sequence. Until
+   [R-797](../refinements/tasks/797-the-hotkey-hides-the-window-without-telling-the-overlay.md) is
+   fixed, a press that hides the panel leaves the overlay in its panel state and the next summon
+   runs no probe, chat list refresh or reminder pull; for a summon that runs them, press Escape and
+   then the chord twice.
+7. **Stop it.** Stop the shell by its exact name, `pkill -x cortex-body`: `pkill -f` with the
+   binary's path also matches the shell that runs the command. Then stop `Xvfb`, the Vite server
+   and the stack (`docker compose -p <name> down -v`). A shell killed with its session bus can
+   leave `dbus-daemon` and `at-spi-bus-launcher` behind; stop those by pid.
+
+**The shell's start.** WebKitGTK starts its helper processes from the compiled-in
+`/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1`, so the shell runs in a user and mount namespace that
+overlays the prefix's library directory on the system one:
+
+```
+unshare --user --map-root-user --mount bash -c "mount -t overlay overlay \
+  -o lowerdir=<prefix>/usr/lib/x86_64-linux-gnu:/usr/lib/x86_64-linux-gnu \
+  /usr/lib/x86_64-linux-gnu && exec dbus-run-session -- target/debug/cortex-body"
+```
+
+`GDK_BACKEND=x11` is required: without it, with `WAYLAND_DISPLAY` unset and WSLg's `wayland-0`
+socket in `XDG_RUNTIME_DIR`, no window appeared on `Xvfb`, which fits GTK opening that socket while
+the shell grabbed the chord on X. A notification server such as `dunst` started inside the same
+`dbus-run-session` shows `Notify`, and `pactl` on `PATH` serves the volume.
+
+A press opens the panel even with no brain reachable, and its link dot shows red. Avoid a plain
+static server of `body/app/dist`: git ignores that directory, so it holds whatever build last ran
+there. WebKitGTK also keeps pages in a disk cache under
+`$XDG_DATA_HOME/dev.cortex.body/WebKitCache`, by default in `~/.local/share`, and serves a page
+whose server sent no `Cache-Control`, such as `python3 -m http.server`, from that cache without a
+request, even after Vite holds the port. If the window shows only the stage and the panel never
+opens, delete that directory or point `XDG_DATA_HOME` at an empty one.
+
 ## Notes
 
 **What is already proven, and what is still the user's to confirm.** The frontend (prompt to
-stream to render, the mode machine, theming) is browser-checked here and covered at 100%. Still
-the user's to confirm on Windows: the `os_windows` `global-hotkey` registration, the tray, window
-show and hide, the real `converse` command streaming a live brain turn to the webview, the
-`confirm_response` command taking an approval back into the open turn, and the `check_link`
-command behind the indicator, whose classification is covered in `body_core::link` and checked
-against a real brain by the `body-rpc` live suite, so what Windows adds is the IPC hop.
+stream to render, the mode machine, theming) is browser-checked here and covered at 100%. Steps 2
+to 5 ran on the Linux shell, through a real Tauri IPC hop
+([readings](../readings/tauri-ipc-commands.md)). Still the user's to confirm on Windows: the
+`os_windows` `global-hotkey` registration, the tray, window show and hide, and a turn streaming
+through WebView2, whose transport every command shares.
 
 **What a stalled turn looks like, and when the body gives up on one.** A turn has no time limit:
 the reply may take as long as the model and its tools take, and the thinking indicator stays up
@@ -161,29 +222,3 @@ description it shows the user is "Show or hide the Cortex overlay". The bind run
 thread and fails if the portal has not answered within a minute. Of the Ubuntu 24.04 archive's portal backends only
 `xdg-desktop-portal-kde` implements the interface, and on Plasma 5.27 it binds nothing, which is
 why KDE goes through `kglobalaccel`; where no backend does, the registration fails and is logged.
-
-**To run the shell on Linux without sudo**, link a debug build against the userspace prefix in the
-[shell clippy readings](../readings/shell-clippy.md). WebKitGTK starts its helper processes from
-the compiled-in `/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1`, so the run happens in a user and mount
-namespace that overlays the prefix's library directory on the system one:
-
-```
-unshare --user --map-root-user --mount bash -c "mount -t overlay overlay \
-  -o lowerdir=<prefix>/usr/lib/x86_64-linux-gnu:/usr/lib/x86_64-linux-gnu \
-  /usr/lib/x86_64-linux-gnu && exec dbus-run-session -- target/debug/cortex-body"
-```
-
-The run that worked set `WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS=1`, `DISPLAY` to an `Xvfb`
-display and `GDK_BACKEND=x11`. Without the last, with `WAYLAND_DISPLAY` unset and WSLg's
-`wayland-0` socket in `XDG_RUNTIME_DIR`, no window appeared on `Xvfb`, which fits GTK opening that
-socket while the shell grabbed the chord on X. A notification server such as `dunst` started inside
-the same `dbus-run-session` shows `Notify`, and `pactl` on `PATH` serves the volume.
-
-A debug build loads the overlay from `devUrl`, `http://localhost:5173`, so run `npm run dev` in
-`body/app` first. A press then opens the panel even with no brain reachable, and its link dot shows
-red. Avoid a plain static server of `body/app/dist`: git ignores that directory, so it holds
-whatever build last ran there. WebKitGTK also keeps pages in a disk cache under
-`$XDG_DATA_HOME/dev.cortex.body/WebKitCache`, by default in `~/.local/share`, and serves a page
-whose server sent no `Cache-Control`, such as `python3 -m http.server`, from that cache without a
-request, even after Vite holds the port. If the window shows only the stage and the panel never
-opens, delete that directory or point `XDG_DATA_HOME` at an empty one.

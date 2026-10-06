@@ -133,8 +133,8 @@ demo bridge scripts a confirm round, so the card can be driven without a brain.
 CI covers the rule, the overlay registry and the subagent removal, `RpcConfirmer`, the send path
 over a scripted smtplib, and the confirm round trip in Rust and in the reducer. The agent runs the
 live SMTP round trip against the Bridge (`integration`-marked, with a cc, an HTML part and an
-attachment, read back over IMAP) and drives the card in a browser. The card through the real Tauri
-IPC hop is host-only: [host task 004](../host/tasks/004-confirm-card-over-ipc.md).
+attachment, read back over IMAP) and drives the card in a browser. The Linux shell runs it over a
+real Tauri IPC hop ([readings](../readings/tauri-ipc-commands.md)), and [H-001](../host/tasks/001-bring-up-and-streamed-turn.md) checks WebView2's transport.
 
 ### 7. `ConfirmResolved` closes a card the brain stopped waiting on
 

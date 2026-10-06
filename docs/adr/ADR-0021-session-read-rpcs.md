@@ -227,8 +227,8 @@ rendering of the same message in that chat's row; the header box is also the wid
 - Paging is not built. A reply encoding past the body client's 4 MiB decoding cap is the trigger,
   and a window on `GetSessionMessagesRequest` is the smaller first move
   ([184](../refinements/tasks/184-paging-cursor.md)).
-- The Tauri `list_sessions` and `session_messages` commands are host-validated glue
-  ([H-005](../host/tasks/005-session-read-commands.md)); the CI half is fakes on both sides.
+- The Tauri `list_sessions` and `session_messages` commands ran through a real IPC hop on the
+  Linux shell ([readings](../readings/tauri-ipc-commands.md)); the CI half is fakes on both sides.
 
 ## Alternatives rejected
 

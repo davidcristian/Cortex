@@ -205,10 +205,10 @@ recorded in an ADR. This ADR is that exclusion, and the checks that grew around 
   validated on the host. The exclusion is safe only while the shell stays thin, so branching logic
   moves into the covered crates.
 - **Host-only**, each with its check in [docs/host/](../host/index.md): hotkey registration, the
-  tray, window show and hide, and a real `converse` streaming to the webview
-  ([H-001](../host/tasks/001-bring-up-and-streamed-turn.md)); `confirm_response` into an open turn
-  and the session reads ([ADR-0021](ADR-0021-session-read-rpcs.md), ADR-0022); `check_link`'s IPC
-  hop ([H-008](../host/tasks/008-connection-indicator-ipc-hop.md)); the OS window polish, which is
+  tray, window show and hide, and a real `converse` streaming through WebView2, the transport the
+  other commands share (their glue ran on the Linux shell and holds no Windows code)
+  ([H-001](../host/tasks/001-bring-up-and-streamed-turn.md),
+  [readings](../readings/tauri-ipc-commands.md)); the OS window polish, which is
   authoring rather than validation: a transparent window with click-through margins, the morph to a
   real screen corner, hide on blur and a tighter CSP
   ([H-014](../host/tasks/014-os-window-polish.md)); and the toolchain-linked build of the shell and

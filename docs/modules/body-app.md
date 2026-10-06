@@ -4,7 +4,7 @@
 hotkey, talking to the brain over the `Converse` stream, wrapped in a thin Tauri shell. It is its
 own project outside the `body` Cargo workspace (`body/Cargo.toml` excludes it), so `just check`
 never builds Tauri. The frontend is covered to 100% by Vitest; the Tauri Rust shell is validated by
-hand on Windows, like the brain's real adapters.
+hand, on Windows and on a headless Linux display ([runbook](../runbooks/body-overlay.md)).
 
 The two halves meet at one typed port, `BrainBridge`. Components depend on that port and on a
 `cortex:activate` DOM event, never on Tauri, so the whole overlay runs and tests in a plain browser.
@@ -130,8 +130,8 @@ the dot never claims more than the brain proved: `unknown` is a real state with 
 ## The Tauri shell
 
 `src-tauri/` is a tray plus a hidden always-on-top window. The global hotkey (`os_windows`, or
-`os_linux` on X11 or Wayland) toggles the window and emits the `cortex:activate` Tauri event, which
-`main.tsx` re-dispatches as the DOM event the overlay listens on; in a browser it self-summons.
+`os_linux` on X11 or Wayland) toggles the window, emitting the `cortex:activate` event only on show,
+which `main.tsx` re-dispatches as the DOM event the overlay listens on; a browser self-summons.
 
 - **`converse(session_id, text, images, channel)`** (`converse.rs`) decodes each `WireImage`'s
   base64 bytes (a bad one ends the turn as `attachment_refused`), drives one `BrainRpcClient` turn,
