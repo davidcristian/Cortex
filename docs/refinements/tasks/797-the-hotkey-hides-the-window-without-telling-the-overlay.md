@@ -29,8 +29,12 @@ The Linux shell run of 2026-10-06 saw three effects
 dismiss (an event the webview turns into the `dismiss` action) and the overlay hides the window
 when its mode reaches `hidden`, or the shell emits a hide event and the reducer treats it as a
 dismiss. Either way the orb keeps the window shown during a turn. The reducer half is covered code
-in `overlay/`; the shell half is one call in `lib.rs`. Check it on the Linux shell with the
-runbook's Linux section: a press mid turn shows the orb, and a press after it summons with a probe.
+in `overlay/`; the shell half is in `lib.rs`. Every hide and show must still pass through
+`record_overlay`, which feeds the Wayland capture guard (`os_linux::OverlayWatch`): it refuses a
+capture while the overlay is shown or settling, so a show it never heard of lets a picture include
+the overlay, and a hide it never heard of refuses every capture after it. Check the fix on the
+Linux shell with the runbook's Linux section: a press mid turn shows the orb, and a press after it
+summons with a probe.
 
 ## History
 
