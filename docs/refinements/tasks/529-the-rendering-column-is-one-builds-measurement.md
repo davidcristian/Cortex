@@ -110,6 +110,28 @@ the cached `b10680` `:server-cuda` image at the same argv: about 10 minutes on t
   and a task is filed for a question the E4B's control deliberates on every time.
 - **Any other result** is a null, and the row stays owed.
 
+**Drawn 2026-10-07**, both rows exit 0 and the reader exiting 0 on both samples. The plain control
+deliberated on 16 of 20 on `b11429` and on 17 of 20 on `b10680`, so neither the first rule nor the
+second applies: under the third this is a null, and the E4B row stays owed on `b11429`. Its
+constrained cells read control 20 of 20 on both images, switch 19 of 20 on `b11429` and 18 of 20 on
+`b10680`, and its plain switch 0 of 20 on both. The two `b10680` runs that fired on five of five
+were draws at a rate below one, so the build did not lower it: this question does not make the E4B
+deliberate on every draw on either build, and
+[R-806](806-the-switch-probes-question-does-not-make-the-e4b-deliberate-on-every-draw.md) is filed
+for one that does. Nothing shipped changes, and the task stays actionable.
+
+**The next row, written before its draw.** When R-806 has chosen a question, the row draws the E4B
+with it at `-ngl 99` and 20 draws a cell on `cortex-model-host`, on the build that image then reads,
+with `measurements/sitting-2026-10-07b/drivers/529x20.sh`: `just switch-lineup` fixes five draws a
+cell and serves the E4B at `-ngl 0`. If the question replaces the probe's one question for every
+pick, the eleven other rows are drawn with it in the same run.
+
+- **Both controls deliberate on all 20 and the reader agrees.** The E4B row is read on that build.
+  On `b11429` all twelve rows are then read, and this task waits for the next build.
+- **The reader exits 1.** The readings record that row beside its `b11312` row, it stays owed, and
+  it is drawn again on the cached `b10680` `:server-cuda` image at the same argv.
+- **Any other result** is a null, and the row stays owed.
+
 ## History
 
 - 2026-09-02: opened by the close of
@@ -180,3 +202,7 @@ the cached `b10680` `:server-cuda` image at the same argv: about 10 minutes on t
   the E4B is a null at both placements, its plain control deliberating on 4 and 3 of 5, so its row
   stays owed, with the next row written above. The recipe half is done: `just switch-lineup`
   (`scripts/switchlineup.py`) holds the loop, run live on one pick on `b11429`.
+- 2026-10-07: the E4B drawn at 20 draws a cell on `b11429` and on the cached `b10680` image, its
+  plain control deliberating on 16 and 17 of 20: a null under the third rule, so its row stays
+  owed. [R-806](806-the-switch-probes-question-does-not-make-the-e4b-deliberate-on-every-draw.md)
+  is filed for a question the E4B's control deliberates on every time, with the next row above.

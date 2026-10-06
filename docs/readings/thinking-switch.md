@@ -80,6 +80,21 @@ Method: `529sw.sh` and `launch.sh` in `measurements/sitting-2026-10-07/drivers/`
 `529sw.log` and `529cpu.log`, the samples under `529/` and `529cpu/`. `just switch-lineup` now
 holds the same loop.
 
+**2026-10-07, 20 draws a cell.** The E4B alone at `-ngl 99` with the same argv, on `b11429` and on
+the cached `b10680` `:server-cuda` image, the reader agreeing on both samples. The plain control
+deliberated on 16 of 20 on `b11429` and on 17 of 20 on `b10680`, so the probe failed on both and
+the plain cell is unread on either build. Both builds render the same prompt byte for byte. The
+constrained control deliberated on 20 of 20 on both, the constrained switch on 19 of 20 and 18 of
+20, and the plain switch on 0 of 20 on both. A quiet control draw answered at once, its first reply
+token after about 0.1 s or less. So this question does not make the E4B deliberate on every draw on
+either build, the earlier `b10680` runs that fired on five of five were draws at a rate below one,
+and the E4B row stays owed on `b11429`. The probe ran 212 s on `b11429` and 154 s on `b10680`, 0.72
+of it, with the SM clock sampled every 15 s at 0.58 to 0.72 and 0.58 to 0.77 of the card's maximum
+and the enforced power limit at 0.80 of its maximum through most of the first run and 0.87 to 0.91
+through the second, so that difference is not read as the build's. Method: `529x20.sh` and
+`launch.sh` in `measurements/sitting-2026-10-07b/drivers/`, the logs `529e4b20.log` and
+`529old20.log`, the samples under `529e4b20/` and `529old20/`.
+
 **2026-09-04, re-read 2026-09-15.** A walk over every GGUF header on the model mount: 68 files, 34
 with a chat template, every one writing one of the two marker pairs `switchtail.py` lists. Six
 Qwen3.6 repackages also read `<thinking>`, `</thinking>`, `<|think_on|>` and `<|think_off|>`, and
