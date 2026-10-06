@@ -8,11 +8,7 @@
 Real macOS backends behind the five OS ports in `body_core`: `Hotkey`, `AudioControl`, `Notify`,
 `ScreenCapture` and `ClipboardPicture`. The Linux half is done. `os_linux` has a real backend
 behind each port and no stub, and the shell serves or registers every one of them on X11 and on
-Wayland ([body-os.md](../../modules/body-os.md)). On Wayland the clipboard reader reads the X
-clipboard through `XWayland`, which can miss a picture a Wayland client copied while the shell runs
-as a Wayland client, and the Wayland reader is
-[805](805-read-a-pasted-picture-from-the-wayland-clipboard.md). What is left is macOS, in three
-parts:
+Wayland ([body-os.md](../../modules/body-os.md)). What is left is macOS, in three parts:
 
 - **`MacosHotkey`, `MacosAudioControl`, `MacosNotify` and `MacosClipboardPicture`**, which are
   `unimplemented!()` stubs in `os_macos`. The shell's `clipboard_picture` command answers with
@@ -99,8 +95,7 @@ needing a Win32 desktop session or a 24 GB GPU: a macOS backend needs neither, o
 - 2026-10-06: Corrected after the paste path moved. `body_core` has a fifth OS port,
   `ClipboardPicture`, with `LinuxClipboardPicture` behind it in `os_linux` and a
   `MacosClipboardPicture` stub in `os_macos`, and the entry named four ports and three stubs. The
-  Linux reader reaches a Wayland client's copy only through `XWayland`, and
-  [805](805-read-a-pasted-picture-from-the-wayland-clipboard.md) adds a Wayland reader.
+  Linux reader reads the Wayland clipboard in a Wayland-client shell and the X selection otherwise.
 - 2026-10-06: Measured whether a macOS backend can be checked here, which the entry left open. With
   the `aarch64-apple-darwin` target added, clippy passes on `os_macos` and on a scratch crate per
   likely dependency except `screencapturekit`, whose build scripts need `swift`; linking needs the

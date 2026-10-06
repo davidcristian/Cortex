@@ -1,11 +1,11 @@
 # Readings: a pasted picture on a Wayland session
 
 What the shell's paste gets on a Wayland desktop that runs `XWayland`: when the compositor copies a
-picture on the Wayland clipboard to the X `CLIPBOARD` selection that `clipboard_picture` reads,
-what `Ctrl+V` into the composer shows, and what a WebKitGTK page gets from a paste as a Wayland
-client. Cited by
-[805](../refinements/tasks/805-read-a-pasted-picture-from-the-wayland-clipboard.md), the task for a
-Wayland clipboard reader.
+picture on the Wayland clipboard to the X `CLIPBOARD` selection, what a WebKitGTK page gets from a
+paste as a Wayland client, and what `Ctrl+V` into the composer shows when the shell reads the X
+selection or the Wayland clipboard. Cited by
+[ADR-0070](../adr/ADR-0070-user-attached-images.md) decision 5, which reads the Wayland clipboard
+in a Wayland-client shell, and by [body-os-linux](../modules/body-os-linux.md).
 
 ## Method
 
@@ -57,13 +57,15 @@ through XTEST on KWin. No reading here is a timing.
 - **The input failed there, not the clipboard.** A plain GTK 3 entry as a Wayland client on the
   same sway read the Wayland clipboard on a timer, `image/png` after the PNG copy and the text
   after a text copy, yet `wtype` with `-M ctrl` and `v` or `-k v`, or with `-P Control_L` added,
-  never emitted its `paste-clipboard` signal. The KWin run below reached the page.
+  never emitted its `paste-clipboard` signal. The KWin run below reached the page, and a virtual
+  keyboard with a full keymap reached the shell on sway ([the thumbnail](#the-thumbnail)).
 - **KWin 5.27 has no virtual keyboard** for `wtype` ("Compositor does not support the virtual
   keyboard protocol"), and XTEST reaches X clients only, so no key reached the Wayland-client
   shell there. The run below pressed keys through `org_kde_kwin_fake_input` instead, as
   [globalshortcuts-portal](globalshortcuts-portal.md) did.
 - **Frames.** `grim` read sway's output. KWin's rootless `Xwayland` root window reads black, so
-  `ffmpeg -f x11grab -window_id <id>` read the shell's X window by its id.
+  `ffmpeg -f x11grab -window_id <id>` read the shell's X window by its id. KWin's screenshot
+  interface reads a Wayland window too ([the thumbnail](#the-thumbnail)).
 
 Method: `measurements/wayland-clipboard-2026-10-06/`, with the compositor and shell scripts, the
 sway configuration, the GTK entry probe, the compositor and shell logs and frames in `shots/`.
@@ -81,10 +83,10 @@ through `org.kde.kwin.Scripting` listed the windows with their active state and 
 
 Each client ran as a Wayland client (`GDK_BACKEND=wayland`) on the libraries of the shell's
 prefix, WebKitGTK 2.52.6. The probe page was a `textarea` whose `paste` handler posted the event's
-`files`, `types`, `items` and text to a script message handler. The shell was the debug build of
-the tree this record was committed with, summoned through its X grab with `xdotool` on
-`XWayland`. `xdotool search --name Cortex` on `XWayland` found no window, and KWin listed the
-shell's window as the active one.
+`files`, `types`, `items` and text to a script message handler. The shell was a debug build whose
+paste read the X selection only, summoned through its X grab with `xdotool` on `XWayland`.
+`xdotool search --name Cortex` on `XWayland` found no window, and KWin listed the shell's window
+as the active one.
 
 | Client | Clipboard before `Ctrl+V` | What the press gave |
 | --- | --- | --- |
@@ -104,8 +106,6 @@ shell's window as the active one.
   therefore attaches nothing from a picture a Wayland client copied.
 - **KWin 5.27.11 lists `zwlr_data_control_manager_v1` version 2** to an ordinary client, and no
   `ext_data_control_manager_v1`.
-- **No frame was taken**: KWin's rootless `Xwayland` root reads black and this run had no capture
-  of a Wayland window, so the composer's thumbnail in the `xclip` row was not seen.
 
 Method: `measurements/wayland-clipboard-2026-10-06/wayland-client/`, with the compositor, client,
 key and window-list scripts and each client's log.
@@ -125,10 +125,41 @@ image/png` served 300,000 bytes, and `WAYLAND_DEBUG=1` logged the read's request
 - **`wl-copy` answers every type with its data**, as `xclip` does: a read that asked for
   `text/plain` still received the picture, so the live test checks the listed types instead.
 
-**The shell on KWin.** The debug shell built from the commit that wired this read ran on the KWin
-stack as a Wayland client with `WAYLAND_DISPLAY` unset and `WAYLAND_DEBUG=1`, summoned through its
-X grab. The 14,145-byte PNG of `LIGHTHOUSE` went on the clipboard with `wl-copy --type image/png`,
-and `Ctrl+V` went through `org_kde_kwin_fake_input` as above. At the press the shell connected to
-`wayland-0`, bound `zwlr_data_control_manager_v1` at version 1, was offered `image/png` and sent
-`receive` for it, and logged no error. No frame was taken, so the thumbnail was not seen, and no
-shell ran on sway.
+## The thumbnail
+
+**2026-10-07**, on both stacks above. The debug shell of
+[the headless recipe](../runbooks/body-overlay.md#the-tauri-app-on-linux-headless), whose paste
+reads the Wayland clipboard as above, ran as a Wayland client (`GDK_BACKEND=wayland`) with
+`WAYLAND_DISPLAY` unset, the compositor's socket reachable as `wayland-0` and `WAYLAND_DEBUG=1`,
+and was summoned through its X grab with `xdotool` on `XWayland`. The 14,145-byte PNG of
+`LIGHTHOUSE` went on the clipboard with `wl-copy --type image/png`, and `xclip -o -t TARGETS` on
+`XWayland` found no `TARGETS` before the press on both stacks, and none after it on KWin.
+
+| Stack | `Ctrl+V` sent through | Read at the press | Frame |
+| --- | --- | --- | --- |
+| KWin | `org_kde_kwin_fake_input`, evdev 29 and 47 | `image/png` offered, `receive` sent | thumbnail |
+| sway | a virtual keyboard with a full US keymap, evdev 29 and 47 | `image/png` offered, `receive` sent | thumbnail |
+| sway | the same, with no wait before the keys | `image/png` offered, `receive` sent | a second thumbnail |
+| sway | `wtype -M ctrl v -m ctrl` | none | no new thumbnail |
+
+- **Each read bound `zwlr_data_control_manager_v1` at version 1** on `wayland-0` and logged no
+  error. Each thumbnail showed the centre of the picture, `GHTHOU` of its yellow lettering above
+  its green bar.
+- **KWin's screenshot interface reads the Wayland window.** With
+  `KWIN_SCREENSHOT_NO_PERMISSION_CHECKS=1` set for `kwin_wayland`, a Python client using `Gio`
+  inside KWin's namespaces called `org.kde.KWin.ScreenShot2.CaptureWorkspace` with a pipe, and got
+  the 1600 by 1000 workspace as raw premultiplied ARGB32 (Qt image format 6), the shell's window
+  included. KWin composited with OpenGL on `llvmpipe`. `grim` read sway's output.
+- **The virtual keyboard reached the shell where `wtype` did not.** Headless sway has no keyboard
+  until a client creates a virtual one: the shell asked for its `wl_keyboard` only then, and the
+  `enter` listed any key already held. A Python client of about 100 lines that writes the Wayland
+  wire format created a `zwp_virtual_keyboard_v1` and sent the keymap `xkbcomp` built from the
+  `evdev` keycodes, the `complete` types and the `pc+us+inet(evdev)` symbols, then key 29, a
+  `modifiers` request with Control, key 47 and the releases. It pasted with a 2 s wait before the
+  keys and with none, so the wait does not explain `wtype`'s result. `wtype` sent a keymap of its
+  own, 22,573 bytes against the full one's 48,386, and put `v` on evdev code 1, which is Escape in
+  the full keymap.
+
+Method: `measurements/wayland-clipboard-2026-10-07/`, with the compositor, shell, key and capture
+scripts, the keymap source, both shells' logs, the events with their times and the frames in
+`shots/`.

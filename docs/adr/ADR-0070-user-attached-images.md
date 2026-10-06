@@ -111,7 +111,8 @@ event lists neither a file nor `text/plain`, which on WebKitGTK is every paste, 
 `clipboard_picture` command, which reads the clipboard as the first of PNG, JPEG and WebP its
 owner offers and refuses one over `MAX_PASTED_BYTES` (32 MiB). It reads the Wayland clipboard
 through a data control protocol when GDK runs the shell as a Wayland client, else the X
-`CLIPBOARD` selection: a compositor copies a Wayland client's picture to X only around an X window. A drop is taken by
+`CLIPBOARD` selection: a compositor copies a Wayland client's picture to X only around an X
+window ([wayland-clipboard](../readings/wayland-clipboard.md)). A drop is taken by
 Tauri's native handler, which `tauri.linux.conf.json` turns on for the Linux window only. The shell
 keeps the absolute paths of the last native drop, and the `dropped_pictures` command reads each
 one once, skipping any that is not a regular file of at most `MAX_PASTED_BYTES` or whose leading

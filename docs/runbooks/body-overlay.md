@@ -155,10 +155,12 @@ opens, delete that directory or point `XDG_DATA_HOME` at an empty one.
 so both read through the shell. Own the clipboard with
 `xclip -selection clipboard -t image/png -i <file>` on the display, focus the field and press
 `Ctrl+V`: the thumbnail shows, and a file over 32 MiB shows "The clipboard's picture could not be
-read." instead. For a drop, run a GTK drag source offering the file under `text/uri-list` and
-drag it with `xdotool mousedown 1`, steps of `mousemove` and `mouseup 1` onto the composer: the
-thumbnail shows. A link dragged the same way, or a file dropped beside the composer, changes
-nothing.
+read." instead. A shell that GDK runs as a Wayland client reads the Wayland clipboard: put the
+picture there with `wl-copy --type image/png` and press `Ctrl+V` through the compositor, as
+[wayland-clipboard](../readings/wayland-clipboard.md#the-thumbnail) does on headless KWin and
+sway. For a drop, run a GTK drag source offering the file under `text/uri-list` and drag it with
+`xdotool mousedown 1`, steps of `mousemove` and `mouseup 1` onto the composer: the thumbnail shows.
+A link dragged the same way, or a file dropped beside the composer, changes nothing.
 
 ## Notes
 
