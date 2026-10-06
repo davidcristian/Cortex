@@ -109,3 +109,19 @@ shell's window as the active one.
 
 Method: `measurements/wayland-clipboard-2026-10-06/wayland-client/`, with the compositor, client,
 key and window-list scripts and each client's log.
+
+## The Wayland read
+
+**2026-10-06**, on both stacks above with no X client: `cargo test -p os-linux --test wayland_live
+-- --ignored` with `WAYLAND_DISPLAY` naming the compositor's socket. `wl-copy --foreground --type
+image/png` served 300,000 bytes, and `WAYLAND_DEBUG=1` logged the read's requests.
+
+| Stack | Manager bound | Read |
+| --- | --- | --- |
+| sway | `zwlr_data_control_manager_v1`, listed at version 2, bound at 1 | `image/png` listed, all bytes |
+| KWin | `zwlr_data_control_manager_v1`, listed at version 2, bound at 1 | `image/png` listed, all bytes |
+
+- **Neither lists `ext_data_control_manager_v1`**, so both reads used the `wlr` protocol.
+- **`wl-copy` answers every type with its data**, as `xclip` does: a read that asked for
+  `text/plain` still received the picture, so the live test checks the listed types instead.
+- **No shell ran.** The thumbnail from a Wayland-client shell is not yet recorded on either stack.

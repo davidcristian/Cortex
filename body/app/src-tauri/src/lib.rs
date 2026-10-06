@@ -31,6 +31,7 @@ pub fn run() {
         .setup(|app| {
             #[cfg(target_os = "linux")]
             app.manage(std::sync::Arc::new(os_linux::OverlayWatch::default()));
+            app.manage(clipboard::Display::of(app.handle()));
             tray::build(app.handle())?;
             hotkey::register(app.handle());
             // The overlay must hide itself from screen capture before any capture can happen:

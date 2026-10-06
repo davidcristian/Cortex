@@ -138,7 +138,12 @@ decision 13).
   of `SELECTION_LIMIT` with no new bytes is `Silent`, and so is a failed wait or read on the pipe.
   Each read binds new objects, which go with the connection, so the caller connects once per
   paste. Tested against a fake compositor (`wayland-server` over a socket pair) serving either
-  protocol. The shell does not use it yet: it reads through `X11Selection` only.
+  protocol.
+- **The shell's paste** reads through `WaylandSelection` when the overlay window's GTK display is a
+  `GdkWaylandDisplay`, recorded at setup since GTK is read on the main thread, else through
+  `X11Selection` on `DISPLAY`. It connects where GDK does: `WAYLAND_DISPLAY`, else `wayland-0`,
+  under `XDG_RUNTIME_DIR` unless the name is absolute, once per paste. A shell forced onto
+  `XWayland` with `GDK_BACKEND=x11` reads X.
 - **The shell** grabs through `X11Keys` unless `WAYLAND_DISPLAY` is set and not empty. Then, on a
   thread and bus connection of its own, since a portal bind can wait `SHORTCUTS_LIMIT` on the user,
   it keeps a `LinuxKdeHotkey` for the run whenever `kglobalaccel_running`, before any portal call,
@@ -158,5 +163,8 @@ decision 13).
   `--test screencast_live` needs a `ScreenCast` portal with a window source and `gst-launch-1.0`
   on `PATH`. Its first focus capture must be `NoTarget` with `NO_WINDOW`, the hide it then reports
   opens the chooser, and once a person picks a window, a later capture must be that window read
-  alone, with no display size. All three are outside `just os-linux-live`, which needs an X server
-  ([wayland-screencast-portal](../readings/wayland-screencast-portal.md) has the headless KWin run).
+  alone, with no display size. `--test wayland_live` puts a picture on the clipboard with
+  `wl-copy --type image/png` and reads it back whole through `WaylandSelection`. All four are
+  outside `just os-linux-live`, which needs an X server
+  ([wayland-screencast-portal](../readings/wayland-screencast-portal.md) has the headless KWin run,
+  [wayland-clipboard](../readings/wayland-clipboard.md) the clipboard one).

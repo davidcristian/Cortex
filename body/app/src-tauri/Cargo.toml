@@ -44,3 +44,6 @@ os-windows = { path = "../../crates/os_windows" }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 os-linux = { path = "../../crates/os_linux" }
+# Reads whether the overlay's GTK display is Wayland or X, to pick the clipboard reader. Tauri
+# already depends on it.
+gtk = "0.18"

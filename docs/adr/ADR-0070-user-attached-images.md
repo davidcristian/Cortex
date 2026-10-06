@@ -108,8 +108,10 @@ in the shell would add a parser for arbitrary files there and send the full-size
 IPC. WebKitGTK gives the page no `File` for a pasted or dropped picture, so on Linux the shell
 reads the bytes and the overlay hands them to the same canvas reader as a `Blob`. A paste whose
 event lists neither a file nor `text/plain`, which on WebKitGTK is every paste, asks the
-`clipboard_picture` command, which reads the X `CLIPBOARD` selection as the first of PNG, JPEG
-and WebP its owner offers and refuses one over `MAX_PASTED_BYTES` (32 MiB). A drop is taken by
+`clipboard_picture` command, which reads the clipboard as the first of PNG, JPEG and WebP its
+owner offers and refuses one over `MAX_PASTED_BYTES` (32 MiB). It reads the Wayland clipboard
+through a data control protocol when GDK runs the shell as a Wayland client, else the X
+`CLIPBOARD` selection: a compositor copies a Wayland client's picture to X only around an X window. A drop is taken by
 Tauri's native handler, which `tauri.linux.conf.json` turns on for the Linux window only. The shell
 keeps the absolute paths of the last native drop, and the `dropped_pictures` command reads each
 one once, skipping any that is not a regular file of at most `MAX_PASTED_BYTES` or whose leading

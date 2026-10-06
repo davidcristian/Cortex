@@ -632,6 +632,7 @@ dependencies = [
  "body-core",
  "body-rpc",
  "futures-util",
+ "gtk",
  "os-linux",
  "os-windows",
  "serde",
