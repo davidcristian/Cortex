@@ -9,8 +9,10 @@ Real macOS backends behind the five OS ports in `body_core`: `Hotkey`, `AudioCon
 `ScreenCapture` and `ClipboardPicture`. The Linux half is done. `os_linux` has a real backend
 behind each port and no stub, and the shell serves or registers every one of them on X11 and on
 Wayland ([body-os.md](../../modules/body-os.md)). On Wayland the clipboard reader reads the X
-clipboard through `XWayland`, and whether that finds a picture a Wayland client copied is
-[805](805-check-a-pasted-picture-on-a-wayland-session.md). What is left is macOS, in three parts:
+clipboard through `XWayland`, which can miss a picture a Wayland client copied while the shell runs
+as a Wayland client, and the Wayland reader is
+[805](805-read-a-pasted-picture-from-the-wayland-clipboard.md). What is left is macOS, in three
+parts:
 
 - **`MacosHotkey`, `MacosAudioControl`, `MacosNotify` and `MacosClipboardPicture`**, which are
   `unimplemented!()` stubs in `os_macos`. The shell's `clipboard_picture` command answers with
@@ -85,5 +87,5 @@ needing a Win32 desktop session or a 24 GB GPU: a macOS backend needs neither, o
 - 2026-10-06: Corrected after the paste path moved. `body_core` has a fifth OS port,
   `ClipboardPicture`, with `LinuxClipboardPicture` behind it in `os_linux` and a
   `MacosClipboardPicture` stub in `os_macos`, and the entry named four ports and three stubs. The
-  Linux reader reaches a Wayland client's copy only through `XWayland`, which
-  [805](805-check-a-pasted-picture-on-a-wayland-session.md) checks.
+  Linux reader reaches a Wayland client's copy only through `XWayland`, and
+  [805](805-read-a-pasted-picture-from-the-wayland-clipboard.md) adds a Wayland reader.

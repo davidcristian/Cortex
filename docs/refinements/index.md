@@ -69,7 +69,7 @@ never a reading of what the tree does now.
 
 ### Actionable now (1)
 
-- **[R-805](tasks/805-check-a-pasted-picture-on-a-wayland-session.md)** Check a pasted picture on a Wayland session (body-overlay). Its claim was checked against the code on 2026-10-06.
+- **[R-805](tasks/805-read-a-pasted-picture-from-the-wayland-clipboard.md)** Read a pasted picture from the Wayland clipboard (body-overlay). Its claim was checked against the code on 2026-10-06.
 
 ### Actionable, once a port changes (1)
 
@@ -300,7 +300,7 @@ never a reading of what the tree does now.
 - [R-794](tasks/794-a-paused-stream-keeps-its-last-letters-blurred.md) A paused stream keeps its last letters blurred. open, waiting for its trigger.
 - [R-800](tasks/800-the-preview-of-a-failed-turn-has-no-tint.md) The preview of a failed turn has no tint. open, waiting for its trigger.
 - [R-803](tasks/803-a-summon-over-a-chat-with-messages-shows-no-due-reminder.md) A summon over a chat with messages shows no due reminder. open, waiting for its trigger.
-- [R-805](tasks/805-check-a-pasted-picture-on-a-wayland-session.md) Check a pasted picture on a Wayland session. open, actionable.
+- [R-805](tasks/805-read-a-pasted-picture-from-the-wayland-clipboard.md) Read a pasted picture from the Wayland clipboard. open, actionable.
 
 ### brain
 
