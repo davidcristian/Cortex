@@ -19,8 +19,51 @@ SCHEDULING_RUNBOOK = "docs/runbooks/scheduling.md"
 TOOLS_RUNBOOK = "docs/runbooks/tools-mcp.md"
 SUBAGENTS_RUNBOOK = "docs/runbooks/subagents-cpu.md"
 TOOLS_CORE_DOC = "docs/modules/brain-core-tools.md"
+MEMORY_COMPOSE = "docker/docker-compose.memory.yml"
+EMBED_INPUT = "brain/packages/core/src/cortex_core/embed_input.py"
+EMBEDDING_DOC = "docs/modules/brain-embedding.md"
+CORE_MEMORY_DOC = "docs/modules/brain-core-memory.md"
+EMBEDDING_READINGS = "docs/readings/embedding-input.md"
 
 SHIPPED_COUPLINGS: tuple[Constant, ...] = (
+    Constant(
+        label="the embedder's context",
+        why=(
+            "the core cuts what it embeds to fit the context the memory stack starts the embedder "
+            "with, so a batch changed in compose alone would leave the core cutting to a bound the "
+            "server no longer has, and a smaller one would refuse every long exchange's memory "
+            "write again (ADR-0008 decision 4)"
+        ),
+        sites=(Site(EMBED_INPUT, "EMBEDDER_CONTEXT_TOKENS"),),
+        mentions=(
+            Mention(MEMORY_COMPOSE, '- "--batch-size"\n      - "{value}"'),
+            Mention(MEMORY_COMPOSE, '- "--ubatch-size"\n      - "{value}"'),
+            Mention(MEMORY_COMPOSE, "{value} is the model's context"),
+            Mention(EMBEDDING_DOC, "`--batch-size {value} --ubatch-size {value}`"),
+            Mention(CORE_MEMORY_DOC, "`EMBEDDER_CONTEXT_TOKENS` is {value}"),
+            Mention(EMBEDDING_READINGS, "`--batch-size {value} --ubatch-size {value}`"),
+        ),
+    ),
+    Constant(
+        label="the embedding input bound",
+        why=(
+            "the decision, the module contract and the readings each state how many characters "
+            "the core embeds, and the readings measure the margin that number leaves, so a bound "
+            "retuned in the core alone would leave three documents describing a margin the code "
+            "no longer keeps (ADR-0008 decision 4)"
+        ),
+        sites=(Site(EMBED_INPUT, "EMBED_INPUT_CHARS"),),
+        mentions=(
+            Mention(
+                "docs/adr/ADR-0008-memory-v1.md",
+                "`EMBED_INPUT_CHARS` characters of their text, which is {value}",
+            ),
+            Mention(CORE_MEMORY_DOC, "text, which is {value}, or all of a shorter one"),
+            Mention(CORE_MEMORY_DOC, "so {value} characters always fit"),
+            Mention(EMBEDDING_READINGS, "{value} characters is at most {value} tokens"),
+            Mention(EMBEDDING_READINGS, "built at the bound\nof {value} characters"),
+        ),
+    ),
     Constant(
         label="the salience limit's shipped default",
         why=(

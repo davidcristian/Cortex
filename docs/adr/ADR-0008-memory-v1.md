@@ -44,7 +44,14 @@ and put embedding on the CPU so the GPU budget stays with the cortex
    turn_id)` embeds the query, searches the turn's read scopes for the policy's candidate pool, and
    returns the policy's selection (decision 10); `record(text, *, session_id, tainted)` embeds and
    adds a `MemoryRecord` in the turn's write scope. The engine recalls into a system-role context
-   message at turn start and records the exchange at turn end.
+   message at turn start and records the exchange at turn end. Both embed only the first
+   `EMBED_INPUT_CHARS` characters of their text, which is 1800, and `record` stores the whole text.
+   The shipped embedder refuses an input over its context, and its tokenizer measured at most one
+   token per character over prose, code and non-Latin text
+   ([embedding-input.md](../readings/embedding-input.md)), so the core applies the bound without
+   the model and keeps about a tenth of the context spare. A long exchange is found by its start,
+   the question and the opening of the reply, and returned whole. Storing one record per piece was
+   rejected: a recall would return a part of a reply without the question it answers.
 
 5. **The embedder adapter is llama.cpp's CPU `/v1/embeddings`**
    ([ADR-0005](ADR-0005-llamacpp-engine.md)), an httpx translator mirroring the inference adapter:

@@ -6,12 +6,15 @@ import httpx
 import pytest
 from embedder_contract import ALL_CHECKS, Check, EmbedderUnderTest
 
-from cortex_core import EmbedderError, HashEmbedder
+from cortex_core import EMBEDDER_CONTEXT_TOKENS, EmbedderError, HashEmbedder
 from cortex_embedding import LlamaCppEmbedder
 
 _ENDPOINT = "http://llama-embed:8081"
 
 _SERVER_DIM = 8
+
+# The stand-in counts a character as a token, and the server's start and end tokens take two more.
+_SERVER_INPUT_CHARS = EMBEDDER_CONTEXT_TOKENS - 2
 
 type Build = Callable[[], tuple[EmbedderUnderTest, httpx.AsyncClient | None]]
 
@@ -43,6 +46,8 @@ def _llamacpp() -> tuple[EmbedderUnderTest, httpx.AsyncClient | None]:
             msg = "connection refused"
             raise httpx.ConnectError(msg)
         body: dict[str, str] = json.loads(request.content)
+        if len(body["input"]) > _SERVER_INPUT_CHARS:
+            return httpx.Response(500, json={"error": {"message": "input is too large to process"}})
         return httpx.Response(200, json={"data": [{"embedding": _server_vector(body["input"])}]})
 
     client = httpx.AsyncClient(transport=httpx.MockTransport(handler))

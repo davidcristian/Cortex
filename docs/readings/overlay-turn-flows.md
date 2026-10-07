@@ -89,6 +89,9 @@ clicks were stamped on the host's, which differed from it by 0.12 to 0.27 s just
 - **With `--batch-size 2048 --ubatch-size 2048`**, a 1562-token input embedded, an essay
   exchange of 1098 tokens was recorded, and a 2602-token input still failed with the same error at
   2048.
+- **With the core's bound on what it embeds**, the first 1800 characters, an exchange of 3,390
+  embedder tokens was stored whole and recalled in a new chat
+  ([embedding-input.md](embedding-input.md#a-long-exchange-recorded-and-recalled)).
 
 ## The keyboard
 

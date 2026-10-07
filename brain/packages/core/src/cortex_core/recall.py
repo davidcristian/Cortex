@@ -3,6 +3,7 @@
 from collections.abc import Callable, Sequence
 from uuid import uuid4
 
+from cortex_core.embed_input import embedding_input
 from cortex_core.memory import MemoryRecord, ScoredMemory
 from cortex_core.ports import Clock, Embedder, MemoryStore, RecallAuditSink
 from cortex_core.ranking import RecallAudit, dropped_candidates
@@ -38,8 +39,8 @@ class MemoryRecaller:
         self._id_factory = id_factory
 
     async def record(self, text: str, *, session_id: str, tainted: bool = False) -> MemoryRecord:
-        """Embed ``text``, persist it in the turn's write-scope, and return the record."""
-        embedding = tuple(await self._embedder.embed(text))
+        """Embed the start of ``text``, persist all of it in the turn's write-scope, return it."""
+        embedding = tuple(await self._embedder.embed(embedding_input(text)))
         record = MemoryRecord(
             id=self._id_factory(),
             text=text,
@@ -55,7 +56,7 @@ class MemoryRecaller:
         self, query: str, *, k: int, session_id: str, turn_id: str
     ) -> Sequence[ScoredMemory]:
         """Return the ``k`` most relevant memories to ``query`` within the turn's read-scopes."""
-        embedding = await self._embedder.embed(query)
+        embedding = await self._embedder.embed(embedding_input(query))
         scopes = self._scope.read_scopes(session_id)
         pool = await self._store.search(embedding, k=self._policy.candidate_k(k), scopes=scopes)
         available = await self._count_candidates(scopes)

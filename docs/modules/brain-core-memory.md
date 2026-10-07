@@ -11,7 +11,12 @@ pool down to the hits one turn sees. The turn that calls it is in
 
 - `Embedder` provides `async embed(text) -> Sequence[float]`: one stateless call, text to vector,
   whose dimension is fixed by the deployment's model and assumed nowhere here. Fake:
-  `HashEmbedder`, deterministic and I/O free, never returning an all-zero vector.
+  `HashEmbedder(dimension=16, *, max_chars=EMBED_INPUT_CHARS)`, deterministic and I/O free, never
+  returning an all-zero vector, and raising `EmbedderError` on a text over `max_chars`.
+- `embedding_input(text)` (`embed_input.py`) returns the first `EMBED_INPUT_CHARS` characters of a
+  text, which is 1800, or all of a shorter one. `EMBEDDER_CONTEXT_TOKENS` is 2048, the input bound
+  of the shipped embedder; the model's tokenizer measured at most one token per character
+  ([embedding-input.md](../readings/embedding-input.md)), so 1800 characters always fit.
 - `MemoryStore` provides `add(record)`, `search(embedding, *, k, scopes=None)` (most similar
   first), `count_candidates(*, scopes=None)` and `delete_scope(scope) -> int`. `scopes` restricts
   the candidate set to those namespaces (ADR-0008 decision 9) and `None` ranks over every memory.
@@ -24,8 +29,8 @@ pool down to the hits one turn sees. The turn that calls it is in
   cosine similarity**, never the key a policy ranked by, so no caller can infer an order from it.
 - `MemoryRecaller(store, embedder, clock, *, scope=GLOBAL_MEMORY_SCOPE, policy=RAW_RECALL_POLICY,
   id_factory=<uuid4>)` is the use case (ADR-0008). `record(text, *, session_id, tainted=False)`
-  embeds, persists and returns a `MemoryRecord`. `recall(query, *, k, session_id, turn_id)` embeds
-  the query, fetches `policy.candidate_k(k)` hits within `policy.read_scopes(session_id)` and
+  embeds `embedding_input(text)`, persists the whole text and returns a `MemoryRecord`.
+  `recall(query, *, k, session_id, turn_id)` embeds `embedding_input(query)`, fetches `policy.candidate_k(k)` hits within `policy.read_scopes(session_id)` and
   awaits `policy.select(...)`, returning that ranking's memories cut to `k`; an empty ranking is no
   hits and is never refilled from the pool. An optional `audit: RecallAuditSink` gets one
   `RecallAudit` per recall, built inside an `is not None` check so an unaudited recall issues no
@@ -74,6 +79,8 @@ pool down to the hits one turn sees. The turn that calls it is in
 
 **Invariants.**
 
+- No text longer than `EMBED_INPUT_CHARS` reaches the `Embedder`, so an exchange of any length is
+  recorded and a query of any length recalls; what is stored is always the whole text.
 - A tainted turn is dropped from memory by default, or recorded with `tainted=True` and fenced on
   recall, so recall stays trustworthy either way.
 - A retrieval hit reports the store's raw similarity and never the key a policy ranked by, so no

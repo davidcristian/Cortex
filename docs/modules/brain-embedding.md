@@ -20,11 +20,12 @@ depends only on `Embedder`. Unlike the inference adapter it is **not** routed th
 
 **The server's input bound.** `llama-server` refuses an embedding input longer than its
 micro-batch with a 500, so `docker/docker-compose.memory.yml` starts it with
-`--batch-size 2048 --ubatch-size 2048`, the context of `nomic-embed-text-v1.5`. Under the default
-of 512 every exchange longer than 512 tokens failed its memory write
-([readings](../readings/overlay-turn-flows.md#memory-across-chats)). A longer input still fails,
-and [R-812](../refinements/tasks/812-an-exchange-over-the-embedder-context-is-never-recorded.md)
-bounds it in the core.
+`--batch-size 2048 --ubatch-size 2048`, the context of `nomic-embed-text-v1.5`, whose two framing
+tokens leave 2046 for the text. The adapter sends whatever it is given; the core's `MemoryRecaller`
+embeds at most the first `EMBED_INPUT_CHARS` characters of a text
+([brain-core-memory.md](brain-core-memory.md)), and a longer input reaching the adapter fails as
+`EmbedderError`. The ratio that bound rests on is in
+[embedding-input.md](../readings/embedding-input.md).
 
 **Error contract.** Every failure crosses the `Embedder` port as `EmbedderError` with the cause
 chained:
@@ -34,13 +35,17 @@ chained:
   non-JSON body) is caught as `KeyError`/`IndexError`/`TypeError`/`ValueError` and re-raised
   (fail-loud, never a silent empty vector).
 
-**Shared contract.** `tests/embedder_contract.py` holds the four checks every `Embedder`
+**Shared contract.** `tests/embedder_contract.py` holds the six checks every `Embedder`
 implementation must pass and `tests/test_embedder_contract.py` drives them over both: the core's
 `HashEmbedder` and this adapter over a `MockTransport` whose stand-in server answers the digest
 bytes of the text it was given, as JSON integers. The checks are that an embedding is a non-empty
 sequence of real floats, that every text embeds at one width, that one text always embeds to one
-vector with an embedding in between changing nothing, and that a backend which cannot answer raises
-`EmbedderError`. Two differences the list deliberately leaves alone: the fake answers a `tuple` and
+vector with an embedding in between changing nothing, that a backend which cannot answer raises
+`EmbedderError`, that a text of `EMBED_INPUT_CHARS` characters embeds, and that a text of
+`EMBEDDER_CONTEXT_TOKENS` characters raises `EmbedderError`. Those two use a character the model
+counts as one token, the densest text measured, and the stand-in server refuses past 2046
+characters as the real one refuses past 2046 tokens; `tests/test_embedder_live.py` runs the same
+two against a real server. Two differences the list deliberately leaves alone: the fake answers a `tuple` and
 the adapter a `list`, both being `Sequence[float]`, and the widths differ (16 against whatever the
 deployment's model emits), which is why the check compares an implementation's widths with each
 other rather than with a number.

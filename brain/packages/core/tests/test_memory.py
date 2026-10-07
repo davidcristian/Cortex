@@ -5,8 +5,10 @@ from datetime import UTC, datetime
 import pytest
 
 from cortex_core import (
+    EMBED_INPUT_CHARS,
     GLOBAL_MEMORY_SCOPE,
     GLOBAL_SCOPE,
+    EmbedderError,
     GlobalMemoryScope,
     HashEmbedder,
     InMemoryMemoryStore,
@@ -58,6 +60,13 @@ async def test_hash_embedder_is_deterministic() -> None:
 async def test_hash_embedder_separates_distinct_text() -> None:
     embedder = HashEmbedder()
     assert await embedder.embed("alpha") != await embedder.embed("beta")
+
+
+async def test_hash_embedder_refuses_an_input_over_its_bound() -> None:
+    embedder = HashEmbedder(max_chars=4)
+    assert len(await embedder.embed("abcd")) > 0
+    with pytest.raises(EmbedderError, match="5 characters"):
+        await embedder.embed("abcde")
 
 
 async def test_hash_embedder_honors_the_requested_dimension() -> None:
@@ -244,6 +253,28 @@ async def test_recall_embeds_the_query_and_returns_the_closest_memory() -> None:
     hits = await recaller.recall("alpha", k=2, session_id="s", turn_id="t")
     assert len(hits) == 2
     assert hits[0].record.text == "alpha"
+    assert hits[0].score == pytest.approx(1.0)
+
+
+async def test_a_long_text_is_recorded_whole_under_the_embedding_of_its_start() -> None:
+    embedder = HashEmbedder()
+    recaller = MemoryRecaller(InMemoryMemoryStore(), embedder, _FixedClock())
+    start = "東" * EMBED_INPUT_CHARS
+    stored = await recaller.record(f"{start} and the rest of the reply", session_id="s")
+    assert stored.text == f"{start} and the rest of the reply"
+    assert stored.embedding == tuple(await embedder.embed(start))
+
+
+async def test_a_long_query_recalls_by_its_start() -> None:
+    ids = iter(["long", "short"])
+    recaller = MemoryRecaller(
+        InMemoryMemoryStore(), HashEmbedder(), _FixedClock(), id_factory=lambda: next(ids)
+    )
+    start = "東" * EMBED_INPUT_CHARS
+    await recaller.record(start, session_id="s")
+    await recaller.record("beta", session_id="s")
+    hits = await recaller.recall(f"{start} and a question", k=2, session_id="s", turn_id="t")
+    assert hits[0].record.id == "long"
     assert hits[0].score == pytest.approx(1.0)
 
 

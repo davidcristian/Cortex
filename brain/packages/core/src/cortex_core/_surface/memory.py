@@ -1,5 +1,6 @@
 """Public core names for remembering and recalling, and the ranking that selects what returns."""
 
+from cortex_core.embed_input import EMBED_INPUT_CHARS, EMBEDDER_CONTEXT_TOKENS, embedding_input
 from cortex_core.memory import GLOBAL_SCOPE, MemoryRecord, ScoredMemory
 from cortex_core.memory_cascade import SessionMemoryCascade
 from cortex_core.ranking import (
@@ -29,6 +30,8 @@ from cortex_core.scope import (
 
 __all__ = [
     "DROPPED_TRAIL_LIMIT",
+    "EMBEDDER_CONTEXT_TOKENS",
+    "EMBED_INPUT_CHARS",
     "GLOBAL_MEMORY_SCOPE",
     "GLOBAL_SCOPE",
     "RAW_RECALL_POLICY",
@@ -52,4 +55,5 @@ __all__ = [
     "SessionMemoryCascade",
     "SessionMemoryScope",
     "dropped_candidates",
+    "embedding_input",
 ]

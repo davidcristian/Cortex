@@ -69,7 +69,7 @@ never a reading of what the tree does now.
 
 ### Actionable now (1)
 
-- **[R-812](tasks/812-an-exchange-over-the-embedder-context-is-never-recorded.md)** An exchange over the embedder's context is never recorded to memory (memory). Its claim was checked against the code on 2026-10-07.
+- **[R-817](tasks/817-a-recalled-memory-is-rendered-whole-into-the-prompt.md)** A recalled memory is rendered whole into the prompt (memory). Its claim was checked against the code on 2026-10-07.
 
 ### Actionable, once a port changes (1)
 
@@ -538,7 +538,7 @@ never a reading of what the tree does now.
 - [R-721](tasks/721-the-embedders-engine-build-is-recorded-nowhere.md) The embedder's engine build is recorded nowhere. done 2026-10-04.
 - [R-729](tasks/729-the-two-trail-files-each-hold-their-own-append.md) The two trail files each hold their own append. open, waiting for its trigger.
 - [R-740](tasks/740-the-recall-judge-and-the-recap-are-unmeasured-on-the-qwen-deep-candidates.md) The recall judge and the recap are unmeasured on the Qwen deep candidates. done 2026-09-28.
-- [R-812](tasks/812-an-exchange-over-the-embedder-context-is-never-recorded.md) An exchange over the embedder's context is never recorded to memory. open, actionable.
+- [R-817](tasks/817-a-recalled-memory-is-rendered-whole-into-the-prompt.md) A recalled memory is rendered whole into the prompt. open, actionable.
 
 ### orchestrator
 

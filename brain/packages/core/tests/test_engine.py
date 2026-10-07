@@ -8,6 +8,7 @@ import pytest
 from cortex_core import (
     DEFAULT_CORTEX_MODEL,
     DENIED_MSG,
+    EMBED_INPUT_CHARS,
     ESCALATE_TOOL_NAME,
     FORGOING_DETAIL,
     FORGOING_STATE,
@@ -368,6 +369,24 @@ async def test_empty_memory_adds_no_context_and_records_the_exchange() -> None:
     assert [m.text for m in messages] == [PLAIN_SECURITY_PREAMBLE, "hello"]
     (recorded,) = await recaller.recall("hello", k=1, session_id="s", turn_id="t")
     assert recorded.record.text == "User: hello\nAssistant: ok"
+
+
+async def test_an_exchange_longer_than_the_embedder_takes_is_recorded_whole_and_recalled() -> None:
+    recaller = MemoryRecaller(InMemoryMemoryStore(), HashEmbedder(), SystemClock())
+    question = "東" * EMBED_INPUT_CHARS
+    reply = "a long answer " * EMBED_INPUT_CHARS
+    backend = RecordingBackend((reply,))
+    engine = TurnEngine(
+        InMemorySessionStore(),
+        backend,
+        TickingClock(),
+        capabilities=TurnCapabilities(memory=recaller),
+    )
+    await _collect(engine.handle_turn("first", question, turn_id="t-1"))
+    await _collect(engine.handle_turn("second", f"{question} again", turn_id="t-2"))
+    _, messages = backend.calls[1]
+    assert messages[1].role is Role.SYSTEM
+    assert f"- User: {question}\nAssistant: {reply}" in messages[1].text
 
 
 async def test_a_recall_policy_that_declines_leaves_the_turn_without_a_memory_block() -> None:

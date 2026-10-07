@@ -3,10 +3,13 @@
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
 
-from cortex_core import Embedder, EmbedderError
+from cortex_core import EMBED_INPUT_CHARS, EMBEDDER_CONTEXT_TOKENS, Embedder, EmbedderError
 
 _TEXT = "the sky is blue"
 _OTHER = "a fact worth remembering"
+
+# One token per character in the deployed model's tokenizer, the most any text measured.
+_DENSEST = "東"
 
 
 @dataclass(frozen=True, slots=True)
@@ -57,9 +60,32 @@ async def a_backend_that_cannot_answer_raises_embedder_error(
     raise AssertionError(msg)
 
 
+async def a_text_at_the_input_bound_embeds(under_test: EmbedderUnderTest) -> None:
+    """The core sends at most `EMBED_INPUT_CHARS` characters, and every embedder takes them."""
+    assert len(await under_test.embedder.embed(_DENSEST * EMBED_INPUT_CHARS)) > 0
+
+
+async def a_text_longer_than_the_context_raises_embedder_error(
+    under_test: EmbedderUnderTest,
+) -> None:
+    """A text the model cannot hold raises `EmbedderError`, the one error the core catches."""
+    try:
+        await under_test.embedder.embed(_DENSEST * EMBEDDER_CONTEXT_TOKENS)
+    except EmbedderError:
+        return
+    msg = "a text longer than the context embedded anyway"
+    raise AssertionError(msg)
+
+
+BOUND_CHECKS: Sequence[Check] = (
+    a_text_at_the_input_bound_embeds,
+    a_text_longer_than_the_context_raises_embedder_error,
+)
+
 ALL_CHECKS: Sequence[Check] = (
     text_embeds_to_a_vector_of_real_numbers,
     every_text_embeds_at_one_width,
     the_same_text_embeds_the_same_way,
     a_backend_that_cannot_answer_raises_embedder_error,
+    *BOUND_CHECKS,
 )

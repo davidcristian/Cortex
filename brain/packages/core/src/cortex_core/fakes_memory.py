@@ -4,6 +4,7 @@ import hashlib
 import math
 from collections.abc import Sequence
 
+from cortex_core.embed_input import EMBED_INPUT_CHARS
 from cortex_core.errors import EmbedderError, MemoryStoreError
 from cortex_core.memory import MemoryRecord, ScoredMemory
 from cortex_core.ranking import RecallAudit
@@ -16,14 +17,20 @@ _FAKE_EMBED_DIM = 16
 class HashEmbedder:
     """Deterministic, I/O-free Embedder for CI and the memory use-case tests."""
 
-    def __init__(self, dimension: int = _FAKE_EMBED_DIM) -> None:
+    def __init__(
+        self, dimension: int = _FAKE_EMBED_DIM, *, max_chars: int = EMBED_INPUT_CHARS
+    ) -> None:
         self._dimension = dimension
+        self._max_chars = max_chars
         self._failure: EmbedderError | None = None
 
     async def embed(self, text: str) -> Sequence[float]:
         """Return the deterministic pseudo-embedding of ``text``, or the scripted failure."""
         if self._failure is not None:
             raise self._failure
+        if len(text) > self._max_chars:
+            msg = f"an input of {len(text)} characters is over this embedder's {self._max_chars}"
+            raise EmbedderError(msg)
         digest = hashlib.sha256(text.encode("utf-8")).digest()
         return tuple(float(digest[i % len(digest)]) - 127.5 for i in range(self._dimension))
 
