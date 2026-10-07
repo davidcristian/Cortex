@@ -60,6 +60,17 @@ are given as fractions of one turn's own generation.
   exchange of 1098 tokens was recorded, and a 2602-token input still failed with the same error at
   2048.
 
+## The keyboard
+
+- **The conversation.** With a reply taller than the window, `Page_Up` in the field changed
+  nothing. Seven presses of `Tab` from the field went to the send button, the hint strip's console
+  and Chords buttons and the header's buttons, and never to the conversation, so it could not be
+  scrolled without a pointer.
+- **The composer at its cap.** Eleven lines entered with `Shift+Enter` grew the field to its
+  ceiling, after which it scrolled its own window with the cut line faded, and `Page_Up` moved the
+  caret within the draft.
+
 Method: `measurements/linux-shell-flows-2026-10-07/`, with the scripts that ran the shell and the
 stack, frames in `shots/` (`B-*` and `C-*` the stops, `D-*` to `F-*` the outage, `G-*` the
-recall, `H-*` and `I-*` the fixed build), the brain's and the model host's logs.
+recall, `H-*` and `I-*` the fixed build, `K-*` and `L-*` the keyboard), the brain's and the model
+host's logs.
