@@ -72,7 +72,7 @@ the window's dreaming edge, drawn by `components/PanelEdge.tsx` as a clipped sla
 (ADR-0036). `whisper/` is the whispered streaming (`front.ts` the front engine and tokenizer,
 `metrics.ts` what a bubble measures, `useWhisperClock.ts` the frame clock, drawn by
 `components/WhisperBubble.tsx`, ADR-0037). `overlay/usePreferences.ts` hydrates theme, mark and
-edge from the brain once and writes each change back (ADR-0032).
+edge from the brain, again at each summon until a read succeeds, and writes changes back (ADR-0032).
 
 **The panel's geometry** is `overlay/usePanelMotion.ts` deciding when to place the panel, over the
 modules that decide what: `panelGeometry.ts` (the arithmetic, including a duration paced by the

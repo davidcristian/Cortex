@@ -91,10 +91,9 @@ helped a user who could no longer reach the chooser that changes it.
   of segmented rails. What did change is the state behind them, from `settingsOpen` beside
   `sheetOpen` to one `consoleTab`, and with it the backdrop click this decision mentions, which no
   longer exists to click.
-- A brain that is unreachable at startup means the overlay opens with default appearance and then
-  does not correct itself until the next launch: the record is read once per mount, not
-  subscribed to. At personal scale, with the body starting alongside the brain, that is a fair
-  trade against polling; if it becomes a problem, the fix is to read again on the same rising edge
-  of visibility the reminder fetch already uses.
+- The body can start before the brain, as a tray app does at login, so a read that fails leaves
+  the default appearance and is tried again on each summon, the rising edge of visibility the
+  reminder fetch uses, until one succeeds. After that the record is not read again: it is not
+  subscribed to, and this window is its only writer.
 - The record is readable by any future part of the product, which was the point of choosing the
   brain over `localStorage`, and is also the reason keys are namespaced from day one.

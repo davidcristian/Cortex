@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { BrainBridge } from "../bridge/types";
+import { useSummonEffect } from "./useSummonEffect";
 
 // The user's appearance choices, read from the brain's settings record once and written back on
 // every change. The record is the brain's, so a choice outlives this window.
@@ -31,21 +32,27 @@ export interface AppearanceController {
 
 const NOTHING_CHOSEN: Appearance = { theme: null, mark: null, window: null };
 
-/** Read the appearance from the brain once, and save every later change. The write is optimistic:
- *  the choice applies to this render and the call is not awaited, so a slow brain cannot make
- *  picking a theme feel stuck. The `chosen` latch keeps a choice made before the record arrives. */
-export function usePreferences(bridge: BrainBridge): AppearanceController {
+/** Read the appearance from the brain, and save every later change. A read that fails is tried
+ *  again at each summon until one succeeds, since the body can start before the brain. The write
+ *  is optimistic and not awaited; the `chosen` latch keeps a choice made before the record arrives. */
+export function usePreferences(bridge: BrainBridge, visible: boolean): AppearanceController {
   const [appearance, setAppearance] = useState<Appearance>(NOTHING_CHOSEN);
   const chosen = useRef({ theme: false, mark: false, window: false });
+  const loaded = useRef(false);
+  const generation = useRef(0);
 
-  useEffect(() => {
-    let live = true;
+  const load = useCallback(() => {
+    if (loaded.current) {
+      return;
+    }
+    const asked = generation.current;
     bridge
       .getPreferences()
       .then((stored) => {
-        if (!live) {
+        if (asked !== generation.current) {
           return;
         }
+        loaded.current = true;
         const read = (key: string): string | null =>
           stored.find((pref) => pref.key === key)?.value ?? null;
         setAppearance((current) => ({
@@ -55,12 +62,19 @@ export function usePreferences(bridge: BrainBridge): AppearanceController {
         }));
       })
       .catch(() => {
-        // A brain that cannot be reached leaves the defaults in place, which is a first run.
+        // The defaults stay in place, as on a first run, until a later summon reads the record.
       });
-    return () => {
-      live = false;
-    };
   }, [bridge]);
+
+  useEffect(() => {
+    load();
+    return () => {
+      generation.current += 1;
+      loaded.current = false;
+    };
+  }, [load]);
+
+  useSummonEffect(visible, load);
 
   const write = useCallback(
     (key: string, value: string) => {

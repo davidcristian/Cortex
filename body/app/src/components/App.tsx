@@ -40,7 +40,8 @@ export function App({
 }: AppProps) {
   const controller = useOverlay(bridge, newSessionId, undefined, clipboard, drops);
   useOverlayWindow(controller.state.mode, osWindow);
-  const { appearance, setTheme, setMark, setWindow } = usePreferences(bridge);
+  const visible = controller.state.mode !== "hidden";
+  const { appearance, setTheme, setMark, setWindow } = usePreferences(bridge, visible);
   const theme = resolveTheme(appearance.theme, systemPrefersDark());
   const mark = resolveMark(appearance.mark);
   const edge = resolveEdge(appearance.window);

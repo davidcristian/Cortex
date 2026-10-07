@@ -5,6 +5,7 @@ import { FakeBridge } from "../bridge/fakeBridge";
 import type { OverlayWindow } from "../bridge/types";
 import { requestActivation, takePendingActivation } from "../overlay/activation";
 import { CLIPBOARD_UNREAD, DROP_UNREAD } from "../overlay/useOverlay";
+import { THEME_KEY } from "../overlay/usePreferences";
 import { WINDOW_HIDE_MS } from "../overlay/useOverlayWindow";
 import { App } from "./App";
 
@@ -116,6 +117,18 @@ describe("App", () => {
     expect(document.documentElement.dataset.theme).toBe("light");
     activate();
     expect(screen.getByRole("dialog").className).toContain("open");
+  });
+
+  it("applies the stored theme at the first summon after the brain could not be read", async () => {
+    const bridge = new FakeBridge();
+    bridge.preferencesFail = true;
+    bridge.preferences = [{ key: THEME_KEY, value: "midnight" }];
+    await renderApp(bridge);
+    expect(document.documentElement.dataset.theme).toBe("light");
+    bridge.preferencesFail = false;
+    activate();
+    await act(async () => {});
+    expect(document.documentElement.dataset.theme).toBe("dark");
   });
 
   it("streams a submitted turn through the bridge on the minted session id", async () => {
