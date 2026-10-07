@@ -60,7 +60,7 @@ And check the loop end to end.
 
 1. Press **Ctrl+Alt+Space**, or whatever `CORTEX_HOTKEY` names. The overlay appears and takes
    focus; press again to hide. The tray icon's **Show overlay** does the same, and **Quit Cortex**
-   exits.
+   exits. The icon's tooltip names the chord.
 2. Type a prompt and send. The reply streams in token by token, with the violet glow while it
    works, then settles back to the resting state.
 3. Confirm that follow-ups keep context. The brain persists session state, and each turn is a

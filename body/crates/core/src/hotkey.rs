@@ -126,6 +126,12 @@ impl HotkeyChord {
     pub fn key(&self) -> &str {
         &self.key
     }
+
+    /// The tray icon's tooltip, which names this chord as the way to summon the overlay.
+    #[must_use]
+    pub fn tray_tooltip(&self) -> String {
+        format!("Cortex (press {self})")
+    }
 }
 
 impl Default for HotkeyChord {

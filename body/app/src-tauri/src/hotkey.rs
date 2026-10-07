@@ -1,14 +1,14 @@
 //! Global-hotkey wiring: register the configured chord and toggle the overlay on each press.
 
+use body_core::HotkeyChord;
 use tauri::AppHandle;
 
-/// Registers the global hotkey (`CORTEX_HOTKEY`, default `ctrl+alt+space`) to toggle the overlay.
+/// Registers `chord` as the global hotkey that toggles the overlay.
 #[cfg(windows)]
-pub fn register(handle: &AppHandle) {
+pub fn register(handle: &AppHandle, chord: HotkeyChord) {
     use body_core::Hotkey;
     use os_windows::WindowsHotkey;
 
-    let chord = configured_chord();
     let backend = match WindowsHotkey::new() {
         Ok(backend) => backend,
         Err(error) => {
@@ -33,11 +33,10 @@ const SHORTCUT_DESCRIPTION: &str = "Show or hide the Cortex overlay";
 /// Registers the global hotkey through `kglobalaccel` or the desktop portal on a Wayland session,
 /// else as a passive grab on the X display.
 #[cfg(target_os = "linux")]
-pub fn register(handle: &AppHandle) {
+pub fn register(handle: &AppHandle, chord: HotkeyChord) {
     use body_core::Hotkey;
     use os_linux::{LinuxHotkey, X11Keys};
 
-    let chord = configured_chord();
     let activate = handle.clone();
     let callback = Box::new(move || crate::toggle_overlay(&activate));
     if std::env::var_os("WAYLAND_DISPLAY").is_some_and(|name| !name.is_empty()) {
@@ -63,7 +62,7 @@ pub fn register(handle: &AppHandle) {
 /// Binds `chord` through `kglobalaccel` where it runs, as on KDE Plasma, else through the
 /// `GlobalShortcuts` portal, on a session bus connection of its own.
 #[cfg(target_os = "linux")]
-fn register_wayland(chord: &body_core::HotkeyChord, callback: body_core::HotkeyCallback) {
+fn register_wayland(chord: &HotkeyChord, callback: body_core::HotkeyCallback) {
     use body_core::Hotkey;
     use os_linux::zbus::blocking::Connection;
     use os_linux::{
@@ -92,15 +91,12 @@ fn register_wayland(chord: &body_core::HotkeyChord, callback: body_core::HotkeyC
 
 /// Stub for a platform with no hotkey backend yet.
 #[cfg(not(any(windows, target_os = "linux")))]
-pub fn register(_handle: &AppHandle) {
+pub fn register(_handle: &AppHandle, _chord: HotkeyChord) {
     eprintln!("cortex: global hotkey is not implemented on this platform yet");
 }
 
 /// The chord from `CORTEX_HOTKEY`, or the default if unset or unparseable.
-#[cfg(any(windows, target_os = "linux"))]
-fn configured_chord() -> body_core::HotkeyChord {
-    use body_core::HotkeyChord;
-
+pub fn configured_chord() -> HotkeyChord {
     let Ok(raw) = std::env::var("CORTEX_HOTKEY") else {
         return HotkeyChord::default();
     };

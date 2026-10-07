@@ -13,6 +13,16 @@ fn default_chord_is_ctrl_alt_space() {
 }
 
 #[test]
+fn tray_tooltip_names_the_configured_chord() {
+    let chord = HotkeyChord::parse("Super+Shift+K").unwrap();
+    assert_eq!(chord.tray_tooltip(), "Cortex (press shift+super+k)");
+    assert_eq!(
+        HotkeyChord::default().tray_tooltip(),
+        "Cortex (press ctrl+alt+space)"
+    );
+}
+
+#[test]
 fn parse_accepts_a_simple_chord() {
     let chord = HotkeyChord::parse("ctrl+shift+f5").unwrap();
     let expected: &[Modifier] = &[Modifier::Ctrl, Modifier::Shift];

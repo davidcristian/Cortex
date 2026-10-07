@@ -32,8 +32,9 @@ pub fn run() {
             #[cfg(target_os = "linux")]
             app.manage(std::sync::Arc::new(os_linux::OverlayWatch::default()));
             app.manage(clipboard::Display::of(app.handle()));
-            tray::build(app.handle())?;
-            hotkey::register(app.handle());
+            let chord = hotkey::configured_chord();
+            tray::build(app.handle(), &chord)?;
+            hotkey::register(app.handle(), chord);
             // The overlay must hide itself from screen capture before any capture can happen:
             // a picture of the always-on-top window would feed the model its own prior output.
             body_server::start(app.handle(), body_server::exclude_overlay(app.handle()));
