@@ -94,11 +94,16 @@ services:
     # CPU build (no CUDA): embeddings run on the CPU, outside the GPU budget.
     image: "ghcr.io/ggml-org/llama.cpp:server"
     # --embeddings turns on /v1/embeddings and -ngl 0 keeps it entirely on the CPU. Override the
-    # model path with CORTEX_MODEL_FILE_EMBED.
+    # model path with CORTEX_MODEL_FILE_EMBED. An embedding input must fit one micro-batch, whose
+    # default of 512 tokens refused every exchange longer than that; 2048 is the model's context.
     command:
       - "--model"
       - "/models/${CORTEX_MODEL_FILE_EMBED:-nomic-ai/nomic-embed-text-v1.5-GGUF/nomic-embed-text-v1.5.Q8_0.gguf}"
       - "--embeddings"
+      - "--batch-size"
+      - "2048"
+      - "--ubatch-size"
+      - "2048"
       - "--host"
       - "0.0.0.0"
       - "--port"

@@ -18,6 +18,14 @@ depends only on `Embedder`. Unlike the inference adapter it is **not** routed th
   - The injected `http_client` owns timeouts/transport (the composition root configures a finite
     timeout, since an embedding is a quick request, unlike a streamed generation).
 
+**The server's input bound.** `llama-server` refuses an embedding input longer than its
+micro-batch with a 500, so `docker/docker-compose.memory.yml` starts it with
+`--batch-size 2048 --ubatch-size 2048`, the context of `nomic-embed-text-v1.5`. Under the default
+of 512 every exchange longer than 512 tokens failed its memory write
+([readings](../readings/overlay-turn-flows.md#memory-across-chats)). A longer input still fails,
+and [R-812](../refinements/tasks/812-an-exchange-over-the-embedder-context-is-never-recorded.md)
+bounds it in the core.
+
 **Error contract.** Every failure crosses the `Embedder` port as `EmbedderError` with the cause
 chained:
 
