@@ -64,7 +64,9 @@ recorded in an ADR. This ADR is that exclusion, and the checks that grew around 
    mapping, the transport, link classification) lives in `body_core` or `body_rpc`, which stay at
    100% coverage. Config at the app: `CORTEX_BRAIN_ADDR` (default `http://127.0.0.1:23051`) and
    `CORTEX_HOTKEY` (default `ctrl+alt+space`, configurable because it may collide; a registration
-   failure reaches the overlay).
+   failure reaches the overlay). The page's content security policy in `tauri.conf.json` allows the
+   bundle's scripts and styles, `data:` images and the IPC origins `ipc:` and `http://ipc.localhost`
+   only; a `devUrl` build runs with none ([readings](../readings/overlay-content-policy.md)).
 
 6. **The overlay is React + Vite, at 100% coverage and validated in a browser.** The Vite project
    lives at `body/app/`, tested with Vitest and Testing Library, coverage by v8 at 100% line,
@@ -96,10 +98,9 @@ recorded in an ADR. This ADR is that exclusion, and the checks that grew around 
    green, because the turn's events prove only that the brain answered, not what the turn left
    behind (a swap back that gave up, a slow handoff's note); and a recheck every `LINK_RECHECK_MS`
    (5000 ms) only while the overlay is visible and the link is not ready, so the steady state sends
-   nothing. The recheck is an
-   interval keyed on "visible and unhealthy" with an in-flight guard, because a timeout restarted
-   when `probing` goes false dies after one retry whenever the probe answers inside one React
-   batch. The probe runs through the retrying transport
+   nothing. The recheck is an interval keyed on "visible and unhealthy" with an in-flight guard,
+   because a timeout restarted when `probing` goes false dies after one retry whenever the probe
+   answers inside one React batch. The probe runs through the retrying transport
    ([ADR-0024](ADR-0024-transport-retry.md)), so one probe is also the reconnect attempt.
 
    Four states: `ready` (answered, ready), `degraded` (answered and not serving: `ready = false`,
@@ -141,10 +142,10 @@ recorded in an ADR. This ADR is that exclusion, and the checks that grew around 
     `register`) and checks the Linux ones, and the Windows run configures out the Linux ones and the
     stubs. Both check the shared `serve` and `configured_chord`, so the two lines cover
     complementary halves of the same files and sit in one recipe. The `start` and `register` stubs
-    for a platform with neither backend crate are compiled by neither run. The
-    Windows run needs none of the Linux `-dev` roots, but `tauri_build` compiles a VERSIONINFO
-    resource for every Windows target through `tauri-winres` and `embed-resource`, which panics
-    without a resource compiler. The recipe sets `RC_x86_64_pc_windows_msvc`, defaulting to
+    for a platform with neither backend crate are compiled by neither run. The Windows run needs
+    none of the Linux `-dev` roots, but `tauri_build` compiles a VERSIONINFO resource for every
+    Windows target through `tauri-winres` and `embed-resource`, which panics without a resource
+    compiler. The recipe sets `RC_x86_64_pc_windows_msvc`, defaulting to
     `/usr/bin/x86_64-w64-mingw32-windres` from `binutils-mingw-w64-x86-64`, and it must be a path:
     windres derives its preprocessor from its own `argv[0]`, and a bare name off `PATH` makes it
     run a prefixed gcc that is not installed. `llvm-rc` was rejected: no rustup component includes
@@ -208,11 +209,11 @@ recorded in an ADR. This ADR is that exclusion, and the checks that grew around 
   tray, window show and hide, and a real `converse` streaming through WebView2, the transport the
   other commands share (their glue ran on the Linux shell and holds no Windows code)
   ([H-001](../host/tasks/001-bring-up-and-streamed-turn.md),
-  [readings](../readings/tauri-ipc-commands.md)); the OS window polish, which is
-  authoring rather than validation: a transparent window with click-through margins, the morph to a
-  real screen corner, hide on blur and a tighter CSP
-  ([H-014](../host/tasks/014-os-window-polish.md)); and the toolchain-linked build of the shell and
-  `os_windows` on every change to them
+  [readings](../readings/tauri-ipc-commands.md)); WebView2 under the page's policy
+  ([H-810](../host/tasks/810-content-policy-on-webview2.md)); the OS window polish, authoring
+  rather than validation: a transparent window with click-through margins, the morph to a real
+  screen corner and hide on blur ([H-014](../host/tasks/014-os-window-polish.md)); and the
+  toolchain-linked build of the shell and `os_windows` on every change to them
   ([H-011](../host/tasks/011-toolchain-linked-full-build.md)).
 - The `shell` CI job has never run on a runner, Actions being off for this repository
   ([R-300](../refinements/tasks/300-shell-job-never-ran-on-a-runner.md)).
@@ -241,9 +242,8 @@ recorded in an ADR. This ADR is that exclusion, and the checks that grew around 
 - Modules: [body-core](../modules/body-core.md), [body-rpc](../modules/body-rpc.md),
   [body-os](../modules/body-os.md), [body-app](../modules/body-app.md),
   [repo checks](../modules/repo-checks.md).
-- Runbook: [body-overlay](../runbooks/body-overlay.md); design:
-  [overlay-ux](../design/overlay-ux.md).
-- Readings: [shell clippy](../readings/shell-clippy.md).
+- Runbook: [body-overlay](../runbooks/body-overlay.md); design: [overlay-ux](../design/overlay-ux.md).
+- Readings: [shell clippy](../readings/shell-clippy.md), [content policy](../readings/overlay-content-policy.md).
 - ADRs: [ADR-0006](ADR-0006-check-performance.md) (path filtering),
   [ADR-0023](ADR-0023-body-gateway-volume.md) (the brain to body direction),
   [ADR-0035](ADR-0035-console-and-motion.md) (overlay appearance),

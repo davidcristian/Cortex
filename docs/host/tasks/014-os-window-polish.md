@@ -13,24 +13,23 @@ a real Win32 window shows whether transparency bleeds and whether click-through 
 
 ## What it is
 
-Four OS-window changes deferred together and recorded at
+Three OS-window changes deferred together and recorded at
 [ADR-0011](../../adr/ADR-0011-body-v1.md)'s host-only consequence and in
 [design/overlay-ux.md](../../design/overlay-ux.md) section 4: a transparent window so only the panel
-floats over the desktop, click-through on the empty margins, the morph to a true screen corner, and
-a tighter CSP (`null` in v1). The design doc's smaller "later" marks, custom theme token sets, a
-licensed `@font-face` and a `Ctrl+K` command palette, come with them in sections 2 and 3 of that
-doc.
+floats over the desktop, click-through on the empty margins, and the morph to a true screen corner.
+The design doc's smaller "later" marks, custom theme token sets, a licensed `@font-face` and a
+`Ctrl+K` command palette, come with them in sections 2 and 3 of that doc. A bundled font needs
+`font-src 'self'` added to the shell's content security policy, whose `default-src` is `'none'`.
 
 Today v1 is a fixed 640x720 frameless **opaque** always-on-top window. The hotkey shows it when it
 is hidden; over a shown window the press goes to the overlay, which hides the window through the
 shell's `set_overlay_shown` once its mode reaches hidden. There is no hide-on-blur, so validation is
-predictable, and CSP `null` for a fully local app loading only
-bundled assets. The opaqueness is deliberate: a transparent window makes every other Windows check
+predictable. The opaqueness is deliberate: a transparent window makes every other Windows check
 less predictable, so v1 chose predictability while the checks in
 [windows-desktop.md](../index.md#windows-desktop) were still owed. Doing them first and this second
 is the right order.
 
-## The four parts, and why they are one job
+## The three parts, and why they are one job
 
 1. **A transparent window** so only the panel floats over the desktop.
 2. **Click-through on the empty margins.** Inseparable from 1: a transparent window without it is an
@@ -41,7 +40,6 @@ is the right order.
    [design/overlay-ux.md](../../design/overlay-ux.md) section 9 gets settled, which is why that open
    decision is folded in here: it is not a decision until there is a real screen corner to put the
    orb in.
-4. **A tighter CSP**, once the IPC and dev allow-list are settled on the host.
 
 ## What a good result looks like
 
@@ -93,3 +91,8 @@ why, because "done together" is this entry's own recorded finding.
   `securitypolicyviolation` listener, about 60 minutes. A clean run proves the overlay's own
   sources under WebKitGTK and leaves WebView2's origin to a short check here. Parts 1 to 3 need a
   Win32 window and stay.
+- 2026-10-07: part 4, the tighter content security policy, shipped alone. It governs what the page
+  loads and not the window, so it shares no code or check with parts 1 to 3; Tauri's source covers
+  the Windows origins and every surface ran under it on the Linux shell with no violation
+  ([readings](../../readings/overlay-content-policy.md)). Its WebView2 check is
+  [H-810](810-content-policy-on-webview2.md).

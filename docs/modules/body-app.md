@@ -27,10 +27,9 @@ values: `TurnEvent`, `TransportError`, `SessionSummary`, `SessionMessage`, `DueR
   down its in-flight turn and falls back to a fresh chat, so a deleted transcript is never rendered.
 - `listDueReminders()` and `ackReminder(reminderId, firedAtUnixMs)` (ADR-0025), and `checkLink()`,
   the connection probe (ADR-0011 decision 8).
-- `getPreferences()` and `setPreference(key, value)` (ADR-0032) store opaque pairs the overlay
-  reads once at startup and writes one at a time. An unrecognised key belongs to another surface
-  and is ignored; an empty value clears a key, which is how "follow the system" is stored for the
-  theme.
+- `getPreferences()` and `setPreference(key, value)` (ADR-0032) store opaque pairs the overlay reads
+  once at startup and writes one at a time. An unrecognised key belongs to another surface and is
+  ignored; an empty value clears a key, which is how "follow the system" is stored for the theme.
 - Three implementations: `TauriBridge` over the Tauri IPC, `DemoBridge` for `vite dev` (its canned
   stream and chats live in `demoScript.ts`), and `FakeBridge` for tests. Only `tauriBridge.ts` and
   `main.tsx` are excluded from coverage, as the untested glue.
@@ -242,6 +241,8 @@ heartbeats included (`DEFAULT_TURN_HEARTBEAT_GAP_MS = 120000`), so a dead brain 
   lives in the covered `body_core` and `body_rpc`, and the app holds wiring only, which is what
   keeps the coverage exclusion safe. `src-tauri` is its own Cargo workspace, excluded from
   `body/Cargo.toml` and from coverage; its `.rs` files are still under the 300-line cap.
+- The page loads only what the shell's content security policy allows (ADR-0011 decision 5), so a
+  new kind of load, such as a font, adds its source there and in `bridge/contentPolicy.test.ts`.
 
 **Dependencies.** Frontend: React 18, Vite 5, Vitest, `@tauri-apps/api`. Shell: `tauri` 2
 (`tray-icon`), `body-core` and `body-rpc`, `os-windows` on Windows, `os-linux` and `gtk` on Linux,

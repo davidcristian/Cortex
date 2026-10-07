@@ -1,9 +1,8 @@
 # Overlay UX and visual language
 
 The design reference for the Cortex body overlay ([ADR-0011](../adr/ADR-0011-body-v1.md)). Agents
-building or changing overlay components follow it, and a change that departs from it is written here
-first. Each numbered decision is argued in the ADR beside it, and the panel's motion was measured in
-[panel motion](../readings/panel-motion.md).
+building or changing overlay components follow it, and a departure from it is written here first.
+Each decision is argued in its ADR; [panel motion](../readings/panel-motion.md) has the measurements.
 
 ## 1. Identity
 
@@ -186,7 +185,8 @@ minimized raises the preview, which names the tool and has no countdown bar, sin
 of 640x720, centred, and every animation plays inside it. Three moves at the level of the OS window
 are deferred to one later pass: a transparent window with click-through on the empty margins,
 morphing the window to a true screen corner, and hiding on blur, replaced for now by the hotkey
-([body-overlay](../runbooks/body-overlay.md) has the bring-up).
+([body-overlay](../runbooks/body-overlay.md)). The page's content security policy allows only
+bundled scripts and styles, `data:` images (the composer's thumbnails) and the shell's IPC.
 
 ## 5. Chats, history and sessions
 

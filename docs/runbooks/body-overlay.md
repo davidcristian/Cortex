@@ -219,9 +219,15 @@ hoisted, because the field kept its number.
 toggles it, with no hide-on-blur, so a check is predictable. Deferred to a later overlay-polish
 pass, all together: a transparent window so only the panel floats (a first attempt bled through
 the panel content and left a window border, so it needs doing properly with click-through),
-click-through margins, hide-on-blur, and the morph to a real screen-corner orb. The CSP is `null`
-for v1, a fully local app loading only bundled assets; tighten it once the IPC and dev allow-list
-are settled on the host.
+click-through margins, hide-on-blur, and the morph to a real screen-corner orb.
+
+**The content security policy** in `tauri.conf.json` applies only when Tauri serves the page from
+the bundle, in a build with the `tauri/custom-protocol` feature that `tauri build` turns on; a
+debug build loads `devUrl` with none. To check a policy change, run `npm run build` and
+`cargo build --features tauri/custom-protocol`, then every surface with a `securitypolicyviolation`
+listener as an inline script in the built `index.html`, which Tauri hashes into `script-src`
+([readings](../readings/overlay-content-policy.md) has the method). A missing IPC origin shows only
+there, since a blocked IPC request goes through `postMessage` instead.
 
 **If the hotkey collides** with other software, set a different `CORTEX_HOTKEY`. A registration
 failure is logged to stderr and is not fatal, and the tray still summons the overlay. If
