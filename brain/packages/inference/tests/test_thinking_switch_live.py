@@ -3,7 +3,7 @@ import os
 import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import cast
 
 import httpx
@@ -46,6 +46,14 @@ _ASK = (
     "Three friends split a bill. Ana pays twice what Bo pays, and Cy pays 4 less than Ana. "
     "The bill is 51. What does each of them pay?"
 )
+# The E4B answers the bill question with no thought on about one draw in five, so its file gets a
+# question whose control deliberated on every draw of four runs (thinking-switch readings).
+_ASK_BY_FILE = {
+    "gemma-4-E4B_q4_0-it.gguf": (
+        "On an island, knights always tell the truth and knaves always lie. A says that B is a "
+        "knave. B says that A and C are the same kind. Is C a knight or a knave?"
+    ),
+}
 
 _SHAPES: tuple[tuple[str, JsonSchema | None], ...] = (("plain", None), ("envelope", REPLY_ENVELOPE))
 
@@ -63,6 +71,7 @@ class _Cell:
     tokens: int | None = None
     stop: str | None = None
     head: str = field(default="", repr=False)
+    reply: str = field(default="", repr=False)
 
     @property
     def label(self) -> str:
@@ -78,12 +87,12 @@ class _Cell:
 
 
 async def _run(
-    client: httpx.AsyncClient, shape: str, schema: JsonSchema | None, *, switch: bool
+    client: httpx.AsyncClient, ask: str, shape: str, schema: JsonSchema | None, *, switch: bool
 ) -> _Cell:
     """One completion through the shipped adapter, counting both halves of what came back."""
     cell = _Cell(shape=shape, switch=switch)
     backend = LlamaCppBackend(SingleResidentModelManager(_MODEL, _ENDPOINT), client)
-    messages = [Message(role=Role.USER, text=_ASK, at=datetime.now(UTC), turn_id="t-switch")]
+    messages = [Message(role=Role.USER, text=ask, at=datetime.now(UTC), turn_id="t-switch")]
     bounds = GenerationBounds(max_tokens=_CAP, thinking=not switch)
     started = time.monotonic()
     async for event in backend.stream(_MODEL, messages, schema=schema, bounds=bounds):
@@ -91,6 +100,7 @@ async def _run(
             if cell.ttft_s is None:
                 cell.ttft_s = time.monotonic() - started
             cell.reply_chars += len(event.text)
+            cell.reply += event.text
         elif isinstance(event, ReasoningChunk):
             cell.reasoning_chars += len(event.text)
             cell.head = (cell.head + event.text)[:_HEAD]
@@ -102,12 +112,16 @@ async def _run(
     print(f"  {cell.line()}")  # noqa: T201 -- the report IS the measurement
     if cell.head:
         print(f"    trace: {cell.head!r}")  # noqa: T201
+    elif not switch:
+        print(f"    quiet reply: {cell.reply!r}")  # noqa: T201
     return cell
 
 
-async def _rendered(client: httpx.AsyncClient, schema: JsonSchema | None, *, switch: bool) -> str:
+async def _rendered(
+    client: httpx.AsyncClient, ask: str, schema: JsonSchema | None, *, switch: bool
+) -> str:
     """Return the prompt this deployment's chat template makes of that request, read from it."""
-    messages = [Message(role=Role.USER, text=_ASK, at=datetime.now(UTC), turn_id="t-switch")]
+    messages = [Message(role=Role.USER, text=ask, at=datetime.now(UTC), turn_id="t-switch")]
     bounds = GenerationBounds(max_tokens=_CAP, thinking=not switch)
     payload = build_payload(_MODEL, messages, (), schema, bounds)
     response = await client.post(f"{_ENDPOINT}/apply-template", json=payload)
@@ -124,6 +138,11 @@ class _Server:
     build_info: str
     model_path: str
     n_ctx: int
+
+    @property
+    def ask(self) -> str:
+        """The question this file is sent: its own when it has one, the bill question if not."""
+        return _ASK_BY_FILE.get(PurePosixPath(self.model_path).name, _ASK)
 
 
 def _context_size(props: dict[str, object]) -> int:
@@ -159,14 +178,16 @@ async def _served(client: httpx.AsyncClient) -> _Server:
     )
     n_ctx = _context_size(props)
     print(f"server    {build_info} serving {model_path} at {n_ctx} tokens of context")  # noqa: T201
-    return _Server(build_info, model_path, n_ctx)
+    served = _Server(build_info, model_path, n_ctx)
+    print(f"ask       {served.ask!r}")  # noqa: T201
+    return served
 
 
-async def _read_prompts(client: httpx.AsyncClient) -> dict[bool, str]:
+async def _read_prompts(client: httpx.AsyncClient, ask: str) -> dict[bool, str]:
     """Read what the template makes of the four request shapes, before any token is decoded."""
     for switch in (False, True):
         prompts = {
-            shape: await _rendered(client, schema, switch=switch) for shape, schema in _SHAPES
+            shape: await _rendered(client, ask, schema, switch=switch) for shape, schema in _SHAPES
         }
         rendered = set(prompts.values())
         assert len(rendered) == 1, (
@@ -175,8 +196,8 @@ async def _read_prompts(client: httpx.AsyncClient) -> dict[bool, str]:
             f"a difference of prompt rather than of what a schema does: {prompts}"
         )
     plain, switched = (
-        await _rendered(client, None, switch=False),
-        await _rendered(client, None, switch=True),
+        await _rendered(client, ask, None, switch=False),
+        await _rendered(client, ask, None, switch=True),
     )
     reads = "reads" if plain != switched else "IGNORES"
     print(f"template  {reads} the switch ({len(plain)} chars against {len(switched)})")  # noqa: T201
@@ -197,7 +218,7 @@ def _write(
         "model_path": server.model_path,
         "n_ctx": server.n_ctx,
         "cap": _CAP,
-        "ask": _ASK,
+        "ask": server.ask,
         "renderings": [{"switch": switch, "prompt": prompt} for switch, prompt in prompts.items()],
         "cells": [
             {
@@ -222,10 +243,13 @@ async def test_which_request_shapes_this_tier_honours_the_thinking_switch_on() -
     draws: dict[tuple[str, bool], list[_Cell]] = {}
     async with httpx.AsyncClient(timeout=httpx.Timeout(10.0, read=None)) as client:
         server = await _served(client)
-        prompts = await _read_prompts(client)
+        prompts = await _read_prompts(client, server.ask)
         for shape, schema in _SHAPES:
             for switch in (False, True):
-                cells = [await _run(client, shape, schema, switch=switch) for _ in range(_REPEATS)]
+                cells = [
+                    await _run(client, server.ask, shape, schema, switch=switch)
+                    for _ in range(_REPEATS)
+                ]
                 draws[shape, switch] = cells
 
     written = _write(server, prompts, draws).resolve()

@@ -15,24 +15,27 @@ All are `integration`-marked, excluded from CI and coverage, and run per
   started the way a subagent tier is, with deliberation off at the server, since the attempt sends
   no `thinking` of its own.
 - **`tests/test_thinking_switch_live.py` measures whether a deployment honours `thinking=False` at
-  all** (ADR-0049). It sends one prompt in four shapes against one endpoint, plain and with
-  `REPLY_ENVELOPE`, each with the switch and without it, and reports per request shape rather than
-  per tier because that is how the answer came out: over every chat entry of the lineup, all of them
-  honour it plain and the two gemma-4-E entries deliberate straight through it under a
-  `response_format`, the shipped E4B pick on 14 of 15 draws across three builds and the E2B on 10 of
-  10 (the lineup table is in [thinking switch](../readings/thinking-switch.md)). It requires a
-  server started with **neither** `--chat-template-kwargs` nor `--reasoning-budget`, since either
-  flag is the deployment answering for the model, and it **asserts its control**: the requests that
-  send no switch must deliberate, or the prompt invited no thought and the run is discarded. Each
-  case is drawn `CORTEX_THINKING_REPEATS` times, 1 by default and 5 or more for anything quoted as a
-  tier's behaviour. Before the cases it reads the **rendered prompt** for all four shapes off the
-  server's own `POST /apply-template` and asserts that the two shapes with one switch render the
-  same prompt, which establishes that a difference between their results comes from the schema
-  rather than from the prompt. That rendering is also the **predictor**, read on the prompt's tail
-  (ADR-0050 decision 2). Both renderings go into one JSON sample per tier (`CORTEX_THINKING_OUT`,
-  `CORTEX_THINKING_TAG`) beside the build, the model file and the context size `GET /props` reports,
-  and `just switch-tail` fails instead of publishing a run whose prediction and measurement
-  disagree; the probe itself asserts nothing.
+  all** (ADR-0049). It sends one question in four shapes against one endpoint, plain and with
+  `REPLY_ENVELOPE`, each with the switch and without it: the question `_ASK_BY_FILE` names for the
+  file `GET /props` reports, or the bill question when it names none (ADR-0050 decision 1). It
+  reports per request shape rather than per tier because that is how the answer came out: over every
+  chat entry of the lineup, all of them honour it plain and the two gemma-4-E entries deliberate
+  straight through it under a `response_format`, the shipped E4B pick on 14 of 15 draws across three
+  builds and the E2B on 10 of 10 (the lineup table is in
+  [thinking switch](../readings/thinking-switch.md)). It requires a server started with **neither**
+  `--chat-template-kwargs` nor `--reasoning-budget`, since either flag is the deployment answering
+  for the model, and it **asserts its control**: the requests that send no switch must deliberate,
+  or the prompt invited no thought and the run is discarded, and the reply of a control draw that
+  did not deliberate is printed whole, so a thought written outside the markers would show in the
+  log. Each case is drawn `CORTEX_THINKING_REPEATS` times, 1 by default and 5 or more for anything
+  quoted as a tier's behaviour. Before the cases it reads the **rendered prompt** for all four
+  shapes off the server's own `POST /apply-template` and asserts that the two shapes with one switch
+  render the same prompt, which establishes that a difference between their results comes from the
+  schema rather than from the prompt. That rendering is also the **predictor**, read on the prompt's
+  tail (ADR-0050 decision 2). Both renderings go into one JSON sample per tier
+  (`CORTEX_THINKING_OUT`, `CORTEX_THINKING_TAG`) beside the build, the model file and the context
+  size `GET /props` reports, and `just switch-tail` fails instead of publishing a run whose
+  prediction and measurement disagree; the probe itself asserts nothing.
 - **`tests/test_trace_budget_live.py` measures the same question for the budget** (ADR-0049). It
   asks the endpoint whether the engine parses a per-request trace budget, then draws the one case
   the switch loses, a constrained reply into the fixed envelope, with the budget and without it. It

@@ -1,7 +1,11 @@
 # The rendering column is one build's measurement, and an engine bump reopens every row of it
 
-**Status:** open, actionable
+**Status:** open, waiting for its trigger
 **Area:** inference
+**Trigger:** an engine bump under this stack, meaning the GPU runbook's `docker image inspect`
+label command reporting a llama.cpp build other than b11429 for `cortex-model-host` (the three GPU
+tiers) or other than b10680 for the cached `server` tag (both CPU subagent overrides). Nothing fixes
+a digest, so a pull or a rebuild is the bump.
 **Origin:** [ADR-0050](../../adr/ADR-0050-live-probe-records.md)
 **Verified:** 2026-10-07
 
@@ -116,21 +120,30 @@ second applies: under the third this is a null, and the E4B row stays owed on `b
 constrained cells read control 20 of 20 on both images, switch 19 of 20 on `b11429` and 18 of 20 on
 `b10680`, and its plain switch 0 of 20 on both. The two `b10680` runs that fired on five of five
 were draws at a rate below one, so the build did not lower it: this question does not make the E4B
-deliberate on every draw on either build, and
-[R-806](806-the-switch-probes-question-does-not-make-the-e4b-deliberate-on-every-draw.md) is filed
-for one that does. Nothing shipped changes, and the task stays actionable.
+deliberate on every draw on either build. The probe now sends the E4B's file a question of its own,
+chosen by a screen and a replication written down before their draws
+([ADR-0050](../../adr/ADR-0050-live-probe-records.md) decision 1, thinking-switch readings), and
+every other file the bill question, so the eleven rows read above stand. Nothing shipped changes.
 
-**The next row, written before its draw.** When R-806 has chosen a question, the row draws the E4B
-with it at `-ngl 99` and 20 draws a cell on `cortex-model-host`, on the build that image then reads,
-with `measurements/sitting-2026-10-07b/drivers/529x20.sh`: `just switch-lineup` fixes five draws a
-cell and serves the E4B at `-ngl 0`. If the question replaces the probe's one question for every
-pick, the eleven other rows are drawn with it in the same run.
+**The next row, written before its draw.** The row draws the E4B with its own question at `-ngl 99`
+and 20 draws a cell on `cortex-model-host`, on the build that image then reads, with
+`measurements/sitting-2026-10-07b/drivers/529x20.sh`: `just switch-lineup` fixes five draws a cell
+and serves the E4B at `-ngl 0`.
 
 - **Both controls deliberate on all 20 and the reader agrees.** The E4B row is read on that build.
   On `b11429` all twelve rows are then read, and this task waits for the next build.
 - **The reader exits 1.** The readings record that row beside its `b11312` row, it stays owed, and
   it is drawn again on the cached `b10680` `:server-cuda` image at the same argv.
 - **Any other result** is a null, and the row stays owed.
+
+**Drawn 2026-10-07**, exit 0, the probe sending the E4B's file its knights and knaves question.
+Both controls deliberated on 20 of 20, the plain switch on 0 of 20 and the constrained switch on 20
+of 20, and the reader agreed: an open tail that does nothing under a schema, the E4B's row as on
+every earlier build. Under the first rule the E4B row is read on `b11429`, all twelve rows are read
+on it, and this task waits for the next build with the recipe as its open half. The same plain
+control read 20 of 20 at `-ngl 0` on CPU cores 12 to 23, where the recipe serves the E4B, so the
+recipe needs no change. Samples under `measurements/sitting-2026-10-07c/529e4b20q/`, from the
+`529x20.sh` copied there.
 
 ## History
 
@@ -204,5 +217,10 @@ pick, the eleven other rows are drawn with it in the same run.
   (`scripts/switchlineup.py`) holds the loop, run live on one pick on `b11429`.
 - 2026-10-07: the E4B drawn at 20 draws a cell on `b11429` and on the cached `b10680` image, its
   plain control deliberating on 16 and 17 of 20: a null under the third rule, so its row stays
-  owed. [R-806](806-the-switch-probes-question-does-not-make-the-e4b-deliberate-on-every-draw.md)
-  is filed for a question the E4B's control deliberates on every time, with the next row above.
+  owed until the probe sends the E4B a question its control deliberates on every time, with the
+  next row above.
+- 2026-10-07: the probe now sends the E4B's file a knights and knaves question, whose plain control
+  deliberated on 20 of 20 in a screen of four candidates and again in a separate run of the probe
+  (thinking-switch readings). The E4B row drawn with it on `b11429` at 20 draws a cell read both
+  controls 20 of 20 and the reader agreed, so all twelve rows are read on `b11429` and the task
+  waits for the next build, with the trigger naming both builds the stack starts.

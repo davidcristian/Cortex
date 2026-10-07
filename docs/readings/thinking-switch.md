@@ -95,6 +95,28 @@ through the second, so that difference is not read as the build's. Method: `529x
 `launch.sh` in `measurements/sitting-2026-10-07b/drivers/`, the logs `529e4b20.log` and
 `529old20.log`, the samples under `529e4b20/` and `529old20/`.
 
+**2026-10-07, the E4B's own question.** On `b11429` at `-ngl 99` with the probe's argv, the E4B's
+plain control was sent the bill question 30 more times through the shipped adapter with the reply
+text kept. It deliberated on 23 of 30, and each of the 7 quiet replies is a worked answer to the
+user with no marker fragment in it, so a quiet draw skips the thought rather than writing it outside
+the markers. A run of the probe whose E4B entry named no served file sent the bill question again
+and read 16 of 20, its four quiet replies printed whole, two of them a wrong answer given at once.
+Four candidates and a selection rule were written down before their draws: a knights and knaves
+question, a seating puzzle, a day of the week riddle and a letter count, each sent to the same
+control 20 times, the first in that order at 20 of 20 to be replicated by a separate run of the
+probe itself. All four read 20 of 20, so the knights and knaves question was replicated at 20 draws
+a cell: both controls 20 of 20, the plain switch 0 of 20 and the constrained switch 20 of 20, the
+reader agreeing. The probe now sends the E4B's file that question and every other file the bill
+question (ADR-0050 decision 1). R-529's row then drew the E4B with it at 20 draws a cell, with the
+same four counts and the reader agreeing, so the E4B row is read on `b11429`: an open tail, plain
+0/20, constrained 20/20. On CPU cores 12 to 23 at `-ngl 0`, where `just switch-lineup` serves the
+E4B, the plain control read 20 of 20 with that question, so the recipe draws the E4B's row as it
+stands. Every knights and knaves draw stopped at the 256 token cap, as every bill question draw did,
+so a row costs what it did. Method: `screen.py`, `806-plan.md` (the rules as written before the
+draws), `premise.log`, `screen.log` and `cpu.log` in `measurements/sitting-2026-10-07c/`, and
+`launch.sh` with `529x20.sh` in its `drivers/`, the logs `806rep.log`, `529e4b20q.log` and
+`806mut.log`, the samples under `806rep/`, `529e4b20q/` and `806mut/`.
+
 **2026-09-04, re-read 2026-09-15.** A walk over every GGUF header on the model mount: 68 files, 34
 with a chat template, every one writing one of the two marker pairs `switchtail.py` lists. Six
 Qwen3.6 repackages also read `<thinking>`, `</thinking>`, `<|think_on|>` and `<|think_off|>`, and

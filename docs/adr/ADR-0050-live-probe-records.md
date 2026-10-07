@@ -33,7 +33,11 @@ inside an `integration`-marked file is code no check runs.
    each cell's draws and deliberations. `just switch-tail` runs `scripts/switchtail.py`, with
    `scripts/switchsamples.py` defining the sample format, and publishes or refuses. A broken
    prediction exits 1, and it is news about the recorded rule rather than about the deployment:
-   nothing shipped depends on the rendering (ADR-0049 decisions 5 and 14).
+   nothing shipped depends on the rendering (ADR-0049 decisions 5 and 14). The prompt is one
+   question, chosen off the `model_path` that `GET /props` reports: the bill question for every
+   file but the E4B's, which is sent a knights and knaves question because the bill question left
+   its control quiet on about one draw in five. A file whose control a question does not make
+   deliberate gets its own question in the probe, and the sample's `ask` names the one sent.
 2. **The rule is read on the tail after the prompt.** The tail is whatever the template appended
    after the last of the prompt the probe recorded sending, and a thought is closed when the last
    marker in it is a closing one. Comparing whole renderings sorts nothing: the gemma-4-E picks
