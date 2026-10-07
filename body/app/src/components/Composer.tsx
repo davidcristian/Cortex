@@ -156,6 +156,17 @@ export function Composer({
     }
   };
 
+  // A click focuses the button, and the button turns from Send to Stop and back under it, so the
+  // next typed words would go nowhere and Enter or Space would stop the next turn.
+  const press = () => {
+    if (busy) {
+      onStop();
+    } else {
+      submit();
+    }
+    fieldRef.current.focus({ preventScroll: true });
+  };
+
   const live = draft.trim().length > 0 && !busy;
 
   return (
@@ -206,7 +217,7 @@ export function Composer({
       />
       <button
         className={`send${live ? " live" : ""}${busy ? " stopping" : ""}`}
-        onClick={busy ? onStop : submit}
+        onClick={press}
         aria-label={busy ? "Stop" : "Send"}
         type="button"
       >

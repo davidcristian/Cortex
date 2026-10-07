@@ -140,6 +140,18 @@ describe("Composer", () => {
     expect(onSubmit).toHaveBeenCalledWith("hi");
   });
 
+  it("hands the caret back to the field after either press of the button", () => {
+    const { rerender } = render(<Stage />);
+    fireEvent.change(field(), { target: { value: "hi" } });
+    screen.getByLabelText("Send").focus();
+    fireEvent.click(screen.getByLabelText("Send"));
+    expect(document.activeElement).toBe(field());
+    rerender(<Stage busy={true} />);
+    screen.getByLabelText("Stop").focus();
+    fireEvent.click(screen.getByLabelText("Stop"));
+    expect(document.activeElement).toBe(field());
+  });
+
   it("becomes a stop button while busy: it cancels the turn and never submits", () => {
     const onSubmit = vi.fn();
     const onStop = vi.fn();
