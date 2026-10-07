@@ -143,6 +143,13 @@ socket in `XDG_RUNTIME_DIR`, no window appeared on `Xvfb`, which fits GTK openin
 the shell grabbed the chord on X. A notification server such as `dunst` started inside the same
 `dbus-run-session` shows `Notify`, and `pactl` on `PATH` serves the volume.
 
+**Capture.** With `CORTEX_HOST_CAPTURE=1` the shell reads the `Xvfb` root. The brain reaches it
+when the stack adds `docker/docker-compose.body.yml` with
+`CORTEX_BODY_ENDPOINT=host.docker.internal:<port>` and the shell runs with
+`CORTEX_BODY_ADDR=0.0.0.0:<port>`. Under WSL's mirrored networking the default port did not bind:
+50151, 50161 and 50171 failed with `Address already in use` while nothing in WSL listened on them,
+and 40151, 49151 and 51151 bound. The [capture turns](../readings/capture-turns.md) used 40151.
+
 A press opens the panel even with no brain reachable, and its link dot shows red. Avoid a plain
 static server of `body/app/dist`: git ignores that directory, so it holds whatever build last ran
 there. WebKitGTK also keeps pages in a disk cache under

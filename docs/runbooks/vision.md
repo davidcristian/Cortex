@@ -7,8 +7,8 @@ This runbook covers the two halves no check covers: the Docker half the agent ca
 projector, the probe, and a real image through the real inference adapter) and the Windows half
 only the host can run (a real GDI copy of a real desktop).
 
-**Nothing in this file has been run against a real screen.** The GDI backend is written,
-cross-compiled for `x86_64-pc-windows-msvc` and clippy-clean; it has never captured a pixel.
+**The GDI backend has never captured a pixel**: it is cross-compiled and clippy-clean. Turns on the
+X11 backend, through the Linux shell, are in [capture-turns](../readings/capture-turns.md).
 
 ## The three switches
 

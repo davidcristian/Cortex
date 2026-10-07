@@ -16,7 +16,9 @@ desktop**. Every claim below is derived from Win32 documentation until this runs
 is enough: `capture_screen` takes a required `target` and the tool description steers the model to
 `focus` whenever the user is asking about one thing in front of them. Ask something like "what does
 this error in the window in front of me say?" rather than "what's on my screen?", which steers the
-other way on purpose. If the model picks `display` anyway, record that as its own observation.
+other way on purpose. The pick itself is not asked here: on the Linux shell the cortex chose
+`focus` for 10 of 10 questions about one window and `display` for 10 of 10 about the screen
+([capture-turns](../../readings/capture-turns.md)).
 `BodyService.CaptureScreen` can also be driven by hand with `target: CAPTURE_TARGET_FOCUS`
 (field 2 = 1) to reach the walk regardless. The rest of the bring-up is the same as the display
 check's, kill switch included.
@@ -66,9 +68,10 @@ host-only list no longer names what ran, and a note goes in
 
 ## History
 
-- 2026-10-07: screened for what runs off Windows. Whether the cortex picks `focus` for a question
-  about the window in front of the user is brain and model behaviour, reachable on the card with
-  any body: ten asks of each kind of question, the `target` argument read from the brain's log,
-  about 25 minutes. The same Linux shell run as the display check's can add one focus capture, a
-  window behind the overlay, to check that the receipt and the reply both say one window, about
-  10 minutes more. The Z-order walk itself is Win32 and stays.
+- 2026-10-07: the half that runs off Windows was run on the Linux shell's X11 backend on `Xvfb`
+  ([capture-turns](../../readings/capture-turns.md)). The cortex picked `focus` for 10 of 10
+  questions about the window in front of the user and `display` for 10 of 10 about the screen. One
+  focus capture typed into the overlay, of a window under it, sent the receipt "A picture of one
+  window was sent to the assistant." and a reply about "the window", which said the part under the
+  panel was cut off. The Z-order walk, the six observations in the table and the maximised window's
+  receipt stay with this check, since each depends on the Win32 walk.

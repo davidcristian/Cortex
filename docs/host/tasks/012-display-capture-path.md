@@ -19,10 +19,11 @@ be verified by the user. This session is what turns those claims into findings.
 No automated check can reach any of it. In order: the real GDI blit of a live desktop; **capturing
 while the overlay is visible, to prove `WDA_EXCLUDEFROMCAPTURE` held**, which is the check nothing
 else can stand in for, because if it silently fails the self-injection loop is live; per-monitor DPI
-behaviour; the body-authored receipt appearing and reading well; GDI's black-rectangle behaviour on
-hardware-overlay and DRM-protected surfaces; and hotkey-to-answer latency with its vision surcharge,
-predicted at 0.5 to 1 s over a text turn and dominated by the second inference pass rather than by
-the body.
+behaviour; the receipt appearing as a Windows toast; GDI's black-rectangle behaviour on
+hardware-overlay and DRM-protected surfaces; and the GDI copy's share of a capture turn. What the
+brain, the model, the receipt's sentence, the refusal sentence and the overlay's indicator do with
+a real picture was read on the Linux shell's X11 backend
+([capture-turns](../../readings/capture-turns.md)), so none of that is asked here.
 
 ADR-0029's host-only list also named the resident VRAM figure with the projector loaded on the
 24 GB GPU. That clause has no OS-native content and was withdrawn on 2026-07-19: the figure was
@@ -64,11 +65,11 @@ set `CORTEX_HOST_CAPTURE=0`, stop, and record it before doing anything else.
 | Observation | Pass looks like | Failure looks like |
 | --- | --- | --- |
 | The real GDI blit | A reply that describes the actual display | An error from the body, or a capture that never returns |
-| A failure sentence from real hardware | Added 2026-08-08. Switch capture off and ask again: the reply says **the body refused to capture the screen**, not that it could not be reached. Then shut the lid or detach the display and ask: the reply says **the host is not in a state to capture the screen** | Either sentence starting "could not reach the body", which is the defect the kinded gateway error removed and would mean a status code arriving as something other than what the mapping writes |
-| The receipt | An OS notification, "Screen captured", written by the **body** | The indicator lights and no notification appears, which means the capture failed or was refused; the reply should say so |
+| A failure sentence from real hardware | Shut the lid or detach the display and ask: the reply says **the host is not in a state to capture the screen**. The switch-off refusal was read on the Linux shell, whose reply said capture is disabled on this host | A reply saying the body could not be reached, which is the defect the kinded gateway error removed and would mean a status code arriving as something other than what the mapping writes |
+| The receipt | A Windows toast, "Screen captured", written by the **body**; its two sentences were read through the freedesktop backend | The indicator lights and no toast appears, which means the capture failed or was refused; the reply should say so |
 | Per-monitor DPI | The captured image matches what is on screen at the scaling in use | A crop, a stretch, or only part of a scaled monitor |
 | Protected surfaces | A **black** rectangle where a hardware-overlay or DRM-protected surface was | The same thing, with no error to distinguish it from a dark screen. This is expected behaviour to know rather than a bug to file |
-| Latency | Roughly 0.5 to 1 s over a text turn, dominated by the second inference pass | Materially worse, which points at the body rather than the model and is worth a number |
+| Latency | The `capture_screen` call, from its `ToolActivity` to its `ToolOutcome`, a small share of the time to the reply's first text, as on X11, where it was an eighth | A share well above the X11 backend's, which points at the GDI copy or its encode rather than at the model, and is worth a number |
 
 One expectation that is not a failure: small text on a 4K display may be illegible. That is the
 slice's headline risk, measured 2026-08-06 and reduced by default since the same day. A stock
@@ -120,10 +121,12 @@ leave the focus-target check alone.
   peak. Measured again at the shipped tier shape, the cortex is 8400 to 8484 MiB idle and 8573 MiB
   at its peak, and `CORTEX_VRAM_CORTEX_GB` is 8.6 rather than 11.3
   ([ADR-0012](../../adr/ADR-0012-resource-governance.md) decision 14).
-- 2026-10-07: screened for what runs off Windows. The Linux shell on `Xvfb` with
-  `CORTEX_HOST_CAPTURE=1`, the cortex and its projector on the card, and a Gio notification
-  server on a private session bus can run "what's on my screen?" with the overlay up, the switch
-  off, and five text turns against five capture turns, about 45 minutes. It proves the brain's
-  capture tool, the ring, the receipt's sentence, the refusal sentence and the model's share of
-  the vision surcharge, so this check keeps the GDI blit, `WDA_EXCLUDEFROMCAPTURE`, DPI, protected
-  surfaces, the toast and GDI's own error codes.
+- 2026-10-07: the half that runs off Windows was run on the Linux shell's X11 backend on `Xvfb`,
+  with the cortex and its projector on the card
+  ([capture-turns](../../readings/capture-turns.md)). With the overlay up no capture reply described
+  the panel, every capture sent the receipt with the sentence for its target, the switch off gave a
+  refusal reply and no receipt, the indicator showed its asked and read states, and the
+  `capture_screen` call was an eighth of the time to the reply's first text. This check keeps the
+  GDI blit, `WDA_EXCLUDEFROMCAPTURE`, DPI, protected surfaces, the toast, GDI's own error codes and
+  the GDI copy's share of the time. The run found the body's default port unbindable under WSL's
+  mirrored networking, filed as [R-807](../../refinements/tasks/807-move-the-body-port-out-of-the-windows-dynamic-range.md).

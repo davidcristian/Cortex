@@ -244,7 +244,7 @@ with thinking on, about five times slower on an invoice screen; turning it off i
 - Runbooks [vision](../runbooks/vision.md), [llamacpp-gpu](../runbooks/llamacpp-gpu.md); modules
   [brain-core](../modules/brain-core.md), [brain-orchestrator](../modules/brain-orchestrator.md),
   [brain-body-client](../modules/brain-body-client.md), [body-core](../modules/body-core.md);
-  measurements [vision-capture](../readings/vision-capture.md),
+  measurements [vision-capture](../readings/vision-capture.md), [capture-turns](../readings/capture-turns.md),
   [injection-over-pixels](../readings/injection-over-pixels.md), [x11-overlay-capture](../readings/x11-overlay-capture.md).
 - [ADR-0019](ADR-0019-tainted-memory-recording.md), [ADR-0023](ADR-0023-body-gateway-volume.md),
   [ADR-0030](ADR-0030-brain-handoff.md), [ADR-0041](ADR-0041-injection-image-variant.md).
