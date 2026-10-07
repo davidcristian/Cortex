@@ -2,7 +2,8 @@
 
 What the history window's character budget comes to in tokens on the cortex's and the deep
 candidates' tokenizers, and what else a turn's prompt holds beside it. Cited by
-[ADR-0014](../adr/ADR-0014-history-windowing.md) decisions 4, 7 and 8. Token counts depend on the text and
+[ADR-0014](../adr/ADR-0014-history-windowing.md) decisions 4, 7 and 8, and by
+[ADR-0008](../adr/ADR-0008-memory-v1.md) decision 4 for the recalled memories. Token counts depend on the text and
 the vocabulary, not on the machine, so they are given as counts.
 
 ## A full window and what comes with it
@@ -100,6 +101,32 @@ memories, the recap (at most 2,000 characters) and in-turn tool steps come on to
 The 48,000-character ADR prose row, sent to the same server as a streamed chat request with the 23
 tools, was refused at once with `exceed_context_size_error` and `n_prompt_tokens` 18274, the count
 above plus the start token.
+
+## Recalled memories in the prompt
+
+**2026-10-07**, a scratch stack (compose project `cortexs16`, its own volumes) with the cortex
+gemma-4-12B on the GPU at `--ctx-size 16384`, counted through its `/tokenize`, at SM 0.65 to
+0.67 of `clocks.max.sm`. Ten exchanges were recorded in ten sessions, each a one-line fact before the first
+10,000 to 12,000 characters of an ADR, with a one-sentence reply: 7,537 to 12,362 characters each.
+
+| block, as the turn renders it | characters | tokens | characters per token |
+| --- | --- | --- | --- |
+| five recalled exchanges, whole | 50,847 | 13,292 | 3.83 |
+| the same five within a budget of 6000 characters | 6,312 | 1,620 | 3.90 |
+| the five longest of the ten, whole | 56,943 | 15,190 | 3.75 |
+
+Before the budget, the fifth record turn recalled four whole exchanges, its prompt filled the
+context (16,305 tokens and `truncated = 1` in the engine's log), and its reply was only the
+length-limit note. The whole five-exchange block with the 4,873 fixed tokens of a full tool stack
+is 18,165 tokens, past the context before any history. With the budget, a new session asked about
+the fact the exchanges shared; the turn completed with no overflow or length note in 4,380 tokens
+of prompt and reply, and named six of the seven details asked for. The seventh was in a sixth
+matching exchange, which the recall's five did not include. The real stores held too little to
+size the block: 2 memories of at most 41 characters, and 73 exchanges of at most 2,013 characters
+in test sessions.
+
+Method: `measurements/recall-budget-2026-10-07/`: `live.py` for the turns, `blocktokens.py` for the
+counts, the engine's and the brain's logs, and `exchanges.json` and `sorin.json` for the texts.
 
 ## The deep tier at 16384
 

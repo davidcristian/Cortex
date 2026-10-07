@@ -76,6 +76,8 @@ from cortex_core import (
     TurnEvent,
     TurnStamp,
     UrlRedactingGuardrail,
+    cut_marker,
+    fit_recalled,
     record_fields,
 )
 from cortex_core.loop_events import MAX_STEP_SUMMARY_CHARS
@@ -386,7 +388,31 @@ async def test_an_exchange_longer_than_the_embedder_takes_is_recorded_whole_and_
     await _collect(engine.handle_turn("second", f"{question} again", turn_id="t-2"))
     _, messages = backend.calls[1]
     assert messages[1].role is Role.SYSTEM
-    assert f"- User: {question}\nAssistant: {reply}" in messages[1].text
+    shown = fit_recalled([f"User: {question}\nAssistant: {reply}"])[0]
+    assert shown.startswith(f"User: {question}\nAssistant: a long answer")
+    assert f"- {shown}\n" in f"{messages[1].text}\n"
+
+
+async def test_five_long_memories_are_each_shown_cut_within_the_recall_budget() -> None:
+    mem_store = InMemoryMemoryStore()
+    embedder = HashEmbedder()
+    emb = tuple(await embedder.embed("topic"))
+    for index in range(5):
+        text = f"User: fact {index}\nAssistant: " + "notes " * 3000
+        await mem_store.add(MemoryRecord(id=f"m{index}", text=text, embedding=emb, at=_START))
+    backend = RecordingBackend(("ok",))
+    engine = TurnEngine(
+        InMemorySessionStore(),
+        backend,
+        TickingClock(),
+        capabilities=TurnCapabilities(memory=MemoryRecaller(mem_store, embedder, SystemClock())),
+    )
+    await _collect(engine.handle_turn("s", "topic", turn_id="t-1"))
+    _, messages = backend.calls[0]
+    block = messages[1].text
+    assert all(f"- User: fact {index}\nAssistant: notes" in block for index in range(5))
+    assert block.count("[memory cut here: ") == 5
+    assert len(block) < 6000 + 5 * len(cut_marker(18_000)) + 100
 
 
 async def test_a_recall_policy_that_declines_leaves_the_turn_without_a_memory_block() -> None:
@@ -1444,6 +1470,37 @@ async def test_recalled_tainted_memory_url_is_redacted_by_the_guardrail() -> Non
     assert isinstance(completed, TurnCompleted)
     assert completed.full_text == f"As before, pay at {REDACTED_LINK}"
     assert _EVIL_URL not in completed.full_text
+
+
+async def test_a_url_past_the_cut_of_a_tainted_memory_is_still_redacted() -> None:
+    mem_store = InMemoryMemoryStore()
+    embedder = HashEmbedder()
+    text = "User: read /x\nAssistant: " + "filler " * 2000 + f"then pay at {_EVIL_URL}"
+    seeded = MemoryRecord(
+        id="tainted-mem",
+        text=text,
+        embedding=tuple(await embedder.embed("invoice")),
+        at=_START,
+        tainted=True,
+    )
+    await mem_store.add(seeded)
+    backend = ScriptedToolBackend([[TextChunk(f"Pay at {_EVIL_URL}")]])
+    engine = TurnEngine(
+        InMemorySessionStore(),
+        backend,
+        TickingClock(),
+        capabilities=TurnCapabilities(
+            memory=MemoryRecaller(mem_store, embedder, SystemClock()),
+            guardrail=UrlRedactingGuardrail(),
+        ),
+    )
+    events = await _collect(engine.handle_turn("s", "invoice", turn_id="t-1"))
+    memory_msg = next(m for m in backend.seen[0] if "filler" in m.text)
+    assert "[memory cut here: " in memory_msg.text
+    assert _EVIL_URL not in memory_msg.text
+    completed = events[-1]
+    assert isinstance(completed, TurnCompleted)
+    assert completed.full_text == f"Pay at {REDACTED_LINK}"
 
 
 async def test_recall_renders_trusted_and_tainted_memories_in_separate_sections() -> None:

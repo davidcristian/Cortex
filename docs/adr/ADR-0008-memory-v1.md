@@ -53,6 +53,23 @@ and put embedding on the CPU so the GPU budget stays with the cortex
    the question and the opening of the reply, and returned whole. Storing one record per piece was
    rejected: a recall would return a part of a reply without the question it answers.
 
+   The memories one turn shows share `RECALL_CHAR_BUDGET`, 6000 characters (`recall_budget.py`). A
+   memory shorter than an even share is shown whole, and the longer ones split what it leaves
+   evenly, so one recalled memory may fill the budget and five show at least 1200 characters each.
+   A memory past its share shows its start and ends with `[memory cut here: N more characters not
+   shown]`. The budget is sized on the history window's arithmetic
+   ([ADR-0014](ADR-0014-history-windowing.md) decision 4): a full 24,000-character window and all
+   23 tools leave 5,151 of the cortex's 16,384 tokens at the densest text counted, the recap takes
+   at most 2,000 characters, and a cut block of five long exchanges measured 1,620 tokens, which
+   leaves about 3,000 for tool steps and the reply
+   ([readings](../readings/history-window.md#recalled-memories-in-the-prompt)). The budget counts
+   characters as the window does, so a deployment that changes `CORTEX_CTX_SIZE` resizes
+   `CORTEX_HISTORY_CHAR_BUDGET` and the memory block keeps its size. A tainted memory is fenced as
+   cut, while `TaintLedger.ingest_untrusted` receives its whole text: the ledger collects the URLs
+   the output guardrail redacts ([ADR-0013](ADR-0013-untrusted-content.md)), and the whole text
+   collects every URL the model saw plus the rest, so a URL past the cut, or one the cut splits, is
+   still redacted.
+
 5. **The embedder adapter is llama.cpp's CPU `/v1/embeddings`**
    ([ADR-0005](ADR-0005-llamacpp-engine.md)), an httpx translator mirroring the inference adapter:
    injected client, failures wrapped as `EmbedderError`, CI over `httpx.MockTransport`, and an
@@ -187,6 +204,11 @@ and put embedding on the CPU so the GPU budget stays with the cortex
 ## Alternatives rejected
 
 - **Letta**, for the framework reasons in decision 1.
+- **One fixed cut per memory, or a budget filled in rank order** (decision 4). A fixed cut shows a
+  lone long memory at a fifth of the budget, and rank order lets the first long memory crowd out
+  every later one.
+- **Handing the taint ledger the cut text** (decision 4). A URL cut in half would be collected as
+  its prefix and fail to match the whole URL in a reply.
 - **A raw PGDATA bind mount as the default**, for the reasons in decision 7.
 - **Degrading on a data defect with a log line.** The log is the silence decision 12 was written to
   end, and the turn would answer thinly on every run until the data is fixed.

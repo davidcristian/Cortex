@@ -111,9 +111,10 @@ recall; this ADR is about the in-context history of the current session only.
   whole and predictably, and with the summary on they return as a recap; the stored history and
   memory keep everything.
 - A single oversized newest turn is sent whole and can still overflow the model context: the window
-  limits history, not one turn's size, and such a turn ends with the note of decision 7. Long
-  recalled memories and large tool results reach the same note. A per-turn input cap would be a
-  decision at the overlay, not silent truncation here.
+  limits history, not one turn's size, and such a turn ends with the note of decision 7. Large
+  tool results reach the same note, while recalled memories share a fixed budget
+  ([ADR-0008](ADR-0008-memory-v1.md) decision 4). A per-turn input cap would be a decision at the
+  overlay, not silent truncation here.
 - A context's decode cost is read with both contexts in one session: the pick's rate differs by up
   to a seventh between sessions at one SM clock, so a 16384 row first read 0.86 of an 8192 row
   drawn on another night ([readings](../readings/history-window.md#decode-at-16384-in-one-session)).

@@ -14,6 +14,12 @@ from cortex_core.ranking import (
     dropped_candidates,
 )
 from cortex_core.recall import MemoryRecaller
+from cortex_core.recall_budget import (
+    RECALL_CHAR_BUDGET,
+    cut_marker,
+    fit_recalled,
+    recall_allowances,
+)
 from cortex_core.rerank import RAW_RECALL_POLICY, RawRecallPolicy, RecallPolicy
 from cortex_core.rerank_judge import JudgeRecallPolicy
 from cortex_core.rerank_policies import (
@@ -35,6 +41,7 @@ __all__ = [
     "GLOBAL_MEMORY_SCOPE",
     "GLOBAL_SCOPE",
     "RAW_RECALL_POLICY",
+    "RECALL_CHAR_BUDGET",
     "DroppedCandidate",
     "DroppedCandidates",
     "GlobalMemoryScope",
@@ -54,6 +61,9 @@ __all__ = [
     "ScoredMemory",
     "SessionMemoryCascade",
     "SessionMemoryScope",
+    "cut_marker",
     "dropped_candidates",
     "embedding_input",
+    "fit_recalled",
+    "recall_allowances",
 ]

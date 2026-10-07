@@ -72,8 +72,11 @@ of everything optional about a turn. With the bare default the turn is plain str
 
 - `memory` (a `MemoryRecaller`, ADR-0008): before inference the engine recalls the top
   `DEFAULT_RECALL_K` (5) memories for the user text within the turn's scope and prepends any hits
-  as a `Role.SYSTEM` message that is never stored. A recalled memory marked `tainted` is fenced
-  with the turn nonce, taints the turn (ADR-0019) and names its own record id as the turn's source.
+  as a `Role.SYSTEM` message that is never stored. The hits share `RECALL_CHAR_BUDGET` (6000
+  characters) through `fit_recalled` (`recall_budget.py`), and one past its share is cut with a
+  marker. A recalled memory marked `tainted` is fenced with the turn nonce, taints the turn
+  (ADR-0019), names its own record id as the turn's source and gives the taint ledger its whole
+  text.
   After the reply it records the exchange, unless the turn read untrusted content. **Memory that
   cannot be reached costs the turn its notes and not the turn** (ADR-0008 decision 12):
   `EmbedderError` and `MemoryStoreError` are caught on both halves and nothing else is, a failed

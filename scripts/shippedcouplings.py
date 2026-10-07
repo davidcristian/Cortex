@@ -24,6 +24,7 @@ EMBED_INPUT = "brain/packages/core/src/cortex_core/embed_input.py"
 EMBEDDING_DOC = "docs/modules/brain-embedding.md"
 CORE_MEMORY_DOC = "docs/modules/brain-core-memory.md"
 EMBEDDING_READINGS = "docs/readings/embedding-input.md"
+RECALL_BUDGET = "brain/packages/core/src/cortex_core/recall_budget.py"
 
 SHIPPED_COUPLINGS: tuple[Constant, ...] = (
     Constant(
@@ -62,6 +63,21 @@ SHIPPED_COUPLINGS: tuple[Constant, ...] = (
             Mention(CORE_MEMORY_DOC, "so {value} characters always fit"),
             Mention(EMBEDDING_READINGS, "{value} characters is at most {value} tokens"),
             Mention(EMBEDDING_READINGS, "built at the bound\nof {value} characters"),
+        ),
+    ),
+    Constant(
+        label="the recall budget",
+        why=(
+            "the decision, the turn contract and the readings each state how many characters of "
+            "recalled memory a turn shows, and the readings count what that number costs in the "
+            "cortex's context, so a budget retuned in the core alone would leave three documents "
+            "describing a margin the code no longer keeps (ADR-0008 decision 4)"
+        ),
+        sites=(Site(RECALL_BUDGET, "RECALL_CHAR_BUDGET"),),
+        mentions=(
+            Mention("docs/adr/ADR-0008-memory-v1.md", "`RECALL_CHAR_BUDGET`, {value} characters"),
+            Mention("docs/modules/brain-core-turn.md", "`RECALL_CHAR_BUDGET` ({value}"),
+            Mention("docs/readings/history-window.md", "within a budget of {value} characters"),
         ),
     ),
     Constant(
