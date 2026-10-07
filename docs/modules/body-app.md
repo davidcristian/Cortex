@@ -241,10 +241,9 @@ heartbeats included (`DEFAULT_TURN_HEARTBEAT_GAP_MS = 120000`), so a dead brain 
 - The shell stays thin. Every decision with a branch in it (accelerator mapping, wire translation)
   lives in the covered `body_core` and `body_rpc`, and the app holds wiring only, which is what
   keeps the coverage exclusion safe. `src-tauri` is its own Cargo workspace, excluded from
-  `body/Cargo.toml`, and never enters CI; its `.rs` files are still under the 300-line cap, which
-  `linecap.py` scans in every tree.
+  `body/Cargo.toml` and from coverage; its `.rs` files are still under the 300-line cap.
 
 **Dependencies.** Frontend: React 18, Vite 5, Vitest, `@tauri-apps/api`. Shell: `tauri` 2
-(`tray-icon`), `body-core` and `body-rpc`, `os-windows` (`cfg(windows)`), `serde`, `futures-util`,
-`tonic`, `tokio` (`sync`, `net`, `rt-multi-thread`, `time`) and `tokio-stream`. Bring-up:
-[body-overlay](../runbooks/body-overlay.md).
+(`tray-icon`), `body-core` and `body-rpc`, `os-windows` on Windows, `os-linux` and `gtk` on Linux,
+`serde`, `futures-util`, `base64`, `tonic`, `tokio` (`sync`, `net`, `rt-multi-thread`, `time`) and
+`tokio-stream`. Bring-up: [body-overlay](../runbooks/body-overlay.md).
