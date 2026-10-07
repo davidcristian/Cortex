@@ -119,14 +119,14 @@ non-terminal `ConfirmRequest`. The adapter sends
 sender; dropping the event stream still aborts the RPC, which denies any pending confirm.
 
 The overlay holds at most one `pendingConfirm`, set by the event and cleared by the user's answer
-and by every turn-ending action. Because dropping the event stream does not half-close the Tauri
-request stream, each turn-ending action (`stop`, `dismiss`, `newChat`, `openSession`) first sends
-an explicit deny for a still-pending confirm, so the brain resolves it at once rather than at the
-timeout. The card renders in the history area with the tool name, the draft as key and value lines,
-the reason, and Approve and Deny; a confirm arriving while the panel is hidden shows like a
-finished turn and does not fade, since a question waits to be seen. `BrainBridge.respondConfirm`
-forwards to the shell's `confirm_response` command, which pushes into the open turn's sender. The
-demo bridge scripts a confirm round, so the card can be driven without a brain.
+and by every turn-ending action. Each of them (`stop`, `dismiss`, `newChat`, `openSession`) first
+denies a still-pending confirm, so the brain resolves it at once, not at its timeout: `dismiss`
+leaves the turn running, and the other three do not depend on the bridge's cancel, which drops the
+RPC only in the Tauri bridge (`stop_turn`). The card renders in the history area with the tool name,
+the draft as key and value lines, the reason, and Approve and Deny; a confirm arriving while the
+panel is hidden shows like a finished turn and does not fade, since a question waits to be seen.
+`BrainBridge.respondConfirm` forwards to the shell's `confirm_response` command, which pushes into
+the open turn's sender. The demo bridge scripts a confirm round, so the card runs without a brain.
 
 ### 6. Validation splits three ways
 

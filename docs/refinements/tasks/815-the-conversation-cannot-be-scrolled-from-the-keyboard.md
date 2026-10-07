@@ -8,7 +8,8 @@
 
 The conversation scrolls in `.history` in `body/app/src/components/ChatView.tsx`, a `div` with no
 `tabIndex`, and no key handler in the overlay moves it: `useLogScroll.ts` and `logRoll.ts` set
-`scrollTop` only to follow the stream and to roll a section. On the Linux shell on 2026-10-07,
+`scrollTop` only to follow the stream and to roll a section, and `holdScroll` in `panelParts.ts`
+only to put a position back after the panel measures itself. On the Linux shell on 2026-10-07,
 with a reply taller than the window, `Page_Up` in the field changed nothing, and seven presses of
 `Tab` from the field went to the send button, the two hint strip buttons and the header's buttons,
 never to the conversation ([readings](../../readings/overlay-turn-flows.md#the-keyboard)). A

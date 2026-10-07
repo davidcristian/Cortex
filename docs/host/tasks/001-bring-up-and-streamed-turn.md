@@ -33,10 +33,11 @@ npm run tauri dev
 
 with the brain up beside it. Add `-f docker/docker-compose.body.yml` to the compose command so the
 brain can dial back (`CORTEX_BODY_BACKEND=grpc`), and `-f docker/docker-compose.gpu.yml` for the
-real cortex. Full procedure: [runbooks/body-overlay.md](../../runbooks/body-overlay.md) section B.
+real cortex. Full procedure: [the overlay runbook's Windows
+section](../../runbooks/body-overlay.md#the-tauri-app-on-windows).
 
-**Do.** [runbooks/body-overlay.md](../../runbooks/body-overlay.md) section B, validation steps 1 to
-3. Press **Ctrl+Alt+Space** from some other foreground application; press it again to hide. Hover
+**Do.** Steps 1 to 3 of [that section](../../runbooks/body-overlay.md#the-tauri-app-on-windows).
+Press **Ctrl+Alt+Space** from some other foreground application; press it again to hide. Hover
 the tray icon, then use its **Show overlay**. Type a prompt, watch the reply stream, then send a
 follow-up that depends on the first (the session is shared across turns). End with the tray's
 **Quit Cortex**.
@@ -56,8 +57,8 @@ streams token by token rather than arriving whole, and a follow-up keeps context
 - The whole reply arrives at once: the stream is being buffered somewhere, which is a finding about
   the IPC hop rather than about the brain, since the brain's deltas are covered on both sides.
 
-**Record it.** Edit [ADR-0011](../../adr/ADR-0011-body-v1.md) in place where the run changes the two
-lines named above, and put any figure the run took in its readings record under
+**Record it.** Edit [ADR-0011](../../adr/ADR-0011-body-v1.md) in place where its host-only
+consequence names this check, and put any figure the run took in its readings record under
 [docs/readings/](../../readings/README.md); then delete this section.
 
 ## Notes
@@ -78,8 +79,8 @@ lines named above, and put any figure the run took in its readings record under
 - 2026-10-06: the reminder pull surface closed on the Linux shell too, leaving the hotkey that
   summons it and WebView2's transport to this check
   ([H-007](007-reminder-pull-surface.md)).
-- 2026-10-07: corrected the count of checks the bring-up serves and the description of
-  ADR-0011's host-only list, which is now one sentence. The Linux shell's hotkey is `os_linux`'s
+- 2026-10-07: corrected the count of checks the bring-up serves, the description of ADR-0011's
+  host-only list, which is now one sentence, and the runbook section the bring-up points to. The Linux shell's hotkey is `os_linux`'s
   own, and its streamed turn showed the deep model's reasoning a delta at a time
   ([readings](../../readings/model-swap.md#the-overlays-view-of-a-handoff)), so a reply arriving
   whole on Windows points at WebView2's transport. The one part left to run off Windows is the

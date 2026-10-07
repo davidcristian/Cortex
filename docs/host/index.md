@@ -246,7 +246,7 @@ A session fails on setup more often than on anything else. Have these before sta
   assumption 3.
 - For the confirm card: a tool that needs approval. Either `CORTEX_EMAIL_SEND_ENABLED=true` with the
   Bridge reachable, or any tool name in `CORTEX_TOOLS_GATED`.
-- Full runbook: [runbooks/body-overlay.md](../runbooks/body-overlay.md) section B.
+- Full runbook: [the overlay runbook's Windows section](../runbooks/body-overlay.md#the-tauri-app-on-windows).
 
 **For G (any 24 GB item):**
 

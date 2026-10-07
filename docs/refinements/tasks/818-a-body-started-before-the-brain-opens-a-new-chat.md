@@ -22,10 +22,11 @@ too.
 ## Proposal
 
 - **A. A summon does not block adoption** (recommended). The summon stops setting `touched`, and
-  the actions that put something in front of the person still do: submit, typing, new chat, cycle
-  and open. The last chat then replaces the empty state a moment after a summon, which is a change
-  under the person's eyes rather than before the panel shows. ADR-0021 decision 6 and ADR-0052's
-  rule that adoption never moves focus or speaks stay as they are.
+  the actions that put something in front of the person still do: submit, typing, attaching a
+  picture, new chat, cycle and opening a chat. The last chat then replaces the empty state a moment
+  after a summon, which is a change under the person's eyes rather than before the panel shows.
+  ADR-0021 decision 6 drops the summon from the actions it names as setting `touched`, and
+  ADR-0052's rule that adoption never moves focus or speaks stays as it is.
 - **B. Keep the summon winning.** The empty chat stays, as now, and the runbook says that `Ctrl+Up`
   reaches the last chat. Nothing changes in the code.
 
