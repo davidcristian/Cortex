@@ -206,3 +206,29 @@ one URI under `text/uri-list`, dragged with `xdotool`. No reading here is a timi
 
 Method: `measurements/tauri-ipc-2026-10-06/drop-through-shell/`, with the scripts, the picture
 and frames in `shots/`.
+
+## The tray menu on the Linux shell
+
+**2026-10-07**, the shell built from the bundle (`tauri/custom-protocol`) on `Xvfb` with no brain,
+and a StatusNotifierWatcher and host written in Python with `Gio`, started inside the shell's
+`dbus-run-session`. A second script, run in the shell's namespace with `nsenter`, read the item and
+sent `com.canonical.dbusmenu` `Event(id, "clicked")` as a desktop's tray host does. No reading here
+is a timing.
+
+- **The item.** `tray-icon` registers through libayatana-appindicator as
+  `/org/ayatana/NotificationItem/tray_icon_tray_app_cortex_tray`, with `Title` `cortex-body`,
+  `Status` `Active` and the icon as a 32 by 32 PNG it writes under `$XDG_RUNTIME_DIR/tray-icon`.
+  It exports no `ToolTip` property, so the tooltip shows on Windows only.
+- **The menu** has two entries, `Show overlay` (id 2) and `Quit Cortex` (id 3).
+- **Show overlay** on the hidden window showed it at (480, 140) with the panel open. On the shown
+  window it sent `cortex:toggle`, and the overlay hid the window, as a hotkey press does. A window
+  the tray showed hid on the hotkey.
+- **Quit Cortex** ended the shell with exit status 0, and its bus name went with it, which removed
+  the item from the watcher.
+- **With no watcher** the shell printed nothing about the tray. A watcher started 8 s later
+  received the registration at once.
+- **The chord.** With `CORTEX_HOTKEY=ctrl+shift+k`, that chord hid the window the tray showed and
+  `ctrl+alt+space` did nothing.
+
+Method: `measurements/linux-tray-2026-10-07/`, with `watcher.py`, `drive.py`, the shell scripts,
+`events.txt` and frames in `shots/`.

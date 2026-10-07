@@ -26,7 +26,9 @@ and says the failure is to be shown to the user. Where it shows is a visual pick
   when the user is starting the app. On Windows it shows only once the toast's app id is
   registered ([H-003](../../host/tasks/003-real-reminder-toast.md)).
 - **B. The tray.** The tray's tooltip, or a disabled menu line, says the body server is off and
-  why. It stays readable for the whole run, but only a user who opens the tray sees it.
+  why. It stays readable for the whole run, but only a user who opens the tray sees it, and a
+  Linux tray host shows no tooltip, since the item exports none
+  ([readings](../../readings/tauri-ipc-commands.md#the-tray-menu-on-the-linux-shell)).
 - **C. The overlay.** The shell emits an event and the panel shows a line, or the link dot takes
   a state for it. It is the most visible, and needs a Tauri event, an overlay port, its component
   and Vitest coverage.

@@ -7,15 +7,15 @@
 **Verified:** 2026-10-07
 
 **What only this proves.** That `os_windows` really registers a system-wide hotkey on a live Win32
-desktop, that the tray item and window show and hide work, and that the `converse` Tauri command
-streams a live brain turn into the webview across the real IPC hop. Everything under that is
-already covered by tests: the chord parser is pure and 100% covered in `body_core`, and the
-overlay's streaming reducer is covered in `body/app`. What no test reaches is a real registration
-against a real desktop that other software is competing for. The IPC hop here is WebView2's
-transport, which every other command shares: `confirm_response`, the session reads, the preference
-commands, `check_link`, the reminder pull and the `images` argument of `converse` ran over a real
-hop on the Linux shell on 2026-10-06 ([readings](../../readings/tauri-ipc-commands.md)), so a turn
-that streams here is their Windows half too.
+desktop, that the Win32 tray icon, its menu and its tooltip appear, that window show and hide work,
+and that the `converse` Tauri command streams a live brain turn into the webview across the real IPC
+hop. Everything under that is already covered by tests: the chord parser is pure and 100% covered in
+`body_core`, and the overlay's streaming reducer is covered in `body/app`. What no test reaches is a
+real registration against a real desktop that other software is competing for. The IPC hop here is
+WebView2's transport, which every other command shares: `confirm_response`, the session reads, the
+preference commands, `check_link`, the reminder pull and the `images` argument of `converse` ran
+over a real hop on the Linux shell on 2026-10-06 ([readings](../../readings/tauri-ipc-commands.md)),
+so a turn that streams here is their Windows half too.
 
 [ADR-0011](../../adr/ADR-0011-body-v1.md)'s host-only consequence names the hotkey registration,
 the tray, window show and hide, and a real `converse` streaming through WebView2. None of them had
@@ -36,13 +36,14 @@ brain can dial back (`CORTEX_BODY_BACKEND=grpc`), and `-f docker/docker-compose.
 real cortex. Full procedure: [runbooks/body-overlay.md](../../runbooks/body-overlay.md) section B.
 
 **Do.** [runbooks/body-overlay.md](../../runbooks/body-overlay.md) section B, validation steps 1 to
-3. Press **Ctrl+Alt+Space** from some other foreground application; press it again to hide. Use the
-tray's **Show overlay**. Type a prompt, watch the reply stream, then send a follow-up that depends
-on the first (the session is shared across turns).
+3. Press **Ctrl+Alt+Space** from some other foreground application; press it again to hide. Hover
+the tray icon, then use its **Show overlay**. Type a prompt, watch the reply stream, then send a
+follow-up that depends on the first (the session is shared across turns). End with the tray's
+**Quit Cortex**.
 
-**Pass.** The overlay appears from any foreground app and toggles away again; the tray item does
-the same; a typed turn streams token by token rather than arriving whole, and a follow-up keeps
-context.
+**Pass.** The overlay appears from any foreground app and toggles away again; the tray icon's
+tooltip names the chord, its entry does what the hotkey does, and Quit ends the shell; a typed turn
+streams token by token rather than arriving whole, and a follow-up keeps context.
 
 **Fail, and what each failure means.**
 
@@ -84,3 +85,10 @@ lines named above, and put any figure the run took in its readings record under
   whole on Windows points at WebView2's transport. The one part left to run off Windows is the
   tray menu on the Linux shell under a StatusNotifier host, which proves `tray.rs` and not the
   Win32 tray.
+- 2026-10-07: the tray menu ran on the Linux shell under a StatusNotifier watcher and host written
+  for the run. `Show overlay` showed the hidden window and hid the shown one, as the hotkey does,
+  and `Quit Cortex` ended the shell with status 0
+  ([readings](../../readings/tauri-ipc-commands.md#the-tray-menu-on-the-linux-shell)). That proves
+  `tray.rs` and its menu events, so what stays here is the Win32 tray icon, its menu and its
+  tooltip, which now names the configured chord rather than always `Ctrl+Alt+Space`. The entry's
+  label against its toggle is [R-811](../../refinements/tasks/811-the-tray-show-overlay-entry-hides-a-shown-overlay.md).
