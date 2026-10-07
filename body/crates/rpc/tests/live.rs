@@ -15,9 +15,9 @@ use body_rpc::generated::brain_service_client::BrainServiceClient;
 use body_rpc::generated::{ClientEvent, UserTurn, client_event, server_event};
 use tokio::net::TcpListener;
 
-/// The live brain's address: `CORTEX_BRAIN_ADDR`, default `http://127.0.0.1:50051`.
+/// The live brain's address: `CORTEX_BRAIN_ADDR`, default `http://127.0.0.1:23051`.
 fn brain_addr() -> String {
-    std::env::var("CORTEX_BRAIN_ADDR").unwrap_or_else(|_| String::from("http://127.0.0.1:50051"))
+    std::env::var("CORTEX_BRAIN_ADDR").unwrap_or_else(|_| String::from("http://127.0.0.1:23051"))
 }
 
 /// The shared token to present, when the live brain requires one.

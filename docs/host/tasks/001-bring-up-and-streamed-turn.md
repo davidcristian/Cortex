@@ -26,7 +26,7 @@ checks, so nobody wrote it down as one.
 
 ```powershell
 $env:CORTEX_SEAM_TOKEN = "<the same secret the brain serves with>"
-$env:CORTEX_BODY_ADDR  = "0.0.0.0:50151"
+$env:CORTEX_BODY_ADDR  = "0.0.0.0:23151"
 cd body\app
 npm run tauri dev
 ```

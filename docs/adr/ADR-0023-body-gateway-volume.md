@@ -4,27 +4,23 @@
 
 ## Context
 
-Every call between body and brain once ran one direction: the body connects to the brain's
-`BrainService`. This decision opens the reverse direction, the brain calling the host body, and
-adds the first host OS action: reading and setting the system volume. Volume was chosen as the
-smallest reversible action that proves the direction. Further OS actions arrive as more
-`BodyService` RPCs and `cfg`-conditional OS-trait methods behind the same two ports; the reminder
-toast ([ADR-0025](ADR-0025-scheduling-reminders.md)) and screen capture
-([ADR-0029](ADR-0029-vision-screen-capture.md)) have since done so.
+This decision opens the brain to body direction, the brain calling the host body, and adds the
+first host OS action, reading and setting the system volume: the smallest reversible action that
+proves the direction. Further OS actions are more `BodyService` RPCs and `cfg`-conditional OS-trait
+methods behind the same two ports, such as the reminder toast
+([ADR-0025](ADR-0025-scheduling-reminders.md)) and screen capture ([ADR-0029](ADR-0029-vision-screen-capture.md)).
 
 Four facts shaped it:
 
-- **The wire contract already declared it.** `proto/body.proto` had `BodyService` and its messages,
-  and both code generators emit a client and a server for every service, so the first slice needed
-  no proto edit, only hand-written, fully covered wiring on both sides
-  ([ADR-0003](ADR-0003-generated-stubs.md)).
+- **The wire contract already declared it.** `proto/body.proto` has `BodyService` and its messages,
+  and both code generators emit a client and a server for every service, so the direction needs
+  only hand-written, fully covered wiring on both sides ([ADR-0003](ADR-0003-generated-stubs.md)).
 - **Two open questions came due.** [ADR-0001](ADR-0001-architecture.md) Q2 (body capabilities as
   MCP tools, or internal tools over a port) and Q3 (the brain connects to the body, or the body
   tunnels body-directed calls over a stream it opened). This ADR resolves both.
-- **The roadmap's security assumption is revisited.** The setup was loopback-only listeners plus an
-  optional shared token ([ADR-0016](ADR-0016-shared-token.md)). The body's `BodyService` listener may
-  have to accept a connection from the dockerized brain, which is outside loopback, so the token
-  becomes the boundary in that direction.
+- **The roadmap's security assumption is revisited.** The setup is loopback-only listeners plus an
+  optional shared token ([ADR-0016](ADR-0016-shared-token.md)). `BodyService` may have to accept the
+  dockerized brain, outside loopback, so the token is the boundary in that direction.
 - **The one hard rule.** Volume is read from the OS on demand and the body server holds no turn or
   conversation state, so it needs no swap-safety design.
 
@@ -37,8 +33,7 @@ Volume is a pair of built-in tools, `get_volume` and `set_volume`, which the cor
 the audited `ToolDispatcher`. They call a pure-core port, `BodyGateway`
 (`cortex_core/ports_body.py`), whose volume methods are `get_volume()` and
 `set_volume(*, level=None, mute=None)`, both returning the core value `VolumeState` (`level`,
-`muted`). No wire type enters the core. The port has since gained `notify` (ADR-0025) and
-`capture_screen` (ADR-0029).
+`muted`). No wire type enters the core. The port also has `notify` and `capture_screen`.
 
 Keeping OS actions internal means a jailbroken subagent never gets one: built-ins are cortex-only
 by construction, since subagents receive only the remote MCP subset with the tools needing
@@ -75,19 +70,17 @@ Notify, S: ScreenCapture>` implements the generated `BodyService` trait, `audio_
 and `notify_error_to_status` map port errors to statuses (the inverse of `status_to_error`), and
 `body_service(audio, notifier, screen, receipts, token)` builds the server behind the token
 validator. `inject_input` answers `Status::unimplemented` (decision 13). It is contract-tested over
-an in-process loopback server driven by a generated client and fake backends, covering every
-`Option` combination and every error branch, to 100% line, region and branch. The bind and serve
-lifecycle lives in the Tauri shell, `body/app/src-tauri/src/body_server.rs`, outside the checks.
+an in-process loopback server with a generated client and fake backends, to 100% line, region and
+branch. The bind and serve lifecycle lives in the shell's `body_server.rs`, outside the checks.
 
 ### 4. Volume needs no confirmation; the confirmer is available but not used
-
-`get_volume` is a read and `set_volume` is reversible and low-harm, so both are `confirm_required=False`: a
-spoken "set volume to 30%" should not raise an approval card. Both results are `Trust.TRUSTED`,
-since host state is system-generated, so a volume call never taints a turn. A later OS action with
-side effects can require confirmation by setting `confirm_required=True` on its spec. Volume itself has a
-zero-code opt-in: adding `set_volume` to `CORTEX_TOOLS_GATED` makes the dispatcher's `confirm_names`
-check require confirmation, confirming on a clean turn and denying on a tainted one, as on the
-remote path.
+ `get_volume` is a read and `set_volume` is reversible and low-harm, so both are
+`confirm_required=False`: a spoken "set volume to 30%" should not raise an approval card. Both
+results are `Trust.TRUSTED`, since host state is system-generated, so a volume call never taints a
+turn. A later OS action with side effects can require confirmation by setting
+`confirm_required=True` on its spec. Volume itself has a zero-code opt-in: adding `set_volume` to
+`CORTEX_TOOLS_GATED` makes the dispatcher's `confirm_names` check require confirmation, confirming
+on a clean turn and denying on a tainted one, as on the remote path.
 
 ### 5. The token, reversed (mirrors ADR-0016)
 
@@ -102,12 +95,22 @@ service type, and it deliberately does not derive `Debug`. The brain attaches th
 
 ### 6. Connectivity: the brain connects to the body (resolves Q3)
 
-The brain connects to `CORTEX_BODY_ENDPOINT`, `host.docker.internal:50151` from the container;
+The brain connects to `CORTEX_BODY_ENDPOINT`, `host.docker.internal:23151` from the container;
 `docker/docker-compose.body.yml` adds the `host-gateway` `extra_hosts` entry native Docker needs.
-The body binds `CORTEX_BODY_ADDR`, default `127.0.0.1:50151`, which is safe for development and the
+The body binds `CORTEX_BODY_ADDR`, default `127.0.0.1:23151`, which is safe for development and the
 loopback contract tests. For the real container-to-host path the operator binds an interface the
-container can reach (`0.0.0.0:50151`), which is the revisit the roadmap's assumption foresaw. The
+container can reach (`0.0.0.0:23151`), which is the revisit the roadmap's assumption foresaw. The
 boundary then is the token plus the host firewall keeping the port host-local.
+
+Both default ports, 23151 and the brain's 23051, are below 49152. Windows reserves blocks of its
+dynamic range, 49152 to 65535, at boot; no process binds a port inside one, and Docker Desktop then
+publishes nothing and prints no error. Below 30000 the ports also miss Linux's and WSL's ephemeral
+ranges and Kubernetes' node ports ([port reservations](../readings/windows-port-reservations.md)).
+
+A failed bind does not stop the shell, since the conversation does not need `BodyService`. It is
+written to standard error, which a Windows release build has no console for, and the brain's body
+tools then answer `UNREACHABLE`, so the user never sees the cause. It is to be shown to the user,
+where the maintainer picks ([R-808](../refinements/tasks/808-a-failed-body-server-bind-is-shown-nowhere.md)).
 
 ### 7. `unsafe` for Core Audio: a narrowly scoped exception in `os_windows`
 
@@ -140,9 +143,7 @@ designed family ordered by how far the call got:
 Three are absences, marked as a set by the `un` prefix, and three are events. `REFUSED` rather than
 `DENIED`, because `DENIED_MSG` is already the denial for a tool that needs confirmation. `FAULTED`
 is the default, and the brain-side refusals of a capture reply end up in it: a failure nobody
-classified must never claim the body was unreachable, which was the defect removed here: before
-it, one failure in eight told the cortex the truth
-([readings](../readings/body-failure-leads.md)).
+classified must never claim the body was unreachable ([readings](../readings/body-failure-leads.md)).
 
 ### 9. The adapter classifies, the core words it, and both tables are declarative
 
@@ -177,25 +178,22 @@ each backend behind an `Arc` only to lend it to that thread. A backend that pani
 
 ### 12. The body's port number is declared in the shell
 
-`DEFAULT_BODY_PORT` (`50151`) is a `const` in `body/app/src-tauri/src/body_server.rs`, the module
-that binds it, compiled for Windows and Linux like `serve` itself. Hoisting it into `body_core` or `body_rpc`,
-which `just check` compiles, was declined: neither crate binds anything, so the value would be
-exported for one consumer outside the workspace to buy a compiler's opinion of a `u16`. What can
-diverge is the compose default, the runbooks, the module contracts, the `docs/host/`
-prerequisites and the brain's live gateway test, and `scripts/crosscheck.py` compares every one of
-them with this declaration ([ADR-0042](ADR-0042-cross-tree-constant-registry.md)). The scan fails
-closed, so a rename in the shell fails `just check` even though only CI's `check-shell` compiles it.
+`DEFAULT_BODY_PORT` (`23151`) is a `const` in `body/app/src-tauri/src/body_server.rs`, the module
+that binds it, compiled for Windows and Linux like `serve` itself. It stays out of `body_core` and
+`body_rpc`, which `just check` compiles, because neither binds anything. `scripts/crosscheck.py`
+compares every other file that writes the port with this declaration
+([ADR-0042](ADR-0042-cross-tree-constant-registry.md)), and fails closed, so a rename in the shell
+fails `just check` even though only CI's `check-shell` compiles it.
 
 ### 13. `InjectInput` waits for a consumer; volume is not overlay state
-
-`InjectInput` is the one `BodyService` RPC left unbuilt, and it is built only when a real feature
+ `InjectInput` is the one `BodyService` RPC left unbuilt, and it is built only when a real feature
 drives input injection, as one slice: an input trait covering text, keys and pointer (the server
-dispatches the whole `oneof`), behind one `confirm_required=True` audited tool that inherits the confirmer and
-the tainted-turn denial, one Windows `SendInput` adapter under its own `unsafe` authorization, and
-a proto pointer extension designed with that consumer. Wiring the handler first would let anyone
-holding the token move the real mouse without the check that requires confirmation, since that
-check lives on the brain's dispatch and `BodyService`'s only guard is the token. Pointer injection
-alone is declined for the same reason.
+dispatches the whole `oneof`), behind one `confirm_required=True` audited tool that inherits the
+confirmer and the tainted-turn denial, one Windows `SendInput` adapter under its own `unsafe`
+authorization, and a proto pointer extension designed with that consumer. Wiring the handler first
+would let anyone holding the token move the real mouse without the check that requires confirmation,
+since that check lives on the brain's dispatch and `BodyService`'s only guard is the token. Pointer
+injection alone is declined for the same reason.
 
 Showing `GetVolume` as overlay state is declined. The body serves `GetVolume` and the overlay lives
 inside the body, so it would need a new Tauri command and overlay port for a number that changes
@@ -205,9 +203,9 @@ producer (a host change event such as `IAudioEndpointVolumeCallback`).
 
 ## Consequences
 
-- **Covered by `just check`:** the port, its errors and fake, the built-ins, `GrpcBodyGateway` over
-  a loopback fake, the composition root wiring, `AudioControl` and its clamp, `OsService`,
-  `RpcTokenValidator`, the status mappers, the Linux backend over a fake `pactl`, the macOS stub.
+- **Covered by `just check`:** the port, its errors and fake, the built-ins, `GrpcBodyGateway`,
+  the wiring, `AudioControl` and its clamp, `OsService`, `RpcTokenValidator`, the status mappers,
+  and the Linux and macOS backends.
 - **Validated in Docker (2026-07-08):** a containerized `GrpcBodyGateway` reached a host-side
   `BodyService` over `host.docker.internal` with the token, and got `UNAUTHENTICATED` without it.
 - **Host-only:** the real `WindowsAudioControl`, the shell's bind and serve, and "set volume to
@@ -235,6 +233,7 @@ producer (a host change event such as `IAudioEndpointVolumeCallback`).
 - **A separate `BodyService` server crate**: the measurable adapter fits in `body_rpc` beside the
   client; only the bind glue is host-only, and it lives in the shell.
 - **A loopback-only body bind**: the container cannot reach the host's `127.0.0.1`.
+- **A port in Windows' dynamic range**, gRPC's customary 50051 among them: a boot can reserve it.
 - **A subclass per failure kind**: callers would need an `isinstance` ladder.
 
 ## Related
@@ -243,7 +242,8 @@ producer (a host change event such as `IAudioEndpointVolumeCallback`).
   [brain-core](../modules/brain-core.md), [body-rpc](../modules/body-rpc.md),
   [body-os](../modules/body-os.md), [body-app](../modules/body-app.md).
 - Runbook: [body-volume](../runbooks/body-volume.md).
-- Readings: [what the cortex reads when a body call fails](../readings/body-failure-leads.md).
+- Readings: [what the cortex reads when a body call fails](../readings/body-failure-leads.md),
+  [the ports the Windows host refuses](../readings/windows-port-reservations.md).
 - ADRs: [ADR-0016](ADR-0016-shared-token.md) (the token this mirrors),
   [ADR-0025](ADR-0025-scheduling-reminders.md) (the toast in this direction),
   [ADR-0029](ADR-0029-vision-screen-capture.md) (capture in this direction),

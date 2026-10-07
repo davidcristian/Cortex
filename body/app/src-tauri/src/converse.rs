@@ -17,7 +17,7 @@ use crate::brain::{ShellRandomness, TokioSleeper, plan_from_env, policy_from_env
 use crate::confirm::ConfirmRoute;
 
 /// The default brain address, the same one `body_rpc` uses; override with `CORTEX_BRAIN_ADDR`.
-const DEFAULT_ADDR: &str = "http://127.0.0.1:50051";
+const DEFAULT_ADDR: &str = "http://127.0.0.1:23051";
 
 /// One streamed message to the overlay: exactly one field is set (serde skips the `None`), so the
 /// wire is `{ "event": … }` or `{ "error": … }`, matching the `WireMessage` union in

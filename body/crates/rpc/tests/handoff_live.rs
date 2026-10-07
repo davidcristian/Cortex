@@ -127,7 +127,7 @@ fn check_phases(seen: &[String], expect: Expect) {
 async fn one_turn_sends_the_decision_its_command_line_names() {
     let decision = decision();
     let expect = expect();
-    let addr = env_or("CORTEX_BRAIN_ADDR", "http://127.0.0.1:50051");
+    let addr = env_or("CORTEX_BRAIN_ADDR", "http://127.0.0.1:23051");
     let token = std::env::var("CORTEX_SEAM_TOKEN")
         .ok()
         .filter(|t| !t.is_empty());

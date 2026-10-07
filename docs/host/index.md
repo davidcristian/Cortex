@@ -235,11 +235,11 @@ A session fails on setup more often than on anything else. Have these before sta
 - Rust (stable) and Node, with `npm ci` run in `body/app`; the Tauri CLI is a devDependency, so
   `npm run tauri …` needs no global install.
 - The WebView2 runtime (preinstalled on Windows 11; otherwise the Evergreen runtime).
-- A reachable brain at `CORTEX_BRAIN_ADDR` (default `http://127.0.0.1:50051`).
+- A reachable brain at `CORTEX_BRAIN_ADDR` (default `http://127.0.0.1:23051`).
 - `CORTEX_SEAM_TOKEN` set **identically** for the brain stack and for the shell before `tauri dev`.
   A body without the token gets `Unauthenticated` on every call.
 - For anything the **brain dials the body** for (volume, the toast):
-  `CORTEX_BODY_ADDR=0.0.0.0:50151`, the brain brought up with `-f docker/docker-compose.body.yml`,
+  `CORTEX_BODY_ADDR=0.0.0.0:23151`, the brain brought up with `-f docker/docker-compose.body.yml`,
   and a Windows firewall allowance for that port. This crossing is the untested half of ROADMAP
   assumption 3.
 - For the confirm card: a tool that needs approval. Either `CORTEX_EMAIL_SEND_ENABLED=true` with the

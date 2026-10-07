@@ -82,7 +82,7 @@ class GrpcBodyGateway:
         capture_timeout_s: float = DEFAULT_CAPTURE_TIMEOUT_S,
         call_timeout_s: float = DEFAULT_CALL_TIMEOUT_S,
     ) -> tuple["GrpcBodyGateway", Callable[[], Awaitable[None]]]:
-        """Open an insecure channel to the body at ``endpoint`` (e.g. ``host:50151``)."""
+        """Open an insecure channel to the body at ``endpoint`` (e.g. ``host:23151``)."""
         channel = aio.insecure_channel(
             endpoint, options=[("grpc.max_receive_message_length", MAX_RECEIVE_BYTES)]
         )

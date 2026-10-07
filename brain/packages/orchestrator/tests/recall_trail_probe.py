@@ -28,7 +28,7 @@ _ASKED: tuple[str, ...] = (*QUESTIONS, *UNRELATED, *MEMORIES.values())
 # turns phase runs a whole model reply each time, so it asks a slice.
 _DIRECT_PASSES = int(os.environ.get("CORTEX_TRAIL_DIRECT_PASSES", "3"))
 _TURNS = int(os.environ.get("CORTEX_TRAIL_TURNS", "8"))
-_RPC = os.environ.get("CORTEX_TRAIL_SEAM", "127.0.0.1:50051")
+_RPC = os.environ.get("CORTEX_TRAIL_SEAM", "127.0.0.1:23051")
 
 
 def _metadata() -> tuple[tuple[str, str], ...] | None:

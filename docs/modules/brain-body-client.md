@@ -31,7 +31,7 @@ orchestration and no state (the one hard rule); the composition root owns the ch
     once at construction (ADR-0016, mirrored for this direction), and no metadata when it is empty,
     which matches the tokenless body server.
 - `GrpcBodyGateway.connect(endpoint, *, token="", capture_timeout_s=DEFAULT_CAPTURE_TIMEOUT_S, call_timeout_s=DEFAULT_CALL_TIMEOUT_S) -> (GrpcBodyGateway, closer)`
-  opens an insecure channel to `endpoint` (`host:port`, for example `host.docker.internal:50151`
+  opens an insecure channel to `endpoint` (`host:port`, for example `host.docker.internal:23151`
   from the dockerized brain) and returns the adapter plus the coroutine that closes the channel, so
   the root's shutdown path is the same shape as the other builders. The channel connects **lazily**,
   so an unreachable body shows up on the first call rather than at connect, and within

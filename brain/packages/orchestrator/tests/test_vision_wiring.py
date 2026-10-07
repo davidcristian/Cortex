@@ -163,7 +163,7 @@ async def _compose(
     return root
 
 
-_BODY = {"CORTEX_BODY_BACKEND": "grpc", "CORTEX_BODY_ENDPOINT": "host.docker.internal:50151"}
+_BODY = {"CORTEX_BODY_BACKEND": "grpc", "CORTEX_BODY_ENDPOINT": "host.docker.internal:23151"}
 _ESCALATION = {
     "CORTEX_ESCALATION": "1",
     "CORTEX_MODELHOST_BACKEND": "scripted",

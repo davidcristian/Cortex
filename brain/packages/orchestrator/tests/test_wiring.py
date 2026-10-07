@@ -1284,7 +1284,7 @@ async def test_build_body_gateway_selects_grpc_and_returns_a_closer(
     gateway, close = await build_body_gateway(
         BodyConfig(
             backend="grpc",
-            endpoint="host.docker.internal:50151",
+            endpoint="host.docker.internal:23151",
             # Two different non-default numbers, so a builder passing one for both would fail.
             capture_timeout_s=2.5,
             call_timeout_s=1.5,
@@ -1293,7 +1293,7 @@ async def test_build_body_gateway_selects_grpc_and_returns_a_closer(
     )
     assert gateway is not None
     assert seen == {
-        "endpoint": "host.docker.internal:50151",
+        "endpoint": "host.docker.internal:23151",
         "token": "s3cret",
         "capture_timeout_s": 2.5,
         "call_timeout_s": 1.5,

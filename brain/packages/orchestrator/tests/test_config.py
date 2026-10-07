@@ -70,11 +70,11 @@ def clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.mark.usefixtures("clean_env")
-def test_rpc_defaults_are_loopback_50051() -> None:
+def test_rpc_defaults_are_loopback_23051() -> None:
     config = RpcServerConfig()
     assert config.host == "127.0.0.1"
-    assert config.port == 50051
-    assert config.bind_address == "127.0.0.1:50051"
+    assert config.port == 23051
+    assert config.bind_address == "127.0.0.1:23051"
     assert config.converse_buffer == 256
     assert config.token == ""
 
@@ -347,10 +347,10 @@ def test_a_tightened_capture_bound_is_accepted(monkeypatch: pytest.MonkeyPatch) 
 @pytest.mark.usefixtures("clean_env")
 def test_body_env_selects_grpc_with_an_endpoint(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("CORTEX_BODY_BACKEND", "grpc")
-    monkeypatch.setenv("CORTEX_BODY_ENDPOINT", "host.docker.internal:50151")
+    monkeypatch.setenv("CORTEX_BODY_ENDPOINT", "host.docker.internal:23151")
     config = BodyConfig()
     assert config.backend == "grpc"
-    assert config.endpoint == "host.docker.internal:50151"
+    assert config.endpoint == "host.docker.internal:23151"
 
 
 @pytest.mark.usefixtures("clean_env")

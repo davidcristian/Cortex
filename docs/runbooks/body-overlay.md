@@ -36,7 +36,7 @@ which of these are still owed, what each proves, and where the result goes.
 
 You need Rust (stable), Node with `body/app` dependencies installed (`npm ci`), the WebView2
 runtime (preinstalled on Windows 11, otherwise install the Evergreen runtime), and the brain
-reachable at `CORTEX_BRAIN_ADDR` (default `http://127.0.0.1:50051`), through `just up-gpu` for the
+reachable at `CORTEX_BRAIN_ADDR` (default `http://127.0.0.1:23051`), through `just up-gpu` for the
 real resident cortex or `just brain-serve` for a native brain. The Tauri CLI is a devDependency,
 so `npm run tauri …` works with no global install.
 
@@ -88,7 +88,7 @@ variable for the shell before `tauri dev`, or an untokened body gets `Unauthenti
 call:
 
 ```powershell
-$env:CORTEX_BRAIN_ADDR = "http://127.0.0.1:50051"
+$env:CORTEX_BRAIN_ADDR = "http://127.0.0.1:23051"
 $env:CORTEX_HOTKEY = "ctrl+alt+space"
 $env:CORTEX_SEAM_TOKEN = "<the same secret the brain serves with>"
 npm run tauri dev
@@ -146,9 +146,11 @@ the shell grabbed the chord on X. A notification server such as `dunst` started 
 **Capture.** With `CORTEX_HOST_CAPTURE=1` the shell reads the `Xvfb` root. The brain reaches it
 when the stack adds `docker/docker-compose.body.yml` with
 `CORTEX_BODY_ENDPOINT=host.docker.internal:<port>` and the shell runs with
-`CORTEX_BODY_ADDR=0.0.0.0:<port>`. Under WSL's mirrored networking the default port did not bind:
-50151, 50161 and 50171 failed with `Address already in use` while nothing in WSL listened on them,
-and 40151, 49151 and 51151 bound. The [capture turns](../readings/capture-turns.md) used 40151.
+`CORTEX_BODY_ADDR=0.0.0.0:<port>`. Under WSL's mirrored networking a Linux bind also needs the
+port free on the Windows host, so a port inside a range the host reserved fails with
+`Address already in use` while nothing in WSL listens on it
+([port reservations](../readings/windows-port-reservations.md)). The
+[capture turns](../readings/capture-turns.md) used 40151.
 
 A press opens the panel even with no brain reachable, and its link dot shows red. Avoid a plain
 static server of `body/app/dist`: git ignores that directory, so it holds whatever build last ran

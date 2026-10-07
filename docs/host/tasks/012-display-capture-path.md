@@ -128,5 +128,6 @@ leave the focus-target check alone.
   refusal reply and no receipt, the indicator showed its asked and read states, and the
   `capture_screen` call was an eighth of the time to the reply's first text. This check keeps the
   GDI blit, `WDA_EXCLUDEFROMCAPTURE`, DPI, protected surfaces, the toast, GDI's own error codes and
-  the GDI copy's share of the time. The run found the body's default port unbindable under WSL's
-  mirrored networking, filed as [R-807](../../refinements/tasks/807-move-the-body-port-out-of-the-windows-dynamic-range.md).
+  the GDI copy's share of the time. The run found the body's default port inside a range the
+  Windows host had reserved, and both default ports moved below Windows' dynamic port range
+  ([ADR-0023](../../adr/ADR-0023-body-gateway-volume.md) decision 6).

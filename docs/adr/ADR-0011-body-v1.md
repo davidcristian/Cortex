@@ -62,7 +62,7 @@ recorded in an ADR. This ADR is that exclusion, and the checks that grew around 
    sees it. Its Rust is thin wiring: tray, hidden window, `#[command]` handlers, forwarding the
    `TurnEvent` stream to the webview. Every branching decision (accelerator conversion, event
    mapping, the transport, link classification) lives in `body_core` or `body_rpc`, which stay at
-   100% coverage. Config at the app: `CORTEX_BRAIN_ADDR` (default `http://127.0.0.1:50051`) and
+   100% coverage. Config at the app: `CORTEX_BRAIN_ADDR` (default `http://127.0.0.1:23051`) and
    `CORTEX_HOTKEY` (default `ctrl+alt+space`, configurable because it may collide; a registration
    failure reaches the overlay).
 

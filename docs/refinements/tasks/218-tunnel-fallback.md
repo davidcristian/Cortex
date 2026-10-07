@@ -32,7 +32,7 @@ part, a `BrainService` handler that hands the stream to that adapter and a third
   because the measurement's own server had exited.
 - 2026-09-06: The refusal recorded against the ProtonMail Bridge is a different fact and does not
   fire this trigger. The Bridge binds `127.0.0.1` only, which no name reaches from a container, and
-  `docker/docker-compose.body.yml` already tells the operator to bind the body to `0.0.0.0:50151`
+  `docker/docker-compose.body.yml` already tells the operator to bind the body to `0.0.0.0:23151`
   for exactly that reason.
 - 2026-09-11: Measured again and still not fired. Port 50251 is held on the Windows side today, so
   the bind in WSL failed with `EADDRINUSE`; the probe moved to a kernel-chosen port, 46033,

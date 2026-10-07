@@ -62,7 +62,7 @@ services:
       CORTEX_SCHEDULE_MAX_ACTIVE:
     ports:
       # Published on loopback only: nothing listens beyond 127.0.0.1 on the host.
-      - "127.0.0.1:50051:50051"
+      - "127.0.0.1:23051:23051"
     restart: unless-stopped
     # tini as PID 1 so SIGTERM reaches Python and `docker compose down` stays fast.
     init: true
@@ -78,7 +78,7 @@ services:
           "CMD",
           "python",
           "-c",
-          "import os, grpc, cortex_seam as seam; token = os.environ.get('CORTEX_SEAM_TOKEN', ''); metadata = (('x-cortex-seam-token', token),) if token else None; seam.BrainServiceStub(grpc.insecure_channel('127.0.0.1:50051')).Health(seam.HealthRequest(), timeout=2, metadata=metadata)",
+          "import os, grpc, cortex_seam as seam; token = os.environ.get('CORTEX_SEAM_TOKEN', ''); metadata = (('x-cortex-seam-token', token),) if token else None; seam.BrainServiceStub(grpc.insecure_channel('127.0.0.1:23051')).Health(seam.HealthRequest(), timeout=2, metadata=metadata)",
         ]
       interval: 30s
       timeout: 5s

@@ -38,7 +38,7 @@ impl fmt::Debug for BrainRpcClient {
 }
 
 impl BrainRpcClient {
-    /// Connects to the brain at `addr`, for example `http://127.0.0.1:50051`, sending no token.
+    /// Connects to the brain at `addr`, for example `http://127.0.0.1:23051`, sending no token.
     ///
     /// # Errors
     ///

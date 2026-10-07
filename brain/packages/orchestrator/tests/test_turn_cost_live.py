@@ -16,7 +16,7 @@ from cortex_embedding import LlamaCppEmbedder
 from cortex_memory import PgVectorMemoryStore
 from cortex_seam import RPC_TOKEN_HEADER, BrainServiceStub, ClientEvent, ServerEvent, UserTurn
 
-_RPC_ENDPOINT = os.environ.get("CORTEX_SEAM_ENDPOINT", "127.0.0.1:50051")
+_RPC_ENDPOINT = os.environ.get("CORTEX_SEAM_ENDPOINT", "127.0.0.1:23051")
 _DSN = os.environ.get("CORTEX_MEMORY_DSN", "postgresql://cortex:cortex@127.0.0.1:5432/cortex")
 _EMBEDDER = os.environ.get("CORTEX_MEMORY_EMBEDDER_ENDPOINT", "http://127.0.0.1:8081")
 

@@ -21,7 +21,7 @@ OutputGuardrailName = Literal["redact", "lookalike", "strict", "off"]
 
 DEFAULT_VISION_MODE: VisionMode = "auto"
 
-DEFAULT_RPC_PORT = 50051
+DEFAULT_RPC_PORT = 23051
 
 DEFAULT_RPC_HOST = "127.0.0.1"
 

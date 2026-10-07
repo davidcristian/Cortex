@@ -43,9 +43,10 @@ every build.
    `BodyService` client, [ADR-0023](ADR-0023-body-gateway-volume.md)).
 
 6. **Connection settings.** The brain server reads `CORTEX_SEAM_HOST` (default `127.0.0.1`, and
-   `0.0.0.0` inside the container) and `CORTEX_SEAM_PORT` (default `50051`); the body's live checks
-   read `CORTEX_BRAIN_ADDR` (default `http://127.0.0.1:50051`). Compose publishes the port on
-   loopback only, for the single-user security posture.
+   `0.0.0.0` inside the container) and `CORTEX_SEAM_PORT` (default `23051`); the body's live checks
+   read `CORTEX_BRAIN_ADDR` (default `http://127.0.0.1:23051`). Compose publishes the port on
+   loopback only, for the single-user security posture. The port is below Windows' dynamic port
+   range for the reason [ADR-0023](ADR-0023-body-gateway-volume.md) decision 6 gives.
 
 7. **The committed Rust stub is compared with the proto's comments, and with nothing else.**
    `scripts/stubcheck.py` checks that every comment in the proto's body appears in

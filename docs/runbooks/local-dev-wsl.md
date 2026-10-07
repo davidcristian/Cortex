@@ -56,14 +56,14 @@ Every suite runs shuffled under a fixed seed. How to reproduce a failure at that
 | Variable | Default | Read by |
 |---|---|---|
 | `CORTEX_SEAM_HOST` | `127.0.0.1` | brain server bind host (Compose sets `0.0.0.0` inside the container; exposure stays loopback-only via the port publish) |
-| `CORTEX_SEAM_PORT` | `50051` | brain server bind port |
+| `CORTEX_SEAM_PORT` | `23051` | brain server bind port |
 | `CORTEX_SEAM_TOKEN` | *(empty, auth off)* | both directions: the brain server rejects untokened body-to-brain calls when set (Compose passes it through from the host env or `.env`), the body server validates the same token on brain-to-body calls, the brain client attaches it when dialing the body, and the body live checks present the same value |
 | `CORTEX_REDIS_URL` | `redis://127.0.0.1:6379/0` | brain composition root, where session state lives (Compose sets `redis://redis:6379/0`) |
 | `CORTEX_MODEL_CORTEX` | `cortex` | brain composition root: the logical cortex model id, never a path |
-| `CORTEX_BRAIN_ADDR` | `http://127.0.0.1:50051` | body-side live check, the address it dials |
+| `CORTEX_BRAIN_ADDR` | `http://127.0.0.1:23051` | body-side live check, the address it dials |
 | `CORTEX_BODY_BACKEND` | `none` | brain composition root, for the brain-to-body direction: `none` (off) or `grpc` (dial the host body, wiring the `get_volume` and `set_volume` tools) |
-| `CORTEX_BODY_ENDPOINT` | *(required when `grpc`)* | brain composition root: the host body the brain dials, `host.docker.internal:50151` from the dockerized brain |
-| `CORTEX_BODY_ADDR` | `127.0.0.1:50151` | body server bind address; set `0.0.0.0:50151` for the real container-to-host path, where the token and the host firewall are then the boundary |
+| `CORTEX_BODY_ENDPOINT` | *(required when `grpc`)* | brain composition root: the host body the brain dials, `host.docker.internal:23151` from the dockerized brain |
+| `CORTEX_BODY_ADDR` | `127.0.0.1:23151` | body server bind address; set `0.0.0.0:23151` for the real container-to-host path, where the token and the host firewall are then the boundary |
 
 The defaults line up: a brain on defaults is reachable by a body check on defaults and finds a
 redis published by Compose on loopback. Everything listens on loopback only. The brain-to-body
@@ -92,7 +92,7 @@ variable. Each of the brain's settings is named in one of three ways.
   `CORTEX_REDIS_URL`, each override's backend switch and in-network endpoints, and the memory DSN.
   Setting one of these on the host has no effect.
 
-Two settings are named by no file, on purpose. `CORTEX_SEAM_PORT` is fixed at 50051 by the base
+Two settings are named by no file, on purpose. `CORTEX_SEAM_PORT` is fixed at 23051 by the base
 file's publish and its healthcheck, and `CORTEX_TOOLS_ENDPOINT` is the single-sidecar form that
 the tool overrides replace with one `CORTEX_TOOLS_ENDPOINTS__<name>` key each; the brain refuses
 both at once. The map-shaped settings `CORTEX_TOOLS_ALLOW` and `CORTEX_SUBAGENTS_ROSTER` are
@@ -163,7 +163,7 @@ from grpc import aio
 import cortex_seam as seam
 
 async def turn(session_id: str, text: str) -> None:
-    async with aio.insecure_channel("127.0.0.1:50051") as channel:
+    async with aio.insecure_channel("127.0.0.1:23051") as channel:
         stub = seam.BrainServiceStub(channel)
         call = stub.Converse()
         await call.write(seam.ClientEvent(session_id=session_id, user_turn=seam.UserTurn(text=text)))
@@ -213,7 +213,7 @@ spends, since a dial to a closed port is refused on some hosts and silently drop
 quick Python-side probe of the same RPC, which is what the container healthcheck runs:
 
 ```sh
-cd brain && uv run python -c "import grpc, cortex_seam as seam; print(seam.BrainServiceStub(grpc.insecure_channel('127.0.0.1:50051')).Health(seam.HealthRequest(), timeout=5))"
+cd brain && uv run python -c "import grpc, cortex_seam as seam; print(seam.BrainServiceStub(grpc.insecure_channel('127.0.0.1:23051')).Health(seam.HealthRequest(), timeout=5))"
 ```
 
 The live-Redis contract suites are integration-marked and excluded from CI and coverage. They run

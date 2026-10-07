@@ -6,8 +6,8 @@ from grpc import aio
 from cortex_body_client import GrpcBodyGateway
 
 # Run from inside the brain image against the host body with
-# CORTEX_BODY_ENDPOINT=host.docker.internal:50151.
-_ENDPOINT = os.environ.get("CORTEX_BODY_ENDPOINT", "127.0.0.1:50151")
+# CORTEX_BODY_ENDPOINT=host.docker.internal:23151.
+_ENDPOINT = os.environ.get("CORTEX_BODY_ENDPOINT", "127.0.0.1:23151")
 _TOKEN = os.environ.get("CORTEX_SEAM_TOKEN", "")
 
 

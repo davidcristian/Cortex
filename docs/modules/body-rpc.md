@@ -28,7 +28,7 @@ generated client is built **per call** (`RpcCall`, `src/call.rs`), which is the 
 value reaches an interceptor that is otherwise built once per connection.
 
 - `BrainRpcClient::connect(addr: &str) -> Result<Self, TransportError>` (async) dials, for example,
-  `http://127.0.0.1:50051` and sends no token; an invalid URI or unreachable endpoint maps to
+  `http://127.0.0.1:23051` and sends no token; an invalid URI or unreachable endpoint maps to
   `TransportError::Connection`.
 - `BrainRpcClient::connect_with_token(addr, token: Option<&str>)` (async, ADR-0016) is the same but
   attaches `token` as `x-cortex-seam-token` metadata on **every** call when `Some`, which is what a
@@ -173,8 +173,8 @@ decision 7). Each bullet says what its check needs, and not all of them need a b
 cargo test -p body-rpc --test live -- --ignored
 ```
 
-They read `CORTEX_BRAIN_ADDR` (default `http://127.0.0.1:50051`, which matches the brain server's
-`CORTEX_SEAM_HOST` and `CORTEX_SEAM_PORT` defaults `127.0.0.1`/`50051`) and `CORTEX_SEAM_TOKEN`,
+They read `CORTEX_BRAIN_ADDR` (default `http://127.0.0.1:23051`, which matches the brain server's
+`CORTEX_SEAM_HOST` and `CORTEX_SEAM_PORT` defaults `127.0.0.1`/`23051`) and `CORTEX_SEAM_TOKEN`,
 which is **a precondition rather than an option**: one check proves a wrong token is refused, and a
 brain serving without one accepts every token, so `just rpc-health` refuses to start without the
 variable (ADR-0016 decision 8).

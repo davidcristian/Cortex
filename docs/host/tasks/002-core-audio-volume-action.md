@@ -57,7 +57,7 @@ readings record under [docs/readings/](../../readings/README.md), and add a note
 - The session doc numbers this check **1**, and the numbering is deliberately unchanged because
   ADRs cite the checks by number.
 - This is one of the two checks the brain dials the body for, so it needs the extra prerequisites
-  the host index lists for that direction: `CORTEX_BODY_ADDR=0.0.0.0:50151`, the brain brought up
+  the host index lists for that direction: `CORTEX_BODY_ADDR=0.0.0.0:23151`, the brain brought up
   with `-f docker/docker-compose.body.yml`, and a Windows firewall allowance for that port.
 
 ## History

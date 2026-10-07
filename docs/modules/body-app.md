@@ -166,7 +166,7 @@ both re-dispatched as DOM events by `main.tsx`. `overlay/useOverlayWindow.ts` ca
   `converse` keeps its eager dial but wraps it in `retry_with`, so a turn started against a briefly
   down brain retries the dial while a turn that fails after its first event stays terminal. A
   turn's length is unbounded; its silence runs under the three turn gaps below.
-- **`body_server.rs`** (ADR-0023, ADR-0025) binds `CORTEX_BODY_ADDR` (default `127.0.0.1:50151`,
+- **`body_server.rs`** (ADR-0023, ADR-0025) binds `CORTEX_BODY_ADDR` (default `127.0.0.1:23151`,
   declared once as `DEFAULT_BODY_PORT` and tied by `scripts/crosscheck.py` to every other file that
   states it), reads `CORTEX_SEAM_TOKEN`, and serves `body_rpc`'s `body_service` on Tauri's async
   runtime with the audio, notification and screen-capture backends, whether capture receipts are
@@ -182,8 +182,8 @@ both re-dispatched as DOM events by `main.tsx`. `overlay/useOverlayWindow.ts` ca
   (`docs/runbooks/vision.md` has the check nothing else stands in for).
 
 **Config** (shell only): `CORTEX_HOTKEY` (chord, default `ctrl+alt+space`),
-`CORTEX_BRAIN_ADDR` (default `http://127.0.0.1:50051`), `CORTEX_BODY_ADDR` (the `BodyService`
-bind, default `127.0.0.1:50151`), `CORTEX_SEAM_TOKEN` (empty means the validator passes everything
+`CORTEX_BRAIN_ADDR` (default `http://127.0.0.1:23051`), `CORTEX_BODY_ADDR` (the `BodyService`
+bind, default `127.0.0.1:23151`), `CORTEX_SEAM_TOKEN` (empty means the validator passes everything
 through), `CORTEX_TOAST_APP_ID` (the `AppUserModelID` the reminder toast is attributed to, default
 `dev.cortex.body`), and the retry settings (ADR-0024) `CORTEX_BRAIN_RETRY_ATTEMPTS` (3),
 `_BASE_MS` (200), `_MULTIPLIER` (2), `_MAX_MS` (2000), plus `CORTEX_BRAIN_PROBE_BUDGET_MS` (1000),

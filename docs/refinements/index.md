@@ -182,7 +182,7 @@ never a reading of what the tree does now.
 - **[R-794](tasks/794-a-paused-stream-keeps-its-last-letters-blurred.md)** A paused stream keeps its last letters blurred (body-overlay). Reopens when: a History line in this file recording the maintainer's pick of a pause signal, a finish and a rule for the last word, from the three choices in the proposal. Its claim was checked against the code on 2026-10-06.
 - **[R-800](tasks/800-the-preview-of-a-failed-turn-has-no-tint.md)** The preview of a failed turn has no tint (body-overlay). Reopens when: a History line in this file recording the maintainer's pick of tint A, B or C. Its claim was checked against the code on 2026-10-06.
 - **[R-803](tasks/803-a-summon-over-a-chat-with-messages-shows-no-due-reminder.md)** A summon over a chat with messages shows no due reminder (body-overlay). Reopens when: a History line in this file recording the maintainer's pick of what shows a waiting card over a chat with messages, from the options in the proposal. Its claim was checked against the code on 2026-10-06.
-- **[R-807](tasks/807-move-the-body-port-out-of-the-windows-dynamic-range.md)** Move the body's port out of the Windows dynamic port range (body-gateway). Reopens when: the host's excluded TCP port ranges, from `netsh interface ipv4 show excludedportrange protocol=tcp`, written in this file's History, or a Windows body printing `could not bind BodyService` on its default port. Its claim was checked against the code on 2026-10-07.
+- **[R-808](tasks/808-a-failed-body-server-bind-is-shown-nowhere.md)** A failed body server bind is shown nowhere (body-gateway). Reopens when: a History line in this file recording the maintainer's pick of A, B or C. Its claim was checked against the code on 2026-10-07.
 
 ### Waiting for a consumer (25)
 
@@ -238,7 +238,7 @@ never a reading of what the tree does now.
 - [R-224](tasks/224-unbalanced-com-initialization.md) Unbalanced COM initialization on the blocking pool. open, waiting for its trigger.
 - [R-745](tasks/745-device-control-reaches-only-the-system-volume.md) Device control reaches only the system volume. open, waiting for its trigger.
 - [R-751](tasks/751-the-shell-has-never-been-linked-or-run-on-linux.md) The shell has never been run on Linux. done 2026-10-01.
-- [R-807](tasks/807-move-the-body-port-out-of-the-windows-dynamic-range.md) Move the body's port out of the Windows dynamic port range. open, waiting for its trigger.
+- [R-808](tasks/808-a-failed-body-server-bind-is-shown-nowhere.md) A failed body server bind is shown nowhere. open, waiting for its trigger.
 
 ### body-overlay
 

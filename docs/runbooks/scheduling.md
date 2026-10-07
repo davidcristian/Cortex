@@ -142,7 +142,7 @@ XML escaping are all covered by CI in the core, so what is genuinely host-side i
 appears and reads well.
 
 1. Run the body with the brain wired for push, as in [body-volume.md](body-volume.md):
-   `CORTEX_BODY_ADDR=0.0.0.0:50151` plus the shared `CORTEX_SEAM_TOKEN`, and the brain up with
+   `CORTEX_BODY_ADDR=0.0.0.0:23151` plus the shared `CORTEX_SEAM_TOKEN`, and the brain up with
    `-f docker/docker-compose.body.yml` so `CORTEX_BODY_BACKEND=grpc`.
 2. In a chat, say "remind me to stretch in one minute". When it fires, a toast should appear with
    the reminder text, and summoning the overlay afterwards should show no card for it, because a

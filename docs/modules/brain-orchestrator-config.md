@@ -11,8 +11,8 @@ what follows is the prefix, the defaults other parts depend on, and the validati
 
 - `RpcServerConfig`, prefix `CORTEX_SEAM_`: `host: str = DEFAULT_RPC_HOST`
   (`127.0.0.1`, `CORTEX_SEAM_HOST`; the compose stack sets `0.0.0.0` so the published port can
-  reach the server), `port: int = DEFAULT_RPC_PORT` (50051, `CORTEX_SEAM_PORT`) and a
-  `bind_address` property. The body dials `CORTEX_BRAIN_ADDR` (default `http://127.0.0.1:50051`),
+  reach the server), `port: int = DEFAULT_RPC_PORT` (23051, `CORTEX_SEAM_PORT`) and a
+  `bind_address` property. The body dials `CORTEX_BRAIN_ADDR` (default `http://127.0.0.1:23051`),
   and `DEFAULT_RPC_PORT` is module-level so `scripts/crosscheck.py` can compare it with every
   other place the port appears. `token` (`CORTEX_SEAM_TOKEN`, ADR-0016) is the shared secret: set,
   every RPC must present matching `x-cortex-seam-token` metadata. `converse_buffer: int = 256`
@@ -121,7 +121,7 @@ what follows is the prefix, the defaults other parts depend on, and the validati
   core's `AttemptBounds`, and `named_roster` the ready-to-dial mapping; every entry must fit the
   budget or construction fails.
 - `BodyConfig`, prefix `CORTEX_BODY_` (`config_body.py`, ADR-0023): a `grpc` backend needs an
-  `endpoint`, the host body's bind (`host.docker.internal:50151` from the dockerized brain), and
+  `endpoint`, the host body's bind (`host.docker.internal:23151` from the dockerized brain), and
   `CORTEX_SEAM_TOKEN` authenticates the dial. `capture_max_edge: int =
   DEFAULT_CAPTURE_MAX_EDGE` (2048) and `max_image_bytes: int = MAX_IMAGE_BYTES` (6 MiB) are what
   the brain asks the body for **and** holds the reply to, the body clamping both and an older body

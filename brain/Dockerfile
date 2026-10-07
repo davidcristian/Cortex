@@ -36,6 +36,6 @@ USER cortex
 
 # The gRPC server is configured from the environment only. Its in-process default binds loopback,
 # and Compose sets CORTEX_SEAM_HOST=0.0.0.0 so the published port can reach it.
-EXPOSE 50051
+EXPOSE 23051
 
 CMD ["python", "-m", "cortex_orchestrator"]

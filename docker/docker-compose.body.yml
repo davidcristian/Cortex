@@ -1,15 +1,15 @@
 # Body override: the brain calls the host body's BodyService over host.docker.internal. The body is
 # the host-native Rust app, not a container, so this file adds no service. It must bind an interface
-# the container can see (0.0.0.0:50151) rather than its default 127.0.0.1:50151.
+# the container can see (0.0.0.0:23151) rather than its default 127.0.0.1:23151.
 
 services:
   brain:
     environment:
       # Turn the brain to body direction on; without this the base image makes no body calls.
       CORTEX_BODY_BACKEND: "grpc"
-      # Where the host body's BodyService listens, as seen from the container. 50151 is the
-      # body's port (50051 is the brain's BrainService). Override the port to match the host bind.
-      CORTEX_BODY_ENDPOINT: "${CORTEX_BODY_ENDPOINT:-host.docker.internal:50151}"
+      # Where the host body's BodyService listens, as seen from the container. 23151 is the
+      # body's port (23051 is the brain's BrainService). Override the port to match the host bind.
+      CORTEX_BODY_ENDPOINT: "${CORTEX_BODY_ENDPOINT:-host.docker.internal:23151}"
       # Screen capture. The brain asks the body for at most this long an edge and this many bytes,
       # and refuses a larger reply. The edge defaults to 2048 rather than the body's own 1600, which
       # is worth the pixels only because CORTEX_IMAGE_MAX_TOKENS=1024 gives the encoder room.

@@ -9,8 +9,8 @@ which only the host can run.
 ## What crosses
 
 The brain reads `CORTEX_BODY_BACKEND=grpc` and `CORTEX_BODY_ENDPOINT` (default
-`host.docker.internal:50151`) and builds a `GrpcBodyGateway` from `cortex_body_client`. The body
-binds `CORTEX_BODY_ADDR` (default `127.0.0.1:50151`) and serves `body_rpc::body_service` over
+`host.docker.internal:23151`) and builds a `GrpcBodyGateway` from `cortex_body_client`. The body
+binds `CORTEX_BODY_ADDR` (default `127.0.0.1:23151`) and serves `body_rpc::body_service` over
 the platform's backends (`WindowsAudioControl` and `WindowsNotify`, or on Linux
 `LinuxAudioControl` and `LinuxNotify`), the `BodyService` server behind the `RpcTokenValidator`. Each handler runs its synchronous OS call on
 a blocking thread, so a slow endpoint never parks the runtime.
@@ -33,7 +33,7 @@ The container reaches the host through `host.docker.internal`, and
 `docker/docker-compose.body.yml` adds the `host-gateway` `extra_hosts` entry the portable path
 needs. **Loopback is not enough for the container-to-host path**: the container cannot reach the
 host's `127.0.0.1`, so for the real dial the body must bind an interface the container can see.
-Set `CORTEX_BODY_ADDR=0.0.0.0:50151` on the host and let the host firewall keep the port
+Set `CORTEX_BODY_ADDR=0.0.0.0:23151` on the host and let the host firewall keep the port
 host-local. Once the bind is not pure loopback, the token is the boundary, so set
 `CORTEX_SEAM_TOKEN` on both sides. The `BodyGateway` and `AudioControl` ports stay abstract, so a
 body-initiated tunnel would change no port: it adds one streaming RPC, a body loop and an adapter.
@@ -47,7 +47,7 @@ Against the real Windows body, run the Tauri app as below, then from the brain i
 venv:
 
 ```
-cd brain && CORTEX_BODY_ENDPOINT=host.docker.internal:50151 CORTEX_SEAM_TOKEN=... \
+cd brain && CORTEX_BODY_ENDPOINT=host.docker.internal:23151 CORTEX_SEAM_TOKEN=... \
 uv run pytest -m integration --no-cov packages/body_client
 ```
 
@@ -84,7 +84,7 @@ is never built or measured in CI.
 2. Build and run the body, binding an interface the container can reach and allowing the port
    through the Windows firewall, host-local:
    ```
-   set CORTEX_BODY_ADDR=0.0.0.0:50151
+   set CORTEX_BODY_ADDR=0.0.0.0:23151
    set CORTEX_SEAM_TOKEN=<shared-secret>
    cd body/app && npm run tauri dev
    ```

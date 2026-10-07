@@ -1,9 +1,9 @@
 //! Starts the `BodyService` gRPC server the dockerized brain dials to run OS actions.
 
 /// The TCP port `BodyService` listens on when `CORTEX_BODY_ADDR` names none. It is the body's
-/// own, the brain's `BrainService` being 50051.
+/// own, the brain's `BrainService` being 23051.
 #[cfg(any(windows, target_os = "linux"))]
-const DEFAULT_BODY_PORT: u16 = 50151;
+const DEFAULT_BODY_PORT: u16 = 23151;
 
 /// The `AppUserModelID` the toast is attributed to when `CORTEX_TOAST_APP_ID` is unset: the app's
 /// own Tauri identifier, which the installed Start Menu shortcut uses.
@@ -14,9 +14,9 @@ const DEFAULT_TOAST_APP_ID: &str = "dev.cortex.body";
 #[cfg(target_os = "linux")]
 const NOTIFY_APP_NAME: &str = "Cortex";
 
-/// Starts the `BodyService` server on `CORTEX_BODY_ADDR` (default `127.0.0.1:50151`) with the
+/// Starts the `BodyService` server on `CORTEX_BODY_ADDR` (default `127.0.0.1:23151`) with the
 /// shared `CORTEX_SEAM_TOKEN`. A bind failure is logged, not fatal. For a dockerized brain the
-/// user sets `CORTEX_BODY_ADDR=0.0.0.0:50151` so the container can reach it.
+/// user sets `CORTEX_BODY_ADDR=0.0.0.0:23151` so the container can reach it.
 #[cfg(windows)]
 pub fn start(_handle: &tauri::AppHandle, excluded: bool) {
     use body_core::DeniedScreenCapture;

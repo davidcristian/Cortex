@@ -11,7 +11,7 @@ use body_core::{Randomness, RetryPlan, RetryPolicy, RetryingTransport, Sleeper, 
 use body_rpc::BrainRpcClient;
 
 /// The default brain address, the same one `body_rpc` uses; override with `CORTEX_BRAIN_ADDR`.
-const DEFAULT_ADDR: &str = "http://127.0.0.1:50051";
+const DEFAULT_ADDR: &str = "http://127.0.0.1:23051";
 
 /// The real [`Sleeper`]: `tokio::time`, for both questions the clock is asked.
 pub struct TokioSleeper;

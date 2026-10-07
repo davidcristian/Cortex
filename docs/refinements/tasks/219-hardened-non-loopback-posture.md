@@ -50,8 +50,8 @@ to put a private certificate authority that the host firewall does not already c
 ## History
 
 - 2026-09-10: Checked against the tree and not fired. The shell binds `CORTEX_BODY_ADDR`, defaulting
-  to `127.0.0.1:50151` and documented in `docker/docker-compose.body.yml` as the setting an operator
-  widens to `0.0.0.0:50151`, and the only authentication in front of that socket is
+  to `127.0.0.1:23151` and documented in `docker/docker-compose.body.yml` as the setting an operator
+  widens to `0.0.0.0:23151`, and the only authentication in front of that socket is
   `RpcTokenValidator`, one shared `x-cortex-seam-token` compared in constant time and passing
   everything through when the configured token is empty.
 - 2026-09-12: Checked again and unchanged, and the entry now names the places rather than the
@@ -65,7 +65,7 @@ to put a private certificate authority that the host firewall does not already c
 - 2026-09-24: Checked again and not fired. Every compose file still publishes on `127.0.0.1` only,
   and the four places and both token readers are as named. Two corrections: the shell declares
   tonic in a manifest of its own, and assumption 5 said loopback-only listeners while the body
-  override has the body bind `0.0.0.0:50151`, so the ROADMAP now names that exception.
+  override has the body bind `0.0.0.0:23151`, so the ROADMAP now names that exception.
 - 2026-10-03: Checked again and not fired. Assumption 5 still reads single-user, and all 13
   `ports:` entries under `docker/` publish on `127.0.0.1`. Both lockfiles still resolve tonic to
   0.14.6 with no TLS crate in either. Two corrections: since the shell started serving on Linux, the

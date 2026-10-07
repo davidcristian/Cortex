@@ -18,7 +18,7 @@ from cortex_seam import (
 )
 from cortex_session import DEFAULT_REDIS_URL, RedisScheduleStore
 
-_RPC_ENDPOINT = os.environ.get("CORTEX_SEAM_ENDPOINT", "127.0.0.1:50051")
+_RPC_ENDPOINT = os.environ.get("CORTEX_SEAM_ENDPOINT", "127.0.0.1:23051")
 _ATTEMPTS = 40
 _RETRY_S = 0.5
 

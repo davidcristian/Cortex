@@ -39,7 +39,7 @@ Consequences name the real toast; then delete this section.
 - It needs a fired reminder, so seed one before starting. The reminder pull surface check pairs
   with this one and uses the same seed.
 - This is the second of the two checks the brain dials the body for, so it needs the extra
-  prerequisites the host index lists for that direction: `CORTEX_BODY_ADDR=0.0.0.0:50151`, the
+  prerequisites the host index lists for that direction: `CORTEX_BODY_ADDR=0.0.0.0:23151`, the
   brain brought up with `-f docker/docker-compose.body.yml`, and a Windows firewall allowance for
   that port.
 
