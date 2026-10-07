@@ -4,12 +4,13 @@
 **Session:** overlay-polish
 **Capability:** W
 **Origin:** [ADR-0011](../../adr/ADR-0011-body-v1.md)
+**Verified:** 2026-10-07
 
 A soft completion chime, opt-in later or never
-([design/overlay-ux.md](../../design/overlay-ux.md) section 9). It is listed there among five open
-design decisions, four of which are now settled and stale in that doc: the palette is locked to one
-gradient, both themes ship, the preview's auto-dismiss and hover-pause were added, and the corner
-is part 3 of the overlay polish pass. The chime is untouched.
+([design/overlay-ux.md](../../design/overlay-ux.md) section 9). That section now holds two lines:
+this one, still open, and the corner, which is part 3 of the overlay polish pass. What blocks the
+chime is the user's decision, not hardware. Once it is decided, the overlay code is portable and
+reachable anywhere; only hearing it through WebView2 needs the Windows desktop.
 
 ## History
 
@@ -20,3 +21,6 @@ is part 3 of the overlay polish pass. The chime is untouched.
   decisions awaiting the user, which are weighed rather than run. Those decisions are listed as
   pointers rather than copied, so that a decision has exactly one home. The pointer for the chime
   is [design/overlay-ux.md](../../design/overlay-ux.md) section 9.
+- 2026-10-07: corrected. The design doc no longer lists the four settled decisions this file
+  called stale there, and the file now says the block is the user's decision rather than a Win32
+  desktop.

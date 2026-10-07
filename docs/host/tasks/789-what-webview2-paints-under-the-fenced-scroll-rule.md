@@ -4,6 +4,7 @@
 **Session:** windows-desktop
 **Capability:** W
 **Origin:** [ADR-0035](../../adr/ADR-0035-console-and-motion.md) decision 22
+**Verified:** 2026-10-07
 
 [R-784](../../refinements/tasks/784-a-fitting-box-reserves-the-wrong-rail-on-webkitgtk.md) proposes
 this block, so that WebKitGTK reserves the 6 px rail in a scroll box that fits as well as in one that

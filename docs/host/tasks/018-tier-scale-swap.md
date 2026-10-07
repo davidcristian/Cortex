@@ -4,7 +4,7 @@
 **Session:** gpu-tier-scale
 **Capability:** W+G
 **Origin:** [ADR-0030](../../adr/ADR-0030-brain-handoff.md)
-**Verified:** 2026-10-06
+**Verified:** 2026-10-07
 
 Narrowed 2026-10-06 to what WebView2 does beside the deep model. The swap, its arithmetic and the
 `Health` readings were drawn headless on 2026-10-02

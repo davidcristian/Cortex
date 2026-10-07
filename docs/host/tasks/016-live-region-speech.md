@@ -4,6 +4,7 @@
 **Session:** overlay-screen-reader
 **Capability:** W
 **Origin:** [ADR-0052](../../adr/ADR-0052-overlay-focus-and-announcements.md)
+**Verified:** 2026-10-07
 
 The overlay's real deployment is the Tauri window on a Win32 desktop, and the readers that matter
 (NVDA, and JAWS if it is to hand) run there. The dev machine is Linux under WSL2, and while headless
@@ -112,8 +113,8 @@ the more valuable result.
 ## Record it
 
 Put the transcript in the readings record under [docs/readings/](../../readings/README.md) that
-[ADR-0035](../../adr/ADR-0035-console-and-motion.md) rests on, and edit that ADR in place where the
-run changes what it states about the live region. If the open-chat delete loses its list sentence,
+[ADR-0052](../../adr/ADR-0052-overlay-focus-and-announcements.md) rests on, and edit that ADR in
+place where the run changes what it states about the live region. If the open-chat delete loses its list sentence,
 the ADR is also where the replacement is argued, and a new entry goes in the refinements backlog's
 body-overlay area for the work. Then delete this section, per the exit contract in
 [index.md](../index.md).
@@ -127,3 +128,8 @@ body-overlay area for the work. Then delete this section, per the exit contract 
   picked. The index also files it under "W, each with its own bring-up" while its recommended order
   says it uses the same bring-up as the Windows desktop session; both readings are the index's own
   and both are kept.
+- 2026-10-07: corrected the decision record named under "Record it" from ADR-0035, which says
+  nothing about the live region, to ADR-0052, which holds it. Screened for what runs off Windows:
+  Orca from a userspace prefix on the Linux shell, its speech read from its debug log, about 60
+  minutes, gives a second reader's transcript of the twelve gestures. That reading is WebKitGTK's
+  bridge and Orca's rules, so it adds the disagreement this file asks for and closes nothing here.

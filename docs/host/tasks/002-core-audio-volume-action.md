@@ -4,12 +4,14 @@
 **Session:** windows-desktop
 **Capability:** W
 **Origin:** [ADR-0023](../../adr/ADR-0023-body-gateway-volume.md)
+**Verified:** 2026-10-07
 
 **What only this proves.** That `WindowsAudioControl`'s narrowly authorized `unsafe` COM path
 really drives the endpoint, and that a container reaches the host body through the Windows
 firewall. The agent proved the container-to-host dial on 2026-07-08, but against a Linux gRPC
 server under WSL2 native dockerd; the Windows crossing is the untested half of ROADMAP assumption
-3. Nothing in CI builds this backend at all.
+3. CI runs clippy on `os_windows` for the `x86_64-pc-windows-msvc` target (`just check-body`),
+which type-checks this backend but never links or runs it.
 
 What is written and checked already: the real `WindowsAudioControl` (Core Audio, `cfg(windows)`,
 the `windows` crate, with `unsafe` for COM authorized narrowly to `os_windows` by ADR-0023, the one
@@ -67,3 +69,8 @@ readings record under [docs/readings/](../../readings/README.md), and add a note
   ahead of the confirm card and the three read surfaces, because those two exercise the
   brain-to-body direction and the firewall crossing, so a failure in either explains failures later
   in the session.
+- 2026-10-07: corrected the claim that nothing in CI builds this backend. The cortex-driven half
+  is reachable here: the Linux shell's body server with `LinuxAudioControl` over the PulseAudio
+  server WSLg already runs (`pactl` from a userspace prefix), dialed by the brain from a container,
+  about 30 minutes. A pass proves that the cortex emits `set_volume` and `get_volume` and that the
+  brain reaches the shell's server, which narrows this to Core Audio and the Windows firewall.

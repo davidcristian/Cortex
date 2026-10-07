@@ -4,6 +4,7 @@
 **Session:** windows-capture
 **Capability:** W
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
+**Verified:** 2026-10-07
 
 The GDI backend is written, cross-compiled for `x86_64-pc-windows-msvc` and clippy-linted from
 Linux, and **has never captured a real pixel**.
@@ -119,3 +120,10 @@ leave the focus-target check alone.
   peak. Measured again at the shipped tier shape, the cortex is 8400 to 8484 MiB idle and 8573 MiB
   at its peak, and `CORTEX_VRAM_CORTEX_GB` is 8.6 rather than 11.3
   ([ADR-0012](../../adr/ADR-0012-resource-governance.md) decision 14).
+- 2026-10-07: screened for what runs off Windows. The Linux shell on `Xvfb` with
+  `CORTEX_HOST_CAPTURE=1`, the cortex and its projector on the card, and a Gio notification
+  server on a private session bus can run "what's on my screen?" with the overlay up, the switch
+  off, and five text turns against five capture turns, about 45 minutes. It proves the brain's
+  capture tool, the ring, the receipt's sentence, the refusal sentence and the model's share of
+  the vision surcharge, so this check keeps the GDI blit, `WDA_EXCLUDEFROMCAPTURE`, DPI, protected
+  surfaces, the toast and GDI's own error codes.

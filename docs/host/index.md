@@ -123,23 +123,23 @@ session produces.
 
 ## What remains
 
-3 of these record the day their claims were last checked against the code. On every other task here, that reading is still yours to take.
+12 of these record the day their claims were last checked against the code. On every other task here, that reading is still yours to take.
 
 ### Never attempted (13)
 
-- **[H-001](tasks/001-bring-up-and-streamed-turn.md)** The bring-up: hotkey, tray, and a streamed turn (windows-desktop).
-- **[H-002](tasks/002-core-audio-volume-action.md)** The real Core Audio volume action (windows-desktop).
-- **[H-003](tasks/003-real-reminder-toast.md)** A real reminder toast (windows-desktop).
+- **[H-001](tasks/001-bring-up-and-streamed-turn.md)** The bring-up: hotkey, tray, and a streamed turn (windows-desktop). Its claim was checked against the code on 2026-10-07.
+- **[H-002](tasks/002-core-audio-volume-action.md)** The real Core Audio volume action (windows-desktop). Its claim was checked against the code on 2026-10-07.
+- **[H-003](tasks/003-real-reminder-toast.md)** A real reminder toast (windows-desktop). Its claim was checked against the code on 2026-10-07.
 - **[H-010](tasks/010-pgdata-on-windows-drive.md)** PGDATA directly on the Windows drive (windows-desktop).
-- **[H-012](tasks/012-display-capture-path.md)** The whole-display GDI capture path (windows-capture).
-- **[H-013](tasks/013-focus-target-capture.md)** The focus-target capture and its Z-order walk (windows-capture).
-- **[H-014](tasks/014-os-window-polish.md)** The OS-window half of the overlay polish (overlay-polish).
-- **[H-015](tasks/015-completion-chime.md)** A soft completion chime (overlay-polish).
-- **[H-016](tasks/016-live-region-speech.md)** What the live region is spoken as (overlay-screen-reader).
-- **[H-018](tasks/018-tier-scale-swap.md)** The tier-scale cortex to brain swap (gpu-tier-scale). Its claim was checked against the code on 2026-10-06.
-- **[H-023](tasks/023-cgroup-cap-numbers.md)** The cgroup cap numbers (gpu-tier-scale). Its claim was checked against the code on 2026-10-02.
-- **[H-024](tasks/024-attached-picture-over-ipc.md)** An attached picture through real Tauri IPC (windows-desktop). Its claim was checked against the code on 2026-10-06.
-- **[H-789](tasks/789-what-webview2-paints-under-the-fenced-scroll-rule.md)** What WebView2 paints under the fenced scroll rule (windows-desktop).
+- **[H-012](tasks/012-display-capture-path.md)** The whole-display GDI capture path (windows-capture). Its claim was checked against the code on 2026-10-07.
+- **[H-013](tasks/013-focus-target-capture.md)** The focus-target capture and its Z-order walk (windows-capture). Its claim was checked against the code on 2026-10-07.
+- **[H-014](tasks/014-os-window-polish.md)** The OS-window half of the overlay polish (overlay-polish). Its claim was checked against the code on 2026-10-07.
+- **[H-015](tasks/015-completion-chime.md)** A soft completion chime (overlay-polish). Its claim was checked against the code on 2026-10-07.
+- **[H-016](tasks/016-live-region-speech.md)** What the live region is spoken as (overlay-screen-reader). Its claim was checked against the code on 2026-10-07.
+- **[H-018](tasks/018-tier-scale-swap.md)** The tier-scale cortex to brain swap (gpu-tier-scale). Its claim was checked against the code on 2026-10-07.
+- **[H-023](tasks/023-cgroup-cap-numbers.md)** The cgroup cap numbers (gpu-tier-scale). Its claim was checked against the code on 2026-10-07.
+- **[H-024](tasks/024-attached-picture-over-ipc.md)** An attached picture through real Tauri IPC (windows-desktop). Its claim was checked against the code on 2026-10-07.
+- **[H-789](tasks/789-what-webview2-paints-under-the-fenced-scroll-rule.md)** What WebView2 paints under the fenced scroll rule (windows-desktop). Its claim was checked against the code on 2026-10-07.
 
 ## Ongoing, never closes (2)
 
@@ -206,8 +206,8 @@ Neither work that remains nor work that finishes: an observation made over time,
 
 Ordered by what unblocks the most, and grouped so each group is one session.
 
-1. **The Windows desktop session.** One bring-up covers eight checks, the first of which is that
-   bring-up. Start here because it is the cheapest and closes the most items at once, and because
+1. **The Windows desktop session.** One bring-up covers every check in it, the first of which is
+   that bring-up. Start here because it is the cheapest and closes the most items at once, and because
    the confirm card and the toast are the two consent surfaces the safety position rests on.
 2. **The capture session.** Its own bring-up. Do the self-exclusion check first inside it and not
    last: if it fails, the loop it prevents is already live and the rest of the session is pointless.

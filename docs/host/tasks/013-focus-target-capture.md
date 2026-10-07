@@ -4,6 +4,7 @@
 **Session:** windows-capture
 **Capability:** W
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
+**Verified:** 2026-10-07
 
 The body can be pointed at the window the user is looking at rather than the whole display
 ([ADR-0029](../../adr/ADR-0029-vision-screen-capture.md) decision 16, built 2026-08-10). The
@@ -62,3 +63,12 @@ What was seen goes in the readings record under [docs/readings/](../../readings/
 results, the window the walk resolved, and the latency number), that ADR is edited in place so its
 host-only list no longer names what ran, and a note goes in
 [runbooks/vision.md](../../runbooks/vision.md).
+
+## History
+
+- 2026-10-07: screened for what runs off Windows. Whether the cortex picks `focus` for a question
+  about the window in front of the user is brain and model behaviour, reachable on the card with
+  any body: ten asks of each kind of question, the `target` argument read from the brain's log,
+  about 25 minutes. The same Linux shell run as the display check's can add one focus capture, a
+  window behind the overlay, to check that the receipt and the reply both say one window, about
+  10 minutes more. The Z-order walk itself is Win32 and stays.

@@ -4,7 +4,7 @@
 **Session:** windows-desktop
 **Capability:** W
 **Origin:** [ADR-0070](../../adr/ADR-0070-user-attached-images.md)
-**Verified:** 2026-10-06
+**Verified:** 2026-10-07
 
 Narrowed 2026-10-06 to the two ways in that WebView2 owns. On the Linux shell, pictures handed to
 the composer's paste handler went through the canvas reader, the base64 `images` argument of the

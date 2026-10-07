@@ -4,7 +4,7 @@
 **Session:** gpu-tier-scale
 **Capability:** W+G
 **Origin:** [ADR-0012](../../adr/ADR-0012-resource-governance.md)
-**Verified:** 2026-10-02
+**Verified:** 2026-10-07
 
 Tag **W+G**, re-scoped 2026-10-02. The numbers themselves, measured under a real handoff, are agent
 work on the 24 GB card through a client that approves the confirm card, the handoff client of

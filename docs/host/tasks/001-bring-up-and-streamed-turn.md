@@ -4,6 +4,7 @@
 **Session:** windows-desktop
 **Capability:** W
 **Origin:** [ADR-0011](../../adr/ADR-0011-body-v1.md)
+**Verified:** 2026-10-07
 
 **What only this proves.** That `os_windows` really registers a system-wide hotkey on a live Win32
 desktop, that the tray item and window show and hide work, and that the `converse` Tauri command
@@ -16,13 +17,12 @@ commands, `check_link`, the reminder pull and the `images` argument of `converse
 hop on the Linux shell on 2026-10-06 ([readings](../../readings/tauri-ipc-commands.md)), so a turn
 that streams here is their Windows half too.
 
-[ADR-0011](../../adr/ADR-0011-body-v1.md)'s host-only consequence names the `os_windows`
-`global-hotkey` registration, the tray and window show and hide, and the real `converse` command
-streaming a live brain turn to the webview, as two of its six lines. Neither had an item here until
-2026-07-19. It reads as obvious work for the reason it went missing: it is what you do before the
+[ADR-0011](../../adr/ADR-0011-body-v1.md)'s host-only consequence names the hotkey registration,
+the tray, window show and hide, and a real `converse` streaming through WebView2. None of them had
+an item here until 2026-07-19. It reads as obvious work for the reason it went missing: it is what you do before the
 checks, so nobody wrote it down as one.
 
-**The bring-up, once, for all seven checks.** Prerequisites are in [index.md](../index.md). Then:
+**The bring-up, once, for every check in the session.** Prerequisites are in [index.md](../index.md). Then:
 
 ```powershell
 $env:CORTEX_SEAM_TOKEN = "<the same secret the brain serves with>"
@@ -77,3 +77,10 @@ lines named above, and put any figure the run took in its readings record under
 - 2026-10-06: the reminder pull surface closed on the Linux shell too, leaving the hotkey that
   summons it and WebView2's transport to this check
   ([H-007](007-reminder-pull-surface.md)).
+- 2026-10-07: corrected the count of checks the bring-up serves and the description of
+  ADR-0011's host-only list, which is now one sentence. The Linux shell's hotkey is `os_linux`'s
+  own, and its streamed turn showed the deep model's reasoning a delta at a time
+  ([readings](../../readings/model-swap.md#the-overlays-view-of-a-handoff)), so a reply arriving
+  whole on Windows points at WebView2's transport. The one part left to run off Windows is the
+  tray menu on the Linux shell under a StatusNotifier host, which proves `tray.rs` and not the
+  Win32 tray.

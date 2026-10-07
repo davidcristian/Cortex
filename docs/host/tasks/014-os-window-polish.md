@@ -4,6 +4,7 @@
 **Session:** overlay-polish
 **Capability:** W
 **Origin:** [ADR-0011](../../adr/ADR-0011-body-v1.md)
+**Verified:** 2026-10-07
 
 **The one item in this directory that is authoring, not validation.** Everything else here runs
 code that already exists and writes down what happened. This writes code, in the Tauri shell that
@@ -86,3 +87,9 @@ why, because "done together" is this entry's own recorded finding.
 - 2026-10-06: corrected after the overlay window began following the overlay's mode. The task said
   the hotkey toggles the window; a press over a shown window now goes to the overlay, which hides
   the window through `set_overlay_shown`, so a hide-on-blur goes the same way.
+- 2026-10-07: screened for what runs off Windows. Part 4 is reachable: write the policy in
+  `tauri.conf.json` naming both IPC origins, `ipc:` and `http://ipc.localhost` as Tauri 2.11's
+  own config example does, then run every surface on the Linux shell with a
+  `securitypolicyviolation` listener, about 60 minutes. A clean run proves the overlay's own
+  sources under WebKitGTK and leaves WebView2's origin to a short check here. Parts 1 to 3 need a
+  Win32 window and stay.

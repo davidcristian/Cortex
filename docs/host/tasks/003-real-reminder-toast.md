@@ -4,6 +4,7 @@
 **Session:** windows-desktop
 **Capability:** W
 **Origin:** [ADR-0066](../../adr/ADR-0066-reminder-toast-and-card.md)
+**Verified:** 2026-10-07
 
 **What only this proves.** That WinRT toasts render at all for an unpackaged app's
 `AppUserModelID`, and that the inert-text and escaping rules covered in CI survive the real
@@ -41,3 +42,12 @@ Consequences name the real toast; then delete this section.
   prerequisites the host index lists for that direction: `CORTEX_BODY_ADDR=0.0.0.0:50151`, the
   brain brought up with `-f docker/docker-compose.body.yml`, and a Windows firewall allowance for
   that port.
+
+## History
+
+- 2026-10-07: screened for what runs off Windows. The push path to the body is reachable on the
+  Linux shell: a reminder seeded in Redis, the brain dialing the shell's body server from a
+  container, and `LinuxNotify` speaking to a notification server written with Gio on a private
+  session bus, about 30 minutes. A pass proves the ticker's dial, the ack on delivery and the
+  overlay showing no card afterwards, which narrows this to WinRT rendering the toast, the
+  `AppUserModelID` and the toast XML's escaping.
