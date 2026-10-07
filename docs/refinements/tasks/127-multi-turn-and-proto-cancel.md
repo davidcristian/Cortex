@@ -1,15 +1,9 @@
 # Multi-turn within one stream plus proto `Cancel`
 
-**Status:** open, waiting for its trigger
+**Status:** open, actionable
 **Area:** body-overlay
 **Origin:** [ADR-0011](../../adr/ADR-0011-body-v1.md)
-**Trigger:** a record in the tree, a host task or a runbook reading, of a turn the person stopped
-whose generation went on holding the model lease against their next submit or a model swap. Until
-that is written down, muting the sink is adequate. The wait itself needs no host to read: the
-brain cannot tell a stopped turn from one whose client keeps reading, so any client that sends a
-second turn while the first still generates shows it. What only use can show is a person
-submitting again soon enough after a Stop for that wait to matter.
-**Verified:** 2026-10-06
+**Verified:** 2026-10-07
 
 The body sends one turn per `Converse` call and never sends `Cancel`; dropping the stream is how
 v1 cancels (ADR-0011 decision 1 and risks). Slice 8.8 (ADR-0022) took the interleaving half, so
@@ -99,3 +93,12 @@ multi-turn-plus-`Cancel` build live entirely in the Tauri shell and overlay glue
   `body/crates/rpc/src/converse.rs:154` and the Tauri loop's one early exit at
   `body/app/src-tauri/src/converse.rs:248`. The `Cancel` field is still at `proto/body.proto:57`,
   the escalation lease still at `wiring.py:76`, and the four tests named above still exist.
+- 2026-10-07: The trigger fired. On the Linux shell against the real cortex, a Stop came 57% of
+  the way through a turn's generation, the generation ran to its end, and a question sent 1.2 s
+  after the Stop reached the model only once it had
+  ([readings](../../readings/overlay-turn-flows.md#stop)). The Tauri loop's one early exit is
+  still at `body/app/src-tauri/src/converse.rs:248`. The build has one question to settle first:
+  the brain stores no partial reply for a cancelled turn, so after an abort the chat would keep the
+  question alone where the overlay showed part of a reply. The same run found the stored order interleaved,
+  which this task shortens and [R-813](813-a-turn-sent-while-another-runs-interleaves-the-chat.md)
+  fixes.
