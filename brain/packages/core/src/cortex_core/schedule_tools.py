@@ -72,9 +72,10 @@ class ScheduleTaskTool:
             },
             "every_seconds": {
                 "type": "number",
-                "minimum": MIN_EVERY_SECONDS,
+                "minimum": 0,
                 "description": (
-                    f"Repeat interval in seconds (min {MIN_EVERY_SECONDS}); omit for one-shot."
+                    f"Repeat interval in seconds (min {MIN_EVERY_SECONDS}); 0 or omitted for "
+                    "a one-shot."
                 ),
             },
             "at_time": {

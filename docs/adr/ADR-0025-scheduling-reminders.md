@@ -76,9 +76,9 @@ built-ins, so subagents never see them (ADR-0010) and cannot re-schedule themsel
   `describe_tools` walk and includes the current time in the display zone (ADR-0065 decision 1); no
   other context line tells the model the date.
 - **Arguments.** `kind`, `text`, and exactly one of `at` (ISO-8601), `in_seconds` or `at_time` (a
-  calendar rule, ADR-0065 decision 2); `every_seconds` between 60 s and ten years; `model` for a
-  task. Bad arguments return `is_error` results and never raise. Ids are uuid4 from an injectable
-  factory.
+  calendar rule, ADR-0065 decision 2); `every_seconds` between 60 s and ten years, with `0` read
+  as a one-shot; `model` for a task. Bad arguments return `is_error` results and never raise. Ids
+  are uuid4 from an injectable factory.
 - **Creation bounds.** Active items are capped (`CORTEX_SCHEDULE_MAX_ACTIVE`, 32), and **a tainted
   turn cannot create a task**. A reminder only ever reaches a human, while a task instruction
   written by injected content would be a permanent directive fed to a subagent.

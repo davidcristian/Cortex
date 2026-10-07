@@ -183,6 +183,33 @@ async def test_schedules_a_recurring_task_in_seconds_with_a_model_hint() -> None
     assert item.model == "fast"
 
 
+@pytest.mark.parametrize("every_seconds", [0, 0.0])
+async def test_a_zero_interval_schedules_a_one_shot(every_seconds: float) -> None:
+    tool, store = _tool()
+    result = await tool.invoke(
+        _call(
+            {
+                "kind": "reminder",
+                "text": "call the dentist",
+                "in_seconds": 1800,
+                "every_seconds": every_seconds,
+            }
+        )
+    )
+    assert not result.is_error
+    assert "every" not in result.content
+    item = await store.get("item-1")
+    assert item is not None
+    assert item.due_at == _NOW + timedelta(seconds=1800)
+    assert item.every is None
+
+
+def test_spec_offers_a_zero_interval_as_a_one_shot() -> None:
+    every = _tool()[0].spec.parameters["properties"]["every_seconds"]
+    assert every["minimum"] == 0
+    assert "(min 60); 0 or omitted for a one-shot" in every["description"]
+
+
 async def test_creation_taint_stamps_the_item_for_a_reminder() -> None:
     tool, store = _tool()
     result = await tool.invoke(
@@ -292,7 +319,19 @@ async def test_the_active_items_cap_bounds_creation() -> None:
             "'every_seconds'",
         ),
         (
+            {"kind": "reminder", "text": "x", "in_seconds": 60, "every_seconds": 30},
+            "'every_seconds' must be 0 (one-shot) or between 60 and 315360000",
+        ),
+        (
+            {"kind": "reminder", "text": "x", "in_seconds": 60, "every_seconds": -5},
+            "'every_seconds' must be 0 (one-shot) or between",
+        ),
+        (
             {"kind": "reminder", "text": "x", "in_seconds": 60, "every_seconds": True},
+            "'every_seconds'",
+        ),
+        (
+            {"kind": "reminder", "text": "x", "in_seconds": 60, "every_seconds": False},
             "'every_seconds'",
         ),
         (

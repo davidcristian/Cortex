@@ -26,7 +26,9 @@ _EVERY_WITH_AT_TIME = (
 )
 UNSCHEDULABLE_RULE = "'at_time' has no next occurrence that can be scheduled"
 _BAD_IN_SECONDS = "'in_seconds' must be a positive number of seconds"
-_BAD_EVERY = f"'every_seconds' must be a number between {MIN_EVERY_SECONDS} and {MAX_EVERY_SECONDS}"
+_BAD_EVERY = (
+    f"'every_seconds' must be 0 (one-shot) or between {MIN_EVERY_SECONDS} and {MAX_EVERY_SECONDS}"
+)
 _MODEL_NEEDS_TASK = "'model' applies only to 'kind': \"task\""
 _BAD_MODEL = "'model' must be a string"
 
@@ -148,6 +150,8 @@ def _parse_every(arguments: Mapping[str, Any]) -> timedelta | None | str:
     if every_seconds is None:
         return None
     seconds = parse_number(every_seconds)
+    if seconds == 0:
+        return None
     if seconds is None or not MIN_EVERY_SECONDS <= seconds <= MAX_EVERY_SECONDS:
         return _BAD_EVERY
     return timedelta(seconds=seconds)

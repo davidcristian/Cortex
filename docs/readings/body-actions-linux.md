@@ -68,5 +68,28 @@ Nine one-shot requests reached `schedule_task`: the three above and six more, su
 to call the dentist in 30 minutes", each with its delay as `in_seconds`. One first call, the
 markup reminder's, also sent `every_seconds: 0`. The tool refused it with "'every_seconds' must be
 a number between 60 and 315360000", and the cortex's next call, without the field, succeeded.
-`edit_scheduled` reads the same `0` as "stop repeating"
-([R-809](../refinements/tasks/809-schedule-task-refuses-a-zero-interval.md)).
+`edit_scheduled` reads the same `0` as "stop repeating".
+
+**Twenty more, 2026-10-07.** The rule was written before the row: if two or more of twenty first
+`schedule_task` calls send `every_seconds`, `0` is read as a one-shot; none or one declines the
+change. Ten requests held markup or quotes and ten were plain, each in a fresh session through
+`BrainService.Converse`, on `docker-compose.yml` and `docker-compose.gpu.yml` at their defaults
+with `CORTEX_SCHEDULE_BACKEND=redis`, no body and engine build `b11434`. The count is the first
+`cortex.tools.audit` line per session, which logs the call's arguments. Logs:
+`measurements/zero-interval-2026-10-07/`.
+
+- **Two of twenty** first calls sent `every_seconds: 0`, both from plain requests. The call for
+  "remind me to call the dentist in 30 minutes" was refused by the interval check. The call for
+  "set a reminder for 40 minutes from now to water the plants" also sent `at_time` beside
+  `in_seconds` and was refused for naming two due times. None of the ten markup requests sent the
+  field.
+- Each refused call's next call, without the field, succeeded, so all twenty sessions stored one
+  reminder. Nine markup texts were stored as typed; the cortex stored
+  `look at <a href="https://example.com">the docs</a>` as `look at the docs`.
+- The count met the rule, so `schedule_task` now reads `every_seconds: 0` as a one-shot. Its
+  schema sets `minimum` to 0 and says "0 or omitted for a one-shot", and any other value under 60
+  is refused as "'every_seconds' must be 0 (one-shot) or between 60 and 315360000". A `0` beside
+  `at_time` is still refused, as `edit_scheduled` refuses it.
+- **The same twenty on the changed brain.** Four first calls sent `every_seconds: 0`, two plain
+  and two markup, and all four were accepted. No call was refused, each session made one call, and
+  all twenty confirmations had the 86 characters of a one-shot's, which has no interval clause.

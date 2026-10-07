@@ -185,14 +185,14 @@ escalate. Each is a `BuiltinTool` registered in the `CompositeToolRegistry`.
   `EditScheduledTool` (`schedule_tools.py` and `schedule_verbs.py`, with argument parsing in
   `schedule_args.py`, `schedule_verb_args.py` and `schedule_day_args.py`) are the five schedule
   verbs (ADR-0025). `schedule_task` takes `{kind: reminder|task, text, at | in_seconds,
-  every_seconds? (at least 60), model? (task only)}`, or `at_time` (`HH:MM`) with at most one of
-  `on_days`, `on_month_days` or `on_dates` plus an optional `in_zone` for a calendar rule. Its spec
-  is rebuilt on every `describe_tools` walk and includes the current time, which the model cannot
-  otherwise compute an absolute `at` from. Two creation bounds apply: the `max_active` cap, and a
-  refusal to create a `task` item on a tainted turn (`TAINTED_TASK_MSG`). Creation, cancel and
-  snooze results are `TRUSTED` and never echo stored text; the listing echoes text and so is
-  `TRUSTED` only when every item listed is clean. `edit_scheduled` adds the editing turn's taint
-  and refuses editing a task on a tainted turn; none of the five raises.
+  every_seconds? (at least 60, or 0 for a one-shot), model? (task only)}`, or `at_time` (`HH:MM`)
+  with at most one of `on_days`, `on_month_days` or `on_dates` plus an optional `in_zone` for a
+  calendar rule. Its spec is rebuilt on every `describe_tools` walk and includes the current time,
+  which the model cannot otherwise compute an absolute `at` from. Two creation bounds apply: the
+  `max_active` cap, and a refusal to create a `task` item on a tainted turn (`TAINTED_TASK_MSG`).
+  Creation, cancel and snooze results are `TRUSTED` and never echo stored text; the listing echoes
+  text and so is `TRUSTED` only when every item listed is clean. `edit_scheduled` adds the editing
+  turn's taint and refuses editing a task on a tainted turn; none of the five raises.
 
 ## Schedules
 
