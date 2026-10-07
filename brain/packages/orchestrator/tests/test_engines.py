@@ -123,6 +123,29 @@ def _engines(backend: _Model, *, tools: ToolRegistry | None = None) -> StreamEng
     )
 
 
+class _Held:
+    """A backend whose completions wait for ``release``, then replay ``model``'s script."""
+
+    def __init__(self, model: _Model) -> None:
+        self.model = model
+        self.release = asyncio.Event()
+
+    async def stream(
+        self,
+        model: str,
+        messages: Sequence[Message],
+        *,
+        tools: Sequence[ToolSpec] = (),
+        schema: JsonSchema | None = None,
+        bounds: GenerationBounds | None = None,
+    ) -> AsyncIterator[InferenceEvent]:
+        await self.release.wait()
+        async for event in self.model.stream(
+            model, messages, tools=tools, schema=schema, bounds=bounds
+        ):
+            yield event
+
+
 async def _sent(arguments: Mapping[str, object]) -> str:
     """The one remote tool these cases dispatch; it needs approval under `CORTEX_TOOLS_GATED`."""
     del arguments
@@ -179,17 +202,38 @@ async def test_each_stream_confirms_through_its_own_overlay() -> None:
     assert [request.tool_name for request in second.requests] == ["send_email"]
 
 
+async def test_two_streams_on_one_chat_store_each_reply_before_the_next_question() -> None:
+    held = _Held(_Model({"cortex": [[TextChunk("first reply")], [TextChunk("second reply")]]}))
+    engines = replace(_engines(held.model), backend=held)
+    confirmer = RecordingConfirmer(answer=True)
+    one = asyncio.create_task(
+        _run(engines.for_stream(confirmer, RecordingProgressSink()), "one", turn_id="t1")
+    )
+    for _ in range(20):
+        await asyncio.sleep(0)
+    two = asyncio.create_task(
+        _run(engines.for_stream(confirmer, RecordingProgressSink()), "two", turn_id="t2")
+    )
+    for _ in range(20):
+        await asyncio.sleep(0)
+    held.release.set()
+    await asyncio.gather(one, two)
+
+    history = await engines.sessions.history("s")
+    assert [message.text for message in history] == ["one", "first reply", "two", "second reply"]
+
+
 async def test_only_a_wired_handoff_wraps_a_streams_engine() -> None:
     backend = _Model({"cortex": [[TextChunk("hi")]]})
     plain = _engines(backend)
     confirmer = RecordingConfirmer(answer=True)
-    assert isinstance(plain.for_stream(confirmer, RecordingProgressSink()), TurnEngine)
+    assert isinstance(plain.for_stream(confirmer, RecordingProgressSink()).inner, TurnEngine)
 
     swap = _swap_runtime()
     try:
         wrapped = replace(plain, deep=DeepTier(swap, (), None))
         engine = wrapped.for_stream(confirmer, RecordingProgressSink())
-        assert isinstance(engine, EscalatingTurnEngine)
+        assert isinstance(engine.inner, EscalatingTurnEngine)
     finally:
         await swap_closer(swap)()
 

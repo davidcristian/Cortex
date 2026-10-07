@@ -1,8 +1,13 @@
 # Multi-turn within one stream plus proto `Cancel`
 
-**Status:** open, actionable
+**Status:** open, waiting for its trigger
 **Area:** body-overlay
 **Origin:** [ADR-0011](../../adr/ADR-0011-body-v1.md)
+**Trigger:** a body caller that needs a `Converse` stream to outlive its turn. On 2026-10-07 the
+overlay's `submit` in `body/app/src/overlay/useOverlay.ts` returns while `isTurnActive`, so no
+question is sent while another runs, and `turn_request` in `body/crates/rpc/src/converse.rs` sends
+one `UserTurn` and no `Cancel`. A question accepted mid-turn, or a stop that must keep its stream
+open, fires it.
 **Verified:** 2026-10-07
 
 The body sends one turn per `Converse` call and never sends `Cancel`; dropping the stream is how
@@ -43,16 +48,13 @@ then needs per-turn keying for Slice 8.8's single-slot `ConfirmRoute` and the `R
 one-confirm-per-stream assumption: a map rather than one slot, contained in a route that is
 already generation-tagged.
 
-**Today's Stop is UI-only.** The overlay's Stop denies a pending confirm and mutes the JS sink
-(`tauriBridge.ts` sets `live = false`) but does not half-close or abort the RPC, so the Rust
-`converse` command streams the turn to completion: the brain finishes generating, persists the
-full reply, and holds the lease until the turn ends. Stop therefore means "stop showing me this
-turn" rather than "abort the compute", and the overlay can show a truncated reply while the store
-keeps the whole one. That is adequate at loopback personal scale. A real abort is worth building
-when mid-turn compute becomes expensive and evictable. The simple fix for one turn per call is to
-make the Tauri command abort its RPC on Stop, a body-local signal with no proto change, which the
-brain already tears down cleanly through `events()`'s `finally`. Both that and the
-multi-turn-plus-`Cancel` build live entirely in the Tauri shell and overlay glue.
+**Stop already ends the turn without either part.** The overlay's Stop sends the shell's
+`stop_turn`, and the `converse` command (`body/app/src-tauri/src/converse.rs`) drops the turn's
+RPC, which the brain reads as a dropped stream: `events()`'s `finally` cancels the turn task, the
+model's generation ends, the lease is freed, and the store keeps the question with no reply. Two
+streams naming one session no longer interleave either, since the brain runs a session's turns one
+at a time across streams (`SerialTurnRunner`, `session_turns.py`). What remains here is needed only
+when one stream should hold several turns.
 
 ## History
 
@@ -96,9 +98,12 @@ multi-turn-plus-`Cancel` build live entirely in the Tauri shell and overlay glue
 - 2026-10-07: The trigger fired. On the Linux shell against the real cortex, a Stop came 57% of
   the way through a turn's generation, the generation ran to its end, and a question sent 1.2 s
   after the Stop reached the model only once it had
-  ([readings](../../readings/overlay-turn-flows.md#stop)). The Tauri loop's one early exit is
-  still at `body/app/src-tauri/src/converse.rs:248`. The build has one question to settle first:
-  the brain stores no partial reply for a cancelled turn, so after an abort the chat would keep the
-  question alone where the overlay showed part of a reply. The same run found the stored order interleaved,
-  which this task shortens and [R-813](813-a-turn-sent-while-another-runs-interleaves-the-chat.md)
-  fixes.
+  ([readings](../../readings/overlay-turn-flows.md#stop)). The simple fix was built: the overlay's
+  cancel sends `stop_turn`, the shell drops the RPC, and on the same shell the model freed its slot
+  within 15 ms of the cancel and the next question did not wait
+  ([readings](../../readings/overlay-turn-flows.md#with-the-abort)). The question it named first was
+  settled by keeping the brain's rule: a cancelled turn stores no reply. That the overlay goes on
+  writing a stopped reply, and keeps text the chat does not, is
+  [R-816](816-a-stopped-reply-goes-on-writing-and-is-not-kept.md). The turn order across streams was
+  fixed in the same change with a lock per session in the brain. The task now holds only several
+  turns per stream and a client `Cancel`, whose trigger is new.

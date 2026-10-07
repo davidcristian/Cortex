@@ -67,17 +67,15 @@ never a reading of what the tree does now.
 
 146 of these record the day their claims were last checked against the code. On every other task here, that reading is still yours to take.
 
-### Actionable now (3)
+### Actionable now (1)
 
-- **[R-127](tasks/127-multi-turn-and-proto-cancel.md)** Multi-turn within one stream plus proto `Cancel` (body-overlay). Its claim was checked against the code on 2026-10-07.
 - **[R-812](tasks/812-an-exchange-over-the-embedder-context-is-never-recorded.md)** An exchange over the embedder's context is never recorded to memory (memory). Its claim was checked against the code on 2026-10-07.
-- **[R-813](tasks/813-a-turn-sent-while-another-runs-interleaves-the-chat.md)** A turn sent while another runs in the same chat interleaves the chat (session-history). Its claim was checked against the code on 2026-10-07.
 
 ### Actionable, once a port changes (1)
 
 - **[R-129](tasks/129-streamed-brain-status.md)** Streamed brain status (body-overlay). Its claim was checked against the code on 2026-10-06.
 
-### Waiting for its trigger (112)
+### Waiting for its trigger (114)
 
 - **[R-011](tasks/011-stylesheet-outside-line-cap.md)** The overlay stylesheet outside the line cap (repo-checks). Reopens when: `find body/app/src -name '*.css'` lists a second file, or `git log --since='<Verified date> 00:00' --oneline -- body/app/src/overlay.css` lists a commit whose diff moves a rule to change which rule applies. A commit that edits only comments does not. Its claim was checked against the code on 2026-10-07.
 - **[R-013](tasks/013-couplings-widened-registry-cannot-hold.md)** The couplings the widened registry cannot cover (repo-checks). Reopens when: A third value on the capture-target enum, a reader for declarations in the `.proto` arriving in the scan for another reason, any module outside the body's rpc crate and the brain's body client that has to name one of the two gRPC status codes, or either side of that pair gaining a declaration whose value the scan can read. Its claim was checked against the code on 2026-10-07.
@@ -92,6 +90,7 @@ never a reading of what the tree does now.
 - **[R-097](tasks/097-cross-encoder-rank.md)** A cross-encoder rank (memory). Reopens when: a reading in `docs/readings/ranked-recall.md` taken over memories nobody wrote for the measurement (neither the ten notes inline in `test_rerank_judge_live.py` nor the 41 in `recall_corpus.py`) in which the judge drops an answerable note the cosine kept or ranks it lower; or a first-token or whole-turn latency bound, in an ADR decision or a setting, that the judge's recorded cost exceeds: a rank at `k` 5 over a pool of 20 costs 0.877 s, and a judged turn's first token comes 0.539 s after a raw one's. Its claim was checked against the code on 2026-10-07.
 - **[R-112](tasks/112-resume-crashed-handoff.md)** Resume a crashed handoff from its record (inference-model-manager). Reopens when: the dedup design the `Converse` reconnect entry (R-023) needs, a request id on `UserTurn` or `ClientEvent` plus an idempotency and resume registry keyed by it, after which resuming is a conductor entry point run beside the gRPC server. Recheck with `grep -rniE 'request_id|idempotency' proto/body.proto brain/packages/*/src`: no hit means the design does not exist and this has not fired. Its claim was checked against the code on 2026-10-07.
 - **[R-124](tasks/124-nudge-live-uptake.md)** The spontaneous-pick nudge's live uptake (subagents). Reopens when: A record in `docs/readings/spawn-spec-uptake.md`, a runbook or a host task, from a probe or from real use, of the cortex calling `spawn_subagents` on a turn whose ask did not invite delegation and putting the batch on one roster entry while a second was up. None exists: the only uninvited reading is the 2026-08-04 one, twenty prose-only turns and zero spawn calls. Its claim was checked against the code on 2026-10-07.
+- **[R-127](tasks/127-multi-turn-and-proto-cancel.md)** Multi-turn within one stream plus proto `Cancel` (body-overlay). Reopens when: a body caller that needs a `Converse` stream to outlive its turn. On 2026-10-07 the overlay's `submit` in `body/app/src/overlay/useOverlay.ts` returns while `isTurnActive`, so no question is sent while another runs, and `turn_request` in `body/crates/rpc/src/converse.rs` sends one `UserTurn` and no `Cancel`. A question accepted mid-turn, or a stop that must keep its stream open, fires it. Its claim was checked against the code on 2026-10-07.
 - **[R-162](tasks/162-per-letter-kerning-pairs.md)** Per-letter boxes losing kerning pairs (body-overlay). Reopens when: The overlay adopting a licensed face, which shows up in the tree as `--font` in `body/app/src/overlay.css` naming anything other than the system stack it declares today (`-apple-system, "Segoe UI", system-ui, "Helvetica Neue", sans-serif`), or as a declaration naming a face directly, which this search finds none of today: `grep -nE '(^|[^-])font(-family)?:' body/app/src/overlay.css | grep -vE 'var\(--(font|mono)\)|font: inherit'`. It also shows up as any `@font-face` rule in a tracked file under `body/app/` (`git grep -n '@font-face' -- body/app` finds none today; a plain `grep -r` also reads `node_modules`, where installed packages such as `@adobe/css-tools` name the rule), or as a font arriving with no rule in the tree: a font stylesheet linked from `body/app/index.html` or a font package in `body/app/package.json`, where this search finds nothing today: `git grep -n -i font -- body/app/index.html body/app/package.json`. Its claim was checked against the code on 2026-10-07.
 - **[R-184](tasks/184-paging-cursor.md)** Paging or a cursor on the read RPCs (session-read-rpc). Reopens when: one reply encodes past 4 MiB, the decoding cap of the body's tonic 0.14.6 client, which no code under `body/` raises (`max_decoding_message_size` appears only where the generated stub defines it), while the brain's server sets no send cap. For `GetSessionMessages` the summed length of the records that `LRANGE cortex:session:<id>:messages 0 -1` returns is never smaller than the reply, since each record is JSON with the same four fields and more, with non-ASCII text escaped, so a live reading of that sum below 4 MiB for every session means the trigger has not fired. For `ListSessions` the reply holds at most `MAX_SESSION_LIST_LIMIT` (200) recent chats plus every hoisted chat outside that window, and that set has no cap in the store. On 2026-10-03 the stored `cortex_redis-data` volume held 76 histories, the largest summing to 2,351 bytes, and 68 chats in `cortex:sessions` with no hoisted set. Its claim was checked against the code on 2026-10-03.
 - **[R-192](tasks/192-intel-npu-placement-target.md)** The Intel NPU as a third placement target (resource-governance). Reopens when: An NPU device enumerating from inside a container, meaning `Core().get_property("NPU", "AVAILABLE_DEVICES")` returns anything at all. That is one container run: `pip install openvino` over `python:3.12-slim`, with `/dev/dxg` and `/usr/lib/wsl` handed in, then read `available_devices` and that property. The guest decides first whether that run is worth taking: while `find /usr/lib/wsl/drivers -ipath '*npu*' -name '*.so*'` prints nothing, the vendor half below is unmet and no container has a driver to enumerate the NPU through. This entry's history records what each was when last read, and the body records which half is already met. Its claim was checked against the code on 2026-10-07.
@@ -191,6 +190,7 @@ never a reading of what the tree does now.
 - **[R-811](tasks/811-the-tray-show-overlay-entry-hides-a-shown-overlay.md)** The tray's Show overlay entry hides a shown overlay (body-overlay). Reopens when: a History line in this file recording the maintainer's pick of A, B or C. Its claim was checked against the code on 2026-10-07.
 - **[R-814](tasks/814-a-reply-that-ends-early-names-the-transport-not-the-cause.md)** A reply that ends early names the transport, not the cause (body-overlay). Reopens when: a History line in this file recording the maintainer's pick of the wording and of the stopped reply's look. Its claim was checked against the code on 2026-10-07.
 - **[R-815](tasks/815-the-conversation-cannot-be-scrolled-from-the-keyboard.md)** The conversation cannot be scrolled from the keyboard (body-overlay). Reopens when: a History line in this file recording the maintainer's pick of A or B. Its claim was checked against the code on 2026-10-07.
+- **[R-816](tasks/816-a-stopped-reply-goes-on-writing-and-is-not-kept.md)** A stopped reply goes on writing, and is not kept (body-overlay). Reopens when: a History line in this file recording the maintainer's pick of what a Stop keeps on screen. Its claim was checked against the code on 2026-10-07.
 
 ### Waiting for a consumer (25)
 
@@ -250,9 +250,9 @@ never a reading of what the tree does now.
 
 ### body-overlay
 
-13 open of 57.
+14 open of 58.
 
-- [R-127](tasks/127-multi-turn-and-proto-cancel.md) Multi-turn within one stream plus proto `Cancel`. open, actionable.
+- [R-127](tasks/127-multi-turn-and-proto-cancel.md) Multi-turn within one stream plus proto `Cancel`. open, waiting for its trigger.
 - [R-128](tasks/128-connection-indicator.md) A real connection indicator. done 2026-07-16.
 - [R-129](tasks/129-streamed-brain-status.md) Streamed brain status. open, needs a port change first.
 - [R-130](tasks/130-design-doc-interaction-gaps.md) Design-doc interaction gaps. done 2026-07-12.
@@ -309,6 +309,7 @@ never a reading of what the tree does now.
 - [R-811](tasks/811-the-tray-show-overlay-entry-hides-a-shown-overlay.md) The tray's Show overlay entry hides a shown overlay. open, waiting for its trigger.
 - [R-814](tasks/814-a-reply-that-ends-early-names-the-transport-not-the-cause.md) A reply that ends early names the transport, not the cause. open, waiting for its trigger.
 - [R-815](tasks/815-the-conversation-cannot-be-scrolled-from-the-keyboard.md) The conversation cannot be scrolled from the keyboard. open, waiting for its trigger.
+- [R-816](tasks/816-a-stopped-reply-goes-on-writing-and-is-not-kept.md) A stopped reply goes on writing, and is not kept. open, waiting for its trigger.
 
 ### brain
 
@@ -834,7 +835,7 @@ never a reading of what the tree does now.
 
 ### session-history
 
-2 open of 14.
+1 open of 13.
 
 - [R-026](tasks/026-session-history-windowing.md) Bounded session-history windowing. done 2026-07-03.
 - [R-027](tasks/027-session-history-summarization.md) Session-history summarization in turn assembly. done 2026-08-06.
@@ -849,7 +850,6 @@ never a reading of what the tree does now.
 - [R-277](tasks/277-a-cut-fold-reads-like-a-wandering-one.md) A cut summary looks like a wandering one in the log. done 2026-08-18.
 - [R-736](tasks/736-the-deep-phase-sends-a-history-window-sized-for-the-cortexs-context.md) The deep phase sends a history window sized for the cortex's context. done 2026-09-30.
 - [R-743](tasks/743-the-session-and-handoff-codecs-decode-a-system-role-no-writer-stores.md) The session and handoff codecs decode a system role no writer stores. done 2026-09-28.
-- [R-813](tasks/813-a-turn-sent-while-another-runs-interleaves-the-chat.md) A turn sent while another runs in the same chat interleaves the chat. open, actionable.
 
 ### session-read-rpc
 

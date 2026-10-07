@@ -7,6 +7,7 @@ use body_core::{
     retry_with, within_deadline,
 };
 use body_rpc::BrainRpcClient;
+use futures_util::future::select;
 use futures_util::{StreamExt, pin_mut};
 use serde::{Deserialize, Serialize};
 use tauri::State;
@@ -15,6 +16,7 @@ use tokio_stream::wrappers::UnboundedReceiverStream;
 
 use crate::brain::{ShellRandomness, TokioSleeper, plan_from_env, policy_from_env};
 use crate::confirm::ConfirmRoute;
+use crate::stops::TurnStops;
 
 /// The default brain address, the same one `body_rpc` uses; override with `CORTEX_BRAIN_ADDR`.
 const DEFAULT_ADDR: &str = "http://127.0.0.1:23051";
@@ -189,21 +191,42 @@ fn decode_images(images: Vec<WireImage>) -> Result<Vec<AttachedImage>, TurnEvent
         .collect()
 }
 
-/// Runs one conversational turn and streams it to `channel`. Connection and turn failures are
-/// delivered on the channel rather than as a command error.
+/// Runs one conversational turn and streams it to `channel` until it ends or `stop_turn` names
+/// `turn`. Connection and turn failures are delivered on the channel rather than as a command
+/// error.
 #[tauri::command]
 pub async fn converse(
+    turn: String,
     session_id: String,
     text: String,
     images: Vec<WireImage>,
     channel: Channel<WireMessage>,
     route: State<'_, ConfirmRoute>,
+    stops: State<'_, TurnStops>,
 ) -> Result<(), String> {
+    let signal = stops.signal(&turn);
+    let stopped = signal.notified();
+    let run = run_turn(&session_id, &text, images, &channel, &route);
+    pin_mut!(stopped, run);
+    // A Stop drops the turn's future and with it the RPC, so the brain cancels the generation.
+    let _ = select(stopped, run).await;
+    stops.forget(&turn);
+    Ok(())
+}
+
+/// Dials the brain and streams one turn's events to `channel`.
+async fn run_turn(
+    session_id: &str,
+    text: &str,
+    images: Vec<WireImage>,
+    channel: &Channel<WireMessage>,
+    route: &ConfirmRoute,
+) {
     let images = match decode_images(images) {
         Ok(images) => images,
         Err(refused) => {
             let _ = channel.send(WireMessage::event(refused));
-            return Ok(());
+            return;
         }
     };
     let addr = std::env::var("CORTEX_BRAIN_ADDR").unwrap_or_else(|_| DEFAULT_ADDR.to_owned());
@@ -213,7 +236,7 @@ pub async fn converse(
     // Fail fast on a bad address or token, which no retry can fix, before spending the budget.
     if let Err(error) = BrainRpcClient::connect_lazy_with_token(&addr, token.as_deref()) {
         let _ = channel.send(WireMessage::error(error));
-        return Ok(());
+        return;
     }
     // Retrying the dial is safe: the turn itself has not started, so nothing is repeated.
     let sleeper = TokioSleeper;
@@ -231,14 +254,14 @@ pub async fn converse(
         Ok(client) => client,
         Err(error) => {
             let _ = channel.send(WireMessage::error(error));
-            return Ok(());
+            return;
         }
     };
     let transport = RetryingTransport::new(client, TokioSleeper, plan);
     let (sender, receiver) = tokio::sync::mpsc::unbounded_channel::<ConfirmDecision>();
-    let generation = route.set(sender);
+    let _claim = route.claim(sender);
     let decisions = UnboundedReceiverStream::new(receiver);
-    let stream = transport.converse(&session_id, &text, images, decisions);
+    let stream = transport.converse(session_id, text, images, decisions);
     pin_mut!(stream);
     while let Some(item) = stream.next().await {
         let message = match item {
@@ -249,6 +272,4 @@ pub async fn converse(
             break;
         }
     }
-    route.clear(generation);
-    Ok(())
 }

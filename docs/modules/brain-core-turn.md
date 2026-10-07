@@ -122,6 +122,12 @@ is streamed and appended to `parts` when one was cut at a limit, and `UNREADABLE
 when none was, so both callers can run them in sequence and give the reader one explanation.
 `overflow_note` streams and appends `CONTEXT_OVERFLOW_NOTE` whatever the ledger holds.
 
+`SerialTurnRunner(inner, locks)` (`session_turns.py`) is the `TurnRunner` every `Converse` stream
+runs. A turn holds its session in the shared `SessionTurnLocks` from before it stores its question
+until its reply is stored, so a second turn on that session, from any stream, waits and then reads
+the first one's reply. A turn cancelled while it waits stores nothing. A session's lock goes with
+its last running or waiting turn, so the map holds only sessions with a turn in flight.
+
 ## The history one turn sends
 
 - `HistoryWindow` (port, `windowing.py`) provides

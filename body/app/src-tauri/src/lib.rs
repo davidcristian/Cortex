@@ -11,6 +11,7 @@ mod link;
 mod preferences;
 mod reminders;
 mod sessions;
+mod stops;
 mod tray;
 
 use tauri::{AppHandle, Emitter, Manager};
@@ -26,6 +27,7 @@ const TOGGLE_EVENT: &str = "cortex:toggle";
 pub fn run() {
     tauri::Builder::default()
         .manage(confirm::ConfirmRoute::default())
+        .manage(stops::TurnStops::default())
         .manage(body_core::DropBox::default())
         .on_window_event(dropped::keep)
         .setup(|app| {
@@ -42,6 +44,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             converse::converse,
+            stops::stop_turn,
             clipboard::clipboard_picture,
             dropped::dropped_pictures,
             confirm::confirm_response,

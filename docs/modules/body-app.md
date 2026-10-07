@@ -18,7 +18,7 @@ values: `TurnEvent`, `TransportError`, `SessionSummary`, `SessionMessage`, `DueR
 `LinkState`, `LinkStatus` and `Preference`.
 
 - `converse(sessionId, text, images, sink) -> Cancellation` runs one turn with its pictures
-  ([pictures](body-app-pictures.md)). Nothing arrives during the call; cancelling is idempotent.
+  ([pictures](body-app-pictures.md)). Nothing arrives after a cancel, and cancelling is idempotent.
 - The session reads `listSessions(limit)` and `sessionMessages(sessionId)` (ADR-0021). A zero
   limit means the brain's default listing and a positive one cuts that listing.
 - The session writes `renameSession(sessionId, title)` (`""` clears the override),
@@ -133,15 +133,15 @@ on X11 or Wayland) shows a hidden window with `cortex:activate` or sends a shown
 both re-dispatched as DOM events by `main.tsx`. `overlay/useOverlayWindow.ts` calls
 `set_overlay_shown` as the mode leaves or reaches hidden; each show and hide reaches `OverlayWatch`.
 
-- **`converse(session_id, text, images, channel)`** (`converse.rs`) decodes each `WireImage`'s
+- **`converse(turn, session_id, text, images, channel)`** (`converse.rs`) decodes each `WireImage`'s
   base64 bytes (a bad one ends the turn as `attachment_refused`), drives one `BrainRpcClient` turn,
   and streams each event to the webview over a Tauri `Channel` as a `WireMessage` (`{ event }` or
   `{ error }`) matching the one in `tauriBridge.ts` field for field: tag `kind`, camelCase, so a
   confirm request is `{ kind: "confirmRequest", confirmId, toolName, argumentsJson, reason }`, the
   brain closing it unanswered `{ kind: "confirmResolved", confirmId, outcome }` (ADR-0022), and a
   heartbeat `{ kind: "heartbeat", wait, detail }` (ADR-0069). A `TransportError` has its own `kind`
-  (`connection`, `rpc`, `protocol`, `timeout`). For the turn's duration the command parks a
-  decision sender in the managed `ConfirmRoute` state, one slot, at most one turn running at once.
+  (`connection`, `rpc`, `protocol`, `timeout`). The one-slot `ConfirmRoute` holds the decision sender
+  until the turn ends or `stop_turn(turn)` (`stops.rs`, `TauriBridge`'s cancel) drops its RPC.
 - **`confirm_response(confirm_id, approved)`** (`confirm.rs`, ADR-0022) pushes the user's answer
   into that slot. An absent or closed route is ok: the brain denies an unanswered confirm on timeout.
 - **The session commands** (`sessions.rs`, ADR-0021): `list_sessions(limit)` and
@@ -204,7 +204,7 @@ heartbeats included (`DEFAULT_TURN_HEARTBEAT_GAP_MS = 120000`), so a dead brain 
 - Every `BrainBridge` implementation CI can run is driven over the one shared check list: a new
   implementation adds a case to `bridgeContract.test.ts` rather than a suite of its own. The wire
   types on both sides are one contract, so `types.ts`, `tauriBridge.ts`, `converse.rs`,
-  `confirm.rs`, `sessions.rs`, `reminders.rs` and `link.rs` change together.
+  `confirm.rs`, `stops.rs`, `sessions.rs`, `reminders.rs` and `link.rs` change together.
 - Nothing the overlay displays is ever linkified, and reminder text is why it matters: it is the
   one string on screen no output guardrail inspected (ADR-0015 filters streamed replies, not store
   rows). `DueReminder.tainted` badges the untrusted ones and the text stays a plain text node. A

@@ -110,9 +110,8 @@ export function useOverlay(
     }
   }, [state.mode]);
 
-  // Dropping the turn's event stream mutes the sink but does not half-close the request stream in
-  // the Tauri embedding, so a mid-turn confirm would sit pending brain-side until its timeout.
-  // Every turn-ending action therefore denies a still-pending confirm first.
+  // Every turn-ending action denies a still-pending confirm first, so a bridge whose cancel only
+  // mutes the sink still answers the confirm at once rather than on the brain's timeout.
   const denyPendingConfirm = useCallback(() => {
     const pending = state.pendingConfirm;
     if (pending !== null) {

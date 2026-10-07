@@ -22,12 +22,12 @@ recorded in an ADR. This ADR is that exclusion, and the checks that grew around 
    external (the one hard rule: the brain rehydrates from `SessionStore`), so every prompt shares
    the `session_id` and nothing is multiplexed on the client. The call's client stream stays open
    past its `UserTurn` only to answer a `ConfirmRequest` mid-turn
-   ([ADR-0022](ADR-0022-email-write-confirmer.md)). Cancellation is dropping the returned stream.
-   The brain already handles several turns per stream and `Cancel` end to end, freeing the model
-   lease; what is deferred is body-side and coupled, several turns per call and the client sending
-   `Cancel`, since on a one-turn call a `Cancel` then a half-close ends with no terminal event,
-   which the adapter reads as `Protocol`. Today the overlay's Stop denies a pending confirm and
-   mutes the sink but does not abort the RPC, so the brain finishes and persists the full turn
+   ([ADR-0022](ADR-0022-email-write-confirmer.md)). Cancellation is dropping the returned stream:
+   the overlay's Stop has the shell's `stop_turn` drop the turn's RPC, and the brain cancels the
+   generation, frees the lease and stores the question with no reply. Turns naming one session run
+   one at a time across streams, writes included, under a lock per session in the one brain
+   process that serves every stream; it holds no conversation state and ends with the turns it
+   orders. Several turns per call and a client `Cancel` are deferred
    ([R-127](../refinements/tasks/127-multi-turn-and-proto-cancel.md)).
 
 2. **`TurnEvent` is a typed core mirror of the proto `ServerEvent`, and one stream reports both

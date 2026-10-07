@@ -15,6 +15,19 @@ struct Claim {
     generation: u64,
 }
 
+/// The running turn's hold on the route, which clears it when dropped, so a stopped turn frees it
+/// as a finished one does.
+pub struct RouteClaim<'a> {
+    route: &'a ConfirmRoute,
+    generation: u64,
+}
+
+impl Drop for RouteClaim<'_> {
+    fn drop(&mut self) {
+        self.route.clear(self.generation);
+    }
+}
+
 /// Managed state routing the user's confirm answers into the running turn.
 #[derive(Default)]
 pub struct ConfirmRoute {
@@ -23,9 +36,17 @@ pub struct ConfirmRoute {
 }
 
 impl ConfirmRoute {
+    /// Parks `sender` as the running turn's decision route until the returned claim is dropped.
+    pub fn claim(&self, sender: UnboundedSender<ConfirmDecision>) -> RouteClaim<'_> {
+        RouteClaim {
+            route: self,
+            generation: self.set(sender),
+        }
+    }
+
     /// Parks `sender` as the running turn's decision route (turn start) and returns this turn's
     /// generation.
-    pub fn set(&self, sender: UnboundedSender<ConfirmDecision>) -> u64 {
+    fn set(&self, sender: UnboundedSender<ConfirmDecision>) -> u64 {
         let generation = match self.next_generation.lock() {
             Ok(mut next) => {
                 *next = next.wrapping_add(1);
@@ -43,7 +64,7 @@ impl ConfirmRoute {
 
     /// Drops the route iff it still holds `generation`'s sender (its own turn ended); a stale turn
     /// whose slot was already reclaimed by a newer turn no-ops, leaving the live turn answerable.
-    pub fn clear(&self, generation: u64) {
+    fn clear(&self, generation: u64) {
         if let Ok(mut slot) = self.slot.lock()
             && slot
                 .as_ref()

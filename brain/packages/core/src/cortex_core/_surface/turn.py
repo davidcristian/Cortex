@@ -34,6 +34,7 @@ from cortex_core.session_title import (
     clean_title,
     generate_title,
 )
+from cortex_core.session_turns import SerialTurnRunner, SessionTurnLocks
 from cortex_core.sessions import (
     RECAP_MAX,
     HistoryRecap,
@@ -128,7 +129,9 @@ __all__ = [
     "OutputFilter",
     "OutputGuardrail",
     "RoutingHints",
+    "SerialTurnRunner",
     "SessionSummary",
+    "SessionTurnLocks",
     "StrictUrlRedactingGuardrail",
     "SummarizingHistoryWindow",
     "TaintLedger",

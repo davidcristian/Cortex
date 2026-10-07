@@ -1,7 +1,7 @@
 """One Converse stream's engine, assembled from the parts the composition root built."""
 
 from collections.abc import Sequence
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 
 from cortex_core import (
     BrainPhase,
@@ -16,7 +16,9 @@ from cortex_core import (
     InferenceBackend,
     MemoryRecaller,
     ProgressSink,
+    SerialTurnRunner,
     SessionStore,
+    SessionTurnLocks,
     SubagentScheduler,
     SwapConductor,
     ToolRegistry,
@@ -60,9 +62,14 @@ class StreamEngines:
     record_tainted_memory: bool
     bounds: GenerationBounds | None
     deep: DeepTier | None
+    turns: SessionTurnLocks = field(default_factory=SessionTurnLocks)
 
-    def for_stream(self, confirmer: Confirmer, progress: ProgressSink) -> TurnRunner:
-        """Build the engine one Converse stream's turns run through."""
+    def for_stream(self, confirmer: Confirmer, progress: ProgressSink) -> SerialTurnRunner:
+        """Build the engine one Converse stream's turns run through, one per session at once."""
+        return SerialTurnRunner(self._engine(confirmer, progress), self.turns)
+
+    def _engine(self, confirmer: Confirmer, progress: ProgressSink) -> TurnRunner:
+        """The stream's engine, plain or able to hand a turn to the deep model."""
         deep = self.deep
         if deep is None:
             return self._turn_engine(

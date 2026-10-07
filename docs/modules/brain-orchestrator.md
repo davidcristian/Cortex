@@ -98,6 +98,9 @@ One stream's machinery lives in `converse_stream.py`, which `converse.py` re-exp
   arriving mid-turn is queued, while later client events, a `Cancel` above all, are acted on at
   once. `Cancel` stops the in-flight turn and drops every queued-but-not-started turn, whose user
   message is never persisted; the stream stays open either way.
+- **Turns that name one session run one at a time across streams**, through the
+  `SerialTurnRunner` every engine is wrapped in, so the chat stores each reply before the next
+  question. A turn waiting there has stored nothing, and a stream dropped while it waits leaves none.
 - Failures become exactly one terminal `SeamError{code, message}` and the stream then ends cleanly:
   `SessionStoreError` to `session_store_unavailable`, `InferenceError` to `inference_failed`, a
   refused attachment to `attachment_refused`, anything else to `internal` (`ERROR_CODE_*`).
@@ -196,7 +199,8 @@ the version string `Health` reports.
   is wrapped in `ConfirmFreeToolRegistry`, so a subagent is never handed a confirmable tool.
 - `StreamEngines.for_stream` (`engines.py`) is the engine factory, an object built once rather than
   closures over the root's locals. It reads no env, opens no resource and picks no adapter: per
-  stream it builds that stream's `TurnCapabilities` and returns the plain `TurnEngine`, or an
+  stream it builds that stream's `TurnCapabilities` and returns, inside a `SerialTurnRunner` over
+  the factory's one `SessionTurnLocks`, the plain `TurnEngine`, or an
   `EscalatingTurnEngine` over a `SwapConductor` bound to this stream's dispatcher when a
   `DeepTier(swap, builtins, scheduler)` is present, whose manager is then the capabilities'
   `residency`. With a `DeepTier`, the stream's cortex calls (the turn, the recap and recall's

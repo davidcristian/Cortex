@@ -53,14 +53,25 @@ export class TauriBridge implements BrainBridge {
       width,
       height,
     }));
-    invoke("converse", { sessionId, text, images: wire, channel }).catch((reason: unknown) => {
-      if (live) {
-        sink.onError({ kind: "connection", message: String(reason) });
-      }
-    });
-    // Cancelling only stops delivery to the sink. The Rust command streams the turn to its end,
-    // so the brain finishes it and stores it.
+    const turn = crypto.randomUUID();
+    let running = true;
+    invoke("converse", { turn, sessionId, text, images: wire, channel })
+      .catch((reason: unknown) => {
+        if (live) {
+          sink.onError({ kind: "connection", message: String(reason) });
+        }
+      })
+      .finally(() => {
+        running = false;
+      });
+    // Cancelling stops delivery to the sink and has the Rust command drop the RPC, so the brain
+    // cancels the generation and stores the question with no reply.
     return () => {
+      if (live && running) {
+        invoke("stop_turn", { turn }).catch(() => {
+          // The turn runs to its end and is stored whole, as it would without a Stop.
+        });
+      }
       live = false;
     };
   }
