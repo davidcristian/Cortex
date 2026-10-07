@@ -59,8 +59,19 @@ describe("Message", () => {
   });
 
   it("renders an error as an alert", () => {
-    render(<Show message={msg({ error: "cannot reach the brain" })} />);
+    const { container } = render(<Show message={msg({ error: "cannot reach the brain" })} />);
     expect(screen.getByRole("alert").textContent).toBe("cannot reach the brain");
+    expect(container.querySelectorAll(".bubble")).toHaveLength(1);
+  });
+
+  it("keeps the words that arrived above the error that ended the reply", () => {
+    const { container } = render(
+      <Show message={msg({ content: "Tea began as", error: "no reply within 120s" })} />,
+    );
+    const bubbles = container.querySelectorAll(".bubble");
+    expect(bubbles).toHaveLength(2);
+    expect(bubbles[0]?.textContent).toBe("Tea began as");
+    expect(bubbles[1]).toBe(screen.getByRole("alert"));
   });
 
   it("holds the breath mist in the bubble until the first token arrives", () => {

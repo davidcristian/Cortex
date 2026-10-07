@@ -11,10 +11,14 @@ export function Message({
   readonly onGrow: () => void;
 }) {
   if (message.error !== null) {
+    // The words that arrived before a turn failed stay readable above the failure.
     return (
-      <div className="bubble b-ai b-error" role="alert">
-        {message.error}
-      </div>
+      <>
+        {message.content === "" ? null : <WhisperBubble message={message} onGrow={onGrow} />}
+        <div className="bubble b-ai b-error" role="alert">
+          {message.error}
+        </div>
+      </>
     );
   }
 
