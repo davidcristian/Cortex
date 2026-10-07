@@ -40,8 +40,8 @@ projector was measured again in place ([ADR-0012](../../adr/ADR-0012-resource-go
   corrected 2026-07-19: ADR-0029 measured the cortex fitting an 8 GB card beside its projector at
   `--ctx-size 4096 --parallel 1` on 2026-07-17, then drove a real vision turn on it. Any card that
   holds the cortex answers this; the blit and the self-exclusion need no model at all.
-- The full procedure is [runbooks/vision.md](../../runbooks/vision.md), "Host-only half (Windows, a
-  real desktop)", four steps.
+- The full procedure is [runbooks/vision.md](../../runbooks/vision.md), "The Windows half: a real
+  desktop", four steps.
 
 ## Do the self-exclusion first, not last
 
