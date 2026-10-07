@@ -222,12 +222,12 @@ recall and record for real.
 
 ## Export and restore
 
-The durable data is a named volume rather than a raw Windows bind mount, because Postgres PGDATA
-over one has ownership and latency problems. Export is the `pg-backup` sidecar in
-`docker-compose.memory.yml` (script `docker/postgres/backup.sh`): it runs `pg_dump` into
+The durable data is a named volume rather than a bind mount on the Windows drive, where a bulk load
+took 13 times as long ([readings](../readings/pgdata-windows-drive.md)). Export is the `pg-backup`
+sidecar in `docker-compose.memory.yml` (script `docker/postgres/backup.sh`): it runs `pg_dump` into
 `CORTEX_DB_DIR` (default `./pgdata`; on WSL `/srv/pgdata`) on start and then every
-`CORTEX_DB_SYNC_INTERVAL_S` seconds (default 6 h), writing `cortex.dump` atomically and keeping
-the prior dump as `cortex-previous.dump`.
+`CORTEX_DB_SYNC_INTERVAL_S` seconds (default 6 h), writing `cortex.dump` atomically and keeping the
+prior dump as `cortex-previous.dump`.
 
 ```
 CORTEX_DB_DIR=/srv/pgdata \

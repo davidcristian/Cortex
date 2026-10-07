@@ -66,13 +66,15 @@ and put embedding on the CPU so the GPU budget stays with the cortex
    never a driver exception and never `MemoryDataError`.
 
 7. **The live data is a named volume, exported as plain files.** Postgres keeps its data directory
-   in the named volume `cortex-pgdata` (`docker/docker-compose.memory.yml`), avoiding the ownership
-   and latency problems of a Postgres data directory on a Docker Desktop Windows bind mount. The
+   in the named volume `cortex-pgdata` (`docker/docker-compose.memory.yml`). A data directory bound
+   onto the Windows drive works under Docker Desktop, whose drvfs shares store Linux owners: initdb
+   passed, the server came back after a restart and commits ran at the volume's rate, but a bulk
+   load took 13 times as long ([readings](../readings/pgdata-windows-drive.md)). The
    `pg-backup` sidecar, on the server's own image, dumps the database into `CORTEX_DB_DIR` (default
    `./pgdata`) on start and every `CORTEX_DB_SYNC_INTERVAL_S` (default 21600, six hours), with an
    atomic replace and a one-deep `cortex-previous.dump`, so the portable copy never depends on an
-   operator remembering a step. A data directory mounted straight onto the Windows drive is an
-   optional host check that nothing depends on
+   operator remembering a step. The volume stays the default because the dump already puts a
+   portable copy on the drive, and nothing ships that binds the data directory there
    ([H-010](../host/tasks/010-pgdata-on-windows-drive.md)).
 
 8. **The `cortex`/`cortex` credential is a dev default, not a secret.** It protects a
