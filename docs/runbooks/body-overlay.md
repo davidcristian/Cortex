@@ -141,7 +141,9 @@ unshare --user --map-root-user --mount bash -c "mount -t overlay overlay \
 `GDK_BACKEND=x11` is required: without it, with `WAYLAND_DISPLAY` unset and WSLg's `wayland-0`
 socket in `XDG_RUNTIME_DIR`, no window appeared on `Xvfb`, which fits GTK opening that socket while
 the shell grabbed the chord on X. A notification server such as `dunst` started inside the same
-`dbus-run-session` shows `Notify`, and `pactl` on `PATH` serves the volume.
+`dbus-run-session` shows `Notify`, and `pactl` on `PATH` serves the volume. Under WSLg that is
+`pulseaudio-utils` unpacked with `dpkg-deb -x`, with `PULSE_SERVER=unix:/mnt/wslg/PulseServer`
+([readings](../readings/body-actions-linux.md)).
 
 **Capture.** With `CORTEX_HOST_CAPTURE=1` the shell reads the `Xvfb` root. The brain reaches it
 when the stack adds `docker/docker-compose.body.yml` with

@@ -122,9 +122,12 @@ offsets are written beside the rules in `overlay.css`.
 - The inert-text rule, the attribution, `escape_xml`, the error mapping, the server's handling of a
   declined toast and the card's behaviour are covered at 100% on Linux. The cards were read at the
   real window size on the Linux shell, over a real pull, ack and brain outage
-  ([readings](../readings/tauri-ipc-commands.md#attached-pictures-and-reminder-cards)). What no
-  check reaches is the call sequence into the OS and the look of a real toast, which need the
-  Windows host ([docs/host/](../host/index.md#windows-desktop)). A toast that appears for a plain
+  ([readings](../readings/tauri-ipc-commands.md#attached-pictures-and-reminder-cards)). The push
+  ran there as well, from a reminder the cortex set, through the ticker and `BodyService.Notify`,
+  to `LinuxNotify` and a notification server, and was acked on delivery
+  ([readings](../readings/body-actions-linux.md#reminder-pushes)). What no check reaches is the
+  WinRT call sequence and the look of a real toast, which need the Windows host
+  ([docs/host/](../host/index.md#windows-desktop)). A toast that appears for a plain
   reminder but not for one containing hostile markup is an escaping break.
 - The cards show on the empty chat only, where ADR-0035 decision 29 puts the stack, so a summon
   over a chat with messages pulls them and shows nothing until a new chat opens. What should show

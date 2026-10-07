@@ -60,6 +60,8 @@ so it leaves the host as it found it.
 What this checks directly is the gRPC path, the gateway and the tool path. A cortex-driven
 `set_volume`, where the model emits the tool call, additionally needs the shell running on a
 desktop with a real audio backend: Windows, or Linux with a PulseAudio or `pipewire-pulse` server.
+It ran on the Linux shell on 2026-10-07, with WSLg's PulseAudio server as the backend
+([readings](../readings/body-actions-linux.md#volume)).
 
 Validated 2026-07-08: the host-side test server path, end to end. A token-requiring fake
 `BodyService` was served on `0.0.0.0:50151` from the brain venv, and `test_gateway_live.py` ran

@@ -138,8 +138,10 @@ What these close and where to record them:
 
 **The native toast**, the push half, is the `body_core::os::Notify` port with a real
 `WindowsNotify` WinRT backend. The inert-text rule, the untrusted-source attribution line and the
-XML escaping are all covered by CI in the core, so what is genuinely host-side is whether a toast
-appears and reads well.
+XML escaping are all covered by CI in the core, and the push from the ticker through
+`BodyService.Notify` ran on the Linux shell against `LinuxNotify`
+([readings](../readings/body-actions-linux.md#reminder-pushes)), so what is genuinely host-side is
+whether a toast appears and reads well.
 
 1. Run the body with the brain wired for push, as in [body-volume.md](body-volume.md):
    `CORTEX_BODY_ADDR=0.0.0.0:23151` plus the shared `CORTEX_SEAM_TOKEN`, and the brain up with

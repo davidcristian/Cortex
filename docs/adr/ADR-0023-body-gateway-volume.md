@@ -9,7 +9,6 @@ first host OS action, reading and setting the system volume: the smallest revers
 proves the direction. Further OS actions are more `BodyService` RPCs and `cfg`-conditional OS-trait
 methods behind the same two ports, such as the reminder toast
 ([ADR-0025](ADR-0025-scheduling-reminders.md)) and screen capture ([ADR-0029](ADR-0029-vision-screen-capture.md)).
-
 Four facts shaped it:
 
 - **The wire contract already declared it.** `proto/body.proto` has `BodyService` and its messages,
@@ -208,9 +207,10 @@ producer (a host change event such as `IAudioEndpointVolumeCallback`).
   and the Linux and macOS backends.
 - **Validated in Docker (2026-07-08):** a containerized `GrpcBodyGateway` reached a host-side
   `BodyService` over `host.docker.internal` with the token, and got `UNAUTHENTICATED` without it.
-- **Host-only:** the real `WindowsAudioControl`, the shell's bind and serve, and "set volume to
-  30%" spoken end to end ([H-002](../host/tasks/002-core-audio-volume-action.md)). It needs a
-  Windows desktop and any GPU that holds the cortex, not a 24 GB one specifically.
+  On 2026-10-07 the cortex's volume calls ran through the Linux shell's server to a real sink
+  ([readings](../readings/body-actions-linux.md#volume)).
+- **Host-only:** the real `WindowsAudioControl`, the Windows shell's `start` and the firewall
+  crossing ([H-002](../host/tasks/002-core-audio-volume-action.md)).
 - The audio and toast backends call `CoInitializeEx` per call without a matching `CoUninitialize`,
   on blocking-pool threads tokio reclaims after its idle keep-alive; the fix is one startup
   `CoIncrementMTAUsage` or one COM-initialized thread ([R-224](../refinements/tasks/224-unbalanced-com-initialization.md),

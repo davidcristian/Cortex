@@ -8,30 +8,25 @@
 
 **What only this proves.** That `WindowsAudioControl`'s narrowly authorized `unsafe` COM path
 really drives the endpoint, and that a container reaches the host body through the Windows
-firewall. The agent proved the container-to-host dial on 2026-07-08, but against a Linux gRPC
-server under WSL2 native dockerd; the Windows crossing is the untested half of ROADMAP assumption
-3. CI runs clippy on `os_windows` for the `x86_64-pc-windows-msvc` target (`just check-body`),
-which type-checks this backend but never links or runs it.
+firewall. Everything above the OS call ran on the Linux shell on 2026-10-07: the cortex emitting
+`set_volume` and `get_volume` from spoken-style requests, no approval card, the brain dialing the
+shell's `BodyService` from a container, and `LinuxAudioControl` moving a real PulseAudio sink
+([readings](../../readings/body-actions-linux.md#volume)). The tokened container-to-host dial
+passed on 2026-07-08 against a Linux gRPC server
+([ADR-0023](../../adr/ADR-0023-body-gateway-volume.md)), so the Windows crossing is the untested
+half of ROADMAP assumption 3. CI runs clippy on `os_windows` for the `x86_64-pc-windows-msvc`
+target (`just check-body`), which type-checks this backend but never links or runs it.
 
 What is written and checked already: the real `WindowsAudioControl` (Core Audio, `cfg(windows)`,
 the `windows` crate, with `unsafe` for COM authorized narrowly to `os_windows` by ADR-0023, the one
 crate opting out of the workspace `unsafe_code = forbid`), and the Tauri shell's
 `body_server::start()` binding `CORTEX_BODY_ADDR` and serving on Tauri's runtime. What is left is
-the real "set volume to 30%" on Windows, per
-[body-volume.md](../../runbooks/body-volume.md). The dial across the container boundary is done:
-on 2026-07-08 the tokened round trip passed from a container and the untokened dial was rejected
-([ADR-0023](../../adr/ADR-0023-body-gateway-volume.md)).
+the real "set volume to 30%" on Windows, per [body-volume.md](../../runbooks/body-volume.md). It
+needs a Windows desktop and any GPU that holds the cortex
+([ADR-0029](../../adr/ADR-0029-vision-screen-capture.md) measured the 12B cortex on an 8 GB card).
 
-This item was mistagged as needing a 24 GB card as well, on an older sentence saying the 12B cortex
-does not fit 8 GB. That was false: [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md) measured
-`gemma-4-12b-it-qat-q4_0.gguf` fitting the 8 GB dev GPU beside its projector at
-`--ctx-size 4096 --parallel 1` on 2026-07-17 and drove a real vision turn through the shipped
-inference adapter on 2026-07-18. The 11.3 GB reservation that sentence leaned on is a 16K-context
-figure. What no card can supply is the Win32 desktop the audio backend needs, so the item is **W**,
-and one bring-up closes the cortex-driven half with it.
-
-**Do.** [runbooks/body-volume.md](../../runbooks/body-volume.md), "Host-only half (real Core Audio
-on Windows)", three numbered steps. Then say or type **"set volume to 30%"**, and **"what's my
+**Do.** [runbooks/body-volume.md](../../runbooks/body-volume.md), "The Windows check, with real
+Core Audio", three numbered steps. Then say or type **"set volume to 30%"**, and **"what's my
 volume?"** for `get_volume`.
 
 **Pass.** Host output volume moves. No approval card appears, because volume needs no approval by
@@ -69,8 +64,9 @@ readings record under [docs/readings/](../../readings/README.md), and add a note
   ahead of the confirm card and the three read surfaces, because those two exercise the
   brain-to-body direction and the firewall crossing, so a failure in either explains failures later
   in the session.
-- 2026-10-07: corrected the claim that nothing in CI builds this backend. The cortex-driven half
-  is reachable here: the Linux shell's body server with `LinuxAudioControl` over the PulseAudio
-  server WSLg already runs (`pactl` from a userspace prefix), dialed by the brain from a container,
-  about 30 minutes. A pass proves that the cortex emits `set_volume` and `get_volume` and that the
-  brain reaches the shell's server, which narrows this to Core Audio and the Windows firewall.
+- 2026-10-07: corrected the claim that nothing in CI builds this backend, and ran the
+  cortex-driven half on the Linux shell against the cortex on the card: "set volume to 30%",
+  "what's my volume?", mute, unmute and a typed "set volume to 55%" each called the right tool,
+  sent no approval card, and moved the sink `pactl` read back
+  ([readings](../../readings/body-actions-linux.md#volume)). This narrows the item to Core Audio
+  and the Windows firewall.

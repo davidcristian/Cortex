@@ -8,15 +8,18 @@
 
 **What only this proves.** That WinRT toasts render at all for an unpackaged app's
 `AppUserModelID`, and that the inert-text and escaping rules covered in CI survive the real
-notification service. Everything except "does it appear and read well" is already covered in
-`body_core`: the port and the inert-text rule are tested there, and `WindowsNotify` renders a WinRT
-toast. What is left is a person's look at a real toast, per
-[runbooks/scheduling.md](../../runbooks/scheduling.md). The Consequences of
-[ADR-0066](../../adr/ADR-0066-reminder-toast-and-card.md) state the same thing and link the host
-index this item is listed in.
+notification service. Everything above that OS call ran on the Linux shell on 2026-10-07: the
+ticker firing a reminder the cortex set, the brain dialing the shell's `BodyService.Notify` from a
+container, `LinuxNotify` delivering it escaped to a notification server on the session bus, the
+ack on delivery, and no card afterwards
+([readings](../../readings/body-actions-linux.md#reminder-pushes)). The port and the inert-text
+rule are tested in `body_core`, and `WindowsNotify` renders a WinRT toast. What is left is a
+person's look at a real toast, per [runbooks/scheduling.md](../../runbooks/scheduling.md). The
+Consequences of [ADR-0066](../../adr/ADR-0066-reminder-toast-and-card.md) state the same thing and
+link the host index this item is listed in.
 
-**Do.** [runbooks/scheduling.md](../../runbooks/scheduling.md), "Host-only half on Windows", four
-steps. In short: *"remind me to stretch in one minute"*, then a second reminder whose text contains
+**Do.** [runbooks/scheduling.md](../../runbooks/scheduling.md), "The Windows half", four steps.
+In short: *"remind me to stretch in one minute"*, then a second reminder whose text contains
 `<b>bold</b> & "quotes"`.
 
 **Pass.** A toast appears with the reminder text; summoning the overlay afterwards shows **no** card
@@ -45,9 +48,10 @@ Consequences name the real toast; then delete this section.
 
 ## History
 
-- 2026-10-07: screened for what runs off Windows. The push path to the body is reachable on the
-  Linux shell: a reminder seeded in Redis, the brain dialing the shell's body server from a
-  container, and `LinuxNotify` speaking to a notification server written with Gio on a private
-  session bus, about 30 minutes. A pass proves the ticker's dial, the ack on delivery and the
-  overlay showing no card afterwards, which narrows this to WinRT rendering the toast, the
-  `AppUserModelID` and the toast XML's escaping.
+- 2026-10-07: screened for what runs off Windows and ran it on the Linux shell against the cortex
+  on the card. A typed "remind me to stretch in one minute" and a reminder whose text is markup
+  were each pushed once through `LinuxNotify`, escaped for a server listing `body-markup`, and
+  acked, so the overlay's empty chat showed no card; with the notification server stopped, a third
+  stayed deliverable and showed its card
+  ([readings](../../readings/body-actions-linux.md#reminder-pushes)). This narrows the item to
+  WinRT rendering the toast, the `AppUserModelID` and the toast XML's escaping.
