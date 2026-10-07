@@ -93,7 +93,8 @@ helped a user who could no longer reach the chooser that changes it.
   longer exists to click.
 - The body can start before the brain, as a tray app does at login, so a read that fails leaves
   the default appearance and is tried again on each summon, the rising edge of visibility the
-  reminder fetch uses, until one succeeds. After that the record is not read again: it is not
-  subscribed to, and this window is its only writer.
+  reminder fetch uses, until one succeeds
+  ([readings](../readings/overlay-session-resume.md#appearance-across-a-restart)). After that the
+  record is not read again: it is not subscribed to, and this window is its only writer.
 - The record is readable by any future part of the product, which was the point of choosing the
   brain over `localStorage`, and is also the reason keys are namespaced from day one.
