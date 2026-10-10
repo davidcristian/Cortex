@@ -137,3 +137,44 @@ async def test_the_loop_outlives_a_pass_that_raises(caplog: pytest.LogCaptureFix
     assert [r.getMessage() for r in caplog.records] == [
         "a serving check failed; the next pass asks again"
     ]
+
+
+async def test_a_noting_probe_fault_is_a_note_and_never_the_fault() -> None:
+    store = ScriptedServingProbe("the store")
+    first = ScriptedServingProbe("the first server", answer="the first server is down")
+    second = ScriptedServingProbe("the second server", answer="the second server is down")
+    watch = ServingWatch([store], noting=[first, second])
+    assert watch.notes() == ()
+    await watch.refresh()
+    assert watch.fault() is None
+    assert watch.notes() == ("the first server is down", "the second server is down")
+    first.answer = None
+    await watch.refresh()
+    assert watch.notes() == ("the second server is down",)
+
+
+async def test_a_noting_probe_is_asked_beside_the_others_within_one_timeout() -> None:
+    store = ScriptedServingProbe("the store", answer="the store is down")
+    server = ScriptedServingProbe("the server")
+    server.silent = True
+    watch = ServingWatch([store], noting=[server], timeout_s=0.01)
+    await watch.refresh()
+    assert watch.fault() == "the store is down"
+    assert watch.notes() == ("the server did not answer within 0.01 s",)
+    assert (store.calls, server.calls) == (1, 1)
+
+
+async def test_a_change_in_notes_is_logged_once_each_way(caplog: pytest.LogCaptureFixture) -> None:
+    server = ScriptedServingProbe("the server", answer="the server is down")
+    watch = ServingWatch([], noting=[server])
+    with caplog.at_level(logging.INFO, logger="cortex_core.serving_watch"):
+        await watch.refresh()
+        await watch.refresh()
+        server.answer = None
+        await watch.refresh()
+        await watch.refresh()
+    assert [(r.levelno, r.getMessage()) for r in caplog.records] == [
+        (logging.WARNING, "a server delegated work needs is not answering"),
+        (logging.INFO, "every server delegated work needs is answering again"),
+    ]
+    assert caplog.records[0].__dict__["notes"] == "the server is down"

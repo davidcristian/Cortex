@@ -119,6 +119,7 @@ async def run_from_env(
     serving, close_serving = build_serving_watch(
         stores.sessions,
         inference,
+        subagents_config,
         between_handoffs=None if swap is None else swap.manager.between_handoffs,
     )
     try:

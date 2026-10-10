@@ -5,7 +5,7 @@ import pytest
 from serving_contract import ALL_CHECKS, Check, ProbeUnderTest
 
 from cortex_core import ScriptedServingProbe, ServingProbe
-from cortex_inference import CORTEX_DOWN, CORTEX_LOADING, LlamaServerProbe
+from cortex_inference import CORTEX_DOWN, CORTEX_LOADING, LlamaServerProbe, subagent_wording
 
 _ENDPOINT = "http://model-host:8080"
 
@@ -65,6 +65,25 @@ async def test_a_server_still_loading_its_model_reads_as_loading() -> None:
 async def test_any_other_status_is_named_in_the_fault() -> None:
     assert await _probe(_answering(500)).fault() == (
         "the usual assistant's model server answered its health check with 500"
+    )
+
+
+def _subagent(transport: httpx.AsyncBaseTransport) -> LlamaServerProbe:
+    return LlamaServerProbe(_ENDPOINT, transport, timeout_s=0.5, wording=subagent_wording("qwen"))
+
+
+async def test_a_subagent_server_probe_names_its_roster_entry() -> None:
+    assert _subagent(_answering(200)).part == "the server for subagent model qwen"
+    assert await _subagent(_answering(200)).fault() is None
+    assert await _subagent(_refusing()).fault() == (
+        "the server for subagent model qwen is not answering, so work delegated to it fails"
+    )
+    assert await _subagent(_answering(503)).fault() == (
+        "the server for subagent model qwen is still loading, so work delegated to it fails "
+        "until it is up"
+    )
+    assert await _subagent(_answering(500)).fault() == (
+        "the server for subagent model qwen answered its health check with 500"
     )
 
 

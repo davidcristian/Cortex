@@ -14,6 +14,7 @@ from cortex_core import (
     EchoInferenceBackend,
     InMemorySessionStore,
     ResidencyPlan,
+    ResidencyReport,
     ScriptedModelHost,
     ScriptedServingProbe,
     ServingWatch,
@@ -21,7 +22,7 @@ from cortex_core import (
     SystemClock,
     TurnEngine,
 )
-from cortex_inference import CORTEX_DOWN
+from cortex_inference import CORTEX_DOWN, subagent_wording
 from cortex_orchestrator import (
     ORCHESTRATOR_VERSION,
     RpcPorts,
@@ -30,6 +31,7 @@ from cortex_orchestrator import (
     run_from_env,
 )
 from cortex_orchestrator.config import InferenceConfig
+from cortex_orchestrator.config_subagents import SubagentRosterEntry, SubagentsConfig
 from cortex_orchestrator.serving_builders import build_serving_watch
 from cortex_seam import BrainServiceStub, HealthReply, HealthRequest
 from cortex_session import STORE_DOWN, RedisSessionStore
@@ -53,6 +55,14 @@ async def _health(ports: RpcPorts) -> HealthReply:
         await server.stop(grace=None)
 
 
+_NO_SUBAGENTS = SubagentsConfig()
+
+
+class _NotedResidency:
+    def residency(self) -> ResidencyReport:
+        return ResidencyReport(serving=True, detail="", notes=("a residency note",))
+
+
 async def _watch(answer: str | None) -> ServingWatch:
     watch = ServingWatch([ScriptedServingProbe(answer=answer)])
     await watch.refresh()
@@ -70,6 +80,19 @@ async def test_health_is_ready_once_every_part_answers() -> None:
     reply = await _health(RpcPorts(serving=await _watch(None)))
     assert reply.ready is True
     assert reply.detail == f"cortex-orchestrator {ORCHESTRATOR_VERSION}"
+
+
+async def test_a_down_subagent_server_is_a_note_after_the_residency_notes() -> None:
+    server = ScriptedServingProbe("the server", answer="the server is down")
+    watch = ServingWatch([ScriptedServingProbe()], noting=[server])
+    await watch.refresh()
+    reply = await _health(RpcPorts(residency=_NotedResidency(), serving=watch))
+    assert reply.ready is True
+    assert [note.text for note in reply.notes] == ["a residency note", "the server is down"]
+    assert reply.detail == "a residency note; the server is down"
+    reply = await _health(RpcPorts(serving=watch))
+    assert [note.text for note in reply.notes] == ["the server is down"]
+    assert reply.detail == "the server is down"
 
 
 async def test_a_swap_in_progress_is_named_before_a_part_that_is_not_answering() -> None:
@@ -101,7 +124,9 @@ async def test_without_escalation_the_watch_asks_the_cortex_server_before_the_st
     server = FakeServer()
     server.connected = False
     inference = InferenceConfig(backend="llamacpp", endpoint=_closed_port_endpoint())
-    watch, close = build_serving_watch(_store(server), inference, between_handoffs=None)
+    watch, close = build_serving_watch(
+        _store(server), inference, _NO_SUBAGENTS, between_handoffs=None
+    )
     await watch.start()
     try:
         assert watch.fault() == CORTEX_DOWN
@@ -114,7 +139,7 @@ async def test_with_escalation_the_cortex_counts_only_between_handoffs() -> None
     held = [True]
     inference = InferenceConfig(backend="llamacpp", endpoint=_closed_port_endpoint())
     watch, close = build_serving_watch(
-        _store(server), inference, between_handoffs=lambda: not held[0]
+        _store(server), inference, _NO_SUBAGENTS, between_handoffs=lambda: not held[0]
     )
     await watch.start()
     try:
@@ -126,13 +151,49 @@ async def test_with_escalation_the_cortex_counts_only_between_handoffs() -> None
         await close()
 
 
+async def _answer_ready(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+    await reader.readuntil(b"\r\n\r\n")
+    writer.write(b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
+    await writer.drain()
+    writer.close()
+
+
+async def test_each_roster_entry_s_cpu_server_and_not_its_gpu_one_is_asked_for_a_note() -> None:
+    ready = await asyncio.start_server(_answer_ready, "127.0.0.1", 0)
+    port: int = ready.sockets[0].getsockname()[1]
+    subagents = SubagentsConfig(
+        backend="llamacpp",
+        endpoint=f"http://127.0.0.1:{port}",
+        gpu_endpoint=_closed_port_endpoint(),
+        model="gemma",
+        roster={
+            "qwen": SubagentRosterEntry(endpoint=_closed_port_endpoint()),
+            "tiny": SubagentRosterEntry(endpoint=_closed_port_endpoint()),
+        },
+    )
+    watch, close = build_serving_watch(
+        _store(FakeServer()), InferenceConfig(), subagents, between_handoffs=None
+    )
+    try:
+        await watch.start()
+        assert watch.fault() is None
+        assert watch.notes() == (subagent_wording("qwen").down, subagent_wording("tiny").down)
+    finally:
+        await close()
+        ready.close()
+        await ready.wait_closed()
+
+
 async def test_a_backend_with_no_server_leaves_only_the_store_to_ask() -> None:
     server = FakeServer()
     server.connected = False
-    watch, close = build_serving_watch(_store(server), InferenceConfig(), between_handoffs=None)
+    watch, close = build_serving_watch(
+        _store(server), InferenceConfig(), _NO_SUBAGENTS, between_handoffs=None
+    )
     await watch.start()
     try:
         assert watch.fault() == STORE_DOWN
+        assert watch.notes() == ()
     finally:
         await close()
 

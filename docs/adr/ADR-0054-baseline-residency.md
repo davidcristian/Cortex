@@ -138,13 +138,19 @@ without decision 8 `Health` would answer ready while the cortex or the store is 
    holds afterwards; a swap is stated by the report. The overlay already has the state this
    needs: `degraded`, the amber dot, labelled `The brain is not serving: <detail>`. It probes on a
    summon, after a turn ends green, and every 5 s while not green, so a dot left open and green
-   changes at the next summon or turn.
+   changes at the next summon or turn. With delegation on, the same pass asks each roster entry's
+   CPU `endpoint` the same way, as a `noting` probe whose fault is a note after the residency's
+   notes rather than `ready=false`: a turn still answers, and only work sent to that server fails,
+   so the dot stays green under `Brain ready` and the note's line, as in decision 7. The GPU
+   endpoint is not asked: a GPU attempt that fails runs again on the CPU, and a hosted peer is
+   decision 3's record.
 
    | Part | `detail` while it is down |
    | --- | --- |
    | the cortex's server, refused or reset | the usual assistant's model server is not answering, so a turn cannot be answered |
    | the cortex's server, 503 | the usual assistant is still loading |
    | Redis | the conversation store is not answering, so a turn cannot be saved |
+   | a subagent server, refused or reset (a note) | the server for subagent model `<name>` is not answering, so work delegated to it fails |
    | any part, silent for 1 s | `<part> did not answer within 1 s` |
 9. **The model host starts the cortex again when its process exits unasked.** `ModelSupervisor`
    watches each process of a model its `RestartPolicy` names, the boot model alone in

@@ -18,11 +18,11 @@ marks a module as private to its definer.
 ## Public contract
 
 `__all__` is `LlamaCppBackend`, `reads_a_trace_budget`, `TRACE_BUDGET_PROBE_TIMEOUT_S`,
-`LlamaServerProbe`, `CORTEX_DOWN` and `CORTEX_LOADING`.
-
-`LlamaServerProbe(endpoint, transport, *, timeout_s)` is the core's `ServingProbe` over
-`GET {endpoint}/health`: `None` on 200, `CORTEX_LOADING` on the 503 llama-server answers until its
-model is loaded, `CORTEX_DOWN` on any `httpx.HTTPError`, and the status in its line otherwise. It
+`LlamaServerProbe`, `ServerWording`, `subagent_wording`, `CORTEX_DOWN` and `CORTEX_LOADING`.
+`LlamaServerProbe(endpoint, transport, *, timeout_s, wording)` is the core's `ServingProbe` over
+`GET {endpoint}/health`: `None` on 200, `wording.loading` on the 503 llama-server answers until its
+model is loaded, `wording.down` on any `httpx.HTTPError`, and the status in its line otherwise. The
+wording is the cortex's (`CORTEX_LOADING`, `CORTEX_DOWN`) unless `subagent_wording(name)` is given. It
 sends on an `httpx.AsyncBaseTransport` rather than a client, since a client logs every request at
 INFO. `tests/serving_contract.py` is the contract it and `ScriptedServingProbe` pass.
 

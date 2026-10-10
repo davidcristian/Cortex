@@ -121,10 +121,14 @@ class BrainService(SessionRpcMixin, PreferenceRpcMixin, BrainServiceServicer):
         fault = None if self._serving is None else self._serving.fault()
         if fault is not None:
             return HealthReply(ready=False, detail=fault)
-        if report is not None and report.notes:
-            notes = [HealthNote(text=note) for note in report.notes]
-            return HealthReply(ready=True, detail="; ".join(report.notes), notes=notes)
+        notes = (*(() if report is None else report.notes), *self._serving_notes())
+        if notes:
+            replies = [HealthNote(text=note) for note in notes]
+            return HealthReply(ready=True, detail="; ".join(notes), notes=replies)
         return HealthReply(ready=True, detail=f"cortex-orchestrator {ORCHESTRATOR_VERSION}")
+
+    def _serving_notes(self) -> tuple[str, ...]:
+        return () if self._serving is None else self._serving.notes()
 
     async def Converse(  # noqa: N802 - method name is fixed by the gRPC codegen interface
         self,

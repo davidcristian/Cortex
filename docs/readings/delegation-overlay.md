@@ -80,10 +80,19 @@ and both servers' logs were read beside the Redis records.
   the kill: "The subagents were unable to generate the paragraphs due to a server error. Please try
   again in a few moments." The audit line reads `ok=True`, the tool having returned the two failed
   results as values.
-- **Nothing reports the server down.** The panel's dot stayed green, since `Health` watches Redis
-  and the cortex only, and the server stayed exited: `docker kill` counts as a manual stop under
-  `restart: unless-stopped`. It was started again by hand
-  ([R-831](../refinements/tasks/831-health-reads-ready-with-a-subagent-server-down.md)).
+- **The panel names the server down as a note.** `Health` asks each roster entry's CPU server
+  every 2 s ([ADR-0054](../adr/ADR-0054-baseline-residency.md) decision 8). After `docker kill -s
+  KILL` on the `qwen` server it answered `ready=True` with "the server for subagent model qwen did
+  not answer within 1 s" for about 10 s, then
+  "the server for subagent model qwen is not answering, so work delegated to it fails". The dot
+  stayed green, and hovering it showed `Brain ready` over that line. `docker start` brought a
+  "still loading" note and then the plain detail, 13 s after the start.
+- **A crash restarts the server, `docker kill` does not.** `docker kill` counts as a manual stop
+  under `restart: unless-stopped`, so the server stayed exited until started by hand. A `SIGKILL`
+  sent to the server's process from the daemon's own process namespace (`docker run --pid=host
+  --privileged`), which is how Docker sees a crash or an out-of-memory kill, exited it with 137,
+  and Docker started it again within a second (`RestartCount` 1); its `/health` answered 200 13 s
+  after the kill.
 
 Method: `xdotool` typing into the panel, frames from `ffmpeg -f x11grab`, the brain log, each
 server's `launch_slot_`, `print_timing` and `stop:` lines and `GET /slots`, and the Redis keys

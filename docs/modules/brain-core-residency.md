@@ -78,13 +78,13 @@ path returns the card to. Measurements are in [model-swap](../readings/model-swa
   **synchronous and free of I/O by contract**: a probe arrives every few seconds during a swap, and
   one queued behind the GPU lease would hang for the whole load, so an implementation answers from a
   cache. `ServingWatch` (`serving_watch.py`) is such a cache for the other parts a turn needs,
-  asking each `ServingProbe` (`part`, `fault()`) every 2 s (fake `ScriptedServingProbe`); a
-  `FencedServingProbe` drops a reading taken while the manager's `between_handoffs()` is false.
+  asking each `ServingProbe` (`part`, `fault()`) every 2 s (fake `ScriptedServingProbe`) and keeping
+  a `noting` probe's fault in `notes()`; a `FencedServingProbe` drops a reading taken while
+  `between_handoffs()` is false.
 - `PaceSink` provides `note_pace(*, spilled)`, where the deep phase says whether the tier it just
-  ran held the rate its deployment measured for it. Also synchronous and free of I/O, being called
-  after the reply has streamed and before it is persisted. What crosses is a judgement and never a
-  reading, and a phase with no judgement calls it not at all. Implementation: `HandoffPace`; fake:
-  `RecordingPaceSink`.
+  ran held the rate its deployment measured for it, synchronous and free of I/O, called after the
+  reply has streamed and before it is persisted. What crosses is a judgement and never a reading,
+  and a phase with no judgement calls it not at all. `HandoffPace`; fake: `RecordingPaceSink`.
 - `HandoffStore` holds the one in-flight handoff: `put`, `get`, `transition(handoff_id, state, *,
   failure=None)`, `delete` and `active()`. State and reason move in one read-modify-write, so a
   transition naming no reason clears the field. Fake: `InMemoryHandoffStore`; adapter:

@@ -26,7 +26,7 @@ is what the wire serves beyond a turn, each absent when its capability is off.
   `ResidencyReporter.residency()`, synchronous and lock-free by that port's contract. The drain
   before an eviction stays ready. A residency that serves is then checked against `serving`, a
   `ServingWatch`: while its last pass found a part not answering, `Health` is `ready=False` with
-  that part's line, which the overlay shows as the amber dot (ADR-0054 decision 8).
+  that part's line, the amber dot; its `notes()` follow the residency's notes (ADR-0054 decision 8).
 - `ListSessions` returns recent chats newest-active first, each `SessionSummary` mapped to the wire
   with unix-ms timestamps, `request.limit` clamped by `_clamp_limit` (`DEFAULT_SESSION_LIST_LIMIT`
   is 50, `MAX_SESSION_LIST_LIMIT` 200). `GetSessionMessages` returns one session's persisted
@@ -164,11 +164,11 @@ the version string `Health` reports.
   with `build_subagents`: connect, write and pool take `LLAMACPP_CONNECT_TIMEOUT_S` (10 s) and the
   read phase takes the caller's per-tier ceiling, which httpx applies to one socket read, so it
   detects a stall rather than capping a generation.
-- `build_serving_watch(sessions, inference, *, between_handoffs)` (`serving_builders.py`) returns
-  the `ServingWatch` `Health` reads and its closer. It always asks the store, through
-  `RedisSessionStore.probe()`, and asks the cortex's own `GET /health` first when the backend is
-  `llamacpp`; with escalation on, `between_handoffs` is the manager's fence and the cortex probe is
-  a `FencedServingProbe`. The root takes the first reading before `serve`.
+- `build_serving_watch(sessions, inference, subagents, *, between_handoffs)` returns the
+  `ServingWatch` `Health` reads and its closer. It asks the store (`RedisSessionStore.probe()`),
+  the cortex's own `GET /health` first when the backend is `llamacpp` (a `FencedServingProbe` over
+  the manager's fence with escalation on), and each roster entry's CPU `endpoint` as a `noting`
+  probe. The root takes the first reading before `serve`.
 - `build_history_window(runtime, *, sessions, backend, clock, model)` (`window_builders.py`)
   returns the char-budget window, `None` when the budget is `0`, or that window wrapped in
   `SummarizingHistoryWindow` whose recap `model` writes, and it is where `history_recap_min_chars` is clamped to the budget.

@@ -19,19 +19,23 @@ _logger = logging.getLogger(__name__)
 
 
 class ServingWatch:
-    """Asks every probe each ``interval_s`` seconds and keeps the first fault for a plain read."""
+    """Asks every probe each ``interval_s`` seconds; keeps the first fault and the notes to read."""
 
     def __init__(
         self,
         probes: Sequence[ServingProbe],
         *,
+        noting: Sequence[ServingProbe] = (),
         interval_s: float = SERVING_CHECK_INTERVAL_S,
         timeout_s: float = SERVING_CHECK_TIMEOUT_S,
     ) -> None:
+        """``probes`` are parts a turn needs; a fault from one of ``noting`` is a note instead."""
         self._probes = tuple(probes)
+        self._noting = tuple(noting)
         self._interval_s = interval_s
         self._timeout_s = timeout_s
         self._fault: str | None = None
+        self._notes: tuple[str, ...] = ()
         self._stopping = asyncio.Event()
         self._task: asyncio.Task[None] | None = None
 
@@ -39,9 +43,16 @@ class ServingWatch:
         """The first fault in probe order from the last pass, or ``None`` when all answered."""
         return self._fault
 
+    def notes(self) -> tuple[str, ...]:
+        """Every fault the ``noting`` probes gave in the last pass, in probe order."""
+        return self._notes
+
     async def refresh(self) -> None:
         """Ask every probe at once, each within ``timeout_s``, and keep what they said."""
-        faults = await asyncio.gather(*(self._ask(probe) for probe in self._probes))
+        answers = await asyncio.gather(
+            *(self._ask(probe) for probe in (*self._probes, *self._noting))
+        )
+        faults = answers[: len(self._probes)]
         fault = next((each for each in faults if each is not None), None)
         if fault != self._fault:
             if fault is None:
@@ -49,6 +60,16 @@ class ServingWatch:
             else:
                 _logger.warning("a part a turn needs is not answering", extra={"fault": fault})
         self._fault = fault
+        notes = tuple(each for each in answers[len(self._probes) :] if each is not None)
+        if notes != self._notes:
+            if notes:
+                _logger.warning(
+                    "a server delegated work needs is not answering",
+                    extra={"notes": "; ".join(notes)},
+                )
+            else:
+                _logger.info("every server delegated work needs is answering again")
+        self._notes = notes
 
     async def start(self) -> None:
         """Take the first reading, then refresh it in a task of its own until ``aclose``."""
