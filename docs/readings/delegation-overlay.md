@@ -31,7 +31,9 @@ and both servers' logs were read beside the Redis records.
   subagents could not answer and answered from its own knowledge. A second turn asking for three
   250-word paragraphs named `answer` on all three again, with the same reply on the one that
   finished. The runner now adds a role's sentence only to a subtask with a context
-  ([ADR-0072](../adr/ADR-0072-subagent-roles.md) decision 1).
+  ([ADR-0072](../adr/ADR-0072-subagent-roles.md) decision 1). On a brain with that change, a
+  question the cortex delegated as two `answer` items with no context drew both answers, two
+  sentences each, and the reply gave them as written.
 - **A draw with no role.** Asked again on a brain with that change, the lighthouse question drew no
   role. Two subtasks answered; the third ran to the 1024-token cap and came back as a failure. The
   reply relayed the two answers as written, including `Eiffel` among the famous lighthouses, said
