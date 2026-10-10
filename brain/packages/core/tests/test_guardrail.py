@@ -104,6 +104,24 @@ def test_url_split_across_chunks_is_still_redacted() -> None:
     assert "".join(parts) + guard.flush() == f"report at {REDACTED_LINK} now"
 
 
+@pytest.mark.parametrize("delimiter", ["`", "**", "~~"])
+def test_extract_urls_drops_a_markdown_delimiter_closing_the_url(delimiter: str) -> None:
+    assert extract_urls(f"open {delimiter}{EVIL}{delimiter} now") == {EVIL}
+
+
+@pytest.mark.parametrize("delimiter", ["`", "**", "~~"])
+def test_a_flagged_url_inside_markdown_delimiters_is_redacted(delimiter: str) -> None:
+    guard = _filter({EVIL})
+    assert guard.feed(f"open {delimiter}{EVIL}{delimiter}, then") + guard.flush() == (
+        f"open {delimiter}{REDACTED_LINK}{delimiter}, then"
+    )
+
+
+def test_a_url_collected_inside_a_code_span_is_redacted_when_written_bare() -> None:
+    guard = _filter(set(extract_urls(f"view it at `{EVIL}`")))
+    assert guard.feed(f"see {EVIL} now") + guard.flush() == f"see {REDACTED_LINK} now"
+
+
 def test_reply_ending_with_a_flagged_url_is_redacted_at_flush() -> None:
     guard = _filter({EVIL})
     assert guard.feed(f"report at {EVIL}") == "report at "

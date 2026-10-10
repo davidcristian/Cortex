@@ -98,8 +98,9 @@ or declined on a stated test. The measurements, including the corpus and live-mo
     per label; (5) NFKC; (6) the curated confusable fold; (7) fold the IDNA label separators NFKC
     leaves (U+3002, U+FF61) and close a gap; (8) drop the tab; (9) fold a special scheme's
     backslashes to solidi and its authority slash run (none included) to one pair. Then trailing
-    prose punctuation is dropped and scheme and authority lowercased; path, query and fragment keep
-    their case. Decoding first is what exposes an entity-hidden defang, an encoded zero-width
+    prose punctuation and a closing markdown delimiter (code, bold, strike) are dropped, since the
+    matcher reads them as URL characters, and scheme and authority lowercased; path, query and
+    fragment keep their case. Decoding first is what exposes an entity-hidden defang, an encoded zero-width
     character or an encoded homoglyph to the passes after it. The tab is dropped after the gap fold,
     so `evil<TAB>dot<TAB>com` keeps the reader's reading (`evil.com`) rather than the parser's
     (`evildotcom`), which names a host an attacker would have to register separately. An opaque URL

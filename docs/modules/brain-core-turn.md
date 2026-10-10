@@ -221,8 +221,9 @@ leave it in the reply.
   because its identity was `COLLECTED` from this turn's untrusted content, because it is a
   `LOOKALIKE` (a host that is not plain ASCII) on a tainted turn, or because it is a `LINK` at all
   on one. `UrlRedactingGuardrail` (the default) stands on `{COLLECTED}` and replaces a match with
-  `REDACTED_LINK`, keeping trailing prose punctuation. `LookalikeUrlRedactingGuardrail` adds
-  `LOOKALIKE`, reading the host from an identity built with the confusable fold switched off.
+  `REDACTED_LINK`, keeping trailing prose punctuation and a closing markdown delimiter.
+  `LookalikeUrlRedactingGuardrail` adds `LOOKALIKE`, reading the host from an identity built with
+  the confusable fold switched off.
   `StrictUrlRedactingGuardrail` stands on `{LINK}`. An **opaque** turn adds `{LINK}` to whichever
   policy was configured (ADR-0029), a URL painted into pixels never being in the result text the
   default reads. The user's own allowlist answers before any ground. What each policy costs, in
