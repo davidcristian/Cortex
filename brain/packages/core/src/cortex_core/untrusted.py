@@ -47,9 +47,11 @@ PLAIN_SECURITY_PREAMBLE = (
 
 
 DENIED_MSG = (
-    "BLOCKED: this action is irreversible or outbound and this turn has read untrusted external "
-    "content, so it was not performed and cannot be confirmed within this turn. If the user "
-    "explicitly wants it, tell them to ask for it again in a fresh message."
+    "BLOCKED: this turn read untrusted external content, so no outbound or irreversible action "
+    "can run in it, and this one was not performed. Asking again in the same words would read "
+    "that content again and be blocked again. Tell the user it was not done, and that a new "
+    "message giving everything the action needs (for an email: the recipient's address, the "
+    "subject and the body) lets it run without reading anything first."
 )
 
 USER_DECLINED_MSG = (

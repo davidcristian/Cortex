@@ -62,9 +62,9 @@ This supersedes ADR-0013 decision 4's table. An outbound action is always the us
 decision, so such a tool means the human approves each use. On a tainted turn the model's arguments
 may themselves be injection-authored, and a card showing attacker-drafted content to a user used to
 clicking approve is not a boundary: after reading hostile bytes, the outbound path is closed for
-the rest of the turn. "Read that email, then reply" still works in the next turn, because taint is
-turn-local. A caller's own refusal (a spent dispatch budget, a recognized repeat) is checked ahead
-of this rule, so it returns before the confirmer is asked.
+the rest of the turn. Taint is turn-local, but the same request asked again reads the mail again;
+`DENIED_MSG` asks for a message giving the address, subject and body, which sends because it reads
+nothing first. A caller's own refusal (a spent budget, a recognized repeat) returns before this rule.
 
 A block returns one of two `is_error` results, audited, the tool never invoked: `DENIED_MSG` for
 the tainted block, and `USER_DECLINED_MSG` for an explicit or defaulted denial, so the model can

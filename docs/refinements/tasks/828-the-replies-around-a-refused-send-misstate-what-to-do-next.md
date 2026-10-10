@@ -5,22 +5,20 @@
 **Origin:** [ADR-0022](../../adr/ADR-0022-email-write-confirmer.md)
 **Verified:** 2026-10-10
 
-Two replies on the Linux shell ([readings](../../readings/overlay-email-flows.md#replying)):
-
-- "Reply to Carla's invoice email saying ..." searched the mailbox first, so the send was refused
-  with `DENIED_MSG`, and the reply told the person to ask again in a new message. Asked again in
-  the same words, the model would search again and be refused again. ADR-0022 says "read that
-  email, then reply" works in the next turn; it does only when the person writes the address,
-  subject and body out, so the model reads no mail.
-- After Deny, which returns `USER_DECLINED_MSG`, the reply said the assistant was ready to send
-  and asked whether to go ahead, rather than saying the person had declined.
+After Deny on the confirmation card the dispatcher returns `USER_DECLINED_MSG`, and four of five
+replies said the email was not sent because it "requires your explicit approval" and offered to
+send it ([readings](../../readings/overlay-email-flows.md#a-refused-send)). The text must stay true
+for three endings, a pressed Deny, a card that timed out and a turn with no confirmer, because
+`Confirmer.confirm` returns a bool. A text true for all three passed 3 of 5; the text naming Deny
+(row D1b) passed 5 of 5 but is false for the other two.
 
 ## What to do
 
-Decide whether `DENIED_MSG` should tell the model what the person must write for the next turn to
-be untainted (the recipient, subject and body in their own words), and whether the declined text
-needs a sentence the model repeats. Each is a change to a text the model reads, so measure it on
-the cortex with rows written before the run, and correct ADR-0022's next-turn sentence either way.
+Type the confirmer's answer: `Confirmer.confirm` returns approved, declined (a pressed Deny) or
+unanswered (a timeout, a closed stream, no confirmer), and the dispatcher returns the D1b text for
+declined and the current text for unanswered. It changes the port, `RpcConfirmer`,
+`RecordingConfirmer`, the confirmer contract test, ADR-0013 decision 4 and ADR-0022 decision 2.
+Rerun D1 after the change.
 
 ## History
 

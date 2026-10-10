@@ -193,8 +193,8 @@ What this closes and where to record the results:
 
 - The turn becomes **tainted**, so every tool that needs approval (`send_email`,
   `escalate_to_brain`) is denied outright for the rest of it, with no confirmation offered. "Read
-  this email, then look at my screen, then mail me a summary" is denied at the last step. Ask
-  again in a fresh message.
+  this email, then look at my screen, then mail me a summary" is denied at the last step, and again
+  when asked again; a new message that gives the recipient, subject and body sends.
 - **Taint does not close the capture itself.** `capture_screen` needs no approval, and taint
   closes only the tools that do, so an injected tool result can drive a capture in the same turn
   it arrived in, with the injection live in the context that decides to capture. That is the
