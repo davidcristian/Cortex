@@ -151,6 +151,8 @@ without decision 8 `Health` would answer ready while the cortex or the store is 
    | the cortex's server, 503 | the usual assistant is still loading |
    | Redis | the conversation store is not answering, so a turn cannot be saved |
    | a subagent server, refused or reset (a note) | the server for subagent model `<name>` is not answering, so work delegated to it fails |
+   | a subagent server, 503 (a note) | the server for subagent model `<name>` is still loading, so work delegated to it fails until it is up |
+   | a model server, any other status | `<part> answered its health check with <status>` |
    | any part, silent for 1 s | `<part> did not answer within 1 s` |
 9. **The model host starts the cortex again when its process exits unasked.** `ModelSupervisor`
    watches each process of a model its `RestartPolicy` names, the boot model alone in

@@ -12,8 +12,8 @@ decode rate when the server reports one (ADR-0055 decision 4). No orchestration 
 wire, `decode.py` maps the wire back, `backend.py` keeps what neither can own (the lease, the HTTP
 call, and the order events leave in), `trace_probe.py` asks a server one question before any
 request is built, `system_probe.py` asks the leased server one before a request that opens with
-several system messages, and `serving_probe.py` asks the cortex's server whether it is serving. The package-internal modules have no leading underscore, since that prefix
-marks a module as private to its definer.
+several system messages, and `serving_probe.py` asks the cortex's server, or a subagent's, whether
+it is serving. Package-internal modules have no leading underscore, which marks a private module.
 
 ## Public contract
 

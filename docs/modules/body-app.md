@@ -228,7 +228,7 @@ heartbeats included (`DEFAULT_TURN_HEARTBEAT_GAP_MS = 120000`), so a dead brain 
 - `.history` sets `overflow-anchor: none`, so scroll anchoring does not also decide a number that
   `overlay/useLogScroll.ts` and `overlay/logRoll.ts` own. Following stops only when a scroll event
   finds the box moved off its end by the reader, not by content growth or the panel measuring itself
-  (`SCROLL_CLAMPED_EVENT`). A box that changes size goes back to the end, except during a roll.
+  (`SCROLL_CLAMPED_EVENT`). A box that changes size keeps a log that follows its end there, except during a roll.
 - A theme change crosses the whole surface together. `applyTheme` sets `data-swapping` on the root
   for `THEME_SWAP_MS`, and `[data-swapping] *` puts one transition on everything for that window.
   The attribute goes on before the tokens, a transition starting from the after-change style, and

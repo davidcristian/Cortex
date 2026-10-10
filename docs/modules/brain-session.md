@@ -9,7 +9,7 @@ and error wrapping, with no domain logic.
 
 ## Public contract
 
-`__all__` is the API: the five adapters, `RedisPing`, `DeadLetter`, `ZoneInfoResolver`,
+`__all__` is the API: the five adapters, `RedisPing`, `StoreRetry`, `DeadLetter`, `ZoneInfoResolver`,
 `ZONEINFO_RESOLVER`, `STORE_DOWN` and `DEFAULT_REDIS_URL` (`"redis://127.0.0.1:6379/0"`, overridden
 by `CORTEX_REDIS_URL`, which only the composition root reads). Every adapter is built from an
 injected `redis.asyncio.Redis` client or from `from_url(url)`, which builds and owns one; `aclose()`
