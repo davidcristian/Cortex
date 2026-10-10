@@ -1,14 +1,9 @@
 # Fence-without-block recall mode
 
-**Status:** open, waiting for its trigger
+**Status:** open, actionable
 **Area:** untrusted-content
 **Origin:** [ADR-0019](../../adr/ADR-0019-tainted-memory-recording.md)
-**Trigger:** taint-spread on tangential recall proving too blunt. It can only show itself once the
-memory store holds a tainted row, and a deployment writes one only under
-`CORTEX_MEMORY_ON_TAINTED=record` (the default `skip` drops a tainted turn from memory), so the
-cheap reading is `select count(*) filter (where tainted) from memories`, which returned 0 of 2
-rows on 2026-09-17 and again on 2026-10-03.
-**Verified:** 2026-10-03
+**Verified:** 2026-10-10
 
 Left behind by [R-072](072-tainted-memory-recording.md): a recall mode that fences a tainted
 memory without tainting the turn, if spreading taint on a tangential recall turns out to be too
@@ -54,3 +49,15 @@ blunt.
   `"skip"` (`config.py:112`), `record_exchange` still skips a tainted turn unless
   `record_tainted_memory` is set, and `docker/docker-compose.memory.yml` still passes
   `CORTEX_MEMORY_ON_TAINTED` by name without a value.
+- 2026-10-10: fired, read on the real stack with `CORTEX_MEMORY_ON_TAINTED=record`
+  ([readings](../../readings/overlay-file-and-memory-flows.md#recording-a-tainted-turn-and-recalling-it)).
+  Two turns about a file holding an injection were stored with `tainted = t`, one of them quoting
+  the injected paragraph. In two fresh chats, "Schedule a background task for tomorrow at 10:00
+  that checks whether the garden club bulb order went out. Do not open any file." read nothing,
+  but recall returned tainted rows, so the `kind: "task"` call was refused with
+  `TAINTED_TASK_MSG`. Each such exchange is itself stored tainted, so the second chat recalled the
+  first chat's refusal and was refused again: the person's own request cannot run in any chat
+  while a related tainted row exists. A recall turn did not follow the quoted instruction. The
+  task is now due; the mode still has to keep the ledger and the tainted re-recording while
+  dropping the tool block, as the 2026-09-17 line says. The refusal text's advice to re-ask in a
+  fresh turn is filed with [R-834](834-a-refused-task-is-reported-as-a-scheduled-reminder.md).
