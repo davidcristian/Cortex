@@ -83,7 +83,10 @@ class SubagentRunner:
             return await self._failed(
                 task_id, f"unknown subagent role {task.role!r}", tainted=task.tainted
             )
-        task = replace(task, instruction=role.applied(task.instruction))
+        if task.context:
+            # Every role's sentence is about the text the subagent was given; with none, the
+            # `answer` sentence made a subagent reply only that the text does not state it.
+            task = replace(task, instruction=role.applied(task.instruction))
         res = self._roster.entries[name].resources
         try:
             async with res.scheduler.admit(res.request):

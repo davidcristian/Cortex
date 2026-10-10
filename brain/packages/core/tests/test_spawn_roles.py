@@ -112,7 +112,8 @@ def _role_property(spec: ToolSpec) -> dict[str, Any] | None:
 
 async def test_a_role_named_in_a_spawn_reaches_the_subagent_after_its_instruction() -> None:
     store = InMemoryTaskStore()
-    result = await _tool(store).invoke(_call({"instruction": "name a color", "role": "brief"}))
+    item = {"instruction": "name a color", "role": "brief", "context": "The sky is blue."}
+    result = await _tool(store).invoke(_call(item))
     assert result.is_error is False
     assert result.content == "[subagent 1] reply 1: name a color Reply in one line."
     task = await store.get_task("st-1")
@@ -120,11 +121,19 @@ async def test_a_role_named_in_a_spawn_reaches_the_subagent_after_its_instructio
     assert (task.instruction, task.role) == ("name a color", "brief")
 
 
+async def test_a_role_on_a_spawn_with_no_context_leaves_the_instruction_as_written() -> None:
+    store = InMemoryTaskStore()
+    item = {"instruction": "name a color", "role": "answer"}
+    result = await _tool(store, SHIPPED_ROLES).invoke(_call(item))
+    assert result.content == "[subagent 1] reply 1: name a color"
+
+
 async def test_a_role_never_moves_a_tainted_spawn_off_the_default_model() -> None:
     store = InMemoryTaskStore()
-    item = {"instruction": "name a color", "role": "brief", "model": "weak"}
+    item = {"instruction": "name a color", "role": "brief", "model": "weak", "context": "Blue."}
     result = await _tool(store).invoke(_call(item, tainted=True))
-    assert result.content == "[subagent 1] reply 1: name a color Reply in one line."
+    assert result.content.startswith("[subagent 1] reply 1: <untrusted-tool-output")
+    assert result.content.endswith("\n\nname a color Reply in one line.")
 
 
 async def test_a_clean_spawn_with_a_role_still_runs_the_model_it_picked() -> None:

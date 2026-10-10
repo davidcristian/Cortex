@@ -81,8 +81,9 @@ roster entry and both placements of each.
 `SubagentRunner(store, roster, clock, *, tools=None, constrain_output=False,
 bounds=UNBOUNDED_ATTEMPT, roles=NO_ROLES)` is a subagent's body, a stateless function over the
 `TaskStore`. `run(task_id, *, budget=None, progress=None)` loads the task by id, resolves the roster
-entry, then the task's role, whose sentence it appends to the instruction for this run only, admits
-against the scheduler, places on GPU or CPU, runs the attempt on that entry's backend for the
+entry, then the task's role, whose sentence it appends to the instruction for this run only and
+only when the task has a context, admits against the scheduler, places on GPU or CPU, runs the
+attempt on that entry's backend for the
 placement, persists and returns a `SubagentResult`, and always releases the VRAM in a `finally`. A
 missing task, an unknown model, an unknown role and a `SubagentAdmissionError` all become
 `ok=False` results rather than exceptions, which would cross the spawn tool's `gather` and fail the

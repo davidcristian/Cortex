@@ -31,6 +31,10 @@ in `scripts/envelopejudges.py`).
      measured one, and it would lengthen the leading run of system messages the adapter must probe
      and join ([ADR-0071](ADR-0071-leading-system-messages.md)).
    - `description` is what the spawn spec tells the cortex the role returns.
+   - The sentence is added only to a subtask that has a `context`. Every shipped role names a reply
+     about a given text, and on the overlay a cortex named `answer` on context-free asks ("write a
+     paragraph about tides"), where the sentence made each subagent reply only that the text does
+     not state it ([delegation on the shell](../readings/delegation-overlay.md)).
 
 2. **The spawn item gains `role`.** An item is a bare string or `{instruction, model?, context?,
    role?}`. `build_spawn_spec` adds a `role` enum listing each role with its description, and a

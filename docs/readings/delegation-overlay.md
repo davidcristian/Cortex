@@ -30,11 +30,12 @@ and both servers' logs were read beside the Redis records.
   (`The text does not state it.`, 171 characters for the three), and the cortex told the person the
   subagents could not answer and answered from its own knowledge. A second turn asking for three
   250-word paragraphs named `answer` on all three again, with the same reply on the one that
-  finished.
-- **A draw with no role.** Asked again, the lighthouse question drew no role. Two subtasks
-  answered; the third ran to the 1024-token cap and came back as a failure. The reply relayed the
-  two answers as written, including `Eiffel` among the famous lighthouses, said the first subagent
-  failed, and wrote "I will retry that specific task" in a turn that ended without a retry ([R-833](../refinements/tasks/833-a-reply-promises-a-retry-the-turn-never-runs.md)).
+  finished. The runner now adds a role's sentence only to a subtask with a context
+  ([ADR-0072](../adr/ADR-0072-subagent-roles.md) decision 1).
+- **A draw with no role.** Asked again on a brain with that change, the lighthouse question drew no
+  role. Two subtasks answered; the third ran to the 1024-token cap and came back as a failure. The
+  reply relayed the two answers as written, including `Eiffel` among the famous lighthouses, said
+  the first subagent failed, and wrote "I will retry that specific task" in a turn that ended without a retry ([R-833](../refinements/tasks/833-a-reply-promises-a-retry-the-turn-never-runs.md)).
   A third question, two sentences each on tides, volcanoes and glaciers, drew no role either; one
   subtask ran to the cap and the reply said so accurately.
 - **The cap runs are the garbled channel marker.** Sent straight to the default server with the
