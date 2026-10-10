@@ -58,8 +58,13 @@ and both servers' logs were read beside the Redis records.
   the cut subtasks released their admissions.
 - **The store.** The cut turn holds the question only: no reply and no `runs`, which matches a plain
   stopped turn. Of its three task records, the finished one has its result and the two cut ones
-  have none, and the brain wrote no audit line and no log line for the cut spawn
-  ([R-832](../refinements/tasks/832-a-subtask-cut-by-stop-leaves-no-record.md)).
+  have none, and the brain wrote no audit line and no log line for the cut spawn. The dispatcher
+  now audits a call cut by a cancel before the cancel goes on: run again on a brain with that
+  change, a two-item batch stopped 4.2 s after its first subagent request wrote one
+  `spawn_subagents` audit line with `ok=False` and `error="cancelled: the turn ended before this
+  call returned"`, and the next turn answered in 3.0 s. A cut subtask still keeps no result: its
+  task record names its turn, and a store write under the cancel would put a Redis write in front
+  of every Stop.
 - **The panel** shows the stopped turn as `Thoughts` over an empty reply bubble, and the second
   turn under it.
 

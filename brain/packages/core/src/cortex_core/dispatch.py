@@ -1,5 +1,6 @@
 """Dispatch one tool call and audit it."""
 
+import asyncio
 from collections.abc import Collection, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from enum import Enum
@@ -26,6 +27,8 @@ from cortex_core.untrusted import DENIED_MSG, UNANSWERED_MSG, USER_DECLINED_MSG
 from cortex_core.waits import USER_ASKED
 
 _CONFIRM_REASON = "this action is outbound or irreversible and runs only with your approval"
+
+CANCELLED_MSG = "cancelled: the turn ended before this call returned"
 
 BUDGET_EXHAUSTED_MSG = (
     "REFUSED: this turn has reached its limit on tool calls, so the tool was not run. Do not "
@@ -117,8 +120,21 @@ class ToolDispatcher:
     ) -> ToolResult:
         """Invoke ``call``, audit the outcome, and return the result the model consumes."""
         # The caller's stamp replaces whatever the call arrived with, so a model-written stamp
-        # is discarded. The taint check below reads the ``stamp`` argument for the same reason.
+        # is discarded before the taint check reads it.
         call = replace(call, stamp=stamp)
+        try:
+            return await self._dispatched(call, confirm_required=confirm_required, refusal=refusal)
+        except asyncio.CancelledError:
+            cut = ToolResult(
+                call_id=call.id, content=CANCELLED_MSG, is_error=True, trust=Trust.TRUSTED
+            )
+            await self._audited(call, cut)
+            raise
+
+    async def _dispatched(
+        self, call: ToolCall, *, confirm_required: bool, refusal: DispatchRefusal | None
+    ) -> ToolResult:
+        """Refuse, block, confirm or run ``call``, and audit the result."""
         if refusal is not None:
             refused = ToolResult(
                 call_id=call.id,
@@ -130,7 +146,7 @@ class ToolDispatcher:
         # A tool a failing sidecar left out of this turn's list still needs confirmation.
         confirm_required = confirm_required or call.name in self._policy.confirm_names
         if confirm_required:
-            if stamp.tainted:
+            if call.stamp.tainted:
                 blocked = ToolResult(
                     call_id=call.id, content=DENIED_MSG, is_error=True, trust=Trust.TRUSTED
                 )

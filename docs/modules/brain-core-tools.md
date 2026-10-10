@@ -50,9 +50,10 @@ spawned subtask or a model swap is in [brain-core-residency.md](brain-core-resid
 turn's tool gateway and its capability check (ADR-0009, ADR-0013). `dispatch(call, *,
 stamp=UNSTAMPED, confirm_required=False, refusal=None)` runs the call through the registry, writes exactly one
 `ToolInvocation` to the audit sink, and returns a `ToolResult`; a `ToolError` becomes a `TRUSTED`
-`is_error` result, the brain's own text, which neither fences nor taints. `cost_of(name)` and
-`admits(call, dispatched)` report what a call spends and whether it is worth running. The
-dispatcher is stateless; the loop drives it and keeps the history.
+`is_error` result, the brain's own text, which neither fences nor taints. A call a Stop cancels is
+audited as an error, `CANCELLED_MSG`, before the cancel goes on. `cost_of(name)` and `admits(call,
+dispatched)` report what a call spends and whether it is worth running. The dispatcher is stateless;
+the loop drives it and keeps the history.
 
 - `refusal` (a `DispatchRefusal`) is the caller's statement that the call must not run: `BUDGET`
   when the dispatch allowance is spent, `REDUNDANT` for a repeat the salience policy recognized, or
@@ -93,8 +94,7 @@ closes that step. Both fields of a step are copied off the matched `ToolSpec`, s
 call produces no step, and the only exit from a dispatch without its outcome is the generator being
 closed mid-dispatch. The turn engine maps the pair onto `ToolActivity` and `ToolOutcome`; a
 subagent puts steps on the spawning stream's `ProgressSink` and drops outcomes (ADR-0029
-decision 18). The yield vocabulary is in `loop_events.py` and one round's dispatches in
-`dispatch_round.py`.
+decision 18). The yield vocabulary is in `loop_events.py`, one round's dispatches in `dispatch_round.py`.
 
 The loop appends the tool-call and `Role.TOOL` result messages to `working` in place, and ends on a
 tool-free step, a `None` dispatcher, or `MAX_TOOL_STEPS` (8) rounds. Five independent bounds apply
@@ -245,6 +245,6 @@ stores apply in `schedule_transitions.py`, and the wall-clock rules in `schedule
 
 **Invariants.**
 
-- Every dispatched call is audited, refusals included, and no audit record contains a live handle.
+- Every dispatched call is audited, refusals and cancels included; no audit record has a live handle.
 - A tool result marked `UNTRUSTED` is fenced before the model sees it and taints the turn.
 - One turn's dispatch allowance is shared with every subagent it spawns and is never refilled.
