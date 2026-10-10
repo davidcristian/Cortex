@@ -25,10 +25,11 @@ when opened again, and the next turn's model input lacks that answer, although t
 start it again after the overlay shows the error, then read the chat's message list.
 
 **What deciding it needs.** Whether the adapters' clients retry a refused connection with a
-backoff (`retry` and `retry_on_error` passed to `from_url`), which covers a restart, and whether
-the final append also waits out a longer outage for a bounded time before the turn fails, what that bound is against the body's turn gaps
-(`CORTEX_BRAIN_TURN_IDLE_GAP_MS`), and whether the overlay marks a reply that was shown and not
-stored. The user message is appended before inference, so the same outage at the start of a turn
+backoff (`retry` and `retry_on_error` passed to `from_url`), which covers a restart, without
+retrying a command the server may already have run, which would store a message twice; whether
+the final append also waits out a longer outage for a bounded time before the turn fails, and
+what that bound is against the body's turn gaps (`CORTEX_BRAIN_TURN_IDLE_GAP_MS`); and whether
+the overlay marks a reply that was shown and not stored. The user message is appended before inference, so the same outage at the start of a turn
 fails before anything is shown, which needs no change.
 
 ## History
