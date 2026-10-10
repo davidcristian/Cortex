@@ -77,5 +77,7 @@ the first baseline ([R-834](../refinements/tasks/834-a-reply-claims-a-task-it-ne
   repeats' exchanges and copied their reply
   ([R-836](../refinements/tasks/836-a-recalled-exchange-is-claimed-again-with-no-call.md)).
 - **Not valid.** The second condition filled the schedule to `CORTEX_SCHEDULE_MAX_ACTIVE` (32)
-  from row E on, so E's calls were refused as full and row C measured nothing. The run after the
-  change deleted this run's schedule items before each chat as well.
+  from row E on, so E's calls were refused as full and row C measured nothing. In the fifth
+  chain the cortex then cancelled 13 items unasked and claimed a reminder it had not stored
+  ([R-837](../refinements/tasks/837-a-full-schedule-makes-the-cortex-cancel-items-unasked.md)).
+  The run after the change deleted this run's schedule items before each chat as well.
