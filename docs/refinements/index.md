@@ -67,16 +67,17 @@ never a reading of what the tree does now.
 
 147 of these record the day their claims were last checked against the code. On every other task here, that reading is still yours to take.
 
-### Actionable now (2)
+### Actionable now (3)
 
 - **[R-828](tasks/828-the-replies-around-a-refused-send-misstate-what-to-do-next.md)** The replies around a refused send misstate what to do next (email-confirmer). Its claim was checked against the code on 2026-10-10.
 - **[R-829](tasks/829-the-thoughts-of-successive-tool-rounds-run-together.md)** The thoughts of successive tool rounds run together (body-overlay). Its claim was checked against the code on 2026-10-10.
+- **[R-830](tasks/830-the-log-once-stopped-short-of-a-tool-turns-reply.md)** The log stopped short of a tool turn's reply or card (body-overlay). Its claim was checked against the code on 2026-10-10.
 
 ### Actionable, once a port changes (1)
 
 - **[R-129](tasks/129-streamed-brain-status.md)** Streamed brain status (body-overlay). Its claim was checked against the code on 2026-10-06.
 
-### Waiting for its trigger (114)
+### Waiting for its trigger (113)
 
 - **[R-011](tasks/011-stylesheet-outside-line-cap.md)** The overlay stylesheet outside the line cap (repo-checks). Reopens when: `find body/app/src -name '*.css'` lists a second file, or `git log --since='<Verified date> 00:00' --oneline -- body/app/src/overlay.css` lists a commit whose diff moves a rule to change which rule applies. A commit that edits only comments does not. Its claim was checked against the code on 2026-10-07.
 - **[R-013](tasks/013-couplings-widened-registry-cannot-hold.md)** The couplings the widened registry cannot cover (repo-checks). Reopens when: A third value on the capture-target enum, a reader for declarations in the `.proto` arriving in the scan for another reason, any module outside the body's rpc crate and the brain's body client that has to name one of the two gRPC status codes, or either side of that pair gaining a declaration whose value the scan can read. Its claim was checked against the code on 2026-10-07.
@@ -191,7 +192,6 @@ never a reading of what the tree does now.
 - **[R-815](tasks/815-the-conversation-cannot-be-scrolled-from-the-keyboard.md)** The conversation cannot be scrolled from the keyboard (body-overlay). Reopens when: a History line in this file recording the maintainer's pick of A or B. Its claim was checked against the code on 2026-10-07.
 - **[R-816](tasks/816-a-stopped-reply-goes-on-writing-and-is-not-kept.md)** A stopped reply goes on writing, and is not kept (body-overlay). Reopens when: a History line in this file recording the maintainer's pick of what a Stop keeps on screen. Its claim was checked against the code on 2026-10-07.
 - **[R-818](tasks/818-a-body-started-before-the-brain-opens-a-new-chat.md)** A body started before the brain opens a new chat, not the last one (body-overlay). Reopens when: a History line in this file recording the maintainer's pick of A or B. Its claim was checked against the code on 2026-10-07.
-- **[R-830](tasks/830-the-log-once-stopped-short-of-a-tool-turns-reply.md)** The log once stopped short of a tool turn's reply (body-overlay). Reopens when: a second turn on any shell whose log ends above its own reply while nobody scrolled, on a page that has the following fix closed by task 819. Its claim was checked against the code on 2026-10-10.
 
 ### Waiting for a consumer (25)
 
@@ -314,7 +314,7 @@ never a reading of what the tree does now.
 - [R-818](tasks/818-a-body-started-before-the-brain-opens-a-new-chat.md) A body started before the brain opens a new chat, not the last one. open, waiting for its trigger.
 - [R-819](tasks/819-the-conversation-stopped-following-the-replies-of-one-chat.md) The conversation stopped following the replies of one chat. done 2026-10-10.
 - [R-829](tasks/829-the-thoughts-of-successive-tool-rounds-run-together.md) The thoughts of successive tool rounds run together. open, actionable.
-- [R-830](tasks/830-the-log-once-stopped-short-of-a-tool-turns-reply.md) The log once stopped short of a tool turn's reply. open, waiting for its trigger.
+- [R-830](tasks/830-the-log-once-stopped-short-of-a-tool-turns-reply.md) The log stopped short of a tool turn's reply or card. open, actionable.
 
 ### brain
 

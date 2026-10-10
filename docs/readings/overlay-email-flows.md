@@ -119,5 +119,7 @@ the person to confirm their account at a second link.
 
 In one of fourteen turns, the second of the first chat, the log stopped with the question at its end
 and the reply below it while nobody scrolled; the panel had grown to its full height during that
-turn. The same two questions in a fresh chat were followed to the end
+turn. The same two questions in a fresh chat were followed to the end. In the overlay run of
+[a second send](#a-second-send), the second turn ended with the tool chips at the log's end and the
+confirmation card below them, with the panel already at its full height
 ([R-830](../refinements/tasks/830-the-log-once-stopped-short-of-a-tool-turns-reply.md)).
