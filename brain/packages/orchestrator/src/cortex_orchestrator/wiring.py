@@ -117,7 +117,9 @@ async def run_from_env(
     ticker_task = start_ticker(ticker)
     await recover_boot_residency(swap, clock)
     serving, close_serving = build_serving_watch(
-        stores.sessions, inference, escalation=swap is not None
+        stores.sessions,
+        inference,
+        between_handoffs=None if swap is None else swap.manager.between_handoffs,
     )
     try:
         await serving.start()

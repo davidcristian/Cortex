@@ -74,12 +74,12 @@ path returns the card to. Measurements are in [model-swap](../readings/model-swa
   is active so a lease of `model` would wait, and `await_scope_end(model)`, which waits until none
   is and leaves the check of what is resident to the lease. A turn uses it to announce the wait
   before it reads its history and before each model call (ADR-0069 decision 9).
-- `ResidencyReporter` provides `residency() -> ResidencyReport`, what the GPU is serving right now,
-  for the wire's `Health`. It is **synchronous and free of I/O by contract**, because a probe
-  arrives every few seconds precisely while a swap is in flight and one that queued behind the GPU
-  lease would hang for the whole load; an implementation answers from a cache it publishes into.
-  `ServingWatch` (`serving_watch.py`) is such a cache for the other parts a turn needs, asking each
-  `ServingProbe` (`part`, `fault()`) every 2 s; fake `ScriptedServingProbe`.
+- `ResidencyReporter` provides `residency() -> ResidencyReport` for the wire's `Health`. It is
+  **synchronous and free of I/O by contract**: a probe arrives every few seconds during a swap, and
+  one queued behind the GPU lease would hang for the whole load, so an implementation answers from a
+  cache. `ServingWatch` (`serving_watch.py`) is such a cache for the other parts a turn needs,
+  asking each `ServingProbe` (`part`, `fault()`) every 2 s (fake `ScriptedServingProbe`); a
+  `FencedServingProbe` drops a reading taken while the manager's `between_handoffs()` is false.
 - `PaceSink` provides `note_pace(*, spilled)`, where the deep phase says whether the tier it just
   ran held the rate its deployment measured for it. Also synchronous and free of I/O, being called
   after the reply has streamed and before it is persisted. What crosses is a judgement and never a

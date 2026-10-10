@@ -6,6 +6,7 @@ import logging
 from collections.abc import Sequence
 
 from cortex_core.ports_models import ServingProbe
+from cortex_core.residency_state import Fence
 
 # The overlay asks again every 5 s while its dot is not green, so a reading is at most one
 # interval older than that. A pass is one Redis PING and one HTTP GET on the local network.
@@ -79,3 +80,25 @@ class ServingWatch:
                 return await probe.fault()
         except TimeoutError:
             return f"{probe.part} did not answer within {self._timeout_s:g} s"
+
+
+class FencedServingProbe:
+    """A ``ServingProbe`` whose fault counts only when no handoff held the card around the ask."""
+
+    def __init__(self, probe: ServingProbe, between_handoffs: Fence) -> None:
+        self._probe = probe
+        self._between_handoffs = between_handoffs
+
+    @property
+    def part(self) -> str:
+        """The part the wrapped probe asks about."""
+        return self._probe.part
+
+    async def fault(self) -> str | None:
+        """The wrapped probe's answer, or ``None`` when a handoff held the card before or after."""
+        # A swap stops the cortex on purpose and says so in the residency report; a reading
+        # taken across one would outlive it by an interval and show a stopped cortex as down.
+        if not self._between_handoffs():
+            return None
+        fault = await self._probe.fault()
+        return fault if self._between_handoffs() else None

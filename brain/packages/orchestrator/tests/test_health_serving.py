@@ -101,7 +101,7 @@ async def test_without_escalation_the_watch_asks_the_cortex_server_before_the_st
     server = FakeServer()
     server.connected = False
     inference = InferenceConfig(backend="llamacpp", endpoint=_closed_port_endpoint())
-    watch, close = build_serving_watch(_store(server), inference, escalation=False)
+    watch, close = build_serving_watch(_store(server), inference, between_handoffs=None)
     await watch.start()
     try:
         assert watch.fault() == CORTEX_DOWN
@@ -109,16 +109,19 @@ async def test_without_escalation_the_watch_asks_the_cortex_server_before_the_st
         await close()
 
 
-async def test_with_escalation_the_watch_asks_only_the_store() -> None:
+async def test_with_escalation_the_cortex_counts_only_between_handoffs() -> None:
     server = FakeServer()
-    inference = InferenceConfig(backend="llamacpp", endpoint="http://127.0.0.1:1")
-    watch, close = build_serving_watch(_store(server), inference, escalation=True)
+    held = [True]
+    inference = InferenceConfig(backend="llamacpp", endpoint=_closed_port_endpoint())
+    watch, close = build_serving_watch(
+        _store(server), inference, between_handoffs=lambda: not held[0]
+    )
     await watch.start()
     try:
         assert watch.fault() is None
-        server.connected = False
+        held[0] = False
         await watch.refresh()
-        assert watch.fault() == STORE_DOWN
+        assert watch.fault() == CORTEX_DOWN
     finally:
         await close()
 
@@ -126,7 +129,7 @@ async def test_with_escalation_the_watch_asks_only_the_store() -> None:
 async def test_a_backend_with_no_server_leaves_only_the_store_to_ask() -> None:
     server = FakeServer()
     server.connected = False
-    watch, close = build_serving_watch(_store(server), InferenceConfig(), escalation=False)
+    watch, close = build_serving_watch(_store(server), InferenceConfig(), between_handoffs=None)
     await watch.start()
     try:
         assert watch.fault() == STORE_DOWN

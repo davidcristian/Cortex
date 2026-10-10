@@ -131,12 +131,14 @@ without decision 8 `Health` would answer ready while the cortex or the store is 
    deadline, and the body reads a timeout as `down`, unreachable, for a brain that answers. The
    store is always asked, by one `PING` on the session store's own client. The cortex is asked
    through llama-server's own `GET /health` (503 while loading), not the model host's `GET
-   /models/cortex`, which may not be configured and takes the per-model lock decision 1 avoids; it
-   is asked only with escalation off, since a reading taken while a swap had the cortex stopped
-   would outlive the swap by an interval. The overlay already has the state this needs: `degraded`,
-   the amber dot, labelled `The brain is not serving: <detail>`. It probes on a summon, after a turn
-   ends green, and every 5 s while not green, so a dot left open and green changes at the next
-   summon or turn.
+   /models/cortex`, which may not be configured and takes the per-model lock decision 1 avoids.
+   With escalation on, a swap stops the cortex on purpose, and a reading taken then would outlive
+   the swap by an interval, so `FencedServingProbe` asks only while `between_handoffs` (no claim
+   and no scope, the pass's condition in decision 4) holds, and drops the reading unless it still
+   holds afterwards; a swap is stated by the report. The overlay already has the state this
+   needs: `degraded`, the amber dot, labelled `The brain is not serving: <detail>`. It probes on a
+   summon, after a turn ends green, and every 5 s while not green, so a dot left open and green
+   changes at the next summon or turn.
 
    | Part | `detail` while it is down |
    | --- | --- |
@@ -152,9 +154,6 @@ without decision 8 `Health` would answer ready while the cortex or the store is 
   peers and the cortex are what keep the report current.
 - A cortex that dies while both containers keep running is not restarted by anything automatic;
   restarting either container, or the runbook's manual step, brings it back.
-- With escalation on, a cortex that dies while the report says serving leaves `Health` ready: the
-  pass reads the cortex only to regain a report that is not serving, and decision 8 does not ask
-  it then ([R-823](../refinements/tasks/823-health-stays-ready-when-the-cortex-dies-with-escalation-on.md)).
 - Residency changes are split by responsibility: `residency_moves.py` (what the host is asked to
   do), `residency_restore.py` (what the swap back promises), `residency_board.py` (the resident
   model, the report, the scope flag and their lock), `residency_claim.py` (`HandoffClaim`) and

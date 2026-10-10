@@ -112,12 +112,12 @@ class SwappingModelManager(ResidencyProbeMixin):
 
     async def recheck_residency(self) -> None:
         """Read what the GPU is really doing and act on it, unless a handoff owns the card."""
-        if self._fence():
+        if self.between_handoffs():
             await recheck_baseline_residency(
-                self._host, self._plan, self._board, self._tiers, self._fence
+                self._host, self._plan, self._board, self._tiers, self.between_handoffs
             )
 
-    def _fence(self) -> bool:
+    def between_handoffs(self) -> bool:
         """Whether no handoff owns the GPU right now, answered synchronously and without I/O."""
         return not self._handoff_claim.claimed and not self._board.scope_active
 

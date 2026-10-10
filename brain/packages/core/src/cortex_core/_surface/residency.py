@@ -43,6 +43,7 @@ from cortex_core.residency_tiers import TIERS_MISSING_DETAIL, BaselineTiers, Tie
 from cortex_core.serving_watch import (
     SERVING_CHECK_INTERVAL_S,
     SERVING_CHECK_TIMEOUT_S,
+    FencedServingProbe,
     ServingWatch,
 )
 from cortex_core.swap_conductor import SwapConductor
@@ -111,6 +112,7 @@ __all__ = [
     "DeviceMemory",
     "EscalationRefs",
     "EscalationSlot",
+    "FencedServingProbe",
     "HandoffAheadBackend",
     "HandoffPace",
     "HandoffRecord",
