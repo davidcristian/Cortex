@@ -1,8 +1,10 @@
 import asyncio
+import gc
 import logging
 import os
 import signal
 import socket
+import weakref
 from collections.abc import AsyncIterator, Sequence
 from typing import cast
 
@@ -23,7 +25,12 @@ from cortex_core import (
     ToolSpec,
     TurnEngine,
 )
-from cortex_orchestrator import ERROR_CODE_BRAIN_STOPPING, RpcServerConfig, serve
+from cortex_orchestrator import (
+    ERROR_CODE_BRAIN_STOPPING,
+    BrainService,
+    RpcServerConfig,
+    serve,
+)
 from cortex_orchestrator.converse_stream import ConverseStream
 from cortex_seam import BrainServiceStub, ClientEvent, ServerEvent, UserTurn
 
@@ -183,3 +190,28 @@ async def test_shut_down_ends_the_turn_before_it_sends_the_reason(
     (record,) = caplog.records
     assert record.__dict__["session_id"] == "s9"
     assert record.__dict__["turn_id"] == "t-1"
+
+
+def _live_streams() -> list[ConverseStream]:
+    return [item for item in gc.get_objects() if isinstance(item, ConverseStream)]
+
+
+async def _one_turn() -> AsyncIterator[ClientEvent]:
+    yield ClientEvent(session_id="s", user_turn=UserTurn(text="hello"))
+
+
+async def test_the_service_keeps_no_stream_that_ended() -> None:
+    store = InMemorySessionStore()
+    engine = TurnEngine(store, EchoInferenceBackend(), SystemClock())
+    service = BrainService(lambda _c, _p: engine, store)
+    context = cast("aio.ServicerContext[ClientEvent, ServerEvent]", None)
+    known = _live_streams()
+    events = service.Converse(_one_turn(), context)
+    first = await anext(events)
+    (stream,) = [item for item in _live_streams() if all(item is not old for old in known)]
+    ended = weakref.ref(stream)
+    del stream, known
+    rest = [event async for event in events]
+    gc.collect()
+    assert _kinds([first, *rest])[-1] == "turn_complete"
+    assert ended() is None
