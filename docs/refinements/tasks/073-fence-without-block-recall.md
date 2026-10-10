@@ -59,5 +59,5 @@ blunt.
   first chat's refusal and was refused again: the person's own request cannot run in any chat
   while a related tainted row exists. A recall turn did not follow the quoted instruction. The
   task is now due; the mode still has to keep the ledger and the tainted re-recording while
-  dropping the tool block, as the 2026-09-17 line says. The refusal text's advice to re-ask in a
-  fresh turn is filed with [R-834](834-a-refused-task-is-reported-as-a-scheduled-reminder.md).
+  dropping the tool block, as the 2026-09-17 line says. The refusal text no longer tells the
+  model to re-ask in a fresh turn, which could not help here.

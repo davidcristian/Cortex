@@ -70,7 +70,7 @@ never a reading of what the tree does now.
 ### Actionable now (3)
 
 - **[R-073](tasks/073-fence-without-block-recall.md)** Fence-without-block recall mode (untrusted-content). Its claim was checked against the code on 2026-10-10.
-- **[R-834](tasks/834-a-refused-task-is-reported-as-a-scheduled-reminder.md)** A refused task is reported as a scheduled reminder (scheduling). Its claim was checked against the code on 2026-10-10.
+- **[R-834](tasks/834-a-reply-claims-a-task-it-never-tried-to-schedule.md)** A reply claims a task it never tried to schedule (scheduling). Its claim was checked against the code on 2026-10-10.
 - **[R-835](tasks/835-a-one-time-reminder-is-stored-as-a-daily-one.md)** A one-time reminder is stored as a daily one (scheduling). Its claim was checked against the code on 2026-10-10.
 
 ### Actionable, once a port changes (1)
@@ -833,7 +833,7 @@ never a reading of what the tree does now.
 - [R-249](tasks/249-push-retry-policy.md) Push retry policy beyond the next poll. open, waiting for its trigger.
 - [R-250](tasks/250-task-reminder-distinction.md) A task versus reminder distinction on the pull surface. open, waiting for a consumer.
 - [R-394](tasks/394-the-fired-schedule-item-has-two-field-names-across-the-brains.md) The fired schedule item has two field names across the brain's own log lines. done 2026-08-24.
-- [R-834](tasks/834-a-refused-task-is-reported-as-a-scheduled-reminder.md) A refused task is reported as a scheduled reminder. open, actionable.
+- [R-834](tasks/834-a-reply-claims-a-task-it-never-tried-to-schedule.md) A reply claims a task it never tried to schedule. open, actionable.
 - [R-835](tasks/835-a-one-time-reminder-is-stored-as-a-daily-one.md) A one-time reminder is stored as a daily one. open, actionable.
 
 ### session-history

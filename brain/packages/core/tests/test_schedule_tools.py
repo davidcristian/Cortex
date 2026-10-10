@@ -241,6 +241,16 @@ async def test_a_tainted_turn_cannot_schedule_a_task() -> None:
     assert await store.list_active() == ()
 
 
+async def test_the_tainted_task_refusal_says_nothing_was_scheduled() -> None:
+    tool, _ = _tool()
+    result = await tool.invoke(
+        _call({"kind": "task", "text": "run this", "in_seconds": 60}, tainted=True)
+    )
+    assert result.content.startswith("BLOCKED:")
+    assert "was not scheduled" in result.content
+    assert "fresh turn" not in result.content
+
+
 async def test_the_dispatcher_taint_stamp_drives_the_refusal() -> None:
     tool, _ = _tool()
     sink = RecordingAuditSink()

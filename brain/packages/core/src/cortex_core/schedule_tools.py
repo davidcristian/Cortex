@@ -17,8 +17,10 @@ SCHEDULE_TOOL_NAME = "schedule_task"
 LIST_SCHEDULED_TOOL_NAME = "list_scheduled"
 
 TAINTED_TASK_MSG = (
-    "cannot schedule an autonomous task on a turn that has read untrusted external "
-    "content; schedule a reminder instead, or re-ask in a fresh turn"
+    "BLOCKED: this turn read untrusted external content, so no autonomous task can be "
+    "scheduled in it, and this one was not scheduled. Tell the user it was not scheduled. A "
+    "reminder (kind 'reminder') can still be scheduled in this turn, but only a successful "
+    "call schedules one; do not say a reminder was set unless that call succeeded."
 )
 
 

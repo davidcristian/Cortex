@@ -11,7 +11,7 @@ Asked for something "tomorrow at 10:00", the cortex sometimes passes `at_time: "
 is stored with a daily `rule` and is first due at the next 10:00, which can be the same day
 ([readings](../../readings/overlay-file-and-memory-flows.md#a-reminder-and-a-task-after-it)).
 
-- After a refused task ([R-834](834-a-refused-task-is-reported-as-a-scheduled-reminder.md)), 2 of
+- After a refused task on a tainted turn, 2 of
   4 reminders made for "tomorrow at 10:00" between 06:54 and 06:58 UTC were stored with
   `rule: {"hour": 10, "minute": 0, "days": [0, 1, 2, 3, 4, 5, 6]}` and `due_at` 10:00 UTC the
   same day. Both replies said "tomorrow, October 11th, at 10:00 AM", against a creation result
