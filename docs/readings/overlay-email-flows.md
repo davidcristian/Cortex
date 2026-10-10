@@ -75,8 +75,9 @@ the person to confirm their account at a second link.
   link, so the identity compared unequal to the collected one; the same held for `**` and `~~`,
   on the reply's channel as well, and a link in `_emphasis_` was not matched at all. After the fix
   the identity drops a closing code, emphasis or strike delimiter and a scheme opens after an
-  underscore, and the replayed turn, asked to write each link inside backticks, showed the markers
-  in the reply, the store and `Thoughts`.
+  underscore. Replayed and asked to write each link inside backticks, the turn showed the markers
+  in the reply, the store and `Thoughts`; asked for underscores, it wrote one link, shown as
+  `_[link removed: untrusted source]_`.
 - **Thoughts across rounds.** The reasoning of successive tool rounds runs together with no break
   ("... Extract links.The user wants ...")
   ([R-829](../refinements/tasks/829-the-thoughts-of-successive-tool-rounds-run-together.md)).
