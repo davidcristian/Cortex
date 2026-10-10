@@ -149,8 +149,7 @@ compares the two, so retune both or neither. `RosterError` is a boot-time miscon
   stop the tiers the deployment already declared in the daemon's own environment. That is the
   security argument of ADR-0030 decision 3 against a docker socket or a compose-aware controller.
 - **The roster is fixed at boot, and a tier with no artifact file is not in it.** The deep tier and
-  the GPU-placed subagent are opt-in, so a stock host answers 404 for them. Two tiers sharing a port
-  fails at boot.
+  the GPU subagent are opt-in, so a stock host answers 404 for them. A shared port fails at boot.
 - **`start` and `stop` are idempotent**, because a swap re-issues either without checking first. A
   start whose spawn fails adds nothing, so a tier that never ran still reads `STOPPED`; it removes
   nothing either, so a tier whose child had already died goes on reporting that child's exit code
@@ -211,7 +210,8 @@ from the always-on `llama-cortex` service.
   `llama-subagent-qwen`.
 - **The compose healthcheck requires that a tier which can serve a turn is READY**, not merely that
   the daemon answers, because `brain` waits on it. It accepts the cortex tier **or** the deep tier,
-  because a handoff deliberately stops the cortex. The deep model's load window reads unhealthy.
+  because a handoff deliberately stops the cortex, and asks for the deep tier only when `/health`
+  lists it, so a roster without one logs no 404. The deep model's load window reads unhealthy.
 - **The cgroup caps are per container, so they are per supervisor and not per model.**
   `CORTEX_MODELHOST_{CPUS,MEMORY,MEMSWAP}` cap all three tiers together and are user-tunable
   placeholders. llama.cpp mmaps the GGUF, so mapped model pages count against the memory cap and a

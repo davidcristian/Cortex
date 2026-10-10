@@ -101,5 +101,4 @@ deadline.
   added, since every turn fails until someone acts. Live with escalation off, a killed cortex read
   `failed` 1.5 s later, a new process was loading at 2.9 s and `ready` at 44 s, `Health` was amber
   meanwhile, and the next question was answered
-  ([readings](../../readings/store-and-process-restarts.md#the-cortex-process)). The healthcheck
-  warning seen during the load is [825](825-the-healthcheck-warns-about-a-deep-tier-the-roster-lacks.md).
+  ([readings](../../readings/store-and-process-restarts.md#the-cortex-process)).

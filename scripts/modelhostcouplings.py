@@ -39,7 +39,7 @@ MODELHOST_COUPLINGS: tuple[Constant, ...] = (
             Site(SWAP_CONFIG, "DEFAULT_BRAIN_MODEL"),
             Site(MODELHOST_CONFIG, "DEFAULT_BRAIN_MODEL"),
         ),
-        mentions=(Mention(GPU_COMPOSE, "${CORTEX_MODEL_BRAIN:-{value}}", occurrences=2),),
+        mentions=(Mention(GPU_COMPOSE, "${CORTEX_MODEL_BRAIN:-{value}}", occurrences=3),),
     ),
     Constant(
         label="the cortex artifact the stack ships",
