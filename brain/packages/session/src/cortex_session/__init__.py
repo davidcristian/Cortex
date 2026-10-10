@@ -2,6 +2,7 @@
 
 from cortex_session.handoffs import RedisHandoffStore
 from cortex_session.preferences import RedisPreferenceStore
+from cortex_session.retry import StoreRetry
 from cortex_session.schedule_codec import DeadLetter
 from cortex_session.schedules import RedisScheduleStore
 from cortex_session.store import DEFAULT_REDIS_URL, RedisSessionStore
@@ -17,5 +18,6 @@ __all__ = [
     "RedisScheduleStore",
     "RedisSessionStore",
     "RedisTaskStore",
+    "StoreRetry",
     "ZoneInfoResolver",
 ]

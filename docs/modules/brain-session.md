@@ -17,11 +17,12 @@ an injected `redis.asyncio.Redis` client or from `from_url(url)`, which builds a
 
 ### `RedisSessionStore`
 
-- `append(session_id, message)` RPUSHes one JSON document onto the session's list. It **raises
-  `SessionStoreError` for a message with images** (ADR-0029), a system message (ADR-0071) or a tool
-  step, meaning a tool result or a message with tool calls or a call id (ADR-0009 decision 3). Each
-  belongs to one turn, and the record has no field for pixels or tool fields, so storing one would
-  drop them without saying so. `InMemorySessionStore` raises the same three.
+- `append(session_id, message)` RPUSHes one JSON document and `ZADD`s the recency index in one
+  `MULTI`, after a `WATCH` and an `LPOS` that finds no equal record, so in both stores a message
+  equal to a stored one is not stored again. It **raises `SessionStoreError` for a message with
+  images** (ADR-0029), a system message (ADR-0071) or a tool step (a tool result, tool calls or a
+  call id; ADR-0009 decision 3): the record has no field for pixels or tool fields, so storing one
+  would drop them silently. `InMemorySessionStore` raises the same three.
 - `history(session_id)` is `LRANGE 0 -1`, decoded in append order. An unknown session has an empty
   history rather than an error. A stored system or tool message is corrupt: no writer stores one.
 - `list_sessions(*, limit)` builds the chat list (ADR-0021) in two round trips. The first reads both
@@ -59,6 +60,13 @@ an injected `redis.asyncio.Redis` client or from `from_url(url)`, which builds a
   `DEL` in one `MULTI`, then sets a flag so later calls skip it. The move is atomic and idempotent,
   so two brains starting at once keep every member, a missing old key moves nothing, and a failed
   move runs again on the next call. `EXISTS cortex:sessions:pinned` is 0 once it has run.
+- **Retry.** Every call is tried again after a refused or dropped connection, a timeout or a
+  `WatchError`, waiting 50 ms and doubling to 1 s, until 3 s after its first try (`StoreRetry`); a
+  credential error is not. Each retry logs `a Redis call failed on its connection; calling it again
+  after a wait`. Every call is idempotent, so a lost reply to a write that ran stores nothing twice.
+  3 s covers a Redis restart and ends under the body's 5 s unary call deadline, and `from_url` sets
+  a 1 s connect timeout, since a connect to a stopping container stalls instead of being refused
+  ([readings](../readings/store-and-process-restarts.md#redis-with-the-session-stores-retry)).
 
 ### `RedisTaskStore`
 
@@ -137,10 +145,9 @@ One Redis list per session at `cortex:session:{session_id}:messages`, one JSON o
 `{"v": 1, "kind": "message", "role", "text", "at", "turn_id"}`, with `at` an ISO-8601 string
 including its UTC offset, preserved rather than normalized to UTC. `v` and `kind` are how a stored
 format evolves. The sorted set `cortex:sessions` is the recency index: `append` `ZADD`s the session
-id scored by the message's `at`, so the score is the last activity. Batching the two-ended read into
-one transactional pipeline took a listing from 23.8 ms to 1.11 ms over 20 chats of 200 messages
-against real Redis; the first/last/length cache it replaced is rejected rather than deferred
-(ADR-0021 decision 7). The plain set `cortex:sessions:hoisted` holds the hoisted session ids.
+id scored by the message's `at`, so the score is the last activity. The plain set
+`cortex:sessions:hoisted` holds the hoisted session ids. The two-ended listing read and its
+measurement are in [task 175](../refinements/tasks/175-bounded-end-reads.md).
 
 Task state uses two string keys per delegation, `cortex:task:{id}` and `cortex:task:{id}:result`,
 each one JSON document with a **3600 s expiry**. It is hot and short-lived, written and read back by
@@ -211,32 +218,25 @@ Each port has one shared behaviour suite driven over the in-memory implementatio
 on fakeredis: `tests/contract.py`, `tests/task_contract.py`, `tests/schedule_contract.py` and
 `tests/handoff_contract.py`. Adapter-only mechanics (error wrapping per operation, codec policy,
 quarantine, stale-id tolerance, surplus release, expiry, pointer self-repair and the hoisted set's
-move, in `tests/test_hoisted_key_move.py`) are tested against the Redis adapter alone. The schedule
-suite is about the guarded protocol: a stale finish rejected, a cancel during a fire sticking, a
-re-claim under a fresh token after lease expiry, terminal cleanup, taint OR at fire time, and the
-delivery lifecycle. The handoff suite's central check is the taint ledger round trip, where a ledger
-built through the real `TaintLedger` API comes back exact in bytes, order and set membership through
-`HandoffRecord.taint_ledger()`, with the `opaque` bit checked at both values because both of its
-consumers start from `False` after a swap.
+move in `tests/test_hoisted_key_move.py`, the retry in `tests/test_store_retry.py`) are tested
+against the Redis adapter alone. The schedule suite is about the guarded protocol: a stale finish
+rejected, a cancel during a fire sticking, a re-claim under a fresh token after lease expiry,
+terminal cleanup, taint OR at fire time, and the delivery lifecycle. The handoff suite's central
+check is the taint ledger round trip, where a ledger built through the real `TaintLedger` API comes
+back exact in bytes, order and set membership through `HandoffRecord.taint_ledger()`, with the
+`opaque` bit checked at both values because both of its consumers start from `False` after a swap.
 
-Every session check reaches CI through `contract.ALL_CHECKS`, which `tests/test_store_contract.py`
-parametrizes over the two-implementation fixture, rather than through hand-written wrappers a new
-check has to be added to twice ([ADR-0068](../adr/ADR-0068-port-contract-lists.md) decision 1).
+`contract.ALL_CHECKS` holds every session check, and `tests/test_store_contract.py` runs it over
+both stores, so a new check is added once ([ADR-0068](../adr/ADR-0068-port-contract-lists.md)).
 
 The `integration`-marked `tests/test_store_live.py`, `tests/test_handoff_live.py` and
-`tests/test_schedule_live.py` run the same suites against real Redis (excluded from CI and coverage
-by the workspace addopts; run with
-`cd brain && uv run pytest -m integration --no-cov packages/session`, where `--no-cov` matters
-because the 100% threshold in addopts would otherwise fail the run). All three take their store from
-`tests/live_redis.py`, the one place that defines how a live run is isolated: it rewrites
-`CORTEX_REDIS_URL` onto its own logical database (`LIVE_DB`, database 15, which production never
-selects) and its `reset` empties that database before the suite and after every check, a failing
-check included. Each check therefore starts from the same empty store the fakeredis fixture gives
-it, and no real session, schedule or handoff is touched. Two guards keep the flush off a production
-database: the URL rewrite fails when `CORTEX_REDIS_URL` already selects `LIVE_DB`, and `reset`
-re-reads the database its client actually opened before flushing. None of this reaches the adapters,
-which keep their key layouts and took no prefix, namespace or database argument (ADR-0002 decision
-14).
+`tests/test_schedule_live.py` run the same suites against real Redis, outside CI and coverage
+(`cd brain && uv run pytest -m integration --no-cov packages/session`; without `--no-cov` the 100%
+threshold fails the run). Their store comes from `tests/live_redis.py`, which moves
+`CORTEX_REDIS_URL` onto database 15 (`LIVE_DB`, which production never selects) and empties it
+before the suite and after every check, a failing one included, so no real chat is touched and the
+adapters take no prefix or database argument. Its two guards against flushing another database are
+in ADR-0002 decision 14.
 
 ## Invariants
 

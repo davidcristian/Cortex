@@ -16,7 +16,8 @@ tools in [brain-core-tools.md](brain-core-tools.md), delegated work in
   typed to it rather than to `TurnEngine`. **The runner is told which turn it is serving**
   (ADR-0046 decision 9): a turn that fails emits no completion to read the id off.
 - `SessionStore` is the source of truth for conversation state and survives model swaps and
-  restarts: `append(session_id, message)`, `history(session_id)` (append order, empty when
+  restarts: `append(session_id, message)` (an equal message is not stored again, so an adapter may
+  retry a write whose reply was lost), `history(session_id)` (append order, empty when
   unknown), `list_sessions(*, limit)` (most recently active first), `set_title(session_id, title)`
   (a display title `list_sessions` prefers over the first-message derivation, ADR-0021 decision 9),
   `delete(session_id)` (removes a whole chat, its history, title, recency entry and hoisted

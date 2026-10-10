@@ -11,7 +11,7 @@ from redis.asyncio import Redis
 
 from cortex_core import InMemorySessionStore, Role, SessionStore, SessionStoreError
 from cortex_core.sessions import TITLE_MAX, HistoryRecap
-from cortex_session import DEFAULT_REDIS_URL, RedisSessionStore
+from cortex_session import DEFAULT_REDIS_URL, RedisSessionStore, StoreRetry
 
 
 @pytest.fixture(params=["in-memory", "redis"])
@@ -186,7 +186,7 @@ async def test_a_corrupt_first_record_fails_a_listing_at_index_zero() -> None:
 def _disconnected_store() -> RedisSessionStore:
     server = FakeServer()
     server.connected = False
-    return RedisSessionStore(FakeAsyncRedis(server=server))
+    return RedisSessionStore(FakeAsyncRedis(server=server), retry=StoreRetry(budget_ms=0))
 
 
 async def test_connection_failure_on_append_wraps_the_cause() -> None:
@@ -308,10 +308,10 @@ async def test_a_stored_system_or_tool_record_is_corrupt_at_its_index(role: str)
 async def test_from_url_wires_a_client_for_the_given_or_default_url(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    seen: list[str] = []
+    seen: list[tuple[str, dict[str, float]]] = []
 
-    def fake_from_url(url: str) -> FakeAsyncRedis:
-        seen.append(url)
+    def fake_from_url(url: str, **options: float) -> FakeAsyncRedis:
+        seen.append((url, options))
         return FakeAsyncRedis(server=FakeServer())
 
     monkeypatch.setattr(Redis, "from_url", fake_from_url)
@@ -319,7 +319,8 @@ async def test_from_url_wires_a_client_for_the_given_or_default_url(
     await contract.check_append_then_history_order(store)
     await store.aclose()
     RedisSessionStore.from_url()
-    assert seen == ["redis://example.invalid:6390/7", DEFAULT_REDIS_URL]
+    stall = {"socket_connect_timeout": 1.0}
+    assert seen == [("redis://example.invalid:6390/7", stall), (DEFAULT_REDIS_URL, stall)]
 
 
 async def test_recap_persists_as_one_versioned_document_under_its_own_key() -> None:

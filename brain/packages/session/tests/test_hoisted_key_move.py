@@ -6,7 +6,7 @@ import pytest
 from fakeredis import FakeAsyncRedis, FakeServer
 
 from cortex_core import Role, SessionStoreError
-from cortex_session import RedisSessionStore
+from cortex_session import RedisSessionStore, StoreRetry
 
 OLD_KEY = "cortex:sessions:pinned"
 KEY = "cortex:sessions:hoisted"
@@ -99,7 +99,7 @@ async def test_a_failed_move_is_tried_again_on_the_next_call() -> None:
     server = FakeServer()
     client = FakeAsyncRedis(server=server)
     await client.sadd(OLD_KEY, "a")
-    store = RedisSessionStore(FakeAsyncRedis(server=server))
+    store = RedisSessionStore(FakeAsyncRedis(server=server), retry=StoreRetry(budget_ms=0))
     server.connected = False
     with pytest.raises(SessionStoreError, match="listing sessions failed"):
         await store.list_sessions(limit=10)

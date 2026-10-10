@@ -1,6 +1,6 @@
 """RedisSessionStore: the SessionStore port over one Redis list per session."""
 
-from collections.abc import Sequence
+from collections.abc import Awaitable, Callable, Sequence
 from typing import cast
 
 from redis.asyncio import Redis
@@ -13,6 +13,13 @@ from cortex_core import (
     SessionSummary,
     merge_hoisted,
     summarize_ends,
+)
+from cortex_session.retry import (
+    DEFAULT_STORE_RETRY,
+    MonotonicTimer,
+    RetryTimer,
+    StoreRetry,
+    with_retry,
 )
 from cortex_session.store_codec import (
     decode_message,
@@ -28,6 +35,10 @@ from cortex_session.store_codec import (
 )
 
 DEFAULT_REDIS_URL = "redis://127.0.0.1:6379/0"
+
+# A connect to a stopping container can stall instead of being refused; redis-py waits 5 s for
+# one, which would spend the whole retry budget on a single try.
+CONNECT_TIMEOUT_S = 1.0
 
 _SESSIONS_KEY = "cortex:sessions"
 
@@ -61,17 +72,46 @@ def _summarize_ends(
     )
 
 
+async def append_once(client: Redis, session_id: str, record: str, score: float) -> None:
+    """RPUSH ``record`` and ZADD the session in one transaction, unless the list holds it."""
+    key = messages_key(session_id)
+    async with client.pipeline(transaction=True) as pipe:
+        await pipe.watch(key)
+        if await pipe.lpos(key, record) is not None:
+            return
+        pipe.multi()
+        pipe.rpush(key, record)
+        pipe.zadd(_SESSIONS_KEY, {session_id: score})
+        await pipe.execute()
+
+
 class RedisSessionStore:
     """SessionStore adapter over redis-py asyncio (injected client or ``from_url``)."""
 
-    def __init__(self, client: Redis) -> None:
+    def __init__(
+        self,
+        client: Redis,
+        *,
+        retry: StoreRetry = DEFAULT_STORE_RETRY,
+        timer: RetryTimer | None = None,
+    ) -> None:
         self._client = client
         self._hoisted_moved = False
+        self._retry = retry
+        self._timer = timer if timer is not None else MonotonicTimer()
+
+    async def _call[T](self, call: Callable[[], Awaitable[T]], failure: str) -> T:
+        """Run ``call`` under the retry, raising ``SessionStoreError(failure)`` when it fails."""
+        try:
+            return await with_retry(call, self._retry, self._timer)
+        except RedisError as err:
+            raise SessionStoreError(failure) from err
 
     @classmethod
     def from_url(cls, url: str = DEFAULT_REDIS_URL) -> "RedisSessionStore":
         """Build a store owning a client for ``url``; close it via ``aclose()``."""
-        return cls(Redis.from_url(url))  # pyright: ignore[reportUnknownMemberType]
+        client = Redis.from_url(url, socket_connect_timeout=CONNECT_TIMEOUT_S)  # pyright: ignore[reportUnknownMemberType]
+        return cls(client)
 
     async def aclose(self) -> None:
         """Release the client's connections (call at composition-root shutdown)."""
@@ -82,50 +122,45 @@ class RedisSessionStore:
             raise SessionStoreError(msg) from err
 
     async def append(self, session_id: str, message: Message) -> None:
-        """Persist one message and refresh the session's recency-index score."""
+        """Persist one message once and refresh the session's recency-index score."""
         refuse_images(message)
         refuse_system(message)
         refuse_tool_steps(message)
-        try:
-            await self._client.rpush(messages_key(session_id), encode_message(message))
-            await self._client.zadd(_SESSIONS_KEY, {session_id: message.at.timestamp()})
-        except RedisError as err:
-            msg = f"append to session {session_id!r} failed"
-            raise SessionStoreError(msg) from err
+        record, score = encode_message(message), message.at.timestamp()
+        await self._call(
+            lambda: append_once(self._client, session_id, record, score),
+            f"append to session {session_id!r} failed",
+        )
 
     async def history(self, session_id: str) -> Sequence[Message]:
         """Return the session's full history in append order (empty when unknown)."""
-        try:
-            raw = await self._client.lrange(messages_key(session_id), 0, -1)
-        except RedisError as err:
-            msg = f"history read for session {session_id!r} failed"
-            raise SessionStoreError(msg) from err
+        raw = await self._call(
+            lambda: self._client.lrange(messages_key(session_id), 0, -1),
+            f"history read for session {session_id!r} failed",
+        )
         return tuple(decode_message(item, index) for index, item in enumerate(raw))
 
     async def set_title(self, session_id: str, title: str) -> None:
         """Persist a brain-generated display title under the session's title key."""
-        try:
-            await self._client.set(title_key(session_id), title)
-        except RedisError as err:
-            msg = f"setting the title for session {session_id!r} failed"
-            raise SessionStoreError(msg) from err
+        await self._call(
+            lambda: self._client.set(title_key(session_id), title),
+            f"setting the title for session {session_id!r} failed",
+        )
 
     async def set_recap(self, session_id: str, recap: HistoryRecap) -> None:
         """Persist the summarizing window's recap of this session's dropped prefix."""
-        try:
-            await self._client.set(recap_key(session_id), encode_recap(recap))
-        except RedisError as err:
-            msg = f"setting the recap for session {session_id!r} failed"
-            raise SessionStoreError(msg) from err
+        await self._call(
+            lambda: self._client.set(recap_key(session_id), encode_recap(recap)),
+            f"setting the recap for session {session_id!r} failed",
+        )
 
     async def recap(self, session_id: str) -> HistoryRecap | None:
         """The stored recap, or ``None`` for a session that has never had one written."""
-        try:
-            raw = await self._client.get(recap_key(session_id))
-        except RedisError as err:
-            msg = f"recap read for session {session_id!r} failed"
-            raise SessionStoreError(msg) from err
-        # Decoding is outside the try above so a corrupt document is reported as corrupt rather
+        raw = await self._call(
+            lambda: self._client.get(recap_key(session_id)),
+            f"recap read for session {session_id!r} failed",
+        )
+        # Decoding is outside the retried read so a corrupt document is reported as corrupt rather
         # than as a read failure.
         return None if raw is None else decode_recap(cast("bytes", raw), session_id)
 
@@ -141,7 +176,8 @@ class RedisSessionStore:
 
     async def delete(self, session_id: str) -> None:
         """Hard-delete a whole session: its messages, its title, its recap, its recency entry."""
-        try:
+
+        async def delete_all() -> None:
             await self._move_old_hoisted()
             async with self._client.pipeline(transaction=True) as pipe:
                 pipe.delete(messages_key(session_id))
@@ -150,25 +186,25 @@ class RedisSessionStore:
                 pipe.zrem(_SESSIONS_KEY, session_id)
                 pipe.srem(_HOISTED_KEY, session_id)
                 await pipe.execute()
-        except RedisError as err:
-            msg = f"deleting session {session_id!r} failed"
-            raise SessionStoreError(msg) from err
+
+        await self._call(delete_all, f"deleting session {session_id!r} failed")
 
     async def set_hoisted(self, session_id: str, *, hoisted: bool) -> None:
         """Add the chat to the hoisted set, or remove it from it."""
-        try:
+
+        async def write() -> None:
             await self._move_old_hoisted()
             if hoisted:
                 await self._client.sadd(_HOISTED_KEY, session_id)
             else:
                 await self._client.srem(_HOISTED_KEY, session_id)
-        except RedisError as err:
-            msg = f"hoisting or lowering session {session_id!r} failed"
-            raise SessionStoreError(msg) from err
+
+        await self._call(write, f"hoisting or lowering session {session_id!r} failed")
 
     async def list_sessions(self, *, limit: int) -> Sequence[SessionSummary]:
         """Return the newest ``limit`` chats plus every hoisted chat, the hoisted ones first."""
-        try:
+
+        async def read() -> tuple[list[str], set[str], list[object]]:
             await self._move_old_hoisted()
             async with self._client.pipeline(transaction=True) as pipe:
                 pipe.zrevrange(_SESSIONS_KEY, 0, limit - 1)  # pyright: ignore[reportUnknownMemberType]
@@ -185,10 +221,10 @@ class RedisSessionStore:
                     pipe.llen(key)
                     pipe.get(title_key(session_id))
                 reads = await pipe.execute()
-        except RedisError as err:
-            msg = "listing sessions failed"
-            raise SessionStoreError(msg) from err
-        # Decoding is outside the try above so a corrupt record keeps the error decode_message
+            return ids, hoisted_ids, reads
+
+        ids, hoisted_ids, reads = await self._call(read, "listing sessions failed")
+        # Decoding is outside the retried read so a corrupt record keeps the error decode_message
         # already raised instead of being reported as a listing failure.
         summaries = (
             _summarize_ends(session_id, reads, at, hoisted=session_id in hoisted_ids)

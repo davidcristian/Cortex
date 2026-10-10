@@ -16,7 +16,9 @@ from cortex_core.subagents import SubagentResult, SubagentTask
 class SessionStore(Protocol):
     """Source of truth for conversation state; survives model swaps and restarts."""
 
-    async def append(self, session_id: str, message: Message) -> None: ...
+    async def append(self, session_id: str, message: Message) -> None:
+        """Store ``message`` last; a message equal to a stored one is not stored again."""
+        ...
 
     async def history(self, session_id: str) -> Sequence[Message]: ...
 

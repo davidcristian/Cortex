@@ -27,21 +27,56 @@ complete turns, the first giving a bike lock code, before the first restart.
   logged one `schedule pass failed; the next poll retries` from the reminder ticker.
 - **Stopped for 21 s during a reply's thinking.** The cortex was still thinking when Redis came
   back, and the reply was stored after it. Nothing was lost.
-- **Stopped across a reply's end.** Redis was stopped 0.8 s after a short question was sent and
-  started again 22 s later. The overlay drew the whole answer, `Apple and banana.`, and under it a
-  red bubble reading `session_store_unavailable: append to session '<id>' failed`. The dot stayed
-  green throughout. The store held the question and no reply, so the chat shows the question
-  unanswered when it is opened again, and the next turn's model input lacks the answer
-  ([R-821](../refinements/tasks/821-a-reply-whose-append-fails-is-shown-and-not-kept.md)). The
-  next question, sent after Redis was back, was answered and stored, with no restart of the shell.
-  The ticker logged `schedule pass failed; the next poll retries` once per poll while Redis was
-  down.
+- **Stopped across a reply's end, before the store retried.** Redis was stopped 0.8 s after a
+  short question was sent and started again 22 s later. The overlay drew the whole answer,
+  `Apple and banana.`, and under it a red bubble reading
+  `session_store_unavailable: append to session '<id>' failed`. The dot stayed green throughout.
+  The store held the question and no reply, so the chat showed the question unanswered when it was
+  opened again, and the next turn's model input lacked the answer. The next question, sent after
+  Redis was back, was answered and stored, with no restart of the shell. The ticker logged
+  `schedule pass failed; the next poll retries` once per poll while Redis was down.
 - **Appends during a restart.** A script in the brain's container appended to a scratch chat
   through `RedisSessionStore` every 50 ms for 12 s while Redis was restarted, five times. Each run
   had 8 or 9 appends fail at once with `SessionStoreError` over `Error 111 connecting to
   redis:6379`, a window of about 0.4 s, and every append after it succeeded. The client the adapter
   builds with `Redis.from_url` has connections with `Retry(NoBackoff(), 0)`, so nothing retries a
   refused connection. The scratch chats were deleted afterwards.
+
+## Redis, with the session store's retry
+
+**2026-10-10**, the same rig and chat after `RedisSessionStore` started calling Redis again for up
+to 3 s after a refused, dropped or timed out connection, with a 1 s connect timeout
+([the module doc](../modules/brain-session.md#redissessionstore)). Each run stopped Redis a
+set time after a short question was sent and started it again by hand. The SM clock read 0.58 of
+`clocks.max.sm` before the runs. The first two rows ran an earlier form of the retry.
+
+Each row is one run. The times are from `docker stop` being sent and `docker start` returning to the
+first try of the store call the outage met; a stalled try is one that ended in `Timeout connecting
+to server`.
+
+| Retry in the brain | Call met | Stop sent | Start returned | Failed tries | Result |
+| --- | --- | --- | --- | --- | --- |
+| 5 s of waits, no retry on a timeout, 5 s connect timeout | reply's append | 7.8 s before | 2.3 s after | 6 refused or unresolved | stored once |
+| the same | question's append | 0.2 s before | 9.3 s after | 3 refused or unresolved, then one stall of 5.1 s | failed |
+| 5 s from the first try, timeouts retried, 1 s connect timeout | question's append | 0.2 s before | 2.8 s after | 3 refused or unresolved, 2 stalls | stored once |
+| the same | reply's append | 0.02 s before | 2.9 s after | 3 refused or unresolved, 2 stalls | stored once |
+| the same | reply's append | 3.5 s before | 10.8 s after | 9, refused, unresolved or stalled | failed at 5.0 s |
+| 3 s from the first try, the rest as above (shipped) | reply's append | 1.2 s before | 1.8 s after | 2 stalls | stored once |
+
+- **A connect to a stopping container stalls.** For a short time after `docker stop` returns, a
+  new connection to the container is neither refused nor accepted, before its name stops resolving
+  (`Error -2`). With redis-py's 5 s connect timeout one such try took the question's append past
+  its budget, and the turn ended before inference with only the error bubble shown and nothing of
+  it stored. With a 1 s connect timeout the stall cost one or two tries of 1 s each.
+- **Covered outages.** In each `stored once` row the overlay drew the reply with no error bubble,
+  and the store held the question and the reply once each, in order. The brain logged one
+  `a Redis call failed on its connection; calling it again after a wait` per failed try, with the
+  wait and the error's type.
+- **An outage past the budget.** The turn ended as before the retry: `Mount Everest and K2.` drawn
+  above the `session_store_unavailable` bubble, and the question stored alone. The overlay's
+  `ListSessions` that followed was still retrying when the body's 5 s call deadline ended it, and
+  the brain logged `the caller stopped waiting; this call was abandoned mid-flight`. The shipped
+  budget is 3 s for that reason, under the deadline with room for one stalled try.
 
 ## The brain
 

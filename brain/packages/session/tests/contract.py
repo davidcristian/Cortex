@@ -38,6 +38,17 @@ async def check_append_then_history_order(store: SessionStore) -> None:
     assert list(await store.history(session_id)) == messages
 
 
+async def check_append_stores_an_equal_message_once(store: SessionStore) -> None:
+    """A repeated append of an equal message stores nothing, so a retried write is safe."""
+    session_id = _session_id()
+    first = make_message(Role.USER, "same words", turn_id="t-1")
+    reply = make_message(Role.ASSISTANT, "an answer", turn_id="t-1")
+    later = make_message(Role.USER, "same words", at=_AT + timedelta(seconds=1), turn_id="t-1")
+    for message in (first, reply, first, reply, later):
+        await store.append(session_id, message)
+    assert list(await store.history(session_id)) == [first, reply, later]
+
+
 async def check_multi_session_isolation(store: SessionStore) -> None:
     """Appends to one session never leak into another."""
     one, two = _session_id(), _session_id()
@@ -268,6 +279,7 @@ async def check_recap_survives_a_reconnect(store: SessionStore) -> None:
 ALL_CHECKS = (
     check_empty_history,
     check_append_then_history_order,
+    check_append_stores_an_equal_message_once,
     check_multi_session_isolation,
     check_roundtrip_fidelity,
     check_list_sessions_orders_and_summarizes,

@@ -22,7 +22,7 @@ class InMemorySessionStore:
         self._recaps: dict[str, HistoryRecap] = {}
 
     async def append(self, session_id: str, message: Message) -> None:
-        """Persist one message at the end of the session's history."""
+        """Persist one message at the end of the session's history, unless it holds it already."""
         if message.images:
             msg = "a session store never persists images: pixels are turn-local"
             raise SessionStoreError(msg)
@@ -35,7 +35,9 @@ class InMemorySessionStore:
                 "the tool loop's messages stay in the turn"
             )
             raise SessionStoreError(msg)
-        self._sessions.setdefault(session_id, []).append(message)
+        messages = self._sessions.setdefault(session_id, [])
+        if message not in messages:
+            messages.append(message)
 
     async def history(self, session_id: str) -> Sequence[Message]:
         """Return the session's full history in append order (empty when unknown)."""
