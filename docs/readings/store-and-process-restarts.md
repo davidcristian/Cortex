@@ -174,6 +174,15 @@ in the runs after it, which a poll of the frames found, so the 5 s drain cut the
   container restarted. The brain logged `trace budget probe failed` and served `ready=True`, and
   `GET /models/cortex` still answered `failed` a minute later. The same `POST` then brought it back,
   and the next question was answered.
+- **Started again by the model host.** With the sidecar restarting a cortex that exits unasked
+  ([ADR-0054](../adr/ADR-0054-baseline-residency.md) decision 9), `GET /models/cortex` was read
+  and `Health` called once every 1.4 s from the kill. It read `failed`, `the process exited with
+  code -9` at 1.5 s, `loading` with a new pid at 2.9 s and `ready` at 44 s, as long as the
+  operator's start above took; the sidecar logged `a model process exited without being asked to;
+  starting it again` with `attempt=1 code=-9`. `Health` read `not answering` and then `still
+  loading` until the cortex was `ready`. Run twice; in the second the dot was amber on a summon 8 s
+  after the kill and green 61 s after it, and `Name two islands, one line.` was answered with no
+  operator step.
 
 ## Health and the dot
 
@@ -199,6 +208,11 @@ clock was not read, since nothing here was timed against the card.
 - **Two faults for one Redis outage.** A `PING` was refused or failed to resolve the name, which
   reads as `not answering`, or stalled for the whole second, which reads as `did not answer within
   1 s`, and the reading moved between the two during the outage. Both are accurate.
+- **With escalation on.** The same stack with `CORTEX_ESCALATION=1`, the supervisor backend and
+  the deep tier in the roster, where the cortex probe asks only between handoffs. A `kill -9` of the
+  cortex read `not answering` at 1.5 s and `still loading` from 4.3 s, until `ready` at 44.5 s,
+  while the residency report said serving. No handoff was run, so a reading dropped across one was
+  checked by the unit tests alone.
 - **An open, green dot is not polled.** With the overlay on screen and green, killing the cortex
   left the dot green until the overlay was summoned again or a turn ended, as the overlay's link
   hook is written to do.

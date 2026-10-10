@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import time
 from collections.abc import Mapping
 from dataclasses import dataclass
 from uuid import uuid4
@@ -9,6 +10,7 @@ from uuid import uuid4
 from cortex_core import ControlBounds, ModelHostState
 from cortex_model_manager.children import ChildProcess, ChildProcesses
 from cortex_model_manager.probe import HealthProbe
+from cortex_model_manager.restarts import RestartBudget, RestartPolicy
 from cortex_model_manager.spec import ModelSpec
 
 # Measured on the dev GPU: an idle llama-server exits on SIGTERM in 0.14 s to 0.40 s, while one
@@ -48,7 +50,7 @@ class ModelStatus:
 class ModelSupervisor:
     """Runs at most one child per logical model, and reports the state of each."""
 
-    def __init__(
+    def __init__(  # noqa: PLR0913 -- three bounds and a restart budget, each set per deployment
         self,
         roster: Mapping[str, ModelSpec],
         processes: ChildProcesses,
@@ -57,6 +59,7 @@ class ModelSupervisor:
         stop_grace_s: float = DEFAULT_STOP_GRACE_S,
         reap_timeout_s: float = DEFAULT_REAP_TIMEOUT_S,
         probe_timeout_s: float = DEFAULT_PROBE_TIMEOUT_S,
+        restarts: RestartBudget | None = None,
     ) -> None:
         self._roster = dict(roster)
         self._processes = processes
@@ -71,6 +74,8 @@ class ModelSupervisor:
         self._boot_id = uuid4().hex
         self._children: dict[str, ChildProcess] = {}
         self._locks = {model: asyncio.Lock() for model in self._roster}
+        self._restarts = restarts or RestartBudget(RestartPolicy(), time.monotonic)
+        self._watchers: set[asyncio.Task[None]] = set()
 
     @property
     def models(self) -> tuple[str, ...]:
@@ -83,6 +88,11 @@ class ModelSupervisor:
         return self._bounds
 
     @property
+    def restarts(self) -> RestartBudget:
+        """The budget that decides which models start again after an unrequested exit."""
+        return self._restarts
+
+    @property
     def boot_id(self) -> str:
         """Which daemon this is, as ``GET /health`` names it, for the life of this process."""
         return self._boot_id
@@ -91,19 +101,11 @@ class ModelSupervisor:
         """Begin loading ``model``; return as soon as the process exists, ready or not."""
         spec = self._spec(model)
         async with self._locks[model]:
+            self._restarts.reset(model)
             running = self._children.get(model)
             if running is not None and running.returncode is None:
                 return
-            try:
-                child = await self._processes.spawn(spec.argv)
-            except OSError as err:
-                msg = f"could not start {model!r}: {err}"
-                raise SupervisorError(msg) from err
-            self._children[model] = child
-            _logger.info(
-                "started a model process",
-                extra={"model": model, "pid": child.pid, "port": spec.port},
-            )
+            await self._spawn(model, spec)
 
     async def stop(self, model: str) -> None:
         """End ``model``'s process and do not return until it is reaped and its VRAM is free."""
@@ -143,6 +145,53 @@ class ModelSupervisor:
             except SupervisorError:
                 _logger.exception(
                     "a model process could not be stopped at shutdown", extra={"model": model}
+                )
+        watchers = tuple(self._watchers)
+        for watcher in watchers:
+            watcher.cancel()
+        await asyncio.gather(*watchers, return_exceptions=True)
+
+    async def _spawn(self, model: str, spec: ModelSpec) -> None:
+        """Start ``model``'s process under its lock, and watch it when the policy covers it."""
+        try:
+            child = await self._processes.spawn(spec.argv)
+        except OSError as err:
+            msg = f"could not start {model!r}: {err}"
+            raise SupervisorError(msg) from err
+        self._children[model] = child
+        self._restarts.started(model)
+        _logger.info(
+            "started a model process", extra={"model": model, "pid": child.pid, "port": spec.port}
+        )
+        if self._restarts.covers(model):
+            watcher = asyncio.create_task(self._restart_on_exit(model, child))
+            self._watchers.add(watcher)
+            watcher.add_done_callback(self._watchers.discard)
+
+    async def _restart_on_exit(self, model: str, child: ChildProcess) -> None:
+        """Start ``model`` again if ``child`` exits while it is still the process on record."""
+        code = await child.wait()
+        await asyncio.sleep(self._restarts.delay_s)
+        async with self._locks[model]:
+            # A stop removed the record and a start replaced it: either was asked for.
+            if self._children.get(model) is not child:
+                return
+            attempt = self._restarts.take(model)
+            if attempt is None:
+                _logger.error(
+                    "a model process keeps exiting, so it stays failed until a start is asked for",
+                    extra={"model": model, "pid": child.pid, "code": code},
+                )
+                return
+            _logger.warning(
+                "a model process exited without being asked to; starting it again",
+                extra={"model": model, "pid": child.pid, "code": code, "attempt": attempt},
+            )
+            try:
+                await self._spawn(model, self._roster[model])
+            except SupervisorError:
+                _logger.exception(
+                    "a model process could not be started again", extra={"model": model}
                 )
 
     def _spec(self, model: str) -> ModelSpec:

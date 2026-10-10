@@ -45,6 +45,16 @@ async def test_the_wiring_hands_over_every_timing_setting_it_reads(
         await client.aclose()
 
 
+async def test_the_wiring_restarts_the_boot_model_and_no_other(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("CORTEX_MODEL_FILE_BRAIN", "deep/brain.gguf")
+    supervisor, client = build_supervisor(ModelHostConfig())
+    await client.aclose()
+    assert supervisor.restarts.covers("cortex")
+    assert not supervisor.restarts.covers("brain")
+
+
 def test_main_serves_the_configured_interface_and_port_and_configures_the_root_logger(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

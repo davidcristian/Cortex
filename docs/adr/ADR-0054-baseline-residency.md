@@ -146,14 +146,29 @@ without decision 8 `Health` would answer ready while the cortex or the store is 
    | the cortex's server, 503 | the usual assistant is still loading |
    | Redis | the conversation store is not answering, so a turn cannot be saved |
    | any part, silent for 1 s | `<part> did not answer within 1 s` |
+9. **The model host starts the cortex again when its process exits unasked.** `ModelSupervisor`
+   watches each process of a model its `RestartPolicy` names, the boot model alone in
+   `server.py`, and after an exit nobody asked for waits 2 s and starts it again, at most three
+   times in a row (`restarts.py`); a run of 600 s, longer than a tier-scale load, or an explicit
+   `start` gives the count back, and a spent budget leaves the model `failed` with one `ERROR`. The
+   per-model lock orders it against a swap: a `stop` removes the record and a `start` replaces it,
+   and the restart runs only while the exited process is still the one on record, so a handoff's
+   eviction is never undone. The brain was rejected as the place: with escalation off it has no
+   control client, and with it on, a waiting start in the pass would hold shutdown for a load
+   (decision 5). An operator command was rejected because every turn fails until someone acts.
+   The deep model and the peers are not covered: a deep load that fails must read `failed` to the
+   swap that is waiting on it, and decision 4 restarts the peers.
 
 ## Consequences
 
 - A daemon replaced between handoffs is reconciled only at the next handoff or startup
   ([ADR-0053](ADR-0053-model-host-supervisor.md) decision 12); until then the pass's reads of the
   peers and the cortex are what keep the report current.
-- A cortex that dies while both containers keep running is not restarted by anything automatic;
-  restarting either container, or the runbook's manual step, brings it back.
+- A cortex that dies while both containers keep running is started again by the model host
+  (decision 9), and `Health` reads amber while it loads (decision 8). One that keeps exiting
+  stays `failed` until restarting the model host or the runbook's manual step brings it back.
+- The restart does not check what else holds the card: a deep model that survived its own stop
+  is the one state where it loads the cortex beside another tier.
 - Residency changes are split by responsibility: `residency_moves.py` (what the host is asked to
   do), `residency_restore.py` (what the swap back promises), `residency_board.py` (the resident
   model, the report, the scope flag and their lock), `residency_claim.py` (`HandoffClaim`) and

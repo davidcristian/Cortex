@@ -15,6 +15,7 @@ from cortex_model_manager.device_memory import (
     NvidiaSmiMemory,
 )
 from cortex_model_manager.probe import HealthProbe, HttpHealthProbe
+from cortex_model_manager.restarts import RestartBudget, RestartPolicy
 from cortex_model_manager.server import build_model_host, build_supervisor, main
 from cortex_model_manager.spec import ModelSpec, RosterError, build_roster
 from cortex_model_manager.supervisor import (
@@ -46,6 +47,8 @@ __all__ = [
     "ModelSupervisor",
     "NoDeviceMemory",
     "NvidiaSmiMemory",
+    "RestartBudget",
+    "RestartPolicy",
     "RosterError",
     "SupervisorError",
     "TierArgs",

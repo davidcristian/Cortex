@@ -1,9 +1,8 @@
 # Nothing starts a stopped cortex outside boot, and no operator command exists
 
-**Status:** open, actionable
+**Status:** done 2026-10-10
 **Area:** inference-model-manager
 **Origin:** [ADR-0054](../../adr/ADR-0054-baseline-residency.md)
-**Verified:** 2026-10-10
 
 The background pass
 ([residency_regain.py](../../../brain/packages/core/src/cortex_core/residency_regain.py)) detects a
@@ -95,3 +94,12 @@ deadline.
   step 2's `POST /models/cortex/start` was sent, after which the next question was answered with
   no restart ([readings](../../readings/store-and-process-restarts.md#the-cortex-process)). A
   brain restart in that state did not start it.
+- 2026-10-10: done. The model host starts the cortex again when its process exits with no stop
+  asked, after 2 s and at most three times in a row, a run of 600 s or an explicit start giving the
+  count back ([ADR-0054](../../adr/ADR-0054-baseline-residency.md) decision 9). The brain was not
+  made the starter, since with escalation off it has no control client, and no operator command was
+  added, since every turn fails until someone acts. Live with escalation off, a killed cortex read
+  `failed` 1.5 s later, a new process was loading at 2.9 s and `ready` at 44 s, `Health` was amber
+  meanwhile, and the next question was answered
+  ([readings](../../readings/store-and-process-restarts.md#the-cortex-process)). The healthcheck
+  warning seen during the load is [825](825-the-healthcheck-warns-about-a-deep-tier-the-roster-lacks.md).

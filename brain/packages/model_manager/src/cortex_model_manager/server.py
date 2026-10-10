@@ -1,6 +1,7 @@
 """``python -m cortex_model_manager``: wire the supervisor from env and serve its control API."""
 
 import logging
+import time
 
 import httpx
 import uvicorn
@@ -12,6 +13,7 @@ from cortex_model_manager.children import AsyncioChildProcesses
 from cortex_model_manager.config import ModelHostConfig
 from cortex_model_manager.device_memory import NvidiaSmiMemory
 from cortex_model_manager.probe import HttpHealthProbe
+from cortex_model_manager.restarts import RestartBudget, RestartPolicy
 from cortex_model_manager.supervisor import ModelSupervisor
 
 _logger = logging.getLogger(__name__)
@@ -27,6 +29,7 @@ def build_supervisor(config: ModelHostConfig) -> tuple[ModelSupervisor, httpx.As
         stop_grace_s=config.stop_grace_s,
         reap_timeout_s=config.reap_timeout_s,
         probe_timeout_s=config.probe_timeout_s,
+        restarts=RestartBudget(RestartPolicy(models=(config.cortex_model,)), time.monotonic),
     )
     return supervisor, client
 

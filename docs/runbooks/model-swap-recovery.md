@@ -28,8 +28,8 @@ which also says where to read why a handoff failed. What the swap costs and whet
   resident while the fresh sidecar serves the cortex. The handoff's own swap back usually settles
   it, and if that gives up the brain re-reads the machine every `CORTEX_SWAP_TIER_HEAL_S` seconds
   and publishes the cortex again the first pass that finds it serving with the deep tier off the
-  card. What still needs an operator is a cortex that is genuinely not running: start it as in
-  step 2 below, and the dot follows within the interval.
+  card. The model host starts a cortex that exits unasked again, three times in a row at most;
+  one that keeps exiting needs step 2 below, and the dot follows within the interval.
 - **Both verbs do nothing the second time, and an unknown id is a 404.** A second `start` spawned
   no second child, a second `stop` answered 200 and `stopped`, and `POST /models/ghost/start`
   answered `404 {"error":"unknown model 'ghost'; this host serves cortex, brain"}`. Nothing a

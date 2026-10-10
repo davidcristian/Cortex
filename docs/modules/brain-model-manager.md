@@ -75,17 +75,16 @@ visible GPU**, where nothing downstream can tell which card a model would load o
 
 ## The supervisor
 
-`ModelSupervisor(roster, processes, probe, *, stop_grace_s, reap_timeout_s, probe_timeout_s)` sits
-over two ports, `ChildProcesses` (`spawn(argv) -> ChildProcess`) and `HealthProbe`
+`ModelSupervisor(roster, processes, probe, *, stop_grace_s, reap_timeout_s, probe_timeout_s,
+restarts)` sits over two ports, `ChildProcesses` (`spawn(argv) -> ChildProcess`) and `HealthProbe`
 (`serving(url) -> bool`), with `AsyncioChildProcesses` and `HttpHealthProbe` as the real adapters
-and `ModelStatus(model, state, detail)` as its answer. `stop_all()` is the shutdown pass. `boot_id`
-is a `uuid4().hex` minted per daemon process, which `GET /health` publishes and nothing here reads
-back; it is random rather than counted, since a counter would restart at the number a reader
-compares against. `control_bounds` returns the `ControlBounds` it was wired with. It is given the
-probe's deadline although it spends none of it: that bound belongs to the client behind `probe`, and
-a `status` probes inside the same per-model lock a `stop` takes. The defaults are
-`DEFAULT_STOP_GRACE_S` (10 s), `DEFAULT_REAP_TIMEOUT_S` (30 s) and `DEFAULT_PROBE_TIMEOUT_S` (5 s),
-each overridable by the environment variable of the same name.
+and `ModelStatus(model, state, detail)` as its answer; `restarts` is a `RestartBudget`. `stop_all()`
+is the shutdown pass and cancels every restart watch. `boot_id` is a random `uuid4().hex` per daemon
+process, which `GET /health` publishes. `control_bounds` returns the `ControlBounds` it was wired
+with. It is given the probe's deadline although it spends none of it: that bound belongs to the
+client behind `probe`, and a `status` probes inside the same per-model lock a `stop` takes. The
+defaults are `DEFAULT_STOP_GRACE_S` (10 s), `DEFAULT_REAP_TIMEOUT_S` (30 s) and
+`DEFAULT_PROBE_TIMEOUT_S` (5 s), each overridable by the environment variable of the same name.
 
 ## The roster
 
@@ -186,9 +185,10 @@ compares the two, so retune both or neither. `RosterError` is a boot-time miscon
   can wedge when llama.cpp's loading log outruns a buffer nobody drains. No new session means a
   container the runtime tears down takes the children with it, so no `llama-server` outlives the
   container holding the GPU. Reaping needs no collector: asyncio's child watcher reaps on its own.
-- **The daemon starts the cortex at boot**, so a stack that never escalates behaves as the always-on
-  `llama-cortex` service did. A boot start that fails is logged and the API still serves, since
-  failing to come up would crash-loop under compose's restart policy and hide it.
+- **The daemon starts the cortex at boot, and again when it exits unasked.** A failed boot start is
+  logged and the API still serves, since a crash loop under compose's restart policy would hide it.
+  An unasked exit is started again after 2 s, three times in a row at most (`WARNING` per attempt,
+  `ERROR` once spent); 600 s of running or an explicit `start` resets the count (ADR-0054).
 
 ## Deployment
 
