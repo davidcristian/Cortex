@@ -13,9 +13,13 @@ brain sends each round's reasoning as fresh deltas with nothing between rounds.
 
 ## What to do
 
-Put a paragraph break between rounds, either brain side where the tool loop starts a round, or in
-`turnState.ts` when a thinking delta follows another status since the last one. The brain side
-keeps the overlay thin; check that the thinking filter's held tail is released before the break.
+Put a paragraph break between rounds, either brain side in `stream_turn_events`
+(`turn_output.py`) when reasoning follows a `ToolStep`, or in `turnState.ts` when a thinking delta
+follows another status. Either way the break meets ADR-0015 decision 4: the thinking filter reads
+the rounds as one stream, so a URL split across two rounds is redacted whole, which
+`test_url_split_across_thinking_bursts_around_a_tool_call_is_redacted` in `test_engine.py` asserts.
+A break fed through the filter ends that URL at the round, and a break added after it shows the two
+halves apart, so decide which reading the ADR keeps before building either.
 
 ## History
 
