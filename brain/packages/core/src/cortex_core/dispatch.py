@@ -13,6 +13,7 @@ from cortex_core.tool_round import MAX_CALLS_PER_ROUND
 from cortex_core.tool_salience import REPEAT_SALIENCE, SaliencePolicy
 from cortex_core.tools import (
     UNSTAMPED,
+    ConfirmAnswer,
     ConfirmationRequest,
     ToolCall,
     ToolInvocation,
@@ -21,7 +22,7 @@ from cortex_core.tools import (
     Trust,
     TurnStamp,
 )
-from cortex_core.untrusted import DENIED_MSG, USER_DECLINED_MSG
+from cortex_core.untrusted import DENIED_MSG, UNANSWERED_MSG, USER_DECLINED_MSG
 from cortex_core.waits import USER_ASKED
 
 _CONFIRM_REASON = "this action is outbound or irreversible and runs only with your approval"
@@ -134,9 +135,11 @@ class ToolDispatcher:
                     call_id=call.id, content=DENIED_MSG, is_error=True, trust=Trust.TRUSTED
                 )
                 return await self._audited(call, blocked)
-            if not await self._confirmed(call):
+            answer = await self._confirmed(call)
+            if answer is not ConfirmAnswer.APPROVED:
+                said = USER_DECLINED_MSG if answer is ConfirmAnswer.DECLINED else UNANSWERED_MSG
                 declined = ToolResult(
-                    call_id=call.id, content=USER_DECLINED_MSG, is_error=True, trust=Trust.TRUSTED
+                    call_id=call.id, content=said, is_error=True, trust=Trust.TRUSTED
                 )
                 return await self._audited(call, declined)
         try:
@@ -147,10 +150,10 @@ class ToolDispatcher:
             )
         return await self._audited(call, result)
 
-    async def _confirmed(self, call: ToolCall) -> bool:
-        """Ask the confirmer to approve the call; with no confirmer the call is refused."""
+    async def _confirmed(self, call: ToolCall) -> ConfirmAnswer:
+        """Ask the confirmer to approve the call; with no confirmer nobody can answer."""
         if self._confirmer is None:
-            return False
+            return ConfirmAnswer.UNANSWERED
         request = ConfirmationRequest(
             tool_name=call.name,
             arguments=call.arguments,

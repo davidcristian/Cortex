@@ -3,6 +3,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from cortex_core import (
+    ConfirmAnswer,
     ConfirmationRequest,
     DecodeStop,
     EchoInferenceBackend,
@@ -90,7 +91,9 @@ async def test_recording_confirmer_returns_its_fixed_answer_and_records_requests
     request = ConfirmationRequest(tool_name="send_email", arguments={"to": "x"}, reason="outbound")
     approver = RecordingConfirmer(answer=True)
     denier = RecordingConfirmer(answer=False)
-    assert await approver.confirm(request) is True
-    assert await denier.confirm(request) is False
+    assert await approver.confirm(request) is ConfirmAnswer.APPROVED
+    assert await denier.confirm(request) is ConfirmAnswer.DECLINED
     assert approver.requests == (request,)
     assert denier.requests == (request,)
+    denier.answer_nothing()
+    assert await denier.confirm(request) is ConfirmAnswer.UNANSWERED

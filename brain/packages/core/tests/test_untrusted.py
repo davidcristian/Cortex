@@ -4,6 +4,7 @@ from cortex_core import (
     DENIED_MSG,
     MAX_TURN_SOURCES,
     SECURITY_PREAMBLE,
+    UNANSWERED_MSG,
     USER_DECLINED_MSG,
     ImagePart,
     Provenance,
@@ -219,6 +220,11 @@ def test_the_two_refusals_the_model_relays_are_asserted_word_for_word() -> None:
         "address, the subject and the body) lets it run without reading anything first."
     )
     assert USER_DECLINED_MSG == (
+        "DECLINED: the user was shown this action and pressed Deny, so it was not performed and "
+        "nothing is waiting for approval. Tell the user it was not done because they declined "
+        "it. Do not retry unless they ask again."
+    )
+    assert UNANSWERED_MSG == (
         "DECLINED: this action is irreversible or outbound and the user did not approve it, so "
         "it was not performed. Relay this to the user; do not retry unless they explicitly ask "
         "again."

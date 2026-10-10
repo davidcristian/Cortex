@@ -29,7 +29,7 @@ from cortex_core import (
     RAW_RECALL_POLICY,
     SET_VOLUME_TOOL_NAME,
     SHIPPED_ROLES,
-    USER_DECLINED_MSG,
+    UNANSWERED_MSG,
     CaptureBounds,
     CharBudgetHistoryWindow,
     DispatchPolicy,
@@ -1431,7 +1431,7 @@ async def test_build_cortex_tools_defaults_to_no_confirmer_fail_closed() -> None
         confirm_required=True,
     )
     assert result.is_error is True
-    assert result.content == USER_DECLINED_MSG
+    assert result.content == UNANSWERED_MSG
 
 
 async def _reply_ok(arguments: Mapping[str, object]) -> str:
@@ -1474,7 +1474,7 @@ async def test_build_subagent_tools_confirm_names_are_the_fail_closed_default() 
         confirm_required=False,
     )
     assert result.is_error is True
-    assert result.content == USER_DECLINED_MSG
+    assert result.content == UNANSWERED_MSG
 
 
 def test_the_configured_tool_prices_reach_both_tool_loop_dispatchers() -> None:

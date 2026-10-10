@@ -18,7 +18,14 @@ from cortex_core.inference import (
 )
 from cortex_core.progress import ProgressEvent
 from cortex_core.subagents import SubagentResult, SubagentTask
-from cortex_core.tools import ConfirmationRequest, ToolCall, ToolInvocation, ToolResult, ToolSpec
+from cortex_core.tools import (
+    ConfirmAnswer,
+    ConfirmationRequest,
+    ToolCall,
+    ToolInvocation,
+    ToolResult,
+    ToolSpec,
+)
 from cortex_core.waits import TurnWaits, Wait, WaitHold
 
 
@@ -126,18 +133,26 @@ class RecordingAuditSink:
         return tuple(self._records)
 
 
+def _answer_for(*, approved: bool) -> ConfirmAnswer:
+    return ConfirmAnswer.APPROVED if approved else ConfirmAnswer.DECLINED
+
+
 class RecordingConfirmer:
     """Confirmer that records each request and returns a fixed answer."""
 
     def __init__(self, *, answer: bool) -> None:
-        self._answer = answer
+        self._answer = _answer_for(approved=answer)
         self._requests: list[ConfirmationRequest] = []
 
     def answer_with(self, *, approved: bool) -> None:
         """Answer every later ask with ``approved``: the person changing their mind."""
-        self._answer = approved
+        self._answer = _answer_for(approved=approved)
 
-    async def confirm(self, request: ConfirmationRequest) -> bool:
+    def answer_nothing(self) -> None:
+        """Leave every later ask unanswered, as a card that timed out does."""
+        self._answer = ConfirmAnswer.UNANSWERED
+
+    async def confirm(self, request: ConfirmationRequest) -> ConfirmAnswer:
         """Record the request and return the fixed answer."""
         self._requests.append(request)
         return self._answer

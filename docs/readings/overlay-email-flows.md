@@ -120,6 +120,7 @@ were written before the first run.
 | D1 | declined or unanswered | 5 of 5 | 3 of 5 | not sent because it "requires your approval" | 0.59, then 0.62 |
 | B1 | names what to write | 5 of 5 | 5 of 5 | | 0.64 |
 | D1b | Deny named | 5 of 5 | 5 of 5 | | 0.58, then 0.60 |
+| D1 | Deny named, the confirmer's answer typed | 5 of 5 | 5 of 5 | | 0.59, then 0.63 |
 
 The shipped `DENIED_MSG` gave the true reason and a next step that fails. The new one says that
 asking again in the same words is blocked again and that a message giving the recipient's address,
@@ -127,9 +128,9 @@ subject and body runs; every B1 reply then asked for those three, and two of the
 address, subject and drafted body for the person to send back. It ships. The declined text that
 stays true for a timeout and a missing confirmer ("they declined it, or the request for approval
 closed unanswered") passed 3 of 5, so it does not ship. D1b passed 5 of 5, every reply saying the
-person declined, which is the case for a confirmer that tells a pressed Deny apart from a request
-nobody answered
-([R-828](../refinements/tasks/828-the-replies-around-a-refused-send-misstate-what-to-do-next.md)).
+person declined. The confirmer now answers approved, declined or unanswered, so a pressed Deny
+returns the D1b text and a timeout, a closed stream or a missing confirmer keeps the shipped one;
+D1 then passed 5 of 5.
 Each row ran in the brain container through the same gRPC client, the clock read with `nvidia-smi`
 around each row.
 

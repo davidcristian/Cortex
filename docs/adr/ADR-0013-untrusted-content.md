@@ -84,12 +84,12 @@ lives in `ToolDispatcher.dispatch`, because a denied call must still be audited 
 is the single audit authority. The rule is [ADR-0022](ADR-0022-email-write-confirmer.md) decision
 2: such a call on a tainted turn is blocked with `DENIED_MSG` and the confirmer is never consulted,
 because a card showing injection-authored arguments is no boundary; on an untainted turn it runs
-only with the user's approval, and a decline or an unreachable confirmer returns
-`USER_DECLINED_MSG`. Every block returns without invoking the tool.
+only with the user's approval: a pressed Deny returns `USER_DECLINED_MSG`, and a request nobody
+answered returns `UNANSWERED_MSG`. Every block returns without invoking the tool.
 
-`Confirmer.confirm(request: ConfirmationRequest) -> bool` (`cortex_core/ports_tools.py`) is
-fail-closed: `confirmer=None` denies every such call. The human authorizes, never the model. The
-fake is `RecordingConfirmer(answer=bool)`, which also records what the user was shown; the real
+`Confirmer.confirm(request: ConfirmationRequest) -> ConfirmAnswer` (`ports_tools.py`) is
+fail-closed: only `APPROVED` runs, and `confirmer=None` is `UNANSWERED`. The human authorizes. The
+fake is `RecordingConfirmer(answer=bool)` with `answer_nothing()`, recording what was shown; the real
 adapter is ADR-0022's `RpcConfirmer`, whose exchange travels on the `Converse` stream to the
 overlay.
 

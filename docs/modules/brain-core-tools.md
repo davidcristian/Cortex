@@ -35,9 +35,9 @@ spawned subtask or a model swap is in [brain-core-residency.md](brain-core-resid
   `InMemoryToolRegistry`; real adapter: `cortex_tools`.
 - `ToolAuditSink` provides `record(invocation)`: every dispatched call is written here, success or
   failure. Fake: `RecordingAuditSink`.
-- `Confirmer` provides `confirm(request) -> bool` (ADR-0013) over a
-  `ConfirmationRequest(tool_name, arguments, reason)`: the user's decision, never the model's, and
-  a missing confirmer denies. Real adapter: `RpcConfirmer` (ADR-0022).
+- `Confirmer` provides `confirm(request) -> ConfirmAnswer` (ADR-0013: `APPROVED`, `DECLINED` or
+  `UNANSWERED`) over a `ConfirmationRequest(tool_name, arguments, reason)`: the user's decision,
+  never the model's, and a missing confirmer is `UNANSWERED`. Real adapter: `RpcConfirmer` (ADR-0022).
 - `ProgressSink` (`progress.py`, ADR-0010 decision 13) is the side channel for progress a
   suspended turn cannot yield itself. `emit(event)` sends a `ToolActivity` or `StatusUpdate`, best
   effort. `hold(wait, *, announce=True)` records what the turn waits on, innermost first, in the
@@ -61,7 +61,7 @@ dispatcher is stateless; the loop drives it and keeps the history.
   rule, so a flood of confirmable calls cannot reach the user as prompts.
 - The confirmation rule (ADR-0013, revised by ADR-0022): a `confirm_required` call on a tainted turn is
   refused outright with `DENIED_MSG` and the confirmer is not consulted; on an untainted turn it
-  runs only when the `Confirmer` approves, else `USER_DECLINED_MSG`. Both refusals skip the tool
+  runs only when the `Confirmer` approves, else `USER_DECLINED_MSG` or `UNANSWERED_MSG`. All skip the tool
   and are audited.
 
 `DispatchPolicy(confirm_names=(), costs=UNIFORM_COST, salience=REPEAT_SALIENCE, confirm_reasons={})`

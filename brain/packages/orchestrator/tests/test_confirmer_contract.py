@@ -20,7 +20,7 @@ def _recording() -> ConfirmerUnderTest:
         confirmer=confirmer,
         will_approve=lambda: confirmer.answer_with(approved=True),
         will_refuse=lambda: confirmer.answer_with(approved=False),
-        will_say_nothing=lambda: confirmer.answer_with(approved=False),
+        will_say_nothing=confirmer.answer_nothing,
         shown=lambda: confirmer.requests,
     )
 

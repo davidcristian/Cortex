@@ -152,7 +152,7 @@ the decisions are ADR-0013, ADR-0019 and ADR-0027.
   source the turn started with. A ledger is rebuilt each turn and never persisted.
 - `DENIED_MSG` is the error content for a tool call that needs confirmation and was made on a
   tainted turn, which is refused outright and never offered to the user (ADR-0022).
-  `USER_DECLINED_MSG` is the content for one the user declined, or that no confirmer answered.
+  `USER_DECLINED_MSG` is the content for a pressed Deny, `UNANSWERED_MSG` for a request nobody answered.
 
 ## Time
 

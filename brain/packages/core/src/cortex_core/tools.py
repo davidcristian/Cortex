@@ -104,6 +104,14 @@ class ToolInvocation:
             raise ValueError(msg)
 
 
+class ConfirmAnswer(Enum):
+    """How a confirmation ended; only ``APPROVED`` runs the call."""
+
+    APPROVED = "approved"
+    DECLINED = "declined"
+    UNANSWERED = "unanswered"
+
+
 @dataclass(frozen=True, slots=True)
 class ConfirmationRequest:
     """A request for out-of-band user confirmation of a tool call."""

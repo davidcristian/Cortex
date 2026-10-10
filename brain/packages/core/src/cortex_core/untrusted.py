@@ -55,6 +55,12 @@ DENIED_MSG = (
 )
 
 USER_DECLINED_MSG = (
+    "DECLINED: the user was shown this action and pressed Deny, so it was not performed and "
+    "nothing is waiting for approval. Tell the user it was not done because they declined it. "
+    "Do not retry unless they ask again."
+)
+
+UNANSWERED_MSG = (
     "DECLINED: this action is irreversible or outbound and the user did not approve it, so it "
     "was not performed. Relay this to the user; do not retry unless they explicitly ask again."
 )

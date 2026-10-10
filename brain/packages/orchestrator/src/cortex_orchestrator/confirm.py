@@ -6,7 +6,7 @@ import logging
 import uuid
 from collections.abc import Callable
 
-from cortex_core import ConfirmationRequest
+from cortex_core import ConfirmAnswer, ConfirmationRequest
 from cortex_seam import ConfirmRequest as ConfirmRequestPb
 from cortex_seam import ConfirmResolved as ConfirmResolvedPb
 from cortex_seam import ServerEvent
@@ -23,15 +23,15 @@ class RpcConfirmer:
     def __init__(self, emit: Callable[[ServerEvent], None], *, timeout_s: float) -> None:
         self._emit = emit
         self._timeout_s = timeout_s
-        self._pending: dict[str, asyncio.Future[bool]] = {}
+        self._pending: dict[str, asyncio.Future[ConfirmAnswer]] = {}
         self._closed = False
 
-    async def confirm(self, request: ConfirmationRequest) -> bool:
-        """Ask the user to approve ``request``; only an explicit, timely approval is True."""
+    async def confirm(self, request: ConfirmationRequest) -> ConfirmAnswer:
+        """Ask the user to approve ``request``; only an explicit, timely approval is APPROVED."""
         if self._closed:
-            return False
+            return ConfirmAnswer.UNANSWERED
         confirm_id = uuid.uuid4().hex
-        future: asyncio.Future[bool] = asyncio.get_running_loop().create_future()
+        future: asyncio.Future[ConfirmAnswer] = asyncio.get_running_loop().create_future()
         self._pending[confirm_id] = future
         try:
             self._emit(
@@ -55,7 +55,7 @@ class RpcConfirmer:
             # Told before the turn resumes, so the card closes ahead of the model's declined
             # reply instead of staying clickable behind it.
             self._resolved(confirm_id, OUTCOME_TIMEOUT)
-            return False
+            return ConfirmAnswer.UNANSWERED
         finally:
             # Runs on an answer, a timeout and a cancellation alike: once deregistered, a late
             # answer is a stale id and resolves nothing.
@@ -67,7 +67,7 @@ class RpcConfirmer:
         if future is None or future.done():
             _logger.debug("ignoring stale or unknown confirm id", extra={"id": confirm_id})
             return
-        future.set_result(approved)
+        future.set_result(ConfirmAnswer.APPROVED if approved else ConfirmAnswer.DECLINED)
 
     def close(self) -> None:
         """Deny everything pending and every future ask."""
@@ -75,7 +75,7 @@ class RpcConfirmer:
         for confirm_id, future in self._pending.items():
             if not future.done():
                 self._resolved(confirm_id, OUTCOME_UNAVAILABLE)
-                future.set_result(False)
+                future.set_result(ConfirmAnswer.UNANSWERED)
 
     def _resolved(self, confirm_id: str, outcome: str) -> None:
         """Report an ending the client cannot see, so it can close the card."""

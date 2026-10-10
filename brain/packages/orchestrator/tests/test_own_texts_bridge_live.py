@@ -12,6 +12,7 @@ import pytest
 from cortex_core import (
     DENIED_MSG,
     USER_DECLINED_MSG,
+    ConfirmAnswer,
     ConfirmationRequest,
     TaintLedger,
     ToolCall,
@@ -192,9 +193,9 @@ class _Declining:
     def __init__(self) -> None:
         self.asked: list[ConfirmationRequest] = []
 
-    async def confirm(self, request: ConfirmationRequest) -> bool:
+    async def confirm(self, request: ConfirmationRequest) -> ConfirmAnswer:
         self.asked.append(request)
-        return False
+        return ConfirmAnswer.DECLINED
 
 
 class _Clock:

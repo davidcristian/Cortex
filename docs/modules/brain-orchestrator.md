@@ -114,8 +114,8 @@ One stream's machinery lives in `converse_stream.py`, which `converse.py` re-exp
   `brain_stopping` when a turn was in flight, logging its ids, or ends the stream with no error.
 - `RpcConfirmer(emit, *, timeout_s)` (`confirm.py`, ADR-0022) mints a `confirm_id`, emits
   `ServerEvent.confirm_request` on the stream's control path (`put_nowait`, so a stalled consumer
-  cannot deadlock the ask) and awaits the matching `ConfirmResponse`. Timeout, client half-close
-  and cancellation all deny, and unknown or repeated ids resolve nothing. The first two denials
+  cannot deadlock the ask) and awaits the matching `ConfirmResponse`. Timeout and client half-close
+  answer `UNANSWERED`, a cancellation approves nothing, and unknown or repeated ids resolve nothing. Both
   also emit `ServerEvent.confirm_resolved`, so the overlay can close a card it can no longer
   answer. Nothing is persisted, and `tests/confirmer_contract.py` holds the five checks every
   `Confirmer` owes, driven over this adapter and the core's `RecordingConfirmer`.

@@ -3,7 +3,7 @@
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
 
-from cortex_core import ConfirmationRequest, Confirmer
+from cortex_core import ConfirmAnswer, ConfirmationRequest, Confirmer
 
 _SEND = ConfirmationRequest(
     tool_name="send_email",
@@ -32,19 +32,19 @@ type Check = Callable[[ConfirmerUnderTest], Awaitable[None]]
 async def an_explicit_approval_is_the_only_true(under_test: ConfirmerUnderTest) -> None:
     """A yes from the person allows the call, and it is the only thing that does."""
     under_test.will_approve()
-    assert await under_test.confirmer.confirm(_SEND) is True
+    assert await under_test.confirmer.confirm(_SEND) is ConfirmAnswer.APPROVED
 
 
 async def an_explicit_refusal_blocks_the_call(under_test: ConfirmerUnderTest) -> None:
     """A refusal is returned rather than raised, so the turn continues and the tool does not."""
     under_test.will_refuse()
-    assert await under_test.confirmer.confirm(_SEND) is False
+    assert await under_test.confirmer.confirm(_SEND) is ConfirmAnswer.DECLINED
 
 
 async def a_person_who_never_answers_denies(under_test: ConfirmerUnderTest) -> None:
-    """A person who never answers is read as a refusal, which is the fail-closed half."""
+    """A person who never answers blocks the call as unanswered, never as their own refusal."""
     under_test.will_say_nothing()
-    assert await under_test.confirmer.confirm(_SEND) is False
+    assert await under_test.confirmer.confirm(_SEND) is ConfirmAnswer.UNANSWERED
 
 
 async def the_person_is_shown_the_call_that_would_run(under_test: ConfirmerUnderTest) -> None:
@@ -57,9 +57,9 @@ async def the_person_is_shown_the_call_that_would_run(under_test: ConfirmerUnder
 async def each_ask_is_answered_on_its_own(under_test: ConfirmerUnderTest) -> None:
     """One answer settles one ask, and never the next one."""
     under_test.will_approve()
-    assert await under_test.confirmer.confirm(_SEND) is True
+    assert await under_test.confirmer.confirm(_SEND) is ConfirmAnswer.APPROVED
     under_test.will_refuse()
-    assert await under_test.confirmer.confirm(_WRITE) is False
+    assert await under_test.confirmer.confirm(_WRITE) is ConfirmAnswer.DECLINED
     assert list(under_test.shown()) == [_SEND, _WRITE]
 
 

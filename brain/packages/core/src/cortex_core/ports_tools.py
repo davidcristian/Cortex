@@ -3,7 +3,14 @@
 from collections.abc import Sequence
 from typing import Protocol
 
-from cortex_core.tools import ConfirmationRequest, ToolCall, ToolInvocation, ToolResult, ToolSpec
+from cortex_core.tools import (
+    ConfirmAnswer,
+    ConfirmationRequest,
+    ToolCall,
+    ToolInvocation,
+    ToolResult,
+    ToolSpec,
+)
 
 __all__ = [
     "Confirmer",
@@ -29,4 +36,4 @@ class ToolAuditSink(Protocol):
 class Confirmer(Protocol):
     """Asks the user, out of band, to confirm a tool call that needs confirmation."""
 
-    async def confirm(self, request: ConfirmationRequest) -> bool: ...
+    async def confirm(self, request: ConfirmationRequest) -> ConfirmAnswer: ...

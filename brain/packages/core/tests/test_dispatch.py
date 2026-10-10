@@ -6,6 +6,7 @@ from cortex_core import (
     BUDGET_EXHAUSTED_MSG,
     DENIED_MSG,
     REDUNDANT_MSG,
+    UNANSWERED_MSG,
     USER_DECLINED_MSG,
     DispatchPolicy,
     DispatchRefusal,
@@ -175,7 +176,22 @@ async def test_confirm_required_tool_on_a_clean_turn_is_declined_without_a_confi
         stamp=TurnStamp(tainted=False),
         confirm_required=True,
     )
-    assert result.content == USER_DECLINED_MSG
+    assert result.content == UNANSWERED_MSG
+
+
+async def test_a_confirmation_nobody_answers_is_not_called_the_user_s_decline() -> None:
+    confirmer = RecordingConfirmer(answer=True)
+    confirmer.answer_nothing()
+    sink = RecordingAuditSink()
+    result = await _outbound(sink, confirmer).dispatch(
+        ToolCall(id="c", name="send", arguments={"path": "/p"}),
+        stamp=TurnStamp(tainted=False),
+        confirm_required=True,
+    )
+    assert (result.is_error, result.content) == (True, UNANSWERED_MSG)
+    assert confirmer.requests != ()
+    (record,) = sink.records
+    assert (record.ok, record.detail) == (False, UNANSWERED_MSG)
 
 
 async def test_confirm_free_tool_on_a_tainted_turn_runs_without_confirmation() -> None:

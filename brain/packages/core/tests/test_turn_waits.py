@@ -9,6 +9,7 @@ from cortex_core import (
     TOOL_RUNNING,
     USER_ASKED,
     CompositeToolRegistry,
+    ConfirmAnswer,
     ConfirmationRequest,
     GenerationBounds,
     InferenceEvent,
@@ -144,10 +145,10 @@ class WitnessingConfirmer:
         self._sink = sink
         self.seen: list[Wait | None] = []
 
-    async def confirm(self, request: ConfirmationRequest) -> bool:
+    async def confirm(self, request: ConfirmationRequest) -> ConfirmAnswer:
         del request
         self.seen.append(self._sink.waits.current())
-        return True
+        return ConfirmAnswer.APPROVED
 
 
 async def test_a_confirmation_is_the_innermost_wait_of_its_tool_call() -> None:

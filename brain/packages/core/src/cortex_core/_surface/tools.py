@@ -49,6 +49,7 @@ from cortex_core.tool_salience import (
 )
 from cortex_core.tools import (
     UNSTAMPED,
+    ConfirmAnswer,
     ConfirmationRequest,
     ToolCall,
     ToolInvocation,
@@ -90,6 +91,7 @@ __all__ = [
     "CaptureBounds",
     "CaptureScreenTool",
     "CompositeToolRegistry",
+    "ConfirmAnswer",
     "ConfirmFreeToolRegistry",
     "ConfirmRequiredToolRegistry",
     "ConfirmationRequest",

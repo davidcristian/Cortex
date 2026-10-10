@@ -66,9 +66,9 @@ the rest of the turn. Taint is turn-local, but the same request asked again read
 `DENIED_MSG` asks for a message giving the address, subject and body, which sends because it reads
 nothing first. A caller's own refusal (a spent budget, a recognized repeat) returns before this rule.
 
-A block returns one of two `is_error` results, audited, the tool never invoked: `DENIED_MSG` for
-the tainted block, and `USER_DECLINED_MSG` for an explicit or defaulted denial, so the model can
-tell "the user said no" (pass it on, do not retry) from "this turn is tainted" (explain the block).
+A block returns an audited `is_error` result, the tool never invoked: `DENIED_MSG` for the tainted
+block, `USER_DECLINED_MSG` for a pressed Deny and `UNANSWERED_MSG` for a timeout, a closed stream or
+no confirmer, so the model tells "the user said no" from "nobody answered" and "this turn is tainted".
 The card's reason is `_CONFIRM_REASON` ("this action is outbound or irreversible and runs only with
 your approval") unless the policy names a per-tool reason
 ([ADR-0030](ADR-0030-brain-handoff.md) decision 1).
@@ -85,9 +85,9 @@ the request on the stream's **control path** (`put_nowait`, no data credit, like
 `SeamError`): the turn task is suspended inside `dispatch`, so waiting for a credit could deadlock
 against a stalled consumer, and at most one confirmation is outstanding per stream. It then awaits
 the future under `CORTEX_SEAM_CONFIRM_TIMEOUT_S` (default 120 s, limited so an unattended overlay
-cannot hang a turn). A timeout denies; a cancellation propagates; a stale or unknown `confirm_id`
-is logged and ignored, so a late approval approves nothing; and a client half-close denies a
-pending confirm at once. No confirmation state exists outside the awaiting coroutine.
+cannot hang a turn). A timeout is `UNANSWERED`; a cancellation propagates; a stale or unknown
+`confirm_id` is logged and ignored, so a late approval approves nothing; and a client half-close
+answers a pending confirm `UNANSWERED` at once. No confirmation state exists outside the awaiting coroutine.
 
 ### 4. The send tool: an SMTP twin in `cortex_email`, off by default, declared at the root
 

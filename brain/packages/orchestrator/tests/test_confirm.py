@@ -1,7 +1,7 @@
 import asyncio
 from datetime import UTC, datetime
 
-from cortex_core import ConfirmationRequest
+from cortex_core import ConfirmAnswer, ConfirmationRequest
 from cortex_orchestrator import RpcConfirmer
 from cortex_orchestrator.confirm import OUTCOME_TIMEOUT, OUTCOME_UNAVAILABLE
 from cortex_seam import ServerEvent
@@ -45,19 +45,19 @@ async def test_approval_resolves_true_and_the_request_contains_the_draft() -> No
     assert request.arguments_json == '{"to": "user@example.com", "subject": "hi"}'
     assert request.reason == "needs your approval"
     confirmer.resolve(confirm_id, approved=True)
-    assert await ask is True
+    assert await ask is ConfirmAnswer.APPROVED
 
 
 async def test_denial_resolves_false() -> None:
     confirmer, emitted = _collecting_confirmer()
     ask = asyncio.ensure_future(confirmer.confirm(_REQUEST))
     confirmer.resolve(await _emitted_id(emitted), approved=False)
-    assert await ask is False
+    assert await ask is ConfirmAnswer.DECLINED
 
 
 async def test_timeout_denies_and_tells_the_overlay_the_card_is_dead() -> None:
     confirmer, emitted = _collecting_confirmer(timeout_s=0.01)
-    assert await confirmer.confirm(_REQUEST) is False
+    assert await confirmer.confirm(_REQUEST) is ConfirmAnswer.UNANSWERED
     assert len(emitted) == 2
     assert _resolutions(emitted) == [(emitted[0].confirm_request.confirm_id, OUTCOME_TIMEOUT)]
 
@@ -68,7 +68,7 @@ async def test_an_unknown_confirm_id_is_ignored() -> None:
     confirm_id = await _emitted_id(emitted)
     confirmer.resolve("not-a-real-id", approved=True)
     confirmer.resolve(confirm_id, approved=False)
-    assert await ask is False
+    assert await ask is ConfirmAnswer.DECLINED
 
 
 async def test_a_second_answer_to_the_same_request_is_ignored() -> None:
@@ -77,7 +77,7 @@ async def test_a_second_answer_to_the_same_request_is_ignored() -> None:
     confirm_id = await _emitted_id(emitted)
     confirmer.resolve(confirm_id, approved=False)
     confirmer.resolve(confirm_id, approved=True)
-    assert await ask is False
+    assert await ask is ConfirmAnswer.DECLINED
 
 
 async def test_close_denies_the_pending_request_and_every_later_ask() -> None:
@@ -85,9 +85,9 @@ async def test_close_denies_the_pending_request_and_every_later_ask() -> None:
     ask = asyncio.ensure_future(confirmer.confirm(_REQUEST))
     confirm_id = await _emitted_id(emitted)
     confirmer.close()
-    assert await ask is False
+    assert await ask is ConfirmAnswer.UNANSWERED
     assert _resolutions(emitted) == [(confirm_id, OUTCOME_UNAVAILABLE)]
-    assert await confirmer.confirm(_REQUEST) is False
+    assert await confirmer.confirm(_REQUEST) is ConfirmAnswer.UNANSWERED
     assert len(emitted) == 2
 
 
@@ -95,7 +95,7 @@ async def test_close_is_idempotent_over_an_answered_request() -> None:
     confirmer, emitted = _collecting_confirmer()
     ask = asyncio.ensure_future(confirmer.confirm(_REQUEST))
     confirmer.resolve(await _emitted_id(emitted), approved=True)
-    assert await ask is True
+    assert await ask is ConfirmAnswer.APPROVED
     confirmer.close()
     confirmer.close()
     assert _resolutions(emitted) == []
@@ -106,7 +106,7 @@ async def test_close_skips_a_future_already_resolved_but_not_yet_collected() -> 
     ask = asyncio.ensure_future(confirmer.confirm(_REQUEST))
     confirmer.resolve(await _emitted_id(emitted), approved=True)
     confirmer.close()
-    assert await ask is True
+    assert await ask is ConfirmAnswer.APPROVED
 
 
 async def test_an_undumpable_argument_is_stringified_never_a_crash() -> None:
@@ -118,7 +118,7 @@ async def test_an_undumpable_argument_is_stringified_never_a_crash() -> None:
     confirm_id = await _emitted_id(emitted)
     assert "2026-07-12" in emitted[0].confirm_request.arguments_json
     confirmer.resolve(confirm_id, approved=False)
-    assert await ask is False
+    assert await ask is ConfirmAnswer.DECLINED
 
 
 async def test_cancellation_deregisters_the_pending_request() -> None:
@@ -136,5 +136,5 @@ async def test_an_answered_request_is_never_resolved_on_the_wire() -> None:
     confirmer, emitted = _collecting_confirmer()
     ask = asyncio.ensure_future(confirmer.confirm(_REQUEST))
     confirmer.resolve(await _emitted_id(emitted), approved=True)
-    assert await ask is True
+    assert await ask is ConfirmAnswer.APPROVED
     assert _resolutions(emitted) == []
