@@ -4,7 +4,7 @@ import json
 from datetime import datetime
 from typing import cast
 
-from cortex_core import Message, Role, SessionStoreError
+from cortex_core import Message, Role, SessionStoreError, ToolRun
 from cortex_core.sessions import HistoryRecap
 
 # A record written before these markers existed has neither key, and decodes as this pair.
@@ -29,16 +29,34 @@ def recap_key(session_id: str) -> str:
 
 
 def encode_message(message: Message) -> str:
-    return json.dumps(
-        {
-            "v": RECORD_VERSION,
-            "kind": RECORD_KIND,
-            "role": message.role.value,
-            "text": message.text,
-            "at": message.at.isoformat(),
-            "turn_id": message.turn_id,
-        }
-    )
+    fields: dict[str, object] = {
+        "v": RECORD_VERSION,
+        "kind": RECORD_KIND,
+        "role": message.role.value,
+        "text": message.text,
+        "at": message.at.isoformat(),
+        "turn_id": message.turn_id,
+    }
+    # Optional, so a reader that predates it ignores it as an unknown key.
+    if message.runs:
+        fields["runs"] = [{"name": run.name, "ok": run.ok} for run in message.runs]
+    return json.dumps(fields)
+
+
+def _decode_runs(raw: object) -> tuple[ToolRun, ...]:
+    """The runs a reply records; a missing key is none, and any other shape raises ``TypeError``."""
+    if not isinstance(raw, list):
+        raise TypeError
+    runs: list[ToolRun] = []
+    for entry in cast("list[object]", raw):
+        if not isinstance(entry, dict):
+            raise TypeError
+        fields = cast("dict[str, object]", entry)
+        name, ok = fields["name"], fields["ok"]
+        if not isinstance(name, str) or not isinstance(ok, bool):
+            raise TypeError
+        runs.append(ToolRun(name=name, ok=ok))
+    return tuple(runs)
 
 
 def refuse_images(message: Message) -> None:
@@ -88,6 +106,7 @@ def decode_message(raw: bytes | str, index: int) -> Message:
             text=fields["text"],
             at=datetime.fromisoformat(fields["at"]),
             turn_id=fields["turn_id"],
+            runs=_decode_runs(fields.get("runs", [])),
         )
     # AttributeError: a JSON document that is not an object has no .get.
     except (AttributeError, KeyError, TypeError, ValueError) as err:

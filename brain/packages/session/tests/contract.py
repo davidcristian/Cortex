@@ -5,7 +5,15 @@ from uuid import uuid4
 
 import pytest
 
-from cortex_core import ImagePart, Message, Role, SessionStore, SessionStoreError, ToolCall
+from cortex_core import (
+    ImagePart,
+    Message,
+    Role,
+    SessionStore,
+    SessionStoreError,
+    ToolCall,
+    ToolRun,
+)
 from cortex_core.sessions import HistoryRecap
 
 _AT = datetime(2026, 7, 3, 12, 0, 0, tzinfo=UTC)
@@ -79,6 +87,18 @@ async def check_roundtrip_fidelity(store: SessionStore) -> None:
     # Equality between aware datetimes compares instants, so the offset is asserted on its own:
     # a store that quietly converted to UTC would otherwise pass this check.
     assert loaded.at.utcoffset() == timedelta(hours=5, minutes=30)
+
+
+async def check_a_reply_keeps_the_tool_runs_of_its_turn(store: SessionStore) -> None:
+    """The tools a reply records, names and outcomes in order, come back with it."""
+    session_id = _session_id()
+    runs = (ToolRun("send_email", ok=True), ToolRun("read_email", ok=False))
+    reply = Message(role=Role.ASSISTANT, text="sent", at=_AT, turn_id="t-1", runs=runs)
+    await store.append(session_id, make_message(Role.USER, "send it"))
+    await store.append(session_id, reply)
+    _user, loaded = await store.history(session_id)
+    assert loaded == reply
+    assert loaded.runs == runs
 
 
 async def check_list_sessions_orders_and_summarizes(store: SessionStore) -> None:
@@ -282,6 +302,7 @@ ALL_CHECKS = (
     check_append_stores_an_equal_message_once,
     check_multi_session_isolation,
     check_roundtrip_fidelity,
+    check_a_reply_keeps_the_tool_runs_of_its_turn,
     check_list_sessions_orders_and_summarizes,
     check_set_title_overrides_the_first_message,
     check_delete_removes_the_session,

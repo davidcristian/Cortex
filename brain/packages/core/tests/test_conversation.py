@@ -3,7 +3,7 @@ from datetime import UTC, datetime, timedelta, timezone, tzinfo
 
 import pytest
 
-from cortex_core import ImagePart, Message, Role, ToolCall
+from cortex_core import ImagePart, Message, Role, ToolCall, ToolRun
 
 _AT = datetime(2026, 7, 3, 12, 0, 0, tzinfo=UTC)
 
@@ -94,3 +94,15 @@ def test_no_role_but_tool_or_user_may_have_images(role: Role) -> None:
 
 def test_an_image_free_persistable_message_is_untouched() -> None:
     assert Message(role=Role.USER, text="hi", at=_AT, turn_id="t1").images == ()
+
+
+def test_a_reply_may_record_the_tool_runs_of_its_turn() -> None:
+    run = ToolRun("send_email", ok=True)
+    reply = Message(role=Role.ASSISTANT, text="sent", at=_AT, turn_id="t", runs=(run,))
+    assert reply.runs == (run,)
+
+
+@pytest.mark.parametrize("role", [Role.USER, Role.SYSTEM, Role.TOOL])
+def test_no_role_but_the_assistant_may_record_tool_runs(role: Role) -> None:
+    with pytest.raises(ValueError, match=f"a {role.value} message may not record tool runs"):
+        Message(role=role, text="x", at=_AT, turn_id="t", runs=(ToolRun("read", ok=True),))

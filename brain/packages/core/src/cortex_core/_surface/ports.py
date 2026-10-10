@@ -14,7 +14,7 @@ from cortex_core.body import (
     hold_to_the_bounds_asked_for,
 )
 from cortex_core.body_failure import body_failure_message
-from cortex_core.conversation import Message, Role, new_turn_id
+from cortex_core.conversation import Message, Role, ToolRun, new_turn_id
 from cortex_core.errors import (
     BodyFailure,
     BodyGatewayError,
@@ -181,6 +181,7 @@ __all__ = [
     "ToolNotFoundError",
     "ToolOutcome",
     "ToolRegistry",
+    "ToolRun",
     "TurnCompleted",
     "TurnEvent",
     "TurnRunner",

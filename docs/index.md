@@ -99,6 +99,7 @@ format is in [adr/README.md](adr/README.md). A new non-obvious decision becomes
 | [ADR-0071: Leading system messages a template cannot take](adr/ADR-0071-leading-system-messages.md) | The core keeps the preamble, memory and recap as separate system messages; the llama.cpp adapter asks the leased server's template on each request and joins them into one only where it cannot render every one. |
 | [ADR-0072: Subagent roles name the form of a delegated reply](adr/ADR-0072-subagent-roles.md) | A spawn item may name a role, a pure core value whose one sentence tells the subagent what form its reply takes; the runner resolves it beside the roster and never passes it there, so no role changes which model runs. |
 | [ADR-0073: A Wayland window capture through the ScreenCast portal](adr/ADR-0073-wayland-window-capture.md) | On Wayland a focus capture reads the window the user chose once in the portal's chooser, opened only while the overlay is hidden, through a fresh session per capture and a restore token kept in the body's memory; `gst-launch-1.0` reads the frame, and body core reports it as one window of a display never read. |
+| [ADR-0074: A reply keeps its turn's tool runs, and later turns replay them as calls](adr/ADR-0074-replayed-tool-runs.md) | A stored reply keeps each tool call's name and outcome, never its arguments or result, and a later turn's context replays them as calls with a fixed outcome text, so the model does not claim an action it never called. |
 
 ## Contracts
 

@@ -21,6 +21,7 @@ from cortex_core.routing import RoutingHints, Tier, route_turn
 from cortex_core.session_title import build_title_messages, generate_title
 from cortex_core.stops import StopLedger
 from cortex_core.tool_loop import ToolLoopContext, stream_tool_loop
+from cortex_core.tool_replay import RunLog
 from cortex_core.turn_context import TurnCapabilities, assemble_inference_messages
 from cortex_core.turn_output import (
     cap_note,
@@ -116,9 +117,10 @@ class TurnEngine:
         loop = stream_tool_loop(self._backend, model, working, context)
         events = stream_turn_events(loop, channels, parts)
         overflowed = False
+        log = RunLog()
         try:
             async for event in events:
-                yield event
+                yield log.note(event)
         except (MalformedToolCallError, ContextOverflowError) as err:
             overflowed = isinstance(err, ContextOverflowError)
             _logger.warning(
@@ -141,7 +143,11 @@ class TurnEngine:
                 yield event
         full_text = "".join(parts)
         assistant = Message(
-            role=Role.ASSISTANT, text=full_text, at=self._clock.now(), turn_id=turn_id
+            role=Role.ASSISTANT,
+            text=full_text,
+            at=self._clock.now(),
+            turn_id=turn_id,
+            runs=log.runs,
         )
         await self._store.append(session_id, assistant)
         await record_exchange(self._caps, taint, session_id=session_id, query=text, reply=full_text)

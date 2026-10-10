@@ -31,7 +31,8 @@ tz-aware `datetime` collapses to that instant without loss.
 
 `GetSessionMessages` is `SessionStore.history(session_id)` mapped to the wire. The persisted
 history holds only the `USER` and `ASSISTANT` dialogue, since `SYSTEM` and `TOOL` messages are
-per-turn and never stored (`cortex_core/conversation.py`). Listing sessions by recency is the one
+per-turn and never stored (`cortex_core/conversation.py`); the tool runs a reply records
+([ADR-0074](ADR-0074-replayed-tool-runs.md)) are not sent. Listing sessions by recency is the one
 new capability, so the port gains `async list_sessions(*, limit) -> Sequence[SessionSummary]`, most
 recently active first. `SessionSummary` is a frozen pure-core value in `cortex_core/sessions.py`,
 its `last_activity` a tz-aware `datetime`.
@@ -93,11 +94,10 @@ The hook makes one attempt per mount, and a failed history load leaves the fresh
 A summary is derived from a chat's first and last messages, so `list_sessions` reads those and
 nothing between: per listed session `LRANGE key 0 0`, `LRANGE key -1 -1`, `LLEN key` and
 `GET :title`, all queued into one transactional pipeline. A listing is two round trips (the
-indexes, then the ends) and two decoded records per chat. The previous whole-history read decoded
-every record to use two of them; on 20 chats of 200 messages the limited read was about 21 times
-faster against the same containerized Redis. The `LLEN` gives the tail record its true index, so a
-corrupt last record is named by its real position, and it runs in the same transaction so the
-length and the record describe one snapshot.
+indexes, then the ends) and two decoded records per chat; on 20 chats of 200 messages it was about
+21 times faster than decoding whole histories, against the same containerized Redis. The `LLEN`
+gives the tail record its true index, so a corrupt last record is named by its real position, and
+it runs in the same transaction so the length and the record describe one snapshot.
 
 A corrupt record between the ends does not take the chat list down, while `history` still fails
 visibly on it, so a turn's context is never silently truncated. A corrupt record at either end

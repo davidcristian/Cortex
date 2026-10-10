@@ -4,7 +4,7 @@ import logging
 from collections.abc import AsyncGenerator, Sequence
 
 from cortex_core.cadence import NO_CADENCE_TERMS, CadenceReading, CadenceTerms, CadenceWatch
-from cortex_core.conversation import Message, Role
+from cortex_core.conversation import Message, Role, ToolRun
 from cortex_core.errors import ContextOverflowError, InferenceError, MalformedToolCallError
 from cortex_core.events import TextDelta, TurnEvent
 from cortex_core.handoff import HandoffRecord
@@ -15,6 +15,7 @@ from cortex_core.stops import StopLedger
 from cortex_core.swap_notes import BRAIN_FAILED_NOTE, BRAIN_OVERFLOW_NOTE, WORKING_DETAIL
 from cortex_core.tool_budget import DispatchBudget
 from cortex_core.tool_loop import ToolLoopContext, stream_tool_loop
+from cortex_core.tool_replay import RunLog
 from cortex_core.turn_context import TurnCapabilities, assemble_inference_messages
 from cortex_core.turn_output import (
     cap_note,
@@ -104,9 +105,10 @@ class BrainPhase:
         events = stream_turn_events(
             stream_tool_loop(self._backend, self._model, working, context), channels, parts
         )
+        log = RunLog()
         try:
             async for event in events:
-                yield event
+                yield log.note(event)
         # ``MalformedToolCallError`` subclasses ``InferenceError``, so it is caught first.
         except MalformedToolCallError:
             _logger.warning(
@@ -139,7 +141,8 @@ class BrainPhase:
             for event in cap_note(stops, parts):
                 yield event
         self._report_cadence(watch.reading(), record)
-        await self._persist(record, query=query, reply="".join(parts), taint=taint)
+        reply = "".join(parts)
+        await self._persist(record, query=query, reply=reply, taint=taint, runs=log.runs)
         if failure is not None:
             raise failure
 
@@ -177,11 +180,21 @@ class BrainPhase:
             self._cadence.sink.note_pace(spilled=reading.below_floor)
 
     async def _persist(
-        self, record: HandoffRecord, *, query: str, reply: str, taint: TaintLedger
+        self,
+        record: HandoffRecord,
+        *,
+        query: str,
+        reply: str,
+        taint: TaintLedger,
+        runs: tuple[ToolRun, ...],
     ) -> None:
         """Append the deep model's reply and record the exchange under the turn's taint policy."""
         message = Message(
-            role=Role.ASSISTANT, text=reply, at=self._clock.now(), turn_id=record.handoff_id
+            role=Role.ASSISTANT,
+            text=reply,
+            at=self._clock.now(),
+            turn_id=record.handoff_id,
+            runs=runs,
         )
         await self._store.append(record.session_id, message)
         await record_exchange(

@@ -32,10 +32,9 @@ closes it. `RedisSessionStore.probe()` is a `RedisPing`, one `PING` on that clie
   older than the window still appears (ADR-0021 decision 12). The second reads only what a summary
   needs from each listed session, `LRANGE 0 0`, `LRANGE -1 -1`, `LLEN` and `GET :title`, batched
   into one transactional pipeline; the core's `summarize_ends` derives each `SessionSummary` and
-  `merge_hoisted` orders the union. The cost is two round trips and two decoded records per chat
-  whatever the chat's length (ADR-0021 decision 7). A stale index entry is skipped, and so is a
-  corrupt record between the two ends, which a listing never reads. A corrupt record at either end
-  fails the listing, and `history` fails on any corrupt record.
+  `merge_hoisted` orders the union, decoding two records per chat whatever its length (ADR-0021
+  decision 7). A stale index entry is skipped, and so is a corrupt record between the two ends,
+  which a listing never reads. A corrupt record at either end fails the listing; `history` fails on any.
 - `set_title(session_id, title)` `SET`s a plain string at `cortex:session:{id}:title`, which
   `list_sessions` prefers over the first-message derivation (ADR-0021 decision 9). A later call
   overwrites it and `""` clears the override at read. It is the one write behind both the
@@ -143,9 +142,10 @@ preference costs no change in this package.
 
 One Redis list per session at `cortex:session:{session_id}:messages`, one JSON object per message:
 `{"v": 1, "kind": "message", "role", "text", "at", "turn_id"}`, with `at` an ISO-8601 string
-including its UTC offset, preserved rather than normalized to UTC. `v` and `kind` are how a stored
-format evolves. The sorted set `cortex:sessions` is the recency index: `append` `ZADD`s the session
-id scored by the message's `at`, so the score is the last activity. The plain set
+including its UTC offset, preserved rather than normalized to UTC. A reply with tool runs adds
+`"runs": [{"name", "ok"}]` (ADR-0074), which an older reader ignores. `v` and `kind` are how a
+stored format evolves. The sorted set `cortex:sessions` is the recency index: `append` `ZADD`s the
+session id scored by the message's `at`, so the score is the last activity. The plain set
 `cortex:sessions:hoisted` holds the hoisted session ids. The two-ended listing read and its
 measurement are in [task 175](../refinements/tasks/175-bounded-end-reads.md).
 

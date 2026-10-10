@@ -44,6 +44,7 @@ from cortex_core import (
     ToolCall,
     ToolDispatcher,
     ToolResult,
+    ToolRun,
     ToolSpec,
     Trust,
     TurnCapabilities,
@@ -285,6 +286,18 @@ async def test_the_deep_phases_dispatches_are_audited_under_the_turn_that_escala
     (invocation,) = audit.records
     assert (invocation.session_id, invocation.turn_id) == (harness.SESSION, harness.TURN)
     assert invocation.task_id == ""
+
+
+async def test_the_deep_phases_reply_records_the_tool_runs_it_made() -> None:
+    dispatcher = ToolDispatcher(_registry(), RecordingAuditSink(), SystemClock())
+    backend = ScriptedBrainBackend(
+        chunks=("done",), tool_calls=(ToolCall(id="c1", name="read", arguments={}),)
+    )
+    _phase, _backend, sessions, _deltas = await _drive(
+        capabilities=TurnCapabilities(tools=dispatcher), backend=backend
+    )
+    reply = (await sessions.history(harness.SESSION))[-1]
+    assert (reply.role, reply.runs) == (Role.ASSISTANT, (ToolRun("read", ok=True),))
 
 
 async def test_the_query_is_recovered_from_the_store_for_recall_and_memory() -> None:

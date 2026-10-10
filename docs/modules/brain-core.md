@@ -35,9 +35,7 @@ area files under `cortex_core._surface` (`ports`, `turn`, `tools`, `subagents`, 
 `schedule`, `residency`, `logs`, `fakes`), each importing its area's names from the modules that
 define them and listing them in its own `__all__`; `cortex_core/__init__.py` re-exports all nine.
 Nothing outside the package imports `_surface`. A new public name is added to the area file it
-belongs to, which is where the 300-line limit applies, and picking the area is the only judgement
-it needs. [ADR-0064](../adr/ADR-0064-core-public-surface.md) explains why the single flat list ran
-out of room.
+belongs to, where the 300-line limit applies ([ADR-0064](../adr/ADR-0064-core-public-surface.md)).
 
 ## Conversation types
 
@@ -48,13 +46,15 @@ out of room.
 - `Role` is an enum: `USER`, `ASSISTANT`, `SYSTEM`, `TOOL`. `SYSTEM` messages are built by the
   engine for one turn (recalled memories, the security preamble) and `TOOL` messages are tool
   results fed back to the model. Only `USER` and `ASSISTANT` messages are persisted.
-- `Message(role, text, at, turn_id, tool_calls=(), tool_call_id=None, images=())` is one message,
-  frozen. A naive `at` raises `ValueError`, because externalized state needs its timezone.
-  `turn_id` ties a user message to the reply it produced. Images are rejected on `ASSISTANT` and
-  `SYSTEM` with `ValueError`: pixels belong to one turn, on the tool result or the user attachment
-  they arrived with, and the llama.cpp adapter builds a content-parts array only for those. The
-  stores still refuse every image, so a user message keeps them only on the turn's working copy
-  (ADR-0029, ADR-0070).
+- `Message(role, text, at, turn_id, tool_calls=(), tool_call_id=None, images=(), runs=())` is one
+  message, frozen. A naive `at` raises `ValueError`, because externalized state needs its timezone.
+  `turn_id` ties a user message to the reply it produced. `runs`, a tuple of `ToolRun(name, ok)`
+  allowed only on `ASSISTANT`, are the tool calls the reply's turn ran, which later turns replay as
+  calls (`tool_replay.py`, ADR-0074). Images are rejected on `ASSISTANT` and `SYSTEM` with
+  `ValueError`: pixels belong to one turn, on the tool result or the user attachment they arrived
+  with, and the llama.cpp adapter builds a content-parts array only for those. The stores still
+  refuse every image, so a user message keeps them only on the turn's working copy (ADR-0029,
+  ADR-0070).
 - `new_turn_id() -> str` returns a new turn id (a uuid4 string). What an id looks like belongs to
   the domain; when one is made belongs to whoever schedules the turn, which is the orchestrator's
   `Converse` stream (ADR-0046 decision 9). A `TurnRunner` is given the id it serves.

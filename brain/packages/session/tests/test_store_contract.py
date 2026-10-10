@@ -9,7 +9,14 @@ from fakeredis import FakeAsyncRedis, FakeServer
 from redis import exceptions as redis_exceptions
 from redis.asyncio import Redis
 
-from cortex_core import InMemorySessionStore, Role, SessionStore, SessionStoreError
+from cortex_core import (
+    InMemorySessionStore,
+    Message,
+    Role,
+    SessionStore,
+    SessionStoreError,
+    ToolRun,
+)
 from cortex_core.sessions import TITLE_MAX, HistoryRecap
 from cortex_session import DEFAULT_REDIS_URL, RedisSessionStore, StoreRetry
 
@@ -263,6 +270,44 @@ async def test_unknown_extra_keys_are_ignored_for_forward_compatibility() -> Non
     assert loaded.role is Role.USER
     assert loaded.text == "hi"
     assert loaded.turn_id == "t-1"
+
+
+async def test_a_record_without_runs_is_written_without_the_key() -> None:
+    client = FakeAsyncRedis(server=FakeServer())
+    await RedisSessionStore(client).append("s", contract.make_message(Role.ASSISTANT, "hi"))
+    (raw,) = await client.lrange("cortex:session:s:messages", 0, -1)
+    assert "runs" not in json.loads(raw)
+
+
+async def test_a_record_with_runs_writes_each_name_and_outcome() -> None:
+    client = FakeAsyncRedis(server=FakeServer())
+    reply = Message(
+        role=Role.ASSISTANT,
+        text="sent",
+        at=datetime(2026, 10, 10, tzinfo=UTC),
+        turn_id="t-1",
+        runs=(ToolRun("send_email", ok=True),),
+    )
+    await RedisSessionStore(client).append("s", reply)
+    (raw,) = await client.lrange("cortex:session:s:messages", 0, -1)
+    assert json.loads(raw)["runs"] == [{"name": "send_email", "ok": True}]
+
+
+@pytest.mark.parametrize(
+    "runs",
+    [
+        "send_email",
+        ["send_email"],
+        [{"name": "send_email"}],
+        [{"name": 3, "ok": True}],
+        [{"name": "send_email", "ok": "yes"}],
+    ],
+)
+async def test_a_record_whose_runs_are_malformed_is_corrupt(runs: object) -> None:
+    client = FakeAsyncRedis(server=FakeServer())
+    await client.rpush("cortex:session:s:messages", _record(role="assistant", runs=runs))
+    with pytest.raises(SessionStoreError, match="corrupt session record at index 0"):
+        await RedisSessionStore(client).history("s")
 
 
 async def test_pre_versioning_records_decode_as_v1_messages() -> None:

@@ -29,6 +29,14 @@ _IMAGE_BEARING_ROLES = frozenset({Role.TOOL, Role.USER})
 
 
 @dataclass(frozen=True, slots=True)
+class ToolRun:
+    """One tool call a turn ran: the advertised tool's name and whether it succeeded."""
+
+    name: str
+    ok: bool
+
+
+@dataclass(frozen=True, slots=True)
 class Message:
     """One immutable entry in a session's history."""
 
@@ -39,6 +47,7 @@ class Message:
     tool_calls: tuple[ToolCall, ...] = ()
     tool_call_id: str | None = None
     images: tuple[ImagePart, ...] = ()
+    runs: tuple[ToolRun, ...] = ()
 
     def __post_init__(self) -> None:
         if self.at.tzinfo is None or self.at.tzinfo.utcoffset(self.at) is None:
@@ -49,4 +58,7 @@ class Message:
                 f"a {self.role.value} message may not have images: pixels are turn-local and "
                 "stay with the tool result or user message they arrived on"
             )
+            raise ValueError(msg)
+        if self.runs and self.role is not Role.ASSISTANT:
+            msg = f"a {self.role.value} message may not record tool runs: only a reply does"
             raise ValueError(msg)

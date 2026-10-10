@@ -39,9 +39,9 @@ before it was closed off.
    inference step, then each emitted call is dispatched through `ToolDispatcher`, the assistant
    message with its `tool_calls` and one `Role.TOOL` result per call id are fed back, and the model
    is asked again, until it answers in text. `MAX_TOOL_STEPS` (8) limits the rounds. The loop's
-   working messages stay in the turn: the session store keeps the user turn and the final answer,
-   and an escalating turn passes its tool steps in the handoff record
-   ([ADR-0030](ADR-0030-brain-handoff.md)).
+   working messages stay in the turn: the session store keeps the user turn and the final answer
+   with each call's tool name and outcome ([ADR-0074](ADR-0074-replayed-tool-runs.md)), and an
+   escalating turn passes its tool steps in the handoff record ([ADR-0030](ADR-0030-brain-handoff.md)).
 
 ### MCP adapter and sidecars
 

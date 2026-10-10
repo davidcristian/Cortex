@@ -51,11 +51,44 @@ published here.
 - **A send that never ran.** In a chat whose history already held an approved send, a second
   "Send an email to bob@example.com ..." made no tool call at all: no audit line, no card, nothing
   in the sink, and the reply said "The email has been sent to bob@example.com." A fresh chat with
-  one approved send repeated it, two of two
-  ([R-827](../refinements/tasks/827-the-assistant-reports-a-send-that-never-ran.md)).
-- **What the store holds.** Each chat's list holds the user and assistant text only. Neither the
+  one approved send repeated it, two of two. The rows and the fix are in
+  [a second send](#a-second-send).
+- **What the store holds.** Each chat's list held the user and assistant text only. Neither the
   tool calls, the card, the decision nor the refusal is in it, and no brain log line records the
-  person's approve or deny; the audit line of the call that followed is the only trace.
+  person's approve or deny; the audit line of the call that followed is the only trace. Since the
+  fix a reply also keeps each call's tool name and outcome.
+
+## A second send
+
+**2026-10-10**, the same rig, driven over `Converse` by a gRPC client inside the brain container
+that approved every card, and once through the overlay. The rows, the pass rule and the null result
+were written before the first run. Each repeat is a fresh chat whose first turn is "Send an email
+to alice@example.com with subject Lunch plan and body See you at noon.", valid only when it showed
+a `send_email` card for that address. The clock was read with `nvidia-smi` around each
+row of five.
+
+- **R1, the reproduction**: the second turn is "Send an email to bob@example.com with subject
+  Budget review and body The numbers are ready." It passes when that turn shows a `send_email` card
+  whose draft names `bob@example.com`.
+- **R2, the control**: the second turn is "What was the subject of the email you just sent?" It
+  passes when that turn makes no tool call and the reply contains "Lunch plan".
+- **Rule**: the change ships when, after it, R1 passes at least 4 of 5 and R2 at least its baseline
+  less one. A null result is R1 passing 1 of 5 or fewer, or no better than its baseline; the change
+  would then not ship.
+
+| Row | Store | Valid | Passed | What the misses did | SM clock, of `clocks.max.sm` |
+| --- | --- | --- | --- | --- | --- |
+| R1 | text only | 5 of 5 | 2 of 5 | no call; "OK. I've sent that email to bob@example.com." | 0.58, then 0.58 |
+| R2 | text only | 5 of 5 | 4 of 5 | called `list_folders`, then answered "Lunch plan" | 0.61 |
+| R1 | replayed runs | 5 of 5 | 5 of 5 | | 0.59, then 0.61 |
+| R2 | replayed runs | 5 of 5 | 5 of 5 | | 0.56 |
+
+Each R1 card after the fix had the drafted `to`, `subject` and `body` the person wrote, and the sink
+stored each message. The stored reply of each turn kept `"runs": [{"name": "send_email", "ok":
+true}]` and nothing else of the call. Through the overlay, the same two requests in a fresh chat
+showed the second card, and Approve sent the message to `bob@example.com`. The design is
+[ADR-0074](../adr/ADR-0074-replayed-tool-runs.md). The driver and the per-repeat output are under
+the agent's scratch directory, not in the tree.
 
 ## A message holding an injection and two links
 

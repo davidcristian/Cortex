@@ -19,6 +19,7 @@ from cortex_core.recall import MemoryRecaller
 from cortex_core.recall_budget import fit_recalled
 from cortex_core.sighted import VisionProbe
 from cortex_core.tool_loop import ToolLoopContext
+from cortex_core.tool_replay import replay_runs
 from cortex_core.untrusted import (
     TaintLedger,
     plain_security_preamble_message,
@@ -80,7 +81,7 @@ async def assemble_inference_messages(
     context: ToolLoopContext,
     clock: Clock,
 ) -> Sequence[Message]:
-    """History, windowed when configured, prefixed with the system context a turn needs."""
+    """History, windowed when configured, with its tool runs replayed, after the system context."""
     if caps.window is not None:
         history = await caps.window.select(
             history, session_id=context.session_id, progress=caps.progress
@@ -96,7 +97,7 @@ async def assemble_inference_messages(
     )
     if memory is not None:
         prefix.append(memory)
-    return [*prefix, *history]
+    return [*prefix, *replay_runs(history)]
 
 
 async def _recalled_context(
