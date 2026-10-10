@@ -101,11 +101,11 @@ caret goes and what the overlay announces is
     (`scrollHeight > clientHeight` of a `rows={1}` field at `height: auto`), so it depends on the
     text alone and cannot oscillate; the cost is a band of a few characters where the pill rests
     stacked with one line. The pill transitions named properties, never `all`.
-18. **The log holds its tail across the pill's growth.** `Composer` calls `onResize` when the pill's
-    height changes and `ChatView` scrolls to the tail if the reader was there; a callback rather
-    than a `ResizeObserver` on the log, so a Thoughts roll still leaves `scrollTop` alone. The
-    measurement fixes the pill's `min-height` while it runs, or the engine clamps `scrollTop` to the
-    shorter reading.
+18. **The log holds its tail when its box changes size.** `Composer` calls `onResize` when the pill
+    changes height and fixes its `min-height` while it measures, or the engine clamps `scrollTop` to
+    the shorter reading. A `ResizeObserver` on the box covers the panel's placement, which shortens it
+    with no scroll event. Either goes to the tail if the reader was there. The observer watches the
+    box, not its content, and skips a roll in the column, so a Thoughts roll leaves `scrollTop` alone.
 19. **When the column runs out, the draft's window pays, not the panel's edge.** The stacked pill's
     `min-height` is `--pill-floor` (84px: one row of field plus the button's row), the stacked field
     is `flex: 0 1 auto`, and the history is `flex: 1 100000 auto`, a weight that means "shrink

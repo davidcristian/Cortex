@@ -225,10 +225,10 @@ heartbeats included (`DEFAULT_TURN_HEARTBEAT_GAP_MS = 120000`), so a dead brain 
   may grow along the other axis. A container holding text it did not author breaks long tokens
   instead (`overflow-wrap: anywhere`), and `whisper/front.ts` chunks a run of non-whitespace longer
   than 24 letters, a whispered reply's word boxes being `white-space: pre` (ADR-0037 decision 6).
-- `.history` sets `overflow-anchor: none`, Chromium's scroll anchoring being a third decider of a
-  number `overlay/useLogScroll.ts` and `overlay/logRoll.ts` own; a new box of rolling content needs
-  it too. The log stops following a reply only on a scroll event that finds the box moved off its
-  end, because content growing under a box nobody moved fires a scroll event as well.
+- `.history` sets `overflow-anchor: none`, so scroll anchoring does not also decide a number that
+  `overlay/useLogScroll.ts` and `overlay/logRoll.ts` own; new rolling content needs it too. Following
+  stops only on a scroll event that finds the box moved off its end, since content growing under an
+  unmoved box fires one too. A box that changes size goes back to the end, except during a roll.
 - A theme change crosses the whole surface together. `applyTheme` sets `data-swapping` on the root
   for `THEME_SWAP_MS`, and `[data-swapping] *` puts one transition on everything for that window.
   The attribute goes on before the tokens, a transition starting from the after-change style, and

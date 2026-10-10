@@ -121,9 +121,17 @@ in the runs after it, which a poll of the frames found, so the 5 s drain cut the
 - **Hidden and shown while a reply streamed.** The summon chord hid the panel 6 s into a 500-word
   essay and showed it 3 s later, before the fix: the log stayed on its end and no scroll event
   cleared the flag. The 2026-10-07 path, an `Enter` typed into the hidden window, was not run.
-- **A fresh shell.** Each of six starts of the shell opened the restored chat one to three messages
-  short of its end, with the flag still set; that is a separate defect
-  ([R-824](../refinements/tasks/824-a-chat-restored-in-a-fresh-shell-opens-short-of-its-end.md)).
+- **A fresh shell, before.** Each of six starts of the shell opened the restored chat one to three
+  messages short of its end, with the flag still set. Three more starts, with a page build that also
+  drew each size change of the box, showed the same sequence each time. The hidden window lays the
+  log out 10 px tall and 20 px wide, and the follow calls put it on its end. The summon gives the
+  window its 640 by 720 size, and the box is 477 px tall and still on its end. Then the panel places
+  its own height: the view goes from 632 px to 545 px and the box from 477 px to 390 px, with
+  `scrollTop` unmoved, which leaves 87 px of the log under the composer. No scroll event and no
+  follow call came after it.
+- **A fresh shell, after.** `useLogScroll` observes its box and follows a change in its size while
+  no roll runs in the column. In four starts the observer's follow call moved the box 87 px and the
+  last message stood above the composer. The switcher opened and shut on that log left it on its end.
 
 ## The cortex process
 

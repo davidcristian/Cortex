@@ -2,6 +2,7 @@ import { fireEvent, render } from "@testing-library/react";
 import { useRef } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { resized } from "../test-setup";
 import { MORPH_START_EVENT } from "./morph";
 import { type LogScroll, useLogScroll } from "./useLogScroll";
 
@@ -123,12 +124,19 @@ describe("useLogScroll and the rolls it hears", () => {
 });
 
 /** The chat's log alone, handing its controls out so a test can follow a reply the way it does. */
-function Follower({ onLog }: { readonly onLog: (log: LogScroll) => void }) {
+function Follower({
+  onLog,
+  rolling = false,
+}: {
+  readonly onLog: (log: LogScroll) => void;
+  readonly rolling?: boolean;
+}) {
   const column = useRef<HTMLDivElement>(null);
   const log = useLogScroll(true, column);
   onLog(log);
   return (
     <div ref={column}>
+      {rolling ? <div className="switcher collapse" data-morphing="220" /> : null}
       <div className="history" ref={log.ref} onScroll={log.onScroll} />
     </div>
   );
@@ -136,22 +144,23 @@ function Follower({ onLog }: { readonly onLog: (log: LogScroll) => void }) {
 
 /** Give the box an engine's geometry: a box 100px tall whose scroll position is clamped to its
  *  content, as a browser clamps it. */
-function follower(): { log: LogScroll; el: HTMLDivElement; content: { height: number } } {
+function follower(rolling = false) {
   let log!: LogScroll;
-  const view = render(<Follower onLog={(next) => (log = next)} />);
+  const view = render(<Follower onLog={(next) => (log = next)} rolling={rolling} />);
   const el = view.container.querySelector(".history") as HTMLDivElement;
   const content = { height: 500 };
+  const box = { height: 100 };
   let top = 0;
   Object.defineProperty(el, "scrollHeight", { configurable: true, get: () => content.height });
-  Object.defineProperty(el, "clientHeight", { configurable: true, value: 100 });
+  Object.defineProperty(el, "clientHeight", { configurable: true, get: () => box.height });
   Object.defineProperty(el, "scrollTop", {
     configurable: true,
     get: () => top,
     set: (value: number) => {
-      top = Math.max(0, Math.min(value, content.height - 100));
+      top = Math.max(0, Math.min(value, content.height - box.height));
     },
   });
-  return { log, el, content };
+  return { log, el, content, box, view };
 }
 
 describe("useLogScroll and the scroll events nobody made", () => {
@@ -187,5 +196,46 @@ describe("useLogScroll and the scroll events nobody made", () => {
     fireEvent.scroll(el);
     log.toTail();
     expect(el.scrollTop).toBe(945);
+  });
+});
+
+describe("useLogScroll and a box that changes size under the reader", () => {
+  it("follows to the end when the panel makes the box shorter with no scroll event", () => {
+    const { log, el, box } = follower();
+    log.toTail();
+    box.height = 13;
+    expect(resized(el)).toBe(1);
+    expect(el.scrollTop).toBe(487);
+  });
+
+  it("leaves a reader who scrolled up where they are", () => {
+    const { log, el, box } = follower();
+    log.toTail();
+    el.scrollTop = 100;
+    fireEvent.scroll(el);
+    box.height = 13;
+    resized(el);
+    expect(el.scrollTop).toBe(100);
+  });
+
+  it("leaves the box to a roll running in its column, and follows once the roll is over", () => {
+    const { log, el, box, view } = follower(true);
+    log.toTail();
+    box.height = 13;
+    resized(el);
+    expect(el.scrollTop).toBe(400);
+    view.container.querySelector(".switcher")?.removeAttribute("data-morphing");
+    resized(el);
+    expect(el.scrollTop).toBe(487);
+  });
+
+  it("follows with no column to look for a roll in, and stops watching when the log goes", () => {
+    const view = render(<Orphan />);
+    const el = view.container.querySelector(".history") as HTMLDivElement;
+    Object.defineProperty(el, "scrollHeight", { configurable: true, value: 300 });
+    resized(el);
+    expect(el.scrollTop).toBe(300);
+    view.unmount();
+    expect(resized(el)).toBe(0);
   });
 });

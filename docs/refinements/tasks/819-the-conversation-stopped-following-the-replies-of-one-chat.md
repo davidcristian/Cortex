@@ -43,4 +43,4 @@ or sets the flag again when a new turn starts.
   ([readings](../../readings/store-and-process-restarts.md#following-a-reply-cut-by-a-restart)).
   The hidden-window path of 2026-10-07 was not run again; that a scroll event held back while the
   window was hidden fired after the show with the box unmoved, which the same rule covers, is an
-  assumption. A fresh shell opening a chat short of its end is a separate defect, R-824.
+  assumption.

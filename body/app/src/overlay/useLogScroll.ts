@@ -5,7 +5,7 @@
 import { type RefObject, useCallback, useEffect, useLayoutEffect, useRef } from "react";
 
 import { holdTail } from "./logRoll";
-import { MORPH_START_EVENT } from "./morph";
+import { MORPHING_ATTRIBUTE, MORPH_START_EVENT } from "./morph";
 
 /** How close to the bottom (px) still counts as "reading the tail". Two things use it: the
  *  auto-scroll follows a reply for a reader inside it, and a section rolling open inside the log
@@ -67,6 +67,19 @@ export function useLogScroll(showing: boolean, columnRef: RefObject<HTMLElement 
       toTail();
     }
   }, [showing, toTail]);
+
+  // The box changes size with nothing scrolling it: on a fresh start the panel places its height
+  // after the window takes its size, the log gets shorter and no scroll event fires.
+  useEffect(() => {
+    const observer = new ResizeObserver(() => {
+      // A roll's frames belong to `logRoll.ts`, which may be holding the reader off the end.
+      if (columnRef.current?.querySelector(`[${MORPHING_ATTRIBUTE}]`) == null) {
+        toTail();
+      }
+    });
+    observer.observe(ref.current);
+    return () => observer.disconnect();
+  }, [columnRef, toTail]);
 
   // Subscribed on the column rather than on the box, because half the rolls that shrink this log
   // happen outside it: the switcher list and the reminder stack are siblings, so their bubbling
