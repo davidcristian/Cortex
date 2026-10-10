@@ -68,22 +68,41 @@ def split(search_text: str, line: str) -> tuple[str, str, int]:
     return best
 
 
-def line_runs(search_text: str, text: str, found: re.Pattern[str]) -> list[LineRun] | None:
-    """Every line tied for the most of ``search_text`` on it, once ``found`` is blanked out."""
-    if "\n" in search_text:
-        return None
+def _windows(text: str, span: int) -> list[tuple[int, str]]:
+    """Each run of ``span`` consecutive lines of ``text``, with the offset it starts at."""
+    lines = text.split("\n")
+    starts = [0]
+    for line in lines:
+        starts.append(starts[-1] + len(line) + 1)
+    return [(starts[at], "\n".join(lines[at : at + span])) for at in range(len(lines) - span + 1)]
+
+
+def _placed(text: str, opening: str, closing: str, stop: int) -> LineRun:
+    """A run ending at ``stop``, named on the line where its runs stop matching."""
+    gap = stop if opening else stop - len(closing)
+    opened = text.rfind("\n", 0, gap) + 1
+    ends = text.find("\n", gap)
+    words = text[opened : len(text) if ends < 0 else ends]
+    return LineRun(line_of(text, gap), opening, closing, stop - opened, stop, words)
+
+
+def _blanked(match: re.Match[str]) -> str:
+    """A found occurrence with every character but its line breaks blanked out."""
+    return "".join(character if character == "\n" else BLANK for character in match.group())
+
+
+def line_runs(search_text: str, text: str, found: re.Pattern[str]) -> list[LineRun]:
+    """Every place tied for the most of ``search_text``, read over as many lines as it spans."""
+    read = found.sub(_blanked, text)
     best: list[LineRun] = []
-    offset = 0
-    for number, words in enumerate(text.split("\n"), start=1):
-        read = found.sub(lambda match: BLANK * len(match.group()), words)
-        opening, closing, column = split(search_text, read)
-        run = LineRun(number, opening, closing, column, offset + column, words)
-        offset += len(words) + 1
+    for offset, words in _windows(read, search_text.count("\n") + 1):
+        opening, closing, column = split(search_text, words)
+        run = _placed(text, opening, closing, offset + column)
         if not best or run.length > best[0].length:
             best = [run]
-        elif run.length == best[0].length:
+        elif run.length == best[0].length and all(each.stop != run.stop for each in best):
             best.append(run)
-    if 2 * best[0].length < len(search_text):
+    if not best or 2 * best[0].length < len(search_text):
         return []
     return best
 
@@ -125,6 +144,4 @@ def counted(text: str, matches: list[re.Match[str]]) -> str:
 def short(search_text: str, text: str, found: re.Pattern[str]) -> str:
     """What a count that came up short says about the rest of the file, if anything."""
     runs = line_runs(search_text, text, found)
-    if runs is None:
-        return ""
     return f"; outside those, the file is {said(runs, search_text, None)}"

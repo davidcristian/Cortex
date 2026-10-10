@@ -82,8 +82,28 @@ def test_a_line_is_named_only_when_it_contains_at_least_half(text: str, *, named
     assert bool(_runs("abcdef", text)) is named
 
 
-def test_a_search_text_holding_a_newline_has_no_line_to_be_read_on() -> None:
-    assert _runs("ab\ncd", "ab\ncX\n") is None
+def test_a_search_text_holding_a_newline_is_read_over_the_lines_it_spans() -> None:
+    (run,) = _runs("ab\ncd", "zz\nab\ncX\n") or []
+    assert (run.number, run.opening, run.column, run.stop, run.words) == (3, "ab\nc", 1, 7, "cX")
+
+
+def test_a_run_two_windows_both_hold_is_named_once() -> None:
+    (run,) = _runs("a\nbcdef", "q\nZbcdefZ\nq\n") or []
+    assert (run.number, run.closing) == (2, "bcdef")
+
+
+def test_a_closing_run_over_two_lines_is_named_on_the_line_it_starts_on() -> None:
+    (run,) = _runs("ab\ncd", "zz\nXb\ncd\n") or []
+    assert (run.number, run.closing, run.words) == (2, "b\ncd", "Xb")
+
+
+def test_a_text_with_fewer_lines_than_the_search_text_names_none() -> None:
+    assert _runs("a\nb\nc", "a\nb") == []
+
+
+def test_a_found_occurrence_keeps_its_line_breaks_when_blanked() -> None:
+    (run,) = _runs("ab\n", "ab\nab") or []
+    assert (run.number, run.opening) == (2, "ab")
 
 
 def test_a_found_occurrence_is_blanked_before_its_line_is_read() -> None:
@@ -146,8 +166,11 @@ def test_a_count_names_the_lines_it_found(text: str, expected: str) -> None:
     assert linereadings.counted(text, matches) == expected
 
 
-def test_a_short_count_over_a_search_text_holding_a_newline_says_nothing_more() -> None:
-    assert linereadings.short("ab\ncd", "ab\ncd\nab\ncX\n", bounded("ab\ncd")) == ""
+def test_a_short_count_over_a_search_text_holding_a_newline_is_read_over_what_is_left() -> None:
+    assert linereadings.short("ab\ncd", "ab\ncd\nab\ncX\n", bounded("ab\ncd")) == (
+        "; outside those, the file is with the most of it on line 4, 4 of its 5 characters "
+        "(its opening 'ab\\nc'), where it reads 'cX'"
+    )
 
 
 _RPC = crosscheck.Constant(

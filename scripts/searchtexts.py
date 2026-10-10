@@ -4,7 +4,7 @@ import re
 from typing import NamedTuple
 
 from couplings import PLACEHOLDER, Mention
-from linereadings import LineRun, line_of, line_runs, quote, said
+from linereadings import line_of, line_runs, quote, said
 
 WORD_CHARACTER = re.compile(r"\w")
 
@@ -44,19 +44,6 @@ def bounded(search_text: str) -> re.Pattern[str]:
     return re.compile(f"{lead}{re.escape(search_text)}{trail}")
 
 
-def longest_prefix(search_text: str, text: str) -> str:
-    """The longest opening run of ``search_text`` that ``text`` contains, which may be all of it."""
-    length = 0
-    while length < len(search_text) and search_text[: length + 1] in text:
-        length += 1
-    return search_text[:length]
-
-
-def anchors(text: str, run: str) -> list[int]:
-    """Every offset where ``text`` stops matching ``run``, and none at all when it matches none."""
-    return [found.end() for found in re.finditer(re.escape(run), text)] if run else []
-
-
 def nearest(ends: list[int], matches: list[re.Match[str]]) -> tuple[re.Match[str], int | None]:
     """The closest value and run stop, or the first value and no stop when there is no run."""
     if not ends:
@@ -78,35 +65,11 @@ def where(text: str, match: re.Match[str], places: int, *, anchored: bool) -> st
     return f", in {places} places, {which} on line {number}, which reads {read!r}"
 
 
-def stops(text: str, run: str, ends: list[int], at: int | None) -> str:
-    """How much of ``search_text`` ``text`` contains, and where the occurrence meant stops."""
-    if not run:
-        return "with no part of it"
-    held = f"with no more of it than {run!r}"
-    line = line_of(text, (ends[0] if at is None else at) - 1)
-    if len(ends) == 1:
-        return f"{held}, which stops on line {line}"
-    which = "the first" if at is None else "the nearest to that form"
-    return f"{held}, which stops in {len(ends)} places, {which} on line {line}"
-
-
 def conclusion(text: str, match: re.Match[str], at: int | None, part: str) -> str:
     """What the two readings conclude: the strong form only where they name one line."""
     if at is None or line_of(text, at - 1) != line_of(text, match.start()):
         return APART
     return MET.format(part=part)
-
-
-def _stopped(
-    text: str,
-    search_text: str,
-    run: str,
-    read: tuple[list[LineRun] | None, list[int]],
-    at: int | None,
-) -> str:
-    """The run clause: per line for a one-line ``search_text``, over the whole file otherwise."""
-    runs, ends = read
-    return stops(text, run, ends, at) if runs is None else said(runs, search_text, at)
 
 
 class Answered(NamedTuple):
@@ -125,24 +88,21 @@ def answered(mention: Mention, written: str) -> Answered:
 
 def unfound(mention: Mention, search_text: str, text: str, written: str) -> str:
     """Why ``text`` does not contain ``search_text``, said as how much of it the file still has."""
-    run = longest_prefix(search_text, text)
     stem = f"{mention.path} does not write {search_text!r} as a token of its own"
-    if run == search_text:
+    if search_text in text:
         return f"{stem}, having it only inside a longer token"
     runs = line_runs(search_text, text, bounded(search_text))
-    ends = anchors(text, run) if runs is None else [each.stop for each in runs]
+    ends = [each.stop for each in runs]
     held = answered(mention, written)
     matches = list(bounded(held.written).finditer(text))
     if not matches:
-        stopped = _stopped(text, search_text, run, (runs, ends), None)
         return (
-            f"{stem}, {stopped}; the file does not write {held.written!r} as a token of its own "
-            f"either"
+            f"{stem}, {said(runs, search_text, None)}; the file does not write {held.written!r} "
+            f"as a token of its own either"
         )
     match, at = nearest(ends, matches)
     return (
-        f"{stem}, {_stopped(text, search_text, run, (runs, ends), at)}; the file does still write "
-        f"{held.written!r} as a "
+        f"{stem}, {said(runs, search_text, at)}; the file does still write {held.written!r} as a "
         f"token of its own{where(text, match, len(matches), anchored=bool(ends))}, "
         f"{conclusion(text, match, at, held.word)}"
     )

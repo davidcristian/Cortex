@@ -1,9 +1,8 @@
 # A search string spanning two lines keeps the whole-file run and can name the wrong line
 
-**Status:** open, actionable
+**Status:** done 2026-10-10
 **Area:** repo-checks
 **Origin:** [ADR-0042](../../adr/ADR-0042-cross-tree-constant-registry.md)
-**Verified:** 2026-10-10
 
 Every search string without a newline moved to the per-line reading in `scripts/linereadings.py`.
 The eight that contain one stay on the opening run over the whole file that
@@ -54,3 +53,9 @@ windows.
   presence checks with no occurrence count, and neither `scripts/linereadings.py` nor
   `scripts/searchtexts.py` has a commit since 2026-10-03, so `line_runs` still returns nothing for
   any of them. The task is actionable, and its account now names the eight.
+- 2026-10-10: done. `line_runs` reads a search text containing a newline over each window of as
+  many consecutive lines as it spans, blanking a found occurrence but not its line breaks, and
+  names the line where its runs stop matching. The opening run over the whole file is removed, and
+  neither remedy above was needed: the readings sentence keeps its wrap. Over the eight, the
+  windows name the changed line for 26 of 40 edits against 20 before, every miss a sibling holding
+  all but one character ([readings](../../readings/constant-registry.md#which-line-a-fault-names)).

@@ -166,8 +166,9 @@ weeks and moved here to keep each record to one subject.
     text, and only as the line matching the most of it, never as where the text moved, because a
     deleted line leaves a sibling as the best. An opening run alone cannot find a change at the
     start of the search text (a compose publish whose interface changed). Search text containing a
-    newline keeps the whole-file opening run. Measured over the registry's single-line search texts,
-    reading from both ends names the changed line in 94% to 95% of single-character changes
+    newline is read the same way over each window of as many consecutive lines as it spans, and is
+    named on the line where its runs stop matching. Measured over the registry's single-line search
+    texts, reading from both ends names the changed line in 94% to 95% of single-character changes
     ([reading](../readings/constant-registry.md#which-line-a-fault-names)).
 24. **A count never withholds the reading.** A file holding none of a counted search text gets the
     not-found reading, then the expected count as its own clause; a wrong count names the lines it

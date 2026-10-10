@@ -494,7 +494,7 @@ def test_a_value_in_several_places_is_counted_and_read_nearest_the_run(tmp_path:
     assert "which reads '- \"127.0.0.2:50051:50051\"'" in fault.detail
 
 
-def test_a_run_found_in_several_places_names_the_stop_nearest_the_form(
+def test_a_search_text_ending_in_a_newline_is_read_on_the_line_it_stops_on(
     tmp_path: Path,
 ) -> None:
     (tmp_path / "config.py").write_text("PORT = 50051\n", encoding="utf-8")
@@ -503,9 +503,10 @@ def test_a_run_found_in_several_places_names_the_stop_nearest_the_form(
         encoding="utf-8",
     )
     (fault,) = crosscheck.check_constant(tmp_path, _ported('127.0.0.1:{value}:{value}"\n'))
-    assert "with no more of it than '127.0.0.1:'" in fault.detail
-    assert "which stops in 2 places, the nearest to that form on line 8" in fault.detail
+    assert "with the most of it on line 8, 18 of its 23 characters" in fault.detail
+    assert "(its opening '127.0.0.1:' and its closing ':50051\"\\n')" in fault.detail
     assert "still write '50051' as a token of its own, once on line 8" in fault.detail
+    assert "so what moved is likely shape this search text has" in fault.detail
 
 
 _THREADED = crosscheck.Constant(
@@ -519,26 +520,33 @@ _THREADED = crosscheck.Constant(
 @pytest.mark.parametrize(
     ("stack", "expected"),
     [
-        ("ctx: 8\n", "with no part of it; the file does not write '4'"),
+        ("ctx: 8\n", "with less than half of it on any line; the file does not write '4'"),
         (
             '      - "--threads"\n      - "8"\n',
-            'with no more of it than \'- "--threads"\\n      - "\', which stops on line 2; '
+            "with the most of it on line 2, 24 of its 25 characters (its opening "
+            "'- \"--threads\"\\n      - \"' and its closing '\"'), where it reads '- \"8\"'; "
             "the file does not write '4'",
         ),
         (
             '- "--threads"\n  - "8"\n- "--threads"\n  - "9"\n',
-            "which stops in 2 places, the first on line 2; the file does not write '4'",
+            "with the most of it on 2 lines, 17 of its 25 characters (its opening "
+            "'- \"--threads\"\\n  ' and its closing '\"') each, the first on line 2",
+        ),
+        (
+            'x\n      - "--thread"\n      - "4"\n',
+            "with the most of it on line 2, 24 of its 25 characters (its opening "
+            "'- \"--thread' and its closing '\"\\n      - \"4\"'), where it reads "
+            "'- \"--thread\"'; the file does still write '4'",
         ),
     ],
 )
-def test_a_search_text_holding_a_newline_is_read_over_the_whole_file(
+def test_a_search_text_holding_a_newline_is_read_over_the_lines_it_spans(
     tmp_path: Path, stack: str, expected: str
 ) -> None:
     (tmp_path / "config.py").write_text("THREADS = 4\n", encoding="utf-8")
     (tmp_path / "stack.yml").write_text(stack, encoding="utf-8")
     (fault,) = crosscheck.check_constant(tmp_path, _THREADED)
     assert expected in fault.detail
-    assert "on any line" not in fault.detail
 
 
 def test_a_value_in_several_places_with_no_run_at_all_is_read_at_the_first(tmp_path: Path) -> None:
