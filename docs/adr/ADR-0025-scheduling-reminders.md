@@ -79,9 +79,9 @@ built-ins, so subagents never see them (ADR-0010) and cannot re-schedule themsel
   calendar rule, ADR-0065 decision 2); `every_seconds` between 60 s and ten years, with `0` read
   as a one-shot; `model` for a task. Bad arguments return `is_error` results and never raise. Ids
   are uuid4 from an injectable factory.
-- **Creation bounds.** Active items are capped (`CORTEX_SCHEDULE_MAX_ACTIVE`, 32), and **a tainted
-  turn cannot create a task**. A reminder only ever reaches a human, while a task instruction
-  written by injected content would be a permanent directive fed to a subagent.
+- **Creation bounds.** Active items are capped (`CORTEX_SCHEDULE_MAX_ACTIVE`, 32; a full schedule
+  returns `NOT SCHEDULED` and tells the model to ask the user what to cancel), and **a tainted turn
+  cannot create a task**: a task instruction from injected content would be a permanent directive.
 - **Trust.** Creation, cancel, snooze and edit results are `TRUSTED` and never echo stored text.
   `list_scheduled` echoes text and is `TRUSTED` only when every listed item is clean. The item's
   `session_id` comes from the dispatcher's `TurnStamp` and is never rendered.

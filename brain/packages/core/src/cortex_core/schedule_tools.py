@@ -24,6 +24,15 @@ TAINTED_TASK_MSG = (
 )
 
 
+def _full_msg(max_active: int) -> str:
+    """The result for a full schedule: nothing was stored, and only the user may free room."""
+    return (
+        f"NOT SCHEDULED: the schedule is full ({max_active} active items), so nothing was "
+        "scheduled. Tell the user it was not scheduled because the schedule is full, and ask "
+        "which item they want to cancel. Do not cancel any item yourself to make room."
+    )
+
+
 def _uuid4_id() -> str:
     """Default item-id factory; injectable so tests can use fixed ids."""
     return str(uuid4())
@@ -133,10 +142,7 @@ class ScheduleTaskTool:
             return error_result(call.id, TAINTED_TASK_MSG)
         try:
             if len(await self._store.list_active()) >= self._max_active:
-                return error_result(
-                    call.id,
-                    f"the schedule is full ({self._max_active} active items); cancel one first",
-                )
+                return error_result(call.id, _full_msg(self._max_active))
             item = ScheduledItem(
                 id=self._item_id_factory(),
                 kind=parsed.kind,

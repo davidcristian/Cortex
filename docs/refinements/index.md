@@ -72,7 +72,7 @@ never a reading of what the tree does now.
 - **[R-073](tasks/073-fence-without-block-recall.md)** Fence-without-block recall mode (untrusted-content). Its claim was checked against the code on 2026-10-10.
 - **[R-834](tasks/834-a-reply-claims-a-task-it-never-tried-to-schedule.md)** A reply claims a task it never tried to schedule (scheduling). Its claim was checked against the code on 2026-10-10.
 - **[R-836](tasks/836-a-recalled-exchange-is-claimed-again-with-no-call.md)** A recalled exchange is claimed again with no call (memory). Its claim was checked against the code on 2026-10-10.
-- **[R-837](tasks/837-a-full-schedule-makes-the-cortex-cancel-items-unasked.md)** A full schedule makes the cortex cancel items unasked (scheduling). Its claim was checked against the code on 2026-10-10.
+- **[R-837](tasks/837-a-cancel-of-a-scheduled-item-needs-no-confirmation.md)** A cancel of a scheduled item needs no confirmation (scheduling). Its claim was checked against the code on 2026-10-10.
 
 ### Actionable, once a port changes (1)
 
@@ -836,7 +836,7 @@ never a reading of what the tree does now.
 - [R-250](tasks/250-task-reminder-distinction.md) A task versus reminder distinction on the pull surface. open, waiting for a consumer.
 - [R-394](tasks/394-the-fired-schedule-item-has-two-field-names-across-the-brains.md) The fired schedule item has two field names across the brain's own log lines. done 2026-08-24.
 - [R-834](tasks/834-a-reply-claims-a-task-it-never-tried-to-schedule.md) A reply claims a task it never tried to schedule. open, actionable.
-- [R-837](tasks/837-a-full-schedule-makes-the-cortex-cancel-items-unasked.md) A full schedule makes the cortex cancel items unasked. open, actionable.
+- [R-837](tasks/837-a-cancel-of-a-scheduled-item-needs-no-confirmation.md) A cancel of a scheduled item needs no confirmation. open, actionable.
 
 ### session-history
 

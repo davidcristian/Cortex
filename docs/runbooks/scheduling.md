@@ -6,7 +6,9 @@ The brain can hold durable schedules in Redis and fire them. It offers five cort
 `AckReminder`, or by push over `BodyService.Notify` when the body is wired. `snooze_scheduled`
 postpones the next fire by `for_seconds` from now, moving only the next occurrence of a recurring
 item and keeping the series on its original cadence; `edit_scheduled` changes an item's text or
-recurrence in place without moving its next due time. Decisions:
+recurrence in place without moving its next due time. On a full schedule `schedule_task` returns
+`NOT SCHEDULED` and tells the model to ask the person which item to cancel, never to free room
+itself ([readings](../readings/schedule-full-cancel.md)). Decisions:
 [ADR-0025](../adr/ADR-0025-scheduling-reminders.md) and [ADR-0065](../adr/ADR-0065-wall-clock-schedule-times.md).
 CI covers everything but bring-up, the Docker checks below and the Windows half.
 

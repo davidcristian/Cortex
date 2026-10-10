@@ -295,12 +295,15 @@ async def test_the_dispatcher_stamp_drives_the_attribution_end_to_end() -> None:
 
 
 async def test_the_active_items_cap_bounds_creation() -> None:
-    tool, _ = _tool(max_active=1)
+    tool, store = _tool(max_active=1)
     first = await tool.invoke(_call({"kind": "reminder", "text": "a", "in_seconds": 60}))
     assert not first.is_error
     second = await tool.invoke(_call({"kind": "reminder", "text": "b", "in_seconds": 60}))
     assert second.is_error
     assert "the schedule is full (1 active items)" in second.content
+    assert second.content.startswith("NOT SCHEDULED")
+    assert "Do not cancel any item yourself" in second.content
+    assert [item.text for item in await store.list_active()] == ["a"]
 
 
 @pytest.mark.parametrize(
