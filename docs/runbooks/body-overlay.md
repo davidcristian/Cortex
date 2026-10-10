@@ -99,9 +99,9 @@ npm run tauri dev
 The Linux shell runs the overlay, the Tauri commands and the gRPC client that the Windows shell
 runs, so a real IPC hop can be driven on the development machine with no desktop and no sudo:
 WebKitGTK draws in software on an `Xvfb` display, `xdotool` types and clicks, and `ffmpeg` grabs
-frames. [The Tauri command readings](../readings/tauri-ipc-commands.md) and
-[the overlay's view of a handoff](../readings/model-swap.md#the-overlays-view-of-a-handoff) were
-taken this way.
+frames. [The Tauri command readings](../readings/tauri-ipc-commands.md), [restarts of Redis, the
+brain and the cortex](../readings/store-and-process-restarts.md) and [the overlay's view of a
+handoff](../readings/model-swap.md#the-overlays-view-of-a-handoff) were taken this way.
 
 1. **The library prefix.** Build the userspace prefix of the
    [shell clippy readings](../readings/shell-clippy.md): `apt-get download` of the closure of the

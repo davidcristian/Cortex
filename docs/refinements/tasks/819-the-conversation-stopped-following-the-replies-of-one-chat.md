@@ -1,11 +1,9 @@
 # The conversation stopped following the replies of one chat
 
-**Status:** open, waiting for its trigger
+**Status:** open, actionable
 **Area:** body-overlay
 **Origin:** [ADR-0035](../../adr/ADR-0035-console-and-motion.md)
-**Trigger:** the log seen staying away from its end while the person never scrolled it, in a run
-whose frames show the turns before it, on either shell.
-**Verified:** 2026-10-07
+**Verified:** 2026-10-10
 
 On the Linux shell on 2026-10-07 one chat's conversation stayed scrolled to its first message
 through five long replies and a short answer, all streamed while nobody scrolled
@@ -33,3 +31,8 @@ or sets the flag again when a new turn starts.
 
 - 2026-10-07: filed from the long chat run on the Linux shell, after three attempts to bring it
   back failed.
+- 2026-10-10: the trigger fired on the Linux shell. A 300-word essay was followed to its end until
+  the brain's container was restarted 7 s into it; the reply then drew the rest of its text and an
+  error bubble below, and the log stayed on the middle of the essay with nobody scrolling, until it
+  was scrolled by hand ([readings](../../readings/store-and-process-restarts.md#the-brain)). This
+  run ended in an error, so it may be a second path to the same flag rather than the first one.

@@ -1,17 +1,9 @@
 # Nothing starts a stopped cortex outside boot, and no operator command exists
 
-**Status:** open, waiting for its trigger
+**Status:** open, actionable
 **Area:** inference-model-manager
 **Origin:** [ADR-0054](../../adr/ADR-0054-baseline-residency.md)
-**Verified:** 2026-10-07
-**Trigger:** a cortex that stops while the brain and the model host both keep running, which is the
-one state neither boot path covers, or a second visit to the runbook's step 2. Both are operator
-events, so the cheap recheck is whether the code has moved:
-`brain/packages/core/src/cortex_core/residency_regain.py` still calls `host.status` twice and
-`host.start` never, `proto/body.proto` still declares 16 RPCs across its two services with none of
-them an operator command, and the model host's control API still offers the four routes it shipped
-with (`/health`, `GET /models/{model}`, and start and stop, in
-`brain/packages/model_manager/src/cortex_model_manager/api.py`).
+**Verified:** 2026-10-10
 
 The background pass
 ([residency_regain.py](../../../brain/packages/core/src/cortex_core/residency_regain.py)) detects a
@@ -95,3 +87,10 @@ deadline.
   on `BrainService` and 5 on `BodyService`, none an operator command; the control API still routes
   the same four paths; `evict_models` still defaults to the empty tuple; and none of those files
   changed since 2026-09-30. The runbook's step 2 still recovers with one `POST /models/cortex/start`.
+- 2026-10-10: the trigger fired on the Linux shell's stack with escalation off. `kill -9` of the
+  cortex's `llama-server` inside the model host left the sidecar answering `failed` for the cortex
+  and the brain running; nothing started it, and every question ended in `inference_failed` until
+  step 2's `POST /models/cortex/start` was sent, after which the next question was answered with
+  no restart ([readings](../../readings/store-and-process-restarts.md#the-cortex-process)). The dot
+  stayed green throughout, which [820](820-health-answers-ready-while-the-cortex-or-the-store-is-down.md)
+  takes up.
