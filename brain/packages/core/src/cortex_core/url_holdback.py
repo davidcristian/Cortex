@@ -21,6 +21,7 @@ from cortex_core.urls import (
     HOST_CHAR,
     OPAQUE_SEP_RE,
     OPAQUE_WORDS,
+    SCHEME_START,
     SPLIT_GAP,
     SPLIT_LABEL,
     URL_RE,
@@ -39,7 +40,7 @@ _LONGEST_OPEN_PREFIX = max(len(prefix) for prefix in _SCHEME_PREFIXES)
 _UNFINISHED_ENTITY = r"&[#0-9a-z]*"
 
 _OPEN_SEP_RE = re.compile(
-    rf"\b(?:{'|'.join(permeable(word) for word in _SCHEME_WORDS)}){REMOVED_RUN}"
+    rf"{SCHEME_START}(?:{'|'.join(permeable(word) for word in _SCHEME_WORDS)}){REMOVED_RUN}"
     rf"(?:{OPEN_BRACKET}{CHUNK_INNER}*"
     rf"|(?:{OPAQUE_SEP_RE}){SOLIDUS_FORMS}?{HOST_CHAR}*"
     rf"|(?:{COLON_FORMS}|{SOLIDUS_FORMS})*(?:{_UNFINISHED_ENTITY})?)\Z",
@@ -62,7 +63,8 @@ _ARRIVING_GAP = (
 # The labels so far must be dotless, because only a dotless host can still grow a gap, which is
 # what keeps this off an ordinary link followed by a space.
 _ARRIVING_SPLIT_HOST = re.compile(
-    rf"\b{ARRIVING_AUTHORITY}{SPLIT_LABEL}(?:{SPLIT_GAP})*{_ARRIVING_GAP}\Z", re.IGNORECASE
+    rf"{SCHEME_START}{ARRIVING_AUTHORITY}{SPLIT_LABEL}(?:{SPLIT_GAP})*{_ARRIVING_GAP}\Z",
+    re.IGNORECASE,
 )
 
 

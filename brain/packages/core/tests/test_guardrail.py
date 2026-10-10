@@ -104,17 +104,39 @@ def test_url_split_across_chunks_is_still_redacted() -> None:
     assert "".join(parts) + guard.flush() == f"report at {REDACTED_LINK} now"
 
 
-@pytest.mark.parametrize("delimiter", ["`", "**", "~~"])
+@pytest.mark.parametrize("delimiter", ["`", "**", "_", "~~"])
 def test_extract_urls_drops_a_markdown_delimiter_closing_the_url(delimiter: str) -> None:
     assert extract_urls(f"open {delimiter}{EVIL}{delimiter} now") == {EVIL}
 
 
-@pytest.mark.parametrize("delimiter", ["`", "**", "~~"])
+@pytest.mark.parametrize("delimiter", ["`", "**", "_", "~~"])
 def test_a_flagged_url_inside_markdown_delimiters_is_redacted(delimiter: str) -> None:
     guard = _filter({EVIL})
     assert guard.feed(f"open {delimiter}{EVIL}{delimiter}, then") + guard.flush() == (
         f"open {delimiter}{REDACTED_LINK}{delimiter}, then"
     )
+
+
+def test_a_letter_or_digit_before_the_scheme_still_hides_the_url() -> None:
+    assert extract_urls(f"x{EVIL} 2{EVIL}") == frozenset()
+
+
+def test_an_emphasised_url_split_across_chunks_is_redacted() -> None:
+    guard = _filter({EVIL})
+    parts = [guard.feed("open _https://evil.exa"), guard.feed("mple/report_ now")]
+    assert "".join(parts) + guard.flush() == f"open _{REDACTED_LINK}_ now"
+
+
+def test_an_emphasised_split_host_arriving_in_chunks_is_redacted() -> None:
+    guard = _filter(set(extract_urls(EVIL)))
+    parts = [guard.feed("open _hxxps://evil "), guard.feed("dot example/report_ now")]
+    assert "".join(parts) + guard.flush() == f"open _{REDACTED_LINK}_ now"
+
+
+def test_an_emphasised_encoded_separator_arriving_in_chunks_is_redacted() -> None:
+    guard = _filter({EVIL})
+    parts = [guard.feed("open _https[&#5"), guard.feed("8;//]evil.example/report_ now")]
+    assert "".join(parts) + guard.flush() == f"open _{REDACTED_LINK}_ now"
 
 
 def test_a_url_collected_inside_a_code_span_is_redacted_when_written_bare() -> None:

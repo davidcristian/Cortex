@@ -20,6 +20,9 @@ from cortex_core.url_separators import (
 AUTHORITY_WORDS = (*SPECIAL_SCHEMES, "hxxps", "hxxp")
 OPAQUE_WORDS = (MAILTO_SCHEME, "tel")
 
+# A word boundary that also opens after `_`, the markdown emphasis a model can put around a link.
+SCHEME_START = r"(?<![^\W_])"
+
 _NON_URL = r"\s<>\"'\)\]\}"
 
 _URL_CHAR = rf"(?:[^{_NON_URL}]|{REMOVED_CHARS})"
@@ -84,7 +87,9 @@ ARRIVING_AUTHORITY = _family(AUTHORITY_WORDS, _authority_sep(_ARRIVING_HOST_ANCH
 _SCHEME = rf"(?:{_AUTHORITY}|{_family(OPAQUE_WORDS, OPAQUE_SEP_RE)}|{_DATA_SCHEME})"
 _BODY = rf"(?:{_DEFANG_CHUNK}|{_URL_CHAR})+"
 
-URL_RE = re.compile(rf"\b(?:{_AUTHORITY}{_SPLIT_HOST}(?:{_BODY})?|{_SCHEME}{_BODY})", re.IGNORECASE)
+URL_RE = re.compile(
+    rf"{SCHEME_START}(?:{_AUTHORITY}{_SPLIT_HOST}(?:{_BODY})?|{_SCHEME}{_BODY})", re.IGNORECASE
+)
 
 
 def extract_urls(text: str) -> frozenset[str]:

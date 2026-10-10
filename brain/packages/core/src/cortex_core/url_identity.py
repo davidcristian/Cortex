@@ -17,8 +17,8 @@ DEFANG_DOT = rf"{_OPEN_BRACKET}(?:\.|{permeable(DOT_WORD)}){_CLOSE_BRACKET}"
 _DEFANG_AUTHORITY_SEP = rf"{_OPEN_BRACKET}{permeable('://')}{_CLOSE_BRACKET}"
 _DEFANG_COLON = rf"{_OPEN_BRACKET}:{_CLOSE_BRACKET}"
 
-# Prose punctuation, then the markdown delimiters a model puts around a link (`code`, *bold*).
-TRAILING_PUNCTUATION = ".,;:!?`*~"
+# Prose punctuation, then markdown delimiters a model puts around a link: `code`, *em*, _em_.
+TRAILING_PUNCTUATION = ".,;:!?`*_~"
 
 SPECIAL_SCHEMES = ("https", "http", "ftp")
 

@@ -48,7 +48,8 @@ or declined on a stated test. The measurements, including the corpus and live-mo
 4. **Schemes.** Authority schemes `http`, `https`, `ftp` and the defanged `hxxp`, `hxxps`; opaque
    schemes `mailto:` and `tel:`; `data:` only behind a MIME lookahead (`type/subtype`, or the `,` or
    `;` that begins the data), so `data:the results` stays prose. Every scheme is anchored at a word
-   boundary, so `sftp://` and `hotel:` are not misread. A bare domain or address with no scheme is
+   boundary that also opens after an underscore (`SCHEME_START`), so `sftp://` and `hotel:` are not
+   misread and a link in underscore emphasis is. A bare domain or address with no scheme is
    out: matching every bare domain would redact `setup.py`-shaped prose. The scheme table produces
    both the matcher and the streaming hold-back, so they cannot disagree.
 5. **Every separator is generated per character, never listed whole.** The colon is `:` or `：`
@@ -98,13 +99,13 @@ or declined on a stated test. The measurements, including the corpus and live-mo
     per label; (5) NFKC; (6) the curated confusable fold; (7) fold the IDNA label separators NFKC
     leaves (U+3002, U+FF61) and close a gap; (8) drop the tab; (9) fold a special scheme's
     backslashes to solidi and its authority slash run (none included) to one pair. Then trailing
-    prose punctuation and a closing markdown delimiter (code, bold, strike) are dropped, since the
-    matcher reads them as URL characters, and scheme and authority lowercased; path, query and
-    fragment keep their case. Decoding first is what exposes an entity-hidden defang, an encoded zero-width
-    character or an encoded homoglyph to the passes after it. The tab is dropped after the gap fold,
-    so `evil<TAB>dot<TAB>com` keeps the reader's reading (`evil.com`) rather than the parser's
-    (`evildotcom`), which names a host an attacker would have to register separately. An opaque URL
-    folds whole.
+    prose punctuation and a closing markdown delimiter (code, emphasis, strike) are dropped, since
+    the matcher reads them as URL characters, and scheme and authority lowercased; path, query and
+    fragment keep their case. Decoding first is what exposes an entity-hidden defang, an encoded
+    zero-width character or an encoded homoglyph to the passes after it. The tab is dropped after
+    the gap fold, so `evil<TAB>dot<TAB>com` keeps the reader's reading (`evil.com`) rather than
+    the parser's (`evildotcom`), which names a host an attacker would have to register separately.
+    An opaque URL folds whole.
 11. **Every pass is symmetric and every admitted form is one the identity folds**, so a widened
     matcher never produces matches that compare equal to nothing, and folding on both sides only
     ever widens a redaction.

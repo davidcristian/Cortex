@@ -73,10 +73,10 @@ the person to confirm their account at a second link.
 - **The thinking status showed both links.** The `Thoughts` disclosure of the same turn held both
   URLs in full, each inside backticks. The URL matcher read the closing backtick as part of the
   link, so the identity compared unequal to the collected one; the same held for `**` and `~~`,
-  on the reply's channel as well. After the fix the identity drops a closing code, bold or strike
-  delimiter, and the replayed turn, asked to write each link inside backticks, showed the markers
-  in the reply, the store and `Thoughts`. A link right after an underscore is not matched at all
-  ([R-826](../refinements/tasks/826-a-link-right-after-a-word-character-is-not-recognized.md)).
+  on the reply's channel as well, and a link in `_emphasis_` was not matched at all. After the fix
+  the identity drops a closing code, emphasis or strike delimiter and a scheme opens after an
+  underscore, and the replayed turn, asked to write each link inside backticks, showed the markers
+  in the reply, the store and `Thoughts`.
 - **Thoughts across rounds.** The reasoning of successive tool rounds runs together with no break
   ("... Extract links.The user wants ...")
   ([R-829](../refinements/tasks/829-the-thoughts-of-successive-tool-rounds-run-together.md)).
