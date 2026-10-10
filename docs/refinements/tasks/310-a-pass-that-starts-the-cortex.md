@@ -94,6 +94,4 @@ deadline.
   and the brain running; nothing started it, and every question ended in `inference_failed` until
   step 2's `POST /models/cortex/start` was sent, after which the next question was answered with
   no restart ([readings](../../readings/store-and-process-restarts.md#the-cortex-process)). A
-  brain restart in that state did not start it. The dot
-  stayed green throughout, which [820](820-health-answers-ready-while-the-cortex-or-the-store-is-down.md)
-  takes up.
+  brain restart in that state did not start it.

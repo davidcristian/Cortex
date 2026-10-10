@@ -47,6 +47,15 @@ class ResidencyReporter(Protocol):
     def residency(self) -> ResidencyReport: ...
 
 
+class ServingProbe(Protocol):
+    """Asks one part a turn needs whether it answers; ``fault`` never raises."""
+
+    @property
+    def part(self) -> str: ...
+
+    async def fault(self) -> str | None: ...
+
+
 class PaceSink(Protocol):
     """Where a phase records whether the tier it just ran kept the speed measured for it."""
 

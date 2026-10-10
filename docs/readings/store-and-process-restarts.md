@@ -100,9 +100,9 @@ to server`.
 - **Killed.** `kill -9` of the cortex's `llama-server` inside the model host container left the
   sidecar up: `GET /health` answered `ok` and `GET /models/cortex` answered `failed`, `the process
   exited with code -9`. Nothing started it again. The brain's `Health` stayed
-  `ready=True detail='cortex-orchestrator 0.0.0'`, since with escalation off the brain holds no
-  residency, and the dot stayed green
-  ([R-820](../refinements/tasks/820-health-answers-ready-while-the-cortex-or-the-store-is-down.md)).
+  `ready=True detail='cortex-orchestrator 0.0.0'`, since with escalation off the brain held no
+  residency and `Health` read nothing else, and the dot stayed green. With the serving watch the
+  dot turns amber instead ([below](#health-and-the-dot)).
 - **A turn while it is down.** The question ended at once in a red bubble reading
   `inference_failed: llama-server request failed for model 'cortex'`. The brain logged
   `inference failed mid-turn` with the session and turn ids. The store held the question and no
@@ -117,3 +117,31 @@ to server`.
   container restarted. The brain logged `trace budget probe failed` and served `ready=True`, and
   `GET /models/cortex` still answered `failed` a minute later. The same `POST` then brought it back,
   and the next question was answered.
+
+## Health and the dot
+
+**2026-10-10**, the same rig after `Health` started reading a `ServingWatch` that asks the cortex's
+`GET /health` and sends Redis a `PING` every 2 s, each within 1 s
+([ADR-0054](../adr/ADR-0054-baseline-residency.md) decision 8). `Health` was called once every
+0.6 s from inside the brain's container, and the dot was read by hovering it for its tooltip. The SM
+clock was not read, since nothing here was timed against the card.
+
+| Event | `Health` after it | The dot |
+| --- | --- | --- |
+| `kill -9` of the cortex's `llama-server` | `ready=False`, `the usual assistant's model server is not answering, so a turn cannot be answered`, from the third call, 1.6 s after the kill | green until the overlay probed: amber after a summon, or after a question ended in `inference_failed` |
+| `POST /models/cortex/start` | `the usual assistant is still loading` from 1.0 s after the start, for the 41 to 44 s each load took | amber, the tooltip reading `The brain is not serving: the usual assistant is still loading` at its 5 s recheck |
+| the cortex `ready` | `ready=True detail='cortex-orchestrator 0.0.0'` | green at the next 5 s recheck |
+| `docker stop` of Redis | `the conversation store is not answering, so a turn cannot be saved` from the first call, 0.3 s after the stop returned | amber after a summon, reading `the conversation store did not answer within 1 s` |
+| `docker start` of Redis | `ready=True` 1.6 s after the start returned | green at the next 5 s recheck |
+
+- **Run four times for the cortex, once for Redis.** Every cortex run read the same two faults in
+  the same order. The brain logged `a part a turn needs is not answering` with the fault once per
+  change of fault, and `every part a turn needs is answering again` once at the end of each outage;
+  nothing else, since the cortex check sends on the transport and not through a client that logs
+  each request.
+- **Two faults for one Redis outage.** A `PING` was refused or failed to resolve the name, which
+  reads as `not answering`, or stalled for the whole second, which reads as `did not answer within
+  1 s`, and the reading moved between the two during the outage. Both are accurate.
+- **An open, green dot is not polled.** With the overlay on screen and green, killing the cortex
+  left the dot green until the overlay was summoned again or a turn ended, as the overlay's link
+  hook is written to do.

@@ -23,6 +23,7 @@ from cortex_core.fakes_model_host import ScriptedModelHost
 from cortex_core.fakes_preferences import InMemoryPreferenceStore
 from cortex_core.fakes_schedule import InMemoryScheduleStore
 from cortex_core.fakes_scheduler import AdmitAllScheduler
+from cortex_core.fakes_serving import ScriptedServingProbe
 from cortex_core.fakes_session import InMemorySessionStore
 from cortex_core.fakes_sleeper import AsyncioSleeper, RecordingSleeper
 from cortex_core.fakes_vision import ScriptedVisionProbe
@@ -49,6 +50,7 @@ __all__ = [
     "RecordingSleeper",
     "ScriptedInferenceBackend",
     "ScriptedModelHost",
+    "ScriptedServingProbe",
     "ScriptedVisionProbe",
     "SentNotification",
     "SystemClock",

@@ -1,6 +1,7 @@
 """Redis adapters for the core's session, task, schedule, handoff and preference ports."""
 
 from cortex_session.handoffs import RedisHandoffStore
+from cortex_session.ping import STORE_DOWN, RedisPing
 from cortex_session.preferences import RedisPreferenceStore
 from cortex_session.retry import StoreRetry
 from cortex_session.schedule_codec import DeadLetter
@@ -11,9 +12,11 @@ from cortex_session.zone_resolver import ZONEINFO_RESOLVER, ZoneInfoResolver
 
 __all__ = [
     "DEFAULT_REDIS_URL",
+    "STORE_DOWN",
     "ZONEINFO_RESOLVER",
     "DeadLetter",
     "RedisHandoffStore",
+    "RedisPing",
     "RedisPreferenceStore",
     "RedisScheduleStore",
     "RedisSessionStore",

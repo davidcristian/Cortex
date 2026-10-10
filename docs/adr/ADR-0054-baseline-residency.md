@@ -13,8 +13,9 @@ connection dot through `Health`, whose `HealthReply` has `ready`, a `detail` lin
 subagent placer needs to know when no GPU tier is serving, or it sends spawns at a dead server.
 
 This record decides where that answer comes from, how startup recovery's result is scoped, and what
-keeps a peer's state current. With escalation off the plain `SingleResidentModelManager` holds no
-residency, the brain's residency is `None`, and `Health` stays unconditionally ready.
+keeps a peer's state current, and what `Health` reads besides residency. With escalation off the
+plain `SingleResidentModelManager` holds no residency and the brain's residency is `None`, so
+without decision 8 `Health` would answer ready while the cortex or the store is down.
 
 ## Decision
 
@@ -122,6 +123,27 @@ residency, the brain's residency is `None`, and `Health` stays unconditionally r
    only where delegated work runs has changed. `HealthNote` has only its sentence; a code a client
    could style or dismiss one note by is added beside it when a client needs one, with its names
    picked then.
+8. **`Health` also reads a background watch of the parts a turn needs.** `ServingWatch`
+   (`serving_watch.py`) asks every `ServingProbe` at once every 2 s, each within 1 s, and keeps the
+   first fault; `Health` reads it synchronously, after a residency that is not serving and before
+   the notes, and answers `ready=false` with that fault as `detail`. A probe per `Health` call was
+   rejected: a store connect to a stopping Redis stalls for a second, past the body's 250 ms probe
+   deadline, and the body reads a timeout as `down`, unreachable, for a brain that answers. The
+   store is always asked, by one `PING` on the session store's own client. The cortex is asked
+   through llama-server's own `GET /health` (503 while loading), not the model host's `GET
+   /models/cortex`, which may not be configured and takes the per-model lock decision 1 avoids; it
+   is asked only with escalation off, since a reading taken while a swap had the cortex stopped
+   would outlive the swap by an interval. The overlay already has the state this needs: `degraded`,
+   the amber dot, labelled `The brain is not serving: <detail>`. It probes on a summon, after a turn
+   ends green, and every 5 s while not green, so a dot left open and green changes at the next
+   summon or turn.
+
+   | Part | `detail` while it is down |
+   | --- | --- |
+   | the cortex's server, refused or reset | the usual assistant's model server is not answering, so a turn cannot be answered |
+   | the cortex's server, 503 | the usual assistant is still loading |
+   | Redis | the conversation store is not answering, so a turn cannot be saved |
+   | any part, silent for 1 s | `<part> did not answer within 1 s` |
 
 ## Consequences
 
@@ -130,6 +152,9 @@ residency, the brain's residency is `None`, and `Health` stays unconditionally r
   peers and the cortex are what keep the report current.
 - A cortex that dies while both containers keep running is not restarted by anything automatic;
   restarting either container, or the runbook's manual step, brings it back.
+- With escalation on, a cortex that dies while the report says serving leaves `Health` ready: the
+  pass reads the cortex only to regain a report that is not serving, and decision 8 does not ask
+  it then ([R-823](../refinements/tasks/823-health-stays-ready-when-the-cortex-dies-with-escalation-on.md)).
 - Residency changes are split by responsibility: `residency_moves.py` (what the host is asked to
   do), `residency_restore.py` (what the swap back promises), `residency_board.py` (the resident
   model, the report, the scope flag and their lock), `residency_claim.py` (`HandoffClaim`) and

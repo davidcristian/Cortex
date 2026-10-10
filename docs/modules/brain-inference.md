@@ -8,16 +8,23 @@ makes (ADR-0009), why the completion ended when the server says (ADR-0048), and 
 decode rate when the server reports one (ADR-0055 decision 4). No orchestration and no session state
 (the one hard rule); the core talks only to `InferenceBackend`.
 
-**Five modules, split by the direction a value travels.** `request.py` maps core values onto the
+**Six modules, split by the direction a value travels.** `request.py` maps core values onto the
 wire, `decode.py` maps the wire back, `backend.py` keeps what neither can own (the lease, the HTTP
 call, and the order events leave in), `trace_probe.py` asks a server one question before any
-request is built, and `system_probe.py` asks the leased server one before a request that opens with
-several system messages. The package-internal modules have no leading underscore, since that prefix
+request is built, `system_probe.py` asks the leased server one before a request that opens with
+several system messages, and `serving_probe.py` asks the cortex's server whether it is serving. The package-internal modules have no leading underscore, since that prefix
 marks a module as private to its definer.
 
 ## Public contract
 
-`__all__` is `LlamaCppBackend`, `reads_a_trace_budget` and `TRACE_BUDGET_PROBE_TIMEOUT_S`.
+`__all__` is `LlamaCppBackend`, `reads_a_trace_budget`, `TRACE_BUDGET_PROBE_TIMEOUT_S`,
+`LlamaServerProbe`, `CORTEX_DOWN` and `CORTEX_LOADING`.
+
+`LlamaServerProbe(endpoint, transport, *, timeout_s)` is the core's `ServingProbe` over
+`GET {endpoint}/health`: `None` on 200, `CORTEX_LOADING` on the 503 llama-server answers until its
+model is loaded, `CORTEX_DOWN` on any `httpx.HTTPError`, and the status in its line otherwise. It
+sends on an `httpx.AsyncBaseTransport` rather than a client, since a client logs every request at
+INFO. `tests/serving_contract.py` is the contract it and `ScriptedServingProbe` pass.
 
 `LlamaCppBackend(model_manager: ModelManager, http_client: httpx.AsyncClient, *, send_trace_budget: bool = False)`
 is an `InferenceBackend`. `stream(model, messages, *, tools=(), schema=None, bounds=None)` does

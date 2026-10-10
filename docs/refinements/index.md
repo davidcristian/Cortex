@@ -72,8 +72,8 @@ never a reading of what the tree does now.
 - **[R-310](tasks/310-a-pass-that-starts-the-cortex.md)** Nothing starts a stopped cortex outside boot, and no operator command exists (inference-model-manager). Its claim was checked against the code on 2026-10-10.
 - **[R-680](tasks/680-a-search-string-spanning-two-lines-keeps-the-whole-file-run.md)** A search string spanning two lines keeps the whole-file run and can name the wrong line (repo-checks). Its claim was checked against the code on 2026-10-10.
 - **[R-819](tasks/819-the-conversation-stopped-following-the-replies-of-one-chat.md)** The conversation stopped following the replies of one chat (body-overlay). Its claim was checked against the code on 2026-10-10.
-- **[R-820](tasks/820-health-answers-ready-while-the-cortex-or-the-store-is-down.md)** Health answers ready while the cortex or the store is down (rpc-transport). Its claim was checked against the code on 2026-10-10.
 - **[R-822](tasks/822-a-turn-cut-by-a-brain-shutdown-ends-in-a-transport-error.md)** A turn cut by a brain shutdown ends in a transport error (rpc-transport). Its claim was checked against the code on 2026-10-10.
+- **[R-823](tasks/823-health-stays-ready-when-the-cortex-dies-with-escalation-on.md)** Health stays ready when the cortex dies with escalation on (rpc-transport). Its claim was checked against the code on 2026-10-10.
 
 ### Actionable, once a port changes (1)
 
@@ -804,8 +804,8 @@ never a reading of what the tree does now.
 - [R-434](tasks/434-the-stub-check-reads-one-direction-and-one-stub.md) The stub check reads one direction, and only one of the two stubs. done 2026-08-25.
 - [R-436](tasks/436-an-announcement-past-the-millisecond-ladder-loses-the-race.md) An announcement past the millisecond ladder sets tonic's clock short of our own bound. done 2026-08-25.
 - [R-719](tasks/719-a-health-note-has-no-code.md) A health note has no code. open, waiting for a consumer.
-- [R-820](tasks/820-health-answers-ready-while-the-cortex-or-the-store-is-down.md) Health answers ready while the cortex or the store is down. open, actionable.
 - [R-822](tasks/822-a-turn-cut-by-a-brain-shutdown-ends-in-a-transport-error.md) A turn cut by a brain shutdown ends in a transport error. open, actionable.
+- [R-823](tasks/823-health-stays-ready-when-the-cortex-dies-with-escalation-on.md) Health stays ready when the cortex dies with escalation on. open, actionable.
 
 ### scheduling
 

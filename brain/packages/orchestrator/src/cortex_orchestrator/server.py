@@ -15,6 +15,7 @@ from cortex_core import (
     ResidencyReporter,
     ScheduleStore,
     ScheduleStoreError,
+    ServingWatch,
     SessionMemoryCascade,
     SessionStore,
 )
@@ -70,6 +71,7 @@ class RpcPorts:
     memory_cascade: SessionMemoryCascade | None = None
     residency: ResidencyReporter | None = None
     preferences: PreferenceStore | None = None
+    serving: ServingWatch | None = None
 
 
 _NO_RPC_PORTS = RpcPorts()
@@ -93,6 +95,7 @@ class BrainService(SessionRpcMixin, PreferenceRpcMixin, BrainServiceServicer):
         self._memory_cascade = ports.memory_cascade
         self._residency = ports.residency
         self._preferences = ports.preferences
+        self._serving = ports.serving
         self._max_buffered_events = max_buffered_events
         self._confirm_timeout_s = confirm_timeout_s
 
@@ -106,6 +109,9 @@ class BrainService(SessionRpcMixin, PreferenceRpcMixin, BrainServiceServicer):
         report = None if self._residency is None else self._residency.residency()
         if report is not None and not report.serving:
             return HealthReply(ready=False, detail=report.detail)
+        fault = None if self._serving is None else self._serving.fault()
+        if fault is not None:
+            return HealthReply(ready=False, detail=fault)
         if report is not None and report.notes:
             notes = [HealthNote(text=note) for note in report.notes]
             return HealthReply(ready=True, detail="; ".join(report.notes), notes=notes)

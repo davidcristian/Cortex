@@ -14,6 +14,7 @@ from cortex_core import (
     merge_hoisted,
     summarize_ends,
 )
+from cortex_session.ping import RedisPing
 from cortex_session.retry import (
     DEFAULT_STORE_RETRY,
     MonotonicTimer,
@@ -112,6 +113,10 @@ class RedisSessionStore:
         """Build a store owning a client for ``url``; close it via ``aclose()``."""
         client = Redis.from_url(url, socket_connect_timeout=CONNECT_TIMEOUT_S)  # pyright: ignore[reportUnknownMemberType]
         return cls(client)
+
+    def probe(self) -> RedisPing:
+        """A ``ServingProbe`` that asks the Redis this store calls, over the same client."""
+        return RedisPing(self._client)
 
     async def aclose(self) -> None:
         """Release the client's connections (call at composition-root shutdown)."""

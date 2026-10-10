@@ -228,11 +228,11 @@ is one ASCII JSON line holding no more than the line prints, each value through 
 
 Every port has a fake in this package, pure and I/O free, and the contract tests run over the fake
 and the real adapter from one file. They live in `fakes.py` and in the per-area files split off it
-at the 300-line limit (`fakes_session.py`, `fakes_memory.py`, `fakes_body.py`,
-`fakes_schedule.py`, `fakes_scheduler.py`, `fakes_handoff.py`, `fakes_model_host.py`,
-`fakes_inference.py`, `fakes_vision.py`, `fakes_preferences.py`, `fakes_sleeper.py`). Each area
-document names the fake beside the port it stands for. The in-memory stores deliberately do not
-survive a restart: proving that state outlives a swap is the real adapter's job.
+(`fakes_session.py`, `fakes_memory.py`, `fakes_body.py`, `fakes_schedule.py`, `fakes_scheduler.py`,
+`fakes_handoff.py`, `fakes_model_host.py`, `fakes_inference.py`, `fakes_vision.py`,
+`fakes_preferences.py`, `fakes_sleeper.py`, `fakes_serving.py`). Each area document names the fake
+beside the port it stands for. The in-memory stores deliberately do not survive a restart: proving
+that state outlives a swap is the real adapter's job.
 
 **Invariants.**
 

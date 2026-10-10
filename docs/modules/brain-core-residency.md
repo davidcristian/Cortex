@@ -1,10 +1,9 @@
 # brain/packages/core: model residency and the swap
 
-Part of [`cortex_core`](brain-core.md), which holds the shared values, the public surface rule and
-the package invariants. This document covers which model is on the GPU: the values and ports that
-describe it, the record a mid-turn handoff is rebuilt from, and the sequence that evicts the cortex
-for the deep model and puts it back. The `escalate_to_brain` tool that asks for one is in
-[brain-core-tools.md](brain-core-tools.md) and the subagent tiers a swap stops are in
+Part of [`cortex_core`](brain-core.md). This document covers which model is on the GPU: the values
+and ports that describe it, the record a mid-turn handoff is rebuilt from, and the swap that evicts
+the cortex for the deep model and puts it back. The `escalate_to_brain` tool is in
+[brain-core-tools.md](brain-core-tools.md), the tiers a swap stops in
 [brain-core-subagents.md](brain-core-subagents.md). The decision is ADR-0030, extended by ADR-0053,
 ADR-0054 and ADR-0055; the runbook is [model-swap](../runbooks/model-swap.md).
 
@@ -79,6 +78,8 @@ path returns the card to. Measurements are in [model-swap](../readings/model-swa
   for the wire's `Health`. It is **synchronous and free of I/O by contract**, because a probe
   arrives every few seconds precisely while a swap is in flight and one that queued behind the GPU
   lease would hang for the whole load; an implementation answers from a cache it publishes into.
+  `ServingWatch` (`serving_watch.py`) is such a cache for the other parts a turn needs, asking each
+  `ServingProbe` (`part`, `fault()`) every 2 s; fake `ScriptedServingProbe`.
 - `PaceSink` provides `note_pace(*, spilled)`, where the deep phase says whether the tier it just
   ran held the rate its deployment measured for it. Also synchronous and free of I/O, being called
   after the reply has streamed and before it is persisted. What crosses is a judgement and never a
@@ -96,8 +97,8 @@ for the last two: a terminal record stops being `active()` and may expire. `Hand
 `handoff_id` (the escalating `turn_id`, which is why every log line on this path names its work
 `turn_id`), `session_id`, `requested_at`, `state`, `brief`, `nonce`, the whole serialized
 `TaintLedger` (`tainted`, `opaque`, `sources`, `untrusted_urls`), `budget_remaining`,
-`budget_closed`, `rounds_used` and `loop_tail`. It contains only what is not already in a store,
-per the one hard rule, and `taint_ledger()` rebuilds an exact detached ledger for the deep phase.
+`budget_closed`, `rounds_used` and `loop_tail`. It contains only what is not already in a store, per
+the one hard rule, and `taint_ledger()` rebuilds an exact detached ledger for the deep phase.
 `opaque` is there as defence in depth: the conductor refuses an opaque turn before it snapshots, so
 every record written today says `False` truthfully, but both readers of the field open up on a
 `False`, so the schema must never manufacture one. `failure` is the one field that is not turn
@@ -107,12 +108,12 @@ own, and the Redis store reads a stored one as a corrupt record.
 
 `EscalationSlot(refs=None, brief=None)` is the mutable turn-local handle through which in-flight
 state reaches the record. It is built empty by whoever orchestrates the turn and serves exactly one
-turn; the engine fills `refs` at turn start with an `EscalationRefs` (the live `working` list,
-taint ledger, nonce, shared allowance, and `base_len`, how many messages `working` held when the
-loop began, so everything past it is the tail), and the `escalate_to_brain` tool writes only
-`brief`. `snapshot(*, turn_id, session_id, requested_at)` freezes it into a `READY` record by
-copying, and raises `ValueError` on a slot no tool filled, one no engine filled, or a tail
-containing images, the record being durable and its schema having no field for pixels.
+turn; the engine fills `refs` at turn start with an `EscalationRefs` (the live `working` list, taint
+ledger, nonce, shared allowance, and `base_len`, how many messages `working` held when the loop
+began, so everything past it is the tail), and the `escalate_to_brain` tool writes only `brief`.
+`snapshot(*, turn_id, session_id, requested_at)` freezes it into a `READY` record by copying, and
+raises `ValueError` on a slot no tool filled, one no engine filled, or a tail containing images, the
+record being durable and its schema having no field for pixels.
 
 ### Running the swap
 
@@ -211,11 +212,10 @@ report gains the note after any already in `notes`, and one that is not serving 
   mark of either kind closes the placer's GPU and only an emptied record reopens it, and
   `note_on(report)` adds the detail naming what is down, which names the state and not the cause.
 - `HandoffPace(clock, *, dwell_s=DEFAULT_SPILL_DWELL_S)` (`residency_pace.py`) is how the last
-  handoff ran, for as long as that still describes now. `note_pace(spilled=True)` stamps the
-  moment, `note_pace(spilled=False)` clears the note outright, and a second spill re-starts the
-  dwell. The note lapses on its own after `DEFAULT_SPILL_DWELL_S` (3600 s), long enough to still be
-  there when somebody who walked away from a minutes-long deep task comes back and short enough
-  that a card left alone for an afternoon is not described by a judgement about the morning.
+  handoff ran, for as long as that still describes now. `note_pace(spilled=True)` stamps the moment,
+  `note_pace(spilled=False)` clears the note, and a second spill re-starts the dwell. The note
+  lapses after `DEFAULT_SPILL_DWELL_S` (3600 s), long enough to outlast a deep task the user left,
+  short enough not to describe an afternoon by the morning.
 - `recheck_tiers(host, plan, tiers, fence)` (`residency_pass.py`) is one pass over **every**
   `plan.evict_models` tier rather than only the marked ones, because the ways a peer goes down with
   no refusal to record are exactly the ways a record written from refusals cannot see. Per tier: an

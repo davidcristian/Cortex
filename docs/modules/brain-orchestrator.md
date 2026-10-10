@@ -14,8 +14,8 @@ lives in this process beyond the in-flight turn. Configuration is env-only and i
 confirm_timeout_s=…)` implements `BrainServiceServicer` and holds no state; the engine factory, the
 session store and the optional `RpcPorts` are injected. `store` is the same instance the engine
 writes, so the read-only session RPCs serve exactly what turns persist.
-`RpcPorts(schedules=None, memory_cascade=None, residency=None)` is what the wire serves beyond a
-turn, each absent when its capability is off.
+`RpcPorts(schedules=None, memory_cascade=None, residency=None, preferences=None, serving=None)`
+is what the wire serves beyond a turn, each absent when its capability is off.
 
 - `Health` answers `HealthReply(ready=True, detail="cortex-orchestrator <version>")` while the
   normal residency is serving, and `ready=False` with the residency's own line while a handoff
@@ -23,8 +23,10 @@ turn, each absent when its capability is off.
   version string while `ready` stays true: each is one `HealthNote` in `notes`, and `detail` joins
   them with `; `, a missing peer tier and a slow last handoff both being true of a serving brain
   with different remedies (ADR-0054 decisions 3 and 7, ADR-0055 decision 5). The read is
-  `ResidencyReporter.residency()`, synchronous and lock-free by that port's contract. With no `residency` wired the answer is
-  unconditional, and the drain before an eviction stays ready.
+  `ResidencyReporter.residency()`, synchronous and lock-free by that port's contract. The drain
+  before an eviction stays ready. A residency that serves is then checked against `serving`, a
+  `ServingWatch`: while its last pass found a part not answering, `Health` is `ready=False` with
+  that part's line, which the overlay shows as the amber dot (ADR-0054 decision 8).
 - `ListSessions` returns recent chats newest-active first, each `SessionSummary` mapped to the wire
   with unix-ms timestamps, `request.limit` clamped by `_clamp_limit` (`DEFAULT_SESSION_LIST_LIMIT`
   is 50, `MAX_SESSION_LIST_LIMIT` 200). `GetSessionMessages` returns one session's persisted
@@ -158,6 +160,11 @@ the version string `Health` reports.
   with `build_subagents`: connect, write and pool take `LLAMACPP_CONNECT_TIMEOUT_S` (10 s) and the
   read phase takes the caller's per-tier ceiling, which httpx applies to one socket read, so it
   detects a stall rather than capping a generation.
+- `build_serving_watch(sessions, inference, *, escalation)` (`serving_builders.py`) returns the
+  `ServingWatch` `Health` reads and its closer. It always asks the store, through
+  `RedisSessionStore.probe()`, and asks the cortex's own `GET /health` first when escalation is off
+  and the backend is `llamacpp`; with escalation on, the residency report states the cortex. The
+  root takes the first reading before `serve`, so the first `Health` already answers from it.
 - `build_history_window(runtime, *, sessions, backend, clock, model)` (`window_builders.py`)
   returns the char-budget window, `None` when the budget is `0`, or that window wrapped in
   `SummarizingHistoryWindow` whose recap `model` writes, and it is where `history_recap_min_chars` is clamped to the budget.

@@ -18,6 +18,7 @@ from cortex_core.ports_models import (
     ResidencyController,
     ResidencyQueue,
     ResidencyReporter,
+    ServingProbe,
 )
 from cortex_core.ports_placement import SubagentPlacer
 from cortex_core.ports_stores import (
@@ -53,6 +54,7 @@ __all__ = [
     "ResidencyQueue",
     "ResidencyReporter",
     "ScheduleStore",
+    "ServingProbe",
     "SessionStore",
     "Sleeper",
     "SubagentPlacer",

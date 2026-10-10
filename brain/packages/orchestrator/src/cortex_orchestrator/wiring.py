@@ -33,6 +33,7 @@ from cortex_orchestrator.schedule_builders import (
     stop_ticker,
 )
 from cortex_orchestrator.server import RpcPorts, serve
+from cortex_orchestrator.serving_builders import build_serving_watch
 from cortex_orchestrator.stores import RedisStores
 from cortex_orchestrator.subagent_builders import build_subagent_tools, build_subagents
 from cortex_orchestrator.swap_builders import (
@@ -115,7 +116,11 @@ async def run_from_env(
     )
     ticker_task = start_ticker(ticker)
     await recover_boot_residency(swap, clock)
+    serving, close_serving = build_serving_watch(
+        stores.sessions, inference, escalation=swap is not None
+    )
     try:
+        await serving.start()
         engines = StreamEngines(
             sessions=stores.sessions,
             backend=backend,
@@ -139,9 +144,11 @@ async def run_from_env(
                 memory_cascade=memory_cascade,
                 residency=None if swap is None else swap.manager,
                 preferences=stores.preferences,
+                serving=serving,
             ),
         )
     finally:
+        await close_serving()
         await stop_ticker(ticker, ticker_task)
         await close_vision()
         await swap_closer(swap)()

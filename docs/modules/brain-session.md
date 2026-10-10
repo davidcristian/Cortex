@@ -9,11 +9,11 @@ and error wrapping, with no domain logic.
 
 ## Public contract
 
-`__all__` is the API: the five adapters, `DeadLetter`, `ZoneInfoResolver`, `ZONEINFO_RESOLVER` and
-`DEFAULT_REDIS_URL` (`"redis://127.0.0.1:6379/0"`, overridden by `CORTEX_REDIS_URL`, which the
-composition root reads and this package never does). Every adapter is built the same two ways, from
-an injected `redis.asyncio.Redis` client or from `from_url(url)`, which builds and owns one;
-`aclose()` closes that client's connections.
+`__all__` is the API: the five adapters, `RedisPing`, `DeadLetter`, `ZoneInfoResolver`,
+`ZONEINFO_RESOLVER`, `STORE_DOWN` and `DEFAULT_REDIS_URL` (`"redis://127.0.0.1:6379/0"`, overridden
+by `CORTEX_REDIS_URL`, which only the composition root reads). Every adapter is built from an
+injected `redis.asyncio.Redis` client or from `from_url(url)`, which builds and owns one; `aclose()`
+closes it. `RedisSessionStore.probe()` is a `RedisPing`, one `PING` on that client.
 
 ### `RedisSessionStore`
 
@@ -209,8 +209,8 @@ Every Redis or connection failure, and every corrupt or unreadable stored record
 core's `SessionStoreError`, `TaskStoreError`, `ScheduleStoreError` or `HandoffStoreError`. Backend
 failures keep the original exception as `__cause__`; decode failures name the record (the session
 store by list index plus kind and version, the others by key). No `redis.exceptions.*` type crosses
-a port. The one place that does not fail loudly is the schedule **claim path**, where a corrupt
-record is quarantined instead (ADR-0025).
+a port. The schedule **claim path** quarantines a corrupt record instead (ADR-0025), and `RedisPing`
+answers a failure as its fault.
 
 ## Tests
 
@@ -230,8 +230,8 @@ back exact in bytes, order and set membership through `HandoffRecord.taint_ledge
 both stores, so a new check is added once ([ADR-0068](../adr/ADR-0068-port-contract-lists.md)).
 
 The `integration`-marked `tests/test_store_live.py`, `tests/test_handoff_live.py` and
-`tests/test_schedule_live.py` run the same suites against real Redis, outside CI and coverage
-(`cd brain && uv run pytest -m integration --no-cov packages/session`; without `--no-cov` the 100%
+`tests/test_schedule_live.py` run the same suites against real Redis, outside CI and coverage (`cd
+brain && uv run pytest -m integration --no-cov packages/session`; without `--no-cov` the 100%
 threshold fails the run). Their store comes from `tests/live_redis.py`, which moves
 `CORTEX_REDIS_URL` onto database 15 (`LIVE_DB`, which production never selects) and empties it
 before the suite and after every check, a failing one included, so no real chat is touched and the
@@ -244,7 +244,7 @@ in ADR-0002 decision 14.
   stores, or two orchestrator processes, over the same URL see the same sessions.
 - The stored formats above are the contract. Extend them; do not repurpose a field.
 - Fully typed (PEP 561 `py.typed`), pyright strict clean, and 100% line and branch covered by the
-  contract suites. The live suites add no coverage by design.
+  contract suites; the live suites add no coverage by design.
 
 **Dependencies.** cortex-core (workspace) and redis (the asyncio client). Dev-only from the
 workspace root: fakeredis, which is what runs the contract suites without a server.

@@ -40,6 +40,11 @@ from cortex_core.residency_state import (
     with_note,
 )
 from cortex_core.residency_tiers import TIERS_MISSING_DETAIL, BaselineTiers, TierFault
+from cortex_core.serving_watch import (
+    SERVING_CHECK_INTERVAL_S,
+    SERVING_CHECK_TIMEOUT_S,
+    ServingWatch,
+)
 from cortex_core.swap_conductor import SwapConductor
 from cortex_core.swap_notes import (
     ALREADY_ACTIVE_NOTE,
@@ -87,6 +92,8 @@ __all__ = [
     "RESIDENCY_SERVING",
     "RESTORE_FAILED_NOTE",
     "RESTORING_DETAIL",
+    "SERVING_CHECK_INTERVAL_S",
+    "SERVING_CHECK_TIMEOUT_S",
     "SPILLED_PACE_DETAIL",
     "STORE_FAILED_NOTE",
     "STRANDED_REASON",
@@ -112,6 +119,7 @@ __all__ = [
     "ModelLease",
     "ResidencyPlan",
     "ResidencyReport",
+    "ServingWatch",
     "SingleResidentModelManager",
     "SwapConductor",
     "SwappingModelManager",
