@@ -76,3 +76,7 @@ complete turns, the first giving a bike lock code, before the first restart.
   polled every second until it answered `ready`. The same question sent next was answered and
   stored, with no restart of the shell, the brain or the model host. This is the state
   [R-310](../refinements/tasks/310-a-pass-that-starts-the-cortex.md) names.
+- **A brain restart does not bring it back.** The cortex was killed again and the brain's
+  container restarted. The brain logged `trace budget probe failed` and served `ready=True`, and
+  `GET /models/cortex` still answered `failed` a minute later. The same `POST` then brought it back,
+  and the next question was answered.

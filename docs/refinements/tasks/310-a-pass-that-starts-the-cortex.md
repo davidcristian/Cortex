@@ -32,7 +32,9 @@ lifespan starts `boot_model` when the daemon comes up
 ([api.py](../../../brain/packages/model_manager/src/cortex_model_manager/api.py)), and the brain's
 boot recovery starts the cortex and waits for it
 ([swap_recovery.py](../../../brain/packages/core/src/cortex_core/swap_recovery.py)). Restarting
-either container brings a down cortex back.
+the model host brings a down cortex back. Restarting the brain does so only with escalation on:
+`recover_boot_residency` returns at once when there is no swap runtime, and with escalation off a
+brain restart left a killed cortex `failed`.
 
 With N peers in `CORTEX_SWAP_EVICT_MODELS` a pass makes at most 2N + 2 control calls, one `status`
 and one `start` per peer plus the regain's two readings, as decision 4 of
@@ -91,6 +93,7 @@ deadline.
   cortex's `llama-server` inside the model host left the sidecar answering `failed` for the cortex
   and the brain running; nothing started it, and every question ended in `inference_failed` until
   step 2's `POST /models/cortex/start` was sent, after which the next question was answered with
-  no restart ([readings](../../readings/store-and-process-restarts.md#the-cortex-process)). The dot
+  no restart ([readings](../../readings/store-and-process-restarts.md#the-cortex-process)). A
+  brain restart in that state did not start it. The dot
   stayed green throughout, which [820](820-health-answers-ready-while-the-cortex-or-the-store-is-down.md)
   takes up.
