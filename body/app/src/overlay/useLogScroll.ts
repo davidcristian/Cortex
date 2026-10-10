@@ -29,6 +29,9 @@ export function useLogScroll(showing: boolean, columnRef: RefObject<HTMLElement 
   const ref = useRef<HTMLDivElement>(null!);
   const onTail = useRef(true);
   const parked = useRef(0);
+  // Where the box was when this hook last moved it or heard it move. A scroll event that finds it
+  // still there came from content growing under it, not from the reader, so it keeps the following.
+  const left = useRef(0);
   // Read from a DOM event, so it has to be the current answer rather than the one a closure was
   // built with. Assigned during the render, so it is right before anything this render scheduled.
   const onScreen = useRef(showing);
@@ -39,7 +42,12 @@ export function useLogScroll(showing: boolean, columnRef: RefObject<HTMLElement 
       return;
     }
     const el = ref.current;
-    onTail.current = el.scrollHeight - el.scrollTop - el.clientHeight <= TAIL_THRESHOLD_PX;
+    if (el.scrollHeight - el.scrollTop - el.clientHeight <= TAIL_THRESHOLD_PX) {
+      onTail.current = true;
+    } else if (Math.abs(el.scrollTop - left.current) >= 1) {
+      onTail.current = false;
+    }
+    left.current = el.scrollTop;
     parked.current = el.scrollTop;
   }, []);
 
@@ -47,6 +55,7 @@ export function useLogScroll(showing: boolean, columnRef: RefObject<HTMLElement 
     if (onTail.current) {
       const el = ref.current;
       el.scrollTop = el.scrollHeight;
+      left.current = el.scrollTop;
     }
   }, []);
 

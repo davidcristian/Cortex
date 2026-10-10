@@ -1,9 +1,8 @@
 # The conversation stopped following the replies of one chat
 
-**Status:** open, actionable
+**Status:** done 2026-10-10
 **Area:** body-overlay
 **Origin:** [ADR-0035](../../adr/ADR-0035-console-and-motion.md)
-**Verified:** 2026-10-10
 
 On the Linux shell on 2026-10-07 one chat's conversation stayed scrolled to its first message
 through five long replies and a short answer, all streamed while nobody scrolled
@@ -36,3 +35,12 @@ or sets the flag again when a new turn starts.
   error bubble below, and the log stayed on the middle of the essay with nobody scrolling, until it
   was scrolled by hand ([readings](../../readings/store-and-process-restarts.md#the-brain)). This
   run ended in an error, so it may be a second path to the same flag rather than the first one.
+- 2026-10-10: done. A line the page drew at each scroll event showed the cause on the cut essay: the
+  rest of the reply and the error bubble made the content 545 px taller in one render, and the
+  scroll event queued by the last follow call then fired with the box unmoved, 545 px from the new
+  end, and turned following off. `useLogScroll` now turns it off only when the box has moved from
+  where the hook last put it or saw it. Two later cut replies ended on their end
+  ([readings](../../readings/store-and-process-restarts.md#following-a-reply-cut-by-a-restart)).
+  The hidden-window path of 2026-10-07 was not run again; that a scroll event held back while the
+  window was hidden fired after the show with the box unmoved, which the same rule covers, is an
+  assumption. A fresh shell opening a chat short of its end is a separate defect, R-824.

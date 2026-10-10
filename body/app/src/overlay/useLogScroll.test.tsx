@@ -1,9 +1,9 @@
-import { render } from "@testing-library/react";
+import { fireEvent, render } from "@testing-library/react";
 import { useRef } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { MORPH_START_EVENT } from "./morph";
-import { useLogScroll } from "./useLogScroll";
+import { type LogScroll, useLogScroll } from "./useLogScroll";
 
 /** The panel's chat column: the chrome that rolls, the log, and a section that rolls inside it. */
 function Log({
@@ -119,5 +119,73 @@ describe("useLogScroll and the rolls it hears", () => {
     const clock = stage();
     render(<Log rolling />).unmount();
     expect(clock.cancelled).toEqual([]);
+  });
+});
+
+/** The chat's log alone, handing its controls out so a test can follow a reply the way it does. */
+function Follower({ onLog }: { readonly onLog: (log: LogScroll) => void }) {
+  const column = useRef<HTMLDivElement>(null);
+  const log = useLogScroll(true, column);
+  onLog(log);
+  return (
+    <div ref={column}>
+      <div className="history" ref={log.ref} onScroll={log.onScroll} />
+    </div>
+  );
+}
+
+/** Give the box an engine's geometry: a box 100px tall whose scroll position is clamped to its
+ *  content, as a browser clamps it. */
+function follower(): { log: LogScroll; el: HTMLDivElement; content: { height: number } } {
+  let log!: LogScroll;
+  const view = render(<Follower onLog={(next) => (log = next)} />);
+  const el = view.container.querySelector(".history") as HTMLDivElement;
+  const content = { height: 500 };
+  let top = 0;
+  Object.defineProperty(el, "scrollHeight", { configurable: true, get: () => content.height });
+  Object.defineProperty(el, "clientHeight", { configurable: true, value: 100 });
+  Object.defineProperty(el, "scrollTop", {
+    configurable: true,
+    get: () => top,
+    set: (value: number) => {
+      top = Math.max(0, Math.min(value, content.height - 100));
+    },
+  });
+  return { log, el, content };
+}
+
+describe("useLogScroll and the scroll events nobody made", () => {
+  it("keeps following when content grows under a box that did not move", () => {
+    const { log, el, content } = follower();
+    log.toTail();
+    expect(el.scrollTop).toBe(400);
+    content.height = 1045;
+    fireEvent.scroll(el);
+    log.toTail();
+    expect(el.scrollTop).toBe(945);
+  });
+
+  it("stops following once the reader moves away from the end, however the content grows", () => {
+    const { log, el, content } = follower();
+    log.toTail();
+    el.scrollTop = 100;
+    fireEvent.scroll(el);
+    content.height = 900;
+    fireEvent.scroll(el);
+    log.toTail();
+    expect(el.scrollTop).toBe(100);
+  });
+
+  it("keeps following from the place a reader scrolled back to at the end", () => {
+    const { log, el, content } = follower();
+    log.toTail();
+    el.scrollTop = 100;
+    fireEvent.scroll(el);
+    el.scrollTop = 395;
+    fireEvent.scroll(el);
+    content.height = 1045;
+    fireEvent.scroll(el);
+    log.toTail();
+    expect(el.scrollTop).toBe(945);
   });
 });

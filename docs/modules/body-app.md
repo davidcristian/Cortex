@@ -214,8 +214,7 @@ heartbeats included (`DEFAULT_TURN_HEARTBEAT_GAP_MS = 120000`), so a dead brain 
   the length of its morph, and the console tab not showing. Each spreads `withdrawn(away)`
   (`overlay/withdrawn.ts`), which writes `aria-hidden` in both directions and `inert` in one, and a
   fourth such place spreads the same call or it is a defect. The `inert=""` string form is
-  deliberate: React 18 writes a string attribute straight through and drops a boolean one with a
-  warning (ADR-0052 decision 2).
+  deliberate: React 18 writes a string through and drops a boolean one (ADR-0052 decision 2).
 - A scroll container reserves its scrollbar and never borrows the content's width. All seven
   (`.history`, `.switcher`, `.reminders`, `.thoughts-body`, `.confirm-draft`, `.rows` and the
   composer's `.field`) set `scrollbar-gutter: stable`. Paying for that rail (`--rail`, 6px) takes
@@ -227,8 +226,9 @@ heartbeats included (`DEFAULT_TURN_HEARTBEAT_GAP_MS = 120000`), so a dead brain 
   instead (`overflow-wrap: anywhere`), and `whisper/front.ts` chunks a run of non-whitespace longer
   than 24 letters, a whispered reply's word boxes being `white-space: pre` (ADR-0037 decision 6).
 - `.history` sets `overflow-anchor: none`, Chromium's scroll anchoring being a third decider of a
-  number `overlay/useLogScroll.ts` and `overlay/logRoll.ts` already own. A future scroll container
-  holding rolling content needs the same line, or its own reason not to.
+  number `overlay/useLogScroll.ts` and `overlay/logRoll.ts` own; a new box of rolling content needs
+  it too. The log stops following a reply only on a scroll event that finds the box moved off its
+  end, because content growing under a box nobody moved fires a scroll event as well.
 - A theme change crosses the whole surface together. `applyTheme` sets `data-swapping` on the root
   for `THEME_SWAP_MS`, and `[data-swapping] *` puts one transition on everything for that window.
   The attribute goes on before the tokens, a transition starting from the after-change style, and

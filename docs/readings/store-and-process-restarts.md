@@ -8,7 +8,7 @@ before a send or killed during a reply is in [overlay-turn-flows.md](overlay-tur
 
 ## The rig
 
-**2026-10-10**, a debug build of the shell from the tree loading the overlay from Vite, WebKitGTK
+**2026-10-10**, a debug build of the shell from the tree with the overlay embedded, WebKitGTK
 drawing in software on an `Xvfb` display, against `docker/docker-compose.yml` with
 `docker/docker-compose.gpu.yml` built from the tree under their own project name: the shipped
 cortex, Redis with its append-only file on a named volume, escalation off and
@@ -92,8 +92,38 @@ to server`.
   store held the essay question and no reply, as for a stopped turn
   ([R-822](../refinements/tasks/822-a-turn-cut-by-a-brain-shutdown-ends-in-a-transport-error.md)).
   The conversation stayed scrolled to the middle of the essay, with the error bubble below the
-  visible part, until it was scrolled by hand
-  ([R-819](../refinements/tasks/819-the-conversation-stopped-following-the-replies-of-one-chat.md)).
+  visible part, until it was scrolled by hand. The cause and the fix are
+  [below](#following-a-reply-cut-by-a-restart).
+
+## Following a reply cut by a restart
+
+**2026-10-10**, the same rig, with a page build that also drew a line at the top of the window for
+each scroll event of the log and each follow call of `overlay/useLogScroll.ts`: `scrollTop`,
+`scrollHeight`, `clientHeight` and the follow flag. The brain's container was restarted during a
+900-word essay, 12 s after the send in the run before the fix and 1 s after the first words showed
+in the runs after it, which a poll of the frames found, so the 5 s drain cut the reply in the middle
+([R-819](../refinements/tasks/819-the-conversation-stopped-following-the-replies-of-one-chat.md)).
+
+- **Before the fix.** The rest of the received text and the error bubble arrived in one render
+  that made the content 545 px taller. A scroll event then fired with the box still at
+  `scrollTop` 6701, where the last follow call had put it, and the hook read the 545 px gap as the
+  reader leaving the end: the flag went off, and the follow call 10 ms later did nothing. The log
+  stayed on the first lines of the reply. The event was the one the engine queues after each
+  position the hook writes, dispatched after the render rather than before it.
+- **After the fix.** A scroll event turns following off only when the box has moved from where the
+  hook last put it or last saw it. Two runs cut mid-reply ended with the log on the error bubble;
+  the follow call after the render moved the box 698 px and 764 px. In neither run did the queued
+  event fall between the render and the follow call, so the rule itself is shown by the Vitest
+  cases in `overlay/useLogScroll.test.tsx`, which fail on the old rule.
+- **Cut before the first words.** In four runs, two on each side of the fix, the restart came
+  while the cortex was still thinking; the error bubble arrived alone and the log followed it. A
+  300-word essay restarted 7 s in finished inside the drain and ended normally, on its end.
+- **Hidden and shown while a reply streamed.** The summon chord hid the panel 6 s into a 500-word
+  essay and showed it 3 s later, before the fix: the log stayed on its end and no scroll event
+  cleared the flag. The 2026-10-07 path, an `Enter` typed into the hidden window, was not run.
+- **A fresh shell.** Each of six starts of the shell opened the restored chat one to three messages
+  short of its end, with the flag still set; that is a separate defect
+  ([R-824](../refinements/tasks/824-a-chat-restored-in-a-fresh-shell-opens-short-of-its-end.md)).
 
 ## The cortex process
 
