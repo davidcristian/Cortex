@@ -36,6 +36,12 @@ complete turns, the first giving a bike lock code, before the first restart.
   next question, sent after Redis was back, was answered and stored, with no restart of the shell.
   The ticker logged `schedule pass failed; the next poll retries` once per poll while Redis was
   down.
+- **Appends during a restart.** A script in the brain's container appended to a scratch chat
+  through `RedisSessionStore` every 50 ms for 12 s while Redis was restarted, five times. Each run
+  had 8 or 9 appends fail at once with `SessionStoreError` over `Error 111 connecting to
+  redis:6379`, a window of about 0.4 s, and every append after it succeeded. The client the adapter
+  builds with `Redis.from_url` has connections with `Retry(NoBackoff(), 0)`, so nothing retries a
+  refused connection. The scratch chats were deleted afterwards.
 
 ## The brain
 
