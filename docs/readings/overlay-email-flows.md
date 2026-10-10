@@ -121,5 +121,23 @@ In one of fourteen turns, the second of the first chat, the log stopped with the
 and the reply below it while nobody scrolled; the panel had grown to its full height during that
 turn. The same two questions in a fresh chat were followed to the end. In the overlay run of
 [a second send](#a-second-send), the second turn ended with the tool chips at the log's end and the
-confirmation card below them, with the panel already at its full height
-([R-830](../refinements/tasks/830-the-log-once-stopped-short-of-a-tool-turns-reply.md)).
+confirmation card below them, with the panel already at its full height.
+
+**The cause**, read off a temporary scroll line on the page: while the panel eases to a new height,
+its watch probes the height it would have with nothing animating it, which lays the log out at that
+height for a moment. A growing log has a shorter range there, so the engine moved its `scrollTop`
+(177 to 14 in one reading, the box 204 px tall on screen and 367 px at the probe), and the scroll
+event that followed found the box moved and 163 px off its end: the rule read the reader leaving.
+A placement measuring itself does the same (51 to 0 when the card closed). Now the probe gives the
+position back, and a placement that cannot names its move with `SCROLL_CLAMPED_EVENT`, which the
+log does not count as the reader's. Each row is a fresh chat: the Lunch plan send approved, then
+the Budget review send, the shell restarted before the first chat of a page.
+
+| Page | Chats | Card in view after the second send |
+| --- | --- | --- |
+| as shipped | 1 | 0 of 1 |
+| the placement's move named, the probe not held | 4 | 0 of 4 |
+| the release moved after the ease starts, a dropped candidate | 1 | 0 of 1 |
+| both parts of the fix | 5 | 5 of 5 |
+
+Every miss showed the "waiting for you to approve" chip with the card below the composer.

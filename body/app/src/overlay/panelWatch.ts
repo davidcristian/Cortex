@@ -4,6 +4,7 @@
 
 import { MORPHING_ATTRIBUTE } from "./morph";
 import { type Memory, heightOf, naturalHeightOf } from "./panelMemory";
+import { holdScroll } from "./panelParts";
 
 /** Whether a section inside is rolling, which owns the height for as long as it runs. */
 function rolling(element: HTMLElement): boolean {
@@ -14,7 +15,15 @@ function rolling(element: HTMLElement): boolean {
  *  while a move of its own is overriding the box, that being the one case the box cannot answer. */
 function wanted(element: HTMLElement, memory: Memory): number {
   const moving = memory.running !== null && memory.running.playState === "running";
-  return moving ? naturalHeightOf(element) : heightOf(element);
+  if (!moving) {
+    return heightOf(element);
+  }
+  // The probe lays the log out at the panel's new height, where a growing log has a shorter range
+  // and the engine clamps its position; the move on screen still has the old height.
+  const release = holdScroll(element);
+  const natural = naturalHeightOf(element);
+  release();
+  return natural;
 }
 
 /** Watch `element` and `replace` its placement whenever its own content resizes it. `replace` is

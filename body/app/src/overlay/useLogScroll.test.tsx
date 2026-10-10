@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { resized } from "../test-setup";
 import { MORPH_START_EVENT } from "./morph";
+import { SCROLL_CLAMPED_EVENT } from "./panelParts";
 import { type LogScroll, useLogScroll } from "./useLogScroll";
 
 /** The panel's chat column: the chrome that rolls, the log, and a section that rolls inside it. */
@@ -196,6 +197,37 @@ describe("useLogScroll and the scroll events nobody made", () => {
     fireEvent.scroll(el);
     log.toTail();
     expect(el.scrollTop).toBe(945);
+  });
+});
+
+describe("useLogScroll and the panel measuring itself", () => {
+  /** The panel grows: measured at its new height the box's range is shorter, so the engine clamps
+   *  the position, and the move starts from the old height with the box still there. */
+  function grow(el: HTMLDivElement, box: { height: number }): void {
+    box.height = 300;
+    el.scrollTop = el.scrollTop;
+    el.dispatchEvent(new Event(SCROLL_CLAMPED_EVENT));
+    box.height = 150;
+    fireEvent.scroll(el);
+  }
+
+  it("keeps following through a position the panel's measurement clamped", () => {
+    const { log, el, box } = follower();
+    log.toTail();
+    grow(el, box);
+    expect(el.scrollTop).toBe(200);
+    resized(el);
+    expect(el.scrollTop).toBe(350);
+  });
+
+  it("still stops following when the reader scrolls after the clamp", () => {
+    const { log, el, box } = follower();
+    log.toTail();
+    grow(el, box);
+    el.scrollTop = 50;
+    fireEvent.scroll(el);
+    resized(el);
+    expect(el.scrollTop).toBe(50);
   });
 });
 

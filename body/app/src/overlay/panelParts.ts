@@ -15,6 +15,10 @@ const ASIDE = ".view:not(.out) .collapse.aside";
  *  panel on every token of a stream. A new scrolling box belongs in this list. */
 const SCROLL_BOXES = ".history, .rows";
 
+/** Sent to a scrolling box whose position the panel's measurement could not give back, because the
+ *  panel's new height leaves the box a shorter range. Such a move is the panel's, not the reader's. */
+export const SCROLL_CLAMPED_EVENT = "cortex:scrollclamped";
+
 /** How tall the aside will be once everything settles: the height it is rolling to while it rolls,
  *  and the height it has otherwise. Reading the roll's target rather than the box is what lets the
  *  slide during a roll count an aside the same way the placement after the roll counts it. */
@@ -54,6 +58,9 @@ export function holdScroll(element: HTMLElement): () => void {
   return () => {
     for (const [box, top] of boxes) {
       box.scrollTop = top;
+      if (Math.abs(box.scrollTop - top) >= 1) {
+        box.dispatchEvent(new Event(SCROLL_CLAMPED_EVENT));
+      }
     }
   };
 }

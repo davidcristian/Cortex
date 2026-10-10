@@ -102,10 +102,10 @@ caret goes and what the overlay announces is
     text alone and cannot oscillate; the cost is a band of a few characters where the pill rests
     stacked with one line. The pill transitions named properties, never `all`.
 18. **The log holds its tail when its box changes size.** `Composer` calls `onResize` when the pill
-    changes height and fixes its `min-height` while it measures, or the engine clamps `scrollTop` to
-    the shorter reading. A `ResizeObserver` on the box covers the panel's placement, which shortens it
-    with no scroll event. Either goes to the tail if the reader was there. The observer watches the
-    box, not its content, and skips a roll in the column, so a Thoughts roll leaves `scrollTop` alone.
+    changes height and fixes its `min-height` while it measures. A `ResizeObserver` on the box, not
+    its content, covers the panel's placement and skips a roll in the column. The panel's own probes
+    lay the log out at its new height, so they give each box its position back, and a box left with
+    a shorter range hears `cortex:scrollclamped`: that move is the panel's, never the reader's.
 19. **When the column runs out, the draft's window pays, not the panel's edge.** The stacked pill's
     `min-height` is `--pill-floor` (84px: one row of field plus the button's row), the stacked field
     is `flex: 0 1 auto`, and the history is `flex: 1 100000 auto`, a weight that means "shrink

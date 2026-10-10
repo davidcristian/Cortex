@@ -6,6 +6,7 @@ import { type RefObject, useCallback, useEffect, useLayoutEffect, useRef } from 
 
 import { holdTail } from "./logRoll";
 import { MORPHING_ATTRIBUTE, MORPH_START_EVENT } from "./morph";
+import { SCROLL_CLAMPED_EVENT } from "./panelParts";
 
 /** How close to the bottom (px) still counts as "reading the tail". Two things use it: the
  *  auto-scroll follows a reply for a reader inside it, and a section rolling open inside the log
@@ -29,8 +30,8 @@ export function useLogScroll(showing: boolean, columnRef: RefObject<HTMLElement 
   const ref = useRef<HTMLDivElement>(null!);
   const onTail = useRef(true);
   const parked = useRef(0);
-  // Where the box was when this hook last moved it or heard it move. A scroll event that finds it
-  // still there came from content growing under it, not from the reader, so it keeps the following.
+  // Where the box was when this hook or the panel's measurement last moved it, or it heard it move.
+  // A scroll event that finds it still there did not come from the reader, so it keeps the following.
   const left = useRef(0);
   // Read from a DOM event, so it has to be the current answer rather than the one a closure was
   // built with. Assigned during the render, so it is right before anything this render scheduled.
@@ -80,6 +81,17 @@ export function useLogScroll(showing: boolean, columnRef: RefObject<HTMLElement 
     observer.observe(ref.current);
     return () => observer.disconnect();
   }, [columnRef, toTail]);
+
+  // The panel measures itself at its new height, where a growing log has a shorter range, and the
+  // engine moves the box to fit it while the eye still has the old height.
+  useEffect(() => {
+    const box = ref.current;
+    const onClamped = () => {
+      left.current = box.scrollTop;
+    };
+    box.addEventListener(SCROLL_CLAMPED_EVENT, onClamped);
+    return () => box.removeEventListener(SCROLL_CLAMPED_EVENT, onClamped);
+  }, []);
 
   // Subscribed on the column rather than on the box, because half the rolls that shrink this log
   // happen outside it: the switcher list and the reminder stack are siblings, so their bubbling

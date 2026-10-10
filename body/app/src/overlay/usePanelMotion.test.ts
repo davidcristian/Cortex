@@ -6,6 +6,7 @@ import { lays, resized } from "../test-setup";
 import { CEILING_PROPERTY } from "./panelBudget";
 import { maxHeight, openHeight } from "./panelGeometry";
 import { emptyMemory } from "./panelMemory";
+import { SCROLL_CLAMPED_EVENT } from "./panelParts";
 import { place } from "./panelPlacement";
 import { usePanelMotion } from "./usePanelMotion";
 
@@ -150,6 +151,30 @@ function scrollBox(element: HTMLElement, deep: number, measuring: number): HTMLE
       clamp();
     },
   });
+  return box;
+}
+
+/** A scrolling box whose range is `range()` now, clamped as the engine clamps it, and clamped
+ *  again whenever the panel's natural height is laid out for a probe. */
+function rangedBox(element: HTMLElement, range: () => number, probed = Infinity): HTMLElement {
+  const box = document.createElement("div");
+  box.className = "history";
+  element.append(box);
+  let top = 0;
+  Object.defineProperty(box, "scrollTop", {
+    configurable: true,
+    get: () => top,
+    set: (value: number) => {
+      top = Math.min(value, range());
+    },
+  });
+  const set = element.style.setProperty.bind(element.style);
+  element.style.setProperty = (name: string, value: string | null, priority?: string) => {
+    set(name, value, priority);
+    if (name === "height" && priority === "important") {
+      top = Math.min(top, probed);
+    }
+  };
   return box;
 }
 
@@ -684,6 +709,38 @@ describe("usePanelMotion", () => {
 
     rolling(element, 190, 0);
     rerender();
+    expect(history.scrollTop).toBe(120);
+  });
+
+  it("tells a box when its own measurement left it a shorter range than its position", () => {
+    const { ref, element, state } = harness();
+    state.natural = 400;
+    const history = rangedBox(element, () => (state.natural > 450 ? 30 : 400));
+    const clamped = vi.fn();
+    history.addEventListener(SCROLL_CLAMPED_EVENT, clamped);
+    const { rerender } = renderHook(() => usePanelMotion(ref, true, "chat"));
+    history.scrollTop = 120;
+    state.playState = "finished";
+    state.natural = 420;
+    rerender();
+    expect(clamped).not.toHaveBeenCalled();
+
+    state.natural = 520;
+    rerender();
+    expect(history.scrollTop).toBe(30);
+    expect(clamped).toHaveBeenCalledOnce();
+  });
+
+  it("gives a box back the position its probe of a move in the air clamped", () => {
+    const { ref, element, state } = harness();
+    state.natural = 400;
+    const history = rangedBox(element, () => 400, 80);
+    const { rerender } = renderHook(() => usePanelMotion(ref, true, "chat"));
+    state.natural = 520;
+    rerender();
+    history.scrollTop = 120;
+    state.displayed = 460;
+    expect(resized(element)).toBe(1);
     expect(history.scrollTop).toBe(120);
   });
 
