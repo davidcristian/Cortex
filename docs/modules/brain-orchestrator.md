@@ -67,9 +67,12 @@ is what the wire serves beyond a turn, each absent when its capability is off.
   `None` is a caller that announced no deadline. Readings above the announcement are normal from a
   python caller, grpc-python rounding a `timeout=` up onto a coarse unit ladder. A handler with no
   unary-unary behaviour passes through untouched, which is how `Converse` stays unwatched.
-- `serve(config, make_engine, store, ports=RpcPorts())` starts the server and blocks until
-  SIGTERM, SIGINT or cancellation; both signal handlers are installed on the running loop for the
-  server's lifetime and trigger the same graceful stop, draining in-flight RPCs for up to 5 s.
+- `serve(config, make_engine, store, ports=RpcPorts(), *, drain_s=SHUTDOWN_DRAIN_SECONDS)` starts
+  the server and blocks until SIGTERM, SIGINT or cancellation; both signal handlers are installed
+  on the running loop for the server's lifetime and trigger the same graceful stop. It refuses new
+  calls, gives the turns in flight `drain_s` (3 s) to finish, then calls `BrainService.end_turns()`,
+  and gRPC cancels any call still open 5 s after the stop began. The brain's compose
+  `stop_grace_period` (10 s) covers that and the teardown after it.
 
 ## The Converse stream
 
@@ -105,9 +108,10 @@ One stream's machinery lives in `converse_stream.py`, which `converse.py` re-exp
   question. A turn waiting there has stored nothing, and a stream dropped while it waits leaves none.
 - Failures become exactly one terminal `SeamError{code, message}` and the stream then ends cleanly:
   `SessionStoreError` to `session_store_unavailable`, `InferenceError` to `inference_failed`, a
-  refused attachment to `attachment_refused`, anything else to `internal` (`ERROR_CODE_*`).
-  Client disconnect tears the turn down as `Cancel`
-  does, and any pending confirmation dies with it as a denial.
+  refused attachment to `attachment_refused`, anything else to `internal` (`ERROR_CODE_*`). Client
+  disconnect tears the turn down as `Cancel` does, and any pending confirmation dies with it as a
+  denial. `ConverseStream.shut_down()`, for a stopping brain, does the same and then sends
+  `brain_stopping` when a turn was in flight, logging its ids, or ends the stream with no error.
 - `RpcConfirmer(emit, *, timeout_s)` (`confirm.py`, ADR-0022) mints a `confirm_id`, emits
   `ServerEvent.confirm_request` on the stream's control path (`put_nowait`, so a stalled consumer
   cannot deadlock the ask) and awaits the matching `ConfirmResponse`. Timeout, client half-close

@@ -6,6 +6,7 @@ from cortex_core import Sleeper, new_turn_id
 from cortex_orchestrator.converse_stream import (
     DEFAULT_CONFIRM_TIMEOUT_S,
     DEFAULT_MAX_BUFFERED_EVENTS,
+    ERROR_CODE_BRAIN_STOPPING,
     ERROR_CODE_INFERENCE_FAILED,
     ERROR_CODE_INTERNAL,
     ERROR_CODE_SESSION_STORE_UNAVAILABLE,
@@ -18,6 +19,7 @@ from cortex_seam import ClientEvent, ServerEvent
 __all__ = [
     "DEFAULT_CONFIRM_TIMEOUT_S",
     "DEFAULT_MAX_BUFFERED_EVENTS",
+    "ERROR_CODE_BRAIN_STOPPING",
     "ERROR_CODE_INFERENCE_FAILED",
     "ERROR_CODE_INTERNAL",
     "ERROR_CODE_SESSION_STORE_UNAVAILABLE",

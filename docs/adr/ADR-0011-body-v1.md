@@ -24,10 +24,11 @@ recorded in an ADR. This ADR is that exclusion, and the checks that grew around 
    past its `UserTurn` only to answer a `ConfirmRequest` mid-turn
    ([ADR-0022](ADR-0022-email-write-confirmer.md)). Cancellation is dropping the returned stream:
    the overlay's Stop has the shell's `stop_turn` drop the turn's RPC, and the brain cancels the
-   generation, frees the lease and stores the question with no reply. Turns naming one session run
-   one at a time across streams, writes included, under a lock per session in the one brain
-   process that serves every stream; it holds no conversation state and ends with the turns it
-   orders. Several turns per call and a client `Cancel` are deferred
+   generation, frees the lease and stores the question with no reply. A stopping brain ends a turn
+   still running 3 s after SIGTERM the same way and then sends `SeamError{brain_stopping}`. Turns
+   naming one session run one at a time across streams, writes included, under a lock per session
+   in the one brain process that serves every stream; it holds no conversation state and ends with
+   the turns it orders. Several turns per call and a client `Cancel` are deferred
    ([R-127](../refinements/tasks/127-multi-turn-and-proto-cancel.md)).
 
 2. **`TurnEvent` is a typed core mirror of the proto `ServerEvent`, and one stream reports both
@@ -225,8 +226,7 @@ recorded in an ADR. This ADR is that exclusion, and the checks that grew around 
 - **A long-lived bidirectional `Converse` per overlay**: client-side multiplexing to model and test
   for nothing that drop-to-cancel does not already cover.
 - **Raw Win32 `RegisterHotKey`**: needs `unsafe` against the workspace `forbid`.
-- **Polling `Health` on a timer**: costs a request per interval while hidden and is stale between
-  ticks.
+- **Polling `Health` on a timer**: a request per interval while hidden, and stale between ticks.
 - **Shell clippy inside `check-body` or `just check`**: puts a webkit install on every `body/`
   change, or makes the single command unrunnable on a clean box.
 - **A shell clippy that skips itself**: a check that cannot fail.

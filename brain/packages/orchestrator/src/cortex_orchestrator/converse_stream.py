@@ -37,6 +37,10 @@ QueuedTurn = tuple[str, str, tuple[ImagePart, ...]]
 ERROR_CODE_SESSION_STORE_UNAVAILABLE = "session_store_unavailable"
 ERROR_CODE_INFERENCE_FAILED = "inference_failed"
 ERROR_CODE_INTERNAL = "internal"
+ERROR_CODE_BRAIN_STOPPING = "brain_stopping"
+BRAIN_STOPPING_MESSAGE = (
+    "the brain is shutting down, so this reply was cut short; ask again once it is back"
+)
 
 DEFAULT_MAX_BUFFERED_EVENTS = 256
 
@@ -94,6 +98,8 @@ class ConverseStream:
         self._sleeper = sleeper if sleeper is not None else AsyncioSleeper()
         self._pending: deque[QueuedTurn] = deque()
         self._turn: asyncio.Task[None] | None = None
+        # The ids of the latest turn started, which is the one in flight while `_turn` is set.
+        self._running: dict[str, str] | None = None
         self._failed = False
 
     async def events(
@@ -176,7 +182,9 @@ class ConverseStream:
         """Start the oldest queued turn unless one runs already or the stream failed."""
         if self._turn is not None or self._failed or not self._pending:
             return
-        self._turn = asyncio.create_task(self._turn_task(self._pending.popleft()))
+        turn = self._pending.popleft()
+        self._running = {"session_id": turn[0], "turn_id": self._new_turn_id()}
+        self._turn = asyncio.create_task(self._turn_task(turn, self._running))
 
     async def _drain_turns(self) -> None:
         """Client input ended: wait until the in-flight turn and the queue are done."""
@@ -192,12 +200,24 @@ class ConverseStream:
         turn.cancel()
         await asyncio.wait([turn])
 
-    async def _turn_task(self, turn: QueuedTurn) -> None:
+    async def shut_down(self) -> None:
+        """End the stream for a stopping brain: its turn ends as a Stop ends it, with a reason."""
+        busy = self._turn is not None
+        self._failed = True
+        await self._cancel_turn()
+        if busy:
+            _logger.warning("ending a turn because the brain is stopping", extra=self._running)
+            self._out.put_nowait(
+                ServerEvent(
+                    error=SeamError(code=ERROR_CODE_BRAIN_STOPPING, message=BRAIN_STOPPING_MESSAGE)
+                )
+            )
+        self._out.put_nowait(None)
+
+    async def _turn_task(self, turn: QueuedTurn, fields: dict[str, str]) -> None:
         """One turn task: typed failures become SeamError; completion chains the queue."""
-        turn_id = self._new_turn_id()
-        fields = {"session_id": turn[0], "turn_id": turn_id}
         try:
-            await self._run_turn(turn, turn_id)
+            await self._run_turn(turn, fields["turn_id"])
         except AttachmentError as err:
             _logger.warning("refusing a turn whose pictures the model cannot see", extra=fields)
             self._fail(ERROR_CODE_ATTACHMENT_REFUSED, str(err))

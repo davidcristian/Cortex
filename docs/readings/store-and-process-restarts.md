@@ -85,15 +85,34 @@ to server`.
   cortex thought for about a thousand tokens and answered the earlier question about the locker's
   wing instead of the bike lock code; asked again, it answered the code.
 - **Restarted during a reply.** The brain was restarted 7 s into a 300-word essay. The model host
-  logged `cancel task` 3 s after the signal, within the 5 s the server drains for. The overlay kept
-  the text that had arrived, ending mid-sentence, and under it a red bubble reading
+  logged `cancel task` 3 s after the signal, inside the 5 s grace the server stopped with then. The
+  overlay kept the text that had arrived, ending mid-sentence, and under it a red bubble reading
   `Unknown: h2 protocol error: error reading a body from connection`, which is what a `docker kill`
   shows. The dot went amber and then green. The old brain logged nothing about the cut turn. The
-  store held the essay question and no reply, as for a stopped turn
-  ([R-822](../refinements/tasks/822-a-turn-cut-by-a-brain-shutdown-ends-in-a-transport-error.md)).
-  The conversation stayed scrolled to the middle of the essay, with the error bubble below the
-  visible part, until it was scrolled by hand. The cause and the fix are
-  [below](#following-a-reply-cut-by-a-restart).
+  store held the essay question and no reply, as for a stopped turn; the cut and its fix are in the
+  [next section](#a-turn-in-flight-when-the-brain-stops). The conversation stayed scrolled to the
+  middle of the essay, with the error bubble below the visible part, until it was scrolled by hand
+  ([cause and fix](#following-a-reply-cut-by-a-restart)).
+
+### A turn in flight when the brain stops
+
+**2026-10-10**, the same rig. `docker restart cortexn2-brain-1` was sent 1 s after the first words
+of a 900-word essay showed, and `docker events` gave the signal times.
+
+- **Before** (the server stopping with a 5 s grace and no `stop_grace_period`). The daemon sent
+  signal 15, then signal 9 3.0 s later, and the brain exited with 137, inside its own grace. Docker
+  Desktop's daemon stops a container that sets no stop timeout after 3 s: a scratch container whose
+  PID 1 ignores SIGTERM took 3.1 s to `docker stop`, and 10.3 s with `--stop-timeout 10`. A Python
+  client on its own `Converse` saw `UNAVAILABLE` `Stream removed (Socket closed (GOAWAY received;
+  Error code: 0; Debug Text: Server shutdown))` 3.06 s after the restart command, and the model
+  host logged `cancel task` 6 ms later. The overlay showed the h2 error above, and the store held
+  the question alone.
+- **After** (a 3 s drain, then `ConverseStream.shut_down`, and `stop_grace_period: 10s`), two runs.
+  The brain logged `ending a turn because the brain is stopping` with the session and turn ids
+  3.00 s after signal 15, the model host logged `cancel task` 8 ms later, and the brain exited with
+  0 0.8 s after that, with no signal 9. The overlay kept the text that had arrived, ending mid-word, and under it
+  a red bubble reading `brain_stopping: the brain is shutting down, so this reply was cut short; ask
+  again once it is back`; the log followed it to the end. The store held the question alone.
 
 ## Following a reply cut by a restart
 

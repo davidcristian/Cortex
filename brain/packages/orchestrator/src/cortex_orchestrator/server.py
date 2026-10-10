@@ -26,8 +26,8 @@ from cortex_orchestrator.converse import (
     DEFAULT_CONFIRM_TIMEOUT_S,
     DEFAULT_MAX_BUFFERED_EVENTS,
     EngineFactory,
-    converse,
 )
+from cortex_orchestrator.converse_stream import ConverseStream
 from cortex_orchestrator.preference_servicer import PreferenceRpcMixin
 from cortex_orchestrator.reminders import ack_reminder, list_due_reminders
 from cortex_orchestrator.session_rpc import DEFAULT_SESSION_LIST_LIMIT, MAX_SESSION_LIST_LIMIT
@@ -47,6 +47,9 @@ from cortex_seam import (
 )
 
 ORCHESTRATOR_VERSION = "0.0.0"
+# A stopping brain lets turns finish for the drain, then ends the rest within the grace. The
+# brain's compose `stop_grace_period` must cover the grace plus the teardown after it.
+SHUTDOWN_DRAIN_SECONDS = 3.0
 _SHUTDOWN_GRACE_SECONDS = 5.0
 # SIGTERM is what `docker compose down` delivers; SIGINT covers a Ctrl-C run.
 _HANDLED_SIGNALS = (signal.SIGTERM, signal.SIGINT)
@@ -56,6 +59,7 @@ __all__ = [
     "DEFAULT_SESSION_LIST_LIMIT",
     "MAX_SESSION_LIST_LIMIT",
     "ORCHESTRATOR_VERSION",
+    "SHUTDOWN_DRAIN_SECONDS",
     "BrainService",
     "RpcPorts",
     "create_server",
@@ -98,6 +102,11 @@ class BrainService(SessionRpcMixin, PreferenceRpcMixin, BrainServiceServicer):
         self._serving = ports.serving
         self._max_buffered_events = max_buffered_events
         self._confirm_timeout_s = confirm_timeout_s
+        self._streams: set[ConverseStream] = set()
+
+    async def end_turns(self) -> None:
+        """End every open `Converse` stream as a stopping brain does."""
+        await asyncio.gather(*(stream.shut_down() for stream in tuple(self._streams)))
 
     async def Health(  # noqa: N802 - method name is fixed by the gRPC codegen interface
         self,
@@ -124,16 +133,18 @@ class BrainService(SessionRpcMixin, PreferenceRpcMixin, BrainServiceServicer):
     ) -> AsyncGenerator[ServerEvent, None]:
         """Stream the conversation loop; contract and cancel semantics: `converse.py`."""
         del context  # RPC cancellation and disconnect arrive as a generator close, not here
-        events = converse(
+        stream = ConverseStream(
             self._make_engine,
-            request_iterator,
             max_buffered_events=self._max_buffered_events,
             confirm_timeout_s=self._confirm_timeout_s,
         )
+        self._streams.add(stream)
+        events = stream.events(request_iterator)
         try:
             async for event in events:
                 yield event
         finally:
+            self._streams.discard(stream)
             await events.aclose()
 
     async def ListDueReminders(  # noqa: N802 - method name is fixed by the gRPC codegen interface
@@ -169,6 +180,17 @@ def create_server(
     ports: RpcPorts = _NO_RPC_PORTS,
 ) -> tuple[aio.Server, int]:
     """Build the aio server over `make_engine`/`store` and bind it (not started)."""
+    server, bound_port, _ = _build(config, make_engine, store, ports)
+    return server, bound_port
+
+
+def _build(
+    config: RpcServerConfig,
+    make_engine: EngineFactory,
+    store: SessionStore,
+    ports: RpcPorts,
+) -> tuple[aio.Server, int, BrainService]:
+    """The bound server, its port and the service it hosts."""
     guards: list[aio.ServerInterceptor] = []
     if config.token:
         guards.append(RpcTokenInterceptor(config.token))
@@ -187,7 +209,7 @@ def create_server(
     )
     add_BrainServiceServicer_to_server(service, server)
     bound_port = server.add_insecure_port(config.bind_address)
-    return server, bound_port
+    return server, bound_port, service
 
 
 async def serve(
@@ -195,9 +217,11 @@ async def serve(
     make_engine: EngineFactory,
     store: SessionStore,
     ports: RpcPorts = _NO_RPC_PORTS,
+    *,
+    drain_s: float = SHUTDOWN_DRAIN_SECONDS,
 ) -> None:
     """Run the server until SIGTERM/SIGINT or cancellation; always stop gracefully."""
-    server, bound_port = create_server(config, make_engine, store, ports)
+    server, bound_port, service = _build(config, make_engine, store, ports)
     await server.start()
     _logger.info("gRPC server listening", extra={"host": config.host, "port": bound_port})
     loop = asyncio.get_running_loop()
@@ -209,4 +233,13 @@ async def serve(
     finally:
         for signum in _HANDLED_SIGNALS:
             loop.remove_signal_handler(signum)
-        await server.stop(grace=_SHUTDOWN_GRACE_SECONDS)
+        await _stop(server, service, drain_s)
+
+
+async def _stop(server: aio.Server, service: BrainService, drain_s: float) -> None:
+    """Refuse new calls, let the turns in flight finish within `drain_s`, then end the rest."""
+    stopping = asyncio.create_task(server.stop(grace=_SHUTDOWN_GRACE_SECONDS))
+    done, _ = await asyncio.wait([stopping], timeout=drain_s)
+    if not done:
+        await service.end_turns()
+    await stopping

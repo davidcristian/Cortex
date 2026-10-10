@@ -66,6 +66,9 @@ services:
     restart: unless-stopped
     # tini as PID 1 so SIGTERM reaches Python and `docker compose down` stays fast.
     init: true
+    # Covers the gRPC server's shutdown grace in `server.py` and the store closes after it. A
+    # daemon's own default can be shorter: Docker Desktop's killed the brain inside that grace.
+    stop_grace_period: 10s
     depends_on:
       redis:
         condition: service_healthy
