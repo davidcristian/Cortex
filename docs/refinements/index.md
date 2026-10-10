@@ -71,7 +71,7 @@ never a reading of what the tree does now.
 
 - **[R-073](tasks/073-fence-without-block-recall.md)** Fence-without-block recall mode (untrusted-content). Its claim was checked against the code on 2026-10-10.
 - **[R-834](tasks/834-a-reply-claims-a-task-it-never-tried-to-schedule.md)** A reply claims a task it never tried to schedule (scheduling). Its claim was checked against the code on 2026-10-10.
-- **[R-835](tasks/835-a-one-time-reminder-is-stored-as-a-daily-one.md)** A one-time reminder is stored as a daily one (scheduling). Its claim was checked against the code on 2026-10-10.
+- **[R-836](tasks/836-a-recalled-exchange-is-claimed-again-with-no-call.md)** A recalled exchange is claimed again with no call (memory). Its claim was checked against the code on 2026-10-10.
 
 ### Actionable, once a port changes (1)
 
@@ -505,7 +505,7 @@ never a reading of what the tree does now.
 
 ### memory
 
-8 open of 33.
+9 open of 34.
 
 - [R-083](tasks/083-namespaced-memory-scoping.md) Per-session and namespaced memory scoping. done 2026-07-06.
 - [R-084](tasks/084-session-global-union-read.md) Session and global union read policy. open, waiting for a consumer.
@@ -540,6 +540,7 @@ never a reading of what the tree does now.
 - [R-721](tasks/721-the-embedders-engine-build-is-recorded-nowhere.md) The embedder's engine build is recorded nowhere. done 2026-10-04.
 - [R-729](tasks/729-the-two-trail-files-each-hold-their-own-append.md) The two trail files each hold their own append. open, waiting for its trigger.
 - [R-740](tasks/740-the-recall-judge-and-the-recap-are-unmeasured-on-the-qwen-deep-candidates.md) The recall judge and the recap are unmeasured on the Qwen deep candidates. done 2026-09-28.
+- [R-836](tasks/836-a-recalled-exchange-is-claimed-again-with-no-call.md) A recalled exchange is claimed again with no call. open, actionable.
 
 ### orchestrator
 
@@ -804,7 +805,7 @@ never a reading of what the tree does now.
 
 ### scheduling
 
-5 open of 29.
+4 open of 28.
 
 - [R-225](tasks/225-rust-transport-reminder-methods.md) Rust BrainTransport reminder methods. done 2026-07-14.
 - [R-226](tasks/226-overlay-reminders-on-open.md) The overlay's reminders-on-open surface. done 2026-07-14.
@@ -834,7 +835,6 @@ never a reading of what the tree does now.
 - [R-250](tasks/250-task-reminder-distinction.md) A task versus reminder distinction on the pull surface. open, waiting for a consumer.
 - [R-394](tasks/394-the-fired-schedule-item-has-two-field-names-across-the-brains.md) The fired schedule item has two field names across the brain's own log lines. done 2026-08-24.
 - [R-834](tasks/834-a-reply-claims-a-task-it-never-tried-to-schedule.md) A reply claims a task it never tried to schedule. open, actionable.
-- [R-835](tasks/835-a-one-time-reminder-is-stored-as-a-daily-one.md) A one-time reminder is stored as a daily one. open, actionable.
 
 ### session-history
 

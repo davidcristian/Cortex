@@ -65,7 +65,7 @@ Each of the four reminders created after a refusal stored `tainted: true`. Two o
 with a daily `rule` and first due at 10:00 UTC the same day, because the call used the recurring
 `at_time` argument, while the reply said "tomorrow, October 11th"; three later repeats, run with
 recording on, logged `at_time: "10:00"` on 2 of 3 refused task calls
-([R-835](../refinements/tasks/835-a-one-time-reminder-is-stored-as-a-daily-one.md)).
+([one-time and daily times](schedule-one-time-and-daily.md)).
 
 ## Recording a tainted turn and recalling it
 

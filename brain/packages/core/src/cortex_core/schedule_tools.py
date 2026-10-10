@@ -64,8 +64,9 @@ class ScheduleTaskTool:
             "at": {
                 "type": "string",
                 "description": (
-                    "Absolute due time, ISO-8601, e.g. 2026-07-12T18:00:00. An explicit offset "
-                    f"is honored; without one it is read as {self._zone.name} local time."
+                    "One-time due time, an ISO-8601 date-time, e.g. 2026-07-12T18:00:00. Use "
+                    "this for a single time such as 'tomorrow at 10:00'. An explicit offset is "
+                    f"honored; without one it is read as {self._zone.name} local time."
                 ),
             },
             "in_seconds": {
@@ -83,10 +84,12 @@ class ScheduleTaskTool:
             "at_time": {
                 "type": "string",
                 "description": (
-                    f"Recurring wall-clock time, 24-hour HH:MM in {self._zone.name} (or in "
-                    "'in_zone'), e.g. 09:00. Use this for 'every day at 9' rather than "
-                    "'every_seconds': it keeps the same clock time across daylight saving. "
-                    "Alternative to 'at'/'in_seconds'."
+                    "Makes the item repeat: a 24-hour HH:MM wall-clock time in "
+                    f"{self._zone.name} (or in 'in_zone'), e.g. 09:00, fired every day, or only "
+                    "on the days 'on_days', 'on_month_days' or 'on_dates' select. Use it only "
+                    "when the user asks for a repeat, such as 'every day at 9'; for one time, "
+                    "such as 'tomorrow at 10:00', use 'at' instead. It keeps the same clock "
+                    "time across daylight saving. Alternative to 'at'/'in_seconds'."
                 ),
             },
             **day_selector_properties(),
@@ -105,10 +108,11 @@ class ScheduleTaskTool:
                 f"Schedule {what} for later; it fires even after a restart. "
                 f"The current date-time is {self._zone.render(self._clock.now())} "
                 f"({self._zone.name}). "
-                "Provide 'at' (ISO-8601) or 'in_seconds' (delay from now), "
-                "and add 'every_seconds' to recur; or provide 'at_time' (HH:MM) with "
-                "optional 'on_days', 'on_month_days', 'on_dates', or 'in_zone' to recur at a "
-                "wall-clock time."
+                "For one time, provide 'at' (ISO-8601 date-time) or 'in_seconds' (delay "
+                "from now), and add 'every_seconds' only to repeat at a fixed interval. To "
+                "repeat at a wall-clock time, provide 'at_time' (HH:MM) with optional "
+                "'on_days', 'on_month_days', 'on_dates', or 'in_zone'; 'at_time' alone "
+                "repeats every day."
             ),
             parameters={"type": "object", "properties": properties, "required": ["kind", "text"]},
         )

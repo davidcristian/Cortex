@@ -744,9 +744,19 @@ async def test_edit_wraps_a_down_store() -> None:
 def test_spec_advertises_the_wall_clock_form_with_the_zone_and_the_day_names() -> None:
     tool, _ = _tool()
     properties = tool.spec.parameters["properties"]
-    assert "HH:MM in UTC" in properties["at_time"]["description"]
+    assert "HH:MM wall-clock time in UTC" in properties["at_time"]["description"]
     assert properties["on_days"]["items"]["enum"] == list(DAY_NAMES)
     assert "at_time" in tool.spec.description
+
+
+def test_spec_says_at_time_repeats_and_sends_a_one_time_request_to_at() -> None:
+    tool, _ = _tool()
+    properties = tool.spec.parameters["properties"]
+    at_time = properties["at_time"]["description"]
+    assert at_time.startswith("Makes the item repeat")
+    assert "for one time, such as 'tomorrow at 10:00', use 'at' instead" in at_time
+    assert properties["at"]["description"].startswith("One-time due time")
+    assert "'at_time' alone repeats every day" in tool.spec.description
 
 
 async def test_at_time_derives_the_first_fire_and_stores_the_rule() -> None:

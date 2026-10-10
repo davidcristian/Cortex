@@ -24,3 +24,12 @@ replies that claim a schedule with no `schedule_task` run in the turn.
 ## History
 
 - 2026-10-10: filed from the file and memory flows on the Linux shell.
+- 2026-10-10: the replay of a reply's tool runs into later turns
+  ([ADR-0074](../../adr/ADR-0074-replayed-tool-runs.md)) does not settle this. It was already in
+  the brain these rows ran on, and in five more chains of the same three turns, two third turns
+  read the file, made no call and claimed the task
+  ([readings](../../readings/schedule-one-time-and-daily.md#results)). The replay covers the
+  chat's own replies; the recall of a stored exchange does not, and a reminder exchange recalled
+  into a fresh chat was claimed again with no call
+  ([R-836](836-a-recalled-exchange-is-claimed-again-with-no-call.md)). Whether recall is also
+  the source here is not yet measured. Left open.
