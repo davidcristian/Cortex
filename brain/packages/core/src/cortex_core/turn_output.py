@@ -103,6 +103,7 @@ async def stream_turn_events(
                     yield status
                 continue
             if isinstance(delta, ToolStep):
+                channels[1].next_round()
                 yield ToolActivity(tool_name=delta.tool_name, summary=delta.summary)
                 continue
             if isinstance(delta, StepOutcome):

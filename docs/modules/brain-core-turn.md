@@ -231,10 +231,10 @@ leave it in the reply.
   default reads. The user's own allowlist answers before any ground. What each policy costs, in
   real hosts redacted, is in [output-guardrail](../readings/output-guardrail.md).
 - `ThinkingChannel` and `open_output_channels(guardrail, taint, user_text)` (`output_channels.py`,
-  ADR-0020 decision 6) extend the same defence over the thinking status, with one filter instance
-  each so the two held buffers never mix. One turn's trace is one stream, so a URL split around a
-  dispatch is joined before matching, and `release()` drains the scrubbed remainder once. With no
-  guardrail both channels pass text through unchanged.
+  ADR-0020 decision 6) filter the thinking status the same way, one filter each, so the held buffers
+  never mix. A turn's trace is one stream, so a URL split around a dispatch is joined before matching;
+  `release()` drains the remainder once. The first reasoning after a tool step starts with a blank
+  line (`ROUND_BREAK`) added after the filter. With no guardrail nothing else changes the text.
 - `flush_channels` (`turn_output.py`) settles a reply: right after the reply filter's `flush` it
   reads `redactions()`, and when any count is above zero it logs `the output guardrail removed
   links from this reply` at `INFO` on `cortex_core.turn_output` with `collected`, `link`,

@@ -81,6 +81,7 @@ from cortex_core import (
     record_fields,
 )
 from cortex_core.loop_events import MAX_STEP_SUMMARY_CHARS
+from cortex_core.output_channels import ROUND_BREAK
 from cortex_core.tool_loop import MAX_TOOL_STEPS
 from cortex_core.untrusted import PLAIN_SECURITY_PREAMBLE
 
@@ -1247,10 +1248,52 @@ async def test_url_split_across_thinking_bursts_around_a_tool_call_is_redacted()
         StatusUpdate(state="thinking", detail="see "),
         ToolActivity(tool_name="read", summary="read a file"),
         ToolOutcome(tool_name="read", ok=True),
-        StatusUpdate(state="thinking", detail=f"{REDACTED_LINK} ok. "),
+        StatusUpdate(state="thinking", detail=f"{ROUND_BREAK}{REDACTED_LINK} ok. "),
         TextDelta("done"),
         TurnCompleted(turn_id="t-1", full_text="done"),
     ]
+
+
+def _read(call_id: str, path: str) -> ToolCall:
+    return ToolCall(id=call_id, name="read", arguments={"path": path})
+
+
+async def _thinking_of(rounds: list[list[ReasoningChunk | TextChunk | ToolCall]]) -> list[str]:
+    backend = ScriptedToolBackend(rounds)
+    events = await _collect(
+        _guarded_engine(backend, InMemorySessionStore()).handle_turn(
+            "s", "summarize /x", turn_id="t-1"
+        )
+    )
+    return _thinking_details(events)
+
+
+async def test_each_tool_round_s_reasoning_starts_after_a_blank_line() -> None:
+    details = await _thinking_of(
+        [
+            [ReasoningChunk("Step 4: extract links."), _read("c1", "/x"), _read("c2", "/y")],
+            [ReasoningChunk("The user wants a "), ReasoningChunk("summary."), TextChunk("done")],
+        ]
+    )
+    assert details == [
+        "Step 4: extract links.",
+        f"{ROUND_BREAK}The user wants a ",
+        "summary.",
+    ]
+
+
+async def test_a_round_with_no_reasoning_before_it_starts_no_break() -> None:
+    details = await _thinking_of(
+        [[_read("c1", "/x")], [ReasoningChunk("Reading."), TextChunk("ok")]]
+    )
+    assert details == ["Reading."]
+
+
+async def test_a_round_s_reasoning_held_to_the_end_still_starts_after_a_break() -> None:
+    details = await _thinking_of(
+        [[ReasoningChunk("First."), _read("c1", "/x")], [ReasoningChunk(_EVIL_URL)]]
+    )
+    assert details == ["First.", f"{ROUND_BREAK}{REDACTED_LINK}"]
 
 
 async def test_empty_reasoning_delta_emits_no_status_on_either_path() -> None:

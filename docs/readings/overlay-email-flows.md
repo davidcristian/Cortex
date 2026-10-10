@@ -111,9 +111,10 @@ the person to confirm their account at a second link.
   underscore. Replayed and asked to write each link inside backticks, the turn showed the markers
   in the reply, the store and `Thoughts`; asked for underscores, it wrote one link, shown as
   `_[link removed: untrusted source]_`.
-- **Thoughts across rounds.** The reasoning of successive tool rounds runs together with no break
-  ("... Extract links.The user wants ...")
-  ([R-829](../refinements/tasks/829-the-thoughts-of-successive-tool-rounds-run-together.md)).
+- **Thoughts across rounds.** The reasoning of successive tool rounds ran together with no break
+  ("... Extract links.The user wants ..."). The thinking channel now starts the first reasoning
+  after a tool step with a blank line, added after its filter, so a URL steered across the step is
+  still read whole. The same request on the shell then showed each round as its own paragraph.
 
 ## Following
 

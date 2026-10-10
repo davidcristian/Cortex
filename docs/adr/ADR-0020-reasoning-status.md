@@ -67,7 +67,9 @@ the silence. Thinking stays **on** for the cortex, and the trace is shown rather
    once, at end of stream. One turn's trace is **one stream**: what is held back survives tool
    steps and reply deltas between bursts, because flushing at each burst boundary let a URL steered
    to straddle a think, tool, think boundary cross as two fragments, neither matching. The cost is
-   that a held-back fragment shows slightly later. Redact and strict modes and the URL grammar are
+   that a held-back fragment shows slightly later. After a tool step, the first reasoning shown
+   starts with a blank line (`ROUND_BREAK`), added after the filter, so the trace shows each round
+   as its own paragraph and text held over the step shows after the break. Redact and strict modes and the URL grammar are
    [ADR-0015](ADR-0015-output-guardrail.md)'s, under the same `CORTEX_OUTPUT_GUARDRAIL`.
 
 7. **The cortex keeps thinking on, and its trace length is a server setting.** A runaway trace is
