@@ -89,9 +89,11 @@ to server`.
   the text that had arrived, ending mid-sentence, and under it a red bubble reading
   `Unknown: h2 protocol error: error reading a body from connection`, which is what a `docker kill`
   shows. The dot went amber and then green. The old brain logged nothing about the cut turn. The
-  store held the essay question and no reply, as for a stopped turn. The conversation stayed
-  scrolled to the middle of the essay, with the error bubble below the visible part, until it was
-  scrolled by hand ([R-819](../refinements/tasks/819-the-conversation-stopped-following-the-replies-of-one-chat.md)).
+  store held the essay question and no reply, as for a stopped turn
+  ([R-822](../refinements/tasks/822-a-turn-cut-by-a-brain-shutdown-ends-in-a-transport-error.md)).
+  The conversation stayed scrolled to the middle of the essay, with the error bubble below the
+  visible part, until it was scrolled by hand
+  ([R-819](../refinements/tasks/819-the-conversation-stopped-following-the-replies-of-one-chat.md)).
 
 ## The cortex process
 
