@@ -5,7 +5,7 @@
 **Origin:** [ADR-0037](../../adr/ADR-0037-whisper-streaming.md) decision 2
 **Trigger:** a History line in this file recording the maintainer's pick of what a Stop keeps on
 screen.
-**Verified:** 2026-10-07
+**Verified:** 2026-10-11
 
 On the Linux shell a Stop pressed while the cortex wrote a long essay ended the turn in the brain at
 once, and the overlay went on drawing the reply's text for at least 14 s

@@ -5,14 +5,16 @@
 **Origin:** [ADR-0011](../../adr/ADR-0011-body-v1.md) decision 2
 **Trigger:** a History line in this file recording the maintainer's pick of the wording and of the
 stopped reply's look.
-**Verified:** 2026-10-07
+**Verified:** 2026-10-11
 
 Three replies that end before the brain finishes show text that does not tell a person what
 happened ([readings](../../readings/overlay-turn-flows.md)):
 
 - A brain that dies during a reply ends it with the tonic status verbatim,
   `Unknown: h2 protocol error: error reading a body from connection`, which `WireError::from` in
-  `body/app/src-tauri/src/converse.rs` passes through as `{code}: {message}`.
+  `body/app/src-tauri/src/converse.rs` passes through as `{code}: {message}`. A brain that is
+  stopped rather than killed now ends the turn with a typed `SeamError` whose code is
+  `brain_stopping`, and the overlay shows it in the same `{code}: {message}` form.
 - A turn sent while the brain is down ends with `no reply within 5s` when the dial times out, as it
   does on this machine, though no question reached the brain. A dial that is refused, which this
   machine does not produce, would show the connection error's own text instead.
@@ -30,3 +32,8 @@ happened ([readings](../../readings/overlay-turn-flows.md)):
 ## History
 
 - 2026-10-07: filed from the outage and Stop flows on the Linux shell.
+- 2026-10-11: Not fired, and corrected. Since 2026-10-10 a stopping brain ends a turn still
+  running after its 3 s drain with `brain_stopping` (`ERROR_CODE_BRAIN_STOPPING` in
+  `converse_stream.py`), so the h2 text now shows only when the brain is killed. The overlay still
+  prints that code before the sentence
+  ([readings](../../readings/store-and-process-restarts.md#a-turn-in-flight-when-the-brain-stops)).

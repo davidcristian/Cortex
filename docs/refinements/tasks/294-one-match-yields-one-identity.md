@@ -3,9 +3,9 @@
 **Status:** open, waiting for its trigger
 **Area:** untrusted-content
 **Origin:** [ADR-0058](../../adr/ADR-0058-url-recognition-and-identity.md)
-**Trigger:** a second written form whose span has two valid readings, or the mixed dot-and-gap host
-reaching a real reply on this machine, either of which would make a two-reading defence buy more
-than the one form already declined. The cheap recheck is whether the assumption is still four call
+**Trigger:** a second written form whose span has two valid readings that reduce to different
+identities, or the mixed dot-and-gap host reaching a real reply on this machine, either of which
+would make a two-reading defence buy more than the one form already declined. The cheap recheck is whether the assumption is still four call
 sites: `extract_urls` in `brain/packages/core/src/cortex_core/urls.py`, `URL_RE.sub` and the
 trailing-punctuation trim in `brain/packages/core/src/cortex_core/guardrail.py`, and the
 `last.start()` read in `brain/packages/core/src/cortex_core/url_holdback.py`. One
@@ -16,7 +16,7 @@ nothing about how many readings its span has. The first condition is read off `u
 The second is read off the session store: an assistant record in any
 `cortex:session:<id>:messages` list that `SPACED_DOT` from `url_separators.py` matches, which no
 mixed host can avoid. On 2026-10-03 none of the 79 stored replies matched, and none held a URL.
-**Verified:** 2026-10-03
+**Verified:** 2026-10-11
 
 Opened by the pass that declined the mixed dot-and-gap host, because that decline is a symptom
 rather than the cause. `extract_urls` reduces each `URL_RE` match to exactly one identity and the
@@ -75,3 +75,8 @@ has been, since a second reading is a second chance to redact prose.
   no network on the stored `cortex_redis-data` volume held 158 records, 79 of them replies; none
   matches `SPACED_DOT` and none contains a `URL_RE` match. The grep prints the same six lines at the
   same lines as on 2026-09-24, and `url_separators.py` has not changed since 2026-09-22.
+- 2026-10-11: Not fired, and the trigger restated so it can be decided. On 2026-10-10
+  `TRAILING_PUNCTUATION` in `url_identity.py` gained a closing backtick, asterisk, underscore and
+  tilde, each a character a URL path may end with, so `https://example.com/a_` has two readings.
+  Both sides of the comparison drop the character, so the two readings give one identity and a
+  defence would change nothing. The grep still prints six lines.

@@ -9,13 +9,14 @@ shorter than the deadline it announces, which is what currently makes the handle
 worth so little. Recheck the second half with
 `grep -n ANNOUNCED_DEADLINE_GRACE_MS body/crates/core/src/retry/plan.rs`: a positive constant there
 means the announced deadline is still the longer of the two and this has not fired. Recheck the
-first with `grep -rln 'perf_counter\|time.monotonic' brain/packages/session`: no output means the
-store adapter times nothing, and the 2026-09-17 reading found no test timing a served read either.
+first with `grep -rln 'perf_counter\|time.monotonic' brain/packages/session/src`: output naming only
+`retry.py` means the store adapter times nothing but its retry waits, and the 2026-09-17 reading
+found no test timing a served read either.
 Separately, `grep -rln time_remaining brain/packages/orchestrator/src` listing only `abandon.py`
 means no handler branches on the clock yet. The read handlers live in three files
 (`session_servicer.py`, `preference_servicer.py` and `server.py`), so a grep of one of them cannot
 answer that.
-**Verified:** 2026-10-07
+**Verified:** 2026-10-11
 
 `ListSessions` reads `time_remaining()` nowhere. It calls `SessionStore.list_sessions` whatever the
 clock says, and a caller who has already given up gets a reply written into a stream nobody reads.
@@ -96,3 +97,7 @@ set the floor from.
   times a `Health` against a fake brain that never answers, so it does not time a served read
   either. The paging cursor
   ([184](184-paging-cursor.md)) is still open.
+- 2026-10-11: Not fired, and the first recheck corrected. The store retry added on 2026-10-10 reads
+  `time.monotonic_ns` in `cortex_session/retry.py` to bound its retries, so the old grep printed a
+  file although no read is timed. The grace is still 250 ms in `plan.rs`, and `time_remaining` is
+  still read only in `abandon.py`.

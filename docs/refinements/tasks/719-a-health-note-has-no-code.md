@@ -3,7 +3,7 @@
 **Status:** open, waiting for a consumer
 **Area:** rpc-transport
 **Origin:** [ADR-0054](../../adr/ADR-0054-baseline-residency.md)
-**Verified:** 2026-10-06
+**Verified:** 2026-10-11
 **Trigger:** A client that must treat one serving note apart from the others: style a missing peer tier differently from a slow last handoff, order them by its own rule, or let the user dismiss one.
 
 `HealthNote` in [body.proto](../../../proto/body.proto) has one field, the sentence. The overlay
@@ -12,7 +12,8 @@ early. A code is a family of wire names (one per note: the missing peer tier, th
 handoff), so it needs its names picked before it is added, and it freezes once a client outside
 this repository reads it. Adding it is `string code = 2` on `HealthNote`, set beside each
 `with_note` call in `residency_tiers.py` and `residency_pace.py`, which needs `with_note` to take a
-code with the sentence.
+code with the sentence, and beside each note the serving watch returns (`ServingWatch.notes` in
+`serving_watch.py`), which `Health` in `server.py` appends after the residency notes.
 
 ## History
 
@@ -26,3 +27,7 @@ code with the sentence.
   still has the same two callers (`residency_tiers.py:63`, `residency_pace.py:34`), the body's
   `link.rs` still keeps notes as a `Vec<String>`, and the overlay's `linkState.ts` still joins them
   one per line under "Brain ready". No client reads one note apart from the others.
+- 2026-10-11: Not fired, and corrected. Since 2026-10-10 a third source writes notes: the serving
+  watch's probes, whose note says a server delegated work needs is not answering, reach the reply
+  through `_serving_notes` in `server.py` and not through `with_note`. `HealthNote` is still
+  `string text = 1` alone.
