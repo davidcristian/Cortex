@@ -35,7 +35,8 @@ enum Step {
     Answer(Vec<u8>),
     /// Writes these bytes without reading.
     Push(Vec<u8>),
-    /// Closes the connection.
+    /// Closes the connection. The client loses any answer or event it reads together with the
+    /// close, so a script that writes one reads the next request before it closes.
     Hangup,
 }
 
@@ -491,21 +492,28 @@ fn a_server_that_closes_before_the_list_fails_it() {
 #[test]
 fn a_server_that_closes_before_the_property_fails_the_read() {
     let mut script = converted(PROPERTY);
-    script.push(Step::Hangup);
+    script.extend([Step::Answer(Vec::new()), Step::Hangup]);
 
-    let (read, _) = against(0, SELECTION_LIMIT, script);
+    let (read, requests) = against(0, SELECTION_LIMIT, script);
 
     assert!(matches!(read, Err(SelectionError::Failed(_))), "{read:?}");
+    assert_eq!(requests[6][0], GET_PROPERTY);
 }
 
 #[test]
 fn a_server_that_closes_between_chunks_fails_the_read() {
     let mut script = converted(PROPERTY);
-    script.extend([property(7, INCR, &1000_u32.to_le_bytes(), 0), Step::Hangup]);
+    script.extend([
+        property(7, INCR, &1000_u32.to_le_bytes(), 0),
+        changed(7, WINDOW, Property::NEW_VALUE),
+        Step::Answer(Vec::new()),
+        Step::Hangup,
+    ]);
 
-    let (read, _) = against(0, SELECTION_LIMIT, script);
+    let (read, requests) = against(0, SELECTION_LIMIT, script);
 
     assert!(matches!(read, Err(SelectionError::Failed(_))), "{read:?}");
+    assert_eq!(requests[7][0], GET_PROPERTY);
 }
 
 #[test]
