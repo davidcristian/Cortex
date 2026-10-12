@@ -24,6 +24,9 @@ TAINTED_TASK_MSG = (
 )
 
 
+_NOT_ADDED = "it was on the schedule before this call, so no copy was added"
+
+
 def _full_msg(max_active: int) -> str:
     """The result for a full schedule: nothing was stored, and only the user may free room."""
     return (
@@ -140,30 +143,60 @@ class ScheduleTaskTool:
             return error_result(call.id, parsed)
         if parsed.kind is ScheduleKind.TASK and call.stamp.tainted:
             return error_result(call.id, TAINTED_TASK_MSG)
+        item = ScheduledItem(
+            id=self._item_id_factory(),
+            kind=parsed.kind,
+            text=parsed.text,
+            session_id=call.stamp.session_id,
+            due_at=parsed.due_at,
+            created_at=now,
+            every=parsed.every,
+            rule=parsed.rule,
+            model=parsed.model,
+            tainted=call.stamp.tainted,
+        )
         try:
-            if len(await self._store.list_active()) >= self._max_active:
-                return error_result(call.id, _full_msg(self._max_active))
-            item = ScheduledItem(
-                id=self._item_id_factory(),
-                kind=parsed.kind,
-                text=parsed.text,
-                session_id=call.stamp.session_id,
-                due_at=parsed.due_at,
-                created_at=now,
-                every=parsed.every,
-                rule=parsed.rule,
-                model=parsed.model,
-                tainted=call.stamp.tainted,
-            )
-            await self._store.add(item)
+            active = await self._store.list_active()
+            held = next((each for each in active if _same_request(each, item)), None)
+            if held is None:
+                if len(active) >= self._max_active:
+                    return error_result(call.id, _full_msg(self._max_active))
+                await self._store.add(item)
         except ScheduleStoreError as err:
             return store_down_result(call.id, err)
-        zone = effective_zone(item.rule, self._zone)
-        content = (
-            f"scheduled {parsed.kind.value} {item.id}: "
-            f"due {zone.render(parsed.due_at)}{_recurrence(item)}"
-        )
+        if held is not None:
+            content = f"already {_confirmation(held, self._zone)}; {_NOT_ADDED}"
+        else:
+            content = _confirmation(item, self._zone)
         return ToolResult(call_id=call.id, content=content, trust=Trust.TRUSTED)
+
+
+def _confirmation(item: ScheduledItem, default_zone: DisplayZone) -> str:
+    """The creation result for ``item``: its kind, id, due time and recurrence, never its text."""
+    zone = effective_zone(item.rule, default_zone)
+    return (
+        f"scheduled {item.kind.value} {item.id}: due {zone.render(item.due_at)}{_recurrence(item)}"
+    )
+
+
+def _same_request(held: ScheduledItem, wanted: ScheduledItem) -> bool:
+    """Whether an active item already does what ``wanted`` asks; a tainted one never stands in
+    for a clean request, and the chat it was asked in is not compared.
+    """
+    return (
+        held.kind is wanted.kind
+        and _plain(held.text) == _plain(wanted.text)
+        and held.due_at == wanted.due_at
+        and held.every == wanted.every
+        and held.rule == wanted.rule
+        and held.model == wanted.model
+        and (wanted.tainted or not held.tainted)
+    )
+
+
+def _plain(text: str) -> str:
+    """The text two requests are compared by: case, spacing and a final full stop ignored."""
+    return " ".join(text.casefold().split()).rstrip(".")
 
 
 def _recurrence(item: ScheduledItem) -> str:

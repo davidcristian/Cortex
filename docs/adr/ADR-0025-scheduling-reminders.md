@@ -28,12 +28,11 @@ gRPC interface (ADR-0023).
 
 ### 1. Durable schedules behind a fenced `ScheduleStore` port
 
-`cortex_core/schedule.py` holds frozen values: `ScheduledItem` (`id`, `kind` reminder or task,
-`text`, origin `session_id`, tz-aware `due_at` and `created_at`, recurrence as `every` or `rule`,
-`anchor`, roster hint `model` with `""` for the default entry, `tainted`, `status` PENDING, FIRING
-or DONE, `deliverable_since`, `last_outcome`), `ScheduleClaim(item, token)` and `FireOutcome`. There
-is no CANCELLED status, because cancel deletes. The port (`ports_stores.py`) has eleven methods:
-`add`, `get`, `list_active`, `cancel`, `snooze`, `edit`, `claim_due`, `finish`, `release`,
+`cortex_core/schedule.py` holds frozen values: `ScheduledItem` (fields in
+[brain-core-tools](../modules/brain-core-tools.md#schedules), with `model` `""` for the default
+roster entry and `status` PENDING, FIRING or DONE), `ScheduleClaim(item, token)` and `FireOutcome`.
+There is no CANCELLED status, because cancel deletes. The port (`ports_stores.py`) has eleven
+methods: `add`, `get`, `list_active`, `cancel`, `snooze`, `edit`, `claim_due`, `finish`, `release`,
 `deliverable`, `ack`. Every transition is guarded:
 
 - **`claim_due`** takes items due at `now` plus FIRING items whose lease expired, oldest due first
@@ -82,6 +81,10 @@ built-ins, so subagents never see them (ADR-0010) and cannot re-schedule themsel
 - **Creation bounds.** Active items are capped (`CORTEX_SCHEDULE_MAX_ACTIVE`, 32; a full schedule
   returns `NOT SCHEDULED` and tells the model to ask the user what to cancel), and **a tainted turn
   cannot create a task**: a task instruction from injected content would be a permanent directive.
+- **A repeat adds nothing** ([readings](../readings/reminder-already-stored.md)). A request matching
+  an active item in kind, text (case, spacing and a final full stop aside), due time, recurrence and
+  model gets `already scheduled` and its id, on a full schedule too: a copy fires the same toast
+  twice. The origin chat is not compared. A tainted item never stands in for a clean request.
 - **Trust.** Creation, cancel, snooze and edit results are `TRUSTED` and never echo stored text.
   `list_scheduled` echoes text and is `TRUSTED` only when every listed item is clean. The item's
   `session_id` comes from the dispatcher's `TurnStamp` and is never rendered.
@@ -199,11 +202,10 @@ outcome now survives its run until acked.
 
 ## Consequences
 
-- CI covers the values, the port, both stores through one contract suite, the built-ins through a
-  real dispatcher, the ticker over fakes with an injected clock, the gRPC handlers and the Rust
-  transport methods, all at 100%. The live Redis contract run and an end-to-end run are done by the
-  agent in Docker (runbook [scheduling](../runbooks/scheduling.md)); the real toast and card need
-  the host (ADR-0066).
+- CI covers every part at 100%: the values, the port, both stores through one contract suite, the
+  built-ins through a real dispatcher, the ticker over fakes, the gRPC handlers and the Rust
+  transport methods. The agent runs the live Redis contract and an end-to-end run in Docker (runbook
+  [scheduling](../runbooks/scheduling.md)); the real toast and card need the host (ADR-0066).
 - **At-least-once duplicates**: a crash between claim and finish runs the item again after the
   lease; a task running past `CORTEX_SCHEDULE_LEASE_S` is cancelled and re-claimed.
 - **A shown toast acks even if nobody saw it**, and a one-shot that already ran then leaves no
@@ -214,13 +216,12 @@ outcome now survives its run until acked.
 - Runs share the process with live turns; the claim limit bounds a pass and subagent admission
   (ADR-0012) budgets a task's inference.
 - Turning the backend off with deliverables stored strands them until it is enabled again.
-- **A sent notification is never re-sent.** The safe retry is the fetched path, which keeps the item
-  deliverable until acked. Re-sending would deliver twice unless the body could tell a retry from
-  the next run and from a shown toast whose reply was lost. The item id and `deliverable_since`
-  already identify a run, so a safe re-send needs that stamp on `NotifyRequest` and a deduplication
-  record that outlives the stateless body server, which the OS notification history could hold (a
-  toast `Tag`/`Group` per run, unread on a desktop). It waits for a body that reconnects often
-  enough between a failed send and the next open to matter.
+- **A sent notification is never re-sent.** The fetched path is the safe retry: it keeps the item
+  deliverable until acked. A re-send would deliver twice unless the body could tell a retry from the
+  next run and from a shown toast whose reply was lost, which needs the run's id and
+  `deliverable_since` on `NotifyRequest` and a deduplication record outliving the stateless body
+  server (a toast `Tag`/`Group` per run in the OS history, unread on a desktop). It waits for a body
+  that reconnects often enough between a failed send and the next open to matter.
 
 ## Alternatives rejected
 
@@ -243,8 +244,7 @@ outcome now survives its run until acked.
 
 - [ADR-0065](ADR-0065-wall-clock-schedule-times.md) (display zone and calendar rules) and
   [ADR-0066](ADR-0066-reminder-toast-and-card.md) (the toast and the overlay card).
-- Modules: [brain-core](../modules/brain-core.md),
-  [brain-orchestrator](../modules/brain-orchestrator.md),
-  [brain-session](../modules/brain-session.md), [body-app](../modules/body-app.md).
+- Modules: [brain-core](../modules/brain-core.md), [brain-session](../modules/brain-session.md),
+  [brain-orchestrator](../modules/brain-orchestrator.md), [body-app](../modules/body-app.md).
 - Runbook: [scheduling](../runbooks/scheduling.md). ADR-0010 (built-ins), ADR-0012 (admission),
   ADR-0017 (taint routing), ADR-0021 (read RPCs), ADR-0023 (brain to body), ADR-0024 (retries).

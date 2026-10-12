@@ -8,7 +8,10 @@ postpones the next fire by `for_seconds` from now, moving only the next occurren
 item and keeping the series on its original cadence; `edit_scheduled` changes an item's text or
 recurrence in place without moving its next due time. On a full schedule `schedule_task` returns
 `NOT SCHEDULED` and tells the model to ask the person which item to cancel, never to free room
-itself ([readings](../readings/schedule-full-cancel.md)). Decisions:
+itself ([readings](../readings/schedule-full-cancel.md)). A request repeating an active item (same
+kind, text, due time, recurrence and model, asked in any chat) adds nothing and returns `already
+scheduled` with that item's id, on a full schedule too
+([readings](../readings/reminder-already-stored.md)). Decisions:
 [ADR-0025](../adr/ADR-0025-scheduling-reminders.md) and [ADR-0065](../adr/ADR-0065-wall-clock-schedule-times.md).
 CI covers everything but bring-up, the Docker checks below and the Windows half.
 

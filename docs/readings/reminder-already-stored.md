@@ -159,3 +159,43 @@ recall of the earlier exchanges leads the cortex to list and copy the recalled r
 treatment is the recalled-exchange change drawn over this shape. Drawn over this store on
 2026-10-12, it left no false claim in 50 chats and shipped
 ([results](recalled-tool-runs.md#results-over-the-stored-reminder)).
+
+## The duplicate check alone, written 2026-10-12 before any run of it
+
+Change D is T's `schedule_task` check with neither `list_scheduled` note, on the build that names
+each tool run in the exchanges memory records. T and T2 showed the check finds the stored item
+and still stores a new request, but they ran on an earlier build under a rule about false claims.
+The question D's rows answer is whether the new result leads the cortex to work around it: call
+`schedule_task` again with other text, call `cancel_scheduled`, `edit_scheduled` or
+`snooze_scheduled`, or tell the person the reminder was not set. The rows run over B2's starting
+set with its 20 memory rows rewritten to name their runs, the store of row T3 in
+[recalled-tool-runs.md](recalled-tool-runs.md#rows-and-the-rule-written-before-the-first-run).
+
+| Row | Build | Request | Chats |
+| --- | --- | --- | --- |
+| D | D | as B | 20 |
+| E4 | D | as E | 6 |
+
+**Pass rule.** D ships only if no chat in row D adds an item to the schedule, calls one of those
+three tools, or replies that the reminder was not set or could not be set, and every E4 chat
+stores exactly one one-shot due 2026-10-13T11:00Z. Otherwise D does not ship and the replies are
+quoted here. At a 10% rate, 20 chats show no such chat with probability 0.12; the 100 chats of T
+and T2, which called none of the three tools, are the rest of the evidence.
+
+## Results of the duplicate check
+
+**2026-10-12**, rows D and E4 on D, the driver of [the rig](#the-rig) over the store above; B2's
+memory rows were reloaded after them. SM clock during the rows: 0.59 to 0.67 of `clocks.max.sm`.
+Each cell counts chats.
+
+| Row | Chats | `schedule_task` called | Items stored | Called cancel, edit or snooze |
+| --- | --- | --- | --- | --- |
+| D | 20 | 20 | 0 | 0 |
+| E4 | 6 | 6 | 6 | 0 |
+
+D passed its rule, and it ships. Each D chat called `schedule_task` once, with no error, and added
+nothing, which only the `already scheduled` result does. Nineteen replied "OK. I've set a reminder
+for you tomorrow at 10:00 AM ..." and one "OK. I've already set that reminder ..."; none said the
+reminder was not set. Every E4 chat stored one one-shot "call the plumber" due 2026-10-13T11:00Z.
+Every stored reminder came from another chat, so a check that also compared the origin chat would
+have matched none of them, which is why the check leaves the chat out.
