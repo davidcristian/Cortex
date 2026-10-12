@@ -5,7 +5,7 @@
 **Origin:** [ADR-0008](../../adr/ADR-0008-memory-v1.md)
 **Trigger:** a row on the shipped stack in which a turn that recalled an earlier exchange makes no
 call and copies the recalled reply's claim.
-**Verified:** 2026-10-11
+**Verified:** 2026-10-12
 
 With the pgvector memory on, a stored exchange is the user's message and the reply's text, with no
 record of the tool runs between them. When a later chat asks the same thing, recall returns that
@@ -43,4 +43,9 @@ row stored before T reads as before, which is what R3 measures.
   with every turn after the first recalling the earlier exchanges. The change and its pass rule
   are written in the readings before any run of them, and the task waits for a row that shows
   the shape again. The two false claims these rows found are another shape, filed as
+  [R-839](839-a-reply-says-it-set-a-reminder-it-only-found-listed.md).
+- 2026-10-12: the trigger has not fired: each of the 18 false claims in 200 chats of
+  [reminder-already-stored.md](../../readings/reminder-already-stored.md) followed a
+  `list_scheduled` call. Those claims come from recall (none with memory empty), so this change is
+  drawn over that shape next, under
   [R-839](839-a-reply-says-it-set-a-reminder-it-only-found-listed.md).

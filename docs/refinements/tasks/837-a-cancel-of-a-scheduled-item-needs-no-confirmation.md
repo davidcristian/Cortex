@@ -3,7 +3,7 @@
 **Status:** open, actionable
 **Area:** scheduling
 **Origin:** [ADR-0025](../../adr/ADR-0025-scheduling-reminders.md)
-**Verified:** 2026-10-10
+**Verified:** 2026-10-12
 
 `cancel_scheduled` deletes an item for good and runs with no confirmation card, so only the
 model's reading of tool results stands between a request and a cancel the person never asked for.
@@ -32,3 +32,7 @@ and H of the readings, with tainted items in the schedule.
 - 2026-10-10: the full-schedule result text changed; the card was tried, failed row H on a
   listing with tainted items, and was backed out. The false claim seen in one chat is
   [R-836](836-a-recalled-exchange-is-claimed-again-with-no-call.md).
+- 2026-10-12: seen again far from a full schedule. Asked to set a reminder while nine copies of it
+  were stored, the cortex listed them and cancelled seven, which nobody named, with no card, and the
+  turn ended with no reply ([readings](../../readings/reminder-already-stored.md),
+  [R-840](840-a-turn-that-spends-every-tool-round-ends-with-no-reply.md)).
