@@ -106,8 +106,8 @@ def build_server(reader: EmailReader, sender: EmailSender | None = None) -> Fast
         )
 
     if sender is not None:
-        # Advisory metadata only. What actually requires approval is the brain-side
-        # CORTEX_TOOLS_GATED setting, so a sidecar cannot declare its way around it.
+        # Advisory metadata only. The brain's own confirm names, which always include
+        # send_email, require the approval, so a sidecar cannot declare its way around it.
         @server.tool(
             annotations=ToolAnnotations(
                 readOnlyHint=False, destructiveHint=True, openWorldHint=True

@@ -2,7 +2,7 @@
 
 from typing import Literal
 
-from pydantic import Field, model_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from cortex_core import (
@@ -28,6 +28,8 @@ DEFAULT_SALIENCE: ToolsSalienceName = "repeat"
 # whole batch of model runs, where the flat price of one would have allowed thirty two batches.
 DEFAULT_SPAWN_COST = MAX_TOOL_DISPATCHES // 4
 
+ALWAYS_CONFIRMED: tuple[str, ...] = (ESCALATE_TOOL_NAME, "send_email")
+
 
 class ToolsConfig(BaseSettings):
     """Whether the cortex can call tools over MCP."""
@@ -40,7 +42,7 @@ class ToolsConfig(BaseSettings):
     allow: dict[str, tuple[str, ...]] = {}
     on_unavailable: Literal["fail", "skip"] = "fail"
     confirm_names: tuple[str, ...] = Field(
-        default=(ESCALATE_TOOL_NAME, "send_email"), validation_alias="CORTEX_TOOLS_GATED"
+        default=ALWAYS_CONFIRMED, validation_alias="CORTEX_TOOLS_GATED"
     )
     confirm_reasons: dict[str, str] = Field(
         default_factory=dict[str, str], validation_alias="CORTEX_TOOLS_GATE_REASONS"
@@ -50,6 +52,12 @@ class ToolsConfig(BaseSettings):
     salience_limit: int = MAX_IDENTICAL_DISPATCHES
     call_timeout_s: float = Field(default=DEFAULT_TOOL_CALL_TIMEOUT_S, gt=0)
     audit_file: str = ""
+
+    @field_validator("confirm_names")
+    @classmethod
+    def _keep_the_always_confirmed(cls, names: tuple[str, ...]) -> tuple[str, ...]:
+        """The configured names after the two that no setting can remove."""
+        return tuple(dict.fromkeys((*ALWAYS_CONFIRMED, *names)))
 
     @model_validator(mode="after")
     def _mcp_needs_unambiguous_endpoints(self) -> "ToolsConfig":

@@ -104,14 +104,15 @@ otherwise the sidecar is the read-only server. MCP `ToolAnnotations` are advisor
 
 Which tools need confirmation is declared brain-side, in code under review, so a compromised or
 misconfigured sidecar cannot exempt itself. `ConfirmRequiredToolRegistry(inner, names=...)` in
-`cortex_core/aggregate.py` sets `confirm_required=True` on the names in `CORTEX_TOOLS_GATED` and passes
-`invoke` through; the dispatcher enforces. It wraps the shared MCP root in `build_tool_registry`,
-so the cortex's dispatcher confirms `send_email` and the subagent wiring's `ConfirmFreeToolRegistry`
-removes it: **subagents never see the send tool.** The default set is `send_email` and
-`escalate_to_brain`, so enabling the write path without touching that set still requires
-confirmation; a named tool that never appears is harmless. The trust counterpart, the
-composition-root overlay that marks a remote tool's result trusted, is ADR-0013's
-`OwnTextToolRegistry`, keyed by bytes the brain holds and never by a tool's name.
+`cortex_core/aggregate.py` sets `confirm_required=True` on the confirm names and passes `invoke`
+through; the dispatcher enforces. It wraps the shared MCP root in `build_tool_registry`, so the
+cortex's dispatcher confirms `send_email` and the subagent wiring's `ConfirmFreeToolRegistry`
+removes it: **subagents never see the send tool.** `send_email` and `escalate_to_brain` are always
+confirm names; `CORTEX_TOOLS_GATED`, a JSON list like every brain list setting, only adds names (`[]`
+adds none, and a name that never appears is harmless). No setting removes either built-in: an
+unconfirmed send lets a task stored on a tainted turn send when it fires, and ADR-0030 makes
+relaxing escalation an explicit exception. The trust counterpart is ADR-0013's `OwnTextToolRegistry`,
+which marks a remote tool's result trusted by bytes the brain holds, never by a tool's name.
 
 ### 5. The body keeps the client stream open, and the overlay shows a card
 
@@ -153,11 +154,10 @@ user answering is the reducer's `confirmAnswered`, leaving `confirmResolved` to 
 
 ### 8. The subagent dispatcher checks the declared names again
 
-`build_subagents` receives a pre-assembled `ToolDispatcher`, built at the root with
-`build_subagent_tools(..., setup=...)`, whose policy's `confirm_names` come from `CORTEX_TOOLS_GATED`. The user's set is
-authoritative at every dispatcher whatever a registry advertises, and with `confirmer=None` such a
-name there is a hard deny. That closes the one window the structural removal left: a sidecar down
-during the removal's walk and up for the invoke.
+`build_subagents` receives a `ToolDispatcher` built at the root by `build_subagent_tools(...,
+setup=...)`, whose policy holds the same confirm names, authoritative at every dispatcher whatever
+a registry advertises; with `confirmer=None` such a name is a hard deny. That closes the one window
+the structural removal left: a sidecar down during the removal's walk and up for the invoke.
 
 ### 9. A draft is a value object: cc, bcc and HTML
 

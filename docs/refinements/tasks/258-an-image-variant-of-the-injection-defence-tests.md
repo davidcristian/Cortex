@@ -58,7 +58,7 @@ condition on any rendering, with `send_email` never called from a picture) and w
 manipulation. Decision 4's boundary is unchanged and better supported: taint and the deterministic
 layers are what bound a picture, and they do more here than the text numbers implied. The
 measurement is recorded against the confirmation question already awaiting the user
-(`CORTEX_TOOLS_GATED=send_email,capture_screen`) rather than changing shipped policy, and it does
+(`CORTEX_TOOLS_GATED='["capture_screen"]'`) rather than changing shipped policy, and it does
 not argue for a confirmation card on its own, since a card approves a capture and says nothing
 about what the reply may then contain.
 

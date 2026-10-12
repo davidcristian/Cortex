@@ -70,6 +70,6 @@ blunt.
   before the change and stored a tainted task in every counted chat after it
   ([readings](../../readings/recall-tainted-task.md)). The same block on the person's own send is
   [task 845](845-a-recall-tainted-turn-blocks-the-person-s-own-send.md).
-- 2026-10-12: a fired tainted task cannot reach `send_email` while `CORTEX_TOOLS_GATED` names it,
-  and that setting replaces its default instead of adding to it
-  ([R-846](846-setting-the-confirm-list-can-drop-send-email.md)).
+- 2026-10-12: a fired tainted task cannot reach `send_email`: the subagent registry removes it,
+  the subagent dispatcher confirms it, and `CORTEX_TOOLS_GATED` only adds names to the two that are
+  always confirmed ([ADR-0022](../../adr/ADR-0022-email-write-confirmer.md) decision 4).

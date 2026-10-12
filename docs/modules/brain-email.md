@@ -5,8 +5,8 @@
 message) and, only under `CORTEX_EMAIL_SEND_ENABLED=true`, the `send_email` write tool, over an MCP
 streamable-http endpoint against a ProtonMail Bridge. It is **not** part of the brain: it runs as
 its own sidecar process and the brain reaches it as an ordinary MCP server through `cortex_tools`.
-There the composition root marks `send_email` as needing confirmation (`CORTEX_TOOLS_GATED`), so
-every send needs the user's approval and a send on a tainted turn is refused outright.
+There the composition root always marks `send_email` as needing confirmation, so every send needs
+the user's approval and a send on a tainted turn is refused outright.
 
 ## Public contract
 

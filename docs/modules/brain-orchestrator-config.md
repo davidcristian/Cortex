@@ -61,7 +61,8 @@ what follows is the prefix, the defaults other parts depend on, and the validati
   together as `dispatch_policy`, so none can reach one dispatcher and miss another: `costs` (built
   in is `spawn_subagents` at `DEFAULT_SPAWN_COST`, `MAX_TOOL_DISPATCHES // 4`; a price outside
   `1..MAX_TOOL_DISPATCHES` fails at boot), `salience` with `salience_limit` (below 1 fails at
-  boot), `confirm_names` (`CORTEX_TOOLS_GATED`, defaulting to `(ESCALATE_TOOL_NAME, "send_email")`,
+  boot), `confirm_names` (`CORTEX_TOOLS_GATED`, a JSON list whose names a validator adds after
+  `ALWAYS_CONFIRMED`, `escalate_to_brain` and `send_email`, so no value removes those two,
   ADR-0022) and `confirm_reasons` (`CORTEX_TOOLS_GATE_REASONS`, ADR-0030 decision 1). The
   built-in prices and reasons merge **under** the user's, a nested-dict env key otherwise
   replacing the whole mapping.

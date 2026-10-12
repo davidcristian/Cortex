@@ -394,7 +394,7 @@ async def test_a_second_identical_target_in_one_round_is_refused_outright() -> N
 
 
 def test_the_tool_name_is_the_one_the_owner_puts_in_the_confirm_required_list() -> None:
-    # The documented opt-in is CORTEX_TOOLS_GATED=send_email,capture_screen, so the advertised
+    # The documented opt-in is CORTEX_TOOLS_GATED='["capture_screen"]', so the advertised
     # name has to be exactly this string.
     assert CAPTURE_SCREEN_TOOL_NAME == "capture_screen"
 

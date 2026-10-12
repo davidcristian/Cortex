@@ -25,6 +25,7 @@ from cortex_core import (
     CAPTURE_SCREEN_TOOL_NAME,
     DEFAULT_CORTEX_MODEL,
     DENIED_MSG,
+    ESCALATE_TOOL_NAME,
     GET_VOLUME_TOOL_NAME,
     RAW_RECALL_POLICY,
     SET_VOLUME_TOOL_NAME,
@@ -1377,19 +1378,39 @@ async def test_build_tool_registry_stamps_confirm_names_at_the_root(
     await close()
 
 
-async def test_build_tool_registry_confirm_required_overlay_disabled_by_an_empty_list(
-    monkeypatch: pytest.MonkeyPatch,
+@pytest.mark.parametrize(
+    "env", [{}, {"CORTEX_TOOLS_GATED": "[]"}, {"CORTEX_TOOLS_GATED": '["set_volume"]'}]
+)
+async def test_every_reader_of_the_confirm_names_keeps_send_email_and_escalation(
+    monkeypatch: pytest.MonkeyPatch, env: dict[str, str]
 ) -> None:
     url = "http://mcp-email:9100/mcp"
     monkeypatch.setattr(
-        builders_module, "streamable_http_session", _fake_opener({url: ["send_email"]}, [])
+        builders_module,
+        "streamable_http_session",
+        _fake_opener({url: ["read_email", "send_email"]}, []),
     )
-    registry, close = build_tool_registry(
-        ToolsConfig.model_validate({"backend": "mcp", "endpoint": url, "CORTEX_TOOLS_GATED": ()})
-    )
+    monkeypatch.delenv("CORTEX_TOOLS_GATED", raising=False)
+    for name, value in env.items():
+        monkeypatch.setenv(name, value)
+    config = ToolsConfig(backend="mcp", endpoint=url)
+    registry, close = build_tool_registry(config)
     assert registry is not None
-    (spec,) = await registry.describe_tools()
-    assert spec.confirm_required is False
+    setup = DispatchSetup(config.dispatch_policy)
+    assert {ESCALATE_TOOL_NAME, "send_email"} <= set(setup.policy.confirm_names)
+    stamped = {spec.name: spec.confirm_required for spec in await registry.describe_tools()}
+    assert stamped == {"read_email": False, "send_email": True}
+    subagent = build_subagent_tools(registry, SystemClock(), setup=setup)
+    assert subagent is not None
+    assert [spec.name for spec in await subagent.describe_tools()] == ["read_email"]
+    cortex = build_cortex_tools(
+        registry, (), SystemClock(), confirmer=RecordingConfirmer(answer=True), setup=setup
+    )
+    assert cortex is not None
+    sent = await cortex.dispatch(
+        ToolCall(id="c", name="send_email", arguments={}), stamp=TurnStamp(tainted=True)
+    )
+    assert sent.content == DENIED_MSG
     await close()
 
 

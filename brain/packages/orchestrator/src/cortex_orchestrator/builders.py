@@ -126,8 +126,7 @@ def build_tool_registry(
             )
         registries.append(registry)
     root = registries[0] if len(registries) == 1 else AggregateToolRegistry(registries)
-    if config.confirm_names:
-        root = ConfirmRequiredToolRegistry(root, names=config.confirm_names)
+    root = ConfirmRequiredToolRegistry(root, names=config.confirm_names)
     return OwnTextToolRegistry(root, own=EMAIL_OWN_TEXTS), noop_aclose
 
 

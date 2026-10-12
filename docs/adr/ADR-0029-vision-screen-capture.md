@@ -65,7 +65,7 @@ bit, the memory block and URL redaction.
 
 ### 5. The capture tool needs no confirmation, and the consent step lives in the body
 
-`capture_screen` ships without confirmation; `CORTEX_TOOLS_GATED=send_email,capture_screen` is the
+`capture_screen` ships without confirmation; `CORTEX_TOOLS_GATED='["capture_screen"]'` is the
 opt-in. In place of a confirm card: an OS notification the body shows after every successful
 capture, from fixed body strings (display or window, never the window's name; best effort; off with
 `CORTEX_HOST_CAPTURE_NOTIFY=0`), a host off switch `CORTEX_HOST_CAPTURE` without which the shell

@@ -129,7 +129,7 @@ Tear down with `down` in place of `up` on the same file list.
 `send_email` is the write twin, SMTP over the same Bridge, default `127.0.0.1:1025`, STARTTLS, same
 credentials. It is off by default and the sidecar registers it only under
 `CORTEX_EMAIL_SEND_ENABLED=true`. On the brain side the composition root marks it as needing
-approval (`CORTEX_TOOLS_GATED`, whose default already covers `send_email`), so an untainted turn's
+approval (always, whatever `CORTEX_TOOLS_GATED` adds), so an untainted turn's
 send prompts the overlay confirmation card and a tainted turn's send is denied outright
 ([ADR-0022](../adr/ADR-0022-email-write-confirmer.md)). The sender authenticates as the Bridge user
 and always sends as that address; `From` is not a parameter. Add to `~/.cortex/email.env`, where

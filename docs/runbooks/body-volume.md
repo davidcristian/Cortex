@@ -95,5 +95,6 @@ is never built or measured in CI.
    reversible, the brain dials the body over `host.docker.internal`, and the host output volume
    moves. "What's my volume?" uses `get_volume`.
 
-To require confirmation anyway, add `set_volume` to `CORTEX_TOOLS_GATED`. A clean turn then
+To require confirmation anyway, set `CORTEX_TOOLS_GATED='["set_volume"]'`, a JSON list whose names are
+added to `escalate_to_brain` and `send_email`, which always need confirmation. A clean turn then
 prompts the overlay card and a tainted turn is denied outright.

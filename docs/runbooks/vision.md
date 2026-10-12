@@ -51,7 +51,7 @@ The other settings, all optional:
 | `CORTEX_BODY_MAX_IMAGE_BYTES` | brain | `6291456` | The byte budget, sent to the body and checked again on receipt. 6 MiB, the same number as the body's own `MAX_CAPTURE_BYTES`. It may only tighten: outside `1..6291456` the brain refuses to boot, since the body clamps to its own ceiling anyway. |
 | `CORTEX_BODY_CAPTURE_TIMEOUT_S` | brain | `10.0` | The deadline on the capture call, the longer of the two this interface uses: a copy plus a downscale plus an encode is real work. Must be positive. |
 | `CORTEX_BODY_CALL_TIMEOUT_S` | brain | `5.0` | The deadline on every other call here (volume, notify). Short because those are fast when they work at all; see [body-volume.md](body-volume.md). Must be positive. |
-| `CORTEX_TOOLS_GATED` | brain | `escalate_to_brain,send_email` | Adding `capture_screen` here puts an approval card in front of every capture. See "Requiring approval" below. |
+| `CORTEX_TOOLS_GATED` | brain | `[]` | A JSON list of tool names that need an approval card, added to `escalate_to_brain` and `send_email`, which always need one. Adding `capture_screen` here puts an approval card in front of every capture. See "Requiring approval" below. |
 
 ## What the body can be pointed at
 
@@ -229,7 +229,7 @@ so does a cortex without a projector. The live check is `test_attached_image_liv
 `capture_screen` ships without one. Turning that around is one env var and no code:
 
 ```
-CORTEX_TOOLS_GATED=escalate_to_brain,send_email,capture_screen
+CORTEX_TOOLS_GATED='["capture_screen"]'
 CORTEX_TOOLS_GATE_REASONS__capture_screen=the assistant will take a picture of your whole screen
 ```
 

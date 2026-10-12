@@ -2,6 +2,7 @@ import os
 
 import pytest
 from pydantic import ValidationError
+from pydantic_settings import SettingsError
 
 from cortex_core import (
     ALWAYS_SALIENT,
@@ -787,14 +788,26 @@ def test_tools_confirm_names_default_to_escalate_and_send_email() -> None:
     assert ToolsConfig().confirm_names == (ESCALATE_TOOL_NAME, "send_email")
 
 
-def test_tools_env_overrides_the_confirm_names(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("CORTEX_TOOLS_GATED", '["send_email", "set_volume"]')
-    assert ToolsConfig().confirm_names == ("send_email", "set_volume")
+@pytest.mark.parametrize(
+    ("gated", "names"),
+    [
+        ("[]", (ESCALATE_TOOL_NAME, "send_email")),
+        ('["set_volume"]', (ESCALATE_TOOL_NAME, "send_email", "set_volume")),
+        ('["send_email", "set_volume"]', (ESCALATE_TOOL_NAME, "send_email", "set_volume")),
+        ('["set_volume", "escalate_to_brain"]', ("escalate_to_brain", "send_email", "set_volume")),
+    ],
+)
+def test_tools_env_adds_confirm_names_and_never_removes_the_built_in_two(
+    monkeypatch: pytest.MonkeyPatch, gated: str, names: tuple[str, ...]
+) -> None:
+    monkeypatch.setenv("CORTEX_TOOLS_GATED", gated)
+    assert ToolsConfig().confirm_names == names
 
 
-def test_tools_env_empties_the_confirm_names(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("CORTEX_TOOLS_GATED", "[]")
-    assert ToolsConfig().confirm_names == ()
+def test_tools_reject_a_comma_separated_confirm_list(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CORTEX_TOOLS_GATED", "escalate_to_brain,send_email,capture_screen")
+    with pytest.raises(SettingsError):
+        ToolsConfig()
 
 
 def test_confirm_reasons_default_to_the_escalate_card_text() -> None:
@@ -900,8 +913,8 @@ def test_an_unknown_salience_name_fails_at_boot() -> None:
 
 def test_the_dispatch_policy_includes_all_three_declarations() -> None:
     policy = ToolsConfig.model_validate(
-        {"CORTEX_TOOLS_GATED": ("send_email",), "costs": {"read_file": 3}, "salience": "off"}
+        {"CORTEX_TOOLS_GATED": ("set_volume",), "costs": {"read_file": 3}, "salience": "off"}
     ).dispatch_policy
-    assert policy.confirm_names == frozenset({"send_email"})
+    assert policy.confirm_names == frozenset({ESCALATE_TOOL_NAME, "send_email", "set_volume"})
     assert policy.costs.cost_of("read_file") == 3
     assert policy.salience is ALWAYS_SALIENT
