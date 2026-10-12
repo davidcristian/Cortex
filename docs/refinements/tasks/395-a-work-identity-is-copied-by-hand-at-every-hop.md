@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** tools-mcp
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
-**Verified:** 2026-10-07
+**Verified:** 2026-10-13
 **Trigger:** a fifth work identity arriving on `TurnStamp`, or a step found dropping one of the
 four that are there.
 
@@ -81,3 +81,9 @@ nobody wrote a case for.
   the stamp's fields. ADR-0009 decision 16, rewritten on 2026-09-19, keeps one sentence of the
   bundle argument and none of the five-mutation measurement, and neither commit that added the
   item states it, so the body now says this entry holds both.
+- 2026-10-13: Not fired. `TurnStamp` (`tools.py:42`) gained one field since the last reading,
+  `recalled_only` (line 50, 2026-10-12), which says the turn's taint came from recalled memory
+  alone. It is a `bool` beside `tainted`, not a work identity. The four identities are still its
+  only `str` fields (lines 45 to 48), and `ToolDispatcher._audited` still copies all four onto
+  `ToolInvocation` (`dispatch.py:198-201`) for `invocation_fields` to write
+  (`cortex_tools/audit.py`).

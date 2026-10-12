@@ -8,7 +8,7 @@ withhold, most plausibly a connection URL with a credential inside it. Two readi
 point, and raising from inside `run_from_env` says what the container's last line looks like. This
 entry's history records what both answered when they were last taken.
 **Origin:** [ADR-0051](../../adr/ADR-0051-log-line-rendering.md)
-**Verified:** 2026-10-07
+**Verified:** 2026-10-13
 
 `__main__.py` runs `asyncio.run(run_from_env())` under a bare entry guard with no `except` around
 it, and `run_from_env` builds every adapter, several of which dial a remote with a credential in the
@@ -61,3 +61,10 @@ scheme and no `@` around it passes through every pattern this repo owns.
   nothing on the startup path has changed since 2026-09-30. The same pgvector boot with an
   unresolvable host and a marked password fragment ended with exit 1 and a raw 66-line traceback
   ending in `socket.gaierror`, and the fragment appeared in neither stream.
+- 2026-10-13: Not fired. The grep finds the one `asyncio.run` at
+  `cortex_orchestrator/__main__.py:12`, still under the bare entry guard. Since 2026-10-10 the boot
+  awaits one more remote call, the serving watch's first reading (`wiring.py:126`,
+  `serving_watch.py:77`), and both of its probes turn a failure into a fault line rather than an
+  exception: the Redis `PING` on `RedisError` (`cortex_session/ping.py:25`) and the cortex's health
+  request on `httpx.HTTPError` (`serving_probe.py:73`). So a Redis URL nothing answers still cannot
+  end the boot.

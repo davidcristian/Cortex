@@ -4,7 +4,7 @@
 **Area:** subagents
 **Origin:** [ADR-0018](../../adr/ADR-0018-heterogeneous-subagents.md)
 **Trigger:** A record in `docs/readings/spawn-spec-uptake.md`, a runbook or a host task, from a probe or from real use, of the cortex calling `spawn_subagents` on a turn whose ask did not invite delegation and putting the batch on one roster entry while a second was up. None exists: the only uninvited reading is the 2026-08-04 one, twenty prose-only turns and zero spawn calls.
-**Verified:** 2026-10-07
+**Verified:** 2026-10-13
 
 The trade-off sentence ([R-122](122-measured-tradeoff-advertisement.md)) gives the cortex a
 wall-clock reason to spread independent subtasks across distinct roster models. Whether it acts on
@@ -104,3 +104,6 @@ example, a sharper phrasing), never a schema change.
   2026-09-30 touches the spec, its tests or the probe, and no reading records an unprompted
   delegation. The trigger named a deployment and a cost nobody could read off the tree, so it now
   names the record that would show both.
+- 2026-10-13: Not fired. The overlay delegation readings of 2026-10-10
+  (`docs/readings/delegation-overlay.md`) record only turns whose ask named delegation, the default
+  entry and `qwen` each on its own CPU server; none records an uninvited `spawn_subagents` call.

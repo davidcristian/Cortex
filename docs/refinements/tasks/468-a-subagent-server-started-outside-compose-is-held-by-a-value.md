@@ -6,7 +6,7 @@
 that exists is found missing a flag the flag rule requires or writing one with a value the shipped
 stack does not use
 **Origin:** [ADR-0043](../../adr/ADR-0043-subagent-server-flags.md)
-**Verified:** 2026-10-07
+**Verified:** 2026-10-13
 
 `docs/runbooks/subagents-cpu.md` gives an operator a `docker run` that starts a standalone CPU
 subagent server on loopback, outside any stack, with `--jinja`, the template kwarg,
@@ -70,3 +70,10 @@ wrong here was the rule moving while the paste did not.
   harness's subagent rows take the sidecar's own `llama_server_argv` rather than a paste. The
   registry still compares the budget's count here twice, in the block and in the prose, and the CPU
   budget's five entries still name compose files only.
+- 2026-10-13: Not fired. Another `docker run` of llama.cpp arrived on 2026-10-07: `just
+  switch-lineup` (`scripts/switchlineup.py`, `serve_command`), which
+  `docs/runbooks/inference-measurements.md` names, serves each subagent candidate with `--jinja` and
+  `--cache-ram 0` and deliberately neither reasoning flag, because it draws the per-request thinking
+  switch. It serves no delegated work, so it is a measurement server, as `budget-probe` is for the
+  cortex tier, and not a second subagent server the flag rule covers. The runbook's own `docker run`
+  (`docs/runbooks/subagents-cpu.md:208`) has not changed since 2026-10-02.

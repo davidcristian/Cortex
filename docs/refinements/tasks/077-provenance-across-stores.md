@@ -4,7 +4,7 @@
 **Area:** untrusted-content
 **Origin:** [ADR-0027](../../adr/ADR-0027-turn-provenance.md)
 **Trigger:** a design that needs a fired schedule item or a subagent result to record the sources the turn behind it read, the way a handoff record stores its own turn's whole ledger.
-**Verified:** 2026-10-04
+**Verified:** 2026-10-13
 
 `ScheduledItem` and `SubagentResult` store only the `tainted` flag. Neither records which
 sources the turn read, so a consumer of either one cannot tell where the content came from.
@@ -50,3 +50,8 @@ that turn read.
   `SubagentResult` (`subagents.py:61`) still store only `tainted`, none of the six files named
   above changed since 2026-09-30, and no decision record changed since then names a fired item's
   or a result's sources.
+- 2026-10-13: Not fired. Since 2026-10-12 a turn whose taint came from recalled memory alone may
+  store a scheduled task, the check in `schedule_tools.py` now reading `live_taint`, and the item
+  still keeps only the `tainted` flag (`schedule.py:46`), not the recall that set it. That change
+  chose the flag over a list of sources, so it is not the design the trigger names. `SubagentResult`
+  is unchanged.

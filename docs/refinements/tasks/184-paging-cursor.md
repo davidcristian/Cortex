@@ -13,7 +13,7 @@ a live reading of that sum below 4 MiB for every session means the trigger has n
 hoisted chat outside that window, and that set has no cap in the store. On 2026-10-03 the stored
 `cortex_redis-data` volume held 76 histories, the largest summing to 2,351 bytes, and 68 chats in
 `cortex:sessions` with no hoisted set.
-**Verified:** 2026-10-03
+**Verified:** 2026-10-13
 
 `ListSessions` and `GetSessionMessages` are unary snapshots with no cursor, which is enough at
 personal scale. If a single history is the one that grows too large first, the smaller move is a
@@ -48,3 +48,9 @@ stubs.
   neither hoisted key exists. The request messages, the clamp, the record shape (images are
   refused before a write, by `refuse_images` in `store_codec.py`), tonic 0.14.6's 4 MiB receive
   default and the brain server setting only `grpc.max_receive_message_length` are unchanged.
+- 2026-10-13: Not fired, and the bound the trigger reads holds with more room. Since 2026-10-10 a
+  stored reply may hold a `runs` list naming each tool call and whether it succeeded
+  (`store_codec.py:41-42`), which `GetSessionMessages` does not send (ADR-0021), so the summed
+  `LRANGE` length still bounds the reply from above. No code under `body/` sets
+  `max_decoding_message_size`, and `MAX_SESSION_LIST_LIMIT` is still 200 (`session_rpc.py:11`). No
+  new reading of the stored sums was taken, so the 2026-10-03 figures above are the latest.

@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** inference
 **Origin:** [ADR-0049](../../adr/ADR-0049-thinking-switch-and-trace-budget.md)
-**Verified:** 2026-10-07
+**Verified:** 2026-10-13
 **Trigger:** a record under `docs/readings/` of a second draw whose answer is the channel name
 `thought` or a bare start tag, or of a budgeted cell counting 2 or more such draws in 100. Today
 `grep -rnE 'reply": "(thought|<)' docs/readings` prints one line, the 2026-08-29 draw in the
@@ -94,3 +94,7 @@ asked for a number.
   [R-526](526-the-pairs-budget-half-is-inert-beside-the-kwarg.md): on the question that invites
   deliberation the kwarg alone deliberated on 3 of the 5 seeds and the pair on none, so the forced
   close acted there, and no reply leaked.
+- 2026-10-13: Not fired: the grep still prints the one 2026-08-29 line (`thinking-switch.md:222`).
+  The cells drawn on 2026-10-07 at twenty draws a cell are the thinking switch's controls and
+  switches on the E4B pick, on `b11429` and the cached `b10680`; none sends a trace budget, so the
+  budgeted count is still 1 leak in 258.
