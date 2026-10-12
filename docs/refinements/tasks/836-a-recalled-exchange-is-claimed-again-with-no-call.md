@@ -49,4 +49,4 @@ row stored before T reads as before.
   still stored in 6 of 6 and a listing question listed only
   ([readings](../../readings/recalled-tool-runs.md#results-over-the-stored-reminder)). It ships
   as [ADR-0074](../../adr/ADR-0074-replayed-tool-runs.md) decision 6, which also puts the note
-  above a block of tainted memories only.
+  above a recalled block that holds only tainted memories.

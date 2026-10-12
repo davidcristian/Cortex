@@ -47,10 +47,11 @@ across turns (a recalled memory).
    safe after a deployment switches back to `skip`: the setting governs only what is *written*.
 
 4. **Taint propagates through memory, deterministically.** Recalling a tainted memory taints the
-   current turn again: its tools that need confirmation are blocked (ADR-0013) and, under `record`,
-   the new exchange is itself recorded `tainted=True`. Untrusted provenance persists across recall,
-   which closes the cross-turn laundering path that unfenced recording would open. Decision 8 is
-   the one thing recall taint does not block.
+   current turn again: its tools that need confirmation are blocked (ADR-0013), except a record
+   card as on any tainted turn, and, under `record`, the new exchange is itself recorded
+   `tainted=True`. Untrusted provenance persists across recall, which closes the cross-turn
+   laundering path that unfenced recording would open. Decision 8 is the one thing recall taint
+   alone does not block and a live untrusted read does.
 
 5. **One fence identity per turn.** The engine builds the `ToolLoopContext` (the turn's `nonce` and
    `TaintLedger`) **before** assembling the turn's messages, so recall fences with the same nonce
@@ -112,7 +113,7 @@ across turns (a recalled memory).
 - **Loosely related recall spreads taint.** A semantically matched but irrelevant tainted memory
   taints an otherwise clean turn and blocks the actions that need confirmation, failing closed by
   design, since the recalled content is in the model's context and framing is not trusted to
-  contain it. A task is the exception (decision 8). An email the person asks for in such a turn is
+  contain it. A record card (decision 4) and a task (decision 8) are the exceptions. An email the person asks for in such a turn is
   still blocked, and `DENIED_MSG` then names a way out that recall closes
   ([task 845](../refinements/tasks/845-a-recall-tainted-turn-blocks-the-person-s-own-send.md)).
 - **Removing memories by the source they came from needs two things the port lacks.** A memory
