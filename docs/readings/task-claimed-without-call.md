@@ -74,3 +74,58 @@ its own call.
 
 So the claim still occurs on this build, at 1 in 10 chains against 5 in 15 before, and recall is
 not its source. Runs: `runs/r834-{E,K}-*` in the run's scratch directory.
+
+## The reminder turn against the model alone
+
+### Rows and the rule, written before the run
+
+The rig is the one above, on the same build and store, with memory emptied and the schedule
+store restored before every chain. Two rows differ only in turn 2:
+
+| Row | Turn 2 | Chains |
+| --- | --- | --- |
+| R | "Set a reminder for tomorrow at 9:00 to call Ana about the bulb payments." | 15 |
+| Q | "What is 17 times 23?", which runs no tool and schedules nothing | 15 |
+
+One chain took about 41 s in row E, so the rows run as 15 interleaved pairs, R then Q, and no
+pair starts after 07:00 local. The result counts the completed pairs, at least 12. Row R repeats
+row E; its counts are not pooled with E's. A **claim** is counted as above.
+
+**Rule.**
+
+- Any claim in row Q shows the model claims a task with nothing scheduled anywhere in its chat,
+  so naming the replayed call alone cannot remove the defect, and step 2 measures the brain's
+  check of the reply against the turn's runs.
+- No claim in Q and at least 4 in R makes turn 2 the source at this size (4 against 0 of 12 or
+  of 15 has a one-sided Fisher p of 0.05 or less), and step 2 measures the replayed call naming
+  its kind and text first, on row R.
+- No claim in Q and 1 to 3 in R does not separate the two sources. Step 2 then measures the
+  reply check, which acts whatever the source.
+- No claim in either row is a null at this size: at the earlier row's 1 in 10, 24 to 30 clean
+  chains happen 4 to 8 times in 100. It bounds the rate on this build, cannot tell the rows
+  apart, and leaves the task open with a detached draw of 40 chains per row as step 1.
+
+No change to the brain is drawn from these rows.
+
+### Results
+
+**2026-10-12**, all 15 pairs completed. "Says both" is a reply that says the task was scheduled
+and then that it was not. SM clock between chains: 0.58 to 0.59 of `clocks.max.sm`.
+
+| Row | Refused call | No call | Claim with no call | Claim after a refused call | Says both | Recall hits |
+| --- | --- | --- | --- | --- | --- | --- |
+| R | 12 | 3 | 1 | 1 | 0 | 11, each the chain's own turn 2 |
+| Q | 15 | 0 | 0 | 1 | 1 | 0 |
+
+Claims: R 2 of 15, Q 1 of 15. The claim with no call, chain R1, read the file, had no recalled
+row, made no `schedule_task` call and ended "I have scheduled a background task for tomorrow,
+October 13th, at 10:00 AM to check whether the bulb order went out." The two claims after a
+refused call, R8 and Q1, ended "I have set it as a reminder instead" with no second call; only
+the reminder to call Ana was stored in R8, and nothing in Q1. The two other no-call chains in R
+did not reach the file and said so.
+
+By the rule, row Q's claim sends step 2 to the reply check. Its kind matters: it followed a
+refused call, which no replay of turn 2 can change. The claim with no call stayed at 1 against 0,
+which does not separate the sources at this size; with row E it is 2 in 20 chains with the
+reminder turn and 0 in 15 without. The reply check covers both kinds. Runs:
+`runs/r834-{R,Q}-*` in the run's scratch directory.
