@@ -122,7 +122,7 @@ baseline was null: on this build no U1 or U2 chat called `cancel_scheduled`, eac
 `already scheduled` and each U2 chat only listed, so the unasked cancel was not reproduced and the
 guard rests on the dispatcher tests, where a declined card leaves the item stored. Two G2 replies
 said a "call Ana" reminder was already set for tomorrow, though the earliest was due the day after
-([R-844](../refinements/tasks/844-a-listing-s-next-day-item-is-read-as-tomorrow.md)).
+([a next-day item read as tomorrow](#a-next-day-item-read-as-tomorrow)).
 
 ## A next-day item read as tomorrow
 
@@ -151,7 +151,7 @@ has at most a quarter of the baseline's misdated claims, rounded down, and no fa
 unasked cancel.
 
 **Results, 2026-10-12.** The baseline is null: 0 misdated claims in 10, so the change was not run
-as a row and does not ship. SM clock during the row: 0.59 to 0.70 of `clocks.max.sm`.
+as this row. SM clock during the row: 0.59 to 0.70 of `clocks.max.sm`.
 
 | Row | Build | Misdated claims | False claims | Unasked cancels | Chats that called `list_scheduled` |
 | --- | --- | --- | --- | --- | --- |
@@ -163,5 +163,37 @@ three that also listed did so after that refusal, and the one reply that quoted 
 each due date correctly. In the first G2 run, chats 2 to 5 each recalled the one untainted row that
 chat 1 had added to memory (score 0.83) and called `list_scheduled` before anything else; two of
 those four were the misdated claims. This rig deletes that row before each chat, and no chat here
-listed first. The next row keeps one such exchange in memory
-([R-844](../refinements/tasks/844-a-listing-s-next-day-item-is-read-as-tomorrow.md)).
+listed first. The second rig below keeps one such exchange in memory.
+
+**A second rig, written 2026-10-12 before its first run.** Row G2m is G2 with one earlier G2
+exchange kept in memory. Before each chat the schedule is rewritten as above, every memory row
+written after the seed is deleted, and one row is loaded back: an untainted exchange that the
+baseline build stored through `render_exchange` from its own G2 chat, the request, then
+`Tools run: schedule_task (failed)`, then a reply saying the schedule is full and asking which
+item to cancel. Memory then holds the 20 seed rows and that one. Cards are declined, and the
+counts and the pass rule above apply unchanged.
+
+| Row | Build | Memory before each chat | Repeats |
+| --- | --- | --- | --- |
+| G2m | baseline | seed plus one G2 exchange | 10 |
+| G2m | change | as above | 10 |
+
+**Results, 2026-10-12.** The baseline is not null, and the change passed its rule and ships. In
+every chat of both rows the loaded G2 exchange was the one recall hit (score 0.85). SM clock
+during the rows: 0.58 to 0.70 of `clocks.max.sm`.
+
+| Row | Build | Misdated claims | False claims | Unasked cancels | Chats that called `list_scheduled` first |
+| --- | --- | --- | --- | --- | --- |
+| G2m | baseline | 9 of 10 | 0 | 0 | 10 of 10 |
+| G2m | change | 2 of 10 | 0 | 0 | 10 of 10 |
+
+The limit is a quarter of 9, rounded down, so 2. On the baseline no chat called `schedule_task`:
+each listed, and nine replies said a "call Ana" reminder was already set or due for tomorrow,
+October 13th, mostly as the reason no new one was needed; the other said the series started on the
+14th. One of the nine opened that way and then corrected itself, and counts. Under the change four
+chats also called `schedule_task` after the listing and reported the full schedule, one reply
+listed every item with its day ("In 2 days at 09:00"), and the two misdated claims said the
+"call Ana" series started tomorrow without claiming the requested reminder was set. One chat
+called `cancel_scheduled` on a "call Ana" item unasked; the card named it, the driver declined,
+and the item stayed stored. Runs are `runs/r844-m-base-*` and `runs/r844-m-change-*` in the run's
+scratch directory, driver `slot14/row.sh`.

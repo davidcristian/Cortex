@@ -7,7 +7,6 @@ from cortex_core import (
     CompositeToolRegistry,
     DispatchPolicy,
     InMemoryScheduleStore,
-    ListScheduledTool,
     RecordCard,
     RecordingAuditSink,
     RecordingConfirmer,
@@ -52,11 +51,7 @@ def _cancel(item_id: object) -> ToolCall:
     return ToolCall(id="c", name="cancel_scheduled", arguments={"id": item_id})
 
 
-async def _listing(store: InMemoryScheduleStore) -> str:
-    result = await ListScheduledTool(store).invoke(
-        ToolCall(id="l", name="list_scheduled", arguments={})
-    )
-    return result.content
+_LINE = "[item-1] reminder due 2026-07-13T12:00:00+00:00: "
 
 
 def test_a_cancel_needs_confirmation_and_describes_its_record() -> None:
@@ -65,11 +60,11 @@ def test_a_cancel_needs_confirmation_and_describes_its_record() -> None:
     assert isinstance(tool, RecordCard)
 
 
-async def test_the_card_names_the_stored_text_and_due_time_as_the_listing_does() -> None:
+async def test_the_card_names_the_stored_text_and_due_time() -> None:
     store = InMemoryScheduleStore()
     await store.add(_item("item-1", "water the plants"))
     card = await CancelScheduledTool(store).card(_cancel("item-1"))
-    assert card == _LEAD + await _listing(store)
+    assert card == _LEAD + _LINE + "water the plants"
     assert "water the plants" in card
 
 
@@ -91,10 +86,7 @@ async def test_a_long_stored_text_is_cut_on_the_card() -> None:
 
 async def test_a_text_at_the_limit_is_not_cut() -> None:
     store = InMemoryScheduleStore()
-    await store.add(_item("item-1", "x"))
-    whole = " ".join((await _listing(store)).split())
-    await store.cancel("item-1")
-    await store.add(_item("item-1", "x" * (CARD_CHARS - len(whole) + 1)))
+    await store.add(_item("item-1", "x" * (CARD_CHARS - len(_LINE))))
     card = await CancelScheduledTool(store).card(_cancel("item-1"))
     assert len(card) == len(_LEAD) + CARD_CHARS
     assert card.endswith("xx")

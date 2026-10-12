@@ -9,7 +9,12 @@ from cortex_core.ports import Clock, ScheduleStore
 from cortex_core.schedule import ScheduledItem, ScheduleKind
 from cortex_core.schedule_args import MIN_EVERY_SECONDS, parse_schedule
 from cortex_core.schedule_day_args import day_selector_properties, in_zone_property
-from cortex_core.schedule_render import describe_item, effective_zone, recurrence_phrase
+from cortex_core.schedule_render import (
+    describe_item,
+    effective_zone,
+    now_sentence,
+    recurrence_phrase,
+)
 from cortex_core.schedule_time import UTC_DISPLAY, UTC_ZONE_CONTEXT, DisplayZone, ZoneContext
 from cortex_core.schedule_verbs import error_result, store_down_result
 from cortex_core.tools import ToolCall, ToolResult, ToolSpec, Trust
@@ -119,8 +124,7 @@ class ScheduleTaskTool:
             name=SCHEDULE_TOOL_NAME,
             description=(
                 f"Schedule {what} for later; it fires even after a restart. "
-                f"The current date-time is {self._zone.render(self._clock.now())} "
-                f"({self._zone.name}). "
+                f"{now_sentence(self._zone, self._clock.now())} "
                 "For one time, provide 'at' (ISO-8601 date-time) or 'in_seconds' (delay "
                 "from now), and add 'every_seconds' only to repeat at a fixed interval. To "
                 "repeat at a wall-clock time, provide 'at_time' (HH:MM) with optional "
@@ -202,8 +206,11 @@ def _plain(text: str) -> str:
 class ListScheduledTool:
     """Built-in ``list_scheduled``: the active schedules, ids included for cancelling."""
 
-    def __init__(self, store: ScheduleStore, *, zone: DisplayZone = UTC_DISPLAY) -> None:
+    def __init__(
+        self, store: ScheduleStore, clock: Clock, *, zone: DisplayZone = UTC_DISPLAY
+    ) -> None:
         self._store = store
+        self._clock = clock
         self._zone = zone
 
     @property
@@ -213,7 +220,8 @@ class ListScheduledTool:
             name=LIST_SCHEDULED_TOOL_NAME,
             description=(
                 "List the active scheduled reminders and tasks: id, kind, due time "
-                f"({self._zone.name}), recurrence, and status. Use the id with cancel_scheduled."
+                f"({self._zone.name}) with its day counted from today, recurrence, and status. "
+                "Use the id with cancel_scheduled."
             ),
             parameters={"type": "object", "properties": {}},
         )
@@ -227,8 +235,7 @@ class ListScheduledTool:
         if not items:
             return ToolResult(call_id=call.id, content="no scheduled items", trust=Trust.TRUSTED)
         trust = Trust.UNTRUSTED if any(item.tainted for item in items) else Trust.TRUSTED
-        return ToolResult(
-            call_id=call.id,
-            content="\n".join(describe_item(item, self._zone) for item in items),
-            trust=trust,
-        )
+        now = self._clock.now()
+        lines = [now_sentence(self._zone, now)]
+        lines.extend(describe_item(item, self._zone, now) for item in items)
+        return ToolResult(call_id=call.id, content="\n".join(lines), trust=trust)

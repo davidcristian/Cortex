@@ -70,9 +70,9 @@ Wall-clock time reaches the core only through `Clock`.
 `schedule_task`, `list_scheduled`, `cancel_scheduled`, `snooze_scheduled` and `edit_scheduled` are
 built-ins, so subagents never see them (ADR-0010) and cannot re-schedule themselves.
 
-- **The specification tells the model the time.** `schedule_task`'s description is rebuilt on every
-  `describe_tools` walk and includes the current time in the display zone (ADR-0065 decision 1); no
-  other context line tells the model the date.
+- **The tools tell the model the time.** `schedule_task`'s description (rebuilt on every
+  `describe_tools` walk) and the `list_scheduled` result state the current time in the display zone
+  (ADR-0065 decision 1), and a listed due time names its day, such as "tomorrow", in its own zone.
 - **Arguments.** `kind`, `text`, and exactly one of `at` (ISO-8601), `in_seconds` or `at_time` (a
   calendar rule, ADR-0065 decision 2); `every_seconds` between 60 s and ten years, with `0` read
   as a one-shot; `model` for a task. Bad arguments return `is_error`, never raise; ids are uuid4.

@@ -41,5 +41,5 @@ and H of the readings, with tainted items in the schedule.
   still taints the turn, so every other confirmed tool stays blocked after it. Rows G2, U1, U2, H2
   and R passed the rule written before them
   ([readings](../../readings/schedule-full-cancel.md#a-cancel-card-shown-on-a-tainted-turn)); the
-  date misreading two G2 replies showed is
-  [R-844](844-a-listing-s-next-day-item-is-read-as-tomorrow.md).
+  date misreading two G2 replies showed was fixed by naming each listed due time's day
+  ([readings](../../readings/schedule-full-cancel.md#a-next-day-item-read-as-tomorrow)).

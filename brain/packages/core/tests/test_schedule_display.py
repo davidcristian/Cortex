@@ -59,7 +59,9 @@ def test_the_at_parameter_advertises_the_fold() -> None:
 
 
 def test_the_listing_spec_names_the_zone() -> None:
-    description = ListScheduledTool(InMemoryScheduleStore(), zone=_ZONE).spec.description
+    description = ListScheduledTool(
+        InMemoryScheduleStore(), FixedClock(), zone=_ZONE
+    ).spec.description
     assert "due time (Europe/Bucharest)" in description
 
 
@@ -106,7 +108,7 @@ async def test_the_listing_renders_local() -> None:
             created_at=_NOW,
         )
     )
-    result = await ListScheduledTool(store, zone=_ZONE).invoke(
+    result = await ListScheduledTool(store, FixedClock(), zone=_ZONE).invoke(
         ToolCall(id="c2", name="list_scheduled", arguments={})
     )
     assert "due 2026-07-12T16:00:00+03:00" in result.content

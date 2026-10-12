@@ -386,7 +386,7 @@ async def test_store_errors_become_trusted_error_results() -> None:
 
 async def test_list_and_cancel_wrap_a_down_store() -> None:
     failing = FailingStore()
-    listing = await ListScheduledTool(failing).invoke(
+    listing = await ListScheduledTool(failing, FixedClock()).invoke(
         ToolCall(id="c", name="list_scheduled", arguments={})
     )
     assert listing.is_error
@@ -399,7 +399,7 @@ async def test_list_and_cancel_wrap_a_down_store() -> None:
 
 
 async def test_empty_listing_is_trusted() -> None:
-    result = await ListScheduledTool(InMemoryScheduleStore()).invoke(
+    result = await ListScheduledTool(InMemoryScheduleStore(), FixedClock()).invoke(
         ToolCall(id="c", name="list_scheduled", arguments={})
     )
     assert result.content == "no scheduled items"
@@ -409,18 +409,18 @@ async def test_empty_listing_is_trusted() -> None:
 async def test_listing_is_trusted_when_every_item_is_clean() -> None:
     tool, store = _tool()
     await tool.invoke(_call({"kind": "reminder", "text": "stretch", "in_seconds": 60}))
-    result = await ListScheduledTool(store).invoke(
+    result = await ListScheduledTool(store, FixedClock()).invoke(
         ToolCall(id="c", name="list_scheduled", arguments={})
     )
     assert result.trust is Trust.TRUSTED
-    assert "[item-1] reminder due 2026-07-12T12:01:00+00:00: stretch" in result.content
+    assert "[item-1] reminder due 2026-07-12T12:01:00+00:00 (today): stretch" in result.content
 
 
 async def test_listing_with_any_tainted_item_is_untrusted_and_marked() -> None:
     tool, store = _tool()
     await tool.invoke(_call({"kind": "reminder", "text": "clean", "in_seconds": 60}))
     await tool.invoke(_call({"kind": "reminder", "text": "evil", "in_seconds": 90}, tainted=True))
-    result = await ListScheduledTool(store).invoke(
+    result = await ListScheduledTool(store, FixedClock()).invoke(
         ToolCall(id="c", name="list_scheduled", arguments={})
     )
     assert result.trust is Trust.UNTRUSTED
@@ -436,7 +436,7 @@ async def test_listing_shows_recurrence_firing_delivery_and_outcome() -> None:
     (claim,) = await store.claim_due(
         _NOW + timedelta(seconds=60), lease=timedelta(seconds=300), limit=8
     )
-    listing = await ListScheduledTool(store).invoke(
+    listing = await ListScheduledTool(store, FixedClock()).invoke(
         ToolCall(id="c", name="list_scheduled", arguments={})
     )
     assert "every 3600s" in listing.content
@@ -448,7 +448,7 @@ async def test_listing_shows_recurrence_firing_delivery_and_outcome() -> None:
         outcome="[subagent 1] ok",
     )
     assert await store.finish(claim, outcome) is True
-    listing = await ListScheduledTool(store).invoke(
+    listing = await ListScheduledTool(store, FixedClock()).invoke(
         ToolCall(id="c", name="list_scheduled", arguments={})
     )
     assert "fired awaiting delivery" in listing.content
@@ -484,7 +484,7 @@ async def test_cancel_requires_a_string_id(bad_id: object) -> None:
 
 
 def test_view_tool_specs_name_their_tools() -> None:
-    assert ListScheduledTool(InMemoryScheduleStore()).spec.name == "list_scheduled"
+    assert ListScheduledTool(InMemoryScheduleStore(), FixedClock()).spec.name == "list_scheduled"
     assert CancelScheduledTool(InMemoryScheduleStore()).spec.name == "cancel_scheduled"
     assert _snooze_tool(InMemoryScheduleStore()).spec.name == "snooze_scheduled"
     assert EditScheduledTool(InMemoryScheduleStore(), FixedClock()).spec.name == "edit_scheduled"
@@ -791,7 +791,7 @@ async def test_a_listing_describes_a_calendar_item_in_wall_clock_terms() -> None
     store = InMemoryScheduleStore()
     tool, _ = _tool(store)
     await tool.invoke(_call({"kind": "reminder", "text": "stretch", "at_time": "09:00"}))
-    listing = await ListScheduledTool(store).invoke(
+    listing = await ListScheduledTool(store, FixedClock()).invoke(
         ToolCall(id="c2", name="list_scheduled", arguments={})
     )
     assert "every day at 09:00" in listing.content
@@ -1011,7 +1011,7 @@ async def test_a_listing_describes_a_monthly_item_in_calendar_terms() -> None:
     await tool.invoke(
         _call({"kind": "reminder", "text": "rent", "at_time": "09:00", "on_month_days": [1, 15]})
     )
-    listing = await ListScheduledTool(store).invoke(
+    listing = await ListScheduledTool(store, FixedClock()).invoke(
         ToolCall(id="c2", name="list_scheduled", arguments={})
     )
     assert "every month on the 1st, 15th at 09:00" in listing.content
@@ -1118,7 +1118,7 @@ async def test_a_listing_describes_a_yearly_item_in_calendar_terms() -> None:
     await tool.invoke(
         _call({"kind": "reminder", "text": "x", "at_time": "09:00", "on_dates": ["12-25", "01-01"]})
     )
-    listing = await ListScheduledTool(store).invoke(
+    listing = await ListScheduledTool(store, FixedClock()).invoke(
         ToolCall(id="c2", name="list_scheduled", arguments={})
     )
     assert "every year on 1 jan, 25 dec at 09:00" in listing.content
@@ -1258,9 +1258,12 @@ async def test_listing_renders_a_per_rule_zone_in_its_own_zone() -> None:
             }
         )
     )
-    listing = await ListScheduledTool(store).invoke(_call({}))
+    listing = await ListScheduledTool(store, FixedClock()).invoke(_call({}))
     assert not listing.is_error
-    assert "due 2026-07-12T09:00:00-04:00, every day at 09:00 (America/New_York)" in listing.content
+    assert (
+        "due 2026-07-12T09:00:00-04:00 (today), every day at 09:00 (America/New_York)"
+        in listing.content
+    )
 
 
 async def test_creation_rejects_an_unknown_in_zone() -> None:

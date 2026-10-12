@@ -64,7 +64,7 @@ def build_schedule_tools(
             max_active=config.max_active,
             zones=zones,
         ),
-        ListScheduledTool(schedules, zone=zone),
+        ListScheduledTool(schedules, clock, zone=zone),
         CancelScheduledTool(schedules, zone=zone),
         SnoozeScheduledTool(schedules, clock, zone=zone),
         EditScheduledTool(schedules, clock, zones=zones),

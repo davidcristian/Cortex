@@ -184,15 +184,15 @@ escalate. Each is a `BuiltinTool` registered in the `CompositeToolRegistry`.
   verbs (ADR-0025). `schedule_task` takes `{kind: reminder|task, text, at | in_seconds,
   every_seconds? (at least 60, or 0 for a one-shot), model? (task only)}`, or `at_time` (`HH:MM`,
   which always repeats, so its spec sends a one-time time to `at`) with at most one of `on_days`,
-  `on_month_days` or `on_dates` plus an optional `in_zone`. Its spec is rebuilt on every
-  `describe_tools` walk and includes the current time. Two creation bounds apply: the `max_active`
+  `on_month_days` or `on_dates` plus an optional `in_zone`. Its spec and the listing state the
+  current time, and each listed due time names its day. Two creation bounds apply: the `max_active`
   cap, and a refusal to create a `task` on a `live_taint` turn (`TAINTED_TASK_MSG`). A request
   matching an active item in kind, text, due time, recurrence and model (never a tainted item for a
   clean turn) adds nothing and returns `already scheduled` with its id, on a full schedule too.
   Creation, cancel and snooze results are `TRUSTED` and never echo stored text; the listing echoes
   text and so is `TRUSTED` only when every item listed is clean. A cancel is confirmed on a card
-  showing the item's listing line, flattened, at most `CARD_CHARS`. `edit_scheduled` adds the
-  editing turn's taint and refuses editing a task on a `live_taint` turn; none of the five raises.
+  showing the item's listing line without its day, flattened, at most `CARD_CHARS`. `edit_scheduled`
+  adds the editing turn's taint and refuses a task edit on a `live_taint` turn; none of them raises.
 
 ## Schedules
 
