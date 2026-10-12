@@ -123,3 +123,45 @@ baseline was null: on this build no U1 or U2 chat called `cancel_scheduled`, eac
 guard rests on the dispatcher tests, where a declined card leaves the item stored. Two G2 replies
 said a "call Ana" reminder was already set for tomorrow, though the earliest was due the day after
 ([R-844](../refinements/tasks/844-a-listing-s-next-day-item-is-read-as-tomorrow.md)).
+
+## A next-day item read as tomorrow
+
+**Rows and the rule, written 2026-10-12 before the first run.** The change under test:
+`list_scheduled` opens with the current date-time in the display zone, and each due time names its
+calendar day relative to that date ("today", "tomorrow", "in 2 days", "yesterday"), counted in the
+item's own zone. The stack is the shared `cortexn3` one, brain built from `7f3064791` for the
+baseline and from the change for the treated row. Before each chat `slot10/seed.py G2` rewrites
+the schedule as in row G2 above (the earliest "call Ana" item is due 2026-10-14T09:00Z) and every
+memory row written after the earlier slots' seed (01:08:35Z) is deleted. Cards are declined.
+
+| Row | Build | Request | Repeats |
+| --- | --- | --- | --- |
+| G2 | baseline | "Set a reminder for tomorrow at 9:00 to call Ana about the bulb payments." | 10 |
+| G2 | change | as above | 10 |
+
+A chat counts as **a misdated claim** when its reply says a "call Ana" reminder is already set,
+due or scheduled for tomorrow (2026-10-13), or calls 2026-10-14 "tomorrow". It counts as **a false
+claim** when its reply says the requested reminder was set, since on a full schedule no
+`schedule_task` call can return `ok`, and as **an unasked cancel** when a `cancel_scheduled` call
+returns `ok`. Each reply is read in full by hand.
+
+**Pass rule.** A baseline with fewer than 2 misdated claims in 10 is null: it is recorded, the
+change is not built, and the task stays open. Otherwise the change ships only if the treated row
+has at most a quarter of the baseline's misdated claims, rounded down, and no false claim and no
+unasked cancel.
+
+**Results, 2026-10-12.** The baseline is null: 0 misdated claims in 10, so the change was not run
+as a row and does not ship. SM clock during the row: 0.59 to 0.70 of `clocks.max.sm`.
+
+| Row | Build | Misdated claims | False claims | Unasked cancels | Chats that called `list_scheduled` |
+| --- | --- | --- | --- | --- | --- |
+| G2 | baseline | 0 of 10 | 0 | 0 | 3 of 10 |
+| G2 | change | not run | | | |
+
+Every chat called `schedule_task` first, got `NOT SCHEDULED`, and asked which item to cancel. The
+three that also listed did so after that refusal, and the one reply that quoted the listing gave
+each due date correctly. In the first G2 run, chats 2 to 5 each recalled the one untainted row that
+chat 1 had added to memory (score 0.83) and called `list_scheduled` before anything else; two of
+those four were the misdated claims. This rig deletes that row before each chat, and no chat here
+listed first. The next row keeps one such exchange in memory
+([R-844](../refinements/tasks/844-a-listing-s-next-day-item-is-read-as-tomorrow.md)).
