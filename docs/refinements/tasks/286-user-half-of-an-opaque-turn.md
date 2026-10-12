@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-10-06
+**Verified:** 2026-10-13
 **Trigger:** a report, written on this entry's history or as a host task, of a sentence a user
 asked the assistant to remember during an opaque turn and could not recall later. The loss needs
 two settings together: memory recorded at all (`CORTEX_MEMORY_BACKEND=pgvector`, which the memory
@@ -18,7 +18,9 @@ Opened 2026-08-16 by the per-source memory rules decline
 ([R-260](260-per-source-memory-rules.md)), which found that the loss that entry was written around
 needs no source identifier at all. `record_exchange` returns before the write on `taint.opaque`,
 and the text it would have written is `render_exchange`'s `User: <message>\nAssistant: <reply>`
-([turn_output.py](../../../brain/packages/core/src/cortex_core/turn_output.py)), so a capture turn,
+([turn_output.py](../../../brain/packages/core/src/cortex_core/turn_output.py)), with a
+`Tools run:` line naming each tool call between the two whenever the turn ran one, as a capture
+turn always does. So a capture turn,
 or a turn the user attached a picture to, drops the user's own sentence along with the
 transcription the drop exists for. The drop exists
 because the assistant half of a capture turn is the untrusted payload in the one form that
@@ -59,3 +61,8 @@ change here rewrites the decision at all three.
   body backend. The trigger and the body now name it, and the decision to rewrite is stated in three
   records, the attached-image one included. The comment above that return, which the line above
   calls matching, named captures and MCP images only and now names the attachment too.
+- 2026-10-13: Not fired: this history and `docs/host/` hold no such report. `record_exchange` still
+  returns on `taint.opaque` before it reads `record_tainted_memory` (`turn_output.py:166`). What it
+  would have written changed on 2026-10-12: `render_exchange` puts a `Tools run:` line naming each
+  call between the two halves whenever the turn ran a tool (`turn_output.py:91-95`), which a capture
+  turn always does, and the body now says so.

@@ -8,11 +8,12 @@ against the store that held hoisted chats under `cortex:sessions:pinned`, so
 `redis-cli EXISTS cortex:sessions:pinned` answers 0 there, or that store no longer exists. The
 development machine's store cannot answer it: on 2026-10-03 its append-only file has no `SADD`, so
 it never held a hoisted chat under either key, and the store the move was written for is elsewhere.
-**Verified:** 2026-10-03
+**Verified:** 2026-10-13
 
 `RedisSessionStore` in `brain/packages/session/src/cortex_session/store.py` runs
 `_move_old_hoisted` once per store, before `delete`, `set_hoisted` or `list_sessions` first touches
-the hoisted set (`store.py:145`, `:160` and `:172`): one `MULTI` holding
+the hoisted set (`store.py:186`, `:201` and `:213`, each inside the closure `_call` runs under
+the store's retry): one `MULTI` holding
 `SUNIONSTORE cortex:sessions:hoisted cortex:sessions:hoisted cortex:sessions:pinned` and
 `DEL cortex:sessions:pinned`. It exists because a store that held hoisted chats before the rename
 keeps them under the old key (decision 12 of ADR-0021). Once that store has moved, the step
@@ -39,3 +40,8 @@ the move and close this `declined` with that reason.
   chat was ever hoisted there under either name, and the entry's "one machine with real hoisted
   chats" is not this one. The trigger now names the store that decides it, the command, and
   `delete`, the third caller of the move. `store.py` has not changed since 2026-09-28.
+- 2026-10-13: Not fired, and no store that held hoisted chats under the old key is reachable here.
+  Since 2026-10-10 each verb runs its Redis work through `_call` under the store's retry
+  (`store.py:104`), and the move runs first inside each retried closure, at `store.py:186`, `:201`
+  and `:213`; the body's three citations had moved and now name those lines. The move itself is
+  unchanged (`store.py:172-180`).

@@ -4,11 +4,12 @@
 **Area:** body-overlay
 **Origin:** [ADR-0052](../../adr/ADR-0052-overlay-focus-and-announcements.md)
 **Trigger:** a History line in this file recording the maintainer's pick of A or B.
-**Verified:** 2026-10-07
+**Verified:** 2026-10-13
 
 The conversation scrolls in `.history` in `body/app/src/components/ChatView.tsx`, a `div` with no
 `tabIndex`, and no key handler in the overlay moves it: `useLogScroll.ts` and `logRoll.ts` set
-`scrollTop` only to follow the stream and to roll a section, and `holdScroll` in `panelParts.ts`
+`scrollTop` only to follow the stream, to give the log back its place after the console, and to
+roll a section, and `holdScroll` in `panelParts.ts`
 only to put a position back after the panel measures itself. On the Linux shell on 2026-10-07,
 with a reply taller than the window, `Page_Up` in the field changed nothing, and seven presses of
 `Tab` from the field went to the send button, the two hint strip buttons and the header's buttons,
@@ -30,3 +31,9 @@ focusable child a tab stop of its own, so WebView2 may give the conversation one
 ## History
 
 - 2026-10-07: filed from keyboard use of the overlay on the Linux shell.
+- 2026-10-13: Not fired: no pick is recorded here. The three fixes of 2026-10-10 to
+  `useLogScroll.ts` and `panelParts.ts` change when the log follows the stream and when a position
+  is put back; neither file gained a key handler, and `.history` still has no `tabIndex`, the only
+  one outside tests being the console's tabs (`ConsoleView.tsx:121`). The body's list of what sets
+  `scrollTop` missed the place the log is given back after the console, which `useLogScroll.ts` has
+  done since 2026-07-20.

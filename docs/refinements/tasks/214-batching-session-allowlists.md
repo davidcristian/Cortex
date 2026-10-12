@@ -3,12 +3,15 @@
 **Status:** open, waiting for its trigger
 **Area:** email-confirmer
 **Origin:** [ADR-0022](../../adr/ADR-0022-email-write-confirmer.md)
-**Verified:** 2026-10-04
-**Trigger:** a deployment where confirmations arrive often enough that the user starts approving
-them without reading them. Which tools can produce one is read off the shipped default,
-`confirm_names` in `brain/packages/orchestrator/src/cortex_orchestrator/config_tools.py`, and how
-many one turn can raise is `MAX_TOOL_DISPATCHES` in `brain/packages/core/src/cortex_core/tool_budget.py`. This entry's
-history records what both said when that was last read.
+**Verified:** 2026-10-13
+**Trigger:** a record under `docs/readings/`, `docs/host/` or this file's History of a person
+approving a confirmation card without reading it, because cards came often enough in one turn or
+one chat. `grep -rliE 'without reading' docs/readings docs/host` finds none. Which tools can raise
+a card is read off `ALWAYS_CONFIRMED` in
+`brain/packages/orchestrator/src/cortex_orchestrator/config_tools.py`, plus any name
+`CORTEX_TOOLS_GATED` adds and each built-in whose spec sets `confirm_required`; how many one turn
+can raise is `MAX_TOOL_DISPATCHES` in `brain/packages/core/src/cortex_core/tool_budget.py`. This
+entry's history records what both said when that was last read.
 
 Every call that needs confirmation is confirmed on its own and nothing is remembered between calls.
 `ToolDispatcher._confirmed` in `brain/packages/core/src/cortex_core/dispatch.py` builds one
@@ -16,10 +19,12 @@ Every call that needs confirmation is confirmed on its own and nothing is rememb
 send approved a minute ago buys the next one nothing. `DispatchPolicy.confirm_names` is frozen at
 construction and read as a membership test, so there is nowhere to hold an approval.
 
-The entry was filed about sends, and the surface is wider now. The shipped `CORTEX_TOOLS_GATED`
-default is two names, `escalate_to_brain` and `send_email`, so a turn that sends no mail can still
-raise a card: the escalation confirmation asks the user to approve a model swap (ADR-0030). A fix
-aimed at sends would leave the other half where it is.
+The entry was filed about sends, and the surface is wider now. Two names are always confirmed,
+`escalate_to_brain` and `send_email` (`ALWAYS_CONFIRMED`, which a validator keeps in the set
+whatever `CORTEX_TOOLS_GATED` adds), and `cancel_scheduled` asks on a card of its own, its spec
+setting `confirm_required` in `schedule_verbs.py`. So a turn that sends no mail can still raise a
+card: the escalation confirmation asks the user to approve a model swap (ADR-0030), and a cancel
+shows the stored item it would delete. A fix aimed at sends would leave the rest where it is.
 
 One direction is already bounded. Within a turn, a model emitting such calls cannot flood the user,
 because `dispatch` checks the caller's refusal ahead of the confirmation, so a spent budget or a
@@ -61,3 +66,10 @@ allowlist over `send_email` is a permanent approval to send mail.
   `config_tools.py`, `dispatch.py`, `tool_budget.py` or ADR-0009: `confirm_names` still defaults to
   `escalate_to_brain` and `send_email` (lines 42 and 43), `MAX_TOOL_DISPATCHES` is 32, and
   `escalate.py` is still the only built-in that sets `confirm_required`. No deployment runs here.
+- 2026-10-13: Not fired, and the trigger restated as a record the tree can hold. Two things the
+  2026-10-04 reading said had moved. Since 2026-10-12 `escalate_to_brain` and `send_email` are
+  `ALWAYS_CONFIRMED` (`config_tools.py:31`), which a validator keeps whatever `CORTEX_TOOLS_GATED`
+  names (`:56-60`), where before a value of that setting replaced them. And `cancel_scheduled` now
+  sets `confirm_required` itself (`schedule_verbs.py:61`) and shows the stored item on its card, so
+  `escalate.py` is no longer the only built-in that asks. `MAX_TOOL_DISPATCHES` is still 32. No
+  deployment runs here.

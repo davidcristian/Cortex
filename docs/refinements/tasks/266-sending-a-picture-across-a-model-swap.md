@@ -3,11 +3,13 @@
 **Status:** open, waiting for its trigger
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-10-07
+**Verified:** 2026-10-13
 **Trigger:** `escalate_to_brain` can run on a tainted turn: its spec in `escalate.py` stops setting
 `confirm_required` (`grep -n confirm_required brain/packages/core/src/cortex_core/escalate.py`
 prints `confirm_required=True` today), or the tainted-turn denial in `ToolDispatcher.dispatch`
-(`dispatch.py`, the `if stamp.tainted:` branch) gains an exception for it. The work then starts
+(`dispatch.py`, the `if call.stamp.tainted and card is None:` branch) admits it. That branch admits
+only a tool that shows a record card, which today is `cancel_scheduled` alone, so a `card` method on
+`EscalateToBrainTool` would fire it as surely as a new exception. The work then starts
 with R-257's store, a brain-tier projector setting, and a probe of that tier.
 
 Nothing persists an in-turn image: not the session store, and not the handoff record. The record's
@@ -118,3 +120,11 @@ exactly on the record and on the ledger rebuilt from it.
   (`just rpc-handoff`) does not bear on the trigger: it approves the card on an untainted turn,
   which the denial never reaches. It does mean the follow-on work's end to end check, a picture
   sent across a real swap, can run on this machine without a desktop session.
+- 2026-10-13: Not fired. `grep -n confirm_required brain/packages/core/src/cortex_core/escalate.py`
+  still prints `confirm_required=True` (line 66), and since 2026-10-12 `confirm_names` keeps
+  `escalate_to_brain` whatever `CORTEX_TOOLS_GATED` says. The denial did change on 2026-10-12: it
+  reads `if call.stamp.tainted and card is None:` (`dispatch.py:155`), so a tool that shows a record
+  card is asked on a tainted turn too. The only such tool is `cancel_scheduled`, record cards being
+  the built-ins that match `RecordCard` (`dispatch_builders.py:89`), and `EscalateToBrainTool` has
+  no `card` method, so escalation is still denied on a tainted turn. The trigger names the new
+  branch. No brain-tier projector setting and no `AttachmentStore` exist.

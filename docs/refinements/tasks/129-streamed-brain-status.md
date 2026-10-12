@@ -3,8 +3,11 @@
 **Status:** open, needs a port change first
 **Area:** body-overlay
 **Origin:** [ADR-0011](../../adr/ADR-0011-body-v1.md)
-**Verified:** 2026-10-06
-**Trigger:** A status change that begins while no turn from this overlay is streaming and must change the dot's colour: a second client that can start a handoff, or a background job that escalates. The hand-run handoff client (`just rpc-handoff`) is not such a client: its runbook points it only at a stack no overlay is using, so no dot can see a handoff it starts. A change that one of this overlay's own turns leaves behind is read by the probe that follows the turn, not by a push.
+**Verified:** 2026-10-13
+**Trigger:** A status change that begins while no turn from this overlay is streaming and must
+change the dot's colour before the next summon or turn: a second client that can start a handoff,
+a background job that escalates, or a decision record asking that a cortex or store outage reach
+a dot left open and green, which decision 8 of ADR-0054 does not ask today. The hand-run handoff client (`just rpc-handoff`) is not such a client: its runbook points it only at a stack no overlay is using, so no dot can see a handoff it starts. A change that one of this overlay's own turns leaves behind is read by the probe that follows the turn, not by a push.
 
 What is deferred is the push: a server-streamed status RPC, so the brain can say what it is doing
 at the moment it changes rather than when the overlay next asks. The producer this entry was
@@ -15,7 +18,11 @@ through drain, load, work and restore on the `Converse` stream the user already 
 proto change ([ADR-0030](../../adr/ADR-0030-brain-handoff.md) decisions 6 and 7). Then `Health`
 began reading the swapping manager's published residency and answering `ready=false` with a true
 detail while the deep model is loading, working or being swapped back, after a restore that
-stopped retrying, and after a boot whose recovery could not settle the cortex.
+stopped retrying, and after a boot whose recovery could not settle the cortex. Since 2026-10-10
+it also reads a background watch that pings Redis and the cortex's own health endpoint every 2 s,
+so an outage that begins between turns makes `Health` not ready too, and decision 8 of
+[ADR-0054](../../adr/ADR-0054-baseline-residency.md) accepts that a dot left open and green shows
+it only at the next summon or turn.
 
 None of that needed an overlay change: the indicator classifies a not-ready reply as amber
 `Degraded`, shows the brain's line as given, and its 5 s recheck turns the dot green again once
@@ -95,3 +102,11 @@ from that change and that change needed nothing from it.
   the tier-scale rows drawn that night are the first reading against real weights of the not-ready
   replies this entry depends on: `Health` read `ready=false` from the loading detail until each
   turn ended ([model swap](../../readings/model-swap.md#a-handoff-through-the-conductor)).
+- 2026-10-13: Not fired, and the trigger and body now name the serving watch. Since 2026-10-10
+  `Health` also answers not ready while the cortex or Redis is down, read by a background watch
+  every 2 s, so an outage that begins between turns is a status change no turn of this overlay
+  starts. The restart readings (`docs/readings/store-and-process-restarts.md`, "Health and the dot")
+  show the dot green after a `kill -9` of the cortex until the overlay probed, at a summon or after
+  a failed question, and decision 8 of ADR-0054 accepts exactly that: the overlay still probes on a
+  summon, after a turn ends green, and every 5 s while not green (`useLink.ts:48-70`). No decision
+  record asks for more, so no consumer of a push exists yet.

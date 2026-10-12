@@ -10,14 +10,14 @@ a swap runtime at all (`brain/packages/orchestrator/src/cortex_orchestrator/swap
 returns `None` without it), and `docs/runbooks/model-swap.md:150` tells an operator to set it.
 `grep -rlniE 'turn twice' docs/readings docs/host docs/runbooks` finding nothing says there is no
 such record.
-**Verified:** 2026-10-07
+**Verified:** 2026-10-13
 
 Retrying a `converse` turn after a disconnect is only safe if the brain can tell that the repeat
 is the same request. It cannot. A turn's first durable effect is
 `await self._store.append(session_id, user)` in `TurnEngine.handle_turn` (`engine.py`), which runs
 before inference and before the first yielded event, on a turn task that advances whether or not
-the client reads (`converse_stream.py`: a `UserTurn` starts `_turn_task` and its events go onto a
-queue the consumer drains separately). So "the client saw no event" never means "the brain did
+the client reads (`converse_stream.py`: a `UserTurn` is queued, starts `_turn_task` once the turn
+before it has ended, and its events go onto a queue the consumer drains separately). So "the client saw no event" never means "the brain did
 nothing": by then the user message is stored and a tool the model asked for first may have run.
 Nothing on the wire identifies the request either: `ClientEvent` and `UserTurn` contain
 `session_id`, text and images, with no request id or idempotency key, and the `turn_id` is created
@@ -81,3 +81,12 @@ resends. `converse` stays unretried, `RpcMethod::Converse` not being repeatable.
   `repeatable` (`plan.rs:59-72`) is still false for the same six methods. Two citations had moved:
   the user message is appended at `engine.py:88`, before a turn waits out another turn's handoff,
   and the turn task starts at `converse_stream.py:179`.
+- 2026-10-13: Not fired: `grep -rlniE 'turn twice' docs/readings docs/host docs/runbooks` still
+  finds nothing. The restart readings of 2026-10-10 (`docs/readings/store-and-process-restarts.md`)
+  record four turns cut by a brain restart before their first words, all on a stack with escalation
+  off, and since that night such a cut ends on a typed `brain_stopping` error that tells the person
+  to ask again, which is the resend this entry is about. The switch still decides whether a swap
+  runtime exists (`swap_builders.py:61-62`), the user message is still appended before inference
+  (`engine.py:89`), and `ClientEvent` and `UserTurn` (`proto/body.proto:53`, `:62`) still name no
+  request. One account had moved: a `UserTurn` is now queued and starts its turn task only once the
+  turn before it has ended (`converse_stream.py:176-187`), and the body says so.
