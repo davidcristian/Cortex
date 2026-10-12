@@ -46,7 +46,14 @@ lock.
    `tool_loop.py`). The cortex turn and a subagent run the same thing: stream from a model with
    tools available; on tool calls, dispatch (audited) and feed results back; repeat until a final
    text answer or `MAX_TOOL_STEPS`. The `TurnEngine` and the `SubagentRunner` both call it, so the
-   loop's behaviour and its tests are shared.
+   loop's behaviour and its tests are shared. A subagent whose last round still ends in calls has
+   not answered, so `settle_reply` reads `out_of_rounds` off the attempt's `StopLedger` after the
+   token cap and returns `AttemptFailure.TRUNCATED` with `ROUNDS_SPENT_MSG`, which names the limit
+   and tells the cortex to treat the subtask as unanswered and split or narrow it. It is not placed
+   again, because the same model on the CPU spends the same rounds. It shares the member with the
+   token cap and the deadline ([ADR-0048](ADR-0048-generation-bounds.md) decision 9): only `ok` and
+   the CPU re-run read the member, both treat the three alike, and the cortex reads the detail,
+   which differs. A constrained attempt has no tools, so it cannot reach this limit.
 
 4. **Subagents are tools-enabled but delegation-free, so the tree is one level deep.** A subagent
    runs the shared loop on the subagent model with the MCP tool subset, every call through its own
@@ -193,6 +200,8 @@ lock.
   budget in one port and break the manager's single-GPU invariant.
 - **Truncating an oversized batch**, a **turn-wide batch pool**, an **environment setting for the
   cap** and a **cost-aware cap** (decisions 9 to 12).
+- **A failure member of its own for the round limit:** nothing would read it differently from
+  `TRUNCATED` (decision 3).
 
 ## Related
 

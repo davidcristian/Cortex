@@ -9,6 +9,7 @@ __all__ = [
     "GENERATION_DEADLINE_MSG",
     "INNER_TIMEOUT_MSG",
     "MALFORMED_ENVELOPE_MSG",
+    "ROUNDS_SPENT_MSG",
     "AttemptFailure",
     "AttemptOutcome",
     "cap_detail",
@@ -32,6 +33,12 @@ GENERATION_CAP_MSG = (
     "the subtask stopped at a token limit rather than at an answer, so the reply is cut where the "
     "count ran out; a run that reaches such a limit is talking rather than working, so treat the "
     "subtask as unanswered and narrow it before delegating it again"
+)
+
+ROUNDS_SPENT_MSG = (
+    "the subtask was still calling tools after all {rounds:d} rounds of tool calls a run is "
+    "given, so it never wrote an answer; treat the subtask as unanswered, and split or narrow it "
+    "before delegating it again"
 )
 
 GENERATION_CAP_BOUND = " (this run's own cap is {max_tokens:d} decoded tokens per completion)"

@@ -176,6 +176,7 @@ class PlacedAttempt:
         return settle_reply(
             "".join(parts),
             capped=stops.capped,
+            out_of_rounds=stops.out_of_rounds,
             max_tokens=self._bounds.max_tokens,
             constrain=constrain,
             tainted=taint.tainted,

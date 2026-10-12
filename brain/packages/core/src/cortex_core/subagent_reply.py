@@ -5,10 +5,12 @@ import json
 from cortex_core.inference import JsonSchema
 from cortex_core.subagent_outcome import (
     MALFORMED_ENVELOPE_MSG,
+    ROUNDS_SPENT_MSG,
     AttemptFailure,
     AttemptOutcome,
     cap_detail,
 )
+from cortex_core.tool_loop import MAX_TOOL_STEPS
 
 __all__ = [
     "REPLY_ENVELOPE",
@@ -50,7 +52,13 @@ def unwrap_envelope(text: str) -> str | None:
 
 
 def settle_reply(
-    text: str, *, capped: bool, max_tokens: int | None, constrain: bool, tainted: bool
+    text: str,
+    *,
+    capped: bool,
+    out_of_rounds: bool,
+    max_tokens: int | None,
+    constrain: bool,
+    tainted: bool,
 ) -> AttemptOutcome:
     """What an attempt that ran to the end of its loop produced."""
     # ``capped`` is read before the envelope: a cut reply ends mid-envelope, so unwrapping first
@@ -60,6 +68,13 @@ def settle_reply(
             text=text,
             failure=AttemptFailure.TRUNCATED,
             detail=cap_detail(max_tokens),
+            tainted=tainted,
+        )
+    if out_of_rounds:
+        return AttemptOutcome(
+            text=text,
+            failure=AttemptFailure.TRUNCATED,
+            detail=ROUNDS_SPENT_MSG.format(rounds=MAX_TOOL_STEPS),
             tainted=tainted,
         )
     if not constrain:

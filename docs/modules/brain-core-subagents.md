@@ -113,7 +113,9 @@ the deadline covers every completion and every dispatch between them, and reachi
 `TimeoutError` raised from below is `AttemptFailure.INFERENCE` and stays eligible for the CPU
 re-run. A completion the backend reports as cut at a token limit is also `TRUNCATED`; a cut inside
 a tool call reaches that by a different path, reported as `TRUNCATED` only when the `StopLedger`
-also saw a cap. The outcome vocabulary is in `subagent_outcome.py`.
+also saw a cap. A tool-holding attempt whose eighth round still ended in calls is `TRUNCATED` with
+`ROUNDS_SPENT_MSG` and is not re-run either (ADR-0010 decision 3). The outcome vocabulary is in
+`subagent_outcome.py`.
 
 `subagent_reply.py` holds the constrained-reply grammar (ADR-0028). `REPLY_ENVELOPE` is the schema
 a constrained request asks for and `unwrap_envelope(text)` reads the answer back. A schema tells
@@ -122,8 +124,9 @@ The repair is a sentence in the subtask, `REPLY_INSTRUCTION`, appended by
 `instruct_reply(instruction)`; it is one wording for every roster entry, which the entries do not
 agree about, and a per-entry wording was declined (measurements in
 [reply envelope](../readings/reply-envelope.md)). The sentence is not a detector: a plan that still
-arrives in `reply` is `ok=True`. `settle_reply(text, *, capped, max_tokens, constrain, tainted)` is
-the ordered reading a finished run gets: capped first, then unconstrained text, then the envelope.
+arrives in `reply` is `ok=True`. `settle_reply(text, *, capped, out_of_rounds, max_tokens,
+constrain, tainted)` is the ordered reading a finished run gets: capped first, then out of rounds,
+then unconstrained text, then the envelope.
 Constraining applies only on the tool-less path, a JSON grammar fighting tool calling.
 
 **Invariants.**

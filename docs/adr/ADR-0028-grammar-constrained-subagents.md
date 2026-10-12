@@ -56,11 +56,11 @@ envelope](../readings/reply-envelope.md).
 4. **The runner unwraps the envelope before storing, in a fixed order.** `settle_reply` reads a
    finished attempt in this order: a run cut at a token limit is `TRUNCATED` with the cap refusal
    (`GENERATION_CAP_MSG`), since a reply the server stopped ends mid-envelope and is not a model
-   breaking its grammar; an unconstrained run passes its text through; a constrained run is
-   unwrapped by `unwrap_envelope`, and an envelope that does not parse is `MALFORMED`, with the raw
-   text in `output` for the store and the fixed `MALFORMED_ENVELOPE_MSG` in `detail`. The spawn
-   aggregate passes a failed result's `detail` to the cortex and never its `output`, so raw,
-   possibly attacker-written text stays in the store and never reaches the cortex conversation.
+   breaking its grammar; a run out of tool rounds is `TRUNCATED` too (ADR-0010 decision 3); an
+   unconstrained run passes its text through; a constrained run is unwrapped by `unwrap_envelope`,
+   and an envelope that does not parse is `MALFORMED`, with the raw text in `output` and the fixed
+   `MALFORMED_ENVELOPE_MSG` in `detail`. The spawn aggregate passes a failed result's `detail` to
+   the cortex and never its `output`, so possibly hostile text never reaches the conversation.
 
 ### The sentence
 
