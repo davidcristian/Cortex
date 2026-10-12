@@ -129,3 +129,58 @@ refused call, which no replay of turn 2 can change. The claim with no call staye
 which does not separate the sources at this size; with row E it is 2 in 20 chains with the
 reminder turn and 0 in 15 without. The reply check covers both kinds. Runs:
 `runs/r834-{R,Q}-*` in the run's scratch directory.
+
+## A reply check against the turn's runs
+
+### Rows and the rule, written before the run
+
+The check reads the reply a turn produced beside the turn's own runs (`ToolRun`). When no call of
+`schedule_task`, `edit_scheduled` or `snooze_scheduled` in the turn succeeded and the reply says
+something was scheduled, the brain closes the reply with a fixed note saying nothing was
+scheduled in this turn. The runs half is exact. The text half is a pattern, written and fixed
+before the first row from the claims quoted in this file and its neighbours and the forms below:
+
+- "I scheduled", "I've scheduled" or "I have scheduled", with "now", "just", "also" or
+  "successfully" allowed before the verb, matches alone, and so does "has been", "have been" or
+  "is now" before "scheduled".
+- The same forms with "set", "set up", "created", "added" or "booked" in place of "scheduled"
+  match when the sentence also names a reminder, a task, an alarm or the schedule.
+- Nothing else matches: a future or offered form ("I'll schedule", "I can still set a
+  reminder"), a negated one ("was not scheduled", "I haven't set"), or a stored item described
+  ("You have a reminder scheduled for 9:00", "is scheduled for").
+
+The rig is the one above on a brain built from the current tree, with memory emptied and the
+schedule store restored before every chain. Two phases run the same rows: the baseline on a brain
+without the check, then the same rows on a brain with it. Rows interleave within a phase.
+
+| Row | Turn 2 | Turn 3 | Chains per phase |
+| --- | --- | --- | --- |
+| R | the reminder to call Ana | the file, then the task | 10 |
+| Q | "What is 17 times 23?" | the file, then the task | 10 |
+| L | the reminder to call Ana | "Read meeting-notes.txt again, then tell me what I have scheduled for tomorrow." | 5 |
+
+The **corpus** is every third-turn reply of both phases, as the model wrote it before any note,
+and the seven claims quoted in these readings: "I have scheduled a background task for
+tomorrow", "I've scheduled a reminder for you ... at 10:00 AM", "I've scheduled a background
+task for you" and its two longer forms from chains E1 and R1, "I have set it as a reminder
+instead", and "OK. I've set a reminder for you tomorrow, October 12th, at 10:00 AM". Each live
+reply is labelled a claim or not by the definition above from its text and runs. A reply after a
+scheduling call that succeeded cannot be checked and is counted apart.
+
+**Rule.** The check ships if, over the corpus:
+
+1. it fires on every claim, of both kinds;
+2. it fires on no other reply, counted apart for row L's listings and for replies that offer a
+   reminder;
+3. at least 20 of the replies in condition 2 contain "schedul" or "remind", so the false-match
+   count is taken over replies the pattern could match; and
+4. in the second phase every reply it fires on ends with the note in the streamed text and in the
+   stored message, and no other reply has it.
+
+Every live reply is held out from the pattern, which is fixed before the first row. A **null** is
+a miss on any claim or a match on any other reply: the check is not shipped, the failing
+sentences are written here, and the next step is a changed pattern scored on fresh rows. With no
+live claim, condition 1 rests on the quoted claims the pattern was written from, and the result
+says so. A fire is true of the turn whatever the reply says, since no scheduling call succeeded,
+so a missed claim shows no wrong note, while a false match puts a note under a reply that
+claimed nothing.
