@@ -48,5 +48,5 @@ row stored before T reads as before.
   through the new `render_exchange`: 0 false claims in 50 chats against 4 of 50, a new reminder
   still stored in 6 of 6 and a listing question listed only
   ([readings](../../readings/recalled-tool-runs.md#results-over-the-stored-reminder)). It ships
-  as [ADR-0074](../../adr/ADR-0074-replayed-tool-runs.md) decision 6. The tainted memory's
-  header is [R-842](842-a-recalled-tainted-memory-names-its-runs-without-the-note.md).
+  as [ADR-0074](../../adr/ADR-0074-replayed-tool-runs.md) decision 6, which also puts the note
+  above a block of tainted memories only.

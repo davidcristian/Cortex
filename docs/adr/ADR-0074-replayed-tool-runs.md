@@ -49,9 +49,12 @@ wrote on a tainted turn can hold injected text or a link the output guardrail re
    `record_exchange` takes the turn's `RunLog.runs` from `TurnEngine` and `BrainPhase`, and
    `render_exchange` writes them on a line between the message and the reply, `Tools run:
    list_scheduled (succeeded), schedule_task (failed)` (`runs_line`); a turn with no runs is
-   written as before. The trusted section of the recalled block opens with `RECALLED_RUNS_NOTE`:
-   a tool named on that line ran in that earlier conversation only, and a request made now needs
-   its own call. A row stored before this has no line and reads as before. No schema changes.
+   written as before. The recalled block opens with `RECALLED_RUNS_NOTE`: a tool named on that
+   line ran in that earlier conversation only, and a request made now needs its own call. The
+   note ends the trusted section's header. With no trusted section, it is its own line above the
+   fenced section's header, so the line just before the fence is the one that frames the quoted
+   memories as data ([ADR-0013](ADR-0013-untrusted-content.md)). A row stored before this has no
+   line and reads as before. No schema changes.
 
 ## Consequences
 
@@ -62,9 +65,10 @@ wrote on a tainted turn can hold injected text or a link the output guardrail re
   called `schedule_task` in 50 of 50 chats and claimed a reminder it had not set in none, against
   4 of 50 over the same exchanges without the line
   ([readings](../readings/recalled-tool-runs.md#results-over-the-stored-reminder)).
-- A recalled tainted memory is fenced under its own header, which has no note, so its run line is
-  shown as quoted data only
-  ([R-842](../refinements/tasks/842-a-recalled-tainted-memory-names-its-runs-without-the-note.md)).
+- Over recalled tainted exchanges that name a `schedule_task` run, 8 chats with the note and 8
+  without it each scheduled the task again, with no false claim, so these rows show no effect of
+  the note there; no chat acted on a quoted injection with or without it
+  ([readings](../readings/recalled-tool-runs.md#results-over-tainted-rows)).
 - A replayed run of a read tool holds no content: what a later turn knows of that result is what
   the reply said.
 

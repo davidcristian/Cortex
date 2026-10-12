@@ -79,12 +79,12 @@ before it as calls with a fixed outcome text, after the window (`tool_replay.py`
   characters) through `fit_recalled` (`recall_budget.py`), and one past its share is cut with a
   marker. A recalled memory marked `tainted` is fenced with the turn nonce, taints the turn
   (ADR-0019), names its own record id as the turn's source and gives the taint ledger its whole
-  text. The trusted section opens with `RECALLED_RUNS_NOTE` (ADR-0074 decision 6). After the
-  reply it records the exchange, with a `Tools run` line naming the turn's runs when it made any,
-  unless the turn read untrusted content. **Memory that cannot be reached costs the turn its notes
-  and not the turn** (ADR-0008 decision 12): `EmbedderError` and `MemoryStoreError` are caught on
-  both halves and nothing else is, a failed read logging a warning and one `StatusUpdate`, a
-  failed write logging an error and saying nothing.
+  text. `RECALLED_RUNS_NOTE` (ADR-0074 decision 6) ends the trusted header, or, with no trusted
+  hit, is the block's first line, above the fenced header. After the reply it records the
+  exchange, with a `Tools run` line naming the turn's runs when it made any, unless the turn read
+  untrusted content. **Memory that cannot be reached costs the turn its notes and not the turn**
+  (ADR-0008 decision 12): `EmbedderError` and `MemoryStoreError` are caught on both halves and
+  nothing else is; a failed read logs a warning and one `StatusUpdate`, a failed write an error only.
 - `record_tainted_memory` (ADR-0019) governs writing only: with it on, a tainted turn is recorded
   with `tainted=True` instead of being dropped, and a stored tainted memory is fenced on recall
   either way.
