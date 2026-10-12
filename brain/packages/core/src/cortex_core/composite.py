@@ -1,7 +1,7 @@
 """Merges the built-in tools with a remote ``ToolRegistry``."""
 
 from collections.abc import Sequence
-from typing import Protocol
+from typing import Protocol, runtime_checkable
 
 from cortex_core.errors import ToolNotFoundError
 from cortex_core.ports import ToolRegistry
@@ -15,6 +15,13 @@ class BuiltinTool(Protocol):
     def spec(self) -> ToolSpec: ...
 
     async def invoke(self, call: ToolCall) -> ToolResult: ...
+
+
+@runtime_checkable
+class RecordCard(Protocol):
+    """A built-in whose call acts on one record the brain holds; ``card`` describes that record."""
+
+    async def card(self, call: ToolCall) -> str: ...
 
 
 class CompositeToolRegistry:

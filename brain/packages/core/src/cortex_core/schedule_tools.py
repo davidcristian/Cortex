@@ -6,11 +6,12 @@ from uuid import uuid4
 
 from cortex_core.errors import ScheduleStoreError
 from cortex_core.ports import Clock, ScheduleStore
-from cortex_core.schedule import ScheduledItem, ScheduleKind, ScheduleStatus
+from cortex_core.schedule import ScheduledItem, ScheduleKind
 from cortex_core.schedule_args import MIN_EVERY_SECONDS, parse_schedule
 from cortex_core.schedule_day_args import day_selector_properties, in_zone_property
+from cortex_core.schedule_render import describe_item, effective_zone, recurrence_phrase
 from cortex_core.schedule_time import UTC_DISPLAY, UTC_ZONE_CONTEXT, DisplayZone, ZoneContext
-from cortex_core.schedule_verbs import effective_zone, error_result, store_down_result
+from cortex_core.schedule_verbs import error_result, store_down_result
 from cortex_core.tools import ToolCall, ToolResult, ToolSpec, Trust
 
 SCHEDULE_TOOL_NAME = "schedule_task"
@@ -174,9 +175,8 @@ class ScheduleTaskTool:
 def _confirmation(item: ScheduledItem, default_zone: DisplayZone) -> str:
     """The creation result for ``item``: its kind, id, due time and recurrence, never its text."""
     zone = effective_zone(item.rule, default_zone)
-    return (
-        f"scheduled {item.kind.value} {item.id}: due {zone.render(item.due_at)}{_recurrence(item)}"
-    )
+    due = zone.render(item.due_at)
+    return f"scheduled {item.kind.value} {item.id}: due {due}{recurrence_phrase(item)}"
 
 
 def _same_request(held: ScheduledItem, wanted: ScheduledItem) -> bool:
@@ -197,29 +197,6 @@ def _same_request(held: ScheduledItem, wanted: ScheduledItem) -> bool:
 def _plain(text: str) -> str:
     """The text two requests are compared by: case, spacing and a final full stop ignored."""
     return " ".join(text.casefold().split()).rstrip(".")
-
-
-def _recurrence(item: ScheduledItem) -> str:
-    """How the item repeats, as a leading-comma phrase; empty for a one-shot."""
-    if item.rule is not None:
-        return f", {item.rule.describe()}"
-    if item.every is not None:
-        return f", every {int(item.every.total_seconds())}s"
-    return ""
-
-
-def _describe(item: ScheduledItem, zone: DisplayZone) -> str:
-    """One listing line per item; the stored text comes last, with its provenance marked."""
-    recurring = _recurrence(item)
-    fired = ", fired awaiting delivery" if item.deliverable_since is not None else ""
-    firing = ", firing now" if item.status is ScheduleStatus.FIRING else ""
-    tainted = ", from untrusted content" if item.tainted else ""
-    marks = f"{recurring}{firing}{fired}{tainted}"
-    due = effective_zone(item.rule, zone).render(item.due_at)
-    line = f"[{item.id}] {item.kind.value} due {due}{marks}: {item.text}"
-    if item.last_outcome is not None:
-        line += f"\n    last outcome: {item.last_outcome}"
-    return line
 
 
 class ListScheduledTool:
@@ -252,6 +229,6 @@ class ListScheduledTool:
         trust = Trust.UNTRUSTED if any(item.tainted for item in items) else Trust.TRUSTED
         return ToolResult(
             call_id=call.id,
-            content="\n".join(_describe(item, self._zone) for item in items),
+            content="\n".join(describe_item(item, self._zone) for item in items),
             trust=trust,
         )

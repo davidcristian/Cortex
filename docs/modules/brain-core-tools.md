@@ -61,15 +61,14 @@ the loop drives it and keeps the history.
   message is returned, and the attempt is audited. A refusal is checked **before** the confirmation
   rule, so a flood of confirmable calls cannot reach the user as prompts.
 - The confirmation rule (ADR-0013, revised by ADR-0022): a `confirm_required` call on a tainted turn is
-  refused outright with `DENIED_MSG` and the confirmer is not consulted; on an untainted turn it
-  runs only when the `Confirmer` approves, else `USER_DECLINED_MSG` or `UNANSWERED_MSG`. All skip the tool
-  and are audited.
+  refused outright with `DENIED_MSG` and the confirmer is not consulted, unless its name has a record
+  card; otherwise it runs only when the `Confirmer` approves, else `USER_DECLINED_MSG` or
+  `UNANSWERED_MSG`. All skip the tool and are audited.
 
-`DispatchPolicy(confirm_names=(), costs=UNIFORM_COST, salience=REPEAT_SALIENCE, confirm_reasons={})`
-(`dispatch.py`, default `DEFAULT_DISPATCH_POLICY`) is everything the composition root declares
-about dispatching: which tools need confirmation, the prices, the salience rule, and the per-tool
-card text, where `confirm_reasons[name]` replaces the generic reason in `ConfirmationRequest.reason`
-so the escalate card can name the model swap.
+`DispatchPolicy(confirm_names=(), costs=UNIFORM_COST, salience=REPEAT_SALIENCE, confirm_reasons={},
+record_cards={})` (`dispatch.py`, default `DEFAULT_DISPATCH_POLICY`) is what the composition root
+declares about dispatching: the confirmed tools, the prices, the salience rule and the card text:
+`confirm_reasons[name]` (the escalate card names the model swap), or a `RecordCard`'s `card(call)`.
 
 - `RepeatSalience(limit=MAX_IDENTICAL_DISPATCHES)` (`tool_salience.py`, the default
   `REPEAT_SALIENCE`, limit 2) refuses a call identical to one already made in this round, or made
@@ -191,8 +190,9 @@ escalate. Each is a `BuiltinTool` registered in the `CompositeToolRegistry`.
   matching an active item in kind, text, due time, recurrence and model (never a tainted item for a
   clean turn) adds nothing and returns `already scheduled` with its id, on a full schedule too.
   Creation, cancel and snooze results are `TRUSTED` and never echo stored text; the listing echoes
-  text and so is `TRUSTED` only when every item listed is clean. `edit_scheduled` adds the editing
-  turn's taint and refuses editing a task on a tainted turn; none of the five raises.
+  text and so is `TRUSTED` only when every item listed is clean. A cancel is confirmed on a card
+  showing the item's listing line, flattened, at most `CARD_CHARS`. `edit_scheduled` adds the
+  editing turn's taint and refuses editing a task on a tainted turn; none of the five raises.
 
 ## Schedules
 

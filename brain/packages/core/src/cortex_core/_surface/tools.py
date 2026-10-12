@@ -7,7 +7,7 @@ from cortex_core.aggregate import (
     FilteredToolRegistry,
     SkipUnavailableToolRegistry,
 )
-from cortex_core.composite import BuiltinTool, CompositeToolRegistry
+from cortex_core.composite import BuiltinTool, CompositeToolRegistry, RecordCard
 from cortex_core.dispatch import (
     BUDGET_EXHAUSTED_MSG,
     DEFAULT_DISPATCH_POLICY,
@@ -103,6 +103,7 @@ __all__ = [
     "OwnText",
     "OwnTextRenderer",
     "OwnTextToolRegistry",
+    "RecordCard",
     "RepeatSalience",
     "RoundPlan",
     "SaliencePolicy",

@@ -1,7 +1,7 @@
 """The cortex's own tool set: the built-ins it may call, and the dispatcher it calls through."""
 
 from collections.abc import Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 from cortex_core import (
@@ -16,6 +16,7 @@ from cortex_core import (
     DispatchPolicy,
     EscalateToBrainTool,
     GetVolumeTool,
+    RecordCard,
     SetVolumeTool,
     SightedToolRegistry,
     SpawnSubagentsTool,
@@ -85,10 +86,11 @@ def build_cortex_tools(
     registry: ToolRegistry = CompositeToolRegistry(builtins, remote=tool_registry)
     if vision is not None:
         registry = SightedToolRegistry(registry, vision)
+    cards = {tool.spec.name: tool for tool in builtins if isinstance(tool, RecordCard)}
     return ToolDispatcher(
         registry,
         setup.audit,
         clock,
         confirmer=confirmer,
-        policy=setup.policy,
+        policy=replace(setup.policy, record_cards=cards),
     )

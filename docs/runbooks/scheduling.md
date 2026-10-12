@@ -8,7 +8,9 @@ postpones the next fire by `for_seconds` from now, moving only the next occurren
 item and keeping the series on its original cadence; `edit_scheduled` changes an item's text or
 recurrence in place without moving its next due time. On a full schedule `schedule_task` returns
 `NOT SCHEDULED` and tells the model to ask the person which item to cancel, never to free room
-itself ([readings](../readings/schedule-full-cancel.md)). A request repeating an active item (same
+itself, and `cancel_scheduled` runs only after the person approves a card naming the item's text and
+due time, also on a turn whose listing held a tainted item
+([readings](../readings/schedule-full-cancel.md)). A request repeating an active item (same
 kind, text, due time, recurrence and model, asked in any chat) adds nothing and returns `already
 scheduled` with that item's id, on a full schedule too
 ([readings](../readings/reminder-already-stored.md)). Decisions:

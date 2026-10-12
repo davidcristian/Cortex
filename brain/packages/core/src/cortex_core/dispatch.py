@@ -6,6 +6,7 @@ from dataclasses import dataclass, field, replace
 from enum import Enum
 from types import MappingProxyType
 
+from cortex_core.composite import RecordCard
 from cortex_core.errors import ToolError
 from cortex_core.ports import Clock, Confirmer, ToolAuditSink, ToolRegistry
 from cortex_core.progress import hold_wait
@@ -71,10 +72,12 @@ class DispatchPolicy:
     costs: ToolCostPolicy = UNIFORM_COST
     salience: SaliencePolicy = REPEAT_SALIENCE
     confirm_reasons: Mapping[str, str] = field(default_factory=dict[str, str])
+    record_cards: Mapping[str, RecordCard] = field(default_factory=dict[str, RecordCard])
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "confirm_names", frozenset(self.confirm_names))
         object.__setattr__(self, "confirm_reasons", MappingProxyType(dict(self.confirm_reasons)))
+        object.__setattr__(self, "record_cards", MappingProxyType(dict(self.record_cards)))
 
 
 DEFAULT_DISPATCH_POLICY = DispatchPolicy()
@@ -146,12 +149,15 @@ class ToolDispatcher:
         # A tool a failing sidecar left out of this turn's list still needs confirmation.
         confirm_required = confirm_required or call.name in self._policy.confirm_names
         if confirm_required:
-            if call.stamp.tainted:
+            card = self._policy.record_cards.get(call.name)
+            # A record card shows the brain's own record rather than text the model wrote, so
+            # it is shown on a tainted turn too.
+            if call.stamp.tainted and card is None:
                 blocked = ToolResult(
                     call_id=call.id, content=DENIED_MSG, is_error=True, trust=Trust.TRUSTED
                 )
                 return await self._audited(call, blocked)
-            answer = await self._confirmed(call)
+            answer = await self._confirmed(call, card)
             if answer is not ConfirmAnswer.APPROVED:
                 said = USER_DECLINED_MSG if answer is ConfirmAnswer.DECLINED else UNANSWERED_MSG
                 declined = ToolResult(
@@ -166,15 +172,15 @@ class ToolDispatcher:
             )
         return await self._audited(call, result)
 
-    async def _confirmed(self, call: ToolCall) -> ConfirmAnswer:
+    async def _confirmed(self, call: ToolCall, card: RecordCard | None) -> ConfirmAnswer:
         """Ask the confirmer to approve the call; with no confirmer nobody can answer."""
         if self._confirmer is None:
             return ConfirmAnswer.UNANSWERED
-        request = ConfirmationRequest(
-            tool_name=call.name,
-            arguments=call.arguments,
-            reason=self._policy.confirm_reasons.get(call.name, _CONFIRM_REASON),
-        )
+        if card is not None:
+            reason = await card.card(call)
+        else:
+            reason = self._policy.confirm_reasons.get(call.name, _CONFIRM_REASON)
+        request = ConfirmationRequest(tool_name=call.name, arguments=call.arguments, reason=reason)
         async with hold_wait(call.stamp.progress, USER_ASKED):
             return await self._confirmer.confirm(request)
 

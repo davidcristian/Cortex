@@ -7,8 +7,7 @@
 The assistant needs a sense of time: "remind me at 18:00 to stretch", "every weekday at 09:00
 summarize my inbox". A schedule is created now and runs later on the brain's own initiative, either
 as an autonomous **task** run through a subagent or as a **reminder** shown to the user. A reminder
-is fetched when the overlay next opens, and is also sent over the brain to body direction of the
-gRPC interface (ADR-0023).
+is fetched when the overlay next opens, and is also sent from the brain to the body (ADR-0023).
 
 - **The one hard rule applies.** A schedule outlives every model swap and brain restart, so every
   `ScheduledItem` lives in the external store, and a run is a stateless read, act, store pass.
@@ -76,8 +75,8 @@ built-ins, so subagents never see them (ADR-0010) and cannot re-schedule themsel
   other context line tells the model the date.
 - **Arguments.** `kind`, `text`, and exactly one of `at` (ISO-8601), `in_seconds` or `at_time` (a
   calendar rule, ADR-0065 decision 2); `every_seconds` between 60 s and ten years, with `0` read
-  as a one-shot; `model` for a task. Bad arguments return `is_error` results and never raise. Ids
-  are uuid4 from an injectable factory.
+  as a one-shot; `model` for a task. Bad arguments return `is_error` results, never raise; ids
+  are uuid4.
 - **Creation bounds.** Active items are capped (`CORTEX_SCHEDULE_MAX_ACTIVE`, 32; a full schedule
   returns `NOT SCHEDULED` and tells the model to ask the user what to cancel), and **a tainted turn
   cannot create a task**: a task instruction from injected content would be a permanent directive.
@@ -89,8 +88,10 @@ built-ins, so subagents never see them (ADR-0010) and cannot re-schedule themsel
   `list_scheduled` echoes text and is `TRUSTED` only when every listed item is clean. The item's
   `session_id` comes from the dispatcher's `TurnStamp` and is never rendered.
 - **Accurate advertisement.** `kind: "task"` and `model` are offered only when the spawn tool is
-  configured. None of the five needs confirmation by default, and `CORTEX_TOOLS_GATED` can require
-  it for any of them by name.
+  configured. `CORTEX_TOOLS_GATED` can require confirmation for any of the five by name.
+- **A cancel is confirmed.** `cancel_scheduled` needs confirmation in code. Its record card (ADR-0022
+  decision 2) names the stored item's text, due time and marks, on a tainted turn too, since one
+  tainted item taints the listing's turn ([readings](../readings/schedule-full-cancel.md)).
 
 ### 4. The `ScheduleTicker` is a stateless poll loop in the orchestrator
 
@@ -107,9 +108,8 @@ loop, and on cancellation it releases unfinished claims.
   routes it to the injection-resistant model (ADR-0017), admission and the fail-closed confirmation
   check, with no change to `build_subagents`. The result's trust becomes the run's taint. With no
   spawn tool configured, the run finishes with an `ok=False` outcome saying so.
-- **Safety comes from the structure.** The run has no confirmer, so tools that need confirmation are
-  denied outright, and subagents hold only tools that need none, so no scheduled item reaches
-  `send_email`.
+- **Safety comes from the structure.** The run has no confirmer, so tools needing confirmation are
+  denied, and subagents hold only tools needing none, so no scheduled item reaches `send_email`.
 - **Errors.** `ScheduleStoreError` skips the pass; `BodyGatewayError` leaves the item deliverable; a
   task failure is an `ok=False` outcome.
 

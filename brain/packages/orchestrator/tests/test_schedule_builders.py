@@ -11,6 +11,7 @@ from cortex_core import (
     InMemoryTaskStore,
     PlacementRequest,
     PlacementTarget,
+    RecordingConfirmer,
     ResourceBudgetScheduler,
     ScheduledItem,
     ScheduleKind,
@@ -21,6 +22,7 @@ from cortex_core import (
     SubagentRunner,
     SystemClock,
     ToolCall,
+    TurnStamp,
     VramBudgetPlacer,
 )
 from cortex_orchestrator import (
@@ -28,6 +30,7 @@ from cortex_orchestrator import (
     ScheduleTicker,
     TickerSettings,
     build_builtin_tools,
+    build_cortex_tools,
     build_schedule,
     build_schedule_tools,
     build_ticker,
@@ -252,3 +255,34 @@ async def test_build_ticker_defaults_to_utc_like_the_built_ins() -> None:
     assert await _rearm_of_a_nine_am_rule(ScheduleConfig(backend="redis")) == datetime(
         2026, 7, 13, 9, 0, tzinfo=UTC
     )
+
+
+async def test_the_cortex_dispatcher_shows_the_cancel_card_in_the_display_zone_when_tainted() -> (
+    None
+):
+    store = InMemoryScheduleStore()
+    await store.add(
+        ScheduledItem(
+            id="item-1",
+            kind=ScheduleKind.REMINDER,
+            text="water the plants",
+            session_id="s",
+            due_at=_NOW,
+            created_at=_NOW,
+        )
+    )
+    builtins = build_schedule_tools(
+        ScheduleConfig(tz="Europe/Berlin"), store, FixedClock(), tasks_enabled=False
+    )
+    confirmer = RecordingConfirmer(answer=True)
+    cortex = build_cortex_tools(None, builtins, FixedClock(), confirmer=confirmer)
+    assert cortex is not None
+    result = await cortex.dispatch(
+        ToolCall(id="c", name="cancel_scheduled", arguments={"id": "item-1"}),
+        stamp=TurnStamp(tainted=True),
+        confirm_required=True,
+    )
+    assert result.content == "cancelled item-1"
+    (request,) = confirmer.requests
+    assert "due 2026-07-12T14:00:00+02:00" in request.reason
+    assert request.reason.endswith(": water the plants")

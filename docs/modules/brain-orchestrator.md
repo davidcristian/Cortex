@@ -205,9 +205,9 @@ the version string `Health` reports.
   and the audit sink together. `build_builtin_tools` assembles the built-in set once: delegation,
   the two volume tools when a `BodyGateway` is wired, `capture_screen` when a body is wired **and**
   the root confirmed the running model can see, the five schedule tools, and `escalate_to_brain`
-  only when a handoff can actually run. Those built-ins need no confirmation by default, a user
-  naming any in `CORTEX_TOOLS_GATED`. Subagent dispatchers keep `confirmer=None` and their registry
-  is wrapped in `ConfirmFreeToolRegistry`, so a subagent is never handed a confirmable tool.
+  only when a handoff can run. Of these only `cancel_scheduled` needs confirmation unless named in
+  `CORTEX_TOOLS_GATED`, and `build_cortex_tools` adds each `RecordCard` built-in to `record_cards`.
+  A subagent's dispatcher keeps `confirmer=None` and never sees a confirmable tool (`ConfirmFreeToolRegistry`).
 - `StreamEngines.for_stream` (`engines.py`) is the engine factory, an object built once rather than
   closures over the root's locals. It reads no env, opens no resource and picks no adapter: per
   stream it builds that stream's `TurnCapabilities` and returns, inside a `SerialTurnRunner` over

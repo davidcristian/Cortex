@@ -1,9 +1,8 @@
 # A cancel of a scheduled item needs no confirmation
 
-**Status:** open, actionable
+**Status:** done 2026-10-12
 **Area:** scheduling
 **Origin:** [ADR-0025](../../adr/ADR-0025-scheduling-reminders.md)
-**Verified:** 2026-10-12
 
 `cancel_scheduled` deletes an item for good and runs with no confirmation card, so only the
 model's reading of tool results stands between a request and a cancel the person never asked for.
@@ -35,3 +34,12 @@ and H of the readings, with tainted items in the schedule.
 - 2026-10-12: seen again far from a full schedule. Asked to set a reminder while nine copies of it
   were stored, the cortex listed them and cancelled seven, which nobody named, with no card, until
   the turn ran out of tool rounds ([readings](../../readings/reminder-already-stored.md)).
+- 2026-10-12: done. `cancel_scheduled` needs confirmation in code, and its card is a record card:
+  the dispatcher shows it on a tainted turn too, with the stored item's listing line as its reason
+  ([ADR-0022](../../adr/ADR-0022-email-write-confirmer.md) decision 2,
+  [ADR-0025](../../adr/ADR-0025-scheduling-reminders.md) decision 3). A listing with a tainted item
+  still taints the turn, so every other confirmed tool stays blocked after it. Rows G2, U1, U2, H2
+  and R passed the rule written before them
+  ([readings](../../readings/schedule-full-cancel.md#a-cancel-card-shown-on-a-tainted-turn)); the
+  date misreading two G2 replies showed is
+  [R-844](844-a-listing-s-next-day-item-is-read-as-tomorrow.md).

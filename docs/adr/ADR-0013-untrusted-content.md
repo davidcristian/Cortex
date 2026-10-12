@@ -60,8 +60,7 @@ after it (to decide memory recording). Beside the bit it holds the laundering ev
 `untrusted_urls` ([ADR-0015](ADR-0015-output-guardrail.md)), the limited list of `sources` the turn
 read ([ADR-0027](ADR-0027-turn-provenance.md)), and `opaque`, set when untrusted content was an
 image that no fence can bracket ([ADR-0029](ADR-0029-vision-screen-capture.md)). Taint is marked
-from `result.trust` alone and before any source is noted, so a declared source never downgrades a
-turn.
+from `result.trust` alone, before any source is noted, so a declared source never lowers it.
 
 The ledger is rebuilt each turn from the store and live results. The one place it is persisted is
 the brain handoff record, which serializes it whole so a mid-turn swap rehydrates it exactly
@@ -83,7 +82,8 @@ independent of trust: trust is input provenance, confirmation is output conseque
 lives in `ToolDispatcher.dispatch`, because a denied call must still be audited and the dispatcher
 is the single audit authority. The rule is [ADR-0022](ADR-0022-email-write-confirmer.md) decision
 2: such a call on a tainted turn is blocked with `DENIED_MSG` and the confirmer is never consulted,
-because a card showing injection-authored arguments is no boundary; on an untainted turn it runs
+because a card showing injection-authored arguments is no boundary (a record card, showing a stored
+record instead, is the exception); on an untainted turn it runs
 only with the user's approval: a pressed Deny returns `USER_DECLINED_MSG`, and a request nobody
 answered returns `UNANSWERED_MSG`. Every block returns without invoking the tool.
 
@@ -213,7 +213,7 @@ run again when a pick, either permanent rule or a sidecar sentence changes, per
 - A replayed quotation is still unfenced in the assistant position, because a stored `Message` has
   no taint bit; a persisted per-turn taint mark is
   [R-082](../refinements/tasks/082-replayed-quoted-injection.md).
-- Such a call on a tainted turn cannot be approved within the turn, `escalate_to_brain` included.
+- On a tainted turn only a record card can be approved, so `escalate_to_brain` cannot.
   The deep tier measured favourably, so that denial rests on the other reason
   [ADR-0030](ADR-0030-brain-handoff.md) decision 1 gives, that injected content must never force a
   whole-GPU eviction; relaxing it would carve an exception into the generic branch.

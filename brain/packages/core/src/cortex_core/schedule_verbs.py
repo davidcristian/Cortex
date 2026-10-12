@@ -7,8 +7,8 @@ from cortex_core.errors import ScheduleStoreError
 from cortex_core.ports import Clock, ScheduleStore
 from cortex_core.schedule import ScheduleKind, ScheduleStatus
 from cortex_core.schedule_args import MIN_EVERY_SECONDS
-from cortex_core.schedule_calendar import CalendarRule
 from cortex_core.schedule_day_args import day_selector_properties, in_zone_property
+from cortex_core.schedule_render import describe_item, effective_zone
 from cortex_core.schedule_time import UTC_DISPLAY, UTC_ZONE_CONTEXT, DisplayZone, ZoneContext
 from cortex_core.schedule_transitions import ScheduleEdit
 from cortex_core.schedule_verb_args import parse_edit, parse_for_seconds
@@ -19,6 +19,9 @@ SNOOZE_SCHEDULED_TOOL_NAME = "snooze_scheduled"
 EDIT_SCHEDULED_TOOL_NAME = "edit_scheduled"
 
 _STORE_DOWN = "the schedule store is unavailable"
+_CARD_LEAD = "Deletes this scheduled item for good, with no undo: "
+# The card is read before Approve, so a long stored text is cut rather than pushing it away.
+CARD_CHARS = 400
 _EDIT_TAINTED_TASK = (
     "cannot edit an autonomous task on a turn that has read untrusted external content; "
     "edit a reminder instead, or re-ask in a fresh turn"
@@ -37,22 +40,16 @@ def error_result(call_id: str, message: str) -> ToolResult:
     return ToolResult(call_id=call_id, content=message, is_error=True, trust=Trust.TRUSTED)
 
 
-def effective_zone(rule: CalendarRule | None, default_zone: DisplayZone) -> DisplayZone:
-    """The zone a calendar item's due time renders in: the rule's own if it has one, else the
-    deployment default.
-    """
-    return rule.zone if rule is not None and rule.zone is not None else default_zone
-
-
 class CancelScheduledTool:
     """Built-in ``cancel_scheduled``: delete a schedule outright, mid-fire included."""
 
-    def __init__(self, store: ScheduleStore) -> None:
+    def __init__(self, store: ScheduleStore, *, zone: DisplayZone = UTC_DISPLAY) -> None:
         self._store = store
+        self._zone = zone
 
     @property
     def spec(self) -> ToolSpec:
-        """Takes the id a listing (or creation confirmation) reported."""
+        """Takes the id a listing (or creation confirmation) reported; the user confirms it."""
         return ToolSpec(
             name=CANCEL_SCHEDULED_TOOL_NAME,
             description="Cancel a scheduled reminder or task by its id (see list_scheduled).",
@@ -61,7 +58,22 @@ class CancelScheduledTool:
                 "properties": {"id": {"type": "string", "description": "The scheduled item's id."}},
                 "required": ["id"],
             },
+            confirm_required=True,
         )
+
+    async def card(self, call: ToolCall) -> str:
+        """The confirmation card's text: the stored item the call would delete, read now."""
+        item_id = call.arguments.get("id")
+        try:
+            item = await self._store.get(item_id) if isinstance(item_id, str) else None
+        except ScheduleStoreError:
+            return f"{_CARD_LEAD}item {item_id}, which cannot be read: {_STORE_DOWN}."
+        if item is None:
+            return f"{_CARD_LEAD}item {item_id}, which is not on the schedule."
+        line = " ".join(describe_item(item, self._zone).split())
+        if len(line) > CARD_CHARS:
+            line = line[: CARD_CHARS - 3] + "..."
+        return f"{_CARD_LEAD}{line}"
 
     async def invoke(self, call: ToolCall) -> ToolResult:
         """Cancel by id; unknown ids are a correctable error, never an exception."""

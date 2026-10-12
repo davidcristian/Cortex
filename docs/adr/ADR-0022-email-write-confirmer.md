@@ -20,10 +20,6 @@ be only a confirmation away. **The wire contract:** everything crossing body and
 in [proto/body.proto](../../proto/body.proto) and generated into both toolchains
 ([ADR-0003](ADR-0003-generated-stubs.md)).
 
-How the email reader answers a search, a folder and a read is a separate decision,
-[ADR-0056](ADR-0056-email-reader-answers.md), and the second IMAP server it is measured against is
-[ADR-0057](ADR-0057-imap-probe-server.md).
-
 ## Decision
 
 ### 1. The confirm exchange travels on the `Converse` stream, not a new RPC
@@ -57,6 +53,7 @@ tree, and each commit keeps both green.
 | no confirmation required | run |
 | confirmation required, **untainted** turn | **confirm**: approved runs; denied, no confirmer or timeout blocks |
 | confirmation required, **tainted** turn | **block unconditionally**; the confirmer is never consulted |
+| confirmation required, **tainted** turn, a record card | **confirm**, the card showing the stored record |
 
 This supersedes ADR-0013 decision 4's table. An outbound action is always the user's explicit
 decision, so such a tool means the human approves each use. On a tainted turn the model's arguments
@@ -65,6 +62,13 @@ clicking approve is not a boundary: after reading hostile bytes, the outbound pa
 the rest of the turn. Taint is turn-local, but the same request asked again reads the mail again;
 `DENIED_MSG` asks for a message giving the address, subject and body, which sends because it reads
 nothing first. A caller's own refusal (a spent budget, a recognized repeat) returns before this rule.
+
+**A record card is the one exception.** A built-in that acts on one record the brain holds and
+implements `RecordCard` (`cortex_core/composite.py`) is confirmed on a tainted turn too, and its
+card's reason is that record as the store holds it. Its argument is an id, so injected content can
+choose which record the card offers but writes none of the card, and the effect stays on this
+machine. Only `build_cortex_tools` registers one, from the built-ins, so no remote tool or setting
+can claim it. `cancel_scheduled` is the one ([ADR-0025](ADR-0025-scheduling-reminders.md) decision 3).
 
 A block returns an audited `is_error` result, the tool never invoked: `DENIED_MSG` for the tainted
 block, `USER_DECLINED_MSG` for a pressed Deny and `UNANSWERED_MSG` for a timeout, a closed stream or
@@ -96,8 +100,7 @@ SMTP port (`CORTEX_EMAIL_SMTP_*`, default `127.0.0.1:1025`), one connection per 
 `asyncio.to_thread`. `From` is the authenticated Bridge user and never a parameter, so the tool
 cannot spoof a sender; the Bridge refusing an alias arrives as the tool's error string. The tool is
 registered only when `CORTEX_EMAIL_SEND_ENABLED=true`, which fails at startup without credentials;
-otherwise the sidecar is the read-only server. MCP `ToolAnnotations` (`destructiveHint=True` and
-the rest) are advisory and never authority.
+otherwise the sidecar is the read-only server. MCP `ToolAnnotations` are advisory, never authority.
 
 Which tools need confirmation is declared brain-side, in code under review, so a compromised or
 misconfigured sidecar cannot exempt itself. `ConfirmRequiredToolRegistry(inner, names=...)` in
@@ -146,8 +149,7 @@ enum, the same trade this contract made for `SeamError.code`. It travels on the 
 the request's reason, so a confirmation spends at most two control events. The overlay closes the
 card when the id matches and renders nothing else, since the model's reply already explains the
 denial; a late click on a resolved card cannot reach the bridge, and no deny is sent for it. The
-reducer's action for the user answering is `confirmAnswered`, leaving `confirmResolved` to the
-brain's event.
+user answering is the reducer's `confirmAnswered`, leaving `confirmResolved` to the brain's event.
 
 ### 8. The subagent dispatcher checks the declared names again
 
@@ -210,9 +212,8 @@ the user approved the card, so a wrong guess costs a second approval.
 - **Confirmation fatigue:** every such call prompts, and `ToolDispatcher._confirmed` remembers
   nothing between calls. Batching or a per-tool session allowlist waits in
   [R-214](../refinements/tasks/214-batching-session-allowlists.md) for prompts to become frequent.
-- The email sidecar is read-only by default, write-enabled by explicit opt-in with the write path
-  requiring confirmation brain-side, and has no filesystem access. A tainted turn that must send
-  costs one more turn.
+- The email sidecar is read-only unless opted in, its write path confirmed brain-side, with no
+  filesystem access. A tainted turn that must send costs one more turn.
 
 ## Alternatives rejected
 
@@ -224,8 +225,7 @@ the user approved the card, so a wrong guess costs a second approval.
   per-turn confirmer through `TurnCapabilities`** changes core signatures for wiring.
 - **Confirm-with-provenance for tainted turns** (declined 2026-07-16). A source line does not
   change what the card asks and makes the user the injection target, and the provenance that would
-  name an attacker (`SENDER`, `URI`) has no producer, `ToolResult` having no source field
-  ([ADR-0027](ADR-0027-turn-provenance.md)).
+  name an attacker (`SENDER`, `URI`) has no producer ([ADR-0027](ADR-0027-turn-provenance.md)).
 - **Attachments as a filesystem path or a base64 blob.** A path is read after approval, so the user
   approves a name rather than a payload, and it needs a mount and a file-read capability on the
   outbound sidecar; base64 is bytes no person can read off a card.
