@@ -69,7 +69,7 @@ never a reading of what the tree does now.
 
 ### Actionable now (2)
 
-- **[R-834](tasks/834-a-reply-claims-a-task-it-never-tried-to-schedule.md)** A reply claims a task it never tried to schedule (scheduling). Its claim was checked against the code on 2026-10-10.
+- **[R-834](tasks/834-a-reply-claims-a-task-it-never-tried-to-schedule.md)** A reply claims a task it never tried to schedule (scheduling). Its claim was checked against the code on 2026-10-12.
 - **[R-845](tasks/845-a-recall-tainted-turn-blocks-the-person-s-own-send.md)** A recall-tainted turn blocks the person's own send (untrusted-content). Its claim was checked against the code on 2026-10-12.
 
 ### Actionable, once a port changes (1)
