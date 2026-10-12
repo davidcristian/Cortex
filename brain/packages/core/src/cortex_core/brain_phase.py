@@ -198,5 +198,5 @@ class BrainPhase:
         )
         await self._store.append(record.session_id, message)
         await record_exchange(
-            self._caps, taint, session_id=record.session_id, query=query, reply=reply
+            self._caps, taint, session_id=record.session_id, query=query, reply=reply, runs=runs
         )

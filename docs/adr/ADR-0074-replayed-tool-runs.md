@@ -43,12 +43,28 @@ wrote on a tainted turn can hold injected text or a link the output guardrail re
    as an unknown key, so an older brain still reads a newer chat and an older chat reads as before.
    A malformed `runs` value makes the record corrupt at its index, like any other field.
 5. **The wire does not show runs.** `GetSessionMessages` maps role, text, turn and time as before.
+6. **A recorded memory names its turn's runs too.** Recall gives a later chat an earlier chat's
+   exchange as system context, which has no calls to replay, and a recalled reply saying a
+   reminder was set led the cortex to list the schedule and copy that reply with no call.
+   `record_exchange` takes the turn's `RunLog.runs` from `TurnEngine` and `BrainPhase`, and
+   `render_exchange` writes them on a line between the message and the reply, `Tools run:
+   list_scheduled (succeeded), schedule_task (failed)` (`runs_line`); a turn with no runs is
+   written as before. The trusted section of the recalled block opens with `RECALLED_RUNS_NOTE`:
+   a tool named on that line ran in that earlier conversation only, and a request made now needs
+   its own call. A row stored before this has no line and reads as before. No schema changes.
 
 ## Consequences
 
 - With the replay, the same rows sent the second email in 5 of 5 chats, and the question "What was
   the subject of the email you just sent?" was answered from history with no call in 5 of 5.
 - Each replayed run adds one call and one short result to every later request of that chat.
+- With recorded exchanges naming their runs, a fresh chat asking for a reminder the schedule held
+  called `schedule_task` in 50 of 50 chats and claimed a reminder it had not set in none, against
+  4 of 50 over the same exchanges without the line
+  ([readings](../readings/recalled-tool-runs.md#results-over-the-stored-reminder)).
+- A recalled tainted memory is fenced under its own header, which has no note, so its run line is
+  shown as quoted data only
+  ([R-842](../refinements/tasks/842-a-recalled-tainted-memory-names-its-runs-without-the-note.md)).
 - A replayed run of a read tool holds no content: what a later turn knows of that result is what
   the reply said.
 

@@ -83,6 +83,7 @@ from cortex_core import (
 from cortex_core.loop_events import MAX_STEP_SUMMARY_CHARS
 from cortex_core.output_channels import ROUND_BREAK
 from cortex_core.tool_loop import MAX_TOOL_STEPS
+from cortex_core.tool_replay import RECALLED_RUNS_NOTE
 from cortex_core.untrusted import PLAIN_SECURITY_PREAMBLE
 
 _START = datetime(2026, 7, 3, 12, 0, 0, tzinfo=UTC)
@@ -413,7 +414,7 @@ async def test_five_long_memories_are_each_shown_cut_within_the_recall_budget() 
     block = messages[1].text
     assert all(f"- User: fact {index}\nAssistant: notes" in block for index in range(5))
     assert block.count("[memory cut here: ") == 5
-    assert len(block) < 6000 + 5 * len(cut_marker(18_000)) + 100
+    assert len(block) < 6000 + 5 * len(cut_marker(18_000)) + len(RECALLED_RUNS_NOTE) + 100
 
 
 async def test_a_recall_policy_that_declines_leaves_the_turn_without_a_memory_block() -> None:
@@ -1397,7 +1398,9 @@ async def test_tainted_turn_is_recorded_with_provenance_when_enabled() -> None:
     await _collect(engine.handle_turn("s", "summarize /x", turn_id="t-1"))
     (hit,) = await recaller.recall("summarize /x", k=1, session_id="s", turn_id="t")
     assert hit.record.tainted is True
-    assert hit.record.text == "User: summarize /x\nAssistant: here is the summary"
+    assert hit.record.text == (
+        "User: summarize /x\nTools run: read (succeeded)\nAssistant: here is the summary"
+    )
 
 
 async def test_recalled_tainted_memory_is_fenced_and_re_taints_the_turn() -> None:
@@ -1567,7 +1570,10 @@ async def test_recall_renders_trusted_and_tainted_memories_in_separate_sections(
     assert messages[0].text == SECURITY_PREAMBLE
     memory_msg = messages[1]
     assert memory_msg.role is Role.SYSTEM
-    assert "Relevant memories from earlier conversations:\n- I like tea" in memory_msg.text
+    assert (
+        f"Relevant memories from earlier conversations. {RECALLED_RUNS_NOTE}\n- I like tea"
+        in memory_msg.text
+    )
     assert "derived from untrusted external content" in memory_msg.text
     assert "untrusted-tool-output id=" in memory_msg.text
     assert "hostile note" in memory_msg.text

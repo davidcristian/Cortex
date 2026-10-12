@@ -1,14 +1,16 @@
 """What a turn does with the text it produced: surface it, flush it, remember it."""
 
 import logging
-from collections.abc import AsyncGenerator, Iterator
+from collections.abc import AsyncGenerator, Iterator, Sequence
 
+from cortex_core.conversation import ToolRun
 from cortex_core.errors import EmbedderError, MemoryStoreError
 from cortex_core.events import TextDelta, ToolActivity, ToolOutcome, TurnEvent
 from cortex_core.guardrail import OutputFilter
 from cortex_core.loop_events import ReasoningDelta, StepOutcome, ToolStep
 from cortex_core.output_channels import ThinkingChannel
 from cortex_core.stops import StopLedger
+from cortex_core.tool_replay import runs_line
 from cortex_core.turn_context import TurnCapabilities
 from cortex_core.untrusted import TaintLedger
 
@@ -59,9 +61,11 @@ def overflow_note(parts: list[str]) -> Iterator[TurnEvent]:
     yield TextDelta(text=CONTEXT_OVERFLOW_NOTE)
 
 
-def render_exchange(user_text: str, assistant_text: str) -> str:
-    """Render one completed turn as the memory recorded at turn end."""
-    return f"User: {user_text}\nAssistant: {assistant_text}"
+def render_exchange(user_text: str, assistant_text: str, runs: Sequence[ToolRun] = ()) -> str:
+    """Render one completed turn, with the tool calls it ran, as the memory recorded at turn end."""
+    if not runs:
+        return f"User: {user_text}\nAssistant: {assistant_text}"
+    return f"User: {user_text}\n{runs_line(runs)}\nAssistant: {assistant_text}"
 
 
 def flush_channels(channels: OutputChannels, parts: list[str]) -> Iterator[TurnEvent]:
@@ -121,7 +125,13 @@ async def stream_turn_events(
 
 
 async def record_exchange(
-    caps: TurnCapabilities, taint: TaintLedger, *, session_id: str, query: str, reply: str
+    caps: TurnCapabilities,
+    taint: TaintLedger,
+    *,
+    session_id: str,
+    query: str,
+    reply: str,
+    runs: Sequence[ToolRun],
 ) -> None:
     """Record the completed exchange to memory under the turn's taint policy."""
     # A turn that holds a picture (a screen capture, an MCP image or an attachment) is never
@@ -131,7 +141,7 @@ async def record_exchange(
     if caps.memory is not None and (not taint.tainted or caps.record_tainted_memory):
         try:
             await caps.memory.record(
-                render_exchange(query, reply), session_id=session_id, tainted=taint.tainted
+                render_exchange(query, reply, runs), session_id=session_id, tainted=taint.tainted
             )
         except (EmbedderError, MemoryStoreError):
             _logger.exception(

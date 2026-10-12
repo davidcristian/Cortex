@@ -19,7 +19,7 @@ from cortex_core.recall import MemoryRecaller
 from cortex_core.recall_budget import fit_recalled
 from cortex_core.sighted import VisionProbe
 from cortex_core.tool_loop import ToolLoopContext
-from cortex_core.tool_replay import replay_runs
+from cortex_core.tool_replay import RECALLED_RUNS_NOTE, replay_runs
 from cortex_core.untrusted import (
     TaintLedger,
     plain_security_preamble_message,
@@ -60,7 +60,9 @@ def _render_memory_context(hits: Sequence[ScoredMemory], *, nonce: str, taint: T
     trusted = [text for hit, text in shown if not hit.record.tainted]
     if trusted:
         listed = "\n".join(f"- {text}" for text in trusted)
-        sections.append(f"Relevant memories from earlier conversations:\n{listed}")
+        sections.append(
+            f"Relevant memories from earlier conversations. {RECALLED_RUNS_NOTE}\n{listed}"
+        )
     fenced = [(hit.record, text) for hit, text in shown if hit.record.tainted]
     if fenced:
         for record, _ in fenced:

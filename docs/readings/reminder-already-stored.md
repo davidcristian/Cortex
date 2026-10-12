@@ -2,8 +2,8 @@
 
 What the cortex does when a person asks for a reminder that the schedule already holds: whether it
 calls `schedule_task`, or calls only `list_scheduled`, finds the stored item and replies as though
-it had set one
-([R-839](../refinements/tasks/839-a-reply-says-it-set-a-reminder-it-only-found-listed.md)). Read
+it had set one. The change that stopped it is in
+[recalled-tool-runs.md](recalled-tool-runs.md#results-over-the-stored-reminder). Read
 with [ADR-0025](../adr/ADR-0025-scheduling-reminders.md); the tools are
 `brain/packages/core/src/cortex_core/schedule_tools.py`.
 
@@ -156,4 +156,6 @@ Row M, with memory empty, recalled nothing in all 50 chats (`available=0` on eve
 `cortex.memory.recall` line, against 20 in B2), and every chat called `schedule_task` in its first
 step: none called `list_scheduled`. Against B2's 4 of 50 this is the first outcome of M's rule:
 recall of the earlier exchanges leads the cortex to list and copy the recalled reply, and the next
-treatment is the recalled-exchange change drawn over this shape.
+treatment is the recalled-exchange change drawn over this shape. Drawn over this store on
+2026-10-12, it left no false claim in 50 chats and shipped
+([results](recalled-tool-runs.md#results-over-the-stored-reminder)).

@@ -12,8 +12,9 @@ revenue was flat"), yet the whole exchange is dropped because the turn touched a
 
 The fix ADR-0013 deferred was to record the tainted exchange **with a provenance marker** and
 **frame it as untrusted on recall**, keeping the context without reopening the poisoning channel.
-The recorded text is the `User: …\nAssistant: …` exchange; the raw untrusted tool payload was only
-ever in the in-turn `Role.TOOL` messages, which are never persisted. What `tainted` records is that
+The recorded text is the `User: …\nAssistant: …` exchange, with the names of the tools the turn
+ran ([ADR-0074](ADR-0074-replayed-tool-runs.md) decision 6); the raw untrusted tool payload was
+only ever in the in-turn `Role.TOOL` messages, which are never persisted. What `tainted` records is that
 the assistant text was *derived from* untrusted content, so it may contain a quote, a summary or a
 hidden injection that must not re-enter a future turn as trusted context.
 

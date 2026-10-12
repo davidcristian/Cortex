@@ -1,11 +1,8 @@
 # A recalled exchange is claimed again with no call
 
-**Status:** open, waiting for its trigger
+**Status:** done 2026-10-12
 **Area:** memory
 **Origin:** [ADR-0008](../../adr/ADR-0008-memory-v1.md)
-**Trigger:** a row on the shipped stack in which a turn that recalled an earlier exchange makes no
-call and copies the recalled reply's claim.
-**Verified:** 2026-10-12
 
 With the pgvector memory on, a stored exchange is the user's message and the reply's text, with no
 record of the tool runs between them. When a later chat asks the same thing, recall returns that
@@ -27,13 +24,13 @@ five earlier exchanges of the same request, and every one of them made a call
 
 ## What to do
 
-When the trigger fires, run the change and rows written in
+Draw the change and rows written in
 [recalled-tool-runs.md](../../readings/recalled-tool-runs.md#rows-and-the-rule-written-before-the-first-run)
-against the row that fired it. The change, T, needs no schema change: `render_exchange` writes the
+over a row in which a recalled reply is claimed again. The change, T, needs no schema change: `render_exchange` writes the
 turn's runs (`RunLog.runs`, which `TurnEngine` and `BrainPhase` already hold when they call
 `record_exchange`) on a line between the message and the reply, and the header in
 `turn_context._render_memory_context` says that a run it lists ran in that earlier chat only. A
-row stored before T reads as before, which is what R3 measures.
+row stored before T reads as before.
 
 ## History
 
@@ -41,11 +38,15 @@ row stored before T reads as before, which is what R3 measures.
   [R-834](834-a-reply-claims-a-task-it-never-tried-to-schedule.md).
 - 2026-10-11: not reproduced on the brain after the `at` text change: all 20 chats made a call,
   with every turn after the first recalling the earlier exchanges. The change and its pass rule
-  are written in the readings before any run of them, and the task waits for a row that shows
-  the shape again. The two false claims these rows found are another shape, filed as
-  [R-839](839-a-reply-says-it-set-a-reminder-it-only-found-listed.md).
-- 2026-10-12: the trigger has not fired: each of the 18 false claims in 200 chats of
-  [reminder-already-stored.md](../../readings/reminder-already-stored.md) followed a
-  `list_scheduled` call. Those claims come from recall (none with memory empty), so this change is
-  drawn over that shape next, under
-  [R-839](839-a-reply-says-it-set-a-reminder-it-only-found-listed.md).
+  are written in the readings before any run of them. The two false claims these rows found are
+  another shape: the turn called only `list_scheduled` and copied the recalled reply.
+- 2026-10-12: that other shape comes from recall: over a schedule holding the same reminder, 4 of
+  50 chats listed and claimed with the earlier exchanges in memory, none of 50 with memory empty,
+  and two `list_scheduled` result texts changed nothing
+  ([reminder-already-stored.md](../../readings/reminder-already-stored.md)).
+- 2026-10-12: done. The change was drawn over that shape, with the store's 20 rows rewritten
+  through the new `render_exchange`: 0 false claims in 50 chats against 4 of 50, a new reminder
+  still stored in 6 of 6 and a listing question listed only
+  ([readings](../../readings/recalled-tool-runs.md#results-over-the-stored-reminder)). It ships
+  as [ADR-0074](../../adr/ADR-0074-replayed-tool-runs.md) decision 6. The tainted memory's
+  header is [R-842](842-a-recalled-tainted-memory-names-its-runs-without-the-note.md).

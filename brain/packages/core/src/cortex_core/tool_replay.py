@@ -13,6 +13,18 @@ REPLAYED_FAILED = (
     "it. Its result is not kept."
 )
 
+RUNS_LABEL = "Tools run"
+RECALLED_RUNS_NOTE = (
+    f'A tool named on a memory\'s "{RUNS_LABEL}" line ran in that earlier conversation only. '
+    "A request made now needs its own call."
+)
+
+
+def runs_line(runs: Sequence[ToolRun]) -> str:
+    """The line a recorded exchange names its tool calls on, each with whether it succeeded."""
+    listed = ", ".join(f"{run.name} ({'succeeded' if run.ok else 'failed'})" for run in runs)
+    return f"{RUNS_LABEL}: {listed}"
+
 
 class RunLog:
     """The tool runs one turn's events announce, gathered for the reply the turn stores."""

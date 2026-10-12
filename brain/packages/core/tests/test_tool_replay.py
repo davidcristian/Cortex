@@ -5,10 +5,13 @@ import pytest
 
 from cortex_core import (
     GenerationBounds,
+    HashEmbedder,
     InferenceEvent,
+    InMemoryMemoryStore,
     InMemorySessionStore,
     InMemoryToolRegistry,
     JsonSchema,
+    MemoryRecaller,
     Message,
     RecordingAuditSink,
     Role,
@@ -20,13 +23,22 @@ from cortex_core import (
     ToolDispatcher,
     ToolError,
     ToolOutcome,
+    ToolResult,
     ToolRun,
     ToolSpec,
+    Trust,
     TurnCapabilities,
     TurnEngine,
     TurnEvent,
 )
-from cortex_core.tool_replay import REPLAYED_FAILED, REPLAYED_OK, RunLog, replay_runs
+from cortex_core.tool_replay import (
+    RECALLED_RUNS_NOTE,
+    REPLAYED_FAILED,
+    REPLAYED_OK,
+    RunLog,
+    replay_runs,
+)
+from cortex_core.turn_output import render_exchange
 
 _AT = datetime(2026, 10, 10, 6, 0, tzinfo=UTC)
 _RAW_RESULT = "the raw result the store never keeps"
@@ -144,3 +156,45 @@ async def test_a_later_turn_reads_that_an_earlier_one_ran_a_tool(outcome: str) -
     assert later[3].text == outcome
     assert later[4].text == "done"
     assert all(_RAW_RESULT not in m.text for m in later)
+
+
+def test_an_exchange_without_runs_is_recorded_as_the_message_and_the_reply() -> None:
+    assert render_exchange("hi", "hello") == "User: hi\nAssistant: hello"
+
+
+def test_a_recorded_exchange_names_each_run_in_order_with_its_outcome() -> None:
+    runs = (ToolRun("list_scheduled", ok=True), ToolRun("schedule_task", ok=False))
+    assert render_exchange("remind me", "done", runs) == (
+        "User: remind me\nTools run: list_scheduled (succeeded), schedule_task (failed)\n"
+        "Assistant: done"
+    )
+
+
+@pytest.mark.parametrize("fails", [False, True])
+async def test_another_chat_recalls_the_run_under_a_note_that_it_ran_there_only(
+    *, fails: bool
+) -> None:
+    async def handler(arguments: Mapping[str, object]) -> ToolResult:
+        del arguments
+        if fails:
+            msg = "the disk is gone"
+            raise ToolError(msg)
+        return ToolResult(call_id="", content="notes", trust=Trust.TRUSTED)
+
+    spec = ToolSpec(name="read", description="read a file", parameters={"type": "object"})
+    registry = InMemoryToolRegistry({"read": (spec, handler)})
+    recaller = MemoryRecaller(InMemoryMemoryStore(), HashEmbedder(), SystemClock())
+    caps = TurnCapabilities(
+        tools=ToolDispatcher(registry, RecordingAuditSink(), SystemClock()), memory=recaller
+    )
+    backend = _TwoTurnBackend()
+    engine = TurnEngine(InMemorySessionStore(), backend, SystemClock(), capabilities=caps)
+    await _drain(engine.handle_turn("first", "read my notes", turn_id="t-1"))
+    await _drain(engine.handle_turn("second", "read my notes", turn_id="t-2"))
+    recalled = backend.seen[-1][1]
+    assert recalled.role is Role.SYSTEM
+    assert recalled.text == (
+        f"Relevant memories from earlier conversations. {RECALLED_RUNS_NOTE}\n"
+        f"- User: read my notes\nTools run: read ({'failed' if fails else 'succeeded'})\n"
+        "Assistant: done"
+    )

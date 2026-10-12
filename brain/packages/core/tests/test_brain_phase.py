@@ -300,6 +300,18 @@ async def test_the_deep_phases_reply_records_the_tool_runs_it_made() -> None:
     assert (reply.role, reply.runs) == (Role.ASSISTANT, (ToolRun("read", ok=True),))
 
 
+async def test_the_deep_phases_memory_names_the_tool_runs_it_made() -> None:
+    memory = _recaller()
+    dispatcher = ToolDispatcher(_registry(), RecordingAuditSink(), SystemClock())
+    backend = ScriptedBrainBackend(
+        chunks=("done",), tool_calls=(ToolCall(id="c1", name="read", arguments={}),)
+    )
+    caps = TurnCapabilities(memory=memory, tools=dispatcher, record_tainted_memory=True)
+    await _drive(capabilities=caps, backend=backend)
+    (record,) = await _recorded(memory)
+    assert record.text == f"User: {harness.USER_TEXT}\nTools run: read (succeeded)\nAssistant: done"
+
+
 async def test_the_query_is_recovered_from_the_store_for_recall_and_memory() -> None:
     memory = _recaller()
     _phase, _backend, _sessions, _texts = await _drive(capabilities=TurnCapabilities(memory=memory))

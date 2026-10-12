@@ -79,12 +79,12 @@ before it as calls with a fixed outcome text, after the window (`tool_replay.py`
   characters) through `fit_recalled` (`recall_budget.py`), and one past its share is cut with a
   marker. A recalled memory marked `tainted` is fenced with the turn nonce, taints the turn
   (ADR-0019), names its own record id as the turn's source and gives the taint ledger its whole
-  text.
-  After the reply it records the exchange, unless the turn read untrusted content. **Memory that
-  cannot be reached costs the turn its notes and not the turn** (ADR-0008 decision 12):
-  `EmbedderError` and `MemoryStoreError` are caught on both halves and nothing else is, a failed
-  read logging a warning and one `StatusUpdate`, a failed write logging an error and saying
-  nothing.
+  text. The trusted section opens with `RECALLED_RUNS_NOTE` (ADR-0074 decision 6). After the
+  reply it records the exchange, with a `Tools run` line naming the turn's runs when it made any,
+  unless the turn read untrusted content. **Memory that cannot be reached costs the turn its notes
+  and not the turn** (ADR-0008 decision 12): `EmbedderError` and `MemoryStoreError` are caught on
+  both halves and nothing else is, a failed read logging a warning and one `StatusUpdate`, a
+  failed write logging an error and saying nothing.
 - `record_tainted_memory` (ADR-0019) governs writing only: with it on, a tainted turn is recorded
   with `tainted=True` instead of being dropped, and a stored tainted memory is fenced on recall
   either way.
@@ -117,8 +117,8 @@ cannot diverge (ADR-0030). `stream_turn_events(loop, channels, parts)` maps one 
 onto `TextDelta`, `StatusUpdate` and `ToolActivity`, accumulates reply text into `parts`, closes
 the loop in a `finally` and flushes the channels on a clean end; `flush_channels(channels, parts)`
 is that flush alone, for a caller that has to persist a partial reply after a failure.
-`record_exchange(caps, taint, *, session_id, query, reply)` applies the tainted-memory policy both
-phases share and **drops an opaque turn whatever `record_tainted_memory` says** (ADR-0029).
+`record_exchange(caps, taint, *, session_id, query, reply, runs)` applies both phases'
+tainted-memory policy and **drops an opaque turn whatever `record_tainted_memory` says** (ADR-0029).
 
 `cap_note`, `unreadable_call_note(stops, parts)` and `overflow_note(parts)` are the sentences a turn
 can end with. The first two are read off a `StopLedger` (`stops.py`, ADR-0048).

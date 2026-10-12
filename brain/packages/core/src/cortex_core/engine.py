@@ -150,7 +150,9 @@ class TurnEngine:
             runs=log.runs,
         )
         await self._store.append(session_id, assistant)
-        await record_exchange(self._caps, taint, session_id=session_id, query=text, reply=full_text)
+        await record_exchange(
+            self._caps, taint, session_id=session_id, query=text, reply=full_text, runs=log.runs
+        )
         # Before ``TurnCompleted``, so the overlay's refresh on completion already sees the title.
         if self._caps.generate_titles and len(history) == 1:
             await self._title_session(session_id, model, text, full_text, turn_id)
