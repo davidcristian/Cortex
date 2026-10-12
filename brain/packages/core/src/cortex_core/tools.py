@@ -47,10 +47,16 @@ class TurnStamp:
     task_id: str = ""
     item_id: str = ""
     tainted: bool = False
+    recalled_only: bool = False
     sources: tuple[Provenance, ...] = ()
     budget: DispatchBudget | None = field(default=None, compare=False)
     progress: ProgressSink | None = field(default=None, compare=False)
     escalation: "EscalationSlot | None" = field(default=None, compare=False)
+
+    @property
+    def live_taint(self) -> bool:
+        """Whether untrusted content other than a fenced recalled memory entered the turn."""
+        return self.tainted and not self.recalled_only
 
 
 UNSTAMPED = TurnStamp()

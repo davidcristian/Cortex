@@ -17,10 +17,10 @@ spawned subtask or a model swap is in [brain-core-residency.md](brain-core-resid
 - `ToolResult(call_id, content, is_error=False, trust=UNTRUSTED, source=None, images=())` is the
   outcome fed back to the model. `source` is what the result declared for its own content, and
   `images` (ADR-0029) travel beside `content`, which alone is audited, scanned and fenced.
-- `TurnStamp(session_id, turn_id, task_id, item_id, tainted, sources, budget, progress,
-  escalation)` is what the dispatching turn gives the call (ADR-0027). The four ids are the work
-  the call was made for, each `""` when there is none (ADR-0009 decision 16). The three live
-  handles are left out of equality; `sources` is compared. `UNSTAMPED` is the default.
+- `TurnStamp(session_id, turn_id, task_id, item_id, tainted, recalled_only, sources, budget,
+  progress, escalation)` is what the dispatching turn gives the call (ADR-0027); `live_taint` is
+  `tainted and not recalled_only` (ADR-0019 decision 8). The four ids are the work the call was
+  made for, `""` when none (ADR-0009 decision 16). Equality skips the three live handles.
 - `ToolInvocation(name, arguments, ok, detail, at, trust, call_id, session_id, turn_id, task_id,
   item_id)` is one audit record, keeping the stamp's four ids and never the stamp itself, since a
   record that outlives its process must contain no live handle.
@@ -186,13 +186,13 @@ escalate. Each is a `BuiltinTool` registered in the `CompositeToolRegistry`.
   which always repeats, so its spec sends a one-time time to `at`) with at most one of `on_days`,
   `on_month_days` or `on_dates` plus an optional `in_zone`. Its spec is rebuilt on every
   `describe_tools` walk and includes the current time. Two creation bounds apply: the `max_active`
-  cap, and a refusal to create a `task` item on a tainted turn (`TAINTED_TASK_MSG`). A request
+  cap, and a refusal to create a `task` on a `live_taint` turn (`TAINTED_TASK_MSG`). A request
   matching an active item in kind, text, due time, recurrence and model (never a tainted item for a
   clean turn) adds nothing and returns `already scheduled` with its id, on a full schedule too.
   Creation, cancel and snooze results are `TRUSTED` and never echo stored text; the listing echoes
   text and so is `TRUSTED` only when every item listed is clean. A cancel is confirmed on a card
   showing the item's listing line, flattened, at most `CARD_CHARS`. `edit_scheduled` adds the
-  editing turn's taint and refuses editing a task on a tainted turn; none of the five raises.
+  editing turn's taint and refuses editing a task on a `live_taint` turn; none of the five raises.
 
 ## Schedules
 

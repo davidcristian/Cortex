@@ -1,9 +1,8 @@
 # A recalled tainted memory names its runs without the note
 
-**Status:** open, waiting for its trigger
+**Status:** open, actionable
 **Area:** memory
 **Origin:** [ADR-0074](../../adr/ADR-0074-replayed-tool-runs.md)
-**Trigger:** a deployment or a row that sets `CORTEX_MEMORY_ON_TAINTED=record`.
 **Verified:** 2026-10-12
 
 A recorded exchange names its turn's tool runs on a `Tools run` line (ADR-0074 decision 6), and
@@ -28,3 +27,9 @@ current header. The fenced header is also framing for injected text
 ## History
 
 - 2026-10-12: filed when the trusted section's note shipped, since only that section was drawn.
+- 2026-10-12: trigger fired. [R-073](073-fence-without-block-recall.md)'s rows ran with
+  `CORTEX_MEMORY_ON_TAINTED=record`, and every hit in its P and I chats was a tainted row with a
+  `Tools run` line and no note above it. No chat claimed a run it had not made: each P chat called
+  `schedule_task`, and the two I chats that said a task was already scheduled had listed it first
+  ([readings](../../readings/recall-tainted-task.md)). The rows this entry asks for are still to
+  be written.

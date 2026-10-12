@@ -73,6 +73,7 @@ def _stamp(context: ToolLoopContext) -> TurnStamp:
         task_id=context.task_id,
         item_id=context.item_id,
         tainted=context.taint.tainted,
+        recalled_only=context.taint.recalled_only,
         sources=context.taint.sources,
         budget=context.budget,
         progress=context.progress,

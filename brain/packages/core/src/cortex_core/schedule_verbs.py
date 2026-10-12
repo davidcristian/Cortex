@@ -219,7 +219,7 @@ class EditScheduledTool:
             return error_result(call.id, parsed)
         edit = replace(parsed, tainted=call.stamp.tainted)
         try:
-            correction = await self._edit(item_id, edit)
+            correction = await self._edit(item_id, edit, live_taint=call.stamp.live_taint)
         except ScheduleStoreError as err:
             return store_down_result(call.id, err)
         if correction is not None:
@@ -230,14 +230,14 @@ class EditScheduledTool:
             content = f"{content}: now due {zone.render(edit.rule.due_at)}"
         return ToolResult(call_id=call.id, content=content, trust=Trust.TRUSTED)
 
-    async def _edit(self, item_id: str, edit: ScheduleEdit) -> str | None:
+    async def _edit(self, item_id: str, edit: ScheduleEdit, *, live_taint: bool) -> str | None:
         """Advisory guards (unknown / firing / tainted-task), then the fenced edit."""
         item = await self._store.get(item_id)
         if item is None:
             return f"no scheduled item {item_id}"
         if item.status is ScheduleStatus.FIRING:
             return f"{item_id} is firing right now; try again in a moment"
-        if item.kind is ScheduleKind.TASK and edit.tainted:
+        if item.kind is ScheduleKind.TASK and live_taint:
             return _EDIT_TAINTED_TASK
         if not await self._store.edit(item_id, edit):
             return (

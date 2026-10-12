@@ -98,6 +98,8 @@ class TaintLedger:
     # Whether untrusted content entered this turn that no fence can bracket, which today means
     # pixels. Kept apart from ``tainted`` because URL redaction cannot read a picture either.
     opaque: bool = False
+    # Whether a fenced recalled memory is the only untrusted content the turn has taken in.
+    recalled_only: bool = False
     untrusted_urls: set[str] = field(default_factory=set[str])
     sources: tuple[Provenance, ...] = ()
 
@@ -105,6 +107,7 @@ class TaintLedger:
         """Flip the ledger tainted once any untrusted result is observed."""
         if trust is Trust.UNTRUSTED:
             self.tainted = True
+            self.recalled_only = False
 
     def note_source(self, source: Provenance | None) -> None:
         """Record where untrusted content came from, deduped and bounded."""
@@ -133,10 +136,14 @@ class TaintLedger:
         self.mark(Trust.UNTRUSTED)
         self.opaque = True
 
-    def ingest_untrusted(self, content: str, *, source: Provenance | None = None) -> None:
+    def ingest_untrusted(
+        self, content: str, *, source: Provenance | None = None, recalled: bool = False
+    ) -> None:
         """Taint the turn from a non-tool untrusted source: mark taint, collect ``content``'s URLs,
-        and note ``source``.
+        and note ``source``. ``recalled`` says ``content`` is a fenced recalled memory.
         """
+        was_recall_only = self.recalled_only or not self.tainted
         self.mark(Trust.UNTRUSTED)
+        self.recalled_only = recalled and was_recall_only
         self.untrusted_urls |= extract_urls(content)
         self.note_source(source)

@@ -139,17 +139,17 @@ the decisions are ADR-0013, ADR-0019 and ADR-0027.
   the fence, because it does not have the turn's nonce. `new_nonce()` makes that nonce
   (`secrets.token_hex(8)`); it is unpredictable and is discarded with the turn.
 - `TaintLedger` is the mutable, turn-local record of what a turn has read: `tainted` (untrusted
-  content entered), `opaque` (some of it was a picture and so could not be fenced, ADR-0029),
-  `untrusted_urls` (the evidence the output guardrail reads), and `sources`. `mark(trust)` sets
-  `tainted` on the first `UNTRUSTED` result. `observe(result, *, source=None)` is what the tool
-  loop calls: it marks, collects the result's URLs, and notes both the tool the content came
-  through and any source the result declared for itself. Taint is set from `result.trust` before
-  any source is noted, so a declared source can never lower it. `ingest_untrusted(content, *,
-  source=None)` is the same for content that did not come from a tool, which is how a recalled
-  tainted memory taints the turn it is read into (ADR-0019). `note_source` is the bounded
-  accumulator both use: `None` and repeats record nothing, and past `MAX_TURN_SOURCES` nothing more
-  is kept, earliest first, so attacker-chosen values can neither grow the record nor push out the
-  source the turn started with. A ledger is rebuilt each turn and never persisted.
+  content entered), `opaque` (some was a picture, which no fence can bracket, ADR-0029),
+  `recalled_only` (fenced recalled memories were all of it, ADR-0019 decision 8), `untrusted_urls`
+  (what the output guardrail reads) and `sources`. `mark(trust)` sets `tainted` on an `UNTRUSTED`
+  result and clears `recalled_only`. The tool loop calls `observe(result, *, source=None)`, which
+  marks, collects the result's URLs, then notes the tool the content came through and any source
+  the result declared, so a declared source can never lower taint. `ingest_untrusted(content, *,
+  source=None, recalled=False)` does the same for other content; recall passes `recalled=True`.
+  `note_source` is the bounded accumulator both use: `None` and repeats record nothing, and past
+  `MAX_TURN_SOURCES` nothing more is kept, earliest first, so attacker-chosen values can neither
+  grow the record nor push out the source the turn started with. A ledger is rebuilt each turn
+  and never persisted.
 - `DENIED_MSG` is the error content for a tool call that needs confirmation and was made on a
   tainted turn, which is refused outright and never offered to the user (ADR-0022).
   `USER_DECLINED_MSG` is the content for a pressed Deny, `UNANSWERED_MSG` for a request nobody answered.

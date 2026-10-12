@@ -1,9 +1,8 @@
 # Fence-without-block recall mode
 
-**Status:** open, actionable
+**Status:** done 2026-10-12
 **Area:** untrusted-content
 **Origin:** [ADR-0019](../../adr/ADR-0019-tainted-memory-recording.md)
-**Verified:** 2026-10-10
 
 Left behind by [R-072](072-tainted-memory-recording.md): a recall mode that fences a tainted
 memory without tainting the turn, if spreading taint on a tangential recall turns out to be too
@@ -61,3 +60,13 @@ blunt.
   task is now due; the mode still has to keep the ledger and the tainted re-recording while
   dropping the tool block, as the 2026-09-17 line says. The refusal text no longer tells the
   model to re-ask in a fresh turn, which could not help here.
+- 2026-10-12: done, by a narrower mode than this entry names. A turn that recall alone tainted
+  keeps every effect of the taint (the ledger's URLs, the tainted re-recording, the item's taint
+  mark, the dispatcher's block on tools needing confirmation) except `schedule_task`'s refusal of a
+  task and `edit_scheduled`'s refusal to edit one, which now read the stamp's `live_taint`
+  ([ADR-0019](../../adr/ADR-0019-tainted-memory-recording.md) decision 8). Fencing without the
+  whole block was rejected because `send_email`'s card would then show text an injection wrote.
+  On the stack, the person's own task request after a tainted recall was refused in 2 of 2 chats
+  before the change and stored a tainted task in every counted chat after it
+  ([readings](../../readings/recall-tainted-task.md)). The same block on the person's own send is
+  [task 845](845-a-recall-tainted-turn-blocks-the-person-s-own-send.md).

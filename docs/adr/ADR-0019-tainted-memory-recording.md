@@ -49,7 +49,8 @@ across turns (a recalled memory).
 4. **Taint propagates through memory, deterministically.** Recalling a tainted memory taints the
    current turn again: its tools that need confirmation are blocked (ADR-0013) and, under `record`,
    the new exchange is itself recorded `tainted=True`. Untrusted provenance persists across recall,
-   which closes the cross-turn laundering path that unfenced recording would open.
+   which closes the cross-turn laundering path that unfenced recording would open. Decision 8 is
+   the one thing recall taint does not block.
 
 5. **One fence identity per turn.** The engine builds the `ToolLoopContext` (the turn's `nonce` and
    `TaintLedger`) **before** assembling the turn's messages, so recall fences with the same nonce
@@ -77,6 +78,26 @@ across turns (a recalled memory).
    inference call on the record path. It reopens only inside a general memory-compaction feature,
    where the summary of a tainted exchange would still be tainted and its input fenced.
 
+8. **A turn that recall alone tainted can still schedule and edit a task.** The ledger's
+   `recalled_only` is set while fenced recalled memories are the turn's only untrusted input
+   (`ingest_untrusted(..., recalled=True)`); a live untrusted result or an attachment clears it, and
+   a ledger built with `tainted=True` (a subagent's, a handoff's) starts with it clear. The
+   `TurnStamp` has it too, and its `live_taint` is `tainted and not recalled_only`. Only two checks
+   read `live_taint`: `schedule_task` refusing a task and `edit_scheduled` refusing to edit one
+   ([ADR-0025](ADR-0025-scheduling-reminders.md) decisions 3 and 9). Every other effect of the taint
+   stays: the memory's URLs join the ledger the output guardrail removes from, the exchange is
+   recorded `tainted=True` under `record`, the task is stored tainted, and the dispatcher still
+   blocks every tool needing confirmation except a record card
+   ([ADR-0022](ADR-0022-email-write-confirmer.md) decision 2), because those tools take arguments
+   the model writes and send outward or evict the GPU. The reason is the way out: after a live
+   read, the same request in a new message reads nothing and runs, but recall returns the same
+   tainted row in every chat, and each refused exchange was itself stored tainted, so the person's
+   own task could never run ([readings](../readings/recall-tainted-task.md)). The task this allows
+   is contained by structure rather than by the creation check: it runs tainted, with no confirmer
+   and only tools needing none (ADR-0025 decision 4), and its listing and toast are marked. A
+   recalled injection can therefore store a task as well, and one did when the person asked to
+   follow a quoted note; its run could not send.
+
 ## Consequences
 
 - Legitimate context from tainted turns is kept when a deployment opts in, and the derived memory
@@ -91,8 +112,9 @@ across turns (a recalled memory).
 - **Loosely related recall spreads taint.** A semantically matched but irrelevant tainted memory
   taints an otherwise clean turn and blocks the actions that need confirmation, failing closed by
   design, since the recalled content is in the model's context and framing is not trusted to
-  contain it. A recall mode that fences without blocking waits for that to prove too blunt
-  ([task 073](../refinements/tasks/073-fence-without-block-recall.md)).
+  contain it. A task is the exception (decision 8). An email the person asks for in such a turn is
+  still blocked, and `DENIED_MSG` then names a way out that recall closes
+  ([task 845](../refinements/tasks/845-a-recall-tainted-turn-blocks-the-person-s-own-send.md)).
 - **Removing memories by the source they came from needs two things the port lacks.** A memory
   stores only the `tainted` bit, with no provenance column or index to filter on, and the port's
   one removal, `delete_scope`, is string equality on one namespace with no wildcard (ADR-0008

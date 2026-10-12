@@ -75,11 +75,11 @@ built-ins, so subagents never see them (ADR-0010) and cannot re-schedule themsel
   other context line tells the model the date.
 - **Arguments.** `kind`, `text`, and exactly one of `at` (ISO-8601), `in_seconds` or `at_time` (a
   calendar rule, ADR-0065 decision 2); `every_seconds` between 60 s and ten years, with `0` read
-  as a one-shot; `model` for a task. Bad arguments return `is_error` results, never raise; ids
-  are uuid4.
+  as a one-shot; `model` for a task. Bad arguments return `is_error`, never raise; ids are uuid4.
 - **Creation bounds.** Active items are capped (`CORTEX_SCHEDULE_MAX_ACTIVE`, 32; a full schedule
   returns `NOT SCHEDULED` and tells the model to ask the user what to cancel), and **a tainted turn
-  cannot create a task**: a task instruction from injected content would be a permanent directive.
+  cannot create a task**, since injected text would be a permanent directive, unless recall alone
+  tainted the turn ([ADR-0019](ADR-0019-tainted-memory-recording.md) decision 8).
 - **A repeat adds nothing** ([readings](../readings/reminder-already-stored.md)). A request matching
   an active item in kind, text (case, spacing and a final full stop aside), due time, recurrence and
   model gets `already scheduled` and its id, on a full schedule too: a copy fires the same toast
@@ -190,7 +190,7 @@ passes both as one `RuleChange(rule, due_at)`, which reschedules the item as a s
 deliverability and `anchor` cleared). Merely moving `due_at` would put a DONE reminder back on the
 claim path and run it twice, and the rule branch writes snooze's index set under the same fence.
 **Edit ORs the turn's taint onto the item, and a tainted turn cannot edit a task**, since rewriting
-the text injects content, as creation does. Results never echo stored text.
+the text injects content, as creation does, with the same exception. Results never echo stored text.
 
 ### 10. A task's outcome is delivered like a reminder
 

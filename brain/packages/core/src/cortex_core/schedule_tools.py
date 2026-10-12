@@ -142,7 +142,7 @@ class ScheduleTaskTool:
         )
         if isinstance(parsed, str):
             return error_result(call.id, parsed)
-        if parsed.kind is ScheduleKind.TASK and call.stamp.tainted:
+        if parsed.kind is ScheduleKind.TASK and call.stamp.live_taint:
             return error_result(call.id, TAINTED_TASK_MSG)
         item = ScheduledItem(
             id=self._item_id_factory(),

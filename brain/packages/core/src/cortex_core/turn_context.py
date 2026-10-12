@@ -67,7 +67,8 @@ def _render_memory_context(hits: Sequence[ScoredMemory], *, nonce: str, taint: T
     if fenced:
         for record, _ in fenced:
             # The whole text, so a URL past the cut, or one the cut splits, is still collected.
-            taint.ingest_untrusted(record.text, source=as_source(SourceKind.MEMORY, record.id))
+            source = as_source(SourceKind.MEMORY, record.id)
+            taint.ingest_untrusted(record.text, source=source, recalled=True)
         blocks = "\n".join(wrap_untrusted(text, nonce=nonce) for _, text in fenced)
         sections.append(
             "Some recalled memories were derived from untrusted external content and are quoted "
