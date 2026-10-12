@@ -34,3 +34,13 @@ def test_one_capped_round_of_several_is_still_a_cap() -> None:
     ledger.observe(DecodeStop(StopReason.CAPPED))
     ledger.observe(DecodeStop(StopReason.FINISHED))
     assert ledger.capped
+
+
+def test_a_ledger_that_saw_nothing_reports_rounds_left() -> None:
+    assert not StopLedger().out_of_rounds
+
+
+def test_a_reported_round_limit_is_kept_apart_from_a_cap() -> None:
+    ledger = StopLedger()
+    ledger.observe_round_limit()
+    assert (ledger.out_of_rounds, ledger.capped) == (True, False)

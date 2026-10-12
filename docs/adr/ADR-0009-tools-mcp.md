@@ -6,8 +6,7 @@
 
 The cortex needs to call tools: a filesystem first, then email, and later the body-backed OS
 actions. Every call reaches outside the process on the user's behalf, so every call has to be
-audited, and every later tool has to go through the same audited path. Tools are reached through
-MCP servers, behind one port.
+audited, and every later tool goes through the same audited path, to MCP servers behind one port.
 
 Two existing interfaces frame this. The cortex talks to models through `InferenceBackend`
 ([ADR-0005](ADR-0005-llamacpp-engine.md), [ADR-0007](ADR-0007-model-manager-inference.md)), and for
@@ -38,7 +37,10 @@ before it was closed off.
 3. **The tool loop is explicit typed code, `stream_tool_loop`, with no framework.** Per round: one
    inference step, then each emitted call is dispatched through `ToolDispatcher`, the assistant
    message with its `tool_calls` and one `Role.TOOL` result per call id are fed back, and the model
-   is asked again, until it answers in text. `MAX_TOOL_STEPS` (8) limits the rounds. The loop's
+   is asked again, until it answers in text. `MAX_TOOL_STEPS` (8) limits the rounds. When the last
+   round still ends in calls, the loop dispatches them and asks nothing more, and the turn closes
+   with `ROUNDS_SPENT_NOTE`, naming the limit and each tool it ran with its outcome, so the stored
+   reply, the memory exchange and `TurnCompleted` hold the text the person saw. The loop's
    working messages stay in the turn: the session store keeps the user turn and the final answer
    with each call's tool name and outcome ([ADR-0074](ADR-0074-replayed-tool-runs.md)), and an
    escalating turn passes its tool steps in the handoff record ([ADR-0030](ADR-0030-brain-handoff.md)).
@@ -101,8 +103,7 @@ before it was closed off.
     defaults to 60 s for both operations; a value at or below zero fails at startup. It limits one
     walk or call, not a turn. Passing `read_timeout_seconds` through the SDK was rejected: it does
     not limit the session open, and it would put deployment policy inside one adapter. Its ordering
-    against the delegated run's deadline is
-    [ADR-0047](ADR-0047-delegated-run-bound-ordering.md).
+    against the delegated run's deadline is [ADR-0047](ADR-0047-delegated-run-bound-ordering.md).
 
 ### Dispatch limits
 
@@ -189,8 +190,7 @@ before it was closed off.
     record per line, opens per record with `O_APPEND` and mode `0600`, and starts a record on a new
     line after a torn one. A failed append is logged as `tool.audit.gap` and never fails the
     dispatch, since the log line was already written. Rotation is the operator's: a `mv` is a
-    complete rotation. A Postgres table was rejected because it would tie the audit to the memory
-    backend being on.
+    complete rotation. A Postgres table was rejected: it would tie the audit to the memory backend.
 
 ### Images in a result
 
@@ -231,7 +231,7 @@ before it was closed off.
 - **Folding schema defaults or canonicalizing arguments for salience:** a schema `default` is
   advisory, so folding it can refuse a legitimate call, and a schema-free canonical form is just
   mapping equality.
-- **A session pool:** see decision 9.
+- **A final completion with no tools offered:** it costs a completion and can misstate the calls.
 - **Unknown image dimensions on `ImagePart`, a size declared in `_meta`, or dropping
   `read_media_file` from the allowlist:** the first widens a validated invariant for one adapter,
   the second still drops a plain sidecar's picture, and the third removes an existing capability.

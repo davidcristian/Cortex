@@ -6,17 +6,27 @@ __all__ = ["StopLedger"]
 
 
 class StopLedger:
-    """Collects why each completion of one loop ended, and answers whether one was cut."""
+    """Collects why one loop and each of its completions ended, for the notes a turn ends with."""
 
     def __init__(self) -> None:
         self._capped = False
+        self._out_of_rounds = False
 
     def observe(self, stop: DecodeStop) -> None:
         """Take one completion's reported reason for ending."""
         if stop.reason is StopReason.CAPPED:
             self._capped = True
 
+    def observe_round_limit(self) -> None:
+        """Take the loop's report that its last allowed round still ended in tool calls."""
+        self._out_of_rounds = True
+
     @property
     def capped(self) -> bool:
         """Whether any completion this ledger saw stopped at a token limit."""
         return self._capped
+
+    @property
+    def out_of_rounds(self) -> bool:
+        """Whether the loop stopped at its round limit instead of at a reply."""
+        return self._out_of_rounds

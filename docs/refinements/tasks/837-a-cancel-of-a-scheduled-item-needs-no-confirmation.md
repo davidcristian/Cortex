@@ -33,6 +33,5 @@ and H of the readings, with tainted items in the schedule.
   listing with tainted items, and was backed out. The false claim seen in one chat is
   [R-836](836-a-recalled-exchange-is-claimed-again-with-no-call.md).
 - 2026-10-12: seen again far from a full schedule. Asked to set a reminder while nine copies of it
-  were stored, the cortex listed them and cancelled seven, which nobody named, with no card, and the
-  turn ended with no reply ([readings](../../readings/reminder-already-stored.md),
-  [R-840](840-a-turn-that-spends-every-tool-round-ends-with-no-reply.md)).
+  were stored, the cortex listed them and cancelled seven, which nobody named, with no card, until
+  the turn ran out of tool rounds ([readings](../../readings/reminder-already-stored.md)).

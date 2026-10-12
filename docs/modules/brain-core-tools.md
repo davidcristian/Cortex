@@ -97,13 +97,13 @@ subagent puts steps on the spawning stream's `ProgressSink` and drops outcomes (
 decision 18). The yield vocabulary is in `loop_events.py`, one round's dispatches in `dispatch_round.py`.
 
 The loop appends the tool-call and `Role.TOOL` result messages to `working` in place, and ends on a
-tool-free step, a `None` dispatcher, or `MAX_TOOL_STEPS` (8) rounds. Five independent bounds apply
-(ADR-0009 decision 11, ADR-0048): rounds cap how long it runs; `context.budget` caps what it may
-spend across those rounds; `context.bounds` caps how far any one completion decodes, so the two
-together bound the whole loop's decoding; the salience policy refuses a repeat; and `plan_round`
-caps how wide one round may be. A call is charged only after `dispatcher.admits` passes, so a
-refused repeat costs nothing, and calls past the allowance are still dispatched, so their
-`Role.TOOL` answers exist and their refusals are audited.
+tool-free step, a `None` dispatcher, or `MAX_TOOL_STEPS` (8) rounds that all dispatched calls,
+reported as `observe_round_limit()` on `context.stops`. Five independent bounds apply (ADR-0009
+decision 11, ADR-0048): rounds cap how long it runs; `context.budget` caps what it may spend across
+them; `context.bounds` caps how far any one completion decodes; the salience policy refuses a
+repeat; and `plan_round` caps how wide one round may be. A call is charged only after
+`dispatcher.admits` passes, so a refused repeat costs nothing, and calls past the allowance are
+still dispatched, so their `Role.TOOL` answers exist and their refusals are audited.
 
 `plan_round(calls) -> RoundPlan` (`tool_round.py`, ADR-0009 decision 13) is the pure per-round cap.
 A round at or under `MAX_CALLS_PER_ROUND` (16, half of `MAX_TOOL_DISPATCHES`) passes through; a

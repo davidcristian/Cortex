@@ -10,6 +10,7 @@ from cortex_core.guardrail import OutputFilter
 from cortex_core.loop_events import ReasoningDelta, StepOutcome, ToolStep
 from cortex_core.output_channels import ThinkingChannel
 from cortex_core.stops import StopLedger
+from cortex_core.tool_loop import MAX_TOOL_STEPS
 from cortex_core.tool_replay import runs_line
 from cortex_core.turn_context import TurnCapabilities
 from cortex_core.untrusted import TaintLedger
@@ -24,6 +25,12 @@ REPLY_CAPPED_NOTE = (
     "\n\n(This answer stopped at the machine's length limit, so it is cut off rather than "
     "finished. Ask again, or ask for a shorter answer.)"
 )
+
+ROUNDS_SPENT_NOTE = (
+    "\n\n(I stopped after {rounds} rounds of tool calls, the most one answer may use, and did not "
+    "reply to what the last calls returned. {runs} Ask again to continue.)"
+)
+NO_TOOL_RAN = "No tool ran."
 
 UNREADABLE_CALL_NOTE = (
     "\n\n(I tried to use a tool and wrote the request in a way I could not read back, so nothing "
@@ -43,6 +50,26 @@ def cap_note(stops: StopLedger, parts: list[str]) -> Iterator[TurnEvent]:
         return
     parts.append(REPLY_CAPPED_NOTE)
     yield TextDelta(text=REPLY_CAPPED_NOTE)
+
+
+def rounds_note(
+    stops: StopLedger, runs: Sequence[ToolRun], parts: list[str]
+) -> Iterator[TurnEvent]:
+    """Say so when the tool loop ran out of rounds, naming each tool the turn ran."""
+    if not stops.out_of_rounds:
+        return
+    listed = f"{runs_line(runs)}." if runs else NO_TOOL_RAN
+    note = ROUNDS_SPENT_NOTE.format(rounds=MAX_TOOL_STEPS, runs=listed)
+    parts.append(note)
+    yield TextDelta(text=note)
+
+
+def limit_notes(
+    stops: StopLedger, runs: Sequence[ToolRun], parts: list[str]
+) -> Iterator[TurnEvent]:
+    """The notes a turn that ended without an error closes with, in the order it shows them."""
+    yield from cap_note(stops, parts)
+    yield from rounds_note(stops, runs, parts)
 
 
 def unreadable_call_note(stops: StopLedger, parts: list[str]) -> Iterator[TurnEvent]:

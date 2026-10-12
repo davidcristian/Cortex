@@ -833,9 +833,75 @@ async def test_tool_loop_stops_at_the_step_bound() -> None:
     events = await _collect(engine.handle_turn("s", "go", turn_id="t-1"))
     completed = events[-1]
     assert isinstance(completed, TurnCompleted)
-    assert completed.full_text == ""
+    assert completed.full_text.startswith("\n\n(I stopped after 8 rounds of tool calls")
+    assert "Tools run: noop (succeeded), noop (succeeded). Ask again" in completed.full_text
     assert backend.calls == MAX_TOOL_STEPS
     assert len(sink.records) == MAX_TOOL_STEPS
+
+
+_SPENT_REPLY = (
+    "\n\n(I stopped after 8 rounds of tool calls, the most one answer may use, and did not reply "
+    "to what the last calls returned. Tools run: "
+    + ", ".join(["read (succeeded)"] * 8)
+    + ". Ask again to continue.)"
+)
+
+
+async def test_a_turn_that_spends_every_round_keeps_the_note_it_showed() -> None:
+    store = InMemorySessionStore()
+    recaller = MemoryRecaller(InMemoryMemoryStore(), HashEmbedder(), SystemClock())
+    rounds = [
+        [ToolCall(id=f"c{n}", name="read", arguments={"path": f"/n{n}"})]
+        for n in range(MAX_TOOL_STEPS)
+    ]
+    engine = TurnEngine(
+        store,
+        ScriptedToolBackend(rounds),
+        TickingClock(),
+        capabilities=TurnCapabilities(
+            tools=_read_dispatcher(RecordingAuditSink()),
+            memory=recaller,
+            record_tainted_memory=True,
+        ),
+    )
+    events = await _collect(engine.handle_turn("s", "go", turn_id="t-1"))
+    shown = "".join(event.text for event in events if isinstance(event, TextDelta))
+    assert shown == _SPENT_REPLY
+    assert events[-1] == TurnCompleted(turn_id="t-1", full_text=_SPENT_REPLY)
+    assert (await store.history("s"))[-1].text == _SPENT_REPLY
+    (hit,) = await recaller.recall("go", k=1, session_id="s", turn_id="t")
+    runs = ", ".join(["read (succeeded)"] * 8)
+    assert hit.record.text == f"User: go\nTools run: {runs}\nAssistant: {_SPENT_REPLY}"
+
+
+async def test_a_turn_whose_every_call_was_refused_says_no_tool_ran() -> None:
+    sink = RecordingAuditSink()
+    engine = TurnEngine(
+        InMemorySessionStore(),
+        AlwaysCallsBackend(),
+        TickingClock(),
+        capabilities=TurnCapabilities(tools=_read_dispatcher(sink)),
+    )
+    events = await _collect(engine.handle_turn("s", "go", turn_id="t-1"))
+    completed = events[-1]
+    assert isinstance(completed, TurnCompleted)
+    assert completed.full_text.endswith("calls returned. No tool ran. Ask again to continue.)")
+    assert len(sink.records) == MAX_TOOL_STEPS
+
+
+async def test_a_turn_that_answers_in_its_last_round_gets_no_rounds_note() -> None:
+    rounds: list[list[InferenceEvent]] = [
+        [ToolCall(id=f"c{n}", name="read", arguments={"path": f"/n{n}"})]
+        for n in range(MAX_TOOL_STEPS - 1)
+    ]
+    engine = TurnEngine(
+        InMemorySessionStore(),
+        ScriptedToolBackend([*rounds, [TextChunk("all read")]]),
+        TickingClock(),
+        capabilities=TurnCapabilities(tools=_read_dispatcher(RecordingAuditSink())),
+    )
+    events = await _collect(engine.handle_turn("s", "go", turn_id="t-1"))
+    assert events[-1] == TurnCompleted(turn_id="t-1", full_text="all read")
 
 
 async def test_tool_step_summary_derives_from_the_spec_never_the_model() -> None:

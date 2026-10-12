@@ -31,6 +31,12 @@ def _reply_text(
     return event.text
 
 
+def _report_round_limit(context: ToolLoopContext) -> None:
+    """Tell the loop's ledger, when it has one, that its last round still ended in tool calls."""
+    if context.stops is not None:
+        context.stops.observe_round_limit()
+
+
 async def stream_tool_loop(
     backend: InferenceBackend,
     model: str,
@@ -80,3 +86,5 @@ async def stream_tool_loop(
                 yield event
         finally:
             await round_events.aclose()
+    else:
+        _report_round_limit(context)

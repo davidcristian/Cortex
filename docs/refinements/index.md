@@ -72,8 +72,8 @@ never a reading of what the tree does now.
 - **[R-073](tasks/073-fence-without-block-recall.md)** Fence-without-block recall mode (untrusted-content). Its claim was checked against the code on 2026-10-10.
 - **[R-834](tasks/834-a-reply-claims-a-task-it-never-tried-to-schedule.md)** A reply claims a task it never tried to schedule (scheduling). Its claim was checked against the code on 2026-10-10.
 - **[R-837](tasks/837-a-cancel-of-a-scheduled-item-needs-no-confirmation.md)** A cancel of a scheduled item needs no confirmation (scheduling). Its claim was checked against the code on 2026-10-12.
-- **[R-840](tasks/840-a-turn-that-spends-every-tool-round-ends-with-no-reply.md)** A turn that spends every tool round ends with no reply (tools-mcp). Its claim was checked against the code on 2026-10-12.
 - **[R-841](tasks/841-a-repeated-reminder-request-stores-another-copy.md)** A repeated reminder request stores another copy (scheduling). Its claim was checked against the code on 2026-10-12.
+- **[R-843](tasks/843-a-subagent-that-spends-every-tool-round-answers-empty.md)** A subagent that spends every tool round answers empty (subagents). Its claim was checked against the code on 2026-10-12.
 
 ### Actionable, once a port changes (1)
 
@@ -881,7 +881,7 @@ never a reading of what the tree does now.
 
 ### subagents
 
-12 open of 48.
+13 open of 49.
 
 - [R-120](tasks/120-progress-reporting.md) Subagent progress reporting over the `Converse` status stream. done 2026-07-16.
 - [R-121](tasks/121-richer-spawn-schema.md) Richer `spawn_subagents` object schema. done 2026-07-03.
@@ -931,10 +931,11 @@ never a reading of what the tree does now.
 - [R-748](tasks/748-a-role-sentence-is-unmeasured-against-the-envelope-readings.md) A role sentence is unmeasured against the envelope readings. done 2026-09-29.
 - [R-749](tasks/749-the-cortex-uptake-of-the-role-property-is-unmeasured.md) The cortex uptake of the role property is unmeasured. done 2026-09-29.
 - [R-760](tasks/760-the-reworded-precis-sentence-reads-below-the-plain-summary.md) The reworded precis sentence reads below the plain summary. done 2026-10-01.
+- [R-843](tasks/843-a-subagent-that-spends-every-tool-round-answers-empty.md) A subagent that spends every tool round answers empty. open, actionable.
 
 ### tools-mcp
 
-6 open of 30.
+5 open of 29.
 
 - [R-036](tasks/036-dispatch-half-rate-policy.md) The dispatch half of the rate policy. done 2026-07-14.
 - [R-037](tasks/037-per-tool-cost-half.md) The per-tool cost half of the budget. done 2026-07-14.
@@ -965,7 +966,6 @@ never a reading of what the tree does now.
 - [R-591](tasks/591-an-ok-audit-line-records-a-size-where-the-correction-is.md) An ok audit line records a size where the correction is. done 2026-09-12.
 - [R-609](tasks/609-a-declared-mime-type-can-disagree-with-the-bytes-it-labels.md) A declared mime type can disagree with the bytes it labels. open, waiting for its trigger.
 - [R-651](tasks/651-the-corrected-answer-reading-is-in-the-contract-and-not-the-runbook.md) The corrected-answer reading is in the contract and not in the runbook. done 2026-09-17.
-- [R-840](tasks/840-a-turn-that-spends-every-tool-round-ends-with-no-reply.md) A turn that spends every tool round ends with no reply. open, actionable.
 
 ### untrusted-content
 

@@ -57,6 +57,7 @@ from cortex_core.brain_phase import SPILLED_LOG_MSG, BrainPhase
 from cortex_core.handoff_view import HANDOFF_TAKEN_MSG
 from cortex_core.memory import MemoryRecord
 from cortex_core.recall import MemoryRecaller
+from cortex_core.tool_loop import MAX_TOOL_STEPS
 
 _AT = datetime(2026, 7, 25, 12, 0, tzinfo=UTC)
 
@@ -310,6 +311,28 @@ async def test_the_deep_phases_memory_names_the_tool_runs_it_made() -> None:
     await _drive(capabilities=caps, backend=backend)
     (record,) = await _recorded(memory)
     assert record.text == f"User: {harness.USER_TEXT}\nTools run: read (succeeded)\nAssistant: done"
+
+
+async def test_a_deep_phase_that_spends_every_round_keeps_the_note_it_showed() -> None:
+    memory = _recaller()
+    dispatcher = ToolDispatcher(_registry(), RecordingAuditSink(), SystemClock())
+    calls = tuple(
+        ToolCall(id=f"c{n}", name="read", arguments={"n": n}) for n in range(MAX_TOOL_STEPS)
+    )
+    caps = TurnCapabilities(memory=memory, tools=dispatcher, record_tainted_memory=True)
+    _phase, backend, sessions, deltas = await _drive(
+        capabilities=caps, backend=ScriptedBrainBackend(chunks=(), tool_calls=calls)
+    )
+    shown = "".join(deltas)
+    runs = ", ".join(["read (succeeded)"] * 8)
+    assert shown == (
+        "\n\n(I stopped after 8 rounds of tool calls, the most one answer may use, and did not "
+        f"reply to what the last calls returned. Tools run: {runs}. Ask again to continue.)"
+    )
+    assert backend.calls == MAX_TOOL_STEPS
+    assert (await sessions.history(harness.SESSION))[-1].text == shown
+    (record,) = await _recorded(memory)
+    assert record.text == f"User: {harness.USER_TEXT}\nTools run: {runs}\nAssistant: {shown}"
 
 
 async def test_the_query_is_recovered_from_the_store_for_recall_and_memory() -> None:

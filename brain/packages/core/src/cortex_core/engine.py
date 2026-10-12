@@ -24,8 +24,8 @@ from cortex_core.tool_loop import ToolLoopContext, stream_tool_loop
 from cortex_core.tool_replay import RunLog
 from cortex_core.turn_context import TurnCapabilities, assemble_inference_messages
 from cortex_core.turn_output import (
-    cap_note,
     flush_channels,
+    limit_notes,
     overflow_note,
     record_exchange,
     stream_turn_events,
@@ -139,7 +139,7 @@ class TurnEngine:
         # After the channels flush and before the text is joined, so the note comes under the
         # whole reply and what is saved is what was shown.
         if not overflowed:
-            for event in cap_note(stops, parts):
+            for event in limit_notes(stops, log.runs, parts):
                 yield event
         full_text = "".join(parts)
         assistant = Message(
