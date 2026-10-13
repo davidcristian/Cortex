@@ -48,6 +48,14 @@ business logic and no state beyond the injected pool (the one hard rule).
   answers; the store keeps a reference until the task ends and reads its error then. The call
   raises `TimeoutError`, an `OSError`, so it fails as `MemoryStoreError` like a stopped server
   ([readings](../readings/store-and-sidecar-outages.md#the-bound-on-the-store)).
+- **A statement past the bound is cancelled, not undone.** Postgres cancels it or runs it,
+  whichever of the statement and the cancel request reaches the server first, so on a server that
+  is slow rather than frozen a write logged as `memory write unavailable` can still be stored
+  ([readings](../readings/store-and-sidecar-outages.md#the-bound-on-the-store)). Each write is one
+  autocommit `INSERT` under a fresh id that nothing retries, so no duplicate row and no open
+  transaction follow. Until the cancel request is answered the statement keeps its connection out
+  of the pool, so a freeze holds at most the pool's 10 connections, and a later statement that
+  waits for one fails at the same bound.
 
 `Database` is the `Protocol` the store talks to (`execute`, `fetch`, `close`). An asyncpg pool
 satisfies it in production and in the live test; a canned-row fake satisfies it in CI.

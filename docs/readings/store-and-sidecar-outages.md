@@ -57,6 +57,12 @@ during the freeze behaved the same. Unfrozen, the next turn recalled with no err
 no `Task exception was never retrieved` line appeared. SM clock 0.62 of `clocks.max.sm` after the
 run.
 
+**2026-10-13, the write left behind.** One turn with Postgres paused right after a warm turn, so the
+pool's connections were open: the status line came at 10.2 s, the turn completed at 24.4 s, and
+the brain logged `memory write unavailable`. Three seconds after the unpause the turn's exchange
+was not in `memories` and `pg_stat_activity` showed no connection idle in a transaction, so the
+cancel took effect in this turn and the `INSERT` did not. SM clock 0.59 of `clocks.max.sm`.
+
 ## The embedding server
 
 - **Killed between turns.** The status line showed 1.1 s into the turn, the reply came, and both
