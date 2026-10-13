@@ -69,8 +69,8 @@ never a reading of what the tree does now.
 
 ### Actionable now (2)
 
-- **[R-849](tasks/849-a-hung-memory-write-holds-the-turn-open.md)** A hung memory write holds the turn open (memory). Its claim was checked against the code on 2026-10-13.
 - **[R-850](tasks/850-one-down-sidecar-fails-every-turn.md)** One down sidecar fails every turn (tools-mcp). Its claim was checked against the code on 2026-10-13.
+- **[R-852](tasks/852-a-frozen-embedder-holds-a-turns-first-event.md)** A frozen embedder holds a turn's first event for 30 s (memory). Its claim was checked against the code on 2026-10-13.
 
 ### Actionable, once a port changes (2)
 
@@ -542,7 +542,7 @@ never a reading of what the tree does now.
 - [R-729](tasks/729-the-two-trail-files-each-hold-their-own-append.md) The two trail files each hold their own append. open, waiting for its trigger.
 - [R-740](tasks/740-the-recall-judge-and-the-recap-are-unmeasured-on-the-qwen-deep-candidates.md) The recall judge and the recap are unmeasured on the Qwen deep candidates. done 2026-09-28.
 - [R-836](tasks/836-a-recalled-exchange-is-claimed-again-with-no-call.md) A recalled exchange is claimed again with no call. done 2026-10-12.
-- [R-849](tasks/849-a-hung-memory-write-holds-the-turn-open.md) A hung memory write holds the turn open. open, actionable.
+- [R-852](tasks/852-a-frozen-embedder-holds-a-turns-first-event.md) A frozen embedder holds a turn's first event for 30 s. open, actionable.
 
 ### orchestrator
 

@@ -48,7 +48,12 @@ from cortex_core.summarizing import (
     RECAP_PROGRESS_STATE,
     SummarizingHistoryWindow,
 )
-from cortex_core.turn_context import FORGOING_DETAIL, FORGOING_STATE, TurnCapabilities
+from cortex_core.turn_context import (
+    FORGOING_DETAIL,
+    FORGOING_STATE,
+    MEMORY_WRITE_TIMEOUT_S,
+    TurnCapabilities,
+)
 from cortex_core.turn_output import (
     CONTEXT_OVERFLOW_NOTE,
     REPLY_CAPPED_NOTE,
@@ -102,6 +107,7 @@ __all__ = [
     "FORGOING_STATE",
     "GENERATING",
     "MAX_BRIEF_CHARS",
+    "MEMORY_WRITE_TIMEOUT_S",
     "PLAIN_SECURITY_PREAMBLE",
     "QUEUED",
     "RECALL_DENIED_MSG",

@@ -69,10 +69,22 @@ run.
   failed, and the person saw nothing.
 - **Frozen during a turn** (`docker pause`): the first event the turn sent was a heartbeat with no
   wait at 30.0 s, then the status line, when the 30 s embedder timeout ended the recall. The reply
-  then streamed, and the turn completed only at 67.6 s, because the write waits the same 30 s
-  before `TurnCompleted` is sent. Through that second wait the reply is complete on screen and the
-  composer still shows the stop button. Filed as
-  [R-849](../refinements/tasks/849-a-hung-memory-write-holds-the-turn-open.md).
+  then streamed, and the turn completed 10.0 s after its last text, at 44.3 s, when the write's
+  bound below ended it; the brain logged `memory write unavailable` over a `TimeoutError`. Unpaused,
+  the next turn completed 0.1 s after its last text and its exchange was stored. SM clock 0.59 of
+  `clocks.max.sm` after the run.
+
+## The bound on the write
+
+`record_exchange` bounds the whole write, the embedding and the insert, at
+`MEMORY_WRITE_TIMEOUT_S` (10 s). Without it the write waited the embedder's whole 30 s timeout
+after the reply was on screen, with the composer still showing the stop button, and the turn above
+completed at 67.6 s. The bound rests on the time to embed one exchange, an input of 1,800
+characters, the most `embedding_input` passes: 20 requests to the CPU `llama-embed` from the host,
+first on an idle machine and then with twice as many busy loops as cores. Busy, the median took 11
+times the idle median and the slowest 13 times; the bound is 36 times the idle median and 2.8 times
+the slowest busy request. Method: 20 timed POSTs of one 1,800 character text to `/v1/embeddings`
+on port 8081 from the host, the load from `yes` processes.
 
 ## The filesystem sidecar
 

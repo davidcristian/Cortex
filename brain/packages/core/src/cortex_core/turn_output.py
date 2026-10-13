@@ -1,5 +1,6 @@
 """What a turn does with the text it produced: surface it, flush it, remember it."""
 
+import asyncio
 import logging
 from collections.abc import AsyncGenerator, Iterator, Sequence
 
@@ -172,10 +173,13 @@ async def record_exchange(
         return
     if caps.memory is not None and (not taint.tainted or caps.record_tainted_memory):
         try:
-            await caps.memory.record(
-                render_exchange(query, reply, runs), session_id=session_id, tainted=taint.tainted
-            )
-        except (EmbedderError, MemoryStoreError):
+            async with asyncio.timeout(caps.memory_write_timeout_s):
+                await caps.memory.record(
+                    render_exchange(query, reply, runs),
+                    session_id=session_id,
+                    tainted=taint.tainted,
+                )
+        except (EmbedderError, MemoryStoreError, TimeoutError):
             _logger.exception(
                 "memory write unavailable; this exchange was not recorded to memory",
                 extra={"session_id": session_id},

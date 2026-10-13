@@ -35,6 +35,10 @@ DEFAULT_RECALL_K = 5
 FORGOING_STATE = "forgoing"
 FORGOING_DETAIL = "memory is unavailable, so this turn is answered without earlier notes"
 
+# About three times the slowest exchange embedding measured with every core busy, so a frozen
+# embedder or store holds a finished reply's turn open this long and no longer.
+MEMORY_WRITE_TIMEOUT_S = 10.0
+
 
 @dataclass(frozen=True, slots=True)
 class TurnCapabilities:
@@ -51,6 +55,7 @@ class TurnCapabilities:
     bounds: GenerationBounds | None = None
     residency: ResidencyQueue | None = None
     sight: VisionProbe | None = None
+    memory_write_timeout_s: float = MEMORY_WRITE_TIMEOUT_S
 
 
 def _render_memory_context(hits: Sequence[ScoredMemory], *, nonce: str, taint: TaintLedger) -> str:

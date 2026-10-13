@@ -82,8 +82,9 @@ before it as calls with a fixed outcome text, after the window (`tool_replay.py`
   hit, is the block's first line, above the fenced header. After the reply it records the
   exchange, with a `Tools run` line naming the turn's runs when it made any, unless the turn read
   untrusted content. **Memory that cannot be reached costs the turn its notes and not the turn**
-  (ADR-0008 decision 12): `EmbedderError` and `MemoryStoreError` are caught on both halves and
-  nothing else is; a failed read logs a warning and one `StatusUpdate`, a failed write an error only.
+  (ADR-0008 decision 12): only `EmbedderError` and `MemoryStoreError` are caught; a failed read
+  logs a warning and one `StatusUpdate`, a failed write, or one past `memory_write_timeout_s`
+  (`MEMORY_WRITE_TIMEOUT_S`, 10 s, so a frozen embedder cannot hold a finished turn), an error only.
 - `record_tainted_memory` (ADR-0019) governs writing only: with it on, a tainted turn is stored
   with `tainted=True` instead of being dropped, and a stored tainted memory is fenced either way.
 - `tools` (a `ToolDispatcher`, ADR-0009) adds `SECURITY_PREAMBLE` and runs the shared tool loop
@@ -166,8 +167,7 @@ its last running or waiting turn, so the map holds only sessions with a turn in 
   `RECAP_MAX`. The last two are refusals rather than truncations, a cut account moving `covers`
   past turns its missing tail never reached.
 - `HistoryRecap(text, covers)` (`sessions.py`) is that cached account, `covers` being how many
-  messages from the start of the session it accounts for. It refuses a blank text or a `covers`
-  below one.
+  messages from the session's start it accounts for. It refuses a blank text or `covers` below one.
 
 ## Session listings and titles
 

@@ -170,7 +170,15 @@ and put embedding on the CPU so the GPU budget stays with the cortex
     privacy defect, and not in `MemoryRecaller`, which cannot know what its caller can do without.
     A store unreachable at startup still fails the brain's start. A store that accepts a connection
     and never answers is unavailable too: the adapter bounds each statement at 10 s, so a frozen
-    server costs a turn the bound rather than the whole freeze.
+    server costs a turn the bound rather than the whole freeze. The whole write, the embedding and
+    the insert, is bounded at `MEMORY_WRITE_TIMEOUT_S` (10 s) in `record_exchange`, and an overrun
+    is logged as the same failed write. The write stays before `TurnCompleted`, inside the turn's
+    task and its session lock, because the body ends the `Converse` call at `turn_complete`, which
+    cancels the turn's task, so a write after it would be cut off on almost every turn, and a write
+    in a task of its own would keep the exchange only in the brain's process. The bound is about
+    three times the slowest exchange embedding measured with every core busy
+    ([readings](../readings/store-and-sidecar-outages.md#the-embedding-server)), while the
+    embedder's own 30 s timeout still bounds the recall.
 
 13. **A malformed row is a data defect, and it fails visibly.** The criterion is whether the
     condition resolves without anyone touching the deployment: a stopped server comes back, a row
