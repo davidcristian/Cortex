@@ -86,9 +86,37 @@ Two controls use the same system prompt and tools:
   task and measured again with B in place.
 - Any other result changes nothing, and the rows are recorded here.
 
+## The second rig
+
+The first rig's baseline did not reach the rule's 7 of 10 (see Results), so a second rig primes
+the loop further, with its own rule written before its baseline.
+
+- **State**: the first rig's state, with the probe row's first 25 reply lines as the prefill in
+  place of its first sentence, 237 words that end "Actually, I'll try `read_file` since
+  `read_text_file` gave "unknown tool" (which is weird because it's in the list)." No line in them
+  appears more than once, so a loop must still start in the draw.
+- **Rows**: 10 baseline rig draws, then, if the defect reproduces, 10 rig draws for candidate A.
+  Both controls are the first rig's, and their baseline is the one in Results; candidate A draws
+  its 20 control draws again.
+- **Classes and rule**: the first rig's, with one change: candidate B's bound is 400 words of
+  reply after the prefill, not counting it.
+
 ## Results
 
-None yet beyond the probe draws above.
+**2026-10-13, the first rig's baseline**, 30 draws on the current tree at the server's defaults.
+
+| Draws | Result |
+| --- | --- |
+| rig | 4 of 10 loop, each to the 1536 token limit, the most repeated line 20 to 83 times; the other 6 write 175 to 407 words of plan as reply text, the prefill included, and then call `read_text_file` |
+| tool call control | 10 of 10 pass |
+| format control | 10 of 10 pass, every line exact |
+
+4 of 10 is under the 7 the rule needs, so **the defect does not reproduce** on the first rig and
+neither candidate is judged on it. Read off the same draws for the record, candidate B would have
+stopped the 4 loops at 384, 430, 488 and 722 words of reply, counting the prefill, and stops none
+of the other 6 rig draws or any control draw. The control driver first kept the call names
+without their arguments, so the 10 tool call control draws above are a second draw that kept
+both. SM clock 0.63 of `clocks.max.sm` after the phase.
 
 Method: the capture and replay drivers in the run's scratch directory, against the test stack's
 cortex server on `127.0.0.1:8080`.

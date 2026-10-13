@@ -22,21 +22,21 @@ model wrote its plan as reply text, then repeated two lines of it.
 
 The probe row above, on the current tree under `CORTEX_TOOLS_ON_UNAVAILABLE=skip`, is 1 of the 7
 cut off reads drawn on 2026-10-13. A replay of its state at the engine, with its first reply
-sentence as an assistant prefill, loops in 3 of 3 probe draws: the rig in
-[reply loop](../../readings/reply-loop.md#the-rig).
+sentence as an assistant prefill, loops in 4 of 10 baseline draws, and a second rig primes the
+loop with the reply's first 25 lines: both in [reply loop](../../readings/reply-loop.md).
 
 ## What to do
 
-Draw the baseline and the two candidates under
-[the pass rule](../../readings/reply-loop.md#the-pass-rule), written before any baseline row: a
-DRY setting on the cortex tier (`--dry-multiplier 0.8`), and a check on the streamed reply that
-ends it at the third arrival of one line, with a note saying so.
-Ship whichever the rule names, behind the turn's existing note path for a check, or the model
+Draw the second rig's baseline and, if it reproduces, the two candidates under
+[the pass rule](../../readings/reply-loop.md#the-pass-rule): a DRY setting on the cortex tier
+(`--dry-multiplier 0.8`), and a check on the streamed reply that ends it at the third arrival of
+one line, with a note saying so. Ship whichever the rule names, behind the turn's existing note path for a check, or the model
 host's tier argv for a flag.
 
 ## History
 
 - 2026-10-13: filed from the probe row of R-851, whose reply looped to the length limit.
 - 2026-10-13: premise checked against the tree and the stack's cortex server: nothing ends a
-  repeating reply before the context window. Built a replay rig that loops 3 of 3, and wrote
-  its rows and pass rule into [reply loop](../../readings/reply-loop.md).
+  repeating reply before the context window. Wrote a replay rig's rows and pass rule into
+  [reply loop](../../readings/reply-loop.md); its baseline looped 4 of 10, under the rule's 7, so
+  neither candidate was judged, and a second rig with a longer prefill and its rule followed.
