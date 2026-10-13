@@ -16,8 +16,9 @@ at `skip`, the filesystem sidecar over a tools root holding `choir-rota.txt` (a 
 lines, `Week 1: Anna` to `Week 4: Dora`). Each row is one new session over `Converse` from the
 host. Memory rows that mention the rota or the sidecar are deleted before each row, so no row
 recalls another. A watcher pauses `mcp-filesystem` as soon as the brain logs the tool audit of a
-`list_directory` call, and kills it 8 s later, so the next file read is cut off; the sidecar is
-started again, and listening, before the next row.
+`list_directory` or `search_files` call, the two ways the model finds the file, and kills it 8 s
+later, so the next file read is cut off; the sidecar is started again, and listening, before the
+next row.
 
 ## The rows
 
@@ -65,6 +66,14 @@ tool or a repeated call, and wrote its plan into the reply: "I'm encountering er
 to read it. I'll try to read it again", then "Actually, I'll try `read_text_file` again." and
 "Actually, I'll try `read_file`." in turn until the reply, 3,764 words, stopped at the length
 limit 169 s into the turn.
+
+**2026-10-13, a first draw** of 5 rows with a watcher that waited for `list_directory` alone, so
+it is not the baseline either. In 4 rows the model found the file with `search_files`, the read
+was never cut off, and each replied "Bela sings in week 2." In the one row cut off, the model
+called `read_text_file` and `read_file` four times between them, each failing as an unknown tool
+or a repeated call, until the round limit ended the turn with its note naming the failed reads,
+22 s in. That reply neither names the tool server nor blames the file. SM clock 0.59 of
+`clocks.max.sm` after the draw.
 
 Method: the drivers in the run's scratch directory, `docker logs` of the brain for the tool audit,
 and the replies read against the classes above.
