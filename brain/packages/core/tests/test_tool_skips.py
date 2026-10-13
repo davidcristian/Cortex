@@ -4,6 +4,9 @@ from typing import Any
 from cortex_core import (
     FORGOING_STATE,
     AggregateToolRegistry,
+    ConfirmFreeToolRegistry,
+    ConfirmRequiredToolRegistry,
+    DispatchPolicy,
     GenerationBounds,
     InferenceEvent,
     InMemorySessionStore,
@@ -193,3 +196,40 @@ async def test_a_routing_walk_after_the_listing_adds_no_status() -> None:
 
     assert result.content == "done"
     assert len(progress.events) == 1
+
+
+class FlappingRegistry:
+    """A sidecar whose first listing fails and whose later ones answer, as a restarting one does."""
+
+    def __init__(self) -> None:
+        self.listings = 0
+        self.sent: list[ToolCall] = []
+
+    async def describe_tools(self) -> Sequence[ToolSpec]:
+        self.listings += 1
+        if self.listings == 1:
+            msg = "MCP sidecar unavailable"
+            raise ToolError(msg)
+        return (ToolSpec(name="send_email", description="", parameters={}),)
+
+    async def invoke(self, call: ToolCall) -> ToolResult:
+        self.sent.append(call)
+        return ToolResult(call_id=call.id, content="sent")
+
+
+async def test_a_subagent_cannot_send_through_a_sidecar_its_strip_found_down() -> None:
+    sidecar = FlappingRegistry()
+    root = ConfirmRequiredToolRegistry(
+        AggregateToolRegistry([_skip(sidecar, "email"), _healthy("read")]), names=("send_email",)
+    )
+    dispatcher = ToolDispatcher(
+        ConfirmFreeToolRegistry(root),
+        RecordingAuditSink(),
+        SystemClock(),
+        policy=DispatchPolicy(confirm_names=("send_email",)),
+    )
+
+    result = await dispatcher.dispatch(ToolCall(id="c1", name="send_email", arguments={}))
+
+    assert result.is_error
+    assert sidecar.sent == []
