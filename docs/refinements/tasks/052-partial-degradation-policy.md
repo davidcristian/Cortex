@@ -6,3 +6,8 @@
 
 A skip-and-report mode for the aggregate registry (ADR-0009 decision 8), as
 `SkipUnavailableToolRegistry` plus `CORTEX_TOOLS_ON_UNAVAILABLE=skip`, with `fail` as the default.
+
+## History
+
+- 2026-10-13: `skip` became the default, since one stopped sidecar failed every turn before
+  inference, including a plain question (ADR-0009 decision 8).
