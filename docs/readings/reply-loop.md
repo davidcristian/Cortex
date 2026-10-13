@@ -101,6 +101,22 @@ the loop further, with its own rule written before its baseline.
 - **Classes and rule**: the first rig's, with one change: candidate B's bound is 400 words of
   reply after the prefill, not counting it.
 
+## The third rule
+
+Both rigs loop in about half of their draws once the plan is in the reply, under the 7 of 10 the
+first rule needs, so this rule is sized for that rate. It uses the second rig and its controls,
+and judges only draws made after it was written.
+
+- **Baseline**: 20 rig draws at the server's defaults. **The defect reproduces** when at least 6
+  of the 20 loop; otherwise neither candidate is judged.
+- **Candidate A ships** when at most 1 of its 20 rig draws loops, all 10 of its tool call control
+  draws pass and at least 9 of its 10 format control draws pass.
+- **Candidate B ships** when, read off the baseline draws, it stops every looping draw but at most
+  one before the draw's 1536 token limit, and stops no draw that does not loop and no control
+  draw. The person then reads at most what one draw holds, about a seventh of what the context
+  window allows.
+- When both pass, candidate B ships and candidate A is filed as its own task, as in the first rule.
+
 ## Results
 
 **2026-10-13, the first rig's baseline**, 30 draws on the current tree at the server's defaults.
@@ -117,6 +133,13 @@ stopped the 4 loops at 384, 430, 488 and 722 words of reply, counting the prefil
 of the other 6 rig draws or any control draw. The control driver first kept the call names
 without their arguments, so the 10 tool call control draws above are a second draw that kept
 both. SM clock 0.63 of `clocks.max.sm` after the phase.
+
+**2026-10-13, the second rig's baseline**, 10 draws: 5 of 10 loop, each to the 1536 token limit,
+the most repeated line 26 to 44 times; the other 5 add 17 to 45 words of plan and then call
+`read_text_file`. 5 of 10 is under 7, so **the defect does not reproduce** under the first rule and
+neither candidate is judged. For the record, candidate B would have stopped the 5 loops at 338 to
+444 words after the prefill, 1 of them within the 400 the first rule asks for, because the loop's
+wording drifts for a few lines before one line settles. SM clock 0.62 of `clocks.max.sm`.
 
 Method: the capture and replay drivers in the run's scratch directory, against the test stack's
 cortex server on `127.0.0.1:8080`.
