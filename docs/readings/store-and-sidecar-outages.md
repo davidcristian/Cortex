@@ -72,7 +72,9 @@ run.
   then streamed, and the turn completed 10.0 s after its last text, at 44.3 s, when the write's
   bound below ended it; the brain logged `memory write unavailable` over a `TimeoutError`. Unpaused,
   the next turn completed 0.1 s after its last text and its exchange was stored. SM clock 0.59 of
-  `clocks.max.sm` after the run.
+  `clocks.max.sm` after the run. In the shell, with one frame a second, the reply's last words
+  stayed faded under the streaming front and the composer showed the stop button for 10 frames
+  after the reply appeared; the full text and the send arrow came together.
 
 ## The bound on the write
 
