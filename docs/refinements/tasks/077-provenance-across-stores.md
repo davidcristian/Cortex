@@ -11,7 +11,7 @@ sources the turn read, so a consumer of either one cannot tell where the content
 
 What already exists:
 
-- `HandoffRecord` stores the whole `TaintLedger` (`tainted`, `opaque`, `sources`,
+- `HandoffRecord` stores the whole `TaintLedger` (`tainted`, `opaque`, `recalled_only`, `sources`,
   `untrusted_urls`) under the escalating turn's id, and `taint_ledger()` rebuilds it after a
   model swap. The round trip is checked in
   `brain/packages/session/tests/handoff_contract.py`. A settled record expires after an hour.
