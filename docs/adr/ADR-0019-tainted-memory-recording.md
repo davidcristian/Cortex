@@ -84,7 +84,9 @@ across turns (a recalled memory).
    (`ingest_untrusted(..., recalled=True)`); a live untrusted result or an attachment clears it, and
    a subagent's ledger, built with `tainted=True`, starts with it clear. A handoff record stores it
    with the rest of the ledger, so the deep phase checks a task and words a block as the cortex
-   phase would have. The
+   phase would have. No such record forms today, because a recall-tainted turn's
+   `escalate_to_brain` call is blocked
+   ([readings](../readings/recall-tainted-task.md#a-recall-tainted-turn-asked-to-hand-off)). The
    `TurnStamp` has it too, and its `live_taint` is `tainted and not recalled_only`. Only two checks
    read `live_taint`: `schedule_task` refusing a task and `edit_scheduled` refusing to edit one
    ([ADR-0025](ADR-0025-scheduling-reminders.md) decisions 3 and 9). Every other effect of the taint
