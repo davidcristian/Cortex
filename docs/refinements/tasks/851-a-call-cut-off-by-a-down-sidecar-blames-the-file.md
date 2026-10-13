@@ -22,11 +22,15 @@ seconds later.
 
 ## What to do
 
-Write rows and a pass rule first, since the result text is what the model reads: for example a
-typed result naming the tool server that stopped, or the same `forgoing` status sent when a call
-fails as unavailable. Then compare the replies against the current text.
+The rows, the candidate text and the pass rule are written in
+[tool-call-cut-off.md](../../readings/tool-call-cut-off.md): run the 5 baseline rows, then, if the
+defect reproduces, build the candidate (a typed error from the registry adapter that the skip
+wrapper turns into the text written there) and run its 5 rows. Ship it only on a pass. A
+`forgoing` status naming the server when such a call fails is decided apart from the rows.
 
 ## History
 
 - 2026-10-13: filed when the down-sidecar listing was changed to answer the turn without the
   sidecar's tools; this half, the call already running, was left as it is.
+- 2026-10-13: wrote the rows, the candidate's text and the pass rule into the readings before
+  any row was drawn; the rows are not run yet.
