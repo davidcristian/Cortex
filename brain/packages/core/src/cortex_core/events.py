@@ -2,6 +2,9 @@
 
 from dataclasses import dataclass
 
+# The status a turn sends when it is answered without something it should have had.
+FORGOING_STATE = "forgoing"
+
 
 @dataclass(frozen=True, slots=True)
 class TextDelta:

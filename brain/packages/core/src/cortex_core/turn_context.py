@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from cortex_core.conversation import Message, Role
 from cortex_core.dispatch import ToolDispatcher
 from cortex_core.errors import EmbedderError, MemoryDataError, MemoryStoreError
-from cortex_core.events import StatusUpdate
+from cortex_core.events import FORGOING_STATE, StatusUpdate
 from cortex_core.guardrail import OutputGuardrail
 from cortex_core.handoff import EscalationSlot
 from cortex_core.inference import GenerationBounds
@@ -32,7 +32,6 @@ _logger = logging.getLogger(__name__)
 
 DEFAULT_RECALL_K = 5
 
-FORGOING_STATE = "forgoing"
 FORGOING_DETAIL = "memory is unavailable, so this turn is answered without earlier notes"
 
 # About three times the slowest exchange embedding measured with every core busy, so a frozen

@@ -69,7 +69,7 @@ never a reading of what the tree does now.
 
 ### Actionable now (2)
 
-- **[R-850](tasks/850-one-down-sidecar-fails-every-turn.md)** One down sidecar fails every turn (tools-mcp). Its claim was checked against the code on 2026-10-13.
+- **[R-851](tasks/851-a-call-cut-off-by-a-down-sidecar-blames-the-file.md)** A call cut off by a down sidecar blames the file (tools-mcp). Its claim was checked against the code on 2026-10-13.
 - **[R-852](tasks/852-a-frozen-embedder-holds-a-turns-first-event.md)** A frozen embedder holds a turn's first event for 30 s (memory). Its claim was checked against the code on 2026-10-13.
 
 ### Actionable, once a port changes (2)
@@ -963,7 +963,7 @@ never a reading of what the tree does now.
 - [R-591](tasks/591-an-ok-audit-line-records-a-size-where-the-correction-is.md) An ok audit line records a size where the correction is. done 2026-09-12.
 - [R-609](tasks/609-a-declared-mime-type-can-disagree-with-the-bytes-it-labels.md) A declared mime type can disagree with the bytes it labels. open, waiting for its trigger.
 - [R-651](tasks/651-the-corrected-answer-reading-is-in-the-contract-and-not-the-runbook.md) The corrected-answer reading is in the contract and not in the runbook. done 2026-09-17.
-- [R-850](tasks/850-one-down-sidecar-fails-every-turn.md) One down sidecar fails every turn. open, actionable.
+- [R-851](tasks/851-a-call-cut-off-by-a-down-sidecar-blames-the-file.md) A call cut off by a down sidecar blames the file. open, actionable.
 
 ### untrusted-content
 

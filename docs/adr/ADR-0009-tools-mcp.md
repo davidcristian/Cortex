@@ -11,12 +11,11 @@ audited, and every later tool goes through the same audited path, to MCP servers
 Two existing interfaces frame this. The cortex talks to models through `InferenceBackend`
 ([ADR-0005](ADR-0005-llamacpp-engine.md), [ADR-0007](ADR-0007-model-manager-inference.md)), and for
 a model to call a tool it has to be able to decide to, which a text-only `stream()` cannot express.
-And the user reads mail through ProtonMail, so a local ProtonMail Bridge exposing IMAP on the host
-is the concrete target for the email tool.
+The user reads mail through ProtonMail, so a local ProtonMail Bridge exposing IMAP on the host is
+the email tool's target.
 
-A model that can call tools can also call them too often, call the same one repeatedly, or wait on
-a sidecar that never replies. The limits below exist because each of those was possible in the code
-before it was closed off.
+A model that can call tools can also call them too often, repeat one call, or wait on a sidecar
+that never replies, so each of those has a limit below.
 
 ## Decision
 
@@ -74,14 +73,19 @@ before it was closed off.
 8. **Several sidecars compose through port-preserving combinators in the core.**
    `CORTEX_TOOLS_ENDPOINTS__<name>` declares an endpoint and `CORTEX_TOOLS_ALLOW__<name>` an
    optional JSON allowlist; the singular `CORTEX_TOOLS_ENDPOINT` is still valid alone, and setting
-   both forms, or an allowlist with no endpoint, fails at startup. `FilteredToolRegistry`
-   intersects the advertisement with the allowlist and refuses a name outside it, and only
-   restricts. `AggregateToolRegistry` lists registries in sorted endpoint-name order, keeps the
-   first of a duplicated name, and routes an invoke by a live listing walk rather than a cached
-   table, so a tool a sidecar dropped fails with `ToolNotFoundError`. A listing failure is a
-   visible `ToolError` under `CORTEX_TOOLS_ON_UNAVAILABLE=fail` (the default); under `skip`,
-   `SkipUnavailableToolRegistry` turns it into an empty advertisement plus a mandatory report,
-   logged as a warning on every walk, while an invoke still fails visibly.
+   both forms, or an allowlist with no endpoint, fails at startup. `FilteredToolRegistry` intersects
+   the advertisement with the allowlist and refuses a name outside it, and only restricts.
+   `AggregateToolRegistry` lists registries in sorted endpoint-name order, keeps the first of a
+   duplicated name, and routes an invoke by a live listing walk, not a cached table, so a tool a
+   sidecar dropped fails with `ToolNotFoundError`. **A sidecar that is down costs a turn its tools,
+   never the turn.** Under `CORTEX_TOOLS_ON_UNAVAILABLE=skip`, the default,
+   `SkipUnavailableToolRegistry` lists a failing sidecar as empty, logs a warning on every walk and
+   notes its name for the listing in progress (`tool_skips.py`), so the turn sends one
+   `StatusUpdate` in the state `forgoing` naming each tool server left out; an invoke still fails as
+   an `is_error` result. `fail` instead ends every turn before inference, as the [outage
+   readings](../readings/store-and-sidecar-outages.md#the-filesystem-sidecar) show. Skipping only
+   removes tools, and the allowlist, confirmation set and taint rules apply by name to what stays; a
+   name two sidecars advertise routes to the second while the first is down.
 9. **A fresh MCP session per call, opened and closed in one task.** `streamable_http_session(url)`
    opens the transport, session and `initialize` for one `async with`, and
    `ReconnectingMcpToolRegistry` opens one per `describe_tools` or `invoke`, mapping an open failure
@@ -92,8 +96,7 @@ before it was closed off.
    sidecar down at startup does not fail the build and a recovered one rejoins on the next call. A
    session pool is declined: one open costs a small fraction of a turn's time to first token
    ([readings](../readings/tool-sidecar-calls.md)), and a pool would need a close scope forwarded by
-   every combinator, a port change across the core. If the per-call child spawn ever matters, the
-   scope for a held session is one tool loop, which runs in one task.
+   every combinator, a port change across the core.
 10. **One call on a sidecar is time-limited, by a combinator.** `BoundedToolRegistry`
     (`tool_deadline.py`) limits both operations with `asyncio.timeout` and raises `ToolError` on an
     overrun. It wraps each remote registry innermost, directly around the reconnecting one and
@@ -211,8 +214,7 @@ before it was closed off.
 - One turn can make at most 32 priced dispatches however it fans out, at most 16 calls per round
   and at most two identical calls per loop; a declined action that needs confirmation prompts at
   most twice.
-- A stuck sidecar fails one call with a `ToolError` the model reads, and under `skip` drops out of
-  the advertisement; nothing waits forever on a sidecar.
+- Nothing waits forever on a sidecar, and one that is down drops out of a turn, which says so.
 - A per-call handshake is paid on every describe and invoke. A delegated dispatch walks the
   registry about twice as often as a cortex one, because `ConfirmFreeToolRegistry` re-lists to remove
   the names needing confirmation before it delegates.
@@ -238,13 +240,11 @@ before it was closed off.
 
 ## Related
 
-- Module contracts: [brain-tools](../modules/brain-tools.md),
-  [brain-core](../modules/brain-core.md), [brain-orchestrator](../modules/brain-orchestrator.md),
-  [brain-email](../modules/brain-email.md).
+- Module contracts: [brain-tools](../modules/brain-tools.md), [brain-core](../modules/brain-core.md),
+  [brain-orchestrator](../modules/brain-orchestrator.md), [brain-email](../modules/brain-email.md).
 - Runbooks: [tools-mcp](../runbooks/tools-mcp.md), [email-imap](../runbooks/email-imap.md).
 - Readings: [tool sidecar calls](../readings/tool-sidecar-calls.md).
-- [ADR-0013](ADR-0013-untrusted-content.md) (untrusted tool content, the block),
-  [ADR-0022](ADR-0022-email-write-confirmer.md) (the write confirmer),
-  [ADR-0045](ADR-0045-documented-log-lines.md) (the log-sample check and the audit's declared
-  names), [ADR-0046](ADR-0046-work-identities-on-log-lines.md) (work identities on log lines),
-  [ADR-0047](ADR-0047-delegated-run-bound-ordering.md) (ordering the limits on a delegated run).
+- [ADR-0013](ADR-0013-untrusted-content.md) (untrusted tool content, the block), [ADR-0022](ADR-0022-email-write-confirmer.md)
+  (the write confirmer), [ADR-0045](ADR-0045-documented-log-lines.md) (the log-sample check and
+  the audit's declared names), [ADR-0046](ADR-0046-work-identities-on-log-lines.md) (work identities
+  on log lines), [ADR-0047](ADR-0047-delegated-run-bound-ordering.md) (delegated run limits).

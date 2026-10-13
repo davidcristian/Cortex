@@ -198,12 +198,12 @@ docker compose --project-directory . -f docker/docker-compose.yml \
 ```
 
 One turn can then read a file and search the mailbox, and every call still flows through the same
-audited dispatcher. A sidecar that is down fails tool listing, and with it every turn, with the
-error event `internal: MCP sidecar unavailable` ([R-850](../refinements/tasks/850-one-down-sidecar-fails-every-turn.md)). To keep
-the healthy sidecars serving instead, set `CORTEX_TOOLS_ON_UNAVAILABLE=skip`: the dead sidecar's
-tools drop out of the advertisement and every walk logs a `tool sidecar unavailable` warning
-naming it. Sessions are opened per call, so skip mode covers a sidecar down at any time, including
-at boot, and a recovered sidecar rejoins on its next call with no brain restart.
+audited dispatcher. A sidecar that is down drops out of the advertisement while the healthy ones
+serve: the overlay shows the status `the filesystem tool server is not answering, so this turn is
+answered without its tools` and every walk logs a `tool sidecar unavailable` warning naming it.
+Sessions are opened per call, so this covers a sidecar down at any time, including at boot, and a
+recovered sidecar rejoins on its next call with no brain restart. `CORTEX_TOOLS_ON_UNAVAILABLE=fail`
+instead fails every turn while one sidecar is down, with the error `internal: MCP sidecar unavailable`.
 
 A sidecar that is down is refused at the dial. A sidecar that is hung, accepting the call and never
 answering, raises nothing at all, since the MCP session's own wait for a response is unbounded.

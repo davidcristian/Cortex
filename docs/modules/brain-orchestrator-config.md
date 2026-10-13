@@ -55,7 +55,8 @@ what follows is the prefix, the defaults other parts depend on, and the validati
   endpoints come either as the singular `CORTEX_TOOLS_ENDPOINT` or as per-sidecar
   `CORTEX_TOOLS_ENDPOINTS__<name>`, never mixed, with optional `CORTEX_TOOLS_ALLOW__<name>`
   allowlists that must each name a configured endpoint; `named_endpoints` sorts them so aggregate
-  precedence is deterministic. `on_unavailable` picks the dead-sidecar policy, `call_timeout_s =
+  precedence is deterministic. `on_unavailable` picks the dead-sidecar policy (`skip` by default,
+ADR-0009 decision 8), `call_timeout_s =
   DEFAULT_TOOL_CALL_TIMEOUT_S` (decision 10) bounds one sidecar call, and `audit_file`
   (decision 18) names a JSON-lines file every dispatcher also appends to. Four declarations travel
   together as `dispatch_policy`, so none can reach one dispatcher and miss another: `costs` (built

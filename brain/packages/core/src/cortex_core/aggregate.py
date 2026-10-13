@@ -5,6 +5,7 @@ from dataclasses import replace
 
 from cortex_core.errors import ToolError, ToolNotFoundError
 from cortex_core.ports import ToolRegistry
+from cortex_core.tool_skips import note_skipped
 from cortex_core.tools import ToolCall, ToolResult, ToolSpec
 
 
@@ -52,6 +53,7 @@ class SkipUnavailableToolRegistry:
             return await self._inner.describe_tools()
         except ToolError as err:
             self._report(self._name, err)
+            note_skipped(self._name)
             return ()
 
     async def invoke(self, call: ToolCall) -> ToolResult:

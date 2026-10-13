@@ -33,8 +33,7 @@ spawned subtask or a model swap is in [brain-core-residency.md](brain-core-resid
   `packages/tools/tests/registry_contract.py`: a listing is read at the call and never remembered,
   and a name an implementation does not serve never comes back as a success. Fake:
   `InMemoryToolRegistry`; real adapter: `cortex_tools`.
-- `ToolAuditSink` provides `record(invocation)`: every dispatched call is written here, success or
-  failure. Fake: `RecordingAuditSink`.
+- `ToolAuditSink` provides `record(invocation)` for every dispatched call. Fake: `RecordingAuditSink`.
 - `Confirmer` provides `confirm(request) -> ConfirmAnswer` (ADR-0013: `APPROVED`, `DECLINED` or
   `UNANSWERED`) over a `ConfirmationRequest(tool_name, arguments, reason)`: the user's decision,
   never the model's, and a missing confirmer is `UNANSWERED`. Real adapter: `RpcConfirmer` (ADR-0022).
@@ -126,8 +125,9 @@ Each is a `ToolRegistry` wrapping others, so the root builds a tool set the core
   duplicate name, and routes an invoke by a live `describe_tools` walk, so a tool dropped
   server-side mid-turn fails closed; a listing failure propagates as `ToolError`.
 - `SkipUnavailableToolRegistry(inner, *, name, report)` marks one registry optional: a listing
-  failure becomes an empty advertisement plus one required `report(name, error)` call, so a skip is
-  never silent, and only discovery is softened, `invoke` still failing loudly.
+  failure becomes an empty advertisement, a `report(name, error)` call and `note_skipped(name)`;
+  `invoke` still fails. The loop lists through `list_tools(lister, progress)` (`tool_skips.py`),
+  which sends one `forgoing` status, `skipped_detail(names)`, naming the servers left out.
 - `FilteredToolRegistry(inner, *, allow)` restricts the advertisement to an allowlist, refusing any
   other name as `ToolNotFoundError`. It only restricts and never grants.
 - `ConfirmRequiredToolRegistry(inner, *, names)` advertises the named tools as `confirm_required=True`

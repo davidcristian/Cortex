@@ -438,13 +438,13 @@ def test_tools_defaults_to_disabled() -> None:
     assert config.endpoints == {}
     assert config.allow == {}
     assert config.named_endpoints == {}
-    assert config.on_unavailable == "fail"
+    assert config.on_unavailable == "skip"
 
 
 @pytest.mark.usefixtures("clean_env")
-def test_tools_env_selects_the_skip_degraded_mode(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("CORTEX_TOOLS_ON_UNAVAILABLE", "skip")
-    assert ToolsConfig().on_unavailable == "skip"
+def test_tools_env_selects_the_failing_mode(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CORTEX_TOOLS_ON_UNAVAILABLE", "fail")
+    assert ToolsConfig().on_unavailable == "fail"
 
 
 @pytest.mark.usefixtures("clean_env")

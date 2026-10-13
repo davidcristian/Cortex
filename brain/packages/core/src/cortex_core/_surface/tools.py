@@ -47,6 +47,7 @@ from cortex_core.tool_salience import (
     RepeatSalience,
     SaliencePolicy,
 )
+from cortex_core.tool_skips import list_tools, skipped_detail
 from cortex_core.tools import (
     UNSTAMPED,
     ConfirmAnswer,
@@ -120,6 +121,8 @@ __all__ = [
     "TurnStamp",
     "VisionProbe",
     "call_message",
+    "list_tools",
     "plan_round",
     "result_message",
+    "skipped_detail",
 ]

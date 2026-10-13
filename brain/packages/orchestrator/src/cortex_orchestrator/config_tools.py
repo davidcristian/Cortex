@@ -40,7 +40,7 @@ class ToolsConfig(BaseSettings):
     endpoint: str = ""
     endpoints: dict[str, str] = {}
     allow: dict[str, tuple[str, ...]] = {}
-    on_unavailable: Literal["fail", "skip"] = "fail"
+    on_unavailable: Literal["fail", "skip"] = "skip"
     confirm_names: tuple[str, ...] = Field(
         default=ALWAYS_CONFIRMED, validation_alias="CORTEX_TOOLS_GATED"
     )

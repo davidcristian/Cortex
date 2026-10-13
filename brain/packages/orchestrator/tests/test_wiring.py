@@ -78,6 +78,7 @@ from cortex_core import (
     TextChunk,
     ToolCall,
     ToolDispatcher,
+    ToolError,
     ToolInvocation,
     ToolNotFoundError,
     ToolSpec,
@@ -716,6 +717,29 @@ async def test_build_tool_registry_skip_mode_serves_around_an_unavailable_sideca
     (record,) = caplog.records
     assert getattr(record, "sidecar", "") == "email"
     assert "MCP sidecar unavailable" in str(getattr(record, "error", ""))
+    await close()
+
+
+async def test_build_tool_registry_fail_mode_fails_the_listing_on_an_unavailable_sidecar(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fs_url = "http://mcp-filesystem:9000/mcp"
+    mail_url = "http://mcp-email:9100/mcp"
+    monkeypatch.setattr(
+        builders_module,
+        "streamable_http_session",
+        _fake_opener({fs_url: ["read_text_file"], mail_url: httpx.ConnectError("refused")}, []),
+    )
+    registry, close = build_tool_registry(
+        ToolsConfig(
+            backend="mcp",
+            endpoints={"filesystem": fs_url, "email": mail_url},
+            on_unavailable="fail",
+        )
+    )
+    assert registry is not None
+    with pytest.raises(ToolError, match="MCP sidecar unavailable"):
+        await registry.describe_tools()
     await close()
 
 

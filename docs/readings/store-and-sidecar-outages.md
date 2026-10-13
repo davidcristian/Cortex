@@ -8,9 +8,9 @@ are filed as tasks, linked where each is described.
 ## The rig
 
 **2026-10-13.** The GPU stack under its own compose project, gemma 12B as the cortex, the CPU
-`llama-embed`, pgvector, Redis and `mcp-filesystem`, with `CORTEX_MEMORY_SCOPE` and
-`CORTEX_TOOLS_ON_UNAVAILABLE` at their defaults (`global`, `fail`) and
-`CORTEX_MEMORY_RECALL_AUDIT=1`. The real Linux shell ran on `Xvfb` as the
+`llama-embed`, pgvector, Redis, `mcp-filesystem` and the email sidecar, with `CORTEX_MEMORY_SCOPE`
+at its default `global`, `CORTEX_TOOLS_ON_UNAVAILABLE` at `fail` and then at `skip` where a flow
+says so, and `CORTEX_MEMORY_RECALL_AUDIT=1`. The real Linux shell ran on `Xvfb` as the
 [overlay runbook](../runbooks/body-overlay.md#the-tauri-app-on-linux-headless) describes, driven by
 `xdotool`, with frames grabbed by `ffmpeg`. Some turns went over `Converse` from the host instead,
 recording every event with its time from the turn's start. A container was stopped with
@@ -88,13 +88,17 @@ on port 8081 from the host, the load from `yes` processes.
 
 ## The filesystem sidecar
 
-- **Killed between turns**, under the default `CORTEX_TOOLS_ON_UNAVAILABLE=fail`: every turn failed
-  before inference, including "What key is the Bach cello suite number six in?", which needs no
-  file. The overlay showed the error bubble `internal: MCP sidecar unavailable` beside a green link
-  dot, and the brain logged `unexpected failure handling a turn` over a `ToolError` raised by the
-  tool listing at the start of the turn. The [tools runbook](../runbooks/tools-mcp.md) said the
-  model sees an `is_error` result instead. Filed as
-  [R-850](../refinements/tasks/850-one-down-sidecar-fails-every-turn.md).
+- **Killed between turns, under `fail`**: every turn failed before inference, including "What key
+  is the Bach cello suite number six in?", which needs no file. The overlay showed the error bubble
+  `internal: MCP sidecar unavailable` beside a green link dot, and the brain logged `unexpected
+  failure handling a turn` over a `ToolError` raised by the tool listing at the start of the turn.
+- **Killed between turns, under `skip`**, the default: the same question was answered ("D major")
+  with the email tools still listed. The overlay's status chip read "the filesystem tool server is
+  not answering, so this turn is answ..." (the chip cuts the sentence) about 3 s into the turn, under
+  the question, until the reply came; the brain logged `tool sidecar unavailable; serving without
+  it` with `sidecar=filesystem` for each listing. Asked to read `choir-rota.txt`, the model replied
+  that it had no access to local files and named the email and reminder tools it had, with no file
+  content made up.
 - **Killed during a `read_text_file` call.** The sidecar was frozen after the model's
   `list_directory` call and killed 8 s later. The overlay showed "waiting for a tool to finish"
   under the `read_text_file` row for those 8 s; the call ended at the kill with `ok=False error="MCP
@@ -102,8 +106,9 @@ on port 8081 from the host, the load from `yes` processes.
   and replied that "the file `choir-rota.txt` appears to be unavailable or inaccessible as the
   content returned is "MCP sidecar unavailable"". The reply blames the file and quotes the error.
 - **Started again**: the container reports `Up` while it is still running `npm install`, and it
-  listened 3 to 6 s later. A turn in that window failed with the same error bubble; the next one
-  read the file and answered.
+  listened 3 to 6 s later. Under `fail` a turn in that window failed with the same error bubble.
+  Under `skip` a turn sent at the start showed the status at 2.1 s, and a subagent it spawned later
+  in the same turn listed the recovered sidecar and read the file into the reply.
 
 Method: `docker logs` of the brain and the sidecar, `psql` on `memories`, `Converse` from the host
 and the shell driven with `xdotool`; the drivers lived in the run's scratch directory.

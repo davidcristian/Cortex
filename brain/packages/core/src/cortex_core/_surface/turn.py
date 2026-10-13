@@ -10,6 +10,7 @@ from cortex_core.escalate import (
     EscalateToBrainTool,
 )
 from cortex_core.escalating_engine import EscalatingTurnEngine
+from cortex_core.events import FORGOING_STATE
 from cortex_core.guardrail import (
     REDACTED_LINK,
     LookalikeUrlRedactingGuardrail,
@@ -50,7 +51,6 @@ from cortex_core.summarizing import (
 )
 from cortex_core.turn_context import (
     FORGOING_DETAIL,
-    FORGOING_STATE,
     MEMORY_WRITE_TIMEOUT_S,
     TurnCapabilities,
 )

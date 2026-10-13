@@ -9,6 +9,7 @@ from cortex_core.loop_events import ReasoningDelta, StepOutcome, ToolStep
 from cortex_core.ports import InferenceBackend
 from cortex_core.progress import hold_wait
 from cortex_core.tool_round import call_message, plan_round
+from cortex_core.tool_skips import list_tools
 from cortex_core.tools import ToolCall
 
 __all__ = ["MAX_TOOL_STEPS", "ToolLoopContext", "stream_tool_loop"]
@@ -45,7 +46,7 @@ async def stream_tool_loop(
 ) -> AsyncGenerator[str | ReasoningDelta | ToolStep | StepOutcome, None]:
     """Run the bounded infer↔tool loop over ``working``, yielding each delta, step and outcome."""
     dispatcher = context.dispatcher
-    specs = await dispatcher.describe_tools() if dispatcher is not None else ()
+    specs = await list_tools(dispatcher, context.progress) if dispatcher is not None else ()
     spec_by_name = {spec.name: spec for spec in specs}
     # Every call this loop has dispatched, grouped by the round that emitted it, which is what
     # the salience policy reads. Per loop rather than per turn: a repeat is redundant only
