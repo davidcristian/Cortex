@@ -103,11 +103,16 @@ next turn completed 0.4 s after its last text and its exchange was stored. SM cl
   failure handling a turn` over a `ToolError` raised by the tool listing at the start of the turn.
 - **Killed between turns, under `skip`**, the default: the same question was answered ("D major")
   with the email tools still listed. The overlay's status chip read "the filesystem tool server is
-  not answering, so this turn is answ..." (the chip cuts the sentence) about 3 s into the turn, under
-  the question, until the reply came; the brain logged `tool sidecar unavailable; serving without
-  it` with `sidecar=filesystem` for each listing. Asked to read `choir-rota.txt`, the model replied
-  that it had no access to local files and named the email and reminder tools it had, with no file
-  content made up.
+  not answering, so this turn is answ..." about 3 s into the turn, under the question, until the
+  reply came; the brain logged `tool sidecar unavailable; serving without it` with
+  `sidecar=filesystem` for each listing. Asked to read `choir-rota.txt`, the model replied that it
+  had no access to local files and named the email and reminder tools it had, with no file content
+  made up.
+- **The chip keeps the server's name readable.** It shows a status on one line and cuts the end
+  with an ellipsis, and the sentence names the servers first. With the email and filesystem
+  sidecars both stopped, the longest form two sidecars allow, it read "the email and filesystem
+  tool servers are not answering, so this ..." in the 640 px window; only the clause saying the
+  turn goes without their tools is cut.
 - **Killed during a `read_text_file` call.** The sidecar was frozen after the model's
   `list_directory` call and killed 8 s later. The overlay showed "waiting for a tool to finish"
   under the `read_text_file` row for those 8 s; the call ended at the kill with `ok=False error="MCP
