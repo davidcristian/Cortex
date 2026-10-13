@@ -34,6 +34,8 @@ from cortex_orchestrator.config import MemoryConfig, MemoryScopeName
 type RecallerFor = Callable[[InferenceBackend, str], MemoryRecaller]
 
 _EMBEDDER_TIMEOUT_S = 30.0
+# About seven times the slowest measured search, the exact scan over 220,000 memories.
+_STORE_TIMEOUT_S = 10.0
 _SECONDS_PER_DAY = 86400.0
 
 
@@ -87,7 +89,7 @@ async def build_memory(
     if config.backend == "pgvector":
         client = httpx.AsyncClient(timeout=httpx.Timeout(_EMBEDDER_TIMEOUT_S))
         embedder = LlamaCppEmbedder(client, config.embedder_endpoint, model=config.embedder_model)
-        store = await PgVectorMemoryStore.connect(config.dsn)
+        store = await PgVectorMemoryStore.connect(config.dsn, timeout_s=_STORE_TIMEOUT_S)
 
         async def close_memory() -> None:
             await store.aclose()

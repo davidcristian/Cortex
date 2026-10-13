@@ -131,7 +131,7 @@ async def test_one_turn_cost_block_over_the_live_rpc() -> None:
     schedule = _schedule()
     scopes = [f"turn-cost-{_VARIANT}-{stamp}-{index}" for index in range(len(schedule))]
     turns: list[_Turn] = []
-    store = await PgVectorMemoryStore.connect(_DSN)
+    store = await PgVectorMemoryStore.connect(_DSN, timeout_s=10.0)
     try:
         async with httpx.AsyncClient(timeout=60.0) as http:
             embedder = LlamaCppEmbedder(http, _EMBEDDER)

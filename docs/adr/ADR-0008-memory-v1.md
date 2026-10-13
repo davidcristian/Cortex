@@ -168,7 +168,9 @@ and put embedding on the CPU so the GPU budget stays with the cortex
     turn with an error, and the exchange itself is still in the conversation. The catch is not in
     the adapter, which also serves the session-delete cascade where a swallowed failure would be a
     privacy defect, and not in `MemoryRecaller`, which cannot know what its caller can do without.
-    A store unreachable at startup still fails the brain's start.
+    A store unreachable at startup still fails the brain's start. A store that accepts a connection
+    and never answers is unavailable too: the adapter bounds each statement at 10 s, so a frozen
+    server costs a turn the bound rather than the whole freeze.
 
 13. **A malformed row is a data defect, and it fails visibly.** The criterion is whether the
     condition resolves without anyone touching the deployment: a stopped server comes back, a row

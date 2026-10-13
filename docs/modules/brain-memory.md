@@ -40,8 +40,14 @@ business logic and no state beyond the injected pool (the one hard rule).
   the candidate pool (ADR-0008 decision 11). It is the forget primitive the session-delete cascade
   calls, and the one a per-scope retention policy would call
   ([task 085](../refinements/tasks/085-per-scope-retention-eviction.md)).
-- `aclose()` releases the pool. `PgVectorMemoryStore.connect(dsn)` is the classmethod that builds a
-  store owning a fresh asyncpg pool for `dsn`.
+- `aclose()` releases the pool. `PgVectorMemoryStore.connect(dsn, *, timeout_s)` is the classmethod
+  that builds a store owning a fresh asyncpg pool for `dsn`, with every statement bounded by
+  `timeout_s` (10 s from the orchestrator). A store built directly takes `timeout_s=None`, unbounded.
+- **The bound.** Each statement runs as its own task. Past the bound it is cancelled and not
+  awaited, since asyncpg's pool release waits, shielded, for a cancel request a frozen server never
+  answers; the store keeps a reference until the task ends and reads its error then. The call
+  raises `TimeoutError`, an `OSError`, so it fails as `MemoryStoreError` like a stopped server
+  ([readings](../readings/store-and-sidecar-outages.md#the-bound-on-the-store)).
 
 `Database` is the `Protocol` the store talks to (`execute`, `fetch`, `close`). An asyncpg pool
 satisfies it in production and in the live test; a canned-row fake satisfies it in CI.

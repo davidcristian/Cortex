@@ -1,4 +1,6 @@
-from collections.abc import Mapping, Sequence
+import asyncio
+import gc
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from datetime import UTC, datetime
 
 import asyncpg
@@ -213,7 +215,120 @@ async def test_connect_builds_a_store_owning_a_fresh_pool(monkeypatch: pytest.Mo
         return fake_pool
 
     monkeypatch.setattr(asyncpg, "create_pool", fake_create_pool)
-    store = await PgVectorMemoryStore.connect("postgresql://cortex@localhost/cortex")
+    store = await PgVectorMemoryStore.connect("postgresql://cortex@localhost/cortex", timeout_s=5.0)
     await store.add(_record())
     assert seen == ["postgresql://cortex@localhost/cortex"]
     assert fake_pool.calls
+
+
+class HangingDatabase:
+    """A Database that never answers; cancelled, it waits for ``released`` like asyncpg's pool."""
+
+    def __init__(self, *, fail_after_release: bool = False) -> None:
+        self.released = asyncio.Event()
+        self.cancelled = 0
+        self._fail_after_release = fail_after_release
+
+    async def _never(self) -> object:
+        try:
+            return await asyncio.get_running_loop().create_future()
+        except asyncio.CancelledError:
+            self.cancelled += 1
+            await self.released.wait()
+            if self._fail_after_release:
+                raise ConnectionResetError from None
+            raise
+
+    async def execute(self, sql: str, /, *args: object) -> object:
+        del sql, args
+        return await self._never()
+
+    async def fetch(self, sql: str, /, *args: object) -> Sequence[Mapping[str, object]]:
+        del sql, args
+        await self._never()
+        return ()
+
+    async def close(self) -> None:
+        return None
+
+
+def _operations(store: PgVectorMemoryStore) -> dict[str, Callable[[], Awaitable[object]]]:
+    return {
+        "add": lambda: store.add(_record()),
+        "search": lambda: store.search((0.1, 0.2), k=1),
+        "scoped search": lambda: store.search((0.1, 0.2), k=1, scopes=["s"]),
+        "count": store.count_candidates,
+        "scoped count": lambda: store.count_candidates(scopes=["s"]),
+        "delete": lambda: store.delete_scope("s"),
+    }
+
+
+async def _ended(db: HangingDatabase, call: Awaitable[object]) -> asyncio.Future[object]:
+    task = asyncio.ensure_future(call)
+    done, _ = await asyncio.wait({task}, timeout=5)
+    await asyncio.sleep(0)
+    db.released.set()
+    if not done:
+        await asyncio.wait({task}, timeout=5)
+        pytest.fail("the call outlived its bound")
+    return task
+
+
+@pytest.mark.parametrize(
+    "operation", ["add", "search", "scoped search", "count", "scoped count", "delete"]
+)
+async def test_a_hung_server_fails_as_unavailable_after_the_bound(operation: str) -> None:
+    db = HangingDatabase()
+    store = PgVectorMemoryStore(db, timeout_s=0.01)
+    ended = await _ended(db, _operations(store)[operation]())
+    with pytest.raises(MemoryStoreError) as caught:
+        ended.result()
+    assert not isinstance(caught.value, MemoryDataError)
+    assert db.cancelled == 1
+
+
+async def test_a_caller_cancelled_mid_statement_cancels_the_statement() -> None:
+    db = HangingDatabase()
+    store = PgVectorMemoryStore(db, timeout_s=5.0)
+    call = asyncio.ensure_future(store.count_candidates())
+    await asyncio.sleep(0.01)
+    call.cancel()
+    ended = await _ended(db, call)
+    assert ended.cancelled()
+    assert db.cancelled == 1
+
+
+async def test_an_abandoned_statement_that_fails_later_leaves_no_unread_error() -> None:
+    reported: list[dict[str, object]] = []
+    loop = asyncio.get_running_loop()
+    loop.set_exception_handler(lambda _loop, context: reported.append(context))
+    try:
+        db = HangingDatabase(fail_after_release=True)
+        store = PgVectorMemoryStore(db, timeout_s=0.01)
+        ended = await _ended(db, store.search((0.1,), k=1))
+        failed = isinstance(ended.exception(), MemoryStoreError)
+        # The error's traceback holds the abandoned statement, which must be collectable.
+        del ended
+        for _ in range(5):
+            await asyncio.sleep(0)
+        gc.collect()
+    finally:
+        loop.set_exception_handler(None)
+    assert failed
+    assert reported == []
+
+
+async def test_connect_bounds_the_store_it_builds(monkeypatch: pytest.MonkeyPatch) -> None:
+    db = HangingDatabase()
+
+    async def hanging_pool(dsn: str) -> HangingDatabase:
+        del dsn
+        return db
+
+    monkeypatch.setattr(asyncpg, "create_pool", hanging_pool)
+    store = await PgVectorMemoryStore.connect(
+        "postgresql://cortex@localhost/cortex", timeout_s=0.01
+    )
+    ended = await _ended(db, store.search((0.1,), k=1))
+    with pytest.raises(MemoryStoreError, match="memory search failed"):
+        ended.result()

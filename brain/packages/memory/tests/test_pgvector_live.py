@@ -12,7 +12,7 @@ async def test_pgvector_store_satisfies_the_contract_live() -> None:
         await live_postgres.reset(admin)
         for check in memory_contract.ALL_CHECKS:
             # A fresh store per check: one check closes the pool to make the backend unreachable.
-            store = await PgVectorMemoryStore.connect(live_postgres.live_dsn())
+            store = await PgVectorMemoryStore.connect(live_postgres.live_dsn(), timeout_s=10.0)
             try:
                 under_test = memory_contract.MemoryStoreUnderTest(
                     store=store, break_backend=store.aclose

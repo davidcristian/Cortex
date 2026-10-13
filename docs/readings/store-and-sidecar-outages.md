@@ -33,18 +33,29 @@ start` or `docker unpause`. Rows were read with `psql` on the `memories` table.
   person gave in that turn ("Ilona just moved to Pecs") was not stored, and nothing on screen said
   so, as decision 12 of [ADR-0008](../adr/ADR-0008-memory-v1.md) decides. Started again (healthy
   after 6 s), the next turn recalled the birthday and said it had nothing on where she lives.
-- **Frozen during a turn** (`docker pause`). A turn over `Converse` showed no status at all for the
-  100 s the client waited, and the brain logged nothing. A second turn, from the shell, needed a new
-  connection: it showed only the pending bubble until asyncpg's default 60 s connect timeout, then
-  the status line above, then a reply. Filed as
-  [R-851](../refinements/tasks/851-a-frozen-memory-store-holds-a-turn-without-bound.md).
-- **A bound tried and withdrawn.** `asyncio.timeout` around each statement, and asyncpg's own
-  `command_timeout`, both left a warm turn hung for the 120 s the client waited. A probe in the
-  brain's container showed why: the timed out statement's task stayed `cancelling` inside
-  `PoolConnectionHolder.release` (asyncpg's `pool.py`, under `asyncio.shield`), which waits for
-  `Connection._cancel` to deliver a cancel request to the frozen server, and that has no timeout.
+- **Frozen during a turn** (`docker pause`), before the bound below: a turn over `Converse` showed
+  no status at all for the 100 s the client waited, and the brain logged nothing. A second turn,
+  from the shell, needed a new connection: it showed only the pending bubble until asyncpg's
+  default 60 s connect timeout, then the status line above, then a reply.
 - **No row was stored twice.** After every Postgres and sidecar flow on this page, the 12 rows in
   `memories` held 12 distinct texts.
+
+## The bound on the store
+
+`PgVectorMemoryStore` bounds each statement, and the orchestrator sets the bound to 10 s, about
+seven times the slowest search [measured](model-lineup.md#memory-search), the exact scan over
+220,000 memories. Neither asyncpg's `command_timeout` nor `asyncio.timeout` around a statement
+bounded a turn: a probe in the brain's container showed the timed out statement's task staying
+`cancelling` inside `PoolConnectionHolder.release` (asyncpg's `pool.py`, under `asyncio.shield`),
+which waits for `Connection._cancel` to send a cancel request that the frozen server never
+answers. So the store runs each statement as its own task, and past the bound cancels it without
+waiting for it.
+
+With that build and Postgres frozen after a warm turn, the status line came at 10.0 s, the reply
+streamed, the write failed 10 s after the last text and the turn completed at 26.0 s. A second turn
+during the freeze behaved the same. Unfrozen, the next turn recalled with no error in the log, and
+no `Task exception was never retrieved` line appeared. SM clock 0.62 of `clocks.max.sm` after the
+run.
 
 ## The embedding server
 

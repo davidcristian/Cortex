@@ -1,6 +1,7 @@
 """PgVectorMemoryStore: the MemoryStore port over Postgres and pgvector."""
 
-from collections.abc import Sequence
+import asyncio
+from collections.abc import Coroutine, Sequence
 from typing import Any, Protocol, cast
 
 import asyncpg
@@ -75,14 +76,46 @@ def _to_scored(row: Row) -> ScoredMemory:
 class PgVectorMemoryStore:
     """MemoryStore adapter over an asyncpg-compatible ``Database``."""
 
-    def __init__(self, db: Database) -> None:
+    def __init__(self, db: Database, *, timeout_s: float | None = None) -> None:
+        """Wrap ``db``; a statement that outlasts ``timeout_s`` fails as an unavailable store."""
         self._db = db
+        self._timeout_s = timeout_s
+        self._abandoned: set[asyncio.Task[Any]] = set()
 
     @classmethod
-    async def connect(cls, dsn: str) -> "PgVectorMemoryStore":
+    async def connect(cls, dsn: str, *, timeout_s: float) -> "PgVectorMemoryStore":
         """Build a store owning a fresh asyncpg pool for ``dsn``; close it via ``aclose()``."""
         pool = await asyncpg.create_pool(dsn)
-        return cls(cast("Database", pool))
+        return cls(cast("Database", pool), timeout_s=timeout_s)
+
+    async def _bounded[T](self, statement: Coroutine[Any, Any, T]) -> T:
+        """Await ``statement`` for at most the bound, raising ``TimeoutError`` past it."""
+        if self._timeout_s is None:
+            return await statement
+        task = asyncio.ensure_future(statement)
+        try:
+            done, _ = await asyncio.wait({task}, timeout=self._timeout_s)
+        except asyncio.CancelledError:
+            self._abandon(task)
+            raise
+        if not done:
+            self._abandon(task)
+            raise TimeoutError
+        return task.result()
+
+    def _abandon(self, task: asyncio.Task[Any]) -> None:
+        """Cancel ``task`` without waiting for it, keeping it referenced until it ends."""
+        # asyncpg's pool release waits, shielded, for a cancel request the hung server never
+        # answers, so awaiting the cancelled statement would hang exactly as long as the server.
+        task.cancel()
+        self._abandoned.add(task)
+        task.add_done_callback(self._settle)
+
+    def _settle(self, task: asyncio.Task[Any]) -> None:
+        """Forget an abandoned statement that ended, reading its error so none goes unretrieved."""
+        self._abandoned.discard(task)
+        if not task.cancelled():
+            task.exception()
 
     async def aclose(self) -> None:
         """Release the pool's connections (call at composition-root shutdown)."""
@@ -95,14 +128,16 @@ class PgVectorMemoryStore:
     async def add(self, record: MemoryRecord) -> None:
         """Persist one memory record."""
         try:
-            await self._db.execute(
-                _INSERT,
-                record.id,
-                record.text,
-                _to_literal(record.embedding),
-                record.scope,
-                record.tainted,
-                record.at,
+            await self._bounded(
+                self._db.execute(
+                    _INSERT,
+                    record.id,
+                    record.text,
+                    _to_literal(record.embedding),
+                    record.scope,
+                    record.tainted,
+                    record.at,
+                )
             )
         except _WRAPPED as err:
             msg = f"adding memory {record.id!r} failed"
@@ -115,9 +150,9 @@ class PgVectorMemoryStore:
         try:
             literal = _to_literal(embedding)
             if scopes is None:
-                rows = await self._db.fetch(_SEARCH_ALL, literal, k)
+                rows = await self._bounded(self._db.fetch(_SEARCH_ALL, literal, k))
             else:
-                rows = await self._db.fetch(_SEARCH_SCOPED, literal, k, list(scopes))
+                rows = await self._bounded(self._db.fetch(_SEARCH_SCOPED, literal, k, list(scopes)))
             return tuple(_to_scored(row) for row in rows)
         except _WRAPPED as err:
             msg = "memory search failed"
@@ -130,9 +165,9 @@ class PgVectorMemoryStore:
         """Return how many memories ``scopes`` holds, the width ``search`` ranked over."""
         try:
             if scopes is None:
-                rows = await self._db.fetch(_COUNT_ALL)
+                rows = await self._bounded(self._db.fetch(_COUNT_ALL))
             else:
-                rows = await self._db.fetch(_COUNT_SCOPED, list(scopes))
+                rows = await self._bounded(self._db.fetch(_COUNT_SCOPED, list(scopes)))
             return int(rows[0]["total"])
         except _WRAPPED as err:
             msg = "counting memory candidates failed"
@@ -144,7 +179,7 @@ class PgVectorMemoryStore:
     async def delete_scope(self, scope: str) -> int:
         """Hard-delete every memory in ``scope``; return how many rows were removed."""
         try:
-            status = await self._db.execute(_DELETE_SCOPE, scope)
+            status = await self._bounded(self._db.execute(_DELETE_SCOPE, scope))
             return _deleted_count(status)
         except _WRAPPED as err:
             msg = f"deleting memory scope {scope!r} failed"

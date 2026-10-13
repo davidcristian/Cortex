@@ -418,14 +418,14 @@ async def test_build_memory_selects_pgvector_and_returns_a_closer(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     closed: list[str] = []
-    seen_dsn: list[str] = []
+    seen_dsn: list[tuple[str, float]] = []
 
     class FakeStore:
         async def aclose(self) -> None:
             closed.append("store")
 
-    async def fake_connect(dsn: str) -> FakeStore:
-        seen_dsn.append(dsn)
+    async def fake_connect(dsn: str, *, timeout_s: float) -> FakeStore:
+        seen_dsn.append((dsn, timeout_s))
         return FakeStore()
 
     monkeypatch.setattr(PgVectorMemoryStore, "connect", fake_connect)
@@ -438,7 +438,7 @@ async def test_build_memory_selects_pgvector_and_returns_a_closer(
     assert memory is not None
     assert isinstance(memory(EchoInferenceBackend(), "cortex"), MemoryRecaller)
     assert isinstance(cascade, SessionMemoryCascade)
-    assert seen_dsn == ["postgresql://cortex@db/cortex"]
+    assert seen_dsn == [("postgresql://cortex@db/cortex", 10.0)]
     await close()
     assert closed == ["store"]
 
@@ -572,8 +572,8 @@ async def test_the_judge_asks_the_tier_the_deployment_named_to_rank(
         async def aclose(self) -> None:
             return None
 
-    async def connect_pool(dsn: str) -> PoolStore:
-        del dsn
+    async def connect_pool(dsn: str, *, timeout_s: float) -> PoolStore:
+        del dsn, timeout_s
         return PoolStore()
 
     def hash_embedder(client: httpx.AsyncClient, endpoint: str, *, model: str) -> HashEmbedder:
