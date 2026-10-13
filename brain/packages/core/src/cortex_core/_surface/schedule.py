@@ -11,6 +11,12 @@ from cortex_core.schedule import (
     recurrence_base,
 )
 from cortex_core.schedule_calendar import CalendarRule, next_calendar_due
+from cortex_core.schedule_claim import (
+    SCHEDULING_TOOLS,
+    UNSCHEDULED_CLAIM_NOTE,
+    claims_scheduled,
+    unscheduled_claim,
+)
 from cortex_core.schedule_selectors import (
     DAILY,
     DAY_NAMES,
@@ -67,8 +73,10 @@ __all__ = [
     "MAX_MONTH_DAY",
     "MONTH_NAMES",
     "SCHEDULE_TOOL_NAME",
+    "SCHEDULING_TOOLS",
     "SNOOZE_SCHEDULED_TOOL_NAME",
     "TAINTED_TASK_MSG",
+    "UNSCHEDULED_CLAIM_NOTE",
     "UTC_DISPLAY",
     "UTC_ONLY_RESOLVER",
     "UTC_ZONE_CONTEXT",
@@ -97,10 +105,12 @@ __all__ = [
     "acks_fire",
     "apply_edit",
     "apply_snooze",
+    "claims_scheduled",
     "fire_stamp",
     "next_calendar_due",
     "next_due",
     "next_occurrence",
     "recurrence_base",
     "stamp_instant",
+    "unscheduled_claim",
 ]

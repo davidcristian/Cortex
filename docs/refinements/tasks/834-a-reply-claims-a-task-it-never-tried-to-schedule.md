@@ -1,9 +1,8 @@
 # A reply claims a task it never tried to schedule
 
-**Status:** open, actionable
+**Status:** done 2026-10-13
 **Area:** scheduling
 **Origin:** [ADR-0025](../../adr/ADR-0025-scheduling-reminders.md)
-**Verified:** 2026-10-12
 
 In the third turn of a chat (a question about a file holding an injection, a reminder, then "Read
 meeting-notes.txt again, then schedule a background task for tomorrow at 10:00 that checks
@@ -52,3 +51,11 @@ cannot remove the defect.
   Claims: 2 and 1; the claim with no call came only with the reminder turn, 1 against 0, and a
   claim after a refused call came in both. By the rule written first, the reply check is the
   remedy to measure; the replay naming candidate is dropped. Left open.
+- 2026-10-13: done. The reply check of step 1 ships as
+  [ADR-0074](../../adr/ADR-0074-replayed-tool-runs.md) decision 7, on rows and a rule written
+  first ([readings](../../readings/task-claimed-without-call.md#a-reply-check-against-the-turns-runs)).
+  Over 50 third turns it fired on all 8 live claims, 5 with no call and 3 that said the task was
+  scheduled and then that it was not, on all 7 quoted claims, and on none of 42 other replies,
+  among them 10 schedule listings and 26 offers of a reminder. The claim with no call also came in
+  1 of 20 chains without the reminder turn. A task claimed beside a reminder call that succeeded
+  passes the check: [R-847](847-the-reply-check-misses-a-task-claimed-beside-a-reminder.md).

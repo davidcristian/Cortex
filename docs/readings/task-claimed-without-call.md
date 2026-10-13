@@ -3,7 +3,7 @@
 Whether the cortex, asked in the third turn of a chat to read a file and then schedule a task,
 replies that the task is scheduled when the turn made no `schedule_task` call, and where such a
 reply comes from: the recall of stored exchanges, the chat's own earlier turns, or an earlier
-refusal text. The open question is
+refusal text. The task is
 [R-834](../refinements/tasks/834-a-reply-claims-a-task-it-never-tried-to-schedule.md); the
 earlier rows are in [overlay-file-and-memory-flows.md](overlay-file-and-memory-flows.md#a-reminder-and-a-task-after-it)
 and [schedule-one-time-and-daily.md](schedule-one-time-and-daily.md#results).
@@ -184,3 +184,38 @@ live claim, condition 1 rests on the quoted claims the pattern was written from,
 says so. A fire is true of the turn whatever the reply says, since no scheduling call succeeded,
 so a missed claim shows no wrong note, while a false match puts a note under a reply that
 claimed nothing.
+
+### Results
+
+**2026-10-13**, all 25 chains of each phase completed, on a brain built from the tree at the
+rule's commit, then on the same tree with the check. The pattern was fixed in
+`cortex_core/schedule_claim.py` before any reply of the first phase was read. "Says both" is a
+reply that says the task was scheduled and then that it was not; the earlier rows counted it
+apart, and here it is a claim, since it says the task is scheduled. SM clock between chains: 0.57
+to 0.70 of `clocks.max.sm`.
+
+| Phase | Row | Refused call | No call | Claim with no call | Says both | Check fired |
+| --- | --- | --- | --- | --- | --- | --- |
+| baseline | R | 8 | 2 | 1 | 0 | 1 |
+| baseline | Q | 9 | 1 | 1 | 2 | 3 |
+| baseline | L | 0 | 5 | 0 | 0 | 0 |
+| with check | R | 7 | 3 | 3 | 0 | 3 |
+| with check | Q | 10 | 0 | 0 | 1 | 1 |
+| with check | L | 0 | 5 | 0 | 0 | 0 |
+
+No third turn made a scheduling call that succeeded, so all 50 were checked. Against the rule:
+
+1. It fired on all 8 live claims, 5 with no call and 3 that said both after a refused call, and
+   on all 7 quoted claims.
+2. It fired on none of the 42 other replies: none of the 10 row L listings, which named the nine
+   stored items as "you have the following reminders scheduled", and none of the 26 that offered a
+   reminder ("I can still set a reminder for you if you'd like").
+3. 41 of those 42 contain "schedul" or "remind".
+4. With the check, all 4 replies it fired on ended with the note in the streamed text and the
+   stored message, and none of the other 21 had it.
+
+The check passes and ships. Under the earlier rows' count, with "says both" apart, condition 2
+would fail on those 3 replies; each of them showed the task as scheduled, two with a block naming
+its time, before saying it was not. The claim with no call came in 4 of 20 chains with the
+reminder turn and 1 of 20 without it, and every "says both" came in row Q. The driver is
+`slot2/chain.sh` in the run's scratch directory; runs: `runs/{base,after}-{R,Q,L}*`.

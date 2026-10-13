@@ -55,6 +55,21 @@ wrote on a tainted turn can hold injected text or a link the output guardrail re
    fenced section's header, so the line just before the fence is the one that frames the quoted
    memories as data ([ADR-0013](ADR-0013-untrusted-content.md)). A row stored before this has no
    line and reads as before. No schema changes.
+7. **A reply that says something was scheduled is checked against its turn's runs.** The replay
+   does not remove every claim: over a chat that read a file, the cortex still wrote that a task
+   was scheduled with no call, or after a refused one, in 8 of 40 third turns that asked for one
+   ([readings](../readings/task-claimed-without-call.md)). `limit_notes`
+   (`cortex_core/turn_output.py`) appends `UNSCHEDULED_CLAIM_NOTE`, "Nothing was scheduled in
+   this turn: no scheduling call in it succeeded. Ask again to schedule it.", when
+   `unscheduled_claim(runs, reply)` (`cortex_core/schedule_claim.py`) holds: no run of
+   `schedule_task`, `edit_scheduled` or `snooze_scheduled` succeeded, and `claims_scheduled`
+   finds a statement in the model's text, read before any other note, saying something was
+   scheduled. That is "I scheduled", "I've scheduled" or "I have scheduled", or "has been", "have
+   been" or "is now" before "scheduled", or the same forms with "set", "created", "added" or
+   "booked" in a sentence that names a reminder, a task, an alarm or the schedule. A question, a
+   future or offered form, a negated one and a stored item described do not match. The runs half
+   is exact, so the note is true whenever it is shown. Both tiers share `limit_notes`, and the
+   stored reply holds the note, so a later turn reads it too.
 
 ## Consequences
 
@@ -71,6 +86,10 @@ wrote on a tainted turn can hold injected text or a link the output guardrail re
   ([readings](../readings/recalled-tool-runs.md#results-over-tainted-rows)).
 - A replayed run of a read tool holds no content: what a later turn knows of that result is what
   the reply said.
+- Over 50 third turns, the reply check of decision 7 fired on all 8 claims, 5 with no call and 3
+  that said the task was scheduled and then that it was not, and on none of 42 other replies,
+  among them 10 listings of stored reminders and 26 offers to set one
+  ([readings](../readings/task-claimed-without-call.md#results-2)).
 
 ## Alternatives rejected
 
@@ -78,8 +97,12 @@ wrote on a tainted turn can hold injected text or a link the output guardrail re
   recap counts stored messages by index, so every reader would have to skip the new kind.
 - **Replaying the arguments.** A tainted turn's arguments can hold what taint and redaction keep
   out of later turns; the rows passed without them.
-- **A check on the reply**, reading the model's prose for a claim of an action: wording varies,
-  and a check after the reply cannot make the call the person asked for.
+- **A check on every reply for any claimed action**: wording varies by tool, and a check after
+  the reply cannot make the call the person asked for, so the replay is the remedy wherever it
+  removes the claim. Decision 7 checks scheduling only, where claims remained under the replay.
+- **A rule in `TAINTED_TASK_MSG` or the replayed text**: a claim came with no call at all, so no
+  result text reached it, and a claim after a refused call followed a result that already said
+  not to claim.
 
 ## Related
 

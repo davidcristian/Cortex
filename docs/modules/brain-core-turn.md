@@ -65,12 +65,11 @@ decision 7). Either path flushes the guarded channels, streams its note, logs a 
 session and the turn, and persists once: the cut call's note is the one the `StopLedger` picks,
 and the overflow's is `CONTEXT_OVERFLOW_NOTE`, with no cap note after it.
 
-`TurnCapabilities(memory=None, tools=None, window=None, guardrail=None,
-record_tainted_memory=False, generate_titles=False, progress=None, escalation=None, bounds=None,
-residency=None)`
-(`turn_context.py`, with the context assembly `assemble_inference_messages`) is the frozen bundle
-of everything optional about a turn. With the bare default the turn is plain streamed inference.
-The reply stores its turn's `ToolOutcome`s as `runs`, and assembly replays each stored reply's runs
+`TurnCapabilities(memory=None, tools=None, window=None, guardrail=None, record_tainted_memory=False,
+generate_titles=False, progress=None, escalation=None, bounds=None, residency=None)`
+(`turn_context.py`, with the context assembly `assemble_inference_messages`) is the frozen bundle of
+everything optional about a turn. With the bare default the turn is plain streamed inference. The
+reply stores its turn's `ToolOutcome`s as `runs`, and assembly replays each stored reply's runs
 before it as calls with a fixed outcome text, after the window (`tool_replay.py`, ADR-0074).
 
 - `memory` (a `MemoryRecaller`, ADR-0008): before inference the engine recalls the top
@@ -85,9 +84,8 @@ before it as calls with a fixed outcome text, after the window (`tool_replay.py`
   untrusted content. **Memory that cannot be reached costs the turn its notes and not the turn**
   (ADR-0008 decision 12): `EmbedderError` and `MemoryStoreError` are caught on both halves and
   nothing else is; a failed read logs a warning and one `StatusUpdate`, a failed write an error only.
-- `record_tainted_memory` (ADR-0019) governs writing only: with it on, a tainted turn is recorded
-  with `tainted=True` instead of being dropped, and a stored tainted memory is fenced on recall
-  either way.
+- `record_tainted_memory` (ADR-0019) governs writing only: with it on, a tainted turn is stored
+  with `tainted=True` instead of being dropped, and a stored tainted memory is fenced either way.
 - `tools` (a `ToolDispatcher`, ADR-0009) adds `SECURITY_PREAMBLE` and runs the shared tool loop
   with a fresh `TaintLedger`; the loop's messages are not persisted. `window` (a `HistoryWindow`,
   ADR-0014) selects what part of the stored history one turn sends, leaving persistence untouched.
@@ -124,9 +122,11 @@ tainted-memory policy and **drops an opaque turn whatever `record_tainted_memory
 are the sentences a turn can end with, the first two read off a `StopLedger` (`stops.py`). `capped`
 says a completion stopped at a token limit (ADR-0048), and `out_of_rounds` says the loop's last
 round still ended in calls (ADR-0009). `limit_notes` appends `REPLY_CAPPED_NOTE` for the first, then
-`ROUNDS_SPENT_NOTE`, naming the limit and each of `runs` with its outcome, for the second, so the
-stored reply holds them. `UNREADABLE_CALL_NOTE` comes only when no completion was cut, so a reader
-gets one explanation. `overflow_note` appends `CONTEXT_OVERFLOW_NOTE` whatever the ledger holds.
+`ROUNDS_SPENT_NOTE`, naming the limit and each of `runs` with its outcome, for the second, then
+`UNSCHEDULED_CLAIM_NOTE` when `unscheduled_claim(runs, reply)` (`schedule_claim.py`) finds the
+model's text saying something was scheduled with no run of `SCHEDULING_TOOLS` succeeding (ADR-0074
+decision 7). `UNREADABLE_CALL_NOTE` comes only when no completion was cut, so a reader gets one
+explanation. `overflow_note` appends `CONTEXT_OVERFLOW_NOTE` whatever the ledger holds.
 
 `SerialTurnRunner(inner, locks)` (`session_turns.py`) is the `TurnRunner` every `Converse` stream
 runs. A turn holds its session in the shared `SessionTurnLocks` from before it stores its question
@@ -243,8 +243,8 @@ leave it in the reply.
 **Invariants.**
 
 - The assistant message is persisted if and only if `TurnCompleted` is emitted.
-- The persisted reply equals the reply shown: the guardrail's output is what streams and what is
-  stored.
+- The persisted reply equals the reply shown: the guardrail's output and the notes are what
+  streams and what is stored.
 - Nothing about a conversation outlives `handle_turn` except what `SessionStore` holds.
 - A tainted turn is dropped from memory by default, or recorded with `tainted=True` and fenced on
   recall, so recall stays trustworthy either way.

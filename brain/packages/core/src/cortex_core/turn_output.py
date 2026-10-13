@@ -9,6 +9,7 @@ from cortex_core.events import TextDelta, ToolActivity, ToolOutcome, TurnEvent
 from cortex_core.guardrail import OutputFilter
 from cortex_core.loop_events import ReasoningDelta, StepOutcome, ToolStep
 from cortex_core.output_channels import ThinkingChannel
+from cortex_core.schedule_claim import UNSCHEDULED_CLAIM_NOTE, unscheduled_claim
 from cortex_core.stops import StopLedger
 from cortex_core.tool_loop import MAX_TOOL_STEPS
 from cortex_core.tool_replay import runs_line
@@ -68,8 +69,12 @@ def limit_notes(
     stops: StopLedger, runs: Sequence[ToolRun], parts: list[str]
 ) -> Iterator[TurnEvent]:
     """The notes a turn that ended without an error closes with, in the order it shows them."""
+    claimed = unscheduled_claim(runs, "".join(parts))
     yield from cap_note(stops, parts)
     yield from rounds_note(stops, runs, parts)
+    if claimed:
+        parts.append(UNSCHEDULED_CLAIM_NOTE)
+        yield TextDelta(text=UNSCHEDULED_CLAIM_NOTE)
 
 
 def unreadable_call_note(stops: StopLedger, parts: list[str]) -> Iterator[TurnEvent]:
