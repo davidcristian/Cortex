@@ -75,5 +75,23 @@ or a repeated call, until the round limit ended the turn with its note naming th
 22 s in. That reply neither names the tool server nor blames the file. SM clock 0.59 of
 `clocks.max.sm` after the draw.
 
+**2026-10-13, the baseline**, 5 rows on the current tree, every one counted on its first draw
+(the model found the file with `search_files` in 4, `list_directory` in 1). Each cut off read
+ended `unknown tool 'read_text_file'`, and the model then tried `read_file` and others, each an
+unknown tool.
+
+| Row | Reply, in short | Classes |
+| --- | --- | --- |
+| 1 | the read tools "returned an "unknown tool" error"; check the path or the file's restrictions | quotes the error, names the tool |
+| 2 | the round limit's note, after three `read_text_file` calls | loops |
+| 3 | "my tools for reading and listing files are not currently responding" | names the tool |
+| 4 | "encountering some issues with the file system tools" | names the tool |
+| 5 | "I don't have the ability to read local files" | none |
+
+2 of 5 rows blame the file, quote the error or loop, under the 3 the rule needs, so **the defect
+does not reproduce** with this prompt and the candidate is not run on this evidence. 3 of 5
+replies already name the tool, and none blames the file or invents. SM clock 0.59 of
+`clocks.max.sm` after the baseline.
+
 Method: the drivers in the run's scratch directory, `docker logs` of the brain for the tool audit,
 and the replies read against the classes above.

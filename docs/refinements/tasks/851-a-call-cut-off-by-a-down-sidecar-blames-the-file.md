@@ -40,3 +40,6 @@ the candidate text for one of them, and the aggregate asks it before reporting a
 - 2026-10-13: wrote the rows, the candidate's text and the pass rule into the readings; a probe
   row under `skip` found the `unknown tool` text and a reply that looped to the length limit,
   filed as R-853.
+- 2026-10-13: ran the 5 baseline rows: 2 quote the error or loop, under the rule's 3, so the
+  defect does not reproduce with this prompt and the candidate was not run. Next: rows with a
+  different prompt, written before they are drawn, as the rule says.

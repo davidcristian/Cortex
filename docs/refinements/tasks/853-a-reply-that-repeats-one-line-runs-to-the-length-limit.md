@@ -15,14 +15,15 @@ whole limit this way, whatever starts it; R-851 is one cause.
 ## Reproduce
 
 The probe row in the readings above, on the current tree under `CORTEX_TOOLS_ON_UNAVAILABLE=skip`.
-How often a row loops is not measured yet.
+It is 1 of the 7 cut off reads drawn on 2026-10-13; 2 others ended at the round limit after
+repeated calls, and 4 ended with a short reply.
 
 ## What to do
 
-Measure first: draw the cut off call rows of R-851 and count the replies that loop. Then decide
-between a repeated-line check on the streamed reply that ends it early with a note saying so, and
-a repeat penalty in the cortex's sampling settings. Either changes what the person reads, so it
-ships on rows and a pass rule written in the readings first.
+Measure first: a prompt or rig that loops more often than 1 in 7, so a check can be shown to
+fail and to pass. Then decide between a repeated-line check on the streamed reply that ends it
+early with a note saying so, and a repeat penalty in the cortex's sampling settings. Either
+changes what the person reads, so it ships on rows and a pass rule written in the readings first.
 
 ## History
 
