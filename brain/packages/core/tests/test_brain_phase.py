@@ -18,6 +18,7 @@ from cortex_core import (
     REDACTED,
     REPLY_CAPPED_NOTE,
     UNREADABLE_CALL_NOTE,
+    UNSCHEDULED_CLAIM_NOTE,
     CadenceTerms,
     ContextOverflowError,
     DecodeCadence,
@@ -365,6 +366,63 @@ async def test_a_deep_phase_that_spends_every_round_keeps_the_note_it_showed() -
     assert (await sessions.history(harness.SESSION))[-1].text == shown
     (record,) = await _recorded(memory)
     assert record.text == f"User: {harness.USER_TEXT}\nTools run: {runs}\nAssistant: {shown}"
+
+
+_SCHEDULED = ToolRun("schedule_task", ok=True)
+_ESCALATED = ToolRun("escalate_to_brain", ok=True)
+
+
+async def _session_with_runs(
+    cortex_runs: tuple[ToolRun, ...], *, earlier_turn: tuple[ToolRun, ...] = ()
+) -> InMemorySessionStore:
+    sessions = InMemorySessionStore()
+    turns = (("t-earlier", earlier_turn), (harness.TURN, cortex_runs))
+    for turn_id, runs in turns:
+        await sessions.append(
+            harness.SESSION,
+            Message(role=Role.USER, text=harness.USER_TEXT, at=_AT, turn_id=turn_id),
+        )
+        await sessions.append(
+            harness.SESSION,
+            Message(
+                role=Role.ASSISTANT, text=harness.CORTEX_TEXT, at=_AT, turn_id=turn_id, runs=runs
+            ),
+        )
+    return sessions
+
+
+@pytest.mark.parametrize(
+    ("cortex_runs", "earlier_turn", "noted"),
+    [
+        ((_ESCALATED,), (), True),
+        ((ToolRun("schedule_task", ok=False), _ESCALATED), (), True),
+        ((_ESCALATED,), (_SCHEDULED,), True),
+        ((_SCHEDULED, _ESCALATED), (), False),
+    ],
+)
+async def test_a_deep_reply_s_schedule_claim_counts_what_the_cortex_scheduled_first(
+    *, cortex_runs: tuple[ToolRun, ...], earlier_turn: tuple[ToolRun, ...], noted: bool
+) -> None:
+    sessions = await _session_with_runs(cortex_runs, earlier_turn=earlier_turn)
+    backend = ScriptedBrainBackend(chunks=("I've scheduled the reminder for 9:00.",))
+    _phase, _backend, sessions, deltas = await _drive(backend=backend, store=sessions)
+    assert (UNSCHEDULED_CLAIM_NOTE in "".join(deltas)) is noted
+    reply = (await sessions.history(harness.SESSION))[-1]
+    assert reply.runs == ()
+
+
+async def test_a_deep_phase_s_rounds_note_names_only_the_runs_it_made() -> None:
+    dispatcher = ToolDispatcher(_registry(), RecordingAuditSink(), SystemClock())
+    calls = tuple(
+        ToolCall(id=f"c{n}", name="read", arguments={"n": n}) for n in range(MAX_TOOL_STEPS)
+    )
+    _phase, _backend, _sessions, deltas = await _drive(
+        capabilities=TurnCapabilities(tools=dispatcher),
+        backend=ScriptedBrainBackend(chunks=(), tool_calls=calls),
+        store=await _session_with_runs((_SCHEDULED, _ESCALATED)),
+    )
+    assert "schedule_task" not in "".join(deltas)
+    assert "read (succeeded)" in "".join(deltas)
 
 
 async def test_the_query_is_recovered_from_the_store_for_recall_and_memory() -> None:

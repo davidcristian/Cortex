@@ -119,15 +119,15 @@ is that flush alone, for a caller that has to persist a partial reply after a fa
 `record_exchange(caps, taint, *, session_id, query, reply, runs)` applies both phases'
 tainted-memory policy and **drops an opaque turn whatever `record_tainted_memory` says** (ADR-0029).
 
-`limit_notes(stops, runs, parts)`, `unreadable_call_note(stops, parts)` and `overflow_note(parts)`
-are the sentences a turn can end with, the first two read off a `StopLedger` (`stops.py`). `capped`
-says a completion stopped at a token limit (ADR-0048), and `out_of_rounds` says the loop's last
-round still ended in calls (ADR-0009). `limit_notes` appends `REPLY_CAPPED_NOTE` for the first, then
-`ROUNDS_SPENT_NOTE`, naming the limit and each of `runs` with its outcome, for the second, then
-`UNSCHEDULED_CLAIM_NOTE` when `unscheduled_claim(runs, reply)` (`schedule_claim.py`) finds the
-model's text saying something was scheduled with no run of `SCHEDULING_TOOLS` succeeding (ADR-0074
-decision 7). `UNREADABLE_CALL_NOTE` comes only when no completion was cut, so a reader gets one
-explanation. `overflow_note` appends `CONTEXT_OVERFLOW_NOTE` whatever the ledger holds.
+`limit_notes(stops, runs, parts, *, earlier=())`, `unreadable_call_note(stops, parts)` and
+`overflow_note(parts)` are the sentences a turn can end with, the first two read off a `StopLedger`
+(`stops.py`). `capped` says a completion stopped at a token limit (ADR-0048), and `out_of_rounds`
+says the loop's last round still ended in calls (ADR-0009). `limit_notes` appends `REPLY_CAPPED_NOTE`
+for the first, then `ROUNDS_SPENT_NOTE`, naming the limit and each of `runs` with its outcome, for
+the second, then `UNSCHEDULED_CLAIM_NOTE` when `unscheduled_claim` (`schedule_claim.py`) finds the
+text saying something was scheduled with no `SCHEDULING_TOOLS` run succeeding in `runs` or `earlier`,
+the cortex's runs a deep phase passes (ADR-0074 decision 7). `UNREADABLE_CALL_NOTE` comes only when
+no completion was cut, so a reader gets one explanation. `overflow_note` appends `CONTEXT_OVERFLOW_NOTE` whatever the ledger holds.
 
 `SerialTurnRunner(inner, locks)` (`session_turns.py`) is the `TurnRunner` every `Converse` stream
 runs. A turn holds its session in the shared `SessionTurnLocks` from before it stores its question

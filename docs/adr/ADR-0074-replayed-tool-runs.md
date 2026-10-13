@@ -69,7 +69,9 @@ wrote on a tainted turn can hold injected text or a link the output guardrail re
    "booked" in a sentence that names a reminder, a task, an alarm or the schedule. A question, a
    future or offered form, a negated one and a stored item described do not match. The runs half
    is exact, so the note is true whenever it is shown. Both tiers share `limit_notes`, and the
-   stored reply holds the note, so a later turn reads it too.
+   stored reply holds the note, so a later turn reads it too. The deep phase also counts the runs
+   of the cortex's stored reply to the same turn (`cortex_runs`, `handoff_view.py`), since a task
+   the cortex scheduled before it handed off was scheduled in this turn.
 
 ## Consequences
 

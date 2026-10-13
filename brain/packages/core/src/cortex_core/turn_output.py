@@ -67,10 +67,17 @@ def rounds_note(
 
 
 def limit_notes(
-    stops: StopLedger, runs: Sequence[ToolRun], parts: list[str]
+    stops: StopLedger,
+    runs: Sequence[ToolRun],
+    parts: list[str],
+    *,
+    earlier: Sequence[ToolRun] = (),
 ) -> Iterator[TurnEvent]:
-    """The notes a turn that ended without an error closes with, in the order it shows them."""
-    claimed = unscheduled_claim(runs, "".join(parts))
+    """The notes a turn that ended without an error closes with, in the order it shows them.
+
+    ``earlier`` are runs an earlier phase of the same turn made, read by the schedule check only.
+    """
+    claimed = unscheduled_claim((*earlier, *runs), "".join(parts))
     yield from cap_note(stops, parts)
     yield from rounds_note(stops, runs, parts)
     if claimed:

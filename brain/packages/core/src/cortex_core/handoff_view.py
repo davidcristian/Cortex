@@ -3,7 +3,7 @@
 from collections.abc import Sequence
 from dataclasses import replace
 
-from cortex_core.conversation import Message, Role
+from cortex_core.conversation import Message, Role, ToolRun
 from cortex_core.escalate import ESCALATION_QUEUED_MSG
 from cortex_core.handoff import HandoffRecord
 
@@ -21,6 +21,16 @@ def deep_history(history: Sequence[Message], record: HandoffRecord) -> list[Mess
         for message in history
         if message.role is not Role.ASSISTANT or message.turn_id != record.handoff_id
     ]
+
+
+def cortex_runs(history: Sequence[Message], record: HandoffRecord) -> tuple[ToolRun, ...]:
+    """The tool runs the cortex's reply to this turn made before it handed the turn off."""
+    return tuple(
+        run
+        for message in history
+        if message.role is Role.ASSISTANT and message.turn_id == record.handoff_id
+        for run in message.runs
+    )
 
 
 def deep_tail(record: HandoffRecord) -> tuple[Message, ...]:

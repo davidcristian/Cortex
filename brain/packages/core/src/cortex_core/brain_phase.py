@@ -8,7 +8,7 @@ from cortex_core.conversation import Message, Role, ToolRun
 from cortex_core.errors import ContextOverflowError, InferenceError, MalformedToolCallError
 from cortex_core.events import TextDelta, TurnEvent
 from cortex_core.handoff import HandoffRecord
-from cortex_core.handoff_view import deep_history, deep_tail
+from cortex_core.handoff_view import cortex_runs, deep_history, deep_tail
 from cortex_core.output_channels import open_output_channels
 from cortex_core.ports import Clock, InferenceBackend, SessionStore
 from cortex_core.stops import StopLedger
@@ -73,7 +73,8 @@ class BrainPhase:
 
     async def run(self, record: HandoffRecord) -> AsyncGenerator[TurnEvent, None]:
         """Rehydrate, run the shared tool loop on the deep model, persist, and stream it out."""
-        history = deep_history(await self._store.history(record.session_id), record)
+        stored = await self._store.history(record.session_id)
+        history = deep_history(stored, record)
         query = _user_query(history, record)
         taint = record.taint_ledger()
         watch = CadenceWatch(self._cadence.floor_tps)
@@ -138,7 +139,7 @@ class BrainPhase:
         finally:
             await events.aclose()
         if failure is None:
-            for event in limit_notes(stops, log.runs, parts):
+            for event in limit_notes(stops, log.runs, parts, earlier=cortex_runs(stored, record)):
                 yield event
         self._report_cadence(watch.reading(), record)
         reply = "".join(parts)
