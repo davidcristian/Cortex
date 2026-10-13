@@ -141,5 +141,17 @@ neither candidate is judged. For the record, candidate B would have stopped the 
 444 words after the prefill, 1 of them within the 400 the first rule asks for, because the loop's
 wording drifts for a few lines before one line settles. SM clock 0.62 of `clocks.max.sm`.
 
+**2026-10-13, the third rule's baseline**, 20 draws of the second rig: 5 of 20 loop, each to the
+1536 token limit, the most repeated line 14 to 63 times; the other 15 call `read_text_file` after
+at most 125 words of plan. 5 is under the 6 the rule needs, so **the defect does not reproduce**
+under the third rule either, candidate A was not drawn, and neither candidate is judged. SM clock
+0.58 of `clocks.max.sm`.
+
+Across the three baselines, 14 of 40 rig draws loop, about a third, and each one runs to its
+token limit. Read off the same draws and not judged by any rule, candidate B stops all 14 loops
+before that limit, 267 to 677 words after the prefill, and stops none of the 26 draws that do not
+loop and none of the 20 control draws. A rule that needs a reproduction rate near a half does not
+fit a rig that loops about a third of the time; the next rule is sized from that third.
+
 Method: the capture and replay drivers in the run's scratch directory, against the test stack's
 cortex server on `127.0.0.1:8080`.
