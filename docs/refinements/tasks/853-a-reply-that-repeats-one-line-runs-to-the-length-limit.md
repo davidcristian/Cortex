@@ -12,19 +12,31 @@ until the reply, 3,764 words, stopped at the length limit 169 s into the turn, w
 watching it stream and `REPLY_CAPPED_NOTE` at the end. Any loop the model falls into costs the
 whole limit this way, whatever starts it; R-851 is one cause.
 
+Nothing in the tree or the engine reads repeated text. The brain sends no sampling field and,
+with `CORTEX_REPLY_MAX_TOKENS` at 0, no `max_tokens`, so the context window is the limit, about
+11,000 tokens of reply on this prompt; the cortex server runs with `repeat_penalty` 1.0 and
+`dry_multiplier` 0.0, both off. The loop is in the reply text, not in `reasoning_content`: the
+model wrote its plan as reply text, then repeated two lines of it.
+
 ## Reproduce
 
-The probe row in the readings above, on the current tree under `CORTEX_TOOLS_ON_UNAVAILABLE=skip`.
-It is 1 of the 7 cut off reads drawn on 2026-10-13; 2 others ended at the round limit after
-repeated calls, and 4 ended with a short reply.
+The probe row above, on the current tree under `CORTEX_TOOLS_ON_UNAVAILABLE=skip`, is 1 of the 7
+cut off reads drawn on 2026-10-13. A replay of its state at the engine, with its first reply
+sentence as an assistant prefill, loops in 3 of 3 probe draws: the rig in
+[reply loop](../../readings/reply-loop.md#the-rig).
 
 ## What to do
 
-Measure first: a prompt or rig that loops more often than 1 in 7, so a check can be shown to
-fail and to pass. Then decide between a repeated-line check on the streamed reply that ends it
-early with a note saying so, and a repeat penalty in the cortex's sampling settings. Either
-changes what the person reads, so it ships on rows and a pass rule written in the readings first.
+Draw the baseline and the two candidates under
+[the pass rule](../../readings/reply-loop.md#the-pass-rule), written before any baseline row: a
+DRY setting on the cortex tier (`--dry-multiplier 0.8`), and a check on the streamed reply that
+ends it at the third arrival of one line, with a note saying so.
+Ship whichever the rule names, behind the turn's existing note path for a check, or the model
+host's tier argv for a flag.
 
 ## History
 
 - 2026-10-13: filed from the probe row of R-851, whose reply looped to the length limit.
+- 2026-10-13: premise checked against the tree and the stack's cortex server: nothing ends a
+  repeating reply before the context window. Built a replay rig that loops 3 of 3, and wrote
+  its rows and pass rule into [reply loop](../../readings/reply-loop.md).
