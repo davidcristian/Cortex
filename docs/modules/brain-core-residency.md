@@ -96,7 +96,7 @@ path returns the card to. Measurements are in [model-swap](../readings/model-swa
 for the last two: a terminal record stops being `active()` and may expire. `HandoffRecord` holds
 `handoff_id` (the escalating `turn_id`, which is why every log line on this path names its work
 `turn_id`), `session_id`, `requested_at`, `state`, `brief`, `nonce`, the whole serialized
-`TaintLedger` (`tainted`, `opaque`, `sources`, `untrusted_urls`), `budget_remaining`,
+`TaintLedger` (`tainted`, `opaque`, `recalled_only`, `sources`, `untrusted_urls`), `budget_remaining`,
 `budget_closed`, `rounds_used` and `loop_tail`. It contains only what is not already in a store, per
 the one hard rule, and `taint_ledger()` rebuilds an exact detached ledger for the deep phase.
 `opaque` is there as defence in depth: the conductor refuses an opaque turn before it snapshots, so

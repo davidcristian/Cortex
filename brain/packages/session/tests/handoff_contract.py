@@ -68,15 +68,29 @@ def opaque_ledger() -> TaintLedger:
     return ledger
 
 
+def recalled_ledger() -> TaintLedger:
+    """A ledger that only a fenced recalled memory tainted, set the one way recall sets it."""
+    ledger = TaintLedger()
+    ledger.ingest_untrusted(
+        "a remembered exchange citing http://evil.example/note",
+        source=Provenance(kind=SourceKind.MEMORY, value="mem-7"),
+        recalled=True,
+    )
+    return ledger
+
+
 def make_record(
     handoff_id: str,
     *,
     state: HandoffState = HandoffState.READY,
     requested_at: datetime = _AT,
     opaque: bool = False,
+    recalled: bool = False,
 ) -> HandoffRecord:
     """One full-shape record, snapshotted off a live slot exactly as the conductor will."""
     ledger = opaque_ledger() if opaque else tainted_ledger()
+    if recalled:
+        ledger = recalled_ledger()
     budget = DispatchBudget(limit=8)
     budget.charge(3)
     call = ToolCall(id="c1", name="read_email", arguments={"folder": "inbox", "limit": 2})
@@ -177,6 +191,19 @@ async def check_the_opaque_bit_round_trips_both_ways(store: HandoffStore) -> Non
     assert restored.opaque is True
     assert restored == opaque_ledger()
     await store.delete(record.handoff_id)
+
+
+async def check_the_recalled_only_bit_round_trips_both_ways(store: HandoffStore) -> None:
+    """Whether recall alone tainted the turn survives the store, both set and unset."""
+    for recalled in (False, True):
+        record = make_record(_handoff_id(), recalled=recalled)
+        assert record.recalled_only is recalled
+        await store.put(record)
+        loaded = await store.get(record.handoff_id)
+        assert loaded is not None
+        assert loaded == record
+        assert loaded.taint_ledger().recalled_only is recalled
+        await store.delete(record.handoff_id)
 
 
 async def check_put_claims_the_active_slot(store: HandoffStore) -> None:
@@ -297,6 +324,7 @@ ALL_CHECKS = (
     check_record_round_trips_field_for_field,
     check_tainted_ledger_round_trips_exactly,
     check_the_opaque_bit_round_trips_both_ways,
+    check_the_recalled_only_bit_round_trips_both_ways,
     check_put_claims_the_active_slot,
     check_transition_walks_the_lifecycle,
     check_terminal_transition_releases_active_but_keeps_the_record,

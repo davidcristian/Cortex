@@ -127,7 +127,7 @@ second overwritten field per fact. This ADR designs the channel once.
 
 13. **The stamp itself is never serialized; one store keeps a turn's whole ledger.** No proto
     change was needed, and the proto's `tainted` fields are `DueReminder`'s and `NotifyRequest`'s
-    own. `HandoffRecord` stores `tainted`, `opaque`, `sources` and `untrusted_urls` under the
+    own. `HandoffRecord` stores `tainted`, `opaque`, `recalled_only`, `sources` and `untrusted_urls` under the
     escalating turn's id, and `taint_ledger()` rebuilds the ledger after the model swap, asserted
     by the handoff store's contract suite. That is the form a durable per-turn provenance record
     would copy.

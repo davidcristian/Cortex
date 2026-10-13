@@ -154,6 +154,23 @@ def test_taint_ledger_reconstruction_is_exact_and_detached() -> None:
     assert record.untrusted_urls == frozenset({"http://evil.example/a"})
 
 
+@pytest.mark.parametrize("also_read", [False, True])
+def test_a_snapshot_keeps_whether_recall_alone_tainted_the_turn(*, also_read: bool) -> None:
+    ledger = TaintLedger()
+    ledger.ingest_untrusted("a remembered exchange", recalled=True)
+    if also_read:
+        ledger.observe(ToolResult(call_id="c1", content="a page", trust=Trust.UNTRUSTED))
+    slot = EscalationSlot(
+        refs=EscalationRefs(
+            working=[], taint=ledger, nonce="cafe0123beef4567", budget=DispatchBudget(), base_len=0
+        ),
+        brief="go deep on this",
+    )
+    record = slot.snapshot(turn_id="t-1", session_id="s-1", requested_at=_AT)
+    assert record.recalled_only is not also_read
+    assert record.taint_ledger() == ledger
+
+
 def test_a_snapshot_refuses_a_loop_tail_with_pixels() -> None:
     slot = _slot(_pixel_working(), budget=DispatchBudget(8), base_len=1)
     with pytest.raises(ValueError, match="never persists images"):

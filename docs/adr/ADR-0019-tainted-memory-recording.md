@@ -82,7 +82,9 @@ across turns (a recalled memory).
 8. **A turn that recall alone tainted can still schedule and edit a task.** The ledger's
    `recalled_only` is set while fenced recalled memories are the turn's only untrusted input
    (`ingest_untrusted(..., recalled=True)`); a live untrusted result or an attachment clears it, and
-   a ledger built with `tainted=True` (a subagent's, a handoff's) starts with it clear. The
+   a subagent's ledger, built with `tainted=True`, starts with it clear. A handoff record stores it
+   with the rest of the ledger, so the deep phase checks a task and words a block as the cortex
+   phase would have. The
    `TurnStamp` has it too, and its `live_taint` is `tainted and not recalled_only`. Only two checks
    read `live_taint`: `schedule_task` refusing a task and `edit_scheduled` refusing to edit one
    ([ADR-0025](ADR-0025-scheduling-reminders.md) decisions 3 and 9). Every other effect of the taint

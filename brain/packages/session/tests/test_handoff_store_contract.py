@@ -79,7 +79,9 @@ async def test_corrupt_record_wraps_into_handoff_store_error() -> None:
         await RedisHandoffStore(client).get("t1")
 
 
-@pytest.mark.parametrize("field", ["tainted", "opaque", "sources", "untrusted_urls"])
+@pytest.mark.parametrize(
+    "field", ["tainted", "opaque", "recalled_only", "sources", "untrusted_urls"]
+)
 async def test_record_missing_a_taint_field_is_corrupt_not_a_default(field: str) -> None:
     client = FakeAsyncRedis(server=FakeServer())
     fields = cast("dict[str, Any]", json.loads(encode_record(handoff_contract.make_record("t1"))))

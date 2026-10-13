@@ -161,7 +161,7 @@ record.
 Handoff state (ADR-0030) is hot the same way: one record at `cortex:handoff:{id}`, no `v` or `kind`
 markers, plus the pointer key `cortex:handoff:active` holding the in-flight record's id (one GPU, at
 most one swap at a time). The document holds the escalation `brief`, the turn's fence `nonce`, the
-whole taint ledger (`tainted`, `opaque`, `sources` as ordered `{"kind", "value"}` pairs,
+whole taint ledger (`tainted`, `opaque`, `recalled_only`, `sources` as ordered `{"kind", "value"}` pairs,
 `untrusted_urls` stored sorted and read back as a set), the budget position (`budget_remaining` and
 `budget_closed`), `rounds_used`, `loop_tail` (each message with its `tool_calls` as
 `{"id", "name", "arguments"}`; the transient dispatch stamp is never stored) and `failure`, the only

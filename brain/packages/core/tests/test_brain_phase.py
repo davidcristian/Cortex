@@ -11,8 +11,10 @@ from cortex_core import (
     BRAIN_FAILED_NOTE,
     BRAIN_OVERFLOW_NOTE,
     BUDGET_EXHAUSTED_MSG,
+    DENIED_MSG,
     ESCALATION_QUEUED_MSG,
     NO_CADENCE_TERMS,
+    RECALL_DENIED_MSG,
     REDACTED,
     REPLY_CAPPED_NOTE,
     UNREADABLE_CALL_NOTE,
@@ -21,6 +23,7 @@ from cortex_core import (
     DecodeCadence,
     DecodeStop,
     DispatchBudget,
+    DispatchPolicy,
     GenerationBounds,
     ImagePart,
     InferenceError,
@@ -32,6 +35,7 @@ from cortex_core import (
     MalformedToolCallError,
     Message,
     PlainFormatter,
+    Provenance,
     RecordingAuditSink,
     RecordingPaceSink,
     Role,
@@ -287,6 +291,34 @@ async def test_the_deep_phases_dispatches_are_audited_under_the_turn_that_escala
     (invocation,) = audit.records
     assert (invocation.session_id, invocation.turn_id) == (harness.SESSION, harness.TURN)
     assert invocation.task_id == ""
+
+
+def _recalled_ledger(*, also_read: bool) -> TaintLedger:
+    ledger = TaintLedger()
+    ledger.ingest_untrusted(
+        "a remembered exchange",
+        source=Provenance(kind=SourceKind.MEMORY, value="m1"),
+        recalled=True,
+    )
+    if also_read:
+        ledger.observe(ToolResult(call_id="c0", content="an injected page", trust=Trust.UNTRUSTED))
+    return ledger
+
+
+@pytest.mark.parametrize(("also_read", "said"), [(False, RECALL_DENIED_MSG), (True, DENIED_MSG)])
+async def test_a_deep_phase_blocks_with_the_text_for_what_its_turn_read(
+    *, also_read: bool, said: str
+) -> None:
+    audit = RecordingAuditSink()
+    policy = DispatchPolicy(confirm_names={"read"})
+    dispatcher = ToolDispatcher(_registry(), audit, SystemClock(), policy=policy)
+    backend = ScriptedBrainBackend(
+        chunks=("done",), tool_calls=(ToolCall(id="c1", name="read", arguments={}),)
+    )
+    taint = _recalled_ledger(also_read=also_read)
+    await _drive(capabilities=TurnCapabilities(tools=dispatcher), backend=backend, taint=taint)
+    (invocation,) = audit.records
+    assert (invocation.ok, invocation.detail) == (False, said)
 
 
 async def test_the_deep_phases_reply_records_the_tool_runs_it_made() -> None:

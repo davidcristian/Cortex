@@ -66,6 +66,7 @@ def encode_record(record: HandoffRecord) -> str:
             "nonce": record.nonce,
             "tainted": record.tainted,
             "opaque": record.opaque,
+            "recalled_only": record.recalled_only,
             "sources": [
                 {"kind": source.kind.value, "value": source.value} for source in record.sources
             ],
@@ -102,6 +103,7 @@ def decode_record(raw: bytes | str, handoff_id: str) -> HandoffRecord:
             rounds_used=fields["rounds_used"],
             loop_tail=tuple(_decode_message(message) for message in fields["loop_tail"]),
             failure=fields["failure"],
+            recalled_only=fields["recalled_only"],
         )
     except (KeyError, TypeError, ValueError) as err:
         msg = f"corrupt handoff record at {record_key(handoff_id)!r}"
