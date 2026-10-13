@@ -67,16 +67,16 @@ run.
   write at the end of the turn was stored. The container reported healthy after 6 s.
 - **Killed during a turn**, four seconds into a 150 word reply: the recall had run, the write
   failed, and the person saw nothing.
-- **Frozen during a turn** (`docker pause`): the first event the turn sent was a heartbeat with no
-  wait at 30.0 s, then the status line, when the 30 s embedder timeout ended the recall. The reply
-  then streamed, and the turn completed 10.0 s after its last text, at 44.3 s, when the write's
+- **Frozen during a turn** (`docker pause`), with the embedder's timeout still at 30 s: the first
+  event the turn sent was a heartbeat with no wait at 30.0 s, then the status line, when that
+  timeout ended the recall. The reply then streamed, and the turn completed 10.0 s after its last text, at 44.3 s, when the write's
   bound below ended it; the brain logged `memory write unavailable` over a `TimeoutError`. Unpaused,
   the next turn completed 0.1 s after its last text and its exchange was stored. SM clock 0.59 of
   `clocks.max.sm` after the run. In the shell, with one frame a second, the reply's last words
   stayed faded under the streaming front and the composer showed the stop button for 10 frames
   after the reply appeared; the full text and the send arrow came together.
 
-## The bound on the write
+## The bounds on the write and the recall
 
 `record_exchange` bounds the whole write, the embedding and the insert, at
 `MEMORY_WRITE_TIMEOUT_S` (10 s). Without it the write waited the embedder's whole 30 s timeout
@@ -87,6 +87,13 @@ first on an idle machine and then with twice as many busy loops as cores. Busy, 
 times the idle median and the slowest 13 times; the bound is 36 times the idle median and 2.8 times
 the slowest busy request. Method: 20 timed POSTs of one 1,800 character text to `/v1/embeddings`
 on port 8081 from the host, the load from `yes` processes.
+
+The orchestrator sets the embedder's HTTP timeout to the same 10 s on the same measurement, so the
+recall's embedding is bounded too. With that build, the embedding server frozen after a warm turn,
+and a question asking for about 100 words: the status line came at 10.0 s, the last text at
+35.1 s, and the turn completed at 45.2 s, the write's bound after the last text. Unfrozen, the
+next turn completed 0.4 s after its last text and its exchange was stored. SM clock 0.59 of
+`clocks.max.sm` after the run.
 
 ## The filesystem sidecar
 

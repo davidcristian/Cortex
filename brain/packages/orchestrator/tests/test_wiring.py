@@ -429,7 +429,15 @@ async def test_build_memory_selects_pgvector_and_returns_a_closer(
         seen_dsn.append((dsn, timeout_s))
         return FakeStore()
 
+    seen_timeouts: list[httpx.Timeout] = []
+
+    def timed_embedder(client: httpx.AsyncClient, endpoint: str, *, model: str) -> HashEmbedder:
+        del endpoint, model
+        seen_timeouts.append(client.timeout)
+        return HashEmbedder()
+
     monkeypatch.setattr(PgVectorMemoryStore, "connect", fake_connect)
+    monkeypatch.setattr(memory_builders_module, "LlamaCppEmbedder", timed_embedder)
     config = MemoryConfig(
         backend="pgvector",
         dsn="postgresql://cortex@db/cortex",
@@ -440,6 +448,7 @@ async def test_build_memory_selects_pgvector_and_returns_a_closer(
     assert isinstance(memory(EchoInferenceBackend(), "cortex"), MemoryRecaller)
     assert isinstance(cascade, SessionMemoryCascade)
     assert seen_dsn == [("postgresql://cortex@db/cortex", 10.0)]
+    assert seen_timeouts == [httpx.Timeout(10.0)]
     await close()
     assert closed == ["store"]
 

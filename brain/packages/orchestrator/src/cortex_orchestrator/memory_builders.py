@@ -33,7 +33,9 @@ from cortex_orchestrator.config import MemoryConfig, MemoryScopeName
 
 type RecallerFor = Callable[[InferenceBackend, str], MemoryRecaller]
 
-_EMBEDDER_TIMEOUT_S = 30.0
+# About three times the slowest exchange embedding measured with every core busy, so a frozen
+# embedder costs the recall before a turn's first token this long and no longer.
+_EMBEDDER_TIMEOUT_S = 10.0
 # About seven times the slowest measured search, the exact scan over 220,000 memories.
 _STORE_TIMEOUT_S = 10.0
 _SECONDS_PER_DAY = 86400.0

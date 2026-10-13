@@ -177,8 +177,10 @@ and put embedding on the CPU so the GPU budget stays with the cortex
     cancels the turn's task, so a write after it would be cut off on almost every turn, and a write
     in a task of its own would keep the exchange only in the brain's process. The bound is about
     three times the slowest exchange embedding measured with every core busy
-    ([readings](../readings/store-and-sidecar-outages.md#the-embedding-server)), while the
-    embedder's own 30 s timeout still bounds the recall.
+    ([readings](../readings/store-and-sidecar-outages.md#the-embedding-server)). The orchestrator
+    sets the embedder's HTTP timeout to the same 10 s on the same measurement, which bounds the
+    recall's embedding before a turn's first token; the `judge` policy's model call after it is
+    not under that bound.
 
 13. **A malformed row is a data defect, and it fails visibly.** The criterion is whether the
     condition resolves without anyone touching the deployment: a stopped server comes back, a row

@@ -15,8 +15,8 @@ depends only on `Embedder`. Unlike the inference adapter it is **not** routed th
   2. Returns `data[0].embedding` as a `list[float]` (integer elements are coerced to float).
   - `model` is the logical id sent in the body; `llama-server` embeds with whatever model it was
     started with and ignores the value, but the OpenAI schema requires the field.
-  - The injected `http_client` owns timeouts/transport (the composition root configures a finite
-    timeout, since an embedding is a quick request, unlike a streamed generation).
+  - The injected `http_client` owns timeouts/transport (the composition root sets 10 s, since
+    an embedding is a quick request, unlike a streamed generation; ADR-0008 decision 12).
 
 **The server's input bound.** `llama-server` refuses an embedding input longer than its
 micro-batch with a 500, so `docker/docker-compose.memory.yml` starts it with
