@@ -103,7 +103,8 @@ def decode_record(raw: bytes | str, handoff_id: str) -> HandoffRecord:
             rounds_used=fields["rounds_used"],
             loop_tail=tuple(_decode_message(message) for message in fields["loop_tail"]),
             failure=fields["failure"],
-            recalled_only=fields["recalled_only"],
+            # Missing in a record written before the field existed; False is the stricter value.
+            recalled_only=fields.get("recalled_only", False),
         )
     except (KeyError, TypeError, ValueError) as err:
         msg = f"corrupt handoff record at {record_key(handoff_id)!r}"

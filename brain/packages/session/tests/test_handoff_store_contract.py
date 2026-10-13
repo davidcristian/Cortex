@@ -79,9 +79,7 @@ async def test_corrupt_record_wraps_into_handoff_store_error() -> None:
         await RedisHandoffStore(client).get("t1")
 
 
-@pytest.mark.parametrize(
-    "field", ["tainted", "opaque", "recalled_only", "sources", "untrusted_urls"]
-)
+@pytest.mark.parametrize("field", ["tainted", "opaque", "sources", "untrusted_urls"])
 async def test_record_missing_a_taint_field_is_corrupt_not_a_default(field: str) -> None:
     client = FakeAsyncRedis(server=FakeServer())
     fields = cast("dict[str, Any]", json.loads(encode_record(handoff_contract.make_record("t1"))))
@@ -89,6 +87,18 @@ async def test_record_missing_a_taint_field_is_corrupt_not_a_default(field: str)
     await client.set("cortex:handoff:t1", json.dumps(fields))
     with pytest.raises(HandoffStoreError, match="corrupt handoff record at 'cortex:handoff:t1'"):
         await RedisHandoffStore(client).get("t1")
+
+
+async def test_a_record_written_before_recalled_only_reads_it_as_false() -> None:
+    client = FakeAsyncRedis(server=FakeServer())
+    record = handoff_contract.make_record("t1", recalled=True)
+    fields = cast("dict[str, Any]", json.loads(encode_record(record)))
+    del fields["recalled_only"]
+    await client.set("cortex:handoff:t1", json.dumps(fields))
+    loaded = await RedisHandoffStore(client).get("t1")
+    assert loaded is not None
+    assert loaded.recalled_only is False
+    assert loaded.taint_ledger().tainted is True
 
 
 async def test_record_with_an_unknown_source_kind_is_corrupt() -> None:

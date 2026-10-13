@@ -167,8 +167,8 @@ whole taint ledger (`tainted`, `opaque`, `recalled_only`, `sources` as ordered `
 `{"id", "name", "arguments"}`; the transient dispatch stamp is never stored) and `failure`, the only
 field written after the snapshot. `failure` is required like the rest, since reading a missing field
 as "no reason given" would be indistinguishable from the state the field exists to describe.
-Decoding is strict for the same reason as task state: taint fields that quietly defaulted would fail
-open after the swap.
+Decoding is strict, as for task state, since a defaulted taint field would fail open after the swap,
+except that a missing `recalled_only` reads as `False`, the stricter value, so an older record decodes.
 
 Schedule state (ADR-0025) is durable again: one record per schedule at `cortex:schedule:{id}`
 holding
