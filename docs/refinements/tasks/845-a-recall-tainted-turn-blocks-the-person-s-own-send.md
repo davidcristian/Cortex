@@ -3,7 +3,7 @@
 **Status:** open, actionable
 **Area:** untrusted-content
 **Origin:** [ADR-0019](../../adr/ADR-0019-tainted-memory-recording.md)
-**Verified:** 2026-10-12
+**Verified:** 2026-10-13
 
 With `CORTEX_MEMORY_ON_TAINTED=record`, a turn whose only untrusted input is a recalled tainted
 memory still blocks every tool that needs confirmation, apart from a record card
@@ -27,3 +27,7 @@ tainted recall and one where the recalled text asks for the send.
 ## History
 
 - 2026-10-12: filed while closing R-073, whose rows had no send path on the stack.
+- 2026-10-13: the premise holds in the tree at `f592c30f9`: `ToolDispatcher._dispatched`
+  returns `DENIED_MSG` for a tainted turn without reading `recalled_only`, and `DENIED_MSG` still
+  advises a new message giving the address, subject and body. Rows and a pass rule written first
+  ([readings](../../readings/recall-tainted-send.md)).
