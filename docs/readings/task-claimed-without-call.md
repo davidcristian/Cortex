@@ -219,3 +219,25 @@ would fail on those 3 replies; each of them showed the task as scheduled, two wi
 its time, before saying it was not. The claim with no call came in 4 of 20 chains with the
 reminder turn and 1 of 20 without it, and every "says both" came in row Q. The driver is
 `slot2/chain.sh` in the run's scratch directory; runs: `runs/{base,after}-{R,Q,L}*`.
+
+## A deep reply after the cortex scheduled
+
+**2026-10-13**, the `cortexn4` stack with the deep tier named (gemma-4-31B QAT q4_0), memory
+emptied, the schedule restored, the `escalate_to_brain` card approved. Both rows ran one chat with
+the same text: "Two things, in this order. First use schedule_task to set a reminder for tomorrow
+at 09:00 to water the ferns. Once that succeeds, call escalate_to_brain so the deep model writes a
+short weekly watering plan for indoor ferns, starting with one sentence that confirms the reminder
+it can see was set." Written before either ran: the baseline reproduces the defect if the deep
+reply claims the reminder and ends with the note; the change passes if a claiming deep reply has
+no note. SM clock: 0.40 to 0.60 of `clocks.max.sm`; `memory.used` peaked at 21719 of 24463 MiB.
+
+| Row | Brain | `schedule_task` | Deep reply's claim | Note |
+| --- | --- | --- | --- | --- |
+| B2 | before the change | `ok=True` | "I have set your reminder to water the ferns for tomorrow at 09:00." | yes |
+| F2 | with the change | `ok=True` | the same sentence | no |
+
+In both, the cortex scheduled, then handed off, and the deep model made no call and decoded 176
+(B2) and 264 (F2) tokens at 33.8 and 34.2 tokens/s. B2's reply ended with "(Nothing was scheduled
+in this turn: no scheduling call in it succeeded. Ask again to schedule it.)" after a reminder that
+was stored. The change passes on one row each. Runs: `slot9/runs/{B2,F2}.{json,log,gpu}` in the
+run's scratch directory.
