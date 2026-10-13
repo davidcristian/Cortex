@@ -97,7 +97,12 @@ across turns (a recalled memory).
    is contained by structure rather than by the creation check: it runs tainted, with no confirmer
    and only tools needing none (ADR-0025 decision 4), and its listing and toast are marked. A
    recalled injection can therefore store a task as well, and one did when the person asked to
-   follow a quoted note; its run could not send.
+   follow a quoted note; its run could not send. A blocked call on such a turn returns
+   `RECALL_DENIED_MSG` rather than `DENIED_MSG`, whose advice, a new message giving everything the
+   action needs, recalls the same row. It names a remembered exchange derived from untrusted
+   content as the cause and tells the model not to suggest asking again. On the stack 3 of 3
+   replies to the person's own blocked send relayed that advice before, and 0 of 3 after
+   ([readings](../readings/recall-tainted-send.md)).
 
 ## Consequences
 
@@ -113,9 +118,10 @@ across turns (a recalled memory).
 - **Loosely related recall spreads taint.** A semantically matched but irrelevant tainted memory
   taints an otherwise clean turn and blocks the actions that need confirmation, failing closed by
   design, since the recalled content is in the model's context and framing is not trusted to
-  contain it. A record card (decision 4) and a task (decision 8) are the exceptions. An email the person asks for in such a turn is
-  still blocked, and `DENIED_MSG` then names a way out that recall closes
-  ([task 845](../refinements/tasks/845-a-recall-tainted-turn-blocks-the-person-s-own-send.md)).
+  contain it. A record card (decision 4) and a task (decision 8) are the exceptions. An email the
+  person asks for in such a turn is still blocked, with `RECALL_DENIED_MSG`, and nothing lets the
+  person answer a turn without recall or forget the row
+  ([task 848](../refinements/tasks/848-nothing-lets-the-person-out-of-a-recall-tainted-block.md)).
 - **Removing memories by the source they came from needs two things the port lacks.** A memory
   stores only the `tainted` bit, with no provenance column or index to filter on, and the port's
   one removal, `delete_scope`, is string equality on one namespace with no wildcard (ADR-0008

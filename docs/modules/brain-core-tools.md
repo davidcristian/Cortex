@@ -61,9 +61,9 @@ the loop drives it and keeps the history.
   message is returned, and the attempt is audited. A refusal is checked **before** the confirmation
   rule, so a flood of confirmable calls cannot reach the user as prompts.
 - The confirmation rule (ADR-0013, revised by ADR-0022): a `confirm_required` call on a tainted turn is
-  refused outright with `DENIED_MSG` and the confirmer is not consulted, unless its name has a record
-  card; otherwise it runs only when the `Confirmer` approves, else `USER_DECLINED_MSG` or
-  `UNANSWERED_MSG`. All skip the tool and are audited.
+  refused with `DENIED_MSG` (`RECALL_DENIED_MSG` when recall alone tainted it), the confirmer never
+  asked, unless its name has a record card; otherwise it runs only when the `Confirmer` approves,
+  else `USER_DECLINED_MSG` or `UNANSWERED_MSG`. All skip the tool and are audited.
 
 `DispatchPolicy(confirm_names=(), costs=UNIFORM_COST, salience=REPEAT_SALIENCE, confirm_reasons={},
 record_cards={})` (`dispatch.py`, default `DEFAULT_DISPATCH_POLICY`) is what the composition root

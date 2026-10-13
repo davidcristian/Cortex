@@ -3,6 +3,7 @@ from datetime import UTC, datetime, timedelta
 
 from cortex_core import (
     DENIED_MSG,
+    RECALL_DENIED_MSG,
     TAINTED_TASK_MSG,
     CompositeToolRegistry,
     EditScheduledTool,
@@ -180,7 +181,7 @@ async def test_a_recall_only_turn_schedules_the_task_and_still_blocks_a_send() -
     sending = ToolCall(id="c2", name="send", arguments={"to": "x"})
     sink = await _engine_turn(registry, [[task, sending], [TextChunk("done")]])
     assert [(r.name, r.ok) for r in sink.records] == [("schedule_task", True), ("send", False)]
-    assert sink.records[1].detail == DENIED_MSG
+    assert sink.records[1].detail == RECALL_DENIED_MSG
     (item,) = await schedule_store.list_active()
     assert item.tainted is True
 
@@ -199,3 +200,16 @@ async def test_a_task_after_a_live_untrusted_read_is_still_refused() -> None:
     assert sink.records[-1].detail == TAINTED_TASK_MSG
     assert sink.records[0].trust is Trust.UNTRUSTED
     assert await schedule_store.list_active() == ()
+
+
+async def test_a_send_after_a_live_read_on_a_recalling_turn_gets_the_live_refusal() -> None:
+    read = ToolSpec(name="read", description="read", parameters={})
+    send = ToolSpec(name="send", description="send", parameters={}, confirm_required=True)
+    registry = InMemoryToolRegistry({"read": (read, _hostile_read), "send": (send, _send)})
+    steps = [
+        [ToolCall(id="c1", name="read", arguments={})],
+        [ToolCall(id="c2", name="send", arguments={"to": "x"})],
+        [TextChunk("done")],
+    ]
+    sink = await _engine_turn(registry, steps)
+    assert [(r.name, r.ok, r.detail) for r in sink.records[1:]] == [("send", False, DENIED_MSG)]

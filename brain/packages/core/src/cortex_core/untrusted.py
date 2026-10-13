@@ -54,6 +54,15 @@ DENIED_MSG = (
     "subject and the body) lets it run without reading anything first."
 )
 
+# A new message recalls the same memory, so this text names no way to ask again.
+RECALL_DENIED_MSG = (
+    "BLOCKED: this turn recalled a remembered exchange that was derived from untrusted external "
+    "content, so no outbound or irreversible action can run in it, and this one was not "
+    "performed. A new message about the same thing is likely to recall that memory and be "
+    "blocked the same way. Tell the user it was not done because of that remembered exchange, "
+    "and do not tell them that asking again or giving the details again will let it run."
+)
+
 USER_DECLINED_MSG = (
     "DECLINED: the user was shown this action and pressed Deny, so it was not performed and "
     "nothing is waiting for approval. Tell the user it was not done because they declined it. "

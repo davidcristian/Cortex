@@ -60,8 +60,9 @@ decision, so such a tool means the human approves each use. On a tainted turn th
 may themselves be injection-authored, and a card showing attacker-drafted content to a user used to
 clicking approve is not a boundary: after reading hostile bytes, the outbound path is closed for
 the rest of the turn. Taint is turn-local, but the same request asked again reads the mail again;
-`DENIED_MSG` asks for a message giving the address, subject and body, which sends because it reads
-nothing first. A caller's own refusal (a spent budget, a recognized repeat) returns before this rule.
+`DENIED_MSG` asks for a message giving the address, subject and body, which reads nothing first,
+and `RECALL_DENIED_MSG` offers none when recall alone tainted the turn (ADR-0019 decision 8). A
+caller's own refusal (a spent budget, a recognized repeat) returns before this rule.
 
 **A record card is the one exception.** A built-in that acts on one record the brain holds and
 implements `RecordCard` (`cortex_core/composite.py`) is confirmed on a tainted turn too, and its
@@ -244,7 +245,6 @@ the user approved the card, so a wrong guess costs a second approval.
   `escalate_to_brain`), [ADR-0056](ADR-0056-email-reader-answers.md) (the reader's answers),
   [ADR-0057](ADR-0057-imap-probe-server.md) (the probe server).
 - Modules: [brain-email](../modules/brain-email.md),
-  [brain-orchestrator](../modules/brain-orchestrator.md),
-  [`cortex_seam`](../modules/brain-seam.md); runbooks:
-  [email-imap](../runbooks/email-imap.md), [body-overlay](../runbooks/body-overlay.md).
+  [brain-orchestrator](../modules/brain-orchestrator.md), [`cortex_seam`](../modules/brain-seam.md);
+  runbooks: [email-imap](../runbooks/email-imap.md), [body-overlay](../runbooks/body-overlay.md).
 - [docs/refinements/index.md#email-confirmer](../refinements/index.md#email-confirmer).

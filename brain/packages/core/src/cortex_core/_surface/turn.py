@@ -59,6 +59,7 @@ from cortex_core.turn_output import (
 from cortex_core.untrusted import (
     DENIED_MSG,
     PLAIN_SECURITY_PREAMBLE,
+    RECALL_DENIED_MSG,
     SECURITY_PREAMBLE,
     UNANSWERED_MSG,
     USER_DECLINED_MSG,
@@ -103,6 +104,7 @@ __all__ = [
     "MAX_BRIEF_CHARS",
     "PLAIN_SECURITY_PREAMBLE",
     "QUEUED",
+    "RECALL_DENIED_MSG",
     "RECAP_BOUNDS",
     "RECAP_MAX",
     "RECAP_MAX_TOKENS",

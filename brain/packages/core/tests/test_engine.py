@@ -12,6 +12,7 @@ from cortex_core import (
     ESCALATE_TOOL_NAME,
     FORGOING_DETAIL,
     FORGOING_STATE,
+    RECALL_DENIED_MSG,
     REDACTED_LINK,
     REPLY_CAPPED_NOTE,
     SECURITY_PREAMBLE,
@@ -1510,7 +1511,7 @@ async def test_recalled_tainted_memory_is_fenced_and_re_taints_the_turn() -> Non
     memory_msg = next(m for m in first_step if "wire funds now" in m.text)
     assert "<untrusted-tool-output id=" in memory_msg.text
     assert [(r.name, r.ok) for r in sink.records] == [("send", False)]
-    assert sink.records[0].detail == DENIED_MSG
+    assert sink.records[0].detail == RECALL_DENIED_MSG
 
 
 class _StampRecordingRegistry:

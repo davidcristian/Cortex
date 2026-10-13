@@ -1,9 +1,8 @@
 # A recall-tainted turn blocks the person's own send
 
-**Status:** open, actionable
+**Status:** done 2026-10-13
 **Area:** untrusted-content
 **Origin:** [ADR-0019](../../adr/ADR-0019-tainted-memory-recording.md)
-**Verified:** 2026-10-13
 
 With `CORTEX_MEMORY_ON_TAINTED=record`, a turn whose only untrusted input is a recalled tainted
 memory still blocks every tool that needs confirmation, apart from a record card
@@ -31,3 +30,12 @@ tainted recall and one where the recalled text asks for the send.
   returns `DENIED_MSG` for a tainted turn without reading `recalled_only`, and `DENIED_MSG` still
   advises a new message giving the address, subject and body. Rows and a pass rule written first
   ([readings](../../readings/recall-tainted-send.md)).
+- 2026-10-13: done. A blocked call on a turn that recall alone tainted now returns
+  `RECALL_DENIED_MSG` (`dispatch.py`), which names a remembered exchange derived from untrusted
+  content as the cause and tells the model not to suggest asking again; the block itself stays.
+  On the stack with the send path on, 3 of 3 replies to the person's own blocked send advised a
+  new message before the change and 0 of 3 after, and no row with the recalled injection made an
+  outward call that ran ([readings](../../readings/recall-tainted-send.md)). The decision is in
+  [ADR-0019](../../adr/ADR-0019-tainted-memory-recording.md) decision 8. The text offers the
+  person no way out because none exists: answering a turn without recall, or forgetting the row,
+  is [task 848](848-nothing-lets-the-person-out-of-a-recall-tainted-block.md).

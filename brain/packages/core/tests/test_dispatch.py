@@ -5,6 +5,7 @@ from cortex_core import (
     ALWAYS_SALIENT,
     BUDGET_EXHAUSTED_MSG,
     DENIED_MSG,
+    RECALL_DENIED_MSG,
     REDUNDANT_MSG,
     UNANSWERED_MSG,
     USER_DECLINED_MSG,
@@ -138,6 +139,20 @@ async def test_a_tainted_turn_blocks_a_confirm_required_tool_a_confirmer_would_a
     )
     assert result.content == DENIED_MSG
     assert confirmer.requests == ()
+
+
+async def test_a_recall_only_turn_blocks_with_the_recall_refusal_and_asks_nobody() -> None:
+    sink = RecordingAuditSink()
+    confirmer = RecordingConfirmer(answer=True)
+    result = await _outbound(sink, confirmer).dispatch(
+        ToolCall(id="c", name="send", arguments={"path": "/p"}),
+        stamp=TurnStamp(tainted=True, recalled_only=True),
+        confirm_required=True,
+    )
+    assert (result.is_error, result.content) == (True, RECALL_DENIED_MSG)
+    assert confirmer.requests == ()
+    (record,) = sink.records
+    assert (record.ok, record.detail) == (False, RECALL_DENIED_MSG)
 
 
 async def test_confirm_required_tool_on_a_clean_turn_runs_when_the_user_approves() -> None:

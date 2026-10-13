@@ -24,7 +24,12 @@ from cortex_core.tools import (
     Trust,
     TurnStamp,
 )
-from cortex_core.untrusted import DENIED_MSG, UNANSWERED_MSG, USER_DECLINED_MSG
+from cortex_core.untrusted import (
+    DENIED_MSG,
+    RECALL_DENIED_MSG,
+    UNANSWERED_MSG,
+    USER_DECLINED_MSG,
+)
 from cortex_core.waits import USER_ASKED
 
 _CONFIRM_REASON = "this action is outbound or irreversible and runs only with your approval"
@@ -153,8 +158,9 @@ class ToolDispatcher:
             # A record card shows the brain's own record rather than text the model wrote, so
             # it is shown on a tainted turn too.
             if call.stamp.tainted and card is None:
+                said = RECALL_DENIED_MSG if call.stamp.recalled_only else DENIED_MSG
                 blocked = ToolResult(
-                    call_id=call.id, content=DENIED_MSG, is_error=True, trust=Trust.TRUSTED
+                    call_id=call.id, content=said, is_error=True, trust=Trust.TRUSTED
                 )
                 return await self._audited(call, blocked)
             answer = await self._confirmed(call, card)
