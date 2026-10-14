@@ -1,9 +1,8 @@
 # A call cut off by a down sidecar blames the file
 
-**Status:** open, actionable
+**Status:** done 2026-10-14
 **Area:** tools-mcp
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
-**Verified:** 2026-10-14
 
 When a sidecar stops during a call, the text the model reads for that call misleads it. Under
 `CORTEX_TOOLS_ON_UNAVAILABLE=fail` it is the `ToolError` text `MCP sidecar unavailable`: with
@@ -47,3 +46,8 @@ apart from the rows.
   decided on the code for an accurate text, and the next rows, into the readings.
 - 2026-10-14: the skip wrapper keeps the names of its last good listing, and the aggregate
   returns `SERVER_DOWN_MSG` for one of them before it reports an unknown tool.
+- 2026-10-14: ran the next rows on the new text: 0 of 5 blame the file, quote the error, loop or
+  invent, so the candidate's clause is not added. Declined the `forgoing` status for a call that
+  fails during a turn: the body shows that call's failed chip, the reply named the server in 5 of
+  5 rows, and the next turn's listing sends the status. Filed the one sidecar path, which keeps
+  `MCP sidecar unavailable`, as R-856.

@@ -115,3 +115,34 @@ prompt, classes and void rule above, and a reply that ends with the repeated lin
 a loop. They do not decide the text above. They decide the candidate's clause: when at least 2 of
 the 5 rows blame the file, quote the error, loop or invent, the clause is added and run as the
 candidate rows; otherwise the task closes without it.
+
+**2026-10-14, the next rows**, 5 on the build with the text above. Row 5 counted on its third draw:
+in the first two the model's `search_files` was refused for a path outside the tools root, so the
+call cut off was `list_allowed_directories` and no file read. In every counted row the cut off read
+and each later file call ended with the new text. The model then tried `read_file`,
+`list_directory` or the same read again, the dispatcher refused a third identical read in row 1,
+and in row 5 the model also handed the read to a subagent, which came back without the file.
+
+| Row | Reply, in short | Classes |
+| --- | --- | --- |
+| 1 | the file "could not be read because the filesystem tool server is not responding" | names the tool |
+| 2 | "The `read_text_file` tool is currently failing to retrieve the content" | names the tool |
+| 3 | "having trouble accessing the file" because the tool server "is not responding" | names the tool |
+| 4 | "unable to read the file" because "the filesystem tool server is not responding" | names the tool |
+| 5 | "the filesystem tools are not responding correctly"; asks for the file's text | names the tool |
+
+0 of 5 rows blame the file, quote the error, loop or invent, under the 2 the rule names, so the
+candidate's clause is not added. SM clock 0.59 of `clocks.max.sm` after the rows.
+
+## One sidecar
+
+With only the filesystem sidecar configured there is no aggregate. The skip wrapper passes a call
+straight to the adapter, so a call cut off reads `MCP sidecar unavailable`, or the deadline's text
+when the server stays paused past it. That text is accurate, and it is the text the model blamed
+the file for in the [outage flows](store-and-sidecar-outages.md#the-filesystem-sidecar).
+
+**Rows**, written before they are drawn: the rig above without the email sidecar, so the brain
+has one tool server, with the same prompt, classes and void rule, 5 rows on the current tree.
+**The defect reproduces** when at least 3 of the 5 blame the file, quote the error or loop. Then a
+candidate that names the server for a call cut off on this path is designed and run as 5 rows
+under the candidate's pass rule above. Otherwise the text stays and the rows are recorded here.
