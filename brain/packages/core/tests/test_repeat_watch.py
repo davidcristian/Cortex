@@ -33,6 +33,10 @@ _ASKED = "Remember to bring your sheet music to practice."
 _ASK = f"Write the sentence '{_ASKED}' ten times, one per line."
 _NAMED = f"Write the sentence '{_ASKED}' on every line."
 _MADE_UP = "Make up one sentence of advice for a choir singer, then write it ten times."
+_ROW = (
+    "Without using any tool, make up one sentence of advice of about ten words for a choir singer,"
+    " then write that exact sentence {n} times, one per line, and nothing else."
+)
 _START = datetime(2026, 10, 14, 3, 0, tzinfo=UTC)
 
 
@@ -122,6 +126,13 @@ def test_a_line_matches_the_message_only_in_whole_words() -> None:
         ("Write it two times.", 3),
         ("Write it 0 times.", 3),
         ("I asked many times; it took 40 tries.", 3),
+        ("What is 365 times 24?", 3),
+        ("how much is 1000000 times 3", 3),
+        ("What is twelve times twenty?", 3),
+        ("Work out 7 times 8, then write the answer 4 times.", 5),
+        (_ROW.format(n="5"), 6),
+        (_ROW.format(n="ten"), 11),
+        (_ROW.format(n="20"), 21),
     ],
 )
 def test_a_count_the_message_asks_for_lets_that_many_copies_through(

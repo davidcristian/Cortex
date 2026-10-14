@@ -26,7 +26,9 @@ _TENS = ("thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety", "hu
 _NUMBERS = {word: n for n, word in enumerate(_UNITS, start=2)} | {
     word: 10 * n for n, word in enumerate(_TENS, start=3)
 }
-_COUNT = re.compile(r"\b([0-9]+|" + "|".join(_NUMBERS) + r")\s+(?:times|copies)\b")
+_NUMBER = r"(?:[0-9]+|" + "|".join(_NUMBERS) + r")\b"
+# A number after the word makes a product, as in "365 times 24", rather than a count of copies.
+_COUNT = re.compile(rf"\b({_NUMBER})\s+(?:times|copies)\b(?!\s*{_NUMBER})")
 
 
 def _words(text: str) -> str:

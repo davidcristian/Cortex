@@ -61,5 +61,10 @@ Live turns on the same stack with E in the brain: the ten copy request ran to te
 note over `Converse` and on the Linux shell, the 20 copy request to 20 copies with no note, and the
 choir rota read answered as before.
 
+The shipped reading of E also skips a count whose `times` or `copies` is followed by another number,
+so the product "What is 365 times 24?" needs 3 copies, as under C. Each of the three request
+messages above still reads the count it names, which `test_repeat_watch.py` asserts on the exact
+message, so none of the rows above changes.
+
 Method: `mkreq.py`, `draw.sh` and `score6.py` in the run's scratch directory, with the replay
 driver of the fifth rule's rows, against the test stack's cortex server on `127.0.0.1:8080`.
