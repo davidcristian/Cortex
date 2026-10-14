@@ -35,6 +35,7 @@ alone where the overlay showed part of a reply, and later prompts hold the quest
 
 - 2026-10-07: filed from the Stop flow on the Linux shell after the shell's Stop started ending the
   turn in the brain.
-- 2026-10-15: [R-863](863-a-request-stopped-at-its-card-comes-back-in-the-next-turn.md) found
-  that a question stored alone is taken up again by the next turn's model. Its candidate changes
-  the model's messages and not the chat, so the in-chat pick here is unchanged.
+- 2026-10-15: on the Linux shell, a question stopped at its `escalate_to_brain` card and stored
+  alone was taken up again by the next turn in 1 of 8 settled chats, under the 3 of 5 that a change
+  needed ([readings](../../readings/overlay-interruption-flows.md#the-second-baseline)). Storing
+  the stopped turn with its declined call is the in-chat pick here, which is unchanged.

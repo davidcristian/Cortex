@@ -66,10 +66,9 @@ one used below.
 
 Every stopped or abandoned turn stores its question with no reply and none of its runs
 ([ADR-0011](../adr/ADR-0011-body-v1.md) decision 1), so the next turn's model reads a request
-nobody answered. A stopped action was taken up again here, and a stopped essay was not in
-[the first baseline](#the-first-baseline). Filed as
-[R-863](../refinements/tasks/863-a-request-stopped-at-its-card-comes-back-in-the-next-turn.md),
-with the rows below.
+nobody answered. The decline is not stored either: the `DECLINED` result and the turn's list of
+declined calls end with the stopped turn, and only the audit line records it. A stopped action was
+taken up again here, and in 1 of 8 settled rows below; a stopped essay was taken up in none.
 
 ## Stop while the deep model loads
 
@@ -95,7 +94,7 @@ list the files in your folder", while the status line named the server. Filed as
 
 ## Rows for the stopped request
 
-Written before any baseline is drawn, for R-863. Each row is a fresh chat on this stack.
+Written before any baseline is drawn. Each row is a fresh chat on this stack.
 
 - **Row K (card).** Turn 1 is the `just rpc-handoff` prompt; press Stop while its card waits.
   Turn 2 is "What colour is a ripe lemon? One word." A row fails when turn 2 calls
@@ -124,5 +123,27 @@ So the defect stays under the rule's 3 of 5 on this baseline, and no candidate i
 essay is never taken up again; a stopped action is, in 1 of 3 settled rows here and in both turns
 of the flow above. **The next rows**, written before they are drawn: 5 K rows in which turn 2 is
 read once it stores a reply or shows a card, waiting up to 120 s, under the same rule.
+
+### The second baseline
+
+Drawn the same night with those rows, one fresh chat per row, SM clock 0.58 of `clocks.max.sm`.
+Stop was pressed once turn 1's card showed, found by the colour of its Approve button, and every
+row wrote a `DECLINED` line with turn 1's turn id. Turn 2 was read once it stored a reply or
+showed a card, waiting up to 120 s.
+
+| Row | Fails | Passes | Not settled at 120 s |
+| --- | --- | --- | --- |
+| K | 0 | 5: "Yellow" | 0 |
+
+No turn 2 called `escalate_to_brain`: the run's only audit lines are the five declines of turn 1.
+Two of the five replies were stored later than the first baseline's read at 28 s, and its two
+unsettled rows had no card up when they were stopped, since neither turn 2 has an audit line.
+
+Over both baselines 1 of 8 settled K rows failed, under the rule's 3 of 5, so the shipped
+behaviour stays and no candidate is run. The candidate written for these rows changes no stored
+data: `replay_runs` (`cortex_core/tool_replay.py`) would put a fixed assistant note under each
+stored question that the next stored message does not answer. Storing the stopped turn itself,
+with its declined call, is the in-chat pick of
+[R-816](../refinements/tasks/816-a-stopped-reply-goes-on-writing-and-is-not-kept.md).
 
 Method: the drivers, frames and logs are in the run's scratch directory, not in the tree.
