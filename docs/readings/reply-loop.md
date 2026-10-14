@@ -140,6 +140,32 @@ on the second rig and the first rig's two controls. A draw is classed as above, 
 - When both pass, candidate B ships and candidate A is filed as its own task, as in the first rule.
 - Any other result changes nothing, and the rows are recorded here.
 
+## The fifth rule
+
+A line arriving a third time also ends a reply the person asked to repeat. In every looping
+baseline draw of the fourth rule (read before this rule was written) one block of one to four
+lines comes back to back; a request repeats a line the message names, and a song or a list brings
+a line back with other lines between. Four shapes are compared. A line is *held by the message*
+when, lowercased with each run of other characters than letters and digits read as one space, it is
+a run of whole words of the person's message. Lines count as before: at least 20 characters with
+a letter.
+
+- **A**: a line arrives for the eighth time. **B**: a line not held by the message arrives for the
+  third time. **D**: A and B together, the eighth arrival of a line not held by the message.
+- **C**: the last non-blank lines are three back to back copies of one block of one to four lines,
+  and the block has a counted line not held by the message.
+- **Request rows**, drawn after this rule at the server's defaults with `max_tokens` 2048, five
+  draws each, on the format control's state with its message replaced: five copies and ten copies
+  of "Remember to bring your sheet music to practice." one per line; a song of three verses, each
+  followed by the same four-line chorus; and a reminder for each month, the month on one line and
+  the same sentence of the model's own under it. A row judges only when at least 3 of its 5 draws
+  repeat a counted line at least three times; otherwise no shape is judged.
+- **A shape passes** when, read off the fourth rule's baseline (the rig draw after its prefill, the
+  rig's message as the person's), it stops every looping rig draw but at most one before its token
+  limit, no other rig draw, no control draw and no request draw.
+- **The first passing shape in the order C, D, B, A ships** in `RepeatWatch`: C reacts only to
+  copies with nothing between them, the shape every loop above has. No pass changes nothing.
+
 ## Results
 
 **2026-10-13, the first rig's baseline**, 30 draws on the current tree at the server's defaults.
