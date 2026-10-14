@@ -77,9 +77,11 @@ Bridge account's own address.
    `forget_untrusted_memories`, no argument rows, `FORGET_CARD` as its text, Deny and Approve.
    Deny closed it, and about 10 s later the cortex called the tool again and the same card came
    back. Deny again ended the turn: "I was unable to forget the memories ... because the action was
-   declined." Memory: 4 rows, all tainted. The second card is
-   [R-859](../refinements/tasks/859-a-pressed-deny-is-asked-again-in-the-same-turn.md); a
-   clean turn in a new chat showed it too.
+   declined." Memory: 4 rows, all tainted. A clean turn in a new chat showed the second card
+   too. The same night the dispatcher began to refuse a call identical to one the person declined
+   in the same loop, with `ALREADY_DECLINED_MSG` and no card. In 13 Deny turns after that (5 on
+   the overlay in new chats, 8 over `Converse` in 4 two-turn chats, one of them with no call) the
+   cortex called the tool once per turn, so that refusal was not reached live.
 3. **Typing after a card.** Words typed after pressing a card's button went nowhere: the button
    had the focus and went away with the card. Fixed the same night: the card's buttons no longer
    take the focus, and words typed after Deny reach the composer.

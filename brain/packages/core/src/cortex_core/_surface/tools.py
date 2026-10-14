@@ -9,6 +9,7 @@ from cortex_core.aggregate import (
 )
 from cortex_core.composite import BuiltinTool, CompositeToolRegistry, RecordCard
 from cortex_core.dispatch import (
+    ALREADY_DECLINED_MSG,
     BUDGET_EXHAUSTED_MSG,
     DEFAULT_DISPATCH_POLICY,
     REDUNDANT_MSG,
@@ -67,6 +68,7 @@ from cortex_core.volume import (
 )
 
 __all__ = [
+    "ALREADY_DECLINED_MSG",
     "ALWAYS_SALIENT",
     "BLIND_MSG",
     "BUDGET_EXHAUSTED_MSG",

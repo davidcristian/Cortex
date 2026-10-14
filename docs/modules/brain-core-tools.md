@@ -55,10 +55,11 @@ dispatched)` report what a call spends and whether it is worth running. The disp
 the loop drives it and keeps the history.
 
 - `refusal` (a `DispatchRefusal`) is the caller's statement that the call must not run: `BUDGET`
-  when the dispatch allowance is spent, `REDUNDANT` for a repeat the salience policy recognized, or
-  `ROUND_OVERSIZED` for a truncated round's overflow slot. The tool is not invoked, the member's
-  message is returned, and the attempt is audited. A refusal is checked **before** the confirmation
-  rule, so a flood of confirmable calls cannot reach the user as prompts.
+  when the dispatch allowance is spent, `DECLINED` for a call identical to one the person declined
+  in this loop (`ToolLoopContext.declined`), `REDUNDANT` for a repeat the salience policy
+  recognized, or `ROUND_OVERSIZED` for a truncated round's overflow slot. The tool is not invoked,
+  the member's message is returned, and the attempt is audited. A refusal is checked **before** the
+  confirmation rule, so a flood of confirmable calls cannot reach the user as prompts.
 - The confirmation rule (ADR-0013, revised by ADR-0022): a `confirm_required` call on a tainted turn is
   refused with `DENIED_MSG` (`RECALL_DENIED_MSG` when recall alone tainted it), the confirmer never
   asked, unless its name has a record card; otherwise it runs only when the `Confirmer` approves,
@@ -72,8 +73,7 @@ declares about dispatching: the confirmed tools, the prices, the salience rule a
 - `RepeatSalience(limit=MAX_IDENTICAL_DISPATCHES)` (`tool_salience.py`, the default
   `REPEAT_SALIENCE`, limit 2) refuses a call identical to one already made in this round, or made
   `limit` times in this loop; `name` and `arguments` are compared, `id` and `stamp` are not.
-  Attempts are counted rather than answers, so a denial counts too, which bounds confirmation
-  re-prompting. `ALWAYS_SALIENT` (`CORTEX_TOOLS_SALIENCE=off`) turns it off.
+  `ALWAYS_SALIENT` (`CORTEX_TOOLS_SALIENCE=off`) turns it off; a declined call stays refused.
 - `ToolCostPolicy(costs={})` and `DispatchBudget(limit=MAX_TOOL_DISPATCHES)` (`tool_budget.py`,
   ADR-0009 decision 11) are the price list and one turn's allowance of 32. `cost_of(name)` returns
   the named positive price or `DEFAULT_TOOL_COST` (1), so under the empty `UNIFORM_COST` an

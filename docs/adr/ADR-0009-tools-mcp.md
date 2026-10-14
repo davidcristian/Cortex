@@ -129,12 +129,12 @@ that never replies, so each of those has a limit below.
     identifies a call by its name and its arguments compared with mapping equality, and admits it at
     most once per round and at most `MAX_IDENTICAL_DISPATCHES` (2) times per loop; two rather than
     one, so a re-read after the turn changed something still runs. The policy reads only what the
-    loop already dispatched and never predicts usefulness. It counts attempts, so a declined call
-    that needs confirmation cannot re-prompt the user more than twice. It is per loop, since it
-    limits redundancy against one context and a sibling subagent cannot see this loop's calls.
-    `SaliencePolicy.admits` takes the dispatched calls grouped by round. It is on by default;
-    `CORTEX_TOOLS_SALIENCE=off` selects `AlwaysSalient`, and `CORTEX_TOOLS_SALIENCE_LIMIT` sets the
-    limit, refused below 1 and with no upper bound, since a limit at or above `MAX_TOOL_STEPS`
+    loop already dispatched and never predicts usefulness. Before it, a call identical to one the
+    person declined in this loop is refused with `ALREADY_DECLINED_MSG` and no card, whatever the
+    policy. It is per loop: it limits redundancy against one context, and a sibling subagent cannot
+    see this loop's calls. `SaliencePolicy.admits` takes the calls grouped by round. It is on by
+    default; `CORTEX_TOOLS_SALIENCE=off` selects `AlwaysSalient`, `CORTEX_TOOLS_SALIENCE_LIMIT` sets
+    the limit, refused below 1 and with no upper bound, since a limit at or above `MAX_TOOL_STEPS`
     simply never binds while the once-per-round clause still holds.
 13. **A round keeps at most `MAX_CALLS_PER_ROUND` calls.** `plan_round` (`tool_round.py`) drops the
     calls a round emits past 16, half the budget, and truncates the assistant message's

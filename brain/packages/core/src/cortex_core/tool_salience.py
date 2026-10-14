@@ -40,15 +40,15 @@ class RepeatSalience:
     def admits(self, call: ToolCall, dispatched: Sequence[Sequence[ToolCall]]) -> bool:
         """Whether ``call`` is worth dispatching given the rounds already dispatched."""
         current = dispatched[-1] if dispatched else ()
-        if any(_asks_the_same(call, other) for other in current):
+        if any(asks_the_same(call, other) for other in current):
             return False
         already = sum(
-            1 for previous in dispatched for other in previous if _asks_the_same(call, other)
+            1 for previous in dispatched for other in previous if asks_the_same(call, other)
         )
         return already < self.limit
 
 
-def _asks_the_same(call: ToolCall, other: ToolCall) -> bool:
+def asks_the_same(call: ToolCall, other: ToolCall) -> bool:
     """Whether two calls ask the same thing: same tool, same arguments."""
     return call.name == other.name and call.arguments == other.arguments
 

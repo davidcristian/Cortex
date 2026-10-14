@@ -48,6 +48,12 @@ REDUNDANT_MSG = (
     "but do not repeat this call."
 )
 
+ALREADY_DECLINED_MSG = (
+    "DECLINED: the user already pressed Deny on this exact action in this turn, so it was not "
+    "shown to them again and was not performed. Tell the user it was not done because they "
+    "declined it. Do not call it again in this turn."
+)
+
 ROUND_OVERSIZED_MSG = (
     f"REFUSED: one reply may ask for at most {MAX_CALLS_PER_ROUND} tool calls at once. This "
     "reply asked for more, so this call and every call after it were dropped without running. "
@@ -60,6 +66,7 @@ class DispatchRefusal(Enum):
     """Why the caller refused a call before it could run, and what the model is told."""
 
     BUDGET = BUDGET_EXHAUSTED_MSG
+    DECLINED = ALREADY_DECLINED_MSG
     REDUNDANT = REDUNDANT_MSG
     ROUND_OVERSIZED = ROUND_OVERSIZED_MSG
 

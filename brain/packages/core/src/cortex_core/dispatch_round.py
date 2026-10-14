@@ -15,8 +15,9 @@ from cortex_core.provenance import SourceKind, as_source
 from cortex_core.stops import StopLedger
 from cortex_core.tool_budget import DispatchBudget
 from cortex_core.tool_round import RoundPlan, result_message
+from cortex_core.tool_salience import asks_the_same
 from cortex_core.tools import ToolCall, ToolSpec, TurnStamp
-from cortex_core.untrusted import TaintLedger
+from cortex_core.untrusted import USER_DECLINED_MSG, TaintLedger
 from cortex_core.waits import GENERATING, TOOL_RUNNING, Wait
 
 
@@ -40,6 +41,8 @@ class ToolLoopContext:
     cadence: CadenceWatch | None = None
     stops: StopLedger | None = None
     generating: Wait = GENERATING
+    # The calls the person pressed Deny on in this loop, so an identical one is not asked again.
+    declined: list[ToolCall] = field(default_factory=list[ToolCall])
 
     @property
     def unit_id(self) -> str:
@@ -51,16 +54,18 @@ def _refused_by(
     call: ToolCall,
     dispatcher: ToolDispatcher,
     dispatched: Sequence[Sequence[ToolCall]],
-    budget: DispatchBudget,
+    context: ToolLoopContext,
     *,
     oversized: bool,
 ) -> DispatchRefusal | None:
     """Which bound refuses this call before it can run, or ``None`` when it may go ahead."""
     if oversized:
         return DispatchRefusal.ROUND_OVERSIZED
+    if any(asks_the_same(call, declined) for declined in context.declined):
+        return DispatchRefusal.DECLINED
     if not dispatcher.admits(call, dispatched):
         return DispatchRefusal.REDUNDANT
-    if not budget.charge(dispatcher.cost_of(call.name)):
+    if not context.budget.charge(dispatcher.cost_of(call.name)):
         return DispatchRefusal.BUDGET
     return None
 
@@ -94,7 +99,7 @@ async def run_round(
     dispatched.append(this_round)
     for call, oversized in plan.answered():
         spec = spec_by_name.get(call.name)
-        refusal = _refused_by(call, dispatcher, dispatched, context.budget, oversized=oversized)
+        refusal = _refused_by(call, dispatcher, dispatched, context, oversized=oversized)
         if refusal is None:
             this_round.append(call)
         # Only an advertised spec is shown, so no model-written tool name reaches the overlay.
@@ -110,6 +115,8 @@ async def run_round(
                 confirm_required=spec is not None and spec.confirm_required,
                 refusal=refusal,
             )
+        if refusal is None and result.content == USER_DECLINED_MSG:
+            context.declined.append(call)
         if refusal is None and spec is not None:
             yield StepOutcome(tool_name=spec.name, ok=not result.is_error)
         context.taint.observe(

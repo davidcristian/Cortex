@@ -74,9 +74,9 @@ fixed `FORGET_CARD` (ADR-0019 decision 9).
 A block returns an audited `is_error` result, the tool never invoked: `DENIED_MSG` for the tainted
 block, `USER_DECLINED_MSG` for a pressed Deny and `UNANSWERED_MSG` for a timeout, a closed stream or
 no confirmer, so the model tells "the user said no" from "nobody answered" and "this turn is tainted".
+A call identical to one declined earlier in the loop gets `ALREADY_DECLINED_MSG` and no second card.
 The card's reason is `_CONFIRM_REASON` ("this action is outbound or irreversible and runs only with
-your approval") unless the policy names a per-tool reason
-([ADR-0030](ADR-0030-brain-handoff.md) decision 1).
+your approval") unless the policy names a per-tool reason ([ADR-0030](ADR-0030-brain-handoff.md) decision 1).
 
 ### 3. A per-stream `RpcConfirmer`, built by an engine factory
 
