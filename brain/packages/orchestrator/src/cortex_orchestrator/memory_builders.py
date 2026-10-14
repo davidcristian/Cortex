@@ -20,6 +20,7 @@ from cortex_core import (
     RerankingRecallPolicy,
     SessionMemoryCascade,
     SessionMemoryScope,
+    UntrustedMemoryForget,
 )
 from cortex_embedding import LlamaCppEmbedder
 from cortex_memory import (
@@ -84,10 +85,16 @@ def recall_audit_from_config(config: MemoryConfig) -> RecallAuditSink | None:
     return LoggingRecallSink() if config.recall_audit else None
 
 
-async def build_memory(
-    config: MemoryConfig, clock: Clock
-) -> tuple[RecallerFor | None, SessionMemoryCascade | None, Callable[[], Awaitable[None]]]:
-    """Pick the memory backend from config: a recaller per model, the cascade, and a closer."""
+type MemoryParts = tuple[
+    RecallerFor | None,
+    SessionMemoryCascade | None,
+    UntrustedMemoryForget | None,
+    Callable[[], Awaitable[None]],
+]
+
+
+async def build_memory(config: MemoryConfig, clock: Clock) -> MemoryParts:
+    """Pick the memory backend: a recaller per model, the cascade, the forget, and a closer."""
     if config.backend == "pgvector":
         client = httpx.AsyncClient(timeout=httpx.Timeout(_EMBEDDER_TIMEOUT_S))
         embedder = LlamaCppEmbedder(client, config.embedder_endpoint, model=config.embedder_model)
@@ -104,5 +111,6 @@ async def build_memory(
             policy = recall_policy_from_config(config, backend, model)
             return MemoryRecaller(store, embedder, clock, scope=scope, policy=policy, audit=audit)
 
-        return recaller_for, SessionMemoryCascade(store, scope), close_memory
-    return None, None, noop_aclose
+        forget = UntrustedMemoryForget(store, scope)
+        return recaller_for, SessionMemoryCascade(store, scope), forget, close_memory
+    return None, None, None, noop_aclose

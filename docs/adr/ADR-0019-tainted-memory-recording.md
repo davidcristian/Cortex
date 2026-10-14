@@ -104,9 +104,27 @@ across turns (a recalled memory).
    follow a quoted note; its run could not send. A blocked call on such a turn returns
    `RECALL_DENIED_MSG` rather than `DENIED_MSG`, whose advice, a new message giving everything the
    action needs, recalls the same row. It names a remembered exchange derived from untrusted
-   content as the cause and tells the model not to suggest asking again. On the stack 3 of 3
-   replies to the person's own blocked send relayed that advice before, and 0 of 3 after
-   ([readings](../readings/recall-tainted-send.md)).
+   content as the cause, names forgetting those memories as the way out (decision 9), and tells
+   the model not to suggest asking again without it. On the stack 3 of 3 replies to the person's
+   own blocked send relayed `DENIED_MSG`'s advice, and 0 of 3 relayed it under the recall text
+   ([readings](../readings/recall-tainted-send.md)); 3 of 3 named forgetting
+   ([readings](../readings/forget-untrusted-memories.md)).
+
+9. **The way out of a recall-tainted block is forgetting the untrusted memories.** Under `global`
+   scope a recalled tainted row blocks the person's own send in every chat whose request it
+   matches, and nothing else removes it: deleting a chat forgets memories only under `session`
+   scope, and switching to `skip` changes only what is written (decision 3). The built-in
+   `forget_untrusted_memories` (`memory_forget.py`) deletes every tainted memory the calling
+   session's recall reads, through `MemoryStore.delete_tainted(*, scopes)`, after the person
+   approves its card. It takes no arguments, and its card is the brain's fixed `FORGET_CARD`, so
+   it is a record card ([ADR-0022](ADR-0022-email-write-confirmer.md) decision 2) and is shown on a
+   tainted turn too: an injection that calls it can offer only the removal of untrusted-derived
+   rows, which the person must approve. It reaches the store through `UntrustedMemoryForget`, the
+   one delete a tool reaches ([ADR-0021](ADR-0021-session-read-rpcs.md) decision 11). A tainted
+   turn in which it ran is not recorded (`record_exchange`), since recording it would store a new
+   tainted row in place of the ones removed. On the stack the person's send reached the card and
+   went out after every forget, on a clean turn and on a recall-tainted one
+   ([readings](../readings/forget-untrusted-memories.md)).
 
 ## Consequences
 
@@ -123,14 +141,13 @@ across turns (a recalled memory).
   taints an otherwise clean turn and blocks the actions that need confirmation, failing closed by
   design, since the recalled content is in the model's context and framing is not trusted to
   contain it. A record card (decision 4) and a task (decision 8) are the exceptions. An email the
-  person asks for in such a turn is still blocked, with `RECALL_DENIED_MSG`, and nothing lets the
-  person answer a turn without recall or forget the row
-  ([task 848](../refinements/tasks/848-nothing-lets-the-person-out-of-a-recall-tainted-block.md)).
+  person asks for in such a turn is still blocked, with `RECALL_DENIED_MSG`, until the person has
+  the untrusted memories forgotten (decision 9), which also removes their legitimate context.
 - **Removing memories by the source they came from needs two things the port lacks.** A memory
   stores only the `tainted` bit, with no provenance column or index to filter on, and the port's
-  one removal, `delete_scope`, is string equality on one namespace with no wildcard (ADR-0008
-  decision 11). Removal by source is therefore a new column and a new predicate delete, a port
-  change. The design waiting for it is in `provenance.py`: a sender and a URI are separate
+  two removals select by namespace, `delete_scope` with string equality and no wildcard (ADR-0008
+  decision 11), or by that bit, `delete_tainted` (decision 9). Removal by source is therefore a
+  new column and a new predicate delete, a port change. The design waiting for it is in `provenance.py`: a sender and a URI are separate
   `SourceKind`s, so a removal by sender cannot remove a URI written as the same string
   (`SourceKind.attested` groups the two claimed kinds together and answers a different question,
   whether a value renders as a label or a quotation). It has no caller, and its trigger is a source
@@ -146,6 +163,11 @@ across turns (a recalled memory).
 - **Summarizing a tainted exchange before recording** (decision 7).
 - **Recording an opaque turn under `record`** (decision 6); per-source rules that could record one
   deliberately were declined with ADR-0029.
+- **A per-turn choice to answer without recall** as the way out (decision 9): it needs a
+  `UserTurn` field and a new overlay control, and it leaves the row to block the next message.
+- **Not storing an exchange whose only outward call was blocked**: forgetting removes those rows
+  with the first one, so it does not change whether the person gets out, and the predicate would
+  also drop a live-read turn's useful summary unless narrowed to recall-only turns.
 
 ## Related
 

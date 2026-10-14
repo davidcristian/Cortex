@@ -179,6 +179,41 @@ async def check_delete_scope_without_matches_returns_zero(under_test: MemoryStor
     assert await under_test.store.delete_scope(f"contract-empty-{uuid4()}") == 0
 
 
+async def check_delete_tainted_removes_only_tainted_rows_in_scope(
+    under_test: MemoryStoreUnderTest,
+) -> None:
+    """``delete_tainted`` removes and counts the tainted rows of its scopes, and spares the rest."""
+    store = under_test.store
+    scope = f"contract-taint-{uuid4()}"
+    other = f"contract-taint-keep-{uuid4()}"
+    doomed = [
+        make_record(f"derived {i}", (1.0, 0.0, 0.0), scope=scope, tainted=True) for i in (1, 2)
+    ]
+    trusted = make_record("trusted", (1.0, 0.0, 0.0), scope=scope)
+    elsewhere = make_record("derived elsewhere", (1.0, 0.0, 0.0), scope=other, tainted=True)
+    for record in (*doomed, trusted, elsewhere):
+        await store.add(record)
+    assert await store.delete_tainted(scopes=[scope]) == 2
+    kept = await store.search((1.0, 0.0, 0.0), k=10, scopes=[scope, other])
+    assert sorted(hit.record.id for hit in kept) == sorted([trusted.id, elsewhere.id])
+    assert await store.delete_tainted(scopes=[scope]) == 0
+
+
+async def check_delete_tainted_without_scopes_reaches_every_namespace(
+    under_test: MemoryStoreUnderTest,
+) -> None:
+    """With no scopes, ``delete_tainted`` removes tainted rows in every namespace."""
+    store = under_test.store
+    scopes = [f"contract-taint-all-{uuid4()}" for _ in range(2)]
+    for scope in scopes:
+        await store.add(make_record("derived", (0.0, 1.0, 0.0), scope=scope, tainted=True))
+    trusted = make_record("trusted", (0.0, 1.0, 0.0), scope=scopes[0])
+    await store.add(trusted)
+    assert await store.delete_tainted() >= 2
+    kept = await store.search((0.0, 1.0, 0.0), k=10, scopes=scopes)
+    assert [hit.record.id for hit in kept] == [trusted.id]
+
+
 async def check_a_lost_backend_crosses_the_port_as_memory_store_error(
     under_test: MemoryStoreUnderTest,
 ) -> None:
@@ -193,6 +228,7 @@ async def check_a_lost_backend_crosses_the_port_as_memory_store_error(
     await _refuses_typed(lambda: store.search((1.0, 0.0, 0.0), k=5, scopes=[scope]), "search")
     await _refuses_typed(lambda: store.count_candidates(scopes=[scope]), "count_candidates")
     await _refuses_typed(lambda: store.delete_scope(scope), "delete_scope")
+    await _refuses_typed(lambda: store.delete_tainted(scopes=[scope]), "delete_tainted")
 
 
 ALL_CHECKS: Sequence[Check] = (
@@ -207,4 +243,6 @@ ALL_CHECKS: Sequence[Check] = (
     check_delete_scope_removes_a_namespace,
     check_delete_scope_without_matches_returns_zero,
     check_a_lost_backend_crosses_the_port_as_memory_store_error,
+    check_delete_tainted_removes_only_tainted_rows_in_scope,
+    check_delete_tainted_without_scopes_reaches_every_namespace,
 )

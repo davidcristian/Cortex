@@ -26,6 +26,8 @@ _SEARCH_SCOPED = f"{_SELECT} WHERE scope = ANY($3) ORDER BY embedding <=> $1::ve
 _COUNT_ALL = "SELECT count(*) AS total FROM memories"
 _COUNT_SCOPED = f"{_COUNT_ALL} WHERE scope = ANY($1)"
 _DELETE_SCOPE = "DELETE FROM memories WHERE scope = $1"
+_DELETE_TAINTED = "DELETE FROM memories WHERE tainted"
+_DELETE_TAINTED_SCOPED = f"{_DELETE_TAINTED} AND scope = ANY($1)"
 
 
 class Row(Protocol):
@@ -183,6 +185,21 @@ class PgVectorMemoryStore:
             return _deleted_count(status)
         except _WRAPPED as err:
             msg = f"deleting memory scope {scope!r} failed"
+            raise MemoryStoreError(msg) from err
+        except ValueError as err:
+            msg = "malformed delete status from the memory store"
+            raise MemoryDataError(msg) from err
+
+    async def delete_tainted(self, *, scopes: Sequence[str] | None = None) -> int:
+        """Hard-delete every tainted memory in ``scopes`` (all when None); return how many."""
+        try:
+            if scopes is None:
+                status = await self._bounded(self._db.execute(_DELETE_TAINTED))
+            else:
+                status = await self._bounded(self._db.execute(_DELETE_TAINTED_SCOPED, list(scopes)))
+            return _deleted_count(status)
+        except _WRAPPED as err:
+            msg = "deleting the tainted memories failed"
             raise MemoryStoreError(msg) from err
         except ValueError as err:
             msg = "malformed delete status from the memory store"

@@ -3,6 +3,12 @@
 from cortex_core.embed_input import EMBED_INPUT_CHARS, EMBEDDER_CONTEXT_TOKENS, embedding_input
 from cortex_core.memory import GLOBAL_SCOPE, MemoryRecord, ScoredMemory
 from cortex_core.memory_cascade import SessionMemoryCascade
+from cortex_core.memory_forget import (
+    FORGET_CARD,
+    FORGET_UNTRUSTED_TOOL_NAME,
+    ForgetUntrustedTool,
+    UntrustedMemoryForget,
+)
 from cortex_core.ranking import (
     DROPPED_TRAIL_LIMIT,
     DroppedCandidate,
@@ -38,12 +44,15 @@ __all__ = [
     "DROPPED_TRAIL_LIMIT",
     "EMBEDDER_CONTEXT_TOKENS",
     "EMBED_INPUT_CHARS",
+    "FORGET_CARD",
+    "FORGET_UNTRUSTED_TOOL_NAME",
     "GLOBAL_MEMORY_SCOPE",
     "GLOBAL_SCOPE",
     "RAW_RECALL_POLICY",
     "RECALL_CHAR_BUDGET",
     "DroppedCandidate",
     "DroppedCandidates",
+    "ForgetUntrustedTool",
     "GlobalMemoryScope",
     "JudgeRecallPolicy",
     "MemoryRecaller",
@@ -61,6 +70,7 @@ __all__ = [
     "ScoredMemory",
     "SessionMemoryCascade",
     "SessionMemoryScope",
+    "UntrustedMemoryForget",
     "cut_marker",
     "dropped_candidates",
     "embedding_input",

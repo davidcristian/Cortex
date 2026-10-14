@@ -151,8 +151,8 @@ Each is a `ToolRegistry` wrapping others, so the root builds a tool set the core
 
 ## Built-in tools
 
-All are cortex-only, so delegation is one level deep and a subagent can neither schedule nor
-escalate. Each is a `BuiltinTool` registered in the `CompositeToolRegistry`.
+All are cortex-only, so delegation is one level deep and a subagent can neither schedule nor escalate.
+Each is a `BuiltinTool` in the `CompositeToolRegistry`; `forget_untrusted_memories` is in [brain-core-memory.md](brain-core-memory.md).
 
 - `SpawnSubagentsTool(runner, store, clock, *, task_id_factory=<uuid4>)` is `spawn_subagents`
   (ADR-0010, ADR-0018, ADR-0072). `build_spawn_spec` (`spawn_spec.py`) builds its spec from the

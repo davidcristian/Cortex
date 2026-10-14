@@ -104,7 +104,7 @@ async def _main() -> int:
         _say(f"probe: {unfit}")
         return 2
     backend, close_backend = await build_inference_backend(InferenceConfig(), runtime.cortex_model)
-    recaller_for, cascade, close_memory = await build_memory(memory_config, SystemClock())
+    recaller_for, cascade, _forget, close_memory = await build_memory(memory_config, SystemClock())
     if recaller_for is None or cascade is None:
         _say("probe: the composition root built no recaller")
         return 2

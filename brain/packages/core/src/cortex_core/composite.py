@@ -19,7 +19,7 @@ class BuiltinTool(Protocol):
 
 @runtime_checkable
 class RecordCard(Protocol):
-    """A built-in whose call acts on one record the brain holds; ``card`` describes that record."""
+    """A built-in whose call acts on records the brain holds; ``card`` describes them."""
 
     async def card(self, call: ToolCall) -> str: ...
 

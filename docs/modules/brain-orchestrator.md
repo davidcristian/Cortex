@@ -149,7 +149,7 @@ with `RedisSessionStore.from_url`, `build_inference_backend`, `SystemClock`, the
 window and output guardrail, and six opt-in adapters, each off by default so CI and the no-GPU dev
 loop reach no external service: **memory** (`build_memory`, returning a recaller builder over a
 given `InferenceBackend` and the model recall's judge asks, a `SessionMemoryCascade` for
-`DeleteSession` and a closer), **tools** (`build_tool_registry`),
+`DeleteSession`, the `UntrustedMemoryForget` and a closer), **tools** (`build_tool_registry`),
 **subagents** (`build_subagents`), **body** (`build_body_gateway`), **schedules**
 (`build_schedule`, with `build_schedule_tools` and a `ScheduleTicker` started beside `serve` and
 stopped first in the `finally`), and the **brain handoff** (`build_swap_runtime`). Every adapter
@@ -203,11 +203,11 @@ the version string `Health` reports.
   `OwnTextToolRegistry` over `EMAIL_OWN_TEXTS` (`own_texts.py`, ADR-0013 decision 10).
 - Every dispatcher is built from one `DispatchSetup` (`dispatch_builders.py`), the `DispatchPolicy`
   and the audit sink together. `build_builtin_tools` assembles the built-in set once: delegation,
-  the two volume tools when a `BodyGateway` is wired, `capture_screen` when a body is wired **and**
-  the root confirmed the running model can see, the five schedule tools, and `escalate_to_brain`
-  only when a handoff can run. Of these only `cancel_scheduled` needs confirmation unless named in
-  `CORTEX_TOOLS_GATED`, and `build_cortex_tools` adds each `RecordCard` built-in to `record_cards`.
-  A subagent's dispatcher keeps `confirmer=None` and never sees a confirmable tool (`ConfirmFreeToolRegistry`).
+  the volume tools with a `BodyGateway`, `capture_screen` with a body **and** a model the root
+  confirmed can see, the five schedule tools, `escalate_to_brain` when a handoff can run, and
+  `forget_untrusted_memories` with memory. Only it and `cancel_scheduled` need confirmation unless
+  named in `CORTEX_TOOLS_GATED`; `build_cortex_tools` adds each `RecordCard` built-in to
+  `record_cards`. A subagent's dispatcher has no confirmer and no confirmable tool (`ConfirmFreeToolRegistry`).
 - `StreamEngines.for_stream` (`engines.py`) is the engine factory, an object built once rather than
   closures over the root's locals. It reads no env, opens no resource and picks no adapter: per
   stream it builds that stream's `TurnCapabilities` and returns, inside a `SerialTurnRunner` over

@@ -559,6 +559,10 @@ class _PoolStore:
         del scope
         raise AssertionError(_READ_ONLY)
 
+    async def delete_tainted(self, *, scopes: Sequence[str] | None = None) -> int:
+        del scopes
+        raise AssertionError(_READ_ONLY)
+
 
 async def _reads_recalling(*, audited: bool) -> tuple[int, int]:
     """What one recall costs the store, with and without the trail: pool reads, then counts."""

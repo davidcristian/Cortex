@@ -28,7 +28,9 @@ and put embedding on the CPU so the GPU budget stays with the cortex
    - `MemoryStore.add(record)`; `search(embedding, *, k, scopes=None) -> Sequence[ScoredMemory]`,
      the top `k` by cosine similarity, most similar first; `count_candidates(*, scopes=None)`, the
      number of rows a search could draw from ([ADR-0038](ADR-0038-ranked-recall.md) decision 14);
-     and `delete_scope(scope) -> int` (decision 11). Failures raise `MemoryStoreError`.
+     `delete_scope(scope) -> int` (decision 11); and `delete_tainted(*, scopes=None) -> int`, which
+     removes the rows marked tainted ([ADR-0019](ADR-0019-tainted-memory-recording.md) decision 9).
+     Failures raise `MemoryStoreError`.
 
    The values are pure (`memory.py`): `MemoryRecord(id, text, embedding, at, scope, tainted)`,
    built by the caller (id from a factory, `at` from the `Clock`, the embedding from the
@@ -86,8 +88,8 @@ and put embedding on the CPU so the GPU budget stays with the cortex
    ([ADR-0068](ADR-0068-port-contract-lists.md)). So CI does not prove the adapter's SQL; the live
    run does, the same trade the inference adapter makes. The list includes a lost-backend check:
    each implementation is given a `break_backend` (the live version closes the adapter's own pool)
-   and `add`, `search`, `count_candidates` and `delete_scope` must each raise `MemoryStoreError`,
-   never a driver exception and never `MemoryDataError`.
+   and `add`, `search`, `count_candidates`, `delete_scope` and `delete_tainted` must each raise
+   `MemoryStoreError`, never a driver exception and never `MemoryDataError`.
 
 7. **The live data is a named volume, exported as plain files.** Postgres keeps its data directory
    in the named volume `cortex-pgdata` (`docker/docker-compose.memory.yml`). A data directory bound
@@ -153,8 +155,9 @@ and put embedding on the CPU so the GPU budget stays with the cortex
     is a hard delete, since `search` is a stateless scan with no in-flight read to protect. Memory
     is not a tool in any registry, and the `MemoryRecaller` a turn holds exposes only `record` and
     `recall` (asserted by `test_the_recaller_exposes_no_forget_verb_so_no_turn_can_delete_memory`),
-    so no model or turn reaches a delete. Its caller is the session-delete cascade
-    ([ADR-0021](ADR-0021-session-read-rpcs.md) decision 11).
+    so no model or turn reaches this delete. Its caller is the session-delete cascade
+    ([ADR-0021](ADR-0021-session-read-rpcs.md) decision 11). The one delete a tool reaches is
+    `delete_tainted`, behind the person's approval (ADR-0019 decision 9).
 
 12. **An unavailable memory costs a turn its notes, never the turn.** `EmbedderError` and
     `MemoryStoreError`, and nothing else, are caught in the core: in

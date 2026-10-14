@@ -194,6 +194,37 @@ async def test_delete_scope_wraps_a_malformed_status() -> None:
     assert isinstance(excinfo.value.__cause__, ValueError)
 
 
+@pytest.mark.parametrize(
+    ("scopes", "sql", "args"),
+    [
+        (None, "DELETE FROM memories WHERE tainted", ()),
+        (("a", "b"), "DELETE FROM memories WHERE tainted AND scope = ANY($1)", (["a", "b"],)),
+    ],
+    ids=["every-scope", "scoped"],
+)
+async def test_delete_tainted_executes_its_delete_and_returns_the_row_count(
+    scopes: Sequence[str] | None, sql: str, args: tuple[object, ...]
+) -> None:
+    db = FakeDatabase(status="DELETE 2")
+    assert await PgVectorMemoryStore(db).delete_tainted(scopes=scopes) == 2
+    assert db.calls == [(sql, args)]
+
+
+async def test_delete_tainted_wraps_a_backend_error() -> None:
+    db = FakeDatabase(fail=asyncpg.PostgresError("boom"))
+    with pytest.raises(MemoryStoreError, match="deleting the tainted memories") as excinfo:
+        await PgVectorMemoryStore(db).delete_tainted()
+    assert isinstance(excinfo.value.__cause__, asyncpg.PostgresError)
+    assert not isinstance(excinfo.value, MemoryDataError)
+
+
+async def test_delete_tainted_wraps_a_malformed_status() -> None:
+    db = FakeDatabase(status="DELETE not-a-count")
+    with pytest.raises(MemoryDataError, match="malformed delete status") as excinfo:
+        await PgVectorMemoryStore(db).delete_tainted(scopes=["a"])
+    assert isinstance(excinfo.value.__cause__, ValueError)
+
+
 async def test_aclose_closes_the_pool() -> None:
     db = FakeDatabase()
     await PgVectorMemoryStore(db).aclose()
@@ -260,6 +291,7 @@ def _operations(store: PgVectorMemoryStore) -> dict[str, Callable[[], Awaitable[
         "count": store.count_candidates,
         "scoped count": lambda: store.count_candidates(scopes=["s"]),
         "delete": lambda: store.delete_scope("s"),
+        "delete tainted": store.delete_tainted,
     }
 
 
@@ -275,7 +307,8 @@ async def _ended(db: HangingDatabase, call: Awaitable[object]) -> asyncio.Future
 
 
 @pytest.mark.parametrize(
-    "operation", ["add", "search", "scoped search", "count", "scoped count", "delete"]
+    "operation",
+    ["add", "search", "scoped search", "count", "scoped count", "delete", "delete tainted"],
 )
 async def test_a_hung_server_fails_as_unavailable_after_the_bound(operation: str) -> None:
     db = HangingDatabase()

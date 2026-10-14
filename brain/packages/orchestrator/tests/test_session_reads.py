@@ -243,6 +243,11 @@ class FailingMemoryStore:
         msg = "pgvector is down"
         raise MemoryStoreError(msg)
 
+    async def delete_tainted(self, *, scopes: Sequence[str] | None = None) -> int:
+        del scopes
+        msg = "pgvector is down"
+        raise MemoryStoreError(msg)
+
 
 class UndecodableMemoryStore(FailingMemoryStore):
     """A MemoryStore whose delete_scope answers with a reply this repo cannot read."""

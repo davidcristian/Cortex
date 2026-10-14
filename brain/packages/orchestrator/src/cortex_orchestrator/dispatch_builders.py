@@ -15,6 +15,7 @@ from cortex_core import (
     Confirmer,
     DispatchPolicy,
     EscalateToBrainTool,
+    ForgetUntrustedTool,
     GetVolumeTool,
     RecordCard,
     SetVolumeTool,
@@ -23,6 +24,7 @@ from cortex_core import (
     ToolAuditSink,
     ToolDispatcher,
     ToolRegistry,
+    UntrustedMemoryForget,
     VisionProbe,
 )
 from cortex_orchestrator.config_tools import ToolsConfig
@@ -55,6 +57,7 @@ def build_builtin_tools(
     *,
     escalation: bool = False,
     vision: CaptureBounds | None = None,
+    memory: UntrustedMemoryForget | None = None,
 ) -> list[BuiltinTool]:
     """The cortex's built-in set, assembled once by the wiring."""
     builtins: list[BuiltinTool] = [spawn_tool] if spawn_tool is not None else []
@@ -68,6 +71,8 @@ def build_builtin_tools(
     if escalation:
         builtins.append(EscalateToBrainTool())
     builtins.extend(schedule_tools)
+    if memory is not None:
+        builtins.append(ForgetUntrustedTool(memory))
     return builtins
 
 

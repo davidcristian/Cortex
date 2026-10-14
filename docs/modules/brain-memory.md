@@ -32,6 +32,9 @@ business logic and no state beyond the injected pool (the one hard rule).
   `memories_scope_idx` serves it as an index-only scan that never touches the vectors. It is exact
   rather than capped for the same reason. The two statements are not one transaction, which
   `RecallAudit.available` reports.
+- `delete_tainted(*, scopes=None)` is `DELETE FROM memories WHERE tainted`, with
+  `AND scope = ANY($1)` added when scopes are given, and counts as `delete_scope` does. It runs
+  only when the person approves a forget (ADR-0019 decision 9).
 - `delete_scope(scope)` is `DELETE FROM memories WHERE scope = $1` (the `memories_scope_idx` btree
   serves the equality, so no schema change), returning the row count parsed from asyncpg's
   `DELETE n` command tag: 0 when the scope holds none, and a malformed tag wrapped as
@@ -166,9 +169,9 @@ similarity ranking.
   second time by hand in `cortex_core`'s tests, which is how a count faked as a length over rows
   would have stayed invisible to everyone without a database. Each check takes a
   `MemoryStoreUnderTest`, the implementation plus an awaited `break_backend`, so the port's failure
-  channel is checked where its values are: the eleventh check breaks the backend and requires `add`,
-  `search`, `count_candidates` and `delete_scope` each to raise `MemoryStoreError` rather than the
-  driver's own exception, and not the `MemoryDataError` subclass either, since an outage misread as
+  channel is checked where its values are: the eleventh check breaks the backend and requires each
+  verb (`add`, `search`, `count_candidates`, `delete_scope`, `delete_tainted`) to raise
+  `MemoryStoreError`, not the driver's exception nor `MemoryDataError`, since an outage misread as
   a data defect would fail the very turn the degradation exists to save. The other direction is
   deliberately not a shared check: the in-memory twin decodes nothing, so only the implementation
   with rows can meet a row it cannot read, and `test_pgvector.py` covers that half. The fake is

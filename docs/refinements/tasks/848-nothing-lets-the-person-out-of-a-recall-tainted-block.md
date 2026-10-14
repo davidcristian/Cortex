@@ -1,9 +1,8 @@
 # Nothing lets the person out of a recall-tainted block
 
-**Status:** open, needs a port change first
+**Status:** done 2026-10-14
 **Area:** untrusted-content
 **Origin:** [ADR-0019](../../adr/ADR-0019-tainted-memory-recording.md)
-**Verified:** 2026-10-13
 
 With `CORTEX_MEMORY_ON_TAINTED=record` and the default `CORTEX_MEMORY_SCOPE=global`, a tainted row
 is recalled into any chat whose request it matches, and every tool needing confirmation is blocked
@@ -35,3 +34,16 @@ row S with the chosen way taken should reach the card and send to the Bridge acc
 
 - 2026-10-13: filed while closing R-845, whose fix made the refusal accurate and left the person
   with no way to send.
+- 2026-10-14: done. No existing affordance let the person out: no tool or RPC forgets a memory
+  except `DeleteSession`, which forgets only under `session` scope. The second candidate was built
+  as the way out ([ADR-0019](../../adr/ADR-0019-tainted-memory-recording.md) decision 9):
+  `MemoryStore.delete_tainted(*, scopes)` on the port, the fake and the pgvector adapter under the
+  shared contract (also passed live), and the built-in `forget_untrusted_memories`, a record card
+  that needs no new overlay control. `RECALL_DENIED_MSG` now names it, and a tainted turn that
+  ran it is not recorded. On the stack the person's send reached the card and went out after
+  every forget ([forget-untrusted-memories.md](../../readings/forget-untrusted-memories.md)). The
+  first candidate was not built: it needs a new overlay control and leaves the row in place. The
+  third was declined: forgetting removes the multiplied rows with the first, and its predicate
+  would also drop a live-read turn's useful summary. The rows showed every approved send storing
+  a tainted row of its own, filed as
+  [R-857](857-a-successful-send-stores-its-own-exchange-tainted.md).

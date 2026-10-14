@@ -99,6 +99,13 @@ class InMemoryMemoryStore:
         self._records = kept
         return removed
 
+    async def delete_tainted(self, *, scopes: Sequence[str] | None = None) -> int:
+        """Hard-delete every tainted memory in ``scopes``; return how many were removed."""
+        self._guard()
+        doomed = {id(record) for record in self._in_scopes(scopes) if record.tainted}
+        self._records = [record for record in self._records if id(record) not in doomed]
+        return len(doomed)
+
 
 class RecordingRecallSink:
     """RecallAuditSink that keeps audits in a list so tests can assert the recall trail."""

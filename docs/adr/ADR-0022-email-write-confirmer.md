@@ -61,15 +61,15 @@ may themselves be injection-authored, and a card showing attacker-drafted conten
 clicking approve is not a boundary: after reading hostile bytes, the outbound path is closed for
 the rest of the turn. Taint is turn-local, but the same request asked again reads the mail again;
 `DENIED_MSG` asks for a message giving the address, subject and body, which reads nothing first,
-and `RECALL_DENIED_MSG` offers none when recall alone tainted the turn (ADR-0019 decision 8). A
-caller's own refusal (a spent budget, a recognized repeat) returns before this rule.
+and `RECALL_DENIED_MSG` names forgetting the untrusted memories instead (ADR-0019 decisions 8 and
+9). A caller's own refusal (a spent budget, a recognized repeat) returns before this rule.
 
-**A record card is the one exception.** A built-in that acts on one record the brain holds and
-implements `RecordCard` (`cortex_core/composite.py`) is confirmed on a tainted turn too, and its
-card's reason is that record as the store holds it. Its argument is an id, so injected content can
-choose which record the card offers but writes none of the card, and the effect stays on this
-machine. Only `build_cortex_tools` registers one, from the built-ins, so no remote tool or setting
-can claim it. `cancel_scheduled` is the one ([ADR-0025](ADR-0025-scheduling-reminders.md) decision 3).
+**A record card is the one exception.** A built-in acting on records the brain holds that implements
+`RecordCard` (`cortex_core/composite.py`) is confirmed on a tainted turn too, with a card the brain
+writes, and its effect stays on this machine. Only `build_cortex_tools` registers one, from the
+built-ins, so no remote tool or setting can claim it. `cancel_scheduled` shows the record its id
+names ([ADR-0025](ADR-0025-scheduling-reminders.md) decision 3), and `forget_untrusted_memories` the
+fixed `FORGET_CARD` (ADR-0019 decision 9).
 
 A block returns an audited `is_error` result, the tool never invoked: `DENIED_MSG` for the tainted
 block, `USER_DECLINED_MSG` for a pressed Deny and `UNANSWERED_MSG` for a timeout, a closed stream or

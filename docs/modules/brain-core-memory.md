@@ -23,7 +23,8 @@ pool down to the hits one turn sees. The turn that calls it is in
   `count_candidates` reports how wide that candidate set is, which `search` structurally cannot
   (ADR-0038 decision 14); it must be the store's own count and never a length over returned rows.
   `delete_scope` removes every memory in one namespace and returns how many, taking one required
-  scope and no wildcard. Fake: `InMemoryMemoryStore`; adapter: `cortex_memory`.
+  scope and no wildcard. `delete_tainted(*, scopes=None) -> int` removes every memory marked tainted
+  in those namespaces, or in all of them. Fake: `InMemoryMemoryStore`; adapter: `cortex_memory`.
 - `MemoryRecord(id, text, embedding, at, scope=GLOBAL_SCOPE, tainted=False)` is one durable memory
   and rejects a naive `at`. `ScoredMemory(record, score)` is a retrieval hit and the store's **raw
   cosine similarity**, never the key a policy ranked by, so no caller can infer an order from it.
@@ -41,9 +42,15 @@ pool down to the hits one turn sees. The turn that calls it is in
   `read_scopes`. `GlobalMemoryScope` (the default) writes `GLOBAL_SCOPE` and reads everything;
   `SessionMemoryScope` writes and reads the session id. Selected through `CORTEX_MEMORY_SCOPE`.
 - `SessionMemoryCascade(store, scope)` (`memory_cascade.py`, ADR-0021 decision 11) is the forget
-  behind a session delete, kept out of the recaller so no tool and no tainted turn can reach a
-  forget verb. It exposes only `delete_session_memories(session_id) -> int`, cascades only when the
-  scope is the session's own private space, and runs the `GLOBAL_SCOPE` check first.
+  behind a session delete, kept out of the recaller and out of every engine, so no tool reaches it.
+  It exposes only `delete_session_memories(session_id) -> int`, cascades only when the scope is the
+  session's own private space, and runs the `GLOBAL_SCOPE` check first.
+- `UntrustedMemoryForget(store, scope)` (`memory_forget.py`, ADR-0019 decision 9) is the one delete
+  a tool reaches: `forget(session_id)` calls `delete_tainted` over the session's read scopes. The
+  built-in `ForgetUntrustedTool` over it is `forget_untrusted_memories`: no arguments,
+  `confirm_required`, and a `RecordCard` whose card is the fixed `FORGET_CARD`, so the dispatcher
+  shows it on a tainted turn too. A store failure returns an `is_error` result and forgets nothing.
+  `record_exchange` (`turn_output.py`) stores nothing for a tainted turn in which it ran `ok`.
 - `RecallPolicy` (port, `rerank.py`) turns an over-fetched pool into the final `k` hits:
   `candidate_k(k)` sizes the pool and `async select(hits, *, query, now, k, session_id=None,
   turn_id=None) -> Ranking` reranks and cuts it, returning at most `k` hits from the pool, none

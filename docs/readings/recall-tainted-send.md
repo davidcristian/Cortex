@@ -6,7 +6,9 @@ whether an injection quoted in such a memory can still send. The block itself st
 outward on arguments the model writes ([ADR-0019](../adr/ADR-0019-tainted-memory-recording.md)
 decision 8, [ADR-0022](../adr/ADR-0022-email-write-confirmer.md) decision 2). The task is
 [R-845](../refinements/tasks/845-a-recall-tainted-turn-blocks-the-person-s-own-send.md); the
-same shape for a task is in [recall-tainted-task.md](recall-tainted-task.md).
+same shape for a task is in [recall-tainted-task.md](recall-tainted-task.md), and the way out of
+the block, forgetting the untrusted memories, in
+[forget-untrusted-memories.md](forget-untrusted-memories.md).
 
 ## The defect, read from the code
 

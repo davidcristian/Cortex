@@ -86,6 +86,10 @@ class RecordingMemoryStore:
         self.events.append(f"cascade:{scope}")
         return 0
 
+    async def delete_tainted(self, *, scopes: Sequence[str] | None = None) -> int:
+        del scopes
+        raise AssertionError
+
 
 def test_clamp_title_passes_a_short_title_through_unchanged() -> None:
     assert clamp_title("Everything about cats") == "Everything about cats"

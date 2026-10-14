@@ -9,6 +9,7 @@ from cortex_core.errors import EmbedderError, MemoryStoreError
 from cortex_core.events import TextDelta, ToolActivity, ToolOutcome, TurnEvent
 from cortex_core.guardrail import OutputFilter
 from cortex_core.loop_events import ReasoningDelta, StepOutcome, ToolStep
+from cortex_core.memory_forget import FORGET_UNTRUSTED_TOOL_NAME
 from cortex_core.output_channels import ThinkingChannel
 from cortex_core.repeat_watch import REPEATED_LINE_NOTE, RepeatWatch
 from cortex_core.schedule_claim import UNSCHEDULED_CLAIM_NOTE, unscheduled_claim
@@ -197,6 +198,9 @@ async def record_exchange(
     # A turn that holds a picture (a screen capture, an MCP image or an attachment) is never
     # recorded, whatever the deployment's taint policy says: its reply may transcribe it.
     if taint.opaque:
+        return
+    # Recording a tainted turn that forgot the untrusted memories would store a new one.
+    if taint.tainted and any(run.ok and run.name == FORGET_UNTRUSTED_TOOL_NAME for run in runs):
         return
     if caps.memory is not None and (not taint.tainted or caps.record_tainted_memory):
         try:

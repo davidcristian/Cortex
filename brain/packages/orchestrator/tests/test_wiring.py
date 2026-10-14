@@ -83,6 +83,7 @@ from cortex_core import (
     ToolNotFoundError,
     ToolSpec,
     TurnStamp,
+    UntrustedMemoryForget,
     UrlRedactingGuardrail,
     VramBudgetPlacer,
     record_fields,
@@ -409,9 +410,10 @@ async def test_a_wedged_llama_server_fails_the_stream_instead_of_waiting_forever
 
 
 async def test_build_memory_defaults_to_disabled() -> None:
-    memory, cascade, close = await build_memory(MemoryConfig(backend="none"), SystemClock())
+    memory, cascade, forget, close = await build_memory(MemoryConfig(backend="none"), SystemClock())
     assert memory is None
     assert cascade is None
+    assert forget is None
     await close()
 
 
@@ -443,10 +445,11 @@ async def test_build_memory_selects_pgvector_and_returns_a_closer(
         dsn="postgresql://cortex@db/cortex",
         embedder_endpoint="http://llama-embed:8081",
     )
-    memory, cascade, close = await build_memory(config, SystemClock())
+    memory, cascade, forget, close = await build_memory(config, SystemClock())
     assert memory is not None
     assert isinstance(memory(EchoInferenceBackend(), "cortex"), MemoryRecaller)
     assert isinstance(cascade, SessionMemoryCascade)
+    assert isinstance(forget, UntrustedMemoryForget)
     assert seen_dsn == [("postgresql://cortex@db/cortex", 10.0)]
     assert seen_timeouts == [httpx.Timeout(10.0)]
     await close()
@@ -601,7 +604,7 @@ async def test_the_judge_asks_the_tier_the_deployment_named_to_rank(
         dsn="postgresql://cortex@db/cortex",
         embedder_endpoint="http://llama-embed:8081",
     )
-    memory, _cascade, close = await build_memory(config, SystemClock())
+    memory, _cascade, _forget, close = await build_memory(config, SystemClock())
     assert memory is not None
     try:
         recalled = await memory(backend, "cortex-alt").recall(

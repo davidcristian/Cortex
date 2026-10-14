@@ -36,7 +36,7 @@ class SessionStore(Protocol):
 
 
 class MemoryStore(Protocol):
-    """Durable, cross-session memory: add, retrieve, size the candidate set, forget a namespace."""
+    """Durable, cross-session memory: add, retrieve, count, and forget by namespace or by taint."""
 
     async def add(self, record: MemoryRecord) -> None: ...
 
@@ -47,6 +47,10 @@ class MemoryStore(Protocol):
     async def count_candidates(self, *, scopes: Sequence[str] | None = None) -> int: ...
 
     async def delete_scope(self, scope: str) -> int: ...
+
+    async def delete_tainted(self, *, scopes: Sequence[str] | None = None) -> int:
+        """Hard-delete every tainted memory in ``scopes`` (all when None); return how many."""
+        ...
 
 
 class TaskStore(Protocol):
