@@ -170,6 +170,9 @@ async def stream_turn_events(
                 continue
             if isinstance(delta, ToolStep):
                 channels[1].next_round()
+                # Text on each side of a tool call is not one stretch of reply, so a line each
+                # round opens with is not a repeat; the round limit bounds those lines.
+                watch = RepeatWatch(query)
                 yield ToolActivity(tool_name=delta.tool_name, summary=delta.summary)
                 continue
             if isinstance(delta, StepOutcome):

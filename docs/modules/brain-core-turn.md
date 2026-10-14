@@ -114,10 +114,10 @@ before it as calls with a fixed outcome text, after the window (`tool_replay.py`
 `turn_output.py` is the half of the engine the deep model's phase shares, so the two cannot diverge
 (ADR-0030). `stream_turn_events(loop, channels, parts, stops, query)` maps a tool loop's deltas onto
 `TextDelta`, `StatusUpdate` and `ToolActivity`, adds reply text to `parts`, ends the reply when
-`RepeatWatch(query)` (`repeat_watch.py`) sees a block of up to four lines with a line of 20 or more
-characters not in `query` come 3 times back to back, or once more than a count `query` asks for
-(`ten times`; ADR-0048 decision 17), closes the loop in a `finally` and flushes the channels on a
-clean end. `record_exchange(caps, taint, *, session_id, query, reply, runs)` applies both phases'
+`RepeatWatch(query)` (`repeat_watch.py`, new at each tool call) sees a block of up to four lines,
+one of 20 or more characters not in `query`, come 3 times back to back, or once more than a count
+`query` asks for (ADR-0048 decision 17), closes the loop in a `finally` and flushes the channels on
+a clean end. `record_exchange(caps, taint, *, session_id, query, reply, runs)` applies both phases'
 tainted-memory policy and **drops an opaque turn whatever `record_tainted_memory` says** (ADR-0029).
 
 `limit_notes(stops, runs, parts, *, earlier=())`, `unreadable_call_note(stops, parts)` and

@@ -144,7 +144,8 @@ handoff.
     copies the message asks for, a number in digits or one number word before `times` or
     `copies`, so "write it ten times" lets ten copies of a line the model makes up through. A line
     the person asked for, a song's chorus and a list line with other lines between its copies all
-    run to their end. It reads reply text only, never the trace, and both phases do the same. The
+    run to their end. It reads reply text only, never the trace, and both phases do the same. A
+    tool call starts the count again, so a line that opens each round of calls is not a repeat. The
     shapes and the rows they passed are in [reply loop](../readings/reply-loop.md#the-fifth-rule)
     and [requested repeats](../readings/reply-loop-requests.md).
 

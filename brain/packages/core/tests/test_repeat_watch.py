@@ -1,4 +1,4 @@
-from collections.abc import AsyncIterator, Sequence
+from collections.abc import AsyncIterator, Mapping, Sequence
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -8,16 +8,25 @@ from cortex_core import (
     GenerationBounds,
     InferenceEvent,
     InMemorySessionStore,
+    InMemoryToolRegistry,
     JsonSchema,
     Message,
+    RecordingAuditSink,
     RepeatWatch,
+    Role,
     StopLedger,
+    TaintLedger,
     TextChunk,
     TextDelta,
+    ToolCall,
+    ToolDispatcher,
     ToolSpec,
     TurnCompleted,
     TurnEngine,
 )
+from cortex_core.output_channels import ThinkingChannel
+from cortex_core.tool_loop import ToolLoopContext, stream_tool_loop
+from cortex_core.turn_output import stream_turn_events
 
 _LINE = "Actually, I'll try `read_text_file` again."
 _ASKED = "Remember to bring your sheet music to practice."
@@ -231,3 +240,74 @@ async def test_a_line_the_model_made_up_and_was_asked_to_repeat_runs_to_its_end(
     backend = _Looping(lines)
     assert await _reply(backend, InMemorySessionStore(), _MADE_UP) == "".join(lines)
     assert backend.sent == 10
+
+
+class _Reading:
+    """Opens each of ``rounds`` with ``opening`` and one read call, then writes ``closing``."""
+
+    def __init__(self, rounds: int, opening: str, closing: Sequence[str]) -> None:
+        self._rounds = rounds
+        self._opening = opening
+        self._closing = closing
+        self.steps = 0
+
+    async def stream(
+        self,
+        model: str,
+        messages: Sequence[Message],
+        *,
+        tools: Sequence[ToolSpec] = (),
+        schema: JsonSchema | None = None,
+        bounds: GenerationBounds | None = None,
+    ) -> AsyncIterator[InferenceEvent]:
+        del model, messages, tools, schema, bounds
+        step = self.steps
+        self.steps += 1
+        if step < self._rounds:
+            yield TextChunk(self._opening)
+            yield ToolCall(id=f"c{step}", name="read", arguments={"part": step})
+            return
+        for chunk in self._closing:
+            yield TextChunk(chunk)
+
+
+async def _part(arguments: Mapping[str, object]) -> str:
+    return f"part {arguments.get('part')}"
+
+
+async def _read_turn(backend: _Reading) -> tuple[str, StopLedger, RecordingAuditSink]:
+    sink = RecordingAuditSink()
+    registry = InMemoryToolRegistry({"read": (ToolSpec("read", "read", {}), _part)})
+    stops = StopLedger()
+    context = ToolLoopContext(
+        dispatcher=ToolDispatcher(registry, sink, _Clock()),
+        clock=_Clock(),
+        turn_id="t-1",
+        taint=TaintLedger(),
+        nonce="n",
+        session_id="s",
+        stops=stops,
+    )
+    working = [Message(role=Role.USER, text="who sings?", at=_START, turn_id="t-1")]
+    loop = stream_tool_loop(backend, "m", working, context)
+    channels = (None, ThinkingChannel(guard=None))
+    parts: list[str] = []
+    events = [e async for e in stream_turn_events(loop, channels, parts, stops, "who sings?")]
+    assert "".join(e.text for e in events if isinstance(e, TextDelta)) == "".join(parts)
+    return "".join(parts), stops, sink
+
+
+async def test_a_line_that_opens_each_tool_round_is_no_repeat() -> None:
+    backend = _Reading(4, f"{_LINE}\n", ["The altos sing the second verse."])
+    reply, stops, sink = await _read_turn(backend)
+    assert reply == f"{_LINE}\n" * 4 + "The altos sing the second verse."
+    assert not stops.repeated
+    assert len(sink.records) == 4
+
+
+async def test_a_reply_repeating_one_line_after_a_tool_round_still_ends_there() -> None:
+    backend = _Reading(1, "Reading the rota.\n", [f"{_LINE}\n"] * 5)
+    reply, stops, sink = await _read_turn(backend)
+    assert reply == "Reading the rota.\n" + f"{_LINE}\n" * 3
+    assert stops.repeated
+    assert len(sink.records) == 1
