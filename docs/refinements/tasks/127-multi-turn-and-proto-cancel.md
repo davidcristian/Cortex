@@ -8,7 +8,7 @@ overlay's `submit` in `body/app/src/overlay/useOverlay.ts` returns while `isTurn
 question is sent while another runs, and `turn_request` in `body/crates/rpc/src/converse.rs` sends
 one `UserTurn` and no `Cancel`. A question accepted mid-turn, or a stop that must keep its stream
 open, fires it.
-**Verified:** 2026-10-07
+**Verified:** 2026-10-14
 
 The body sends one turn per `Converse` call and never sends `Cancel`; dropping the stream is how
 v1 cancels (ADR-0011 decision 1 and risks). Slice 8.8 (ADR-0022) took the interleaving half, so
@@ -28,12 +28,13 @@ The GPU lease releases cleanly on a mid-inference cancel with escalation off. Th
 non-reentrant `asyncio.Lock` held across the whole streaming block
 (`SingleResidentModelManager._lock`, taken in `LlamaCppBackend.stream`), and a `CancelledError`
 propagates out through that `async with` and frees it before the next turn leases it. With
-escalation on, the backend leases from the swap runtime's manager instead (`wiring.py:76`), which
+escalation on, the backend leases from the swap runtime's manager instead (`wiring.py:77`), which
 the test below does not use.
 `test_cancelling_mid_stream_frees_the_model_lease` suspends a turn mid-stream with the lease held,
 cancels it, and asserts a fresh acquire returns at once; it was proved able to fail by releasing
 the lock outside a `finally`, which deadlocks the re-acquire. No partial reply is persisted, since
-`TurnEngine.handle_turn`'s `finally: await loop.aclose()` drops the in-flight generation.
+`TurnEngine.handle_turn`'s `finally: await events.aclose()` closes `stream_turn_events`, whose own
+`finally` closes the tool loop and drops the in-flight generation.
 
 **What is deferred is body-side, and its two parts are coupled.** `BrainTransport::converse` is
 one turn per call (`turn_request` sends exactly one `UserTurn`,
@@ -107,3 +108,7 @@ when one stream should hold several turns.
   [R-816](816-a-stopped-reply-goes-on-writing-and-is-not-kept.md). The turn order across streams was
   fixed in the same change with a lock per session in the brain. The task now holds only several
   turns per stream and a client `Cancel`, whose trigger is new.
+- 2026-10-14: Not fired: `submit` still returns while `isTurnActive`, and `turn_request` still
+  sends one `UserTurn` and no `Cancel`. Two details of the body had moved. The escalation lease is
+  at `wiring.py:77`, and `handle_turn` closes `stream_turn_events` rather than the tool loop
+  itself, the loop being closed in that generator's own `finally`.

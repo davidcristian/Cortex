@@ -3,11 +3,12 @@
 **Status:** open, waiting for its trigger
 **Area:** email-confirmer
 **Origin:** [ADR-0022](../../adr/ADR-0022-email-write-confirmer.md)
-**Verified:** 2026-10-13
+**Verified:** 2026-10-14
 **Trigger:** a record under `docs/readings/`, `docs/host/` or this file's History of a person
-approving a confirmation card without reading it, because cards came often enough in one turn or
-one chat. `grep -rliE 'without reading' docs/readings docs/host` finds none. Which tools can raise
-a card is read off `ALWAYS_CONFIRMED` in
+approving a confirmation card without reading it, because cards came often enough in one turn or one
+chat. `grep -rliE 'without reading' docs/readings docs/host` finds only
+`docs/readings/recall-tainted-send.md`, which quotes the text of `DENIED_MSG` and records no
+approval. Which tools can raise a card is read off `ALWAYS_CONFIRMED` in
 `brain/packages/orchestrator/src/cortex_orchestrator/config_tools.py`, plus any name
 `CORTEX_TOOLS_GATED` adds and each built-in whose spec sets `confirm_required`; how many one turn
 can raise is `MAX_TOOL_DISPATCHES` in `brain/packages/core/src/cortex_core/tool_budget.py`. This
@@ -73,3 +74,7 @@ allowlist over `send_email` is a permanent approval to send mail.
   sets `confirm_required` itself (`schedule_verbs.py:61`) and shows the stored item on its card, so
   `escalate.py` is no longer the only built-in that asks. `MAX_TOOL_DISPATCHES` is still 32. No
   deployment runs here.
+- 2026-10-14: Not fired. The trigger's search had stopped finding nothing: since 2026-10-13 it
+  finds `docs/readings/recall-tainted-send.md`, whose sentence quotes the dispatcher's
+  `DENIED_MSG` ("lets it run without reading anything first") and records no person approving a
+  card. The trigger now says so. `ALWAYS_CONFIRMED` and `MAX_TOOL_DISPATCHES` are unchanged.

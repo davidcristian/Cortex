@@ -4,21 +4,21 @@
 **Area:** untrusted-content
 **Origin:** [ADR-0028](../../adr/ADR-0028-grammar-constrained-subagents.md)
 **Trigger:** a task file or ADR asks for a constrained reply whose shape JSON Schema cannot express. None does: `grep -rn 'schema=' brain/packages/*/src` finds two values a caller sets, `REPLY_ENVELOPE` and `ORDER_ENVELOPE`, both JSON objects.
-**Verified:** 2026-10-07
+**Verified:** 2026-10-14
 
 Left behind by [R-068](068-grammar-constrained-subagent-output.md): a raw GBNF `grammar` as an
 alternative to the JSON envelope. The ADR defers it until a caller needs a shape JSON cannot
 express, and no caller does.
 
 It is not a keyword's worth of work. The port takes `schema: JsonSchema | None`
-([ports.py:76](../../../brain/packages/core/src/cortex_core/ports.py)), where `JsonSchema` is a
+([ports.py:78](../../../brain/packages/core/src/cortex_core/ports.py)), where `JsonSchema` is a
 `Mapping[str, object]` ([inference.py:11](../../../brain/packages/core/src/cortex_core/inference.py)),
 and a GBNF grammar is a string. `build_payload` wraps any schema it receives into
 `response_format.json_schema`
 ([request.py:124](../../../brain/packages/inference/src/cortex_inference/request.py)), and no
 request on that path has a grammar field. So an alternative needs the port widened, a branch in
 the request builder, and a second parser beside `unwrap_envelope`, which parses JSON and nothing
-else ([subagent_reply.py:43](../../../brain/packages/core/src/cortex_core/subagent_reply.py)).
+else ([subagent_reply.py:45](../../../brain/packages/core/src/cortex_core/subagent_reply.py)).
 
 ## History
 
@@ -58,3 +58,6 @@ else ([subagent_reply.py:43](../../../brain/packages/core/src/cortex_core/subage
   still build their `ToolLoopContext` with no schema. No task file or ADR other than ADR-0028 and
   R-068 links here. The trigger now names the search that decides it, and the body gives line
   numbers.
+- 2026-10-14: Not fired: the search still finds `REPLY_ENVELOPE` and `ORDER_ENVELOPE` as the
+  only two values a caller sets. Two of the body's line numbers had moved: the port's `schema`
+  parameter is at `ports.py:78` and `unwrap_envelope` at `subagent_reply.py:45`.
