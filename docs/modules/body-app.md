@@ -93,11 +93,11 @@ render the panel sees. The roll's duration and curve also reach the stylesheet a
 
 **Focus and announcements** (ADR-0052). The overlay keeps one polite live region at its root,
 `role="status"`, whose whole vocabulary is `overlay/notice.ts`. A conversation arriving takes the
-caret with it (`OverlayState.arrival` plus the composer's `arrival` prop); a list that reshapes
-under the hand keeps the caret through `overlay/rowCaret.ts`; a section the reader closes hands it
-to its anchor through `overlay/sectionCaret.ts`. `overlay/fieldKeys.ts` decides which chords a
-field keeps: one passes through a field whose text the overlay stores and is stopped by a field
-whose text it would throw away. `overlay/tabStrip.ts` is the console strip's key map.
+caret (`OverlayState.arrival` plus the composer's `arrival` prop); a list that reshapes under the
+hand keeps the caret through `overlay/rowCaret.ts`; a section the reader closes hands it to its
+anchor through `overlay/sectionCaret.ts`; a card's buttons never take it. `overlay/fieldKeys.ts`
+decides which chords a field keeps: one passes a field whose text the overlay stores and stops at
+one whose text it would throw away. `overlay/tabStrip.ts` maps the console strip's keys.
 
 **Views and drafts.** `components/Panel.tsx` routes between the `chat` and `console` views
 (ADR-0034, ADR-0035). The console's tab is not part of the view name: both tabs are mounted in one

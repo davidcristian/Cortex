@@ -1,3 +1,5 @@
+import type { MouseEvent } from "react";
+
 import type { PendingConfirm } from "../overlay/overlayState";
 import { formatDraftValue } from "./draftValue";
 import { ShieldIcon } from "./icons";
@@ -23,6 +25,12 @@ function parseDraft(argumentsJson: string): readonly (readonly [string, string])
     return null;
   }
 }
+
+// A press would focus the button, which goes away with the card, so the next typed words would
+// go nowhere; the composer keeps the focus instead.
+const keepFocus = (event: MouseEvent<HTMLButtonElement>) => {
+  event.preventDefault();
+};
 
 /** The approval card: a tool call paused mid-turn until the user approves or denies it. */
 export function ConfirmCard({ confirm, onRespond }: ConfirmCardProps) {
@@ -50,6 +58,7 @@ export function ConfirmCard({ confirm, onRespond }: ConfirmCardProps) {
         <button
           type="button"
           className="confirm-deny"
+          onMouseDown={keepFocus}
           onClick={() => onRespond(confirm.confirmId, false)}
         >
           Deny
@@ -57,6 +66,7 @@ export function ConfirmCard({ confirm, onRespond }: ConfirmCardProps) {
         <button
           type="button"
           className="confirm-approve"
+          onMouseDown={keepFocus}
           onClick={() => onRespond(confirm.confirmId, true)}
         >
           Approve

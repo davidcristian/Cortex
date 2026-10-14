@@ -68,4 +68,18 @@ describe("ConfirmCard", () => {
     expect(onRespond).toHaveBeenCalledWith("c-1", false);
     expect(onRespond).toHaveBeenCalledTimes(2);
   });
+
+  it("leaves the focus in the composer when either button is pressed", () => {
+    render(
+      <>
+        <textarea aria-label="composer" />
+        <ConfirmCard confirm={confirm()} onRespond={vi.fn()} />
+      </>,
+    );
+    const field = screen.getByLabelText("composer");
+    field.focus();
+    expect(fireEvent.mouseDown(screen.getByText("Deny"))).toBe(false);
+    expect(fireEvent.mouseDown(screen.getByText("Approve"))).toBe(false);
+    expect(field).toHaveFocus();
+  });
 });
