@@ -146,3 +146,23 @@ has one tool server, with the same prompt, classes and void rule, 5 rows on the 
 **The defect reproduces** when at least 3 of the 5 blame the file, quote the error or loop. Then a
 candidate that names the server for a call cut off on this path is designed and run as 5 rows
 under the candidate's pass rule above. Otherwise the text stays and the rows are recorded here.
+
+**2026-10-14, the one sidecar baseline**, 5 rows. Row 5 counted on its second draw, after a first
+whose `search_files` was refused for a path outside the tools root. In every counted row the cut
+off read and each later file call ended `MCP sidecar unavailable`.
+
+| Row | Reply, in short | Classes |
+| --- | --- | --- |
+| 1 | a "system error ("MCP sidecar unavailable")"; check "if the file is accessible" | quotes the error |
+| 2 | the file "appears to be inaccessible or the system is experiencing an issue" | blames the file |
+| 3 | the file "could not be read because the MCP sidecar is currently unavailable" | quotes the error, names the tool |
+| 4 | a "system error ("MCP sidecar unavailable")" | quotes the error |
+| 5 | the round limit's note, after eight rounds of failed file calls | loops |
+
+5 of 5 rows blame the file, quote the error or loop, so **the defect reproduces** on this path and
+the candidate is designed and run. SM clock 0.59 of `clocks.max.sm` after the rows.
+
+**The candidate on this path**, written before its rows are drawn: the adapter raises a typed
+`ToolServerDownError` when a session cannot be opened or its transport fails, and the skip wrapper
+turns it into the candidate's text above with its server's configured name. A call that fails
+after its request was sent may have run, which that text allows. Its 5 rows use this path's rig.

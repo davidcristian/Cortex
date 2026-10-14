@@ -30,3 +30,5 @@ say the call did not run, as `SERVER_DOWN_MSG` does.
 
 - 2026-10-14: filed from R-851, whose rows covered only the aggregate's path; wrote the rows and
   the pass rule into the readings before drawing them.
+- 2026-10-14: ran the 5 baseline rows: all 5 blame the file, quote the error or loop, so the
+  defect reproduces and the candidate is next.
