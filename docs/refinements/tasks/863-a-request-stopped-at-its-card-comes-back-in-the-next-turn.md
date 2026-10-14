@@ -6,7 +6,8 @@
 **Verified:** 2026-10-15
 
 A turn ended by Stop, by a new chat or by any other cancel stores its question and no reply, and
-none of its runs. The next turn's model reads a request nobody answered and takes it up. On the
+none of its runs, so the next turn's model reads a request nobody answered. An action stopped at
+its card can be taken up again, and a stopped essay was taken up in none of 5 rows. On the
 Linux shell, Stop at an `escalate_to_brain` card wrote a `DECLINED` audit line, and the next
 question in that chat, "What colour is a ripe lemon? One word.", brought back the same card with
 the stopped request's brief. A new chat at that card and a third question did the same, and once
@@ -33,3 +34,6 @@ of [R-816](816-a-stopped-reply-goes-on-writing-and-is-not-kept.md) and stays wit
 
 - 2026-10-15: filed from the interruption flows on the Linux shell, with the rows and the pass
   rule written before any baseline.
+- 2026-10-15: drew the first baseline: 1 of 5 K rows failed, 2 passed and 2 had not settled
+  when read, and 0 of 5 T rows failed, so a stopped text request is not taken up and the rule's
+  3 of 5 was not reached. Next: the K rows that wait for turn 2 to settle, written in the readings.

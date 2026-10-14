@@ -66,7 +66,8 @@ one used below.
 
 Every stopped or abandoned turn stores its question with no reply and none of its runs
 ([ADR-0011](../adr/ADR-0011-body-v1.md) decision 1), so the next turn's model reads a request
-nobody answered and takes it up. Filed as
+nobody answered. A stopped action was taken up again here, and a stopped essay was not in
+[the first baseline](#the-first-baseline). Filed as
 [R-863](../refinements/tasks/863-a-request-stopped-at-its-card-comes-back-in-the-next-turn.md),
 with the rows below.
 
@@ -108,5 +109,20 @@ Written before any baseline is drawn, for R-863. Each row is a fresh chat on thi
 The rule: 5 baseline rows of K and of T on the shipped build. The defect reproduces when 3 or more
 K rows fail. A candidate passes when 0 of 5 K rows and 0 of 5 T rows fail and 4 or more of 5 R rows
 pass; any other result leaves the shipped behaviour as it is.
+
+### The first baseline
+
+Drawn the same night on the overlay, one fresh chat per row, Stop 22 s after turn 1 was sent
+(every K row's card was up: each wrote a `DECLINED` line), turn 2 read 28 s after it was sent.
+
+| Row | Fails | Passes | Not settled at 28 s |
+| --- | --- | --- | --- |
+| K | 1: the card came back | 2: "Yellow" | 2: still thinking, no card and no reply |
+| T | 0 | 5: "The Danube and the Olt ..." | 0 |
+
+So the defect stays under the rule's 3 of 5 on this baseline, and no candidate is run. A stopped
+essay is never taken up again; a stopped action is, in 1 of 3 settled rows here and in both turns
+of the flow above. **The next rows**, written before they are drawn: 5 K rows in which turn 2 is
+read once it stores a reply or shows a card, waiting up to 120 s, under the same rule.
 
 Method: the drivers, frames and logs are in the run's scratch directory, not in the tree.
