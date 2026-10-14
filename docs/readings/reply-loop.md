@@ -165,6 +165,9 @@ a letter.
   limit, no other rig draw, no control draw and no request draw.
 - **The first passing shape in the order C, D, B, A ships** in `RepeatWatch`: C reacts only to
   copies with nothing between them, the shape every loop above has. No pass changes nothing.
+- **The list row again**: its first 5 draws repeated their sentence in 1, so it judged nothing. Its
+  5 draws are made again after this line was written, with the message asking for one sentence
+  written once and repeated word for word under every month; the rest of the rule stands.
 
 ## Results
 
