@@ -54,12 +54,12 @@ audited as an error, `CANCELLED_MSG`, before the cancel goes on. `cost_of(name)`
 dispatched)` report what a call spends and whether it is worth running. The dispatcher is stateless;
 the loop drives it and keeps the history.
 
-- `refusal` (a `DispatchRefusal`) is the caller's statement that the call must not run: `BUDGET`
-  when the dispatch allowance is spent, `DECLINED` for a call identical to one the person declined
-  in this loop (`ToolLoopContext.declined`), `REDUNDANT` for a repeat the salience policy
-  recognized, or `ROUND_OVERSIZED` for a truncated round's overflow slot. The tool is not invoked,
-  the member's message is returned, and the attempt is audited. A refusal is checked **before** the
-  confirmation rule, so a flood of confirmable calls cannot reach the user as prompts.
+- `refusal` (a `DispatchRefusal`) says the call must not run: `BUDGET` when the dispatch allowance
+  is spent, `DECLINED` for a call the person declined in this turn (`ToolLoopContext.declined`, read
+  from the tail after a handoff), `REDUNDANT` for a repeat the salience policy recognized, or
+  `ROUND_OVERSIZED` for a truncated round's overflow slot. The tool is not invoked, the member's
+  message is returned, and the attempt is audited. A refusal is checked **before** the confirmation
+  rule, so a flood of confirmable calls cannot reach the user as prompts.
 - The confirmation rule (ADR-0013, revised by ADR-0022): a `confirm_required` call on a tainted turn is
   refused with `DENIED_MSG` (`RECALL_DENIED_MSG` when recall alone tainted it, `RECALL_FORGOTTEN_MSG`
   once `forgotten` is set), the confirmer never asked, unless its name has a record card; otherwise

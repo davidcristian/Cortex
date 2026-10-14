@@ -8,6 +8,7 @@ import swap_harness as harness
 from swap_harness import ScriptedBrainBackend, TickingClock
 
 from cortex_core import (
+    ALREADY_DECLINED_MSG,
     BRAIN_FAILED_NOTE,
     BRAIN_OVERFLOW_NOTE,
     BUDGET_EXHAUSTED_MSG,
@@ -20,6 +21,7 @@ from cortex_core import (
     REPLY_CAPPED_NOTE,
     UNREADABLE_CALL_NOTE,
     UNSCHEDULED_CLAIM_NOTE,
+    USER_DECLINED_MSG,
     CadenceTerms,
     ContextOverflowError,
     DecodeCadence,
@@ -39,6 +41,7 @@ from cortex_core import (
     PlainFormatter,
     Provenance,
     RecordingAuditSink,
+    RecordingConfirmer,
     RecordingPaceSink,
     Role,
     SourceKind,
@@ -321,6 +324,34 @@ async def test_a_deep_phase_blocks_with_the_text_for_what_its_turn_read(
     await _drive(capabilities=TurnCapabilities(tools=dispatcher), backend=backend, taint=taint)
     (invocation,) = audit.records
     assert (invocation.ok, invocation.detail) == (False, said)
+
+
+def _read_round(call_id: str, path: str, said: str) -> tuple[Message, Message]:
+    call = ToolCall(id=call_id, name="read", arguments={"path": path})
+    return (
+        Message(role=Role.ASSISTANT, text="", at=_AT, turn_id=harness.TURN, tool_calls=(call,)),
+        Message(role=Role.TOOL, text=said, at=_AT, turn_id=harness.TURN, tool_call_id=call_id),
+    )
+
+
+async def test_a_call_declined_before_the_handoff_is_not_asked_again_after_it() -> None:
+    confirmer = RecordingConfirmer(answer=False)
+    policy = DispatchPolicy(confirm_names={"read"})
+    dispatcher = ToolDispatcher(
+        _registry(), RecordingAuditSink(), SystemClock(), policy=policy, confirmer=confirmer
+    )
+    tail = (*_read_round("c0", "a", USER_DECLINED_MSG), *_read_round("c1", "b", "the page"))
+    backend = ScriptedBrainBackend(
+        chunks=("done",),
+        tool_calls=(
+            ToolCall(id="c2", name="read", arguments={"path": "a"}),
+            ToolCall(id="c3", name="read", arguments={"path": "b"}),
+        ),
+    )
+    await _drive(capabilities=TurnCapabilities(tools=dispatcher), backend=backend, tail=tail)
+    assert [request.arguments for request in confirmer.requests] == [{"path": "b"}]
+    refused = next(message for message in backend.seen if message.tool_call_id == "c2")
+    assert refused.text == ALREADY_DECLINED_MSG
 
 
 async def test_the_deep_phases_reply_records_the_tool_runs_it_made() -> None:

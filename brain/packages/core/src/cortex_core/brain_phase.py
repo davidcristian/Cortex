@@ -8,7 +8,7 @@ from cortex_core.conversation import Message, Role, ToolRun
 from cortex_core.errors import ContextOverflowError, InferenceError, MalformedToolCallError
 from cortex_core.events import TextDelta, TurnEvent
 from cortex_core.handoff import HandoffRecord
-from cortex_core.handoff_view import cortex_runs, deep_history, deep_tail
+from cortex_core.handoff_view import cortex_runs, declined_calls, deep_history, deep_tail
 from cortex_core.output_channels import open_output_channels
 from cortex_core.ports import Clock, InferenceBackend, SessionStore
 from cortex_core.stops import StopLedger
@@ -95,6 +95,7 @@ class BrainPhase:
             stops=stops,
             bounds=self._caps.bounds,
             generating=_DEEP_GENERATING,
+            declined=declined_calls(record),
         )
         assembled = await assemble_inference_messages(
             query, history, self._caps, context, self._clock
