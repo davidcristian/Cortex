@@ -70,7 +70,7 @@ never a reading of what the tree does now.
 ### Actionable now (2)
 
 - **[R-851](tasks/851-a-call-cut-off-by-a-down-sidecar-blames-the-file.md)** A call cut off by a down sidecar blames the file (tools-mcp). Its claim was checked against the code on 2026-10-13.
-- **[R-853](tasks/853-a-reply-that-repeats-one-line-runs-to-the-length-limit.md)** A reply that repeats one line runs to the length limit (inference). Its claim was checked against the code on 2026-10-13.
+- **[R-853](tasks/853-a-reply-that-repeats-one-line-runs-to-the-length-limit.md)** A reply that repeats one line runs to the length limit (inference). Its claim was checked against the code on 2026-10-14.
 
 ### Actionable, once a port changes (2)
 

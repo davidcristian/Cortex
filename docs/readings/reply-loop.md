@@ -117,6 +117,29 @@ and judges only draws made after it was written.
   window allows.
 - When both pass, candidate B ships and candidate A is filed as its own task, as in the first rule.
 
+## The fourth rule
+
+The three baselines together loop in 14 of 40 rig draws, about a third, so this rule is sized
+from that rate. It compares both candidates on rows drawn in one night, all after it was written,
+on the second rig and the first rig's two controls. A draw is classed as above, on its own text.
+
+- **Rows, in this order**: 40 baseline rig draws and 20 baseline control draws (10 tool call, 10
+  format) at the server's defaults; then, when the defect reproduces, 40 rig draws and 20 control
+  draws with `"dry_multiplier": 0.8` in each request. SM clock read after each phase.
+- **The defect reproduces** when at least 8 of the 40 baseline rig draws loop. At a true rate of a
+  third, fewer than 8 happens about once in 80 baselines. Otherwise neither candidate is judged.
+- **Candidate A ships** when its looping rig draws number at most a quarter of the baseline's,
+  rounded down, all 10 of its tool call control draws pass, and at least 9 of its 10 format
+  control draws pass. Shipping it adds `--dry-multiplier 0.8` to the cortex tier's argv in the
+  model host.
+- **Candidate B ships** when, read off the baseline draws, it stops every looping rig draw but at
+  most one before the draw's token limit, and stops no rig draw that does not loop and no baseline
+  control draw. It reads a rig draw as the turn holds the reply, the prefill followed by the draw.
+  Shipping it ends the reply at that line and closes it with a note through `limit_notes` in
+  `cortex_core/turn_output.py`, the path `REPLY_CAPPED_NOTE` takes.
+- When both pass, candidate B ships and candidate A is filed as its own task, as in the first rule.
+- Any other result changes nothing, and the rows are recorded here.
+
 ## Results
 
 **2026-10-13, the first rig's baseline**, 30 draws on the current tree at the server's defaults.

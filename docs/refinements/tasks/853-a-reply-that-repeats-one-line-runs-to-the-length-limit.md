@@ -3,7 +3,7 @@
 **Status:** open, actionable
 **Area:** inference
 **Origin:** [ADR-0048](../../adr/ADR-0048-generation-bounds.md)
-**Verified:** 2026-10-13
+**Verified:** 2026-10-14
 
 Nothing stops a reply that repeats itself before the length limit. In a probe row of the cut off
 tool call rows ([readings](../../readings/tool-call-cut-off.md#results)), gemma 12B as the cortex
@@ -44,3 +44,6 @@ check through the turn's existing note path, or a flag on the model host's corte
   neither candidate was judged. A second rig with a longer prefill looped 5 of 10, also under 7,
   and a third rule sized for that rate was written before its baseline, which looped 5 of 20,
   under its 6. Neither candidate is judged; the next step is a fourth rule sized from 14 of 40.
+- 2026-10-14: premise checked again on a fresh test stack: the same server build, both repetition
+  samplers off, and no sampling field from the brain. Wrote the fourth rule into
+  [reply loop](../../readings/reply-loop.md#the-fourth-rule) before drawing its rows.
