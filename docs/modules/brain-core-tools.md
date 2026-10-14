@@ -109,10 +109,9 @@ wider one is cut to the cap plus one overflow slot, and the rest are dropped rat
 The overflow slot is refused as `ROUND_OVERSIZED` ahead of every other bound. The module also owns
 `call_message` and `result_message`, the two messages a round appends.
 
-The loop draws the untrusted boundary (ADR-0013): each call is dispatched with the turn's taint
-state and the tool's `confirm_required` flag, each result is observed by `context.taint`, and an `UNTRUSTED`
-result is fenced by `wrap_untrusted` before it re-enters `working`. A call matching no advertised
-spec contributes no source.
+The loop draws the untrusted boundary (ADR-0013): each call is dispatched with the turn's taint state and the
+tool's `confirm_required` flag, each result is observed by `context.taint`, and an `UNTRUSTED` result is fenced
+by `wrap_untrusted` before it re-enters `working`. A call matching no advertised spec contributes no source.
 
 ## Registry combinators
 
@@ -125,9 +124,10 @@ Each is a `ToolRegistry` wrapping others, so the root builds a tool set the core
   and routes an invoke by a live `describe_tools` walk, so a dropped tool fails closed; a listing
   failure propagates as `ToolError`, and a tool a skipped server last listed fails as `SERVER_DOWN_MSG`.
 - `SkipUnavailableToolRegistry(inner, *, name, report)` marks one registry optional: a listing
-  failure becomes an empty advertisement, a `report(name, error)` call and `note_skipped(name)`, and
-  `held(tool)` reads the last good listing. The loop lists through `list_tools(lister, progress)`
-  (`tool_skips.py`), which sends one `forgoing` status, `skipped_detail(names)`, naming the servers left out.
+  failure becomes an empty advertisement, a `report(name, error)` call and `note_skipped(name)`;
+  `held(tool)` reads the last good listing, and a call raising `ToolServerDownError` fails as
+  `CUT_OFF_MSG`. The loop lists through `list_tools(lister, progress)` (`tool_skips.py`), which
+  sends one `forgoing` status, `skipped_detail(names)`, naming the servers left out.
 - `FilteredToolRegistry(inner, *, allow)` restricts the advertisement to an allowlist, refusing any
   other name as `ToolNotFoundError`. It only restricts and never grants.
 - `ConfirmRequiredToolRegistry(inner, *, names)` advertises the named tools as `confirm_required=True`

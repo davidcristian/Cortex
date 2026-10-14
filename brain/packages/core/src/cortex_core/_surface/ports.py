@@ -39,6 +39,7 @@ from cortex_core.errors import (
     TaskStoreError,
     ToolError,
     ToolNotFoundError,
+    ToolServerDownError,
 )
 from cortex_core.events import (
     StatusUpdate,
@@ -182,6 +183,7 @@ __all__ = [
     "ToolOutcome",
     "ToolRegistry",
     "ToolRun",
+    "ToolServerDownError",
     "TurnCompleted",
     "TurnEvent",
     "TurnRunner",

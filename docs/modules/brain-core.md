@@ -177,7 +177,7 @@ something the general one cannot:
 - `ModelUnavailableError`, `SwapFailedError`, `ResidencyRestoreError` and `HandoffInProgressError`
   (under `ModelManagerError`, ADR-0030). The last is not a failure: it means the deep model is
   loaded and busy with another turn.
-- `ToolNotFoundError` (under `ToolError`): no such tool name.
+- Under `ToolError`, `ToolNotFoundError`: no such tool; `ToolServerDownError`: its server stopped.
 - `ModelNotHostedError` (under `ModelHostError`, ADR-0053 decision 14): the host does not serve
   that logical id at all, which no wait and no retry can change.
 - `SubagentAdmissionError` is the one error raised by core policy rather than by an adapter: a

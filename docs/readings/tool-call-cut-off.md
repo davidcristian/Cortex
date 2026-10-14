@@ -166,3 +166,19 @@ the candidate is designed and run. SM clock 0.59 of `clocks.max.sm` after the ro
 `ToolServerDownError` when a session cannot be opened or its transport fails, and the skip wrapper
 turns it into the candidate's text above with its server's configured name. A call that fails
 after its request was sent may have run, which that text allows. Its 5 rows use this path's rig.
+
+**2026-10-14, the candidate on this path**, 5 rows, each counted on its first draw. Every cut off
+read and each later file call ended with the candidate's text; the model tried the read again,
+with a `head` argument or as `read_file`, and the dispatcher refused a third identical read in rows
+1, 2 and 5.
+
+| Row | Reply, in short | Classes |
+| --- | --- | --- |
+| 1 | "having trouble reading the `choir-rota.txt` file as the server keeps timing out" | names the tool |
+| 2 | "The filesystem tool server stopped responding when I tried to read" the file | names the tool |
+| 3 | "having trouble reading the file" because "the filesystem tool is not responding" | names the tool |
+| 4 | trouble reading the file "because the filesystem tool is currently unresponsive" | names the tool |
+| 5 | "the filesystem tool stopped responding"; "check if the file is accessible" | names the tool |
+
+5 of 5 rows name the tool, and none blames the file, quotes the error, loops or invents, so **the
+candidate ships** on this path. SM clock 0.59 of `clocks.max.sm` after the rows.

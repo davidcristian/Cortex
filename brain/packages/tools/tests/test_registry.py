@@ -16,7 +16,7 @@ from mcp.types import (
 from pictures import PNG_BASE64, PNG_BYTES
 
 import cortex_tools.registry as registry_module
-from cortex_core import Provenance, SourceKind, ToolCall, ToolError, ToolResult
+from cortex_core import Provenance, SourceKind, ToolCall, ToolError, ToolResult, ToolServerDownError
 from cortex_core.images import ImageError, ImagePart
 from cortex_tools import (
     McpSession,
@@ -251,7 +251,7 @@ async def test_reconnecting_registry_invokes_through_a_fresh_session() -> None:
 
 async def test_reconnecting_registry_maps_a_refused_dial_to_tool_error() -> None:
     opener = ScriptedOpener(httpx.ConnectError("connection refused"))
-    with pytest.raises(ToolError, match="MCP sidecar unavailable") as excinfo:
+    with pytest.raises(ToolServerDownError, match="MCP sidecar unavailable") as excinfo:
         await ReconnectingMcpToolRegistry(opener).describe_tools()
     assert excinfo.value.__cause__ is not None
 
@@ -259,7 +259,7 @@ async def test_reconnecting_registry_maps_a_refused_dial_to_tool_error() -> None
 async def test_reconnecting_registry_unwraps_an_exception_group_open_failure() -> None:
     group = ExceptionGroup("open failed", [httpx.ConnectError("refused")])
     opener = ScriptedOpener(group)
-    with pytest.raises(ToolError, match="MCP sidecar unavailable"):
+    with pytest.raises(ToolServerDownError, match="MCP sidecar unavailable"):
         await ReconnectingMcpToolRegistry(opener).invoke(
             ToolCall(id="c", name="read", arguments={})
         )

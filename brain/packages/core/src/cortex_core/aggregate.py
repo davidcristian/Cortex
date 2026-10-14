@@ -3,12 +3,16 @@
 from collections.abc import Callable, Sequence
 from dataclasses import replace
 
-from cortex_core.errors import ToolError, ToolNotFoundError
+from cortex_core.errors import ToolError, ToolNotFoundError, ToolServerDownError
 from cortex_core.ports import ToolRegistry
 from cortex_core.tool_skips import note_skipped
 from cortex_core.tools import ToolCall, ToolResult, ToolSpec
 
 SERVER_DOWN_MSG = "the {server} tool server is not answering, so {tool!r} did not run"
+CUT_OFF_MSG = (
+    "the {server} tool server stopped answering during this call, so the call did not finish; "
+    "this says nothing about the file or item the call named"
+)
 
 
 class AggregateToolRegistry:
@@ -75,8 +79,12 @@ class SkipUnavailableToolRegistry:
         return specs
 
     async def invoke(self, call: ToolCall) -> ToolResult:
-        """Call the inner registry unchanged: only tool discovery handles a failure."""
-        return await self._inner.invoke(call)
+        """Call the inner registry; a server that stops answering fails as ``CUT_OFF_MSG``."""
+        try:
+            return await self._inner.invoke(call)
+        except ToolServerDownError as err:
+            msg = CUT_OFF_MSG.format(server=self._name)
+            raise ToolError(msg) from err
 
 
 class ConfirmFreeToolRegistry:

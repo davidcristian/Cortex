@@ -14,6 +14,7 @@ from cortex_core import (
     ToolError,
     ToolNotFoundError,
     ToolResult,
+    ToolServerDownError,
     ToolSpec,
 )
 
@@ -197,6 +198,32 @@ async def test_a_server_that_answers_again_routes_the_call() -> None:
     sidecar.answering = True
     result = await aggregate.invoke(ToolCall(id="c16", name="search_emails", arguments={}))
     assert result.content == "from mail"
+
+
+class CutOffRegistry:
+    """A ToolRegistry whose server lists ``read`` and stops answering during each call."""
+
+    async def describe_tools(self) -> Sequence[ToolSpec]:
+        return (ToolSpec(name="read", description="", parameters={}),)
+
+    async def invoke(self, call: ToolCall) -> ToolResult:
+        del call
+        msg = "MCP sidecar unavailable"
+        raise ToolServerDownError(msg)
+
+
+async def test_a_call_cut_off_by_a_stopped_server_names_the_server() -> None:
+    skip = SkipUnavailableToolRegistry(
+        CutOffRegistry(), name="filesystem", report=lambda _n, _e: None
+    )
+    with pytest.raises(ToolError) as raised:
+        await skip.invoke(ToolCall(id="c17", name="read", arguments={}))
+    assert not isinstance(raised.value, ToolServerDownError)
+    assert str(raised.value) == (
+        "the filesystem tool server stopped answering during this call, so the call did not "
+        "finish; this says nothing about the file or item the call named"
+    )
+    assert isinstance(raised.value.__cause__, ToolServerDownError)
 
 
 def _mixed_registry() -> InMemoryToolRegistry:

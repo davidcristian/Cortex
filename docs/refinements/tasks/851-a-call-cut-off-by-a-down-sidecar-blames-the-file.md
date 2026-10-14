@@ -49,5 +49,8 @@ apart from the rows.
 - 2026-10-14: ran the next rows on the new text: 0 of 5 blame the file, quote the error, loop or
   invent, so the candidate's clause is not added. Declined the `forgoing` status for a call that
   fails during a turn: the body shows that call's failed chip, the reply named the server in 5 of
-  5 rows, and the next turn's listing sends the status. Filed the one sidecar path, which keeps
-  `MCP sidecar unavailable`, as R-856.
+  5 rows, and the next turn's listing sends the status.
+- 2026-10-14: ran rows on the one sidecar path, which reads `MCP sidecar unavailable`: all 5
+  blame the file, quote the error or loop. The adapter now raises `ToolServerDownError`, and the
+  skip wrapper turns it into the candidate's text, which passed its rule with 5 of 5 rows naming
+  the tool server.

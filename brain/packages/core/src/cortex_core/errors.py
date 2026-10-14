@@ -39,6 +39,10 @@ class ToolNotFoundError(ToolError):
     """invoke() named a tool the registry does not have."""
 
 
+class ToolServerDownError(ToolError):
+    """A tool server stopped answering, so a listing or call on it did not finish."""
+
+
 class TaskStoreError(Exception):
     """A TaskStore operation failed (task-store adapters wrap their backend's errors)."""
 

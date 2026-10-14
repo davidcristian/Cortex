@@ -72,32 +72,32 @@ that never replies, so each of those has a limit below.
    keeps the turn path unchanged, as `memory=None` does. CI and the no-GPU loop stay tool-free.
 8. **Several sidecars compose through port-preserving combinators in the core.**
    `CORTEX_TOOLS_ENDPOINTS__<name>` declares an endpoint and `CORTEX_TOOLS_ALLOW__<name>` an
-   optional JSON allowlist; the singular `CORTEX_TOOLS_ENDPOINT` is still valid alone, and setting
-   both forms, or an allowlist with no endpoint, fails at startup. `FilteredToolRegistry` intersects
-   the advertisement with the allowlist and refuses a name outside it, and only restricts.
+   optional JSON allowlist; the singular `CORTEX_TOOLS_ENDPOINT` works alone, and setting both
+   forms, or an allowlist with no endpoint, fails at startup. `FilteredToolRegistry` intersects the
+   advertisement with the allowlist, refuses a name outside it, and only restricts.
    `AggregateToolRegistry` lists registries in sorted endpoint-name order, keeps the first of a
    duplicated name, and routes an invoke by a live listing walk, not a cached table, so a tool a
    sidecar dropped fails with `ToolNotFoundError`. **A sidecar that is down costs a turn its tools,
    never the turn.** Under `CORTEX_TOOLS_ON_UNAVAILABLE=skip`, the default,
    `SkipUnavailableToolRegistry` lists a failing sidecar as empty, logs a warning on every walk and
-   notes its name for the listing in progress (`tool_skips.py`), so the turn sends one
-   `StatusUpdate` in the state `forgoing` naming each tool server left out. A call to a tool from
-   its last good listing, made while its server is down, fails naming that server
-   (`SERVER_DOWN_MSG`) rather than as an unknown tool. `fail` instead ends every turn before
-   inference ([readings](../readings/store-and-sidecar-outages.md#the-filesystem-sidecar)). Skipping
-   only removes tools, and the allowlist, confirmation set and taint rules apply by name to what
-   stays; a name two sidecars advertise routes to the second while the first is down.
+   notes its name for the listing in progress (`tool_skips.py`), so the turn sends one `forgoing`
+   `StatusUpdate` naming each tool server left out. A call to a tool from its last good listing
+   while its server is down fails as `SERVER_DOWN_MSG`, not as an unknown tool, and one cut off by
+   the server stopping fails as `CUT_OFF_MSG`; both name the server. `fail` instead ends every turn
+   before inference ([readings](../readings/store-and-sidecar-outages.md#the-filesystem-sidecar)).
+   Skipping only removes tools, and the allowlist, confirmation set and taint rules apply by name to
+   what stays; a name two sidecars advertise routes to the second while the first is down.
 9. **A fresh MCP session per call, opened and closed in one task.** `streamable_http_session(url)`
    opens the transport, session and `initialize` for one `async with`, and
    `ReconnectingMcpToolRegistry` opens one per `describe_tools` or `invoke`, mapping an open failure
    (`McpError`, `OSError`, `httpx.HTTPError`, unwrapped from anyio's `ExceptionGroup`) to
-   `ToolError`. A held session is not possible behind this port: anyio's cancel scopes are
-   task-bound, so closing a session from another task corrupts it, and a refused connection showed
-   up as a bare `CancelledError`. `build_tool_registry` is synchronous and connects to nothing, so a
-   sidecar down at startup does not fail the build and a recovered one rejoins on the next call. A
-   session pool is declined: one open costs a small fraction of a turn's time to first token
-   ([readings](../readings/tool-sidecar-calls.md)), and a pool would need a close scope forwarded by
-   every combinator, a port change across the core.
+   `ToolServerDownError`, a `ToolError`. A held session is not possible behind this port: anyio's
+   cancel scopes are task-bound, so closing a session from another task corrupts it, and a refused
+   connection showed up as a bare `CancelledError`. `build_tool_registry` is synchronous and
+   connects to nothing, so a sidecar down at startup does not fail the build and a recovered one
+   rejoins on the next call. A session pool is declined: one open costs a small fraction of a turn's
+   time to first token ([readings](../readings/tool-sidecar-calls.md)), and a pool would need a
+   close scope forwarded by every combinator, a port change across the core.
 10. **One call on a sidecar is time-limited, by a combinator.** `BoundedToolRegistry`
     (`tool_deadline.py`) limits both operations with `asyncio.timeout` and raises `ToolError` on an
     overrun. It wraps each remote registry innermost, directly around the reconnecting one and

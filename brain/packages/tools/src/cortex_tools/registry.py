@@ -10,7 +10,15 @@ from mcp.client.streamable_http import streamable_http_client
 from mcp.shared.exceptions import McpError
 from mcp.types import CallToolResult, ListToolsResult, TextContent
 
-from cortex_core import Provenance, ToolCall, ToolError, ToolResult, ToolSpec, claimed_source
+from cortex_core import (
+    Provenance,
+    ToolCall,
+    ToolError,
+    ToolResult,
+    ToolServerDownError,
+    ToolSpec,
+    claimed_source,
+)
 from cortex_core.images import ImageError
 from cortex_tools.blocks import result_images
 
@@ -127,4 +135,4 @@ class ReconnectingMcpToolRegistry:
                 yield McpToolRegistry(session)
         except* _OPEN_WRAPPED as group:
             msg = "MCP sidecar unavailable"
-            raise ToolError(msg) from group
+            raise ToolServerDownError(msg) from group
