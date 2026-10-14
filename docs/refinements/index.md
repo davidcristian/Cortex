@@ -67,15 +67,11 @@ never a reading of what the tree does now.
 
 146 of these record the day their claims were last checked against the code. On every other task here, that reading is still yours to take.
 
-### Actionable now (1)
-
-- **[R-864](tasks/864-a-cancelled-call-takes-the-file-sidecar-down.md)** A cancelled call takes the file sidecar down (tools-mcp). Its claim was checked against the code on 2026-10-15.
-
 ### Actionable, once a port changes (1)
 
 - **[R-129](tasks/129-streamed-brain-status.md)** Streamed brain status (body-overlay). Its claim was checked against the code on 2026-10-13.
 
-### Waiting for its trigger (114)
+### Waiting for its trigger (115)
 
 - **[R-011](tasks/011-stylesheet-outside-line-cap.md)** The overlay stylesheet outside the line cap (repo-checks). Reopens when: `find body/app/src -name '*.css'` lists a second file, or `git log --since='<Verified date> 00:00' --oneline -- body/app/src/overlay.css` lists a commit whose diff moves a rule to change which rule applies. A commit that edits only comments does not. Its claim was checked against the code on 2026-10-07.
 - **[R-013](tasks/013-couplings-widened-registry-cannot-hold.md)** The couplings the widened registry cannot cover (repo-checks). Reopens when: A third value on the capture-target enum, a reader for declarations in the `.proto` arriving in the scan for another reason, any module outside the body's rpc crate and the brain's body client that has to name one of the two gRPC status codes, or either side of that pair gaining a declaration whose value the scan can read. Its claim was checked against the code on 2026-10-07.
@@ -191,6 +187,7 @@ never a reading of what the tree does now.
 - **[R-818](tasks/818-a-body-started-before-the-brain-opens-a-new-chat.md)** A body started before the brain opens a new chat, not the last one (body-overlay). Reopens when: a History line in this file recording the maintainer's pick of A or B. Its claim was checked against the code on 2026-10-07.
 - **[R-847](tasks/847-the-reply-check-misses-a-task-claimed-beside-a-reminder.md)** The reply check misses a task claimed beside a reminder (scheduling). Reopens when: a third turn of the R-834 rows whose reminder call succeeded and whose reply says the task was scheduled. Its claim was checked against the code on 2026-10-15.
 - **[R-854](tasks/854-a-handoff-records-recall-bit-has-no-turn-that-sets-it.md)** A handoff record's recall bit has no turn that sets it (untrusted-content). Reopens when: a turn that recall alone tainted calls `escalate_to_brain` and is shown its card. Its claim was checked against the code on 2026-10-15.
+- **[R-865](tasks/865-install-the-file-sidecar-packages-at-image-build.md)** Install the file sidecar's packages at image build (tools-mcp). Reopens when: the file sidecar is seen to exit or restart for a reason other than a compose recreate, or a turn is seen served without the file tools while it restarts. Its claim was checked against the code on 2026-10-15.
 
 ### Waiting for a consumer (25)
 
@@ -963,7 +960,7 @@ never a reading of what the tree does now.
 - [R-609](tasks/609-a-declared-mime-type-can-disagree-with-the-bytes-it-labels.md) A declared mime type can disagree with the bytes it labels. open, waiting for its trigger.
 - [R-651](tasks/651-the-corrected-answer-reading-is-in-the-contract-and-not-the-runbook.md) The corrected-answer reading is in the contract and not in the runbook. done 2026-09-17.
 - [R-851](tasks/851-a-call-cut-off-by-a-down-sidecar-blames-the-file.md) A call cut off by a down sidecar blames the file. done 2026-10-14.
-- [R-864](tasks/864-a-cancelled-call-takes-the-file-sidecar-down.md) A cancelled call takes the file sidecar down. open, actionable.
+- [R-865](tasks/865-install-the-file-sidecar-packages-at-image-build.md) Install the file sidecar's packages at image build. open, waiting for its trigger.
 
 ### untrusted-content
 

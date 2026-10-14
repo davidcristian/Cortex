@@ -85,12 +85,13 @@ with the `escalate_to_brain` run. The link dot read amber while the cortex loade
 The file sidecar frozen with `docker pause`, then "List the files in my files folder." in a new
 chat. No tool row appeared: the turn waited on the listing at its start. Stop after 18 s ended it,
 and the store holds the question only. The sidecar was thawed 2 s after the Stop; its child then
-answered the cancelled session's `initialize`, and `supergateway` exited on
+answered the cancelled session's `initialize`, and `supergateway` 3.4.3 exited on
 `No connection established for request ID: 0`. The container restarted, ran `npm install` again and
 listened 7 s after the thaw. The same request sent 3 s after the thaw found it down
 (`tool sidecar unavailable; serving without it`), and the reply read "I don't have the ability to
-list the files in your folder", while the status line named the server. Filed as
-[R-864](../refinements/tasks/864-a-cancelled-call-takes-the-file-sidecar-down.md).
+list the files in your folder", while the status line named the server. With the bridge at 4.1.0
+the same flow kept the sidecar up, and the request 3 s after the thaw listed both files
+([why](tool-sidecar-calls.md#a-request-its-client-abandoned)).
 
 ## Rows for the stopped request
 

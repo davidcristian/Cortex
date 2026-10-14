@@ -19,16 +19,16 @@ services:
         condition: service_started
 
   mcp-filesystem:
-    # supergateway bridges the stdio filesystem server to streamable-http. Both npm versions are
-    # fixed, the filesystem server past CVE-2025-53109 and CVE-2025-53110. The packages are
-    # installed once at start, and `--stateful` keeps one child per session rather than per request.
+    # supergateway bridges the stdio filesystem server to streamable-http, one child per session.
+    # Both versions are fixed: the server past CVE-2025-53109 and CVE-2025-53110, and the bridge at
+    # 4.1.0 or later, since 3.4.3 exits when a child answers a request its client abandoned.
     image: "node:22-bookworm-slim"
     command:
       - "sh"
       - "-c"
       - >-
         npm install -g --no-fund --no-audit
-        supergateway@3.4.3 @modelcontextprotocol/server-filesystem@2026.1.14
+        supergateway@4.1.0 @modelcontextprotocol/server-filesystem@2026.1.14
         && exec supergateway --outputTransport streamableHttp --port 9000
         --stateful --sessionTimeout 60000
         --stdio 'mcp-server-filesystem /projects'

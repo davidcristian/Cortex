@@ -53,11 +53,11 @@ that never replies, so each of those has a limit below.
    dict as per-item content blocks.
 5. **Each tool server is its own compose sidecar over streamable-http.** The reference filesystem
    server gets read-only bind mounts of the allowed directories only, and the mount is the security
-   boundary: a write tool the server advertises fails with `EROFS`. The version is fixed to a
-   release patched against the EscapeRoute sandbox escapes (CVE-2025-53109/53110),
-   `@modelcontextprotocol/server-filesystem@2026.1.14` behind `supergateway@3.4.3`, both installed
-   once at container start, with the bridge run `--stateful` and `--sessionTimeout` so one child
-   serves one MCP session and is stopped with it (`docker/docker-compose.tools.yml`).
+   boundary: a write tool the server advertises fails with `EROFS`. The server is fixed to
+   `@modelcontextprotocol/server-filesystem@2026.1.14`, past the EscapeRoute sandbox escapes
+   (CVE-2025-53109/53110), behind `supergateway@4.1.0`, which drops an answer to a request its
+   client abandoned where 3.4.3 exited. Both are installed at container start, and the bridge runs
+   `--stateful` with `--sessionTimeout`: one child per MCP session, stopped with it (`docker/docker-compose.tools.yml`).
 6. **Email is a thin, purpose-built IMAP MCP server on `imap-tools`, read-only by default.**
    `list_folders`, `search_emails` and `read_email` against the ProtonMail Bridge
    (`host.docker.internal:1143`, STARTTLS, Bridge-issued credentials and its exported certificate
