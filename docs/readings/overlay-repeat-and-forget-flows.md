@@ -85,8 +85,10 @@ Bridge account's own address.
    the overlay in new chats, 8 over `Converse` in 4 two-turn chats, one of them with no call) the
    cortex called the tool once per turn, so that refusal was not reached live.
 3. **Typing after a card.** Words typed after pressing a card's button went nowhere: the button
-   had the focus and went away with the card. Fixed the same night: the card's buttons no longer
-   take the focus, and words typed after Deny reach the composer.
+   had the focus and went away with the card. Fixed the same night: a mouse press on the card's
+   buttons no longer takes the focus, and an answer given from a focused button hands it to the
+   composer. With both, words typed after Deny reach the composer, by mouse and by Shift+Tab twice
+   from the composer then Enter; with only the first, the keyboard path still lost them.
 4. **Approve.** The same request again: recall returned one hit marked tainted, the card was the
    same, Approve ran it (`ok`, audit `trust=trusted`) and memory held 0 rows. The cortex then
    called `send_email` in the same turn without being asked; the turn had recalled a tainted

@@ -201,7 +201,14 @@ export function ChatView({
             <Message key={message.id} message={message} onGrow={log.toTail} />
           ))}
           {state.pendingConfirm !== null ? (
-            <ConfirmCard confirm={state.pendingConfirm} onRespond={onRespondConfirm} />
+            <ConfirmCard
+              confirm={state.pendingConfirm}
+              onRespond={(confirmId, approved) => {
+                onRespondConfirm(confirmId, approved);
+                // A key press answers from a focused button, which goes away with the card.
+                handOff(field);
+              }}
+            />
           ) : null}
         </div>
       </div>

@@ -354,6 +354,25 @@ describe("Panel", () => {
     expect(screen.getByRole("tabpanel", { name: "Chords" })).toBeInTheDocument();
   });
 
+  it("hands the caret to the composer when a card is answered from a focused button", () => {
+    const onRespondConfirm = vi.fn();
+    const pendingConfirm = {
+      confirmId: "c-1",
+      toolName: "send_email",
+      argumentsJson: "{}",
+      reason: "outbound",
+    };
+    renderPanel({ messages: [userMsg], pendingConfirm }, true, false, { onRespondConfirm });
+    for (const [label, approved] of [["Deny", false], ["Approve", true]] as const) {
+      const button = screen.getByText(label);
+      button.focus();
+      expect(document.activeElement).toBe(button);
+      fireEvent.click(button);
+      expect(onRespondConfirm).toHaveBeenLastCalledWith("c-1", approved);
+      expect(document.activeElement).toBe(screen.getByLabelText("Message"));
+    }
+  });
+
   it("hands focus to the console and takes it back into the composer on the way out", () => {
     const props = (tab: ConsoleTab | null) => panelProps({ consoleTab: tab }, true, false);
     const view = render(<Panel {...props(null)} />);

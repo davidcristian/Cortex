@@ -136,8 +136,10 @@ mechanisms, file by file, are in [body-app.md](../modules/body-app.md).
     button, and `Ctrl+K` from the composer leaves the sentence being typed alone. It does nothing
     when a conversation arrived in the same commit, so focus does not visit two controls. An example
     chip unmounts its own section in the commit that sends, so it hands focus to the composer itself
-    (`handOff`). The reminder stack needs no wiring: every way it closes is answered by a rule
-    above. A dismissed panel leaves focus on `<body>`, nothing being on screen to hold it.
+    (`handOff`). An answered approval card does the same: a mouse press never focuses its buttons,
+    and an answer given from a focused button would leave focus on `<body>` when the card goes. The
+    reminder stack needs no wiring: every way it closes is answered by a rule above. A dismissed
+    panel leaves focus on `<body>`, nothing being on screen to hold it.
 19. **Focus does not move into a list the reader opens.** The guard a close needs would let it
     through only from the chats button, which already reports the open; an empty list has no row to
     receive it; and no row is obviously the right one. The header's buttons keep their visual order.
