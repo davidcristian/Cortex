@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** inference-model-manager
 **Origin:** [ADR-0048](../../adr/ADR-0048-generation-bounds.md)
-**Verified:** 2026-10-07
+**Verified:** 2026-10-15
 **Trigger:** a consumer in this tree asks how often a deep answer was cut: code that counts
 handoffs or deep completions by how they stopped, or a runbook step that asks an operator that
 question. On 2026-10-03
@@ -60,3 +60,7 @@ count kept outside the handoff store, which is a port, a fake and a contract tes
   handoffs drawn on 2026-10-02 through `just rpc-handoff` read the client's status events and the
   reply, never a record, and their readings name no capped reply, so they do not bear on it. The
   rule that deletes a finished record is decision 2 of ADR-0030, not decision 4.
+- 2026-10-15: Not fired. The trigger's grep still prints five lines and none counts. `cap_note`
+  moved into the closing notes in `turn_output.py` that both phases call, and it still only appends
+  the note; the deep phase's `WARNING` for a cut tool call still has `capped`, and its decode rate
+  line still has none.

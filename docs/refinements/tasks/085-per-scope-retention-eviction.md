@@ -6,7 +6,7 @@
 **Trigger:** R-087 adds a verb that expires or deletes some records of a scope, or a store's
 `memories` table reaches 20,000 rows (`SELECT count(*) FROM memories`), the smallest table the
 ranked recall readings measured search over.
-**Verified:** 2026-10-04
+**Verified:** 2026-10-15
 
 A policy that decides which memories to drop and when. The eviction verb exists; the policy and
 whatever would run it do not.
@@ -18,7 +18,8 @@ shipped ([R-083](083-namespaced-memory-scoping.md)), and the tiered and self-edi
 Per-provenance eviction ([R-074](074-per-provenance-eviction.md)) is a different entry and
 needs a different filter: a memory record stores
 only the `tainted` flag, not the ADR-0027 structured provenance, so `delete_scope` does not serve
-it.
+it. The second removal, `delete_tainted(*, scopes)` (2026-10-14), selects by that flag alone, so
+it serves neither entry: it cannot pick rows by age or by rank.
 
 ## History
 
@@ -58,3 +59,7 @@ it.
   R-087, so it now also names the store growing, which is why retention exists, at the size the
   "Counting the candidate set" section of `docs/readings/ranked-recall.md` starts from. The host
   store's `memories` table holds two probe rows.
+- 2026-10-15: Not fired. A verb that deletes some records of a scope did arrive on 2026-10-14,
+  but from the forget of untrusted memories rather than R-087: `delete_tainted` removes the tainted
+  rows of the given scopes, called only by `forget_untrusted_memories`. A retention policy still
+  has no delete by id or by timestamp, so the finding of 2026-09-19 holds. The body now names it.

@@ -7,7 +7,7 @@
 so a turn is handed a superseded fact next to its correction. Read it by joining the kept hit ids
 on the recall trail (`CORTEX_MEMORY_RECALL_AUDIT`, or the JSON-lines file
 `CORTEX_MEMORY_RECALL_AUDIT_FILE` names) against the `memories` table.
-**Verified:** 2026-10-04
+**Verified:** 2026-10-15
 
 Letta's ideas about memory tiers and a model that edits its own memories, adoptable later without
 the framework (ADR-0008 decision 1). This is not behind an unchanged port: tiering (promote,
@@ -22,8 +22,10 @@ the `scope` (`SessionMemoryScope` writes `scope == session_id`), and it takes on
 with no wildcard so a namespace is dropped only when named. Port, contract test, fake and
 pgvector adapter, covered at 100% in CI; the real DELETE was tested against pgvector on the host
 (rows 3 to 0, count 3, other scopes untouched, an unmatched scope returns 0). No tool call can
-reach it: memory is not a tool in any registry, and the `MemoryRecaller` a turn is handed exposes
-only record and recall.
+reach it, and the `MemoryRecaller` a turn is handed exposes only record and recall. Since
+2026-10-14 one built-in does delete memories: `forget_untrusted_memories`, a confirmed record
+card, calls the second removal, `delete_tainted`, over the scopes the chat reads. It removes by the
+`tainted` flag alone and edits nothing, so it is not the self-editing this entry describes.
 
 Still deferred, each for want of a consumer rather than a missing verb: update in place, tiered
 promote, demote and expire, write salience
@@ -68,3 +70,7 @@ record stores only the `tainted` flag and not the ADR-0027 structured provenance
   `search`, `count_candidates` and `delete_scope` (`ports_stores.py:36`), with no verb that
   rewrites a record. The 2026-07-16 link to the session-delete cascade pointed at an index anchor
   that does not exist and now points at the task that shipped it.
+- 2026-10-15: The trigger was not read again. The body was wrong in one claim: memory is now
+  reached by one tool, `forget_untrusted_memories`, which deletes the tainted rows a chat reads
+  through `delete_tainted`. It updates nothing in place, so tiering and self-editing still have no
+  verb. The body now says so.

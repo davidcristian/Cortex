@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** scheduling
 **Origin:** [ADR-0074](../../adr/ADR-0074-replayed-tool-runs.md)
-**Verified:** 2026-10-13
+**Verified:** 2026-10-15
 **Trigger:** a third turn of the R-834 rows whose reminder call succeeded and whose reply says the task was scheduled
 
 The reply check ([ADR-0074](../../adr/ADR-0074-replayed-tool-runs.md) decision 7) reads a turn's
@@ -27,3 +27,5 @@ under the earlier refusal text, 1 of 3 such turns made the reminder call
 - 2026-10-13: filed while closing
   [R-834](834-a-reply-claims-a-task-it-never-tried-to-schedule.md), whose rows had no third turn
   with a scheduling call that succeeded.
+- 2026-10-15: Not fired. The rows added to the readings on 2026-10-13 are a deep reply after a
+  reminder the cortex set, with no task call, so none is a refused task beside a reminder.
