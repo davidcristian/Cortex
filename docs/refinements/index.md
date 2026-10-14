@@ -69,7 +69,7 @@ never a reading of what the tree does now.
 
 ### Actionable now (1)
 
-- **[R-851](tasks/851-a-call-cut-off-by-a-down-sidecar-blames-the-file.md)** A call cut off by a down sidecar blames the file (tools-mcp). Its claim was checked against the code on 2026-10-13.
+- **[R-851](tasks/851-a-call-cut-off-by-a-down-sidecar-blames-the-file.md)** A call cut off by a down sidecar blames the file (tools-mcp). Its claim was checked against the code on 2026-10-14.
 
 ### Actionable, once a port changes (2)
 

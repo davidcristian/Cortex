@@ -4,16 +4,17 @@ What the cortex replies when the tool server it is calling stops in the middle o
 text the model reads for that call depends on `CORTEX_TOOLS_ON_UNAVAILABLE`. Under `fail` the
 dispatcher hands it the `ToolError` text `MCP sidecar unavailable`, and in the
 [outage flows](store-and-sidecar-outages.md#the-filesystem-sidecar) the model blamed the file and
-quoted that text. Under `skip`, the default, it reads `unknown tool 'read_text_file'`: the
-aggregate registry routes each call by listing every sidecar again, and the stopped one now lists
-nothing. This record holds the rows and the pass rule for changing that text, written before any
-baseline row was drawn.
+quoted that text. Under `skip`, the default, with one sidecar configured it reads the same text.
+With two or more it reads `unknown tool 'read_text_file'`: the aggregate registry routes each call
+by listing every sidecar again, and the stopped one now lists nothing. This record holds the rows
+and the pass rule for changing that text, written before any baseline row was drawn.
 
 ## The rig
 
 The GPU stack under its own compose project, gemma 12B as the cortex, `CORTEX_TOOLS_ON_UNAVAILABLE`
 at `skip`, the filesystem sidecar over a tools root holding `choir-rota.txt` (a heading and four
-lines, `Week 1: Anna` to `Week 4: Dora`). Each row is one new session over `Converse` from the
+lines, `Week 1: Anna` to `Week 4: Dora`), and the email sidecar beside it, so the aggregate
+registry routes each call. Each row is one new session over `Converse` from the
 host. Memory rows that mention the rota or the sidecar are deleted before each row, so no row
 recalls another. A watcher pauses `mcp-filesystem` as soon as the brain logs the tool audit of a
 `list_directory` or `search_files` call, the two ways the model finds the file, and kills it 8 s
@@ -95,3 +96,22 @@ replies already name the tool, and none blames the file or invents. SM clock 0.5
 
 Method: the drivers in the run's scratch directory, `docker logs` of the brain for the tool audit,
 and the replies read against the classes above.
+
+## A rule decided on the code
+
+**2026-10-14, written before the change it calls for.** No row can decide the `unknown tool`
+text, because it is false whatever a model does with it: the tool was in a listing, and the
+aggregate cannot route the call only because the server that listed it is not answering. The rule:
+when no live listing holds a call's tool and a skip wrapped server's last good listing held it,
+the call returns the error text `the <server> tool server is not answering, so '<tool>' did not
+run`, with the server's configured name. `unknown tool` stays for a name no server listed and for
+one that an answering server dropped. The text says only what the code knows, that the call was
+never sent. The candidate's further clause, that the text says nothing about the file, is a steer
+for the model and stays the rows' question. The one sidecar path keeps `MCP sidecar unavailable`,
+which is accurate.
+
+**The next rows**, written before they are drawn: 5 rows on the build with this text, with the rig,
+prompt, classes and void rule above, and a reply that ends with the repeated line note counted as
+a loop. They do not decide the text above. They decide the candidate's clause: when at least 2 of
+the 5 rows blame the file, quote the error, loop or invent, the clause is added and run as the
+candidate rows; otherwise the task closes without it.

@@ -3,7 +3,7 @@
 **Status:** open, actionable
 **Area:** tools-mcp
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
-**Verified:** 2026-10-13
+**Verified:** 2026-10-14
 
 When a sidecar stops during a call, the text the model reads for that call misleads it. Under
 `CORTEX_TOOLS_ON_UNAVAILABLE=fail` it is the `ToolError` text `MCP sidecar unavailable`: with
@@ -11,7 +11,8 @@ When a sidecar stops during a call, the text the model reads for that call misle
 appears to be unavailable or inaccessible as the content returned is "MCP sidecar unavailable"",
 blaming the file and quoting the error
 ([readings](../../readings/store-and-sidecar-outages.md#the-filesystem-sidecar)). Under `skip`, the
-default, it is `unknown tool 'read_text_file'`, because `AggregateToolRegistry.invoke` routes by
+default, it is the same text with one sidecar configured; with two or more it is
+`unknown tool 'read_text_file'`, because `AggregateToolRegistry.invoke` routes by
 listing every registry again and `SkipUnavailableToolRegistry` now lists nothing; in a probe row the
 model retried unknown tools and wrote "Actually, I'll try `read_text_file` again." until the reply
 stopped at the length limit ([readings](../../readings/tool-call-cut-off.md#results)). A listing
@@ -25,13 +26,12 @@ container once the brain audits a `list_directory` call, and `docker kill` it 8 
 
 ## What to do
 
-The rows, the candidate text and the pass rule are written in
-[tool-call-cut-off.md](../../readings/tool-call-cut-off.md): run the 5 baseline rows, then, if the
-defect reproduces, build the candidate and run its 5 rows. Ship it only on a pass. The candidate
-needs a call for a tool the turn's listing held to reach the text naming its server rather than
-`unknown tool`: for example the skip wrapper keeps the names of its last good listing and raises
-the candidate text for one of them, and the aggregate asks it before reporting an unknown tool. A
-`forgoing` status naming the server when such a call fails is decided apart from the rows.
+The `unknown tool` text is false for a tool a listing held, so
+[tool-call-cut-off.md](../../readings/tool-call-cut-off.md#a-rule-decided-on-the-code) has a rule
+decided on the code: the skip wrapper keeps the names of its last good listing, and the aggregate
+returns a text naming the server as not answering before it reports an unknown tool. Then run the
+next rows written there, which decide the candidate's clause that the text says nothing about the
+file. A `forgoing` status naming the server when such a call fails is decided apart from the rows.
 
 ## History
 
@@ -43,3 +43,6 @@ the candidate text for one of them, and the aggregate asks it before reporting a
 - 2026-10-13: ran the 5 baseline rows: 2 quote the error or loop, under the rule's 3, so the
   defect does not reproduce with this prompt and the candidate was not run. Next: rows with a
   different prompt, written before they are drawn, as the rule says.
+- 2026-10-14: checked the premise against the code: `unknown tool` comes only from the
+  aggregate, with two or more sidecars; one sidecar reads `MCP sidecar unavailable`. Wrote a rule
+  decided on the code for an accurate text, and the next rows, into the readings.
