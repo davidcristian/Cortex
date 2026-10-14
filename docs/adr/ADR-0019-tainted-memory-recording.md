@@ -124,7 +124,12 @@ across turns (a recalled memory).
    turn in which it ran is not recorded (`record_exchange`), since recording it would store a new
    tainted row in place of the ones removed. On the stack the person's send reached the card and
    went out after every forget, on a clean turn and on a recall-tainted one
-   ([readings](../readings/forget-untrusted-memories.md)).
+   ([readings](../readings/forget-untrusted-memories.md)). The turn that ran the forget still holds
+   the recalled memory, so a blocked call later in it stays blocked. Once the forget has returned
+   `ok`, the round sets `TaintLedger.forgotten`, and the block returns `RECALL_FORGOTTEN_MSG`: the
+   memories are forgotten and a new message can run the action. `RECALL_DENIED_MSG` would tell the
+   person to forget them again. The handoff record does not keep `forgotten`, since a
+   recall-tainted turn cannot escalate: `escalate_to_brain` has no record card.
 
 ## Consequences
 

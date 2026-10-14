@@ -27,6 +27,7 @@ from cortex_core.tools import (
 from cortex_core.untrusted import (
     DENIED_MSG,
     RECALL_DENIED_MSG,
+    RECALL_FORGOTTEN_MSG,
     UNANSWERED_MSG,
     USER_DECLINED_MSG,
 )
@@ -93,6 +94,13 @@ class DispatchPolicy:
 
 
 DEFAULT_DISPATCH_POLICY = DispatchPolicy()
+
+
+def _blocked_text(stamp: TurnStamp) -> str:
+    """What a tainted turn's blocked call tells the model: what tainted it, and what ran since."""
+    if not stamp.recalled_only:
+        return DENIED_MSG
+    return RECALL_FORGOTTEN_MSG if stamp.forgotten else RECALL_DENIED_MSG
 
 
 class ToolDispatcher:
@@ -165,9 +173,11 @@ class ToolDispatcher:
             # A record card shows the brain's own record rather than text the model wrote, so
             # it is shown on a tainted turn too.
             if call.stamp.tainted and card is None:
-                said = RECALL_DENIED_MSG if call.stamp.recalled_only else DENIED_MSG
                 blocked = ToolResult(
-                    call_id=call.id, content=said, is_error=True, trust=Trust.TRUSTED
+                    call_id=call.id,
+                    content=_blocked_text(call.stamp),
+                    is_error=True,
+                    trust=Trust.TRUSTED,
                 )
                 return await self._audited(call, blocked)
             answer = await self._confirmed(call, card)

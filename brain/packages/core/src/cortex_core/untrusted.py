@@ -65,6 +65,15 @@ RECALL_DENIED_MSG = (
     "asks, and do not tell them that asking again or giving the details again will let it run."
 )
 
+RECALL_FORGOTTEN_MSG = (
+    "BLOCKED: this turn recalled a remembered exchange that was derived from untrusted external "
+    "content, so no outbound or irreversible action can run in it, and this one was not "
+    "performed. Those memories were forgotten earlier in this turn, so a new message asking for "
+    "the action can run it. Tell the user it was not done in this turn, that the memories are "
+    "forgotten, and that they can ask for it again in a new message. Do not tell them to forget "
+    "anything."
+)
+
 USER_DECLINED_MSG = (
     "DECLINED: the user was shown this action and pressed Deny, so it was not performed and "
     "nothing is waiting for approval. Tell the user it was not done because they declined it. "
@@ -111,6 +120,8 @@ class TaintLedger:
     opaque: bool = False
     # Whether a fenced recalled memory is the only untrusted content the turn has taken in.
     recalled_only: bool = False
+    # Whether this turn's ``forget_untrusted_memories`` call succeeded.
+    forgotten: bool = False
     untrusted_urls: set[str] = field(default_factory=set[str])
     sources: tuple[Provenance, ...] = ()
 

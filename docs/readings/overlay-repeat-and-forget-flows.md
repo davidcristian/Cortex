@@ -89,8 +89,9 @@ Bridge account's own address.
    same, Approve ran it (`ok`, audit `trust=trusted`) and memory held 0 rows. The cortex then
    called `send_email` in the same turn without being asked; the turn had recalled a tainted
    row, so it returned `RECALL_DENIED_MSG`, and the reply told the person to ask to forget the
-   memories, which they had just done, without saying the forget ran:
-   [R-860](../refinements/tasks/860-a-blocked-send-after-a-forget-tells-the-person-to-forget-again.md).
+   memories, which they had just done, without saying the forget ran. The same night such a call
+   began to return `RECALL_FORGOTTEN_MSG`; its rows are in
+   [forget-untrusted-memories.md](forget-untrusted-memories.md#a-send-after-the-forget-in-the-same-turn).
 5. **The send again**, as a new message in the same chat: recall returned no hit, the card showed
    `body`, `subject` and `to` as rows with the standard reason, Approve sent it to `<own>` with
    `trust=trusted` on the audit line, the reply said the email was sent, and memory held 1 row, not

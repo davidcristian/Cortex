@@ -139,20 +139,20 @@ the decisions are ADR-0013, ADR-0019 and ADR-0027.
   the fence, because it does not have the turn's nonce. `new_nonce()` makes that nonce
   (`secrets.token_hex(8)`); it is unpredictable and is discarded with the turn.
 - `TaintLedger` is the mutable, turn-local record of what a turn has read: `tainted` (untrusted
-  content entered), `opaque` (some was a picture, which no fence can bracket, ADR-0029),
-  `recalled_only` (fenced recalled memories were all of it, ADR-0019 decision 8), `untrusted_urls`
-  (what the output guardrail reads) and `sources`. `mark(trust)` sets `tainted` on an `UNTRUSTED`
+  content entered), `opaque` (a picture, which no fence can bracket, ADR-0029), `recalled_only`
+  (fenced recalled memories were all of it, ADR-0019 decisions 8 and 9), `forgotten` (its forget
+  succeeded), `untrusted_urls` (what the output guardrail reads) and `sources`. `mark(trust)` sets `tainted` on an `UNTRUSTED`
   result and clears `recalled_only`. The tool loop calls `observe(result, *, source=None)`, which
   marks, collects the result's URLs, then notes the tool the content came through and any source
   the result declared, so a declared source can never lower taint. `ingest_untrusted(content, *,
   source=None, recalled=False)` does the same for other content; recall passes `recalled=True`.
   `note_source` is the bounded accumulator both use: `None` and repeats record nothing, and past
   `MAX_TURN_SOURCES` nothing more is kept, earliest first, so attacker-chosen values can neither
-  grow the record nor push out the source the turn started with. A ledger is rebuilt each turn
-  and never persisted.
+  grow the record nor push out the source the turn started with. A ledger is rebuilt each turn.
 - `DENIED_MSG` is the error content for a call needing confirmation on a tainted turn, refused
-  outright and never offered to the user (ADR-0022), and `RECALL_DENIED_MSG` when recall alone
-  tainted it (ADR-0019). `USER_DECLINED_MSG` is a pressed Deny, `UNANSWERED_MSG` no answer.
+  outright and never offered to the user (ADR-0022), `RECALL_DENIED_MSG` when recall alone tainted
+  it, and `RECALL_FORGOTTEN_MSG` once the turn's forget succeeded (ADR-0019). `USER_DECLINED_MSG`
+  is a pressed Deny, `UNANSWERED_MSG` no answer.
 
 ## Time
 

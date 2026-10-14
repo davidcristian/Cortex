@@ -17,8 +17,8 @@ spawned subtask or a model swap is in [brain-core-residency.md](brain-core-resid
 - `ToolResult(call_id, content, is_error=False, trust=UNTRUSTED, source=None, images=())` is the
   outcome fed back to the model. `source` is what the result declared for its own content, and
   `images` (ADR-0029) travel beside `content`, which alone is audited, scanned and fenced.
-- `TurnStamp(session_id, turn_id, task_id, item_id, tainted, recalled_only, sources, budget,
-  progress, escalation)` is what the dispatching turn gives the call (ADR-0027); `live_taint` is
+- `TurnStamp(session_id, turn_id, task_id, item_id, tainted, recalled_only, forgotten, sources,
+  budget, progress, escalation)` is what the dispatching turn gives the call (ADR-0027); `live_taint` is
   `tainted and not recalled_only` (ADR-0019 decision 8). The four ids are the work the call was
   made for, `""` when none (ADR-0009 decision 16). Equality skips the three live handles.
 - `ToolInvocation(name, arguments, ok, detail, at, trust, call_id, session_id, turn_id, task_id,
@@ -61,9 +61,9 @@ the loop drives it and keeps the history.
   the member's message is returned, and the attempt is audited. A refusal is checked **before** the
   confirmation rule, so a flood of confirmable calls cannot reach the user as prompts.
 - The confirmation rule (ADR-0013, revised by ADR-0022): a `confirm_required` call on a tainted turn is
-  refused with `DENIED_MSG` (`RECALL_DENIED_MSG` when recall alone tainted it), the confirmer never
-  asked, unless its name has a record card; otherwise it runs only when the `Confirmer` approves,
-  else `USER_DECLINED_MSG` or `UNANSWERED_MSG`. All skip the tool and are audited.
+  refused with `DENIED_MSG` (`RECALL_DENIED_MSG` when recall alone tainted it, `RECALL_FORGOTTEN_MSG`
+  once `forgotten` is set), the confirmer never asked, unless its name has a record card; otherwise
+  it runs only when the `Confirmer` approves, else `USER_DECLINED_MSG` or `UNANSWERED_MSG`.
 
 `DispatchPolicy(confirm_names=(), costs=UNIFORM_COST, salience=REPEAT_SALIENCE, confirm_reasons={},
 record_cards={})` (`dispatch.py`, default `DEFAULT_DISPATCH_POLICY`) is what the composition root

@@ -48,6 +48,7 @@ class TurnStamp:
     item_id: str = ""
     tainted: bool = False
     recalled_only: bool = False
+    forgotten: bool = False
     sources: tuple[Provenance, ...] = ()
     budget: DispatchBudget | None = field(default=None, compare=False)
     progress: ProgressSink | None = field(default=None, compare=False)

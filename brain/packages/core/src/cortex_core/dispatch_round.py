@@ -9,6 +9,7 @@ from cortex_core.dispatch import DispatchRefusal, ToolDispatcher
 from cortex_core.handoff import EscalationSlot
 from cortex_core.inference import GenerationBounds, JsonSchema
 from cortex_core.loop_events import StepOutcome, ToolStep, step_summary
+from cortex_core.memory_forget import FORGET_UNTRUSTED_TOOL_NAME
 from cortex_core.ports import Clock
 from cortex_core.progress import ProgressSink, hold_wait
 from cortex_core.provenance import SourceKind, as_source
@@ -79,6 +80,7 @@ def _stamp(context: ToolLoopContext) -> TurnStamp:
         item_id=context.item_id,
         tainted=context.taint.tainted,
         recalled_only=context.taint.recalled_only,
+        forgotten=context.taint.forgotten,
         sources=context.taint.sources,
         budget=context.budget,
         progress=context.progress,
@@ -119,6 +121,8 @@ async def run_round(
             context.declined.append(call)
         if refusal is None and spec is not None:
             yield StepOutcome(tool_name=spec.name, ok=not result.is_error)
+        if spec is not None and spec.name == FORGET_UNTRUSTED_TOOL_NAME and not result.is_error:
+            context.taint.forgotten = True
         context.taint.observe(
             result, source=as_source(SourceKind.TOOL, None if spec is None else spec.name)
         )
