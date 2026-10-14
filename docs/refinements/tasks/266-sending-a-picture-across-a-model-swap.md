@@ -3,13 +3,14 @@
 **Status:** open, waiting for its trigger
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-10-13
+**Verified:** 2026-10-15
 **Trigger:** `escalate_to_brain` can run on a tainted turn: its spec in `escalate.py` stops setting
 `confirm_required` (`grep -n confirm_required brain/packages/core/src/cortex_core/escalate.py`
 prints `confirm_required=True` today), or the tainted-turn denial in `ToolDispatcher.dispatch`
 (`dispatch.py`, the `if call.stamp.tainted and card is None:` branch) admits it. That branch admits
-only a tool that shows a record card, which today is `cancel_scheduled` alone, so a `card` method on
-`EscalateToBrainTool` would fire it as surely as a new exception. The work then starts
+only a tool that shows a record card, which today is `cancel_scheduled` and
+`forget_untrusted_memories`, so a `card` method on `EscalateToBrainTool` would fire it as surely as
+a new exception. The work then starts
 with R-257's store, a brain-tier projector setting, and a probe of that tier.
 
 Nothing persists an in-turn image: not the session store, and not the handoff record. The record's
@@ -128,3 +129,7 @@ exactly on the record and on the ledger rebuilt from it.
   the built-ins that match `RecordCard` (`dispatch_builders.py:89`), and `EscalateToBrainTool` has
   no `card` method, so escalation is still denied on a tainted turn. The trigger names the new
   branch. No brain-tier projector setting and no `AttachmentStore` exist.
+- 2026-10-15: Not fired. The denial still reads `if call.stamp.tainted and card is None:` in
+  `dispatch.py` and `escalate.py` still sets `confirm_required=True`. The trigger's list of record
+  cards had gone stale: the forget of untrusted memories added `forget_untrusted_memories`, a
+  second record card, on 2026-10-14. It now names both.
