@@ -141,6 +141,64 @@ async def test_aggregate_over_a_skipped_dead_sidecar_serves_the_healthy_ones() -
     assert [name for name, _ in reports] == ["mail", "mail", "mail"]
 
 
+class StoppingRegistry:
+    """A ToolRegistry over a sidecar that lists ``names`` until ``answering`` is cleared."""
+
+    def __init__(self, *names: str) -> None:
+        self.names = names
+        self.answering = True
+
+    async def describe_tools(self) -> Sequence[ToolSpec]:
+        if not self.answering:
+            msg = "MCP sidecar unavailable"
+            raise ToolError(msg)
+        return tuple(ToolSpec(name=n, description="", parameters={}) for n in self.names)
+
+    async def invoke(self, call: ToolCall) -> ToolResult:
+        return ToolResult(call_id=call.id, content="from mail")
+
+
+def _stopping_mail() -> tuple[StoppingRegistry, AggregateToolRegistry]:
+    sidecar = StoppingRegistry("search_emails")
+    skip = SkipUnavailableToolRegistry(sidecar, name="mail", report=lambda _n, _e: None)
+    return sidecar, AggregateToolRegistry([skip, _registry("fs", "read")])
+
+
+async def test_a_call_to_a_listed_tool_of_a_stopped_server_names_the_server() -> None:
+    sidecar, aggregate = _stopping_mail()
+    assert [spec.name for spec in await aggregate.describe_tools()] == ["search_emails", "read"]
+    sidecar.answering = False
+    with pytest.raises(ToolError) as raised:
+        await aggregate.invoke(ToolCall(id="c12", name="search_emails", arguments={}))
+    assert not isinstance(raised.value, ToolNotFoundError)
+    assert (
+        str(raised.value) == "the mail tool server is not answering, so 'search_emails' did not run"
+    )
+    with pytest.raises(ToolNotFoundError, match="unknown tool 'send_email'"):
+        await aggregate.invoke(ToolCall(id="c13", name="send_email", arguments={}))
+
+
+async def test_a_tool_an_answering_server_dropped_stays_unknown() -> None:
+    sidecar, aggregate = _stopping_mail()
+    await aggregate.describe_tools()
+    sidecar.names = ()
+    await aggregate.describe_tools()
+    sidecar.answering = False
+    with pytest.raises(ToolNotFoundError, match="unknown tool 'search_emails'"):
+        await aggregate.invoke(ToolCall(id="c14", name="search_emails", arguments={}))
+
+
+async def test_a_server_that_answers_again_routes_the_call() -> None:
+    sidecar, aggregate = _stopping_mail()
+    await aggregate.describe_tools()
+    sidecar.answering = False
+    with pytest.raises(ToolError, match="not answering"):
+        await aggregate.invoke(ToolCall(id="c15", name="search_emails", arguments={}))
+    sidecar.answering = True
+    result = await aggregate.invoke(ToolCall(id="c16", name="search_emails", arguments={}))
+    assert result.content == "from mail"
+
+
 def _mixed_registry() -> InMemoryToolRegistry:
     """One open read tool next to one send tool that needs approval."""
     return InMemoryToolRegistry(

@@ -8,6 +8,8 @@ from cortex_core.ports import ToolRegistry
 from cortex_core.tool_skips import note_skipped
 from cortex_core.tools import ToolCall, ToolResult, ToolSpec
 
+SERVER_DOWN_MSG = "the {server} tool server is not answering, so {tool!r} did not run"
+
 
 class AggregateToolRegistry:
     """A ``ToolRegistry`` over several registries, routing each call by tool name."""
@@ -33,6 +35,10 @@ class AggregateToolRegistry:
             names = {spec.name for spec in await registry.describe_tools()}
             if call.name in names:
                 return await registry.invoke(call)
+        for registry in self._registries:
+            if isinstance(registry, SkipUnavailableToolRegistry) and registry.held(call.name):
+                msg = SERVER_DOWN_MSG.format(server=registry.name, tool=call.name)
+                raise ToolError(msg)
         msg = f"unknown tool {call.name!r}"
         raise ToolNotFoundError(msg)
 
@@ -46,15 +52,27 @@ class SkipUnavailableToolRegistry:
         self._inner = inner
         self._name = name
         self._report = report
+        self._held: frozenset[str] = frozenset()
+
+    @property
+    def name(self) -> str:
+        """The configured name of the tool server this registry wraps."""
+        return self._name
+
+    def held(self, tool: str) -> bool:
+        """Whether the inner registry's last listing that succeeded held ``tool``."""
+        return tool in self._held
 
     async def describe_tools(self) -> Sequence[ToolSpec]:
         """The inner registry's tools, or an empty (reported) advertisement when it fails."""
         try:
-            return await self._inner.describe_tools()
+            specs = await self._inner.describe_tools()
         except ToolError as err:
             self._report(self._name, err)
             note_skipped(self._name)
             return ()
+        self._held = frozenset(spec.name for spec in specs)
+        return specs
 
     async def invoke(self, call: ToolCall) -> ToolResult:
         """Call the inner registry unchanged: only tool discovery handles a failure."""

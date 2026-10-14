@@ -81,11 +81,12 @@ that never replies, so each of those has a limit below.
    never the turn.** Under `CORTEX_TOOLS_ON_UNAVAILABLE=skip`, the default,
    `SkipUnavailableToolRegistry` lists a failing sidecar as empty, logs a warning on every walk and
    notes its name for the listing in progress (`tool_skips.py`), so the turn sends one
-   `StatusUpdate` in the state `forgoing` naming each tool server left out; an invoke still fails as
-   an `is_error` result. `fail` instead ends every turn before inference, as the [outage
-   readings](../readings/store-and-sidecar-outages.md#the-filesystem-sidecar) show. Skipping only
-   removes tools, and the allowlist, confirmation set and taint rules apply by name to what stays; a
-   name two sidecars advertise routes to the second while the first is down.
+   `StatusUpdate` in the state `forgoing` naming each tool server left out. A call to a tool from
+   its last good listing, made while its server is down, fails naming that server
+   (`SERVER_DOWN_MSG`) rather than as an unknown tool. `fail` instead ends every turn before
+   inference ([readings](../readings/store-and-sidecar-outages.md#the-filesystem-sidecar)). Skipping
+   only removes tools, and the allowlist, confirmation set and taint rules apply by name to what
+   stays; a name two sidecars advertise routes to the second while the first is down.
 9. **A fresh MCP session per call, opened and closed in one task.** `streamable_http_session(url)`
    opens the transport, session and `initialize` for one `async with`, and
    `ReconnectingMcpToolRegistry` opens one per `describe_tools` or `invoke`, mapping an open failure
@@ -211,9 +212,8 @@ that never replies, so each of those has a limit below.
 
 - Every tool call, including every refusal, writes exactly one audit line, and the audit reads turn
   by turn, delegation included, without the task store.
-- One turn can make at most 32 priced dispatches however it fans out, at most 16 calls per round
-  and at most two identical calls per loop; a declined action that needs confirmation prompts at
-  most twice.
+- A turn makes at most 32 priced dispatches however it fans out, 16 calls per round and two
+  identical calls per loop; a declined action that needs confirmation prompts at most twice.
 - Nothing waits forever on a sidecar, and one that is down drops out of a turn, which says so.
 - A per-call handshake is paid on every describe and invoke. A delegated dispatch walks the
   registry about twice as often as a cortex one, because `ConfirmFreeToolRegistry` re-lists to remove

@@ -26,12 +26,11 @@ container once the brain audits a `list_directory` call, and `docker kill` it 8 
 
 ## What to do
 
-The `unknown tool` text is false for a tool a listing held, so
-[tool-call-cut-off.md](../../readings/tool-call-cut-off.md#a-rule-decided-on-the-code) has a rule
-decided on the code: the skip wrapper keeps the names of its last good listing, and the aggregate
-returns a text naming the server as not answering before it reports an unknown tool. Then run the
-next rows written there, which decide the candidate's clause that the text says nothing about the
-file. A `forgoing` status naming the server when such a call fails is decided apart from the rows.
+The aggregate now returns `SERVER_DOWN_MSG`, naming the server, for a tool a stopped server last
+listed, as the [rule decided on the code](../../readings/tool-call-cut-off.md#a-rule-decided-on-the-code)
+calls for. Run the next rows written there, which decide the candidate's clause that the text says
+nothing about the file. A `forgoing` status naming the server when such a call fails is decided
+apart from the rows.
 
 ## History
 
@@ -46,3 +45,5 @@ file. A `forgoing` status naming the server when such a call fails is decided ap
 - 2026-10-14: checked the premise against the code: `unknown tool` comes only from the
   aggregate, with two or more sidecars; one sidecar reads `MCP sidecar unavailable`. Wrote a rule
   decided on the code for an accurate text, and the next rows, into the readings.
+- 2026-10-14: the skip wrapper keeps the names of its last good listing, and the aggregate
+  returns `SERVER_DOWN_MSG` for one of them before it reports an unknown tool.

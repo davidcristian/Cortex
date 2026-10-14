@@ -121,13 +121,13 @@ Each is a `ToolRegistry` wrapping others, so the root builds a tool set the core
 - `CompositeToolRegistry(builtins, remote=None)` merges built-in tools (each a `BuiltinTool`, a
   `.spec` plus an async `invoke`) with an optional MCP registry: built-ins are advertised first and
   win on name, and duplicates raise `ValueError` at construction.
-- `AggregateToolRegistry(registries)` unions several registries in order, keeping the first of any
-  duplicate name, and routes an invoke by a live `describe_tools` walk, so a tool dropped
-  server-side mid-turn fails closed; a listing failure propagates as `ToolError`.
+- `AggregateToolRegistry(registries)` unions registries in order, first of a duplicate name wins,
+  and routes an invoke by a live `describe_tools` walk, so a dropped tool fails closed; a listing
+  failure propagates as `ToolError`, and a tool a skipped server last listed fails as `SERVER_DOWN_MSG`.
 - `SkipUnavailableToolRegistry(inner, *, name, report)` marks one registry optional: a listing
-  failure becomes an empty advertisement, a `report(name, error)` call and `note_skipped(name)`;
-  `invoke` still fails. The loop lists through `list_tools(lister, progress)` (`tool_skips.py`),
-  which sends one `forgoing` status, `skipped_detail(names)`, naming the servers left out.
+  failure becomes an empty advertisement, a `report(name, error)` call and `note_skipped(name)`, and
+  `held(tool)` reads the last good listing. The loop lists through `list_tools(lister, progress)`
+  (`tool_skips.py`), which sends one `forgoing` status, `skipped_detail(names)`, naming the servers left out.
 - `FilteredToolRegistry(inner, *, allow)` restricts the advertisement to an allowlist, refusing any
   other name as `ToolNotFoundError`. It only restricts and never grants.
 - `ConfirmRequiredToolRegistry(inner, *, names)` advertises the named tools as `confirm_required=True`
