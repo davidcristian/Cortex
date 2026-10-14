@@ -44,6 +44,6 @@ row S with the chosen way taken should reach the card and send to the Bridge acc
   every forget ([forget-untrusted-memories.md](../../readings/forget-untrusted-memories.md)). The
   first candidate was not built: it needs a new overlay control and leaves the row in place. The
   third was declined: forgetting removes the multiplied rows with the first, and its predicate
-  would also drop a live-read turn's useful summary. The rows showed every approved send storing
-  a tainted row of its own, filed as
-  [R-857](857-a-successful-send-stores-its-own-exchange-tainted.md).
+  would also drop a live-read turn's useful summary. The rows also showed every approved send
+  storing a tainted row of its own, which would block the next send; the brain now marks the
+  sidecar's answer to a whole send trusted, as it does the sidecar's other own texts.

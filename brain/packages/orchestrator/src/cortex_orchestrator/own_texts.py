@@ -27,6 +27,7 @@ NOT_FOUND = (
     "all. Search {folder} again with search_emails and copy a uid from one line of that answer, "
     "rather than trying another number that looks likely."
 )
+SENT = "email sent to {to} (subject: {subject!r})"
 
 
 def _string(arguments: Mapping[str, Any], name: str) -> str | None:
@@ -59,10 +60,17 @@ def not_found(arguments: Mapping[str, Any]) -> str | None:
     return None if uid is None or folder is None else NOT_FOUND.format(uid=uid, folder=folder)
 
 
+def sent(arguments: Mapping[str, Any]) -> str | None:
+    """The answer to a send the server took whole, for the recipient and subject this call named."""
+    to, subject = _string(arguments, "to"), _string(arguments, "subject")
+    return None if to is None or subject is None else SENT.format(to=to, subject=subject)
+
+
 EMAIL_OWN_TEXTS: tuple[OwnText, ...] = (
     OwnText("search_emails", search_refused),
     OwnText("search_emails", folder_unknown),
     OwnText("search_emails", no_matches),
     OwnText("read_email", folder_unknown),
     OwnText("read_email", not_found),
+    OwnText("send_email", sent),
 )

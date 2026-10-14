@@ -189,9 +189,9 @@ declaration. The two field names are bound on both sides as (`_KIND_FIELD`, `"ki
   token (`_SUBTYPE_TOKEN`), more than `MAX_ATTACHMENTS` (8), or `content` totalling more than
   `MAX_ATTACHMENT_CHARS` (32768) characters, all refused rather than truncated. A send that reached
   nobody raises `SendError`. A send the server accepted for some recipients answers the
-  `drafts.confirmation` line, which names the recipient and the subject, with the refused addresses
-  appended. Both implementations call the same two functions, so the fake cannot accept a draft the
-  adapter would refuse (ADR-0068 decision 5).
+  `drafts.confirmation` line, `SENT` over the recipient and the subject's repr, plus any refused
+  address, and the brain marks a line without one trusted. Both implementations call the same two
+  functions, so the fake cannot accept a draft the adapter would refuse (ADR-0068 decision 5).
 - `SendError` is the sender's one failure type, a sibling of `MailboxError` rather than a subclass.
   It keeps smtplib's own text, which is the only thing saying why, and never holds the password,
   which reaches smtplib only as a `login` argument.

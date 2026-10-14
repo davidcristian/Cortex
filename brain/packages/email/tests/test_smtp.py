@@ -44,7 +44,7 @@ def test_send_composes_from_the_authenticated_identity(monkeypatch: pytest.Monke
     assert message["Cc"] is None
     assert message["Bcc"] is None
     assert message.get_content_type() == "text/plain"
-    assert line == 'email sent to you@example.com (subject: "Hi")'
+    assert line == "email sent to you@example.com (subject: 'Hi')"
 
 
 def test_starttls_upgrades_then_logs_in(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -126,7 +126,7 @@ def test_send_composes_cc_bcc_and_an_html_alternative(monkeypatch: pytest.Monkey
     assert plain.get_content().strip() == "plain body"
     assert html.get_content_type() == "text/html"
     assert html.get_content().strip() == "<p>rich</p>"
-    assert line == 'email sent to you@example.com (subject: "Hi")'
+    assert line == "email sent to you@example.com (subject: 'Hi')"
 
 
 def test_send_attaches_authored_text(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -149,7 +149,7 @@ def test_send_attaches_authored_text(monkeypatch: pytest.MonkeyPatch) -> None:
     assert attached.get_filename() == "notes.md"
     assert attached.get_content().strip() == "# Notes\n\n- one"
     assert attached.get_content_disposition() == "attachment"
-    assert line == 'email sent to you@example.com (subject: "Hi")'
+    assert line == "email sent to you@example.com (subject: 'Hi')"
 
 
 def test_an_attachment_keeps_the_html_alternative_intact(monkeypatch: pytest.MonkeyPatch) -> None:

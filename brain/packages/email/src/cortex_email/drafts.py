@@ -7,6 +7,7 @@ from cortex_email.values import (
     MAX_ATTACHMENT_CHARS,
     MAX_ATTACHMENTS,
     MAX_FILENAME_CHARS,
+    SENT,
     EmailAttachment,
     EmailDraft,
 )
@@ -56,7 +57,7 @@ def refuse_unsendable(draft: EmailDraft) -> None:
 
 def confirmation(draft: EmailDraft, refused: Sequence[str] = ()) -> str:
     """The one line a send answers: who it went to, its subject, and any address refused."""
-    line = f'email sent to {draft.to} (subject: "{draft.subject}")'
+    line = SENT.format(to=draft.to, subject=draft.subject)
     if refused:
         return f"{line}; the server refused {', '.join(refused)}"
     return line

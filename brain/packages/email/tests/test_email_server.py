@@ -195,7 +195,7 @@ async def test_read_email_declares_no_source_without_a_sender_or_when_not_found(
     assert missing.meta is None
 
 
-_SENT_HI = 'email sent to you@example.com (subject: "Hi")'
+_SENT_HI = "email sent to you@example.com (subject: 'Hi')"
 
 
 async def _tool_names(server: FastMCP) -> set[str]:

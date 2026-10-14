@@ -82,6 +82,7 @@ NOT_FOUND = (
     "all. Search {folder} again with search_emails and copy a uid from one line of that answer, "
     "rather than trying another number that looks likely."
 )
+SENT = "email sent to {to} (subject: {subject!r})"
 SEARCH_LIMIT_HELP = (
     "How many matches to return at most. They are the first matches in the folder's own uid "
     "order, which is not the same as the newest: narrow the search with the criteria above "

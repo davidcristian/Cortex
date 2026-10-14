@@ -9,12 +9,14 @@ from mcp.types import CallToolResult, ListToolsResult, TextContent, Tool
 import cortex_orchestrator.builders as builders_module
 from cortex_core import OwnTextToolRegistry, ToolCall, Trust
 from cortex_email import (
+    EmailDraft,
     EmailReader,
     FolderUnknownError,
     RawEmail,
     SearchRefusedError,
     build_server,
 )
+from cortex_email.drafts import confirmation
 from cortex_orchestrator import ToolsConfig, build_tool_registry
 from cortex_orchestrator.own_texts import (
     EMAIL_OWN_TEXTS,
@@ -26,8 +28,11 @@ from cortex_orchestrator.own_texts import (
     no_matches,
     not_found,
     search_refused,
+    sent,
 )
 from cortex_tools import McpSession, McpToolRegistry
+
+_SENT_ANSWER = "email sent to me@example.com (subject: 'Hi')"
 
 # The not-found answer written out here rather than imported, so a rewording of the sidecar's
 # sentence fails this suite instead of following it.
@@ -64,6 +69,12 @@ def test_a_missing_message_renders_the_uid_and_folder_the_brain_named() -> None:
     assert not_found({"uid": 7, "folder": "INBOX"}) is None
 
 
+def test_a_send_renders_the_recipient_and_the_repr_of_the_subject_the_brain_named() -> None:
+    assert sent({"to": "me@example.com", "subject": "Hi", "body": "b"}) == _SENT_ANSWER
+    assert sent({"to": "me@example.com"}) is None
+    assert sent({"subject": "Hi", "to": ["me@example.com"]}) is None
+
+
 def test_the_declared_set_covers_both_folder_taking_tools() -> None:
     assert [(own.tool, own.render.__name__) for own in EMAIL_OWN_TEXTS] == [
         ("search_emails", "search_refused"),
@@ -71,6 +82,7 @@ def test_the_declared_set_covers_both_folder_taking_tools() -> None:
         ("search_emails", "no_matches"),
         ("read_email", "folder_unknown"),
         ("read_email", "not_found"),
+        ("send_email", "sent"),
     ]
 
 
@@ -116,8 +128,18 @@ class _ServerSession:
         return CallToolResult(content=list(blocks))
 
 
-def _registry() -> OwnTextToolRegistry:
-    server = build_server(EmailReader(_Mailbox()))
+class _Sender:
+    """The `EmailSender` port answering as the SMTP sender does, refusing the listed addresses."""
+
+    def __init__(self, refused: tuple[str, ...] = ()) -> None:
+        self._refused = refused
+
+    def send(self, draft: EmailDraft) -> str:
+        return confirmation(draft, self._refused)
+
+
+def _registry(sender: _Sender | None = None) -> OwnTextToolRegistry:
+    server = build_server(EmailReader(_Mailbox()), sender or _Sender())
     session: McpSession = _ServerSession(server)
     return OwnTextToolRegistry(McpToolRegistry(session), own=EMAIL_OWN_TEXTS)
 
@@ -146,6 +168,21 @@ async def test_the_sidecars_real_own_answers_are_recognized(
 ) -> None:
     result = await _registry().invoke(ToolCall(id="c-1", name=tool, arguments=arguments))
     assert (result.trust, result.content) == (Trust.TRUSTED, expected)
+
+
+_SEND = {"to": "me@example.com", "subject": "Hi", "body": "hello"}
+
+
+async def test_the_sidecars_answer_to_a_send_it_took_whole_is_recognized() -> None:
+    result = await _registry().invoke(ToolCall(id="c-4", name="send_email", arguments=_SEND))
+    assert (result.trust, result.content) == (Trust.TRUSTED, _SENT_ANSWER)
+
+
+async def test_a_send_that_names_a_refused_recipient_stays_untrusted() -> None:
+    sender = _Sender(refused=("me@example.com",))
+    result = await _registry(sender).invoke(ToolCall(id="c-5", name="send_email", arguments=_SEND))
+    assert result.trust is Trust.UNTRUSTED
+    assert result.content == f"{_SENT_ANSWER}; the server refused me@example.com"
 
 
 async def test_a_message_the_sidecar_read_stays_untrusted_with_its_source() -> None:

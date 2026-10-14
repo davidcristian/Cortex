@@ -173,15 +173,15 @@ hostile sidecar already gets the no-taint outcome by failing.
 `OwnTextToolRegistry` and `OwnText` live in `cortex_core/own_text.py`. `build_tool_registry`
 (`cortex_orchestrator/builders.py`) wraps the shared root in one, outermost, over `EMAIL_OWN_TEXTS`
 (`cortex_orchestrator/own_texts.py`): the refused search, the unknown folder on both folder-taking
-tools, the empty search and a `read_email` of a uid no message has, keyed by tool name. The brain
-restates the sidecar's sentences rather than importing `cortex_email`, which is deployed on its
-own, and `scripts/emailcouplings.py` compares each restatement with the sidecar
-([ADR-0042](ADR-0042-cross-tree-constant-registry.md)); a sidecar reworded without the brain ends
-up tainting the turn. A `_meta` declaration on a matched result travels along unread, and the audit
-line reads `ok=False` beside `trust=trusted` for a refusal. A per-tool trust override is refused by
-the same rule, since a tool's name is the sidecar's identity and not the brain's knowledge of the
-bytes: a tool whose every answer is trusted belongs in the brain as a built-in. The confirmation
-half of such an override is `ConfirmRequiredToolRegistry` (ADR-0022).
+tools, the empty search, a `read_email` of a uid no message has and a send the server took whole,
+keyed by tool name. The brain restates the sidecar's sentences rather than importing `cortex_email`,
+which is deployed on its own, and `scripts/emailcouplings.py` compares each restatement with the
+sidecar ([ADR-0042](ADR-0042-cross-tree-constant-registry.md)); a sidecar reworded without the brain
+ends up tainting the turn. A `_meta` declaration on a matched result travels along unread, and the
+audit line reads `ok=False` beside `trust=trusted` for a refusal. A per-tool trust override is
+refused by the same rule, since a tool's name is the sidecar's identity and not the brain's
+knowledge of the bytes: a tool whose every answer is trusted belongs in the brain as a built-in. The
+confirmation half of such an override is `ConfirmRequiredToolRegistry` (ADR-0022).
 
 ### 11. Framing is measured on the real models, and measured again when they change
 

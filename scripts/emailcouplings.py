@@ -1,5 +1,5 @@
-"""The email sidecar's couplings: its four fixed answers to a refused or empty read, the four
-names a declared source is written under, and the two settings that ship off.
+"""The email sidecar's couplings: its four fixed answers to a refused or empty read and its
+answer to a send, the four names a declared source is written under, and two settings shipped off.
 """
 
 from couplings import Constant, Form, Mention, Site
@@ -18,6 +18,8 @@ TOOLS_REGISTRY = "brain/packages/tools/src/cortex_tools/registry.py"
 SOURCE_KEY = "_SOURCE_META_KEY"
 
 NOT_FOUND = "NOT_FOUND"
+SENT = "SENT"
+EMAIL_DRAFTS = "brain/packages/email/src/cortex_email/drafts.py"
 
 SENDER_KIND = "_SENDER_KIND"
 SENDER_MEMBER = "SENDER"
@@ -80,6 +82,17 @@ EMAIL_COUPLINGS: tuple[Constant, ...] = (
         ),
         sites=(Site(EMAIL_VALUES, NOT_FOUND), Site(OWN_TEXTS, NOT_FOUND)),
         mentions=(Mention(EMAIL_SERVER, "_one_text({name}.format(", name=NOT_FOUND),),
+    ),
+    Constant(
+        label="the answer to a send the server took whole",
+        why=(
+            "the sidecar renders this answer over the recipient and subject the call named and "
+            "the brain declares the same template over the same two arguments to re-stamp it "
+            "trusted, so a reworded answer alone would taint every send's own turn, and store its "
+            "exchange tainted under record, with nothing failing (ADR-0013 decision 10)"
+        ),
+        sites=(Site(EMAIL_VALUES, SENT), Site(OWN_TEXTS, SENT)),
+        mentions=(Mention(EMAIL_DRAFTS, "line = {name}.format(", name=SENT),),
     ),
     Constant(
         label="the key a sidecar declares a content source under",

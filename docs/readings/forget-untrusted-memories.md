@@ -99,11 +99,34 @@ one; when the request names the files' content, recall returns both rows, the tu
 card is shown as a record card, and the turn's own exchange is not stored.
 
 **Every successful send stored a tainted row.** The email sidecar's `send_email` answer, `email
-sent to <own> (subject: "Bulb order")`, arrives at the `Trust.UNTRUSTED` default, so the send
-taints its own turn after it ran, and under `record` its exchange is stored tainted. A later
-request like it recalls that row and is blocked again until the person forgets it. The answer is
-text the brain can render from the call's own arguments, so it is filed as
-[R-857](../refinements/tasks/857-a-successful-send-stores-its-own-exchange-tainted.md). Runs are
+sent to <own> (subject: "Bulb order")`, arrived at the `Trust.UNTRUSTED` default, so the send
+tainted its own turn after it ran, and under `record` its exchange was stored tainted. A later
+request like it would recall that row and be blocked again until the person forgot it. Runs are
 `runs/{seed*,B-*,F-*,SF-*,FT-*,SFT-*,FQ-*,SFQ-*}.json` with redacted brain logs and
 `runs/counts.txt` (tainted and total rows before and after each chat) in the run's scratch
 directory.
+
+## A send's own answer
+
+The answer is text the brain can render from the call's own `to` and `subject`, which
+[ADR-0013](../adr/ADR-0013-untrusted-content.md) decision 10 re-stamps trusted. The change under
+test declares it as an `OwnText` for `send_email`, with the sidecar's template now writing the
+subject as its repr, so `(subject: 'Bulb order')`. Written 2026-10-14 before the rows ran, on the
+same stack with the brain and the email sidecar built from the change.
+
+| Row | Request | Cards | Chats |
+| --- | --- | --- | --- |
+| SR | after a reseed and an F chat, row S's request in a new chat | approved | 2 |
+| SR2 | row S's request again, in a new chat right after each SR chat | approved | 2 |
+
+**Pass rule.** In every SR and SR2 chat `send_email` shows a card whose recipient is `<own>` and
+returns `ok`, its audit line reads `trust=trusted`, and after the turn the store holds no row
+marked tainted. A chat with no `send_email` call is a null, replaced at most twice per row. If
+either row fails, the change does not ship.
+
+**Results, 2026-10-14.** The brain and the email sidecar ran from one image built from the change,
+their changed sources matching the tree by sha256. Every chat counted: in all 2 SR and 2 SR2 chats
+`send_email` showed a card to `<own>`, returned `ok` with `trust=trusted` on its audit line, and the
+store held no tainted row after the turn, each send storing one trusted row instead. The change
+passed its rule and ships. SM clock read after each chat: 0.60 of `clocks.max.sm`. Runs are
+`runs/{F-s*,SR-*,SR2-*}.json` in the same scratch directory.
