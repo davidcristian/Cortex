@@ -135,12 +135,15 @@ handoff.
     not end a sentence, which catches a cut fold, a wandering one and a mangled one alike.
 17. **A reply that repeats one line ends there, with a note.** A cortex reply has no token cap of
     its own, so a model that starts repeating itself would stream until the context is full.
-    `stream_turn_events` feeds the reply text it shows to a `RepeatWatch`; when one line of at least
-    20 characters holding a letter arrives for the third time, it stops reading the tool loop,
+    `stream_turn_events` feeds the reply text it shows to a `RepeatWatch` built on the person's
+    message. When the last non-blank lines are three back to back copies of one block of one to four
+    lines, and the block holds a line of at least 20 characters with a letter that is not a run of
+    whole words of the message (ignoring case and punctuation), it stops reading the tool loop,
     closes it, and records `repeated` on the `StopLedger`, and `limit_notes` appends
-    `REPEATED_LINE_NOTE` after the rounds note. It reads reply text only, never the trace, and both
-    phases do the same. The thresholds and the rows they passed are in
-    [reply loop](../readings/reply-loop.md#the-fourth-rule).
+    `REPEATED_LINE_NOTE` after the rounds note. A line the person asked for, a song's chorus and a
+    list line with other lines between its copies all run to their end. It reads reply text only,
+    never the trace, and both phases do the same. The shape and the rows it passed are in [reply
+    loop](../readings/reply-loop.md#the-fifth-rule).
 
 ## Consequences
 
@@ -152,9 +155,8 @@ handoff.
   measurement record.
 - A turn whose first round was capped and whose later round produced an unparsable call for its own
   reason takes the capped note (decision 5).
-- The repeated line check cannot tell a loop from a repetition the person asked for: a reply asked
-  for five copies of one line ends at the third, with the note
-  ([R-855](../refinements/tasks/855-a-reply-asked-to-repeat-a-line-is-cut-at-its-third-copy.md)).
+- A loop of more than four lines, or one whose wording changes from copy to copy, is not ended by
+  decision 17 and runs to the context window.
 
 ## Alternatives rejected
 

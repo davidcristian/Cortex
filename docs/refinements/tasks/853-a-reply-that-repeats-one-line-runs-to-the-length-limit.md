@@ -48,6 +48,7 @@ check through the turn's existing note path, or a flag on the model host's corte
   [reply loop](../../readings/reply-loop.md#the-fourth-rule) before drawing its rows.
 - 2026-10-14: done. The fourth rule's baseline looped 22 of 40, so the defect reproduces. DRY
   sampling at 0.8 failed: 12 loops, and no format control reply at all. The repeated line check
-  passed, stopping all 22 loops and nothing else, so a reply now ends at a line's third arrival
-  with `REPEATED_LINE_NOTE` ([ADR-0048](../../adr/ADR-0048-generation-bounds.md) decision 17).
-  A live turn asking for five copies of one line was cut at the third, filed as R-855.
+  passed, stopping all 22 loops and nothing else. A fifth rule then chose its shape against
+  requests to repeat a line, a song and a list: a reply now ends when one block of up to four
+  lines comes three times back to back with a line the person's message does not hold, with
+  `REPEATED_LINE_NOTE` ([ADR-0048](../../adr/ADR-0048-generation-bounds.md) decision 17).

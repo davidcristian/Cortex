@@ -104,7 +104,11 @@ class BrainPhase:
         parts: list[str] = []
         failure: InferenceError | None = None
         events = stream_turn_events(
-            stream_tool_loop(self._backend, self._model, working, context), channels, parts, stops
+            stream_tool_loop(self._backend, self._model, working, context),
+            channels,
+            parts,
+            stops,
+            query,
         )
         log = RunLog()
         try:

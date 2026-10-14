@@ -1,6 +1,8 @@
 from collections.abc import AsyncIterator, Sequence
 from datetime import UTC, datetime, timedelta
 
+import pytest
+
 from cortex_core import (
     REPEATED_LINE_NOTE,
     GenerationBounds,
@@ -18,41 +20,82 @@ from cortex_core import (
 )
 
 _LINE = "Actually, I'll try `read_text_file` again."
+_ASKED = "Remember to bring your sheet music to practice."
+_ASK = f"Write the sentence '{_ASKED}' ten times, one per line."
 _START = datetime(2026, 10, 14, 3, 0, tzinfo=UTC)
 
 
-def test_a_line_arriving_the_third_time_is_a_repeat() -> None:
-    watch = RepeatWatch()
+def test_a_line_three_times_back_to_back_is_a_repeat() -> None:
+    watch = RepeatWatch("who sings?")
     assert not watch.feed(f"{_LINE}\n{_LINE}\n")
     assert watch.feed(f"{_LINE}\n")
 
 
 def test_a_line_split_across_pieces_counts_once_it_ends() -> None:
-    watch = RepeatWatch()
+    watch = RepeatWatch("who sings?")
     assert not watch.feed(f"{_LINE}\n{_LINE}\nActually, I'll try ")
     assert not watch.feed("`read_text_file` again.")
     assert watch.feed("\n")
 
 
-def test_surrounding_spaces_do_not_make_a_line_new() -> None:
-    watch = RepeatWatch()
-    assert watch.feed(f"{_LINE}\n  {_LINE}\n{_LINE}  \n")
+def test_surrounding_spaces_and_blank_lines_do_not_separate_copies() -> None:
+    watch = RepeatWatch("who sings?")
+    assert watch.feed(f"{_LINE}\n\n  {_LINE}\n \n{_LINE}  \n")
 
 
 def test_a_short_line_never_repeats() -> None:
-    watch = RepeatWatch()
+    watch = RepeatWatch("who sings?")
     assert not watch.feed("Let me check.\n" * 5)
 
 
 def test_a_line_without_a_letter_never_repeats() -> None:
-    watch = RepeatWatch()
+    watch = RepeatWatch("who sings?")
     assert not watch.feed("| --- | --- | --- | --- |\n" * 5)
 
 
-def test_three_different_lines_are_no_repeat() -> None:
-    watch = RepeatWatch()
+@pytest.mark.parametrize("size", [2, 4])
+def test_a_block_of_up_to_four_lines_three_times_is_a_repeat(size: int) -> None:
+    watch = RepeatWatch("who sings?")
+    block = "".join(f"Wait, I'll try reading part {n}.\n" for n in range(size))
+    assert not watch.feed(block * 2 + block[:-1])
+    assert watch.feed("\n")
+
+
+def test_a_block_of_five_lines_is_no_repeat() -> None:
+    watch = RepeatWatch("who sings?")
+    assert not watch.feed("".join(f"Wait, I'll try reading part {n}.\n" for n in range(5)) * 3)
+
+
+def test_two_copies_of_a_block_are_no_repeat() -> None:
+    watch = RepeatWatch("who sings?")
     months = "".join(f"{m}: choir practice on the first Tuesday\n" for m in ("May", "June", "July"))
     assert not watch.feed(months * 2)
+
+
+def test_a_line_with_other_lines_between_its_copies_never_repeats() -> None:
+    watch = RepeatWatch("who sings?")
+    shared = "Bring your sheet music and a pencil."
+    assert not watch.feed("".join(f"Month {n}\n{shared}\n" for n in range(12)))
+
+
+def test_a_line_the_message_holds_may_come_back_any_number_of_times() -> None:
+    watch = RepeatWatch(_ASK)
+    assert not watch.feed(f"{_ASKED}\n" * 10 + f"- {_ASKED[:-1]}\n" * 3)
+
+
+def test_a_block_with_a_line_the_message_lacks_still_repeats() -> None:
+    watch = RepeatWatch(_ASK)
+    assert watch.feed(f"{_ASKED}\n{_LINE}\n" * 3)
+
+
+def test_a_block_whose_only_counted_line_is_asked_for_never_repeats() -> None:
+    watch = RepeatWatch(_ASK)
+    assert not watch.feed(f"Again:\n{_ASKED}\n" * 4)
+
+
+def test_a_line_matches_the_message_only_in_whole_words() -> None:
+    watch = RepeatWatch(f"Write '{_ASKED[:-1]}s' ten times.")
+    assert watch.feed(f"{_ASKED}\n" * 3)
 
 
 def test_a_ledger_that_saw_nothing_reports_no_repeat() -> None:
@@ -98,9 +141,9 @@ class _Looping:
             self.closed = True
 
 
-async def _reply(backend: _Looping, store: InMemorySessionStore) -> str:
+async def _reply(backend: _Looping, store: InMemorySessionStore, query: str = "who sings?") -> str:
     engine = TurnEngine(store, backend, _Clock())
-    events = [event async for event in engine.handle_turn("s", "who sings?", turn_id="t-1")]
+    events = [event async for event in engine.handle_turn("s", query, turn_id="t-1")]
     shown = "".join(event.text for event in events if isinstance(event, TextDelta))
     completed = events[-1]
     assert isinstance(completed, TurnCompleted)
@@ -124,3 +167,10 @@ async def test_a_reply_whose_lines_differ_runs_to_its_end_with_no_note() -> None
     backend = _Looping(lines)
     assert await _reply(backend, store) == "".join(lines)
     assert backend.sent == 5
+
+
+async def test_a_reply_repeating_the_line_the_person_asked_for_runs_to_its_end() -> None:
+    lines = [f"{_ASKED}\n"] * 10
+    backend = _Looping(lines)
+    assert await _reply(backend, InMemorySessionStore(), _ASK) == "".join(lines)
+    assert backend.sent == 10

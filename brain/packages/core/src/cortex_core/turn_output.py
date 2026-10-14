@@ -149,12 +149,14 @@ async def stream_turn_events(
     channels: OutputChannels,
     parts: list[str],
     stops: StopLedger,
+    query: str,
 ) -> AsyncGenerator[TurnEvent, None]:
     """Map one tool loop's deltas onto turn events, accumulating the reply into ``parts``.
 
-    A reply that repeats one line is ended there, and ``stops`` records it for its note.
+    A reply that repeats one block of lines ``query`` does not hold is ended there, and ``stops``
+    records it for its note.
     """
-    watch = RepeatWatch()
+    watch = RepeatWatch(query)
     try:
         async for delta in loop:
             if isinstance(delta, ReasoningDelta):

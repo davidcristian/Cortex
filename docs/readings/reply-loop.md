@@ -218,14 +218,31 @@ and the same defaults read from `/props`, the second rig and both controls.
 quarter of the baseline's 22, and the format control shows DRY sampling breaking a reply that must
 repeat its own words. **Candidate B passes**: read off the baseline, with the prefill and the draw
 together, it stops all 22 loops, 213 to 512 words after the prefill, and stops none of the 18
-other rig draws and none of the 20 control draws. So B ships, as `RepeatWatch` in the turn's
-stream and `REPEATED_LINE_NOTE` through `limit_notes`, and A is not filed. Read off A's own rig
-draws, B would stop only 9 of its 12 loops, since DRY keeps a drifting loop from repeating an exact
-line. SM clock 0.58 to 0.66 of `clocks.max.sm` under load in the baseline phase, 0.60 to 0.71 in
-candidate A's.
-On the stack after the check shipped, a turn asking for five copies of one line was cut at the
-third ([R-855](../refinements/tasks/855-a-reply-asked-to-repeat-a-line-is-cut-at-its-third-copy.md)),
-and a read of the choir rota and the twelve-month format control ran as before.
+other rig draws and none of the 20 control draws. A is not filed. Read off A's own rig draws, B
+would stop only 9 of its 12 loops, since DRY keeps a drifting loop from repeating an exact line. SM
+clock 0.58 to 0.66 of `clocks.max.sm` under load in the baseline phase, 0.60 to 0.71 in candidate
+A's. Built into the brain on the test stack, B ended a live turn asking for five copies
+of one line at the third, with its note, while a read of the choir rota and the twelve-month format
+control ran as before. The fifth rule compares shapes that tell such a request from a loop.
+
+**2026-10-14, the fifth rule's rows**, 25 request draws on the same stack and server build, read
+with the fourth rule's 60 baseline draws. Words are after the prefill.
+
+| Shape | Looping rig draws stopped | Other rig and control draws stopped | Request draws stopped: five copies, ten copies, song, list |
+| --- | --- | --- | --- |
+| A, eighth arrival | 22 of 22, at 243 to 552 words | 0 | 0, 5, 0, 5 |
+| B, third arrival of a line the message lacks | 22 of 22, at 213 to 512 words | 0 | 0, 0, 5, 5 |
+| C, three back to back copies of a block | 22 of 22, at 221 to 516 words | 0 | 0, 0, 0, 0 |
+| D, eighth arrival of a line the message lacks | 22 of 22, at 243 to 552 words | 0 | 0, 0, 0, 5 |
+
+Every row judges. Each copy draw wrote the line 5 or 10 times on lines of its own, each song draw
+brought its four-line chorus back three times, and each draw of the second list row repeated one
+sentence 12 times; the first list row did so in 1 of 5 draws, which A, B and D stop and C does not.
+A line's third arrival, the fourth rule's B, stops all 20 request draws. **C passes** and ships in
+`RepeatWatch`. Fed each draw in pieces of 7 characters, the built watch stops exactly the 22 looping
+rig draws among the 80. With it in the brain, live turns for each request and the twelve-month
+format control ran to their end with no note. SM clock 0.64 to 0.69 of `clocks.max.sm` after each
+request row.
 
 Method: the capture and replay drivers in the run's scratch directory, against the test stack's
 cortex server on `127.0.0.1:8080`.

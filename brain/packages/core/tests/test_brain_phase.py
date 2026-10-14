@@ -16,6 +16,7 @@ from cortex_core import (
     NO_CADENCE_TERMS,
     RECALL_DENIED_MSG,
     REDACTED,
+    REPEATED_LINE_NOTE,
     REPLY_CAPPED_NOTE,
     UNREADABLE_CALL_NOTE,
     UNSCHEDULED_CLAIM_NOTE,
@@ -423,6 +424,23 @@ async def test_a_deep_phase_s_rounds_note_names_only_the_runs_it_made() -> None:
     )
     assert "schedule_task" not in "".join(deltas)
     assert "read (succeeded)" in "".join(deltas)
+
+
+async def test_a_deep_reply_repeating_one_line_ends_there_with_the_note() -> None:
+    line = "check the induction step once more\n"
+    _phase, backend, _sessions, deltas = await _drive(
+        backend=ScriptedBrainBackend(chunks=(line,) * 5)
+    )
+    assert "".join(deltas) == line * 3 + REPEATED_LINE_NOTE
+    assert backend.closed
+
+
+async def test_a_deep_reply_may_repeat_a_line_the_person_wrote() -> None:
+    line = f"{harness.USER_TEXT}\n"
+    _phase, _backend, _sessions, deltas = await _drive(
+        backend=ScriptedBrainBackend(chunks=(line,) * 5)
+    )
+    assert "".join(deltas) == line * 5
 
 
 async def test_the_query_is_recovered_from_the_store_for_recall_and_memory() -> None:

@@ -112,23 +112,24 @@ before it as calls with a fixed outcome text, after the window (`tool_replay.py`
   closed. The orchestrator builds one per stream that can hand off (ADR-0069 decision 9).
 
 `turn_output.py` is the half of the engine the deep model's phase shares, so the two cannot diverge
-(ADR-0030). `stream_turn_events(loop, channels, parts, stops)` maps one tool loop's deltas onto
-`TextDelta`, `StatusUpdate` and `ToolActivity`, adds reply text to `parts`, ends the reply once a
-`RepeatWatch` (`repeat_watch.py`) sees a line a third time, closes the loop in a `finally` and
-flushes the channels on a clean end; `flush_channels` is that flush alone, for a partial reply after
-a failure. `record_exchange(caps, taint, *, session_id, query, reply, runs)` applies both phases'
-tainted-memory policy and **drops an opaque turn whatever `record_tainted_memory` says** (ADR-0029).
+(ADR-0030). `stream_turn_events(loop, channels, parts, stops, query)` maps a tool loop's deltas onto
+`TextDelta`, `StatusUpdate` and `ToolActivity`, adds reply text to `parts`, ends the reply when
+`RepeatWatch(query)` (`repeat_watch.py`) sees three back to back copies of a block of up to four
+lines with a line of 20 or more characters not in `query` (ADR-0048 decision 17), closes the loop in
+a `finally` and flushes the channels on a clean end. `record_exchange(caps, taint, *, session_id,
+query, reply, runs)` applies both phases' tainted-memory policy and **drops an opaque turn whatever
+`record_tainted_memory` says** (ADR-0029).
 
 `limit_notes(stops, runs, parts, *, earlier=())`, `unreadable_call_note(stops, parts)` and
 `overflow_note(parts)` are the sentences a turn can end with, the first two read off a `StopLedger`
 (`stops.py`). `capped` says a completion stopped at a token limit (ADR-0048), `out_of_rounds` that
-the loop's last round still ended in calls (ADR-0009), and `repeated` that the reply was ended for
-repeating a line. `limit_notes` appends `REPLY_CAPPED_NOTE` for the first, then `ROUNDS_SPENT_NOTE`,
-naming the limit and each of `runs` with its outcome, then `REPEATED_LINE_NOTE`, then
-`UNSCHEDULED_CLAIM_NOTE` when `unscheduled_claim` (`schedule_claim.py`) finds the text saying
-something was scheduled with no `SCHEDULING_TOOLS` run succeeding in `runs` or `earlier`, the
-cortex's runs a deep phase passes (ADR-0074 decision 7). `UNREADABLE_CALL_NOTE` comes only when no
-completion was cut, so a reader gets one explanation. `overflow_note` appends `CONTEXT_OVERFLOW_NOTE` whatever the ledger holds.
+the loop's last round still ended in calls (ADR-0009), and `repeated` that the watch ended the
+reply. `limit_notes` appends `REPLY_CAPPED_NOTE` for the first, then `ROUNDS_SPENT_NOTE`, naming the
+limit and each of `runs` with its outcome, then `REPEATED_LINE_NOTE`, then `UNSCHEDULED_CLAIM_NOTE`
+when `unscheduled_claim` (`schedule_claim.py`) finds the text saying something was scheduled with no
+`SCHEDULING_TOOLS` run succeeding in `runs` or `earlier`, the cortex's runs a deep phase passes
+(ADR-0074 decision 7). `UNREADABLE_CALL_NOTE` comes only when no completion was cut, so a reader
+gets one explanation; `overflow_note` appends `CONTEXT_OVERFLOW_NOTE` whatever the ledger holds.
 
 `SerialTurnRunner(inner, locks)` (`session_turns.py`) is the `TurnRunner` every `Converse` stream
 runs. A turn holds its session in the shared `SessionTurnLocks` from before it stores its question
@@ -147,8 +148,7 @@ its last running or waiting turn, so the map holds only sessions with a turn in 
 - `CharBudgetHistoryWindow(max_chars)` is the shipped policy: the newest whole turns, grouped by
   consecutive `turn_id`, whose summed text fits `max_chars`, kept or dropped whole, stopping at the
   first overflow, with the newest turn always kept even when oversized. Characters stand in for
-  tokens, 3.6 to 4.7 a token on the cortex's tokenizer, so the core needs no tokenizer, and
-  `max_chars < 1` raises.
+  tokens (3.6 to 4.7 per cortex token), so the core needs no tokenizer; `max_chars < 1` raises.
 - `SummarizingHistoryWindow(inner, store, backend, model, clock, *, min_dropped_chars=0)`
   (`summarizing.py`, ADR-0038 decision 9) wraps a window so the turns it drops arrive as a
   model-written recap. Five properties define it. It only **adds**: the inner selection is returned
