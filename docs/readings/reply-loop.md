@@ -242,7 +242,8 @@ A line's third arrival, the fourth rule's B, stops all 20 request draws. **C pas
 `RepeatWatch`. Fed each draw in pieces of 7 characters, the built watch stops exactly the 22 looping
 rig draws among the 80. With it in the brain, live turns for each request and the twelve-month
 format control ran to their end with no note. SM clock 0.64 to 0.69 of `clocks.max.sm` after each
-request row.
+request row. A request to repeat a line the model makes up has its own rule, in
+[requested repeats](reply-loop-requests.md).
 
 Method: the capture and replay drivers in the run's scratch directory, against the test stack's
 cortex server on `127.0.0.1:8080`.
