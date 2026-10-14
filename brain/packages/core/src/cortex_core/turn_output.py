@@ -10,6 +10,7 @@ from cortex_core.events import TextDelta, ToolActivity, ToolOutcome, TurnEvent
 from cortex_core.guardrail import OutputFilter
 from cortex_core.loop_events import ReasoningDelta, StepOutcome, ToolStep
 from cortex_core.output_channels import ThinkingChannel
+from cortex_core.repeat_watch import REPEATED_LINE_NOTE, RepeatWatch
 from cortex_core.schedule_claim import UNSCHEDULED_CLAIM_NOTE, unscheduled_claim
 from cortex_core.stops import StopLedger
 from cortex_core.tool_loop import MAX_TOOL_STEPS
@@ -66,6 +67,14 @@ def rounds_note(
     yield TextDelta(text=note)
 
 
+def repeat_note(stops: StopLedger, parts: list[str]) -> Iterator[TurnEvent]:
+    """Say so when the turn ended its reply because the reply repeated one line."""
+    if not stops.repeated:
+        return
+    parts.append(REPEATED_LINE_NOTE)
+    yield TextDelta(text=REPEATED_LINE_NOTE)
+
+
 def limit_notes(
     stops: StopLedger,
     runs: Sequence[ToolRun],
@@ -80,6 +89,7 @@ def limit_notes(
     claimed = unscheduled_claim((*earlier, *runs), "".join(parts))
     yield from cap_note(stops, parts)
     yield from rounds_note(stops, runs, parts)
+    yield from repeat_note(stops, parts)
     if claimed:
         parts.append(UNSCHEDULED_CLAIM_NOTE)
         yield TextDelta(text=UNSCHEDULED_CLAIM_NOTE)
@@ -138,8 +148,13 @@ async def stream_turn_events(
     loop: AsyncGenerator[str | ReasoningDelta | ToolStep | StepOutcome, None],
     channels: OutputChannels,
     parts: list[str],
+    stops: StopLedger,
 ) -> AsyncGenerator[TurnEvent, None]:
-    """Map one tool loop's deltas onto turn events, accumulating the reply into ``parts``."""
+    """Map one tool loop's deltas onto turn events, accumulating the reply into ``parts``.
+
+    A reply that repeats one line is ended there, and ``stops`` records it for its note.
+    """
+    watch = RepeatWatch()
     try:
         async for delta in loop:
             if isinstance(delta, ReasoningDelta):
@@ -158,6 +173,9 @@ async def stream_turn_events(
                 continue
             parts.append(shown)
             yield TextDelta(text=shown)
+            if watch.feed(shown):
+                stops.observe_repeat()
+                break
     finally:
         await loop.aclose()
     for event in flush_channels(channels, parts):

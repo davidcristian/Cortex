@@ -1,9 +1,8 @@
 # A reply that repeats one line runs to the length limit
 
-**Status:** open, actionable
+**Status:** done 2026-10-14
 **Area:** inference
 **Origin:** [ADR-0048](../../adr/ADR-0048-generation-bounds.md)
-**Verified:** 2026-10-14
 
 Nothing stops a reply that repeats itself before the length limit. In a probe row of the cut off
 tool call rows ([readings](../../readings/tool-call-cut-off.md#results)), gemma 12B as the cortex
@@ -47,3 +46,8 @@ check through the turn's existing note path, or a flag on the model host's corte
 - 2026-10-14: premise checked again on a fresh test stack: the same server build, both repetition
   samplers off, and no sampling field from the brain. Wrote the fourth rule into
   [reply loop](../../readings/reply-loop.md#the-fourth-rule) before drawing its rows.
+- 2026-10-14: done. The fourth rule's baseline looped 22 of 40, so the defect reproduces. DRY
+  sampling at 0.8 failed: 12 loops, and no format control reply at all. The repeated line check
+  passed, stopping all 22 loops and nothing else, so a reply now ends at a line's third arrival
+  with `REPEATED_LINE_NOTE` ([ADR-0048](../../adr/ADR-0048-generation-bounds.md) decision 17).
+  A live turn asking for five copies of one line was cut at the third, filed as R-855.

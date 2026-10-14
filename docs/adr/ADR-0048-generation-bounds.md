@@ -133,6 +133,14 @@ handoff.
     the process restarted), and a completion that reached a token limit is none of those.
 16. **The recap fold does not read the stop.** `clean_recap` already rejects any account that does
     not end a sentence, which catches a cut fold, a wandering one and a mangled one alike.
+17. **A reply that repeats one line ends there, with a note.** A cortex reply has no token cap of
+    its own, so a model that starts repeating itself would stream until the context is full.
+    `stream_turn_events` feeds the reply text it shows to a `RepeatWatch`; when one line of at least
+    20 characters holding a letter arrives for the third time, it stops reading the tool loop,
+    closes it, and records `repeated` on the `StopLedger`, and `limit_notes` appends
+    `REPEATED_LINE_NOTE` after the rounds note. It reads reply text only, never the trace, and both
+    phases do the same. The thresholds and the rows they passed are in
+    [reply loop](../readings/reply-loop.md#the-fourth-rule).
 
 ## Consequences
 
@@ -144,6 +152,9 @@ handoff.
   measurement record.
 - A turn whose first round was capped and whose later round produced an unparsable call for its own
   reason takes the capped note (decision 5).
+- The repeated line check cannot tell a loop from a repetition the person asked for: a reply asked
+  for five copies of one line ends at the third, with the note
+  ([R-855](../refinements/tasks/855-a-reply-asked-to-repeat-a-line-is-cut-at-its-third-copy.md)).
 
 ## Alternatives rejected
 
@@ -170,4 +181,4 @@ handoff.
 - Runbooks: [subagents-cpu](../runbooks/subagents-cpu.md),
   [llamacpp-gpu](../runbooks/llamacpp-gpu.md), [model-swap](../runbooks/model-swap.md).
 - Readings: [generation bounds](../readings/generation-bounds.md),
-  [delegated run holds](../readings/delegated-run-holds.md).
+  [delegated run holds](../readings/delegated-run-holds.md), [reply loop](../readings/reply-loop.md).

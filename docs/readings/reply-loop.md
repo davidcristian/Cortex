@@ -176,5 +176,27 @@ before that limit, 267 to 677 words after the prefill, and stops none of the 26 
 loop and none of the 20 control draws. A rule that needs a reproduction rate near a half does not
 fit a rig that loops about a third of the time; the next rule is sized from that third.
 
+**2026-10-14, the fourth rule's rows**, 120 draws on a new test stack with the same server build
+and the same defaults read from `/props`, the second rig and both controls.
+
+| Draws | Baseline | Candidate A, `"dry_multiplier": 0.8` |
+| --- | --- | --- |
+| rig | 22 of 40 loop, each to the 1536 token limit, the most repeated line 14 to 78 times; the other 18 call a read after 9 to 193 words of plan | 12 of 40 loop, each to the token limit with no line more than 5 times, as the wording drifts; the other 28 call a read |
+| tool call control | 10 of 10 pass | 10 of 10 pass |
+| format control | 10 of 10 pass | 0 of 10 pass: each spends all 1536 tokens in `reasoning_content` and writes no reply |
+
+22 of 40 is at least 8, so **the defect reproduces**. **Candidate A fails**: 12 loops is over a
+quarter of the baseline's 22, and the format control shows DRY sampling breaking a reply that must
+repeat its own words. **Candidate B passes**: read off the baseline, with the prefill and the draw
+together, it stops all 22 loops, 213 to 512 words after the prefill, and stops none of the 18
+other rig draws and none of the 20 control draws. So B ships, as `RepeatWatch` in the turn's
+stream and `REPEATED_LINE_NOTE` through `limit_notes`, and A is not filed. Read off A's own rig
+draws, B would stop only 9 of its 12 loops, since DRY keeps a drifting loop from repeating an exact
+line. SM clock 0.58 to 0.66 of `clocks.max.sm` under load in the baseline phase, 0.60 to 0.71 in
+candidate A's.
+On the stack after the check shipped, a turn asking for five copies of one line was cut at the
+third ([R-855](../refinements/tasks/855-a-reply-asked-to-repeat-a-line-is-cut-at-its-third-copy.md)),
+and a read of the choir rota and the twelve-month format control ran as before.
+
 Method: the capture and replay drivers in the run's scratch directory, against the test stack's
 cortex server on `127.0.0.1:8080`.

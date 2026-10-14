@@ -115,7 +115,7 @@ class TurnEngine:
         parts: list[str] = []
         channels = open_output_channels(self._caps.guardrail, taint, text)
         loop = stream_tool_loop(self._backend, model, working, context)
-        events = stream_turn_events(loop, channels, parts)
+        events = stream_turn_events(loop, channels, parts, stops)
         overflowed = False
         log = RunLog()
         try:

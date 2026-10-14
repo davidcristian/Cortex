@@ -111,23 +111,24 @@ before it as calls with a fixed outcome text, after the window (`tool_replay.py`
   nothing awaited between its check and the lease, and closes the wrapped stream when it is
   closed. The orchestrator builds one per stream that can hand off (ADR-0069 decision 9).
 
-`turn_output.py` is the half of the engine the deep model's phase shares word for word, so the two
-cannot diverge (ADR-0030). `stream_turn_events(loop, channels, parts)` maps one tool loop's deltas
-onto `TextDelta`, `StatusUpdate` and `ToolActivity`, accumulates reply text into `parts`, closes
-the loop in a `finally` and flushes the channels on a clean end; `flush_channels(channels, parts)`
-is that flush alone, for a caller that has to persist a partial reply after a failure.
-`record_exchange(caps, taint, *, session_id, query, reply, runs)` applies both phases'
+`turn_output.py` is the half of the engine the deep model's phase shares, so the two cannot diverge
+(ADR-0030). `stream_turn_events(loop, channels, parts, stops)` maps one tool loop's deltas onto
+`TextDelta`, `StatusUpdate` and `ToolActivity`, adds reply text to `parts`, ends the reply once a
+`RepeatWatch` (`repeat_watch.py`) sees a line a third time, closes the loop in a `finally` and
+flushes the channels on a clean end; `flush_channels` is that flush alone, for a partial reply after
+a failure. `record_exchange(caps, taint, *, session_id, query, reply, runs)` applies both phases'
 tainted-memory policy and **drops an opaque turn whatever `record_tainted_memory` says** (ADR-0029).
 
 `limit_notes(stops, runs, parts, *, earlier=())`, `unreadable_call_note(stops, parts)` and
 `overflow_note(parts)` are the sentences a turn can end with, the first two read off a `StopLedger`
-(`stops.py`). `capped` says a completion stopped at a token limit (ADR-0048), and `out_of_rounds`
-says the loop's last round still ended in calls (ADR-0009). `limit_notes` appends `REPLY_CAPPED_NOTE`
-for the first, then `ROUNDS_SPENT_NOTE`, naming the limit and each of `runs` with its outcome, for
-the second, then `UNSCHEDULED_CLAIM_NOTE` when `unscheduled_claim` (`schedule_claim.py`) finds the
-text saying something was scheduled with no `SCHEDULING_TOOLS` run succeeding in `runs` or `earlier`,
-the cortex's runs a deep phase passes (ADR-0074 decision 7). `UNREADABLE_CALL_NOTE` comes only when
-no completion was cut, so a reader gets one explanation. `overflow_note` appends `CONTEXT_OVERFLOW_NOTE` whatever the ledger holds.
+(`stops.py`). `capped` says a completion stopped at a token limit (ADR-0048), `out_of_rounds` that
+the loop's last round still ended in calls (ADR-0009), and `repeated` that the reply was ended for
+repeating a line. `limit_notes` appends `REPLY_CAPPED_NOTE` for the first, then `ROUNDS_SPENT_NOTE`,
+naming the limit and each of `runs` with its outcome, then `REPEATED_LINE_NOTE`, then
+`UNSCHEDULED_CLAIM_NOTE` when `unscheduled_claim` (`schedule_claim.py`) finds the text saying
+something was scheduled with no `SCHEDULING_TOOLS` run succeeding in `runs` or `earlier`, the
+cortex's runs a deep phase passes (ADR-0074 decision 7). `UNREADABLE_CALL_NOTE` comes only when no
+completion was cut, so a reader gets one explanation. `overflow_note` appends `CONTEXT_OVERFLOW_NOTE` whatever the ledger holds.
 
 `SerialTurnRunner(inner, locks)` (`session_turns.py`) is the `TurnRunner` every `Converse` stream
 runs. A turn holds its session in the shared `SessionTurnLocks` from before it stores its question
@@ -192,8 +193,7 @@ its last running or waiting turn, so the map holds only sessions with a turn in 
 
 ## The output guardrail
 
-The laundering defence (ADR-0015): a URL that entered the turn through untrusted content must not
-leave it in the reply.
+The laundering defence (ADR-0015): no URL from the turn's untrusted content may leave in the reply.
 
 - One URL's canonical identity is `normalize_url` (`url_identity.py`), nine passes in a fixed order
   that reduce a rewritten link to the same value as its plain twin: escape decoding to a bounded

@@ -27,6 +27,7 @@ from cortex_core.recap_prompt import (
     clean_recap,
     fence_recap,
 )
+from cortex_core.repeat_watch import REPEATED_LINE_NOTE, RepeatWatch
 from cortex_core.routing import RoutingHints, Tier, route_turn
 from cortex_core.session_title import (
     TITLE_BOUNDS,
@@ -117,6 +118,7 @@ __all__ = [
     "RECAP_PROGRESS_DETAIL",
     "RECAP_PROGRESS_STATE",
     "REDACTED_LINK",
+    "REPEATED_LINE_NOTE",
     "REPLY_CAPPED_NOTE",
     "SECURITY_PREAMBLE",
     "SWAPPING",
@@ -138,6 +140,7 @@ __all__ = [
     "LookalikeUrlRedactingGuardrail",
     "OutputFilter",
     "OutputGuardrail",
+    "RepeatWatch",
     "RoutingHints",
     "SerialTurnRunner",
     "SessionSummary",
