@@ -136,14 +136,17 @@ handoff.
 17. **A reply that repeats one line ends there, with a note.** A cortex reply has no token cap of
     its own, so a model that starts repeating itself would stream until the context is full.
     `stream_turn_events` feeds the reply text it shows to a `RepeatWatch` built on the person's
-    message. When the last non-blank lines are three back to back copies of one block of one to four
+    message. When the last non-blank lines are N back to back copies of one block of one to four
     lines, and the block holds a line of at least 20 characters with a letter that is not a run of
     whole words of the message (ignoring case and punctuation), it stops reading the tool loop,
     closes it, and records `repeated` on the `StopLedger`, and `limit_notes` appends
-    `REPEATED_LINE_NOTE` after the rounds note. A line the person asked for, a song's chorus and a
-    list line with other lines between its copies all run to their end. It reads reply text only,
-    never the trace, and both phases do the same. The shape and the rows it passed are in [reply
-    loop](../readings/reply-loop.md#the-fifth-rule).
+    `REPEATED_LINE_NOTE` after the rounds note. N is 3, or one more than the largest count of
+    copies the message asks for, a number in digits or one number word before `times` or
+    `copies`, so "write it ten times" lets ten copies of a line the model makes up through. A line
+    the person asked for, a song's chorus and a list line with other lines between its copies all
+    run to their end. It reads reply text only, never the trace, and both phases do the same. The
+    shapes and the rows they passed are in [reply loop](../readings/reply-loop.md#the-fifth-rule)
+    and [requested repeats](../readings/reply-loop-requests.md).
 
 ## Consequences
 
@@ -183,4 +186,5 @@ handoff.
 - Runbooks: [subagents-cpu](../runbooks/subagents-cpu.md),
   [llamacpp-gpu](../runbooks/llamacpp-gpu.md), [model-swap](../runbooks/model-swap.md).
 - Readings: [generation bounds](../readings/generation-bounds.md),
-  [delegated run holds](../readings/delegated-run-holds.md), [reply loop](../readings/reply-loop.md).
+  [delegated run holds](../readings/delegated-run-holds.md), [reply loop](../readings/reply-loop.md),
+  [requested repeats](../readings/reply-loop-requests.md).

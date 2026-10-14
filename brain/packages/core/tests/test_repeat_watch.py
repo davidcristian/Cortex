@@ -22,6 +22,8 @@ from cortex_core import (
 _LINE = "Actually, I'll try `read_text_file` again."
 _ASKED = "Remember to bring your sheet music to practice."
 _ASK = f"Write the sentence '{_ASKED}' ten times, one per line."
+_NAMED = f"Write the sentence '{_ASKED}' on every line."
+_MADE_UP = "Make up one sentence of advice for a choir singer, then write it ten times."
 _START = datetime(2026, 10, 14, 3, 0, tzinfo=UTC)
 
 
@@ -79,23 +81,58 @@ def test_a_line_with_other_lines_between_its_copies_never_repeats() -> None:
 
 
 def test_a_line_the_message_holds_may_come_back_any_number_of_times() -> None:
-    watch = RepeatWatch(_ASK)
+    watch = RepeatWatch(_NAMED)
     assert not watch.feed(f"{_ASKED}\n" * 10 + f"- {_ASKED[:-1]}\n" * 3)
 
 
 def test_a_block_with_a_line_the_message_lacks_still_repeats() -> None:
-    watch = RepeatWatch(_ASK)
+    watch = RepeatWatch(_NAMED)
     assert watch.feed(f"{_ASKED}\n{_LINE}\n" * 3)
 
 
 def test_a_block_whose_only_counted_line_is_asked_for_never_repeats() -> None:
-    watch = RepeatWatch(_ASK)
+    watch = RepeatWatch(_NAMED)
     assert not watch.feed(f"Again:\n{_ASKED}\n" * 4)
 
 
 def test_a_line_matches_the_message_only_in_whole_words() -> None:
-    watch = RepeatWatch(f"Write '{_ASKED[:-1]}s' ten times.")
+    watch = RepeatWatch(f"Write '{_ASKED[:-1]}s' on every line.")
     assert watch.feed(f"{_ASKED}\n" * 3)
+
+
+@pytest.mark.parametrize(
+    ("query", "copies"),
+    [
+        (_MADE_UP, 11),
+        ("Write it 5 times.", 6),
+        ("Give me TWENTY copies of it.", 21),
+        ("Write it seventeen times.", 18),
+        ("Say it forty times.", 41),
+        ("Say it a hundred times.", 101),
+        ("Write it three times, then 12 times.", 13),
+        ("Write it two times.", 3),
+        ("Write it 0 times.", 3),
+        ("I asked many times; it took 40 tries.", 3),
+    ],
+)
+def test_a_count_the_message_asks_for_lets_that_many_copies_through(
+    query: str, copies: int
+) -> None:
+    watch = RepeatWatch(query)
+    assert not watch.feed(f"{_LINE}\n" * (copies - 1))
+    assert watch.feed(f"{_LINE}\n")
+
+
+def test_a_count_applies_to_a_block_of_several_lines() -> None:
+    watch = RepeatWatch("Write the two lines 5 times.")
+    block = f"{_LINE}\nWait, I'll try reading part two.\n"
+    assert not watch.feed(block * 5)
+    assert watch.feed(block)
+
+
+def test_a_count_too_large_for_a_reply_lets_every_copy_through() -> None:
+    watch = RepeatWatch(f"Write it {10**30} times.")
+    assert not watch.feed(f"{_LINE}\n" * 200)
 
 
 def test_a_ledger_that_saw_nothing_reports_no_repeat() -> None:
@@ -186,4 +223,11 @@ async def test_a_reply_repeating_the_line_the_person_asked_for_runs_to_its_end()
     lines = [f"{_ASKED}\n"] * 10
     backend = _Looping(lines)
     assert await _reply(backend, InMemorySessionStore(), _ASK) == "".join(lines)
+    assert backend.sent == 10
+
+
+async def test_a_line_the_model_made_up_and_was_asked_to_repeat_runs_to_its_end() -> None:
+    lines = [f"{_LINE}\n"] * 10
+    backend = _Looping(lines)
+    assert await _reply(backend, InMemorySessionStore(), _MADE_UP) == "".join(lines)
     assert backend.sent == 10

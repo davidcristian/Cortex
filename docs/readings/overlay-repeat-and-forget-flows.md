@@ -28,8 +28,8 @@ of `clocks.max.sm`.
 times, one per line, and nothing else." While it streamed, the chip showed fragments of the
 model's reasoning; the reply then showed three copies of "Always focus on your blend with the
 group." and `REPEATED_LINE_NOTE` in the same frame, since the brain sends the note right after the
-third copy. The person asked for ten copies, so this is a request the check cuts as a loop: filed
-as [R-858](../refinements/tasks/858-a-requested-repeat-of-a-line-the-model-writes-ends-at-its-third-copy.md).
+third copy. The person asked for ten copies, so the check cut a request as a loop; the sixth rule
+of [requested repeats](reply-loop-requests.md) compares ways to let it through.
 
 - **The stored reply** held the three copies, `"\n\n\n"` and the note, so the overlay drew two
   blank lines above the note, while it streamed and again when the chat was opened from the list.
@@ -40,6 +40,8 @@ as [R-858](../refinements/tasks/858-a-requested-repeat-of-a-line-the-model-write
   with "about ten words" stored three copies, `"\n\n"` and the note, drawn with
   one blank line. A run whose made up sentence was "Support your tone.", 18 characters, wrote all
   ten copies with no note, since a line under 20 characters is not counted.
+- **With a count read from the message**, the sixth rule's shape E, the same request stored ten
+  copies of its sentence and no note, and the overlay drew them all.
 
 ## A tool server that stops during a read
 
