@@ -431,7 +431,7 @@ async def test_a_deep_reply_repeating_one_line_ends_there_with_the_note() -> Non
     _phase, backend, _sessions, deltas = await _drive(
         backend=ScriptedBrainBackend(chunks=(line,) * 5)
     )
-    assert "".join(deltas) == line * 3 + REPEATED_LINE_NOTE
+    assert "".join(deltas) == line * 3 + "\n" + REPEATED_LINE_NOTE.lstrip("\n")
     assert backend.closed
 
 

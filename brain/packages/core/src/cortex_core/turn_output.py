@@ -72,8 +72,12 @@ def repeat_note(stops: StopLedger, parts: list[str]) -> Iterator[TurnEvent]:
     """Say so when the turn ended its reply because the reply repeated one line."""
     if not stops.repeated:
         return
-    parts.append(REPEATED_LINE_NOTE)
-    yield TextDelta(text=REPEATED_LINE_NOTE)
+    # The watch ends a reply after a line break, so the note adds only what one blank line needs.
+    reply = "".join(parts)
+    breaks = len(reply) - len(reply.rstrip("\n"))
+    note = "\n" * max(0, 2 - breaks) + REPEATED_LINE_NOTE.lstrip("\n")
+    parts.append(note)
+    yield TextDelta(text=note)
 
 
 def limit_notes(

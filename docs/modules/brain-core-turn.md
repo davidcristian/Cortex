@@ -125,11 +125,11 @@ query, reply, runs)` applies both phases' tainted-memory policy and **drops an o
 (`stops.py`). `capped` says a completion stopped at a token limit (ADR-0048), `out_of_rounds` that
 the loop's last round still ended in calls (ADR-0009), and `repeated` that the watch ended the
 reply. `limit_notes` appends `REPLY_CAPPED_NOTE` for the first, then `ROUNDS_SPENT_NOTE`, naming the
-limit and each of `runs` with its outcome, then `REPEATED_LINE_NOTE`, then `UNSCHEDULED_CLAIM_NOTE`
-when `unscheduled_claim` (`schedule_claim.py`) finds the text saying something was scheduled with no
-`SCHEDULING_TOOLS` run succeeding in `runs` or `earlier`, the cortex's runs a deep phase passes
-(ADR-0074 decision 7). `UNREADABLE_CALL_NOTE` comes only when no completion was cut, so a reader
-gets one explanation; `overflow_note` appends `CONTEXT_OVERFLOW_NOTE` whatever the ledger holds.
+limit and each of `runs` with its outcome, then `REPEATED_LINE_NOTE` after one blank line, then
+`UNSCHEDULED_CLAIM_NOTE` when `unscheduled_claim` (`schedule_claim.py`) finds text saying something
+was scheduled with no `SCHEDULING_TOOLS` run succeeding in `runs` or `earlier`, the cortex's runs a
+deep phase passes (ADR-0074 decision 7). `UNREADABLE_CALL_NOTE` comes only when no completion was
+cut, so a reply has one explanation; `overflow_note` always adds `CONTEXT_OVERFLOW_NOTE`.
 
 `SerialTurnRunner(inner, locks)` (`session_turns.py`) is the `TurnRunner` every `Converse` stream
 runs. A turn holds its session in the shared `SessionTurnLocks` from before it stores its question

@@ -155,10 +155,23 @@ async def test_a_reply_repeating_one_line_ends_there_with_the_note_it_stores() -
     store = InMemorySessionStore()
     backend = _Looping(["The file did not open.\n", *([f"{_LINE}\n"] * 6), "never read"])
     shown = await _reply(backend, store)
-    assert shown == "The file did not open.\n" + f"{_LINE}\n" * 3 + REPEATED_LINE_NOTE
+    note = REPEATED_LINE_NOTE.lstrip("\n")
+    assert shown == "The file did not open.\n" + f"{_LINE}\n" * 3 + "\n" + note
     assert (await store.history("s"))[-1].text == shown
     assert backend.sent == 4
     assert backend.closed
+
+
+async def test_a_note_after_a_line_and_a_blank_one_adds_no_line_break() -> None:
+    backend = _Looping([f"{_LINE}\n\n"] * 4)
+    shown = await _reply(backend, InMemorySessionStore())
+    assert shown == f"{_LINE}\n\n" * 3 + REPEATED_LINE_NOTE.lstrip("\n")
+
+
+async def test_a_note_after_text_past_the_line_break_starts_a_paragraph() -> None:
+    backend = _Looping([f"{_LINE}\n", f"{_LINE}\n", f"{_LINE}\nSo I", " will"])
+    shown = await _reply(backend, InMemorySessionStore())
+    assert shown == f"{_LINE}\n" * 3 + "So I" + REPEATED_LINE_NOTE
 
 
 async def test_a_reply_whose_lines_differ_runs_to_its_end_with_no_note() -> None:
