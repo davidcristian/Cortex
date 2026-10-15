@@ -50,7 +50,7 @@ def fence_recap(text: str) -> str:
 def fold_slice(dropped: Sequence[Message], limit: int = RECAP_READ_MAX) -> list[Message]:
     """The oldest of ``dropped`` whose texts fit ``limit`` characters, at least the first one.
 
-    A first message longer than ``limit`` comes back cut to it, with a line saying how much was cut.
+    A longer first message keeps the first three quarters of ``limit`` and the last quarter.
     """
     taken: list[Message] = []
     remaining = limit
@@ -59,13 +59,22 @@ def fold_slice(dropped: Sequence[Message], limit: int = RECAP_READ_MAX) -> list[
             taken.append(message)
             remaining -= len(message.text)
         elif not taken:
-            cut = len(message.text) - limit
-            text = f"{message.text[:limit]}\n[{cut} more characters of this message were cut]"
-            taken.append(replace(message, text=text))
+            taken.append(replace(message, text=_cut_middle(message.text, limit)))
             break
         else:
             break
     return taken
+
+
+def _cut_middle(text: str, limit: int) -> str:
+    """``text`` as its head and tail within ``limit``, around a line naming the cut."""
+    # The tail is kept because a pasted log ends with its latest lines and a typed question
+    # follows the paste it asks about.
+    head = limit * 3 // 4
+    resume = len(text) - (limit - head)
+    cut = resume - head
+    line = f"[{cut} characters from the middle of this message were cut here and were not read.]"
+    return f"{text[:head]}\n{line}\n{text[resume:]}"
 
 
 def build_recap_messages(

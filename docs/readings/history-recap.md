@@ -65,3 +65,80 @@ s against 2.2 s to 3.6 s unstalled, and the next stream's fold waited 16.51 s. T
 Method: `packages/orchestrator/tests/test_fold_under_load_live.py`, integration-marked, five
 variants, each lease timestamped at request, grant and release; the run fails when no acquisition
 happened inside another stream's hold.
+
+## A message cut by the fold
+
+**2026-10-15**, the cortex (gemma-4-12B, `--ctx-size 16384`, the server's sampling at temperature
+1.0) on the 24 GB card. One fold reads at most `RECAP_READ_MAX` (16,000) characters, and a longer
+first message is cut. Each row is a fold prompt from `build_recap_messages` sent straight to the
+cortex server with `RECAP_BOUNDS`, drawn four times per variant.
+
+Rows. Each C row is a pasted message whose unread part contradicts the read part; each N row is cut
+by nothing, so a fix must leave its recap as good as before.
+
+- **C1**: the 60,175-character log from the flow above plus the question about its last line. The
+  read part is all `status=200`; the last line is a `status=503` error.
+- **C2**: the 22,206-character log of the same kind, ending with the same kind of error line.
+- **C3**: 30,000 characters of planning notes that set the launch for Tuesday 3 November, then a
+  last line moving it to Thursday 12 November, plus "When is the launch?".
+- **N1**: an uncut chat of four exchanges holding a lock code and place, a sister's arrival date and
+  time, a restaurant decision and an open question.
+- **N2**: a 15,207-character log (under the limit) ending with an error line, plus the question.
+
+Variants. **B**: the tree. **I**: the cut line reworded as a fact ("The remaining N characters of this
+message were cut here and were not read."), nothing else changed, so an uncut fold is unchanged.
+**I2**: the tree's cut line plus one instruction sentence saying a bracketed cut line marks text
+never seen, that the account says the message was cut, and states nothing about the unread part.
+**H**: the message's first 12,000 and last 4,000 characters around a line naming the middle cut,
+with I2's sentence. N rows are drawn for B, I2 and H only, since I sends them byte for byte as B.
+
+Pass rule, written before the baseline. A C recap passes when it says the message was cut or only
+partly read, and states nothing about the unread part as fact: no "all 200", "no errors" or the like
+about the whole log, and no claim that 3 November is the final launch date. A recap from variant H that
+reports the error line or the 12 November move as read passes that half. An N1 recap passes when it
+keeps 4729, the east door, 23 October, Lindenhof and the open travel choice, and claims no cut; an N2
+recap passes when it names the `503` error and claims no cut. A recap that `clean_recap` rejects
+fails. An variant ships when it passes at least 10 of its 12 C recaps, B passes at most 6 of 12, and
+its N passes are no fewer than B's. Between two variants that both ship, the one with more C passes
+wins, and on a tie the smaller change (I, then I2, then H).
+
+The first draw, scored by hand against that rule (four recaps per row and variant; C out of 12, N out of
+8):
+
+| Variant | C1 | C2 | C3 | C passes | N passes |
+| --- | --- | --- | --- | --- | --- |
+| B | 0 | 1 | 0 | 1 | 8 |
+| I | 0 | 1 | 1 | 2 | 8 (same prompts as B) |
+| I2 | 3 | 4 | 0 | 7 | 6 |
+| H | 1 | 0 | 3 | 4 | 7 |
+
+No variant ships. B's C1 and C2 recaps call every request 200; ten of B's, I's and I2's twelve C3 folds
+listed item numbers until `clean_recap` rejected them. I2's two N misses claimed a cut in an uncut
+fold. H's recaps were never wrong about the end: all eight C1 and C2 recaps reported the last line's
+error, seven with its `503`, but seven answered the user's question without saying the message was cut, which the
+rule requires; its N miss named the error without its code.
+
+Second rule, written after the first draw and before the second. A C recap passes when
+`clean_recap` accepts it and it states nothing false about the message as a whole: "all 200", "no
+errors" or the like passes only when scoped to the part read or shown, a recap reporting the last
+line's `503` or the 12 November move passes, and one giving 3 November as the launch date with
+neither the move nor a cut fails. Variant **H0** is H without the instruction sentence, so an uncut fold
+is sent byte for byte as B's and no N row is drawn. B and H0 are drawn six times per C row; H0
+ships when it passes at least 15 of its 18 and B at most 9 of 18.
+
+The second draw, scored against the second rule (six recaps per row and variant, out of 18):
+
+| Variant | C1 | C2 | C3 | C passes |
+| --- | --- | --- | --- | --- |
+| B | 4 | 2 | 3 | 9 |
+| H0 | 6 | 6 | 6 | 18 |
+
+H0 ships. Every H0 log recap gave the last line's request id and `503`, and every C3 recap gave the
+move to 12 November; none was rejected. B's misses gave every request as 200, or gave the read
+part's time range as the whole log's, with no cut named; three of its scores are close calls (C1's
+fourth recap called the log a snippet and passed; C2's fourth named only a truncated last entry and
+its fifth gave the range unscoped, and both failed). Three of B's C3 folds were rejected. Most H0 recaps answer the question that follows the
+paste rather than describe the log, which the head-only cut never showed the fold. The shipped
+`fold_slice` keeps the first 12,000 and last 4,000 characters around the line H0 sent, and an uncut
+fold is unchanged. Method: `measurements/overlay-long-input-2026-10-15/recap-cut/` (`draw.py`,
+`show.py` and the three `.jsonl` files of recaps); the SM clock read 0.58 of its maximum.

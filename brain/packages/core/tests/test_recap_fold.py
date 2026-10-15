@@ -61,12 +61,15 @@ def test_the_slice_ends_before_the_first_message_that_does_not_fit() -> None:
     assert fold_slice(dropped, 100) == dropped[:1]
 
 
-def test_a_first_message_past_the_limit_is_cut_with_a_line_saying_how_much() -> None:
-    (cut,) = fold_slice(
-        [_message(Role.USER, "L" * 250, "t-1"), _message(Role.USER, "x", "t-2")], 100
-    )
+def test_a_first_message_past_the_limit_keeps_its_head_and_tail_around_the_cut() -> None:
+    text = "H" * 100 + "M" * 100 + "T" * 51
+    (cut,) = fold_slice([_message(Role.USER, text, "t-1"), _message(Role.USER, "x", "t-2")], 101)
 
-    assert cut.text == "L" * 100 + "\n[150 more characters of this message were cut]"
+    assert cut.text == (
+        "H" * 75
+        + "\n[150 characters from the middle of this message were cut here and were not read.]\n"
+        + "T" * 26
+    )
     assert (cut.role, cut.turn_id) == (Role.USER, "t-1")
 
 
@@ -76,7 +79,7 @@ async def test_a_dropped_paste_past_the_limit_is_folded_from_its_head_and_covere
     window = SummarizingHistoryWindow(
         CharBudgetHistoryWindow(100), store, backend, "cortex", _FixedClock()
     )
-    paste = "P" * (RECAP_READ_MAX * 3)
+    paste = "A" * (RECAP_READ_MAX * 2) + "Z" * RECAP_READ_MAX
     history = [
         _message(Role.USER, paste, "t-1"),
         _message(Role.ASSISTANT, "(too long)", "t-1"),
@@ -86,9 +89,10 @@ async def test_a_dropped_paste_past_the_limit_is_folded_from_its_head_and_covere
     await window.select(history, session_id="s")
 
     (prompt,) = backend.prompts
-    assert "P" * RECAP_READ_MAX in prompt
-    assert "P" * (RECAP_READ_MAX + 1) not in prompt
-    assert f"[{RECAP_READ_MAX * 2} more characters of this message were cut]" in prompt
+    assert "A" * 12_000 + "\n[32000 characters from the middle" in prompt
+    assert "A" * 12_001 not in prompt
+    assert "were not read.]\n" + "Z" * 4_000 in prompt
+    assert "Z" * 4_001 not in prompt
     recap = await store.recap("s")
     assert recap is not None
     assert recap.covers == 1

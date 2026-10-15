@@ -125,8 +125,8 @@ A 60,175-character log of the same kind (36,546 tokens) was pasted the same way 
   naming the cut. The same flow ended the log's turn with `MESSAGE_OVERFLOW_NOTE`, answered "Yellow"
   and "Saturn", and logged no refused fold: the second turn stored a 463-character recap covering
   the log, and the third reused it. The recap said the log's status codes were "all 200", which is
-  true only of the part it read, since the log ends with an error line
-  ([R-871](../refinements/tasks/871-a-recap-of-a-cut-message-describes-the-part-it-never-read.md)).
+  true only of the part it read, since the log ends with an error line; the fold now keeps the
+  message's head and tail ([history recap](history-recap.md#a-message-cut-by-the-fold)).
   The recall judge was still refused on the log's turn and fell back, as ADR-0038 decision 7 allows.
 
 ## A chat of 26 short turns

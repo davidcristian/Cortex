@@ -69,8 +69,8 @@ never a reading of what the tree does now.
 
 ### Actionable now (2)
 
-- **[R-871](tasks/871-a-recap-of-a-cut-message-describes-the-part-it-never-read.md)** A recap of a cut message describes the part it never read (session-history). Its claim was checked against the code on 2026-10-15.
 - **[R-873](tasks/873-a-phrase-in-the-other-direction-streams-with-its-words-reversed.md)** A phrase in the other direction streams with its words reversed (body-overlay). Its claim was checked against the code on 2026-10-15.
+- **[R-874](tasks/874-a-fold-over-a-long-list-is-rejected-every-turn.md)** A fold over a long list is rejected every turn (session-history). Its claim was checked against the code on 2026-10-15.
 
 ### Actionable, once a port changes (1)
 
@@ -862,7 +862,7 @@ never a reading of what the tree does now.
 - [R-277](tasks/277-a-cut-fold-reads-like-a-wandering-one.md) A cut summary looks like a wandering one in the log. done 2026-08-18.
 - [R-736](tasks/736-the-deep-phase-sends-a-history-window-sized-for-the-cortexs-context.md) The deep phase sends a history window sized for the cortex's context. done 2026-09-30.
 - [R-743](tasks/743-the-session-and-handoff-codecs-decode-a-system-role-no-writer-stores.md) The session and handoff codecs decode a system role no writer stores. done 2026-09-28.
-- [R-871](tasks/871-a-recap-of-a-cut-message-describes-the-part-it-never-read.md) A recap of a cut message describes the part it never read. open, actionable.
+- [R-874](tasks/874-a-fold-over-a-long-list-is-rejected-every-turn.md) A fold over a long list is rejected every turn. open, actionable.
 
 ### session-read-rpc
 

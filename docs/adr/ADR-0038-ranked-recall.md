@@ -180,10 +180,10 @@ what a memory says cannot do without.
     characters) at four a token. `clean_recap` returns `""` for a reply that does not end a sentence
     or is over `RECAP_MAX`, rejected rather than trimmed: a cut account would move `covers` too far.
     One fold reads at most `RECAP_READ_MAX` (16,000 characters, 9,700 tokens at the 1.65 a token a
-    pasted log measured): `fold_slice` takes the oldest newly dropped messages within it, cutting a
-    first one past it under a line naming the cut, and `covers` moves only past what was read, so
-    the next fold takes the rest; an unbounded fold over a 60,175-character paste was refused every
-    turn ([readings](../readings/overlay-long-and-unusual-input.md#a-pasted-log-past-the-context)).
+    pasted log measured): `fold_slice` takes the oldest newly dropped messages within it and keeps
+    the first 12,000 and last 4,000 characters of a first one past it, around a line naming the cut,
+    because a log's error and a typed question come last; a head-only cut wrote "all 200" over a
+    log ending in a 503 ([readings](../readings/history-recap.md#a-message-cut-by-the-fold)). `covers` moves only past the messages read, so the next fold takes the rest. An unbounded fold over a 60,175-character paste was refused every turn ([readings](../readings/overlay-long-and-unusual-input.md#a-pasted-log-past-the-context)).
     `min_dropped_chars` (`CORTEX_HISTORY_RECAP_MIN_CHARS`, default 2,000) defers a fold below one
     account's worth of new material, leaving `covers` where it was; `build_history_window` clamps
     it to the character budget so the gap stays smaller than the window. A pass that will run emits

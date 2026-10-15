@@ -161,8 +161,8 @@ its last running or waiting turn, so the map holds only sessions with a turn in 
   characters deferring the pass without moving `covers`. When it adds nothing it logs why with
   `capped` and `chars` (ADR-0038 decision 21).
 - `recap_prompt.py` holds the text on both sides of that call: `build_recap_messages`, `fold_slice`
-  (the oldest dropped messages within `RECAP_READ_MAX`, 16,000 characters, a first one past it cut
-  with a line naming the cut, so `covers` moves only past what was read), `fence_recap`,
+  (the oldest dropped messages within `RECAP_READ_MAX`, 16,000 characters, a first one past it kept
+  as its first 12,000 and last 4,000 characters around a line naming the cut, `covers` moving only past the messages read), `fence_recap`,
   `RECAP_BOUNDS` (512 tokens, thinking off, trace budget zero), `collapse_recap(raw)` (the
   one-paragraph form every rule reads), and `clean_recap(raw)`, which returns `""` for an empty
   reply, one that does not end a sentence, or one longer than `RECAP_MAX`: a refusal rather than a
