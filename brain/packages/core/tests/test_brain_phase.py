@@ -985,3 +985,18 @@ async def test_the_turns_own_bounds_continue_onto_the_deep_model() -> None:
     unbounded = StoppingDeepBackend(StopReason.FINISHED)
     await _run_deep(unbounded)
     assert unbounded.bounds == [None]
+
+
+async def test_a_deep_reply_drafting_the_person_s_own_claim_gets_no_note() -> None:
+    sessions = InMemorySessionStore()
+    asked = "Write the team a note saying I have scheduled the review for Friday."
+    await sessions.append(
+        harness.SESSION, Message(role=Role.USER, text=asked, at=_AT, turn_id=harness.TURN)
+    )
+    await sessions.append(
+        harness.SESSION,
+        Message(role=Role.ASSISTANT, text=harness.CORTEX_TEXT, at=_AT, turn_id=harness.TURN),
+    )
+    backend = ScriptedBrainBackend(chunks=("Team, I have scheduled the review for Friday.",))
+    _phase, _backend, sessions, deltas = await _drive(backend=backend, store=sessions)
+    assert "".join(deltas) == "Team, I have scheduled the review for Friday."

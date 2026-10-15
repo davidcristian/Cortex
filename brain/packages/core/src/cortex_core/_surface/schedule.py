@@ -15,6 +15,7 @@ from cortex_core.schedule_claim import (
     SCHEDULING_TOOLS,
     UNSCHEDULED_CLAIM_NOTE,
     claims_scheduled,
+    said_by_person,
     unscheduled_claim,
 )
 from cortex_core.schedule_selectors import (
@@ -111,6 +112,7 @@ __all__ = [
     "next_due",
     "next_occurrence",
     "recurrence_base",
+    "said_by_person",
     "stamp_instant",
     "unscheduled_claim",
 ]

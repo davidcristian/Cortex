@@ -218,7 +218,8 @@ The check passes and ships. Under the earlier rows' count, with "says both" apar
 would fail on those 3 replies; each of them showed the task as scheduled, two with a block naming
 its time, before saying it was not. The claim with no call came in 4 of 20 chains with the
 reminder turn and 1 of 20 without it, and every "says both" came in row Q. The driver is
-`slot2/chain.sh` in the run's scratch directory; runs: `runs/{base,after}-{R,Q,L}*`.
+`slot2/chain.sh` in the run's scratch directory; runs: `runs/{base,after}-{R,Q,L}*`. A message
+drafted in the person's voice is measured in [claim-note-on-a-drafted-message.md](claim-note-on-a-drafted-message.md).
 
 ## A deep reply after the cortex scheduled
 

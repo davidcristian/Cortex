@@ -69,9 +69,9 @@ never a reading of what the tree does now.
 
 ### Actionable now (3)
 
-- **[R-868](tasks/868-a-drafted-message-that-says-scheduled-gets-the-claim-note.md)** A drafted message that says it was scheduled gets the claim note (scheduling). Its claim was checked against the code on 2026-10-15.
 - **[R-869](tasks/869-a-streamed-hebrew-reply-is-laid-out-left-to-right.md)** A streamed Hebrew reply is laid out left to right (body-overlay). Its claim was checked against the code on 2026-10-15.
 - **[R-871](tasks/871-a-recap-of-a-cut-message-describes-the-part-it-never-read.md)** A recap of a cut message describes the part it never read (session-history). Its claim was checked against the code on 2026-10-15.
+- **[R-872](tasks/872-a-request-to-draft-a-message-can-schedule-a-reminder.md)** A request to draft a message can schedule a reminder (scheduling). Its claim was checked against the code on 2026-10-15.
 
 ### Actionable, once a port changes (1)
 
@@ -843,7 +843,7 @@ never a reading of what the tree does now.
 - [R-834](tasks/834-a-reply-claims-a-task-it-never-tried-to-schedule.md) A reply claims a task it never tried to schedule. done 2026-10-13.
 - [R-837](tasks/837-a-cancel-of-a-scheduled-item-needs-no-confirmation.md) A cancel of a scheduled item needs no confirmation. done 2026-10-12.
 - [R-847](tasks/847-the-reply-check-misses-a-task-claimed-beside-a-reminder.md) The reply check misses a task claimed beside a reminder. open, waiting for its trigger.
-- [R-868](tasks/868-a-drafted-message-that-says-scheduled-gets-the-claim-note.md) A drafted message that says it was scheduled gets the claim note. open, actionable.
+- [R-872](tasks/872-a-request-to-draft-a-message-can-schedule-a-reminder.md) A request to draft a message can schedule a reminder. open, actionable.
 
 ### session-history
 

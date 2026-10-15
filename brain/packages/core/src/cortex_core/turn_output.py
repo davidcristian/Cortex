@@ -111,12 +111,13 @@ def limit_notes(
     parts: list[str],
     *,
     earlier: Sequence[ToolRun] = (),
+    said: Sequence[str] = (),
 ) -> Iterator[TurnEvent]:
     """The notes a turn that ended without an error closes with, in the order it shows them.
 
-    ``earlier`` are runs an earlier phase of the same turn made, read by the schedule check only.
+    ``earlier`` (runs of an earlier phase) and ``said`` (the person's messages) are for the claim.
     """
-    claimed = unscheduled_claim((*earlier, *runs), "".join(parts))
+    claimed = unscheduled_claim((*earlier, *runs), "".join(parts), said)
     yield from cap_note(stops, parts)
     yield from rounds_note(stops, runs, parts)
     yield from repeat_note(stops, parts)

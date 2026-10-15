@@ -18,6 +18,7 @@ from cortex_core.images import ImagePart
 from cortex_core.output_channels import open_output_channels
 from cortex_core.ports import Clock, InferenceBackend, SessionStore
 from cortex_core.routing import RoutingHints, Tier, route_turn
+from cortex_core.schedule_claim import said_by_person
 from cortex_core.session_title import build_title_messages, generate_title
 from cortex_core.shedding import shed_oldest_turns
 from cortex_core.stops import StopLedger
@@ -191,7 +192,7 @@ class TurnEngine:
         # After the channels flush and before the text is joined, so the note comes under the
         # whole reply and what is saved is what was shown.
         if not overflowed:
-            for event in limit_notes(stops, log.runs, parts):
+            for event in limit_notes(stops, log.runs, parts, said=said_by_person(history)):
                 yield event
         full_text = "".join(parts)
         assistant = Message(

@@ -11,6 +11,7 @@ from cortex_core.handoff import HandoffRecord
 from cortex_core.handoff_view import cortex_runs, declined_calls, deep_history, deep_tail
 from cortex_core.output_channels import open_output_channels
 from cortex_core.ports import Clock, InferenceBackend, SessionStore
+from cortex_core.schedule_claim import said_by_person
 from cortex_core.stops import StopLedger
 from cortex_core.swap_notes import BRAIN_FAILED_NOTE, BRAIN_OVERFLOW_NOTE, WORKING_DETAIL
 from cortex_core.tool_budget import DispatchBudget
@@ -146,7 +147,8 @@ class BrainPhase:
         finally:
             await events.aclose()
         if failure is None:
-            for event in limit_notes(stops, log.runs, parts, earlier=cortex_runs(stored, record)):
+            earlier, said = cortex_runs(stored, record), said_by_person(stored)
+            for event in limit_notes(stops, log.runs, parts, earlier=earlier, said=said):
                 yield event
         self._report_cadence(watch.reading(), record)
         reply = "".join(parts)

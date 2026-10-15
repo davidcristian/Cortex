@@ -66,8 +66,13 @@ frames from `ffmpeg -f x11grab`. After each flow the chat's Redis list
 "Write a one-line message I can send to my team saying that I have scheduled the design review for
 Friday at 10." was answered with that message and then `UNSCHEDULED_CLAIM_NOTE`, though nothing was
 asked to be scheduled. "Thanks. Make it a little more formal." got the note again. Both exchanges
-were recorded to memory with the note
-([R-868](../refinements/tasks/868-a-drafted-message-that-says-scheduled-gets-the-claim-note.md)).
+were recorded to memory with the note. **After the fix** the check reads the person's messages
+([claim-note-on-a-drafted-message.md](claim-note-on-a-drafted-message.md)): in a new chat the same
+message was answered "Hi team, I've scheduled the design review for Friday at 10:00 AM." with no
+note, and in another the formal version "Please be advised that the design review has been
+scheduled" had none either. The first turn of that other chat called `schedule_task` and stored a
+reminder nobody asked for
+([R-872](../refinements/tasks/872-a-request-to-draft-a-message-can-schedule-a-reminder.md)).
 
 ## A pasted log near the context
 
@@ -127,6 +132,8 @@ recorded 26 exchanges.
 Method: `measurements/overlay-long-input-2026-10-15/`: `ask.sh` (focus, type, `Enter`), `paste.sh`
 with `clip.py` (a Tk clipboard owner) and `genlog.py` for the two logs, `longchat.sh` for the 26
 turns, `tok.py` for counts through the cortex server's `/tokenize`, `flow-after.sh` and `refuse.py` with
-their logs for the runs after the fix, `events.txt`, and the frames in
+their logs for the runs after the fix, `flow870.sh`, `flow868.sh`, `turn1.sh` and `send2.sh` for
+the two notes after their fixes, `events.txt`, and the frames in
 `shots/` (`u-*` and `r-*` the names and Hebrew, `rtl*` and `emo*` the streams, `m-*` the markup,
-`c-*` the claim note, `l-*` the logs, `h-end` the long chat, `f-*` and `g-*` the follow).
+`c-*` the claim note, `l-*` the logs, `h-end` the long chat, `f-*` and `g-*` the follow, `r870-*`
+and `r868-*` the notes after their fixes).

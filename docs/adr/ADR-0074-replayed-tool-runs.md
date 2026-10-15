@@ -61,13 +61,17 @@ wrote on a tainted turn can hold injected text or a link the output guardrail re
    ([readings](../readings/task-claimed-without-call.md)). `limit_notes`
    (`cortex_core/turn_output.py`) appends `UNSCHEDULED_CLAIM_NOTE`, "Nothing was scheduled in
    this turn: no scheduling call in it succeeded. Ask again to schedule it.", when
-   `unscheduled_claim(runs, reply)` (`cortex_core/schedule_claim.py`) holds: no run of
+   `unscheduled_claim(runs, reply, said)` (`cortex_core/schedule_claim.py`) holds: no run of
    `schedule_task`, `edit_scheduled` or `snooze_scheduled` succeeded, and `claims_scheduled`
    finds a statement in the model's text, read before any other note, saying something was
    scheduled. That is "I scheduled", "I've scheduled" or "I have scheduled", or "has been", "have
    been" or "is now" before "scheduled", or the same forms with "set", "created", "added" or
    "booked" in a sentence that names a reminder, a task, an alarm or the schedule. A question, a
-   future or offered form, a negated one and a stored item described do not match. The runs half
+   future or offered form, a negated one and a stored item described do not match. A sentence
+   matching only the "scheduled" forms and naming none of those nouns does not count when one of
+   `said`, the person's own messages in the chat (`said_by_person`), makes such a claim, since a
+   message drafted in the person's voice repeats their claim
+   ([readings](../readings/claim-note-on-a-drafted-message.md)). The runs half
    is exact, so the note is true whenever it is shown. Both tiers share `limit_notes`, and the
    stored reply holds the note, so a later turn reads it too. The deep phase also counts the runs
    of the cortex's stored reply to the same turn (`cortex_runs`, `handoff_view.py`), since a task
@@ -92,6 +96,10 @@ wrote on a tainted turn can hold injected text or a link the output guardrail re
   that said the task was scheduled and then that it was not, and on none of 42 other replies,
   among them 10 listings of stored reminders and 26 offers to set one
   ([readings](../readings/task-claimed-without-call.md#results-2)).
+- With the person's messages read, the check fired on none of 16 drafted messages with no call,
+  11 of them repeating the person's own "I have scheduled", against 14 of 19 before, and still
+  fired on every claim of its corpus
+  ([readings](../readings/claim-note-on-a-drafted-message.md#results)).
 
 ## Alternatives rejected
 

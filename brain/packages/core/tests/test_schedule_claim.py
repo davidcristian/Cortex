@@ -18,6 +18,7 @@ from cortex_core import (
     JsonSchema,
     Message,
     RecordingAuditSink,
+    Role,
     ScheduleTaskTool,
     StopReason,
     TextChunk,
@@ -30,6 +31,7 @@ from cortex_core import (
     TurnCompleted,
     TurnEngine,
     claims_scheduled,
+    said_by_person,
     unscheduled_claim,
 )
 
@@ -90,6 +92,62 @@ def test_a_claim_after_a_question_in_the_same_reply_is_still_found() -> None:
 
 def test_a_claim_on_a_later_line_is_found() -> None:
     assert claims_scheduled("The file lists four items\nI've set a reminder for tomorrow")
+
+
+_DRAFT_ASKED = (
+    "Write a one-line message I can send to my team saying that I have scheduled the design "
+    "review for Friday at 10."
+)
+_ANA = "I have scheduled a call with Ana on Friday at 15:00. Set a reminder for an hour before it."
+_CHAIN = (
+    "What does meeting-notes.txt in my files say?",
+    "Set a reminder for tomorrow at 9:00 to call Ana about the bulb payments.",
+    "Read meeting-notes.txt again, then schedule a background task for tomorrow at 10:00 that "
+    "checks whether the bulb order went out.",
+)
+
+
+@pytest.mark.parametrize(
+    ("reply", "said"),
+    [
+        ("Hi team, I've scheduled the design review for Friday at 10:00 AM.", (_DRAFT_ASKED,)),
+        (
+            "Please note that the design review has been scheduled for Friday at 10:00 AM.",
+            (_DRAFT_ASKED, "Thanks. Make it a little more formal."),
+        ),
+        ("Hi Sam,\n\nI've scheduled our one-to-one for Tuesday at 15:00.", (_DRAFT_ASKED,)),
+    ],
+)
+def test_a_message_drafted_in_the_person_s_voice_repeats_their_claim(
+    reply: str, said: tuple[str, ...]
+) -> None:
+    assert not claims_scheduled(reply, said=said)
+
+
+@pytest.mark.parametrize(
+    ("reply", "said"),
+    [
+        ("I've set a reminder for Friday at 14:00, an hour before your call with Ana.", (_ANA,)),
+        ("I've scheduled a reminder for 14:00 on Friday.", (_ANA,)),
+        ("Your reminder has been scheduled for 14:00.", (_ANA,)),
+        ("I scheduled it for 10:00.", ("Schedule the design review for Friday at 10.",)),
+        ("I scheduled it for 10:00.", ("Have I scheduled the design review?",)),
+        *((claim, _CHAIN) for claim in CLAIMS[:7]),
+    ],
+)
+def test_a_claim_is_kept_when_it_names_a_reminder_or_the_person_claimed_nothing(
+    reply: str, said: tuple[str, ...]
+) -> None:
+    assert claims_scheduled(reply, said=said)
+
+
+def test_only_the_person_s_own_messages_are_what_they_said() -> None:
+    history = [
+        Message(role=Role.USER, text=_DRAFT_ASKED, at=_START, turn_id="t-1"),
+        Message(role=Role.ASSISTANT, text="I have scheduled it.", at=_START, turn_id="t-1"),
+        Message(role=Role.USER, text="Shorter.", at=_START, turn_id="t-2"),
+    ]
+    assert said_by_person(history) == (_DRAFT_ASKED, "Shorter.")
 
 
 @pytest.mark.parametrize(
@@ -192,3 +250,12 @@ async def test_a_reply_with_no_claim_gets_no_note() -> None:
     store = InMemorySessionStore()
     shown, _ = await _reply(_engine(store, [[TextChunk("It was not scheduled.")]]))
     assert shown == "It was not scheduled."
+
+
+async def test_a_drafted_message_in_the_person_s_voice_gets_no_note() -> None:
+    store = InMemorySessionStore()
+    engine = _engine(store, [[TextChunk("Hi team, I've scheduled the design review for Friday.")]])
+    events = [event async for event in engine.handle_turn("s", _DRAFT_ASKED, turn_id="t-1")]
+    assert events[-1] == TurnCompleted(
+        turn_id="t-1", full_text="Hi team, I've scheduled the design review for Friday."
+    )

@@ -122,16 +122,16 @@ one of 20 or more characters not in `query`, come 3 times back to back, or once 
 a clean end. `record_exchange(caps, taint, *, session_id, query, reply, runs)` applies both phases'
 tainted-memory policy and **drops an opaque turn whatever `record_tainted_memory` says** (ADR-0029).
 
-`limit_notes(stops, runs, parts, *, earlier=())`, `unreadable_call_note(stops, parts)` and
+`limit_notes(stops, runs, parts, *, earlier=(), said=())`, `unreadable_call_note(stops, parts)` and
 `overflow_note(parts, *, alone)` are the notes a turn can end with, the first two read off a
 `StopLedger` (`stops.py`): `capped` (a token limit cut a completion, ADR-0048), `out_of_rounds` (the
 last round still ended in calls, ADR-0009) and `repeated` (the watch ended the reply). `limit_notes`
 appends `REPLY_CAPPED_NOTE`, `ROUNDS_SPENT_NOTE` naming each of `runs` with its outcome,
 `REPEATED_LINE_NOTE`, then `UNSCHEDULED_CLAIM_NOTE` when `unscheduled_claim` (`schedule_claim.py`)
-finds a claimed schedule with no `SCHEDULING_TOOLS` run succeeding in `runs` or `earlier` (the
-cortex's runs a deep phase passes, ADR-0074). `UNREADABLE_CALL_NOTE` comes only when no completion
-was cut. `place_note` sets a note one blank line under the reply's text, or first with no line break
-when there is none, where the overflow and unreadable call notes take their `NO_TEXT` forms.
+finds a claimed schedule with no `SCHEDULING_TOOLS` run succeeding in `runs` or `earlier`, a deep
+phase's cortex runs; a "scheduled" claim with no reminder or task named does not count when one of
+`said`, the person's messages, made it first. `place_note` sets a note one blank line under text, or
+with no text first with no break, in a `NO_TEXT` form for an overflow or unreadable call note.
 
 `SerialTurnRunner(inner, locks)` (`session_turns.py`) is the `TurnRunner` every `Converse` stream
 runs. A turn holds its session in the shared `SessionTurnLocks` from before it stores its question
