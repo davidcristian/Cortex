@@ -224,6 +224,27 @@ Q does not ship. Four of its seven list misses were accepted accounts that named
 range but gave a false count (480, 516, 1,154 and 855 entries, the last one the CSV's line count);
 under the first rule they pass and Q has 15. One L1 fold listed entries until the bound stopped it,
 and two L2 recaps were the answer alone. Every Q N2 recap named the `503`, and five of the six gave
-a line count, all false (90 to 128 against 169). Method:
-`measurements/overlay-long-input-2026-10-15/list-recap/` (`draw.py`, `show.py`, `gencsv.py`, both
-`.jsonl` files and the clock samples); the SM clock read about 0.62 of its maximum.
+a line count, all false (90 to 128 against 169). Method: `measurements/overlay-long-input-2026-10-15/list-recap/`
+(`draw.py`, `show.py`, `gencsv.py`, both `.jsonl` files, clock samples); SM clock 0.62 of its maximum.
+
+Third rule, written after the second draw and before the third. Fresh rows: **L4**, 40,030
+characters of library loans (`L-50001 | title | borrower | due date`, 689 loans) and no question;
+**L5**, 25,392 characters of sensor readings (`sensor=S-01 time=... value=...`, 552 readings) and
+"What value did S-09 report at 2026-10-14T13:00?", a reading in the part read (23.87). Variant
+**Q2** is Q plus "Give no count of its entries unless the message states one."; variant **T** is the
+tree with the cut line also naming the lines cut ("[37836 characters (605 lines) from the middle
+...]"). The second rule holds, and an L5 recap must give 23.87. A variant ships with at least 15 of
+18 on L1 to L3 and 10 of 12 on L4 and L5, B at most 6 of 12 on L4 and L5, P1 and N2 passes no fewer
+than B's, and at least 15 of 18 C recaps. The third draw, six recaps per row (B's P1 and N2 are from
+the first draw, and T sends them as B):
+
+| Variant | L1 | L2 | L3 | L4 | L5 | L1 to L3 | L4 and L5 | P1 | N2 | C1 to C3 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| B | not drawn | not drawn | not drawn | 0 | 2 | not drawn | 2 of 12 | 6 | 6 | not drawn |
+| Q2 | 3 | 6 | 5 | 0 | 3 | 14 of 18 | 3 of 12 | 6 | 6 | 18 of 18 |
+| T | 4 | 0 | 4 | 0 | 2 | 8 of 18 | 2 of 12 | 6 | 6 | 18 of 18 |
+
+Neither ships. Q2 wrote two false counts (500 entries on L1, 1,054 on L3) and two L1 folds that hit
+the bound; every T L2 recap was the answer alone. No L4 recap named the loans, whose lines hold no
+word for them; an L5 miss was the answer alone, or times without sensor ids. Method:
+`measurements/overlay-long-input-2026-10-15/list-recap-q2t/`; SM clock 0.62 of its maximum.
