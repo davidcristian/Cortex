@@ -67,17 +67,16 @@ never a reading of what the tree does now.
 
 149 of these record the day their claims were last checked against the code. On every other task here, that reading is still yours to take.
 
-### Actionable now (3)
+### Actionable now (2)
 
 - **[R-869](tasks/869-a-streamed-hebrew-reply-is-laid-out-left-to-right.md)** A streamed Hebrew reply is laid out left to right (body-overlay). Its claim was checked against the code on 2026-10-15.
 - **[R-871](tasks/871-a-recap-of-a-cut-message-describes-the-part-it-never-read.md)** A recap of a cut message describes the part it never read (session-history). Its claim was checked against the code on 2026-10-15.
-- **[R-872](tasks/872-a-request-to-draft-a-message-can-schedule-a-reminder.md)** A request to draft a message can schedule a reminder (scheduling). Its claim was checked against the code on 2026-10-15.
 
 ### Actionable, once a port changes (1)
 
 - **[R-129](tasks/129-streamed-brain-status.md)** Streamed brain status (body-overlay). Its claim was checked against the code on 2026-10-13.
 
-### Waiting for its trigger (115)
+### Waiting for its trigger (116)
 
 - **[R-011](tasks/011-stylesheet-outside-line-cap.md)** The overlay stylesheet outside the line cap (repo-checks). Reopens when: `find body/app/src -name '*.css'` lists a second file, or `git log --since='<Verified date> 00:00' --oneline -- body/app/src/overlay.css` lists a commit whose diff moves a rule to change which rule applies. A commit that edits only comments does not. Its claim was checked against the code on 2026-10-07.
 - **[R-013](tasks/013-couplings-widened-registry-cannot-hold.md)** The couplings the widened registry cannot cover (repo-checks). Reopens when: A third value on the capture-target enum, a reader for declarations in the `.proto` arriving in the scan for another reason, any module outside the body's rpc crate and the brain's body client that has to name one of the two gRPC status codes, or either side of that pair gaining a declaration whose value the scan can read. Its claim was checked against the code on 2026-10-07.
@@ -194,6 +193,7 @@ never a reading of what the tree does now.
 - **[R-847](tasks/847-the-reply-check-misses-a-task-claimed-beside-a-reminder.md)** The reply check misses a task claimed beside a reminder (scheduling). Reopens when: a third turn of the R-834 rows whose reminder call succeeded and whose reply says the task was scheduled. Its claim was checked against the code on 2026-10-15.
 - **[R-854](tasks/854-a-handoff-records-recall-bit-has-no-turn-that-sets-it.md)** A handoff record's recall bit has no turn that sets it (untrusted-content). Reopens when: a turn that recall alone tainted calls `escalate_to_brain` and is shown its card. Its claim was checked against the code on 2026-10-15.
 - **[R-865](tasks/865-install-the-file-sidecar-packages-at-image-build.md)** Install the file sidecar's packages at image build (tools-mcp). Reopens when: the file sidecar is seen to exit or restart for a reason other than a compose recreate, or a turn is seen served without the file tools while it restarts. Its claim was checked against the code on 2026-10-15.
+- **[R-872](tasks/872-a-request-to-draft-a-message-can-schedule-a-reminder.md)** A request to draft a message can schedule a reminder (scheduling). Reopens when: a reminder that no message of its chat asked for is reported from a real chat. Its claim was checked against the code on 2026-10-15.
 
 ### Waiting for a consumer (25)
 
@@ -843,7 +843,7 @@ never a reading of what the tree does now.
 - [R-834](tasks/834-a-reply-claims-a-task-it-never-tried-to-schedule.md) A reply claims a task it never tried to schedule. done 2026-10-13.
 - [R-837](tasks/837-a-cancel-of-a-scheduled-item-needs-no-confirmation.md) A cancel of a scheduled item needs no confirmation. done 2026-10-12.
 - [R-847](tasks/847-the-reply-check-misses-a-task-claimed-beside-a-reminder.md) The reply check misses a task claimed beside a reminder. open, waiting for its trigger.
-- [R-872](tasks/872-a-request-to-draft-a-message-can-schedule-a-reminder.md) A request to draft a message can schedule a reminder. open, actionable.
+- [R-872](tasks/872-a-request-to-draft-a-message-can-schedule-a-reminder.md) A request to draft a message can schedule a reminder. open, waiting for its trigger.
 
 ### session-history
 

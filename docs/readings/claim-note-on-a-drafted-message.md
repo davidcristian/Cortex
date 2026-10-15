@@ -88,6 +88,111 @@ Against the rule:
 The change passes and ships. A first turn of row D called `schedule_task` and stored a reminder
 "Design review" in 1 of 5 baseline chains and 4 of 5 with the change, though nobody asked for one
 ([R-872](../refinements/tasks/872-a-request-to-draft-a-message-can-schedule-a-reminder.md)).
-Memory then held 11 recorded exchanges about the design review that end with the note, which
-asks the person to schedule it again; these rows do not measure whether that is the cause.
-Runs: `runs/{base,after}.jsonl` in the same folder.
+Runs: `runs/{base,after}.jsonl` in the same folder. Whether memory caused the call is measured
+below.
+
+## The unrequested reminder: rows and the rule, written before the first run
+
+Row D's first turn runs in a fresh session, so before it the cortex reads only the system prompt,
+the tool list and the memories recall returns: the change measured above alters the note on a
+reply and nothing the first turn reads, except through what memory recorded. Memory recorded each
+exchange as `User`, an optional `Tools run` line and `Assistant`, so at the end of the runs above
+the `cortexn5` memory table held 131 rows, 25 of them about the design review: 11 ending with
+`UNSCHEDULED_CLAIM_NOTE`, 6 naming `schedule_task (succeeded)` on their `Tools run` line, and 8
+with neither. The baseline's one call came after 10 noted rows; the five chains with the change
+then added a run row each time one called.
+
+**2026-10-15**, the same stack and driver, row D only, five chains per condition, drawn chain by
+chain in the order K, N, R, E so a drift in time reaches every condition alike. Before each chain
+the memory table is reset to its condition from a copy taken before the first run:
+
+| Condition | Memory before each chain | Brain |
+| --- | --- | --- |
+| K | all 131 rows | with the change |
+| N | K without the 6 run rows | with the change |
+| R | K without the 11 noted rows | with the change |
+| E | emptied | with the change |
+| O | emptied, drawn only if rule 3 calls for it | built from the commit before the change |
+
+`c(X)` is the number of chains of condition X with a `schedule_task` call in either turn,
+counted whether or not it succeeded.
+
+**Rule.**
+
+1. Memory is a cause when `c(K)` is 3 or more and `c(E)` is 1 or less.
+2. Then the run rows are the source when `c(R)` is 3 or more and `c(N)` is 1 or less, the noted
+   rows when the reverse holds, both when both are 3 or more, and neither alone otherwise.
+3. When `c(E)` is 3 or more, memory is not required and O is drawn. If `c(O)` is also 3 or more,
+   the change is not the cause and the call comes from the request alone. If `c(O)` is 1 or less,
+   the result contradicts the reading above, since the change cannot reach a fresh chain's first
+   turn except through memory; it is written here and nothing ships.
+4. Any other count decides nothing, and a `c(K)` of 1 or less means the earlier 4 of 5 is not
+   reproduced with memory held fixed: both are nulls, nothing ships and the task stays open
+   with the counts.
+
+**A candidate fix** is drawn on the condition that reproduced the call, five chains, plus five
+chains of row A. It passes when that condition's count is 1 or less, every first turn of row D
+still writes the message, and row A still calls `schedule_task` in 4 or more of 5 chains. A
+failure is a null and the candidate does not ship.
+
+## The unrequested reminder: results
+
+**2026-10-15**, all twenty chains completed, drawn by `draw.py mem KNRE 5`. Each memory reset
+was checked by the row count it left: 131, 125, 120 and 0.
+
+| Condition | Chains | `c(X)` | Calls that succeeded | First turns listing options |
+| --- | --- | --- | --- | --- |
+| K | 5 | 1 | 1 | 0 |
+| N | 5 | 0 | 0 | 0 |
+| R | 5 | 1 | 1 | 0 |
+| E | 5 | 0 | 0 | 2 |
+
+Every call was in a first turn. Rule 4 applies: `c(K)` is 1, so the earlier 4 of 5 is not
+reproduced with memory held fixed, O is not drawn, and nothing ships. Memory did change the
+reply: every first turn with memory wrote the one line the recalled exchanges held, "Hi team,
+I've scheduled the design review for Friday at 10:00 AM.", while two of the five with memory
+emptied offered several options instead.
+
+## A replay of the earlier sequence: written before its run
+
+The earlier run with the change differed from condition K in two ways: it drew rows D, V and A in
+turn, and its memory grew as each exchange was recorded, from 103 rows (12 about the design
+review, 11 of them noted and one a run row) to the 131 above. Condition S repeats that: the same
+three rows in turn, five chains, on the brain with the change, memory reset once to the 103 rows
+recorded before that run and then left to grow.
+
+1. If `c(S)` is 3 or more, the call depends on what the run itself records; the task is
+   corrected to say so and the next row removes each chain's own records. Nothing ships.
+2. If `c(S)` is 1 or less, the earlier 4 of 5 does not reproduce in its own sequence; the task is
+   corrected to state the rate measured over every chain with the change, and its next row is a
+   larger draw that can price that rate. Nothing ships.
+3. A `c(S)` of 2 decides nothing.
+
+**Result, 2026-10-15**, `draw.py seq S 5 DVA`: `c(S)` is 1 (chain 2, which succeeded; chain 4
+ran only `list_scheduled`), and every row A chain called `schedule_task`. Rule 2 applies. Over
+every chain this page drew on the brain with the change, a first turn of row D called
+`schedule_task` in 7 of 30: 4 of 5 in the earlier run, 3 of 25 here, none of them with memory
+emptied.
+
+## The rate: written before its run
+
+Condition L draws the first turn of row D alone, 40 chains each of K and E, alternately, with
+memory reset before each chain, on the brain with the change.
+
+1. Each condition's rate is its count over 40 and is written into the task.
+2. If `c(E)` is 4 or more, the request alone calls `schedule_task` at a rate a 40-chain row can
+   measure, and the task's next step is a tool description sentence drawn on 40 chains of E and
+   five of row A, passing when its count is at most a third of `c(E)` and row A calls in 4 or more
+   of 5.
+3. If `c(E)` is 1 or less and `c(K)` is 6 or more, memory is required, and the task's next step
+   splits K into N and R at 40 chains each.
+4. Otherwise the rate is below what these rows can split, and the task waits for an unrequested
+   reminder reported from a real chat.
+
+**Result, 2026-10-15**, `draw.py rate KE 40 F`, all 80 chains completed: `c(K)` is 1 of 40 and
+`c(E)` is 0 of 40. Rule 4 applies, and nothing ships. Over the 105 chains drawn after the earlier
+run, a first turn of row D called `schedule_task` in 4 of the 60 with memory and none of the 45
+with it emptied. Memory set the reply's form again: 17 of the 40 first turns with memory emptied
+offered several options, and none of the 40 with it. Method: `draw.py` and `tabmem.py` in the
+same folder, `runs/{mem,seq,rate}.jsonl`; the copy of the memory table that each reset read was
+dropped afterwards and the table was restored to its 131 rows.
