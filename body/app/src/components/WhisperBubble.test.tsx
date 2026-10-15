@@ -63,6 +63,15 @@ describe("WhisperBubble", () => {
     expect(container.querySelector(".sr-copy")?.textContent).toBe("hi\nthere ");
   });
 
+  it("lays a flag, a skin tone and a family emoji each in one letter box", () => {
+    const content = "🇷🇴 👍🏽 👨\u200d👩\u200d👧 ";
+    const { container } = render(
+      <WhisperBubble message={msg({ streaming: true, content })} onGrow={grow} />,
+    );
+    const letters = [...container.querySelectorAll(".ch")].map((letter) => letter.textContent);
+    expect(letters).toEqual(["🇷🇴", "👍🏽", "👨\u200d👩\u200d👧"]);
+  });
+
   it("chunks a giant streamed token into boxes the bubble can break between", () => {
     const hash = "a".repeat(CHUNK_LETTERS + 4);
     const { container } = render(

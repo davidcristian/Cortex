@@ -77,9 +77,17 @@ export interface Token {
   readonly text: string;
 }
 
+const GRAPHEMES = new Intl.Segmenter(undefined, { granularity: "grapheme" });
+
+/** The letters of `text` as a reader sees them: an accent stays on its letter, and a flag, a
+ *  skin tone or a family emoji stays one picture rather than the code points that build it. */
+export function lettersOf(text: string): string[] {
+  return Array.from(GRAPHEMES.segment(text), (part) => part.segment);
+}
+
 /** The reply as the bubble lays it out: unbreakable word boxes and whitespace gaps kept as they
- *  are, since `pre-wrap` renders them. Splitting is by code point, so a surrogate pair never ends
- *  up half in one box, and appending only grows the last token, which keeps React's keys stable. */
+ *  are, since `pre-wrap` renders them. Splitting is by letter, so no letter ends up half in one
+ *  box, and appending only grows the last token, which keeps React's keys stable. */
 export function tokenize(content: string): readonly Token[] {
   const tokens: Token[] = [];
   for (const run of content.split(/(\s+)/)) {
@@ -90,7 +98,7 @@ export function tokenize(content: string): readonly Token[] {
       tokens.push({ kind: "gap", text: run });
       continue;
     }
-    const points = [...run];
+    const points = lettersOf(run);
     for (let start = 0; start < points.length; start += CHUNK_LETTERS) {
       tokens.push({ kind: "word", text: points.slice(start, start + CHUNK_LETTERS).join("") });
     }
@@ -103,7 +111,7 @@ export function letterCountOf(tokens: readonly Token[]): number {
   let count = 0;
   for (const token of tokens) {
     if (token.kind === "word") {
-      count += [...token.text].length;
+      count += lettersOf(token.text).length;
     }
   }
   return count;
@@ -115,5 +123,8 @@ export function letterCountOf(tokens: readonly Token[]): number {
 export function confirmedOf(tokens: readonly Token[]): number {
   const last = tokens[tokens.length - 1];
   const total = letterCountOf(tokens);
-  return last !== undefined && last.kind === "word" ? total - [...last.text].length : total;
+  if (last === undefined || last.kind === "gap") {
+    return total;
+  }
+  return total - lettersOf(last.text).length;
 }

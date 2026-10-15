@@ -91,7 +91,8 @@ visible.
    and grow the horizontal bar the scrollbar rules forbid, so a run of non-whitespace longer than
    `CHUNK_LETTERS` (24) is split into 24-letter boxes the bubble can break between, the tradeoff the
    raw bubble already made. Whitespace between boxes is plain text nodes, so newlines and spaces
-   render as `pre-wrap` rendered them.
+   render as `pre-wrap` rendered them. A letter is a grapheme (`Intl.Segmenter`), not a code
+   point: a flag, a skin tone or a family emoji split into code points drew as its parts.
 
 7. **The reducer is untouched; the bubble owns its presentation state.** `turnState` still only
    appends words to `Message.content`. `components/WhisperBubble.tsx` latches whether the message

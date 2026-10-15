@@ -1,7 +1,7 @@
 import { useRef } from "react";
 
 import type { Message as MessageModel } from "../overlay/overlayState";
-import { confirmedOf, letterCountOf, tokenize } from "../whisper/front";
+import { confirmedOf, letterCountOf, lettersOf, tokenize } from "../whisper/front";
 import { useWhisperClock } from "../whisper/useWhisperClock";
 
 // The assistant bubble that streams its reply in letter by letter. A message already settled when
@@ -56,7 +56,7 @@ function LiveWhisper({
           ) : (
             // eslint-disable-next-line react/no-array-index-key -- append-only stream
             <span key={at} className="wd">
-              {[...token.text].map((letter, i) => (
+              {lettersOf(token.text).map((letter, i) => (
                 // eslint-disable-next-line react/no-array-index-key -- letters never reorder
                 <span key={i} className="ch">
                   {letter}

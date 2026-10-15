@@ -11,6 +11,7 @@ import {
   confirmedOf,
   goalOf,
   letterCountOf,
+  lettersOf,
   pxOr,
   rampAt,
   tokenize,
@@ -135,11 +136,30 @@ describe("tokenize", () => {
     ]);
   });
 
-  it("chunks by code point, never through a surrogate pair", () => {
-    const smileys = "🙂".repeat(CHUNK_LETTERS + 1);
-    const tokens = tokenize(smileys);
-    expect(tokens.map((t) => [...t.text].length)).toEqual([CHUNK_LETTERS, 1]);
-    expect(tokens.every((t) => [...t.text].every((p) => p === "🙂"))).toBe(true);
+  it("chunks by letter, never through a surrogate pair or a flag", () => {
+    const flags = "🇷🇴".repeat(CHUNK_LETTERS + 1);
+    const tokens = tokenize(flags);
+    expect(tokens.map((t) => lettersOf(t.text).length)).toEqual([CHUNK_LETTERS, 1]);
+    expect(tokens.every((t) => lettersOf(t.text).every((p) => p === "🇷🇴"))).toBe(true);
+  });
+});
+
+describe("lettersOf", () => {
+  it("keeps an accent, a flag, a skin tone and a family emoji each one letter", () => {
+    const text = "Cafe\u0301 🇷🇴👍🏽👨\u200d👩\u200d👧 שָׁלוֹם";
+    expect(lettersOf(text)).toEqual([
+      ..."Caf",
+      "e\u0301",
+      " ",
+      "🇷🇴",
+      "👍🏽",
+      "👨\u200d👩\u200d👧",
+      " ",
+      "שָׁ",
+      "ל",
+      "וֹ",
+      "ם",
+    ]);
   });
 });
 
@@ -158,5 +178,10 @@ describe("letterCountOf and confirmedOf", () => {
 
   it("confirms nothing of an empty reply", () => {
     expect(confirmedOf(tokenize(""))).toBe(0);
+  });
+
+  it("counts a flag or a family emoji as one letter, confirmed or still growing", () => {
+    expect(letterCountOf(tokenize("🇷🇴 👨\u200d👩\u200d👧 "))).toBe(2);
+    expect(confirmedOf(tokenize("🇷🇴 👍🏽"))).toBe(1);
   });
 });
