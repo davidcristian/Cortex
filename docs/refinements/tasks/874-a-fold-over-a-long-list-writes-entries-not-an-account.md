@@ -21,11 +21,24 @@ list is then in neither the window nor an account.
 
 ## What to do
 
-Write rows first: pastes of lists (item numbers, a CSV, an inventory) with and without a question
-after them, and a control of plain notes, with a pass rule that the fold is accepted and keeps the
-facts a later question needs. Then weigh an instruction sentence that asks for an account of what a
-long list holds (its kind, its size, its ranges and any entry a message singled out) rather than
-its entries.
+Draw these rows as the cut-fold rows were drawn (fold prompts from `build_recap_messages` over
+`fold_slice`, sent straight to the cortex server with `RECAP_BOUNDS`), six recaps per row and
+variant, and copy the rows and the rule into the readings before the first draw.
+
+- **L1**: the 53,836-character inventory from the readings, followed by no question.
+- **L2**: the same inventory followed by "Which bin is item 4958 in?".
+- **L3**: a CSV of about 30,000 characters (order id, customer, amount, date) and no question.
+- **P1**: the N1 chat of the cut-fold rows, as the control.
+
+Variant **B** is the tree. Variant **L** adds one sentence to `_INSTRUCTION` after "Drop
+pleasantries and repetition.": "When a message holds a long list or table, describe what it holds
+(its kind, how many entries, the range of its ids and dates) and keep only the entries a message
+asked about, rather than listing its entries."
+
+Pass rule. A list recap passes when `clean_recap` accepts it and it names the list's kind and at
+least one id range or entry count from the part read; an L2 recap must also give bin B-34. A P1
+recap passes under the N1 rule of the cut-fold rows. L ships when it passes at least 15 of its 18
+list recaps, B passes at most 9 of 18, and L's P1 passes are no fewer than B's.
 
 ## History
 
