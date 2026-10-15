@@ -28,9 +28,11 @@ from cortex_core.inference import (
 )
 from cortex_core.recap_prompt import (
     RECAP_BOUNDS,
+    UNFOLDED_NOTE,
     build_recap_messages,
     clean_recap,
     fence_recap,
+    unfolded_recap,
 )
 from cortex_core.sessions import RECAP_MAX, HistoryRecap
 from cortex_core.summarizing import (
@@ -209,12 +211,43 @@ async def test_an_unreachable_store_degrades_to_the_plain_window() -> None:
     assert list(await _window(backend, store).select(history, session_id=_SESSION)) == list(plain)
 
 
-async def test_a_model_that_says_nothing_usable_is_not_stored_and_not_prepended() -> None:
+async def test_a_model_that_says_nothing_usable_leaves_a_note_of_the_gap() -> None:
     store, backend = InMemorySessionStore(), _ScriptedBackend(["   \n  "])
     history = _history(4)
     plain = await CharBudgetHistoryWindow(60).select(history, session_id=_SESSION)
-    assert list(await _window(backend, store).select(history, session_id=_SESSION)) == list(plain)
-    assert await store.recap(_SESSION) is None
+
+    selected = await _window(backend, store).select(history, session_id=_SESSION)
+
+    assert list(selected[1:]) == list(plain)
+    assert "could not be summarized" in selected[0].text
+    stored = await store.recap(_SESSION)
+    assert stored == HistoryRecap(text=UNFOLDED_NOTE, covers=len(history) - len(plain))
+
+
+async def test_a_rejected_fold_is_not_sent_again_on_the_next_turn() -> None:
+    store, backend = InMemorySessionStore(), _ScriptedBackend(["cut off halfway through the"])
+    window, history = _window(backend, store), _history(4)
+
+    await window.select(history, session_id=_SESSION)
+    second = await window.select(history, session_id=_SESSION)
+
+    assert len(backend.prompts) == 1
+    assert UNFOLDED_NOTE in second[0].text
+
+
+async def test_the_fold_after_a_rejected_one_reads_only_what_dropped_since() -> None:
+    store = InMemorySessionStore()
+    backend = _ScriptedBackend(["cut off halfway through the", "the later stretch."])
+    window = _window(backend, store)
+
+    await window.select(_history(4), session_id=_SESSION)
+    selected = await window.select(_history(6), session_id=_SESSION)
+
+    fold = backend.prompts[1]
+    assert UNFOLDED_NOTE in fold
+    assert "q0" not in fold
+    assert "q3" in fold
+    assert "the later stretch." in selected[0].text
 
 
 async def test_a_recap_at_the_same_boundary_is_reused_without_a_second_model_call() -> None:
@@ -569,18 +602,42 @@ async def test_a_deferred_fold_keeps_showing_the_account_it_already_has() -> Non
     assert selected[0].turn_id == _history(7)[stored.covers - 1].turn_id
 
 
-async def test_a_refused_account_leaves_the_previous_one_in_place() -> None:
+async def test_a_refused_account_keeps_the_previous_one_and_notes_the_gap_after_it() -> None:
     store = InMemorySessionStore()
     backend = _ScriptedBackend(["the first stretch.", "cut off halfway through the"])
     window = _window(backend, store)
 
     await window.select(_history(4), session_id=_SESSION)
-    selected = await window.select(_history(6), session_id=_SESSION)
+    history = _history(6)
+    selected = await window.select(history, session_id=_SESSION)
 
-    assert "the first stretch." in selected[0].text
+    stored = await store.recap(_SESSION)
+    assert stored == HistoryRecap(
+        text=f"the first stretch. {UNFOLDED_NOTE}", covers=len(history) - len(selected) + 1
+    )
+    assert f"the first stretch. {UNFOLDED_NOTE}" in selected[0].text
+
+
+async def test_consecutive_refused_accounts_note_the_gap_once() -> None:
+    store = InMemorySessionStore()
+    backend = _ScriptedBackend(["cut off halfway through the", "and again cut off at the"])
+    window = _window(backend, store)
+
+    await window.select(_history(4), session_id=_SESSION)
+    await window.select(_history(6), session_id=_SESSION)
+
+    assert len(backend.prompts) == 2
     stored = await store.recap(_SESSION)
     assert stored is not None
-    assert stored.text == "the first stretch."
+    assert stored.text == UNFOLDED_NOTE
+
+
+def test_the_gap_note_follows_any_previous_account_exactly_once() -> None:
+    assert unfolded_recap(None) == UNFOLDED_NOTE
+    before = HistoryRecap(text="They met.", covers=2)
+    assert unfolded_recap(before) == f"They met. {UNFOLDED_NOTE}"
+    noted = HistoryRecap(text=f"They met. {UNFOLDED_NOTE}", covers=4)
+    assert unfolded_recap(noted) == noted.text
 
 
 async def test_a_fold_announces_itself_on_the_turns_progress_sink() -> None:
@@ -644,8 +701,10 @@ async def _rejected_fold(
     store, backend = InMemorySessionStore(), _ScriptedBackend([reply], stop=stop)
     kept = await _window(backend, store).select(_history(4), session_id=_SESSION)
     plain = await CharBudgetHistoryWindow(60).select(_history(4), session_id=_SESSION)
-    assert list(kept) == list(plain)
-    assert await store.recap(_SESSION) is None
+    assert list(kept[1:]) == list(plain)
+    stored = await store.recap(_SESSION)
+    assert stored is not None
+    assert stored.text == UNFOLDED_NOTE
     records = [record for record in caplog.records if "no usable history recap" in record.message]
     assert len(records) == 1
     return records[0]

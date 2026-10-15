@@ -20,6 +20,7 @@ from cortex_core import (
     HashEmbedder,
     ImagePart,
     InferenceBackend,
+    InferenceError,
     InferenceEvent,
     InMemoryBodyGateway,
     InMemoryMemoryStore,
@@ -407,6 +408,29 @@ class _Leasing(_Model):
                 yield event
 
 
+class _CortexFoldFails(_Leasing):
+    """A leasing backend whose first cortex request, the turn's history fold, fails."""
+
+    async def stream(
+        self,
+        model: str,
+        messages: Sequence[Message],
+        *,
+        tools: Sequence[ToolSpec] = (),
+        schema: JsonSchema | None = None,
+        bounds: GenerationBounds | None = None,
+    ) -> AsyncIterator[InferenceEvent]:
+        """Fail the first cortex request, then replay the script."""
+        if model == "cortex" and all(request.model != model for request in self.requests):
+            self.requests.append(_Request(model=model, tools=(), bounds=bounds))
+            msg = "the cortex is not answering"
+            raise InferenceError(msg)
+        async for event in super().stream(
+            model, messages, tools=tools, schema=schema, bounds=bounds
+        ):
+            yield event
+
+
 async def _escalate_under_lease(engines: StreamEngines, swap: SwapRuntime) -> list[TurnEvent]:
     engine = engines.for_stream(RecordingConfirmer(answer=True), RecordingProgressSink())
     try:
@@ -451,9 +475,9 @@ async def test_the_deep_phase_s_recall_is_judged_by_the_deep_model() -> None:
 
 async def test_the_deep_phase_s_history_recap_is_written_by_the_deep_model() -> None:
     swap = _swap_runtime()
-    backend = _Leasing(
+    backend = _CortexFoldFails(
         {
-            "cortex": [[TextChunk("")], [_ESCALATE_CALL], [TextChunk("handing off")]],
+            "cortex": [[TextChunk("never sent")], [_ESCALATE_CALL], [TextChunk("handing off")]],
             "brain": [[TextChunk("They talked about x.")], [TextChunk("deep answer")]],
         },
         swap,

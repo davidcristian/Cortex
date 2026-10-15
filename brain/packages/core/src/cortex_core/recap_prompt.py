@@ -115,3 +115,15 @@ def clean_recap(raw: str) -> str:
     if not tail or tail not in _SENTENCE_END:
         return ""
     return text
+
+
+UNFOLDED_NOTE = "[Part of the conversation after this point could not be summarized.]"
+
+
+def unfolded_recap(previous: HistoryRecap | None) -> str:
+    """The account stored in place of a rejected fold: ``previous`` and one note of the gap."""
+    if previous is None:
+        return UNFOLDED_NOTE
+    if previous.text.endswith(UNFOLDED_NOTE):
+        return previous.text
+    return f"{previous.text} {UNFOLDED_NOTE}"

@@ -16,6 +16,7 @@ from cortex_core.recap_prompt import (
     collapse_recap,
     fence_recap,
     fold_slice,
+    unfolded_recap,
 )
 from cortex_core.sessions import HistoryRecap
 from cortex_core.stops import StopLedger
@@ -113,8 +114,10 @@ class SummarizingHistoryWindow:
             )
         text = clean_recap(raw)
         if not text:
+            # Stored so that `covers` moves on: left unstored, every later turn would send this
+            # same fold again and wait for its bounded reply before the answer starts.
             _logger.warning(
-                "the model returned no usable history recap; falling back to the plain window",
+                "the model returned no usable history recap; storing a note of the gap instead",
                 extra={
                     "session_id": session_id,
                     "boundary": boundary,
@@ -122,7 +125,7 @@ class SummarizingHistoryWindow:
                     "chars": len(collapse_recap(raw)),
                 },
             )
-            return previous
+            text = unfolded_recap(previous)
         fresh = HistoryRecap(text=text, covers=covers)
         await self._store.set_recap(session_id, fresh)
         return fresh

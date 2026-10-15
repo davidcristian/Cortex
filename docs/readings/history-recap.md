@@ -142,3 +142,22 @@ paste rather than describe the log, which the head-only cut never showed the fol
 `fold_slice` keeps the first 12,000 and last 4,000 characters around the line H0 sent, and an uncut
 fold is unchanged. Method: `measurements/overlay-long-input-2026-10-15/recap-cut/` (`draw.py`,
 `show.py` and the three `.jsonl` files of recaps); the SM clock read 0.58 of its maximum.
+
+## A rejected fold over a list
+
+**2026-10-15**, the same cortex, through the real Linux shell. A 53,836-character inventory (860
+lines, each naming an item number, an owner, a bin and two counts) was pasted into a new chat, and
+four one-word questions followed. The first reply is the note that the message is longer than the
+context; the paste then drops out of the window and is folded on turn 2. The brain ran the change
+that stores a note of the gap when a fold is rejected.
+
+- With "Which bin is item 4958 in?" after the list (session `ba92ba85`), the fold was accepted and
+  stored "Item 4958 is in bin B-34.", which answers the question and keeps nothing else of the list.
+- With the list followed by one word and no question (session `7ced67a2`), the 512-token bound
+  stopped the fold at 1,121 characters of entries and `clean_recap` rejected it. The brain logged
+  one warning, with `capped=True`, and stored `UNFOLDED_NOTE` with `covers` 1; turns 3 to 5 sent no
+  fold and logged no warning. Before the change nothing was stored, so each later turn would have
+  folded the same paste again.
+
+Method: `measurements/overlay-long-input-2026-10-15/list-fold/` (`genlist.py`, `flow.sh` and both
+flow logs).

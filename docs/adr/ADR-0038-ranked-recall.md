@@ -162,8 +162,8 @@ what a memory says cannot do without.
     already names a chat-list row and `digest` a hash. A whole-session delete removes the recap in
     the same transaction, because a recap is as private as the transcript.
 18. **The summarizing window only prepends.** It returns the inner window's selection untouched plus
-    at most one recap message, so every failure (store or model unreachable, a failed stream, an
-    unusable reply) sends what the plain window sends, and no state of it loses a user's message.
+    at most one recap message, so every failure (store or model unreachable, a failed stream) sends
+    what the plain window sends, and an unusable reply sends it after a note of the gap (decision 20).
 19. **A recap is fenced at both ends and does not spread taint.** The prompt uses
     `SECURITY_PREAMBLE` as its system message and quotes the dropped transcript and the previous
     account inside `wrap_untrusted` under one nonce; the recap enters a turn through `fence_recap`
@@ -178,7 +178,7 @@ what a memory says cannot do without.
     resident cortex both answers the user and folds, which a server flag cannot tell apart; `None`
     sends the request unchanged. `RECAP_BOUNDS` is 512 tokens with no thinking, `RECAP_MAX` (2,000
     characters) at four a token. `clean_recap` returns `""` for a reply that does not end a sentence
-    or is over `RECAP_MAX`, rejected rather than trimmed: a cut account would move `covers` too far.
+    or is over `RECAP_MAX`, rejected rather than trimmed: a cut account would move `covers` too far. A rejected fold still stores a recap and moves `covers`: the previous account followed once by `UNFOLDED_NOTE`, a line saying part of the conversation could not be summarized, because an unstored fold was sent again on every later turn, each time generating up to its bound before the reply started. The rejected slice is never folded again.
     One fold reads at most `RECAP_READ_MAX` (16,000 characters, 9,700 tokens at the 1.65 a token a
     pasted log measured): `fold_slice` takes the oldest newly dropped messages within it and keeps
     the first 12,000 and last 4,000 characters of a first one past it, around a line naming the cut,
