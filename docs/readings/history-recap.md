@@ -161,3 +161,69 @@ that stores a note of the gap when a fold is rejected.
 
 Method: `measurements/overlay-long-input-2026-10-15/list-fold/` (`genlist.py`, `flow.sh` and both
 flow logs).
+
+## A fold over a long list
+
+**2026-10-15**, the same cortex and method as [the cut message rows](#a-message-cut-by-the-fold):
+fold prompts from `build_recap_messages` over `fold_slice`, sent straight to the cortex server with
+`RECAP_BOUNDS`, six recaps per row and variant. The rows and the rule were written before the first
+draw.
+
+- **L1**: the 53,836-character inventory above (items 4100 to 4959, 860 lines) and no question. The
+  fold reads items 4100 to 4290 and 4897 to 4959.
+- **L2**: the same inventory followed by "Which bin is item 4958 in?" (bin B-34).
+- **L3**: a 30,001-character CSV with the header `order_id,customer,amount,date` and 854 orders, ids
+  20001 to 20854, dated 2026-07-01 to 2026-09-19, and no question. The fold reads orders 20001 to
+  20340 and 20741 to 20854.
+- **P1**: the N1 chat above, as the control.
+- **N2** and **C1** to **C3**: the rows above, drawn for variant L only to show it leaves the head
+  and tail fold's rows as they were (N2 for B too).
+
+Variants. **B**: the tree. **L**: one sentence added to `_INSTRUCTION` after "Drop pleasantries and
+repetition.": "When a message holds a long list or table, describe what it holds (its kind, how many
+entries, the range of its ids and dates) and keep only the entries a message asked about, rather
+than listing its entries."
+
+Pass rule. A list recap passes when `clean_recap` accepts it and it names the list's kind (an
+inventory or stock list for L1 and L2, orders for L3) and at least one id range or entry count from
+the part read; an L2 recap must also give bin B-34. An id range counts when both its ends are ids in
+the part read, and an entry count when it is true of the part read or of the whole list. A P1 recap
+passes under the N1 rule above. L ships when it passes at least 15 of its 18 list recaps, B passes
+at most 9 of 18, and L's P1 passes are no fewer than B's. Since L changes what every fold reads, it
+also needs N2 passes no fewer than B's and at least 15 of 18 C recaps under the second rule above.
+
+The first draw, scored by hand against that rule (six recaps per row and variant):
+
+| Variant | L1 | L2 | L3 | List passes | P1 | N2 | C1 to C3 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| B | 3 | 0 | 5 | 8 of 18 | 6 | 6 | not drawn |
+| L | 6 | 0 | 6 | 12 of 18 | 6 | 4 | 18 of 18 |
+
+L does not ship. B's other three L1 folds listed entries until the bound stopped them and were
+rejected; four of its five L3 passes name only the two ids around the cut, which the rule as written
+counts as an id range. Every B L2 recap and two of L's were "Item 4958 is in bin B-34." alone; L's
+other four described the list and the question and dropped the answer. All twelve L1 and L3 recaps
+of L gave an entry count, and all twelve counts were false (from 135 to 1,054, against 254 and 455
+read and 860 and 854 in all). L's two N2 misses dropped the `503`. The SM clock read about 0.62 of
+its maximum.
+
+Second rule, written after the first draw and before the second. Variant **Q** adds, at the same
+place, "When a message holds a long list or table, say what kind of list it is and the first and
+last ids or dates it shows, and give in full any entry a message asked about, rather than listing
+the rest." The pass rule above holds, and a recap stating an entry count false of both the part read
+and the whole list fails. Q is drawn six times on L1 to L3, P1, N2 and C1 to C3, and ships on the
+thresholds above against the first draw's B.
+
+The second draw, scored against the second rule (six recaps per row):
+
+| Variant | L1 | L2 | L3 | List passes | P1 | N2 | C1 to C3 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Q | 3 | 4 | 4 | 11 of 18 | 6 | 6 | 18 of 18 |
+
+Q does not ship. Four of its seven list misses were accepted accounts that named the list and its id
+range but gave a false count (480, 516, 1,154 and 855 entries, the last one the CSV's line count);
+under the first rule they pass and Q has 15. One L1 fold listed entries until the bound stopped it,
+and two L2 recaps were the answer alone. Every Q N2 recap named the `503`, and five of the six gave
+a line count, all false (90 to 128 against 169). Method:
+`measurements/overlay-long-input-2026-10-15/list-recap/` (`draw.py`, `show.py`, `gencsv.py`, both
+`.jsonl` files and the clock samples); the SM clock read about 0.62 of its maximum.
