@@ -421,6 +421,48 @@ describe("useWhisperClock", () => {
     expect(Math.abs(mistX(mist) - 17)).toBeLessThan(1);
   });
 
+  it("covers a run in the other direction to its far end, and measures it again on a resize", () => {
+    const { tick } = fakeFrames();
+    const { refs, bubble, lay, resize } = rig(true, 400);
+    // Letters 2 to 4 run right to left, so the last letter lies left of where letter 2 ends.
+    lay(5, () => 0, (i) => [15, 22, 50, 43, 36][i]!);
+    const { result, rerender } = renderHook(({ f }) => useWhisperClock(refs, f), {
+      initialProps: { f: facts({ letters: 5, confirmed: 5 }) },
+    });
+    let now = 0;
+    tick((now += 50));
+    rerender({ f: facts({ letters: 5, confirmed: 5, streaming: false }) });
+    for (let i = 0; i < 80 && result.current !== "settled"; i += 1) {
+      tick((now += 50));
+    }
+    expect(result.current).toBe("settled");
+    // Letter 2 ends farthest, at 57, so the box is 57 + 15 + 24 + 4.
+    expect(bubble.style.width).toBe("100px");
+    resize(1000, () => 0, (i) => [15, 22, 64, 57, 50][i]!);
+    expect(bubble.style.width).toBe("114px");
+  });
+
+  it("measures the reach again when the bubble turns right to left mid-reply", () => {
+    const { tick } = fakeFrames();
+    const { refs, bubble, lay } = rtlRig(8);
+    lay(8);
+    const { result, rerender } = renderHook(({ f }) => useWhisperClock(refs, f), {
+      initialProps: { f: facts({ letters: 4, confirmed: 4 }) },
+    });
+    let now = 0;
+    for (let i = 0; i < 12; i += 1) {
+      tick((now += 50));
+    }
+    expect(result.current).toBe("talking");
+    bubble.style.direction = "rtl";
+    rerender({ f: facts({ letters: 8, confirmed: 8, streaming: false }) });
+    for (let i = 0; i < 80 && result.current !== "settled"; i += 1) {
+      tick((now += 50));
+    }
+    expect(result.current).toBe("settled");
+    expect(bubble.style.width).toBe("114px");
+  });
+
   it("keeps the breathing mist in place when the first letter turns the bubble right to left", () => {
     const { tick } = fakeFrames();
     const { refs, bubble, mist, lay } = rtlRig(8);

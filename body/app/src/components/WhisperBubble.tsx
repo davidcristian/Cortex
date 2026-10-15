@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { Fragment, useRef } from "react";
 
 import type { Message as MessageModel } from "../overlay/overlayState";
 import { confirmedOf, letterCountOf, tokenize, type Tokenized } from "../whisper/front";
@@ -61,14 +61,18 @@ function LiveWhisper({
             <span key={at}>{token.text}</span>
           ) : (
             // eslint-disable-next-line react/no-array-index-key -- append-only stream
-            <span key={at} className="wd">
-              {token.letters.map((letter, i) => (
-                // eslint-disable-next-line react/no-array-index-key -- letters never reorder
-                <span key={i} className="ch">
-                  {letter}
-                </span>
-              ))}
-            </span>
+            <Fragment key={at}>
+              {/* Two chunks of one long word meet with no space, so this is their break. */}
+              {tokens[at - 1]?.kind === "word" ? <wbr /> : null}
+              <span className="wd">
+                {token.letters.map((letter, i) => (
+                  // eslint-disable-next-line react/no-array-index-key -- letters never reorder
+                  <span key={i} className="ch">
+                    {letter}
+                  </span>
+                ))}
+              </span>
+            </Fragment>
           ),
         )}
       </span>

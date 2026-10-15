@@ -60,6 +60,28 @@ export function reachOf(m: Metrics, text: HTMLElement, el: HTMLElement, rtl: boo
   return m.padX + text.offsetLeft + text.offsetWidth - el.offsetLeft;
 }
 
+/** The farthest inline end among letters `0` to `seen - 1`: the box covers it. */
+export interface Reach {
+  at: number;
+  seen: number;
+}
+
+/** Extend `r` over the letters up to index `i` and return the farthest end it has seen. In a
+ *  line that mixes directions, a later letter can end nearer the start than an earlier one. */
+export function reachTo(
+  r: Reach,
+  m: Metrics,
+  text: HTMLElement,
+  els: readonly HTMLElement[],
+  i: number,
+  rtl: boolean,
+): number {
+  for (; r.seen <= i; r.seen += 1) {
+    r.at = Math.max(r.at, reachOf(m, text, els[r.seen]!, rtl));
+  }
+  return r.at;
+}
+
 /** The box the bubble needs while the condensation front stands at the end of a letter `fx`
  *  from the inline start edge and `fy` down. On the first line the width follows the front; past the first wrap it is the
  *  final width. The height's target steps at a wrap, and the frame loop eases it into a curve. */

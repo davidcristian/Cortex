@@ -632,14 +632,13 @@
   min-width: 55px;
   min-height: 42px;
 }
-/* The letter DOM lays out once at the final wrap width, so letter positions never move after they
-   are laid. A word is an unbreakable box, and a letter is one inline span. Never inline-block: the
-   engine lays boxes on whole pixels, which rounds every letter's advance. */
+/* The letter DOM lays out once at the final wrap width, so letter positions never move. A word is
+   an unbreakable inline span, never inline-block, which Chromium orders as one neutral character,
+   reversing a phrase in the other direction; a letter is inline too, since a box rounds advances. */
 .wtxt {
   display: block;
 }
 .wd {
-  display: inline-block;
   white-space: pre;
 }
 .ch {

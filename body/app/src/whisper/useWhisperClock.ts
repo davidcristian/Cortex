@@ -15,9 +15,11 @@ import {
   MIST_H,
   MIST_W,
   type Metrics,
+  type Reach,
   boxFor,
   measure,
   reachOf,
+  reachTo,
   rtlOf,
   watchWrap,
 } from "./metrics";
@@ -70,6 +72,7 @@ interface World {
   talking: boolean;
   /** The letters run right to left, so `mx` is measured from the box's right edge. */
   rtl: boolean;
+  reach: Reach;
   w: number;
   h: number;
   mx: number;
@@ -106,6 +109,7 @@ export function useWhisperClock(refs: WhisperRefs, facts: WhisperFacts): Whisper
     collected: -1,
     talking: false,
     rtl: false,
+    reach: { at: 0, seen: 0 },
     w: 0,
     h: 0,
     mx: 0,
@@ -158,6 +162,7 @@ export function useWhisperClock(refs: WhisperRefs, facts: WhisperFacts): Whisper
         if (rtl !== s.rtl) {
           s.mx = s.w - s.mx - MIST_W;
           s.rtl = rtl;
+          s.reach = { at: 0, seen: 0 };
         }
       }
       const els = s.letters;
@@ -193,7 +198,7 @@ export function useWhisperClock(refs: WhisperRefs, facts: WhisperFacts): Whisper
       const fx = reachOf(m, text, el, s.rtl);
       const fy = el.offsetTop;
       const finished = draining && s.lo >= els.length;
-      const { w: tW, h: tH } = boxFor(m, fx, fy);
+      const { w: tW, h: tH } = boxFor(m, reachTo(s.reach, m, text, els, fi, s.rtl), fy);
       // The bubble owns its height while the stream runs and says so through the panel's roll
       // attribute, so the panel follows the box frame by frame. The value is kept to a tenth of a
       // pixel, not a whole one; docs/readings/panel-motion.md has the measurements.
@@ -241,7 +246,8 @@ export function useWhisperClock(refs: WhisperRefs, facts: WhisperFacts): Whisper
         // paddings and the mist, and a window change moves neither.
         return;
       }
-      const box = boxFor(m, reachOf(m, text, tail, s.rtl), tail.offsetTop);
+      const far = reachTo(s.reach, m, text, s.letters, s.letters.length - 1, s.rtl);
+      const box = boxFor(m, far, tail.offsetTop);
       s.w = box.w;
       s.h = box.h;
       bubble.style.width = `${s.w.toFixed(1)}px`;
@@ -264,6 +270,7 @@ export function useWhisperClock(refs: WhisperRefs, facts: WhisperFacts): Whisper
     });
     const unwatch = watchWrap(bubble, m, (next: Metrics) => {
       m = next;
+      s.reach = { at: 0, seen: 0 };
       layOut();
       if (stopped) {
         repose();

@@ -79,7 +79,9 @@ visible.
    directions, so a right-to-left text block wider than the box overflows past the box's left
    edge, a letter is measured from the text's right edge (`reachOf`), and the first line slides
    right with the growing box until it wraps; moving the box instead would throw the breath pill
-   across the log at the first letter.
+   across the log at the first letter. A run in the other direction starts at its far end and the
+   front walks back across it, so the box follows the farthest letter end the front has passed
+   (`reachTo`), while the mist follows the front's own letter.
 
 5. **A partial trailing word is held out of the reveal.** While the turn streams, the front's goal
    is the letters up to the last completed word (a word is completed by the whitespace after it);
@@ -88,15 +90,18 @@ visible.
    releases the hold, so the reply's last word (which no whitespace completes) condenses when the
    turn ends.
 
-6. **Words are unbreakable boxes, letters are inline, and a giant token is chunked.** Letters sit in
-   per-word `white-space: pre` inline blocks so a word never breaks mid-glide. The letters
+6. **Words are unbreakable spans, letters are inline, and a giant token is chunked.** Letters sit in
+   per-word `white-space: pre` inline spans so a word never breaks mid-glide. A word is not an
+   inline-block: Chromium, the engine of the Windows body's WebView2, orders an inline-block as one
+   neutral character, so a phrase in the other direction was laid out word by word in the reply's
+   direction, while an inline span takes part in its line's bidirectional order. The letters
    themselves are inline spans, never inline-block: an inline-block letter is its own box, laid on
    whole pixels, so every advance was rounded and a reply read as a ransom note, worst under
    Windows display scaling, while inline spans keep the text's sub-pixel advances and take opacity
    and blur as well. A per-word box would defeat `overflow-wrap: anywhere` for a 64-character hash
    and grow the horizontal bar the scrollbar rules forbid, so a run of non-whitespace longer than
-   `CHUNK_LETTERS` (24) is split into 24-letter boxes the bubble can break between, the tradeoff the
-   raw bubble already made. Whitespace between boxes is plain text nodes, so newlines and spaces
+   `CHUNK_LETTERS` (24) is split into 24-letter boxes with a `<wbr>` between two of them, where the
+   bubble can break, the tradeoff the raw bubble already made. Whitespace between boxes is plain text nodes, so newlines and spaces
    render as `pre-wrap` rendered them. A letter is a grapheme (`Intl.Segmenter`), not a code
    point: a flag, a skin tone or a family emoji split into code points drew as its parts. A word
    token keeps its letters, and a render that only appends keeps every token of the last render but
@@ -174,7 +179,10 @@ visible.
 
 - **A registry of voices now** (decision 1), and the three losing voices and the three Fog rivals.
 - **A caret, typing dots or a glow**, and the per-word rise plus blur (Context).
-- **Inline-block letters** (decision 6) and a **`ResizeObserver` on the log** (decision 11).
+- **Inline-block letters and words** (decision 6) and a **`ResizeObserver` on the log** (decision 11).
+- **A `dir` or `unicode-bidi: isolate` span per same-direction run of words** (decision 6): it
+  repeats the bidirectional algorithm's run detection in the tokenizer, which inline words leave
+  to the engine.
 - **Restarting the clock on a resize** (decision 11).
 
 ## Related

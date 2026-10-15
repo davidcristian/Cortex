@@ -47,9 +47,22 @@ frames from `ffmpeg -f x11grab`. After each flow the chat's Redis list
   live left-to-right stream ended with the same letter positions and box. On the Linux shell
   (WebKitGTK, 8 frames a second) a Hebrew and an Arabic reply from the cortex streamed the same way
   and kept their layout after the turn ended, and an English reply quoting "שלום עולם" stayed left
-  to right. In Chromium a phrase in the other direction inside a reply streams with its words
-  reversed
-  ([R-873](../refinements/tasks/873-a-phrase-in-the-other-direction-streams-with-its-words-reversed.md)).
+  to right.
+- **A phrase in the other direction.** In headless Chromium, "Cortex keeps every turn in the
+  store: המצב נשמר במאגר החיצוני" streamed with its Hebrew words left to right in the order they
+  were written, so a Hebrew reader read them backwards: each word was an inline-block, which
+  Chromium orders as one neutral character. **After the fix** a word is an inline `white-space:
+  pre` span, and the same reply streamed with the Hebrew words right to left, wrapped as one run.
+  With inline words alone, "Saved: המצב נשמר במאגר" settled in a 120 px box with letters out to
+  191 px, because the box ended at the last letter, which lies at the run's near end; with the box
+  following the farthest letter end the front has passed, it and "המצב נשמר: in the external store"
+  settled with every letter inside. The previous code, served on a second port, and the fix gave
+  equal letter positions in all 800 frames of the demo reply, and the same settled frame apart from
+  the mist's last 0.2 px, which two runs of the previous code also differed by. A 192-character
+  hash broke at the same chunk boundaries; without the `<wbr>` between two chunks it broke only at
+  the space before the hash, since `overflow-wrap` breaks between two letters only when a line has
+  no other break. On the Linux shell an English reply ending in "המצב נשמר במאגר החיצוני." and one
+  holding "שומר את המצב שלו" streamed and settled with the Hebrew in reading order.
 - **Emoji sequences.** Asked to repeat "👨‍👩‍👧 🇷🇴 👍🏽", the cortex returned them intact in the
   store, but the streamed bubble drew a family as three people, the flag as the letters "R O" and
   the thumb beside a brown square. The whisper split each word into code points, one span each.

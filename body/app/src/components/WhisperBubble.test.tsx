@@ -58,6 +58,7 @@ describe("WhisperBubble", () => {
     );
     expect(container.querySelectorAll(".wd")).toHaveLength(2);
     expect(container.querySelectorAll(".ch")).toHaveLength(7);
+    expect(container.querySelector("wbr")).toBeNull();
     expect(container.querySelector(".wtxt")?.getAttribute("aria-hidden")).toBe("true");
     expect(container.querySelector(".wtxt")?.textContent).toBe("hi\nthere ");
     expect(container.querySelector(".sr-copy")?.textContent).toBe("hi\nthere ");
@@ -78,6 +79,7 @@ describe("WhisperBubble", () => {
       <WhisperBubble message={msg({ streaming: true, content: hash })} onGrow={grow} />,
     );
     expect(container.querySelectorAll(".wd")).toHaveLength(2);
+    expect(container.querySelector(".wd + wbr + .wd")).not.toBeNull();
   });
 
   it("splits only the growing word of a streamed reply and lays what a fresh render lays", () => {
