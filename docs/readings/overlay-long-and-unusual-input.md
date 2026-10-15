@@ -125,9 +125,11 @@ A 60,175-character log of the same kind (36,546 tokens) was pasted the same way 
   naming the cut. The same flow ended the log's turn with `MESSAGE_OVERFLOW_NOTE`, answered "Yellow"
   and "Saturn", and logged no refused fold: the second turn stored a 463-character recap covering
   the log, and the third reused it. The recap said the log's status codes were "all 200", which is
-  true only of the part it read, since the log ends with an error line; the fold now keeps the
-  message's head and tail ([history recap](history-recap.md#a-message-cut-by-the-fold)).
-  The recall judge was still refused on the log's turn and fell back, as ADR-0038 decision 7 allows.
+  true only of the part it read, since the log ends with an error line. The recall judge was still
+  refused on the log's turn and fell back, as ADR-0038 decision 7 allows.
+- **With the head and tail kept** ([history recap](history-recap.md#a-message-cut-by-the-fold)),
+  the same flow answered "Yellow" and "Venus" and stored the recap "The very last line of the log
+  shows a request with the ID Z9WM-8812 and a status of 503." covering the log's message.
 
 ## A chat of 26 short turns
 
@@ -140,9 +142,10 @@ recorded 26 exchanges.
 
 Method: `measurements/overlay-long-input-2026-10-15/`: `ask.sh` (focus, type, `Enter`), `paste.sh`
 with `clip.py` (a Tk clipboard owner) and `genlog.py` for the two logs, `longchat.sh` for the 26
-turns, `tok.py` for counts through the cortex server's `/tokenize`, `flow-after.sh` and `refuse.py` with
-their logs for the runs after the fix, `flow870.sh`, `flow868.sh`, `turn1.sh` and `send2.sh` for
-the two notes after their fixes, `events.txt`, and the frames in
+turns, `tok.py` for counts through the cortex server's `/tokenize`, `flow-after.sh` and `refuse.py`
+with their logs for the runs after the fix, `recap-cut/flow-past.log` for the run with the head and
+tail kept, `flow870.sh`, `flow868.sh`, `turn1.sh` and `send2.sh` for the two notes after their
+fixes, `events.txt`, and the frames in
 `shots/` (`u-*` and `r-*` the names and Hebrew, `rtl*` and `emo*` the streams, `m-*` the markup,
 `c-*` the claim note, `l-*` the logs, `h-end` the long chat, `f-*` and `g-*` the follow, `r870-*`
 and `r868-*` the notes after their fixes).
