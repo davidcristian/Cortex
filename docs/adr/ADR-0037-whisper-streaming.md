@@ -73,7 +73,13 @@ visible.
    that have not condensed), and a wrap becomes a curve the box rounds. This is the panel's
    replayed-height rule ([ADR-0033](ADR-0033-panel-growth.md): `auto` to `auto` cannot transition)
    applied one level down. The measurement and the box arithmetic live in `whisper/metrics.ts`
-   (`measure`, `boxFor`), so a frame and a re-lay pose from one function.
+   (`measure`, `boxFor`), so a frame and a re-lay pose from one function. The bubble takes its
+   direction from its first letter (`dir="auto"`), and every pose is in inline coordinates,
+   measured from its start edge. The box keeps its place at the log's left edge in both
+   directions, so a right-to-left text block wider than the box overflows past the box's left
+   edge, a letter is measured from the text's right edge (`reachOf`), and the first line slides
+   right with the growing box until it wraps; moving the box instead would throw the breath pill
+   across the log at the first letter.
 
 5. **A partial trailing word is held out of the reveal.** While the turn streams, the front's goal
    is the letters up to the last completed word (a word is completed by the whitespace after it);

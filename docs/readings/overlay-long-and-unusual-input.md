@@ -39,8 +39,17 @@ frames from `ffmpeg -f x11grab`. After each flow the chat's Redis list
 - **The streaming reply.** With the direction set on the whispering bubble too, a Hebrew reply
   drew as an empty pill until its turn ended, and with it set only on the bubble its letters
   spilled past the left edge while the mist glided in the wrong place: the whisper clock's geometry
-  is left to right. The live whisper therefore keeps left-to-right layout
-  ([R-869](../refinements/tasks/869-a-streamed-hebrew-reply-is-laid-out-left-to-right.md)).
+  was left to right. **After the fix** the clock poses in inline coordinates, measured from the
+  bubble's start edge. A Hebrew and an Arabic demo reply streamed in headless Chromium began at the
+  right edge with the mist at the left end of the front, wrapped as the settled bubble does, and
+  ended with the period on the left. Replayed through the old and the new clock with the same
+  letter geometry, a 700-frame left-to-right stream and its resize wrote identical styles, and a
+  live left-to-right stream ended with the same letter positions and box. On the Linux shell
+  (WebKitGTK, 8 frames a second) a Hebrew and an Arabic reply from the cortex streamed the same way
+  and kept their layout after the turn ended, and an English reply quoting "שלום עולם" stayed left
+  to right. In Chromium a phrase in the other direction inside a reply streams with its words
+  reversed
+  ([R-873](../refinements/tasks/873-a-phrase-in-the-other-direction-streams-with-its-words-reversed.md)).
 - **Emoji sequences.** Asked to repeat "👨‍👩‍👧 🇷🇴 👍🏽", the cortex returned them intact in the
   store, but the streamed bubble drew a family as three people, the flag as the letters "R O" and
   the thumb beside a brown square. The whisper split each word into code points, one span each.

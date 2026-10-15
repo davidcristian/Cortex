@@ -51,7 +51,7 @@ function LiveWhisper({
     },
   );
   return (
-    <div ref={bubble} className={`bubble b-ai whisper w-${phase}`}>
+    <div ref={bubble} className={`bubble b-ai whisper w-${phase}`} dir="auto">
       <span className="wtxt" ref={text} aria-hidden="true">
         {tokens.map((token, at) =>
           token.kind === "gap" ? (

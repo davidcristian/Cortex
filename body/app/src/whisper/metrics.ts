@@ -44,8 +44,24 @@ export function measure(bubble: HTMLElement): Metrics {
   };
 }
 
-/** The box the bubble needs while the condensation front stands at the end of a letter at
- *  (`fx`, `fy`). On the first line the width follows the front; past the first wrap it is the
+/** Whether the bubble lays its letters right to left (`dir="auto"` read a Hebrew or Arabic first
+ *  letter). Every pose below is in inline coordinates, measured from the bubble's start edge. */
+export function rtlOf(bubble: HTMLElement): boolean {
+  return getComputedStyle(bubble).direction === "rtl";
+}
+
+/** How far the inline end of letter `el` lies from the bubble's inline start edge. */
+export function reachOf(m: Metrics, text: HTMLElement, el: HTMLElement, rtl: boolean): number {
+  if (!rtl) {
+    return el.offsetLeft + el.offsetWidth;
+  }
+  // A right-to-left text block wider than the posed box overflows past the box's left edge, so a
+  // letter is measured from the text's right edge, which holds while the box grows.
+  return m.padX + text.offsetLeft + text.offsetWidth - el.offsetLeft;
+}
+
+/** The box the bubble needs while the condensation front stands at the end of a letter `fx`
+ *  from the inline start edge and `fy` down. On the first line the width follows the front; past the first wrap it is the
  *  final width. The height's target steps at a wrap, and the frame loop eases it into a curve. */
 export function boxFor(
   m: Metrics,

@@ -23,7 +23,7 @@ function fakeFrames() {
 /** A bubble with its text and mist, in the document, letters addable with chosen offsets. jsdom
  *  lays nothing out, so the test declares the geometry the clock reads, and setting the log's
  *  width and the letters' offsets afterwards is how it says the window changed size. */
-function rig(parented = true) {
+function rig(parented = true, log = 0) {
   const parent = document.createElement("div");
   const bubble = document.createElement("div");
   const text = document.createElement("span");
@@ -36,7 +36,7 @@ function rig(parented = true) {
   } else {
     document.body.appendChild(bubble);
   }
-  let logWidth = 0;
+  let logWidth = log;
   Object.defineProperty(parent, "clientWidth", { get: () => logWidth });
   const refs: WhisperRefs = {
     bubble: { current: bubble },
@@ -83,6 +83,24 @@ function rig(parented = true) {
   };
   return { refs, bubble, text, mist, lay, resize };
 }
+
+/** A right-to-left rig: the 328 px text block's right edge is 288 px from the bubble's left, and
+ *  each line's letters, 7 px apiece, run leftward from it. */
+function rtlRig(perLine: number) {
+  const r = rig(true, 400);
+  Object.defineProperty(r.text, "offsetLeft", { value: -40 });
+  Object.defineProperty(r.text, "offsetWidth", { value: 328 });
+  const lay = (count: number): HTMLElement[] =>
+    r.lay(
+      count,
+      (i) => (i < perLine ? 0 : 40),
+      (i) => 288 - ((i % perLine) + 1) * 7,
+    );
+  return { ...r, lay };
+}
+
+const mistX = (mist: HTMLElement): number =>
+  Number.parseFloat(/translate\(([-\d.]+)px/.exec(mist.style.transform)![1]!);
 
 const facts = (over: Partial<WhisperFacts>): WhisperFacts => ({
   streaming: true,
@@ -378,5 +396,67 @@ describe("useWhisperClock", () => {
     tick(0);
     unmount();
     expect(cancel).toHaveBeenCalled();
+  });
+
+  it("grows a right-to-left first line from the text's right edge, the mist at its left end", () => {
+    const { tick } = fakeFrames();
+    const { refs, bubble, mist, lay } = rtlRig(8);
+    bubble.style.direction = "rtl";
+    lay(8);
+    const { result, rerender } = renderHook(({ f }) => useWhisperClock(refs, f), {
+      initialProps: { f: facts({ letters: 8, confirmed: 8 }) },
+    });
+    expect(mistX(mist)).toBe(16);
+    let now = 0;
+    tick((now += 50));
+    rerender({ f: facts({ letters: 8, confirmed: 8, streaming: false }) });
+    for (let i = 0; i < 80 && result.current !== "settled"; i += 1) {
+      tick((now += 50));
+    }
+    expect(result.current).toBe("settled");
+    // The front's reach is 15 + 8 * 7 = 71 from the right edge, so the box is 71 + 15 + 24 + 4.
+    expect(bubble.style.width).toBe("114px");
+    expect(bubble.style.height).toBe("42px");
+    // The mist stands 2 px past the last letter's left edge, 114 - 71 - 2 - 24 = 17 from the left.
+    expect(Math.abs(mistX(mist) - 17)).toBeLessThan(1);
+  });
+
+  it("keeps the breathing mist in place when the first letter turns the bubble right to left", () => {
+    const { tick } = fakeFrames();
+    const { refs, bubble, mist, lay } = rtlRig(8);
+    const { result, rerender } = renderHook(({ f }) => useWhisperClock(refs, f), {
+      initialProps: { f: facts({}) },
+    });
+    tick(0);
+    expect(mist.style.transform).toBe("translate(15.0px, 14.5px)");
+    bubble.style.direction = "rtl";
+    lay(8);
+    rerender({ f: facts({ letters: 8, confirmed: 8 }) });
+    for (let now = 16; now < 200 && result.current !== "talking"; now += 16) {
+      tick(now);
+    }
+    expect(result.current).toBe("talking");
+    expect(Math.abs(mistX(mist) - 15)).toBeLessThan(0.5);
+  });
+
+  it("re-poses a settled right-to-left bubble from its last letter's left edge", () => {
+    const { tick } = fakeFrames();
+    const { refs, bubble, lay, resize } = rtlRig(6);
+    bubble.style.direction = "rtl";
+    lay(12);
+    const { result, rerender } = renderHook(({ f }) => useWhisperClock(refs, f), {
+      initialProps: { f: facts({ letters: 12, confirmed: 12 }) },
+    });
+    let now = 0;
+    tick((now += 50));
+    rerender({ f: facts({ letters: 12, confirmed: 12, streaming: false }) });
+    for (let i = 0; i < 80 && result.current !== "settled"; i += 1) {
+      tick((now += 50));
+    }
+    expect(result.current).toBe("settled");
+    expect(bubble.style.width).toBe("358px");
+    resize(1000, () => 0);
+    // One line now: the tail's reach is 15 + 6 * 7 = 57, so the box is 57 + 15 + 24 + 4.
+    expect(bubble.style.width).toBe("100px");
   });
 });

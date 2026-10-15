@@ -10,7 +10,17 @@ import {
   goalOf,
   rampAt,
 } from "./front";
-import { MIST_GAP, MIST_H, MIST_W, type Metrics, boxFor, measure, watchWrap } from "./metrics";
+import {
+  MIST_GAP,
+  MIST_H,
+  MIST_W,
+  type Metrics,
+  boxFor,
+  measure,
+  reachOf,
+  rtlOf,
+  watchWrap,
+} from "./metrics";
 
 // The whisper's frame clock: one rAF loop that writes the letter ramps, the mist's glide and the
 // bubble's posed box as inline styles, never through React. Per-frame state is a ref and what the
@@ -58,6 +68,8 @@ interface World {
   letters: HTMLElement[];
   collected: number;
   talking: boolean;
+  /** The letters run right to left, so `mx` is measured from the box's right edge. */
+  rtl: boolean;
   w: number;
   h: number;
   mx: number;
@@ -93,6 +105,7 @@ export function useWhisperClock(refs: WhisperRefs, facts: WhisperFacts): Whisper
     letters: [],
     collected: -1,
     talking: false,
+    rtl: false,
     w: 0,
     h: 0,
     mx: 0,
@@ -121,13 +134,18 @@ export function useWhisperClock(refs: WhisperRefs, facts: WhisperFacts): Whisper
     // replaying them. A fresh turn starts at zero, or the first arrivals would appear as ink.
     const confirmed = live.current.confirmed;
     s.front = { at: confirmed > 0 ? confirmed + BAND_LETTERS : 0, velocity: 0 };
+    s.rtl = rtlOf(bubble);
     s.w = m.breathW;
     s.h = m.breathH;
     s.mx = m.padX;
     s.my = m.breathH / 2 - MIST_H / 2;
+    const poseMist = (): void => {
+      const x = s.rtl ? s.w - s.mx - MIST_W : s.mx;
+      mist.style.transform = `translate(${x.toFixed(1)}px, ${s.my.toFixed(1)}px)`;
+    };
     bubble.style.width = `${s.w.toFixed(1)}px`;
     bubble.style.height = `${s.h.toFixed(1)}px`;
-    mist.style.transform = `translate(${s.mx.toFixed(1)}px, ${s.my.toFixed(1)}px)`;
+    poseMist();
 
     const tick = (dt: number): boolean => {
       const f = live.current;
@@ -135,6 +153,12 @@ export function useWhisperClock(refs: WhisperRefs, facts: WhisperFacts): Whisper
       if (s.collected !== f.letters) {
         s.letters = Array.from(text.querySelectorAll<HTMLElement>(".ch"));
         s.collected = f.letters;
+        // The first letter settles `dir="auto"`, so the breathing mist keeps its place on screen.
+        const rtl = rtlOf(bubble);
+        if (rtl !== s.rtl) {
+          s.mx = s.w - s.mx - MIST_W;
+          s.rtl = rtl;
+        }
       }
       const els = s.letters;
       if (els.length === 0) {
@@ -166,7 +190,7 @@ export function useWhisperClock(refs: WhisperRefs, facts: WhisperFacts): Whisper
       }
       const fi = clamp(Math.floor(s.front.at), 0, els.length - 1);
       const el = els[fi]!;
-      const fx = el.offsetLeft + el.offsetWidth;
+      const fx = reachOf(m, text, el, s.rtl);
       const fy = el.offsetTop;
       const finished = draining && s.lo >= els.length;
       const { w: tW, h: tH } = boxFor(m, fx, fy);
@@ -191,7 +215,7 @@ export function useWhisperClock(refs: WhisperRefs, facts: WhisperFacts): Whisper
       const gy = clamp(fy + m.line / 2 - MIST_H / 2, 4, s.h - MIST_H - 4);
       s.mx = approach(s.mx, gx, dt, MIST_GAIN);
       s.my = approach(s.my, gy, dt, MIST_GAIN);
-      mist.style.transform = `translate(${s.mx.toFixed(1)}px, ${s.my.toFixed(1)}px)`;
+      poseMist();
       if (grown >= GROWTH_NOTICE_PX) {
         f.onGrow();
       }
@@ -217,7 +241,7 @@ export function useWhisperClock(refs: WhisperRefs, facts: WhisperFacts): Whisper
         // paddings and the mist, and a window change moves neither.
         return;
       }
-      const box = boxFor(m, tail.offsetLeft + tail.offsetWidth, tail.offsetTop);
+      const box = boxFor(m, reachOf(m, text, tail, s.rtl), tail.offsetTop);
       s.w = box.w;
       s.h = box.h;
       bubble.style.width = `${s.w.toFixed(1)}px`;

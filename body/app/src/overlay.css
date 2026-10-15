@@ -592,8 +592,8 @@
   overflow-wrap: anywhere;
 }
 /* Each line takes its direction from its own first letter, so Hebrew or Arabic ends with its
-   punctuation on the left. The whispered letters are a block of their own and stay left to right,
-   since the clock's geometry is. */
+   punctuation on the left. The whispered letters are a block of their own and take the whole
+   bubble's direction from its first letter, which the clock's geometry follows. */
 .bubble,
 .field,
 .title {

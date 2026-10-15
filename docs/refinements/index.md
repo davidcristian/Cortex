@@ -69,8 +69,8 @@ never a reading of what the tree does now.
 
 ### Actionable now (2)
 
-- **[R-869](tasks/869-a-streamed-hebrew-reply-is-laid-out-left-to-right.md)** A streamed Hebrew reply is laid out left to right (body-overlay). Its claim was checked against the code on 2026-10-15.
 - **[R-871](tasks/871-a-recap-of-a-cut-message-describes-the-part-it-never-read.md)** A recap of a cut message describes the part it never read (session-history). Its claim was checked against the code on 2026-10-15.
+- **[R-873](tasks/873-a-phrase-in-the-other-direction-streams-with-its-words-reversed.md)** A phrase in the other direction streams with its words reversed (body-overlay). Its claim was checked against the code on 2026-10-15.
 
 ### Actionable, once a port changes (1)
 
@@ -315,7 +315,7 @@ never a reading of what the tree does now.
 - [R-816](tasks/816-a-stopped-reply-goes-on-writing-and-is-not-kept.md) A stopped reply goes on writing, and is not kept. open, waiting for its trigger.
 - [R-818](tasks/818-a-body-started-before-the-brain-opens-a-new-chat.md) A body started before the brain opens a new chat, not the last one. open, waiting for its trigger.
 - [R-819](tasks/819-the-conversation-stopped-following-the-replies-of-one-chat.md) The conversation stopped following the replies of one chat. done 2026-10-10.
-- [R-869](tasks/869-a-streamed-hebrew-reply-is-laid-out-left-to-right.md) A streamed Hebrew reply is laid out left to right. open, actionable.
+- [R-873](tasks/873-a-phrase-in-the-other-direction-streams-with-its-words-reversed.md) A phrase in the other direction streams with its words reversed. open, actionable.
 
 ### brain
 
