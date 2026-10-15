@@ -123,15 +123,15 @@ a clean end. `record_exchange(caps, taint, *, session_id, query, reply, runs)` a
 tainted-memory policy and **drops an opaque turn whatever `record_tainted_memory` says** (ADR-0029).
 
 `limit_notes(stops, runs, parts, *, earlier=())`, `unreadable_call_note(stops, parts)` and
-`overflow_note(parts, *, alone)` are the sentences a turn can end with, the first two read off a
-`StopLedger` (`stops.py`). `capped` says a completion stopped at a token limit (ADR-0048), `out_of_rounds` that
-the loop's last round still ended in calls (ADR-0009), and `repeated` that the watch ended the
-reply. `limit_notes` appends `REPLY_CAPPED_NOTE` for the first, then `ROUNDS_SPENT_NOTE`, naming the
-limit and each of `runs` with its outcome, then `REPEATED_LINE_NOTE` after one blank line, then
-`UNSCHEDULED_CLAIM_NOTE` when `unscheduled_claim` (`schedule_claim.py`) finds text saying something
-was scheduled with no `SCHEDULING_TOOLS` run succeeding in `runs` or `earlier`, the cortex's runs a
-deep phase passes (ADR-0074 decision 7). `UNREADABLE_CALL_NOTE` comes only when no completion was
-cut, so a reply has one explanation; `overflow_note` picks its note by `alone`.
+`overflow_note(parts, *, alone)` are the notes a turn can end with, the first two read off a
+`StopLedger` (`stops.py`): `capped` (a token limit cut a completion, ADR-0048), `out_of_rounds` (the
+last round still ended in calls, ADR-0009) and `repeated` (the watch ended the reply). `limit_notes`
+appends `REPLY_CAPPED_NOTE`, `ROUNDS_SPENT_NOTE` naming each of `runs` with its outcome,
+`REPEATED_LINE_NOTE`, then `UNSCHEDULED_CLAIM_NOTE` when `unscheduled_claim` (`schedule_claim.py`)
+finds a claimed schedule with no `SCHEDULING_TOOLS` run succeeding in `runs` or `earlier` (the
+cortex's runs a deep phase passes, ADR-0074). `UNREADABLE_CALL_NOTE` comes only when no completion
+was cut. `place_note` sets a note one blank line under the reply's text, or first with no line break
+when there is none, where the overflow and unreadable call notes take their `NO_TEXT` forms.
 
 `SerialTurnRunner(inner, locks)` (`session_turns.py`) is the `TurnRunner` every `Converse` stream
 runs. A turn holds its session in the shared `SessionTurnLocks` from before it stores its question

@@ -391,7 +391,7 @@ async def test_a_deep_phase_that_spends_every_round_keeps_the_note_it_showed() -
     shown = "".join(deltas)
     runs = ", ".join(["read (succeeded)"] * 8)
     assert shown == (
-        "\n\n(I stopped after 8 rounds of tool calls, the most one answer may use, and did not "
+        "(I stopped after 8 rounds of tool calls, the most one answer may use, and did not "
         f"reply to what the last calls returned. Tools run: {runs}. Ask again to continue.)"
     )
     assert backend.calls == MAX_TOOL_STEPS
@@ -573,9 +573,9 @@ async def test_a_prompt_longer_than_the_deep_context_ends_with_the_overflow_note
     with pytest.raises(ContextOverflowError, match="8192 tokens"):
         await _collect(events, collected)
     await events.aclose()
-    assert "".join(collected) == BRAIN_OVERFLOW_NOTE
+    assert "".join(collected) == BRAIN_OVERFLOW_NOTE.lstrip("\n")
     persisted = [message.text for message in await sessions.history(harness.SESSION)]
-    assert persisted[-1] == BRAIN_OVERFLOW_NOTE
+    assert persisted[-1] == BRAIN_OVERFLOW_NOTE.lstrip("\n")
 
 
 async def test_the_deep_phase_fences_under_the_record_s_own_nonce() -> None:

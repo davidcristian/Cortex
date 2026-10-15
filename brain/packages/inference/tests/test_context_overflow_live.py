@@ -103,5 +103,5 @@ async def test_an_over_length_cortex_turn_ends_with_the_message_note() -> None:
         await _collect(engine.handle_turn(_SESSION, text, turn_id=_TURN), told)
     persisted = await sessions.history(_SESSION)
     print(f"\ntold: {''.join(told)!r}")  # noqa: T201
-    assert "".join(told) == MESSAGE_OVERFLOW_NOTE
-    assert persisted[-1].text == MESSAGE_OVERFLOW_NOTE
+    assert "".join(told) == MESSAGE_OVERFLOW_NOTE.lstrip("\n")
+    assert persisted[-1].text == MESSAGE_OVERFLOW_NOTE.lstrip("\n")

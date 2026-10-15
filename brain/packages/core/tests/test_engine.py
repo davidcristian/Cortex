@@ -834,14 +834,14 @@ async def test_tool_loop_stops_at_the_step_bound() -> None:
     events = await _collect(engine.handle_turn("s", "go", turn_id="t-1"))
     completed = events[-1]
     assert isinstance(completed, TurnCompleted)
-    assert completed.full_text.startswith("\n\n(I stopped after 8 rounds of tool calls")
+    assert completed.full_text.startswith("(I stopped after 8 rounds of tool calls")
     assert "Tools run: noop (succeeded), noop (succeeded). Ask again" in completed.full_text
     assert backend.calls == MAX_TOOL_STEPS
     assert len(sink.records) == MAX_TOOL_STEPS
 
 
 _SPENT_REPLY = (
-    "\n\n(I stopped after 8 rounds of tool calls, the most one answer may use, and did not reply "
+    "(I stopped after 8 rounds of tool calls, the most one answer may use, and did not reply "
     "to what the last calls returned. Tools run: "
     + ", ".join(["read (succeeded)"] * 8)
     + ". Ask again to continue.)"

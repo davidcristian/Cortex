@@ -93,15 +93,10 @@ async def test_a_first_message_longer_than_the_context_ends_with_the_message_not
 
     events = await _collect(engine.handle_turn("s", "summarize all of it", turn_id="t-1"))
 
-    assert events == [
-        TextDelta(MESSAGE_OVERFLOW_NOTE),
-        TurnCompleted(turn_id="t-1", full_text=MESSAGE_OVERFLOW_NOTE),
-    ]
+    note = MESSAGE_OVERFLOW_NOTE.lstrip("\n")
+    assert events == [TextDelta(note), TurnCompleted(turn_id="t-1", full_text=note)]
     history = [(message.role, message.text) for message in await store.history("s")]
-    assert history == [
-        (Role.USER, "summarize all of it"),
-        (Role.ASSISTANT, MESSAGE_OVERFLOW_NOTE),
-    ]
+    assert history == [(Role.USER, "summarize all of it"), (Role.ASSISTANT, note)]
 
 
 async def test_an_overflow_after_a_capped_tool_round_gives_only_the_overflow_note() -> None:

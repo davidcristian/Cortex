@@ -90,9 +90,11 @@ tokens, 1.65 characters a token, against the 3.6 to 4.7 that the window's budget
   the server refuses after tokenizing, before evaluating anything.
 - **The stores.** Redis held all six messages. Memory recorded all three exchanges, the first as a
   22,494-character row, each with the note as the reply.
-- **The blank lines.** A note under a reply with no text still starts with its two line breaks, so
-  the bubble opens with two empty lines above "The text above is everything I produced"
-  ([R-870](../refinements/tasks/870-a-note-under-no-text-opens-with-blank-lines.md)).
+- **The blank lines.** A note under a reply with no text started with its two line breaks, so the
+  bubble opened with two empty lines. **After the fix** a note that opens a reply has no line break
+  before it, and the overflow and unreadable call notes then do not say "The text above is
+  everything I produced": the same paste showed `MESSAGE_OVERFLOW_NOTE` at the top of its bubble,
+  and Redis stored it starting with its parenthesis.
 
 ## A pasted log past the context
 

@@ -5,9 +5,9 @@ from datetime import UTC, datetime
 import pytest
 
 from cortex_core import (
-    CONTEXT_OVERFLOW_NOTE,
+    CONTEXT_OVERFLOW_NO_TEXT_NOTE,
     MESSAGE_OVERFLOW_NOTE,
-    UNREADABLE_CALL_NOTE,
+    UNREADABLE_CALL_NO_TEXT_NOTE,
     ContextOverflowError,
     EscalationSlot,
     GenerationBounds,
@@ -134,10 +134,8 @@ async def test_a_newest_message_too_long_alone_names_the_message_once_older_turn
     events = await _collect(engine.handle_turn("s", "L" * 500, turn_id="t-1"))
 
     assert len(backend.requests) == 2
-    assert events == [
-        TextDelta(MESSAGE_OVERFLOW_NOTE),
-        TurnCompleted(turn_id="t-1", full_text=MESSAGE_OVERFLOW_NOTE),
-    ]
+    note = MESSAGE_OVERFLOW_NOTE.lstrip("\n")
+    assert events == [TextDelta(note), TurnCompleted(turn_id="t-1", full_text=note)]
 
 
 async def test_each_retry_is_logged_with_how_many_messages_it_dropped(
@@ -180,7 +178,7 @@ async def test_an_unreadable_call_before_any_output_is_not_asked_again() -> None
     events = await _collect(engine.handle_turn("s", "lemon?", turn_id="t-1"))
 
     assert len(backend.requests) == 1
-    assert events[-1] == TurnCompleted(turn_id="t-1", full_text=UNREADABLE_CALL_NOTE)
+    assert events[-1] == TurnCompleted(turn_id="t-1", full_text=UNREADABLE_CALL_NO_TEXT_NOTE)
 
 
 class _CallThenRefuse:
@@ -226,7 +224,7 @@ async def test_a_refusal_after_a_tool_ran_ends_the_turn_rather_than_running_it_a
     events = await _collect(engine.handle_turn("s", "read the log", turn_id="t-1"))
 
     assert (backend.requests, reads) == (2, ["/big.log"])
-    assert events[-1] == TurnCompleted(turn_id="t-1", full_text=CONTEXT_OVERFLOW_NOTE)
+    assert events[-1] == TurnCompleted(turn_id="t-1", full_text=CONTEXT_OVERFLOW_NO_TEXT_NOTE)
 
 
 def _message(role: Role, text: str, turn_id: str) -> Message:

@@ -95,8 +95,9 @@ recall; this ADR is about the in-context history of the current session only.
    the newest turn is left, or a tool step has already run, the turn ends: `handle_turn` catches
    the error beside `MalformedToolCallError` ([ADR-0048](ADR-0048-generation-bounds.md) decision
    14), flushes the guarded channels, streams and stores `MESSAGE_OVERFLOW_NOTE` (the message is
-   too long) or, after output, `CONTEXT_OVERFLOW_NOTE`, under what the turn produced, and
-   completes, so the stream takes the next turn. No cap note follows, because the overflow is what
+   too long) or, after output, `CONTEXT_OVERFLOW_NOTE` under the text the turn produced
+   (`CONTEXT_OVERFLOW_NO_TEXT_NOTE` when it produced none), and completes, so the stream takes the
+   next turn. No cap note follows, because the overflow is what
    ended the turn. A tool step is never retried, since it may have acted. The deep phase ends with
    `BRAIN_OVERFLOW_NOTE` the same way and re-raises, so the handoff settles `FAILED`. An
    escalation approved earlier in an overflowing cortex turn still runs, since a deployment may

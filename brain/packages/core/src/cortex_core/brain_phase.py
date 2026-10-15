@@ -20,6 +20,7 @@ from cortex_core.turn_context import TurnCapabilities, assemble_inference_messag
 from cortex_core.turn_output import (
     flush_channels,
     limit_notes,
+    place_note,
     record_exchange,
     stream_turn_events,
     unreadable_call_note,
@@ -136,8 +137,9 @@ class BrainPhase:
             failure = err
             for held in flush_channels(channels, parts):
                 yield held
-            note = (
-                BRAIN_OVERFLOW_NOTE if isinstance(err, ContextOverflowError) else BRAIN_FAILED_NOTE
+            note = place_note(
+                parts,
+                BRAIN_OVERFLOW_NOTE if isinstance(err, ContextOverflowError) else BRAIN_FAILED_NOTE,
             )
             parts.append(note)
             yield TextDelta(text=note)

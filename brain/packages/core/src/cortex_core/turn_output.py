@@ -40,11 +40,19 @@ UNREADABLE_CALL_NOTE = (
     "\n\n(I tried to use a tool and wrote the request in a way I could not read back, so nothing "
     "ran and this answer is unfinished. The text above is everything I produced. Ask again.)"
 )
+UNREADABLE_CALL_NO_TEXT_NOTE = (
+    "(I tried to use a tool and wrote the request in a way I could not read back, so nothing "
+    "ran and I wrote no answer. Ask again.)"
+)
 
 CONTEXT_OVERFLOW_NOTE = (
     "\n\n(This conversation and what this turn has read so far are longer than my context, so I "
     "stopped here. The text above is everything I produced. Start a new conversation, or send a "
     "shorter message.)"
+)
+CONTEXT_OVERFLOW_NO_TEXT_NOTE = (
+    "(This conversation and what this turn has read so far are longer than my context, so I "
+    "stopped before writing an answer. Start a new conversation, or send a shorter message.)"
 )
 
 MESSAGE_OVERFLOW_NOTE = (
@@ -53,12 +61,31 @@ MESSAGE_OVERFLOW_NOTE = (
 )
 
 
+def _has_text(parts: Sequence[str]) -> bool:
+    """Whether the reply so far holds anything but white space."""
+    return any(part.strip() for part in parts)
+
+
+def place_note(parts: Sequence[str], note: str) -> str:
+    """``note`` set one blank line below the reply in ``parts``, or with no line break first."""
+    reply = "".join(parts)
+    breaks = len(reply) - len(reply.rstrip("\n"))
+    lead = "\n" * max(0, 2 - breaks) if _has_text(parts) else ""
+    return lead + note.lstrip("\n")
+
+
+def append_note(parts: list[str], note: str) -> Iterator[TurnEvent]:
+    """Append ``note`` to ``parts`` where ``place_note`` sets it."""
+    placed = place_note(parts, note)
+    parts.append(placed)
+    yield TextDelta(text=placed)
+
+
 def cap_note(stops: StopLedger, parts: list[str]) -> Iterator[TurnEvent]:
     """Say so when one of this turn's completions was cut, appending the note to ``parts``."""
     if not stops.capped:
         return
-    parts.append(REPLY_CAPPED_NOTE)
-    yield TextDelta(text=REPLY_CAPPED_NOTE)
+    yield from append_note(parts, REPLY_CAPPED_NOTE)
 
 
 def rounds_note(
@@ -68,21 +95,14 @@ def rounds_note(
     if not stops.out_of_rounds:
         return
     listed = f"{runs_line(runs)}." if runs else NO_TOOL_RAN
-    note = ROUNDS_SPENT_NOTE.format(rounds=MAX_TOOL_STEPS, runs=listed)
-    parts.append(note)
-    yield TextDelta(text=note)
+    yield from append_note(parts, ROUNDS_SPENT_NOTE.format(rounds=MAX_TOOL_STEPS, runs=listed))
 
 
 def repeat_note(stops: StopLedger, parts: list[str]) -> Iterator[TurnEvent]:
     """Say so when the turn ended its reply because the reply repeated one line."""
     if not stops.repeated:
         return
-    # The watch ends a reply after a line break, so the note adds only what one blank line needs.
-    reply = "".join(parts)
-    breaks = len(reply) - len(reply.rstrip("\n"))
-    note = "\n" * max(0, 2 - breaks) + REPEATED_LINE_NOTE.lstrip("\n")
-    parts.append(note)
-    yield TextDelta(text=note)
+    yield from append_note(parts, REPEATED_LINE_NOTE)
 
 
 def limit_notes(
@@ -101,8 +121,7 @@ def limit_notes(
     yield from rounds_note(stops, runs, parts)
     yield from repeat_note(stops, parts)
     if claimed:
-        parts.append(UNSCHEDULED_CLAIM_NOTE)
-        yield TextDelta(text=UNSCHEDULED_CLAIM_NOTE)
+        yield from append_note(parts, UNSCHEDULED_CLAIM_NOTE)
 
 
 def unreadable_call_note(stops: StopLedger, parts: list[str]) -> Iterator[TurnEvent]:
@@ -111,8 +130,9 @@ def unreadable_call_note(stops: StopLedger, parts: list[str]) -> Iterator[TurnEv
     # moment later, so a reader is never handed two explanations for one cut-off reply.
     if stops.capped:
         return
-    parts.append(UNREADABLE_CALL_NOTE)
-    yield TextDelta(text=UNREADABLE_CALL_NOTE)
+    yield from append_note(
+        parts, UNREADABLE_CALL_NOTE if _has_text(parts) else UNREADABLE_CALL_NO_TEXT_NOTE
+    )
 
 
 def overflow_note(parts: list[str], *, alone: bool) -> Iterator[TurnEvent]:
@@ -120,9 +140,11 @@ def overflow_note(parts: list[str], *, alone: bool) -> Iterator[TurnEvent]:
 
     ``alone`` says the newest message did not fit even with every older turn dropped.
     """
-    note = MESSAGE_OVERFLOW_NOTE if alone else CONTEXT_OVERFLOW_NOTE
-    parts.append(note)
-    yield TextDelta(text=note)
+    if alone:
+        note = MESSAGE_OVERFLOW_NOTE
+    else:
+        note = CONTEXT_OVERFLOW_NOTE if _has_text(parts) else CONTEXT_OVERFLOW_NO_TEXT_NOTE
+    yield from append_note(parts, note)
 
 
 def render_exchange(user_text: str, assistant_text: str, runs: Sequence[ToolRun] = ()) -> str:
