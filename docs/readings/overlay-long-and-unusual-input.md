@@ -55,6 +55,12 @@ frames from `ffmpeg -f x11grab`. After each flow the chat's Redis list
   the thumb beside a brown square. The whisper split each word into code points, one span each.
   **After the fix** it splits by grapheme and the same reply drew all three as one picture each.
   The user's bubble, plain text, always drew them whole.
+- **The cost of splitting by grapheme.** A render splits the whole streamed reply into letters
+  four times. Timed in headless Chromium, those passes over a 20,000-character reply took 77 times
+  as long through `Intl.Segmenter` as by code point in English and 60 times in Hebrew. Text with
+  no code point at or above U+0300 is now split by code point, at 3 times the old cost; a Hebrew,
+  Arabic or emoji reply still pays the segmenter
+  ([R-875](../refinements/tasks/875-a-long-hebrew-or-emoji-reply-segments-its-whole-text-on-every-render.md)).
 
 ## Markup in a reply
 

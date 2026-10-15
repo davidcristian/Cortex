@@ -79,9 +79,16 @@ export interface Token {
 
 const GRAPHEMES = new Intl.Segmenter(undefined, { granularity: "grapheme" });
 
+// Below U+0300 no two code points form one letter except CR LF, so splitting by code point gives
+// the segmenter's answer at a twentieth of its cost, which a long reply pays on every render.
+const ONE_POINT_LETTERS = /^[^\r\u0300-\u{10FFFF}]*$/u;
+
 /** The letters of `text` as a reader sees them: an accent stays on its letter, and a flag, a
  *  skin tone or a family emoji stays one picture rather than the code points that build it. */
 export function lettersOf(text: string): string[] {
+  if (ONE_POINT_LETTERS.test(text)) {
+    return [...text];
+  }
   return Array.from(GRAPHEMES.segment(text), (part) => part.segment);
 }
 

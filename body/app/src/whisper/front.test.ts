@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   BAND_LETTERS,
@@ -160,6 +160,23 @@ describe("lettersOf", () => {
       "וֹ",
       "ם",
     ]);
+  });
+
+  it("splits text below U+0300 by code point without the segmenter, CR LF kept one letter", () => {
+    const below = Array.from({ length: 0x300 }, (_, point) => String.fromCodePoint(point))
+      .filter((letter) => letter !== "\r")
+      .join("");
+    const segment = vi.spyOn(Intl.Segmenter.prototype, "segment");
+    try {
+      expect(lettersOf(below)).toEqual([...below]);
+      expect(segment).not.toHaveBeenCalled();
+      expect(lettersOf("a\r\nb")).toEqual(["a", "\r\n", "b"]);
+      expect(lettersOf("Cafe\u0301")).toEqual([..."Caf", "e\u0301"]);
+      expect(lettersOf("ok👍🏽")).toEqual(["o", "k", "👍🏽"]);
+      expect(segment).toHaveBeenCalledTimes(3);
+    } finally {
+      segment.mockRestore();
+    }
   });
 });
 
