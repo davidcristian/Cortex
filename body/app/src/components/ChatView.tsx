@@ -100,7 +100,9 @@ export function ChatView({
         {/* The capture ring comes before the connection dot for a layout reason: the title is the
             row's only flexible item, so a fixed item next to it costs the title 17px and moves
             nothing else, while on the far side the dot and all four buttons would slide left. */}
-        <span className="title">{state.title}</span>
+        <span className="title" dir="auto">
+          {state.title}
+        </span>
         <CaptureDot claim={state.capture} />
         <LinkDot link={state.link} />
         {/* `aria-expanded` is all this control says about the list, which is why the key

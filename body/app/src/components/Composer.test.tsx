@@ -82,6 +82,11 @@ function fakeMetrics(oneLine: number, needs: (stacked: boolean) => number) {
 }
 
 describe("Composer", () => {
+  it("lets a draft in Hebrew or Arabic take its direction from its first letter", () => {
+    render(<Stage />);
+    expect(field().getAttribute("dir")).toBe("auto");
+  });
+
   it("sends on Enter and clears, but Shift+Enter and other keys do not", () => {
     const onSubmit = vi.fn();
     render(<Stage onSubmit={onSubmit} />);

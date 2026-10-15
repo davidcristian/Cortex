@@ -213,6 +213,7 @@ export function Composer({
         onPaste={onPaste}
         placeholder="Ask anything…"
         aria-label="Message"
+        dir="auto"
         rows={1}
       />
       <button

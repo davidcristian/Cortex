@@ -591,6 +591,15 @@
      a horizontal bar, which `scrollbar-gutter: stable` does not pay for. */
   overflow-wrap: anywhere;
 }
+/* Each line takes its direction from its own first letter, so Hebrew or Arabic ends with its
+   punctuation on the left. The whispered letters are a block of their own and stay left to right,
+   since the clock's geometry is. */
+.bubble,
+.field,
+.title {
+  unicode-bidi: plaintext;
+  text-align: start;
+}
 .b-user {
   align-self: flex-end;
   background: var(--bubble-user);

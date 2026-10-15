@@ -17,7 +17,11 @@ export function WhisperBubble({
 }) {
   const live = useRef(message.streaming);
   if (!live.current) {
-    return <div className="bubble b-ai">{message.content}</div>;
+    return (
+      <div className="bubble b-ai" dir="auto">
+        {message.content}
+      </div>
+    );
   }
   return <LiveWhisper message={message} onGrow={onGrow} />;
 }

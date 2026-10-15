@@ -43,6 +43,18 @@ describe("Message", () => {
     expect(container.querySelector(".ch")).toBeNull();
   });
 
+  it("lets each settled bubble take its direction from its first letter, but not the whisper", () => {
+    const hebrew = "מה בירת צרפת?";
+    const asked = render(<Show message={msg({ role: "user", content: hebrew })} />).container;
+    expect(asked.querySelector(".b-user")?.getAttribute("dir")).toBe("auto");
+    const told = render(<Show message={msg({ content: hebrew })} />).container;
+    expect(told.querySelector(".b-ai")?.getAttribute("dir")).toBe("auto");
+    const failed = render(<Show message={msg({ content: hebrew, error: "lost" })} />).container;
+    expect(failed.querySelector(".b-error")?.getAttribute("dir")).toBe("auto");
+    const live = render(<Show message={msg({ content: hebrew, streaming: true })} />).container;
+    expect(live.querySelector(".whisper")?.hasAttribute("dir")).toBe(false);
+  });
+
   it("whispers a streaming reply: the mist moves with the bubble and no caret exists", () => {
     const { container } = render(
       <Show message={msg({ content: "typing now", streaming: true })} />,

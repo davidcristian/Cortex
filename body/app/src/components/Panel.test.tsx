@@ -187,6 +187,7 @@ describe("Panel", () => {
     const icon = screen.getByLabelText("Toggle theme").querySelector("svg.sunmoon");
     expect(icon?.classList.contains("dark")).toBe(true);
     expect(container.querySelector(".b-user")?.textContent).toContain("hi there");
+    expect(container.querySelector(".head .title")?.getAttribute("dir")).toBe("auto");
   });
 
   it("parks the closed panel at the corner while the orb owns the turn", () => {

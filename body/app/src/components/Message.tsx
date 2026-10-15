@@ -15,7 +15,7 @@ export function Message({
     return (
       <>
         {message.content === "" ? null : <WhisperBubble message={message} onGrow={onGrow} />}
-        <div className="bubble b-ai b-error" role="alert">
+        <div className="bubble b-ai b-error" role="alert" dir="auto">
           {message.error}
         </div>
       </>
@@ -23,7 +23,11 @@ export function Message({
   }
 
   if (message.role === "user") {
-    return <div className="bubble b-user">{message.content}</div>;
+    return (
+      <div className="bubble b-user" dir="auto">
+        {message.content}
+      </div>
+    );
   }
 
   return (
