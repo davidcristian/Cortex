@@ -98,7 +98,10 @@ visible.
    `CHUNK_LETTERS` (24) is split into 24-letter boxes the bubble can break between, the tradeoff the
    raw bubble already made. Whitespace between boxes is plain text nodes, so newlines and spaces
    render as `pre-wrap` rendered them. A letter is a grapheme (`Intl.Segmenter`), not a code
-   point: a flag, a skin tone or a family emoji split into code points drew as its parts.
+   point: a flag, a skin tone or a family emoji split into code points drew as its parts. A word
+   token keeps its letters, and a render that only appends keeps every token of the last render but
+   the last one, so a stream splits only its growing end: a grapheme boundary depends only on the
+   text before it and one code point after it, so appending moves none inside the old text.
 
 7. **The reducer is untouched; the bubble owns its presentation state.** `turnState` still only
    appends words to `Message.content`. `components/WhisperBubble.tsx` latches whether the message

@@ -1,7 +1,7 @@
 import { useRef } from "react";
 
 import type { Message as MessageModel } from "../overlay/overlayState";
-import { confirmedOf, letterCountOf, lettersOf, tokenize } from "../whisper/front";
+import { confirmedOf, letterCountOf, tokenize, type Tokenized } from "../whisper/front";
 import { useWhisperClock } from "../whisper/useWhisperClock";
 
 // The assistant bubble that streams its reply in letter by letter. A message already settled when
@@ -39,7 +39,9 @@ function LiveWhisper({
   const text = useRef<HTMLSpanElement>(null);
   const mist = useRef<HTMLSpanElement>(null);
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const tokens = tokenize(message.content);
+  const made = useRef<Tokenized>();
+  made.current = tokenize(message.content, made.current);
+  const { tokens } = made.current;
   const phase = useWhisperClock(
     { bubble, text, mist },
     {
@@ -60,7 +62,7 @@ function LiveWhisper({
           ) : (
             // eslint-disable-next-line react/no-array-index-key -- append-only stream
             <span key={at} className="wd">
-              {lettersOf(token.text).map((letter, i) => (
+              {token.letters.map((letter, i) => (
                 // eslint-disable-next-line react/no-array-index-key -- letters never reorder
                 <span key={i} className="ch">
                   {letter}

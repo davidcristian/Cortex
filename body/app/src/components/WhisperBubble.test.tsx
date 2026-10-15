@@ -80,6 +80,22 @@ describe("WhisperBubble", () => {
     expect(container.querySelectorAll(".wd")).toHaveLength(2);
   });
 
+  it("splits only the growing word of a streamed reply and lays what a fresh render lays", () => {
+    const head = `${"שָׁלוֹם ".repeat(30)}עול`;
+    const live = (content: string) => (
+      <WhisperBubble message={msg({ streaming: true, content })} onGrow={grow} />
+    );
+    const letters = (root: HTMLElement) =>
+      [...root.querySelectorAll(".wd")].map((word) =>
+        [...word.querySelectorAll(".ch")].map((letter) => letter.textContent),
+      );
+    const { container, rerender } = render(live(head));
+    const segment = vi.spyOn(Intl.Segmenter.prototype, "segment");
+    rerender(live(`${head}ם`));
+    expect(segment.mock.calls).toEqual([["עולם"]]);
+    expect(letters(container)).toEqual(letters(render(live(`${head}ם`)).container));
+  });
+
   it("keeps its letter DOM once the turn settles: the latch, not the message, decides", () => {
     const { container, rerender } = render(
       <WhisperBubble message={msg({ streaming: true, content: "one two" })} onGrow={grow} />,

@@ -108,39 +108,87 @@ describe("pxOr", () => {
   });
 });
 
+const words = (content: string) => tokenize(content).tokens;
+
+const MIXED =
+  "Cafe\u0301  ok 👍🏽👨\u200d👩\u200d👧🇷🇴🇬\r\nשָׁלוֹם עולם\tनमस्ते 한국어 " +
+  "a".repeat(CHUNK_LETTERS + 3) +
+  "e\u0301" +
+  "🇷🇴".repeat(CHUNK_LETTERS) +
+  "\n\n" +
+  "مرحبا";
+
 describe("tokenize", () => {
-  it("lays words as boxes and whitespace verbatim, newlines included", () => {
-    expect(tokenize("Quiet  morning.\n\nDone")).toEqual([
-      { kind: "word", text: "Quiet" },
+  it("lays words as boxes holding their letters and whitespace verbatim, newlines included", () => {
+    expect(words("Quiet  morning.\n\nDone")).toEqual([
+      { kind: "word", text: "Quiet", letters: [..."Quiet"] },
       { kind: "gap", text: "  " },
-      { kind: "word", text: "morning." },
+      { kind: "word", text: "morning.", letters: [..."morning."] },
       { kind: "gap", text: "\n\n" },
-      { kind: "word", text: "Done" },
+      { kind: "word", text: "Done", letters: [..."Done"] },
     ]);
   });
 
   it("survives leading whitespace and an empty reply", () => {
-    expect(tokenize(" x")).toEqual([
+    expect(words(" x")).toEqual([
       { kind: "gap", text: " " },
-      { kind: "word", text: "x" },
+      { kind: "word", text: "x", letters: ["x"] },
     ]);
-    expect(tokenize("")).toEqual([]);
+    expect(tokenize("")).toEqual({ content: "", tokens: [] });
   });
 
   it("chunks a giant run so the bubble can still break a streamed hash", () => {
     const hash = "a".repeat(CHUNK_LETTERS * 2 + 12);
-    expect(tokenize(hash).map((t) => t.text.length)).toEqual([
-      CHUNK_LETTERS,
-      CHUNK_LETTERS,
-      12,
-    ]);
+    expect(words(hash).map((t) => t.text.length)).toEqual([CHUNK_LETTERS, CHUNK_LETTERS, 12]);
   });
 
   it("chunks by letter, never through a surrogate pair or a flag", () => {
-    const flags = "🇷🇴".repeat(CHUNK_LETTERS + 1);
-    const tokens = tokenize(flags);
-    expect(tokens.map((t) => lettersOf(t.text).length)).toEqual([CHUNK_LETTERS, 1]);
-    expect(tokens.every((t) => lettersOf(t.text).every((p) => p === "🇷🇴"))).toBe(true);
+    const tokens = words("🇷🇴".repeat(CHUNK_LETTERS + 1));
+    expect(tokens.map((t) => (t.kind === "word" ? t.letters.length : 0))).toEqual([
+      CHUNK_LETTERS,
+      1,
+    ]);
+    expect(tokens.every((t) => t.kind === "word" && t.letters.every((p) => p === "🇷🇴"))).toBe(
+      true,
+    );
+  });
+
+  it("extends the last render's tokens to the same tokens a fresh split lays", () => {
+    for (const step of [1, 2, 3, 5, 7]) {
+      let made = tokenize("");
+      for (let end = step; end < MIXED.length + step; end += step) {
+        const content = MIXED.slice(0, end);
+        made = tokenize(content, made);
+        expect(made).toEqual(tokenize(content));
+      }
+    }
+  });
+
+  it("keeps every token object but the last, and splits only the growing word", () => {
+    const head = `${"שָׁלוֹם ".repeat(40)}עול`;
+    const before = tokenize(head);
+    const segment = vi.spyOn(Intl.Segmenter.prototype, "segment");
+    try {
+      const after = tokenize(`${head}ם`, before);
+      expect(after.tokens.slice(0, -1)).toEqual(before.tokens.slice(0, -1));
+      expect(after.tokens.slice(0, -1).every((t, i) => t === before.tokens[i])).toBe(true);
+      expect(segment.mock.calls).toEqual([["עולם"]]);
+    } finally {
+      segment.mockRestore();
+    }
+  });
+
+  it("splits afresh when the text no longer extends the last render's", () => {
+    expect(tokenize("one two", tokenize("uno two"))).toEqual(tokenize("one two"));
+    expect(tokenize("ab", tokenize("ab cd"))).toEqual(tokenize("ab"));
+  });
+
+  it("splits afresh after a cut inside a surrogate pair, which the next text completes", () => {
+    const run = `${"a".repeat(CHUNK_LETTERS - 1)}👍`;
+    const open = tokenize(`${run}\uD83C`);
+    expect(open.tokens.map((t) => t.text)).toEqual([run, "\uD83C"]);
+    expect(tokenize(`${run}🏽`, open)).toEqual(tokenize(`${run}🏽`));
+    expect(words(`${run}🏽`)).toHaveLength(1);
   });
 });
 
@@ -182,23 +230,23 @@ describe("lettersOf", () => {
 
 describe("letterCountOf and confirmedOf", () => {
   it("counts word letters only; gaps are text nodes, not letters", () => {
-    expect(letterCountOf(tokenize("hi there "))).toBe(7);
+    expect(letterCountOf(words("hi there "))).toBe(7);
   });
 
   it("holds a trailing word out of the confirmed count, because it can still grow", () => {
-    expect(confirmedOf(tokenize("hi ther"))).toBe(2);
+    expect(confirmedOf(words("hi ther"))).toBe(2);
   });
 
   it("confirms everything once whitespace completes the last word", () => {
-    expect(confirmedOf(tokenize("hi there "))).toBe(7);
+    expect(confirmedOf(words("hi there "))).toBe(7);
   });
 
   it("confirms nothing of an empty reply", () => {
-    expect(confirmedOf(tokenize(""))).toBe(0);
+    expect(confirmedOf(words(""))).toBe(0);
   });
 
   it("counts a flag or a family emoji as one letter, confirmed or still growing", () => {
-    expect(letterCountOf(tokenize("🇷🇴 👨\u200d👩\u200d👧 "))).toBe(2);
-    expect(confirmedOf(tokenize("🇷🇴 👍🏽"))).toBe(1);
+    expect(letterCountOf(words("🇷🇴 👨\u200d👩\u200d👧 "))).toBe(2);
+    expect(confirmedOf(words("🇷🇴 👍🏽"))).toBe(1);
   });
 });

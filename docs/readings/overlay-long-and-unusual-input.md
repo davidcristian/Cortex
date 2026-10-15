@@ -55,12 +55,32 @@ frames from `ffmpeg -f x11grab`. After each flow the chat's Redis list
   the thumb beside a brown square. The whisper split each word into code points, one span each.
   **After the fix** it splits by grapheme and the same reply drew all three as one picture each.
   The user's bubble, plain text, always drew them whole.
-- **The cost of splitting by grapheme.** A render splits the whole streamed reply into letters
+- **The cost of splitting by grapheme.** A render split the whole streamed reply into letters
   four times. Timed in headless Chromium, those passes over a 20,000-character reply took 77 times
   as long through `Intl.Segmenter` as by code point in English and 60 times in Hebrew. Text with
-  no code point at or above U+0300 is now split by code point, at 3 times the old cost; a Hebrew,
-  Arabic or emoji reply still pays the segmenter
-  ([R-875](../refinements/tasks/875-a-long-hebrew-or-emoji-reply-segments-its-whole-text-on-every-render.md)).
+  no code point at or above U+0300 is now split by code point. **After the fix** a word token keeps
+  its letters, so a render splits each word once, and it keeps the last render's tokens and splits
+  only the growing last word. The table below gives the four passes' cost as a ratio of the same
+  passes by code point.
+
+Each figure is the best of three rounds, from two runs in Chromium 149 with the overlay's own
+`front.ts` from before and after the fix, timing a render 3 characters after the last one. The
+render's own work, one element per letter, is the same in both and is not counted.
+
+| Reply | Characters | Before | After |
+| --- | --- | --- | --- |
+| Hebrew | 20,000 | 40 to 41 | 0.044 to 0.049 |
+| English | 20,000 | 1.25 to 1.44 | 0.082 to 0.091 |
+| Emoji and English | 20,000 | 8.0 to 8.2 | 0.024 to 0.025 |
+| Hebrew | 2,000 | 48 to 53 | 0.076 to 0.077 |
+| English | 2,000 | 1.23 to 1.40 | 0.10 to 0.13 |
+
+The demo's left to right reply, streamed in headless Chromium under virtual time, laid every
+letter at the same position before and after the fix in every frame with the same text and
+width, and settled with the same letters and box. Only the mist's last position varied, by up
+to 0.2 px between runs, as it does between runs of the old code, since the settle waits for the
+mist to come within a pixel of its goal; one run of each under the same harness settled on
+identical frames.
 
 ## Markup in a reply
 

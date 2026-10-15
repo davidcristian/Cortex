@@ -72,9 +72,14 @@ export function pxOr(raw: string, fallback: number): number {
   return Number.isFinite(parsed) && parsed >= 4 ? parsed : fallback;
 }
 
-export interface Token {
-  readonly kind: "word" | "gap";
-  readonly text: string;
+export type Token =
+  | { readonly kind: "word"; readonly text: string; readonly letters: readonly string[] }
+  | { readonly kind: "gap"; readonly text: string };
+
+/** A reply's tokens with the text they were made from, so the next render can extend them. */
+export interface Tokenized {
+  readonly content: string;
+  readonly tokens: readonly Token[];
 }
 
 const GRAPHEMES = new Intl.Segmenter(undefined, { granularity: "grapheme" });
@@ -82,6 +87,9 @@ const GRAPHEMES = new Intl.Segmenter(undefined, { granularity: "grapheme" });
 // Below U+0300 no two code points form one letter except CR LF, so splitting by code point gives
 // the segmenter's answer at a twentieth of its cost, which a long reply pays on every render.
 const ONE_POINT_LETTERS = /^[^\r\u0300-\u{10FFFF}]*$/u;
+
+// Text cut inside a surrogate pair ends on half a code point, which the next append completes.
+const OPEN_PAIR = /^[\uD800-\uDBFF]$/;
 
 /** The letters of `text` as a reader sees them: an accent stays on its letter, and a flag, a
  *  skin tone or a family emoji stays one picture rather than the code points that build it. */
@@ -93,11 +101,27 @@ export function lettersOf(text: string): string[] {
 }
 
 /** The reply as the bubble lays it out: unbreakable word boxes and whitespace gaps kept as they
- *  are, since `pre-wrap` renders them. Splitting is by letter, so no letter ends up half in one
- *  box, and appending only grows the last token, which keeps React's keys stable. */
-export function tokenize(content: string): readonly Token[] {
-  const tokens: Token[] = [];
-  for (const run of content.split(/(\s+)/)) {
+ *  are, since `pre-wrap` renders them. When `content` extends `previous.content`, every token but
+ *  the last is kept, so a streamed render splits only the growing end of the reply. */
+export function tokenize(content: string, previous?: Tokenized): Tokenized {
+  if (
+    previous === undefined ||
+    OPEN_PAIR.test(previous.content.slice(-1)) ||
+    !content.startsWith(previous.content)
+  ) {
+    return { content, tokens: split(content, []) };
+  }
+  const kept = previous.tokens.slice(0, -1);
+  const last = previous.tokens[kept.length];
+  const from = previous.content.length - (last?.text.length ?? 0);
+  return { content, tokens: split(content.slice(from), kept) };
+}
+
+// A grapheme boundary depends only on the text before it and the one code point after it, so
+// appending moves no boundary inside the old text and a kept token never changes. Chunks are by
+// letter, so no letter ends up half in one box.
+function split(text: string, tokens: Token[]): Token[] {
+  for (const run of text.split(/(\s+)/)) {
     if (run === "") {
       continue;
     }
@@ -105,9 +129,10 @@ export function tokenize(content: string): readonly Token[] {
       tokens.push({ kind: "gap", text: run });
       continue;
     }
-    const points = lettersOf(run);
-    for (let start = 0; start < points.length; start += CHUNK_LETTERS) {
-      tokens.push({ kind: "word", text: points.slice(start, start + CHUNK_LETTERS).join("") });
+    const letters = lettersOf(run);
+    for (let start = 0; start < letters.length; start += CHUNK_LETTERS) {
+      const chunk = letters.slice(start, start + CHUNK_LETTERS);
+      tokens.push({ kind: "word", text: chunk.join(""), letters: chunk });
     }
   }
   return tokens;
@@ -118,7 +143,7 @@ export function letterCountOf(tokens: readonly Token[]): number {
   let count = 0;
   for (const token of tokens) {
     if (token.kind === "word") {
-      count += lettersOf(token.text).length;
+      count += token.letters.length;
     }
   }
   return count;
@@ -133,5 +158,5 @@ export function confirmedOf(tokens: readonly Token[]): number {
   if (last === undefined || last.kind === "gap") {
     return total;
   }
-  return total - lettersOf(last.text).length;
+  return total - last.letters.length;
 }
