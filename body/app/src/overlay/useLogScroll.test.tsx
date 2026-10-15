@@ -200,6 +200,21 @@ describe("useLogScroll and the scroll events nobody made", () => {
   });
 });
 
+describe("useLogScroll and a message the reader sends", () => {
+  it("goes back to the end and follows from there, however far up the reader was", () => {
+    const { log, el, content } = follower();
+    log.toTail();
+    el.scrollTop = 100;
+    fireEvent.scroll(el);
+    log.follow();
+    expect(el.scrollTop).toBe(400);
+    content.height = 900;
+    fireEvent.scroll(el);
+    log.toTail();
+    expect(el.scrollTop).toBe(800);
+  });
+});
+
 describe("useLogScroll and the panel measuring itself", () => {
   /** The panel grows: measured at its new height the box's range is shorter, so the engine clamps
    *  the position, and the move starts from the old height with the box still there. */

@@ -92,6 +92,15 @@ export function ChatView({
   const field = useRef<HTMLTextAreaElement>(null!);
 
   useEffect(log.toTail, [log.toTail, state.messages, state.pendingConfirm]);
+  // A message the reader sends puts the log back on its end, however far up they had scrolled. A
+  // send adds the empty reply too, so the newest line the reader wrote is the one to watch.
+  const asked = state.messages.filter((message) => message.role === "user");
+  const sent = asked[asked.length - 1]?.id ?? null;
+  useEffect(() => {
+    if (sent !== null) {
+      log.follow();
+    }
+  }, [log.follow, sent]);
 
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   return (

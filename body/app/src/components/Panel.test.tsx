@@ -506,6 +506,22 @@ describe("Panel", () => {
     expect(el.scrollTop).toBe(500);
   });
 
+  it("puts a reader who scrolled up back on the end when they send a message", () => {
+    const props = (messages: Message[]) => panelProps({ messages }, true, false);
+    const sent: Message = { ...userMsg, id: "u2", content: "and one more" };
+    const waiting: Message = { ...reply("m3"), content: "", streaming: true };
+    const view = render(<Panel {...props([userMsg, reply("m1")])} />);
+    const el = view.container.querySelector(".history") as HTMLDivElement;
+    Object.defineProperty(el, "scrollHeight", { configurable: true, value: 500 });
+    Object.defineProperty(el, "clientHeight", { configurable: true, value: 100 });
+    el.scrollTop = 100;
+    fireEvent.scroll(el);
+    view.rerender(<Panel {...props([userMsg, reply("m1"), reply("m2")])} />);
+    expect(el.scrollTop).toBe(100);
+    view.rerender(<Panel {...props([userMsg, reply("m1"), reply("m2"), sent, waiting])} />);
+    expect(el.scrollTop).toBe(500);
+  });
+
   it("holds the tail when a growing draft eats the log's height, unless the reader scrolled up", () => {
     const view = render(<LivePanel props={panelProps({ messages: [userMsg, reply("m1")] }, true, false)} />);
     const el = view.container.querySelector(".history") as HTMLDivElement;

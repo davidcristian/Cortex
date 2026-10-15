@@ -21,6 +21,8 @@ export interface LogScroll {
   /** Put the log on its tail, if the tail is where the reader is. Stable identity, so the
    *  composer's measurement does not re-subscribe on every frame of a stream. */
   readonly toTail: () => void;
+  /** Follow the end again and go there: the reader just sent a message, wherever they had been. */
+  readonly follow: () => void;
 }
 
 /** Hold the log where the reader put it, across everything that would otherwise move it. `showing`
@@ -59,6 +61,11 @@ export function useLogScroll(showing: boolean, columnRef: RefObject<HTMLElement 
       left.current = el.scrollTop;
     }
   }, []);
+
+  const follow = useCallback(() => {
+    onTail.current = true;
+    toTail();
+  }, [toTail]);
 
   // Coming back: give the log the place the trip took from it, before the browser paints, then
   // put it back on its end, because a reply can arrive while the console is up.
@@ -116,5 +123,5 @@ export function useLogScroll(showing: boolean, columnRef: RefObject<HTMLElement 
     };
   }, [columnRef]);
 
-  return { ref, onScroll, toTail };
+  return { ref, onScroll, toTail, follow };
 }
