@@ -6,6 +6,7 @@ import pytest
 
 from cortex_core import (
     CONTEXT_OVERFLOW_NOTE,
+    MESSAGE_OVERFLOW_NOTE,
     REPLY_CAPPED_NOTE,
     ContextOverflowError,
     DecodeStop,
@@ -86,20 +87,20 @@ async def _collect(events: AsyncIterator[TurnEvent]) -> list[TurnEvent]:
     return [event async for event in events]
 
 
-async def test_a_prompt_longer_than_the_context_ends_the_turn_with_the_overflow_note() -> None:
+async def test_a_first_message_longer_than_the_context_ends_with_the_message_note() -> None:
     store = InMemorySessionStore()
     engine = TurnEngine(store, _OverflowingBackend(), _FixedClock())
 
     events = await _collect(engine.handle_turn("s", "summarize all of it", turn_id="t-1"))
 
     assert events == [
-        TextDelta(CONTEXT_OVERFLOW_NOTE),
-        TurnCompleted(turn_id="t-1", full_text=CONTEXT_OVERFLOW_NOTE),
+        TextDelta(MESSAGE_OVERFLOW_NOTE),
+        TurnCompleted(turn_id="t-1", full_text=MESSAGE_OVERFLOW_NOTE),
     ]
     history = [(message.role, message.text) for message in await store.history("s")]
     assert history == [
         (Role.USER, "summarize all of it"),
-        (Role.ASSISTANT, CONTEXT_OVERFLOW_NOTE),
+        (Role.ASSISTANT, MESSAGE_OVERFLOW_NOTE),
     ]
 
 
@@ -165,7 +166,7 @@ async def test_an_overflowing_turn_still_records_the_exchange_to_memory() -> Non
     await _collect(engine.handle_turn("s", "remember this", turn_id="t-1"))
 
     (recalled,) = await recaller.recall("remember this", k=1, session_id="s", turn_id="t")
-    assert CONTEXT_OVERFLOW_NOTE.strip() in recalled.record.text
+    assert MESSAGE_OVERFLOW_NOTE.strip() in recalled.record.text
 
 
 async def test_the_operator_is_told_which_turn_outgrew_the_context(

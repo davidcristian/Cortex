@@ -7,7 +7,7 @@ import pytest
 
 from cortex_core import (
     BRAIN_OVERFLOW_NOTE,
-    CONTEXT_OVERFLOW_NOTE,
+    MESSAGE_OVERFLOW_NOTE,
     BrainPhase,
     ContextOverflowError,
     HandoffRecord,
@@ -93,7 +93,7 @@ async def test_an_over_length_handoff_tells_the_user_it_did_not_fit() -> None:
     assert persisted[-1].text == BRAIN_OVERFLOW_NOTE
 
 
-async def test_an_over_length_cortex_turn_ends_with_the_overflow_note() -> None:
+async def test_an_over_length_cortex_turn_ends_with_the_message_note() -> None:
     sessions = InMemorySessionStore()
     async with httpx.AsyncClient(timeout=_TIMEOUT_S) as client:
         text = await _over_length_text(client)
@@ -103,5 +103,5 @@ async def test_an_over_length_cortex_turn_ends_with_the_overflow_note() -> None:
         await _collect(engine.handle_turn(_SESSION, text, turn_id=_TURN), told)
     persisted = await sessions.history(_SESSION)
     print(f"\ntold: {''.join(told)!r}")  # noqa: T201
-    assert "".join(told) == CONTEXT_OVERFLOW_NOTE
-    assert persisted[-1].text == CONTEXT_OVERFLOW_NOTE
+    assert "".join(told) == MESSAGE_OVERFLOW_NOTE
+    assert persisted[-1].text == MESSAGE_OVERFLOW_NOTE

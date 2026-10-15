@@ -78,15 +78,29 @@ recall; this ADR is about the in-context history of the current session only.
    every other stream's reply queues behind
    ([history recap readings](../readings/history-recap.md#folds-under-concurrent-streams)).
 
-7. **A prompt the engine refuses as too long ends the turn with a note.** llama-server answers a
+7. **A prompt the engine refuses as too long is asked again without its oldest turns, and ends
+   the turn with a note only when the newest turn alone does not fit.** llama-server answers a
    prompt longer than its context with HTTP 400 and `exceed_context_size_error` before generating,
-   and the inference adapter raises `ContextOverflowError`. The cortex's `handle_turn` catches it
-   beside `MalformedToolCallError` ([ADR-0048](ADR-0048-generation-bounds.md) decision 14), flushes
-   the guarded channels, streams and stores `CONTEXT_OVERFLOW_NOTE` under what the turn produced
-   and completes, so the stream takes the next turn. No cap note follows, because the overflow is
-   what ended the turn. The deep phase ends with `BRAIN_OVERFLOW_NOTE` the same way and re-raises,
-   so the handoff settles `FAILED`. An escalation approved earlier in an overflowing cortex turn
-   still runs, since a deployment may give the deep tier the larger context.
+   with `n_prompt_tokens` and `n_ctx` in the body, and the inference adapter raises
+   `ContextOverflowError` with their difference as `excess`. When nothing of the turn has streamed
+   yet, `handle_turn` drops the oldest windowed turns from the prompt with `shed_oldest_turns`
+   (`shedding.py`), 4.7 characters for each token over (decision 3's lightest ratio, so one retry
+   covers the excess of any text), keeping every system message and the newest turn, and asks
+   again. The store keeps every message; the shed prompt is computed per turn, like the window. A
+   refusal costs only the server's tokenization: one of 36,569 tokens answered in under a tenth
+   of the time an eight-token reply took from a cached prompt
+   ([readings](../readings/overlay-long-and-unusual-input.md#a-pasted-log-near-the-context)). This
+   is what corrects the character estimate on dense text: a pasted log measured 1.65 characters a
+   token, so a 22,206-character log fit the budget and alone filled most of the context. When only
+   the newest turn is left, or a tool step has already run, the turn ends: `handle_turn` catches
+   the error beside `MalformedToolCallError` ([ADR-0048](ADR-0048-generation-bounds.md) decision
+   14), flushes the guarded channels, streams and stores `MESSAGE_OVERFLOW_NOTE` (the message is
+   too long) or, after output, `CONTEXT_OVERFLOW_NOTE`, under what the turn produced, and
+   completes, so the stream takes the next turn. No cap note follows, because the overflow is what
+   ended the turn. A tool step is never retried, since it may have acted. The deep phase ends with
+   `BRAIN_OVERFLOW_NOTE` the same way and re-raises, so the handoff settles `FAILED`. An
+   escalation approved earlier in an overflowing cortex turn still runs, since a deployment may
+   give the deep tier the larger context.
 
 8. **The deep tier starts at the cortex's context, so both phases read the one budget.**
    `for_stream` in `engines.py` builds the deep phase's window from `CORTEX_HISTORY_CHAR_BUDGET`
@@ -111,10 +125,12 @@ recall; this ADR is about the in-context history of the current session only.
   whole and predictably, and with the summary on they return as a recap; the stored history and
   memory keep everything.
 - A single oversized newest turn is sent whole and can still overflow the model context: the window
-  limits history, not one turn's size, and such a turn ends with the note of decision 7. Large
-  tool results reach the same note, while recalled memories share a fixed budget
-  ([ADR-0008](ADR-0008-memory-v1.md) decision 4). A per-turn input cap would be a decision at the
-  overlay, not silent truncation here.
+  limits history, not one turn's size, and such a turn ends with `MESSAGE_OVERFLOW_NOTE`, which
+  tells the person to send a shorter part. Its text stays in the store, so the next turns pay one
+  refused request each until the budget drops it, and then it is folded from its head (ADR-0038
+  decision 20). Large tool results end with `CONTEXT_OVERFLOW_NOTE`, while recalled memories share
+  a fixed budget ([ADR-0008](ADR-0008-memory-v1.md) decision 4). A cap at intake was rejected: in
+  characters it cannot tell a log that does not fit from prose three times its length that does.
 - A context's decode cost is read with both contexts in one session: the pick's rate differs by up
   to a seventh between sessions at one SM clock, so a 16384 row first read 0.86 of an 8192 row
   drawn on another night ([readings](../readings/history-window.md#decode-at-16384-in-one-session)).

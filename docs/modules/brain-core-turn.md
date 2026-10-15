@@ -58,12 +58,14 @@ inference and tool loop over the stored history, yields one `TextDelta` per stre
 persists the assistant `Message` and yields one `TurnCompleted`. Closing the stream part way
 (`aclose()`) keeps the persisted user message, does not persist the partial reply, and closes the
 abandoned backend stream. A backend failure surfaces as `InferenceError` after the user message
-was persisted, with two exceptions that **end** the turn instead of failing it. A
-`MalformedToolCallError` says the unparsable fragment is the model's own tokens (ADR-0048), and a
-`ContextOverflowError` says the engine refused the prompt as longer than its context (ADR-0014
-decision 7). Either path flushes the guarded channels, streams its note, logs a warning naming the
-session and the turn, and persists once: the cut call's note is the one the `StopLedger` picks,
-and the overflow's is `CONTEXT_OVERFLOW_NOTE`, with no cap note after it.
+was persisted, except two that **end** the turn: `MalformedToolCallError` (the fragment is the
+model's own tokens, ADR-0048) and `ContextOverflowError` (the prompt is longer than the context,
+ADR-0014 decision 7). A refusal before any output is first asked again without the oldest windowed
+turns, `shed_oldest_turns` (`shedding.py`) dropping 4.7 characters for each token of its `excess`.
+Otherwise the path flushes the channels, streams its note, logs a warning naming the session and
+turn, and persists once: the cut call's note is the one the `StopLedger` picks, and the overflow's
+is `MESSAGE_OVERFLOW_NOTE` when only the newest turn was left, else `CONTEXT_OVERFLOW_NOTE`, never
+followed by a cap note.
 
 `TurnCapabilities(memory=None, tools=None, window=None, guardrail=None, record_tainted_memory=False,
 generate_titles=False, progress=None, escalation=None, bounds=None, residency=None)`
@@ -121,15 +123,15 @@ a clean end. `record_exchange(caps, taint, *, session_id, query, reply, runs)` a
 tainted-memory policy and **drops an opaque turn whatever `record_tainted_memory` says** (ADR-0029).
 
 `limit_notes(stops, runs, parts, *, earlier=())`, `unreadable_call_note(stops, parts)` and
-`overflow_note(parts)` are the sentences a turn can end with, the first two read off a `StopLedger`
-(`stops.py`). `capped` says a completion stopped at a token limit (ADR-0048), `out_of_rounds` that
+`overflow_note(parts, *, alone)` are the sentences a turn can end with, the first two read off a
+`StopLedger` (`stops.py`). `capped` says a completion stopped at a token limit (ADR-0048), `out_of_rounds` that
 the loop's last round still ended in calls (ADR-0009), and `repeated` that the watch ended the
 reply. `limit_notes` appends `REPLY_CAPPED_NOTE` for the first, then `ROUNDS_SPENT_NOTE`, naming the
 limit and each of `runs` with its outcome, then `REPEATED_LINE_NOTE` after one blank line, then
 `UNSCHEDULED_CLAIM_NOTE` when `unscheduled_claim` (`schedule_claim.py`) finds text saying something
 was scheduled with no `SCHEDULING_TOOLS` run succeeding in `runs` or `earlier`, the cortex's runs a
 deep phase passes (ADR-0074 decision 7). `UNREADABLE_CALL_NOTE` comes only when no completion was
-cut, so a reply has one explanation; `overflow_note` always adds `CONTEXT_OVERFLOW_NOTE`.
+cut, so a reply has one explanation; `overflow_note` picks its note by `alone`.
 
 `SerialTurnRunner(inner, locks)` (`session_turns.py`) is the `TurnRunner` every `Converse` stream
 runs. A turn holds its session in the shared `SessionTurnLocks` from before it stores its question
@@ -139,34 +141,32 @@ its last running or waiting turn, so the map holds only sessions with a turn in 
 
 ## The history one turn sends
 
-- `HistoryWindow` (port, `windowing.py`) provides
-  `async select(history, *, session_id, progress=None)`: what one turn sends to the model. It is
-  async and takes the session because a window may consult the store or the model, and it takes the
-  turn's `ProgressSink` so a window whose selection costs a model pass can say so (ADR-0038
-  decisions 9 and 20). A window returns a subsequence of `history` in original order and may
-  prepend derived context, but may never drop or alter a kept message.
+- `HistoryWindow` (port, `windowing.py`) provides `async select(history, *, session_id,
+  progress=None)`: what one turn sends, a subsequence of `history` in order that may prepend
+  derived context but never drops or alters a kept message. The session and the `ProgressSink`
+  are there for a window that reads the store or costs a model pass (ADR-0038 decisions 9 and 20).
 - `CharBudgetHistoryWindow(max_chars)` is the shipped policy: the newest whole turns, grouped by
-  consecutive `turn_id`, whose summed text fits `max_chars`, kept or dropped whole, stopping at the
-  first overflow, with the newest turn always kept even when oversized. Characters stand in for
-  tokens (3.6 to 4.7 per cortex token), so the core needs no tokenizer; `max_chars < 1` raises.
+  consecutive `turn_id`, whose summed text fits `max_chars`, stopping at the first overflow, the
+  newest always kept; `max_chars < 1` raises. Characters stand in for tokens (ADR-0014 decision 3).
 - `SummarizingHistoryWindow(inner, store, backend, model, clock, *, min_dropped_chars=0)`
   (`summarizing.py`, ADR-0038 decision 9) wraps a window so the turns it drops arrive as a
-  model-written recap. Five properties define it. It only **adds**: the inner selection is returned
-  untouched, and every failure path returns it exactly as the plain window would have, logged and
-  never raised. It **caches** behind `SessionStore.set_recap`/`recap`, keyed by the boundary it
-  covers, so an unmoved boundary costs nothing and a moved one folds the previous recap together
-  with the newly dropped turns. It **releases the GPU** by going through `drain_text`. It is
-  **fenced at both ends** (ADR-0038 decision 19): the prompt includes `SECURITY_PREAMBLE` and
-  quotes the transcript inside `wrap_untrusted`, and the recap re-enters inside a fence. And it is
-  **bounded** by `RECAP_BOUNDS`, a boundary move dropping fewer than `min_dropped_chars` new
+  model-written recap. Five properties define it. It only **adds**: every failure path returns the
+  inner selection untouched, logged and never raised. It **caches** behind
+  `SessionStore.set_recap`/`recap`, keyed by the boundary it covers, so an unmoved boundary costs
+  nothing and a moved one folds the previous recap together with the newly dropped turns. It
+  **releases the GPU** by going through `drain_text`. It is **fenced at both ends** (ADR-0038
+  decision 19): the prompt includes `SECURITY_PREAMBLE` and quotes the transcript inside
+  `wrap_untrusted`, and the recap re-enters inside a fence. And it is **bounded** by `RECAP_BOUNDS`
+  and reads what `fold_slice` keeps, a boundary move dropping fewer than `min_dropped_chars` new
   characters deferring the pass without moving `covers`. When it adds nothing it logs why with
   `capped` and `chars` (ADR-0038 decision 21).
-- `recap_prompt.py` holds the text on both sides of that call: `build_recap_messages`,
-  `fence_recap`, `RECAP_BOUNDS` (512 tokens, thinking off, trace budget zero), `collapse_recap(raw)`
-  (the one-paragraph normalization every rule is written against), and `clean_recap(raw)`, which
-  returns `""` for a reply with nothing in it, one that does not end a sentence, or one longer than
-  `RECAP_MAX`. The last two are refusals rather than truncations, a cut account moving `covers`
-  past turns its missing tail never reached.
+- `recap_prompt.py` holds the text on both sides of that call: `build_recap_messages`, `fold_slice`
+  (the oldest dropped messages within `RECAP_READ_MAX`, 16,000 characters, a first one past it cut
+  with a line naming the cut, so `covers` moves only past what was read), `fence_recap`,
+  `RECAP_BOUNDS` (512 tokens, thinking off, trace budget zero), `collapse_recap(raw)` (the
+  one-paragraph form every rule reads), and `clean_recap(raw)`, which returns `""` for an empty
+  reply, one that does not end a sentence, or one longer than `RECAP_MAX`: a refusal rather than a
+  cut, since a cut account would move `covers` past turns its missing tail never reached.
 - `HistoryRecap(text, covers)` (`sessions.py`) is that cached account, `covers` being how many
   messages from the session's start it accounts for. It refuses a blank text or `covers` below one.
 

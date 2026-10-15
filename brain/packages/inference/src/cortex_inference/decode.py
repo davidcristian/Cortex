@@ -56,23 +56,34 @@ async def raise_for_status(response: httpx.Response, model: str) -> None:
     excerpt = body[:_ERROR_EXCERPT_CHARS]
     detail = f": {excerpt}" if excerpt else ""
     msg = f"llama-server answered {response.status_code} for model {model!r}{detail}"
-    if _overflows(body):
-        raise ContextOverflowError(msg)
+    error = _overflow_error(body)
+    if error is not None:
+        raise ContextOverflowError(msg, excess=_excess(error))
     raise InferenceError(msg)
 
 
-def _overflows(body: str) -> bool:
-    """Whether an error body is llama-server's answer to a prompt longer than its context."""
+def _overflow_error(body: str) -> Mapping[str, object] | None:
+    """The error object of a refusal of a prompt longer than the context, or ``None``."""
     try:
         parsed: object = json.loads(body)
     except json.JSONDecodeError:
-        return False
+        return None
     if not isinstance(parsed, dict):
-        return False
+        return None
     error = cast("Mapping[str, object]", parsed).get("error")
     if not isinstance(error, dict):
-        return False
-    return cast("Mapping[str, object]", error).get("type") == _OVERFLOW_TYPE
+        return None
+    detail = cast("Mapping[str, object]", error)
+    return detail if detail.get("type") == _OVERFLOW_TYPE else None
+
+
+def _excess(error: Mapping[str, object]) -> int | None:
+    """How many tokens the refused prompt was over the context, when the body states both counts."""
+    prompt = error.get("n_prompt_tokens")
+    context = error.get("n_ctx")
+    if isinstance(prompt, int) and isinstance(context, int):
+        return prompt - context
+    return None
 
 
 @dataclass

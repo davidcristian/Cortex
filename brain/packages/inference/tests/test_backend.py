@@ -217,6 +217,17 @@ async def test_a_prompt_longer_than_the_context_raises_the_overflow_error() -> N
     with pytest.raises(ContextOverflowError) as excinfo:
         await _collect(_backend(handler))
     assert "request (1559 tokens) exceeds the available context size" in str(excinfo.value)
+    assert excinfo.value.excess == 1047
+
+
+async def test_a_refusal_without_both_counts_has_no_excess() -> None:
+    def handler(_request: httpx.Request) -> httpx.Response:
+        error = {"type": "exceed_context_size_error", "n_prompt_tokens": 1559}
+        return httpx.Response(400, json={"error": error})
+
+    with pytest.raises(ContextOverflowError) as excinfo:
+        await _collect(_backend(handler))
+    assert excinfo.value.excess is None
 
 
 @pytest.mark.parametrize(

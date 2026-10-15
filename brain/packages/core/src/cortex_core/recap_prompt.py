@@ -1,6 +1,7 @@
 """What a history fold says to the model, what it asks of the answer, and how both are fenced."""
 
 from collections.abc import Sequence
+from dataclasses import replace
 from datetime import datetime
 
 from cortex_core.conversation import Message, Role
@@ -13,6 +14,10 @@ from cortex_core.untrusted import new_nonce, security_preamble_message, wrap_unt
 # `drain_text` discards the reasoning before the caller sees any of it.
 RECAP_MAX_TOKENS = 512
 RECAP_BOUNDS = GenerationBounds(max_tokens=RECAP_MAX_TOKENS, thinking=False, trace_tokens=0)
+
+# The most transcript one fold quotes: 9,700 tokens at the 1.65 characters a token measured on a
+# pasted log, which with the prompt, the previous account and the reply fits a 16,384-token context.
+RECAP_READ_MAX = 16_000
 
 _INSTRUCTION = (
     "Below is the earlier part of a conversation that no longer fits in context. Write a "
@@ -40,6 +45,27 @@ _TRAILING_CLOSERS = "\"')]}"
 def fence_recap(text: str) -> str:
     """A stored recap as it enters a turn: the fixed explanation, then the text behind a fence."""
     return f"{_PREFACE}\n{wrap_untrusted(text, nonce=new_nonce())}"
+
+
+def fold_slice(dropped: Sequence[Message], limit: int = RECAP_READ_MAX) -> list[Message]:
+    """The oldest of ``dropped`` whose texts fit ``limit`` characters, at least the first one.
+
+    A first message longer than ``limit`` comes back cut to it, with a line saying how much was cut.
+    """
+    taken: list[Message] = []
+    remaining = limit
+    for message in dropped:
+        if len(message.text) <= remaining:
+            taken.append(message)
+            remaining -= len(message.text)
+        elif not taken:
+            cut = len(message.text) - limit
+            text = f"{message.text[:limit]}\n[{cut} more characters of this message were cut]"
+            taken.append(replace(message, text=text))
+            break
+        else:
+            break
+    return taken
 
 
 def build_recap_messages(

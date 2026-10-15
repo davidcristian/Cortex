@@ -176,15 +176,18 @@ what a memory says cannot do without.
 20. **The fold is bounded, floored and announced, and the summary is on by default.**
     `InferenceBackend.stream` takes `bounds: GenerationBounds | None` per request, because one
     resident cortex both answers the user and folds, which a server flag cannot tell apart; `None`
-    sends the request unchanged. `RECAP_BOUNDS` is 512 tokens with no thinking, which is `RECAP_MAX`
-    (2,000 characters) at four characters a token. `clean_recap` returns `""` for a reply that does
-    not end a sentence or is longer than `RECAP_MAX`, and the window rejects it rather than
-    trimming, since a stored cut account would advance `covers` past turns its tail never reached.
+    sends the request unchanged. `RECAP_BOUNDS` is 512 tokens with no thinking, `RECAP_MAX` (2,000
+    characters) at four a token. `clean_recap` returns `""` for a reply that does not end a sentence
+    or is over `RECAP_MAX`, rejected rather than trimmed: a cut account would move `covers` too far.
+    One fold reads at most `RECAP_READ_MAX` (16,000 characters, 9,700 tokens at the 1.65 a token a
+    pasted log measured): `fold_slice` takes the oldest newly dropped messages within it, cutting a
+    first one past it under a line naming the cut, and `covers` moves only past what was read, so
+    the next fold takes the rest; an unbounded fold over a 60,175-character paste was refused every
+    turn ([readings](../readings/overlay-long-and-unusual-input.md#a-pasted-log-past-the-context)).
     `min_dropped_chars` (`CORTEX_HISTORY_RECAP_MIN_CHARS`, default 2,000) defers a fold below one
-    account's worth of new material; deferring leaves `covers` where it was, and
-    `build_history_window` clamps the floor to the character budget so the unaccounted gap stays
-    smaller than the window. A pass that will run emits `StatusUpdate(state="folding")` through the
-    per-call `progress` sink. `CORTEX_HISTORY_SUMMARY` defaults to `true`.
+    account's worth of new material, leaving `covers` where it was; `build_history_window` clamps
+    it to the character budget so the gap stays smaller than the window. A pass that will run emits
+    `StatusUpdate(state="folding")` through `progress`. `CORTEX_HISTORY_SUMMARY` defaults to `true`.
 21. **A rejected fold says why.** Its line includes `capped`, read off the `StopLedger` given to
     `drain_text`, and `chars`, measured through `collapse_recap`, the normalization `clean_recap`
     itself uses, so the logged length is the one the rejection was decided on.
@@ -215,8 +218,7 @@ what a memory says cannot do without.
   ([history recap](../readings/history-recap.md)). A stalled reader holds the lease across its
   reply only once it has used up the gRPC flow-control credit, which the one shipped consumer does
   not do (R-035).
-- `RecallAudit` gained required fields as the record grew, so every construction site states them
-  and no sink silently emits less.
+- `RecallAudit` has no defaulted field, so every construction site states each one.
 - Every quality reading of the judge is over notes written for the measurement; a shortfall on a
   real corpus needs a deployed store and is what would bring a cross-encoder rank (R-097), which
   needs a scoring port rather than a chat completion.
@@ -225,8 +227,6 @@ what a memory says cannot do without.
 
 - **Widening `MemoryRecaller.recall`'s return:** pushes the ranking into turn assembly and the
   gRPC layer for no consumer.
-- **Recomputing the recap per turn, or storing it in `MemoryStore`:** a generation ahead of every
-  reply; recallable across sessions.
 - **Refusing the recap when tools are enabled, or persisting a taint marker:** does not close a user
   pasting untrusted text; a schema change bought for a narrowing.
 - **A fifth policy name for the threshold:** it cannot reach the judge's fallback, and it

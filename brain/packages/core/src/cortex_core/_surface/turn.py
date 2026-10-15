@@ -57,6 +57,7 @@ from cortex_core.turn_context import (
 )
 from cortex_core.turn_output import (
     CONTEXT_OVERFLOW_NOTE,
+    MESSAGE_OVERFLOW_NOTE,
     REPLY_CAPPED_NOTE,
     UNREADABLE_CALL_NOTE,
     record_exchange,
@@ -110,6 +111,7 @@ __all__ = [
     "GENERATING",
     "MAX_BRIEF_CHARS",
     "MEMORY_WRITE_TIMEOUT_S",
+    "MESSAGE_OVERFLOW_NOTE",
     "PLAIN_SECURITY_PREAMBLE",
     "QUEUED",
     "RECALL_DENIED_MSG",

@@ -14,6 +14,11 @@ class InferenceError(Exception):
 class ContextOverflowError(InferenceError):
     """The prompt was longer than the model's context, so the server generated nothing."""
 
+    def __init__(self, message: str, *, excess: int | None = None) -> None:
+        """``excess`` is how many tokens the prompt was over, when the server said."""
+        super().__init__(message)
+        self.excess = excess
+
 
 class MalformedToolCallError(InferenceError):
     """The server answered and the tool call the model wrote could not be assembled."""

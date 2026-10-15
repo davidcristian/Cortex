@@ -3,8 +3,8 @@
 What a person saw, what the stores held and how the next turn behaved when the overlay was given
 blank or one-character messages, right-to-left and combining text, emoji sequences, markup, text
 shaped like the brain's own notes, pasted logs near and past the cortex's context, and a chat of 26
-short turns. Cited by [ADR-0014](../adr/ADR-0014-history-windowing.md) and
-[ADR-0037](../adr/ADR-0037-whisper-streaming.md). The procedure is the Linux section of
+short turns. Cited by [ADR-0014](../adr/ADR-0014-history-windowing.md),
+[ADR-0037](../adr/ADR-0037-whisper-streaming.md) and [ADR-0038](../adr/ADR-0038-ranked-recall.md). The procedure is the Linux section of
 [the overlay runbook](../runbooks/body-overlay.md#the-tauri-app-on-linux-headless).
 
 ## The rig
@@ -79,8 +79,15 @@ tokens, 1.65 characters a token, against the 3.6 to 4.7 that the window's budget
   was two blank lines and `CONTEXT_OVERFLOW_NOTE`. The chat's title was the log's first line.
 - **The next turns.** "What colour is a ripe lemon? One word." and "Name one planet. One word."
   each ended with the same note and no answer: the log is under the 24,000-character budget, so it
-  stayed in every later window
-  ([R-866](../refinements/tasks/866-one-pasted-log-leaves-a-chat-over-the-context.md)).
+  stayed in every later window.
+- **After the fix** a refusal before any output is asked again without the oldest turns. The same
+  flow in a new chat ended the log's turn with `MESSAGE_OVERFLOW_NOTE` (the message is too long),
+  and answered "Yellow" and "Jupiter", each after one refusal the brain logged as `asking again
+  without older turns` with `dropped=2`. Redis held all six messages.
+- **The cost of a refusal.** Five requests of the 60,175-character log straight to the cortex
+  server were each refused at 36,569 tokens in under a tenth of the time the server took to answer
+  the 22,206-character log with eight tokens from its cached prompt (SM clock 0.62 of its maximum):
+  the server refuses after tokenizing, before evaluating anything.
 - **The stores.** Redis held all six messages. Memory recorded all three exchanges, the first as a
   22,494-character row, each with the note as the reply.
 - **The blank lines.** A note under a reply with no text still starts with its two line breaks, so
@@ -97,8 +104,14 @@ A 60,175-character log of the same kind (36,546 tokens) was pasted the same way 
   questions were answered ("Yellow", "Mars"). Each of those turns first tried to fold the log into
   a recap; the fold was refused at 37,138 tokens, once on the first and twice on the second, and
   the brain logged a warning with a traceback each time. No recap was stored, so every later turn
-  repeats the refused fold
-  ([R-867](../refinements/tasks/867-a-recap-fold-over-a-message-past-the-context-fails-every-turn.md)).
+  repeats the refused fold.
+- **After the fix** one fold reads at most 16,000 characters, a longer message cut under a line
+  naming the cut. The same flow ended the log's turn with `MESSAGE_OVERFLOW_NOTE`, answered "Yellow"
+  and "Saturn", and logged no refused fold: the second turn stored a 463-character recap covering
+  the log, and the third reused it. The recap said the log's status codes were "all 200", which is
+  true only of the part it read, since the log ends with an error line
+  ([R-871](../refinements/tasks/871-a-recap-of-a-cut-message-describes-the-part-it-never-read.md)).
+  The recall judge was still refused on the log's turn and fell back, as ADR-0038 decision 7 allows.
 
 ## A chat of 26 short turns
 
@@ -111,6 +124,7 @@ recorded 26 exchanges.
 
 Method: `measurements/overlay-long-input-2026-10-15/`: `ask.sh` (focus, type, `Enter`), `paste.sh`
 with `clip.py` (a Tk clipboard owner) and `genlog.py` for the two logs, `longchat.sh` for the 26
-turns, `tok.py` for counts through the cortex server's `/tokenize`, `events.txt`, and the frames in
+turns, `tok.py` for counts through the cortex server's `/tokenize`, `flow-after.sh` and `refuse.py` with
+their logs for the runs after the fix, `events.txt`, and the frames in
 `shots/` (`u-*` and `r-*` the names and Hebrew, `rtl*` and `emo*` the streams, `m-*` the markup,
 `c-*` the claim note, `l-*` the logs, `h-end` the long chat, `f-*` and `g-*` the follow).

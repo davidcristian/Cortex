@@ -1,7 +1,7 @@
 """Handle one user turn: pure orchestration over the ports, no I/O of its own."""
 
 import logging
-from collections.abc import AsyncGenerator, Mapping
+from collections.abc import AsyncGenerator, Iterator, Mapping
 
 from cortex_core.attachments import (
     BLIND_ATTACHMENT_MSG,
@@ -19,11 +19,13 @@ from cortex_core.output_channels import open_output_channels
 from cortex_core.ports import Clock, InferenceBackend, SessionStore
 from cortex_core.routing import RoutingHints, Tier, route_turn
 from cortex_core.session_title import build_title_messages, generate_title
+from cortex_core.shedding import shed_oldest_turns
 from cortex_core.stops import StopLedger
 from cortex_core.tool_loop import ToolLoopContext, stream_tool_loop
 from cortex_core.tool_replay import RunLog
 from cortex_core.turn_context import TurnCapabilities, assemble_inference_messages
 from cortex_core.turn_output import (
+    OutputChannels,
     flush_channels,
     limit_notes,
     overflow_note,
@@ -39,6 +41,7 @@ _UNREADABLE_CALL_LOG_MSG = (
     "a tool call the model wrote could not be read; ending this turn where it broke"
 )
 _OVERFLOW_LOG_MSG = "the prompt is longer than the model's context; ending this turn with a note"
+_SHED_LOG_MSG = "the prompt is longer than the model's context; asking again without older turns"
 
 # Deployments override this with CORTEX_MODEL_CORTEX, read by the orchestrator, not the core.
 DEFAULT_CORTEX_MODEL = "cortex"
@@ -57,6 +60,47 @@ def _prepare_escalation(
         budget=context.budget,
         base_len=len(working),
     )
+
+
+def _turn_taint(images: tuple[ImagePart, ...]) -> TaintLedger:
+    """A fresh taint ledger, already tainted when the turn attaches images."""
+    taint = TaintLedger()
+    if images:
+        taint.observe_attachment()
+    return taint
+
+
+def _shed(err: InferenceError, working: list[Message]) -> list[Message] | None:
+    """The prompt to ask again with after a refusal, or ``None`` when the turn ends here."""
+    if not isinstance(err, ContextOverflowError):
+        return None
+    return shed_oldest_turns(working, err.excess)
+
+
+def _failure_log_msg(err: InferenceError, shed: list[Message] | None) -> str:
+    """The warning for a stream that failed before the reply ended."""
+    if shed is not None:
+        return _SHED_LOG_MSG
+    if isinstance(err, ContextOverflowError):
+        return _OVERFLOW_LOG_MSG
+    return _UNREADABLE_CALL_LOG_MSG
+
+
+def _failure_ending(
+    stops: StopLedger,
+    channels: OutputChannels,
+    parts: list[str],
+    *,
+    started: bool,
+    err: InferenceError,
+) -> Iterator[TurnEvent]:
+    """Release what the channels hold, then the note that says why the turn ended there."""
+    # ``stream_turn_events`` flushes only on a clean end, so this path flushes.
+    yield from flush_channels(channels, parts)
+    if isinstance(err, ContextOverflowError):
+        yield from overflow_note(parts, alone=not started)
+    else:
+        yield from unreadable_call_note(stops, parts)
 
 
 class TurnEngine:
@@ -89,9 +133,7 @@ class TurnEngine:
         await self._store.append(session_id, user)
         await self._wait_out_handoff(model)
         history = await self._store.history(session_id)
-        taint = TaintLedger()
-        if images:
-            taint.observe_attachment()
+        taint = _turn_taint(images)
         stops = StopLedger()
         context = ToolLoopContext(
             dispatcher=self._caps.tools,
@@ -111,31 +153,41 @@ class TurnEngine:
             text=text,
             images=images,
         )
-        _prepare_escalation(self._caps, working, context)
         parts: list[str] = []
         channels = open_output_channels(self._caps.guardrail, taint, text)
-        loop = stream_tool_loop(self._backend, model, working, context)
-        events = stream_turn_events(loop, channels, parts, stops, text)
         overflowed = False
         log = RunLog()
-        try:
-            async for event in events:
-                yield log.note(event)
-        except (MalformedToolCallError, ContextOverflowError) as err:
-            overflowed = isinstance(err, ContextOverflowError)
-            _logger.warning(
-                _OVERFLOW_LOG_MSG if overflowed else _UNREADABLE_CALL_LOG_MSG,
-                extra={"session_id": session_id, "turn_id": turn_id, "capped": stops.capped},
-                exc_info=True,
-            )
-            # ``stream_turn_events`` flushes only on a clean end, so this path flushes.
-            for held in flush_channels(channels, parts):
-                yield held
-            ending = overflow_note(parts) if overflowed else unreadable_call_note(stops, parts)
-            for event in ending:
-                yield event
-        finally:
-            await events.aclose()
+        shed: list[Message] | None = working
+        while shed is not None:
+            working[:] = shed
+            _prepare_escalation(self._caps, working, context)
+            loop = stream_tool_loop(self._backend, model, working, context)
+            events = stream_turn_events(loop, channels, parts, stops, text)
+            started = False
+            shed = None
+            try:
+                async for event in events:
+                    started = True
+                    yield log.note(event)
+            except (MalformedToolCallError, ContextOverflowError) as err:
+                # Before any output the prompt alone was refused, so older turns can be dropped.
+                shed = None if started else _shed(err, working)
+                overflowed = shed is None and isinstance(err, ContextOverflowError)
+                _logger.warning(
+                    _failure_log_msg(err, shed),
+                    extra={
+                        "session_id": session_id,
+                        "turn_id": turn_id,
+                        "capped": stops.capped,
+                        "dropped": 0 if shed is None else len(working) - len(shed),
+                    },
+                    exc_info=shed is None,
+                )
+                if shed is None:
+                    for event in _failure_ending(stops, channels, parts, started=started, err=err):
+                        yield event
+            finally:
+                await events.aclose()
         # After the channels flush and before the text is joined, so the note comes under the
         # whole reply and what is saved is what was shown.
         if not overflowed:
@@ -154,7 +206,7 @@ class TurnEngine:
             self._caps, taint, session_id=session_id, query=text, reply=full_text, runs=log.runs
         )
         # Before ``TurnCompleted``, so the overlay's refresh on completion already sees the title.
-        if self._caps.generate_titles and len(history) == 1:
+        if len(history) == 1:
             await self._title_session(session_id, model, text, full_text, turn_id)
         yield TurnCompleted(turn_id=turn_id, full_text=full_text)
 
@@ -176,7 +228,9 @@ class TurnEngine:
     async def _title_session(
         self, session_id: str, model: str, user_text: str, assistant_text: str, turn_id: str
     ) -> None:
-        """Generate a switcher title from the opening exchange and persist it."""
+        """Generate a switcher title from the opening exchange and persist it, when enabled."""
+        if not self._caps.generate_titles:
+            return
         try:
             title = await generate_title(
                 self._backend,

@@ -53,9 +53,11 @@ prompt tokens was answered at once with HTTP 400 and this body, before any token
 `test_context_overflow_live.py` (`integration`-marked) re-takes it against the server at
 `CORTEX_OVERFLOW_ENDPOINT` serving `CORTEX_OVERFLOW_MODEL`, sized from that server's own `/props`
 context. It checks that the adapter raises `ContextOverflowError`, that a deep phase over the real
-adapter ends with `BRAIN_OVERFLOW_NOTE`, and that a cortex turn over it completes with
-`CONTEXT_OVERFLOW_NOTE`. All three passed on this server, and the cortex case failed with the
-engine catching only `MalformedToolCallError`.
+adapter ends with `BRAIN_OVERFLOW_NOTE`, and that a cortex turn over it completes with the note
+for a message too long alone, `MESSAGE_OVERFLOW_NOTE` since 2026-10-15 and `CONTEXT_OVERFLOW_NOTE`
+before. All three passed on this server, and the cortex case failed with the engine catching only
+`MalformedToolCallError`. On 2026-10-15 all three passed again against the cortex, gemma-4-12B at
+`--ctx-size 16384` with an over-length text of 32,784 tokens.
 
 ## The cortex's whole prompt
 

@@ -15,6 +15,7 @@ from cortex_core.recap_prompt import (
     clean_recap,
     collapse_recap,
     fence_recap,
+    fold_slice,
 )
 from cortex_core.sessions import HistoryRecap
 from cortex_core.stops import StopLedger
@@ -97,11 +98,13 @@ class SummarizingHistoryWindow:
         newly_dropped = history[start:boundary]
         if sum(len(message.text) for message in newly_dropped) < self._min_dropped_chars:
             return previous
+        read = fold_slice(newly_dropped)
+        covers = start + len(read)
         prompt = build_recap_messages(
             previous,
-            newly_dropped,
+            read,
             at=self._clock.now(),
-            turn_id=history[boundary - 1].turn_id,
+            turn_id=history[covers - 1].turn_id,
         )
         stops = StopLedger()
         async with hold_wait(progress, _FOLDING):
@@ -120,6 +123,6 @@ class SummarizingHistoryWindow:
                 },
             )
             return previous
-        fresh = HistoryRecap(text=text, covers=boundary)
+        fresh = HistoryRecap(text=text, covers=covers)
         await self._store.set_recap(session_id, fresh)
         return fresh

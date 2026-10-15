@@ -6,7 +6,7 @@ from uuid import UUID
 import pytest
 
 from cortex_core import (
-    CONTEXT_OVERFLOW_NOTE,
+    MESSAGE_OVERFLOW_NOTE,
     REPLY_CAPPED_NOTE,
     ContextOverflowError,
     DecodeStop,
@@ -709,10 +709,10 @@ async def test_an_overflowing_turn_completes_with_its_note_and_the_stream_takes_
         "text_delta",
         "turn_complete",
     ]
-    assert _delta_texts(events) == [CONTEXT_OVERFLOW_NOTE, "fits now"]
+    assert _delta_texts(events) == [MESSAGE_OVERFLOW_NOTE, "fits now"]
     assert [m.text for m in await store.history("s")] == [
         "all of it",
-        CONTEXT_OVERFLOW_NOTE,
+        MESSAGE_OVERFLOW_NOTE,
         "less",
         "fits now",
     ]
