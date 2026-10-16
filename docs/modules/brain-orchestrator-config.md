@@ -6,7 +6,11 @@ another. The service these values wire up is in [brain-orchestrator.md](brain-or
 ## Configuration
 
 Every class is pydantic-settings, read only by the composition root; explicit constructor arguments
-beat the environment, and anything invalid fails at boot. Each class declares its own fields, so
+beat the environment, and anything invalid fails at boot. The root reads each class through
+`read_settings` (`settings_read.py`), which raises `ConfigError` naming the environment variable
+(prefix plus field, or the field's alias) and the rule broken, never the value; a validator's own
+message has its input replaced by `<value>`. `MemoryConfigError` and `RuntimeConfigError` are
+`ConfigError`s, and `entry.main` logs any of them as one `setting refused` line and exits 1. Each class declares its own fields, so
 what follows is the prefix, the defaults other parts depend on, and the validation.
 
 - `RpcServerConfig`, prefix `CORTEX_SEAM_`: `host: str = DEFAULT_RPC_HOST`
@@ -84,7 +88,7 @@ ADR-0009 decision 8), `call_timeout_s =
   shows (ADR-0020), so zero is a real setting and not the sentinel for unset.
 - `LoggingConfig`, prefix `CORTEX_LOG_` (`config_logging.py`, ADR-0051 decision 1):
   `CORTEX_LOG_FORMAT` (`plain`, or `packed` for one JSON object per line), read by
-  `configure_from_env()`, which `__main__` calls and which raises `UnknownLogFormatError` on an
+  `configure_from_env()`, which `entry.main` calls and which raises `UnknownLogFormatError` on an
   unknown rendering. The level is not a setting: the tool audit and recall trails both log at
   `INFO`, and turning the level down would silently empty a record the brain must keep.
 - `SwapConfig`, prefix `CORTEX_` (`config_swap.py`, ADR-0030): `escalation` enables the capability

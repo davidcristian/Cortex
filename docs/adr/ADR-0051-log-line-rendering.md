@@ -154,6 +154,10 @@ is [ADR-0045](ADR-0045-documented-log-lines.md).
     its date rather than checked, since no code compares anything against it; the reader's search
     texts are registry entries (`scripts/trailcouplings.py`,
     [ADR-0042](ADR-0042-cross-tree-constant-registry.md)).
+17. **A refused setting ends the brain with one rendered line naming its variable.** The
+    composition root reads every settings class through `read_settings`, which turns a
+    `ValidationError` or `SettingsError` into a `ConfigError` naming the environment variable and
+    the rule broken, never the value; `entry.main` logs it as `setting refused` and exits 1.
 
 ## Consequences
 
@@ -161,7 +165,7 @@ is [ADR-0045](ADR-0045-documented-log-lines.md).
 - A line stays one driver entry, so `--tail` and `-t` stay usable. The widest sink uses five of the
   seven fields the limit leaves room for, and the check fails on the day a line passes 16 KiB.
 - A deployment that wants a whole value reads the store the line's id points at, not the log.
-- A crashed entry point's traceback still reaches stderr without the formatter (R-664); a packed
+- Any other crash at the entry point still reaches stderr without the formatter (R-664); a packed
   line is unbounded (R-336).
 - Readings: [log line widths](../readings/log-line-widths.md).
 

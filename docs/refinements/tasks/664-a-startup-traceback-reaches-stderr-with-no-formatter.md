@@ -8,21 +8,20 @@ withhold, most plausibly a connection URL with a credential inside it. Two readi
 point, and raising from inside `run_from_env` says what the container's last line looks like. This
 entry's history records what both answered when they were last taken.
 **Origin:** [ADR-0051](../../adr/ADR-0051-log-line-rendering.md)
-**Verified:** 2026-10-13
+**Verified:** 2026-10-16
 
-`__main__.py` runs `asyncio.run(run_from_env())` under a bare entry guard with no `except` around
-it, and `run_from_env` builds every adapter, several of which dial a remote with a credential in the
-URL. An exception from any of them is printed by the interpreter's own traceback hook to stderr.
+`entry.main` runs `asyncio.run(run_from_env())` and catches only `ConfigError`, a refused setting,
+which it logs as one line before exiting 1. `run_from_env` builds every adapter, several of which
+dial a remote with a credential in the URL. An exception from any of them is printed by the interpreter's own traceback hook to stderr.
 `logging` never sees it, so neither `PlainFormatter` nor the whole-line withholding runs, and the
 container log keeps whatever the exception said, its `__cause__` chain included.
 
-The available fix is a guard around `asyncio.run` that logs the exception through the configured
-handler and exits non-zero, which routes every startup traceback through the formatter. Two things
-are unsettled. It changes what a crashed container's last line looks like, from a Python traceback
-an operator reads by eye to one rendered line plus whatever the formatter does with the traceback
-text. And the entry guard is `# pragma: no cover`, so the guard itself would need the coverage
-escape too, or `run_from_env` would have to grow the handling one level in, which puts a
-process-exit decision inside the composition root.
+The available fix widens the `except` in `entry.main` to every exception, logging it with its
+traceback through the configured handler and exiting non-zero, which routes every startup traceback
+through the formatter. `entry.main` is covered by tests, so the guard needs no coverage escape. What
+is unsettled is that it changes what a crashed container's last line looks like, from a Python
+traceback an operator reads by eye to one rendered line plus whatever the formatter does with the
+traceback text.
 
 What the guard does not cover is what made the DSN refusal a separate change: the formatter
 withholds a credential by URL shape, and a failure whose text has a fragment of a password with no
@@ -68,3 +67,7 @@ scheme and no `@` around it passes through every pattern this repo owns.
   exception: the Redis `PING` on `RedisError` (`cortex_session/ping.py:25`) and the cortex's health
   request on `httpx.HTTPError` (`serving_probe.py:73`). So a Redis URL nothing answers still cannot
   end the boot.
+- 2026-10-16: Not fired. The one `asyncio.run` moved to `cortex_orchestrator/entry.py` `main`,
+  which now catches `ConfigError` and logs a refused setting as one `setting refused` line with
+  exit 1. Every other exception still reaches the interpreter's hook, so this entry's question is
+  unchanged.

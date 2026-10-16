@@ -34,6 +34,7 @@ from cortex_orchestrator.schedule_builders import (
 )
 from cortex_orchestrator.server import RpcPorts, serve
 from cortex_orchestrator.serving_builders import build_serving_watch
+from cortex_orchestrator.settings_read import read_settings
 from cortex_orchestrator.stores import RedisStores
 from cortex_orchestrator.subagent_builders import build_subagent_tools, build_subagents
 from cortex_orchestrator.swap_builders import (
@@ -52,16 +53,16 @@ async def run_from_env(
     preference_factory: Callable[[str], RedisPreferenceStore] = RedisPreferenceStore.from_url,
 ) -> None:
     """Compose the brain from the environment and serve until shutdown."""
-    rpc_config = RpcServerConfig()
-    runtime = BrainRuntimeConfig()
-    inference = InferenceConfig()
-    memory_config = MemoryConfig()
-    tools_config = ToolsConfig()
-    body_config = BodyConfig()
-    subagents_config = check_tool_call_deadline(SubagentsConfig(), tools_config)
-    schedule_config = ScheduleConfig()
-    swap_config = SwapConfig()
-    reply_bounds = ReplyBoundsConfig().bounds()
+    rpc_config = read_settings(RpcServerConfig)
+    runtime = read_settings(BrainRuntimeConfig)
+    inference = read_settings(InferenceConfig)
+    memory_config = read_settings(MemoryConfig)
+    tools_config = read_settings(ToolsConfig)
+    body_config = read_settings(BodyConfig)
+    subagents_config = check_tool_call_deadline(read_settings(SubagentsConfig), tools_config)
+    schedule_config = read_settings(ScheduleConfig)
+    swap_config = read_settings(SwapConfig)
+    reply_bounds = read_settings(ReplyBoundsConfig).bounds()
     clock = SystemClock()
     stores = RedisStores.open(runtime.redis_url, store_factory, preference_factory)
     # One placer for the process: the subagent pool places against it, and the residency scope

@@ -8,6 +8,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from cortex_core import DEFAULT_CORTEX_MODEL
 from cortex_orchestrator.converse import DEFAULT_CONFIRM_TIMEOUT_S, DEFAULT_MAX_BUFFERED_EVENTS
 from cortex_orchestrator.dsn import authority_is_readable
+from cortex_orchestrator.settings_read import ConfigError
 from cortex_session import DEFAULT_REDIS_URL
 
 InferenceBackendName = Literal["echo", "llamacpp"]
@@ -108,11 +109,11 @@ class InferenceConfig(BaseSettings):
 # Deliberately not a ``ValueError``, the type every other settings class here raises: pydantic
 # renders the validated input beside the message, and these classes' input holds a URL with a
 # credential, so a refusal raised that way would print it.
-class MemoryConfigError(Exception):
+class MemoryConfigError(ConfigError):
     """A memory configuration is refused, in words naming variables and never values."""
 
 
-class RuntimeConfigError(Exception):
+class RuntimeConfigError(ConfigError):
     """A runtime configuration is refused, in words naming variables and never values."""
 
 

@@ -52,9 +52,9 @@ CORTEX_SCHEDULE_BACKEND=redis CORTEX_SCHEDULE_TZ=Europe/Bucharest docker compose
   --project-directory . -f docker/docker-compose.yml up -d --build
 ```
 
-An unknown key fails the brain at startup with a `ValidationError` naming it, by design, since a
-silent fallback would render every time in the wrong zone. Check `docker compose logs brain` for
-`unknown timezone` if the container will not come up after changing it. An `at` that has an
+An unknown key fails the brain at startup, by design, since a silent fallback would render every
+time in the wrong zone. Check `docker compose logs brain` for a `setting refused` line naming
+`CORTEX_SCHEDULE_TZ` if the container will not come up after changing it. An `at` that has an
 explicit offset is always honoured; a bare wall time reads as this zone, and the two daylight
 saving irregularities resolve with `fold=0`, so an ambiguous hour takes the earlier offset and a
 skipped one fires just past the gap. A one-time `at` made during the second pass of a repeated hour

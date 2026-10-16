@@ -108,8 +108,12 @@ without printing a secret? Each case ran as a one-off `docker compose run --rm -
 | `CORTEX_REDIS_URL` whose password holds a `/` | 1 within 2 s | `ValueError: Port could not be cast to integer value as '<the password before the slash>'` |
 
 - Every case stopped the brain before it served, with a traceback of about 48 lines, and none
-  named its environment variable. `confirm_names` appears in no compose file or runbook
-  ([R-887](../refinements/tasks/887-a-malformed-setting-is-named-by-its-field-not-its-variable.md)).
+  named its environment variable. `confirm_names` appears in no compose file or runbook.
+- **After the settings reader.** The same first four settings, run from the working tree with
+  `python -m cortex_orchestrator` on 2026-10-16, each ended with exit 1 and one line, for example
+  `ERROR:cortex_orchestrator.entry:setting refused reason="CORTEX_SCHEDULE_TZ: unknown timezone
+  '<value>'"`, the confirmed tools as `CORTEX_TOOLS_GATED is not valid JSON` and the port as
+  `CORTEX_SEAM_PORT: Input should be a valid integer`. No value appeared in the output.
 - **The Redis password.** The Redis client reads the text before the slash as a port and prints
   it, which is the defect the memory DSN's check already prevents. With the same check on
   `CORTEX_REDIS_URL`, the run ended in `RuntimeConfigError: CORTEX_REDIS_URL has an authority the
