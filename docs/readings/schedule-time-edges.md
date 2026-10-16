@@ -127,3 +127,36 @@ With `DisplayZone.resolve_after` in `_parse_at` (ADR-0065 decision 1), T2's seco
 stores 01:55 UTC, confirms and lists `02:55:00+01:00 (today)`, and is not due 5 s later; the other
 T2 and all T1 rows are unchanged. Row B, drawn again on the same cortex, passed 5 of 5 (table
 above). The core suite (`brain/packages/core/tests`) holds the tests that fail without it.
+
+## T5: a past `at` and a bare time, with the model seeing the result
+
+Two result changes to `schedule_task`, drawn together in one build, each with its own rule:
+
+- **Past refusal.** An `at` more than 60 s before now is refused with a correction naming the
+  current date-time in the display zone, instead of being stored to fire at once.
+- **Repeat note.** The confirmation of an `at_time` with no day selector says that the item
+  repeats every day, and that `edit_scheduled` with its id and `every_seconds` 0 makes it one time.
+
+They act on different calls: the refusal only on a past `at`, the note only on a daily rule. A
+model that answers the note by cancelling and calling again with a past `at` meets the refusal,
+so a row can now take two or three calls. Each is backed out alone if its rule fails.
+
+**Driver** (`slot8/draw.py` in the run's scratch directory): T4's fixed clock and specs, plus
+`edit_scheduled`, `cancel_scheduled` and `list_scheduled` run against an in-memory store, and up
+to five model steps until a reply with no call. A cancel runs without the confirmation card. A
+draw is classified by what the store holds at the end and by the reply: the wanted instant as a
+one-time item, a past time, a daily rule the reply names ("every day", "daily", "repeat") or does
+not name, or no item and a question.
+
+Rows, written before the baseline: T4's **A**, **D**, **E**, **F** and **G**; **H**, row D's text
+after one earlier exchange ("What is 5 plus 5?"), the shape of the live turn; and the earlier
+readings' rule rows **R1** "Remind me every day at 10:00 to take my vitamins." and **R2** "Remind
+me every Monday at 9:00 to send the weekly report." under the UTC zone at 03:00. A draw takes
+about 12 s, so the counts are cut from the tasks' 20 to fit the run: A 3, D 3, E 5, F 10, G 10,
+H 5, R1 3, R2 3. Both rules count every draw, so they read the same at the smaller count.
+
+- **Rule for the past refusal:** it ships only if every A and D draw still stores its wanted
+  instant with one call, and no F draw ends with a past time stored (F passes with the next day's
+  09:00 or with no item and a question).
+- **Rule for the repeat note:** it ships only if no A, D, E, F, G or H draw ends with a daily rule
+  that the reply does not name, and every R1 and R2 draw still ends with its rule.
