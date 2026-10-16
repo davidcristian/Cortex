@@ -5,9 +5,9 @@
 **Origin:** [ADR-0011](../../adr/ADR-0011-body-v1.md) decision 2
 **Trigger:** a History line in this file recording the maintainer's pick of the wording and of the
 stopped reply's look.
-**Verified:** 2026-10-11
+**Verified:** 2026-10-16
 
-Three replies that end before the brain finishes show text that does not tell a person what
+Four replies that end before the brain finishes show text that does not tell a person what
 happened ([readings](../../readings/overlay-turn-flows.md)):
 
 - A brain that dies during a reply ends it with the tonic status verbatim,
@@ -19,6 +19,11 @@ happened ([readings](../../readings/overlay-turn-flows.md)):
   does on this machine, though no question reached the brain. A dial that is refused, which this
   machine does not produce, would show the connection error's own text instead.
 - A Stop before any text leaves an empty reply bubble under `Thoughts`.
+- A turn whose store write fails ends with `session_store_unavailable: append to session
+  '<id>' failed`, the chat's id included, under a reply that is shown in full and not kept. A
+  full Redis refuses every write until its limit is raised, so the words "unavailable" and
+  the reply above them both mislead; after a handoff it is the deep model's answer that is lost
+  ([readings](../../readings/overlay-swap-pressure-flows.md#redis-at-its-memory-limit)).
 
 ## Proposal
 
@@ -28,6 +33,9 @@ happened ([readings](../../readings/overlay-turn-flows.md)):
   "The brain could not be reached." for a `connection` error or a timeout before any event, and
   the timeout's own sentence otherwise.
 - **The empty stopped reply**: drop the bubble, or show a dimmed "Stopped" in it.
+- **A refused store write**: one sentence chosen from the `session_store_unavailable` code, for
+  example "This reply could not be saved, so the chat will not show it when you open it again.",
+  with the brain's message kept for the dot's tooltip.
 
 ## History
 
@@ -37,3 +45,5 @@ happened ([readings](../../readings/overlay-turn-flows.md)):
   `converse_stream.py`), so the h2 text now shows only when the brain is killed. The overlay still
   prints that code before the sentence
   ([readings](../../readings/store-and-process-restarts.md#a-turn-in-flight-when-the-brain-stops)).
+- 2026-10-16: Not fired, and corrected: a refused store write shows the same `{code}: {message}`
+  form with the chat's id, found with Redis at its memory limit during a handoff.
