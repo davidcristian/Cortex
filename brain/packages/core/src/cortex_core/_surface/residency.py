@@ -64,7 +64,13 @@ from cortex_core.swap_notes import (
     UNHOSTED_TIER_NOTE,
     WORKING_DETAIL,
 )
-from cortex_core.swap_reasons import DRAIN_TIMEOUT_REASON, STRANDED_REASON, TORN_DOWN_REASON
+from cortex_core.swap_reasons import (
+    DRAIN_TIMEOUT_REASON,
+    STORE_FAILED_REASON,
+    STRANDED_REASON,
+    SWAP_BACK_TORN_DOWN_REASON,
+    TORN_DOWN_REASON,
+)
 from cortex_core.swap_recovery import converge_residency, recover_handoffs
 
 __all__ = [
@@ -97,8 +103,10 @@ __all__ = [
     "SERVING_CHECK_TIMEOUT_S",
     "SPILLED_PACE_DETAIL",
     "STORE_FAILED_NOTE",
+    "STORE_FAILED_REASON",
     "STRANDED_REASON",
     "SWAPPING_STATE",
+    "SWAP_BACK_TORN_DOWN_REASON",
     "SWAP_FAILED_NOTE",
     "TIERS_MISSING_DETAIL",
     "TORN_DOWN_REASON",

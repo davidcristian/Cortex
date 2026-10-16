@@ -168,9 +168,9 @@ record being durable and its schema having no field for pixels.
   reply text, streamed but not persisted, except the two appended to the deep model's partial reply
   and persisted with it: `BRAIN_OVERFLOW_NOTE` on a `ContextOverflowError` and `BRAIN_FAILED_NOTE`
   on any other `InferenceError`. `note_for(error)` maps a `ModelManagerError` to the note true of
-  the GPU then. `DRAIN_TIMEOUT_REASON`, `TORN_DOWN_REASON` and `STRANDED_REASON` (`swap_reasons.py`)
-  are the opposite: a note is what the user is told and describes the GPU, a reason is what the
-  record keeps and describes the fault. The two never share a string, and none of it is model text.
+  the GPU then. The `*_REASON` constants (`swap_reasons.py`; a teardown has two, before and after the
+  deep reply was stored) are the opposite: a note is what the user is told and describes the GPU, a
+  reason is what the record keeps and describes the fault. The two never share a string.
 
 ### The manager
 

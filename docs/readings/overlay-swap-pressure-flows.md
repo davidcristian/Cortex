@@ -62,8 +62,9 @@ was set back to 0 after each flow.
   not written, then failed to append the deep reply; the swap back still ran, and the cortex was
   `ready` 42 s after the deep model stopped. Only then did the red `session_store_unavailable`
   bubble show under the deep reply. The store held the question and the hand-over sentence, and
-  no deep reply. The record's `failed` state was refused too, and the record was deleted, so no
-  handoff record was left behind.
+  no deep reply. The brain logged `a handoff ended failed` with "the session store failed while
+  the handoff ran, so no deep reply was stored"; the record's `failed` state was refused too, and
+  the record was deleted, so no handoff record was left behind. A second run gave the same.
 - **The next turn after lifting the limit**, "What did the deep model say, in one line?", was
   answered with a one-line account of the proof, given as the deep model's words, though no deep
   reply was in the chat it read.
@@ -90,18 +91,14 @@ its reply, "5 plus 5 is 10.", was stored 40 s after it was sent.
 back", then the same question in the new chat. The old chat stored the question, the hand-over
 sentence and the whole deep reply, since the deep phase stores its reply before the swap back. The
 swap back finished, and the new chat's reply was stored 41 s after it was sent, under the same
-waiting chip as above.
+waiting chip as above. The brain logged `a handoff ended failed` with "the turn was torn down
+during the swap back, after the deep model's reply was stored", and the record kept that reason in
+Redis for its hour. A second run gave the same, its reply stored 40 s after it was sent.
 
-Two things were wrong:
-
-- **The record says the handoff failed.** The brain logged `a handoff ended failed` with
-  `reason="the turn was torn down before the handoff finished"`, and the record stayed in Redis as
-  `failed` with that reason, though the deep reply was stored and the cortex came back. Filed as
-  [R-876](../refinements/tasks/876-a-handoff-torn-down-during-the-swap-back-is-recorded-failed.md).
-- **The waiting chip names a handoff that is over.** After `Ctrl+N` the new chat's chip said it was
-  waiting for another request's handoff to finish, in both flows, while the person had just left
-  that request and the brain was reloading the cortex. Filed as
-  [R-877](../refinements/tasks/877-the-wait-behind-a-swap-back-names-a-handoff-that-is-over.md).
+**The waiting chip names a handoff that is over.** After `Ctrl+N` the new chat's chip said it was
+waiting for another request's handoff to finish, in both flows, while the person had just left that
+request and the brain was reloading the cortex. Filed as
+[R-877](../refinements/tasks/877-the-wait-behind-a-swap-back-names-a-handoff-that-is-over.md).
 
 Method: the drivers (`flowc.sh`, `lib.sh`, `mon.sh`) and frames are in the run's scratch directory,
 not in the tree.

@@ -8,3 +8,9 @@ DRAIN_TIMEOUT_REASON = (
 TORN_DOWN_REASON = "the turn was torn down before the handoff finished"
 
 STRANDED_REASON = "the brain restarted while this handoff was still in flight"
+
+SWAP_BACK_TORN_DOWN_REASON = (
+    "the turn was torn down during the swap back, after the deep model's reply was stored"
+)
+
+STORE_FAILED_REASON = "the session store failed while the handoff ran, so no deep reply was stored"

@@ -184,13 +184,13 @@ a kill keeps the chat and the cortex. The overlay's view: [docs/host/](../host/i
 ### 10. A handoff that failed says why, on the record
 
 `HandoffSettler.fail(record, reason)` is the only writer of `FAILED`, so no path settles a failure
-without a reason. The reason is written in the state's own read-modify-write, and a transition naming
-none clears it. It is written by the application or taken from an error's message, never from model
-text: `swap_reasons.py` holds `DRAIN_TIMEOUT_REASON`, `TORN_DOWN_REASON` and `STRANDED_REASON`, and
-the swap's `ModelManagerError` and the deep server's `InferenceError` include their own message,
-which is how the model host's status reaches the brain. `fail` writes one `WARNING` (`a handoff ended
-failed`) before asking the store. A terminal write the store refuses is followed by deleting the
-record, since a stuck active pointer would refuse every later escalation; a refused intermediate
+without a reason. The reason is written in the state's own read-modify-write, and a transition
+naming none clears it. It comes from the application or an error's message, never from model text:
+`swap_reasons.py` holds one per fault the conductor names, a teardown before and one after the deep
+reply was stored among them, and the swap's and the deep server's errors include their own message,
+which is how the model host's status reaches the brain. `fail` writes one `WARNING` (`a handoff
+ended failed`) before asking the store. A terminal write the store refuses is followed by deleting
+the record, since a stuck active pointer would refuse every later escalation; a refused intermediate
 write keeps it for boot recovery. The reason stays off the residency report, whose detail the user
 reads word for word and which is not serving on every path that leaves the machine wrong.
 

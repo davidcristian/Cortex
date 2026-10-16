@@ -18,7 +18,9 @@ from swap_harness import (
 from cortex_core import (
     ALREADY_ACTIVE_NOTE,
     BRAIN_FAILED_NOTE,
+    STORE_FAILED_REASON,
     STRANDED_REASON,
+    SWAP_BACK_TORN_DOWN_REASON,
     SWAP_FAILED_NOTE,
     SWAPPING_STATE,
     TORN_DOWN_REASON,
@@ -27,6 +29,7 @@ from cortex_core import (
     ModelHostState,
     RecordingSleeper,
     ScriptedModelHost,
+    SessionStoreError,
     SourceKind,
     StatusUpdate,
     SubagentAdmissionError,
@@ -369,15 +372,27 @@ def _during_swap_back(pause: PausePoint) -> Harness:
 
 
 @pytest.mark.parametrize(
-    ("case", "make", "host_touched", "deep_reply"),
+    ("case", "make", "host_touched", "deep_reply", "reason"),
     [
-        ("after-snapshot", _after_snapshot, (), None),
-        ("mid-drain", _mid_drain, (), None),
-        ("after-drain", _after_drain, (), None),
-        ("after-cortex-stop", _after_cortex_stop, _EVICTED, None),
-        ("mid-brain-stream", _mid_brain_stream, _SWAPPED_IN, None),
-        ("after-brain-persist", _after_brain_persist, _SWAPPED_IN, "a deep answer"),
-        ("during-swap-back", _during_swap_back, _SWAPPED_BACK, "a deep answer"),
+        ("after-snapshot", _after_snapshot, (), None, TORN_DOWN_REASON),
+        ("mid-drain", _mid_drain, (), None, TORN_DOWN_REASON),
+        ("after-drain", _after_drain, (), None, TORN_DOWN_REASON),
+        ("after-cortex-stop", _after_cortex_stop, _EVICTED, None, TORN_DOWN_REASON),
+        ("mid-brain-stream", _mid_brain_stream, _SWAPPED_IN, None, TORN_DOWN_REASON),
+        (
+            "after-brain-persist",
+            _after_brain_persist,
+            _SWAPPED_IN,
+            "a deep answer",
+            TORN_DOWN_REASON,
+        ),
+        (
+            "during-swap-back",
+            _during_swap_back,
+            _SWAPPED_BACK,
+            "a deep answer",
+            SWAP_BACK_TORN_DOWN_REASON,
+        ),
     ],
 )
 async def test_a_kill_at_a_step_boundary_converges_back_onto_the_cortex(
@@ -385,6 +400,7 @@ async def test_a_kill_at_a_step_boundary_converges_back_onto_the_cortex(
     make: Callable[[PausePoint], Harness],
     host_touched: tuple[tuple[str, str], ...],
     deep_reply: str | None,
+    reason: str,
 ) -> None:
     del case  # named for the parametrize id
     pause = PausePoint()
@@ -403,8 +419,22 @@ async def test_a_kill_at_a_step_boundary_converges_back_onto_the_cortex(
     await assert_stores_intact(live, deep_reply=deep_reply, killed=True)
     torn_down = await live.handoffs.get(harness.TURN)
     assert torn_down is not None
-    assert torn_down.failure == TORN_DOWN_REASON
+    assert torn_down.failure == reason
     assert_stream_reported_only_real_progress(live, events, killed=True)
+    await assert_the_next_turn_still_works(live)
+
+
+async def test_a_deep_reply_the_session_store_refuses_fails_the_record_with_that_reason() -> None:
+    live = build_harness(Fakes(sessions=RecordingSessionStore(fail_at=3)))
+    await live.seed_session()
+    with pytest.raises(SessionStoreError):
+        await harness.run_handoff(live, harness.prepared_slot())
+    await assert_converged_on_cortex(live)
+    failed = await live.handoffs.get(harness.TURN)
+    assert failed is not None
+    assert failed.state is HandoffState.FAILED
+    assert failed.failure == STORE_FAILED_REASON
+    assert live.sessions.appends == 3
     await assert_the_next_turn_still_works(live)
 
 

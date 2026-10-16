@@ -33,6 +33,7 @@ from cortex_core import (
     ResidencyPlan,
     Role,
     ScriptedModelHost,
+    SessionStoreError,
     StatusUpdate,
     SwapConductor,
     SwappingModelManager,
@@ -162,15 +163,25 @@ class RecordingHandoffStore(InMemoryHandoffStore):
 class RecordingSessionStore(InMemorySessionStore):
     """Session store that can pause after the deep model's reply is safely persisted."""
 
-    def __init__(self, *, append_pause: PausePoint | None = None, pause_after: int = 3) -> None:
+    def __init__(
+        self,
+        *,
+        append_pause: PausePoint | None = None,
+        pause_after: int = 3,
+        fail_at: int | None = None,
+    ) -> None:
         super().__init__()
         self.appends = 0
         self._pause = append_pause
         self._pause_after = pause_after
+        self._fail_at = fail_at
 
     async def append(self, session_id: str, message: Message) -> None:
-        await super().append(session_id, message)
         self.appends += 1
+        if self.appends == self._fail_at:
+            msg = f"append to session {session_id!r} failed"
+            raise SessionStoreError(msg)
+        await super().append(session_id, message)
         if self._pause is not None and self.appends == self._pause_after:
             await self._pause.pause()
 

@@ -2,6 +2,7 @@
 
 import logging
 from collections.abc import AsyncGenerator
+from dataclasses import dataclass
 
 from cortex_core.brain_phase import BrainPhase
 from cortex_core.errors import (
@@ -9,6 +10,7 @@ from cortex_core.errors import (
     HandoffStoreError,
     InferenceError,
     ModelManagerError,
+    SessionStoreError,
 )
 from cortex_core.events import StatusUpdate, TextDelta, TurnEvent
 from cortex_core.handoff import EscalationSlot, HandoffRecord, HandoffState
@@ -27,7 +29,12 @@ from cortex_core.swap_notes import (
     WORKING_DETAIL,
     note_for,
 )
-from cortex_core.swap_reasons import DRAIN_TIMEOUT_REASON, TORN_DOWN_REASON
+from cortex_core.swap_reasons import (
+    DRAIN_TIMEOUT_REASON,
+    STORE_FAILED_REASON,
+    SWAP_BACK_TORN_DOWN_REASON,
+    TORN_DOWN_REASON,
+)
 from cortex_core.swap_settle import HandoffSettler
 
 _logger = logging.getLogger(__name__)
@@ -36,6 +43,13 @@ _logger = logging.getLogger(__name__)
 def _status(detail: str) -> StatusUpdate:
     """One swap-window progress event, under the state the overlay renders as a chip."""
     return StatusUpdate(state=SWAPPING_STATE, detail=detail)
+
+
+@dataclass(slots=True)
+class _Reached:
+    """How far one handoff got, read when it ends early."""
+
+    answered: bool = False
 
 
 class SwapConductor:
@@ -85,6 +99,7 @@ class SwapConductor:
         if isinstance(prepared, str):
             yield TextDelta(text=prepared)
             return
+        reached = _Reached()
         try:
             if not self._plan.coresident:
                 yield _status(DRAINING_DETAIL)
@@ -92,7 +107,7 @@ class SwapConductor:
                 await self._settle.fail(prepared, DRAIN_TIMEOUT_REASON)
                 yield TextDelta(text=DRAIN_TIMEOUT_NOTE)
                 return
-            swap = self._swap(prepared)
+            swap = self._swap(prepared, reached)
             try:
                 async for event in swap:
                     yield event
@@ -101,10 +116,14 @@ class SwapConductor:
                 # before the undrain below: admission may only reopen once the tiers a swap
                 # evicted are running again.
                 await swap.aclose()
+        except SessionStoreError:
+            await self._settle.fail(prepared, STORE_FAILED_REASON)
+            raise
         except BaseException:
             # Cancellation included: a handoff that stops being run is a failed handoff, and a
             # record left live would refuse every escalation until the next boot recovers it.
-            await self._settle.fail(prepared, TORN_DOWN_REASON)
+            reason = SWAP_BACK_TORN_DOWN_REASON if reached.answered else TORN_DOWN_REASON
+            await self._settle.fail(prepared, reason)
             raise
         finally:
             self._undrain()
@@ -159,7 +178,9 @@ class SwapConductor:
             raise
         return record
 
-    async def _swap(self, record: HandoffRecord) -> AsyncGenerator[TurnEvent, None]:
+    async def _swap(
+        self, record: HandoffRecord, reached: _Reached
+    ) -> AsyncGenerator[TurnEvent, None]:
         """Swap in, run the deep model's phase, swap back, and settle the record."""
         try:
             yield _status(LOADING_DETAIL)
@@ -172,6 +193,7 @@ class SwapConductor:
                         yield event
                 finally:
                     await phase.aclose()
+                reached.answered = True
                 yield _status(RESTORING_DETAIL)
         except InferenceError as err:
             await self._settle.fail(record, str(err))
