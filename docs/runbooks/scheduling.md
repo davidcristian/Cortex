@@ -44,8 +44,8 @@ items and moves nothing.
 
 `just up`, `just up-gpu` and `just up-modelhost-loopback` set it to the host's zone when it is
 unset (`docker/host-zone.sh`, ADR-0065 decision 5). A plain `docker compose` start, like the one
-below, keeps `UTC` unless the variable is set. `docker exec cortex-brain-1 printenv
-CORTEX_SCHEDULE_TZ` shows the zone in use.
+below, keeps `UTC` unless the variable is set. The brain's startup line `scheduling is on` names
+the zone in use, as in `zone=Europe/Berlin`.
 
 ```
 CORTEX_SCHEDULE_BACKEND=redis CORTEX_SCHEDULE_TZ=Europe/Bucharest docker compose \

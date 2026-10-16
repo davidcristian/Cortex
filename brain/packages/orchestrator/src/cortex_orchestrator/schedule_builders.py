@@ -41,6 +41,7 @@ def build_schedule(
     if config.backend != "redis":
         return None, noop_aclose
     store = store_factory(redis_url)
+    _logger.info("scheduling is on", extra={"zone": config.tz})
     return store, store.aclose
 
 

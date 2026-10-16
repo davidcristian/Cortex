@@ -1,6 +1,8 @@
 import asyncio
+import logging
 from datetime import UTC, datetime, timedelta
 
+import pytest
 from fakeredis import FakeAsyncRedis, FakeServer
 
 from cortex_core import (
@@ -69,6 +71,17 @@ def _spawn_tool() -> SpawnSubagentsTool:
 def test_build_schedule_defaults_to_disabled() -> None:
     store, _close = build_schedule(ScheduleConfig(backend="none"), "redis://ignored")
     assert store is None
+
+
+def test_build_schedule_names_its_zone_at_startup(caplog: pytest.LogCaptureFixture) -> None:
+    def factory(_url: str) -> RedisScheduleStore:
+        return RedisScheduleStore(FakeAsyncRedis(server=FakeServer()))
+
+    caplog.set_level(logging.INFO, logger="cortex_orchestrator.schedule_builders")
+    config = ScheduleConfig(backend="redis", tz="Europe/Berlin")
+    build_schedule(config, "redis://redis:6379/0", store_factory=factory)
+    [record] = [r for r in caplog.records if r.getMessage() == "scheduling is on"]
+    assert record.__dict__["zone"] == "Europe/Berlin"
 
 
 async def test_build_schedule_redis_builds_and_closes_the_store() -> None:
