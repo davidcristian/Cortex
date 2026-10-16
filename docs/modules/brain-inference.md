@@ -171,19 +171,19 @@ Every failure crosses the `InferenceBackend` port as `InferenceError` with the c
   Raising would cost the reply, and dropping it would file a reason this core could not read under
   the same heading as a reason nobody offered.
 
-**A non-2xx quotes the server.** `raise_for_status` alone would report a bare status, because the
-response is streamed and its body is never read, which would make the most likely misconfiguration
-here (a vision request to a server started without its projector) indistinguishable from any other
-failure. The adapter reads the body on a non-2xx only, quotes at most 300 characters of it, and
-raises `InferenceError` with the status and that excerpt. The projector-less case was measured on
-2026-08-03: llama-server answers 500 with a 151-byte JSON body naming the missing `mmproj`, so the
-bound quotes the whole of it, and `test_a_projector_less_server_says_so_when_an_image_arrives`
-(`integration`-marked, needing a server at `CORTEX_INFERENCE_ENDPOINT_NO_MMPROJ` started without the
-`--mmproj` pair) is the warning for a llama.cpp wording change. One body is read further: a prompt
-longer than the context is answered with 400 and an error `type` of `exceed_context_size_error`
-(build b10680), which the adapter raises as `ContextOverflowError`, a narrower `InferenceError`.
-`test_context_overflow_live.py` (`integration`-marked, needing a server at
-`CORTEX_OVERFLOW_ENDPOINT`) re-takes it ([history window readings](../readings/history-window.md)).
+**A non-2xx quotes the server.** A streamed response's body is never read, so a bare status would
+make the likeliest misconfiguration (a vision request to a server without its projector) look like
+any other failure. On a non-2xx only, the adapter reads the body and raises `InferenceError` with
+the status and at most 300 characters of it. Measured 2026-08-03, a projector-less llama-server
+answers 500 with a 151-byte JSON body naming the missing `mmproj`, quoted whole; the
+`integration`-marked `test_a_projector_less_server_says_so_when_an_image_arrives` (a server at
+`CORTEX_INFERENCE_ENDPOINT_NO_MMPROJ` without `--mmproj`) warns of a wording change. Two bodies are
+read further. A prompt longer than the context is answered with 400 and an error `type` of
+`exceed_context_size_error` (build b10680), raised as `ContextOverflowError`, a narrower
+`InferenceError`, which `test_context_overflow_live.py` (`CORTEX_OVERFLOW_ENDPOINT`) re-takes
+([history window readings](../readings/history-window.md)). A request sent while the server loads
+its model is answered with 503, `unavailable_error` and `Loading model`, raised as an
+`InferenceError` saying the model is still loading, without the JSON body.
 
 ## Invariants
 

@@ -43,6 +43,11 @@ _ERROR_EXCERPT_CHARS = 300
 # (build b10680), before it generates anything.
 _OVERFLOW_TYPE = "exceed_context_size_error"
 
+# What llama-server answers, with HTTP 503, to a request sent while it is still loading the model,
+# read off the running server on 2026-10-16.
+_LOADING_TYPE = "unavailable_error"
+_LOADING_MESSAGE = "Loading model"
+
 
 async def raise_for_status(response: httpx.Response, model: str) -> None:
     """Raise on a non-2xx, quoting a bounded excerpt of the body.
@@ -56,25 +61,28 @@ async def raise_for_status(response: httpx.Response, model: str) -> None:
     excerpt = body[:_ERROR_EXCERPT_CHARS]
     detail = f": {excerpt}" if excerpt else ""
     msg = f"llama-server answered {response.status_code} for model {model!r}{detail}"
-    error = _overflow_error(body)
-    if error is not None:
+    error = _error_object(body)
+    if error.get("type") == _OVERFLOW_TYPE:
         raise ContextOverflowError(msg, excess=_excess(error))
+    if error.get("type") == _LOADING_TYPE and error.get("message") == _LOADING_MESSAGE:
+        msg = (
+            f"model {model!r} is still loading, so it cannot answer yet; ask again once it is ready"
+        )
     raise InferenceError(msg)
 
 
-def _overflow_error(body: str) -> Mapping[str, object] | None:
-    """The error object of a refusal of a prompt longer than the context, or ``None``."""
+def _error_object(body: str) -> Mapping[str, object]:
+    """The error object of a llama-server error body, or an empty mapping for any other shape."""
     try:
         parsed: object = json.loads(body)
     except json.JSONDecodeError:
-        return None
+        return {}
     if not isinstance(parsed, dict):
-        return None
+        return {}
     error = cast("Mapping[str, object]", parsed).get("error")
     if not isinstance(error, dict):
-        return None
-    detail = cast("Mapping[str, object]", error)
-    return detail if detail.get("type") == _OVERFLOW_TYPE else None
+        return {}
+    return cast("Mapping[str, object]", error)
 
 
 def _excess(error: Mapping[str, object]) -> int | None:

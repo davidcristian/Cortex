@@ -210,6 +210,28 @@ _OVERFLOW_BODY = {
 }
 
 
+async def test_a_server_still_loading_its_model_is_named_without_its_body() -> None:
+    def handler(_request: httpx.Request) -> httpx.Response:
+        error = {"code": 503, "message": "Loading model", "type": "unavailable_error"}
+        return httpx.Response(503, json={"error": error})
+
+    with pytest.raises(InferenceError) as excinfo:
+        await _collect(_backend(handler))
+    assert type(excinfo.value) is InferenceError
+    assert str(excinfo.value) == (
+        "model 'cortex' is still loading, so it cannot answer yet; ask again once it is ready"
+    )
+
+
+async def test_an_unavailable_error_with_another_message_quotes_the_body() -> None:
+    def handler(_request: httpx.Request) -> httpx.Response:
+        error = {"code": 503, "message": "no slot", "type": "unavailable_error"}
+        return httpx.Response(503, json={"error": error})
+
+    with pytest.raises(InferenceError, match=r"^llama-server answered 503 .*no slot"):
+        await _collect(_backend(handler))
+
+
 async def test_a_prompt_longer_than_the_context_raises_the_overflow_error() -> None:
     def handler(_request: httpx.Request) -> httpx.Response:
         return httpx.Response(400, json=_OVERFLOW_BODY)
