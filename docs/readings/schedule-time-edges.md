@@ -160,3 +160,10 @@ H 5, R1 3, R2 3. Both rules count every draw, so they read the same at the small
   09:00 or with no item and a question).
 - **Rule for the repeat note:** it ships only if no A, D, E, F, G or H draw ends with a daily rule
   that the reply does not name, and every R1 and R2 draw still ends with its rule.
+
+**Replication for the past refusal, written after the candidate's A draws and before any later
+draw.** One candidate A draw took two calls. Its first `at` was "tomorrow at 09:00", which the
+ISO check refused, a check neither change touches, and its second call stored the wanted instant.
+A draw's first call comes from the same prompt in both builds. A and D are drawn 5 more times
+each on the candidate, and the past refusal ships only if all 10 store the wanted instant with
+one call, the original rule's letter. Otherwise it is backed out and its task stays open.
