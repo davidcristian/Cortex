@@ -71,8 +71,8 @@ followed by a cap note.
 generate_titles=False, progress=None, escalation=None, bounds=None, residency=None)`
 (`turn_context.py`, with the context assembly `assemble_inference_messages`) is the frozen bundle of
 everything optional about a turn. With the bare default the turn is plain streamed inference. The
-reply stores its turn's `ToolOutcome`s as `runs`, and assembly replays each stored reply's runs
-before it as calls with a fixed outcome text, after the window (`tool_replay.py`, ADR-0074).
+reply stores its turn's `ToolOutcome`s as `runs`, replayed before it as calls with fixed texts
+after the window, one saying a handoff's deep reply is not stored (`tool_replay.py`, ADR-0074).
 
 - `memory` (a `MemoryRecaller`, ADR-0008): before inference the engine recalls the top
   `DEFAULT_RECALL_K` (5) memories for the user text within the turn's scope and prepends any hits

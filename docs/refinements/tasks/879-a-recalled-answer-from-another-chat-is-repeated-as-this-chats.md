@@ -11,10 +11,9 @@ earlier conversations" (`cortex_core/turn_context.py`). Memory held the flow's o
 "What did the deep model say, in one line?" asked in another chat, whose one-line answer
 paraphrased a deep reply stored by a third chat. In a chat whose own deep reply was not stored,
 the same question was answered by repeating that recalled answer word for word as this chat's, in
-4 of 5 draws on HEAD, and in 2 and 3 of 5 with either replay text tried for
-[R-878](878-a-handoff-whose-deep-reply-was-not-stored-reads-as-answered.md)
-([readings](../../readings/handoff-reply-not-kept.md), row L). The fifth HEAD draw paraphrased a
-recalled deep reply.
+4 of 5 draws before the replay of an unanswered handoff, where the fifth paraphrased a recalled
+deep reply. With the shipped replay text it was still repeated in 2 of 5, and in 3 of 5 with a
+text that also named memory ([readings](../../readings/handoff-reply-not-kept.md), row L).
 
 ## Reproduction
 
@@ -31,4 +30,5 @@ row L against the readings' 4 of 5 rule before it ships, with rows C and L2 besi
 
 ## History
 
-- 2026-10-16: filed from R-878's draws, where no replay text moved this row.
+- 2026-10-16: filed from the draws for the replay of an unanswered handoff, where no replay text
+  moved this row.

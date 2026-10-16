@@ -34,7 +34,11 @@ wrote on a tainted turn can hold injected text or a link the output guardrail re
 3. **A later turn replays them as calls.** `replay_runs` puts, before each reply with runs, one
    assistant step whose `tool_calls` name each run with empty arguments and ids
    `replay-<index>-<n>`, and one `TOOL` message per call holding a fixed text, `REPLAYED_OK` or
-   `REPLAYED_FAILED`, which says the result is not kept. `assemble_inference_messages` applies it
+   `REPLAYED_FAILED`, which says the result is not kept. A successful `escalate_to_brain` run whose
+   reply is the last stored message of its turn gets `REPLAYED_UNANSWERED` instead, saying no reply
+   from the deep model to it is stored: every handoff that ends without a stored deep reply leaves
+   that shape, and without it the cortex stated an answer as the deep model's
+   ([readings](../readings/handoff-reply-not-kept.md)). `assemble_inference_messages` applies it
    after the history window, so the window and the recap still count stored messages only. The
    model reads the shape the tool loop gives it within a turn, so a request answered by a call is
    what it copies.

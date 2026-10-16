@@ -31,10 +31,12 @@ from cortex_core import (
     TurnEngine,
     TurnEvent,
 )
+from cortex_core.escalate import ESCALATE_TOOL_NAME
 from cortex_core.tool_replay import (
     RECALLED_RUNS_NOTE,
     REPLAYED_FAILED,
     REPLAYED_OK,
+    REPLAYED_UNANSWERED,
     RunLog,
     replay_runs,
 )
@@ -86,6 +88,38 @@ def test_two_replies_get_distinct_call_ids() -> None:
     replayed = replay_runs([reply, reply])
     ids = [m.tool_call_id for m in replayed if m.role is Role.TOOL]
     assert ids == ["replay-0-0", "replay-1-0"]
+
+
+def _outcomes(history: list[Message]) -> list[str]:
+    return [m.text for m in replay_runs(history) if m.role is Role.TOOL]
+
+
+def _handoff_turn(turn_id: str, *, ok: bool = True) -> list[Message]:
+    runs = (ToolRun("read", ok=True), ToolRun(ESCALATE_TOOL_NAME, ok=ok))
+    return [
+        Message(role=Role.USER, text="prove it", at=_AT, turn_id=turn_id),
+        Message(role=Role.ASSISTANT, text="handing over", at=_AT, turn_id=turn_id, runs=runs),
+    ]
+
+
+def test_a_handoff_with_no_stored_deep_reply_is_replayed_as_unanswered() -> None:
+    assert _outcomes(_handoff_turn("t-1")) == [REPLAYED_OK, REPLAYED_UNANSWERED]
+
+
+def test_a_handoff_whose_deep_reply_is_stored_is_replayed_as_a_success() -> None:
+    deep = Message(role=Role.ASSISTANT, text="the proof", at=_AT, turn_id="t-1")
+    assert _outcomes([*_handoff_turn("t-1"), deep]) == [REPLAYED_OK, REPLAYED_OK]
+
+
+def test_a_later_turns_reply_does_not_answer_an_earlier_handoff() -> None:
+    later = Message(role=Role.ASSISTANT, text="ten", at=_AT, turn_id="t-2")
+    asked = Message(role=Role.USER, text="5 plus 5?", at=_AT, turn_id="t-2")
+    history = [*_handoff_turn("t-1"), asked, later]
+    assert _outcomes(history) == [REPLAYED_OK, REPLAYED_UNANSWERED]
+
+
+def test_a_declined_handoff_is_replayed_as_failed() -> None:
+    assert _outcomes(_handoff_turn("t-1", ok=False)) == [REPLAYED_OK, REPLAYED_FAILED]
 
 
 class _TwoTurnBackend:

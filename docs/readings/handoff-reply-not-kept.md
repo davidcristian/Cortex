@@ -3,7 +3,7 @@
 What the cortex says about a handoff when the chat holds the question and its hand-over sentence
 and no deep reply, as a Redis at its memory limit leaves it
 ([flow](overlay-swap-pressure-flows.md#redis-at-its-memory-limit)), and when the reply was stored.
-The task is [R-878](../refinements/tasks/878-a-handoff-whose-deep-reply-was-not-stored-reads-as-answered.md).
+The decision it supports is [ADR-0074](../adr/ADR-0074-replayed-tool-runs.md) decision 3.
 
 ## Rows and rule
 
@@ -61,12 +61,20 @@ column, and rebuilt from HEAD after the last.
 
 ## Next rows and rule
 
-Written 2026-10-16, not drawn. L and L2 are two defects. L2 is what a lost reply leaves when
-nothing in memory answers the question, and the first text fixed it in 5 of 5. L is about recall:
-an exchange from another chat that asked the same thing is recalled as `User: ... / Assistant:
-...`, and the cortex repeats its answer as this chat's; no replay text moved it.
+Written 2026-10-16, before any draw of it. L and L2 are two defects. L2 is what a lost reply leaves
+when nothing in memory answers the question, and the first text fixed it in 5 of 5. L is about
+recall: an exchange from another chat that asked the same thing is recalled as `User: ... /
+Assistant: ...`, and the cortex repeats its answer as this chat's; no replay text moved it.
 
 - **For L2**: the first text ships when, on a fresh build, L2 passes in at least 4 of 5 in each of
   two runs of 5 and C in at least 4 of 5 in each. Below that, it stays backed out.
 - **For L**: change how a recalled exchange is framed, not the replay, and draw L against the
-  same 4 of 5 rule.
+  same 4 of 5 rule
+  ([R-879](../refinements/tasks/879-a-recalled-answer-from-another-chat-is-repeated-as-this-chats.md)).
+
+## The L2 replication, 2026-10-16
+
+On a brain image rebuilt with the first text, L2 passed in 5 of 5 in both runs, every draw saying
+the reply was not stored, not available or not yet given. C passed in 5 of 5 in both, every draw
+giving the stored reply's content. **The rule is met, and the first text shipped** as
+`REPLAYED_UNANSWERED` (`cortex_core/tool_replay.py`). Replies: `rep.jsonl` in the same directory.

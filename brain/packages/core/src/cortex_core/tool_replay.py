@@ -3,6 +3,7 @@
 from collections.abc import Sequence
 
 from cortex_core.conversation import Message, Role, ToolRun
+from cortex_core.escalate import ESCALATE_TOOL_NAME
 from cortex_core.events import ToolOutcome, TurnEvent
 from cortex_core.tool_round import call_message
 from cortex_core.tools import ToolCall
@@ -11,6 +12,11 @@ REPLAYED_OK = "This call ran and succeeded in an earlier turn. Its result is not
 REPLAYED_FAILED = (
     "This call did not succeed in an earlier turn: it failed, was refused or the user declined "
     "it. Its result is not kept."
+)
+REPLAYED_UNANSWERED = (
+    "This handoff to the deep model was approved in an earlier turn, but no reply from the deep "
+    "model to it is stored in this conversation. Its answer, if it gave one, was not kept, so "
+    "what it said is not known."
 )
 
 RUNS_LABEL = "Tools run"
@@ -48,12 +54,25 @@ def replay_runs(history: Sequence[Message]) -> list[Message]:
     replayed: list[Message] = []
     for index, message in enumerate(history):
         if message.runs:
-            replayed.extend(_run_steps(message, index))
+            replayed.extend(_run_steps(message, index, answered=_answered(history, index)))
         replayed.append(message)
     return replayed
 
 
-def _run_steps(reply: Message, index: int) -> list[Message]:
+def _answered(history: Sequence[Message], index: int) -> bool:
+    """Whether a later message of the same turn is stored, as a handoff's deep reply is."""
+    turn_id = history[index].turn_id
+    return any(message.turn_id == turn_id for message in history[index + 1 :])
+
+
+def _outcome(run: ToolRun, *, answered: bool) -> str:
+    """The fixed text one replayed call gets as its result."""
+    if not run.ok:
+        return REPLAYED_FAILED
+    return REPLAYED_OK if answered or run.name != ESCALATE_TOOL_NAME else REPLAYED_UNANSWERED
+
+
+def _run_steps(reply: Message, index: int, *, answered: bool) -> list[Message]:
     """One call step naming every run, then one fixed outcome text per call."""
     calls = [
         ToolCall(id=f"replay-{index}-{n}", name=run.name, arguments={})
@@ -63,7 +82,7 @@ def _run_steps(reply: Message, index: int) -> list[Message]:
     steps.extend(
         Message(
             role=Role.TOOL,
-            text=REPLAYED_OK if run.ok else REPLAYED_FAILED,
+            text=_outcome(run, answered=answered),
             at=reply.at,
             turn_id=reply.turn_id,
             tool_call_id=call.id,
