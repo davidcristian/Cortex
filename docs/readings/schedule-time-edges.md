@@ -1,0 +1,114 @@
+# Readings: schedule times at the edges of the clock
+
+How a reminder's time is read, stored and fired around a daylight saving change, around midnight,
+and across the zones the host, the brain container and the model each use. Read with
+[ADR-0065](../adr/ADR-0065-wall-clock-schedule-times.md) (the display zone and the fold policy)
+and [ADR-0025](../adr/ADR-0025-scheduling-reminders.md) (the store and the ticker). The tools are
+`brain/packages/core/src/cortex_core/schedule_tools.py` and `schedule_args.py`.
+
+## The rig
+
+**2026-10-16**, the shared `cortexn6` stack: the resident cortex (gemma-4-12B), Redis schedule
+backend, `CORTEX_SCHEDULE_TZ` unset (so `UTC`), and the real Linux shell on `Xvfb`. The host is
+in `Europe/Berlin` (CEST, +02:00); summer time ends on 2026-10-25, when 03:00 CEST becomes 02:00
+CET and the hour from 02:00 to 02:59 happens twice.
+
+The live clock cannot be moved, so three flows run the real core code under a fixed clock:
+
+- **Core flows** (`slot7/flow12.py` in the run's scratch directory) call `next_occurrence`,
+  `parse_schedule`, the creation confirmation and `describe_item` with a `zoneinfo` Berlin zone,
+  and ask `InMemoryScheduleStore.claim_due` whether an item is due 5 s after it was made.
+- **Cortex draws** (`slot7/flow4.py`) build the real `schedule_task` and `list_scheduled` specs
+  with a fixed clock, so the spec states the fixed time, send them with the security preamble and
+  one user message to the cortex server through `cortex_inference.request.build_payload`, and
+  parse the returned call with `parse_schedule` under the same clock. No memory and no history.
+- **Live turns** go through the overlay (`slot3/ask.sh`) to the real brain at the real time.
+
+SM clock during the draws: 0.58 of `clocks.max.sm` (`nvidia-smi --query-gpu=clocks.sm,clocks.max.sm`).
+
+## What each flow decides, written before the first run
+
+| Flow | Question | Expected from ADR-0065 |
+| --- | --- | --- |
+| T1 | Next fires of daily 09:00 and 02:30 rules, and an 86400 s interval, across 2026-10-25 and the 2027-03-28 gap | 09:00 local every day; 02:30 once on 10-25; the gap fires at 03:30; the interval drifts to 08:00 |
+| T2 | What a one-time `at` in the repeated hour, in the gap, and at a past time stores, confirms, lists and fires | repeated hour takes +02:00; gap reads 03:30; a past `at` is accepted and due at once |
+| T3 | Which zone the model is told, the container runs in and the overlay shows, and whether "at 23:00" fires at 23:00 local | the default deployment reads every time as UTC |
+| T4 | What the cortex writes for "tomorrow at 9" near midnight, "at 2:55" in the second pass of the repeated hour, and "tomorrow at 9" at 00:30 CEST under the UTC default | the stored instant is the one the person meant |
+
+A row in T4 passes when the stored instant equals the wanted one and the call has no `at_time`.
+Rows: **A** "Remind me tomorrow at 9 to call the plumber." at 2026-10-24 23:50 CEST in Berlin,
+wanted 2026-10-25 09:00 CET. **B** "Remind me at 2:55 to check the oven." at 2026-10-25 02:45 CET
+(the second pass) in Berlin, wanted 02:55 CET (01:55 UTC). **C** row A's text at 2026-10-17 00:30
+CEST under the UTC zone, wanted 2026-10-18 09:00 local. **D** "Remind me today at 23:00 to check
+the oven." and **E** "Remind me at 23:00 to check the oven." at 03:00 UTC under the UTC zone,
+wanted 23:00 UTC the same day.
+
+## T1: calendar rules and an interval across the change
+
+| Rule, from | Fires (local) |
+| --- | --- |
+| daily 09:00, from 10-24 06:00 UTC | 10-24 09:00+02:00, 10-25 09:00+01:00, 10-26 09:00+01:00, 10-27 09:00+01:00 |
+| daily 02:30, from 10-24 00:00 UTC | 10-24 02:30+02:00, 10-25 02:30+02:00, 10-26 02:30+01:00, 10-27 02:30+01:00 |
+| daily 02:30, from 2027-03-27 00:00 UTC | 03-27 02:30+01:00, 03-28 03:30+02:00, 03-29 02:30+02:00 |
+| `every_seconds: 86400`, made 10-24 09:00+02:00 | 10-25 08:00+01:00, 10-26 08:00+01:00, 10-27 08:00+01:00 |
+
+All as ADR-0065 states: the rule keeps 09:00, the repeated 02:30 fires once on its first reading,
+the gap fires just past it, and the interval keeps 24 hours and drifts an hour, which the runbook
+documents. One edge follows from "fires once": a daily 02:30 rule made at 02:10 CET, in the second
+pass, first fires on 10-26, though the wall clock shows 02:30 twenty minutes later. Today's 02:30
+already happened, at 00:30 UTC. No defect filed.
+
+## T2: one-time times in the repeated hour, the gap and the past
+
+| `at` | Now (local) | Stored (UTC) | Confirmation and listing | Due 5 s later |
+| --- | --- | --- | --- | --- |
+| `2026-10-25T02:30:00` | 10-24 22:00+02:00 | 00:30 | 02:30+02:00 (tomorrow) | no |
+| `2026-10-25T02:30:00+01:00` | 10-24 22:00+02:00 | 01:30 | 02:30+01:00 (tomorrow) | no |
+| `2027-03-28T02:30:00` | 03-27 21:00+01:00 | 01:30 | 03:30+02:00 (tomorrow) | no |
+| `2026-10-25T02:55:00` | 10-25 02:45+01:00 | **00:55** | 02:55+02:00 (today) | **yes** |
+| `2026-10-25T02:55:00+01:00` | 10-25 02:45+01:00 | 01:55 | 02:55+01:00 (today) | no |
+| `2026-10-24T09:00:00` | 10-24 23:50+02:00 | 07:00 | 09:00+02:00 (today) | **yes** |
+
+- **The second pass.** At 02:45 CET a naive 02:55 means ten minutes ahead, but `fold=0` read it as
+  02:55 CEST, an hour in the past, and the reminder fired on the next poll. The confirmation
+  showed `02:55:00+02:00` with no sign that the time had passed.
+- **A past `at` is accepted.** Nothing compares `at` with now, so a time that has passed is stored
+  and fires on the next poll, and the confirmation reads like any other. Filed as
+  [R-880](../refinements/tasks/880-a-one-time-reminder-at-a-time-already-past-fires-at-once.md).
+
+## T3: the zone chain on the default deployment
+
+| Where | Zone |
+| --- | --- |
+| host (`/etc/timezone`, `date +%Z`) | Europe/Berlin, CEST |
+| brain container (`date`, `TZ`) | UTC, `TZ` unset |
+| `CORTEX_SCHEDULE_TZ` (`docker/docker-compose.yml` default) | `UTC` |
+| what the model reads (`schedule_task` spec) | "The current date-time is ...+00:00 (UTC)." |
+| overlay | shows no times: a reminder card shows its text, and `firedAtUnixMs` is used only to acknowledge it |
+
+Live turn at 05:02 CEST: "Remind me today at 23:00 to check the oven." The cortex called
+`schedule_task` with `{"at_time": "23:00", ...}` and replied "I've set a reminder for you to check
+the oven today at 23:00." Redis held `due_at` `2026-10-16T23:00:00+00:00` with a daily `rule`:
+01:00 CEST on 10-17, two hours after the time the person named, and repeating every day, which
+the reply did not say. The item and the turn's memory row were deleted after the reading. Two
+defects: the zone, filed as
+[R-881](../refinements/tasks/881-the-default-display-zone-is-utc-on-a-host-that-is-not.md), and
+the daily rule, filed as
+[R-882](../refinements/tasks/882-a-one-time-request-with-a-bare-time-is-stored-as-a-daily-rule.md).
+
+## T4: cortex draws under a fixed clock
+
+| Row | Draws | Pass | What the failures wrote |
+| --- | --- | --- | --- |
+| A | 5 | 5 | |
+| B | 5 | 0 | 3 naive `at` `2026-10-25T02:55:00` (stored 00:55 UTC, due at once); 2 `at_time` `02:55` (daily, first fire 10-26) |
+| C | 5 | 0 | 5 `at` `2026-10-17T09:00:00`: 11:00 CEST on 10-17, a day early and two hours late by the person's clock |
+| D | 10 | 10 | |
+| E | 10 | 8 | 2 `at_time` `23:00` (daily) |
+
+- **A** passes: in Berlin the model reads the local date and "tomorrow" is the local tomorrow.
+- **C** is R-881 seen from the model: under the UTC zone the model reads 22:30 on 10-16 and is
+  right by what it was told.
+- **B** and **E** show that a bare time with no day ("at 2:55", "at 23:00") is sometimes written
+  as `at_time`, a daily rule. With "today" in the request, D wrote `at` 10 of 10 in a fresh
+  context, while the live turn above, with history and memory, wrote `at_time`. That is R-882.
