@@ -26,6 +26,7 @@ from cortex_orchestrator import (
     MemoryConfig,
     MemoryConfigError,
     RpcServerConfig,
+    RuntimeConfigError,
     SubagentRosterEntry,
     SubagentsConfig,
     ToolsConfig,
@@ -128,6 +129,27 @@ def test_runtime_defaults_match_the_dictated_contract() -> None:
     assert config.generate_titles is False
     assert config.history_summary is True
     assert config.history_recap_min_chars == 2_000
+
+
+@pytest.mark.usefixtures("clean_env")
+def test_runtime_takes_a_redis_url_whose_password_is_percent_encoded(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("CORTEX_REDIS_URL", "redis://:hun%2Fter@redis:6379/0")
+    assert BrainRuntimeConfig().redis_url == "redis://:hun%2Fter@redis:6379/0"
+
+
+@pytest.mark.usefixtures("clean_env")
+def test_runtime_rejects_a_redis_url_the_client_cannot_read_without_printing_it(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("CORTEX_REDIS_URL", "redis://:hun/ter@redis:6379/0")
+    with pytest.raises(RuntimeConfigError) as refused:
+        BrainRuntimeConfig()
+    message = str(refused.value)
+    assert "CORTEX_REDIS_URL" in message
+    assert "hun" not in message
+    assert "redis:" not in message
 
 
 @pytest.mark.usefixtures("clean_env")

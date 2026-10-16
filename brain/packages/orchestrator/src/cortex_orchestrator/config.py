@@ -67,6 +67,16 @@ class BrainRuntimeConfig(BaseSettings):
     output_guardrail: OutputGuardrailName = "redact"
     generate_titles: bool = False
 
+    @model_validator(mode="after")
+    def _redis_authority_is_readable(self) -> "BrainRuntimeConfig":
+        if not authority_is_readable(self.redis_url):
+            msg = (
+                "CORTEX_REDIS_URL has an authority the Redis client cannot read; "
+                "percent-encode any password character that would end a URL's authority"
+            )
+            raise RuntimeConfigError(msg)
+        return self
+
 
 class InferenceConfig(BaseSettings):
     """Which InferenceBackend answers turns."""
@@ -93,10 +103,14 @@ class InferenceConfig(BaseSettings):
 
 
 # Deliberately not a ``ValueError``, the type every other settings class here raises: pydantic
-# renders the validated input beside the message, and this class's input holds the DSN, so a
-# refusal raised that way would print the credential.
+# renders the validated input beside the message, and these classes' input holds a URL with a
+# credential, so a refusal raised that way would print it.
 class MemoryConfigError(Exception):
     """A memory configuration is refused, in words naming variables and never values."""
+
+
+class RuntimeConfigError(Exception):
+    """A runtime configuration is refused, in words naming variables and never values."""
 
 
 class MemoryConfig(BaseSettings):

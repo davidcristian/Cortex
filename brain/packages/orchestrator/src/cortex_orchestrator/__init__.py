@@ -23,6 +23,7 @@ from cortex_orchestrator.config import (
     MemoryConfig,
     MemoryConfigError,
     RpcServerConfig,
+    RuntimeConfigError,
 )
 from cortex_orchestrator.config_body import BodyConfig
 from cortex_orchestrator.config_schedule import ScheduleConfig
@@ -122,6 +123,7 @@ __all__ = [
     "RpcProgressSink",
     "RpcServerConfig",
     "RpcTokenInterceptor",
+    "RuntimeConfigError",
     "ScheduleConfig",
     "ScheduleTicker",
     "SubagentRosterEntry",
