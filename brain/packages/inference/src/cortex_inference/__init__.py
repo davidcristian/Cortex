@@ -8,7 +8,12 @@ from cortex_inference.serving_probe import (
     ServerWording,
     subagent_wording,
 )
-from cortex_inference.trace_probe import TRACE_BUDGET_PROBE_TIMEOUT_S, reads_a_trace_budget
+from cortex_inference.trace_probe import (
+    TRACE_BUDGET_PROBE_TIMEOUT_S,
+    TraceBudgetProbe,
+    TraceProbeUnansweredError,
+    reads_a_trace_budget,
+)
 
 __all__ = [
     "CORTEX_DOWN",
@@ -17,6 +22,8 @@ __all__ = [
     "LlamaCppBackend",
     "LlamaServerProbe",
     "ServerWording",
+    "TraceBudgetProbe",
+    "TraceProbeUnansweredError",
     "reads_a_trace_budget",
     "subagent_wording",
 ]

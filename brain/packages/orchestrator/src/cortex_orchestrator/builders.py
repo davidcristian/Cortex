@@ -26,11 +26,7 @@ from cortex_core import (
     ToolRegistry,
     UrlRedactingGuardrail,
 )
-from cortex_inference import (
-    TRACE_BUDGET_PROBE_TIMEOUT_S,
-    LlamaCppBackend,
-    reads_a_trace_budget,
-)
+from cortex_inference import LlamaCppBackend, TraceBudgetProbe
 from cortex_orchestrator.config import InferenceConfig, OutputGuardrailName
 from cortex_orchestrator.config_body import BodyConfig
 from cortex_orchestrator.config_tools import ToolsConfig
@@ -81,14 +77,20 @@ async def noop_aclose() -> None:
     return
 
 
-async def resolve_send_trace_budget(config: InferenceConfig, cortex_model: str) -> bool:
-    """Whether a request to this deployment may include its own trace budget."""
+async def resolve_send_trace_budget(
+    config: InferenceConfig, cortex_model: str, client: httpx.AsyncClient
+) -> bool | TraceBudgetProbe:
+    """Whether a request may include its own trace budget, or the probe that asks the engine.
+
+    ``auto`` asks once here, so a stack started in order logs the answer at boot.
+    """
     if config.send_trace_budget == "off":
         return False
     if config.send_trace_budget == "on":
         return True
-    async with httpx.AsyncClient(timeout=TRACE_BUDGET_PROBE_TIMEOUT_S) as client:
-        return await reads_a_trace_budget(config.endpoint, cortex_model, client)
+    probe = TraceBudgetProbe(config.endpoint, cortex_model, client)
+    await probe.reads()
+    return probe
 
 
 async def build_inference_backend(
@@ -102,7 +104,7 @@ async def build_inference_backend(
             if manager is not None
             else SingleResidentModelManager(cortex_model, config.endpoint)
         )
-        send = await resolve_send_trace_budget(config, cortex_model)
+        send = await resolve_send_trace_budget(config, cortex_model, client)
         return LlamaCppBackend(leases, client, send_trace_budget=send), client.aclose
     return EchoInferenceBackend(), noop_aclose
 

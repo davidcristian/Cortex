@@ -111,8 +111,7 @@ fold, the session title and the recall rank each send
 thrown away unread. A user's own reply does not, because its trace is the thinking status the
 overlay shows; set that one with `CORTEX_REPLY_TRACE_TOKENS`, which covers both the cortex turn
 and the deep phase a handoff continues it with. To bound those two traces differently, use
-`CORTEX_REASONING_BUDGET` and `CORTEX_REASONING_BUDGET_BRAIN` and leave
-`CORTEX_REPLY_TRACE_TOKENS` unset.
+`CORTEX_REASONING_BUDGET` and `CORTEX_REASONING_BUDGET_BRAIN` and leave `CORTEX_REPLY_TRACE_TOKENS` unset.
 
 The key is sent only where the engine reads it, because a build that does not implement it
 ignores it without error. `CORTEX_INFERENCE_TRACE_LEVER=auto` asks the endpoint one question at
@@ -133,9 +132,10 @@ minute apart: `b10666-4e97ac86e` answered `400` naming the field and `b9870-2d97
 INFO:cortex_inference.trace_probe:trace budget probe answered endpoint=<the endpoint asked> reads_budget=<true or false>
 ```
 
-A server that could not be reached logs `trace budget probe failed` at `WARNING`. When the answer
-is no and `CORTEX_REPLY_TRACE_TOKENS` is set, the count is not sent and the brain says so once, on
-the first reply that would have included it:
+A server that is down or still loading logs `trace budget probe failed; asking again before the
+next request` at `WARNING` once, and is asked again before each request until it answers. When the
+answer is no and `CORTEX_REPLY_TRACE_TOKENS` is set, the count is not sent and the brain says so
+once, on the first reply that would have included it:
 
 ```
 WARNING:cortex_inference.backend:trace budget not sent because its setting is off model=<the model asked> trace_budget=<the count>
@@ -143,8 +143,8 @@ WARNING:cortex_inference.backend:trace budget not sent because its setting is of
 
 Fix it by unsetting the count, by setting `CORTEX_INFERENCE_TRACE_LEVER=on` on a build you know
 reads the key, or by restarting the brain against a build whose probe answers `reads_budget=true`.
-Restart the brain after pulling a newer llama.cpp or rebuilding the model host: the answer is asked
-once and kept for the life of the brain process, and neither direction of that staleness is
+Restart the brain after pulling a newer llama.cpp or rebuilding the model host: the first answer is
+kept for the life of the brain process, and neither direction of that staleness is
 reported. If the boot line and the `curl` above disagree, the brain is the stale half. The brain
 logs the build each model's server names when it changes ([subagents-cpu.md](subagents-cpu.md) shows
 the line). Read the build off the model host image, since its build can use a newer base than the

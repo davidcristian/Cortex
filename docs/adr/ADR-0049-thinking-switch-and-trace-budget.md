@@ -111,12 +111,13 @@ how those measurements are taken is [ADR-0050](ADR-0050-live-probe-records.md).
     `reads_a_trace_budget` in `trace_probe.py`): a request sending `reasoning_budget_tokens: -2` is
     answered 400 naming the key by a build that parses it, since the engine range-checks the value
     before decoding, and 200 by one that ignores it. Only a well-typed out-of-range integer triggers
-    the check. Every other answer, an unreachable server included, is no, and the request then sends
-    no budget. `GET /props` does not answer the question, and its `build_info` is only a proxy for
+    the check. Every other 2xx or 4xx is no, and the request then sends no budget. A transport
+    error or a 5xx (a server still loading) is no answer: the request goes without a budget and the
+    probe is asked again before the next one, until an engine answers. `GET /props` does not answer the question, and its `build_info` is only a proxy for
     it. `on` and `off` fix the answer and open no socket. The probe is bounded by
     `TRACE_BUDGET_PROBE_TIMEOUT_S` (5 s), well above the sub-second answer measured on the slowest
     tier the repo ships.
-12. **The answer is taken once per startup and covers the deep tier.** Whether the engine reads a
+12. **The first answer is kept for the process and covers the deep tier.** Whether the engine reads a
     key is a property of a binary, which changes only with the image, where vision is a property of
     an argv and is asked on every capture. A llama.cpp image pulled under a running brain needs a
     brain restart, which the GPU runbook says; an older answer withholds a key rather than sending

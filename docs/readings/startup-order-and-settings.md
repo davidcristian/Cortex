@@ -48,9 +48,15 @@ show, and does the brain recover when the model host comes up?
   'cortex'`, with the dot amber; the store kept the question alone.
 - `docker start` of the model host gave a `ready` cortex one load later, and the same question was
   answered (`Lake Superior and Lake Victoria.`) with no brain restart.
-- The probe that failed at boot is never asked again, so this brain sends no trace budget for its
-  whole life ([R-886](../refinements/tasks/886-a-brain-started-before-the-cortex-serves-never-sends-a-trace-budget.md)).
-  The brain was restarted afterwards and logged `reads_budget=True`.
+- **Before the fix** the probe that failed at boot was never asked again, so that brain sent no
+  trace budget for its whole life; a restart afterwards logged `reads_budget=True`.
+- **After the fix**, the same order (the image built from the fix, same stack) logged `trace budget
+  probe failed; asking again before the next request` once at boot with `Name or service not known`.
+  A question sent before the model host started ended at once in `inference_failed: llama-server
+  request failed for model 'cortex'`, and the probe asked again before it without a second warning.
+  Once the cortex was `ready`, the next question's request was preceded by `trace budget probe
+  answered reads_budget=True`, and the reply (`Lake Superior and Lake Michigan`) came with no brain
+  restart.
 
 ## A shell with a token the brain does not accept
 

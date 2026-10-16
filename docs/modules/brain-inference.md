@@ -17,8 +17,8 @@ it is serving. Package-internal modules have no leading underscore, which marks 
 
 ## Public contract
 
-`__all__` is `LlamaCppBackend`, `reads_a_trace_budget`, `TRACE_BUDGET_PROBE_TIMEOUT_S`,
-`LlamaServerProbe`, `ServerWording`, `subagent_wording`, `CORTEX_DOWN` and `CORTEX_LOADING`.
+`__all__` is `LlamaCppBackend`, `reads_a_trace_budget`, `TraceBudgetProbe`,
+`TraceProbeUnansweredError`, `TRACE_BUDGET_PROBE_TIMEOUT_S`, `LlamaServerProbe`, `ServerWording`, `subagent_wording`, `CORTEX_DOWN` and `CORTEX_LOADING`.
 `LlamaServerProbe(endpoint, transport, *, timeout_s, wording)` is the core's `ServingProbe` over
 `GET {endpoint}/health`: `None` on 200, `wording.loading` on the 503 llama-server answers until its
 model is loaded, `wording.down` on any `httpx.HTTPError`, and the status in its line otherwise. The
@@ -26,7 +26,7 @@ wording is the cortex's (`CORTEX_LOADING`, `CORTEX_DOWN`) unless `subagent_wordi
 sends on an `httpx.AsyncBaseTransport` rather than a client, since a client logs every request at
 INFO. `tests/serving_contract.py` is the contract it and `ScriptedServingProbe` pass.
 
-`LlamaCppBackend(model_manager: ModelManager, http_client: httpx.AsyncClient, *, send_trace_budget: bool = False)`
+`LlamaCppBackend(model_manager: ModelManager, http_client: httpx.AsyncClient, *, send_trace_budget: bool | TraceBudgetProbe = False)`
 is an `InferenceBackend`. `stream(model, messages, *, tools=(), schema=None, bounds=None)` does
 this:
 
@@ -116,8 +116,8 @@ cached, since the model file behind an endpoint can change under a running brain
 `reasoning_budget_tokens`, a sampler the engine reads from the request body, falling back to the
 tier's `--reasoning-budget` where the request names nothing (ADR-0049). It is the half of the
 thinking controls a request shape cannot overrule. A build that does not parse the key **ignores it
-with no error**, so the adapter sends it only when `send_trace_budget` is true, which the root decides
-once from `CORTEX_INFERENCE_TRACE_LEVER` (`auto`, `on` or `off`). Two rules are checked by tests:
+with no error**, so the adapter sends it only when `send_trace_budget` is true or a probe that
+answered yes, as the root sets from `CORTEX_INFERENCE_TRACE_LEVER`. Two rules are checked by tests:
 
 - a bound naming no count sends no key, whatever `thinking` says, so the setting can never quietly
   budget a user's visible trace;
@@ -130,15 +130,15 @@ on the same backend log nothing. A zero sent beside `thinking=False` is not repo
 `drain_text` already warns when a trace arrives against that switch; a zero with the switch on is
 reported. The flag is read and written with no await between, so concurrent streams print one line.
 
-`reads_a_trace_budget(endpoint, model, client)` is the capability probe, exported beside the adapter
-along with `TRACE_BUDGET_PROBE_TIMEOUT_S`, the timeout the composition root gives the client it hands
-in. It sends one POST with an out-of-range budget: a build that parses the key rejects it by name
-(HTTP 400), and one that does not answers the completion (HTTP 200). Measured 2026-08-29 against two
-real builds one minute apart, `b10666-4e97ac86e` rejecting and `b9870-2d973636e` answering. Every
-failure reads as absent: unreachable, another status, or a 400 that does not name the key all leave
-the request with no budget, which is the request this repo sent before the key existed. The probe
-runs **once**, at wiring, because the answer is a property of a binary, where the vision probe
-beside it repeats because its answer is a property of an argv.
+`reads_a_trace_budget(endpoint, model, client)` is the capability probe: one POST with an
+out-of-range budget, bounded by `TRACE_BUDGET_PROBE_TIMEOUT_S`. A build that parses the key rejects
+it by name (HTTP 400, `b10666-4e97ac86e` on 2026-08-29); one that does not answers the completion
+(HTTP 200, `b9870-2d973636e` a minute later). Any other 2xx or 4xx is no. A transport error or a
+5xx, such as the 503 of a server still loading, raises `TraceProbeUnansweredError`.
+`TraceBudgetProbe` keeps the first answer and asks again before each request until one arrives,
+sending no budget meanwhile. The kept answer is a property of the engine binary, held like a
+setting rather than conversation state, so a restart costs one question; the vision probe repeats
+every time because its answer is a property of an argv.
 
 ## Error contract
 

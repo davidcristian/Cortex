@@ -28,6 +28,7 @@ from cortex_inference.decode import (
 )
 from cortex_inference.request import build_payload, join_leading_system, leading_system_count
 from cortex_inference.system_probe import SystemProbeError, delivers_system_messages
+from cortex_inference.trace_probe import TraceBudgetProbe
 
 _CHAT_COMPLETIONS_PATH = "/v1/chat/completions"
 _SSE_DATA_PREFIX = "data:"
@@ -67,8 +68,9 @@ class LlamaCppBackend:
         model_manager: ModelManager,
         http_client: httpx.AsyncClient,
         *,
-        send_trace_budget: bool = False,
+        send_trace_budget: bool | TraceBudgetProbe = False,
     ) -> None:
+        """``send_trace_budget`` is the setting, or the probe that asks the engine for it."""
         self._manager = model_manager
         self._client = http_client
         # Off by default: an engine that does not parse ``reasoning_budget_tokens`` drops the
@@ -78,9 +80,17 @@ class LlamaCppBackend:
         self._builds: dict[str, str] = {}
         self._probes: dict[tuple[str, int], str] = {}
 
-    def _report_unsent_budget(self, model: str, bounds: GenerationBounds | None) -> None:
+    async def _sends_trace_budget(self) -> bool | None:
+        """Whether this request may send its trace budget; ``None`` while the engine is unasked."""
+        if isinstance(self._send_trace_budget, bool):
+            return self._send_trace_budget
+        return await self._send_trace_budget.reads()
+
+    def _report_unsent_budget(
+        self, model: str, bounds: GenerationBounds | None, *, sends: bool | None
+    ) -> None:
         """Warn, once per backend, when a request names a trace count it will not send."""
-        if self._send_trace_budget or self._reported_unsent_budget or bounds is None:
+        if sends is not False or self._reported_unsent_budget or bounds is None:
             return
         if bounds.trace_tokens is None or (bounds.trace_tokens == 0 and not bounds.thinking):
             return
@@ -135,7 +145,8 @@ class LlamaCppBackend:
         bounds: GenerationBounds | None = None,
     ) -> AsyncIterator[InferenceEvent]:
         """Stream text deltas from the leased llama-server, then any assembled tool calls."""
-        self._report_unsent_budget(model, bounds)
+        sends = await self._sends_trace_budget()
+        self._report_unsent_budget(model, bounds, sends=sends)
         leading = leading_system_count(messages)
         pending: dict[int, PendingCall] = {}
         try:
@@ -148,7 +159,7 @@ class LlamaCppBackend:
                     tools,
                     schema,
                     bounds,
-                    send_trace_budget=self._send_trace_budget,
+                    send_trace_budget=sends is True,
                 )
                 url = f"{lease.endpoint}{_CHAT_COMPLETIONS_PATH}"
                 async with self._client.stream("POST", url, json=payload) as response:

@@ -280,17 +280,30 @@ async def _canned_llama_server(status: int, body: str) -> AsyncGenerator[str]:
         await server.wait_closed()
 
 
+async def _resolved(config: InferenceConfig, model: str = DEFAULT_CORTEX_MODEL) -> bool | None:
+    async with httpx.AsyncClient() as client:
+        setting = await builders_module.resolve_send_trace_budget(config, model, client)
+        return setting if isinstance(setting, bool) else await setting.reads()
+
+
 async def test_the_trace_budget_setting_is_measured_when_the_deployment_left_it_on_auto() -> None:
     refusal = '{"error":{"message":"Field \'reasoning_budget_tokens\': out of range"}}'
     async with _canned_llama_server(400, refusal) as endpoint:
         config = InferenceConfig(backend="llamacpp", endpoint=endpoint)
-        assert await builders_module.resolve_send_trace_budget(config, "cortex") is True
+        assert await _resolved(config) is True
 
 
 async def test_an_engine_that_answers_the_probe_leaves_the_budget_unsent() -> None:
     async with _canned_llama_server(200, '{"choices":[]}') as endpoint:
         config = InferenceConfig(backend="llamacpp", endpoint=endpoint)
-        assert await builders_module.resolve_send_trace_budget(config, "cortex") is False
+        assert await _resolved(config) is False
+
+
+async def test_an_engine_still_loading_at_boot_leaves_the_setting_unsettled() -> None:
+    loading = '{"error":{"code":503,"message":"Loading model","type":"unavailable_error"}}'
+    async with _canned_llama_server(503, loading) as endpoint:
+        config = InferenceConfig(backend="llamacpp", endpoint=endpoint)
+        assert await _resolved(config) is None
 
 
 async def test_the_two_fixed_modes_answer_without_asking_anything() -> None:
@@ -298,8 +311,8 @@ async def test_the_two_fixed_modes_answer_without_asking_anything() -> None:
     dead = "http://127.0.0.1:1"
     on = InferenceConfig(backend="llamacpp", endpoint=dead, send_trace_budget="on")
     off = InferenceConfig(backend="llamacpp", endpoint=dead, send_trace_budget="off")
-    assert await builders_module.resolve_send_trace_budget(on, "cortex") is True
-    assert await builders_module.resolve_send_trace_budget(off, "cortex") is False
+    assert await _resolved(on) is True
+    assert await _resolved(off) is False
 
 
 @asynccontextmanager
@@ -358,9 +371,7 @@ async def test_the_trace_budget_probe_asks_about_the_tier_the_deployment_named()
         assert [request["model"] for request in requests] == ["cortex-alt", "cortex-alt"]
         assert requests[1][TRACE_BUDGET_KEY] == 0
         assert any(isinstance(event, TextChunk) for event in events)
-        assert (
-            await builders_module.resolve_send_trace_budget(config, DEFAULT_CORTEX_MODEL) is False
-        )
+        assert await _resolved(config) is False
 
 
 async def test_the_generation_client_bounds_every_phase_including_the_read() -> None:

@@ -27,7 +27,7 @@ from cortex_core import (
     ToolCall,
     ToolSpec,
 )
-from cortex_inference import LlamaCppBackend
+from cortex_inference import LlamaCppBackend, TraceBudgetProbe
 
 _ENDPOINT = "http://llama-cortex:8080"
 _AT = datetime(2026, 7, 3, 12, 0, 0, tzinfo=UTC)
@@ -520,6 +520,37 @@ async def test_nothing_is_reported_when_no_positive_count_goes_unsent(
         await _drain(unread, GenerationBounds(max_tokens=64))
         await _drain(unread, None)
         await _drain(read, GenerationBounds(trace_tokens=128))
+    assert [r for r in caplog.records if r.name == _BACKEND_LOGGER] == []
+
+
+async def test_an_unanswered_probe_is_asked_before_each_request_until_the_engine_answers(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    probes: list[int] = []
+    sent: list[dict[str, object]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content)
+        if body.get("reasoning_budget_tokens") == -2:
+            probes.append(len(probes))
+            if len(probes) == 1:
+                error = {"code": 503, "message": "Loading model", "type": "unavailable_error"}
+                return httpx.Response(503, json={"error": error})
+            return httpx.Response(400, text="Field 'reasoning_budget_tokens': out of range")
+        sent.append(body)
+        return httpx.Response(200, content=_sse(_chunk({"content": "ok"})))
+
+    manager = SingleResidentModelManager("cortex", _ENDPOINT)
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    probe = TraceBudgetProbe(_ENDPOINT, "cortex", client)
+    backend = LlamaCppBackend(manager, client, send_trace_budget=probe)
+    bounds = GenerationBounds(trace_tokens=128)
+    with caplog.at_level(logging.WARNING, logger=_BACKEND_LOGGER):
+        for _ in range(3):
+            await _drain(backend, bounds)
+    assert len(probes) == 2
+    assert ["reasoning_budget_tokens" in body for body in sent] == [False, True, True]
+    assert sent[1]["reasoning_budget_tokens"] == 128
     assert [r for r in caplog.records if r.name == _BACKEND_LOGGER] == []
 
 
