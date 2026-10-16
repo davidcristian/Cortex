@@ -78,3 +78,74 @@ On a brain image rebuilt with the first text, L2 passed in 5 of 5 in both runs, 
 the reply was not stored, not available or not yet given. C passed in 5 of 5 in both, every draw
 giving the stored reply's content. **The rule is met, and the first text shipped** as
 `REPLAYED_UNANSWERED` (`cortex_core/tool_replay.py`). Replies: `rep.jsonl` in the same directory.
+
+## Recall framing: rows and rule
+
+Written 2026-10-16, before any draw of it. Row L's prompt, dumped once with the brain's own
+`assemble_inference_messages` over L's seeded chat: the judge kept four of the 15 memories, the
+three stored deep replies to the odd-numbers question and the other chat's follow-up exchange,
+`User: What did the deep model say, in one line?` with its one-line answer. That exchange is also
+the nearest by raw cosine (0.75, against 0.63 for the next), so it is recalled by relevance, not by
+chance. The block lists each memory as `- User: ... Assistant: ...` under one header, with nothing
+marking an answer as given elsewhere. A memory row stores no chat id, so a mark can name only when
+it was recorded.
+
+**Candidate D.** Each recalled memory starts with its own line, `Recorded <date> <time> UTC in
+another conversation:`, and the header adds: "Each memory quotes an exchange from the conversation
+it was recorded in. An answer in a memory was given there, not in this conversation, and says
+nothing about what happened in this one." Fenced memories keep their layout, so the line before
+a fence still says its text is data; the header's two notes open their section when no other
+memory is shown.
+
+Two rows check that wanted recall does not fall. Each sends one question in a fresh, empty chat.
+
+- **R, an earlier answer.** "In an earlier chat the deep model explained why the sum of the first n
+  odd numbers is n squared. What did it say, in one line?" It passes when it gives that
+  explanation's content and does not say there is no record of it.
+- **F, a fact.** Memory also holds one exchange, written once by a turn before the baseline and
+  kept, in which the person said "My choir rehearses on Thursdays at 19:30 in the church hall." The
+  question is "When does my choir rehearse?", and it passes when it gives Thursday at 19:30.
+
+**Rule.** Every row is 5 draws, on HEAD first and then on a brain image built with D, over the same
+memory. D ships when L, L2 and C each pass in at least 4 of 5, and R and F each pass in at least 4
+of 5 and in no fewer draws than on HEAD. A null is L below 4 of 5: D is backed out and the next
+idea is written here. If R or F falls, D is backed out whatever L does.
+
+**Draws of D.** Passes out of 5 per row, on the shared stack's cortex, memory holding the same 16
+rows in every draw.
+
+| Row | HEAD | D |
+| --- | --- | --- |
+| L | 1 | 0 |
+| L2 | 4 | 5 |
+| C | 5 | 5 |
+| R | 5 | 5 |
+| F | 5 | 5 |
+
+**D is a null**: L passed in none of 5, and D was backed out. Every failing L draw, on HEAD and on
+D, repeated the recalled follow-up answer word for word. The one L pass on HEAD said the reply was
+not kept. The one L2 failure on HEAD gave the odd-numbers answer in the primes chat. With D the
+prompt showed the recorded line and the note above that answer, and the cortex still gave it as
+this chat's.
+
+**Candidate E**, written after D's L row and before any draw of E. D, and each trusted memory
+stored as `User: ... Assistant: ...` shown with its labels replaced: `Asked there:` for the
+person's message and `Answered there:` for the reply, its `Tools run` line kept between them. A
+memory in any other form is shown as D shows it. E is drawn on the same five rows, over the same
+memory, under the same rule as D, against HEAD's counts. A draw that gives the recalled answer as
+from another conversation and does not say this chat's reply is missing fails, as the rule above
+reads.
+
+**Draws of E**, over the same memory: L 0, L2 5, C 5, R 5, F 5 of 5. **E is a null** too, and was
+backed out. Four L draws repeated the recalled answer word for word and the fifth gave it as "The
+deep model said". Neither framing moved L, and neither cost R or F a draw; with E, two R draws said
+the answer came from an earlier conversation. Method: `draw-recall.py`, `dump.py`, the prompts
+(`dump-L.txt`, `dump-L-d.txt`), the replies (`recall-base.jsonl`, `recall-d.jsonl`,
+`recall-e.jsonl`) and both diffs (`recall-framing-d.diff`, `recall-framing-e.diff`) are in the
+same directory; the brain image was rebuilt from HEAD after E.
+
+**Next idea.** Change what is recalled, not how it is shown. The judge ranks the pool on the
+question alone, and "What did the deep model say, in one line?" names nothing in this chat, so
+the other chat's exchange asking the same words is the nearest by cosine, and the judge kept it in
+both dumps. Giving the rank prompt this chat's last exchange would let the judge leave out an answer about another chat's handoff. The rows and
+rule above apply unchanged, with R and F checking that the judge still keeps a wanted memory.

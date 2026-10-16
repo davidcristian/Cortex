@@ -24,11 +24,18 @@ holding that question and the hand-over sentence and no deep reply, then send th
 
 ## What to do
 
-Change how a recalled exchange is framed, not the replay. For example the recalled block could
-say that an answer in a memory belongs to that other chat and says nothing about this one. Draw
-row L against the readings' 4 of 5 rule before it ships, with rows C and L2 beside it.
+Change what is recalled, not how it is shown: two framings of the recalled block left row L at 0
+of 5. The judge ranks the pool on the question alone, and this question names nothing in the chat,
+so the other chat's exchange asking the same words is the nearest by cosine and the judge keeps
+it. Give the rank prompt this chat's last exchange, then draw the readings' five rows under their
+rule, where R and F check that wanted recall does not fall.
 
 ## History
 
 - 2026-10-16: filed from the draws for the replay of an unanswered handoff, where no replay text
   moved this row.
+- 2026-10-16: two framings of the recalled block drawn and backed out: each memory marked with its
+  record time and as from another conversation, under a note that its answer was given there,
+  and then the same with its labels as "Asked there" and "Answered there". L stayed at 0 of 5 for
+  each against 1 on HEAD; wanted recall (rows R and F) kept 5 of 5
+  ([readings](../../readings/handoff-reply-not-kept.md#recall-framing-rows-and-rule)).
