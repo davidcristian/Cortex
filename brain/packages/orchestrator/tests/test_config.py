@@ -314,6 +314,18 @@ def test_the_resident_stall_ceiling_is_settable_and_must_be_positive(
 
 
 @pytest.mark.usefixtures("clean_env")
+def test_the_load_wait_is_settable_and_zero_turns_it_off(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    assert InferenceConfig().load_wait_s == 120.0
+    monkeypatch.setenv("CORTEX_INFERENCE_LOAD_WAIT_S", "0")
+    assert InferenceConfig().load_wait_s == 0.0
+    monkeypatch.setenv("CORTEX_INFERENCE_LOAD_WAIT_S", "-1")
+    with pytest.raises(ValidationError, match="load_wait_s"):
+        InferenceConfig()
+
+
+@pytest.mark.usefixtures("clean_env")
 def test_body_defaults_to_disabled() -> None:
     config = BodyConfig()
     assert config.backend == "none"

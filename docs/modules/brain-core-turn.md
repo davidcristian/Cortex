@@ -24,8 +24,7 @@ tools in [brain-core-tools.md](brain-core-tools.md), delegated work in
   membership, idempotent and needing no tombstone), `set_hoisted(session_id, *, hoisted)` (ADR-0021
   decision 12), and `set_recap(session_id, recap)` / `recap(session_id)` for the cached history
   recap below. Fake: `InMemorySessionStore`; adapter: `cortex_session`.
-- `InferenceBackend` provides
-  `stream(model, messages, *, tools=(), schema=None, bounds=None) -> AsyncIterator[InferenceEvent]`:
+- `InferenceBackend` provides `stream(model, messages, *, tools=(), schema=None, bounds=None) -> AsyncIterator[InferenceEvent]`:
   one stateless streamed completion. `model` is a logical id (ADR-0004), and **an implementation
   answers only for the ids it serves**, failing with `InferenceError` on one it does not
   (ADR-0068 decision 8). `schema` constrains decoding to a JSON Schema (ADR-0028). `bounds` is a
@@ -48,9 +47,8 @@ tools in [brain-core-tools.md](brain-core-tools.md), delegated work in
 ## The turn engine
 
 `TurnEngine(store, backend, clock, *, cortex_model=DEFAULT_CORTEX_MODEL,
-capabilities=TurnCapabilities())` (`engine.py`) is pure orchestration over the ports.
-`DEFAULT_CORTEX_MODEL` is the logical id `"cortex"`; deployments override it through
-`CORTEX_MODEL_CORTEX`, read by the composition root.
+capabilities=TurnCapabilities())` (`engine.py`) is pure orchestration over the ports. The logical
+id `"cortex"` is overridden through `CORTEX_MODEL_CORTEX`, read by the composition root.
 
 `handle_turn(session_id, text, *, turn_id)` is an async generator. It routes through `route_turn`,
 builds the user `Message` from the clock and the id it was given, appends it to the store, runs the
@@ -64,8 +62,7 @@ ADR-0014 decision 7). A refusal before any output is first asked again without t
 turns, `shed_oldest_turns` (`shedding.py`) dropping 4.7 characters for each token of its `excess`.
 Otherwise the path flushes the channels, streams its note, logs a warning naming the session and
 turn, and persists once: the cut call's note is the one the `StopLedger` picks, and the overflow's
-is `MESSAGE_OVERFLOW_NOTE` when only the newest turn was left, else `CONTEXT_OVERFLOW_NOTE`, never
-followed by a cap note.
+is `MESSAGE_OVERFLOW_NOTE` when only the newest turn was left, else `CONTEXT_OVERFLOW_NOTE`, never followed by a cap note.
 
 `TurnCapabilities(memory=None, tools=None, window=None, guardrail=None, record_tainted_memory=False,
 generate_titles=False, progress=None, escalation=None, bounds=None, residency=None)`
@@ -104,14 +101,17 @@ after the window, one saying a handoff's deep reply is not stored (`tool_replay.
   dispatch. The turn also holds its waits on it: `thinking` around each model stream, `calling`
   around each dispatch that was not refused, `asking` around a confirmation (ADR-0069 decision 9). `escalation` (an `EscalationSlot`, ADR-0030) is the turn's handoff slot, one per turn.
 - `residency` (a `ResidencyQueue`, set only where a handoff can run): after storing the user
-  message and before reading the history, a turn whose model another model's handoff keeps off the
-  card holds `swapping` with `HANDOFF_AHEAD_DETAIL` until that scope ends, through
-  `wait_out_handoff` (`handoff_wait.py`). The hold is announced, so the body's first gap ends
-  there, and the history read afterwards includes what that handoff stored. A handoff that begins
-  later is met at the lease instead: `HandoffAheadBackend(inner, queue, progress)` is an
-  `InferenceBackend` that takes the same wait before each stream it passes to `inner`, with
-  nothing awaited between its check and the lease, and closes the wrapped stream when it is
-  closed. The orchestrator builds one per stream that can hand off (ADR-0069 decision 9).
+  message and before reading the history, a turn whose model another handoff keeps off the card
+  holds an announced `swapping` wait (`HANDOFF_AHEAD_DETAIL`, `wait_out_handoff`) until that scope
+  ends, so the body's first gap ends there and the history read next includes what it stored. A
+  handoff that begins later is met at the lease: `HandoffAheadBackend(inner, queue, progress)`
+  takes the same wait before each stream, awaiting nothing between its check and the lease, and
+  closes the wrapped stream when closed; one is built per stream that can hand off (ADR-0069).
+- `LoadWaitBackend(inner, progress, *, clock, sleeper, wait_s)` (`load_wait.py`) asks `inner` again
+  every `LOAD_POLL_INTERVAL_S` while it raises `ModelLoadingError` before its first event, holding
+  `MODEL_LOADING` (`swapping`) until that event, and re-raises once `wait_s` has passed. Any other
+  error passes at once, and a cancelled turn (Stop, the shutdown drain) ends the wait and its
+  hold. The orchestrator wraps each stream's cortex calls in one (ADR-0054 decision 10).
 
 `turn_output.py` is the half of the engine the deep model's phase shares, so the two cannot diverge
 (ADR-0030). `stream_turn_events(loop, channels, parts, stops, query)` maps a tool loop's deltas onto

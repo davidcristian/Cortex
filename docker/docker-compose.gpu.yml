@@ -18,6 +18,7 @@ services:
       # unset, a key never enters the container and the settings class default applies.
       CORTEX_INFERENCE_TRACE_LEVER:
       CORTEX_INFERENCE_STALL_TIMEOUT_S:
+      CORTEX_INFERENCE_LOAD_WAIT_S:
       CORTEX_MODEL_CORTEX:
       CORTEX_MODEL_BRAIN:
       CORTEX_ESCALATION:

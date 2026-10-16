@@ -15,6 +15,7 @@ from cortex_core import (
     DecodeCadence,
     InferenceError,
     MalformedToolCallError,
+    ModelLoadingError,
     ToolCall,
 )
 from cortex_core.inference import DecodeStop, StopReason
@@ -68,6 +69,7 @@ async def raise_for_status(response: httpx.Response, model: str) -> None:
         msg = (
             f"model {model!r} is still loading, so it cannot answer yet; ask again once it is ready"
         )
+        raise ModelLoadingError(msg)
     raise InferenceError(msg)
 
 

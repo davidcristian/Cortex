@@ -35,6 +35,7 @@ Set these in the host environment or in a `.env` file beside the compose files.
 | `CORTEX_INFERENCE_TRACE_LEVER` | whether a request may include its own trace budget. `auto` asks the endpoint one model-free question at boot and uses the answer; `on` and `off` decide it directly. See "A budget per request" below | `auto` |
 | `CORTEX_NGL` | GPU layers to offload: `99` = all, `0` = CPU only, anything between is hybrid | `99` |
 | `CORTEX_INFERENCE_STALL_TIMEOUT_S` | on the brain: how long a resident or deep tier stream may send nothing before the turn fails. It bounds the gap between chunks, never the length of a generation, so a long answer is never cut off. Size it above the worst legitimate time to first token. The default clears the 17.5 s a contended cortex took here, with room for the deep tier (ADR-0005) | `120` |
+| `CORTEX_INFERENCE_LOAD_WAIT_S` | on the brain: how long a model call waits, with a "waiting for the model to finish loading" status, for a server still loading its model, as after a model host restart. `0` fails at once. The default is about three measured cortex loads (ADR-0054) | `120` |
 
 The brain-side model id stays `CORTEX_MODEL_CORTEX=cortex`; the adapter never sees the filename.
 Only the `model-host` sidecar does, and that is where these variables are read
@@ -144,9 +145,8 @@ WARNING:cortex_inference.backend:trace budget not sent because its setting is of
 Fix it by unsetting the count, by setting `CORTEX_INFERENCE_TRACE_LEVER=on` on a build you know
 reads the key, or by restarting the brain against a build whose probe answers `reads_budget=true`.
 Restart the brain after pulling a newer llama.cpp or rebuilding the model host: the first answer is
-kept for the life of the brain process, and neither direction of that staleness is
-reported. If the boot line and the `curl` above disagree, the brain is the stale half. The brain
-logs the build each model's server names when it changes ([subagents-cpu.md](subagents-cpu.md) shows
+kept for the life of the brain process, and that staleness is not reported. If the boot line and the
+`curl` above disagree, the brain is the stale half. The brain logs the build each model's server names when it changes ([subagents-cpu.md](subagents-cpu.md) shows
 the line). Read the build off the model host image, since its build can use a newer base than the
 cached `:server-cuda` tag:
 

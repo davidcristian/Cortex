@@ -4,6 +4,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field, replace
 
 from cortex_core import (
+    AsyncioSleeper,
     BrainPhase,
     BuiltinTool,
     CadenceTerms,
@@ -14,11 +15,13 @@ from cortex_core import (
     HandoffAheadBackend,
     HistoryWindow,
     InferenceBackend,
+    LoadWaitBackend,
     MemoryRecaller,
     ProgressSink,
     SerialTurnRunner,
     SessionStore,
     SessionTurnLocks,
+    Sleeper,
     SubagentScheduler,
     SwapConductor,
     ToolRegistry,
@@ -62,6 +65,8 @@ class StreamEngines:
     record_tainted_memory: bool
     bounds: GenerationBounds | None
     deep: DeepTier | None
+    load_wait_s: float = 0.0
+    sleeper: Sleeper = field(default_factory=AsyncioSleeper)
     turns: SessionTurnLocks = field(default_factory=SessionTurnLocks)
 
     def for_stream(self, confirmer: Confirmer, progress: ProgressSink) -> SerialTurnRunner:
@@ -72,12 +77,13 @@ class StreamEngines:
         """The stream's engine, plain or able to hand a turn to the deep model."""
         deep = self.deep
         if deep is None:
-            return self._turn_engine(
-                self._capabilities(confirmer, progress, self.backend), self.backend
-            )
+            waiting = self._waiting(self.backend, progress)
+            return self._turn_engine(self._capabilities(confirmer, progress, waiting), waiting)
         # Every cortex call the turn makes, recall's included, waits out another turn's handoff
         # through this backend, so each such wait is announced where the lease would queue.
-        backend = HandoffAheadBackend(self.backend, deep.swap.manager, progress)
+        backend = self._waiting(
+            HandoffAheadBackend(self.backend, deep.swap.manager, progress), progress
+        )
         caps = self._capabilities(confirmer, progress, backend)
         brain = deep.swap.plan.brain_model
         # The phase runs inside its own residency scope, where only the deep model can be leased,
@@ -114,6 +120,12 @@ class StreamEngines:
             lambda slot: self._turn_engine(replace(caps, escalation=slot), backend),
             conductor,
             progress=progress,
+        )
+
+    def _waiting(self, inner: InferenceBackend, progress: ProgressSink) -> InferenceBackend:
+        """``inner`` with each call waiting, announced, for a server still loading its model."""
+        return LoadWaitBackend(
+            inner, progress, clock=self.clock, sleeper=self.sleeper, wait_s=self.load_wait_s
         )
 
     def _capabilities(

@@ -12,8 +12,8 @@ brain in [overlay-session-resume.md](overlay-session-resume.md).
 host loopback, memory and tools files, escalation on with the supervisor backend, the shipped
 gemma-4-12B cortex, and the Linux shell's debug build on an `Xvfb` display. Keys and clicks came
 from `xdotool`, frames from `ffmpeg -f x11grab`, chats from Redis, and states from the model
-host's `GET /models/cortex`, polled once a second. No timing here is published as the card's
-speed, so the SM clock was not read; a cortex load is named as one load, however long it takes.
+host's `GET /models/cortex`, polled once a second. The flows name a cortex load as one load,
+however long it takes; the one timing published, the load itself, is below with its SM clock.
 
 Each flow's question was written down before it ran.
 
@@ -32,8 +32,31 @@ during the cortex's load show, and does the stack recover with no operator step?
 - **After the fix**, which reads that 503 as a model still loading, the same run showed
   `inference_failed: model 'cortex' is still loading, so it cannot answer yet; ask again once it
   is ready`.
-- The turn still fails rather than waiting for the load, which
-  [R-885](../refinements/tasks/885-a-question-sent-while-the-cortex-loads-ends-at-once.md) covers.
+- **After the wait was added** (`CORTEX_INFERENCE_LOAD_WAIT_S`, default 120 s), the same run
+  showed the chip `waiting for the model to finish loading` under the question from the first
+  second, logged `the model is still loading; the turn waits for it`, and answered `Nile, Amazon`
+  0.96 of one median cortex load after the question, with no red bubble and nothing sent again by hand.
+- **Stop during the wait.** The same restart, a question, and the Stop button 10 s later: the chip
+  went at once, the store kept the question alone, and nothing was answered once the cortex was
+  `ready`.
+- **A server that is down** still fails at once: with the model host stopped, the question below
+  ended in `llama-server request failed` within a second.
+
+## How long a cortex load takes
+
+Question: how long does a model host restart keep the cortex refusing requests, and what bound
+covers it? The answer sizes `CORTEX_INFERENCE_LOAD_WAIT_S`; a null result would be a load too
+variable to bound from three runs.
+
+- Three `docker restart` runs of the model host with the shipped gemma-4-12B cortex, the model
+  file read from the `/models` mount, polling `GET :8080/health` and `nvidia-smi --query-gpu=
+  clocks.sm,clocks.max.sm,utilization.gpu,memory.used` every half second.
+- llama-server answered 503 from 0.11 of the restart-to-ready time on, and 200 at 0.35, 0.35 and
+  0.36 of the 120 s bound after the restart command. The SM clock read 0.58 to 0.62 of its maximum and utilization
+  0 throughout, and the card's memory rose only in the last second: the load is bound by reading
+  the model file, not by the card, so a slower model drive, not a slower card, lengthens it.
+- The bound is 120 s, about 2.9 times the median load. A turn that outlasts it ends with the
+  loading message it ended with before the wait existed.
 
 ## The brain started while the model host is stopped
 
@@ -106,5 +129,5 @@ the brain's log name it?
   now logs `zone=Europe/Berlin`, and `zone=UTC` after the stack's own setting was restored.
 
 Method: `measurements/startup-order-2026-10-16/`, with the flow scripts (`f3.sh`, `f4.sh`,
-`badcfg.sh`), their logs, and frames; the shell ran by the Linux section of
+`badcfg.sh`, and `loadtime.sh` and `stop.sh` in `fix/`), their logs, and frames; the shell ran by the Linux section of
 [the overlay runbook](../runbooks/body-overlay.md#the-tauri-app-on-linux-headless).

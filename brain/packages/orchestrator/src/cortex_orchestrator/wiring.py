@@ -139,6 +139,7 @@ async def run_from_env(
             record_tainted_memory=memory_config.on_tainted == "record",
             bounds=reply_bounds,
             deep=None if swap is None else DeepTier(swap, deep_builtins, scheduler),
+            load_wait_s=inference.load_wait_s,
         )
         await serve(
             rpc_config,

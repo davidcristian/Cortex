@@ -20,6 +20,10 @@ class ContextOverflowError(InferenceError):
         self.excess = excess
 
 
+class ModelLoadingError(InferenceError):
+    """The model's server answered that it is still loading the model, so it generated nothing."""
+
+
 class MalformedToolCallError(InferenceError):
     """The server answered and the tool call the model wrote could not be assembled."""
 

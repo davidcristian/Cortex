@@ -70,8 +70,8 @@ never a reading of what the tree does now.
 ### Actionable now (3)
 
 - **[R-879](tasks/879-a-recalled-answer-from-another-chat-is-repeated-as-this-chats.md)** A recalled answer from another chat is repeated as this chat's (memory). Its claim was checked against the code on 2026-10-16.
-- **[R-885](tasks/885-a-question-sent-while-the-cortex-loads-ends-at-once.md)** A question sent while the cortex loads ends at once instead of waiting for it (brain). Its claim was checked against the code on 2026-10-16.
 - **[R-887](tasks/887-a-malformed-setting-is-named-by-its-field-not-its-variable.md)** A malformed setting is named by its field, not its variable (brain). Its claim was checked against the code on 2026-10-16.
+- **[R-888](tasks/888-a-question-sent-while-the-model-host-restarts-an-exited-cortex-fails-at-once.md)** A question sent while the model host restarts an exited cortex fails at once (brain). Its claim was checked against the code on 2026-10-16.
 
 ### Actionable, once a port changes (2)
 
@@ -324,8 +324,8 @@ never a reading of what the tree does now.
 
 - [R-664](tasks/664-a-startup-traceback-reaches-stderr-with-no-formatter.md) A startup traceback reaches stderr with no formatter. open, waiting for its trigger.
 - [R-707](tasks/707-model-read-texts-keep-banned-words.md) Texts a model reads keep words the prose table bans. done 2026-09-24.
-- [R-885](tasks/885-a-question-sent-while-the-cortex-loads-ends-at-once.md) A question sent while the cortex loads ends at once instead of waiting for it. open, actionable.
 - [R-887](tasks/887-a-malformed-setting-is-named-by-its-field-not-its-variable.md) A malformed setting is named by its field, not its variable. open, actionable.
+- [R-888](tasks/888-a-question-sent-while-the-model-host-restarts-an-exited-cortex-fails-at-once.md) A question sent while the model host restarts an exited cortex fails at once. open, actionable.
 
 ### brain-handoff
 

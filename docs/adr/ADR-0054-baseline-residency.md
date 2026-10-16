@@ -166,6 +166,14 @@ without decision 8 `Health` would answer ready while the cortex or the store is 
    (decision 5). An operator command was rejected because every turn fails until someone acts.
    The deep model and the peers are not covered: a deep load that fails must read `failed` to the
    swap that is waiting on it, and decision 4 restarts the peers.
+10. **A turn waits for a cortex that is still loading.** llama-server refuses a request with a 503
+   `Loading model` until its model is loaded; the adapter raises that as `ModelLoadingError`, and
+   `LoadWaitBackend` asks again each second with an announced `swapping` status, up to
+   `CORTEX_INFERENCE_LOAD_WAIT_S` (120 s, about three measured cortex loads, see
+   [the startup readings](../readings/startup-order-and-settings.md)), then ends the turn with the
+   loading message. Asking again replaces reading the serving watch, which is up to one interval
+   stale and fenced across handoffs. Any other fault fails at once, and Stop or the shutdown drain
+   cancels the wait with the turn.
 
 ## Consequences
 

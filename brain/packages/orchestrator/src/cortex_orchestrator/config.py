@@ -93,6 +93,9 @@ class InferenceConfig(BaseSettings):
         default="auto", validation_alias="CORTEX_INFERENCE_TRACE_LEVER"
     )
     stall_timeout_s: float = Field(default=120.0, gt=0)
+    # How long a model call waits for a server that answers it is still loading; 0 fails at once.
+    # Sized from a measured cortex load in docs/readings/startup-order-and-settings.md.
+    load_wait_s: float = Field(default=120.0, ge=0)
 
     @model_validator(mode="after")
     def _llamacpp_needs_an_endpoint(self) -> "InferenceConfig":

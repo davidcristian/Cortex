@@ -11,6 +11,8 @@ from cortex_core import (
     ESCALATE_TOOL_NAME,
     GET_VOLUME_TOOL_NAME,
     HANDOFF_AHEAD_DETAIL,
+    LOAD_POLL_INTERVAL_S,
+    MODEL_LOADING,
     SWAPPING,
     AsyncioSleeper,
     AttachmentError,
@@ -30,8 +32,10 @@ from cortex_core import (
     JudgeRecallPolicy,
     MemoryRecaller,
     Message,
+    ModelLoadingError,
     RecordingConfirmer,
     RecordingProgressSink,
+    RecordingSleeper,
     Role,
     ScriptedVisionProbe,
     StatusUpdate,
@@ -41,6 +45,7 @@ from cortex_core import (
     ToolCall,
     ToolRegistry,
     ToolSpec,
+    TurnCompleted,
     TurnEngine,
     TurnEvent,
     TurnRunner,
@@ -516,3 +521,83 @@ async def test_a_stream_whose_cortex_cannot_see_refuses_an_attached_picture_unas
             pass
     assert backend.requests == []
     assert await engines.sessions.history("s") == ()
+
+
+class _LoadingFirst:
+    """A backend whose first ``loading`` cortex calls answer that the model is still loading."""
+
+    def __init__(self, model: _Model, *, loading: int) -> None:
+        self.model = model
+        self._loading = loading
+
+    async def stream(
+        self,
+        model: str,
+        messages: Sequence[Message],
+        *,
+        tools: Sequence[ToolSpec] = (),
+        schema: JsonSchema | None = None,
+        bounds: GenerationBounds | None = None,
+    ) -> AsyncIterator[InferenceEvent]:
+        if model == "cortex" and self._loading > 0:
+            self._loading -= 1
+            msg = "model 'cortex' is still loading"
+            raise ModelLoadingError(msg)
+        async for event in self.model.stream(
+            model, messages, tools=tools, schema=schema, bounds=bounds
+        ):
+            yield event
+
+
+_LOADING_STATUS = StatusUpdate(state=MODEL_LOADING.key, detail=MODEL_LOADING.detail)
+
+
+async def test_a_plain_turn_waits_out_a_cortex_still_loading_and_says_so() -> None:
+    loading = _LoadingFirst(_Model({"cortex": [[TextChunk("Rhine and Danube.")]]}), loading=2)
+    sleeper = RecordingSleeper()
+    progress = RecordingProgressSink()
+    engines = replace(_engines(loading.model), backend=loading, load_wait_s=60.0, sleeper=sleeper)
+
+    events = await _run(
+        engines.for_stream(RecordingConfirmer(answer=True), progress), "rivers", turn_id="t1"
+    )
+
+    assert events[-1] == TurnCompleted(turn_id="t1", full_text="Rhine and Danube.")
+    assert progress.events == (_LOADING_STATUS,)
+    assert sleeper.waits == [LOAD_POLL_INTERVAL_S, LOAD_POLL_INTERVAL_S]
+
+
+async def test_a_plain_turn_with_no_load_wait_fails_at_once() -> None:
+    loading = _LoadingFirst(_Model({"cortex": [[TextChunk("late")]]}), loading=1)
+    sleeper = RecordingSleeper()
+    engines = replace(_engines(loading.model), backend=loading, sleeper=sleeper)
+
+    with pytest.raises(ModelLoadingError):
+        await _run(
+            engines.for_stream(RecordingConfirmer(answer=True), RecordingProgressSink()),
+            "rivers",
+            turn_id="t1",
+        )
+
+    assert sleeper.waits == []
+
+
+async def test_an_escalating_turn_waits_out_a_cortex_still_loading() -> None:
+    loading = _LoadingFirst(_Model({"cortex": [[TextChunk("Rhine and Danube.")]]}), loading=1)
+    progress = RecordingProgressSink()
+    swap = _swap_runtime()
+    try:
+        engines = replace(
+            _escalating(loading.model, swap),
+            backend=loading,
+            load_wait_s=60.0,
+            sleeper=RecordingSleeper(),
+        )
+        events = await _run(
+            engines.for_stream(RecordingConfirmer(answer=True), progress), "rivers", turn_id="t1"
+        )
+    finally:
+        await swap_closer(swap)()
+
+    assert events[-1] == TurnCompleted(turn_id="t1", full_text="Rhine and Danube.")
+    assert _LOADING_STATUS in progress.events

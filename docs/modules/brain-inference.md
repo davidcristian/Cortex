@@ -182,8 +182,8 @@ read further. A prompt longer than the context is answered with 400 and an error
 `exceed_context_size_error` (build b10680), raised as `ContextOverflowError`, a narrower
 `InferenceError`, which `test_context_overflow_live.py` (`CORTEX_OVERFLOW_ENDPOINT`) re-takes
 ([history window readings](../readings/history-window.md)). A request sent while the server loads
-its model is answered with 503, `unavailable_error` and `Loading model`, raised as an
-`InferenceError` saying the model is still loading, without the JSON body.
+its model is answered with 503, `unavailable_error` and `Loading model`, raised as
+`ModelLoadingError`, an `InferenceError` saying so without the JSON body, which the core waits on.
 
 ## Invariants
 
