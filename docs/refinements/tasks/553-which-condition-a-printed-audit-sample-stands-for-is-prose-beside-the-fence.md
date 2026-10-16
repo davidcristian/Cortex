@@ -36,9 +36,9 @@ whole package suite rather than one module, so the set it returns includes lines
 print: the orchestrator's suite asserts a whole `cortex.tools.audit` line to prove the shipped level.
 A rule over everything `proven` returns would demand that line be printed. A rule over the lines
 sharing the call's logger and message, the filter `_proven` already applies, never reaches it, since
-no orchestrator call writes that logger. Widening the reader, as
+no orchestrator call writes that logger. Widening the reader to f-strings, which
 [R-554](554-a-whole-line-asserted-through-an-f-string-or-a-helper-is-not-read-as-proven.md)
-proposes, would grow the set a coverage rule compares against.
+declined, would have grown the set a coverage rule compares against.
 
 ## History
 
@@ -80,3 +80,7 @@ proposes, would grow the set a coverage rule compares against.
   `samplecheck.py` stands at 207 lines rather than 289, so the coverage half no longer costs a
   split. The orchestrator's `cortex.tools.audit` line constrains only a rule over the unfiltered set;
   filtered by the call's logger and message, as the agreement check already is, it drops out.
+- 2026-10-16: the body's mention of
+  [R-554](554-a-whole-line-asserted-through-an-f-string-or-a-helper-is-not-read-as-proven.md)
+  now says it was declined, so the set `assertedlines.proven` returns stays the lines asserted as
+  constants. This task's trigger was not checked again.

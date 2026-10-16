@@ -1,9 +1,8 @@
 # A whole line asserted through an f-string or a helper is not read as asserted
 
-**Status:** open, actionable
+**Status:** declined 2026-10-16
 **Area:** repo-checks
 **Origin:** [ADR-0045](../../adr/ADR-0045-documented-log-lines.md)
-**Verified:** 2026-10-16
 
 `scripts/assertedlines.py` reads a string only where it is one side of `assert x == "..."`, as a
 constant the parser has already joined from adjacent literals. `_equated` inspects both sides of the
@@ -20,13 +19,11 @@ has moved into an f-string.
 
 Closing it: an f-string whose parts are constants and expressions could be read as the constant
 parts with a hole where each expression stands, and matched against a sample by field name, since
-values are dropped anyway. That is one more case in `_rendered` plus a fixture per part form, and a
-refusal for an f-string whose expression stands where a field name would, which no reading of the
-source can supply. A helper cannot be read without running it and stays refused. It is not built
-because no line anybody could document is asserted either way. Of the six f-string whole lines in
-the brain's suites, three interpolate their logger from a constant the test module binds, which the
-planned reading could not match, and three write logger and message out with a hole only at a value,
-which it could; but none of the six belongs to a call whose field list the source cannot read.
+values are dropped anyway. A helper cannot be read without running it. Declined on 2026-10-16
+(History): the one such assertion of a call the field reader refuses puts its expressions at the
+logger and the message, where that reading has nothing to match, and a sample of that line fails
+`just check` the day it is written, naming the call and the suite. The fix then belongs in the call,
+whose fields can be bound to a mapping written out, or in the suite, as a constant line.
 
 ## History
 
@@ -89,3 +86,13 @@ which it could; but none of the six belongs to a call whose field list the sourc
   `orchestrator/tests/test_converse.py` asserts three of those lines whole through the f-string
   `f"ERROR:{_STREAM_LOGGER}:{message} session_id=s7 turn_id=t-1"`. No runbook prints any of the
   three yet. The trigger line is gone and the task is actionable.
+- 2026-10-16: declined. The field reader refuses eleven calls in six modules, and no runbook
+  prints a line of any of them except the tool audit and the swap refusal, both asserted as
+  constants; `samplecheck.py` passes 19 samples, 6 held to a suite line. The f-string that fired
+  has its expressions at the logger, `_STREAM_LOGGER`, and the message, a `parametrize` argument,
+  so the planned reading would not read it either. A sample of `inference failed mid-turn`
+  appended to a `git archive` copy's `docs/runbooks/model-swap.md` failed with exit 1, naming
+  `converse_stream.py:228`, its reason and the orchestrator suite (`asserted whole there: none`).
+  In that copy, binding `fields` to a mapping written out at the top of `_turn_task` made the same
+  sample pass against the call itself, and one with a field added fail, with the reader unchanged.
+  So the reader stays as it is; a runbook that needs one of these lines makes its call readable.

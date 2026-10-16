@@ -183,9 +183,9 @@ Values are deliberately not compared: a sample's values are placeholders as ofte
 Samples are found rather than registered, by reading every fenced line in `docs/runbooks/` shaped
 like a rendered one, so a new sample is covered the day it is written. Only runbooks are read,
 because an ADR's transcript records one run on one day and comparing it with today's code would
-make the past something to edit. A call whose field list the source cannot determine, five of them
-today, is compared instead against a whole rendered line its own package suite asserts
-(`assertedlines.py`); the level is still compared against the call.
+make the past something to edit. A call whose field list the source cannot determine is compared
+instead against a whole line its package suite asserts as a string constant (`assertedlines.py`),
+and against the call's level; a sample of one asserted only through an f-string or a helper fails.
 
 ## `rostercheck.py`
 
