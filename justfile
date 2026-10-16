@@ -282,9 +282,10 @@ brain-serve:
     cd brain && uv run python -m cortex_orchestrator
 
 # Brain services in Compose, published on loopback only. `--project-directory .` keeps ./brain,
-# ./sandbox, the .env file and the `cortex` project name resolving from the repo root.
+# ./sandbox, the .env file and the `cortex` project name resolving from the repo root. The stack
+# recipes pass the host's zone as CORTEX_SCHEDULE_TZ when it is unset.
 up:
-    docker compose --project-directory . -f docker/docker-compose.yml up -d --build
+    CORTEX_SCHEDULE_TZ="${CORTEX_SCHEDULE_TZ:-$(sh docker/host-zone.sh)}" docker compose --project-directory . -f docker/docker-compose.yml up -d --build
 
 down:
     docker compose --project-directory . -f docker/docker-compose.yml down
@@ -292,7 +293,7 @@ down:
 # Brain plus a GPU llama-server for real inference. Needs an NVIDIA GPU and a models directory;
 # see docs/runbooks/llamacpp-gpu.md. Never runs in CI, which has no GPU.
 up-gpu:
-    docker compose --project-directory . -f docker/docker-compose.yml -f docker/docker-compose.gpu.yml up -d --build
+    CORTEX_SCHEDULE_TZ="${CORTEX_SCHEDULE_TZ:-$(sh docker/host-zone.sh)}" docker compose --project-directory . -f docker/docker-compose.yml -f docker/docker-compose.gpu.yml up -d --build
 
 down-gpu:
     docker compose --project-directory . -f docker/docker-compose.yml -f docker/docker-compose.gpu.yml down
@@ -490,7 +491,7 @@ mem-watch name *flags:
 # leaves unpublished because it can start and stop GPU processes. For live tests only;
 # `just down-gpu` takes it down. Procedure: docs/runbooks/model-swap.md.
 up-modelhost-loopback:
-    docker compose --project-directory . -f docker/docker-compose.yml -f docker/docker-compose.gpu.yml -f docker/docker-compose.modelhost-loopback.yml up -d --build
+    CORTEX_SCHEDULE_TZ="${CORTEX_SCHEDULE_TZ:-$(sh docker/host-zone.sh)}" docker compose --project-directory . -f docker/docker-compose.yml -f docker/docker-compose.gpu.yml -f docker/docker-compose.modelhost-loopback.yml up -d --build
 
 # Live model-host check: starts, health-checks and stops a real llama-server through the real
 # ModelHost adapter. Needs `just up-modelhost-loopback`; integration-marked, never in CI.

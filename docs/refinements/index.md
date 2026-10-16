@@ -67,10 +67,9 @@ never a reading of what the tree does now.
 
 150 of these record the day their claims were last checked against the code. On every other task here, that reading is still yours to take.
 
-### Actionable now (3)
+### Actionable now (2)
 
 - **[R-879](tasks/879-a-recalled-answer-from-another-chat-is-repeated-as-this-chats.md)** A recalled answer from another chat is repeated as this chat's (memory). Its claim was checked against the code on 2026-10-16.
-- **[R-881](tasks/881-the-default-display-zone-is-utc-on-a-host-that-is-not.md)** The default display zone is UTC on a host that is not (scheduling). Its claim was checked against the code on 2026-10-16.
 - **[R-883](tasks/883-the-creation-confirmation-names-no-day-relative-to-today.md)** The creation confirmation names no day relative to today (scheduling). Its claim was checked against the code on 2026-10-16.
 
 ### Actionable, once a port changes (2)
@@ -78,7 +77,7 @@ never a reading of what the tree does now.
 - **[R-129](tasks/129-streamed-brain-status.md)** Streamed brain status (body-overlay). Its claim was checked against the code on 2026-10-13.
 - **[R-877](tasks/877-the-wait-behind-a-swap-back-names-a-handoff-that-is-over.md)** The wait behind a swap back names a handoff that is over (brain-handoff). Its claim was checked against the code on 2026-10-16.
 
-### Waiting for its trigger (115)
+### Waiting for its trigger (116)
 
 - **[R-011](tasks/011-stylesheet-outside-line-cap.md)** The overlay stylesheet outside the line cap (repo-checks). Reopens when: `find body/app/src -name '*.css'` lists a second file, or `git log --since='<Verified date> 00:00' --oneline -- body/app/src/overlay.css` lists a commit whose diff moves a rule to change which rule applies. A commit that edits only comments does not. Its claim was checked against the code on 2026-10-16.
 - **[R-013](tasks/013-couplings-widened-registry-cannot-hold.md)** The couplings the widened registry cannot cover (repo-checks). Reopens when: A third value on the capture-target enum, a reader for declarations in the `.proto` arriving in the scan for another reason, any module outside the body's rpc crate and the brain's body client that has to name one of the two gRPC status codes, or either side of that pair gaining a declaration whose value the scan can read. Its claim was checked against the code on 2026-10-16.
@@ -195,6 +194,7 @@ never a reading of what the tree does now.
 - **[R-854](tasks/854-a-handoff-records-recall-bit-has-no-turn-that-sets-it.md)** A handoff record's recall bit has no turn that sets it (untrusted-content). Reopens when: a turn that recall alone tainted calls `escalate_to_brain` and is shown its card. Its claim was checked against the code on 2026-10-15.
 - **[R-865](tasks/865-install-the-file-sidecar-packages-at-image-build.md)** Install the file sidecar's packages at image build (tools-mcp). Reopens when: the file sidecar is seen to exit or restart for a reason other than a compose recreate, or a turn is seen served without the file tools while it restarts. Its claim was checked against the code on 2026-10-15.
 - **[R-872](tasks/872-a-request-to-draft-a-message-can-schedule-a-reminder.md)** A request to draft a message can schedule a reminder (scheduling). Reopens when: a reminder that no message of its chat asked for is reported from a real chat. Its claim was checked against the code on 2026-10-15.
+- **[R-884](tasks/884-follow-a-zone-change-without-restarting-the-stack.md)** Follow a zone change without restarting the stack (scheduling). Reopens when: a reminder fires at the wrong local time after the person's machine changed zone while the stack ran, or the stack runs on a machine other than the body's. Its claim was checked against the code on 2026-10-16.
 
 ### Waiting for a consumer (25)
 
@@ -851,8 +851,8 @@ never a reading of what the tree does now.
 - [R-837](tasks/837-a-cancel-of-a-scheduled-item-needs-no-confirmation.md) A cancel of a scheduled item needs no confirmation. done 2026-10-12.
 - [R-847](tasks/847-the-reply-check-misses-a-task-claimed-beside-a-reminder.md) The reply check misses a task claimed beside a reminder. open, waiting for its trigger.
 - [R-872](tasks/872-a-request-to-draft-a-message-can-schedule-a-reminder.md) A request to draft a message can schedule a reminder. open, waiting for its trigger.
-- [R-881](tasks/881-the-default-display-zone-is-utc-on-a-host-that-is-not.md) The default display zone is UTC on a host that is not. open, actionable.
 - [R-883](tasks/883-the-creation-confirmation-names-no-day-relative-to-today.md) The creation confirmation names no day relative to today. open, actionable.
+- [R-884](tasks/884-follow-a-zone-change-without-restarting-the-stack.md) Follow a zone change without restarting the stack. open, waiting for its trigger.
 
 ### session-history
 

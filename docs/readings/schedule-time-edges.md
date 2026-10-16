@@ -92,9 +92,9 @@ Live turn at 05:02 CEST: "Remind me today at 23:00 to check the oven." The corte
 the oven today at 23:00." Redis held `due_at` `2026-10-16T23:00:00+00:00` with a daily `rule`:
 01:00 CEST on 10-17, two hours after the time the person named, and repeating every day, which
 the reply did not say. The item and the turn's memory row were deleted after the reading. Two
-defects: the zone, filed as
-[R-881](../refinements/tasks/881-the-default-display-zone-is-utc-on-a-host-that-is-not.md), and
-the daily rule, fixed in this run (T5).
+defects: the zone, fixed in this run by the stack recipes passing the host's zone
+([ADR-0065](../adr/ADR-0065-wall-clock-schedule-times.md) decision 5), and the daily rule, fixed
+in this run (T5).
 
 ## T4: cortex draws under a fixed clock
 
@@ -110,7 +110,7 @@ the daily rule, fixed in this run (T5).
 | B, after the fix | 5 | 5 | 1 wrote `+01:00`, 4 a naive `at`, each stored 01:55 UTC |
 
 - **A** passes: in Berlin the model reads the local date and "tomorrow" is the local tomorrow.
-- **C** is R-881 seen from the model: under the UTC zone the model reads 22:30 on 10-16 and is
+- **C** is the default zone seen from the model: under the UTC zone the model reads 22:30 on 10-16 and is
   right by what it was told.
 - **B** and **E** show that a bare time with no day ("at 2:55", "at 23:00") is sometimes written
   as `at_time`, a daily rule. With "today" in the request, D wrote `at` 10 of 10 in a fresh
@@ -203,7 +203,8 @@ at the end; "named" is a daily rule the reply calls "every day", "unnamed" one i
 `list_scheduled` line writes it (`relative_day` in `schedule_render.py`), such as `due
 2026-10-25T09:00:00+01:00 (tomorrow)`. The day is counted in the zone the time is rendered in, so
 under the UTC default it is the UTC day, which is the person's day only when the display zone is
-theirs ([R-881](../refinements/tasks/881-the-default-display-zone-is-utc-on-a-host-that-is-not.md)).
+theirs, as the stack recipes now make it ([ADR-0065](../adr/ADR-0065-wall-clock-schedule-times.md)
+decision 5).
 
 **Driver** (`slot9/draw.py`): T5's driver, which also marks a draw whose reply names a day other
 than the stored one: "today" or "tonight" without "tomorrow" over an item due tomorrow, or

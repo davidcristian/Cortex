@@ -42,6 +42,11 @@ model-facing times render in, default `UTC`).
 as. It is display only: stored due times stay UTC instants, so changing it re-renders existing
 items and moves nothing.
 
+`just up`, `just up-gpu` and `just up-modelhost-loopback` set it to the host's zone when it is
+unset (`docker/host-zone.sh`, ADR-0065 decision 5). A plain `docker compose` start, like the one
+below, keeps `UTC` unless the variable is set. `docker exec cortex-brain-1 printenv
+CORTEX_SCHEDULE_TZ` shows the zone in use.
+
 ```
 CORTEX_SCHEDULE_BACKEND=redis CORTEX_SCHEDULE_TZ=Europe/Bucharest docker compose \
   --project-directory . -f docker/docker-compose.yml up -d --build

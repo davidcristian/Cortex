@@ -19,9 +19,10 @@ core as a value that already holds an abstract `tzinfo`.
 
 ### 1. A display zone for every model-facing time
 
-`CORTEX_SCHEDULE_TZ` (default `UTC`) is validated through `zoneinfo` when `ScheduleConfig` is built,
-so a misspelt key such as `Europe/Bucarest` fails the process at startup with the key named. The
-base `docker-compose.yml` passes it to the brain. The root resolves it into `DisplayZone(name, tz)`
+`CORTEX_SCHEDULE_TZ` (default `UTC`, the host's zone under the stack recipes of decision 5) is
+validated through `zoneinfo` when `ScheduleConfig` is built, so a misspelt key such as
+`Europe/Bucarest` fails the process at startup with the key named. The base
+`docker-compose.yml` passes it to the brain. The root resolves it into `DisplayZone(name, tz)`
 (`cortex_core/schedule_time.py`, default `UTC_DISPLAY`), which the rendering built-ins and the
 ticker share.
 
@@ -131,6 +132,28 @@ wanted meaning for an assistant that travels with one person.
   show `due_at` there, and `describe` appends the zone name, so the listing states which zone a bare
   wall time means.
 
+### 5. The stack recipes pass the host's zone
+
+`just up`, `just up-gpu` and `just up-modelhost-loopback` set `CORTEX_SCHEDULE_TZ` from the host
+when it is unset, through `docker/host-zone.sh`: `timedatectl`, else `/etc/timezone`, else the
+`zoneinfo/` path that `/etc/localtime` links to, which covers Linux and macOS. The brain container
+runs in UTC and cannot read the host's zone, and the overlay shows no times, so a `UTC` default on
+a host in another zone moves every bare time by the offset and nothing the person sees shows it
+([readings](../readings/schedule-time-edges.md#t3-the-zone-chain-on-the-default-deployment)).
+
+- **An explicit setting always wins**, and when no source names a zone the script prints nothing
+  and the compose default `UTC` applies.
+- On Windows the recipes run in the WSL distro, and WSL's init maps the Windows zone into the
+  distro's `/etc/localtime` and `/etc/timezone`, so they read the Windows zone.
+- A stack started with plain `docker compose` keeps `UTC` unless the variable is set, and the live
+  test recipes keep it on purpose, so their results do not depend on the host.
+- **The zone is read once, when the stack starts**, which keeps decision 2's single zone for the
+  ticker and the built-ins. A machine that changes zone while the stack runs keeps the old one
+  until the brain is recreated
+  ([R-884](../refinements/tasks/884-follow-a-zone-change-without-restarting-the-stack.md)).
+- The zone in use is read with `docker exec cortex-brain-1 printenv CORTEX_SCHEDULE_TZ`, and the
+  `schedule_task` description states it, so the brain writes no startup line for it.
+
 ## Consequences
 
 - One daylight-saving policy serves a naive `at`, every calendar occurrence and every clamp: an
@@ -157,6 +180,12 @@ wanted meaning for an assistant that travels with one person.
 - **Skipping a month that lacks the day**, for the reason in decision 3.
 - **A zone required on every rule**: the common single-zone case would write a key for nothing, and
   rules that should follow the user would stay behind.
+- **The body reports its zone over the gRPC interface**, used when `CORTEX_SCHEDULE_TZ` is unset.
+  It would follow the person's machine without a restart, but the zone becomes state the brain
+  receives per connection: it must live in the store, the ticker, which runs with no body
+  connected, and every built-in must read it on each use instead of once at startup, and Windows
+  needs a zone name lookup checked only on a real desktop. It stays the follow-up for a zone that
+  changes while the stack runs.
 
 ## Related
 
