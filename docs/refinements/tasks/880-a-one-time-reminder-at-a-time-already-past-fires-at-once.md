@@ -11,7 +11,8 @@ stored, `claim_due` returns it on the ticker's next poll, and the reminder fires
 being made. The confirmation, `scheduled reminder <id>: due <time>`, has no relative day, so it
 reads like any other and the reply tells the person the reminder is set for a time that has
 passed. A wrong date from the model (a "tomorrow" read against the wrong day, R-881) turns into a
-reminder that fires at once instead of a correction it could act on
+reminder that fires at once instead of a correction it could act on. Asked "Remind me today at 9
+to call the plumber." at 23:50, the cortex wrote the past 09:00 in 1 of 10 draws
 ([readings](../../readings/schedule-time-edges.md#t2-one-time-times-in-the-repeated-hour-the-gap-and-the-past)).
 
 ## Reproduction
@@ -27,8 +28,8 @@ Refuse an `at` that is more than a small margin (60 s) before now, with a correc
 current date-time in the display zone, for example "'at' 2026-10-24T09:00:00+02:00 has passed; the
 current date-time is 2026-10-24T23:50:00+02:00 (Europe/Berlin)". The margin keeps a call that
 writes "now" itself from being refused. ADR-0065 notes that a refusal costs a round trip, so this
-ships only on rows written first: the readings' rows A and D plus a row asking for "today at 09:00"
-at 23:50, under the rule that every A and D draw still stores its wanted instant with no extra
+ships only on rows written first: the readings' rows A, D and F (F asks for "today at 9" at
+23:50), with F drawn 20 times, under the rule that every A and D draw still stores its wanted instant with no extra
 call, and the new row either asks or stores the next day, never a past time. Then edit ADR-0025's
 creation bounds and the runbook.
 

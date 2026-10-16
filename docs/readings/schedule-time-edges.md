@@ -41,7 +41,9 @@ wanted 2026-10-25 09:00 CET. **B** "Remind me at 2:55 to check the oven." at 202
 (the second pass) in Berlin, wanted 02:55 CET (01:55 UTC). **C** row A's text at 2026-10-17 00:30
 CEST under the UTC zone, wanted 2026-10-18 09:00 local. **D** "Remind me today at 23:00 to check
 the oven." and **E** "Remind me at 23:00 to check the oven." at 03:00 UTC under the UTC zone,
-wanted 23:00 UTC the same day.
+wanted 23:00 UTC the same day. **F** "Remind me today at 9 to call the plumber." and **G** "Remind
+me at 9 to call the plumber." at 2026-10-24 23:50 CEST in Berlin, written after the first five
+rows and before any draw of them, wanted 2026-10-25 09:00 CET or a question; a past `at` fails.
 
 ## T1: calendar rules and an interval across the change
 
@@ -105,6 +107,8 @@ the daily rule, filed as
 | C | 5 | 0 | 5 `at` `2026-10-17T09:00:00`: 11:00 CEST on 10-17, a day early and two hours late by the person's clock |
 | D | 10 | 10 | |
 | E | 10 | 8 | 2 `at_time` `23:00` (daily) |
+| F | 10 | 8, 1 asked | 1 `at` `2026-10-24T09:00:00`, past, due at once; 1 no call that asked whether to use tomorrow |
+| G | 10 | 5 | 5 `at_time` `09:00` (daily) |
 | B, after the fix | 5 | 5 | 1 wrote `+01:00`, 4 a naive `at`, each stored 01:55 UTC |
 
 - **A** passes: in Berlin the model reads the local date and "tomorrow" is the local tomorrow.
@@ -112,7 +116,10 @@ the daily rule, filed as
   right by what it was told.
 - **B** and **E** show that a bare time with no day ("at 2:55", "at 23:00") is sometimes written
   as `at_time`, a daily rule. With "today" in the request, D wrote `at` 10 of 10 in a fresh
-  context, while the live turn above, with history and memory, wrote `at_time`. That is R-882.
+  context, while the live turn above, with history and memory, wrote `at_time`. G, "at 9" asked
+  late at night, wrote `at_time` in half its draws. That is R-882.
+- **F** is R-880 seen from the model: "today at 9" asked at 23:50 wrote the past time once in 10,
+  and that reminder fires at once; once it asked instead, which the row counts as a pass.
 
 ## After the second-pass fix
 
