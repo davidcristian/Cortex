@@ -23,7 +23,8 @@ what follows is the prefix, the defaults other parts depend on, and the validati
   addresses; `test_wiring` drives every reader of the second over a renamed tier (ADR-0068
   decision 9). A Redis URL whose authority the client cannot read, such as a password holding an
   unencoded `/`, raises `RuntimeConfigError` naming the variable and not its value, since the
-  client's own error prints the password's first segment as a port. `vram_soft_cap_gb: float = 14.0` and `cortex_reservation_gb: float = 8.6` are the
+  client's own error prints the password's first segment as a port; an `@` left after the
+  authority is refused too, since a numeric first segment reads as a port and is printed. `vram_soft_cap_gb: float = 14.0` and `cortex_reservation_gb: float = 8.6` are the
   GPU budget the `SubagentPlacer` fit-tests against, re-measured 2026-08-07: the shipped tier peaks
   at 8573 MiB above the desktop's own floor, leaving 5.4 GiB of subagent headroom (ADR-0012
   decision 14). `history_char_budget: int = 24000` (`0` turns windowing off, ADR-0014 decision 4),

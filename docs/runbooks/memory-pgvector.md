@@ -70,8 +70,8 @@ CORTEX_MEMORY_RECALL=raw docker compose --project-directory . \
 
 `CORTEX_PG_PASSWORD` reaches Postgres twice, once as the server's own password and once inside
 `CORTEX_MEMORY_DSN`, where it has to be percent-encoded. A password containing a character that
-ends a URL's authority, `/` above all, makes the driver read the password's first segment as a
-port, which the brain refuses at boot:
+ends a URL's authority, `/` above all, makes the driver read (and print) the password's first
+segment as a port, which the brain refuses at boot, also when an `@` is left after the authority:
 
 ```
 cortex_orchestrator.config.MemoryConfigError: CORTEX_MEMORY_DSN has an authority the Postgres
