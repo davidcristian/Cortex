@@ -91,7 +91,9 @@ There are two shapes and an item takes exactly one.
   when the `at_time` text said only "recurring"
   ([readings](../readings/schedule-one-time-and-daily.md)). It still writes `at_time` for a bare
   "at 9" in some draws, so the confirmation of `at_time` with no selector says the item repeats
-  every day and that `edit_scheduled` with its id and `every_seconds` 0 makes it one time.
+  every day and that `edit_scheduled` with its id and `every_seconds` 0 makes it one time. Every
+  creation confirmation, like a listing line, names the due day counted from today, such as
+  `(tomorrow)`.
 
   An optional `in_zone` (an IANA key such as `"America/New_York"`) names the zone the `at_time`
   wall clock is in, for a reminder that should fire on another zone's clock, say 09:00 New York

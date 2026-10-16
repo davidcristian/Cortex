@@ -149,3 +149,23 @@ async def test_an_offset_less_at_in_the_second_pass_of_a_repeated_hour_is_still_
     assert not result.is_error
     assert "due 2026-10-25T03:30:00+02:00" in result.content
     assert (await store.list_active())[0].due_at == datetime(2026, 10, 25, 1, 30, 0, tzinfo=UTC)
+
+
+class _AfterUtcMidnightHere:
+    def now(self) -> datetime:
+        return datetime(2026, 7, 12, 22, 30, 0, tzinfo=UTC)
+
+
+async def test_the_confirmation_counts_the_day_in_the_display_zone() -> None:
+    tool = ScheduleTaskTool(
+        InMemoryScheduleStore(),
+        _AfterUtcMidnightHere(),
+        tasks_enabled=True,
+        max_active=32,
+        zones=_ZONES,
+        item_id_factory=lambda: "item-1",
+    )
+    result = await tool.invoke(
+        _call({"kind": "reminder", "text": "call", "at": "2026-07-13T09:00"})
+    )
+    assert result.content == "scheduled reminder item-1: due 2026-07-13T09:00:00+03:00 (today)"

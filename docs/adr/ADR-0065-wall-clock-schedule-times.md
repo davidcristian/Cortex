@@ -67,7 +67,10 @@ decision 2).
   because setting the next occurrence is wall-clock arithmetic and must use the same zone that
   creation used.
 - The creation confirmation and the listing share one recurrence phrase (`recurrence_phrase` in
-  `schedule_render.py`), so they cannot describe one item differently.
+  `schedule_render.py`), so they cannot describe one item differently. Both also name the due
+  time's day counted from today in the zone it renders in (`relative_day`), such as `(tomorrow)`:
+  without it, a reply near midnight repeated the person's "today" over an item due tomorrow
+  ([readings](../readings/schedule-time-edges.md#t6-results)).
 - **A daily rule's confirmation says it repeats.** `at_time` with no day selector is the form a
   one-time request ("at 9") is mistaken for, so its confirmation adds that the item repeats every
   day and that `edit_scheduled` with `every_seconds` 0 makes it one time. The model reads that in

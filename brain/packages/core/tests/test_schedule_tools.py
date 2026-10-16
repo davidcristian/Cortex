@@ -1237,7 +1237,7 @@ async def test_creation_fires_persists_and_renders_a_per_rule_zone() -> None:
     )
     assert not result.is_error
     assert result.content == (
-        "scheduled reminder item-1: due 2026-07-12T09:00:00-04:00, "
+        "scheduled reminder item-1: due 2026-07-12T09:00:00-04:00 (today), "
         "every day at 09:00 (America/New_York). This repeats every day. If the user asked for "
         "one time only, make it one time with edit_scheduled, this id and 'every_seconds': 0; "
         "otherwise tell the user it repeats every day."
@@ -1370,8 +1370,8 @@ async def test_a_daily_rule_says_it_repeats_and_how_to_make_it_one_time() -> Non
     tool, _ = _tool()
     result = await tool.invoke(_call({"kind": "reminder", "text": "oven", "at_time": "23:00"}))
     assert result.content == (
-        "scheduled reminder item-1: due 2026-07-12T23:00:00+00:00, every day at 23:00. This "
-        "repeats every day. If the user asked for one time only, make it one time with "
+        "scheduled reminder item-1: due 2026-07-12T23:00:00+00:00 (today), every day at 23:00. "
+        "This repeats every day. If the user asked for one time only, make it one time with "
         "edit_scheduled, this id and 'every_seconds': 0; otherwise tell the user it repeats "
         "every day."
     )

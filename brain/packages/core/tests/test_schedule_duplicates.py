@@ -46,8 +46,8 @@ async def test_a_repeated_request_names_the_stored_item_and_adds_no_copy() -> No
     assert not result.is_error
     assert result.trust is Trust.TRUSTED
     assert result.content == (
-        "already scheduled reminder item-1: due 2026-07-13T10:00:00+00:00; it was on the "
-        "schedule before this call, so no copy was added"
+        "already scheduled reminder item-1: due 2026-07-13T10:00:00+00:00 (tomorrow); it was on "
+        "the schedule before this call, so no copy was added"
     )
     assert [item.id for item in await store.list_active()] == ["item-1"]
 

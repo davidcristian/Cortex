@@ -192,8 +192,7 @@ at the end; "named" is a daily rule the reply calls "every day", "unnamed" one i
   the model: F's text with a seeded call for `2026-10-24T09:00:00` and its refusal, 5 draws. Four
   asked whether to use 09:00 tomorrow; one stored a daily 09:00 rule and named it. None stored a
   past time or claimed one was set. One reply in the F row said "today at 9:00 AM" over a rule
-  due tomorrow, a wording slip the rules do not count, filed as
-  [R-883](../refinements/tasks/883-the-creation-confirmation-names-no-day-relative-to-today.md).
+  due tomorrow, a wording slip the rules do not count, drawn as T6.
 - Both changes shipped. The core suite (`brain/packages/core/tests`) holds the tests that fail
   without them.
 
@@ -217,3 +216,24 @@ than the stored one: "today" or "tonight" without "tomorrow" over an item due to
 **Rule:** the candidate ships only if its count of wrong-day replies over the 30 draws is below
 the baseline's, and no candidate draw ends with a past, wrong or duplicated item (T5's classes).
 A baseline count of 0 cannot fall: then the task stays open with these rows as its evidence.
+
+### T6 results
+
+SM clock during the draws: 0.59 of `clocks.max.sm`. "Wrong day" counts replies that name a day
+other than the stored one; the store classes are T5's.
+
+| Row | Baseline wrong day | Candidate wrong day | Candidate store |
+| --- | --- | --- | --- |
+| A | 0 of 10 | 0 of 10 | 10 wanted, one call |
+| F | **7 of 10** | **2 of 10** | 7 wanted, 2 daily rules due tomorrow, 1 asked |
+| E | 0 of 10 | 0 of 10 | 7 wanted, 3 named daily rules, as in the baseline |
+
+- **The candidate passes its rule and shipped**: 2 wrong-day replies in 30 against 7, and no draw
+  ended with a past, wrong or duplicated item. In F the baseline echoed the person's "today" in 7
+  replies; with `(tomorrow)` in the result, 7 of the 9 stored draws said "tomorrow".
+- One of the candidate's two is a counting artifact: "Since you only asked for today, I can change
+  it" over a daily rule, which names "today" without saying the item is due then. The other
+  replied "today at 9:00 AM" over a daily rule due tomorrow.
+- The day is counted in the display zone, so under the UTC default it is the UTC day. With the
+  host's zone passed by the stack recipes it is the person's day. The core suite
+  (`brain/packages/core/tests`) holds a test that fails when the day is counted in UTC.

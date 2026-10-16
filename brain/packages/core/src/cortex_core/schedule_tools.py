@@ -1,6 +1,7 @@
 """The ``schedule_task`` / ``list_scheduled`` built-ins."""
 
 from collections.abc import Callable
+from datetime import datetime
 from typing import Any
 from uuid import uuid4
 
@@ -14,6 +15,7 @@ from cortex_core.schedule_render import (
     effective_zone,
     now_sentence,
     recurrence_phrase,
+    relative_day,
 )
 from cortex_core.schedule_selectors import DAILY
 from cortex_core.schedule_time import UTC_DISPLAY, UTC_ZONE_CONTEXT, DisplayZone, ZoneContext
@@ -175,18 +177,20 @@ class ScheduleTaskTool:
         except ScheduleStoreError as err:
             return store_down_result(call.id, err)
         if held is not None:
-            content = f"already {_confirmation(held, self._zone)}; {_NOT_ADDED}"
+            content = f"already {_confirmation(held, self._zone, now)}; {_NOT_ADDED}"
         else:
-            content = _confirmation(item, self._zone)
+            content = _confirmation(item, self._zone, now)
         if item.rule is not None and item.rule.on == DAILY:
             content += _DAILY_NOTE
         return ToolResult(call_id=call.id, content=content, trust=Trust.TRUSTED)
 
 
-def _confirmation(item: ScheduledItem, default_zone: DisplayZone) -> str:
-    """The creation result for ``item``: its kind, id, due time and recurrence, never its text."""
+def _confirmation(item: ScheduledItem, default_zone: DisplayZone, now: datetime) -> str:
+    """The creation result for ``item``: its kind, id, due time with its day counted from ``now``
+    as the listing writes it, and recurrence, never its text.
+    """
     zone = effective_zone(item.rule, default_zone)
-    due = zone.render(item.due_at)
+    due = f"{zone.render(item.due_at)} ({relative_day(item.due_at, now, zone)})"
     return f"scheduled {item.kind.value} {item.id}: due {due}{recurrence_phrase(item)}"
 
 
