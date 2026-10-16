@@ -196,3 +196,23 @@ at the end; "named" is a daily rule the reply calls "every day", "unnamed" one i
   [R-883](../refinements/tasks/883-the-creation-confirmation-names-no-day-relative-to-today.md).
 - Both changes shipped. The core suite (`brain/packages/core/tests`) holds the tests that fail
   without them.
+
+## T6: the day the creation confirmation names
+
+**Candidate.** The creation confirmation adds the due time's day counted from today, as a
+`list_scheduled` line writes it (`relative_day` in `schedule_render.py`), such as `due
+2026-10-25T09:00:00+01:00 (tomorrow)`. The day is counted in the zone the time is rendered in, so
+under the UTC default it is the UTC day, which is the person's day only when the display zone is
+theirs ([R-881](../refinements/tasks/881-the-default-display-zone-is-utc-on-a-host-that-is-not.md)).
+
+**Driver** (`slot9/draw.py`): T5's driver, which also marks a draw whose reply names a day other
+than the stored one: "today" or "tonight" without "tomorrow" over an item due tomorrow, or
+"tomorrow" without "today" or "tonight" over one due today, both counted in the display zone.
+
+**Rows, written before the baseline:** T4's **A** and **F** at 2026-10-24 23:50 CEST in Berlin
+(due tomorrow) and **E** at 03:00 under the UTC zone (due today), 10 draws each, on the baseline
+(HEAD) and on the candidate.
+
+**Rule:** the candidate ships only if its count of wrong-day replies over the 30 draws is below
+the baseline's, and no candidate draw ends with a past, wrong or duplicated item (T5's classes).
+A baseline count of 0 cannot fall: then the task stays open with these rows as its evidence.
