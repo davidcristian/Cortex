@@ -44,3 +44,30 @@ What it decides. If Q2T ships, its sentences and cut line replace the tree's `_I
 `_cut_middle` line. If it does not, no sixth wording is drawn: five candidates (L, Q, Q2, T and
 Q2T) will have failed. A null result is Q2T under either list threshold, meaning a true line count
 beside the rule against counting neither stops false counts nor makes the loans nameable.
+
+## The fourth draw
+
+**2026-10-16**, scored by hand against the fourth rule (six recaps per row; B's P1 and N2 are the
+first draw's):
+
+| Variant | L1 | L2 | L3 | L4 | L5 | L1 to L3 | L4 and L5 | P1 | N2 | C1 to C3 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| B | not drawn | not drawn | not drawn | 6 | 5 | not drawn | 11 of 12 | 6 | 6 | not drawn |
+| Q2T | 3 | 6 | 6 | 6 | 5 | 15 of 18 | 11 of 12 | 6 | 6 | 18 of 18 |
+
+Q2T does not ship. It meets each of its own thresholds, but B passes 11 of 12 on L4 and L5 against
+at most 6. Under the heading, every B L4 recap named the loans and an id range; five named the cut
+between L-50206 and L-50621, and for one of them that was the only range given. B's L5 miss gave
+the sensors and the time range without 23.87. Q2T's four list misses: two L1 folds listed entries
+until the bound stopped them and `clean_recap` rejected them, and two recaps gave the cut line's
+line count as the list's size ("605 entries" on L1, "206 lines of data" on L5). Every Q2T L2 recap
+described the list and gave B-34, every L4 recap gave L-50001 to L-50689, every P1 recap kept the
+five facts with no cut claimed, every N2 recap named the `503`, and every C recap gave the `503` or
+the 12 November move.
+
+Across the four draws, the L1 folds that `clean_recap` rejected after listing entries up to the
+bound were 3 of 6 for B, none for L and Q, and 2 of 6 for Q2, T and Q2T. L and Q wrote false
+counts instead: all twelve of L's L1 and L3 recaps, and four of Q's list recaps.
+Method: `measurements/overlay-long-input-2026-10-16/list-recap-fourth/` (`draw.py` with the
+`s15.py` and `s10.py` it loads, `readpart.py`, `score.py`, `run.sh`, `draw.jsonl`, `clock.log`);
+the SM clock read 0.59 of its maximum while the cortex was busy.

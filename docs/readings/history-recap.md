@@ -244,7 +244,7 @@ the first draw, and T sends them as B):
 | Q2 | 3 | 6 | 5 | 0 | 3 | 14 of 18 | 3 of 12 | 6 | 6 | 18 of 18 |
 | T | 4 | 0 | 4 | 0 | 2 | 8 of 18 | 2 of 12 | 6 | 6 | 18 of 18 |
 
-Neither ships. Q2 wrote two false counts (500 entries on L1, 1,054 on L3) and two L1 folds that hit
-the bound; every T L2 recap was the answer alone. No L4 recap named the loans, whose lines hold no
-word for them; an L5 miss was the answer alone, or times without sensor ids. Method:
-`measurements/overlay-long-input-2026-10-15/list-recap-q2t/`; SM clock 0.62 of its maximum.
+Neither ships. Q2 wrote two false counts (500 entries on L1, 1,054 on L3) and two L1 folds that hit the
+bound; every T L2 recap was the answer alone. No L4 recap named the loans, whose lines hold no word for them;
+an L5 miss was the answer alone, or times without sensor ids. Method: `measurements/overlay-long-input-2026-10-15/list-recap-q2t/`;
+SM clock 0.62 of its maximum. The fourth draw has [its own record](history-recap-lists.md).
