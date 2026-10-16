@@ -117,6 +117,18 @@ draws), `premise.log`, `screen.log` and `cpu.log` in `measurements/sitting-2026-
 `launch.sh` with `529x20.sh` in its `drivers/`, the logs `806rep.log`, `529e4b20q.log` and
 `806mut.log`, the samples under `806rep/`, `529e4b20q/` and `806mut/`.
 
+**2026-10-16**, build `b11552-23b0202a1`, the model host image rebuilt on 2026-10-12, drawn by the
+recipe's loop (`switchlineup.py --cpuset 12-23`) from a `git archive` copy: eleven picks at
+`-ngl 99` and the E4B at `-ngl 0` on CPU cores 12 to 23 with its knights and knaves question, the
+same argv and five draws a cell. Every probe exited 0 and `switchtail.py` agreed on all twelve
+samples. Every control deliberated on 5 of 5, every switched cell read 0/5 except the constrained
+cells of the two open tails, the E4B's and the E2B's, at 5/5, and every tail is the one in the table
+above, so all twelve rows hold on `b11552`. The eleven GPU picks took 1.02 times as long as the same
+eleven on `b11429`, with the SM clock sampled every 15 s at 0.41 to 0.83 of the card's maximum and
+the enforced power limit at 0.80 to 0.91 of its own. The E4B's wall is not read, since a `just
+check` ran on the other cores during it. Method: `run.sh` and `frozen.py` in
+`measurements/sitting-2026-10-16/`, the log `529sw.log`, the samples under `529/`.
+
 **2026-09-04, re-read 2026-09-15.** A walk over every GGUF header on the model mount: 68 files, 34
 with a chat template, every one writing one of the two marker pairs `switchtail.py` lists. Six
 Qwen3.6 repackages also read `<thinking>`, `</thinking>`, `<|think_on|>` and `<|think_off|>`, and

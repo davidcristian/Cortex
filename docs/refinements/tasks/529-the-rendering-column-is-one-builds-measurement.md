@@ -1,7 +1,11 @@
 # The rendering column is one build's measurement, and an engine bump reopens every row of it
 
-**Status:** open, actionable
+**Status:** open, waiting for its trigger
 **Area:** inference
+**Trigger:** an engine bump under this stack, meaning the GPU runbook's `docker image inspect`
+label command reporting a llama.cpp build other than b11552 for `cortex-model-host` (the three GPU
+tiers) or other than b10680 for the cached `server` tag (both CPU subagent overrides). Nothing fixes
+a digest, so a pull or a rebuild is the bump.
 **Origin:** [ADR-0050](../../adr/ADR-0050-live-probe-records.md)
 **Verified:** 2026-10-16
 
@@ -23,53 +27,14 @@ build and record the twelve rows in the readings under the rules below.
 
 ## The column on b11312
 
-The stack's engine is now `b11312-0c1e57098` (History, 2026-10-04), so the column was owed again.
-Row `529sw` of the card run of 2026-10-04 drew it. Per pick it runs `/app/llama-server` from the
-`cortex-model-host` image at `-ngl 99 --ctx-size 8192 --parallel 1 --jinja --cache-ram 0` on
-`127.0.0.1:8091`, then the probe from the run's frozen tree at `CORTEX_THINKING_REPEATS=5`, then
-`scripts/switchtail.py` over every sample under `measurements/sitting-2026-10-04/529/`. It was
-priced at 2400 s from the spacing of the 2026-09-02 samples' write times plus a fifth for the
-card's throttled clock. What each result decides, written before the draw:
-
-- **The reader agrees on every pick.** The column holds on `b11312`. The readings record the build
-  and the twelve counts, this task waits for the next build, and the recipe stays its open half.
-- **The reader exits 1 on a pick**: a closed tail that deliberates, an open tail that holds on all
-  five draws, or a tail of another form. The readings record that row beside its `b10680` row, and
-  no ADR prose changes until the same pick is drawn again at five draws a cell on `b11312` and on
-  the cached `b10680` `:server-cuda` image at the same argv, which splits the build from the day.
-  The E4B matters most: its open tail deliberated on 14 of 15 draws over three builds, and 0 of 5
-  would be a handler that reads `enable_thinking`, the break this task names. Nothing shipped
-  changes either way, since the subagent tier's pair ends the thought whatever the template says.
-- **A null result** is a pick with no sample, from a failed load or a control that did not
-  deliberate on all five draws: that row stays owed on `b11312`. A skipped or failed row leaves
-  all twelve owed, and this task stays actionable.
-
-**Drawn 2026-10-04**, exit 0 in 1424 s, every pick loaded and the reader exiting 0 on all twelve
-samples ([thinking-switch readings](../../readings/thinking-switch.md#the-lineups-switched-tails)).
-Eleven picks agree with their `b10680` rows, so under the first rule the column holds on `b11312`
-for them. The E4B is a null under the third: its plain control deliberated on 4 of 5, and on 3 of 5
-in a second draw of that pick alone, so the probe failed both times and its row stays owed on
-`b11312`. Its constrained cells read as before, control 5 of 5 and switch 4 of 5 in both draws.
-Nothing shipped changes, and the task stays open.
-
-**The next row, written before its draw.** The E4B's `b10680` row was read on the CPU image, so a
-plain control that no longer fires on every draw may be the placement and not the build. The row
-draws that pick on `b11312` at `-ngl 0` on CPU cores 12 to 23, the driver above with `R529_DRY=1`
-and `R529_ONLY=gemma-4-E4B-qat-q4_0`, and on the cached `b10680` `:server-cuda` image at `-ngl 99`,
-at the same argv and five draws a cell: about 80 s on the card and an unpriced CPU run. A control firing on 5 of 5 on the CPU on `b11312` reads the E4B row on this build under
-the rules above, and all twelve rows are then read on it. A control failing on `b11312` at both
-placements and firing on 5 of 5 on `b10680` is the build's change to the E4B's plain control, which
-the readings record and which leaves that cell unmeasured by this prompt on `b11312`. Any other
-result is a null and the row stays owed. Nothing shipped changes either way.
-
-**Drawn 2026-10-04.** On CPU cores 12 to 23 at `-ngl 0` on `b11312`, every control deliberated on
-5 of 5, the switch read 0/5 plain and 5/5 constrained, and the reader agreed: the E4B's `b10680` row
-exactly. So the E4B row is read on `b11312`, all twelve rows hold on it, and under the first rule
-this task waits for the next build with the recipe as its open half. The recipe draws the E4B at
-`-ngl 0`, where its control fires on every draw. The cached `b10680` `:server-cuda` image at
-`-ngl 99` read controls 5 of 5, plain 0/5 and constrained 4/5, the reader agreeing. Samples under
-`measurements/sitting-2026-10-04/529cpu/` and `529old/`, from copies of the driver differing only in
-container name and, for `b10680`, image.
+Drawn on 2026-10-04 by row `529sw` of that day's card run, with
+`measurements/sitting-2026-10-04/drivers/529sw.sh`: per pick `/app/llama-server` from
+`cortex-model-host` at `-ngl 99 --ctx-size 8192 --parallel 1 --jinja --cache-ram 0`, the probe at
+five draws a cell and `scripts/switchtail.py` over every sample, under the three rules the sections
+below repeat. Eleven rows held. The E4B was a null twice at `-ngl 99`, its plain control
+deliberating on 4 and 3 of 5, and read its `b10680` row on CPU cores 12 to 23 at `-ngl 0`, so all
+twelve rows held on `b11312`
+([thinking-switch readings](../../readings/thinking-switch.md#the-lineups-switched-tails)).
 
 ## The column on b11429
 
@@ -141,6 +106,30 @@ control read 20 of 20 at `-ngl 0` on CPU cores 12 to 23, where the recipe serves
 recipe needs no change. Samples under `measurements/sitting-2026-10-07c/529e4b20q/`, from the
 `529x20.sh` copied there.
 
+## The column on b11552
+
+The model host image was rebuilt on 2026-10-12 and reads `b11552 23b0202a1`, image
+`sha256:c3f02610f5af`. The recipe's loop, `switchlineup.py --cpuset 12-23`, draws the twelve
+picks on it from a `git archive` copy of HEAD, the E4B at `-ngl 0` on CPU cores 12 to 23 with its
+own question and the rest at `-ngl 99`, five draws a cell. What each result decides, written
+before the draw:
+
+- **Every probe exits 0 and the reader agrees on every pick.** The column holds on `b11552`. The
+  readings record the build and the twelve rows, and this task waits for the next build.
+- **The reader exits 1 on a pick.** The readings record that row beside its `b11429` row, and no
+  ADR prose changes until the same pick is drawn again at five draws a cell on `b11552` and on the
+  cached `b10680` `:server-cuda` image at the same argv. That row stays owed and the task stays
+  actionable.
+- **A null** is a pick with no sample, from a failed load, or a control that did not deliberate on
+  all five draws: that row stays owed on `b11552`, and the task stays actionable.
+
+**Drawn 2026-10-16**, the row exiting 0, every probe exiting 0 and the reader agreeing on all twelve
+samples ([thinking-switch readings](../../readings/thinking-switch.md#the-lineups-switched-tails)).
+Every control deliberated on 5 of 5 and every pick repeats its `b11429` row, tail and result alike,
+the E4B's included, so under the first rule the column holds on `b11552` and this task waits for
+the next build. The probe ran on the main tree's brain venv with the copy's sources first on
+`PYTHONPATH`, as on every earlier run. Samples under `measurements/sitting-2026-10-16/529/`.
+
 ## History
 
 - 2026-09-02: opened by the close of
@@ -196,7 +185,7 @@ recipe needs no change. Samples under `measurements/sitting-2026-10-07c/529e4b20
   `b11312`, recorded in the thinking-switch readings.
 - 2026-10-04: `529sw` drawn and read: eleven picks hold on `b11312`, the reader agreeing on all
   twelve, and the E4B is a null twice over, its plain control deliberating on 4 and 3 of 5. Its row
-  stays owed, with the next row written above.
+  stays owed, with a row at `-ngl 0` on CPU cores 12 to 23 written next.
 - 2026-10-04: the E4B row drawn on `b11312` at `-ngl 0`, its control firing on 5 of 5 and its row
   matching `b10680`, so all twelve rows hold on `b11312`. The task waits for the next build again,
   with the trigger naming both builds the stack starts.
@@ -220,9 +209,10 @@ recipe needs no change. Samples under `measurements/sitting-2026-10-07c/529e4b20
   (thinking-switch readings). The E4B row drawn with it on `b11429` at 20 draws a cell read both
   controls 20 of 20 and the reader agreed, so all twelve rows are read on `b11429` and the task
   waits for the next build, with the trigger naming both builds the stack starts.
-- 2026-10-16: the trigger fired again. The runbook's label command reads `b11552 23b0202a1` on
-  `cortex-model-host`, an image built on 2026-10-12, while the cached `:server-cuda` and `:server`
-  tags still read `b10680 d7bd3bfca`. So the three GPU tiers start `b11552`, and all twelve rows are
-  owed on it under the rules above, the E4B at `-ngl 0` as the recipe serves it. The registry's two
-  tags name `b11669` today, so a rebuild before the draw moves the engine again: read the label
-  first. The trigger line is gone and the task is actionable.
+- 2026-10-16: the trigger fired and the column was drawn on the new build. The runbook's label
+  command reads `b11552 23b0202a1` on `cortex-model-host`, an image built on 2026-10-12, while the
+  cached `:server-cuda` and `:server` tags still read `b10680 d7bd3bfca`, and the registry's two
+  tags name `b11669`. Drawn with the recipe's loop, the E4B at `-ngl 0` on CPU cores 12 to 23, every
+  probe exited 0 and the reader agreed on all twelve samples, each repeating its `b11429` row, so
+  all twelve rows hold on `b11552` and the task waits for the next build again, with the trigger
+  naming both builds the stack starts.
