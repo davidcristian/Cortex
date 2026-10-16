@@ -171,8 +171,10 @@ without decision 8 `Health` would answer ready while the cortex or the store is 
    `LoadWaitBackend` asks again each second with an announced `swapping` status, up to
    `CORTEX_INFERENCE_LOAD_WAIT_S` (120 s, about three measured cortex loads, see
    [the startup readings](../readings/startup-order-and-settings.md)), then ends the turn with the
-   loading message. Asking again replaces reading the serving watch, which is up to one interval
-   stale and fenced across handoffs. Any other fault fails at once, and Stop or the shutdown drain
+   loading message. The bound is per turn: it starts at the turn's first loading answer and is
+   shared by every model call of that turn (the recall judge, the history recap, the reply), so a
+   call after it fails at once, and the next turn starts a new one. Asking again replaces reading
+   the serving watch, which is up to one interval stale and fenced across handoffs. Any other fault fails at once, and Stop or the shutdown drain
    cancels the wait with the turn.
 
 ## Consequences

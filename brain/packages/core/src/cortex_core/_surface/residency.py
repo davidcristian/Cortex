@@ -9,7 +9,12 @@ from cortex_core.cadence import (
 )
 from cortex_core.handoff import EscalationRefs, EscalationSlot, HandoffRecord, HandoffState
 from cortex_core.handoff_wait import HANDOFF_AHEAD, HandoffAheadBackend, wait_out_handoff
-from cortex_core.load_wait import LOAD_POLL_INTERVAL_S, MODEL_LOADING, LoadWaitBackend
+from cortex_core.load_wait import (
+    LOAD_POLL_INTERVAL_S,
+    MODEL_LOADING,
+    LoadWaitBackend,
+    LoadWaitTurns,
+)
 from cortex_core.model import ModelLease, SingleResidentModelManager
 from cortex_core.model_host import (
     DEFAULT_HEALTH_POLL_INTERVAL_S,
@@ -129,6 +134,7 @@ __all__ = [
     "HandoffRecord",
     "HandoffState",
     "LoadWaitBackend",
+    "LoadWaitTurns",
     "ModelHostState",
     "ModelLease",
     "ResidencyPlan",

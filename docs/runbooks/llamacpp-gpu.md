@@ -35,7 +35,7 @@ Set these in the host environment or in a `.env` file beside the compose files.
 | `CORTEX_INFERENCE_TRACE_LEVER` | whether a request may include its own trace budget. `auto` asks the endpoint one model-free question at boot and uses the answer; `on` and `off` decide it directly. See "A budget per request" below | `auto` |
 | `CORTEX_NGL` | GPU layers to offload: `99` = all, `0` = CPU only, anything between is hybrid | `99` |
 | `CORTEX_INFERENCE_STALL_TIMEOUT_S` | on the brain: how long a resident or deep tier stream may send nothing before the turn fails. It bounds the gap between chunks, never the length of a generation, so a long answer is never cut off. Size it above the worst legitimate time to first token. The default clears the 17.5 s a contended cortex took here, with room for the deep tier (ADR-0005) | `120` |
-| `CORTEX_INFERENCE_LOAD_WAIT_S` | on the brain: how long a model call waits, with a "waiting for the model to finish loading" status, for a server still loading its model, as after a model host restart. `0` fails at once. The default is about three measured cortex loads (ADR-0054) | `120` |
+| `CORTEX_INFERENCE_LOAD_WAIT_S` | on the brain: how long a turn waits in all, with a "waiting for the model to finish loading" status, for a server still loading its model, as after a model host restart; every model call of the turn shares the one bound. `0` fails at once. The default is about three measured cortex loads (ADR-0054) | `120` |
 
 The brain-side model id stays `CORTEX_MODEL_CORTEX=cortex`; the adapter never sees the filename.
 Only the `model-host` sidecar does, and that is where these variables are read

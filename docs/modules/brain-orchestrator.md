@@ -216,11 +216,11 @@ the version string `Health` reports.
   `DeepTier(swap, builtins, scheduler)` is present, whose manager is then the capabilities'
   `residency`. With a `DeepTier`, the stream's cortex calls (the turn, the recap and recall's
   judge, which is why the recaller is built per stream) go through a `HandoffAheadBackend` over
-  that manager and the stream's sink, inside a `LoadWaitBackend` that every stream has. The deep phase's recall judge and history recap ask the deep
-  model over the plain backend, because its scope can lease no other model. That value keeps a
-  handoff from being
-  half-wired, the deep tier's own vision-less built-in set travelling with the runtime that swaps
-  and the subagent pool the conductor drains.
+  that manager and the stream's sink, inside the stream's `LoadWaitBackend`, whose bound a
+  `LoadWaitTurns` around the engine opens per turn. The deep phase's recall judge and history
+  recap ask the deep model over the plain backend, because its scope can lease no other model.
+  That value keeps a handoff from being half-wired, the deep tier's own vision-less built-in set
+  travelling with the runtime that swaps and the subagent pool the conductor drains.
 - With escalation wired, `run_from_env` also runs `recover_handoffs` before serving, publishes what
   it observed about the cortex with `publish_boot_residency`, starts the `TierRechecker` after that
   publish, registers `escalate_to_brain`, hands the manager to `serve` as the wire's `residency`

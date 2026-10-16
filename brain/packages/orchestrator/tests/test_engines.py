@@ -1,7 +1,7 @@
 import asyncio
 from collections.abc import AsyncIterator, Mapping, Sequence
 from dataclasses import dataclass, replace
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from fakeredis import FakeAsyncRedis, FakeServer
@@ -30,6 +30,7 @@ from cortex_core import (
     InMemoryToolRegistry,
     JsonSchema,
     JudgeRecallPolicy,
+    LoadWaitTurns,
     MemoryRecaller,
     Message,
     ModelLoadingError,
@@ -233,12 +234,15 @@ async def test_only_a_wired_handoff_wraps_a_streams_engine() -> None:
     backend = _Model({"cortex": [[TextChunk("hi")]]})
     plain = _engines(backend)
     confirmer = RecordingConfirmer(answer=True)
-    assert isinstance(plain.for_stream(confirmer, RecordingProgressSink()).inner, TurnEngine)
+    runner = plain.for_stream(confirmer, RecordingProgressSink()).inner
+    assert isinstance(runner, LoadWaitTurns)
+    assert isinstance(runner.inner, TurnEngine)
 
     swap = _swap_runtime()
     try:
         wrapped = replace(plain, deep=DeepTier(swap, (), None))
-        engine = wrapped.for_stream(confirmer, RecordingProgressSink())
+        engine = wrapped.for_stream(confirmer, RecordingProgressSink()).inner
+        assert isinstance(engine, LoadWaitTurns)
         assert isinstance(engine.inner, EscalatingTurnEngine)
     finally:
         await swap_closer(swap)()
@@ -601,3 +605,46 @@ async def test_an_escalating_turn_waits_out_a_cortex_still_loading() -> None:
 
     assert events[-1] == TurnCompleted(turn_id="t1", full_text="Rhine and Danube.")
     assert _LOADING_STATUS in progress.events
+
+
+class _Ticking:
+    """A clock that only the load wait's polls move."""
+
+    def __init__(self) -> None:
+        self.at = datetime(2026, 10, 16, 6, 0, tzinfo=UTC)
+        self.start = self.at
+
+    def now(self) -> datetime:
+        return self.at
+
+    async def sleep(self, seconds: float) -> None:
+        self.at += timedelta(seconds=seconds)
+
+
+async def test_each_turn_of_a_stream_waits_one_bound_for_its_judge_and_its_reply() -> None:
+    loading = _LoadingFirst(_Model({"cortex": [[TextChunk("late")]]}), loading=10_000)
+    memories = InMemoryMemoryStore()
+    await MemoryRecaller(memories, HashEmbedder(), SystemClock()).record("tea", session_id="s")
+
+    def recaller_for(backend: InferenceBackend, model: str) -> MemoryRecaller:
+        judge = JudgeRecallPolicy(backend, model, pool_factor=2)
+        return MemoryRecaller(memories, HashEmbedder(), SystemClock(), policy=judge)
+
+    clock = _Ticking()
+    engines = replace(
+        _engines(loading.model),
+        backend=loading,
+        memory=recaller_for,
+        clock=clock,
+        sleeper=clock,
+        load_wait_s=60.0,
+    )
+    engine = engines.for_stream(RecordingConfirmer(answer=True), RecordingProgressSink())
+
+    ends: list[float] = []
+    for turn_id in ("t1", "t2"):
+        with pytest.raises(ModelLoadingError):
+            await _run(engine, "hello", turn_id=turn_id)
+        ends.append((clock.at - clock.start).total_seconds())
+
+    assert ends == [60.0, 120.0]

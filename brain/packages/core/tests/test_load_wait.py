@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 from collections.abc import AsyncGenerator, AsyncIterator, Sequence
 from datetime import UTC, datetime, timedelta
 from typing import cast
@@ -8,6 +9,7 @@ import pytest
 from cortex_core import (
     LOAD_POLL_INTERVAL_S,
     MODEL_LOADING,
+    ImagePart,
     InferenceError,
     InferenceEvent,
     Message,
@@ -16,9 +18,11 @@ from cortex_core import (
     RecordingSleeper,
     StatusUpdate,
     TextChunk,
+    TurnCompleted,
+    TurnEvent,
 )
 from cortex_core.inference import GenerationBounds, JsonSchema
-from cortex_core.load_wait import LoadWaitBackend
+from cortex_core.load_wait import LoadWaitBackend, LoadWaitTurns
 from cortex_core.tools import ToolSpec
 
 _START = datetime(2026, 10, 16, 6, 0, tzinfo=UTC)
@@ -133,8 +137,8 @@ async def test_a_server_still_loading_at_the_bound_ends_the_turn_with_the_loadin
         await _drain(_waiting(inner, progress, wait_s=2.0, sleeper=sleeper))
 
     assert raised.value is _LOADING
-    assert inner.calls == 2
-    assert sleeper.waits == [LOAD_POLL_INTERVAL_S]
+    assert inner.calls == 3
+    assert sleeper.waits == [LOAD_POLL_INTERVAL_S, LOAD_POLL_INTERVAL_S]
     assert progress.waits.current() is None
 
 
@@ -258,3 +262,128 @@ async def test_a_consumer_that_stops_early_closes_the_wrapped_stream() -> None:
     await stream.aclose()
 
     assert inner.closed == 1
+
+
+class _Ticking:
+    def __init__(self) -> None:
+        self.at = _START
+
+    def now(self) -> datetime:
+        return self.at
+
+    async def sleep(self, seconds: float) -> None:
+        self.at += timedelta(seconds=seconds)
+
+    def elapsed(self) -> float:
+        return (self.at - _START).total_seconds()
+
+
+def _ticking(inner: _AnsweringBackend, clock: _Ticking) -> LoadWaitBackend:
+    return LoadWaitBackend(inner, None, clock=clock, sleeper=clock, wait_s=120.0)
+
+
+async def _gave_up_at(backend: LoadWaitBackend, clock: _Ticking) -> float:
+    with pytest.raises(ModelLoadingError):
+        await _drain(backend)
+    return clock.elapsed()
+
+
+async def test_the_model_calls_of_one_turn_wait_one_bound_in_all() -> None:
+    clock = _Ticking()
+    backend = _ticking(_AnsweringBackend([_LOADING]), clock)
+
+    with backend.turn():
+        ends = [await _gave_up_at(backend, clock) for _ in ("judge", "recap", "reply")]
+
+    assert ends == [120.0, 120.0, 120.0]
+
+
+async def test_each_call_outside_a_turn_waits_its_own_bound() -> None:
+    clock = _Ticking()
+    backend = _ticking(_AnsweringBackend([_LOADING]), clock)
+
+    ends = [await _gave_up_at(backend, clock) for _ in ("judge", "reply")]
+
+    assert ends == [120.0, 240.0]
+
+
+class _JudgeThenReply:
+    def __init__(self, backend: LoadWaitBackend) -> None:
+        self._backend = backend
+        self.replies: list[list[InferenceEvent]] = []
+
+    async def handle_turn(
+        self, session_id: str, text: str, *, turn_id: str, images: tuple[ImagePart, ...] = ()
+    ) -> AsyncGenerator[TurnEvent]:
+        del session_id, text, turn_id, images
+        with contextlib.suppress(InferenceError):
+            await _drain(self._backend)
+        self.replies.append(await _drain(self._backend))
+        return
+        yield
+
+
+async def _run_turn(turns: LoadWaitTurns) -> None:
+    async for _ in turns.handle_turn("s", "rivers?", turn_id="t"):
+        pass
+
+
+async def test_every_turn_waits_a_fresh_bound_and_none_is_kept_after_it() -> None:
+    clock = _Ticking()
+    backend = _ticking(_AnsweringBackend([_LOADING]), clock)
+    turns = LoadWaitTurns(_JudgeThenReply(backend), backend)
+
+    ends = [await _gave_up_at_turn(turns, clock) for _ in ("first", "second")]
+
+    assert ends == [120.0, 240.0]
+    assert await _gave_up_at(backend, clock) == 360.0
+
+
+async def _gave_up_at_turn(turns: LoadWaitTurns, clock: _Ticking) -> float:
+    with pytest.raises(ModelLoadingError):
+        await _run_turn(turns)
+    return clock.elapsed()
+
+
+async def test_a_turn_whose_server_loads_inside_the_bound_still_answers() -> None:
+    clock = _Ticking()
+    backend = _ticking(_AnsweringBackend([_LOADING, _LOADING, [TextChunk("Rhine")]]), clock)
+    runner = _JudgeThenReply(backend)
+
+    await _run_turn(LoadWaitTurns(runner, backend))
+
+    assert runner.replies == [[TextChunk("Rhine")]]
+    assert clock.elapsed() == 2 * LOAD_POLL_INTERVAL_S
+
+
+def test_the_turn_runner_exposes_the_runner_it_wraps() -> None:
+    backend = _ticking(_AnsweringBackend([_LOADING]), _Ticking())
+    runner = _JudgeThenReply(backend)
+
+    assert LoadWaitTurns(runner, backend).inner is runner
+
+
+class _TwoEvents:
+    def __init__(self) -> None:
+        self.closed = False
+
+    async def handle_turn(
+        self, session_id: str, text: str, *, turn_id: str, images: tuple[ImagePart, ...] = ()
+    ) -> AsyncGenerator[TurnEvent]:
+        del session_id, text, images
+        try:
+            yield TurnCompleted(turn_id=turn_id, full_text="one")
+            yield TurnCompleted(turn_id=turn_id, full_text="two")
+        finally:
+            self.closed = True
+
+
+async def test_a_turn_consumer_that_stops_early_closes_the_wrapped_turn() -> None:
+    runner = _TwoEvents()
+    backend = _ticking(_AnsweringBackend([_LOADING]), _Ticking())
+    events = LoadWaitTurns(runner, backend).handle_turn("s", "rivers?", turn_id="t")
+
+    assert await anext(events) == TurnCompleted(turn_id="t", full_text="one")
+    await events.aclose()
+
+    assert runner.closed

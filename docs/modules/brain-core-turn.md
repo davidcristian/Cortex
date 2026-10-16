@@ -109,9 +109,9 @@ after the window, one saying a handoff's deep reply is not stored (`tool_replay.
   closes the wrapped stream when closed; one is built per stream that can hand off (ADR-0069).
 - `LoadWaitBackend(inner, progress, *, clock, sleeper, wait_s)` (`load_wait.py`) asks `inner` again
   every `LOAD_POLL_INTERVAL_S` while it raises `ModelLoadingError` before its first event, holding
-  `MODEL_LOADING` (`swapping`) until that event, and re-raises once `wait_s` has passed. Any other
-  error passes at once, and a cancelled turn (Stop, the shutdown drain) ends the wait and its
-  hold. The orchestrator wraps each stream's cortex calls in one (ADR-0054 decision 10).
+  `MODEL_LOADING` (`swapping`) until that event, and re-raises `wait_s` after the first loading
+  answer; calls inside one `turn()` share that bound, which `LoadWaitTurns` opens per turn. Other
+  errors pass at once, and Stop or the drain ends the wait and its hold (ADR-0054 decision 10).
 
 `turn_output.py` is the half of the engine the deep model's phase shares, so the two cannot diverge
 (ADR-0030). `stream_turn_events(loop, channels, parts, stops, query)` maps a tool loop's deltas onto

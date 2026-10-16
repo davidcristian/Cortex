@@ -44,8 +44,8 @@ what follows is the prefix, the defaults other parts depend on, and the validati
   = 120.0` (ADR-0005 decision 7) is how long this tier's stream may send nothing, a gap between
   chunks rather than a cap on the generation, sized from the worst measured time to first token
   (17.5 s contended). `load_wait_s: float = 120.0` (`CORTEX_INFERENCE_LOAD_WAIT_S`, at least 0,
-  ADR-0054 decision 10) is how long a model call waits for a server still loading its model; 0
-  fails at once.
+  ADR-0054 decision 10) is how long a turn's model calls wait in all for a server still loading
+  its model; 0 fails at once.
 - `MemoryConfig`, prefix `CORTEX_MEMORY_` (ADR-0008): a `pgvector` backend needs a DSN and an
   embedder endpoint, and the DSN's authority must be one the Postgres driver can read
   (`authority_is_readable`, `dsn.py`, ADR-0051 decision 11); both refusals raise

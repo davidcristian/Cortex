@@ -16,6 +16,7 @@ from cortex_core import (
     HistoryWindow,
     InferenceBackend,
     LoadWaitBackend,
+    LoadWaitTurns,
     MemoryRecaller,
     ProgressSink,
     SerialTurnRunner,
@@ -78,7 +79,8 @@ class StreamEngines:
         deep = self.deep
         if deep is None:
             waiting = self._waiting(self.backend, progress)
-            return self._turn_engine(self._capabilities(confirmer, progress, waiting), waiting)
+            plain = self._turn_engine(self._capabilities(confirmer, progress, waiting), waiting)
+            return LoadWaitTurns(plain, waiting)
         # Every cortex call the turn makes, recall's included, waits out another turn's handoff
         # through this backend, so each such wait is announced where the lease would queue.
         backend = self._waiting(
@@ -116,13 +118,14 @@ class StreamEngines:
             self.clock,
             deep.scheduler,
         )
-        return EscalatingTurnEngine(
+        escalating = EscalatingTurnEngine(
             lambda slot: self._turn_engine(replace(caps, escalation=slot), backend),
             conductor,
             progress=progress,
         )
+        return LoadWaitTurns(escalating, backend)
 
-    def _waiting(self, inner: InferenceBackend, progress: ProgressSink) -> InferenceBackend:
+    def _waiting(self, inner: InferenceBackend, progress: ProgressSink) -> LoadWaitBackend:
         """``inner`` with each call waiting, announced, for a server still loading its model."""
         return LoadWaitBackend(
             inner, progress, clock=self.clock, sleeper=self.sleeper, wait_s=self.load_wait_s
