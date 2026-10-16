@@ -4,7 +4,7 @@
 **Area:** repo-checks
 **Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-checks.md)
 **Trigger:** the next failing `just check` whose whole output is kept, which names its tree in a `=== check-<tree>: FAILED ===` marker and its seed in the failing suite's own header, that being the one form of this failure a later pass can reproduce from.
-**Verified:** 2026-10-04
+**Verified:** 2026-10-16
 
 Twice on 2026-08-17, `just check` run by the pre-commit hook exited 1 on a tree that passed on both
 sides of it with nothing changed in between. The first was on the commit that taught the backlog
@@ -67,3 +67,8 @@ measured; they are the first two places to look.
 - 2026-10-04: Checked, not triggered. The eleven `just check` logs this night's backlog passes
   kept in full each end in four `OK` markers, and the twelve pre-commit runs beside them all
   passed. The recipe and the four seeds are unchanged.
+- 2026-10-16: Checked, not triggered. Of the eighteen `just check` logs kept in full from the night
+  of 2026-10-15 and this one, one names `check-brain` as `FAILED`, on a test of the change a slot
+  was making to `engines.py`: the run after the change was complete passed, so the failure was that
+  edit and not this one. The other seventeen end in four `OK` markers. The recipe and the four
+  seeds are unchanged.

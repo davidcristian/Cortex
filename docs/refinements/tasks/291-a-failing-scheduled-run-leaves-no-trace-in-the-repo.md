@@ -6,7 +6,7 @@
 **Trigger:** the first run this repository records under `shuffle.yml`, since every remedy below
 needs a run to exist and none can. Actions is off for the whole repository, which is a setting on
 the account rather than a change in this tree, and R-594 is the entry that waits on the setting.
-**Verified:** 2026-10-07
+**Verified:** 2026-10-16
 
 Opened 2026-08-17 by the pass that put the shuffled test run on a weekly schedule
 ([R-288](288-nothing-schedules-the-shuffled-test-run.md),
@@ -70,3 +70,6 @@ a history that is deliberately one author's. All three need a run to exist first
 - 2026-10-04: Checked again, not triggered. Both counts still 0, the permissions endpoint still
   answers 403, and the runs listing holds the same three Dependabot updates as on 2026-09-30. No
   scheduled opportunity has passed since: the next Monday 03:41 UTC is 2026-10-05.
+- 2026-10-16: Checked again, not triggered. Both counts are still 0 and the permissions endpoint
+  still answers 403. Mondays 2026-10-05 and 2026-10-12 at 03:41 UTC passed with no run, and the
+  runs listing holds five Dependabot updates, from 2026-09-21 to 2026-10-12, and nothing else.

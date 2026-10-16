@@ -8,8 +8,9 @@
 which `:server-cuda` names too. Neither image is in the tree. To decide it, read the tag's amd64
 `org.opencontainers.image.version` label from the registry, extract that image's `/app` layer, and
 run its `llama-server` with the pair against a missing model file under `docker run --network none`:
-it has not fired while the first error is the missing model. Today both tags name build 11434.
-**Verified:** 2026-10-07
+it has not fired while the first error is the missing model. On 2026-10-16 both tags name build
+11669.
+**Verified:** 2026-10-16
 
 `ghcr.io/ggml-org/llama.cpp:server` prints this on every subagent boot:
 
@@ -82,3 +83,8 @@ subagents-cpu and injection-probes runbooks, and the brain-inference-live module
   after, printed the deprecation warning and then failed on the missing model. So did
   `cortex-model-host`, rebuilt on 2026-10-06 on build 11429, which is the hosted subagent tier's
   engine.
+- 2026-10-16: read against both tags, and not fired. Both now name build 11669 at commit
+  `620d2225c`. The `:server` image, pulled by digest under an empty client config and removed after,
+  printed the deprecation warning and then failed on the missing model. So did
+  `cortex-model-host`, rebuilt on 2026-10-12 on build 11552, the hosted subagent tier's engine.
+  The cached `:server` and `:server-cuda` tags still hold build 10680.

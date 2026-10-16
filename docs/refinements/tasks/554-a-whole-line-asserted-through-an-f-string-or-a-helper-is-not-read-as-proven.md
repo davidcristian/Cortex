@@ -1,18 +1,9 @@
 # A whole line asserted through an f-string or a helper is not read as asserted
 
-**Status:** open, waiting for its trigger
+**Status:** open, actionable
 **Area:** repo-checks
 **Origin:** [ADR-0045](../../adr/ADR-0045-documented-log-lines.md)
-**Verified:** 2026-10-07
-**Trigger:** a whole-line assertion whose expected line is not a plain string constant (an f-string,
-a name the expected line is bound to above the assert, or a helper that builds or compares it) and
-whose logger and message belong to a call whose field list the code reader cannot read, since only
-such a call's samples go through this reader. Count it in two steps: list the calls the reader
-cannot read by running `logcalls.logged` over every message `logcalls.messages` returns and keeping
-those that raise `UnreadFieldsError`, six calls in five modules on 2026-10-02; then read the
-package suite beside each for an `assert` whose test is one `==`, with neither side a one-line
-string constant, that would produce one of those calls' logger and message. Binding the produced
-side to a name does not count, and the audit suite already writes one assertion that way.
+**Verified:** 2026-10-16
 
 `scripts/assertedlines.py` reads a string only where it is one side of `assert x == "..."`, as a
 constant the parser has already joined from adjacent literals. `_equated` inspects both sides of the
@@ -90,3 +81,11 @@ which it could; but none of the six belongs to a call whose field list the sourc
   form. Across the four suites consulted, no single-`==` assert without a one-line string constant
   would produce one of the six calls' lines. The body said every f-string whole line interpolates
   its logger; `test_log_format.py:229` and `:280` and `test_device_memory.py:89` write it out.
+- 2026-10-16: the trigger fired. On 2026-10-10 the commit that ends a turn cut by a brain
+  shutdown with a typed error moved the stream's turn failure lines in `converse_stream.py` to
+  `extra=fields`, a parameter, so the field reader cannot read them: it now refuses eleven calls in
+  six modules, against six in five on 2026-10-02, five of the eleven in that module. And
+  `test_a_turn_that_failed_names_the_session_and_the_turn_it_was_serving` in
+  `orchestrator/tests/test_converse.py` asserts three of those lines whole through the f-string
+  `f"ERROR:{_STREAM_LOGGER}:{message} session_id=s7 turn_id=t-1"`. No runbook prints any of the
+  three yet. The trigger line is gone and the task is actionable.

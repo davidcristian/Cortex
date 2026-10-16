@@ -1,13 +1,9 @@
 # The rendering column is one build's measurement, and an engine bump reopens every row of it
 
-**Status:** open, waiting for its trigger
+**Status:** open, actionable
 **Area:** inference
-**Trigger:** an engine bump under this stack, meaning the GPU runbook's `docker image inspect`
-label command reporting a llama.cpp build other than b11429 for `cortex-model-host` (the three GPU
-tiers) or other than b10680 for the cached `server` tag (both CPU subagent overrides). Nothing fixes
-a digest, so a pull or a rebuild is the bump.
 **Origin:** [ADR-0050](../../adr/ADR-0050-live-probe-records.md)
-**Verified:** 2026-10-07
+**Verified:** 2026-10-16
 
 Every row of the lineup section's rendering column stands on a sample the reader published, and
 every one was drawn on one build. The rule the column states, that a template rendering the thought
@@ -224,3 +220,9 @@ recipe needs no change. Samples under `measurements/sitting-2026-10-07c/529e4b20
   (thinking-switch readings). The E4B row drawn with it on `b11429` at 20 draws a cell read both
   controls 20 of 20 and the reader agreed, so all twelve rows are read on `b11429` and the task
   waits for the next build, with the trigger naming both builds the stack starts.
+- 2026-10-16: the trigger fired again. The runbook's label command reads `b11552 23b0202a1` on
+  `cortex-model-host`, an image built on 2026-10-12, while the cached `:server-cuda` and `:server`
+  tags still read `b10680 d7bd3bfca`. So the three GPU tiers start `b11552`, and all twelve rows are
+  owed on it under the rules above, the E4B at `-ngl 0` as the recipe serves it. The registry's two
+  tags name `b11669` today, so a rebuild before the draw moves the engine again: read the label
+  first. The trigger line is gone and the task is actionable.

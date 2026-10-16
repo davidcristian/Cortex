@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** repo-checks
 **Origin:** [ADR-0042](../../adr/ADR-0042-cross-tree-constant-registry.md)
-**Verified:** 2026-10-07
+**Verified:** 2026-10-16
 **Trigger:** A third value on the capture-target enum, a reader for declarations in the `.proto`
 arriving in the scan for another reason, any module outside the body's rpc crate and the brain's
 body client that has to name one of the two gRPC status codes, or either side of that pair gaining
@@ -71,10 +71,10 @@ The three that closed:
   the next day by [R-383](383-the-body-port-past-the-six-that-were-registered.md), so the coupling
   was covered and listed here as uncovered at the same time. The remedy was filed as
   [R-593](593-the-bodys-bind-port-can-be-declared-now-the-shell-compiles.md) and closed satisfied
-  on 2026-09-07. What survives of the argument is
-  [R-595](595-no-check-compiles-the-tauri-shells-windows-half.md): a declaration inside the Tauri
-  shell is read by the scan on every `just check` and compiled by nothing, both clippy runs over
-  that crate targeting the Linux host while the constant is `cfg(windows)`.
+  on 2026-09-07. Nothing survives of the argument. The Windows half is clippied for its own target
+  by `just check-shell` since [R-595](595-no-check-compiles-the-tauri-shells-windows-half.md)
+  closed, and since 2026-09-28 the constant, `DEFAULT_BODY_PORT` (23151 since 2026-10-07), is
+  `cfg(any(windows, target_os = "linux"))`, so the Linux clippy run compiles it too.
 
 A fourth, the roll duration written as `0.3s` in the stylesheet against `MORPH_ROLL_MS` in
 milliseconds, closed on 2026-08-09 when `:root` gained `--roll: 300ms` and the two rules that move
@@ -132,3 +132,8 @@ not also retune.
   `failures.py`), and the registry still has fourteen parts. The one change to the scan since,
   on 2026-10-02, lets a quoted `.rs` or `.ts` value hold a `;`: `DECLARATIONS` still reads `.py`,
   `.rs` and `.ts` only, so no `.proto` reader has arrived and neither code gained a declaration.
+- 2026-10-16: both checked again and neither trigger fired. `CaptureTarget` still has two values,
+  `crosscheck.DECLARATIONS` still reads `.py`, `.rs` and `.ts` only, and the two codes are still
+  written in `screen.rs`, `server.rs` and `failures.py`. One correction: the struck bind port item
+  said its argument survived as a constant compiled by nothing, which stopped being true when the
+  shell started serving on Linux, so it now says the constant is compiled on both targets.

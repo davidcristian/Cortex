@@ -6,7 +6,7 @@
 **Trigger:** `find body/app/src -name '*.css'` lists a second file, or
 `git log --since='<Verified date> 00:00' --oneline -- body/app/src/overlay.css` lists a commit
 whose diff moves a rule to change which rule applies. A commit that edits only comments does not.
-**Verified:** 2026-10-07
+**Verified:** 2026-10-16
 
 Once the line cap covered the overlay's TypeScript
 ([R-010](010-line-cap-overlay-gap.md)), leaving the stylesheet out became a decision rather than
@@ -63,3 +63,8 @@ limit is removed.
   `--hint-strip` property, and one added `.edge-shade` to existing selector lists and moved the
   blur onto `.edge-glass` by changing properties. `SOURCE_SUFFIXES` is unchanged at
   `scripts/linecap.py:15`. The body now names the two longer files as they stand.
+- 2026-10-16: Neither half has fired. `find body/app/src -name '*.css'` lists only `overlay.css`,
+  now 2130 lines. Three commits touched it since 2026-10-07 and none moved a rule: one added a rule
+  giving `.bubble`, `.field` and `.title` `unicode-bidi: plaintext` and `text-align: start`, which no
+  other `text-align` rule selects, one removed `display: inline-block` from `.wd`, and one rewrote
+  a comment.

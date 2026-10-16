@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** tools-mcp
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
-**Verified:** 2026-10-02
+**Verified:** 2026-10-16
 **Trigger:** A legitimate call on one sidecar that a bound sized for another cuts, or a deployment
 that wants a tight bound on the fast sidecar without loosening the slow one. Neither has happened:
 the only two sidecars this repo ships are a filesystem server measured at 154 ms a call and an
@@ -72,3 +72,8 @@ boot. The refusal text and the fields `_pairing` logs (`call_timeout_s`,
   The form the entry named was wrong: a `ToolsConfig` built with `CORTEX_TOOLS_CALL_TIMEOUT_S=60`
   and `CORTEX_TOOLS_CALL_TIMEOUT_S__EMAIL=5` set read `call_timeout_s` as 60.0, the nested key
   dropped silently, so a per-endpoint bound needs a separately named mapping field.
+- 2026-10-16: checked again and not fired. `docker/` still names two endpoint keys, and
+  `build_tool_registry` in `builders.py` wraps each endpoint in its own `BoundedToolRegistry` with
+  the one `call_timeout_s`, defaulted to 60.0. Nothing in the tree records a real call the bound
+  cut, and the email sidecar is still untimed. The file sidecar's bridge moved to supergateway
+  4.1.0 on 2026-10-15, so its per-call reading above was taken on the older bridge.

@@ -8,7 +8,7 @@ while `CORTEX_MEMORY_SCOPE` is `global`, the size at which the exact scan costs 
 turn's time to first token; the recall trail's `available` field reports the same count on every
 recalled turn when `CORTEX_MEMORY_RECALL_AUDIT` is on or `CORTEX_MEMORY_RECALL_AUDIT_FILE` names a
 file, which also receives it as a JSON line. The count was 2 on 2026-10-03.
-**Verified:** 2026-10-03
+**Verified:** 2026-10-16
 
 Memory search is an exact cosine scan. An approximate index would need a migration
 ([ADR-0004](../../adr/ADR-0004-model-lineup.md)).
@@ -98,3 +98,8 @@ opaque turns by default, and so sets how fast the count grows.
   `maintenance_work_mem`. One correction: since 2026-09-25 the trail is also on whenever
   `CORTEX_MEMORY_RECALL_AUDIT_FILE` is set (`recall_audit_from_config` in `memory_builders.py`),
   and that file holds `available` too, so the trigger names both.
+- 2026-10-16: checked again, not fired, and the body still holds. The search is still `LIMIT $2`
+  with no filter under `GlobalMemoryScope`, `DEFAULT_RECALL_K` is 5 and `recall_pool_factor` 4, and
+  `record_exchange` still records at most one memory a turn, skipping opaque turns and, by default,
+  tainted ones. Since 2026-10-13 every store statement is bounded at `_STORE_TIMEOUT_S`, 10 s in
+  `memory_builders.py`, about seven times the exact scan's measured cost at 220,000 rows.
