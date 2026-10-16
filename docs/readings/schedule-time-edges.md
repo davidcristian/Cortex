@@ -71,7 +71,7 @@ already happened, at 00:30 UTC. No defect filed.
 
 - **The second pass.** At 02:45 CET a naive 02:55 means ten minutes ahead, but `fold=0` read it as
   02:55 CEST, an hour in the past, and the reminder fired on the next poll. The confirmation
-  showed `02:55:00+02:00` with no sign that the time had passed.
+  showed `02:55:00+02:00` with no sign that the time had passed. Fixed in this run (below).
 - **A past `at` is accepted.** Nothing compares `at` with now, so a time that has passed is stored
   and fires on the next poll, and the confirmation reads like any other. Filed as
   [R-880](../refinements/tasks/880-a-one-time-reminder-at-a-time-already-past-fires-at-once.md).
@@ -105,6 +105,7 @@ the daily rule, filed as
 | C | 5 | 0 | 5 `at` `2026-10-17T09:00:00`: 11:00 CEST on 10-17, a day early and two hours late by the person's clock |
 | D | 10 | 10 | |
 | E | 10 | 8 | 2 `at_time` `23:00` (daily) |
+| B, after the fix | 5 | 5 | 1 wrote `+01:00`, 4 a naive `at`, each stored 01:55 UTC |
 
 - **A** passes: in Berlin the model reads the local date and "tomorrow" is the local tomorrow.
 - **C** is R-881 seen from the model: under the UTC zone the model reads 22:30 on 10-16 and is
@@ -112,3 +113,10 @@ the daily rule, filed as
 - **B** and **E** show that a bare time with no day ("at 2:55", "at 23:00") is sometimes written
   as `at_time`, a daily rule. With "today" in the request, D wrote `at` 10 of 10 in a fresh
   context, while the live turn above, with history and memory, wrote `at_time`. That is R-882.
+
+## After the second-pass fix
+
+With `DisplayZone.resolve_after` in `_parse_at` (ADR-0065 decision 1), T2's second-pass row
+stores 01:55 UTC, confirms and lists `02:55:00+01:00 (today)`, and is not due 5 s later; the other
+T2 and all T1 rows are unchanged. Row B, drawn again on the same cortex, passed 5 of 5 (table
+above). The core suite (`brain/packages/core/tests`) holds the tests that fail without it.

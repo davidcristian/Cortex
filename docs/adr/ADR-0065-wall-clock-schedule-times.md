@@ -33,7 +33,11 @@ ticker share.
   honoured as written.
 - **`fold=0` settles the two irregular wall times**: an hour repeated at a fall-back transition
   takes the earlier offset, and an hour skipped at a spring-forward transition is read with the
-  pre-transition offset, which puts it just past the gap.
+  pre-transition offset, which puts it just past the gap. One exception covers a one-time `at`:
+  when the earlier reading of a repeated hour is already past, it takes the later one
+  (`DisplayZone.resolve_after`). At 02:45 in the second pass, 02:55 means ten minutes ahead, and
+  the earlier reading would be an hour past and fire at once
+  ([readings](../readings/schedule-time-edges.md)).
 - **`resolve` and `render` both normalize through UTC.** `datetime.astimezone` returns its input
   unchanged when the zone already matches, so a freshly resolved gap time rendered as a wall time
   that never occurs, while the same instant read back from the store rendered correctly. The

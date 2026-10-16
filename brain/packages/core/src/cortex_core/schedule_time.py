@@ -22,6 +22,13 @@ class DisplayZone:
         """Read a naive wall time as this zone's local time, as a UTC instant (the fold policy)."""
         return naive.replace(tzinfo=self.tz).astimezone(UTC)
 
+    def resolve_after(self, naive: datetime, now: datetime) -> datetime:
+        """``resolve``, but a repeated wall time whose earlier reading is past takes the later."""
+        first = self.resolve(naive)
+        if first > now:
+            return first
+        return max(first, naive.replace(tzinfo=self.tz, fold=1).astimezone(UTC))
+
 
 UTC_DISPLAY = DisplayZone(name=UTC_ZONE_NAME, tz=UTC)
 """The v1 contract as a value: what every deployment renders until ``CORTEX_SCHEDULE_TZ`` says

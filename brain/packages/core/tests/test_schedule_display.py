@@ -131,3 +131,21 @@ async def test_the_snooze_confirmation_renders_local() -> None:
     )
     assert not result.is_error
     assert "now due 2026-07-12T16:00:00+03:00" in result.content
+
+
+class _SecondPassClock:
+    def now(self) -> datetime:
+        return datetime(2026, 10, 25, 1, 10, 0, tzinfo=UTC)
+
+
+async def test_an_offset_less_at_in_the_second_pass_of_a_repeated_hour_is_still_ahead() -> None:
+    store = InMemoryScheduleStore()
+    tool = ScheduleTaskTool(
+        store, _SecondPassClock(), tasks_enabled=False, max_active=32, zones=_ZONES
+    )
+    result = await tool.invoke(
+        _call({"kind": "reminder", "text": "oven", "at": "2026-10-25T03:30:00"})
+    )
+    assert not result.is_error
+    assert "due 2026-10-25T03:30:00+02:00" in result.content
+    assert (await store.list_active())[0].due_at == datetime(2026, 10, 25, 1, 30, 0, tzinfo=UTC)

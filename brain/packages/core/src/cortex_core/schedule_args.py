@@ -74,7 +74,7 @@ def parse_number(value: object) -> float | None:
         return None
 
 
-def _parse_at(at: object, zone: DisplayZone) -> datetime | str:
+def _parse_at(at: object, zone: DisplayZone, now: datetime) -> datetime | str:
     """An ISO-8601 instant, or a correction string; an offset-less one reads as zone-local."""
     if not isinstance(at, str):
         return _BAD_AT
@@ -83,7 +83,7 @@ def _parse_at(at: object, zone: DisplayZone) -> datetime | str:
     except ValueError:
         return _BAD_AT
     if parsed.tzinfo is None or parsed.tzinfo.utcoffset(parsed) is None:
-        return zone.resolve(parsed.replace(tzinfo=None))
+        return zone.resolve_after(parsed.replace(tzinfo=None), now)
     return parsed
 
 
@@ -106,7 +106,7 @@ def _parse_due_at(arguments: Mapping[str, Any], now: datetime, zone: DisplayZone
     if (at is None) == (in_seconds is None):
         return _ONE_WHEN
     if at is not None:
-        return _parse_at(at, zone)
+        return _parse_at(at, zone, now)
     return _delay_from(now, in_seconds)
 
 

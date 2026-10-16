@@ -96,3 +96,28 @@ def test_a_zone_context_keeps_its_own_default_and_resolver() -> None:
     context = ZoneContext(default=zone, resolver=UTC_ONLY_RESOLVER)
     assert context.default is zone
     assert context.resolver is UTC_ONLY_RESOLVER
+
+
+def test_a_repeated_wall_time_whose_earlier_reading_is_past_takes_the_later_one() -> None:
+    second_pass = datetime(2026, 10, 25, 1, 10, 0, tzinfo=UTC)
+    resolved = _BUCHAREST.resolve_after(_naive(2026, 10, 25, 3, 30), second_pass)
+    assert resolved == datetime(2026, 10, 25, 1, 30, 0, tzinfo=UTC)
+    assert _BUCHAREST.render(resolved) == "2026-10-25T03:30:00+02:00"
+
+
+def test_a_repeated_wall_time_still_ahead_takes_the_earlier_offset() -> None:
+    evening = datetime(2026, 10, 24, 18, 0, 0, tzinfo=UTC)
+    resolved = _BUCHAREST.resolve_after(_naive(2026, 10, 25, 3, 30), evening)
+    assert resolved == datetime(2026, 10, 25, 0, 30, 0, tzinfo=UTC)
+
+
+def test_a_past_wall_time_outside_any_transition_reads_as_resolve_does() -> None:
+    later = datetime(2026, 7, 13, 0, 0, 0, tzinfo=UTC)
+    naive = _naive(2026, 7, 12, 15, 0)
+    assert _BUCHAREST.resolve_after(naive, later) == _BUCHAREST.resolve(naive)
+
+
+def test_a_past_gap_wall_time_keeps_the_pre_transition_offset() -> None:
+    later = datetime(2026, 3, 30, 0, 0, 0, tzinfo=UTC)
+    resolved = _BUCHAREST.resolve_after(_naive(2026, 3, 29, 3, 30), later)
+    assert resolved == datetime(2026, 3, 29, 1, 30, 0, tzinfo=UTC)

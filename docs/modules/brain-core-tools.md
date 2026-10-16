@@ -221,10 +221,10 @@ stores apply in `schedule_transitions.py`, and the wall-clock rules in `schedule
   leap-year length. A date its period lacks moves to the nearest earlier one in it, so `{31}` is
   the last day of every month. No selector is ever empty, which bounds the occurrence search.
 - `DisplayZone(name, tz)` (`schedule_time.py`, ADR-0065 decision 1) is what every model-facing
-  schedule time renders through: `render(moment)` is the one canonical string and `resolve(naive)`
-  reads an offset-less time as that zone's wall time and returns the UTC instant, with `fold=0` so
-  an ambiguous time takes the earlier offset. Display only: stored `due_at` and `anchor` stay UTC
-  instants and `UTC_DISPLAY` is the default. `ZoneResolver` turns an IANA key into a `DisplayZone`
+  schedule time renders through: `render(moment)` is the one canonical string, `resolve(naive)`
+  reads an offset-less time as the zone's wall time with `fold=0`, and `resolve_after(naive, now)`,
+  used for `at`, takes the later reading of a repeated hour whose earlier one is past. Stored times
+  stay UTC instants and `UTC_DISPLAY` is the default. `ZoneResolver` turns an IANA key into a `DisplayZone`
   or `None`, `UTC_ONLY_RESOLVER` is the core default, the `zoneinfo`-backed one is injected at the
   root, and `ZoneContext(default, resolver)` bundles the two.
 - `apply_snooze(item, until)` and `apply_edit(item, edit)` (`schedule_transitions.py`) are the two

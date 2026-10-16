@@ -52,7 +52,8 @@ silent fallback would render every time in the wrong zone. Check `docker compose
 `unknown timezone` if the container will not come up after changing it. An `at` that has an
 explicit offset is always honoured; a bare wall time reads as this zone, and the two daylight
 saving irregularities resolve with `fold=0`, so an ambiguous hour takes the earlier offset and a
-skipped one fires just past the gap.
+skipped one fires just past the gap. A one-time `at` made during the second pass of a repeated hour
+takes the later offset when the earlier reading is already past, so it does not fire at once.
 
 ### Recurrence: an interval, or a wall-clock rule
 
