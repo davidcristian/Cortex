@@ -192,6 +192,7 @@ at the end; "named" is a daily rule the reply calls "every day", "unnamed" one i
   the model: F's text with a seeded call for `2026-10-24T09:00:00` and its refusal, 5 draws. Four
   asked whether to use 09:00 tomorrow; one stored a daily 09:00 rule and named it. None stored a
   past time or claimed one was set. One reply in the F row said "today at 9:00 AM" over a rule
-  due tomorrow, a wording slip the rules do not count.
+  due tomorrow, a wording slip the rules do not count, filed as
+  [R-883](../refinements/tasks/883-the-creation-confirmation-names-no-day-relative-to-today.md).
 - Both changes shipped. The core suite (`brain/packages/core/tests`) holds the tests that fail
   without them.
