@@ -53,7 +53,10 @@ silent fallback would render every time in the wrong zone. Check `docker compose
 explicit offset is always honoured; a bare wall time reads as this zone, and the two daylight
 saving irregularities resolve with `fold=0`, so an ambiguous hour takes the earlier offset and a
 skipped one fires just past the gap. A one-time `at` made during the second pass of a repeated hour
-takes the later offset when the earlier reading is already past, so it does not fire at once.
+takes the later offset when the earlier reading is already past, so it does not fire at once. An
+`at` more than 60 s before now is refused with a correction that names the current date-time, so
+a time that has passed is never stored to fire on the next poll
+([readings](../readings/schedule-time-edges.md#t5-a-past-at-and-a-bare-time-with-the-model-seeing-the-result)).
 
 ### Recurrence: an interval, or a wall-clock rule
 
@@ -81,7 +84,9 @@ There are two shapes and an item takes exactly one.
   `at_time` with no selector repeats every day, so a request for one time ("tomorrow at 10:00")
   belongs in `at`. The spec says both, since the cortex stored such a request as a daily item
   when the `at_time` text said only "recurring"
-  ([readings](../readings/schedule-one-time-and-daily.md)).
+  ([readings](../readings/schedule-one-time-and-daily.md)). It still writes `at_time` for a bare
+  "at 9" in some draws, so the confirmation of `at_time` with no selector says the item repeats
+  every day and that `edit_scheduled` with its id and `every_seconds` 0 makes it one time.
 
   An optional `in_zone` (an IANA key such as `"America/New_York"`) names the zone the `at_time`
   wall clock is in, for a reminder that should fire on another zone's clock, say 09:00 New York

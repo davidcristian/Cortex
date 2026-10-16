@@ -75,8 +75,7 @@ already happened, at 00:30 UTC. No defect filed.
   02:55 CEST, an hour in the past, and the reminder fired on the next poll. The confirmation
   showed `02:55:00+02:00` with no sign that the time had passed. Fixed in this run (below).
 - **A past `at` is accepted.** Nothing compares `at` with now, so a time that has passed is stored
-  and fires on the next poll, and the confirmation reads like any other. Filed as
-  [R-880](../refinements/tasks/880-a-one-time-reminder-at-a-time-already-past-fires-at-once.md).
+  and fires on the next poll, and the confirmation reads like any other. Fixed in this run (T5).
 
 ## T3: the zone chain on the default deployment
 
@@ -95,8 +94,7 @@ the oven today at 23:00." Redis held `due_at` `2026-10-16T23:00:00+00:00` with a
 the reply did not say. The item and the turn's memory row were deleted after the reading. Two
 defects: the zone, filed as
 [R-881](../refinements/tasks/881-the-default-display-zone-is-utc-on-a-host-that-is-not.md), and
-the daily rule, filed as
-[R-882](../refinements/tasks/882-a-one-time-request-with-a-bare-time-is-stored-as-a-daily-rule.md).
+the daily rule, fixed in this run (T5).
 
 ## T4: cortex draws under a fixed clock
 
@@ -117,9 +115,10 @@ the daily rule, filed as
 - **B** and **E** show that a bare time with no day ("at 2:55", "at 23:00") is sometimes written
   as `at_time`, a daily rule. With "today" in the request, D wrote `at` 10 of 10 in a fresh
   context, while the live turn above, with history and memory, wrote `at_time`. G, "at 9" asked
-  late at night, wrote `at_time` in half its draws. That is R-882.
-- **F** is R-880 seen from the model: "today at 9" asked at 23:50 wrote the past time once in 10,
-  and that reminder fires at once; once it asked instead, which the row counts as a pass.
+  late at night, wrote `at_time` in half its draws. T5 below fixes it.
+- **F** is the past `at` seen from the model: "today at 9" asked at 23:50 wrote the past time
+  once in 10, and that reminder fires at once; once it asked instead, which the row counts as a
+  pass.
 
 ## After the second-pass fix
 
@@ -167,3 +166,32 @@ ISO check refused, a check neither change touches, and its second call stored th
 A draw's first call comes from the same prompt in both builds. A and D are drawn 5 more times
 each on the candidate, and the past refusal ships only if all 10 store the wanted instant with
 one call, the original rule's letter. Otherwise it is backed out and its task stays open.
+
+### T5 results
+
+SM clock during the draws: 0.61 of `clocks.max.sm`. Each cell counts draws by what the store held
+at the end; "named" is a daily rule the reply calls "every day", "unnamed" one it does not.
+
+| Row | Baseline | Both changes |
+| --- | --- | --- |
+| A | 3 of 3 wanted, one call | 3 of 3 wanted, 1 in two calls (ISO check); replication 5 of 5, one call |
+| D | 3 of 3 wanted, one call | 3 of 3 wanted, one call; replication 5 of 5, one call |
+| E | 3 wanted, 2 named | 5 wanted (1 after `edit_scheduled`) |
+| F | 9 wanted, **1 unnamed**, 0 past | 7 wanted (1 after the ISO check), 2 named, 1 asked, 0 past |
+| G | 5 wanted, 5 named | 4 wanted (1 after `edit_scheduled`), 6 named |
+| H | 4 wanted, **1 unnamed** | 5 wanted (1 after `edit_scheduled`) |
+| R1, R2 | 3 and 3 rules | 3 and 3 rules |
+
+- **The repeat note passes its rule**: no unnamed daily rule in 36 one-time draws, against 2 in
+  the baseline's 36, and every rule row kept its rule. The baseline's two unnamed draws are the
+  live turn's defect: H replied "today at 23:00" over a daily rule. Under the note, E, G and H
+  each turned one daily rule into one time with `edit_scheduled`. G still keeps a daily rule in 6
+  of 10 and says so ("every day at 9:00 AM"), which the person can now see and correct.
+- **The past refusal passes on its replication.** No draw in either build wrote a past `at`, so
+  the refusal never fired in the rows. A side row, not under the rule, put the refusal in front of
+  the model: F's text with a seeded call for `2026-10-24T09:00:00` and its refusal, 5 draws. Four
+  asked whether to use 09:00 tomorrow; one stored a daily 09:00 rule and named it. None stored a
+  past time or claimed one was set. One reply in the F row said "today at 9:00 AM" over a rule
+  due tomorrow, a wording slip the rules do not count.
+- Both changes shipped. The core suite (`brain/packages/core/tests`) holds the tests that fail
+  without them.

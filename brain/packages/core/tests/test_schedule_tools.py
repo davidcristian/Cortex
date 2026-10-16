@@ -1238,7 +1238,9 @@ async def test_creation_fires_persists_and_renders_a_per_rule_zone() -> None:
     assert not result.is_error
     assert result.content == (
         "scheduled reminder item-1: due 2026-07-12T09:00:00-04:00, "
-        "every day at 09:00 (America/New_York)"
+        "every day at 09:00 (America/New_York). This repeats every day. If the user asked for "
+        "one time only, make it one time with edit_scheduled, this id and 'every_seconds': 0; "
+        "otherwise tell the user it repeats every day."
     )
     loaded = await store.get("item-1")
     assert loaded is not None
@@ -1325,3 +1327,76 @@ async def test_edit_rejects_an_unknown_in_zone() -> None:
     )
     assert result.is_error
     assert "no known timezone" in result.content
+
+
+async def test_an_at_already_past_is_refused_with_the_current_date_time() -> None:
+    tool, store = _tool()
+    result = await tool.invoke(
+        _call({"kind": "reminder", "text": "plumber", "at": "2026-07-12T09:00:00"})
+    )
+    assert result.is_error
+    assert result.content == (
+        "'at' 2026-07-12T09:00:00+00:00 has already passed; the current date-time is "
+        "2026-07-12T12:00:00+00:00 (UTC). Nothing was scheduled. Use a later time, or ask the "
+        "user which day they mean."
+    )
+    assert await store.list_active() == ()
+
+
+@pytest.mark.parametrize(
+    ("at", "stored"),
+    [
+        ("2026-07-12T11:59:00", datetime(2026, 7, 12, 11, 59, tzinfo=UTC)),
+        ("2026-07-12T12:00:00", _NOW),
+    ],
+)
+async def test_an_at_within_a_minute_before_now_is_stored(at: str, stored: datetime) -> None:
+    tool, store = _tool()
+    result = await tool.invoke(_call({"kind": "reminder", "text": "kettle", "at": at}))
+    assert not result.is_error
+    assert [item.due_at for item in await store.list_active()] == [stored]
+
+
+async def test_an_at_just_over_a_minute_before_now_is_refused() -> None:
+    tool, store = _tool()
+    result = await tool.invoke(
+        _call({"kind": "reminder", "text": "kettle", "at": "2026-07-12T11:58:59"})
+    )
+    assert result.is_error
+    assert await store.list_active() == ()
+
+
+async def test_a_daily_rule_says_it_repeats_and_how_to_make_it_one_time() -> None:
+    tool, _ = _tool()
+    result = await tool.invoke(_call({"kind": "reminder", "text": "oven", "at_time": "23:00"}))
+    assert result.content == (
+        "scheduled reminder item-1: due 2026-07-12T23:00:00+00:00, every day at 23:00. This "
+        "repeats every day. If the user asked for one time only, make it one time with "
+        "edit_scheduled, this id and 'every_seconds': 0; otherwise tell the user it repeats "
+        "every day."
+    )
+    again = await tool.invoke(_call({"kind": "reminder", "text": "oven", "at_time": "23:00"}))
+    assert again.content.startswith("already scheduled reminder item-1")
+    assert again.content.endswith("otherwise tell the user it repeats every day.")
+
+
+@pytest.mark.parametrize(
+    "selector",
+    [{"on_days": ["mon"]}, {"on_month_days": [1]}, {"on_dates": ["12-25"]}],
+)
+async def test_a_rule_on_chosen_days_has_no_daily_note(selector: dict[str, Any]) -> None:
+    tool, _ = _tool()
+    arguments = {"kind": "reminder", "text": "report", "at_time": "09:00", **selector}
+    result = await tool.invoke(_call(arguments))
+    assert not result.is_error
+    assert "repeats every day" not in result.content
+
+
+async def test_a_one_time_or_interval_item_has_no_daily_note() -> None:
+    tool, _ = _tool()
+    once = await tool.invoke(_call({"kind": "reminder", "text": "tea", "in_seconds": 600}))
+    every = await tool.invoke(
+        _call({"kind": "reminder", "text": "water", "in_seconds": 600, "every_seconds": 86400})
+    )
+    assert "repeats every day" not in once.content
+    assert "repeats every day" not in every.content

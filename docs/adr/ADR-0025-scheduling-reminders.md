@@ -77,9 +77,11 @@ built-ins, so subagents never see them (ADR-0010) and cannot re-schedule themsel
   calendar rule, ADR-0065 decision 2); `every_seconds` between 60 s and ten years, with `0` read
   as a one-shot; `model` for a task. Bad arguments return `is_error`, never raise; ids are uuid4.
 - **Creation bounds.** Active items are capped (`CORTEX_SCHEDULE_MAX_ACTIVE`, 32; a full schedule
-  returns `NOT SCHEDULED` and tells the model to ask the user what to cancel), and **a tainted turn
+  returns `NOT SCHEDULED` and tells the model to ask the user what to cancel). **A tainted turn
   cannot create a task**, since injected text would be a permanent directive, unless recall alone
-  tainted the turn ([ADR-0019](ADR-0019-tainted-memory-recording.md) decision 8).
+  tainted the turn ([ADR-0019](ADR-0019-tainted-memory-recording.md) decision 8). **An `at` more
+  than 60 s before now is refused** with the current date-time named, since a stored past time
+  fires on the next poll ([readings](../readings/schedule-time-edges.md)).
 - **A repeat adds nothing** ([readings](../readings/reminder-already-stored.md)). A request matching
   an active item in kind, text (case, spacing and a final full stop aside), due time, recurrence and
   model gets `already scheduled` and its id, on a full schedule too: a copy fires the same toast
@@ -175,9 +177,8 @@ ten-year bounds as `every_seconds`. The pure `apply_snooze`, shared by both stor
 `until`, sets the item back to PENDING and clears deliverability, so a reminder that already ran
 runs again fresh. On a recurring item's first snooze it sets `anchor` to the old `due_at`, so the
 series keeps its original spacing; a calendar item defines its own times and takes no anchor. FIRING
-and unknown ids return `False`. A snooze adds no content, so it needs no taint check, as with
-cancel. The tool reads the item first for a precise correction, and the fenced transition gives the
-authoritative result.
+and unknown ids return `False`. A snooze adds no content, so it needs no taint check. The tool reads
+the item first for a precise correction, and the fenced transition gives the authoritative result.
 
 ### 9. Edit changes text and recurrence, never an interval's next due time
 
@@ -196,9 +197,8 @@ the text injects content, as creation does, with the same exception. Results nev
 
 A task run finishes deliverable and sends its **outcome, never its instruction**, under `TASK_TITLE`
 (a reminder uses `REMINDER_TITLE`), through the ticker's `_deliver`; `reminder_to_proto` puts
-`last_outcome` in `DueReminder.text` for the fetched path. The deliverable and ack machinery does
-not depend on the kind, so this needed no store, proto or overlay change, and a one-shot task's
-outcome now survives its run until acked.
+`last_outcome` in `DueReminder.text` for the fetched path. Delivery and acks do not depend on the
+kind, so a one-shot task's outcome survives its run until acked.
 
 ## Consequences
 

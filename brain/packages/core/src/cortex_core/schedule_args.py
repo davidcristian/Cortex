@@ -14,6 +14,8 @@ MIN_EVERY_SECONDS = 60
 # Ten years: nothing a personal reminder needs recurs slower, and the bound keeps the
 # arithmetic for the next occurrence far from datetime overflow.
 MAX_EVERY_SECONDS = 315_360_000
+# A call that writes the current minute as its 'at' reaches the store a few seconds late.
+PAST_MARGIN = timedelta(seconds=60)
 
 _BAD_KIND = '\'kind\' must be "reminder" or "task"'
 _TASKS_NOT_WIRED = "this deployment schedules reminders only; 'kind': \"task\" is not available"
@@ -87,6 +89,15 @@ def _parse_at(at: object, zone: DisplayZone, now: datetime) -> datetime | str:
     return parsed
 
 
+def _past_at(due: datetime, now: datetime, zone: DisplayZone) -> str:
+    """The correction for an ``at`` that has already passed, naming the current date-time."""
+    return (
+        f"'at' {zone.render(due)} has already passed; the current date-time is "
+        f"{zone.render(now)} ({zone.name}). Nothing was scheduled. Use a later time, or ask "
+        "the user which day they mean."
+    )
+
+
 def _delay_from(now: datetime, in_seconds: object) -> datetime | str:
     """``now`` plus a positive number of seconds, or a correction string."""
     delay = parse_number(in_seconds)
@@ -105,9 +116,12 @@ def _parse_due_at(arguments: Mapping[str, Any], now: datetime, zone: DisplayZone
     in_seconds = arguments.get("in_seconds")
     if (at is None) == (in_seconds is None):
         return _ONE_WHEN
-    if at is not None:
-        return _parse_at(at, zone, now)
-    return _delay_from(now, in_seconds)
+    if at is None:
+        return _delay_from(now, in_seconds)
+    due_at = _parse_at(at, zone, now)
+    if isinstance(due_at, datetime) and due_at < now - PAST_MARGIN:
+        return _past_at(due_at, now, zone)
+    return due_at
 
 
 def _parse_calendar(

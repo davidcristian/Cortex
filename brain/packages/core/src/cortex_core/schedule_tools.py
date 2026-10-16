@@ -15,6 +15,7 @@ from cortex_core.schedule_render import (
     now_sentence,
     recurrence_phrase,
 )
+from cortex_core.schedule_selectors import DAILY
 from cortex_core.schedule_time import UTC_DISPLAY, UTC_ZONE_CONTEXT, DisplayZone, ZoneContext
 from cortex_core.schedule_verbs import error_result, store_down_result
 from cortex_core.tools import ToolCall, ToolResult, ToolSpec, Trust
@@ -31,6 +32,10 @@ TAINTED_TASK_MSG = (
 
 
 _NOT_ADDED = "it was on the schedule before this call, so no copy was added"
+_DAILY_NOTE = (
+    ". This repeats every day. If the user asked for one time only, make it one time with "
+    "edit_scheduled, this id and 'every_seconds': 0; otherwise tell the user it repeats every day."
+)
 
 
 def _full_msg(max_active: int) -> str:
@@ -173,6 +178,8 @@ class ScheduleTaskTool:
             content = f"already {_confirmation(held, self._zone)}; {_NOT_ADDED}"
         else:
             content = _confirmation(item, self._zone)
+        if item.rule is not None and item.rule.on == DAILY:
+            content += _DAILY_NOTE
         return ToolResult(call_id=call.id, content=content, trust=Trust.TRUSTED)
 
 

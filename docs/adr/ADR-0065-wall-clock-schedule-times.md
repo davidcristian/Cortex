@@ -30,7 +30,8 @@ ticker share.
   label left as `UTC` over local numbers would state a false fact.
 - **A naive `at` means wall time in the display zone.** Once the model reads local times it writes
   them back, and a refusal costs a round trip it may not recover from. An `at` with an offset is
-  honoured as written.
+  honoured as written. An `at` more than 60 s past is refused all the same (ADR-0025 decision 3),
+  since a stored past time fires at once; the refusal names the current date-time.
 - **`fold=0` settles the two irregular wall times**: an hour repeated at a fall-back transition
   takes the earlier offset, and an hour skipped at a spring-forward transition is read with the
   pre-transition offset, which puts it just past the gap. One exception covers a one-time `at`:
@@ -64,8 +65,13 @@ decision 2).
 - **The ticker reads the deployment zone from `TickerSettings`**, the value the built-ins get,
   because setting the next occurrence is wall-clock arithmetic and must use the same zone that
   creation used.
-- The creation confirmation and the listing share one recurrence phrase (`_recurrence` in
-  `schedule_tools.py`), so they cannot describe one item differently.
+- The creation confirmation and the listing share one recurrence phrase (`recurrence_phrase` in
+  `schedule_render.py`), so they cannot describe one item differently.
+- **A daily rule's confirmation says it repeats.** `at_time` with no day selector is the form a
+  one-time request ("at 9") is mistaken for, so its confirmation adds that the item repeats every
+  day and that `edit_scheduled` with `every_seconds` 0 makes it one time. The model reads that in
+  the same turn and either corrects the item or tells the user it repeats. A rule on chosen days
+  has no such note ([readings](../readings/schedule-time-edges.md)).
 - The record gains an added `rule` object, decoded with `.get` so an older record reads as having
   none; a rule that is present is decoded strictly, so a malformed one fails loudly rather than
   becoming a one-shot.
