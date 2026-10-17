@@ -3,7 +3,7 @@
 **Status:** open, actionable
 **Area:** memory
 **Origin:** [ADR-0008](../../adr/ADR-0008-memory-v1.md)
-**Verified:** 2026-10-16
+**Verified:** 2026-10-17
 
 A turn's exchange is recorded as `User: <question> / Assistant: <reply>` (`record_exchange`,
 `cortex_core/turn_output.py`), and recall gives it to a later chat under "Relevant memories from
@@ -24,11 +24,13 @@ holding that question and the hand-over sentence and no deep reply, then send th
 
 ## What to do
 
-Change what is recalled, not how it is shown: two framings of the recalled block left row L at 0
-of 5. The judge ranks the pool on the question alone, and this question names nothing in the chat,
-so the other chat's exchange asking the same words is the nearest by cosine and the judge keeps
-it. Give the rank prompt this chat's last exchange, then draw the readings' five rows under their
-rule, where R and F check that wanted recall does not fall.
+Keep the other chat's exchange out of the pool. Two framings of the recalled block and a rank
+prompt holding this chat's last exchange each left row L at 1 of 5 or fewer, and with the exchange
+shown the judge kept the same four memories: the answer is on this chat's subject, and no note
+says which chat it came from. In a chat with an earlier turn, leave out of recall an exchange
+whose question is this turn's question word for word. Add the readings' row Q, which checks that
+cost, before drawing, then draw the six rows under the readings' rule
+([next idea](../../readings/handoff-reply-not-kept.md#recall-rank-with-the-last-exchange)).
 
 ## History
 
@@ -39,3 +41,7 @@ rule, where R and F check that wanted recall does not fall.
   and then the same with its labels as "Asked there" and "Answered there". L stayed at 0 of 5 for
   each against 1 on HEAD; wanted recall (rows R and F) kept 5 of 5
   ([readings](../../readings/handoff-reply-not-kept.md#recall-framing-rows-and-rule)).
+- 2026-10-17: the judge's rank prompt given this chat's last exchange and a note that every memory
+  came from an earlier conversation, drawn and backed out: L passed in 1 of 5 against 0 on HEAD,
+  L2 fell from 4 to 3, and R and F kept 5 of 5. A dump showed the judge kept the same four
+  memories as on HEAD ([readings](../../readings/handoff-reply-not-kept.md#recall-rank-with-the-last-exchange)).

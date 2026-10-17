@@ -147,5 +147,49 @@ same directory; the brain image was rebuilt from HEAD after E.
 **Next idea.** Change what is recalled, not how it is shown. The judge ranks the pool on the
 question alone, and "What did the deep model say, in one line?" names nothing in this chat, so
 the other chat's exchange asking the same words is the nearest by cosine, and the judge kept it in
-both dumps. Giving the rank prompt this chat's last exchange would let the judge leave out an answer about another chat's handoff. The rows and
-rule above apply unchanged, with R and F checking that the judge still keeps a wanted memory.
+both dumps. Giving the rank prompt this chat's last exchange would let the judge leave out an
+answer about another chat's handoff. The rows and rule above apply unchanged, with R and F checking
+that the judge still keeps a wanted memory.
+
+## Recall rank with the last exchange
+
+**Candidate G**, written 2026-10-17 before any draw of it. The judge's rank prompt gains this
+chat's last exchange before the question: the last earlier turn's question and its final reply,
+each cut to 400 characters, under "This conversation's last exchange:". The instruction adds:
+"Every note was recorded in an earlier conversation. When the question asks about the
+conversation whose last exchange is shown, leave out a note that only tells what was said in
+another one." A chat with no earlier turn gets HEAD's prompt, so R and F, each asked in an empty
+chat, check only that nothing else moved. G is drawn on the five rows under the rule above,
+against HEAD's counts drawn the same night over the same memory: the 15 rows the stack of D and E
+still held, without the choir fact, which a turn wrote again once, and two one-word probe exchanges.
+
+**Draws of G**, on the shared stack's cortex, the brain image built from HEAD and then with G. The
+SM clock, read at each row's start and end, stayed between 0.81 and 1.0 of its highest reading in
+both columns.
+
+| Row | HEAD | G |
+| --- | --- | --- |
+| L | 0 | 1 |
+| L2 | 4 | 3 |
+| C | 5 | 5 |
+| R | 5 | 5 |
+| F | 5 | 5 |
+
+**G is a null**: L passed in 1 of 5, and G was backed out. Four L draws on G and all five on HEAD
+repeated the recalled follow-up answer word for word; the G pass said the deep model had not
+replied in this conversation. Both L2 failures on G, and the one on HEAD, gave that odd-numbers
+answer in the primes chat. Row L's prompt dumped on G: the judge kept the same four memories, in
+the same order, as in the dump on HEAD above, the three stored deep replies and the other chat's
+follow-up exchange. Shown that this chat handed the same question over, it still kept them, and no
+note says which chat it came from. Method:
+`measurements/handoff-reply-not-kept-2026-10-17/` holds the driver, both columns' replies and row
+logs (`base.jsonl`, `g.jsonl`), the dump (`dump-L-g.txt`) and the diff (`candidate-g.diff`); the
+brain image was rebuilt from HEAD after G.
+
+**Next idea.** Neither the block's framing nor the rank prompt moved L, because the recalled
+answer is relevant to this chat. What is left is to keep it out of the pool: in a chat with an
+earlier turn, leave out of recall an exchange whose question is this turn's question word for
+word, since such a question refers to its own chat. Before drawing it, add a row Q that checks the
+cost: a chat with one unrelated earlier turn asks "When does my choir rehearse?", and the only
+memory that answers is an exchange asking those words. The rule above then applies with Q beside R
+and F.

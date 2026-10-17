@@ -69,7 +69,7 @@ never a reading of what the tree does now.
 
 ### Actionable now (1)
 
-- **[R-879](tasks/879-a-recalled-answer-from-another-chat-is-repeated-as-this-chats.md)** A recalled answer from another chat is repeated as this chat's (memory). Its claim was checked against the code on 2026-10-16.
+- **[R-879](tasks/879-a-recalled-answer-from-another-chat-is-repeated-as-this-chats.md)** A recalled answer from another chat is repeated as this chat's (memory). Its claim was checked against the code on 2026-10-17.
 
 ### Actionable, once a port changes (2)
 
