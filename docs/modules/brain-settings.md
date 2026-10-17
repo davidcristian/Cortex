@@ -3,7 +3,7 @@
 **Purpose.** The one reader every Python entry point reads its pydantic-settings classes through:
 the brain (`cortex_orchestrator.entry`), the model host (`cortex_model_manager.server.main`) and
 the email sidecar (`cortex_email.server.main`). It turns a value a class refuses into an error that
-names the environment variable and the rule broken, and never the value, so a malformed setting
+names the environment variable and the rule broken, and never a text value, so a malformed setting
 ends a container with one line an operator can act on instead of a traceback naming a code field
 and quoting the input.
 
@@ -45,10 +45,13 @@ Each catches `ConfigError`, writes one line and returns exit status 1 to `sys.ex
 ## Invariants
 
 - One reader. No entry point constructs a settings class directly.
-- A refusal reads the same whatever the refused value is: not in the message, and not in the
-  traceback, since the `ValidationError` is dropped from the chain. This holds for a validator that
-  writes its input only as `{value!r}`, which every validator here does; a class whose input holds
-  a credential raises a `ConfigError` subclass with fixed words instead.
+- A refused text value is not in the message, and not in the traceback, since the
+  `ValidationError` is dropped from the chain. This holds for a validator that writes a text input
+  only as `{value!r}` or inside a variable's name (`CORTEX_SUBAGENTS_ROSTER__<model>`), which every
+  validator here does; a class whose input holds a credential raises a `ConfigError` subclass with
+  fixed words instead. The validators that compare numeric settings (`SubagentsConfig`'s timeouts
+  and budgets, `CORTEX_TOOLS_SALIENCE_LIMIT`) state the numbers they compared, so their reason
+  changes with the value.
 - Fully typed, pyright strict clean, and 100% line and branch: `tests/test_settings_reader.py`
   drives the reader over a class of its own, and each entry point's suite drives its own classes.
 

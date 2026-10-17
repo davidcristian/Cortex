@@ -130,8 +130,8 @@ across turns (a recalled memory).
    `delete_tainted` repeats its `DELETE` until a pass removes nothing, so a record committed while
    a pass waited on that lock is removed by the next one
    ([readings](../readings/overlay-concurrency-flows.md)). A turn tainted only by its own reads
-   recalled nothing the forget removed and is recorded as before. On the stack the person's send reached the card and
-   went out after every forget, on a clean turn and on a recall-tainted one
+   recalled nothing the forget removed and is recorded as before. On the stack the person's send
+   reached the card and went out after every forget, on a clean turn and on a recall-tainted one
    ([readings](../readings/forget-untrusted-memories.md)). The turn that ran the forget still holds
    the recalled memory, so a blocked call later in it stays blocked. Once the forget has returned
    `ok`, the round sets `TaintLedger.forgotten`, and the block returns `RECALL_FORGOTTEN_MSG`: the

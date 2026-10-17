@@ -138,6 +138,35 @@ was still in the root, and answered from the file. A second replay at 06:35 (`s1
 `shed.txt` after the seed: the forget deleted the row at 06:35:15.1, `s11b-fb` answered "4417" and
 was not recorded, and `s11b-fc` found no code. As expected both times.
 
+## Stop or a dropped stream while a turn waits for its own chat
+
+The right behaviour, written first: the waiting turn ends with nothing stored; the turn ahead and a
+later queued turn run in order; a turn sent after the queue empties gets no `queued` status; the
+status a turn shows says what it waits on now.
+
+On one session id at 06:48, chat `s12-q-cancel`: A "Write eight sentences about rivers, one per
+line.", 0.5 s later B "Name one colour." on a second stream, cancelled 2 s later while queued,
+4 s later C "Name one fruit.", and D "Name one animal." after all three ended. **As expected**
+for the lock: B got the `queued` status at once and ended at its `Cancel` with no further event, C
+got the `queued` status and answered after A, D got no `queued` status, and the chat stored A, C
+and D in order with nothing of B's. The same at 06:49 with B's call cancelled in place of a
+`Cancel` (`s12-q-drop`) gave the same result. **Not as expected** for the status: A's reply ended
+2.0 s into C's wait in the first run and 5.5 s in the second, and C's first `thinking` status came
+6.2 s and 4.0 s after that, while D, with nothing ahead, took 4.3 s and 3.6 s to its first status.
+For those seconds C's last status still said "waiting for this chat's previous message to finish",
+since closing the wait sends nothing. The SM clock read 0.59 of `clocks.max.sm` just after the
+two runs.
+
+## A forget's delete against a record that recalled two rows
+
+Three `psql` sessions on the `cortexn7` Postgres's `cortex_contract` database at 06:51: tainted
+rows `r2`, `x`, `r1` in heap order and 5,000 untainted rows, so the record's `FOR SHARE` subquery
+takes an index scan (id order) and the tainted `DELETE` a sequential scan (heap order). A third
+session held `x` for 2 s, which stopped the `DELETE` just after it locked `r2`, as a long scan
+would; the record recalling `['r1', 'r2']` then locked `r1` and waited on `r2`. When `x` was
+released the `DELETE` failed with `deadlock detected`, so nothing was deleted and the derived row
+was stored.
+
 ## Defects
 
 - **A wait behind another chat is not named.** A turn waiting for another chat's generation is
@@ -148,6 +177,11 @@ was not recorded, and `s11b-fc` found no code. As expected both times.
   [R-894](../refinements/tasks/894-name-a-turn-waiting-behind-another-chat.md).
 - **A forget keeps a row a turn in flight records**, above, with the replay under the
   recalled-memory check after it.
+- **A queued status stays after the turn ahead ends**, until the waiting turn's first reasoning.
+  Filed as [R-897](../refinements/tasks/897-a-queued-status-stays-after-the-turn-ahead-ends.md).
+- **A forget deadlocks with a record that recalled two tainted rows**, and the whole forget rolls
+  back. Filed as
+  [R-896](../refinements/tasks/896-a-forget-deadlocks-with-a-record-that-recalled-two-tainted-rows.md).
 
 ## Not run
 

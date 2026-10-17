@@ -158,16 +158,18 @@ is [ADR-0045](ADR-0045-documented-log-lines.md).
 17. **A refused setting ends a Python process with one line naming its variable.** The brain, the
     model host and the email sidecar read every settings class through `read_settings`, which
     turns a `ValidationError` or `SettingsError` into a `ConfigError` naming the environment
-    variable and the rule broken, never the value; each entry point writes it as one
+    variable and the rule broken, never a text value; each entry point writes it as one
     `setting refused` line and exits 1. The reader is its own package, `cortex_settings`, because
     `cortex_core` imports only the standard library and the email sidecar imports no other cortex
     package. The model host writes its line in `plain` at INFO, since `ModelHostConfig` is the class
     that names its rendering, and so does the brain when the refused value is `CORTEX_LOG_FORMAT`
     itself. The email sidecar, which configures no logging, puts the reason inside
     the message, which the standard library's last-resort handler writes alone. A validator's own
-    message quotes its input as its `repr`, and the reader masks that `repr` only, so a reason reads
-    the same whatever the refused value is: masking every copy of the value would garble the
-    message's own words, and its gaps would show the value.
+    message quotes a text input as its `repr`, and the reader masks that `repr` only: masking every
+    copy of the value would garble the message's own words, and its gaps would show the value. The
+    validators that compare numeric settings (`SubagentsConfig`'s timeouts and budgets,
+    `CORTEX_TOOLS_SALIENCE_LIMIT`) state the numbers they compared, which the operator needs to
+    choose a value and which hold no credential.
 
 ## Consequences
 
