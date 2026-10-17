@@ -6,7 +6,7 @@
 that exists is found missing a flag the flag rule requires or writing one with a value the shipped
 stack does not use
 **Origin:** [ADR-0043](../../adr/ADR-0043-subagent-server-flags.md)
-**Verified:** 2026-10-13
+**Verified:** 2026-10-17
 
 `docs/runbooks/subagents-cpu.md` gives an operator a `docker run` that starts a standalone CPU
 subagent server on loopback, outside any stack, with `--jinja`, the template kwarg,
@@ -77,3 +77,5 @@ wrong here was the rule moving while the paste did not.
   switch. It serves no delegated work, so it is a measurement server, as `budget-probe` is for the
   cortex tier, and not a second subagent server the flag rule covers. The runbook's own `docker run`
   (`docs/runbooks/subagents-cpu.md:208`) has not changed since 2026-10-02.
+- 2026-10-17: checked again and not fired. No runbook or host task changed since 2026-10-13 starts a
+  subagent server by hand.

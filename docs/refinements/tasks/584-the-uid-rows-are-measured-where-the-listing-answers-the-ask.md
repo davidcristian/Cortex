@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** email
 **Origin:** [ADR-0056](../../adr/ADR-0056-email-reader-answers.md)
-**Verified:** 2026-10-07
+**Verified:** 2026-10-17
 **Trigger:** `UID_HELP` or `NOT_FOUND` in `brain/packages/email/src/cortex_email/values.py` is
 reworded, the shipped cortex pick changes (`DEFAULT_CORTEX_FILE` in
 `brain/packages/model_manager/src/cortex_model_manager/config.py`), or a second run of
@@ -64,3 +64,5 @@ search.
   on the model host's caps in `docker/docker-compose.gpu.yml`. No run under `measurements/` names
   `test_uid_reading_live.py`, tonight's queue included, and `_READ_ASK` and `DRAWS = 20` are
   unchanged.
+- 2026-10-17: checked again and not fired. The change to `values.py` on 2026-10-14 rewords neither
+  `UID_HELP` nor `NOT_FOUND`, and `DEFAULT_CORTEX_FILE` has no commit since 2026-10-07.

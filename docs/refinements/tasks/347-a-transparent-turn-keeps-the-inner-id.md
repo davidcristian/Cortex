@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** inference-model-manager
 **Origin:** [ADR-0046](../../adr/ADR-0046-work-identities-on-log-lines.md)
-**Verified:** 2026-10-13
+**Verified:** 2026-10-17
 **Trigger:** either half of the agreement moves: `EscalatingTurnEngine(` gains a construction site
 other than the one in `cortex_orchestrator/engines.py`, or that site's factory returns anything but
 `self._turn_engine(...)`; or `TurnEngine.handle_turn` in `cortex_core/engine.py` stops completing
@@ -70,3 +70,7 @@ right depends on whether a second runner ever sits behind `make_inner`.
   the unescalated path with `yield completed` (line 59) and completes an escalated one under its own
   id (line 77), and `TurnEngine.handle_turn` still completes with `TurnCompleted(turn_id=turn_id,
   ...)` at `engine.py:159`. Both tests named above still exist under their names.
+- 2026-10-17: checked again and not fired. `engines.py` still has the one construction site, whose
+  factory returns `self._turn_engine(...)`, a plain `TurnEngine`, and `handle_turn` still completes
+  with `TurnCompleted(turn_id=turn_id, ...)`. The load wait wrapper added on 2026-10-16 sits outside
+  the escalating engine and passes its events through.

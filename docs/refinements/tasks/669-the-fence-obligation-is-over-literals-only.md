@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** repo-checks
 **Origin:** [ADR-0062](../../adr/ADR-0062-shared-check-readers.md)
-**Verified:** 2026-10-07
+**Verified:** 2026-10-17
 **Trigger:** a module under `scripts/` decides whether a line is a fence by testing it against
 `markdownfences.MARKERS`, or against anything read off that tuple, rather than by asking `Fences`.
 One search over the modules importing any name from `markdownfences` other than `Fences` and
@@ -56,3 +56,5 @@ reading kept in one place by there being one module to import from.
   a fence marker. The one change to `markdownfences.py` since was renaming `spelled` to
   `marker_lines`. The paragraph above counted four readers and pointed at a docstring that has since
   been cut to one line; it now counts five and points at the ADR. The remedy stands.
+- 2026-10-17: checked again and not fired. Every module importing from `markdownfences` imports
+  `Fences` alone.

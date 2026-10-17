@@ -9,7 +9,7 @@ harness's own of 2026-08-26; or a readings record publishing `stood` alone with
 `git grep -n 'no judge is declared' docs/readings` finds and finds nowhere today. The phrase occurs
 once in the origin record, in the decision describing the mechanism.
 **Origin:** [ADR-0028](../../adr/ADR-0028-grammar-constrained-subagents.md)
-**Verified:** 2026-10-07
+**Verified:** 2026-10-17
 
 The summarization instruction is written in seven places, counted on 2026-09-24 with `git grep -F`
 over its text: the driver's own `CORTEX_ENVELOPE_INSTRUCTION` default in
@@ -82,3 +82,5 @@ person's work rather than a shipped path.
   instruction is in `docs/readings/reply-envelope.md` and `docs/readings/role-sentences.md` and not
   in the origin record. The trigger's second clause pointed at readings in the origin record, which
   keeps none since readings moved to `docs/readings/`, and now names the search that decides it.
+- 2026-10-17: checked again and not fired. The driver has no commit since 2026-10-07, and `git grep
+  -n 'no judge is declared' docs/readings` finds nothing.

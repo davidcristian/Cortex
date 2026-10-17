@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** repo-checks
 **Origin:** [ADR-0062](../../adr/ADR-0062-shared-check-readers.md)
-**Verified:** 2026-10-07
+**Verified:** 2026-10-17
 **Trigger:** a directory git ignores that `SKIPPED_DIRS` does not prune is itself named `tests` or
 `_generated`, the two names only the line cap skips, or sits below one, and holds a file the cap
 selects by suffix and name. The check then reports a file the line cap would never have read.
@@ -52,3 +52,5 @@ already contains a name in `EXTRA_SKIPS`.
   only the files over the cap, so the remedy's split is still needed. The two repo-wide walks added
   since, the prose and dash checks, ask git for its ignored paths and never enter one, so the
   inward check is right to leave them out. The commits since touched the test only to rename.
+- 2026-10-17: checked again and not fired. No directory git ignores is named `tests` or `_generated`
+  or sits below one.

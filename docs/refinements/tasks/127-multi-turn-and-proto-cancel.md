@@ -8,7 +8,7 @@ overlay's `submit` in `body/app/src/overlay/useOverlay.ts` returns while `isTurn
 question is sent while another runs, and `turn_request` in `body/crates/rpc/src/converse.rs` sends
 one `UserTurn` and no `Cancel`. A question accepted mid-turn, or a stop that must keep its stream
 open, fires it.
-**Verified:** 2026-10-14
+**Verified:** 2026-10-17
 
 The body sends one turn per `Converse` call and never sends `Cancel`; dropping the stream is how
 v1 cancels (ADR-0011 decision 1 and risks). Slice 8.8 (ADR-0022) took the interleaving half, so
@@ -112,3 +112,5 @@ when one stream should hold several turns.
   sends one `UserTurn` and no `Cancel`. Two details of the body had moved. The escalation lease is
   at `wiring.py:77`, and `handle_turn` closes `stream_turn_events` rather than the tool loop
   itself, the loop being closed in that generator's own `finally`.
+- 2026-10-17: checked again and not fired. `submit` in `useOverlay.ts` still returns while
+  `isTurnActive`, and `turn_request` still sends no `Cancel`.

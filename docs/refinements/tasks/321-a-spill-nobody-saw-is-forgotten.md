@@ -7,7 +7,7 @@ period, or a second per handoff result is filed to be counted across handoffs ra
 displayed. Either still needs a home first: nothing in the brain keeps a per handoff row that
 outlives its handoff.
 **Origin:** [ADR-0055](../../adr/ADR-0055-co-residency-and-spill-watch.md)
-**Verified:** 2026-10-06
+**Verified:** 2026-10-17
 
 The spill note lives in the process, lasts an hour, and is cleared by the next handoff that keeps
 its pace, so a handoff that spilled at 03:00 is gone by morning and a brain that restarted takes it
@@ -84,3 +84,6 @@ is finished, so a store built for swap survival is not a store for history.
   backlog decides; the failed handoff's reason, decided neither counted nor displayed when
   [R-379](379-a-settled-reason-nothing-reads-back.md) closed, is not one. The trigger has not
   fired.
+- 2026-10-17: checked again and not fired. No task file, runbook step or ADR added since 2026-10-06
+  asks how often handoffs spilled, and the `brain_phase.py` change of 2026-10-15 keeps no per
+  handoff row.

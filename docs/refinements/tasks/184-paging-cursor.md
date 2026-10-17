@@ -13,7 +13,7 @@ a live reading of that sum below 4 MiB for every session means the trigger has n
 hoisted chat outside that window, and that set has no cap in the store. On 2026-10-03 the stored
 `cortex_redis-data` volume held 76 histories, the largest summing to 2,351 bytes, and 68 chats in
 `cortex:sessions` with no hoisted set.
-**Verified:** 2026-10-13
+**Verified:** 2026-10-17
 
 `ListSessions` and `GetSessionMessages` are unary snapshots with no cursor, which is enough at
 personal scale. If a single history is the one that grows too large first, the smaller move is a
@@ -54,3 +54,5 @@ stubs.
   `LRANGE` length still bounds the reply from above. No code under `body/` sets
   `max_decoding_message_size`, and `MAX_SESSION_LIST_LIMIT` is still 200 (`session_rpc.py:11`). No
   new reading of the stored sums was taken, so the 2026-10-03 figures above are the latest.
+- 2026-10-17: checked again and not fired. No code under `body/` outside the generated stub names
+  `max_decoding_message_size`, and nothing records a reply past 4 MiB.

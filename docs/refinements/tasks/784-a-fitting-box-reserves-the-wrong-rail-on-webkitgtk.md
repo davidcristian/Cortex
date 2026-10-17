@@ -3,7 +3,7 @@
 **Status:** open, blocked on host hardware
 **Area:** body-overlay
 **Origin:** [ADR-0035](../../adr/ADR-0035-console-and-motion.md) decision 22
-**Verified:** 2026-10-05
+**Verified:** 2026-10-17
 
 Every scroll container in `body/app/src/overlay.css` has `overflow-y: auto` and
 `scrollbar-gutter: stable`, and takes the reserved band out of its inline-end padding on the
@@ -56,3 +56,5 @@ the block above ships as written.
   fitting stack under `scroll` the way it paints an overflowing one under either rule, each edge on
   the row nearest its layout edge. The remaining condition, the WebView2 read, was filed as
   [H-789](../../host/tasks/789-what-webview2-paints-under-the-fenced-scroll-rule.md).
+- 2026-10-17: checked again and not fired. H-789 has not been attempted, and the direction work of
+  2026-10-15 left the six `overflow-y: auto` containers and `.field` as they were.

@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** email-confirmer
 **Origin:** [ADR-0022](../../adr/ADR-0022-email-write-confirmer.md)
-**Verified:** 2026-10-15
+**Verified:** 2026-10-17
 **Trigger:** a record under `docs/readings/`, `docs/host/` or this file's History of a person
 approving a confirmation card without reading it, because cards came often enough in one turn or one
 chat. `grep -rliE 'without reading' docs/readings docs/host` finds only
@@ -85,3 +85,5 @@ allowlist over `send_email` is a permanent approval to send mail.
   `recall-tainted-send.md`. Two changes from 2026-10-14 had made the body wrong: a declined call
   is now remembered for the rest of the turn, across a handoff too, and `forget_untrusted_memories`
   is a third tool that raises a card. The body now says both.
+- 2026-10-17: checked again and not fired. The `without reading` grep still finds only
+  `docs/readings/recall-tainted-send.md`.

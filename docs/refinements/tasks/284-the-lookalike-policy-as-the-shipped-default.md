@@ -14,7 +14,7 @@ finds across every tracked file, each read as
 `host_of(normalize_url(match.group(), confusables=False))`, the expression
 `_UrlRedactingFilter._flagged` uses for the lookalike rule; it stood at 12 on 2026-09-08,
 2026-09-11 and 2026-09-17, and at 10 on 2026-09-24 and 2026-10-03.
-**Verified:** 2026-10-03
+**Verified:** 2026-10-17
 
 The pass that added the third `OutputGuardrail` policy shipped the answer without imposing it:
 `CORTEX_OUTPUT_GUARDRAIL` still defaults to `redact`, so the gap that pass closed is closed only
@@ -83,3 +83,5 @@ phishing link harms the user.
   files, 1,923 readable, 2,766 spans reducing to 1,162 distinct identities, and 10 distinct
   non-ASCII hosts in the same four files. Neither ADR-0015 nor any guardrail or URL source has
   changed since 2026-09-24.
+- 2026-10-17: checked again and not fired. `output_guardrail` still defaults to `redact` in the
+  orchestrator's `config.py`, and no deployment measurement is recorded.

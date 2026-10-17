@@ -7,7 +7,7 @@
 run in the checkout, answers more than 0. The first run of `ci.yml` is the first run of this job,
 since every push touching a shared check file sets `shell=true`. None can happen while Actions stays
 off for the repository, which is R-594's subject.
-**Verified:** 2026-10-07
+**Verified:** 2026-10-17
 
 Everything about the shell clippy job was verified locally except the runner half. The check
 itself: `just check-shell` exits 0 over the shell and 101 on a planted `useless_format`, and the
@@ -71,3 +71,4 @@ fix at a known place rather than a re-argued design. The measurements it should 
   without `libxcb` or `libdbus`, so the apt line needs no new package. The one commit to touch the routing renamed its result class to `Jobs`;
   `scripts/ci_paths.py` still routes `body/app/src-tauri/` to `rust+shell` and the two routing
   tests are unchanged.
+- 2026-10-17: checked again and not fired: the workflow runs query still answers 0.

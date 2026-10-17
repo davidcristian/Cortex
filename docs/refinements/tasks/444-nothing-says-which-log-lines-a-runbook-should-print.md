@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** repo-checks
 **Origin:** [ADR-0045](../../adr/ADR-0045-documented-log-lines.md)
-**Verified:** 2026-10-07
+**Verified:** 2026-10-17
 **Trigger:** a line somebody wanted during a real failure, and no runbook named, is written down in
 this file's History section. That is the evidence this entry says nobody has collected, and it is
 what decides between the two closes below: a criterion a check enforces needs at least one such
@@ -100,3 +100,5 @@ printed in `docs/runbooks/subagents-cpu.md`. Both were lines the brain did not w
   second half moved too: since 2026-09-25 the recall sink attaches `recall_fields(audit)`, so its
   `memory.recall` line has no field list the source can read, and its package suite asserts no
   whole line, so a runbook sample of it would fail.
+- 2026-10-17: checked again and not fired. No History line here names a line somebody wanted during
+  a real failure.

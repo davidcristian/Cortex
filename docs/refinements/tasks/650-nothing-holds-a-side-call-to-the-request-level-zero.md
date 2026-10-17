@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** inference
 **Origin:** [ADR-0049](../../adr/ADR-0049-thinking-switch-and-trace-budget.md)
-**Verified:** 2026-10-07
+**Verified:** 2026-10-17
 **Trigger:** a `GenerationBounds` call in `brain/packages/*/src` that writes `thinking=False` and no
 `trace_tokens`, read with `grep -rn 'thinking=False' brain/packages/*/src --include=*.py`. Today
 that grep prints three lines, one for each bound named below; `rank_bounds` writes one keyword a
@@ -69,3 +69,5 @@ that read the tree without importing it. The two readings agree on the three bou
   `test_summarizing.py:506` and `test_rerank_judge.py:254`. The class that names a cap with no
   switch is `PlacedAttempt`, as it has been since `subagent_attempt.py` was written; the body and
   trigger called it `SubagentAttempt`, a class this tree has never had.
+- 2026-10-17: checked again and not fired. The grep still prints three lines, and `rank_bounds`
+  still sets `trace_tokens=0` on the line after its `thinking=False`.

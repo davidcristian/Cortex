@@ -4,7 +4,7 @@
 **Area:** untrusted-content
 **Origin:** [ADR-0028](../../adr/ADR-0028-grammar-constrained-subagents.md)
 **Trigger:** a task file or ADR proposes a subagent result the cortex reads as fields. None does: `SubagentResult.output` is one `str`, and `grep -rli 'structured result' docs/refinements/tasks` finds only this file.
-**Verified:** 2026-10-07
+**Verified:** 2026-10-17
 
 Left behind by [R-068](068-grammar-constrained-subagent-output.md): letting the caller supply a
 schema per task instead of the fixed `{"reply": <string>}` envelope. ADR-0028 decision 2 rejects it
@@ -50,3 +50,5 @@ the result hands the turn one string
   result shape, `SubagentRole` still has only `description` and `instruction`, and
   `subagent_attempt.py:120` still sets `REPLY_ENVELOPE` or nothing. The trigger now names the field
   and the search that decide it, and the body states the current code.
+- 2026-10-17: checked again and not fired. `SubagentResult.output` is still one `str`, the grep
+  still finds only this file, and the change to `subagent_attempt.py` on 2026-10-12 adds no field.

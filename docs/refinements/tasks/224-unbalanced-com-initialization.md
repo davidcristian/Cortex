@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** body-gateway
 **Origin:** [ADR-0023](../../adr/ADR-0023-body-gateway-volume.md)
-**Verified:** 2026-10-07
+**Verified:** 2026-10-17
 **Trigger:** either of two readings. On a Win32 desktop, the watch item in `docs/host/`: a volume or
 toast call failing with a COM error after a long uptime, or the body process's handle count climbing
 across bursts of OS actions spaced further apart than tokio's blocking thread keep-alive (10 s by
@@ -82,3 +82,6 @@ So the exposure grew by one handler, not by one apartment.
   named, and H-009 records no reading and agrees with this entry on both readings. Two corrections:
   the fix now names the cheaper `CoIncrementMTAUsage` route beside the dedicated thread, and ADR-0029
   states a closure and COM reason for GDI, not the blocking pool.
+- 2026-10-17: checked again and not fired. `os_windows` still has no dedicated COM thread,
+  `audio.rs` and `notify.rs` each calling `CoInitializeEx` themselves, and no host reading is
+  recorded.

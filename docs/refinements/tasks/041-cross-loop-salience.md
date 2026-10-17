@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** tools-mcp
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
-**Verified:** 2026-10-04
+**Verified:** 2026-10-17
 **Trigger:** the tool audit trail shows two subagent tasks of one turn (one `turn_id`, two `task_id`
 values) dispatching the same tool with the same arguments.
 
@@ -61,3 +61,6 @@ once per member.
   `subagent_attempt.py` or `cortex_tools/audit.py` changed since 2026-09-30. The newest audit lines
   on this host, six brain logs from the 2026-10-02 swap rows, hold escalation calls with no
   `task_id`.
+- 2026-10-17: checked again and not fired. No record in the tree shows two tasks of one turn
+  dispatching one call, and the repeat and declined call checks added to the tool loop since
+  2026-10-04 work within one loop.

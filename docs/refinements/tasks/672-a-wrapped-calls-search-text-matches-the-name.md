@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** repo-checks
 **Origin:** [ADR-0045](../../adr/ADR-0045-documented-log-lines.md)
-**Verified:** 2026-10-07
+**Verified:** 2026-10-17
 **Trigger:** a registry mention whose template is the name and a comma alone, which is what a
 wrapped call takes. Countable by reading `crosscheck.CONSTANTS` for mentions with a `name` whose
 template renders nothing but `{name},`, and, for each, counting the bounded matches of the rendered
@@ -60,3 +60,5 @@ registry has no form for.
   alone. Wrapped calls are seven of fifteen now, the new one `_GAP` in
   `cortex_memory/audit_file.py` from 2026-09-25, and the one registered site is still `_MESSAGE`,
   on one line. The bounded `{name},` matches each of the seven once in its module, at the call.
+- 2026-10-17: checked again and not fired. No mention's template is the name and a comma alone; the
+  nearest, in `trailcouplings.py`, opens with `_logger.info(`.

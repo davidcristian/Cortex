@@ -11,7 +11,7 @@ the container does. The same text is also in the stored `SubagentResult` under
 `cortex:task:{id}:result` in Redis, written with a TTL of 3600 s, half the shipped bound; Redis
 keeps an expiry as an absolute time across a restart, so that copy can be read only within the
 hour after the refusal.
-**Verified:** 2026-10-03
+**Verified:** 2026-10-17
 
 The wait bound refuses late, after the caller has already paid
 `CORTEX_SUBAGENTS_ADMISSION_WAIT_S`, which ships at 7200 s. A depth bound would refuse early, once
@@ -74,3 +74,6 @@ depth refusal comes before anything has elapsed.
   the port's contract says what a queue owes rather than that callers wait. ADR-0012's rejected
   alternative states six refused for a depth of two, which holds only when the depth counts the
   admitted pair, a limit that never queues; its decision is unchanged.
+- 2026-10-17: checked again and not fired. The runner's warning and the scheduler's `outlasts the
+  deployment's admission bound` reason are unchanged, and no deployment has been seen reaching the
+  bound.

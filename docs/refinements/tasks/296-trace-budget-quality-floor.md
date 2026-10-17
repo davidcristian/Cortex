@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** inference-model-manager
 **Origin:** [ADR-0049](../../adr/ADR-0049-thinking-switch-and-trace-budget.md)
-**Verified:** 2026-10-07
+**Verified:** 2026-10-17
 **Trigger:** a `CORTEX_REASONING_BUDGET` or `CORTEX_REASONING_BUDGET_BRAIN` default in
 `docker/docker-compose.gpu.yml` other than `-1`, or `CORTEX_REPLY_TRACE_TOKENS` given a value by
 any compose file, recipe or env file in this tree, or a recorded run in this repo where the cortex
@@ -83,3 +83,6 @@ user reads and treat anything lower as a trade, is the placeholder until this ex
   through by name with no value at `docker/docker-compose.yml:53` and set nowhere else. The only
   reading added since that compares budgets, of 2026-10-03, draws on the E4B subagent pick, a tier
   nobody reads a trace from.
+- 2026-10-17: checked again and not fired. Both reasoning budgets still default to `-1`, now at
+  lines 65 and 77 of the GPU override, and `CORTEX_REPLY_TRACE_TOKENS` is still passed through by
+  name with no value.

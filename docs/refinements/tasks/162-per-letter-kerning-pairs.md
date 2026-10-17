@@ -14,7 +14,7 @@ It also shows up as any `@font-face` rule in a tracked file under `body/app/`
 arriving with no rule in the tree: a font stylesheet linked from `body/app/index.html` or a font
 package in `body/app/package.json`, where this search finds nothing today:
 `git grep -n -i font -- body/app/index.html body/app/package.json`.
-**Verified:** 2026-10-07
+**Verified:** 2026-10-17
 
 A whispered message puts each letter in its own box inside an unbreakable word box (ADR-0037
 decision 6), so kerning inside a word is lost while that message's DOM is on screen. It renders as
@@ -49,3 +49,5 @@ when the whisper shipped. It would be worth checking again against a licensed fa
   another size; both now say 14.5px. The count of `@adobe/css-tools` files naming `@font-face` was
   three and is nine on this install, so the trigger no longer counts them. A face named on one
   selector rather than in `--font` was not read at all, and the trigger now searches for it.
+- 2026-10-17: checked again and not fired. `--font` still names the system stack, and every
+  `font-family` in the stylesheet reads `var(--font)` or `var(--mono)`.

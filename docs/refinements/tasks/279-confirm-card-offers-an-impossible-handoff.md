@@ -7,10 +7,10 @@
 a deployment configuring escalation without a deep artifact for long enough that the card becomes a
 nuisance. Both happen outside this repo. What the tree can answer is whether any stack it ships can
 reach the state: that needs `CORTEX_ESCALATION` set while `CORTEX_MODEL_FILE_BRAIN` keeps its empty
-default (`docker/docker-compose.gpu.yml:71`). The gpu overlay passes the switch through by name,
+default (`docker/docker-compose.gpu.yml:72`). The gpu overlay passes the switch through by name,
 so a host `.env` can reach the state, and `grep -rnE 'CORTEX_ESCALATION: *[^ ]' docker/` finding
 nothing says no shipped file does.
-**Verified:** 2026-10-11
+**Verified:** 2026-10-17
 
 Opened 2026-08-16 by the close that refuses an impossible handoff before the drain
 ([R-203](203-escalation-fault-not-remembered.md)), which moved the refusal from after the stall to
@@ -99,3 +99,6 @@ is the visibility trade rather than the cost.
   deep artifact in the same step that sets `CORTEX_ESCALATION=1`, and the tier-scale rows queued
   that night set the switch only beside the deep artifact
   (`measurements/sitting-2026-10-02b/drivers/stack.sh`).
+- 2026-10-17: checked again and not fired: `grep -rnE 'CORTEX_ESCALATION: *[^ ]' docker/` still
+  finds nothing. The empty `CORTEX_MODEL_FILE_BRAIN` default moved to line 72 of the GPU override on
+  2026-10-16, and the trigger now names that line.

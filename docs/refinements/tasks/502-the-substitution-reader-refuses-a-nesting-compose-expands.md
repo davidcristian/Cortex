@@ -8,7 +8,7 @@ which is the change a two-variable fallback exists to cover. Checkable with
 the embedder's and the projector's model-file renames of 2026-08-30 are the only two so far, both
 taken without a fallback
 **Origin:** [ADR-0063](../../adr/ADR-0063-compose-checks.md)
-**Verified:** 2026-10-07
+**Verified:** 2026-10-17
 
 `scripts/composedefaults.py` raises `SubstitutionReadError` on a nested expansion. Compose does
 expand it: `${A:-${B:-x}}` resolves to `B`'s value and then to `x` on compose v2.39.1, measured
@@ -87,3 +87,6 @@ are already different callers, so the middle option is a real choice.
   default of `CORTEX_CTX_SIZE_BRAIN` went from 8192 to 16384. No compose file writes a nested
   substitution, over the same 78 uses of 59 variables across the ten files, and `_braced`,
   `_spend_extent` and `_brace_fault` read as the body says.
+- 2026-10-17: checked again and not fired. No compose change since 2026-10-07 renames a variable:
+  they add `CORTEX_INFERENCE_LOAD_WAIT_S`, move two ports, and change a healthcheck, a package
+  version, a grace period and batch sizes.

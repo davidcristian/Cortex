@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** inference-model-manager
 **Origin:** [ADR-0030](../../adr/ADR-0030-brain-handoff.md)
-**Verified:** 2026-10-07
+**Verified:** 2026-10-17
 **Trigger:** the dedup design the `Converse` reconnect entry (R-023) needs, a request id on
 `UserTurn` or `ClientEvent` plus an idempotency and resume registry keyed by it, after which
 resuming is a conductor entry point run beside the gRPC server. Recheck with
@@ -70,3 +70,5 @@ prevent.
   overlay but sends no request id, and the kill row queued that night kills the deep child inside
   the model host while the brain process lives, so the conductor fails the record in process and
   boot recovery never sees it. No row that night strands a record.
+- 2026-10-17: checked again and not fired. The recheck grep for `request_id` or `idempotency` over
+  the proto and the brain's sources prints nothing.

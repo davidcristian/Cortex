@@ -10,7 +10,7 @@ across recipe lines, which just runs in separate shells, or by reading either fr
 variable, a file or a CI step's output. The arrangement also depends on the `justfile` setting no
 `shell` (`grep -n '^set ' justfile` prints nothing), so each recipe line is one `sh -cu`, and on
 both substitutions naming the toolchain as `+nightly`, which no directory override can change.
-**Verified:** 2026-10-07
+**Verified:** 2026-10-17
 
 The decline of [R-313](313-a-relay-can-be-required-and-empty.md) rests entirely on the shape of one
 line in the `justfile`: both arguments are filled by two command substitutions in the same shell,
@@ -74,3 +74,5 @@ fields. It is one five-line function, passed as `type=` to both arguments.
   `measured by` and exited 0, and `--llvm-cov ""` failed the producer line and exited 1, as the
   body says. The remedy's size is corrected: a non-blank `type=` function with its message bound
   to `msg` before the raise is five lines, not three.
+- 2026-10-17: checked again and not fired. The grep still returns one line, the `check-body`
+  recipe's, which fills `--rustc` and `--llvm-cov` from two command substitutions of its own.

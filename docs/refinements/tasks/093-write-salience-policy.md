@@ -5,7 +5,7 @@
 **Origin:** [ADR-0008](../../adr/ADR-0008-memory-v1.md)
 **Trigger:** A memory-compaction or self-editing feature (R-087) needs a record-time salience
 decision.
-**Verified:** 2026-10-04
+**Verified:** 2026-10-17
 
 v1 records the raw exchange text on every turn. Deciding at record time what is worth remembering
 is a later policy (ADR-0008). Its summarization half sits next to the tiered-memory entry
@@ -46,3 +46,6 @@ Naming note for whoever builds it: `SaliencePolicy` is already taken by the tool
   call in `BrainPhase` is now at `brain_phase.py:187`, one line below where 2026-09-30 put it; the
   `TurnEngine` call is still at `engine.py:147`, and the recall default is still `judge`
   (`config.py:113`).
+- 2026-10-17: checked again and not fired. Its consumer, R-087, is still open waiting for a consumer
+  of its own, and the salience and turn output changes since 2026-10-04 make no record-time
+  decision.

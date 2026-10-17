@@ -10,7 +10,7 @@ then read `available_devices` and that property. The guest decides first whether
 taking: while `find /usr/lib/wsl/drivers -ipath '*npu*' -name '*.so*'` prints nothing, the vendor
 half below is unmet and no container has a driver to enumerate the NPU through. This entry's
 history records what each was when last read, and the body records which half is already met.
-**Verified:** 2026-10-07
+**Verified:** 2026-10-17
 
 An OpenVINO `InferenceBackend` adapter and a third `PlacementTarget` would use the otherwise idle
 NPU for tiny subagents or embeddings, which serves the same goal as the subagent container limits
@@ -92,3 +92,5 @@ placer rule for when a spawn goes to the NPU, and an `ngl` moved off the enum.
   `ComputeAccelerator`. Two claims were corrected: `npu_extension.inf` ships no DLL at all, and a
   third `PlacementTarget` touches the backend map, the placer and the CPU re-run, as the body now
   says. The trigger gains the guest read that decides whether the container run is worth taking.
+- 2026-10-17: checked again and not fired. `find /usr/lib/wsl/drivers -ipath '*npu*' -name '*.so*'`
+  still prints nothing, so the container run was not taken.

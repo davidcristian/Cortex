@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** inference
 **Origin:** [ADR-0049](../../adr/ADR-0049-thinking-switch-and-trace-budget.md)
-**Verified:** 2026-10-13
+**Verified:** 2026-10-17
 **Trigger:** a record under `docs/readings/` of a second draw whose answer is the channel name
 `thought` or a bare start tag, or of a budgeted cell counting 2 or more such draws in 100. Today
 `grep -rnE 'reply": "(thought|<)' docs/readings` prints one line, the 2026-08-29 draw in the
@@ -98,3 +98,4 @@ asked for a number.
   The cells drawn on 2026-10-07 at twenty draws a cell are the thinking switch's controls and
   switches on the E4B pick, on `b11429` and the cached `b10680`; none sends a trace budget, so the
   budgeted count is still 1 leak in 258.
+- 2026-10-17: checked again and not fired. The grep over `docs/readings` still prints one line.
