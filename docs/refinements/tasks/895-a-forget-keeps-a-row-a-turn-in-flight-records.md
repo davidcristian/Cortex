@@ -24,13 +24,40 @@ Reproduction ([readings](../../readings/overlay-concurrency-flows.md)), with
 
 ## What to do
 
-1. Keep a forget count per memory scope in the memory store, raised in the same transaction as
-   `delete_tainted`.
-2. A turn reads the counts of its read scopes when it recalls, and a tainted exchange is inserted
-   only while those counts are unchanged, checked in the insert's own statement so no forget can
-   run between the check and the write.
-3. Contract-test it on the fake and the pgvector store: a forget between a recall and the record
-   drops the tainted record; an untainted record and a turn with no forget are stored as today.
+A count of forgets checked in the insert is not enough under Postgres's default isolation. A
+per-scope counter row that does not exist yet cannot be locked, and a record that commits while
+the forget's `DELETE` runs is outside that statement's snapshot. Two `psql` sessions on the
+`cortexn7` stack's `cortex_contract` database on 2026-10-17 showed both halves of the fix below:
+a record holding a share lock on its recalled row made the forget's `DELETE` wait, that `DELETE`
+then removed the recalled row but not the new one, and a second `DELETE` removed the new one;
+with the `DELETE` holding the row first, the waiting record inserted nothing.
+
+The fix needs no schema change and no clock:
+
+1. `TaintLedger` keeps the ids of the tainted memories the turn recalled
+   (`_render_memory_context` in `turn_context.py` sees each hit). `HandoffRecord` stores them
+   beside its taint fields and `taint_ledger()` restores them, so a deep reply recorded after a
+   model swap keeps them.
+2. `MemoryStore.add(record, *, recalled=())` stores the record only while every id in
+   `recalled` still exists, and returns whether it stored it. The pgvector adapter checks this in
+   the insert's own statement: `INSERT ... SELECT ... WHERE (SELECT count(*) FROM (SELECT id FROM
+   memories WHERE id = ANY($7) FOR SHARE) AS kept) = $8`, over distinct ids. `MemoryRecaller.record`
+   and `record_exchange` pass the ledger's ids, and a record that was not stored is logged.
+3. `delete_tainted` repeats its `DELETE` until a pass removes nothing and returns the sum. A pass
+   that waited on a record's share lock does not see that record, and a later turn can recall
+   the record before the next pass, so one extra pass is not always enough.
+4. An untainted record has no recalled tainted ids, since recalling one taints the turn, so it is
+   stored as today. A tainted record with no recalled tainted memory, whose taint came from the
+   turn's own tool reads, is stored as today too: it holds nothing the forget removed.
+5. Contract tests that the fake and the pgvector store both pass: a record whose recalled id is
+   gone is not stored and `add` returns false; one whose recalled ids all exist is stored. The
+   live run adds the two-session case above. Core tests on fakes: a forget between a turn's
+   recall and its record leaves no tainted row, for a cortex turn and across a handoff. The test
+   stores that implement `delete_tainted`, in `core/tests/test_memory.py` and the two
+   orchestrator session tests, gain the new parameter.
+6. Update `docs/modules/brain-memory.md`, `docs/modules/brain-core-memory.md` and ADR-0019
+   decision 9 in place, then replay the reproduction above on a stack with
+   `CORTEX_MEMORY_ON_TAINTED=record`.
 
 ## History
 
