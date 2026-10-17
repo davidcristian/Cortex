@@ -620,7 +620,8 @@ async def test_a_programming_error_in_the_recall_path_still_fails_the_turn() -> 
 class _UnwritableMemoryStore(InMemoryMemoryStore):
     """A store that reads but fails every write, like a full disk or a read replica."""
 
-    async def add(self, record: MemoryRecord) -> None:
+    async def add(self, record: MemoryRecord, *, recalled: Sequence[str] = ()) -> bool:
+        del recalled
         msg = f"adding memory {record.id!r} failed"
         raise MemoryStoreError(msg)
 

@@ -121,7 +121,22 @@ approved and the tool deleted the row at 06:05:52.6; `s9-fb`, whose recall had r
 the delete, answered "The shed's padlock code is 4417.", which is allowed, but its own exchange was
 then stored as a new tainted row at 06:05:57.1, after the delete. A new chat `s9-fc` asking the
 same question at 06:06:00 recalled that row and answered "4417". Nothing crashed and every stream
-ended. Filed as [R-895](../refinements/tasks/895-a-forget-keeps-a-row-a-turn-in-flight-records.md).
+ended.
+
+A turn's memory record is stored only while the tainted memories that turn recalled still exist,
+checked in the insert under a `FOR SHARE` lock, and `delete_tainted` repeats until a pass removes
+nothing ([ADR-0019](../adr/ADR-0019-tainted-memory-recording.md) decision 9). Two `psql` sessions
+on the `cortex_contract` database show why both halves are needed: a forget whose `DELETE` waited
+on a record's share lock removed the recalled row but not the new one, which a second `DELETE`
+removed, and a record that waited on the forget's `DELETE` inserted nothing.
+
+Replayed at 06:34 on a brain built with that check, chats `s11-*`, the SM clock at 0.59 of
+`clocks.max.sm` before the run. The forget deleted the row at 06:34:20.1; `s11-fb` again answered "4417"
+from its recall and logged "a memory this turn recalled was forgotten; this exchange was not
+recorded to memory", and no row was stored after the delete. `s11-fc` read `shed.txt` itself, which
+was still in the root, and answered from the file. A second replay at 06:35 (`s11b-*`) removed
+`shed.txt` after the seed: the forget deleted the row at 06:35:15.1, `s11b-fb` answered "4417" and
+was not recorded, and `s11b-fc` found no code. As expected both times.
 
 ## Defects
 
@@ -131,8 +146,8 @@ ended. Filed as [R-895](../refinements/tasks/895-a-forget-keeps-a-row-a-turn-in-
   silent until the first heartbeat 30 s in. Only a second client reaches this today, since the
   overlay keeps one chat in flight. Filed as
   [R-894](../refinements/tasks/894-name-a-turn-waiting-behind-another-chat.md).
-- **A forget keeps a row a turn in flight records**, above
-  ([R-895](../refinements/tasks/895-a-forget-keeps-a-row-a-turn-in-flight-records.md)).
+- **A forget keeps a row a turn in flight records**, above, with the replay under the
+  recalled-memory check after it.
 
 ## Not run
 

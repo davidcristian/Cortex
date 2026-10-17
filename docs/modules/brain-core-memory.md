@@ -17,20 +17,23 @@ pool down to the hits one turn sees. The turn that calls it is in
   text, which is 1800, or all of a shorter one. `EMBEDDER_CONTEXT_TOKENS` is 2048, the input bound
   of the shipped embedder; the model's tokenizer measured at most one token per character
   ([embedding-input.md](../readings/embedding-input.md)), so 1800 characters always fit.
-- `MemoryStore` provides `add(record)`, `search(embedding, *, k, scopes=None)` (most similar
+- `MemoryStore` provides `add(record, *, recalled=()) -> bool`, `search(embedding, *, k, scopes=None)` (most similar
   first), `count_candidates(*, scopes=None)` and `delete_scope(scope) -> int`. `scopes` restricts
   the candidate set to those namespaces (ADR-0008 decision 9) and `None` ranks over every memory.
   `count_candidates` reports how wide that candidate set is, which `search` structurally cannot
   (ADR-0038 decision 14); it must be the store's own count and never a length over returned rows.
   `delete_scope` removes every memory in one namespace and returns how many, taking one required
   scope and no wildcard. `delete_tainted(*, scopes=None) -> int` removes every memory marked tainted
-  in those namespaces, or in all of them. Fake: `InMemoryMemoryStore`; adapter: `cortex_memory`.
+  in those namespaces, or in all of them. `add` stores the record only while every memory id in
+  `recalled` still exists and returns whether it did, so a reply that recalled a memory a forget
+  removed is not stored again. Fake: `InMemoryMemoryStore`; adapter: `cortex_memory`.
 - `MemoryRecord(id, text, embedding, at, scope=GLOBAL_SCOPE, tainted=False)` is one durable memory
   and rejects a naive `at`. `ScoredMemory(record, score)` is a retrieval hit and the store's **raw
   cosine similarity**, never the key a policy ranked by, so no caller can infer an order from it.
 - `MemoryRecaller(store, embedder, clock, *, scope=GLOBAL_MEMORY_SCOPE, policy=RAW_RECALL_POLICY,
-  id_factory=<uuid4>)` is the use case (ADR-0008). `record(text, *, session_id, tainted=False)`
-  embeds `embedding_input(text)`, persists the whole text and returns a `MemoryRecord`.
+  id_factory=<uuid4>)` is the use case (ADR-0008). `record(text, *, session_id, tainted=False,
+  recalled=())` embeds `embedding_input(text)`, persists the whole text and returns a
+  `MemoryRecord`, or `None` when a memory in `recalled` is gone.
   `recall(query, *, k, session_id, turn_id)` embeds `embedding_input(query)`, fetches `policy.candidate_k(k)` hits within `policy.read_scopes(session_id)` and
   awaits `policy.select(...)`, returning that ranking's memories cut to `k`; an empty ranking is no
   hits and is never refilled from the pool. An optional `audit: RecallAuditSink` gets one

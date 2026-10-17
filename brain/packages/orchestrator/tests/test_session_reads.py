@@ -225,8 +225,9 @@ class FailingStore:
 class FailingMemoryStore:
     """A MemoryStore whose delete_scope raises, to drive DeleteSession's MemoryStoreError abort."""
 
-    async def add(self, record: MemoryRecord) -> None:
-        del record
+    async def add(self, record: MemoryRecord, *, recalled: Sequence[str] = ()) -> bool:
+        del record, recalled
+        return True
 
     async def search(
         self, embedding: Sequence[float], *, k: int, scopes: Sequence[str] | None = None

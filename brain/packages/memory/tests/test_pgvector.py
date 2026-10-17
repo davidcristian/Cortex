@@ -21,10 +21,12 @@ class FakeDatabase:
         *,
         fail: Exception | None = None,
         status: str = "INSERT 0 1",
+        statuses: Sequence[str] = (),
     ) -> None:
         self._rows = rows
         self._fail = fail
         self._status = status
+        self._statuses = list(statuses)
         self.calls: list[tuple[str, tuple[object, ...]]] = []
         self.closed = False
 
@@ -32,7 +34,7 @@ class FakeDatabase:
         if self._fail is not None:
             raise self._fail
         self.calls.append((sql, args))
-        return self._status
+        return self._statuses.pop(0) if self._statuses else self._status
 
     async def fetch(self, sql: str, /, *args: object) -> Sequence[Mapping[str, object]]:
         if self._fail is not None:
@@ -54,12 +56,32 @@ def _record(*, scope: str = "global", tainted: bool = False) -> MemoryRecord:
 
 async def test_add_executes_insert_with_a_vector_literal_scope_and_taint() -> None:
     db = FakeDatabase()
-    await PgVectorMemoryStore(db).add(_record(scope="work", tainted=True))
+    assert await PgVectorMemoryStore(db).add(_record(scope="work", tainted=True)) is True
     sql, args = db.calls[0]
     assert "INSERT INTO memories" in sql
     assert "scope" in sql
     assert "tainted" in sql
-    assert args == ("m-1", "hi", "[1.0,0.5]", "work", True, _AT)
+    assert args == ("m-1", "hi", "[1.0,0.5]", "work", True, _AT, [], 0)
+
+
+async def test_add_locks_each_distinct_recalled_id_and_expects_all_of_them() -> None:
+    db = FakeDatabase()
+    await PgVectorMemoryStore(db).add(_record(tainted=True), recalled=("r2", "r1", "r2"))
+    sql, args = db.calls[0]
+    assert "id = ANY($7::text[]) FOR SHARE" in sql
+    assert args[-2:] == (["r1", "r2"], 2)
+
+
+async def test_add_that_inserted_no_row_reports_the_record_not_stored() -> None:
+    db = FakeDatabase(status="INSERT 0 0")
+    assert await PgVectorMemoryStore(db).add(_record(tainted=True), recalled=("gone",)) is False
+
+
+async def test_add_wraps_a_malformed_status() -> None:
+    db = FakeDatabase(status="INSERT 0 many")
+    with pytest.raises(MemoryDataError, match="malformed insert status") as excinfo:
+        await PgVectorMemoryStore(db).add(_record())
+    assert isinstance(excinfo.value.__cause__, ValueError)
 
 
 async def test_add_wraps_a_backend_error() -> None:
@@ -205,9 +227,15 @@ async def test_delete_scope_wraps_a_malformed_status() -> None:
 async def test_delete_tainted_executes_its_delete_and_returns_the_row_count(
     scopes: Sequence[str] | None, sql: str, args: tuple[object, ...]
 ) -> None:
-    db = FakeDatabase(status="DELETE 2")
+    db = FakeDatabase(statuses=("DELETE 2", "DELETE 0"))
     assert await PgVectorMemoryStore(db).delete_tainted(scopes=scopes) == 2
-    assert db.calls == [(sql, args)]
+    assert db.calls == [(sql, args), (sql, args)]
+
+
+async def test_delete_tainted_repeats_until_a_pass_removes_nothing() -> None:
+    db = FakeDatabase(statuses=("DELETE 1", "DELETE 1", "DELETE 0", "DELETE 5"))
+    assert await PgVectorMemoryStore(db).delete_tainted(scopes=["a"]) == 2
+    assert len(db.calls) == 3
 
 
 async def test_delete_tainted_wraps_a_backend_error() -> None:

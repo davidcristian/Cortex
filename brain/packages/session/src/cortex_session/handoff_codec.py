@@ -67,6 +67,7 @@ def encode_record(record: HandoffRecord) -> str:
             "tainted": record.tainted,
             "opaque": record.opaque,
             "recalled_only": record.recalled_only,
+            "recalled_ids": list(record.recalled_ids),
             "sources": [
                 {"kind": source.kind.value, "value": source.value} for source in record.sources
             ],
@@ -105,6 +106,9 @@ def decode_record(raw: bytes | str, handoff_id: str) -> HandoffRecord:
             failure=fields["failure"],
             # Missing in a record written before the field existed; False is the stricter value.
             recalled_only=fields.get("recalled_only", False),
+            # Missing in a record written before the field existed, whose reply is then stored
+            # without the check that its recalled memories still exist.
+            recalled_ids=tuple(fields.get("recalled_ids", ())),
         )
     except (KeyError, TypeError, ValueError) as err:
         msg = f"corrupt handoff record at {record_key(handoff_id)!r}"

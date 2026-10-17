@@ -11,9 +11,13 @@ from cortex_core import MemoryDataError, MemoryRecord, MemoryStoreError, ScoredM
 # Server failures, client and pool misuse, and socket failures, in that order.
 _WRAPPED = (asyncpg.PostgresError, asyncpg.InterfaceError, OSError)
 
+# The share lock makes a concurrent tainted delete wait for this insert to commit, and a recalled
+# row that delete already removed is not counted, so the record is not stored.
 _INSERT = (
     "INSERT INTO memories (id, text, embedding, scope, tainted, created_at)"
-    " VALUES ($1, $2, $3::vector, $4, $5, $6)"
+    " SELECT $1, $2, $3::vector, $4, $5, $6"
+    " WHERE (SELECT count(*) FROM (SELECT id FROM memories WHERE id = ANY($7::text[]) FOR SHARE)"
+    " AS kept) = $8"
 )
 # $1 is the vector and $2 the limit in both search statements, so the scoped one can reuse the
 # same leading arguments and append its scope list as $3.
@@ -57,8 +61,8 @@ def _from_literal(text: str) -> tuple[float, ...]:
     return tuple(float(part) for part in inner.split(","))
 
 
-def _deleted_count(status: object) -> int:
-    """Parse asyncpg's ``DELETE n`` command tag into the number of rows removed."""
+def _row_count(status: object) -> int:
+    """Parse asyncpg's ``DELETE n`` or ``INSERT 0 n`` command tag into its row count."""
     return int(str(status).rsplit(" ", 1)[-1])
 
 
@@ -127,10 +131,11 @@ class PgVectorMemoryStore:
             msg = "closing the memory store failed"
             raise MemoryStoreError(msg) from err
 
-    async def add(self, record: MemoryRecord) -> None:
-        """Persist one memory record."""
+    async def add(self, record: MemoryRecord, *, recalled: Sequence[str] = ()) -> bool:
+        """Persist ``record`` only while every id in ``recalled`` is still stored."""
+        kept = sorted(set(recalled))
         try:
-            await self._bounded(
+            status = await self._bounded(
                 self._db.execute(
                     _INSERT,
                     record.id,
@@ -139,11 +144,17 @@ class PgVectorMemoryStore:
                     record.scope,
                     record.tainted,
                     record.at,
+                    kept,
+                    len(kept),
                 )
             )
+            return _row_count(status) == 1
         except _WRAPPED as err:
             msg = f"adding memory {record.id!r} failed"
             raise MemoryStoreError(msg) from err
+        except ValueError as err:
+            msg = "malformed insert status from the memory store"
+            raise MemoryDataError(msg) from err
 
     async def search(
         self, embedding: Sequence[float], *, k: int, scopes: Sequence[str] | None = None
@@ -182,7 +193,7 @@ class PgVectorMemoryStore:
         """Hard-delete every memory in ``scope``; return how many rows were removed."""
         try:
             status = await self._bounded(self._db.execute(_DELETE_SCOPE, scope))
-            return _deleted_count(status)
+            return _row_count(status)
         except _WRAPPED as err:
             msg = f"deleting memory scope {scope!r} failed"
             raise MemoryStoreError(msg) from err
@@ -192,12 +203,19 @@ class PgVectorMemoryStore:
 
     async def delete_tainted(self, *, scopes: Sequence[str] | None = None) -> int:
         """Hard-delete every tainted memory in ``scopes`` (all when None); return how many."""
+        removed = 0
+        while (count := await self._delete_tainted_once(scopes)) > 0:
+            removed += count
+        return removed
+
+    async def _delete_tainted_once(self, scopes: Sequence[str] | None) -> int:
+        """One tainted delete; a record committed while it waited on a share lock is left over."""
         try:
             if scopes is None:
                 status = await self._bounded(self._db.execute(_DELETE_TAINTED))
             else:
                 status = await self._bounded(self._db.execute(_DELETE_TAINTED_SCOPED, list(scopes)))
-            return _deleted_count(status)
+            return _row_count(status)
         except _WRAPPED as err:
             msg = "deleting the tainted memories failed"
             raise MemoryStoreError(msg) from err

@@ -48,6 +48,7 @@ class HandoffRecord:
     loop_tail: tuple[Message, ...]
     failure: str | None = None
     recalled_only: bool = False
+    recalled_ids: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if self.requested_at.tzinfo is None or self.requested_at.utcoffset() is None:
@@ -65,6 +66,7 @@ class HandoffRecord:
             recalled_only=self.recalled_only,
             untrusted_urls=set(self.untrusted_urls),
             sources=self.sources,
+            recalled_ids=self.recalled_ids,
         )
 
 
@@ -114,4 +116,5 @@ class EscalationSlot:
             rounds_used=sum(1 for message in tail if message.role is Role.ASSISTANT),
             loop_tail=tail,
             recalled_only=self.refs.taint.recalled_only,
+            recalled_ids=self.refs.taint.recalled_ids,
         )

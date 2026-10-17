@@ -69,10 +69,14 @@ class InMemoryMemoryStore:
         allowed = None if scopes is None else set(scopes)
         return [record for record in self._records if allowed is None or record.scope in allowed]
 
-    async def add(self, record: MemoryRecord) -> None:
-        """Persist one memory record."""
+    async def add(self, record: MemoryRecord, *, recalled: Sequence[str] = ()) -> bool:
+        """Persist ``record`` only while every id in ``recalled`` is still stored."""
         self._guard()
+        stored = {kept.id for kept in self._records}
+        if not set(recalled) <= stored:
+            return False
         self._records.append(record)
+        return True
 
     async def search(
         self, embedding: Sequence[float], *, k: int, scopes: Sequence[str] | None = None

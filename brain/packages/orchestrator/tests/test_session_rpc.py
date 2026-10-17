@@ -68,8 +68,9 @@ class RecordingMemoryStore:
         self.deleted_scopes: list[str] = []
         self.events = events
 
-    async def add(self, record: MemoryRecord) -> None:
-        del record
+    async def add(self, record: MemoryRecord, *, recalled: Sequence[str] = ()) -> bool:
+        del record, recalled
+        return True
 
     async def search(
         self, embedding: Sequence[float], *, k: int, scopes: Sequence[str] | None = None

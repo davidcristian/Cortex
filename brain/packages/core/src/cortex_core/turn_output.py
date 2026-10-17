@@ -25,6 +25,10 @@ type OutputChannels = tuple[OutputFilter | None, ThinkingChannel]
 
 _REDACTED_LOG_MSG = "the output guardrail removed links from this reply"
 
+FORGOTTEN_RECALL_LOG_MSG = (
+    "a memory this turn recalled was forgotten; this exchange was not recorded to memory"
+)
+
 REPLY_CAPPED_NOTE = (
     "\n\n(This answer stopped at the machine's length limit, so it is cut off rather than "
     "finished. Ask again, or ask for a shorter answer.)"
@@ -241,16 +245,21 @@ async def record_exchange(
     # Recording a tainted turn that forgot the untrusted memories would store a new one.
     if taint.tainted and any(run.ok and run.name == FORGET_UNTRUSTED_TOOL_NAME for run in runs):
         return
-    if caps.memory is not None and (not taint.tainted or caps.record_tainted_memory):
-        try:
-            async with asyncio.timeout(caps.memory_write_timeout_s):
-                await caps.memory.record(
-                    render_exchange(query, reply, runs),
-                    session_id=session_id,
-                    tainted=taint.tainted,
-                )
-        except (EmbedderError, MemoryStoreError, TimeoutError):
-            _logger.exception(
-                "memory write unavailable; this exchange was not recorded to memory",
-                extra={"session_id": session_id},
+    if caps.memory is None or (taint.tainted and not caps.record_tainted_memory):
+        return
+    fields = {"session_id": session_id}
+    try:
+        async with asyncio.timeout(caps.memory_write_timeout_s):
+            stored = await caps.memory.record(
+                render_exchange(query, reply, runs),
+                session_id=session_id,
+                tainted=taint.tainted,
+                recalled=taint.recalled_ids,
             )
+    except (EmbedderError, MemoryStoreError, TimeoutError):
+        _logger.exception(
+            "memory write unavailable; this exchange was not recorded to memory", extra=fields
+        )
+        return
+    if stored is None:
+        _logger.info(FORGOTTEN_RECALL_LOG_MSG, extra=fields)

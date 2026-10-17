@@ -38,8 +38,15 @@ class MemoryRecaller:
         self._audit = audit
         self._id_factory = id_factory
 
-    async def record(self, text: str, *, session_id: str, tainted: bool = False) -> MemoryRecord:
-        """Embed the start of ``text``, persist all of it in the turn's write-scope, return it."""
+    async def record(
+        self,
+        text: str,
+        *,
+        session_id: str,
+        tainted: bool = False,
+        recalled: Sequence[str] = (),
+    ) -> MemoryRecord | None:
+        """Embed and store ``text`` in the turn's write-scope; None when a recalled id is gone."""
         embedding = tuple(await self._embedder.embed(embedding_input(text)))
         record = MemoryRecord(
             id=self._id_factory(),
@@ -49,7 +56,8 @@ class MemoryRecaller:
             scope=self._scope.write_scope(session_id),
             tainted=tainted,
         )
-        await self._store.add(record)
+        if not await self._store.add(record, recalled=recalled):
+            return None
         return record
 
     async def recall(

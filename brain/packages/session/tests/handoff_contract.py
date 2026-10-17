@@ -76,6 +76,7 @@ def recalled_ledger() -> TaintLedger:
         source=Provenance(kind=SourceKind.MEMORY, value="mem-7"),
         recalled=True,
     )
+    ledger.recalled_ids = ("mem-7", "mem-9")
     return ledger
 
 
@@ -194,7 +195,7 @@ async def check_the_opaque_bit_round_trips_both_ways(store: HandoffStore) -> Non
 
 
 async def check_the_recalled_only_bit_round_trips_both_ways(store: HandoffStore) -> None:
-    """Whether recall alone tainted the turn survives the store, both set and unset."""
+    """Whether recall alone tainted the turn, and what it recalled, survives the store."""
     for recalled in (False, True):
         record = make_record(_handoff_id(), recalled=recalled)
         assert record.recalled_only is recalled
@@ -203,6 +204,7 @@ async def check_the_recalled_only_bit_round_trips_both_ways(store: HandoffStore)
         assert loaded is not None
         assert loaded == record
         assert loaded.taint_ledger().recalled_only is recalled
+        assert loaded.taint_ledger().recalled_ids == (("mem-7", "mem-9") if recalled else ())
         await store.delete(record.handoff_id)
 
 

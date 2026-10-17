@@ -98,10 +98,12 @@ async def test_the_widest_recall_trail_line_fits_one_log_driver_message(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     recaller = MemoryRecaller(InMemoryMemoryStore(), HashEmbedder(), SystemClock())
-    stored = [
+    written = [
         await recaller.record(f"note {number}", session_id="s1")
         for number in range(_HITS + _DROPPED)
     ]
+    stored = [record for record in written if record is not None]
+    assert len(stored) == len(written)
     caplog.set_level(logging.INFO, logger="cortex.memory.recall")
     await LoggingRecallSink().record(
         RecallAudit(

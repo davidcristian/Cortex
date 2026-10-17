@@ -124,6 +124,8 @@ class TaintLedger:
     forgotten: bool = False
     untrusted_urls: set[str] = field(default_factory=set[str])
     sources: tuple[Provenance, ...] = ()
+    # The tainted memories this turn recalled: its record is stored only while they all exist.
+    recalled_ids: tuple[str, ...] = ()
 
     def mark(self, trust: Trust) -> None:
         """Flip the ledger tainted once any untrusted result is observed."""

@@ -101,6 +101,18 @@ async def test_a_record_written_before_recalled_only_reads_it_as_false() -> None
     assert loaded.taint_ledger().tainted is True
 
 
+async def test_a_record_written_before_recalled_ids_reads_them_as_none() -> None:
+    client = FakeAsyncRedis(server=FakeServer())
+    record = handoff_contract.make_record("t1", recalled=True)
+    fields = cast("dict[str, Any]", json.loads(encode_record(record)))
+    del fields["recalled_ids"]
+    await client.set("cortex:handoff:t1", json.dumps(fields))
+    loaded = await RedisHandoffStore(client).get("t1")
+    assert loaded is not None
+    assert loaded.recalled_ids == ()
+    assert loaded.recalled_only is True
+
+
 async def test_record_with_an_unknown_source_kind_is_corrupt() -> None:
     client = FakeAsyncRedis(server=FakeServer())
     fields = cast("dict[str, Any]", json.loads(encode_record(handoff_contract.make_record("t1"))))

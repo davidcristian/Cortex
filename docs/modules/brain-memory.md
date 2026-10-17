@@ -13,9 +13,13 @@ business logic and no state beyond the injected pool (the one hard rule).
 
 ### `PgVectorMemoryStore(db: Database)`
 
-- `add(record)` is `INSERT (id, text, embedding, scope, tainted, created_at)` with
-  `embedding = $3::vector`, the vector passed as a pgvector text literal such as `[0.1,0.2]`.
-  `tainted` is the untrusted-provenance marker (ADR-0019).
+- `add(record, *, recalled=())` is `INSERT (id, text, embedding, scope, tainted, created_at)
+  SELECT ...` with `embedding = $3::vector`, the vector passed as a pgvector text literal such as
+  `[0.1,0.2]`. `tainted` is the untrusted-provenance marker (ADR-0019). The insert's own `WHERE`
+  takes a `FOR SHARE` lock on each distinct id in `recalled` and inserts only when all of them are
+  still there, and `add` returns whether the `INSERT 0 n` tag counted the row. A forget's
+  `DELETE` that reaches a locked row waits for the insert to commit; one that already removed a
+  recalled row makes the insert store nothing (ADR-0019 decision 9).
 - `search(embedding, *, k, scopes=None)` is `ORDER BY embedding <=> $1::vector LIMIT $2`, mapping
   each row to `ScoredMemory(record, score = 1 - distance)`, most similar first, with each record
   keeping its `scope` and `tainted`. It reads the vector back through `embedding::text`, so no
@@ -33,8 +37,10 @@ business logic and no state beyond the injected pool (the one hard rule).
   rather than capped for the same reason. The two statements are not one transaction, which
   `RecallAudit.available` reports.
 - `delete_tainted(*, scopes=None)` is `DELETE FROM memories WHERE tainted`, with
-  `AND scope = ANY($1)` added when scopes are given, and counts as `delete_scope` does. It runs
-  only when the person approves a forget (ADR-0019 decision 9).
+  `AND scope = ANY($1)` added when scopes are given, and counts as `delete_scope` does. It repeats
+  the `DELETE` until a pass removes nothing and returns the sum: a pass that waited on a record's
+  share lock does not see the row that record committed. It runs only when the person approves a
+  forget (ADR-0019 decision 9).
 - `delete_scope(scope)` is `DELETE FROM memories WHERE scope = $1` (the `memories_scope_idx` btree
   serves the equality, so no schema change), returning the row count parsed from asyncpg's
   `DELETE n` command tag: 0 when the scope holds none, and a malformed tag wrapped as

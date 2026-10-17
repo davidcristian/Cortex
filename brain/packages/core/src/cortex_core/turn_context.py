@@ -73,6 +73,7 @@ def _render_memory_context(hits: Sequence[ScoredMemory], *, nonce: str, taint: T
             # The whole text, so a URL past the cut, or one the cut splits, is still collected.
             source = as_source(SourceKind.MEMORY, record.id)
             taint.ingest_untrusted(record.text, source=source, recalled=True)
+            taint.recalled_ids = (*taint.recalled_ids, record.id)
         blocks = "\n".join(wrap_untrusted(text, nonce=nonce) for _, text in fenced)
         # Above the header, so the line just before the fence is the one that says the text is data.
         opening = "" if trusted else f"{RECALLED_RUNS_NOTE}\n"

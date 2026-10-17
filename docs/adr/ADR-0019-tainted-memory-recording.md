@@ -122,7 +122,15 @@ across turns (a recalled memory).
    rows, which the person must approve. It reaches the store through `UntrustedMemoryForget`, the
    one delete a tool reaches ([ADR-0021](ADR-0021-session-read-rpcs.md) decision 11). A tainted
    turn in which it ran is not recorded (`record_exchange`), since recording it would store a new
-   tainted row in place of the ones removed. On the stack the person's send reached the card and
+   tainted row in place of the ones removed. A turn in another chat that recalled a removed row
+   before the forget is not recorded either: `TaintLedger.recalled_ids` keeps the ids of the
+   tainted memories the turn recalled, `HandoffRecord` stores them for a deep reply, and
+   `MemoryStore.add(record, *, recalled)` stores the record only while all of them exist. The
+   pgvector adapter checks this in the insert itself under a `FOR SHARE` lock, and
+   `delete_tainted` repeats its `DELETE` until a pass removes nothing, so a record committed while
+   a pass waited on that lock is removed by the next one
+   ([readings](../readings/overlay-concurrency-flows.md)). A turn tainted only by its own reads
+   recalled nothing the forget removed and is recorded as before. On the stack the person's send reached the card and
    went out after every forget, on a clean turn and on a recall-tainted one
    ([readings](../readings/forget-untrusted-memories.md)). The turn that ran the forget still holds
    the recalled memory, so a blocked call later in it stays blocked. Once the forget has returned

@@ -225,6 +225,7 @@ async def test_record_builds_persists_and_returns_the_memory() -> None:
     embedder = HashEmbedder()
     recaller = MemoryRecaller(store, embedder, _FixedClock(), id_factory=lambda: "fixed-id")
     stored = await recaller.record("remember this", session_id="s")
+    assert stored is not None
     assert stored.id == "fixed-id"
     assert stored.at is _AT
     assert stored.text == "remember this"
@@ -239,6 +240,7 @@ async def test_record_stamps_the_tainted_marker_when_requested() -> None:
     store = InMemoryMemoryStore()
     recaller = MemoryRecaller(store, HashEmbedder(), _FixedClock(), id_factory=lambda: "t-mem")
     stored = await recaller.record("from a hostile file", session_id="s", tainted=True)
+    assert stored is not None
     assert stored.tainted is True
     (hit,) = await recaller.recall("from a hostile file", k=1, session_id="s", turn_id="t")
     assert hit.record.tainted is True
@@ -261,6 +263,7 @@ async def test_a_long_text_is_recorded_whole_under_the_embedding_of_its_start() 
     recaller = MemoryRecaller(InMemoryMemoryStore(), embedder, _FixedClock())
     start = "東" * EMBED_INPUT_CHARS
     stored = await recaller.record(f"{start} and the rest of the reply", session_id="s")
+    assert stored is not None
     assert stored.text == f"{start} and the rest of the reply"
     assert stored.embedding == tuple(await embedder.embed(start))
 
@@ -281,6 +284,7 @@ async def test_a_long_query_recalls_by_its_start() -> None:
 async def test_record_uses_uuid_ids_by_default() -> None:
     recaller = MemoryRecaller(InMemoryMemoryStore(), HashEmbedder(), _FixedClock())
     stored = await recaller.record("x", session_id="s")
+    assert stored is not None
     assert uuid.UUID(stored.id).version == 4
 
 
@@ -540,8 +544,8 @@ class _PoolStore:
         self.pool = pool
         self.counts = 0
 
-    async def add(self, record: MemoryRecord) -> None:
-        del record
+    async def add(self, record: MemoryRecord, *, recalled: Sequence[str] = ()) -> bool:
+        del record, recalled
         raise AssertionError(_READ_ONLY)
 
     async def search(

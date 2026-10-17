@@ -252,6 +252,25 @@ async def test_an_inherited_opaque_bit_keeps_the_deep_phase_out_of_durable_memor
     assert len(await _recorded(control)) == 1
 
 
+@pytest.mark.parametrize("kept", [False, True])
+async def test_a_deep_reply_is_kept_only_while_the_memory_its_turn_recalled_exists(
+    *, kept: bool
+) -> None:
+    store = InMemoryMemoryStore()
+    if kept:
+        await store.add(
+            MemoryRecord(id="read", text="code 4417", embedding=(1.0, 0.0), at=_AT, tainted=True)
+        )
+    memory = MemoryRecaller(store, _Embedder(), SystemClock(), id_factory=lambda: "answer")
+    ledger = _textual_ledger()
+    ledger.recalled_ids = ("read",)
+    await _drive(
+        taint=ledger, capabilities=TurnCapabilities(memory=memory, record_tainted_memory=True)
+    )
+    recorded = [record.id for record in await _recorded(memory)]
+    assert ("answer" in recorded) is kept
+
+
 async def test_the_untainted_exchange_is_remembered_as_the_turn_it_was() -> None:
     memory = _recaller()
     _phase, _backend, _sessions, _texts = await _drive(capabilities=TurnCapabilities(memory=memory))

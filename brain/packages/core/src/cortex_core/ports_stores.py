@@ -38,7 +38,9 @@ class SessionStore(Protocol):
 class MemoryStore(Protocol):
     """Durable, cross-session memory: add, retrieve, count, and forget by namespace or by taint."""
 
-    async def add(self, record: MemoryRecord) -> None: ...
+    async def add(self, record: MemoryRecord, *, recalled: Sequence[str] = ()) -> bool:
+        """Store ``record`` only while every memory id in ``recalled`` exists; return whether."""
+        ...
 
     async def search(
         self, embedding: Sequence[float], *, k: int, scopes: Sequence[str] | None = None
