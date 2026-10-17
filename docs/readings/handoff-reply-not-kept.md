@@ -193,3 +193,57 @@ word, since such a question refers to its own chat. Before drawing it, add a row
 cost: a chat with one unrelated earlier turn asks "When does my choir rehearse?", and the only
 memory that answers is an exchange asking those words. The rule above then applies with Q beside R
 and F.
+
+## Recall without a repeated question
+
+**Candidate H**, written 2026-10-17 before any draw of it. In a chat whose history holds a message
+from the person before this turn's, recall drops from the pool, before the judge ranks it, every
+memory recorded as an exchange whose question matches this turn's. A memory is an exchange when it
+starts with `User: ` and holds `\nAssistant: `; its question is the text between the two, with a
+last `Tools run:` line left out. Two questions **match** when they are equal after each is
+casefolded, every character that is not a letter or a digit is replaced by a space, and runs of
+whitespace are joined into one space with the ends trimmed: "what did the deep model say in one
+line" matches the follow-up, and "When does my choir rehearse today?" does not match "When does my
+choir rehearse?". A memory in any other form is never dropped, and a chat with no earlier message
+gets HEAD's recall, so R and F check only that nothing else moved.
+
+**Row Q, a repeated question.** Memory also holds one exchange, written once by a turn in an empty
+chat before the HEAD column and kept, that asked "When does my choir rehearse?" and answered
+Thursday at 19:30; the choir fact F reads is held out of memory for Q's draws only, so that
+exchange is the only memory that answers. Each draw seeds a chat with one unrelated earlier turn,
+"What is the capital of Portugal?" answered "The capital of Portugal is Lisbon.", and sends "When
+does my choir rehearse?". It passes when it gives Thursday at 19:30, and fails when it says it
+does not know or gives anything else.
+
+**Rule.** Each of the six rows is 5 draws, on HEAD first and then on a brain image built with H,
+over the same memory: the 15 rows G was drawn over, the choir fact, Q's exchange and the two probe
+exchanges. L and L2 pass as the first rule above reads. H ships when L, L2 and C each pass in at
+least 4 of 5, and R, F and Q each pass in at least 4 of 5 and in no fewer draws than on HEAD. If Q
+falls, H is backed out whatever L does. A null is L below 4 of 5: H is backed out, and with
+framing, rank prompt and pool each tried, the task is declined unless a new idea is written here.
+
+**Draws of H**, on the shared stack's cortex, memory holding the same 19 rows in every draw. The SM
+clock, read at each row's start and end, stayed between 0.81 and 1.0 of its highest reading in
+both columns.
+
+| Row | HEAD | H |
+| --- | --- | --- |
+| L | 1 | 5 |
+| L2 | 4 | 5 |
+| C | 5 | 5 |
+| R | 5 | 5 |
+| F | 5 | 5 |
+| Q | 5 | 0 |
+
+**H moved L and was backed out, because Q fell.** All five L draws on H said the deep model's
+reply was not stored or not known; on HEAD four repeated the recalled answer word for word, two of
+them as what the deep model said. Every Q draw on HEAD gave Thursday at 19:30, and every Q draw on
+H said it had no information about the choir. Method: the driver (`draw-q.py`, `rows-q.sh`,
+`seed-q.sh`), the replies and row logs (`head-q.jsonl`, `h.jsonl`) and the diff
+(`candidate-h.diff`) are in the same directory as G's; the brain image was rebuilt from HEAD after H.
+
+**Result.** The task is declined. Only removing the exchange from the pool moved L, and that
+costs every draw of a repeated question whose answer only that exchange holds. Narrowing the drop
+to a chat holding an unanswered handoff moves the same cost into that chat, since no memory says
+whether a question refers to its own chat. The defect needs the same follow-up asked word for word
+in another chat, and the answer it repeats is the deep model's own answer to the same question.

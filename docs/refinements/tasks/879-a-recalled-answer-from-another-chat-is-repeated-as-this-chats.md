@@ -1,9 +1,8 @@
 # A recalled answer from another chat is repeated as this chat's
 
-**Status:** open, actionable
+**Status:** declined 2026-10-17
 **Area:** memory
 **Origin:** [ADR-0008](../../adr/ADR-0008-memory-v1.md)
-**Verified:** 2026-10-17
 
 A turn's exchange is recorded as `User: <question> / Assistant: <reply>` (`record_exchange`,
 `cortex_core/turn_output.py`), and recall gives it to a later chat under "Relevant memories from
@@ -45,3 +44,9 @@ cost, before drawing, then draw the six rows under the readings' rule
   came from an earlier conversation, drawn and backed out: L passed in 1 of 5 against 0 on HEAD,
   L2 fell from 4 to 3, and R and F kept 5 of 5. A dump showed the judge kept the same four
   memories as on HEAD ([readings](../../readings/handoff-reply-not-kept.md#recall-rank-with-the-last-exchange)).
+- 2026-10-17: declined. In a chat with an earlier turn, recall left out of the pool an exchange
+  whose question matched this turn's word for word: L passed in 5 of 5 against 1 on HEAD, and the
+  readings' row Q, a repeated question whose answer only that exchange holds, fell from 5 to 0. No
+  memory says whether a question refers to its own chat, so any narrower drop moves the same cost,
+  and the defect only repeats the deep model's own answer to the same question
+  ([readings](../../readings/handoff-reply-not-kept.md#recall-without-a-repeated-question)).
