@@ -8,6 +8,7 @@ from fakeredis import FakeAsyncRedis, FakeServer
 
 from cortex_core import (
     CAPTURE_SCREEN_TOOL_NAME,
+    CHAT_AHEAD,
     ESCALATE_TOOL_NAME,
     GET_VOLUME_TOOL_NAME,
     HANDOFF_AHEAD_DETAIL,
@@ -213,16 +214,16 @@ async def test_two_streams_on_one_chat_store_each_reply_before_the_next_question
     held = _Held(_Model({"cortex": [[TextChunk("first reply")], [TextChunk("second reply")]]}))
     engines = replace(_engines(held.model), backend=held)
     confirmer = RecordingConfirmer(answer=True)
+    behind = RecordingProgressSink()
     one = asyncio.create_task(
         _run(engines.for_stream(confirmer, RecordingProgressSink()), "one", turn_id="t1")
     )
     for _ in range(20):
         await asyncio.sleep(0)
-    two = asyncio.create_task(
-        _run(engines.for_stream(confirmer, RecordingProgressSink()), "two", turn_id="t2")
-    )
+    two = asyncio.create_task(_run(engines.for_stream(confirmer, behind), "two", turn_id="t2"))
     for _ in range(20):
         await asyncio.sleep(0)
+    assert behind.waits.current() == CHAT_AHEAD
     held.release.set()
     await asyncio.gather(one, two)
 

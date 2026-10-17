@@ -133,11 +133,11 @@ phase's cortex runs; a "scheduled" claim with no reminder or task named does not
 `said`, the person's messages, made it first. `place_note` sets a note one blank line under text, or
 with no text first with no break, in a `NO_TEXT` form for an overflow or unreadable call note.
 
-`SerialTurnRunner(inner, locks)` (`session_turns.py`) is the `TurnRunner` every `Converse` stream
-runs. A turn holds its session in the shared `SessionTurnLocks` from before it stores its question
-until its reply is stored, so a second turn on that session, from any stream, waits and then reads
-the first one's reply. A turn cancelled while it waits stores nothing. A session's lock goes with
-its last running or waiting turn, so the map holds only sessions with a turn in flight.
+`SerialTurnRunner(inner, locks, progress=None)` (`session_turns.py`) is the `TurnRunner` every
+`Converse` stream runs. A turn holds its session in the shared `SessionTurnLocks` from before it
+stores its question until its reply is stored, so a second turn on that session, from any stream,
+waits under the `queued` wait `CHAT_AHEAD` and then reads the first one's reply. A turn cancelled
+while it waits stores nothing. A session's lock goes with its last turn in flight.
 
 ## The history one turn sends
 

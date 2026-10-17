@@ -72,7 +72,7 @@ class StreamEngines:
 
     def for_stream(self, confirmer: Confirmer, progress: ProgressSink) -> SerialTurnRunner:
         """Build the engine one Converse stream's turns run through, one per session at once."""
-        return SerialTurnRunner(self._engine(confirmer, progress), self.turns)
+        return SerialTurnRunner(self._engine(confirmer, progress), self.turns, progress)
 
     def _engine(self, confirmer: Confirmer, progress: ProgressSink) -> TurnRunner:
         """The stream's engine, plain or able to hand a turn to the deep model."""

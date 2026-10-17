@@ -2,15 +2,19 @@ import asyncio
 from collections.abc import AsyncIterator, Sequence
 
 from cortex_core import (
+    CHAT_AHEAD,
+    QUEUED,
     EchoInferenceBackend,
     GenerationBounds,
     InferenceEvent,
     InMemorySessionStore,
     JsonSchema,
     Message,
+    RecordingProgressSink,
     Role,
     SerialTurnRunner,
     SessionTurnLocks,
+    StatusUpdate,
     SystemClock,
     ToolSpec,
     TurnEngine,
@@ -43,9 +47,12 @@ class HeldBackend:
 
 
 def _runner(
-    store: InMemorySessionStore, backend: HeldBackend, locks: SessionTurnLocks
+    store: InMemorySessionStore,
+    backend: HeldBackend,
+    locks: SessionTurnLocks,
+    progress: RecordingProgressSink | None = None,
 ) -> SerialTurnRunner:
-    return SerialTurnRunner(TurnEngine(store, backend, SystemClock()), locks)
+    return SerialTurnRunner(TurnEngine(store, backend, SystemClock()), locks, progress)
 
 
 async def _drain(runner: SerialTurnRunner, session_id: str, text: str) -> list[TurnEvent]:
@@ -146,4 +153,59 @@ async def test_a_turn_cancelled_mid_reply_lets_the_next_one_start() -> None:
         (Role.USER, "next"),
         (Role.ASSISTANT, "reply 2: next"),
     ]
+    assert len(locks) == 0
+
+
+async def test_a_turn_behind_its_own_chat_says_so_until_it_holds_the_chat() -> None:
+    store = InMemorySessionStore()
+    backend = HeldBackend()
+    locks = SessionTurnLocks()
+    ahead = RecordingProgressSink()
+    behind = RecordingProgressSink()
+    first = asyncio.create_task(_drain(_runner(store, backend, locks, ahead), "s", "first"))
+    await _settle()
+    second = asyncio.create_task(_drain(_runner(store, backend, locks, behind), "s", "second"))
+    await _settle()
+
+    assert behind.waits.current() == CHAT_AHEAD
+    assert behind.events == (StatusUpdate(state=QUEUED, detail=CHAT_AHEAD.detail),)
+    assert ahead.held == ()
+    backend.release.set()
+    await asyncio.gather(first, second)
+    assert behind.waits.current() is None
+    assert behind.held == (CHAT_AHEAD,)
+    assert ahead.events == ()
+
+
+async def test_a_turn_on_another_chat_or_a_free_one_holds_no_wait() -> None:
+    store = InMemorySessionStore()
+    backend = HeldBackend()
+    locks = SessionTurnLocks()
+    sinks = (RecordingProgressSink(), RecordingProgressSink())
+    one = asyncio.create_task(_drain(_runner(store, backend, locks, sinks[0]), "a", "first"))
+    two = asyncio.create_task(_drain(_runner(store, backend, locks, sinks[1]), "b", "second"))
+    await _settle()
+    backend.release.set()
+    await asyncio.gather(one, two)
+    later = RecordingProgressSink()
+    await _drain(_runner(store, backend, locks, later), "a", "third")
+
+    assert [sink.held for sink in (*sinks, later)] == [(), (), ()]
+
+
+async def test_a_turn_cancelled_while_it_says_it_waits_closes_the_wait() -> None:
+    store = InMemorySessionStore()
+    backend = HeldBackend()
+    locks = SessionTurnLocks()
+    behind = RecordingProgressSink()
+    first = asyncio.create_task(_drain(_runner(store, backend, locks), "s", "first"))
+    await _settle()
+    dropped = asyncio.create_task(_drain(_runner(store, backend, locks, behind), "s", "dropped"))
+    await _settle()
+    dropped.cancel()
+    await asyncio.wait([dropped])
+
+    assert behind.waits.current() is None
+    backend.release.set()
+    await first
     assert len(locks) == 0

@@ -82,9 +82,9 @@ The third needs a bound on the turn's own progress, which ADR-0024's gaps alread
 7. **A heartbeat says what the turn waits on.** `Heartbeat` has `wait`, a key, and `detail`, the
    sentence the overlay's chip shows; the key is never shown alone. The keys are seven plain
    verbs, the `StatusUpdate.state` values the brain already used plus three: `thinking` (a model
-   is generating), `queued` (a subtask waits for room in the subagent budget), `delegating`
-   (subtasks run), `swapping` (a handoff holds the card: the pool drains, the deep model loads
-   or works, or the cortex comes back, for this turn's handoff or for one it waits behind),
+   is generating), `queued` (a subtask waits for room in the subagent budget, or a turn waits
+   for an earlier turn of its own chat), `delegating` (subtasks run), `swapping` (a handoff
+   holds the card: the pool drains, the deep model loads or works, or the cortex comes back, for this turn's handoff or for one it waits behind),
    `folding` (the earlier conversation is being summarized), `calling` (a tool call runs) and
    `asking` (a confirm card waits for the user). `wait` is `""` when the turn waits on none of them. Plain
    verbs, because a chip is read at a glance, like the console's Summon and Dismiss, and each
@@ -105,7 +105,9 @@ The third needs a bound on the turn's own progress, which ADR-0024's gaps alread
    approval asks inside its dispatch, and the deep model's generation runs inside the swap. The holders
    are the tool loop around each model stream (`thinking`), `run_round` around each dispatch that
    was not refused (`calling`), `ToolDispatcher` around the confirmer (`asking`),
-   `SummarizingHistoryWindow` around the recap (`folding`), the spawn tool around its batch, and
+   `SummarizingHistoryWindow` around the recap (`folding`), the spawn tool around its batch,
+   `SessionTurnLocks.hold` around a wait for an earlier turn of the same chat (`queued`
+   "waiting for this chat's previous message to finish", announced), and
    `wait_out_handoff` (`cortex_core/handoff_wait.py`) around a wait for another turn's handoff to
    leave the card (`swapping`, through the `ResidencyQueue` port). That last one is announced,
    because the wait can outlast the first gap and the body counts a heartbeat as silence. It is

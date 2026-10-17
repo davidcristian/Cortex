@@ -36,7 +36,7 @@ from cortex_core.session_title import (
     clean_title,
     generate_title,
 )
-from cortex_core.session_turns import SerialTurnRunner, SessionTurnLocks
+from cortex_core.session_turns import CHAT_AHEAD, SerialTurnRunner, SessionTurnLocks
 from cortex_core.sessions import (
     RECAP_MAX,
     HistoryRecap,
@@ -100,6 +100,7 @@ from cortex_core.windowing import CharBudgetHistoryWindow, HistoryWindow
 __all__ = [
     "ASKING",
     "CALLING",
+    "CHAT_AHEAD",
     "CONTEXT_OVERFLOW_NOTE",
     "CONTEXT_OVERFLOW_NO_TEXT_NOTE",
     "DEFAULT_CORTEX_MODEL",

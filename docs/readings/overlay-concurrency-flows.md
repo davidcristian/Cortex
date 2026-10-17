@@ -40,6 +40,12 @@ colour did you just name? One word." **As expected.** The second turn started on
 had stored its reply (`SessionTurnLocks`), its reasoning quoted the first exchange, and it answered
 "Blue" again. The chat stored the four messages in order, each pair under its own turn id.
 
+The same with the overlay as the second sender: the second client sent "Write eight sentences
+about glaciers." on the overlay's open chat, and 1.5 s later "Name a colour, one word." was typed
+in the overlay and sent. **As expected.** The overlay's chip read "waiting for this chat's previous
+message to finish" (the `queued` wait `CHAT_AHEAD`, sent as a status at once) until the glacier
+reply was stored, and then the reply "Green" streamed. The chat stored both exchanges in order.
+
 ## Stop or a dropped stream in one chat while another streams
 
 Chat Y sent "Write five sentences about the sea."; 0.5 s later chat X sent "... about deserts."
@@ -86,9 +92,9 @@ deep reply. Nothing was stored twice and every stream ended.
 
 A turn waiting for another chat's generation is inside its own `thinking` wait, because the queue
 is llama-server's single slot, so its heartbeat says "working out the reply" while nothing of its
-own is being worked out. A turn waiting for an earlier turn of its own chat holds no wait at all, so
-its heartbeat is empty. In both cases the stream is silent until the first heartbeat 30 s in.
-Filed as [R-894](../refinements/tasks/894-name-a-turn-waiting-behind-another-chat.md).
+own is being worked out, and the stream is silent until the first heartbeat 30 s in. Only a second
+client reaches this today, since the overlay keeps one chat in flight. Filed as
+[R-894](../refinements/tasks/894-name-a-turn-waiting-behind-another-chat.md).
 
 ## Not run
 

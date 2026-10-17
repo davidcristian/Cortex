@@ -7,6 +7,10 @@ from contextlib import asynccontextmanager
 from cortex_core.events import TurnEvent
 from cortex_core.images import ImagePart
 from cortex_core.ports import TurnRunner
+from cortex_core.progress import ProgressSink, hold_wait
+from cortex_core.waits import QUEUED, Wait
+
+CHAT_AHEAD = Wait(QUEUED, "waiting for this chat's previous message to finish")
 
 
 class SessionTurnLocks:
@@ -20,13 +24,25 @@ class SessionTurnLocks:
         return len(self._locks)
 
     @asynccontextmanager
-    async def hold(self, session_id: str) -> AsyncGenerator[None]:
-        """Wait for the session's turn ahead, if any, then hold the session until exit."""
+    async def hold(
+        self, session_id: str, progress: ProgressSink | None = None
+    ) -> AsyncGenerator[None]:
+        """Wait for the session's turn ahead, if any, then hold the session until exit.
+
+        While it waits, ``progress`` holds a ``queued`` wait naming the turn ahead.
+        """
         lock = self._locks.setdefault(session_id, asyncio.Lock())
         self._users[session_id] = self._users.get(session_id, 0) + 1
         try:
-            async with lock:
+            if self._users[session_id] > 1:
+                async with hold_wait(progress, CHAT_AHEAD):
+                    await lock.acquire()
+            else:
+                await lock.acquire()
+            try:
                 yield
+            finally:
+                lock.release()
         finally:
             self._users[session_id] -= 1
             if self._users[session_id] == 0:
@@ -37,9 +53,12 @@ class SessionTurnLocks:
 class SerialTurnRunner:
     """A ``TurnRunner`` that runs a session's turns one after another, each with its writes."""
 
-    def __init__(self, inner: TurnRunner, locks: SessionTurnLocks) -> None:
+    def __init__(
+        self, inner: TurnRunner, locks: SessionTurnLocks, progress: ProgressSink | None = None
+    ) -> None:
         self._inner = inner
         self._locks = locks
+        self._progress = progress
 
     @property
     def inner(self) -> TurnRunner:
@@ -50,7 +69,7 @@ class SerialTurnRunner:
         self, session_id: str, text: str, *, turn_id: str, images: tuple[ImagePart, ...] = ()
     ) -> AsyncGenerator[TurnEvent, None]:
         """Run ``inner``'s turn once every earlier turn on ``session_id`` has stored its reply."""
-        async with self._locks.hold(session_id):
+        async with self._locks.hold(session_id, self._progress):
             events = self._inner.handle_turn(session_id, text, turn_id=turn_id, images=images)
             try:
                 async for event in events:
