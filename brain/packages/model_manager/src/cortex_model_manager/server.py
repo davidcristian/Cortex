@@ -6,6 +6,7 @@ import time
 import httpx
 import uvicorn
 from starlette.applications import Starlette
+from uvicorn.config import LOG_LEVELS
 
 from cortex_core import DEFAULT_LOG_FORMAT, configure_logging
 from cortex_model_manager.api import build_app
@@ -59,7 +60,8 @@ def main() -> int:
         configure_logging(logging.INFO, style=DEFAULT_LOG_FORMAT)
         _logger.error("setting refused", extra={"reason": str(exc)})  # noqa: TRY400
         return 1
-    configure_logging(config.log_level.upper(), style=config.log_format)
+    # By number, since the standard library knows no TRACE level until uvicorn names it.
+    configure_logging(LOG_LEVELS[config.log_level], style=config.log_format)
     app = build_model_host(config)
     uvicorn.run(app, host=config.bind_host, port=config.bind_port, log_level=config.log_level)
     return 0

@@ -17,12 +17,21 @@ class _Probe(BaseSettings):
     gain: float = Field(default=1.0, validation_alias="PROBE_GAIN_LEVEL")
     tags: list[str] = Field(default=[], validation_alias="PROBE_TAG_LIST")
     switch: bool = False
+    token: str = ""
 
     @field_validator("zone")
     @classmethod
     def _known_zone(cls, value: str) -> str:
         if value != "UTC":
-            msg = f"unknown zone {value!r}"
+            msg = f"unknown zone {value!r}; this probe knows ['UTC']"
+            raise ValueError(msg)
+        return value
+
+    @field_validator("token")
+    @classmethod
+    def _signed_token(cls, value: str) -> str:
+        if value and not value.startswith("signed:"):
+            msg = f"token {value!r} is not signed; PROBE_TOKEN takes a signed token"
             raise ValueError(msg)
         return value
 
@@ -56,11 +65,33 @@ def test_a_refused_value_is_named_by_its_variable_and_never_shown(
 
 def test_a_validator_message_has_its_input_replaced(monkeypatch: pytest.MonkeyPatch) -> None:
     refusal = _refusal(monkeypatch, PROBE_ZONE="Mars/Olympus")
-    assert str(refusal) == "PROBE_ZONE: unknown zone '<value>'"
+    assert str(refusal) == "PROBE_ZONE: unknown zone '<value>'; this probe knows ['UTC']"
+
+
+@pytest.mark.parametrize("value", ["UT", "T", "n", " "])
+def test_a_value_inside_the_reasons_own_words_leaves_them_whole(
+    monkeypatch: pytest.MonkeyPatch, value: str
+) -> None:
+    refusal = _refusal(monkeypatch, PROBE_ZONE=value)
+    assert str(refusal) == "PROBE_ZONE: unknown zone '<value>'; this probe knows ['UTC']"
+
+
+@pytest.mark.parametrize("secret", ["PROBE", "TOKEN", "token", "signed", "o", "it's", "'"])
+def test_a_refused_secret_reads_the_same_whatever_it_is(
+    monkeypatch: pytest.MonkeyPatch, secret: str
+) -> None:
+    unsigned = _refusal(monkeypatch, PROBE_TOKEN="hunter2")  # noqa: S106 - a fake secret is the subject
+    refusal = _refusal(monkeypatch, PROBE_TOKEN=secret)
+    assert str(refusal) == (
+        "PROBE_TOKEN: token '<value>' is not signed; PROBE_TOKEN takes a signed token"
+    )
+    assert traceback.format_exception(refusal) == traceback.format_exception(unsigned)
 
 
 def test_an_empty_value_leaves_the_reason_whole(monkeypatch: pytest.MonkeyPatch) -> None:
-    assert str(_refusal(monkeypatch, PROBE_ZONE="")) == "PROBE_ZONE: unknown zone ''"
+    assert str(_refusal(monkeypatch, PROBE_ZONE="")) == (
+        "PROBE_ZONE: unknown zone ''; this probe knows ['UTC']"
+    )
 
 
 def test_a_built_in_rule_is_named_in_pydantic_words(monkeypatch: pytest.MonkeyPatch) -> None:

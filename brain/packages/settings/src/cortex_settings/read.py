@@ -6,6 +6,8 @@ from pydantic_settings import BaseSettings, SettingsError
 
 __all__ = ["ConfigError", "read_settings"]
 
+_MASK = repr("<value>")
+
 
 class ConfigError(Exception):
     """A setting is refused, in words naming its variable and never its value."""
@@ -28,9 +30,10 @@ def read_settings[T: BaseSettings](cls: type[T]) -> T:
 def _describe(cls: type[BaseSettings], error: ErrorDetails) -> str:
     reason = error["msg"].removeprefix("Value error, ")
     value = error["input"]
-    # Built-in messages state the rule broken; only a validator's own message may quote the input.
+    # Built-in messages state the rule broken; a validator's own message quotes its input as its
+    # repr. Masking any other copy garbles the message's own words, and the gaps show the value.
     if error["type"] == "value_error" and isinstance(value, str) and value:
-        reason = reason.replace(value, "<value>")
+        reason = reason.replace(repr(value), _MASK)
     loc = error["loc"]
     return f"{_variable(cls, str(loc[0]))}: {reason}" if loc else reason
 

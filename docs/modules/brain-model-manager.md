@@ -173,14 +173,14 @@ compares the two, so retune both or neither. `RosterError` is a boot-time miscon
   `CORTEX_MODELHOST_TIMEOUT_S` (the shipped 5 + 10 + 30 under 60), or a control call times out on an
   eviction that was still working. The two sides are separate containers' environment, so the rule
   is checked where they meet (ADR-0053 decision 11).
-- **The daemon configures the root logger.** `uvicorn.run` configures uvicorn's own loggers and
-  leaves root alone, so `main` calls `cortex_core.configure_logging` at `CORTEX_MODELHOST_LOG_LEVEL`
-  and `CORTEX_MODELHOST_LOG_FORMAT` (`plain`, or `packed` for one JSON object per line); without it
-  every INFO lifecycle record is dropped and no line's `extra` reaches the line. Each message is a
-  constant sentence with its tier, pid and port as fields beside it
-  ([ADR-0051](../adr/ADR-0051-log-line-rendering.md) decision 5):
-  `started a model process model=cortex pid=8 port=8080`. A refused `ModelHostConfig` value exits 1
-  with one `plain` `setting refused` line from `read_settings`, naming the variable, not the value.
+- **The daemon configures the root logger.** `uvicorn.run` configures only uvicorn's own loggers, so
+  `main` calls `cortex_core.configure_logging`, without which every INFO lifecycle record and every
+  line's `extra` is dropped. `CORTEX_MODELHOST_LOG_FORMAT` is `plain` or `packed`, and
+  `CORTEX_MODELHOST_LOG_LEVEL` is a key of `uvicorn.config.LOG_LEVELS` in any case, checked by
+  `known_log_level` and given to root by number, since the standard library has no `TRACE` until
+  uvicorn names it. Each message is a constant sentence with its fields beside it (ADR-0051
+  decision 5): `started a model process model=cortex pid=8 port=8080`. A refused `ModelHostConfig`
+  value exits 1 with one `plain` `setting refused` line naming the variable.
 - **Children inherit the daemon's stdout and stderr and its process group.** No pipe means nothing
   can wedge when llama.cpp's loading log outruns a buffer nobody drains. No new session means a
   container the runtime tears down takes the children with it, so no `llama-server` outlives the

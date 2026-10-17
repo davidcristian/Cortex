@@ -164,7 +164,10 @@ is [ADR-0045](ADR-0045-documented-log-lines.md).
     package. The model host writes its line in `plain` at INFO, since `ModelHostConfig` is the class
     that names its rendering, and so does the brain when the refused value is `CORTEX_LOG_FORMAT`
     itself. The email sidecar, which configures no logging, puts the reason inside
-    the message, which the standard library's last-resort handler writes alone.
+    the message, which the standard library's last-resort handler writes alone. A validator's own
+    message quotes its input as its `repr`, and the reader masks that `repr` only, so a reason reads
+    the same whatever the refused value is: masking every copy of the value would garble the
+    message's own words, and its gaps would show the value.
 
 ## Consequences
 

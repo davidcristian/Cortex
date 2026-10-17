@@ -4,6 +4,7 @@ from typing import Annotated
 
 from pydantic import AfterValidator, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from uvicorn.config import LOG_LEVELS
 
 from cortex_core import DEFAULT_CORTEX_MODEL, DEFAULT_LOG_FORMAT, known_log_format
 from cortex_model_manager.spec import ModelSpec, build_roster
@@ -59,6 +60,15 @@ _SUBAGENT_TAIL = (
 _UNRESTRICTED_REASONING = -1
 
 
+def known_log_level(name: str) -> str:
+    """``name`` in lower case when uvicorn names that level, or an error listing those it does."""
+    level = name.lower()
+    if level not in LOG_LEVELS:
+        msg = f"unknown log level {name!r}; the model host logs at {list(LOG_LEVELS)}"
+        raise ValueError(msg)
+    return level
+
+
 class ModelHostConfig(BaseSettings):
     """Env-only settings for the supervisor sidecar."""
 
@@ -75,7 +85,7 @@ class ModelHostConfig(BaseSettings):
     # injects this binary beside the driver, so the default is right wherever a GPU is reserved
     # and absent, which reads as no card, wherever one is not.
     nvidia_smi: str = DEFAULT_NVIDIA_SMI
-    log_level: str = "info"
+    log_level: Annotated[str, AfterValidator(known_log_level)] = "info"
     log_format: Annotated[str, AfterValidator(known_log_format)] = DEFAULT_LOG_FORMAT
 
     cortex_model: str = Field(default=DEFAULT_CORTEX_MODEL, validation_alias="CORTEX_MODEL_CORTEX")

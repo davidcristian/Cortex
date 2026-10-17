@@ -31,8 +31,8 @@ validator's `ValueError` text there includes the input.
   through it and exit 1 with one `setting refused` line: the model host's in `plain` at INFO, the
   email sidecar's through the standard library's last-resort handler with the reason inside the
   message. No other Python sidecar exists: the file sidecar is the Node filesystem server and the
-  embedder is `llama-server`. An unknown log rendering is refused the same way, by a check on the
-  field that reads the core's one list of renderings. The model host's log level is still checked
-  outside the reader, filed as [R-892](892-the-model-host-log-level-is-checked-outside-the-settings-reader.md),
-  and the reader's mask garbles a reason whose own words contain the value, filed as
-  [R-893](893-a-masked-value-inside-a-reasons-own-words-garbles-them.md).
+  embedder is `llama-server`. An unknown log rendering or model host log level is refused the same
+  way, by a check on the field that reads its one list: the core's renderings, and uvicorn's levels
+  in any case. The level reaches the root logger by number, since the standard library has no
+  `TRACE` until uvicorn names it. The reader masks only the `repr` a validator quotes the input as,
+  so `CORTEX_LOG_FORMAT=pack` still lists `packed` whole. The brain has no level setting.

@@ -22,9 +22,11 @@ and quoting the input.
 - The variable is the field's string `validation_alias` when it has one, which pydantic reports in
   place of the field name, and otherwise the class's `env_prefix` plus the field name, upper case.
 - The reason is pydantic's own message without its `Value error, ` prefix. Pydantic's built-in
-  messages state the rule and not the input; a validator's own message may quote the input, so for
-  a `value_error` on a non-empty string input every occurrence of the input is replaced by
-  `<value>`.
+  messages state the rule and not the input. A validator's own message quotes the input as its
+  `repr` (`{value!r}`), so for a `value_error` on a non-empty string input each copy of that `repr`
+  is replaced by `'<value>'`. Any other copy of the value is part of the message's own words and
+  stays: masking it would garble them, as `pack` inside `packed` did, and the gaps would show the
+  value.
 - `ConfigError` is a plain `Exception`. A settings class whose validator must refuse a value
   without pydantic rendering it raises a `ConfigError` subclass, which pydantic lets through
   unchanged (`MemoryConfigError` and `RuntimeConfigError` in `cortex_orchestrator.config`).
@@ -43,8 +45,10 @@ Each catches `ConfigError`, writes one line and returns exit status 1 to `sys.ex
 ## Invariants
 
 - One reader. No entry point constructs a settings class directly.
-- A refusal never includes a value: not in the message, and not in the traceback, since the
-  `ValidationError` is dropped from the chain.
+- A refusal reads the same whatever the refused value is: not in the message, and not in the
+  traceback, since the `ValidationError` is dropped from the chain. This holds for a validator that
+  writes its input only as `{value!r}`, which every validator here does; a class whose input holds
+  a credential raises a `ConfigError` subclass with fixed words instead.
 - Fully typed, pyright strict clean, and 100% line and branch: `tests/test_settings_reader.py`
   drives the reader over a class of its own, and each entry point's suite drives its own classes.
 

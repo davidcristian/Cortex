@@ -60,13 +60,13 @@ def test_main_serves_the_configured_interface_and_port_and_configures_the_root_l
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     served: list[tuple[str, int, str]] = []
-    configured: list[tuple[str, str]] = []
+    configured: list[tuple[int | str, str]] = []
 
     def fake_run(app: Starlette, *, host: str, port: int, log_level: str) -> None:
         assert isinstance(app, Starlette)
         served.append((host, port, log_level))
 
-    def fake_configure(level: str, *, style: str) -> None:
+    def fake_configure(level: int | str, *, style: str) -> None:
         configured.append((level, style))
 
     monkeypatch.setattr(uvicorn, "run", fake_run)
@@ -77,28 +77,59 @@ def test_main_serves_the_configured_interface_and_port_and_configures_the_root_l
     monkeypatch.setenv("CORTEX_MODELHOST_LOG_FORMAT", PACKED_FORMAT)
     assert main() == 0
     assert served == [("127.0.0.1", 9999, "warning")]
-    assert configured == [("WARNING", PACKED_FORMAT)]
+    assert configured == [(logging.WARNING, PACKED_FORMAT)]
 
 
 def test_the_sidecar_renders_its_fields_the_way_a_reader_gets_them_by_default(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    configured: list[tuple[str, str]] = []
+    configured: list[tuple[int | str, str]] = []
     served: list[str] = []
 
     def fake_run(app: Starlette, *, host: str, port: int, log_level: str) -> None:
         assert isinstance(app, Starlette)
         served.append(f"{host}:{port}@{log_level}")
 
-    def fake_configure(level: str, *, style: str) -> None:
+    def fake_configure(level: int | str, *, style: str) -> None:
         configured.append((level, style))
 
     monkeypatch.setattr(uvicorn, "run", fake_run)
     monkeypatch.setattr("cortex_model_manager.server.configure_logging", fake_configure)
     monkeypatch.delenv("CORTEX_MODELHOST_LOG_FORMAT", raising=False)
     assert main() == 0
-    assert configured == [("INFO", PLAIN_FORMAT)]
+    assert configured == [(logging.INFO, PLAIN_FORMAT)]
     assert served == ["0.0.0.0:9300@info"]
+
+
+@pytest.mark.parametrize(
+    ("written", "number", "name"),
+    [
+        ("trace", 5, "trace"),
+        ("TRACE", 5, "trace"),
+        ("debug", logging.DEBUG, "debug"),
+        ("INFO", logging.INFO, "info"),
+        ("Warning", logging.WARNING, "warning"),
+        ("error", logging.ERROR, "error"),
+        ("critical", logging.CRITICAL, "critical"),
+    ],
+)
+def test_every_level_uvicorn_names_reaches_both_loggers_in_any_case(
+    monkeypatch: pytest.MonkeyPatch, written: str, number: int, name: str
+) -> None:
+    configured: list[int | str] = []
+    served: list[str] = []
+
+    def fake_run(*_: object, log_level: str, **__: object) -> None:
+        served.append(log_level)
+
+    def fake_configure(level: int | str, **_: object) -> None:
+        configured.append(level)
+
+    monkeypatch.setattr(uvicorn, "run", fake_run)
+    monkeypatch.setattr("cortex_model_manager.server.configure_logging", fake_configure)
+    monkeypatch.setenv("CORTEX_MODELHOST_LOG_LEVEL", written)
+    assert main() == 0
+    assert (configured, served) == ([number], [name])
 
 
 @pytest.mark.parametrize(
@@ -109,6 +140,7 @@ def test_the_sidecar_renders_its_fields_the_way_a_reader_gets_them_by_default(
         ("CORTEX_CTX_SIZE", "huge"),
         ("CORTEX_REASONING_BUDGET_BRAIN", "lots"),
         ("CORTEX_MODELHOST_LOG_FORMAT", "logfmt"),
+        ("CORTEX_MODELHOST_LOG_LEVEL", "loud"),
     ],
 )
 def test_a_refused_setting_is_one_default_rendered_line_naming_its_variable(
@@ -117,6 +149,23 @@ def test_a_refused_setting_is_one_default_rendered_line_naming_its_variable(
     variable: str,
     value: str,
 ) -> None:
+    reason = _refusal(monkeypatch, caplog, variable, value)
+    assert reason.startswith(f"{variable}: ")
+    assert value not in reason
+
+
+def test_a_level_uvicorn_does_not_name_is_refused_with_the_ones_it_does(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    assert _refusal(monkeypatch, caplog, "CORTEX_MODELHOST_LOG_LEVEL", "warn") == (
+        "CORTEX_MODELHOST_LOG_LEVEL: unknown log level '<value>'; the model host logs at "
+        "['critical', 'error', 'warning', 'info', 'debug', 'trace']"
+    )
+
+
+def _refusal(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture, variable: str, value: str
+) -> str:
     configured: list[tuple[int | str, str]] = []
 
     def fake_configure(level: int | str, *, style: str) -> None:
@@ -134,7 +183,5 @@ def test_a_refused_setting_is_one_default_rendered_line_naming_its_variable(
     assert configured == [(logging.INFO, PLAIN_FORMAT)]
     [record] = caplog.records
     assert record.getMessage() == "setting refused"
-    reason = record.__dict__["reason"]
-    assert reason.startswith(f"{variable}: ")
-    assert value not in reason
     assert record.exc_info is None
+    return record.__dict__["reason"]

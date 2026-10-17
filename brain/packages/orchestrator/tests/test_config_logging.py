@@ -36,8 +36,9 @@ def test_the_brain_configures_info_and_the_env_rendering(
     assert capsys.readouterr().err.strip() == "INFO:cortex.tools.audit:tool.invocation tool=read"
 
 
+@pytest.mark.parametrize("value", ["logfmt", "pack", "t"])
 def test_a_rendering_this_build_does_not_offer_is_refused_in_the_default_one(
-    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], value: str
 ) -> None:
     async def serve() -> None:
         pytest.fail("a refused rendering must not serve")
@@ -45,7 +46,7 @@ def test_a_rendering_this_build_does_not_offer_is_refused_in_the_default_one(
     root = logging.getLogger()
     handlers, level = root.handlers[:], root.level
     root.handlers[:] = []
-    monkeypatch.setenv("CORTEX_LOG_FORMAT", "logfmt")
+    monkeypatch.setenv("CORTEX_LOG_FORMAT", value)
     try:
         assert main(serve) == 1
     finally:
