@@ -198,12 +198,12 @@ is one ASCII JSON line holding no more than the line prints, each value through 
   from a process entry only, never from a library, because it changes process-wide state. Both
   brain entries call it, and without it every `extra` field this repo attaches is written onto a
   record and then dropped, which is what the standard library's own format does.
-- `build_formatter(style)` returns the rendering that `style` names, or raises
-  `UnknownLogFormatError` listing the ones that exist. `LOG_FORMATS` is the registry it reads:
-  `PLAIN_FORMAT` (`"plain"`, the default) builds `PlainFormatter`, which prints
-  `logging.BASIC_FORMAT` and then the record's own fields as `key=value` pairs in name order;
-  `PACKED_FORMAT` (`"packed"`) builds `PackedFormatter`, one JSON object per line with the fields
-  under their own `fields` key. `record_fields(record)` is what both read.
+- `build_formatter(style)` returns the rendering `style` names. It and every settings class that
+  names a rendering check the name with `known_log_format`, which raises `UnknownLogFormatError`
+  listing the registry, `LOG_FORMATS`: `PLAIN_FORMAT` (`"plain"`, the default) builds
+  `PlainFormatter`, which prints `logging.BASIC_FORMAT` and then the record's own fields as
+  `key=value` pairs in name order; `PACKED_FORMAT` (`"packed"`) builds `PackedFormatter`, one JSON
+  object per line with the fields under their own `fields` key. `record_fields` is what both read.
 - `SESSION_FIELD`, `TURN_FIELD`, `TASK_FIELD`, `ITEM_FIELD` and `CALL_FIELD` (`"session_id"`,
   `"turn_id"`, `"task_id"`, `"item_id"`, `"call_id"`) are the one name each work identity is
   written under, wherever a brain line mentions one (ADR-0046 decision 1). They are the dispatch

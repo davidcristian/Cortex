@@ -108,6 +108,7 @@ def test_the_sidecar_renders_its_fields_the_way_a_reader_gets_them_by_default(
         ("CORTEX_MODELHOST_PROBE_TIMEOUT_S", "soon"),
         ("CORTEX_CTX_SIZE", "huge"),
         ("CORTEX_REASONING_BUDGET_BRAIN", "lots"),
+        ("CORTEX_MODELHOST_LOG_FORMAT", "logfmt"),
     ],
 )
 def test_a_refused_setting_is_one_default_rendered_line_naming_its_variable(

@@ -20,6 +20,7 @@ from cortex_core.log_format import (
     UnknownLogFormatError,
     build_formatter,
     configure_logging,
+    known_log_format,
 )
 from cortex_core.log_secrets import REDACTED, SECRET_NAMES, is_secret_name, withhold_secrets
 
@@ -41,6 +42,7 @@ __all__ = [
     "durable_record",
     "durable_value",
     "is_secret_name",
+    "known_log_format",
     "record_fields",
     "redact_urls",
     "render_fields",

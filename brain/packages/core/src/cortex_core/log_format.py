@@ -60,13 +60,17 @@ LOG_FORMATS: Mapping[str, Callable[[], logging.Formatter]] = {
 }
 
 
-def build_formatter(style: str) -> logging.Formatter:
-    """The formatter named ``style``, or ``UnknownLogFormatError`` naming the ones that exist."""
-    build = LOG_FORMATS.get(style)
-    if build is None:
+def known_log_format(style: str) -> str:
+    """``style`` when this build renders it, or ``UnknownLogFormatError`` naming those it does."""
+    if style not in LOG_FORMATS:
         msg = f"unknown log format {style!r}; this build renders {sorted(LOG_FORMATS)}"
         raise UnknownLogFormatError(msg)
-    return build()
+    return style
+
+
+def build_formatter(style: str) -> logging.Formatter:
+    """The formatter named ``style``, or ``UnknownLogFormatError`` naming the ones that exist."""
+    return LOG_FORMATS[known_log_format(style)]()
 
 
 def configure_logging(level: int | str, *, style: str = DEFAULT_LOG_FORMAT) -> None:

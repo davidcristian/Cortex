@@ -36,7 +36,7 @@ Each catches `ConfigError`, writes one line and returns exit status 1 to `sys.ex
 
 | Entry point | Line | Why that rendering |
 | --- | --- | --- |
-| brain | `ERROR:cortex_orchestrator.entry:setting refused reason="..."` | logging is configured from `CORTEX_LOG_FORMAT` first, so the line is in the rendering asked for |
+| brain | `ERROR:cortex_orchestrator.entry:setting refused reason="..."` | logging is configured from `CORTEX_LOG_FORMAT` first, so the line is in the rendering asked for; a refused `CORTEX_LOG_FORMAT` is written in `plain` |
 | model host | `ERROR:cortex_model_manager.server:setting refused reason="..."` | `ModelHostConfig` is the class that names the level and rendering, so a refusal is written at INFO in `plain` |
 | email | `setting refused: ...` | the sidecar imports nothing from the core and FastMCP installs its handler later, so the standard library's last-resort handler writes the message alone |
 

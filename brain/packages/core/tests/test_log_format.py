@@ -20,6 +20,7 @@ from cortex_core import (
     UnknownLogFormatError,
     build_formatter,
     configure_logging,
+    known_log_format,
     record_fields,
     redact_urls,
     render_fields,
@@ -331,9 +332,13 @@ def test_each_rendering_is_reachable_by_the_name_a_deployment_writes() -> None:
     assert set(LOG_FORMATS) == {PLAIN_FORMAT, PACKED_FORMAT}
 
 
+def test_a_rendering_this_build_offers_is_known_by_its_own_name() -> None:
+    assert [known_log_format(style) for style in LOG_FORMATS] == list(LOG_FORMATS)
+
+
 def test_a_rendering_this_build_does_not_offer_is_a_typed_refusal() -> None:
     with pytest.raises(UnknownLogFormatError) as err:
-        build_formatter("jsonl")
+        known_log_format("jsonl")
     assert "jsonl" in str(err.value)
     assert PACKED_FORMAT in str(err.value)
 

@@ -1,9 +1,11 @@
 """The model-host daemon's env surface: which tiers it may run, and how it runs them."""
 
-from pydantic import Field
+from typing import Annotated
+
+from pydantic import AfterValidator, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from cortex_core import DEFAULT_CORTEX_MODEL, DEFAULT_LOG_FORMAT
+from cortex_core import DEFAULT_CORTEX_MODEL, DEFAULT_LOG_FORMAT, known_log_format
 from cortex_model_manager.spec import ModelSpec, build_roster
 from cortex_model_manager.supervisor import (
     DEFAULT_PROBE_TIMEOUT_S,
@@ -74,7 +76,7 @@ class ModelHostConfig(BaseSettings):
     # and absent, which reads as no card, wherever one is not.
     nvidia_smi: str = DEFAULT_NVIDIA_SMI
     log_level: str = "info"
-    log_format: str = DEFAULT_LOG_FORMAT
+    log_format: Annotated[str, AfterValidator(known_log_format)] = DEFAULT_LOG_FORMAT
 
     cortex_model: str = Field(default=DEFAULT_CORTEX_MODEL, validation_alias="CORTEX_MODEL_CORTEX")
     cortex_file: str = Field(

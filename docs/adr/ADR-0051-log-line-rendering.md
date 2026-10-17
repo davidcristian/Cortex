@@ -32,7 +32,8 @@ is [ADR-0045](ADR-0045-documented-log-lines.md).
    the default: the operator reads a terminal stream that uvicorn and llama.cpp also write into,
    which JSON would not make machine-readable, and `plain` keeps the runbooks' greps working.
    `CORTEX_LOG_FORMAT` selects it for the brain and `CORTEX_MODELHOST_LOG_FORMAT` for the model host
-   sidecar; any other name raises `UnknownLogFormatError` at the entry point, before anything
+   sidecar. Each settings class checks the name with `known_log_format`, which reads the one
+   registry, `LOG_FORMATS`, so any other name is refused as a setting (decision 17) before anything
    serves.
 2. **The pair is one naming family**: how a record's fields are written down, laid out plainly or
    packed for transport. `plain`/`json` was rejected for naming one entry by wire format and the
@@ -161,7 +162,8 @@ is [ADR-0045](ADR-0045-documented-log-lines.md).
     `setting refused` line and exits 1. The reader is its own package, `cortex_settings`, because
     `cortex_core` imports only the standard library and the email sidecar imports no other cortex
     package. The model host writes its line in `plain` at INFO, since `ModelHostConfig` is the class
-    that names its rendering. The email sidecar, which configures no logging, puts the reason inside
+    that names its rendering, and so does the brain when the refused value is `CORTEX_LOG_FORMAT`
+    itself. The email sidecar, which configures no logging, puts the reason inside
     the message, which the standard library's last-resort handler writes alone.
 
 ## Consequences

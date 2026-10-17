@@ -89,9 +89,10 @@ ADR-0009 decision 8), `call_timeout_s =
   shows (ADR-0020), so zero is a real setting and not the sentinel for unset.
 - `LoggingConfig`, prefix `CORTEX_LOG_` (`config_logging.py`, ADR-0051 decision 1):
   `CORTEX_LOG_FORMAT` (`plain`, or `packed` for one JSON object per line), read by
-  `configure_from_env()`, which `entry.main` calls and which raises `UnknownLogFormatError` on an
-  unknown rendering. The level is not a setting: the tool audit and recall trails both log at
-  `INFO`, and turning the level down would silently empty a record the brain must keep.
+  `configure_from_env()` through `read_settings`. An unknown rendering fails the field's
+  `known_log_format` check, so `entry.main` writes the refusal in `plain` and exits 1. The level
+  is not a setting: the tool audit and recall trails both log at `INFO`, and turning the level
+  down would silently empty a record the brain must keep.
 - `SwapConfig`, prefix `CORTEX_` (`config_swap.py`, ADR-0030): `escalation` enables the capability
   and `modelhost_backend` says who owns the model processes, `supervisor` being the real
   `HttpModelHost` over `CORTEX_MODELHOST_ENDPOINT`

@@ -2,8 +2,9 @@ import logging
 
 import pytest
 
-from cortex_core import PACKED_FORMAT, PLAIN_FORMAT, UnknownLogFormatError
+from cortex_core import PACKED_FORMAT, PLAIN_FORMAT
 from cortex_orchestrator.config_logging import LoggingConfig, configure_from_env
+from cortex_orchestrator.entry import main
 
 
 def test_a_deployment_that_names_nothing_gets_the_rendering_a_person_reads(
@@ -35,9 +36,22 @@ def test_the_brain_configures_info_and_the_env_rendering(
     assert capsys.readouterr().err.strip() == "INFO:cortex.tools.audit:tool.invocation tool=read"
 
 
-def test_a_rendering_this_build_does_not_offer_stops_the_entry(
-    monkeypatch: pytest.MonkeyPatch,
+def test_a_rendering_this_build_does_not_offer_is_refused_in_the_default_one(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
+    async def serve() -> None:
+        pytest.fail("a refused rendering must not serve")
+
+    root = logging.getLogger()
+    handlers, level = root.handlers[:], root.level
+    root.handlers[:] = []
     monkeypatch.setenv("CORTEX_LOG_FORMAT", "logfmt")
-    with pytest.raises(UnknownLogFormatError):
-        configure_from_env()
+    try:
+        assert main(serve) == 1
+    finally:
+        root.handlers[:] = handlers
+        root.setLevel(level)
+    assert capsys.readouterr().err.splitlines() == [
+        'ERROR:cortex_orchestrator.entry:setting refused reason="CORTEX_LOG_FORMAT: unknown log '
+        "format '<value>'; this build renders ['packed', 'plain']\""
+    ]

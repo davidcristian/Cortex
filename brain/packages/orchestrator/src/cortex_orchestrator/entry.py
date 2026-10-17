@@ -18,8 +18,8 @@ def main(
     configure: Callable[[], None] = configure_from_env,
 ) -> int:
     """Serve the brain until shutdown and return the process exit status."""
-    configure()
     try:
+        configure()
         asyncio.run(serve())
     except ConfigError as exc:
         # One rendered line is the whole report; the traceback adds nothing the reason lacks.

@@ -31,5 +31,8 @@ validator's `ValueError` text there includes the input.
   through it and exit 1 with one `setting refused` line: the model host's in `plain` at INFO, the
   email sidecar's through the standard library's last-resort handler with the reason inside the
   message. No other Python sidecar exists: the file sidecar is the Node filesystem server and the
-  embedder is `llama-server`. An unknown log format still ends the brain and the model host with a
-  traceback, filed as [R-891](891-an-unknown-log-format-ends-a-process-with-a-traceback.md).
+  embedder is `llama-server`. An unknown log rendering is refused the same way, by a check on the
+  field that reads the core's one list of renderings. The model host's log level is still checked
+  outside the reader, filed as [R-892](892-the-model-host-log-level-is-checked-outside-the-settings-reader.md),
+  and the reader's mask garbles a reason whose own words contain the value, filed as
+  [R-893](893-a-masked-value-inside-a-reasons-own-words-garbles-them.md).
