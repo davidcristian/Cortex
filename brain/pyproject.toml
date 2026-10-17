@@ -16,6 +16,7 @@ dependencies = [
   "cortex-orchestrator",
   "cortex-seam",
   "cortex-session",
+  "cortex-settings",
   "cortex-tools",
 ]
 
@@ -30,6 +31,7 @@ cortex-model-manager = { workspace = true }
 cortex-orchestrator = { workspace = true }
 cortex-seam = { workspace = true }
 cortex-session = { workspace = true }
+cortex-settings = { workspace = true }
 cortex-tools = { workspace = true }
 
 [dependency-groups]

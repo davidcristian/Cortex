@@ -12,6 +12,7 @@ dependencies = [
   "cortex-model-manager",
   "cortex-seam",
   "cortex-session",
+  "cortex-settings",
   "cortex-tools",
   # The minimum the committed generated code needs to import; raise it on every regeneration.
   "grpcio>=1.81.1",
@@ -29,6 +30,7 @@ cortex-memory = { workspace = true }
 cortex-model-manager = { workspace = true }
 cortex-seam = { workspace = true }
 cortex-session = { workspace = true }
+cortex-settings = { workspace = true }
 cortex-tools = { workspace = true }
 
 [build-system]

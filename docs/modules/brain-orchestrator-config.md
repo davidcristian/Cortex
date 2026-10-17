@@ -7,11 +7,12 @@ another. The service these values wire up is in [brain-orchestrator.md](brain-or
 
 Every class is pydantic-settings, read only by the composition root; explicit constructor arguments
 beat the environment, and anything invalid fails at boot. The root reads each class through
-`read_settings` (`settings_read.py`), which raises `ConfigError` naming the environment variable
-(prefix plus field, or the field's alias) and the rule broken, never the value; a validator's own
-message has its input replaced by `<value>`. `MemoryConfigError` and `RuntimeConfigError` are
-`ConfigError`s, and `entry.main` logs any of them as one `setting refused` line and exits 1. Each class declares its own fields, so
-what follows is the prefix, the defaults other parts depend on, and the validation.
+`read_settings` from the `cortex_settings` package ([brain-settings.md](brain-settings.md)), which
+raises `ConfigError` naming the environment variable (prefix plus field, or the field's alias) and
+the rule broken, never the value; a validator's own message has its input replaced by `<value>`.
+`MemoryConfigError` and `RuntimeConfigError` are `ConfigError`s, and `entry.main` logs any of them
+as one `setting refused` line and exits 1. Each class declares its own fields, so what follows is
+the prefix, the defaults other parts depend on, and the validation.
 
 - `RpcServerConfig`, prefix `CORTEX_SEAM_`: `host: str = DEFAULT_RPC_HOST`
   (`127.0.0.1`, `CORTEX_SEAM_HOST`; the compose stack sets `0.0.0.0` so the published port can

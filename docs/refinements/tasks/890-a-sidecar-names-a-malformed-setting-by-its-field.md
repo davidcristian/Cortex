@@ -1,9 +1,8 @@
 # A sidecar names a malformed setting by its field
 
-**Status:** open, actionable
+**Status:** done 2026-10-17
 **Area:** brain
 **Origin:** [ADR-0051](../../adr/ADR-0051-log-line-rendering.md)
-**Verified:** 2026-10-16
 
 The brain reads its settings through `read_settings` (`cortex_orchestrator/settings_read.py`), so a
 malformed value ends it with one `setting refused` line naming the variable and never the value.
@@ -25,3 +24,12 @@ validator's `ValueError` text there includes the input.
 ## History
 
 - 2026-10-16: filed by the brain's settings reader, which covered the brain's classes only.
+- 2026-10-17: done. The premise held and was worse than written: with send enabled, a password
+  and no user, `SmtpConfig()` printed the password in the traceback's input dict. The reader moved
+  to a new package, `cortex_settings`, rather than `cortex_core`, which imports only the standard
+  library, so the email sidecar imports the reader without the core. Both sidecars read every class
+  through it and exit 1 with one `setting refused` line: the model host's in `plain` at INFO, the
+  email sidecar's through the standard library's last-resort handler with the reason inside the
+  message. No other Python sidecar exists: the file sidecar is the Node filesystem server and the
+  embedder is `llama-server`. An unknown log format still ends the brain and the model host with a
+  traceback, filed as [R-891](891-an-unknown-log-format-ends-a-process-with-a-traceback.md).

@@ -38,7 +38,7 @@ is [ADR-0045](ADR-0045-documented-log-lines.md).
    packed for transport. `plain`/`json` was rejected for naming one entry by wire format and the
    other by its absence; `loose`/`sealed` for making an operator guess what each prints.
 3. **Only a process entry point configures logging.** `configure_logging` is the one core function
-   that changes process-wide state, is called from `cortex_orchestrator.__main__` and the model
+   that changes process-wide state, is called from `cortex_orchestrator.entry` and the model
    host's `server.main`, and forces its handler on. `cortex_email` configures no logging and
    attaches no field, and so needs no dependency on the core. The two audit logs need a formatter to
    be installed, which is where handler configuration belongs.
@@ -154,10 +154,15 @@ is [ADR-0045](ADR-0045-documented-log-lines.md).
     its date rather than checked, since no code compares anything against it; the reader's search
     texts are registry entries (`scripts/trailcouplings.py`,
     [ADR-0042](ADR-0042-cross-tree-constant-registry.md)).
-17. **A refused setting ends the brain with one rendered line naming its variable.** The
-    composition root reads every settings class through `read_settings`, which turns a
-    `ValidationError` or `SettingsError` into a `ConfigError` naming the environment variable and
-    the rule broken, never the value; `entry.main` logs it as `setting refused` and exits 1.
+17. **A refused setting ends a Python process with one line naming its variable.** The brain, the
+    model host and the email sidecar read every settings class through `read_settings`, which
+    turns a `ValidationError` or `SettingsError` into a `ConfigError` naming the environment
+    variable and the rule broken, never the value; each entry point writes it as one
+    `setting refused` line and exits 1. The reader is its own package, `cortex_settings`, because
+    `cortex_core` imports only the standard library and the email sidecar imports no other cortex
+    package. The model host writes its line in `plain` at INFO, since `ModelHostConfig` is the class
+    that names its rendering. The email sidecar, which configures no logging, puts the reason inside
+    the message, which the standard library's last-resort handler writes alone.
 
 ## Consequences
 

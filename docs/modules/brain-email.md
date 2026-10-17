@@ -63,8 +63,7 @@ model never sent; the cause chain keeps both for an operator.
 
 ### The IMAP adapter
 
-`ImapMailbox(config)` is the `Mailbox` over imap-tools. It connects per call, so the server holds no
-IMAP state.
+`ImapMailbox(config)` is the `Mailbox` over imap-tools. It connects per call, holding no IMAP state.
 
 - **Listing.** `list_folders` reads the LIST attributes `folder.list()` returns beside each name and
   treats a name flagged `\Noselect` (RFC 3501) or `\NonExistent` (RFC 5258), case-folded, as
@@ -163,8 +162,10 @@ brain writes it only as the enum member `SourceKind.SENDER`, which the scan cann
 declaration. The two field names are bound on both sides as (`_KIND_FIELD`, `"kind"`) and
 (`_VALUE_FIELD`, `"value"`).
 
-`main()` reads the environment config, builds the reader (and an `SmtpSender` only when
-`SmtpConfig.enabled`), and runs the server over streamable-http (`python -m cortex_email`).
+`main()` reads both classes through `cortex_settings.read_settings`, builds the reader (and an
+`SmtpSender` only when `SmtpConfig.enabled`), and runs the server (`python -m cortex_email`). A
+refused value exits 1 with one stderr line, `setting refused: ` and a reason naming the variable and
+never the value, written by the last-resort handler since FastMCP installs its own only later.
 
 ### Sending
 
@@ -179,8 +180,7 @@ declaration. The two field names are bound on both sides as (`_KIND_FIELD`, `"ki
   entry and each field's `Field(description=...)` into that field, so `values.py` owns that
   model-facing prose (ADR-0022 decision 12). The three bounds a send is checked against
   (`MAX_ATTACHMENTS`, `MAX_ATTACHMENT_CHARS`, `MAX_FILENAME_CHARS`) live there too, beside
-  `ATTACHMENTS_HELP`, so the number the model is told and the number `SmtpSender` enforces are one
-  value.
+  `ATTACHMENTS_HELP`, so the model is told the same number `SmtpSender` enforces.
 - `EmailSender` is the `Protocol` the send tool needs (`send(draft: EmailDraft) -> str`). Every
   implementation owes three things and `tests/sender_contract.py` drives both over them. A draft
   `drafts.refuse_unsendable` rejects raises its `ValueError` and nothing is handed over: a CR or LF
@@ -226,7 +226,7 @@ enabled, and the brain requires the user's confirmation for it (ADR-0022).
 
 ## Invariants
 
-- A standalone sidecar that depends on no other cortex package; the brain reaches it over MCP.
+- A standalone sidecar that imports no cortex package but `cortex_settings`, reached over MCP.
 - Real IMAP work is `ImapMailbox`, validated against a live Bridge; the parsing and the tools are
   pure and covered 100% without a server.
 - Fully typed, pyright strict clean, 100% line and branch over fakes: a fake `Mailbox` for the
@@ -246,5 +246,5 @@ enabled, and the brain requires the user's confirmation for it (ADR-0022).
 
 **Dependencies.** mcp (the FastMCP server), imap-tools (the IMAP client, STARTTLS-capable through
 the standard library `imaplib`, which the Bridge defaults to), pydantic (the `Field` descriptions
-the tool schema is generated from) and pydantic-settings. Deployed by
+the tool schema is generated from), pydantic-settings and cortex-settings. Deployed by
 `docker/docker-compose.email.yml`.

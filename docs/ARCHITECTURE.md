@@ -145,8 +145,9 @@ brain/            Python workspace (uv), dockerized (brain/Dockerfile)
                   CPU Embedder), memory (pgvector MemoryStore), tools (MCP ToolRegistry +
                   audit sink), email (read-only IMAP MCP server), body_client (gRPC client
                   of the body's BodyService), model_manager (one llama-server per model +
-                  the ModelHost adapter); subagents live in core and session, which also
-                  holds their tasks; (planned) shared
+                  the ModelHost adapter), settings (the reader every Python entry point
+                  reads its settings through); subagents live in core and session, which
+                  also holds their tasks; (planned) shared
 body/             Rust/Tauri workspace, host-native
   crates/         core (pure logic + the Hotkey, AudioControl, ScreenCapture and Notify
                   traits + BrainTransport), rpc (tonic adapter and committed stubs),

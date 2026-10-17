@@ -245,6 +245,6 @@ the version string `Health` reports.
   the three of each file sink's gap line, `tool.audit.gap` and `memory.recall.gap`. The check sits
   here because this is the one place that sees every sink the brain ships.
 
-**Dependencies.** `cortex-core`, `cortex-body-client`, `cortex-inference`, `cortex-seam` and
-`cortex-session` from the workspace, plus grpcio (`grpc.aio`), httpx, pydantic and
-pydantic-settings.
+**Dependencies.** `cortex-core`, `cortex-body-client`, `cortex-inference`, `cortex-seam`,
+`cortex-session` and `cortex-settings` from the workspace, plus grpcio (`grpc.aio`), httpx, pydantic
+and pydantic-settings.

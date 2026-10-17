@@ -179,7 +179,8 @@ compares the two, so retune both or neither. `RosterError` is a boot-time miscon
   every INFO lifecycle record is dropped and no line's `extra` reaches the line. Each message is a
   constant sentence with its tier, pid and port as fields beside it
   ([ADR-0051](../adr/ADR-0051-log-line-rendering.md) decision 5):
-  `started a model process model=cortex pid=8 port=8080`.
+  `started a model process model=cortex pid=8 port=8080`. A refused `ModelHostConfig` value exits 1
+  with one `plain` `setting refused` line from `read_settings`, naming the variable, not the value.
 - **Children inherit the daemon's stdout and stderr and its process group.** No pipe means nothing
   can wedge when llama.cpp's loading log outruns a buffer nobody drains. No new session means a
   container the runtime tears down takes the children with it, so no `llama-server` outlives the
@@ -245,6 +246,5 @@ has free being rejected while the same call for exactly what is free really load
 
 **Dependencies.** cortex-core (the `ModelHostState` enum, shared by both halves so the four wire
 words cannot disagree, `DeviceMemory` for the same reason, and `ModelHostError`), httpx, starlette
-and uvicorn (the control API), and pydantic-settings. The brain's composition root
-(`cortex_orchestrator.swap_builders`) injects the endpoint and a bounded `httpx.AsyncClient`; the
-sidecar's own root is `server.build_model_host`.
+and uvicorn (the control API), pydantic-settings and cortex-settings. The brain's composition root
+(`cortex_orchestrator.swap_builders`) injects the endpoint and a bounded `httpx.AsyncClient`.

@@ -5,8 +5,8 @@ import logging
 from collections.abc import Callable, Coroutine
 
 from cortex_orchestrator.config_logging import configure_from_env
-from cortex_orchestrator.settings_read import ConfigError
 from cortex_orchestrator.wiring import run_from_env
+from cortex_settings import ConfigError
 
 __all__ = ["main"]
 

@@ -1,3 +1,4 @@
+import logging
 from http import HTTPStatus
 from typing import Any, cast
 
@@ -74,7 +75,7 @@ def test_main_serves_the_configured_interface_and_port_and_configures_the_root_l
     monkeypatch.setenv("CORTEX_MODELHOST_BIND_PORT", "9999")
     monkeypatch.setenv("CORTEX_MODELHOST_LOG_LEVEL", "warning")
     monkeypatch.setenv("CORTEX_MODELHOST_LOG_FORMAT", PACKED_FORMAT)
-    main()
+    assert main() == 0
     assert served == [("127.0.0.1", 9999, "warning")]
     assert configured == [("WARNING", PACKED_FORMAT)]
 
@@ -95,6 +96,44 @@ def test_the_sidecar_renders_its_fields_the_way_a_reader_gets_them_by_default(
     monkeypatch.setattr(uvicorn, "run", fake_run)
     monkeypatch.setattr("cortex_model_manager.server.configure_logging", fake_configure)
     monkeypatch.delenv("CORTEX_MODELHOST_LOG_FORMAT", raising=False)
-    main()
+    assert main() == 0
     assert configured == [("INFO", PLAIN_FORMAT)]
     assert served == ["0.0.0.0:9300@info"]
+
+
+@pytest.mark.parametrize(
+    ("variable", "value"),
+    [
+        ("CORTEX_MODELHOST_BIND_PORT", "9x00"),
+        ("CORTEX_MODELHOST_PROBE_TIMEOUT_S", "soon"),
+        ("CORTEX_CTX_SIZE", "huge"),
+        ("CORTEX_REASONING_BUDGET_BRAIN", "lots"),
+    ],
+)
+def test_a_refused_setting_is_one_default_rendered_line_naming_its_variable(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    variable: str,
+    value: str,
+) -> None:
+    configured: list[tuple[int | str, str]] = []
+
+    def fake_configure(level: int | str, *, style: str) -> None:
+        configured.append((level, style))
+
+    def refuse_to_serve(*_: object, **__: object) -> None:
+        pytest.fail("a refused setting must not serve")
+
+    monkeypatch.setattr(uvicorn, "run", refuse_to_serve)
+    monkeypatch.setattr("cortex_model_manager.server.configure_logging", fake_configure)
+    monkeypatch.setenv("CORTEX_MODELHOST_LOG_FORMAT", PACKED_FORMAT)
+    monkeypatch.setenv(variable, value)
+    with caplog.at_level(logging.ERROR, logger="cortex_model_manager.server"):
+        assert main() == 1
+    assert configured == [(logging.INFO, PLAIN_FORMAT)]
+    [record] = caplog.records
+    assert record.getMessage() == "setting refused"
+    reason = record.__dict__["reason"]
+    assert reason.startswith(f"{variable}: ")
+    assert value not in reason
+    assert record.exc_info is None

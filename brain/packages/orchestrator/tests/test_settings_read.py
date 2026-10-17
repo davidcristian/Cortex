@@ -17,7 +17,7 @@ from cortex_orchestrator.config_subagents import SubagentsConfig
 from cortex_orchestrator.config_swap import SwapConfig
 from cortex_orchestrator.config_tools import ToolsConfig
 from cortex_orchestrator.entry import main
-from cortex_orchestrator.settings_read import ConfigError, read_settings
+from cortex_settings import ConfigError, read_settings
 
 MALFORMED: list[tuple[type[BaseSettings], str, str]] = [
     (RpcServerConfig, "CORTEX_SEAM_PORT", "23o51"),

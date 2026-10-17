@@ -74,8 +74,7 @@ ends a URL's authority, `/` above all, makes the driver read (and print) the pas
 segment as a port, which the brain refuses at boot, also when an `@` is left after the authority:
 
 ```
-cortex_orchestrator.config.MemoryConfigError: CORTEX_MEMORY_DSN has an authority the Postgres
-driver cannot read; percent-encode any password character that would end a URL's authority
+ERROR:cortex_orchestrator.entry:setting refused reason="CORTEX_MEMORY_DSN has an authority the Postgres driver cannot read; percent-encode any password character that would end a URL's authority"
 ```
 
 Percent-encode the character (`/` is `%2F`) in the DSN and leave `POSTGRES_PASSWORD` as raw text.

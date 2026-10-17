@@ -21,6 +21,7 @@ members = [
     "cortex-orchestrator",
     "cortex-seam",
     "cortex-session",
+    "cortex-settings",
     "cortex-tools",
 ]
 
@@ -123,6 +124,7 @@ dependencies = [
     { name = "cortex-orchestrator" },
     { name = "cortex-seam" },
     { name = "cortex-session" },
+    { name = "cortex-settings" },
     { name = "cortex-tools" },
 ]
 
@@ -152,6 +154,7 @@ requires-dist = [
     { name = "cortex-orchestrator", editable = "packages/orchestrator" },
     { name = "cortex-seam", editable = "packages/seam" },
     { name = "cortex-session", editable = "packages/session" },
+    { name = "cortex-settings", editable = "packages/settings" },
     { name = "cortex-tools", editable = "packages/tools" },
 ]
 
@@ -283,6 +286,7 @@ name = "cortex-email"
 version = "0.0.0"
 source = { editable = "packages/email" }
 dependencies = [
+    { name = "cortex-settings" },
     { name = "imap-tools" },
     { name = "mcp" },
     { name = "pydantic" },
@@ -291,6 +295,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
+    { name = "cortex-settings", editable = "packages/settings" },
     { name = "imap-tools", specifier = ">=1.7" },
     { name = "mcp", specifier = ">=1.23,<2" },
     { name = "pydantic", specifier = ">=2.11" },
@@ -348,6 +353,7 @@ version = "0.0.0"
 source = { editable = "packages/model_manager" }
 dependencies = [
     { name = "cortex-core" },
+    { name = "cortex-settings" },
     { name = "httpx" },
     { name = "pydantic-settings" },
     { name = "starlette" },
@@ -357,6 +363,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "cortex-core", editable = "packages/core" },
+    { name = "cortex-settings", editable = "packages/settings" },
     { name = "httpx", specifier = ">=0.27" },
     { name = "pydantic-settings", specifier = ">=2.6" },
     { name = "starlette", specifier = ">=1.0" },
@@ -376,6 +383,7 @@ dependencies = [
     { name = "cortex-model-manager" },
     { name = "cortex-seam" },
     { name = "cortex-session" },
+    { name = "cortex-settings" },
     { name = "cortex-tools" },
     { name = "grpcio" },
     { name = "httpx" },
@@ -393,6 +401,7 @@ requires-dist = [
     { name = "cortex-model-manager", editable = "packages/model_manager" },
     { name = "cortex-seam", editable = "packages/seam" },
     { name = "cortex-session", editable = "packages/session" },
+    { name = "cortex-settings", editable = "packages/settings" },
     { name = "cortex-tools", editable = "packages/tools" },
     { name = "grpcio", specifier = ">=1.81.1" },
     { name = "httpx", specifier = ">=0.27" },
@@ -428,6 +437,21 @@ dependencies = [
 requires-dist = [
     { name = "cortex-core", editable = "packages/core" },
     { name = "redis", specifier = ">=5.0" },
+]
+
+[[package]]
+name = "cortex-settings"
+version = "0.0.0"
+source = { editable = "packages/settings" }
+dependencies = [
+    { name = "pydantic" },
+    { name = "pydantic-settings" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "pydantic", specifier = ">=2.11" },
+    { name = "pydantic-settings", specifier = ">=2.6" },
 ]
 
 [[package]]

@@ -34,7 +34,6 @@ from cortex_orchestrator.schedule_builders import (
 )
 from cortex_orchestrator.server import RpcPorts, serve
 from cortex_orchestrator.serving_builders import build_serving_watch
-from cortex_orchestrator.settings_read import read_settings
 from cortex_orchestrator.stores import RedisStores
 from cortex_orchestrator.subagent_builders import build_subagent_tools, build_subagents
 from cortex_orchestrator.swap_builders import (
@@ -45,6 +44,7 @@ from cortex_orchestrator.swap_builders import (
 )
 from cortex_orchestrator.vision import build_vision
 from cortex_session import RedisPreferenceStore, RedisSessionStore
+from cortex_settings import read_settings
 
 
 async def run_from_env(

@@ -5,6 +5,7 @@
 # pyright: reportUnusedFunction=false
 
 import asyncio
+import logging
 from collections.abc import Sequence
 from typing import Annotated
 
@@ -27,6 +28,9 @@ from cortex_email.values import (
     EmailAttachment,
     EmailDraft,
 )
+from cortex_settings import ConfigError, read_settings
+
+_logger = logging.getLogger(__name__)
 
 _SERVER_HOST = "0.0.0.0"  # noqa: S104 - the sidecar binds its container interface; compose publishes loopback-only
 _SERVER_PORT = 9100
@@ -142,9 +146,16 @@ def build_server(reader: EmailReader, sender: EmailSender | None = None) -> Fast
     return server
 
 
-def main() -> None:
-    """Run the email MCP server from the environment, over streamable-http."""
-    reader = EmailReader(ImapMailbox(EmailConfig()))
-    smtp = SmtpConfig()
+def main() -> int:
+    """Run the email MCP server over streamable-http, and return the process exit status."""
+    try:
+        imap = read_settings(EmailConfig)
+        smtp = read_settings(SmtpConfig)
+    except ConfigError as exc:
+        # No handler is installed before FastMCP's, so the standard library's last-resort
+        # handler writes this message alone to stderr, and the reason has to be inside it.
+        _logger.error("setting refused: %s", exc)  # noqa: TRY400
+        return 1
     sender = SmtpSender(smtp) if smtp.enabled else None
-    build_server(reader, sender).run(transport="streamable-http")
+    build_server(EmailReader(ImapMailbox(imap)), sender).run(transport="streamable-http")
+    return 0

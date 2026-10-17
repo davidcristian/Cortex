@@ -123,6 +123,7 @@ public contract, its invariants and what it depends on. Every module has one:
 | [`brain-tools.md`](modules/brain-tools.md) | `cortex_tools`, the MCP-client adapter for `ToolRegistry` and the adapters of its audit sink |
 | [`brain-email.md`](modules/brain-email.md) | `cortex_email`, the read-only IMAP MCP server over ProtonMail Bridge, with the opt-in send tool |
 | [`brain-model-manager.md`](modules/brain-model-manager.md) | `cortex_model_manager`, the supervisor sidecar that runs one server per model, and the `ModelHost` adapter |
+| [`brain-settings.md`](modules/brain-settings.md) | `cortex_settings`, the settings reader every Python entry point shares, naming a refused value by its variable |
 | [`brain-seam.md`](modules/brain-seam.md) | `cortex_seam`, the committed wire code and the typed facade every brain package imports it through |
 | [`brain-body-client.md`](modules/brain-body-client.md) | `cortex_body_client`, the gRPC client adapter for the `BodyGateway` port |
 | [`brain-orchestrator.md`](modules/brain-orchestrator.md) | `cortex_orchestrator`, the service hosting `BrainService`, and the composition root that wires the ports |

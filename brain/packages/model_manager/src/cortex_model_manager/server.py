@@ -7,7 +7,7 @@ import httpx
 import uvicorn
 from starlette.applications import Starlette
 
-from cortex_core import configure_logging
+from cortex_core import DEFAULT_LOG_FORMAT, configure_logging
 from cortex_model_manager.api import build_app
 from cortex_model_manager.children import AsyncioChildProcesses
 from cortex_model_manager.config import ModelHostConfig
@@ -15,6 +15,7 @@ from cortex_model_manager.device_memory import NvidiaSmiMemory
 from cortex_model_manager.probe import HttpHealthProbe
 from cortex_model_manager.restarts import RestartBudget, RestartPolicy
 from cortex_model_manager.supervisor import ModelSupervisor
+from cortex_settings import ConfigError, read_settings
 
 _logger = logging.getLogger(__name__)
 
@@ -49,9 +50,16 @@ def build_model_host(config: ModelHostConfig) -> Starlette:
     )
 
 
-def main() -> None:
-    """Serve the control API until the container stops."""
-    config = ModelHostConfig()
+def main() -> int:
+    """Serve the control API until the container stops, and return the process exit status."""
+    try:
+        config = read_settings(ModelHostConfig)
+    except ConfigError as exc:
+        # The refused class is what names the rendering and the level, so the defaults apply.
+        configure_logging(logging.INFO, style=DEFAULT_LOG_FORMAT)
+        _logger.error("setting refused", extra={"reason": str(exc)})  # noqa: TRY400
+        return 1
     configure_logging(config.log_level.upper(), style=config.log_format)
     app = build_model_host(config)
     uvicorn.run(app, host=config.bind_host, port=config.bind_port, log_level=config.log_level)
+    return 0

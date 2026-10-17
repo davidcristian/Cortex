@@ -364,7 +364,7 @@ def test_main_builds_the_server_and_runs_streamable_http(monkeypatch: pytest.Mon
 
     monkeypatch.setattr(FastMCP, "run", fake_run)
     monkeypatch.setattr(server_module, "build_server", spy_build)
-    main()
+    assert main() == 0
     assert transports == ["streamable-http"]
     assert senders == [None]
 
@@ -385,7 +385,7 @@ def test_main_wires_a_sender_when_send_is_enabled(monkeypatch: pytest.MonkeyPatc
 
     monkeypatch.setattr(FastMCP, "run", fake_run)
     monkeypatch.setattr(server_module, "build_server", spy_build)
-    main()
+    assert main() == 0
     assert transports == ["streamable-http"]
     (sender,) = senders
     assert isinstance(sender, SmtpSender)

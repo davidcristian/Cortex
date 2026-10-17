@@ -4,11 +4,15 @@ version = "0.0.0"
 description = "Read-only IMAP MCP server: list, search and read email over ProtonMail Bridge."
 requires-python = ">=3.12"
 dependencies = [
+  "cortex-settings",
   "mcp>=1.23,<2",
   "imap-tools>=1.7",
   "pydantic>=2.11",
   "pydantic-settings>=2.6",
 ]
+
+[tool.uv.sources]
+cortex-settings = { workspace = true }
 
 [build-system]
 requires = ["hatchling"]
