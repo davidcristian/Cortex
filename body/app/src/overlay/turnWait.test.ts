@@ -44,8 +44,60 @@ describe("a heartbeat's wait", () => {
     expect(assistant(s)?.thoughts).toBe("the user wants");
   });
 
-  it("changes nothing when the turn waits on nothing", () => {
-    const before = run([submit, event({ kind: "status", state: "swapping", detail: "loading" })]);
-    expect(reduce(before, beat("", ""))).toBe(before);
+  it("clears a chip other than thinking when the turn waits on nothing", () => {
+    const s = run([
+      submit,
+      event({ kind: "status", state: "swapping", detail: "loading" }),
+      beat("", ""),
+    ]);
+    expect(assistant(s)).toMatchObject({ status: null, statusState: null, streaming: true });
+  });
+
+  it("keeps the latest reasoning when the turn waits on nothing", () => {
+    const s = run([
+      submit,
+      event({ kind: "status", state: "thinking", detail: "the user wants" }),
+      beat("", ""),
+    ]);
+    expect(assistant(s)).toMatchObject({ status: "the user wants", statusState: "thinking" });
+  });
+});
+
+describe("an empty status", () => {
+  const queued = event({
+    kind: "status",
+    state: "queued",
+    detail: "waiting for this chat's previous message to finish",
+  });
+  const cleared = event({ kind: "status", state: "", detail: "" });
+
+  it("clears the chip the wait before it left", () => {
+    const s = run([submit, queued, cleared]);
+    expect(assistant(s)).toMatchObject({ status: null, statusState: null, streaming: true });
+  });
+
+  it("clears a reasoning chip and keeps its thoughts", () => {
+    const reasoned = event({ kind: "status", state: "thinking", detail: "rivers" });
+    const s = run([submit, reasoned, cleared]);
+    expect(assistant(s)).toMatchObject({ status: null, statusState: null, thoughts: "rivers" });
+  });
+
+  it("leaves the reply's text, its tool chip and an approval card in place", () => {
+    const s = run([
+      submit,
+      event({ kind: "delta", text: "The Rhine" }),
+      event({ kind: "toolActivity", toolName: "send_email", summary: "to a friend" }),
+      event({
+        kind: "confirmRequest",
+        confirmId: "c-1",
+        toolName: "send_email",
+        argumentsJson: "{}",
+        reason: "it sends mail",
+      }),
+      queued,
+      cleared,
+    ]);
+    expect(assistant(s)).toMatchObject({ content: "The Rhine", tool: "send_email: to a friend" });
+    expect(s.pendingConfirm?.confirmId).toBe("c-1");
   });
 });

@@ -136,8 +136,8 @@ with no text first with no break, in a `NO_TEXT` form for an overflow or unreada
 `SerialTurnRunner(inner, locks, progress=None)` (`session_turns.py`) is the `TurnRunner` every
 `Converse` stream runs. A turn holds its session in the shared `SessionTurnLocks` from before it
 stores its question until its reply is stored, so a second turn on that session, from any stream,
-waits under the `queued` wait `CHAT_AHEAD` and then reads the first one's reply. A turn cancelled
-while it waits stores nothing. A session's lock goes with its last turn in flight.
+waits under the `queued` wait `CHAT_AHEAD`, whose close clears the chip, then reads the first's
+reply. One cancelled while it waits stores nothing. A session's lock goes with its last turn.
 
 ## The history one turn sends
 

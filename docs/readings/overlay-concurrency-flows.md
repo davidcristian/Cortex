@@ -163,6 +163,25 @@ For those seconds C's last status still said "waiting for this chat's previous m
 since closing the wait sends nothing. The SM clock read 0.59 of `clocks.max.sm` just after the
 two runs.
 
+## The chip once the turn ahead ends, with the clear
+
+**2026-10-18**, the same debug shell and `Xvfb` rig, the overlay from Vite with the clear status
+in `turnState.ts`, and a `cortexn7` stack rebuilt with it: gemma 12B as the cortex, escalation
+off, Postgres and the CPU embedder, no tool sidecar. The right behaviour, written first: the second
+turn's chip changes when the first turn's reply ends, and until its first reasoning it shows no
+wait sentence.
+
+On one session id, A "Write eight sentences about rivers, one per line." from the second client
+and, 4.5 s later, "Name one fruit." sent from the overlay. **As expected**, twice. The overlay
+showed "waiting for this chat's previous message to finish" while A ran, and the chip was gone
+in the first frame grabbed after A's reply ended: frames every 0.15 s put the change 0.03 to
+0.18 s and 0.01 to 0.20 s after it. The reply's waiting bubble then showed alone
+until the first reasoning chip, 2.7 to 3.0 s and 2.5 to 3.3 s after A's end. Two runs with both
+turns on the second client (`s897-warm`, `s897-wire2`) timed the wire: the empty status reached the
+second stream in the same millisecond as A's `TurnComplete` reached the first, and the first
+`thinking` status followed 2.4 s and 2.7 s later. The SM clock read 0.50 to 0.60 of
+`clocks.max.sm` during the shell runs and 0.50 to 0.75 during the wire runs.
+
 ## Defects
 
 - **A wait behind another chat is not named.** A turn waiting for another chat's generation is
@@ -174,7 +193,8 @@ two runs.
 - **A forget keeps a row a turn in flight records**, above, with the replay under the
   recalled-memory check after it.
 - **A queued status stays after the turn ahead ends**, until the waiting turn's first reasoning.
-  Filed as [R-897](../refinements/tasks/897-a-queued-status-stays-after-the-turn-ahead-ends.md).
+  Filed as [R-897](../refinements/tasks/897-a-queued-status-stays-after-the-turn-ahead-ends.md)
+  and fixed by the clear status above.
 
 ## Not run
 

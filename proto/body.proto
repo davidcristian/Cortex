@@ -97,6 +97,8 @@ message ToolActivity { string tool_name = 1; string summary = 2; }
 // over a channel that drops events when full, so an activity with no outcome is ordinary and
 // the proto3 default false is the safe reading: it leaves a surface at its weaker claim.
 message ToolOutcome { string tool_name = 1; bool ok = 2; }
+// Progress for the overlay's chip: state is a wait key such as queued or swapping, or "" once
+// the turn waits on nothing the brain sends, which clears the chip.
 message StatusUpdate { string state = 1; string detail = 2; }
 message TurnComplete { string turn_id = 1; }
 message SeamError { string code = 1; string message = 2; }

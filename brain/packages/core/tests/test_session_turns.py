@@ -158,22 +158,31 @@ async def test_a_turn_cancelled_mid_reply_lets_the_next_one_start() -> None:
 
 async def test_a_turn_behind_its_own_chat_says_so_until_it_holds_the_chat() -> None:
     store = InMemorySessionStore()
-    backend = HeldBackend()
+    backends = (HeldBackend(), HeldBackend())
     locks = SessionTurnLocks()
     ahead = RecordingProgressSink()
     behind = RecordingProgressSink()
-    first = asyncio.create_task(_drain(_runner(store, backend, locks, ahead), "s", "first"))
+    first = asyncio.create_task(_drain(_runner(store, backends[0], locks, ahead), "s", "first"))
     await _settle()
-    second = asyncio.create_task(_drain(_runner(store, backend, locks, behind), "s", "second"))
+    second = asyncio.create_task(_drain(_runner(store, backends[1], locks, behind), "s", "second"))
     await _settle()
 
     assert behind.waits.current() == CHAT_AHEAD
     assert behind.events == (StatusUpdate(state=QUEUED, detail=CHAT_AHEAD.detail),)
     assert ahead.held == ()
-    backend.release.set()
-    await asyncio.gather(first, second)
+    backends[0].release.set()
+    await first
+    await _settle()
+    assert backends[1].started == 1
     assert behind.waits.current() is None
+    assert behind.events == (
+        StatusUpdate(state=QUEUED, detail=CHAT_AHEAD.detail),
+        StatusUpdate(state="", detail=""),
+    )
+    backends[1].release.set()
+    await second
     assert behind.held == (CHAT_AHEAD,)
+    assert len(behind.events) == 2
     assert ahead.events == ()
 
 

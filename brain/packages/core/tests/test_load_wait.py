@@ -113,7 +113,10 @@ async def test_a_loading_server_is_asked_again_until_it_answers() -> None:
     assert inner.closed == 3
     assert sleeper.waits == [LOAD_POLL_INTERVAL_S, LOAD_POLL_INTERVAL_S]
     assert progress.held == (MODEL_LOADING,)
-    assert progress.events == (StatusUpdate(state=MODEL_LOADING.key, detail=MODEL_LOADING.detail),)
+    assert progress.events == (
+        StatusUpdate(state=MODEL_LOADING.key, detail=MODEL_LOADING.detail),
+        StatusUpdate(state="", detail=""),
+    )
     assert progress.waits.current() is None
 
 

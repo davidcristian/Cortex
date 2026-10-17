@@ -121,9 +121,7 @@ export function applyEvent(state: OverlayState, event: TurnEvent): OverlayState 
       // `thoughts` as well as the live chip. Any other status drives the chip only.
       const thinking = event.state === "thinking";
       return patchStreaming(state, (m) => ({
-        ...m,
-        status: event.detail,
-        statusState: event.state,
+        ...withWait(m, event.state, event.detail),
         thoughts: thinking ? m.thoughts + event.detail : m.thoughts,
       }));
     }
@@ -148,21 +146,24 @@ export function applyEvent(state: OverlayState, event: TurnEvent): OverlayState 
   }
 }
 
-/** A heartbeat repeats the brain's current wait, so a chip a dropped status left behind is set
- *  right within one period. It never adds to `thoughts`, because its `thinking` sentence is not
- *  reasoning, and it leaves a thinking chip alone so the latest reasoning stays on it. */
+/** A heartbeat repeats the brain's current wait, so a chip a dropped status or clear left behind
+ *  is set right within one period. It never adds to `thoughts`, and it leaves a thinking chip
+ *  alone on a thinking or empty wait, so the latest reasoning stays on it. */
 function applyHeartbeat(
   state: OverlayState,
   event: Extract<TurnEvent, { kind: "heartbeat" }>,
 ): OverlayState {
-  if (event.wait === "") {
-    return state;
-  }
+  const keeps = event.wait === "thinking" || event.wait === "";
   return patchStreaming(state, (m) =>
-    event.wait === "thinking" && m.statusState === "thinking"
-      ? m
-      : { ...m, status: event.detail, statusState: event.wait },
+    keeps && m.statusState === "thinking" ? m : withWait(m, event.wait, event.detail),
   );
+}
+
+/** The chip for one wait: its sentence under its key, or no chip for the empty wait. */
+function withWait(m: Message, wait: string, detail: string): Message {
+  return wait === ""
+    ? { ...m, status: null, statusState: null }
+    : { ...m, status: detail, statusState: wait };
 }
 
 /** A call is waiting for approval: raise the card, showing it as a completed turn does (orb or

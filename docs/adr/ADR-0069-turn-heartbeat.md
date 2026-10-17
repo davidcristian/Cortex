@@ -86,7 +86,8 @@ The third needs a bound on the turn's own progress, which ADR-0024's gaps alread
    for an earlier turn of its own chat), `delegating` (subtasks run), `swapping` (a handoff
    holds the card: the pool drains, the deep model loads or works, or the cortex comes back, for this turn's handoff or for one it waits behind),
    `folding` (the earlier conversation is being summarized), `calling` (a tool call runs) and
-   `asking` (a confirm card waits for the user). `wait` is `""` when the turn waits on none of them. Plain
+   `asking` (a confirm card waits for the user). `wait` is `""` when the turn waits on none of them,
+   and a `StatusUpdate` whose `state` is `""` says the same and clears the chip (decision 10). Plain
    verbs, because a chip is read at a glance, like the console's Summon and Dismiss, and each
    word starts with its own letter. Rejected: directions of attention (Inward, Aside, Deeper,
    Outward, Yours), since Aside names a queued and a running subtask alike; and free text with
@@ -127,10 +128,27 @@ The third needs a bound on the turn's own progress, which ADR-0024's gaps alread
     reply's trace; it reaches the body only in a heartbeat, or as the model's own reasoning. The
     swap conductor already sends its statuses on the turn stream, which does not drop them, so
     `EscalatingTurnEngine` holds each one without sending it again (`announce=False`).
+    **When the innermost wait changes from one the record sent to none or to `thinking`, the
+    record sends a clear**, `CLEARED` in `waits.py`: a `StatusUpdate` whose `state` and `detail`
+    are `""`. The chip keeps the last status until the next one, so without the clear a turn that
+    waited for its own chat went on reading "waiting for this chat's previous message to finish"
+    through its own recall, and a load wait or a handoff ahead inside the `thinking` wait kept
+    its sentence until the first reasoning, or over the whole reply of a model that sends none.
+    The same holds for a recap, a tool call or a subtask batch that ends with nothing open. Each
+    `WaitHold` records whether it is announced, as opened or as last restated, and a quiet hold's
+    change sends no clear, since its holder reports what the turn does next. Rejected: a clear
+    sent only when the `queued` wait closes, which leaves every other wait above stale; and a
+    wait for the turn's own preparation, held from the lock to the first stream, which names
+    work (history, recall, the tool listing) that has waits of its own nested inside it.
 
-11. **The overlay sets the chip from a heartbeat.** `turnState.ts` sets `status` and
-    `statusState` from a heartbeat with a wait, leaves a chip that already shows `thinking` alone
-    so the latest reasoning stays on it, ignores an empty wait, and never adds to `thoughts`.
+11. **The overlay sets the chip from a status and a heartbeat.** `turnState.ts` sets `status`
+    and `statusState` from a status or a heartbeat with a wait, and sets both to `null` for an
+    empty one, so the chip goes and the reply's waiting bubble shows alone, as before the first
+    status. A heartbeat leaves a chip that already shows `thinking` alone on a `thinking` or an
+    empty wait, so the latest reasoning stays on it, and never adds to `thoughts`. An empty
+    heartbeat therefore clears any other chip, which sets a dropped clear right within a period;
+    a `forgoing` notice it meets is cleared too, as a heartbeat with a wait already replaces it.
+    A clear changes only the chip: the reply's text, the tool chip and an approval card stay.
 
 ## Consequences
 
@@ -138,8 +156,9 @@ The third needs a bound on the turn's own progress, which ADR-0024's gaps alread
   within two minutes of the last thing received, instead of up to four hours.
 - A turn that stays silent while its brain lives still ends at ADR-0024's bounds.
 - A silent turn costs one small message per 30 s, from one task per open stream.
-- A return to `thinking` after a tool call reaches the chip with the model's first reasoning, or
-  with the next heartbeat for a model that sends none.
+- A chip naming a wait goes when that wait ends. A return to `thinking` after a tool call reaches
+  the chip with the model's first reasoning, or with the next heartbeat for a model that sends
+  none; between the two the chip is empty.
 - The brain's event loop must not be blocked for more than about 90 s while a turn runs, or the
   body ends the turn. A synchronous call on the loop that long was already a defect, since it
   stalls every stream and the `Health` probe; this makes it visible to the user.

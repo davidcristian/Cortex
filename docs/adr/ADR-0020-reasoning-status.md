@@ -79,11 +79,11 @@ the silence. Thinking stays **on** for the cortex, and the trace is shown rather
 ### The overlay
 
 8. **A thinking status renders as its own chip.** The reducer keeps the status `state` beside its
-   `detail` (`Message.statusState`, `null` until a status arrives and dropped when the turn
-   settles). A chip whose `statusState` is `"thinking"` gets the `chip-think` modifier and the
-   label "Thinking": its dot bobs on the reasoning `think` keyframe rather than the tool `pulse`,
-   and the label takes the accent, so deliberation reads apart from an action. Every other status
-   stays the neutral pill, and colour stays in the working states.
+   `detail` (`Message.statusState`, `null` until a status arrives or after an empty one, and
+   dropped when the turn settles). A chip whose `statusState` is `"thinking"` gets the
+   `chip-think` modifier and the label "Thinking": its dot bobs on the reasoning `think` keyframe
+   rather than the tool `pulse`, and the label takes the accent, so deliberation reads apart from
+   an action. Every other status stays the neutral pill, and colour stays in the working states.
 
 9. **The settled reply keeps its trace behind a "Thoughts" disclosure.** The reducer concatenates
    every `"thinking"` detail, in order, into `Message.thoughts`. While the reply streams the live

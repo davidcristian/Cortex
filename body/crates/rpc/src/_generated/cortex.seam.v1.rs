@@ -102,6 +102,8 @@ pub struct ToolOutcome {
     #[prost(bool, tag = "2")]
     pub ok: bool,
 }
+/// Progress for the overlay's chip: state is a wait key such as queued or swapping, or "" once
+/// the turn waits on nothing the brain sends, which clears the chip.
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct StatusUpdate {
     #[prost(string, tag = "1")]

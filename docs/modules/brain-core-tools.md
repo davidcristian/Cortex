@@ -39,9 +39,9 @@ spawned subtask or a model swap is in [brain-core-residency.md](brain-core-resid
   never the model's, and a missing confirmer is `UNANSWERED`. Real adapter: `RpcConfirmer` (ADR-0022).
 - `ProgressSink` (`progress.py`, ADR-0010 decision 13) is the side channel for progress a
   suspended turn cannot yield itself. `emit(event)` sends a `ToolActivity` or `StatusUpdate`, best
-  effort. `hold(wait, *, announce=True)` records what the turn waits on, innermost first, in the
-  core's `TurnWaits` (`waits.py`), and sends each change other than `thinking` as a status
-  (ADR-0069 decisions 9 and 10). Fake: `RecordingProgressSink`; list: `progress_contract.py`.
+  effort. `hold(wait, *, announce=True)` records what the turn waits on, innermost first, in
+  `TurnWaits` (`waits.py`), sends each change but `thinking` as a status, and `CLEARED` once none
+  or `thinking` is left (ADR-0069). Fake: `RecordingProgressSink`; list: `progress_contract.py`.
 
 ## Dispatching one call
 

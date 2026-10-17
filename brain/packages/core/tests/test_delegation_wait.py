@@ -34,4 +34,5 @@ async def test_the_board_moves_each_subtask_from_queued_to_running_to_gone() -> 
         "2 subtasks waiting for room to run",
         "1 subtask running, 1 waiting for room to run",
         "1 subtask running",
+        "",
     ]

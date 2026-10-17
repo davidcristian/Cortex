@@ -103,6 +103,10 @@ fn every_kind() -> Vec<TurnEvent> {
             state: String::from("model_loading"),
             detail: String::from("swapping"),
         },
+        TurnEvent::Status {
+            state: String::new(),
+            detail: String::new(),
+        },
         TurnEvent::ConfirmResolved {
             confirm_id: String::from("confirm-7"),
             outcome: String::from("timeout"),

@@ -39,14 +39,24 @@ async def the_innermost_open_wait_is_the_current_one(under_test: SinkUnderTest) 
 
 
 async def each_change_of_wait_is_sent_as_a_status(under_test: SinkUnderTest) -> None:
-    """Opening and closing a wait sends the wait the turn is left on."""
+    """Opening and closing a wait sends the wait the turn is left on, or a clear for none."""
     async with under_test.sink.hold(TOOL_RUNNING), under_test.sink.hold(USER_ASKED):
         pass
     assert list(under_test.sent()) == [
         (CALLING, TOOL_RUNNING.detail),
         (ASKING, USER_ASKED.detail),
         (CALLING, TOOL_RUNNING.detail),
+        ("", ""),
     ]
+
+
+async def a_return_to_thinking_sends_a_clear(under_test: SinkUnderTest) -> None:
+    """A wait that closes back to thinking clears the chip, since thinking is never sent."""
+    async with under_test.sink.hold(GENERATING):
+        async with under_test.sink.hold(TOOL_RUNNING):
+            pass
+        assert under_test.current() == GENERATING
+    assert list(under_test.sent()) == [(CALLING, TOOL_RUNNING.detail), ("", "")]
 
 
 async def a_thinking_wait_is_never_sent_as_a_status(under_test: SinkUnderTest) -> None:
@@ -66,6 +76,7 @@ async def a_quiet_hold_sends_nothing(under_test: SinkUnderTest) -> None:
 ALL_CHECKS: Sequence[Check] = (
     the_innermost_open_wait_is_the_current_one,
     each_change_of_wait_is_sent_as_a_status,
+    a_return_to_thinking_sends_a_clear,
     a_thinking_wait_is_never_sent_as_a_status,
     a_quiet_hold_sends_nothing,
 )

@@ -1,9 +1,8 @@
 # A queued status stays after the turn ahead ends
 
-**Status:** open, actionable
+**Status:** done 2026-10-18
 **Area:** brain
 **Origin:** [ADR-0069](../../adr/ADR-0069-turn-heartbeat.md) decision 7
-**Verified:** 2026-10-17
 
 `SessionTurnLocks.hold` holds the `queued` wait `CHAT_AHEAD` while a turn waits for its own chat's
 previous turn, and sends it as a status. When the lock is taken the wait closes, but
@@ -50,3 +49,9 @@ What the second option needs, checked against the code on 2026-10-17:
   stack.
 - 2026-10-17: checked against the code and left open: the fix changes three ADR-0069 decisions,
   16 brain tests and the overlay, more than the last slot of the night had time to finish.
+- 2026-10-18: done as the second option, made general. `TurnWaits` sends the empty status
+  `CLEARED` whenever the innermost wait changes from one it sent to none or to `thinking`, so a
+  load wait or a handoff ahead inside the `thinking` wait clears too; a quiet hold sends none. The
+  overlay shows no chip for an empty status, and an empty heartbeat clears any chip but a thinking
+  one. On the Linux shell the chip went within 0.2 s of the reply ahead ending
+  ([readings](../../readings/overlay-concurrency-flows.md#the-chip-once-the-turn-ahead-ends-with-the-clear)).

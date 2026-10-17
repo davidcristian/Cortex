@@ -190,8 +190,8 @@ has nothing else to send. It repeats what the turn waits on, and the status chip
 sentence: a model generating (`thinking`), a subtask waiting for room in the subagent budget
 (`queued`) or running (`delegating`), the deep model loading or the cortex coming back
 (`swapping`), the earlier conversation being summarized (`folding`), a tool call running
-(`calling`), or an approval card waiting for you (`asking`). So a chip left stale by a dropped
-status is set right within 30 s. If nothing at all arrives for
+(`calling`), or an approval card waiting for you (`asking`). The chip goes as soon as the wait
+it names ends, and a chip left stale by a dropped status is set right within 30 s. If nothing at all arrives for
 `CORTEX_BRAIN_TURN_HEARTBEAT_GAP_MS` (default 120000, two minutes), the brain or the path to it has
 stopped, and the body stops waiting: the reply settles on whatever text arrived, with
 `no reply within 120s`, and the header dot goes red with the same line. A brain that is alive but

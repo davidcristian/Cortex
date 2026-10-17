@@ -255,6 +255,7 @@ async def test_a_single_subtask_batch_status_is_singular() -> None:
     assert list(progress.events) == [
         StatusUpdate(state=QUEUED, detail="1 subtask waiting for room to run"),
         StatusUpdate(state=SUBAGENT_PROGRESS_STATE, detail="1 subtask running"),
+        StatusUpdate(state="", detail=""),
     ]
 
 

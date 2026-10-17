@@ -44,7 +44,7 @@ pub enum TurnEvent {
     },
     /// Progress for the overlay to show, e.g. a model swap.
     Status {
-        /// Machine-readable state name, e.g. `model_loading`.
+        /// Machine-readable state name, e.g. `queued`; empty when the turn waits on nothing.
         state: String,
         /// Human-readable detail.
         detail: String,

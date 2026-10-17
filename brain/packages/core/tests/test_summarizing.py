@@ -647,7 +647,8 @@ async def test_a_fold_announces_itself_on_the_turns_progress_sink() -> None:
     await _window(backend, store).select(_history(4), session_id=_SESSION, progress=sink)
 
     assert list(sink.events) == [
-        StatusUpdate(state=RECAP_PROGRESS_STATE, detail=RECAP_PROGRESS_DETAIL)
+        StatusUpdate(state=RECAP_PROGRESS_STATE, detail=RECAP_PROGRESS_DETAIL),
+        StatusUpdate(state="", detail=""),
     ]
 
 

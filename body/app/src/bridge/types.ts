@@ -10,6 +10,7 @@ export type TurnEvent =
    * after the screen was read looks the same from here.
    */
   | { readonly kind: "toolOutcome"; readonly toolName: string; readonly ok: boolean }
+  /** Progress for the chip: `state` is the wait's key, such as "queued", and "" clears the chip. */
   | { readonly kind: "status"; readonly state: string; readonly detail: string }
   | {
       readonly kind: "confirmRequest";

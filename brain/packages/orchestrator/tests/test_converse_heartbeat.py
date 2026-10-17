@@ -208,6 +208,11 @@ def _beat(event: ServerEvent) -> tuple[str, str]:
     return (event.heartbeat.wait, event.heartbeat.detail)
 
 
+def _status(event: ServerEvent) -> tuple[str, str]:
+    assert _kind(event) == "status"
+    return (event.status.state, event.status.detail)
+
+
 async def test_a_heartbeat_repeats_the_innermost_wait_and_is_empty_without_one() -> None:
     async with asyncio.timeout(_LIMIT_S):
         sleeper = _StepSleeper()
@@ -220,13 +225,15 @@ async def test_a_heartbeat_repeats_the_innermost_wait_and_is_empty_without_one()
         stream = converse(make, _one_turn(), sleeper=sleeper)
         called = await anext(stream)
         assert (called.status.state, called.status.detail) == (CALLING, TOOL_RUNNING.detail)
+        assert _status(await anext(stream)) == ("", "")
         await turns[0].held.wait()
         sleeper.tick()
         assert _beat(await anext(stream)) == (THINKING, GENERATING.detail)
         turns[0].held.clear()
         turns[0].step.set()
         await turns[0].held.wait()
-        assert _kind(await anext(stream)) == "status"
+        assert _status(await anext(stream)) == (CALLING, TOOL_RUNNING.detail)
+        assert _status(await anext(stream)) == ("", "")
         sleeper.tick()
         assert _beat(await anext(stream)) == ("", "")
         turns[0].step.set()

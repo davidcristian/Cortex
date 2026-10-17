@@ -20,6 +20,7 @@ from cortex_core import (
 )
 
 _SWAP = Wait(SWAPPING, "loading the deep model")
+_CLEARED = StatusUpdate(state="", detail="")
 
 
 class _BoomError(Exception):
@@ -54,7 +55,7 @@ async def test_a_record_with_nothing_open_waits_on_nothing() -> None:
     async with waits.hold(TOOL_RUNNING):
         pass
     assert waits.current() is None
-    assert sent == [StatusUpdate(state=CALLING, detail=TOOL_RUNNING.detail)]
+    assert sent == [StatusUpdate(state=CALLING, detail=TOOL_RUNNING.detail), _CLEARED]
 
 
 async def test_the_innermost_open_wait_wins_until_it_closes() -> None:
@@ -93,21 +94,24 @@ async def test_a_change_to_a_wait_other_than_thinking_is_sent_as_a_status() -> N
         StatusUpdate(state=CALLING, detail=TOOL_RUNNING.detail),
         StatusUpdate(state=ASKING, detail=USER_ASKED.detail),
         StatusUpdate(state=CALLING, detail=TOOL_RUNNING.detail),
+        _CLEARED,
     ]
 
 
 async def test_a_thinking_wait_is_never_sent_as_a_status() -> None:
     waits, sent = _record()
+    async with waits.hold(GENERATING):
+        assert waits.current() == GENERATING
     async with waits.hold(TOOL_RUNNING), waits.hold(GENERATING):
         assert waits.current() == GENERATING
-    assert [event.state for event in sent] == [CALLING, CALLING]
+    assert [event.state for event in sent] == [CALLING, "", CALLING, ""]
 
 
 async def test_reopening_the_same_wait_sends_nothing_new() -> None:
     waits, sent = _record()
     async with waits.hold(TOOL_RUNNING), waits.hold(TOOL_RUNNING):
         pass
-    assert sent == [StatusUpdate(state=CALLING, detail=TOOL_RUNNING.detail)]
+    assert sent == [StatusUpdate(state=CALLING, detail=TOOL_RUNNING.detail), _CLEARED]
 
 
 async def test_a_quiet_hold_is_recorded_without_a_status() -> None:
@@ -117,6 +121,20 @@ async def test_a_quiet_hold_is_recorded_without_a_status() -> None:
         await held.restate(Wait(SWAPPING, "bringing the usual assistant back"), announce=False)
         assert waits.current() == Wait(SWAPPING, "bringing the usual assistant back")
     assert sent == []
+
+
+async def test_a_wait_restated_quietly_closes_without_a_clear() -> None:
+    waits, sent = _record()
+    async with waits.hold(TOOL_RUNNING) as held:
+        await held.restate(_SWAP, announce=False)
+    assert sent == [StatusUpdate(state=CALLING, detail=TOOL_RUNNING.detail)]
+
+
+async def test_a_quiet_wait_restated_aloud_closes_with_a_clear() -> None:
+    waits, sent = _record()
+    async with waits.hold(_SWAP, announce=False) as held:
+        await held.restate(TOOL_RUNNING)
+    assert sent == [StatusUpdate(state=CALLING, detail=TOOL_RUNNING.detail), _CLEARED]
 
 
 async def test_a_restated_wait_is_sent_only_while_it_is_the_innermost() -> None:
@@ -131,6 +149,7 @@ async def test_a_restated_wait_is_sent_only_while_it_is_the_innermost() -> None:
         (ASKING, USER_ASKED.detail),
         (DELEGATING, "2 subtasks running"),
         (DELEGATING, "1 subtask running"),
+        ("", ""),
     ]
 
 
@@ -144,4 +163,4 @@ async def test_hold_wait_holds_on_the_sink_it_is_given() -> None:
     async with hold_wait(sink, TOOL_RUNNING):
         assert sink.waits.current() == TOOL_RUNNING
     assert sink.held == (TOOL_RUNNING,)
-    assert sink.events == (StatusUpdate(state=CALLING, detail=TOOL_RUNNING.detail),)
+    assert sink.events == (StatusUpdate(state=CALLING, detail=TOOL_RUNNING.detail), _CLEARED)

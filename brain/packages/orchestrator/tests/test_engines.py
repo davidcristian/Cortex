@@ -568,7 +568,7 @@ async def test_a_plain_turn_waits_out_a_cortex_still_loading_and_says_so() -> No
     )
 
     assert events[-1] == TurnCompleted(turn_id="t1", full_text="Rhine and Danube.")
-    assert progress.events == (_LOADING_STATUS,)
+    assert progress.events == (_LOADING_STATUS, StatusUpdate(state="", detail=""))
     assert sleeper.waits == [LOAD_POLL_INTERVAL_S, LOAD_POLL_INTERVAL_S]
 
 
