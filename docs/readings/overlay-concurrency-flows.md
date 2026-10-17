@@ -128,7 +128,13 @@ checked in the insert under a `FOR SHARE` lock, and `delete_tainted` repeats unt
 nothing ([ADR-0019](../adr/ADR-0019-tainted-memory-recording.md) decision 9). Two `psql` sessions
 on the `cortex_contract` database show why both halves are needed: a forget whose `DELETE` waited
 on a record's share lock removed the recalled row but not the new one, which a second `DELETE`
-removed, and a record that waited on the forget's `DELETE` inserted nothing.
+removed, and a record that waited on the forget's `DELETE` inserted nothing. Three sessions at
+06:51 show why both lock in id order: with tainted rows `r2`, `x`, `r1` in heap order and 5,000
+untainted rows, the record's lookup takes the id index and the `DELETE` a heap scan, and a third
+session holding `x` for 2 s stopped the `DELETE` just after it locked `r2`, as a long scan would. A
+record recalling `['r1', 'r2']` then locked `r1` and waited on `r2`, and on the release the heap
+order `DELETE` failed with `deadlock detected`, deleting nothing while the derived row was stored.
+With both statements sorted by id the same run deleted all three rows and stored nothing.
 
 Replayed at 06:34 on a brain built with that check, chats `s11-*`, the SM clock at 0.59 of
 `clocks.max.sm` before the run. The forget deleted the row at 06:34:20.1; `s11-fb` again answered "4417"
@@ -157,16 +163,6 @@ For those seconds C's last status still said "waiting for this chat's previous m
 since closing the wait sends nothing. The SM clock read 0.59 of `clocks.max.sm` just after the
 two runs.
 
-## A forget's delete against a record that recalled two rows
-
-Three `psql` sessions on the `cortexn7` Postgres's `cortex_contract` database at 06:51: tainted
-rows `r2`, `x`, `r1` in heap order and 5,000 untainted rows, so the record's `FOR SHARE` subquery
-takes an index scan (id order) and the tainted `DELETE` a sequential scan (heap order). A third
-session held `x` for 2 s, which stopped the `DELETE` just after it locked `r2`, as a long scan
-would; the record recalling `['r1', 'r2']` then locked `r1` and waited on `r2`. When `x` was
-released the `DELETE` failed with `deadlock detected`, so nothing was deleted and the derived row
-was stored.
-
 ## Defects
 
 - **A wait behind another chat is not named.** A turn waiting for another chat's generation is
@@ -179,9 +175,6 @@ was stored.
   recalled-memory check after it.
 - **A queued status stays after the turn ahead ends**, until the waiting turn's first reasoning.
   Filed as [R-897](../refinements/tasks/897-a-queued-status-stays-after-the-turn-ahead-ends.md).
-- **A forget deadlocks with a record that recalled two tainted rows**, and the whole forget rolls
-  back. Filed as
-  [R-896](../refinements/tasks/896-a-forget-deadlocks-with-a-record-that-recalled-two-tainted-rows.md).
 
 ## Not run
 

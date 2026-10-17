@@ -16,8 +16,8 @@ business logic and no state beyond the injected pool (the one hard rule).
 - `add(record, *, recalled=())` is `INSERT (id, text, embedding, scope, tainted, created_at)
   SELECT ...` with `embedding = $3::vector`, the vector passed as a pgvector text literal such as
   `[0.1,0.2]`. `tainted` is the untrusted-provenance marker (ADR-0019). The insert's own `WHERE`
-  takes a `FOR SHARE` lock on each distinct id in `recalled` and inserts only when all of them are
-  still there, and `add` returns whether the `INSERT 0 n` tag counted the row. A forget's
+  takes a `FOR SHARE` lock on each distinct id in `recalled`, in id order, and inserts only when
+  all of them are still there, and `add` returns whether the `INSERT 0 n` tag counted the row. A forget's
   `DELETE` that reaches a locked row waits for the insert to commit; one that already removed a
   recalled row makes the insert store nothing (ADR-0019 decision 9).
 - `search(embedding, *, k, scopes=None)` is `ORDER BY embedding <=> $1::vector LIMIT $2`, mapping
@@ -36,8 +36,11 @@ business logic and no state beyond the injected pool (the one hard rule).
   `memories_scope_idx` serves it as an index-only scan that never touches the vectors. It is exact
   rather than capped for the same reason. The two statements are not one transaction, which
   `RecallAudit.available` reports.
-- `delete_tainted(*, scopes=None)` is `DELETE FROM memories WHERE tainted`, with
-  `AND scope = ANY($1)` added when scopes are given, and counts as `delete_scope` does. It repeats
+- `delete_tainted(*, scopes=None)` is `DELETE FROM memories WHERE id IN (SELECT id FROM memories
+  WHERE tainted ORDER BY id FOR UPDATE)`, with `AND scope = ANY($1)` added when scopes are given,
+  and counts as `delete_scope` does. Its rows are locked in id order, as the insert's are, because
+  a heap order `DELETE` and an insert recalling two of its rows can each hold one the other waits
+  on, and Postgres then aborts one of them. It repeats
   the `DELETE` until a pass removes nothing and returns the sum: a pass that waited on a record's
   share lock does not see the row that record committed. It runs only when the person approves a
   forget (ADR-0019 decision 9).

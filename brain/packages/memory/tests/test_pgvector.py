@@ -10,6 +10,7 @@ from cortex_core import MemoryDataError, MemoryRecord, MemoryStoreError
 from cortex_memory import PgVectorMemoryStore
 
 _AT = datetime(2026, 7, 3, 12, 0, 0, tzinfo=UTC)
+_DELETE = "DELETE FROM memories WHERE id IN (SELECT id FROM memories"
 
 
 class FakeDatabase:
@@ -68,7 +69,7 @@ async def test_add_locks_each_distinct_recalled_id_and_expects_all_of_them() -> 
     db = FakeDatabase()
     await PgVectorMemoryStore(db).add(_record(tainted=True), recalled=("r2", "r1", "r2"))
     sql, args = db.calls[0]
-    assert "id = ANY($7::text[]) FOR SHARE" in sql
+    assert "id = ANY($7::text[]) ORDER BY id FOR SHARE" in sql
     assert args[-2:] == (["r1", "r2"], 2)
 
 
@@ -219,8 +220,12 @@ async def test_delete_scope_wraps_a_malformed_status() -> None:
 @pytest.mark.parametrize(
     ("scopes", "sql", "args"),
     [
-        (None, "DELETE FROM memories WHERE tainted", ()),
-        (("a", "b"), "DELETE FROM memories WHERE tainted AND scope = ANY($1)", (["a", "b"],)),
+        (None, f"{_DELETE} WHERE tainted ORDER BY id FOR UPDATE)", ()),
+        (
+            ("a", "b"),
+            f"{_DELETE} WHERE tainted AND scope = ANY($1) ORDER BY id FOR UPDATE)",
+            (["a", "b"],),
+        ),
     ],
     ids=["every-scope", "scoped"],
 )

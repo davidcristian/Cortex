@@ -12,12 +12,13 @@ from cortex_core import MemoryDataError, MemoryRecord, MemoryStoreError, ScoredM
 _WRAPPED = (asyncpg.PostgresError, asyncpg.InterfaceError, OSError)
 
 # The share lock makes a concurrent tainted delete wait for this insert to commit, and a recalled
-# row that delete already removed is not counted, so the record is not stored.
+# row that delete already removed is not counted, so the record is not stored. Both statements lock
+# in id order, so neither can hold a row the other waits on while it waits on one the other holds.
 _INSERT = (
     "INSERT INTO memories (id, text, embedding, scope, tainted, created_at)"
     " SELECT $1, $2, $3::vector, $4, $5, $6"
-    " WHERE (SELECT count(*) FROM (SELECT id FROM memories WHERE id = ANY($7::text[]) FOR SHARE)"
-    " AS kept) = $8"
+    " WHERE (SELECT count(*) FROM (SELECT id FROM memories WHERE id = ANY($7::text[])"
+    " ORDER BY id FOR SHARE) AS kept) = $8"
 )
 # $1 is the vector and $2 the limit in both search statements, so the scoped one can reuse the
 # same leading arguments and append its scope list as $3.
@@ -30,8 +31,14 @@ _SEARCH_SCOPED = f"{_SELECT} WHERE scope = ANY($3) ORDER BY embedding <=> $1::ve
 _COUNT_ALL = "SELECT count(*) AS total FROM memories"
 _COUNT_SCOPED = f"{_COUNT_ALL} WHERE scope = ANY($1)"
 _DELETE_SCOPE = "DELETE FROM memories WHERE scope = $1"
-_DELETE_TAINTED = "DELETE FROM memories WHERE tainted"
-_DELETE_TAINTED_SCOPED = f"{_DELETE_TAINTED} AND scope = ANY($1)"
+_DELETE_TAINTED = (
+    "DELETE FROM memories WHERE id IN"
+    " (SELECT id FROM memories WHERE tainted ORDER BY id FOR UPDATE)"
+)
+_DELETE_TAINTED_SCOPED = (
+    "DELETE FROM memories WHERE id IN"
+    " (SELECT id FROM memories WHERE tainted AND scope = ANY($1) ORDER BY id FOR UPDATE)"
+)
 
 
 class Row(Protocol):

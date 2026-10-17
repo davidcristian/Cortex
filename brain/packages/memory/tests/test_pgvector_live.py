@@ -89,3 +89,39 @@ async def test_a_record_waiting_on_a_forget_stores_nothing_live() -> None:
         await recorder.aclose()
         await live_postgres.reset(admin)
         await admin.close()
+
+
+@pytest.mark.integration
+async def test_a_forget_and_a_record_lock_two_recalled_rows_in_one_order_live() -> None:
+    admin, forgetter = await _race_setup()
+    recorder = await PgVectorMemoryStore.connect(live_postgres.live_dsn(), timeout_s=10.0)
+    holder = await asyncpg.connect(live_postgres.live_dsn())
+    try:
+        # Heap order r2, x, r1 with enough rows that the record's lookup takes the id index, while
+        # the delete scans the heap; holding x stops the delete between r2 and r1.
+        await live_postgres.reset(admin)
+        for record_id in ("r2", "x", "r1"):
+            await forgetter.add(_tainted(record_id))
+        await admin.execute(
+            "INSERT INTO memories SELECT 'f' || g, 'f', '[1,0]', 'global', false, $1"
+            " FROM generate_series(1, 5000) AS g",
+            _AT,
+        )
+        await admin.execute("ANALYZE memories")
+        transaction = holder.transaction()
+        await transaction.start()
+        await holder.execute("SELECT id FROM memories WHERE id = 'x' FOR UPDATE")
+        forget = asyncio.ensure_future(forgetter.delete_tainted())
+        await asyncio.sleep(0.3)
+        record = asyncio.ensure_future(recorder.add(_tainted("answer"), recalled=["r1", "r2"]))
+        await asyncio.sleep(0.3)
+        await transaction.commit()
+        assert await forget == 3
+        assert await record is False
+        assert await admin.fetchval("SELECT count(*) FROM memories WHERE tainted") == 0
+    finally:
+        await holder.close()
+        await recorder.aclose()
+        await forgetter.aclose()
+        await live_postgres.reset(admin)
+        await admin.close()
