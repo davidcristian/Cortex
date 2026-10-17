@@ -6,7 +6,13 @@ from typing import Any, Protocol, cast
 
 import asyncpg
 
-from cortex_core import MemoryDataError, MemoryRecord, MemoryStoreError, ScoredMemory
+from cortex_core import (
+    MemoryDataError,
+    MemoryRecord,
+    MemoryStoreError,
+    PartialDeleteError,
+    ScoredMemory,
+)
 
 # Server failures, client and pool misuse, and socket failures, in that order.
 _WRAPPED = (asyncpg.PostgresError, asyncpg.InterfaceError, OSError)
@@ -211,8 +217,14 @@ class PgVectorMemoryStore:
     async def delete_tainted(self, *, scopes: Sequence[str] | None = None) -> int:
         """Hard-delete every tainted memory in ``scopes`` (all when None); return how many."""
         removed = 0
-        while (count := await self._delete_tainted_once(scopes)) > 0:
-            removed += count
+        try:
+            while (count := await self._delete_tainted_once(scopes)) > 0:
+                removed += count
+        except MemoryStoreError as err:
+            if removed == 0:
+                raise
+            msg = "deleting the tainted memories failed on a later pass"
+            raise PartialDeleteError(msg, removed=removed) from err
         return removed
 
     async def _delete_tainted_once(self, scopes: Sequence[str] | None) -> int:

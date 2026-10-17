@@ -128,7 +128,9 @@ across turns (a recalled memory).
    `MemoryStore.add(record, *, recalled)` stores the record only while all of them exist. The
    pgvector adapter checks this in the insert itself under a `FOR SHARE` lock, and
    `delete_tainted` repeats its `DELETE` until a pass removes nothing, so a record committed while
-   a pass waited on that lock is removed by the next one. Both statements lock rows in id order,
+   a pass waited on that lock is removed by the next one. A pass that fails after earlier ones
+   removed rows raises `PartialDeleteError` with their count, and the forget's error result names
+   that count and says the forget did not finish. Both statements lock rows in id order,
    so a forget and a record recalling two of its rows cannot deadlock
    ([readings](../readings/overlay-concurrency-flows.md)). A turn tainted only by its own reads
    recalled nothing the forget removed and is recorded as before. On the stack the person's send

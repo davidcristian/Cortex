@@ -51,7 +51,10 @@ class MemoryStore(Protocol):
     async def delete_scope(self, scope: str) -> int: ...
 
     async def delete_tainted(self, *, scopes: Sequence[str] | None = None) -> int:
-        """Hard-delete every tainted memory in ``scopes`` (all when None); return how many."""
+        """Hard-delete every tainted memory in ``scopes`` (all when None); return how many.
+
+        A failure after some rows were removed raises ``PartialDeleteError`` with that count.
+        """
         ...
 
 

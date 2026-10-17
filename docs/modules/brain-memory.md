@@ -42,8 +42,10 @@ business logic and no state beyond the injected pool (the one hard rule).
   a heap order `DELETE` and an insert recalling two of its rows can each hold one the other waits
   on, and Postgres then aborts one of them. It repeats
   the `DELETE` until a pass removes nothing and returns the sum: a pass that waited on a record's
-  share lock does not see the row that record committed. It runs only when the person approves a
-  forget (ADR-0019 decision 9).
+  share lock does not see the row that record committed. Each pass commits on its own, so a pass
+  that fails after earlier ones removed rows raises `PartialDeleteError`, a `MemoryStoreError`
+  whose `removed` is that sum; a failed first pass raises plain `MemoryStoreError`. It runs only
+  when the person approves a forget (ADR-0019 decision 9).
 - `delete_scope(scope)` is `DELETE FROM memories WHERE scope = $1` (the `memories_scope_idx` btree
   serves the equality, so no schema change), returning the row count parsed from asyncpg's
   `DELETE n` command tag: 0 when the scope holds none, and a malformed tag wrapped as

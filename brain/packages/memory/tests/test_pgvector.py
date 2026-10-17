@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 import asyncpg
 import pytest
 
-from cortex_core import MemoryDataError, MemoryRecord, MemoryStoreError
+from cortex_core import MemoryDataError, MemoryRecord, MemoryStoreError, PartialDeleteError
 from cortex_memory import PgVectorMemoryStore
 
 _AT = datetime(2026, 7, 3, 12, 0, 0, tzinfo=UTC)
@@ -22,7 +22,7 @@ class FakeDatabase:
         *,
         fail: Exception | None = None,
         status: str = "INSERT 0 1",
-        statuses: Sequence[str] = (),
+        statuses: Sequence[str | Exception] = (),
     ) -> None:
         self._rows = rows
         self._fail = fail
@@ -35,7 +35,10 @@ class FakeDatabase:
         if self._fail is not None:
             raise self._fail
         self.calls.append((sql, args))
-        return self._statuses.pop(0) if self._statuses else self._status
+        status = self._statuses.pop(0) if self._statuses else self._status
+        if isinstance(status, Exception):
+            raise status
+        return status
 
     async def fetch(self, sql: str, /, *args: object) -> Sequence[Mapping[str, object]]:
         if self._fail is not None:
@@ -249,6 +252,24 @@ async def test_delete_tainted_wraps_a_backend_error() -> None:
         await PgVectorMemoryStore(db).delete_tainted()
     assert isinstance(excinfo.value.__cause__, asyncpg.PostgresError)
     assert not isinstance(excinfo.value, MemoryDataError)
+
+
+async def test_a_later_failed_pass_reports_the_rows_already_deleted() -> None:
+    deadlock = asyncpg.DeadlockDetectedError("deadlock detected")
+    db = FakeDatabase(statuses=("DELETE 2", deadlock))
+    with pytest.raises(PartialDeleteError, match="on a later pass") as excinfo:
+        await PgVectorMemoryStore(db).delete_tainted(scopes=["a"])
+    assert excinfo.value.removed == 2
+    assert isinstance(excinfo.value.__cause__, MemoryStoreError)
+    assert excinfo.value.__cause__.__cause__ is deadlock
+    assert len(db.calls) == 2
+
+
+async def test_a_failed_first_pass_is_not_a_partial_delete() -> None:
+    db = FakeDatabase(statuses=(asyncpg.DeadlockDetectedError("deadlock detected"),))
+    with pytest.raises(MemoryStoreError) as excinfo:
+        await PgVectorMemoryStore(db).delete_tainted()
+    assert not isinstance(excinfo.value, PartialDeleteError)
 
 
 async def test_delete_tainted_wraps_a_malformed_status() -> None:

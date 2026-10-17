@@ -1,6 +1,6 @@
 """The ``forget_untrusted_memories`` built-in: the person's way out of a recall-tainted block."""
 
-from cortex_core.errors import MemoryStoreError
+from cortex_core.errors import MemoryStoreError, PartialDeleteError
 from cortex_core.ports import MemoryStore
 from cortex_core.scope import MemoryScope
 from cortex_core.tools import ToolCall, ToolResult, ToolSpec, Trust
@@ -55,6 +55,17 @@ class ForgetUntrustedTool:
         """Delete the tainted memories the calling session can recall, and say how many."""
         try:
             removed = await self._memory.forget(call.stamp.session_id)
+        except PartialDeleteError as err:
+            return ToolResult(
+                call_id=call.id,
+                content=(
+                    f"forgot {err.removed} remembered exchanges derived from untrusted content, "
+                    f"then the memory store failed, so the forget did not finish and more may "
+                    f"remain: {err}"
+                ),
+                is_error=True,
+                trust=Trust.TRUSTED,
+            )
         except MemoryStoreError as err:
             return ToolResult(
                 call_id=call.id,

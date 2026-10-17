@@ -36,6 +36,15 @@ class MemoryDataError(MemoryStoreError):
     """The store answered and what came back is not something this repo can read."""
 
 
+class PartialDeleteError(MemoryStoreError):
+    """A delete failed after earlier passes had already removed rows for good."""
+
+    def __init__(self, message: str, *, removed: int) -> None:
+        """``removed`` is how many rows the passes before the failure deleted."""
+        super().__init__(message)
+        self.removed = removed
+
+
 class EmbedderError(Exception):
     """An Embedder failed to produce an embedding (adapters wrap their backend's errors)."""
 

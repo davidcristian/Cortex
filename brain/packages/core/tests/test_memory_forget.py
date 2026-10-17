@@ -13,6 +13,7 @@ from cortex_core import (
     MemoryRecaller,
     MemoryRecord,
     MemoryStoreError,
+    PartialDeleteError,
     RecordingAuditSink,
     RecordingConfirmer,
     SessionMemoryScope,
@@ -106,6 +107,19 @@ async def test_a_store_that_is_down_forgets_nothing_and_says_so() -> None:
     assert result.is_error is True
     assert result.content == (
         "the memory store is unavailable, so nothing was forgotten: pgvector is down"
+    )
+
+
+async def test_a_forget_that_fails_after_a_pass_says_what_went_and_that_it_did_not_finish() -> None:
+    store = await _store(_record("derived", tainted=True))
+    store.fail_with(PartialDeleteError("a later pass failed", removed=2))
+    result = await ForgetUntrustedTool(UntrustedMemoryForget(store, GLOBAL_MEMORY_SCOPE)).invoke(
+        _call()
+    )
+    assert result.is_error is True
+    assert result.content == (
+        "forgot 2 remembered exchanges derived from untrusted content, then the memory store "
+        "failed, so the forget did not finish and more may remain: a later pass failed"
     )
 
 
