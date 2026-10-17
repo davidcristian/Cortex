@@ -30,7 +30,23 @@ turn with nothing ahead of it spends about 4 s before its first status. Two runs
 2. Test over fakes that the status after `CHAT_AHEAD` closes is the new one, and on the Linux
    shell that the chip changes when the turn ahead ends.
 
+What the second option needs, checked against the code on 2026-10-17:
+
+- Brain: `TurnWaits.changed` (`cortex_core/waits.py`) sends a `StatusUpdate` with an empty
+  `state` and `detail` when the last open wait closes. Sent for every outermost close, that
+  rule fails 16 tests in 8 files (`test_waits.py`, `test_progress_contract.py`, `test_spawn.py`,
+  `test_summarizing.py`, `test_converse_heartbeat.py`, `test_escalating_engine.py`,
+  `test_load_wait.py`, `test_delegation_wait.py`), each asserting the statuses sent today. It
+  also sends a clear when a quiet hold (`announce=False`, the swap conductor's) closes, so each
+  `WaitHold` has to record whether it was announced, and only an announced close clears.
+- Body: `converse.rs` passes a status through with its `state` unchanged, so no Rust change.
+- Overlay: `Message.tsx` shows the chip while `status !== null`, so `turnState.ts` maps a
+  status whose `state` is `""` to `status: null`, and `applyHeartbeat` clears a chip that is not
+  `thinking` on an empty wait.
+
 ## History
 
 - 2026-10-17: filed by the closing audit of the queued status, from two runs on the `cortexn7`
   stack.
+- 2026-10-17: checked against the code and left open: the fix changes three ADR-0069 decisions,
+  16 brain tests and the overlay, more than the last slot of the night had time to finish.
