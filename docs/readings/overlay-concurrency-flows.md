@@ -3,8 +3,9 @@
 What the brain, the session store and the overlay did when turns from several chats, or two
 turns from one chat, were in flight together: two chats at once, one chat sent to twice from two
 clients, a Stop or a dropped stream in one chat while another streams, an overlay chat beside a
-second `Converse` client, and two handoffs to the deep model requested close together beside a
-plain chat. Earlier flows interrupted one chat at a time
+second `Converse` client, two handoffs to the deep model requested close together beside a plain
+chat, a scheduled reminder firing while a turn streams, and a memory forget in one chat while
+another chat's turn recalls. Earlier flows interrupted one chat at a time
 ([interruption flows](overlay-interruption-flows.md)); these put two clients on the brain at once.
 
 ## The rig
@@ -19,7 +20,9 @@ that sends one `UserTurn` over `Converse`, approves every `ConfirmRequest`, and 
 or cancel the call after a set delay. Stored chats were read from the session lists in Redis
 (`cortex:session:<id>:messages` and the `cortex:sessions` index), tier states from
 `GET /models/{model}` on the model host once a second. SM clock during the handoff flow: 0.51 to 0.67 of
-`clocks.max.sm`.
+`clocks.max.sm`. For the reminder and forget flows the brain ran with
+`CORTEX_SCHEDULE_BACKEND=redis` (5 s schedule poll, no body endpoint, so a fired reminder waits
+for the overlay to pull it) and `CORTEX_MEMORY_ON_TAINTED=record`.
 
 The right behaviour was written before each run: every reply reaches the chat that asked, each
 chat stores its own question and reply once and in order, a turn waiting for the card waits and
@@ -88,17 +91,52 @@ heartbeat; it was answered once H1 had finished and the cortex was `ready` again
 drain, load, deep work and restore states and stored the question, the hand-over sentence and the
 deep reply. Nothing was stored twice and every stream ended.
 
-## The one defect: a wait behind another chat is not named
+## A reminder firing while a turn streams
 
-A turn waiting for another chat's generation is inside its own `thinking` wait, because the queue
-is llama-server's single slot, so its heartbeat says "working out the reply" while nothing of its
-own is being worked out, and the stream is silent until the first heartbeat 30 s in. Only a second
-client reaches this today, since the overlay keeps one chat in flight. Filed as
-[R-894](../refinements/tasks/894-name-a-turn-waiting-behind-another-chat.md).
+The right behaviour, written first: the reminder becomes deliverable within one poll of its due
+minute, the streaming reply goes on with no gap or error and is stored once in its own chat, no
+reminder text enters any chat, the card shows on the overlay's next empty chat, and dismissing it
+acks it.
+
+Chat `s9-r2` asked "Remind me at 06:03 today to stretch my legs." (`schedule_task`, ok). At
+06:02:52.9, 7 s before the due minute, "Write twelve sentences about the history of ships." was
+sent from a new overlay chat. **As expected.** The reminder became deliverable at 06:03:03.9 while
+the reply streamed (the brain stored it at 06:03:04.0); frames at 06:03:01, 06:03:07 and 06:03:13
+show the reply growing with no gap and the link dot green, and it was stored once. No chat stored
+the reminder's text. The ship chat did not show the card, since the reminder stack shows only on an
+empty chat; after a hide and summon, `Ctrl+N` showed "stretch my legs", "1m ago", and its check
+mark acked it: the deliverable set was empty and the one-time record gone.
+
+## A forget in one chat while another chat recalls
+
+The right behaviour, written first: no crash; a recall that began before the forget may use the
+forgotten row; once the forget is confirmed, no turn recalls the forgotten fact; the store holds no
+row derived from it.
+
+The file sidecar's root held `shed.txt`, "The shed's padlock code is 4417.". Chat `s9-f0` asked
+"Read the file shed.txt and tell me what it says.", which stored one tainted row. Then chat `s9-fa`
+sent "Forget every remembered exchange that came from untrusted content." and 0.3 s later chat
+`s9-fb` asked "What is the shed's padlock code?". **Not as expected.** The forget card was
+approved and the tool deleted the row at 06:05:52.6; `s9-fb`, whose recall had read the row before
+the delete, answered "The shed's padlock code is 4417.", which is allowed, but its own exchange was
+then stored as a new tainted row at 06:05:57.1, after the delete. A new chat `s9-fc` asking the
+same question at 06:06:00 recalled that row and answered "4417". Nothing crashed and every stream
+ended. Filed as [R-895](../refinements/tasks/895-a-forget-keeps-a-row-a-turn-in-flight-records.md).
+
+## Defects
+
+- **A wait behind another chat is not named.** A turn waiting for another chat's generation is
+  inside its own `thinking` wait, because the queue is llama-server's single slot, so its heartbeat
+  says "working out the reply" while nothing of its own is being worked out, and the stream is
+  silent until the first heartbeat 30 s in. Only a second client reaches this today, since the
+  overlay keeps one chat in flight. Filed as
+  [R-894](../refinements/tasks/894-name-a-turn-waiting-behind-another-chat.md).
+- **A forget keeps a row a turn in flight records**, above
+  ([R-895](../refinements/tasks/895-a-forget-keeps-a-row-a-turn-in-flight-records.md)).
 
 ## Not run
 
-A scheduled reminder firing while a turn streams and a memory forget in one chat while another
-chat's turn recalls did not fit the slot's time. Two overlay chats at once cannot be run: the
-overlay keeps one chat in flight, since `Ctrl+N` and a second message stop the first
-([interruption flows](overlay-interruption-flows.md)).
+Two overlay chats at once cannot be run: the overlay keeps one chat in flight, since `Ctrl+N` and a
+second message stop the first ([interruption flows](overlay-interruption-flows.md)). A reminder
+pushed to the shell while a turn streams was not run, because the shell's `BodyService` listens on
+loopback only and the brain container cannot reach it.
