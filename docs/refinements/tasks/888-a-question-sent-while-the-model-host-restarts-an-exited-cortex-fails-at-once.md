@@ -1,18 +1,15 @@
 # A question sent while the model host restarts an exited cortex fails at once
 
-**Status:** open, actionable
+**Status:** declined 2026-10-17
 **Area:** brain
 **Origin:** [ADR-0054](../../adr/ADR-0054-baseline-residency.md)
-**Verified:** 2026-10-16
 
 A turn waits for a cortex that is still loading only on llama-server's 503 `Loading model`
 (ADR-0054 decision 10). Before the restarted llama-server listens, a request fails in transport
 with `llama-server request failed for model 'cortex'`, and the turn ends at once, even when the
-model host's supervisor (decision 9) is already starting an exited cortex again and
-`GET /models/cortex` reads `loading`. In the model host restart flow of the
-[startup readings](../../readings/startup-order-and-settings.md) that window was the first 0.11 of
-the restart-to-ready time; the window after a supervisor restart of an exited child is not
-measured.
+model host's supervisor (decision 9) is already starting an exited cortex again. In the model
+host restart flow of the [startup readings](../../readings/startup-order-and-settings.md) that
+window was the first 0.11 of the restart-to-ready time.
 
 ## What to do
 
@@ -27,3 +24,10 @@ measured.
 ## History
 
 - 2026-10-16: filed when the load wait was built, which leaves this case failing at once.
+- 2026-10-17: declined. Three kills of the cortex on the `cortexn7` stack refused connections
+  until 0.087 to 0.089 of the kill-to-ready time, and the model host read `failed` through the 2 s
+  restart delay, the state of a model whose restarts are spent, so a wait on `loading` would cover
+  at most half a second and nothing tells the window from a server that stays down. A question
+  over `Converse` in the window failed at once; one sent during the 503s waited and was answered.
+  Accepted with escalation on and off in ADR-0054 decision 10, measured in the
+  [startup readings](../../readings/startup-order-and-settings.md#the-model-host-restarts-an-exited-cortex).

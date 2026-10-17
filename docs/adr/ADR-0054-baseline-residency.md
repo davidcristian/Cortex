@@ -175,7 +175,10 @@ without decision 8 `Health` would answer ready while the cortex or the store is 
    shared by every model call of that turn (the recall judge, the history recap, the reply), so a
    call after it fails at once, and the next turn starts a new one. Asking again replaces reading
    the serving watch, which is up to one interval stale and fenced across handoffs. Any other fault fails at once, and Stop or the shutdown drain
-   cancels the wait with the turn.
+   cancels the wait with the turn. A question sent after the cortex process exits and before
+   decision 9's restart listens fails at once in transport, with escalation on or off. That
+   window is the 2 s restart delay plus at most half a second, about 0.08 of a cortex load, and
+   the next question waits for the load.
 
 ## Consequences
 
@@ -204,6 +207,10 @@ without decision 8 `Health` would answer ready while the cortex or the store is 
   turn the user is waiting on.
 - **A second health sentence for the missing deep tier**: the one detail line belongs to the peers,
   and a configuration fact is not a readiness fact.
+- **Waiting out a refused cortex while the model host reads `loading`**: during the restart delay
+  the host reads `failed`, the state of a model whose restarts are spent, so the wait would cover
+  at most the half second before llama-server listens. A deployment with escalation off has no
+  `ModelHost` client to ask at all.
 
 ## Related
 

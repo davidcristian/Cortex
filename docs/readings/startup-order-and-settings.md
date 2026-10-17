@@ -58,6 +58,28 @@ variable to bound from three runs.
 - The bound is 120 s, about 2.9 times the median load. A turn that outlasts it ends with the
   loading message it ended with before the wait existed.
 
+## The model host restarts an exited cortex
+
+Question: how long after the cortex process exits does llama-server refuse connections, and what
+does the model host report meanwhile? The answer decides whether a turn can wait out the window by
+asking the host; a null result would be a host reading `loading` for the whole window.
+
+- **2026-10-17**, compose project `cortexn7` (the same files, escalation on with the supervisor
+  backend, no shell). Three runs of `kill -KILL` on the cortex llama-server inside the model
+  host, polling `GET :8080/health`, `GET :9300/models/cortex` and `nvidia-smi` every half second.
+- Connections were refused until 0.087 to 0.089 of the kill-to-ready time, then llama-server
+  answered 503 until ready at 0.27 of the 120 s bound. For all but the first sample of that window
+  the host read `failed` with `the process exited with code -9`, through the 2 s restart delay;
+  `loading` with nothing listening showed in one sample of one run. The SM clock read 0.58 to 0.63
+  of its maximum.
+- **A question over `Converse`.** In the third run, a question sent about one second after the
+  kill ended at once in `inference_failed: llama-server request failed for model 'cortex'`. One
+  sent about four seconds after it showed `waiting for the model to finish loading` at once and
+  was answered `Everest` once the cortex was ready, with nothing sent again.
+- Accepted, with escalation on and off (ADR-0054 decision 10): the host's `failed` is also the
+  state of a model whose restarts are spent, so nothing the brain reads tells the window apart from
+  a server that stays down.
+
 ## The brain started while the model host is stopped
 
 Question: does a brain started with no model host crash, loop or serve, what does a question
@@ -135,3 +157,6 @@ the brain's log name it?
 Method: `measurements/startup-order-2026-10-16/`, with the flow scripts (`f3.sh`, `f4.sh`,
 `badcfg.sh`, and `loadtime.sh` and `stop.sh` in `fix/`), their logs, and frames; the shell ran by the Linux section of
 [the overlay runbook](../runbooks/body-overlay.md#the-tauri-app-on-linux-headless).
+
+The restart window: `measurements/restart-window-2026-10-17/`, with `window.sh` (one kill and
+its polls), `row.sh` (the two questions) and `ask.py` (the `Converse` client), and their logs.
