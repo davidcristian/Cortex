@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-10-15
+**Verified:** 2026-10-25
 **Trigger:** `escalate_to_brain` can run on a tainted turn: its spec in `escalate.py` stops setting
 `confirm_required` (`grep -n confirm_required brain/packages/core/src/cortex_core/escalate.py`
 prints `confirm_required=True` today), or the tainted-turn denial in `ToolDispatcher.dispatch`
@@ -133,3 +133,5 @@ exactly on the record and on the ledger rebuilt from it.
   `dispatch.py` and `escalate.py` still sets `confirm_required=True`. The trigger's list of record
   cards had gone stale: the forget of untrusted memories added `forget_untrusted_memories`, a
   second record card, on 2026-10-14. It now names both.
+- 2026-10-25: checked again and not fired: `EscalateToBrainTool` still defines no `card`, and
+  `EscalationSlot.snapshot` still raises on tail images.

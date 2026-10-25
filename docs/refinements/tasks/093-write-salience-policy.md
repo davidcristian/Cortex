@@ -5,7 +5,7 @@
 **Origin:** [ADR-0008](../../adr/ADR-0008-memory-v1.md)
 **Trigger:** A memory-compaction or self-editing feature (R-087) needs a record-time salience
 decision.
-**Verified:** 2026-10-17
+**Verified:** 2026-10-25
 
 v1 records the raw exchange text on every turn. Deciding at record time what is worth remembering
 is a later policy (ADR-0008). Its summarization half sits next to the tiered-memory entry
@@ -13,8 +13,10 @@ is a later policy (ADR-0008). Its summarization half sits next to the tiered-mem
 
 The decision whether to record at all already lives in the caller. `record_exchange` in
 `turn_output.py` is the only call site of `MemoryRecaller.record` in the brain, and it already
-skips two kinds of write: an opaque turn always, and a tainted turn unless `record_tainted_memory`
-is set. A salience filter is a third condition there, or a policy injected beside the two, rather
+skips three kinds of write: an opaque turn always, a tainted turn that ran
+`forget_untrusted_memories`, and a tainted turn unless `record_tainted_memory`
+is set, and `MemoryRecaller.record` stores nothing and returns None when a memory the turn recalled
+is gone. A salience filter is a fourth condition there, or a policy injected beside them, rather
 than a port change.
 
 Naming note for whoever builds it: `SaliencePolicy` is already taken by the tool loop's port in
@@ -49,3 +51,6 @@ Naming note for whoever builds it: `SaliencePolicy` is already taken by the tool
 - 2026-10-17: checked again and not fired. Its consumer, R-087, is still open waiting for a consumer
   of its own, and the salience and turn output changes since 2026-10-04 make no record-time
   decision.
+- 2026-10-25: checked again and not fired: task 087 has built nothing. The body now lists the third
+  skipped write, a tainted turn that ran the forget, and the recall that stores nothing when a
+  recalled memory is gone.

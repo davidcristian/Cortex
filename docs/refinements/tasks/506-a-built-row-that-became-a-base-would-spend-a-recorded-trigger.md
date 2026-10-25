@@ -4,7 +4,7 @@
 **Area:** repo-checks
 **Trigger:** a Dockerfile in this tree is built `FROM` an image this repo builds
 **Origin:** [ADR-0067](../../adr/ADR-0067-image-volume-record.md)
-**Verified:** 2026-10-07
+**Verified:** 2026-10-25
 
 A base's row now has two dimensions, and the second is read by the rule comparing a built row with
 what its base would declare into it. Every base that dimension is read from is a pulled reference
@@ -50,3 +50,5 @@ whose row cannot be refreshed, and saying so is a two-line failure.
   once, and no other build stanza exists. `read_volumes` still ignores an `ONBUILD VOLUME` line,
   and the two failures for a recorded trigger are still in `scripts/dockerfilevolumes.py`; the
   commits since changed only their wording and names.
+- 2026-10-25: checked again and not fired: both Dockerfiles still build from pulled images only,
+  with no `ONBUILD`.

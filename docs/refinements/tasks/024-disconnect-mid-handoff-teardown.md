@@ -8,11 +8,12 @@ after a `Cancel`, since that stream's pump reads nothing else until the restore 
 holds today. No member of `ClientEvent`'s `event` oneof in `proto/body.proto` loses by the wait: a
 `user_turn` needs the cortex the restore brings back, and a `cancel` or `confirm_response` can only
 answer the turn being cancelled. And the body sends no `Cancel`: it opens a fresh stream per turn
-(`BrainTransport::converse`, `body/crates/core/src/transport.rs`), and a stop in the overlay only
-stops delivery while the turn runs to its end (`TauriBridge.converse`), which
+(`BrainTransport::converse`, `body/crates/core/src/transport.rs`), and a stop in the overlay drops
+the turn's RPC, a disconnect rather than a `Cancel` (`stop_turn` in
+`body/app/src-tauri/src/stops.rs`), which
 `grep -rn 'Cancel' body/crates/core/src body/crates/rpc/src body/app/src-tauri/src --exclude-dir=_generated`
 finding nothing confirms. R-127 would add the `Cancel` half and not the other.
-**Verified:** 2026-10-07
+**Verified:** 2026-10-25
 
 Swapping the cortex back in is the recovery path, so `swap_scope`'s restore runs as its own
 shielded task and every cancellation waits for it before propagating. Without that, a client who
@@ -74,3 +75,5 @@ still running. The fix belongs with the in-flight-turn lifecycle
   nothing. Both sites are unchanged: `swap_scope` at `residency.py:76` with its shielded restore at
   `:84`, and `_cancel_turn` at `converse_stream.py:186` awaiting the turn at `:193`; the pump's
   await is at `:148` after the attached-image commits.
+- 2026-10-25: checked again and not fired: the body still sends no `Cancel`. A Stop in the overlay
+  now drops the turn's RPC through `stop_turn`, which is a disconnect, and the body now says so.

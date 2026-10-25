@@ -3,7 +3,7 @@
 **Status:** open, needs a port change first
 **Area:** body-overlay
 **Origin:** [ADR-0011](../../adr/ADR-0011-body-v1.md)
-**Verified:** 2026-10-13
+**Verified:** 2026-10-25
 **Trigger:** A status change that begins while no turn from this overlay is streaming and must
 change the dot's colour before the next summon or turn: a second client that can start a handoff,
 a background job that escalates, or a decision record asking that a cortex or store outage reach
@@ -110,3 +110,5 @@ from that change and that change needed nothing from it.
   a failed question, and decision 8 of ADR-0054 accepts exactly that: the overlay still probes on a
   summon, after a turn ends green, and every 5 s while not green (`useLink.ts:48-70`). No decision
   record asks for more, so no consumer of a push exists yet.
+- 2026-10-25: checked again and not fired: every status added since is sent inside a turn on
+  `Converse`, and `BrainService` still has one streamed RPC.

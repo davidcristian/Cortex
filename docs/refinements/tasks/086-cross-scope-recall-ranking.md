@@ -6,7 +6,7 @@
 **Trigger:** One recall's pool can draw from more than one non-empty scope: the union read of
 R-084 ships, or a store already holding per-session scopes is read under
 `CORTEX_MEMORY_SCOPE=global`, whose unfiltered search mixes them.
-**Verified:** 2026-10-04
+**Verified:** 2026-10-25
 
 Weighting a recall hit by the scope it came from. It was one of three refinements left behind the
 `MemoryScope` port when per-session scoping shipped
@@ -43,3 +43,5 @@ Weighting a recall hit by the scope it came from. It was one of three refinement
   six members of `RankBasis` (`ranking.py:11`) are unchanged, `memory_scope_from_name` builds no
   union policy, and the host store, read this time from the `cortex_cortex-pgdata` volume, holds
   two rows, both in `global`, so a recall under the default scope mixes no scopes there.
+- 2026-10-25: checked again and not fired: `memory_scope_from_name` still builds no union scope and
+  `RankBasis` is unchanged.

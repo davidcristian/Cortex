@@ -7,7 +7,7 @@
 vector, which no service here does today. That is countable by reading the command of every
 service the compose files start and listing the flags it uses
 **Origin:** [ADR-0043](../../adr/ADR-0043-subagent-server-flags.md)
-**Verified:** 2026-10-07
+**Verified:** 2026-10-25
 
 `artifactnames.spends` reads the item after either entry of `ARTIFACT_FLAGS`, which names `--model`
 and `--mmproj`. Those are the two file flags every server this tree starts uses, and llama.cpp
@@ -56,3 +56,5 @@ whatever flag precedes it, which needs a name for which mount is the models moun
   reading found that artifact with no list of flags, because the sidecar hands `brain_draft_file` to
   `_path`. `test_artifactnames.py` asserts it among the artifacts the tree names. The four commits
   that changed a compose file since then wrote no command.
+- 2026-10-25: checked again and not fired: the compose changes since add batch flags only, and
+  `ARTIFACT_FLAGS` is unchanged.

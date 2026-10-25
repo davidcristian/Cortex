@@ -13,7 +13,7 @@ runbook sentence can wrap the variable and its file onto two lines; and count th
 aliased to a `CORTEX_MODEL_FILE_SUBAGENT` variable. Neither half reads a host's shell or `.env`,
 where a deployment would really write the second file.
 **Origin:** [ADR-0018](../../adr/ADR-0018-heterogeneous-subagents.md)
-**Verified:** 2026-10-07
+**Verified:** 2026-10-25
 
 `_entry_profile` in `cortex_orchestrator.subagent_builders` gives the default entry two backends,
 one per `PlacementTarget`, over `CORTEX_SUBAGENTS_GPU_ENDPOINT` and `CORTEX_SUBAGENTS_ENDPOINT`.
@@ -98,3 +98,5 @@ stored.
   both steps. `docs/runbooks/llamacpp-gpu.md` sent a reader to a section 2c of
   `docs/runbooks/subagents-cpu.md` that the runbook split removed, and to `docker-compose.gpu.yml`
   for settings it does not list; it now names the compose file and the validation runbook.
+- 2026-10-25: checked again and not fired: `subagent_gpu_file` is still the only field aliased to a
+  subagent file variable, and there is no second hosted pick.

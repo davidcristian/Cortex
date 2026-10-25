@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** inference-model-manager
 **Origin:** [ADR-0048](../../adr/ADR-0048-generation-bounds.md)
-**Verified:** 2026-10-15
+**Verified:** 2026-10-25
 **Trigger:** a consumer in this tree asks how often a deep answer was cut: code that counts
 handoffs or deep completions by how they stopped, or a runbook step that asks an operator that
 question. On 2026-10-03
@@ -64,3 +64,5 @@ count kept outside the handoff store, which is a port, a fake and a contract tes
   moved into the closing notes in `turn_output.py` that both phases call, and it still only appends
   the note; the deep phase's `WARNING` for a cut tool call still has `capped`, and its decode rate
   line still has none.
+- 2026-10-25: checked again and not fired: the trigger's grep prints the same five lines, and
+  `cap_note` still only appends the note.

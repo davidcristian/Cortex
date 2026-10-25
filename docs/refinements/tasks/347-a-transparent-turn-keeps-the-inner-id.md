@@ -3,12 +3,13 @@
 **Status:** open, waiting for its trigger
 **Area:** inference-model-manager
 **Origin:** [ADR-0046](../../adr/ADR-0046-work-identities-on-log-lines.md)
-**Verified:** 2026-10-17
+**Verified:** 2026-10-25
 **Trigger:** either half of the agreement moves: `EscalatingTurnEngine(` gains a construction site
 other than the one in `cortex_orchestrator/engines.py`, or that site's factory returns anything but
 `self._turn_engine(...)`; or `TurnEngine.handle_turn` in `cortex_core/engine.py` stops completing
 with `TurnCompleted(turn_id=turn_id, ...)`, the id it was handed. Both are a grep. The path only
-runs with `CORTEX_ESCALATION` on, since with it off `for_stream` returns the plain engine and no
+runs with `CORTEX_ESCALATION` on, since with it off `_engine` builds a plain `TurnEngine` and no
+escalating
 wrapper exists.
 
 `EscalatingTurnEngine` in `brain/packages/core/src/cortex_core/escalating_engine.py` holds the id
@@ -74,3 +75,6 @@ right depends on whether a second runner ever sits behind `make_inner`.
   factory returns `self._turn_engine(...)`, a plain `TurnEngine`, and `handle_turn` still completes
   with `TurnCompleted(turn_id=turn_id, ...)`. The load wait wrapper added on 2026-10-16 sits outside
   the escalating engine and passes its events through.
+- 2026-10-25: checked again and not fired: `engines.py` still builds the only
+  `EscalatingTurnEngine`. `for_stream` now returns a `SerialTurnRunner`, so the body now names
+  `_engine`.

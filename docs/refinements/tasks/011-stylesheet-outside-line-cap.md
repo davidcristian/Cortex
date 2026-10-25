@@ -6,15 +6,16 @@
 **Trigger:** `find body/app/src -name '*.css'` lists a second file, or
 `git log --since='<Verified date> 00:00' --oneline -- body/app/src/overlay.css` lists a commit
 whose diff moves a rule to change which rule applies. A commit that edits only comments does not.
-**Verified:** 2026-10-16
+**Verified:** 2026-10-25
 
 Once the line cap covered the overlay's TypeScript
 ([R-010](010-line-cap-overlay-gap.md)), leaving the stylesheet out became a decision rather than
-an oversight. `body/app/src/overlay.css` is 2122 lines as of 2026-10-02, about seven times the
+an oversight. `body/app/src/overlay.css` is 2130 lines as of 2026-10-25, about seven times the
 cap every other non-test source file is held to, and no check measures it. It is the longest
-hand-written non-test source file in the tree. The two longer files are the Rust stub generated
-from [proto/body.proto](../../../proto/body.proto), which is exempt as generated code, and
-`brain/packages/inference/tests/test_reply_readings.py` at 5882 lines, a test.
+hand-written non-test source file in the tree. The three longer files are the Rust stub generated
+from [proto/body.proto](../../../proto/body.proto), which is exempt as generated code, and two
+tests: `brain/packages/inference/tests/test_reply_readings.py` at 9030 lines and
+`brain/packages/core/tests/test_engine.py` at 2149 lines.
 
 It is excluded because the cap's remedy is to split by responsibility, which assumes a module with
 a public contract. A stylesheet is one cascade in which order decides which rule applies, so
@@ -68,3 +69,5 @@ limit is removed.
   giving `.bubble`, `.field` and `.title` `unicode-bidi: plaintext` and `text-align: start`, which no
   other `text-align` rule selects, one removed `display: inline-block` from `.wd`, and one rewrote
   a comment.
+- 2026-10-25: checked again and not fired: `body/app/src` still has one stylesheet and `linecap.py`
+  still reads no `.css`. The line counts are brought up to date.

@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** email-confirmer
 **Origin:** [ADR-0056](../../adr/ADR-0056-email-reader-answers.md)
-**Verified:** 2026-10-04
+**Verified:** 2026-10-25
 **Trigger:** a second server this repo can reach starts flagging a name in a plain LIST and opening
 it, or the Bridge account whose two flagged parents are the current proof stops being reachable.
 Both parts come off one reading, a plain `LIST "" "*"` taken through the port with every listed
@@ -119,3 +119,5 @@ avoiding: a stub answering with the two lines it was given proves no more than t
   unchanged by its own rule: no commit to `docker/dovecot/` or the probe's compose file since
   2026-09-05, and the local image resolves to the recorded digest. The Bridge part is still the
   reading of 2026-09-09, now 25 days old, since this run ruled out a live run against the account.
+- 2026-10-25: checked again and not fired: no commit since touched the IMAP probe, its folders or
+  its stub.

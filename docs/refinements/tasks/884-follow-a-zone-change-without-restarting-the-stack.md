@@ -5,7 +5,7 @@
 **Origin:** [ADR-0065](../../adr/ADR-0065-wall-clock-schedule-times.md) decision 5
 **Trigger:** a reminder fires at the wrong local time after the person's machine changed zone
 while the stack ran, or the stack runs on a machine other than the body's.
-**Verified:** 2026-10-16
+**Verified:** 2026-10-25
 
 The stack recipes read the host's zone once, when the stack starts, and pass it to the brain as
 `CORTEX_SCHEDULE_TZ`. A laptop that moves to another zone keeps rendering and reading bare times
@@ -29,3 +29,5 @@ The body reports the host's IANA zone over `proto/body.proto`, and the brain use
 ## History
 
 - 2026-10-16: filed when the stack recipes started passing the host's zone (ADR-0065 decision 5).
+- 2026-10-25: checked again and not fired: nothing records a reminder at the wrong local time after
+  a zone change, and the proto still has no zone field.

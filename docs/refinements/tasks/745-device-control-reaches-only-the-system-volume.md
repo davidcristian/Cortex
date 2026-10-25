@@ -5,7 +5,7 @@
 **Origin:** [ADR-0023](../../adr/ADR-0023-body-gateway-volume.md)
 **Trigger:** a History line in this file recording the maintainer's pick: route one with the
 native actions its first slice builds, or route two.
-**Verified:** 2026-10-07
+**Verified:** 2026-10-25
 
 The assistant changes one thing on its machine, the system volume, through the cortex-only built-ins
 `get_volume` and `set_volume` over `BodyGateway`. `notify` and `capture_screen` use the same port but
@@ -78,3 +78,5 @@ the maintainer to pick an action group, which is then built. Declined if neither
   `ConfirmFreeToolRegistry`, `CORTEX_TOOLS_GATED` is a list of names, and ADR-0017 still reads 9 of
   100 against 0. Two corrections: the trigger named a choice the tree could not see, so it now names
   where the pick is recorded; and route one now counts the Linux body the shell serves.
+- 2026-10-25: checked again and not fired: no pick is recorded, and `streamable_http_session` still
+  sends no headers.

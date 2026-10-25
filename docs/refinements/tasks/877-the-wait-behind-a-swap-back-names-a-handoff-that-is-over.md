@@ -3,7 +3,7 @@
 **Status:** open, needs a port change first
 **Area:** brain-handoff
 **Origin:** [ADR-0030](../../adr/ADR-0030-brain-handoff.md)
-**Verified:** 2026-10-16
+**Verified:** 2026-10-25
 
 A turn that meets another turn's handoff waits for the residency scope to end and shows
 `HANDOFF_AHEAD_DETAIL`, "waiting for another request's handoff to the deep model to finish"
@@ -23,11 +23,20 @@ under the new question.
 
 Show the swap back's own words, `RESTORING_DETAIL` ("bringing the usual assistant back"), while the
 scope ahead is restoring the cortex, and the current text while the deep model loads or works.
-`ResidencyQueue` has only `blocks` and `await_scope_end`, so the port needs a way to read the
-phase, for example the residency state the board already publishes (`RESIDENCY_RESTORING`), with
-the fake and its contract test extended to match. A wait already shown is restated when the phase
-changes, as `EscalatingTurnEngine._record_swap` does for the handoff's own turn.
+`ResidencyQueue` (`ports_models.py`) has only `blocks` and `await_scope_end`, so the port needs two
+additions. The first is a synchronous read of the phase: the scope stays active through the restore,
+and `restore_with_retries` publishes `RESIDENCY_RESTORING` on `ResidencyBoard` before it starts.
+The second is a wait that also returns when the published report changes, because
+`await_scope_end` returns only when the scope ends, so a wait begun while the deep model works
+could not restate itself when the restore begins. `publish` already wakes the board's condition.
+`ResidencyBoard` and `SwappingModelManager` implement the port, and no fake or contract test for it
+exists yet: add a contract test over both. `wait_out_handoff` (`handoff_wait.py`) then restates the
+wait it holds through `WaitHold.restate` when the phase changes, as
+`EscalatingTurnEngine._record_swap` does for the handoff's own turn.
 
 ## History
 
 - 2026-10-16: filed from the swap pressure flows on the Linux shell.
+- 2026-10-25: premise checked against the code. `ResidencyQueue` still has no phase read and
+  `RESTORING_DETAIL` is the text the board's restoring report uses, but the remedy named a fake and
+  a contract test that do not exist and missed the wake on a phase change; both are corrected.

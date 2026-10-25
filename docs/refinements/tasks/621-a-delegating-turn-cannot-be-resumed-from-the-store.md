@@ -3,7 +3,7 @@
 **Status:** open, waiting for a consumer
 **Area:** resource-governance
 **Origin:** [ADR-0010](../../adr/ADR-0010-subagents.md)
-**Verified:** 2026-10-07
+**Verified:** 2026-10-25
 **Trigger:** a request identity on the body/brain interface, meaning a request id on `UserTurn` or
 `ClientEvent` in `proto/body.proto` (`grep -ni request_id proto/body.proto` has no hit), which is
 what both the `Converse` reconnect entry (R-023) and the crashed-handoff resume entry (R-112) wait
@@ -78,3 +78,5 @@ task ids it spawned, and a new decision on the 3600 s record life.
   the body now gives. Both greps still answer no; `run` reads `get_task` at `runner.py:73` before
   it admits, `_persist` writes the result at `runner.py:157`, and `spawn.py:193` gathers the batch
   in the frame. No commit since 2026-09-28 touched the runner, the spawn tool or the task store.
+- 2026-10-25: checked again and not fired: the proto still has no request id, and
+  `SwapConductor._drain` still fails the handoff on a timeout.

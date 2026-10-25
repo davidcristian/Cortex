@@ -11,7 +11,7 @@ patch releases with no commit, so the middle part is read by comparing a rebuilt
 connection and comes back as `SearchRefusedError`, sending a model to rewrite a query that was never
 the problem.
 **Origin:** [ADR-0056](../../adr/ADR-0056-email-reader-answers.md)
-**Verified:** 2026-10-04
+**Verified:** 2026-10-25
 
 `_search_failure` in `brain/packages/email/src/cortex_email/imap.py` reads the type of what imaplib
 raised. A plain `IMAP4.error` is the server refusing to parse the query, which crosses the port as
@@ -79,3 +79,5 @@ published port and a second address for `just email-folder-probe` to find.
   test's scripted `IMAP4.abort("socket error: EOF")` and `imap_fetch_failure = no-after` in
   `docker/dovecot/probe.conf` are unchanged. The trigger now names an imaplib change within 3.12 and
   how to read one.
+- 2026-10-25: checked again and not fired: the brain image still runs Python 3.12 and imap-tools
+  1.13.0.

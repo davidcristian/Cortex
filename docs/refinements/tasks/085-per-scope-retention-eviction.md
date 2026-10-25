@@ -6,7 +6,7 @@
 **Trigger:** R-087 adds a verb that expires or deletes some records of a scope, or a store's
 `memories` table reaches 20,000 rows (`SELECT count(*) FROM memories`), the smallest table the
 ranked recall readings measured search over.
-**Verified:** 2026-10-15
+**Verified:** 2026-10-25
 
 A policy that decides which memories to drop and when. The eviction verb exists; the policy and
 whatever would run it do not.
@@ -63,3 +63,5 @@ it serves neither entry: it cannot pick rows by age or by rank.
   but from the forget of untrusted memories rather than R-087: `delete_tainted` removes the tainted
   rows of the given scopes, called only by `forget_untrusted_memories`. A retention policy still
   has no delete by id or by timestamp, so the finding of 2026-09-19 holds. The body now names it.
+- 2026-10-25: checked again and not fired: task 087 has added no verb, and `delete_tainted` still
+  selects by the tainted flag only.

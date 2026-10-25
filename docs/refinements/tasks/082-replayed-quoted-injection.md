@@ -8,7 +8,7 @@ were written on a tainted turn. The tree shows it when a session history message
 or provenance field, and
 `grep -n -i 'taint\|provenance\|trust' brain/packages/core/src/cortex_core/conversation.py brain/packages/session/src/cortex_session/store_codec.py`
 prints nothing on 2026-10-03.
-**Verified:** 2026-10-11
+**Verified:** 2026-10-25
 
 The output guardrail removes URLs and nothing else, so if the cortex quotes an injected payload
 into its reply, the prose is persisted whole while the links become
@@ -44,7 +44,8 @@ would have worked on this model too, and was rejected because its first sentence
 tools", which is false on the turn it would be defending.
 
 **Why this stays open.** Nothing persists a per-turn taint mark that would let a later turn fence
-exactly the messages that read untrusted content. `HandoffRecord` already serializes a whole
+exactly the messages that read untrusted content. `HandoffRecord` already serializes all but the
+`forgotten` field of a
 `TaintLedger`, so the shape exists, but the transcript itself is still unfenced in the assistant
 position. Fencing the whole transcript would tell the model to distrust the user's own words;
 fencing only the assistant half needs that mark; and forbidding either rule to quote would cost a
@@ -99,3 +100,5 @@ real user need.
   `turn_context.py` picks `SECURITY_PREAMBLE` when tools are on or the turn is tainted and
   `PLAIN_SECURITY_PREAMBLE` otherwise, and `HandoffRecord` stores all four `TaintLedger` fields.
   The GPU measurements were not rerun.
+- 2026-10-25: checked again and not fired: the trigger's grep prints nothing. `HandoffRecord` does
+  not store the ledger's `forgotten` flag, and the body now says so.

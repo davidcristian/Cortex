@@ -3,7 +3,7 @@
 **Status:** open, waiting for a consumer
 **Area:** rpc-transport
 **Origin:** [ADR-0061](../../adr/ADR-0061-abandoned-call-line.md)
-**Verified:** 2026-10-13
+**Verified:** 2026-10-25
 **Trigger:** A read RPC on `BrainService` that recalls anything at all, meaning a handler that
 reads a memory port and composes what it finds into its reply. Today none does, so there is
 nothing for a reply to be partial about.
@@ -62,3 +62,5 @@ sends each fact as its own `HealthNote` rather than one joined `detail` sentence
   the cortex's own health endpoint, and `GetSessionMessages` decodes stored tool runs without
   sending them; neither reads a memory port, and `SessionMemoryCascade` is still used by
   `DeleteSession` alone (`session_servicer.py:83`). `BrainService` still declares eleven RPCs.
+- 2026-10-25: checked again and not fired: `BrainService` still has 11 RPCs, and no read handler
+  recalls memory.

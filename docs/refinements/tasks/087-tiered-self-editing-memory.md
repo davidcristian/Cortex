@@ -7,7 +7,7 @@
 so a turn is handed a superseded fact next to its correction. Read it by joining the kept hit ids
 on the recall trail (`CORTEX_MEMORY_RECALL_AUDIT`, or the JSON-lines file
 `CORTEX_MEMORY_RECALL_AUDIT_FILE` names) against the `memories` table.
-**Verified:** 2026-10-15
+**Verified:** 2026-10-25
 
 Letta's ideas about memory tiers and a model that edits its own memories, adoptable later without
 the framework (ADR-0008 decision 1). This is not behind an unchanged port: tiering (promote,
@@ -74,3 +74,5 @@ record stores only the `tainted` flag and not the ADR-0027 structured provenance
   reached by one tool, `forget_untrusted_memories`, which deletes the tainted rows a chat reads
   through `delete_tainted`. It updates nothing in place, so tiering and self-editing still have no
   verb. The body now says so.
+- 2026-10-25: checked again and not fired: no deployment reading exists, and `MemoryStore` and
+  `MemoryRecaller` still have no update verb.

@@ -8,7 +8,7 @@ entry whose only copy of a value on one side is a member of a class body. Count 
 each mention's text in its target file and checking whether the matching line assigns a name inside
 a `class`.
 **Origin:** [ADR-0042](../../adr/ADR-0042-cross-tree-constant-registry.md)
-**Verified:** 2026-10-07
+**Verified:** 2026-10-25
 
 The Python pattern in `crosscheck.DECLARATIONS` starts with `^` under `re.MULTILINE` and takes the
 name at column 0, so a binding inside any block is not a declaration. That anchor stops a name bound
@@ -67,3 +67,5 @@ are compared with each other while a mention is only a presence check.
   SourceKind` in `cortex_core/provenance.py`. The column 0 pattern in `crosscheck.DECLARATIONS` is
   unchanged, and so are the parts the fix would reuse: `moduleconstants.parse` and `bound`, and the
   walk over top-level class bodies in `settingsfields.py`.
+- 2026-10-25: checked again and not fired: `_SENDER_KIND` is still the only module level copy of a
+  `SourceKind` value.

@@ -8,9 +8,10 @@ withhold, most plausibly a connection URL with a credential inside it. Two readi
 point, and raising from inside `run_from_env` says what the container's last line looks like. This
 entry's history records what both answered when they were last taken.
 **Origin:** [ADR-0051](../../adr/ADR-0051-log-line-rendering.md)
-**Verified:** 2026-10-16
+**Verified:** 2026-10-25
 
-`entry.main` runs `asyncio.run(run_from_env())` and catches only `ConfigError`, a refused setting,
+`entry.main` configures logging and runs `asyncio.run(serve())`, where `serve` defaults to
+`run_from_env`, and catches only `ConfigError`, a refused setting,
 which it logs as one line before exiting 1. `run_from_env` builds every adapter, several of which
 dial a remote with a credential in the URL. An exception from any of them is printed by the interpreter's own traceback hook to stderr.
 `logging` never sees it, so neither `PlainFormatter` nor the whole-line withholding runs, and the
@@ -71,3 +72,5 @@ scheme and no `@` around it passes through every pattern this repo owns.
   which now catches `ConfigError` and logs a refused setting as one `setting refused` line with
   exit 1. Every other exception still reaches the interpreter's hook, so this entry's question is
   unchanged.
+- 2026-10-25: checked again and not fired: `entry.py` still has the only `asyncio.run` and still
+  catches only `ConfigError`; the body now names `serve`.

@@ -6,7 +6,7 @@
 **Trigger:** Something writes durable global facts under scoping, or a deployment that recorded
 under `CORTEX_MEMORY_SCOPE=global` switches to `session` and its operator asks for the memories
 recorded before the switch to be recalled again.
-**Verified:** 2026-10-04
+**Verified:** 2026-10-25
 
 A read policy that returns hits from the session scope and the global scope at once. It was one
 of three refinements left behind the `MemoryScope` port when per-session scoping shipped
@@ -50,3 +50,5 @@ of three refinements left behind the `MemoryScope` port when per-session scoping
   `cortex_cortex-pgdata` volume: its `memories` table holds two rows, both in `global`, both probe
   rows written 2026-08-11. A switch to `session` there would hide two probe rows and no memory an
   operator asked for.
+- 2026-10-25: checked again and not fired: `memory_scope_from_name` still builds only a session or a
+  global scope, and the forget added since writes no global fact.

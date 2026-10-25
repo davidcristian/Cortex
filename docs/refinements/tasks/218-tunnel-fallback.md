@@ -7,7 +7,7 @@
 `host.docker.internal:<port>` failing while a `python3 -m http.server` bound to `0.0.0.0` on this
 host listens on that port, which `ss -ltn` confirms before the dial. The same reach to the
 Windows-side body is observed by host task 002, not here.
-**Verified:** 2026-10-03
+**Verified:** 2026-10-25
 
 The brain dials the body directly, at `CORTEX_BODY_ENDPOINT` through `GrpcBodyGateway.connect`. If
 `host.docker.internal` proves unreliable on WSL2, tunnelling body-directed calls over a
@@ -58,3 +58,5 @@ part, a `BrainService` handler that hands the stream to that adapter and a third
   out after 8 s. The listener is on the WSL side; the dial to the Windows-side body is host task
   002's. Two corrections: the trigger now names the command that decides it, and the tunnel also
   needs the composition root's selection and stream handler, which the entry had not counted.
+- 2026-10-25: checked again and not fired: the tree records no failed bridge dial and the body
+  gateway is unchanged; the default port moved to 23151, which the body does not name.

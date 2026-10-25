@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-10-07
+**Verified:** 2026-10-25
 **Trigger:** either ladder assertion in `body/crates/core/tests/capture_bytes.rs` failing: the four
 realistic frames on a 4K display, or the same grainy photograph on the three display sizes the
 second one draws it at, no longer fitting inside `MAX_CAPTURE_BYTES` (6291456, in
@@ -74,3 +74,5 @@ ratio between the display and the requested edge: the same heavy-grain photograp
   trigger named `png` alone, while the bytes also depend on the deflate crates `png` lists, so it now
   names those four versions. Since 2026-09-25 an attached JPEG crosses the same `ImageBlob`, which
   the body text now says.
+- 2026-10-25: checked again and not fired: no commit since touched the capture encoders, their
+  limits or `body/Cargo.lock`.

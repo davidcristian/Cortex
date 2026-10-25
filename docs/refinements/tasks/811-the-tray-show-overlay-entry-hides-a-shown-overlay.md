@@ -4,7 +4,7 @@
 **Area:** body-overlay
 **Origin:** [ADR-0011](../../adr/ADR-0011-body-v1.md) decision 5
 **Trigger:** a History line in this file recording the maintainer's pick of A, B or C.
-**Verified:** 2026-10-07
+**Verified:** 2026-10-25
 
 The tray menu's first entry reads `Show overlay`, and `body/app/src-tauri/src/tray.rs` sends it to
 `toggle_overlay` in `lib.rs`, the function the hotkey calls. On a hidden window that shows the
@@ -32,3 +32,5 @@ code matches the docs and only the label reads otherwise. Which of the two chang
 
 - 2026-10-07: filed from [H-001](../../host/tasks/001-bring-up-and-streamed-turn.md) when the
   tray menu ran on the Linux shell under a StatusNotifier host written for the run.
+- 2026-10-25: checked again and not fired: no pick is recorded, and the tray's show entry still
+  calls `toggle_overlay`.

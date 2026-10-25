@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** memory
 **Origin:** [ADR-0038](../../adr/ADR-0038-ranked-recall.md)
-**Verified:** 2026-10-07
+**Verified:** 2026-10-25
 **Trigger:** either sink's open, append or gap warning changes, or the two copies stop matching. On
 2026-10-03, `git log -1 --format=%ad --date=short -- '*/src/*/audit_file.py'`, which names the two
 sinks' files, prints 2026-09-25, the commit that filed this task, and the 13 lines from
@@ -39,3 +39,5 @@ for the mode, the torn line, a moved file and a refused append.
   not fifteen, and the two sinks differ in what a failed record catches, by design, so the shared
   helper the entry proposes covers the open and the append and not the catch. The trigger now names
   the command and the comparison that decide it.
+- 2026-10-25: checked again and not fired: the two `audit_file.py` files still hold the same append.
+  A workspace member, `cortex_settings`, was added since, and neither package depends on it.

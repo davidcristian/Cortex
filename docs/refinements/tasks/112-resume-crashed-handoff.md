@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** inference-model-manager
 **Origin:** [ADR-0030](../../adr/ADR-0030-brain-handoff.md)
-**Verified:** 2026-10-17
+**Verified:** 2026-10-25
 **Trigger:** the dedup design the `Converse` reconnect entry (R-023) needs, a request id on
 `UserTurn` or `ClientEvent` plus an idempotency and resume registry keyed by it, after which
 resuming is a conductor entry point run beside the gRPC server. Recheck with
@@ -14,7 +14,8 @@ Boot recovery marks any handoff a crash interrupted `FAILED` and converges the G
 cortex ([swap_recovery.py](../../../brain/packages/core/src/cortex_core/swap_recovery.py)). It
 does not re-run the deep model's phase, although `HandoffRecord`
 ([handoff.py](../../../brain/packages/core/src/cortex_core/handoff.py)) holds everything needed
-to: the brief, the fence nonce, the whole taint ledger, the turn-wide dispatch budget's position,
+to: the brief, the fence nonce, the taint ledger but its `forgotten` flag, the turn-wide dispatch
+budget's position,
 the rounds already spent and the loop tail in order.
 
 Replaying it would risk running side-effectful work twice, because nothing records request
@@ -27,7 +28,8 @@ failure is the cheaper one and the user asks again.
 composition root awaits that in `recover_boot_residency` (`swap_builders.py`) before the gRPC server
 serves its first turn, so a deep phase run there would hold every turn off for a model load and a
 whole phase. The sequence a resume needs is the conductor's: the handoff claim, the drain, then
-`SwapConductor._swap(record)`, which is `_run_claimed` without `_prepare`, the record already
+`SwapConductor._swap(record, reached)`, which is `_run_claimed` without `_prepare`, the record
+already
 existing. So the fix is a conductor entry point that takes a record instead of an escalation slot,
 started beside the gRPC server after the boot publish, the way the tier repair is, with recovery leaving
 the record it hands over rather than failing it.
@@ -72,3 +74,5 @@ prevent.
   boot recovery never sees it. No row that night strands a record.
 - 2026-10-17: checked again and not fired. The recheck grep for `request_id` or `idempotency` over
   the proto and the brain's sources prints nothing.
+- 2026-10-25: checked again and not fired: neither the proto nor the brain has a request id. The
+  body now names `_swap(record, reached)` and the ledger's unstored `forgotten` flag.

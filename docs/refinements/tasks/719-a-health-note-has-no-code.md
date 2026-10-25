@@ -3,7 +3,7 @@
 **Status:** open, waiting for a consumer
 **Area:** rpc-transport
 **Origin:** [ADR-0054](../../adr/ADR-0054-baseline-residency.md)
-**Verified:** 2026-10-17
+**Verified:** 2026-10-25
 **Trigger:** A client that must treat one serving note apart from the others: style a missing peer tier differently from a slow last handoff, order them by its own rule, or let the user dismiss one.
 
 `HealthNote` in [body.proto](../../../proto/body.proto) has one field, the sentence. The overlay
@@ -33,3 +33,5 @@ code with the sentence, and beside each note the serving watch returns (`Serving
   `string text = 1` alone.
 - 2026-10-17: checked again and not fired. `HealthNote` still has only its `text` field, and no
   client treats one note apart from the others.
+- 2026-10-25: checked again and not fired: `HealthNote` is still one text field, and the sidecar
+  changes since read settings only.

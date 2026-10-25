@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** email-confirmer
 **Origin:** [ADR-0022](../../adr/ADR-0022-email-write-confirmer.md)
-**Verified:** 2026-10-17
+**Verified:** 2026-10-25
 **Trigger:** a record under `docs/readings/`, `docs/host/` or this file's History of a person
 approving a confirmation card without reading it, because cards came often enough in one turn or one
 chat. `grep -rliE 'without reading' docs/readings docs/host` finds only
@@ -87,3 +87,5 @@ allowlist over `send_email` is a permanent approval to send mail.
   is a third tool that raises a card. The body now says both.
 - 2026-10-17: checked again and not fired. The `without reading` grep still finds only
   `docs/readings/recall-tainted-send.md`.
+- 2026-10-25: checked again and not fired: `grep -rliE 'without reading'` still finds one reading,
+  and `ALWAYS_CONFIRMED` and `ToolDispatcher._confirmed` are unchanged.

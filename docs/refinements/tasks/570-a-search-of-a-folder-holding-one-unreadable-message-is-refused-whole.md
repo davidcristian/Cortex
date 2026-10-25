@@ -9,7 +9,7 @@ rather than the messages the server did deliver. Read it past the port by search
 test `test_a_folder_no_mailbox_has_is_refused_by_name_and_by_the_folder_list` searches each folder
 at a limit of 1, so it fetches only the first message each search returns.
 **Origin:** [ADR-0056](../../adr/ADR-0056-email-reader-answers.md)
-**Verified:** 2026-10-04
+**Verified:** 2026-10-25
 
 `ImapMailbox.search` in `brain/packages/email/src/cortex_email/imap.py` runs imap-tools' `fetch`,
 which at its default `bulk=False` sends one `UID FETCH` per uid through `_fetch_by_one` and raises
@@ -77,3 +77,5 @@ fixture holding one unreadable message beside readable ones.
   `_fetch_by_one` sends one FETCH per uid. `fetch_by_uid` in `uidfetch.py`, the pattern the fix
   would follow, still sends its own `UID FETCH` and raises `MailboxFetchError` on any status but
   `OK`. The last live reading is still that of 2026-09-15.
+- 2026-10-25: checked again and not fired: nothing records a live search refused by an unreadable
+  message, and `imap.py` is unchanged.

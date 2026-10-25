@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** inference-model-manager
 **Origin:** [ADR-0049](../../adr/ADR-0049-thinking-switch-and-trace-budget.md)
-**Verified:** 2026-10-17
+**Verified:** 2026-10-25
 **Trigger:** a `CORTEX_REASONING_BUDGET` or `CORTEX_REASONING_BUDGET_BRAIN` default in
 `docker/docker-compose.gpu.yml` other than `-1`, or `CORTEX_REPLY_TRACE_TOKENS` given a value by
 any compose file, recipe or env file in this tree, or a recorded run in this repo where the cortex
@@ -86,3 +86,5 @@ user reads and treat anything lower as a trade, is the placeholder until this ex
 - 2026-10-17: checked again and not fired. Both reasoning budgets still default to `-1`, now at
   lines 65 and 77 of the GPU override, and `CORTEX_REPLY_TRACE_TOKENS` is still passed through by
   name with no value.
+- 2026-10-25: checked again and not fired: both budgets still default to `-1` and no reading grades
+  a bounded budget.

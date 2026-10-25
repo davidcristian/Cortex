@@ -4,7 +4,7 @@
 **Area:** scheduling
 **Origin:** [ADR-0066](../../adr/ADR-0066-reminder-toast-and-card.md)
 **Trigger:** a second consumer of toast interaction, such as snooze from the toast.
-**Verified:** 2026-10-06
+**Verified:** 2026-10-25
 
 Clicking a shown toast does nothing, while the overlay's reminder card offers "open the
 conversation this came from". Fixing that needs a change to the gRPC boundary: `NotifyRequest`
@@ -83,3 +83,5 @@ That code would be in `os_linux`, which the coverage run measures.
   renders one `ToastGeneric` binding with no `launch` and no `<actions>`, the Linux `Notify` call
   sends an empty `actions` array, and the shell emits `cortex:activate` with an empty payload.
   Nothing under `body/` or in the proto mentions snooze, so the trigger has not fired.
+- 2026-10-25: checked again and not fired: `NotifyRequest` still has no `session_id`, and nothing in
+  the body mentions snooze.

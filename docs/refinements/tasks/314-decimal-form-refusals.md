@@ -3,7 +3,7 @@
 **Status:** open, waiting for a consumer
 **Area:** repo-checks
 **Origin:** [ADR-0042](../../adr/ADR-0042-cross-tree-constant-registry.md)
-**Verified:** 2026-10-07
+**Verified:** 2026-10-25
 **Trigger:** A decimal pair that needs ordering rather than equality, or one whose far side is a
 Rust literal with its own type suffix.
 
@@ -28,8 +28,9 @@ declarations sit apart: two trees, two languages in one tree, or two brain packa
 A decimal with a language's type suffix does not reduce. `10.0f64` and `10.0_f64` are refused along
 with the exponent and the sign, for the same reason the reducer rejects a `frozenset` written in
 Rust: no pair in this repo uses one, and guessing at a form nothing writes would have the scan
-compare values on syntax it has never seen. The body's one float constant, `VOLUME_NORM: f32 =
-65536.0` in `body/crates/os_linux/src/audio.rs`, is written without a suffix and agrees with nothing
+compare values on syntax it has never seen. The body's two float constants, `LEVEL_STEPS: f32 =
+65536.0` in `body/crates/contract/src/audio.rs` and `VOLUME_NORM: f32 =
+65536.0` in `body/crates/os_linux/src/audio.rs`, are written without a suffix and agree with nothing
 in Python, so the trigger is the first Rust decimal that has to agree with a Python one, and the fix
 is a suffix the reducer strips rather than a new form.
 
@@ -75,3 +76,5 @@ is a suffix the reducer strips rather than a new form.
   the integer capture edge pair and receive limit pair, the two gateway deadlines are still both
   in `gateway.py`, and `relation_fault` in `scripts/readings.py` and `values.DECIMAL` are
   unchanged.
+- 2026-10-25: checked again and not fired: `relation_fault` still orders integers only. The body now
+  names the second unsuffixed float constant, `LEVEL_STEPS` in the contract crate.

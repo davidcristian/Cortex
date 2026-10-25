@@ -10,7 +10,7 @@ a swap runtime at all (`brain/packages/orchestrator/src/cortex_orchestrator/swap
 returns `None` without it), and `docs/runbooks/model-swap.md:150` tells an operator to set it.
 `grep -rlniE 'turn twice' docs/readings docs/host docs/runbooks` finding nothing says there is no
 such record.
-**Verified:** 2026-10-17
+**Verified:** 2026-10-25
 
 Retrying a `converse` turn after a disconnect is only safe if the brain can tell that the repeat
 is the same request. It cannot. A turn's first durable effect is
@@ -93,3 +93,6 @@ resends. `converse` stays unretried, `RpcMethod::Converse` not being repeatable.
 - 2026-10-17: checked again and not fired. `grep -rlniE 'turn twice'` over the three record
   directories finds nothing, `build_swap_scope` still returns `None` without the switch, and the
   engine and runbook changes since 2026-10-13 touch neither.
+- 2026-10-25: checked again and not fired: `grep -rlniE 'turn twice'` over the record directories
+  finds nothing, `ClientEvent` and `UserTurn` still have no request id, and the engine changes since
+  touch neither.

@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** subagents
 **Origin:** [ADR-0004](../../adr/ADR-0004-model-lineup.md)
-**Verified:** 2026-10-07
+**Verified:** 2026-10-25
 **Trigger:** a deployment that sets `CORTEX_SUBAGENTS_CPU_BUDGET` below 1.0, or a brain config
 change that lets the budget reach a CPU subagent server by any route other than the compose
 substitution both CPU servers read.
@@ -74,3 +74,5 @@ must lower every ask to at or under the budget as well.
   `--version` reads build 10680, commit `d7bd3bfca`. The model host image now runs build 11312,
   but `tiers.py` builds its argv with `-ngl` and no thread count, so the budget reaches no server
   that way.
+- 2026-10-25: checked again and not fired: `DEFAULT_CPU_BUDGET` is still 4.0, and both CPU servers
+  still pass the budget to `--threads`.

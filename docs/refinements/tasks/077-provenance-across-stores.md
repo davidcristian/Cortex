@@ -4,7 +4,7 @@
 **Area:** untrusted-content
 **Origin:** [ADR-0027](../../adr/ADR-0027-turn-provenance.md)
 **Trigger:** a design that needs a fired schedule item or a subagent result to record the sources the turn behind it read, the way a handoff record stores its own turn's whole ledger.
-**Verified:** 2026-10-17
+**Verified:** 2026-10-25
 
 `ScheduledItem` and `SubagentResult` store only the `tainted` flag. Neither records which
 sources the turn read, so a consumer of either one cannot tell where the content came from.
@@ -12,7 +12,8 @@ sources the turn read, so a consumer of either one cannot tell where the content
 What already exists:
 
 - `HandoffRecord` stores the whole `TaintLedger` (`tainted`, `opaque`, `recalled_only`, `sources`,
-  `untrusted_urls`) under the escalating turn's id, and `taint_ledger()` rebuilds it after a
+  `untrusted_urls`, `recalled_ids`) under the escalating turn's id, and `taint_ledger()` rebuilds it
+after a
   model swap. The round trip is checked in
   `brain/packages/session/tests/handoff_contract.py`. A settled record expires after an hour.
 - `SubagentTask` stores `session_id`, `turn_id` and `item_id`, taken from the spawning
@@ -58,3 +59,5 @@ that turn read.
 - 2026-10-17: checked again and not fired. No task filed since 2026-10-13 asks a fired schedule item
   or a subagent result to record its sources, and the schedule tool changes of 2026-10-16 concern
   confirmations and past times.
+- 2026-10-25: checked again and not fired: `ScheduledItem` and `SubagentResult` still store only
+  `tainted`. `HandoffRecord` now also stores `recalled_ids`, and the body names it.

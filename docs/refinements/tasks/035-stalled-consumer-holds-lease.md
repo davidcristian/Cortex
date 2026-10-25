@@ -13,7 +13,7 @@ test, the bridge contract's `bridgeContract.ts` and the brain transport's
 `body/crates/contract/src/transport/turns.rs`, and the `seam` package's re-export of the stub. Any
 other file fires it. The shell command's `while let` loop awaits only `stream.next()`; any other
 await between two items fires it.
-**Verified:** 2026-10-13
+**Verified:** 2026-10-25
 
 The reply's lease is held for the adapter generator's whole lifetime, and the credit bound
 ([R-028](028-converse-queue-backpressure.md), `CORTEX_SEAM_CONVERSE_BUFFER`) suspends generation
@@ -97,3 +97,5 @@ decision about what the stream sends the client when it fires.
   changed on 2026-10-07 to end a turn on Stop: it races the turn against the stop signal with
   `select` (`converse.rs:212`), outside the read loop, and the loop at `converse.rs:266` still
   awaits only `stream.next()` between two items.
+- 2026-10-25: checked again and not fired: the trigger's grep finds the same seven files, and the
+  shell's stream loop and the credit wait in `_run_turn` are unchanged.

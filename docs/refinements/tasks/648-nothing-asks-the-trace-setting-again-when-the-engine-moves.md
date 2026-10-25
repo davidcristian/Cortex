@@ -3,14 +3,16 @@
 **Status:** open, waiting for its trigger
 **Area:** inference
 **Origin:** [ADR-0049](../../adr/ADR-0049-thinking-switch-and-trace-budget.md)
-**Verified:** 2026-10-04
+**Verified:** 2026-10-25
 **Trigger:** a newer llama.cpp pulled under a brain that keeps running, where the new build answers
 the trace question differently from the answer that brain cached and the documented restart was
 skipped, which shows as the GPU runbook's own `curl` contradicting the brain's boot line, or as a
 second `model now served by engine build` line for the cortex model in one brain's log.
 
 `resolve_send_trace_budget` is called once, inside `build_inference_backend`, and its answer reaches
-`LlamaCppBackend` as a `bool` that lives as long as the process. The vision probe beside it is the
+`LlamaCppBackend` as a `TraceBudgetProbe` under `auto`, which asks again before each request until
+an engine answers and then keeps that answer as long as the process lives. The vision probe beside
+it is the
 deliberate contrast, asked again on every advertisement and every call, because a projector is an
 argv a model host can change under a brain that never restarts. A binary cannot change that way,
 which is the argument for caching this answer; what can change is which binary is behind the
@@ -25,7 +27,7 @@ meantime, which takes a recreate from a newer image: a `docker compose pull`, or
 `cortex-model-host` whose base is newer than the `:server-cuda` the host has cached, which is how the
 engine moved on 2026-10-02. Since 2026-09-24 the brain does observe that recreate: `LlamaCppBackend._note_build` reads the build each streamed chunk names in
 `system_fingerprint` and logs `model now served by engine build` when a model's build changes. It
-only logs; the cached `bool` stays as it was.
+only logs; the cached answer stays as it was.
 
 **Why it was left.** The direction of the staleness is the safe one, and both directions are fixed
 by a restart the GPU runbook prints. A brain that booted before the key existed goes on sending the
@@ -38,8 +40,8 @@ decodes a token on the servers that most need not to.
 `_note_build` already detects, which the default stack has and which costs one probe per new build
 rather than one per call, though it is seen only on a reply, after one request went with the old
 answer; or the swap scope, which reaches only the escalating case; or asking again on a schedule, which is the
-probe-per-call cost spread thinner and still a token on a busy server; or keeping the cached `bool`
-with the documented restart as the repair. The third is what was decided, so anything built here has
+probe-per-call cost spread thinner and still a token on a busy server; or keeping the cached answer
+with the documented restart as the repair. The last is what was decided, so anything built here has
 to argue against it with a deployment that actually hit the problem.
 
 ## History
@@ -81,3 +83,5 @@ to argue against it with a deployment that actually hit the problem.
   `reads_budget=True` against b11312, the answer b10680 gave, and each logs one cortex build line.
   No brain container runs here now. No card row is owed: the probe's answer is already read on both
   builds.
+- 2026-10-25: checked again and not fired: no new engine was pulled under a running brain. Under
+  `auto` the cached answer is now a `TraceBudgetProbe`, and the body says so.

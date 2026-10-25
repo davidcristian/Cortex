@@ -6,7 +6,7 @@
 **Trigger:** the maintainer decides the subagent tier's pick: ADR-0004 decision 7 names a model
 other than gemma-4-E4B, or its reason cites the constrained reply path rows this file records.
 Read decision 7's first sentence and `grep -n 'constrained-reply-path' docs/adr/ADR-0004-model-lineup.md`.
-**Verified:** 2026-10-07
+**Verified:** 2026-10-25
 
 Decision 7 of [ADR-0004](../../adr/ADR-0004-model-lineup.md) picked gemma-4-E4B for the subagent
 tier on injection resistance, at about 2.6 times the load, 3 times a narrow task's latency and 2.8
@@ -142,3 +142,5 @@ way ([ADR-0013](../../adr/ADR-0013-untrusted-content.md) decision 3).
   counts of the full text row and not the constrained reply path, which no line of ADR-0004 links.
   The trigger now names that grep. `task_messages` now also takes `tools` and `nonce`, so the body
   says the 2026-09-25 rows sent the messages it then built.
+- 2026-10-25: checked again and not fired: decision 7 of ADR-0004 still names gemma-4-E4B, and
+  `SubagentRoster.resolve` is unchanged.
