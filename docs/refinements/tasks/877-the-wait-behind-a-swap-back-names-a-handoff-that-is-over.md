@@ -44,5 +44,7 @@ wait it holds through `WaitHold.restate` when the phase changes, as
   `RESIDENCY_RESTORING` until the scope ends, so the cortex serving again just before the scope
   ends does not turn the wait back into the handoff's, and `wait_out_handoff` restates its one wait
   as `RESTORING_AHEAD`. No fake or shared list was added: both implementations are pure core, so
-  the port has none by [ADR-0068](../../adr/ADR-0068-port-contract-lists.md) decision 6. Neither
-  shell flow has been run again.
+  the port has none by [ADR-0068](../../adr/ADR-0068-port-contract-lists.md) decision 6. On the
+  Linux shell both flows showed the swap back's words, and a turn queued behind a second client's
+  handoff showed the handoff's words and then the swap back's
+  ([readings](../../readings/overlay-swap-pressure-flows.md#the-waiting-chip-after-that-change)).

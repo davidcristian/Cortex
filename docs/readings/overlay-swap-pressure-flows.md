@@ -100,8 +100,30 @@ waiting for another request's handoff to finish, in both flows, while the person
 request and the brain was reloading the cortex. Filed as
 [R-877](../refinements/tasks/877-the-wait-behind-a-swap-back-names-a-handoff-that-is-over.md).
 Since 2026-10-26 the queued turn's chip changes to "bringing the usual assistant back" when the
-swap back begins, which `test_turn_handoff_wait.py` checks over a held restore; neither flow has
-been run on the shell again since.
+swap back begins, which `test_turn_handoff_wait.py` checks over a held restore.
+
+## The waiting chip after that change
+
+**2026-10-26**, that night's shared stack (compose project `cortexn8`): the models and settings of
+the rig above plus the cortex's vision projector, the brain built from the tree with the change.
+SM clock: 0.60 of `clocks.max.sm` at the median sample, 0.27 to 0.71 over all of them.
+
+- **`Ctrl+N` 6 s into the deep load**, then "What is 5 plus 5? One line." in the new chat. The
+  deep model stopped and the cortex was `loading` within 0.3 s of the key. The chip read "bringing
+  the usual assistant back" from the first frame until the cortex was `ready`, 41 s after the
+  question, and then cleared; the reply was stored 46 s after the question.
+- **`Ctrl+N` 0.5 s after the deep model stopped**, then the same question. The same chip from the
+  first frame until the cortex was `ready`, 45 s after the question; the reply was stored at 48 s.
+- **A queued turn that meets both phases.** In both flows above `Ctrl+N` ends the handoff's turn,
+  so the swap back starts at once and the handoff's own wording cannot show. Here the handoff ran
+  from a second client (`just rpc-handoff approve`), and 6 s into its deep load the overlay sent
+  the question in a new chat. The chip read "waiting for another request's handoff to the deep
+  model to finish" while the deep model loaded (88 s) and worked (about 28 s), changed to
+  "bringing the usual assistant back" within one 2 s frame of the second client's own swap back
+  status, and kept it until the cortex was `ready` 46 s later. The reply was stored 160 s after
+  the question, and the second client's handoff completed.
+
+So the chip names the phase the handoff ahead is in. No defect was found in these flows.
 
 Method: the drivers (`flowc.sh`, `lib.sh`, `mon.sh`) and frames are in the run's scratch directory,
 not in the tree.
