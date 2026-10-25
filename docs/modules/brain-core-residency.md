@@ -70,10 +70,10 @@ path returns the card to. Measurements are in [model-swap](../readings/model-swa
   and raises `HandoffInProgressError` at once rather than queuing, with nothing awaited between the
   check and the claim. `unhosted` returns `True` only on an explicit refusal, and is asked every
   time rather than remembered.
-- `ResidencyQueue` provides `blocks(model)`, synchronous, whether another model's residency scope
-  is active so a lease of `model` would wait, and `await_scope_end(model)`, which waits until none
-  is and leaves the check of what is resident to the lease. A turn uses it to announce the wait
-  before it reads its history and before each model call (ADR-0069 decision 9).
+- `ResidencyQueue` provides `blocks(model)`, whether another model's scope is active so a lease of
+  `model` would wait, and `restoring()`, whether that scope has begun its swap back (both are
+  synchronous); `await_change(model, restoring=...)` returns once no scope blocks `model` or
+  `restoring()` differs from `restoring`. A turn announces its wait with these (ADR-0069 decision 9).
 - `ResidencyReporter` provides `residency() -> ResidencyReport` for the wire's `Health`. It is
   **synchronous and free of I/O by contract**: a probe arrives every few seconds during a swap, and
   one queued behind the GPU lease would hang for the whole load, so an implementation answers from a
@@ -178,22 +178,22 @@ record being durable and its schema having no field for pixels.
 never escalates: `acquire` serializes callers with one lock and refuses any other model with
 `ModelUnavailableError`. `SwappingModelManager(host, endpoints, plan, clock, sleeper)`
 (`residency.py`) implements the lease port, `ResidencyController`, `ResidencyQueue` and
-`ResidencyReporter` together,
-still as pure policy with no I/O of its own. A scope rather than a swapping `acquire`, because the
-deep model's tool loop re-acquires once per round and a swapping `acquire` would thrash minutes
-each way whenever a queued cortex turn interleaved. Its parts are split along the boundary the
-manager already draws, it owning when and who may, they owning what the host is asked to do:
-`residency_claim.py` (`HandoffClaim`, the non-blocking claim over the whole sequence);
-`residency_moves.py` (the two host-facing moves, with the fit check between the last `stop` and the
-`start`, the only instant at which free memory means anything); `residency_restore.py` (the swap
-back's retry policy and its uninterruptible wait, where every cancellation waits for the shielded
-restore, not merely the first); `residency_board.py` (`ResidencyBoard`, holding which model the GPU
-serves, what a user is told, whether a scope owns the card, and the one condition all three are
-published under, with `report` and `scope_active` as lock-free reads so `Health` answers during a
-load); `residency_probe.py` (`ResidencyProbeMixin`, which composes the answer as it is read,
-annotating the published record first by the peers that are missing and then by how the last
-handoff ran, and whose `publish_boot_residency(*, serving)` touches display alone); and
-`residency_charge.py` (which tells the optional `SubagentPlacer`, at the swap's two edges, which
+`ResidencyReporter` together, still as pure policy with no I/O of its own. A scope rather than a
+swapping `acquire`, because the deep model's tool loop re-acquires once per round and a swapping
+`acquire` would thrash minutes each way whenever a queued cortex turn interleaved. Its parts are
+split along the boundary the manager already draws, it owning when and who may, they owning what the
+host is asked to do: `residency_claim.py` (`HandoffClaim`, the non-blocking claim over the whole
+sequence); `residency_moves.py` (the two host-facing moves, with the fit check between the last
+`stop` and the `start`, the only instant at which free memory means anything);
+`residency_restore.py` (the swap back's retry policy and its uninterruptible wait, where every
+cancellation waits for the shielded restore, not merely the first); `residency_board.py`
+(`ResidencyBoard`, holding which model the GPU serves, what a user is told, whether a scope owns the
+card, whether that scope has published `RESIDENCY_RESTORING` (kept until the scope ends), and the
+one condition all of them are published under, with `report` and `scope_active` as lock-free reads
+so `Health` answers during a load); `residency_probe.py` (`ResidencyProbeMixin`, which composes the
+answer as it is read, annotating the published record first by the peers that are missing and then
+by how the last handoff ran, and whose `publish_boot_residency(*, serving)` touches display alone);
+and `residency_charge.py` (which tells the optional `SubagentPlacer`, at the swap's two edges, which
 model holds the card, written before the swap in and reversed only once the cortex serves again).
 
 `ResidencyReport(serving, detail, notes)` and the six values a swap publishes are in `residency_state.py`:

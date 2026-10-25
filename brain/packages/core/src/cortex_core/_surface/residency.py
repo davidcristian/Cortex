@@ -8,7 +8,12 @@ from cortex_core.cadence import (
     CadenceWatch,
 )
 from cortex_core.handoff import EscalationRefs, EscalationSlot, HandoffRecord, HandoffState
-from cortex_core.handoff_wait import HANDOFF_AHEAD, HandoffAheadBackend, wait_out_handoff
+from cortex_core.handoff_wait import (
+    HANDOFF_AHEAD,
+    RESTORING_AHEAD,
+    HandoffAheadBackend,
+    wait_out_handoff,
+)
 from cortex_core.load_wait import (
     LOAD_POLL_INTERVAL_S,
     MODEL_LOADING,
@@ -106,6 +111,7 @@ __all__ = [
     "RESIDENCY_RESTORING",
     "RESIDENCY_SERVING",
     "RESTORE_FAILED_NOTE",
+    "RESTORING_AHEAD",
     "RESTORING_DETAIL",
     "SERVING_CHECK_INTERVAL_S",
     "SERVING_CHECK_TIMEOUT_S",

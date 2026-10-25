@@ -3,7 +3,12 @@
 import asyncio
 
 from cortex_core.errors import HandoffInProgressError, ModelUnavailableError
-from cortex_core.residency_state import RESIDENCY_SERVING, Fence, ResidencyReport
+from cortex_core.residency_state import (
+    RESIDENCY_RESTORING,
+    RESIDENCY_SERVING,
+    Fence,
+    ResidencyReport,
+)
 
 
 class ResidencyBoard:
@@ -15,6 +20,7 @@ class ResidencyBoard:
         self._report: ResidencyReport = RESIDENCY_SERVING
         self._scope_model: str | None = None
         self._scope_task: asyncio.Task[object] | None = None
+        self._swapping_back = False
 
     @property
     def condition(self) -> asyncio.Condition:
@@ -50,6 +56,9 @@ class ResidencyBoard:
         """Set both fields together, then wake the queue."""
         self._resident = model
         self._report = report
+        # Kept after the restore publishes its result, so a turn queued behind it is not told
+        # about the deep model again in the moment before the scope ends.
+        self._swapping_back = self._swapping_back or report == RESIDENCY_RESTORING
         self._condition.notify_all()
 
     async def publish_report(self, report: ResidencyReport) -> None:
@@ -61,21 +70,29 @@ class ResidencyBoard:
         """Whether a scope about another model is active, so leasing ``model`` would queue."""
         return self._scope_model is not None and self._scope_model != model
 
-    async def await_scope_end(self, model: str) -> None:
-        """Wait out any scope this is not about, and leave the residency check to the lease."""
+    def restoring(self) -> bool:
+        """Whether the active scope has begun bringing the cortex back, until that scope ends."""
+        return self._scope_model is not None and self._swapping_back
+
+    async def await_change(self, model: str, *, restoring: bool) -> None:
+        """Wait until no scope blocks ``model`` or ``restoring()`` stops equalling ``restoring``."""
         async with self._condition:
-            await self._wait_out_scope(model)
+            self._refuse_own_scope(model)
+            while self.blocks(model) and self.restoring() == restoring:
+                await self._condition.wait()
 
     async def await_resident(self, model: str) -> None:
         """Wait out any scope this is not about, then raise unless ``model`` is the resident."""
         async with self._condition:
-            await self._wait_out_scope(model)
+            self._refuse_own_scope(model)
+            while self.blocks(model):
+                await self._condition.wait()
             if model != self._resident:
                 msg = f"model {model!r} is not resident (resident: {self._resident!r})"
                 raise ModelUnavailableError(msg)
 
-    async def _wait_out_scope(self, model: str) -> None:
-        """Wait, under the condition, until no scope about another model is active."""
+    def _refuse_own_scope(self, model: str) -> None:
+        """Raise when the task that owns the scope asks to wait on another model."""
         if self.blocks(model) and asyncio.current_task() is self._scope_task:
             # The scope ends only when this task leaves it, so this wait could never end.
             msg = (
@@ -83,8 +100,6 @@ class ResidencyBoard:
                 f"{self._scope_model!r}, which only that model may be leased in"
             )
             raise ModelUnavailableError(msg)
-        while self.blocks(model):
-            await self._condition.wait()
 
     async def enter_scope(self, model: str) -> None:
         """Claim the one residency scope, so every other model's acquire starts queuing."""
@@ -97,6 +112,7 @@ class ResidencyBoard:
                 raise HandoffInProgressError(msg)
             self._scope_model = model
             self._scope_task = asyncio.current_task()
+            self._swapping_back = False
 
     async def leave_scope(self) -> None:
         """Release the scope and wake every acquire that queued behind it."""

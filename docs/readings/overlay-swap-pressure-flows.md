@@ -99,6 +99,9 @@ Redis for its hour. A second run gave the same, its reply stored 40 s after it w
 waiting for another request's handoff to finish, in both flows, while the person had just left that
 request and the brain was reloading the cortex. Filed as
 [R-877](../refinements/tasks/877-the-wait-behind-a-swap-back-names-a-handoff-that-is-over.md).
+Since 2026-10-26 the queued turn's chip changes to "bringing the usual assistant back" when the
+swap back begins, which `test_turn_handoff_wait.py` checks over a held restore; neither flow has
+been run on the shell again since.
 
 Method: the drivers (`flowc.sh`, `lib.sh`, `mon.sh`) and frames are in the run's scratch directory,
 not in the tree.

@@ -28,6 +28,7 @@ from cortex_core import (
     SwapFailedError,
     SwappingModelManager,
     record_fields,
+    wait_out_handoff,
 )
 
 _CORTEX_URL = "http://llama-cortex:8080"
@@ -244,7 +245,7 @@ async def test_a_lease_of_another_model_inside_its_own_scope_raises_at_once() ->
         with pytest.raises(ModelUnavailableError, match="inside the residency scope for 'brain'"):
             await _lease(manager, "cortex")
         with pytest.raises(ModelUnavailableError, match="inside the residency scope for 'brain'"):
-            await manager.await_scope_end("cortex")
+            await manager.await_change("cortex", restoring=False)
         assert await _lease(manager, "brain") == _BRAIN_URL
     assert host.running == {"cortex"}
     assert await _lease(manager, "cortex") == _CORTEX_URL
@@ -290,10 +291,10 @@ async def test_only_another_model_s_scope_blocks_a_lease() -> None:
 async def test_waiting_out_a_scope_leaves_the_failed_swap_back_to_the_lease() -> None:
     host = ScriptedModelHost(running=["cortex"], fail={("start", "cortex"): "no such device"})
     manager = _manager(_YieldingHost(host))
-    await manager.await_scope_end("cortex")
+    await wait_out_handoff(manager, None, "cortex")
     scope = _OpenScope(manager)
     await scope.start()
-    waiting = asyncio.create_task(manager.await_scope_end("cortex"))
+    waiting = asyncio.create_task(wait_out_handoff(manager, None, "cortex"))
     await _settle()
     assert not waiting.done()
     scope.leave.set()

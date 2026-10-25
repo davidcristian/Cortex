@@ -64,9 +64,13 @@ class SwappingModelManager(ResidencyProbeMixin):
         """Whether leasing ``model`` would wait for another model's residency scope to end."""
         return self._board.blocks(model)
 
-    async def await_scope_end(self, model: str) -> None:
-        """Wait until no other model's residency scope keeps ``model`` from being leased."""
-        await self._board.await_scope_end(model)
+    def restoring(self) -> bool:
+        """Whether the active residency scope has begun bringing the cortex back."""
+        return self._board.restoring()
+
+    async def await_change(self, model: str, *, restoring: bool) -> None:
+        """Wait until no other model's scope blocks ``model``, or the restoring phase changes."""
+        await self._board.await_change(model, restoring=restoring)
 
     def handoff_claim(self) -> AbstractAsyncContextManager[None]:
         """Own the whole swap sequence for this block, or raise at once."""

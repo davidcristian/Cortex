@@ -6,11 +6,17 @@ from cortex_core.conversation import Message
 from cortex_core.inference import GenerationBounds, InferenceEvent, JsonSchema
 from cortex_core.ports import InferenceBackend, ResidencyQueue
 from cortex_core.progress import ProgressSink, hold_wait
-from cortex_core.swap_notes import HANDOFF_AHEAD_DETAIL, SWAPPING_STATE
+from cortex_core.swap_notes import HANDOFF_AHEAD_DETAIL, RESTORING_DETAIL, SWAPPING_STATE
 from cortex_core.tools import ToolSpec
 from cortex_core.waits import Wait
 
 HANDOFF_AHEAD = Wait(SWAPPING_STATE, HANDOFF_AHEAD_DETAIL)
+RESTORING_AHEAD = Wait(SWAPPING_STATE, RESTORING_DETAIL)
+
+
+def _ahead(*, restoring: bool) -> Wait:
+    """The wait a queued turn shows for the phase the handoff ahead of it is in."""
+    return RESTORING_AHEAD if restoring else HANDOFF_AHEAD
 
 
 async def wait_out_handoff(
@@ -20,8 +26,13 @@ async def wait_out_handoff(
     # A status is a turn event, so the body's first gap ends here instead of running on through
     # a wait whose heartbeats it counts as this turn's own silence.
     while queue.blocks(model):
-        async with hold_wait(progress, HANDOFF_AHEAD):
-            await queue.await_scope_end(model)
+        restoring = queue.restoring()
+        async with hold_wait(progress, _ahead(restoring=restoring)) as held:
+            while queue.blocks(model):
+                await queue.await_change(model, restoring=restoring)
+                restoring = queue.restoring()
+                if held is not None and queue.blocks(model):
+                    await held.restate(_ahead(restoring=restoring))
 
 
 class HandoffAheadBackend:

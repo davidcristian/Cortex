@@ -102,11 +102,11 @@ after the window, one saying a handoff's deep reply is not stored (`tool_replay.
   around each dispatch that was not refused, `asking` around a confirmation (ADR-0069 decision 9). `escalation` (an `EscalationSlot`, ADR-0030) is the turn's handoff slot, one per turn.
 - `residency` (a `ResidencyQueue`, set only where a handoff can run): after storing the user
   message and before reading the history, a turn whose model another handoff keeps off the card
-  holds an announced `swapping` wait (`HANDOFF_AHEAD_DETAIL`, `wait_out_handoff`) until that scope
-  ends, so the body's first gap ends there and the history read next includes what it stored. A
-  handoff that begins later is met at the lease: `HandoffAheadBackend(inner, queue, progress)`
-  takes the same wait before each stream, awaiting nothing between its check and the lease, and
-  closes the wrapped stream when closed; one is built per stream that can hand off (ADR-0069).
+  holds an announced `swapping` wait (`wait_out_handoff`: `HANDOFF_AHEAD`, then `RESTORING_AHEAD`
+  from that scope's swap back on) until the scope ends, so the body's first gap ends there and the
+  history read next includes what it stored. A handoff that begins later is met at the lease:
+  `HandoffAheadBackend(inner, queue, progress)` takes the same wait before each stream, awaiting
+  nothing between its check and the lease, and closes the wrapped stream when closed (ADR-0069).
 - `LoadWaitBackend(inner, progress, *, clock, sleeper, wait_s)` (`load_wait.py`) asks `inner` again
   every `LOAD_POLL_INTERVAL_S` while it raises `ModelLoadingError` before its first event, holding
   `MODEL_LOADING` (`swapping`) until that event, and re-raises `wait_s` after the first loading

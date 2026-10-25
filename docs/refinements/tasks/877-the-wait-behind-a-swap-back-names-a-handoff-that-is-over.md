@@ -1,9 +1,8 @@
 # The wait behind a swap back names a handoff that is over
 
-**Status:** open, needs a port change first
+**Status:** done 2026-10-26
 **Area:** brain-handoff
 **Origin:** [ADR-0030](../../adr/ADR-0030-brain-handoff.md)
-**Verified:** 2026-10-25
 
 A turn that meets another turn's handoff waits for the residency scope to end and shows
 `HANDOFF_AHEAD_DETAIL`, "waiting for another request's handoff to the deep model to finish"
@@ -40,3 +39,10 @@ wait it holds through `WaitHold.restate` when the phase changes, as
 - 2026-10-25: premise checked against the code. `ResidencyQueue` still has no phase read and
   `RESTORING_DETAIL` is the text the board's restoring report uses, but the remedy named a fake and
   a contract test that do not exist and missed the wake on a phase change; both are corrected.
+- 2026-10-26: done. `ResidencyQueue` has `restoring()` and `await_change(model, restoring=...)`,
+  which replaced `await_scope_end`. `ResidencyBoard` keeps `restoring()` true from
+  `RESIDENCY_RESTORING` until the scope ends, so the cortex serving again just before the scope
+  ends does not turn the wait back into the handoff's, and `wait_out_handoff` restates its one wait
+  as `RESTORING_AHEAD`. No fake or shared list was added: both implementations are pure core, so
+  the port has none by [ADR-0068](../../adr/ADR-0068-port-contract-lists.md) decision 6. Neither
+  shell flow has been run again.

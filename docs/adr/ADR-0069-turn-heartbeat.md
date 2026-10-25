@@ -111,7 +111,9 @@ The third needs a bound on the turn's own progress, which ADR-0024's gaps alread
    "waiting for this chat's previous message to finish", announced), and
    `wait_out_handoff` (`cortex_core/handoff_wait.py`) around a wait for another turn's handoff to
    leave the card (`swapping`, through the `ResidencyQueue` port). That last one is announced,
-   because the wait can outlast the first gap and the body counts a heartbeat as silence. It is
+   because the wait can outlast the first gap and the body counts a heartbeat as silence. Its
+   detail names the handoff ahead until that handoff begins its swap back, and from then on uses
+   the swap back's own words, restated on the one wait it holds. It is
    taken where the turn would queue: by `TurnEngine` before it reads the history, so the history
    includes what that handoff stores, and by `HandoffAheadBackend` before every model call of a
    stream that can hand off, recall's judge and the recap included. Nothing is awaited between

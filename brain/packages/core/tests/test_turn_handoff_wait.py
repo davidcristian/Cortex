@@ -7,6 +7,10 @@ import pytest
 
 from cortex_core import (
     HANDOFF_AHEAD_DETAIL,
+    RESIDENCY_DEEP,
+    RESIDENCY_RESTORING,
+    RESIDENCY_SERVING,
+    RESTORING_DETAIL,
     SWAPPING,
     TOOL_RUNNING,
     EchoInferenceBackend,
@@ -37,8 +41,13 @@ from cortex_core import (
     Wait,
     wait_out_handoff,
 )
+from cortex_core.residency_board import ResidencyBoard
 
 _HANDOFF_AHEAD = Wait(SWAPPING, HANDOFF_AHEAD_DETAIL)
+_RESTORING_AHEAD = Wait(SWAPPING, RESTORING_DETAIL)
+_AHEAD_STATUS = StatusUpdate(state=SWAPPING, detail=HANDOFF_AHEAD_DETAIL)
+_RESTORING_STATUS = StatusUpdate(state=SWAPPING, detail=RESTORING_DETAIL)
+_CLEARED = StatusUpdate(state="", detail="")
 
 
 class _FixedClock:
@@ -46,9 +55,9 @@ class _FixedClock:
         return datetime(2026, 9, 24, 4, 0, tzinfo=UTC)
 
 
-def _manager() -> SwappingModelManager:
+def _manager(host: ScriptedModelHost | None = None) -> SwappingModelManager:
     return SwappingModelManager(
-        ScriptedModelHost(running=["cortex"]),
+        host or ScriptedModelHost(running=["cortex"]),
         {"cortex": "http://llama-cortex:8080", "brain": "http://llama-brain:8081"},
         ResidencyPlan(cortex_model="cortex", brain_model="brain", load_timeout_s=60.0),
         _FixedClock(),
@@ -372,3 +381,72 @@ async def test_a_turn_with_a_picture_asks_whether_the_model_sees_only_after_the_
     async with asyncio.timeout(5.0):
         await turn
     assert probe.asked == 1
+
+
+async def test_a_turn_behind_a_swap_back_is_told_the_usual_assistant_is_coming_back() -> None:
+    restart = ("start", "cortex")
+    host = ScriptedModelHost(running=["cortex"], pause_at=[restart])
+    manager = _manager(host)
+    handoff = _HandoffAhead(manager)
+    await handoff.start()
+    progress = RecordingProgressSink()
+    turn = asyncio.create_task(_run(_engine(InMemorySessionStore(), progress, manager), "hello"))
+    await _settle()
+    assert progress.events == (_AHEAD_STATUS,)
+
+    handoff.leave.set()
+    async with asyncio.timeout(5.0):
+        await host.reached[restart].wait()
+    await _settle()
+    assert progress.events == (_AHEAD_STATUS, _RESTORING_STATUS)
+    assert progress.waits.current() == _RESTORING_AHEAD
+
+    host.release[restart].set()
+    async with asyncio.timeout(5.0):
+        await handoff.task
+        events = await turn
+    assert _text(events) == "reply 1: hello"
+    assert progress.events == (_AHEAD_STATUS, _RESTORING_STATUS, _CLEARED)
+    assert progress.held.count(_HANDOFF_AHEAD) == 1
+    assert _RESTORING_AHEAD not in progress.held
+
+
+async def _swap_back_ahead() -> ResidencyBoard:
+    board = ResidencyBoard("cortex")
+    await board.enter_scope("brain")
+    await board.publish("brain", RESIDENCY_DEEP)
+    await board.publish(None, RESIDENCY_RESTORING)
+    return board
+
+
+async def test_a_turn_that_meets_a_swap_back_names_it_from_its_first_status() -> None:
+    board = await _swap_back_ahead()
+    progress = RecordingProgressSink()
+    waiting = asyncio.create_task(wait_out_handoff(board, progress, "cortex"))
+    await _settle()
+    await board.publish("cortex", RESIDENCY_SERVING)
+    await _settle()
+
+    assert progress.events == (_RESTORING_STATUS,)
+    await board.leave_scope()
+    async with asyncio.timeout(5.0):
+        await waiting
+    assert progress.events == (_RESTORING_STATUS, _CLEARED)
+    assert progress.held == (_RESTORING_AHEAD,)
+
+
+async def test_a_handoff_that_begins_once_a_swap_back_ends_is_named_as_a_handoff() -> None:
+    board = await _swap_back_ahead()
+    progress = RecordingProgressSink()
+    waiting = asyncio.create_task(wait_out_handoff(board, progress, "cortex"))
+    await _settle()
+
+    await board.leave_scope()
+    await board.enter_scope("brain")
+    await _settle()
+
+    assert progress.events == (_RESTORING_STATUS, _AHEAD_STATUS)
+    assert progress.waits.current() == _HANDOFF_AHEAD
+    await board.leave_scope()
+    async with asyncio.timeout(5.0):
+        await waiting
