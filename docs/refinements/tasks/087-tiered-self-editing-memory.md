@@ -3,11 +3,10 @@
 **Status:** open, waiting for a consumer
 **Area:** memory
 **Origin:** [ADR-0008](../../adr/ADR-0008-memory-v1.md)
-**Trigger:** A recall on a real deployment keeps a memory beside a later one that contradicts it,
-so a turn is handed a superseded fact next to its correction. Read it by joining the kept hit ids
-on the recall trail (`CORTEX_MEMORY_RECALL_AUDIT`, or the JSON-lines file
-`CORTEX_MEMORY_RECALL_AUDIT_FILE` names) against the `memories` table.
-**Verified:** 2026-10-25
+**Trigger:** A turn handed a superseded fact beside its correction answers with the superseded one,
+once recalled memories show their dates as R-899 proposes. Read it on rows like those of the
+memory over time flows: a fact changed in separate chats, then asked in a new one.
+**Verified:** 2026-10-26
 
 Letta's ideas about memory tiers and a model that edits its own memories, adoptable later without
 the framework (ADR-0008 decision 1). This is not behind an unchanged port: tiering (promote,
@@ -76,3 +75,10 @@ record stores only the `tainted` flag and not the ADR-0027 structured provenance
   verb. The body now says so.
 - 2026-10-25: checked again and not fired: no deployment reading exists, and `MemoryStore` and
   `MemoryRecaller` still have no update verb.
+- 2026-10-26: the trigger fired on the shared test stack: in two of four memory over time flows
+  on the Linux shell a recall kept a superseded value beside its correction, and both answers
+  named the newest value ([readings](../../readings/overlay-memory-over-time-flows.md)). The
+  flow that failed kept only the oldest value, a rank defect filed as
+  [R-899](899-a-recall-of-a-changed-fact-can-keep-only-its-oldest-value.md). Since a superseded
+  fact beside its correction did no harm there, the trigger now names the harm that update in
+  place would remove.
