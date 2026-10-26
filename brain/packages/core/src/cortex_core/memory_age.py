@@ -1,4 +1,4 @@
-"""How long ago a recalled memory was written, in the words the rank and the reply show."""
+"""A recalled memory as the rank and the reply show it: its age, and its text on one line."""
 
 from datetime import datetime, timedelta
 
@@ -25,3 +25,8 @@ def written_ago(at: datetime, now: datetime) -> str:
 def aged(text: str, at: datetime, now: datetime) -> str:
     """The memory's text after its age in brackets, as both lists show it."""
     return f"({written_ago(at, now)}) {text}"
+
+
+def one_line(text: str) -> str:
+    """``text`` with every line break replaced by a space, so it cannot start a line of its own."""
+    return " ".join(text.splitlines())

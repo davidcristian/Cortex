@@ -67,7 +67,7 @@ pool down to the hits one turn sees. The turn that calls it is in
   `RerankingRecallPolicy` (similarity blended with an exponential recency decay), `MmrRecallPolicy`
   (greedy maximal marginal relevance) and `RecencyMmrRecallPolicy` (that selection over the recency
   blend). `JudgeRecallPolicy(backend, model, *, pool_factor, fallback=RAW_RECALL_POLICY)`
-  (`rerank_judge.py`) asks the resident model to order the pool, each note after its age
+  (`rerank_judge.py`) asks the resident model to order the pool, each note on one line after its age
   (`memory_age.py`, "(age unknown)" for a date after now, which a clock that ran ahead wrote, so it
   never reads as the newest), under a JSON-schema-constrained request using `rank_bounds(k)`
   (`max_tokens=24 + 8k`, thinking off, trace budget zero) and falls back on any failure; an

@@ -11,7 +11,7 @@ from cortex_core.drain import drain_text
 from cortex_core.errors import InferenceError
 from cortex_core.inference import GenerationBounds, JsonSchema
 from cortex_core.memory import ScoredMemory
-from cortex_core.memory_age import aged
+from cortex_core.memory_age import aged, one_line
 from cortex_core.ports import InferenceBackend
 from cortex_core.ranking import RankBasis, RankedMemory, Ranking
 from cortex_core.rerank import RAW_RECALL_POLICY, RecallPolicy
@@ -58,7 +58,7 @@ def build_rank_messages(
 ) -> list[Message]:
     """The one-message ranking prompt: the instruction, the question, then the numbered notes."""
     listed = "\n".join(
-        f"{index}. {aged(hit.record.text[:CANDIDATE_CHARS], hit.record.at, at)}"
+        f"{index}. {aged(one_line(hit.record.text)[:CANDIDATE_CHARS], hit.record.at, at)}"
         for index, hit in enumerate(hits)
     )
     body = f"{_INSTRUCTION}\n\nQuestion: {query}\n\nNotes:\n{listed}\n\nReply with at most {k}."

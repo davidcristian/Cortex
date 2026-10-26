@@ -75,7 +75,7 @@ after the window, one saying a handoff's deep reply is not stored (`tool_replay.
   `DEFAULT_RECALL_K` (5) memories for the user text within the turn's scope and prepends any hits as
   a `Role.SYSTEM` message that is never stored, each trusted hit after its age (`memory_age.py`).
   The hits share `RECALL_CHAR_BUDGET` (6000 characters) through `fit_recalled` (`recall_budget.py`),
-  and one past its share is cut with a marker. A recalled memory marked `tainted` is fenced with the
+  and one past its share is cut with a marker. A `tainted` memory is fenced on one line with the
   turn nonce, taints the turn (ADR-0019), names its own record id as the turn's source and gives the
   taint ledger its whole text. `RECALLED_RUNS_NOTE` (ADR-0074 decision 6) ends the trusted header,
   or, with no trusted hit, is the block's first line, above the fenced header. After the reply it

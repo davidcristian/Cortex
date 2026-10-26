@@ -13,7 +13,7 @@ from cortex_core.guardrail import OutputGuardrail
 from cortex_core.handoff import EscalationSlot
 from cortex_core.inference import GenerationBounds
 from cortex_core.memory import ScoredMemory
-from cortex_core.memory_age import aged
+from cortex_core.memory_age import aged, one_line
 from cortex_core.ports import Clock, ResidencyQueue
 from cortex_core.progress import ProgressSink
 from cortex_core.provenance import SourceKind, as_source
@@ -70,7 +70,9 @@ def _render_memory_context(
     """Render recalled memories, each cut to its share of the budget, as a system context body."""
     sections: list[str] = []
     texts = [
-        hit.record.text if hit.record.tainted else aged(hit.record.text, hit.record.at, now)
+        one_line(hit.record.text)
+        if hit.record.tainted
+        else aged(hit.record.text, hit.record.at, now)
         for hit in hits
     ]
     shown = list(zip(hits, fit_recalled(texts), strict=True))
