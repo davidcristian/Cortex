@@ -37,8 +37,10 @@ turns any MCP server into a source of audited, model-callable tools.
   **recovered sidecar rejoins with no restart** (the next call dials again). An open failure
   (`McpError`, `OSError` or `httpx.HTTPError`, unwrapped from anyio's `ExceptionGroup` by `except*`)
   crosses the port as `ToolServerDownError`, a `ToolError` that an outer `SkipUnavailableToolRegistry`
-  turns into `CUT_OFF_MSG` for a call; a `ToolError` from the live session's own `describe` or `invoke`
-  passes through untouched. It pays a per-call open for that boot tolerance, and the trade was
+  turns into `CUT_OFF_MSG` for a call. A `ToolError` from the live session's own `describe` or `invoke`
+  (an image block it cannot read) reaches the caller as that `ToolError`, taken out of the
+  `ExceptionGroup`s the MCP session's task groups wrap it in, and preferred over a teardown error
+  beside it, since an escaped group would fail the whole turn. It pays a per-call open for that boot tolerance, and the trade was
   **measured on 2026-08-08 and kept**: the open costs 17.8 ms against a control server on the
   FastMCP streamable-http transport `cortex_email` serves, with nothing happening server-side on
   connect, and a pooled session is not the local optimization it looked like, since closing one

@@ -281,3 +281,47 @@ async def test_reconnecting_registry_passes_through_a_listing_error() -> None:
     with pytest.raises(ToolError, match="listing MCP tools failed") as excinfo:
         await ReconnectingMcpToolRegistry(opener).describe_tools()
     assert isinstance(excinfo.value.__cause__, McpError)
+
+
+class GroupingOpener:
+    """An opener that wraps an error raised inside the session in nested task-group errors, as the
+    MCP SDK's session does, adding ``also`` beside it.
+    """
+
+    def __init__(self, session: FakeSession, *also: Exception) -> None:
+        self._session = session
+        self._also = also
+
+    @asynccontextmanager
+    async def __call__(self) -> AsyncGenerator[McpSession, None]:
+        try:
+            yield self._session
+        except ToolError as err:
+            msg = "unhandled errors in a TaskGroup"
+            raise ExceptionGroup(msg, [ExceptionGroup(msg, [err, *self._also])]) from None
+
+
+_UNREADABLE_IMAGE = CallToolResult(
+    content=[ImageContent(type="image", data="not base64", mimeType="image/png")], isError=False
+)
+
+
+async def test_reconnecting_registry_fails_the_call_on_an_unreadable_image_in_a_task_group() -> (
+    None
+):
+    opener = GroupingOpener(FakeSession(result=_UNREADABLE_IMAGE))
+    with pytest.raises(ToolError, match="MCP tool 'read' returned an image") as excinfo:
+        await ReconnectingMcpToolRegistry(opener).invoke(
+            ToolCall(id="c", name="read", arguments={})
+        )
+    assert type(excinfo.value) is ToolError
+    assert isinstance(excinfo.value.__cause__, ImageError)
+
+
+async def test_reconnecting_registry_prefers_the_calls_own_error_to_a_teardown_failure() -> None:
+    opener = GroupingOpener(FakeSession(result=_UNREADABLE_IMAGE), OSError("reset on close"))
+    with pytest.raises(ToolError, match="returned an image") as excinfo:
+        await ReconnectingMcpToolRegistry(opener).invoke(
+            ToolCall(id="c", name="read", arguments={})
+        )
+    assert type(excinfo.value) is ToolError

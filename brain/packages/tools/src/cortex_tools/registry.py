@@ -133,6 +133,18 @@ class ReconnectingMcpToolRegistry:
         try:
             async with self._opener() as session:
                 yield McpToolRegistry(session)
-        except* _OPEN_WRAPPED as group:
+        except* (ToolError, *_OPEN_WRAPPED) as group:
+            # The MCP session's task group wraps an error raised inside it, so a call that read a
+            # bad result would otherwise fail the whole turn as an ExceptionGroup.
+            raised = group.subgroup(ToolError)
+            if raised is not None:
+                leaf = _first_leaf(raised)
+                raise leaf from leaf.__cause__
             msg = "MCP sidecar unavailable"
             raise ToolServerDownError(msg) from group
+
+
+def _first_leaf(group: BaseExceptionGroup[ToolError]) -> ToolError:
+    """The first ``ToolError`` in ``group``, however deeply the task groups nested it."""
+    first = group.exceptions[0]
+    return _first_leaf(first) if isinstance(first, BaseExceptionGroup) else first
