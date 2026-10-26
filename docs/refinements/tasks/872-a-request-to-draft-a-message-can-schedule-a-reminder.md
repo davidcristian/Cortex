@@ -34,7 +34,9 @@ calls `schedule_task` in 4 or more of 40 chains.
 - 2026-10-15: corrected after 105 more chains of row D under five memory conditions: the call
   came in 4 of 105, too few to split memory from the request alone, so the task waits for a real
   report.
-- 2026-10-26: a request to remember stored one too: "Please remember this: I take the train at
-  6:55." got a daily reminder at 06:55 in 1 of 40 rows on the brain directly, and the reply named
-  it ([readings](../../readings/forget-card-on-remember.md)). A driver's chat, so the trigger has
-  not fired.
+- 2026-10-26: requests to remember stored them too, on the brain directly: "Please remember this:
+  I take the train at 6:55." got a daily reminder at 06:55 in 1 of 40 rows, and in two later runs
+  of the same 40 rows 4 rows and 1 row called `schedule_task`, one of them ("my favourite tea is
+  jasmine") storing two reminders its reply did not name
+  ([readings](../../readings/forget-card-on-remember.md)). Driver chats, so the trigger has not
+  fired.

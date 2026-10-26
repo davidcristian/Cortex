@@ -1,6 +1,6 @@
 """The bounded infer↔tool loop, shared by the cortex turn and each subagent."""
 
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Mapping, Sequence
 
 from cortex_core.conversation import Message
 from cortex_core.dispatch_round import ToolLoopContext, run_round
@@ -10,7 +10,7 @@ from cortex_core.ports import InferenceBackend
 from cortex_core.progress import hold_wait
 from cortex_core.tool_round import call_message, plan_round
 from cortex_core.tool_skips import list_tools
-from cortex_core.tools import ToolCall
+from cortex_core.tools import ToolCall, ToolSpec
 
 __all__ = ["MAX_TOOL_STEPS", "ToolLoopContext", "stream_tool_loop"]
 
@@ -38,6 +38,18 @@ def _report_round_limit(context: ToolLoopContext) -> None:
         context.stops.observe_round_limit()
 
 
+async def _turn_tools(
+    context: ToolLoopContext,
+) -> tuple[Sequence[ToolSpec], Mapping[str, ToolSpec]]:
+    """The tools offered to the model, and every listed spec by name to read its calls with."""
+    if context.dispatcher is None:
+        return (), {}
+    specs = await list_tools(context.dispatcher, context.progress)
+    withheld = await context.dispatcher.withheld(context.session_id)
+    # A withheld tool keeps its spec here, so a call to it by name still shows its card.
+    return tuple(spec for spec in specs if spec.name not in withheld), {s.name: s for s in specs}
+
+
 async def stream_tool_loop(
     backend: InferenceBackend,
     model: str,
@@ -46,8 +58,7 @@ async def stream_tool_loop(
 ) -> AsyncGenerator[str | ReasoningDelta | ToolStep | StepOutcome, None]:
     """Run the bounded infer↔tool loop over ``working``, yielding each delta, step and outcome."""
     dispatcher = context.dispatcher
-    specs = await list_tools(dispatcher, context.progress) if dispatcher is not None else ()
-    spec_by_name = {spec.name: spec for spec in specs}
+    specs, spec_by_name = await _turn_tools(context)
     # Every call this loop has dispatched, grouped by the round that emitted it, which is what
     # the salience policy reads. Per loop rather than per turn: a repeat is redundant only
     # against the ``working`` messages that already hold its answer.

@@ -73,3 +73,30 @@ One more call no row asked for: "Please remember this: I take the train at 6:55.
 baseline store a daily reminder at 06:55, which the reply named. That is the defect
 [R-872](../refinements/tasks/872-a-request-to-draft-a-message-can-schedule-a-reminder.md) records
 for a drafting request.
+
+## Results with the tool withheld, 2026-10-26
+
+The build leaves `forget_untrusted_memories` out of a turn's tool list when the chat can recall no
+tainted memory (`MemoryStore.count_tainted`), and keeps its spec, so a call to it by name still
+shows the card. Same rig, rows, order and driver; each run started from the 36 memories above,
+with the memories and schedules earlier rows added deleted first.
+
+| run | pool | rows that called the tool |
+| --- | --- | --- |
+| withheld | 36 memories, none tainted | 0 of 40 |
+| control | the 36 plus one tainted | 3 of 3 raised the card |
+| tainted pool | the 36 plus one tainted, so the tool is offered | 0 of 40 |
+
+**The change passes the rule**: 0 of 40, and the forget request raised the card in 3 of 3. It
+shipped. The tainted pool run had no pass rule; it records the rate left where the tool is still
+offered, 0 of 40 against the baseline's 1 of 40. The SM clock read 0.60 of `clocks.max.sm` at the
+start and end of every run.
+
+Other calls no row asked for, the defect
+[R-872](../refinements/tasks/872-a-request-to-draft-a-message-can-schedule-a-reminder.md) records:
+the withheld run called `schedule_task` on four rows, and "Please remember this: my favourite tea
+is jasmine." stored two reminders with a reply that named neither; the tainted pool run stored one,
+on the passport row. A correction of the passport raised a `cancel_scheduled` card once in each
+run. In the tainted pool run, "Please remember this: I work as a nurse." called `set_volume` with
+level 0.5, which failed only because this stack has no audio backend
+([R-901](../refinements/tasks/901-a-request-to-remember-a-fact-can-set-the-volume.md)).

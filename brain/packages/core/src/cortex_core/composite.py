@@ -24,6 +24,13 @@ class RecordCard(Protocol):
     async def card(self, call: ToolCall) -> str: ...
 
 
+@runtime_checkable
+class ToolOffer(Protocol):
+    """A built-in offered to a turn only when ``offered`` says its session has a use for it."""
+
+    async def offered(self, session_id: str) -> bool: ...
+
+
 class CompositeToolRegistry:
     """A ``ToolRegistry`` advertising built-in tools plus an optional remote registry's tools."""
 

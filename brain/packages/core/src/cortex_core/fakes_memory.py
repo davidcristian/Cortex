@@ -95,6 +95,11 @@ class InMemoryMemoryStore:
         self._guard()
         return len(self._in_scopes(scopes))
 
+    async def count_tainted(self, *, scopes: Sequence[str] | None = None) -> int:
+        """How many tainted memories ``scopes`` holds."""
+        self._guard()
+        return sum(1 for record in self._in_scopes(scopes) if record.tainted)
+
     async def delete_scope(self, scope: str) -> int:
         """Hard-delete every memory in ``scope``; return how many were removed (0 if none)."""
         self._guard()

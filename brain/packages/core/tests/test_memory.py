@@ -559,6 +559,10 @@ class _PoolStore:
         self.counts += 1
         return len(self.pool)
 
+    async def count_tainted(self, *, scopes: Sequence[str] | None = None) -> int:
+        del scopes
+        return 0
+
     async def delete_scope(self, scope: str) -> int:
         del scope
         raise AssertionError(_READ_ONLY)

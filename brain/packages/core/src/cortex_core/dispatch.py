@@ -6,7 +6,7 @@ from dataclasses import dataclass, field, replace
 from enum import Enum
 from types import MappingProxyType
 
-from cortex_core.composite import RecordCard
+from cortex_core.composite import RecordCard, ToolOffer
 from cortex_core.errors import ToolError
 from cortex_core.ports import Clock, Confirmer, ToolAuditSink, ToolRegistry
 from cortex_core.progress import hold_wait
@@ -86,11 +86,13 @@ class DispatchPolicy:
     salience: SaliencePolicy = REPEAT_SALIENCE
     confirm_reasons: Mapping[str, str] = field(default_factory=dict[str, str])
     record_cards: Mapping[str, RecordCard] = field(default_factory=dict[str, RecordCard])
+    offers: Mapping[str, ToolOffer] = field(default_factory=dict[str, ToolOffer])
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "confirm_names", frozenset(self.confirm_names))
         object.__setattr__(self, "confirm_reasons", MappingProxyType(dict(self.confirm_reasons)))
         object.__setattr__(self, "record_cards", MappingProxyType(dict(self.record_cards)))
+        object.__setattr__(self, "offers", MappingProxyType(dict(self.offers)))
 
 
 DEFAULT_DISPATCH_POLICY = DispatchPolicy()
@@ -124,6 +126,16 @@ class ToolDispatcher:
     async def describe_tools(self) -> Sequence[ToolSpec]:
         """The tools available to advertise to the model (delegates to the registry)."""
         return await self._registry.describe_tools()
+
+    async def withheld(self, session_id: str) -> frozenset[str]:
+        """The tools left out of ``session_id``'s list because their ``ToolOffer`` declines."""
+        return frozenset(
+            [
+                name
+                for name, offer in self._policy.offers.items()
+                if not await offer.offered(session_id)
+            ]
+        )
 
     def cost_of(self, name: str) -> int:
         """What dispatching ``name`` costs against the caller's budget."""

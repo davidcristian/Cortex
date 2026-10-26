@@ -36,6 +36,8 @@ _SEARCH_ALL = f"{_SELECT} ORDER BY embedding <=> $1::vector LIMIT $2"
 _SEARCH_SCOPED = f"{_SELECT} WHERE scope = ANY($3) ORDER BY embedding <=> $1::vector LIMIT $2"
 _COUNT_ALL = "SELECT count(*) AS total FROM memories"
 _COUNT_SCOPED = f"{_COUNT_ALL} WHERE scope = ANY($1)"
+_COUNT_TAINTED = f"{_COUNT_ALL} WHERE tainted"
+_COUNT_TAINTED_SCOPED = f"{_COUNT_TAINTED} AND scope = ANY($1)"
 _DELETE_SCOPE = "DELETE FROM memories WHERE scope = $1"
 _DELETE_TAINTED = (
     "DELETE FROM memories WHERE id IN"
@@ -189,14 +191,24 @@ class PgVectorMemoryStore:
 
     async def count_candidates(self, *, scopes: Sequence[str] | None = None) -> int:
         """Return how many memories ``scopes`` holds, the width ``search`` ranked over."""
+        return await self._count(_COUNT_ALL, _COUNT_SCOPED, scopes, "memory candidates")
+
+    async def count_tainted(self, *, scopes: Sequence[str] | None = None) -> int:
+        """Return how many tainted memories ``scopes`` holds (all scopes when None)."""
+        return await self._count(_COUNT_TAINTED, _COUNT_TAINTED_SCOPED, scopes, "tainted memories")
+
+    async def _count(
+        self, every: str, scoped: str, scopes: Sequence[str] | None, counted: str
+    ) -> int:
+        """Run one count statement, ``scoped`` when ``scopes`` is given, else ``every``."""
         try:
             if scopes is None:
-                rows = await self._bounded(self._db.fetch(_COUNT_ALL))
+                rows = await self._bounded(self._db.fetch(every))
             else:
-                rows = await self._bounded(self._db.fetch(_COUNT_SCOPED, list(scopes)))
+                rows = await self._bounded(self._db.fetch(scoped, list(scopes)))
             return int(rows[0]["total"])
         except _WRAPPED as err:
-            msg = "counting memory candidates failed"
+            msg = f"counting {counted} failed"
             raise MemoryStoreError(msg) from err
         except (KeyError, IndexError, TypeError, ValueError) as err:
             msg = "malformed count in the memory store's reply"

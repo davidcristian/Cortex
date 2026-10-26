@@ -66,9 +66,9 @@ the loop drives it and keeps the history.
   it runs only when the `Confirmer` approves, else `USER_DECLINED_MSG` or `UNANSWERED_MSG`.
 
 `DispatchPolicy(confirm_names=(), costs=UNIFORM_COST, salience=REPEAT_SALIENCE, confirm_reasons={},
-record_cards={})` (`dispatch.py`, default `DEFAULT_DISPATCH_POLICY`) is what the composition root
-declares about dispatching: the confirmed tools, the prices, the salience rule and the card text:
-`confirm_reasons[name]` (the escalate card names the model swap), or a `RecordCard`'s `card(call)`.
+record_cards={}, offers={})` (`dispatch.py`, default `DEFAULT_DISPATCH_POLICY`) is what the root declares
+about dispatching: the confirmed tools, the prices, the salience rule, the card text (`confirm_reasons[name]`
+or a `RecordCard`'s `card(call)`), and the `ToolOffer`s that `withheld(session_id)` reads.
 
 - `RepeatSalience(limit=MAX_IDENTICAL_DISPATCHES)` (`tool_salience.py`, the default
   `REPEAT_SALIENCE`, limit 2) refuses a call identical to one already made in this round, or made
@@ -84,15 +84,15 @@ declares about dispatching: the confirmed tools, the prices, the salience rule a
 
 ## The tool loop
 
-`stream_tool_loop(backend, model, working, context)` (`tool_loop`) is the bounded inference and
-tool loop shared by `TurnEngine` and `SubagentRunner` (ADR-0010). It is an async generator yielding
-assistant text deltas, `ReasoningDelta`s (ADR-0020), a `ToolStep(tool_name, summary)` immediately
-before each audited dispatch of an advertised tool, and the `StepOutcome(tool_name, ok)` that
-closes that step. Both fields of a step are copied off the matched `ToolSpec`, so an unadvertised
-call produces no step, and the only exit from a dispatch without its outcome is the generator being
-closed mid-dispatch. The turn engine maps the pair onto `ToolActivity` and `ToolOutcome`; a
-subagent puts steps on the spawning stream's `ProgressSink` and drops outcomes (ADR-0029
-decision 18). The yield vocabulary is in `loop_events.py`, one round's dispatches in `dispatch_round.py`.
+`stream_tool_loop(backend, model, working, context)` (`tool_loop`) is the bounded inference and tool loop
+shared by `TurnEngine` and `SubagentRunner` (ADR-0010). It is an async generator yielding assistant text
+deltas, `ReasoningDelta`s (ADR-0020), a `ToolStep(tool_name, summary)` immediately before each audited
+dispatch of an advertised tool, and the `StepOutcome(tool_name, ok)` that closes that step. Both fields of
+a step are copied off the matched `ToolSpec`, so an unadvertised call produces no step; a tool `withheld`
+from the model's list keeps its spec, so a call to it by name gets its step and card. The only exit from a
+dispatch without its outcome is the generator being closed mid-dispatch. The turn engine maps the pair
+onto `ToolActivity` and `ToolOutcome`; a subagent puts steps on the spawning stream's `ProgressSink` and
+drops outcomes (ADR-0029 decision 18). The yield vocabulary is in `loop_events.py`, one round's dispatches in `dispatch_round.py`.
 
 The loop appends the tool-call and `Role.TOOL` result messages to `working` in place, and ends on a
 tool-free step, a `None` dispatcher, or `MAX_TOOL_STEPS` (8) rounds that all dispatched calls,

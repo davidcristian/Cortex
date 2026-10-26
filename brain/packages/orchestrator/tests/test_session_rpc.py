@@ -82,6 +82,10 @@ class RecordingMemoryStore:
         del scopes
         return 0
 
+    async def count_tainted(self, *, scopes: Sequence[str] | None = None) -> int:
+        del scopes
+        return 0
+
     async def delete_scope(self, scope: str) -> int:
         self.deleted_scopes.append(scope)
         self.events.append(f"cascade:{scope}")

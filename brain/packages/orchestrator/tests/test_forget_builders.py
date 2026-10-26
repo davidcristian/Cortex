@@ -77,3 +77,22 @@ async def test_a_built_in_missing_from_the_turns_list_still_shows_its_card() -> 
         ESCALATE_TOOL_NAME,
     ]
     assert await store.count_candidates() == 1
+
+
+async def test_the_cortex_dispatcher_withholds_the_forget_from_a_chat_with_nothing_to_forget() -> (
+    None
+):
+    store = InMemoryMemoryStore()
+    builtins = build_builtin_tools(
+        None, None, escalation=True, memory=UntrustedMemoryForget(store, GLOBAL_MEMORY_SCOPE)
+    )
+    tools = build_cortex_tools(None, builtins, SystemClock())
+    assert isinstance(tools, ToolDispatcher)
+    assert await tools.withheld("chat-a") == {FORGET_UNTRUSTED_TOOL_NAME}
+    at = datetime(2026, 10, 26, 2, 0, 0, tzinfo=UTC)
+    await store.add(
+        MemoryRecord(
+            id="m1", text="quoted note", embedding=(1.0,), at=at, scope=GLOBAL_SCOPE, tainted=True
+        )
+    )
+    assert await tools.withheld("chat-a") == frozenset()

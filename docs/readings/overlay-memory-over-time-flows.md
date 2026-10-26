@@ -42,8 +42,8 @@ unanswered, and the next `Ctrl+N` two minutes later declined it, so that chat st
 and no reply, and "Which city do I live in? One word." was answered "Lyon" from the one value
 stored. Sent again in a new chat, the Porto statement was answered "OK. I've noted that you live in
 Porto." with no card, and the question then recalled only that exchange and was answered "Porto".
-The card on a request to remember is filed as
-[R-900](../refinements/tasks/900-a-request-to-remember-a-fact-can-raise-the-forget-card.md).
+The card on a request to remember is measured, with the change that removed it, in
+[forget-card-on-remember.md](forget-card-on-remember.md).
 
 ## One value replaced twice
 

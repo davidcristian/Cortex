@@ -239,6 +239,10 @@ class FailingMemoryStore:
         del scopes
         return 0
 
+    async def count_tainted(self, *, scopes: Sequence[str] | None = None) -> int:
+        del scopes
+        return 0
+
     async def delete_scope(self, scope: str) -> int:
         del scope
         msg = "pgvector is down"

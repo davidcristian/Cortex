@@ -48,6 +48,10 @@ class MemoryStore(Protocol):
 
     async def count_candidates(self, *, scopes: Sequence[str] | None = None) -> int: ...
 
+    async def count_tainted(self, *, scopes: Sequence[str] | None = None) -> int:
+        """How many tainted memories ``scopes`` holds (all scopes when None)."""
+        ...
+
     async def delete_scope(self, scope: str) -> int: ...
 
     async def delete_tainted(self, *, scopes: Sequence[str] | None = None) -> int:

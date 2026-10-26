@@ -67,16 +67,15 @@ never a reading of what the tree does now.
 
 150 of these record the day their claims were last checked against the code. On every other task here, that reading is still yours to take.
 
-### Actionable now (2)
+### Actionable now (1)
 
 - **[R-899](tasks/899-a-changed-fact-can-be-answered-with-its-older-value.md)** A changed fact can be answered with its older value (memory). Its claim was checked against the code on 2026-10-26.
-- **[R-900](tasks/900-a-request-to-remember-a-fact-can-raise-the-forget-card.md)** A request to remember a fact can raise the forget card (memory). Its claim was checked against the code on 2026-10-26.
 
 ### Actionable, once a port changes (1)
 
 - **[R-129](tasks/129-streamed-brain-status.md)** Streamed brain status (body-overlay). Its claim was checked against the code on 2026-10-25.
 
-### Waiting for its trigger (117)
+### Waiting for its trigger (118)
 
 - **[R-011](tasks/011-stylesheet-outside-line-cap.md)** The overlay stylesheet outside the line cap (repo-checks). Reopens when: `find body/app/src -name '*.css'` lists a second file, or `git log --since='<Verified date> 00:00' --oneline -- body/app/src/overlay.css` lists a commit whose diff moves a rule to change which rule applies. A commit that edits only comments does not. Its claim was checked against the code on 2026-10-25.
 - **[R-013](tasks/013-couplings-widened-registry-cannot-hold.md)** The couplings the widened registry cannot cover (repo-checks). Reopens when: A third value on the capture-target enum, a reader for declarations in the `.proto` arriving in the scan for another reason, any module outside the body's rpc crate and the brain's body client that has to name one of the two gRPC status codes, or either side of that pair gaining a declaration whose value the scan can read. Its claim was checked against the code on 2026-10-25.
@@ -195,6 +194,7 @@ never a reading of what the tree does now.
 - **[R-872](tasks/872-a-request-to-draft-a-message-can-schedule-a-reminder.md)** A request to draft a message can schedule a reminder (scheduling). Reopens when: a reminder that no message of its chat asked for is reported from a real chat. Its claim was checked against the code on 2026-10-26.
 - **[R-884](tasks/884-follow-a-zone-change-without-restarting-the-stack.md)** Follow a zone change without restarting the stack (scheduling). Reopens when: a reminder fires at the wrong local time after the person's machine changed zone while the stack ran, or the stack runs on a machine other than the body's. Its claim was checked against the code on 2026-10-25.
 - **[R-894](tasks/894-name-a-turn-waiting-behind-another-chat.md)** Name a turn waiting behind another chat (brain). Reopens when: a shipped client runs a cortex turn beside the overlay's, such as a fired reminder that runs a model turn or a second body. Its claim was checked against the code on 2026-10-25.
+- **[R-901](tasks/901-a-request-to-remember-a-fact-can-set-the-volume.md)** A request to remember a fact can set the volume (tools). Reopens when: a volume change that no message of its chat asked for is reported from a real chat, or a second driver row shows one. Its claim was checked against the code on 2026-10-26.
 
 ### Waiting for a consumer (25)
 
@@ -520,7 +520,7 @@ never a reading of what the tree does now.
 
 ### memory
 
-10 open of 37.
+9 open of 36.
 
 - [R-083](tasks/083-namespaced-memory-scoping.md) Per-session and namespaced memory scoping. done 2026-07-06.
 - [R-084](tasks/084-session-global-union-read.md) Session and global union read policy. open, waiting for a consumer.
@@ -558,7 +558,6 @@ never a reading of what the tree does now.
 - [R-836](tasks/836-a-recalled-exchange-is-claimed-again-with-no-call.md) A recalled exchange is claimed again with no call. done 2026-10-12.
 - [R-879](tasks/879-a-recalled-answer-from-another-chat-is-repeated-as-this-chats.md) A recalled answer from another chat is repeated as this chat's. declined 2026-10-17.
 - [R-899](tasks/899-a-changed-fact-can-be-answered-with-its-older-value.md) A changed fact can be answered with its older value. open, actionable.
-- [R-900](tasks/900-a-request-to-remember-a-fact-can-raise-the-forget-card.md) A request to remember a fact can raise the forget card. open, actionable.
 
 ### orchestrator
 
@@ -948,6 +947,12 @@ never a reading of what the tree does now.
 - [R-748](tasks/748-a-role-sentence-is-unmeasured-against-the-envelope-readings.md) A role sentence is unmeasured against the envelope readings. done 2026-09-29.
 - [R-749](tasks/749-the-cortex-uptake-of-the-role-property-is-unmeasured.md) The cortex uptake of the role property is unmeasured. done 2026-09-29.
 - [R-760](tasks/760-the-reworded-precis-sentence-reads-below-the-plain-summary.md) The reworded precis sentence reads below the plain summary. done 2026-10-01.
+
+### tools
+
+1 open of 1.
+
+- [R-901](tasks/901-a-request-to-remember-a-fact-can-set-the-volume.md) A request to remember a fact can set the volume. open, waiting for its trigger.
 
 ### tools-mcp
 

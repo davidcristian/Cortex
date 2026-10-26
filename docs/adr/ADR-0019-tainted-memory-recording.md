@@ -119,7 +119,11 @@ across turns (a recalled memory).
    approves its card. It takes no arguments, and its card is the brain's fixed `FORGET_CARD`, so
    it is a record card ([ADR-0022](ADR-0022-email-write-confirmer.md) decision 2) and is shown on a
    tainted turn too: an injection that calls it can offer only the removal of untrusted-derived
-   rows, which the person must approve. It reaches the store through `UntrustedMemoryForget`, the
+   rows, which the person must approve. It is offered only to a turn whose chat can recall at least
+   one tainted memory (`MemoryStore.count_tainted`), because with none in the pool the cortex called
+   it on 1 of 40 requests to remember a fact ([readings](../readings/forget-card-on-remember.md)).
+   A call to it by name on a turn that left it out still shows the card, and a store that cannot
+   count leaves it offered. It reaches the store through `UntrustedMemoryForget`, the
    one delete a tool reaches ([ADR-0021](ADR-0021-session-read-rpcs.md) decision 11). A tainted
    turn in which it ran is not recorded (`record_exchange`), since recording it would store a new
    tainted row in place of the ones removed. A turn in another chat that recalled a removed row

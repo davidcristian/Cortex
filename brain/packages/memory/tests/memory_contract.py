@@ -199,6 +199,28 @@ async def check_delete_tainted_removes_only_tainted_rows_in_scope(
     assert await store.delete_tainted(scopes=[scope]) == 0
 
 
+async def check_count_tainted_counts_only_tainted_rows_in_its_scopes(
+    under_test: MemoryStoreUnderTest,
+) -> None:
+    """``count_tainted`` counts the tainted rows of its scopes and of no other scope."""
+    store = under_test.store
+    scope = f"contract-taint-count-{uuid4()}"
+    other = f"contract-taint-count-other-{uuid4()}"
+    assert await store.count_tainted(scopes=[scope]) == 0
+    for record in (
+        make_record("derived 1", (1.0, 0.0, 0.0), scope=scope, tainted=True),
+        make_record("derived 2", (1.0, 0.0, 0.0), scope=scope, tainted=True),
+        make_record("trusted", (1.0, 0.0, 0.0), scope=scope),
+        make_record("derived elsewhere", (1.0, 0.0, 0.0), scope=other, tainted=True),
+    ):
+        await store.add(record)
+    assert await store.count_tainted(scopes=[scope]) == 2
+    assert await store.count_tainted(scopes=[scope, other]) == 3
+    assert await store.count_tainted() >= 3
+    await store.delete_tainted(scopes=[scope])
+    assert await store.count_tainted(scopes=[scope]) == 0
+
+
 async def check_delete_tainted_without_scopes_reaches_every_namespace(
     under_test: MemoryStoreUnderTest,
 ) -> None:
@@ -262,6 +284,7 @@ async def check_a_lost_backend_crosses_the_port_as_memory_store_error(
     )
     await _refuses_typed(lambda: store.search((1.0, 0.0, 0.0), k=5, scopes=[scope]), "search")
     await _refuses_typed(lambda: store.count_candidates(scopes=[scope]), "count_candidates")
+    await _refuses_typed(lambda: store.count_tainted(scopes=[scope]), "count_tainted")
     await _refuses_typed(lambda: store.delete_scope(scope), "delete_scope")
     await _refuses_typed(lambda: store.delete_tainted(scopes=[scope]), "delete_tainted")
 
@@ -280,6 +303,7 @@ ALL_CHECKS: Sequence[Check] = (
     check_a_lost_backend_crosses_the_port_as_memory_store_error,
     check_delete_tainted_removes_only_tainted_rows_in_scope,
     check_delete_tainted_without_scopes_reaches_every_namespace,
+    check_count_tainted_counts_only_tainted_rows_in_its_scopes,
     check_add_stores_a_record_whose_recalled_memories_all_exist,
     check_add_refuses_a_record_whose_recalled_memory_was_deleted,
 )

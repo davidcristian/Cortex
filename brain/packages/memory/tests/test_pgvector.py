@@ -191,6 +191,26 @@ async def test_count_candidates_wraps_a_malformed_reply(rows: list[dict[str, obj
     assert isinstance(excinfo.value.__cause__, KeyError | IndexError | ValueError)
 
 
+async def test_count_tainted_counts_only_tainted_rows() -> None:
+    db = FakeDatabase(rows=[{"total": 2}])
+    assert await PgVectorMemoryStore(db).count_tainted() == 2
+    assert db.calls[0] == ("SELECT count(*) AS total FROM memories WHERE tainted", ())
+
+
+async def test_count_tainted_filters_by_scope() -> None:
+    db = FakeDatabase(rows=[{"total": 1}])
+    assert await PgVectorMemoryStore(db).count_tainted(scopes=["conv-a"]) == 1
+    sql, args = db.calls[0]
+    assert sql == "SELECT count(*) AS total FROM memories WHERE tainted AND scope = ANY($1)"
+    assert args == (["conv-a"],)
+
+
+async def test_count_tainted_wraps_a_backend_error() -> None:
+    db = FakeDatabase(fail=asyncpg.PostgresError("boom"))
+    with pytest.raises(MemoryStoreError, match="counting tainted memories failed"):
+        await PgVectorMemoryStore(db).count_tainted()
+
+
 async def test_delete_scope_executes_delete_and_returns_the_row_count() -> None:
     db = FakeDatabase(status="DELETE 3")
     removed = await PgVectorMemoryStore(db).delete_scope("conv-a")
@@ -344,6 +364,7 @@ def _operations(store: PgVectorMemoryStore) -> dict[str, Callable[[], Awaitable[
         "scoped search": lambda: store.search((0.1, 0.2), k=1, scopes=["s"]),
         "count": store.count_candidates,
         "scoped count": lambda: store.count_candidates(scopes=["s"]),
+        "tainted count": lambda: store.count_tainted(scopes=["s"]),
         "delete": lambda: store.delete_scope("s"),
         "delete tainted": store.delete_tainted,
     }

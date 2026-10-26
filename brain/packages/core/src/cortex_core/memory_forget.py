@@ -24,6 +24,10 @@ class UntrustedMemoryForget:
         """Delete every tainted memory ``session_id`` can recall; return how many were removed."""
         return await self._store.delete_tainted(scopes=self._scope.read_scopes(session_id))
 
+    async def any_to_forget(self, session_id: str) -> bool:
+        """Whether ``session_id`` can recall at least one tainted memory."""
+        return await self._store.count_tainted(scopes=self._scope.read_scopes(session_id)) > 0
+
 
 class ForgetUntrustedTool:
     """Built-in ``forget_untrusted_memories``: delete the tainted memories a chat can recall."""
@@ -45,6 +49,13 @@ class ForgetUntrustedTool:
             parameters={"type": "object", "properties": {}},
             confirm_required=True,
         )
+
+    async def offered(self, session_id: str) -> bool:
+        """Offer the tool only to a chat that can recall a tainted memory, or when no count came."""
+        try:
+            return await self._memory.any_to_forget(session_id)
+        except MemoryStoreError:
+            return True
 
     async def card(self, call: ToolCall) -> str:
         """The confirmation card's text, written here and never by the model."""

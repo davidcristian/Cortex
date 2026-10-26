@@ -24,7 +24,7 @@ pool down to the hits one turn sees. The turn that calls it is in
   (ADR-0038 decision 14); it must be the store's own count and never a length over returned rows.
   `delete_scope` removes every memory in one namespace and returns how many, taking one required
   scope and no wildcard. `delete_tainted(*, scopes=None) -> int` removes every memory marked tainted
-  in those namespaces, or in all of them. `add` stores the record only while every memory id in
+  in those namespaces, or in all of them, and `count_tainted(*, scopes=None) -> int` counts them. `add` stores the record only while every memory id in
   `recalled` still exists and returns whether it did, so a reply that recalled a memory a forget
   removed is not stored again. Fake: `InMemoryMemoryStore`; adapter: `cortex_memory`.
 - `MemoryRecord(id, text, embedding, at, scope=GLOBAL_SCOPE, tainted=False)` is one durable memory
@@ -53,6 +53,8 @@ pool down to the hits one turn sees. The turn that calls it is in
   built-in `ForgetUntrustedTool` over it is `forget_untrusted_memories`: no arguments,
   `confirm_required`, and a `RecordCard` whose card is the fixed `FORGET_CARD`, so the dispatcher
   shows it on a tainted turn too. A store failure returns an `is_error` result and forgets nothing.
+  It is a `ToolOffer`: `offered(session_id)` is `any_to_forget(session_id)`, a `count_tainted` over
+  the same read scopes, so a chat with nothing to forget is not offered it; a failed count offers it.
   `record_exchange` (`turn_output.py`) stores nothing for a tainted turn in which it ran `ok`.
 - `RecallPolicy` (port, `rerank.py`) turns an over-fetched pool into the final `k` hits:
   `candidate_k(k)` sizes the pool and `async select(hits, *, query, now, k, session_id=None,

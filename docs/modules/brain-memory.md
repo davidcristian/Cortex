@@ -38,7 +38,8 @@ business logic and no state beyond the injected pool (the one hard rule).
   `RecallAudit.available` reports.
 - `delete_tainted(*, scopes=None)` is `DELETE FROM memories WHERE id IN (SELECT id FROM memories
   WHERE tainted ORDER BY id FOR UPDATE)`, with `AND scope = ANY($1)` added when scopes are given,
-  and counts as `delete_scope` does. Its rows are locked in id order, as the insert's are, because
+  and counts as `delete_scope` does; `count_tainted` is the same `count(*)` with `WHERE tainted`
+  and the same scope filter. Its rows are locked in id order, as the insert's are, because
   a heap order `DELETE` and an insert recalling two of its rows can each hold one the other waits
   on, and Postgres then aborts one of them. It repeats
   the `DELETE` until a pass removes nothing and returns the sum: a pass that waited on a record's
@@ -181,7 +182,7 @@ similarity ranking.
   would have stayed invisible to everyone without a database. Each check takes a
   `MemoryStoreUnderTest`, the implementation plus an awaited `break_backend`, so the port's failure
   channel is checked where its values are: the eleventh check breaks the backend and requires each
-  verb (`add`, `search`, `count_candidates`, `delete_scope`, `delete_tainted`) to raise
+  verb (`add`, `search`, `count_candidates`, `count_tainted`, `delete_scope`, `delete_tainted`) to raise
   `MemoryStoreError`, not the driver's exception nor `MemoryDataError`, since an outage misread as
   a data defect would fail the very turn the degradation exists to save. The other direction is
   deliberately not a shared check: the in-memory twin decodes nothing, so only the implementation
