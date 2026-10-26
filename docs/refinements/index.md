@@ -69,7 +69,7 @@ never a reading of what the tree does now.
 
 ### Actionable now (2)
 
-- **[R-899](tasks/899-a-recall-of-a-changed-fact-can-keep-only-its-oldest-value.md)** A recall of a changed fact can keep only its oldest value (memory). Its claim was checked against the code on 2026-10-26.
+- **[R-899](tasks/899-a-changed-fact-can-be-answered-with-its-older-value.md)** A changed fact can be answered with its older value (memory). Its claim was checked against the code on 2026-10-26.
 - **[R-900](tasks/900-a-request-to-remember-a-fact-can-raise-the-forget-card.md)** A request to remember a fact can raise the forget card (memory). Its claim was checked against the code on 2026-10-26.
 
 ### Actionable, once a port changes (1)
@@ -557,7 +557,7 @@ never a reading of what the tree does now.
 - [R-740](tasks/740-the-recall-judge-and-the-recap-are-unmeasured-on-the-qwen-deep-candidates.md) The recall judge and the recap are unmeasured on the Qwen deep candidates. done 2026-09-28.
 - [R-836](tasks/836-a-recalled-exchange-is-claimed-again-with-no-call.md) A recalled exchange is claimed again with no call. done 2026-10-12.
 - [R-879](tasks/879-a-recalled-answer-from-another-chat-is-repeated-as-this-chats.md) A recalled answer from another chat is repeated as this chat's. declined 2026-10-17.
-- [R-899](tasks/899-a-recall-of-a-changed-fact-can-keep-only-its-oldest-value.md) A recall of a changed fact can keep only its oldest value. open, actionable.
+- [R-899](tasks/899-a-changed-fact-can-be-answered-with-its-older-value.md) A changed fact can be answered with its older value. open, actionable.
 - [R-900](tasks/900-a-request-to-remember-a-fact-can-raise-the-forget-card.md) A request to remember a fact can raise the forget card. open, actionable.
 
 ### orchestrator

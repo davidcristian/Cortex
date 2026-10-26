@@ -58,6 +58,22 @@ by age.
 The replication, written before it ran, used a gym class on Monday, then Wednesday, then Saturday.
 The rank kept all three, in the order Wednesday, Monday, Saturday, and the answer was "Saturday".
 
+## Many memories
+
+Written before it ran: ten facts about the person, each stated in its own new chat, with the first
+renamed after the other nine ("My cat is called Miso", later "I renamed my cat, she is called Pip
+now"), then three questions in new chats about the first, a middle and the last fact, and one
+about the cat. Each answer passes when it names the fact as last stated.
+
+Of the eleven statements, ten were answered with a confirmation. "Please remember this: my sister's
+name is Ana." raised the `forget_untrusted_memories` card again, with no earlier fact about a
+sister; the next `Ctrl+N` declined it, so nothing about the sister was stored, and the question
+about her was answered "I don't have any information about your sister's name." The film and the
+friend were answered "Alien" and "Tomas" from one kept exchange each. **Not as expected:** "What is
+my cat called? One word." was answered "Miso". The rank kept both cat exchanges, the rename first
+and the first statement second, so the reply named the older value with the newer one listed above
+it and worded as a rename.
+
 ## Summary
 
 | flow | values stored, oldest first | the rank kept | answer | newest named |
@@ -66,11 +82,13 @@ The rank kept all three, in the order Wednesday, Monday, Saturday, and the answe
 | city | Lyon, Porto | Porto | Porto | yes |
 | dentist | Tuesday, Thursday, Friday | Tuesday | Tuesday | no |
 | gym | Monday, Wednesday, Saturday | Wednesday, Monday, Saturday | Saturday | yes |
+| cat, among ten facts | Miso, Pip | Pip, Miso | Miso | no |
 
-Three of four answers named the newest value. In two of four the turn was handed superseded
-values beside the newest, which fires the trigger of R-087 on this stack, and in one the rank kept
-only the oldest value and the answer repeated it. Filed as
-[R-899](../refinements/tasks/899-a-recall-of-a-changed-fact-can-keep-only-its-oldest-value.md).
+Three of five answers named the newest value. In three of five the turn was handed superseded
+values beside the newest, which fires the trigger of R-087 on this stack, and one of those answers
+named the superseded value; in one more the rank kept only the oldest value. Filed as
+[R-899](../refinements/tasks/899-a-changed-fact-can-be-answered-with-its-older-value.md).
+The forget card was raised by 2 of the 22 requests to remember in these flows.
 
-Method: the drivers (`turn.sh`, `flowA1.sh`, `flowA2.sh`) are in the run's scratch directory, not
-in the tree.
+Method: the drivers (`turn.sh`, `flowA1.sh`, `flowA2.sh`, `flowA3.sh`) are in the run's scratch
+directory, not in the tree.

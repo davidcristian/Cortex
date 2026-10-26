@@ -11,16 +11,18 @@ card ([readings](../../readings/overlay-memory-over-time-flows.md#a-fact-contrad
 That tool removes memories derived from untrusted content and updates nothing, and its description
 (`memory_forget.py`) already says to call it only when the user asks to forget such memories. The
 turn's recall had handed it no memory. Sent again in another new chat, the same statement got
-"OK. I've noted that you live in Porto." with no card, so the rate is one in two runs.
+"OK. I've noted that you live in Porto." with no card. Later "Please remember this: my sister's
+name is Ana.", with no earlier fact about a sister, raised the card too: 2 of the 22 requests to
+remember in those flows.
 
 Approving the card would remove every tainted memory the chat reads, which the person did not ask
 for, and leave the new value to be recorded only as the exchange.
 
 ## Reproduction
 
-On the shared stack, in new chats: "Please remember this: I live in Lyon.", then "Please remember
-this: I live in Porto." Read the `cortex.tools.audit` line for `forget_untrusted_memories`, or the
-card on the shell.
+On the shared stack, send a dozen or more "Please remember this: ..." statements, each in a new
+chat, for example "I live in Lyon." and then "I live in Porto.". Read the `cortex.tools.audit` lines
+for `forget_untrusted_memories`, or the card on the shell.
 
 ## What to do
 

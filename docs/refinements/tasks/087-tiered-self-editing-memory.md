@@ -75,10 +75,9 @@ record stores only the `tainted` flag and not the ADR-0027 structured provenance
   verb. The body now says so.
 - 2026-10-25: checked again and not fired: no deployment reading exists, and `MemoryStore` and
   `MemoryRecaller` still have no update verb.
-- 2026-10-26: the trigger fired on the shared test stack: in two of four memory over time flows
-  on the Linux shell a recall kept a superseded value beside its correction, and both answers
-  named the newest value ([readings](../../readings/overlay-memory-over-time-flows.md)). The
-  flow that failed kept only the oldest value, a rank defect filed as
-  [R-899](899-a-recall-of-a-changed-fact-can-keep-only-its-oldest-value.md). Since a superseded
-  fact beside its correction did no harm there, the trigger now names the harm that update in
-  place would remove.
+- 2026-10-26: the trigger fired on the shared test stack: in three of five memory over time flows
+  on the Linux shell a recall kept a superseded value beside its correction, and one of those
+  answers named the superseded value ([readings](../../readings/overlay-memory-over-time-flows.md)).
+  Neither model is shown a memory's date, so the smaller remedy, dated notes, comes first as
+  [R-899](899-a-changed-fact-can-be-answered-with-its-older-value.md), and the trigger now names
+  the harm that would remain for update in place.
