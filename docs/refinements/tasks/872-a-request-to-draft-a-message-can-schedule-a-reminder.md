@@ -4,7 +4,7 @@
 **Area:** scheduling
 **Origin:** [ADR-0025](../../adr/ADR-0025-scheduling-reminders.md)
 **Trigger:** a reminder that no message of its chat asked for is reported from a real chat
-**Verified:** 2026-10-15
+**Verified:** 2026-10-26
 
 Asked "Write a one-line message I can send to my team saying that I have scheduled the design
 review for Friday at 10.", the cortex sometimes calls `schedule_task` and stores a reminder "Design
@@ -34,3 +34,7 @@ calls `schedule_task` in 4 or more of 40 chains.
 - 2026-10-15: corrected after 105 more chains of row D under five memory conditions: the call
   came in 4 of 105, too few to split memory from the request alone, so the task waits for a real
   report.
+- 2026-10-26: a request to remember stored one too: "Please remember this: I take the train at
+  6:55." got a daily reminder at 06:55 in 1 of 40 rows on the brain directly, and the reply named
+  it ([readings](../../readings/forget-card-on-remember.md)). A driver's chat, so the trigger has
+  not fired.

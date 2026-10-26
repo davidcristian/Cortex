@@ -15,23 +15,26 @@ turn's recall had handed it no memory. Sent again in another new chat, the same 
 name is Ana.", with no earlier fact about a sister, raised the card too: 2 of the 22 requests to
 remember in those flows.
 
-Approving the card would remove every tainted memory the chat reads, which the person did not ask
-for, and leave the new value to be recorded only as the exchange.
-
-## Reproduction
-
-On the shared stack, send a dozen or more "Please remember this: ..." statements, each in a new
-chat, for example "I live in Lyon." and then "I live in Porto.". Read the `cortex.tools.audit` lines
-for `forget_untrusted_memories`, or the card on the shell.
+On the brain directly, 40 requests to remember, update or correct a fact, each in a new chat,
+called it on 1 of 40, and on 2 of 40 once its description also said it never saves, updates or
+corrects a fact ([readings](../../readings/forget-card-on-remember.md)). Every call came with no
+tainted memory in the pool, so approving the card would have removed nothing; with tainted
+memories present it would remove every one the chat reads, which the person did not ask for.
 
 ## What to do
 
-1. Write rows and a pass rule in the readings first: a set of remember, update and correct
-   requests, each in a new chat, with no request to forget; pass when no row calls the tool. Run
-   them on the current build to measure the rate.
-2. If the rate is above zero, try a change measured on the same rows: a description that says the
-   tool never updates or replaces a fact, or a check in the dispatcher that offers the tool only on
-   a turn whose text asks to forget, as a typed refusal the model reads.
+A description sentence failed, and a dispatcher check on the words of the request is a keyword
+match on English. The remedy left is a check on the store: offer the tool only on a turn whose
+session can recall at least one tainted memory.
+
+1. Add a count of the tainted memories in a set of scopes to `MemoryStore`, with its contract
+   test, the fake and the pgvector adapter.
+2. Leave `forget_untrusted_memories` out of the turn's tool list (`tool_loop.py`) when that count
+   is zero. A call to it by name on such a turn must still be refused or still raise the card:
+   `dispatch_round.py` passes `confirm_required` false for a tool missing from the turn's list,
+   and `confirm_names` holds only the configured sidecar tools.
+3. Measure on the readings' 40 rows and control under their rule, then the same 40 rows with one
+   tainted memory in the pool, where the tool is offered, to record the rate that remains.
 
 ## History
 
