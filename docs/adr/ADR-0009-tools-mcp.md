@@ -205,12 +205,12 @@ that never replies, or read more than its context holds, so each of those has a 
     against the buffer, stopping before scan data, and WebP from its first chunk in all three forms.
     Bad base64, an unrecognized signature, a truncated header, an edge past `MAX_IMAGE_EDGE` or a
     declared mime type outside `ALLOWED_MIME_TYPES` raise `ImageError`, crossed as `ToolError`.
-20. **A loop's results share `RESULT_ROOM_CHARS` (6,000) characters of the prompt.** `ResultRoom`
-    (`tool_cut.py`) gives each result the room left split over the round's unanswered calls. A `tail` call keeps the end,
-    and its note counts the lines left out and names a `tail` that fits; any other cut keeps the head to a line break and
-    asks for a smaller part. With no room left the note alone is sent, outside the fence, and taint still reads the whole
-    result. 6,000 is 3,640 tokens at a pasted log's 1.65 characters a token; with a full plain-English window and the
-    fixed prompt ([ADR-0014](ADR-0014-history-windowing.md) decision 4), 2,860 of 16,384 remain to reply.
+20. **A loop's results share `RESULT_ROOM_CHARS` (6,000) characters of the prompt.** `ResultRoom` in `tool_cut.py` gives
+    each result the room left split over the round's unanswered calls. A `tail` call keeps the end, its note counting
+    the lines left out and naming a `tail` that fits; another cut keeps the head to a line break and asks for a smaller
+    part. With no room left only the note is sent, unfenced; taint reads the whole result. A refusal or failure the
+    brain wrote is kept whole. 6,000 is 3,640 tokens at a pasted log's 1.65 characters a token: 2,860 of 16,384 remain
+    to reply after a full window and the fixed prompt ([ADR-0014](ADR-0014-history-windowing.md) decision 4).
 
 ## Consequences
 

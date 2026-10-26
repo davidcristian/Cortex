@@ -22,6 +22,7 @@ from cortex_core import (
     TextChunk,
     ToolCall,
     ToolDispatcher,
+    ToolError,
     ToolResult,
     ToolSpec,
     Trust,
@@ -78,6 +79,19 @@ async def _note(arguments: Mapping[str, object]) -> ToolResult:
     return ToolResult(call_id="", content=str(arguments["text"]), trust=Trust.TRUSTED)
 
 
+async def _server_error(arguments: Mapping[str, object]) -> ToolResult:
+    del arguments
+    return ToolResult(call_id="", content=_FILE, is_error=True)
+
+
+_RESTING = "The files server is resting for 60 more seconds after a call overran."
+
+
+async def _resting(arguments: Mapping[str, object]) -> str:
+    del arguments
+    raise ToolError(_RESTING)
+
+
 def _read_call(index: int, **arguments: object) -> ToolCall:
     return ToolCall(id=f"c{index}", name="read", arguments={"path": f"/{index}.log", **arguments})
 
@@ -87,6 +101,8 @@ async def _tool_texts(rounds: Sequence[Sequence[ToolCall]], taint: TaintLedger) 
         {
             "read": (ToolSpec("read", "read", {}), _read),
             "note": (ToolSpec("note", "note", {}), _note),
+            "resting": (ToolSpec("resting", "resting", {}), _resting),
+            "server_error": (ToolSpec("server_error", "server_error", {}), _server_error),
         }
     )
     tails = LastLinesToolRegistry(registry, tools=("read",))
@@ -131,6 +147,20 @@ async def test_a_result_after_the_room_is_spent_gets_the_note_alone() -> None:
     kept = [text.split("\n\n(This result")[0] for text in texts[:2]]
     assert sum(_fenced_length(text) for text in kept) == RESULT_ROOM_CHARS
     assert texts[2] == NO_ROOM_NOTE.format(total=len(_FILE))
+
+
+async def test_a_failed_call_after_the_room_is_spent_still_says_why_it_failed() -> None:
+    resting = ToolCall(id="r0", name="resting", arguments={})
+    texts = await _tool_texts([[_read_call(1)], [_read_call(2)], [resting]], TaintLedger())
+    assert texts[2] == _RESTING
+
+
+async def test_a_server_error_and_a_long_trusted_result_are_still_cut() -> None:
+    error = ToolCall(id="e0", name="server_error", arguments={})
+    long_note = ToolCall(id="n0", name="note", arguments={"text": "y" * RESULT_ROOM_CHARS * 2})
+    for call in (error, long_note):
+        [text] = await _tool_texts([[call]], TaintLedger())
+        assert "only its first" in text
 
 
 async def test_an_untrusted_result_with_no_room_still_taints_the_turn() -> None:
@@ -198,6 +228,14 @@ def test_the_room_shrinks_by_what_each_result_keeps() -> None:
     assert note == RESULT_CUT_NOTE.format(total=200, shown=70, advice=ROOM_SHARED)
     assert room.left == 0
     assert room.cut("") == ("", "")
+
+
+def test_a_whole_note_takes_its_length_from_the_room_and_never_less_than_none() -> None:
+    room = ResultRoom(100)
+    assert room.whole("a" * 30) == ("a" * 30, "")
+    assert room.left == 70
+    assert room.whole("b" * 200) == ("b" * 200, "")
+    assert room.left == 0
 
 
 def test_a_message_with_no_room_is_the_note_without_a_fence() -> None:

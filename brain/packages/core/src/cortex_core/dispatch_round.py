@@ -19,7 +19,7 @@ from cortex_core.tool_cut import ResultRoom
 from cortex_core.tool_round import RoundPlan, result_message
 from cortex_core.tool_salience import asks_the_same
 from cortex_core.tool_tail import tail_count
-from cortex_core.tools import ToolCall, ToolSpec, TurnStamp
+from cortex_core.tools import ToolCall, ToolSpec, Trust, TurnStamp
 from cortex_core.untrusted import USER_DECLINED_MSG, TaintLedger
 from cortex_core.waits import GENERATING, TOOL_RUNNING, Wait
 
@@ -136,10 +136,14 @@ async def run_round(
         context.taint.observe(
             result, source=as_source(SourceKind.TOOL, None if spec is None else spec.name)
         )
-        # The calls of a round not yet answered share what is left, so the first is not given all.
-        cut = record.room.cut(
-            result.content, share=len(plan.calls) - index, keep_end=tail_count(call) is not None
-        )
+        # A refusal or failure the brain wrote is never cut, so the model still reads why.
+        if result.is_error and result.trust is Trust.TRUSTED:
+            cut = record.room.whole(result.content)
+        else:
+            # The calls of a round not yet answered share what is left, so the first is not all.
+            cut = record.room.cut(
+                result.content, share=len(plan.calls) - index, keep_end=tail_count(call) is not None
+            )
         working.append(
             result_message(
                 result, context.clock.now(), context.unit_id, nonce=context.nonce, cut=cut

@@ -69,6 +69,11 @@ class ResultRoom:
         self._left -= len(kept)
         return kept, self._note(content, kept, limit, keep_end=keep_end)
 
+    def whole(self, content: str) -> tuple[str, str]:
+        """``content`` uncut, for a note the brain wrote, taken from the room left."""
+        self._left = max(self._left - len(content), 0)
+        return content, ""
+
     def _note(self, content: str, kept: str, limit: int, *, keep_end: bool) -> str:
         """What the model is told about a cut result, and what it can ask for instead."""
         if not kept:
