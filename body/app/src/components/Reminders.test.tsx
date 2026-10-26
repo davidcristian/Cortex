@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { DueReminder } from "../bridge/types";
@@ -57,6 +57,19 @@ afterEach(() => {
 
 describe("Reminders", () => {
   afterEach(() => vi.useRealTimers());
+
+  it("advances a shown age while the stack stays open", () => {
+    vi.useFakeTimers({ now: NOW });
+    const { container, unmount } = renderStack([reminder()]);
+    const age = () => container.querySelector(".reminder-time")?.textContent;
+    expect(age()).toBe("5m ago");
+    act(() => vi.advanceTimersByTime(29_000));
+    expect(age()).toBe("5m ago");
+    act(() => vi.advanceTimersByTime(31_000));
+    expect(age()).toBe("6m ago");
+    unmount();
+    expect(vi.getTimerCount()).toBe(0);
+  });
 
   it("shows each reminder's text and how long ago it fired", () => {
     vi.useFakeTimers({ now: NOW });

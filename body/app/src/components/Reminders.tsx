@@ -2,11 +2,15 @@ import { type RefObject, useRef } from "react";
 
 import type { DueReminder } from "../bridge/types";
 import { caretKey, heir, useRowCaret } from "../overlay/rowCaret";
+import { useNow } from "../overlay/useNow";
 import { usePresence } from "../overlay/usePresence";
 import { withdrawn } from "../overlay/withdrawn";
 import { Collapse } from "./Collapse";
 import { BellIcon, CheckIcon } from "./icons";
 import { relativeTime } from "./relativeTime";
+
+// An age is shown in whole minutes, so reading the clock twice a minute keeps it at most 30 s late.
+const AGE_REFRESH_MS = 30_000;
 
 interface RemindersProps {
   readonly reminders: readonly DueReminder[];
@@ -35,7 +39,7 @@ export function Reminders({
   onDismiss,
   onOpen,
 }: RemindersProps) {
-  const now = Date.now();
+  const now = useNow(AGE_REFRESH_MS);
   // The ack is sent in the frame the check is pressed, and the row it removes stays on screen for
   // the length of its own roll, so only the exit lags. Holding the ack back behind a timer instead
   // meant an unmount inside those 300ms cancelled the timer and nothing was ever acked.

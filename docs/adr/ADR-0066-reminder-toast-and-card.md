@@ -76,7 +76,9 @@ so a fetch on mount would deliver to a window nobody sees; reopening the panel m
 fetch again, since the overlay never hid. The list lives in the reducer (`remindersLoaded` replaces
 it, since the brain is the authority on each open; `reminderDismissed` removes one id and ignores an
 unknown one). A failed list keeps the cards already shown, as the chat list does; the retrying
-transport (ADR-0024) has already tried again by then.
+transport (ADR-0024) has already tried again by then. A card's age is `fired_at_unix_ms` against a
+clock that `useNow` reads every 30 s while the stack is mounted, so an age in a panel left open
+advances without a summon.
 
 ### 7. Dismissal is optimistic and acks the fire the card showed
 

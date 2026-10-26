@@ -64,10 +64,10 @@ logged no error or warning.
 irrational." over `Converse`, the driver holding the `escalate_to_brain` card for 130 s and then
 sending an approval.
 
-- The card came at 6.5 s. At 126.5 s the brain logged
+- The card came at 6.5 s. 120 s later the brain logged
   `confirmation timed out; denying tool=escalate_to_brain` and sent `confirm_resolved` with
-  outcome `timeout`. The approval sent after that matched no waiting card and was dropped with a
-  debug line only.
+  outcome `timeout`. The approval sent after that matched no waiting card; `RpcConfirmer.resolve`
+  drops such an answer with a debug line only.
 - The cortex then wrote the proof itself, in full, and said nothing about the deep model: the
   reply did not say the handoff had not happened or that the card had expired. The stored reply
   names the run as `escalate_to_brain` with `ok: false`.
@@ -90,7 +90,7 @@ more confirm it.
 | 4 | `timeout` | "I'm sorry, but I cannot hand this task over to the deep model because that action requires your explicit approval." | pass |
 | 5 | `timeout` | "I cannot automatically hand this task over to the deep model because that process requires your explicit confirmation ..." | pass |
 
-0 of 5 failed, so the first run's silence is rare. Every row then wrote the proof itself. No reply
+0 of 5 failed, so the first run's silence is rare (1 of 6 in all). Every row then wrote the proof itself. No reply
 said the card had gone unanswered or expired: two said the request was declined, which the person
 did not do, and the result text the model is given starts with `DECLINED:`
 (`UNANSWERED_MSG`, `cortex_core/untrusted.py`). That observation was not in the rule, so it is
@@ -118,10 +118,12 @@ writing its first reply.
   the next new chat as "Check the oven", "2m ago". The age counts from the fire, not from the due
   time, and the card has no due time, so a reminder that fires hours late after a sleep reads as
   fresh. The toast's text has no time either.
-- **The card's age does not advance while the panel stays open.** Summoned at 04:40:30, 9 min 48 s
+- **A card's age while the panel stays open.** Summoned at 04:40:30, 9 min 48 s
   after the fire, the card read "9m ago"; 131 s later, with no input, it still read "9m ago".
-  `Reminders.tsx` computes the age once per render and nothing renders it again until the state
-  changes.
+  `Reminders.tsx` computed the age once per render and nothing rendered it again until the state
+  changed. With the age read from a clock that `useNow` refreshes every 30 s
+  ([ADR-0066](../adr/ADR-0066-reminder-toast-and-card.md) decision 6), a reminder that
+  fired at 04:48:39 read "2m ago" at 04:51:30 and "4m ago" at 04:53:14, with no input between.
 
 ## A reminder months ahead across a restart of Redis and the brain
 
@@ -146,7 +148,5 @@ Nothing was lost: Redis reloads both from its append-only file.
   fires late shows only its fire time.
 - [R-907](../refinements/tasks/907-an-unanswered-card-is-reported-to-the-model-as-turned-down.md):
   an unanswered card is reported to the model as turned down.
-- [R-908](../refinements/tasks/908-a-reminder-cards-age-stops-while-the-panel-is-open.md): a
-  reminder card's age stops while the panel is open.
 - [R-909](../refinements/tasks/909-a-frozen-brain-blames-llama-server-for-a-lost-reply.md): a turn
   frozen past the stall bound blames llama-server.
