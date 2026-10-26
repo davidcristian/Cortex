@@ -92,5 +92,32 @@ trusted memory in the reply's list and each note in the rank's list starts with 
 memory shows no age, so the line before each fence is still the one that says the text is data.
 Not measured: the age without the header sentence, and the `reranked` rank on the baseline build.
 
+## Each memory's text on one line
+
+**2026-10-26**, the same rig and the same 36-memory pool, on a change that shows every note of the
+rank and every fenced memory with its line breaks replaced by spaces (`one_line` in
+`memory_age.py`), so a tainted memory's text cannot start a line that reads as another note with a
+newer age. Every stored exchange has a line break between its `User:` and `Assistant:` parts, so
+every note the rank reads changed. A trusted memory in the reply's list keeps its lines.
+
+**The rule, written before the first row.** The same twelve facts and 36 statements, dated as
+above; two question passes on the build before the change, then the brain rebuilt from the tree,
+then two passes after it. The change ships unless the after build passes at least 3 fewer of its
+24 rows than the before build; a drop of 3 or more holds it and calls for a replication on twelve
+new facts.
+
+**The run.** 7 of the 36 statements were not stored on the first try, since each turn called
+`list_allowed_directories` and so read untrusted content; each was sent again in a new chat and
+stored. Before and after every pass the SM clock read 0.59 to 0.60 of the card's maximum.
+
+| build | pass 1 | pass 2 | rows passed |
+| --- | --- | --- | --- |
+| before the change | 12 of 12 | 12 of 12 | 24 of 24 |
+| each memory on one line | 12 of 12 | 12 of 12 | 24 of 24 |
+
+In all 48 recalls the rank put the newest value first. It kept all three values in 20 of the 24
+recalls before the change and in 22 of the 24 after it; every other recall kept the newest value
+and dropped one or both older ones. The change passed the rule and ships.
+
 Method: the drivers (`drive.py`, `backdate.py`, `score.py`, `kept.py`) are in the run's scratch
 directory, not in the tree.
