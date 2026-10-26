@@ -177,8 +177,15 @@ writing its first reply.
   (`push failed; pull will deliver`, no notification service on `Xvfb`), and the card showed on
   the next new chat as "Check the oven", "2m ago". The age counts from the fire, not from the due
   time, and the card has no due time, so a reminder that fires hours late after a sleep reads as
-  fresh. The toast's text had no time either; a late toast's title now names the due time
-  ([ADR-0066](../adr/ADR-0066-reminder-toast-and-card.md) decision 11).
+  fresh. The toast's text had no time either.
+- **A late toast after the title change**
+  ([ADR-0066](../adr/ADR-0066-reminder-toast-and-card.md) decision 11). A notification server
+  written with Gio ran on the shell's session bus, started with `nsenter --preserve-credentials -U
+  -m` into the shell's namespace. "Remind me in 15 seconds to stretch." fired on time, and its
+  `Notify` summary was `Cortex reminder`. "Remind me in 20 seconds to check the oven." was then set
+  and the brain frozen for 100 s; it fired at the thaw, about 80 s after its due time, with the
+  summary `Cortex reminder, due 05:36` (Europe/Berlin) and the body `check the oven`. The card
+  still shows no due time.
 - **A card's age while the panel stays open.** Summoned at 04:40:30, 9 min 48 s
   after the fire, the card read "9m ago"; 131 s later, with no input, it still read "9m ago".
   `Reminders.tsx` computed the age once per render and nothing rendered it again until the state
