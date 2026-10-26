@@ -66,7 +66,9 @@ ended with the note about a conversation longer than the context. With the resul
 sharing one room of 6,000 characters ([ADR-0009](../adr/ADR-0009-tools-mcp.md) decision 20), the
 same question on the brain rebuilt that night (0.60) made four calls in one round, the next
 request was about 8,200 tokens (4,326 cached and 3,868 new), and the turn completed with a reply
-naming worker-9.
+naming worker-9. Its per-worker counts add up to about 20 lines a file, the part each cut kept,
+and the reply does not say the files were cut
+([task 913](../refinements/tasks/913-an-answer-from-cut-results-does-not-say-they-were-cut.md)).
 
 ## A file that tries to steer the model
 
