@@ -16,6 +16,12 @@ to the next occurrence, cleared with `deliverable_since`, and `None` on a record
 field existed. `DueReminder` in [proto/body.proto](../../../proto/body.proto) still has no due time,
 so the card cannot show it.
 
+Two more facts shape the card half. `BrainService` in `cortex_orchestrator/server.py` has neither the
+display zone nor `CORTEX_SCHEDULE_POLL_S`: `list_due_reminders` gets only the store, so
+`reminder_to_proto` cannot apply the late margin. And the overlay has no configured zone at all:
+`Reminders.tsx` shows only `relativeTime(firedAtUnixMs)`, so a bare unix time would render in the
+host's zone, which need not be the zone the toast names.
+
 Reproduction ([readings](../../readings/overlay-idle-and-expiry-flows.md#the-brain-frozen-across-a-reply-and-a-reminders-due-time)):
 set "Remind me in 90 seconds to check the oven." over `Converse`, then `docker pause` the brain
 for 150 s and `docker unpause` it. The item's `due_at` was 03:29:34 UTC and its
@@ -24,10 +30,17 @@ oven", "2m ago", with no due time.
 
 ## What to do
 
-1. Add a late fire's due time to `DueReminder` (0 when on time or unknown, by the same
-   `late_phrase` margin), set it from `deliverable_due_at` in `reminder_to_proto`, and show it on
-   the card in the overlay; regenerate both stubs and the committed Rust stub, and run
-   `just check-shell`. Repeat the reproduction on the shell.
+1. Pass the schedule settings (zone and poll) to `BrainService` through `RpcPorts`, and split
+   the margin test out of `late_phrase` so the toast and the card use one rule.
+2. Add the due time to `DueReminder`, empty or 0 when the fire is on time or `deliverable_due_at`
+   is `None`. Proposed, for a pick: a brain-rendered `due_label` (`due 08:00`, `due 21:00
+   yesterday`, the words `late_phrase` writes), so the zone and the relative day stay in one
+   place; the alternative is `due_at_unix_ms` plus the effective zone's IANA name, rendered with
+   `Intl.DateTimeFormat`. The label's place on the card is a visual pick too.
+3. Regenerate both stubs and the committed Rust stub, add the field to body core's `DueReminder`,
+   the rpc mapping, the Tauri DTO, the TS type and the card, test every side, and run
+   `just check-shell` with the library prefix in `~/.cache/cortex-linux-prefix/`.
+4. Repeat the reproduction on the Linux shell.
 
 ## History
 
