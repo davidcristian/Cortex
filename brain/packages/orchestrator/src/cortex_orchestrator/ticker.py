@@ -23,6 +23,7 @@ from cortex_core import (
     ToolDispatcher,
     Trust,
     TurnStamp,
+    late_phrase,
     next_occurrence,
 )
 
@@ -130,8 +131,10 @@ class ScheduleTicker:
             deliverable=True,
         )
         if await self._store.finish(claim, outcome):
+            poll = timedelta(seconds=self._settings.poll_s)
+            title = REMINDER_TITLE + late_phrase(item, fired_at, self._settings.zone, poll)
             await self._deliver(
-                item.id, fired_at, title=REMINDER_TITLE, body=item.text, tainted=item.tainted
+                item.id, fired_at, title=title, body=item.text, tainted=item.tainted
             )
 
     async def _deliver(

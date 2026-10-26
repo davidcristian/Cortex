@@ -18,6 +18,7 @@ from cortex_core.schedule_claim import (
     said_by_person,
     unscheduled_claim,
 )
+from cortex_core.schedule_render import LATE_FIRE_FLOOR, late_phrase
 from cortex_core.schedule_selectors import (
     DAILY,
     DAY_NAMES,
@@ -70,6 +71,7 @@ __all__ = [
     "DAY_NAMES",
     "EDIT_SCHEDULED_TOOL_NAME",
     "EVERY_DAY",
+    "LATE_FIRE_FLOOR",
     "LIST_SCHEDULED_TOOL_NAME",
     "MAX_MONTH_DAY",
     "MONTH_NAMES",
@@ -108,6 +110,7 @@ __all__ = [
     "apply_snooze",
     "claims_scheduled",
     "fire_stamp",
+    "late_phrase",
     "next_calendar_due",
     "next_due",
     "next_occurrence",

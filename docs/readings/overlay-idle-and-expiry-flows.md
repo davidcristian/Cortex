@@ -177,7 +177,8 @@ writing its first reply.
   (`push failed; pull will deliver`, no notification service on `Xvfb`), and the card showed on
   the next new chat as "Check the oven", "2m ago". The age counts from the fire, not from the due
   time, and the card has no due time, so a reminder that fires hours late after a sleep reads as
-  fresh. The toast's text has no time either.
+  fresh. The toast's text had no time either; a late toast's title now names the due time
+  ([ADR-0066](../adr/ADR-0066-reminder-toast-and-card.md) decision 11).
 - **A card's age while the panel stays open.** Summoned at 04:40:30, 9 min 48 s
   after the fire, the card read "9m ago"; 131 s later, with no input, it still read "9m ago".
   `Reminders.tsx` computed the age once per render and nothing rendered it again until the state
@@ -205,6 +206,6 @@ Nothing was lost: Redis reloads both from its append-only file.
 ## Defects filed
 
 - [R-906](../refinements/tasks/906-a-late-reminder-does-not-say-when-it-was-due.md): a reminder that
-  fires late shows only its fire time.
+  fires late shows only its fire time on the card.
 - [R-909](../refinements/tasks/909-a-frozen-brain-blames-llama-server-for-a-lost-reply.md): a turn
   frozen past the stall bound blames llama-server.

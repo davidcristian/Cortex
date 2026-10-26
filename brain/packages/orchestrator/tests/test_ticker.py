@@ -1,6 +1,7 @@
 import asyncio
 import logging
 from collections.abc import Sequence
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo
 
@@ -128,6 +129,17 @@ async def test_pushed_and_shown_reminder_is_acked_at_once() -> None:
     assert toast.body == "text of r1"
     assert toast.reminder_id == "r1"
     assert toast.tainted is True
+
+
+async def test_a_late_reminder_toast_names_its_due_time() -> None:
+    store = InMemoryScheduleStore()
+    body = InMemoryBodyGateway(shown=True)
+    await store.add(replace(_item("r1"), due_at=_NOW - timedelta(hours=5)))
+    settings = replace(_SETTINGS, zone=_BUCHAREST)
+    await ScheduleTicker(store, FixedClock(), settings, body=body).run_once()
+    (toast,) = body.notifications
+    assert toast.title == f"{REMINDER_TITLE}, due 10:00"
+    assert toast.body == "text of r1"
 
 
 async def test_push_declined_leaves_the_reminder_for_pull() -> None:

@@ -1,6 +1,6 @@
 """How a scheduled item reads in a listing and on a confirmation card."""
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from cortex_core.schedule import ScheduledItem, ScheduleStatus
 from cortex_core.schedule_calendar import CalendarRule
@@ -62,3 +62,16 @@ def describe_item(item: ScheduledItem, zone: DisplayZone, now: datetime | None =
     if item.last_outcome is not None:
         line += f"\n    last outcome: {item.last_outcome}"
     return line
+
+
+LATE_FIRE_FLOOR = timedelta(minutes=1)
+
+
+def late_phrase(item: ScheduledItem, fired_at: datetime, zone: DisplayZone, poll: timedelta) -> str:
+    """', due 09:00' when a fire comes later than the late margin after its due time, else ''."""
+    if fired_at - item.due_at <= max(LATE_FIRE_FLOOR, 2 * poll):
+        return ""
+    shown = effective_zone(item.rule, zone)
+    clock = item.due_at.astimezone(shown.tz).strftime("%H:%M")
+    day = relative_day(item.due_at, fired_at, shown)
+    return f", due {clock}" if day == "today" else f", due {clock} {day}"

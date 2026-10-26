@@ -119,6 +119,17 @@ baseline. The meta line is dropped when a row has no control and no badge. Both 
 title line's optical centre, the midpoint of its capital and x-height bands; the measurements and
 offsets are written beside the rules in `overlay.css`.
 
+### 11. A late fire names its due time in the toast
+
+A reminder that falls due while the brain cannot run, as across a sleep of the machine, fires when
+the brain runs again. A fire counts as late when it comes more than `LATE_FIRE_FLOOR` (one minute)
+after its due time, or more than two polls when `CORTEX_SCHEDULE_POLL_S` is longer. The toast
+title of a late reminder then names the due time after the app label, in the zone a listing
+renders the item in: `Cortex reminder, due 08:00`, or `due 21:00 yesterday` on an earlier day
+(`late_phrase`). The phrase is app text computed from the stored due time, so decision 4 holds.
+The card does not show it yet
+([R-906](../refinements/tasks/906-a-late-reminder-does-not-say-when-it-was-due.md)).
+
 ## Consequences
 
 - The inert-text rule, the attribution, `escape_xml`, the error mapping, the server's handling of a
