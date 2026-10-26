@@ -46,6 +46,7 @@ class ScheduledItem:
     tainted: bool = False
     status: ScheduleStatus = ScheduleStatus.PENDING
     deliverable_since: datetime | None = None
+    deliverable_due_at: datetime | None = None
     last_outcome: str | None = None
 
     def __post_init__(self) -> None:
@@ -53,6 +54,11 @@ class ScheduledItem:
         require_aware("ScheduledItem.created_at", self.created_at)
         if self.deliverable_since is not None:
             require_aware("ScheduledItem.deliverable_since", self.deliverable_since)
+        if self.deliverable_due_at is not None:
+            require_aware("ScheduledItem.deliverable_due_at", self.deliverable_due_at)
+            if self.deliverable_since is None:
+                msg = "ScheduledItem.deliverable_due_at needs deliverable_since"
+                raise ValueError(msg)
         if self.anchor is not None:
             require_aware("ScheduledItem.anchor", self.anchor)
         if self.every is not None and self.every <= timedelta(0):

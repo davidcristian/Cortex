@@ -1,6 +1,7 @@
 import json
 import logging
 from collections.abc import Awaitable, Callable
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -223,6 +224,26 @@ async def test_a_rule_written_before_month_days_decodes_as_a_weekly_one() -> Non
     loaded = await store.get("legacy")
     assert loaded is not None
     assert loaded.rule == CalendarRule(hour=9, minute=0, on=Weekdays(days=frozenset({0, 4})))
+
+
+async def test_a_fire_stored_before_due_times_were_kept_reads_as_unknown() -> None:
+    client = FakeAsyncRedis(server=FakeServer())
+    store = RedisScheduleStore(client)
+    item = replace(
+        schedule_contract.make_item("old-fire"),
+        status=ScheduleStatus.DONE,
+        deliverable_since=_NOW,
+        deliverable_due_at=_NOW,
+    )
+    record = json.loads(encode(item, claim=None, claimed_at=None))
+    del record["deliverable_due_at"]
+    await _seed_raw(client, "old-fire", json.dumps(record))
+    loaded = await store.get("old-fire")
+    assert loaded is not None
+    assert loaded.deliverable_since == _NOW
+    assert loaded.deliverable_due_at is None
+    assert await store.ack("old-fire", fired_at=_NOW) is True
+    assert await store.get("old-fire") is None
 
 
 async def test_corrupt_record_fails_loudly_on_list_active() -> None:

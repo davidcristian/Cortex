@@ -172,24 +172,24 @@ except that a missing `recalled_only` reads as `False`, the stricter value, and 
 
 Schedule state (ADR-0025) is durable again: one record per schedule at `cortex:schedule:{id}`
 holding
-`{"v": 1, "kind": "schedule", "id", "item_kind", "text", "session_id", "due_at", "created_at", "every_s", "rule", "anchor", "model", "tainted", "status", "deliverable_since", "last_outcome", "claim", "claimed_at"}`
-with **no expiry**, since the task store's would drop reminders. `anchor` and `rule` are
-**additive** keys read with `.get` and no version bump, so a record predating either decodes as
-absent. `rule` is the nested `{"hour", "minute"}` calendar recurrence plus its day selector, read
-strictly when present so a malformed one fails rather than degrading to a one-shot. Which selector
-it holds is **which key is present**: `days` (weekday numbers) for a weekly rule, `month_days`
-(calendar days) for a monthly one, so a record written before day-of-month selectors reads back as
-the weekly rule it was (ADR-0065 decision 3). A rule with its own timezone has an additive `zone`
-key holding the IANA name, which decode resolves back to a `DisplayZone` through `ZoneInfoResolver`
-(`zone_resolver.py`), so the store's `decode` call sites are unchanged. A rule with no `zone` key
-decodes without one and the deployment zone applies; a stored name that no longer resolves is a
-corrupt record, failing and naming the key rather than substituting the deployment zone (ADR-0065
-decision 4). The `claim` token and `claimed_at` are adapter mechanics stored inside the record; the
-domain `ScheduledItem` has neither. Three sorted sets drive the ticker and delivery,
-`cortex:schedules:due` (score: due-at epoch), `cortex:schedules:firing` (score: claim epoch, the
-lease) and `cortex:schedules:deliverable` (score: fired-at epoch), plus the dead-letter hash
-`cortex:schedules:dead`. Every record and index update is one MULTI/EXEC, so a crash cannot separate
-a record from its indexes.
+`{"v": 1, "kind": "schedule", "id", "item_kind", "text", "session_id", "due_at", "created_at", "every_s", "rule", "anchor", "model", "tainted", "status", "deliverable_since", "deliverable_due_at", "last_outcome", "claim", "claimed_at"}`
+with **no expiry**, since the task store's would drop reminders. `anchor`, `rule` and
+`deliverable_due_at` are **additive** keys read with `.get` and no version bump, so a record written
+before one of them reads it as absent. `rule` is the nested `{"hour", "minute"}` calendar recurrence
+plus its day selector, read strictly when present so a malformed one fails rather than degrading to
+a one-shot. Which selector it holds is **which key is present**: `days` (weekday numbers) for a
+weekly rule, `month_days` (calendar days) for a monthly one, so a record written before day-of-month
+selectors reads back as the weekly rule it was (ADR-0065 decision 3). A rule with its own timezone
+has an additive `zone` key holding the IANA name, which decode resolves back to a `DisplayZone`
+through `ZoneInfoResolver` (`zone_resolver.py`), so the store's `decode` call sites are unchanged. A
+rule with no `zone` key decodes without one and the deployment zone applies; a stored name that no
+longer resolves is a corrupt record, failing and naming the key rather than substituting the
+deployment zone (ADR-0065 decision 4). The `claim` token and `claimed_at` are adapter mechanics
+stored inside the record; the domain `ScheduledItem` has neither. Three sorted sets drive the ticker
+and delivery, `cortex:schedules:due` (score: due-at epoch), `cortex:schedules:firing` (score: claim
+epoch, the lease) and `cortex:schedules:deliverable` (score: fired-at epoch), plus the dead-letter
+hash `cortex:schedules:dead`. Every record and index update is one MULTI/EXEC, so a crash cannot
+separate a record from its indexes.
 
 ## Record format policy
 

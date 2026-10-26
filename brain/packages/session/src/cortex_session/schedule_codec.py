@@ -116,6 +116,9 @@ def encode(item: ScheduledItem, *, claim: str | None, claimed_at: datetime | Non
             "deliverable_since": (
                 item.deliverable_since.isoformat() if item.deliverable_since is not None else None
             ),
+            "deliverable_due_at": (
+                item.deliverable_due_at.isoformat() if item.deliverable_due_at is not None else None
+            ),
             "last_outcome": item.last_outcome,
             "claim": claim,
             "claimed_at": claimed_at.isoformat() if claimed_at is not None else None,
@@ -139,6 +142,8 @@ def decode(raw: bytes | str, item_id: str) -> tuple[ScheduledItem, str | None, d
         # .get rather than []: records written before the snooze anchor existed have no such key.
         anchor = fields.get("anchor")
         deliverable_since = fields["deliverable_since"]
+        # .get: records written before a fire's due time was stored have no such key.
+        deliverable_due_at = fields.get("deliverable_due_at")
         claim = cast("str | None", fields["claim"])
         raw_claimed_at = fields["claimed_at"]
         claimed_at = datetime.fromisoformat(raw_claimed_at) if raw_claimed_at is not None else None
@@ -157,6 +162,11 @@ def decode(raw: bytes | str, item_id: str) -> tuple[ScheduledItem, str | None, d
             status=ScheduleStatus(fields["status"]),
             deliverable_since=(
                 datetime.fromisoformat(deliverable_since) if deliverable_since is not None else None
+            ),
+            deliverable_due_at=(
+                datetime.fromisoformat(deliverable_due_at)
+                if deliverable_due_at is not None
+                else None
             ),
             last_outcome=fields["last_outcome"],
         )

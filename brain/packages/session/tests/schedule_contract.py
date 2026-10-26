@@ -201,6 +201,7 @@ async def check_one_shot_reminder_delivery_lifecycle(store: ScheduleStore) -> No
     assert due.id == item.id
     assert due.status is ScheduleStatus.DONE
     assert due.deliverable_since == _NOW
+    assert due.deliverable_due_at == item.due_at
     assert [listed.id for listed in await store.list_active()] == [item.id]
     assert await store.ack(item.id, fired_at=_NOW) is True
     assert await store.deliverable() == ()
@@ -224,6 +225,46 @@ async def check_recurring_reminder_coalesces_delivery(store: ScheduleStore) -> N
     assert loaded is not None
     assert loaded.deliverable_since is None
     assert loaded.due_at == rearm_at
+
+
+async def check_a_late_fire_keeps_its_due_time_after_due_at_moves(store: ScheduleStore) -> None:
+    """A late recurring fire stores the due time it fired for; ack clears it with the fire."""
+    item = make_item(_item_id(), every=timedelta(hours=1))
+    await store.add(item)
+    fired_at = _NOW + timedelta(hours=5, minutes=3)
+    (claim,) = await store.claim_due(fired_at, lease=_LEASE, limit=10)
+    rearm_at = _NOW + timedelta(hours=6)
+    fired = FireOutcome(fired_at=fired_at, next_due=rearm_at, deliverable=True)
+    assert await store.finish(claim, fired) is True
+    (due,) = await store.deliverable()
+    assert due.due_at == rearm_at
+    assert due.deliverable_since == fired_at
+    assert due.deliverable_due_at == _NOW
+    assert await store.ack(item.id, fired_at=fired_at) is True
+    loaded = await store.get(item.id)
+    assert loaded is not None
+    assert loaded.deliverable_due_at is None
+
+
+async def check_a_fire_with_nothing_to_deliver_keeps_the_held_due_time(
+    store: ScheduleStore,
+) -> None:
+    """A later fire that delivers nothing leaves the held fire and its due time in place."""
+    item = make_item(_item_id(), kind=ScheduleKind.TASK, every=timedelta(hours=1))
+    await store.add(item)
+    second_at = _NOW + timedelta(hours=1)
+    for fired_at, deliverable in ((_NOW, True), (second_at, False)):
+        (claim,) = await store.claim_due(fired_at, lease=_LEASE, limit=10)
+        outcome = FireOutcome(
+            fired_at=fired_at,
+            next_due=fired_at + timedelta(hours=1),
+            deliverable=deliverable,
+            outcome="checked",
+        )
+        assert await store.finish(claim, outcome) is True
+    (due,) = await store.deliverable()
+    assert due.deliverable_since == _NOW
+    assert due.deliverable_due_at == _NOW
 
 
 async def check_fire_taint_ors_onto_the_item(store: ScheduleStore) -> None:
@@ -336,6 +377,7 @@ async def check_ack_clears_only_the_fire_it_names(store: ScheduleStore) -> None:
     (due,) = await store.deliverable()
     assert due.last_outcome == "outcome two"
     assert due.deliverable_since == second_at
+    assert due.deliverable_due_at == _NOW + timedelta(hours=1)
     assert await store.ack(item.id, fired_at=second_at + timedelta(microseconds=400)) is True
     assert await store.deliverable() == ()
 
@@ -392,6 +434,7 @@ async def check_snooze_rearms_a_deliverable_reminder(store: ScheduleStore) -> No
     assert loaded is not None
     assert loaded.status is ScheduleStatus.PENDING
     assert loaded.deliverable_since is None
+    assert loaded.deliverable_due_at is None
     (again,) = await store.claim_due(until, lease=_LEASE, limit=10)
     assert again.item.id == item.id
 
@@ -627,6 +670,8 @@ ALL_CHECKS = (
     check_finish_terminal_without_delivery_deletes,
     check_one_shot_reminder_delivery_lifecycle,
     check_recurring_reminder_coalesces_delivery,
+    check_a_late_fire_keeps_its_due_time_after_due_at_moves,
+    check_a_fire_with_nothing_to_deliver_keeps_the_held_due_time,
     check_fire_taint_ors_onto_the_item,
     check_cancel_sticks_through_an_in_flight_fire,
     check_cancel_clears_a_deliverable_reminder,

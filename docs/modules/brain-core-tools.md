@@ -203,12 +203,12 @@ stores apply in `schedule_transitions.py`, and the wall-clock rules in `schedule
 - `ScheduleKind` is `REMINDER` or `TASK`: firing delivers text to the user, or runs an autonomous
   subagent. `ScheduleStatus` is `PENDING`, `FIRING` or `DONE`; cancel deletes the record, and
   `DONE` persists only while a fired one-shot reminder awaits delivery.
-- `ScheduledItem(id, kind, text, session_id, due_at, created_at, every=None, rule=None,
-  anchor=None, model="", tainted=False, status, deliverable_since=None, last_outcome=None)` is one
-  schedule. At most one of `every` and `rule` is set, checked in `__post_init__`, and `anchor` is
-  the interval grid's origin, set only by a snooze so a recurring series keeps its cadence.
-  `ScheduleClaim(item, token)` is one claim with the fencing token under which alone `finish` and
-  `release` apply; `FireOutcome(fired_at, next_due, deliverable, outcome, tainted)` is one fire.
+- `ScheduledItem(id, kind, text, session_id, due_at, created_at, every=None, rule=None, anchor=None,
+  model="", tainted=False, status, deliverable_since=None, deliverable_due_at=None,
+  last_outcome=None)` is one schedule; `deliverable_due_at` is when the held fire was due. At most
+  one of `every` and `rule` is set, checked in `__post_init__`, and `anchor` is the interval grid's
+  origin, set only by a snooze so a recurring series keeps its cadence. `ScheduleClaim(item, token)`
+  is one claim with the fencing token under which alone `finish` and `release` apply; `FireOutcome(fired_at, next_due, deliverable, outcome, tainted)` is one fire.
 - `next_due(due_at, every, now)` is the pure interval recurrence: the first occurrence
   `due_at + k * every` strictly after `now`, so occurrences missed while the brain was down
   collapse into the single fire that just happened. `CalendarRule(hour, minute, on=DAILY,
