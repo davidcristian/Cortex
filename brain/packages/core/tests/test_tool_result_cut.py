@@ -2,8 +2,9 @@ from collections.abc import AsyncIterator, Mapping, Sequence
 from datetime import UTC, datetime
 
 from cortex_core import (
-    MAX_RESULT_CHARS,
     RESULT_CUT_NOTE,
+    RESULT_ROOM_CHARS,
+    SMALLER_PART,
     ContextOverflowError,
     GenerationBounds,
     InferenceEvent,
@@ -12,6 +13,7 @@ from cortex_core import (
     JsonSchema,
     Message,
     RecordingAuditSink,
+    ResultRoom,
     Role,
     TextChunk,
     ToolCall,
@@ -22,7 +24,6 @@ from cortex_core import (
     TurnCapabilities,
     TurnCompleted,
     TurnEngine,
-    cut_result,
     result_message,
     wrap_untrusted,
 )
@@ -36,46 +37,48 @@ class _FixedClock:
 
 
 def test_a_result_of_exactly_the_limit_is_kept_whole() -> None:
-    content = "x" * MAX_RESULT_CHARS
-    assert cut_result(content) == (content, "")
+    content = "x" * RESULT_ROOM_CHARS
+    assert ResultRoom().cut(content) == (content, "")
 
 
 def test_a_result_one_past_the_limit_is_cut_to_it_with_a_note() -> None:
-    content = "x" * (MAX_RESULT_CHARS + 1)
-    kept, note = cut_result(content)
-    assert kept == "x" * MAX_RESULT_CHARS
-    assert note == RESULT_CUT_NOTE.format(total=MAX_RESULT_CHARS + 1, shown=MAX_RESULT_CHARS)
+    content = "x" * (RESULT_ROOM_CHARS + 1)
+    kept, note = ResultRoom().cut(content)
+    assert kept == "x" * RESULT_ROOM_CHARS
+    assert note == RESULT_CUT_NOTE.format(
+        total=RESULT_ROOM_CHARS + 1, shown=RESULT_ROOM_CHARS, advice=SMALLER_PART
+    )
 
 
 def test_a_cut_ends_at_the_last_line_break_in_its_second_half() -> None:
     line = "worker-4 handled a request\n"
     content = line * 1000
-    kept, note = cut_result(content)
-    assert kept == content[: MAX_RESULT_CHARS - MAX_RESULT_CHARS % len(line) - 1]
+    kept, note = ResultRoom().cut(content)
+    assert kept == content[: RESULT_ROOM_CHARS - RESULT_ROOM_CHARS % len(line) - 1]
     assert not kept.endswith("\n")
     assert f"only its first {len(kept):,} fit" in note
     assert f"{len(content):,} characters long" in note
 
 
 def test_a_line_break_only_in_the_first_half_does_not_shorten_the_cut() -> None:
-    content = "head\n" + "x" * (2 * MAX_RESULT_CHARS)
-    kept, _ = cut_result(content)
-    assert kept == content[:MAX_RESULT_CHARS]
+    content = "head\n" + "x" * (2 * RESULT_ROOM_CHARS)
+    kept, _ = ResultRoom().cut(content)
+    assert kept == content[:RESULT_ROOM_CHARS]
 
 
 def test_the_note_on_an_untrusted_result_follows_the_fence() -> None:
-    content = "y" * (MAX_RESULT_CHARS + 50)
+    content = "y" * (RESULT_ROOM_CHARS + 50)
     result = ToolResult(call_id="c0", content=content, trust=Trust.UNTRUSTED)
     message = result_message(result, _AT, "t-1", nonce="n")
-    kept, note = cut_result(content)
+    kept, note = ResultRoom().cut(content)
     assert message.text == wrap_untrusted(kept, nonce="n") + note
     assert message.text.endswith("too long to read whole.)")
 
 
 def test_the_note_on_a_trusted_result_follows_the_kept_text() -> None:
-    content = "z" * (MAX_RESULT_CHARS * 3)
+    content = "z" * (RESULT_ROOM_CHARS * 3)
     result = ToolResult(call_id="c0", content=content, trust=Trust.TRUSTED)
-    kept, note = cut_result(content)
+    kept, note = ResultRoom().cut(content)
     assert result_message(result, _AT, "t-1", nonce="n").text == kept + note
 
 
@@ -131,4 +134,4 @@ async def test_a_result_far_past_the_context_is_cut_and_the_turn_answers() -> No
     )
     [tool_text] = backend.tool_texts
     assert "2,160,000 characters long" in tool_text
-    assert len(tool_text) < MAX_RESULT_CHARS + 400
+    assert len(tool_text) < RESULT_ROOM_CHARS + 400

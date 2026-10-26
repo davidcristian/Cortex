@@ -5,22 +5,13 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from cortex_core.conversation import Message, Role
+from cortex_core.tool_cut import ResultRoom
 from cortex_core.tools import ToolCall, ToolResult, Trust
 from cortex_core.untrusted import wrap_untrusted
 
 # Half of ``MAX_TOOL_DISPATCHES``, so one round cannot spend a whole turn's reach before the
 # model has read any of that round's results.
 MAX_CALLS_PER_ROUND = 16
-
-# 3,640 tokens at the 1.65 characters a token measured on a pasted log, under a quarter of the
-# cortex's 16,384-token context, so a cut result beside a full history window leaves room to reply.
-MAX_RESULT_CHARS = 6_000
-
-RESULT_CUT_NOTE = (
-    "\n\n(This result is {total:,} characters long and only its first {shown:,} fit in the "
-    "context. Ask the tool for a smaller part where it offers one, such as the `head` or `tail` "
-    "lines of a file, or tell the person the result is too long to read whole.)"
-)
 
 
 @dataclass(frozen=True, slots=True)
@@ -52,25 +43,25 @@ def call_message(text: str, calls: Sequence[ToolCall], at: datetime, turn_id: st
     return Message(role=Role.ASSISTANT, text=text, at=at, turn_id=turn_id, tool_calls=tuple(calls))
 
 
-def cut_result(content: str) -> tuple[str, str]:
-    """``content`` cut to ``MAX_RESULT_CHARS``, at its last line break in the second half when it
-    has one, and the note to put after it, empty when nothing was cut."""
-    if len(content) <= MAX_RESULT_CHARS:
-        return content, ""
-    kept = content[:MAX_RESULT_CHARS]
-    if (end := kept.rfind("\n")) >= MAX_RESULT_CHARS // 2:
-        kept = kept[:end]
-    return kept, RESULT_CUT_NOTE.format(total=len(content), shown=len(kept))
-
-
-def result_message(result: ToolResult, at: datetime, turn_id: str, *, nonce: str) -> Message:
-    """One tool result fed back to the model, keyed to the call it answers."""
-    # The note is the brain's, so it goes after the fence an untrusted result is wrapped in.
-    content, note = cut_result(result.content)
-    text = content if result.trust is Trust.TRUSTED else wrap_untrusted(content, nonce=nonce)
+def result_message(
+    result: ToolResult,
+    at: datetime,
+    turn_id: str,
+    *,
+    nonce: str,
+    cut: tuple[str, str] | None = None,
+) -> Message:
+    """One tool result fed back to the model; ``cut`` is its kept text and note when already cut."""
+    content, note = cut or ResultRoom().cut(result.content)
+    if not content and note:
+        text = note
+    else:
+        # The note is the brain's, so it goes after the fence an untrusted result is wrapped in.
+        fenced = content if result.trust is Trust.TRUSTED else wrap_untrusted(content, nonce=nonce)
+        text = fenced + note
     return Message(
         role=Role.TOOL,
-        text=text + note,
+        text=text,
         at=at,
         turn_id=turn_id,
         tool_call_id=result.call_id,

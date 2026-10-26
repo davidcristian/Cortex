@@ -15,8 +15,10 @@ from cortex_core.progress import ProgressSink, hold_wait
 from cortex_core.provenance import SourceKind, as_source
 from cortex_core.stops import StopLedger
 from cortex_core.tool_budget import DispatchBudget
+from cortex_core.tool_cut import ResultRoom
 from cortex_core.tool_round import RoundPlan, result_message
 from cortex_core.tool_salience import asks_the_same
+from cortex_core.tool_tail import tail_count
 from cortex_core.tools import ToolCall, ToolSpec, TurnStamp
 from cortex_core.untrusted import USER_DECLINED_MSG, TaintLedger
 from cortex_core.waits import GENERATING, TOOL_RUNNING, Wait
@@ -49,6 +51,14 @@ class ToolLoopContext:
     def unit_id(self) -> str:
         """The id this loop's own messages are grouped under: its task, else the turn it serves."""
         return self.task_id or self.turn_id
+
+
+@dataclass(frozen=True, slots=True)
+class LoopRecord:
+    """What one loop has done: the calls it dispatched, by round, and the room its results use."""
+
+    dispatched: list[list[ToolCall]] = field(default_factory=list[list[ToolCall]])
+    room: ResultRoom = field(default_factory=ResultRoom)
 
 
 def _refused_by(
@@ -92,16 +102,16 @@ async def run_round(
     plan: RoundPlan,
     dispatcher: ToolDispatcher,
     spec_by_name: Mapping[str, ToolSpec],
-    dispatched: list[list[ToolCall]],
+    record: LoopRecord,
     context: ToolLoopContext,
     working: list[Message],
 ) -> AsyncGenerator[ToolStep | StepOutcome, None]:
     """Dispatch every call one planned round answers, appending each result to ``working``."""
     this_round: list[ToolCall] = []
-    dispatched.append(this_round)
-    for call, oversized in plan.answered():
+    record.dispatched.append(this_round)
+    for index, (call, oversized) in enumerate(plan.answered()):
         spec = spec_by_name.get(call.name)
-        refusal = _refused_by(call, dispatcher, dispatched, context, oversized=oversized)
+        refusal = _refused_by(call, dispatcher, record.dispatched, context, oversized=oversized)
         if refusal is None:
             this_round.append(call)
         # Only an advertised spec is shown, so no model-written tool name reaches the overlay.
@@ -126,6 +136,12 @@ async def run_round(
         context.taint.observe(
             result, source=as_source(SourceKind.TOOL, None if spec is None else spec.name)
         )
+        # The calls of a round not yet answered share what is left, so the first is not given all.
+        cut = record.room.cut(
+            result.content, share=len(plan.calls) - index, keep_end=tail_count(call) is not None
+        )
         working.append(
-            result_message(result, context.clock.now(), context.unit_id, nonce=context.nonce)
+            result_message(
+                result, context.clock.now(), context.unit_id, nonce=context.nonce, cut=cut
+            )
         )

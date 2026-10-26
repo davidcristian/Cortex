@@ -3,7 +3,7 @@
 from collections.abc import AsyncGenerator, Mapping, Sequence
 
 from cortex_core.conversation import Message
-from cortex_core.dispatch_round import ToolLoopContext, run_round
+from cortex_core.dispatch_round import LoopRecord, ToolLoopContext, run_round
 from cortex_core.inference import DecodeCadence, DecodeStop, ReasoningChunk, TextChunk
 from cortex_core.loop_events import ReasoningDelta, StepOutcome, ToolStep
 from cortex_core.ports import InferenceBackend
@@ -59,10 +59,9 @@ async def stream_tool_loop(
     """Run the bounded infer↔tool loop over ``working``, yielding each delta, step and outcome."""
     dispatcher = context.dispatcher
     specs, spec_by_name = await _turn_tools(context)
-    # Every call this loop has dispatched, grouped by the round that emitted it, which is what
-    # the salience policy reads. Per loop rather than per turn: a repeat is redundant only
-    # against the ``working`` messages that already hold its answer.
-    dispatched: list[list[ToolCall]] = []
+    # Per loop rather than per turn: a repeat is redundant only against the ``working`` messages
+    # that already hold its answer, and the results share the room of that one request.
+    record = LoopRecord()
     for _step in range(MAX_TOOL_STEPS):
         calls: list[ToolCall] = []
         step_text: list[str] = []
@@ -92,7 +91,7 @@ async def stream_tool_loop(
         working.append(
             call_message("".join(step_text), plan.calls, context.clock.now(), context.unit_id)
         )
-        round_events = run_round(plan, dispatcher, spec_by_name, dispatched, context, working)
+        round_events = run_round(plan, dispatcher, spec_by_name, record, context, working)
         try:
             async for event in round_events:
                 yield event

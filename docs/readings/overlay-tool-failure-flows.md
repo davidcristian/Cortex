@@ -56,6 +56,18 @@ decision 5), the tail question on the rebuilt brain (0.60) gave the same `tail` 
 `result_chars=89`, and the reply quoted the `ERROR` line. "What are the last three lines of
 server-log.txt?" (0.67) called `tail` 3 and listed batches 29998 and 29999 and the `ERROR` line.
 
+Several reads in one turn, with four logs of 300 lines (19,059 to 19,073 characters each) in the
+root: "Call read_text_file four times in one step, once each for /projects/alpha.log,
+/projects/bravo.log, /projects/charlie.log and /projects/delta.log (not read_multiple_files),
+then tell me which worker appears most often across them." With each result cut to 6,000
+characters alone, the cortex made six `read_text_file` calls (alpha.log three times), the next
+request was 17,851 tokens, llama-server refused it with `exceed_context_size_error`, and the turn
+ended with the note about a conversation longer than the context. With the results of a loop
+sharing one room of 6,000 characters ([ADR-0009](../adr/ADR-0009-tools-mcp.md) decision 20), the
+same question on the brain rebuilt that night (0.60) made four calls in one round, the next
+request was about 8,200 tokens (4,326 cached and 3,868 new), and the turn completed with a reply
+naming worker-9.
+
 ## A file that tries to steer the model
 
 `club-notes.txt` held three club notes, then a paragraph telling the assistant to forget every
