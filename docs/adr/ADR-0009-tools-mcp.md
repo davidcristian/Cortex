@@ -98,16 +98,19 @@ that never replies, so each of those has a limit below.
    rejoins on the next call. A session pool is declined: one open costs a small fraction of a turn's
    time to first token ([readings](../readings/tool-sidecar-calls.md)), and a pool would need a
    close scope forwarded by every combinator, a port change across the core.
-10. **One call on a sidecar is time-limited, by a combinator.** `BoundedToolRegistry`
-    (`tool_deadline.py`) limits both operations with `asyncio.timeout` and raises `ToolError` on an
-    overrun. It wraps each remote registry innermost, directly around the reconnecting one and
-    under the filter and the skip, so it covers the connect and the call and a stuck sidecar is
-    skipped exactly as a refused one is. The built-in tools are not wrapped, since
-    `spawn_subagents` and `escalate_to_brain` are slow by design. `CORTEX_TOOLS_CALL_TIMEOUT_S`
-    defaults to 60 s for both operations; a value at or below zero fails at startup. It limits one
-    walk or call, not a turn. Passing `read_timeout_seconds` through the SDK was rejected: it does
-    not limit the session open, and it would put deployment policy inside one adapter. Its ordering
-    against the delegated run's deadline is [ADR-0047](ADR-0047-delegated-run-bound-ordering.md).
+10. **A sidecar call is time-limited, and a sidecar that overran rests.** `BoundedToolRegistry`
+    (`tool_deadline.py`) wraps each remote registry directly around the reconnecting one, under the
+    filter and the skip. `CORTEX_TOOLS_CALL_TIMEOUT_S` (60 s) limits a call, connect included, and
+    `CORTEX_TOOLS_LIST_TIMEOUT_S` (10 s, lowered to the call bound when above it) a listing; an
+    overrun raises `ToolError`, and a value at or below zero fails at startup. After one overrun,
+    every listing and call on that sidecar fails at once, unsent, for `CORTEX_TOOLS_RETRY_AFTER_S`
+    (120 s), with a text naming the server and telling the model to answer without its tools, so a
+    frozen sidecar costs a turn one bound, not one per call. The rest describes a transport, not
+    conversation or task state, so the brain process keeps it and a restart costs one more bound.
+    No wait is held around a 146 ms listing; its bound limits the silence before the `forgoing`
+    status names the server. Built-in tools are not bounded: `spawn_subagents` and
+    `escalate_to_brain` are slow by design. SDK `read_timeout_seconds` does not limit the session
+    open and would put deployment policy in one adapter, so it is not used.
 
 ### Dispatch limits
 
@@ -214,10 +217,9 @@ that never replies, so each of those has a limit below.
   by turn, delegation included, without the task store.
 - A turn makes at most 32 priced dispatches however it fans out, 16 calls per round and two
   identical calls per loop; a declined action that needs confirmation prompts at most twice.
-- Nothing waits forever on a sidecar, and one that is down drops out of a turn, which says so.
-- A per-call handshake is paid on every describe and invoke. A delegated dispatch walks the
-  registry about twice as often as a cortex one, because `ConfirmFreeToolRegistry` re-lists to remove
-  the names needing confirmation before it delegates.
+- Nothing waits forever on a sidecar, and one that is down or resting drops out of a turn, which says so.
+- A per-call handshake is paid on every describe and invoke, and a delegated dispatch walks the
+  registry about twice as often, since `ConfirmFreeToolRegistry` re-lists before it delegates.
 - Log lines and the audit file contain model-authored text only inside quoted values; a mislabeled
   image reaches the model under the sidecar's label.
 - No write tool exists outside ADR-0022's confirmed `send_email`, and the filesystem mount stays
@@ -240,11 +242,8 @@ that never replies, so each of those has a limit below.
 
 ## Related
 
-- Module contracts: [brain-tools](../modules/brain-tools.md), [brain-core](../modules/brain-core.md),
-  [brain-orchestrator](../modules/brain-orchestrator.md), [brain-email](../modules/brain-email.md).
-- Runbooks: [tools-mcp](../runbooks/tools-mcp.md), [email-imap](../runbooks/email-imap.md).
-- Readings: [tool sidecar calls](../readings/tool-sidecar-calls.md).
-- [ADR-0013](ADR-0013-untrusted-content.md) (untrusted tool content, the block), [ADR-0022](ADR-0022-email-write-confirmer.md)
-  (the write confirmer), [ADR-0045](ADR-0045-documented-log-lines.md) (the log-sample check and
-  the audit's declared names), [ADR-0046](ADR-0046-work-identities-on-log-lines.md) (work identities
-  on log lines), [ADR-0047](ADR-0047-delegated-run-bound-ordering.md) (delegated run limits).
+- Module contracts [brain-tools](../modules/brain-tools.md), [brain-core](../modules/brain-core.md), [brain-orchestrator](../modules/brain-orchestrator.md), [brain-email](../modules/brain-email.md);
+  runbooks [tools-mcp](../runbooks/tools-mcp.md), [email-imap](../runbooks/email-imap.md); readings [tool sidecar calls](../readings/tool-sidecar-calls.md), [tool failure flows](../readings/overlay-tool-failure-flows.md).
+- [ADR-0013](ADR-0013-untrusted-content.md) (untrusted tool content, the block), [ADR-0022](ADR-0022-email-write-confirmer.md) (the write confirmer),
+  [ADR-0045](ADR-0045-documented-log-lines.md) (the log-sample check and the audit's declared names), [ADR-0046](ADR-0046-work-identities-on-log-lines.md)
+  (work identities on log lines), [ADR-0047](ADR-0047-delegated-run-bound-ordering.md) (the call bound against the delegated run's deadline).

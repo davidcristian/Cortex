@@ -207,14 +207,14 @@ instead fails every turn while one sidecar is down, with the error `internal: MC
 
 A sidecar that is down is refused at the dial. A sidecar that is hung, accepting the call and never
 answering, raises nothing at all, since the MCP session's own wait for a response is unbounded.
-Every endpoint is therefore wrapped innermost in a `BoundedToolRegistry`, so a call that outruns
-`CORTEX_TOOLS_CALL_TIMEOUT_S` (default `60.0`, seconds, covering a listing and an invoke alike) is
-cancelled and reported as the same `ToolError` a refused sidecar raises: the model is handed an
-`is_error` result naming the tool and the bound, the dispatch is audited like any other, and under
-`skip` a bounded listing drops that sidecar out of the advertisement exactly as a dead one does.
-The number is far past a healthy call, which the table above measures at 154 ms; a value at or
-below zero fails the brain at boot. Only the sidecars are bounded, never the built-in tools beside
-them, since a delegated batch and a confirmation waiting on a human are supposed to take a while.
+Every endpoint is therefore wrapped innermost in a `BoundedToolRegistry`. A call that outruns
+`CORTEX_TOOLS_CALL_TIMEOUT_S` (default `60.0`, seconds), or a listing that outruns
+`CORTEX_TOOLS_LIST_TIMEOUT_S` (default `10.0`, lowered to the call bound when above it), is cancelled
+and reported as a `ToolError` naming the server, and that sidecar then rests for
+`CORTEX_TOOLS_RETRY_AFTER_S` (default `120.0`): each listing and call on it fails at once, unsent,
+so under `skip` it drops out of the advertisement, and a frozen sidecar costs a turn one bound, not
+one per call ([readings](../readings/overlay-tool-failure-flows.md#a-sidecar-that-stops-answering)).
+A healthy call takes 154 ms; a value at or below zero fails the brain at boot. Built-ins are unbounded.
 
 **A whole delegated dispatch has to fit inside the run that contains it.** A subagent's whole run
 is bounded by
@@ -225,9 +225,9 @@ cortex reads says the subtask would not stop talking, which points at the model 
 sidecar. What has to fit is the dispatch rather than the bound, because a dispatch spends the bound
 more than once: the run lists its tools before its rounds, `ConfirmFreeToolRegistry` lists them again
 on every delegated dispatch, an aggregate over several sidecars lists them a third time to route,
-and then the call itself runs. So one wedged sidecar costs a delegated dispatch three bounds with
-one sidecar configured and seven with two, and `CORTEX_TOOLS_CALL_TIMEOUT_S=700` under a 900 s run
-reads as ordered and is not. The brain therefore fails to start when that product is not strictly
+and then the call itself runs. The check below prices each walk at the whole call bound, ignoring
+the rest and the shorter listing bound: three bounds with one sidecar and seven with two, so
+`CORTEX_TOOLS_CALL_TIMEOUT_S=700` under a 900 s run fails it. The brain fails to start when that product is not strictly
 under `CORTEX_SUBAGENTS_RUN_TIMEOUT_S` and both capabilities are on, naming both settings, both
 values, the multiple and the product. Lower the call bound or raise the run bound; the shipped pair
 already clears by a factor of thirteen with one sidecar and five with two. With either capability

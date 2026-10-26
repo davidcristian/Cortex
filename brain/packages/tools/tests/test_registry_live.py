@@ -5,7 +5,7 @@ from functools import partial
 
 import pytest
 
-from cortex_core import BoundedToolRegistry, ToolCall, ToolError
+from cortex_core import BoundedToolRegistry, SystemClock, ToolCall, ToolError
 from cortex_tools import ReconnectingMcpToolRegistry, streamable_http_session
 
 _ENDPOINT = os.environ.get("CORTEX_TOOLS_ENDPOINT", "http://127.0.0.1:9000/mcp")
@@ -54,11 +54,13 @@ async def test_the_bound_cuts_a_real_session_that_will_never_answer() -> None:
         url = f"http://127.0.0.1:{port}/mcp"
         bounded = BoundedToolRegistry(
             ReconnectingMcpToolRegistry(partial(streamable_http_session, url)),
+            server="hang",
+            clock=SystemClock(),
             timeout_s=_HANG_BOUND_S,
         )
         before = set(asyncio.all_tasks())
         started = time.monotonic()
-        with pytest.raises(ToolError, match="did not answer within"):
+        with pytest.raises(ToolError, match="did not answer 'read' within"):
             await bounded.invoke(ToolCall(id="hang-1", name="read", arguments={"path": "/x"}))
         elapsed = time.monotonic() - started
         assert _HANG_BOUND_S <= elapsed < _HANG_BOUND_S * 4

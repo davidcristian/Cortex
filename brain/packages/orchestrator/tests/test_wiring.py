@@ -804,16 +804,22 @@ async def test_build_tool_registry_bounds_a_sidecar_that_hangs(
             backend="mcp",
             endpoint="http://wedged:9000/mcp",
             on_unavailable="skip",
-            call_timeout_s=_WEDGED_BOUND_S,
+            call_timeout_s=10.0,
+            list_timeout_s=_WEDGED_BOUND_S,
+            retry_after_s=30.0,
         )
     )
     assert registry is not None
     with caplog.at_level(logging.WARNING, logger="cortex_orchestrator.builders"):
         assert list(await asyncio.wait_for(registry.describe_tools(), 10)) == []
+    assert list(await asyncio.wait_for(registry.describe_tools(), _WEDGED_BOUND_S)) == []
     assert opens == ["http://wedged:9000/mcp"]
-    (record,) = caplog.records
-    assert getattr(record, "sidecar", "") == "default"
-    assert "took longer than 0.02s" in str(getattr(record, "error", ""))
+    overran, resting = caplog.records
+    assert getattr(overran, "sidecar", "") == "default"
+    assert "did not list its tools within 0.02s, so they are not listed again for 30s" in str(
+        getattr(overran, "error", "")
+    )
+    assert "not listed for another 30s" in str(getattr(resting, "error", ""))
     await close()
 
 

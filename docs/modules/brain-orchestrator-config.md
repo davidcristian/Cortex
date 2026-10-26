@@ -68,7 +68,8 @@ follows is the prefix, the defaults other parts depend on, and the validation.
   allowlists that must each name a configured endpoint; `named_endpoints` sorts them so aggregate
   precedence is deterministic. `on_unavailable` picks the dead-sidecar policy (`skip` by default,
 ADR-0009 decision 8), `call_timeout_s =
-  DEFAULT_TOOL_CALL_TIMEOUT_S` (decision 10) bounds one sidecar call, and `audit_file`
+  DEFAULT_TOOL_CALL_TIMEOUT_S` (decision 10) bounds one sidecar call, `list_timeout_s` (10 s) one
+  listing, `retry_after_s` (120 s) how long a sidecar that overran fails at once, and `audit_file`
   (decision 18) names a JSON-lines file every dispatcher also appends to. Four declarations travel
   together as `dispatch_policy`, so none can reach one dispatcher and miss another: `costs` (built
   in is `spawn_subagents` at `DEFAULT_SPAWN_COST`, `MAX_TOOL_DISPATCHES // 4`; a price outside

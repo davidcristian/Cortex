@@ -102,6 +102,24 @@ plain `chmod 000` on the host does not make reads fail, since the sidecar reads 
   the round limit note: "I stopped after 8 rounds of tool calls ... Ask again to continue." It
   gave no answer and did not say the server had stopped.
 
+Both flows ran again over `Converse` once the brain had a listing bound and a rest after an overrun
+(`CORTEX_TOOLS_LIST_TIMEOUT_S` 10 s, `CORTEX_TOOLS_RETRY_AFTER_S` 120 s), under rules written first:
+frozen mid-turn passes with one call at the bound, every later filesystem call failing in under 1 s
+and a reply other than the round-limit note within 120 s; frozen before the turn passes with the
+first turn's `forgoing` status at 10 to 12 s and a second turn's in under 1 s. The SM clock read
+0.60 of max at the start of both runs and 0.68 at the end of the mid-turn run.
+
+- **Frozen after the turn's first listing call:** one `list_directory` ended at the bound 60.0 s after
+  it began; the next three filesystem calls failed in under 0.1 s each with "the filesystem tool
+  server did not answer in time earlier, so 'X' was not sent", a repeat was refused, and the reply at
+  79.3 s said the filesystem tool was not responding and to try again in a few minutes. Pass.
+- **Frozen before the turn:** the `forgoing` status came at 12.6 s and the reply at 16.8 s; the same
+  question in a new chat straight after had its status at 1.4 s and its reply at 5.0 s, and the brain
+  logged "not listed for another 114s". Both statuses missed the written margins by the turn's work
+  before its listing (the old run shows it too: 63.8 s against a 60 s bound), so the rule, not the
+  result, was too tight; against the null of about 60 s per turn the listing bound and the rest held.
+  A turn asking about the file inside the rest got no filesystem tools and asked for the text.
+
 ## A confirm card left open while the sidecar dies
 
 With `CORTEX_TOOLS_GATED='["read_text_file"]'`, a read after any listing call was blocked
@@ -118,10 +136,6 @@ cleanly after 53.4 s.
 
 ## Defects filed
 
-- [902](../refinements/tasks/902-a-sidecar-that-stops-answering-costs-a-turn-one-bound-per-call.md):
-  a sidecar that stops answering costs a turn one bound per call.
-- [903](../refinements/tasks/903-a-frozen-sidecar-delays-every-turn-by-the-whole-listing-bound.md):
-  a frozen sidecar delays every turn by the whole listing bound.
 - [904](../refinements/tasks/904-a-tool-result-past-the-context-ends-the-turn.md): a tool result
   past the context ends the turn.
 - [905](../refinements/tasks/905-a-tail-read-of-a-file-ending-in-a-newline-returns-nothing.md):

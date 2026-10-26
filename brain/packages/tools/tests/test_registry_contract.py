@@ -12,6 +12,7 @@ from registry_contract import ALL_CHECKS, Check, RegistryUnderTest, ServedTool
 from cortex_core import (
     BoundedToolRegistry,
     InMemoryToolRegistry,
+    SystemClock,
     ToolCall,
     ToolError,
     ToolResult,
@@ -114,7 +115,10 @@ def _bounded() -> RegistryUnderTest:
     it.
     """
     under_test = _over_session(reconnecting=True)
-    return replace(under_test, registry=BoundedToolRegistry(under_test.registry))
+    return replace(
+        under_test,
+        registry=BoundedToolRegistry(under_test.registry, server="contract", clock=SystemClock()),
+    )
 
 
 _BUILDS: Sequence[tuple[str, Build]] = (

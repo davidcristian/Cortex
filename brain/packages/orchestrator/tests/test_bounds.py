@@ -223,7 +223,7 @@ async def _spends_of(config: ToolsConfig, monkeypatch: pytest.MonkeyPatch) -> li
 
 @pytest.mark.parametrize(
     ("endpoints", "spends"),
-    [({"files": _ENDPOINT}, 3), ({"files": _ENDPOINT, "email": _EMAIL}, 6)],
+    [({"files": _ENDPOINT}, 1), ({"files": _ENDPOINT, "email": _EMAIL}, 2)],
     ids=["one sidecar", "two sidecars"],
 )
 async def test_no_wedged_delegated_dispatch_outspends_the_multiple(

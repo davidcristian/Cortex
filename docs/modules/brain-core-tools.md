@@ -138,12 +138,12 @@ Each is a `ToolRegistry` wrapping others, so the root builds a tool set the core
   `TRUSTED` exactly when its whole `content` equals the text a declared `OwnText(tool, render)`
   builds from the call's own arguments and the result has no image. It is the only place a remote
   result is trusted, and the root declares the email sidecar's four own answers through it.
-- `BoundedToolRegistry(inner, *, timeout_s=DEFAULT_TOOL_CALL_TIMEOUT_S)` (`tool_deadline.py`)
-  gives up on either verb after `timeout_s` and raises `ToolError` naming the tool and the bound.
-  The bound is `asyncio.timeout`, so an overrun cancels the inner call, and a `TimeoutError` from
-  beneath it propagates untouched. `DEFAULT_TOOL_CALL_TIMEOUT_S = 60.0`
-  (`CORTEX_TOOLS_CALL_TIMEOUT_S`) is some four hundred times the slowest healthy call measured on
-  this deployment. Only remote registries are wrapped; the built-ins are deliberately slow.
+- `BoundedToolRegistry(inner, *, server, clock, timeout_s, list_timeout_s, retry_after_s)`
+  (`tool_deadline.py`) cancels a call after `timeout_s` and a listing after `list_timeout_s` (never
+  above `timeout_s`) with `asyncio.timeout`, raising `ToolError` naming `server`; a `TimeoutError`
+  from beneath propagates untouched. After an overrun every verb fails at once, unsent, until
+  `retry_after_s` has passed on `clock`; a clock set back ends the wait. `DEFAULT_TOOL_CALL_TIMEOUT_S = 60.0`
+  is some four hundred times the slowest healthy call measured here. The built-ins are not wrapped.
 - `SightedToolRegistry(inner, probe)` both hides and refuses `capture_screen` while a `VisionProbe`
   answers no (ADR-0029 decision 13). `VisionProbe` (`sighted.py`) reports whether the model serving
   this tier right now can read a picture; it never raises, returns `False` when it cannot tell, and

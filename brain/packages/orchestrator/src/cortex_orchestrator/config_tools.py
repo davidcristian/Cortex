@@ -8,6 +8,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from cortex_core import (
     ALWAYS_SALIENT,
     DEFAULT_TOOL_CALL_TIMEOUT_S,
+    DEFAULT_TOOL_LIST_TIMEOUT_S,
+    DEFAULT_TOOL_RETRY_AFTER_S,
     ESCALATE_CONFIRM_REASON,
     ESCALATE_TOOL_NAME,
     MAX_IDENTICAL_DISPATCHES,
@@ -51,6 +53,8 @@ class ToolsConfig(BaseSettings):
     salience: ToolsSalienceName = DEFAULT_SALIENCE
     salience_limit: int = MAX_IDENTICAL_DISPATCHES
     call_timeout_s: float = Field(default=DEFAULT_TOOL_CALL_TIMEOUT_S, gt=0)
+    list_timeout_s: float = Field(default=DEFAULT_TOOL_LIST_TIMEOUT_S, gt=0)
+    retry_after_s: float = Field(default=DEFAULT_TOOL_RETRY_AFTER_S, gt=0)
     audit_file: str = ""
 
     @field_validator("confirm_names")

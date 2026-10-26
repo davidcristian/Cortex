@@ -22,6 +22,7 @@ from cortex_core import (
     SingleResidentModelManager,
     SkipUnavailableToolRegistry,
     StrictUrlRedactingGuardrail,
+    SystemClock,
     ToolError,
     ToolRegistry,
     UrlRedactingGuardrail,
@@ -116,9 +117,17 @@ def build_tool_registry(
     if config.backend != "mcp":
         return None, noop_aclose
     registries: list[ToolRegistry] = []
+    clock = SystemClock()
     for name, url in config.named_endpoints.items():
         dialing = ReconnectingMcpToolRegistry(partial(streamable_http_session, url))
-        registry: ToolRegistry = BoundedToolRegistry(dialing, timeout_s=config.call_timeout_s)
+        registry: ToolRegistry = BoundedToolRegistry(
+            dialing,
+            server=name,
+            clock=clock,
+            timeout_s=config.call_timeout_s,
+            list_timeout_s=config.list_timeout_s,
+            retry_after_s=config.retry_after_s,
+        )
         allow = config.allow.get(name)
         if allow:
             registry = FilteredToolRegistry(registry, allow=allow)

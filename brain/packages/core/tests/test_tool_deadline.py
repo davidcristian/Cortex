@@ -1,6 +1,7 @@
 import asyncio
 import time
 from collections.abc import Sequence
+from datetime import UTC, datetime
 
 import pytest
 
@@ -57,8 +58,13 @@ class _StubRegistry:
             raise
 
 
+class _Clock:
+    def now(self) -> datetime:
+        return datetime(2026, 10, 26, 3, 0, tzinfo=UTC)
+
+
 def _bounded(inner: _StubRegistry) -> BoundedToolRegistry:
-    return BoundedToolRegistry(inner, timeout_s=_BOUND_S)
+    return BoundedToolRegistry(inner, server="files", clock=_Clock(), timeout_s=_BOUND_S)
 
 
 async def test_a_call_that_answers_in_time_is_handed_back_untouched() -> None:
@@ -74,7 +80,10 @@ async def test_a_call_that_outruns_the_bound_raises_tool_error_naming_the_tool()
     with pytest.raises(ToolError) as caught:
         await asyncio.wait_for(_bounded(inner).invoke(_CALL), _GIVE_UP_S)
     elapsed = time.monotonic() - started
-    assert str(caught.value) == "tool 'read' did not answer within 0.02s"
+    assert str(caught.value) == (
+        "the files tool server did not answer 'read' within 0.02s, so the call did not finish; "
+        "its tools fail at once for the next 120s, so answer without them"
+    )
     assert elapsed >= _BOUND_S
     assert inner.cancelled is True
 
@@ -92,7 +101,10 @@ async def test_a_listing_that_outruns_the_bound_raises_tool_error() -> None:
     with pytest.raises(ToolError) as caught:
         await asyncio.wait_for(_bounded(inner).describe_tools(), _GIVE_UP_S)
     elapsed = time.monotonic() - started
-    assert str(caught.value) == "listing a tool sidecar's tools took longer than 0.02s"
+    assert str(caught.value) == (
+        "the files tool server did not list its tools within 0.02s, "
+        "so they are not listed again for 120s"
+    )
     assert elapsed >= _BOUND_S
     assert inner.cancelled is True
 
@@ -104,7 +116,11 @@ async def test_a_timeout_from_beneath_is_not_relabelled_as_our_bound(verb: str) 
         await (bounded.describe_tools() if verb == "describe" else bounded.invoke(_CALL))
 
 
-@pytest.mark.parametrize("timeout_s", [0.0, -1.0])
-async def test_a_bound_that_is_not_a_duration_is_refused_at_construction(timeout_s: float) -> None:
+@pytest.mark.parametrize("setting", ["timeout_s", "list_timeout_s", "retry_after_s"])
+@pytest.mark.parametrize("value", [0.0, -1.0])
+async def test_a_bound_that_is_not_a_duration_is_refused_at_construction(
+    setting: str, value: float
+) -> None:
+    bounds = {"timeout_s": 1.0, "list_timeout_s": 1.0, "retry_after_s": 1.0, setting: value}
     with pytest.raises(ValueError, match="positive bound"):
-        BoundedToolRegistry(_StubRegistry(), timeout_s=timeout_s)
+        BoundedToolRegistry(_StubRegistry(), server="files", clock=_Clock(), **bounds)
