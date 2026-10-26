@@ -67,6 +67,7 @@ from cortex_core.turn_output import (
 )
 from cortex_core.untrusted import (
     DENIED_MSG,
+    EXPIRED_MSG,
     PLAIN_SECURITY_PREAMBLE,
     RECALL_DENIED_MSG,
     RECALL_FORGOTTEN_MSG,
@@ -109,6 +110,7 @@ __all__ = [
     "ESCALATE_CONFIRM_REASON",
     "ESCALATE_TOOL_NAME",
     "ESCALATION_QUEUED_MSG",
+    "EXPIRED_MSG",
     "FOLDING",
     "FORGOING_DETAIL",
     "FORGOING_STATE",

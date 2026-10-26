@@ -150,7 +150,7 @@ class RecordingConfirmer:
 
     def answer_nothing(self) -> None:
         """Leave every later ask unanswered, as a card that timed out does."""
-        self._answer = ConfirmAnswer.UNANSWERED
+        self._answer = ConfirmAnswer.EXPIRED
 
     async def confirm(self, request: ConfirmationRequest) -> ConfirmAnswer:
         """Record the request and return the fixed answer."""

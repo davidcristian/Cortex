@@ -2,6 +2,7 @@ from datetime import UTC, datetime
 
 from cortex_core import (
     DENIED_MSG,
+    EXPIRED_MSG,
     MAX_TURN_SOURCES,
     RECALL_DENIED_MSG,
     SECURITY_PREAMBLE,
@@ -229,6 +230,12 @@ def test_the_two_refusals_the_model_relays_are_asserted_word_for_word() -> None:
         "DECLINED: this action is irreversible or outbound and the user did not approve it, so "
         "it was not performed. Relay this to the user; do not retry unless they explicitly ask "
         "again."
+    )
+    assert EXPIRED_MSG == (
+        "EXPIRED: the user was shown this action for approval but did not answer in time, so "
+        "the request expired and the action was not performed. The user did not decline it. "
+        "Tell the user the approval request expired without an answer and that they can ask "
+        "again to retry. Do not retry unless they ask again."
     )
 
 

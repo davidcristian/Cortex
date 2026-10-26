@@ -85,6 +85,13 @@ UNANSWERED_MSG = (
     "was not performed. Relay this to the user; do not retry unless they explicitly ask again."
 )
 
+EXPIRED_MSG = (
+    "EXPIRED: the user was shown this action for approval but did not answer in time, so the "
+    "request expired and the action was not performed. The user did not decline it. Tell the "
+    "user the approval request expired without an answer and that they can ask again to retry. "
+    "Do not retry unless they ask again."
+)
+
 
 def new_nonce() -> str:
     """A fresh per-turn nonce for the untrusted-content fence; unpredictable and turn-scoped."""

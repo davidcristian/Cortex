@@ -57,7 +57,7 @@ async def test_denial_resolves_false() -> None:
 
 async def test_timeout_denies_and_tells_the_overlay_the_card_is_dead() -> None:
     confirmer, emitted = _collecting_confirmer(timeout_s=0.01)
-    assert await confirmer.confirm(_REQUEST) is ConfirmAnswer.UNANSWERED
+    assert await confirmer.confirm(_REQUEST) is ConfirmAnswer.EXPIRED
     assert len(emitted) == 2
     assert _resolutions(emitted) == [(emitted[0].confirm_request.confirm_id, OUTCOME_TIMEOUT)]
 

@@ -42,9 +42,9 @@ async def an_explicit_refusal_blocks_the_call(under_test: ConfirmerUnderTest) ->
 
 
 async def a_person_who_never_answers_denies(under_test: ConfirmerUnderTest) -> None:
-    """A person who never answers blocks the call as unanswered, never as their own refusal."""
+    """A person who never answers blocks the call as expired, never as their own refusal."""
     under_test.will_say_nothing()
-    assert await under_test.confirmer.confirm(_SEND) is ConfirmAnswer.UNANSWERED
+    assert await under_test.confirmer.confirm(_SEND) is ConfirmAnswer.EXPIRED
 
 
 async def the_person_is_shown_the_call_that_would_run(under_test: ConfirmerUnderTest) -> None:

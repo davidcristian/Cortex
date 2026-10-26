@@ -84,8 +84,8 @@ is the single audit authority. The rule is [ADR-0022](ADR-0022-email-write-confi
 2: such a call on a tainted turn is blocked with `DENIED_MSG` and the confirmer is never consulted,
 because a card showing injection-authored arguments is no boundary (a record card, showing a stored
 record instead, is the exception); on an untainted turn it runs
-only with the user's approval: a pressed Deny returns `USER_DECLINED_MSG`, and a request nobody
-answered returns `UNANSWERED_MSG`. Every block returns without invoking the tool.
+only with the user's approval: a pressed Deny returns `USER_DECLINED_MSG`, a request nobody answered
+in time `EXPIRED_MSG`, and no confirmer `UNANSWERED_MSG`. Every block returns without invoking the tool.
 
 `Confirmer.confirm(request: ConfirmationRequest) -> ConfirmAnswer` (`ports_tools.py`) is
 fail-closed: only `APPROVED` runs, and `confirmer=None` is `UNANSWERED`. The human authorizes. The

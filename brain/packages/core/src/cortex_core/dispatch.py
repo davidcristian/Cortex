@@ -26,6 +26,7 @@ from cortex_core.tools import (
 )
 from cortex_core.untrusted import (
     DENIED_MSG,
+    EXPIRED_MSG,
     RECALL_DENIED_MSG,
     RECALL_FORGOTTEN_MSG,
     UNANSWERED_MSG,
@@ -36,6 +37,12 @@ from cortex_core.waits import USER_ASKED
 _CONFIRM_REASON = "this action is outbound or irreversible and runs only with your approval"
 
 CANCELLED_MSG = "cancelled: the turn ended before this call returned"
+
+_UNAPPROVED = {
+    ConfirmAnswer.DECLINED: USER_DECLINED_MSG,
+    ConfirmAnswer.EXPIRED: EXPIRED_MSG,
+    ConfirmAnswer.UNANSWERED: UNANSWERED_MSG,
+}
 
 BUDGET_EXHAUSTED_MSG = (
     "REFUSED: this turn has reached its limit on tool calls, so the tool was not run. Do not "
@@ -194,9 +201,11 @@ class ToolDispatcher:
                 return await self._audited(call, blocked)
             answer = await self._confirmed(call, card)
             if answer is not ConfirmAnswer.APPROVED:
-                said = USER_DECLINED_MSG if answer is ConfirmAnswer.DECLINED else UNANSWERED_MSG
                 declined = ToolResult(
-                    call_id=call.id, content=said, is_error=True, trust=Trust.TRUSTED
+                    call_id=call.id,
+                    content=_UNAPPROVED[answer],
+                    is_error=True,
+                    trust=Trust.TRUSTED,
                 )
                 return await self._audited(call, declined)
         try:

@@ -34,8 +34,8 @@ spawned subtask or a model swap is in [brain-core-residency.md](brain-core-resid
   and a name an implementation does not serve never comes back as a success. Fake:
   `InMemoryToolRegistry`; real adapter: `cortex_tools`.
 - `ToolAuditSink` provides `record(invocation)` for every dispatched call. Fake: `RecordingAuditSink`.
-- `Confirmer` provides `confirm(request) -> ConfirmAnswer` (ADR-0013: `APPROVED`, `DECLINED` or
-  `UNANSWERED`) over a `ConfirmationRequest(tool_name, arguments, reason)`: the user's decision,
+- `Confirmer` provides `confirm(request) -> ConfirmAnswer` (ADR-0013: `APPROVED`, `DECLINED`,
+  `EXPIRED` or `UNANSWERED`) over a `ConfirmationRequest(tool_name, arguments, reason)`: the user's decision,
   never the model's, and a missing confirmer is `UNANSWERED`. Real adapter: `RpcConfirmer` (ADR-0022).
 - `ProgressSink` (`progress.py`, ADR-0010 decision 13) is the side channel for progress a
   suspended turn cannot yield itself. `emit(event)` sends a `ToolActivity` or `StatusUpdate`, best
@@ -61,8 +61,8 @@ spends and whether it is worth running. The dispatcher is stateless; the loop dr
   rule, so a flood of confirmable calls cannot reach the user as prompts.
 - The confirmation rule (ADR-0013, revised by ADR-0022): a `confirm_required` call on a tainted turn is
   refused with `DENIED_MSG` (`RECALL_DENIED_MSG` when recall alone tainted it, `RECALL_FORGOTTEN_MSG`
-  once `forgotten` is set), the confirmer never asked, unless its name has a record card; otherwise
-  it runs only when the `Confirmer` approves, else `USER_DECLINED_MSG` or `UNANSWERED_MSG`.
+  once `forgotten` is set), the confirmer never asked, unless its name has a record card; otherwise it
+  runs only when the `Confirmer` approves, else `USER_DECLINED_MSG`, `EXPIRED_MSG` or `UNANSWERED_MSG`.
 
 `DispatchPolicy(confirm_names=(), costs=UNIFORM_COST, salience=REPEAT_SALIENCE, confirm_reasons={},
 record_cards={}, offers={})` (`dispatch.py`, default `DEFAULT_DISPATCH_POLICY`) is what the root declares

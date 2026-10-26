@@ -152,7 +152,7 @@ the decisions are ADR-0013, ADR-0019 and ADR-0027.
 - `DENIED_MSG` is the error content for a call needing confirmation on a tainted turn, refused
   outright and never offered to the user (ADR-0022), `RECALL_DENIED_MSG` when recall alone tainted
   it, and `RECALL_FORGOTTEN_MSG` once the turn's forget succeeded (ADR-0019). `USER_DECLINED_MSG`
-  is a pressed Deny, `UNANSWERED_MSG` no answer.
+  is a pressed Deny, `EXPIRED_MSG` a timeout, `UNANSWERED_MSG` a closed stream or no confirmer.
 
 ## Time
 

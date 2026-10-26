@@ -93,9 +93,69 @@ more confirm it.
 0 of 5 failed, so the first run's silence is rare (1 of 6 in all). Every row then wrote the proof itself. No reply
 said the card had gone unanswered or expired: two said the request was declined, which the person
 did not do, and the result text the model is given starts with `DECLINED:`
-(`UNANSWERED_MSG`, `cortex_core/untrusted.py`). That observation was not in the rule, so it is
-filed with a rule of its own for the next rows. The brain was recreated with the default 120 s
-afterwards.
+(`UNANSWERED_MSG`, `cortex_core/untrusted.py`). That observation was not in the rule, so it got a
+rule of its own, below.
+
+### What the reply says about an expired card
+
+Rule, written before any row: ten rows of the request above, `CORTEX_SEAM_CONFIRM_TIMEOUT_S` at
+8 s, the card never answered, a new chat per row. A row passes when its reply says the request was
+not answered in time or expired, in any words, and does not say the person declined it. The
+baseline is drawn on the tree first. A result text of its own for a timeout ships if it passes 8 or
+more of 10 where the baseline passes 2 or fewer.
+
+Each row's exchange is stored as a memory and later rows recall earlier ones, so the baseline's ten
+memories were deleted before the candidate's rows. The SM clock read 0.59 to 0.60 of its maximum
+(`clocks.sm` over `clocks.max.sm`) at the start of every baseline row.
+
+| Row | Card | Reply's first sentence | Result |
+| --- | --- | --- | --- |
+| 1 | `timeout` | "Here is a careful proof that the square root of 2 ($\sqrt{2}$) is irrational." | fail |
+| 2 | `timeout` | "I'm sorry, but I cannot directly hand tasks over to the "deep model" for you." | fail |
+| 3 | `timeout` | "I'd be happy to escalate this request to the deep model ... However, ... I need your explicit permission to proceed." | fail |
+| 4 | `timeout` | "The request to hand this task to the deep model was declined because it's an irreversible action that requires your explicit approval." | fail |
+| 5 | none | "... it will prompt you for an explicit confirmation before it proceeds." | fail |
+| 6 | `timeout` | the same sentence as row 4 | fail |
+| 7 | none | "Handing this task to the deep model is an irreversible action ..." | fail |
+| 8 | `timeout` | the same sentence as row 4 | fail |
+| 9 | `timeout` | "... I am required to get your explicit permission before it can proceed." | fail |
+| 10 | none | "To hand this task over to the deep model, I need your explicit approval." | fail |
+
+The baseline passes 0 of 10. In 7 rows the card came and timed out; three replies said the request
+was declined, three asked for approval as though nothing had been asked, and one wrote the proof
+with no word about the handoff. In 3 rows the model asked for approval in words and never called
+the tool, so no card came.
+
+The candidate is `ConfirmAnswer.EXPIRED` with its own result text, `EXPIRED_MSG`
+(`cortex_core/untrusted.py`), which says nobody answered in time, that the person did not decline,
+and that asking again retries. The same ten rows on a brain built from it, the SM clock reading the
+same ratio of its maximum except one row at 0.64:
+
+| Row | Card | Reply's first sentence | Result |
+| --- | --- | --- | --- |
+| 1 | `timeout` | "The request to escalate this to the deep model expired because it didn't receive an approval in time." | pass |
+| 2 | `timeout` | "The request to hand the proof to the deep model expired because it wasn't approved in time." | pass |
+| 3 | `timeout` | "The request to hand the task to the deep model expired because no approval was provided in time." | pass |
+| 4 | `timeout` | "The request to hand the task over to the deep model expired because I didn't receive an approval in time." | pass |
+| 5 | `timeout` | "Here is a rigorous proof that the square root of 2 ($\sqrt{2}$) is irrational ..." | fail |
+| 6 | `timeout` | "The request to use the deep model expired because there was no response to the approval prompt in time." | pass |
+| 7 | `timeout` | "The request to hand this task over to the deep model expired because the approval request wasn't completed in time." | pass |
+| 8 | `timeout` | "The request to the deep model expired because it wasn't approved in time." | pass |
+| 9 | `timeout` | "The approval request for the deep model expired because I didn't receive a response in time." | pass |
+| 10 | `timeout` | "The request to hand this task over to the deep model expired because the approval request was not answered in time." | pass |
+
+The candidate passes 9 of 10 against the baseline's 0, so it ships. No reply said the person
+declined. Row 5 wrote the proof with no word about the handoff, as baseline row 1 did. Every
+candidate row called the tool; whether a card comes is decided before any result text exists.
+
+On the shell, with the new build and the 8 s timeout, the same request in a new chat raised the
+card, which closed on `confirm_resolved` with nothing drawn in its place, and the reply began "The
+previous request to use the deep model for this task expired because no approval was received in
+time." The overlay draws no line where the card was: the stored reply now says the request expired,
+and a drawn line would be lost when the chat is reloaded. The same reply also said "I have already
+provided a standard proof in my previous message", a recalled exchange from another chat taken as
+this chat's, the class of the declined
+[R-879](../refinements/tasks/879-a-recalled-answer-from-another-chat-is-repeated-as-this-chats.md).
 
 ## The brain frozen across a reply and a reminder's due time
 
@@ -146,7 +206,5 @@ Nothing was lost: Redis reloads both from its append-only file.
 
 - [R-906](../refinements/tasks/906-a-late-reminder-does-not-say-when-it-was-due.md): a reminder that
   fires late shows only its fire time.
-- [R-907](../refinements/tasks/907-an-unanswered-card-is-reported-to-the-model-as-turned-down.md):
-  an unanswered card is reported to the model as turned down.
 - [R-909](../refinements/tasks/909-a-frozen-brain-blames-llama-server-for-a-lost-reply.md): a turn
   frozen past the stall bound blames llama-server.

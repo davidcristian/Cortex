@@ -117,6 +117,7 @@ class ConfirmAnswer(Enum):
     APPROVED = "approved"
     DECLINED = "declined"
     UNANSWERED = "unanswered"
+    EXPIRED = "expired"
 
 
 @dataclass(frozen=True, slots=True)

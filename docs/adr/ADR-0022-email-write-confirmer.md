@@ -72,8 +72,8 @@ names ([ADR-0025](ADR-0025-scheduling-reminders.md) decision 3), and `forget_unt
 fixed `FORGET_CARD` (ADR-0019 decision 9).
 
 A block returns an audited `is_error` result, the tool never invoked: `DENIED_MSG` for the tainted
-block, `USER_DECLINED_MSG` for a pressed Deny and `UNANSWERED_MSG` for a timeout, a closed stream or
-no confirmer, so the model tells "the user said no" from "nobody answered" and "this turn is tainted".
+block, `USER_DECLINED_MSG` for a pressed Deny, `EXPIRED_MSG` for a timeout and `UNANSWERED_MSG` for a
+closed stream or no confirmer, so the model tells "the user said no" from "nobody answered in time".
 A call identical to one declined earlier in the loop gets `ALREADY_DECLINED_MSG` and no second card.
 The card's reason is `_CONFIRM_REASON` ("this action is outbound or irreversible and runs only with
 your approval") unless the policy names a per-tool reason ([ADR-0030](ADR-0030-brain-handoff.md) decision 1).
@@ -90,7 +90,7 @@ the request on the stream's **control path** (`put_nowait`, no data credit, like
 `SeamError`): the turn task is suspended inside `dispatch`, so waiting for a credit could deadlock
 against a stalled consumer, and at most one confirmation is outstanding per stream. It then awaits
 the future under `CORTEX_SEAM_CONFIRM_TIMEOUT_S` (default 120 s, limited so an unattended overlay
-cannot hang a turn). A timeout is `UNANSWERED`; a cancellation propagates; a stale or unknown
+cannot hang a turn). A timeout is `EXPIRED`; a cancellation propagates; a stale or unknown
 `confirm_id` is logged and ignored, so a late approval approves nothing; and a client half-close
 answers a pending confirm `UNANSWERED` at once. No confirmation state exists outside the awaiting coroutine.
 
@@ -149,9 +149,9 @@ the user's own answer, a cancelled or torn-down turn (its terminal event closes 
 confirm asked after close (no request went out). `outcome` is a documented string rather than an
 enum, the same trade this contract made for `SeamError.code`. It travels on the control path for
 the request's reason, so a confirmation spends at most two control events. The overlay closes the
-card when the id matches and renders nothing else, since the model's reply already explains the
-denial; a late click on a resolved card cannot reach the bridge, and no deny is sent for it. The
-user answering is the reducer's `confirmAnswered`, leaving `confirmResolved` to the brain's event.
+card when the id matches and draws nothing else: the model's reply says the request expired, and is
+stored with the chat where a drawn line would not be. A late click on a resolved card cannot reach
+the bridge and sends no deny, and the user's own answer is `confirmAnswered`, not `confirmResolved`.
 
 ### 8. The subagent dispatcher checks the declared names again
 

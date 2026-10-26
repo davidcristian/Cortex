@@ -4,8 +4,8 @@ from datetime import UTC, datetime
 from cortex_core import (
     ALREADY_DECLINED_MSG,
     ALWAYS_SALIENT,
+    EXPIRED_MSG,
     REDUNDANT_MSG,
-    UNANSWERED_MSG,
     USER_DECLINED_MSG,
     DispatchPolicy,
     GenerationBounds,
@@ -164,7 +164,7 @@ async def test_a_card_nobody_answered_is_shown_again_for_the_next_call() -> None
     confirmer.answer_nothing()
     await _run(_RoundsBackend([[_call(1)], [_call(2)]]), _context(sink, confirmer))
     assert len(confirmer.requests) == 2
-    assert [record.detail for record in sink.records] == [UNANSWERED_MSG, UNANSWERED_MSG]
+    assert [record.detail for record in sink.records] == [EXPIRED_MSG, EXPIRED_MSG]
 
 
 async def test_an_approved_call_repeated_is_never_answered_as_declined() -> None:

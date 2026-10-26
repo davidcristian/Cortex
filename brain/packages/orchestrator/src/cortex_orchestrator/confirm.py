@@ -55,7 +55,7 @@ class RpcConfirmer:
             # Told before the turn resumes, so the card closes ahead of the model's declined
             # reply instead of staying clickable behind it.
             self._resolved(confirm_id, OUTCOME_TIMEOUT)
-            return ConfirmAnswer.UNANSWERED
+            return ConfirmAnswer.EXPIRED
         finally:
             # Runs on an answer, a timeout and a cancellation alike: once deregistered, a late
             # answer is a stale id and resolves nothing.

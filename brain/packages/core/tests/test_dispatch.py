@@ -5,6 +5,7 @@ from cortex_core import (
     ALWAYS_SALIENT,
     BUDGET_EXHAUSTED_MSG,
     DENIED_MSG,
+    EXPIRED_MSG,
     RECALL_DENIED_MSG,
     REDUNDANT_MSG,
     UNANSWERED_MSG,
@@ -194,7 +195,7 @@ async def test_confirm_required_tool_on_a_clean_turn_is_declined_without_a_confi
     assert result.content == UNANSWERED_MSG
 
 
-async def test_a_confirmation_nobody_answers_is_not_called_the_user_s_decline() -> None:
+async def test_a_confirmation_nobody_answers_in_time_is_called_expired_not_declined() -> None:
     confirmer = RecordingConfirmer(answer=True)
     confirmer.answer_nothing()
     sink = RecordingAuditSink()
@@ -203,10 +204,10 @@ async def test_a_confirmation_nobody_answers_is_not_called_the_user_s_decline() 
         stamp=TurnStamp(tainted=False),
         confirm_required=True,
     )
-    assert (result.is_error, result.content) == (True, UNANSWERED_MSG)
+    assert (result.is_error, result.content) == (True, EXPIRED_MSG)
     assert confirmer.requests != ()
     (record,) = sink.records
-    assert (record.ok, record.detail) == (False, UNANSWERED_MSG)
+    assert (record.ok, record.detail) == (False, EXPIRED_MSG)
 
 
 async def test_confirm_free_tool_on_a_tainted_turn_runs_without_confirmation() -> None:

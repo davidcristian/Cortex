@@ -96,4 +96,4 @@ async def test_recording_confirmer_returns_its_fixed_answer_and_records_requests
     assert approver.requests == (request,)
     assert denier.requests == (request,)
     denier.answer_nothing()
-    assert await denier.confirm(request) is ConfirmAnswer.UNANSWERED
+    assert await denier.confirm(request) is ConfirmAnswer.EXPIRED
