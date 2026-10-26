@@ -72,6 +72,15 @@ and put embedding on the CPU so the GPU budget stays with the cortex
    collects every URL the model saw plus the rest, so a URL past the cut, or one the cut splits, is
    still redacted.
 
+   Each trusted memory in that message, and each note the `judge` rank reads
+   ([ADR-0038](ADR-0038-ranked-recall.md) decision 7), starts with its age in its largest whole
+   unit, "(9 days ago)" (`memory_age.py`), counted inside the memory's share of the budget, and
+   both headers say that of two memories that disagree the newer is current. With the text alone,
+   a fact changed twice in separate chats was answered with its newest value in 7 of 24 rows; with
+   the age, in 24 of 24. A date in the user's zone also passed 24 of 24, at about twice the tokens
+   and with a zone to resolve ([readings](../readings/recall-memory-age.md)). A fenced memory
+   shows no age, so the line before each fence is still the one that says the text is data.
+
 5. **The embedder adapter is llama.cpp's CPU `/v1/embeddings`**
    ([ADR-0005](ADR-0005-llamacpp-engine.md)), an httpx translator mirroring the inference adapter:
    injected client, failures wrapped as `EmbedderError`, CI over `httpx.MockTransport`, and an

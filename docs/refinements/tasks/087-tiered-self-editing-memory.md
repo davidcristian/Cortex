@@ -4,8 +4,8 @@
 **Area:** memory
 **Origin:** [ADR-0008](../../adr/ADR-0008-memory-v1.md)
 **Trigger:** A turn handed a superseded fact beside its correction answers with the superseded one,
-once recalled memories show their dates as R-899 proposes. Read it on rows like those of the
-memory over time flows: a fact changed in separate chats, then asked in a new one.
+though recalled memories show their ages. Read it on rows like those of the recall memory age
+readings: a fact changed in separate chats, then asked in a new one.
 **Verified:** 2026-10-26
 
 Letta's ideas about memory tiers and a model that edits its own memories, adoptable later without
@@ -78,6 +78,7 @@ record stores only the `tainted` flag and not the ADR-0027 structured provenance
 - 2026-10-26: the trigger fired on the shared test stack: in three of five memory over time flows
   on the Linux shell a recall kept a superseded value beside its correction, and one of those
   answers named the superseded value ([readings](../../readings/overlay-memory-over-time-flows.md)).
-  Neither model is shown a memory's date, so the smaller remedy, dated notes, comes first as
-  [R-899](899-a-changed-fact-can-be-answered-with-its-older-value.md), and the trigger now names
-  the harm that would remain for update in place.
+  Neither model was shown a memory's date, so the smaller remedy came first: both lists now show
+  each memory's age, and on 48 rows that handed the turn superseded values beside the newest, every
+  answer named the newest ([readings](../../readings/recall-memory-age.md)). The trigger names the
+  harm that would remain for update in place, and it has not fired.

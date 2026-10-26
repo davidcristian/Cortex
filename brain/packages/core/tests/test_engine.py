@@ -85,6 +85,7 @@ from cortex_core.loop_events import MAX_STEP_SUMMARY_CHARS
 from cortex_core.output_channels import ROUND_BREAK
 from cortex_core.tool_loop import MAX_TOOL_STEPS
 from cortex_core.tool_replay import RECALLED_RUNS_NOTE
+from cortex_core.turn_context import MEMORY_HEADER
 from cortex_core.untrusted import PLAIN_SECURITY_PREAMBLE
 
 _START = datetime(2026, 7, 3, 12, 0, 0, tzinfo=UTC)
@@ -391,8 +392,8 @@ async def test_an_exchange_longer_than_the_embedder_takes_is_recorded_whole_and_
     await _collect(engine.handle_turn("second", f"{question} again", turn_id="t-2"))
     _, messages = backend.calls[1]
     assert messages[1].role is Role.SYSTEM
-    shown = fit_recalled([f"User: {question}\nAssistant: {reply}"])[0]
-    assert shown.startswith(f"User: {question}\nAssistant: a long answer")
+    shown = fit_recalled([f"(just now) User: {question}\nAssistant: {reply}"])[0]
+    assert shown.startswith(f"(just now) User: {question}\nAssistant: a long answer")
     assert f"- {shown}\n" in f"{messages[1].text}\n"
 
 
@@ -413,9 +414,10 @@ async def test_five_long_memories_are_each_shown_cut_within_the_recall_budget() 
     await _collect(engine.handle_turn("s", "topic", turn_id="t-1"))
     _, messages = backend.calls[0]
     block = messages[1].text
-    assert all(f"- User: fact {index}\nAssistant: notes" in block for index in range(5))
+    assert all(f"- (just now) User: fact {index}\nAssistant: notes" in block for index in range(5))
     assert block.count("[memory cut here: ") == 5
-    assert len(block) < 6000 + 5 * len(cut_marker(18_000)) + len(RECALLED_RUNS_NOTE) + 100
+    overhead = len(MEMORY_HEADER) + len(RECALLED_RUNS_NOTE) + 20
+    assert len(block) < 6000 + 5 * len(cut_marker(18_000)) + overhead
 
 
 async def test_a_recall_policy_that_declines_leaves_the_turn_without_a_memory_block() -> None:
@@ -1621,9 +1623,10 @@ async def test_recall_renders_trusted_and_tainted_memories_in_separate_sections(
     mem_store = InMemoryMemoryStore()
     embedder = HashEmbedder()
     emb = tuple(await embedder.embed("topic"))
-    await mem_store.add(MemoryRecord(id="ok", text="I like tea", embedding=emb, at=_START))
+    written = _START - timedelta(days=3)
+    await mem_store.add(MemoryRecord(id="ok", text="I like tea", embedding=emb, at=written))
     await mem_store.add(
-        MemoryRecord(id="bad", text="hostile note", embedding=emb, at=_START, tainted=True)
+        MemoryRecord(id="bad", text="hostile note", embedding=emb, at=written, tainted=True)
     )
     recaller = MemoryRecaller(mem_store, embedder, SystemClock())
     backend = RecordingBackend(("ok",))
@@ -1638,10 +1641,9 @@ async def test_recall_renders_trusted_and_tainted_memories_in_separate_sections(
     assert messages[0].text == SECURITY_PREAMBLE
     memory_msg = messages[1]
     assert memory_msg.role is Role.SYSTEM
-    assert (
-        f"Relevant memories from earlier conversations. {RECALLED_RUNS_NOTE}\n- I like tea"
-        in memory_msg.text
-    )
+    assert f"{MEMORY_HEADER} {RECALLED_RUNS_NOTE}\n- (3 days ago) I like tea" in memory_msg.text
+    assert "When two memories disagree, the newer one is current." in memory_msg.text
+    assert "\nhostile note\n</untrusted-tool-output" in memory_msg.text
     assert "derived from untrusted external content" in memory_msg.text
     assert "untrusted-tool-output id=" in memory_msg.text
     assert "hostile note" in memory_msg.text

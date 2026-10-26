@@ -62,16 +62,17 @@ pool down to the hits one turn sees. The turn that calls it is in
   twice, and leaving the pool as it was given, the recaller reading it again for the dropped set.
   `core/tests/recall_policy_contract.py` checks that over all five policies (ADR-0068
   decision 10), and it is async so a policy may call the model.
-- The five policies: `RawRecallPolicy` (`RAW_RECALL_POLICY`, top-`k` cosine, this port's own
-  default argument), and in `rerank_policies.py` with their math in `rerank_math.py`,
-  `RerankingRecallPolicy` (similarity blended with an exponential recency decay),
-  `MmrRecallPolicy` (greedy maximal marginal relevance) and `RecencyMmrRecallPolicy` (that
-  selection over the recency blend). `JudgeRecallPolicy(backend, model, *, pool_factor,
-  fallback=RAW_RECALL_POLICY)` (`rerank_judge.py`) asks the resident model to order the pool under
-  a JSON-schema-constrained request using `rank_bounds(k)` (`max_tokens=24 + 8k`, thinking off,
-  trace budget zero) and falls back on any failure; an **empty** order is the model declining the
-  pool and returns an empty ranking on the `DEMUR` basis without the fallback (ADR-0038
-  decision 11). A similarity floor was calibrated and **declined** (ADR-0038 decision 12).
+- The five policies: `RawRecallPolicy` (`RAW_RECALL_POLICY`, top-`k` cosine, this port's own default
+  argument), and in `rerank_policies.py` with their math in `rerank_math.py`,
+  `RerankingRecallPolicy` (similarity blended with an exponential recency decay), `MmrRecallPolicy`
+  (greedy maximal marginal relevance) and `RecencyMmrRecallPolicy` (that selection over the recency
+  blend). `JudgeRecallPolicy(backend, model, *, pool_factor, fallback=RAW_RECALL_POLICY)`
+  (`rerank_judge.py`) asks the resident model to order the pool, each note after its age
+  (`memory_age.py`), under a JSON-schema-constrained request using `rank_bounds(k)`
+  (`max_tokens=24 + 8k`, thinking off, trace budget zero) and falls back on any failure; an
+  **empty** order is the model declining the pool and returns an empty ranking on the `DEMUR` basis
+  without the fallback (ADR-0038 decision 11). A similarity floor was calibrated and **declined**
+  (ADR-0038 decision 12).
 - `Ranking`, `RankedMemory` and `RankBasis` (`ranking.py`) are what `select` returns.
   `RankedMemory` pairs a kept hit with the `key` its policy ordered by, and `Ranking` adds the
   `basis` naming that quantity: `ECHO` (raw cosine), `EMBER` (recency blend), `SPREAD` (MMR over

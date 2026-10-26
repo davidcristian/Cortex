@@ -91,7 +91,7 @@ def _memory(trusted: Sequence[str], fenced: Sequence[str]) -> str:
         for i, t in enumerate(fenced)
     ]
     hits = [ScoredMemory(record=record, score=1.0) for record in records]
-    return _render_memory_context(hits, nonce=new_nonce(), taint=TaintLedger())
+    return _render_memory_context(hits, nonce=new_nonce(), taint=TaintLedger(), now=_AT)
 
 
 def _quoted(attack: Attack) -> str:

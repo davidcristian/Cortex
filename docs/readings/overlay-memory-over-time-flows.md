@@ -21,9 +21,9 @@ from the `memories` table, recalls from the brain's `cortex.memory.recall` lines
 
 **The right behaviour, written before the first row:** the answer names the newest value the person
 gave. A recall that hands the turn an older value beside a newer one is recorded as such, since it
-is the condition [R-087](../refinements/tasks/087-tiered-self-editing-memory.md) waits for. A
-recalled memory is shown to the model as its text alone (`turn_context.py`), with no date, so
-nothing but the words of the exchange tells the model which value is newer.
+is the condition [R-087](../refinements/tasks/087-tiered-self-editing-memory.md) waits for. On
+this build a recalled memory was shown to the model as its text alone (`turn_context.py`), with no
+date, so nothing but the words of the exchange told the model which value was newer.
 
 ## A fact updated with words that mark the change
 
@@ -86,8 +86,8 @@ it and worded as a rename.
 
 Three of five answers named the newest value. In three of five the turn was handed superseded
 values beside the newest, which fires the trigger of R-087 on this stack, and one of those answers
-named the superseded value; in one more the rank kept only the oldest value. Filed as
-[R-899](../refinements/tasks/899-a-changed-fact-can-be-answered-with-its-older-value.md).
+named the superseded value; in one more the rank kept only the oldest value. Showing each
+memory's age to both models fixed it ([recall memory age](recall-memory-age.md)).
 The forget card was raised by 2 of the 22 requests to remember in these flows.
 
 Method: the drivers (`turn.sh`, `flowA1.sh`, `flowA2.sh`, `flowA3.sh`) are in the run's scratch

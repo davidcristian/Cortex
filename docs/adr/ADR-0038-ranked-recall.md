@@ -73,16 +73,16 @@ what a memory says cannot do without.
 
 7. **The model rank is `JudgeRecallPolicy`, a core policy over the `InferenceBackend` port, and the
    default.** It over-fetches `k * pool_factor`, sends the candidates to the resident cortex as a
-   numbered list under the JSON-schema-constrained `ORDER_ENVELOPE`
-   ([ADR-0028](ADR-0028-grammar-constrained-subagents.md)), and turns the order into keys in (0, 1].
-   `CORTEX_MEMORY_RECALL` defaults to `judge`; `raw` is the opt-out that restores the founding
-   behaviour. Its fallback (default `RAW_RECALL_POLICY`, which `recall_policy_from_config` does not
-   override) takes an unreachable model, a reply outside the envelope, a truncated one, an order of
-   nothing that exists and an empty pool, and the ranking then uses the fallback's basis, so the
-   record says what ranked. `rank_bounds(k)` is `24 + 8k` tokens with no thinking
-   ([ADR-0049](ADR-0049-thinking-switch-and-trace-budget.md) decision 5), computed because the
-   envelope admits only numbers: a cut reply is not JSON and costs the whole judgement, so the cap
-   is generous.
+   numbered list, each note after its age ([ADR-0008](ADR-0008-memory-v1.md) decision 4), under the
+   JSON-schema-constrained `ORDER_ENVELOPE` ([ADR-0028](ADR-0028-grammar-constrained-subagents.md)),
+   and turns the order into keys in (0, 1]. `CORTEX_MEMORY_RECALL` defaults to `judge`; `raw` is the
+   opt-out that restores the founding behaviour. Its fallback (default `RAW_RECALL_POLICY`, which
+   `recall_policy_from_config` does not override) takes an unreachable model, a reply outside the
+   envelope, a truncated one, an order of nothing that exists and an empty pool, and the ranking
+   then uses the fallback's basis, so the record says what ranked. `rank_bounds(k)` is `24 + 8k`
+   tokens with no thinking ([ADR-0049](ADR-0049-thinking-switch-and-trace-budget.md) decision 5),
+   computed because the envelope admits only numbers: a cut reply is not JSON and costs the whole
+   judgement, so the cap is generous.
 
 ### A pass during selection
 

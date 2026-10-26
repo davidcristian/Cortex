@@ -3,6 +3,7 @@
 import logging
 from collections.abc import Sequence
 from dataclasses import dataclass
+from datetime import datetime
 
 from cortex_core.conversation import Message, Role
 from cortex_core.dispatch import ToolDispatcher
@@ -12,6 +13,7 @@ from cortex_core.guardrail import OutputGuardrail
 from cortex_core.handoff import EscalationSlot
 from cortex_core.inference import GenerationBounds
 from cortex_core.memory import ScoredMemory
+from cortex_core.memory_age import aged
 from cortex_core.ports import Clock, ResidencyQueue
 from cortex_core.progress import ProgressSink
 from cortex_core.provenance import SourceKind, as_source
@@ -31,6 +33,11 @@ from cortex_core.windowing import HistoryWindow
 _logger = logging.getLogger(__name__)
 
 DEFAULT_RECALL_K = 5
+
+MEMORY_HEADER = (
+    "Relevant memories from earlier conversations, each after how long ago it was written. "
+    "When two memories disagree, the newer one is current."
+)
 
 FORGOING_DETAIL = "memory is unavailable, so this turn is answered without earlier notes"
 
@@ -57,16 +64,20 @@ class TurnCapabilities:
     memory_write_timeout_s: float = MEMORY_WRITE_TIMEOUT_S
 
 
-def _render_memory_context(hits: Sequence[ScoredMemory], *, nonce: str, taint: TaintLedger) -> str:
+def _render_memory_context(
+    hits: Sequence[ScoredMemory], *, nonce: str, taint: TaintLedger, now: datetime
+) -> str:
     """Render recalled memories, each cut to its share of the budget, as a system context body."""
     sections: list[str] = []
-    shown = list(zip(hits, fit_recalled([hit.record.text for hit in hits]), strict=True))
+    texts = [
+        hit.record.text if hit.record.tainted else aged(hit.record.text, hit.record.at, now)
+        for hit in hits
+    ]
+    shown = list(zip(hits, fit_recalled(texts), strict=True))
     trusted = [text for hit, text in shown if not hit.record.tainted]
     if trusted:
         listed = "\n".join(f"- {text}" for text in trusted)
-        sections.append(
-            f"Relevant memories from earlier conversations. {RECALLED_RUNS_NOTE}\n{listed}"
-        )
+        sections.append(f"{MEMORY_HEADER} {RECALLED_RUNS_NOTE}\n{listed}")
     fenced = [(hit.record, text) for hit, text in shown if hit.record.tainted]
     if fenced:
         for record, _ in fenced:
@@ -132,8 +143,9 @@ async def _recalled_context(
         return None
     if not hits:
         return None
-    body = _render_memory_context(hits, nonce=context.nonce, taint=context.taint)
-    return Message(role=Role.SYSTEM, text=body, at=clock.now(), turn_id=context.turn_id)
+    now = clock.now()
+    body = _render_memory_context(hits, nonce=context.nonce, taint=context.taint, now=now)
+    return Message(role=Role.SYSTEM, text=body, at=now, turn_id=context.turn_id)
 
 
 async def _report_forgone_memory(

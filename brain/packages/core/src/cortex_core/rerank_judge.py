@@ -11,6 +11,7 @@ from cortex_core.drain import drain_text
 from cortex_core.errors import InferenceError
 from cortex_core.inference import GenerationBounds, JsonSchema
 from cortex_core.memory import ScoredMemory
+from cortex_core.memory_age import aged
 from cortex_core.ports import InferenceBackend
 from cortex_core.ranking import RankBasis, RankedMemory, Ranking
 from cortex_core.rerank import RAW_RECALL_POLICY, RecallPolicy
@@ -28,7 +29,8 @@ ORDER_ENVELOPE: JsonSchema = {
 _INSTRUCTION = (
     "You are ranking remembered notes for how well each one helps answer a question. "
     "Reply with the numbers of the notes that help, best first, and leave out the ones "
-    "that do not help at all."
+    "that do not help at all. Each note starts with how long ago it was written; when two "
+    "notes disagree, the newer one is current."
 )
 
 CANDIDATE_CHARS = 400
@@ -56,7 +58,8 @@ def build_rank_messages(
 ) -> list[Message]:
     """The one-message ranking prompt: the instruction, the question, then the numbered notes."""
     listed = "\n".join(
-        f"{index}. {hit.record.text[:CANDIDATE_CHARS]}" for index, hit in enumerate(hits)
+        f"{index}. {aged(hit.record.text[:CANDIDATE_CHARS], hit.record.at, at)}"
+        for index, hit in enumerate(hits)
     )
     body = f"{_INSTRUCTION}\n\nQuestion: {query}\n\nNotes:\n{listed}\n\nReply with at most {k}."
     return [Message(role=Role.USER, text=body, at=at, turn_id=_RANK_TURN_ID)]

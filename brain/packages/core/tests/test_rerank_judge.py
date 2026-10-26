@@ -1,7 +1,7 @@
 import json
 import logging
 from collections.abc import AsyncIterator, Sequence
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -137,7 +137,7 @@ async def test_the_judge_sends_the_question_the_numbered_notes_and_the_envelope(
     await policy.select(_pool(), query="where does state live?", now=_NOW, k=1)
     (prompt,) = backend.prompts
     assert "where does state live?" in prompt
-    assert "0. the office coffee machine" in prompt
+    assert "0. (just now) the office coffee machine" in prompt
     assert "Reply with at most 1." in prompt
     assert backend.schemas == [ORDER_ENVELOPE]
 
@@ -275,6 +275,20 @@ def test_a_long_candidate_is_truncated_in_the_prompt() -> None:
     (message,) = build_rank_messages("q", [long_hit], k=1, at=_NOW)
     assert "x" * 400 in message.text
     assert "x" * 401 not in message.text
+
+
+def test_each_note_starts_with_how_long_before_the_question_it_was_written() -> None:
+    older = ScoredMemory(
+        record=MemoryRecord(
+            id="old", text="my dog is Rex", embedding=(1.0, 0.0), at=_NOW - timedelta(days=9)
+        ),
+        score=0.8,
+    )
+    (message,) = build_rank_messages(
+        "q", [older, _hit("new", "my dog is Bruno", 0.7)], k=2, at=_NOW
+    )
+    assert "0. (9 days ago) my dog is Rex\n1. (just now) my dog is Bruno" in message.text
+    assert "when two notes disagree, the newer one is current" in message.text
 
 
 _JUDGE_LOGGER = "cortex_core.rerank_judge"

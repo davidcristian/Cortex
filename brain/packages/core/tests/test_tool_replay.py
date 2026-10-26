@@ -40,6 +40,7 @@ from cortex_core.tool_replay import (
     RunLog,
     replay_runs,
 )
+from cortex_core.turn_context import MEMORY_HEADER
 from cortex_core.turn_output import render_exchange
 
 _AT = datetime(2026, 10, 10, 6, 0, tzinfo=UTC)
@@ -228,7 +229,8 @@ async def test_another_chat_recalls_the_run_under_a_note_that_it_ran_there_only(
     recalled = backend.seen[-1][1]
     assert recalled.role is Role.SYSTEM
     assert recalled.text == (
-        f"Relevant memories from earlier conversations. {RECALLED_RUNS_NOTE}\n"
-        f"- User: read my notes\nTools run: read ({'failed' if fails else 'succeeded'})\n"
+        f"{MEMORY_HEADER} {RECALLED_RUNS_NOTE}\n"
+        "- (just now) User: read my notes\n"
+        f"Tools run: read ({'failed' if fails else 'succeeded'})\n"
         "Assistant: done"
     )
