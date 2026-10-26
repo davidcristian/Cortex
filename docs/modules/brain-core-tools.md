@@ -45,14 +45,13 @@ spawned subtask or a model swap is in [brain-core-residency.md](brain-core-resid
 
 ## Dispatching one call
 
-`ToolDispatcher(registry, audit, clock, *, confirmer=None, policy=DEFAULT_DISPATCH_POLICY)` is the
-turn's tool gateway and its capability check (ADR-0009, ADR-0013). `dispatch(call, *,
-stamp=UNSTAMPED, confirm_required=False, refusal=None)` runs the call through the registry, writes exactly one
-`ToolInvocation` to the audit sink, and returns a `ToolResult`; a `ToolError` becomes a `TRUSTED`
-`is_error` result, the brain's own text, which neither fences nor taints. A call a Stop cancels is
-audited as an error, `CANCELLED_MSG`, before the cancel goes on. `cost_of(name)` and `admits(call,
-dispatched)` report what a call spends and whether it is worth running. The dispatcher is stateless;
-the loop drives it and keeps the history.
+`ToolDispatcher(registry, audit, clock, *, confirmer=None, policy=DEFAULT_DISPATCH_POLICY)` is the turn's tool
+gateway and its capability check (ADR-0009, ADR-0013). `dispatch(call, *, stamp=UNSTAMPED,
+confirm_required=False, refusal=None)` runs the call through the registry, writes exactly one `ToolInvocation`
+to the audit sink, and returns a `ToolResult`; a `ToolError` becomes a `TRUSTED` `is_error` result, the
+brain's own text, which neither fences nor taints. A call a Stop cancels is audited as an error,
+`CANCELLED_MSG`, before the cancel goes on. `cost_of(name)` and `admits(call, dispatched)` report what a call
+spends and whether it is worth running. The dispatcher is stateless; the loop drives it and keeps the history.
 
 - `refusal` (a `DispatchRefusal`) says the call must not run: `BUDGET` when the dispatch allowance
   is spent, `DECLINED` for a call the person declined in this turn (`ToolLoopContext.declined`, read
@@ -94,14 +93,13 @@ dispatch without its outcome is the generator being closed mid-dispatch. The tur
 onto `ToolActivity` and `ToolOutcome`; a subagent puts steps on the spawning stream's `ProgressSink` and
 drops outcomes (ADR-0029 decision 18). The yield vocabulary is in `loop_events.py`, one round's dispatches in `dispatch_round.py`.
 
-The loop appends the tool-call and `Role.TOOL` result messages to `working` in place, and ends on a
-tool-free step, a `None` dispatcher, or `MAX_TOOL_STEPS` (8) rounds that all dispatched calls,
-reported as `observe_round_limit()` on `context.stops`. Five independent bounds apply (ADR-0009
-decision 11, ADR-0048): rounds cap how long it runs; `context.budget` caps what it may spend across
-them; `context.bounds` caps how far any one completion decodes; the salience policy refuses a
-repeat; and `plan_round` caps how wide one round may be. A call is charged only after
-`dispatcher.admits` passes, so a refused repeat costs nothing, and calls past the allowance are
-still dispatched, so their `Role.TOOL` answers exist and their refusals are audited.
+The loop appends the tool-call and `Role.TOOL` result messages to `working` in place, and ends on a tool-free
+step, a `None` dispatcher, or `MAX_TOOL_STEPS` (8) rounds that all dispatched calls, reported as
+`observe_round_limit()` on `context.stops`. Five independent bounds apply (ADR-0009 decision 11, ADR-0048):
+rounds cap how long it runs; `context.budget` caps what it may spend across them; `context.bounds` caps how
+far any one completion decodes; the salience policy refuses a repeat; and `plan_round` caps how wide one round
+may be. A call is charged only after `dispatcher.admits` passes, so a refused repeat costs nothing, and calls
+past the allowance are still dispatched, so their `Role.TOOL` answers exist and their refusals are audited.
 
 `plan_round(calls) -> RoundPlan` (`tool_round.py`, ADR-0009 decision 13) is the pure per-round cap:
 a round over `MAX_CALLS_PER_ROUND` (16, half of `MAX_TOOL_DISPATCHES`) is cut to the cap plus one
@@ -138,6 +136,8 @@ Each is a `ToolRegistry` wrapping others, so the root builds a tool set the core
   `TRUSTED` exactly when its whole `content` equals the text a declared `OwnText(tool, render)`
   builds from the call's own arguments and the result has no image. It is the only place a remote
   result is trusted, and the root declares the email sidecar's four own answers through it.
+- `LastLinesToolRegistry(inner, *, tools)` (`tool_tail.py`, ADR-0009 decision 5) asks a named tool for one more
+  `tail` line than the call did and drops the empty line a final newline gives.
 - `BoundedToolRegistry(inner, *, server, clock, timeout_s, list_timeout_s, retry_after_s)`
   (`tool_deadline.py`) cancels a call after `timeout_s` and a listing after `list_timeout_s` (never
   above `timeout_s`) with `asyncio.timeout`, raising `ToolError` naming `server`; a `TimeoutError`

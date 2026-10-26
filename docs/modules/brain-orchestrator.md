@@ -197,10 +197,10 @@ the version string `Health` reports.
   in-flight fires and releases unfinished claims best effort.
 - `build_tool_registry` gives each configured endpoint a lazy `ReconnectingMcpToolRegistry`,
   dialled on first use so a sidecar down at boot neither fails startup nor needs a restart to
-  rejoin (ADR-0009 decision 9), wrapped innermost in a `BoundedToolRegistry`, then in a
-  `FilteredToolRegistry` where an allowlist is set, then in a `SkipUnavailableToolRegistry` under
-  `skip`, merged behind one `AggregateToolRegistry` when there are several, and outermost an
-  `OwnTextToolRegistry` over `EMAIL_OWN_TEXTS` (`own_texts.py`, ADR-0013 decision 10).
+  rejoin (ADR-0009 decision 9), wrapped innermost in a `BoundedToolRegistry`, then a
+  `LastLinesToolRegistry` over `TAIL_READ_TOOLS`, a `FilteredToolRegistry` where an allowlist is set
+  and a `SkipUnavailableToolRegistry` under `skip`, merged behind one `AggregateToolRegistry` when
+  there are several; outermost is an `OwnTextToolRegistry` over `EMAIL_OWN_TEXTS` (`own_texts.py`).
 - Every dispatcher is built from one `DispatchSetup` (`dispatch_builders.py`): the `DispatchPolicy` and
   the audit sink. `build_builtin_tools` assembles the built-in set once: delegation, the volume tools with
   a `BodyGateway`, `capture_screen` with a body **and** a model the root confirmed can see, the five

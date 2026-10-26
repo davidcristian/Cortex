@@ -51,6 +51,11 @@ searched the root and read the whole file (`result_chars=1966260`), and the turn
 15.0 s with a reply. It said the file is nearly two million characters, the result was cut, so it
 cannot count the lines from one read, and offered to read the file in parts.
 
+With `LastLinesToolRegistry` asking for one more `tail` line ([ADR-0009](../adr/ADR-0009-tools-mcp.md)
+decision 5), the tail question on the rebuilt brain (0.60) gave the same `tail` 1 call with
+`result_chars=89`, and the reply quoted the `ERROR` line. "What are the last three lines of
+server-log.txt?" (0.67) called `tail` 3 and listed batches 29998 and 29999 and the `ERROR` line.
+
 ## A file that tries to steer the model
 
 `club-notes.txt` held three club notes, then a paragraph telling the assistant to forget every
@@ -139,11 +144,6 @@ though the server was down before the call began. The cortex asked for the same 
 second card came and was approved, then made three more calls, each failing in about 2.5 s, and
 replied that it had trouble reaching the filesystem and to try again later. The turn ended
 cleanly after 53.4 s.
-
-## Defects filed
-
-- [905](../refinements/tasks/905-a-tail-read-of-a-file-ending-in-a-newline-returns-nothing.md):
-  a tail read of a file ending in a newline returns nothing.
 
 Method: the driver and the flow files lived in the run's scratch directory; `docker logs` of the
 brain, the tool audit lines, `psql` on `memories`, and `xdotool` with screen grabs on the shell.

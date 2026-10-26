@@ -15,6 +15,7 @@ from cortex_core import (
     EchoInferenceBackend,
     FilteredToolRegistry,
     InferenceBackend,
+    LastLinesToolRegistry,
     LookalikeUrlRedactingGuardrail,
     ModelManager,
     OutputGuardrail,
@@ -110,6 +111,10 @@ async def build_inference_backend(
     return EchoInferenceBackend(), noop_aclose
 
 
+# The reference filesystem server's two text reads that take a ``tail`` count.
+TAIL_READ_TOOLS = ("read_text_file", "read_file")
+
+
 def build_tool_registry(
     config: ToolsConfig,
 ) -> tuple[ToolRegistry | None, Callable[[], Awaitable[None]]]:
@@ -128,6 +133,7 @@ def build_tool_registry(
             list_timeout_s=config.list_timeout_s,
             retry_after_s=config.retry_after_s,
         )
+        registry = LastLinesToolRegistry(registry, tools=TAIL_READ_TOOLS)
         allow = config.allow.get(name)
         if allow:
             registry = FilteredToolRegistry(registry, allow=allow)

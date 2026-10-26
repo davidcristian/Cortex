@@ -9,9 +9,8 @@ actions. Every call reaches outside the process on the user's behalf, so every c
 audited, and every later tool goes through the same audited path, to MCP servers behind one port.
 The cortex talks to models through `InferenceBackend` ([ADR-0005](ADR-0005-llamacpp-engine.md),
 [ADR-0007](ADR-0007-model-manager-inference.md)), whose text-only `stream()` cannot express a tool
-call. The email tool's target is a local ProtonMail Bridge exposing IMAP on the host. A model that
-can call tools can also call them too often, repeat one call, wait on a sidecar that never replies,
-or read more than its context holds, so each of those has a limit below.
+call. A model that can call tools can also call them too often, repeat one call, wait on a sidecar
+that never replies, or read more than its context holds, so each of those has a limit below.
 
 ## Decision
 
@@ -54,6 +53,8 @@ or read more than its context holds, so each of those has a limit below.
    (CVE-2025-53109/53110), behind `supergateway@4.1.0`, which drops an answer to a request its
    client abandoned where 3.4.3 exited. Both are installed at container start, and the bridge runs
    `--stateful` with `--sessionTimeout`: one child per MCP session, stopped with it (`docker/docker-compose.tools.yml`).
+   Every release through 2.0.1 counts the empty text after a final newline as a file's last line,
+   so `LastLinesToolRegistry` asks its text reads for one more `tail` line and drops that one.
 6. **Email is a thin, purpose-built IMAP MCP server on `imap-tools`, read-only by default.**
    `list_folders`, `search_emails` and `read_email` against the ProtonMail Bridge
    (`host.docker.internal:1143`, STARTTLS, Bridge-issued credentials and its exported certificate
@@ -132,9 +133,8 @@ or read more than its context holds, so each of those has a limit below.
     person declined in this loop is refused with `ALREADY_DECLINED_MSG` and no card, whatever the
     policy. It is per loop: it limits redundancy against one context, and a sibling subagent cannot
     see this loop's calls. `SaliencePolicy.admits` takes the calls grouped by round. It is on by
-    default; `CORTEX_TOOLS_SALIENCE=off` selects `AlwaysSalient`, `CORTEX_TOOLS_SALIENCE_LIMIT` sets
-    the limit, refused below 1 and with no upper bound, since a limit at or above `MAX_TOOL_STEPS`
-    simply never binds while the once-per-round clause still holds.
+    default; `CORTEX_TOOLS_SALIENCE=off` selects `AlwaysSalient`, and `CORTEX_TOOLS_SALIENCE_LIMIT`
+    sets the limit, refused below 1; one at or above `MAX_TOOL_STEPS` never binds.
 13. **A round keeps at most `MAX_CALLS_PER_ROUND` calls.** `plan_round` (`tool_round.py`) drops the
     calls a round emits past 16, half the budget, and truncates the assistant message's
     `tool_calls` to match, so the conversation stays well formed and the dropped calls add nothing
@@ -156,11 +156,11 @@ or read more than its context holds, so each of those has a limit below.
 15. **A chip per running tool, and its outcome.** The loop yields a `ToolStep` just before each
     dispatch of an advertised call; the engine maps it to `ToolActivity(tool_name, summary)`, which
     is ephemeral, never passed through the guardrail, persisted or recorded. Both fields come from
-    the advertised `ToolSpec` (name, first line of the description cut at
-    `MAX_STEP_SUMMARY_CHARS`), never from the model's call, and an unadvertised or refused call
-    lights no chip. When a dispatch resolves, `ToolOutcome` reports the tool name and the audit's
-    `ok` on its own proto message; a `phase` field on `ToolActivity` was declined as a second way of
-    writing the same fact. A subagent's steps reach the spawning stream as activity only.
+    the advertised `ToolSpec` (name, first line of the description cut at `MAX_STEP_SUMMARY_CHARS`),
+    never from the model's call, and an unadvertised or refused call lights no chip. When a dispatch
+    resolves, `ToolOutcome` reports the tool name and the audit's `ok` on its own proto message; a
+    `phase` field on `ToolActivity` was declined as a second way of writing the same fact. A
+    subagent's steps reach the spawning stream as activity only.
 
 ### The audit log
 

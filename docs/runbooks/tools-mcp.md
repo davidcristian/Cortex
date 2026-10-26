@@ -26,15 +26,17 @@ and CVE-2025-53110 patched in `2025.7.1`), and an exact `supergateway` version t
 deliberately and never float back to unversioned `npx`; the read-only single-directory mount
 bounds the damage either way. The container installs both at start rather than running them
 through `npx`, and the bridge runs `--stateful`, so expect a slower first boot, which the brain
-tolerates because it dials no sidecar at startup.
+tolerates because it dials no sidecar at startup. Every release through 2.0.1 (checked 2026-10-26)
+returns the empty text after a final newline as a file's last `tail` line, so the brain asks for one
+more line and drops that one (`LastLinesToolRegistry`). Moving to a release that changes `tail`
+means removing that wrap from `build_tool_registry`, or a last line that is really empty is hidden.
 
 ## What the sidecar costs a turn
 
-The brain opens a fresh MCP session per call, so a turn pays one session open to advertise its
-tools before the first token, plus one per dispatched call, and two per call for a subagent. The
-open itself is cheap, 17.8 ms against a control server on the FastMCP transport the email sidecar
-serves, which is the transport's floor. What is not cheap is what a sidecar does when a session
-opens.
+The brain opens a fresh MCP session per call, so a turn pays one session open to advertise its tools
+before the first token, plus one per dispatched call, and two per call for a subagent. The open
+itself is cheap, 17.8 ms against a control server on the FastMCP transport the email sidecar serves,
+which is the transport's floor. What is not cheap is what a sidecar does when a session opens.
 
 | filesystem sidecar configuration | one open | `describe_tools` | one `invoke` |
 | --- | --- | --- | --- |
@@ -82,19 +84,17 @@ cd brain && CORTEX_TOOLS_ENDPOINT=http://127.0.0.1:9000/mcp \
 
 ## End to end, where the cortex uses a tool
 
-With both up,
-`docker compose --project-directory . -f docker/docker-compose.yml -f docker/docker-compose.tools.yml up`
-runs the brain with `CORTEX_TOOLS_BACKEND=mcp`, so a turn that needs a file calls the tool, the
-dispatch is audited (one `cortex.tools.audit` line per call), and the result is fed back to the
-model. That line is a bare `tool.invocation` message followed by its fields, printed in name
-order. Which fields it has depends on the call, so it is printed below once per shape, each a line
-`brain/packages/tools/tests/test_audit.py` asserts whole against the shipped formatter. In order:
-a call that succeeded and was made for no chat, turn or task, every id the dispatch did not have
-being left off rather than printed empty; a call that failed, whose `error` stands where
-`result_chars` would; a cortex call, with the chat, the turn and the id the model gave the call; a
-delegated call, naming the task and the turn that spawned it; and a schedule fire, with the chat
-that scheduled the item, the
-`item_id` of the item that fired, and no turn.
+With both up, `docker compose --project-directory . -f docker/docker-compose.yml -f
+docker/docker-compose.tools.yml up` runs the brain with `CORTEX_TOOLS_BACKEND=mcp`, so a turn that
+needs a file calls the tool, the dispatch is audited (one `cortex.tools.audit` line per call), and
+the result is fed back to the model. That line is a bare `tool.invocation` message followed by its
+fields, printed in name order. Which fields it has depends on the call, so it is printed below once
+per shape, each a line `brain/packages/tools/tests/test_audit.py` asserts whole against the shipped
+formatter. In order: a call that succeeded and was made for no chat, turn or task, every id the
+dispatch did not have being left off rather than printed empty; a call that failed, whose `error`
+stands where `result_chars` would; a cortex call, with the chat, the turn and the id the model gave
+the call; a delegated call, naming the task and the turn that spawned it; and a schedule fire, with
+the chat that scheduled the item, the `item_id` of the item that fired, and no turn.
 
 ```text
 INFO:cortex.tools.audit:tool.invocation arguments={"path":"<path>"} at=<timestamp> ok=True result_chars=<size of the result> tool=<tool name> trust=untrusted

@@ -54,6 +54,7 @@ from cortex_core.tool_salience import (
     SaliencePolicy,
 )
 from cortex_core.tool_skips import list_tools, skipped_detail
+from cortex_core.tool_tail import LastLinesToolRegistry
 from cortex_core.tools import (
     UNSTAMPED,
     ConfirmAnswer,
@@ -112,6 +113,7 @@ __all__ = [
     "DispatchRefusal",
     "FilteredToolRegistry",
     "GetVolumeTool",
+    "LastLinesToolRegistry",
     "OwnText",
     "OwnTextRenderer",
     "OwnTextToolRegistry",
