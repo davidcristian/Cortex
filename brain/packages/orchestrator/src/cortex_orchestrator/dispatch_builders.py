@@ -92,10 +92,12 @@ def build_cortex_tools(
     if vision is not None:
         registry = SightedToolRegistry(registry, vision)
     cards = {tool.spec.name: tool for tool in builtins if isinstance(tool, RecordCard)}
-    return ToolDispatcher(
-        registry,
-        setup.audit,
-        clock,
-        confirmer=confirmer,
-        policy=replace(setup.policy, record_cards=cards),
+    # A model can call a built-in by name on a turn whose list left it out, and the dispatcher
+    # then has no spec to read, so its name must be in the policy for the card to show.
+    confirmed = [tool.spec.name for tool in builtins if tool.spec.confirm_required]
+    policy = replace(
+        setup.policy,
+        confirm_names=(*setup.policy.confirm_names, *confirmed),
+        record_cards=cards,
     )
+    return ToolDispatcher(registry, setup.audit, clock, confirmer=confirmer, policy=policy)

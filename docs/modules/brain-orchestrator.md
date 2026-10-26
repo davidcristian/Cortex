@@ -201,13 +201,13 @@ the version string `Health` reports.
   `FilteredToolRegistry` where an allowlist is set, then in a `SkipUnavailableToolRegistry` under
   `skip`, merged behind one `AggregateToolRegistry` when there are several, and outermost an
   `OwnTextToolRegistry` over `EMAIL_OWN_TEXTS` (`own_texts.py`, ADR-0013 decision 10).
-- Every dispatcher is built from one `DispatchSetup` (`dispatch_builders.py`), the `DispatchPolicy`
-  and the audit sink together. `build_builtin_tools` assembles the built-in set once: delegation,
-  the volume tools with a `BodyGateway`, `capture_screen` with a body **and** a model the root
-  confirmed can see, the five schedule tools, `escalate_to_brain` when a handoff can run, and
-  `forget_untrusted_memories` with memory. Only it and `cancel_scheduled` need confirmation unless
-  named in `CORTEX_TOOLS_GATED`; `build_cortex_tools` adds each `RecordCard` built-in to
-  `record_cards`. A subagent's dispatcher has no confirmer and no confirmable tool (`ConfirmFreeToolRegistry`).
+- Every dispatcher is built from one `DispatchSetup` (`dispatch_builders.py`): the `DispatchPolicy` and
+  the audit sink. `build_builtin_tools` assembles the built-in set once: delegation, the volume tools with
+  a `BodyGateway`, `capture_screen` with a body **and** a model the root confirmed can see, the five
+  schedule tools, `escalate_to_brain` when a handoff can run, and `forget_untrusted_memories` with memory.
+  Only it and `cancel_scheduled` need confirmation unless named in `CORTEX_TOOLS_GATED`. `build_cortex_tools`
+  puts each `RecordCard` built-in in `record_cards` and each confirmable one in `confirm_names`, so a call by
+  name the turn's list omits still shows a card. A subagent's dispatcher has no confirmer and no confirmable tool (`ConfirmFreeToolRegistry`).
 - `StreamEngines.for_stream` (`engines.py`) is the engine factory, an object built once rather than
   closures over the root's locals. It reads no env, opens no resource and picks no adapter: per
   stream it builds that stream's `TurnCapabilities` and returns, inside a `SerialTurnRunner` over
