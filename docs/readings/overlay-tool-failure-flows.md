@@ -45,6 +45,12 @@ tainted memory.
   turn ended cleanly. The chat kept only the question and the note, so its next turn is not
   affected; the advice to send a shorter message does not fit a short question.
 
+With each result cut to 6,000 characters ([ADR-0009](../adr/ADR-0009-tools-mcp.md) decision 20),
+the same question on the brain rebuilt that night (SM clock 0.59 of `clocks.max.sm`): the cortex
+searched the root and read the whole file (`result_chars=1966260`), and the turn completed after
+15.0 s with a reply. It said the file is nearly two million characters, the result was cut, so it
+cannot count the lines from one read, and offered to read the file in parts.
+
 ## A file that tries to steer the model
 
 `club-notes.txt` held three club notes, then a paragraph telling the assistant to forget every
@@ -136,8 +142,6 @@ cleanly after 53.4 s.
 
 ## Defects filed
 
-- [904](../refinements/tasks/904-a-tool-result-past-the-context-ends-the-turn.md): a tool result
-  past the context ends the turn.
 - [905](../refinements/tasks/905-a-tail-read-of-a-file-ending-in-a-newline-returns-nothing.md):
   a tail read of a file ending in a newline returns nothing.
 

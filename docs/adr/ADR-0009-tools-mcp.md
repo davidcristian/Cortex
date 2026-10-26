@@ -7,15 +7,11 @@
 The cortex needs to call tools: a filesystem first, then email, and later the body-backed OS
 actions. Every call reaches outside the process on the user's behalf, so every call has to be
 audited, and every later tool goes through the same audited path, to MCP servers behind one port.
-
-Two existing interfaces frame this. The cortex talks to models through `InferenceBackend`
-([ADR-0005](ADR-0005-llamacpp-engine.md), [ADR-0007](ADR-0007-model-manager-inference.md)), and for
-a model to call a tool it has to be able to decide to, which a text-only `stream()` cannot express.
-The user reads mail through ProtonMail, so a local ProtonMail Bridge exposing IMAP on the host is
-the email tool's target.
-
-A model that can call tools can also call them too often, repeat one call, or wait on a sidecar
-that never replies, so each of those has a limit below.
+The cortex talks to models through `InferenceBackend` ([ADR-0005](ADR-0005-llamacpp-engine.md),
+[ADR-0007](ADR-0007-model-manager-inference.md)), whose text-only `stream()` cannot express a tool
+call. The email tool's target is a local ProtonMail Bridge exposing IMAP on the host. A model that
+can call tools can also call them too often, repeat one call, wait on a sidecar that never replies,
+or read more than its context holds, so each of those has a limit below.
 
 ## Decision
 
@@ -199,7 +195,7 @@ that never replies, so each of those has a limit below.
     dispatch, since the log line was already written. Rotation is the operator's: a `mv` is a
     complete rotation. A Postgres table was rejected: it would tie the audit to the memory backend.
 
-### Images in a result
+### What a result puts in the prompt
 
 19. **An MCP image block is passed into the result, sized from its header.**
     `McpToolRegistry.invoke` puts `ImageContent` into `ToolResult.images`, so the model sees the
@@ -208,8 +204,13 @@ that never replies, so each of those has a limit below.
     limited to `MAX_JPEG_SEGMENTS` (512) steps with every length at least two bytes and checked
     against the buffer, stopping before scan data, and WebP from its first chunk in all three forms.
     Bad base64, an unrecognized signature, a truncated header, an edge past `MAX_IMAGE_EDGE` or a
-    mime type outside `ALLOWED_MIME_TYPES` raise `ImageError`, crossed as `ToolError`. The mime type
-    is the sidecar's declaration checked against the allow-list, not against the bytes.
+    declared mime type outside `ALLOWED_MIME_TYPES` raise `ImageError`, crossed as `ToolError`.
+20. **A result is cut to `MAX_RESULT_CHARS` (6,000) before it enters the prompt.** `cut_result`
+    (`tool_round.py`) keeps the head to its last line break in the second half; `RESULT_CUT_NOTE`,
+    after the fence, gives both lengths and says to ask for a smaller part (`head` or `tail` of a
+    file) or tell the person. 6,000 is 3,640 tokens at a pasted log's 1.65 characters a token; with
+    a full plain-English window and the fixed prompt ([ADR-0014](ADR-0014-history-windowing.md)
+    decision 4), 2,860 of 16,384 remain to reply. Several cut results can still overflow one turn.
 
 ## Consequences
 

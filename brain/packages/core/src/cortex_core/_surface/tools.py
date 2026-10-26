@@ -37,8 +37,11 @@ from cortex_core.tool_deadline import (
 )
 from cortex_core.tool_round import (
     MAX_CALLS_PER_ROUND,
+    MAX_RESULT_CHARS,
+    RESULT_CUT_NOTE,
     RoundPlan,
     call_message,
+    cut_result,
     plan_round,
     result_message,
 )
@@ -84,9 +87,11 @@ __all__ = [
     "LISTING_OVERRAN_MSG",
     "MAX_CALLS_PER_ROUND",
     "MAX_IDENTICAL_DISPATCHES",
+    "MAX_RESULT_CHARS",
     "MAX_TOOL_DISPATCHES",
     "REDUNDANT_MSG",
     "REPEAT_SALIENCE",
+    "RESULT_CUT_NOTE",
     "ROUND_OVERSIZED_MSG",
     "SET_VOLUME_TOOL_NAME",
     "UNIFORM_COST",
@@ -128,6 +133,7 @@ __all__ = [
     "TurnStamp",
     "VisionProbe",
     "call_message",
+    "cut_result",
     "list_tools",
     "plan_round",
     "result_message",

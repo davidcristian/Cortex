@@ -103,11 +103,11 @@ repeat; and `plan_round` caps how wide one round may be. A call is charged only 
 `dispatcher.admits` passes, so a refused repeat costs nothing, and calls past the allowance are
 still dispatched, so their `Role.TOOL` answers exist and their refusals are audited.
 
-`plan_round(calls) -> RoundPlan` (`tool_round.py`, ADR-0009 decision 13) is the pure per-round cap.
-A round at or under `MAX_CALLS_PER_ROUND` (16, half of `MAX_TOOL_DISPATCHES`) passes through; a
-wider one is cut to the cap plus one overflow slot, and the rest are dropped rather than refused.
-The overflow slot is refused as `ROUND_OVERSIZED` ahead of every other bound. The module also owns
-`call_message` and `result_message`, the two messages a round appends.
+`plan_round(calls) -> RoundPlan` (`tool_round.py`, ADR-0009 decision 13) is the pure per-round cap:
+a round over `MAX_CALLS_PER_ROUND` (16, half of `MAX_TOOL_DISPATCHES`) is cut to the cap plus one
+overflow slot, refused as `ROUND_OVERSIZED` ahead of every other bound, and the rest are dropped.
+The module also owns `call_message` and `result_message`, the two messages a round appends, and
+`cut_result`, which cuts a result past `MAX_RESULT_CHARS` and adds a note (decision 20).
 
 The loop draws the untrusted boundary (ADR-0013): each call is dispatched with the turn's taint state and the
 tool's `confirm_required` flag, each result is observed by `context.taint`, and an `UNTRUSTED` result is fenced
