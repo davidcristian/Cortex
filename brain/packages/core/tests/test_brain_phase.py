@@ -1,6 +1,7 @@
 import logging
 import re
 from collections.abc import AsyncGenerator, Mapping, Sequence
+from dataclasses import replace
 from datetime import UTC, datetime
 
 import pytest
@@ -15,10 +16,12 @@ from cortex_core import (
     DENIED_MSG,
     ESCALATION_QUEUED_MSG,
     NO_CADENCE_TERMS,
+    NO_ROOM_NOTE,
     RECALL_DENIED_MSG,
     REDACTED,
     REPEATED_LINE_NOTE,
     REPLY_CAPPED_NOTE,
+    RESULT_ROOM_CHARS,
     UNREADABLE_CALL_NOTE,
     UNSCHEDULED_CLAIM_NOTE,
     USER_DECLINED_MSG,
@@ -371,6 +374,32 @@ async def test_a_call_declined_before_the_handoff_is_not_asked_again_after_it() 
     assert [request.arguments for request in confirmer.requests] == [{"path": "b"}]
     refused = next(message for message in backend.seen if message.tool_call_id == "c2")
     assert refused.text == ALREADY_DECLINED_MSG
+
+
+async def _deep_read_after(tail: Sequence[Message]) -> str:
+    async def handler(arguments: Mapping[str, object]) -> str:
+        del arguments
+        return "y" * 1_000
+
+    registry = InMemoryToolRegistry({"read": (ToolSpec("read", "read", {}), handler)})
+    dispatcher = ToolDispatcher(registry, RecordingAuditSink(), SystemClock())
+    backend = ScriptedBrainBackend(
+        chunks=("done",), tool_calls=(ToolCall(id="c9", name="read", arguments={"path": "c"}),)
+    )
+    await _drive(capabilities=TurnCapabilities(tools=dispatcher), backend=backend, tail=tail)
+    return next(message.text for message in backend.seen if message.tool_call_id == "c9")
+
+
+async def test_a_deep_read_has_no_room_the_cortexs_results_already_filled() -> None:
+    text = await _deep_read_after(_read_round("c0", "a", "x" * RESULT_ROOM_CHARS))
+    assert text == NO_ROOM_NOTE.format(total=1_000)
+
+
+async def test_the_cortexs_own_words_in_the_tail_leave_the_room_to_the_deep_read() -> None:
+    call, result = _read_round("c0", "a", "ok")
+    text = await _deep_read_after((replace(call, text="x" * RESULT_ROOM_CHARS), result))
+    assert "y" * 1_000 in text
+    assert "(This result" not in text
 
 
 async def test_the_deep_phases_reply_records_the_tool_runs_it_made() -> None:

@@ -81,6 +81,7 @@ class BrainPhase:
         taint = record.taint_ledger()
         watch = CadenceWatch(self._cadence.floor_tps)
         stops = StopLedger()
+        tail = deep_tail(record)
         context = ToolLoopContext(
             dispatcher=self._caps.tools,
             clock=self._clock,
@@ -98,11 +99,12 @@ class BrainPhase:
             bounds=self._caps.bounds,
             generating=_DEEP_GENERATING,
             declined=declined_calls(record),
+            results_spent=sum(len(m.text) for m in tail if m.role is Role.TOOL),
         )
         assembled = await assemble_inference_messages(
             query, history, self._caps, context, self._clock
         )
-        working = [*assembled, *deep_tail(record)]
+        working = [*assembled, *tail]
         channels = open_output_channels(self._caps.guardrail, taint, query)
         parts: list[str] = []
         failure: InferenceError | None = None

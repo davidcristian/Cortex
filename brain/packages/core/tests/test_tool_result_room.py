@@ -238,6 +238,11 @@ def test_a_whole_note_takes_its_length_from_the_room_and_never_less_than_none() 
     assert room.left == 0
 
 
+def test_a_room_already_spent_past_its_size_has_none_left() -> None:
+    assert ResultRoom(100, spent=40).left == 60
+    assert ResultRoom(100, spent=150).left == 0
+
+
 def test_a_message_with_no_room_is_the_note_without_a_fence() -> None:
     result = ToolResult(call_id="c1", content="secret text", trust=Trust.UNTRUSTED)
     cut = ResultRoom(0).cut(result.content)

@@ -50,9 +50,9 @@ def _tail(content: str, limit: int) -> str:
 class ResultRoom:
     """The characters of tool results one loop's context still has room for."""
 
-    def __init__(self, chars: int = RESULT_ROOM_CHARS) -> None:
+    def __init__(self, chars: int = RESULT_ROOM_CHARS, *, spent: int = 0) -> None:
         self._chars = chars
-        self._left = chars
+        self._left = max(chars - spent, 0)
 
     @property
     def left(self) -> int:

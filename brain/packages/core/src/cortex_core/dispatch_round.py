@@ -46,6 +46,8 @@ class ToolLoopContext:
     generating: Wait = GENERATING
     # The calls the person pressed Deny on in this loop, so an identical one is not asked again.
     declined: list[ToolCall] = field(default_factory=list[ToolCall])
+    # The characters of tool results already in ``working`` from a loop this one continues.
+    results_spent: int = 0
 
     @property
     def unit_id(self) -> str:

@@ -8,6 +8,7 @@ from cortex_core.inference import DecodeCadence, DecodeStop, ReasoningChunk, Tex
 from cortex_core.loop_events import ReasoningDelta, StepOutcome, ToolStep
 from cortex_core.ports import InferenceBackend
 from cortex_core.progress import hold_wait
+from cortex_core.tool_cut import ResultRoom
 from cortex_core.tool_round import call_message, plan_round
 from cortex_core.tool_skips import list_tools
 from cortex_core.tools import ToolCall, ToolSpec
@@ -61,7 +62,7 @@ async def stream_tool_loop(
     specs, spec_by_name = await _turn_tools(context)
     # Per loop rather than per turn: a repeat is redundant only against the ``working`` messages
     # that already hold its answer, and the results share the room of that one request.
-    record = LoopRecord()
+    record = LoopRecord(room=ResultRoom(spent=context.results_spent))
     for _step in range(MAX_TOOL_STEPS):
         calls: list[ToolCall] = []
         step_text: list[str] = []
