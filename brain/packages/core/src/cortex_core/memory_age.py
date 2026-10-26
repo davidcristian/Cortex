@@ -12,6 +12,9 @@ _UNITS = (
 def written_ago(at: datetime, now: datetime) -> str:
     """The age of a memory written at ``at``, in its largest whole unit: ``3 days ago``."""
     elapsed = now - at
+    # A date after now was written under a clock that ran ahead, so it says nothing about order.
+    if elapsed < timedelta(0):
+        return "age unknown"
     for unit, name in _UNITS:
         count = elapsed // unit
         if count >= 1:

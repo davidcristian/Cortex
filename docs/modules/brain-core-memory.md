@@ -68,7 +68,8 @@ pool down to the hits one turn sees. The turn that calls it is in
   (greedy maximal marginal relevance) and `RecencyMmrRecallPolicy` (that selection over the recency
   blend). `JudgeRecallPolicy(backend, model, *, pool_factor, fallback=RAW_RECALL_POLICY)`
   (`rerank_judge.py`) asks the resident model to order the pool, each note after its age
-  (`memory_age.py`), under a JSON-schema-constrained request using `rank_bounds(k)`
+  (`memory_age.py`, "(age unknown)" for a date after now, which a clock that ran ahead wrote, so it
+  never reads as the newest), under a JSON-schema-constrained request using `rank_bounds(k)`
   (`max_tokens=24 + 8k`, thinking off, trace budget zero) and falls back on any failure; an
   **empty** order is the model declining the pool and returns an empty ranking on the `DEMUR` basis
   without the fallback (ADR-0038 decision 11). A similarity floor was calibrated and **declined**

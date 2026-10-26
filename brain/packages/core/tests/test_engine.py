@@ -378,14 +378,15 @@ async def test_empty_memory_adds_no_context_and_records_the_exchange() -> None:
 
 
 async def test_an_exchange_longer_than_the_embedder_takes_is_recorded_whole_and_recalled() -> None:
-    recaller = MemoryRecaller(InMemoryMemoryStore(), HashEmbedder(), SystemClock())
+    clock = TickingClock()
+    recaller = MemoryRecaller(InMemoryMemoryStore(), HashEmbedder(), clock)
     question = "東" * EMBED_INPUT_CHARS
     reply = "a long answer " * EMBED_INPUT_CHARS
     backend = RecordingBackend((reply,))
     engine = TurnEngine(
         InMemorySessionStore(),
         backend,
-        TickingClock(),
+        clock,
         capabilities=TurnCapabilities(memory=recaller),
     )
     await _collect(engine.handle_turn("first", question, turn_id="t-1"))
