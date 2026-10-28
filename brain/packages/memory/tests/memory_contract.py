@@ -44,9 +44,16 @@ def make_record(
     at: datetime = _AT,
     scope: str = GLOBAL_SCOPE,
     tainted: bool = False,
+    session_id: str | None = None,
 ) -> MemoryRecord:
     return MemoryRecord(
-        id=_id(), text=text, embedding=embedding, at=at, scope=scope, tainted=tainted
+        id=_id(),
+        text=text,
+        embedding=embedding,
+        at=at,
+        scope=scope,
+        tainted=tainted,
+        session_id=session_id,
     )
 
 
@@ -101,6 +108,7 @@ async def check_roundtrip_fidelity(under_test: MemoryStoreUnderTest) -> None:
         at=datetime(2026, 7, 3, 17, 45, 30, tzinfo=timezone(timedelta(hours=5, minutes=30))),
         scope="contract-scope",
         tainted=True,
+        session_id="contract-writer",
     )
     await store.add(original)
     (hit,) = await store.search((1.0, 0.5, -0.25), k=1, scopes=["contract-scope"])
@@ -110,6 +118,13 @@ async def check_roundtrip_fidelity(under_test: MemoryStoreUnderTest) -> None:
     assert hit.record.scope == original.scope
     assert hit.record.tainted is True
     assert hit.record.at == original.at
+    assert hit.record.session_id == "contract-writer"
+    unknown = make_record(
+        "written before sessions were kept", (0.0, 0.0, 1.0), scope="contract-old"
+    )
+    await store.add(unknown)
+    (old,) = await store.search((0.0, 0.0, 1.0), k=1, scopes=["contract-old"])
+    assert old.record.session_id is None
 
 
 async def check_scope_filter_isolates_and_unions(under_test: MemoryStoreUnderTest) -> None:
@@ -290,6 +305,28 @@ async def check_delete_ids_removes_only_the_listed_rows(under_test: MemoryStoreU
     assert await store.delete_ids([]) == 0
 
 
+async def check_delete_written_by_removes_only_that_sessions_rows(
+    under_test: MemoryStoreUnderTest,
+) -> None:
+    """``delete_written_by`` removes and counts one session's rows in any scope, and no others."""
+    store = under_test.store
+    writer = f"contract-writer-{uuid4()}"
+    scope = f"contract-written-{uuid4()}"
+    other = f"contract-written-other-{uuid4()}"
+    doomed = make_record("wifi Plum", (1.0, 0.0, 0.0), scope=scope, session_id=writer)
+    doomed_elsewhere = make_record(
+        "card 4242", (1.0, 0.0, 0.0), scope=other, tainted=True, session_id=writer
+    )
+    by_another = make_record("router", (1.0, 0.0, 0.0), scope=scope, session_id=f"{writer}-b")
+    unknown = make_record("older", (1.0, 0.0, 0.0), scope=scope)
+    for record in (doomed, doomed_elsewhere, by_another, unknown):
+        await store.add(record)
+    assert await store.delete_written_by(writer) == 2
+    hits = await store.search((1.0, 0.0, 0.0), k=10, scopes=[scope, other])
+    assert sorted(hit.record.id for hit in hits) == sorted([by_another.id, unknown.id])
+    assert await store.delete_written_by(writer) == 0
+
+
 async def check_add_refuses_a_record_whose_recalled_memory_was_deleted_by_id(
     under_test: MemoryStoreUnderTest,
 ) -> None:
@@ -346,6 +383,7 @@ async def check_a_lost_backend_crosses_the_port_as_memory_store_error(
     await _refuses_typed(lambda: store.delete_scope(scope), "delete_scope")
     await _refuses_typed(lambda: store.delete_tainted(scopes=[scope]), "delete_tainted")
     await _refuses_typed(lambda: store.delete_ids(["contract-gone"]), "delete_ids")
+    await _refuses_typed(lambda: store.delete_written_by("contract-gone"), "delete_written_by")
     await _refuses_typed(lambda: store.find_text("after", limit=5, scopes=[scope]), "find_text")
 
 
@@ -367,6 +405,7 @@ ALL_CHECKS: Sequence[Check] = (
     check_add_stores_a_record_whose_recalled_memories_all_exist,
     check_add_refuses_a_record_whose_recalled_memory_was_deleted,
     check_delete_ids_removes_only_the_listed_rows,
+    check_delete_written_by_removes_only_that_sessions_rows,
     check_add_refuses_a_record_whose_recalled_memory_was_deleted_by_id,
     check_find_text_returns_the_rows_containing_the_text_oldest_first,
 )

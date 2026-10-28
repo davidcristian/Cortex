@@ -13,8 +13,8 @@ business logic and no state beyond the injected pool (the one hard rule).
 
 ### `PgVectorMemoryStore(db: Database)`
 
-- `add(record, *, recalled=())` is `INSERT (id, text, embedding, scope, tainted, created_at)
-  SELECT ...` with `embedding = $3::vector`, the vector passed as a pgvector text literal such as
+- `add(record, *, recalled=())` is `INSERT (id, text, embedding, scope, tainted, created_at,
+  session_id) SELECT ...` with `embedding = $3::vector`, the vector passed as a pgvector text literal such as
   `[0.1,0.2]`. `tainted` is the untrusted-provenance marker (ADR-0019). The insert's own `WHERE`
   takes a `FOR SHARE` lock on each distinct id in `recalled`, in id order, and inserts only when
   all of them are still there, and `add` returns whether the `INSERT 0 n` tag counted the row. A forget's
@@ -22,7 +22,7 @@ business logic and no state beyond the injected pool (the one hard rule).
   recalled row makes the insert store nothing (ADR-0019 decision 9).
 - `search(embedding, *, k, scopes=None)` is `ORDER BY embedding <=> $1::vector LIMIT $2`, mapping
   each row to `ScoredMemory(record, score = 1 - distance)`, most similar first, with each record
-  keeping its `scope` and `tainted`. It reads the vector back through `embedding::text`, so no
+  keeping its `scope`, `tainted` and `session_id`. It reads the vector back through `embedding::text`, so no
   driver-side vector type has to be registered. A non-`None` `scopes` adds `WHERE scope = ANY($3)`
   to filter candidates to those namespaces before ranking (ADR-0008 decision 9); `None` ranks over
   every memory.
@@ -54,6 +54,9 @@ business logic and no state beyond the injected pool (the one hard rule).
 - `find_text(text, *, limit, scopes=None)` is a `SELECT` of the record columns `WHERE
   strpos(lower(text), lower($1)) > 0`, with the scope filter `search` uses, `ORDER BY created_at,
   id LIMIT $2`. No index serves it, so it scans the table; only a forget calls it.
+- `delete_written_by(session_id)` is `DELETE FROM memories WHERE id IN (SELECT id FROM memories
+  WHERE session_id = $1 ORDER BY id FOR UPDATE)`, served by `memories_session_idx`, one pass,
+  counted and locked in id order as `delete_ids` is. The session-delete cascade calls it.
 - `delete_scope(scope)` is `DELETE FROM memories WHERE scope = $1` (the `memories_scope_idx` btree
   serves the equality, so no schema change), returning the row count parsed from asyncpg's
   `DELETE n` command tag: 0 when the scope holds none, and a malformed tag wrapped as
@@ -162,16 +165,17 @@ swallowed failure would be a privacy defect.
 ## Schema
 
 The schema belongs to the deployment, not the adapter: `CREATE EXTENSION vector;` plus
-`memories(id text pk, text text, embedding vector, scope text not null default 'global', tainted boolean not null default false, created_at timestamptz)`
-plus a btree `memories_scope_idx` on `scope`. The `embedding` column is unbounded (any dimension)
+`memories(id text pk, text text, embedding vector, scope text not null default 'global', tainted boolean not null default false, created_at timestamptz, session_id text)`
+plus btrees `memories_scope_idx` on `scope` and `memories_session_idx` on `session_id`. The `embedding` column is unbounded (any dimension)
 and unindexed, an exact cosine scan measured at 21 ms per search over a thousand memories and 1,478
 ms over 220,000, so it is fine for months of use and dominant after years; an ANN index (fixed
 dimension) is a later tuning, deferred on recall quality and on the dimension-agnostic column it
 would end rather than on speed (ADR-0008, ADR-0004 decision 4, with the numbers in
-`docs/readings/model-lineup.md`). `scope` is the memory's namespace (ADR-0008 decision 9) and
-`tainted` its untrusted-provenance marker (ADR-0019); each column's `DEFAULT` makes it an additive
-`ALTER TABLE … ADD COLUMN` on an existing database, back-filling every old row into the global space
-and as trusted, since they were only ever written by untainted turns (the migration is in the
+`docs/readings/model-lineup.md`). `scope` is the memory's namespace (ADR-0008 decision 9),
+`tainted` its untrusted-provenance marker (ADR-0019) and `session_id` the session that wrote it
+(ADR-0021 decision 11). Each is an additive `ALTER TABLE … ADD COLUMN` on an existing database:
+the `DEFAULT`s back-fill every old row into the global space and as trusted, since they were only
+ever written by untainted turns, and `session_id` stays NULL on them (the migration is in the
 runbook). It is applied by `docker/postgres/init.sql` through `docker/docker-compose.memory.yml`.
 pgvector stores float4, so embeddings round-trip at single precision, which does not affect
 similarity ranking.
@@ -190,7 +194,7 @@ similarity ranking.
   `MemoryStoreUnderTest`, the implementation plus an awaited `break_backend`, so the port's failure
   channel is checked where its values are: the eleventh check breaks the backend and requires each
   verb (`add`, `search`, `count_candidates`, `count_tainted`, `delete_scope`, `delete_tainted`,
-  `delete_ids`, `find_text`) to raise
+  `delete_ids`, `delete_written_by`, `find_text`) to raise
   `MemoryStoreError`, not the driver's exception nor `MemoryDataError`, since an outage misread as
   a data defect would fail the very turn the degradation exists to save. The other direction is
   deliberately not a shared check: the in-memory twin decodes nothing, so only the implementation

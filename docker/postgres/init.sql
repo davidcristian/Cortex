@@ -9,7 +9,9 @@ CREATE TABLE IF NOT EXISTS memories (
     embedding  vector      NOT NULL,
     scope      text        NOT NULL DEFAULT 'global',
     tainted    boolean     NOT NULL DEFAULT false,
-    created_at timestamptz NOT NULL
+    created_at timestamptz NOT NULL,
+    session_id text
 );
 
 CREATE INDEX IF NOT EXISTS memories_scope_idx ON memories (scope);
+CREATE INDEX IF NOT EXISTS memories_session_idx ON memories (session_id);

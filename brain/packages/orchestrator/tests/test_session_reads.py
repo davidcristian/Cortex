@@ -223,7 +223,7 @@ class FailingStore:
 
 
 class FailingMemoryStore:
-    """A MemoryStore whose delete_scope raises, to drive DeleteSession's MemoryStoreError abort."""
+    """A MemoryStore whose deletes raise, to drive DeleteSession's MemoryStoreError abort."""
 
     async def add(self, record: MemoryRecord, *, recalled: Sequence[str] = ()) -> bool:
         del record, recalled
@@ -258,6 +258,11 @@ class FailingMemoryStore:
         msg = "pgvector is down"
         raise MemoryStoreError(msg)
 
+    async def delete_written_by(self, session_id: str) -> int:
+        del session_id
+        msg = "pgvector is down"
+        raise MemoryStoreError(msg)
+
     async def find_text(
         self, text: str, *, limit: int, scopes: Sequence[str] | None = None
     ) -> Sequence[MemoryRecord]:
@@ -267,10 +272,10 @@ class FailingMemoryStore:
 
 
 class UndecodableMemoryStore(FailingMemoryStore):
-    """A MemoryStore whose delete_scope answers with a reply this repo cannot read."""
+    """A MemoryStore whose delete_written_by answers with a reply this repo cannot read."""
 
-    async def delete_scope(self, scope: str) -> int:
-        del scope
+    async def delete_written_by(self, session_id: str) -> int:
+        del session_id
         msg = "malformed delete status from the memory store"
         raise MemoryDataError(msg)
 

@@ -27,11 +27,13 @@ pool down to the hits one turn sees. The turn that calls it is in
   in those namespaces, or in all of them, and `count_tainted(*, scopes=None) -> int` counts them.
   `delete_ids(ids) -> int` removes the listed rows in any scope and counts them; an id not stored
   adds nothing, and `find_text(text, *, limit, scopes=None)` returns the rows whose text contains
-  `text`, case ignored, oldest first (ADR-0075). `add` stores the record only while every memory id in
+  `text`, case ignored, oldest first (ADR-0075). `delete_written_by(session_id) -> int` removes and
+  counts every row that session wrote, in any scope (ADR-0021 decision 11). `add` stores the record only while every memory id in
   `recalled` still exists and returns whether it did, so a reply that recalled a memory a forget
   removed is not stored again. Fake: `InMemoryMemoryStore`; adapter: `cortex_memory`.
-- `MemoryRecord(id, text, embedding, at, scope=GLOBAL_SCOPE, tainted=False)` is one durable memory
-  and rejects a naive `at`. `ScoredMemory(record, score)` is a retrieval hit and the store's **raw
+- `MemoryRecord(id, text, embedding, at, scope=GLOBAL_SCOPE, tainted=False, session_id=None)` is
+  one durable memory and rejects a naive `at`; `MemoryRecaller.record` sets `session_id` to the
+  writing session, and `None` marks a row stored before that was kept. `ScoredMemory(record, score)` is a retrieval hit and the store's **raw
   cosine similarity**, never the key a policy ranked by, so no caller can infer an order from it.
 - `MemoryRecaller(store, embedder, clock, *, scope=GLOBAL_MEMORY_SCOPE, policy=RAW_RECALL_POLICY,
   id_factory=<uuid4>)` is the use case (ADR-0008). `record(text, *, session_id, tainted=False,
@@ -49,8 +51,9 @@ pool down to the hits one turn sees. The turn that calls it is in
   `SessionMemoryScope` writes and reads the session id. Selected through `CORTEX_MEMORY_SCOPE`.
 - `SessionMemoryCascade(store, scope)` (`memory_cascade.py`, ADR-0021 decision 11) is the forget
   behind a session delete, kept out of the recaller and out of every engine, so no tool reaches it.
-  It exposes only `delete_session_memories(session_id) -> int`, cascades only when the scope is the
-  session's own private space, and runs the `GLOBAL_SCOPE` check first.
+  It exposes only `delete_session_memories(session_id) -> int`, which removes every memory the
+  session wrote (`delete_written_by`) and then, when the write scope is the session's own private
+  space and not `GLOBAL_SCOPE`, that scope.
 - `UntrustedMemoryForget(store, scope)` (`memory_forget.py`, ADR-0019 decision 9) is a delete
   a tool reaches: `forget(session_id)` calls `delete_tainted` over the session's read scopes. The
   built-in `ForgetUntrustedTool` over it is `forget_untrusted_memories`: no arguments,

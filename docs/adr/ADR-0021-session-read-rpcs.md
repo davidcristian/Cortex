@@ -166,14 +166,14 @@ string ([ADR-0038](ADR-0038-ranked-recall.md) decision 9), the `cortex:sessions`
 rejected: the reads are stateless snapshots and an unknown session already reads as an empty
 history, and "forget this chat" calls for erasure.
 
-The memory cascade stays off the turn path. `MemoryRecaller` exposes record and recall only; the one
-delete a tool reaches, `UntrustedMemoryForget`, removes only tainted rows (ADR-0019 decision 9).
-`SessionMemoryCascade(store, scope)` (`memory_cascade.py`) exposes only `delete_session_memories`,
-is wired into `DeleteSession` and never into an engine, and deletes only when the session's write
-scope is its own (`scope == session_id`), so under the default global scope nothing cascades. The
-`GLOBAL_SCOPE` check runs first, so `GLOBAL_SCOPE` is never handed to `delete_scope`, even for a
-session whose id equals it. The handler deletes the session, then cascades; either store error
-aborts `UNAVAILABLE`, and a retry completes the deletion.
+The memory cascade stays off the turn path: `SessionMemoryCascade(store, scope)` exposes only
+`delete_session_memories` and is wired into `DeleteSession`, never into an engine. Each memory
+records the session that wrote it (`session_id`, `None` on a row older than that column), and the
+cascade removes every row the session wrote with `delete_written_by`, so under the default global
+scope a secret typed in a deleted chat is not recalled in a later chat. A copy another chat stored
+after recalling it stays, and `forget_memories` finds it by text (ADR-0075). A private scope
+(`scope == session_id`, never `GLOBAL_SCOPE`) is then emptied with `delete_scope`. The handler
+deletes the session, then cascades; either store error aborts `UNAVAILABLE`, and a retry completes.
 
 The confirmation is overlay-local: the row's trash control swaps in a confirm and cancel pair.
 Deleting the open chat first tears down its turn (denying a pending confirm and cancelling the

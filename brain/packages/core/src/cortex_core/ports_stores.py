@@ -74,6 +74,10 @@ class MemoryStore(Protocol):
         """Hard-delete the memories whose ids are in ``ids``; return how many were removed."""
         ...
 
+    async def delete_written_by(self, session_id: str) -> int:
+        """Hard-delete every memory ``session_id`` wrote, in any scope; return how many."""
+        ...
+
 
 class TaskStore(Protocol):
     """Hot store for in-flight subagent tasks and their results (Redis)."""

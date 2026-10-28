@@ -2,6 +2,7 @@ import inspect
 from collections.abc import Sequence
 
 from cortex_core import (
+    GlobalMemoryScope,
     MemoryRecord,
     Message,
     ScoredMemory,
@@ -66,6 +67,7 @@ class RecordingMemoryStore:
 
     def __init__(self, events: list[str]) -> None:
         self.deleted_scopes: list[str] = []
+        self.written_by: list[str] = []
         self.events = events
 
     async def add(self, record: MemoryRecord, *, recalled: Sequence[str] = ()) -> bool:
@@ -98,6 +100,11 @@ class RecordingMemoryStore:
     async def delete_ids(self, ids: Sequence[str]) -> int:
         del ids
         raise AssertionError
+
+    async def delete_written_by(self, session_id: str) -> int:
+        self.written_by.append(session_id)
+        self.events.append(f"written:{session_id}")
+        return 0
 
     async def find_text(
         self, text: str, *, limit: int, scopes: Sequence[str] | None = None
@@ -141,7 +148,17 @@ async def test_delete_session_deletes_the_chat_then_cascades_to_memory() -> None
     assert isinstance(reply, DeleteSessionReply)
     assert store.delete_calls == ["gamma"]
     assert mem.deleted_scopes == ["gamma"]
-    assert events == ["delete:gamma", "cascade:gamma"]
+    assert events == ["delete:gamma", "written:gamma", "cascade:gamma"]
+
+
+async def test_delete_session_under_global_scope_deletes_only_what_the_chat_wrote() -> None:
+    events: list[str] = []
+    mem = RecordingMemoryStore(events)
+    cascade = SessionMemoryCascade(mem, GlobalMemoryScope())
+    await delete_session(RecordingStore(events), cascade, "gamma")
+    assert mem.written_by == ["gamma"]
+    assert mem.deleted_scopes == []
+    assert events == ["delete:gamma", "written:gamma"]
 
 
 async def test_delete_session_skips_the_cascade_when_memory_is_off() -> None:

@@ -55,6 +55,7 @@ class MemoryRecaller:
             at=self._clock.now(),
             scope=self._scope.write_scope(session_id),
             tainted=tainted,
+            session_id=session_id,
         )
         if not await self._store.add(record, recalled=recalled):
             return None

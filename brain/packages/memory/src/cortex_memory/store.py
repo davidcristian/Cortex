@@ -13,50 +13,10 @@ from cortex_core import (
     PartialDeleteError,
     ScoredMemory,
 )
+from cortex_memory import statements as sql
 
 # Server failures, client and pool misuse, and socket failures, in that order.
 _WRAPPED = (asyncpg.PostgresError, asyncpg.InterfaceError, OSError)
-
-# The share lock makes a concurrent tainted delete wait for this insert to commit, and a recalled
-# row that delete already removed is not counted, so the record is not stored. Both statements lock
-# in id order, so neither can hold a row the other waits on while it waits on one the other holds.
-_INSERT = (
-    "INSERT INTO memories (id, text, embedding, scope, tainted, created_at)"
-    " SELECT $1, $2, $3::vector, $4, $5, $6"
-    " WHERE (SELECT count(*) FROM (SELECT id FROM memories WHERE id = ANY($7::text[])"
-    " ORDER BY id FOR SHARE) AS kept) = $8"
-)
-# $1 is the vector and $2 the limit in both search statements, so the scoped one can reuse the
-# same leading arguments and append its scope list as $3.
-_SELECT = (
-    "SELECT id, text, embedding::text AS embedding, scope, tainted, created_at,"
-    " 1 - (embedding <=> $1::vector) AS score FROM memories"
-)
-_SEARCH_ALL = f"{_SELECT} ORDER BY embedding <=> $1::vector LIMIT $2"
-_SEARCH_SCOPED = f"{_SELECT} WHERE scope = ANY($3) ORDER BY embedding <=> $1::vector LIMIT $2"
-_FIND = (
-    "SELECT id, text, embedding::text AS embedding, scope, tainted, created_at FROM memories"
-    " WHERE strpos(lower(text), lower($1)) > 0"
-)
-_FIND_ALL = f"{_FIND} ORDER BY created_at, id LIMIT $2"
-_FIND_SCOPED = f"{_FIND} AND scope = ANY($3) ORDER BY created_at, id LIMIT $2"
-_COUNT_ALL = "SELECT count(*) AS total FROM memories"
-_COUNT_SCOPED = f"{_COUNT_ALL} WHERE scope = ANY($1)"
-_COUNT_TAINTED = f"{_COUNT_ALL} WHERE tainted"
-_COUNT_TAINTED_SCOPED = f"{_COUNT_TAINTED} AND scope = ANY($1)"
-_DELETE_SCOPE = "DELETE FROM memories WHERE scope = $1"
-_DELETE_TAINTED = (
-    "DELETE FROM memories WHERE id IN"
-    " (SELECT id FROM memories WHERE tainted ORDER BY id FOR UPDATE)"
-)
-_DELETE_TAINTED_SCOPED = (
-    "DELETE FROM memories WHERE id IN"
-    " (SELECT id FROM memories WHERE tainted AND scope = ANY($1) ORDER BY id FOR UPDATE)"
-)
-_DELETE_IDS = (
-    "DELETE FROM memories WHERE id IN"
-    " (SELECT id FROM memories WHERE id = ANY($1::text[]) ORDER BY id FOR UPDATE)"
-)
 
 
 class Row(Protocol):
@@ -100,6 +60,7 @@ def _to_record(row: Row) -> MemoryRecord:
         at=row["created_at"],
         scope=row["scope"],
         tainted=row["tainted"],
+        session_id=row["session_id"],
     )
 
 
@@ -166,13 +127,14 @@ class PgVectorMemoryStore:
         try:
             status = await self._bounded(
                 self._db.execute(
-                    _INSERT,
+                    sql.INSERT,
                     record.id,
                     record.text,
                     _to_literal(record.embedding),
                     record.scope,
                     record.tainted,
                     record.at,
+                    record.session_id,
                     kept,
                     len(kept),
                 )
@@ -192,9 +154,11 @@ class PgVectorMemoryStore:
         try:
             literal = _to_literal(embedding)
             if scopes is None:
-                rows = await self._bounded(self._db.fetch(_SEARCH_ALL, literal, k))
+                rows = await self._bounded(self._db.fetch(sql.SEARCH_ALL, literal, k))
             else:
-                rows = await self._bounded(self._db.fetch(_SEARCH_SCOPED, literal, k, list(scopes)))
+                rows = await self._bounded(
+                    self._db.fetch(sql.SEARCH_SCOPED, literal, k, list(scopes))
+                )
             return tuple(_to_scored(row) for row in rows)
         except _WRAPPED as err:
             msg = "memory search failed"
@@ -209,9 +173,11 @@ class PgVectorMemoryStore:
         """The first ``limit`` memories of ``scopes`` whose text contains ``text``, case ignored."""
         try:
             if scopes is None:
-                rows = await self._bounded(self._db.fetch(_FIND_ALL, text, limit))
+                rows = await self._bounded(self._db.fetch(sql.FIND_ALL, text, limit))
             else:
-                rows = await self._bounded(self._db.fetch(_FIND_SCOPED, text, limit, list(scopes)))
+                rows = await self._bounded(
+                    self._db.fetch(sql.FIND_SCOPED, text, limit, list(scopes))
+                )
             return tuple(_to_record(row) for row in rows)
         except _WRAPPED as err:
             msg = "finding memories by text failed"
@@ -222,11 +188,13 @@ class PgVectorMemoryStore:
 
     async def count_candidates(self, *, scopes: Sequence[str] | None = None) -> int:
         """Return how many memories ``scopes`` holds, the width ``search`` ranked over."""
-        return await self._count(_COUNT_ALL, _COUNT_SCOPED, scopes, "memory candidates")
+        return await self._count(sql.COUNT_ALL, sql.COUNT_SCOPED, scopes, "memory candidates")
 
     async def count_tainted(self, *, scopes: Sequence[str] | None = None) -> int:
         """Return how many tainted memories ``scopes`` holds (all scopes when None)."""
-        return await self._count(_COUNT_TAINTED, _COUNT_TAINTED_SCOPED, scopes, "tainted memories")
+        return await self._count(
+            sql.COUNT_TAINTED, sql.COUNT_TAINTED_SCOPED, scopes, "tainted memories"
+        )
 
     async def _count(
         self, every: str, scoped: str, scopes: Sequence[str] | None, counted: str
@@ -248,7 +216,7 @@ class PgVectorMemoryStore:
     async def delete_scope(self, scope: str) -> int:
         """Hard-delete every memory in ``scope``; return how many rows were removed."""
         try:
-            status = await self._bounded(self._db.execute(_DELETE_SCOPE, scope))
+            status = await self._bounded(self._db.execute(sql.DELETE_SCOPE, scope))
             return _row_count(status)
         except _WRAPPED as err:
             msg = f"deleting memory scope {scope!r} failed"
@@ -273,10 +241,22 @@ class PgVectorMemoryStore:
     async def delete_ids(self, ids: Sequence[str]) -> int:
         """Hard-delete the memories whose ids are in ``ids``; return how many were removed."""
         try:
-            status = await self._bounded(self._db.execute(_DELETE_IDS, sorted(set(ids))))
+            status = await self._bounded(self._db.execute(sql.DELETE_IDS, sorted(set(ids))))
             return _row_count(status)
         except _WRAPPED as err:
             msg = f"deleting {len(ids)} chosen memories failed"
+            raise MemoryStoreError(msg) from err
+        except ValueError as err:
+            msg = "malformed delete status from the memory store"
+            raise MemoryDataError(msg) from err
+
+    async def delete_written_by(self, session_id: str) -> int:
+        """Hard-delete every memory ``session_id`` wrote, in any scope; return how many."""
+        try:
+            status = await self._bounded(self._db.execute(sql.DELETE_WRITTEN_BY, session_id))
+            return _row_count(status)
+        except _WRAPPED as err:
+            msg = "deleting a session's memories failed"
             raise MemoryStoreError(msg) from err
         except ValueError as err:
             msg = "malformed delete status from the memory store"
@@ -286,9 +266,11 @@ class PgVectorMemoryStore:
         """One tainted delete; a record committed while it waited on a share lock is left over."""
         try:
             if scopes is None:
-                status = await self._bounded(self._db.execute(_DELETE_TAINTED))
+                status = await self._bounded(self._db.execute(sql.DELETE_TAINTED))
             else:
-                status = await self._bounded(self._db.execute(_DELETE_TAINTED_SCOPED, list(scopes)))
+                status = await self._bounded(
+                    self._db.execute(sql.DELETE_TAINTED_SCOPED, list(scopes))
+                )
             return _row_count(status)
         except _WRAPPED as err:
             msg = "deleting the tainted memories failed"

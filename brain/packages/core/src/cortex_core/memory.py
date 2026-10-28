@@ -8,7 +8,10 @@ GLOBAL_SCOPE = "global"
 
 @dataclass(frozen=True, slots=True)
 class MemoryRecord:
-    """One durable memory: its text, the embedding retrieval ranks on, and when it was written."""
+    """One durable memory: its text, the embedding retrieval ranks on, when and by which session.
+
+    ``session_id`` is None for a memory stored before the writing session was recorded.
+    """
 
     id: str
     text: str
@@ -16,6 +19,7 @@ class MemoryRecord:
     at: datetime
     scope: str = GLOBAL_SCOPE
     tainted: bool = False
+    session_id: str | None = None
 
     def __post_init__(self) -> None:
         if self.at.tzinfo is None or self.at.tzinfo.utcoffset(self.at) is None:

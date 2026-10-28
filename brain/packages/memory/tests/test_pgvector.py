@@ -52,27 +52,36 @@ class FakeDatabase:
         self.closed = True
 
 
-def _record(*, scope: str = "global", tainted: bool = False) -> MemoryRecord:
+def _record(
+    *, scope: str = "global", tainted: bool = False, session_id: str | None = None
+) -> MemoryRecord:
     return MemoryRecord(
-        id="m-1", text="hi", embedding=(1.0, 0.5), at=_AT, scope=scope, tainted=tainted
+        id="m-1",
+        text="hi",
+        embedding=(1.0, 0.5),
+        at=_AT,
+        scope=scope,
+        tainted=tainted,
+        session_id=session_id,
     )
 
 
 async def test_add_executes_insert_with_a_vector_literal_scope_and_taint() -> None:
     db = FakeDatabase()
-    assert await PgVectorMemoryStore(db).add(_record(scope="work", tainted=True)) is True
+    record = _record(scope="work", tainted=True, session_id="chat-a")
+    assert await PgVectorMemoryStore(db).add(record) is True
     sql, args = db.calls[0]
-    assert "INSERT INTO memories" in sql
-    assert "scope" in sql
-    assert "tainted" in sql
-    assert args == ("m-1", "hi", "[1.0,0.5]", "work", True, _AT, [], 0)
+    assert (
+        "INSERT INTO memories (id, text, embedding, scope, tainted, created_at, session_id)" in sql
+    )
+    assert args == ("m-1", "hi", "[1.0,0.5]", "work", True, _AT, "chat-a", [], 0)
 
 
 async def test_add_locks_each_distinct_recalled_id_and_expects_all_of_them() -> None:
     db = FakeDatabase()
     await PgVectorMemoryStore(db).add(_record(tainted=True), recalled=("r2", "r1", "r2"))
     sql, args = db.calls[0]
-    assert "id = ANY($7::text[]) ORDER BY id FOR SHARE" in sql
+    assert "id = ANY($8::text[]) ORDER BY id FOR SHARE" in sql
     assert args[-2:] == (["r1", "r2"], 2)
 
 
@@ -104,6 +113,7 @@ async def test_search_maps_rows_to_scored_memories_and_sends_the_query() -> None
             "scope": "work",
             "tainted": False,
             "created_at": _AT,
+            "session_id": "chat-a",
             "score": 0.9,
         },
         {
@@ -113,6 +123,7 @@ async def test_search_maps_rows_to_scored_memories_and_sends_the_query() -> None
             "scope": "global",
             "tainted": True,
             "created_at": _AT,
+            "session_id": None,
             "score": 0.1,
         },
     ]
@@ -122,6 +133,7 @@ async def test_search_maps_rows_to_scored_memories_and_sends_the_query() -> None
     assert hits[0].record.embedding == (1.0, 0.0)
     assert hits[0].record.scope == "work"
     assert (hits[0].record.tainted, hits[1].record.tainted) == (False, True)
+    assert (hits[0].record.session_id, hits[1].record.session_id) == ("chat-a", None)
     assert hits[0].score == 0.9
     sql, args = db.calls[0]
     assert "ORDER BY embedding <=>" in sql
@@ -307,6 +319,25 @@ async def test_delete_ids_locks_each_distinct_id_in_order_and_counts_the_rows() 
     ]
 
 
+async def test_delete_written_by_locks_the_sessions_rows_in_order_and_counts_them() -> None:
+    db = FakeDatabase(status="DELETE 3")
+    assert await PgVectorMemoryStore(db).delete_written_by("chat-a") == 3
+    assert db.calls == [(f"{_DELETE} WHERE session_id = $1 ORDER BY id FOR UPDATE)", ("chat-a",))]
+
+
+async def test_delete_written_by_wraps_a_backend_error() -> None:
+    db = FakeDatabase(fail=asyncpg.PostgresError("boom"))
+    with pytest.raises(MemoryStoreError, match="deleting a session's memories") as excinfo:
+        await PgVectorMemoryStore(db).delete_written_by("chat-a")
+    assert not isinstance(excinfo.value, MemoryDataError)
+
+
+async def test_delete_written_by_wraps_a_malformed_status() -> None:
+    db = FakeDatabase(status="DELETE not-a-count")
+    with pytest.raises(MemoryDataError, match="malformed delete status"):
+        await PgVectorMemoryStore(db).delete_written_by("chat-a")
+
+
 async def test_delete_ids_wraps_a_backend_error() -> None:
     db = FakeDatabase(fail=asyncpg.PostgresError("boom"))
     with pytest.raises(MemoryStoreError, match="deleting 1 chosen memories") as excinfo:
@@ -329,6 +360,7 @@ _FOUND = {
     "scope": "global",
     "tainted": False,
     "created_at": _AT,
+    "session_id": None,
 }
 
 
@@ -435,6 +467,7 @@ def _operations(store: PgVectorMemoryStore) -> dict[str, Callable[[], Awaitable[
         "delete": lambda: store.delete_scope("s"),
         "delete tainted": store.delete_tainted,
         "delete ids": lambda: store.delete_ids(["m-1"]),
+        "delete written by": lambda: store.delete_written_by("s"),
         "find text": lambda: store.find_text("hi", limit=1),
     }
 

@@ -134,6 +134,14 @@ class InMemoryMemoryStore:
         self._records = kept
         return removed
 
+    async def delete_written_by(self, session_id: str) -> int:
+        """Hard-delete every memory ``session_id`` wrote, in any scope; return how many."""
+        self._guard()
+        kept = [record for record in self._records if record.session_id != session_id]
+        removed = len(self._records) - len(kept)
+        self._records = kept
+        return removed
+
 
 class RecordingRecallSink:
     """RecallAuditSink that keeps audits in a list so tests can assert the recall trail."""

@@ -180,16 +180,17 @@ re-taints the turn, so it can only re-enter as data. The setting governs only wr
 stored tainted memory is always fenced on recall, and it applies only when
 `CORTEX_MEMORY_BACKEND=pgvector`.
 
-**Upgrading an existing database.** `docker/postgres/init.sql` only runs on a fresh data
-directory, so a volume created before the `scope` and `tainted` columns existed lacks one or both.
-Add them in place; each column's `DEFAULT` back-fills every existing row, into the global space
-and as trusted, so recall is unchanged until you opt into one of those settings:
+**Upgrading an existing database.** `init.sql` runs only on a fresh data directory, and every
+memory write fails on a volume that lacks a column it creates. Add them in place: old rows become
+global and trusted, with no `session_id`, so a chat delete removes none of them:
 
 ```
 docker compose ... exec postgres psql -U cortex -d cortex -c \
   "ALTER TABLE memories ADD COLUMN IF NOT EXISTS scope text NOT NULL DEFAULT 'global'; \
    ALTER TABLE memories ADD COLUMN IF NOT EXISTS tainted boolean NOT NULL DEFAULT false; \
-   CREATE INDEX IF NOT EXISTS memories_scope_idx ON memories (scope);"
+   ALTER TABLE memories ADD COLUMN IF NOT EXISTS session_id text; \
+   CREATE INDEX IF NOT EXISTS memories_scope_idx ON memories (scope); \
+   CREATE INDEX IF NOT EXISTS memories_session_idx ON memories (session_id);"
 ```
 
 An existing volume has two databases holding that table, so run the same statements against

@@ -69,10 +69,17 @@ claimed a deletion that did not happen. The `forget_memories` tool now does it; 
 [forget-chosen-memories.md](forget-chosen-memories.md).
 
 `DeleteSession` on all three chats removed their Redis keys. The `memories` rows stayed (two for
-each secret), as ADR-0021 decides for the `global` scope, and a new chat asked "What is my wifi
-password?" answered "Your wifi password is Plum-Lantern-9052." The overlay's confirm reads "Delete
-this chat?", and nothing tells the person that what the chat taught the assistant stays. Filed as
-[919](../refinements/tasks/919-a-deleted-chat-s-secrets-stay-in-memory-and-come-back-in-a-new-chat.md).
+each secret), since the `global` scope recorded no writer, and a new chat asked "What is my wifi
+password?" answered "Your wifi password is Plum-Lantern-9052."
+
+Each memory now records the session that wrote it, and the delete removes those rows
+([ADR-0021](../adr/ADR-0021-session-read-rpcs.md) decision 11). The repeat, on a brain built from
+the change, wrote the wifi password in chat `s9-a2` and a bike lock code in chat `s9-b`: one row
+each, with its writer. Deleting `s9-a2` left 0 rows holding the wifi password and the bike lock
+row in place. A new chat asked for the wifi password read files, found none, and said it had no
+access to it; a second new chat asked for the bike lock code answered it, and that exchange was
+stored as its own row, which deleting `s9-b` leaves. A first try, `s9-a`, called the file tools,
+so the turn was tainted and recorded nothing.
 
 The deleted chats' text also stayed on the Redis volume. Redis writes every command to its
 append-only file (AOF), and the router password of the deleted first chat was still in

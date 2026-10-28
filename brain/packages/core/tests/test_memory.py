@@ -35,9 +35,16 @@ class _FixedClock:
 
 
 def _record(
-    text: str, embedding: tuple[float, ...], *, record_id: str = "m-1", scope: str = GLOBAL_SCOPE
+    text: str,
+    embedding: tuple[float, ...],
+    *,
+    record_id: str = "m-1",
+    scope: str = GLOBAL_SCOPE,
+    session_id: str | None = None,
 ) -> MemoryRecord:
-    return MemoryRecord(id=record_id, text=text, embedding=embedding, at=_AT, scope=scope)
+    return MemoryRecord(
+        id=record_id, text=text, embedding=embedding, at=_AT, scope=scope, session_id=session_id
+    )
 
 
 def test_memory_record_rejects_a_naive_timestamp() -> None:
@@ -188,15 +195,29 @@ async def test_cascade_forgets_a_session_scoped_chats_own_memories() -> None:
     assert [hit.record.id for hit in kept] == ["b1"]
 
 
-async def test_cascade_does_not_run_under_global_scoping() -> None:
+async def test_cascade_counts_a_private_memory_the_chat_wrote_once() -> None:
     store = _SpyDeleteStore()
-    await store.add(_record("a shared fact", (1.0, 0.0), record_id="g1", scope=GLOBAL_SCOPE))
+    for record_id in ("a1", "a2"):
+        await store.add(
+            _record("fact", (1.0, 0.0), record_id=record_id, scope="chat-a", session_id="chat-a")
+        )
+    cascade = SessionMemoryCascade(store, SessionMemoryScope())
+    assert await cascade.delete_session_memories("chat-a") == 2
+    assert await store.count_candidates() == 0
+
+
+async def test_cascade_under_global_scoping_removes_only_what_the_chat_wrote() -> None:
+    store = _SpyDeleteStore()
+    await store.add(_record("an older fact", (1.0, 0.0), record_id="g1"))
+    await store.add(_record("wifi Plum", (1.0, 0.0), record_id="g2", session_id="chat-a"))
+    await store.add(_record("a fact of b", (1.0, 0.0), record_id="g3", session_id="chat-b"))
+    await store.add(_record("card", (1.0, 0.0), record_id="o1", scope="other", session_id="chat-a"))
     cascade = SessionMemoryCascade(store, GlobalMemoryScope())
-    removed = await cascade.delete_session_memories("any-session")
-    assert removed == 0
+    removed = await cascade.delete_session_memories("chat-a")
+    assert removed == 2
     assert store.deleted_scopes == []
     survived = await store.search([1.0, 0.0], k=5)
-    assert [hit.record.id for hit in survived] == ["g1"]
+    assert sorted(hit.record.id for hit in survived) == ["g1", "g3"]
 
 
 async def test_cascade_never_passes_global_scope_even_for_a_session_named_global() -> None:
@@ -210,14 +231,17 @@ async def test_cascade_never_passes_global_scope_even_for_a_session_named_global
     assert [hit.record.id for hit in survived] == ["g1"]
 
 
-async def test_cascade_refuses_a_shared_bucket_that_is_not_the_session_scope() -> None:
+async def test_cascade_keeps_a_shared_bucket_but_removes_what_the_chat_wrote_there() -> None:
     store = _SpyDeleteStore()
     await store.add(_record("bucket fact", (1.0, 0.0), record_id="k1", scope="shared-bucket"))
+    await store.add(
+        _record("mine", (1.0, 0.0), record_id="k2", scope="shared-bucket", session_id="some")
+    )
     cascade = SessionMemoryCascade(store, _FixedBucketScope())
-    removed = await cascade.delete_session_memories("some-session")
-    assert removed == 0
+    removed = await cascade.delete_session_memories("some")
+    assert removed == 1
     assert store.deleted_scopes == []
-    assert len(await store.search([1.0, 0.0], k=5)) == 1
+    assert [hit.record.id for hit in await store.search([1.0, 0.0], k=5)] == ["k1"]
 
 
 async def test_record_builds_persists_and_returns_the_memory() -> None:
@@ -232,6 +256,7 @@ async def test_record_builds_persists_and_returns_the_memory() -> None:
     assert stored.embedding == tuple(await embedder.embed("remember this"))
     assert stored.scope == GLOBAL_SCOPE
     assert stored.tainted is False
+    assert stored.session_id == "s"
     (hit,) = await recaller.recall("remember this", k=1, session_id="s", turn_id="t")
     assert hit.record == stored
 
@@ -573,6 +598,10 @@ class _PoolStore:
 
     async def delete_ids(self, ids: Sequence[str]) -> int:
         del ids
+        raise AssertionError(_READ_ONLY)
+
+    async def delete_written_by(self, session_id: str) -> int:
+        del session_id
         raise AssertionError(_READ_ONLY)
 
     async def find_text(

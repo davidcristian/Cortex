@@ -130,7 +130,7 @@ and put embedding on the CPU so the GPU budget stays with the cortex
 
    Changing the setting moves no stored memory: each row keeps the scope it was written under. A
    store switched from `global` to `session` keeps its earlier memories in `global`, which
-   `SessionMemoryScope` never reads and the session delete never removes; a store switched back
+   `SessionMemoryScope` never reads and a session delete removes by writer only; one switched back
    reads every conversation's former private memories from every conversation.
 
 10. **Ranking is a `RecallPolicy` above the store.** The store returns top-`k` cosine and nothing
@@ -158,13 +158,13 @@ and put embedding on the CPU so the GPU budget stays with the cortex
 
 11. **`MemoryStore.delete_scope(scope)` is the forget operation.** It hard-deletes every memory in
     one scope and returns the count (pgvector: `DELETE FROM memories WHERE scope = $1`, the count
-    parsed from the `DELETE n` tag, served by the scope index). It works by scope because the scope
-    is the only link from a memory to the conversation that wrote it. It takes one required scope
+    parsed from the `DELETE n` tag, served by the scope index); `delete_written_by(session_id)`
+    removes one session's rows in any scope. `delete_scope` takes one required scope
     and no wildcard, so nothing is erased by omission, and `GLOBAL_SCOPE` is never passed to it. It
     is a hard delete, since `search` is a stateless scan with no in-flight read to protect. Memory
     is not a tool in any registry, and the `MemoryRecaller` a turn holds exposes only `record` and
     `recall` (asserted by `test_the_recaller_exposes_no_forget_verb_so_no_turn_can_delete_memory`),
-    so no model or turn reaches this delete. Its caller is the session-delete cascade
+    so no model or turn reaches either delete. Their caller is the session-delete cascade
     ([ADR-0021](ADR-0021-session-read-rpcs.md) decision 11). A tool reaches `delete_tainted` (ADR-0019
     decision 9) and `delete_ids` (ADR-0075), each behind the person's approval.
 
@@ -218,7 +218,7 @@ and put embedding on the CPU so the GPU budget stays with the cortex
   ([084](../refinements/tasks/084-session-global-union-read.md)), and cross-scope ranking
   ([086](../refinements/tasks/086-cross-scope-recall-ranking.md)), which is a `RecallPolicy` and a
   `RankBasis` member rather than a `MemoryScope`, all wait for a consumer. A union policy must stay
-  on the read side, since the cascade deletes exactly `write_scope(session_id)`.
+  on the read side, since the cascade deletes the session's own rows and its `write_scope`.
 - Retention ([085](../refinements/tasks/085-per-scope-retention-eviction.md)) has the operations it
   needs only under `session` scoping, where it drops whole conversations. Under the default every
   memory lives in `GLOBAL_SCOPE`, so evicting by a cap or an age needs a delete by id or by
