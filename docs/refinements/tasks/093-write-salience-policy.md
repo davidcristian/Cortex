@@ -5,7 +5,7 @@
 **Origin:** [ADR-0008](../../adr/ADR-0008-memory-v1.md)
 **Trigger:** A memory-compaction or self-editing feature (R-087) needs a record-time salience
 decision.
-**Verified:** 2026-10-25
+**Verified:** 2026-10-28
 
 v1 records the raw exchange text on every turn. Deciding at record time what is worth remembering
 is a later policy (ADR-0008). Its summarization half sits next to the tiered-memory entry
@@ -54,3 +54,5 @@ Naming note for whoever builds it: `SaliencePolicy` is already taken by the tool
 - 2026-10-25: checked again and not fired: task 087 has built nothing. The body now lists the third
   skipped write, a tainted turn that ran the forget, and the recall that stores nothing when a
   recalled memory is gone.
+- 2026-10-28: checked again and not fired: R-087 is still open, so no compaction or self-editing
+  feature asks for a salience decision.

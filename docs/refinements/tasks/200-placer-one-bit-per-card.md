@@ -10,7 +10,7 @@ gaining a second GPU target beside `gpu_endpoint`. Check with
 `grep -c 'TierArgs(' brain/packages/model_manager/src/cortex_model_manager/config.py` and
 `grep -c 'endpoint: str' brain/packages/orchestrator/src/cortex_orchestrator/config_subagents.py`:
 3 and 4 mean neither has happened.
-**Verified:** 2026-10-25
+**Verified:** 2026-10-28
 
 The placer has a single flag for whether the GPU is available, while the residency record has one
 entry per tier, so any missing tier closes GPU placement for the whole pool. The brain has no
@@ -62,3 +62,4 @@ executor as what reopens it; that is this entry's second trigger condition, not 
   found wrong, and now says what does.
 - 2026-10-25: checked again and not fired: `PlacementRequest` is still a model and three figures,
   and the placer is unchanged.
+- 2026-10-28: checked again and not fired: the two counts still read 3 and 4.

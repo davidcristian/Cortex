@@ -16,7 +16,7 @@ Separately, `grep -rln time_remaining brain/packages/orchestrator/src` listing o
 means no handler branches on the clock yet. The read handlers live in three files
 (`session_servicer.py`, `preference_servicer.py` and `server.py`), so a grep of one of them cannot
 answer that.
-**Verified:** 2026-10-25
+**Verified:** 2026-10-28
 
 `ListSessions` reads `time_remaining()` nowhere. It calls `SessionStore.list_sessions` whatever the
 clock says, and a caller who has already given up gets a reply written into a stream nobody reads.
@@ -105,3 +105,6 @@ set the floor from.
   timing grep over the session store still names only `retry.py`.
 - 2026-10-25: checked again and not fired: `ANNOUNCED_DEADLINE_GRACE_MS` is still 250 and no read
   handler reads its time remaining.
+- 2026-10-28: checked again and not fired: `ANNOUNCED_DEADLINE_GRACE_MS` is still 250, the timing
+  grep over the session store still names only `retry.py`, and `time_remaining` is still read only
+  in `abandon.py`.

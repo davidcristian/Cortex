@@ -5,7 +5,7 @@
 first-token floor, or a change sets out to shorten the CPU pool's 600 s stall ceiling.
 **Area:** inference
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
-**Verified:** 2026-10-17
+**Verified:** 2026-10-28
 
 The adapter's per-read stall ceiling (`CORTEX_INFERENCE_STALL_TIMEOUT_S`, 120 s, and
 `CORTEX_SUBAGENTS_STALL_TIMEOUT_S`, 600 s) bounds the gap between two streamed chunks, and
@@ -48,3 +48,5 @@ What to check before building it:
   one with no text and raises on one with no `choices` key, so item 1 still decides the shape.
 - 2026-10-17: checked again and not fired. The `decode.py` changes since 2026-10-07 leave the 600 s
   stall ceiling alone, and no readings record names a `Flash-Next` candidate since then.
+- 2026-10-28: checked again and not fired: the CPU pool's stall ceiling is still 600 s; the change
+  since names that bound in the stall error and does not shorten it.

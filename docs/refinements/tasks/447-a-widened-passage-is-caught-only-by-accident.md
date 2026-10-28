@@ -7,7 +7,7 @@ commit. The event this entry is about, a widened passage containing no extra nam
 so the registry diff is the reading a review can take.
 **Area:** repo-checks
 **Origin:** [ADR-0044](../../adr/ADR-0044-document-rosters.md)
-**Verified:** 2026-10-07
+**Verified:** 2026-10-28
 
 `scripts/rosters.py` bounds each passage with two phrases the document contains. A phrase that
 stops appearing, or starts appearing twice, is a reported fault. A phrase that moved is not a fault
@@ -81,3 +81,4 @@ its nearest name.
   six names twice inside its passage (`backlogindex.py`, `bannedwords.py`, `envelopesamples.py`,
   `prosereaders.py`, `proseliterals.py`, `slashcomments.py`), so a widened passage is not the only
   way the check can count a member whose own entry is gone.
+- 2026-10-28: checked again and not fired: `scripts/rosters.py` has no commit since 2026-10-07.

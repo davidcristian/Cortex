@@ -4,7 +4,7 @@
 **Area:** body-overlay
 **Origin:** [ADR-0035](../../adr/ADR-0035-console-and-motion.md) decision 22, scrollbars as reserved chrome ([overlay-ux.md §2](../../design/overlay-ux.md))
 **Trigger:** The overlay running on an engine without `::-webkit-scrollbar`, such as Gecko, since only such an engine takes the fenced branch. In the tree that is a shell, test or runbook that renders the overlay on one: the shell renders through WebView2 on Windows and WebKitGTK on Linux, both of which have the pseudo-element, and `git grep -n -i 'firefox\|gecko'` outside the backlog finds only the origin decision record's account of the branch.
-**Verified:** 2026-10-07
+**Verified:** 2026-10-28
 
 Every scroll container sets `scrollbar-gutter: stable` and pays for the rail out of its own
 inline-end padding, either subtracted from a padding big enough to hold it
@@ -78,3 +78,5 @@ reading first: `.reminders` answers 8px for a 6px rail inside two 1px edges.
 - 2026-10-07: Not fired, and the trigger is restated so the tree can decide it. It named an
   engine and no reading; it now names where a second engine would show and the search that finds
   none today.
+- 2026-10-28: checked again and not fired: `git grep -i 'firefox\|gecko'` outside the backlog still
+  finds only the origin decision record's account of the branch.

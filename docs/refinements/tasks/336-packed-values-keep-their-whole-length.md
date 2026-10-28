@@ -8,7 +8,7 @@ it that reads entries rather than lines. Both come off the compose files:
 those files declare are where a collector would be. The history below records what that reading
 answered when it was last taken, and what a packed line of the widest shipped record measures.
 **Origin:** [ADR-0051](../../adr/ADR-0051-log-line-rendering.md)
-**Verified:** 2026-10-07
+**Verified:** 2026-10-28
 
 The per-value bound is in `render_value`, which only the plain rendering uses. `PackedFormatter`
 passes `record_fields(record)` straight to `json.dumps`, so a field of any size reaches a packed
@@ -108,3 +108,5 @@ beside `PackedFormatter`, so this is now the cheapest of the four: a change to o
   option's cost: the recall trail file added on 2026-09-25 moved `durable_value` and
   `durable_record` into `cortex_core/log_durable.py` so both trail files share them, which is the
   move this entry named as that option's cost.
+- 2026-10-28: checked again and not fired: `grep -rn LOG_FORMAT docker/` still reports `plain` for
+  both renderings.

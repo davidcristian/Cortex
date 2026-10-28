@@ -6,7 +6,7 @@
 **Trigger:** the first run this repository records under either workflow, which needs Actions
 enabled for the whole repository and is therefore a setting on the account rather than a change in
 this tree.
-**Verified:** 2026-10-16
+**Verified:** 2026-10-28
 
 Read on 2026-09-06 over the account's token, in three calls. The runs listing for `shuffle.yml`
 under `repos/<owner>/<repo>/actions/workflows` reports `total_count` 0, and the same call for
@@ -69,3 +69,5 @@ should turn the setting on to close this entry.
 - 2026-10-16: read again, not fired. `total_count` is 0 for `ci.yml` and for `shuffle.yml`, the
   permissions call still answers 403, and the repository's run history lists five Dependabot
   updates, from 2026-09-21 to 2026-10-12, and no run of either workflow.
+- 2026-10-28: checked again and not fired: `total_count` is 0 for `ci.yml`, and the repository's run
+  history lists seven Dependabot updates, the last on 2026-10-26, and no run of either workflow.

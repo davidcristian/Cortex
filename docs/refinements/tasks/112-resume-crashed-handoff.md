@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** inference-model-manager
 **Origin:** [ADR-0030](../../adr/ADR-0030-brain-handoff.md)
-**Verified:** 2026-10-25
+**Verified:** 2026-10-28
 **Trigger:** the dedup design the `Converse` reconnect entry (R-023) needs, a request id on
 `UserTurn` or `ClientEvent` plus an idempotency and resume registry keyed by it, after which
 resuming is a conductor entry point run beside the gRPC server. Recheck with
@@ -76,3 +76,4 @@ prevent.
   the proto and the brain's sources prints nothing.
 - 2026-10-25: checked again and not fired: neither the proto nor the brain has a request id. The
   body now names `_swap(record, reached)` and the ledger's unstored `forgotten` flag.
+- 2026-10-28: checked again and not fired: the `request_id|idempotency` grep still finds nothing.

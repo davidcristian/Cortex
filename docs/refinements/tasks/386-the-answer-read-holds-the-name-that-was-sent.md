@@ -10,7 +10,7 @@ its image line or `docker/dovecot/` changes, and it is taken after `just up-imap
 EXAMINE of `Guarded`, the mailbox there that is closed, through the port. The Bridge part needs a
 live run against the account. The history below records both readings.
 **Origin:** [ADR-0056](../../adr/ADR-0056-email-reader-answers.md)
-**Verified:** 2026-10-04
+**Verified:** 2026-10-28
 
 `select` in `brain/packages/email/src/cortex_email/folders.py` classifies a refused SELECT with
 `_says_folder_missing`, which lower-cases `str(err)` and looks for a measured phrase or an
@@ -120,3 +120,5 @@ RFC 5530 allows a code.
   line nor `docker/dovecot/` has a commit since 2026-09-05, so the reading of 2026-09-17 still
   applies. The Bridge part is still the reading of 2026-09-09, since this run ruled out a live run
   against the account.
+- 2026-10-28: checked again and not fired: `grep -n 'image:' docker/*.yml` still names one IMAP
+  server image, `dovecot/dovecot:2.3.21`, and `docker/dovecot/` has no commit since.

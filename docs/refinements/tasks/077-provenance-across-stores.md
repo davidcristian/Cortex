@@ -4,7 +4,7 @@
 **Area:** untrusted-content
 **Origin:** [ADR-0027](../../adr/ADR-0027-turn-provenance.md)
 **Trigger:** a design that needs a fired schedule item or a subagent result to record the sources the turn behind it read, the way a handoff record stores its own turn's whole ledger.
-**Verified:** 2026-10-25
+**Verified:** 2026-10-28
 
 `ScheduledItem` and `SubagentResult` store only the `tainted` flag. Neither records which
 sources the turn read, so a consumer of either one cannot tell where the content came from.
@@ -61,3 +61,5 @@ that turn read.
   confirmations and past times.
 - 2026-10-25: checked again and not fired: `ScheduledItem` and `SubagentResult` still store only
   `tainted`. `HandoffRecord` now also stores `recalled_ids`, and the body names it.
+- 2026-10-28: checked again and not fired: the schedule changes since store a fire's due time and a
+  task's run start, and nothing records the sources a fired item's turn read.

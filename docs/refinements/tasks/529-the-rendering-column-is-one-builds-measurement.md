@@ -1,13 +1,9 @@
 # The rendering column is one build's measurement, and an engine bump reopens every row of it
 
-**Status:** open, waiting for its trigger
+**Status:** open, actionable
 **Area:** inference
-**Trigger:** an engine bump under this stack, meaning the GPU runbook's `docker image inspect`
-label command reporting a llama.cpp build other than b11552 for `cortex-model-host` (the three GPU
-tiers) or other than b10680 for the cached `server` tag (both CPU subagent overrides). Nothing fixes
-a digest, so a pull or a rebuild is the bump.
 **Origin:** [ADR-0050](../../adr/ADR-0050-live-probe-records.md)
-**Verified:** 2026-10-16
+**Verified:** 2026-10-28
 
 Every row of the lineup section's rendering column stands on a sample the reader published, and
 every one was drawn on one build. The rule the column states, that a template rendering the thought
@@ -216,3 +212,8 @@ the next build. The probe ran on the main tree's brain venv with the copy's sour
   probe exited 0 and the reader agreed on all twelve samples, each repeating its `b11429` row, so
   all twelve rows hold on `b11552` and the task waits for the next build again, with the trigger
   naming both builds the stack starts.
+- 2026-10-28: the trigger fired. The runbook's label command reads `b11913 7aca0d2ea` on
+  `cortex-model-host`, an image built on 2026-10-28 under the compose project `cortexn9`, while the
+  cached `:server-cuda` and `:server` tags still read `b10680 d7bd3bfca`. So the three GPU tiers
+  start `b11913`, and all twelve rows are owed on it under the rules above, the E4B at `-ngl 0` on
+  CPU cores 12 to 23 with its own question. The trigger line is gone and the task is actionable.

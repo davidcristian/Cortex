@@ -6,7 +6,7 @@
 **Trigger:** A turn handed a superseded fact beside its correction answers with the superseded one,
 though recalled memories show their ages. Read it on rows like those of the recall memory age
 readings: a fact changed in separate chats, then asked in a new one.
-**Verified:** 2026-10-26
+**Verified:** 2026-10-28
 
 Letta's ideas about memory tiers and a model that edits its own memories, adoptable later without
 the framework (ADR-0008 decision 1). This is not behind an unchanged port: tiering (promote,
@@ -82,3 +82,5 @@ record stores only the `tainted` flag and not the ADR-0027 structured provenance
   each memory's age, and on 48 rows that handed the turn superseded values beside the newest, every
   answer named the newest ([readings](../../readings/recall-memory-age.md)). The trigger names the
   harm that would remain for update in place, and it has not fired.
+- 2026-10-28: checked again and not fired: the 48 rows the recall age readings added on 2026-10-26,
+  with each memory on one line, all named the newest value.

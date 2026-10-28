@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** tools-mcp
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
-**Verified:** 2026-10-17
+**Verified:** 2026-10-28
 **Trigger:** the tool audit trail shows two subagent tasks of one turn (one `turn_id`, two `task_id`
 values) dispatching the same tool with the same arguments.
 
@@ -17,7 +17,8 @@ which is a resource the turn's subagents share, while a repeat is redundant only
 
 The code says the same in two places. `RepeatSalience` in
 `brain/packages/core/src/cortex_core/tool_salience.py` reads nothing but the calls it is handed,
-and the list it is handed is `dispatched`, a local of `stream_tool_loop` in `tool_loop.py`. A
+and the list it is handed is the `dispatched` field of the `LoopRecord` (`dispatch_round.py`)
+that `stream_tool_loop` builds for each loop (`tool_loop.py`). A
 spawned subagent runs its own loop over its own list, so it can see neither its parent's calls nor
 a sibling's, which is what makes a batch given one instruction dispatch that instruction's calls
 once per member.
@@ -64,3 +65,6 @@ once per member.
 - 2026-10-17: checked again and not fired. No record in the tree shows two tasks of one turn
   dispatching one call, and the repeat and declined call checks added to the tool loop since
   2026-10-04 work within one loop.
+- 2026-10-28: checked again and not fired, and corrected: `dispatched` is now a field of the
+  `LoopRecord` that each loop builds beside its result room, rather than a bare local. Each subagent
+  attempt still runs its own loop, so a sibling's calls stay out of sight.

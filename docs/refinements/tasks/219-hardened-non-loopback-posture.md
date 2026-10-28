@@ -10,7 +10,7 @@ runbook or default in the tree putting a listener where a second machine reaches
 firewall the body override relies on. Whether the machine really has one user is not something
 the tree can record; that assumption is where the tree says so. The compose half is decided by
 listing every `ports:` entry under `docker/`: each starts with `127.0.0.1:` while not fired.
-**Verified:** 2026-10-25
+**Verified:** 2026-10-28
 
 The body binds a configurable interface, loopback for development and `0.0.0.0` for the
 container-to-host path, behind the shared token and the host firewall. mTLS or per-direction tokens
@@ -77,3 +77,5 @@ to put a private certificate authority that the host firewall does not already c
   and both lockfiles still resolve tonic to 0.14.6 with no TLS crate.
 - 2026-10-25: checked again and not fired: every published port under `docker/` still binds
   `127.0.0.1`, and the channels and token reads are as described.
+- 2026-10-28: checked again and not fired: every `ports:` entry under `docker/` still starts with
+  `127.0.0.1:`.

@@ -6,7 +6,7 @@
 that exists is found missing a flag the flag rule requires or writing one with a value the shipped
 stack does not use
 **Origin:** [ADR-0043](../../adr/ADR-0043-subagent-server-flags.md)
-**Verified:** 2026-10-25
+**Verified:** 2026-10-28
 
 `docs/runbooks/subagents-cpu.md` gives an operator a `docker run` that starts a standalone CPU
 subagent server on loopback, outside any stack, with `--jinja`, the template kwarg,
@@ -81,3 +81,5 @@ wrong here was the rule moving while the paste did not.
   subagent server by hand.
 - 2026-10-25: checked again and not fired: no runbook or host page added since starts a subagent
   server by hand.
+- 2026-10-28: checked again and not fired: the runbook's change since describes the result room the
+  brain sizes from the servers' flags, and starts no server by hand.

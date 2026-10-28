@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** tools-mcp
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
-**Verified:** 2026-10-04
+**Verified:** 2026-10-28
 **Trigger:** the tool audit trail shows a subagent task refused by the spent turn pool while a
 sibling task of the same `turn_id` made most of that turn's dispatches.
 
@@ -46,3 +46,5 @@ the refusal and reports stopping short, so it stays deferred until it happens in
   nothing bounds one subagent's share, `AttemptBounds` holding only `max_tokens` and `timeout_s`.
   No audit line on this host has a `task_id`, so no refused subagent call has been recorded. The
   runner case is still `test_runner.py:344`.
+- 2026-10-28: checked again and not fired: no audit record in the tree shows a subagent refused by
+  the spent pool, and a delegated attempt still draws on the turn's one `DispatchBudget`.

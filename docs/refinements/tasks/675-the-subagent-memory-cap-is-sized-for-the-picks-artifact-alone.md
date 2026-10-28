@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** subagents
 **Origin:** [ADR-0004](../../adr/ADR-0004-model-lineup.md)
-**Verified:** 2026-10-07
+**Verified:** 2026-10-28
 **Trigger:** a deployment that names a `CORTEX_MODEL_FILE_SUBAGENT` or
 `CORTEX_MODEL_FILE_SUBAGENT_QWEN` artifact larger than about 5.6 GB, or that raises
 `CORTEX_SUBAGENTS_MAX_TOKENS` or `CORTEX_SUBAGENT_CTX_SIZE` above their shipped defaults, on a
@@ -61,3 +61,5 @@ deployment rather than shipped, which is the memory-cap change's to revise.
   `CORTEX_SUBAGENT_CTX_SIZE` still defaults to 8192 in both files, `DEFAULT_SUBAGENT_MAX_TOKENS` is
   1024, both containers are capped at `CORTEX_SUBAGENTS_MEM_BUDGET_GB` 8, and this machine has no
   `.env` and exports no `CORTEX_` variable.
+- 2026-10-28: checked again and not fired: the brain now reads `CORTEX_SUBAGENT_CTX_SIZE` with the
+  servers' shipped default of 8192, and neither file variable nor the token cap moved.

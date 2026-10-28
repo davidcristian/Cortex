@@ -4,7 +4,7 @@
 **Area:** body-gateway
 **Origin:** [ADR-0023](../../adr/ADR-0023-body-gateway-volume.md) decision 6
 **Trigger:** a History line in this file recording the maintainer's pick of A, B or C.
-**Verified:** 2026-10-07
+**Verified:** 2026-10-28
 
 When the shell cannot bind `CORTEX_BODY_ADDR`, `serve` in `body/app/src-tauri/src/body_server.rs`
 prints `cortex: could not bind BodyService on <addr>: <error>` to standard error and returns, and
@@ -40,3 +40,4 @@ covers its wording, with the shell only calling it.
 
 - 2026-10-07: filed when both default ports moved below Windows' dynamic port range; the surface
   is a visual pick, so it waits for the maintainer.
+- 2026-10-28: checked again and not fired: no pick is recorded in this file's History.

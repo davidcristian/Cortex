@@ -8,7 +8,7 @@ were written on a tainted turn. The tree shows it when a session history message
 or provenance field, and
 `grep -n -i 'taint\|provenance\|trust' brain/packages/core/src/cortex_core/conversation.py brain/packages/session/src/cortex_session/store_codec.py`
 prints nothing on 2026-10-03.
-**Verified:** 2026-10-25
+**Verified:** 2026-10-28
 
 The output guardrail removes URLs and nothing else, so if the cortex quotes an injected payload
 into its reply, the prose is persisted whole while the links become
@@ -102,3 +102,5 @@ real user need.
   The GPU measurements were not rerun.
 - 2026-10-25: checked again and not fired: the trigger's grep prints nothing. `HandoffRecord` does
   not store the ledger's `forgotten` flag, and the body now says so.
+- 2026-10-28: checked again and not fired: the taint grep over `conversation.py` and
+  `store_codec.py` still prints nothing.

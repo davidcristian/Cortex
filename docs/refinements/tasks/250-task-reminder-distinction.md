@@ -4,7 +4,7 @@
 **Area:** scheduling
 **Origin:** [ADR-0025](../../adr/ADR-0025-scheduling-reminders.md)
 **Trigger:** the surface must distinguish them (a task icon, a "task ran" label, a task-only action).
-**Verified:** 2026-10-25
+**Verified:** 2026-10-28
 
 A fired task uses the same `DueReminder` and `Reminders.tsx` card as a reminder, with nothing to
 tell them apart: `DueReminder` has no `kind`, and the overlay labels the list "Due reminders" with
@@ -57,3 +57,6 @@ seeded rows ([demoScript.ts](../../../body/app/src/bridge/demoScript.ts)) and
   card to tell a task from a reminder, so the trigger has not occurred.
 - 2026-10-25: checked again and not fired: `DueReminder` still has no `kind`, and the overlay still
   shows one reminder list.
+- 2026-10-28: checked again and not fired: `DueReminder` still has no `kind`; its new `due_label`
+  names a late fire's due time for a reminder and a task alike, so the card still does not tell them
+  apart.

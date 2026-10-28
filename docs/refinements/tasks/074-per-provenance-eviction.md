@@ -4,7 +4,7 @@
 **Area:** untrusted-content
 **Origin:** [ADR-0019](../../adr/ADR-0019-tainted-memory-recording.md)
 **Trigger:** a source found hostile after the fact, whose derived memories must be forgotten by where they came from rather than by the scope they were stored in.
-**Verified:** 2026-10-25
+**Verified:** 2026-10-28
 
 Left behind by [R-072](072-tainted-memory-recording.md): removing memories by the source they came
 from.
@@ -79,3 +79,5 @@ provenance yet.
   from another, so a source found hostile still has no verb. The body now names both removals.
 - 2026-10-25: checked again and not fired: `MemoryRecord` still has no provenance, and the forget
   changes since add a partial count and recalled ids but select no row by source.
+- 2026-10-28: checked again and not fired: the memory port gained `count_tainted`, a count by taint
+  that decides whether the forget tool is offered, and still has no removal by source.

@@ -8,7 +8,7 @@ after the body was reachable again until the overlay was next opened, late enoug
 says it mattered. The brain's `push failed; pull will deliver` line marks each fire that fell to
 the pull path; nothing on either side logs when the overlay pulled it, so how late it was is the
 user's own report.
-**Verified:** 2026-10-25
+**Verified:** 2026-10-28
 
 The only retry today is the deliverable-until-acked pull. A proactive re-push would deliver twice,
 because `NotifyRequest.reminder_id` is the item id, which is stable across a recurring item's
@@ -83,3 +83,5 @@ its own.
   `windows` 0.61.3 still has `SetTag` and `SetGroup`. No report of the trigger exists.
 - 2026-10-25: checked again and not fired: no live desktop report exists and `NotifyRequest` still
   has no stamp.
+- 2026-10-28: checked again and not fired: the delivery changes since keep a fire's due time and a
+  task's run start beside `deliverable_since`, and `NotifyRequest` still has `reminder_id` alone.

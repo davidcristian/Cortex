@@ -9,7 +9,7 @@ measurement (neither the ten notes inline in `test_rerank_judge_live.py` nor the
 or a first-token or whole-turn latency bound, in an ADR decision or a setting, that the judge's
 recorded cost exceeds: a rank at `k` 5 over a pool of 20 costs 0.877 s, and a judged turn's first
 token comes 0.539 s after a raw one's.
-**Verified:** 2026-10-25
+**Verified:** 2026-10-28
 
 The other form of a model reranker: a model that scores a query and a memory as a pair, rather than
 a chat completion that orders a numbered list. It was opened by the ranked-recall close
@@ -81,3 +81,6 @@ the deep phase's judge asks the deep model, where a recall cost 0.89 s at `k` 3 
   trail, which now records judged recalls without their texts.
 - 2026-10-25: checked again and not fired: no scoring model exists under `brain/packages/*/src`, and
   the only new bound is a model load wait.
+- 2026-10-28: checked again and not fired: `docs/readings/ranked-recall.md` has no commit since
+  2026-10-25, and no ADR or setting adds a latency bound; the judge's changes since show each
+  memory's age on one line.

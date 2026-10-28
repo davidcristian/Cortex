@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** inference
 **Origin:** [ADR-0049](../../adr/ADR-0049-thinking-switch-and-trace-budget.md)
-**Verified:** 2026-10-25
+**Verified:** 2026-10-28
 **Trigger:** a `GenerationBounds` call in `brain/packages/*/src` that writes `thinking=False` and no
 `trace_tokens`, read with `grep -rn 'thinking=False' brain/packages/*/src --include=*.py`. Today
 that grep prints three lines, one for each bound named below; `rank_bounds` writes one keyword a
@@ -73,3 +73,4 @@ that read the tree without importing it. The two readings agree on the three bou
   still sets `trace_tokens=0` on the line after its `thinking=False`.
 - 2026-10-25: checked again and not fired: `grep -rn 'thinking=False'` still prints the same three
   lines.
+- 2026-10-28: checked again and not fired: the `thinking=False` grep still prints the three bounds.

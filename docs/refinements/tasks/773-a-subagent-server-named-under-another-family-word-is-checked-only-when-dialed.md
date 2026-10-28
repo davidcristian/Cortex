@@ -7,7 +7,7 @@ begins `CORTEX_MODEL_FILE_SUBAGENT` nor is the embedder's `CORTEX_MODEL_FILE_EMB
 listing `artifactnames.composed` over the tree, which today returns those three: `EMBED`,
 `SUBAGENT` and `SUBAGENT_QWEN`
 **Origin:** [ADR-0043](../../adr/ADR-0043-subagent-server-flags.md)
-**Verified:** 2026-10-25
+**Verified:** 2026-10-28
 
 `subagentservers.py` counts a compose service as a subagent server when a compose file writes an
 address that dials it (`CORTEX_SUBAGENTS_ENDPOINT`, `CORTEX_SUBAGENTS_GPU_ENDPOINT` or a
@@ -33,3 +33,5 @@ service naming a family artifact whose argv does not declare `--embeddings`.
   [R-521](521-a-settings-method-reading-the-mount-for-anything-but-a-path-is-refused.md).
 - 2026-10-25: checked again and not fired: `artifactnames.composed` still returns the same three
   variables.
+- 2026-10-28: checked again and not fired: the compose change since adds `CORTEX_SUBAGENT_CTX_SIZE`
+  and `CORTEX_SUBAGENTS_PARALLEL` to the brain, neither a `CORTEX_MODEL_FILE_` variable.

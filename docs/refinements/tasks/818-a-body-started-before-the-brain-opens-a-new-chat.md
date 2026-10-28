@@ -4,7 +4,7 @@
 **Area:** body-overlay
 **Origin:** [ADR-0021](../../adr/ADR-0021-session-read-rpcs.md)
 **Trigger:** a History line in this file recording the maintainer's pick of A or B.
-**Verified:** 2026-10-07
+**Verified:** 2026-10-28
 
 Cold start adopts the most recent chat when the first chat list arrives, and only while the
 reducer's `touched` flag is unset (ADR-0021 decision 6). `useSessionCatalog.ts` lists the chats on
@@ -34,3 +34,4 @@ too.
 
 - 2026-10-07: filed from the session and preference flows run on the Linux shell, whose
   preference half was fixed the same night.
+- 2026-10-28: checked again and not fired: no pick is recorded in this file's History.

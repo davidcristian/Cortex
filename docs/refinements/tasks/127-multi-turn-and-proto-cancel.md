@@ -8,7 +8,7 @@ overlay's `submit` in `body/app/src/overlay/useOverlay.ts` returns while `isTurn
 question is sent while another runs, and `turn_request` in `body/crates/rpc/src/converse.rs` sends
 one `UserTurn` and no `Cancel`. A question accepted mid-turn, or a stop that must keep its stream
 open, fires it.
-**Verified:** 2026-10-25
+**Verified:** 2026-10-28
 
 The body sends one turn per `Converse` call and never sends `Cancel`; dropping the stream is how
 v1 cancels (ADR-0011 decision 1 and risks). Slice 8.8 (ADR-0022) took the interleaving half, so
@@ -116,3 +116,5 @@ when one stream should hold several turns.
   `isTurnActive`, and `turn_request` still sends no `Cancel`.
 - 2026-10-25: checked again and not fired: `submit` still returns while a turn is active and the
   body still sends no `Cancel`; `SerialTurnRunner` now also names a `CHAT_AHEAD` wait.
+- 2026-10-28: checked again and not fired: `useOverlay.ts` and the rpc crate's `converse.rs` have no
+  commit since, and the proto's one change adds `DueReminder.due_label`.

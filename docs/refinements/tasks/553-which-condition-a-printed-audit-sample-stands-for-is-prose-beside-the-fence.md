@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** repo-checks
 **Origin:** [ADR-0045](../../adr/ADR-0045-documented-log-lines.md)
-**Verified:** 2026-10-17
+**Verified:** 2026-10-28
 **Trigger:** a printed sample of the tool audit's line in `docs/runbooks/tools-mcp.md` whose
 introducing sentence names a condition other than the one its fields describe, or a whole-line
 assertion of that line added anywhere under `brain/packages/tools/tests` with a field set the
@@ -86,3 +86,5 @@ declined, would have grown the set a coverage rule compares against.
   constants. This task's trigger was not checked again.
 - 2026-10-17: checked again and not fired. The runbook's changes since 2026-10-07 print no new audit
   sample, and the assertions added to `test_registry.py` match an error, not the audit line.
+- 2026-10-28: checked again and not fired: the runbook's audit samples are unchanged and only their
+  prose was rewrapped; the test changes since assert errors, not the audit line.
