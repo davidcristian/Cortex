@@ -9,6 +9,11 @@ from cortex_core.memory_forget import (
     ForgetUntrustedTool,
     UntrustedMemoryForget,
 )
+from cortex_core.memory_forget_chosen import (
+    FORGET_CHOSEN_LIMIT,
+    FORGET_CHOSEN_TOOL_NAME,
+    ForgetChosenTool,
+)
 from cortex_core.ranking import (
     DROPPED_TRAIL_LIMIT,
     DroppedCandidate,
@@ -45,6 +50,8 @@ __all__ = [
     "EMBEDDER_CONTEXT_TOKENS",
     "EMBED_INPUT_CHARS",
     "FORGET_CARD",
+    "FORGET_CHOSEN_LIMIT",
+    "FORGET_CHOSEN_TOOL_NAME",
     "FORGET_UNTRUSTED_TOOL_NAME",
     "GLOBAL_MEMORY_SCOPE",
     "GLOBAL_SCOPE",
@@ -52,6 +59,7 @@ __all__ = [
     "RECALL_CHAR_BUDGET",
     "DroppedCandidate",
     "DroppedCandidates",
+    "ForgetChosenTool",
     "ForgetUntrustedTool",
     "GlobalMemoryScope",
     "JudgeRecallPolicy",

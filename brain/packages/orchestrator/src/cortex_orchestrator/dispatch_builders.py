@@ -15,6 +15,7 @@ from cortex_core import (
     Confirmer,
     DispatchPolicy,
     EscalateToBrainTool,
+    ForgetChosenTool,
     ForgetUntrustedTool,
     GetVolumeTool,
     RecordCard,
@@ -51,7 +52,7 @@ def tool_audit_from_config(config: ToolsConfig) -> ToolAuditSink:
     return TeeAuditSink((line, JsonLinesAuditSink(Path(config.audit_file))))
 
 
-def build_builtin_tools(
+def build_builtin_tools(  # noqa: PLR0913 -- each optional built-in group is wired on its own
     spawn_tool: SpawnSubagentsTool | None,
     body: BodyGateway | None,
     schedule_tools: Sequence[BuiltinTool] = (),
@@ -59,6 +60,7 @@ def build_builtin_tools(
     escalation: bool = False,
     vision: CaptureBounds | None = None,
     memory: UntrustedMemoryForget | None = None,
+    chosen: ForgetChosenTool | None = None,
 ) -> list[BuiltinTool]:
     """The cortex's built-in set, assembled once by the wiring."""
     builtins: list[BuiltinTool] = [spawn_tool] if spawn_tool is not None else []
@@ -74,6 +76,8 @@ def build_builtin_tools(
     builtins.extend(schedule_tools)
     if memory is not None:
         builtins.append(ForgetUntrustedTool(memory))
+    if chosen is not None:
+        builtins.append(chosen)
     return builtins
 
 

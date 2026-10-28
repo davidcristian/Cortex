@@ -204,8 +204,8 @@ the version string `Health` reports.
 - Every dispatcher is built from one `DispatchSetup` (`dispatch_builders.py`): the `DispatchPolicy` and
   the audit sink. `build_builtin_tools` assembles the built-in set once: delegation, the volume tools with
   a `BodyGateway`, `capture_screen` with a body **and** a model the root confirmed can see, the five
-  schedule tools, `escalate_to_brain` when a handoff can run, and `forget_untrusted_memories` with memory.
-  Only it and `cancel_scheduled` need confirmation unless named in `CORTEX_TOOLS_GATED`. `build_cortex_tools`
+  schedule tools, `escalate_to_brain` when a handoff can run, and the two forget tools with memory.
+  Only they and `cancel_scheduled` need confirmation unless named in `CORTEX_TOOLS_GATED`. `build_cortex_tools`
   puts each `RecordCard` built-in in `record_cards` and each confirmable one in `confirm_names`, so a call by
   name the turn's list omits still shows a card. A subagent's dispatcher has no confirmer and no confirmable tool (`ConfirmFreeToolRegistry`).
 - `StreamEngines.for_stream` (`engines.py`) is the engine factory, an object built once rather than

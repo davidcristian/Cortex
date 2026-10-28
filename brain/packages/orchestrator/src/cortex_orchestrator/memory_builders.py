@@ -8,6 +8,7 @@ import httpx
 from cortex_core import (
     RAW_RECALL_POLICY,
     Clock,
+    ForgetChosenTool,
     GlobalMemoryScope,
     InferenceBackend,
     JudgeRecallPolicy,
@@ -89,6 +90,7 @@ type MemoryParts = tuple[
     RecallerFor | None,
     SessionMemoryCascade | None,
     UntrustedMemoryForget | None,
+    ForgetChosenTool | None,
     Callable[[], Awaitable[None]],
 ]
 
@@ -112,5 +114,6 @@ async def build_memory(config: MemoryConfig, clock: Clock) -> MemoryParts:
             return MemoryRecaller(store, embedder, clock, scope=scope, policy=policy, audit=audit)
 
         forget = UntrustedMemoryForget(store, scope)
-        return recaller_for, SessionMemoryCascade(store, scope), forget, close_memory
-    return None, None, None, noop_aclose
+        cascade = SessionMemoryCascade(store, scope)
+        return recaller_for, cascade, forget, ForgetChosenTool(store, scope), close_memory
+    return None, None, None, None, noop_aclose

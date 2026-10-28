@@ -51,7 +51,7 @@ pool down to the hits one turn sees. The turn that calls it is in
   behind a session delete, kept out of the recaller and out of every engine, so no tool reaches it.
   It exposes only `delete_session_memories(session_id) -> int`, cascades only when the scope is the
   session's own private space, and runs the `GLOBAL_SCOPE` check first.
-- `UntrustedMemoryForget(store, scope)` (`memory_forget.py`, ADR-0019 decision 9) is the one delete
+- `UntrustedMemoryForget(store, scope)` (`memory_forget.py`, ADR-0019 decision 9) is a delete
   a tool reaches: `forget(session_id)` calls `delete_tainted` over the session's read scopes. The
   built-in `ForgetUntrustedTool` over it is `forget_untrusted_memories`: no arguments,
   `confirm_required`, and a `RecordCard` whose card is the fixed `FORGET_CARD`, so the dispatcher
@@ -59,6 +59,13 @@ pool down to the hits one turn sees. The turn that calls it is in
   It is a `ToolOffer`: `offered(session_id)` is `any_to_forget(session_id)`, a `count_tainted` over
   the same read scopes, so a chat with nothing to forget is not offered it; a failed count offers it.
   `record_exchange` (`turn_output.py`) stores nothing for a tainted turn in which it ran `ok`.
+- `ForgetChosenTool(store, scope)` (`memory_forget_chosen.py`, ADR-0075) is `forget_memories`:
+  one `text` argument, `confirm_required`, and a `RecordCard`. `card` runs `find_text` over the
+  session's read scopes and lists an excerpt of each match, so the card holds stored text and
+  never the model's; it keeps the matched ids under the call's id (the latest 32 calls). `invoke`
+  deletes exactly those ids with `delete_ids`, searches again, and says how many were removed and
+  whether any match is left. No text, no match, more than `FORGET_CHOSEN_LIMIT` (20) matches or a
+  failed store deletes nothing, and the card and the result each say so.
 - `RecallPolicy` (port, `rerank.py`) turns an over-fetched pool into the final `k` hits:
   `candidate_k(k)` sizes the pool and `async select(hits, *, query, now, k, session_id=None,
   turn_id=None) -> Ranking` reranks and cuts it, returning at most `k` hits from the pool, none

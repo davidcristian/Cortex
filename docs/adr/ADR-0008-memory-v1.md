@@ -165,8 +165,8 @@ and put embedding on the CPU so the GPU budget stays with the cortex
     is not a tool in any registry, and the `MemoryRecaller` a turn holds exposes only `record` and
     `recall` (asserted by `test_the_recaller_exposes_no_forget_verb_so_no_turn_can_delete_memory`),
     so no model or turn reaches this delete. Its caller is the session-delete cascade
-    ([ADR-0021](ADR-0021-session-read-rpcs.md) decision 11). A tool reaches only `delete_tainted`,
-    behind the person's approval (ADR-0019 decision 9); `delete_ids` is ADR-0075's.
+    ([ADR-0021](ADR-0021-session-read-rpcs.md) decision 11). A tool reaches `delete_tainted` (ADR-0019
+    decision 9) and `delete_ids` (ADR-0075), each behind the person's approval.
 
 12. **An unavailable memory costs a turn its notes, never the turn.** `EmbedderError` and
     `MemoryStoreError`, and nothing else, are caught in the core: in
