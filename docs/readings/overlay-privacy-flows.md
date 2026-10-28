@@ -37,6 +37,7 @@ reach and counted it:
 | 1. typed in a turn | key, password | 0 | 0 | chat messages | 1 memory | AOF | n/a |
 | 2. "remember ..." | wifi, card | 0 | 0 | chat messages | 2 memories each | AOF | n/a |
 | 3. read from a file | 3 values | 0 | **1 line** | none | none | none | n/a |
+| 3, stdout dropped | 3 values | 0 | 0 | none | none | not read | n/a |
 | 4. turn that stalled | password | 0 | 0 | chat messages | none | AOF | n/a |
 | 5. typed on the shell | locker code | 0 | 0 | chat messages | 1 memory | AOF | 0 |
 
@@ -91,8 +92,11 @@ no memory was recorded, and the chat's Redis list held no tool result.
 The sidecar's own log held the whole file. `supergateway` logs every message between the brain
 and the filesystem server at its default `--logLevel info`, so `docker logs` of the sidecar has a
 `[supergateway] Child → StreamableHttp: {"result":{"content":[{"type":"text","text":"...` line
-with every value. The file was 6 lines, so the result room's cut note did not apply. Filed as
-[921](../refinements/tasks/921-the-file-sidecar-logs-every-file-it-reads.md).
+with every value. The file was 6 lines, so the result room's cut note did not apply.
+`supergateway@4.1.0` writes those message lines to stdout with `console.log` and its errors to
+stderr, so the compose command now sends the sidecar's stdout to `/dev/null`. The repeat on the
+recreated sidecar read the same file in a new chat: 0 of the 28 sidecar log lines of that turn
+held a value, and the lines kept were `Child stderr`, `Child exited` and session errors.
 
 ## 4. A turn that stalls after a secret
 

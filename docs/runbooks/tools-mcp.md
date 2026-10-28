@@ -17,19 +17,19 @@ CORTEX_TOOLS_ROOT=./sandbox \
   docker compose --project-directory . -f docker/docker-compose.yml -f docker/docker-compose.tools.yml up -d mcp-filesystem
 ```
 
-Watch `docker compose logs mcp-filesystem` for supergateway's "listening" line; the streamable-http
-endpoint is `http://127.0.0.1:9000/mcp`. From WSL with automount and interop off, the same drvfs
-and `DOCKER_CONFIG` steps as [llamacpp-gpu.md](llamacpp-gpu.md) apply. The compose command names an
-exact server version
-(`@modelcontextprotocol/server-filesystem@2026.1.14`, past the EscapeRoute fixes CVE-2025-53109
-and CVE-2025-53110 patched in `2025.7.1`), and an exact `supergateway` version too. Change those
-deliberately and never float back to unversioned `npx`; the read-only single-directory mount
-bounds the damage either way. The container installs both at start rather than running them
-through `npx`, and the bridge runs `--stateful`, so expect a slower first boot, which the brain
-tolerates because it dials no sidecar at startup. Every release through 2.0.1 (checked 2026-10-26)
-returns the empty text after a final newline as a file's last `tail` line, so the brain asks for one
-more line and drops that one (`LastLinesToolRegistry`). Moving to a release that changes `tail`
-means removing that wrap from `build_tool_registry`, or a last line that is really empty is hidden.
+The compose command sends supergateway's stdout, which logs every message whole, to `/dev/null`, so
+the log shows only errors; `curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:9000/mcp` prints
+`400` once it listens. From WSL with automount and interop off, the same drvfs and `DOCKER_CONFIG`
+steps as [llamacpp-gpu.md](llamacpp-gpu.md) apply. The compose command names an exact server version
+(`@modelcontextprotocol/server-filesystem@2026.1.14`, past the EscapeRoute fixes CVE-2025-53109 and
+CVE-2025-53110 patched in `2025.7.1`), and an exact `supergateway` version too. Change those
+deliberately and never float back to unversioned `npx`; the read-only single-directory mount bounds
+the damage either way. The container installs both at start rather than running them through `npx`,
+and the bridge runs `--stateful`, so expect a slower first boot, which the brain tolerates because
+it dials no sidecar at startup. Every release through 2.0.1 (checked 2026-10-26) returns the empty
+text after a final newline as a file's last `tail` line, so the brain asks for one more line and
+drops that one (`LastLinesToolRegistry`). Moving to a release that changes `tail` means removing
+that wrap from `build_tool_registry`, or a last line that is really empty is hidden.
 
 ## What the sidecar costs a turn
 

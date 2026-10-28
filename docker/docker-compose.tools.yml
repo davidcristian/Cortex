@@ -1,6 +1,6 @@
 # Tools override: it adds a filesystem MCP server as a sidecar and points the brain at it. Layer
 # docker-compose.email.yml on top as well and both tool families run at once. The server sees only
-# CORTEX_TOOLS_ROOT (default ./sandbox), mounted read-only, and every call it makes is logged.
+# CORTEX_TOOLS_ROOT (default ./sandbox), mounted read-only.
 
 services:
   brain:
@@ -23,6 +23,7 @@ services:
     # Both versions are fixed: the server past CVE-2025-53109 and CVE-2025-53110, and the bridge at
     # 4.1.0 or later, since 3.4.3 exits when a child answers a request its client abandoned.
     image: "node:22-bookworm-slim"
+    # supergateway's stdout logs every message whole, file contents included; only stderr is kept.
     command:
       - "sh"
       - "-c"
@@ -31,7 +32,7 @@ services:
         supergateway@4.1.0 @modelcontextprotocol/server-filesystem@2026.1.14
         && exec supergateway --outputTransport streamableHttp --port 9000
         --stateful --sessionTimeout 60000
-        --stdio 'mcp-server-filesystem /projects'
+        --stdio 'mcp-server-filesystem /projects' > /dev/null
     volumes:
       # The only thing the filesystem tool can see, and it cannot write to it.
       - type: bind
