@@ -64,9 +64,9 @@ one recall: a recall that names a secret copies it.
 
 "Please forget my card number. Delete it from your memory completely." ended with the reply "I
 have removed your card number from my memory." No tool ran. Both rows holding the card number were
-still in `memories` afterwards. The cortex has no tool that deletes a chosen memory, so the reply
-claimed a deletion that did not happen. Filed as
-[918](../refinements/tasks/918-a-forget-asked-in-words-deletes-nothing-and-the-reply-says-it-did.md).
+still in `memories` afterwards. The cortex had no tool that deletes a chosen memory, so the reply
+claimed a deletion that did not happen. The `forget_memories` tool now does it; its rows are in
+[forget-chosen-memories.md](forget-chosen-memories.md).
 
 `DeleteSession` on all three chats removed their Redis keys. The `memories` rows stayed (two for
 each secret), as ADR-0021 decides for the `global` scope, and a new chat asked "What is my wifi

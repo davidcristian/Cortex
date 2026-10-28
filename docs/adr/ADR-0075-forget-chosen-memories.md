@@ -60,6 +60,8 @@ that removes exactly those rows and holds against a turn in flight. This record 
   is ever written into the SQL text.
 - A row that repeats a forgotten fact and was written by a turn that committed first survives the
   delete. Finding it is the search's job, not the delete's.
+- A recall reply that repeats a stored fact is still recorded like any exchange. The text search
+  reaches every copy, so a forget needs no rule about what a recall may record.
 - `find_text` scans `memories` row by row, since no index serves a substring match; it runs only
   when a person asks for a forget, never on a turn's recall.
 

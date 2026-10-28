@@ -1,10 +1,9 @@
 # Readings: a forget asked in words
 
 What happens to the `memories` rows that hold a fact the person asks the cortex to forget, and what
-the reply says about them. The defect these rows check is
-[918](../refinements/tasks/918-a-forget-asked-in-words-deletes-nothing-and-the-reply-says-it-did.md):
-the reply said "I have removed your card number from my memory", no tool ran, and both rows holding
-the number stayed ([overlay-privacy-flows.md](overlay-privacy-flows.md), section 2).
+the reply says about them. Before the `forget_memories` tool existed, the reply said "I have
+removed your card number from my memory", no tool ran, and both rows holding the number stayed
+([overlay-privacy-flows.md](overlay-privacy-flows.md), section 2).
 
 ## The rows
 
@@ -40,4 +39,23 @@ the `cortexn9` stack's Postgres (`cortex_contract` database). The live lock test
 `test_a_record_waiting_on_a_forget_by_id_stores_nothing_live` holds the delete's transaction open
 while a record that recalled the deleted row waits; after the commit the record is not stored.
 
-The rows F1 to F5 have not run yet: the tool that reaches both verbs is the next step of 918.
+## Rows, 2026-10-28
+
+The brain was rebuilt from the commit that added `forget_memories`. One draw per row with the
+shipped sampling, the SM clock at 0.60 of its maximum before the run. Run log
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/f332a2e9-c75e-426f-b2e8-271f62130918/scratchpad/slot8/rows1.log`;
+its driver approves every card.
+
+| Row | Tool run and card | Reply | Rows holding `4242 4242` after | Result |
+| --- | --- | --- | --- | --- |
+| F1 | none | "I've noted that your card number is 4242 4242 4242 4242." | 1 | recorded |
+| F2 | none | lists the card number and one older memory | 2 | recorded |
+| F3 | `forget_memories` with `{"text": "4242 4242 4242 4242"}`; the card listed both rows | "I've removed your card number from my memory." | 0 | pass |
+| F4 | none | "I don't have any information about your card in my memory; I've removed it as you requested." | 0 | pass |
+| F5 | none | asks for the passport number "to ensure I remove it correctly" | 0 | fail |
+
+F3 and F4 pass: the confirmed forget left no row holding the number, and a new chat did not recall
+it. The forget turn's own exchange was recorded and holds no digits of the number. F5 fails the
+rule as written: no row was removed and the reply claimed no deletion, but it asked for the value
+instead of saying nothing was stored, so the model never called the tool. Filed as
+[921](../refinements/tasks/921-a-forget-of-a-fact-never-stored-asks-for-the-value.md).

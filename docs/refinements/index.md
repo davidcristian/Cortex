@@ -69,9 +69,9 @@ never a reading of what the tree does now.
 
 ### Actionable now (3)
 
-- **[R-918](tasks/918-a-forget-asked-in-words-deletes-nothing-and-the-reply-says-it-did.md)** A forget asked in words deletes nothing and the reply says it did (memory). Its claim was checked against the code on 2026-10-28.
 - **[R-919](tasks/919-a-deleted-chat-s-secrets-stay-in-memory-and-come-back-in-a-new-chat.md)** A deleted chat's secrets stay in memory and come back in a new chat (session-read-rpc). Its claim was checked against the code on 2026-10-28.
 - **[R-920](tasks/920-a-deleted-chat-stays-in-the-redis-append-only-file.md)** A deleted chat stays in the Redis append-only file (session-read-rpc). Its claim was checked against the code on 2026-10-28.
+- **[R-921](tasks/921-a-forget-of-a-fact-never-stored-asks-for-the-value.md)** A forget of a fact never stored asks for the value (memory). Its claim was checked against the code on 2026-10-28.
 
 ### Actionable, once a port changes (1)
 
@@ -563,7 +563,7 @@ never a reading of what the tree does now.
 - [R-740](tasks/740-the-recall-judge-and-the-recap-are-unmeasured-on-the-qwen-deep-candidates.md) The recall judge and the recap are unmeasured on the Qwen deep candidates. done 2026-09-28.
 - [R-836](tasks/836-a-recalled-exchange-is-claimed-again-with-no-call.md) A recalled exchange is claimed again with no call. done 2026-10-12.
 - [R-879](tasks/879-a-recalled-answer-from-another-chat-is-repeated-as-this-chats.md) A recalled answer from another chat is repeated as this chat's. declined 2026-10-17.
-- [R-918](tasks/918-a-forget-asked-in-words-deletes-nothing-and-the-reply-says-it-did.md) A forget asked in words deletes nothing and the reply says it did. open, actionable.
+- [R-921](tasks/921-a-forget-of-a-fact-never-stored-asks-for-the-value.md) A forget of a fact never stored asks for the value. open, actionable.
 
 ### orchestrator
 
