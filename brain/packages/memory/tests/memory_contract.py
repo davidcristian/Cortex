@@ -14,6 +14,7 @@ from cortex_core import (
 )
 
 _AT = datetime(2026, 7, 3, 12, 0, 0, tzinfo=UTC)
+_HOUR = timedelta(hours=1)
 
 # More memories than the widest pool a deployment fetches (a recall of 5 times a pool factor of
 # 4), so a count that stopped at any cutoff a search applies is too low here rather than correct
@@ -305,6 +306,29 @@ async def check_add_refuses_a_record_whose_recalled_memory_was_deleted_by_id(
     assert await store.count_candidates(scopes=[scope]) == 1
 
 
+async def check_find_text_returns_the_rows_containing_the_text_oldest_first(
+    under_test: MemoryStoreUnderTest,
+) -> None:
+    """``find_text`` matches a substring, case ignored, in its scopes, oldest first."""
+    store = under_test.store
+    scope = f"contract-find-{uuid4()}"
+    other = f"contract-find-other-{uuid4()}"
+    later = make_record("Your CARD is 4242 4242", (1.0, 0.0, 0.0), scope=scope, at=_AT)
+    first = make_record("my card is 4242 4242", (0.0, 1.0, 0.0), scope=scope, at=_AT - _HOUR)
+    elsewhere = make_record("card is 4242 4242 too", (1.0, 0.0, 0.0), scope=other, at=_AT + _HOUR)
+    unrelated = make_record("my wifi is plum", (1.0, 0.0, 0.0), scope=scope)
+    for record in (later, first, elsewhere, unrelated):
+        await store.add(record)
+    found = await store.find_text("card is 4242", limit=10, scopes=[scope])
+    assert [record.id for record in found] == [first.id, later.id]
+    assert found[0] == first
+    assert [r.id for r in await store.find_text("4242 4242", limit=1, scopes=[scope])] == [first.id]
+    every = await store.find_text("card is 4242", limit=10, scopes=[scope, other])
+    assert [record.id for record in every] == [first.id, later.id, elsewhere.id]
+    assert len(await store.find_text("4242 4242", limit=10)) >= 3
+    assert await store.find_text("passport", limit=10, scopes=[scope]) == ()
+
+
 async def check_a_lost_backend_crosses_the_port_as_memory_store_error(
     under_test: MemoryStoreUnderTest,
 ) -> None:
@@ -322,6 +346,7 @@ async def check_a_lost_backend_crosses_the_port_as_memory_store_error(
     await _refuses_typed(lambda: store.delete_scope(scope), "delete_scope")
     await _refuses_typed(lambda: store.delete_tainted(scopes=[scope]), "delete_tainted")
     await _refuses_typed(lambda: store.delete_ids(["contract-gone"]), "delete_ids")
+    await _refuses_typed(lambda: store.find_text("after", limit=5, scopes=[scope]), "find_text")
 
 
 ALL_CHECKS: Sequence[Check] = (
@@ -343,4 +368,5 @@ ALL_CHECKS: Sequence[Check] = (
     check_add_refuses_a_record_whose_recalled_memory_was_deleted,
     check_delete_ids_removes_only_the_listed_rows,
     check_add_refuses_a_record_whose_recalled_memory_was_deleted_by_id,
+    check_find_text_returns_the_rows_containing_the_text_oldest_first,
 )

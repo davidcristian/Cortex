@@ -32,11 +32,12 @@ Written on 2026-10-28, before any change to shipped behaviour.
 
 ## Port step, 2026-10-28
 
-`MemoryStore.delete_ids(ids)` deletes the listed rows and returns how many it removed
-([ADR-0075](../adr/ADR-0075-forget-chosen-memories.md)). The shared contract
+`MemoryStore.delete_ids(ids)` deletes the listed rows and returns how many it removed, and
+`MemoryStore.find_text(text, *, limit, scopes)` returns the rows whose text contains `text`, case
+ignored ([ADR-0075](../adr/ADR-0075-forget-chosen-memories.md)). The shared contract
 (`memory/tests/memory_contract.py`) passed on the fake and, live, on the pgvector adapter against
 the `cortexn9` stack's Postgres (`cortex_contract` database). The live lock test
 `test_a_record_waiting_on_a_forget_by_id_stores_nothing_live` holds the delete's transaction open
 while a record that recalled the deleted row waits; after the commit the record is not stored.
 
-The rows F1 to F5 have not run yet: the tool that reaches the delete is the next step of 918.
+The rows F1 to F5 have not run yet: the tool that reaches both verbs is the next step of 918.

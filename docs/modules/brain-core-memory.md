@@ -26,7 +26,8 @@ pool down to the hits one turn sees. The turn that calls it is in
   scope and no wildcard. `delete_tainted(*, scopes=None) -> int` removes every memory marked tainted
   in those namespaces, or in all of them, and `count_tainted(*, scopes=None) -> int` counts them.
   `delete_ids(ids) -> int` removes the listed rows in any scope and counts them; an id not stored
-  adds nothing (ADR-0075). `add` stores the record only while every memory id in
+  adds nothing, and `find_text(text, *, limit, scopes=None)` returns the rows whose text contains
+  `text`, case ignored, oldest first (ADR-0075). `add` stores the record only while every memory id in
   `recalled` still exists and returns whether it did, so a reply that recalled a memory a forget
   removed is not stored again. Fake: `InMemoryMemoryStore`; adapter: `cortex_memory`.
 - `MemoryRecord(id, text, embedding, at, scope=GLOBAL_SCOPE, tainted=False)` is one durable memory

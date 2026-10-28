@@ -575,6 +575,12 @@ class _PoolStore:
         del ids
         raise AssertionError(_READ_ONLY)
 
+    async def find_text(
+        self, text: str, *, limit: int, scopes: Sequence[str] | None = None
+    ) -> Sequence[MemoryRecord]:
+        del text, limit, scopes
+        raise AssertionError(_READ_ONLY)
+
 
 async def _reads_recalling(*, audited: bool) -> tuple[int, int]:
     """What one recall costs the store, with and without the trail: pool reads, then counts."""

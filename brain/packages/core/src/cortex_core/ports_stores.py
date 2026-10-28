@@ -48,6 +48,15 @@ class MemoryStore(Protocol):
 
     async def count_candidates(self, *, scopes: Sequence[str] | None = None) -> int: ...
 
+    async def find_text(
+        self, text: str, *, limit: int, scopes: Sequence[str] | None = None
+    ) -> Sequence[MemoryRecord]:
+        """The first ``limit`` memories of ``scopes`` whose text contains ``text``, case ignored.
+
+        Oldest first, then by id; all scopes when None.
+        """
+        ...
+
     async def count_tainted(self, *, scopes: Sequence[str] | None = None) -> int:
         """How many tainted memories ``scopes`` holds (all scopes when None)."""
         ...

@@ -34,6 +34,12 @@ _SELECT = (
 )
 _SEARCH_ALL = f"{_SELECT} ORDER BY embedding <=> $1::vector LIMIT $2"
 _SEARCH_SCOPED = f"{_SELECT} WHERE scope = ANY($3) ORDER BY embedding <=> $1::vector LIMIT $2"
+_FIND = (
+    "SELECT id, text, embedding::text AS embedding, scope, tainted, created_at FROM memories"
+    " WHERE strpos(lower(text), lower($1)) > 0"
+)
+_FIND_ALL = f"{_FIND} ORDER BY created_at, id LIMIT $2"
+_FIND_SCOPED = f"{_FIND} AND scope = ANY($3) ORDER BY created_at, id LIMIT $2"
 _COUNT_ALL = "SELECT count(*) AS total FROM memories"
 _COUNT_SCOPED = f"{_COUNT_ALL} WHERE scope = ANY($1)"
 _COUNT_TAINTED = f"{_COUNT_ALL} WHERE tainted"
@@ -85,9 +91,9 @@ def _row_count(status: object) -> int:
     return int(str(status).rsplit(" ", 1)[-1])
 
 
-def _to_scored(row: Row) -> ScoredMemory:
-    """Map one result row to a ScoredMemory (raises to the caller's typed wrapper on bad shape)."""
-    record = MemoryRecord(
+def _to_record(row: Row) -> MemoryRecord:
+    """Map one result row to a MemoryRecord (raises to the caller's typed wrapper on bad shape)."""
+    return MemoryRecord(
         id=row["id"],
         text=row["text"],
         embedding=_from_literal(row["embedding"]),
@@ -95,7 +101,11 @@ def _to_scored(row: Row) -> ScoredMemory:
         scope=row["scope"],
         tainted=row["tainted"],
     )
-    return ScoredMemory(record=record, score=float(row["score"]))
+
+
+def _to_scored(row: Row) -> ScoredMemory:
+    """Map one search row to a ScoredMemory."""
+    return ScoredMemory(record=_to_record(row), score=float(row["score"]))
 
 
 class PgVectorMemoryStore:
@@ -191,6 +201,23 @@ class PgVectorMemoryStore:
             raise MemoryStoreError(msg) from err
         except (KeyError, IndexError, TypeError, ValueError) as err:
             msg = "malformed memory row in search result"
+            raise MemoryDataError(msg) from err
+
+    async def find_text(
+        self, text: str, *, limit: int, scopes: Sequence[str] | None = None
+    ) -> Sequence[MemoryRecord]:
+        """The first ``limit`` memories of ``scopes`` whose text contains ``text``, case ignored."""
+        try:
+            if scopes is None:
+                rows = await self._bounded(self._db.fetch(_FIND_ALL, text, limit))
+            else:
+                rows = await self._bounded(self._db.fetch(_FIND_SCOPED, text, limit, list(scopes)))
+            return tuple(_to_record(row) for row in rows)
+        except _WRAPPED as err:
+            msg = "finding memories by text failed"
+            raise MemoryStoreError(msg) from err
+        except (KeyError, IndexError, TypeError, ValueError) as err:
+            msg = "malformed memory row in a text search result"
             raise MemoryDataError(msg) from err
 
     async def count_candidates(self, *, scopes: Sequence[str] | None = None) -> int:

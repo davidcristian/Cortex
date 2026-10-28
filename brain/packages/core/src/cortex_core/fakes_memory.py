@@ -95,6 +95,16 @@ class InMemoryMemoryStore:
         self._guard()
         return len(self._in_scopes(scopes))
 
+    async def find_text(
+        self, text: str, *, limit: int, scopes: Sequence[str] | None = None
+    ) -> Sequence[MemoryRecord]:
+        """The first ``limit`` memories of ``scopes`` whose text contains ``text``, case ignored."""
+        self._guard()
+        needle = text.lower()
+        found = [record for record in self._in_scopes(scopes) if needle in record.text.lower()]
+        found.sort(key=lambda record: (record.at, record.id))
+        return tuple(found[:limit])
+
     async def count_tainted(self, *, scopes: Sequence[str] | None = None) -> int:
         """How many tainted memories ``scopes`` holds."""
         self._guard()

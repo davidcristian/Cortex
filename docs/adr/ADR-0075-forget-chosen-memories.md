@@ -1,4 +1,4 @@
-# ADR-0075: A forget of chosen memories deletes by id
+# ADR-0075: A forget of chosen memories finds rows by text and deletes them by id
 
 **Status:** Accepted (2026-10-28)
 
@@ -14,7 +14,7 @@ rows that hold one fact, because a fact the person typed is an ordinary row in t
 beside every other memory.
 
 A forget that removes a chosen set of rows needs two things: a way to find the rows, and a delete
-that removes exactly those rows and holds against a turn in flight. This record decides the delete.
+that removes exactly those rows and holds against a turn in flight. This record decides both.
 
 ## Decision
 
@@ -34,8 +34,15 @@ that removes exactly those rows and holds against a turn in flight. This record 
    before this delete took its locks has a new id, which is not in the list, so a second pass would
    find nothing. A caller that must know whether the fact is still held searches again after the
    delete; the tool that will call this verb reports what remains rather than claiming it is gone.
-4. **No tool reaches the verb yet.** The forget tool (a search for the rows that hold the named
-   fact, a confirmation card that lists them, and this delete) is the next step of
+4. **`MemoryStore.find_text(text, *, limit, scopes=None)` finds the rows that hold a fact by a
+   literal match**: the rows whose text contains `text`, case ignored, oldest first and then by
+   id, at most `limit`. The pgvector statement is `strpos(lower(text), lower($1)) > 0` with the
+   scope filter `search` uses. A literal match is checkable: a row holds the named text or it does
+   not, so a card can say why each listed row was chosen. Both implementations lower case with
+   their own rules, which agree on ASCII; that the database collation agrees with Python on other
+   letters is an assumption no test checks.
+5. **No tool reaches either verb yet.** The forget tool (a text search for the rows that hold the
+   named fact, a confirmation card that lists them, and this delete) is the next step of
    [918](../refinements/tasks/918-a-forget-asked-in-words-deletes-nothing-and-the-reply-says-it-did.md),
    and its pass rule is in [forget-chosen-memories.md](../readings/forget-chosen-memories.md).
 
@@ -46,9 +53,13 @@ that removes exactly those rows and holds against a turn in flight. This record 
   is ever written into the SQL text.
 - A row that repeats a forgotten fact and was written by a turn that committed first survives the
   delete. Finding it is the search's job, not the delete's.
+- `find_text` scans `memories` row by row, since no index serves a substring match; it runs only
+  when a person asks for a forget, never on a turn's recall.
 
 ## Alternatives rejected
 
+- **A similarity search for the rows to forget.** It ranks every row, so choosing which rows hold
+  the fact needs a score floor, and no reading sets one for the shipped embedder.
 - **Delete by a text match in the store.** A `DELETE ... WHERE text ILIKE` removes rows the person
   never saw on a card, which the pass rule fails; the card must list exactly what is deleted.
 - **A taint-like marker on the rows to forget, then `delete_tainted`.** It reuses the loop, but it

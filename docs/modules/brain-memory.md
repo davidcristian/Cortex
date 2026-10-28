@@ -51,6 +51,9 @@ business logic and no state beyond the injected pool (the one hard rule).
   ANY($1::text[]) ORDER BY id FOR UPDATE)` with the distinct ids sorted, one pass, counted as
   `delete_scope` is. It locks in id order for the reason `delete_tainted` does, so a record that
   recalled a deleted row is not stored (ADR-0075).
+- `find_text(text, *, limit, scopes=None)` is a `SELECT` of the record columns `WHERE
+  strpos(lower(text), lower($1)) > 0`, with the scope filter `search` uses, `ORDER BY created_at,
+  id LIMIT $2`. No index serves it, so it scans the table; only a forget calls it.
 - `delete_scope(scope)` is `DELETE FROM memories WHERE scope = $1` (the `memories_scope_idx` btree
   serves the equality, so no schema change), returning the row count parsed from asyncpg's
   `DELETE n` command tag: 0 when the scope holds none, and a malformed tag wrapped as
@@ -187,7 +190,7 @@ similarity ranking.
   `MemoryStoreUnderTest`, the implementation plus an awaited `break_backend`, so the port's failure
   channel is checked where its values are: the eleventh check breaks the backend and requires each
   verb (`add`, `search`, `count_candidates`, `count_tainted`, `delete_scope`, `delete_tainted`,
-  `delete_ids`) to raise
+  `delete_ids`, `find_text`) to raise
   `MemoryStoreError`, not the driver's exception nor `MemoryDataError`, since an outage misread as
   a data defect would fail the very turn the degradation exists to save. The other direction is
   deliberately not a shared check: the in-memory twin decodes nothing, so only the implementation
