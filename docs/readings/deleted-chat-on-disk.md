@@ -53,3 +53,24 @@ segment file only once later writes reach it (`max_wal_size` is 1024 MB here).
 
 Method: `psql` `INSERT`, `DELETE`, `CHECKPOINT` and `VACUUM`, then `grep -c -a -F <text>` on the
 file `pg_relation_filepath('memories')` names and `grep -l` over `pg_wal/0*`.
+
+## A delete while the chat's turn runs
+
+On 2026-10-28 on the stack, a turn in chat `s12-c` was sent and the chat was deleted 3 s later,
+while the cortex was still writing (run log `slot12/delrow.log` in the night's scratch directory,
+the SM clock at 0.59 of its maximum). The delete returned at once. The turn ended 10 s later and
+appended its reply, which put the chat back in the chat list holding only that reply, and its
+exchange was stored as a `memories` row with `session_id = 's12-c'` after the cascade had run.
+
+The same window on the store alone, two `psql` sessions on `cortex_contract` with the shipped
+`INSERT` and `delete_written_by` statements (run log `slot12/race.log`):
+
+| Row | First, held open 3 s | Then | Row the turn wrote |
+| --- | --- | --- | --- |
+| R1 | the insert, recalling nothing | the delete returns in 72 ms, removing the older row | kept |
+| R2 | the insert, recalling the chat's older row | the delete waits 2.1 s for the insert to commit | kept |
+| R3 | the delete | the insert, recalling the older row, waits and stores nothing | none |
+| R4 | the delete | the insert, recalling nothing, runs at once | kept |
+
+The delete holds only against a turn that recalled one of the rows it removes (R3). A row the turn
+commits after the delete read its rows is kept, and so is any row written after the delete ended.

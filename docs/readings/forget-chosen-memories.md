@@ -107,3 +107,15 @@ clock at 0.59 of its maximum before and after.
 The rule passes, so the description and the no-match result ship. In the first run, two F5 draws
 also listed the file sidecar's directories looking for a passport file before the forget; no draw
 did so with the changed description.
+
+## A forget and a new fact in one message, 2026-10-28
+
+One draw on the build that does not record a forget turn (run log `slot12/row.log` in the night's
+scratch directory, the SM clock at 0.60 of its maximum). In chat A, "Remember that my card number is
+4242 4242 4242 4242." was stored. Then "Forget my card number 4242 4242 4242 4242, and remember
+that my locker code is 7319." called `forget_memories` with the number, was approved, removed the
+row, and the reply was "I've forgotten your card number and noted that your locker code is 7319."
+No row holds `7319`, and a new chat asked for the locker code searched the file sidecar instead.
+The brain log, the other containers' logs and the `memories` text held neither value; the audit
+line holds `{"text":"<redacted>"}`. Redis held both in the chat's own message list until the chat
+was deleted.
