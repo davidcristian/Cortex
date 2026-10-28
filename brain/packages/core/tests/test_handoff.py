@@ -103,6 +103,19 @@ def test_a_snapshot_withholds_the_argument_values_of_a_private_call() -> None:
     assert working[-1].tool_calls == (forget,)
 
 
+def test_a_snapshot_keeps_the_forget_mark_and_the_ledger_restores_it() -> None:
+    slot = _slot(
+        [Message(role=Role.USER, text="hi", at=_AT, turn_id="t1")],
+        budget=DispatchBudget(),
+        base_len=1,
+    )
+    assert slot.refs is not None
+    slot.refs.taint.forget_asked = True
+    record = slot.snapshot(turn_id="t1", session_id="s1", requested_at=_AT)
+    assert record.forget_asked is True
+    assert record.taint_ledger().forget_asked is True
+
+
 def test_snapshot_keeps_a_closed_budget_as_closed() -> None:
     budget = DispatchBudget(limit=2)
     assert budget.charge(3) is False

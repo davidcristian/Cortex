@@ -13,7 +13,6 @@ from cortex_core.handoff_view import (
     declined_calls,
     deep_history,
     deep_tail,
-    forget_asked,
 )
 from cortex_core.output_channels import open_output_channels
 from cortex_core.ports import Clock, InferenceBackend, SessionStore
@@ -86,7 +85,6 @@ class BrainPhase:
         history = deep_history(stored, record)
         query = _user_query(history, record)
         taint = record.taint_ledger()
-        taint.forget_asked = forget_asked(record)
         watch = CadenceWatch(self._cadence.floor_tps)
         stops = StopLedger()
         tail = deep_tail(record)

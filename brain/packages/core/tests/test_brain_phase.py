@@ -1113,15 +1113,11 @@ async def test_a_deep_phase_whose_unreadable_call_was_a_forget_records_nothing(
     assert len(await _recorded(memory)) == kept
 
 
-@pytest.mark.parametrize(("tool_name", "kept"), [(FORGET_CHOSEN_TOOL_NAME, 0), ("read", 1)])
+@pytest.mark.parametrize(("asked", "kept"), [(True, 0), (False, 1)])
 async def test_a_deep_phase_after_the_cortex_named_a_forget_that_never_ran_records_nothing(
-    *, tool_name: str, kept: int
+    *, asked: bool, kept: int
 ) -> None:
-    call = ToolCall(id="c0", name=tool_name, arguments={"text": "4242"})
-    tail = (
-        Message(role=Role.ASSISTANT, text="", at=_AT, turn_id=harness.TURN, tool_calls=(call,)),
-        Message(role=Role.TOOL, text="refused", at=_AT, turn_id=harness.TURN, tool_call_id="c0"),
-    )
     memory = _recaller()
-    await _drive(capabilities=TurnCapabilities(memory=memory), tail=tail)
+    taint = TaintLedger(forget_asked=asked)
+    await _drive(capabilities=TurnCapabilities(memory=memory), taint=taint)
     assert len(await _recorded(memory)) == kept

@@ -113,6 +113,16 @@ async def test_a_record_written_before_recalled_ids_reads_them_as_none() -> None
     assert loaded.recalled_only is True
 
 
+async def test_a_record_written_before_the_forget_mark_reads_it_as_asked() -> None:
+    client = FakeAsyncRedis(server=FakeServer())
+    fields = cast("dict[str, Any]", json.loads(encode_record(handoff_contract.make_record("t1"))))
+    del fields["forget_asked"]
+    await client.set("cortex:handoff:t1", json.dumps(fields))
+    loaded = await RedisHandoffStore(client).get("t1")
+    assert loaded is not None
+    assert loaded.forget_asked is True
+
+
 async def test_record_with_an_unknown_source_kind_is_corrupt() -> None:
     client = FakeAsyncRedis(server=FakeServer())
     fields = cast("dict[str, Any]", json.loads(encode_record(handoff_contract.make_record("t1"))))

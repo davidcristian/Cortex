@@ -162,13 +162,13 @@ Handoff state (ADR-0030) is hot the same way: one record at `cortex:handoff:{id}
 markers, plus the pointer key `cortex:handoff:active` holding the in-flight record's id (one GPU, at
 most one swap at a time). The document holds the escalation `brief`, the turn's fence `nonce`, the
 taint ledger (`tainted`, `opaque`, `recalled_only`, `sources` as ordered `{"kind", "value"}` pairs,
-`untrusted_urls` stored sorted and read back as a set, `recalled_ids` as a list), the budget position (`budget_remaining` and
+`untrusted_urls` stored sorted and read back as a set, `recalled_ids` as a list, `forget_asked`), the budget position (`budget_remaining` and
 `budget_closed`), `rounds_used`, `loop_tail` (each message with its `tool_calls` as
 `{"id", "name", "arguments"}`; the transient dispatch stamp is never stored) and `failure`, the only
 field written after the snapshot. `failure` is required like the rest, since reading a missing field
 as "no reason given" would be indistinguishable from the state the field exists to describe.
 Decoding is strict, as for task state, since a defaulted taint field would fail open after the swap,
-except that a missing `recalled_only` reads as `False`, the stricter value, and a missing `recalled_ids` as none, so an older record decodes.
+except that an older record decodes with a missing `recalled_only` as `False` and a missing `forget_asked` as `True`, each the stricter value, and a missing `recalled_ids` as none.
 
 Schedule state (ADR-0025) is durable again: one record per schedule at `cortex:schedule:{id}`
 holding

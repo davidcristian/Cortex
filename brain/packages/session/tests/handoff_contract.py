@@ -87,11 +87,13 @@ def make_record(
     requested_at: datetime = _AT,
     opaque: bool = False,
     recalled: bool = False,
+    forget_asked: bool = False,
 ) -> HandoffRecord:
     """One full-shape record, snapshotted off a live slot exactly as the conductor will."""
     ledger = opaque_ledger() if opaque else tainted_ledger()
     if recalled:
         ledger = recalled_ledger()
+    ledger.forget_asked = forget_asked
     budget = DispatchBudget(limit=8)
     budget.charge(3)
     call = ToolCall(id="c1", name="read_email", arguments={"folder": "inbox", "limit": 2})
@@ -321,12 +323,25 @@ async def check_timezone_fidelity(store: HandoffStore) -> None:
     await store.delete(record.handoff_id)
 
 
+async def check_the_forget_mark_round_trips_both_ways(store: HandoffStore) -> None:
+    """Whether the cortex named the forget in a call survives the store."""
+    for asked in (False, True):
+        record = make_record(_handoff_id(), forget_asked=asked)
+        await store.put(record)
+        loaded = await store.get(record.handoff_id)
+        assert loaded is not None
+        assert loaded == record
+        assert loaded.taint_ledger().forget_asked is asked
+        await store.delete(record.handoff_id)
+
+
 ALL_CHECKS = (
     check_missing_reads_are_none,
     check_record_round_trips_field_for_field,
     check_tainted_ledger_round_trips_exactly,
     check_the_opaque_bit_round_trips_both_ways,
     check_the_recalled_only_bit_round_trips_both_ways,
+    check_the_forget_mark_round_trips_both_ways,
     check_put_claims_the_active_slot,
     check_transition_walks_the_lifecycle,
     check_terminal_transition_releases_active_but_keeps_the_record,

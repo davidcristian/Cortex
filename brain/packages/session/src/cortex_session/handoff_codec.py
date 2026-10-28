@@ -68,6 +68,7 @@ def encode_record(record: HandoffRecord) -> str:
             "opaque": record.opaque,
             "recalled_only": record.recalled_only,
             "recalled_ids": list(record.recalled_ids),
+            "forget_asked": record.forget_asked,
             "sources": [
                 {"kind": source.kind.value, "value": source.value} for source in record.sources
             ],
@@ -109,6 +110,9 @@ def decode_record(raw: bytes | str, handoff_id: str) -> HandoffRecord:
             # Missing in a record written before the field existed, whose reply is then stored
             # without the check that its recalled memories still exist.
             recalled_ids=tuple(fields.get("recalled_ids", ())),
+            # Missing in a record written before the field existed; True keeps that turn's
+            # exchange out of memory, the stricter value.
+            forget_asked=fields.get("forget_asked", True),
         )
     except (KeyError, TypeError, ValueError) as err:
         msg = f"corrupt handoff record at {record_key(handoff_id)!r}"
