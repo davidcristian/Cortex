@@ -23,6 +23,7 @@ function fakeCase(): BridgeCase {
       recurring: false,
       tainted: false,
       sessionId: "contract-a",
+      dueLabel: "",
     },
   ];
   return {

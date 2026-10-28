@@ -37,6 +37,11 @@ fn reminder(reminder_id: &str, fired_at_unix_ms: i64, tainted: bool) -> DueRemin
         } else {
             String::from("beta")
         },
+        due_label: if tainted {
+            String::from("due 08:00 yesterday")
+        } else {
+            String::new()
+        },
     }
 }
 

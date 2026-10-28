@@ -1,10 +1,45 @@
 """Reminder pull-delivery views: the ScheduleStore onto the wire, benign when off."""
 
-from cortex_core import ScheduledItem, ScheduleKind, ScheduleStore, fire_stamp, stamp_instant
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+
+from cortex_core import (
+    UTC_DISPLAY,
+    Clock,
+    DisplayZone,
+    ScheduledItem,
+    ScheduleKind,
+    ScheduleStore,
+    SystemClock,
+    due_phrase,
+    fire_stamp,
+    is_late_fire,
+    stamp_instant,
+)
 from cortex_seam import AckReminderReply, DueReminder, ListDueRemindersReply
 
 
-def reminder_to_proto(item: ScheduledItem) -> DueReminder:
+@dataclass(frozen=True, slots=True)
+class ReminderView:
+    """What a card's due label reads: the ticker's zone and poll, and the clock it is shown by."""
+
+    zone: DisplayZone = UTC_DISPLAY
+    poll: timedelta = timedelta(0)
+    clock: Clock = field(default_factory=SystemClock)
+
+
+def _due_label(item: ScheduledItem, fired_at: datetime, view: ReminderView) -> str:
+    """'due 09:00' for a late reminder fire, with its day counted from now; else ''."""
+    due_at = item.deliverable_due_at
+    # A task's fire time is when its run ended, so a long run would read as a late fire.
+    if item.kind is not ScheduleKind.REMINDER or due_at is None:
+        return ""
+    if not is_late_fire(due_at, fired_at, view.poll):
+        return ""
+    return due_phrase(item.rule, due_at, view.clock.now(), view.zone)
+
+
+def reminder_to_proto(item: ScheduledItem, view: ReminderView) -> DueReminder:
     """Map a deliverable `ScheduledItem` to the wire `DueReminder`."""
     fired_at = item.deliverable_since if item.deliverable_since is not None else item.due_at
     body = item.text
@@ -17,15 +52,18 @@ def reminder_to_proto(item: ScheduledItem) -> DueReminder:
         recurring=item.every is not None or item.rule is not None,
         tainted=item.tainted,
         session_id=item.session_id,
+        due_label=_due_label(item, fired_at, view),
     )
 
 
-async def list_due_reminders(schedules: ScheduleStore | None) -> ListDueRemindersReply:
+async def list_due_reminders(
+    schedules: ScheduleStore | None, view: ReminderView
+) -> ListDueRemindersReply:
     """Fired-but-undelivered reminders, oldest-fired-first; empty when scheduling is off."""
     if schedules is None:
         return ListDueRemindersReply()
     items = await schedules.deliverable()
-    return ListDueRemindersReply(reminders=[reminder_to_proto(item) for item in items])
+    return ListDueRemindersReply(reminders=[reminder_to_proto(item, view) for item in items])
 
 
 async def ack_reminder(

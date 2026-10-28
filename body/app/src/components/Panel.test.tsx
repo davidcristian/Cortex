@@ -284,6 +284,7 @@ describe("Panel", () => {
             recurring: false,
             tainted: false,
             sessionId: "c9",
+            dueLabel: "",
           },
         ],
       },
@@ -440,6 +441,7 @@ describe("Panel", () => {
       recurring: false,
       tainted: false,
       sessionId: "c9",
+      dueLabel: "",
     };
     renderPanel({ messages: [userMsg], reminders: [due] }, true, false);
     expect(screen.queryByLabelText("Due reminders")).toBeNull();

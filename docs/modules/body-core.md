@@ -78,11 +78,13 @@ Two areas of this crate have documents of their own:
   the user hoisted it, which the brain lists first and above the recency window (ADR-0021 decision
   12).
   `SessionMessage { role, text, turn_id, at_unix_ms }` is one stored message.
-- `DueReminder { reminder_id, text, fired_at_unix_ms, recurring, tainted, session_id }` is one fired
-  reminder still awaiting delivery (ADR-0025). `text` is display-only and **inert**: a `tainted` one
-  was scheduled out of content the brain does not trust, so a surface renders it as text, never as
-  markup, a link or an instruction, and the bit travels with it so the surface can badge provenance
-  instead of guessing. `session_id` is empty for the ticker's own fire.
+- `DueReminder { reminder_id, text, fired_at_unix_ms, recurring, tainted, session_id, due_label }`
+  is one fired reminder still awaiting delivery (ADR-0025). `text` is display-only and **inert**: a
+  `tainted` one was scheduled out of content the brain does not trust, so a surface renders it as
+  text, never as markup, a link or an instruction, and the bit travels with it so the surface can
+  badge provenance instead of guessing. `session_id` is empty for the ticker's own fire.
+  `due_label` is the brain's wording of a late fire's due time (`due 08:00`), empty when it fired
+  on time (ADR-0066 decision 11).
 
 `BrainTransport` is the typed async client port to the brain, `Send + Sync`. Fakes implement the
 same trait for tests.

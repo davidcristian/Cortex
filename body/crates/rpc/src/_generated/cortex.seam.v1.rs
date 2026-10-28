@@ -317,6 +317,11 @@ pub struct DueReminder {
     /// the chat it came from; "" when there was none
     #[prost(string, tag = "6")]
     pub session_id: ::prost::alloc::string::String,
+    /// When a reminder fired late, as after a sleep of the machine, its due time in the zone the
+    /// brain lists it in, with the day counted from this list: "due 08:00", "due 21:00 yesterday".
+    /// "" when it fired on time, for a task's outcome, and for a fire stored without a due time.
+    #[prost(string, tag = "7")]
+    pub due_label: ::prost::alloc::string::String,
 }
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct AckReminderRequest {

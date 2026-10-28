@@ -161,6 +161,7 @@ describe("App", () => {
       recurring: true,
       tainted: false,
       sessionId: "s1",
+      dueLabel: "",
     };
     bridge.reminders = [due];
     await renderApp(bridge);
@@ -352,6 +353,7 @@ describe("App", () => {
         recurring: false,
         tainted: false,
         sessionId: "",
+        dueLabel: "",
       },
     ];
     let minted = 0;

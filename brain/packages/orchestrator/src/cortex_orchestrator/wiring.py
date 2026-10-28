@@ -26,6 +26,7 @@ from cortex_orchestrator.dispatch_builders import DispatchSetup, tool_audit_from
 from cortex_orchestrator.engines import DeepTier, StreamEngines
 from cortex_orchestrator.memory_builders import build_memory
 from cortex_orchestrator.schedule_builders import (
+    build_reminder_view,
     build_schedule,
     build_schedule_tools,
     build_ticker,
@@ -152,6 +153,7 @@ async def run_from_env(
                 residency=None if swap is None else swap.manager,
                 preferences=stores.preferences,
                 serving=serving,
+                reminder_view=build_reminder_view(schedule_config, clock),
             ),
         )
     finally:

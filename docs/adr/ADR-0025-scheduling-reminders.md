@@ -118,10 +118,10 @@ loop, and on cancellation it releases unfinished claims.
 ### 5. Fetched delivery, and an ack that identifies the run
 
 `BrainService` has `ListDueReminders` (all sessions, each row with `session_id`, `tainted`,
-`recurring` and `fired_at_unix_ms`) and `AckReminder` ([proto/body.proto](../../proto/body.proto)).
-A store failure aborts with `UNAVAILABLE`. **With no store configured
-(`CORTEX_SCHEDULE_BACKEND=none`) the list is empty and every ack returns `acked=false`**, never
-`UNAVAILABLE`, which the body's retry would treat as transient on every overlay open.
+`recurring`, `fired_at_unix_ms` and a late fire's `due_label`) and `AckReminder`
+([proto/body.proto](../../proto/body.proto)). A store failure aborts with `UNAVAILABLE`. **With no
+store configured (`CORTEX_SCHEDULE_BACKEND=none`) the list is empty and every ack returns
+`acked=false`**, never `UNAVAILABLE`, which the body's retry would treat as transient.
 
 **An ack identifies the run it showed.** A card can stay on screen for run N after run N+1 has
 replaced the slot, and acking by item alone cleared N+1 unseen. `AckReminderRequest` includes the

@@ -84,6 +84,9 @@ export interface DueReminder {
   readonly tainted: boolean;
   /** The chat it came from, or "" when the caller had no session. */
   readonly sessionId: string;
+  /** The brain's words for a late fire's due time, such as "due 08:00", or "" when it fired on
+   *  time. App text computed from the stored due time, never from the reminder's own text. */
+  readonly dueLabel: string;
 }
 
 /** What the last probe found: `ready` = the brain answered and reports itself serving,

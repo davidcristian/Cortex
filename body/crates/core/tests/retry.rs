@@ -137,6 +137,7 @@ impl BrainTransport for FlakyTransport {
             recurring: false,
             tainted: false,
             session_id: String::from("s1"),
+            due_label: String::new(),
         }])
     }
 

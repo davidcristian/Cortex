@@ -29,6 +29,16 @@ function canOpen(reminder: DueReminder, currentId: string): boolean {
   return reminder.sessionId !== "" && reminder.sessionId !== currentId;
 }
 
+/** Whether the row has a control, a late fire's due time or a badge for its meta line. */
+function hasMeta(reminder: DueReminder, currentId: string): boolean {
+  return (
+    reminder.dueLabel !== "" ||
+    reminder.recurring ||
+    reminder.tainted ||
+    canOpen(reminder, currentId)
+  );
+}
+
 /** The due-reminder stack: what fired while the overlay was away, above the history and outside
  *  the scrolling log. Every field is a plain text node and nothing here is ever turned into links:
  *  reminder text comes off a store row, so no output filter has inspected it. */
@@ -66,10 +76,10 @@ export function Reminders({
               </span>
               <span className="reminder-body">
                 <span className="reminder-text">{reminder.text}</span>
-                {/* Rendered only when it has content. With the timestamp moved to the side column,
-                    a reminder that is one-shot, untainted and already in the chat on screen has
-                    nothing for this line, and an empty one would still take its top margin. */}
-                {reminder.recurring || reminder.tainted || canOpen(reminder, currentId) ? (
+                {/* Rendered only when it has content. A reminder that fired on time, is one-shot,
+                    untainted and already in the chat on screen has nothing for this line, and an
+                    empty one would still take its top margin. */}
+                {hasMeta(reminder, currentId) ? (
                   <span className="reminder-meta">
                     {/* The control comes before the badges, because it is the only actionable item
                         on the line and the badges only describe the row. This keeps it at the same
@@ -82,6 +92,9 @@ export function Reminders({
                       >
                         open chat
                       </button>
+                    ) : null}
+                    {reminder.dueLabel !== "" ? (
+                      <span className="reminder-tag">{reminder.dueLabel}</span>
                     ) : null}
                     {reminder.recurring ? (
                       <span className="reminder-tag">repeats</span>

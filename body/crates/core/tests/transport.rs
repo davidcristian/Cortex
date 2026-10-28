@@ -273,6 +273,7 @@ fn due_reminder_is_clone_eq_and_debug() {
         recurring: false,
         tainted: true,
         session_id: String::from("s1"),
+        due_label: String::from("due 08:00"),
     };
     assert_eq!(reminder.clone(), reminder);
     assert_ne!(
@@ -293,6 +294,7 @@ fn due_reminder_is_clone_eq_and_debug() {
     assert!(debug.contains("DueReminder"), "{debug}");
     assert!(debug.contains("call the vet"), "{debug}");
     assert!(debug.contains("tainted: true"), "{debug}");
+    assert!(debug.contains("due 08:00"), "{debug}");
 }
 
 #[test]

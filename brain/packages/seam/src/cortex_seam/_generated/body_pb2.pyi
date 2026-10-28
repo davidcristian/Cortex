@@ -285,20 +285,22 @@ class ListDueRemindersReply(_message.Message):
     def __init__(self, reminders: _Optional[_Iterable[_Union[DueReminder, _Mapping]]] = ...) -> None: ...
 
 class DueReminder(_message.Message):
-    __slots__ = ("reminder_id", "text", "fired_at_unix_ms", "recurring", "tainted", "session_id")
+    __slots__ = ("reminder_id", "text", "fired_at_unix_ms", "recurring", "tainted", "session_id", "due_label")
     REMINDER_ID_FIELD_NUMBER: _ClassVar[int]
     TEXT_FIELD_NUMBER: _ClassVar[int]
     FIRED_AT_UNIX_MS_FIELD_NUMBER: _ClassVar[int]
     RECURRING_FIELD_NUMBER: _ClassVar[int]
     TAINTED_FIELD_NUMBER: _ClassVar[int]
     SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    DUE_LABEL_FIELD_NUMBER: _ClassVar[int]
     reminder_id: str
     text: str
     fired_at_unix_ms: int
     recurring: bool
     tainted: bool
     session_id: str
-    def __init__(self, reminder_id: _Optional[str] = ..., text: _Optional[str] = ..., fired_at_unix_ms: _Optional[int] = ..., recurring: _Optional[bool] = ..., tainted: _Optional[bool] = ..., session_id: _Optional[str] = ...) -> None: ...
+    due_label: str
+    def __init__(self, reminder_id: _Optional[str] = ..., text: _Optional[str] = ..., fired_at_unix_ms: _Optional[int] = ..., recurring: _Optional[bool] = ..., tainted: _Optional[bool] = ..., session_id: _Optional[str] = ..., due_label: _Optional[str] = ...) -> None: ...
 
 class AckReminderRequest(_message.Message):
     __slots__ = ("reminder_id", "fired_at_unix_ms")

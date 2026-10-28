@@ -71,8 +71,8 @@ export function sessions(): SessionSummary[] {
   ];
 }
 
-/** Three reminder cards, covering the forms that render differently: a plain one, a repeating
- *  one, and one whose text came from an untrusted source. */
+/** Three reminder cards, covering the forms that render differently: one that fired late, a
+ *  repeating one, and one whose text came from an untrusted source. */
 export function reminders(): readonly DueReminder[] {
   return [
     {
@@ -82,6 +82,7 @@ export function reminders(): readonly DueReminder[] {
       recurring: false,
       tainted: false,
       sessionId: "demo-1",
+      dueLabel: "due 09:00",
     },
     {
       reminderId: "demo-r2",
@@ -90,6 +91,7 @@ export function reminders(): readonly DueReminder[] {
       recurring: true,
       tainted: false,
       sessionId: "demo-2",
+      dueLabel: "",
     },
     {
       reminderId: "demo-r3",
@@ -98,6 +100,7 @@ export function reminders(): readonly DueReminder[] {
       recurring: false,
       tainted: true,
       sessionId: "demo-2",
+      dueLabel: "",
     },
   ];
 }

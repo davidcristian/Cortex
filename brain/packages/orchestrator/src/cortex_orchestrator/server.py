@@ -4,7 +4,7 @@ import asyncio
 import logging
 import signal
 from collections.abc import AsyncGenerator, AsyncIterator
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import grpc
 from grpc import aio
@@ -29,7 +29,7 @@ from cortex_orchestrator.converse import (
 )
 from cortex_orchestrator.converse_stream import ConverseStream
 from cortex_orchestrator.preference_servicer import PreferenceRpcMixin
-from cortex_orchestrator.reminders import ack_reminder, list_due_reminders
+from cortex_orchestrator.reminders import ReminderView, ack_reminder, list_due_reminders
 from cortex_orchestrator.session_rpc import DEFAULT_SESSION_LIST_LIMIT, MAX_SESSION_LIST_LIMIT
 from cortex_orchestrator.session_servicer import SessionRpcMixin
 from cortex_seam import (
@@ -76,6 +76,7 @@ class RpcPorts:
     residency: ResidencyReporter | None = None
     preferences: PreferenceStore | None = None
     serving: ServingWatch | None = None
+    reminder_view: ReminderView = field(default_factory=ReminderView)
 
 
 _NO_RPC_PORTS = RpcPorts()
@@ -100,6 +101,7 @@ class BrainService(SessionRpcMixin, PreferenceRpcMixin, BrainServiceServicer):
         self._residency = ports.residency
         self._preferences = ports.preferences
         self._serving = ports.serving
+        self._reminder_view = ports.reminder_view
         self._max_buffered_events = max_buffered_events
         self._confirm_timeout_s = confirm_timeout_s
         self._streams: set[ConverseStream] = set()
@@ -159,7 +161,7 @@ class BrainService(SessionRpcMixin, PreferenceRpcMixin, BrainServiceServicer):
         """Fired-but-undelivered reminders (policy + mapping in `reminders.py`)."""
         del request
         try:
-            return await list_due_reminders(self._schedules)
+            return await list_due_reminders(self._schedules, self._reminder_view)
         except ScheduleStoreError as err:
             await context.abort(grpc.StatusCode.UNAVAILABLE, str(err))
 

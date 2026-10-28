@@ -20,7 +20,7 @@ from cortex_core import (
     TurnEngine,
 )
 from cortex_orchestrator import RpcPorts, RpcServerConfig, create_server
-from cortex_orchestrator.reminders import reminder_to_proto
+from cortex_orchestrator.reminders import ReminderView, reminder_to_proto
 from cortex_seam import (
     AckReminderReply,
     AckReminderRequest,
@@ -118,6 +118,7 @@ async def test_list_due_reminders_maps_the_deliverable_view() -> None:
     assert reminder.recurring is True
     assert reminder.tainted is True
     assert reminder.session_id == "chat-1"
+    assert reminder.due_label == ""
 
 
 async def test_list_due_reminders_maps_a_task_outcome() -> None:
@@ -146,7 +147,7 @@ def test_reminder_to_proto_falls_back_to_text_without_a_task_outcome() -> None:
         deliverable_since=_NOW,
         last_outcome=None,
     )
-    assert reminder_to_proto(item).text == "instruction of t1"
+    assert reminder_to_proto(item, ReminderView()).text == "instruction of t1"
 
 
 @pytest.mark.parametrize(
@@ -171,7 +172,7 @@ def test_reminder_to_proto_recurs_by_either_mechanism(
         rule=rule,
         deliverable_since=_NOW,
     )
-    assert reminder_to_proto(item).recurring is expected
+    assert reminder_to_proto(item, ReminderView()).recurring is expected
 
 
 async def test_ack_reminder_clears_the_slot_and_is_idempotent() -> None:

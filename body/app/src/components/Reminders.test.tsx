@@ -14,6 +14,7 @@ const reminder = (over: Partial<DueReminder> = {}): DueReminder => ({
   recurring: false,
   tainted: false,
   sessionId: "s1",
+  dueLabel: "",
   ...over,
 });
 
@@ -87,11 +88,12 @@ describe("Reminders", () => {
   it("puts the control before the badges, and the timestamp in the side column", () => {
     vi.useFakeTimers({ now: NOW });
     const { container } = renderStack([
-      reminder({ recurring: true, tainted: true, sessionId: "s-other" }),
+      reminder({ recurring: true, tainted: true, sessionId: "s-other", dueLabel: "due 08:00" }),
     ]);
     const meta = container.querySelector(".reminder-meta") as HTMLElement;
     expect([...meta.children].map((child) => child.textContent)).toEqual([
       "open chat",
+      "due 08:00",
       "repeats",
       "untrusted source",
     ]);
@@ -101,6 +103,16 @@ describe("Reminders", () => {
       "reminder-time",
     ]);
     expect(side.querySelector(".reminder-time")?.textContent).toBe("5m ago");
+  });
+
+  it("names a late fire's due time in a tag while the age still counts from the fire", () => {
+    vi.useFakeTimers({ now: NOW });
+    const { container } = renderStack([
+      reminder({ sessionId: "open-chat", dueLabel: "due 21:00 yesterday" }),
+    ]);
+    const tag = container.querySelector(".reminder-meta .reminder-tag");
+    expect(tag?.textContent).toBe("due 21:00 yesterday");
+    expect(container.querySelector(".reminder-time")?.textContent).toBe("5m ago");
   });
 
   it("drops the meta line entirely when a reminder has nothing to put on it", () => {

@@ -43,4 +43,6 @@ pub struct DueReminder {
     pub tainted: bool,
     /// The chat this reminder was created in; empty for a session-less caller.
     pub session_id: String,
+    /// The due time of a late fire as the brain words it (`due 08:00`); empty when on time.
+    pub due_label: String,
 }

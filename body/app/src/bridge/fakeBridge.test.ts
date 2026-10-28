@@ -17,6 +17,7 @@ const reminder = (reminderId: string): DueReminder => ({
   recurring: false,
   tainted: false,
   sessionId: "s1",
+  dueLabel: "",
 });
 
 describe("FakeBridge", () => {

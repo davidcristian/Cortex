@@ -24,6 +24,7 @@ pub(crate) async fn list_due_reminders(call: RpcCall) -> Result<Vec<DueReminder>
             recurring: reminder.recurring,
             tainted: reminder.tainted,
             session_id: reminder.session_id,
+            due_label: reminder.due_label,
         })
         .collect())
 }

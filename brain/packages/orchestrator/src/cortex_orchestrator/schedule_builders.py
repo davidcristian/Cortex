@@ -23,6 +23,7 @@ from cortex_core import (
 from cortex_orchestrator.builders import noop_aclose
 from cortex_orchestrator.config_schedule import ScheduleConfig
 from cortex_orchestrator.dispatch_builders import DEFAULT_DISPATCH_SETUP, DispatchSetup
+from cortex_orchestrator.reminders import ReminderView
 from cortex_orchestrator.ticker import ScheduleTicker, TickerSettings
 from cortex_session import ZONEINFO_RESOLVER, RedisScheduleStore
 
@@ -104,6 +105,13 @@ def build_ticker(
         zone=config.display_zone(),
     )
     return ScheduleTicker(schedules, clock, settings, spawn=spawn, body=body)
+
+
+def build_reminder_view(config: ScheduleConfig, clock: Clock) -> ReminderView:
+    """The zone and poll a card's due label reads, the same ones the ticker fires by."""
+    return ReminderView(
+        zone=config.display_zone(), poll=timedelta(seconds=config.poll_s), clock=clock
+    )
 
 
 def start_ticker(ticker: ScheduleTicker | None) -> "asyncio.Task[None] | None":

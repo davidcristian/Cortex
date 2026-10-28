@@ -452,6 +452,7 @@ impl BrainService for FakeBrain {
                     recurring: due.recurring,
                     tainted: due.tainted,
                     session_id: due.session_id.clone(),
+                    due_label: due.due_label.clone(),
                 })
                 .collect(),
         }))

@@ -14,6 +14,7 @@ pub struct WireReminder {
     recurring: bool,
     tainted: bool,
     session_id: String,
+    due_label: String,
 }
 
 impl From<DueReminder> for WireReminder {
@@ -25,6 +26,7 @@ impl From<DueReminder> for WireReminder {
             recurring: reminder.recurring,
             tainted: reminder.tainted,
             session_id: reminder.session_id,
+            due_label: reminder.due_label,
         }
     }
 }

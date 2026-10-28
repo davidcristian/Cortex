@@ -40,12 +40,12 @@ is what the wire serves beyond a turn, each absent when its capability is off.
   are idempotent, so a retry recovers. A `SessionStoreError` aborts `UNAVAILABLE`, and the memory
   port's narrower `MemoryDataError` aborts `INTERNAL` instead (ADR-0008 decision 13).
 - `ListDueReminders` and `AckReminder` (ADR-0025, policy in `reminders.py`) are the pull pair over
-  the injected `ScheduleStore`. A `DueReminder` has the id, the text, the fired-at unix-ms stamp,
-  the recurrence, the `tainted` bit and the origin `session_id`, where the text is a reminder's own
-  or a fired task's `last_outcome`. The ack names a fire, so an ack for one a later fire replaced
-  answers `acked=false` and leaves the later one deliverable, and `0` acks whichever fire is held.
-  With no store wired both answer benignly rather than `UNAVAILABLE`, which the body's retrying
-  transport would treat as transient.
+  the injected `ScheduleStore`. A `DueReminder` has the id, the text (a reminder's own or a task's
+  `last_outcome`), the fired-at unix-ms stamp, the recurrence, the `tainted` bit, the origin
+  `session_id`, and a late reminder's `due_label`, worded with `RpcPorts.reminder_view`, the
+  ticker's zone and poll (ADR-0066 decision 11). An ack for a fire a later one replaced answers
+  `acked=false` and leaves the later one deliverable, and `0` acks whichever fire is held. With no
+  store wired both answer benignly, never the `UNAVAILABLE` the body's transport would retry.
 - The two settings RPCs (ADR-0032) read and write the user's preferences, answering empty reads and
   dropping writes when no store is wired, the `ScheduleStore` precedent.
 - The unary RPCs abort `UNAVAILABLE` on a `SessionStoreError`, and each arrives with a

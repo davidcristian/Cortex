@@ -20,6 +20,7 @@ const reminder = (reminderId: string): DueReminder => ({
   recurring: false,
   tainted: false,
   sessionId: "s1",
+  dueLabel: "",
 });
 
 const run = (actions: Action[]) => actions.reduce(reduce, initialState);

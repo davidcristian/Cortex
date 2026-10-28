@@ -67,11 +67,23 @@ def describe_item(item: ScheduledItem, zone: DisplayZone, now: datetime | None =
 LATE_FIRE_FLOOR = timedelta(minutes=1)
 
 
+def is_late_fire(due_at: datetime, fired_at: datetime, poll: timedelta) -> bool:
+    """Whether a fire came later than the late margin after its due time."""
+    return fired_at - due_at > max(LATE_FIRE_FLOOR, 2 * poll)
+
+
+def due_phrase(
+    rule: CalendarRule | None, due_at: datetime, reference: datetime, zone: DisplayZone
+) -> str:
+    """'due 09:00', naming the day counted from ``reference`` when it is another day."""
+    shown = effective_zone(rule, zone)
+    clock = due_at.astimezone(shown.tz).strftime("%H:%M")
+    day = relative_day(due_at, reference, shown)
+    return f"due {clock}" if day == "today" else f"due {clock} {day}"
+
+
 def late_phrase(item: ScheduledItem, fired_at: datetime, zone: DisplayZone, poll: timedelta) -> str:
     """', due 09:00' when a fire comes later than the late margin after its due time, else ''."""
-    if fired_at - item.due_at <= max(LATE_FIRE_FLOOR, 2 * poll):
+    if not is_late_fire(item.due_at, fired_at, poll):
         return ""
-    shown = effective_zone(item.rule, zone)
-    clock = item.due_at.astimezone(shown.tz).strftime("%H:%M")
-    day = relative_day(item.due_at, fired_at, shown)
-    return f", due {clock}" if day == "today" else f", due {clock} {day}"
+    return ", " + due_phrase(item.rule, item.due_at, fired_at, zone)
