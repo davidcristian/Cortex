@@ -1,7 +1,11 @@
 # The rendering column is one build's measurement, and an engine bump reopens every row of it
 
-**Status:** open, actionable
+**Status:** open, waiting for its trigger
 **Area:** inference
+**Trigger:** an engine bump under this stack, meaning the GPU runbook's `docker image inspect`
+label command reporting a llama.cpp build other than b11913 for `cortex-model-host` (the three GPU
+tiers) or other than b10680 for the cached `server` tag (both CPU subagent overrides). Nothing fixes
+a digest, so a pull or a rebuild is the bump.
 **Origin:** [ADR-0050](../../adr/ADR-0050-live-probe-records.md)
 **Verified:** 2026-10-28
 
@@ -145,6 +149,12 @@ stands in for it. What each result decides, written before the draw:
 - **A null** is a pick with no sample, from a failed load, or a control that did not deliberate on
   all five draws: that row stays owed on `b11913`, and the task stays actionable.
 
+**Drawn 2026-10-28**, the recipe exiting 0, every probe exiting 0 and the reader agreeing on all
+twelve samples ([thinking-switch readings](../../readings/thinking-switch.md#the-lineups-switched-tails)).
+Every control deliberated on 5 of 5, and every pick rendered both prompts byte for byte as on
+`b11552` and repeated its four counts, so under the first rule the column holds on `b11913` and this
+task waits for the next build. Samples under `measurements/sitting-2026-10-28/529/`.
+
 ## History
 
 - 2026-09-02: opened by the close of
@@ -231,8 +241,9 @@ stands in for it. What each result decides, written before the draw:
   probe exited 0 and the reader agreed on all twelve samples, each repeating its `b11429` row, so
   all twelve rows hold on `b11552` and the task waits for the next build again, with the trigger
   naming both builds the stack starts.
-- 2026-10-28: the trigger fired. The runbook's label command reads `b11913 7aca0d2ea` on
-  `cortex-model-host`, an image built on 2026-10-28 under the compose project `cortexn9`, while the
-  cached `:server-cuda` and `:server` tags still read `b10680 d7bd3bfca`. So the three GPU tiers
-  start `b11913`, and all twelve rows are owed on it under the rules above, the E4B at `-ngl 0` on
-  CPU cores 12 to 23 with its own question. The trigger line is gone and the task is actionable.
+- 2026-10-28: the trigger fired and the column was drawn on the new build. The runbook's label
+  command reads `b11913 7aca0d2ea` on `cortex-model-host`, an image built on 2026-10-28 under the
+  compose project `cortexn9`, while the cached `:server-cuda` and `:server` tags still read `b10680
+  d7bd3bfca`. Drawn with `just switch-lineup`, the E4B at `-ngl 0` on CPU cores 12 to 23, every
+  probe exited 0 and the reader agreed on all twelve samples, each repeating its `b11552` row, so
+  all twelve rows hold on `b11913` and the task waits for the next build again.

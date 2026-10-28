@@ -129,6 +129,16 @@ the enforced power limit at 0.80 to 0.91 of its own. The E4B's wall is not read,
 check` ran on the other cores during it. Method: `run.sh` and `frozen.py` in
 `measurements/sitting-2026-10-16/`, the log `529sw.log`, the samples under `529/`.
 
+**2026-10-28**, build `b11913-7aca0d2ea`, the model host image rebuilt on 2026-10-28, drawn by `just
+switch-lineup --cpuset 12-23` from the main tree with the stack's cortex server stopped, the picks
+placed and asked as on `b11552`. Every probe exited 0 and `switchtail.py` agreed on all twelve
+samples. Every pick rendered both prompts byte for byte as on `b11552` and repeated its four
+counts, every control 5 of 5, so all twelve rows hold on `b11913`. The eleven GPU picks took 1.03
+times as long as on `b11552`, with the SM clock sampled every 15 s at 0.38 to 0.82 of the card's
+maximum and the enforced power limit at 0.80 to 1.00 of its own. Method: `run.sh`, the logs
+`529sw.log` and `launcher.log` and the clock samples `clocks.csv` in
+`measurements/sitting-2026-10-28/`, the samples under `529/`.
+
 **2026-09-04, re-read 2026-09-15.** A walk over every GGUF header on the model mount: 68 files, 34
 with a chat template, every one writing one of the two marker pairs `switchtail.py` lists. Six
 Qwen3.6 repackages also read `<thinking>`, `</thinking>`, `<|think_on|>` and `<|think_off|>`, and
