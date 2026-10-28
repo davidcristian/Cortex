@@ -17,7 +17,7 @@ from cortex_core.stops import StopLedger
 from cortex_core.tool_budget import DispatchBudget
 from cortex_core.tool_cut import RESULT_ROOM_CHARS, ResultRoom
 from cortex_core.tool_round import RoundPlan, result_message
-from cortex_core.tool_salience import repeats_declined
+from cortex_core.tool_salience import asks_the_same
 from cortex_core.tool_tail import tail_count
 from cortex_core.tools import ToolCall, ToolSpec, Trust, TurnStamp
 from cortex_core.untrusted import USER_DECLINED_MSG, TaintLedger
@@ -76,7 +76,7 @@ def _refused_by(
     """Which bound refuses this call before it can run, or ``None`` when it may go ahead."""
     if oversized:
         return DispatchRefusal.ROUND_OVERSIZED
-    if any(repeats_declined(call, declined) for declined in context.declined):
+    if any(asks_the_same(call, declined) for declined in context.declined):
         return DispatchRefusal.DECLINED
     if not dispatcher.admits(call, dispatched):
         return DispatchRefusal.REDUNDANT

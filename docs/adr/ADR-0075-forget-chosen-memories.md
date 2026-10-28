@@ -60,6 +60,8 @@ that removes exactly those rows and holds against a turn in flight. This record 
    stored reply and the mark from the handoff record. Its spec sets
    `private_arguments`, so the tool audit and a handoff record's loop tail keep the `text` argument
    as `<redacted>`, and a call whose arguments do not parse is logged by its tool name and length.
+   A forget the person declined before a handoff therefore matches no call after it: the deep
+   model's forget shows a card again rather than being refused for a text nobody declined.
 6. **A card lists at most 20 rows.** More matches delete nothing and ask for a more exact text,
    so a short text such as one letter cannot clear the memory behind a card nobody reads.
    The pass rule is in [forget-chosen-memories.md](../readings/forget-chosen-memories.md).

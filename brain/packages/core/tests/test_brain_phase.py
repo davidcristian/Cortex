@@ -378,7 +378,7 @@ async def test_a_call_declined_before_the_handoff_is_not_asked_again_after_it() 
     assert refused.text == ALREADY_DECLINED_MSG
 
 
-async def test_a_withheld_call_declined_before_the_handoff_refuses_any_value_after_it() -> None:
+async def test_a_withheld_call_declined_before_the_handoff_is_asked_again_after_it() -> None:
     confirmer = RecordingConfirmer(answer=False)
     policy = DispatchPolicy(confirm_names={"read"})
     dispatcher = ToolDispatcher(
@@ -387,14 +387,14 @@ async def test_a_withheld_call_declined_before_the_handoff_refuses_any_value_aft
     backend = ScriptedBrainBackend(
         chunks=("done",),
         tool_calls=(
-            ToolCall(id="c2", name="read", arguments={"path": "4242"}),
-            ToolCall(id="c3", name="read", arguments={"path": "4242", "line": 1}),
+            ToolCall(id="c2", name="read", arguments={"path": "9999"}),
+            ToolCall(id="c3", name="read", arguments={"path": "<redacted>"}),
         ),
     )
     tail = _read_round("c0", "<redacted>", USER_DECLINED_MSG)
     await _drive(capabilities=TurnCapabilities(tools=dispatcher), backend=backend, tail=tail)
-    assert [request.arguments for request in confirmer.requests] == [{"path": "4242", "line": 1}]
-    refused = next(message for message in backend.seen if message.tool_call_id == "c2")
+    assert [request.arguments for request in confirmer.requests] == [{"path": "9999"}]
+    refused = next(message for message in backend.seen if message.tool_call_id == "c3")
     assert refused.text == ALREADY_DECLINED_MSG
 
 
