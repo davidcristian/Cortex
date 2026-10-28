@@ -18,6 +18,7 @@ from cortex_core import (
     PlacementTarget,
     RecordingAuditSink,
     ResourceBudgetScheduler,
+    Role,
     SingleResidentModelManager,
     SpawnSubagentsTool,
     StopReason,
@@ -460,6 +461,61 @@ async def test_the_token_cap_reaches_every_completion_of_a_delegated_loop() -> N
         result = await runner.run("t1")
     assert result.ok is True
     assert backend.bounds_seen == [GenerationBounds(max_tokens=256)] * 2
+
+
+class LongAnswerToolRegistry:
+    """The same tool, answering with far more text than any room holds."""
+
+    async def describe_tools(self) -> Sequence[ToolSpec]:
+        return (_LOOKUP,)
+
+    async def invoke(self, call: ToolCall) -> ToolResult:
+        return ToolResult(call_id=call.id, content="x" * 5000, trust=Trust.TRUSTED)
+
+
+class ToolTextBackend(RecordingBackend):
+    """Records the tool messages each request sends, beside its bounds."""
+
+    def __init__(self, steps: Sequence[Sequence[InferenceEvent]]) -> None:
+        super().__init__(steps)
+        self.tool_texts: list[list[str]] = []
+
+    def stream(
+        self,
+        model: str,
+        messages: Sequence[Message],
+        *,
+        tools: Sequence[ToolSpec] = (),
+        schema: JsonSchema | None = None,
+        bounds: GenerationBounds | None = None,
+    ) -> AsyncIterator[InferenceEvent]:
+        self.tool_texts.append([m.text for m in messages if m.role is Role.TOOL])
+        return super().stream(model, messages, tools=tools, schema=schema, bounds=bounds)
+
+
+async def test_a_delegated_loop_cuts_its_results_to_the_room_its_bounds_give() -> None:
+    store = InMemoryTaskStore()
+    await _stored_task(store)
+    backend = ToolTextBackend(
+        [[ToolCall(id="c1", name="lookup", arguments={})], [TextChunk("done")]]
+    )
+    dispatcher = ToolDispatcher(LongAnswerToolRegistry(), RecordingAuditSink(), FixedClock())
+    runner = _runner(
+        store,
+        _resources(
+            backend,
+            scheduler=ResourceBudgetScheduler(4.0, 8.0),
+            placer=VramBudgetPlacer(soft_cap_gb=14.0, cortex_reservation_gb=11.0),
+        ),
+        bounds=AttemptBounds(max_tokens=256, timeout_s=_SUITE_BOUND_S, room_chars=1603),
+        tools=dispatcher,
+    )
+    async with asyncio.timeout(_SUITE_BOUND_S):
+        result = await runner.run("t1")
+    assert result.ok is True
+    [text] = backend.tool_texts[1]
+    assert text.startswith("x" * 1603 + "\n\n(This result is 5,000 characters long")
+    assert "only its first 1,603 fit" in text
 
 
 async def test_an_unbounded_attempt_sends_the_request_this_repo_has_always_sent() -> None:

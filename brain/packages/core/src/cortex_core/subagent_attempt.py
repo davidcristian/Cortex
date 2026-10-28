@@ -121,6 +121,7 @@ class PlacedAttempt:
             bounds=self._generation,
             budget=DispatchBudget() if budget is None else budget,
             stops=stops,
+            room_chars=self._bounds.room_chars,
         )
         parts: list[str] = []
         deadline = asyncio.timeout(self._bounds.timeout_s)

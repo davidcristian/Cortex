@@ -11,6 +11,7 @@ from cortex_core import (
     DEFAULT_SUBAGENT_MAX_TOKENS,
     DEFAULT_SUBAGENT_RUN_TIMEOUT_S,
     AttemptBounds,
+    subagent_room_chars,
 )
 
 SubagentsBackendName = Literal["none", "llamacpp"]
@@ -37,6 +38,10 @@ DEFAULT_MEMORY_GB = 3.0
 # the resident tier's is tight, because a CPU server decodes at about 0.35 tok/s: it is twice
 # the longest whole subtask measured there, so it fires on a wedge and not on slowness.
 DEFAULT_STALL_TIMEOUT_S = 600.0
+
+# The subagent servers' --ctx-size and --parallel, read here so a loop's result room fits one slot.
+DEFAULT_SUBAGENT_CTX_SIZE = 8192
+DEFAULT_SUBAGENT_PARALLEL = 2
 
 
 class SubagentRosterEntry(BaseModel):
@@ -72,6 +77,10 @@ class SubagentsConfig(BaseSettings):
     run_timeout_s: float = Field(default=DEFAULT_SUBAGENT_RUN_TIMEOUT_S, gt=0)
     constrain_output: bool = True
     roles: bool = True
+    ctx_size: int = Field(
+        default=DEFAULT_SUBAGENT_CTX_SIZE, gt=0, validation_alias="CORTEX_SUBAGENT_CTX_SIZE"
+    )
+    parallel: int = Field(default=DEFAULT_SUBAGENT_PARALLEL, gt=0)
 
     @model_validator(mode="after")
     def _llamacpp_needs_both_endpoints(self) -> "SubagentsConfig":
@@ -141,7 +150,10 @@ class SubagentsConfig(BaseSettings):
     @property
     def attempt_bounds(self) -> AttemptBounds:
         """How far one delegated attempt may go, as the core's value."""
-        return AttemptBounds(max_tokens=self.max_tokens, timeout_s=self.run_timeout_s)
+        room = subagent_room_chars(self.ctx_size // self.parallel, self.max_tokens)
+        return AttemptBounds(
+            max_tokens=self.max_tokens, timeout_s=self.run_timeout_s, room_chars=room
+        )
 
     @property
     def named_roster(self) -> dict[str, SubagentRosterEntry]:

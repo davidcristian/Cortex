@@ -17,6 +17,7 @@ from cortex_core import (
     PlacementTarget,
     RepeatSalience,
     VramBudgetPlacer,
+    subagent_room_chars,
 )
 from cortex_core.tool_budget import DEFAULT_TOOL_COST
 from cortex_orchestrator import (
@@ -57,6 +58,8 @@ def clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
         "CORTEX_SUBAGENTS_MODEL",
         "CORTEX_SUBAGENTS_MAX_CONCURRENCY",
         "CORTEX_SUBAGENTS_ROLES",
+        "CORTEX_SUBAGENTS_PARALLEL",
+        "CORTEX_SUBAGENT_CTX_SIZE",
         "CORTEX_BODY_BACKEND",
         "CORTEX_BODY_ENDPOINT",
         "CORTEX_BODY_CAPTURE_MAX_EDGE",
@@ -624,13 +627,29 @@ def test_the_total_generation_cap_is_settable_and_both_halves_must_be_real_bound
     monkeypatch.setenv("CORTEX_SUBAGENTS_MAX_TOKENS", "512")
     monkeypatch.setenv("CORTEX_SUBAGENTS_RUN_TIMEOUT_S", "900")
     config = SubagentsConfig()
-    assert config.attempt_bounds == AttemptBounds(max_tokens=512, timeout_s=900.0)
+    room = subagent_room_chars(4096, 512)
+    assert config.attempt_bounds == AttemptBounds(max_tokens=512, timeout_s=900.0, room_chars=room)
     monkeypatch.setenv("CORTEX_SUBAGENTS_MAX_TOKENS", "0")
     with pytest.raises(ValidationError, match="max_tokens"):
         SubagentsConfig()
     monkeypatch.setenv("CORTEX_SUBAGENTS_MAX_TOKENS", "512")
     monkeypatch.setenv("CORTEX_SUBAGENTS_RUN_TIMEOUT_S", "0")
     with pytest.raises(ValidationError, match="run_timeout_s"):
+        SubagentsConfig()
+
+
+@pytest.mark.usefixtures("clean_env")
+def test_a_subagent_loops_result_room_fits_one_server_slot_less_its_prompt_and_reply(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    assert SubagentsConfig().attempt_bounds.room_chars == 1603
+    monkeypatch.setenv("CORTEX_SUBAGENT_CTX_SIZE", "16384")
+    assert SubagentsConfig().attempt_bounds.room_chars == 8362
+    monkeypatch.setenv("CORTEX_SUBAGENTS_PARALLEL", "4")
+    monkeypatch.setenv("CORTEX_SUBAGENTS_MAX_TOKENS", "512")
+    assert SubagentsConfig().attempt_bounds.room_chars == 2448
+    monkeypatch.setenv("CORTEX_SUBAGENTS_PARALLEL", "0")
+    with pytest.raises(ValidationError, match="parallel"):
         SubagentsConfig()
 
 

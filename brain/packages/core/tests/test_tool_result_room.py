@@ -8,6 +8,7 @@ from cortex_core import (
     ROOM_SHARED,
     SMALLER_PART,
     SMALLER_TAIL,
+    SUBAGENT_PROMPT_TOKENS,
     TAIL_CUT_NOTE,
     GenerationBounds,
     InferenceEvent,
@@ -27,6 +28,7 @@ from cortex_core import (
     ToolSpec,
     Trust,
     result_message,
+    subagent_room_chars,
     wrap_untrusted,
 )
 from cortex_core.tool_loop import ToolLoopContext, stream_tool_loop
@@ -96,7 +98,9 @@ def _read_call(index: int, **arguments: object) -> ToolCall:
     return ToolCall(id=f"c{index}", name="read", arguments={"path": f"/{index}.log", **arguments})
 
 
-async def _tool_texts(rounds: Sequence[Sequence[ToolCall]], taint: TaintLedger) -> list[str]:
+async def _tool_texts(
+    rounds: Sequence[Sequence[ToolCall]], taint: TaintLedger, room_chars: int = RESULT_ROOM_CHARS
+) -> list[str]:
     registry = InMemoryToolRegistry(
         {
             "read": (ToolSpec("read", "read", {}), _read),
@@ -113,6 +117,7 @@ async def _tool_texts(rounds: Sequence[Sequence[ToolCall]], taint: TaintLedger) 
         taint=taint,
         nonce="n",
         session_id="s",
+        room_chars=room_chars,
     )
     backend = _RoundsBackend(rounds)
     working = [Message(role=Role.USER, text="read it", at=_AT, turn_id="t")]
@@ -131,6 +136,20 @@ async def test_the_results_of_one_round_share_the_room() -> None:
     assert sum(_fenced_length(text) for text in kept) <= RESULT_ROOM_CHARS
     assert all(_fenced_length(text) >= RESULT_ROOM_CHARS // 4 - len(_LINE) for text in kept)
     assert all(text.endswith(ROOM_SHARED + ")") for text in texts)
+
+
+async def test_a_loop_given_a_smaller_room_shares_that_room() -> None:
+    texts = await _tool_texts([[_read_call(n) for n in range(4)]], TaintLedger(), room_chars=1603)
+    kept = [text.split("\n\n(This result")[0] for text in texts]
+    assert sum(_fenced_length(text) for text in kept) <= 1603
+    assert all(_fenced_length(text) >= 1603 // 4 - len(_LINE) for text in kept)
+    assert all(text.endswith(ROOM_SHARED + ")") for text in texts)
+
+
+def test_a_subagent_room_is_its_slot_less_prompt_and_reply_in_log_characters() -> None:
+    assert subagent_room_chars(SUBAGENT_PROMPT_TOKENS + 1024 + 100, 1024) == 165
+    assert subagent_room_chars(SUBAGENT_PROMPT_TOKENS + 1024, 1024) == 0
+    assert subagent_room_chars(2048, 1024) == 0
 
 
 async def test_a_short_result_leaves_its_share_to_the_next_call_of_the_round() -> None:

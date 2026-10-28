@@ -205,12 +205,13 @@ that never replies, or read more than its context holds, so each of those has a 
     against the buffer, stopping before scan data, and WebP from its first chunk in all three forms.
     Bad base64, an unrecognized signature, a truncated header, an edge past `MAX_IMAGE_EDGE` or a
     declared mime type outside `ALLOWED_MIME_TYPES` raise `ImageError`, crossed as `ToolError`.
-20. **A loop's results share `RESULT_ROOM_CHARS` prompt characters.** `ResultRoom` gives each result the room left split
-    over the round's unanswered calls; a deep phase's starts less its loop tail's results. A `tail` call keeps the end,
-    its note naming the lines left out and a `tail` that fits; another cut keeps the head to a line break and asks for a
-    smaller part. With no room left the note alone is sent, unfenced; taint reads the whole result. A refusal or failure
-    the brain wrote is kept whole. The 6,000 are 3,640 tokens at a pasted log's 1.65 characters a token: 2,860 of 16,384
-    remain to reply after a full window and fixed prompt ([ADR-0014](ADR-0014-history-windowing.md) decision 4).
+20. **A loop's results share one room of prompt characters.** `ResultRoom` gives each result the room left split over
+    the round's unanswered calls; a deep phase's starts less its loop tail's results. A `tail` call keeps the end, its
+    note naming the lines left out and a `tail` that fits; another cut keeps the head to a line break and asks for a
+    smaller part. With no room left the note alone is sent, unfenced; taint reads the whole result; a refusal or failure
+    the brain wrote is kept whole. The cortex's 6,000 (`RESULT_ROOM_CHARS`) are 3,640 tokens at a log's 1.65 characters a
+    token, 2,860 of 16,384 left to reply after a full window and fixed prompt ([ADR-0014](ADR-0014-history-windowing.md)
+    decision 4). A subagent loop's room, 1,603 by default, is one server slot's context less `SUBAGENT_PROMPT_TOKENS` and its reply cap ([readings](../readings/tool-result-room.md)).
 
 ## Consequences
 
@@ -233,9 +234,8 @@ that never replies, or read more than its context holds, so each of those has a 
 - **Vendoring `mcp-email-server`:** a send path to lock down and hard to cover with tests.
 - **A per-round or per-subagent budget share:** a per-round cap multiplies by the round count, and a
   share strands the allowance of subagents that call nothing.
-- **Folding schema defaults or canonicalizing arguments for salience:** a schema `default` is
-  advisory, so folding it can refuse a legitimate call, and a schema-free canonical form is just
-  mapping equality.
+- **Folding schema defaults or canonicalizing arguments for salience:** a schema `default` is advisory, so folding it
+  can refuse a legitimate call, and a schema-free canonical form is just mapping equality.
 - **A final completion with no tools offered:** it costs a completion and can misstate the calls.
 - **Unknown image dimensions on `ImagePart`, a size declared in `_meta`, or dropping
   `read_media_file` from the allowlist:** the first widens a validated invariant for one adapter,

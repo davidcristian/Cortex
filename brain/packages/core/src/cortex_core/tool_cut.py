@@ -4,6 +4,11 @@
 # full history window and 2,860 tokens to reply leave of the cortex's 16,384-token context.
 RESULT_ROOM_CHARS = 6_000
 
+# What a subagent request holds besides its results: 1,484 tokens of preamble, ten file tool specs
+# and task measured on the subagent tier, and about 150 for each of four calls' messages and notes.
+SUBAGENT_PROMPT_TOKENS = 2_100
+LOG_CHARS_PER_TOKEN = 1.65
+
 RESULT_CUT_NOTE = (
     "\n\n(This result is {total:,} characters long and only its first {shown:,} fit in the "
     "context. {advice})"
@@ -29,6 +34,12 @@ ROOM_SHARED = (
     "The results of this turn share one room in the context, so read fewer or smaller parts, "
     "or answer from what you have read."
 )
+
+
+def subagent_room_chars(slot_tokens: int, reply_tokens: int) -> int:
+    """The result room of a subagent loop whose server slot holds ``slot_tokens``."""
+    room_tokens = slot_tokens - SUBAGENT_PROMPT_TOKENS - reply_tokens
+    return max(int(room_tokens * LOG_CHARS_PER_TOKEN), 0)
 
 
 def _head(content: str, limit: int) -> str:

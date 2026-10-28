@@ -20,6 +20,10 @@ services:
       CORTEX_SUBAGENTS_VRAM_GB: "${CORTEX_SUBAGENTS_VRAM_GB:-3.5}"
       CORTEX_SUBAGENTS_CPU_BUDGET: "${CORTEX_SUBAGENTS_CPU_BUDGET:-4.0}"
       CORTEX_SUBAGENTS_MEM_BUDGET_GB: "${CORTEX_SUBAGENTS_MEM_BUDGET_GB:-8.0}"
+      # The context and slot count every subagent server starts with, so the brain sizes the room
+      # a subagent loop's tool results share to one slot.
+      CORTEX_SUBAGENT_CTX_SIZE: "${CORTEX_SUBAGENT_CTX_SIZE:-8192}"
+      CORTEX_SUBAGENTS_PARALLEL: "${CORTEX_SUBAGENTS_PARALLEL:-2}"
       # A `spawn_subagents` dispatch already costs a quarter of a turn's tool budget, so a turn
       # may delegate four times. Change it with a CORTEX_TOOLS_COSTS__SPAWN_SUBAGENTS key added
       # here, or with the whole map as JSON in CORTEX_TOOLS_COSTS on the host. The rest follows.

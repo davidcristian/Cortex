@@ -69,14 +69,15 @@ ADR-0010, ADR-0012, ADR-0017, ADR-0018, ADR-0028, ADR-0048 and ADR-0072.
 
 ## Running one subtask
 
-`AttemptBounds(max_tokens=None, timeout_s=None)` (`subagents.py`, ADR-0048) is how far one placed
+`AttemptBounds(max_tokens=None, timeout_s=None, room_chars=RESULT_ROOM_CHARS)` (`subagents.py`, ADR-0048) is how far one placed
 attempt may go: `max_tokens` becomes the `GenerationBounds` on each of its completions and
 `timeout_s` is the deadline on the whole attempt, tool dispatches included. They are one value
 because the cap binds a fast tier and the deadline binds a slow one, where the pool's measured 0.18
 to 1.35 tok/s makes a small token budget minutes of held admission; the two are deliberately not
 ordered against each other. `DEFAULT_SUBAGENT_MAX_TOKENS` and `DEFAULT_SUBAGENT_RUN_TIMEOUT_S` are
 the shipped numbers, declared here and imported by `SubagentsConfig`, and one pair reaches every
-roster entry and both placements of each.
+roster entry and both placements of each. `room_chars` is the room the attempt's tool results share; `SubagentsConfig`
+sets it to `subagent_room_chars` of one server slot (ADR-0009 decision 20).
 
 `SubagentRunner(store, roster, clock, *, tools=None, constrain_output=False,
 bounds=UNBOUNDED_ATTEMPT, roles=NO_ROLES)` is a subagent's body, a stateless function over the

@@ -145,6 +145,13 @@ more removing the ones a subagent may not have, once more routing across an aggr
 the call, so the brain rejects a deployment where a whole dispatch may outlast the run that made
 it.
 
+**A delegated loop's tool results share a room sized to one server slot.** The brain reads
+`CORTEX_SUBAGENT_CTX_SIZE` and `CORTEX_SUBAGENTS_PARALLEL`, the flags every subagent server starts
+with, and gives the results the slot's context less `SUBAGENT_PROMPT_TOKENS` (2,100) and
+`CORTEX_SUBAGENTS_MAX_TOKENS`, at 1.65 characters a token: 1,603 characters at the defaults. A cap
+that leaves no room sends every result as a note that it did not fit
+([tool-result-room.md](../readings/tool-result-room.md)).
+
 **Queuing for room is bounded too, and generously.**
 `CORTEX_SUBAGENTS_ADMISSION_WAIT_S` (default 7200 s) is how long a spawn may wait for the soft
 budget to free room before it comes back refused, with the bound named in the message. It has to clear two things and the larger sets it.

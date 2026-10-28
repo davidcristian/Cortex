@@ -62,7 +62,7 @@ async def stream_tool_loop(
     specs, spec_by_name = await _turn_tools(context)
     # Per loop rather than per turn: a repeat is redundant only against the ``working`` messages
     # that already hold its answer, and the results share the room of that one request.
-    record = LoopRecord(room=ResultRoom(spent=context.results_spent))
+    record = LoopRecord(room=ResultRoom(context.room_chars, spent=context.results_spent))
     for _step in range(MAX_TOOL_STEPS):
         calls: list[ToolCall] = []
         step_text: list[str] = []

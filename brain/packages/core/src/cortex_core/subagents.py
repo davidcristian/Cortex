@@ -3,6 +3,8 @@
 from dataclasses import dataclass
 from datetime import datetime
 
+from cortex_core.tool_cut import RESULT_ROOM_CHARS
+
 
 @dataclass(frozen=True, slots=True)
 class SubagentTask:
@@ -31,6 +33,7 @@ class AttemptBounds:
 
     max_tokens: int | None = None
     timeout_s: float | None = None
+    room_chars: int = RESULT_ROOM_CHARS
 
     def __post_init__(self) -> None:
         if self.max_tokens is not None and self.max_tokens < 1:

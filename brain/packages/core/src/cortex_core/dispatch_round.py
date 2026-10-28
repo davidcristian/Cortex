@@ -15,7 +15,7 @@ from cortex_core.progress import ProgressSink, hold_wait
 from cortex_core.provenance import SourceKind, as_source
 from cortex_core.stops import StopLedger
 from cortex_core.tool_budget import DispatchBudget
-from cortex_core.tool_cut import ResultRoom
+from cortex_core.tool_cut import RESULT_ROOM_CHARS, ResultRoom
 from cortex_core.tool_round import RoundPlan, result_message
 from cortex_core.tool_salience import asks_the_same
 from cortex_core.tool_tail import tail_count
@@ -48,6 +48,8 @@ class ToolLoopContext:
     declined: list[ToolCall] = field(default_factory=list[ToolCall])
     # The characters of tool results already in ``working`` from a loop this one continues.
     results_spent: int = 0
+    # The characters of tool results this loop's request has room for, from its tier's context.
+    room_chars: int = RESULT_ROOM_CHARS
 
     @property
     def unit_id(self) -> str:

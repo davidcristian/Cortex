@@ -1,9 +1,8 @@
 # The result room is sized for the cortex context only
 
-**Status:** open, actionable
+**Status:** done 2026-10-28
 **Area:** tools
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
-**Verified:** 2026-10-26
 
 `RESULT_ROOM_CHARS` (`tool_cut.py`) is 6,000 characters, 3,640 tokens at a pasted log's 1.65
 characters a token. Decision 20 of ADR-0009 derives it from the cortex's context of 16,384 tokens,
@@ -31,3 +30,11 @@ the room, each result was cut to 6,000 characters alone, so a subagent could alr
 ## History
 
 - 2026-10-26: filed from the audit of the shared result room.
+- 2026-10-28: the subagent server's context is 4,096 tokens a request, not 8,192, since
+  `--parallel 2` splits it. Both rows overflowed on the `cortexn9` stack: a request of 5,263 to
+  5,740 tokens was refused, then re-run on the CPU and refused again
+  ([readings](../../readings/tool-result-room.md#a-subagent-loop-at-the-default-context)). A
+  subagent loop's room is now `subagent_room_chars` of one slot, 1,603 characters at the
+  defaults, through `AttemptBounds.room_chars` and `ToolLoopContext.room_chars`; the same rows
+  then peaked at 4,081 of 4,096. The deep phase keeps the cortex's room, since its default
+  context is the cortex's.
