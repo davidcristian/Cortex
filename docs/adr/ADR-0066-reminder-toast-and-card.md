@@ -155,7 +155,9 @@ would be a brain setting.
 - The inert-text rule, the attribution, `escape_xml`, the error mapping, the server's handling of a
   declined toast and the card's behaviour are covered at 100% on Linux. The cards were read at the
   real window size on the Linux shell, over a real pull, ack and brain outage
-  ([readings](../readings/tauri-ipc-commands.md#attached-pictures-and-reminder-cards)). The push
+  ([readings](../readings/tauri-ipc-commands.md#attached-pictures-and-reminder-cards)), and a late
+  fire's due tag there after a frozen brain
+  ([readings](../readings/overlay-idle-and-expiry-flows.md#the-brain-frozen-across-a-reply-and-a-reminders-due-time)). The push
   ran there as well, from a reminder the cortex set, through the ticker and `BodyService.Notify`,
   to `LinuxNotify` and a notification server, and was acked on delivery
   ([readings](../readings/body-actions-linux.md#reminder-pushes)). What no check reaches is the

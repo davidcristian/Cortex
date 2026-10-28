@@ -185,7 +185,15 @@ writing its first reply.
   `Notify` summary was `Cortex reminder`. "Remind me in 20 seconds to check the oven." was then set
   and the brain frozen for 100 s; it fired at the thaw, about 80 s after its due time, with the
   summary `Cortex reminder, due 05:36` (Europe/Berlin) and the body `check the oven`. The card
-  still shows no due time.
+  had no due time then.
+- **The card's due tag** (ADR-0066 decision 11), on 2026-10-28 on the `cortexn9` stack with
+  `CORTEX_SCHEDULE_TZ=Europe/Berlin` and the default 5 s poll. "Remind me in 90 seconds to check
+  the oven." was set over `Converse` (due 02:32:02), and the brain was frozen from 02:30:35 to
+  02:34:13. The item fired at the thaw, 131 s after its due time, with `deliverable_due_at` kept
+  as 02:32:02. `ListDueReminders` gave `due_label` `due 02:32`, and a new chat on the shell showed
+  the card "check the oven" with `open chat`, a `due 02:32` tag and "just now". "Remind me in 20
+  seconds to stretch." then fired on time without a freeze: its `due_label` was empty and its card
+  had no tag, while the oven card beside it read `due 02:32` and "1m ago".
 - **A card's age while the panel stays open.** Summoned at 04:40:30, 9 min 48 s
   after the fire, the card read "9m ago"; 131 s later, with no input, it still read "9m ago".
   `Reminders.tsx` computed the age once per render and nothing rendered it again until the state

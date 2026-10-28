@@ -1,6 +1,6 @@
 # A late reminder does not say when it was due
 
-**Status:** open, actionable
+**Status:** done 2026-10-28
 **Area:** scheduling
 **Origin:** [ADR-0066](../../adr/ADR-0066-reminder-toast-and-card.md)
 
@@ -46,3 +46,11 @@ oven", "2m ago", with no due time.
 
 - 2026-10-26: filed from the idle and expiry flows on the `cortexn8` stack.
 - 2026-10-26: both stores keep a deliverable fire's due time in `deliverable_due_at`.
+- 2026-10-28: done. `DueReminder.due_label` is the brain's wording of a late reminder's due time,
+  with `is_late_fire` split out of `late_phrase` and the ticker's zone and poll passed as
+  `RpcPorts.reminder_view`; the card shows it as a tag on the meta line, in the existing
+  `reminder-tag` style. The brain words the label and counts its day from the list (ADR-0066
+  decision 11). On the Linux shell the frozen-brain reproduction showed `due 02:32`
+  ([readings](../../readings/overlay-idle-and-expiry-flows.md#the-brain-frozen-across-a-reply-and-a-reminders-due-time)).
+  A task's outcome has no label:
+  [R-917](917-a-late-task-outcome-does-not-say-when-it-was-due.md).
