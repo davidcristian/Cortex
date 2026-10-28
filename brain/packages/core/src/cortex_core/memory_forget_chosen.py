@@ -71,6 +71,7 @@ class ForgetChosenTool:
                 "required": ["text"],
             },
             confirm_required=True,
+            private_arguments=True,
         )
 
     async def _found(self, call: ToolCall) -> Sequence[MemoryRecord]:

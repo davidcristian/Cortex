@@ -101,9 +101,11 @@ def build_cortex_tools(
     # A model can call a built-in by name on a turn whose list left it out, and the dispatcher
     # then has no spec to read, so its name must be in the policy for the card to show.
     confirmed = [tool.spec.name for tool in builtins if tool.spec.confirm_required]
+    private = [tool.spec.name for tool in builtins if tool.spec.private_arguments]
     policy = replace(
         setup.policy,
         confirm_names=(*setup.policy.confirm_names, *confirmed),
+        private_names=(*setup.policy.private_names, *private),
         record_cards=cards,
         offers=offers,
     )

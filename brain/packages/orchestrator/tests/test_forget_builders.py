@@ -11,6 +11,7 @@ from cortex_core import (
     ForgetChosenTool,
     InMemoryMemoryStore,
     MemoryRecord,
+    RecordingAuditSink,
     RecordingConfirmer,
     SystemClock,
     ToolCall,
@@ -18,7 +19,7 @@ from cortex_core import (
     TurnStamp,
     UntrustedMemoryForget,
 )
-from cortex_orchestrator import build_builtin_tools, build_cortex_tools
+from cortex_orchestrator import DispatchSetup, build_builtin_tools, build_cortex_tools
 
 
 def test_the_forget_tool_is_built_only_when_memory_is_wired() -> None:
@@ -126,3 +127,19 @@ async def test_the_cortex_dispatcher_withholds_the_forget_from_a_chat_with_nothi
         )
     )
     assert await tools.withheld("chat-a") == frozenset()
+
+
+async def test_the_cortex_dispatcher_keeps_the_forget_text_out_of_the_audit_trail() -> None:
+    sink = RecordingAuditSink()
+    chosen = ForgetChosenTool(InMemoryMemoryStore(), GLOBAL_MEMORY_SCOPE)
+    tools = build_cortex_tools(
+        None,
+        build_builtin_tools(None, None, chosen=chosen),
+        SystemClock(),
+        confirmer=RecordingConfirmer(answer=True),
+        setup=DispatchSetup(audit=sink),
+    )
+    assert isinstance(tools, ToolDispatcher)
+    call = ToolCall(id="c1", name=FORGET_CHOSEN_TOOL_NAME, arguments={"text": "4242 4242"})
+    await tools.dispatch(call, stamp=TurnStamp(session_id="chat-a"))
+    assert [record.arguments for record in sink.records] == [{"text": "<redacted>"}]

@@ -36,6 +36,8 @@ class ToolSpec:
     # Marks an outbound or irreversible action, which needs the user's confirmation and is
     # refused outright once the turn has read untrusted content.
     confirm_required: bool = False
+    # Marks arguments that may hold a secret the user named, kept out of the audit trail.
+    private_arguments: bool = False
 
 
 @dataclass(frozen=True, slots=True)

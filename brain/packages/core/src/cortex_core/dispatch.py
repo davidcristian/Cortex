@@ -8,6 +8,7 @@ from types import MappingProxyType
 
 from cortex_core.composite import RecordCard, ToolOffer
 from cortex_core.errors import ToolError
+from cortex_core.log_secrets import REDACTED
 from cortex_core.ports import Clock, Confirmer, ToolAuditSink, ToolRegistry
 from cortex_core.progress import hold_wait
 from cortex_core.tool_budget import UNIFORM_COST, ToolCostPolicy
@@ -94,9 +95,11 @@ class DispatchPolicy:
     confirm_reasons: Mapping[str, str] = field(default_factory=dict[str, str])
     record_cards: Mapping[str, RecordCard] = field(default_factory=dict[str, RecordCard])
     offers: Mapping[str, ToolOffer] = field(default_factory=dict[str, ToolOffer])
+    private_names: Collection[str] = ()
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "confirm_names", frozenset(self.confirm_names))
+        object.__setattr__(self, "private_names", frozenset(self.private_names))
         object.__setattr__(self, "confirm_reasons", MappingProxyType(dict(self.confirm_reasons)))
         object.__setattr__(self, "record_cards", MappingProxyType(dict(self.record_cards)))
         object.__setattr__(self, "offers", MappingProxyType(dict(self.offers)))
@@ -230,10 +233,13 @@ class ToolDispatcher:
 
     async def _audited(self, call: ToolCall, result: ToolResult) -> ToolResult:
         """Record one audit line (its provenance, the work it was for, the call) and return it."""
+        arguments = call.arguments
+        if call.name in self._policy.private_names:
+            arguments = dict.fromkeys(arguments, REDACTED)
         await self._audit.record(
             ToolInvocation(
                 name=call.name,
-                arguments=call.arguments,
+                arguments=arguments,
                 ok=not result.is_error,
                 detail=result.content,
                 at=self._clock.now(),

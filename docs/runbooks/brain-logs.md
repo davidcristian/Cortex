@@ -34,7 +34,9 @@ call site. A field whose name looks like a secret (`token`, `password`, `secret`
 place of its value, with the key still there so a withheld field reads differently from a missing
 one. The same names are withheld inside a structured field, so a tool call's `arguments` prints
 `{"password":"<redacted>"}` for a key the model named `password`, and a structure nested too deep
-to read through prints `<redacted>` whole. And the credential inside any URL is stripped from the
+to read through prints `<redacted>` whole. A tool whose spec sets `private_arguments` has every
+argument value withheld the same way: `forget_memories` prints `{"text":"<redacted>"}`, since the
+text it forgets is often the secret itself. And the credential inside any URL is stripped from the
 whole line, message and traceback included, so a `redis://` or `imap://` connection error names
 its host and never its password.
 

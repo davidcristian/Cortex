@@ -8,9 +8,9 @@ spawned subtask or a model swap is in [brain-core-residency.md](brain-core-resid
 
 ## Tool values
 
-- `ToolSpec(name, description, parameters, confirm_required=False)` is what a tool advertises. `parameters`
-  is the JSON Schema the model fills, passed through and never interpreted here, and `confirm_required` marks
-  an action that needs confirmation; `escalate_to_brain` is the only tool that sets it itself.
+- `ToolSpec(name, description, parameters, confirm_required=False, private_arguments=False)` is what a tool
+  advertises. `parameters` is the JSON Schema the model fills, never interpreted here; `confirm_required` marks
+  an action that needs confirmation, and `private_arguments` arguments the audit records only as `<redacted>`.
 - `ToolCall(id, name, arguments, stamp=UNSTAMPED)` is a model's request to run one tool; `id`
   matches it to its `ToolResult`. The dispatcher overwrites `stamp` at dispatch time, so a stamp
   the model wrote never reaches a tool (ADR-0018, ADR-0027).
@@ -65,9 +65,9 @@ spends and whether it is worth running. The dispatcher is stateless; the loop dr
   runs only when the `Confirmer` approves, else `USER_DECLINED_MSG`, `EXPIRED_MSG` or `UNANSWERED_MSG`.
 
 `DispatchPolicy(confirm_names=(), costs=UNIFORM_COST, salience=REPEAT_SALIENCE, confirm_reasons={},
-record_cards={}, offers={})` (`dispatch.py`, default `DEFAULT_DISPATCH_POLICY`) is what the root declares
-about dispatching: the confirmed tools, the prices, the salience rule, the card text (`confirm_reasons[name]`
-or a `RecordCard`'s `card(call)`), and the `ToolOffer`s that `withheld(session_id)` reads.
+record_cards={}, offers={}, private_names=())` (`dispatch.py`, default `DEFAULT_DISPATCH_POLICY`) states the
+confirmed tools, the prices, the salience rule, the card text (`confirm_reasons[name]` or a `RecordCard`'s
+`card(call)`), the `ToolOffer`s `withheld(session_id)` reads, and the tools audited with `<redacted>` values.
 
 - `RepeatSalience(limit=MAX_IDENTICAL_DISPATCHES)` (`tool_salience.py`, the default
   `REPEAT_SALIENCE`, limit 2) refuses a call identical to one already made in this round, or made

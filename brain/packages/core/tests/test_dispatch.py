@@ -580,3 +580,17 @@ async def test_a_model_cannot_counterfeit_a_fire_by_writing_the_ticker_prefix() 
     assert record.call_id == "schedule-t-victim"
     assert record.item_id == ""
     assert (record.session_id, record.turn_id) == ("s-5", "t-5")
+
+
+async def test_private_names_keep_argument_values_out_of_the_audit_but_not_the_tool() -> None:
+    sink = RecordingAuditSink()
+    registry = InMemoryToolRegistry({"read": (_spec("read"), _ran), "find": (_spec("find"), _ran)})
+    policy = DispatchPolicy(private_names=["find"])
+    dispatcher = ToolDispatcher(registry, sink, _FixedClock(), policy=policy)
+    found = await dispatcher.dispatch(ToolCall(id="c-1", name="find", arguments={"path": "4242"}))
+    await dispatcher.dispatch(ToolCall(id="c-2", name="read", arguments={"path": "/etc/hosts"}))
+    assert found.content == "ran:4242"
+    assert [record.arguments for record in sink.records] == [
+        {"path": "<redacted>"},
+        {"path": "/etc/hosts"},
+    ]
