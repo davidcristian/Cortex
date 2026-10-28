@@ -44,3 +44,5 @@ shipped cut note did, and none of thirty-six host replays of recorded fourth req
 - 2026-10-28: corrected and set to wait for its trigger. Thirty draws behind a recording proxy and
   thirty-six replays found no silence, and the recorded streams showed that this build streams
   tool calls and reasoning token by token, so the held text was something else.
+- 2026-10-28: the stall error now names the client's read bound in seconds, so it says how long
+  the brain waited, whatever the cause turns out to be.

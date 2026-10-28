@@ -148,8 +148,8 @@ Every failure crosses the `InferenceBackend` port as `InferenceError` with the c
   is caught as `ModelManagerError` and re-raised, so the core sees only `InferenceError`;
 - any transport failure or non-2xx status is caught as `httpx.HTTPError` and re-raised, with
   `_transport_failure` naming a **stall** apart from a dead server: an `httpx.ReadTimeout` means the
-  client's stall ceiling fired on a server that accepted the request and then stopped sending, which
-  points an operator at a different problem than nothing answering;
+  server took the request and then sent nothing for the client's read bound, which the error names
+  in seconds and which points an operator at a different problem than nothing answering;
 - a malformed streaming chunk (bad JSON, unexpected shape, non-string content) raises
   `InferenceError` directly, since a skipped chunk would drop reply text or a tool call;
 - a tool call whose accumulated arguments are not valid JSON raises the **narrower**

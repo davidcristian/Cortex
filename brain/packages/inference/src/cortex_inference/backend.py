@@ -37,10 +37,11 @@ _SSE_DONE = "[DONE]"
 _logger = logging.getLogger(__name__)
 
 
-def _transport_failure(err: httpx.HTTPError, model: str) -> InferenceError:
-    """The port's error for a failed exchange, with a stall named apart from a dead server."""
+def _transport_failure(err: httpx.HTTPError, model: str, bound: float | None) -> InferenceError:
+    """The port's error for a failed exchange, with a stall and its bound named apart."""
     if isinstance(err, httpx.ReadTimeout):
-        return InferenceError(f"llama-server sent nothing for model {model!r} within its ceiling")
+        silent = "" if bound is None else f" for {bound:g} s, the longest a stream may stay silent"
+        return InferenceError(f"llama-server sent nothing for model {model!r}{silent}")
     return InferenceError(f"llama-server request failed for model {model!r}")
 
 
@@ -179,6 +180,6 @@ class LlamaCppBackend:
             msg = f"model manager could not lease {model!r} for inference"
             raise InferenceError(msg) from err
         except httpx.HTTPError as err:
-            raise _transport_failure(err, model) from err
+            raise _transport_failure(err, model, self._client.timeout.read) from err
         for call in finish_calls(pending):
             yield call

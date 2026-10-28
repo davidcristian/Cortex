@@ -297,6 +297,30 @@ async def test_a_stalled_stream_is_named_apart_from_an_unreachable_server() -> N
     with pytest.raises(InferenceError, match=r"sent nothing for model 'cortex'") as excinfo:
         await _collect(_backend(handler))
     assert isinstance(excinfo.value.__cause__, httpx.ReadTimeout)
+    assert str(excinfo.value).endswith("for 5 s, the longest a stream may stay silent")
+
+
+@pytest.mark.parametrize(
+    ("bound", "said"),
+    [
+        (120.0, "llama-server sent nothing for model 'cortex' for 120 s, the longest a stream may"),
+        (0.25, "llama-server sent nothing for model 'cortex' for 0.25 s, the longest a stream may"),
+        (None, "llama-server sent nothing for model 'cortex'"),
+    ],
+)
+async def test_a_stall_names_the_client_read_bound_it_ran_out(
+    bound: float | None, said: str
+) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        msg = "timed out while reading the stream"
+        raise httpx.ReadTimeout(msg, request=request)
+
+    manager = SingleResidentModelManager("cortex", _ENDPOINT)
+    timeout = httpx.Timeout(5.0, read=bound)
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler), timeout=timeout)
+    with pytest.raises(InferenceError) as excinfo:
+        await _collect(LlamaCppBackend(manager, client))
+    assert str(excinfo.value).removesuffix(" stay silent") == said
 
 
 async def test_unavailable_model_wraps_into_inference_error() -> None:
