@@ -15,6 +15,8 @@ from cortex_core import (
     BUDGET_EXHAUSTED_MSG,
     DENIED_MSG,
     ESCALATION_QUEUED_MSG,
+    FORGET_CHOSEN_TOOL_NAME,
+    FORGET_UNTRUSTED_TOOL_NAME,
     NO_CADENCE_TERMS,
     NO_ROOM_NOTE,
     RECALL_DENIED_MSG,
@@ -424,6 +426,34 @@ async def test_the_deep_phases_memory_names_the_tool_runs_it_made() -> None:
     await _drive(capabilities=caps, backend=backend)
     (record,) = await _recorded(memory)
     assert record.text == f"User: {harness.USER_TEXT}\nTools run: read (succeeded)\nAssistant: done"
+
+
+async def _recorded_after_cortex_runs(*runs: ToolRun, tainted: bool = False) -> list[MemoryRecord]:
+    sessions = InMemorySessionStore()
+    for role, text, made in ((Role.USER, harness.USER_TEXT, ()), (Role.ASSISTANT, "ok", runs)):
+        message = Message(role=role, text=text, at=_AT, turn_id=harness.TURN, runs=made)
+        await sessions.append(harness.SESSION, message)
+    memory = _recaller()
+    caps = TurnCapabilities(memory=memory, record_tainted_memory=True)
+    taint = TaintLedger()
+    if tainted:
+        taint.ingest_untrusted("untrusted", source=None)
+    await _drive(capabilities=caps, store=sessions, taint=taint)
+    return await _recorded(memory)
+
+
+async def test_a_deep_phase_after_the_cortex_called_the_forget_of_a_text_records_nothing() -> None:
+    cortex = (ToolRun(FORGET_CHOSEN_TOOL_NAME, ok=False), ToolRun("escalate_to_brain", ok=True))
+    assert await _recorded_after_cortex_runs(*cortex) == []
+    (kept,) = await _recorded_after_cortex_runs(ToolRun("escalate_to_brain", ok=True))
+    assert kept.text.startswith(f"User: {harness.USER_TEXT}")
+
+
+async def test_a_tainted_deep_phase_after_the_cortex_forgot_the_untrusted_records_nothing() -> None:
+    forgot = ToolRun(FORGET_UNTRUSTED_TOOL_NAME, ok=True)
+    assert await _recorded_after_cortex_runs(forgot, tainted=True) == []
+    (kept,) = await _recorded_after_cortex_runs(forgot)
+    assert kept.tainted is False
 
 
 async def test_a_deep_phase_that_spends_every_round_keeps_the_note_it_showed() -> None:

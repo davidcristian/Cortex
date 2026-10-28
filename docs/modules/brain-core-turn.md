@@ -119,10 +119,10 @@ after the window, one saying a handoff's deep reply is not stored (`tool_replay.
 `RepeatWatch(query)` (`repeat_watch.py`, new at each tool call) sees a block of up to four lines,
 one of 20 or more characters not in `query`, come 3 times back to back, or once more than a count
 `query` asks for (ADR-0048 decision 17), closes the loop in a `finally` and flushes the channels on
-a clean end. `record_exchange(caps, taint, *, session_id, query, reply, runs)` applies both phases'
-tainted-memory policy and **drops an opaque turn whatever `record_tainted_memory` says** (ADR-0029).
-
-`limit_notes(stops, runs, parts, *, earlier=(), said=())`, `unreadable_call_note(stops, parts)` and
+a clean end. `record_exchange(caps, taint, *, session_id, query, reply, runs, earlier=())` applies both
+phases' memory policy over `runs` and `earlier` (the cortex's runs before a handoff) and **drops an
+opaque turn whatever `record_tainted_memory` says** (ADR-0029). `limit_notes(stops, runs, parts, *,
+earlier=(), said=())`, `unreadable_call_note(stops, parts)` and
 `overflow_note(parts, *, alone)` are the notes a turn can end with, the first two read off a
 `StopLedger` (`stops.py`): `capped` (a token limit cut a completion, ADR-0048), `out_of_rounds` (the
 last round still ended in calls, ADR-0009) and `repeated` (the watch ended the reply). `limit_notes`

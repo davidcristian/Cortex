@@ -148,13 +148,16 @@ class BrainPhase:
             yield TextDelta(text=note)
         finally:
             await events.aclose()
+        earlier = cortex_runs(stored, record)
         if failure is None:
-            earlier, said = cortex_runs(stored, record), said_by_person(stored)
+            said = said_by_person(stored)
             for event in limit_notes(stops, log.runs, parts, earlier=earlier, said=said):
                 yield event
         self._report_cadence(watch.reading(), record)
         reply = "".join(parts)
-        await self._persist(record, query=query, reply=reply, taint=taint, runs=log.runs)
+        await self._persist(
+            record, query=query, reply=reply, taint=taint, runs=log.runs, earlier=earlier
+        )
         if failure is not None:
             raise failure
 
@@ -199,6 +202,7 @@ class BrainPhase:
         reply: str,
         taint: TaintLedger,
         runs: tuple[ToolRun, ...],
+        earlier: tuple[ToolRun, ...],
     ) -> None:
         """Append the deep model's reply and record the exchange under the turn's taint policy."""
         message = Message(
@@ -210,5 +214,11 @@ class BrainPhase:
         )
         await self._store.append(record.session_id, message)
         await record_exchange(
-            self._caps, taint, session_id=record.session_id, query=query, reply=reply, runs=runs
+            self._caps,
+            taint,
+            session_id=record.session_id,
+            query=query,
+            reply=reply,
+            runs=runs,
+            earlier=earlier,
         )

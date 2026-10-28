@@ -229,7 +229,7 @@ async def stream_turn_events(
         yield event
 
 
-async def record_exchange(
+async def record_exchange(  # noqa: PLR0913 -- a deep phase adds the runs the cortex made
     caps: TurnCapabilities,
     taint: TaintLedger,
     *,
@@ -237,17 +237,22 @@ async def record_exchange(
     query: str,
     reply: str,
     runs: Sequence[ToolRun],
+    earlier: Sequence[ToolRun] = (),
 ) -> None:
-    """Record the completed exchange to memory under the turn's taint policy."""
+    """Record the completed exchange to memory under the turn's taint policy.
+
+    ``earlier`` is the runs the cortex made before it handed the turn to the deep phase.
+    """
     # A turn that holds a picture (a screen capture, an MCP image or an attachment) is never
     # recorded, whatever the deployment's taint policy says: its reply may transcribe it.
     if taint.opaque:
         return
+    made = (*earlier, *runs)
     # Recording a tainted turn that forgot the untrusted memories would store a new one.
-    if taint.tainted and any(run.ok and run.name == FORGET_UNTRUSTED_TOOL_NAME for run in runs):
+    if taint.tainted and any(run.ok and run.name == FORGET_UNTRUSTED_TOOL_NAME for run in made):
         return
     # A turn that asked to forget a text may name that text in its query or reply.
-    if any(run.name == FORGET_CHOSEN_TOOL_NAME for run in runs):
+    if any(run.name == FORGET_CHOSEN_TOOL_NAME for run in made):
         return
     if caps.memory is None or (taint.tainted and not caps.record_tainted_memory):
         return

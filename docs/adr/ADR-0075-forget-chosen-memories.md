@@ -54,7 +54,9 @@ that removes exactly those rows and holds against a turn in flight. This record 
    the same span the dispatcher holds the call. After the delete it searches again and reports
    any row still matching, so the reply never claims a fact is gone while a row holds it.
    The turn that called it is not recorded to memory, whatever the result, because its query or
-   reply may name the text it forgets, and recording it would store that text again. Its spec sets
+   reply may name the text it forgets, and recording it would store that text again. That holds
+   for the deep phase of a turn the cortex handed over after calling it, which reads the cortex's
+   runs of the turn from the stored reply. Its spec sets
    `private_arguments`, so the tool audit records the `text` argument as `<redacted>`.
 6. **A card lists at most 20 rows.** More matches delete nothing and ask for a more exact text,
    so a short text such as one letter cannot clear the memory behind a card nobody reads.
