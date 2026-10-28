@@ -23,7 +23,6 @@ value are recorded with the value in the query, read from the code:
    `record_exchange`, with a test per refusal kind.
 2. Decide the no-call case separately: a typed check of the query, in the way `schedule_claim.py`
    checks a reply, needs rows first, since it reads language.
-3. For an unreadable call, see task 924, which keeps its text out of the log.
 
 ## History
 

@@ -57,7 +57,8 @@ that removes exactly those rows and holds against a turn in flight. This record 
    reply may name the text it forgets, and recording it would store that text again. That holds
    for the deep phase of a turn the cortex handed over after calling it, which reads the cortex's
    runs of the turn from the stored reply. Its spec sets
-   `private_arguments`, so the tool audit records the `text` argument as `<redacted>`.
+   `private_arguments`, so the tool audit and a handoff record's loop tail keep the `text` argument
+   as `<redacted>`, and a call whose arguments do not parse is logged by its tool name and length.
 6. **A card lists at most 20 rows.** More matches delete nothing and ask for a more exact text,
    so a short text such as one letter cannot clear the memory behind a card nobody reads.
    The pass rule is in [forget-chosen-memories.md](../readings/forget-chosen-memories.md).

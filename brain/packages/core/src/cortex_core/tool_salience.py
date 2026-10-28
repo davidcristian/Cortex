@@ -4,6 +4,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Protocol
 
+from cortex_core.log_secrets import REDACTED
 from cortex_core.tools import ToolCall
 
 # Two rather than one: a second identical call can be a retry after a transient failure or a
@@ -51,6 +52,15 @@ class RepeatSalience:
 def asks_the_same(call: ToolCall, other: ToolCall) -> bool:
     """Whether two calls ask the same thing: same tool, same arguments."""
     return call.name == other.name and call.arguments == other.arguments
+
+
+def repeats_declined(call: ToolCall, declined: ToolCall) -> bool:
+    """Whether a call asks what a declined one did, a withheld value matching any value."""
+    if call.name != declined.name or call.arguments.keys() != declined.arguments.keys():
+        return False
+    return all(
+        value in (REDACTED, call.arguments[key]) for key, value in declined.arguments.items()
+    )
 
 
 ALWAYS_SALIENT = AlwaysSalient()

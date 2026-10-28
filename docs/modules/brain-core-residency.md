@@ -109,11 +109,11 @@ own, and the Redis store reads a stored one as a corrupt record.
 `EscalationSlot(refs=None, brief=None)` is the mutable turn-local handle through which in-flight
 state reaches the record. It is built empty by whoever orchestrates the turn and serves exactly one
 turn; the engine fills `refs` at turn start with an `EscalationRefs` (the live `working` list, taint
-ledger, nonce, shared allowance, and `base_len`, how many messages `working` held when the loop
-began, so everything past it is the tail), and the `escalate_to_brain` tool writes only `brief`.
+ledger, nonce, shared allowance, `base_len`, how many messages `working` held when the loop began,
+and the dispatcher's `private_names`, whose calls the tail stores with each argument value as
+`<redacted>`), and the `escalate_to_brain` tool writes only `brief`.
 `snapshot(*, turn_id, session_id, requested_at)` freezes it into a `READY` record by copying, and
-raises `ValueError` on a slot no tool filled, one no engine filled, or a tail containing images, the
-record being durable and its schema having no field for pixels.
+raises `ValueError` on a slot no tool filled, one no engine filled, or a tail containing images.
 
 ### Running the swap
 

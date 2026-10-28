@@ -1,10 +1,12 @@
 """The brain-handoff record: the mid-turn state a model swap must not lose."""
 
-from dataclasses import dataclass
+from collections.abc import Collection
+from dataclasses import dataclass, replace
 from datetime import datetime
 from enum import Enum
 
 from cortex_core.conversation import Message, Role
+from cortex_core.log_secrets import REDACTED
 from cortex_core.provenance import Provenance
 from cortex_core.tool_budget import DispatchBudget
 from cortex_core.untrusted import TaintLedger
@@ -70,6 +72,17 @@ class HandoffRecord:
         )
 
 
+def _withheld(message: Message, private: Collection[str]) -> Message:
+    """The message with each private call's argument values replaced by the redaction mark."""
+    calls = tuple(
+        replace(call, arguments=dict.fromkeys(call.arguments, REDACTED))
+        if call.name in private
+        else call
+        for call in message.tool_calls
+    )
+    return replace(message, tool_calls=calls)
+
+
 @dataclass(frozen=True, slots=True)
 class EscalationRefs:
     """The live turn-local state the engine puts into an ``EscalationSlot`` at turn start."""
@@ -79,6 +92,7 @@ class EscalationRefs:
     nonce: str
     budget: DispatchBudget
     base_len: int
+    private_names: Collection[str] = ()
 
 
 @dataclass(slots=True)
@@ -96,7 +110,10 @@ class EscalationSlot:
         if self.refs is None:
             msg = "EscalationSlot.snapshot requires refs (no turn ever filled them)"
             raise ValueError(msg)
-        tail = tuple(self.refs.working[self.refs.base_len :])
+        tail = tuple(
+            _withheld(message, self.refs.private_names)
+            for message in self.refs.working[self.refs.base_len :]
+        )
         if any(message.images for message in tail):
             msg = "a handoff record never persists images: pixels are turn-local"
             raise ValueError(msg)

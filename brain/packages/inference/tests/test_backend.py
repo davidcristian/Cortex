@@ -651,8 +651,12 @@ async def test_malformed_tool_call_arguments_raise_inference_error() -> None:
         return httpx.Response(200, content=content)
 
     stream = _backend(handler).stream("cortex", _messages(), tools=[_read_spec()])
-    with pytest.raises(InferenceError, match="malformed tool-call arguments"):
+    with pytest.raises(InferenceError) as raised:
         [event async for event in stream]
+    assert str(raised.value) == (
+        "malformed tool-call arguments from llama-server for 'read': "
+        "9 characters that do not parse as JSON"
+    )
 
 
 async def test_an_unparsable_tool_call_is_the_ports_narrower_failure() -> None:

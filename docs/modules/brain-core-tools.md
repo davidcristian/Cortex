@@ -10,7 +10,7 @@ spawned subtask or a model swap is in [brain-core-residency.md](brain-core-resid
 
 - `ToolSpec(name, description, parameters, confirm_required=False, private_arguments=False)` is what a tool
   advertises. `parameters` is the JSON Schema the model fills, never interpreted here; `confirm_required` marks
-  an action that needs confirmation, and `private_arguments` arguments the audit records only as `<redacted>`.
+  an action that needs confirmation, and `private_arguments` arguments the audit and a handoff record keep only as `<redacted>`.
 - `ToolCall(id, name, arguments, stamp=UNSTAMPED)` is a model's request to run one tool; `id`
   matches it to its `ToolResult`. The dispatcher overwrites `stamp` at dispatch time, so a stamp
   the model wrote never reaches a tool (ADR-0018, ADR-0027).
@@ -55,7 +55,7 @@ spends and whether it is worth running. The dispatcher is stateless; the loop dr
 
 - `refusal` (a `DispatchRefusal`) says the call must not run: `BUDGET` when the dispatch allowance
   is spent, `DECLINED` for a call the person declined in this turn (`ToolLoopContext.declined`, read
-  from the tail after a handoff), `REDUNDANT` for a repeat the salience policy recognized, or
+  from the tail after a handoff, where a `<redacted>` value matches any value), `REDUNDANT` for a repeat the salience policy recognized, or
   `ROUND_OVERSIZED` for a truncated round's overflow slot. The tool is not invoked, the member's
   message is returned, and the attempt is audited. A refusal is checked **before** the confirmation
   rule, so a flood of confirmable calls cannot reach the user as prompts.

@@ -1,3 +1,4 @@
+from dataclasses import replace
 from datetime import UTC, datetime
 
 import pytest
@@ -84,6 +85,22 @@ def test_snapshot_captures_the_loop_tail_and_derives_rounds_from_it() -> None:
     assert record.opaque is False
     assert record.sources == _ledger().sources
     assert record.untrusted_urls == frozenset({"http://evil.example/a"})
+
+
+def test_a_snapshot_withholds_the_argument_values_of_a_private_call() -> None:
+    forget = ToolCall(id="c2", name="forget", arguments={"text": "4242", "scope": "all"})
+    asked = Message(role=Role.ASSISTANT, text="", at=_AT, turn_id="t1", tool_calls=(forget,))
+    working = [Message(role=Role.USER, text="hi", at=_AT, turn_id="t1"), *_tail("t1"), asked]
+    slot = _slot(working, budget=DispatchBudget(), base_len=1)
+    assert slot.refs is not None
+    slot.refs = replace(slot.refs, private_names=frozenset({"forget"}))
+    record = slot.snapshot(turn_id="t1", session_id="s1", requested_at=_AT)
+    calls = [call for message in record.loop_tail for call in message.tool_calls]
+    assert [(call.id, call.name, call.arguments) for call in calls] == [
+        ("c1", "read_file", {"path": "notes.md"}),
+        ("c2", "forget", {"text": "<redacted>", "scope": "<redacted>"}),
+    ]
+    assert working[-1].tool_calls == (forget,)
 
 
 def test_snapshot_keeps_a_closed_budget_as_closed() -> None:

@@ -202,7 +202,11 @@ def finish_calls(pending: dict[int, PendingCall]) -> list[ToolCall]:
         try:
             arguments: Mapping[str, object] = json.loads(slot.arguments) if slot.arguments else {}
         except json.JSONDecodeError as err:
-            msg = f"malformed tool-call arguments from llama-server: {slot.arguments!r}"
+            # The length and not the text, since a call's arguments can hold a secret.
+            msg = (
+                f"malformed tool-call arguments from llama-server for {slot.name!r}: "
+                f"{len(slot.arguments)} characters that do not parse as JSON"
+            )
             raise MalformedToolCallError(msg) from err
         calls.append(ToolCall(id=slot.id, name=slot.name, arguments=arguments))
     return calls

@@ -133,6 +133,11 @@ class ToolDispatcher:
         self._confirmer = confirmer
         self._policy = policy
 
+    @property
+    def private_names(self) -> Collection[str]:
+        """The tools whose arguments are kept out of every record the brain writes."""
+        return self._policy.private_names
+
     async def describe_tools(self) -> Sequence[ToolSpec]:
         """The tools available to advertise to the model (delegates to the registry)."""
         return await self._registry.describe_tools()

@@ -36,7 +36,8 @@ one. The same names are withheld inside a structured field, so a tool call's `ar
 `{"password":"<redacted>"}` for a key the model named `password`, and a structure nested too deep
 to read through prints `<redacted>` whole. A tool whose spec sets `private_arguments` has every
 argument value withheld the same way: `forget_memories` prints `{"text":"<redacted>"}`, since the
-text it forgets is often the secret itself. And the credential inside any URL is stripped from the
+text it forgets is often the secret itself. A tool call whose arguments are not valid JSON is logged
+by its tool name and the arguments' length, never their text. And the credential inside any URL is stripped from the
 whole line, message and traceback included, so a `redis://` or `imap://` connection error names
 its host and never its password.
 

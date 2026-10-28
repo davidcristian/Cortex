@@ -60,6 +60,7 @@ def _prepare_escalation(
         nonce=context.nonce,
         budget=context.budget,
         base_len=len(working),
+        private_names=() if caps.tools is None else caps.tools.private_names,
     )
 
 

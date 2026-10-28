@@ -153,8 +153,8 @@ Every failure crosses the `InferenceBackend` port as `InferenceError` with the c
 - a malformed streaming chunk (bad JSON, unexpected shape, non-string content) raises
   `InferenceError` directly, since a skipped chunk would drop reply text or a tool call;
 - a tool call whose accumulated arguments are not valid JSON raises the **narrower**
-  `MalformedToolCallError` (ADR-0048), because that fragment is the model's own tokens rather than
-  the server's protocol. Measured against a real server, a cap that ends a completion inside
+  `MalformedToolCallError` (ADR-0048), naming the tool and the fragment's length but never its text,
+  which can hold a secret; the fragment is the model's own tokens, not the server's. Measured against a real server, a cap that ends a completion inside
   `arguments` leaves 71 to 899 characters of unterminated string under `finish_reason: "length"`,
   and the `DecodeStop` has already been yielded when this raises, so a caller holding a `StopLedger`
   can pair the two into "the run was cut" rather than "the backend died". It is a subclass, so every

@@ -20,6 +20,7 @@ from cortex_core import (
     CharBudgetHistoryWindow,
     CompositeToolRegistry,
     DecodeStop,
+    DispatchPolicy,
     EchoInferenceBackend,
     EmbedderError,
     EscalateToBrainTool,
@@ -1865,6 +1866,31 @@ async def test_a_prepared_escalation_slot_captures_exactly_the_turns_loop_tail()
     assert [message.role for message in tail] == [Role.ASSISTANT, Role.TOOL]
     assert refs.nonce
     assert slot.brief is None
+
+
+async def test_a_prepared_escalation_slot_withholds_what_a_private_tool_was_given() -> None:
+    slot = EscalationSlot()
+    sink = RecordingAuditSink()
+    registry = InMemoryToolRegistry({"read": (_read_tool(), _read_handler)})
+    policy = DispatchPolicy(private_names={"read"})
+    dispatcher = ToolDispatcher(registry, sink, TickingClock(), policy=policy)
+    backend = ScriptedToolBackend(
+        [
+            [ToolCall(id="c1", name="read", arguments={"path": "/etc/hosts"})],
+            [TextChunk("done")],
+        ]
+    )
+    engine = TurnEngine(
+        InMemorySessionStore(),
+        backend,
+        TickingClock(),
+        capabilities=TurnCapabilities(tools=dispatcher, escalation=slot),
+    )
+    await _collect(engine.handle_turn("s", "show hosts", turn_id="t-1"))
+    slot.brief = "go deep"
+    record = slot.snapshot(turn_id="t-1", session_id="s", requested_at=_START)
+    assert record.loop_tail[0].tool_calls[0].arguments == {"path": "<redacted>"}
+    assert "contents of /etc/hosts" in record.loop_tail[1].text
 
 
 async def test_an_approved_escalation_snapshots_to_a_ready_record_in_the_store() -> None:
