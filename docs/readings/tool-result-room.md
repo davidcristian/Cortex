@@ -105,10 +105,53 @@ person which part it read (0.59 to 0.71). Every draw had a cut result.
   its text before the error said it could see only the beginning.
 - **Two reads to summarize.** Three baseline passes named only `charlie.log` as not read and
   listed the errors of the start of `bravo.log` as its errors; draw 1 failed and described
-  errors in `charlie.log` that the file does not hold
-  ([task 916](../refinements/tasks/916-the-cortex-describes-a-file-whose-read-did-not-fit.md)).
-  With the candidate every draw said its list covers only the start of `bravo.log`, and none
+  errors in `charlie.log` that the file does not hold (the ten draws
+  [below](#a-held-back-generation-and-an-unread-file) found no repeat). With the candidate every draw said its list covers only the start of `bravo.log`, and none
   described `charlie.log`.
 
 The candidate passes the ship rule. Method: `ask.py` over `Converse`, five draws a row, replies
 read by hand against the pass rule.
+
+## A held-back generation and an unread file
+
+Written before the run. The same rig and build (brain from `fc65752f7`, without the subagents
+overlay), with a recording proxy between the brain and the cortex tier that saves every byte of
+every request and every streamed chunk with its arrival time.
+
+- **What the cortex sent nothing for.** Row "one read of three files", at most ten draws, until a
+  completion sends no chunk for 30 s. The recorded request of that completion is replayed from the
+  host with `stream: true` and no client timeout, and once more through `/completion` on the
+  rendered prompt, which streams the decoded text with no tool parsing. It decides what was
+  decoded and whether any of it was sent. Null: no such gap in ten draws, and the task stays open
+  with that count.
+- **A described unread file.** Row "two reads to summarize", ten draws. A draw counts when at
+  least one of the two files had none of its text in any request the cortex was sent, read from
+  the proxy's record. A counted draw fails when its reply says what such a file holds (an error,
+  an event, a count) rather than that it was not read. No failure in the counted draws closes the
+  task on the shipped cut note. One or more failures calls for a `NO_ROOM_NOTE` that names the
+  file, which ships only with no failure in ten counted draws and the pass rule above holding in
+  at least eight of ten.
+- **A second batch**, written after the first ten draws found no silence and before it ran: twenty
+  more draws of "one read of three files" with the same stop rule and the same null.
+
+**Results** (SM clock 0.60 to 0.70 of `clocks.max.sm`).
+
+- **What the cortex sent nothing for.** In the thirty draws no recorded response went silent for
+  4 s or more, so the null holds and
+  [task 915](../refinements/tasks/915-a-long-generation-the-server-holds-back-reads-as-a-stalled-server.md)
+  stays open. Twenty-three draws answered after one read; six made three or more calls and so
+  reached a fourth completion, the one that went silent at baseline. Thirty-six replays from the
+  host of three recorded fourth requests (one of them six times as sent, and all three ten times
+  each with the cut notes as the baseline build wrote them) ended in 0.6 to 16.9 s, with no
+  silence after the first chunk longer than 1 s. The recorded streams show how build b11913
+  sends: reasoning and a tool call's arguments arrive one token to a chunk, the first chunk of one
+  recorded call came about ten tokens' time after the last reasoning token, and `timings` arrive
+  only with the last chunk.
+- **A described unread file.** Every draw was cut: the one `read_multiple_files` result was 47,592
+  characters and kept its first 5,960, which are 75 lines of `bravo.log` and none of
+  `charlie.log`. In draws 7 and 9 a later `read_text_file` of `charlie.log` kept the 40
+  characters left in the room, part of its first line, and the read after it got `NO_ROOM_NOTE`;
+  both files then had text, so those draws did not count, and both replies said only that line was
+  visible. Of the eight counted draws, six said `charlie.log` was not read or not visible and two
+  summarized only the start of `bravo.log` and said so. No counted draw failed, which closes the
+  question on the shipped cut note. All ten also pass the cut-results pass rule above.
