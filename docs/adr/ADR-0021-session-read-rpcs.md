@@ -160,20 +160,20 @@ so a label cannot inject markup or a second line.
 
 ### 11. Deletion is a hard delete with a scope-aware memory cascade
 
-`SessionStore.delete(session_id)` removes the `:messages` list, the `:title` string, the `:recap`
-string ([ADR-0038](ADR-0038-ranked-recall.md) decision 9), the `cortex:sessions` member and the
-`cortex:sessions:hoisted` member in one transactional pipeline, idempotently. A tombstone was
-rejected: the reads are stateless snapshots and an unknown session already reads as an empty
-history, and "forget this chat" calls for erasure.
+`SessionStore.delete(session_id)` removes the `:messages` list, the `:title` and `:recap` strings
+(ADR-0038 decision 9) and the `cortex:sessions` and `cortex:sessions:hoisted` members in one
+transactional pipeline, idempotently. A tombstone was rejected: the reads are stateless snapshots,
+an unknown session already reads as an empty history, and "forget this chat" calls for erasure.
+The text stays on disk until Redis rewrites its append-only file and Postgres vacuums and reuses its
+WAL ([readings](../readings/deleted-chat-on-disk.md)); a delete runs no rewrite: none reaches WAL.
 
 The memory cascade stays off the turn path: `SessionMemoryCascade(store, scope)` exposes only
-`delete_session_memories` and is wired into `DeleteSession`, never into an engine. Each memory
-records the session that wrote it (`session_id`, `None` on a row older than that column), and the
-cascade removes every row the session wrote with `delete_written_by`, so under the default global
-scope a secret typed in a deleted chat is not recalled in a later chat. A copy another chat stored
-after recalling it stays, and `forget_memories` finds it by text (ADR-0075). A private scope
-(`scope == session_id`, never `GLOBAL_SCOPE`) is then emptied with `delete_scope`. The handler
-deletes the session, then cascades; either store error aborts `UNAVAILABLE`, and a retry completes.
+`delete_session_memories`, wired into `DeleteSession` and never into an engine. Each memory records
+the session that wrote it (`None` on older rows), and the cascade removes those rows in any scope
+with `delete_written_by`, so a secret typed in a deleted chat is not recalled later; a copy another
+chat stored after recalling it stays, for `forget_memories` (ADR-0075). A private scope (`scope ==
+session_id`, never `GLOBAL_SCOPE`) is then emptied with `delete_scope`. The handler deletes the
+session, then cascades; either store error aborts `UNAVAILABLE`, and a retry completes.
 
 The confirmation is overlay-local: the row's trash control swaps in a confirm and cancel pair.
 Deleting the open chat first tears down its turn (denying a pending confirm and cancelling the

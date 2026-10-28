@@ -81,12 +81,9 @@ access to it; a second new chat asked for the bike lock code answered it, and th
 stored as its own row, which deleting `s9-b` leaves. A first try, `s9-a`, called the file tools,
 so the turn was tainted and recorded nothing.
 
-The deleted chats' text also stayed on the Redis volume. Redis writes every command to its
-append-only file (AOF), and the router password of the deleted first chat was still in
-`appendonly.aof.1.incr.aof` (197,688 bytes) after the delete; Redis rewrites that file only when it
-has grown by 100% and is over 64 MB (`auto-aof-rewrite-percentage`, `auto-aof-rewrite-min-size`).
-Filed as
-[920](../refinements/tasks/920-a-deleted-chat-stays-in-the-redis-append-only-file.md).
+The deleted chats' text also stayed on the Redis volume, in the append-only file, and a deleted
+memory stays in the Postgres heap until a vacuum; both are measured in
+[deleted-chat-on-disk.md](deleted-chat-on-disk.md).
 
 ## 3. A key file read through the file tools
 
