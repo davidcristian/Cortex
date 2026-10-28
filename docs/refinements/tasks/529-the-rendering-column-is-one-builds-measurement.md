@@ -126,6 +126,25 @@ the E4B's included, so under the first rule the column holds on `b11552` and thi
 the next build. The probe ran on the main tree's brain venv with the copy's sources first on
 `PYTHONPATH`, as on every earlier run. Samples under `measurements/sitting-2026-10-16/529/`.
 
+## The column on b11913
+
+The model host image was rebuilt on 2026-10-28 and reads `b11913 7aca0d2ea`, image
+`sha256:2f5f67ffb095`. `just switch-lineup --cpuset 12-23` draws the twelve picks on it from the
+main tree, with the stack's model host container stopped so the card is free: the E4B at `-ngl 0`
+on CPU cores 12 to 23 with its knights and knaves question, the rest at `-ngl 99`, five draws a
+cell. The E4B row is read from that `-ngl 0` sample alone, as on `b11552`, and no `-ngl 99` draw
+stands in for it. What each result decides, written before the draw:
+
+- **Every probe exits 0, the reader agrees on every pick, and every tail and switched count repeats
+  its `b11552` row.** The column holds on `b11913`. The readings record the build and the twelve
+  rows, and this task waits for the next build.
+- **The reader exits 1 on a pick, or it agrees on a pick whose tail or a switched count differs
+  from its `b11552` row.** The readings record that row beside its `b11552` row, and no ADR prose
+  changes until the same pick is drawn again at five draws a cell on `b11913` and on the cached
+  `b10680` `:server-cuda` image at the same argv. That row stays owed and the task stays actionable.
+- **A null** is a pick with no sample, from a failed load, or a control that did not deliberate on
+  all five draws: that row stays owed on `b11913`, and the task stays actionable.
+
 ## History
 
 - 2026-09-02: opened by the close of
