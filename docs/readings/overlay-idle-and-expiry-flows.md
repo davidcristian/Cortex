@@ -194,6 +194,16 @@ writing its first reply.
   the card "check the oven" with `open chat`, a `due 02:32` tag and "just now". "Remind me in 20
   seconds to stretch." then fired on time without a freeze: its `due_label` was empty and its card
   had no tag, while the oven card beside it read `due 02:32` and "1m ago".
+- **A late task's due tag**, on the same stack and settings with the subagents tier on, from a brain
+  that keeps a task run's start in `deliverable_started_at`. "In 90 seconds, run a task: have a
+  subagent write one sentence about tides." was set over `Converse` (due 03:22:33), and the brain
+  was frozen from 03:21:04 to 03:25:01. The run started at the thaw, 149 s after its due time, and
+  ended 12 s later. `ListDueReminders` gave `due_label` `due 03:22`, and the shell's card showed
+  the outcome with `open chat`, a `due 03:22` tag and "just now". "In 20 seconds, run a task: write
+  a 500-word story about the tides of a small harbour." then ran without a freeze: it started 2 s
+  after its due time and ended 66 s after it, past the one-minute margin. Its `due_label` was
+  empty and its card had no tag, while the first card beside it read `due 03:22` and "2m ago".
+  The SM clock read 0.60 and 0.59 of its maximum at the two turns; the subagent runs on the CPU.
 - **A card's age while the panel stays open.** Summoned at 04:40:30, 9 min 48 s
   after the fire, the card read "9m ago"; 131 s later, with no input, it still read "9m ago".
   `Reminders.tsx` computed the age once per render and nothing rendered it again until the state
