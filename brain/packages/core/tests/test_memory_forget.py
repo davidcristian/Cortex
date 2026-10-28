@@ -2,6 +2,7 @@ from datetime import UTC, datetime
 
 from cortex_core import (
     FORGET_CARD,
+    FORGET_CHOSEN_TOOL_NAME,
     FORGET_UNTRUSTED_TOOL_NAME,
     GLOBAL_MEMORY_SCOPE,
     GLOBAL_SCOPE,
@@ -175,3 +176,16 @@ async def test_a_clean_turn_that_forgot_the_untrusted_memories_is_recorded() -> 
     )
     (record,) = await _recorded(tainted=False, runs=forgot)
     assert record.tainted is False
+
+
+async def test_a_turn_that_forgot_a_named_text_records_nothing() -> None:
+    forgot = (ToolRun(name=FORGET_CHOSEN_TOOL_NAME, ok=True),)
+    assert await _recorded(tainted=False, runs=forgot) == []
+
+
+async def test_a_turn_whose_forget_of_a_named_text_was_declined_records_nothing() -> None:
+    declined = (
+        ToolRun(name="list_scheduled", ok=True),
+        ToolRun(name=FORGET_CHOSEN_TOOL_NAME, ok=False),
+    )
+    assert await _recorded(tainted=False, runs=declined) == []

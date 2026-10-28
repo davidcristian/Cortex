@@ -70,7 +70,8 @@ pool down to the hits one turn sees. The turn that calls it is in
   whether any match is left. No text, no match, more than `FORGET_CHOSEN_LIMIT` (20) matches or a
   failed store deletes nothing, and the card and the result each say so. The description asks
   for the value or one word from the request that names it, and the no-match result says there
-  is no need to ask the user for the value.
+  is no need to ask the user for the value. `record_exchange` stores nothing for a turn that
+  called `forget_memories`, whatever its result, since the query or reply may name the text.
 - `RecallPolicy` (port, `rerank.py`) turns an over-fetched pool into the final `k` hits:
   `candidate_k(k)` sizes the pool and `async select(hits, *, query, now, k, session_id=None,
   turn_id=None) -> Ranking` reranks and cuts it, returning at most `k` hits from the pool, none
