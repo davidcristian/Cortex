@@ -228,28 +228,33 @@ async def check_recurring_reminder_coalesces_delivery(store: ScheduleStore) -> N
 
 
 async def check_a_late_fire_keeps_its_due_time_after_due_at_moves(store: ScheduleStore) -> None:
-    """A late recurring fire stores the due time it fired for; ack clears it with the fire."""
-    item = make_item(_item_id(), every=timedelta(hours=1))
+    """A late recurring fire stores its due time and run start; ack clears both with the fire."""
+    item = make_item(_item_id(), kind=ScheduleKind.TASK, every=timedelta(hours=1))
     await store.add(item)
-    fired_at = _NOW + timedelta(hours=5, minutes=3)
-    (claim,) = await store.claim_due(fired_at, lease=_LEASE, limit=10)
+    started_at = _NOW + timedelta(hours=5)
+    fired_at = started_at + timedelta(minutes=3)
+    (claim,) = await store.claim_due(started_at, lease=_LEASE, limit=10)
     rearm_at = _NOW + timedelta(hours=6)
-    fired = FireOutcome(fired_at=fired_at, next_due=rearm_at, deliverable=True)
+    fired = FireOutcome(
+        fired_at=fired_at, next_due=rearm_at, deliverable=True, started_at=started_at
+    )
     assert await store.finish(claim, fired) is True
     (due,) = await store.deliverable()
     assert due.due_at == rearm_at
     assert due.deliverable_since == fired_at
     assert due.deliverable_due_at == _NOW
+    assert due.deliverable_started_at == started_at
     assert await store.ack(item.id, fired_at=fired_at) is True
     loaded = await store.get(item.id)
     assert loaded is not None
     assert loaded.deliverable_due_at is None
+    assert loaded.deliverable_started_at is None
 
 
 async def check_a_fire_with_nothing_to_deliver_keeps_the_held_due_time(
     store: ScheduleStore,
 ) -> None:
-    """A later fire that delivers nothing leaves the held fire and its due time in place."""
+    """A later fire that delivers nothing leaves the held fire, its due time and start in place."""
     item = make_item(_item_id(), kind=ScheduleKind.TASK, every=timedelta(hours=1))
     await store.add(item)
     second_at = _NOW + timedelta(hours=1)
@@ -260,11 +265,13 @@ async def check_a_fire_with_nothing_to_deliver_keeps_the_held_due_time(
             next_due=fired_at + timedelta(hours=1),
             deliverable=deliverable,
             outcome="checked",
+            started_at=fired_at - timedelta(minutes=2),
         )
         assert await store.finish(claim, outcome) is True
     (due,) = await store.deliverable()
     assert due.deliverable_since == _NOW
     assert due.deliverable_due_at == _NOW
+    assert due.deliverable_started_at == _NOW - timedelta(minutes=2)
 
 
 async def check_fire_taint_ors_onto_the_item(store: ScheduleStore) -> None:

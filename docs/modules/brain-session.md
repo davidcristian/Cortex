@@ -172,9 +172,9 @@ except that a missing `recalled_only` reads as `False`, the stricter value, and 
 
 Schedule state (ADR-0025) is durable again: one record per schedule at `cortex:schedule:{id}`
 holding
-`{"v": 1, "kind": "schedule", "id", "item_kind", "text", "session_id", "due_at", "created_at", "every_s", "rule", "anchor", "model", "tainted", "status", "deliverable_since", "deliverable_due_at", "last_outcome", "claim", "claimed_at"}`
-with **no expiry**, since the task store's would drop reminders. `anchor`, `rule` and
-`deliverable_due_at` are **additive** keys read with `.get` and no version bump, so a record written
+`{"v": 1, "kind": "schedule", "id", "item_kind", "text", "session_id", "due_at", "created_at", "every_s", "rule", "anchor", "model", "tainted", "status", "deliverable_since", "deliverable_due_at", "deliverable_started_at", "last_outcome", "claim", "claimed_at"}`
+with **no expiry**, since the task store's would drop reminders. `anchor`, `rule`,
+`deliverable_due_at` and `deliverable_started_at` are **additive** keys read with `.get` and no version bump, so a record written
 before one of them reads it as absent. `rule` is the nested `{"hour", "minute"}` calendar recurrence
 plus its day selector, read strictly when present so a malformed one fails rather than degrading to
 a one-shot. Which selector it holds is **which key is present**: `days` (weekday numbers) for a

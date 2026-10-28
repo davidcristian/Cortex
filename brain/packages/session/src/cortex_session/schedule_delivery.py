@@ -35,6 +35,7 @@ async def finish_claim(client: Redis, claim: ScheduleClaim, outcome: FireOutcome
             return False
         since = outcome.fired_at if outcome.deliverable else item.deliverable_since
         due = item.due_at if outcome.deliverable else item.deliverable_due_at
+        started = outcome.started_at if outcome.deliverable else item.deliverable_started_at
         rearmed = outcome.next_due is not None
         updated = replace(
             item,
@@ -43,6 +44,7 @@ async def finish_claim(client: Redis, claim: ScheduleClaim, outcome: FireOutcome
             tainted=item.tainted or outcome.tainted,
             deliverable_since=since,
             deliverable_due_at=due,
+            deliverable_started_at=started,
             last_outcome=outcome.outcome,
         )
         pipe.multi()
@@ -88,7 +90,9 @@ async def ack_item(client: Redis, item_id: str, fired_at: datetime | None) -> bo
         if item.status is ScheduleStatus.DONE:
             pipe.delete(record_key(item_id))
         else:
-            cleared = replace(item, deliverable_since=None, deliverable_due_at=None)
+            cleared = replace(
+                item, deliverable_since=None, deliverable_due_at=None, deliverable_started_at=None
+            )
             pipe.set(
                 record_key(item_id),
                 encode(cleared, claim=live_claim, claimed_at=claimed_at),

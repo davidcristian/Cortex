@@ -52,5 +52,5 @@ oven", "2m ago", with no due time.
   `reminder-tag` style. The brain words the label and counts its day from the list (ADR-0066
   decision 11). On the Linux shell the frozen-brain reproduction showed `due 02:32`
   ([readings](../../readings/overlay-idle-and-expiry-flows.md#the-brain-frozen-across-a-reply-and-a-reminders-due-time)).
-  A task's outcome has no label:
-  [R-917](917-a-late-task-outcome-does-not-say-when-it-was-due.md).
+  A task's outcome has the same label, its lateness counted from its run's start, which both
+  stores keep in `deliverable_started_at`.

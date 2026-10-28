@@ -158,6 +158,7 @@ class ScheduleTicker:
 
     async def _fire_task(self, claim: ScheduleClaim, item: ScheduledItem) -> None:
         """Run the task, persist its outcome deliverable, then deliver the outcome as a toast."""
+        started_at = self._clock.now()
         outcome_text, fire_tainted = await self._run_task(item)
         fired_at = self._clock.now()
         outcome = FireOutcome(
@@ -166,12 +167,15 @@ class ScheduleTicker:
             deliverable=True,
             outcome=outcome_text,
             tainted=fire_tainted,
+            started_at=started_at,
         )
         if await self._store.finish(claim, outcome):
+            poll = timedelta(seconds=self._settings.poll_s)
+            late = late_phrase(item, fired_at, self._settings.zone, poll, started_at=started_at)
             await self._deliver(
                 item.id,
                 fired_at,
-                title=TASK_TITLE,
+                title=TASK_TITLE + late,
                 body=outcome_text,
                 tainted=item.tainted or fire_tainted,
             )

@@ -51,6 +51,7 @@ def apply_edit(item: ScheduledItem, edit: ScheduleEdit) -> ScheduledItem:
             status=ScheduleStatus.PENDING,
             deliverable_since=None,
             deliverable_due_at=None,
+            deliverable_started_at=None,
             tainted=item.tainted or edit.tainted,
         )
     return replace(
@@ -73,6 +74,7 @@ def apply_snooze(item: ScheduledItem, until: datetime) -> ScheduledItem:
         due_at=until,
         deliverable_since=None,
         deliverable_due_at=None,
+        deliverable_started_at=None,
         anchor=anchor,
     )
 

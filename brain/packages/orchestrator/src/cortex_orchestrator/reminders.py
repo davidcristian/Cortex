@@ -29,12 +29,13 @@ class ReminderView:
 
 
 def _due_label(item: ScheduledItem, fired_at: datetime, view: ReminderView) -> str:
-    """'due 09:00' for a late reminder fire, with its day counted from now; else ''."""
+    """'due 09:00' for a late fire, with its day counted from now; else ''."""
     due_at = item.deliverable_due_at
-    # A task's fire time is when its run ended, so a long run would read as a late fire.
-    if item.kind is not ScheduleKind.REMINDER or due_at is None:
+    # A task's fire time is when its run ended, so its lateness counts from the run's start.
+    started_at = fired_at if item.kind is ScheduleKind.REMINDER else item.deliverable_started_at
+    if due_at is None or started_at is None:
         return ""
-    if not is_late_fire(due_at, fired_at, view.poll):
+    if not is_late_fire(due_at, started_at, view.poll):
         return ""
     return due_phrase(item.rule, due_at, view.clock.now(), view.zone)
 

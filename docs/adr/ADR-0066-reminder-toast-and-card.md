@@ -124,23 +124,24 @@ offsets are written beside the rules in `overlay.css`.
 A reminder that falls due while the brain cannot run, as across a sleep of the machine, fires when
 the brain runs again. A fire counts as late when it comes more than `LATE_FIRE_FLOOR` (one minute)
 after its due time, or more than two polls when `CORTEX_SCHEDULE_POLL_S` is longer
-(`is_late_fire`). The toast title of a late reminder then names the due time after the app label,
-in the zone a listing renders the item in: `Cortex reminder, due 08:00`, or `due 21:00 yesterday`
-on an earlier day (`late_phrase`). The phrase is app text computed from the stored due time, so
+(`is_late_fire`). The toast title of a late fire then names the due time after the app label, in
+the zone a listing renders the item in: `Cortex reminder, due 08:00`, or `due 21:00 yesterday` on
+an earlier day (`late_phrase`). The phrase is app text computed from the stored due time, so
 decision 4 holds.
 
 The card shows the same words from `DueReminder.due_label`, as a tag on the meta line after the
 `open chat` control and before `repeats`. The store keeps the fire's due time in
 `deliverable_due_at`, and `reminder_to_proto` words it with `due_phrase` and the ticker's own zone
-and poll, which `BrainService` gets as `RpcPorts.reminder_view` (`build_reminder_view`). Two rules
-differ from the toast:
+and poll, which `BrainService` gets as `RpcPorts.reminder_view` (`build_reminder_view`). **The
+card counts the day from the list, not the fire.** A toast shows at the fire, and a card can show
+days later, when a day counted from the fire would be wrong. The card is fetched once per summon,
+so a panel left open across midnight keeps its label until the next summon.
 
-- **The card counts the day from the list, not the fire.** A toast shows at the fire, and a card
-  can show days later, when a day counted from the fire would be wrong. The card is fetched once
-  per summon, so a panel left open across midnight keeps its label until the next summon.
-- **A task's outcome has no label**, on the card or in the toast. Its fire time is when its run
-  ended, so a run longer than the margin would read as a late fire
-  ([R-917](../refinements/tasks/917-a-late-task-outcome-does-not-say-when-it-was-due.md)).
+**A task's lateness counts from the start of its run.** Its fire time is when the run ended, so a
+run longer than the margin would read as a late fire. The ticker reads the clock before the run and
+passes it as `FireOutcome.started_at`, and both stores keep it in `deliverable_started_at` beside
+`deliverable_due_at`. A stored task outcome without a start has no label on the card. A reminder
+has no run, so its fire time is its start.
 
 **The brain words the label**, rather than sending `due_at_unix_ms` and a zone name for the
 overlay to render with `Intl.DateTimeFormat`. The zone is per item, since a calendar rule's own

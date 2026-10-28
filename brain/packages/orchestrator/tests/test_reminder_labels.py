@@ -44,6 +44,7 @@ async def _fired(
     kind: ScheduleKind = ScheduleKind.REMINDER,
     every: timedelta | None = None,
     rule: CalendarRule | None = None,
+    started_at: datetime | None = None,
 ) -> tuple[InMemoryScheduleStore, ScheduledItem]:
     """One item due at ``_DUE``, claimed and fired at ``fired_at`` the way the ticker does."""
     store = InMemoryScheduleStore()
@@ -60,7 +61,13 @@ async def _fired(
     await store.add(item)
     (claim,) = await store.claim_due(fired_at, lease=timedelta(minutes=5), limit=8)
     next_due = _DUE + every if every is not None else None
-    outcome = FireOutcome(fired_at=fired_at, next_due=next_due, deliverable=True, outcome="done")
+    outcome = FireOutcome(
+        fired_at=fired_at,
+        next_due=next_due,
+        deliverable=True,
+        outcome="done",
+        started_at=started_at,
+    )
     assert await store.finish(claim, outcome) is True
     (held,) = await store.deliverable()
     return store, held
@@ -125,7 +132,20 @@ async def test_a_calendar_rule_names_the_time_in_its_own_zone() -> None:
     assert reminder_to_proto(held, _view(fired_at)).due_label == "due 16:00"
 
 
-async def test_a_late_task_outcome_has_no_label() -> None:
+async def test_a_task_that_started_late_is_labelled_from_its_start() -> None:
+    started_at = _DUE + timedelta(hours=5)
+    fired_at = started_at + timedelta(minutes=3)
+    _, held = await _fired(fired_at, kind=ScheduleKind.TASK, started_at=started_at)
+    assert reminder_to_proto(held, _view(fired_at)).due_label == "due 08:00"
+
+
+async def test_a_long_task_run_that_started_on_time_has_no_label() -> None:
+    fired_at = _DUE + timedelta(minutes=30)
+    _, held = await _fired(fired_at, kind=ScheduleKind.TASK, started_at=_DUE)
+    assert reminder_to_proto(held, _view(fired_at)).due_label == ""
+
+
+async def test_a_task_outcome_stored_without_its_start_has_no_label() -> None:
     fired_at = _DUE + timedelta(hours=5)
     _, held = await _fired(fired_at, kind=ScheduleKind.TASK)
     assert reminder_to_proto(held, _view(fired_at)).due_label == ""

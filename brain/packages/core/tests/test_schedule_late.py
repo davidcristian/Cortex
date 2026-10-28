@@ -61,3 +61,18 @@ def test_a_calendar_rule_zone_overrides_the_default() -> None:
     tokyo = DisplayZone(name="Asia/Tokyo", tz=ZoneInfo("Asia/Tokyo"))
     item = _item(CalendarRule(hour=16, minute=0, zone=tokyo))
     assert late_phrase(item, _DUE + timedelta(hours=2), _BERLIN, _POLL) == ", due 16:00"
+
+
+def test_a_long_run_that_started_on_time_is_not_late() -> None:
+    started = _DUE + timedelta(seconds=3)
+    fired = _DUE + timedelta(minutes=40)
+    assert late_phrase(_item(), fired, _BERLIN, _POLL, started_at=started) == ""
+
+
+def test_a_late_start_is_named_with_the_day_counted_from_the_fire() -> None:
+    started = _DUE + timedelta(hours=16, minutes=50)
+    fired = started + timedelta(minutes=20)
+    assert late_phrase(_item(), started, UTC_DISPLAY, _POLL) == ", due 07:00"
+    assert late_phrase(_item(), fired, UTC_DISPLAY, _POLL, started_at=started) == (
+        ", due 07:00 yesterday"
+    )

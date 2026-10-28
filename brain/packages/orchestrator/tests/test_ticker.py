@@ -312,6 +312,56 @@ async def test_task_outcome_is_pushed_as_a_notification_and_acked() -> None:
     assert await store.deliverable() == ()
 
 
+class _RunClock:
+    def __init__(self) -> None:
+        self.at = _NOW
+
+    def now(self) -> datetime:
+        return self.at
+
+
+class _TimedSpawnTool(FakeSpawnTool):
+    """A spawn whose run moves ``clock`` forward by ``run``."""
+
+    def __init__(self, clock: _RunClock, run: timedelta) -> None:
+        super().__init__()
+        self._clock = clock
+        self._run = run
+
+    async def invoke(self, call: ToolCall) -> ToolResult:
+        self._clock.at += self._run
+        return await super().invoke(call)
+
+
+async def _timed_task_fire(due_at: datetime, run: timedelta) -> tuple[str, ScheduledItem]:
+    """Fire one task due at ``due_at`` whose run lasts ``run``; the toast title and held item."""
+    store = InMemoryScheduleStore()
+    body = InMemoryBodyGateway(shown=False)
+    clock = _RunClock()
+    await store.add(replace(_item("t1", kind=ScheduleKind.TASK), due_at=due_at))
+    spawn = ToolDispatcher(
+        CompositeToolRegistry([_TimedSpawnTool(clock, run)]), RecordingAuditSink(), clock
+    )
+    settings = replace(_SETTINGS, zone=_BUCHAREST)
+    await ScheduleTicker(store, clock, settings, spawn=spawn, body=body).run_once()
+    (toast,) = body.notifications
+    (held,) = await store.deliverable()
+    return toast.title, held
+
+
+async def test_a_late_task_toast_names_its_due_time_and_keeps_its_start() -> None:
+    title, held = await _timed_task_fire(_NOW - timedelta(hours=5), timedelta(minutes=2))
+    assert title == f"{TASK_TITLE}, due 10:00"
+    assert held.deliverable_started_at == _NOW
+    assert held.deliverable_since == _NOW + timedelta(minutes=2)
+
+
+async def test_a_long_task_run_that_started_on_time_has_a_plain_toast() -> None:
+    title, held = await _timed_task_fire(_NOW, timedelta(minutes=30))
+    assert title == TASK_TITLE
+    assert held.deliverable_started_at == _NOW
+
+
 async def test_task_outcome_stays_deliverable_when_the_push_fails() -> None:
     store = InMemoryScheduleStore()
     body = InMemoryBodyGateway(fail=BodyGatewayError("unreachable"))

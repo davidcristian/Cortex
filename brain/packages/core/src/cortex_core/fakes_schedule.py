@@ -104,6 +104,7 @@ class InMemoryScheduleStore:
         tainted = item.tainted or outcome.tainted
         deliverable_since = outcome.fired_at if outcome.deliverable else item.deliverable_since
         deliverable_due_at = item.due_at if outcome.deliverable else item.deliverable_due_at
+        started_at = outcome.started_at if outcome.deliverable else item.deliverable_started_at
         if outcome.next_due is not None:
             self._items[claim.item.id] = replace(
                 item,
@@ -112,6 +113,7 @@ class InMemoryScheduleStore:
                 tainted=tainted,
                 deliverable_since=deliverable_since,
                 deliverable_due_at=deliverable_due_at,
+                deliverable_started_at=started_at,
                 last_outcome=outcome.outcome,
             )
         elif deliverable_since is not None:
@@ -121,6 +123,7 @@ class InMemoryScheduleStore:
                 tainted=tainted,
                 deliverable_since=deliverable_since,
                 deliverable_due_at=deliverable_due_at,
+                deliverable_started_at=started_at,
                 last_outcome=outcome.outcome,
             )
         else:
@@ -150,5 +153,7 @@ class InMemoryScheduleStore:
         if item.status is ScheduleStatus.DONE:
             del self._items[item_id]
         else:
-            self._items[item_id] = replace(item, deliverable_since=None, deliverable_due_at=None)
+            self._items[item_id] = replace(
+                item, deliverable_since=None, deliverable_due_at=None, deliverable_started_at=None
+            )
         return True

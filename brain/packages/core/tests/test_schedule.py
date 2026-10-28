@@ -61,6 +61,16 @@ def test_item_refuses_a_fire_due_time_without_the_fire() -> None:
         _item(deliverable_due_at=_NOW)
 
 
+def test_item_requires_aware_deliverable_started_at() -> None:
+    with pytest.raises(ValueError, match="deliverable_started_at must be timezone-aware"):
+        _item(deliverable_since=_NOW, deliverable_started_at=_NAIVE)
+
+
+def test_item_refuses_a_run_start_without_the_fire() -> None:
+    with pytest.raises(ValueError, match="deliverable_started_at needs deliverable_since"):
+        _item(deliverable_started_at=_NOW)
+
+
 def test_item_requires_aware_anchor() -> None:
     with pytest.raises(ValueError, match="anchor must be timezone-aware"):
         _item(every=timedelta(hours=1), anchor=_NAIVE)
@@ -131,7 +141,11 @@ def test_apply_edit_setting_a_rule_moves_the_due_time_and_drops_the_interval() -
 
 def test_apply_edit_setting_a_rule_rearms_a_fired_reminder_off_the_deliverable_index() -> None:
     item = _item(
-        due_at=_NOW, status=ScheduleStatus.DONE, deliverable_since=_NOW, deliverable_due_at=_NOW
+        due_at=_NOW,
+        status=ScheduleStatus.DONE,
+        deliverable_since=_NOW,
+        deliverable_due_at=_NOW,
+        deliverable_started_at=_NOW,
     )
     due = _NOW + timedelta(days=1)
     edited = apply_edit(
@@ -140,6 +154,7 @@ def test_apply_edit_setting_a_rule_rearms_a_fired_reminder_off_the_deliverable_i
     assert edited.status is ScheduleStatus.PENDING
     assert edited.deliverable_since is None
     assert edited.deliverable_due_at is None
+    assert edited.deliverable_started_at is None
 
 
 def test_apply_edit_setting_a_rule_still_retexts_and_ors_taint() -> None:
@@ -153,7 +168,11 @@ def test_apply_edit_setting_a_rule_still_retexts_and_ors_taint() -> None:
 
 def test_apply_snooze_rearms_a_delivered_one_shot_without_an_anchor() -> None:
     item = _item(
-        due_at=_NOW, status=ScheduleStatus.DONE, deliverable_since=_NOW, deliverable_due_at=_NOW
+        due_at=_NOW,
+        status=ScheduleStatus.DONE,
+        deliverable_since=_NOW,
+        deliverable_due_at=_NOW,
+        deliverable_started_at=_NOW,
     )
     until = _NOW + timedelta(minutes=15)
     snoozed = apply_snooze(item, until)
@@ -161,6 +180,7 @@ def test_apply_snooze_rearms_a_delivered_one_shot_without_an_anchor() -> None:
     assert snoozed.due_at == until
     assert snoozed.deliverable_since is None
     assert snoozed.deliverable_due_at is None
+    assert snoozed.deliverable_started_at is None
     assert snoozed.anchor is None
 
 
@@ -193,6 +213,11 @@ def test_fire_outcome_requires_aware_fired_at() -> None:
 def test_fire_outcome_requires_aware_next_due() -> None:
     with pytest.raises(ValueError, match="next_due must be timezone-aware"):
         FireOutcome(fired_at=_NOW, next_due=_NAIVE, deliverable=False)
+
+
+def test_fire_outcome_requires_aware_started_at() -> None:
+    with pytest.raises(ValueError, match="started_at must be timezone-aware"):
+        FireOutcome(fired_at=_NOW, next_due=None, deliverable=True, started_at=_NAIVE)
 
 
 def test_next_due_is_none_for_a_one_shot() -> None:

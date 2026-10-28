@@ -47,6 +47,7 @@ class ScheduledItem:
     status: ScheduleStatus = ScheduleStatus.PENDING
     deliverable_since: datetime | None = None
     deliverable_due_at: datetime | None = None
+    deliverable_started_at: datetime | None = None
     last_outcome: str | None = None
 
     def __post_init__(self) -> None:
@@ -58,6 +59,11 @@ class ScheduledItem:
             require_aware("ScheduledItem.deliverable_due_at", self.deliverable_due_at)
             if self.deliverable_since is None:
                 msg = "ScheduledItem.deliverable_due_at needs deliverable_since"
+                raise ValueError(msg)
+        if self.deliverable_started_at is not None:
+            require_aware("ScheduledItem.deliverable_started_at", self.deliverable_started_at)
+            if self.deliverable_since is None:
+                msg = "ScheduledItem.deliverable_started_at needs deliverable_since"
                 raise ValueError(msg)
         if self.anchor is not None:
             require_aware("ScheduledItem.anchor", self.anchor)
@@ -86,9 +92,12 @@ class FireOutcome:
     deliverable: bool
     outcome: str | None = None
     tainted: bool = False
+    started_at: datetime | None = None
 
     def __post_init__(self) -> None:
         require_aware("FireOutcome.fired_at", self.fired_at)
+        if self.started_at is not None:
+            require_aware("FireOutcome.started_at", self.started_at)
         if self.next_due is not None:
             require_aware("FireOutcome.next_due", self.next_due)
 

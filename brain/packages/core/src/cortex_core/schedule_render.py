@@ -82,8 +82,15 @@ def due_phrase(
     return f"due {clock}" if day == "today" else f"due {clock} {day}"
 
 
-def late_phrase(item: ScheduledItem, fired_at: datetime, zone: DisplayZone, poll: timedelta) -> str:
-    """', due 09:00' when a fire comes later than the late margin after its due time, else ''."""
-    if not is_late_fire(item.due_at, fired_at, poll):
+def late_phrase(
+    item: ScheduledItem,
+    fired_at: datetime,
+    zone: DisplayZone,
+    poll: timedelta,
+    *,
+    started_at: datetime | None = None,
+) -> str:
+    """', due 09:00' when a fire started (by default at ``fired_at``) past the late margin."""
+    if not is_late_fire(item.due_at, fired_at if started_at is None else started_at, poll):
         return ""
     return ", " + due_phrase(item.rule, item.due_at, fired_at, zone)

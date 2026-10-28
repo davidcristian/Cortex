@@ -234,14 +234,17 @@ async def test_a_fire_stored_before_due_times_were_kept_reads_as_unknown() -> No
         status=ScheduleStatus.DONE,
         deliverable_since=_NOW,
         deliverable_due_at=_NOW,
+        deliverable_started_at=_NOW,
     )
     record = json.loads(encode(item, claim=None, claimed_at=None))
     del record["deliverable_due_at"]
+    del record["deliverable_started_at"]
     await _seed_raw(client, "old-fire", json.dumps(record))
     loaded = await store.get("old-fire")
     assert loaded is not None
     assert loaded.deliverable_since == _NOW
     assert loaded.deliverable_due_at is None
+    assert loaded.deliverable_started_at is None
     assert await store.ack("old-fire", fired_at=_NOW) is True
     assert await store.get("old-fire") is None
 
