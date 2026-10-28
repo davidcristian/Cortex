@@ -89,6 +89,16 @@ async def test_the_card_lists_every_matching_memory_and_the_forget_deletes_them(
     assert await _texts(store) == ["wifi"]
 
 
+async def test_a_word_naming_the_fact_lists_the_memory_that_holds_its_value() -> None:
+    held = "User: My passport number is X1234567.\nAssistant: Noted."
+    store = await _store(_record("passport", held), _record("wifi", "wifi"))
+    tool = ForgetChosenTool(store, GLOBAL_MEMORY_SCOPE)
+    card = await tool.card(_call("Passport"))
+    assert card.splitlines()[1] == "- User: My passport number is X1234567. Assistant: Noted."
+    assert (await tool.invoke(_call("Passport"))).content.startswith("forgot 1 remembered")
+    assert await _texts(store) == ["wifi"]
+
+
 async def test_a_long_memory_is_cut_around_the_text_on_the_card() -> None:
     text = "x" * 100 + " card 4242 4242 " + "y" * 100
     tool = ForgetChosenTool(await _store(_record("long", text)), GLOBAL_MEMORY_SCOPE)
@@ -136,7 +146,10 @@ async def test_nothing_matching_says_so_and_deletes_nothing() -> None:
     )
     result = await tool.invoke(_call("passport"))
     assert result.is_error is False
-    assert result.content == "nothing was forgotten: no remembered exchange contains that text"
+    assert result.content == (
+        "nothing was forgotten: no remembered exchange contains that text, so there is nothing to "
+        "forget and no need to ask the user for the value"
+    )
     assert await _texts(store) == ["card"]
 
 

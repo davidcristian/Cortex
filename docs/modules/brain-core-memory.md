@@ -68,7 +68,9 @@ pool down to the hits one turn sees. The turn that calls it is in
   never the model's; it keeps the matched ids under the call's id (the latest 32 calls). `invoke`
   deletes exactly those ids with `delete_ids`, searches again, and says how many were removed and
   whether any match is left. No text, no match, more than `FORGET_CHOSEN_LIMIT` (20) matches or a
-  failed store deletes nothing, and the card and the result each say so.
+  failed store deletes nothing, and the card and the result each say so. The description asks
+  for the value or one word from the request that names it, and the no-match result says there
+  is no need to ask the user for the value.
 - `RecallPolicy` (port, `rerank.py`) turns an over-fetched pool into the final `k` hits:
   `candidate_k(k)` sizes the pool and `async select(hits, *, query, now, k, session_id=None,
   turn_id=None) -> Ranking` reranks and cuts it, returning at most `k` hits from the pool, none

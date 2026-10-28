@@ -57,5 +57,53 @@ its driver approves every card.
 F3 and F4 pass: the confirmed forget left no row holding the number, and a new chat did not recall
 it. The forget turn's own exchange was recorded and holds no digits of the number. F5 fails the
 rule as written: no row was removed and the reply claimed no deletion, but it asked for the value
-instead of saying nothing was stored, so the model never called the tool. Filed as
-[921](../refinements/tasks/921-a-forget-of-a-fact-never-stored-asks-for-the-value.md).
+instead of saying nothing was stored, so the model never called the tool.
+
+## Five draws a row, 2026-10-28
+
+Each draw runs F1 to F5 in new chats from the nine rows the first run started with, then deletes
+its three chats, which removes every row they wrote. The first run's three forget exchanges were
+deleted by hand before the first draw, so no row held `passport`.
+
+The rule for a change to the tool's description, written before that change's rows were drawn:
+the change ships when, over five draws, F5 passes in at least four, F3 and F4 pass in all five,
+and no F5 reply asks for the value. Otherwise the description stays as it is.
+
+With the shipped description (the value "as remembered, not a description of it"), the SM clock at
+0.59 of its maximum before and after. Run log
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/f332a2e9-c75e-426f-b2e8-271f62130918/scratchpad/slot10/base.log`.
+
+| Row | Draws passing | What the draws did |
+| --- | --- | --- |
+| F3 | 5 of 5 | each passed the number, once inside "your card number is ..."; each card listed both rows; none left |
+| F4 | 5 of 5 | no reply held `4242` |
+| F5 | 2 of 5 | two called `forget_memories` with `passport number` (one then `passport`), the card said no match, the reply said nothing was found; three called no tool, said no number was stored and asked for it |
+
+F5 fails again: three of five replies ask for the passport number so it can be deleted.
+
+With the description changed to ask for the value when the model knows it and otherwise for one
+word from the request that names it ("passport"), and never to ask the user to type the value. Run
+log `word.log` in the same directory as the first.
+
+| Row | Draws passing | What the draws did |
+| --- | --- | --- |
+| F3 | 5 of 5 | each passed the bare number; each card listed both rows; none left |
+| F4 | 5 of 5 | no reply held `4242` |
+| F5 | 4 of 5 | all five called `forget_memories` (`passport` four times, `passport number` once) and the card said no match; one reply, after `passport number`, still asked for the number "or a keyword" |
+
+The rule fails on that one reply, so the description alone does not ship. The next rule, written
+before its rows were drawn: the same description together with a no-match result that says there
+is nothing to forget and no need to ask for the value ships on the same counts as the first rule.
+
+With that description and the no-match result, run log `result.log` in the same directory, the SM
+clock at 0.59 of its maximum before and after.
+
+| Row | Draws passing | What the draws did |
+| --- | --- | --- |
+| F3 | 5 of 5 | each passed the bare number; each card listed both rows; none left |
+| F4 | 5 of 5 | no reply held `4242` |
+| F5 | 5 of 5 | all five called `forget_memories` (`passport` four times, `passport number` once), the card said no match, and the reply said nothing was stored; one ended "If you previously provided it and would like me to ensure it's removed, please let me know", which asks for no value |
+
+The rule passes, so the description and the no-match result ship. In the first run, two F5 draws
+also listed the file sidecar's directories looking for a passport file before the forget; no draw
+did so with the changed description.

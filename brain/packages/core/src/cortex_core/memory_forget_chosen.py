@@ -18,7 +18,10 @@ _NOTHING_NAMED = "No text was named, so approving deletes nothing."
 _NO_STORE = "The memory store is unavailable, so approving deletes nothing."
 _TOO_MANY = f"More than {FORGET_CHOSEN_LIMIT} memories match, so approving deletes nothing."
 _NO_MATCH = "No remembered exchange matches, so approving deletes nothing."
-_NONE_FOUND = "nothing was forgotten: no remembered exchange contains that text"
+_NONE_FOUND = (
+    "nothing was forgotten: no remembered exchange contains that text, so there is nothing to "
+    "forget and no need to ask the user for the value"
+)
 
 
 def _text(call: ToolCall) -> str:
@@ -52,15 +55,17 @@ class ForgetChosenTool:
                 "Delete from memory every remembered exchange that contains a given text, so no "
                 "later chat recalls it. Call it whenever the user asks you to forget, delete or "
                 "remove something from your memory, and never say something was forgotten unless "
-                "this tool reported it. Pass the exact words or value as they were remembered, "
-                "such as the number itself, not a description of it."
+                "this tool reported it. Pass the value itself when you know it, such as the "
+                "number. When you do not, pass one word from the request that names it, such as "
+                '"passport", and never ask the user to type the value: the user sees every match '
+                "before anything is deleted."
             ),
             parameters={
                 "type": "object",
                 "properties": {
                     "text": {
                         "type": "string",
-                        "description": "The literal text the memories to delete contain.",
+                        "description": "The value, or one word from the request that names it.",
                     }
                 },
                 "required": ["text"],
