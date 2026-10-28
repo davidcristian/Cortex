@@ -138,6 +138,13 @@ async def test_the_results_of_one_round_share_the_room() -> None:
     assert all(text.endswith(ROOM_SHARED + ")") for text in texts)
 
 
+async def test_an_answer_from_a_cut_result_is_asked_to_say_it_covers_part() -> None:
+    [alone] = await _tool_texts([[_read_call(1)]], TaintLedger())
+    shared = await _tool_texts([[_read_call(n) for n in range(2)]], TaintLedger())
+    assert "an answer from it covers only that part: tell the person so" in alone
+    assert all("say which part of each result that was" in text for text in shared)
+
+
 async def test_a_loop_given_a_smaller_room_shares_that_room() -> None:
     texts = await _tool_texts([[_read_call(n) for n in range(4)]], TaintLedger(), room_chars=1603)
     kept = [text.split("\n\n(This result")[0] for text in texts]

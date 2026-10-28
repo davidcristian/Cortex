@@ -144,8 +144,7 @@ that never replies, or read more than its context holds, so each of those has a 
     passes `refusal: DispatchRefusal | None` (round oversized, redundant, budget), whose member
     value is the model-facing message. `_refused_by` checks the overflow slot first, then salience,
     then the budget, so a refusal is charged nothing. All three sit ahead of the taint block and the
-    confirmer ([ADR-0013](ADR-0013-untrusted-content.md),
-    [ADR-0022](ADR-0022-email-write-confirmer.md)), so no limit can be turned into a flood of
+    confirmer ([ADR-0013](ADR-0013-untrusted-content.md), [ADR-0022](ADR-0022-email-write-confirmer.md)), so no limit can be turned into a flood of
     confirmation cards. A refused call is answered, never dropped from the message list, and after
     the budget closes the loop keeps running so the model can read the refusal and answer. The set
     of tools needing confirmation, the prices and salience travel as one `DispatchPolicy`, and with
@@ -205,13 +204,14 @@ that never replies, or read more than its context holds, so each of those has a 
     against the buffer, stopping before scan data, and WebP from its first chunk in all three forms.
     Bad base64, an unrecognized signature, a truncated header, an edge past `MAX_IMAGE_EDGE` or a
     declared mime type outside `ALLOWED_MIME_TYPES` raise `ImageError`, crossed as `ToolError`.
-20. **A loop's results share one room of prompt characters.** `ResultRoom` gives each result the room left split over
-    the round's unanswered calls; a deep phase's starts less its loop tail's results. A `tail` call keeps the end, its
-    note naming the lines left out and a `tail` that fits; another cut keeps the head to a line break and asks for a
-    smaller part. With no room left the note alone is sent, unfenced; taint reads the whole result; a refusal or failure
-    the brain wrote is kept whole. The cortex's 6,000 (`RESULT_ROOM_CHARS`) are 3,640 tokens at a log's 1.65 characters a
-    token, 2,860 of 16,384 left to reply after a full window and fixed prompt ([ADR-0014](ADR-0014-history-windowing.md)
-    decision 4). A subagent loop's room, 1,603 by default, is one server slot's context less `SUBAGENT_PROMPT_TOKENS` and its reply cap ([readings](../readings/tool-result-room.md)).
+20. **A loop's results share one room.** `ResultRoom` gives each result the room left split over the round's unanswered calls; a
+    deep phase's starts less its loop tail's results. A `tail` call keeps the end, its note naming the lines left out and a
+    `tail` that fits; another cut keeps the head to a line break and asks for a smaller part. A head cut's note and a shared
+    room's advice ask the model to tell the person its answer covers only the part it read. With no room left the note alone is
+    sent, unfenced; taint reads the whole result; a refusal or failure the brain wrote is kept whole. The cortex's 6,000
+    (`RESULT_ROOM_CHARS`) are 3,640 tokens at a log's 1.65 characters a token, 2,860 of 16,384 left to reply after a full window
+    and fixed prompt ([ADR-0014](ADR-0014-history-windowing.md) decision 4). A subagent loop's room, 1,603 by default, is one
+    server slot's context less `SUBAGENT_PROMPT_TOKENS` and its reply cap ([readings](../readings/tool-result-room.md)).
 
 ## Consequences
 

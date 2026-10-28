@@ -134,4 +134,4 @@ async def test_a_result_far_past_the_context_is_cut_and_the_turn_answers() -> No
     )
     [tool_text] = backend.tool_texts
     assert "2,160,000 characters long" in tool_text
-    assert len(tool_text) < RESULT_ROOM_CHARS + 400
+    assert len(tool_text) < RESULT_ROOM_CHARS + 500

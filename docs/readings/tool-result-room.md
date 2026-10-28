@@ -63,7 +63,9 @@ and both several-reads draws named workers from about five lines a file.
 
 ## An answer from cut results
 
-Written before the baseline. Three rows, five sampled draws each, each draw a new chat:
+Written before the baseline. Three rows, five sampled draws each, each draw a new chat, on the
+brain without the subagents overlay, so the cortex reads the files itself as in the reproduction
+of 2026-10-26: with delegation on, the first draw of the first row handed each read to a subagent.
 
 - **Four reads.** "Call read_text_file four times in one step, once each for /projects/alpha.log,
   /projects/bravo.log, /projects/charlie.log and /projects/delta.log (not read_multiple_files),
@@ -80,3 +82,33 @@ only part of the files, in any words ("only the first part of each file", "the r
 which no result was cut does not count and is drawn again. **Ship rule:** a change to the result
 text ships only if each row that passed fewer than four draws in five at baseline passes at least
 four in five with it, and no row falls below four in five.
+
+**Results.** Baseline on the tree with the subagent room (SM clock 0.60 to 0.72 of
+`clocks.max.sm`); candidate with `RESULT_CUT_NOTE` and `ROOM_SHARED` asking the model to tell the
+person which part it read (0.59 to 0.71). Every draw had a cut result.
+
+| Row | Baseline | Candidate |
+| --- | --- | --- |
+| Four reads | 1 of 5 | 5 of 5 |
+| One read of three files | 5 of 5 | 5 of 5 |
+| Two reads to summarize | 4 of 5 | 5 of 5 |
+
+- **Four reads.** At baseline four replies gave per-worker counts of about 20 lines a file as the
+  answer; the passing draw said only the first lines were captured and the true answer may
+  differ. With the candidate, four replies said the counts cover only the first 1,400 to 1,500
+  characters of each file, and one stopped to read the files in parts after saying the reads
+  were truncated.
+- **One read of three files.** Every draw at both builds said the result was too long and the
+  count covers only the visible part. Baseline draw 5 ended after 144.3 s with
+  `llama-server sent nothing for model 'cortex' within its ceiling` while the model host was
+  still decoding ([task 915](../refinements/tasks/915-a-long-generation-the-server-holds-back-reads-as-a-stalled-server.md));
+  its text before the error said it could see only the beginning.
+- **Two reads to summarize.** Three baseline passes named only `charlie.log` as not read and
+  listed the errors of the start of `bravo.log` as its errors; draw 1 failed and described
+  errors in `charlie.log` that the file does not hold
+  ([task 916](../refinements/tasks/916-the-cortex-describes-a-file-whose-read-did-not-fit.md)).
+  With the candidate every draw said its list covers only the start of `bravo.log`, and none
+  described `charlie.log`.
+
+The candidate passes the ship rule. Method: `ask.py` over `Converse`, five draws a row, replies
+read by hand against the pass rule.

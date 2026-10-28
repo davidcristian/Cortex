@@ -1,6 +1,6 @@
 # An answer from cut results does not say they were cut
 
-**Status:** open, actionable
+**Status:** done 2026-10-28
 **Area:** tools
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
 
@@ -30,3 +30,8 @@ worker-9, with no word that only the first part of each file was read
 ## History
 
 - 2026-10-26: filed from the repeat of the several-reads reproduction on the `cortexn8` stack.
+- 2026-10-28: rows and pass rule written into
+  [tool-result-room.md](../../readings/tool-result-room.md#an-answer-from-cut-results) before the
+  baseline, on the `cortexn9` stack without delegation. `RESULT_CUT_NOTE` and `ROOM_SHARED` now
+  ask the model to tell the person its answer covers only the part it read: the four-reads row
+  went from 1 of 5 to 5 of 5, and the other two rows stayed at or rose to 5 of 5.

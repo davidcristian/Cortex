@@ -11,7 +11,8 @@ LOG_CHARS_PER_TOKEN = 1.65
 
 RESULT_CUT_NOTE = (
     "\n\n(This result is {total:,} characters long and only its first {shown:,} fit in the "
-    "context. {advice})"
+    "context, so an answer from it covers only that part: tell the person so when you answer. "
+    "{advice})"
 )
 TAIL_CUT_NOTE = (
     "\n\n(This result is {total:,} characters long and only its last {shown:,} fit in the "
@@ -32,7 +33,7 @@ SMALLER_TAIL = (
 )
 ROOM_SHARED = (
     "The results of this turn share one room in the context, so read fewer or smaller parts, "
-    "or answer from what you have read."
+    "or answer from what you have read and say which part of each result that was."
 )
 
 
