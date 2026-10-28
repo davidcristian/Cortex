@@ -6,6 +6,7 @@ from dataclasses import replace
 from cortex_core.conversation import Message, Role, ToolRun
 from cortex_core.escalate import ESCALATION_QUEUED_MSG
 from cortex_core.handoff import HandoffRecord
+from cortex_core.memory_forget_chosen import FORGET_CHOSEN_TOOL_NAME
 from cortex_core.tools import ToolCall
 from cortex_core.untrusted import USER_DECLINED_MSG
 
@@ -43,6 +44,15 @@ def declined_calls(record: HandoffRecord) -> list[ToolCall]:
     return [
         call for message in record.loop_tail for call in message.tool_calls if call.id in declined
     ]
+
+
+def forget_asked(record: HandoffRecord) -> bool:
+    """Whether the cortex named ``forget_memories`` in a call before it handed the turn off."""
+    return any(
+        call.name == FORGET_CHOSEN_TOOL_NAME
+        for message in record.loop_tail
+        for call in message.tool_calls
+    )
 
 
 def deep_tail(record: HandoffRecord) -> tuple[Message, ...]:

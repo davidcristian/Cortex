@@ -129,6 +129,8 @@ class TaintLedger:
     recalled_only: bool = False
     # Whether this turn's ``forget_untrusted_memories`` call succeeded.
     forgotten: bool = False
+    # Whether the model named ``forget_memories`` in a call this turn, whether or not it ran.
+    forget_asked: bool = False
     untrusted_urls: set[str] = field(default_factory=set[str])
     sources: tuple[Provenance, ...] = ()
     # The tainted memories this turn recalled: its record is stored only while they all exist.

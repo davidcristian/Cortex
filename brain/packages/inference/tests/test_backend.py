@@ -657,6 +657,8 @@ async def test_malformed_tool_call_arguments_raise_inference_error() -> None:
         "malformed tool-call arguments from llama-server for 'read': "
         "9 characters that do not parse as JSON"
     )
+    assert isinstance(raised.value, MalformedToolCallError)
+    assert raised.value.tool_name == "read"
 
 
 async def test_an_unparsable_tool_call_is_the_ports_narrower_failure() -> None:

@@ -27,6 +27,10 @@ class ModelLoadingError(InferenceError):
 class MalformedToolCallError(InferenceError):
     """The server answered and the tool call the model wrote could not be assembled."""
 
+    def __init__(self, msg: str, *, tool_name: str = "") -> None:
+        super().__init__(msg)
+        self.tool_name = tool_name
+
 
 class MemoryStoreError(Exception):
     """A MemoryStore operation failed (memory adapters wrap their backend's errors)."""

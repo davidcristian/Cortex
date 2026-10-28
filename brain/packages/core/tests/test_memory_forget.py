@@ -189,3 +189,17 @@ async def test_a_turn_whose_forget_of_a_named_text_was_declined_records_nothing(
         ToolRun(name=FORGET_CHOSEN_TOOL_NAME, ok=False),
     )
     assert await _recorded(tainted=False, runs=declined) == []
+
+
+async def test_a_turn_that_asked_to_forget_a_text_records_nothing_though_no_call_ran() -> None:
+    store = InMemoryMemoryStore()
+    recaller = MemoryRecaller(store, HashEmbedder(), _Clock())
+    await record_exchange(
+        TurnCapabilities(memory=recaller),
+        TaintLedger(forget_asked=True),
+        session_id="chat-a",
+        query="forget my card 4242",
+        reply="I could not do that now",
+        runs=(),
+    )
+    assert await store.search(await HashEmbedder().embed("x"), k=5) == ()

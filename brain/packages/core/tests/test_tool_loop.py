@@ -2,9 +2,12 @@ from collections.abc import AsyncIterator, Mapping, Sequence
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
+import pytest
+
 from cortex_core import (
     ALWAYS_SALIENT,
     BUDGET_EXHAUSTED_MSG,
+    FORGET_CHOSEN_TOOL_NAME,
     MAX_CALLS_PER_ROUND,
     REDUNDANT_MSG,
     REPEAT_SALIENCE,
@@ -683,3 +686,22 @@ async def test_a_caller_with_no_ledger_drops_the_stop_and_keeps_streaming() -> N
     backend = _StoppingBackend(StopReason.FINISHED)
     yielded = [event async for event in stream_tool_loop(backend, "m", [], context)]
     assert yielded == ["answer"]
+
+
+@pytest.mark.parametrize(
+    ("names", "budget", "asked"),
+    [
+        ([FORGET_CHOSEN_TOOL_NAME], 0, True),
+        (["noop"] * MAX_CALLS_PER_ROUND + [FORGET_CHOSEN_TOOL_NAME], 100, True),
+        (["noop"] * (MAX_CALLS_PER_ROUND + 1) + [FORGET_CHOSEN_TOOL_NAME], 100, True),
+        (["noop"], 0, False),
+    ],
+)
+async def test_a_forget_named_in_a_call_marks_the_turn_though_the_call_never_runs(
+    *, names: list[str], budget: int, asked: bool
+) -> None:
+    sink = RecordingAuditSink()
+    context = _context(sink, budget=budget)
+    await _run(_ScriptedBackend(names), context)
+    assert context.taint.forget_asked is asked
+    assert all(record.name != FORGET_CHOSEN_TOOL_NAME or not record.ok for record in sink.records)

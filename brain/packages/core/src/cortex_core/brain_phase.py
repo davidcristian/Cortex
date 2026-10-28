@@ -8,7 +8,13 @@ from cortex_core.conversation import Message, Role, ToolRun
 from cortex_core.errors import ContextOverflowError, InferenceError, MalformedToolCallError
 from cortex_core.events import TextDelta, TurnEvent
 from cortex_core.handoff import HandoffRecord
-from cortex_core.handoff_view import cortex_runs, declined_calls, deep_history, deep_tail
+from cortex_core.handoff_view import (
+    cortex_runs,
+    declined_calls,
+    deep_history,
+    deep_tail,
+    forget_asked,
+)
 from cortex_core.output_channels import open_output_channels
 from cortex_core.ports import Clock, InferenceBackend, SessionStore
 from cortex_core.schedule_claim import said_by_person
@@ -20,6 +26,7 @@ from cortex_core.tool_replay import RunLog
 from cortex_core.turn_context import TurnCapabilities, assemble_inference_messages
 from cortex_core.turn_output import (
     flush_channels,
+    forget_unreadable,
     limit_notes,
     place_note,
     record_exchange,
@@ -79,6 +86,7 @@ class BrainPhase:
         history = deep_history(stored, record)
         query = _user_query(history, record)
         taint = record.taint_ledger()
+        taint.forget_asked = forget_asked(record)
         watch = CadenceWatch(self._cadence.floor_tps)
         stops = StopLedger()
         tail = deep_tail(record)
@@ -120,7 +128,8 @@ class BrainPhase:
             async for event in events:
                 yield log.note(event)
         # ``MalformedToolCallError`` subclasses ``InferenceError``, so it is caught first.
-        except MalformedToolCallError:
+        except MalformedToolCallError as err:
+            taint.forget_asked |= forget_unreadable(err)
             _logger.warning(
                 _UNREADABLE_CALL_LOG_MSG,
                 extra={

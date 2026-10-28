@@ -5,7 +5,12 @@ import logging
 from collections.abc import AsyncGenerator, Iterator, Sequence
 
 from cortex_core.conversation import ToolRun
-from cortex_core.errors import EmbedderError, MemoryStoreError
+from cortex_core.errors import (
+    EmbedderError,
+    InferenceError,
+    MalformedToolCallError,
+    MemoryStoreError,
+)
 from cortex_core.events import TextDelta, ToolActivity, ToolOutcome, TurnEvent
 from cortex_core.guardrail import OutputFilter
 from cortex_core.loop_events import ReasoningDelta, StepOutcome, ToolStep
@@ -229,6 +234,11 @@ async def stream_turn_events(
         yield event
 
 
+def forget_unreadable(err: InferenceError) -> bool:
+    """Whether a failure was a ``forget_memories`` call the model wrote as unreadable JSON."""
+    return isinstance(err, MalformedToolCallError) and err.tool_name == FORGET_CHOSEN_TOOL_NAME
+
+
 async def record_exchange(  # noqa: PLR0913 -- a deep phase adds the runs the cortex made
     caps: TurnCapabilities,
     taint: TaintLedger,
@@ -252,7 +262,7 @@ async def record_exchange(  # noqa: PLR0913 -- a deep phase adds the runs the co
     if taint.tainted and any(run.ok and run.name == FORGET_UNTRUSTED_TOOL_NAME for run in made):
         return
     # A turn that asked to forget a text may name that text in its query or reply.
-    if any(run.name == FORGET_CHOSEN_TOOL_NAME for run in made):
+    if taint.forget_asked or any(run.name == FORGET_CHOSEN_TOOL_NAME for run in made):
         return
     if caps.memory is None or (taint.tainted and not caps.record_tainted_memory):
         return

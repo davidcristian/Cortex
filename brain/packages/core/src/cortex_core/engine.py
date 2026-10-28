@@ -28,6 +28,7 @@ from cortex_core.turn_context import TurnCapabilities, assemble_inference_messag
 from cortex_core.turn_output import (
     OutputChannels,
     flush_channels,
+    forget_unreadable,
     limit_notes,
     overflow_note,
     record_exchange,
@@ -175,6 +176,7 @@ class TurnEngine:
                 # Before any output the prompt alone was refused, so older turns can be dropped.
                 shed = None if started else _shed(err, working)
                 overflowed = shed is None and isinstance(err, ContextOverflowError)
+                taint.forget_asked |= forget_unreadable(err)
                 _logger.warning(
                     _failure_log_msg(err, shed),
                     extra={

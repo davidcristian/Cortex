@@ -932,6 +932,7 @@ class StoppingDeepBackend:
         self._cut = cut
         self._chunks = chunks
         self.bounds: list[GenerationBounds | None] = []
+        self.tool_name = ""
 
     async def stream(
         self,
@@ -952,13 +953,14 @@ class StoppingDeepBackend:
             raise InferenceError(msg)
         if self._cut:
             msg = "the tool call arguments are not JSON"
-            raise MalformedToolCallError(msg)
+            raise MalformedToolCallError(msg, tool_name=self.tool_name)
 
 
 async def _run_deep(
     backend: StoppingDeepBackend,
     bounds: GenerationBounds | None = None,
     guardrail: UrlRedactingGuardrail | None = None,
+    memory: MemoryRecaller | None = None,
 ) -> tuple[list[str], InMemorySessionStore]:
     """Run one deep phase over a prepared session, returning its text and the store."""
     sessions = InMemorySessionStore()
@@ -971,7 +973,7 @@ async def _run_deep(
         backend,
         TickingClock(),
         "brain",
-        TurnCapabilities(bounds=bounds, guardrail=guardrail),
+        TurnCapabilities(bounds=bounds, guardrail=guardrail, memory=memory),
     )
     record = harness.prepared_slot().snapshot(
         turn_id=harness.TURN, session_id=harness.SESSION, requested_at=SystemClock().now()
@@ -1098,3 +1100,28 @@ async def test_a_deep_reply_drafting_the_person_s_own_claim_gets_no_note() -> No
     backend = ScriptedBrainBackend(chunks=("Team, I have scheduled the review for Friday.",))
     _phase, _backend, sessions, deltas = await _drive(backend=backend, store=sessions)
     assert "".join(deltas) == "Team, I have scheduled the review for Friday."
+
+
+@pytest.mark.parametrize(("tool_name", "kept"), [(FORGET_CHOSEN_TOOL_NAME, 0), ("read", 1)])
+async def test_a_deep_phase_whose_unreadable_call_was_a_forget_records_nothing(
+    *, tool_name: str, kept: int
+) -> None:
+    memory = _recaller()
+    backend = StoppingDeepBackend(StopReason.FINISHED, cut=True)
+    backend.tool_name = tool_name
+    await _run_deep(backend, memory=memory)
+    assert len(await _recorded(memory)) == kept
+
+
+@pytest.mark.parametrize(("tool_name", "kept"), [(FORGET_CHOSEN_TOOL_NAME, 0), ("read", 1)])
+async def test_a_deep_phase_after_the_cortex_named_a_forget_that_never_ran_records_nothing(
+    *, tool_name: str, kept: int
+) -> None:
+    call = ToolCall(id="c0", name=tool_name, arguments={"text": "4242"})
+    tail = (
+        Message(role=Role.ASSISTANT, text="", at=_AT, turn_id=harness.TURN, tool_calls=(call,)),
+        Message(role=Role.TOOL, text="refused", at=_AT, turn_id=harness.TURN, tool_call_id="c0"),
+    )
+    memory = _recaller()
+    await _drive(capabilities=TurnCapabilities(memory=memory), tail=tail)
+    assert len(await _recorded(memory)) == kept

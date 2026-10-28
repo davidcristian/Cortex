@@ -6,6 +6,7 @@ from cortex_core.conversation import Message
 from cortex_core.dispatch_round import LoopRecord, ToolLoopContext, run_round
 from cortex_core.inference import DecodeCadence, DecodeStop, ReasoningChunk, TextChunk
 from cortex_core.loop_events import ReasoningDelta, StepOutcome, ToolStep
+from cortex_core.memory_forget_chosen import FORGET_CHOSEN_TOOL_NAME
 from cortex_core.ports import InferenceBackend
 from cortex_core.progress import hold_wait
 from cortex_core.tool_cut import ResultRoom
@@ -86,6 +87,8 @@ async def stream_tool_loop(
             # an abandoned backend stream is never left half-suspended.
             if isinstance(deltas, AsyncGenerator):
                 await deltas.aclose()
+        # Before any refusal or the round's cut, so a call that never runs still marks the turn.
+        context.taint.forget_asked |= any(call.name == FORGET_CHOSEN_TOOL_NAME for call in calls)
         if not calls or dispatcher is None:
             break
         plan = plan_round(calls)

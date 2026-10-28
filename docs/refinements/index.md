@@ -70,7 +70,7 @@ never a reading of what the tree does now.
 ### Actionable now (3)
 
 - **[R-922](tasks/922-a-forget-and-a-new-fact-in-one-message-drops-the-fact.md)** A forget and a new fact in one message drops the fact (memory). Its claim was checked against the code on 2026-10-28.
-- **[R-923](tasks/923-a-forget-request-whose-call-never-ran-is-recorded.md)** A forget request whose call never ran is recorded (memory). Its claim was checked against the code on 2026-10-28.
+- **[R-923](tasks/923-a-forget-request-with-no-call-is-recorded.md)** A forget request with no call is recorded (memory). Its claim was checked against the code on 2026-10-28.
 - **[R-925](tasks/925-a-chat-deleted-while-its-turn-runs-comes-back.md)** A chat deleted while its turn runs comes back (session-read-rpc). Its claim was checked against the code on 2026-10-28.
 
 ### Actionable, once a port changes (1)
@@ -564,7 +564,7 @@ never a reading of what the tree does now.
 - [R-836](tasks/836-a-recalled-exchange-is-claimed-again-with-no-call.md) A recalled exchange is claimed again with no call. done 2026-10-12.
 - [R-879](tasks/879-a-recalled-answer-from-another-chat-is-repeated-as-this-chats.md) A recalled answer from another chat is repeated as this chat's. declined 2026-10-17.
 - [R-922](tasks/922-a-forget-and-a-new-fact-in-one-message-drops-the-fact.md) A forget and a new fact in one message drops the fact. open, actionable.
-- [R-923](tasks/923-a-forget-request-whose-call-never-ran-is-recorded.md) A forget request whose call never ran is recorded. open, actionable.
+- [R-923](tasks/923-a-forget-request-with-no-call-is-recorded.md) A forget request with no call is recorded. open, actionable.
 
 ### orchestrator
 

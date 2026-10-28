@@ -10,6 +10,7 @@ from cortex_core import (
     DENIED_MSG,
     EMBED_INPUT_CHARS,
     ESCALATE_TOOL_NAME,
+    FORGET_CHOSEN_TOOL_NAME,
     FORGOING_DETAIL,
     FORGOING_STATE,
     RECALL_DENIED_MSG,
@@ -2081,10 +2082,14 @@ class CutCallBackend:
     """Backend that streams text, reports a stop, then fails to build the model's tool call."""
 
     def __init__(
-        self, reason: StopReason | None = StopReason.CAPPED, deltas: Sequence[str] = ("half an ",)
+        self,
+        reason: StopReason | None = StopReason.CAPPED,
+        deltas: Sequence[str] = ("half an ",),
+        tool_name: str = "",
     ) -> None:
         self._reason = reason
         self._deltas = deltas
+        self._tool_name = tool_name
 
     async def stream(
         self,
@@ -2101,7 +2106,7 @@ class CutCallBackend:
         if self._reason is not None:
             yield DecodeStop(self._reason)
         msg = 'malformed tool-call arguments from llama-server: \'{"body":"Distributed sys'
-        raise MalformedToolCallError(msg)
+        raise MalformedToolCallError(msg, tool_name=self._tool_name)
 
 
 def _cut_call_engine(store: InMemorySessionStore, backend: CutCallBackend) -> TurnEngine:
@@ -2207,3 +2212,18 @@ async def test_the_operator_is_told_which_turn_broke_and_whether_a_limit_cut_it(
     assert (record.__dict__["session_id"], record.__dict__["turn_id"]) == ("s", "t-1")
     assert record.__dict__["capped"] is False
     assert record.exc_info is not None
+
+
+@pytest.mark.parametrize(("tool_name", "kept"), [(FORGET_CHOSEN_TOOL_NAME, 0), ("read", 1)])
+async def test_a_turn_whose_unreadable_call_was_a_forget_is_not_recorded(
+    *, tool_name: str, kept: int
+) -> None:
+    recaller = MemoryRecaller(InMemoryMemoryStore(), HashEmbedder(), SystemClock())
+    engine = TurnEngine(
+        InMemorySessionStore(),
+        CutCallBackend(StopReason.FINISHED, tool_name=tool_name),
+        TickingClock(),
+        capabilities=TurnCapabilities(memory=recaller),
+    )
+    await _collect(engine.handle_turn("s", "forget my card 4242", turn_id="t-1"))
+    assert len(await recaller.recall("card", k=5, session_id="s", turn_id="t")) == kept
