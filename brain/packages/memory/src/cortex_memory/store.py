@@ -47,6 +47,10 @@ _DELETE_TAINTED_SCOPED = (
     "DELETE FROM memories WHERE id IN"
     " (SELECT id FROM memories WHERE tainted AND scope = ANY($1) ORDER BY id FOR UPDATE)"
 )
+_DELETE_IDS = (
+    "DELETE FROM memories WHERE id IN"
+    " (SELECT id FROM memories WHERE id = ANY($1::text[]) ORDER BY id FOR UPDATE)"
+)
 
 
 class Row(Protocol):
@@ -238,6 +242,18 @@ class PgVectorMemoryStore:
             msg = "deleting the tainted memories failed on a later pass"
             raise PartialDeleteError(msg, removed=removed) from err
         return removed
+
+    async def delete_ids(self, ids: Sequence[str]) -> int:
+        """Hard-delete the memories whose ids are in ``ids``; return how many were removed."""
+        try:
+            status = await self._bounded(self._db.execute(_DELETE_IDS, sorted(set(ids))))
+            return _row_count(status)
+        except _WRAPPED as err:
+            msg = f"deleting {len(ids)} chosen memories failed"
+            raise MemoryStoreError(msg) from err
+        except ValueError as err:
+            msg = "malformed delete status from the memory store"
+            raise MemoryDataError(msg) from err
 
     async def _delete_tainted_once(self, scopes: Sequence[str] | None) -> int:
         """One tainted delete; a record committed while it waited on a share lock is left over."""

@@ -299,6 +299,29 @@ async def test_delete_tainted_wraps_a_malformed_status() -> None:
     assert isinstance(excinfo.value.__cause__, ValueError)
 
 
+async def test_delete_ids_locks_each_distinct_id_in_order_and_counts_the_rows() -> None:
+    db = FakeDatabase(status="DELETE 2")
+    assert await PgVectorMemoryStore(db).delete_ids(("m-2", "m-1", "m-2")) == 2
+    assert db.calls == [
+        (f"{_DELETE} WHERE id = ANY($1::text[]) ORDER BY id FOR UPDATE)", (["m-1", "m-2"],))
+    ]
+
+
+async def test_delete_ids_wraps_a_backend_error() -> None:
+    db = FakeDatabase(fail=asyncpg.PostgresError("boom"))
+    with pytest.raises(MemoryStoreError, match="deleting 1 chosen memories") as excinfo:
+        await PgVectorMemoryStore(db).delete_ids(["m-1"])
+    assert isinstance(excinfo.value.__cause__, asyncpg.PostgresError)
+    assert not isinstance(excinfo.value, MemoryDataError)
+
+
+async def test_delete_ids_wraps_a_malformed_status() -> None:
+    db = FakeDatabase(status="DELETE not-a-count")
+    with pytest.raises(MemoryDataError, match="malformed delete status") as excinfo:
+        await PgVectorMemoryStore(db).delete_ids(["m-1"])
+    assert isinstance(excinfo.value.__cause__, ValueError)
+
+
 async def test_aclose_closes_the_pool() -> None:
     db = FakeDatabase()
     await PgVectorMemoryStore(db).aclose()
@@ -367,6 +390,7 @@ def _operations(store: PgVectorMemoryStore) -> dict[str, Callable[[], Awaitable[
         "tainted count": lambda: store.count_tainted(scopes=["s"]),
         "delete": lambda: store.delete_scope("s"),
         "delete tainted": store.delete_tainted,
+        "delete ids": lambda: store.delete_ids(["m-1"]),
     }
 
 
@@ -383,7 +407,16 @@ async def _ended(db: HangingDatabase, call: Awaitable[object]) -> asyncio.Future
 
 @pytest.mark.parametrize(
     "operation",
-    ["add", "search", "scoped search", "count", "scoped count", "delete", "delete tainted"],
+    [
+        "add",
+        "search",
+        "scoped search",
+        "count",
+        "scoped count",
+        "delete",
+        "delete tainted",
+        "delete ids",
+    ],
 )
 async def test_a_hung_server_fails_as_unavailable_after_the_bound(operation: str) -> None:
     db = HangingDatabase()

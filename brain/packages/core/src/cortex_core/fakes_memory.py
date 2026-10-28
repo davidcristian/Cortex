@@ -115,6 +115,15 @@ class InMemoryMemoryStore:
         self._records = [record for record in self._records if id(record) not in doomed]
         return len(doomed)
 
+    async def delete_ids(self, ids: Sequence[str]) -> int:
+        """Hard-delete the memories whose ids are in ``ids``; return how many were removed."""
+        self._guard()
+        doomed = set(ids)
+        kept = [record for record in self._records if record.id not in doomed]
+        removed = len(self._records) - len(kept)
+        self._records = kept
+        return removed
+
 
 class RecordingRecallSink:
     """RecallAuditSink that keeps audits in a list so tests can assert the recall trail."""

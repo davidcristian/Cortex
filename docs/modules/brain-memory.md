@@ -47,6 +47,10 @@ business logic and no state beyond the injected pool (the one hard rule).
   that fails after earlier ones removed rows raises `PartialDeleteError`, a `MemoryStoreError`
   whose `removed` is that sum; a failed first pass raises plain `MemoryStoreError`. It runs only
   when the person approves a forget (ADR-0019 decision 9).
+- `delete_ids(ids)` is `DELETE FROM memories WHERE id IN (SELECT id FROM memories WHERE id =
+  ANY($1::text[]) ORDER BY id FOR UPDATE)` with the distinct ids sorted, one pass, counted as
+  `delete_scope` is. It locks in id order for the reason `delete_tainted` does, so a record that
+  recalled a deleted row is not stored (ADR-0075).
 - `delete_scope(scope)` is `DELETE FROM memories WHERE scope = $1` (the `memories_scope_idx` btree
   serves the equality, so no schema change), returning the row count parsed from asyncpg's
   `DELETE n` command tag: 0 when the scope holds none, and a malformed tag wrapped as
@@ -182,7 +186,8 @@ similarity ranking.
   would have stayed invisible to everyone without a database. Each check takes a
   `MemoryStoreUnderTest`, the implementation plus an awaited `break_backend`, so the port's failure
   channel is checked where its values are: the eleventh check breaks the backend and requires each
-  verb (`add`, `search`, `count_candidates`, `count_tainted`, `delete_scope`, `delete_tainted`) to raise
+  verb (`add`, `search`, `count_candidates`, `count_tainted`, `delete_scope`, `delete_tainted`,
+  `delete_ids`) to raise
   `MemoryStoreError`, not the driver's exception nor `MemoryDataError`, since an outage misread as
   a data defect would fail the very turn the degradation exists to save. The other direction is
   deliberately not a shared check: the in-memory twin decodes nothing, so only the implementation

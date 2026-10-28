@@ -271,6 +271,40 @@ async def check_add_refuses_a_record_whose_recalled_memory_was_deleted(
     assert await store.delete_tainted(scopes=[scope]) == 0
 
 
+async def check_delete_ids_removes_only_the_listed_rows(under_test: MemoryStoreUnderTest) -> None:
+    """``delete_ids`` removes and counts the listed rows in any scope, and spares the rest."""
+    store = under_test.store
+    scope = f"contract-ids-{uuid4()}"
+    other = f"contract-ids-other-{uuid4()}"
+    doomed = make_record("card 4242", (1.0, 0.0, 0.0), scope=scope)
+    doomed_elsewhere = make_record("card 4242 again", (1.0, 0.0, 0.0), scope=other, tainted=True)
+    kept = make_record("wifi", (1.0, 0.0, 0.0), scope=scope)
+    for record in (doomed, doomed_elsewhere, kept):
+        await store.add(record)
+    chosen = [doomed_elsewhere.id, doomed.id, doomed.id, f"contract-missing-{uuid4()}"]
+    assert await store.delete_ids(chosen) == 2
+    hits = await store.search((1.0, 0.0, 0.0), k=10, scopes=[scope, other])
+    assert [hit.record.id for hit in hits] == [kept.id]
+    assert await store.delete_ids([doomed.id]) == 0
+    assert await store.delete_ids([]) == 0
+
+
+async def check_add_refuses_a_record_whose_recalled_memory_was_deleted_by_id(
+    under_test: MemoryStoreUnderTest,
+) -> None:
+    """A record that recalled a memory ``delete_ids`` removed is not stored, nor counted."""
+    store = under_test.store
+    scope = f"contract-ids-forgotten-{uuid4()}"
+    kept = make_record("kept", (1.0, 0.0, 0.0), scope=scope)
+    forgotten = make_record("card 4242", (1.0, 0.0, 0.0), scope=scope)
+    for record in (kept, forgotten):
+        await store.add(record)
+    assert await store.delete_ids([forgotten.id]) == 1
+    answer = make_record("your card is 4242", (1.0, 0.0, 0.0), scope=scope)
+    assert await store.add(answer, recalled=[kept.id, forgotten.id]) is False
+    assert await store.count_candidates(scopes=[scope]) == 1
+
+
 async def check_a_lost_backend_crosses_the_port_as_memory_store_error(
     under_test: MemoryStoreUnderTest,
 ) -> None:
@@ -287,6 +321,7 @@ async def check_a_lost_backend_crosses_the_port_as_memory_store_error(
     await _refuses_typed(lambda: store.count_tainted(scopes=[scope]), "count_tainted")
     await _refuses_typed(lambda: store.delete_scope(scope), "delete_scope")
     await _refuses_typed(lambda: store.delete_tainted(scopes=[scope]), "delete_tainted")
+    await _refuses_typed(lambda: store.delete_ids(["contract-gone"]), "delete_ids")
 
 
 ALL_CHECKS: Sequence[Check] = (
@@ -306,4 +341,6 @@ ALL_CHECKS: Sequence[Check] = (
     check_count_tainted_counts_only_tainted_rows_in_its_scopes,
     check_add_stores_a_record_whose_recalled_memories_all_exist,
     check_add_refuses_a_record_whose_recalled_memory_was_deleted,
+    check_delete_ids_removes_only_the_listed_rows,
+    check_add_refuses_a_record_whose_recalled_memory_was_deleted_by_id,
 )

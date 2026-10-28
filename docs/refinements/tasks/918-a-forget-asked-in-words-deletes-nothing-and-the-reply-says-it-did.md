@@ -23,14 +23,23 @@ Reproduction: section "Remember, forget, and delete the chat" of
 
 ## What to do
 
-1. Write the rows and their pass rule into the readings before any change: a forget asked in words
-   either removes every row holding the named fact, or the reply says that nothing was removed.
-2. Design a forget of chosen memories behind the `MemoryStore` port: a search for the rows that
-   hold the fact, a confirmation card that lists them, and a delete by id, with a contract test the
-   pgvector adapter passes. Until it exists, a typed result text that says no forget tool exists is
-   the smaller step.
-3. Decide whether a recall reply that repeats a stored fact should be recorded again.
+1. The rows F1 to F5 and their pass rule are in
+   [forget-chosen-memories.md](../../readings/forget-chosen-memories.md), written before any change.
+2. The delete is built: `MemoryStore.delete_ids` on the fake and the pgvector adapter, with the
+   shared contract and a live lock test ([ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)).
+3. Design the search for the rows that hold the named fact. A literal match on a text the model
+   passes (`4242 4242`, "card number") is checkable; a similarity search needs a score floor that
+   no reading sets yet. Write the choice into ADR-0075.
+4. Build the tool: the confirmation card lists the matched rows' texts, written by the tool, and the
+   delete removes exactly the ids the card showed. The ids must pass from the card to the invoke
+   without a second search, since a row committed in between was never shown. After the delete,
+   search again and report the rows that still match, never "removed" while a row holds the fact.
+5. Register it beside `forget_untrusted_memories`, update the module doc and the runbook, rebuild
+   the brain from HEAD and run F1 to F5 on the stack.
+6. Decide whether a recall reply that repeats a stored fact should be recorded again.
 
 ## History
 
 - 2026-10-28: filed from the privacy flows on the `cortexn9` stack.
+- 2026-10-28: rows and pass rule written; the delete by id built behind the port and checked live
+  on the stack's Postgres. The search, the tool and the stack rows remain.

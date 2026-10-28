@@ -61,6 +61,10 @@ class MemoryStore(Protocol):
         """
         ...
 
+    async def delete_ids(self, ids: Sequence[str]) -> int:
+        """Hard-delete the memories whose ids are in ``ids``; return how many were removed."""
+        ...
+
 
 class TaskStore(Protocol):
     """Hot store for in-flight subagent tasks and their results (Redis)."""

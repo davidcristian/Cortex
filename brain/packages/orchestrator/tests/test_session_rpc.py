@@ -95,6 +95,10 @@ class RecordingMemoryStore:
         del scopes
         raise AssertionError
 
+    async def delete_ids(self, ids: Sequence[str]) -> int:
+        del ids
+        raise AssertionError
+
 
 def test_clamp_title_passes_a_short_title_through_unchanged() -> None:
     assert clamp_title("Everything about cats") == "Everything about cats"

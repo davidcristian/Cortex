@@ -92,6 +92,27 @@ async def test_a_record_waiting_on_a_forget_stores_nothing_live() -> None:
 
 
 @pytest.mark.integration
+async def test_a_record_waiting_on_a_forget_by_id_stores_nothing_live() -> None:
+    admin, recorder = await _race_setup()
+    holder = await asyncpg.connect(live_postgres.live_dsn())
+    try:
+        transaction = holder.transaction()
+        await transaction.start()
+        assert await PgVectorMemoryStore(cast("Database", holder)).delete_ids(["recalled"]) == 1
+        record = asyncio.ensure_future(recorder.add(_tainted("answer"), recalled=["recalled"]))
+        await asyncio.sleep(0.5)
+        assert not record.done()
+        await transaction.commit()
+        assert await record is False
+        assert await admin.fetchval("SELECT count(*) FROM memories") == 0
+    finally:
+        await holder.close()
+        await recorder.aclose()
+        await live_postgres.reset(admin)
+        await admin.close()
+
+
+@pytest.mark.integration
 async def test_a_forget_and_a_record_lock_two_recalled_rows_in_one_order_live() -> None:
     admin, forgetter = await _race_setup()
     recorder = await PgVectorMemoryStore.connect(live_postgres.live_dsn(), timeout_s=10.0)
