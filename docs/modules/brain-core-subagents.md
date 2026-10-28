@@ -115,8 +115,10 @@ the deadline covers every completion and every dispatch between them, and reachi
 re-run. A completion the backend reports as cut at a token limit is also `TRUNCATED`; a cut inside
 a tool call reaches that by a different path, reported as `TRUNCATED` only when the `StopLedger`
 also saw a cap. A tool-holding attempt whose eighth round still ended in calls is `TRUNCATED` with
-`ROUNDS_SPENT_MSG` and is not re-run either (ADR-0010 decision 3). The outcome vocabulary is in
-`subagent_outcome.py`.
+`ROUNDS_SPENT_MSG` and is not re-run either (ADR-0010 decision 3). A request the server refuses as
+longer than its context (`ContextOverflowError`) is `TRUNCATED` with the server's message and is
+not re-run, since every subagent server starts with the same context and slot count. The outcome
+vocabulary is in `subagent_outcome.py`.
 
 `subagent_reply.py` holds the constrained-reply grammar (ADR-0028). `REPLY_ENVELOPE` is the schema
 a constrained request asks for and `unwrap_envelope(text)` reads the answer back. A schema tells

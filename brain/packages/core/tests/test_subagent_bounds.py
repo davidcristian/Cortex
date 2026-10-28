@@ -6,6 +6,7 @@ import pytest
 
 from cortex_core import (
     AttemptBounds,
+    ContextOverflowError,
     DecodeStop,
     GenerationBounds,
     InferenceBackend,
@@ -764,6 +765,19 @@ async def test_a_cut_tool_call_is_not_re_run_on_the_cpu() -> None:
     async with asyncio.timeout(_SUITE_BOUND_S):
         result = await _cut_runner(store, gpu, cpu).run("t1")
     assert result.ok is False
+    assert (gpu.calls, cpu.calls) == (1, 0)
+
+
+async def test_a_request_longer_than_the_context_is_not_re_run_on_the_cpu() -> None:
+    store = InMemoryTaskStore()
+    await _stored_task(store)
+    error = ContextOverflowError("request (5263 tokens) exceeds the context (4096)", excess=1167)
+    gpu = CutToolCallBackend(stop=None, error=error)
+    cpu = CutToolCallBackend(stop=None, error=error)
+    async with asyncio.timeout(_SUITE_BOUND_S):
+        result = await _cut_runner(store, gpu, cpu).run("t1")
+    assert result.ok is False
+    assert result.detail == "request (5263 tokens) exceeds the context (4096)"
     assert (gpu.calls, cpu.calls) == (1, 0)
 
 

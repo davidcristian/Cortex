@@ -5,7 +5,7 @@ from contextlib import aclosing
 
 from cortex_core.conversation import Message, Role
 from cortex_core.dispatch import ToolDispatcher
-from cortex_core.errors import InferenceError, MalformedToolCallError
+from cortex_core.errors import ContextOverflowError, InferenceError, MalformedToolCallError
 from cortex_core.events import ToolActivity
 from cortex_core.inference import GenerationBounds
 from cortex_core.loop_events import ToolStep
@@ -168,9 +168,11 @@ class PlacedAttempt:
                 tainted=taint.tainted,
             )
         except InferenceError as err:
+            # Every subagent server starts with one context and slot count, so no target has more.
+            overflow = isinstance(err, ContextOverflowError)
             return AttemptOutcome(
                 text="".join(parts),
-                failure=AttemptFailure.INFERENCE,
+                failure=AttemptFailure.TRUNCATED if overflow else AttemptFailure.INFERENCE,
                 detail=str(err),
                 tainted=taint.tainted,
             )
