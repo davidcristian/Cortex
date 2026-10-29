@@ -69,7 +69,7 @@ never a reading of what the tree does now.
 
 ### Actionable now (2)
 
-- **[R-923](tasks/923-a-forget-request-with-no-call-is-recorded.md)** A forget request with no call is recorded (memory). Its claim was checked against the code on 2026-10-28.
+- **[R-923](tasks/923-a-forget-request-with-no-call-is-recorded.md)** A forget request with no call is recorded (memory). Its claim was checked against the code on 2026-10-29.
 - **[R-925](tasks/925-a-chat-deleted-while-its-turn-runs-comes-back.md)** A chat deleted while its turn runs comes back (session-read-rpc). Its claim was checked against the code on 2026-10-28.
 
 ### Actionable, once a port changes (1)
