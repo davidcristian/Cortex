@@ -113,8 +113,11 @@ decision 11), so its card has no `open chat`. The control would otherwise open a
 every turn ends as `session_deleted`. The Redis adapter keeps a FIRING item's claim and reads a
 raced record again rather than answering `False`, since an item it skipped would keep the deleted
 id. It skips and logs a record that does not decode, which the claim path quarantines when it falls
-due, so one corrupt record does not fail every chat's delete. A fire already running at the delete keeps the old id for that run's audit lines and subagent
-tasks only.
+due, so one corrupt record does not fail every chat's delete. A delete does not wait for a turn
+running in the chat, so `schedule_task` reads `SessionStore.deleted` after its `add` and detaches
+the chat when it is set: the delete marks the chat before its detach reads the items, so an add
+that commits after that read finds the mark. A failed read is logged and keeps the id. A fire
+already running at the delete keeps the old id for that run's audit lines and subagent tasks only.
 
 ### 10. Card layout
 
@@ -186,9 +189,6 @@ would be a brain setting.
   fires for this app's toasts is unmeasured, or through a registered COM activator for a click after
   the process has gone. The payload waits for a second consumer of toast interaction, such as a
   snooze button on the toast, so the wire format is designed with its reader.
-- A turn still running in a chat when it is deleted can add a reminder after the detach, and that
-  item keeps the deleted id
-  ([R-936](../refinements/tasks/936-a-reminder-added-by-a-turn-in-a-deleted-chat-keeps-its-id.md)).
 - A detach that commits inside a `finish` makes that fire answer `False`, so the lease fires it
   again ([R-938](../refinements/tasks/938-a-write-that-keeps-a-claim-makes-a-concurrent-finish-lose-its-fire.md)).
 

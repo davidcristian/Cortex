@@ -15,6 +15,7 @@ from cortex_core import (
     ListScheduledTool,
     ScheduleStore,
     ScheduleTaskTool,
+    SessionStore,
     SnoozeScheduledTool,
     SpawnSubagentsTool,
     ToolDispatcher,
@@ -52,6 +53,7 @@ def build_schedule_tools(
     clock: Clock,
     *,
     tasks_enabled: bool,
+    sessions: SessionStore | None = None,
 ) -> list[BuiltinTool]:
     """The five cortex-only built-ins, or nothing when scheduling is off."""
     if schedules is None:
@@ -65,6 +67,7 @@ def build_schedule_tools(
             tasks_enabled=tasks_enabled,
             max_active=config.max_active,
             zones=zones,
+            sessions=sessions,
         ),
         ListScheduledTool(schedules, clock, zone=zone),
         CancelScheduledTool(schedules, zone=zone),

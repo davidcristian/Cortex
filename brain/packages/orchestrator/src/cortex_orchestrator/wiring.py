@@ -92,7 +92,11 @@ async def run_from_env(
     schedules, close_schedules = build_schedule(schedule_config, runtime.redis_url)
     capture, sight, close_vision = build_vision(inference, body_config, body)
     schedule_tools = build_schedule_tools(
-        schedule_config, schedules, clock, tasks_enabled=spawn_tool is not None
+        schedule_config,
+        schedules,
+        clock,
+        tasks_enabled=spawn_tool is not None,
+        sessions=stores.sessions,
     )
     builtins = build_builtin_tools(
         spawn_tool,

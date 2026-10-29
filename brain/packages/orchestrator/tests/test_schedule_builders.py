@@ -10,6 +10,7 @@ from cortex_core import (
     EchoInferenceBackend,
     InMemoryBodyGateway,
     InMemoryScheduleStore,
+    InMemorySessionStore,
     InMemoryTaskStore,
     PlacementRequest,
     PlacementTarget,
@@ -116,6 +117,22 @@ def test_build_schedule_tools_names_and_accurate_advertisement() -> None:
         "edit_scheduled",
     }
     assert dict(specs["schedule_task"].parameters["properties"])["kind"]["enum"] == ["reminder"]
+
+
+async def test_build_schedule_tools_gives_the_add_the_deleted_chats() -> None:
+    schedules, sessions = InMemoryScheduleStore(), InMemorySessionStore()
+    await sessions.delete("chat-1")
+    tools = build_schedule_tools(
+        ScheduleConfig(), schedules, FixedClock(), tasks_enabled=False, sessions=sessions
+    )
+    (schedule_task,) = [tool for tool in tools if tool.spec.name == "schedule_task"]
+    arguments = {"kind": "reminder", "text": "stretch", "in_seconds": 60}
+    stamp = TurnStamp(session_id="chat-1", tainted=False)
+    await schedule_task.invoke(
+        ToolCall(id="c", name="schedule_task", arguments=arguments, stamp=stamp)
+    )
+    (item,) = await schedules.list_active()
+    assert item.session_id == ""
 
 
 def test_build_builtin_tools_composes_in_capability_order() -> None:

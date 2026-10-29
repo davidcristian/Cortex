@@ -1,12 +1,13 @@
 """The ``schedule_task`` / ``list_scheduled`` built-ins."""
 
+import logging
 from collections.abc import Callable
 from datetime import datetime
 from typing import Any
 from uuid import uuid4
 
-from cortex_core.errors import ScheduleStoreError
-from cortex_core.ports import Clock, ScheduleStore
+from cortex_core.errors import ScheduleStoreError, SessionStoreError
+from cortex_core.ports import Clock, ScheduleStore, SessionStore
 from cortex_core.schedule import ScheduledItem, ScheduleKind
 from cortex_core.schedule_args import MIN_EVERY_SECONDS, parse_schedule
 from cortex_core.schedule_day_args import day_selector_properties, in_zone_property
@@ -21,6 +22,8 @@ from cortex_core.schedule_selectors import DAILY
 from cortex_core.schedule_time import UTC_DISPLAY, UTC_ZONE_CONTEXT, DisplayZone, ZoneContext
 from cortex_core.schedule_verbs import error_result, store_down_result
 from cortex_core.tools import ToolCall, ToolResult, ToolSpec, Trust
+
+_logger = logging.getLogger(__name__)
 
 SCHEDULE_TOOL_NAME = "schedule_task"
 LIST_SCHEDULED_TOOL_NAME = "list_scheduled"
@@ -57,7 +60,7 @@ def _uuid4_id() -> str:
 class ScheduleTaskTool:
     """Built-in ``schedule_task``: persist a reminder or autonomous task to fire later."""
 
-    def __init__(
+    def __init__(  # noqa: PLR0913 -- every argument after the clock is keyword-only wiring
         self,
         store: ScheduleStore,
         clock: Clock,
@@ -66,9 +69,11 @@ class ScheduleTaskTool:
         max_active: int,
         zones: ZoneContext = UTC_ZONE_CONTEXT,
         item_id_factory: Callable[[], str] = _uuid4_id,
+        sessions: SessionStore | None = None,
     ) -> None:
         self._store = store
         self._clock = clock
+        self._sessions = sessions
         self._tasks_enabled = tasks_enabled
         self._max_active = max_active
         self._zone = zones.default
@@ -179,10 +184,26 @@ class ScheduleTaskTool:
         if held is not None:
             content = f"already {_confirmation(held, self._zone, now)}; {_NOT_ADDED}"
         else:
+            await self._detach_if_deleted(item.session_id)
             content = _confirmation(item, self._zone, now)
         if item.rule is not None and item.rule.on == DAILY:
             content += _DAILY_NOTE
         return ToolResult(call_id=call.id, content=content, trust=Trust.TRUSTED)
+
+    async def _detach_if_deleted(self, session_id: str) -> None:
+        """Clear the chat on its items when it was deleted while this call added one."""
+        # The delete marks the chat before its detach reads the items, so an add that commits
+        # after that read finds the mark here.
+        if self._sessions is None or not session_id:
+            return
+        try:
+            if await self._sessions.deleted(session_id):
+                await self._store.detach_session(session_id)
+        except (SessionStoreError, ScheduleStoreError):
+            _logger.exception(
+                "a schedule added in a chat that may be deleted kept the chat's id",
+                extra={"session_id": session_id},
+            )
 
 
 def _confirmation(item: ScheduledItem, default_zone: DisplayZone, now: datetime) -> str:
