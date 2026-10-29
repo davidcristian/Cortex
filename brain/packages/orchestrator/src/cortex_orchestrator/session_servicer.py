@@ -6,6 +6,8 @@ from grpc import aio
 from cortex_core import (
     MemoryDataError,
     MemoryStoreError,
+    ScheduleStore,
+    ScheduleStoreError,
     SessionMemoryCascade,
     SessionStore,
     SessionStoreError,
@@ -37,6 +39,7 @@ class SessionRpcMixin:
 
     _store: SessionStore
     _memory_cascade: SessionMemoryCascade | None
+    _schedules: ScheduleStore | None
 
     async def ListSessions(  # noqa: N802 - method name is fixed by the gRPC codegen interface
         self,
@@ -78,12 +81,14 @@ class SessionRpcMixin:
         request: DeleteSessionRequest,
         context: aio.ServicerContext[DeleteSessionRequest, DeleteSessionReply],
     ) -> DeleteSessionReply:
-        """User-only delete plus memory cascade via `session_rpc.delete_session`."""
+        """User-only delete and its cascades via `session_rpc.delete_session`."""
         try:
-            return await delete_session(self._store, self._memory_cascade, request.session_id)
+            return await delete_session(
+                self._store, self._memory_cascade, self._schedules, request.session_id
+            )
         except MemoryDataError as err:
             await context.abort(grpc.StatusCode.INTERNAL, str(err))
-        except (SessionStoreError, MemoryStoreError) as err:
+        except (SessionStoreError, MemoryStoreError, ScheduleStoreError) as err:
             await context.abort(grpc.StatusCode.UNAVAILABLE, str(err))
 
     async def SetSessionHoisted(  # noqa: N802 - method name is fixed by the gRPC codegen interface

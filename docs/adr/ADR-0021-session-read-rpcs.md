@@ -49,11 +49,10 @@ the `RPUSH` of every `append`, so the last append's `at` wins. Equal timestamps 
 
 ### 4. The orchestrator serves the reads straight off the store
 
-`BrainService` takes the `SessionStore` explicitly, because these are reads rather than turns and
-must not go through the turn engine. The handlers (`cortex_orchestrator/session_rpc.py`) map core to
-wire and clamp the request: `limit ≤ 0` becomes `DEFAULT_SESSION_LIST_LIMIT` (50), capped at
-`MAX_SESSION_LIST_LIMIT` (200). A `SessionStoreError` aborts the RPC with `UNAVAILABLE`, which the
-body reports as `TransportError::Rpc`.
+`BrainService` takes the `SessionStore` explicitly: these reads are not turns and skip the turn
+engine. The handlers (`cortex_orchestrator/session_rpc.py`) map core to wire and clamp the request:
+`limit ≤ 0` becomes `DEFAULT_SESSION_LIST_LIMIT` (50), capped at `MAX_SESSION_LIST_LIMIT` (200). A
+`SessionStoreError` aborts the RPC with `UNAVAILABLE`, a `TransportError::Rpc` on the body.
 
 ### 5. Body and overlay ports gain typed reads; the overlay holds the session id
 
@@ -161,7 +160,8 @@ the session that wrote it (`None` on older rows), and the cascade removes those 
 with `delete_written_by`, so a secret typed in a deleted chat is not recalled later; a copy another
 chat stored after recalling it stays, for `forget_memories` (ADR-0075). A private scope (`scope ==
 session_id`, never `GLOBAL_SCOPE`) is then emptied with `delete_scope`. The handler deletes the
-session, then cascades; either store error aborts `UNAVAILABLE`, and a retry completes.
+session, cascades, then calls `ScheduleStore.detach_session` (ADR-0066 decision 9); a store error
+aborts `UNAVAILABLE` and a retry completes.
 
 **A delete does not wait for a turn running in its chat; the turn's writes read the deleted set.**
 `append`, `set_title` and `set_recap` store nothing for a deleted chat: the Redis adapter reads the

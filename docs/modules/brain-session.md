@@ -82,8 +82,7 @@ deletes outright and so survives an in-flight fire; terminal items are deleted u
 deliverable). This adapter maps it onto the key layout below. **Every guarded transition is one
 optimistic transaction**: the guard read and the state write share a WATCH, MULTI and EXEC
 (`schedule_claims.py` up to the claim, `schedule_delivery.py` after the fire), so a `cancel`, an
-`ack` or a re-claim racing the window fails the EXEC as `WatchError`, answered like a stale token
-rather than overwritten.
+`ack` or a re-claim racing the window fails the EXEC as `WatchError`, answered like a stale token.
 
 - `add(item)` and `get(item_id)` handle one versioned JSON record per schedule.
 - `list_active()` is the union of the three live indexes, loaded and sorted by due time. A stale
@@ -98,6 +97,9 @@ rather than overwritten.
 - `deliverable()` and `ack(item_id, *, fired_at)` are the fired-reminder delivery slot. The ack
   decides through the pure `acks_fire` inside the same WATCH transaction, so it clears only the fire
   it names, and a fire that finishes between the read and the EXEC fails it.
+- `detach_session(session_id)` sets `session_id` to `""` on every live item made in that chat and
+  keeps a FIRING item's claim, so its `finish` keeps the cleared id. A raced EXEC reads the record
+  again rather than answering `False`, since a skipped item keeps the deleted chat (ADR-0066).
 - `snooze(item_id, *, until)` postpones the next fire through the pure `apply_snooze`. A recurring
   item is allowed: only its next occurrence moves, with `anchor` held at the pre-snooze `due_at` so
   the series keeps its cadence. FIRING and a raced transition answer `False` (ADR-0025 decision 8).
@@ -155,8 +157,7 @@ one deployment within one turn, so unlike session and memory records it has **no
 markers**. Timestamps keep their offset. The whole record round-trips, including a task's `model`,
 `tainted`, `session_id`, `turn_id` and `item_id` and a result's `tainted` (ADR-0018, ADR-0009
 decision 16): the placement inputs, the attribution of whatever spawned the task and the taint
-result are what must survive a restart or a swap. Decoding is strict, so a missing key is a corrupt
-record.
+result must survive a restart or a swap. Decoding is strict, so a missing key is a corrupt record.
 
 Handoff state (ADR-0030) is hot the same way: one record at `cortex:handoff:{id}`, no `v` or `kind`
 markers, plus the pointer key `cortex:handoff:active` holding the in-flight record's id (one GPU, at
@@ -197,8 +198,7 @@ separate a record from its indexes.
   keys from a newer writer are ignored.
 - **New kinds or versions break old readers.** A reader that meets an unknown `kind` or an
   unsupported `v` fails on the whole history, so **deploy readers before writers**.
-- Records with no `v` or `kind`, written before the markers existed, decode as `kind "message"`,
-  `v 1`.
+- Records with no `v` or `kind`, written before the markers, decode as `kind "message"`, `v 1`.
 - One unreadable record **stops the session with an error** naming the record's list index, kind and
   version, rather than being skipped. This is a single-user system, so a stop that names the bad
   record costs less than a dropped one, which would corrupt a future handoff's context.

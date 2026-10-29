@@ -238,10 +238,10 @@ stores apply in `schedule_transitions.py`, and the wall-clock rules in `schedule
   `get`, `list_active`, `cancel` (deletes outright, so it sticks through an in-flight fire),
   `claim_due(now, *, lease, limit)` (due `PENDING` plus lease-expired `FIRING`, oldest first, a
   fresh token per claim, undecodable records quarantined), `finish(claim, outcome)` and
-  `release(claim)` (both apply only under the claim's token, so a stale claimant gets `False`),
-  `deliverable`, `ack(item_id, *, fired_at)` (clears the slot only while it holds the fire
-  `fired_at` names), `snooze` and `edit`. A schedule outlives every swap and restart, which is why
-  this port exists. Fake: `InMemoryScheduleStore`; adapter: `cortex_session`.
+  `release(claim)` (only under the claim's token; a stale claimant gets `False`), `deliverable`,
+  `ack(item_id, *, fired_at)` (clears the slot only while it holds the fire `fired_at` names),
+  `snooze`, `edit` and `detach_session(session_id)` (clears a deleted chat's id). A schedule
+  outlives every swap and restart. Fake: `InMemoryScheduleStore`, adapter: `cortex_session`.
 
 **Invariants.**
 

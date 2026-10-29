@@ -18,6 +18,7 @@ from cortex_core import (
 from cortex_session.schedule_claims import (
     claim_due,
     dead_letters,
+    detach_session,
     edit_item,
     ids,
     purge_dead_letter,
@@ -199,4 +200,12 @@ class RedisScheduleStore:
             return await ack_item(self._client, item_id, fired_at)
         except RedisError as err:
             msg = f"ack of reminder {item_id!r} failed"
+            raise ScheduleStoreError(msg) from err
+
+    async def detach_session(self, session_id: str) -> int:
+        """Clear the origin chat on every item made in ``session_id`` (``detach_session``)."""
+        try:
+            return await detach_session(self._client, session_id)
+        except RedisError as err:
+            msg = f"detaching schedules from chat {session_id!r} failed"
             raise ScheduleStoreError(msg) from err

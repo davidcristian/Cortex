@@ -70,7 +70,7 @@ never a reading of what the tree does now.
 ### Actionable now (2)
 
 - **[R-923](tasks/923-a-forget-request-with-no-call-is-recorded.md)** A forget request with no call is recorded (memory). Its claim was checked against the code on 2026-10-29.
-- **[R-935](tasks/935-a-reminder-opens-a-deleted-chat-that-refuses-every-turn.md)** A reminder opens a deleted chat that refuses every turn (scheduling). Its claim was checked against the code on 2026-10-29.
+- **[R-936](tasks/936-a-reminder-added-by-a-turn-in-a-deleted-chat-keeps-its-id.md)** A reminder added by a turn in a deleted chat keeps its id (scheduling). Its claim was checked against the code on 2026-10-29.
 
 ### Actionable, once a port changes (1)
 
@@ -864,7 +864,7 @@ never a reading of what the tree does now.
 - [R-872](tasks/872-a-request-to-draft-a-message-can-schedule-a-reminder.md) A request to draft a message can schedule a reminder. open, waiting for its trigger.
 - [R-884](tasks/884-follow-a-zone-change-without-restarting-the-stack.md) Follow a zone change without restarting the stack. open, waiting for its trigger.
 - [R-906](tasks/906-a-late-reminder-does-not-say-when-it-was-due.md) A late reminder does not say when it was due. done 2026-10-28.
-- [R-935](tasks/935-a-reminder-opens-a-deleted-chat-that-refuses-every-turn.md) A reminder opens a deleted chat that refuses every turn. open, actionable.
+- [R-936](tasks/936-a-reminder-added-by-a-turn-in-a-deleted-chat-keeps-its-id.md) A reminder added by a turn in a deleted chat keeps its id. open, actionable.
 
 ### session-history
 

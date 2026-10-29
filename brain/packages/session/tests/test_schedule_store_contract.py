@@ -76,6 +76,7 @@ def _dummy_claim() -> ScheduleClaim:
         "release",
         "deliverable",
         "ack",
+        "detach_session",
     ],
 )
 async def test_backend_failure_wraps_into_schedule_store_error(operation: str) -> None:
@@ -93,6 +94,7 @@ async def test_backend_failure_wraps_into_schedule_store_error(operation: str) -
         "release": lambda: store.release(_dummy_claim()),
         "deliverable": store.deliverable,
         "ack": lambda: store.ack("s1", fired_at=None),
+        "detach_session": lambda: store.detach_session("session-1"),
     }
     with pytest.raises(ScheduleStoreError) as excinfo:
         await ops[operation]()
@@ -516,3 +518,20 @@ async def test_claim_honors_a_snooze_that_committed_before_the_watch(
     assert loaded.status is ScheduleStatus.PENDING
     assert loaded.due_at == until
     assert await client.zscore(DUE_KEY, "raced") == until.timestamp()
+
+
+async def test_detach_reads_a_raced_record_again_and_keeps_the_concurrent_write(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    server = FakeServer()
+    store = RedisScheduleStore(FakeAsyncRedis(server=server))
+    item = schedule_contract.make_item("raced", due_at=_NOW + timedelta(hours=1))
+    await store.add(item)
+    tainted = replace(item, tainted=True)
+
+    def taint_it(poker: FakeStrictRedis) -> None:
+        poker.set(record_key("raced"), encode(tainted, claim=None, claimed_at=None))
+
+    _poke_on_decode(monkeypatch, server, taint_it)
+    assert await store.detach_session("session-1") == 1
+    assert await store.get("raced") == replace(tainted, session_id="")

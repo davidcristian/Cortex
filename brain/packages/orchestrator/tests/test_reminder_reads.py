@@ -25,6 +25,8 @@ from cortex_seam import (
     AckReminderReply,
     AckReminderRequest,
     BrainServiceStub,
+    DeleteSessionReply,
+    DeleteSessionRequest,
     ListDueRemindersReply,
     ListDueRemindersRequest,
 )
@@ -41,6 +43,11 @@ async def _ack(stub: BrainServiceStub, reminder_id: str, fired_at_unix_ms: int) 
     method = stub.AckReminder  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
     request = AckReminderRequest(reminder_id=reminder_id, fired_at_unix_ms=fired_at_unix_ms)
     return cast("AckReminderReply", await method(request))
+
+
+async def _delete(stub: BrainServiceStub, session_id: str) -> DeleteSessionReply:
+    method = stub.DeleteSession  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+    return cast("DeleteSessionReply", await method(DeleteSessionRequest(session_id=session_id)))
 
 
 async def _serve(schedules: ScheduleStore | None) -> tuple[aio.Server, str]:
@@ -201,6 +208,23 @@ async def test_schedule_free_brain_answers_benignly() -> None:
         await server.stop(grace=None)
 
 
+async def test_a_reminder_from_a_deleted_chat_lists_with_no_chat_to_open() -> None:
+    schedules = InMemoryScheduleStore()
+    await _fired_reminder(schedules, "r1")
+    server, address = await _serve(schedules)
+    try:
+        async with aio.insecure_channel(address) as channel:
+            stub = BrainServiceStub(channel)
+            (before,) = (await _list(stub)).reminders
+            await _delete(stub, "chat-1")
+            (after,) = (await _list(stub)).reminders
+    finally:
+        await server.stop(grace=None)
+    assert before.session_id == "chat-1"
+    assert after.reminder_id == "r1"
+    assert after.session_id == ""
+
+
 class _FailingScheduleStore(InMemoryScheduleStore):
     """A store whose reads and acks always raise, for the abort paths."""
 
@@ -215,15 +239,27 @@ class _FailingScheduleStore(InMemoryScheduleStore):
         del item_id, fired_at
         raise self._down()
 
+    async def detach_session(self, session_id: str) -> int:
+        del session_id
+        raise self._down()
 
-@pytest.mark.parametrize("rpc", ["list", "ack"])
+
+async def _call(stub: BrainServiceStub, rpc: str) -> object:
+    if rpc == "list":
+        return await _list(stub)
+    if rpc == "ack":
+        return await _ack(stub, "r1", 1)
+    return await _delete(stub, "chat-1")
+
+
+@pytest.mark.parametrize("rpc", ["list", "ack", "delete"])
 async def test_store_failure_aborts_unavailable(rpc: str) -> None:
     server, address = await _serve(_FailingScheduleStore())
     try:
         async with aio.insecure_channel(address) as channel:
             stub = BrainServiceStub(channel)
             with pytest.raises(aio.AioRpcError) as excinfo:
-                await (_list(stub) if rpc == "list" else _ack(stub, "r1", 1))
+                await _call(stub, rpc)
     finally:
         await server.stop(grace=None)
     assert excinfo.value.code() == grpc.StatusCode.UNAVAILABLE

@@ -662,6 +662,32 @@ async def check_edit_rerecur_then_fire_uses_the_new_cadence(store: ScheduleStore
     assert loaded.due_at == rearm_at
 
 
+async def check_detach_session_clears_only_that_chat(store: ScheduleStore) -> None:
+    """detach_session clears one chat on its pending, firing and deliverable items only."""
+    fired = make_item(_item_id(), due_at=_NOW - timedelta(minutes=1))
+    await store.add(fired)
+    (fired_claim,) = await store.claim_due(_NOW, lease=_LEASE, limit=10)
+    done = FireOutcome(fired_at=_NOW, next_due=None, deliverable=True)
+    assert await store.finish(fired_claim, done) is True
+    firing = make_item(_item_id(), every=timedelta(hours=1))
+    await store.add(firing)
+    (claim,) = await store.claim_due(_NOW, lease=_LEASE, limit=10)
+    pending = make_item(_item_id(), due_at=_NOW + timedelta(hours=1))
+    other = replace(make_item(_item_id(), due_at=_NOW + timedelta(hours=2)), session_id="session-2")
+    await store.add(pending)
+    await store.add(other)
+    assert await store.detach_session("session-1") == 3
+    assert await store.detach_session("session-1") == 0
+    assert [item.session_id for item in await store.deliverable()] == [""]
+    assert await store.get(pending.id) == replace(pending, session_id="")
+    assert await store.get(other.id) == other
+    rearm = FireOutcome(fired_at=_NOW, next_due=_NOW + timedelta(hours=1), deliverable=False)
+    assert await store.finish(claim, rearm) is True
+    rearmed = await store.get(firing.id)
+    assert rearmed is not None
+    assert rearmed.session_id == ""
+
+
 ALL_CHECKS = (
     check_missing_get_is_none,
     check_add_get_round_trips,
@@ -706,4 +732,5 @@ ALL_CHECKS = (
     check_edit_refuses_a_firing_item,
     check_edit_unknown_is_false,
     check_edit_rerecur_then_fire_uses_the_new_cadence,
+    check_detach_session_clears_only_that_chat,
 )

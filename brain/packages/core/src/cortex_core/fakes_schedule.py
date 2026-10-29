@@ -157,3 +157,10 @@ class InMemoryScheduleStore:
                 item, deliverable_since=None, deliverable_due_at=None, deliverable_started_at=None
             )
         return True
+
+    async def detach_session(self, session_id: str) -> int:
+        """Clear the origin chat on every item made in ``session_id``; return how many."""
+        made = [item for item in self._items.values() if item.session_id == session_id]
+        for item in made:
+            self._items[item.id] = replace(item, session_id="")
+        return len(made)

@@ -122,6 +122,8 @@ class ScheduleStore(Protocol):
 
     async def ack(self, item_id: str, *, fired_at: datetime | None) -> bool: ...
 
+    async def detach_session(self, session_id: str) -> int: ...
+
 
 class HandoffStore(Protocol):
     """Hot store for the one in-flight brain handoff (Redis)."""

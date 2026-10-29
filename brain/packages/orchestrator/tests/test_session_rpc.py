@@ -1,10 +1,15 @@
 import inspect
 from collections.abc import Sequence
+from dataclasses import replace
+from datetime import UTC, datetime
 
 from cortex_core import (
     GlobalMemoryScope,
+    InMemoryScheduleStore,
     MemoryRecord,
     Message,
+    ScheduledItem,
+    ScheduleKind,
     ScoredMemory,
     SessionMemoryCascade,
     SessionMemoryScope,
@@ -148,7 +153,7 @@ async def test_delete_session_deletes_the_chat_then_cascades_to_memory() -> None
     store = RecordingStore(events)
     mem = RecordingMemoryStore(events)
     cascade = SessionMemoryCascade(mem, SessionMemoryScope())
-    reply = await delete_session(store, cascade, "gamma")
+    reply = await delete_session(store, cascade, None, "gamma")
     assert isinstance(reply, DeleteSessionReply)
     assert store.delete_calls == ["gamma"]
     assert mem.deleted_scopes == ["gamma"]
@@ -159,7 +164,7 @@ async def test_delete_session_under_global_scope_deletes_only_what_the_chat_wrot
     events: list[str] = []
     mem = RecordingMemoryStore(events)
     cascade = SessionMemoryCascade(mem, GlobalMemoryScope())
-    await delete_session(RecordingStore(events), cascade, "gamma")
+    await delete_session(RecordingStore(events), cascade, None, "gamma")
     assert mem.written_by == ["gamma"]
     assert mem.deleted_scopes == []
     assert events == ["delete:gamma", "written:gamma"]
@@ -167,9 +172,39 @@ async def test_delete_session_under_global_scope_deletes_only_what_the_chat_wrot
 
 async def test_delete_session_skips_the_cascade_when_memory_is_off() -> None:
     store = RecordingStore()
-    reply = await delete_session(store, None, "delta")
+    reply = await delete_session(store, None, None, "delta")
     assert isinstance(reply, DeleteSessionReply)
     assert store.delete_calls == ["delta"]
+
+
+class RecordingSchedules(InMemoryScheduleStore):
+    """A ScheduleStore that records each `detach_session` in the shared event list."""
+
+    def __init__(self, events: list[str]) -> None:
+        super().__init__()
+        self.events = events
+
+    async def detach_session(self, session_id: str) -> int:
+        self.events.append(f"detach:{session_id}")
+        return await super().detach_session(session_id)
+
+
+async def test_delete_session_clears_the_chat_on_its_schedules_after_the_memories() -> None:
+    events: list[str] = []
+    schedules = RecordingSchedules(events)
+    made_here = ScheduledItem(
+        id="r1",
+        kind=ScheduleKind.REMINDER,
+        text="stretch",
+        session_id="gamma",
+        due_at=datetime(2026, 7, 12, 12, 0, tzinfo=UTC),
+        created_at=datetime(2026, 7, 12, 11, 0, tzinfo=UTC),
+    )
+    await schedules.add(made_here)
+    cascade = SessionMemoryCascade(RecordingMemoryStore(events), SessionMemoryScope())
+    await delete_session(RecordingStore(events), cascade, schedules, "gamma")
+    assert events == ["delete:gamma", "written:gamma", "cascade:gamma", "detach:gamma"]
+    assert await schedules.get("r1") == replace(made_here, session_id="")
 
 
 async def test_set_session_hoisted_writes_the_flag_through_set_hoisted() -> None:
@@ -193,4 +228,4 @@ def test_session_deletion_is_a_user_only_rpc_path_never_a_tool() -> None:
     tool_surface = {name for name in vars(ToolRegistry) if not name.startswith("_")}
     assert tool_surface == {"describe_tools", "invoke"}
     handler_params = set(inspect.signature(delete_session).parameters)
-    assert handler_params == {"store", "cascade", "session_id"}
+    assert handler_params == {"store", "cascade", "schedules", "session_id"}

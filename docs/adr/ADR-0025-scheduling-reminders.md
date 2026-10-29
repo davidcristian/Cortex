@@ -30,9 +30,9 @@ is fetched when the overlay next opens, and is also sent from the brain to the b
 `cortex_core/schedule.py` holds frozen values: `ScheduledItem` (fields in
 [brain-core-tools](../modules/brain-core-tools.md#schedules), with `model` `""` for the default
 roster entry and `status` PENDING, FIRING or DONE), `ScheduleClaim(item, token)` and `FireOutcome`.
-There is no CANCELLED status, because cancel deletes. The port (`ports_stores.py`) has eleven
+There is no CANCELLED status, because cancel deletes. The port (`ports_stores.py`) has twelve
 methods: `add`, `get`, `list_active`, `cancel`, `snooze`, `edit`, `claim_due`, `finish`, `release`,
-`deliverable`, `ack`. Every transition is guarded:
+`deliverable`, `ack`, `detach_session` (ADR-0066 decision 9). Every transition is guarded:
 
 - **`claim_due`** takes items due at `now` plus FIRING items whose lease expired, oldest due first
   across both, at most `limit`, each under a fresh fencing token. Running is at-least-once: a lost

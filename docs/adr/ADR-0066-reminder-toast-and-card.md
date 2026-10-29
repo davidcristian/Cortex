@@ -107,6 +107,14 @@ explain. The control is absent, not disabled, when the row's `session_id` is emp
 session) or names the chat already on screen, where opening would change nothing but cancel the
 running turn.
 
+**A deleted chat is no reminder's origin.** `DeleteSession` calls `ScheduleStore.detach_session`,
+which sets `session_id` to `""` on every pending, firing or fired item made in that chat (ADR-0021
+decision 11), so its card has no `open chat`. The control would otherwise open an empty chat whose
+every turn ends as `session_deleted`. The Redis adapter keeps a FIRING item's claim and reads a
+raced record again rather than answering `False`, since an item it skipped would keep the deleted
+id. A fire already running at the delete keeps the old id for that run's audit lines and subagent
+tasks only.
+
 ### 10. Card layout
 
 In `overlay.css`: the timestamp sits in a right column under the dismiss control, right-aligned in
@@ -177,6 +185,9 @@ would be a brain setting.
   fires for this app's toasts is unmeasured, or through a registered COM activator for a click after
   the process has gone. The payload waits for a second consumer of toast interaction, such as a
   snooze button on the toast, so the wire format is designed with its reader.
+- A turn still running in a chat when it is deleted can add a reminder after the detach, and that
+  item keeps the deleted id
+  ([R-936](../refinements/tasks/936-a-reminder-added-by-a-turn-in-a-deleted-chat-keeps-its-id.md)).
 
 ## Alternatives rejected
 
@@ -185,6 +196,11 @@ would be a brain setting.
 - **Escaping inside `Notification`**: a backend that escapes for itself would escape twice.
 - **A clickable card body**: the text is attacker-written, so its label would be too.
 - **A disabled `open chat`**: it invites an explanation there is none worth giving.
+- **Checking the deleted set when a card is listed**: the set drops an id 30 days after its delete,
+  so a late fire or a recurring reminder would offer `open chat` again, and a turn sent there would
+  start a chat under the old id. Clearing the id at the delete holds for as long as the item does.
+- **`open chat` starting a new chat for a deleted origin**: the new chat holds none of the context
+  the control leads to.
 - **Retrying a failed ack**: a lost reply would make the retry report nothing to ack.
 
 ## Related

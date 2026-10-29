@@ -32,13 +32,13 @@ is what the wire serves beyond a turn, each absent when its capability is off.
   is 50, `MAX_SESSION_LIST_LIMIT` 200). `GetSessionMessages` returns one session's persisted
   history, empty for an unknown session.
 - `RenameSession`, `DeleteSession` and `SetSessionHoisted` (ADR-0021 decisions 10 to 12) are
-  user-only catalog writes through `session_rpc.py`. The restriction is structural: none is a tool
-  in any registry and none runs through the turn engine, so no model, tool or tainted turn can
-  reach them. `RenameSession` bounds the label (`clamp_title`, `MAX_TITLE_INPUT` of 200) and an
-  empty title clears the override. `DeleteSession` deletes the chat first, then, with a memory
-  backend wired, runs the injected `SessionMemoryCascade`, never passing `GLOBAL_SCOPE`; both steps
-  are idempotent, so a retry recovers. A `SessionStoreError` aborts `UNAVAILABLE`, and the memory
-  port's narrower `MemoryDataError` aborts `INTERNAL` instead (ADR-0008 decision 13).
+  user-only catalog writes through `session_rpc.py`. None is a tool in any registry or runs through
+  the turn engine, so no model, tool or tainted turn can reach them. `RenameSession` bounds the
+  label (`clamp_title`, `MAX_TITLE_INPUT` of 200) and an empty title clears the override.
+  `DeleteSession` deletes the chat, then runs the injected `SessionMemoryCascade` when memory is on,
+  never passing `GLOBAL_SCOPE`, and `ScheduleStore.detach_session` when scheduling is on; each step
+  is idempotent, so a retry recovers. A session, memory or schedule store error aborts
+  `UNAVAILABLE`, and the memory port's `MemoryDataError` aborts `INTERNAL` (ADR-0008 decision 13).
 - `ListDueReminders` and `AckReminder` (ADR-0025, policy in `reminders.py`) are the pull pair over
   the injected `ScheduleStore`. A `DueReminder` has the id, the text (a reminder's own or a task's
   `last_outcome`), the fired-at unix-ms stamp, the recurrence, the `tainted` bit, the origin

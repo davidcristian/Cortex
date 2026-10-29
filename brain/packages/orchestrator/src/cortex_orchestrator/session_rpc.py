@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from cortex_core import Message, SessionMemoryCascade, SessionStore, SessionSummary
+from cortex_core import Message, ScheduleStore, SessionMemoryCascade, SessionStore, SessionSummary
 from cortex_seam import DeleteSessionReply, RenameSessionReply, SetSessionHoistedReply
 from cortex_seam import SessionMessage as SessionMessagePb
 from cortex_seam import SessionSummary as SessionSummaryPb
@@ -59,15 +59,20 @@ async def rename_session(store: SessionStore, session_id: str, title: str) -> Re
 
 
 async def delete_session(
-    store: SessionStore, cascade: SessionMemoryCascade | None, session_id: str
+    store: SessionStore,
+    cascade: SessionMemoryCascade | None,
+    schedules: ScheduleStore | None,
+    session_id: str,
 ) -> DeleteSessionReply:
-    """Delete one chat and cascade to its private memories."""
-    # The chat goes first: a memory failure then leaves it gone and a retry cleans the memories,
-    # and it is marked deleted before the cascade reads its rows, so a turn still recording finds
-    # the mark after its write. Both steps are idempotent, so a retry after any failure is safe.
+    """Delete one chat, cascade to its memories and clear it as its schedules' origin."""
+    # The chat goes first: a later failure then leaves it gone and a retry cleans the rest, and
+    # it is marked deleted before the cascade reads its rows, so a turn still recording finds
+    # the mark after its write. Every step is idempotent, so a retry after any failure is safe.
     await store.delete(session_id)
     if cascade is not None:
         await cascade.delete_session_memories(session_id)
+    if schedules is not None:
+        await schedules.detach_session(session_id)
     return DeleteSessionReply()
 
 

@@ -98,6 +98,35 @@ async def edit_item(client: Redis, item_id: str, edit: ScheduleEdit) -> bool:
     return True
 
 
+async def _detach_item(client: Redis, item_id: str, session_id: str) -> bool:
+    """Clear one item's origin chat when it is ``session_id``, keeping a live claim."""
+    while True:
+        async with client.pipeline(transaction=True) as pipe:
+            state = await watched_state(pipe, item_id)
+            if state is None or state[0].session_id != session_id:
+                return False
+            item, live_claim, claimed_at = state
+            detached = replace(item, session_id="")
+            pipe.multi()
+            pipe.set(record_key(item_id), encode(detached, claim=live_claim, claimed_at=claimed_at))
+            try:
+                await pipe.execute()
+            except WatchError:
+                continue
+        return True
+
+
+async def detach_session(client: Redis, session_id: str) -> int:
+    """Clear ``session_id`` on every live item made in it; a raced write is read again."""
+    found: list[str] = []
+    for key in (DUE_KEY, FIRING_KEY, DELIVERABLE_KEY):
+        found.extend(await ids(client, key))
+    changed = 0
+    for item_id in dict.fromkeys(found):
+        changed += await _detach_item(client, item_id, session_id)
+    return changed
+
+
 async def quarantine(client: Redis, item_id: str, raw: bytes | str) -> None:
     """Move an undecodable record to the dead-letter hash, so one item drops out of the pass."""
     logger.error(
