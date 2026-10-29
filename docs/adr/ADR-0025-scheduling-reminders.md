@@ -36,8 +36,9 @@ methods: `add`, `get`, `list_active`, `cancel`, `snooze`, `edit`, `claim_due`, `
 
 - **`claim_due`** takes items due at `now` plus FIRING items whose lease expired, oldest due first
   across both, at most `limit`, each under a fresh fencing token. Running is at-least-once: a lost
-  reminder is worse than a repeated one. A record that fails to decode on this path is
-  **quarantined** to a dead-letter key and logged, and the pass continues.
+  reminder is worse than a repeated one. A record that fails to decode here, in `list_active` or in
+  `deliverable` is **quarantined** to a dead-letter key and logged, and the pass continues; the
+  listings do it because no claim reads a one-shot held for delivery.
 - **`finish(claim, outcome)`** applies only while the item is FIRING under that token and returns
   `False` for a stale claimant, so a run that outlived its lease cannot overwrite the new claim. It
   ORs the run's taint onto the item, then sets the item back to PENDING at the next due time or to

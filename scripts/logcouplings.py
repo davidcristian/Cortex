@@ -112,7 +112,7 @@ LOG_COUPLINGS: tuple[Constant, ...] = (
         sites=(Site(LOG_FIELDS, "ITEM_FIELD"),),
         mentions=(
             Mention(TICKER, FIELD_KEY, occurrences=3),
-            Mention(SCHEDULE_CLAIMS, FIELD_KEY, occurrences=3),
+            Mention(SCHEDULE_CLAIMS, FIELD_KEY, occurrences=4),
             Mention(SCHEDULING_RUNBOOK, "grep {value}="),
             Mention(TOOLS_RUNBOOK, "`{value}` of the item that fired"),
         ),

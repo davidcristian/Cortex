@@ -254,12 +254,40 @@ async def test_a_fire_stored_before_due_times_were_kept_reads_as_unknown() -> No
     assert await store.get("old-fire") is None
 
 
-async def test_corrupt_record_fails_loudly_on_list_active() -> None:
+async def test_list_active_quarantines_a_corrupt_record_and_lists_the_rest(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     client = FakeAsyncRedis(server=FakeServer())
     store = RedisScheduleStore(client)
-    await _seed_raw(client, "bad", '["not", "an", "object"]')
-    with pytest.raises(ScheduleStoreError, match="corrupt schedule record"):
-        await store.list_active()
+    good = schedule_contract.make_item("good", due_at=_NOW + timedelta(hours=1))
+    await store.add(good)
+    bad = '["not", "an", "object"]'
+    await _seed_raw(client, "bad", bad, due_at=_NOW + timedelta(days=365))
+    with caplog.at_level(logging.ERROR, logger="cortex_session.schedule_claims"):
+        assert await store.list_active() == (good,)
+    assert await store.dead_letters() == (DeadLetter(item_id="bad", raw=bad),)
+    assert await client.get(record_key("bad")) is None
+    assert await client.zscore(DUE_KEY, "bad") is None
+    assert [(line.getMessage(), line.__dict__["item_id"]) for line in caplog.records] == [
+        ("undecodable schedule record on the listing path", "bad"),
+        ("quarantining a corrupt schedule record", "bad"),
+    ]
+
+
+async def test_deliverable_quarantines_a_corrupt_record_held_only_for_delivery() -> None:
+    client = FakeAsyncRedis(server=FakeServer())
+    store = RedisScheduleStore(client)
+    await store.add(schedule_contract.make_item("good"))
+    (claim,) = await store.claim_due(_NOW, lease=_LEASE, limit=8)
+    fired = FireOutcome(fired_at=_NOW, next_due=None, deliverable=True)
+    assert await store.finish(claim, fired) is True
+    await client.set(record_key("poison"), "not json")
+    await client.zadd(DELIVERABLE_KEY, {"poison": (_NOW - timedelta(minutes=1)).timestamp()})
+    assert [item.id for item in await store.deliverable()] == ["good"]
+    assert await store.dead_letters() == (DeadLetter(item_id="poison", raw="not json"),)
+    assert await client.get(record_key("poison")) is None
+    assert await client.zscore(DELIVERABLE_KEY, "poison") is None
+    assert [item.id for item in await store.list_active()] == ["good"]
 
 
 async def test_claim_path_quarantines_a_corrupt_record() -> None:

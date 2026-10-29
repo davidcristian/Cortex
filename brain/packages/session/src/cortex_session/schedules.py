@@ -24,6 +24,7 @@ from cortex_session.schedule_claims import (
     edit_item,
     fenced,
     ids,
+    listed,
     purge_dead_letter,
     release_claim,
 )
@@ -90,9 +91,8 @@ class RedisScheduleStore:
                 found.extend(await ids(self._client, key))
             items: list[ScheduledItem] = []
             for item_id in dict.fromkeys(found):
-                raw = await self._client.get(record_key(item_id))
-                if raw is not None:
-                    item, _, _ = decode(raw, item_id)
+                item = await listed(self._client, item_id)
+                if item is not None:
                     items.append(item)
         except RedisError as err:
             msg = "listing active schedules failed"

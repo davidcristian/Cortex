@@ -1,9 +1,8 @@
 # A corrupt record awaiting delivery is never quarantined
 
-**Status:** open, actionable
+**Status:** done 2026-10-30
 **Area:** scheduling
 **Origin:** [ADR-0025](../../adr/ADR-0025-scheduling-reminders.md)
-**Verified:** 2026-10-29
 
 Only the claim path quarantines a schedule record that does not decode, and `claim_due`
 (`schedule_claims.py`) reads only the due and firing indexes. A record listed only under
@@ -29,3 +28,10 @@ year later `dead_letters()` was still empty.
 ## History
 
 - 2026-10-29: filed from the audit of the chat delete that skips a record that does not decode.
+- 2026-10-30: done. `list_active` and `deliverable` read each record through `listed`
+  (`schedule_claims.py`), which logs `undecodable schedule record on the listing path` and moves a
+  record that does not decode to the dead-letter hash through `quarantine`, so one record costs
+  one item. Skipping alone was rejected: a fired one-shot held for delivery is in no index the
+  claim path reads, so it would stay and be logged on every listing. A chat's delete still skips
+  and logs it, and a later listing moves it. Reproduced on fakeredis and on a throwaway
+  `redis:8-alpine`; contract rows for both listings are in `test_schedule_store_contract.py`.

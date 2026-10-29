@@ -13,12 +13,11 @@ from cortex_core import (
     ScheduleStatus,
     acks_fire,
 )
-from cortex_session.schedule_claims import WatchedState, fenced, holds, ids
+from cortex_session.schedule_claims import WatchedState, fenced, holds, ids, listed
 from cortex_session.schedule_codec import (
     DELIVERABLE_KEY,
     DUE_KEY,
     FIRING_KEY,
-    decode,
     encode,
     record_key,
 )
@@ -62,12 +61,11 @@ async def finish_claim(client: Redis, claim: ScheduleClaim, outcome: FireOutcome
 
 
 async def deliverable_items(client: Redis) -> tuple[ScheduledItem, ...]:
-    """Fired reminders awaiting ack, oldest-fired-first (dangling ids skipped)."""
+    """Fired reminders awaiting ack, oldest-fired-first (dangling and corrupt ids skipped)."""
     items: list[ScheduledItem] = []
     for item_id in await ids(client, DELIVERABLE_KEY):
-        raw = await client.get(record_key(item_id))
-        if raw is not None:
-            item, _, _ = decode(raw, item_id)
+        item = await listed(client, item_id)
+        if item is not None:
             items.append(item)
     return tuple(items)
 

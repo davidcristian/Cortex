@@ -207,15 +207,15 @@ against the demo bridge.
 - **A fire repeats.** Expected after a crash or a task outrunning `CORTEX_SCHEDULE_LEASE_S`, which
   is at-least-once by design; the fencing token keeps the duplicate's late finish from overwriting
   state. Raise the lease if tasks legitimately run long.
-- **A corrupt record.** The claim path quarantines it to the `cortex:schedules:dead` hash, loudly,
-  and the pass continues. See below.
+- **A corrupt record.** The claim path or a listing quarantines it to the `cortex:schedules:dead`
+  hash, loudly, and the pass continues. See below.
 
 ## Dead-letter quarantine
 
-A record that fails to decode on the claim path is quarantined, with the item id as the field and
-the raw bytes as the value, so one corrupt record costs the pass one item instead of failing it.
-A chat's delete skips such a record, logs `undecodable schedule record on the detach path` with its
-`item_id`, and still completes.
+A record that fails to decode on the claim path, in `list_active` or in `deliverable` is
+quarantined, with the item id as the field and the raw bytes as the value, so one corrupt record
+costs a pass or a listing one item instead of failing it. A chat's delete skips such a record, logs
+`undecodable schedule record on the detach path` with its `item_id`, and still completes.
 Two log lines say it happened, each naming the item as a field rather than in prose, so one id
 finds both the traceback and the move:
 

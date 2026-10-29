@@ -87,7 +87,7 @@ a detach or an ack that keeps the guard true does not; a raced claim is left to 
 
 - `add(item)` and `get(item_id)` handle one versioned JSON record per schedule.
 - `list_active()` is the union of the three live indexes, loaded and sorted by due time. A stale
-  index id is skipped; a record that is present and corrupt fails.
+  index id is skipped, and a record that does not decode is quarantined and skipped.
 - `cancel(item_id)` deletes the record and every index entry in one MULTI/EXEC, decoding nothing, so
   a corrupt record can still be cancelled.
 - `claim_due(now, *, lease, limit)` returns due PENDING ids plus lease-expired FIRING ids, both read
@@ -97,10 +97,10 @@ a detach or an ack that keeps the guard true does not; a raced claim is left to 
   MULTI/EXEC re-schedules or ends the item, or returns it to PENDING.
 - `deliverable()` and `ack(item_id, *, fired_at)` are the fired-reminder delivery slot. The ack
   decides through the pure `acks_fire` inside the same WATCH transaction, so it clears only the fire
-  it names, even when another write commits between the read and the EXEC.
+  it names. `deliverable()` quarantines a record that does not decode, as `list_active()` does.
 - `detach_session(session_id)` sets `session_id` to `""` on every live item made in that chat and
   keeps a FIRING item's claim, so its `finish` keeps the cleared id. A record that does not decode
-  is skipped and logged, never raised (ADR-0066).
+  is skipped and logged, never raised, and a later listing or claim quarantines it (ADR-0066).
 - `snooze(item_id, *, until)` postpones the next fire through the pure `apply_snooze`. A recurring
   item is allowed: only its next occurrence moves, with `anchor` held at the pre-snooze `due_at` so
   the series keeps its cadence. FIRING and unknown answer `False` (ADR-0025 decision 8).
@@ -209,8 +209,8 @@ Every Redis or connection failure, and every corrupt or unreadable stored record
 core's `SessionStoreError`, `TaskStoreError`, `ScheduleStoreError` or `HandoffStoreError`. Backend
 failures keep the original exception as `__cause__`; decode failures name the record (the session
 store by list index plus kind and version, the others by key). No `redis.exceptions.*` type crosses
-a port. The schedule **claim path** quarantines a corrupt record instead (ADR-0025), and `RedisPing`
-answers a failure as its fault.
+a port. The schedule **claim path and listings** quarantine a corrupt record instead (ADR-0025), and
+`RedisPing` answers a failure as its fault.
 
 ## Tests
 

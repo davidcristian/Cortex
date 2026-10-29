@@ -128,7 +128,7 @@ async def _detach_item(client: Redis, item_id: str, session_id: str) -> bool:
     try:
         return await fenced(client, item_id, plan)
     except ScheduleStoreError:
-        # The claim path quarantines it when it falls due; failing here fails every delete.
+        # A listing or the claim path quarantines it; failing here fails every delete.
         logger.exception(
             "undecodable schedule record on the detach path", extra={"item_id": item_id}
         )
@@ -159,6 +159,22 @@ async def quarantine(client: Redis, item_id: str, raw: bytes | str) -> None:
         pipe.zrem(DELIVERABLE_KEY, item_id)
         pipe.delete(record_key(item_id))
         await pipe.execute()
+
+
+async def listed(client: Redis, item_id: str) -> ScheduledItem | None:
+    """Load one indexed record; a missing one is None, and so is one quarantined as corrupt."""
+    raw = await client.get(record_key(item_id))
+    if raw is None:
+        return None
+    try:
+        item, _, _ = decode(raw, item_id)
+    except ScheduleStoreError:
+        logger.exception(
+            "undecodable schedule record on the listing path", extra={"item_id": item_id}
+        )
+        await quarantine(client, item_id, raw)
+        return None
+    return item
 
 
 def _replaced(value: bytes | str) -> str:

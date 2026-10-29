@@ -113,11 +113,11 @@ decision 11), so its card has no `open chat`. The control would otherwise open a
 every turn ends as `session_deleted`. The Redis adapter keeps a FIRING item's claim and reads a
 raced record again rather than answering `False`, since an item it skipped would keep the deleted
 id. It skips and logs a record that does not decode, so one corrupt record does not fail every
-chat's delete; the claim path quarantines such a record only once it falls due. A delete does not wait for a turn
+chat's delete; a later listing or claim quarantines such a record. A delete does not wait for a turn
 running in the chat, so `schedule_task` reads `SessionStore.deleted` after its `add` and detaches
-the chat when it is set: the delete marks the chat before its detach reads the items, so an add
-that commits after that read finds the mark. A failed read is logged and keeps the id. A fire
-already running at the delete keeps the old id for that run's audit lines and subagent tasks only.
+the chat when it is set: the delete marks the chat before its detach reads the items, so an add that
+commits after that read finds the mark. A failed read is logged and keeps the id. A fire already
+running at the delete keeps the old id for that run's audit lines and subagent tasks only.
 
 ### 10. Card layout
 
@@ -189,9 +189,6 @@ would be a brain setting.
   fires for this app's toasts is unmeasured, or through a registered COM activator for a click after
   the process has gone. The payload waits for a second consumer of toast interaction, such as a
   snooze button on the toast, so the wire format is designed with its reader.
-- A record that does not decode and is held only for delivery is never quarantined, so it fails
-  every listing of due reminders and keeps a deleted chat's id
-  ([R-940](../refinements/tasks/940-a-corrupt-record-awaiting-delivery-is-never-quarantined.md)).
 
 ## Alternatives rejected
 
