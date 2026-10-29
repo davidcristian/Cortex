@@ -1,0 +1,59 @@
+"""Close a reply that says something was noted on a turn whose exchange memory does not store."""
+
+import re
+from collections.abc import Sequence
+
+from cortex_core.conversation import ToolRun
+from cortex_core.memory_forget import FORGET_UNTRUSTED_TOOL_NAME
+from cortex_core.memory_forget_chosen import FORGET_CHOSEN_TOOL_NAME
+from cortex_core.turn_context import TurnCapabilities
+from cortex_core.untrusted import TaintLedger
+
+UNKEPT_CLAIM_NOTE = (
+    "\n\n(Nothing in this message was kept in memory. Send anything you want remembered again in "
+    "a message of its own.)"
+)
+
+_ADVERB = r"(?:(?:now|just|also|already)\s+)?"
+_HAVE = rf"\bI(?:\s+have|['\u2019]ve)?\s+{_ADVERB}"
+_WILL = rf"\bI(?:\s+will|['\u2019]ll)\s+{_ADVERB}"
+_NOTED = re.compile(
+    rf"{_HAVE}(?:noted|remembered|memori[sz]ed|made\s+a\s+note)\b"
+    rf"|{_WILL}(?:remember|note|memori[sz]e|make\s+a\s+note)\b",
+    re.IGNORECASE,
+)
+_PUT = re.compile(
+    rf"(?:{_HAVE}(?:saved|stored|kept|recorded|added)|{_WILL}(?:save|store|keep|record|add))\b"
+    r".*\b(?:in|to|into)\s+(?:my\s+)?(?:mind|memory)\b",
+    re.IGNORECASE,
+)
+_PASSIVE = re.compile(
+    r"\b(?:has|have)\s+been\s+(?:noted|remembered)\b|^\W*(?:got\s+it\W+)?noted\b", re.IGNORECASE
+)
+_SENTENCE_END = re.compile(r"(?<=[.!?])\s+|\n+")
+
+
+def claims_kept(reply: str) -> bool:
+    """Whether a statement in ``reply`` says something was noted or will be remembered."""
+    return any(
+        not sentence.rstrip().endswith("?")
+        and any(pattern.search(sentence) for pattern in (_NOTED, _PUT, _PASSIVE))
+        for sentence in _SENTENCE_END.split(reply)
+    )
+
+
+def memory_withheld(caps: TurnCapabilities, taint: TaintLedger, runs: Sequence[ToolRun]) -> bool:
+    """Whether memory is on and stores nothing of a turn that made ``runs``."""
+    if caps.memory is None:
+        return False
+    # A turn that holds a picture (a screen capture, an MCP image or an attachment) is never
+    # recorded, whatever the deployment's taint policy says: its reply may transcribe it.
+    if taint.opaque:
+        return True
+    # Recording a tainted turn that forgot the untrusted memories would store a new one.
+    if taint.tainted and any(run.ok and run.name == FORGET_UNTRUSTED_TOOL_NAME for run in runs):
+        return True
+    # A turn that asked to forget a text may name that text in its query or reply.
+    if taint.forget_asked or any(run.name == FORGET_CHOSEN_TOOL_NAME for run in runs):
+        return True
+    return taint.tainted and not caps.record_tainted_memory

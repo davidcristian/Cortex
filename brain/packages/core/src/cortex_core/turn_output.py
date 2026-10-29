@@ -14,7 +14,7 @@ from cortex_core.errors import (
 from cortex_core.events import TextDelta, ToolActivity, ToolOutcome, TurnEvent
 from cortex_core.guardrail import OutputFilter
 from cortex_core.loop_events import ReasoningDelta, StepOutcome, ToolStep
-from cortex_core.memory_forget import FORGET_UNTRUSTED_TOOL_NAME
+from cortex_core.memory_claim import UNKEPT_CLAIM_NOTE, claims_kept, memory_withheld
 from cortex_core.memory_forget_chosen import FORGET_CHOSEN_TOOL_NAME
 from cortex_core.output_channels import ThinkingChannel
 from cortex_core.repeat_watch import REPEATED_LINE_NOTE, RepeatWatch
@@ -122,17 +122,21 @@ def limit_notes(
     *,
     earlier: Sequence[ToolRun] = (),
     said: Sequence[str] = (),
+    withheld: bool = False,
 ) -> Iterator[TurnEvent]:
     """The notes a turn that ended without an error closes with, in the order it shows them.
 
-    ``earlier`` (runs of an earlier phase) and ``said`` (the person's messages) are for the claim.
+    ``earlier`` (runs of an earlier phase) and ``said`` (the person's messages) are for the claims.
     """
     claimed = unscheduled_claim((*earlier, *runs), "".join(parts), said)
+    unkept = withheld and claims_kept("".join(parts))
     yield from cap_note(stops, parts)
     yield from rounds_note(stops, runs, parts)
     yield from repeat_note(stops, parts)
     if claimed:
         yield from append_note(parts, UNSCHEDULED_CLAIM_NOTE)
+    if unkept:
+        yield from append_note(parts, UNKEPT_CLAIM_NOTE)
 
 
 def unreadable_call_note(stops: StopLedger, parts: list[str]) -> Iterator[TurnEvent]:
@@ -253,18 +257,7 @@ async def record_exchange(  # noqa: PLR0913 -- a deep phase adds the runs the co
 
     ``earlier`` is the runs the cortex made before it handed the turn to the deep phase.
     """
-    # A turn that holds a picture (a screen capture, an MCP image or an attachment) is never
-    # recorded, whatever the deployment's taint policy says: its reply may transcribe it.
-    if taint.opaque:
-        return
-    made = (*earlier, *runs)
-    # Recording a tainted turn that forgot the untrusted memories would store a new one.
-    if taint.tainted and any(run.ok and run.name == FORGET_UNTRUSTED_TOOL_NAME for run in made):
-        return
-    # A turn that asked to forget a text may name that text in its query or reply.
-    if taint.forget_asked or any(run.name == FORGET_CHOSEN_TOOL_NAME for run in made):
-        return
-    if caps.memory is None or (taint.tainted and not caps.record_tainted_memory):
+    if caps.memory is None or memory_withheld(caps, taint, (*earlier, *runs)):
         return
     fields = {"session_id": session_id}
     try:

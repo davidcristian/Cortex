@@ -3,6 +3,7 @@
 from cortex_core.embed_input import EMBED_INPUT_CHARS, EMBEDDER_CONTEXT_TOKENS, embedding_input
 from cortex_core.memory import GLOBAL_SCOPE, MemoryRecord, ScoredMemory
 from cortex_core.memory_cascade import SessionMemoryCascade
+from cortex_core.memory_claim import UNKEPT_CLAIM_NOTE, claims_kept, memory_withheld
 from cortex_core.memory_forget import (
     FORGET_CARD,
     FORGET_UNTRUSTED_TOOL_NAME,
@@ -59,6 +60,7 @@ __all__ = [
     "GLOBAL_SCOPE",
     "RAW_RECALL_POLICY",
     "RECALL_CHAR_BUDGET",
+    "UNKEPT_CLAIM_NOTE",
     "DroppedCandidate",
     "DroppedCandidates",
     "ForgetChosenTool",
@@ -81,9 +83,11 @@ __all__ = [
     "SessionMemoryCascade",
     "SessionMemoryScope",
     "UntrustedMemoryForget",
+    "claims_kept",
     "cut_marker",
     "dropped_candidates",
     "embedding_input",
     "fit_recalled",
+    "memory_withheld",
     "recall_allowances",
 ]

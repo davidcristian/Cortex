@@ -230,4 +230,4 @@ In 2 of the 10 candidate draws the first message itself called `forget_memories`
 denied, and the reply said the number could not be remembered. In one more, the first message
 called `list_allowed_directories`, which read untrusted content, so the turn was not recorded
 while its reply said the number was noted
-([R-928](../refinements/tasks/928-a-reply-can-say-a-fact-was-noted-on-a-turn-that-is-not-kept.md)).
+([readings](remember-on-a-turn-not-kept.md)).

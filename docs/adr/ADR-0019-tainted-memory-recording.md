@@ -145,6 +145,26 @@ across turns (a recalled memory).
    memories are forgotten and a new message can run the action. `RECALL_DENIED_MSG` would tell the
    person to forget them again. The handoff record does not keep `forgotten`, since a
    recall-tainted turn cannot escalate: `escalate_to_brain` has no record card.
+10. **A reply that says something was noted on a turn memory does not store ends with a note.**
+   One check, `memory_withheld(caps, taint, runs)` (`memory_claim.py`), says whether memory is on
+   and stores nothing of a turn: an opaque turn (decision 6), a tainted turn whose
+   `forget_untrusted_memories` ran (decision 9), a turn that named `forget_memories`
+   ([ADR-0075](ADR-0075-forget-chosen-memories.md)), and a tainted turn under `skip` (decision 3).
+   `record_exchange` returns on it, and the engine and the deep phase pass it, over the same runs,
+   to `limit_notes`, which appends `UNKEPT_CLAIM_NOTE` when `claims_kept` also finds a statement
+   that something was noted or will be remembered, as `UNSCHEDULED_CLAIM_NOTE` closes a schedule
+   claim no call made ([ADR-0025](ADR-0025-scheduling-reminders.md)). The two cannot disagree,
+   since both read the one check. A request to remember takes such a path by itself: the cortex
+   called a file sidecar tool or `forget_memories` for it, and the reply said the fact was noted
+   in most of those draws, with or without a note on the call's result
+   ([readings](../readings/remember-on-a-turn-not-kept.md)). A note in the reply is the fix, not
+   a different skip: a turn that read untrusted content stays unrecorded under `skip`, and a
+   forget still names a value the person wants gone. With memory off the check is false, since
+   sending the fact again would not keep it either. A write that fails, times out or finds a
+   recalled memory deleted runs after the reply is shown and saved
+   ([ADR-0008](ADR-0008-memory-v1.md) decision 12), so the note does not cover it: covering it
+   would mean writing before the reply is saved, and a turn cancelled during a slow write would
+   then lose its saved reply.
 
 ## Consequences
 

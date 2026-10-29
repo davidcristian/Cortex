@@ -80,6 +80,15 @@ pool down to the hits one turn sees. The turn that calls it is in
   the model names before any refusal or cut, the engine and the deep phase set it for an
   unreadable call whose `MalformedToolCallError.tool_name` is the forget, and the handoff record
   keeps it for the deep phase.
+- `memory_withheld(caps, taint, runs)` (`memory_claim.py`, ADR-0019 decision 10) is the one check
+  of whether memory is on and stores nothing of a turn: an opaque turn whatever
+  `record_tainted_memory` says (ADR-0029), a tainted turn whose `forget_untrusted_memories` ran
+  `ok`, a turn that named `forget_memories`, and a tainted turn under `skip`. `record_exchange`
+  returns on it, and both phases pass it to `limit_notes` as `withheld`, which then appends
+  `UNKEPT_CLAIM_NOTE` when `claims_kept(reply)` finds a statement, not a question, saying something
+  was noted, remembered, made a note of, or kept or saved "in mind" or "in memory". A bare "saved"
+  or "stored" does not count, since a file tool's reply says it saved a file. With memory off the
+  check is false and no note shows.
 - `RecallPolicy` (port, `rerank.py`) turns an over-fetched pool into the final `k` hits:
   `candidate_k(k)` sizes the pool and `async select(hits, *, query, now, k, session_id=None,
   turn_id=None) -> Ranking` reranks and cuts it, returning at most `k` hits from the pool, none

@@ -19,7 +19,9 @@ Read from the code on 2026-10-29. `record_exchange` skips a turn on each path be
 | a memory write that fails or times out, or a recalled tainted memory deleted meanwhile | either | nothing, since the reply is already written |
 
 The setting is `CORTEX_MEMORY_ON_TAINTED`, whose default is `skip`
-([ADR-0019](../adr/ADR-0019-tainted-memory-recording.md)).
+([ADR-0019](../adr/ADR-0019-tainted-memory-recording.md)). Since the change measured below, a
+reply that says something was noted ends with `UNKEPT_CLAIM_NOTE` on every path but the last,
+which runs after the reply is shown and saved (decision 10 there).
 
 ## What the replies said, 2026-10-29
 
@@ -75,3 +77,27 @@ The pass rule:
 - The baseline for the forget path is the 7 of 11 above. The baseline for T1 to T3 is five counted
   draws each with the shipped texts, drawn before the change is built. A null result is the change
   failing as many not-kept draws as the baseline does.
+
+## The draws of the change, 2026-10-29
+
+The T1 to T3 baseline ran on the shipped brain before the change was built; then every row ran
+once on a brain built with it. Every T draw called a file sidecar tool but one T2 draw of the
+change, which called none, stored its fact and was replaced. The `memories` table agreed with the
+check in every draw: no draw that was not kept left a row holding its fact, and every kept draw
+left one.
+
+| Row | Draws | Not kept | Said noted, so the note was added | Not kept, failed | Kept, with the note |
+| --- | --- | --- | --- | --- | --- |
+| RC | 40 | 10, each a `forget_memories` call | 4 | 0 | 0 of 30 |
+| R14 | 28 | 8, each a `forget_memories` call | 8 | 0 | 0 of 20 |
+| T1 | 5 | 5 | 5 | 0 | none kept |
+| T2 | 6 | 5 | 3 | 0 | 0 of 1 |
+| T3 | 5 | 5 | 4 | 0 | none kept |
+| K | 5 | 5 | 0 | 0 | none kept |
+
+The baseline replies said the fact was noted or remembered in 3 of 5 T1, 5 of 5 T2 and 3 of 5 T3
+draws, 11 of 15 in all, two of the T2 ones after a `forget_memories` call whose result had the
+forget note. With the change, every reply that was not kept and has no note said the fact could
+not be saved, or did not mention it. The rule passes: 0 of 33 not-kept draws failed, no kept draw
+ended with the note, and no K reply did. The change ships. All 8 R14 draws that called the forget
+said "I've noted" before the note, so the result note alone still does not stop the claim.

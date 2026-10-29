@@ -14,6 +14,7 @@ from cortex_core.handoff_view import (
     deep_history,
     deep_tail,
 )
+from cortex_core.memory_claim import memory_withheld
 from cortex_core.output_channels import open_output_channels
 from cortex_core.ports import Clock, InferenceBackend, SessionStore
 from cortex_core.schedule_claim import said_by_person
@@ -158,7 +159,11 @@ class BrainPhase:
         earlier = cortex_runs(stored, record)
         if failure is None:
             said = said_by_person(stored)
-            for event in limit_notes(stops, log.runs, parts, earlier=earlier, said=said):
+            withheld = memory_withheld(self._caps, taint, (*earlier, *log.runs))
+            notes = limit_notes(
+                stops, log.runs, parts, earlier=earlier, said=said, withheld=withheld
+            )
+            for event in notes:
                 yield event
         self._report_cadence(watch.reading(), record)
         reply = "".join(parts)

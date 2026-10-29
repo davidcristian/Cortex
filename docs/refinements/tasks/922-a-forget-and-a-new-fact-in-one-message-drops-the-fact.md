@@ -29,5 +29,4 @@ argument the model passed (a keyword such as `passport`), so masking the argumen
   expired or refused, now ends with `FORGET_NOT_KEPT_NOTE`: nothing in the message is kept, the
   reply must not say it was noted, and the person is asked to send anything else again. A first
   wording failed the rule on N2 and the second passed it, 13 of 15 N draws against 0 of 15 with no
-  note; with the card declined, 5 of 5 against 0 of 5. Filed task 928, a request to remember that
-  calls the forget.
+  note; with the card declined, 5 of 5 against 0 of 5.

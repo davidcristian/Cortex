@@ -24,6 +24,7 @@ from cortex_core import (
     REPEATED_LINE_NOTE,
     REPLY_CAPPED_NOTE,
     RESULT_ROOM_CHARS,
+    UNKEPT_CLAIM_NOTE,
     UNREADABLE_CALL_NOTE,
     UNSCHEDULED_CLAIM_NOTE,
     USER_DECLINED_MSG,
@@ -555,6 +556,29 @@ async def test_a_deep_reply_s_schedule_claim_counts_what_the_cortex_scheduled_fi
     assert (UNSCHEDULED_CLAIM_NOTE in "".join(deltas)) is noted
     reply = (await sessions.history(harness.SESSION))[-1]
     assert reply.runs == ()
+
+
+@pytest.mark.parametrize(
+    ("cortex_runs", "taint", "noted"),
+    [
+        ((_ESCALATED,), None, False),
+        ((ToolRun(FORGET_CHOSEN_TOOL_NAME, ok=False), _ESCALATED), None, True),
+        ((_ESCALATED,), TaintLedger(tainted=True), True),
+    ],
+)
+async def test_a_deep_reply_s_noted_claim_counts_what_the_cortex_ran_first(
+    *, cortex_runs: tuple[ToolRun, ...], taint: TaintLedger | None, noted: bool
+) -> None:
+    sessions = await _session_with_runs(cortex_runs)
+    backend = ScriptedBrainBackend(chunks=("I've noted your locker code.",))
+    memory = InMemoryMemoryStore()
+    caps = TurnCapabilities(memory=MemoryRecaller(memory, _Embedder(), SystemClock()))
+    _phase, _backend, sessions, deltas = await _drive(
+        capabilities=caps, backend=backend, store=sessions, taint=taint
+    )
+    assert (UNKEPT_CLAIM_NOTE in "".join(deltas)) is noted
+    stored = await memory.search(await _Embedder().embed("x"), k=5)
+    assert (stored == ()) is noted
 
 
 async def test_a_deep_phase_s_rounds_note_names_only_the_runs_it_made() -> None:
