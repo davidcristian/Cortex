@@ -17,11 +17,21 @@ called on a request to remember failed its rule there.
 
 ## What to do
 
-1. Read `ForgetChosenTool.card` and the dispatcher's card path, and decide whether a call whose
-   `find_text` matches nothing can return its no-match result without a card, since nothing waits
-   for approval. The turn must stay unrecorded and the result must still say nothing was removed.
-2. Write rows and a rule before any draw: RC and R14 as in the readings, counting the cards shown,
-   with forget requests whose value is stored as the rows that must still show one.
+The no-match card is one of four that `ForgetChosenTool._choose` returns for a call that deletes
+nothing whatever the answer: no text named (`_NOTHING_NAMED`), the store unavailable (`_NO_STORE`),
+more than `FORGET_CHOSEN_LIMIT` matches (`_TOO_MANY`) and no match (`_NO_MATCH`). The dispatcher
+cannot skip one today: `ToolDispatcher._confirmed` asks the confirmer whenever a call needs
+confirmation, and with no confirmer it answers `UNANSWERED` before `card` runs.
+
+1. Let a `RecordCard` say that nothing waits for approval, for example `card` returning `None`,
+   and have `_confirmed` call `card` first and then run the call without asking. `card` still
+   stores the call's reason in `_shown`, so `invoke` returns it with `FORGET_NOT_KEPT_NOTE`, and
+   the turn stays unrecorded (`memory_withheld`). Decide in ADR-0075 whether the other three
+   reasons skip the card too. What the model reads changes only where the card was denied: the
+   reason replaces `USER_DECLINED_MSG`.
+2. Write rows and a rule before any draw: RC and R14 as in the readings, counting the cards shown
+   and the replies that claim a fact was kept, with forget requests whose value is stored as the
+   rows that must still show one.
 
 ## History
 
