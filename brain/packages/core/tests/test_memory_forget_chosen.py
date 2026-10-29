@@ -4,6 +4,7 @@ from datetime import UTC, datetime, timedelta
 from cortex_core import (
     FORGET_CHOSEN_LIMIT,
     FORGET_CHOSEN_TOOL_NAME,
+    FORGET_NOT_KEPT_NOTE,
     GLOBAL_MEMORY_SCOPE,
     ForgetChosenTool,
     InMemoryMemoryStore,
@@ -11,12 +12,14 @@ from cortex_core import (
     MemoryStoreError,
     SessionMemoryScope,
     ToolCall,
+    ToolResult,
     TurnStamp,
 )
 
 _AT = datetime(2026, 10, 28, 4, 0, 0, tzinfo=UTC)
 _CARD = "User: Remember that my card number is 4242 4242 4242 4242.\nAssistant: Noted."
 _RECALL = "User: What do you remember?\nAssistant: Your card number is 4242 4242 4242 4242."
+_NOTE = f". {FORGET_NOT_KEPT_NOTE}"
 
 
 def _record(record_id: str, text: str, *, scope: str = "global", minutes: int = 0) -> MemoryRecord:
@@ -38,6 +41,11 @@ async def _store(*records: MemoryRecord) -> InMemoryMemoryStore:
 
 async def _texts(store: InMemoryMemoryStore) -> list[str]:
     return sorted(hit.record.id for hit in await store.search((1.0, 0.0), k=100))
+
+
+def _said(result: ToolResult) -> str:
+    assert result.content.endswith(_NOTE)
+    return result.content.removesuffix(_NOTE)
 
 
 def _call(text: object = "4242 4242", *, call_id: str = "c1", session: str = "chat-a") -> ToolCall:
@@ -83,7 +91,7 @@ async def test_the_card_lists_every_matching_memory_and_the_forget_deletes_them(
     ]
     result = await tool.invoke(_call())
     assert result.is_error is False
-    assert result.content == (
+    assert _said(result) == (
         "forgot 2 remembered exchanges; no remembered exchange contains that text now"
     )
     assert await _texts(store) == ["wifi"]
@@ -95,7 +103,7 @@ async def test_a_word_naming_the_fact_lists_the_memory_that_holds_its_value() ->
     tool = ForgetChosenTool(store, GLOBAL_MEMORY_SCOPE)
     card = await tool.card(_call("Passport"))
     assert card.splitlines()[1] == "- User: My passport number is X1234567. Assistant: Noted."
-    assert (await tool.invoke(_call("Passport"))).content.startswith("forgot 1 remembered")
+    assert _said(await tool.invoke(_call("Passport"))).startswith("forgot 1 remembered")
     assert await _texts(store) == ["wifi"]
 
 
@@ -113,7 +121,7 @@ async def test_the_delete_removes_only_what_the_card_showed() -> None:
     await store.add(_record("later", _RECALL, minutes=5))
     result = await tool.invoke(_call())
     assert result.is_error is True
-    assert result.content == (
+    assert _said(result) == (
         "forgot 1 remembered exchanges, but 1 written since the card was shown still contain "
         "that text, so it is not forgotten"
     )
@@ -127,14 +135,14 @@ async def test_a_memory_written_during_the_delete_is_reported_as_left() -> None:
     await tool.card(_call())
     result = await tool.invoke(_call())
     assert result.is_error is True
-    assert "but 1 written since the card was shown" in result.content
+    assert "but 1 written since the card was shown" in _said(result)
 
 
 async def test_a_session_scope_reaches_only_what_that_chat_can_recall() -> None:
     store = await _store(_record("mine", _CARD, scope="chat-a"), _record("other", _CARD, scope="b"))
     tool = ForgetChosenTool(store, SessionMemoryScope())
     await tool.card(_call())
-    assert (await tool.invoke(_call())).content.startswith("forgot 1 remembered exchanges;")
+    assert _said(await tool.invoke(_call())).startswith("forgot 1 remembered exchanges;")
     assert await _texts(store) == ["other"]
 
 
@@ -146,7 +154,7 @@ async def test_nothing_matching_says_so_and_deletes_nothing() -> None:
     )
     result = await tool.invoke(_call("passport"))
     assert result.is_error is False
-    assert result.content == (
+    assert _said(result) == (
         "nothing was forgotten: no remembered exchange contains that text, so there is nothing to "
         "forget and no need to ask the user for the value"
     )
@@ -160,7 +168,7 @@ async def test_a_missing_or_blank_text_deletes_nothing() -> None:
         assert await tool.card(_call(text)) == "No text was named, so approving deletes nothing."
         result = await tool.invoke(_call(text))
         assert result.is_error is True
-        assert result.content == "nothing was forgotten: the call named no text"
+        assert _said(result) == "nothing was forgotten: the call named no text"
     assert await _texts(store) == ["card"]
 
 
@@ -173,7 +181,7 @@ async def test_more_matches_than_the_card_can_list_deletes_nothing() -> None:
     )
     result = await tool.invoke(_call())
     assert result.is_error is True
-    assert result.content.startswith(f"nothing was forgotten: more than {FORGET_CHOSEN_LIMIT}")
+    assert _said(result).startswith(f"nothing was forgotten: more than {FORGET_CHOSEN_LIMIT}")
     assert len(await _texts(store)) == FORGET_CHOSEN_LIMIT + 1
 
 
@@ -193,7 +201,7 @@ async def test_a_store_down_at_the_card_deletes_nothing() -> None:
     assert card == "The memory store is unavailable, so approving deletes nothing."
     result = await tool.invoke(_call())
     assert result.is_error is True
-    assert result.content == (
+    assert _said(result) == (
         "the memory store is unavailable, so nothing was forgotten: pgvector is down"
     )
 
@@ -205,7 +213,7 @@ async def test_a_store_failing_the_delete_says_the_forget_failed() -> None:
     await tool.card(_call())
     result = await tool.invoke(_call())
     assert result.is_error is True
-    assert result.content == "the memory store failed during the forget: pgvector is down"
+    assert _said(result) == "the memory store failed during the forget: pgvector is down"
 
 
 async def test_an_invoke_without_a_card_deletes_nothing() -> None:
@@ -213,7 +221,7 @@ async def test_an_invoke_without_a_card_deletes_nothing() -> None:
     tool = ForgetChosenTool(store, GLOBAL_MEMORY_SCOPE)
     result = await tool.invoke(_call())
     assert result.is_error is True
-    assert result.content == "nothing was forgotten: no card listed what to delete"
+    assert _said(result) == "nothing was forgotten: no card listed what to delete"
     assert await _texts(store) == ["card"]
 
 
@@ -223,7 +231,7 @@ async def test_a_card_is_used_once() -> None:
     await tool.card(_call())
     await tool.invoke(_call())
     second = await tool.invoke(_call())
-    assert second.content == "nothing was forgotten: no card listed what to delete"
+    assert _said(second) == "nothing was forgotten: no card listed what to delete"
 
 
 async def test_only_the_latest_cards_are_kept() -> None:
@@ -232,5 +240,5 @@ async def test_only_the_latest_cards_are_kept() -> None:
     for index in range(33):
         await tool.card(_call(call_id=f"c{index}"))
     first = await tool.invoke(_call(call_id="c0"))
-    assert first.content == "nothing was forgotten: no card listed what to delete"
+    assert _said(first) == "nothing was forgotten: no card listed what to delete"
     assert (await tool.invoke(_call(call_id="c1"))).is_error is False

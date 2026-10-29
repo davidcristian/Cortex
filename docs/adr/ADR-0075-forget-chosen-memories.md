@@ -57,9 +57,13 @@ that removes exactly those rows and holds against a turn in flight. This record 
    refused, was cut from its round or could not be read, because its query or reply may name the
    text it forgets, and recording it would store that text again. That holds for the deep phase
    of a turn the cortex handed over after naming it, which reads the cortex's runs from the
-   stored reply and the mark from the handoff record. Its spec sets
-   `private_arguments`, so the tool audit and a handoff record's loop tail keep the `text` argument
-   as `<redacted>`, and a call whose arguments do not parse is logged by its tool name and length.
+   stored reply and the mark from the handoff record. So every result `invoke` returns ends with
+   `FORGET_NOT_KEPT_NOTE`: nothing in the message is kept, the reply must not say anything in it
+   was noted, and anything else it asked to be remembered must be sent again in its own message,
+   because a model given no note told the person a new fact in the same message was kept. Its
+   spec sets `private_arguments`, so the tool audit and a handoff record's loop tail keep the
+   `text` argument as `<redacted>`, and a call whose arguments do not parse is logged by its tool
+   name and length.
    A forget the person declined before a handoff therefore matches no call after it: the deep
    model's forget shows a card again rather than being refused for a text nobody declined.
 6. **A card lists at most 20 rows.** More matches delete nothing and ask for a more exact text,

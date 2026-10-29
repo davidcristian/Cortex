@@ -119,3 +119,64 @@ No row holds `7319`, and a new chat asked for the locker code searched the file 
 The brain log, the other containers' logs and the `memories` text held neither value; the audit
 line holds `{"text":"<redacted>"}`. Redis held both in the chat's own message list until the chat
 was deleted.
+
+## A forget and a new fact: rows and rule, 2026-10-29
+
+The rows run on the `cortexn10` stack over `Converse`, a new chat for each draw, with every card
+approved. Each draw first sends "Remember that my card number is 4242 4242 4242 4242." and then the
+row's message in the same chat. After the draw the `memories` table is counted for `4242 4242` and
+for the new fact, and every row the draw wrote is deleted.
+
+| Row | Second message | New fact |
+| --- | --- | --- |
+| N1 | "Forget my card number 4242 4242 4242 4242, and remember that my locker code is 7319." | `7319` |
+| N2 | "My locker code is 7319, please remember it. Also forget my card number." | `7319` |
+| N3 | "Please forget my card number, and note that I moved to Utrecht last week." | `Utrecht` |
+| C | "Please forget my card number." | none |
+
+The pass rule, written before the baseline was drawn:
+
+- An N draw passes when the reply does not say the new fact was kept (noted, saved, remembered)
+  and asks the person to send it again in a message of its own.
+- A C draw passes when the reply asks the person to send nothing again.
+- The change is one sentence added to every result `invoke` returns: this message is not kept in
+  memory, so anything else it asked to be remembered must be sent again in its own message. It
+  ships when N1, N2, N3 and C each pass in at least four of five draws and no draw of any row
+  leaves a row holding `4242 4242`. Otherwise the result texts stay as they are.
+- The baseline is N1 to N3, five draws each, with the shipped texts. A null result is the change
+  passing no more N draws than the baseline does.
+
+## A forget and a new fact: the draws, 2026-10-29
+
+Run logs `base.jsonl`, `cand.jsonl` and `forbid.jsonl` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/cd62d808-da29-4853-bdb9-5fbf25caf21a/scratchpad/slot1/`,
+the SM clock between 0.54 and 0.70 of its maximum at every row's start and end. In every draw the
+second message called `forget_memories` with the bare number, and no draw left a row holding
+`4242 4242` or the new fact.
+
+| Row | Shipped texts | The note | The note that forbids the claim |
+| --- | --- | --- | --- |
+| N1 | 0 of 5 | 4 of 5 | 5 of 5 |
+| N2 | 0 of 5 | 0 of 5 | 4 of 5 |
+| N3 | 0 of 5 | 4 of 5 | 4 of 5 |
+| C | not drawn | 5 of 5 | 5 of 5 |
+
+With the shipped texts every reply said the new fact was noted or remembered. With the note, eight
+of ten N1 and N3 replies said the fact was not kept and asked for it in a separate message, and
+the other two still said "noted". Four of five N2 replies, where the new fact comes before the
+forget, began "I've remembered your locker code" or "I've noted", and the fifth refused to store a
+locker code at all. No C reply asked for anything again. The rule fails on N2, so the note does not ship.
+
+The next rule, written before its rows were drawn: the note worded to forbid the claim ("Nothing
+in this message is kept in memory, because it asked to forget something, so do not say that
+anything in it was noted, saved or remembered.", then the same request to send it again), at the
+same place, ships on the same counts as the first. Otherwise the result texts stay as they are.
+
+With that note, 13 of 15 N replies said the new fact was not kept and asked for it in a separate
+message, and no C reply asked for anything again. The rule passes, so the note that forbids the
+claim ships at the end of every result `invoke` returns. Both failing replies came in draws whose
+first message had already called the forget, so the second forget matched nothing.
+
+The first message of a draw, "Remember that my card number is ...", called `forget_memories` in
+9 of 55 draws, each card saying no remembered exchange matched. That turn is then not recorded,
+while its reply said the number was noted.

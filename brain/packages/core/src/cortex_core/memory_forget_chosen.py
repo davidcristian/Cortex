@@ -23,6 +23,13 @@ _NONE_FOUND = (
     "forget and no need to ask the user for the value"
 )
 
+FORGET_NOT_KEPT_NOTE = (
+    "Nothing in this message is kept in memory, because it asked to forget something, so do not "
+    "say that anything in it was noted, saved or remembered. If it also asked you to remember "
+    "anything else, say that it was not kept and ask the user to send it again in a message of "
+    "its own."
+)
+
 
 def _text(call: ToolCall) -> str:
     """The text the call names, stripped; empty when the argument is missing or not a string."""
@@ -110,7 +117,13 @@ class ForgetChosenTool:
         return tuple(record.id for record in found), card
 
     def _result(self, call: ToolCall, content: str, *, error: bool = True) -> ToolResult:
-        return ToolResult(call_id=call.id, content=content, is_error=error, trust=Trust.TRUSTED)
+        """The call's result: ``content``, then the note that this turn is not recorded."""
+        return ToolResult(
+            call_id=call.id,
+            content=f"{content}. {FORGET_NOT_KEPT_NOTE}",
+            is_error=error,
+            trust=Trust.TRUSTED,
+        )
 
     async def invoke(self, call: ToolCall) -> ToolResult:
         """Delete exactly the memories the card listed, then say whether any still match."""

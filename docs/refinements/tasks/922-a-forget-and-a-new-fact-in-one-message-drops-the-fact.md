@@ -1,9 +1,8 @@
 # A forget and a new fact in one message drops the fact
 
-**Status:** open, actionable
+**Status:** done 2026-10-29
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-10-28
 
 A turn that calls `forget_memories` is never recorded to memory, because its query or reply may
 name the text it forgets. So a message that also states a new fact loses it: "Forget my card number
@@ -26,3 +25,8 @@ argument the model passed (a keyword such as `passport`), so masking the argumen
 ## History
 
 - 2026-10-28: filed from the second audit of the forget tool, with one draw on the `cortexn9` stack.
+- 2026-10-29: done. Every result `ForgetChosenTool.invoke` returns now ends with
+  `FORGET_NOT_KEPT_NOTE`: nothing in the message is kept, the reply must not say it was noted, and
+  the person is asked to send anything else again. A first wording failed the rule on N2 and the
+  second passed it, 13 of 15 N draws against 0 of 15 with no note. Filed task 926, a request to
+  remember that calls the forget, and task 927, a forget that never ran gets no note.

@@ -70,9 +70,11 @@ pool down to the hits one turn sees. The turn that calls it is in
   whether any match is left. No text, no match, more than `FORGET_CHOSEN_LIMIT` (20) matches or a
   failed store deletes nothing, and the card and the result each say so. The description asks
   for the value or one word from the request that names it, and the no-match result says there
-  is no need to ask the user for the value. `record_exchange` stores nothing for a turn that
-  called `forget_memories`, whatever its result, since the query or reply may name the text; a
-  deep phase passes the cortex's runs of the turn as `earlier`, so a forget before a handoff counts.
+  is no need to ask the user for the value. Every result ends with `FORGET_NOT_KEPT_NOTE`, which
+  says the message is not kept and asks the model to have the user send anything else in it again.
+  `record_exchange` stores nothing for a turn that called `forget_memories`, whatever its result,
+  since the query or reply may name the text; a deep phase passes the cortex's runs of the turn as
+  `earlier`, so a forget before a handoff counts.
   A call that never ran counts too: the tool loop sets `TaintLedger.forget_asked` for every call
   the model names before any refusal or cut, the engine and the deep phase set it for an
   unreadable call whose `MalformedToolCallError.tool_name` is the forget, and the handoff record

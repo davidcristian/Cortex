@@ -12,6 +12,7 @@ from cortex_core.memory_forget import (
 from cortex_core.memory_forget_chosen import (
     FORGET_CHOSEN_LIMIT,
     FORGET_CHOSEN_TOOL_NAME,
+    FORGET_NOT_KEPT_NOTE,
     ForgetChosenTool,
 )
 from cortex_core.ranking import (
@@ -52,6 +53,7 @@ __all__ = [
     "FORGET_CARD",
     "FORGET_CHOSEN_LIMIT",
     "FORGET_CHOSEN_TOOL_NAME",
+    "FORGET_NOT_KEPT_NOTE",
     "FORGET_UNTRUSTED_TOOL_NAME",
     "GLOBAL_MEMORY_SCOPE",
     "GLOBAL_SCOPE",
