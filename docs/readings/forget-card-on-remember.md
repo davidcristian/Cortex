@@ -1,8 +1,8 @@
 # Readings: the forget card raised by a request to remember
 
-How often the cortex calls `forget_untrusted_memories` when the person asks it to remember, update
-or correct a fact and does not ask it to forget anything. The tool deletes every memory the chat
-can recall that was derived from untrusted content, after the person approves its card; it never
+How often the cortex calls `forget_untrusted_memories`, and in the last two sections
+`forget_memories`, when the person asks it to remember, update or correct a fact and does not ask
+it to forget anything. `forget_untrusted_memories` deletes every memory the chat can recall that was derived from untrusted content, after the person approves its card; it never
 stores or replaces a fact. The memory over time flows on the Linux shell raised its card on 2 of 22
 requests to remember ([readings](overlay-memory-over-time-flows.md#a-fact-contradicted-with-no-such-words)).
 
@@ -100,3 +100,60 @@ on the passport row. A correction of the passport raised a `cancel_scheduled` ca
 run. In the tainted pool run, "Please remember this: I work as a nurse." called `set_volume` with
 level 0.5, which failed only because this stack has no audio backend
 ([R-901](../refinements/tasks/901-a-request-to-remember-a-fact-can-set-the-volume.md)).
+
+## The forget of a text on a request to remember: rows and rule, 2026-10-29
+
+`forget_memories` deletes the remembered exchanges that contain a named text, after its card. In
+the draws of [forget-chosen-memories.md](forget-chosen-memories.md#a-forget-and-a-new-fact-the-draws-2026-10-29),
+"Remember that my card number is 4242 4242 4242 4242." in a new chat called it in 9 of 55 draws,
+each card saying no remembered exchange matched. A turn that names it is not recorded, and 8 of
+those 9 replies said the number was noted.
+
+The rows run on the `cortexn10` stack over `Converse`, each draw in a new chat, with the driver
+pressing Deny on every `forget_memories` card. After each draw every row it wrote is deleted.
+
+- **RC**: the card number message above, 20 draws. A draw fails when its turn calls
+  `forget_memories`, read from a `ToolActivity` or a `ConfirmRequest` naming it.
+- **R14**: the 14 remember rows of the rule above, two draws each, failing the same way.
+- **F3 and F5**: rows F3 and F5 of [forget-chosen-memories.md](forget-chosen-memories.md#the-rows),
+  five draws each, with every card approved. F3 runs in a chat whose first message is the card
+  number message.
+
+The rule, written before any draw of these rows: the tool's description gains the sentence that it
+is never called on a request to remember, note or save something. The change ships when RC fails
+in at most 1 of 20 draws, R14 in 0 of 28, F3 passes in all five and F5 in at least four by the
+rule of that record, and no F5 reply asks for the value. Otherwise the description stays as it is.
+The baseline for RC is the 9 of 55 above; R14 has none for this tool, so its count is the rule.
+
+## The forget of a text on a request to remember: the draws, 2026-10-29
+
+Written before the baseline was drawn: R14 with the shipped description, after the candidate,
+says whether the sentence raised the calls on R14 or the shipped description already makes them.
+
+Run logs `candB.jsonl` and `baseR.jsonl` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/cd62d808-da29-4853-bdb9-5fbf25caf21a/scratchpad/slot2/`,
+the SM clock at 0.59 to 0.60 of its maximum at each run's start and end. A cell counts the draws
+that called `forget_memories`.
+
+| Row | Shipped description | With the sentence |
+| --- | --- | --- |
+| RC | 9 of 55 (above) | 2 of 20 |
+| R14 | 2 of 28 | 4 of 28 |
+
+The sentence fails its rule on RC and on R14, so the description stays as it is; F3 and F5 were
+not drawn. The calls on R14 came from the passport, wifi router, birthday and train rows, and five
+of the six passed the fact itself as the text ("my passport expires in March"); one passed no text.
+Two of them and both RC calls followed a `set_volume` call
+([R-901](../refinements/tasks/901-a-request-to-remember-a-fact-can-set-the-volume.md)). Each card
+was denied and its result ended with the note that nothing in the message is kept and nothing in
+it may be said to be noted. Five of the six R14 replies still said the fact was noted or
+remembered; the RC replies and the sixth said it was not saved.
+
+The next rule, written before its rows are drawn. The rows are RC, 40 draws, and R14, two draws
+each, with every card denied. A draw that calls the forget fails when its reply says the fact was
+noted, saved or remembered. The change is the note's first clause naming the call ("because
+`forget_memories` was called in this turn") instead of the request ("because it asked to forget
+something"), which the person's message contradicts here. It ships when at most one of at least
+four calling draws fails, and rows N1 to N3, C, D1 and DC of
+[forget-chosen-memories.md](forget-chosen-memories.md) still pass by their rules. The baseline is
+the same rows with the shipped note.
