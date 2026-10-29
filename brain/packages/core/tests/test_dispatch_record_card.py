@@ -21,8 +21,9 @@ class _Clock:
 
 
 class _Card:
-    async def card(self, call: ToolCall) -> str:
-        return f"record behind {call.arguments['id']}"
+    async def card(self, call: ToolCall) -> str | None:
+        record = call.arguments["id"]
+        return None if record == "gone" else f"record behind {record}"
 
 
 async def _ran(arguments: Mapping[str, object]) -> str:
@@ -78,3 +79,19 @@ async def test_a_record_card_with_no_confirmer_is_unanswered_and_does_not_run() 
         ToolCall(id="c", name="drop", arguments={"id": "r-4"}), stamp=TurnStamp(tainted=True)
     )
     assert result.content == UNANSWERED_MSG
+
+
+async def test_a_record_card_with_nothing_to_ask_runs_the_call_without_asking() -> None:
+    confirmer = RecordingConfirmer(answer=False)
+    result = await _dispatcher(confirmer).dispatch(
+        ToolCall(id="c", name="drop", arguments={"id": "gone"}), stamp=TurnStamp(tainted=True)
+    )
+    assert result.content == "ran:gone"
+    assert confirmer.requests == ()
+
+
+async def test_a_record_card_with_nothing_to_ask_runs_with_no_confirmer() -> None:
+    result = await _dispatcher(None).dispatch(
+        ToolCall(id="c", name="drop", arguments={"id": "gone"})
+    )
+    assert result.content == "ran:gone"

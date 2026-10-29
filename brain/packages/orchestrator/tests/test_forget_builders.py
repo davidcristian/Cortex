@@ -62,8 +62,13 @@ async def test_the_cortex_dispatcher_shows_the_chosen_rows_and_deletes_them_on_a
 
 
 async def test_a_declined_chosen_forget_says_the_message_is_not_kept() -> None:
+    store = InMemoryMemoryStore()
+    at = datetime(2026, 10, 29, 4, 0, 0, tzinfo=UTC)
+    await store.add(
+        MemoryRecord(id="m1", text="card 4242", embedding=(1.0,), at=at, scope=GLOBAL_SCOPE)
+    )
     confirmer = RecordingConfirmer(answer=False)
-    chosen = ForgetChosenTool(InMemoryMemoryStore(), GLOBAL_MEMORY_SCOPE)
+    chosen = ForgetChosenTool(store, GLOBAL_MEMORY_SCOPE)
     builtins = build_builtin_tools(None, None, escalation=True, chosen=chosen)
     tools = build_cortex_tools(None, builtins, SystemClock(), confirmer=confirmer)
     assert isinstance(tools, ToolDispatcher)
@@ -77,6 +82,7 @@ async def test_a_declined_chosen_forget_says_the_message_is_not_kept() -> None:
     )
     assert forget.content == f"{USER_DECLINED_MSG} {FORGET_NOT_KEPT_NOTE}"
     assert escalate.content == USER_DECLINED_MSG
+    assert await store.find_text("4242", limit=2) != []
 
 
 async def test_the_cortex_dispatcher_shows_the_forget_card_on_a_recall_tainted_turn() -> None:
@@ -165,3 +171,20 @@ async def test_the_cortex_dispatcher_keeps_the_forget_text_out_of_the_audit_trai
     call = ToolCall(id="c1", name=FORGET_CHOSEN_TOOL_NAME, arguments={"text": "4242 4242"})
     await tools.dispatch(call, stamp=TurnStamp(session_id="chat-a"))
     assert [record.arguments for record in sink.records] == [{"text": "<redacted>"}]
+
+
+async def test_a_chosen_forget_that_matches_nothing_asks_nothing_and_says_so() -> None:
+    confirmer = RecordingConfirmer(answer=False)
+    chosen = ForgetChosenTool(InMemoryMemoryStore(), GLOBAL_MEMORY_SCOPE)
+    tools = build_cortex_tools(
+        None, build_builtin_tools(None, None, chosen=chosen), SystemClock(), confirmer=confirmer
+    )
+    assert isinstance(tools, ToolDispatcher)
+    result = await tools.dispatch(
+        ToolCall(id="c1", name=FORGET_CHOSEN_TOOL_NAME, arguments={"text": "4242"}),
+        stamp=TurnStamp(session_id="chat-a"),
+    )
+    assert confirmer.requests == ()
+    assert result.is_error is False
+    assert result.content.startswith("nothing was forgotten: no remembered exchange contains")
+    assert result.content.endswith(FORGET_NOT_KEPT_NOTE)

@@ -69,7 +69,7 @@ and `RECALL_DENIED_MSG` names forgetting the untrusted memories instead (ADR-001
 writes, and its effect stays on this machine. Only `build_cortex_tools` registers one, from the
 built-ins, so no remote tool or setting can claim it. `cancel_scheduled` shows the record its id
 names ([ADR-0025](ADR-0025-scheduling-reminders.md) decision 3), and `forget_untrusted_memories` the
-fixed `FORGET_CARD` (ADR-0019 decision 9).
+fixed `FORGET_CARD` (ADR-0019 decision 9). A `None` card means no change; the call runs unasked.
 
 A block returns an audited `is_error` result, the tool never invoked: `DENIED_MSG` for the tainted
 block, `USER_DECLINED_MSG` for a pressed Deny, `EXPIRED_MSG` for a timeout and `UNANSWERED_MSG` for a

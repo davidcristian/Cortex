@@ -47,6 +47,12 @@ def _said(result: ToolResult) -> str:
     return result.content.removesuffix(".")
 
 
+async def _card_lines(tool: ForgetChosenTool, call: ToolCall) -> list[str]:
+    card = await tool.card(call)
+    assert card is not None
+    return card.splitlines()
+
+
 def _call(text: object = "4242 4242", *, call_id: str = "c1", session: str = "chat-a") -> ToolCall:
     return ToolCall(
         id=call_id,
@@ -87,8 +93,7 @@ async def test_the_card_lists_every_matching_memory_and_the_forget_deletes_them(
         _record("card", _CARD), _record("recall", _RECALL, minutes=1), _record("wifi", "wifi")
     )
     tool = ForgetChosenTool(store, GLOBAL_MEMORY_SCOPE)
-    card = await tool.card(_call())
-    assert card.splitlines() == [
+    assert await _card_lines(tool, _call()) == [
         "Deletes for good, with no undo, these 2 remembered exchanges:",
         "- User: Remember that my card number is 4242 4242 4242 4242. Assistant: Noted.",
         "- User: What do you remember? Assistant: Your card number is 4242 4242 4242 4242.",
@@ -105,8 +110,8 @@ async def test_a_word_naming_the_fact_lists_the_memory_that_holds_its_value() ->
     held = "User: My passport number is X1234567.\nAssistant: Noted."
     store = await _store(_record("passport", held), _record("wifi", "wifi"))
     tool = ForgetChosenTool(store, GLOBAL_MEMORY_SCOPE)
-    card = await tool.card(_call("Passport"))
-    assert card.splitlines()[1] == "- User: My passport number is X1234567. Assistant: Noted."
+    lines = await _card_lines(tool, _call("Passport"))
+    assert lines[1] == "- User: My passport number is X1234567. Assistant: Noted."
     assert _said(await tool.invoke(_call("Passport"))).startswith("forgot 1 remembered")
     assert await _texts(store) == ["wifi"]
 
@@ -114,7 +119,7 @@ async def test_a_word_naming_the_fact_lists_the_memory_that_holds_its_value() ->
 async def test_a_long_memory_is_cut_around_the_text_on_the_card() -> None:
     text = "x" * 100 + " card 4242 4242 " + "y" * 100
     tool = ForgetChosenTool(await _store(_record("long", text)), GLOBAL_MEMORY_SCOPE)
-    line = (await tool.card(_call())).splitlines()[1]
+    line = (await _card_lines(tool, _call()))[1]
     assert line == f"- ...{'x' * 54} card 4242 4242 {'y' * 59}..."
 
 
@@ -153,9 +158,7 @@ async def test_a_session_scope_reaches_only_what_that_chat_can_recall() -> None:
 async def test_nothing_matching_says_so_and_deletes_nothing() -> None:
     store = await _store(_record("card", _CARD))
     tool = ForgetChosenTool(store, GLOBAL_MEMORY_SCOPE)
-    assert await tool.card(_call("passport")) == (
-        "No remembered exchange matches, so approving deletes nothing."
-    )
+    assert await tool.card(_call("passport")) is None
     result = await tool.invoke(_call("passport"))
     assert result.is_error is False
     assert _said(result) == (
@@ -169,7 +172,7 @@ async def test_a_missing_or_blank_text_deletes_nothing() -> None:
     store = await _store(_record("card", _CARD))
     tool = ForgetChosenTool(store, GLOBAL_MEMORY_SCOPE)
     for text in ("   ", 4242):
-        assert await tool.card(_call(text)) == "No text was named, so approving deletes nothing."
+        assert await tool.card(_call(text)) is None
         result = await tool.invoke(_call(text))
         assert result.is_error is True
         assert _said(result) == "nothing was forgotten: the call named no text"
@@ -180,9 +183,7 @@ async def test_more_matches_than_the_card_can_list_deletes_nothing() -> None:
     records = [_record(f"m{i:02}", _CARD, minutes=i) for i in range(FORGET_CHOSEN_LIMIT + 1)]
     store = await _store(*records)
     tool = ForgetChosenTool(store, GLOBAL_MEMORY_SCOPE)
-    assert await tool.card(_call()) == (
-        f"More than {FORGET_CHOSEN_LIMIT} memories match, so approving deletes nothing."
-    )
+    assert await tool.card(_call()) is None
     result = await tool.invoke(_call())
     assert result.is_error is True
     assert _said(result).startswith(f"nothing was forgotten: more than {FORGET_CHOSEN_LIMIT}")
@@ -192,7 +193,7 @@ async def test_more_matches_than_the_card_can_list_deletes_nothing() -> None:
 async def test_exactly_the_limit_is_listed_and_deleted() -> None:
     records = [_record(f"m{i:02}", _CARD, minutes=i) for i in range(FORGET_CHOSEN_LIMIT)]
     tool = ForgetChosenTool(store := await _store(*records), GLOBAL_MEMORY_SCOPE)
-    assert len((await tool.card(_call())).splitlines()) == FORGET_CHOSEN_LIMIT + 1
+    assert len(await _card_lines(tool, _call())) == FORGET_CHOSEN_LIMIT + 1
     assert (await tool.invoke(_call())).is_error is False
     assert await _texts(store) == []
 
@@ -201,8 +202,7 @@ async def test_a_store_down_at_the_card_deletes_nothing() -> None:
     store = await _store(_record("card", _CARD))
     store.fail_with(MemoryStoreError("pgvector is down"))
     tool = ForgetChosenTool(store, GLOBAL_MEMORY_SCOPE)
-    card = await tool.card(_call())
-    assert card == "The memory store is unavailable, so approving deletes nothing."
+    assert await tool.card(_call()) is None
     result = await tool.invoke(_call())
     assert result.is_error is True
     assert _said(result) == (

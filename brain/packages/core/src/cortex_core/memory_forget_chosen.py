@@ -14,10 +14,6 @@ FORGET_CHOSEN_LIMIT = 20
 _EXCERPT_CHARS = 60
 _PENDING_CALLS = 32
 
-_NOTHING_NAMED = "No text was named, so approving deletes nothing."
-_NO_STORE = "The memory store is unavailable, so approving deletes nothing."
-_TOO_MANY = f"More than {FORGET_CHOSEN_LIMIT} memories match, so approving deletes nothing."
-_NO_MATCH = "No remembered exchange matches, so approving deletes nothing."
 _NONE_FOUND = (
     "nothing was forgotten: no remembered exchange contains that text, so there is nothing to "
     "forget and no need to ask the user for the value"
@@ -94,29 +90,29 @@ class ForgetChosenTool:
             scopes=self._scope.read_scopes(call.stamp.session_id),
         )
 
-    async def card(self, call: ToolCall) -> str:
-        """List the memories the delete will remove, from the store and never from the model."""
+    async def card(self, call: ToolCall) -> str | None:
+        """List the stored memories the delete will remove; ``None`` when it removes none."""
         shown, card = await self._choose(call)
         self._shown[call.id] = shown
         while len(self._shown) > _PENDING_CALLS:
             del self._shown[next(iter(self._shown))]
         return card
 
-    async def _choose(self, call: ToolCall) -> tuple[tuple[str, ...] | str, str]:
-        """The ids to delete, or why nothing will be, and the card that says which."""
+    async def _choose(self, call: ToolCall) -> tuple[tuple[str, ...] | str, str | None]:
+        """The ids to delete and the card listing them, or why nothing will be and no card."""
         if not _text(call):
-            return "nothing was forgotten: the call named no text", _NOTHING_NAMED
+            return "nothing was forgotten: the call named no text", None
         try:
             found = await self._found(call)
         except MemoryStoreError as err:
-            return f"the memory store is unavailable, so nothing was forgotten: {err}", _NO_STORE
+            return f"the memory store is unavailable, so nothing was forgotten: {err}", None
         if len(found) > FORGET_CHOSEN_LIMIT:
             return (
                 f"nothing was forgotten: more than {FORGET_CHOSEN_LIMIT} remembered exchanges "
                 "contain that text, so ask the user for a longer, more exact text"
-            ), _TOO_MANY
+            ), None
         if not found:
-            return _NONE_FOUND, _NO_MATCH
+            return _NONE_FOUND, None
         lines = "\n".join(f"- {_excerpt(record, _text(call))}" for record in found)
         card = f"Deletes for good, with no undo, these {len(found)} remembered exchanges:\n{lines}"
         return tuple(record.id for record in found), card

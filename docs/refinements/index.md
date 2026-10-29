@@ -70,7 +70,7 @@ never a reading of what the tree does now.
 ### Actionable now (2)
 
 - **[R-923](tasks/923-a-forget-request-with-no-call-is-recorded.md)** A forget request with no call is recorded (memory). Its claim was checked against the code on 2026-10-29.
-- **[R-929](tasks/929-a-request-to-remember-can-show-a-forget-card-that-matches-nothing.md)** A request to remember can show a forget card that matches nothing (memory). Its claim was checked against the code on 2026-10-29.
+- **[R-932](tasks/932-a-forget-of-a-fact-never-stored-can-say-it-was-forgotten.md)** A forget of a fact never stored can say it was forgotten (memory). Its claim was checked against the code on 2026-10-29.
 
 ### Actionable, once a port changes (1)
 
@@ -564,7 +564,7 @@ never a reading of what the tree does now.
 - [R-879](tasks/879-a-recalled-answer-from-another-chat-is-repeated-as-this-chats.md) A recalled answer from another chat is repeated as this chat's. declined 2026-10-17.
 - [R-922](tasks/922-a-forget-and-a-new-fact-in-one-message-drops-the-fact.md) A forget and a new fact in one message drops the fact. done 2026-10-29.
 - [R-923](tasks/923-a-forget-request-with-no-call-is-recorded.md) A forget request with no call is recorded. open, actionable.
-- [R-929](tasks/929-a-request-to-remember-can-show-a-forget-card-that-matches-nothing.md) A request to remember can show a forget card that matches nothing. open, actionable.
+- [R-932](tasks/932-a-forget-of-a-fact-never-stored-can-say-it-was-forgotten.md) A forget of a fact never stored can say it was forgotten. open, actionable.
 
 ### orchestrator
 

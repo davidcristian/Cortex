@@ -216,7 +216,7 @@ class ToolDispatcher:
                 )
                 return await self._audited(call, blocked)
             answer = await self._confirmed(call, card)
-            if answer is not ConfirmAnswer.APPROVED:
+            if answer is not None and answer is not ConfirmAnswer.APPROVED:
                 declined = ToolResult(
                     call_id=call.id,
                     content=_UNAPPROVED[answer],
@@ -232,14 +232,16 @@ class ToolDispatcher:
             )
         return await self._audited(call, result)
 
-    async def _confirmed(self, call: ToolCall, card: RecordCard | None) -> ConfirmAnswer:
-        """Ask the confirmer to approve the call; with no confirmer nobody can answer."""
+    async def _confirmed(self, call: ToolCall, card: RecordCard | None) -> ConfirmAnswer | None:
+        """Ask the confirmer to approve the call, or ``None`` when its card has nothing to ask."""
+        reason = self._policy.confirm_reasons.get(call.name, _CONFIRM_REASON)
+        if card is not None:
+            shown = await card.card(call)
+            if shown is None:
+                return None
+            reason = shown
         if self._confirmer is None:
             return ConfirmAnswer.UNANSWERED
-        if card is not None:
-            reason = await card.card(call)
-        else:
-            reason = self._policy.confirm_reasons.get(call.name, _CONFIRM_REASON)
         request = ConfirmationRequest(tool_name=call.name, arguments=call.arguments, reason=reason)
         async with hold_wait(call.stamp.progress, USER_ASKED):
             return await self._confirmer.confirm(request)

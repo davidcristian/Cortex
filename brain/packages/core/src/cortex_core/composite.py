@@ -19,9 +19,12 @@ class BuiltinTool(Protocol):
 
 @runtime_checkable
 class RecordCard(Protocol):
-    """A built-in whose call acts on records the brain holds; ``card`` describes them."""
+    """A built-in whose call acts on records the brain holds; ``card`` describes them.
 
-    async def card(self, call: ToolCall) -> str: ...
+    ``card`` returns ``None`` when the call would change nothing, and the call then runs unasked.
+    """
+
+    async def card(self, call: ToolCall) -> str | None: ...
 
 
 @runtime_checkable

@@ -47,12 +47,17 @@ that removes exactly those rows and holds against a turn in flight. This record 
    search that finds nothing returns a result saying there is nothing to forget and no need to
    ask for the value.
    Its confirmation card runs `find_text` over the session's read scopes and lists an excerpt of
-   each matching row, so the card shows stored text and never text the model wrote; that is why
-   the dispatcher may show it on a tainted turn. The tool keeps the ids it listed under the call's
-   id, and `invoke` deletes exactly those, so a row written after the card was shown is never
-   deleted unseen. The ids live in the brain process only between the card and the answer to it,
-   the same span the dispatcher holds the call. After the delete it searches again and reports
-   any row still matching, so the reply never claims a fact is gone while a row holds it.
+   each matching row, so the card shows stored text and never text the model wrote; that is why the
+   dispatcher may show it on a tainted turn. A forget that deletes nothing whatever the answer (no
+   text named, the store unavailable, more than 20 matches, no match) shows no card: `card` returns
+   `None`, and the dispatcher then asks nothing and runs the call at once, so the model reads why
+   nothing was deleted. Such a card asked the person to approve the forget of a fact they had just
+   asked to keep ([readings](../readings/forget-that-deletes-nothing.md)). The tool keeps the ids it
+   listed under the call's id, and `invoke` deletes exactly those, so a row written after the card
+   was shown is never deleted unseen. The ids live in the brain process only between the card and
+   the answer to it, the same span the dispatcher holds the call. After the delete it searches again
+   and reports any row still matching, so the reply never claims a fact is gone while a row holds
+   it.
    A turn whose model named it in a call is not recorded to memory, whether the call ran, was
    refused, was cut from its round or could not be read, because its query or reply may name the
    text it forgets, and recording it would store that text again. That holds for the deep phase
