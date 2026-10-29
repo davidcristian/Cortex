@@ -149,12 +149,13 @@ async def test_a_store_told_to_fail_takes_every_verb_away_the_way_a_lost_backend
         await store.delete_scope("conv-a")
 
 
-def test_the_recaller_exposes_no_forget_verb_so_no_turn_can_delete_memory() -> None:
+def test_the_recaller_deletes_only_a_memory_it_was_handed_so_no_turn_can_choose_one() -> None:
     # A turn reaches memory only through MemoryRecaller, and memory is in no tool registry, so no
-    # tool call can delete anything. If a delete verb is added here, work out the taint path first.
+    # tool call can delete anything. ``discard`` takes back the row ``record`` returned for a chat
+    # deleted meanwhile. If another delete verb is added here, work out the taint path first.
     assert not hasattr(MemoryRecaller, "delete_scope")
     turn_facing = {name for name in vars(MemoryRecaller) if not name.startswith("_")}
-    assert turn_facing == {"record", "recall"}
+    assert turn_facing == {"record", "recall", "discard"}
 
 
 class _SpyDeleteStore(InMemoryMemoryStore):

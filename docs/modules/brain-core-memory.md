@@ -38,7 +38,8 @@ pool down to the hits one turn sees. The turn that calls it is in
 - `MemoryRecaller(store, embedder, clock, *, scope=GLOBAL_MEMORY_SCOPE, policy=RAW_RECALL_POLICY,
   id_factory=<uuid4>)` is the use case (ADR-0008). `record(text, *, session_id, tainted=False,
   recalled=())` embeds `embedding_input(text)`, persists the whole text and returns a
-  `MemoryRecord`, or `None` when a memory in `recalled` is gone.
+  `MemoryRecord`, or `None` when a memory in `recalled` is gone. `discard(memory)` deletes one
+  record `record` returned, which `record_exchange` does when the chat was deleted meanwhile.
   `recall(query, *, k, session_id, turn_id)` embeds `embedding_input(query)`, fetches `policy.candidate_k(k)` hits within `policy.read_scopes(session_id)` and
   awaits `policy.select(...)`, returning that ranking's memories cut to `k`; an empty ranking is no
   hits and is never refilled from the pool. An optional `audit: RecallAuditSink` gets one

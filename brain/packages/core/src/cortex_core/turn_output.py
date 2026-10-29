@@ -17,6 +17,7 @@ from cortex_core.loop_events import ReasoningDelta, StepOutcome, ToolStep
 from cortex_core.memory_claim import UNKEPT_CLAIM_NOTE, claims_kept, memory_withheld
 from cortex_core.memory_forget_chosen import FORGET_CHOSEN_TOOL_NAME
 from cortex_core.output_channels import ThinkingChannel
+from cortex_core.ports_stores import SessionStore
 from cortex_core.repeat_watch import REPEATED_LINE_NOTE, RepeatWatch
 from cortex_core.schedule_claim import UNSCHEDULED_CLAIM_NOTE, unscheduled_claim
 from cortex_core.stops import StopLedger
@@ -247,6 +248,7 @@ async def record_exchange(  # noqa: PLR0913 -- a deep phase adds the runs the co
     caps: TurnCapabilities,
     taint: TaintLedger,
     *,
+    store: SessionStore,
     session_id: str,
     query: str,
     reply: str,
@@ -258,6 +260,8 @@ async def record_exchange(  # noqa: PLR0913 -- a deep phase adds the runs the co
     ``earlier`` is the runs the cortex made before it handed the turn to the deep phase.
     """
     if caps.memory is None or memory_withheld(caps, taint, (*earlier, *runs)):
+        return
+    if await store.deleted(session_id):
         return
     fields = {"session_id": session_id}
     try:
@@ -275,3 +279,7 @@ async def record_exchange(  # noqa: PLR0913 -- a deep phase adds the runs the co
         return
     if stored is None:
         _logger.info(FORGOTTEN_RECALL_LOG_MSG, extra=fields)
+    elif await store.deleted(session_id):
+        # This row may have committed after the chat's delete read its rows; that delete marks
+        # the chat before it reads any, so this read sees the mark.
+        await caps.memory.discard(stored)

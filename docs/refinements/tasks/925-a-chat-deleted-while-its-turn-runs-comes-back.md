@@ -1,9 +1,8 @@
 # A chat deleted while its turn runs comes back
 
-**Status:** open, actionable
+**Status:** done 2026-10-29
 **Area:** session-read-rpc
 **Origin:** [ADR-0021](../../adr/ADR-0021-session-read-rpcs.md)
-**Verified:** 2026-10-28
 
 `DeleteSession` (`session_rpc.py`) deletes the chat and then the memories it wrote, and does not
 wait for a turn in flight in that chat. On the `cortexn9` stack a chat deleted while the cortex was
@@ -27,3 +26,11 @@ or not the chat still exists, and `record_exchange` stores with no check either.
 ## History
 
 - 2026-10-28: filed from the second audit, with a stack row and four `psql` rows.
+- 2026-10-29: reproduced on the `cortexn10` stack (2 of 2 draws brought the chat back with a memory
+  row) and with `psql` R1 and R4, then done: a delete adds the chat's id to
+  `cortex:sessions:deleted`, an `append`, `set_title` or `set_recap` to a deleted chat stores
+  nothing, and `record_exchange` reads the set before recording and after the row commits, removing
+  a row stored for a chat deleted meanwhile (ADR-0021 decision 11). 0 of 4 draws kept the chat or
+  a row ([readings](../../readings/deleted-chat-on-disk.md#the-deleted-set-2026-10-29)). A turn sent
+  to a chat already deleted is filed as
+  [930](930-a-turn-sent-to-a-deleted-chat-runs-without-its-message.md).

@@ -17,25 +17,22 @@ delete and hoist writes.
 
 ### 1. Two read-only unary RPCs on `BrainService`
 
-[proto/body.proto](../../proto/body.proto) has `ListSessions(ListSessionsRequest)` and
-`GetSessionMessages(GetSessionMessagesRequest)`. `ListSessionsRequest.limit` of 0 means the server
-default. A `SessionSummary` has `session_id`, `title`, `preview`, `last_activity_unix_ms` and
-`hoisted` (decision 12); a `SessionMessage` has `role` (`user` or `assistant`, the only persisted
-roles), `text`, `turn_id` and `at_unix_ms`. Both RPCs are unary, because a list and a history are
-snapshots, and read-only, so they add no write path and cannot violate the hard rule. They pass
-through the token interceptor ([ADR-0016](ADR-0016-shared-token.md)) unchanged. Timestamps cross as
-`int64` unix milliseconds: the overlay needs a number to compute a relative age, and the store's
-tz-aware `datetime` collapses to that instant without loss.
+[proto/body.proto](../../proto/body.proto) has `ListSessions(ListSessionsRequest)`, whose `limit`
+of 0 means the server default, and `GetSessionMessages(GetSessionMessagesRequest)`. A
+`SessionSummary` has `session_id`, `title`, `preview`, `last_activity_unix_ms` and `hoisted`
+(decision 12); a `SessionMessage` has `role` (`user` or `assistant`), `text`, `turn_id` and
+`at_unix_ms`; times cross as `int64` unix milliseconds, the number the overlay computes an age
+from. Both are unary, because a list and a history are snapshots, and read-only, so they cannot
+violate the hard rule; they pass the token interceptor ([ADR-0016](ADR-0016-shared-token.md)).
 
 ### 2. `SessionStore.list_sessions` is the new port method; `GetSessionMessages` reuses `history`
 
-`GetSessionMessages` is `SessionStore.history(session_id)` mapped to the wire. The persisted
-history holds only the `USER` and `ASSISTANT` dialogue, since `SYSTEM` and `TOOL` messages are
-per-turn and never stored (`cortex_core/conversation.py`); the tool runs a reply records
-([ADR-0074](ADR-0074-replayed-tool-runs.md)) are not sent. Listing sessions by recency is the one
-new capability, so the port gains `async list_sessions(*, limit) -> Sequence[SessionSummary]`, most
-recently active first. `SessionSummary` is a frozen pure-core value in `cortex_core/sessions.py`,
-its `last_activity` a tz-aware `datetime`.
+`GetSessionMessages` is `SessionStore.history(session_id)` mapped to the wire. The history holds
+only the `USER` and `ASSISTANT` dialogue (`SYSTEM` and `TOOL` messages are per-turn,
+`cortex_core/conversation.py`), and the tool runs a reply records
+([ADR-0074](ADR-0074-replayed-tool-runs.md)) are not sent. The one new capability is
+`async list_sessions(*, limit) -> Sequence[SessionSummary]`, most recently active first, where
+`SessionSummary` is a frozen value in `cortex_core/sessions.py` with a tz-aware `last_activity`.
 
 ### 3. Summarization is pure core; listing and ordering are the adapter's
 
@@ -47,10 +44,9 @@ preview from the last message, and `last_activity` from the last message's `at`;
 rule cannot diverge between the fake and the Redis adapter, and the shared contract test asserts it
 once. `PREVIEW_MAX` is 96 characters; the title limit is decision 14.
 
-The Redis adapter keeps a sorted set `cortex:sessions` scored by last activity, maintained by one
-`ZADD` beside the `RPUSH` on every `append`, so the last append's `at` wins. Ordering of equal
-timestamps is unspecified (Redis orders equal scores lexicographically, the fake by insertion); the
-switcher does not depend on it and the contract test uses distinct timestamps.
+The Redis adapter keeps a sorted set `cortex:sessions` scored by last activity, one `ZADD` beside
+the `RPUSH` of every `append`, so the last append's `at` wins. Equal timestamps order unspecified
+(Redis lexicographically, the fake by insertion); nothing depends on it.
 
 ### 4. The orchestrator serves the reads straight off the store
 
@@ -91,13 +87,12 @@ The hook makes one attempt per mount, and a failed history load leaves the fresh
 
 ### 7. A listing reads only each chat's two ends
 
-A summary is derived from a chat's first and last messages, so `list_sessions` reads those and
-nothing between: per listed session `LRANGE key 0 0`, `LRANGE key -1 -1`, `LLEN key` and
-`GET :title`, all queued into one transactional pipeline. A listing is two round trips (the
-indexes, then the ends) and two decoded records per chat; on 20 chats of 200 messages it was about
-21 times faster than decoding whole histories, against the same containerized Redis. The `LLEN`
-gives the tail record its true index, so a corrupt last record is named by its real position, and
-it runs in the same transaction so the length and the record describe one snapshot.
+A summary is derived from a chat's first and last messages, so `list_sessions` reads only those:
+per listed session `LRANGE key 0 0`, `LRANGE key -1 -1`, `LLEN key` and `GET :title`, in one
+transactional pipeline. A listing is two round trips (the indexes, then the ends) and two decoded
+records per chat; on 20 chats of 200 messages it was about 21 times faster than decoding whole
+histories, against the same containerized Redis. The `LLEN`, in the same snapshot, gives the tail
+record its true index, so a corrupt last record is named by its real position.
 
 A corrupt record between the ends does not take the chat list down, while `history` still fails
 visibly on it, so a turn's context is never silently truncated. A corrupt record at either end
@@ -107,22 +102,20 @@ fails the listing, and a dangling index entry (an empty list) is skipped.
 
 The list refreshes on mount, on turn completion, and on the rising edge of visibility, sharing
 `useSummonEffect` with the reminder pull and the connection probe: one re-list per summon, none
-while the overlay changes shape or stays hidden. A title-refresh push is not built because nothing
-can produce the event: session history has one writer, `ConversationEngine` inside a turn, and the
-schedule ticker writes to the task store, never to a session. So nothing changes a title or preview
-while the overlay watches, except a turn the overlay itself ran, which refreshes on completion. A
-background writer of session history, or a title written after its turn completes, would reopen
-this. The connection indicator is derived ([ADR-0011](ADR-0011-body-v1.md) decision 8).
+while the overlay changes shape or stays hidden. No title-refresh push is built, because nothing
+produces the event: session history's one writer is a turn, and the schedule ticker writes to the
+task store. A title or preview changes only by a turn the overlay ran, which refreshes on
+completion; a background writer of history, or a title written after its turn completes, would
+reopen this. The connection indicator is derived ([ADR-0011](ADR-0011-body-v1.md) decision 8).
 
 ### 9. Brain-generated titles are written at turn end, before completion, and default off
 
 With `CORTEX_GENERATE_TITLES` on (default `false`), the engine asks the resident cortex for a title
 on a session's first turn only, from the opening exchange, after the reply's stream has released
 its lease, so the call is a sequential acquire, never a re-entrant one. The title is persisted with
-`SessionStore.set_title` before `TurnCompleted` is yielded, so the overlay's turn-completion
-refresh already sees it and no title changes after that refresh. Generating on the list path was
-rejected: listing would block on inference and compete for the GPU lease. A failure or an empty
-reply is absorbed and persists nothing.
+`SessionStore.set_title` before `TurnCompleted` is yielded, so the turn-completion refresh already
+sees it. Generating on the list path was rejected: listing would block on inference and compete for
+the GPU lease. A failure or an empty reply is absorbed and persists nothing.
 
 The Redis adapter stores the title as a plain string at `cortex:session:{id}:title` and reads it in
 the listing's ends pipeline as `title_override`. A non-blank override wins; either way the title is
@@ -130,23 +123,20 @@ collapsed and cut again to `TITLE_MAX` at read time, so no stored title exceeds 
 The title is store state, so it survives a model swap.
 
 `generate_title` sends `TITLE_BOUNDS` (`cortex_core/session_title.py`): `max_tokens=32`,
-`thinking=False`, `trace_tokens=0`. A reasoning cortex asked without the switch spent its whole
-budget thinking and returned an empty reply, at every cap tried; with the switch the same prompt
-decodes about four tokens for the same title. The cap cannot change a stored title, because a reply
-that reaches 32 tokens has already passed the 48 characters `clean_title` keeps. The sizing is
-[ADR-0038](ADR-0038-ranked-recall.md) decision 8 and the readings are in
-[ranked-recall.md](../readings/ranked-recall.md). The feature defaults off because it adds an
-inference call per new session on a shared GPU.
+`thinking=False`, `trace_tokens=0`. Without the switch a reasoning cortex spent every cap tried on
+thinking and returned nothing; with it the prompt decodes about four tokens. A reply that reaches 32
+tokens has already passed the 48 characters `clean_title` keeps, so the cap cannot change a stored
+title ([ADR-0038](ADR-0038-ranked-recall.md) decision 8, [readings](../readings/ranked-recall.md)).
+The feature defaults off because it adds an inference call per new session on a shared GPU.
 
 ### 10. Catalog writes are user-only RPCs, each attempted once
 
 `RenameSession`, `DeleteSession` and `SetSessionHoisted` are unary `BrainService` writes whose only
 caller is the overlay's own controls. None is a tool in any registry and none runs through the turn
-engine, so no model, tool or tainted turn can reach them. That is the whole of their protection.
-The confirmation rule and `RpcConfirmer` ([ADR-0013](ADR-0013-untrusted-content.md),
-[ADR-0022](ADR-0022-email-write-confirmer.md)) stop a model's irreversible tool call inside a turn
-and are tied to one `Converse` stream, so they do not fit a management RPC; a confirm card for one
-would answer a threat the model cannot pose.
+engine, so no model, tool or tainted turn can reach them, which is their whole protection. The
+confirmation rule and `RpcConfirmer` ([ADR-0013](ADR-0013-untrusted-content.md),
+[ADR-0022](ADR-0022-email-write-confirmer.md)) stop a model's irreversible call inside one
+`Converse` stream; a confirm card for a management RPC would answer a threat no model can pose.
 
 The body classifies every catalog write **not repeatable** (`RpcMethod::RenameSession`,
 `DeleteSession`, `SetSessionHoisted`), so the resilient transport makes one attempt. Reads are
@@ -161,11 +151,10 @@ so a label cannot inject markup or a second line.
 ### 11. Deletion is a hard delete with a scope-aware memory cascade
 
 `SessionStore.delete(session_id)` removes the `:messages` list, the `:title` and `:recap` strings
-(ADR-0038 decision 9) and the `cortex:sessions` and `cortex:sessions:hoisted` members in one
-transactional pipeline, idempotently. A tombstone was rejected: the reads are stateless snapshots,
-an unknown session already reads as an empty history, and "forget this chat" calls for erasure.
-The text stays on disk until Redis rewrites its append-only file and Postgres vacuums and reuses its
-WAL ([readings](../readings/deleted-chat-on-disk.md)); a delete runs no rewrite: none reaches WAL.
+(ADR-0038 decision 9) and the `cortex:sessions` and `cortex:sessions:hoisted` members, and adds the
+id to the set `cortex:sessions:deleted`, in one transactional pipeline, idempotently. The text stays
+on disk until Redis rewrites its append-only file and Postgres vacuums and reuses its WAL
+([readings](../readings/deleted-chat-on-disk.md)); a delete runs no rewrite: none reaches WAL.
 
 The memory cascade stays off the turn path: `SessionMemoryCascade(store, scope)` exposes only
 `delete_session_memories`, wired into `DeleteSession` and never into an engine. Each memory records
@@ -175,9 +164,21 @@ chat stored after recalling it stays, for `forget_memories` (ADR-0075). A privat
 session_id`, never `GLOBAL_SCOPE`) is then emptied with `delete_scope`. The handler deletes the
 session, then cascades; either store error aborts `UNAVAILABLE`, and a retry completes.
 
+**A delete does not wait for a turn running in its chat; the turn's writes read the deleted set.**
+`append`, `set_title` and `set_recap` store nothing for a deleted chat: the Redis adapter reads the
+set under a `WATCH` and writes in the same `MULTI`, so a delete between the two fails it and the
+retry finds the id. `record_exchange` reads `SessionStore.deleted` before it records, and when a
+read after the row commits finds the id, it removes the row with `MemoryRecaller.discard`: the
+cascade misses a row that commits after it read the chat's rows
+([readings](../readings/deleted-chat-on-disk.md)), and the chat is marked before the cascade
+starts. A brain that stops between that commit and read keeps the row. `memory_withheld` judges a turn's content and stays pure; this is a store fact. Stopping
+and awaiting the turn was rejected: it needs a registry of every stream's turns, and a cancelled
+insert can commit after its task ends. The set holds ids only and is never emptied
+([930](../refinements/tasks/930-a-turn-sent-to-a-deleted-chat-runs-without-its-message.md)).
+
 The confirmation is overlay-local: the row's trash control swaps in a confirm and cancel pair.
-Deleting the open chat first tears down its turn (denying a pending confirm and cancelling the
-stream, so a reply cannot re-create the chat) and on success resets the panel to a new chat.
+Deleting the open chat first tears down its turn, denying a pending confirm and cancelling the
+stream, and on success resets the panel to a new chat.
 
 ### 12. A hoisted chat is added to the recency listing
 
@@ -189,23 +190,22 @@ and the adapter, puts the hoisted chats first, each group newest first; the swit
 cold-start adoption read that order.
 
 **The name is Hoist, and its opposite is Lower.** The row's toggle (`aria-pressed`) reads
-`Hoist <title>` or `Lower <title>`, acts without a confirmation and re-lists. The word says what
-the row does, rising above newer chats until it is lowered, has a natural opposite, and was used
-by no identifier or selectable family before. Its keys: `SessionSummary.hoisted` (field 5),
-`setSessionHoisted`, the Tauri command `set_session_hoisted`, `SessionStore.set_hoisted`, the row's
-`hoisted` class, the stored set and the RPC `SetSessionHoisted`, whose new method path means a body
-and a brain are built together. A real store held ids under the set's first key,
-`cortex:sessions:pinned`, so the adapter moves them over once, before it first uses the set.
+`Hoist <title>` or `Lower <title>`, acts without a confirmation and re-lists. The word says what the
+row does, has a natural opposite, and was used by no identifier or family before. Its keys:
+`SessionSummary.hoisted` (field 5), `setSessionHoisted`, the Tauri command `set_session_hoisted`,
+`SessionStore.set_hoisted`, the row's `hoisted` class, the stored set and the RPC
+`SetSessionHoisted`, whose new method path means a body and a brain are built together. A real
+store held ids under the set's first key, `cortex:sessions:pinned`, so the adapter moves them over
+once, before it first uses the set.
 
 ### 13. The open-chat header shows the switcher's title
 
 `openSession` and `adoptSession` set the header through `headerTitle(state.sessions, sessionId,
 messages)`: a chat present in the loaded list takes that row's `SessionSummary.title` verbatim, and
 only a chat absent from it falls back to the local `deriveTitle` of its first user message. The
-switcher and the header read one snapshot, so they agree by construction for switcher opens,
-cycling and adoption alike, and a generated title or a user rename reaches the header. A `title`
-field on `GetSessionMessages` was not added: a second read would let a rename arriving between the
-two reads make them disagree again.
+switcher and the header read one snapshot, so they agree for switcher opens, cycling and adoption,
+and a generated title or a user rename reaches the header. No `title` field was added to
+`GetSessionMessages`: a rename arriving between two reads would make them disagree again.
 
 ### 14. One limit governs a title's length, in both trees
 
@@ -213,9 +213,9 @@ two reads make them disagree again.
 `scripts/crosscheck.py` ([ADR-0042](ADR-0042-cross-tree-constant-registry.md)), and each side's
 suite asserts its own literal. `_one_line` in the brain and `deriveTitle` in the overlay apply one
 rule: collapse whitespace runs, and past `TITLE_MAX` cut and append one ellipsis, so an over-long
-title renders at 49 characters. The two must be one number because the overlay names a chat locally
-in the render that starts its first turn, and the turn-completion refresh then shows the brain's
-rendering of the same message in that chat's row; the header box is also the wider of the two.
+title renders at 49 characters. They must be one number because the overlay names a chat locally
+when its first turn starts and the turn-completion refresh then shows the brain's rendering of the
+same message; the header box is also the wider of the two.
 `clean_title` cuts a generated title to `TITLE_MAX` with no ellipsis, left as it is.
 
 ## Consequences

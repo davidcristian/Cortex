@@ -11,6 +11,7 @@ from cortex_core import (
     ForgetUntrustedTool,
     HashEmbedder,
     InMemoryMemoryStore,
+    InMemorySessionStore,
     MemoryRecaller,
     MemoryRecord,
     MemoryStoreError,
@@ -150,6 +151,7 @@ async def _recorded(*, tainted: bool, runs: tuple[ToolRun, ...]) -> list[MemoryR
     await record_exchange(
         caps,
         TaintLedger(tainted=tainted),
+        store=InMemorySessionStore(),
         session_id="chat-a",
         query="forget those memories",
         reply="done",
@@ -197,6 +199,7 @@ async def test_a_turn_that_asked_to_forget_a_text_records_nothing_though_no_call
     await record_exchange(
         TurnCapabilities(memory=recaller),
         TaintLedger(forget_asked=True),
+        store=InMemorySessionStore(),
         session_id="chat-a",
         query="forget my card 4242",
         reply="I could not do that now",

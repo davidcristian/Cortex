@@ -18,11 +18,12 @@ closes it. `RedisSessionStore.probe()` is a `RedisPing`, one `PING` on that clie
 ### `RedisSessionStore`
 
 - `append(session_id, message)` RPUSHes one JSON document and `ZADD`s the recency index in one
-  `MULTI`, after a `WATCH` and an `LPOS` that finds no equal record, so in both stores a message
-  equal to a stored one is not stored again. It **raises `SessionStoreError` for a message with
-  images** (ADR-0029), a system message (ADR-0071) or a tool step (a tool result, tool calls or a
-  call id; ADR-0009 decision 3): the record has no field for pixels or tool fields, so storing one
-  would drop them silently. `InMemorySessionStore` raises the same three.
+  `MULTI`, after a `WATCH`, a `SISMEMBER` that finds the chat not deleted and an `LPOS` that finds no
+  equal record, so in both stores neither a message for a deleted chat nor one equal to a stored one
+  is stored. It **raises `SessionStoreError` for a message with images** (ADR-0029), a system
+  message (ADR-0071) or a tool step (a tool result, tool calls or a call id; ADR-0009 decision 3):
+  the record has no field for pixels or tool fields, so storing one would drop them silently.
+  `InMemorySessionStore` raises the same three.
 - `history(session_id)` is `LRANGE 0 -1`, decoded in append order. An unknown session has an empty
   history rather than an error. A stored system or tool message is corrupt: no writer stores one.
 - `list_sessions(*, limit)` builds the chat list (ADR-0021) in two round trips. The first reads both
@@ -39,11 +40,10 @@ closes it. `RedisSessionStore.probe()` is a `RedisPing`, one `PING` on that clie
   `list_sessions` prefers over the first-message derivation (ADR-0021 decision 9). A later call
   overwrites it and `""` clears the override at read. It is the one write behind both the
   brain-generated title and the overlay's user-driven `RenameSession`.
-- `delete(session_id)` removes a whole chat in one transactional pipeline: the message list, the
-  title, the recap, the `cortex:sessions` index member and the `cortex:sessions:hoisted` member
-  (ADR-0021 decision 11). It is a hard delete rather than a marker, because an unknown session
-  already reads as an empty history. It leaves no orphaned key and is idempotent. The memory half of
-  the cascade is not here; the orchestrator's `DeleteSession` then runs `SessionMemoryCascade`.
+- `delete(session_id)` removes in one transactional pipeline the message list, title, recap and both
+  index members, and `SADD`s the id to `cortex:sessions:deleted` (ADR-0021 decision 11), which
+  `deleted` reads and `append`, `set_title` and `set_recap` read under a `WATCH`, so a turn still
+  running in the chat stores nothing more. It is idempotent; `DeleteSession` then forgets memories.
 - `set_recap(session_id, recap)` and `recap(session_id)` hold the summarizing window's account of
   the turns that fell out of it (ADR-0038 decision 9), as one JSON document at
   `cortex:session:{id}:recap` with the text and `covers`, the boundary it accounts for. Both fields
@@ -51,9 +51,8 @@ closes it. `RedisSessionStore.probe()` is a `RedisPing`, one `PING` on that clie
   `None` for a session that never had one, and fails on a document it cannot read rather than
   returning `None`, which would look the same. `delete` removes it in the same transaction.
 - `set_hoisted(session_id, *, hoisted)` adds or removes the chat's id in `cortex:sessions:hoisted`
-  (`SADD` or `SREM`, both idempotent), which `list_sessions` unions into every listing. An id in the
-  set with no message list is skipped like any other stale index entry. It is the write behind the
-  overlay's `SetSessionHoisted`.
+  (`SADD` or `SREM`, both idempotent), which `list_sessions` unions into every listing; an id with no
+  message list is skipped like any stale entry. It is the write behind `SetSessionHoisted`.
 - The hoisted set was first stored under `cortex:sessions:pinned`. Before a store first reads or
   writes the set, it moves that key's members into `cortex:sessions:hoisted` with `SUNIONSTORE` and
   `DEL` in one `MULTI`, then sets a flag so later calls skip it. The move is atomic and idempotent,
@@ -146,7 +145,8 @@ including its UTC offset, preserved rather than normalized to UTC. A reply with 
 `"runs": [{"name", "ok"}]` (ADR-0074), which an older reader ignores. `v` and `kind` are how a
 stored format evolves. The sorted set `cortex:sessions` is the recency index: `append` `ZADD`s the
 session id scored by the message's `at`, so the score is the last activity. The plain set
-`cortex:sessions:hoisted` holds the hoisted session ids. The two-ended listing read and its
+`cortex:sessions:hoisted` holds the hoisted session ids, `cortex:sessions:deleted` the deleted
+ones, never emptied. The two-ended listing read and its
 measurement are in [task 175](../refinements/tasks/175-bounded-end-reads.md).
 
 Task state uses two string keys per delegation, `cortex:task:{id}` and `cortex:task:{id}:result`,

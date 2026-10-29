@@ -20,10 +20,10 @@ tools in [brain-core-tools.md](brain-core-tools.md), delegated work in
   retry a write whose reply was lost), `history(session_id)` (append order, empty when
   unknown), `list_sessions(*, limit)` (most recently active first), `set_title(session_id, title)`
   (a display title `list_sessions` prefers over the first-message derivation, ADR-0021 decision 9),
-  `delete(session_id)` (removes a whole chat, its history, title, recency entry and hoisted
-  membership, idempotent and needing no tombstone), `set_hoisted(session_id, *, hoisted)` (ADR-0021
-  decision 12), and `set_recap(session_id, recap)` / `recap(session_id)` for the cached history
-  recap below. Fake: `InMemorySessionStore`; adapter: `cortex_session`.
+  `delete(session_id)` (removes a whole chat and marks it deleted, so no later write to it is
+  stored), `deleted(session_id)`, `set_hoisted(session_id, *, hoisted)` (ADR-0021 decision 12), and
+  `set_recap(session_id, recap)` / `recap(session_id)` for the cached history recap below. Fake:
+  `InMemorySessionStore`; adapter: `cortex_session`.
 - `InferenceBackend` provides `stream(model, messages, *, tools=(), schema=None, bounds=None) -> AsyncIterator[InferenceEvent]`:
   one stateless streamed completion. `model` is a logical id (ADR-0004), and **an implementation
   answers only for the ids it serves**, failing with `InferenceError` on one it does not
@@ -119,10 +119,11 @@ after the window, one saying a handoff's deep reply is not stored (`tool_replay.
 `RepeatWatch(query)` (`repeat_watch.py`, new at each tool call) sees a block of up to four lines, one
 of 20 or more characters not in `query`, come 3 times back to back, or once more than a count `query`
 asks for (ADR-0048 decision 17), closes the loop in a `finally` and flushes the channels on a clean
-end. `record_exchange(caps, taint, *, session_id, query, reply, runs, earlier=())` stores nothing
-when `memory_withheld` holds over `runs` and `earlier`, the cortex's runs before a handoff
-([brain-core-memory.md](brain-core-memory.md)). `limit_notes(stops, runs, parts, *, earlier=(),
-said=(), withheld=False)`, `unreadable_call_note(stops, parts)` and `overflow_note(parts, *, alone)`
+end. `record_exchange(caps, taint, *, store, session_id, query, reply, runs, earlier=())` stores
+nothing when `memory_withheld` holds over `runs` and `earlier` (the cortex's runs before a handoff,
+[brain-core-memory.md](brain-core-memory.md)) or `store.deleted` holds, which it reads again after
+the write (ADR-0021 decision 11). `limit_notes(stops, runs, parts, *, earlier=(), said=(),
+withheld=False)`, `unreadable_call_note(stops, parts)` and `overflow_note(parts, *, alone)`
 are the notes a turn can end with, the first two read off a `StopLedger` (`stops.py`): `capped` (a
 token limit cut a completion, ADR-0048), `out_of_rounds` (the last round still ended in calls,
 ADR-0009) and `repeated` (the watch ended the reply). `limit_notes` appends `REPLY_CAPPED_NOTE`,
@@ -225,11 +226,10 @@ The laundering defence (ADR-0015): no URL from the turn's untrusted content may 
   on one. `UrlRedactingGuardrail` (the default) stands on `{COLLECTED}` and replaces a match with
   `REDACTED_LINK`, keeping trailing prose punctuation and a closing markdown delimiter.
   `LookalikeUrlRedactingGuardrail` adds `LOOKALIKE`, reading the host from an identity built with
-  the confusable fold switched off.
-  `StrictUrlRedactingGuardrail` stands on `{LINK}`. An **opaque** turn adds `{LINK}` to whichever
-  policy was configured (ADR-0029), a URL painted into pixels never being in the result text the
-  default reads. The user's own allowlist answers before any ground. What each policy costs, in
-  real hosts redacted, is in [output-guardrail](../readings/output-guardrail.md).
+  the confusable fold switched off. `StrictUrlRedactingGuardrail` stands on `{LINK}`. An **opaque**
+  turn adds `{LINK}` to whichever policy was configured (ADR-0029), a URL painted into pixels never
+  being in the result text the default reads. The user's own allowlist answers before any ground.
+  Each policy's cost, in real hosts redacted, is in [output-guardrail](../readings/output-guardrail.md).
 - `ThinkingChannel` and `open_output_channels(guardrail, taint, user_text)` (`output_channels.py`,
   ADR-0020 decision 6) filter the thinking status the same way, one filter each, so the held buffers
   never mix. A turn's trace is one stream, so a URL split around a dispatch is joined before matching;

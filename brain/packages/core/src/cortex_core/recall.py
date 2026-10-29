@@ -61,6 +61,10 @@ class MemoryRecaller:
             return None
         return record
 
+    async def discard(self, memory: MemoryRecord) -> None:
+        """Delete ``memory``, stored for a chat that was deleted while it was written."""
+        await self._store.delete_ids([memory.id])
+
     async def recall(
         self, query: str, *, k: int, session_id: str, turn_id: str
     ) -> Sequence[ScoredMemory]:

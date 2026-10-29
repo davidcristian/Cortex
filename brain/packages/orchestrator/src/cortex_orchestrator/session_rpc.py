@@ -62,9 +62,9 @@ async def delete_session(
     store: SessionStore, cascade: SessionMemoryCascade | None, session_id: str
 ) -> DeleteSessionReply:
     """Delete one chat and cascade to its private memories."""
-    # The chat goes first, because that is the user's primary intent: a memory failure then
-    # leaves the chat gone with a retry cleaning the memories, rather than a visible chat whose
-    # memories vanished. Both steps are idempotent, so a retry after any failure is safe.
+    # The chat goes first: a memory failure then leaves it gone and a retry cleans the memories,
+    # and it is marked deleted before the cascade reads its rows, so a turn still recording finds
+    # the mark after its write. Both steps are idempotent, so a retry after any failure is safe.
     await store.delete(session_id)
     if cascade is not None:
         await cascade.delete_session_memories(session_id)

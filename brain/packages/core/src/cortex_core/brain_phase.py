@@ -228,6 +228,7 @@ class BrainPhase:
         await record_exchange(
             self._caps,
             taint,
+            store=self._store,
             session_id=record.session_id,
             query=query,
             reply=reply,

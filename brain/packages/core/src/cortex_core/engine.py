@@ -210,7 +210,13 @@ class TurnEngine:
         )
         await self._store.append(session_id, assistant)
         await record_exchange(
-            self._caps, taint, session_id=session_id, query=text, reply=full_text, runs=log.runs
+            self._caps,
+            taint,
+            store=self._store,
+            session_id=session_id,
+            query=text,
+            reply=full_text,
+            runs=log.runs,
         )
         # Before ``TurnCompleted``, so the overlay's refresh on completion already sees the title.
         if len(history) == 1:

@@ -110,6 +110,7 @@ async def test_a_turn_tainted_only_by_its_own_reads_is_recorded_whatever_was_for
     await record_exchange(
         TurnCapabilities(memory=recaller, record_tainted_memory=True),
         TaintLedger(tainted=True),
+        store=InMemorySessionStore(),
         session_id="chat-c",
         query="read shed.txt",
         reply="It says 4417.",

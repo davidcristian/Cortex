@@ -20,6 +20,7 @@ class InMemorySessionStore:
         self._titles: dict[str, str] = {}
         self._hoisted: set[str] = set()
         self._recaps: dict[str, HistoryRecap] = {}
+        self._deleted: set[str] = set()
 
     async def append(self, session_id: str, message: Message) -> None:
         """Persist one message at the end of the session's history, unless it holds it already."""
@@ -35,6 +36,8 @@ class InMemorySessionStore:
                 "the tool loop's messages stay in the turn"
             )
             raise SessionStoreError(msg)
+        if session_id in self._deleted:
+            return
         messages = self._sessions.setdefault(session_id, [])
         if message not in messages:
             messages.append(message)
@@ -66,18 +69,25 @@ class InMemorySessionStore:
 
     async def set_title(self, session_id: str, title: str) -> None:
         """Persist a brain-generated display title, preferred by ``list_sessions``."""
-        self._titles[session_id] = title
+        if session_id not in self._deleted:
+            self._titles[session_id] = title
 
     async def delete(self, session_id: str) -> None:
         """Idempotently delete a chat for good: messages, title, hoisted flag and recap."""
+        self._deleted.add(session_id)
         self._sessions.pop(session_id, None)
         self._titles.pop(session_id, None)
         self._hoisted.discard(session_id)
         self._recaps.pop(session_id, None)
 
+    async def deleted(self, session_id: str) -> bool:
+        """Whether the chat was deleted."""
+        return session_id in self._deleted
+
     async def set_recap(self, session_id: str, recap: HistoryRecap) -> None:
         """Persist the summarizing window's recap of this session's dropped prefix."""
-        self._recaps[session_id] = recap
+        if session_id not in self._deleted:
+            self._recaps[session_id] = recap
 
     async def recap(self, session_id: str) -> HistoryRecap | None:
         """The stored recap, or ``None`` for a session that has never had one written."""

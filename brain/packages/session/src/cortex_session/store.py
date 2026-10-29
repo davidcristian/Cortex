@@ -45,6 +45,9 @@ _SESSIONS_KEY = "cortex:sessions"
 
 _HOISTED_KEY = "cortex:sessions:hoisted"
 
+# The ids of deleted chats, kept so that a turn still running in one stores nothing more.
+_DELETED_KEY = "cortex:sessions:deleted"
+
 # A store written before the feature was named Hoist keeps its hoisted ids under this key.
 _OLD_HOISTED_KEY = "cortex:sessions:pinned"
 
@@ -74,15 +77,28 @@ def _summarize_ends(
 
 
 async def append_once(client: Redis, session_id: str, record: str, score: float) -> None:
-    """RPUSH ``record`` and ZADD the session in one transaction, unless the list holds it."""
+    """RPUSH ``record`` and ZADD the session in one transaction, unless deleted or held."""
     key = messages_key(session_id)
     async with client.pipeline(transaction=True) as pipe:
-        await pipe.watch(key)
+        await pipe.watch(key, _DELETED_KEY)
+        if await pipe.sismember(_DELETED_KEY, session_id):
+            return
         if await pipe.lpos(key, record) is not None:
             return
         pipe.multi()
         pipe.rpush(key, record)
         pipe.zadd(_SESSIONS_KEY, {session_id: score})
+        await pipe.execute()
+
+
+async def set_unless_deleted(client: Redis, session_id: str, key: str, value: str) -> None:
+    """SET ``key`` to ``value`` in one transaction, unless the session was deleted."""
+    async with client.pipeline(transaction=True) as pipe:
+        await pipe.watch(_DELETED_KEY)
+        if await pipe.sismember(_DELETED_KEY, session_id):
+            return
+        pipe.multi()
+        pipe.set(key, value)
         await pipe.execute()
 
 
@@ -148,14 +164,15 @@ class RedisSessionStore:
     async def set_title(self, session_id: str, title: str) -> None:
         """Persist a brain-generated display title under the session's title key."""
         await self._call(
-            lambda: self._client.set(title_key(session_id), title),
+            lambda: set_unless_deleted(self._client, session_id, title_key(session_id), title),
             f"setting the title for session {session_id!r} failed",
         )
 
     async def set_recap(self, session_id: str, recap: HistoryRecap) -> None:
         """Persist the summarizing window's recap of this session's dropped prefix."""
+        document = encode_recap(recap)
         await self._call(
-            lambda: self._client.set(recap_key(session_id), encode_recap(recap)),
+            lambda: set_unless_deleted(self._client, session_id, recap_key(session_id), document),
             f"setting the recap for session {session_id!r} failed",
         )
 
@@ -190,9 +207,18 @@ class RedisSessionStore:
                 pipe.delete(recap_key(session_id))
                 pipe.zrem(_SESSIONS_KEY, session_id)
                 pipe.srem(_HOISTED_KEY, session_id)
+                pipe.sadd(_DELETED_KEY, session_id)
                 await pipe.execute()
 
         await self._call(delete_all, f"deleting session {session_id!r} failed")
+
+    async def deleted(self, session_id: str) -> bool:
+        """Whether the chat was deleted."""
+        member = await self._call(
+            lambda: self._client.sismember(_DELETED_KEY, session_id),
+            f"reading whether session {session_id!r} was deleted failed",
+        )
+        return bool(member)
 
     async def set_hoisted(self, session_id: str, *, hoisted: bool) -> None:
         """Add the chat to the hoisted set, or remove it from it."""

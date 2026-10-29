@@ -155,11 +155,23 @@ async def check_delete_removes_the_session(store: SessionStore) -> None:
     assert doomed not in listed
     assert kept in listed
     await store.delete(doomed)
+    assert await store.deleted(doomed) is True
+    assert await store.deleted(kept) is False
 
-    await store.append(doomed, make_message(Role.USER, "a brand new topic", at=_AT, turn_id="n"))
-    (reborn,) = [s for s in await store.list_sessions(limit=50) if s.session_id == doomed]
-    assert reborn.title == "a brand new topic"
-    assert reborn.hoisted is False
+
+async def check_a_write_to_a_deleted_chat_stores_nothing(store: SessionStore) -> None:
+    """A turn still running in a deleted chat cannot bring it back: its writes store nothing."""
+    session_id = _session_id()
+    await store.append(session_id, make_message(Role.USER, "a question", turn_id="d"))
+    await store.delete(session_id)
+
+    await store.append(session_id, make_message(Role.ASSISTANT, "the late reply", turn_id="d"))
+    await store.set_title(session_id, "A late title")
+    await store.set_recap(session_id, HistoryRecap(text="a late recap", covers=1))
+
+    assert list(await store.history(session_id)) == []
+    assert await store.recap(session_id) is None
+    assert session_id not in {s.session_id for s in await store.list_sessions(limit=50)}
 
 
 async def check_set_hoisted_marks_and_clears_the_summary(store: SessionStore) -> None:
@@ -306,6 +318,7 @@ ALL_CHECKS = (
     check_list_sessions_orders_and_summarizes,
     check_set_title_overrides_the_first_message,
     check_delete_removes_the_session,
+    check_a_write_to_a_deleted_chat_stores_nothing,
     check_set_hoisted_marks_and_clears_the_summary,
     check_a_hoisted_chat_escapes_the_recency_window,
     check_a_hoisted_recent_chat_is_not_duplicated,

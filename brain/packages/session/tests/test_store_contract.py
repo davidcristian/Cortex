@@ -8,6 +8,7 @@ import pytest
 from fakeredis import FakeAsyncRedis, FakeServer
 from redis import exceptions as redis_exceptions
 from redis.asyncio import Redis
+from redis.asyncio.client import Pipeline
 
 from cortex_core import (
     InMemorySessionStore,
@@ -56,6 +57,46 @@ async def test_delete_leaves_no_orphaned_redis_key_or_index_member() -> None:
     assert await session_keys() == []
     assert await client.zscore("cortex:sessions", "s") is None
     assert not await client.sismember("cortex:sessions:hoisted", "s")
+
+
+async def test_delete_keeps_only_the_chat_id_in_the_deleted_set() -> None:
+    client = FakeAsyncRedis(server=FakeServer())
+    store = RedisSessionStore(client)
+    await store.append("s", contract.make_message(Role.USER, "a secret"))
+
+    await store.delete("s")
+
+    members = await client.smembers("cortex:sessions:deleted")  # pyright: ignore[reportUnknownMemberType]
+    assert members == {b"s"}
+
+
+async def test_a_delete_between_the_check_and_the_write_leaves_the_append_unstored(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    server = FakeServer()
+    store = RedisSessionStore(FakeAsyncRedis(server=server))
+    deleter = RedisSessionStore(FakeAsyncRedis(server=server))
+    real_lpos = Pipeline.lpos
+    calls: list[str] = []
+
+    async def lpos_after_a_delete(pipe: Pipeline, name: str, value: str) -> object:
+        if not calls:
+            calls.append(name)
+            await deleter.delete("s")
+        return await real_lpos(pipe, name, value)
+
+    monkeypatch.setattr(Pipeline, "lpos", lpos_after_a_delete)
+
+    await store.append("s", contract.make_message(Role.ASSISTANT, "a late reply"))
+
+    assert calls == ["cortex:session:s:messages"]
+    assert list(await store.history("s")) == []
+
+
+async def test_connection_failure_on_reading_deleted_wraps_the_cause() -> None:
+    with pytest.raises(SessionStoreError, match="whether session 's' was deleted") as excinfo:
+        await _disconnected_store().deleted("s")
+    assert isinstance(excinfo.value.__cause__, redis_exceptions.ConnectionError)
 
 
 async def test_connection_failure_on_delete_wraps_the_cause() -> None:

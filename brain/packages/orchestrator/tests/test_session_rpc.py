@@ -51,6 +51,10 @@ class RecordingStore:
         self.delete_calls.append(session_id)
         self.events.append(f"delete:{session_id}")
 
+    async def deleted(self, session_id: str) -> bool:
+        del session_id
+        return False
+
     async def set_hoisted(self, session_id: str, *, hoisted: bool) -> None:
         self.set_hoisted_calls.append((session_id, hoisted))
 
