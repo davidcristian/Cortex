@@ -162,8 +162,8 @@ async def test_nothing_matching_says_so_and_deletes_nothing() -> None:
     result = await tool.invoke(_call("passport"))
     assert result.is_error is False
     assert _said(result) == (
-        "nothing was forgotten: no remembered exchange contains that text, so there is nothing to "
-        "forget and no need to ask the user for the value"
+        "nothing was forgotten: no remembered exchange contains that text, so tell the user that "
+        "nothing about it was stored, and do not ask the user for the value"
     )
     assert await _texts(store) == ["card"]
 

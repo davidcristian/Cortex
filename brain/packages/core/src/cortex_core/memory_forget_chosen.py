@@ -15,8 +15,8 @@ _EXCERPT_CHARS = 60
 _PENDING_CALLS = 32
 
 _NONE_FOUND = (
-    "nothing was forgotten: no remembered exchange contains that text, so there is nothing to "
-    "forget and no need to ask the user for the value"
+    "nothing was forgotten: no remembered exchange contains that text, so tell the user that "
+    "nothing about it was stored, and do not ask the user for the value"
 )
 
 FORGET_NOT_KEPT_NOTE = (

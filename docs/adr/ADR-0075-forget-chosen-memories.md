@@ -44,8 +44,8 @@ that removes exactly those rows and holds against a turn in flight. This record 
 5. **The built-in `forget_memories` (`ForgetChosenTool`) is the one caller.** It takes one `text`:
    the value when the model knows it, and otherwise one word from the request that names it, such
    as `passport`, because a model told to pass only the value asked the person to type it. A
-   search that finds nothing returns a result saying there is nothing to forget and no need to
-   ask for the value.
+   search that finds nothing returns a result telling the model to say that nothing about it was
+   stored and not to ask for the value.
    Its confirmation card runs `find_text` over the session's read scopes and lists an excerpt of
    each matching row, so the card shows stored text and never text the model wrote; that is why the
    dispatcher may show it on a tainted turn. A forget that deletes nothing whatever the answer (no

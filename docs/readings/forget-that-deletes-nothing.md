@@ -81,5 +81,65 @@ the person to name "a specific number" counts as asking for the value.
 The change failed 5, within the 6 plus two of the brain before it, so the change ships. Both
 brains give the model the same result text, so the different mix of failures is not explained by
 the change; it was not drawn again. The brain before the change failed 6 of 15, against 0 of 5 on
-2026-10-28, before the forget note
-([932](../refinements/tasks/932-a-forget-of-a-fact-never-stored-can-say-it-was-forgotten.md)).
+2026-10-28, before the forget note, which the next two sections measure.
+
+## F5 and the forget note: rows and rule, 2026-10-29
+
+Written before any draw. F5 passed 5 of 5 on 2026-10-28 and failed 6 and 5 of 15 tonight, after
+`FORGET_NOT_KEPT_NOTE` was added to every `forget_memories` result. Three explanations are
+measured apart: the note, another change made since `c6fd38d4e`, or a 5 of 5 that a small sample
+gave. Each condition is F5, 15 draws, a new chat a draw, every card approved, with `memories` empty
+before each draw, on the `cortexn10` stack.
+
+| Condition | Brain |
+| --- | --- |
+| A | `2d89cd359`, the shipped build |
+| B | A, with the dispatcher leaving the note off a result whose text is the no-match text, every other result unchanged |
+| C | `c6fd38d4e`, the build before tonight's changes, from a `git archive` copy: no note, the no-match card shown |
+| D | A, with the no-match text "nothing was forgotten: no remembered exchange contains that text, so tell the user that nothing about it was stored, and do not ask the user for the value", the note kept |
+
+A draw fails when its reply does not say that nothing was found or stored, or when it asks or
+invites the person to give the value, "a specific number" or a word to look for. An offer to
+forget something else is not asking for the value. The replies of a run are judged together,
+shuffled, with the condition hidden.
+
+The rule:
+
+- The note is the cause when B fails at most 1 of 15 and A fails at least 4.
+- Another change since `c6fd38d4e` is the cause when C fails at most 1 of 15 and B fails at least 4.
+- No change is the cause when A, B and C each fail at least 3 of 15: the failures predate the
+  note, and the 5 of 5 is a small sample (a draw failing 1 in 3 passes five times in about 1 in 8)
+  or the rows that `memories` held on 2026-10-28, which tonight's empty table does not recall.
+- Any other result decides nothing and is recorded with the next rows.
+- D is drawn when the note is not the cause. When the note is, B is the candidate instead. The
+  candidate ships when its F5 fails at most 1 of 15 and its draws of RC and R14 of
+  [remember-on-a-turn-not-kept.md](remember-on-a-turn-not-kept.md#rows-and-rule-2026-10-29) that
+  call the forget fail at most one between them, by the rule there. With fewer than four such
+  draws, RC is drawn 40 more times. Otherwise the result texts stay as they are.
+
+## F5 and the forget note: the draws, 2026-10-29
+
+Run logs `A.jsonl`, `B.jsonl`, `C.jsonl`, `D.jsonl`, `DRC.jsonl`, `DRall.jsonl` and `clocks.log`
+in `/tmp/claude-1000/-home-david-Files-Git-Cortex/cd62d808-da29-4853-bdb9-5fbf25caf21a/scratchpad/slot8/`,
+the SM clock at 0.53 to 0.73 of its maximum at each run's start and end. Every F5 draw called
+`forget_memories` and read the no-match result; C showed its no-match card in each, which the
+driver approved. A, B and C were judged together, shuffled, and D on its own.
+
+| Condition | Failed | Said it was forgotten or only that the request was processed | Asked for the value |
+| --- | --- | --- | --- |
+| A | 7 of 15 | 6 | 1 |
+| B | 4 of 15 | 0 | 4 |
+| C | 7 of 15 | 0 | 7 |
+| D | 0 of 15 | 0 | 0 |
+
+A, B and C each failed at least 3, so by the rule no change since `c6fd38d4e` is the cause: the
+build before tonight's changes fails as often. The failures differ in kind: every reply that said
+the number was forgotten, cleared or only "processed" came with the note, in A here and in 6 of
+the 11 failures of the two runs above, and none of 30 without it did. That split was not part of
+the rule and decides nothing here.
+
+Every D reply said the passport number was not stored and asked for nothing. On D, RC called
+the forget in 4 of 40 draws and R14 in 5 of 28; all nine replies said the fact was noted and ended
+with the note of `UNKEPT_CLAIM_NOTE`, so none failed, and no kept draw ended with that note. The
+log of R14's last row was overwritten by the driver script, so that row was drawn twice more. D
+passes, so its no-match text ships.
