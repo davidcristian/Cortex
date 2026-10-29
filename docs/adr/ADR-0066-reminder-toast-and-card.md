@@ -189,6 +189,8 @@ would be a brain setting.
 - A turn still running in a chat when it is deleted can add a reminder after the detach, and that
   item keeps the deleted id
   ([R-936](../refinements/tasks/936-a-reminder-added-by-a-turn-in-a-deleted-chat-keeps-its-id.md)).
+- A detach that commits inside a `finish` makes that fire answer `False`, so the lease fires it
+  again ([R-938](../refinements/tasks/938-a-write-that-keeps-a-claim-makes-a-concurrent-finish-lose-its-fire.md)).
 
 ## Alternatives rejected
 

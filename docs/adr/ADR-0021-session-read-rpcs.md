@@ -161,7 +161,7 @@ with `delete_written_by`, so a secret typed in a deleted chat is not recalled la
 chat stored after recalling it stays, for `forget_memories` (ADR-0075). A private scope (`scope ==
 session_id`, never `GLOBAL_SCOPE`) is then emptied with `delete_scope`. The handler deletes the
 session, cascades, then calls `ScheduleStore.detach_session` (ADR-0066 decision 9); a store error
-aborts `UNAVAILABLE` and a retry completes.
+aborts `UNAVAILABLE`; nothing retries it yet ([R-937](../refinements/tasks/937-a-delete-that-fails-after-the-chat-is-gone-leaves-a-dead-chat-open.md)).
 
 **A delete does not wait for a turn running in its chat; the turn's writes read the deleted set.**
 `append`, `set_title` and `set_recap` store nothing for a deleted chat: the Redis adapter reads the
