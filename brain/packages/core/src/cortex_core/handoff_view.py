@@ -7,7 +7,7 @@ from cortex_core.conversation import Message, Role, ToolRun
 from cortex_core.escalate import ESCALATION_QUEUED_MSG
 from cortex_core.handoff import HandoffRecord
 from cortex_core.tools import ToolCall
-from cortex_core.untrusted import USER_DECLINED_MSG
+from cortex_core.untrusted import says_declined
 
 HANDOFF_TAKEN_MSG = (
     "The handoff is done: you are the deep model, and this task is now yours. The brief the "
@@ -37,9 +37,7 @@ def cortex_runs(history: Sequence[Message], record: HandoffRecord) -> tuple[Tool
 
 def declined_calls(record: HandoffRecord) -> list[ToolCall]:
     """The calls the person pressed Deny on before the handoff, read from the tail's results."""
-    declined = {
-        message.tool_call_id for message in record.loop_tail if message.text == USER_DECLINED_MSG
-    }
+    declined = {message.tool_call_id for message in record.loop_tail if says_declined(message.text)}
     return [
         call for message in record.loop_tail for call in message.tool_calls if call.id in declined
     ]

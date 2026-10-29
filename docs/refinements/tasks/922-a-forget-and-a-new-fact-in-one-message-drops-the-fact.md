@@ -25,8 +25,9 @@ argument the model passed (a keyword such as `passport`), so masking the argumen
 ## History
 
 - 2026-10-28: filed from the second audit of the forget tool, with one draw on the `cortexn9` stack.
-- 2026-10-29: done. Every result `ForgetChosenTool.invoke` returns now ends with
-  `FORGET_NOT_KEPT_NOTE`: nothing in the message is kept, the reply must not say it was noted, and
-  the person is asked to send anything else again. A first wording failed the rule on N2 and the
-  second passed it, 13 of 15 N draws against 0 of 15 with no note. Filed task 926, a request to
-  remember that calls the forget, and task 927, a forget that never ran gets no note.
+- 2026-10-29: done. Every result a `forget_memories` call gets, whether it ran or was declined,
+  expired or refused, now ends with `FORGET_NOT_KEPT_NOTE`: nothing in the message is kept, the
+  reply must not say it was noted, and the person is asked to send anything else again. A first
+  wording failed the rule on N2 and the second passed it, 13 of 15 N draws against 0 of 15 with no
+  note; with the card declined, 5 of 5 against 0 of 5. Filed task 926, a request to remember that
+  calls the forget.

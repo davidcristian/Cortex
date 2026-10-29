@@ -72,7 +72,7 @@ never a reading of what the tree does now.
 - **[R-923](tasks/923-a-forget-request-with-no-call-is-recorded.md)** A forget request with no call is recorded (memory). Its claim was checked against the code on 2026-10-28.
 - **[R-925](tasks/925-a-chat-deleted-while-its-turn-runs-comes-back.md)** A chat deleted while its turn runs comes back (session-read-rpc). Its claim was checked against the code on 2026-10-28.
 - **[R-926](tasks/926-a-request-to-remember-can-call-the-forget-of-a-text.md)** A request to remember can call the forget of a text (memory). Its claim was checked against the code on 2026-10-29.
-- **[R-927](tasks/927-a-forget-that-never-ran-does-not-say-the-message-is-not-kept.md)** A forget that never ran does not say the message is not kept (memory). Its claim was checked against the code on 2026-10-29.
+- **[R-928](tasks/928-a-request-to-remember-that-reads-a-file-listing-is-not-kept.md)** A request to remember that reads a file listing is not kept (memory). Its claim was checked against the code on 2026-10-29.
 
 ### Actionable, once a port changes (1)
 
@@ -567,7 +567,7 @@ never a reading of what the tree does now.
 - [R-922](tasks/922-a-forget-and-a-new-fact-in-one-message-drops-the-fact.md) A forget and a new fact in one message drops the fact. done 2026-10-29.
 - [R-923](tasks/923-a-forget-request-with-no-call-is-recorded.md) A forget request with no call is recorded. open, actionable.
 - [R-926](tasks/926-a-request-to-remember-can-call-the-forget-of-a-text.md) A request to remember can call the forget of a text. open, actionable.
-- [R-927](tasks/927-a-forget-that-never-ran-does-not-say-the-message-is-not-kept.md) A forget that never ran does not say the message is not kept. open, actionable.
+- [R-928](tasks/928-a-request-to-remember-that-reads-a-file-listing-is-not-kept.md) A request to remember that reads a file listing is not kept. open, actionable.
 
 ### orchestrator
 

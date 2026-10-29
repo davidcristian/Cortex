@@ -4,6 +4,7 @@ from cortex_core import (
     ESCALATE_TOOL_NAME,
     FORGET_CARD,
     FORGET_CHOSEN_TOOL_NAME,
+    FORGET_NOT_KEPT_NOTE,
     FORGET_UNTRUSTED_TOOL_NAME,
     GLOBAL_MEMORY_SCOPE,
     GLOBAL_SCOPE,
@@ -55,6 +56,27 @@ async def test_the_cortex_dispatcher_shows_the_chosen_rows_and_deletes_them_on_a
         "Deletes for good, with no undo, these 1 remembered exchanges:\n- card 4242 4242"
     ]
     assert [hit.record.id for hit in await store.search((1.0,), k=5)] == ["m2"]
+    assert result.content.endswith(
+        f"no remembered exchange contains that text now. {FORGET_NOT_KEPT_NOTE}"
+    )
+
+
+async def test_a_declined_chosen_forget_says_the_message_is_not_kept() -> None:
+    confirmer = RecordingConfirmer(answer=False)
+    chosen = ForgetChosenTool(InMemoryMemoryStore(), GLOBAL_MEMORY_SCOPE)
+    builtins = build_builtin_tools(None, None, escalation=True, chosen=chosen)
+    tools = build_cortex_tools(None, builtins, SystemClock(), confirmer=confirmer)
+    assert isinstance(tools, ToolDispatcher)
+    forget = await tools.dispatch(
+        ToolCall(id="c1", name=FORGET_CHOSEN_TOOL_NAME, arguments={"text": "4242"}),
+        stamp=TurnStamp(session_id="chat-a"),
+    )
+    escalate = await tools.dispatch(
+        ToolCall(id="c2", name=ESCALATE_TOOL_NAME, arguments={"reason": "deep"}),
+        stamp=TurnStamp(session_id="chat-a"),
+    )
+    assert forget.content == f"{USER_DECLINED_MSG} {FORGET_NOT_KEPT_NOTE}"
+    assert escalate.content == USER_DECLINED_MSG
 
 
 async def test_the_cortex_dispatcher_shows_the_forget_card_on_a_recall_tainted_turn() -> None:

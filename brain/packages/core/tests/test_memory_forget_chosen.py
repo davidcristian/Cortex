@@ -19,7 +19,6 @@ from cortex_core import (
 _AT = datetime(2026, 10, 28, 4, 0, 0, tzinfo=UTC)
 _CARD = "User: Remember that my card number is 4242 4242 4242 4242.\nAssistant: Noted."
 _RECALL = "User: What do you remember?\nAssistant: Your card number is 4242 4242 4242 4242."
-_NOTE = f". {FORGET_NOT_KEPT_NOTE}"
 
 
 def _record(record_id: str, text: str, *, scope: str = "global", minutes: int = 0) -> MemoryRecord:
@@ -44,8 +43,8 @@ async def _texts(store: InMemoryMemoryStore) -> list[str]:
 
 
 def _said(result: ToolResult) -> str:
-    assert result.content.endswith(_NOTE)
-    return result.content.removesuffix(_NOTE)
+    assert result.content.endswith(".")
+    return result.content.removesuffix(".")
 
 
 def _call(text: object = "4242 4242", *, call_id: str = "c1", session: str = "chat-a") -> ToolCall:
@@ -76,6 +75,11 @@ def test_the_tool_needs_confirmation_and_one_text() -> None:
     assert spec.name == "forget_memories"
     assert spec.confirm_required is True
     assert spec.parameters["required"] == ["text"]
+
+
+def test_every_result_of_the_tool_is_to_end_with_the_not_kept_note() -> None:
+    tool = ForgetChosenTool(InMemoryMemoryStore(), GLOBAL_MEMORY_SCOPE)
+    assert tool.result_note == FORGET_NOT_KEPT_NOTE
 
 
 async def test_the_card_lists_every_matching_memory_and_the_forget_deletes_them() -> None:

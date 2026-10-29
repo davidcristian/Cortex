@@ -31,6 +31,14 @@ class ToolOffer(Protocol):
     async def offered(self, session_id: str) -> bool: ...
 
 
+@runtime_checkable
+class ResultNote(Protocol):
+    """A built-in whose calls' results all end with ``result_note``, whether the call ran or not."""
+
+    @property
+    def result_note(self) -> str: ...
+
+
 class CompositeToolRegistry:
     """A ``ToolRegistry`` advertising built-in tools plus an optional remote registry's tools."""
 

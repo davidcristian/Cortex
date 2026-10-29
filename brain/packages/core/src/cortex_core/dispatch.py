@@ -6,7 +6,7 @@ from dataclasses import dataclass, field, replace
 from enum import Enum
 from types import MappingProxyType
 
-from cortex_core.composite import RecordCard, ToolOffer
+from cortex_core.composite import RecordCard, ResultNote, ToolOffer
 from cortex_core.errors import ToolError
 from cortex_core.log_secrets import REDACTED
 from cortex_core.ports import Clock, Confirmer, ToolAuditSink, ToolRegistry
@@ -96,6 +96,7 @@ class DispatchPolicy:
     record_cards: Mapping[str, RecordCard] = field(default_factory=dict[str, RecordCard])
     offers: Mapping[str, ToolOffer] = field(default_factory=dict[str, ToolOffer])
     private_names: Collection[str] = ()
+    notes: Mapping[str, ResultNote] = field(default_factory=dict[str, ResultNote])
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "confirm_names", frozenset(self.confirm_names))
@@ -103,6 +104,7 @@ class DispatchPolicy:
         object.__setattr__(self, "confirm_reasons", MappingProxyType(dict(self.confirm_reasons)))
         object.__setattr__(self, "record_cards", MappingProxyType(dict(self.record_cards)))
         object.__setattr__(self, "offers", MappingProxyType(dict(self.offers)))
+        object.__setattr__(self, "notes", MappingProxyType(dict(self.notes)))
 
 
 DEFAULT_DISPATCH_POLICY = DispatchPolicy()
@@ -173,13 +175,19 @@ class ToolDispatcher:
         # is discarded before the taint check reads it.
         call = replace(call, stamp=stamp)
         try:
-            return await self._dispatched(call, confirm_required=confirm_required, refusal=refusal)
+            result = await self._dispatched(
+                call, confirm_required=confirm_required, refusal=refusal
+            )
         except asyncio.CancelledError:
             cut = ToolResult(
                 call_id=call.id, content=CANCELLED_MSG, is_error=True, trust=Trust.TRUSTED
             )
             await self._audited(call, cut)
             raise
+        noted = self._policy.notes.get(call.name)
+        if noted is None:
+            return result
+        return replace(result, content=f"{result.content} {noted.result_note}")
 
     async def _dispatched(
         self, call: ToolCall, *, confirm_required: bool, refusal: DispatchRefusal | None

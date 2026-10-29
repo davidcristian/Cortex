@@ -15,6 +15,7 @@ from cortex_core import (
     Message,
     RecordingAuditSink,
     RecordingConfirmer,
+    ResultNote,
     Role,
     SaliencePolicy,
     TaintLedger,
@@ -60,6 +61,12 @@ class _RoundsBackend:
             yield call
 
 
+class _Noted:
+    @property
+    def result_note(self) -> str:
+        return "Nothing in this message is kept."
+
+
 async def _sent(arguments: Mapping[str, object]) -> str:
     return f"sent:{arguments.get('to', '')}"
 
@@ -74,6 +81,7 @@ def _context(
     *,
     confirm_names: Sequence[str] = (),
     salience: SaliencePolicy | None = None,
+    notes: Mapping[str, ResultNote] | None = None,
 ) -> ToolLoopContext:
     """A loop over ``send`` (confirmed by its spec) and ``note`` (confirmed only by policy)."""
     registry = InMemoryToolRegistry(
@@ -82,7 +90,7 @@ def _context(
             "note": (ToolSpec("note", "note", {}), _sent),
         }
     )
-    policy = DispatchPolicy(confirm_names=confirm_names)
+    policy = DispatchPolicy(confirm_names=confirm_names, notes=notes or {})
     if salience is not None:
         policy = DispatchPolicy(confirm_names=confirm_names, salience=salience)
     dispatcher = ToolDispatcher(registry, sink, _Clock(), confirmer=confirmer, policy=policy)
@@ -175,3 +183,11 @@ async def test_an_approved_call_repeated_is_never_answered_as_declined() -> None
     assert details[0] == "sent:a@example.com"
     assert ALREADY_DECLINED_MSG not in details
     assert details[-1] == REDUNDANT_MSG
+
+
+async def test_a_declined_call_whose_result_ends_with_a_note_still_refuses_its_repeat() -> None:
+    sink, confirmer = RecordingAuditSink(), RecordingConfirmer(answer=False)
+    context = _context(sink, confirmer, notes={"send": _Noted()})
+    await _run(_RoundsBackend([[_call(1)], [_call(2)]]), context)
+    assert len(confirmer.requests) == 1
+    assert [record.detail for record in sink.records] == [USER_DECLINED_MSG, ALREADY_DECLINED_MSG]

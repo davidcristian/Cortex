@@ -20,7 +20,7 @@ from cortex_core.tool_round import RoundPlan, result_message
 from cortex_core.tool_salience import asks_the_same
 from cortex_core.tool_tail import tail_count
 from cortex_core.tools import ToolCall, ToolSpec, Trust, TurnStamp
-from cortex_core.untrusted import USER_DECLINED_MSG, TaintLedger
+from cortex_core.untrusted import TaintLedger, says_declined
 from cortex_core.waits import GENERATING, TOOL_RUNNING, Wait
 
 
@@ -131,7 +131,7 @@ async def run_round(
                 confirm_required=spec is not None and spec.confirm_required,
                 refusal=refusal,
             )
-        if refusal is None and result.content == USER_DECLINED_MSG:
+        if refusal is None and says_declined(result.content):
             context.declined.append(call)
         if refusal is None and spec is not None:
             yield StepOutcome(tool_name=spec.name, ok=not result.is_error)

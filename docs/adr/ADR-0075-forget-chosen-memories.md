@@ -57,10 +57,12 @@ that removes exactly those rows and holds against a turn in flight. This record 
    refused, was cut from its round or could not be read, because its query or reply may name the
    text it forgets, and recording it would store that text again. That holds for the deep phase
    of a turn the cortex handed over after naming it, which reads the cortex's runs from the
-   stored reply and the mark from the handoff record. So every result `invoke` returns ends with
-   `FORGET_NOT_KEPT_NOTE`: nothing in the message is kept, the reply must not say anything in it
-   was noted, and anything else it asked to be remembered must be sent again in its own message,
-   because a model given no note told the person a new fact in the same message was kept. Its
+   stored reply and the mark from the handoff record. So every result a call to it gets ends with
+   `FORGET_NOT_KEPT_NOTE`, whether the call ran or was declined, expired or refused: nothing in
+   the message is kept, the reply must not say anything in it was noted, and anything else it
+   asked to be remembered must be sent again in its own message, because a model given no note
+   told the person a new fact in the same message was kept. The tool is a `ResultNote`, and the
+   dispatcher appends the note after it writes the audit line, which keeps the outcome alone. Its
    spec sets `private_arguments`, so the tool audit and a handoff record's loop tail keep the
    `text` argument as `<redacted>`, and a call whose arguments do not parse is logged by its tool
    name and length.

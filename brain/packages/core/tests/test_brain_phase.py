@@ -378,6 +378,22 @@ async def test_a_call_declined_before_the_handoff_is_not_asked_again_after_it() 
     assert refused.text == ALREADY_DECLINED_MSG
 
 
+async def test_a_decline_with_a_note_after_it_before_the_handoff_is_not_asked_again() -> None:
+    confirmer = RecordingConfirmer(answer=False)
+    policy = DispatchPolicy(confirm_names={"read"})
+    dispatcher = ToolDispatcher(
+        _registry(), RecordingAuditSink(), SystemClock(), policy=policy, confirmer=confirmer
+    )
+    tail = _read_round("c0", "a", f"{USER_DECLINED_MSG} Nothing in this message is kept.")
+    backend = ScriptedBrainBackend(
+        chunks=("done",), tool_calls=(ToolCall(id="c2", name="read", arguments={"path": "a"}),)
+    )
+    await _drive(capabilities=TurnCapabilities(tools=dispatcher), backend=backend, tail=tail)
+    assert confirmer.requests == ()
+    refused = next(message for message in backend.seen if message.tool_call_id == "c2")
+    assert refused.text == ALREADY_DECLINED_MSG
+
+
 async def test_a_withheld_call_declined_before_the_handoff_is_asked_again_after_it() -> None:
     confirmer = RecordingConfirmer(answer=False)
     policy = DispatchPolicy(confirm_names={"read"})

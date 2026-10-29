@@ -54,6 +54,11 @@ class ForgetChosenTool:
         self._shown: dict[str, tuple[str, ...] | str] = {}
 
     @property
+    def result_note(self) -> str:
+        """The note the dispatcher ends every result of a call to this tool with, run or not."""
+        return FORGET_NOT_KEPT_NOTE
+
+    @property
     def spec(self) -> ToolSpec:
         """One argument: the literal text every memory to delete contains."""
         return ToolSpec(
@@ -117,10 +122,10 @@ class ForgetChosenTool:
         return tuple(record.id for record in found), card
 
     def _result(self, call: ToolCall, content: str, *, error: bool = True) -> ToolResult:
-        """The call's result: ``content``, then the note that this turn is not recorded."""
+        """The call's result: ``content`` as one sentence."""
         return ToolResult(
             call_id=call.id,
-            content=f"{content}. {FORGET_NOT_KEPT_NOTE}",
+            content=f"{content}.",
             is_error=error,
             trust=Trust.TRUSTED,
         )

@@ -19,6 +19,7 @@ from cortex_core import (
     ForgetUntrustedTool,
     GetVolumeTool,
     RecordCard,
+    ResultNote,
     SetVolumeTool,
     SightedToolRegistry,
     SpawnSubagentsTool,
@@ -98,6 +99,7 @@ def build_cortex_tools(
         registry = SightedToolRegistry(registry, vision)
     cards = {tool.spec.name: tool for tool in builtins if isinstance(tool, RecordCard)}
     offers = {tool.spec.name: tool for tool in builtins if isinstance(tool, ToolOffer)}
+    notes = {tool.spec.name: tool for tool in builtins if isinstance(tool, ResultNote)}
     # A model can call a built-in by name on a turn whose list left it out, and the dispatcher
     # then has no spec to read, so its name must be in the policy for the card to show.
     confirmed = [tool.spec.name for tool in builtins if tool.spec.confirm_required]
@@ -108,5 +110,6 @@ def build_cortex_tools(
         private_names=(*setup.policy.private_names, *private),
         record_cards=cards,
         offers=offers,
+        notes=notes,
     )
     return ToolDispatcher(registry, setup.audit, clock, confirmer=confirmer, policy=policy)

@@ -93,6 +93,11 @@ EXPIRED_MSG = (
 )
 
 
+def says_declined(text: str) -> bool:
+    """Whether a call's result says the person pressed Deny on it, with or without a note after."""
+    return text.startswith(USER_DECLINED_MSG)
+
+
 def new_nonce() -> str:
     """A fresh per-turn nonce for the untrusted-content fence; unpredictable and turn-scoped."""
     return secrets.token_hex(_NONCE_BYTES)

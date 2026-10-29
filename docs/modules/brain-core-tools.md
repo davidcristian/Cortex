@@ -31,8 +31,7 @@ spawned subtask or a model swap is in [brain-core-residency.md](brain-core-resid
   failure raises `ToolError` (`ToolNotFoundError` for the name), and the dispatcher, not the
   registry, turns that into an error result. Two obligations are checked by the shared contract in
   `packages/tools/tests/registry_contract.py`: a listing is read at the call and never remembered,
-  and a name an implementation does not serve never comes back as a success. Fake:
-  `InMemoryToolRegistry`; real adapter: `cortex_tools`.
+  and a name an implementation does not serve never comes back as a success. Fake: `InMemoryToolRegistry`; real adapter: `cortex_tools`.
 - `ToolAuditSink` provides `record(invocation)` for every dispatched call. Fake: `RecordingAuditSink`.
 - `Confirmer` provides `confirm(request) -> ConfirmAnswer` (ADR-0013: `APPROVED`, `DECLINED`,
   `EXPIRED` or `UNANSWERED`) over a `ConfirmationRequest(tool_name, arguments, reason)`: the user's decision,
@@ -64,10 +63,11 @@ spends and whether it is worth running. The dispatcher is stateless; the loop dr
   once `forgotten` is set), the confirmer never asked, unless its name has a record card; otherwise it
   runs only when the `Confirmer` approves, else `USER_DECLINED_MSG`, `EXPIRED_MSG` or `UNANSWERED_MSG`.
 
-`DispatchPolicy(confirm_names=(), costs=UNIFORM_COST, salience=REPEAT_SALIENCE, confirm_reasons={},
-record_cards={}, offers={}, private_names=())` (`dispatch.py`, default `DEFAULT_DISPATCH_POLICY`) states the
-confirmed tools, the prices, the salience rule, the card text (`confirm_reasons[name]` or a `RecordCard`'s
-`card(call)`), the `ToolOffer`s `withheld(session_id)` reads, and the tools audited with `<redacted>` values.
+`DispatchPolicy(confirm_names=(), costs=UNIFORM_COST, salience=REPEAT_SALIENCE, confirm_reasons={}, record_cards={},
+offers={}, private_names=(), notes={})` (`dispatch.py`, default `DEFAULT_DISPATCH_POLICY`) states the confirmed tools,
+the prices, the salience rule, the card text (`confirm_reasons[name]` or a `RecordCard`'s `card(call)`), the `ToolOffer`s
+`withheld(session_id)` reads, the tools audited with `<redacted>` values, and the `ResultNote`s whose `result_note`
+`dispatch` appends to every result their calls get, run or not, after the audit line.
 
 - `RepeatSalience(limit=MAX_IDENTICAL_DISPATCHES)` (`tool_salience.py`, the default
   `REPEAT_SALIENCE`, limit 2) refuses a call identical to one already made in this round, or made

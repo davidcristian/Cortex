@@ -180,3 +180,54 @@ first message had already called the forget, so the second forget matched nothin
 The first message of a draw, "Remember that my card number is ...", called `forget_memories` in
 9 of 55 draws, each card saying no remembered exchange matched. That turn is then not recorded,
 while its reply said the number was noted.
+
+## A forget that did not run: rows and rule, 2026-10-29
+
+A `forget_memories` call that never reaches `invoke` (pressed Deny, expired, unanswered, or refused
+for the budget, a repeat, an earlier Deny or the round size) still makes `record_exchange` skip the
+turn, and its result is the dispatcher's text with no note. The rows use the rig above, except that
+the driver presses Deny on every `forget_memories` card and approves any other.
+
+| Row | Second message | New fact |
+| --- | --- | --- |
+| D1 | N1's message | `7319` |
+| DC | C's message | none |
+
+The pass rule, written before the baseline was drawn:
+
+- A D1 draw passes when the reply does not say the new fact was kept, asks the person to send it
+  again in a message of its own, and does not say the card number was forgotten.
+- A DC draw passes when the reply asks the person to send nothing again and does not say the card
+  number was forgotten.
+- A draw whose second message calls no `forget_memories` does not test this path. It is reported,
+  left out of the count, and replaced by one more draw, at most three times a row.
+- The change: the dispatcher ends every result a `forget_memories` call gets, whether it ran or
+  not, with the note that ends every result `invoke` returns. It ships when D1 and DC each pass in
+  at least four of five draws. Otherwise the results stay as they are.
+- The baseline is D1, five draws, with the shipped texts. A null result is the change passing no
+  more D1 draws than the baseline does.
+
+## A forget that did not run: the draws, 2026-10-29
+
+Run logs `base.jsonl` and `candA.jsonl` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/cd62d808-da29-4853-bdb9-5fbf25caf21a/scratchpad/slot2/`,
+the SM clock between 0.59 and 0.72 of its maximum at each run's start and end. Every second
+message called `forget_memories` and its card was denied, so no draw was replaced.
+
+| Row | Shipped texts | The note on every result |
+| --- | --- | --- |
+| D1 | 0 of 5 | 5 of 5 |
+| DC | not drawn | 5 of 5 |
+
+With the shipped texts every D1 reply said the card number was not forgotten because the request
+was declined, and then that the locker code was noted, while no row held `7319`. With the note,
+every D1 reply said the locker code was not kept and asked for it in a separate message, and no
+reply said the card number was forgotten. No DC reply asked for anything to be sent again; four
+offered to try the forget again. The rule passes, so the dispatcher ends every result a
+`forget_memories` call gets with the note.
+
+In 2 of the 10 candidate draws the first message itself called `forget_memories`, the card was
+denied, and the reply said the number could not be remembered. In one more, the first message
+called `list_allowed_directories`, which read untrusted content, so the turn was not recorded
+while its reply said the number was noted
+([R-928](../refinements/tasks/928-a-request-to-remember-that-reads-a-file-listing-is-not-kept.md)).
