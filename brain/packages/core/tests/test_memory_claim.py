@@ -52,6 +52,17 @@ CLAIMS = [
     "Noted: your brother is called Luca.",
     "Here are the folders I can read:\n- /projects\nI've noted your locker code.",
     "Do you want the files too? I've noted the code.",
+    "Noted. Your mother's birthday is on May 12th.",
+    "Noted! I'll keep in mind that your mother's birthday is on May 12th.",
+    "Got it! Noted.",
+    "\n\nNoted: your brother is called Luca.",
+    "I've now remembered that your brother is Luca.",
+    "I'll keep that in mind.",
+    "I will keep in mind that you moved to Utrecht.",
+    "I'll note that down.",
+    "I'll note that your card number is 4242 4242 4242 4242.",
+    "I have stored it in my memory.",
+    "Your request has been noted.",
 ]
 
 NOT_CLAIMS = [
@@ -70,6 +81,15 @@ NOT_CLAIMS = [
     "I've saved the summary to notes.txt.",
     "The file notes.txt says: Card for testing: a passport scan is not here.",
     "I've added a line to the file in your projects folder.",
+    "As I noted above, the file has two lines.",
+    "As I've noted, the folder is empty.",
+    "I've noted above that the file has two lines.",
+    "I will note that the page has no date.",
+    "notes.txt says:\nNoted: buy milk.",
+    "It has been noted by critics that the film is long.",
+    "It has been noted that the film is long.",
+    "I have stored the result in memory.txt for you.",
+    "I'll save the list to memory-notes.md.",
 ]
 
 

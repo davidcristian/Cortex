@@ -101,3 +101,28 @@ forget note. With the change, every reply that was not kept and has no note said
 not be saved, or did not mention it. The rule passes: 0 of 33 not-kept draws failed, no kept draw
 ended with the note, and no K reply did. The change ships. All 8 R14 draws that called the forget
 said "I've noted" before the note, so the result note alone still does not stop the claim.
+
+## The draws with the narrower claim, 2026-10-29
+
+`claims_kept` was narrowed so that forms pointing at text rather than at memory do not count: "As
+I noted above", "noted above", "I will note that" before a clause that is not about "you", "has
+been noted by" or "that", a file name such as `memory.txt`, and a bare "Noted" past the reply's
+first line. The old and new predicates were first compared on every reply recorded on the
+`cortexn10` stack that night, 781 replies with the note removed: they decided every one alike.
+Then every row above ran once more on a brain built with the narrower claim, under the pass rule
+above, unchanged. One T1 draw called no file sidecar tool, stored its fact without the note, and
+was replaced. The `memories` table again agreed with the check in every draw.
+
+| Row | Draws | Not kept | Said noted, so the note was added | Not kept, failed | Kept, with the note |
+| --- | --- | --- | --- | --- | --- |
+| RC | 40 | 7, each a `forget_memories` call | 3 | 0 | 0 of 33 |
+| R14 | 28 | 4, each a `forget_memories` call | 4 | 0 | 0 of 24 |
+| T1 | 6 | 5 | 5 | 0 | 0 of 1 |
+| T2 | 5 | 5 | 5 | 0 | none kept |
+| T3 | 5 | 5 | 2 | 0 | none kept |
+| K | 5 | 5 | 0 | 0 | none kept |
+
+Every not-kept reply without the note said the card number could not be stored, or did not mention
+the fact. The rule still passes: 0 of 26 not-kept draws failed, no kept draw ended with the note,
+and no K reply did. The comparison ran both predicates over each recorded reply; the draws used
+the `Converse` driver of the draws of the change, with the same rows and counts.

@@ -15,31 +15,41 @@ UNKEPT_CLAIM_NOTE = (
 )
 
 _ADVERB = r"(?:(?:now|just|also|already)\s+)?"
-_HAVE = rf"\bI(?:\s+have|['\u2019]ve)?\s+{_ADVERB}"
-_WILL = rf"\bI(?:\s+will|['\u2019]ll)\s+{_ADVERB}"
+# "As I noted" points back at the reply's own text, not at memory.
+_HAVE = rf"(?<!\bas\s)\bI(?:\s+have|['\u2019]ve)?\s+{_ADVERB}"
+_WILL = rf"(?<!\bas\s)\bI(?:\s+will|['\u2019]ll)\s+{_ADVERB}"
 _NOTED = re.compile(
-    rf"{_HAVE}(?:noted|remembered|memori[sz]ed|made\s+a\s+note)\b"
-    rf"|{_WILL}(?:remember|note|memori[sz]e|make\s+a\s+note)\b",
+    rf"{_HAVE}(?:noted|remembered|memori[sz]ed|made\s+a\s+note)\b(?!\s+(?:above|below|earlier))"
+    rf"|{_WILL}(?:remember|memori[sz]e|make\s+a\s+note)\b"
+    rf"|{_WILL}note\b(?!\s+that\s+(?!(?:down|you|your)\b)\w)",
     re.IGNORECASE,
 )
 _PUT = re.compile(
     rf"(?:{_HAVE}(?:saved|stored|kept|recorded|added)|{_WILL}(?:save|store|keep|record|add))\b"
-    r".*\b(?:in|to|into)\s+(?:my\s+)?(?:mind|memory)\b",
+    r".*\b(?:in|to|into)\s+(?:my\s+)?(?:mind|memory)\b(?![.\-/\\]\w)",
     re.IGNORECASE,
 )
 _PASSIVE = re.compile(
-    r"\b(?:has|have)\s+been\s+(?:noted|remembered)\b|^\W*(?:got\s+it\W+)?noted\b", re.IGNORECASE
+    r"\b(?:has|have)\s+been\s+(?:noted|remembered)\b(?!\s+(?:by|that)\b)", re.IGNORECASE
 )
+_OPENING = re.compile(r"^\W*(?:got\s+it\W+)?noted\b", re.IGNORECASE)
 _SENTENCE_END = re.compile(r"(?<=[.!?])\s+|\n+")
+
+
+def _states(text: str, patterns: Sequence[re.Pattern[str]]) -> bool:
+    """Whether a sentence of ``text`` that asks nothing matches one of ``patterns``."""
+    return any(
+        not sentence.rstrip().endswith("?")
+        and any(pattern.search(sentence) for pattern in patterns)
+        for sentence in _SENTENCE_END.split(text)
+    )
 
 
 def claims_kept(reply: str) -> bool:
     """Whether a statement in ``reply`` says something was noted or will be remembered."""
-    return any(
-        not sentence.rstrip().endswith("?")
-        and any(pattern.search(sentence) for pattern in (_NOTED, _PUT, _PASSIVE))
-        for sentence in _SENTENCE_END.split(reply)
-    )
+    # A bare "Noted" claims only on the reply's first line; on a later one it is text read back.
+    opening = reply.lstrip().partition("\n")[0]
+    return _states(reply, (_NOTED, _PUT, _PASSIVE)) or _states(opening, (_OPENING,))
 
 
 def memory_withheld(caps: TurnCapabilities, taint: TaintLedger, runs: Sequence[ToolRun]) -> bool:

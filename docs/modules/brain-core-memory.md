@@ -92,8 +92,11 @@ pool down to the hits one turn sees. The turn that calls it is in
   returns on it, and both phases pass it to `limit_notes` as `withheld`, which then appends
   `UNKEPT_CLAIM_NOTE` when `claims_kept(reply)` finds a statement, not a question, saying something
   was noted, remembered, made a note of, or kept or saved "in mind" or "in memory". A bare "saved"
-  or "stored" does not count, since a file tool's reply says it saved a file. With memory off the
-  check is false and no note shows.
+  or "stored" does not count, since a file tool's reply says it saved a file. Neither do the forms
+  that point at text rather than memory: "as I noted", "noted above", "I will note that" before a
+  clause that is not about "you", "has been noted by" or "that", a file name such as `memory.txt`,
+  and a bare "Noted" past the reply's first line, which is a line read back from a file. With
+  memory off the check is false and no note shows.
 - `RecallPolicy` (port, `rerank.py`) turns an over-fetched pool into the final `k` hits:
   `candidate_k(k)` sizes the pool and `async select(hits, *, query, now, k, session_id=None,
   turn_id=None) -> Ranking` reranks and cuts it, returning at most `k` hits from the pool, none
