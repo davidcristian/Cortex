@@ -67,15 +67,15 @@ never a reading of what the tree does now.
 
 154 of these record the day their claims were last checked against the code. On every other task here, that reading is still yours to take.
 
-### Actionable now (3)
+### Actionable now (2)
 
 - **[R-923](tasks/923-a-forget-request-with-no-call-is-recorded.md)** A forget request with no call is recorded (memory). Its claim was checked against the code on 2026-10-29.
-- **[R-937](tasks/937-a-delete-that-fails-after-the-chat-is-gone-leaves-a-dead-chat-open.md)** A delete that fails after the chat is gone leaves a dead chat open (session-read-rpc). Its claim was checked against the code on 2026-10-29.
 - **[R-938](tasks/938-a-write-that-keeps-a-claim-makes-a-concurrent-finish-lose-its-fire.md)** A write that keeps a claim makes a concurrent finish lose its fire (scheduling). Its claim was checked against the code on 2026-10-29.
 
-### Actionable, once a port changes (1)
+### Actionable, once a port changes (2)
 
 - **[R-129](tasks/129-streamed-brain-status.md)** Streamed brain status (body-overlay). Its claim was checked against the code on 2026-10-25.
+- **[R-937](tasks/937-a-delete-that-fails-after-the-chat-is-gone-leaves-a-dead-chat-open.md)** A delete that fails after the chat is gone leaves a dead chat open (session-read-rpc). Its claim was checked against the code on 2026-10-29.
 
 ### Waiting for its trigger (120)
 
@@ -904,7 +904,7 @@ never a reading of what the tree does now.
 - [R-328](tasks/328-a-failed-turn-cannot-name-itself.md) A failed turn can name its session but never itself. done 2026-08-20.
 - [R-712](tasks/712-the-session-store-still-moves-the-hoisted-sets-first-key.md) The session store still moves the hoisted set's first key. open, waiting for its trigger.
 - [R-925](tasks/925-a-chat-deleted-while-its-turn-runs-comes-back.md) A chat deleted while its turn runs comes back. done 2026-10-29.
-- [R-937](tasks/937-a-delete-that-fails-after-the-chat-is-gone-leaves-a-dead-chat-open.md) A delete that fails after the chat is gone leaves a dead chat open. open, actionable.
+- [R-937](tasks/937-a-delete-that-fails-after-the-chat-is-gone-leaves-a-dead-chat-open.md) A delete that fails after the chat is gone leaves a dead chat open. open, needs a port change first.
 
 ### subagents
 
