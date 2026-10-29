@@ -112,8 +112,8 @@ which sets `session_id` to `""` on every pending, firing or fired item made in t
 decision 11), so its card has no `open chat`. The control would otherwise open an empty chat whose
 every turn ends as `session_deleted`. The Redis adapter keeps a FIRING item's claim and reads a
 raced record again rather than answering `False`, since an item it skipped would keep the deleted
-id. It skips and logs a record that does not decode, which the claim path quarantines when it falls
-due, so one corrupt record does not fail every chat's delete. A delete does not wait for a turn
+id. It skips and logs a record that does not decode, so one corrupt record does not fail every
+chat's delete; the claim path quarantines such a record only once it falls due. A delete does not wait for a turn
 running in the chat, so `schedule_task` reads `SessionStore.deleted` after its `add` and detaches
 the chat when it is set: the delete marks the chat before its detach reads the items, so an add
 that commits after that read finds the mark. A failed read is logged and keeps the id. A fire
@@ -191,6 +191,9 @@ would be a brain setting.
   snooze button on the toast, so the wire format is designed with its reader.
 - A detach that commits inside a `finish` makes that fire answer `False`, so the lease fires it
   again ([R-938](../refinements/tasks/938-a-write-that-keeps-a-claim-makes-a-concurrent-finish-lose-its-fire.md)).
+- A record that does not decode and is held only for delivery is never quarantined, so it fails
+  every listing of due reminders and keeps a deleted chat's id
+  ([R-940](../refinements/tasks/940-a-corrupt-record-awaiting-delivery-is-never-quarantined.md)).
 
 ## Alternatives rejected
 
