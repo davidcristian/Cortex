@@ -112,7 +112,8 @@ which sets `session_id` to `""` on every pending, firing or fired item made in t
 decision 11), so its card has no `open chat`. The control would otherwise open an empty chat whose
 every turn ends as `session_deleted`. The Redis adapter keeps a FIRING item's claim and reads a
 raced record again rather than answering `False`, since an item it skipped would keep the deleted
-id. A fire already running at the delete keeps the old id for that run's audit lines and subagent
+id. It skips and logs a record that does not decode, which the claim path quarantines when it falls
+due, so one corrupt record does not fail every chat's delete. A fire already running at the delete keeps the old id for that run's audit lines and subagent
 tasks only.
 
 ### 10. Card layout

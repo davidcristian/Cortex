@@ -102,7 +102,14 @@ async def _detach_item(client: Redis, item_id: str, session_id: str) -> bool:
     """Clear one item's origin chat when it is ``session_id``, keeping a live claim."""
     while True:
         async with client.pipeline(transaction=True) as pipe:
-            state = await watched_state(pipe, item_id)
+            try:
+                state = await watched_state(pipe, item_id)
+            except ScheduleStoreError:
+                # The claim path quarantines it when it falls due; failing here fails every delete.
+                logger.exception(
+                    "undecodable schedule record on the detach path", extra={"item_id": item_id}
+                )
+                return False
             if state is None or state[0].session_id != session_id:
                 return False
             item, live_claim, claimed_at = state

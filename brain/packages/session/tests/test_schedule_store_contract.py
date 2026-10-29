@@ -535,3 +535,20 @@ async def test_detach_reads_a_raced_record_again_and_keeps_the_concurrent_write(
     _poke_on_decode(monkeypatch, server, taint_it)
     assert await store.detach_session("session-1") == 1
     assert await store.get("raced") == replace(tainted, session_id="")
+
+
+async def test_detach_skips_a_corrupt_record_and_clears_the_rest(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    client = FakeAsyncRedis(server=FakeServer())
+    store = RedisScheduleStore(client)
+    item = schedule_contract.make_item("made-here", due_at=_NOW + timedelta(hours=2))
+    await store.add(item)
+    await _seed_raw(client, "poison", "not json", due_at=_NOW + timedelta(hours=1))
+    with caplog.at_level(logging.ERROR, logger="cortex_session.schedule_claims"):
+        assert await store.detach_session("session-1") == 1
+    assert await store.get("made-here") == replace(item, session_id="")
+    assert await client.get(record_key("poison")) == b"not json"
+    (line,) = caplog.records
+    assert line.getMessage() == "undecodable schedule record on the detach path"
+    assert line.__dict__["item_id"] == "poison"

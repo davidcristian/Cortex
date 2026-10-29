@@ -99,7 +99,7 @@ optimistic transaction**: the guard read and the state write share a WATCH, MULT
   it names, and a fire that finishes between the read and the EXEC fails it.
 - `detach_session(session_id)` sets `session_id` to `""` on every live item made in that chat and
   keeps a FIRING item's claim, so its `finish` keeps the cleared id. A raced EXEC reads the record
-  again rather than answering `False`, since a skipped item keeps the deleted chat (ADR-0066).
+  again; a record that does not decode is skipped and logged, never raised (ADR-0066).
 - `snooze(item_id, *, until)` postpones the next fire through the pure `apply_snooze`. A recurring
   item is allowed: only its next occurrence moves, with `anchor` held at the pre-snooze `due_at` so
   the series keeps its cadence. FIRING and a raced transition answer `False` (ADR-0025 decision 8).

@@ -214,6 +214,8 @@ against the demo bridge.
 
 A record that fails to decode on the claim path is quarantined, with the item id as the field and
 the raw bytes as the value, so one corrupt record costs the pass one item instead of failing it.
+A chat's delete skips such a record, logs `undecodable schedule record on the detach path` with its
+`item_id`, and still completes.
 Two log lines say it happened, each naming the item as a field rather than in prose, so one id
 finds both the traceback and the move:
 
