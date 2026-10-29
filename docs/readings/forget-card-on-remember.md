@@ -157,3 +157,23 @@ something"), which the person's message contradicts here. It ships when at most 
 four calling draws fails, and rows N1 to N3, C, D1 and DC of
 [forget-chosen-memories.md](forget-chosen-memories.md) still pass by their rules. The baseline is
 the same rows with the shipped note.
+
+## The note that names the call: the draws, 2026-10-29
+
+Run logs `base.jsonl` and `cand.jsonl` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/cd62d808-da29-4853-bdb9-5fbf25caf21a/scratchpad/slot3/`,
+the SM clock at 0.59 of its maximum at each run's start and end. A cell counts the draws whose
+reply says the fact was noted, saved or remembered, over the draws that called `forget_memories`.
+
+| Row | Shipped note | Note naming the call |
+| --- | --- | --- |
+| RC, 40 draws | 2 of 5 | 4 of 8 |
+| R14, 28 draws | 5 of 6 | 2 of 4 |
+| Both | 7 of 11 | 6 of 12 |
+
+The rule fails: 6 of 12 calling draws said the fact was noted, against at most one, so the note
+stays as it is; rows N1 to N3, C, D1 and DC were not drawn. Every such reply said "I've noted"
+or "I have noted", and the other replies said the fact could not be saved, most of them because
+the action was declined. No RC draw that called the forget left a
+`memories` row holding the number. The next rule, for every turn that is not kept, is in
+[remember-on-a-turn-not-kept.md](remember-on-a-turn-not-kept.md).
