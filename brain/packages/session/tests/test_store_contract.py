@@ -66,8 +66,19 @@ async def test_delete_keeps_only_the_chat_id_in_the_deleted_set() -> None:
 
     await store.delete("s")
 
-    members = await client.smembers("cortex:sessions:deleted")  # pyright: ignore[reportUnknownMemberType]
-    assert members == {b"s"}
+    members = await client.zrange("cortex:sessions:deleted", 0, -1)  # pyright: ignore[reportUnknownMemberType]
+    assert members == [b"s"]
+
+
+@pytest.mark.parametrize("kind", ["in-memory", "redis"])
+async def test_a_delete_unmarks_chats_deleted_past_the_horizon(kind: str) -> None:
+    clock = contract.SteppedClock()
+    store: SessionStore = (
+        InMemorySessionStore(clock=clock)
+        if kind == "in-memory"
+        else RedisSessionStore(FakeAsyncRedis(server=FakeServer()), clock=clock)
+    )
+    await contract.check_a_delete_unmarks_chats_deleted_past_the_horizon(store, clock)
 
 
 async def test_a_delete_between_the_check_and_the_write_leaves_the_append_unstored(

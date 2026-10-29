@@ -41,7 +41,7 @@ closes it. `RedisSessionStore.probe()` is a `RedisPing`, one `PING` on that clie
   overwrites it and `""` clears the override at read. It is the one write behind both the
   brain-generated title and the overlay's user-driven `RenameSession`.
 - `delete(session_id)` removes in one transactional pipeline the message list, title, recap and both
-  index members, and `SADD`s the id to `cortex:sessions:deleted` (ADR-0021 decision 11), which
+  index members, and `ZADD`s the id to `cortex:sessions:deleted` (ADR-0021 decision 11), which
   `deleted` reads and `append`, `set_title` and `set_recap` read under a `WATCH`, so a turn still
   running in the chat stores nothing more. It is idempotent; `DeleteSession` then forgets memories.
 - `set_recap(session_id, recap)` and `recap(session_id)` hold the summarizing window's account of
@@ -144,10 +144,10 @@ One Redis list per session at `cortex:session:{session_id}:messages`, one JSON o
 including its UTC offset, preserved rather than normalized to UTC. A reply with tool runs adds
 `"runs": [{"name", "ok"}]` (ADR-0074), which an older reader ignores. `v` and `kind` are how a
 stored format evolves. The sorted set `cortex:sessions` is the recency index: `append` `ZADD`s the
-session id scored by the message's `at`, so the score is the last activity. The plain set
-`cortex:sessions:hoisted` holds the hoisted session ids, `cortex:sessions:deleted` the deleted
-ones, never emptied. The two-ended listing read and its
-measurement are in [task 175](../refinements/tasks/175-bounded-end-reads.md).
+session id scored by the message's `at`, so the score is the last activity. The set
+`cortex:sessions:hoisted` holds the hoisted ids; `cortex:sessions:deleted` scores each deleted id by
+delete time, and `delete` drops those older than `DELETED_CHAT_HORIZON`. The two-ended listing read
+and its measurement are in [task 175](../refinements/tasks/175-bounded-end-reads.md).
 
 Task state uses two string keys per delegation, `cortex:task:{id}` and `cortex:task:{id}:result`,
 each one JSON document with a **3600 s expiry**. It is hot and short-lived, written and read back by

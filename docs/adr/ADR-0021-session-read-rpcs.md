@@ -9,9 +9,8 @@ is a `session_id` whose messages the brain persists in the `SessionStore`. The w
 only the per-turn `Converse`, so the overlay could write a session but not read the store back; it
 kept one run's chats in memory and lost them on restart.
 
-This decision exposes read-only views of the store, so the chat list, the switcher and cycling load
-from Redis, and then adds the catalog's limited listing, generated titles, and the user's rename,
-delete and hoist writes.
+This decision exposes read-only views of the store for the chat list, the switcher and cycling, then
+adds the catalog's limited listing, generated titles, and the rename, delete and hoist writes.
 
 ## Decision
 
@@ -152,8 +151,8 @@ so a label cannot inject markup or a second line.
 
 `SessionStore.delete(session_id)` removes the `:messages` list, the `:title` and `:recap` strings
 (ADR-0038 decision 9) and the `cortex:sessions` and `cortex:sessions:hoisted` members, and adds the
-id to the set `cortex:sessions:deleted`, in one transactional pipeline, idempotently. The text stays
-on disk until Redis rewrites its append-only file and Postgres vacuums and reuses its WAL
+id to the sorted set `cortex:sessions:deleted`, in one transactional pipeline, idempotently. The
+text stays on disk until Redis rewrites its append-only file and Postgres vacuums and reuses its WAL
 ([readings](../readings/deleted-chat-on-disk.md)); a delete runs no rewrite: none reaches WAL.
 
 The memory cascade stays off the turn path: `SessionMemoryCascade(store, scope)` exposes only
@@ -173,8 +172,9 @@ chat's rows ([readings](../readings/deleted-chat-on-disk.md)), and the delete ma
 A brain stopping between that commit and read keeps the row. Awaiting the turn was rejected: it
 needs a registry of every stream's turns, and a cancelled insert can commit after its task ends. A
 turn sent to a deleted chat ends as `session_deleted`: `handle_turn` raises `SessionDeletedError`,
-before any model call, when `deleted` holds after its history read. Nothing removes an id from the
-set ([931](../refinements/tasks/931-the-deleted-chat-set-is-never-trimmed.md)).
+before any model call, when `deleted` holds after its history read. Each delete removes the ids
+deleted `DELETED_CHAT_HORIZON` (30 days) or more before it, past the 4.5 days one turn's default
+waits sum to; a turn sent to a removed id starts a new chat.
 
 The confirmation is overlay-local: the row's trash control swaps in a confirm and cancel pair.
 Deleting the open chat first tears down its turn, denying a pending confirm and cancelling the

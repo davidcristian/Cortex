@@ -115,3 +115,24 @@ refusal; the SM clock read 0.53 of its maximum before the draws.
 | 2 | `session_deleted` | none | 0 of 2 | 0 | 2 of 2 | 0 |
 
 The brain logged `refusing a turn sent to a deleted chat` once per draw and asked no model.
+
+### The deleted set's horizon, 2026-10-29
+
+A deleted chat's id is read by a turn still running in the chat and by a turn sent to the id later.
+No turn has a total deadline, so the horizon is set against the waits one turn's defaults allow: 32
+dispatches (`MAX_TOOL_DISPATCHES`), each at most a 120 s confirmation (`DEFAULT_CONFIRM_TIMEOUT_S`),
+a 7,200 s admission wait (`DEFAULT_ADMISSION_WAIT_S`) and two 2,400 s delegated runs
+(`ATTEMPTS_PER_ADMISSION` times `DEFAULT_SUBAGENT_RUN_TIMEOUT_S`). That is 387,840 s, about 4.5
+days; a deep handoff adds its 60 s drain and 300 s load timeouts, and generation time is outside
+the sum. `DELETED_CHAT_HORIZON` is 30 days, over six times that.
+
+`MEMORY USAGE` on the `cortexn10` stack's Redis 8.10.1, for a sorted set of random UUID chat ids
+each scored by a time (`slot7/probe.sh` in the night's scratch directory):
+
+| Members | Bytes | Bytes per member |
+| --- | --- | --- |
+| 1,000 | 110,030 | 110 |
+| 10,000 | 1,210,158 | 121 |
+| 100,000 | 11,709,742 | 117 |
+
+The set holds only the ids deleted in the last 30 days, so 1,000 deletes a day keep it near 3.5 MB.

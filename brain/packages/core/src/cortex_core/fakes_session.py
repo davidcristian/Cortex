@@ -1,26 +1,34 @@
 """In-memory ``SessionStore``, tested against the same contract as the Redis adapter."""
 
 from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 from cortex_core.conversation import Message, Role
 from cortex_core.errors import SessionStoreError
+from cortex_core.fakes import SystemClock
+from cortex_core.ports import Clock
 from cortex_core.sessions import (
+    DELETED_CHAT_HORIZON,
     HistoryRecap,
     SessionSummary,
     merge_hoisted,
     summarize_session,
 )
 
+if TYPE_CHECKING:
+    from datetime import datetime
+
 
 class InMemorySessionStore:
     """SessionStore held in dicts/sets and meant for tests and single-process experiments only."""
 
-    def __init__(self) -> None:
+    def __init__(self, *, clock: Clock | None = None) -> None:
         self._sessions: dict[str, list[Message]] = {}
         self._titles: dict[str, str] = {}
         self._hoisted: set[str] = set()
         self._recaps: dict[str, HistoryRecap] = {}
-        self._deleted: set[str] = set()
+        self._deleted: dict[str, datetime] = {}
+        self._clock = clock if clock is not None else SystemClock()
 
     async def append(self, session_id: str, message: Message) -> None:
         """Persist one message at the end of the session's history, unless it holds it already."""
@@ -73,8 +81,11 @@ class InMemorySessionStore:
             self._titles[session_id] = title
 
     async def delete(self, session_id: str) -> None:
-        """Idempotently delete a chat for good: messages, title, hoisted flag and recap."""
-        self._deleted.add(session_id)
+        """Idempotently delete a chat for good, and unmark chats deleted past the horizon."""
+        now = self._clock.now()
+        cutoff = now - DELETED_CHAT_HORIZON
+        self._deleted = {key: at for key, at in self._deleted.items() if at > cutoff}
+        self._deleted[session_id] = now
         self._sessions.pop(session_id, None)
         self._titles.pop(session_id, None)
         self._hoisted.discard(session_id)

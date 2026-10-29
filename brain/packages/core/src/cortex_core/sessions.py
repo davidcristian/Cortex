@@ -2,7 +2,7 @@
 
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from cortex_core.conversation import Message
 
@@ -10,6 +10,10 @@ from cortex_core.conversation import Message
 # before the brain has listed a chat; ``scripts/crosscheck.py`` keeps the two equal.
 TITLE_MAX = 48
 PREVIEW_MAX = 96
+
+# A deleted chat's id stays marked this long, past the 4.5 days that one turn's default dispatch
+# budget, confirmation, admission and run deadlines add up to.
+DELETED_CHAT_HORIZON = timedelta(days=30)
 
 
 @dataclass(frozen=True, slots=True)

@@ -38,6 +38,7 @@ from cortex_core.session_title import (
 )
 from cortex_core.session_turns import CHAT_AHEAD, SerialTurnRunner, SessionTurnLocks
 from cortex_core.sessions import (
+    DELETED_CHAT_HORIZON,
     RECAP_MAX,
     HistoryRecap,
     SessionSummary,
@@ -106,6 +107,7 @@ __all__ = [
     "CONTEXT_OVERFLOW_NO_TEXT_NOTE",
     "DEFAULT_CORTEX_MODEL",
     "DELEGATING",
+    "DELETED_CHAT_HORIZON",
     "DENIED_MSG",
     "ESCALATE_CONFIRM_REASON",
     "ESCALATE_TOOL_NAME",

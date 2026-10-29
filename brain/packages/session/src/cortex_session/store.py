@@ -7,10 +7,13 @@ from redis.asyncio import Redis
 from redis.exceptions import RedisError
 
 from cortex_core import (
+    DELETED_CHAT_HORIZON,
+    Clock,
     HistoryRecap,
     Message,
     SessionStoreError,
     SessionSummary,
+    SystemClock,
     merge_hoisted,
     summarize_ends,
 )
@@ -45,8 +48,10 @@ _SESSIONS_KEY = "cortex:sessions"
 
 _HOISTED_KEY = "cortex:sessions:hoisted"
 
-# The ids of deleted chats, kept so that a turn still running in one stores nothing more.
+# The ids of deleted chats scored by delete time, kept so that a turn still running in one stores
+# nothing more.
 _DELETED_KEY = "cortex:sessions:deleted"
+_HORIZON_S = DELETED_CHAT_HORIZON.total_seconds()
 
 # A store written before the feature was named Hoist keeps its hoisted ids under this key.
 _OLD_HOISTED_KEY = "cortex:sessions:pinned"
@@ -81,7 +86,7 @@ async def append_once(client: Redis, session_id: str, record: str, score: float)
     key = messages_key(session_id)
     async with client.pipeline(transaction=True) as pipe:
         await pipe.watch(key, _DELETED_KEY)
-        if await pipe.sismember(_DELETED_KEY, session_id):
+        if await pipe.zscore(_DELETED_KEY, session_id) is not None:
             return
         if await pipe.lpos(key, record) is not None:
             return
@@ -95,7 +100,7 @@ async def set_unless_deleted(client: Redis, session_id: str, key: str, value: st
     """SET ``key`` to ``value`` in one transaction, unless the session was deleted."""
     async with client.pipeline(transaction=True) as pipe:
         await pipe.watch(_DELETED_KEY)
-        if await pipe.sismember(_DELETED_KEY, session_id):
+        if await pipe.zscore(_DELETED_KEY, session_id) is not None:
             return
         pipe.multi()
         pipe.set(key, value)
@@ -111,11 +116,13 @@ class RedisSessionStore:
         *,
         retry: StoreRetry = DEFAULT_STORE_RETRY,
         timer: RetryTimer | None = None,
+        clock: Clock | None = None,
     ) -> None:
         self._client = client
         self._hoisted_moved = False
         self._retry = retry
         self._timer = timer if timer is not None else MonotonicTimer()
+        self._clock = clock if clock is not None else SystemClock()
 
     async def _call[T](self, call: Callable[[], Awaitable[T]], failure: str) -> T:
         """Run ``call`` under the retry, raising ``SessionStoreError(failure)`` when it fails."""
@@ -197,28 +204,30 @@ class RedisSessionStore:
         self._hoisted_moved = True
 
     async def delete(self, session_id: str) -> None:
-        """Hard-delete a whole session: its messages, its title, its recap, its recency entry."""
+        """Hard-delete a whole session, and unmark the chats deleted past the horizon."""
 
         async def delete_all() -> None:
             await self._move_old_hoisted()
+            now = self._clock.now().timestamp()
             async with self._client.pipeline(transaction=True) as pipe:
                 pipe.delete(messages_key(session_id))
                 pipe.delete(title_key(session_id))
                 pipe.delete(recap_key(session_id))
                 pipe.zrem(_SESSIONS_KEY, session_id)
                 pipe.srem(_HOISTED_KEY, session_id)
-                pipe.sadd(_DELETED_KEY, session_id)
+                pipe.zadd(_DELETED_KEY, {session_id: now})
+                pipe.zremrangebyscore(_DELETED_KEY, "-inf", now - _HORIZON_S)
                 await pipe.execute()
 
         await self._call(delete_all, f"deleting session {session_id!r} failed")
 
     async def deleted(self, session_id: str) -> bool:
         """Whether the chat was deleted."""
-        member = await self._call(
-            lambda: self._client.sismember(_DELETED_KEY, session_id),
+        score = await self._call(
+            lambda: self._client.zscore(_DELETED_KEY, session_id),
             f"reading whether session {session_id!r} was deleted failed",
         )
-        return bool(member)
+        return score is not None
 
     async def set_hoisted(self, session_id: str, *, hoisted: bool) -> None:
         """Add the chat to the hoisted set, or remove it from it."""

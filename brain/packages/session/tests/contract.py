@@ -6,6 +6,7 @@ from uuid import uuid4
 import pytest
 
 from cortex_core import (
+    DELETED_CHAT_HORIZON,
     ImagePart,
     Message,
     Role,
@@ -17,6 +18,16 @@ from cortex_core import (
 from cortex_core.sessions import HistoryRecap
 
 _AT = datetime(2026, 7, 3, 12, 0, 0, tzinfo=UTC)
+
+
+class SteppedClock:
+    """A clock that stays at the time a test last set."""
+
+    def __init__(self) -> None:
+        self.at = _AT
+
+    def now(self) -> datetime:
+        return self.at
 
 
 def _session_id() -> str:
@@ -172,6 +183,26 @@ async def check_a_write_to_a_deleted_chat_stores_nothing(store: SessionStore) ->
     assert list(await store.history(session_id)) == []
     assert await store.recap(session_id) is None
     assert session_id not in {s.session_id for s in await store.list_sessions(limit=50)}
+
+
+async def check_a_delete_unmarks_chats_deleted_past_the_horizon(
+    store: SessionStore, clock: SteppedClock
+) -> None:
+    """A deleted id stays marked for the horizon; the first delete past it unmarks the id."""
+    old, recent, last = _session_id(), _session_id(), _session_id()
+    await store.delete(old)
+    clock.at = _AT + DELETED_CHAT_HORIZON - timedelta(seconds=1)
+    await store.delete(recent)
+    assert await store.deleted(old) is True
+
+    clock.at = _AT + DELETED_CHAT_HORIZON
+    assert await store.deleted(old) is True
+    await store.delete(last)
+
+    assert await store.deleted(old) is False
+    assert await store.deleted(recent) is True
+    await store.append(old, make_message(Role.USER, "a new chat", turn_id="n"))
+    assert [message.text for message in await store.history(old)] == ["a new chat"]
 
 
 async def check_set_hoisted_marks_and_clears_the_summary(store: SessionStore) -> None:
