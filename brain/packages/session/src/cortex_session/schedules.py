@@ -4,7 +4,8 @@ from collections.abc import Sequence
 from datetime import datetime, timedelta
 
 from redis.asyncio import Redis
-from redis.exceptions import RedisError, WatchError
+from redis.asyncio.client import Pipeline
+from redis.exceptions import RedisError
 
 from cortex_core import (
     FireOutcome,
@@ -16,14 +17,15 @@ from cortex_core import (
     apply_snooze,
 )
 from cortex_session.schedule_claims import (
+    WatchedState,
     claim_due,
     dead_letters,
     detach_session,
     edit_item,
+    fenced,
     ids,
     purge_dead_letter,
     release_claim,
-    watched_state,
 )
 from cortex_session.schedule_codec import (
     DELIVERABLE_KEY,
@@ -114,27 +116,22 @@ class RedisScheduleStore:
 
     async def snooze(self, item_id: str, *, until: datetime) -> bool:
         """Postpone an item to ``until``; a FIRING or unknown item returns False."""
+
+        def plan(pipe: Pipeline, state: WatchedState) -> bool:
+            if state[0].status is ScheduleStatus.FIRING:
+                return False
+            snoozed = apply_snooze(state[0], until)
+            pipe.multi()
+            pipe.zrem(DELIVERABLE_KEY, item_id)
+            pipe.set(record_key(item_id), encode(snoozed, claim=None, claimed_at=None))
+            pipe.zadd(DUE_KEY, {item_id: until.timestamp()})
+            return True
+
         try:
-            async with self._client.pipeline(transaction=True) as pipe:
-                state = await watched_state(pipe, item_id)
-                if state is None:
-                    return False
-                item, _, _ = state
-                if item.status is ScheduleStatus.FIRING:
-                    return False
-                snoozed = apply_snooze(item, until)
-                pipe.multi()
-                pipe.zrem(DELIVERABLE_KEY, item_id)
-                pipe.set(record_key(item_id), encode(snoozed, claim=None, claimed_at=None))
-                pipe.zadd(DUE_KEY, {item_id: until.timestamp()})
-                try:
-                    await pipe.execute()
-                except WatchError:
-                    return False
+            return await fenced(self._client, item_id, plan)
         except RedisError as err:
             msg = f"snooze of schedule {item_id!r} failed"
             raise ScheduleStoreError(msg) from err
-        return True
 
     async def edit(self, item_id: str, edit: ScheduleEdit) -> bool:
         """Change a non-FIRING item's text or recurrence, WATCH-fenced."""

@@ -81,8 +81,9 @@ The claim-then-finish protocol's meaning lives at the port (a stale token answer
 deletes outright and so survives an in-flight fire; terminal items are deleted unless still
 deliverable). This adapter maps it onto the key layout below. **Every guarded transition is one
 optimistic transaction**: the guard read and the state write share a WATCH, MULTI and EXEC
-(`schedule_claims.py` up to the claim, `schedule_delivery.py` after the fire), so a `cancel`, an
-`ack` or a re-claim racing the window fails the EXEC as `WatchError`, answered like a stale token.
+(`schedule_claims.py` up to the claim, `schedule_delivery.py` after the fire). After a `WatchError`,
+`fenced` reads the record and checks the guard again, so a cancel or a re-claim answers `False` and
+a detach or an ack that keeps the guard true does not; a raced claim is left to the next poll.
 
 - `add(item)` and `get(item_id)` handle one versioned JSON record per schedule.
 - `list_active()` is the union of the three live indexes, loaded and sorted by due time. A stale
@@ -96,17 +97,16 @@ optimistic transaction**: the guard read and the state write share a WATCH, MULT
   MULTI/EXEC re-schedules or ends the item, or returns it to PENDING.
 - `deliverable()` and `ack(item_id, *, fired_at)` are the fired-reminder delivery slot. The ack
   decides through the pure `acks_fire` inside the same WATCH transaction, so it clears only the fire
-  it names, and a fire that finishes between the read and the EXEC fails it.
+  it names, even when another write commits between the read and the EXEC.
 - `detach_session(session_id)` sets `session_id` to `""` on every live item made in that chat and
-  keeps a FIRING item's claim, so its `finish` keeps the cleared id. A raced EXEC reads the record
-  again; a record that does not decode is skipped and logged, never raised (ADR-0066).
+  keeps a FIRING item's claim, so its `finish` keeps the cleared id. A record that does not decode
+  is skipped and logged, never raised (ADR-0066).
 - `snooze(item_id, *, until)` postpones the next fire through the pure `apply_snooze`. A recurring
   item is allowed: only its next occurrence moves, with `anchor` held at the pre-snooze `due_at` so
-  the series keeps its cadence. FIRING and a raced transition answer `False` (ADR-0025 decision 8).
+  the series keeps its cadence. FIRING and unknown answer `False` (ADR-0025 decision 8).
 - `edit(item_id, edit)` changes a non-FIRING item's text or recurrence through the pure
   `apply_edit`: a watched `SET` of the re-encoded record, plus a due-index `ZADD` and a deliverable
-  `ZREM` when the new rule moves the fire. FIRING, unknown and raced answer `False` (ADR-0025
-  decision 9).
+  `ZREM` when the new rule moves the fire. FIRING and unknown answer `False` (ADR-0025 decision 9).
 - `dead_letters()` and `purge_dead_letter(item_id)` are **adapter-only** operator inspection over
   the quarantine hash, deliberately not port methods, since the fake can never quarantine and no
   core path or model tool reads them. `DeadLetter(item_id, raw)` renders bytes with replacement

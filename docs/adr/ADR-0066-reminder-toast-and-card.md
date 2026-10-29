@@ -189,8 +189,6 @@ would be a brain setting.
   fires for this app's toasts is unmeasured, or through a registered COM activator for a click after
   the process has gone. The payload waits for a second consumer of toast interaction, such as a
   snooze button on the toast, so the wire format is designed with its reader.
-- A detach that commits inside a `finish` makes that fire answer `False`, so the lease fires it
-  again ([R-938](../refinements/tasks/938-a-write-that-keeps-a-claim-makes-a-concurrent-finish-lose-its-fire.md)).
 - A record that does not decode and is held only for delivery is never quarantined, so it fails
   every listing of due reminders and keeps a deleted chat's id
   ([R-940](../refinements/tasks/940-a-corrupt-record-awaiting-delivery-is-never-quarantined.md)).

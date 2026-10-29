@@ -4,7 +4,7 @@ from dataclasses import replace
 from datetime import datetime
 
 from redis.asyncio import Redis
-from redis.exceptions import WatchError
+from redis.asyncio.client import Pipeline
 
 from cortex_core import (
     FireOutcome,
@@ -13,7 +13,7 @@ from cortex_core import (
     ScheduleStatus,
     acks_fire,
 )
-from cortex_session.schedule_claims import ids, watched_state
+from cortex_session.schedule_claims import WatchedState, fenced, holds, ids
 from cortex_session.schedule_codec import (
     DELIVERABLE_KEY,
     DUE_KEY,
@@ -25,14 +25,12 @@ from cortex_session.schedule_codec import (
 
 
 async def finish_claim(client: Redis, claim: ScheduleClaim, outcome: FireOutcome) -> bool:
-    """Persist one fire under the claim's token; False for a stale or raced claimant."""
-    async with client.pipeline(transaction=True) as pipe:
-        state = await watched_state(pipe, claim.item.id)
-        if state is None:
+    """Persist one fire under the claim's token; False once a cancel or a new claim took it."""
+
+    def plan(pipe: Pipeline, state: WatchedState) -> bool:
+        if not holds(state, claim):
             return False
-        item, live_token, _ = state
-        if item.status is not ScheduleStatus.FIRING or live_token != claim.token:
-            return False
+        item = state[0]
         since = outcome.fired_at if outcome.deliverable else item.deliverable_since
         due = item.due_at if outcome.deliverable else item.deliverable_due_at
         started = outcome.started_at if outcome.deliverable else item.deliverable_started_at
@@ -48,9 +46,9 @@ async def finish_claim(client: Redis, claim: ScheduleClaim, outcome: FireOutcome
             last_outcome=outcome.outcome,
         )
         pipe.multi()
-        pipe.zrem(FIRING_KEY, claim.item.id)
+        pipe.zrem(FIRING_KEY, item.id)
         if since is not None:
-            pipe.zadd(DELIVERABLE_KEY, {claim.item.id: since.timestamp()})
+            pipe.zadd(DELIVERABLE_KEY, {item.id: since.timestamp()})
         if outcome.next_due is not None:
             pipe.set(record_key(item.id), encode(updated, claim=None, claimed_at=None))
             pipe.zadd(DUE_KEY, {item.id: outcome.next_due.timestamp()})
@@ -58,11 +56,9 @@ async def finish_claim(client: Redis, claim: ScheduleClaim, outcome: FireOutcome
             pipe.set(record_key(item.id), encode(updated, claim=None, claimed_at=None))
         else:
             pipe.delete(record_key(item.id))
-        try:
-            await pipe.execute()
-        except WatchError:
-            return False
-    return True
+        return True
+
+    return await fenced(client, claim.item.id, plan)
 
 
 async def deliverable_items(client: Redis) -> tuple[ScheduledItem, ...]:
@@ -78,10 +74,8 @@ async def deliverable_items(client: Redis) -> tuple[ScheduledItem, ...]:
 
 async def ack_item(client: Redis, item_id: str, fired_at: datetime | None) -> bool:
     """Clear the fire ``fired_at`` names; a DONE one-shot is deleted."""
-    async with client.pipeline(transaction=True) as pipe:
-        state = await watched_state(pipe, item_id)
-        if state is None:
-            return False
+
+    def plan(pipe: Pipeline, state: WatchedState) -> bool:
         item, live_claim, claimed_at = state
         if not acks_fire(item, fired_at):
             return False
@@ -97,8 +91,6 @@ async def ack_item(client: Redis, item_id: str, fired_at: datetime | None) -> bo
                 record_key(item_id),
                 encode(cleared, claim=live_claim, claimed_at=claimed_at),
             )
-        try:
-            await pipe.execute()
-        except WatchError:
-            return False
-    return True
+        return True
+
+    return await fenced(client, item_id, plan)

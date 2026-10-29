@@ -45,15 +45,14 @@ methods: `add`, `get`, `list_active`, `cancel`, `snooze`, `edit`, `claim_due`, `
 - **`cancel` is permanent**: it deletes the item in any state, so a later `finish` finds no claim.
 - **`release`** returns a FIRING item to PENDING with `due_at` unchanged, so a graceful shutdown
   strands nothing for a whole lease.
-- **`ack(item_id, *, fired_at)`** clears the deliverable slot only while it holds that run (decision
-  5) and deletes a DONE one-shot.
+- **`ack(item_id, *, fired_at)`** clears the run it names (decision 5) and deletes a DONE one-shot.
 
-The Redis adapter runs each guard and its write in one WATCH, MULTI, EXEC transaction, and a raced
-EXEC is treated like a stale token. The claim path re-checks the watched read and skips a PENDING
-record whose `due_at` has moved into the future since the index snapshot, so a snooze or a
-rescheduling committed in that window is not overridden. `InMemoryScheduleStore`
-(`fakes_schedule.py`) and the Redis adapter pass one shared contract suite (`schedule_contract.py`),
-races included; quarantine is tested on the adapter.
+The Redis adapter runs each guard and its write in one WATCH, MULTI, EXEC transaction. After a raced
+EXEC it reads the record and checks the guard again, so only a write that fails the guard makes a
+transition answer `False`; a raced claim waits for the next poll. The claim path also skips a
+PENDING record whose `due_at` moved past `now` after the index read, so a snooze or a rescheduling
+committed in that window stands. `InMemoryScheduleStore` (`fakes_schedule.py`) and the adapter pass
+one contract suite (`schedule_contract.py`), races included; quarantine is tested on the adapter.
 
 ### 2. Recurrence has two forms, an interval and a calendar rule
 

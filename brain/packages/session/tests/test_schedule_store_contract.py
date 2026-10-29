@@ -24,10 +24,13 @@ from cortex_core import (
     Weekdays,
 )
 from cortex_session import DEFAULT_REDIS_URL, DeadLetter, RedisScheduleStore, schedule_claims
+from cortex_session.schedule_claims import WatchedState
 from cortex_session.schedule_codec import (
     DEAD_KEY,
     DELIVERABLE_KEY,
     DUE_KEY,
+    FIRING_KEY,
+    decode,
     encode,
     record_key,
 )
@@ -383,7 +386,41 @@ async def test_release_racing_a_cancel_is_fenced(monkeypatch: pytest.MonkeyPatch
     assert await client.zscore(DUE_KEY, "raced") is None
 
 
-async def test_ack_racing_a_concurrent_transition_is_fenced(
+def _rewrite_raced(poker: FakeStrictRedis, change: Callable[[WatchedState], WatchedState]) -> None:
+    """Write the record ``raced`` again as ``change`` makes it, as a concurrent writer would."""
+    raw = poker.get(record_key("raced"))
+    assert raw is not None
+    item, claim, claimed_at = change(decode(raw, "raced"))
+    poker.set(record_key("raced"), encode(item, claim=claim, claimed_at=claimed_at))
+
+
+def _detach_raced(poker: FakeStrictRedis) -> None:
+    _rewrite_raced(poker, lambda state: (replace(state[0], session_id=""), state[1], state[2]))
+
+
+async def test_ack_raced_by_a_later_fire_answers_false_and_keeps_that_fire(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    server = FakeServer()
+    store = RedisScheduleStore(FakeAsyncRedis(server=server))
+    await store.add(schedule_contract.make_item("raced", every=timedelta(hours=1)))
+    (claim,) = await store.claim_due(_NOW, lease=_LEASE, limit=8)
+    fired = FireOutcome(fired_at=_NOW, next_due=_NOW + timedelta(hours=1), deliverable=True)
+    assert await store.finish(claim, fired) is True
+    later = _NOW + timedelta(hours=1)
+
+    def fire_again(poker: FakeStrictRedis) -> None:
+        _rewrite_raced(
+            poker, lambda state: (replace(state[0], deliverable_since=later), None, None)
+        )
+
+    _poke_on_decode(monkeypatch, server, fire_again)
+    assert await store.ack("raced", fired_at=_NOW) is False
+    (still_due,) = await store.deliverable()
+    assert still_due.deliverable_since == later
+
+
+async def test_ack_raced_by_a_detach_reads_again_and_clears_the_fire(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     server = FakeServer()
@@ -393,16 +430,100 @@ async def test_ack_racing_a_concurrent_transition_is_fenced(
     (claim,) = await store.claim_due(_NOW, lease=_LEASE, limit=8)
     fired = FireOutcome(fired_at=_NOW, next_due=None, deliverable=True)
     assert await store.finish(claim, fired) is True
+    _poke_on_decode(monkeypatch, server, _detach_raced)
+    assert await store.ack("raced", fired_at=_NOW) is True
+    assert await store.deliverable() == ()
+    assert await client.get(record_key("raced")) is None
 
-    def touch_it(poker: FakeStrictRedis) -> None:
-        raw = poker.get(record_key("raced"))
-        assert raw is not None
-        poker.set(record_key("raced"), raw)
 
-    _poke_on_decode(monkeypatch, server, touch_it)
-    assert await store.ack("raced", fired_at=_NOW) is False
-    (still_due,) = await store.deliverable()
-    assert still_due.id == "raced"
+async def test_finish_raced_by_a_detach_reads_again_and_keeps_both_writes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    server = FakeServer()
+    client = FakeAsyncRedis(server=server)
+    store = RedisScheduleStore(client)
+    await store.add(schedule_contract.make_item("raced", every=timedelta(hours=1)))
+    (claim,) = await store.claim_due(_NOW, lease=_LEASE, limit=8)
+    _poke_on_decode(monkeypatch, server, _detach_raced)
+    next_due = _NOW + timedelta(hours=1)
+    outcome = FireOutcome(fired_at=_NOW, next_due=next_due, deliverable=True)
+    assert await store.finish(claim, outcome) is True
+    loaded = await store.get("raced")
+    assert loaded is not None
+    assert (loaded.status, loaded.due_at, loaded.session_id, loaded.deliverable_since) == (
+        ScheduleStatus.PENDING,
+        next_due,
+        "",
+        _NOW,
+    )
+    assert await client.zscore(FIRING_KEY, "raced") is None
+    assert await client.zscore(DUE_KEY, "raced") == next_due.timestamp()
+
+
+async def test_finish_raced_by_a_new_claim_answers_false_and_keeps_that_claim(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    server = FakeServer()
+    client = FakeAsyncRedis(server=server)
+    store = RedisScheduleStore(client)
+    await store.add(schedule_contract.make_item("raced"))
+    (claim,) = await store.claim_due(_NOW, lease=_LEASE, limit=8)
+
+    def claim_again(poker: FakeStrictRedis) -> None:
+        _rewrite_raced(poker, lambda state: (state[0], "newer", _NOW + _LEASE))
+
+    _poke_on_decode(monkeypatch, server, claim_again)
+    outcome = FireOutcome(fired_at=_NOW, next_due=None, deliverable=True)
+    assert await store.finish(claim, outcome) is False
+    raw = await client.get(record_key("raced"))
+    assert raw is not None
+    assert decode(raw, "raced")[1:] == ("newer", _NOW + _LEASE)
+    assert await client.zscore(DELIVERABLE_KEY, "raced") is None
+
+
+async def test_release_raced_by_a_detach_reads_again_and_releases(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    server = FakeServer()
+    client = FakeAsyncRedis(server=server)
+    store = RedisScheduleStore(client)
+    item = schedule_contract.make_item("raced")
+    await store.add(item)
+    (claim,) = await store.claim_due(_NOW, lease=_LEASE, limit=8)
+    _poke_on_decode(monkeypatch, server, _detach_raced)
+    assert await store.release(claim) is True
+    assert await store.get("raced") == replace(item, session_id="")
+    assert await client.zscore(FIRING_KEY, "raced") is None
+    assert await client.zscore(DUE_KEY, "raced") == _NOW.timestamp()
+
+
+async def test_snooze_raced_by_a_detach_reads_again_and_snoozes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    server = FakeServer()
+    client = FakeAsyncRedis(server=server)
+    store = RedisScheduleStore(client)
+    await store.add(schedule_contract.make_item("raced"))
+    until = _NOW + timedelta(minutes=30)
+    _poke_on_decode(monkeypatch, server, _detach_raced)
+    assert await store.snooze("raced", until=until) is True
+    loaded = await store.get("raced")
+    assert loaded is not None
+    assert (loaded.due_at, loaded.session_id) == (until, "")
+    assert await client.zscore(DUE_KEY, "raced") == until.timestamp()
+
+
+async def test_edit_raced_by_a_detach_reads_again_and_edits(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    server = FakeServer()
+    store = RedisScheduleStore(FakeAsyncRedis(server=server))
+    await store.add(schedule_contract.make_item("raced"))
+    _poke_on_decode(monkeypatch, server, _detach_raced)
+    assert await store.edit("raced", ScheduleEdit(text="new")) is True
+    loaded = await store.get("raced")
+    assert loaded is not None
+    assert (loaded.text, loaded.session_id) == ("new", "")
 
 
 async def test_edit_racing_a_cancel_is_fenced_not_resurrected(

@@ -1,6 +1,7 @@
 """The RedisScheduleStore's claim path and the WATCH-fenced transition helpers."""
 
 import logging
+from collections.abc import Callable
 from contextlib import suppress
 from dataclasses import replace
 from datetime import datetime, timedelta
@@ -33,6 +34,7 @@ from cortex_session.schedule_codec import (
 logger = logging.getLogger(__name__)
 
 WatchedState = tuple[ScheduledItem, str | None, datetime | None]
+Plan = Callable[[Pipeline, WatchedState], bool]
 
 
 async def ids(client: Redis, key: str, *, upto: float | None = None, limit: int = 8) -> list[str]:
@@ -55,72 +57,82 @@ async def watched_state(pipe: Pipeline, item_id: str) -> WatchedState | None:
     return decode(raw, item_id)
 
 
-async def release_claim(client: Redis, claim: ScheduleClaim) -> bool:
-    """Un-claim under the token (FIRING to PENDING, due unchanged); False when it is stale."""
-    async with client.pipeline(transaction=True) as pipe:
-        state = await watched_state(pipe, claim.item.id)
-        if state is None:
-            return False
-        item, live_token, _ = state
-        if item.status is not ScheduleStatus.FIRING or live_token != claim.token:
-            return False
-        pending = replace(item, status=ScheduleStatus.PENDING)
-        pipe.multi()
-        pipe.set(record_key(item.id), encode(pending, claim=None, claimed_at=None))
-        pipe.zrem(FIRING_KEY, item.id)
-        pipe.zadd(DUE_KEY, {item.id: item.due_at.timestamp()})
-        try:
-            await pipe.execute()
-        except WatchError:
-            return False
-    return True
+async def fenced(client: Redis, item_id: str, plan: Plan) -> bool:
+    """Commit what ``plan`` queues after ``multi`` on the watched record; a raced write reads again.
 
-
-async def edit_item(client: Redis, item_id: str, edit: ScheduleEdit) -> bool:
-    """Change a non-FIRING item's text or recurrence under a WATCH fence; False otherwise."""
-    async with client.pipeline(transaction=True) as pipe:
-        state = await watched_state(pipe, item_id)
-        if state is None:
-            return False
-        item, _, _ = state
-        if item.status is ScheduleStatus.FIRING:
-            return False
-        updated = apply_edit(item, edit)
-        pipe.multi()
-        pipe.set(record_key(item_id), encode(updated, claim=None, claimed_at=None))
-        if edit.rule is not None:
-            pipe.zrem(DELIVERABLE_KEY, item_id)
-            pipe.zadd(DUE_KEY, {item_id: updated.due_at.timestamp()})
-        try:
-            await pipe.execute()
-        except WatchError:
-            return False
-    return True
-
-
-async def _detach_item(client: Redis, item_id: str, session_id: str) -> bool:
-    """Clear one item's origin chat when it is ``session_id``, keeping a live claim."""
+    A missing record, or a ``plan`` answering False, returns False without a write.
+    """
     while True:
         async with client.pipeline(transaction=True) as pipe:
-            try:
-                state = await watched_state(pipe, item_id)
-            except ScheduleStoreError:
-                # The claim path quarantines it when it falls due; failing here fails every delete.
-                logger.exception(
-                    "undecodable schedule record on the detach path", extra={"item_id": item_id}
-                )
+            state = await watched_state(pipe, item_id)
+            if state is None or not plan(pipe, state):
                 return False
-            if state is None or state[0].session_id != session_id:
-                return False
-            item, live_claim, claimed_at = state
-            detached = replace(item, session_id="")
-            pipe.multi()
-            pipe.set(record_key(item_id), encode(detached, claim=live_claim, claimed_at=claimed_at))
             try:
                 await pipe.execute()
             except WatchError:
                 continue
         return True
+
+
+def holds(state: WatchedState, claim: ScheduleClaim) -> bool:
+    """Whether the read record is still FIRING under ``claim``'s token."""
+    item, live_token, _ = state
+    return item.status is ScheduleStatus.FIRING and live_token == claim.token
+
+
+async def release_claim(client: Redis, claim: ScheduleClaim) -> bool:
+    """Un-claim under the token (FIRING to PENDING, due unchanged); False when it is stale."""
+
+    def plan(pipe: Pipeline, state: WatchedState) -> bool:
+        if not holds(state, claim):
+            return False
+        pending = replace(state[0], status=ScheduleStatus.PENDING)
+        pipe.multi()
+        pipe.set(record_key(pending.id), encode(pending, claim=None, claimed_at=None))
+        pipe.zrem(FIRING_KEY, pending.id)
+        pipe.zadd(DUE_KEY, {pending.id: pending.due_at.timestamp()})
+        return True
+
+    return await fenced(client, claim.item.id, plan)
+
+
+async def edit_item(client: Redis, item_id: str, edit: ScheduleEdit) -> bool:
+    """Change a non-FIRING item's text or recurrence under a WATCH fence; False otherwise."""
+
+    def plan(pipe: Pipeline, state: WatchedState) -> bool:
+        if state[0].status is ScheduleStatus.FIRING:
+            return False
+        updated = apply_edit(state[0], edit)
+        pipe.multi()
+        pipe.set(record_key(item_id), encode(updated, claim=None, claimed_at=None))
+        if edit.rule is not None:
+            pipe.zrem(DELIVERABLE_KEY, item_id)
+            pipe.zadd(DUE_KEY, {item_id: updated.due_at.timestamp()})
+        return True
+
+    return await fenced(client, item_id, plan)
+
+
+async def _detach_item(client: Redis, item_id: str, session_id: str) -> bool:
+    """Clear one item's origin chat when it is ``session_id``, keeping a live claim."""
+
+    def plan(pipe: Pipeline, state: WatchedState) -> bool:
+        item, live_claim, claimed_at = state
+        if item.session_id != session_id:
+            return False
+        detached = replace(item, session_id="")
+        pipe.multi()
+        pipe.set(record_key(item_id), encode(detached, claim=live_claim, claimed_at=claimed_at))
+        return True
+
+    try:
+        return await fenced(client, item_id, plan)
+    except ScheduleStoreError:
+        # The claim path quarantines it when it falls due; failing here fails every delete.
+        logger.exception(
+            "undecodable schedule record on the detach path", extra={"item_id": item_id}
+        )
+        return False
 
 
 async def detach_session(client: Redis, session_id: str) -> int:
