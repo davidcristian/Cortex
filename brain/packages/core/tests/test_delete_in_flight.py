@@ -1,5 +1,7 @@
 from collections.abc import AsyncIterator, Sequence
 
+import pytest
+
 from cortex_core import (
     GLOBAL_MEMORY_SCOPE,
     GenerationBounds,
@@ -11,6 +13,7 @@ from cortex_core import (
     MemoryRecaller,
     MemoryRecord,
     Message,
+    SessionDeletedError,
     SessionMemoryCascade,
     SystemClock,
     TextChunk,
@@ -45,6 +48,9 @@ class _DeletingBackend:
 
 
 class _AnsweringBackend:
+    def __init__(self) -> None:
+        self.prompts: list[Sequence[Message]] = []
+
     async def stream(
         self,
         model: str,
@@ -54,7 +60,8 @@ class _AnsweringBackend:
         schema: JsonSchema | None = None,
         bounds: GenerationBounds | None = None,
     ) -> AsyncIterator[InferenceEvent]:
-        del model, messages, tools, schema, bounds
+        del model, tools, schema, bounds
+        self.prompts.append(messages)
         yield TextChunk("A story about a lighthouse keeper.")
 
 
@@ -118,3 +125,38 @@ async def test_a_turn_in_a_chat_that_was_not_deleted_keeps_its_memory() -> None:
     (row,) = await _turn(sessions, memories, deleting=False)
     assert "5813" in row
     assert len(await sessions.history(_CHAT)) == 2
+
+
+class _DeletedBeforeHistoryRead(InMemorySessionStore):
+    """Deletes the chat after the turn's message was stored and before its history is read."""
+
+    async def history(self, session_id: str) -> Sequence[Message]:
+        await self.delete(session_id)
+        return await super().history(session_id)
+
+
+@pytest.mark.parametrize(
+    ("store", "deleted_first"),
+    [(InMemorySessionStore, True), (_DeletedBeforeHistoryRead, False)],
+)
+async def test_a_turn_in_a_deleted_chat_is_refused_before_the_model_is_asked(
+    store: type[InMemorySessionStore], *, deleted_first: bool
+) -> None:
+    sessions, memories, backend = store(), _CountingAdds(), _AnsweringBackend()
+    if deleted_first:
+        await sessions.delete(_CHAT)
+    engine = TurnEngine(
+        sessions,
+        backend,
+        SystemClock(),
+        capabilities=TurnCapabilities(
+            memory=MemoryRecaller(memories, HashEmbedder(), SystemClock())
+        ),
+    )
+    with pytest.raises(SessionDeletedError, match="this chat was deleted"):
+        async for _event in engine.handle_turn(_CHAT, "Tell me a story.", turn_id="t-d"):
+            pass
+    assert backend.prompts == []
+    assert memories.adds == 0
+    assert list(await InMemorySessionStore.history(sessions, _CHAT)) == []
+    assert list(await sessions.list_sessions(limit=50)) == []

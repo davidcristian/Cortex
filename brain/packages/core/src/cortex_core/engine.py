@@ -1,7 +1,7 @@
 """Handle one user turn: pure orchestration over the ports, no I/O of its own."""
 
 import logging
-from collections.abc import AsyncGenerator, Iterator, Mapping
+from collections.abc import AsyncGenerator, Iterator, Mapping, Sequence
 
 from cortex_core.attachments import (
     BLIND_ATTACHMENT_MSG,
@@ -10,7 +10,13 @@ from cortex_core.attachments import (
     attachment_note,
 )
 from cortex_core.conversation import Message, Role
-from cortex_core.errors import ContextOverflowError, InferenceError, MalformedToolCallError
+from cortex_core.errors import (
+    SESSION_DELETED_MSG,
+    ContextOverflowError,
+    InferenceError,
+    MalformedToolCallError,
+    SessionDeletedError,
+)
 from cortex_core.events import TurnCompleted, TurnEvent
 from cortex_core.handoff import EscalationRefs
 from cortex_core.handoff_wait import wait_out_handoff
@@ -136,7 +142,7 @@ class TurnEngine:
         user = Message(role=Role.USER, text=stored, at=self._clock.now(), turn_id=turn_id)
         await self._store.append(session_id, user)
         await self._wait_out_handoff(model)
-        history = await self._store.history(session_id)
+        history = await self._history(session_id)
         taint = _turn_taint(images)
         stops = StopLedger()
         context = ToolLoopContext(
@@ -222,6 +228,14 @@ class TurnEngine:
         if len(history) == 1:
             await self._title_session(session_id, model, text, full_text, turn_id)
         yield TurnCompleted(turn_id=turn_id, full_text=full_text)
+
+    async def _history(self, session_id: str) -> Sequence[Message]:
+        """The chat's history; raise ``SessionDeletedError`` when the chat was deleted."""
+        history = await self._store.history(session_id)
+        # Read after the history: a chat not yet deleted then still held this turn's message.
+        if await self._store.deleted(session_id):
+            raise SessionDeletedError(SESSION_DELETED_MSG)
+        return history
 
     async def _refuse_blind(self, model: str) -> None:
         """Raise ``AttachmentError``, before anything is stored, when the model cannot see."""

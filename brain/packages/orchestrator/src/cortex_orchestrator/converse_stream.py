@@ -12,6 +12,7 @@ from cortex_core import (
     ImagePart,
     InferenceError,
     ProgressSink,
+    SessionDeletedError,
     SessionStoreError,
     Sleeper,
     TurnEvent,
@@ -35,6 +36,7 @@ EngineFactory = Callable[[Confirmer, ProgressSink], TurnRunner]
 QueuedTurn = tuple[str, str, tuple[ImagePart, ...]]
 
 ERROR_CODE_SESSION_STORE_UNAVAILABLE = "session_store_unavailable"
+ERROR_CODE_SESSION_DELETED = "session_deleted"
 ERROR_CODE_INFERENCE_FAILED = "inference_failed"
 ERROR_CODE_INTERNAL = "internal"
 ERROR_CODE_BRAIN_STOPPING = "brain_stopping"
@@ -221,6 +223,9 @@ class ConverseStream:
         except AttachmentError as err:
             _logger.warning("refusing a turn whose pictures the model cannot see", extra=fields)
             self._fail(ERROR_CODE_ATTACHMENT_REFUSED, str(err))
+        except SessionDeletedError as err:
+            _logger.warning("refusing a turn sent to a deleted chat", extra=fields)
+            self._fail(ERROR_CODE_SESSION_DELETED, str(err))
         except SessionStoreError as err:
             _logger.exception("session store failed mid-turn", extra=fields)
             self._fail(ERROR_CODE_SESSION_STORE_UNAVAILABLE, str(err))

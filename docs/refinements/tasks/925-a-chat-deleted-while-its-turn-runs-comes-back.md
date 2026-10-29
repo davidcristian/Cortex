@@ -31,6 +31,4 @@ or not the chat still exists, and `record_exchange` stores with no check either.
   `cortex:sessions:deleted`, an `append`, `set_title` or `set_recap` to a deleted chat stores
   nothing, and `record_exchange` reads the set before recording and after the row commits, removing
   a row stored for a chat deleted meanwhile (ADR-0021 decision 11). 0 of 4 draws kept the chat or
-  a row ([readings](../../readings/deleted-chat-on-disk.md#the-deleted-set-2026-10-29)). A turn sent
-  to a chat already deleted is filed as
-  [930](930-a-turn-sent-to-a-deleted-chat-runs-without-its-message.md).
+  a row ([readings](../../readings/deleted-chat-on-disk.md#the-deleted-set-2026-10-29)).

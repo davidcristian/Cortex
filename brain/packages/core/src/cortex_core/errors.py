@@ -7,6 +7,13 @@ class SessionStoreError(Exception):
     """A SessionStore operation failed (store adapters wrap their backend's errors)."""
 
 
+class SessionDeletedError(Exception):
+    """A turn names a chat that was deleted, so it is refused before any model is asked."""
+
+
+SESSION_DELETED_MSG = "this chat was deleted, so the turn was not answered; start a new chat"
+
+
 class InferenceError(Exception):
     """An InferenceBackend failed to produce or continue a completion."""
 

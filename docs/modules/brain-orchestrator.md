@@ -78,12 +78,11 @@ is what the wire serves beyond a turn, each absent when its capability is off.
 
 `converse(make_engine, client_events, *, max_buffered_events=DEFAULT_MAX_BUFFERED_EVENTS,
 confirm_timeout_s=DEFAULT_CONFIRM_TIMEOUT_S, turn_id_factory=new_turn_id, sleeper=None)` is the loop
-itself, independent of the servicer. `make_engine` is an `EngineFactory`
-(`Callable[[Confirmer, ProgressSink], TurnRunner]`): each stream builds one `RpcConfirmer` and one
-`RpcProgressSink` bound to its own output queue and runs the engine the factory returns. Closing
-the generator tears down the pump and heartbeat tasks, any in-flight turn and the queue of
-not-yet-started turns.
-One stream's machinery lives in `converse_stream.py`, which `converse.py` re-exports from.
+itself, independent of the servicer. `make_engine` is an `EngineFactory` (`Callable[[Confirmer,
+ProgressSink], TurnRunner]`): each stream builds one `RpcConfirmer` and one `RpcProgressSink` bound
+to its own output queue and runs the engine the factory returns. Closing the generator tears down
+the pump and heartbeat tasks, any in-flight turn and the queue of not-yet-started turns. One
+stream's machinery lives in `converse_stream.py`, which `converse.py` re-exports from.
 
 - A `UserTurn` runs one turn against `ClientEvent.session_id`. Each reply delta streams back as a
   `TextDelta`, a reasoning model's thinking as a `StatusUpdate` (ADR-0020), each audited dispatch
@@ -108,10 +107,11 @@ One stream's machinery lives in `converse_stream.py`, which `converse.py` re-exp
   question. A turn waiting there has stored nothing, and a stream dropped while it waits leaves none.
 - Failures become exactly one terminal `SeamError{code, message}` and the stream then ends cleanly:
   `SessionStoreError` to `session_store_unavailable`, `InferenceError` to `inference_failed`, a
-  refused attachment to `attachment_refused`, anything else to `internal` (`ERROR_CODE_*`). Client
-  disconnect tears the turn down as `Cancel` does, and any pending confirmation dies with it as a
-  denial. `ConverseStream.shut_down()`, for a stopping brain, does the same and then sends
-  `brain_stopping` when a turn was in flight, logging its ids, or ends the stream with no error.
+  refused attachment to `attachment_refused`, `SessionDeletedError` (a turn sent to a deleted chat)
+  to `session_deleted`, anything else to `internal` (`ERROR_CODE_*`). Client disconnect tears the
+  turn down as `Cancel` does, and any pending confirmation dies with it as a denial.
+  `ConverseStream.shut_down()`, for a stopping brain, does the same and then sends `brain_stopping`
+  when a turn was in flight, logging its ids, or ends the stream with no error.
 - `RpcConfirmer(emit, *, timeout_s)` (`confirm.py`, ADR-0022) mints a `confirm_id`, emits
   `ServerEvent.confirm_request` on the stream's control path (`put_nowait`, so a stalled consumer
   cannot deadlock the ask) and awaits the matching `ConfirmResponse`. Timeout and client half-close

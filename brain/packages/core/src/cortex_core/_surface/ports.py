@@ -16,6 +16,7 @@ from cortex_core.body import (
 from cortex_core.body_failure import body_failure_message
 from cortex_core.conversation import Message, Role, ToolRun, new_turn_id
 from cortex_core.errors import (
+    SESSION_DELETED_MSG,
     BodyFailure,
     BodyGatewayError,
     ContextOverflowError,
@@ -35,6 +36,7 @@ from cortex_core.errors import (
     PreferenceStoreError,
     ResidencyRestoreError,
     ScheduleStoreError,
+    SessionDeletedError,
     SessionStoreError,
     SubagentAdmissionError,
     SwapFailedError,
@@ -114,6 +116,7 @@ __all__ = [
     "MAX_SOURCE_CHARS",
     "MAX_TURN_MESSAGE_BYTES",
     "MAX_TURN_SOURCES",
+    "SESSION_DELETED_MSG",
     "AttachmentError",
     "BodyFailure",
     "BodyGateway",
@@ -166,6 +169,7 @@ __all__ = [
     "ScheduleStoreError",
     "ScreenCapture",
     "ServingProbe",
+    "SessionDeletedError",
     "SessionStore",
     "SessionStoreError",
     "Sleeper",

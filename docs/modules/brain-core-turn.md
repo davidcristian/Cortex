@@ -51,18 +51,19 @@ capabilities=TurnCapabilities())` (`engine.py`) is pure orchestration over the p
 id `"cortex"` is overridden through `CORTEX_MODEL_CORTEX`, read by the composition root.
 
 `handle_turn(session_id, text, *, turn_id)` is an async generator. It routes through `route_turn`,
-builds the user `Message` from the clock and the id it was given, appends it to the store, runs the
-inference and tool loop over the stored history, yields one `TextDelta` per streamed chunk, then
-persists the assistant `Message` and yields one `TurnCompleted`. Closing the stream part way
-(`aclose()`) keeps the persisted user message, does not persist the partial reply, and closes the
-abandoned backend stream. A backend failure surfaces as `InferenceError` after the user message
-was persisted, except two that **end** the turn: `MalformedToolCallError` (the fragment is the
-model's own tokens, ADR-0048) and `ContextOverflowError` (the prompt is longer than the context,
-ADR-0014 decision 7). A refusal before any output is first asked again without the oldest windowed
-turns, `shed_oldest_turns` (`shedding.py`) dropping 4.7 characters for each token of its `excess`.
-Otherwise the path flushes the channels, streams its note, logs a warning naming the session and
-turn, and persists once: the cut call's note is the one the `StopLedger` picks, and the overflow's
-is `MESSAGE_OVERFLOW_NOTE` when only the newest turn was left, else `CONTEXT_OVERFLOW_NOTE`, never followed by a cap note.
+builds the user `Message` from the clock and the id it was given, appends it to the store, refuses a
+deleted chat with `SessionDeletedError` (ADR-0021 decision 11), runs the inference and tool loop
+over that history, yields one `TextDelta` per streamed chunk, then persists the assistant `Message`
+and yields one `TurnCompleted`. Closing the stream part way (`aclose()`) keeps the persisted user
+message, does not persist the partial reply, and closes the abandoned backend stream. A backend
+failure surfaces as `InferenceError` after the user message was persisted, except two that **end**
+the turn: `MalformedToolCallError` (the fragment is the model's own tokens, ADR-0048) and
+`ContextOverflowError` (the prompt is longer than the context, ADR-0014 decision 7). A refusal
+before any output is first asked again without the oldest windowed turns, `shed_oldest_turns`
+(`shedding.py`) dropping 4.7 characters for each token of its `excess`. Otherwise the path flushes
+the channels, streams its note, logs a warning naming the session and turn, and persists once: the
+cut call's note is the one the `StopLedger` picks, and the overflow's is `MESSAGE_OVERFLOW_NOTE`
+when only the newest turn was left, else `CONTEXT_OVERFLOW_NOTE`, never followed by a cap note.
 
 `TurnCapabilities(memory=None, tools=None, window=None, guardrail=None, record_tainted_memory=False,
 generate_titles=False, progress=None, escalation=None, bounds=None, residency=None)`
@@ -243,8 +244,7 @@ The laundering defence (ADR-0015): no URL from the turn's untrusted content may 
 **Invariants.**
 
 - The assistant message is persisted if and only if `TurnCompleted` is emitted.
-- The persisted reply equals the reply shown: the guardrail's output and the notes are what
-  streams and what is stored.
+- The persisted reply equals the reply shown, the guardrail's output and the notes included.
 - Nothing about a conversation outlives `handle_turn` except what `SessionStore` holds.
 - A tainted turn is dropped from memory by default, or recorded with `tainted=True` and fenced on
   recall, so recall stays trustworthy either way.

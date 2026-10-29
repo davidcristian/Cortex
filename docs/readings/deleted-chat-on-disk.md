@@ -102,3 +102,16 @@ and kept the turn's row both times. One more row runs the order `record_exchange
 | --- | --- | --- | --- |
 | R5 | the insert, held open 3 s, then committed | `SADD cortex:sessions:deleted`, then the delete, returning at once | 1 after the commit |
 | R5, then | `SISMEMBER` reads 1, then the shipped delete by id | | 0 |
+
+### A turn sent to a deleted chat, 2026-10-29
+
+On the `cortexn10` stack each draw opened a chat with one answered turn, deleted it over gRPC, and
+sent a second turn to the same id on a new `Converse` stream (driver `slot6/deadrow.py`, log
+`slot6/deadrow.log` in the night's scratch directory). The brain was built from the tree with the
+refusal; the SM clock read 0.53 of its maximum before the draws.
+
+| Draws | Second turn ended | Reply text | Chat listed | Messages | Still marked | Memory rows |
+| --- | --- | --- | --- | --- | --- | --- |
+| 2 | `session_deleted` | none | 0 of 2 | 0 | 2 of 2 | 0 |
+
+The brain logged `refusing a turn sent to a deleted chat` once per draw and asked no model.

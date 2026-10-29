@@ -166,15 +166,15 @@ session, then cascades; either store error aborts `UNAVAILABLE`, and a retry com
 
 **A delete does not wait for a turn running in its chat; the turn's writes read the deleted set.**
 `append`, `set_title` and `set_recap` store nothing for a deleted chat: the Redis adapter reads the
-set under a `WATCH` and writes in the same `MULTI`, so a delete between the two fails it and the
-retry finds the id. `record_exchange` reads `SessionStore.deleted` before it records, and when a
-read after the row commits finds the id, it removes the row with `MemoryRecaller.discard`: the
-cascade misses a row that commits after it read the chat's rows
-([readings](../readings/deleted-chat-on-disk.md)), and the chat is marked before the cascade
-starts. A brain that stops between that commit and read keeps the row. `memory_withheld` judges a turn's content and stays pure; this is a store fact. Stopping
-and awaiting the turn was rejected: it needs a registry of every stream's turns, and a cancelled
-insert can commit after its task ends. The set holds ids only and is never emptied
-([930](../refinements/tasks/930-a-turn-sent-to-a-deleted-chat-runs-without-its-message.md)).
+set under a `WATCH` and writes in the same `MULTI`, so a delete between them fails it and the retry
+finds the id. `record_exchange` reads `deleted` before it records and after the row commits, then
+removes the row with `MemoryRecaller.discard`: the cascade misses a row committed after it read the
+chat's rows ([readings](../readings/deleted-chat-on-disk.md)), and the delete marks the chat first.
+A brain stopping between that commit and read keeps the row. Awaiting the turn was rejected: it
+needs a registry of every stream's turns, and a cancelled insert can commit after its task ends. A
+turn sent to a deleted chat ends as `session_deleted`: `handle_turn` raises `SessionDeletedError`,
+before any model call, when `deleted` holds after its history read. Nothing removes an id from the
+set ([931](../refinements/tasks/931-the-deleted-chat-set-is-never-trimmed.md)).
 
 The confirmation is overlay-local: the row's trash control swaps in a confirm and cancel pair.
 Deleting the open chat first tears down its turn, denying a pending confirm and cancelling the

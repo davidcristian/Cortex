@@ -71,7 +71,7 @@ never a reading of what the tree does now.
 
 - **[R-923](tasks/923-a-forget-request-with-no-call-is-recorded.md)** A forget request with no call is recorded (memory). Its claim was checked against the code on 2026-10-29.
 - **[R-929](tasks/929-a-request-to-remember-can-show-a-forget-card-that-matches-nothing.md)** A request to remember can show a forget card that matches nothing (memory). Its claim was checked against the code on 2026-10-29.
-- **[R-930](tasks/930-a-turn-sent-to-a-deleted-chat-runs-without-its-message.md)** A turn sent to a deleted chat runs without its message (session-read-rpc). Its claim was checked against the code on 2026-10-29.
+- **[R-931](tasks/931-the-deleted-chat-set-is-never-trimmed.md)** The deleted chat set is never trimmed (session-read-rpc). Its claim was checked against the code on 2026-10-29.
 
 ### Actionable, once a port changes (1)
 
@@ -904,7 +904,7 @@ never a reading of what the tree does now.
 - [R-328](tasks/328-a-failed-turn-cannot-name-itself.md) A failed turn can name its session but never itself. done 2026-08-20.
 - [R-712](tasks/712-the-session-store-still-moves-the-hoisted-sets-first-key.md) The session store still moves the hoisted set's first key. open, waiting for its trigger.
 - [R-925](tasks/925-a-chat-deleted-while-its-turn-runs-comes-back.md) A chat deleted while its turn runs comes back. done 2026-10-29.
-- [R-930](tasks/930-a-turn-sent-to-a-deleted-chat-runs-without-its-message.md) A turn sent to a deleted chat runs without its message. open, actionable.
+- [R-931](tasks/931-the-deleted-chat-set-is-never-trimmed.md) The deleted chat set is never trimmed. open, actionable.
 
 ### subagents
 
