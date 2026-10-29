@@ -169,12 +169,12 @@ set under a `WATCH` and writes in the same `MULTI`, so a delete between them fai
 finds the id. `record_exchange` reads `deleted` before it records and after the row commits, then
 removes the row with `MemoryRecaller.discard`: the cascade misses a row committed after it read the
 chat's rows ([readings](../readings/deleted-chat-on-disk.md)), and the delete marks the chat first.
-A brain stopping between that commit and read keeps the row. Awaiting the turn was rejected: it
-needs a registry of every stream's turns, and a cancelled insert can commit after its task ends. A
-turn sent to a deleted chat ends as `session_deleted`: `handle_turn` raises `SessionDeletedError`,
-before any model call, when `deleted` holds after its history read. Each delete removes the ids
-deleted `DELETED_CHAT_HORIZON` (30 days) or more before it, past the 4.5 days one turn's default
-waits sum to; a turn sent to a removed id starts a new chat.
+A brain stopping between that commit and read, or a failed read or discard, keeps the row. Awaiting
+the turn was rejected: it needs a registry of every stream's turns, and a cancelled insert can
+commit after its task ends. A turn sent to a deleted chat ends as `session_deleted`: `handle_turn`
+raises `SessionDeletedError`, before any model call, when `deleted` holds after its history read.
+Each delete removes the ids deleted `DELETED_CHAT_HORIZON` (30 days) or more before it, past the 4.5
+days one turn's default waits sum to; a turn sent to a removed id starts a new chat.
 
 The confirmation is overlay-local: the row's trash control swaps in a confirm and cancel pair.
 Deleting the open chat first tears down its turn, denying a pending confirm and cancelling the

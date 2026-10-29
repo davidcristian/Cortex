@@ -10,6 +10,7 @@ from cortex_core.errors import (
     InferenceError,
     MalformedToolCallError,
     MemoryStoreError,
+    SessionStoreError,
 )
 from cortex_core.events import TextDelta, ToolActivity, ToolOutcome, TurnEvent
 from cortex_core.guardrail import OutputFilter
@@ -261,10 +262,10 @@ async def record_exchange(  # noqa: PLR0913 -- a deep phase adds the runs the co
     """
     if caps.memory is None or memory_withheld(caps, taint, (*earlier, *runs)):
         return
-    if await store.deleted(session_id):
-        return
     fields = {"session_id": session_id}
     try:
+        if await store.deleted(session_id):
+            return
         async with asyncio.timeout(caps.memory_write_timeout_s):
             stored = await caps.memory.record(
                 render_exchange(query, reply, runs),
@@ -272,14 +273,22 @@ async def record_exchange(  # noqa: PLR0913 -- a deep phase adds the runs the co
                 tainted=taint.tainted,
                 recalled=taint.recalled_ids,
             )
-    except (EmbedderError, MemoryStoreError, TimeoutError):
+    except (EmbedderError, MemoryStoreError, SessionStoreError, TimeoutError):
         _logger.exception(
             "memory write unavailable; this exchange was not recorded to memory", extra=fields
         )
         return
     if stored is None:
         _logger.info(FORGOTTEN_RECALL_LOG_MSG, extra=fields)
-    elif await store.deleted(session_id):
-        # This row may have committed after the chat's delete read its rows; that delete marks
-        # the chat before it reads any, so this read sees the mark.
-        await caps.memory.discard(stored)
+        return
+    try:
+        async with asyncio.timeout(caps.memory_write_timeout_s):
+            # This row may have committed after the chat's delete read its rows; that delete marks
+            # the chat before it reads any, so this read sees the mark.
+            if await store.deleted(session_id):
+                await caps.memory.discard(stored)
+    except (MemoryStoreError, SessionStoreError, TimeoutError):
+        _logger.exception(
+            "the memory row of a chat that may be deleted was not removed",
+            extra={"session_id": session_id, "memory_id": stored.id},
+        )
