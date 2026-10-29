@@ -20,10 +20,10 @@ tools in [brain-core-tools.md](brain-core-tools.md), delegated work in
   retry a write whose reply was lost), `history(session_id)` (append order, empty when
   unknown), `list_sessions(*, limit)` (most recently active first), `set_title(session_id, title)`
   (a display title `list_sessions` prefers over the first-message derivation, ADR-0021 decision 9),
-  `delete(session_id)` (removes a whole chat and marks it deleted, so no later write to it is
-  stored), `deleted(session_id)`, `set_hoisted(session_id, *, hoisted)` (ADR-0021 decision 12), and
-  `set_recap(session_id, recap)` / `recap(session_id)` for the cached history recap below. Fake:
-  `InMemorySessionStore`; adapter: `cortex_session`.
+  `delete(session_id)` (erases a chat, marks it deleted so no later write is stored, and records
+  its cleanup as pending), `deleted(session_id)`, `pending_cleanups()`, `clear_cleanup(session_id)`,
+  `set_hoisted(session_id, *, hoisted)` (ADR-0021 decision 12), and `set_recap` / `recap` for the
+  history recap below. Fake: `InMemorySessionStore`; adapter: `cortex_session`.
 - `InferenceBackend` provides `stream(model, messages, *, tools=(), schema=None, bounds=None) -> AsyncIterator[InferenceEvent]`:
   one stateless streamed completion. `model` is a logical id (ADR-0004), and **an implementation
   answers only for the ids it serves**, failing with `InferenceError` on one it does not

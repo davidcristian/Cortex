@@ -205,6 +205,36 @@ async def check_a_delete_unmarks_chats_deleted_past_the_horizon(
     assert [message.text for message in await store.history(old)] == ["a new chat"]
 
 
+async def check_a_delete_leaves_its_cleanup_pending_until_cleared(store: SessionStore) -> None:
+    """A delete records the chat's cleanup as pending until it is cleared, once per chat."""
+    doomed, kept = _session_id(), _session_id()
+    await store.append(kept, make_message(Role.USER, "an unrelated chat", turn_id="k"))
+    assert list(await store.pending_cleanups()) == []
+
+    await store.delete(doomed)
+    await store.delete(doomed)
+    assert list(await store.pending_cleanups()) == [doomed]
+
+    await store.clear_cleanup(doomed)
+    await store.clear_cleanup(doomed)
+    await store.clear_cleanup(kept)
+    assert list(await store.pending_cleanups()) == []
+    assert await store.deleted(doomed) is True
+    assert [message.text for message in await store.history(kept)] == ["an unrelated chat"]
+
+
+async def check_a_pending_cleanup_outlives_the_deleted_mark(
+    store: SessionStore, clock: SteppedClock
+) -> None:
+    """Pending cleanups list oldest delete first and stay after the horizon unmarks the chat."""
+    await store.delete("chat-b")
+    clock.at = _AT + DELETED_CHAT_HORIZON
+    await store.delete("chat-a")
+
+    assert await store.deleted("chat-b") is False
+    assert list(await store.pending_cleanups()) == ["chat-b", "chat-a"]
+
+
 async def check_set_hoisted_marks_and_clears_the_summary(store: SessionStore) -> None:
     """``set_hoisted`` toggles ``SessionSummary.hoisted``; setting a value twice is a no-op."""
     session_id = _session_id()
@@ -350,6 +380,7 @@ ALL_CHECKS = (
     check_set_title_overrides_the_first_message,
     check_delete_removes_the_session,
     check_a_write_to_a_deleted_chat_stores_nothing,
+    check_a_delete_leaves_its_cleanup_pending_until_cleared,
     check_set_hoisted_marks_and_clears_the_summary,
     check_a_hoisted_chat_escapes_the_recency_window,
     check_a_hoisted_recent_chat_is_not_duplicated,

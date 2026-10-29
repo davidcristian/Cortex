@@ -43,7 +43,8 @@ closes it. `RedisSessionStore.probe()` is a `RedisPing`, one `PING` on that clie
 - `delete(session_id)` removes in one transactional pipeline the message list, title, recap and both
   index members, and `ZADD`s the id to `cortex:sessions:deleted` (ADR-0021 decision 11), which
   `deleted` reads and `append`, `set_title` and `set_recap` read under a `WATCH`, so a turn still
-  running in the chat stores nothing more. It is idempotent; `DeleteSession` then forgets memories.
+  running in the chat stores nothing more, and to `cortex:sessions:cleanup`, never dropped by age,
+  which `pending_cleanups` lists oldest first and `clear_cleanup` removes from. It is idempotent.
 - `set_recap(session_id, recap)` and `recap(session_id)` hold the summarizing window's account of
   the turns that fell out of it (ADR-0038 decision 9), as one JSON document at
   `cortex:session:{id}:recap` with the text and `covers`, the boundary it accounts for. Both fields
@@ -171,8 +172,7 @@ as "no reason given" would be indistinguishable from the state the field exists 
 Decoding is strict, as for task state, since a defaulted taint field would fail open after the swap,
 except that an older record decodes with a missing `recalled_only` as `False` and a missing `forget_asked` as `True`, each the stricter value, and a missing `recalled_ids` as none.
 
-Schedule state (ADR-0025) is durable again: one record per schedule at `cortex:schedule:{id}`
-holding
+Schedule state (ADR-0025) is durable again: one record per schedule at `cortex:schedule:{id}` holding
 `{"v": 1, "kind": "schedule", "id", "item_kind", "text", "session_id", "due_at", "created_at", "every_s", "rule", "anchor", "model", "tainted", "status", "deliverable_since", "deliverable_due_at", "deliverable_started_at", "last_outcome", "claim", "claimed_at"}`
 with **no expiry**, since the task store's would drop reminders. `anchor`, `rule`,
 `deliverable_due_at` and `deliverable_started_at` are **additive** keys read with `.get` and no version bump, so a record written

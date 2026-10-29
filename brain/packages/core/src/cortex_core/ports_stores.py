@@ -27,10 +27,21 @@ class SessionStore(Protocol):
     async def set_title(self, session_id: str, title: str) -> None: ...
 
     async def delete(self, session_id: str) -> None:
-        """Erase the chat and mark it deleted, so no later append, title or recap is stored."""
+        """Erase the chat, mark it deleted and record its cleanup as pending, in one write.
+
+        The mark means no later append, title or recap is stored.
+        """
         ...
 
     async def deleted(self, session_id: str) -> bool: ...
+
+    async def pending_cleanups(self) -> Sequence[str]:
+        """The deleted chats whose cleanup is not cleared yet, oldest delete first."""
+        ...
+
+    async def clear_cleanup(self, session_id: str) -> None:
+        """Drop the chat's pending cleanup record; a chat without one is left as it is."""
+        ...
 
     async def set_hoisted(self, session_id: str, *, hoisted: bool) -> None: ...
 

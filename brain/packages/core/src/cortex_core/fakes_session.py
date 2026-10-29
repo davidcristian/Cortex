@@ -28,6 +28,7 @@ class InMemorySessionStore:
         self._hoisted: set[str] = set()
         self._recaps: dict[str, HistoryRecap] = {}
         self._deleted: dict[str, datetime] = {}
+        self._cleanups: dict[str, datetime] = {}
         self._clock = clock if clock is not None else SystemClock()
 
     async def append(self, session_id: str, message: Message) -> None:
@@ -86,6 +87,7 @@ class InMemorySessionStore:
         cutoff = now - DELETED_CHAT_HORIZON
         self._deleted = {key: at for key, at in self._deleted.items() if at > cutoff}
         self._deleted[session_id] = now
+        self._cleanups[session_id] = now
         self._sessions.pop(session_id, None)
         self._titles.pop(session_id, None)
         self._hoisted.discard(session_id)
@@ -94,6 +96,14 @@ class InMemorySessionStore:
     async def deleted(self, session_id: str) -> bool:
         """Whether the chat was deleted."""
         return session_id in self._deleted
+
+    async def pending_cleanups(self) -> Sequence[str]:
+        """The deleted chats whose cleanup is not cleared yet, oldest delete first."""
+        return tuple(sorted(self._cleanups, key=lambda key: (self._cleanups[key], key)))
+
+    async def clear_cleanup(self, session_id: str) -> None:
+        """Drop the chat's pending cleanup record; a chat without one is left as it is."""
+        self._cleanups.pop(session_id, None)
 
     async def set_recap(self, session_id: str, recap: HistoryRecap) -> None:
         """Persist the summarizing window's recap of this session's dropped prefix."""

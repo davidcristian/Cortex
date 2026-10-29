@@ -81,6 +81,51 @@ async def test_a_delete_unmarks_chats_deleted_past_the_horizon(kind: str) -> Non
     await contract.check_a_delete_unmarks_chats_deleted_past_the_horizon(store, clock)
 
 
+@pytest.mark.parametrize("kind", ["in-memory", "redis"])
+async def test_a_pending_cleanup_outlives_the_deleted_mark(kind: str) -> None:
+    clock = contract.SteppedClock()
+    store: SessionStore = (
+        InMemorySessionStore(clock=clock)
+        if kind == "in-memory"
+        else RedisSessionStore(FakeAsyncRedis(server=FakeServer()), clock=clock)
+    )
+    await contract.check_a_pending_cleanup_outlives_the_deleted_mark(store, clock)
+
+
+async def test_a_delete_writes_the_mark_and_the_pending_cleanup_in_one_transaction(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = RedisSessionStore(FakeAsyncRedis(server=FakeServer()))
+    await store.set_hoisted("other", hoisted=False)
+    real_execute = Pipeline.execute
+    executed: list[list[tuple[object, object]]] = []
+
+    async def recording_execute(pipe: Pipeline) -> list[object]:
+        stack = cast("list[tuple[tuple[object, ...], object]]", pipe.command_stack)
+        executed.append([(args[0], args[1]) for args, _ in stack])
+        return cast("list[object]", await real_execute(pipe))
+
+    monkeypatch.setattr(Pipeline, "execute", recording_execute)
+
+    await store.delete("s")
+
+    (commands,) = executed
+    assert ("ZADD", "cortex:sessions:deleted") in commands
+    assert ("ZADD", "cortex:sessions:cleanup") in commands
+
+
+async def test_connection_failure_on_reading_pending_cleanups_wraps_the_cause() -> None:
+    with pytest.raises(SessionStoreError, match="pending chat cleanups") as excinfo:
+        await _disconnected_store().pending_cleanups()
+    assert isinstance(excinfo.value.__cause__, redis_exceptions.ConnectionError)
+
+
+async def test_connection_failure_on_clear_cleanup_wraps_the_cause() -> None:
+    with pytest.raises(SessionStoreError, match="pending cleanup of session 's'") as excinfo:
+        await _disconnected_store().clear_cleanup("s")
+    assert isinstance(excinfo.value.__cause__, redis_exceptions.ConnectionError)
+
+
 async def test_a_delete_between_the_check_and_the_write_leaves_the_append_unstored(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

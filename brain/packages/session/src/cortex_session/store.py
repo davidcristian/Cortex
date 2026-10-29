@@ -53,6 +53,10 @@ _HOISTED_KEY = "cortex:sessions:hoisted"
 _DELETED_KEY = "cortex:sessions:deleted"
 _HORIZON_S = DELETED_CHAT_HORIZON.total_seconds()
 
+# The deleted chats whose memory cascade and schedule detach have not both succeeded, scored by
+# delete time. A delete adds the id in the transaction that writes its deleted mark.
+_CLEANUP_KEY = "cortex:sessions:cleanup"
+
 # A store written before the feature was named Hoist keeps its hoisted ids under this key.
 _OLD_HOISTED_KEY = "cortex:sessions:pinned"
 
@@ -216,6 +220,7 @@ class RedisSessionStore:
                 pipe.zrem(_SESSIONS_KEY, session_id)
                 pipe.srem(_HOISTED_KEY, session_id)
                 pipe.zadd(_DELETED_KEY, {session_id: now})
+                pipe.zadd(_CLEANUP_KEY, {session_id: now})
                 pipe.zremrangebyscore(_DELETED_KEY, "-inf", now - _HORIZON_S)
                 await pipe.execute()
 
@@ -228,6 +233,21 @@ class RedisSessionStore:
             f"reading whether session {session_id!r} was deleted failed",
         )
         return score is not None
+
+    async def pending_cleanups(self) -> Sequence[str]:
+        """The deleted chats whose cleanup is not cleared yet, oldest delete first."""
+        raw = await self._call(
+            lambda: self._client.zrange(_CLEANUP_KEY, 0, -1),  # pyright: ignore[reportUnknownMemberType]
+            "reading the pending chat cleanups failed",
+        )
+        return tuple(item.decode("utf-8") for item in cast("list[bytes]", raw))
+
+    async def clear_cleanup(self, session_id: str) -> None:
+        """Drop the chat's pending cleanup record; a chat without one is left as it is."""
+        await self._call(
+            lambda: self._client.zrem(_CLEANUP_KEY, session_id),
+            f"clearing the pending cleanup of session {session_id!r} failed",
+        )
 
     async def set_hoisted(self, session_id: str, *, hoisted: bool) -> None:
         """Add the chat to the hoisted set, or remove it from it."""

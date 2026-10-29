@@ -117,6 +117,12 @@ class CountingFailingStore:
         del session_id
         return False
 
+    async def pending_cleanups(self) -> Sequence[str]:
+        return ()
+
+    async def clear_cleanup(self, session_id: str) -> None:
+        del session_id
+
     async def set_hoisted(self, session_id: str, *, hoisted: bool) -> None:
         del session_id, hoisted
 

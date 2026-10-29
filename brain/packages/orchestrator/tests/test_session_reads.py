@@ -211,6 +211,15 @@ class FailingStore:
         msg = "redis is down"
         raise SessionStoreError(msg)
 
+    async def pending_cleanups(self) -> Sequence[str]:
+        msg = "redis is down"
+        raise SessionStoreError(msg)
+
+    async def clear_cleanup(self, session_id: str) -> None:
+        del session_id
+        msg = "redis is down"
+        raise SessionStoreError(msg)
+
     async def set_hoisted(self, session_id: str, *, hoisted: bool) -> None:
         del session_id, hoisted
         msg = "redis is down"
