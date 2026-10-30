@@ -232,16 +232,7 @@ called `list_allowed_directories`, which read untrusted content, so the turn was
 while its reply said the number was noted
 ([readings](remember-on-a-turn-not-kept.md)).
 
-## Ten wordings of a forget request, 2026-10-29
+## Which wordings make the call
 
-Drawn to find a request to forget a named value that makes no `forget_memories` call, with the null
-result (every draw calls it) written first: a new chat a draw on the `cortexn10` stack, with the
-note of [remember-on-a-turn-not-kept.md](remember-on-a-turn-not-kept.md), forget cards denied, three
-draws of each of `Forget that my passport number is X4821937.`, `Please delete my card number 4242
-4242 4242 4242 from your memory.`, `Don't remember my locker code 7319 anymore.`, `Erase the PIN
-5521 I gave you.`, `Never mind my locker code 7319, drop it.`, `Stop remembering that my sister's
-name is Ana.`, `Remove my address, Keizersgracht 12, from what you know about me.`, `I shouldn't
-have told you my card number 4242 4242 4242 4242. Please get rid of it.`, `Unlearn my phone number
-0612345678.` and `Wipe the code 7319 from your notes.` All 30 called `forget_memories` and left no
-`memories` row holding the value. The 70 forget requests drawn earlier that night all called it too,
-so no request without the call has a row to measure a check against.
+Whether a request to forget a named value calls `forget_memories` at all is measured in
+[forget-request-wordings.md](forget-request-wordings.md).
