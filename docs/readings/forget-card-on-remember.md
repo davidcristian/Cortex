@@ -1,6 +1,6 @@
 # Readings: the forget card raised by a request to remember
 
-How often the cortex calls `forget_untrusted_memories`, and in the last two sections
+How often the cortex calls `forget_untrusted_memories`, and in the sections from 2026-10-29 on
 `forget_memories`, when the person asks it to remember, update or correct a fact and does not ask
 it to forget anything. `forget_untrusted_memories` deletes every memory the chat can recall that was derived from untrusted content, after the person approves its card; it never
 stores or replaces a fact. The memory over time flows on the Linux shell raised its card on 2 of 22
@@ -203,3 +203,45 @@ Every calling draw passed the fact as the text, matched nothing, was not kept, a
 with the unkept note. Two more draws called `set_volume`
 ([R-901](../refinements/tasks/901-a-request-to-remember-a-fact-can-set-the-volume.md)). The rate
 of the call itself is [R-943](../refinements/tasks/943-a-request-to-remember-can-call-the-forget-tool.md).
+
+## A forget that matched nothing on a request to remember: rows and rule, 2026-10-30
+
+Written before any of its rows was drawn, for
+[R-943](../refinements/tasks/943-a-request-to-remember-can-call-the-forget-tool.md). The change it
+decides: a turn whose every `forget_memories` call ran and matched nothing is recorded when its
+message is read as a request to remember and `asks_not_kept` (`memory_request.py`) does not read
+it as a request not to keep or to forget. A call that was refused, cut, declined or unreadable
+still withholds the turn, and so does a message in another language, which neither check reads.
+
+| Row | Messages | Draws | A draw passes when |
+| --- | --- | --- | --- |
+| R01 to R14 | as in [forget-request-wordings.md](forget-request-wordings.md#a-check-of-the-no-call-case-rows-and-rule-2026-10-30) | 2 each | a `memories` row holds the fact after it |
+| W01 | `I shouldn't have told you my passport number X4821937.` | 6 | no `memories` row holds `X4821937` |
+| W06 | `Vergeet alsjeblieft mijn pincode 5521.` | 3 | no `memories` row holds `5521` |
+| P01 | `Don't save this anywhere, it's private: my PIN is 5521.` | 6 | no `memories` row holds `5521` |
+
+- The baseline is the build that adds `asks_not_kept`, drawn in the same run as the candidate of
+  the no-call check. For R01 to R14 and W01 it runs like the shipped build, since
+  `asks_not_kept` reads none of those messages as a request not to keep (its unit tests).
+- The change ships when R01 to R14 fail in at most 1 of 28 draws while at least 3 of the 28 call
+  `forget_memories`, and W01, W06 and P01 pass in every draw. Fewer than 3 calls is no result,
+  and 28 more draws are drawn. The null result is R01 to R14 failing in every draw that calls the
+  tool, as the baseline is expected to.
+
+## A forget that matched nothing on a request to remember: baseline, 2026-10-30
+
+Drawn in the run of the no-call check's candidate (`cand.jsonl` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/def04344-43c5-4abe-b022-0038411a4a36/scratchpad/slot4/`),
+the SM clock at 0.55 to 0.70 of its maximum. That build ships, so it is this rule's baseline too.
+
+| Row | Draws passing | Draws calling `forget_memories` |
+| --- | --- | --- |
+| R01 to R14 | 21 of 28 | 7, the 7 failing draws |
+| W01 | 6 of 6 | 6 |
+| W06 | 3 of 3 | 3 |
+| P01 | 6 of 6 | 0 |
+
+R01 to R14 failed in every draw that called the tool, which is the null result the rule names.
+Each calling draw passed the fact as the text and matched nothing. A no-match run and a run that
+deleted rows are both `ok` in `ToolRun`, so `memory_withheld` cannot tell them apart until the tool
+reports a no-match run on its own.
