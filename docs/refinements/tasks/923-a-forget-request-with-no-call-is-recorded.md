@@ -42,7 +42,7 @@ stored the value. Eleven replies said it would not be kept and one said it was r
   open.
 - 2026-10-30: 51 draws of thirteen more wordings. A request, in the message that gives a value,
   not to keep it made no call in 12 of 12 draws, and a forget beside another request in 5 of 12;
-  all 17 stored the value. Step 1 is done. The same draws filed R-942.
+  all 17 stored the value. Step 1 is done.
 - 2026-10-30: step 2's rows and pass rule were written and its baseline drawn; the candidate is
   left for the next slot.
 - 2026-10-30: done. `memory_withheld` now reads the turn's message through `asks_not_kept`

@@ -91,7 +91,7 @@ a step are copied off the matched `ToolSpec`, so an unadvertised call produces n
 from the model's list keeps its spec, so a call to it by name gets its step and card. The only exit from a
 dispatch without its outcome is the generator being closed mid-dispatch. The turn engine maps the pair
 onto `ToolActivity` and `ToolOutcome`; a subagent puts steps on the spawning stream's `ProgressSink` and
-drops outcomes (ADR-0029 decision 18). The yield vocabulary is in `loop_events.py`, one round's dispatches in `dispatch_round.py`.
+drops outcomes (ADR-0029 decision 18). The yield vocabulary is in `loop_events.py`, one round's dispatches in `dispatch_round.py`. A round after one that streamed text is held by `OpeningHold` (`round_opening.py`) until its first sentence ends, and that sentence is dropped when an earlier round of the loop streamed it word for word, since the cortex can open the round after a call with the sentence it wrote before the call; a sentence repeated later in a round is kept, the next call message holds the text as shown, and a held sentence is still shown before an engine failure.
 
 The loop appends the tool-call and `Role.TOOL` result messages to `working` in place, and ends on a tool-free
 step, a `None` dispatcher, or `MAX_TOOL_STEPS` (8) rounds that all dispatched calls, reported as

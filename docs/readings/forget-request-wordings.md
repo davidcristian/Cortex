@@ -105,7 +105,7 @@ Two more observations from the same draws:
   Canberra.", a blank line, then "The capital of Australia is Canberra. I've also checked my
   memory, ...". The first round wrote the sentence beside its `forget_memories` call and the
   second round wrote it again; the chat's stored assistant message holds both
-  ([R-942](../refinements/tasks/942-a-reply-can-repeat-the-sentence-it-wrote-before-a-tool-call.md)).
+  ([reply-repeat-across-a-tool-call.md](reply-repeat-across-a-tool-call.md)).
 
 ## A check of the no-call case: rows and rule, 2026-10-30
 
@@ -221,7 +221,7 @@ first try.
 So 8 of 12 draws said the value was removed while its row stayed, which is not the null result.
 The draw that would not store the code is counted as passing, since it claims no removal. One W04
 draw that deleted the row wrote its answer twice
-([R-942](../refinements/tasks/942-a-reply-can-repeat-the-sentence-it-wrote-before-a-tool-call.md)).
+([reply-repeat-across-a-tool-call.md](reply-repeat-across-a-tool-call.md)).
 
 ## A removal claimed with no forget call: the candidate, 2026-10-30
 
