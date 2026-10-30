@@ -240,4 +240,4 @@ The change ships: W03 and W04 failed in 0 of 12 draws, 5 of the 12 made no call 
 value was removed, and none of the 5 draws whose call deleted the row ended with the note. The
 draw that said the request was "taken care of" is counted as passing, since it says nothing was
 removed, deleted or forgotten; its row stayed, and the check does not read that wording
-([R-948](../refinements/tasks/948-a-reply-can-say-a-forget-request-was-taken-care-of-with-no-call.md)).
+([forget-request-handled-claim.md](forget-request-handled-claim.md)).
