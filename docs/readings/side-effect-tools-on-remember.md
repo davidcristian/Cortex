@@ -79,3 +79,31 @@ draws, and every R draw stored its fact. Two more observations:
 - One A02 draw stored a reminder on the 11th of every month, and its reply said so; the other
   stored it yearly on 11 May
   ([R-951](../refinements/tasks/951-a-reminder-the-day-before-a-yearly-date-can-repeat-monthly.md)).
+
+## The forget calls on a request to remember: replication rows and rule, 2026-10-30
+
+Written before it was drawn, to check the candidate's 12 of 30 R draws calling `forget_memories`
+against the baseline's 5 of 30. The rig is the one above, on the shipped candidate build.
+
+| Row | Message | Draws |
+| --- | --- | --- |
+| R01 to R15 | as above, each its own row | 2 each |
+
+- A draw counts when its turn calls `forget_memories`, read from a `ToolActivity` event or a card.
+- The rise **replicates** when at least 10 of the 30 draws count. A separated pair is then filed
+  as a task: the build before the change and the build after it, drawn in turn, so a run's drift
+  cannot pass for the change's effect.
+- It **does not replicate** when at most 7 of 30 count. The candidate's 12 is then one run's
+  surprise and nothing is filed.
+- 8 or 9 of 30 is no result: the separated pair is filed as a task.
+- No behaviour changes on this row in any case.
+
+## The forget calls on a request to remember: replication, 2026-10-30
+
+Run log `rep.jsonl` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/def04344-43c5-4abe-b022-0038411a4a36/scratchpad/slot8/`,
+the shipped candidate build, the SM clock at 0.63 of its maximum at the start and 0.60 at the end.
+8 of the 30 draws called `forget_memories` (R03 and R08 twice, R01, R06, R09 and R15 once), every
+draw stored its fact, and none called a tool with a side effect. 8 of 30 is no result, so the
+separated pair is filed
+([R-952](../refinements/tasks/952-withheld-unasked-tools-may-raise-forget-calls-on-a-remember-request.md)).
