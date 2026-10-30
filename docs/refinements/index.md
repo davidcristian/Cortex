@@ -75,7 +75,7 @@ never a reading of what the tree does now.
 - **[R-950](tasks/950-a-request-to-remember-can-call-a-file-tool-and-store-nothing.md)** A request to remember can call a file tool and store nothing (memory). Its claim was checked against the code on 2026-10-30.
 - **[R-951](tasks/951-a-reminder-the-day-before-a-yearly-date-can-repeat-monthly.md)** A reminder the day before a yearly date can repeat monthly (scheduling). Its claim was checked against the code on 2026-10-30.
 - **[R-952](tasks/952-withheld-unasked-tools-may-raise-forget-calls-on-a-remember-request.md)** Withheld unasked tools may raise forget calls on a remember request (memory). Its claim was checked against the code on 2026-10-30.
-- **[R-957](tasks/957-a-file-request-beside-a-question-can-be-answered-with-invented-folders.md)** A file request beside a question can be answered with invented folders (tools). Its claim was checked against the code on 2026-10-30.
+- **[R-958](tasks/958-a-file-question-answered-without-a-call-shows-invented-folders-with-no-note.md)** A file question answered without a call shows invented folders with no note (tools). Its claim was checked against the code on 2026-10-30.
 
 ### Actionable, once a port changes (1)
 
@@ -975,7 +975,7 @@ never a reading of what the tree does now.
 - [R-901](tasks/901-a-request-to-remember-a-fact-can-set-the-volume.md) A request to remember a fact can set the volume. done 2026-10-30.
 - [R-913](tasks/913-an-answer-from-cut-results-does-not-say-they-were-cut.md) An answer from cut results does not say they were cut. done 2026-10-28.
 - [R-914](tasks/914-the-result-room-is-sized-for-the-cortex-context-only.md) The result room is sized for the cortex context only. done 2026-10-28.
-- [R-957](tasks/957-a-file-request-beside-a-question-can-be-answered-with-invented-folders.md) A file request beside a question can be answered with invented folders. open, actionable.
+- [R-958](tasks/958-a-file-question-answered-without-a-call-shows-invented-folders-with-no-note.md) A file question answered without a call shows invented folders with no note. open, actionable.
 
 ### tools-mcp
 

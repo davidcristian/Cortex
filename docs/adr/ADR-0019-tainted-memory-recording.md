@@ -151,8 +151,11 @@ across turns (a recalled memory).
    memory is on and stores nothing of a turn: an opaque turn (decision 6), a tainted turn whose
    `forget_untrusted_memories` ran (decision 9), a turn that named `forget_memories`, unless
    every call matched nothing on a request to remember, or whose message asks not to keep
-   something ([ADR-0075](ADR-0075-forget-chosen-memories.md)), and a
-   tainted turn under `skip` (decision 3).
+   something ([ADR-0075](ADR-0075-forget-chosen-memories.md)), a
+   tainted turn under `skip` (decision 3), and an untainted turn whose message asks about files
+   or folders (`asks_files`, `file_request.py`) and does not ask to remember. Such a turn read
+   no tool output, so its reply names folders the cortex wrote itself, and a stored row would
+   let a later chat repeat them ([readings](../readings/file-request-without-a-call.md)).
    `record_exchange` returns on it, and the engine and the deep phase pass it, over the same runs,
    to `limit_notes`, which appends `UNKEPT_CLAIM_NOTE` when `claims_kept` also finds a statement
    that something was noted or will be remembered, as `UNSCHEDULED_CLAIM_NOTE` closes a schedule

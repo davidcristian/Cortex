@@ -55,6 +55,7 @@ Two fresh chats on the overlay right after the flow, with the flow's rows still 
   step 5 stored, which its recall could read, and stored them again. That the reply came from the
   recalled row is an inference from the identical list; no recall trace was read.
 
-An answer written with no call becomes a stored fact that a later chat repeats
-([R-957](../refinements/tasks/957-a-file-request-beside-a-question-can-be-answered-with-invented-folders.md)).
+An answer written with no call became a stored fact that a later chat repeated;
+[file-request-without-a-call.md](file-request-without-a-call.md) measures it, with the check that
+records no such turn.
 Every row the flow stored was deleted afterwards.

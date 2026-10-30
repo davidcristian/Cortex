@@ -4,6 +4,7 @@ import re
 from collections.abc import Sequence
 
 from cortex_core.conversation import ToolRun
+from cortex_core.file_request import asks_files
 from cortex_core.memory_forget import FORGET_UNTRUSTED_TOOL_NAME
 from cortex_core.memory_forget_chosen import FORGET_CHOSEN_TOOL_NAME
 from cortex_core.memory_request import asks_kept, asks_not_kept
@@ -79,4 +80,6 @@ def memory_withheld(
     # The model can answer such a request without the call, and the query names the value.
     if asks_not_kept(query):
         return True
-    return taint.tainted and not caps.record_tainted_memory
+    # An untainted turn read no tool output, so a reply to a file question names folders the
+    # model wrote itself.
+    return not caps.record_tainted_memory if taint.tainted else asks_files(query)
