@@ -161,6 +161,7 @@ async def test_nothing_matching_says_so_and_deletes_nothing() -> None:
     assert await tool.card(_call("passport")) is None
     result = await tool.invoke(_call("passport"))
     assert result.is_error is False
+    assert result.matched_nothing is True
     assert _said(result) == (
         "nothing was forgotten: no remembered exchange contains that text, so tell the user that "
         "nothing about it was stored, and do not ask the user for the value"
@@ -175,6 +176,7 @@ async def test_a_missing_or_blank_text_deletes_nothing() -> None:
         assert await tool.card(_call(text)) is None
         result = await tool.invoke(_call(text))
         assert result.is_error is True
+        assert result.matched_nothing is False
         assert _said(result) == "nothing was forgotten: the call named no text"
     assert await _texts(store) == ["card"]
 
@@ -194,7 +196,9 @@ async def test_exactly_the_limit_is_listed_and_deleted() -> None:
     records = [_record(f"m{i:02}", _CARD, minutes=i) for i in range(FORGET_CHOSEN_LIMIT)]
     tool = ForgetChosenTool(store := await _store(*records), GLOBAL_MEMORY_SCOPE)
     assert len(await _card_lines(tool, _call())) == FORGET_CHOSEN_LIMIT + 1
-    assert (await tool.invoke(_call())).is_error is False
+    result = await tool.invoke(_call())
+    assert result.is_error is False
+    assert result.matched_nothing is False
     assert await _texts(store) == []
 
 

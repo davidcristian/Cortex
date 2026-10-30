@@ -89,11 +89,14 @@ pool down to the hits one turn sees. The turn that calls it is in
   call that never ran counts too: the tool loop sets `TaintLedger.forget_asked` for every call the
   model names before any refusal or cut, the engine and the deep phase set it for an unreadable call
   whose `MalformedToolCallError.tool_name` is the forget, and the handoff record keeps it for the
-  deep phase.
+  deep phase. Each of those also counts in `TaintLedger.forget_calls` (`name_forget`), and the
+  round counts a run whose result has `matched_nothing` set, which only the no-match run of
+  `forget_memories` sets, in `forget_unmatched`.
 - `memory_withheld(caps, taint, runs, *, query)` (`memory_claim.py`, ADR-0019 decision 10) is the
   one check of whether memory is on and stores nothing of a turn: an opaque turn whatever
   `record_tainted_memory` says (ADR-0029), a tainted turn whose `forget_untrusted_memories` ran
-  `ok`, a turn that named `forget_memories`, a turn whose `query` `asks_not_kept`
+  `ok`, a turn that named `forget_memories` unless every call ran and matched nothing and
+  `asks_kept(query)` reads a request to remember (ADR-0075 decision 5), a turn whose `query` `asks_not_kept`
   (`memory_request.py`, ADR-0075 decision 5) reads as a request not to keep, to forget or to
   remove something, with or without a call, and a tainted turn under `skip`. `record_exchange`
   returns on it, and both phases pass it to `limit_notes` as `withheld`, which then appends

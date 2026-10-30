@@ -183,7 +183,7 @@ class TurnEngine:
                 # Before any output the prompt alone was refused, so older turns can be dropped.
                 shed = None if started else _shed(err, working)
                 overflowed = shed is None and isinstance(err, ContextOverflowError)
-                taint.forget_asked |= forget_unreadable(err)
+                taint.name_forget(forget_unreadable(err))
                 _logger.warning(
                     _failure_log_msg(err, shed),
                     extra={

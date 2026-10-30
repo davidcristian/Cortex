@@ -166,8 +166,8 @@ passing by the rule above.
 
 The change ships: P01 and P02 each passed in 6 of 6 draws, and R01 to R15 failed in 9 of 32
 draws against 10 of 32 in the baseline. Every failing draw called `forget_memories`, which
-`asks_not_kept` does not change; that call is
-[R-943](../refinements/tasks/943-a-request-to-remember-can-call-the-forget-tool.md). W03 decides
+`asks_not_kept` does not change; that call is measured in
+[forget-no-match-on-remember.md](forget-no-match-on-remember.md). W03 decides
 nothing by the rule; its four no-call draws stored nothing, which the query check does whatever
 the reply says.
 

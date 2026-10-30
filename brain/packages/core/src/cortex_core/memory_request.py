@@ -28,6 +28,10 @@ _REMOVE = re.compile(
     r"\bfrom\s+(?:your\s+(?:memory|memories|notes)|what\s+you\s+(?:know|remember))\b",
     re.IGNORECASE,
 )
+_REMEMBER = re.compile(
+    rf"{_OPENS}(?:please\s+)?(?:remember|note\s+that|keep\s+in\s+mind|don['\u2019]?t\s+forget)\b",
+    re.IGNORECASE,
+)
 _SENTENCE_END = re.compile(r"(?<=[.!?])\s+|\n+")
 
 
@@ -37,3 +41,8 @@ def asks_not_kept(query: str) -> bool:
     return any(
         pattern.search(sentence) for sentence in _SENTENCE_END.split(query) for pattern in patterns
     )
+
+
+def asks_kept(query: str) -> bool:
+    """Whether a sentence of ``query`` asks, in English, that something be remembered."""
+    return any(_REMEMBER.search(sentence) for sentence in _SENTENCE_END.split(query))

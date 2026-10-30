@@ -89,6 +89,8 @@ class ToolResult:
     trust: Trust = Trust.UNTRUSTED
     source: Provenance | None = None
     images: tuple[ImagePart, ...] = ()
+    # Set when the call ran and found nothing its arguments name, so it changed nothing.
+    matched_nothing: bool = False
 
 
 @dataclass(frozen=True, slots=True)

@@ -6,7 +6,7 @@ from collections.abc import Sequence
 from cortex_core.conversation import ToolRun
 from cortex_core.memory_forget import FORGET_UNTRUSTED_TOOL_NAME
 from cortex_core.memory_forget_chosen import FORGET_CHOSEN_TOOL_NAME
-from cortex_core.memory_request import asks_not_kept
+from cortex_core.memory_request import asks_kept, asks_not_kept
 from cortex_core.turn_context import TurnCapabilities
 from cortex_core.untrusted import TaintLedger
 
@@ -53,6 +53,12 @@ def claims_kept(reply: str) -> bool:
     return _states(reply, (_NOTED, _PUT, _PASSIVE)) or _states(opening, (_OPENING,))
 
 
+def _unmatched_keep(taint: TaintLedger, forgets: int, query: str) -> bool:
+    """Whether every forget call ran and matched nothing on a message that asks to remember."""
+    # A forget request naming a value never stored matches nothing too, so the message decides.
+    return 0 < forgets == taint.forget_unmatched == taint.forget_calls and asks_kept(query)
+
+
 def memory_withheld(
     caps: TurnCapabilities, taint: TaintLedger, runs: Sequence[ToolRun], *, query: str
 ) -> bool:
@@ -67,7 +73,8 @@ def memory_withheld(
     if taint.tainted and any(run.ok and run.name == FORGET_UNTRUSTED_TOOL_NAME for run in runs):
         return True
     # A turn that asked to forget a text may name that text in its query or reply.
-    if taint.forget_asked or any(run.name == FORGET_CHOSEN_TOOL_NAME for run in runs):
+    forgets = sum(run.name == FORGET_CHOSEN_TOOL_NAME for run in runs)
+    if (taint.forget_asked or forgets) and not _unmatched_keep(taint, forgets, query):
         return True
     # The model can answer such a request without the call, and the query names the value.
     if asks_not_kept(query):

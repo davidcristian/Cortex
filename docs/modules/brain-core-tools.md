@@ -14,9 +14,9 @@ spawned subtask or a model swap is in [brain-core-residency.md](brain-core-resid
 - `ToolCall(id, name, arguments, stamp=UNSTAMPED)` is a model's request to run one tool; `id`
   matches it to its `ToolResult`. The dispatcher overwrites `stamp` at dispatch time, so a stamp
   the model wrote never reaches a tool (ADR-0018, ADR-0027).
-- `ToolResult(call_id, content, is_error=False, trust=UNTRUSTED, source=None, images=())` is the
+- `ToolResult(call_id, content, is_error=False, trust=UNTRUSTED, source=None, images=(), matched_nothing=False)` is the
   outcome fed back to the model. `source` is what the result declared for its own content, and
-  `images` (ADR-0029) travel beside `content`, which alone is audited, scanned and fenced.
+  `images` (ADR-0029) travel beside `content`, which alone is audited, scanned and fenced. `matched_nothing` says the call ran and found nothing its arguments name.
 - `TurnStamp(session_id, turn_id, task_id, item_id, tainted, recalled_only, forgotten, sources,
   budget, progress, escalation)` is what the dispatching turn gives the call (ADR-0027); `live_taint` is
   `tainted and not recalled_only` (ADR-0019 decision 8). The four ids are the work the call was

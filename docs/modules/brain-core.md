@@ -141,7 +141,7 @@ the decisions are ADR-0013, ADR-0019 and ADR-0027.
 - `TaintLedger` is the mutable, turn-local record of what a turn has read: `tainted` (untrusted
   content entered), `opaque` (a picture, which no fence can bracket, ADR-0029), `recalled_only`
   (fenced recalled memories were all of it, ADR-0019 decisions 8 and 9), `forgotten` (its forget
-  succeeded), `forget_asked` (the model named `forget_memories` in a call), `untrusted_urls` (what the output guardrail reads), `sources` and `recalled_ids` (the tainted memories it recalled). `mark(trust)` sets `tainted` on an `UNTRUSTED`
+  succeeded), `forget_asked` (the model named `forget_memories` in a call), `forget_calls` and `forget_unmatched` (how many calls it named, and how many ran and matched nothing), `untrusted_urls` (what the output guardrail reads), `sources` and `recalled_ids` (the tainted memories it recalled). `mark(trust)` sets `tainted` on an `UNTRUSTED`
   result and clears `recalled_only`. The tool loop calls `observe(result, *, source=None)`, which
   marks, collects the result's URLs, then notes the tool the content came through and any source
   the result declared, so a declared source can never lower taint. `ingest_untrusted(content, *,

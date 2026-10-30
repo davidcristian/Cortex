@@ -88,7 +88,7 @@ async def stream_tool_loop(
             if isinstance(deltas, AsyncGenerator):
                 await deltas.aclose()
         # Before any refusal or the round's cut, so a call that never runs still marks the turn.
-        context.taint.forget_asked |= any(call.name == FORGET_CHOSEN_TOOL_NAME for call in calls)
+        context.taint.name_forget(sum(call.name == FORGET_CHOSEN_TOOL_NAME for call in calls))
         if not calls or dispatcher is None:
             break
         plan = plan_round(calls)

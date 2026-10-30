@@ -136,10 +136,18 @@ class TaintLedger:
     forgotten: bool = False
     # Whether the model named ``forget_memories`` in a call this turn, whether or not it ran.
     forget_asked: bool = False
+    # How many such calls the model wrote, readable or not, and how many ran and matched nothing.
+    forget_calls: int = 0
+    forget_unmatched: int = 0
     untrusted_urls: set[str] = field(default_factory=set[str])
     sources: tuple[Provenance, ...] = ()
     # The tainted memories this turn recalled: its record is stored only while they all exist.
     recalled_ids: tuple[str, ...] = ()
+
+    def name_forget(self, calls: int) -> None:
+        """Record ``calls`` more ``forget_memories`` calls the model wrote this turn."""
+        self.forget_asked |= calls > 0
+        self.forget_calls += calls
 
     def mark(self, trust: Trust) -> None:
         """Flip the ledger tainted once any untrusted result is observed."""

@@ -62,7 +62,17 @@ that removes exactly those rows and holds against a turn in flight. This record 
    refused, was cut from its round or could not be read, because its query or reply may name the
    text it forgets, and recording it would store that text again. That holds for the deep phase
    of a turn the cortex handed over after naming it, which reads the cortex's runs from the
-   stored reply and the mark from the handoff record. So every result a call to it gets ends with
+   stored reply and the mark from the handoff record. One turn is recorded all the same: every
+   call it named ran and matched nothing, and its message asks to remember something, read by
+   `asks_kept` (`memory_request.py`: "remember", "note that", "keep in mind" or "don't forget"
+   at a clause start, English only) and not read by `asks_not_kept`. The cortex calls the tool
+   with the fact as the text on about one request to remember in four, and that turn has nothing
+   to forget ([readings](../readings/forget-no-match-on-remember.md)). A forget request naming a
+   value never stored matches nothing too, which is why the message decides. The tool sets
+   `ToolResult.matched_nothing` on that run, and `TaintLedger` counts the calls named
+   (`forget_calls`, an unreadable one included) and the runs that matched nothing
+   (`forget_unmatched`). The handoff record keeps neither count, so a deep phase withholds such a
+   turn as before. So every result a call to it gets ends with
    `FORGET_NOT_KEPT_NOTE`, whether the call ran or was declined, expired or refused: nothing in
    the message is kept, the reply must not say anything in it was noted, and anything else it
    asked to be remembered must be sent again in its own message, because a model given no note

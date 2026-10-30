@@ -149,8 +149,9 @@ across turns (a recalled memory).
 10. **A reply that says something was noted on a turn memory does not store ends with a note.**
    One check, `memory_withheld(caps, taint, runs, *, query)` (`memory_claim.py`), says whether
    memory is on and stores nothing of a turn: an opaque turn (decision 6), a tainted turn whose
-   `forget_untrusted_memories` ran (decision 9), a turn that named `forget_memories` or whose
-   message asks not to keep something ([ADR-0075](ADR-0075-forget-chosen-memories.md)), and a
+   `forget_untrusted_memories` ran (decision 9), a turn that named `forget_memories`, unless
+   every call matched nothing on a request to remember, or whose message asks not to keep
+   something ([ADR-0075](ADR-0075-forget-chosen-memories.md)), and a
    tainted turn under `skip` (decision 3).
    `record_exchange` returns on it, and the engine and the deep phase pass it, over the same runs,
    to `limit_notes`, which appends `UNKEPT_CLAIM_NOTE` when `claims_kept` also finds a statement

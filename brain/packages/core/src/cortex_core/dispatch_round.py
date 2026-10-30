@@ -10,6 +10,7 @@ from cortex_core.handoff import EscalationSlot
 from cortex_core.inference import GenerationBounds, JsonSchema
 from cortex_core.loop_events import StepOutcome, ToolStep, step_summary
 from cortex_core.memory_forget import FORGET_UNTRUSTED_TOOL_NAME
+from cortex_core.memory_forget_chosen import FORGET_CHOSEN_TOOL_NAME
 from cortex_core.ports import Clock
 from cortex_core.progress import ProgressSink, hold_wait
 from cortex_core.provenance import SourceKind, as_source
@@ -137,6 +138,8 @@ async def run_round(
             yield StepOutcome(tool_name=spec.name, ok=not result.is_error)
         if spec is not None and spec.name == FORGET_UNTRUSTED_TOOL_NAME and not result.is_error:
             context.taint.forgotten = True
+        if call.name == FORGET_CHOSEN_TOOL_NAME and result.matched_nothing:
+            context.taint.forget_unmatched += 1
         context.taint.observe(
             result, source=as_source(SourceKind.TOOL, None if spec is None else spec.name)
         )

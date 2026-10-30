@@ -124,6 +124,7 @@ class ForgetChosenTool:
             content=f"{content}.",
             is_error=error,
             trust=Trust.TRUSTED,
+            matched_nothing=content == _NONE_FOUND,
         )
 
     async def invoke(self, call: ToolCall) -> ToolResult:

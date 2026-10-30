@@ -31,6 +31,7 @@ from cortex_core import (
     TurnCapabilities,
     TurnCompleted,
     TurnEngine,
+    asks_kept,
     asks_not_kept,
     claims_kept,
     memory_withheld,
@@ -113,12 +114,18 @@ NOT_KEPT = [
     "This is off the record: my PIN is 1234.",
 ]
 
-KEPT = [
+REMEMBER = [
     "Please remember this: my brother's name is Luca.",
     "Remember that my wifi router is in the hallway.",
     "Note that my mother's birthday is on 12 May.",
     "Keep in mind that I am vegetarian.",
     "Please don't forget this: my gym class is on Tuesday.",
+    "Thanks. Please don\u2019t forget my PIN is 1234.",
+    "Don't forget to buy milk.",
+]
+
+KEPT = [
+    *REMEMBER[:5],
     "An update to remember: I now work as a teacher, not a nurse.",
     "Change what you remember about my passport: it expires in July.",
     "My locker code is 7319.",
@@ -170,6 +177,47 @@ def test_a_turn_is_withheld_on_each_path_that_stores_nothing(
 ) -> None:
     caps = _caps(record_tainted=record_tainted)
     assert memory_withheld(caps, taint, runs, query="hello") is withheld
+
+
+_UNMATCHED = ToolRun(name=FORGET_CHOSEN_TOOL_NAME, ok=True)
+
+
+def _forgot(calls: int, unmatched: int) -> TaintLedger:
+    return TaintLedger(forget_asked=True, forget_calls=calls, forget_unmatched=unmatched)
+
+
+@pytest.mark.parametrize(
+    ("taint", "runs", "query", "withheld"),
+    [
+        (_forgot(1, 1), (_UNMATCHED,), REMEMBER[0], False),
+        (_forgot(2, 2), (_UNMATCHED, _UNMATCHED), REMEMBER[3], False),
+        (_forgot(1, 1), (_UNMATCHED,), "My locker code is 7319.", True),
+        (_forgot(1, 1), (_UNMATCHED,), "Vergeet alsjeblieft mijn pincode 5521.", True),
+        (_forgot(1, 1), (_UNMATCHED,), "Remember my PIN 1234. Actually, forget it.", True),
+        (_forgot(2, 1), (_UNMATCHED,), REMEMBER[0], True),
+        (_forgot(1, 0), (_UNMATCHED,), REMEMBER[0], True),
+        (_forgot(1, 1), (_UNMATCHED, _UNMATCHED), REMEMBER[0], True),
+        (_forgot(0, 0), (_UNMATCHED,), REMEMBER[0], True),
+        (_forgot(1, 1), (), REMEMBER[0], True),
+        (TaintLedger(forget_asked=True), (), REMEMBER[0], True),
+    ],
+)
+def test_a_forget_that_matched_nothing_is_kept_only_on_a_request_to_remember(
+    *, taint: TaintLedger, runs: tuple[ToolRun, ...], query: str, withheld: bool
+) -> None:
+    assert memory_withheld(_caps(), taint, runs, query=query) is withheld
+
+
+@pytest.mark.parametrize("query", REMEMBER)
+def test_a_request_to_remember_is_read_as_such(query: str) -> None:
+    assert asks_kept(query)
+
+
+@pytest.mark.parametrize("query", [*KEPT[5:12], *KEPT[13:], *NOT_KEPT[:10]])
+def test_a_statement_question_or_request_to_forget_is_not_a_request_to_remember(
+    query: str,
+) -> None:
+    assert not asks_kept(query)
 
 
 @pytest.mark.parametrize(("query", "withheld"), [(NOT_KEPT[0], True), (KEPT[0], False)])

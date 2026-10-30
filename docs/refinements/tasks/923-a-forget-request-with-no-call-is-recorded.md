@@ -44,7 +44,7 @@ stored the value. Eleven replies said it would not be kept and one said it was r
   not to keep it made no call in 12 of 12 draws, and a forget beside another request in 5 of 12;
   all 17 stored the value. Step 1 is done. The same draws filed R-942.
 - 2026-10-30: step 2's rows and pass rule were written and its baseline drawn; the candidate is
-  left for the next slot. The baseline's forget calls on requests to remember filed R-943.
+  left for the next slot.
 - 2026-10-30: done. `memory_withheld` now reads the turn's message through `asks_not_kept`
   (`memory_request.py`), so a request not to keep, to forget or to remove something stores
   nothing with or without a call. P01 and P02 passed in 6 of 6 draws each, and the requests to

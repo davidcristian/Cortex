@@ -128,7 +128,7 @@ class BrainPhase:
                 yield log.note(event)
         # ``MalformedToolCallError`` subclasses ``InferenceError``, so it is caught first.
         except MalformedToolCallError as err:
-            taint.forget_asked |= forget_unreadable(err)
+            taint.name_forget(forget_unreadable(err))
             _logger.warning(
                 _UNREADABLE_CALL_LOG_MSG,
                 extra={

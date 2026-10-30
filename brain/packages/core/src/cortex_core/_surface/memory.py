@@ -22,7 +22,7 @@ from cortex_core.memory_forget_chosen import (
     FORGET_NOT_KEPT_NOTE,
     ForgetChosenTool,
 )
-from cortex_core.memory_request import asks_not_kept
+from cortex_core.memory_request import asks_kept, asks_not_kept
 from cortex_core.ranking import (
     DROPPED_TRAIL_LIMIT,
     DroppedCandidate,
@@ -93,6 +93,7 @@ __all__ = [
     "SessionMemoryCascade",
     "SessionMemoryScope",
     "UntrustedMemoryForget",
+    "asks_kept",
     "asks_not_kept",
     "claims_kept",
     "cut_marker",
