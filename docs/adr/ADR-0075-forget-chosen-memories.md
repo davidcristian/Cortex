@@ -95,8 +95,9 @@ that removes exactly those rows and holds against a turn in flight. This record 
    "unlearn", and a "delete" or "remove" with "from your memory". "Remember not to", "get rid
    of" and "stop remembering" (or saving, storing, keeping, noting) count only before the
    message, so "Remember not to save files to the desktop" is a rule to store, and "drop it"
-   only when it ends its clause, so "drop it off at the post office" asks nothing. An "erase"
-   about a file is read too, and its turn is not recorded. A clause starts at the sentence start, after a
+   only when it ends its clause, so "drop it off at the post office" asks nothing. A file
+   request in these words ("erase notes.txt", "get rid of my old files", "stop saving my drafts")
+   is read too, and its turn is not recorded. A clause starts at the sentence start, after a
    comma, colon or semicolon, or after "and", "but", "so" or "please", and "also", "just" or
    "then" may come first, so "people just forget" states a habit. After any other word those
    three, or "actually", open a request only when the message follows the verb, so "use it once
