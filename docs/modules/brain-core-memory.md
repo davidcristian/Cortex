@@ -116,8 +116,8 @@ pool down to the hits one turn sees. The turn that calls it is in
   negated ("Nothing was removed") and a removal that names no memory ("I've removed the reminder")
   do not count. Both phases pass `forget_unmatched` to `limit_notes`, which then appends
   `UNFORGOTTEN_CLAIM_NOTE`, telling the person nothing was forgotten and to ask again in a
-  message of its own. The deep phase's ledger starts its count at zero, so a cortex forget that
-  matched nothing before a handoff counts there as one that deleted a memory.
+  message of its own. The handoff record keeps `forget_calls` and `forget_unmatched`, so a cortex
+  forget that matched nothing before a handoff still counts as one in the deep phase.
 - `RecallPolicy` (port, `rerank.py`) turns an over-fetched pool into the final `k` hits:
   `candidate_k(k)` sizes the pool and `async select(hits, *, query, now, k, session_id=None,
   turn_id=None) -> Ranking` reranks and cuts it, returning at most `k` hits from the pool, none

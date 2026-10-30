@@ -26,6 +26,7 @@ from cortex_core import (
     RecordingConfirmer,
     Role,
     SystemClock,
+    TaintLedger,
     TextChunk,
     TextDelta,
     ToolCall,
@@ -210,6 +211,32 @@ async def test_a_deep_phase_removal_claim_reads_its_own_forget_calls(
     backend = _Steps([[_forget(forget)], [TextChunk(_REMOVED)]])
     phase = BrainPhase(sessions, backend, _Clock(), "brain", caps)
     record = harness.prepared_slot().snapshot(
+        turn_id=harness.TURN, session_id=harness.SESSION, requested_at=_AT
+    )
+    deltas = [event.text async for event in phase.run(record) if isinstance(event, TextDelta)]
+    assert (UNFORGOTTEN_CLAIM_NOTE in "".join(deltas)) is noted
+
+
+@pytest.mark.parametrize(("unmatched", "noted"), [(1, True), (0, False)])
+async def test_a_deep_phase_removal_claim_reads_the_cortex_forget_that_matched_nothing(
+    *, unmatched: int, noted: bool
+) -> None:
+    caps, _store = await _caps(held=True)
+    sessions = InMemorySessionStore()
+    await sessions.append(
+        harness.SESSION, Message(role=Role.USER, text=_QUERY, at=_AT, turn_id=harness.TURN)
+    )
+    cortex_reply = Message(
+        role=Role.ASSISTANT,
+        text="",
+        at=_AT,
+        turn_id=harness.TURN,
+        runs=(ToolRun(FORGET_CHOSEN_TOOL_NAME, ok=True),),
+    )
+    await sessions.append(harness.SESSION, cortex_reply)
+    phase = BrainPhase(sessions, _Steps([[TextChunk(_REMOVED)]]), _Clock(), "brain", caps)
+    taint = TaintLedger(forget_asked=True, forget_calls=1, forget_unmatched=unmatched)
+    record = harness.prepared_slot(taint=taint).snapshot(
         turn_id=harness.TURN, session_id=harness.SESSION, requested_at=_AT
     )
     deltas = [event.text async for event in phase.run(record) if isinstance(event, TextDelta)]

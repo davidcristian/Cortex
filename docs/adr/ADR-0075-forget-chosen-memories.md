@@ -71,8 +71,8 @@ that removes exactly those rows and holds against a turn in flight. This record 
    value never stored matches nothing too, which is why the message decides. The tool sets
    `ToolResult.matched_nothing` on that run, and `TaintLedger` counts the calls named
    (`forget_calls`, an unreadable one included) and the runs that matched nothing
-   (`forget_unmatched`). The handoff record keeps neither count, so a deep phase withholds such a
-   turn as before. So every result a call to it gets ends with
+   (`forget_unmatched`). The handoff record keeps both counts, so a deep phase reads the cortex's
+   calls the same way. So every result a call to it gets ends with
    `FORGET_NOT_KEPT_NOTE`, whether the call ran or was declined, expired or refused: nothing in
    the message is kept, the reply must not say anything in it was noted, and anything else it
    asked to be remembered must be sent again in its own message, because a model given no note

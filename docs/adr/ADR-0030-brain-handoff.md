@@ -51,7 +51,7 @@ bit (`OPAQUE_TURN_NOTE`). A pre-turn policy would be a producer of the existing 
 `HandoffRecord` (`cortex_core/handoff.py`) holds only what is not already in a store:
 `handoff_id` (the escalating turn's id, [ADR-0046](ADR-0046-work-identities-on-log-lines.md)
 decision 4), `session_id`, a timezone-aware `requested_at`, `state`, `brief`, the fence `nonce`,
-the whole ledger (`tainted`, `opaque`, `recalled_only`, `sources`, `untrusted_urls`, `recalled_ids`, `forget_asked`), `budget_remaining`
+the whole ledger (`tainted`, `opaque`, `recalled_only`, `sources`, `untrusted_urls`, `recalled_ids`, `forget_asked`, `forget_calls`, `forget_unmatched`), `budget_remaining`
 and `budget_closed` (so a swap never refills the allowance; `DispatchBudget.resume` rebuilds the pool),
 `rounds_used`, the text-only `loop_tail`, and `failure` (decision 10). `opaque` is defence in depth:
 no record has it set today, but both its consumers (the URL guardrail's strict mode and the

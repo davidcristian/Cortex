@@ -69,6 +69,8 @@ def encode_record(record: HandoffRecord) -> str:
             "recalled_only": record.recalled_only,
             "recalled_ids": list(record.recalled_ids),
             "forget_asked": record.forget_asked,
+            "forget_calls": record.forget_calls,
+            "forget_unmatched": record.forget_unmatched,
             "sources": [
                 {"kind": source.kind.value, "value": source.value} for source in record.sources
             ],
@@ -113,6 +115,10 @@ def decode_record(raw: bytes | str, handoff_id: str) -> HandoffRecord:
             # Missing in a record written before the field existed; True keeps that turn's
             # exchange out of memory, the stricter value.
             forget_asked=fields.get("forget_asked", True),
+            # Missing in a record written before the counts existed; zero reads that turn as the
+            # brain then read it, each cortex forget run counted as one that deleted a memory.
+            forget_calls=fields.get("forget_calls", 0),
+            forget_unmatched=fields.get("forget_unmatched", 0),
         )
     except (KeyError, TypeError, ValueError) as err:
         msg = f"corrupt handoff record at {record_key(handoff_id)!r}"

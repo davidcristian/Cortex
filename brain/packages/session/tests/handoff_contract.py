@@ -87,13 +87,14 @@ def make_record(
     requested_at: datetime = _AT,
     opaque: bool = False,
     recalled: bool = False,
-    forget_asked: bool = False,
+    forgets: tuple[int, int] = (0, 0),
 ) -> HandoffRecord:
     """One full-shape record, snapshotted off a live slot exactly as the conductor will."""
     ledger = opaque_ledger() if opaque else tainted_ledger()
     if recalled:
         ledger = recalled_ledger()
-    ledger.forget_asked = forget_asked
+    ledger.name_forget(forgets[0])
+    ledger.forget_unmatched = forgets[1]
     budget = DispatchBudget(limit=8)
     budget.charge(3)
     call = ToolCall(id="c1", name="read_email", arguments={"folder": "inbox", "limit": 2})
@@ -324,14 +325,18 @@ async def check_timezone_fidelity(store: HandoffStore) -> None:
 
 
 async def check_the_forget_mark_round_trips_both_ways(store: HandoffStore) -> None:
-    """Whether the cortex named the forget in a call survives the store."""
-    for asked in (False, True):
-        record = make_record(_handoff_id(), forget_asked=asked)
+    """Whether the cortex named the forget in a call, and how many matched nothing, survive."""
+    for asked, counts in ((False, (0, 0)), (True, (3, 2))):
+        record = make_record(_handoff_id(), forgets=counts)
         await store.put(record)
         loaded = await store.get(record.handoff_id)
         assert loaded is not None
         assert loaded == record
-        assert loaded.taint_ledger().forget_asked is asked
+        ledger = loaded.taint_ledger()
+        assert (ledger.forget_asked, ledger.forget_calls, ledger.forget_unmatched) == (
+            asked,
+            *counts,
+        )
         await store.delete(record.handoff_id)
 
 
