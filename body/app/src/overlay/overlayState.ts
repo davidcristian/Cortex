@@ -20,7 +20,14 @@ import {
 import { type Notice, reminderDismissed, speak } from "./notice";
 import { NO_PICTURES, type PictureState, attach, detach, forget } from "./pictureState";
 import type { ReadPicture } from "./pictures";
-import { NEW_CHAT_TITLE, adoptSession, deleteSession, newChat, openSession } from "./sessionState";
+import {
+  NEW_CHAT_TITLE,
+  adoptSession,
+  deleteSession,
+  newChat,
+  openSession,
+  turnFoundDeleted,
+} from "./sessionState";
 import {
   type CaptureClaim,
   type Message,
@@ -146,6 +153,13 @@ export type Action =
       /** A fresh id for the fallback chat when the deleted one was the currently-open chat. */
       readonly fallbackSessionId: string;
     }
+  | {
+      readonly kind: "turnFoundDeleted";
+      readonly sessionId: string;
+      readonly fallbackSessionId: string;
+      /** The text the refused turn sent, for the fresh chat's composer. */
+      readonly sent: string;
+    }
   | { readonly kind: "remindersLoaded"; readonly reminders: readonly DueReminder[] }
   | { readonly kind: "reminderDismissed"; readonly reminderId: string }
   | { readonly kind: "linkProbing" }
@@ -255,6 +269,10 @@ export function reduce(state: OverlayState, action: Action): OverlayState {
     case "sessionDeleted": {
       const deleted = deleteSession(state, action.sessionId, action.fallbackSessionId);
       return forget(deleted, action.sessionId);
+    }
+    case "turnFoundDeleted": {
+      const gone = turnFoundDeleted(state, action.sessionId, action.fallbackSessionId, action.sent);
+      return forget(gone, action.sessionId);
     }
     case "remindersLoaded":
       // Each open re-reads: the brain is the authority on what is still deliverable, so the list is

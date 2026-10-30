@@ -53,6 +53,21 @@ WIRE_COUPLINGS: tuple[Constant, ...] = (
         ),
     ),
     Constant(
+        label="the turn error code for a deleted chat",
+        why=(
+            "the brain ends a turn sent to a deleted chat with this code and the overlay resets "
+            "to a new chat when it reads it, so a rename leaves a deleted chat open with every "
+            "turn sent into it refused (ADR-0021)"
+        ),
+        sites=(
+            Site(
+                "brain/packages/orchestrator/src/cortex_orchestrator/converse_stream.py",
+                "ERROR_CODE_SESSION_DELETED",
+            ),
+            Site("body/app/src/overlay/sessionState.ts", "SESSION_DELETED"),
+        ),
+    ),
+    Constant(
         label="the capture edge ceiling under the brain's image bound",
         why=(
             "the body clamps every request to its own ceiling and the brain refuses any image "

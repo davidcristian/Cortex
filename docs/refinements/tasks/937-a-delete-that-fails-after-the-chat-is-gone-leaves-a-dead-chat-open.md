@@ -51,5 +51,5 @@ deleted while they remain. An overlay retry is lost when the overlay restarts.
   `pending_cleanups`. Step 3 needed no overlay change: a rejection now means the chat delete
   failed, which is what the catch's comment says, and the existing Vitest case for deleting the
   open chat already checks that a resolved delete switches away. ADR-0021 decision 11 states it.
-  A chat delete that commits and then loses its reply still leaves a dead chat open; filed as
-  [941](941-a-delete-whose-reply-is-lost-after-it-commits-leaves-a-dead-chat-open.md).
+  A chat delete that commits and then loses its reply leaves the chat open until a turn sent into
+  it ends as `session_deleted`, which the overlay recovers from as from a resolved delete.

@@ -178,7 +178,8 @@ days one turn's default waits sum to; a turn sent to a removed id starts a new c
 
 The confirmation is overlay-local: the row's trash control swaps in a confirm and cancel pair.
 Deleting the open chat first tears down its turn, denying a pending confirm and cancelling the
-stream, and on success resets the panel to a new chat.
+stream, and on success resets the panel to a new chat. A delete whose reply is lost leaves the chat
+open, so a turn that ends as `session_deleted` does the same and puts its text in the composer.
 
 ### 12. A hoisted chat is added to the recency listing
 
@@ -194,9 +195,8 @@ cold-start adoption read that order.
 row does, has a natural opposite, and was used by no identifier or family before. Its keys:
 `SessionSummary.hoisted` (field 5), `setSessionHoisted`, the Tauri command `set_session_hoisted`,
 `SessionStore.set_hoisted`, the row's `hoisted` class, the stored set and the RPC
-`SetSessionHoisted`, whose new method path means a body and a brain are built together. A real
-store held ids under the set's first key, `cortex:sessions:pinned`, so the adapter moves them over
-once, before it first uses the set.
+`SetSessionHoisted`, whose new method path means a body and a brain are built together. The adapter
+moves ids from the set's first key, `cortex:sessions:pinned`, once, before it first uses the set.
 
 ### 13. The open-chat header shows the switcher's title
 

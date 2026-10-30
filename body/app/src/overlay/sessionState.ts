@@ -1,5 +1,5 @@
 import type { SessionMessage, SessionSummary } from "../bridge/types";
-import { dropDraft } from "./drafts";
+import { dropDraft, parkDraft } from "./drafts";
 import { arrived, chatDeleted, speak } from "./notice";
 import type { OverlayState } from "./overlayState";
 import type { Message } from "./turnState";
@@ -9,6 +9,8 @@ import type { Message } from "./turnState";
 // share. `overlayState.ts` re-exports the pieces components use, and only types cross back.
 
 export const NEW_CHAT_TITLE = "New chat";
+/** The code a turn fails with when the brain finds its chat deleted. */
+export const SESSION_DELETED = "session_deleted";
 /** The character bound on a title, the same number the brain's `cortex_core.sessions.TITLE_MAX`
  *  uses, and tied to it by `scripts/crosscheck.py` so neither can move alone. It must be the same
  *  number, because `deriveTitle` stands in for the brain's rule until the chat is listed. */
@@ -156,6 +158,20 @@ export function deleteSession(
     pendingConfirm: null,
     seq: 0,
   };
+}
+
+/** A turn ended as `SESSION_DELETED`: recover as deleting that chat does, and when it was the open
+ *  chat put the line the turn sent in the fresh chat's composer, since nothing answered it. */
+export function turnFoundDeleted(
+  state: OverlayState,
+  sessionId: string,
+  fallbackSessionId: string,
+  sent: string,
+): OverlayState {
+  const deleted = deleteSession(state, sessionId, fallbackSessionId);
+  return sessionId === state.sessionId
+    ? { ...deleted, drafts: parkDraft(deleted.drafts, fallbackSessionId, sent) }
+    : deleted;
 }
 
 /** The session id to switch to when cycling from `currentId` by `delta` (-1 = newer, +1 = older),

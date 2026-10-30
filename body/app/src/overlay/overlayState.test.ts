@@ -550,6 +550,42 @@ describe("overlayState reducer", () => {
     expect(open.notice).toEqual({ text: "Switched to New chat.", count: 2 });
   });
 
+  it("a turn that finds its open chat deleted resets to a new chat holding the sent text", () => {
+    const started = run([{ kind: "open" }, submit("still there?")]);
+    const listed = reduce(started, {
+      kind: "sessionsLoaded",
+      sessions: [summary(started.sessionId), summary("keep")],
+    });
+    const gone = reduce(listed, {
+      kind: "turnFoundDeleted",
+      sessionId: started.sessionId,
+      fallbackSessionId: "fresh-3",
+      sent: "still there?",
+    });
+    expect(gone.sessionId).toBe("fresh-3");
+    expect(gone.messages).toEqual([]);
+    expect(gone.sessions.map((s) => s.sessionId)).toEqual(["keep"]);
+    expect(draftOf(gone.drafts, "fresh-3")).toBe("still there?");
+    expect(gone.notice?.text).toBe("Chat deleted. 1 chat left. Switched to New chat.");
+  });
+
+  it("a turn that finds another chat deleted drops only its row and parks nothing", () => {
+    const typed = run([{ kind: "open" }, { kind: "draft", text: "half a thought" }]);
+    const listed = reduce(typed, {
+      kind: "sessionsLoaded",
+      sessions: [summary(typed.sessionId), summary("old")],
+    });
+    const gone = reduce(listed, {
+      kind: "turnFoundDeleted",
+      sessionId: "old",
+      fallbackSessionId: "unused",
+      sent: "lost line",
+    });
+    expect(gone.sessionId).toBe(typed.sessionId);
+    expect(gone.sessions.map((s) => s.sessionId)).toEqual([typed.sessionId]);
+    expect(gone.drafts).toEqual({ [typed.sessionId]: "half a thought" });
+  });
+
   it("counts every gesture that replaces the conversation, and nothing else, as an arrival", () => {
     const listed = reduce(initialState, { kind: "sessionsLoaded", sessions: [summary("chat-7")] });
     expect(listed.arrival).toBe(0);

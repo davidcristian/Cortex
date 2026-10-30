@@ -115,7 +115,8 @@ export function useSessionCatalog(
           refreshSessions();
         })
         .catch(() => {
-          // A lost delete leaves the chat and the list unchanged; the brain still holds it.
+          // A rejected delete leaves the chat and the list unchanged. One that committed anyway ends
+          // the next turn as `session_deleted`, which `useOverlay` recovers from.
         });
     },
     [state.sessionId, abandonTurn, bridge, dispatch, refreshSessions, newSessionId],

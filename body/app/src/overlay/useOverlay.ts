@@ -19,6 +19,7 @@ import {
 import { readWithCanvas } from "./canvasPicture";
 import { waitingOf } from "./pictureState";
 import { type PictureReader, readPictures } from "./pictures";
+import { SESSION_DELETED } from "./sessionState";
 import { useLink } from "./useLink";
 import { useReminders } from "./useReminders";
 import { type SessionCatalog, useSessionCatalog } from "./useSessionCatalog";
@@ -136,13 +137,21 @@ export function useOverlay(
         return;
       }
       dispatch({ kind: "submit", text });
-      const images = waitingOf(state.pictures, state.sessionId).map((picture) => picture.image);
-      cancelRef.current = bridge.converse(state.sessionId, text.trim(), images, {
-        onEvent: (event) => dispatch({ kind: "event", event }),
+      const { sessionId } = state;
+      const sent = text.trim();
+      const images = waitingOf(state.pictures, sessionId).map((picture) => picture.image);
+      cancelRef.current = bridge.converse(sessionId, sent, images, {
+        onEvent: (event) => {
+          dispatch({ kind: "event", event });
+          if (event.kind === "failed" && event.code === SESSION_DELETED) {
+            const fallbackSessionId = newSessionId();
+            dispatch({ kind: "turnFoundDeleted", sessionId, fallbackSessionId, sent });
+          }
+        },
         onError: (error) => dispatch({ kind: "transportError", error }),
       });
     },
-    [state, bridge],
+    [state, bridge, newSessionId],
   );
 
   // Stable, so a keystroke re-renders on the state it changed and nothing else: this is the one

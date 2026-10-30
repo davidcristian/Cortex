@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FakeBridge } from "../bridge/fakeBridge";
 import type { SessionSummary } from "../bridge/types";
-import { isTurnActive } from "./overlayState";
+import { draftOf, isTurnActive } from "./overlayState";
 import { useOverlay } from "./useOverlay";
 
 const summary = (sessionId: string): SessionSummary => ({
@@ -396,6 +396,40 @@ describe("useOverlay", () => {
     expect(result.current.state.messages).toEqual([]);
     expect(result.current.state.pendingConfirm).toBeNull();
     expect(isTurnActive(result.current.state)).toBe(false);
+  });
+
+  it("a turn that ends as session_deleted drops the chat and moves its line to a new chat", async () => {
+    const bridge = new FakeBridge();
+    bridge.sessions = [summary("gone"), summary("b")];
+    const nextId = idFactory();
+    const { result } = renderHook(() => useOverlay(bridge, nextId));
+    await flush();
+    expect(result.current.state.sessionId).toBe("gone");
+    act(() => result.current.open());
+    act(() => result.current.submit("  still there?  "));
+    bridge.sessions = [summary("b")];
+    const refused = { kind: "failed", code: "session_deleted", message: "deleted" } as const;
+    act(() => bridge.emit(refused));
+    await flush();
+    const { state } = result.current;
+    expect(state.sessionId).toBe("s1");
+    expect(state.messages).toEqual([]);
+    expect(state.sessions.map((s) => s.sessionId)).toEqual(["b"]);
+    expect(draftOf(state.drafts, "s1")).toBe("still there?");
+  });
+
+  it("a turn that fails with any other code keeps its chat open", async () => {
+    const bridge = new FakeBridge();
+    bridge.sessions = [summary("kept")];
+    const nextId = idFactory();
+    const { result } = renderHook(() => useOverlay(bridge, nextId));
+    await flush();
+    act(() => result.current.open());
+    act(() => result.current.submit("q"));
+    act(() => bridge.emit({ kind: "failed", code: "internal", message: "boom" }));
+    await flush();
+    expect(result.current.state.sessionId).toBe("kept");
+    expect(result.current.state.messages.map((m) => m.role)).toEqual(["user", "assistant"]);
   });
 
   it("a failed delete is swallowed and leaves the chat and list unchanged", async () => {

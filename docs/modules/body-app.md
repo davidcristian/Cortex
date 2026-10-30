@@ -23,8 +23,8 @@ values: `TurnEvent`, `TransportError`, `SessionSummary`, `SessionMessage`, `DueR
   limit means the brain's default listing and a positive one cuts that listing.
 - The session writes `renameSession(sessionId, title)` (`""` clears the override),
   `deleteSession(sessionId)` and `setSessionHoisted(sessionId, hoisted)` (ADR-0021 decisions 10 to
-  12). Each is user-driven, and `useOverlay` re-lists after it resolves. Deleting the open chat tears
-  down its in-flight turn and falls back to a fresh chat, so a deleted transcript is never rendered.
+  12), each user-driven and re-listed once it resolves. Deleting the open chat, or a turn in it that
+  ends as `session_deleted`, tears down its turn and shows a fresh chat, never a deleted transcript.
 - `listDueReminders()` and `ackReminder(reminderId, firedAtUnixMs)` (ADR-0025), and `checkLink()`,
   the connection probe (ADR-0011 decision 8).
 - `getPreferences()` and `setPreference(key, value)` (ADR-0032) store opaque pairs the overlay reads
