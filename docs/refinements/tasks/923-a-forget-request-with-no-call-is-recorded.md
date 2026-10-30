@@ -26,8 +26,11 @@ stored the value. Eleven replies said it would not be kept and one said it was r
    seen 12 of the 17 no-call draws; the four W03 replies said nothing about the code, so only a
    query check sees those. Either one widens the skip, so its rows include the requests to
    remember of [forget-card-on-remember.md](../../readings/forget-card-on-remember.md), which must
-   still be stored, beside W03, W04, P01 and P02. Write the rows and the pass rule into the
-   readings before the baseline is drawn.
+   still be stored, beside W03, P01 and P02. The rows and the rule are written and the
+   baseline is drawn
+   ([readings](../../readings/forget-request-wordings.md#a-check-of-the-no-call-case-rows-and-rule-2026-10-30)):
+   P01 and P02 passed in 0 of 12 draws, and the requests to remember failed in 10 of 32. Build a
+   candidate and draw it against them.
 
 ## History
 
@@ -40,5 +43,6 @@ stored the value. Eleven replies said it would not be kept and one said it was r
   open.
 - 2026-10-30: 51 draws of thirteen more wordings. A request, in the message that gives a value,
   not to keep it made no call in 12 of 12 draws, and a forget beside another request in 5 of 12;
-  all 17 stored the value. Step 1 is done and step 2 is left for the next slot. The same draws
-  filed R-942.
+  all 17 stored the value. Step 1 is done. The same draws filed R-942.
+- 2026-10-30: step 2's rows and pass rule were written and its baseline drawn; the candidate is
+  left for the next slot. The baseline's forget calls on requests to remember filed R-943.

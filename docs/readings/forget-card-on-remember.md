@@ -177,3 +177,29 @@ or "I have noted", and the other replies said the fact could not be saved, most 
 the action was declined. No RC draw that called the forget left a
 `memories` row holding the number. The next rule, for every turn that is not kept, is in
 [remember-on-a-turn-not-kept.md](remember-on-a-turn-not-kept.md).
+
+## More forget calls with schedules on: the separation, 2026-10-30
+
+The baseline of the no-call check ([forget-request-wordings.md](forget-request-wordings.md#a-check-of-the-no-call-case-baseline-2026-10-30))
+drew R01 to R14 twice each on the `cortexn11` stack, with schedules on and the build of that night.
+10 of the 28 draws called `forget_memories`, against 2 of 28 with the shipped description on
+2026-10-29, when schedules were off. The tool's description has not changed since. Written before
+the separation was drawn:
+
+- The rows are R01 to R14, two draws each, every card approved, on the same build and stack with
+  `CORTEX_SCHEDULE_BACKEND=none`, so the schedule tools are not offered.
+- At most 4 of 28 calling draws names the schedule tools as the cause. At least 8 of 28 rules
+  them out, and the build since 2026-10-29 is separated next with a `git archive` build of the
+  commit that drew the 2 of 28. Between 5 and 7 decides nothing and asks for 28 more draws.
+
+With schedules off, 5 of 28 draws called `forget_memories`, which decides nothing, so 28 more were
+drawn. Written before they were read: over the 56, at most 8 names the schedule tools as the cause,
+at least 16 rules them out, and anything between ends the separation without a result.
+
+The 28 more drew 4 calls, so 9 of 56 called `forget_memories` with schedules off, which falls
+between the bounds: the separation ends without a result. Run logs `sep.jsonl` and `sep2.jsonl`
+beside `base.jsonl`, the SM clock at 0.59 to 0.60 of its maximum at each run's start and end.
+Every calling draw passed the fact as the text, matched nothing, was not kept, and ended its reply
+with the unkept note. Two more draws called `set_volume`
+([R-901](../refinements/tasks/901-a-request-to-remember-a-fact-can-set-the-volume.md)). The rate
+of the call itself is [R-943](../refinements/tasks/943-a-request-to-remember-can-call-the-forget-tool.md).

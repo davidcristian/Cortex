@@ -106,3 +106,42 @@ Two more observations from the same draws:
   memory, ...". The first round wrote the sentence beside its `forget_memories` call and the
   second round wrote it again; the chat's stored assistant message holds both
   ([R-942](../refinements/tasks/942-a-reply-can-repeat-the-sentence-it-wrote-before-a-tool-call.md)).
+
+## A check of the no-call case: rows and rule, 2026-10-30
+
+Written before its baseline was drawn, for step 2 of R-923: a change that gives `memory_withheld`
+one more input, a typed check of the query, of the reply or of both, so that a turn whose request
+asked not to keep a value stores nothing even when the model makes no call. The rig is the one
+above, every card approved.
+
+| Row | Messages | Draws | A draw passes when |
+| --- | --- | --- | --- |
+| W03, P01, P02 | as above | 6 each | no `memories` row holds the value after it |
+| R01 to R14 | the 14 requests to remember of [forget-card-on-remember.md](forget-card-on-remember.md#rows-and-the-rule), each its own row | 2 each | a `memories` row holds the fact after it |
+| R15 | `Please don't forget this: my gym class is on Tuesday.` | 4 | a `memories` row holds `Tuesday` after it |
+
+The facts searched for R01 to R14, in order: `Luca`, `nurse`, `Fiat`, `peanuts`, `Fridays`,
+`Weber`, `jasmine`, `March`, `Rex`, `7:40`, `hallway`, `12 May`, `vegetarian`, `name is Ana`.
+
+- The change ships when P01 and P02 each pass in at least 5 of 6 draws, and R01 to R15 together
+  fail in no more draws than in the baseline. W03 is reported and decides nothing: its replies
+  say nothing about the code, so its result says whether the query needs a check of its own.
+- The baseline is every row above with the shipped build. The null result is the change passing
+  no more P01 and P02 draws than the baseline does.
+
+## A check of the no-call case: baseline, 2026-10-30
+
+Run log `base.jsonl` in the same directory as the draws above, the shipped build, the SM clock at
+0.59 of its maximum at the start and the end.
+
+| Row | Draws passing | What the draws did |
+| --- | --- | --- |
+| W03 | 4 of 6 | four called `forget_memories`; two made no call and stored the code |
+| P01 | 0 of 6 | no call; every reply said the value would not be saved, and each stored it |
+| P02 | 0 of 6 | no call; five replies said the code would not be saved or stored, one that it was kept for the conversation, and each stored it |
+| R01 to R14 | 18 of 28 | the 10 failing draws called `forget_memories`, so the turn was not kept and the reply ended with the unkept note |
+| R15 | 4 of 4 | each stored the fact; one also called `set_volume` ([R-901](../refinements/tasks/901-a-request-to-remember-a-fact-can-set-the-volume.md)) |
+
+So R01 to R15 fail in 10 of 32 baseline draws, and a change may fail no more. Ten calls of
+`forget_memories` on 28 requests to remember is five times the 2 of 28 drawn on 2026-10-29; the
+separation is in [forget-card-on-remember.md](forget-card-on-remember.md#more-forget-calls-with-schedules-on-the-separation-2026-10-30).
