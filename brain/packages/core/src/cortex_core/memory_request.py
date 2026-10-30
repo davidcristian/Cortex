@@ -29,7 +29,7 @@ _REMOVE = re.compile(
     re.IGNORECASE,
 )
 _REMEMBER = re.compile(
-    rf"{_OPENS}(?:please\s+)?(?:remember|note\s+that|keep\s+in\s+mind|don['\u2019]?t\s+forget)\b",
+    rf"{_OPENS}(?:please\s+)?(?:remember|note\s+that|keep\s+in\s+mind|{_NOT}\s+forget)\b",
     re.IGNORECASE,
 )
 _SENTENCE_END = re.compile(r"(?<=[.!?])\s+|\n+")

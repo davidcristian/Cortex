@@ -122,6 +122,8 @@ REMEMBER = [
     "Please don't forget this: my gym class is on Tuesday.",
     "Thanks. Please don\u2019t forget my PIN is 1234.",
     "Don't forget to buy milk.",
+    "Do not forget: my PIN is 5521.",
+    "Never forget my locker code 7319.",
 ]
 
 KEPT = [
@@ -191,6 +193,7 @@ def _forgot(calls: int, unmatched: int) -> TaintLedger:
     [
         (_forgot(1, 1), (_UNMATCHED,), REMEMBER[0], False),
         (_forgot(2, 2), (_UNMATCHED, _UNMATCHED), REMEMBER[3], False),
+        (_forgot(1, 1), (_UNMATCHED,), REMEMBER[8], False),
         (_forgot(1, 1), (_UNMATCHED,), "My locker code is 7319.", True),
         (_forgot(1, 1), (_UNMATCHED,), "Vergeet alsjeblieft mijn pincode 5521.", True),
         (_forgot(1, 1), (_UNMATCHED,), "Remember my PIN 1234. Actually, forget it.", True),
