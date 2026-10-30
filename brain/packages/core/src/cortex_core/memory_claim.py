@@ -6,6 +6,7 @@ from collections.abc import Sequence
 from cortex_core.conversation import ToolRun
 from cortex_core.memory_forget import FORGET_UNTRUSTED_TOOL_NAME
 from cortex_core.memory_forget_chosen import FORGET_CHOSEN_TOOL_NAME
+from cortex_core.memory_request import asks_not_kept
 from cortex_core.turn_context import TurnCapabilities
 from cortex_core.untrusted import TaintLedger
 
@@ -52,8 +53,10 @@ def claims_kept(reply: str) -> bool:
     return _states(reply, (_NOTED, _PUT, _PASSIVE)) or _states(opening, (_OPENING,))
 
 
-def memory_withheld(caps: TurnCapabilities, taint: TaintLedger, runs: Sequence[ToolRun]) -> bool:
-    """Whether memory is on and stores nothing of a turn that made ``runs``."""
+def memory_withheld(
+    caps: TurnCapabilities, taint: TaintLedger, runs: Sequence[ToolRun], *, query: str
+) -> bool:
+    """Whether memory is on and stores nothing of a turn that asked ``query`` and made ``runs``."""
     if caps.memory is None:
         return False
     # A turn that holds a picture (a screen capture, an MCP image or an attachment) is never
@@ -65,5 +68,8 @@ def memory_withheld(caps: TurnCapabilities, taint: TaintLedger, runs: Sequence[T
         return True
     # A turn that asked to forget a text may name that text in its query or reply.
     if taint.forget_asked or any(run.name == FORGET_CHOSEN_TOOL_NAME for run in runs):
+        return True
+    # The model can answer such a request without the call, and the query names the value.
+    if asks_not_kept(query):
         return True
     return taint.tainted and not caps.record_tainted_memory

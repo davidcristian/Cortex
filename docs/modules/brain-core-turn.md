@@ -121,8 +121,8 @@ after the window, one saying a handoff's deep reply is not stored (`tool_replay.
 of 20 or more characters not in `query`, come 3 times back to back, or once more than a count `query`
 asks for (ADR-0048 decision 17), closes the loop in a `finally` and flushes the channels on a clean
 end. `record_exchange(caps, taint, *, store, session_id, query, reply, runs, earlier=())` stores
-nothing when `memory_withheld` holds over `runs` and `earlier` (the cortex's runs before a handoff,
-[brain-core-memory.md](brain-core-memory.md)) or `store.deleted` holds, which it reads again after
+nothing when `memory_withheld` holds over `query`, `runs` and `earlier` (the cortex's runs before a
+handoff, see [brain-core-memory.md](brain-core-memory.md)) or `store.deleted` holds, read again after
 the write (ADR-0021 decision 11). `limit_notes(stops, runs, parts, *, earlier=(), said=(),
 withheld=False)`, `unreadable_call_note(stops, parts)` and `overflow_note(parts, *, alone)`
 are the notes a turn can end with, the first two read off a `StopLedger` (`stops.py`): `capped` (a

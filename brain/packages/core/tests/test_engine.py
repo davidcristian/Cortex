@@ -2225,5 +2225,5 @@ async def test_a_turn_whose_unreadable_call_was_a_forget_is_not_recorded(
         TickingClock(),
         capabilities=TurnCapabilities(memory=recaller),
     )
-    await _collect(engine.handle_turn("s", "forget my card 4242", turn_id="t-1"))
+    await _collect(engine.handle_turn("s", "my card is 4242", turn_id="t-1"))
     assert len(await recaller.recall("card", k=5, session_id="s", turn_id="t")) == kept

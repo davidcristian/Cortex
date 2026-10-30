@@ -73,6 +73,15 @@ that removes exactly those rows and holds against a turn in flight. This record 
    name and length.
    A forget the person declined before a handoff therefore matches no call after it: the deep
    model's forget shows a card again rather than being refused for a text nobody declined.
+   A turn whose message asks not to keep something, or to forget or remove it, is not recorded
+   either, whether or not the model calls the tool, because the cortex answers such a request
+   with no call often enough that its exchange held the value
+   ([readings](../readings/forget-request-wordings.md#a-check-of-the-no-call-case-the-candidate-2026-10-30)).
+   `asks_not_kept` (`memory_request.py`) reads the message: a "don't save", "don't keep" or
+   "don't remember" at a clause start, "not for your memory", "off the record", an imperative
+   "forget", and a "delete" or "remove" with "from your memory". It reads English only, as
+   `claims_kept` does, and never reads a "don't forget", a statement such as "I don't
+   remember" or a request to remember; a message it misses is recorded as before.
 6. **A card lists at most 20 rows.** More matches delete nothing and ask for a more exact text,
    so a short text such as one letter cannot clear the memory behind a card nobody reads.
    The pass rule is in [forget-chosen-memories.md](../readings/forget-chosen-memories.md).

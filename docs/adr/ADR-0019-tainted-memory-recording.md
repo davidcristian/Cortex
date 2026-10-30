@@ -137,7 +137,8 @@ across turns (a recalled memory).
    that count and says the forget did not finish. Both statements lock rows in id order,
    so a forget and a record recalling two of its rows cannot deadlock
    ([readings](../readings/overlay-concurrency-flows.md)). A turn tainted only by its own reads
-   recalled nothing the forget removed and is recorded as before. On the stack the person's send
+   recalled nothing the forget removed and is recorded as before, unless its message asks to
+   forget (decision 10). On the stack the person's send
    reached the card and went out after every forget, on a clean turn and on a recall-tainted one
    ([readings](../readings/forget-untrusted-memories.md)). The turn that ran the forget still holds
    the recalled memory, so a blocked call later in it stays blocked. Once the forget has returned
@@ -146,10 +147,11 @@ across turns (a recalled memory).
    person to forget them again. The handoff record does not keep `forgotten`, since a
    recall-tainted turn cannot escalate: `escalate_to_brain` has no record card.
 10. **A reply that says something was noted on a turn memory does not store ends with a note.**
-   One check, `memory_withheld(caps, taint, runs)` (`memory_claim.py`), says whether memory is on
-   and stores nothing of a turn: an opaque turn (decision 6), a tainted turn whose
-   `forget_untrusted_memories` ran (decision 9), a turn that named `forget_memories`
-   ([ADR-0075](ADR-0075-forget-chosen-memories.md)), and a tainted turn under `skip` (decision 3).
+   One check, `memory_withheld(caps, taint, runs, *, query)` (`memory_claim.py`), says whether
+   memory is on and stores nothing of a turn: an opaque turn (decision 6), a tainted turn whose
+   `forget_untrusted_memories` ran (decision 9), a turn that named `forget_memories` or whose
+   message asks not to keep something ([ADR-0075](ADR-0075-forget-chosen-memories.md)), and a
+   tainted turn under `skip` (decision 3).
    `record_exchange` returns on it, and the engine and the deep phase pass it, over the same runs,
    to `limit_notes`, which appends `UNKEPT_CLAIM_NOTE` when `claims_kept` also finds a statement
    that something was noted or will be remembered, as `UNSCHEDULED_CLAIM_NOTE` closes a schedule

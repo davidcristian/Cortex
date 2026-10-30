@@ -159,7 +159,7 @@ class BrainPhase:
         earlier = cortex_runs(stored, record)
         if failure is None:
             said = said_by_person(stored)
-            withheld = memory_withheld(self._caps, taint, (*earlier, *log.runs))
+            withheld = memory_withheld(self._caps, taint, (*earlier, *log.runs), query=query)
             notes = limit_notes(
                 stops, log.runs, parts, earlier=earlier, said=said, withheld=withheld
             )

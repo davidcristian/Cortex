@@ -260,7 +260,7 @@ async def record_exchange(  # noqa: PLR0913 -- a deep phase adds the runs the co
 
     ``earlier`` is the runs the cortex made before it handed the turn to the deep phase.
     """
-    if caps.memory is None or memory_withheld(caps, taint, (*earlier, *runs)):
+    if caps.memory is None or memory_withheld(caps, taint, (*earlier, *runs), query=query):
         return
     fields = {"session_id": session_id}
     try:

@@ -31,6 +31,7 @@ from cortex_core import (
     TurnCapabilities,
     TurnCompleted,
     TurnEngine,
+    asks_not_kept,
     claims_kept,
     memory_withheld,
 )
@@ -93,6 +94,44 @@ NOT_CLAIMS = [
 ]
 
 
+NOT_KEPT = [
+    "Don't save this anywhere, it's private: my PIN is 5521.",
+    "Just between us, and not for your memory: my locker code is 7319.",
+    "Can you suggest a quick pasta recipe? Also, don't keep my locker code 7319.",
+    "What's the capital of Australia? And forget my phone number 0612345678 while you're at it.",
+    "Forget my card number 4242 4242 4242 4242.",
+    "Thanks for the recipe. Forget my PIN 5521.",
+    "Actually, forget the code I told you earlier.",
+    "On second thought, I'd rather you didn't keep that.",
+    "Please delete my card number 4242 4242 4242 4242 from your memory.",
+    "Don't remember my locker code 7319 anymore.",
+    "Remove my address, Keizersgracht 12, from what you know about me.",
+    "Could you forget my PIN?",
+    "I want you to forget my sister's name.",
+    "I don't want you to remember this: my PIN is 1234.",
+    "Please don\u2019t store this.",
+    "This is off the record: my PIN is 1234.",
+]
+
+KEPT = [
+    "Please remember this: my brother's name is Luca.",
+    "Remember that my wifi router is in the hallway.",
+    "Note that my mother's birthday is on 12 May.",
+    "Keep in mind that I am vegetarian.",
+    "Please don't forget this: my gym class is on Tuesday.",
+    "An update to remember: I now work as a teacher, not a nurse.",
+    "Change what you remember about my passport: it expires in July.",
+    "My locker code is 7319.",
+    "I don't remember my locker code, can you help?",
+    "Sorry, I don't remember the title.",
+    "I just forget where I put my keys.",
+    "I always forget my PIN.",
+    "Don't forget to buy milk.",
+    "Why did you forget my birthday?",
+    "Remove the duplicates from this list.",
+]
+
+
 @pytest.mark.parametrize("reply", CLAIMS)
 def test_a_reply_saying_something_was_noted_is_a_claim(reply: str) -> None:
     assert claims_kept(reply)
@@ -130,11 +169,29 @@ def test_a_turn_is_withheld_on_each_path_that_stores_nothing(
     *, taint: TaintLedger, runs: tuple[ToolRun, ...], record_tainted: bool, withheld: bool
 ) -> None:
     caps = _caps(record_tainted=record_tainted)
-    assert memory_withheld(caps, taint, runs) is withheld
+    assert memory_withheld(caps, taint, runs, query="hello") is withheld
+
+
+@pytest.mark.parametrize(("query", "withheld"), [(NOT_KEPT[0], True), (KEPT[0], False)])
+def test_a_turn_whose_message_asks_not_to_keep_is_withheld_with_no_call(
+    *, query: str, withheld: bool
+) -> None:
+    assert memory_withheld(_caps(), TaintLedger(), (), query=query) is withheld
 
 
 def test_a_turn_without_memory_is_never_withheld() -> None:
-    assert not memory_withheld(TurnCapabilities(), TaintLedger(opaque=True, tainted=True), ())
+    taint = TaintLedger(opaque=True, tainted=True)
+    assert not memory_withheld(TurnCapabilities(), taint, (), query=NOT_KEPT[0])
+
+
+@pytest.mark.parametrize("query", NOT_KEPT)
+def test_a_message_asking_not_to_keep_or_to_forget_is_read_as_such(query: str) -> None:
+    assert asks_not_kept(query)
+
+
+@pytest.mark.parametrize("query", KEPT)
+def test_a_request_to_remember_or_a_statement_about_oneself_is_not(query: str) -> None:
+    assert not asks_not_kept(query)
 
 
 class _Clock:
@@ -170,7 +227,11 @@ async def _folders(arguments: Mapping[str, object]) -> str:
 
 
 async def _turn(
-    steps: Sequence[Sequence[InferenceEvent]], *, record_tainted: bool = False, memory: bool = True
+    steps: Sequence[Sequence[InferenceEvent]],
+    *,
+    record_tainted: bool = False,
+    memory: bool = True,
+    query: str = "remember 7319",
 ) -> tuple[str, InMemorySessionStore, InMemoryMemoryStore]:
     read = ToolSpec(name="list_allowed_directories", description="list", parameters={})
     registry = InMemoryToolRegistry({read.name: (read, _folders)})
@@ -182,7 +243,7 @@ async def _turn(
         tools=ToolDispatcher(registry, RecordingAuditSink(), _Clock()),
     )
     engine = TurnEngine(sessions, _Scripted(steps), _Clock(), capabilities=caps)
-    events = [e async for e in engine.handle_turn("s", "remember 7319", turn_id="t-1")]
+    events = [e async for e in engine.handle_turn("s", query, turn_id="t-1")]
     shown = "".join(event.text for event in events if isinstance(event, TextDelta))
     assert events[-1] == TurnCompleted(turn_id="t-1", full_text=shown)
     assert (await sessions.history("s"))[-1].text == shown
@@ -213,6 +274,22 @@ async def test_the_note_shows_exactly_when_the_turn_stores_nothing(
     stored = await _stored(store)
     assert shown in {_NOTED, _NOTED + UNKEPT_CLAIM_NOTE}
     assert (shown == _NOTED + UNKEPT_CLAIM_NOTE) is (stored == 0)
+
+
+@pytest.mark.parametrize(
+    ("query", "stored"), [("Don't save this: my code is 7319.", 0), ("My code is 7319.", 1)]
+)
+async def test_a_turn_that_makes_no_call_stores_nothing_when_its_message_asks_not_to_keep(
+    *, query: str, stored: int
+) -> None:
+    shown, _sessions, store = await _turn([[TextChunk("I will not save it.")]], query=query)
+    assert shown == "I will not save it."
+    assert await _stored(store) == stored
+
+
+async def test_a_claim_on_a_turn_whose_message_asks_not_to_keep_gets_the_note() -> None:
+    shown, _sessions, _store = await _turn([[TextChunk(_NOTED)]], query="Don't save this: 7319.")
+    assert shown == _NOTED + UNKEPT_CLAIM_NOTE
 
 
 async def test_a_withheld_turn_whose_reply_claims_nothing_gets_no_note() -> None:

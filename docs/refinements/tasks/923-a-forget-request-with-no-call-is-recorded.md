@@ -1,9 +1,8 @@
 # A forget request with no call is recorded
 
-**Status:** open, actionable
+**Status:** done 2026-10-30
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-10-30
 
 `memory_withheld` (`memory_claim.py`), the check `record_exchange` and the reply note share, holds
 for a turn whose model named `forget_memories` in a call, whatever happened to the call, through
@@ -46,3 +45,9 @@ stored the value. Eleven replies said it would not be kept and one said it was r
   all 17 stored the value. Step 1 is done. The same draws filed R-942.
 - 2026-10-30: step 2's rows and pass rule were written and its baseline drawn; the candidate is
   left for the next slot. The baseline's forget calls on requests to remember filed R-943.
+- 2026-10-30: done. `memory_withheld` now reads the turn's message through `asks_not_kept`
+  (`memory_request.py`), so a request not to keep, to forget or to remove something stores
+  nothing with or without a call. P01 and P02 passed in 6 of 6 draws each, and the requests to
+  remember failed in 9 of 32 against 10 of 32, every failure a forget call
+  ([readings](../../readings/forget-request-wordings.md#a-check-of-the-no-call-case-the-candidate-2026-10-30)).
+  The same draws filed R-944 and R-945.

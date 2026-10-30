@@ -202,7 +202,7 @@ class TurnEngine:
         # After the channels flush and before the text is joined, so the note comes under the
         # whole reply and what is saved is what was shown.
         if not overflowed:
-            withheld = memory_withheld(self._caps, taint, log.runs)
+            withheld = memory_withheld(self._caps, taint, log.runs, query=text)
             said = said_by_person(history)
             for event in limit_notes(stops, log.runs, parts, said=said, withheld=withheld):
                 yield event

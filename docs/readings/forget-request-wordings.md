@@ -145,3 +145,40 @@ Run log `base.jsonl` in the same directory as the draws above, the shipped build
 So R01 to R15 fail in 10 of 32 baseline draws, and a change may fail no more. Ten calls of
 `forget_memories` on 28 requests to remember is five times the 2 of 28 drawn on 2026-10-29; the
 separation is in [forget-card-on-remember.md](forget-card-on-remember.md#more-forget-calls-with-schedules-on-the-separation-2026-10-30).
+
+## A check of the no-call case: the candidate, 2026-10-30
+
+The candidate gives `memory_withheld` the turn's message. `asks_not_kept` (`memory_request.py`)
+reads it as a request not to keep, to forget or to remove something, and the turn then stores
+nothing whether or not the model calls the tool. It reads none of R01 to R15. Run log
+`cand.jsonl` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/def04344-43c5-4abe-b022-0038411a4a36/scratchpad/slot4/`,
+the SM clock at 0.55 of its maximum at the start and 0.70 after R15. A cell counts the draws
+passing by the rule above.
+
+| Row | Baseline | Candidate | What the candidate's draws did |
+| --- | --- | --- | --- |
+| W03 | 4 of 6 | 6 of 6 | two called `forget_memories`; four made no call and stored nothing |
+| P01 | 0 of 6 | 6 of 6 | no call; every reply said the value would not be saved, and one also said "I've noted that" and ended with the unkept note |
+| P02 | 0 of 6 | 6 of 6 | no call; four replies said the code would not be saved or remembered, and two that it was kept for this conversation, both ending with the unkept note |
+| R01 to R14 | 18 of 28 | 21 of 28 | the 7 failing draws called `forget_memories`, so the turn was not kept and the reply ended with the unkept note |
+| R15 | 4 of 4 | 2 of 4 | the 2 failing draws called `forget_memories`, as above |
+
+The change ships: P01 and P02 each passed in 6 of 6 draws, and R01 to R15 failed in 9 of 32
+draws against 10 of 32 in the baseline. Every failing draw called `forget_memories`, which
+`asks_not_kept` does not change; that call is
+[R-943](../refinements/tasks/943-a-request-to-remember-can-call-the-forget-tool.md). W03 decides
+nothing by the rule; its four no-call draws stored nothing, which the query check does whatever
+the reply says.
+
+Two more observations from the same draws:
+
+- The four W03 draws with no call said the code was removed ("I have also removed your locker
+  code from my memory as requested."), where the baseline's two said nothing about it. Nothing
+  was removed, since the pool was empty
+  ([R-945](../refinements/tasks/945-a-reply-can-say-a-value-was-removed-with-no-forget-call.md)).
+- Two requests to remember called `schedule_task`. "Note that my mother's birthday is on 12 May."
+  stored a yearly reminder at 09:00 on 12 May that the person did not ask for, and the same draw
+  also called `set_volume`
+  ([R-944](../refinements/tasks/944-a-request-to-remember-can-call-the-schedule-tool.md),
+  [R-901](../refinements/tasks/901-a-request-to-remember-a-fact-can-set-the-volume.md)).

@@ -144,7 +144,9 @@ async def test_a_recall_tainted_turn_shows_the_card_and_forgets_on_approval() ->
     assert await _ids(store) == []
 
 
-async def _recorded(*, tainted: bool, runs: tuple[ToolRun, ...]) -> list[MemoryRecord]:
+async def _recorded(
+    *, tainted: bool, runs: tuple[ToolRun, ...], query: str = "clear the untrusted ones"
+) -> list[MemoryRecord]:
     store = InMemoryMemoryStore()
     recaller = MemoryRecaller(store, HashEmbedder(), _Clock())
     caps = TurnCapabilities(memory=recaller, record_tainted_memory=True)
@@ -153,7 +155,7 @@ async def _recorded(*, tainted: bool, runs: tuple[ToolRun, ...]) -> list[MemoryR
         TaintLedger(tainted=tainted),
         store=InMemorySessionStore(),
         session_id="chat-a",
-        query="forget those memories",
+        query=query,
         reply="done",
         runs=runs,
     )
@@ -178,6 +180,12 @@ async def test_a_clean_turn_that_forgot_the_untrusted_memories_is_recorded() -> 
     )
     (record,) = await _recorded(tainted=False, runs=forgot)
     assert record.tainted is False
+
+
+async def test_a_clean_turn_whose_message_asks_to_forget_records_nothing() -> None:
+    forgot = (ToolRun(name=FORGET_UNTRUSTED_TOOL_NAME, ok=True),)
+    query = "Please forget the memories that came from untrusted content."
+    assert await _recorded(tainted=False, runs=forgot, query=query) == []
 
 
 async def test_a_turn_that_forgot_a_named_text_records_nothing() -> None:
