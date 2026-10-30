@@ -161,7 +161,13 @@ class BrainPhase:
             said = said_by_person(stored)
             withheld = memory_withheld(self._caps, taint, (*earlier, *log.runs), query=query)
             notes = limit_notes(
-                stops, log.runs, parts, earlier=earlier, said=said, withheld=withheld
+                stops,
+                log.runs,
+                parts,
+                earlier=earlier,
+                said=said,
+                withheld=withheld,
+                unmatched=taint.forget_unmatched,
             )
             for event in notes:
                 yield event

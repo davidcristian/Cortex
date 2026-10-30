@@ -92,6 +92,12 @@ that removes exactly those rows and holds against a turn in flight. This record 
    "forget", and a "delete" or "remove" with "from your memory". It reads English only, as
    `claims_kept` does, and never reads a "don't forget", a statement such as "I don't
    remember" or a request to remember; a message it misses is recorded as before.
+   A reply that says something was forgotten, or removed from memory, on a turn whose forget
+   calls deleted no row ends with `UNFORGOTTEN_CLAIM_NOTE`, which the brain appends after a typed
+   check of the reply (`forget_claim.py`), because the cortex answered a forget request beside
+   another question with no call, and said the value was removed while its row stayed, in 8 of
+   12 draws; with the note no draw misled
+   ([readings](../readings/forget-request-wordings.md#a-removal-claimed-with-no-forget-call-the-candidate-2026-10-30)).
 6. **A card lists at most 20 rows.** More matches delete nothing and ask for a more exact text,
    so a short text such as one letter cannot clear the memory behind a card nobody reads.
    The pass rule is in [forget-chosen-memories.md](../readings/forget-chosen-memories.md).

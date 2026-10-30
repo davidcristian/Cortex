@@ -175,8 +175,7 @@ Two more observations from the same draws:
 
 - The four W03 draws with no call said the code was removed ("I have also removed your locker
   code from my memory as requested."), where the baseline's two said nothing about it. Nothing
-  was removed, since the pool was empty
-  ([R-945](../refinements/tasks/945-a-reply-can-say-a-value-was-removed-with-no-forget-call.md)).
+  was removed, since the pool was empty (measured with the value stored below).
 - Two requests to remember called `schedule_task`. "Note that my mother's birthday is on 12 May."
   stored a yearly reminder at 09:00 on 12 May that the person did not ask for, and the same draw
   also called `set_volume`
@@ -185,9 +184,8 @@ Two more observations from the same draws:
 
 ## A removal claimed with no forget call: rows and rule, 2026-10-30
 
-Written before its baseline was drawn, for
-[R-945](../refinements/tasks/945-a-reply-can-say-a-value-was-removed-with-no-forget-call.md). The
-rig is the one above, every card approved, except that each draw first stores the value: a new
+Written before its baseline was drawn, for a check of a reply that says a value was removed when
+no forget call deleted it. The rig is the one above, every card approved, except that each draw first stores the value: a new
 chat sends the seed message, and the draw goes on only once a `memories` row holds the value. A
 second new chat then sends the row's message. After the draw every row it wrote, the seed's
 included, is deleted.
@@ -224,3 +222,23 @@ So 8 of 12 draws said the value was removed while its row stayed, which is not t
 The draw that would not store the code is counted as passing, since it claims no removal. One W04
 draw that deleted the row wrote its answer twice
 ([R-942](../refinements/tasks/942-a-reply-can-repeat-the-sentence-it-wrote-before-a-tool-call.md)).
+
+## A removal claimed with no forget call: the candidate, 2026-10-30
+
+The candidate appends `UNFORGOTTEN_CLAIM_NOTE` when `claims_forgotten` (`forget_claim.py`) reads
+a statement that something was forgotten or removed from memory and no `forget_memories` run of
+the turn deleted a row. Run log `cand945.jsonl` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/def04344-43c5-4abe-b022-0038411a4a36/scratchpad/slot6/`,
+the SM clock at 0.60 of its maximum at the start and 0.59 at the end. Every seed was stored on
+its first try.
+
+| Row | Baseline failing | Candidate failing | What the candidate's draws did |
+| --- | --- | --- | --- |
+| W03 | 4 of 6 | 0 of 6 | one called `forget_memories` and deleted the row; three made no call, said the code was removed and ended with the note; one said it would not store the code, with the unkept note; one said "I have also taken care of your request regarding the locker code." with no note |
+| W04 | 4 of 6 | 0 of 6 | four called `forget_memories`, deleted the row and said so, with no note; two made no call, said the number was removed and ended with the note |
+
+The change ships: W03 and W04 failed in 0 of 12 draws, 5 of the 12 made no call and said the
+value was removed, and none of the 5 draws whose call deleted the row ended with the note. The
+draw that said the request was "taken care of" is counted as passing, since it says nothing was
+removed, deleted or forgotten; its row stayed, and the check does not read that wording
+([R-948](../refinements/tasks/948-a-reply-can-say-a-forget-request-was-taken-care-of-with-no-call.md)).

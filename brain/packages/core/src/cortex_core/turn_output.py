@@ -13,6 +13,7 @@ from cortex_core.errors import (
     SessionStoreError,
 )
 from cortex_core.events import TextDelta, ToolActivity, ToolOutcome, TurnEvent
+from cortex_core.forget_claim import UNFORGOTTEN_CLAIM_NOTE, unforgotten_claim
 from cortex_core.guardrail import OutputFilter
 from cortex_core.loop_events import ReasoningDelta, StepOutcome, ToolStep
 from cortex_core.memory_claim import UNKEPT_CLAIM_NOTE, claims_kept, memory_withheld
@@ -117,7 +118,7 @@ def repeat_note(stops: StopLedger, parts: list[str]) -> Iterator[TurnEvent]:
     yield from append_note(parts, REPEATED_LINE_NOTE)
 
 
-def limit_notes(
+def limit_notes(  # noqa: PLR0913 -- each claim note reads its own part of the turn
     stops: StopLedger,
     runs: Sequence[ToolRun],
     parts: list[str],
@@ -125,13 +126,16 @@ def limit_notes(
     earlier: Sequence[ToolRun] = (),
     said: Sequence[str] = (),
     withheld: bool = False,
+    unmatched: int = 0,
 ) -> Iterator[TurnEvent]:
     """The notes a turn that ended without an error closes with, in the order it shows them.
 
-    ``earlier`` (runs of an earlier phase) and ``said`` (the person's messages) are for the claims.
+    ``earlier``, ``said`` (the person's messages) and ``unmatched`` (forgets that matched nothing)
+    are for the claims.
     """
     claimed = unscheduled_claim((*earlier, *runs), "".join(parts), said)
     unkept = withheld and claims_kept("".join(parts))
+    unforgotten = unforgotten_claim((*earlier, *runs), "".join(parts), unmatched=unmatched)
     yield from cap_note(stops, parts)
     yield from rounds_note(stops, runs, parts)
     yield from repeat_note(stops, parts)
@@ -139,6 +143,8 @@ def limit_notes(
         yield from append_note(parts, UNSCHEDULED_CLAIM_NOTE)
     if unkept:
         yield from append_note(parts, UNKEPT_CLAIM_NOTE)
+    if unforgotten:
+        yield from append_note(parts, UNFORGOTTEN_CLAIM_NOTE)
 
 
 def unreadable_call_note(stops: StopLedger, parts: list[str]) -> Iterator[TurnEvent]:

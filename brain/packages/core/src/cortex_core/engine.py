@@ -204,7 +204,15 @@ class TurnEngine:
         if not overflowed:
             withheld = memory_withheld(self._caps, taint, log.runs, query=text)
             said = said_by_person(history)
-            for event in limit_notes(stops, log.runs, parts, said=said, withheld=withheld):
+            notes = limit_notes(
+                stops,
+                log.runs,
+                parts,
+                said=said,
+                withheld=withheld,
+                unmatched=taint.forget_unmatched,
+            )
+            for event in notes:
                 yield event
         full_text = "".join(parts)
         assistant = Message(

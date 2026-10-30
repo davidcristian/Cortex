@@ -7,6 +7,7 @@ from cortex_core.chat_cleanup import (
     finish_cleanup,
 )
 from cortex_core.embed_input import EMBED_INPUT_CHARS, EMBEDDER_CONTEXT_TOKENS, embedding_input
+from cortex_core.forget_claim import UNFORGOTTEN_CLAIM_NOTE, claims_forgotten, unforgotten_claim
 from cortex_core.memory import GLOBAL_SCOPE, MemoryRecord, ScoredMemory
 from cortex_core.memory_cascade import SessionMemoryCascade
 from cortex_core.memory_claim import UNKEPT_CLAIM_NOTE, claims_kept, memory_withheld
@@ -69,6 +70,7 @@ __all__ = [
     "GLOBAL_SCOPE",
     "RAW_RECALL_POLICY",
     "RECALL_CHAR_BUDGET",
+    "UNFORGOTTEN_CLAIM_NOTE",
     "UNKEPT_CLAIM_NOTE",
     "CleanupRepeater",
     "DroppedCandidate",
@@ -95,6 +97,7 @@ __all__ = [
     "UntrustedMemoryForget",
     "asks_kept",
     "asks_not_kept",
+    "claims_forgotten",
     "claims_kept",
     "cut_marker",
     "dropped_candidates",
@@ -103,4 +106,5 @@ __all__ = [
     "fit_recalled",
     "memory_withheld",
     "recall_allowances",
+    "unforgotten_claim",
 ]

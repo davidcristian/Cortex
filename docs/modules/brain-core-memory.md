@@ -107,6 +107,17 @@ pool down to the hits one turn sees. The turn that calls it is in
   clause that is not about "you", "has been noted by" or "that", a file name such as `memory.txt`,
   and a bare "Noted" past the reply's first line, which is a line read back from a file. With
   memory off the check is false and no note shows.
+- `unforgotten_claim(runs, reply, *, unmatched=0)` (`forget_claim.py`, ADR-0075) is true when
+  `claims_forgotten(reply)` finds a statement, not a question, saying something was forgotten, or
+  removed, deleted, erased, wiped or cleared from memory, no longer in memory or no longer
+  remembered, or that memory was updated not to keep it, and no forget call in `runs` deleted a
+  memory: no `forget_untrusted_memories` run is `ok`, and the `ok` runs of `forget_memories`
+  number no more than `unmatched`, the turn's `forget_unmatched`. A clause whose subject is
+  negated ("Nothing was removed") and a removal that names no memory ("I've removed the reminder")
+  do not count. Both phases pass `forget_unmatched` to `limit_notes`, which then appends
+  `UNFORGOTTEN_CLAIM_NOTE`, telling the person nothing was forgotten and to ask again in a
+  message of its own. The deep phase's ledger starts its count at zero, so a cortex forget that
+  matched nothing before a handoff counts there as one that deleted a memory.
 - `RecallPolicy` (port, `rerank.py`) turns an over-fetched pool into the final `k` hits:
   `candidate_k(k)` sizes the pool and `async select(hits, *, query, now, k, session_id=None,
   turn_id=None) -> Ranking` reranks and cuts it, returning at most `k` hits from the pool, none
