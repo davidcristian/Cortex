@@ -127,11 +127,24 @@ NOT_KEPT = [
     "Use my card 4242 once then don't save it.",
 ]
 
+DISCARD = [
+    "Erase the PIN 5521 I gave you.",
+    "Stop remembering that my sister's name is Ana.",
+    "I shouldn't have told you my card number 4242 4242 4242 4242. Please get rid of it.",
+    "Unlearn my phone number 0612345678.",
+    "Never mind my locker code 7319, drop it.",
+    "Please remember not to store my card number.",
+    "Could you erase my PIN?",
+    "OK then stop saving my searches.",
+]
+
 RULES = [
     "Remember: don't save files to the desktop.",
     "Please remember, never keep the milk out of the fridge.",
     "Remember my rule: never record calls without asking.",
     "Remember that people just forget their PINs.",
+    "Remember not to save files to the desktop.",
+    "Remember not to call him after 9.",
 ]
 
 REMEMBER_AND_NOT_KEPT = [
@@ -142,7 +155,12 @@ REMEMBER_AND_NOT_KEPT = [
     "Remember my PIN 5521, but don't keep it after today.",
     "Remember this and then forget it.",
     "Remember: forget my old address.",
+    "Note my code 7319 and don't store it.",
+    "Remember my PIN, and remember not to store my card number.",
+    "Remember this and then drop it.",
 ]
+
+NOTE = ["Note my code 7319.", "Note down my locker number 42.", "Note this down: my bus is at 8."]
 
 REMEMBER = [
     "Please remember this: my brother's name is Luca.",
@@ -154,6 +172,7 @@ REMEMBER = [
     "Don't forget to buy milk.",
     "Do not forget: my PIN is 5521.",
     "Never forget my locker code 7319.",
+    *NOTE,
 ]
 
 KEPT = [
@@ -173,6 +192,18 @@ KEPT = [
     "I just forget it every time.",
     "We then never save anything.",
     "My kids just never keep their rooms tidy.",
+    "I keep notes in a notebook.",
+    "My phone drops calls.",
+    "Erasers are cheap.",
+    "I stopped remembering dreams.",
+    "Stop keeping the milk out of the fridge.",
+    "Stop recording this meeting.",
+    "Drop it off at the post office.",
+    "Drop me a line tomorrow.",
+    "Get rid of the duplicates in this list.",
+    "I unlearned French at school.",
+    "Note: I'm off tomorrow, cancel my meeting.",
+    "I note my mistakes in a diary.",
 ]
 
 
@@ -229,6 +260,8 @@ def _forgot(calls: int, unmatched: int) -> TaintLedger:
         (_forgot(1, 1), (_UNMATCHED,), REMEMBER[0], False),
         (_forgot(2, 2), (_UNMATCHED, _UNMATCHED), REMEMBER[3], False),
         (_forgot(1, 1), (_UNMATCHED,), REMEMBER[8], False),
+        (_forgot(1, 1), (_UNMATCHED,), NOTE[0], False),
+        (_forgot(1, 1), (_UNMATCHED,), DISCARD[5], True),
         (_forgot(1, 1), (_UNMATCHED,), "My locker code is 7319.", True),
         (_forgot(1, 1), (_UNMATCHED,), "Vergeet alsjeblieft mijn pincode 5521.", True),
         (_forgot(1, 1), (_UNMATCHED,), "Remember my PIN 1234. Actually, forget it.", True),
@@ -251,7 +284,7 @@ def test_a_request_to_remember_is_read_as_such(query: str) -> None:
     assert asks_kept(query)
 
 
-@pytest.mark.parametrize("query", [*KEPT[5:12], *KEPT[13:], *NOT_KEPT[:10]])
+@pytest.mark.parametrize("query", [*KEPT[5:12], *KEPT[13:], *NOT_KEPT[:10], *DISCARD])
 def test_a_statement_question_or_request_to_forget_is_not_a_request_to_remember(
     query: str,
 ) -> None:
@@ -273,12 +306,12 @@ def test_a_turn_without_memory_is_never_withheld() -> None:
     assert not memory_withheld(TurnCapabilities(), taint, (), query=NOT_KEPT[0])
 
 
-@pytest.mark.parametrize("query", NOT_KEPT)
+@pytest.mark.parametrize("query", [*NOT_KEPT, *DISCARD])
 def test_a_message_asking_not_to_keep_or_to_forget_is_read_as_such(query: str) -> None:
     assert asks_not_kept(query)
 
 
-@pytest.mark.parametrize("query", KEPT)
+@pytest.mark.parametrize("query", [*KEPT, *NOTE])
 def test_a_request_to_remember_or_a_statement_about_oneself_is_not(query: str) -> None:
     assert not asks_not_kept(query)
 

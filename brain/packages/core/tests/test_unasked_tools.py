@@ -41,6 +41,8 @@ _BOTH = frozenset({SET_VOLUME_TOOL_NAME, SCHEDULE_TOOL_NAME})
         "Note that my mother's birthday is on 12 May.",
         "Keep in mind that I am vegetarian.",
         "Please don't forget this: my gym class is on Tuesday.",
+        "Note my code 7319.",
+        "Note down my locker number 42.",
     ],
 )
 def test_a_request_to_remember_a_fact_asks_for_neither_tool(query: str) -> None:
@@ -59,6 +61,8 @@ def test_a_request_to_remember_a_fact_asks_for_neither_tool(query: str) -> None:
         "Note that the parcel comes on Friday, so don\u2019t let me forget it.",
         "Remember this: I want a notification every Sunday to water the plants.",
         "Please remember this: schedule a call with Ana on Monday.",
+        "Note my dentist appointment on Friday and remind me the day before.",
+        "Note down my flight at 6 and wake me at 4.",
     ],
 )
 def test_a_request_to_remember_that_asks_for_a_reminder_keeps_the_schedule_tool(
@@ -87,6 +91,8 @@ def test_a_request_to_remember_that_names_the_sound_keeps_the_volume_tool(query:
         "Turn it down a bit.",
         "My brother's name is Luca.",
         "I just remember that the bank closes at four.",
+        "Note: I'm off tomorrow, cancel my meeting.",
+        "Please remember not to store my card number.",
     ],
 )
 def test_a_message_that_asks_nothing_be_remembered_leaves_every_tool(query: str) -> None:

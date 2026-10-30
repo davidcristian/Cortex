@@ -98,7 +98,12 @@ pool down to the hits one turn sees. The turn that calls it is in
   `ok`, a turn that named `forget_memories` unless every call ran and matched nothing and
   `asks_kept(query)` reads a request to remember (ADR-0075 decision 5), a turn whose `query` `asks_not_kept`
   (`memory_request.py`, ADR-0075 decision 5) reads as a request not to keep, to forget or to
-  remove something, with or without a call, and a tainted turn under `skip`. `record_exchange`
+  remove something, with or without a call, and a tainted turn under `skip`. The rule in one
+  sentence: a clause that opens with "don't", "never", "no need to" or "remember not to" before a
+  keep verb, with "forget", "erase", "unlearn", "drop it", "get rid of" or "stop remembering", or
+  that says "from your memory" or "off the record", asks not to keep; "remember not to", "get rid
+  of" and "stop remembering" count only before the message ("it", "this", "my" and the like), as
+  does any form after a request to remember in the same sentence. `record_exchange`
   returns on it, and both phases pass it to `limit_notes` as `withheld`, which then appends
   `UNKEPT_CLAIM_NOTE` when `claims_kept(reply)` finds a statement, not a question, saying something
   was noted, remembered, made a note of, or kept or saved "in mind" or "in memory". A bare "saved"

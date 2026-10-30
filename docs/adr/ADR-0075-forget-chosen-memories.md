@@ -64,8 +64,9 @@ that removes exactly those rows and holds against a turn in flight. This record 
    of a turn the cortex handed over after naming it, which reads the cortex's runs from the
    stored reply and the mark from the handoff record. One turn is recorded all the same: every
    call it named ran and matched nothing, and its message asks to remember something, read by
-   `asks_kept` (`memory_request.py`: "remember", "note that", "keep in mind", or "forget" after
-   "don't", "do not" or "never", at a clause start, English only) and not read by
+   `asks_kept` (`memory_request.py`: "remember", "keep in mind", "forget" after "don't", "do
+   not" or "never", or "note" before "that", "down" or the message, at a clause start, English
+   only, and not "remember not to" before a keep verb and the message) and not read by
    `asks_not_kept`. The cortex calls the tool with the fact as the text on about one request to
    remember in four, and that turn has nothing to forget
    ([readings](../readings/forget-no-match-on-remember.md)). A forget request naming a value
@@ -90,8 +91,12 @@ that removes exactly those rows and holds against a turn in flight. This record 
    ([readings](../readings/forget-request-wordings.md#a-check-of-the-no-call-case-the-candidate-2026-10-30)).
    `asks_not_kept` (`memory_request.py`) reads the message: a "don't", "never" or "no need to"
    before "save", "keep", "remember" or "write it down" at a clause start, a "you don't need
-   to" before one, "not for your memory", "off the record", an imperative "forget", and a
-   "delete" or "remove" with "from your memory". A clause starts at the sentence start, after a
+   to" before one, "not for your memory", "off the record", an imperative "forget", "erase" or
+   "unlearn", and a "delete" or "remove" with "from your memory". "Remember not to", "get rid
+   of" and "stop remembering" (or saving, storing, keeping, noting) count only before the
+   message, so "Remember not to save files to the desktop" is a rule to store, and "drop it"
+   only when it ends its clause, so "drop it off at the post office" asks nothing. An "erase"
+   about a file is read too, and its turn is not recorded. A clause starts at the sentence start, after a
    comma, colon or semicolon, or after "and", "but", "so" or "please", and "also", "just" or
    "then" may come first, so "people just forget" states a habit. After any other word those
    three, or "actually", open a request only when the message follows the verb, so "use it once

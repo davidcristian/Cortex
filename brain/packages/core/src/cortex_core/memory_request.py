@@ -15,9 +15,10 @@ _OPENS = (
 # "use it once then forget it" asks, "my kids then forget their homework" states a habit.
 _LOOSE = rf"{_SUBJECT}\b(?:also|just|then|actually)\s+"
 _MESSAGE = r"\W*(?:it|this|that|these|those|them|my|mine|any|anything|everything|what)\b"
+_NOT_TO_KEEP = rf"\s+(?:not|never)\s+to\s+(?:ever\s+)?{_KEEP}\b"
 _DONT_KEEP = re.compile(
     rf"{_OPENS}(?:{_NOT}|no\s+need\s+to)\s+(?:ever\s+)?{_KEEP}\b"
-    rf"|{_LOOSE}{_NOT}\s+(?:ever\s+)?{_KEEP}\b(?={_MESSAGE})"
+    rf"|{_LOOSE}{_NOT}\s+(?:ever\s+)?{_KEEP}\b(?={_MESSAGE})|{_OPENS}remember{_NOT_TO_KEEP}"
     r"|\byou\s+(?:didn['\u2019]?t|did\s+not|wouldn['\u2019]?t|would\s+not"
     rf"|(?:don['\u2019]?t|do\s+not)\s+(?:need|have)\s+to)\s+{_KEEP}\b"
     rf"|\b(?:don['\u2019]?t|do\s+not)\s+want\s+you\s+to\s+{_KEEP}\b",
@@ -27,9 +28,18 @@ _NOT_FOR_MEMORY = re.compile(
     r"\bnot\s+(?:for|in|into|to)\s+your\s+(?:memory|memories|notes)\b|\boff\s+the\s+record\b",
     re.IGNORECASE,
 )
+_FORGET_VERB = r"(?:forget|erase|unlearn)"
 _FORGET = re.compile(
-    rf"{_OPENS}forget\b|{_LOOSE}forget\b(?={_MESSAGE})"
-    r"|\b(?:can|could|would|will)\s+you\s+(?:please\s+)?forget\b|\byou\s+to\s+forget\b",
+    rf"{_OPENS}{_FORGET_VERB}\b|{_LOOSE}{_FORGET_VERB}\b(?={_MESSAGE})"
+    rf"|\b(?:can|could|would|will)\s+you\s+(?:please\s+)?{_FORGET_VERB}\b"
+    rf"|\byou\s+to\s+{_FORGET_VERB}\b",
+    re.IGNORECASE,
+)
+# "drop it" must end its clause, since "drop it off at the post office" asks nothing of memory.
+_DISCARD = re.compile(
+    rf"(?:{_OPENS}|{_LOOSE})(?:get\s+rid\s+of\b(?={_MESSAGE})"
+    rf"|stop\s+(?:remembering|saving|storing|keeping|noting)\b(?={_MESSAGE})"
+    r"|drop(?=\s+(?:it|this|that|them)\s*(?:[,;.!?]|$)))",
     re.IGNORECASE,
 )
 _REMOVE = re.compile(
@@ -38,7 +48,9 @@ _REMOVE = re.compile(
     re.IGNORECASE,
 )
 _REMEMBER = re.compile(
-    rf"{_OPENS}(?:remember|note\s+that|keep\s+in\s+mind|{_NOT}\s+forget)\b", re.IGNORECASE
+    rf"{_OPENS}(?:remember(?!{_NOT_TO_KEEP}{_MESSAGE})|keep\s+in\s+mind|{_NOT}\s+forget"
+    r"|note(?=\s+(?:that|this|these|those|it|my|mine|down)\b))\b",
+    re.IGNORECASE,
 )
 _THE_MESSAGE = re.compile(_MESSAGE, re.IGNORECASE)
 _SENTENCE_END = re.compile(r"(?<=[.!?])\s+|\n+")
@@ -54,7 +66,7 @@ def _asks_not_kept(sentence: str) -> bool:
     # "never record calls" is a rule to keep, "don't save this" is not.
     return any(
         match.start() < starts or _THE_MESSAGE.match(sentence, match.end())
-        for pattern in (_DONT_KEEP, _FORGET)
+        for pattern in (_DONT_KEEP, _FORGET, _DISCARD)
         for match in pattern.finditer(sentence)
     )
 
