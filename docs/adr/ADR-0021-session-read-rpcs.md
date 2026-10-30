@@ -150,18 +150,18 @@ so a label cannot inject markup or a second line.
 
 `SessionStore.delete(session_id)` removes the `:messages` list, the `:title` and `:recap` strings
 (ADR-0038 decision 9) and the `cortex:sessions` and `cortex:sessions:hoisted` members, and adds the
-id to the sorted set `cortex:sessions:deleted`, in one transactional pipeline, idempotently. The
+id to `cortex:sessions:deleted` and `cortex:sessions:cleanup`, in one idempotent transaction. The
 text stays on disk until Redis rewrites its append-only file and Postgres vacuums and reuses its WAL
 ([readings](../readings/deleted-chat-on-disk.md)); a delete runs no rewrite: none reaches WAL.
 
 The memory cascade stays off the turn path: `SessionMemoryCascade(store, scope)` exposes only
-`delete_session_memories`, wired into `DeleteSession` and never into an engine. Each memory records
-the session that wrote it (`None` on older rows), and the cascade removes those rows in any scope
-with `delete_written_by`, so a secret typed in a deleted chat is not recalled later; a copy another
-chat stored after recalling it stays, for `forget_memories` (ADR-0075). A private scope (`scope ==
-session_id`, never `GLOBAL_SCOPE`) is then emptied with `delete_scope`. The handler deletes the
-session, cascades, then calls `ScheduleStore.detach_session` (ADR-0066 decision 9); a store error
-aborts `UNAVAILABLE`; nothing retries it yet ([R-937](../refinements/tasks/937-a-delete-that-fails-after-the-chat-is-gone-leaves-a-dead-chat-open.md)).
+`delete_session_memories`, wired into `DeleteSession` and its repeater, never an engine. Each memory
+records the session that wrote it (`None` on older rows), and the cascade removes those rows in any
+scope with `delete_written_by`, so a secret typed in a deleted chat is not recalled later; a copy
+another chat stored after recalling it stays, for `forget_memories` (ADR-0075). A private scope
+(`scope == session_id`, never `GLOBAL_SCOPE`) is then emptied with `delete_scope`. Once the chat
+delete commits, `finish_cleanup` runs the cascade, `detach_session` (ADR-0066 decision 9) and
+`clear_cleanup`; only a failed chat delete aborts `UNAVAILABLE`. `CleanupRepeater` repeats a failed one at boot and every 60 s, with no age limit.
 
 **A delete does not wait for a turn running in its chat; the turn's writes read the deleted set.**
 `append`, `set_title` and `set_recap` store nothing for a deleted chat: the Redis adapter reads the

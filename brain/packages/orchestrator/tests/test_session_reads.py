@@ -1,3 +1,4 @@
+import logging
 from collections.abc import Sequence
 from datetime import UTC, datetime
 from typing import cast
@@ -440,30 +441,30 @@ async def test_set_session_hoisted_store_failure_aborts_unavailable() -> None:
     assert "redis is down" in (excinfo.value.details() or "")
 
 
-async def test_delete_session_memory_cascade_failure_aborts_unavailable() -> None:
+@pytest.mark.parametrize(
+    ("memory", "logged"),
+    [
+        (FailingMemoryStore(), "pgvector is down"),
+        (UndecodableMemoryStore(), "malformed delete status"),
+    ],
+)
+async def test_a_delete_whose_cleanup_fails_succeeds_and_leaves_the_cleanup_pending(
+    memory: FailingMemoryStore, logged: str, caplog: pytest.LogCaptureFixture
+) -> None:
     store = await _seeded_store()
-    cascade = SessionMemoryCascade(FailingMemoryStore(), SessionMemoryScope())
+    cascade = SessionMemoryCascade(memory, SessionMemoryScope())
     server, address = await _serve(store, cascade=cascade)
     try:
         async with aio.insecure_channel(address) as channel:
-            with pytest.raises(aio.AioRpcError) as excinfo:
-                await _delete(BrainServiceStub(channel), "alpha")
+            with caplog.at_level(logging.WARNING, logger="cortex_orchestrator.session_rpc"):
+                reply = await _delete(BrainServiceStub(channel), "alpha")
     finally:
         await server.stop(grace=None)
-    assert excinfo.value.code() is grpc.StatusCode.UNAVAILABLE
-    assert "pgvector is down" in (excinfo.value.details() or "")
-
-
-async def test_delete_session_undecodable_memory_reply_aborts_internal() -> None:
-    store = await _seeded_store()
-    cascade = SessionMemoryCascade(UndecodableMemoryStore(), SessionMemoryScope())
-    server, address = await _serve(store, cascade=cascade)
-    try:
-        async with aio.insecure_channel(address) as channel:
-            with pytest.raises(aio.AioRpcError) as excinfo:
-                await _delete(BrainServiceStub(channel), "alpha")
-    finally:
-        await server.stop(grace=None)
-    assert excinfo.value.code() is grpc.StatusCode.INTERNAL
-    assert "malformed delete status" in (excinfo.value.details() or "")
+    assert isinstance(reply, DeleteSessionReply)
+    assert await store.deleted("alpha") is True
+    assert list(await store.pending_cleanups()) == ["alpha"]
     assert [s.session_id for s in await store.list_sessions(limit=10)] == ["beta"]
+    (record,) = [r for r in caplog.records if r.name == "cortex_orchestrator.session_rpc"]
+    assert record.getMessage() == "a deleted chat's cleanup failed; the repeater finishes it"
+    assert record.__dict__["session_id"] == "alpha"
+    assert logged in record.__dict__["error"]

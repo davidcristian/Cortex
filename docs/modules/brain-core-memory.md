@@ -58,6 +58,11 @@ pool down to the hits one turn sees. The turn that calls it is in
   It exposes only `delete_session_memories(session_id) -> int`, which removes every memory the
   session wrote (`delete_written_by`) and then, when the write scope is the session's own private
   space and not `GLOBAL_SCOPE`, that scope.
+- `finish_cleanup(store, cascade, schedules, session_id)` (`chat_cleanup.py`, ADR-0021 decision 11)
+  runs a deleted chat's cascade, then `detach_session`, then `SessionStore.clear_cleanup`, so a
+  failed step leaves the chat in `pending_cleanups`. `CleanupRepeater` runs it for every pending chat
+  in a task started by `start()`, at once and then every `CLEANUP_REPEAT_INTERVAL_S` (60 s), logging
+  each failure; a failed read of the pending set is logged and read again on the next pass.
 - `UntrustedMemoryForget(store, scope)` (`memory_forget.py`, ADR-0019 decision 9) is a delete
   a tool reaches: `forget(session_id)` calls `delete_tainted` over the session's read scopes. The
   built-in `ForgetUntrustedTool` over it is `forget_untrusted_memories`: no arguments,

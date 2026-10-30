@@ -1,8 +1,17 @@
 """Session catalog RPCs: store views onto the wire, plus the user-only rename write."""
 
+import logging
 from datetime import datetime
 
-from cortex_core import Message, ScheduleStore, SessionMemoryCascade, SessionStore, SessionSummary
+from cortex_core import (
+    CLEANUP_ERRORS,
+    Message,
+    ScheduleStore,
+    SessionMemoryCascade,
+    SessionStore,
+    SessionSummary,
+    finish_cleanup,
+)
 from cortex_seam import DeleteSessionReply, RenameSessionReply, SetSessionHoistedReply
 from cortex_seam import SessionMessage as SessionMessagePb
 from cortex_seam import SessionSummary as SessionSummaryPb
@@ -12,6 +21,8 @@ MAX_SESSION_LIST_LIMIT = 200
 # A bound applied at the wire edge, so no unbounded label reaches the store. Generous on
 # purpose: the switcher re-collapses and re-truncates the display at read.
 MAX_TITLE_INPUT = 200
+
+_logger = logging.getLogger(__name__)
 
 
 def unix_ms(moment: datetime) -> int:
@@ -64,15 +75,17 @@ async def delete_session(
     schedules: ScheduleStore | None,
     session_id: str,
 ) -> DeleteSessionReply:
-    """Delete one chat, cascade to its memories and clear it as its schedules' origin."""
-    # The chat goes first: a later failure then leaves it gone and a retry cleans the rest, and
-    # it is marked deleted before the cascade reads its rows, so a turn still recording finds
-    # the mark after its write. Every step is idempotent, so a retry after any failure is safe.
+    """Delete one chat, then finish its cleanup or leave it pending for the repeater."""
+    # The chat is marked deleted, with its cleanup pending, before the cascade reads its rows, so
+    # a turn still recording finds the mark after its write.
     await store.delete(session_id)
-    if cascade is not None:
-        await cascade.delete_session_memories(session_id)
-    if schedules is not None:
-        await schedules.detach_session(session_id)
+    try:
+        await finish_cleanup(store, cascade, schedules, session_id)
+    except CLEANUP_ERRORS as err:
+        _logger.warning(
+            "a deleted chat's cleanup failed; the repeater finishes it",
+            extra={"session_id": session_id, "error": str(err)},
+        )
     return DeleteSessionReply()
 
 

@@ -6,10 +6,12 @@ from datetime import UTC, datetime
 from cortex_core import (
     GlobalMemoryScope,
     InMemoryScheduleStore,
+    InMemorySessionStore,
     MemoryRecord,
     Message,
     ScheduledItem,
     ScheduleKind,
+    ScheduleStoreError,
     ScoredMemory,
     SessionMemoryCascade,
     SessionMemoryScope,
@@ -163,7 +165,7 @@ async def test_delete_session_deletes_the_chat_then_cascades_to_memory() -> None
     assert isinstance(reply, DeleteSessionReply)
     assert store.delete_calls == ["gamma"]
     assert mem.deleted_scopes == ["gamma"]
-    assert events == ["delete:gamma", "written:gamma", "cascade:gamma"]
+    assert events == ["delete:gamma", "written:gamma", "cascade:gamma", "clear:gamma"]
 
 
 async def test_delete_session_under_global_scope_deletes_only_what_the_chat_wrote() -> None:
@@ -173,7 +175,7 @@ async def test_delete_session_under_global_scope_deletes_only_what_the_chat_wrot
     await delete_session(RecordingStore(events), cascade, None, "gamma")
     assert mem.written_by == ["gamma"]
     assert mem.deleted_scopes == []
-    assert events == ["delete:gamma", "written:gamma"]
+    assert events == ["delete:gamma", "written:gamma", "clear:gamma"]
 
 
 async def test_delete_session_skips_the_cascade_when_memory_is_off() -> None:
@@ -209,8 +211,31 @@ async def test_delete_session_clears_the_chat_on_its_schedules_after_the_memorie
     await schedules.add(made_here)
     cascade = SessionMemoryCascade(RecordingMemoryStore(events), SessionMemoryScope())
     await delete_session(RecordingStore(events), cascade, schedules, "gamma")
-    assert events == ["delete:gamma", "written:gamma", "cascade:gamma", "detach:gamma"]
+    assert events == [
+        "delete:gamma",
+        "written:gamma",
+        "cascade:gamma",
+        "detach:gamma",
+        "clear:gamma",
+    ]
     assert await schedules.get("r1") == replace(made_here, session_id="")
+
+
+class FailingDetach(RecordingSchedules):
+    async def detach_session(self, session_id: str) -> int:
+        self.events.append(f"detach:{session_id}")
+        msg = "redis is down"
+        raise ScheduleStoreError(msg)
+
+
+async def test_delete_session_answers_success_and_keeps_the_cleanup_when_the_detach_fails() -> None:
+    events: list[str] = []
+    store = InMemorySessionStore()
+    reply = await delete_session(store, None, FailingDetach(events), "gamma")
+    assert isinstance(reply, DeleteSessionReply)
+    assert events == ["detach:gamma"]
+    assert await store.deleted("gamma") is True
+    assert list(await store.pending_cleanups()) == ["gamma"]
 
 
 async def test_set_session_hoisted_writes_the_flag_through_set_hoisted() -> None:

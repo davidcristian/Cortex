@@ -1,5 +1,11 @@
 """Public core names for remembering and recalling, and the ranking that selects what returns."""
 
+from cortex_core.chat_cleanup import (
+    CLEANUP_ERRORS,
+    CLEANUP_REPEAT_INTERVAL_S,
+    CleanupRepeater,
+    finish_cleanup,
+)
 from cortex_core.embed_input import EMBED_INPUT_CHARS, EMBEDDER_CONTEXT_TOKENS, embedding_input
 from cortex_core.memory import GLOBAL_SCOPE, MemoryRecord, ScoredMemory
 from cortex_core.memory_cascade import SessionMemoryCascade
@@ -48,6 +54,8 @@ from cortex_core.scope import (
 )
 
 __all__ = [
+    "CLEANUP_ERRORS",
+    "CLEANUP_REPEAT_INTERVAL_S",
     "DROPPED_TRAIL_LIMIT",
     "EMBEDDER_CONTEXT_TOKENS",
     "EMBED_INPUT_CHARS",
@@ -61,6 +69,7 @@ __all__ = [
     "RAW_RECALL_POLICY",
     "RECALL_CHAR_BUDGET",
     "UNKEPT_CLAIM_NOTE",
+    "CleanupRepeater",
     "DroppedCandidate",
     "DroppedCandidates",
     "ForgetChosenTool",
@@ -87,6 +96,7 @@ __all__ = [
     "cut_marker",
     "dropped_candidates",
     "embedding_input",
+    "finish_cleanup",
     "fit_recalled",
     "memory_withheld",
     "recall_allowances",

@@ -4,10 +4,7 @@ import grpc
 from grpc import aio
 
 from cortex_core import (
-    MemoryDataError,
-    MemoryStoreError,
     ScheduleStore,
-    ScheduleStoreError,
     SessionMemoryCascade,
     SessionStore,
     SessionStoreError,
@@ -81,14 +78,12 @@ class SessionRpcMixin:
         request: DeleteSessionRequest,
         context: aio.ServicerContext[DeleteSessionRequest, DeleteSessionReply],
     ) -> DeleteSessionReply:
-        """User-only delete and its cascades via `session_rpc.delete_session`."""
+        """User-only delete via `session_rpc.delete_session`; a failed chat delete aborts."""
         try:
             return await delete_session(
                 self._store, self._memory_cascade, self._schedules, request.session_id
             )
-        except MemoryDataError as err:
-            await context.abort(grpc.StatusCode.INTERNAL, str(err))
-        except (SessionStoreError, MemoryStoreError, ScheduleStoreError) as err:
+        except SessionStoreError as err:
             await context.abort(grpc.StatusCode.UNAVAILABLE, str(err))
 
     async def SetSessionHoisted(  # noqa: N802 - method name is fixed by the gRPC codegen interface

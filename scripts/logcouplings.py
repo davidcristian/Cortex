@@ -5,11 +5,13 @@ from couplings import Constant, Mention, Site
 LOG_FIELDS = "brain/packages/core/src/cortex_core/log_fields.py"
 
 BRAIN_PHASE = "brain/packages/core/src/cortex_core/brain_phase.py"
+CHAT_CLEANUP = "brain/packages/core/src/cortex_core/chat_cleanup.py"
 CONVERSE_STREAM = "brain/packages/orchestrator/src/cortex_orchestrator/converse_stream.py"
 ENGINE = "brain/packages/core/src/cortex_core/engine.py"
 RECALL_AUDIT = "brain/packages/memory/src/cortex_memory/audit.py"
 RERANK_JUDGE = "brain/packages/core/src/cortex_core/rerank_judge.py"
 RUNNER = "brain/packages/core/src/cortex_core/runner.py"
+SESSION_RPC = "brain/packages/orchestrator/src/cortex_orchestrator/session_rpc.py"
 SCHEDULE_CLAIMS = "brain/packages/session/src/cortex_session/schedule_claims.py"
 SUMMARIZING = "brain/packages/core/src/cortex_core/summarizing.py"
 SWAP_CONDUCTOR = "brain/packages/core/src/cortex_core/swap_conductor.py"
@@ -32,7 +34,7 @@ LOG_COUPLINGS: tuple[Constant, ...] = (
     Constant(
         label="the field a brain log line names the conversation under",
         why=(
-            "eleven modules attach the conversation a line is about and the recall trail is read "
+            "thirteen modules attach the conversation a line is about and the recall trail is read "
             "beside the turn failures and the handoff for the same chat, so a name that moved in "
             "one of them would split one investigation's evidence in two without any suite "
             "noticing, which is what happened for as long as the trail wrote it `session` "
@@ -52,6 +54,8 @@ LOG_COUPLINGS: tuple[Constant, ...] = (
             Mention(SWAP_SETTLE, FIELD_KEY, occurrences=3),
             Mention(SWAP_RECOVERY, FIELD_KEY),
             Mention(BRAIN_PHASE, FIELD_KEY, occurrences=3),
+            Mention(CHAT_CLEANUP, FIELD_KEY),
+            Mention(SESSION_RPC, FIELD_KEY),
             Mention(MEMORY_RUNBOOK, 'grep "{value}=<id>"'),
             Mention(MEMORY_RUNBOOK, "`{value}=None`"),
             Mention(SWAP_RUNBOOK, 'failed reason="<what happened>" {value}=<chat id>'),

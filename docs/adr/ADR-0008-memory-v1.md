@@ -202,8 +202,7 @@ and put embedding on the CPU so the GPU budget stays with the cortex
     `PostgresError`, `InterfaceError` and `OSError` stay `MemoryStoreError`. `_recalled_context`
     re-raises it ahead of the degrading catch, with no `forgoing` status, since that status says
     the turn answers without notes. The write still degrades on the whole family. `DeleteSession`
-    aborts `INTERNAL` on it where an outage aborts `UNAVAILABLE`; that is a label for the operator,
-    not a retry change, because the body never repeats a delete.
+    logs it like an outage and leaves the chat's cleanup pending (ADR-0021 decision 11).
 
 ## Consequences
 

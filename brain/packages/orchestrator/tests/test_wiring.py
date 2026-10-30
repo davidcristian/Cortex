@@ -176,6 +176,7 @@ async def test_run_from_env_serves_turns_and_closes_the_store(
     monkeypatch.setenv("CORTEX_SEAM_PORT", str(port))
     monkeypatch.setenv("CORTEX_REDIS_URL", "redis://redis.test.invalid:6379/5")
     store = RecordingStore()
+    await store.delete("deleted-before-boot")
     seen_urls: list[str] = []
 
     def factory(url: str) -> RedisSessionStore:
@@ -186,10 +187,15 @@ async def test_run_from_env_serves_turns_and_closes_the_store(
     try:
         events = await _run_one_turn(f"127.0.0.1:{port}", "wired", "hello")
         assert _reply_text(events) == "reply 1: hello"
+        for _ in range(100):
+            if not await store.pending_cleanups():
+                break
+            await asyncio.sleep(0.01)
         os.kill(os.getpid(), signal.SIGTERM)
         await asyncio.wait_for(task, timeout=10)
     finally:
         task.cancel()
+    assert list(await store.pending_cleanups()) == []
     assert seen_urls == ["redis://redis.test.invalid:6379/5"]
     assert [m.text for m in await store.history("wired")] == ["hello", "reply 1: hello"]
     assert store.closed is True

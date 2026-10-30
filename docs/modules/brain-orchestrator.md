@@ -35,10 +35,10 @@ is what the wire serves beyond a turn, each absent when its capability is off.
   user-only catalog writes through `session_rpc.py`. None is a tool in any registry or runs through
   the turn engine, so no model, tool or tainted turn can reach them. `RenameSession` bounds the
   label (`clamp_title`, `MAX_TITLE_INPUT` of 200) and an empty title clears the override.
-  `DeleteSession` deletes the chat, then runs the injected `SessionMemoryCascade` when memory is on,
-  never passing `GLOBAL_SCOPE`, and `ScheduleStore.detach_session` when scheduling is on; each step
-  is idempotent, so a retry recovers. A session, memory or schedule store error aborts
-  `UNAVAILABLE`, and the memory port's `MemoryDataError` aborts `INTERNAL` (ADR-0008 decision 13).
+  `DeleteSession` deletes the chat, which records its cleanup as pending, then runs `finish_cleanup`
+  over the injected `SessionMemoryCascade` and `ScheduleStore` (each when on). Only a failed chat
+  delete aborts `UNAVAILABLE`; a failed cleanup step is logged, the reply is success, and the
+  `CleanupRepeater` the root starts before `serve` and closes first repeats it (ADR-0021).
 - `ListDueReminders` and `AckReminder` (ADR-0025, policy in `reminders.py`) are the pull pair over
   the injected `ScheduleStore`. A `DueReminder` has the id, the text (a reminder's own or a task's
   `last_outcome`), the fired-at unix-ms stamp, the recurrence, the `tainted` bit, the origin

@@ -50,9 +50,11 @@ async def _delete(stub: BrainServiceStub, session_id: str) -> DeleteSessionReply
     return cast("DeleteSessionReply", await method(DeleteSessionRequest(session_id=session_id)))
 
 
-async def _serve(schedules: ScheduleStore | None) -> tuple[aio.Server, str]:
+async def _serve(
+    schedules: ScheduleStore | None, store: InMemorySessionStore | None = None
+) -> tuple[aio.Server, str]:
     """A BrainService over `schedules` on an ephemeral loopback port."""
-    store = InMemorySessionStore()
+    store = store if store is not None else InMemorySessionStore()
     engine = TurnEngine(store, EchoInferenceBackend(), SystemClock())
     server, port = create_server(
         RpcServerConfig(host="127.0.0.1", port=0),
@@ -247,12 +249,10 @@ class _FailingScheduleStore(InMemoryScheduleStore):
 async def _call(stub: BrainServiceStub, rpc: str) -> object:
     if rpc == "list":
         return await _list(stub)
-    if rpc == "ack":
-        return await _ack(stub, "r1", 1)
-    return await _delete(stub, "chat-1")
+    return await _ack(stub, "r1", 1)
 
 
-@pytest.mark.parametrize("rpc", ["list", "ack", "delete"])
+@pytest.mark.parametrize("rpc", ["list", "ack"])
 async def test_store_failure_aborts_unavailable(rpc: str) -> None:
     server, address = await _serve(_FailingScheduleStore())
     try:
@@ -264,6 +264,19 @@ async def test_store_failure_aborts_unavailable(rpc: str) -> None:
         await server.stop(grace=None)
     assert excinfo.value.code() == grpc.StatusCode.UNAVAILABLE
     assert "redis down" in str(excinfo.value.details())
+
+
+async def test_a_delete_whose_detach_fails_answers_success_and_leaves_the_cleanup_pending() -> None:
+    store = InMemorySessionStore()
+    server, address = await _serve(_FailingScheduleStore(), store)
+    try:
+        async with aio.insecure_channel(address) as channel:
+            reply = await _delete(BrainServiceStub(channel), "chat-1")
+    finally:
+        await server.stop(grace=None)
+    assert isinstance(reply, DeleteSessionReply)
+    assert await store.deleted("chat-1") is True
+    assert list(await store.pending_cleanups()) == ["chat-1"]
 
 
 async def test_an_ack_naming_a_replaced_fire_leaves_the_later_one_due() -> None:

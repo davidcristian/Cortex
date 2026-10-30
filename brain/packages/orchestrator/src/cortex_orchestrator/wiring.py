@@ -2,7 +2,7 @@
 
 from collections.abc import Callable
 
-from cortex_core import AsyncioSleeper, SystemClock, VramBudgetPlacer
+from cortex_core import AsyncioSleeper, CleanupRepeater, SystemClock, VramBudgetPlacer
 from cortex_orchestrator.bounds import check_tool_call_deadline
 from cortex_orchestrator.builders import (
     build_body_gateway,
@@ -132,8 +132,10 @@ async def run_from_env(
         subagents_config,
         between_handoffs=None if swap is None else swap.manager.between_handoffs,
     )
+    cleanup = CleanupRepeater(stores.sessions, memory_cascade, schedules)
     try:
         await serving.start()
+        cleanup.start()
         engines = StreamEngines(
             sessions=stores.sessions,
             backend=backend,
@@ -163,6 +165,7 @@ async def run_from_env(
             ),
         )
     finally:
+        await cleanup.aclose()
         await close_serving()
         await stop_ticker(ticker, ticker_task)
         await close_vision()
