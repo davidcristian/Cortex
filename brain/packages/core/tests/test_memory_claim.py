@@ -112,6 +112,24 @@ NOT_KEPT = [
     "I don't want you to remember this: my PIN is 1234.",
     "Please don\u2019t store this.",
     "This is off the record: my PIN is 1234.",
+    "No need to remember this, my PIN is 5521.",
+    "You don't need to save this: my PIN is 5521.",
+    "You don't have to keep this, it's my PIN 5521.",
+    "Please keep this to yourself and don't write it down: my PIN is 5521.",
+]
+
+RULES = [
+    "Remember: don't save files to the desktop.",
+    "Please remember, never keep the milk out of the fridge.",
+    "Remember my rule: never record calls without asking.",
+    "Remember that people just forget their PINs.",
+]
+
+REMEMBER_AND_NOT_KEPT = [
+    "Remember, don't save my PIN anywhere: 5521.",
+    "Please remember: never keep this anywhere, my PIN is 5521.",
+    "Remember my new number, and forget my old one.",
+    "Don't save the code, just remember the hint: blue.",
 ]
 
 REMEMBER = [
@@ -138,6 +156,8 @@ KEPT = [
     "Don't forget to buy milk.",
     "Why did you forget my birthday?",
     "Remove the duplicates from this list.",
+    "People just forget their PINs.",
+    "My kids then forget their homework.",
 ]
 
 
@@ -223,7 +243,10 @@ def test_a_statement_question_or_request_to_forget_is_not_a_request_to_remember(
     assert not asks_kept(query)
 
 
-@pytest.mark.parametrize(("query", "withheld"), [(NOT_KEPT[0], True), (KEPT[0], False)])
+@pytest.mark.parametrize(
+    ("query", "withheld"),
+    [(NOT_KEPT[0], True), (NOT_KEPT[-1], True), (KEPT[0], False), (RULES[0], False)],
+)
 def test_a_turn_whose_message_asks_not_to_keep_is_withheld_with_no_call(
     *, query: str, withheld: bool
 ) -> None:
@@ -243,6 +266,20 @@ def test_a_message_asking_not_to_keep_or_to_forget_is_read_as_such(query: str) -
 @pytest.mark.parametrize("query", KEPT)
 def test_a_request_to_remember_or_a_statement_about_oneself_is_not(query: str) -> None:
     assert not asks_not_kept(query)
+
+
+@pytest.mark.parametrize("query", RULES)
+def test_a_rule_inside_a_request_to_remember_is_what_to_keep(query: str) -> None:
+    assert asks_kept(query)
+    assert not asks_not_kept(query)
+
+
+@pytest.mark.parametrize("query", REMEMBER_AND_NOT_KEPT)
+def test_a_request_not_to_keep_the_message_beside_a_request_to_remember_is_read(
+    query: str,
+) -> None:
+    assert asks_kept(query)
+    assert asks_not_kept(query)
 
 
 class _Clock:
