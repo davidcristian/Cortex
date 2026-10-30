@@ -7,11 +7,13 @@ from cortex_core.schedule_tools import SCHEDULE_TOOL_NAME
 from cortex_core.volume import SET_VOLUME_TOOL_NAME
 
 _SOUND = re.compile(
-    r"\b(?:volume|sound|audio|mute|unmute|muted|louder|quieter|loud|quiet|speakers?)\b",
+    r"\b(?:volume|sound|audio|mute|unmute|muted|louder|quieter|loud|quiet|speakers?"
+    r"|turn\s+(?:it|this|that)\s+(?:up|down))\b",
     re.IGNORECASE,
 )
 _REMINDER = re.compile(
-    r"\b(?:remind\w*|alarms?|alerts?|notify|notifications?|schedul\w*|wake\s+me|ping\s+me"
+    r"\b(?:remind\w*|alarms?|alerts?|notify|notifications?|schedul\w*|heads[\s-]+up"
+    r"|(?:wake|ping|nudge|buzz|text|message|warn|poke)\s+me"
     r"|let\s+me\s+know|tell\s+me\s+(?:when|at|on|before|every|to|in)\b"
     r"|(?:remember|forget)\s+to\s+\w|don['\u2019]?t\s+let\s+me\s+forget)",
     re.IGNORECASE,

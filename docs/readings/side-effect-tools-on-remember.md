@@ -107,3 +107,29 @@ the shipped candidate build, the SM clock at 0.63 of its maximum at the start an
 draw stored its fact, and none called a tool with a side effect. 8 of 30 is no result, so the
 separated pair is filed
 ([R-952](../refinements/tasks/952-withheld-unasked-tools-may-raise-forget-calls-on-a-remember-request.md)).
+
+## Near misses for the reader's new verbs, checked 2026-10-30
+
+Unit runs of `asks_kept`, `asks_not_kept` and `unasked_tools` over hand written messages, after
+"erase", "unlearn", "get rid of", "stop remembering", "drop it" and "note" joined the request
+reader. `asks_not_kept` is read only by `memory_withheld`, whose result decides whether the turn
+is recorded and whether a reply claiming something was noted gets `UNKEPT_CLAIM_NOTE`.
+`unasked_tools` reads only `asks_kept` and leaves out only `set_volume` and `schedule_task`, so a
+file request read as not to keep keeps its file tools. Its turn is not recorded; the file itself,
+the chat and the tool audit still hold what was done.
+
+| Message | Reading when checked | Result |
+| --- | --- | --- |
+| "Note down the meeting time and remind me at 4" | kept, `schedule_task` offered | checked |
+| "Erase the whiteboard photo from my notes and remember the new layout" | not kept, as "forget X and remember Y" | checked |
+| "Stop remembering my old address, my new one is Hauptstr 5" | not kept, as "forget X" beside a new fact | checked |
+| "Drop it in my calendar" | neither | checked |
+| "Get rid of the typo and save the draft" | neither | checked |
+| "Note my dentist appointment Friday at 3 and give me a heads-up an hour before" | kept, `schedule_task` left out | fixed, now offered |
+| "Note my flight at 6 and text me at 4" (also nudge, buzz, warn, message, poke me) | kept, `schedule_task` left out | fixed, now offered |
+| "Note my code 7319 and turn it down" | kept, `set_volume` left out | fixed, now offered |
+
+The fixed rows held for "remember" before "note" joined, so the reminder and sound words of
+`unasked_tools.py` now include "heads up", those six "... me" forms and "turn it, this or that up
+or down". A word read wrongly only keeps a tool offered, which is the behaviour of any message
+that asks nothing to be remembered.

@@ -43,6 +43,9 @@ _BOTH = frozenset({SET_VOLUME_TOOL_NAME, SCHEDULE_TOOL_NAME})
         "Please don't forget this: my gym class is on Tuesday.",
         "Note my code 7319.",
         "Note down my locker number 42.",
+        "Remember that my brother texts me every day.",
+        "Note that the heads of the team meet on Monday.",
+        "Remember that the remote is under the couch, and turn the heating down.",
     ],
 )
 def test_a_request_to_remember_a_fact_asks_for_neither_tool(query: str) -> None:
@@ -63,6 +66,15 @@ def test_a_request_to_remember_a_fact_asks_for_neither_tool(query: str) -> None:
         "Please remember this: schedule a call with Ana on Monday.",
         "Note my dentist appointment on Friday and remind me the day before.",
         "Note down my flight at 6 and wake me at 4.",
+        "Note down the meeting time and remind me at 4.",
+        "Note my dentist appointment Friday at 3 and give me a heads-up an hour before.",
+        "Remember my exam on Monday and give me a heads up the night before.",
+        "Note my flight at 6 and text me at 4.",
+        "Remember the meeting at 9 and nudge me at 8:45.",
+        "Note down the bus at 7 and buzz me at 6:50.",
+        "Keep in mind my parking ends at 5, so warn me at 4:50.",
+        "Note my call at 3 and message me before it.",
+        "Remember my tea is steeping and poke me in 5 minutes.",
     ],
 )
 def test_a_request_to_remember_that_asks_for_a_reminder_keeps_the_schedule_tool(
@@ -78,6 +90,9 @@ def test_a_request_to_remember_that_asks_for_a_reminder_keeps_the_schedule_tool(
         "Keep in mind that I am in a meeting now, so please mute the sound.",
         "Please remember this: I am hard of hearing. Make it louder.",
         "Remember that the speakers are too loud at night.",
+        "Note my code 7319 and turn it down.",
+        "Remember I sleep at 11, so turn that down now.",
+        "Keep in mind the baby is asleep and turn this up only a little.",
     ],
 )
 def test_a_request_to_remember_that_names_the_sound_keeps_the_volume_tool(query: str) -> None:
