@@ -197,6 +197,19 @@ def test_a_hold_with_no_earlier_text_holds_nothing() -> None:
     assert hold.flush() == ""
 
 
+@pytest.mark.parametrize(
+    ("said", "text"),
+    [
+        ("The first results:\n1. Berlin is sunny.\n", "1. Paris is rainy.\n2. Rome is warm."),
+        ("The first file:\n```\nalpha\n```\n", "```\nbeta\n```\nThat is the second."),
+        ("The first file:\n```\nalpha\n```\n", "```"),
+    ],
+)
+def test_a_list_number_or_code_fence_an_earlier_round_wrote_is_kept(said: str, text: str) -> None:
+    hold = OpeningHold(said)
+    assert "".join(hold.feed(char) for char in text) + hold.flush() == text
+
+
 async def test_the_stored_reply_holds_the_repeated_sentence_once() -> None:
     backend = _Rounds([[*_chunks(_ANSWER, "\n\n"), _READ], _chunks(_ANSWER, " I checked.")])
     registry = InMemoryToolRegistry({"read": (ToolSpec("read", "read", {}), _read)})

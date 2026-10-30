@@ -8,6 +8,8 @@ _SENTENCE_END = re.compile(r"(?<=[.!?])\s+|\n+")
 _OPENING = re.compile(
     r"(?P<lead>\s*)(?P<sentence>\S[^\n]*?(?:[.!?](?=\s)|(?=\n)))(?P<gap>\s+)(?=\S)"
 )
+# A line with no letter, such as a list number or a code fence, is never dropped as a repeat.
+_LETTER = re.compile(r"[^\W\d_]")
 
 
 def _words(sentence: str) -> str:
@@ -20,7 +22,8 @@ class OpeningHold:
 
     def __init__(self, said: str) -> None:
         """``said`` is the text the earlier rounds of the reply streamed."""
-        self._earlier = frozenset(_words(part) for part in _SENTENCE_END.split(said)) - {""}
+        sentences = (_words(part) for part in _SENTENCE_END.split(said))
+        self._earlier = frozenset(words for words in sentences if _LETTER.search(words))
         self._holding = bool(self._earlier)
         self._spaced = said[-1:].isspace()
         self._held = ""
