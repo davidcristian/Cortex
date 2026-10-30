@@ -116,6 +116,15 @@ NOT_KEPT = [
     "You don't need to save this: my PIN is 5521.",
     "You don't have to keep this, it's my PIN 5521.",
     "Please keep this to yourself and don't write it down: my PIN is 5521.",
+    "Note my code 7319 and don't store it.",
+    "Then forget my phone number.",
+    "Also, forget the PIN.",
+    "Actually, don't save that.",
+    "OK then forget it.",
+    "Okay just forget my PIN.",
+    "Nah actually don't keep that.",
+    "My PIN is 5521, use it to log in then forget it.",
+    "Use my card 4242 once then don't save it.",
 ]
 
 RULES = [
@@ -130,6 +139,9 @@ REMEMBER_AND_NOT_KEPT = [
     "Please remember: never keep this anywhere, my PIN is 5521.",
     "Remember my new number, and forget my old one.",
     "Don't save the code, just remember the hint: blue.",
+    "Remember my PIN 5521, but don't keep it after today.",
+    "Remember this and then forget it.",
+    "Remember: forget my old address.",
 ]
 
 REMEMBER = [
@@ -158,6 +170,9 @@ KEPT = [
     "Remove the duplicates from this list.",
     "People just forget their PINs.",
     "My kids then forget their homework.",
+    "I just forget it every time.",
+    "We then never save anything.",
+    "My kids just never keep their rooms tidy.",
 ]
 
 

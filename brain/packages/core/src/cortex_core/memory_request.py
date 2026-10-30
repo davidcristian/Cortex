@@ -11,8 +11,13 @@ _OPENS = (
     rf"(?:^\W*|[,;:]\s*|{_SUBJECT}\b(?:and|but|so|please|kindly)\s+)"
     r"(?:(?:please|also|just|then|actually|kindly)\s+)*"
 )
+# After any other word an adverb opens a request only when the message follows the verb:
+# "use it once then forget it" asks, "my kids then forget their homework" states a habit.
+_LOOSE = rf"{_SUBJECT}\b(?:also|just|then|actually)\s+"
+_MESSAGE = r"\W*(?:it|this|that|these|those|them|my|mine|any|anything|everything|what)\b"
 _DONT_KEEP = re.compile(
     rf"{_OPENS}(?:{_NOT}|no\s+need\s+to)\s+(?:ever\s+)?{_KEEP}\b"
+    rf"|{_LOOSE}{_NOT}\s+(?:ever\s+)?{_KEEP}\b(?={_MESSAGE})"
     r"|\byou\s+(?:didn['\u2019]?t|did\s+not|wouldn['\u2019]?t|would\s+not"
     rf"|(?:don['\u2019]?t|do\s+not)\s+(?:need|have)\s+to)\s+{_KEEP}\b"
     rf"|\b(?:don['\u2019]?t|do\s+not)\s+want\s+you\s+to\s+{_KEEP}\b",
@@ -23,7 +28,7 @@ _NOT_FOR_MEMORY = re.compile(
     re.IGNORECASE,
 )
 _FORGET = re.compile(
-    rf"{_OPENS}forget\b"
+    rf"{_OPENS}forget\b|{_LOOSE}forget\b(?={_MESSAGE})"
     r"|\b(?:can|could|would|will)\s+you\s+(?:please\s+)?forget\b|\byou\s+to\s+forget\b",
     re.IGNORECASE,
 )
@@ -35,10 +40,7 @@ _REMOVE = re.compile(
 _REMEMBER = re.compile(
     rf"{_OPENS}(?:remember|note\s+that|keep\s+in\s+mind|{_NOT}\s+forget)\b", re.IGNORECASE
 )
-_THE_MESSAGE = re.compile(
-    r"\W*(?:it|this|that|these|those|them|my|mine|any|anything|everything|what)\b",
-    re.IGNORECASE,
-)
+_THE_MESSAGE = re.compile(_MESSAGE, re.IGNORECASE)
 _SENTENCE_END = re.compile(r"(?<=[.!?])\s+|\n+")
 
 

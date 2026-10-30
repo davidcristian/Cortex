@@ -93,11 +93,13 @@ that removes exactly those rows and holds against a turn in flight. This record 
    to" before one, "not for your memory", "off the record", an imperative "forget", and a
    "delete" or "remove" with "from your memory". A clause starts at the sentence start, after a
    comma, colon or semicolon, or after "and", "but", "so" or "please", and "also", "just" or
-   "then" may come first, so "people just forget" states a habit. The words after a request to
-   remember in the same sentence are what to keep, so "Remember: never record calls" is a rule
-   to store, unless they name the message ("it", "this", "that", "my", "any" and the like). It
-   reads English only, as `claims_kept` does, and never reads a "don't forget" or a statement
-   such as "I don't remember"; a message it misses is recorded as before.
+   "then" may come first, so "people just forget" states a habit. After any other word those
+   three, or "actually", open a request only when the message follows the verb, so "use it once
+   then forget it" asks. The words after a request to remember in the same sentence are what to
+   keep, so "Remember: never record calls" is a rule to store, unless they name the message
+   ("it", "this", "that", "my", "any" and the like). It reads English only, as `claims_kept`
+   does, and never reads a "don't forget" or a statement such as "I don't remember"; a message
+   it misses is recorded as before.
    A reply that says something was forgotten, or removed from memory, on a turn whose forget
    calls deleted no row ends with `UNFORGOTTEN_CLAIM_NOTE`, which the brain appends after a typed
    check of the reply (`forget_claim.py`), because the cortex answered a forget request beside
