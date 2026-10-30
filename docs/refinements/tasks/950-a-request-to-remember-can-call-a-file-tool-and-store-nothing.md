@@ -16,13 +16,21 @@ same call on 4 of 170 requests to remember a card number.
 
 ## What to do
 
-1. Write rows and a rule into the readings before a baseline: R01 to R15 of the side-effect
-   readings, and requests that ask to remember a fact and also to read a file, with the share of
-   draws that call a file tool the message did not ask for.
-2. Weigh adding the file sidecar's read tools to `unasked_tools` (a request to remember that
-   names no file, folder or document is not offered them) against the requests that must keep
-   them.
+1. Give `ToolSpec` a field saying a tool's results are untrusted, set by the tools registry on
+   every MCP tool, and let `unasked_tools` (`unasked_tools.py`) read the turn's specs rather
+   than core tool names, with an ADR first. It reads `set_volume` and `schedule_task` by the
+   core's own name constants; the file sidecar's names belong to its MCP server, and nothing
+   before a call says its result is untrusted (`ToolResult.trust` defaults to `UNTRUSTED`).
+2. Write rows and a rule before a baseline. A withheld tool is refused by name, so the unasked
+   call rate falls to zero by construction and needs no row; the rows decide what must not
+   break: T01 of [reply-repeat-across-a-tool-call.md](../../readings/reply-repeat-across-a-tool-call.md),
+   a request to remember that also asks which folders can be read, still calls its file tool,
+   and R01 to R15 store their facts.
 
 ## History
 
 - 2026-10-30: filed from the baseline of the side-effect tools check (R-901).
+- 2026-10-30: corrected. Of the 242 draws of R01 to R15 run that night, 2 called a file tool,
+  both `list_allowed_directories` on the peanuts row, too few for a baseline to show a drop.
+  T01 called it in 20 of 20 draws, so a request to remember can ask for a file tool. No rule
+  was written and nothing was built.
