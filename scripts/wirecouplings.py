@@ -68,6 +68,21 @@ WIRE_COUPLINGS: tuple[Constant, ...] = (
         ),
     ),
     Constant(
+        label="the turn error code for a refused attachment",
+        why=(
+            "the brain ends a turn whose pictures it refuses with this code and the overlay hands "
+            "the pictures back to the composer when it reads it, so a rename drops them with the "
+            "failed turn (ADR-0070)"
+        ),
+        sites=(
+            Site(
+                "brain/packages/orchestrator/src/cortex_orchestrator/attached.py",
+                "ERROR_CODE_ATTACHMENT_REFUSED",
+            ),
+            Site("body/app/src/overlay/pictures.ts", "ATTACHMENT_REFUSED"),
+        ),
+    ),
+    Constant(
         label="the capture edge ceiling under the brain's image bound",
         why=(
             "the body clamps every request to its own ceiling and the brain refuses any image "
