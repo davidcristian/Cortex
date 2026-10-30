@@ -179,8 +179,7 @@ Two more observations from the same draws:
 - Two requests to remember called `schedule_task`. "Note that my mother's birthday is on 12 May."
   stored a yearly reminder at 09:00 on 12 May that the person did not ask for, and the same draw
   also called `set_volume`
-  ([R-944](../refinements/tasks/944-a-request-to-remember-can-call-the-schedule-tool.md),
-  [R-901](../refinements/tasks/901-a-request-to-remember-a-fact-can-set-the-volume.md)).
+  ([readings](side-effect-tools-on-remember.md)).
 
 ## A removal claimed with no forget call: rows and rule, 2026-10-30
 

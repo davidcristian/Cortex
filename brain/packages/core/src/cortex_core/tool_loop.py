@@ -84,8 +84,9 @@ async def _turn_tools(
     if context.dispatcher is None:
         return (), {}
     specs = await list_tools(context.dispatcher, context.progress)
-    withheld = await context.dispatcher.withheld(context.session_id)
-    # A withheld tool keeps its spec here, so a call to it by name still shows its card.
+    withheld = await context.dispatcher.withheld(context.session_id) | context.unasked
+    # A withheld tool keeps its spec here, so a call to it by name still shows its card or, for
+    # an unasked tool, its refusal.
     return tuple(spec for spec in specs if spec.name not in withheld), {s.name: s for s in specs}
 
 

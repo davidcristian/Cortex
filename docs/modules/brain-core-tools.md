@@ -55,7 +55,7 @@ spends and whether it is worth running. The dispatcher is stateless; the loop dr
 - `refusal` (a `DispatchRefusal`) says the call must not run: `BUDGET` when the dispatch allowance
   is spent, `DECLINED` for a call identical to one the person declined in this turn (`ToolLoopContext.declined`,
   read from the tail after a handoff, where a `<redacted>` value equals no real value), `REDUNDANT` for a repeat the salience policy recognized, or
-  `ROUND_OVERSIZED` for a truncated round's overflow slot. The tool is not invoked, the member's
+  `ROUND_OVERSIZED` for a truncated round's overflow slot, or `UNASKED` for a tool in `ToolLoopContext.unasked`. The tool is not invoked, the member's
   message is returned, and the attempt is audited. A refusal is checked **before** the confirmation
   rule, so a flood of confirmable calls cannot reach the user as prompts.
 - The confirmation rule (ADR-0013, revised by ADR-0022): a `confirm_required` call on a tainted turn is
@@ -88,7 +88,7 @@ shared by `TurnEngine` and `SubagentRunner` (ADR-0010). It is an async generator
 deltas, `ReasoningDelta`s (ADR-0020), a `ToolStep(tool_name, summary)` immediately before each audited
 dispatch of an advertised tool, and the `StepOutcome(tool_name, ok)` that closes that step. Both fields of
 a step are copied off the matched `ToolSpec`, so an unadvertised call produces no step; a tool `withheld`
-from the model's list keeps its spec, so a call to it by name gets its step and card. The only exit from a
+from the model's list keeps its spec, so a call to it by name gets its step and card. `unasked_tools(query)` (`unasked_tools.py`) fills `ToolLoopContext.unasked` for the turn engine and the deep phase: when `asks_kept` reads the person's message as a request to remember, `set_volume` unless it names the sound and `schedule_task` unless it asks for a reminder; those are withheld too and refused by name ([readings](../readings/side-effect-tools-on-remember.md)). The only exit from a
 dispatch without its outcome is the generator being closed mid-dispatch. The turn engine maps the pair
 onto `ToolActivity` and `ToolOutcome`; a subagent puts steps on the spawning stream's `ProgressSink` and
 drops outcomes (ADR-0029 decision 18). The yield vocabulary is in `loop_events.py`, one round's dispatches in `dispatch_round.py`. A round after one that streamed text is held by `OpeningHold` (`round_opening.py`) until its first sentence ends, and that sentence is dropped when an earlier round of the loop streamed it word for word, since the cortex can open the round after a call with the sentence it wrote before the call; a sentence repeated later in a round is kept, the next call message holds the text as shown, and a held sentence is still shown before an engine failure.

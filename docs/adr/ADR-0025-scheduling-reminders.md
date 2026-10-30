@@ -90,7 +90,7 @@ built-ins, so subagents never see them (ADR-0010) and cannot re-schedule themsel
   `list_scheduled` echoes text and is `TRUSTED` only when every listed item is clean. The item's
   `session_id` comes from the dispatcher's `TurnStamp` and is never rendered.
 - **Accurate advertisement.** `kind: "task"` and `model` are offered only when the spawn tool is
-  configured. `CORTEX_TOOLS_GATED` can require confirmation for any of the five by name.
+  configured. `CORTEX_TOOLS_GATED` can require confirmation for any of the five by name. A turn whose message asks to remember something and asks for no reminder is not offered `schedule_task`, and a call to it by name is refused (`unasked_tools.py`, [readings](../readings/side-effect-tools-on-remember.md)).
 - **A cancel is confirmed.** `cancel_scheduled` needs confirmation in code. Its record card (ADR-0022
   decision 2) names the stored item's text, due time and marks, on a tainted turn too, since one
   tainted item taints the listing's turn ([readings](../readings/schedule-full-cancel.md)).

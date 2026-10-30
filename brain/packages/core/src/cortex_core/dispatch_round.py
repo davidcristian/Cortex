@@ -51,6 +51,8 @@ class ToolLoopContext:
     results_spent: int = 0
     # The characters of tool results this loop's request has room for, from its tier's context.
     room_chars: int = RESULT_ROOM_CHARS
+    # The tools with no card that the person's message did not ask for (``unasked_tools``).
+    unasked: frozenset[str] = frozenset()
 
     @property
     def unit_id(self) -> str:
@@ -77,6 +79,8 @@ def _refused_by(
     """Which bound refuses this call before it can run, or ``None`` when it may go ahead."""
     if oversized:
         return DispatchRefusal.ROUND_OVERSIZED
+    if call.name in context.unasked:
+        return DispatchRefusal.UNASKED
     if any(asks_the_same(call, declined) for declined in context.declined):
         return DispatchRefusal.DECLINED
     if not dispatcher.admits(call, dispatched):

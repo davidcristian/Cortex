@@ -67,5 +67,4 @@ the SM clock at 0.59 of its maximum at the start, 0.60 after R14 and 0.70 at the
 The change ships: R01 to R14 failed in 0 of 28 draws while 5 of the 28 called `forget_memories`,
 and W01, W06 and P01 passed in every draw. One R04 draw also called `set_volume` and
 `schedule_task`, both of which failed
-([R-901](../refinements/tasks/901-a-request-to-remember-a-fact-can-set-the-volume.md),
-[R-944](../refinements/tasks/944-a-request-to-remember-can-call-the-schedule-tool.md)).
+([readings](side-effect-tools-on-remember.md)).

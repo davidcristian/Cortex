@@ -55,3 +55,27 @@ the shipped build, the SM clock at 0.60 of its maximum at the start and 0.59 at 
 
 The baseline is not the null result: 2 of 30 R draws called a tool with a side effect, beside the
 5 recorded earlier tonight.
+
+## The candidate, 2026-10-30
+
+The candidate is the change the rule describes: `unasked_tools` (`unasked_tools.py`) fills the
+turn's `ToolLoopContext.unasked`, the tool loop leaves those tools out of the list, and a call to
+one by name is refused as `UNASKED`. Run log `cand.jsonl` beside `base.jsonl`, the SM clock at
+0.59 of its maximum at the start and 0.60 at the end. R01, R02 and A03 to A06 were drawn from
+04:30 and the other rows from 04:35; a driver import failure between them drew nothing.
+
+| Rows | Baseline | Candidate |
+| --- | --- | --- |
+| R01 to R15 failing | 2 of 30 | 0 of 30 |
+| R01 to R15 storing the fact | 29 of 30 | 30 of 30 |
+| A01 to A06 passing | 12 of 12 | 12 of 12, each row 2 of 2 |
+
+The change ships: no R draw called a tool with a side effect, every A row called its tool in both
+draws, and every R draw stored its fact. Two more observations:
+
+- 12 of the 30 candidate R draws called `forget_memories`, against 5 of 30 in the baseline. Each
+  matched nothing and the fact was kept ([forget-no-match-on-remember.md](forget-no-match-on-remember.md)).
+  It is one row's surprise and decides nothing here.
+- One A02 draw stored a reminder on the 11th of every month, and its reply said so; the other
+  stored it yearly on 11 May
+  ([R-951](../refinements/tasks/951-a-reminder-the-day-before-a-yearly-date-can-repeat-monthly.md)).

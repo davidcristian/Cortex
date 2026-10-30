@@ -50,4 +50,3 @@ stored the value. Eleven replies said it would not be kept and one said it was r
   nothing with or without a call. P01 and P02 passed in 6 of 6 draws each, and the requests to
   remember failed in 9 of 32 against 10 of 32, every failure a forget call
   ([readings](../../readings/forget-request-wordings.md#a-check-of-the-no-call-case-the-candidate-2026-10-30)).
-  The same draws filed R-944.

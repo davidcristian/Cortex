@@ -79,7 +79,7 @@ results are `Trust.TRUSTED`, since host state is system-generated, so a volume c
 turn. A later OS action with side effects can require confirmation by setting
 `confirm_required=True` on its spec. Volume itself has a zero-code opt-in: adding `set_volume` to
 `CORTEX_TOOLS_GATED` makes the dispatcher's `confirm_names` check require confirmation, confirming
-on a clean turn and denying on a tainted one, as on the remote path.
+on a clean turn and denying on a tainted one, as on the remote path. A turn whose message asks to remember something and names no sound is not offered `set_volume`, and a call to it by name is refused (`unasked_tools.py`, [readings](../readings/side-effect-tools-on-remember.md)).
 
 ### 5. The token, reversed (mirrors ADR-0016)
 

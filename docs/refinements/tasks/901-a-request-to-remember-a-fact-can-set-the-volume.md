@@ -1,9 +1,8 @@
 # A request to remember a fact can set the volume
 
-**Status:** open, actionable
+**Status:** done 2026-10-30
 **Area:** tools
 **Origin:** [ADR-0023](../../adr/ADR-0023-body-gateway-volume.md)
-**Verified:** 2026-10-30
 
 On the brain directly, "Please remember this: I work as a nurse." in a new chat made the cortex
 call `set_volume` with level 0.5 and mute false, and the reply said only that it had noted the
@@ -30,3 +29,11 @@ names every tool it ran is the alternative to weigh beside it.
   and two of the 56 drawn with schedules off
   ([readings](../../readings/forget-card-on-remember.md#more-forget-calls-with-schedules-on-the-separation-2026-10-30)).
   Actionable.
+- 2026-10-30: done. A turn whose message `asks_kept` reads as a request to remember is not
+  offered `set_volume` unless it names the sound, nor `schedule_task` unless it asks for a
+  reminder, and a call to either by name is refused (`unasked_tools.py`). The requests to
+  remember called a tool with a side effect in 2 of 30 baseline draws and 0 of 30 candidate
+  draws, and the requests that also asked for a reminder or a volume change called their tool in
+  12 of 12 under both builds
+  ([readings](../../readings/side-effect-tools-on-remember.md#the-candidate-2026-10-30)). The
+  baseline filed R-950 and the candidate R-951.

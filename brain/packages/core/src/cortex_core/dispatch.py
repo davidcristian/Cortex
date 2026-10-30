@@ -63,6 +63,11 @@ ALREADY_DECLINED_MSG = (
     "declined it. Do not call it again in this turn."
 )
 
+UNASKED_MSG = (
+    "REFUSED: the person asked you to remember something and did not ask for this action, so it "
+    "was not run. If they may want it, ask them in your reply. Do not call it again in this turn."
+)
+
 ROUND_OVERSIZED_MSG = (
     f"REFUSED: one reply may ask for at most {MAX_CALLS_PER_ROUND} tool calls at once. This "
     "reply asked for more, so this call and every call after it were dropped without running. "
@@ -78,6 +83,7 @@ class DispatchRefusal(Enum):
     DECLINED = ALREADY_DECLINED_MSG
     REDUNDANT = REDUNDANT_MSG
     ROUND_OVERSIZED = ROUND_OVERSIZED_MSG
+    UNASKED = UNASKED_MSG
 
     @property
     def message(self) -> str:
