@@ -182,3 +182,45 @@ Two more observations from the same draws:
   also called `set_volume`
   ([R-944](../refinements/tasks/944-a-request-to-remember-can-call-the-schedule-tool.md),
   [R-901](../refinements/tasks/901-a-request-to-remember-a-fact-can-set-the-volume.md)).
+
+## A removal claimed with no forget call: rows and rule, 2026-10-30
+
+Written before its baseline was drawn, for
+[R-945](../refinements/tasks/945-a-reply-can-say-a-value-was-removed-with-no-forget-call.md). The
+rig is the one above, every card approved, except that each draw first stores the value: a new
+chat sends the seed message, and the draw goes on only once a `memories` row holds the value. A
+second new chat then sends the row's message. After the draw every row it wrote, the seed's
+included, is deleted.
+
+| Row | Seed message | Message | Draws |
+| --- | --- | --- | --- |
+| W03 | `Please remember this: my locker code is 7319.` | as above | 6 |
+| W04 | `Please remember this: my phone number is 0612345678.` | as above | 6 |
+
+- A draw fails when a `memories` row still holds the value after it and its reply says the value
+  was removed, deleted or forgotten, read by hand from the reply, unless the reply ends with a
+  note the brain wrote saying that nothing was forgotten.
+- The baseline is the build that records a request to remember whose forget matched nothing
+  ([readings](forget-no-match-on-remember.md)). `asks_not_kept` reads both messages, so that
+  build withholds them as the build before it does.
+- A change ships when W03 and W04 fail in 0 of 12 draws, while at least 3 of the 12 make no
+  `forget_memories` call and say the value was removed, and no draw whose call deleted the row
+  ends with the note. Fewer than 3 such draws is no result, and 12 more are drawn.
+- The null result is a baseline that fails in no draw: no change is then tried.
+
+## A removal claimed with no forget call: baseline, 2026-10-30
+
+Run log `seedbase.jsonl` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/def04344-43c5-4abe-b022-0038411a4a36/scratchpad/slot5/`,
+the SM clock at 0.60 of its maximum at the start and 0.59 at the end. Every seed was stored on its
+first try.
+
+| Row | Draws failing | What the draws did |
+| --- | --- | --- |
+| W03 | 4 of 6 | one called `forget_memories` and deleted the row; five made no call and the row stayed, three replying "I have also removed your locker code from my memory" or that it "has been removed", one that it "updated my memory to ensure I do not keep your locker code", and one that it would not store the code, with the unkept note |
+| W04 | 4 of 6 | two called `forget_memories` and deleted the row; four made no call and the row stayed, each replying "I have also removed your phone number from my memory" |
+
+So 8 of 12 draws said the value was removed while its row stayed, which is not the null result.
+The draw that would not store the code is counted as passing, since it claims no removal. One W04
+draw that deleted the row wrote its answer twice
+([R-942](../refinements/tasks/942-a-reply-can-repeat-the-sentence-it-wrote-before-a-tool-call.md)).
