@@ -210,6 +210,30 @@ def test_a_list_number_or_code_fence_an_earlier_round_wrote_is_kept(said: str, t
     assert "".join(hold.feed(char) for char in text) + hold.flush() == text
 
 
+@pytest.mark.parametrize(
+    ("said", "text"),
+    [
+        ("The first file:\n```python\nprint(1)\n```\n", "```python\nprint(2)\n```"),
+        ("| Name | Value |\n| --- | --- |\n| a | 1 |\n", "| Name | Value |\n| --- | --- |"),
+        ("Here are the steps:\n## Steps\n1. Open it.\n", "## Steps\n1. Close it."),
+        ("Status:\n- Done.\n", "- Done.\n- Saved."),
+        ("Results:\n1) Berlin is sunny.\n", "1) Berlin is sunny.\n2) Rome is warm."),
+        ("> Quote me.\n", "> Quote me.\nThat was it."),
+    ],
+)
+def test_a_heading_table_row_list_item_or_quote_an_earlier_round_wrote_is_kept(
+    said: str, text: str
+) -> None:
+    hold = OpeningHold(said)
+    assert "".join(hold.feed(char) for char in text) + hold.flush() == text
+
+
+@pytest.mark.parametrize("said", ["#hashtag fun.\n", "-5 degrees today.\n"])
+def test_a_sentence_opening_with_a_mark_but_no_structure_is_dropped(said: str) -> None:
+    hold = OpeningHold(said)
+    assert hold.feed(said + "It is cold.") == "It is cold."
+
+
 async def test_the_stored_reply_holds_the_repeated_sentence_once() -> None:
     backend = _Rounds([[*_chunks(_ANSWER, "\n\n"), _READ], _chunks(_ANSWER, " I checked.")])
     registry = InMemoryToolRegistry({"read": (ToolSpec("read", "read", {}), _read)})
