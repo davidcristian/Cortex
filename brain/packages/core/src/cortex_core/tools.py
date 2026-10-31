@@ -38,6 +38,9 @@ class ToolSpec:
     confirm_required: bool = False
     # Marks arguments that may hold a secret the user named, kept out of the audit trail.
     private_arguments: bool = False
+    # Marks a tool an MCP sidecar serves: the core does not know its use, and it reads untrusted
+    # content, so a turn that calls it stores nothing by default.
+    sidecar: bool = False
 
 
 @dataclass(frozen=True, slots=True)

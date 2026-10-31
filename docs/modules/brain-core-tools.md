@@ -8,9 +8,9 @@ spawned subtask or a model swap is in [brain-core-residency.md](brain-core-resid
 
 ## Tool values
 
-- `ToolSpec(name, description, parameters, confirm_required=False, private_arguments=False)` is what a tool
+- `ToolSpec(name, description, parameters, confirm_required=False, private_arguments=False, sidecar=False)` is what a tool
   advertises. `parameters` is the JSON Schema the model fills, never interpreted here; `confirm_required` marks
-  an action that needs confirmation, and `private_arguments` arguments the audit and a handoff record keep only as `<redacted>`.
+  an action that needs confirmation, `private_arguments` arguments the audit and a handoff record keep only as `<redacted>`, and `sidecar` a tool an MCP sidecar serves.
 - `ToolCall(id, name, arguments, stamp=UNSTAMPED)` is a model's request to run one tool; `id`
   matches it to its `ToolResult`. The dispatcher overwrites `stamp` at dispatch time, so a stamp
   the model wrote never reaches a tool (ADR-0018, ADR-0027).
@@ -55,7 +55,7 @@ spends and whether it is worth running. The dispatcher is stateless; the loop dr
 - `refusal` (a `DispatchRefusal`) says the call must not run: `BUDGET` when the dispatch allowance
   is spent, `DECLINED` for a call identical to one the person declined in this turn (`ToolLoopContext.declined`,
   read from the tail after a handoff, where a `<redacted>` value equals no real value), `REDUNDANT` for a repeat the salience policy recognized, or
-  `ROUND_OVERSIZED` for a truncated round's overflow slot, or `UNASKED` for a tool in `ToolLoopContext.unasked`. The tool is not invoked, the member's
+  `ROUND_OVERSIZED` for a truncated round's overflow slot, or `UNASKED` for a tool in `LoopRecord.unasked`. The tool is not invoked, the member's
   message is returned, and the attempt is audited. A refusal is checked **before** the confirmation
   rule, so a flood of confirmable calls cannot reach the user as prompts.
 - The confirmation rule (ADR-0013, revised by ADR-0022): a `confirm_required` call on a tainted turn is
@@ -88,7 +88,7 @@ shared by `TurnEngine` and `SubagentRunner` (ADR-0010). It is an async generator
 deltas, `ReasoningDelta`s (ADR-0020), a `ToolStep(tool_name, summary)` immediately before each audited
 dispatch of an advertised tool, and the `StepOutcome(tool_name, ok)` that closes that step. Both fields of
 a step are copied off the matched `ToolSpec`, so an unadvertised call produces no step; a tool `withheld`
-from the model's list keeps its spec, so a call to it by name gets its step and card. `unasked_tools(query)` (`unasked_tools.py`) fills `ToolLoopContext.unasked` for the turn engine and the deep phase: when `asks_kept` reads the person's message as a request to remember, `set_volume` unless it names the sound and `schedule_task` unless it asks for a reminder; those are withheld too and refused by name ([readings](../readings/side-effect-tools-on-remember.md)). The only exit from a
+from the model's list keeps its spec, so a call to it by name gets its step and card. `unasked_tools(query)` (`unasked_tools.py`) reads `ToolLoopContext.query`, which the turn engine and the deep phase set: when `asks_kept` reads the person's message as a request to remember, it names `set_volume` unless the message names the sound and `schedule_task` unless it asks for a reminder; those are withheld too and refused by name ([readings](../readings/side-effect-tools-on-remember.md)). `unasked_sidecar_tools(query, specs)` names every `sidecar` tool on such a message unless it holds a question, a second sentence, a path, a file name, a word for a source or a word of a sidecar tool's name; those stay listed and are refused by name, so the turn is not tainted ([readings](../readings/sidecar-tools-on-remember.md)). The only exit from a
 dispatch without its outcome is the generator being closed mid-dispatch. The turn engine maps the pair
 onto `ToolActivity` and `ToolOutcome`; a subagent puts steps on the spawning stream's `ProgressSink` and
 drops outcomes (ADR-0029 decision 18). The yield vocabulary is in `loop_events.py`, one round's dispatches in `dispatch_round.py`. A round after one that streamed text is held by `OpeningHold` (`round_opening.py`) one opening sentence at a time, and each one is dropped when an earlier round of the loop streamed it word for word and it holds a letter and opens with no markdown structure (a list number, a code fence, a heading, a table row, a list item or a quote is kept), since the cortex can open the round after a call with the sentences it wrote before the call. The round streams from its first sentence that is new, so a sentence repeated after that one is kept; the next call message holds the text as shown, and a held sentence is still shown before an engine failure. No form of the call message stops the repeat, which the [readings](../readings/reply-repeat-across-a-tool-call.md#the-form-of-the-call-message-result-2026-10-31) measure.

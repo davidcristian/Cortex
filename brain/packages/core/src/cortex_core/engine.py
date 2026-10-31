@@ -42,7 +42,6 @@ from cortex_core.turn_output import (
     stream_turn_events,
     unreadable_call_note,
 )
-from cortex_core.unasked_tools import unasked_tools
 from cortex_core.untrusted import TaintLedger, new_nonce
 
 _logger = logging.getLogger(__name__)
@@ -157,7 +156,7 @@ class TurnEngine:
             stops=stops,
             progress=self._caps.progress,
             escalation=self._caps.escalation,
-            unasked=unasked_tools(text),
+            query=text,
         )
         working = attach_images(
             await assemble_inference_messages(text, history, self._caps, context, self._clock),

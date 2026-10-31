@@ -67,6 +67,7 @@ async def test_describe_tools_maps_server_tools_to_specs() -> None:
     specs = await McpToolRegistry(FakeSession(tools=tools)).describe_tools()
     assert [(s.name, s.description) for s in specs] == [("read", "read a file"), ("list", "")]
     assert specs[0].parameters == {"type": "object"}
+    assert [s.sidecar for s in specs] == [True, True]
 
 
 async def test_invoke_renders_text_content_and_keeps_an_image_block() -> None:

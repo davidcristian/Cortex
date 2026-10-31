@@ -21,6 +21,7 @@ from cortex_core.tool_cut import ResultRoom
 from cortex_core.tool_round import call_message, plan_round
 from cortex_core.tool_skips import list_tools
 from cortex_core.tools import ToolCall, ToolSpec
+from cortex_core.unasked_tools import unasked_sidecar_tools, unasked_tools
 
 __all__ = ["MAX_TOOL_STEPS", "ToolLoopContext", "stream_tool_loop"]
 
@@ -79,15 +80,19 @@ async def _round_pieces(
 
 async def _turn_tools(
     context: ToolLoopContext,
-) -> tuple[Sequence[ToolSpec], Mapping[str, ToolSpec]]:
-    """The tools offered to the model, and every listed spec by name to read its calls with."""
+) -> tuple[Sequence[ToolSpec], Mapping[str, ToolSpec], frozenset[str]]:
+    """The tools offered to the model, every listed spec by name, and those refused by name."""
     if context.dispatcher is None:
-        return (), {}
+        return (), {}, frozenset()
     specs = await list_tools(context.dispatcher, context.progress)
-    withheld = await context.dispatcher.withheld(context.session_id) | context.unasked
+    left_out = unasked_tools(context.query)
+    withheld = await context.dispatcher.withheld(context.session_id) | left_out
     # A withheld tool keeps its spec here, so a call to it by name still shows its card or, for
-    # an unasked tool, its refusal.
-    return tuple(spec for spec in specs if spec.name not in withheld), {s.name: s for s in specs}
+    # an unasked tool, its refusal. A sidecar tool stays listed, since a shorter list raises the
+    # model's forget calls on these turns (docs/readings/side-effect-tools-on-remember.md).
+    offered = tuple(spec for spec in specs if spec.name not in withheld)
+    refused = left_out | unasked_sidecar_tools(context.query, specs)
+    return offered, {s.name: s for s in specs}, refused
 
 
 async def stream_tool_loop(
@@ -98,10 +103,12 @@ async def stream_tool_loop(
 ) -> AsyncGenerator[str | ReasoningDelta | ToolStep | StepOutcome, None]:
     """Run the bounded infer↔tool loop over ``working``, yielding each delta, step and outcome."""
     dispatcher = context.dispatcher
-    specs, spec_by_name = await _turn_tools(context)
+    specs, spec_by_name, unasked = await _turn_tools(context)
     # Per loop rather than per turn: a repeat is redundant only against the ``working`` messages
     # that already hold its answer, and the results share the room of that one request.
-    record = LoopRecord(room=ResultRoom(context.room_chars, spent=context.results_spent))
+    record = LoopRecord(
+        room=ResultRoom(context.room_chars, spent=context.results_spent), unasked=unasked
+    )
     said: list[str] = []
     for _step in range(MAX_TOOL_STEPS):
         calls: list[ToolCall] = []

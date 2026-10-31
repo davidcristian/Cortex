@@ -11,13 +11,18 @@ from cortex_core import (
     SET_VOLUME_TOOL_NAME,
     BrainPhase,
     GenerationBounds,
+    HashEmbedder,
     InferenceEvent,
+    InMemoryMemoryStore,
     InMemorySessionStore,
     InMemoryToolRegistry,
     JsonSchema,
+    MemoryRecaller,
     Message,
     RecordingAuditSink,
     Role,
+    SystemClock,
+    TaintLedger,
     TextChunk,
     ToolCall,
     ToolDispatcher,
@@ -26,10 +31,20 @@ from cortex_core import (
     TurnEngine,
 )
 from cortex_core.dispatch import UNASKED_MSG
-from cortex_core.unasked_tools import unasked_tools
+from cortex_core.tool_loop import ToolLoopContext, stream_tool_loop
+from cortex_core.unasked_tools import unasked_sidecar_tools, unasked_tools
 
 _AT = datetime(2026, 10, 30, 4, 0, 0, tzinfo=UTC)
 _BOTH = frozenset({SET_VOLUME_TOOL_NAME, SCHEDULE_TOOL_NAME})
+_FILE_TOOLS = ("list_allowed_directories", "read_file", "search_files")
+_REMEMBER_A_FACT = "Please remember this: my daughter is allergic to peanuts."
+_REMEMBER_AND_ASK = (
+    "Please remember this: my locker code is 7319. Also, which folders can you read?"
+)
+
+
+def _sidecar(*names: str) -> tuple[ToolSpec, ...]:
+    return tuple(ToolSpec(name=name, description="", parameters={}, sidecar=True) for name in names)
 
 
 @pytest.mark.parametrize(
@@ -112,6 +127,89 @@ def test_a_request_to_remember_that_names_the_sound_keeps_the_volume_tool(query:
 )
 def test_a_message_that_asks_nothing_be_remembered_leaves_every_tool(query: str) -> None:
     assert unasked_tools(query) == frozenset()
+    assert unasked_sidecar_tools(query, _sidecar(*_FILE_TOOLS)) == frozenset()
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        _REMEMBER_A_FACT,
+        "Please remember this: my locker code is 7319.",
+        "Please remember this: I take the train at 7:40.",
+        "Please remember this: my card number is 4242 4242 4242 4242.",
+        "Remember that my wifi router is in the hallway.",
+        "Note that my mother's birthday is on 12 May.",
+        "Keep in mind that I am vegetarian.",
+        "Please don't forget this: my gym class is on Tuesday.",
+        "Note my code 7319.",
+    ],
+)
+def test_a_request_to_remember_a_fact_refuses_every_sidecar_tool(query: str) -> None:
+    assert unasked_sidecar_tools(query, _sidecar(*_FILE_TOOLS)) == set(_FILE_TOOLS)
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        _REMEMBER_AND_ASK,
+        "Remember my locker code is 7319 and list the folders you can read.",
+        "Read notes.txt and remember what it says.",
+        "Remember what is in notes.txt.",
+        "Note that my plan is in notes.txt. What does it say?",
+        "Keep in mind that my notes file is called notes.txt, and show me what it holds.",
+        "Remember the contents of my documents folder.",
+        "Note down what the report says.",
+        "Remember the second line of /home/me/todo.",
+        "Remember this page: https://example.com/a",
+        "Keep in mind what my last email said.",
+        "Remember my code 7319. Then look in the folder for the form.",
+        "Note this document for me",
+        "Remember this attachment",
+        "Remember what is on the wiki, and then search for the form.",
+        "Note my code 7319; find the form as well.",
+        "Remember which drawer the form is in",
+        "Note that I moved to Utrecht last week, and tell me which files you can see.",
+        "Please remember this: my brother's name is Luca. Also, what does notes.txt say?",
+        "Remember that my locker code is 7319, and list the folders you can read.",
+        "Remember my code 7319, and can you tell me the time?",
+        "Remember my code 7319. Then tell me the time.",
+        "Remember notes.txt for me.",
+    ],
+)
+def test_a_request_to_remember_that_asks_about_a_source_keeps_every_sidecar_tool(
+    query: str,
+) -> None:
+    assert unasked_sidecar_tools(query, _sidecar(*_FILE_TOOLS)) == frozenset()
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "Please remember this: I read a lot of novels.",
+        "Remember that my file cabinet is in the hallway.",
+        "Keep in mind that my shopping list is on the fridge.",
+        "Note that my sister's folder is blue.",
+        "Remember that I look after my mother on Sundays.",
+        "Please remember this: my landlord is called Mr. Weber.",
+    ],
+)
+def test_a_fact_holding_a_word_for_a_source_only_keeps_the_sidecar_tools_offered(
+    query: str,
+) -> None:
+    assert unasked_sidecar_tools(query, _sidecar(*_FILE_TOOLS)) == frozenset()
+
+
+def test_a_word_of_a_sidecar_tool_name_keeps_the_tools_of_any_server() -> None:
+    calendar = _sidecar("query_calendar_events")
+    assert unasked_sidecar_tools("Note down my calendar entries.", calendar) == frozenset()
+    assert unasked_sidecar_tools("Note down my locker number 42.", calendar) == {
+        "query_calendar_events"
+    }
+
+
+def test_a_tool_no_sidecar_serves_is_not_refused_for_being_listed() -> None:
+    listed = (ToolSpec(name="look", description="", parameters={}),)
+    assert unasked_sidecar_tools(_REMEMBER_A_FACT, listed) == frozenset()
 
 
 class _Backend:
@@ -142,17 +240,20 @@ class _Backend:
 
 
 def _dispatcher(ran: list[str], audit: RecordingAuditSink) -> ToolDispatcher:
-    def tool(name: str) -> tuple[ToolSpec, Callable[[Mapping[str, object]], Awaitable[str]]]:
+    def tool(
+        name: str, *, sidecar: bool = False
+    ) -> tuple[ToolSpec, Callable[[Mapping[str, object]], Awaitable[str]]]:
         async def handler(arguments: Mapping[str, object]) -> str:
             del arguments
             ran.append(name)
             return "done"
 
-        return ToolSpec(name=name, description=name, parameters={}), handler
+        return ToolSpec(name=name, description=name, parameters={}, sidecar=sidecar), handler
 
     names = (SET_VOLUME_TOOL_NAME, SCHEDULE_TOOL_NAME, "look")
-    registry = InMemoryToolRegistry({name: tool(name) for name in names})
-    return ToolDispatcher(registry, audit, TickingClock())
+    tools = {name: tool(name) for name in names}
+    tools[_FILE_TOOLS[0]] = tool(_FILE_TOOLS[0], sidecar=True)
+    return ToolDispatcher(InMemoryToolRegistry(tools), audit, TickingClock())
 
 
 async def _turn(text: str, backend: _Backend) -> tuple[list[str], RecordingAuditSink]:
@@ -172,13 +273,50 @@ async def _turn(text: str, backend: _Backend) -> tuple[list[str], RecordingAudit
 async def test_a_turn_that_asks_to_remember_a_fact_is_offered_neither_tool() -> None:
     backend = _Backend()
     await _turn("Please remember this: I work as a nurse.", backend)
-    assert backend.offered == [["look"]]
+    assert backend.offered == [["look", _FILE_TOOLS[0]]]
 
 
 async def test_a_turn_that_asks_to_remember_and_for_the_sound_is_offered_the_volume() -> None:
     backend = _Backend()
     await _turn("Please remember this: I am hard of hearing. Set the volume to 80%.", backend)
-    assert backend.offered == [[SET_VOLUME_TOOL_NAME, "look"]]
+    assert backend.offered == [[SET_VOLUME_TOOL_NAME, "look", _FILE_TOOLS[0]]]
+
+
+async def test_a_turn_that_asks_to_remember_and_about_a_folder_is_offered_the_file_tool() -> None:
+    backend = _Backend()
+    await _turn(_REMEMBER_AND_ASK, backend)
+    assert backend.offered == [["look", _FILE_TOOLS[0]]]
+
+
+async def test_a_file_tool_a_turn_asked_about_runs_when_called() -> None:
+    backend = _Backend([ToolCall(id="c1", name=_FILE_TOOLS[0], arguments={})])
+    ran, audit = await _turn(_REMEMBER_AND_ASK, backend)
+    assert ran == [_FILE_TOOLS[0]]
+    assert [record.ok for record in audit.records] == [True]
+
+
+async def test_a_sidecar_tool_called_by_name_is_refused_and_leaves_the_turn_untainted() -> None:
+    ran: list[str] = []
+    audit = RecordingAuditSink()
+    taint = TaintLedger()
+    backend = _Backend([ToolCall(id="c1", name=_FILE_TOOLS[0], arguments={})])
+    context = ToolLoopContext(
+        dispatcher=_dispatcher(ran, audit),
+        clock=TickingClock(),
+        turn_id="t",
+        taint=taint,
+        nonce="n",
+        session_id="s",
+        query=_REMEMBER_A_FACT,
+    )
+    working = [Message(role=Role.USER, text=_REMEMBER_A_FACT, at=_AT, turn_id="t")]
+    events = [event async for event in stream_tool_loop(backend, "m", working, context)]
+    assert ran == []
+    assert taint.tainted is False
+    assert events == ["noted"]
+    assert UNASKED_MSG in backend.seen[1][-1].text
+    (refused,) = audit.records
+    assert (refused.name, refused.ok, refused.detail) == (_FILE_TOOLS[0], False, UNASKED_MSG)
 
 
 async def test_an_unasked_tool_called_by_name_is_refused_and_never_runs() -> None:
@@ -190,6 +328,22 @@ async def test_an_unasked_tool_called_by_name_is_refused_and_never_runs() -> Non
     assert (refused.name, refused.ok, refused.detail) == (SET_VOLUME_TOOL_NAME, False, UNASKED_MSG)
     assert looked.ok
     assert UNASKED_MSG in backend.seen[1][-2].text
+
+
+async def test_a_request_to_remember_whose_file_call_was_refused_still_stores_the_fact() -> None:
+    store = InMemoryMemoryStore()
+    ran: list[str] = []
+    backend = _Backend([ToolCall(id="c1", name=_FILE_TOOLS[0], arguments={})])
+    caps = TurnCapabilities(
+        memory=MemoryRecaller(store, HashEmbedder(), SystemClock()),
+        tools=_dispatcher(ran, RecordingAuditSink()),
+    )
+    engine = TurnEngine(InMemorySessionStore(), backend, TickingClock(), capabilities=caps)
+    async for _event in engine.handle_turn("s", _REMEMBER_A_FACT, turn_id="t"):
+        pass
+    assert ran == []
+    (kept,) = await store.search(await HashEmbedder().embed("peanuts"), k=5)
+    assert "peanuts" in kept.record.text
 
 
 async def test_the_deep_phase_refuses_a_tool_its_request_to_remember_did_not_ask_for() -> None:
@@ -217,4 +371,32 @@ async def test_the_deep_phase_refuses_a_tool_its_request_to_remember_did_not_ask
         await events.aclose()
     (refused,) = audit.records
     assert (refused.name, refused.detail) == (SCHEDULE_TOOL_NAME, UNASKED_MSG)
+    assert ran == []
+
+
+async def test_the_deep_phase_refuses_a_sidecar_tool_its_request_did_not_ask_for() -> None:
+    sessions = InMemorySessionStore()
+    await sessions.append(
+        harness.SESSION,
+        Message(role=Role.USER, text=_REMEMBER_A_FACT, at=_AT, turn_id=harness.TURN),
+    )
+    ran: list[str] = []
+    audit = RecordingAuditSink()
+    backend = ScriptedBrainBackend(
+        chunks=("done",),
+        tool_calls=(ToolCall(id="c1", name=_FILE_TOOLS[0], arguments={}),),
+    )
+    caps = TurnCapabilities(tools=_dispatcher(ran, audit))
+    phase = BrainPhase(sessions, backend, TickingClock(), "brain", caps, NO_CADENCE_TERMS)
+    record = harness.prepared_slot().snapshot(
+        turn_id=harness.TURN, session_id=harness.SESSION, requested_at=_AT
+    )
+    events = phase.run(record)
+    try:
+        async for _event in events:
+            pass
+    finally:
+        await events.aclose()
+    (refused,) = audit.records
+    assert (refused.name, refused.detail) == (_FILE_TOOLS[0], UNASKED_MSG)
     assert ran == []

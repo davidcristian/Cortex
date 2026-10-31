@@ -33,7 +33,6 @@ from cortex_core.turn_output import (
     stream_turn_events,
     unreadable_call_note,
 )
-from cortex_core.unasked_tools import unasked_tools
 from cortex_core.untrusted import TaintLedger
 from cortex_core.waits import THINKING, Wait
 
@@ -108,7 +107,7 @@ class BrainPhase:
             generating=_DEEP_GENERATING,
             declined=declined_calls(record),
             results_spent=sum(len(m.text) for m in tail if m.role is Role.TOOL),
-            unasked=unasked_tools(query),
+            query=query,
         )
         assembled = await assemble_inference_messages(
             query, history, self._caps, context, self._clock

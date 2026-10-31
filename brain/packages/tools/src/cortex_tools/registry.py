@@ -84,7 +84,10 @@ class McpToolRegistry:
             raise ToolError(msg) from err
         return [
             ToolSpec(
-                name=tool.name, description=tool.description or "", parameters=tool.inputSchema
+                name=tool.name,
+                description=tool.description or "",
+                parameters=tool.inputSchema,
+                sidecar=True,
             )
             for tool in result.tools
         ]

@@ -1,6 +1,6 @@
 """Running one planned round of tool dispatches, and the context each round is given."""
 
-from collections.abc import AsyncGenerator, Mapping, Sequence
+from collections.abc import AsyncGenerator, Mapping
 from dataclasses import dataclass, field
 
 from cortex_core.cadence import CadenceWatch
@@ -51,8 +51,8 @@ class ToolLoopContext:
     results_spent: int = 0
     # The characters of tool results this loop's request has room for, from its tier's context.
     room_chars: int = RESULT_ROOM_CHARS
-    # The tools with no card that the person's message did not ask for (``unasked_tools``).
-    unasked: frozenset[str] = frozenset()
+    # The person's message, read against the listed tools for those it did not ask for.
+    query: str = ""
 
     @property
     def unit_id(self) -> str:
@@ -66,12 +66,14 @@ class LoopRecord:
 
     dispatched: list[list[ToolCall]] = field(default_factory=list[list[ToolCall]])
     room: ResultRoom = field(default_factory=ResultRoom)
+    # The tools the person's message did not ask for (``unasked_tools.py``), refused by name.
+    unasked: frozenset[str] = frozenset()
 
 
 def _refused_by(
     call: ToolCall,
     dispatcher: ToolDispatcher,
-    dispatched: Sequence[Sequence[ToolCall]],
+    record: LoopRecord,
     context: ToolLoopContext,
     *,
     oversized: bool,
@@ -79,11 +81,11 @@ def _refused_by(
     """Which bound refuses this call before it can run, or ``None`` when it may go ahead."""
     if oversized:
         return DispatchRefusal.ROUND_OVERSIZED
-    if call.name in context.unasked:
+    if call.name in record.unasked:
         return DispatchRefusal.UNASKED
     if any(asks_the_same(call, declined) for declined in context.declined):
         return DispatchRefusal.DECLINED
-    if not dispatcher.admits(call, dispatched):
+    if not dispatcher.admits(call, record.dispatched):
         return DispatchRefusal.REDUNDANT
     if not context.budget.charge(dispatcher.cost_of(call.name)):
         return DispatchRefusal.BUDGET
@@ -120,7 +122,7 @@ async def run_round(
     record.dispatched.append(this_round)
     for index, (call, oversized) in enumerate(plan.answered()):
         spec = spec_by_name.get(call.name)
-        refusal = _refused_by(call, dispatcher, record.dispatched, context, oversized=oversized)
+        refusal = _refused_by(call, dispatcher, record, context, oversized=oversized)
         if refusal is None:
             this_round.append(call)
         # Only an advertised spec is shown, so no model-written tool name reaches the overlay.

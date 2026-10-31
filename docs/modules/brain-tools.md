@@ -17,7 +17,8 @@ turns any MCP server into a source of audited, model-callable tools.
     description, `inputSchema` as the parameters) to advertise to the model. Every spec arrives with
     `confirm_required=False` and MCP annotations are deliberately dropped: a sidecar must never declare its own
     policy, so which remote tools need confirmation is stamped brain-side by the composition root's
-    `ConfirmRequiredToolRegistry` overlay (`CORTEX_TOOLS_GATED`, ADR-0022).
+    `ConfirmRequiredToolRegistry` overlay (`CORTEX_TOOLS_GATED`, ADR-0022). Every spec has
+    `sidecar=True`, which `unasked_sidecar_tools` reads on a request to remember.
   - `invoke(call)` calls `call_tool(name, arguments)`, joins the result's text content blocks into
     `ToolResult.content` and sets `is_error` from the server's `isError`. Image blocks are read into
     `ToolResult.images` by `blocks.result_images`, beside the text rather than inside it. A source a

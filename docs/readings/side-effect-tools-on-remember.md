@@ -59,7 +59,7 @@ The baseline is not the null result: 2 of 30 R draws called a tool with a side e
 ## The candidate, 2026-10-30
 
 The candidate is the change the rule describes: `unasked_tools` (`unasked_tools.py`) fills the
-turn's `ToolLoopContext.unasked`, the tool loop leaves those tools out of the list, and a call to
+loop's `LoopRecord.unasked`, the tool loop leaves those tools out of the list, and a call to
 one by name is refused as `UNASKED`. Run log `cand.jsonl` beside `base.jsonl`, the SM clock at
 0.59 of its maximum at the start and 0.60 at the end. R01, R02 and A03 to A06 were drawn from
 04:30 and the other rows from 04:35; a driver import failure between them drew nothing.

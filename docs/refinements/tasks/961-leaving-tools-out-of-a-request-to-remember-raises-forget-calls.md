@@ -18,8 +18,9 @@ row has drawn that since the change.
 1. Write rows and a rule into the readings before any draw. The rows need a seeded pool holding
    the fact, since only that case can show a card, and the rule must say what a Deny costs: a
    declined forget still keeps the turn out of memory.
-2. Consider leaving both tools in the list and refusing a call by name. The request then matches
-   the one that drew 1 of 30. The side-effect rule of
+2. Consider leaving both tools in the list and refusing a call by name, as
+   `unasked_sidecar_tools` already does for a sidecar tool. The request then matches the one that
+   drew 1 of 30. The side-effect rule of
    [R-901](901-a-request-to-remember-a-fact-can-set-the-volume.md) must still hold.
 3. Change no shipped behaviour on the counts above alone.
 

@@ -100,7 +100,7 @@ Memories are recalled as a trusted system message, so an obeyed injection could 
 (`CORTEX_MEMORY_ON_TAINTED=skip`, the default). [ADR-0019](ADR-0019-tainted-memory-recording.md)
 adds `record`, which stores a tainted exchange with a marker and fences and taints it again on
 recall; an opaque turn is never recorded under either
-([ADR-0029](ADR-0029-vision-screen-capture.md)).
+([ADR-0029](ADR-0029-vision-screen-capture.md)). So a sidecar tool called on a request to remember would lose the fact: `ToolSpec.sidecar` marks every MCP tool, and on a turn whose message asks to remember and names no source such a tool stays listed but a call to it is refused with a trusted `UNASKED` result, which leaves the turn untainted (`unasked_sidecar_tools`, [readings](../readings/sidecar-tools-on-remember.md)). It stays listed because a shorter list raised the model's forget calls.
 
 ### 6. No screening subagent
 
