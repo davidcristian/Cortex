@@ -32,6 +32,7 @@ class OpeningHold:
         self._spaced = said[-1:].isspace()
         self._held = ""
         self._gap = ""
+        self._dropped: set[str] = set()
 
     def feed(self, text: str) -> str:
         """The text to stream now, which is empty while an opening sentence is still held."""
@@ -39,9 +40,12 @@ class OpeningHold:
             return text
         self._held += text
         while (found := _OPENING.match(self._held)) is not None:
-            if _words(found["sentence"]) not in self._earlier:
+            words = _words(found["sentence"])
+            # A sentence back a second time is a loop, which only the repeat watch can end.
+            if words not in self._earlier or words in self._dropped:
                 self._holding = False
                 return self._gap + self._held
+            self._dropped.add(words)
             # The white space after the first dropped sentence keeps the round apart from the
             # earlier text when neither that text's end nor this round's start has any.
             self._gap = self._gap or found["lead"] or ("" if self._spaced else found["gap"])

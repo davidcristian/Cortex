@@ -181,6 +181,19 @@ def test_the_text_stays_held_until_a_new_sentence_begins_then_each_chunk_streams
     assert hold.flush() == ""
 
 
+@pytest.mark.parametrize(
+    ("text", "shown"),
+    [
+        (f"{_ANSWER}\n{_ANSWER}\nDone.", f"{_ANSWER}\nDone."),
+        (f"{_ANSWER} {_SECOND} {_ANSWER} Done.", f"{_ANSWER} Done."),
+        (f"{_ANSWER}\n{_ANSWER}\n", ""),
+    ],
+)
+def test_a_sentence_back_a_second_time_in_one_round_ends_the_hold(text: str, shown: str) -> None:
+    hold = OpeningHold(f"{_TWO}\n")
+    assert hold.feed(text) + hold.flush() == shown
+
+
 def test_a_list_item_after_a_dropped_line_is_kept() -> None:
     hold = OpeningHold("Results:\n- Done.\n")
     assert hold.feed("Results:\n- Done.\n- Saved.") == "- Done.\n- Saved."

@@ -330,3 +330,19 @@ async def test_a_reply_repeating_one_line_after_a_tool_round_still_ends_there() 
     assert reply == "Reading the rota.\n" + f"{_LINE}\n" * 3
     assert stops.repeated
     assert len(sink.records) == 1
+
+
+async def test_a_round_repeating_a_line_an_earlier_round_wrote_still_ends_at_the_watch() -> None:
+    backend = _Reading(1, f"{_LINE}\n", [f"{_LINE}\n"] * 400)
+    reply, stops, sink = await _read_turn(backend)
+    assert reply == f"{_LINE}\n" * 4
+    assert stops.repeated
+    assert len(sink.records) == 1
+
+
+async def test_a_round_repeating_a_block_an_earlier_round_wrote_still_ends_at_the_watch() -> None:
+    block = f"{_LINE}\nThe altos sing the second verse.\n"
+    backend = _Reading(1, block, [block] * 200)
+    reply, stops, _sink = await _read_turn(backend)
+    assert reply == block * 4
+    assert stops.repeated

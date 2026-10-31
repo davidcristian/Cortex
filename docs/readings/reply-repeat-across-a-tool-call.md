@@ -240,3 +240,10 @@ in other words, such as `I have also removed the phone number 0612345678 from my
 the first round's `... from my memory as you requested.`. The hold reads word for word, so it keeps
 them and the reply says the same thing twice
 ([R-960](../refinements/tasks/960-a-round-can-repeat-an-earlier-sentence-in-other-words.md)).
+
+## A round that loops on an earlier sentence: result, 2026-10-31
+
+A fixed round writing an earlier round's line 400 times ran to its end with nothing shown, since the
+hold dropped every copy before the repeat watch read it. A sentence back a second time in one round
+now ends the hold, and the same round ends at the watch's third copy. Replaying the 449 later rounds
+of `live`, `batch1`, `cap-w04`, `cap-t03` and `cap-t03b` through both holds changes none of them.
