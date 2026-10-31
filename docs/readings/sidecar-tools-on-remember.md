@@ -69,7 +69,8 @@ The candidate ships. Three observations:
   have access to your budget spreadsheet yet. Could you please tell me where it's located or upload
   the file?". None said a call was refused, and the sidecar is in fact reachable, so "I don't have
   access" is not exact. The person's next message is read afresh, so naming the file reaches the
-  tool one message later. That is the cost of a source the reader does not name.
+  tool one message later. That is the cost of a source the reader does not name
+  ([R-962](../refinements/tasks/962-a-reply-after-a-refused-file-call-can-say-it-has-no-access.md)).
 - On the shipped build each M draw searched the folder, found nothing and stored nothing, since the
   file tools tainted the turn. Each candidate draw stored the exchange.
 - No R draw called a file tool, as expected at 2 in 242 draws, so the rare call itself is covered

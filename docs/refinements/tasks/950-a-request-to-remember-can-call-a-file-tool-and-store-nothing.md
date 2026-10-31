@@ -39,4 +39,6 @@ same call on 4 of 170 requests to remember a card number.
   sets `ToolSpec.sidecar`, those tools stay listed, and a call to one on a request to remember that
   names no source is refused by name, which leaves the turn untainted. T01 and F01 to F05 called a
   file tool in 12 of 12 draws on both builds and R01 to R15 stored 15 of 15
-  ([readings](../../readings/sidecar-tools-on-remember.md)).
+  ([readings](../../readings/sidecar-tools-on-remember.md)). Filed
+  [R-962](962-a-reply-after-a-refused-file-call-can-say-it-has-no-access.md) for the reply after a
+  refusal.
