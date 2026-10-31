@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 
 from cortex_core import (
+    MAX_CALLS_PER_ROUND,
     DecodeCadence,
     DecodeStop,
     GenerationBounds,
@@ -49,6 +50,7 @@ class BackendUnderTest:
 
     deliberating: Callable[[], InferenceBackend]
     calling: Callable[[], InferenceBackend]
+    calling_on: Callable[[], InferenceBackend]
     wordless: Callable[[], InferenceBackend]
     unreachable: Callable[[], InferenceBackend]
     one_system_template: Callable[[], SystemLedWorld]
@@ -151,6 +153,16 @@ async def check_a_tool_call_never_precedes_the_words_beside_it(subject: BackendU
     assert call_at > max(text_at), f"the call must follow the words beside it: {events!r}"
 
 
+async def check_a_completion_that_goes_on_calling_ends_one_past_the_round_cap(
+    subject: BackendUnderTest,
+) -> None:
+    """A run of calls the model does not stop writing ends once the round cannot keep another."""
+    async with asyncio.timeout(_WEDGE_WATCHDOG_S):
+        events = await events_of(subject.calling_on())
+    calls = [event for event in events if isinstance(event, ToolCall)]
+    assert len(calls) == MAX_CALLS_PER_ROUND + 1, f"kept {len(calls)} calls"
+
+
 async def check_the_closing_events_arrive_once_each_and_in_one_order(
     subject: BackendUnderTest,
 ) -> None:
@@ -231,6 +243,7 @@ STREAM_CHECKS: tuple[StreamCheck, ...] = (
     check_a_trace_the_request_budgeted_away_still_crosses,
     check_a_tool_call_crosses_the_port_assembled,
     check_a_tool_call_never_precedes_the_words_beside_it,
+    check_a_completion_that_goes_on_calling_ends_one_past_the_round_cap,
     check_the_closing_events_arrive_once_each_and_in_one_order,
     check_a_completion_with_nothing_to_say_is_still_a_completion,
     check_an_abandoned_completion_costs_the_backend_nothing,

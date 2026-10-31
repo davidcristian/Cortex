@@ -139,7 +139,7 @@ that never replies, or read more than its context holds, so each of those has a 
     calls a round emits past 16, half the budget, and truncates the assistant message's
     `tool_calls` to match, so the conversation stays well formed and the dropped calls add nothing
     to the context. One overflow slot is kept and refused with a message naming the cap, so the
-    model knows its round was cut. The cap counts emitted calls, independent of salience.
+    model knows its round was cut. The cap counts emitted calls, independent of salience. The inference adapter closes the stream once a call past the kept ones starts, because it assembles calls only as the stream ends and a run of calls would otherwise go on to the length limit.
 14. **Every refusal is the dispatcher's, audited, and checked before confirmation.** The loop
     passes `refusal: DispatchRefusal | None` (round oversized, redundant, budget), whose member
     value is the model-facing message. `_refused_by` checks the overflow slot first, then salience,

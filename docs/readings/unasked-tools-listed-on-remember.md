@@ -91,4 +91,4 @@ Four things the draws show:
   turn untainted and stored the fact, and the reply did not name the call.
 - **That R02 draw took about 10 times the row's median.** The cortex wrote its reply, then `set_volume`
   calls with no arguments until the length limit, and the reply ended in the limit note
-  ([R-963](../refinements/tasks/963-a-run-of-calls-in-one-round-goes-on-to-the-length-limit.md)).
+  ([call-run-cut.md](call-run-cut.md)).

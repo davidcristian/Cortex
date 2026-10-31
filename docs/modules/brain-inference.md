@@ -76,7 +76,7 @@ one); vision additionally needs `--mmproj`.
 come off different parts of it, the stop off the first choice and the cadence off the chunk, so a
 build that offers one and not the other still reports what it has. Where both are present the order
 is the adapter's own: text, then the stop, then the cadence, then any tool calls, which are
-assembled only once the stream is over. `ChunkRead` is the record `decode.py` hands back per chunk,
+assembled only once the stream is over, or once `round_is_full` reads that a call past the `MAX_CALLS_PER_ROUND` and one more `plan_round` keeps has started: the adapter then closes the response, the engine ends the generation and frees its slot, and that completion reports no stop ([readings](../readings/call-run-cut.md)). `ChunkRead` is the record `decode.py` hands back per chunk,
 and the five independent facts on it are why it is a record rather than a tuple.
 
 **Timeouts are the injected client's.** The adapter sets none on a generation, which may
@@ -216,11 +216,11 @@ for none crosses all the same, so an implementation reports what its deployment 
 suppressing it to match the request; a trace that arrived despite a request budgeting it to zero
 tokens crosses the same way, which is a separate obligation because a count reads as a limit where a
 switch reads as a request (ADR-0049); a tool call crosses whole; a tool call never precedes the
-words beside it; the two closing events arrive at most once each with the stop first and both after
+words beside it; a completion that goes on calling ends one call past the round's cap; the two closing events arrive at most once each with the stop first and both after
 what they describe; a completion with nothing to say owes no event at all; an abandoned completion
 costs the backend nothing; a backend that cannot answer fails its caller with `InferenceError`; a
 backend answers only for a model it serves; and a request that opens with several system messages is
-answered, with every system text reaching the engine in order. Nothing in it counts events, sizes
+answered, with every system text reaching the engine in order. Besides that cap nothing in it counts events, sizes
 one, or asks when one arrives, because the two implementations produce them at different rates from
 different sources.
 

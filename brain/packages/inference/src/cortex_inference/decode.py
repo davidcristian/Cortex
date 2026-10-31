@@ -6,11 +6,13 @@ How a malformed answer is handled, which differs by field, is in docs/modules/br
 import json
 from collections.abc import Mapping
 from dataclasses import dataclass
+from itertools import islice
 from typing import cast
 
 import httpx
 
 from cortex_core import (
+    MAX_CALLS_PER_ROUND,
     ContextOverflowError,
     DecodeCadence,
     InferenceError,
@@ -26,6 +28,7 @@ __all__ = [
     "consume_chunk",
     "finish_calls",
     "raise_for_status",
+    "round_is_full",
 ]
 
 # llama.cpp's finish-reason words mapped onto the core's closed set. All three were read off a
@@ -48,6 +51,9 @@ _OVERFLOW_TYPE = "exceed_context_size_error"
 # read off the running server on 2026-10-16.
 _LOADING_TYPE = "unavailable_error"
 _LOADING_MESSAGE = "Loading model"
+
+# ``plan_round`` keeps the cap and one more, which it refuses, and drops the rest.
+_KEPT_CALLS = MAX_CALLS_PER_ROUND + 1
 
 
 async def raise_for_status(response: httpx.Response, model: str) -> None:
@@ -195,10 +201,15 @@ def consume_chunk(payload: str, pending: dict[int, PendingCall]) -> ChunkRead:
     )
 
 
+def round_is_full(pending: Mapping[int, PendingCall]) -> bool:
+    """Whether a call past those a round keeps has started, so the calls before it are whole."""
+    return len(pending) > _KEPT_CALLS
+
+
 def finish_calls(pending: dict[int, PendingCall]) -> list[ToolCall]:
-    """Turn the reassembled fragments into ``ToolCall``s, parsing each JSON argument string."""
+    """Turn the fragments of the calls a round keeps into ``ToolCall``s, parsing each argument."""
     calls: list[ToolCall] = []
-    for slot in pending.values():
+    for slot in islice(pending.values(), _KEPT_CALLS):
         try:
             arguments: Mapping[str, object] = json.loads(slot.arguments) if slot.arguments else {}
         except json.JSONDecodeError as err:

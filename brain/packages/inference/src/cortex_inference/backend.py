@@ -25,6 +25,7 @@ from cortex_inference.decode import (
     consume_chunk,
     finish_calls,
     raise_for_status,
+    round_is_full,
 )
 from cortex_inference.request import build_payload, join_leading_system, leading_system_count
 from cortex_inference.system_probe import SystemProbeError, delivers_system_messages
@@ -176,6 +177,10 @@ class LlamaCppBackend:
                         self._note_build(model, lease.endpoint, chunk.build)
                         for event in _chunk_events(chunk):
                             yield event
+                        # Leaving closes the response, and the engine ends a generation whose
+                        # client went away, so a run of calls costs no wait up to the length limit.
+                        if round_is_full(pending):
+                            break
         except ModelManagerError as err:
             msg = f"model manager could not lease {model!r} for inference"
             raise InferenceError(msg) from err

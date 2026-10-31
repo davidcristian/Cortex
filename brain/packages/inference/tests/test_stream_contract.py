@@ -1,5 +1,6 @@
+import asyncio
 import json
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Callable
 from functools import partial
 
 import httpx
@@ -20,6 +21,7 @@ from system_led import RecordingBackend
 from template_servers import TemplateServer, leading_systems
 
 from cortex_core import (
+    MAX_CALLS_PER_ROUND,
     DecodeCadence,
     DecodeStop,
     InferenceError,
@@ -109,6 +111,18 @@ def _calling_body() -> bytes:
     )
 
 
+class _EndlessCalls(httpx.AsyncByteStream):
+    """An engine that writes calls and never ends the completion."""
+
+    async def __aiter__(self) -> AsyncIterator[bytes]:
+        index = 0
+        while True:
+            fragment = {"index": index, "id": f"c{index}", "function": {"name": "read"}}
+            yield _sse(json.dumps({"choices": [{"delta": {"tool_calls": [fragment]}}]}))
+            index += 1
+            await asyncio.sleep(0)
+
+
 @pytest.fixture
 def scripted() -> BackendUnderTest:
     """Build the core twin, scripted with each world rather than asked to derive it."""
@@ -129,6 +143,14 @@ def scripted() -> BackendUnderTest:
     def calling() -> ScriptedInferenceBackend:
         return build([TextChunk(CONTRACT_ASIDE), DecodeStop(StopReason.CALLED), CONTRACT_CALL])
 
+    def calling_on() -> ScriptedInferenceBackend:
+        return build(
+            [
+                ToolCall(id=f"c{index}", name="read", arguments={})
+                for index in range(MAX_CALLS_PER_ROUND + 1)
+            ]
+        )
+
     def unreachable() -> ScriptedInferenceBackend:
         backend = build([TextChunk(CONTRACT_REPLY)])
         backend.fail_with(InferenceError("llama-server is not answering"))
@@ -148,6 +170,7 @@ def scripted() -> BackendUnderTest:
     return BackendUnderTest(
         deliberating=deliberating,
         calling=calling,
+        calling_on=calling_on,
         wordless=partial(build, []),
         unreachable=unreachable,
         one_system_template=one_system_template,
@@ -191,6 +214,7 @@ def adapter() -> BackendUnderTest:
     return BackendUnderTest(
         deliberating=partial(build, _deliberating_body()),
         calling=partial(build, _calling_body()),
+        calling_on=lambda: over(lambda _request: httpx.Response(200, stream=_EndlessCalls())),
         wordless=partial(build, _sse("[DONE]")),
         unreachable=unreachable,
         one_system_template=one_system_template,

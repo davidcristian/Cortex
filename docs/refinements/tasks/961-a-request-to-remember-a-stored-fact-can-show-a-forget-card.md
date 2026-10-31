@@ -33,5 +33,4 @@ drew 5 of 15 calls and 3 of 12 cards against 4 of 15 and 1 of 12, so it did not 
   [R-952](952-withheld-unasked-tools-may-raise-forget-calls-on-a-remember-request.md).
 - 2026-10-31: corrected and retitled from "Leaving tools out of a request to remember raises forget
   calls". The candidate that lists both tools failed its rule, which also drew the seeded pool for the
-  first time. Filed
-  [R-963](963-a-run-of-calls-in-one-round-goes-on-to-the-length-limit.md).
+  first time.

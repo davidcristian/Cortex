@@ -103,7 +103,7 @@ past the allowance are still dispatched, so their `Role.TOOL` answers exist and 
 
 `plan_round(calls) -> RoundPlan` (`tool_round.py`, ADR-0009 decision 13) is the pure per-round cap:
 a round over `MAX_CALLS_PER_ROUND` (16, half of `MAX_TOOL_DISPATCHES`) is cut to the cap plus one
-overflow slot, refused as `ROUND_OVERSIZED` ahead of every other bound, and the rest are dropped.
+overflow slot, refused as `ROUND_OVERSIZED` ahead of every other bound, and the rest are dropped. The inference adapter stops reading once a call past those starts, so a call past it reaches neither `plan_round` nor `TaintLedger.name_forget`.
 The module also owns `call_message` and `result_message`, the two messages a round appends; each result is cut to its share of the loop's
 `ResultRoom` (`tool_cut.py`, decision 20) of `ToolLoopContext.room_chars` characters, `RESULT_ROOM_CHARS` for the cortex and the deep phase and `subagent_room_chars` of one server slot for a subagent, unless it is a refusal or failure the brain wrote.
 
