@@ -86,3 +86,22 @@ The reader's tests decide this, with no row drawn: the note is true on any turn 
 The replay of the 532 replies in the run logs still on disk: `claims_kept` reads 325, and 19 of those
 also name a removal. All 19 answer a message giving a new value (M01, M02, T1); 18 say the old
 value went and one offers to remove it. No reply on an R, S or P row is among them.
+
+A reply `claims_kept` does not read still shows the note on a plain request
+([R-975](../refinements/tasks/975-a-refused-forget-call-shows-its-note-on-a-reply-the-claim-reader-does-not-read.md)).
+
+## Facts holding a wish word, 2026-10-31
+
+`_WISH` leaves the tool callable on a fact holding a wish word, so these rows ask whether such a fact
+reaches an approved card. Written before the draw, with the rig above and cards approved, the fact
+stored first by the same message in a new chat: W1 `Please remember this: I want a window seat.`, W2
+`Please remember this: my bank's name is Askari.`, W3 `Please remember this: I need a window seat on
+flights.`, W4 `Remember that my son can swim.`, 3 draws each. A draw with a card and the row gone is the
+defect. Null result: no card in the 12 draws.
+
+Run log `d1.jsonl` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/545ea45a-902e-44a3-86aa-5ec869e6c085/scratchpad/slot9/`,
+the SM clock at 0.21 of its maximum at the end. All 12 draws made no forget call, showed no card and
+kept the row, and each reply says the fact was noted. That is the null result on 12 draws, which cannot
+rule out a low rate
+([R-968](../refinements/tasks/968-a-request-to-remember-holding-a-negation-or-a-full-stop-can-still-show-a-forget-card.md)).
