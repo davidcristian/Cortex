@@ -56,6 +56,25 @@ _CAN_RETRACT = re.compile(
     r"|(?![a-z])[^\W\d_]",
     re.IGNORECASE,
 )
+# A wish and a bare value are how a forget request can read, so only a stated fact is refused:
+# the person, or a subject that is no value or pronoun, with a plain verb and no modal.
+_STATES_A_FACT = re.compile(
+    r"\b(?:my|our|i|we)\b"
+    r"|\b(?!\d|(?:it|this|that|these|those|they|he|she)\b)[\w'\u2019]+\s+(?:is|are|was|were)\b"
+    r"(?!\s+to\b)",
+    re.IGNORECASE,
+)
+_WISH = re.compile(
+    r"\b(?:should|shall|must|ought|would|could|can|gotta|need\w*|want\w*|wish\w*|mean\w*"
+    r"|(?:has|have|had)\s+to|had\s+better|to\s+be|ask\w*|say\w*|said|told|tell\w*)\b",
+    re.IGNORECASE,
+)
+_FORGETTING = re.compile(
+    r"\b(?:forg[eo]t\w*|delet\w+|eras\w+|remov\w+|wip(?:e|es|ed|ing)|clear\w*|drop\w*|discard\w*"
+    r"|purg\w+)\b",
+    re.IGNORECASE,
+)
+_SENTENCE_END = re.compile(r"(?<=[.!?])\s+|\n+")
 
 
 def _asks_a_source(query: str, sidecar: Sequence[ToolSpec]) -> bool:
@@ -81,10 +100,23 @@ def unasked_sidecar_tools(query: str, specs: Sequence[ToolSpec]) -> frozenset[st
     return frozenset(spec.name for spec in sidecar)
 
 
-def unasked_forget(query: str) -> frozenset[str]:
-    """The forget tool, refused by name on a request to remember that can retract nothing."""
-    if not asks_kept(query) or asks_not_kept(query):
+def _asks_about_forgetting(reply: str) -> bool:
+    """Whether a sentence of ``reply`` is a question that names forgetting."""
+    return any(
+        "?" in sentence and _FORGETTING.search(sentence) is not None
+        for sentence in _SENTENCE_END.split(reply)
+    )
+
+
+def unasked_forget(query: str, last_reply: str = "") -> frozenset[str]:
+    """The forget tool, refused by name on a request to remember that only states a fact.
+
+    ``last_reply`` is the chat's last assistant message, which the query can be answering.
+    """
+    if not asks_kept(query) or asks_not_kept(query) or _asks_about_forgetting(last_reply):
         return frozenset()
-    if _CAN_RETRACT.search(_DONT_FORGET.sub("", query)):
+    if _CAN_RETRACT.search(_DONT_FORGET.sub("", query)) or _WISH.search(query):
+        return frozenset()
+    if _STATES_A_FACT.search(query) is None:
         return frozenset()
     return frozenset({FORGET_CHOSEN_TOOL_NAME})

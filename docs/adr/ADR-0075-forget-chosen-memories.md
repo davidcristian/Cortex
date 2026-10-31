@@ -62,11 +62,14 @@ that removes exactly those rows and holds against a turn in flight. This record 
    turn is recorded: `unasked_forget` (`unasked_tools.py`) reads a message `asks_kept` reads and
    `asks_not_kept` does not, holding no word that can retract something, no negation, no question,
    no second sentence, no verb with its object after `and`, `then` or a mark, and no letter outside
-   English once any "don't forget" not followed by "to" is taken out. There a card would delete the fact
-   the person asked to keep, and the turn would stay out of memory
-   ([readings](../readings/forget-refused-on-remember.md)). The word list is wide because a message
-   read wrongly as such a request costs a second message, which reaches the tool, while a card
-   costs the fact. The tool stays listed, so the first request of the turn does not change.
+   English once any "don't forget" not followed by "to" is taken out. The message must also state a
+   fact (`my`, `I`, or a subject that is no value or pronoun before a form of "to be", with no modal
+   and no verb of wanting or saying), and the chat's last reply must not be a question about
+   forgetting. There a card would delete the fact the person asked to keep, and the turn would stay
+   out of memory ([readings](../readings/forget-refused-on-remember.md)). The reader fails toward
+   keeping the tool because a request read wrongly as a stated fact loses the delete, while a card
+   needs the person's approval before it costs the fact. The tool stays listed, so the first request
+   of the turn does not change.
    Any other turn whose model named it in a call is not recorded to memory, whether the call ran, was
    refused, was cut from its round or could not be read, because its query or reply may name the
    text it forgets, and recording it would store that text again. That holds for the deep phase

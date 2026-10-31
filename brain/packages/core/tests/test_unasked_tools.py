@@ -450,6 +450,118 @@ def test_a_message_that_is_no_plain_request_to_remember_keeps_the_forget_tool(qu
     assert unasked_forget(query) == frozenset()
 
 
+@pytest.mark.parametrize(
+    "query",
+    [
+        "Note that 8426 should be zapped.",
+        "Note that 8426 is to be zapped.",
+        "Note that 8426 is dead.",
+        "Note that code 8426 is toast.",
+        "Remember 8426 can go.",
+        "Remember 8426.",
+        "Note that I mean the locker code.",
+        "Note that I meant 8426.",
+        "Note that I asked you to zap 8426.",
+        "Remember that I need 8426 zapped.",
+        "Remember my code 8426 needs zapping.",
+        "Remember my code 8426 should be zapped.",
+        "Remember my code 8426 is to be zapped.",
+        "Remember that it is the locker code.",
+        "Note that it\u2019s the locker code.",
+        "Note that this is the one.",
+        "Note that that is the one.",
+        "Note that the code is to go.",
+        "Note that these are the ones.",
+        "Note that those are the ones.",
+        "Note that they are the ones.",
+        "Note that he is the one.",
+        "Note that she is the one.",
+        "Remember my code 8426 shall be zapped.",
+        "Remember my code 8426 must be zapped.",
+        "Remember my code 8426 ought be zapped.",
+        "Remember my code 8426 would be better zapped.",
+        "Remember my code 8426 could be zapped.",
+        "Remember my code 8426 can be zapped.",
+        "Remember my code 8426 gotta be zapped.",
+        "Remember I wish 8426 zapped.",
+        "Remember I want 8426 zapped.",
+        "Remember my code 8426 has to go.",
+        "Remember I have to zap 8426.",
+        "Remember I had to zap 8426.",
+        "Remember my code 8426 had better be zapped.",
+        "Remember I say zap 8426.",
+        "Remember I said zap 8426.",
+        "Remember I told you to zap 8426.",
+        "Remember I tell you to zap 8426.",
+    ],
+)
+def test_a_request_to_remember_that_states_no_fact_keeps_the_forget_tool(query: str) -> None:
+    assert asks_kept(query)
+    assert not asks_not_kept(query)
+    assert unasked_forget(query) == frozenset()
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "Remember that 8426 is my locker code.",
+        "Remember my locker code is 8426.",
+        "Remember my code 8426.",
+        "Remember that the meeting is at 3.",
+        "Remember Anna's birthday is in May.",
+        "Note that my mother's birthday is on 12 May.",
+        "Note that I like the locker by the door.",
+        "Remember that we are in room 12.",
+        "Remember that the keys were in the blue bag.",
+        "Remember that the tickets are in the drawer.",
+        "Remember our door code 12.",
+        "Remember we sleep at 11.",
+        "Remember that the total was 40 euros.",
+    ],
+)
+def test_a_stated_fact_near_those_wordings_still_refuses_the_forget_tool(query: str) -> None:
+    assert unasked_forget(query) == {FORGET_CHOSEN_TOOL_NAME}
+
+
+@pytest.mark.parametrize(
+    "reply",
+    [
+        "Which one would you like me to forget?",
+        "I hold two codes.\nShould I delete the old one?",
+        "Do you want me to remove it from my memory?",
+        "I hold two codes. Shall I erase one of them?",
+        "Should I wipe it?",
+        "Can I clear it?",
+        "Do I drop it?",
+        "Should I discard it?",
+        "Should I purge it?",
+    ],
+)
+def test_a_request_to_remember_after_a_question_about_forgetting_keeps_the_forget_tool(
+    reply: str,
+) -> None:
+    assert unasked_forget("Note that my locker code is 8426.", reply) == frozenset()
+
+
+@pytest.mark.parametrize(
+    "reply",
+    [
+        "",
+        "What is your favourite tea?",
+        "Anything else?",
+        "I won't forget it. Anything else?",
+        "I removed it.\nAnything else?",
+        "I've forgotten that.",
+        "Should I look it up? I won't forget it.",
+    ],
+)
+def test_a_request_to_remember_after_any_other_reply_still_refuses_the_forget_tool(
+    reply: str,
+) -> None:
+    query = "Remember my favourite tea is jasmine."
+    assert unasked_forget(query, reply) == {FORGET_CHOSEN_TOOL_NAME}
+
+
 class _Backend:
     """Keeps the tool names each request offered, and asks for ``calls`` in its first round."""
 
@@ -638,3 +750,37 @@ async def test_the_deep_phase_refuses_a_sidecar_tool_its_request_did_not_ask_for
     (refused,) = audit.records
     assert (refused.name, refused.detail) == (_FILE_TOOLS[0], UNASKED_MSG)
     assert ran == []
+
+
+async def _after_a_reply(reply: str) -> list[str]:
+    sessions = InMemorySessionStore()
+    await sessions.append("s", Message(role=Role.USER, text="Forget one.", at=_AT, turn_id="a"))
+    await sessions.append("s", Message(role=Role.ASSISTANT, text=reply, at=_AT, turn_id="a"))
+
+    async def forget(arguments: Mapping[str, object]) -> str:
+        del arguments
+        return "done"
+
+    spec = ToolSpec(name=FORGET_CHOSEN_TOOL_NAME, description="", parameters={})
+    audit = RecordingAuditSink()
+    dispatcher = ToolDispatcher(
+        InMemoryToolRegistry({FORGET_CHOSEN_TOOL_NAME: (spec, forget)}), audit, TickingClock()
+    )
+    call = ToolCall(id="c1", name=FORGET_CHOSEN_TOOL_NAME, arguments={"text": "8426"})
+    engine = TurnEngine(
+        sessions,
+        _Backend([call]),
+        TickingClock(),
+        capabilities=TurnCapabilities(tools=dispatcher),
+    )
+    async for _event in engine.handle_turn("s", "Note that my code is 8426.", turn_id="b"):
+        pass
+    return [record.detail for record in audit.records]
+
+
+async def test_a_forget_call_after_a_question_about_forgetting_runs() -> None:
+    assert await _after_a_reply("Which one would you like me to forget?") == ["done"]
+
+
+async def test_a_forget_call_after_a_question_about_something_else_is_refused() -> None:
+    assert await _after_a_reply("What is your favourite tea?") == [UNASKED_MSG]

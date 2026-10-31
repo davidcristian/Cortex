@@ -2,7 +2,7 @@
 
 from collections.abc import AsyncGenerator, AsyncIterator, Mapping, Sequence
 
-from cortex_core.conversation import Message
+from cortex_core.conversation import Message, Role
 from cortex_core.dispatch_round import LoopRecord, ToolLoopContext, run_round
 from cortex_core.errors import InferenceError
 from cortex_core.inference import (
@@ -78,8 +78,13 @@ async def _round_pieces(
         yield held
 
 
+def _last_reply(working: Sequence[Message]) -> str:
+    """The text of the last assistant message in ``working``, empty when there is none."""
+    return next((m.text for m in reversed(working) if m.role is Role.ASSISTANT), "")
+
+
 async def _turn_tools(
-    context: ToolLoopContext,
+    context: ToolLoopContext, working: Sequence[Message]
 ) -> tuple[Sequence[ToolSpec], Mapping[str, ToolSpec], frozenset[str]]:
     """The tools offered to the model, every listed spec by name, and those refused by name."""
     if context.dispatcher is None:
@@ -91,7 +96,8 @@ async def _turn_tools(
     # an unasked tool, its refusal. A sidecar tool stays listed, since a shorter list raised the
     # model's forget calls in one of two comparisons (unasked-tools-listed-on-remember.md).
     offered = tuple(spec for spec in specs if spec.name not in withheld)
-    refused = left_out | unasked_sidecar_tools(context.query, specs) | unasked_forget(context.query)
+    forget = unasked_forget(context.query, _last_reply(working))
+    refused = left_out | unasked_sidecar_tools(context.query, specs) | forget
     return offered, {s.name: s for s in specs}, refused
 
 
@@ -103,7 +109,7 @@ async def stream_tool_loop(
 ) -> AsyncGenerator[str | ReasoningDelta | ToolStep | StepOutcome, None]:
     """Run the bounded infer↔tool loop over ``working``, yielding each delta, step and outcome."""
     dispatcher = context.dispatcher
-    specs, spec_by_name, unasked = await _turn_tools(context)
+    specs, spec_by_name, unasked = await _turn_tools(context, working)
     # Per loop rather than per turn: a repeat is redundant only against the ``working`` messages
     # that already hold its answer, and the results share the room of that one request.
     record = LoopRecord(

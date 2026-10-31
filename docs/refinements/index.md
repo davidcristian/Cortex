@@ -77,9 +77,9 @@ never a reading of what the tree does now.
 - **[R-967](tasks/967-a-request-to-remember-a-new-value-and-forget-the-old-one-keeps-neither.md)** A request to remember a new value and forget the old one keeps neither (memory). Its claim was checked against the code on 2026-10-31.
 - **[R-968](tasks/968-a-request-to-remember-holding-a-negation-or-a-full-stop-can-still-show-a-forget-card.md)** A request to remember holding a negation or a full stop can still show a forget card (memory). Its claim was checked against the code on 2026-10-31.
 - **[R-969](tasks/969-a-forget-of-the-old-value-can-match-nothing-and-say-none-is-stored.md)** A forget of the old value can match nothing and say none is stored (memory). Its claim was checked against the code on 2026-10-31.
-- **[R-971](tasks/971-a-forget-request-the-message-alone-does-not-show-is-refused.md)** A forget request the message alone does not show is refused (memory). Its claim was checked against the code on 2026-10-31.
 - **[R-972](tasks/972-a-request-to-remember-a-named-source-with-no-file-word-refuses-the-file-tools.md)** A request to remember a named source with no file word refuses the file tools (tools). Its claim was checked against the code on 2026-10-31.
 - **[R-973](tasks/973-a-forget-that-did-not-run-can-be-claimed-in-words-the-note-does-not-read.md)** A forget that did not run can be claimed in words the note does not read (memory). Its claim was checked against the code on 2026-10-31.
+- **[R-974](tasks/974-a-forget-worded-as-a-note-shows-the-unkept-note.md)** A forget worded as a note shows the unkept note (memory). Its claim was checked against the code on 2026-10-31.
 
 ### Actionable, once a port changes (1)
 
@@ -582,8 +582,8 @@ never a reading of what the tree does now.
 - [R-968](tasks/968-a-request-to-remember-holding-a-negation-or-a-full-stop-can-still-show-a-forget-card.md) A request to remember holding a negation or a full stop can still show a forget card. open, actionable.
 - [R-969](tasks/969-a-forget-of-the-old-value-can-match-nothing-and-say-none-is-stored.md) A forget of the old value can match nothing and say none is stored. open, actionable.
 - [R-970](tasks/970-the-unkept-note-shows-on-a-message-with-nothing-to-keep.md) The unkept note shows on a message with nothing to keep. open, waiting for its trigger.
-- [R-971](tasks/971-a-forget-request-the-message-alone-does-not-show-is-refused.md) A forget request the message alone does not show is refused. open, actionable.
 - [R-973](tasks/973-a-forget-that-did-not-run-can-be-claimed-in-words-the-note-does-not-read.md) A forget that did not run can be claimed in words the note does not read. open, actionable.
+- [R-974](tasks/974-a-forget-worded-as-a-note-shows-the-unkept-note.md) A forget worded as a note shows the unkept note. open, actionable.
 
 ### orchestrator
 
