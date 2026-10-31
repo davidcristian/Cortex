@@ -216,3 +216,27 @@ K's 11 of 15 on L2 was a surprise, as the other 4 draws name another number (482
 4729) after the first round said 1063. It did not repeat. In the replication written above, L3 and
 L4 on K name another number in 1 of 30 draws and on S in 0 of 30, under the 3 the rule asks for,
 so it is recorded as noise. S's `reported` on those rows is 28 of 30, against 30 of 30 on K.
+
+## More than one repeated sentence: result, 2026-10-31
+
+K stays, so R-949's rule reads K's draws: `both` is 6 of 20 on A2 and 14 of 20 on A4, which is 20 of
+40 and a live result, so the fix ships. `OpeningHold` now drops each opening sentence an earlier
+round streamed and streams from the first one that is new.
+
+Replaying the recorded second rounds in pieces of 1 to 5 characters: over K's 99 rounds the old
+hold leaves an opening repeat in 20 and the new one in 0; over all 375 rounds of the first batch
+and A4, in 22 and in 0. The new hold changes no round that did not open with a repeat. On K's A2
+and A4 rounds, a reply showing a sentence twice falls from 20 of 40 to 0 of 40. The hold's tests
+keep a repeated sentence that follows a new one.
+
+The live check passes, with a small exposure, so the replay is the main evidence. Run log
+`live.jsonl` in the same directory, the SM clock at 0.21 of its maximum before the draws and 0.45
+after them. W04 had 15 draws, 5 calling and none with text before its call. Seeded W04 had 10
+draws, 4 calling and 2 with text before the call, one of those two sentences. No later round opens
+with a sentence an earlier round wrote, and each of the 2 shows its first round's text.
+
+All 20 A4 rounds open with the first sentence. The 6 without `both` go on with the second sentence
+in other words, such as `I have also removed the phone number 0612345678 from my memory.` against
+the first round's `... from my memory as you requested.`. The hold reads word for word, so it keeps
+them and the reply says the same thing twice
+([R-960](../refinements/tasks/960-a-round-can-repeat-an-earlier-sentence-in-other-words.md)).

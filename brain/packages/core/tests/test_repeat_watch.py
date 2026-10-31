@@ -308,10 +308,18 @@ async def _read_turn(backend: _Reading) -> tuple[str, StopLedger, RecordingAudit
     return "".join(parts), stops, sink
 
 
-async def test_a_line_that_each_tool_round_writes_is_no_repeat() -> None:
+async def test_a_list_item_that_each_tool_round_writes_is_no_repeat() -> None:
+    backend = _Reading(4, f"- {_LINE}\n", ["The altos sing the second verse."])
+    reply, stops, sink = await _read_turn(backend)
+    assert reply == f"- {_LINE}\n" * 4 + "The altos sing the second verse."
+    assert not stops.repeated
+    assert len(sink.records) == 4
+
+
+async def test_sentences_that_each_tool_round_opens_with_are_shown_once() -> None:
     backend = _Reading(4, f"Reading.\n{_LINE}\n", ["The altos sing the second verse."])
     reply, stops, sink = await _read_turn(backend)
-    assert reply == f"Reading.\n{_LINE}\n" + f"{_LINE}\n" * 3 + "The altos sing the second verse."
+    assert reply == f"Reading.\n{_LINE}\nThe altos sing the second verse."
     assert not stops.repeated
     assert len(sink.records) == 4
 

@@ -1,9 +1,8 @@
 # A round can repeat more than one sentence of an earlier round
 
-**Status:** open, actionable
+**Status:** done 2026-10-31
 **Area:** tools-mcp
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
-**Verified:** 2026-10-30
 
 `OpeningHold` (`round_opening.py`) drops the first sentence of a tool loop round when an earlier
 round of the reply streamed it word for word, and streams the rest of the round. When the cortex
@@ -27,3 +26,10 @@ only the round's first sentence.
 ## History
 
 - 2026-10-30: filed when the loop began dropping a repeated opening sentence.
+- 2026-10-31: done. `OpeningHold` drops each opening sentence an earlier round streamed and streams
+  from the first new one. The second rounds of two rows with a two-sentence first round open with
+  both sentences in 20 of 40 draws; replaying them, a reply showing a sentence twice falls from 20
+  of 40 to 0, and no round that did not open with a repeat changes
+  ([readings](../../readings/reply-repeat-across-a-tool-call.md#more-than-one-repeated-sentence-result-2026-10-31)).
+  A sentence repeated in other words stays, filed as
+  [R-960](960-a-round-can-repeat-an-earlier-sentence-in-other-words.md).

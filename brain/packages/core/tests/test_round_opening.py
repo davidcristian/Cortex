@@ -133,6 +133,59 @@ async def test_a_dropped_sentence_keeps_the_space_after_it_when_none_was_before(
     assert "".join(await _texts(backend)) == f"{_ANSWER} Done."
 
 
+_SECOND = "I removed the number from my memory."
+_TWO = f"{_ANSWER} {_SECOND}"
+
+
+@pytest.mark.parametrize(
+    ("second", "shown"),
+    [
+        ([f"{_TWO} Done."], "Done."),
+        ([f"{_SECOND} {_ANSWER} Done."], "Done."),
+        ([_ANSWER, " I removed the ", "number from my memory.", "\n\nDone."], "Done."),
+        ([_TWO], ""),
+        ([_TWO, "\n"], ""),
+        (["\n\n", _TWO, "\nDone."], "\n\nDone."),
+        ([f"{_ANSWER} Then I checked. {_SECOND}"], f"Then I checked. {_SECOND}"),
+        ([f"{_ANSWER} Then I checked. {_ANSWER}"], f"Then I checked. {_ANSWER}"),
+        ([f"Then I checked. {_TWO}"], f"Then I checked. {_TWO}"),
+        ([f"{_ANSWER} I removed the number. {_SECOND}"], f"I removed the number. {_SECOND}"),
+        ([f"{_ANSWER} Then I"], "Then I"),
+    ],
+)
+async def test_a_round_drops_each_opening_sentence_up_to_the_first_new_one(
+    *, second: list[str], shown: str
+) -> None:
+    backend = _Rounds([[*_chunks(_TWO, "\n\n"), _READ], _chunks(*second)])
+    assert "".join(await _texts(backend)) == f"{_TWO}\n\n{shown}"
+
+
+async def test_two_dropped_sentences_keep_one_gap_when_none_was_before() -> None:
+    backend = _Rounds([[*_chunks(_TWO), _READ], _chunks(f"{_TWO}  Done.")])
+    assert "".join(await _texts(backend)) == f"{_TWO} Done."
+
+
+async def test_a_round_holding_a_later_sentence_shows_it_before_the_engine_failure() -> None:
+    backend = _Rounds([[*_chunks(_TWO), _READ], [*_chunks(f"{_TWO} Then I"), None]])
+    assert await _until_failure(backend) == [_TWO, " Then I"]
+
+
+def test_the_text_stays_held_until_a_new_sentence_begins_then_each_chunk_streams() -> None:
+    hold = OpeningHold(_TWO)
+    assert hold.feed(f"{_ANSWER} ") == ""
+    assert hold.feed(_SECOND) == ""
+    assert hold.feed(" Then") == ""
+    assert hold.feed(" I checked.") == ""
+    assert hold.feed(" Done") == " Then I checked. Done"
+    assert hold.feed(".") == "."
+    assert hold.flush() == ""
+
+
+def test_a_list_item_after_a_dropped_line_is_kept() -> None:
+    hold = OpeningHold("Results:\n- Done.\n")
+    assert hold.feed("Results:\n- Done.\n- Saved.") == "- Done.\n- Saved."
+
+
 async def test_a_round_after_one_with_no_text_streams_each_chunk_as_it_comes() -> None:
     backend = _Rounds([[_READ], _chunks("The capital ", "is ", "Canberra.")])
     assert await _texts(backend) == ["The capital ", "is ", "Canberra."]
@@ -231,7 +284,7 @@ def test_a_heading_table_row_list_item_or_quote_an_earlier_round_wrote_is_kept(
 @pytest.mark.parametrize("said", ["#hashtag fun.\n", "-5 degrees today.\n"])
 def test_a_sentence_opening_with_a_mark_but_no_structure_is_dropped(said: str) -> None:
     hold = OpeningHold(said)
-    assert hold.feed(said + "It is cold.") == "It is cold."
+    assert hold.feed(said + "It is cold.") + hold.flush() == "It is cold."
 
 
 async def test_the_stored_reply_holds_the_repeated_sentence_once() -> None:
