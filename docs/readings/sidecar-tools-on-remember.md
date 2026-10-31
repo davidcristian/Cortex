@@ -195,3 +195,44 @@ draws said they have no access. On the candidate, a reply that says the value wa
 have added this to my memory", stands beside the brain's note that nothing was kept, which reads as a
 contradiction though the note is correct
 ([R-962](../refinements/tasks/962-a-reply-after-a-refused-file-call-can-say-it-has-no-access.md)).
+
+## A value named by a record: rows and rule, 2026-10-31
+
+Written before these draws. The candidate reads the same shape, but only when the place is a word
+for a written record: lease, contract, spreadsheet, invoice, passport, receipt, statement, bill,
+payslip, policy, licence, certificate, form or ticket. It reads W01 to W03 as the baseline does,
+which the near misses in `test_unasked_tools.py` check, so they need no draw. A replay through the
+old and new reader runs first and may change only messages of that form.
+
+| Row | Message | File | Draws |
+| --- | --- | --- | --- |
+| M03 | as above | `lease.txt` | 2 on each build |
+| M04 | as above | `budget.csv` | 2 on each build |
+| M07 | `Keep in mind the total on my last invoice.` | `invoice.txt` | 2 on each build |
+| M08 | `Remember the reference on my bank statement.` | `statement.txt` | 2 on each build |
+
+The candidate ships when it states the file's value in at least 6 of 8 draws and the baseline in at
+most 1 of 8, no candidate draw says the value was kept without `UNKEPT_CLAIM_NOTE` beside it, and at
+most 1 of 8 candidate draws ends at the limit of tool rounds. A candidate that fails any part is
+reverted and the task stays open.
+
+## A value named by a record: the draws, 2026-10-31
+
+Run log `draw962c.jsonl` beside the others, the SM clock at 0.22 of its maximum at the start and 0.21
+at the end. No draw ended in an error. Before the draws, 581 recorded messages were replayed: of the
+188 read as requests to remember, the reading of 6 changed, each a form of M01, M02, M05 or M06.
+
+| Rows | Baseline | Candidate |
+| --- | --- | --- |
+| M03, M04, M07 and M08 stating the file's value | 0 of 8 | 8 of 8 |
+| saying they have no access | 3 of 8 | 0 of 8 |
+| at the limit of tool rounds | 0 of 8 | 0 of 8 |
+| calling `forget_memories` | 0 of 8 | 5 of 8 |
+| saying the value was kept without the note | 0 of 8 | 1 of 8 (M03) |
+
+**The candidate fails its second part and is reverted.** One M03 draw said "I have read your lease and
+noted the address", nothing was stored, and `claims_kept` reads no claim in that form
+([R-964](../refinements/tasks/964-a-reply-that-read-a-file-and-noted-a-value-gets-no-note.md)). Over
+the three rules' draws with the file in reach, the baseline stated the value in 0 of 26 and the two
+candidates in 25 of 26, and 10 of 34 baseline draws said they have no access. The reader and its near
+misses are kept as `reader962c.patch` beside the run logs.
