@@ -106,3 +106,67 @@ after a file edit says the same. The next step is written in
 The one draw that kept the new value called the forget with a text that matched nothing and said no old
 number was stored, while a row held it
 ([R-969](../refinements/tasks/969-a-forget-of-the-old-value-can-match-nothing-and-say-none-is-stored.md)).
+
+## The note on every withheld request to remember: rows and the rule, 2026-10-31
+
+`UNKEPT_CLAIM_NOTE` now shows on a turn `memory_withheld` holds for when `claims_kept` reads the reply, or
+when `asks_kept` reads the message and `asks_not_kept` does not, whatever the reply says. The rule is the
+one [R-967](../refinements/tasks/967-a-request-to-remember-a-new-value-and-forget-the-old-one-keeps-neither.md)
+states: every M draw with no row holding the new value ends with the note, and no R draw does. Each other
+row below is one way a request to remember stays out of memory, and its reply and note are read by hand. A
+kind whose note says something false about what the turn did stops the change. A kind whose note is true
+and unasked is reported.
+
+The rig is a candidate brain beside the `cortexn12` stack's, built with this change and the note of
+[the file request record](file-request-without-a-call.md), which no row here reaches, since `asks_files`
+reads nothing `asks_kept` reads. The cortex is gemma-4-12B at context 16,384, each draw is a new chat, and
+cards are approved unless the row says otherwise.
+
+| Row | Message | Kind | Pool at the start | Draws |
+| --- | --- | --- | --- | --- |
+| M01, M02 | as in [the forget refusal rows](forget-refused-on-remember.md#rows-and-the-rule-2026-10-31) | a forget ran | the old value | 3 each |
+| R01 to R05 | the first five of those rows | not withheld | empty | 1 each |
+| D02 | M02, the card denied | a forget was declined | the old value | 1 |
+| D03 | `Note that my phone number is out of date, delete it.` | a forget ran, nothing to keep | the phone number | 1 |
+| T2 | `Please remember this: my brother's name is Luca. Also, what does notes.txt say?` | a file read, a fact to keep | empty | 2 |
+| T4 | `Read notes.txt and remember what it says.` | a file read, its text to keep | empty | 1 |
+| T5 | `Remember to read notes.txt and tell me what it says.` | a file read, no fact to keep | empty | 1 |
+| P1 | `Remember what is on my screen right now.` | a picture | empty | 1 |
+| K | `What does notes.txt say?` | a file read, no request to keep, so no note | empty | 1 |
+
+The kinds with no row are tested on a fake turn in `test_closing_notes.py`: a forget of untrusted memories,
+and a forget call the model wrote as unreadable JSON.
+
+## The note on every withheld request to remember: the draws, 2026-10-31
+
+Run log `keep.jsonl` in `/tmp/claude-1000/-home-david-Files-Git-Cortex/545ea45a-902e-44a3-86aa-5ec869e6c085/scratchpad/slot6/`,
+the SM clock at 0.21 to 0.22 of its maximum at the start and the end. No draw ended in an error.
+
+| Row | Draws | Result |
+| --- | --- | --- |
+| M01, M02, no row holding the new value | 4 of 6 | **all 4 end with the note**, 2 of them on a reply `claims_kept` does not read |
+| M01, a row holding the new value | 2 of 6 | no unkept note |
+| R01 to R05 | 5 | **no note**, and a row holds the fact in all 5 |
+
+**The rule holds.** Each other kind, read by hand:
+
+| Row | The reply | What the note does |
+| --- | --- | --- |
+| D02, declined | "I've noted your new phone number as 0699000000." The old row stays. | true, and shown before this change too |
+| D03, forget alone | "OK. I've removed your old phone number from my memory." | **new, true and unasked**: it says nothing of the deletion, which did happen |
+| T2, 2 draws, a fact to keep | "I've noted that your brother's name is Luca", then the file's text | true, and shown before this change too |
+| T4, the file's text to keep | the file's text, then "I have noted this information." | true, and shown before this change too |
+| T5, a to-do for this turn | the file's text and nothing else | **new, true and unasked** |
+| K, no request to keep | the file's text | no note, as the rule says |
+| P1 | "I don't have the ability to see your screen." No capture ran and the turn is stored. | no note, correct |
+
+No note says anything false: `memory_withheld` holds on each, and `record_exchange` reads the same check.
+Its second sentence asks for what the person wants remembered, so on D03 and T5 it asks for nothing. Of
+the 14 recorded strings `asks_kept` reads that name a file, each holds a fact or a rule and none is a to-do
+of T5's form ([R-970](../refinements/tasks/970-the-unkept-note-shows-on-a-message-with-nothing-to-keep.md)). No real
+picture turn can be drawn on this rig: an attached picture is refused with "the model now serving cannot
+read pictures", so that kind and the two with no row are read on the fake turns only.
+
+The turn that stored the value in M01's third draw called the forget with a text that matched nothing, and
+said the code "was not kept because you asked to forget something in the same message"
+([R-969](../refinements/tasks/969-a-forget-of-the-old-value-can-match-nothing-and-say-none-is-stored.md)).

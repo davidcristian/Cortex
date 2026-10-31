@@ -123,15 +123,15 @@ for (ADR-0048 decision 17), closes the loop in a `finally` and flushes the chann
 `record_exchange(caps, taint, *, store, session_id, query, reply, runs, earlier=())` stores nothing when
 `memory_withheld` holds over `query`, `runs` and `earlier` (the cortex's runs before a handoff) or
 `store.deleted` holds, read again after the write (ADR-0021 decision 11). `limit_notes(stops, runs,
-parts, *, earlier=(), said=(), withheld=False, unmatched=0)`, `unreadable_call_note(stops, parts)` and
+parts, *, caps, taint, query, earlier=(), said=())` (`closing_notes.py`), `unreadable_call_note(stops, parts)` and
 `overflow_note(parts, *, alone)` are the notes a turn can end with, the first two read off a `StopLedger`
 (`stops.py`): `capped` (a token limit cut a completion, ADR-0048), `out_of_rounds` (the last round still
 ended in calls, ADR-0009) and `repeated` (the watch ended the reply). `limit_notes` appends
 `REPLY_CAPPED_NOTE`, `ROUNDS_SPENT_NOTE` naming each of `runs` with its outcome, `REPEATED_LINE_NOTE`,
 `UNSCHEDULED_CLAIM_NOTE` when `unscheduled_claim` (`schedule_claim.py`) finds a claimed schedule with no
 `SCHEDULING_TOOLS` run succeeding in `runs` or `earlier` (not a "scheduled" claim naming no reminder or
-task that the person's messages, `said`, made first), `UNKEPT_CLAIM_NOTE` when `withheld` holds and
-`claims_kept` finds a claim, then `UNFORGOTTEN_CLAIM_NOTE`
+task that the person's messages, `said`, made first), `UNKEPT_CLAIM_NOTE` when `memory_withheld` and
+`unkept_note_due` hold, then `UNFORGOTTEN_CLAIM_NOTE`
 ([brain-core-memory.md](brain-core-memory.md)). `place_note` sets a note one blank line under text, or
 with no break when there is no text, in a `NO_TEXT` form for an overflow or unreadable call note.
 

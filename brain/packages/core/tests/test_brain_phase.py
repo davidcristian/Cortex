@@ -635,6 +635,30 @@ async def test_a_deep_phase_whose_query_asks_not_to_keep_records_nothing(
     assert (UNKEPT_CLAIM_NOTE in "".join(deltas)) is (kept == 0)
 
 
+@pytest.mark.parametrize(
+    ("text", "taint", "noted"),
+    [
+        ("Remember that my locker code is 8426.", TaintLedger(tainted=True), True),
+        ("Remember that my locker code is 8426.", None, False),
+        ("What is my locker code?", TaintLedger(tainted=True), False),
+    ],
+)
+async def test_a_deep_reply_to_a_withheld_request_to_remember_gets_the_note_as_it_stands(
+    *, text: str, taint: TaintLedger | None, noted: bool
+) -> None:
+    sessions = InMemorySessionStore()
+    asked = Message(role=Role.USER, text=text, at=_AT, turn_id=harness.TURN)
+    await sessions.append(harness.SESSION, asked)
+    backend = ScriptedBrainBackend(chunks=("Your locker code is 8426.",))
+    _phase, _backend, _sessions, deltas = await _drive(
+        store=sessions,
+        capabilities=TurnCapabilities(memory=_recaller()),
+        backend=backend,
+        taint=taint,
+    )
+    assert (UNKEPT_CLAIM_NOTE in "".join(deltas)) is noted
+
+
 async def test_a_session_deleted_mid_handoff_falls_back_to_the_brief() -> None:
     memory = _recaller()
     empty = InMemorySessionStore()

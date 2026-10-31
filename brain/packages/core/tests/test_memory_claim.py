@@ -567,8 +567,18 @@ async def test_a_claim_on_a_turn_whose_message_asks_not_to_keep_gets_the_note() 
 
 
 async def test_a_withheld_turn_whose_reply_claims_nothing_gets_no_note() -> None:
-    shown, _sessions, store = await _turn([[_READ], [TextChunk("You can read /projects.")]])
+    steps = [[_READ], [TextChunk("You can read /projects.")]]
+    shown, _sessions, store = await _turn(steps, query="What can you see?")
     assert shown == "You can read /projects."
+    assert await _stored(store) == 0
+
+
+async def test_a_withheld_request_to_remember_gets_the_note_whatever_its_reply_says() -> None:
+    steps = [[_FORGET], [TextChunk("Your new locker code is 8426.")]]
+    shown, _sessions, store = await _turn(
+        steps, query="Remember that my new locker code is 8426, and forget the old code."
+    )
+    assert shown == "Your new locker code is 8426." + UNKEPT_CLAIM_NOTE
     assert await _stored(store) == 0
 
 

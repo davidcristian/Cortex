@@ -156,10 +156,12 @@ across turns (a recalled memory).
    or folders (`asks_files`, `file_request.py`) and does not ask to remember. Such a turn read
    no tool output, so its reply names folders the cortex wrote itself, and a stored row would
    let a later chat repeat them ([readings](../readings/file-request-without-a-call.md)).
-   `record_exchange` returns on it, and the engine and the deep phase pass it, over the same runs,
-   to `limit_notes`, which appends `UNKEPT_CLAIM_NOTE` when `claims_kept` also finds a statement
-   that something was noted or will be remembered, as `UNSCHEDULED_CLAIM_NOTE` closes a schedule
-   claim no call made ([ADR-0025](ADR-0025-scheduling-reminders.md)). The two cannot disagree,
+   `record_exchange` returns on it, and `limit_notes` reads it over the same runs and appends
+   `UNKEPT_CLAIM_NOTE` when `claims_kept` also finds a statement that something was noted or will
+   be remembered, as `UNSCHEDULED_CLAIM_NOTE` closes a schedule claim no call made
+   ([ADR-0025](ADR-0025-scheduling-reminders.md)), or when the message asks to remember and does
+   not also ask not to keep, whatever the reply says
+   ([readings](../readings/claim-reader-replays.md#the-note-on-every-withheld-request-to-remember-rows-and-the-rule-2026-10-31)). The two cannot disagree,
    since both read the one check. A request to remember takes such a path by itself: the cortex
    called a file sidecar tool or `forget_memories` for it, and the reply said the fact was noted
    in most of those draws, with or without a note on the call's result

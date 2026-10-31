@@ -4,6 +4,7 @@ import logging
 from collections.abc import AsyncGenerator, Sequence
 
 from cortex_core.cadence import NO_CADENCE_TERMS, CadenceReading, CadenceTerms, CadenceWatch
+from cortex_core.closing_notes import limit_notes
 from cortex_core.conversation import Message, Role, ToolRun
 from cortex_core.errors import ContextOverflowError, InferenceError, MalformedToolCallError
 from cortex_core.events import TextDelta, TurnEvent
@@ -14,7 +15,6 @@ from cortex_core.handoff_view import (
     deep_history,
     deep_tail,
 )
-from cortex_core.memory_claim import memory_withheld
 from cortex_core.output_channels import open_output_channels
 from cortex_core.ports import Clock, InferenceBackend, SessionStore
 from cortex_core.schedule_claim import said_by_person
@@ -27,7 +27,6 @@ from cortex_core.turn_context import TurnCapabilities, assemble_inference_messag
 from cortex_core.turn_output import (
     flush_channels,
     forget_unreadable,
-    limit_notes,
     place_note,
     record_exchange,
     stream_turn_events,
@@ -159,16 +158,15 @@ class BrainPhase:
             await events.aclose()
         earlier = cortex_runs(stored, record)
         if failure is None:
-            said = said_by_person(stored)
-            withheld = memory_withheld(self._caps, taint, (*earlier, *log.runs), query=query)
             notes = limit_notes(
                 stops,
                 log.runs,
                 parts,
+                caps=self._caps,
+                taint=taint,
+                query=query,
                 earlier=earlier,
-                said=said,
-                withheld=withheld,
-                unmatched=taint.forget_unmatched,
+                said=said_by_person(stored),
             )
             for event in notes:
                 yield event

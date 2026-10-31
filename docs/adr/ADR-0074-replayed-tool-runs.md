@@ -63,7 +63,7 @@ wrote on a tainted turn can hold injected text or a link the output guardrail re
    does not remove every claim: over a chat that read a file, the cortex still wrote that a task
    was scheduled with no call, or after a refused one, in 8 of 40 third turns that asked for one
    ([readings](../readings/task-claimed-without-call.md)). `limit_notes`
-   (`cortex_core/turn_output.py`) appends `UNSCHEDULED_CLAIM_NOTE`, "Nothing was scheduled in
+   (`cortex_core/closing_notes.py`) appends `UNSCHEDULED_CLAIM_NOTE`, "Nothing was scheduled in
    this turn: no scheduling call in it succeeded. Ask again to schedule it.", when
    `unscheduled_claim(runs, reply, said)` (`cortex_core/schedule_claim.py`) holds: no run of
    `schedule_task`, `edit_scheduled` or `snooze_scheduled` succeeded, and `claims_scheduled`

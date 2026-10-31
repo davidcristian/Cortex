@@ -11,6 +11,9 @@ locker code form. The old row stays and the turn is stored, so two rows hold dif
 reply said no old value was stored, for example "I couldn't find a previous phone number to remove as
 there wasn't one stored" ([draws](../../readings/claim-reader-replays.md#the-readers-in-real-turns-2026-10-31)),
 since `_NONE_FOUND` (`memory_forget_chosen.py`) tells the model to say nothing about it was stored.
+One more such draw said the new code "was not kept because you asked to forget something in the same
+message" while a row held it
+([draw](../../readings/claim-reader-replays.md#the-note-on-every-withheld-request-to-remember-the-draws-2026-10-31)).
 
 The texts of those calls are not recorded: no card shows on a call that matches nothing, and the audit
 keeps the argument as `<redacted>`. That they were words such as "old code" is an assumption from the

@@ -13,15 +13,13 @@ from cortex_core.errors import (
     SessionStoreError,
 )
 from cortex_core.events import TextDelta, ToolActivity, ToolOutcome, TurnEvent
-from cortex_core.forget_claim import UNFORGOTTEN_CLAIM_NOTE, unforgotten_claim
 from cortex_core.guardrail import OutputFilter
 from cortex_core.loop_events import ReasoningDelta, StepOutcome, ToolStep
-from cortex_core.memory_claim import UNKEPT_CLAIM_NOTE, claims_kept, memory_withheld
+from cortex_core.memory_claim import memory_withheld
 from cortex_core.memory_forget_chosen import FORGET_CHOSEN_TOOL_NAME
 from cortex_core.output_channels import ThinkingChannel
 from cortex_core.ports_stores import SessionStore
 from cortex_core.repeat_watch import REPEATED_LINE_NOTE, RepeatWatch
-from cortex_core.schedule_claim import UNSCHEDULED_CLAIM_NOTE, unscheduled_claim
 from cortex_core.stops import StopLedger
 from cortex_core.tool_loop import MAX_TOOL_STEPS
 from cortex_core.tool_replay import runs_line
@@ -116,35 +114,6 @@ def repeat_note(stops: StopLedger, parts: list[str]) -> Iterator[TurnEvent]:
     if not stops.repeated:
         return
     yield from append_note(parts, REPEATED_LINE_NOTE)
-
-
-def limit_notes(  # noqa: PLR0913 -- each claim note reads its own part of the turn
-    stops: StopLedger,
-    runs: Sequence[ToolRun],
-    parts: list[str],
-    *,
-    earlier: Sequence[ToolRun] = (),
-    said: Sequence[str] = (),
-    withheld: bool = False,
-    unmatched: int = 0,
-) -> Iterator[TurnEvent]:
-    """The notes a turn that ended without an error closes with, in the order it shows them.
-
-    ``earlier``, ``said`` (the person's messages) and ``unmatched`` (forgets that matched nothing)
-    are for the claims.
-    """
-    claimed = unscheduled_claim((*earlier, *runs), "".join(parts), said)
-    unkept = withheld and claims_kept("".join(parts))
-    unforgotten = unforgotten_claim((*earlier, *runs), "".join(parts), unmatched=unmatched)
-    yield from cap_note(stops, parts)
-    yield from rounds_note(stops, runs, parts)
-    yield from repeat_note(stops, parts)
-    if claimed:
-        yield from append_note(parts, UNSCHEDULED_CLAIM_NOTE)
-    if unkept:
-        yield from append_note(parts, UNKEPT_CLAIM_NOTE)
-    if unforgotten:
-        yield from append_note(parts, UNFORGOTTEN_CLAIM_NOTE)
 
 
 def unreadable_call_note(stops: StopLedger, parts: list[str]) -> Iterator[TurnEvent]:

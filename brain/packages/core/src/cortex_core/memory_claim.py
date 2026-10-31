@@ -85,6 +85,13 @@ def claims_kept(reply: str) -> bool:
     )
 
 
+def unkept_note_due(query: str, reply: str) -> bool:
+    """Whether a turn that stores nothing shows the note, given what was asked and what it said."""
+    # A reply can say the value was updated in words a file edit shares, so a request to keep is
+    # enough. A message that also asks not to keep expects nothing kept.
+    return claims_kept(reply) or (asks_kept(query) and not asks_not_kept(query))
+
+
 def _unmatched_keep(taint: TaintLedger, forgets: int, query: str) -> bool:
     """Whether every forget call ran and matched nothing on a message that asks to remember."""
     # A forget request naming a value never stored matches nothing too, so the message decides.

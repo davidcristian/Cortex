@@ -9,6 +9,7 @@ from cortex_core.attachments import (
     attach_images,
     attachment_note,
 )
+from cortex_core.closing_notes import limit_notes
 from cortex_core.conversation import Message, Role
 from cortex_core.errors import (
     SESSION_DELETED_MSG,
@@ -21,7 +22,6 @@ from cortex_core.events import TurnCompleted, TurnEvent
 from cortex_core.handoff import EscalationRefs
 from cortex_core.handoff_wait import wait_out_handoff
 from cortex_core.images import ImagePart
-from cortex_core.memory_claim import memory_withheld
 from cortex_core.output_channels import open_output_channels
 from cortex_core.ports import Clock, InferenceBackend, SessionStore
 from cortex_core.routing import RoutingHints, Tier, route_turn
@@ -36,7 +36,6 @@ from cortex_core.turn_output import (
     OutputChannels,
     flush_channels,
     forget_unreadable,
-    limit_notes,
     overflow_note,
     record_exchange,
     stream_turn_events,
@@ -203,15 +202,14 @@ class TurnEngine:
         # After the channels flush and before the text is joined, so the note comes under the
         # whole reply and what is saved is what was shown.
         if not overflowed:
-            withheld = memory_withheld(self._caps, taint, log.runs, query=text)
-            said = said_by_person(history)
             notes = limit_notes(
                 stops,
                 log.runs,
                 parts,
-                said=said,
-                withheld=withheld,
-                unmatched=taint.forget_unmatched,
+                caps=self._caps,
+                taint=taint,
+                query=text,
+                said=said_by_person(history),
             )
             for event in notes:
                 yield event

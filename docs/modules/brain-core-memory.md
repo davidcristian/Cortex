@@ -111,8 +111,10 @@ pool down to the hits one turn sees. The turn that calls it is in
   "what" and the like), on a message `asks_kept` does not read as a request to remember; an
   untainted turn read no file tool output, so its reply names folders the cortex wrote itself.
   `record_exchange`
-  returns on it, and both phases pass it to `limit_notes` as `withheld`, which then appends
-  `UNKEPT_CLAIM_NOTE` when `claims_kept(reply)` finds a statement, not a question, saying something
+  returns on it, and `limit_notes` (`closing_notes.py`) reads it over the same runs and appends
+  `UNKEPT_CLAIM_NOTE` when `unkept_note_due(query, reply)` holds: `asks_kept(query)` reads a request to
+  remember and `asks_not_kept(query)` does not, whatever the reply says, since "I've updated that"
+  is also what a reply says after a file edit. It also holds when `claims_kept(reply)` finds a statement, not a question, saying something
   was noted, remembered, made a note of, or kept or saved "in mind" or "in memory", or that "my
   records" or "your information" were updated, or "your phone number" updated to a value, alone or
   after an earlier verb of "I" ("I read your lease and noted the address"). A bare "saved" or
@@ -130,7 +132,7 @@ pool down to the hits one turn sees. The turn that calls it is in
   memory: no `forget_untrusted_memories` run is `ok`, and the `ok` runs of `forget_memories`
   number no more than `unmatched`, the turn's `forget_unmatched`. A clause whose subject is
   negated ("Nothing was removed") and a removal that names no memory ("I've removed the reminder")
-  do not count. Both phases pass `forget_unmatched` to `limit_notes`, which then appends
+  do not count. `limit_notes` reads `forget_unmatched` from the ledger and appends
   `UNFORGOTTEN_CLAIM_NOTE`, telling the person nothing was forgotten and to ask again in a
   message of its own. The handoff record keeps `forget_calls` and `forget_unmatched`, so a cortex
   forget that matched nothing before a handoff still counts as one in the deep phase.
