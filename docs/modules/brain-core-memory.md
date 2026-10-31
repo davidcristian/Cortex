@@ -143,7 +143,7 @@ pool down to the hits one turn sees. The turn that calls it is in
   `UNFORGOTTEN_CLAIM_NOTE`, telling the person nothing was forgotten and to ask again in a
   message of its own. It also appends the note when `TaintLedger.forget_refused` says a call was
   refused as unasked and either `claims_kept` does not read the reply or `names_removal` does, which
-  reads a statement naming a removal in any words with no negation in its clause. The handoff record keeps `forget_calls` and `forget_unmatched`, so a cortex
+  reads a statement naming a removal in any words with no negation in its clause. The handoff record keeps `forget_refused`, `forget_calls` and `forget_unmatched`, so a cortex
   forget that matched nothing before a handoff still counts as one in the deep phase.
 - `RecallPolicy` (port, `rerank.py`) turns an over-fetched pool into the final `k` hits:
   `candidate_k(k)` sizes the pool and `async select(hits, *, query, now, k, session_id=None,

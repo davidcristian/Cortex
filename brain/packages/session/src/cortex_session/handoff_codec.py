@@ -71,6 +71,7 @@ def encode_record(record: HandoffRecord) -> str:
             "forget_asked": record.forget_asked,
             "forget_calls": record.forget_calls,
             "forget_unmatched": record.forget_unmatched,
+            "forget_refused": record.forget_refused,
             "sources": [
                 {"kind": source.kind.value, "value": source.value} for source in record.sources
             ],
@@ -119,6 +120,7 @@ def decode_record(raw: bytes | str, handoff_id: str) -> HandoffRecord:
             # brain then read it, each cortex forget run counted as one that deleted a memory.
             forget_calls=fields.get("forget_calls", 0),
             forget_unmatched=fields.get("forget_unmatched", 0),
+            forget_refused=fields.get("forget_refused", False),
         )
     except (KeyError, TypeError, ValueError) as err:
         msg = f"corrupt handoff record at {record_key(handoff_id)!r}"

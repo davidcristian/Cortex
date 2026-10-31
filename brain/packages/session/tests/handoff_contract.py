@@ -340,7 +340,19 @@ async def check_the_forget_mark_round_trips_both_ways(store: HandoffStore) -> No
         await store.delete(record.handoff_id)
 
 
+async def check_a_refused_forget_call_round_trips_both_ways(store: HandoffStore) -> None:
+    """Whether the cortex had a forget call refused as unasked survives."""
+    for refused in (False, True):
+        record = replace(make_record(_handoff_id()), forget_refused=refused)
+        await store.put(record)
+        loaded = await store.get(record.handoff_id)
+        assert loaded is not None
+        assert loaded.taint_ledger().forget_refused is refused
+        await store.delete(record.handoff_id)
+
+
 ALL_CHECKS = (
+    check_a_refused_forget_call_round_trips_both_ways,
     check_missing_reads_are_none,
     check_record_round_trips_field_for_field,
     check_tainted_ledger_round_trips_exactly,

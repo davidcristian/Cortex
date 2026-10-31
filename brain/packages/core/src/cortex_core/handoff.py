@@ -54,6 +54,7 @@ class HandoffRecord:
     forget_asked: bool = False
     forget_calls: int = 0
     forget_unmatched: int = 0
+    forget_refused: bool = False
 
     def __post_init__(self) -> None:
         if self.requested_at.tzinfo is None or self.requested_at.utcoffset() is None:
@@ -75,6 +76,7 @@ class HandoffRecord:
             forget_asked=self.forget_asked,
             forget_calls=self.forget_calls,
             forget_unmatched=self.forget_unmatched,
+            forget_refused=self.forget_refused,
         )
 
 
@@ -143,4 +145,5 @@ class EscalationSlot:
             forget_asked=self.refs.taint.forget_asked,
             forget_calls=self.refs.taint.forget_calls,
             forget_unmatched=self.refs.taint.forget_unmatched,
+            forget_refused=self.refs.taint.forget_refused,
         )

@@ -103,6 +103,19 @@ def test_a_snapshot_withholds_the_argument_values_of_a_private_call() -> None:
     assert working[-1].tool_calls == (forget,)
 
 
+def test_a_snapshot_keeps_a_refused_forget_call_and_the_ledger_restores_it() -> None:
+    slot = _slot(
+        [Message(role=Role.USER, text="hi", at=_AT, turn_id="t1")],
+        budget=DispatchBudget(),
+        base_len=1,
+    )
+    assert slot.refs is not None
+    slot.refs.taint.forget_refused = True
+    record = slot.snapshot(turn_id="t1", session_id="s1", requested_at=_AT)
+    assert record.forget_refused
+    assert record.taint_ledger().forget_refused
+
+
 def test_a_snapshot_keeps_the_forget_counts_and_the_ledger_restores_them() -> None:
     slot = _slot(
         [Message(role=Role.USER, text="hi", at=_AT, turn_id="t1")],
