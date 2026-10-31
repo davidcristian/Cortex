@@ -6,6 +6,7 @@ import swap_harness as harness
 from swap_harness import ScriptedBrainBackend, TickingClock
 
 from cortex_core import (
+    FORGET_CHOSEN_TOOL_NAME,
     NO_CADENCE_TERMS,
     SCHEDULE_TOOL_NAME,
     SET_VOLUME_TOOL_NAME,
@@ -29,10 +30,12 @@ from cortex_core import (
     ToolSpec,
     TurnCapabilities,
     TurnEngine,
+    asks_kept,
+    asks_not_kept,
 )
 from cortex_core.dispatch import UNASKED_MSG
 from cortex_core.tool_loop import ToolLoopContext, stream_tool_loop
-from cortex_core.unasked_tools import unasked_sidecar_tools, unasked_tools
+from cortex_core.unasked_tools import unasked_forget, unasked_sidecar_tools, unasked_tools
 
 _AT = datetime(2026, 10, 30, 4, 0, 0, tzinfo=UTC)
 _BOTH = frozenset({SET_VOLUME_TOOL_NAME, SCHEDULE_TOOL_NAME})
@@ -210,6 +213,142 @@ def test_a_word_of_a_sidecar_tool_name_keeps_the_tools_of_any_server() -> None:
 def test_a_tool_no_sidecar_serves_is_not_refused_for_being_listed() -> None:
     listed = (ToolSpec(name="look", description="", parameters={}),)
     assert unasked_sidecar_tools(_REMEMBER_A_FACT, listed) == frozenset()
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "Please remember this: my brother's name is Luca.",
+        "Please remember this: I work as a nurse.",
+        "Please remember this: my car is a red Fiat.",
+        "Please remember this: my daughter is allergic to peanuts.",
+        "Please remember this: my bank closes at four on Fridays.",
+        "Please remember this: my landlord is called Mr Weber.",
+        "Please remember this: my favourite tea is jasmine.",
+        "Please remember this: my passport expires in March.",
+        "Please remember this: my neighbour's dog is called Rex.",
+        "Please remember this: I take the train at 7:40.",
+        "Remember that my wifi router is in the hallway.",
+        "Note that my mother's birthday is on 12 May.",
+        "Keep in mind that I am vegetarian.",
+        "Please remember this: my sister's name is Ana.",
+        "Please don't forget this: my gym class is on Tuesday.",
+        "Please don\u2019t forget this: my gym class is on Tuesday.",
+        "Do not forget: my PIN is 5521.",
+        "Never forget my locker code 7319.",
+        "Note down my locker number 42.",
+        "Remember the address on my lease.",
+    ],
+)
+def test_a_request_to_remember_a_plain_fact_refuses_the_forget_tool(query: str) -> None:
+    assert unasked_forget(query) == {FORGET_CHOSEN_TOOL_NAME}
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "Remember that my new locker code is 8426, and forget the old code.",
+        "Remember that you should forget my locker code.",
+        "Note that I want you to forget the PIN.",
+        "Please don't forget to forget my PIN.",
+        "Note my new number 555 and erase the entry for 554",
+        "Remember that I unlearned the code 7319, so should you.",
+        "Note that my phone number is now 0699, and delete the entry for 0612.",
+        "Keep in mind that the PIN is out of date, so remove the entry.",
+        "Remember the code 7319 and wipe the PIN.",
+        "Note that the PIN is stale and you can drop the entry.",
+        "Remember this: clear the entry for my PIN.",
+        "Remember this: purge the entry for my PIN.",
+        "Note that the PIN is stale, discard the entry.",
+        "Note that the PIN is stale, scrub the entry.",
+        "Note that the PIN is stale, ditch the entry.",
+        "Note that the PIN is stale, scrap the entry.",
+        "Note that the PIN is stale, toss the entry.",
+        "Note that the PIN is stale, trash the entry.",
+        "Remember: get rid of the entry with my PIN.",
+        "Remember that you can lose the entry about my PIN.",
+        "Remember that you should stop storing my PIN.",
+        "Remember this: undo what I said about my PIN.",
+        "Note that I retract what I said about my PIN.",
+        "Note that I revoke what I said about my PIN.",
+        "Note that I withdraw what I said about my PIN.",
+        "Keep in mind that you should ignore my last message.",
+        "Keep in mind that you should disregard my last message.",
+        "Remember to pretend I said a different PIN.",
+        "Keep in mind that I regret telling you my PIN.",
+        "Note that my PIN was told by mistake.",
+        "Note that my PIN was told by accident.",
+        "Note that the PIN you hold is wrong.",
+        "Note that I take back what I said about my PIN.",
+        "Remember the code 8426 and replace the PIN entry.",
+        "Remember to not save my PIN 5521",
+        "Remember that I no longer want my PIN stored.",
+        "Remember this: never mind my PIN.",
+        "Remember this: none of my PIN entries are right.",
+        "Remember this: nothing about my PIN stays.",
+        "Remember that I would rather you kept less about my PIN.",
+        "Note that the new PIN is 8426, the old one can go.",
+        "Note that the new PIN is 8426, the previous one can go.",
+        "Note that the new PIN is 8426, the former one can go.",
+        "Note that the new PIN is 8426, the outdated one can go.",
+        "Note this: I don't want my PIN in your memory.",
+        "Note this: I don\u2019t want my PIN in your memory.",
+        "Note this: I dont want my PIN in your memory.",
+        "Remember, I said you wouldnt need my PIN.",
+        "Remember that you cant use my PIN.",
+        "Remember that you wont need my PIN.",
+        "Remember that you shouldnt have my PIN.",
+        "Remember that I didnt mean to send my PIN.",
+        "Remember my PIN? Let it go.",
+        "Please remember this: my new PIN is 1234. Let the last one go.",
+        "Please remember this: my new PIN is 1234! Let the last one go.",
+        "Please remember this: my PIN is 5521. Vergeet de oude.",
+        "Please remember this: my new PIN is 1234\nLet the last one go",
+    ],
+)
+def test_a_request_to_remember_that_can_also_ask_to_forget_keeps_the_forget_tool(
+    query: str,
+) -> None:
+    assert asks_kept(query)
+    assert not asks_not_kept(query)
+    assert unasked_forget(query) == frozenset()
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "Remember that people just forget their PINs.",
+        "Note that I erased notes.txt",
+        "Keep in mind that my daughter is 3 years old.",
+        "Remember that my bus stop is Central.",
+        "Remember that I don't keep cash at home.",
+        "Please remember, never keep the milk out of the fridge.",
+    ],
+)
+def test_a_fact_holding_a_word_that_can_retract_only_keeps_the_forget_tool(query: str) -> None:
+    assert asks_kept(query)
+    assert unasked_forget(query) == frozenset()
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "",
+        "My brother's name is Luca.",
+        "I shouldn't have told you my passport number X4821937.",
+        "Vergeet alsjeblieft mijn pincode 5521.",
+        "Bitte vergiss meine Passnummer X4821937.",
+        "Don't save this anywhere, it's private: my PIN is 5521.",
+        "Just between us, and not for your memory: my locker code is 7319.",
+        "Forget that my passport number is X4821937.",
+        "Unlearn my phone number 0612345678.",
+        "Pretend I never told you that my sister's name is Ilinca.",
+        "Remember my PIN 1234. Actually, forget it.",
+        "Remember this, off the record: my PIN is 5521",
+    ],
+)
+def test_a_message_that_is_no_plain_request_to_remember_keeps_the_forget_tool(query: str) -> None:
+    assert unasked_forget(query) == frozenset()
 
 
 class _Backend:

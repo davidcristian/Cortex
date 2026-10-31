@@ -3,7 +3,8 @@
 import re
 from collections.abc import Sequence
 
-from cortex_core.memory_request import asks_kept
+from cortex_core.memory_forget_chosen import FORGET_CHOSEN_TOOL_NAME
+from cortex_core.memory_request import asks_kept, asks_not_kept
 from cortex_core.schedule_tools import SCHEDULE_TOOL_NAME
 from cortex_core.tools import ToolSpec
 from cortex_core.volume import SET_VOLUME_TOOL_NAME
@@ -31,6 +32,18 @@ _SOURCE = re.compile(
     re.IGNORECASE,
 )
 _WORD = re.compile(r"[a-z]+")
+_DONT_FORGET = re.compile(r"\b(?:don['\u2019]?t|do\s+not|never)\s+forget\b", re.IGNORECASE)
+# Wide on purpose: a fact read wrongly here keeps the forget tool, as on any other turn, while a
+# forget request read wrongly is refused and costs the person a second message.
+_CAN_RETRACT = re.compile(
+    r"\b(?:forg[eo]t\w*|eras\w+|unlearn\w*|delet\w+|remov\w+|wip(?:e|es|ed|ing)|drop\w*|clear\w*"
+    r"|purg\w+|discard\w*|scrub\w*|ditch\w*|scrap\w*|toss\w*|trash\w*|rid|lose|stop\w*|undo"
+    r"|retract\w*|revok\w+|withdraw\w*|ignor\w+|disregard\w*|pretend\w*|regret\w*|mistak\w+"
+    r"|accident\w*|wrong|take\s+back|replac\w+|no|not|never|none|nothing|rather|old|previous"
+    r"|former|outdated|(?:dont|wont|cant|didnt|shouldnt|wouldnt))\b"
+    r"|n['\u2019]t\b|\?|[.!]\s+\S|\n\s*\S",
+    re.IGNORECASE,
+)
 
 
 def _asks_a_source(query: str, sidecar: Sequence[ToolSpec]) -> bool:
@@ -54,3 +67,12 @@ def unasked_sidecar_tools(query: str, specs: Sequence[ToolSpec]) -> frozenset[st
     if not asks_kept(query) or _asks_a_source(query, sidecar):
         return frozenset()
     return frozenset(spec.name for spec in sidecar)
+
+
+def unasked_forget(query: str) -> frozenset[str]:
+    """The forget tool, refused by name on a request to remember that can retract nothing."""
+    if not asks_kept(query) or asks_not_kept(query):
+        return frozenset()
+    if _CAN_RETRACT.search(_DONT_FORGET.sub("", query)):
+        return frozenset()
+    return frozenset({FORGET_CHOSEN_TOOL_NAME})

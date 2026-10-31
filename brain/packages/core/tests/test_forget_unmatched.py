@@ -6,7 +6,10 @@ import swap_harness as harness
 
 from cortex_core import (
     FORGET_CHOSEN_TOOL_NAME,
+    FORGET_NOT_KEPT_NOTE,
     GLOBAL_MEMORY_SCOPE,
+    UNFORGOTTEN_CLAIM_NOTE,
+    UNKEPT_CLAIM_NOTE,
     CompositeToolRegistry,
     DispatchPolicy,
     ForgetChosenTool,
@@ -27,6 +30,7 @@ from cortex_core import (
     SystemClock,
     TaintLedger,
     TextChunk,
+    TextDelta,
     ToolCall,
     ToolDispatcher,
     ToolResult,
@@ -36,6 +40,7 @@ from cortex_core import (
     TurnEngine,
 )
 from cortex_core.brain_phase import BrainPhase
+from cortex_core.dispatch import UNASKED_MSG, DispatchRefusal
 from cortex_core.tool_loop import ToolLoopContext, stream_tool_loop
 
 _AT = datetime(2026, 10, 30, 3, 0, 0, tzinfo=UTC)
@@ -205,3 +210,207 @@ async def test_a_deep_phase_whose_forget_matched_nothing_keeps_only_a_readable_t
     async for _ in phase.run(record):
         pass
     assert len(await store.search(await HashEmbedder().embed("Fiat"), k=5)) == kept
+
+
+_REMEMBER_FIAT = "Please remember this: my car is a red Fiat."
+_REMEMBER_AND_FORGET = "Remember that my car is a red Fiat, and forget the locker code."
+
+
+class _ReplyBackend:
+    """Writes one round of ``calls``, then ``reply``."""
+
+    def __init__(self, calls: Sequence[ToolCall], reply: str = "Noted.") -> None:
+        self._calls = list(calls)
+        self._reply = reply
+        self.seen: list[str] = []
+
+    async def stream(
+        self,
+        model: str,
+        messages: Sequence[Message],
+        *,
+        tools: Sequence[ToolSpec] = (),
+        schema: JsonSchema | None = None,
+        bounds: GenerationBounds | None = None,
+    ) -> AsyncIterator[InferenceEvent]:
+        del model, tools, schema, bounds
+        self.seen.append(messages[-1].text)
+        calls, self._calls = self._calls, []
+        for call in calls:
+            yield call
+        if not calls:
+            yield TextChunk(self._reply)
+
+
+class _Rig:
+    """A store holding one exchange, the real ``forget_memories`` and an engine over them."""
+
+    def __init__(self, *, approve: bool = True) -> None:
+        self.store = InMemoryMemoryStore()
+        self.sessions = InMemorySessionStore()
+        self.audit = RecordingAuditSink()
+        self.confirmer = RecordingConfirmer(answer=approve)
+        forget = ForgetChosenTool(self.store, GLOBAL_MEMORY_SCOPE)
+        self.dispatcher = ToolDispatcher(
+            CompositeToolRegistry([forget]),
+            self.audit,
+            _TickingClock(),
+            confirmer=self.confirmer,
+            policy=DispatchPolicy(
+                record_cards={FORGET_CHOSEN_TOOL_NAME: forget},
+                notes={FORGET_CHOSEN_TOOL_NAME: forget},
+            ),
+        )
+        self.caps = TurnCapabilities(
+            memory=MemoryRecaller(self.store, HashEmbedder(), SystemClock()), tools=self.dispatcher
+        )
+
+    async def seed(self) -> None:
+        text = "User: Please remember this: my car is a red Fiat.\nAssistant: Noted."
+        embedding = tuple(await HashEmbedder().embed(text))
+        await self.store.add(MemoryRecord(id="m", text=text, embedding=embedding, at=_AT))
+
+    async def turn(self, query: str, backend: _ReplyBackend, session: str = "s") -> str:
+        engine = TurnEngine(self.sessions, backend, _TickingClock(), capabilities=self.caps)
+        events = engine.handle_turn(session, query, turn_id=f"t-{session}")
+        return "".join([event.text async for event in events if isinstance(event, TextDelta)])
+
+    async def held(self) -> list[str]:
+        found = await self.store.search(await HashEmbedder().embed("Fiat"), k=5)
+        return [hit.record.text for hit in found if "Fiat" in hit.record.text]
+
+
+async def test_a_forget_call_on_a_request_to_remember_a_stored_fact_keeps_old_and_new() -> None:
+    rig = _Rig()
+    await rig.seed()
+    reply = await rig.turn(_REMEMBER_FIAT, _ReplyBackend([_forget("Fiat")]))
+    assert reply == "Noted."
+    assert rig.confirmer.requests == ()
+    (refused,) = rig.audit.records
+    assert (refused.name, refused.ok, refused.detail) == (
+        FORGET_CHOSEN_TOOL_NAME,
+        False,
+        UNASKED_MSG,
+    )
+    assert len(await rig.held()) == 2
+
+
+@pytest.mark.parametrize(
+    ("query", "says_not_kept"),
+    [(_REMEMBER_FIAT, False), (_REMEMBER_AND_FORGET, True), ("Forget the Fiat.", True)],
+)
+async def test_the_model_reads_that_nothing_is_kept_only_when_that_is_true(
+    *, query: str, says_not_kept: bool
+) -> None:
+    rig = _Rig()
+    await rig.seed()
+    backend = _ReplyBackend([_forget("Fiat")])
+    await rig.turn(query, backend)
+    assert (FORGET_NOT_KEPT_NOTE in backend.seen[-1]) is says_not_kept
+    assert (UNASKED_MSG in backend.seen[-1]) is not says_not_kept
+
+
+@pytest.mark.parametrize("refusal", list(DispatchRefusal))
+async def test_a_refused_forget_ends_with_the_note_unless_it_was_refused_as_unasked(
+    refusal: DispatchRefusal,
+) -> None:
+    result = await _Rig().dispatcher.dispatch(_forget("Fiat"), refusal=refusal)
+    assert (FORGET_NOT_KEPT_NOTE in result.content) is (refusal is not DispatchRefusal.UNASKED)
+
+
+@pytest.mark.parametrize(
+    ("reply", "note"),
+    [
+        ("I have removed your car from my memory.", UNFORGOTTEN_CLAIM_NOTE),
+        ("I've noted that your car is a red Fiat.", ""),
+    ],
+)
+async def test_the_reply_after_a_refused_forget_gets_only_the_note_that_is_true(
+    *, reply: str, note: str
+) -> None:
+    rig = _Rig()
+    await rig.seed()
+    shown = await rig.turn(_REMEMBER_FIAT, _ReplyBackend([_forget("Fiat")], reply))
+    assert shown == reply + note
+    assert UNKEPT_CLAIM_NOTE not in shown
+    assert len(await rig.held()) == 2
+
+
+async def test_a_request_to_remember_and_to_forget_still_shows_the_card_and_runs() -> None:
+    rig = _Rig()
+    await rig.seed()
+    shown = await rig.turn(_REMEMBER_AND_FORGET, _ReplyBackend([_forget("Fiat")]))
+    assert len(rig.confirmer.requests) == 1
+    assert await rig.held() == []
+    assert shown == "Noted." + UNKEPT_CLAIM_NOTE
+
+
+async def test_the_refusal_lasts_one_turn_and_the_next_message_can_forget() -> None:
+    rig = _Rig()
+    await rig.seed()
+    await rig.turn(_REMEMBER_FIAT, _ReplyBackend([_forget("Fiat")]))
+    assert len(await rig.held()) == 2
+    await rig.turn("Yes, forget the Fiat.", _ReplyBackend([_forget("Fiat")]))
+    assert len(rig.confirmer.requests) == 1
+    assert await rig.held() == []
+
+
+@pytest.mark.parametrize(
+    ("query", "counted"), [(_REMEMBER_FIAT, 0), (_REMEMBER_AND_FORGET, 1), ("Forget the Fiat.", 1)]
+)
+async def test_only_a_forget_call_the_message_can_ask_for_counts_in_the_ledger(
+    *, query: str, counted: int
+) -> None:
+    rig = _Rig()
+    taint = TaintLedger()
+    context = ToolLoopContext(
+        dispatcher=rig.dispatcher,
+        clock=_TickingClock(),
+        turn_id="t",
+        taint=taint,
+        nonce="n",
+        session_id="s",
+        query=query,
+    )
+    working = [Message(role=Role.USER, text=query, at=_AT, turn_id="t")]
+    backend = _ReplyBackend([_forget("Fiat")])
+    async for _ in stream_tool_loop(backend, "m", working, context):
+        pass
+    assert (taint.forget_asked, taint.forget_calls) == (counted > 0, counted)
+
+
+async def test_a_forget_the_model_wrote_unreadably_still_keeps_the_turn_out() -> None:
+    store = InMemoryMemoryStore()
+    dispatcher = ToolDispatcher(
+        CompositeToolRegistry([ForgetChosenTool(store, GLOBAL_MEMORY_SCOPE)]),
+        RecordingAuditSink(),
+        _TickingClock(),
+    )
+    caps = TurnCapabilities(
+        memory=MemoryRecaller(store, HashEmbedder(), SystemClock()), tools=dispatcher
+    )
+    engine = TurnEngine(
+        InMemorySessionStore(), _RoundsBackend([[]]), _TickingClock(), capabilities=caps
+    )
+    async for _ in engine.handle_turn("s", _REMEMBER_FIAT, turn_id="t-1"):
+        pass
+    assert not await store.search(await HashEmbedder().embed("Fiat"), k=5)
+
+
+async def test_a_deep_phase_refuses_a_forget_call_on_a_request_to_remember() -> None:
+    rig = _Rig()
+    await rig.seed()
+    await rig.sessions.append(
+        harness.SESSION,
+        Message(role=Role.USER, text=_REMEMBER_FIAT, at=_AT, turn_id=harness.TURN),
+    )
+    phase = BrainPhase(
+        rig.sessions, _ReplyBackend([_forget("Fiat")]), _TickingClock(), "brain", rig.caps
+    )
+    record = harness.prepared_slot().snapshot(
+        turn_id=harness.TURN, session_id=harness.SESSION, requested_at=_AT
+    )
+    async for _ in phase.run(record):
+        pass
+    assert rig.confirmer.requests == ()
+    assert len(await rig.held()) == 2

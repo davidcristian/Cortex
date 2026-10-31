@@ -191,7 +191,8 @@ class ToolDispatcher:
             await self._audited(call, cut)
             raise
         noted = self._policy.notes.get(call.name)
-        if noted is None:
+        # A call refused as unasked leaves the turn kept, so a note saying otherwise would be false.
+        if noted is None or refusal is DispatchRefusal.UNASKED:
             return result
         return replace(result, content=f"{result.content} {noted.result_note}")
 

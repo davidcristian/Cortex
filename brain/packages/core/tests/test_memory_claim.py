@@ -36,6 +36,7 @@ from cortex_core import (
     claims_kept,
     memory_withheld,
 )
+from cortex_core.unasked_tools import unasked_forget
 
 _START = datetime(2026, 10, 29, 3, 0, tzinfo=UTC)
 _NOTED = "I've noted that your locker code is 7319."
@@ -328,6 +329,11 @@ def test_a_request_not_to_keep_the_message_beside_a_request_to_remember_is_read(
 ) -> None:
     assert asks_kept(query)
     assert asks_not_kept(query)
+
+
+@pytest.mark.parametrize("query", [*NOT_KEPT, *DISCARD, *REMEMBER_AND_NOT_KEPT])
+def test_every_recorded_request_not_to_keep_or_to_forget_keeps_the_forget_tool(query: str) -> None:
+    assert unasked_forget(query) == frozenset()
 
 
 class _Clock:

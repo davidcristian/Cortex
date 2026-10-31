@@ -82,12 +82,12 @@ pool down to the hits one turn sees. The turn that calls it is in
   it, and the no-match result tells the model to say that nothing about it was stored and not to
   ask the user for the value. It is a
   `ResultNote`: the dispatcher ends every result a call to it gets, run, declined, expired or
-  refused, with `FORGET_NOT_KEPT_NOTE`, which says the message is not kept and asks the model to
+  refused other than as `UNASKED`, with `FORGET_NOT_KEPT_NOTE`, which says the message is not kept and asks the model to
   have the user send anything else in it again. `record_exchange` stores nothing for a turn that
   called `forget_memories`, whatever its result, since the query or reply may name the text; a deep
   phase passes the cortex's runs of the turn as `earlier`, so a forget before a handoff counts. A
   call that never ran counts too: the tool loop sets `TaintLedger.forget_asked` for every call the
-  model names before any refusal or cut, the engine and the deep phase set it for an unreadable call
+  model names before any refusal or cut, except on a message `unasked_forget` reads, the engine and the deep phase set it for an unreadable call
   whose `MalformedToolCallError.tool_name` is the forget, and the handoff record keeps it for the
   deep phase. Each of those also counts in `TaintLedger.forget_calls` (`name_forget`), and the
   round counts a run whose result has `matched_nothing` set, which only the no-match run of

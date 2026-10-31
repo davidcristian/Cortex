@@ -58,7 +58,15 @@ that removes exactly those rows and holds against a turn in flight. This record 
    the answer to it, the same span the dispatcher holds the call. After the delete it searches again
    and reports any row still matching, so the reply never claims a fact is gone while a row holds
    it.
-   A turn whose model named it in a call is not recorded to memory, whether the call ran, was
+   On a request to remember that can retract nothing, a call to it is refused by name and the
+   turn is recorded: `unasked_forget` (`unasked_tools.py`) reads a message `asks_kept` reads and
+   `asks_not_kept` does not, holding no word that can retract something, no negation, no question
+   and no second sentence once any "don't forget" is taken out. There a card would delete the fact
+   the person asked to keep, and the turn would stay out of memory
+   ([readings](../readings/forget-refused-on-remember.md)). The word list is wide because a message
+   read wrongly as such a request costs a second message, which reaches the tool, while a card
+   costs the fact. The tool stays listed, so the first request of the turn does not change.
+   Any other turn whose model named it in a call is not recorded to memory, whether the call ran, was
    refused, was cut from its round or could not be read, because its query or reply may name the
    text it forgets, and recording it would store that text again. That holds for the deep phase
    of a turn the cortex handed over after naming it, which reads the cortex's runs from the
@@ -75,7 +83,8 @@ that removes exactly those rows and holds against a turn in flight. This record 
    (`forget_calls`, an unreadable one included) and the runs that matched nothing
    (`forget_unmatched`). The handoff record keeps both counts, so a deep phase reads the cortex's
    calls the same way. So every result a call to it gets ends with
-   `FORGET_NOT_KEPT_NOTE`, whether the call ran or was declined, expired or refused: nothing in
+   `FORGET_NOT_KEPT_NOTE`, whether the call ran or was declined, expired or refused other than by
+   that reader: nothing in
    the message is kept, the reply must not say anything in it was noted, and anything else it
    asked to be remembered must be sent again in its own message, because a model given no note
    told the person a new fact in the same message was kept. The tool is a `ResultNote`, and the

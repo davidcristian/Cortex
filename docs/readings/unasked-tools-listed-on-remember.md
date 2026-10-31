@@ -3,8 +3,7 @@
 Leaving `set_volume` and `schedule_task` out of the tool list of a request to remember raised the
 cortex's `forget_memories` calls from 1 of 30 to 13 of 30
 ([separated pair](side-effect-tools-on-remember.md#the-forget-calls-on-a-request-to-remember-separated-pair-the-draws-2026-10-31)).
-This record holds the check of keeping both tools listed and refusing a call to either by name
-([R-961](../refinements/tasks/961-a-request-to-remember-a-stored-fact-can-show-a-forget-card.md)).
+This record holds the check of keeping both tools listed and refusing a call to either by name.
 
 ## Rows and the rule, 2026-10-31
 
@@ -79,7 +78,7 @@ Four things the draws show:
   person had asked to remember it. Each reply said it was noted or could not be saved, and the note
   that nothing was kept went beside it on the candidate. Each of the 2 denied cards, both on the
   candidate, kept the old row and dropped the new exchange
-  ([R-961](../refinements/tasks/961-a-request-to-remember-a-stored-fact-can-show-a-forget-card.md)).
+  ([forget-refused-on-remember.md](forget-refused-on-remember.md)).
   The S rows without a card stored a second row beside the first.
 - **The pair's 1 of 30 did not repeat.** The candidate lists the same tools as the pair's "before"
   build and drew 5 of 15. Reading the changes between those two builds found none to the tool list, a

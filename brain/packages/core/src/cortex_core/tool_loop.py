@@ -21,7 +21,7 @@ from cortex_core.tool_cut import ResultRoom
 from cortex_core.tool_round import call_message, plan_round
 from cortex_core.tool_skips import list_tools
 from cortex_core.tools import ToolCall, ToolSpec
-from cortex_core.unasked_tools import unasked_sidecar_tools, unasked_tools
+from cortex_core.unasked_tools import unasked_forget, unasked_sidecar_tools, unasked_tools
 
 __all__ = ["MAX_TOOL_STEPS", "ToolLoopContext", "stream_tool_loop"]
 
@@ -91,7 +91,7 @@ async def _turn_tools(
     # an unasked tool, its refusal. A sidecar tool stays listed, since a shorter list raised the
     # model's forget calls in one of two comparisons (unasked-tools-listed-on-remember.md).
     offered = tuple(spec for spec in specs if spec.name not in withheld)
-    refused = left_out | unasked_sidecar_tools(context.query, specs)
+    refused = left_out | unasked_sidecar_tools(context.query, specs) | unasked_forget(context.query)
     return offered, {s.name: s for s in specs}, refused
 
 
@@ -126,8 +126,10 @@ async def stream_tool_loop(
         finally:
             await pieces.aclose()
         said.extend(step_text)
-        # Before any refusal or the round's cut, so a call that never runs still marks the turn.
-        context.taint.name_forget(sum(call.name == FORGET_CHOSEN_TOOL_NAME for call in calls))
+        # Before any refusal or the round's cut, so a call that never runs still marks the turn,
+        # unless the person's message cannot have asked for it.
+        if FORGET_CHOSEN_TOOL_NAME not in unasked:
+            context.taint.name_forget(sum(call.name == FORGET_CHOSEN_TOOL_NAME for call in calls))
         if not calls or dispatcher is None:
             break
         plan = plan_round(calls)

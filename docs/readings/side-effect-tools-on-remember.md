@@ -162,9 +162,7 @@ drift. A later run did not repeat the size of this result
 when the build was drawn first, 0 against 8 when second). Before called only on R09. After called
 on R01, R02 and R12 twice, and on R05, R07, R09, R10, R11, R14 and R15 once.
 
-The rule leaves the withheld tools in place and files
-[R-961](../refinements/tasks/961-a-request-to-remember-a-stored-fact-can-show-a-forget-card.md).
-Three things the pair does not settle:
+The rule leaves the withheld tools in place. Three things the pair does not settle:
 
 - Before's 1 of 30 is below the 5 of 30 this brain code drew on 2026-10-30, on an older
   llama-server build. Both builds of the pair ran on one server, so the comparison stands; the
