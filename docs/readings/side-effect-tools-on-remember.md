@@ -108,6 +108,73 @@ draw stored its fact, and none called a tool with a side effect. 8 of 30 is no r
 separated pair is filed
 ([R-952](../refinements/tasks/952-withheld-unasked-tools-may-raise-forget-calls-on-a-remember-request.md)).
 
+## The forget calls on a request to remember: separated pair, rows and rule, 2026-10-31
+
+Written before either build was drawn. The pair decides whether leaving `set_volume` and
+`schedule_task` out of the tool list raised the forget calls, or whether the counts of 5, 12 and 8
+of 30 above were drift between runs.
+
+The rig is the `cortexn12` stack over `Converse`: the cortex gemma-4-12B at context 16,384,
+llama-server build `b12004-3c809f443`, schedules on, the Linux shell as the body, a new chat for
+each draw, every card approved, `memories` empty at each draw's start. Two brain containers run
+beside each other against that stack's model server and stores. "Before" is a `git archive` build
+of `6b9956582`, the commit before the change, and "after" is one of `86ce47177`, the change. Each
+image's `cortex_core` is compared with its archive before any draw.
+
+| Row | Message | Draws |
+| --- | --- | --- |
+| R01 to R15 | as above, each its own row | 2 each on each build, 60 in all |
+
+The builds are drawn in turn. One draw of a row on one build is followed at once by a draw of that
+row on the other, and the build that goes first alternates by row and by pass. A draw that ends in
+an error is not counted and is drawn again at the end of its pass.
+
+- A draw counts when its turn calls `forget_memories`, read from a `ToolActivity` event or a card.
+  D is the after count less the before count.
+- **The change raised them** when D is at least 7. That is the rise that raised the question (5 to
+  12), and about twice the spread of D when both builds call near 8 of 30.
+- **The earlier counts were drift** when D is at most 3.
+- D of 4 to 6 is no result. A second pair of the same size is then drawn the same way and read over
+  all 120 draws: the change raised them when D is at least 10, and the counts were drift otherwise.
+- The pair cannot see a rise much smaller than these bounds, so a null result rules out a rise of
+  that size and not a smaller one.
+- No behaviour changes on this pair in any case. A rise leaves the withheld tools in place, since
+  they shipped on their own rule and every calling draw kept its fact, and files a task whose first
+  step is rows and a rule for any change to the forget calls. A null result closes the question
+  and files nothing.
+
+## The forget calls on a request to remember: separated pair, the draws, 2026-10-31
+
+Run log `pair.jsonl` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/545ea45a-902e-44a3-86aa-5ec869e6c085/scratchpad/slot2/`.
+Each image's brain packages matched its archive file for file, and the two differ only in the
+change. The SM clock read 0.21 to 0.22 of its maximum just after each draw, on a card back near
+idle. No draw ended in an error and `memories` was empty at every draw's start.
+
+| Build | Calling `forget_memories` | Storing the fact | With a forget card | Other tools shown |
+| --- | --- | --- | --- | --- |
+| Before | 1 of 30 | 30 of 30 | 0 | one `schedule_task` |
+| After | 13 of 30 | 30 of 30 | 0 | none |
+
+D is 12, so by the rule **the change raised the forget calls**, and the earlier counts were not
+drift. The rise held in both passes (0 against 5, then 1 against 8) and in both orders (1 against 5
+when the build was drawn first, 0 against 8 when second). Before called only on R09. After called
+on R01, R02 and R12 twice, and on R05, R07, R09, R10, R11, R14 and R15 once.
+
+The rule leaves the withheld tools in place and files
+[R-961](../refinements/tasks/961-leaving-tools-out-of-a-request-to-remember-raises-forget-calls.md).
+Three things the pair does not settle:
+
+- Before's 1 of 30 is below the 5 of 30 this brain code drew on 2026-10-30, on an older
+  llama-server build. Both builds of the pair ran on one server, so the comparison stands; the
+  absolute rate between nights does not.
+- It does not say which of the two tools moves the count. With schedules off altogether, 9 of 56
+  draws called it on 2026-10-30 ([readings](forget-card-on-remember.md#more-forget-calls-with-schedules-on-the-separation-2026-10-30)).
+- Every draw started from an empty pool. Each of the 14 calls matched nothing, so `card`
+  (`memory_forget_chosen.py`) returned `None` and no card was shown; the same held for all 25
+  calls of the three 2026-10-30 runs. A pool holding the text would show a card, which no row has
+  drawn since the change.
+
 ## Near misses for the reader's new verbs, checked 2026-10-30
 
 Unit runs of `asks_kept`, `asks_not_kept` and `unasked_tools` over hand written messages, after
