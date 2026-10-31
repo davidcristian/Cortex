@@ -74,7 +74,8 @@ that removes exactly those rows and holds against a turn in flight. This record 
    call it named ran and matched nothing, and its message asks to remember something, read by
    `asks_kept` (`memory_request.py`: "remember", "keep in mind", "forget" after "don't", "do
    not" or "never", or "note" before "that", "down" or the message, at a clause start, English
-   only, and not "remember not to" before a keep verb and the message) and not read by
+   only, and not "remember not to" or "remember to not" before a keep verb and the message) and
+   not read by
    `asks_not_kept`. The cortex calls the tool with the fact as the text on about one request to
    remember in four, and that turn has nothing to forget
    ([readings](../readings/forget-no-match-on-remember.md)). A forget request naming a value
@@ -101,7 +102,9 @@ that removes exactly those rows and holds against a turn in flight. This record 
    `asks_not_kept` (`memory_request.py`) reads the message: a "don't", "never" or "no need to"
    before "save", "keep", "remember" or "write it down" at a clause start, a "you don't need
    to" before one, "not for your memory", "off the record", an imperative "forget", "erase" or
-   "unlearn", and a "delete" or "remove" with "from your memory". "Remember not to", "get rid
+   "unlearn", a "you should", "must", "need to" or "have to" before one of those three and the
+   message at a clause start or after "remember", and a "delete" or "remove" with "from your
+   memory". "Remember not to", "remember to not", "get rid
    of" and "stop remembering" (or saving, storing, keeping, noting) count only before the
    message, so "Remember not to save files to the desktop" is a rule to store, and "drop it"
    only when it ends its clause, so "drop it off at the post office" asks nothing. A file

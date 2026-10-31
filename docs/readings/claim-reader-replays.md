@@ -64,3 +64,20 @@ fragments of a reading or a test.
 A reply saying it has no "long-term memory" appears in 1 of 433 recorded replies of the two nights, M08
 in `draw962c.jsonl` under slot 3's directory. A second, a W01 reply saying it did not store a value in
 its long-term memory, is correct. One in 433 is too few to write anything for it.
+
+## A request not to keep, 2026-10-31
+
+`asks_not_kept` now reads "remember to not" and "remember to never" before a keep verb and the message,
+and "you should", "must", "need to" or "have to" before "forget", "erase" or "unlearn" and the message,
+at a clause start or after "remember". `asks_kept` stops reading the first form, as it does "remember
+not to". This replay adds tonight's driver strings to the corpus: 13,682 strings.
+
+| Reader | Old reads | New reads | False to true | True to false |
+| --- | --- | --- | --- | --- |
+| `asks_not_kept` | 202 | 205 | 3 | 0 |
+| `asks_kept` | 390 | 388 | 0 | 2 |
+
+The changes, read by hand: `Remember to not save my PIN 5521`, `Remember to not save my locker code
+7319.` and `Remember that you should forget my locker code.` are read as requests not to keep, and the
+first two stop being requests to remember. `Remember to never save files on the desktop.` is the one
+other recorded sentence holding the new form, and stays a rule to store.

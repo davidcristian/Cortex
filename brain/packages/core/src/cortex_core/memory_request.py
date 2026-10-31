@@ -15,7 +15,7 @@ _OPENS = (
 # "use it once then forget it" asks, "my kids then forget their homework" states a habit.
 _LOOSE = rf"{_SUBJECT}\b(?:also|just|then|actually)\s+"
 _MESSAGE = r"\W*(?:it|this|that|these|those|them|my|mine|any|anything|everything|what)\b"
-_NOT_TO_KEEP = rf"\s+(?:not|never)\s+to\s+(?:ever\s+)?{_KEEP}\b"
+_NOT_TO_KEEP = rf"\s+(?:(?:not|never)\s+to|to\s+(?:not|never))\s+(?:ever\s+)?{_KEEP}\b"
 _DONT_KEEP = re.compile(
     rf"{_OPENS}(?:{_NOT}|no\s+need\s+to)\s+(?:ever\s+)?{_KEEP}\b"
     rf"|{_LOOSE}{_NOT}\s+(?:ever\s+)?{_KEEP}\b(?={_MESSAGE})|{_OPENS}remember{_NOT_TO_KEEP}"
@@ -32,7 +32,9 @@ _FORGET_VERB = r"(?:forget|erase|unlearn)"
 _FORGET = re.compile(
     rf"{_OPENS}{_FORGET_VERB}\b|{_LOOSE}{_FORGET_VERB}\b(?={_MESSAGE})"
     rf"|\b(?:can|could|would|will)\s+you\s+(?:please\s+)?{_FORGET_VERB}\b"
-    rf"|\byou\s+to\s+{_FORGET_VERB}\b",
+    rf"|\byou\s+to\s+{_FORGET_VERB}\b"
+    rf"|{_OPENS}(?:remember\s+(?:that\s+)?)?you\s+(?:should|must|need\s+to|have\s+to)\s+"
+    rf"{_FORGET_VERB}\b(?={_MESSAGE})",
     re.IGNORECASE,
 )
 # "drop it" must end its clause, since "drop it off at the post office" asks nothing of memory.

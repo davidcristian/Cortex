@@ -248,7 +248,6 @@ def test_a_request_to_remember_a_plain_fact_refuses_the_forget_tool(query: str) 
     "query",
     [
         "Remember that my new locker code is 8426, and forget the old code.",
-        "Remember that you should forget my locker code.",
         "Note that I want you to forget the PIN.",
         "Please don't forget to forget my PIN.",
         "Note my new number 555 and erase the entry for 554",
@@ -281,7 +280,6 @@ def test_a_request_to_remember_a_plain_fact_refuses_the_forget_tool(query: str) 
         "Note that the PIN you hold is wrong.",
         "Note that I take back what I said about my PIN.",
         "Remember the code 8426 and replace the PIN entry.",
-        "Remember to not save my PIN 5521",
         "Remember that I no longer want my PIN stored.",
         "Remember this: never mind my PIN.",
         "Remember this: none of my PIN entries are right.",

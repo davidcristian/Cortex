@@ -234,6 +234,11 @@ DISCARD = [
     "Please remember not to store my card number.",
     "Could you erase my PIN?",
     "OK then stop saving my searches.",
+    "Remember to not save my locker code 7319.",
+    "Please remember to never store my PIN.",
+    "Remember to not keep this.",
+    "You should forget my locker code.",
+    "Also, you must forget it.",
 ]
 
 RULES = [
@@ -243,6 +248,17 @@ RULES = [
     "Remember that people just forget their PINs.",
     "Remember not to save files to the desktop.",
     "Remember not to call him after 9.",
+    "Remember to not call him after 9.",
+    "Remember to not save files to the desktop.",
+    "Remember to never keep the milk out of the fridge.",
+    "Remember to not record calls without asking.",
+    "Remember to not forget your keys.",
+    "Remember to never forget the milk.",
+    "Remember to not note the old address on the invoice.",
+    "Remember that you should call him after 9.",
+    "Remember that you should forget about the milk until Friday.",
+    "Remember that you should forget the old road, it is closed.",
+    "Remember that you should not save files to the desktop.",
 ]
 
 REMEMBER_AND_NOT_KEPT = [
@@ -256,6 +272,10 @@ REMEMBER_AND_NOT_KEPT = [
     "Note my code 7319 and don't store it.",
     "Remember my PIN, and remember not to store my card number.",
     "Remember this and then drop it.",
+    "Remember that you should forget my locker code.",
+    "Remember you must forget it.",
+    "Please remember that you need to forget my PIN.",
+    "Remember that you have to erase this.",
 ]
 
 NOTE = ["Note my code 7319.", "Note down my locker number 42.", "Note this down: my bus is at 8."]
@@ -302,6 +322,14 @@ KEPT = [
     "I unlearned French at school.",
     "Note: I'm off tomorrow, cancel my meeting.",
     "I note my mistakes in a diary.",
+    "I think you should forget him.",
+    "I think you should forget it.",
+    "People say you should forget it.",
+    "You should forget about the milk until Friday.",
+    "You should forget the old road, it is closed.",
+    "Tom said to not save it, I think.",
+    "I try to not save my drafts.",
+    "He told me to never keep this.",
 ]
 
 
@@ -516,7 +544,14 @@ async def test_the_note_shows_exactly_when_the_turn_stores_nothing(
 
 
 @pytest.mark.parametrize(
-    ("query", "stored"), [("Don't save this: my code is 7319.", 0), ("My code is 7319.", 1)]
+    ("query", "stored"),
+    [
+        ("Don't save this: my code is 7319.", 0),
+        ("My code is 7319.", 1),
+        ("Remember to not save my locker code 7319.", 0),
+        ("Remember that you should forget my locker code.", 0),
+        ("Remember to not call him after 9.", 1),
+    ],
 )
 async def test_a_turn_that_makes_no_call_stores_nothing_when_its_message_asks_not_to_keep(
     *, query: str, stored: int

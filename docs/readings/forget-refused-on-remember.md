@@ -34,7 +34,8 @@ something and none asks to forget. A retraction word appears in them only as "do
 forget" or "never forget". The two readers alone would also refuse 27 more, and three of those can ask
 to forget or not to keep: `Note my new number 555 and erase the old one`,
 `Remember to not save my PIN 5521` and `Remember, I said don't save it: my PIN is 5521`. That is
-why the reader holds a word list and not only the two readers.
+why the reader holds a word list and not only the two readers. `asks_not_kept` has read the second of
+those since ([replay](claim-reader-replays.md#a-request-not-to-keep-2026-10-31)).
 
 A message the reader reads wrongly as a plain request keeps its recovery: `UNASKED_MSG` tells the
 model to ask, and the next message, which holds a forget word, reaches the tool. A plain fact holding
@@ -142,7 +143,8 @@ Two more observations, from code the change does not reach:
   ended with the note; 3 said it was not saved
   ([R-967](../refinements/tasks/967-a-request-to-remember-a-new-value-and-forget-the-old-one-keeps-neither.md)).
 - `Remember to not save my locker code 7319.` stored the code in all 4 draws while each reply said it
-  would not ([R-966](../refinements/tasks/966-remember-to-not-save-a-value-stores-it-while-the-reply-says-it-will-not.md)).
+  would not, since `asks_not_kept` did not read that form then
+  ([replay](claim-reader-replays.md#a-request-not-to-keep-2026-10-31)).
 
 ## The first candidate, 2026-10-31
 
