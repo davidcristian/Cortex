@@ -63,5 +63,59 @@ every C01 draw was stored, and C02 called `list_allowed_directories`, `list_dire
 read tool output is tainted and `skip` records nothing of it. The calls themselves did not
 change: the model still answered without a call in 14 of the 20 F01 to F04 candidate draws, and
 two of them listed invented folders until the reply's token limit ended them with its note. The
-shown reply still has no note of its own
+shown reply had no note of its own on these runs
 ([R-958](../refinements/tasks/958-a-file-question-answered-without-a-call-shows-invented-folders-with-no-note.md)).
+
+## The note on the shown reply: rows and the pass rule, 2026-10-31
+
+Written before any draw of the note. `unread_folders_claim` (`file_claim.py`) holds on an untainted turn
+whose message `asks_files` and whose reply says it reaches a path or a listed folder the message does not
+name, and `UNREAD_FOLDERS_NOTE` then closes the reply. The rig is a candidate brain beside the `cortexn12`
+stack's, with the same model, each draw a new chat.
+
+| Row | Message | Draws |
+| --- | --- | --- |
+| F01, F02, F03 | as above | 5 each |
+| C01 | as above | 2 |
+| C02 | as above | 2 |
+
+The baseline is the candidate column above: of its 15 F01 to F03 draws, 11 invented and none showed a
+note. The note ships when all of these hold:
+
+1. No F draw with no file tool call names an invented folder and ends without the note.
+2. No draw that called a file tool ends with the note.
+3. No C01 or C02 draw ends with the note.
+4. No reply with the note says it has no access or asks which folder, read by hand.
+
+A null result is a draw that fails item 1 on a wording the reader does not read: the wording goes in as a
+test and the row is drawn again. A failure of item 2, 3 or 4 stops the note.
+
+## The note on the shown reply: the replay and the draws, 2026-10-31
+
+**The replay.** Every string of [the corpus](claim-reader-replays.md#method), 13,682 in all, went through
+`claims_folders` with an empty message. It reads 418 strings, on 430 lines in 177 forms, and each form was
+read by hand: every one says the cortex reaches a folder or a path, such as "I can read the following
+folders:" or "The folder I can read is /projects". 261 of the strings name only `/projects` after a real
+call, and 68 are reasoning text no person is shown. Neither reaches the check on a real turn: a call taints
+the turn, and the check reads shown text. 2 other lines hold a folder word beside a path and stay unread:
+"Allowed directories:" from a tool result, and a report of having read `notes.txt` after a call.
+
+Paired with their messages, the runs above give 28 no-call draws of F01 to F04 that invented, and the check
+reads all 28. It reads none of the 6 C01 replies.
+
+**The draws.** Run log `files.jsonl` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/545ea45a-902e-44a3-86aa-5ec869e6c085/scratchpad/slot6/`, the
+SM clock between 0.08 and 0.22 of its maximum, and no draw ended in an error.
+
+| Row | Draws | Called a file tool | Of those, with the note | No call, invented | Of those, with the note |
+| --- | --- | --- | --- | --- | --- |
+| F01 | 5 | 3 | 0 | 2 | 2 |
+| F02 | 5 | 0 | 0 | 5 | 5 |
+| F03 | 5 | 3 | 0 | 2 | 2 |
+| C01 | 2 | 0 | 0 | 0 | 0 |
+| C02 | 2 | 2 | 0 | 0 | 0 |
+
+**The note ships.** Item 1: no invented list of the 9 ended without the note, against 11 of 15 F draws with no
+note on the baseline. Item 2: none of the 8 draws that called a tool has it. Item 3: no C draw has it. Item 4:
+all 9 replies with the note list folders, and none says it has no access or asks which folder, read by hand.
+The model's rate of calling the tool does not change with this note, since it is appended after the reply.

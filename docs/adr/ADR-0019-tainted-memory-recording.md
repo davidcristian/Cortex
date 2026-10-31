@@ -155,7 +155,8 @@ across turns (a recalled memory).
    tainted turn under `skip` (decision 3), and an untainted turn whose message asks about files
    or folders (`asks_files`, `file_request.py`) and does not ask to remember. Such a turn read
    no tool output, so its reply names folders the cortex wrote itself, and a stored row would
-   let a later chat repeat them ([readings](../readings/file-request-without-a-call.md)).
+   let a later chat repeat them ([readings](../readings/file-request-without-a-call.md)). A reply
+   that says it reaches such a folder ends with `UNREAD_FOLDERS_NOTE` (`file_claim.py`).
    `record_exchange` returns on it, and `limit_notes` reads it over the same runs and appends
    `UNKEPT_CLAIM_NOTE` when `claims_kept` also finds a statement that something was noted or will
    be remembered, as `UNSCHEDULED_CLAIM_NOTE` closes a schedule claim no call made

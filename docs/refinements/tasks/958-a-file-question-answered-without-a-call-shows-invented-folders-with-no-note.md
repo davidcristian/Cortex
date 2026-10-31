@@ -1,9 +1,8 @@
 # A file question answered without a call shows invented folders with no note
 
-**Status:** open, actionable
+**Status:** done 2026-10-31
 **Area:** tools
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
-**Verified:** 2026-10-30
 
 A message that asks which folders the cortex can read is often answered with no file tool call,
 and the reply then lists folders that do not exist, such as `/home/user/Documents`, while the
@@ -31,3 +30,7 @@ condition is an untainted turn, as for the memory check.
 
 - 2026-10-30: filed when a file question that read no tool output stopped being stored, leaving
   the shown reply without a note.
+- 2026-10-31: done. `claims_folders` and `UNREAD_FOLDERS_NOTE` (`file_claim.py`) close such a reply: on
+  [the rows](../../readings/file-request-without-a-call.md#the-note-on-the-shown-reply-the-replay-and-the-draws-2026-10-31)
+  all 9 draws with no call that named invented folders ended with the note, and no draw that called a
+  file tool did. The check reads an untainted turn, so it runs with memory on or off.

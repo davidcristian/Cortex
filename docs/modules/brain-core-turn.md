@@ -131,7 +131,7 @@ ended in calls, ADR-0009) and `repeated` (the watch ended the reply). `limit_not
 `UNSCHEDULED_CLAIM_NOTE` when `unscheduled_claim` (`schedule_claim.py`) finds a claimed schedule with no
 `SCHEDULING_TOOLS` run succeeding in `runs` or `earlier` (not a "scheduled" claim naming no reminder or
 task that the person's messages, `said`, made first), `UNKEPT_CLAIM_NOTE` when `memory_withheld` and
-`unkept_note_due` hold, then `UNFORGOTTEN_CLAIM_NOTE`
+`unkept_note_due` hold, then `UNFORGOTTEN_CLAIM_NOTE` and `UNREAD_FOLDERS_NOTE`
 ([brain-core-memory.md](brain-core-memory.md)). `place_note` sets a note one blank line under text, or
 with no break when there is no text, in a `NO_TEXT` form for an overflow or unreadable call note.
 

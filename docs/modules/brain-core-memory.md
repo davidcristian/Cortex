@@ -124,6 +124,13 @@ pool down to the hits one turn sees. The turn that calls it is in
   clause that is not about "you", "has been noted by" or "that", a file name such as `memory.txt`,
   and a bare "Noted" past the reply's first line, which is a line read back from a file. With
   memory off the check is false and no note shows.
+- `unread_folders_claim(taint, query, reply)` (`file_claim.py`) is true on an untainted turn whose
+  `query` `asks_files` when `claims_folders(reply, query=query)` finds a statement with no condition
+  ("if", "once", "such as") that says "I can read" or "access", "I have access" or "I am allowed to",
+  beside a path, or above a list of folders or of paths, that `query` does not hold. A code fence and a
+  code span holding a space are left out, since they hold a command. `limit_notes` then appends
+  `UNREAD_FOLDERS_NOTE`, with memory on or off. A later turn of a chat whose earlier turn read the
+  folders also gets it, and its words stay true there: this turn checked nothing.
 - `unforgotten_claim(runs, reply, *, unmatched=0)` (`forget_claim.py`, ADR-0075) is true when
   `claims_forgotten(reply)` finds a statement, not a question, saying something was forgotten, or
   removed, deleted, erased, wiped or cleared from memory or "my records", alone or after an earlier

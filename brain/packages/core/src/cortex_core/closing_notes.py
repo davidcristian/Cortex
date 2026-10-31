@@ -4,6 +4,7 @@ from collections.abc import Iterator, Sequence
 
 from cortex_core.conversation import ToolRun
 from cortex_core.events import TurnEvent
+from cortex_core.file_claim import UNREAD_FOLDERS_NOTE, unread_folders_claim
 from cortex_core.forget_claim import UNFORGOTTEN_CLAIM_NOTE, unforgotten_claim
 from cortex_core.memory_claim import UNKEPT_CLAIM_NOTE, memory_withheld, unkept_note_due
 from cortex_core.schedule_claim import UNSCHEDULED_CLAIM_NOTE, unscheduled_claim
@@ -34,6 +35,7 @@ def limit_notes(  # noqa: PLR0913 -- each claim note reads its own part of the t
     claimed = unscheduled_claim(made, reply, said)
     unkept = memory_withheld(caps, taint, made, query=query) and unkept_note_due(query, reply)
     unforgotten = unforgotten_claim(made, reply, unmatched=taint.forget_unmatched)
+    unread = unread_folders_claim(taint, query, reply)
     yield from cap_note(stops, parts)
     yield from rounds_note(stops, runs, parts)
     yield from repeat_note(stops, parts)
@@ -43,3 +45,5 @@ def limit_notes(  # noqa: PLR0913 -- each claim note reads its own part of the t
         yield from append_note(parts, UNKEPT_CLAIM_NOTE)
     if unforgotten:
         yield from append_note(parts, UNFORGOTTEN_CLAIM_NOTE)
+    if unread:
+        yield from append_note(parts, UNREAD_FOLDERS_NOTE)
