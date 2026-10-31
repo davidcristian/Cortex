@@ -179,7 +179,9 @@ verbs of five other languages, a second clause's verb with its object (`and zap 
 The replay of the 875 recorded messages: the old reader refuses 102 and the new one 85. None is newly
 refused. The 17 it no longer refuses are compound requests, to-dos and two strings from the docs, such
 as `Note my code 7319 and turn it down.` and `Remember to call the plumber tomorrow at 10.`. All 15 R
-messages are still refused, so the R and S rows are not drawn again. `Note that 8426 should be zapped.`
+messages are still refused, so the R and S rows are not drawn again. On a brain built from the change,
+one draw of the `nuke` message showed a card, deleted the row and said the new code was not saved
+(`t4.jsonl`). `Note that 8426 should be zapped.`
 is still refused, and so is a follow-up to a forget question
 ([R-971](../refinements/tasks/971-a-forget-request-the-message-alone-does-not-show-is-refused.md)).
 

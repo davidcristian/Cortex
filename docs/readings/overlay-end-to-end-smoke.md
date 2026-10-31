@@ -59,3 +59,32 @@ An answer written with no call became a stored fact that a later chat repeated;
 [file-request-without-a-call.md](file-request-without-a-call.md) measures it, with the check that
 records no such turn.
 Every row the flow stored was deleted afterwards.
+
+## The flow on the night's closing tree, 2026-10-31
+
+The same rig on the `cortexn12` stack, with the brain built from `12a7534a5`, a new chat for each step
+but the forget, the SM clock at 0.21 of `clocks.max.sm` after the flow. Frames are in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/545ea45a-902e-44a3-86aa-5ec869e6c085/scratchpad/slot7/`.
+
+- **Remember.** `Please remember this: my locker code is 7319.` showed no card. The audit holds one
+  refused `forget_memories` call, the reply said noted, and the row was stored.
+- **Recall.** A new chat answered `Your locker code is 7319.`.
+- **Update.** `Remember that my new locker code is 8426, and forget the old code.` made no call. The reply
+  said the old one was forgotten and ended with `UNFORGOTTEN_CLAIM_NOTE`, which was true: both earlier
+  rows stayed. The exchange was stored with the note in it.
+- **Forget.** `Forget my old locker code 7319.` in the same chat showed a card listing the two rows.
+  Approved, it deleted them. A new chat then answered `Your new locker code is 8426.`.
+- **Reminder.** `Remind me in one minute to stretch my legs.` fired on time, and the push failed as on
+  every `Xvfb` run. The card `stretch my legs`, `open chat`, `1m ago` showed on an empty chat after the
+  panel was hidden and summoned. Its check button left no `cortex:schedule*` key.
+- **File.** `Read notes.txt and tell me what it says.` ran four calls, quoted the file and showed no note.
+- **Folders.** `Which folders can you read?` called `list_allowed_directories`, named `/projects` and
+  showed no note.
+- **A note in the history.** `Remember that my new locker code is 9001, and forget the old code.` showed a
+  card that listed the two rows holding `8426`. The reply said `9001` was not kept and ended with
+  `UNKEPT_CLAIM_NOTE`, which was true. The next two turns of that chat (`Remember that my cat is called
+  Mia.`, `What is the capital of Austria?`) repeated no note, and their rows hold none.
+
+The flow found no defect. The new value not kept in the last step is
+[R-967](../refinements/tasks/967-a-request-to-remember-a-new-value-and-forget-the-old-one-keeps-neither.md).
+Every row the flow stored was deleted afterwards.
