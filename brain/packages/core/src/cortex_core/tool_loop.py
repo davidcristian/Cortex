@@ -88,8 +88,8 @@ async def _turn_tools(
     left_out = unasked_tools(context.query)
     withheld = await context.dispatcher.withheld(context.session_id) | left_out
     # A withheld tool keeps its spec here, so a call to it by name still shows its card or, for
-    # an unasked tool, its refusal. A sidecar tool stays listed, since a shorter list raises the
-    # model's forget calls on these turns (docs/readings/side-effect-tools-on-remember.md).
+    # an unasked tool, its refusal. A sidecar tool stays listed, since a shorter list raised the
+    # model's forget calls in one of two comparisons (unasked-tools-listed-on-remember.md).
     offered = tuple(spec for spec in specs if spec.name not in withheld)
     refused = left_out | unasked_sidecar_tools(context.query, specs)
     return offered, {s.name: s for s in specs}, refused

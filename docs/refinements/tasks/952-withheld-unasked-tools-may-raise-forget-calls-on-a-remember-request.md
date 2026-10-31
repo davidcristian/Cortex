@@ -25,6 +25,6 @@ written before it. Each such call matched nothing and the fact was kept.
 - 2026-10-31: done. The pair drew 1 of 30 before the change and 13 of 30 after it, a difference of
   12 against a bound of 7, so the change raised the forget calls and the earlier counts were not
   drift. The rule leaves the withheld tools in place and files
-  [R-961](961-leaving-tools-out-of-a-request-to-remember-raises-forget-calls.md). This entry said
+  [R-961](961-a-request-to-remember-a-stored-fact-can-show-a-forget-card.md). This entry said
   the person is shown a forget card; none of the 39 calls in the four runs showed one, since a
   call that matches nothing has no card.

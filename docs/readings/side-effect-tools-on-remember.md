@@ -157,12 +157,13 @@ idle. No draw ended in an error and `memories` was empty at every draw's start.
 | After | 13 of 30 | 30 of 30 | 0 | none |
 
 D is 12, so by the rule **the change raised the forget calls**, and the earlier counts were not
-drift. The rise held in both passes (0 against 5, then 1 against 8) and in both orders (1 against 5
+drift. A later run did not repeat the size of this result
+([readings](unasked-tools-listed-on-remember.md#the-draws-2026-10-31)). The rise held in both passes (0 against 5, then 1 against 8) and in both orders (1 against 5
 when the build was drawn first, 0 against 8 when second). Before called only on R09. After called
 on R01, R02 and R12 twice, and on R05, R07, R09, R10, R11, R14 and R15 once.
 
 The rule leaves the withheld tools in place and files
-[R-961](../refinements/tasks/961-leaving-tools-out-of-a-request-to-remember-raises-forget-calls.md).
+[R-961](../refinements/tasks/961-a-request-to-remember-a-stored-fact-can-show-a-forget-card.md).
 Three things the pair does not settle:
 
 - Before's 1 of 30 is below the 5 of 30 this brain code drew on 2026-10-30, on an older
