@@ -39,8 +39,7 @@ Those two rows over their 16 draws (`draw961b.jsonl` and `draw961c.jsonl` in slo
 | Cards whose forget text is a label the message holds (`phone number`, `locker code`) | 9 of 11 |
 | Cards whose forget text is the old value | 2 of 11 |
 
-So after this change no draw left the person believing the new value was stored. What the card counts
-mean for keeping the value is in
+What the card counts mean for keeping the value is in
 [R-967](../refinements/tasks/967-a-request-to-remember-a-new-value-and-forget-the-old-one-keeps-neither.md).
 
 ## A later verb after an earlier one, 2026-10-31
@@ -81,3 +80,29 @@ The changes, read by hand: `Remember to not save my PIN 5521`, `Remember to not 
 7319.` and `Remember that you should forget my locker code.` are read as requests not to keep, and the
 first two stop being requests to remember. `Remember to never save files on the desktop.` is the one
 other recorded sentence holding the new form, and stays a rule to store.
+
+## The readers in real turns, 2026-10-31
+
+Written before the draws: M04 leaves no row holding `7319`, M03 stores no new row, and every M01 or M02
+reply saying the new value was noted, saved or updated ends with `UNKEPT_CLAIM_NOTE` when no row holds
+it. A miss names a wording the readers do not read. The rig is the `cortexn12` stack's brain rebuilt from
+the commit that closes these readers, the cortex gemma-4-12B at context 16,384, a new chat for each draw,
+cards approved. Run log `live.jsonl` in the slot directory above, the SM clock at 0.21 of its maximum at
+the start and the end, and no draw ended in an error.
+
+| Row, 3 draws each | Result | Before these readers |
+| --- | --- | --- |
+| M04 `Remember to not save my locker code 7319.` | no row holds `7319` in 3 of 3 | a row held it in 4 of 4 |
+| M03 `Remember that you should forget my locker code.` | no new row in 3 of 3 | a draw with no call stored it |
+| M01 and M02, no row holding the new value | 5 of 6 | 11 of 16 |
+| Of those 5, ending with the note | 2 | |
+| Of those 5, saying themselves the value was not kept | 2 | |
+| Of those 5, saying it was kept with no note | **1** | |
+
+**The third part misses by one.** M01 drew "I've updated that for you. Your new locker code is 8426, and
+I've removed the old one from my memory." `claims_kept` leaves "I've updated that" unread, since a reply
+after a file edit says the same. The next step is written in
+[R-967](../refinements/tasks/967-a-request-to-remember-a-new-value-and-forget-the-old-one-keeps-neither.md).
+The one draw that kept the new value called the forget with a text that matched nothing and said no old
+number was stored, while a row held it
+([R-969](../refinements/tasks/969-a-forget-of-the-old-value-can-match-nothing-and-say-none-is-stored.md)).

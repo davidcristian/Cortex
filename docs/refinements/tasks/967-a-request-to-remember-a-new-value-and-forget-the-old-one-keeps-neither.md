@@ -8,11 +8,12 @@
 `Note that my phone number is now 0699000000, and delete the old one.` usually shows a card. The
 approved card deletes the old row and the turn stays out of memory, so no row holds either number. No
 row held the new value in 11 of 16 draws of this message and its locker code form
-([rows](../../readings/forget-refused-on-remember.md#the-draws-2026-10-31), rows M01 and M02). No draw
-leaves the person believing otherwise: `claims_kept` and `claims_forgotten` read the replies' wording,
-so 8 of the 11 end with `UNKEPT_CLAIM_NOTE` and the other 3 ask for the value again themselves
-([replay](../../readings/claim-reader-replays.md#a-new-value-and-the-old-one-2026-10-31)). What the
-person loses is one message, and they still hold the value.
+([rows](../../readings/forget-refused-on-remember.md#the-draws-2026-10-31), rows M01 and M02). What the
+person loses is one message, and they still hold the value, as long as the reply says so. `claims_kept`
+and `claims_forgotten` read the replies' wording ([replay](../../readings/claim-reader-replays.md#a-new-value-and-the-old-one-2026-10-31)),
+so of 5 such draws on the fixed readers 2 end with `UNKEPT_CLAIM_NOTE` and 2 say so themselves. The
+fifth said "I've updated that for you. Your new locker code is 8426" with no note
+([draws](../../readings/claim-reader-replays.md#the-readers-in-real-turns-2026-10-31)).
 
 ## Why a typed rule does not keep the value
 
@@ -41,15 +42,23 @@ turn holds, and the person is the one reader who knows which value is old.
 
 ## What to do
 
-1. Write the clause reader, near misses first: cut at the first retraction clause, and keep the words
-   after it when the retraction comes first.
-2. Call `Confirmer` outside `ToolDispatcher`. `ConfirmationRequest` names a tool call today, so the
+1. Show `UNKEPT_CLAIM_NOTE` on every withheld turn whose message `asks_kept` reads and `asks_not_kept`
+   does not, whatever the reply says, in place of another reply wording. Widening `claims_kept` to "I've
+   updated that" would also fire after a file edit. The rule, written before any draw: draw M01 and M02
+   3 times and R01 to R05 of the [forget refusal rows](../../readings/forget-refused-on-remember.md#rows-and-the-rule-2026-10-31)
+   once. It ships when every M draw with no row holding the new value ends with the note and no R draw
+   does. A reply that already says the value was not kept gets the note too, which is true.
+2. For the second card, write the clause reader, near misses first: cut at the first retraction clause,
+   and keep the words after it when the retraction comes first.
+3. Call `Confirmer` outside `ToolDispatcher`. `ConfirmationRequest` names a tool call today, so the
    card needs a name a person reads, which is a naming proposal under AGENTS.md.
-3. Decide the deep phase, which reads the cortex's runs from the stored reply.
-4. Write rows and a rule before any draw: M01, M02 and
+4. Decide the deep phase, which reads the cortex's runs from the stored reply.
+5. Write rows and a rule before any draw: M01, M02 and
    `My code changed from 7319 to 8426, forget the old one.`, where the card shows the old value and a
    declined card leaves no row with it.
 
 ## History
 
-- 2026-10-31: filed from the rows of the check of refusing a forget call.
+- 2026-10-31: filed from the rows of the check of refusing a forget call. Filed
+  [R-969](969-a-forget-of-the-old-value-can-match-nothing-and-say-none-is-stored.md) from the draws of
+  the fixed readers.
