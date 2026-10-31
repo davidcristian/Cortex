@@ -1,9 +1,8 @@
 # The cortex template ends the turn after a call message's text
 
-**Status:** open, actionable
+**Status:** declined 2026-10-31
 **Area:** inference
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
-**Verified:** 2026-10-30
 
 `to_openai_message` (`request.py` in `cortex_inference`) sends a round's call message with the
 text the model wrote before its calls as `content`. llama-server's `/apply-template` on the
@@ -25,3 +24,11 @@ next round still reads a prompt the template was not written for.
 ## History
 
 - 2026-10-30: filed from the repeated-sentence draws, where `/apply-template` showed the cause.
+- 2026-10-31: declined, since `/apply-template` shows the template as written here but no form of
+  the call message stops the next round repeating the text, so it is not the cause. On fixed second
+  rounds, what ships opens with the sentence on 32 of 60 draws; with the text left out of `content`
+  on 60 of 60, because the model answers again, and all 15 draws lose the number the first round
+  wrote; with `<turn|>` removed as an override template would on 48 of 60; with the text sent as its
+  own message before the call, which keeps the turn open on the stock template, on 38 of 60. No form
+  met the rule written before the draws, so the call message and `OpeningHold` stay as they are
+  ([readings](../../readings/reply-repeat-across-a-tool-call.md#the-form-of-the-call-message-result-2026-10-31)).
