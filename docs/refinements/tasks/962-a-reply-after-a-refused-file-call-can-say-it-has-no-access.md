@@ -16,9 +16,10 @@ file.
 
 ## What to do
 
-1. Close [R-964](964-a-reply-that-read-a-file-and-noted-a-value-gets-no-note.md) first. A reader that
-   reads "the X from, on or in my Y" as a source when Y is a word for a written record passed every
-   part of its rule but one: a reply said it noted the value with no note beside it.
+1. A reader that reads "the X from, on or in my Y" as a source when Y is a word for a written record
+   passed every part of its rule but one: a reply said it noted the value with no note beside it.
+   `claims_kept` now reads that reply
+   ([replay](../../readings/claim-reader-replays.md#a-later-verb-after-an-earlier-one-2026-10-31)).
 2. Do not drop the word list. The same shape with any Y lost the message of `Remember the meeting on
    my birthday.` in 3 of 4 draws, since a file tool's result taints the turn.
 3. Draw that reader again under a new rule, with the rows of that record. Each of 36 mutations of
@@ -35,5 +36,4 @@ file.
 - 2026-10-31: corrected. Two rules ran on a reader of the message's shape: the first found 2 of 10
   baseline draws saying they have no access, under its bound of 3, and the second reverted the reader
   on 9 of 12 stored W draws against a bound of 10. A third rule on a reader limited to words for a
-  written record reverted it on one reply the claim reader missed. Filed
-  [R-964](964-a-reply-that-read-a-file-and-noted-a-value-gets-no-note.md).
+  written record reverted it on one reply the claim reader missed.

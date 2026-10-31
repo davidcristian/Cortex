@@ -113,9 +113,10 @@ pool down to the hits one turn sees. The turn that calls it is in
   returns on it, and both phases pass it to `limit_notes` as `withheld`, which then appends
   `UNKEPT_CLAIM_NOTE` when `claims_kept(reply)` finds a statement, not a question, saying something
   was noted, remembered, made a note of, or kept or saved "in mind" or "in memory", or that "my
-  records" or "your information" were updated, or "your phone number" updated to a value. A bare
-  "saved" or "stored" does not count, since a file tool's reply says it saved a file, and an update
-  of a reminder or a file name does not. Neither do the forms
+  records" or "your information" were updated, or "your phone number" updated to a value, alone or
+  after an earlier verb of "I" ("I read your lease and noted the address"). A bare "saved" or
+  "stored" counts only after such a verb and with no place named, since a file tool's reply says it
+  saved a file, and an update of a reminder or a file name does not count. Neither do the forms
   that point at text rather than memory: "as I noted", "noted above", "I will note that" before a
   clause that is not about "you", "has been noted by" or "that", a file name such as `memory.txt`,
   and a bare "Noted" past the reply's first line, which is a line read back from a file. With

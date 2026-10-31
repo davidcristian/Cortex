@@ -231,8 +231,8 @@ at the end. No draw ended in an error. Before the draws, 581 recorded messages w
 | saying the value was kept without the note | 0 of 8 | 1 of 8 (M03) |
 
 **The candidate fails its second part and is reverted.** One M03 draw said "I have read your lease and
-noted the address", nothing was stored, and `claims_kept` reads no claim in that form
-([R-964](../refinements/tasks/964-a-reply-that-read-a-file-and-noted-a-value-gets-no-note.md)). Over
+noted the address", nothing was stored, and `claims_kept` read no claim in that form then
+([replay](claim-reader-replays.md#a-later-verb-after-an-earlier-one-2026-10-31)). Over
 the three rules' draws with the file in reach, the baseline stated the value in 0 of 26 and the two
 candidates in 25 of 26, and 10 of 34 baseline draws said they have no access. The reader and its near
 misses are kept as `reader962c.patch` beside the run logs.

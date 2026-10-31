@@ -26,9 +26,28 @@ _NOTED = re.compile(
     rf"|{_WILL}note\b(?!\s+that\s+(?!(?:down|you|your)\b)\w)",
     re.IGNORECASE,
 )
+_IN_MEMORY = r"\b(?:in|to|into)\s+(?:my\s+)?(?:mind|memory)\b(?![.\-/\\]\w)"
 _PUT = re.compile(
     rf"(?:{_HAVE}(?:saved|stored|kept|recorded|added)|{_WILL}(?:save|store|keep|record|add))\b"
-    r".*\b(?:in|to|into)\s+(?:my\s+)?(?:mind|memory)\b(?![.\-/\\]\w)",
+    rf".*{_IN_MEMORY}",
+    re.IGNORECASE,
+)
+# "I read your lease and noted the address." Quoted or reported, "I" is the file's or a person's;
+# another subject, or a relative clause, between the verbs makes the later verb theirs.
+_THEN = (
+    r"(?<![\"\u201c])(?<![\"\u201c:]\s)(?<!\bas\s)(?<!\bsays\s)(?<!\bsaid\s)\bI"
+    rf"(?:(?:\s+have|['\u2019]ve)\s+{_ADVERB}(?!(?:not|never)\b)\w+"
+    rf"|\s+{_ADVERB}(?:\w+ed|read|found|took|got|saw))\b"
+    r"(?:(?!\b(?:you|he|she|they|we|who|which|that|not|never)\b|n['\u2019]t\b)[^:;\"\u201c])*?"
+    rf"\band\s+(?:have\s+)?{_ADVERB}"
+)
+_THEN_NOTED = re.compile(
+    rf"{_THEN}(?:noted|remembered|memori[sz]ed|made\s+a\s+note)\b"
+    r"(?!\s+(?:nothing|above|below|earlier)\b)"
+    rf"|{_THEN}(?:saved|stored|kept|recorded|added)\b.*{_IN_MEMORY}"
+    # With no place named, a value was saved; a place or "a copy" names a file.
+    rf"|{_THEN}(?:saved|stored|kept|recorded)\b"
+    r"(?!\s+(?:a|an|nothing|the\s+(?:file|document))\b)(?![^:]*\b(?:to|in|into|under|on)\s)",
     re.IGNORECASE,
 )
 _PASSIVE = re.compile(
@@ -61,7 +80,9 @@ def claims_kept(reply: str) -> bool:
     """Whether a statement in ``reply`` says something was noted or will be remembered."""
     # A bare "Noted" claims only on the reply's first line; on a later one it is text read back.
     opening = reply.lstrip().partition("\n")[0]
-    return _states(reply, (_NOTED, _PUT, _PASSIVE, _UPDATED)) or _states(opening, (_OPENING,))
+    return _states(reply, (_NOTED, _PUT, _PASSIVE, _UPDATED, _THEN_NOTED)) or _states(
+        opening, (_OPENING,)
+    )
 
 
 def _unmatched_keep(taint: TaintLedger, forgets: int, query: str) -> bool:

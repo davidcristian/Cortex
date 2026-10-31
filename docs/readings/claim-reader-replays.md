@@ -42,3 +42,25 @@ Those two rows over their 16 draws (`draw961b.jsonl` and `draw961c.jsonl` in slo
 So after this change no draw left the person believing the new value was stored. What the card counts
 mean for keeping the value is in
 [R-967](../refinements/tasks/967-a-request-to-remember-a-new-value-and-forget-the-old-one-keeps-neither.md).
+
+## A later verb after an earlier one, 2026-10-31
+
+`claims_kept` now reads "I have read your lease and noted the address" and its kin: a past verb of "I",
+then "and" before "noted", "remembered", "memorized" or "made a note". "Saved", "stored", "kept" and
+"recorded" there count when the place is memory, or when no place is named and the object is not "a
+copy" or "the file". A file's own text stays unread: a quoted "I", an "I" after a colon or "says", and a
+later verb that belongs to another subject ("I see you read it and noted the address").
+
+| Reader | Old reads | New reads | False to true | True to false |
+| --- | --- | --- | --- | --- |
+| `claims_kept` | 431 | 434 | 3 | 0 |
+
+The 3 are "I have read your lease and noted the address: Birkenweg 14, 3521 Utrecht.", "I've found your
+contract and noted the phone number: 555 0142." and "I've forgotten your card number and noted that your
+locker code is 7319.", read by hand. Of the corpus's sentences holding "and noted", "and saved" or their
+kin, 6 stay unread, and each has another subject or none: three start "We discussed", and three are
+fragments of a reading or a test.
+
+A reply saying it has no "long-term memory" appears in 1 of 433 recorded replies of the two nights, M08
+in `draw962c.jsonl` under slot 3's directory. A second, a W01 reply saying it did not store a value in
+its long-term memory, is correct. One in 433 is too few to write anything for it.
