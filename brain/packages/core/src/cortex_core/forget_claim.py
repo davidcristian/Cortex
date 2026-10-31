@@ -40,6 +40,14 @@ _UPDATED = re.compile(
     r".*(?:\b(?:not|never|no\s+longer)\b|n['\u2019]t\b)",
     re.IGNORECASE,
 )
+# A message holding one of these words is not refused, so a reply after a refused call that names
+# one did not read it back from the message.
+_REMOVAL = re.compile(
+    r"\b(?:forg[eo]t\w*|delet\w+|eras\w+|remov\w+|wip(?:e|es|ed|ing)|cleared|clearing|dropp\w+"
+    r"|discard\w*|purg\w+|replac\w+|overwr\w+|got\s+rid|gone|updated\b.*\bfrom\b.*\bto)\b"
+    r"(?!\s+(?:nothing|none|no)\b)",
+    re.IGNORECASE,
+)
 _NEGATION = re.compile(r"\b(?:no|nothing|none|not|never)\b|n['\u2019]t\b", re.IGNORECASE)
 _CLAUSE_BREAK = re.compile(r"[,;:]")
 _SENTENCE_END = re.compile(r"(?<=[.!?])\s+|\n+")
@@ -66,6 +74,15 @@ def _claim(sentence: str) -> bool:
 def claims_forgotten(reply: str) -> bool:
     """Whether a statement in ``reply`` says something was forgotten or removed from memory."""
     return any(_claim(sentence) for sentence in _SENTENCE_END.split(reply))
+
+
+def names_removal(reply: str) -> bool:
+    """Whether a statement in ``reply`` names a removal in any words and does not negate it."""
+    return any(
+        not sentence.rstrip().endswith("?") and not _denied(sentence, found.start())
+        for sentence in _SENTENCE_END.split(reply)
+        for found in _REMOVAL.finditer(sentence)
+    )
 
 
 def deleted_memory(runs: Sequence[ToolRun], unmatched: int) -> bool:

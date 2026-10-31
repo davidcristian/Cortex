@@ -844,6 +844,55 @@ async def test_a_refused_forget_call_adds_nothing_to_a_reply_that_says_it_kept_t
     assert await _shown_after_calls(query, [_FORGET_CALL], reply) == reply
 
 
+@pytest.mark.parametrize(
+    "reply",
+    [
+        "Noted your new code and removed the old one.",
+        "I've noted your new code and deleted the old one.",
+        "I've noted your new code and got rid of the old one.",
+        "I've noted your new code. The old one is gone.",
+        "I've updated your locker code to 5555, replacing the old one.",
+        "I've noted your new code, and the old one has been replaced.",
+        "Noted, and the old one has been wiped.",
+        "Your old code was erased and I've noted the new one.",
+        "I did not remove the old one, but I've noted the new one and dropped it.",
+        "Noted your new code and forgot the old one.",
+        "Noted, and the old one was discarded.",
+        "Noted, and the old one was purged.",
+        "Noted, and the old one was overwritten.",
+        "I've noted your new code and removed the old one. Anything else?",
+        "I've updated your locker code from 8426 to 5555.",
+    ],
+)
+async def test_a_refused_forget_call_closes_a_reply_that_says_it_kept_and_removed(
+    reply: str,
+) -> None:
+    query = "Remember my new locker code is 5555."
+    assert await _shown_after_calls(query, [_FORGET_CALL], reply) == reply + UNFORGOTTEN_CLAIM_NOTE
+
+
+@pytest.mark.parametrize(
+    "reply",
+    [
+        "I've noted your new code. Nothing was removed.",
+        "I've noted your new code and did not delete anything.",
+        "I haven't removed anything, but I've noted your new code.",
+        "I've noted your new code. Would you like me to remove the old one?",
+        "Noted! I won't forget your new code.",
+        "I've noted your new code, so you don't have to worry about forgetting it.",
+        "To be clear, I've noted your new code.",
+        "I've noted your new code and removed nothing.",
+        "I've updated your locker code to 5555.",
+        "I've noted that you moved from Bonn to Berlin.",
+    ],
+)
+async def test_a_refused_forget_call_adds_nothing_to_a_kept_reply_with_no_removal(
+    reply: str,
+) -> None:
+    query = "Remember my new locker code is 5555."
+    assert await _shown_after_calls(query, [_FORGET_CALL], reply) == reply
+
+
 async def test_a_reply_with_no_refused_forget_call_shows_no_note() -> None:
     query = "Please remember this: my brother's name is Luca."
     assert await _shown_after_calls(query, [], "OK.") == "OK."

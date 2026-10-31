@@ -128,7 +128,8 @@ that removes exactly those rows and holds against a turn in flight. This record 
    another question with no call, and said the value was removed while its row stayed, in 8 of
    12 draws; with the note no draw misled
    ([readings](../readings/forget-request-wordings.md#a-removal-claimed-with-no-forget-call-the-candidate-2026-10-30)).
-   So does a reply on a turn with a call refused as unasked, unless `claims_kept` reads it
+   So does a reply on a turn with a call refused as unasked, unless `claims_kept` reads it and
+   `names_removal` does not
    ([readings](../readings/forget-refused-stated-fact.md#a-note-on-a-refused-call-2026-10-31)).
 6. **A card lists at most 20 rows.** More matches delete nothing and ask for a more exact text,
    so a short text such as one letter cannot clear the memory behind a card nobody reads.

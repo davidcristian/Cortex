@@ -5,7 +5,7 @@ from collections.abc import Iterator, Sequence
 from cortex_core.conversation import ToolRun
 from cortex_core.events import TurnEvent
 from cortex_core.file_claim import UNREAD_FOLDERS_NOTE, unread_folders_claim
-from cortex_core.forget_claim import UNFORGOTTEN_CLAIM_NOTE, unforgotten_claim
+from cortex_core.forget_claim import UNFORGOTTEN_CLAIM_NOTE, names_removal, unforgotten_claim
 from cortex_core.memory_claim import (
     UNKEPT_CLAIM_NOTE,
     claims_kept,
@@ -40,9 +40,9 @@ def limit_notes(  # noqa: PLR0913 -- each claim note reads its own part of the t
     claimed = unscheduled_claim(made, reply, said)
     unkept = memory_withheld(caps, taint, made, query=query) and unkept_note_due(query, reply)
     # A refused call deleted nothing, and no reader names every way to claim it did. A reply saying
-    # it kept the fact is the common end of a refused call on a plain request to remember.
+    # it kept the fact and naming no removal is the common end of a plain request to remember.
     unforgotten = unforgotten_claim(made, reply, unmatched=taint.forget_unmatched) or (
-        taint.forget_refused and not claims_kept(reply)
+        taint.forget_refused and (not claims_kept(reply) or names_removal(reply))
     )
     unread = unread_folders_claim(taint, query, reply)
     yield from cap_note(stops, parts)

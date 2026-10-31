@@ -73,3 +73,16 @@ No draw ended in an error, and every R draw stored its fact.
 | D1 | 3 | 2 | 2 | says noted and asks whether to remove the old information; the row stays |
 
 **The change ships.** The D1 note is true, since nothing was removed, and the message asked for that.
+
+## A reply saying it kept and removed, 2026-10-31
+
+`claims_kept` reads `Noted your new code and removed the old one.`, and `unforgotten_claim` does not,
+since it needs `I` and a named memory, so that reply after a refused call had no note and the old row
+stayed. `names_removal` (`forget_claim.py`) now also shows the note on a statement naming a removal in
+any words with no negation in its clause. A message holding one of those words is not refused, so on
+a refused call the reply did not read the word back from the message.
+
+The reader's tests decide this, with no row drawn: the note is true on any turn with a refused call.
+The replay of the 532 replies in the run logs still on disk: `claims_kept` reads 325, and 19 of those
+also name a removal. All 19 answer a message giving a new value (M01, M02, T1); 18 say the old
+value went and one offers to remove it. No reply on an R, S or P row is among them.
