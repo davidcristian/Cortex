@@ -13,14 +13,22 @@ UNFORGOTTEN_CLAIM_NOTE = (
 )
 
 _ADVERB = r"(?:(?:now|just|also|already|successfully)\s+)?"
+_I_HAVE = rf"\bI(?:\s+have|['\u2019]ve)\s+{_ADVERB}"
+_AND = rf"\band\s+(?:have\s+)?{_ADVERB}"
+# "I've noted your code and have forgotten the old one"; another subject makes it a report of them.
+_OTHER_SUBJECT = r"\b(?:you|he|she|they|we|who)\b"
+_AFTER_A_VERB = rf"{_I_HAVE}(?!(?:not|never)\b)\w+\b(?:(?!{_OTHER_SUBJECT})[^:;])*?{_AND}"
 _DONE = (
-    rf"(?:\bI(?:\s+have|['\u2019]ve)?\s+{_ADVERB}"
+    rf"(?:\bI(?:\s+have|['\u2019]ve)?\s+{_ADVERB}|{_AFTER_A_VERB}"
     rf"|\b(?:has\s+been|have\s+been|was|were|is\s+now)\s+{_ADVERB})"
 )
-_MEMORY = r"\b(?:memor(?:y|ies)|my\s+notes)\b"
-_FORGOTTEN = re.compile(rf"{_DONE}forgot(?:ten)?\b(?!\s+to\b)", re.IGNORECASE)
+_MEMORY = r"\b(?:memor(?:y|ies)|my\s+(?:notes|records))\b(?![.\-/\\]\w)"
+_DELETED = r"(?:removed|deleted|erased|wiped|cleared|purged|discarded|dropped)\b"
+_FORGOTTEN = re.compile(rf"{_DONE}forgot(?:ten)?\b(?!\s+(?:to|nothing)\b)", re.IGNORECASE)
 _REMOVED = re.compile(
-    rf"{_DONE}(?:removed|deleted|erased|wiped|cleared|purged|discarded|dropped)\b.*{_MEMORY}",
+    rf"{_DONE}{_DELETED}(?!\s+(?:nothing|none|no)\b).*{_MEMORY}"
+    rf"|{_I_HAVE}updated\s+my\s+(?:records|notes|memory)\b.*{_AND}{_DELETED}"
+    r"\s+(?:any\s+mention|the\s+old|your\s+(?:old|previous|former))\b",
     re.IGNORECASE,
 )
 _NO_LONGER = re.compile(

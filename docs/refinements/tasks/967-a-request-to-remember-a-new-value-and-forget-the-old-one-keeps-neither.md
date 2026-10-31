@@ -5,22 +5,50 @@
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
 **Verified:** 2026-10-31
 
-`Note that my phone number is now 0699000000, and delete the old one.` showed a card in 7 of 8 draws.
-The approved card deleted the old row and the turn stayed out of memory, so no row held either number
-([rows](../../readings/forget-refused-on-remember.md#the-draws-2026-10-31), row M02). Four replies said the number was updated, for
-example "I've updated my records to reflect that your new phone number is 0699000000", with no
-`UNKEPT_CLAIM_NOTE`, since `claims_kept` (`memory_claim.py`) does not read that wording. A draw of
-`Remember that my new locker code is 8426, and forget the old code.` with no call said "I've noted your
-new locker code as 8426 and have forgotten your previous code." The old row stayed, and
-`claims_forgotten` (`forget_claim.py`) does not read "and have forgotten".
+`Note that my phone number is now 0699000000, and delete the old one.` usually shows a card. The
+approved card deletes the old row and the turn stays out of memory, so no row holds either number. No
+row held the new value in 11 of 16 draws of this message and its locker code form
+([rows](../../readings/forget-refused-on-remember.md#the-draws-2026-10-31), rows M01 and M02). No draw
+leaves the person believing otherwise: `claims_kept` and `claims_forgotten` read the replies' wording,
+so 8 of the 11 end with `UNKEPT_CLAIM_NOTE` and the other 3 ask for the value again themselves
+([replay](../../readings/claim-reader-replays.md#a-new-value-and-the-old-one-2026-10-31)). What the
+person loses is one message, and they still hold the value.
+
+## Why a typed rule does not keep the value
+
+The turn stays out because its text may repeat what was forgotten, so a rule that stores it must show
+the stored text holds no old value.
+
+- The forget's own text does not show that. On 9 of 11 cards it was a label the message also holds
+  (`phone number`), and on 2 of 11 it was the old value. A rule that stores when the text is absent
+  from the message covers 2 of 11.
+- A message can hold both values: `My code changed from 7319 to 8426, forget the old one.` Comparing
+  the digit runs of the deleted row with the message covers numbers only. A name or an address holds
+  none, and telling a label from a value in one is not a literal check.
+- The two errors differ in cost. Withheld wrongly, the person sends one more message and the note says
+  so. Stored wrongly, a fact the person just approved deleting is back in memory and nothing shows it.
+
+So the note is the correct result until the person can read what is stored.
+
+## Design: a second card
+
+After a round whose forget deleted a row, on a message `asks_kept` reads, the brain shows one more card
+listing the person's own words up to the retraction: `Note that my phone number is now 0699000000`. An
+approved card stores those words alone, through `caps.memory.record`, with no reply and no tool line,
+and no note shows. A declined card stores nothing and the note shows as now. The card holds the
+person's own text and never text the model wrote, so ADR-0075's reason for showing a card on a tainted
+turn holds, and the person is the one reader who knows which value is old.
 
 ## What to do
 
-1. Decide whether a card whose row does not hold the new value can leave the new value recorded.
-   ADR-0075 keeps the turn out because its text may name what was forgotten, so the rows need the new
-   value and the old value apart.
-2. Near-miss tests first if `claims_kept` is widened to read "updated my records" or
-   `claims_forgotten` to read "and have forgotten".
+1. Write the clause reader, near misses first: cut at the first retraction clause, and keep the words
+   after it when the retraction comes first.
+2. Call `Confirmer` outside `ToolDispatcher`. `ConfirmationRequest` names a tool call today, so the
+   card needs a name a person reads, which is a naming proposal under AGENTS.md.
+3. Decide the deep phase, which reads the cortex's runs from the stored reply.
+4. Write rows and a rule before any draw: M01, M02 and
+   `My code changed from 7319 to 8426, forget the old one.`, where the card shows the old value and a
+   declined card leaves no row with it.
 
 ## History
 

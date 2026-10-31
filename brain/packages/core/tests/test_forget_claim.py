@@ -61,6 +61,13 @@ CLAIMS = [
     "I wiped the code from my notes.",
     "I no longer remember your passport number.",
     "Done. The number is now cleared from my memory.",
+    "I've noted your new locker code as 8426 and have forgotten your previous code.",
+    "I've noted your new locker code as 8426 and forgotten the old one.",
+    "I've noted that your new code is 8426, and have forgotten the old one.",
+    "I've updated your phone number to 0699000000 and removed the old one from my memory.",
+    "I've noted that your phone number is now 0699000000 and have removed your previous number "
+    "from my records.",
+    "I've updated my records to reflect your new number and removed any mention of your old one.",
 ]
 
 NOT_CLAIMS = [
@@ -77,6 +84,18 @@ NOT_CLAIMS = [
     "I've noted that your code is 7319.",
     "I have updated my memory with your locker code.",
     "Is it no longer in my memory?",
+    "I've noted that you moved and have forgotten your key.",
+    "I've found your note and forgot to mention the salt.",
+    "I have not noted it and have forgotten the old one.",
+    "I've noted your code and have forgotten nothing.",
+    "I've noted your code and removed nothing from my memory.",
+    "I've removed the reminder for tomorrow and deleted the alarm.",
+    "I've read the file and deleted the old line from memory.txt.",
+    "I've read the note from Tom, who moved and has forgotten his key.",
+    "You've noted the code and have forgotten the old one.",
+    "We discussed your code and noted that you have forgotten the old one.",
+    "I've updated my records and removed the reminder.",
+    "I have updated my records and have not removed anything.",
 ]
 
 

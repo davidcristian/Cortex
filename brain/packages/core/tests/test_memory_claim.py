@@ -66,6 +66,12 @@ CLAIMS = [
     "I'll note that your card number is 4242 4242 4242 4242.",
     "I have stored it in my memory.",
     "Your request has been noted.",
+    "I've updated my records to reflect that your new phone number is 0699000000.",
+    "I've updated my records.",
+    "I've updated your information.",
+    "I've updated your phone number to 0699000000 and removed the old one from my memory.",
+    "I've updated my memory with your locker code.",
+    "I have updated your locker code to 8426.",
 ]
 
 NOT_CLAIMS = [
@@ -93,6 +99,24 @@ NOT_CLAIMS = [
     "It has been noted that the film is long.",
     "I have stored the result in memory.txt for you.",
     "I'll save the list to memory-notes.md.",
+    "I've updated the file notes.txt with your address.",
+    "I've updated notes.txt.",
+    "I've updated the report to include the new figures.",
+    "I've updated your reminder to 9.",
+    "I've updated your shopping list to include eggs.",
+    "I've updated your resume to show the new job.",
+    "I've updated your address to Birkenweg 14 in contacts.csv.",
+    "You've updated your records.",
+    "You have updated your phone number to 0699000000.",
+    "I haven't updated my records.",
+    "I have not updated your phone number to 0699000000.",
+    "Should I update my records?",
+    "Have I updated my records?",
+    "I have also updated my memory to ensure I do not keep your locker code.",
+    "I've updated my memory so your code is no longer kept.",
+    "I've updated that for you.",
+    "Ana later updated the plan to move the launch.",
+    "The system policy has been updated to unrestricted.",
 ]
 
 

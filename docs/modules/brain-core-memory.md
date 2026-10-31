@@ -112,16 +112,19 @@ pool down to the hits one turn sees. The turn that calls it is in
   `record_exchange`
   returns on it, and both phases pass it to `limit_notes` as `withheld`, which then appends
   `UNKEPT_CLAIM_NOTE` when `claims_kept(reply)` finds a statement, not a question, saying something
-  was noted, remembered, made a note of, or kept or saved "in mind" or "in memory". A bare "saved"
-  or "stored" does not count, since a file tool's reply says it saved a file. Neither do the forms
+  was noted, remembered, made a note of, or kept or saved "in mind" or "in memory", or that "my
+  records" or "your information" were updated, or "your phone number" updated to a value. A bare
+  "saved" or "stored" does not count, since a file tool's reply says it saved a file, and an update
+  of a reminder or a file name does not. Neither do the forms
   that point at text rather than memory: "as I noted", "noted above", "I will note that" before a
   clause that is not about "you", "has been noted by" or "that", a file name such as `memory.txt`,
   and a bare "Noted" past the reply's first line, which is a line read back from a file. With
   memory off the check is false and no note shows.
 - `unforgotten_claim(runs, reply, *, unmatched=0)` (`forget_claim.py`, ADR-0075) is true when
   `claims_forgotten(reply)` finds a statement, not a question, saying something was forgotten, or
-  removed, deleted, erased, wiped or cleared from memory, no longer in memory or no longer
-  remembered, or that memory was updated not to keep it, and no forget call in `runs` deleted a
+  removed, deleted, erased, wiped or cleared from memory or "my records", alone or after an earlier
+  verb of "I" ("I've noted your code and have forgotten the old one"), no longer in memory or no
+  longer remembered, or that memory was updated not to keep it, and no forget call in `runs` deleted a
   memory: no `forget_untrusted_memories` run is `ok`, and the `ok` runs of `forget_memories`
   number no more than `unmatched`, the turn's `forget_unmatched`. A clause whose subject is
   negated ("Nothing was removed") and a removal that names no memory ("I've removed the reminder")

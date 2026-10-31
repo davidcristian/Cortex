@@ -137,7 +137,8 @@ card on both builds, and a request to remember a plain fact no longer costs the 
 Two more observations, from code the change does not reach:
 
 - In 11 draws of M01 and M02 no row held the new value. Four replies, all on M02, said the number was
-  updated and ended with no note, since `claims_kept` does not read that word; 4 said it was noted and
+  updated and ended with no note, since `claims_kept` did not read that word then
+  ([replay](claim-reader-replays.md#a-new-value-and-the-old-one-2026-10-31)); 4 said it was noted and
   ended with the note; 3 said it was not saved
   ([R-967](../refinements/tasks/967-a-request-to-remember-a-new-value-and-forget-the-old-one-keeps-neither.md)).
 - `Remember to not save my locker code 7319.` stored the code in all 4 draws while each reply said it

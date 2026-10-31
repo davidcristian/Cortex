@@ -34,6 +34,16 @@ _PUT = re.compile(
 _PASSIVE = re.compile(
     r"\b(?:has|have)\s+been\s+(?:noted|remembered)\b(?!\s+(?:by|that)\b)", re.IGNORECASE
 )
+# A fact is updated to a value; a script is updated to do something, and a reminder is not memory.
+_UPDATED = re.compile(
+    rf"{_HAVE}updated\s+(?:my\s+(?:records?|notes|memory|memories)\b"
+    r"|your\s+(?:records?|information|info|details)\b"
+    r"|your\s+(?!(?:[\w'\u2019-]+\s+)*?(?:reminders?|schedule|calendar|alarms?|timers?|events?"
+    r"|meetings?|volume|files?|documents?|folders?)\b)"
+    r"(?:[\w'\u2019-]+\s+){1,4}?(?:to|as)\s+(?:[\d+\"'\u201c]|(?-i:[A-Z])))"
+    r"(?!.*(?:\b(?:not|never|no\s+longer)\b|n['\u2019]t\b|\w\.[a-z]{2,5}\b))",
+    re.IGNORECASE,
+)
 _OPENING = re.compile(r"^\W*(?:got\s+it\W+)?noted\b", re.IGNORECASE)
 _SENTENCE_END = re.compile(r"(?<=[.!?])\s+|\n+")
 
@@ -51,7 +61,7 @@ def claims_kept(reply: str) -> bool:
     """Whether a statement in ``reply`` says something was noted or will be remembered."""
     # A bare "Noted" claims only on the reply's first line; on a later one it is text read back.
     opening = reply.lstrip().partition("\n")[0]
-    return _states(reply, (_NOTED, _PUT, _PASSIVE)) or _states(opening, (_OPENING,))
+    return _states(reply, (_NOTED, _PUT, _PASSIVE, _UPDATED)) or _states(opening, (_OPENING,))
 
 
 def _unmatched_keep(taint: TaintLedger, forgets: int, query: str) -> bool:
