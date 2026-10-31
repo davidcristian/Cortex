@@ -9,7 +9,7 @@ On a request to remember that names a source `unasked_sidecar_tools` (`unasked_t
 read, such as "Remember the address on my lease.", a call to a file tool is refused by name. Each
 of the 4 such draws in
 [sidecar-tools-on-remember.md](../../readings/sidecar-tools-on-remember.md#the-draws-2026-10-31)
-then asked the person for the file or the value, and two said "I don't have access". The sidecar
+then asked the person for the file or the value, and three said "I don't have access". The sidecar
 is reachable, so that is not exact, and the person's next message reaches the tool one message
 later.
 
