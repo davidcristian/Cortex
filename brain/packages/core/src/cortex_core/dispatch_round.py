@@ -144,6 +144,8 @@ async def run_round(
             yield StepOutcome(tool_name=spec.name, ok=not result.is_error)
         if spec is not None and spec.name == FORGET_UNTRUSTED_TOOL_NAME and not result.is_error:
             context.taint.forgotten = True
+        if call.name == FORGET_CHOSEN_TOOL_NAME and refusal is DispatchRefusal.UNASKED:
+            context.taint.forget_refused = True
         if call.name == FORGET_CHOSEN_TOOL_NAME and result.matched_nothing:
             context.taint.forget_unmatched += 1
         context.taint.observe(

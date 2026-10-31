@@ -20,4 +20,4 @@ code is lost.
 
 ## History
 
-- 2026-10-31: filed from the draws of the [stated fact reader](../../readings/forget-refused-on-remember.md#refusing-a-stated-fact-only-2026-10-31).
+- 2026-10-31: filed from the draws of the [stated fact reader](../../readings/forget-refused-stated-fact.md#refusing-a-stated-fact-only-2026-10-31).

@@ -139,6 +139,8 @@ class TaintLedger:
     # How many such calls the model wrote, readable or not, and how many ran and matched nothing.
     forget_calls: int = 0
     forget_unmatched: int = 0
+    # Whether a ``forget_memories`` call was refused as unasked, which leaves no run and no count.
+    forget_refused: bool = False
     untrusted_urls: set[str] = field(default_factory=set[str])
     sources: tuple[Provenance, ...] = ()
     # The tainted memories this turn recalled: its record is stored only while they all exist.

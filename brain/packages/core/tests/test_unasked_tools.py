@@ -25,6 +25,7 @@ from cortex_core import (
     SystemClock,
     TaintLedger,
     TextChunk,
+    TextDelta,
     ToolCall,
     ToolDispatcher,
     ToolSpec,
@@ -34,7 +35,9 @@ from cortex_core import (
     asks_not_kept,
 )
 from cortex_core.dispatch import UNASKED_MSG
+from cortex_core.forget_claim import UNFORGOTTEN_CLAIM_NOTE
 from cortex_core.tool_loop import ToolLoopContext, stream_tool_loop
+from cortex_core.tool_round import MAX_CALLS_PER_ROUND
 from cortex_core.unasked_tools import unasked_forget, unasked_sidecar_tools, unasked_tools
 
 _AT = datetime(2026, 10, 30, 4, 0, 0, tzinfo=UTC)
@@ -565,10 +568,11 @@ def test_a_request_to_remember_after_any_other_reply_still_refuses_the_forget_to
 class _Backend:
     """Keeps the tool names each request offered, and asks for ``calls`` in its first round."""
 
-    def __init__(self, calls: Sequence[ToolCall] = ()) -> None:
+    def __init__(self, calls: Sequence[ToolCall] = (), reply: str = "noted") -> None:
         self.offered: list[list[str]] = []
         self.seen: list[Sequence[Message]] = []
         self._calls = list(calls)
+        self._reply = reply
 
     async def stream(
         self,
@@ -586,7 +590,7 @@ class _Backend:
         for call in calls:
             yield call
         if not calls:
-            yield TextChunk("noted")
+            yield TextChunk(self._reply)
 
 
 def _dispatcher(ran: list[str], audit: RecordingAuditSink) -> ToolDispatcher:
@@ -784,3 +788,75 @@ async def test_a_forget_call_after_a_question_about_forgetting_runs() -> None:
 
 async def test_a_forget_call_after_a_question_about_something_else_is_refused() -> None:
     assert await _after_a_reply("What is your favourite tea?") == [UNASKED_MSG]
+
+
+async def _shown_after_calls(query: str, calls: Sequence[ToolCall], reply: str) -> str:
+    async def forget(arguments: Mapping[str, object]) -> str:
+        del arguments
+        return "done"
+
+    spec = ToolSpec(name=FORGET_CHOSEN_TOOL_NAME, description="", parameters={})
+    dispatcher = ToolDispatcher(
+        InMemoryToolRegistry({FORGET_CHOSEN_TOOL_NAME: (spec, forget)}),
+        RecordingAuditSink(),
+        TickingClock(),
+    )
+    engine = TurnEngine(
+        InMemorySessionStore(),
+        _Backend(calls, reply),
+        TickingClock(),
+        capabilities=TurnCapabilities(tools=dispatcher),
+    )
+    turn = engine.handle_turn("s", query, turn_id="t")
+    return "".join([event.text async for event in turn if isinstance(event, TextDelta)])
+
+
+_FORGET_CALL = ToolCall(id="c1", name=FORGET_CHOSEN_TOOL_NAME, arguments={"text": "8426"})
+
+
+@pytest.mark.parametrize(
+    "reply",
+    [
+        "I've processed your request to forget the locker code.",
+        "Ich habe deinen Spindcode 8426 aus meinem Ged\u00e4chtnis gel\u00f6scht.",
+        "OK.",
+    ],
+)
+async def test_a_refused_forget_call_closes_a_reply_that_does_not_say_it_kept_the_fact(
+    reply: str,
+) -> None:
+    shown = await _shown_after_calls("Remember my code 8426 is dead to me.", [_FORGET_CALL], reply)
+    assert shown == reply + UNFORGOTTEN_CLAIM_NOTE
+
+
+@pytest.mark.parametrize(
+    "reply",
+    [
+        "I've noted that your brother's name is Luca.",
+        "I'll remember that your brother's name is Luca.",
+        "Noted.",
+    ],
+)
+async def test_a_refused_forget_call_adds_nothing_to_a_reply_that_says_it_kept_the_fact(
+    reply: str,
+) -> None:
+    query = "Please remember this: my brother's name is Luca."
+    assert await _shown_after_calls(query, [_FORGET_CALL], reply) == reply
+
+
+async def test_a_reply_with_no_refused_forget_call_shows_no_note() -> None:
+    query = "Please remember this: my brother's name is Luca."
+    assert await _shown_after_calls(query, [], "OK.") == "OK."
+
+
+async def test_a_forget_call_refused_for_another_reason_shows_no_such_note() -> None:
+    calls = [
+        ToolCall(id=f"c{n}", name=FORGET_CHOSEN_TOOL_NAME, arguments={"text": str(n)})
+        for n in range(MAX_CALLS_PER_ROUND + 1)
+    ]
+    assert await _shown_after_calls("Forget 8426.", calls, "OK.") == "OK."
+
+
+async def test_a_refused_call_to_another_tool_shows_no_such_note() -> None:
+    call = ToolCall(id="c1", name=SET_VOLUME_TOOL_NAME, arguments={"level": 0.5})
+    assert await _shown_after_calls("Remember my code is 8426.", [call], "OK.") == "OK."

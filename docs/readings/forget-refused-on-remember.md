@@ -17,7 +17,7 @@ turn is recorded. Its result holds `UNASKED_MSG` and no `FORGET_NOT_KEPT_NOTE`, 
 nothing in the message is kept and the turn is. A call the model wrote as unreadable JSON still
 counts, since no reading of it exists; the old row stays and the unkept note is true. The message must
 also state a fact, and the chat's last reply must not be a question about forgetting
-([why](#refusing-a-stated-fact-only-2026-10-31)).
+([why](forget-refused-stated-fact.md)).
 
 ## Replay of the recorded messages, 2026-10-31
 
@@ -184,52 +184,7 @@ refused. The 17 it no longer refuses are compound requests, to-dos and two strin
 as `Note my code 7319 and turn it down.` and `Remember to call the plumber tomorrow at 10.`. All 15 R
 messages are still refused, so the R and S rows are not drawn again. On a brain built from the change,
 one draw of the `nuke` message showed a card, deleted the row and said the new code was not saved
-(`t4.jsonl`). A plain stated fact is still refused, as the next section says.
-
-## Refusing a stated fact only, 2026-10-31
-
-The list reads a word. It cannot read a request with no such word: `Note that 8426 should be zapped.`,
-or `Note that I mean the locker code.` after `Which one would you like me to forget?`. The call's text
-does not separate them either. All 4 forget cards drawn on R and S rows named the stated fact
-(`my bank closes at four on Fridays`), so a text found in the message is the harm, yet `8426` is in
-`Note that 8426 should be zapped.` too. A text outside the message is no safer: on
-`Remember my new locker code is 5555.` a call naming the old value and an approved card would delete
-it and keep neither.
-
-So the shape of the request decides. The refusal now also needs `_STATES_A_FACT` to read the message
-(`my`, `our`, `I`, `we`, or a subject that is no value or pronoun before `is`, `are`, `was`, `were`) and
-`_WISH` not to (a modal, a verb of wanting or saying), and the chat's last assistant message not to hold
-a question naming forgetting. A question about something else changes nothing: most replies end in one.
-`UNASKED_MSG` stays as it is, since it tells the model to ask when the person may want the action, and
-the reply is covered by the note in the next section.
-
-The replay of the 875 recorded messages: the old reader refuses 85 and the new one 72, with none newly
-refused. The 13 it no longer refuses were read by hand. None is a plain fact at risk of a forget
-call except `Note that the heads of the team meet on Monday.` and `Note that I need to take my pills at 8
-every day`; the rest ask for a reminder or a tool, or state nothing (`Please remember`). All 15 R messages
-are still refused, so the reader returns the same on R and S rows and they are not drawn again.
-
-Rows, written before the draw, on a brain built from the change with the rig above, cards approved:
-F1 is the forget question of `t3.jsonl` and its answer (2 draws), Z1 `Note that 8426 should be zapped.`
-(3 draws), and P1 `Please remember this: my locker code is 8426.` with that fact stored (3 draws). The
-change ships when no F1 or Z1 draw has a refused forget call, and no P1 draw shows a card or loses the
-row. The reader's tests decide the rest, as the last section says. Null result: a refused call on F1
-or Z1, or a P1 draw that loses the row.
-
-Run log `d971.jsonl` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/545ea45a-902e-44a3-86aa-5ec869e6c085/scratchpad/slot8/`, the
-SM clock at 0.21 of its maximum at the end of the first run and 0.10 at the end of the second. No draw
-ended in an error.
-
-| Row | Draws | Refused | Card and row deleted | Row left | Reply |
-| --- | --- | --- | --- | --- | --- |
-| F1 | 2 | 0 | 2 | 0 | says forgotten |
-| Z1 | 3 | 0 | 2 | 1 | `OK.`, `I've processed that request.`, and in the third, whose call matched nothing, says so |
-| P1 | 3 | 0 | 0 | 3 | says noted, with no card |
-
-**The change ships.** The two F1 and Z1 replies that deleted the row also end with `UNKEPT_CLAIM_NOTE`,
-which is true and says nothing useful there
-([R-974](../refinements/tasks/974-a-forget-worded-as-a-note-shows-the-unkept-note.md)).
+(`t4.jsonl`). A plain stated fact is still refused ([stated fact record](forget-refused-stated-fact.md)).
 
 ## What item 5 measured, 2026-10-31
 
