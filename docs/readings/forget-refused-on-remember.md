@@ -9,7 +9,8 @@ the check of refusing that call by name, as `set_volume` and the sidecar tools a
 
 `unasked_forget` (`unasked_tools.py`) names `forget_memories` when `asks_kept` reads the message,
 `asks_not_kept` does not, and the message holds no word that can retract something, no negation, no
-question and no second sentence, after any "don't forget" is taken out. The tool stays listed, so the
+question, no second sentence, no verb with its object after `and`, `then` or a mark, and no letter
+outside English, after any "don't forget" not followed by "to" is taken out. The tool stays listed, so the
 first request of a turn is the same as before and the model's rate of calling it does not change. A
 refused call shows no card, runs nothing and does not count in `TaintLedger.name_forget`, so the
 turn is recorded. Its result holds `UNASKED_MSG` and no `FORGET_NOT_KEPT_NOTE`, since the note says
@@ -153,3 +154,41 @@ kept while the turn was. Run log `draw961a.jsonl` in the slot directory above: 1
 on it, all storing the fact, 6 of the 15 R draws with a refused call, and no reply saying the fact was
 not saved. That the note did no visible harm in 20 draws says nothing about what it would do in more,
 and it was false, so it is off the refused result.
+
+## The wordings the reader missed, 2026-10-31
+
+A closing check of the reader, on the question whether a real forget request can be refused. The rig is
+the stack above at `12a7534a5`: one stored exchange holding `8426` at each draw's start, cards approved,
+the SM clock at 0.21 of its maximum. Refused calls are counted from the `tool.invocation` lines. Run
+logs `t1.jsonl`, `t2.jsonl` and `t3.jsonl` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/545ea45a-902e-44a3-86aa-5ec869e6c085/scratchpad/slot7/`.
+
+| Message | Draws | Refused | Row left | Reply |
+| --- | --- | --- | --- | --- |
+| `Remember my new locker code is 5555 and nuke 8426.` | 2 | 2 | 2 | says removed, ends with `UNFORGOTTEN_CLAIM_NOTE` |
+| `Remember my new locker code is 5555 and kill 8426.` | 2 | 2 | 2 | one says removed with the note, one says `your kill is 8426` |
+| `Remember my locker code is 5555 instead of 8426.` | 2 | 1 | 2 | says updated |
+| `Remember: vergiss meinen Spindcode 8426.` | 2 | 2 | 2 | one says `gelöscht` with no note, one says the call failed |
+| `Note that you must get rid of my locker code.` | 1 | 0 | 0 | card, row deleted |
+
+So a forget verb the list lacks, in the very form it was written for, loses the request. The list now
+also reads more such verbs, words for a replaced value (`instead`, `changed`, `earlier`), common forget
+verbs of five other languages, a second clause's verb with its object (`and zap 8426`, `; del 8426`),
+"don't forget to", and any letter outside English. It stays wide for the reason above.
+
+The replay of the 875 recorded messages: the old reader refuses 102 and the new one 85. None is newly
+refused. The 17 it no longer refuses are compound requests, to-dos and two strings from the docs, such
+as `Note my code 7319 and turn it down.` and `Remember to call the plumber tomorrow at 10.`. All 15 R
+messages are still refused, so the R and S rows are not drawn again. `Note that 8426 should be zapped.`
+is still refused, and so is a follow-up to a forget question
+([R-971](../refinements/tasks/971-a-forget-request-the-message-alone-does-not-show-is-refused.md)).
+
+## What item 5 measured, 2026-10-31
+
+`sameroute.py` in the slot directory above runs M01 to M04 through the tool loop of `15bbe2dc5` and of
+`303375dfa`, with a fixed backend that calls `forget_memories` and a sidecar tool. Every request, result,
+shown text and ledger count compares equal under `diff`. So the argument under the draws is true: on
+these rows the two builds take the same path, and the miss by one was the draw. It follows that item 5
+could not fail for any other reason, and that it could not find a refused forget request, since each of
+its four messages holds a word the list already read. The check that decides this is the reader's own
+tests, not a row.

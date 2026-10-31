@@ -60,8 +60,9 @@ that removes exactly those rows and holds against a turn in flight. This record 
    it.
    On a request to remember that can retract nothing, a call to it is refused by name and the
    turn is recorded: `unasked_forget` (`unasked_tools.py`) reads a message `asks_kept` reads and
-   `asks_not_kept` does not, holding no word that can retract something, no negation, no question
-   and no second sentence once any "don't forget" is taken out. There a card would delete the fact
+   `asks_not_kept` does not, holding no word that can retract something, no negation, no question,
+   no second sentence, no verb with its object after `and`, `then` or a mark, and no letter outside
+   English once any "don't forget" not followed by "to" is taken out. There a card would delete the fact
    the person asked to keep, and the turn would stay out of memory
    ([readings](../readings/forget-refused-on-remember.md)). The word list is wide because a message
    read wrongly as such a request costs a second message, which reaches the tool, while a card

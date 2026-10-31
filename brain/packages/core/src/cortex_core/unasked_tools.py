@@ -32,16 +32,28 @@ _SOURCE = re.compile(
     re.IGNORECASE,
 )
 _WORD = re.compile(r"[a-z]+")
-_DONT_FORGET = re.compile(r"\b(?:don['\u2019]?t|do\s+not|never)\s+forget\b", re.IGNORECASE)
+# "Don't forget to" asks for an action, so it stays in the text the list reads.
+_DONT_FORGET = re.compile(
+    r"\b(?:don['\u2019]?t|do\s+not|never)\s+forget\b(?!\s+to\b)", re.IGNORECASE
+)
 # Wide on purpose: a fact read wrongly here keeps the forget tool, as on any other turn, while a
-# forget request read wrongly is refused and costs the person a second message.
+# forget request read wrongly is refused and costs the person a second message. After the words: a
+# verb of a second clause with its object, which no list can name, and a letter outside English.
 _CAN_RETRACT = re.compile(
     r"\b(?:forg[eo]t\w*|eras\w+|unlearn\w*|delet\w+|remov\w+|wip(?:e|es|ed|ing)|drop\w*|clear\w*"
     r"|purg\w+|discard\w*|scrub\w*|ditch\w*|scrap\w*|toss\w*|trash\w*|rid|lose|stop\w*|undo"
     r"|retract\w*|revok\w+|withdraw\w*|ignor\w+|disregard\w*|pretend\w*|regret\w*|mistak\w+"
     r"|accident\w*|wrong|take\s+back|replac\w+|no|not|never|none|nothing|rather|old|previous"
-    r"|former|outdated|(?:dont|wont|cant|didnt|shouldnt|wouldnt))\b"
-    r"|n['\u2019]t\b|\?|[.!]\s+\S|\n\s*\S",
+    r"|former|outdated|(?:dont|wont|cant|didnt|shouldnt|wouldnt)"
+    r"|nuk\w+|kill\w*|destroy\w*|shred\w*|dump\w*|expung\w+|overwrit\w+|cancel\w*|scratch\w*"
+    r"|strik\w+|cross\w*|thr[eo]w\w*|dispos\w+|blank\w*|reset\w*|clean\w*|updat\w+|chang\w+"
+    r"|correct\w*|instead|earlier|prior|obsolete|stale|gone|nevermind|unsav\w*|unremember\w*"
+    r"|unstor\w*|let\s+go|go\s+away|out\s+of\s+your|used\s+to|must\s+go|remember\s+to"
+    r"|vergiss\w*|vergess\w*|vergeet|loesch\w*|entfern\w*|verwijder\w*|oubli\w*|effac\w+|olvid\w*"
+    r"|borr\w+|dimentic\w*)\b"
+    r"|n['\u2019]t\b|\?|[.!]\s+\S|\n\s*\S"
+    r"|(?:\band|\bthen|[,;:])\s+\w+\s+(?:\d|(?:the|my|it|this|that|those|them|what|everything)\b)"
+    r"|(?![a-z])[^\W\d_]",
     re.IGNORECASE,
 )
 
