@@ -113,7 +113,9 @@ async def stream_tool_loop(
     # Per loop rather than per turn: a repeat is redundant only against the ``working`` messages
     # that already hold its answer, and the results share the room of that one request.
     record = LoopRecord(
-        room=ResultRoom(context.room_chars, spent=context.results_spent), unasked=unasked
+        room=ResultRoom(context.room_chars, spent=context.results_spent),
+        unasked=unasked,
+        yearly_refused=list(context.yearly_refused),
     )
     said: list[str] = []
     for _step in range(MAX_TOOL_STEPS):

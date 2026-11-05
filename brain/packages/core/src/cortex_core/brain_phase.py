@@ -14,6 +14,7 @@ from cortex_core.handoff_view import (
     declined_calls,
     deep_history,
     deep_tail,
+    yearly_refused_calls,
 )
 from cortex_core.output_channels import open_output_channels
 from cortex_core.ports import Clock, InferenceBackend, SessionStore
@@ -105,6 +106,7 @@ class BrainPhase:
             bounds=self._caps.bounds,
             generating=_DEEP_GENERATING,
             declined=declined_calls(record),
+            yearly_refused=tuple(yearly_refused_calls(record)),
             results_spent=sum(len(m.text) for m in tail if m.role is Role.TOOL),
             query=query,
         )

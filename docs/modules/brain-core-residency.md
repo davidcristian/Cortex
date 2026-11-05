@@ -137,7 +137,7 @@ raises `ValueError` on a slot no tool filled, one no engine filled, or a tail co
   (`brain_phase.py`) rehydrates from the stores and the record alone. Its working set is preamble,
   recalled context, the history without the cortex's reply to this turn, and the `loop_tail` with the
   escalation's result replaced by `HANDOFF_TAKEN_MSG` and the brief (`handoff_view.py`), so the last
-  message is to the deep model; ledger, nonce, allowance and spent `ResultRoom` resume from it. It runs
+  message is to the deep model; ledger, nonce, allowance, spent `ResultRoom` and the calls the tail shows declined or refused for a yearly date resume from it. It runs
   the shared tool loop with a fresh rounds allowance, no escalation slot and no `capture_screen`, then
   persists its reply as a second assistant message under the same `turn_id`. A mid-work `InferenceError`
   persists the partial text with a note and re-raises, so the conductor fails the record, with the same

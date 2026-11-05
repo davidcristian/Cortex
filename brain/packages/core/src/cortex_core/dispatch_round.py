@@ -54,6 +54,8 @@ class ToolLoopContext:
     room_chars: int = RESULT_ROOM_CHARS
     # The person's message, read against the listed tools for those it did not ask for.
     query: str = ""
+    # The monthly schedule calls refused for a yearly date in a loop this one continues.
+    yearly_refused: tuple[ToolCall, ...] = ()
 
     @property
     def unit_id(self) -> str:

@@ -6,6 +6,7 @@ from dataclasses import replace
 from cortex_core.conversation import Message, Role, ToolRun
 from cortex_core.escalate import ESCALATION_QUEUED_MSG
 from cortex_core.handoff import HandoffRecord
+from cortex_core.schedule_yearly import YEARLY_DATE_MSG
 from cortex_core.tools import ToolCall
 from cortex_core.untrusted import says_declined
 
@@ -40,6 +41,18 @@ def declined_calls(record: HandoffRecord) -> list[ToolCall]:
     declined = {message.tool_call_id for message in record.loop_tail if says_declined(message.text)}
     return [
         call for message in record.loop_tail for call in message.tool_calls if call.id in declined
+    ]
+
+
+def yearly_refused_calls(record: HandoffRecord) -> list[ToolCall]:
+    """The monthly schedule calls refused for a yearly date before the handoff, from the tail."""
+    refused = {
+        message.tool_call_id
+        for message in record.loop_tail
+        if message.text.startswith(YEARLY_DATE_MSG)
+    }
+    return [
+        call for message in record.loop_tail for call in message.tool_calls if call.id in refused
     ]
 
 
