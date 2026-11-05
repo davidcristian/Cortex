@@ -3,23 +3,35 @@
 **Status:** open, actionable
 **Area:** scheduling
 **Origin:** [ADR-0025](../../adr/ADR-0025-scheduling-reminders.md)
-**Verified:** 2026-10-30
+**Verified:** 2026-11-05
 
-"Note that my mother's birthday is on 12 May, and remind me of it the day before." made the
-cortex call `schedule_task` with a reminder due on the 11th of every month, first on 11 November,
-and the reply said "on the 11th of every month"
-([readings](../../readings/side-effect-tools-on-remember.md#the-candidate-2026-10-30)). The
-three other draws of the row stored it yearly on 11 May. The reply names what was stored, so the
-person can see it, but a birthday repeats yearly.
+A request for a reminder before a yearly date can make the cortex call `schedule_task` with a
+monthly rule (`at_time` with `on_month_days`) instead of a yearly one (`on_dates`). On 2026-11-05,
+5 of 15 draws over a birthday, an anniversary and a renewal stored a monthly rule, 9 stored it
+yearly and 1 stored a one-time reminder; the two requests that really are monthly stored a
+monthly rule in all 4 draws ([readings](../../readings/schedule-yearly-dates.md#baseline-2026-11-05)).
+The reply does not always show it: two of the five monthly draws replied "every year"
+([R-980](980-a-reply-can-call-a-monthly-reminder-yearly.md)).
 
 ## What to do
 
-1. Write rows and a rule into the readings before a baseline: requests for a reminder before a
-   yearly date (a birthday, an anniversary, a renewal), drawn often enough to measure how many
-   store a monthly or a one-time reminder.
-2. If monthly reminders recur, weigh a sentence in the `schedule_task` description about yearly
-   dates against a typed check of the message that reads a yearly date and a monthly rule.
+The rows and the rule are in the readings, and item 1 of the rule fired, so the next step is the
+typed check its item 2 describes, not a sentence in the tool description.
+
+1. Write a typed reader of the person's message that finds a day of a named month ("12 May",
+   "3 September", "20 March") and no monthly wording ("every month", "each month", "monthly",
+   "of the month"). Write the near misses as tests before the code: "Remind me on the 11th of
+   every month, starting in May, to pay rent", "Every month on the 25th, remind me to check my
+   bank statement", "the 1st of each month from March on".
+2. In a turn where the reader matches, refuse a `schedule_task` call with `on_month_days` once,
+   beside the `UNASKED` refusal in `dispatch_round.py`, with a correction saying the person named
+   a yearly date and that `on_dates` takes it as MM-DD. Any monthly wording keeps the call.
+3. Replay every recorded message in the scheduling readings through the reader and list each
+   match, then draw the same rows on a candidate and ship it only under item 2 of the rule.
 
 ## History
 
 - 2026-10-30: filed from the candidate draws of the side-effect tools check (R-901).
+- 2026-11-05: corrected with a baseline of 19 draws: 5 of 15 yearly-date requests stored a monthly
+  rule, and the claim that the reply always names the stored rule failed twice (R-980 filed). The
+  typed check did not fit the slot's time box and is this task's next step.
