@@ -75,8 +75,8 @@ never a reading of what the tree does now.
 - **[R-972](tasks/972-a-request-to-remember-a-named-source-with-no-file-word-refuses-the-file-tools.md)** A request to remember a named source with no file word refuses the file tools (tools). Its claim was checked against the code on 2026-11-05.
 - **[R-979](tasks/979-the-other-rewordings-of-a-repeated-sentence-are-not-recorded.md)** The other rewordings of a repeated sentence are not recorded (tools-mcp). Its claim was checked against the code on 2026-11-05.
 - **[R-981](tasks/981-a-refused-monthly-call-can-be-stored-on-the-wrong-month.md)** A refused monthly call can be stored on the wrong month (scheduling). Its claim was checked against the code on 2026-11-05.
-- **[R-986](tasks/986-a-repeating-reminder-with-a-later-start-date-fires-before-it.md)** A repeating reminder with a later start date fires before it (scheduling). Its claim was checked against the code on 2026-11-05.
 - **[R-987](tasks/987-an-edited-repeat-with-a-later-first-day-fires-before-it.md)** An edited repeat with a later first day fires before it (scheduling). Its claim was checked against the code on 2026-11-05.
+- **[R-988](tasks/988-a-reminder-with-a-day-and-no-time-can-fire-at-midnight.md)** A reminder with a day and no time can fire at midnight (scheduling). Its claim was checked against the code on 2026-11-05.
 
 ### Actionable, once a port changes (1)
 
@@ -886,8 +886,8 @@ never a reading of what the tree does now.
 - [R-940](tasks/940-a-corrupt-record-awaiting-delivery-is-never-quarantined.md) A corrupt record awaiting delivery is never quarantined. done 2026-10-30.
 - [R-951](tasks/951-a-reminder-the-day-before-a-yearly-date-can-repeat-monthly.md) A reminder the day before a yearly date can repeat monthly. done 2026-11-05.
 - [R-981](tasks/981-a-refused-monthly-call-can-be-stored-on-the-wrong-month.md) A refused monthly call can be stored on the wrong month. open, actionable.
-- [R-986](tasks/986-a-repeating-reminder-with-a-later-start-date-fires-before-it.md) A repeating reminder with a later start date fires before it. open, actionable.
 - [R-987](tasks/987-an-edited-repeat-with-a-later-first-day-fires-before-it.md) An edited repeat with a later first day fires before it. open, actionable.
+- [R-988](tasks/988-a-reminder-with-a-day-and-no-time-can-fire-at-midnight.md) A reminder with a day and no time can fire at midnight. open, actionable.
 
 ### session-history
 

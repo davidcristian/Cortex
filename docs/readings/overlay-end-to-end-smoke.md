@@ -112,8 +112,8 @@ new chat for each step, `memories` empty and no schedule key at the start, the S
   [R-967](../refinements/tasks/967-a-request-to-remember-a-new-value-and-forget-the-old-one-keeps-neither.md).
 - **Birthday and Monthly.** Each turn made one `schedule_task` call and the reply matched the
   stored rule. The monthly record fires from 2026-11-15, seven months before the named start, and
-  the reply did not say the start was not kept:
-  [R-986](../refinements/tasks/986-a-repeating-reminder-with-a-later-start-date-fires-before-it.md).
+  the reply did not say the start was not kept. `schedule_task` then had no argument for a start;
+  it now takes `starting` ([readings](schedule-start-dates.md)).
 - **File.** The one call, `list_allowed_directories`, was refused as unasked; no subagent was
   called, and the reply made no "no access" or "no file found" claim and had no note.
 - **Forget.** A new chat then asked `What is my landlord called?`. It called the file tools, read

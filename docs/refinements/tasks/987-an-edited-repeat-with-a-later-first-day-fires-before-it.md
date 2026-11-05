@@ -21,5 +21,5 @@ occurrence from now (`_parse_edit_rule` in `schedule_verb_args.py`) and takes no
 
 ## History
 
-- 2026-11-05: filed from [R-986](986-a-repeating-reminder-with-a-later-start-date-fires-before-it.md),
-  when `schedule_task` gained `starting`.
+- 2026-11-05: filed when `schedule_task` gained `starting`
+  ([readings](../../readings/schedule-start-dates.md)).
