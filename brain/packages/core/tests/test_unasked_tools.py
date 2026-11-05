@@ -10,6 +10,7 @@ from cortex_core import (
     NO_CADENCE_TERMS,
     SCHEDULE_TOOL_NAME,
     SET_VOLUME_TOOL_NAME,
+    SPAWN_TOOL_NAME,
     BrainPhase,
     GenerationBounds,
     HashEmbedder,
@@ -59,6 +60,9 @@ _RETRACTED = (
 
 def _sidecar(*names: str) -> tuple[ToolSpec, ...]:
     return tuple(ToolSpec(name=name, description="", parameters={}, sidecar=True) for name in names)
+
+
+_SPAWN = ToolSpec(name=SPAWN_TOOL_NAME, description="", parameters={}, calls_sidecar=True)
 
 
 @pytest.mark.parametrize(
@@ -231,6 +235,44 @@ def test_a_word_of_a_sidecar_tool_name_keeps_the_tools_of_any_server() -> None:
 def test_a_tool_no_sidecar_serves_is_not_refused_for_being_listed() -> None:
     listed = (ToolSpec(name="look", description="", parameters={}),)
     assert unasked_sidecar_tools(_REMEMBER_A_FACT, listed) == frozenset()
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "Search my files for any phone numbers.",
+        "Ask a subagent to find the address on my lease.",
+        "Remember what is in notes.txt.",
+        "Remember the phone number in my notes, and look through my folders for it.",
+        "Remember that my locker code is 8426, and use subagents for it.",
+        "Please remember this: my locker code is 7319. Also, which folders can you read?",
+    ],
+)
+def test_a_tool_that_calls_sidecar_tools_stays_callable_where_they_do(query: str) -> None:
+    assert unasked_sidecar_tools(query, (*_sidecar(*_FILE_TOOLS), _SPAWN)) == frozenset()
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "Remember the address on my lease.",
+        "Remember that my phone number is 0612345678.",
+        "Please remember this: my daughter is allergic to peanuts.",
+    ],
+)
+def test_a_tool_that_calls_sidecar_tools_is_refused_with_them(query: str) -> None:
+    refused = unasked_sidecar_tools(query, (*_sidecar(*_FILE_TOOLS), _SPAWN))
+    assert refused == {*_FILE_TOOLS, _SPAWN.name}
+
+
+def test_a_tool_that_calls_sidecar_tools_is_refused_with_none_listed() -> None:
+    assert unasked_sidecar_tools(_REMEMBER_A_FACT, (_SPAWN,)) == {_SPAWN.name}
+
+
+def test_a_spawn_tool_whose_subagents_have_no_tools_stays_callable() -> None:
+    toolless = ToolSpec(name=_SPAWN.name, description="", parameters={})
+    refused = unasked_sidecar_tools(_REMEMBER_A_FACT, (*_sidecar(*_FILE_TOOLS), toolless))
+    assert refused == set(_FILE_TOOLS)
 
 
 @pytest.mark.parametrize(
@@ -698,6 +740,42 @@ async def test_a_sidecar_tool_called_by_name_is_refused_and_leaves_the_turn_unta
     assert UNASKED_MSG in backend.seen[1][-1].text
     (refused,) = audit.records
     assert (refused.name, refused.ok, refused.detail) == (_FILE_TOOLS[0], False, UNASKED_MSG)
+
+
+@pytest.mark.parametrize(
+    ("query", "runs"),
+    [(_REMEMBER_A_FACT, False), (_REMEMBER_AND_ASK, True), ("Search my files for a phone.", True)],
+)
+async def test_a_spawn_call_runs_only_where_its_subagents_tools_would(
+    query: str, *, runs: bool
+) -> None:
+    ran: list[str] = []
+    audit = RecordingAuditSink()
+    taint = TaintLedger()
+
+    async def spawn(arguments: Mapping[str, object]) -> str:
+        del arguments
+        ran.append(_SPAWN.name)
+        return "done"
+
+    registry = InMemoryToolRegistry({_SPAWN.name: (_SPAWN, spawn)})
+    context = ToolLoopContext(
+        dispatcher=ToolDispatcher(registry, audit, TickingClock()),
+        clock=TickingClock(),
+        turn_id="t",
+        taint=taint,
+        nonce="n",
+        session_id="s",
+        query=query,
+    )
+    backend = _Backend([ToolCall(id="c1", name=_SPAWN.name, arguments={})])
+    working = [Message(role=Role.USER, text=query, at=_AT, turn_id="t")]
+    _ = [event async for event in stream_tool_loop(backend, "m", working, context)]
+    assert backend.offered[0] == [_SPAWN.name]
+    assert ran == ([_SPAWN.name] if runs else [])
+    assert taint.tainted is runs
+    (record,) = audit.records
+    assert (record.ok, record.detail == UNASKED_MSG) == (runs, not runs)
 
 
 async def test_an_unasked_tool_called_by_name_is_refused_and_never_runs() -> None:

@@ -486,6 +486,14 @@ async def test_the_spec_omits_the_model_choice_for_a_single_entry_roster() -> No
     assert "run one after another" in spec.description
 
 
+async def test_the_spec_calls_sidecar_tools_only_when_subagents_hold_tools() -> None:
+    store = InMemoryTaskStore()
+    dispatcher = ToolDispatcher(InMemoryToolRegistry({}), RecordingAuditSink(), FixedClock())
+    with_tools = _runner(store, EchoInferenceBackend(), "subagent", tools=dispatcher)
+    assert _spec_of(with_tools).calls_sidecar is True
+    assert _spec_of(_runner(store, EchoInferenceBackend(), "subagent")).calls_sidecar is False
+
+
 async def test_the_spec_advertises_the_batch_cap() -> None:
     store = InMemoryTaskStore()
     spec = _spec_of(_runner(store, EchoInferenceBackend(), "subagent"))

@@ -120,4 +120,5 @@ def build_spawn_spec(
             },
             "required": ["instructions"],
         },
+        calls_sidecar=tools_enabled,
     )

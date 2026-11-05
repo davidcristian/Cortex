@@ -41,6 +41,9 @@ class ToolSpec:
     # Marks a tool an MCP sidecar serves: the core does not know its use, and it reads untrusted
     # content, so a turn that calls it stores nothing by default.
     sidecar: bool = False
+    # Marks a tool that calls sidecar tools itself, as ``spawn_subagents`` does when subagents
+    # have tools, so it is refused wherever they are.
+    calls_sidecar: bool = False
 
 
 @dataclass(frozen=True, slots=True)

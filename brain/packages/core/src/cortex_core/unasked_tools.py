@@ -99,8 +99,8 @@ def unasked_tools(query: str) -> frozenset[str]:
 
 
 def unasked_sidecar_tools(query: str, specs: Sequence[ToolSpec]) -> frozenset[str]:
-    """The sidecar tools refused by name on a turn whose ``query`` asks to remember a plain fact."""
-    sidecar = [spec for spec in specs if spec.sidecar]
+    """The sidecar tools, and the tools that call them, refused by name on a request to remember."""
+    sidecar = [spec for spec in specs if spec.sidecar or spec.calls_sidecar]
     if not asks_kept(query) or _asks_a_source(query, sidecar):
         return frozenset()
     return frozenset(spec.name for spec in sidecar)

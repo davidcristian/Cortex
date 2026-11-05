@@ -98,8 +98,14 @@ number "appears it was already gone"
 ([R-969](../refinements/tasks/969-a-forget-of-the-old-value-can-match-nothing-and-say-none-is-stored.md)).
 In another, `list_allowed_directories` was refused as unasked, and the cortex then called
 `spawn_subagents` to search for phone numbers; the subagent listed the allowed directory, searched it
-and read `notes.txt`
-([R-977](../refinements/tasks/977-a-subagent-spawned-on-a-request-to-remember-runs-the-refused-file-tools.md)).
+and read `notes.txt`. A subagent's tool result taints the turn as the cortex's own call does, so on
+2026-11-05 `unasked_sidecar_tools` was changed to refuse `spawn_subagents` beside the sidecar tools
+whenever subagents have tools ([ADR-0013](../adr/ADR-0013-untrusted-content.md)). The reader replay,
+`replay.log` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/7993c5bc-88df-4188-a4c9-74349733b88c/scratchpad/slot5/`,
+read 431 recorded strings as requests to remember: the 350 that refuse the file tools are the 350
+that refuse `spawn_subagents`, and the one string whose file reading changed is the new near miss
+that names subagents. The request the brain sends the model is unchanged, since the flag is not sent.
 
 ## A repeated forget: rows and the rule, 2026-11-05
 

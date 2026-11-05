@@ -47,6 +47,4 @@ the model host, and no first call matched nothing, so the assumption stands.
 - 2026-11-05: the premise holds in the code: a run that matches nothing returns `_NONE_FOUND` with no
   card, and `_unmatched_keep` (`memory_claim.py`) stores the turn when every forget call matched
   nothing and `asks_kept` reads the message. Ten draws of M02 read every call text, found the
-  repeated forget, and found no unmatched first call; the first step and its rule are written. Filed
-  [R-977](977-a-subagent-spawned-on-a-request-to-remember-runs-the-refused-file-tools.md) from the
-  same draws.
+  repeated forget, and found no unmatched first call; the first step and its rule are written.
