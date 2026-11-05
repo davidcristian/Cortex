@@ -115,11 +115,18 @@ reads `make sure to` before the verb. The near misses stay unread: `I'll make su
 memory.`, `I'll not keep that in memory.`, `I'll make sure you keep it in mind.` and a question.
 `Got it, your locker code is 8426.` says nothing kept and still shows the note.
 
-The readers' tests decide this, with no row drawn: no recorded draw has both the wording and a refused
+The readers' tests decide this, since no recorded draw has both the wording and a refused
 call. The replay of the 27,162 quoted strings in `docs/readings/`, the task files and the brain tests
 changes `claims_kept` on 4, all `I'll make sure to keep` or `save` in mind or memory, three of them the
 new tests. Replay script and log `replay.py` and `replay.log` in
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/7993c5bc-88df-4188-a4c9-74349733b88c/scratchpad/slot2/`.
+
+Real turns on a brain built from the change, written before the draw as a check that it runs and not
+as a rule: V1 `Keep in mind that I am vegetarian.` and V2 `Please remember this: I am vegetarian, so
+keep that in mind for any recipes.`, 2 draws each on an empty pool, cards approved. Null result: an
+error, a lost row, or a note on a reply saying it kept the fact. All 4 draws stored the fact, made no
+call, refused none and ended with no note; 2 replies said `I'll make sure to keep`. Run log
+`rows.jsonl` beside `replay.log`, the SM clock at 0.52 of its maximum at the end.
 
 ## The unkept note on a forget worded as a note, 2026-11-05
 
