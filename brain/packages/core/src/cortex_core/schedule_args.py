@@ -107,12 +107,12 @@ def _past_starting(start: date, today: date, zone: DisplayZone) -> str:
     """The correction for a ``starting`` day before today, naming today's date."""
     return (
         f"'starting' {start.isoformat()} has already passed; today is {today.isoformat()} "
-        f"({zone.name}). Nothing was scheduled. Use a later date, or ask the user which day "
+        f"({zone.name}). Nothing was saved. Use a later date, or ask the user which day "
         "they mean."
     )
 
 
-def _repeat_after(
+def repeat_after(
     raw: object, rule: CalendarRule, now: datetime, zone: DisplayZone
 ) -> datetime | str:
     """The instant a rule's first occurrence must follow: ``now``, or the start of ``starting``."""
@@ -168,7 +168,7 @@ def _parse_calendar(
     rule = parse_calendar_rule(arguments, resolve_zone)
     if isinstance(rule, str):
         return rule
-    after = _repeat_after(arguments.get("starting"), rule, now, zone)
+    after = repeat_after(arguments.get("starting"), rule, now, zone)
     if isinstance(after, str):
         return after
     due_at = next_calendar_due(rule, after, zone)

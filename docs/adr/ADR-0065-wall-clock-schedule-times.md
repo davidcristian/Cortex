@@ -60,10 +60,11 @@ decision 2).
   An edit that sets a rule derives its next occurrence the same way (ADR-0025 decision 9).
   An optional `starting` date moves the first fire to the rule's first match on or after that
   day in the rule's zone; a day before today is refused with today's date, and `starting`
-  without `at_time` is refused, since `at` already names a first fire. The record holds no
-  separate start: `due_at` is the first fire and each later one is computed after a fire, so an
-  edit that sets a rule computes from now and drops a later start
-  ([R-987](../refinements/tasks/987-an-edited-repeat-with-a-later-first-day-fires-before-it.md)).
+  without `at_time` is refused, since `at` already names a first fire. An edit that sets a rule
+  takes the same `starting` through the same `repeat_after`. The record holds no separate start:
+  `due_at` is the first fire and each later one is computed after a fire, so an edit that sets a
+  rule without `starting` computes from now, and its result names the new first fire so the reply
+  can say it moved. Storing the start would change the stored form for a move the result reports.
 - **Daylight saving is decided once**, by decision 1's `resolve`: an occurrence inside a gap fires
   just past it, late but never skipped, and one inside a repeated hour fires once. A reminder that
   silently does not happen is worse than one an hour late.

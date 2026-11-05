@@ -10,6 +10,7 @@ from cortex_core.schedule_args import (
     MIN_EVERY_SECONDS,
     UNSCHEDULABLE_RULE,
     parse_number,
+    repeat_after,
 )
 from cortex_core.schedule_calendar import next_calendar_due
 from cortex_core.schedule_day_args import misplaced_calendar_field, parse_calendar_rule
@@ -21,6 +22,9 @@ _EDIT_NO_CHANGE = "provide 'text', 'every_seconds', and/or 'at_time' to change s
 _EDIT_EVERY_WITH_AT_TIME = (
     "'at_time' already recurs on the wall clock; drop 'every_seconds', or give 'every_seconds' "
     "on its own to switch this schedule back to a fixed interval"
+)
+_EDIT_STARTING_NEEDS_AT_TIME = (
+    "'starting' sets the first day of an 'at_time' repeat; give 'at_time' too"
 )
 _BAD_EDIT_EVERY = (
     f"'every_seconds' must be 0 (stop repeating) or between {MIN_EVERY_SECONDS} "
@@ -51,18 +55,29 @@ def _parse_edit_every(arguments: Mapping[str, Any]) -> tuple[bool, timedelta | N
     return (True, timedelta(seconds=seconds))
 
 
+def _misplaced_edit_field(arguments: Mapping[str, Any]) -> str | None:
+    """A correction when an edit gives a field that needs ``at_time`` without it, else ``None``."""
+    misplaced = misplaced_calendar_field(arguments)
+    if misplaced is None and arguments.get("starting") is not None:
+        return _EDIT_STARTING_NEEDS_AT_TIME
+    return misplaced
+
+
 def _parse_edit_rule(
     arguments: Mapping[str, Any], now: datetime, zone: DisplayZone, resolve_zone: ZoneResolver
 ) -> RuleChange | None | str:
     """An edit's calendar rule: a ``RuleChange``, ``None`` when absent, or a correction."""
     if arguments.get("at_time") is None:
-        return misplaced_calendar_field(arguments)
+        return _misplaced_edit_field(arguments)
     if arguments.get("every_seconds") is not None:
         return _EDIT_EVERY_WITH_AT_TIME
     rule = parse_calendar_rule(arguments, resolve_zone)
     if isinstance(rule, str):
         return rule
-    due_at = next_calendar_due(rule, now, zone)
+    after = repeat_after(arguments.get("starting"), rule, now, zone)
+    if isinstance(after, str):
+        return after
+    due_at = next_calendar_due(rule, after, zone)
     if due_at is None:
         return UNSCHEDULABLE_RULE
     return RuleChange(rule=rule, due_at=due_at)

@@ -111,11 +111,11 @@ and one with a zone stays at the wall time it was set to.
 
 `edit_scheduled` changes recurrence in place in either direction: `at_time` (with an optional
 `on_days`, `on_month_days` or `on_dates`, so a rule can also switch between weekly, monthly and
-yearly, plus an optional `in_zone`) sets or retimes a rule, `every_seconds` replaces one with an
+yearly, plus an optional `in_zone` and `starting`) sets or retimes a rule, `every_seconds` replaces one with an
 interval, and `every_seconds: 0` stops it repeating. The two forms are mutually exclusive in one
-call. Retiming a rule moves the next fire to that rule's own next occurrence and reports it,
+call. Retiming a rule moves the next fire to that rule's own next occurrence, or its first on or after `starting`, and reports it,
 unlike an interval change, which leaves the next fire alone and takes effect from the one after
-it. A fired but undelivered reminder retimed this way fires fresh rather than re-delivering the
+it. A later first day is kept only when the edit gives `starting` again. A fired but undelivered reminder retimed this way fires fresh rather than re-delivering the
 stale one.
 
 With subagents wired (`CORTEX_SUBAGENTS_BACKEND=llamacpp`) the tool also offers `kind: "task"`,

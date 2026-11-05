@@ -6,7 +6,7 @@ from datetime import datetime
 from cortex_core.errors import ScheduleStoreError
 from cortex_core.ports import Clock, ScheduleStore
 from cortex_core.schedule import ScheduleKind, ScheduleStatus
-from cortex_core.schedule_args import MIN_EVERY_SECONDS
+from cortex_core.schedule_args import MIN_EVERY_SECONDS, starting_property
 from cortex_core.schedule_day_args import day_selector_properties, in_zone_property
 from cortex_core.schedule_render import describe_item, effective_zone
 from cortex_core.schedule_time import UTC_DISPLAY, UTC_ZONE_CONTEXT, DisplayZone, ZoneContext
@@ -178,8 +178,8 @@ class EditScheduledTool:
                 f"repeating) or 'at_time' (a wall-clock time in {self._zone.name}, or in "
                 "'in_zone', optionally on given 'on_days', 'on_month_days', or 'on_dates'). An "
                 "'every_seconds' change leaves the next due time alone; "
-                "'at_time' moves it to that rule's next occurrence. Use the id from "
-                "list_scheduled."
+                "'at_time' moves it to that rule's next occurrence, or its first on or after "
+                "'starting'. Use the id from list_scheduled."
             ),
             parameters={
                 "type": "object",
@@ -202,6 +202,7 @@ class EditScheduledTool:
                     },
                     **day_selector_properties(),
                     **in_zone_property(),
+                    **starting_property(),
                 },
                 "required": ["id"],
             },

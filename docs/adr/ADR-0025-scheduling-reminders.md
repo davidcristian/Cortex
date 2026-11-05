@@ -186,7 +186,7 @@ the item first for a precise correction, and the fenced transition gives the aut
 `ScheduleEdit` value. `every_seconds` sets an interval (and clears a rule), `0` stops either form
 repeating, and omitting it leaves the recurrence alone. An interval edit leaves `due_at` in place,
 so only later reschedulings take the new interval. **Setting a rule is the exception**: a rule
-derives its occurrences from the wall clock, so the tool computes the rule's next occurrence and
+derives its occurrences from the wall clock, so the tool computes the rule's next occurrence (or its first on or after a `starting` day, as creation does) and
 passes both as one `RuleChange(rule, due_at)`, which reschedules the item as a snooze does (PENDING,
 deliverability and `anchor` cleared). Merely moving `due_at` would put a DONE reminder back on the
 claim path and run it twice, and the rule branch writes snooze's index set under the same fence.
