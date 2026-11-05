@@ -208,3 +208,15 @@ async def test_from_url_wires_a_client_for_the_given_or_default_url(
     await store.aclose()
     RedisHandoffStore.from_url()
     assert seen == ["redis://example.invalid:6390/7", DEFAULT_REDIS_URL]
+
+
+async def test_a_record_written_before_the_file_and_monthly_marks_reads_as_neither() -> None:
+    client = FakeAsyncRedis(server=FakeServer())
+    record = handoff_contract.make_record("t1")
+    fields = cast("dict[str, Any]", json.loads(encode_record(record)))
+    del fields["sidecar_refused"]
+    del fields["monthly_stored"]
+    await client.set("cortex:handoff:t1", json.dumps(fields))
+    loaded = await RedisHandoffStore(client).get("t1")
+    assert loaded is not None
+    assert (loaded.sidecar_refused, loaded.monthly_stored) == (False, False)
