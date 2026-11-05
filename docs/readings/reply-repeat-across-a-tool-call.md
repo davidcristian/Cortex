@@ -237,8 +237,9 @@ with a sentence an earlier round wrote, and each of the 2 shows its first round'
 
 All 20 A4 rounds open with the first sentence. The 6 without `both` go on with the second sentence
 in other words, such as `I have also removed the phone number 0612345678 from my memory.` against
-the first round's `... from my memory as you requested.`. The hold reads word for word, so it keeps
-them and the reply says the same thing twice
+the first round's `... from my memory as you requested.`. Since 2026-11-05 the hold reads a sentence
+with a closing `as you asked` or `as requested` and one without it as the same; 5 of the 14,899 quoted
+sentences in the readings, task files and brain tests change under it, all forget replies of this form
 ([R-960](../refinements/tasks/960-a-round-can-repeat-an-earlier-sentence-in-other-words.md)).
 
 ## A round that loops on an earlier sentence: result, 2026-10-31

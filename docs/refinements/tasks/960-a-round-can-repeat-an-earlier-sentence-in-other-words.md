@@ -1,9 +1,8 @@
 # A round can repeat an earlier sentence in other words
 
-**Status:** open, actionable
+**Status:** done 2026-11-05
 **Area:** tools-mcp
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
-**Verified:** 2026-10-31
 
 `OpeningHold` (`round_opening.py`) drops an opening sentence only when an earlier round streamed it
 word for word. In 6 of the 20 A4 draws of
@@ -25,3 +24,10 @@ reply says the same thing twice.
 ## History
 
 - 2026-10-31: filed when the hold began dropping every opening sentence repeated word for word.
+- 2026-11-05: done for the recorded form. The run log holding the 6 sentences was lost with a
+  reboot, and the readings quote one: it differs from the first round's sentence only by a closing
+  `as you requested`. `OpeningHold` now reads a sentence with a closing `as you asked` or `as
+  requested` and one without it as the same. Its tests keep the near misses: a changed number or
+  ending, an added fact, a question, and a different closing `as`. Redrawing the rows for the other
+  5 forms is
+  [R-979](979-the-other-rewordings-of-a-repeated-sentence-are-not-recorded.md).

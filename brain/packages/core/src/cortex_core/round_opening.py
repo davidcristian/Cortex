@@ -12,11 +12,13 @@ _OPENING = re.compile(
 # a heading, a table row, a list item or a quote) is never dropped as a repeat.
 _LETTER = re.compile(r"[^\W\d_]")
 _STRUCTURE = re.compile(r"[|>]|`{3}|~{3}|(?:#{1,6}|[-*+]|\d+[.)])(?:\s|$)")
+# A closing "as you asked" adds no fact, so a sentence with it and one without are the same.
+_AS_ASKED = re.compile(r",?\s+as\s+(?:you\s+)?(?:asked|requested)(?=[.!?]?$)")
 
 
 def _words(sentence: str) -> str:
-    """``sentence`` with each run of white space as one space."""
-    return " ".join(sentence.split())
+    """``sentence`` with each run of white space as one space and no closing "as you asked"."""
+    return _AS_ASKED.sub("", " ".join(sentence.split()))
 
 
 class OpeningHold:

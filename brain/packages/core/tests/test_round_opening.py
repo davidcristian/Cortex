@@ -311,3 +311,71 @@ async def test_the_stored_reply_holds_the_repeated_sentence_once() -> None:
     assert shown == f"{_ANSWER}\n\nI checked."
     assert events[-1] == TurnCompleted(turn_id="t-1", full_text=shown)
     assert (await sessions.history("s"))[-1].text == shown
+
+
+_REMOVED = "I have also removed the phone number 0612345678 from my memory"
+_ASKED_TWO = f"{_ANSWER} {_REMOVED} as you requested.\n"
+
+
+@pytest.mark.parametrize(
+    ("said", "text"),
+    [
+        (_ASKED_TWO, f"{_ANSWER} {_REMOVED}. Done."),
+        (f"{_ANSWER} {_REMOVED}.\n", f"{_ANSWER} {_REMOVED} as you requested. Done."),
+        ("I removed it, as you asked.\n", "I removed it. Done."),
+        ("I removed it as requested!\n", "I removed it! Done."),
+    ],
+)
+def test_a_sentence_differing_only_by_a_closing_as_you_asked_is_dropped(
+    said: str, text: str
+) -> None:
+    hold = OpeningHold(said)
+    assert "".join(hold.feed(char) for char in text) + hold.flush() == "Done."
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        f"{_REMOVED.replace('0612345678', '0699000000')}.",
+        f"{_REMOVED.replace('memory', 'notes')}.",
+        f"{_REMOVED} and from your calendar.",
+        f"{_REMOVED} as you requested, and the address too.",
+        f"{_REMOVED}?",
+        "I have also removed the phone number.",
+        "As you requested, I have also removed the phone number 0612345678 from my memory.",
+        "I have also removed the phone number 0612345678 from my memory as you asked her.",
+    ],
+)
+def test_a_sentence_that_changes_a_word_of_an_earlier_one_is_kept(text: str) -> None:
+    hold = OpeningHold(_ASKED_TWO)
+    shown = f"{_ANSWER} {text} Done."
+    assert "".join(hold.feed(char) for char in shown) + hold.flush() == f"{text} Done."
+
+
+@pytest.mark.parametrize(
+    ("said", "text"),
+    [
+        ("I removed it yesterday.\n", "I removed it as you asked yesterday."),
+        ("I saved the note.\n", "I saved the note as draft."),
+        ("I saved the note.\n", "I saved the note as you said."),
+    ],
+)
+def test_a_sentence_with_another_closing_as_or_one_before_its_end_is_kept(
+    said: str, text: str
+) -> None:
+    hold = OpeningHold(said)
+    assert "".join(hold.feed(char) for char in text) + hold.flush() == text
+
+
+@pytest.mark.parametrize(
+    ("said", "text"),
+    [
+        (_ASKED_TWO, f"{_ANSWER} {_REMOVED}."),
+        (f"{_ANSWER} {_REMOVED}.\n", f"{_ANSWER} {_REMOVED} as you requested."),
+    ],
+)
+def test_a_round_ending_on_the_sentence_with_or_without_as_you_asked_shows_nothing(
+    said: str, text: str
+) -> None:
+    hold = OpeningHold(said)
+    assert hold.feed(text) + hold.flush() == ""
