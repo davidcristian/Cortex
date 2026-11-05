@@ -143,3 +143,30 @@ The note is true on every such turn. Shown on a forget request it costs one line
 need; hidden on a new value it leaves a lost fact unsaid. So the message reading stays as it is, and
 two tests show the note on the two lost new values above. Replay log `replay974b.log` beside
 `replay.log`.
+
+## A wish word's own forms and a title's full stop, 2026-11-05
+
+`_WISH` read any longer word it starts (`ask` in `Askari`, `need` in `needles`, `tell` in `teller`),
+and the second sentence branch of `_CAN_RETRACT` read the full stop of `Mr.`, so both left the forget
+tool callable on a stated fact. `_WISH` now reads only each word's own forms, and `saying` or
+`telling` only after a form of `be` or `keep`, so `my favourite saying` states a fact and
+`I'm saying 8426 is dead` keeps the tool. A full stop after `Mr`, `Mrs`, `Ms`, `Dr` or `St` ends no
+sentence. Near misses in `test_unasked_tools.py` keep the tool on `I asked you to zap 8426`, `I keep
+saying`, `I was telling you`, `I needed`, `I wanted`, `I wished` and a real second sentence after a title.
+
+The replay of the 27,175 quoted strings in `docs/readings/`, the task files and the brain tests, with
+the test file as it was before the change: of the 408 read as requests to remember, the old reader
+refuses the forget tool on 103 and the new one on 105. The two added are `Please remember this: my
+bank's name is Askari.` and `Please remember this: my landlord is called Mr. Weber.`, and none is
+newly kept. Replay script and log `replay.py` and `replay.log` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/7993c5bc-88df-4188-a4c9-74349733b88c/scratchpad/slot3/`.
+
+A negation, a question and a real second sentence still keep the tool. They are how a forget request
+reads (`Remember I don't need the locker code anymore.`), a refused forget costs a second message, and
+a fact read wrongly costs a card the person can reject, which the 12 draws on facts holding a wish word
+never showed.
+
+Real turns on a brain built with this change, written before the draw as a check that it runs and not
+as a rule: the Askari and Mr. Weber messages above, one draw each on an empty pool, cards approved.
+Null result: an error, a card, or no stored row. Both stored the fact with no card, no error and no
+forget call. Run log `rows.jsonl` beside `replay.log`, the SM clock at 0.51 of its maximum at the end.

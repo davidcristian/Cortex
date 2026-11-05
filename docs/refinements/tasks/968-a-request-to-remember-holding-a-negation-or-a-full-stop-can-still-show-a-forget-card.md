@@ -1,9 +1,8 @@
 # A request to remember holding a negation or a full stop can still show a forget card
 
-**Status:** open, actionable
+**Status:** done 2026-11-05
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-10-31
 
 `unasked_forget` (`unasked_tools.py`) leaves the tool callable on a request to remember holding a word
 that can retract something, a negation, a question or a second sentence, so that no forget request is
@@ -26,3 +25,9 @@ fact stored showed no call and no card, too few to clear the rate.
 ## History
 
 - 2026-10-31: filed from the check of refusing a forget call.
+- 2026-11-05: done. Two parts were misreadings: `_WISH` read a longer word it starts, and a title's
+  full stop read as a second sentence. Both facts now refuse the tool, with near misses that keep it
+  ([readings](../../readings/forget-refused-stated-fact.md#a-wish-words-own-forms-and-a-titles-full-stop-2026-11-05)).
+  Narrowing a negation, a question or a real second sentence is declined: forget requests read that
+  way, and a wrong keep costs only a card the person can reject. The draw of step 1 decides nothing
+  without such a narrowing, so it is not made.

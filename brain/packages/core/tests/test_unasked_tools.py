@@ -258,6 +258,14 @@ def test_a_tool_no_sidecar_serves_is_not_refused_for_being_listed() -> None:
         "Please remember this: my boss is called Ana \u2013 she runs the lab.",
         "Please don\u2019t forget this: the plumber\u2019s name is Tom.",
         "Please remember this: my rent is 900\u20ac.",
+        "Please remember this: my landlord is called Mr. Weber.",
+        "Remember that my dentist is Dr. Ana Popescu.",
+        "Remember that my aunt lives on Elm St. in Graz.",
+        "Please remember this: my bank's name is Askari.",
+        "Remember that my sewing needles are in the drawer.",
+        "Please remember this: my favourite saying is carpe diem.",
+        "Remember that my sister works as a bank teller.",
+        "Remember that my sister is a teller at the bank.",
     ],
 )
 def test_a_request_to_remember_a_plain_fact_refuses_the_forget_tool(query: str) -> None:
@@ -401,6 +409,8 @@ def test_a_request_to_remember_a_plain_fact_refuses_the_forget_tool(query: str) 
         "Note that 8426 must go.",
         "Remember to zap my code.",
         "Don't forget to zap my code.",
+        "Remember my landlord is Mr. Weber. Zap 8426.",
+        "Remember my dentist is Dr. Weber! Zap 8426.",
     ],
 )
 def test_a_request_to_remember_that_can_also_ask_to_forget_keeps_the_forget_tool(
@@ -496,6 +506,16 @@ def test_a_message_that_is_no_plain_request_to_remember_keeps_the_forget_tool(qu
         "Remember I said zap 8426.",
         "Remember I told you to zap 8426.",
         "Remember I tell you to zap 8426.",
+        "Remember I asked you to zap 8426.",
+        "Note that I'm asking you to zap 8426.",
+        "Note that I\u2019m saying 8426 is dead.",
+        "Remember I keep saying 8426 is dead.",
+        "Remember I was telling you 8426 is dead.",
+        "Remember that I needed 8426 zapped.",
+        "Remember I wanted 8426 zapped.",
+        "Remember I wished 8426 zapped.",
+        "Remember I meant 8426.",
+        "Remember my code means 8426 is dead.",
     ],
 )
 def test_a_request_to_remember_that_states_no_fact_keeps_the_forget_tool(query: str) -> None:

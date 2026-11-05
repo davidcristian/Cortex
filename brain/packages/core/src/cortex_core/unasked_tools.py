@@ -51,7 +51,7 @@ _CAN_RETRACT = re.compile(
     r"|unstor\w*|let\s+go|go\s+away|out\s+of\s+your|used\s+to|must\s+go|remember\s+to"
     r"|vergiss\w*|vergess\w*|vergeet|loesch\w*|entfern\w*|verwijder\w*|oubli\w*|effac\w+|olvid\w*"
     r"|borr\w+|dimentic\w*)\b"
-    r"|n['\u2019]t\b|\?|[.!]\s+\S|\n\s*\S"
+    r"|n['\u2019]t\b|\?|(?<!\bmr)(?<!\bmrs)(?<!\bms)(?<!\bdr)(?<!\bst)[.!]\s+\S|\n\s*\S"
     r"|(?:\band|\bthen|[,;:])\s+\w+\s+(?:\d|(?:the|my|it|this|that|those|them|what|everything)\b)"
     r"|(?![a-z])[^\W\d_]",
     re.IGNORECASE,
@@ -64,9 +64,14 @@ _STATES_A_FACT = re.compile(
     r"(?!\s+to\b)",
     re.IGNORECASE,
 )
+# A word's own forms only: a longer word it starts (Askari, teller) states a fact. "Saying"
+# and "telling" after a form of "be" or "keep", since "my favourite saying" names a thing.
 _WISH = re.compile(
-    r"\b(?:should|shall|must|ought|would|could|can|gotta|need\w*|want\w*|wish\w*|mean\w*"
-    r"|(?:has|have|had)\s+to|had\s+better|to\s+be|ask\w*|say\w*|said|told|tell\w*)\b",
+    r"\b(?:should|shall|must|ought|would|could|can|gotta|needs?|needed|needing|wants?|wanted"
+    r"|wanting|wish(?:es|ed|ing)?|means?|meant|meaning|asks?|asked|asking|says?|said|tells?|told"
+    r"|(?:has|have|had)\s+to|had\s+better|to\s+be)\b"
+    r"|(?:\b(?:am|is|are|was|were|be|been|keep|keeps|kept)|['\u2019](?:m|re|s))"
+    r"\s+(?:saying|telling)\b",
     re.IGNORECASE,
 )
 _FORGETTING = re.compile(
