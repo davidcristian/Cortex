@@ -215,6 +215,29 @@ async def test_a_monthly_call_for_a_yearly_date_is_refused_and_a_retry_on_its_da
     assert kept.ok
 
 
+async def test_a_retry_naming_the_refused_days_in_another_order_runs() -> None:
+    first = ToolCall(
+        id="c1", name=SCHEDULE_TOOL_NAME, arguments={**_MONTHLY, "on_month_days": [1, 11]}
+    )
+    again = ToolCall(
+        id="c2", name=SCHEDULE_TOOL_NAME, arguments={**_MONTHLY, "on_month_days": [11, 1]}
+    )
+    ran, audit = await _loop(_BIRTHDAY, [first, again])
+    assert ran == [{**_MONTHLY, "on_month_days": [11, 1]}]
+    assert [record.ok for record in audit.records] == [False, True]
+
+
+async def test_a_retry_with_unreadable_days_is_refused_again() -> None:
+    bad = {**_MONTHLY, "on_month_days": ["11"]}
+    calls = [ToolCall(id=f"c{index}", name=SCHEDULE_TOOL_NAME, arguments=bad) for index in (1, 2)]
+    ran, audit = await _loop(_BIRTHDAY, calls)
+    assert ran == []
+    assert [(record.ok, record.detail) for record in audit.records] == [
+        (False, YEARLY_DATE_MSG),
+        (False, YEARLY_DATE_MSG),
+    ]
+
+
 async def test_a_monthly_call_on_other_days_is_refused_after_one_was_refused() -> None:
     query = "Remind me of Anna's birthday on 11 May and of Tom's birthday on 3 June."
     anna = {"at_time": "09:00", "on_month_days": [10], "text": "Anna"}

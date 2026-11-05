@@ -100,4 +100,7 @@ def monthly_for_yearly(call: ToolCall, query: str) -> bool:
 
 def same_month_days(call: ToolCall, refused: ToolCall) -> bool:
     """Whether ``call`` repeats on the same month days as the ``refused`` call, as a retry does."""
-    return call.arguments.get("on_month_days") == refused.arguments.get("on_month_days")
+    days = parse_on_month_days(call.arguments.get("on_month_days"))
+    return not isinstance(days, str) and days == parse_on_month_days(
+        refused.arguments.get("on_month_days")
+    )
