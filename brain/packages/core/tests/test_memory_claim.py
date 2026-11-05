@@ -94,6 +94,9 @@ CLAIMS = [
     "I've read your lease and kept the address: Birkenweg 14.",
     "I've read your lease and recorded the address: Birkenweg 14.",
     "I've read your lease and saved the address: 12 Road to Utrecht.",
+    "Understood. I'll make sure to keep your vegetarian preference in mind for any recipes.",
+    "I will make sure to keep that in mind.",
+    "I'll also make sure to save that to my memory.",
 ]
 
 NOT_CLAIMS = [
@@ -190,6 +193,14 @@ NOT_CLAIMS = [
     "I've read your lease and saved the text into lease.txt.",
     "I've read your lease and saved the text under lease.txt.",
     "I've read your lease and saved the text on your desktop.",
+    "I'll make sure not to keep that in memory.",
+    "I'll not keep that in memory.",
+    "I'll make sure to never keep that in memory.",
+    "I'll make sure you keep it in mind.",
+    "I'll make sure to keep your drafts in the projects folder.",
+    "Should I make sure to keep this in mind?",
+    "Got it, your locker code is 8426.",
+    "Make sure to keep that in mind.",
 ]
 
 

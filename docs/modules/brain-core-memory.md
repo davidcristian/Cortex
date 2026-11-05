@@ -115,7 +115,8 @@ pool down to the hits one turn sees. The turn that calls it is in
   `UNKEPT_CLAIM_NOTE` when `unkept_note_due(query, reply)` holds: `asks_kept(query)` reads a request to
   remember and `asks_not_kept(query)` does not, whatever the reply says, since "I've updated that"
   is also what a reply says after a file edit. It also holds when `claims_kept(reply)` finds a statement, not a question, saying something
-  was noted, remembered, made a note of, or kept or saved "in mind" or "in memory", or that "my
+  was noted, remembered, made a note of, or kept or saved "in mind" or "in memory" (also after
+  "I'll make sure to"), or that "my
   records" or "your information" were updated, or "your phone number" updated to a value, alone or
   after an earlier verb of "I" ("I read your lease and noted the address"). A bare "saved" or
   "stored" counts only after such a verb and with no place named, since a file tool's reply says it

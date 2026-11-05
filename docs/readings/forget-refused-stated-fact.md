@@ -105,3 +105,18 @@ the SM clock at 0.21 of its maximum at the end. All 12 draws made no forget call
 kept the row, and each reply says the fact was noted. That is the null result on 12 draws, which cannot
 rule out a low rate
 ([R-968](../refinements/tasks/968-a-request-to-remember-holding-a-negation-or-a-full-stop-can-still-show-a-forget-card.md)).
+
+## A reply saying it will make sure to keep, 2026-11-05
+
+`claims_kept` did not read `Understood. I'll make sure to keep your vegetarian preference in mind for
+any recipes.`, the reply in 3 of the 259 recorded replies to R and P rows with no forget card, so after
+a refused call that reply would have ended with `UNFORGOTTEN_CLAIM_NOTE`. Its `I'll` form now also
+reads `make sure to` before the verb. The near misses stay unread: `I'll make sure not to keep that in
+memory.`, `I'll not keep that in memory.`, `I'll make sure you keep it in mind.` and a question.
+`Got it, your locker code is 8426.` says nothing kept and still shows the note.
+
+The readers' tests decide this, with no row drawn: no recorded draw has both the wording and a refused
+call. The replay of the 27,162 quoted strings in `docs/readings/`, the task files and the brain tests
+changes `claims_kept` on 4, all `I'll make sure to keep` or `save` in mind or memory, three of them the
+new tests. Replay script and log `replay.py` and `replay.log` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/7993c5bc-88df-4188-a4c9-74349733b88c/scratchpad/slot2/`.

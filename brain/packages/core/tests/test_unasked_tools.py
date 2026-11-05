@@ -820,6 +820,9 @@ _FORGET_CALL = ToolCall(id="c1", name=FORGET_CHOSEN_TOOL_NAME, arguments={"text"
         "I've processed your request to forget the locker code.",
         "Ich habe deinen Spindcode 8426 aus meinem Ged\u00e4chtnis gel\u00f6scht.",
         "OK.",
+        "Got it.",
+        "Got it, your locker code is 8426.",
+        "I'll make sure not to keep that in memory.",
     ],
 )
 async def test_a_refused_forget_call_closes_a_reply_that_does_not_say_it_kept_the_fact(
@@ -835,6 +838,7 @@ async def test_a_refused_forget_call_closes_a_reply_that_does_not_say_it_kept_th
         "I've noted that your brother's name is Luca.",
         "I'll remember that your brother's name is Luca.",
         "Noted.",
+        "Understood. I'll make sure to keep your brother's name in mind.",
     ],
 )
 async def test_a_refused_forget_call_adds_nothing_to_a_reply_that_says_it_kept_the_fact(

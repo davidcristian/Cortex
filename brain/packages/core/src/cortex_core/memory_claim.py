@@ -28,7 +28,8 @@ _NOTED = re.compile(
 )
 _IN_MEMORY = r"\b(?:in|to|into)\s+(?:my\s+)?(?:mind|memory)\b(?![.\-/\\]\w)"
 _PUT = re.compile(
-    rf"(?:{_HAVE}(?:saved|stored|kept|recorded|added)|{_WILL}(?:save|store|keep|record|add))\b"
+    rf"(?:{_HAVE}(?:saved|stored|kept|recorded|added)"
+    rf"|{_WILL}(?:make\s+sure\s+to\s+)?(?:save|store|keep|record|add))\b"
     rf".*{_IN_MEMORY}",
     re.IGNORECASE,
 )
