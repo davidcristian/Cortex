@@ -72,7 +72,7 @@ There are two shapes and an item takes exactly one.
 - `at_time` (`HH:MM`, in `CORTEX_SCHEDULE_TZ`) with an optional day selector is a wall-clock rule.
   It is the right shape for "every weekday at 09:00": it keeps the clock time across a daylight
   saving transition, where a 86400-second interval would drift an hour. The first fire is computed
-  from the rule, so `at_time` replaces `at` and `in_seconds` rather than accompanying them. The
+  from the rule, so `at_time` replaces `at` and `in_seconds` rather than accompanying them. An optional `starting` (`2027-06-15`) moves the first fire to the first selected day on or after it, read in the rule's zone, and a day before today is refused. The
   selector is at most one of:
   - `on_days` (`["mon","tue",...]`, omitted means every day), the weekly window.
   - `on_month_days` (`[1, 15]`, integers `1..31`), the monthly one. A day a short month lacks

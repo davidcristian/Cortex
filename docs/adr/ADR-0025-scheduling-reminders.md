@@ -75,7 +75,7 @@ built-ins, so subagents never see them (ADR-0010) and cannot re-schedule themsel
   (ADR-0065 decision 1), and a listed due time names its day, such as "tomorrow", in its own zone.
 - **Arguments.** `kind`, `text`, and exactly one of `at` (ISO-8601), `in_seconds` or `at_time` (a
   calendar rule, ADR-0065 decision 2); `every_seconds` between 60 s and ten years, with `0` read
-  as a one-shot; `model` for a task. Bad arguments return `is_error`, never raise; ids are uuid4.
+  as a one-shot; `model` for a task; `starting`, an ISO date before which an `at_time` rule does not fire (ADR-0065 decision 2). Bad arguments return `is_error`, never raise; ids are uuid4.
 - **Creation bounds.** Active items are capped (`CORTEX_SCHEDULE_MAX_ACTIVE`, 32; a full schedule
   returns `NOT SCHEDULED` and tells the model to ask the user what to cancel). **A tainted turn
   cannot create a task**, since injected text would be a permanent directive, unless recall alone

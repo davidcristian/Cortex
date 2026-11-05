@@ -9,7 +9,7 @@ from uuid import uuid4
 from cortex_core.errors import ScheduleStoreError, SessionStoreError
 from cortex_core.ports import Clock, ScheduleStore, SessionStore
 from cortex_core.schedule import ScheduledItem, ScheduleKind
-from cortex_core.schedule_args import MIN_EVERY_SECONDS, parse_schedule
+from cortex_core.schedule_args import MIN_EVERY_SECONDS, parse_schedule, starting_property
 from cortex_core.schedule_day_args import day_selector_properties, in_zone_property
 from cortex_core.schedule_render import (
     describe_item,
@@ -124,6 +124,7 @@ class ScheduleTaskTool:
             },
             **day_selector_properties(),
             **in_zone_property(),
+            **starting_property(),
         }
         if self._tasks_enabled:
             what = "a reminder to deliver to the user, or an autonomous task run by a subagent"
@@ -140,8 +141,8 @@ class ScheduleTaskTool:
                 "For one time, provide 'at' (ISO-8601 date-time) or 'in_seconds' (delay "
                 "from now), and add 'every_seconds' only to repeat at a fixed interval. To "
                 "repeat at a wall-clock time, provide 'at_time' (HH:MM) with optional "
-                "'on_days', 'on_month_days', 'on_dates', or 'in_zone'; 'at_time' alone "
-                "repeats every day."
+                "'on_days', 'on_month_days', 'on_dates', 'in_zone', or 'starting' (its first "
+                "day); 'at_time' alone repeats every day."
             ),
             parameters={"type": "object", "properties": properties, "required": ["kind", "text"]},
         )

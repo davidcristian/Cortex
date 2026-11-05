@@ -2,7 +2,7 @@
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import date, datetime, time, timedelta
 from typing import Any
 
 from cortex_core.schedule import ScheduleKind
@@ -27,6 +27,11 @@ _EVERY_WITH_AT_TIME = (
     "'every_seconds' for a fixed interval instead"
 )
 UNSCHEDULABLE_RULE = "'at_time' has no next occurrence that can be scheduled"
+_BAD_STARTING = "'starting' must be an ISO-8601 calendar date, e.g. 2027-06-15"
+_STARTING_NEEDS_AT_TIME = (
+    "'starting' sets the first day of an 'at_time' repeat; give 'at_time' too, or put the "
+    "first time in 'at' for a fixed interval"
+)
 _BAD_IN_SECONDS = "'in_seconds' must be a positive number of seconds"
 _BAD_EVERY = (
     f"'every_seconds' must be 0 (one-shot) or between {MIN_EVERY_SECONDS} and {MAX_EVERY_SECONDS}"
@@ -98,6 +103,36 @@ def _past_at(due: datetime, now: datetime, zone: DisplayZone) -> str:
     )
 
 
+def _past_starting(start: date, today: date, zone: DisplayZone) -> str:
+    """The correction for a ``starting`` day before today, naming today's date."""
+    return (
+        f"'starting' {start.isoformat()} has already passed; today is {today.isoformat()} "
+        f"({zone.name}). Nothing was scheduled. Use a later date, or ask the user which day "
+        "they mean."
+    )
+
+
+def _repeat_after(
+    raw: object, rule: CalendarRule, now: datetime, zone: DisplayZone
+) -> datetime | str:
+    """The instant a rule's first occurrence must follow: ``now``, or the start of ``starting``."""
+    if raw is None:
+        return now
+    if not isinstance(raw, str):
+        return _BAD_STARTING
+    try:
+        start = date.fromisoformat(raw)
+    except ValueError:
+        return _BAD_STARTING
+    effective = rule.zone if rule.zone is not None else zone
+    today = now.astimezone(effective.tz).date()
+    if start < today:
+        return _past_starting(start, today, effective)
+    if start == today:
+        return now
+    return effective.resolve(datetime.combine(start, time())) - timedelta(microseconds=1)
+
+
 def _delay_from(now: datetime, in_seconds: object) -> datetime | str:
     """``now`` plus a positive number of seconds, or a correction string."""
     delay = parse_number(in_seconds)
@@ -133,10 +168,21 @@ def _parse_calendar(
     rule = parse_calendar_rule(arguments, resolve_zone)
     if isinstance(rule, str):
         return rule
-    due_at = next_calendar_due(rule, now, zone)
+    after = _repeat_after(arguments.get("starting"), rule, now, zone)
+    if isinstance(after, str):
+        return after
+    due_at = next_calendar_due(rule, after, zone)
     if due_at is None:
         return UNSCHEDULABLE_RULE
     return _When(due_at=due_at, every=None, rule=rule)
+
+
+def _misplaced_field(arguments: Mapping[str, Any]) -> str | None:
+    """A correction when a field that needs ``at_time`` is given without it, else ``None``."""
+    misplaced = misplaced_calendar_field(arguments)
+    if misplaced is None and arguments.get("starting") is not None:
+        return _STARTING_NEEDS_AT_TIME
+    return misplaced
 
 
 def _parse_when(
@@ -147,7 +193,7 @@ def _parse_when(
         if arguments.get("at") is not None or arguments.get("in_seconds") is not None:
             return _ONE_WHEN
         return _parse_calendar(arguments, now, zone, resolve_zone)
-    misplaced = misplaced_calendar_field(arguments)
+    misplaced = _misplaced_field(arguments)
     if misplaced is not None:
         return misplaced
     due_at = _parse_due_at(arguments, now, zone)
@@ -157,6 +203,21 @@ def _parse_when(
     if isinstance(every, str):
         return every
     return _When(due_at=due_at, every=every, rule=None)
+
+
+def starting_property() -> dict[str, dict[str, Any]]:
+    """The ``starting`` JSON-schema property of ``schedule_task``."""
+    return {
+        "starting": {
+            "type": "string",
+            "description": (
+                "The first day an 'at_time' repeat may fire, an ISO-8601 date such as "
+                "2027-06-15, for a request like 'starting 15 June'. The first occurrence is the "
+                "first day the rule selects on or after it. Omit to start from now. Only with "
+                "'at_time'."
+            ),
+        },
+    }
 
 
 def _parse_every(arguments: Mapping[str, Any]) -> timedelta | None | str:
