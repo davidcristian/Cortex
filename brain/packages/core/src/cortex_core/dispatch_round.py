@@ -146,6 +146,11 @@ async def run_round(
             context.taint.forgotten = True
         if call.name == FORGET_CHOSEN_TOOL_NAME and refusal is DispatchRefusal.UNASKED:
             context.taint.forget_refused = True
+        context.taint.sidecar_refused |= (
+            refusal is DispatchRefusal.UNASKED
+            and spec is not None
+            and (spec.sidecar or spec.calls_sidecar)
+        )
         if call.name == FORGET_CHOSEN_TOOL_NAME and result.matched_nothing:
             context.taint.forget_unmatched += 1
         context.taint.observe(

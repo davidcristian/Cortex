@@ -141,6 +141,8 @@ class TaintLedger:
     forget_unmatched: int = 0
     # Whether a ``forget_memories`` call was refused as unasked, which leaves no run and no count.
     forget_refused: bool = False
+    # Whether a sidecar call, or a call that runs sidecar tools, was refused as unasked.
+    sidecar_refused: bool = False
     untrusted_urls: set[str] = field(default_factory=set[str])
     sources: tuple[Provenance, ...] = ()
     # The tainted memories this turn recalled: its record is stored only while they all exist.

@@ -67,4 +67,19 @@ clock read 0.51 to 0.52 of its maximum before every draw. No draw ended in an er
 
 2 of 8 say they have no access, which is not under the null result's bound, so the defect holds:
 12 of 42 baseline draws over all four rules. The other six replies ask for the value or the file, which is
-exact. The candidate's typed check is the next step; these replies are its replay rows.
+exact. These replies are the candidate's replay rows.
+
+## The candidate, 2026-11-05
+
+`claims_no_access` (`access_claim.py`), replayed by `replay962.py` (log `replay962.log` beside the
+run log), reads baseline draws 1 and 8 and no other. Of 16,886 strings quoted in the readings and
+task files it reads 20, each a reply or a phrase saying it has no access; the first replay missed
+"the file appears to be unavailable or inaccessible", so `inaccessible` was added before the draws.
+The near misses in `test_access_claim.py` cover a condition, a question and a statement of access.
+
+Six candidate draws of M01 and M07 (`cand.jsonl`, `cand-invocations.log`), the SM clock between
+0.11 and 0.52 of its maximum, no error, 1 to 3 file calls refused in each: 3 replies said they have
+no access, and each ended with `UNSEARCHED_FILES_NOTE` in the real stream; the other 3 had no note.
+**The candidate ships.** One reply without the note said "I don't see a budget spreadsheet in my
+accessible files", a claim of a search that did not run
+([R-978](../refinements/tasks/978-a-reply-after-a-refused-file-call-can-say-it-did-not-see-the-file.md)).

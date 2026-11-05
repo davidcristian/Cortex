@@ -35,6 +35,7 @@ from cortex_core import (
     asks_kept,
     asks_not_kept,
 )
+from cortex_core.access_claim import UNSEARCHED_FILES_NOTE
 from cortex_core.dispatch import UNASKED_MSG
 from cortex_core.forget_claim import UNFORGOTTEN_CLAIM_NOTE
 from cortex_core.tool_loop import ToolLoopContext, stream_tool_loop
@@ -1018,3 +1019,51 @@ async def test_a_forget_call_refused_for_another_reason_shows_no_such_note() -> 
 async def test_a_refused_call_to_another_tool_shows_no_such_note() -> None:
     call = ToolCall(id="c1", name=SET_VOLUME_TOOL_NAME, arguments={"level": 0.5})
     assert await _shown_after_calls("Remember my code is 8426.", [call], "OK.") == "OK."
+
+
+_NO_ACCESS = "I'm sorry, but I don't have access to your files."
+
+
+async def _shown_with(query: str, specs: Sequence[ToolSpec], call: str) -> str:
+    async def handler(arguments: Mapping[str, object]) -> str:
+        del arguments
+        return "done"
+
+    dispatcher = ToolDispatcher(
+        InMemoryToolRegistry({spec.name: (spec, handler) for spec in specs}),
+        RecordingAuditSink(),
+        TickingClock(),
+    )
+    engine = TurnEngine(
+        InMemorySessionStore(),
+        _Backend([ToolCall(id="c1", name=call, arguments={})], _NO_ACCESS),
+        TickingClock(),
+        capabilities=TurnCapabilities(tools=dispatcher),
+    )
+    turn = engine.handle_turn("s", query, turn_id="t")
+    return "".join([event.text async for event in turn if isinstance(event, TextDelta)])
+
+
+_TOOLS = (
+    *_sidecar(_FILE_TOOLS[0]),
+    _SPAWN,
+    ToolSpec(name=SET_VOLUME_TOOL_NAME, description="", parameters={}),
+)
+
+
+@pytest.mark.parametrize("call", [_FILE_TOOLS[0], _SPAWN.name])
+async def test_a_reply_saying_it_has_no_access_after_a_refused_file_call_gets_the_note(
+    call: str,
+) -> None:
+    shown = await _shown_with(_REMEMBER_A_FACT, _TOOLS, call)
+    assert shown == _NO_ACCESS + UNSEARCHED_FILES_NOTE
+
+
+@pytest.mark.parametrize(
+    ("query", "call"),
+    [(_REMEMBER_AND_ASK, _FILE_TOOLS[0]), (_REMEMBER_A_FACT, SET_VOLUME_TOOL_NAME)],
+)
+async def test_a_reply_saying_it_has_no_access_after_no_refused_file_call_has_no_note(
+    query: str, call: str
+) -> None:
+    assert await _shown_with(query, _TOOLS, call) == _NO_ACCESS

@@ -1,9 +1,8 @@
 # A reply after a refused file call can say it has no access
 
-**Status:** open, actionable
+**Status:** done 2026-11-05
 **Area:** memory
 **Origin:** [ADR-0013](../../adr/ADR-0013-untrusted-content.md)
-**Verified:** 2026-11-05
 
 On a request to remember that names a value by the file holding it, such as "Remember the address
 on my lease.", `unasked_sidecar_tools` (`unasked_tools.py`) reads no source, so a call to a file tool
@@ -41,3 +40,7 @@ file.
 - 2026-11-05: corrected. The reader patch its steps named was in a scratchpad a reboot removed, and
   the remedy order is now a note the brain appends after a typed check. Its rows and rule are
   written, and the baseline found 2 of 8 more replies saying they have no access.
+- 2026-11-05: done. `UNSEARCHED_FILES_NOTE` (`access_claim.py`) closes a reply saying it has no
+  access on a turn that refused a sidecar call as unasked; it passed every part of its rule
+  ([readings](../../readings/no-access-after-a-refused-file-call.md#the-candidate-2026-11-05)).
+  Filed [R-978](978-a-reply-after-a-refused-file-call-can-say-it-did-not-see-the-file.md).
