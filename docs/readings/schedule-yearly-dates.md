@@ -205,3 +205,38 @@ form as the fix the refusal names. The reader now also reads an ordinal word fro
 change only adds days, so it can only let a monthly call run. Replaying the quoted strings in
 `docs/readings/`, the task files and the brain tests (12,536 strings, 34 read as a yearly date)
 through both readers changes the days of four strings, all four added by this change's tests.
+
+## A reply after one of two monthly calls stays refused: rows and the rule, written before the draws
+
+A turn with two reminders can store one and have the other's monthly call refused. If the cortex
+then does not retry and the reply says both are set, the unscheduled claim note does not run,
+because one scheduling call succeeded. These rows measure whether that reply occurs. Drawn on the
+stack brain with the driver above.
+
+| Row | Request | Draws |
+| --- | --- | --- |
+| T01 | "Remind me of Anna's birthday on 11 May and of Tom's birthday on 3 June." | 3 |
+| T02 | "Remind me the day before Anna's birthday on 11 May and the day before Tom's birthday on 3 June." | 3 |
+
+Each draw is scored by two items: whether a refused monthly call was never followed by a stored
+call for its date (the precondition), and whether the reply says a reminder is set that no stored
+record holds (the claim). The rule: a claim in any draw calls for a note the brain appends when a
+refused call was not followed by a stored one. With no claim in 6 draws, the note is not built,
+and a later draw with the claim reopens the question.
+
+## One of two monthly calls refused, 2026-11-05
+
+Drawn from 05:12 to 05:17 UTC on the stack brain, the SM clock at 0.51 to 0.52 of its maximum on
+every row. Run log `rows.jsonl`, `records.jsonl` and `draw.log` in slot 13 of the run's scratch
+directory; no turn failed, and no `cortex:schedule*` key was left.
+
+| Row | Calls in the brain log | Stored | Precondition | Claim |
+| --- | --- | --- | --- | --- |
+| T01, 3 draws | `on_dates` twice in 2 draws; in 1, `on_month_days` [11] and [3] refused, then `on_dates` ["05-11"] and ["06-03"] | yearly on both dates, 3 of 3 | 0 of 3 | 0 of 3 |
+| T02, 3 draws | `on_dates` ["05-10"] and ["06-02"] in 1 draw; two `at` calls in 2 | yearly in 1, one-time on 2027-05-10 and 2027-06-02 in 2 | 0 of 3 | 0 of 3 |
+
+No draw left a refused call without a stored call for its date, and every reply names only
+reminders a stored record holds, so the note is not built. The unscheduled claim note also stays
+keyed on any successful call rather than on a refused call's days: its text says nothing was
+scheduled, which is false beside a stored reminder, and a refused call's days need not be a date
+the reply names (a day-before reminder for 11 May is on day 10).
