@@ -127,3 +127,30 @@ with the proxy, cards approved.
   measures only draw noise.
 - The null result is a counted reply that still says the old value was gone or never stored; then
   the result text stays, and a note the brain appends is the next form to write a rule for.
+
+## A repeated forget: the draws, 2026-11-05
+
+Run logs `rows.jsonl`, `req.log`, `mem.txt` and `rows.clock` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/7993c5bc-88df-4188-a4c9-74349733b88c/scratchpad/slot6/`,
+on a candidate built from the working tree with the result above, run through the proxy beside the
+stack brain of the commit that notes no file was searched. The SM clock read 0.08 to 0.52 of its
+maximum before the draws. No draw ended in an error.
+
+| Of 20 draws | Count |
+| --- | --- |
+| First call's text the old value `0612345678` | 6 |
+| First call's text the label `phone number` | 11 |
+| First call's text the new value `0699000000`, matching nothing | 2 |
+| No `forget_memories` call; the reply asked for the old number | 1 |
+| A later call repeating the text of a call whose card deleted the row | 0 |
+| A later call with the new value after a delete, matching nothing | 4 |
+| A row holding the old number after the draw | 3 |
+
+No draw counted, so under the rule **this is no result**, and the candidate is not committed. The
+draws show forms the candidate does not reach. In 2 draws the first call's text was the new number,
+which no row holds: it matched nothing, the old row stayed, the turn was stored, and each reply
+said it could not find the old number ("I couldn't find your old phone number in my memory to
+delete it"). In 4 draws a call with the new number followed the delete and matched nothing, and one
+of those replies said "I couldn't find any previous phone number in my memory to delete" though the
+earlier call had deleted it. With the 10 draws above, a repeat of the deleting text came in 1 of 30
+draws, and a call naming the new value in 6 of 20.

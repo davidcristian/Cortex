@@ -21,22 +21,23 @@ the turn called the forget twice with the old value. The first call's card delet
 second call matched nothing, and the reply said the old number "appears it was already gone". The
 no-match result is true of the store when the second call runs and false of the turn.
 
-The texts of the 2026-10-31 calls are not recorded: no card shows on a call that matches nothing, and
-the audit keeps the argument as `<redacted>`. That they were words such as "old code" is an assumption
-from the replies. The 2026-11-05 draws read every text through a proxy that records the requests to
-the model host, and no first call matched nothing, so the assumption stands.
+Twenty more draws on 2026-11-05 read every call text through a proxy that records the requests to
+the model host ([draws](../../readings/forget-no-match-on-remember.md#a-repeated-forget-the-draws-2026-11-05)).
+The unmatched first call came in 2 of them, and its text was the new number `0699000000`, which no
+row holds; each reply said it could not find the old number. In 4 more, a call with the new number
+followed the delete and matched nothing, and one reply then said no previous number was found to
+delete. A repeat of the deleting call's own text came in 1 of 30 draws.
 
 ## What to do
 
-1. The second form first, because a typed result can be true by construction. `ForgetChosenTool`
-   keeps the texts whose card it ran a delete for, under the call's turn id and bounded as `_shown`
-   is. A later call in the same turn whose text matches nothing and equals one of them, with case and
-   spaces ignored, gets "nothing more was forgotten: an earlier call in this turn already deleted
-   every remembered exchange that contained that text", not `_NONE_FOUND`. The rows and the rule are
-   [written](../../readings/forget-no-match-on-remember.md#a-repeated-forget-rows-and-the-rule-2026-11-05)
-   before any draw.
-2. Record the texts with the proxy whenever M02 is drawn. If an unmatched first call names a word no
-   row holds, write rows and a rule for a result text that asks for one word naming the fact.
+1. A call that matches nothing after an earlier call in the same turn deleted something gets a
+   result naming that delete, not `_NONE_FOUND`, whatever its text. `ForgetChosenTool` keeps the
+   turn ids whose card ran a delete, bounded as `_shown` is. The repeated text alone, as the
+   [rule](../../readings/forget-no-match-on-remember.md#a-repeated-forget-rows-and-the-rule-2026-11-05)
+   named it, reached 1 of 30 draws and none of the 20 drawn for it. Write the rows and rule for the
+   wider form before any draw, with M02 drawn through the proxy.
+2. An unmatched first call naming the new value. Write rows and a rule for a result text, on a call
+   whose text the message states after "now" or "new", that asks for one word naming the fact.
    `_NONE_FOUND` is shared with a forget of a value never stored, where "nothing about it was stored"
    is correct, so both rows are drawn.
 
@@ -48,3 +49,7 @@ the model host, and no first call matched nothing, so the assumption stands.
   card, and `_unmatched_keep` (`memory_claim.py`) stores the turn when every forget call matched
   nothing and `asks_kept` reads the message. Ten draws of M02 read every call text, found the
   repeated forget, and found no unmatched first call; the first step and its rule are written.
+- 2026-11-05: corrected. The candidate for the repeated text was built and drawn 20 times through
+  the proxy: no draw repeated the deleting text, so its rule gave no result and it was not committed.
+  The draws found the unmatched first call naming the new number, and a later call naming it after a
+  delete; both steps now name those forms.
