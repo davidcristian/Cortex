@@ -120,3 +120,19 @@ call. The replay of the 27,162 quoted strings in `docs/readings/`, the task file
 changes `claims_kept` on 4, all `I'll make sure to keep` or `save` in mind or memory, three of them the
 new tests. Replay script and log `replay.py` and `replay.log` in
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/7993c5bc-88df-4188-a4c9-74349733b88c/scratchpad/slot2/`.
+
+## The unkept note on a forget worded as a note, 2026-11-05
+
+`Note that 8426 should be zapped.` and `Note that I mean the locker code.` end with
+`UNKEPT_CLAIM_NOTE` when their forget call deletes the row, since `asks_kept` reads them. A message
+reading that hides the note there also hides it where a new value is lost. On a turn with a forget
+call, replayed over the 27,176 quoted strings read the same way, 384 are read as a request to
+keep. Requiring `_STATES_A_FACT` with no `_WISH` word, as the refusal does, hides the note on 181 of
+them, among them `Note that the new PIN is 8426, the old one can go.` and `Please remember this: my
+bank's name is Askari.` (`ask` in the name). `_STATES_A_FACT` alone hides it on 98, among them
+`Remember the code 7319 and wipe the PIN.`, and still shows it on `Note that I mean the locker code.`.
+
+The note is true on every such turn. Shown on a forget request it costs one line the person did not
+need; hidden on a new value it leaves a lost fact unsaid. So the message reading stays as it is, and
+two tests show the note on the two lost new values above. Replay log `replay974b.log` beside
+`replay.log`.

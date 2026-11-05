@@ -55,8 +55,20 @@ def _shown(
         (TaintLedger(tainted=True), (_READ,), "Remember to read notes.txt."),
         (TaintLedger(tainted=True), (_UNTRUSTED_GONE,), _PLAIN),
         (TaintLedger(tainted=True, opaque=True), (), "Remember what is on my screen."),
+        (_forget(), (_DELETED,), "Note that the new PIN is 8426, the old one can go."),
+        (_forget(), (_DELETED,), "Remember the code 7319 and wipe the PIN."),
     ],
-    ids=["deleted", "declined", "unreadable", "file", "to-do", "untrusted-forget", "picture"],
+    ids=[
+        "deleted",
+        "declined",
+        "unreadable",
+        "file",
+        "to-do",
+        "untrusted-forget",
+        "picture",
+        "new-value",
+        "no-subject",
+    ],
 )
 def test_each_way_a_request_to_remember_stays_out_of_memory_shows_the_note(
     *, taint: TaintLedger, runs: tuple[ToolRun, ...], query: str

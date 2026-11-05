@@ -1,9 +1,8 @@
 # A forget worded as a note shows the unkept note
 
-**Status:** open, actionable
+**Status:** declined 2026-11-05
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-10-31
 
 `unkept_note_due` (`memory_claim.py`) shows `UNKEPT_CLAIM_NOTE` when `asks_kept` reads the message and
 `asks_not_kept` does not. `Note that I mean the locker code.` and `Note that 8426 should be zapped.` now
@@ -21,3 +20,9 @@ code is lost.
 ## History
 
 - 2026-10-31: filed from the draws of the [stated fact reader](../../readings/forget-refused-stated-fact.md#refusing-a-stated-fact-only-2026-10-31).
+- 2026-11-05: declined. The premise held, and the remedy fails: on a turn with a forget call, the
+  refusal's stated fact reading would hide the note on 181 of 384 recorded requests to keep, and the
+  subject reading alone on 98, including `Note that the new PIN is 8426, the old one can go.` and
+  `Remember the code 7319 and wipe the PIN.`, where the new value is lost. The note is true, and its
+  cost on a forget request is one unneeded line. Recorded in the
+  [readings](../../readings/forget-refused-stated-fact.md#the-unkept-note-on-a-forget-worded-as-a-note-2026-11-05).
