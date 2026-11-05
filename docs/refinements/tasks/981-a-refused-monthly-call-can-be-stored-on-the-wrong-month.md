@@ -24,3 +24,8 @@ fires once a year on the wrong day. No baseline yearly draw stored a wrong date
 ## History
 
 - 2026-11-05: filed from the candidate draws of R-951.
+- 2026-11-05: checked the refused draw's two calls in the brain log. The refused call held
+  `on_month_days` [27] and no month, and the retry took September from the anniversary. The
+  refusal text names only "a day of a named month" and its example maps a date to itself
+  ('05-11' for 11 May), so it gives the model no month for a reminder day in the month before.
+  Whether a rewording changes 1 in 7 needs this task's rows; not drawn yet, so the task stays open.

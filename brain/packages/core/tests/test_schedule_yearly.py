@@ -23,7 +23,12 @@ from cortex_core import (
 )
 from cortex_core.closing_notes import limit_notes
 from cortex_core.schedule_claim import MONTHLY_STORED_NOTE, claims_yearly
-from cortex_core.schedule_yearly import YEARLY_DATE_MSG, monthly_for_yearly, names_yearly_date
+from cortex_core.schedule_yearly import (
+    YEARLY_DATE_MSG,
+    bare_days,
+    monthly_for_yearly,
+    names_yearly_date,
+)
 from cortex_core.stops import StopLedger
 from cortex_core.tool_loop import ToolLoopContext, stream_tool_loop
 
@@ -40,11 +45,15 @@ _YEARLY = {"at_time": "09:00", "on_dates": ["05-11"]}
         "Our wedding anniversary is on 3 September. Remind me a week before.",
         "My car insurance renews every year on 20 March; remind me the day before.",
         "Her birthday is March 20th, remind me the day before",
-        "remind me on the 3rd of june about the dentist",
-        "The lease ends Sept. 30, remind me a week before.",
+        "Remind me of Anna's birthday on 11 May and of Tom's birthday on 3 June.",
+        "The annual checkup is on 3 June; remind me a week before.",
+        "The domain renewal is due Sept. 30, remind me a week before.",
+        "Remind me once a year on 1 April to change the smoke alarm battery.",
     ],
 )
-def test_a_day_of_a_named_month_with_no_monthly_wording_is_a_yearly_date(message: str) -> None:
+def test_a_yearly_event_on_a_named_month_day_with_no_monthly_wording_is_a_yearly_date(
+    message: str,
+) -> None:
     assert names_yearly_date(message)
 
 
@@ -62,9 +71,19 @@ def test_a_day_of_a_named_month_with_no_monthly_wording_is_a_yearly_date(message
         "Remind me in May to book the holiday.",
         "Remind me on 12/05 about the dentist.",
         "Book a table for 12 people next Friday.",
+        "Remind me to pay the gas bill on the 15th, starting 15 June.",
+        "Starting May 1, remind me on the 1st to pay rent.",
+        "From 3 March, remind me every 4 weeks to change the water filter.",
+        "remind me on the 3rd of june about the dentist",
+        "The lease ends Sept. 30, remind me a week before.",
+        "I'm away until June 2, so remind me on the 5th to water the plants.",
+        "Her birthday is on 12 May; remind me on the 11th of each month to save for it.",
+        "Pay the rent monthly from 1 May, and remind me of my birthday on 12 May.",
     ],
 )
-def test_monthly_wording_or_no_named_month_day_is_not_a_yearly_date(message: str) -> None:
+def test_monthly_wording_or_no_yearly_event_on_a_month_day_is_not_a_yearly_date(
+    message: str,
+) -> None:
     assert not names_yearly_date(message)
 
 
@@ -81,6 +100,32 @@ def test_only_a_monthly_schedule_call_is_read_against_a_yearly_date(
 ) -> None:
     assert monthly_for_yearly(call, _BIRTHDAY) is refused
     assert not monthly_for_yearly(call, "Remind me on the 11th of every month to pay rent.")
+
+
+@pytest.mark.parametrize(
+    ("message", "days"),
+    [
+        ("Remind me to pay the gas bill on the 15th, starting 15 June.", {15}),
+        ("Remind me of Anna's birthday on 11 May and to pay the gas bill on the 15th.", {15}),
+        ("Her birthday is March 20th, remind me the day before", set[int]()),
+        ("Mum's birthday is on the 3rd of June and Tom's is May the 11th.", set[int]()),
+    ],
+)
+def test_bare_days_are_the_ordinals_with_no_month_beside_them(message: str, days: set[int]) -> None:
+    assert bare_days(message) == days
+
+
+@pytest.mark.parametrize(
+    ("month_days", "refused"),
+    [([10], True), ([15], False), ([10, 15], False), ("15", True)],
+)
+def test_a_monthly_call_on_a_day_named_beside_a_birthday_is_not_read_as_yearly(
+    month_days: object, *, refused: bool
+) -> None:
+    query = "Remind me of Anna's birthday on 11 May and to pay the gas bill on the 15th."
+    arguments = {"at_time": "09:00", "on_month_days": month_days}
+    call = ToolCall(id="c", name=SCHEDULE_TOOL_NAME, arguments=arguments)
+    assert monthly_for_yearly(call, query) is refused
 
 
 class _Backend:
@@ -134,7 +179,7 @@ async def _loop(
     return ran, audit
 
 
-async def test_the_first_monthly_call_for_a_yearly_date_is_refused_and_the_next_runs() -> None:
+async def test_a_monthly_call_for_a_yearly_date_is_refused_and_a_retry_on_its_days_runs() -> None:
     first = ToolCall(id="c1", name=SCHEDULE_TOOL_NAME, arguments=_MONTHLY)
     again = ToolCall(id="c2", name=SCHEDULE_TOOL_NAME, arguments={**_MONTHLY, "text": "again"})
     ran, audit = await _loop(_BIRTHDAY, [first, again])
@@ -144,10 +189,28 @@ async def test_the_first_monthly_call_for_a_yearly_date_is_refused_and_the_next_
     assert kept.ok
 
 
+async def test_a_monthly_call_on_other_days_is_refused_after_one_was_refused() -> None:
+    query = "Remind me of Anna's birthday on 11 May and of Tom's birthday on 3 June."
+    anna = {"at_time": "09:00", "on_month_days": [10], "text": "Anna"}
+    tom = {"at_time": "09:00", "on_month_days": [2], "text": "Tom"}
+    calls = [
+        ToolCall(id=f"c{index}", name=SCHEDULE_TOOL_NAME, arguments=arguments)
+        for index, arguments in enumerate([anna, tom, tom])
+    ]
+    ran, audit = await _loop(query, calls)
+    assert ran == [tom]
+    assert [(record.ok, record.detail) for record in audit.records][:2] == [
+        (False, YEARLY_DATE_MSG),
+        (False, YEARLY_DATE_MSG),
+    ]
+
+
 @pytest.mark.parametrize(
     ("query", "arguments"),
     [
         (_BIRTHDAY, _YEARLY),
+        ("Remind me to pay the gas bill on the 15th, starting 15 June.", _MONTHLY),
+        ("Starting May 1, remind me on the 1st to pay rent.", _MONTHLY),
         ("Remind me on the 11th of every month, starting in May, to pay rent", _MONTHLY),
     ],
 )

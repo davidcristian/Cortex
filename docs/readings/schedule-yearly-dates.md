@@ -146,5 +146,52 @@ reminder and names a start date with no month word.
 
 Both replies said "every year". A third turn repeating the first message listed the stored
 reminder and stored nothing. The draws' two records were deleted after the run, and no
-`cortex:schedule*` key was left
-([R-982](../refinements/tasks/982-the-yearly-date-refusal-turns-a-monthly-request-with-a-start-date-yearly.md)).
+`cortex:schedule*` key was left. The narrowed reader below answers these turns.
+
+## The narrowed reader: rows and the rule, written before the N and T draws
+
+The candidate reads a yearly date only when the message also names a yearly event ("birthday",
+"anniversary", "renew", "annual", "yearly", "every year", "once a year"), and does not refuse a
+monthly call on a day the message names as an ordinal with no month beside it ("on the 15th").
+Each monthly call is refused once per set of month days, so a second date's call on other days is
+refused too, and a retry on the same days runs. The candidate is the stack brain rebuilt from the
+working tree; the driver is the one above.
+
+| Row | Request | Draws | Stored as wanted |
+| --- | --- | --- | --- |
+| N01 | "Remind me to pay the gas bill on the 15th, starting 15 June." | 2 | monthly on day 15 |
+| N02 | "Starting May 1, remind me on the 1st to pay rent." | 2 | monthly on day 1 |
+| N03 | "Remind me of Anna's birthday on 11 May and to pay the gas bill on the 15th." | 1 | a monthly rule on day 15 |
+| T01 | "Remind me of Anna's birthday on 11 May and of Tom's birthday on 3 June." | 1 | no monthly rule |
+
+The rule: the candidate ships when all 4 N01 and N02 draws store a monthly rule and the N03 draw
+stores one on day 15. T01 is one draw and decides nothing alone; a monthly rule there is filed.
+The Y rows are not drawn again: their messages still match, the request the brain sends is
+unchanged, and the change acts only on a second monthly call, which no Y draw made.
+
+## The narrowed reader, 2026-11-05
+
+Drawn from 04:39 to 04:46 UTC on the stack brain rebuilt from the working tree, the SM clock at
+0.51 of its maximum on every row. Run log `rows.jsonl`, `records.jsonl` and `draw.log` in slot 11
+of the run's scratch directory; no turn failed, and no `cortex:schedule*` key was left.
+
+| Row | Calls in the brain log | Stored |
+| --- | --- | --- |
+| N01, 2 draws | `on_month_days` [15], ran | monthly on day 15, 2 of 2 |
+| N02, 2 draws | `on_month_days` [1], ran (one draw first sent `at` with `at_time`, refused as invalid) | monthly on day 1, 2 of 2 |
+| N03, 1 draw | two `at` calls | one-time on 2027-05-11 and 2027-05-15 |
+| T01, 1 draw | `on_month_days` [11] and [3], both refused; then `on_dates` ["05-11"] and ["06-03"] | yearly on 05-11 and 06-03 |
+
+All 4 N01 and N02 draws stored a monthly rule, where both turns of these messages on the first
+build stored a yearly one. The N03 item is not met as written: the cortex made no monthly call, so the refusal
+never acted, and the item measured a choice the change cannot reach; the unit tests hold the
+day-15 call. In T01 the second date's monthly call was refused too, where the first build ran it.
+
+The reader replayed every quoted string in `docs/readings/`, the task files and the brain tests,
+plus the test file before the change (27,166 strings): the old reader matches 56, the new one 27,
+and every new match is an old match. Of the 29 strings it no longer reads, six are requests with
+no yearly event: both N01 and N02 messages, "From 3 March, remind me every 4 weeks to change the
+water filter.", "I'm away until June 2, so remind me on the 5th to water the plants.", "remind me
+on the 3rd of june about the dentist" and "The lease ends Sept. 30, remind me a week before.". A
+first build refuses a monthly call on each of them. The other 23 are replies and document
+passages, which the reader never reads. The three Y requests still match and name no bare day.

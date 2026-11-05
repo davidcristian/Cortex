@@ -14,7 +14,7 @@ from cortex_core.memory_forget_chosen import FORGET_CHOSEN_TOOL_NAME
 from cortex_core.ports import Clock
 from cortex_core.progress import ProgressSink, hold_wait
 from cortex_core.provenance import SourceKind, as_source
-from cortex_core.schedule_yearly import monthly_for_yearly, stores_monthly
+from cortex_core.schedule_yearly import monthly_for_yearly, same_month_days, stores_monthly
 from cortex_core.stops import StopLedger
 from cortex_core.tool_budget import DispatchBudget
 from cortex_core.tool_cut import RESULT_ROOM_CHARS, ResultRoom
@@ -69,7 +69,7 @@ class LoopRecord:
     room: ResultRoom = field(default_factory=ResultRoom)
     # The tools the person's message did not ask for (``unasked_tools.py``), refused by name.
     unasked: frozenset[str] = frozenset()
-    # The monthly schedule calls refused for a yearly date; only the first is refused.
+    # The monthly schedule calls refused for a yearly date; a retry on the same days runs.
     yearly_refused: list[ToolCall] = field(default_factory=list[ToolCall])
 
 
@@ -79,7 +79,8 @@ def _unasked_refusal(
     """Which reading of the person's message refuses this call, or ``None`` when none does."""
     if call.name in record.unasked:
         return DispatchRefusal.UNASKED
-    if not record.yearly_refused and monthly_for_yearly(call, context.query):
+    retried = any(same_month_days(call, refused) for refused in record.yearly_refused)
+    if not retried and monthly_for_yearly(call, context.query):
         record.yearly_refused.append(call)
         return DispatchRefusal.YEARLY_DATE
     return None

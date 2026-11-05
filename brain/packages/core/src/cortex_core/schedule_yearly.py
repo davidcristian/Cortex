@@ -2,6 +2,7 @@
 
 import re
 
+from cortex_core.schedule_day_args import parse_on_month_days
 from cortex_core.schedule_tools import SCHEDULE_TOOL_NAME
 from cortex_core.tools import ToolCall
 
@@ -20,11 +21,27 @@ _DAY_OF_MONTH = re.compile(
     rf"\b(?:{_DAY}\s+(?:of\s+)?{_MONTH}|{_MONTH}\.?\s+(?:the\s+)?{_DAY})\b", re.IGNORECASE
 )
 _MONTHLY = re.compile(r"\bmonth(?:s|ly)?\b", re.IGNORECASE)
+_YEARLY_EVENT = re.compile(
+    r"\b(?:birthdays?|anniversar(?:y|ies)|renew(?:s|ed|al|als)?|annual(?:ly)?|yearly"
+    r"|(?:every|each|once\s+a|per)\s+year)\b",
+    re.IGNORECASE,
+)
+_ORDINAL_DAY = re.compile(r"\b([1-9]|[12]\d|3[01])(?:st|nd|rd|th)\b", re.IGNORECASE)
 
 
 def names_yearly_date(message: str) -> bool:
-    """Whether ``message`` names a day of a named month and says nothing about months."""
-    return _DAY_OF_MONTH.search(message) is not None and _MONTHLY.search(message) is None
+    """Whether ``message`` names a yearly event, a day of a named month and nothing about months."""
+    return (
+        _YEARLY_EVENT.search(message) is not None
+        and _DAY_OF_MONTH.search(message) is not None
+        and _MONTHLY.search(message) is None
+    )
+
+
+def bare_days(message: str) -> frozenset[int]:
+    """The days of the month ``message`` names as an ordinal with no month beside it."""
+    rest = _DAY_OF_MONTH.sub(" ", message)
+    return frozenset(int(match.group(1)) for match in _ORDINAL_DAY.finditer(rest))
 
 
 def stores_monthly(call: ToolCall) -> bool:
@@ -33,5 +50,13 @@ def stores_monthly(call: ToolCall) -> bool:
 
 
 def monthly_for_yearly(call: ToolCall, query: str) -> bool:
-    """Whether ``call`` repeats monthly when the person's ``query`` named a yearly date."""
-    return stores_monthly(call) and names_yearly_date(query)
+    """Whether ``call`` repeats monthly on no day the ``query`` names beside a yearly date."""
+    if not stores_monthly(call) or not names_yearly_date(query):
+        return False
+    days = parse_on_month_days(call.arguments.get("on_month_days"))
+    return isinstance(days, str) or not days & bare_days(query)
+
+
+def same_month_days(call: ToolCall, refused: ToolCall) -> bool:
+    """Whether ``call`` repeats on the same month days as the ``refused`` call, as a retry does."""
+    return call.arguments.get("on_month_days") == refused.arguments.get("on_month_days")
