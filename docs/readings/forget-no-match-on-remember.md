@@ -68,3 +68,56 @@ The change ships: R01 to R14 failed in 0 of 28 draws while 5 of the 28 called `f
 and W01, W06 and P01 passed in every draw. One R04 draw also called `set_volume` and
 `schedule_task`, both of which failed
 ([readings](side-effect-tools-on-remember.md)).
+
+## The texts of the forget calls on a new value, 2026-11-05
+
+Row M02 of [forget-refused-on-remember.md](forget-refused-on-remember.md#rows-and-the-rule-2026-10-31):
+a stored exchange holding `0612345678`, written once by a real turn and copied back before each draw,
+then `Note that my phone number is now 0699000000, and delete the old one.` in a new chat, every card
+approved. The brain is the `cortexn13` stack's image of the commit that widens `_SOURCE`, run beside
+the stack brain with its environment and `CORTEX_INFERENCE_ENDPOINT` set to a TCP proxy that writes
+every request to the model host to a file. The audit keeps the call's text as `<redacted>`, so the
+next request, which repeats the call, is where the text is read. Written before the draws: the run
+records the text of each `forget_memories` call and whether it matched; a run with no unmatched call
+leaves the texts of the 2026-10-31 unmatched calls unknown. Run logs `rows.jsonl`, `req.log` and
+`mem.txt` in `/tmp/claude-1000/-home-david-Files-Git-Cortex/7993c5bc-88df-4188-a4c9-74349733b88c/scratchpad/slot4/`,
+the SM clock at 0.09 to 0.51 of its maximum, no draw ending in an error.
+
+| Of 10 draws | Count |
+| --- | --- |
+| First call's text the old value `0612345678` | 7 |
+| First call's text the label `phone number` | 3 |
+| First call matching nothing | 0 |
+| A card shown and approved, deleting the old row | 10 |
+| A row holding either number after the draw | 0 |
+| A reply ending with `UNKEPT_CLAIM_NOTE` | 10 |
+
+Two draws did more. In one, the turn called the forget a second time with the old value after its
+card had deleted the row; that call matched nothing, read `_NONE_FOUND`, and the reply said the old
+number "appears it was already gone"
+([R-969](../refinements/tasks/969-a-forget-of-the-old-value-can-match-nothing-and-say-none-is-stored.md)).
+In another, `list_allowed_directories` was refused as unasked, and the cortex then called
+`spawn_subagents` to search for phone numbers; the subagent listed the allowed directory, searched it
+and read `notes.txt`
+([R-977](../refinements/tasks/977-a-subagent-spawned-on-a-request-to-remember-runs-the-refused-file-tools.md)).
+
+## A repeated forget: rows and the rule, 2026-11-05
+
+Written before any draw. The candidate is step 1 of R-969: a call whose text matches nothing and
+equals, with case and spaces ignored, the text of an earlier call in the same turn whose card ran a
+delete gets "nothing more was forgotten: an earlier call in this turn already deleted every
+remembered exchange that contained that text" in place of `_NONE_FOUND`. The rig is the one above,
+with the proxy, cards approved.
+
+| Row | Draws | A draw counts when |
+| --- | --- | --- |
+| M02 | 20 | it called `forget_memories` again with the text of a call whose card deleted the row |
+
+- The candidate ships when at least 3 draws count and no counted reply says the old value was not
+  stored, was already gone, or could not be found. Fewer than 3 counted draws is no result, and 20
+  more are drawn.
+- No other row is drawn. A first call that matches nothing reads `_NONE_FOUND` on both builds, so
+  the first requests of F5 and of a plain request to remember are identical, and a row over them
+  measures only draw noise.
+- The null result is a counted reply that still says the old value was gone or never stored; then
+  the result text stays, and a note the brain appends is the next form to write a rule for.
