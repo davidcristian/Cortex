@@ -37,6 +37,9 @@ _ROW = (
     "Without using any tool, make up one sentence of advice of about ten words for a choir singer,"
     " then write that exact sentence {n} times, one per line, and nothing else."
 )
+_SHANTY = (
+    "Write out the shanty chorus for me, the same long line again and again, then one closing line."
+)
 _START = datetime(2026, 10, 14, 3, 0, tzinfo=UTC)
 
 
@@ -133,6 +136,22 @@ def test_a_line_matches_the_message_only_in_whole_words() -> None:
         (_ROW.format(n="5"), 6),
         (_ROW.format(n="ten"), 11),
         (_ROW.format(n="20"), 21),
+        (_SHANTY, 13),
+        ("Make up one line of a sea shanty and sing it Over and Over, then a last line.", 13),
+        ("Keep repeating one sentence of advice for a choir singer.", 13),
+        ("Write the chorus again, and again, and then stop.", 13),
+        ("Write it again and again, 5 times.", 13),
+        ("Write it again and again, 20 times.", 21),
+        ("I tried again and again but the file will not open.", 13),
+        ("Say that again, please.", 3),
+        ("Write the chorus again and then stop.", 3),
+        ("Read the chorus over and tell me what it means.", 3),
+        ("Over and out: write the chorus.", 3),
+        ("Can you repeat the last line?", 3),
+        ("Keep the chorus short and repeat it once.", 3),
+        ("He keeps repeating the chorus; what is it called?", 3),
+        ("After a hangover and overtime, write me a chorus.", 3),
+        ("Lean on the oar again and against the tide, then write the chorus.", 3),
     ],
 )
 def test_a_count_the_message_asks_for_lets_that_many_copies_through(
@@ -251,6 +270,19 @@ async def test_a_line_the_model_made_up_and_was_asked_to_repeat_runs_to_its_end(
     backend = _Looping(lines)
     assert await _reply(backend, InMemorySessionStore(), _MADE_UP) == "".join(lines)
     assert backend.sent == 10
+
+
+async def test_a_chorus_asked_for_again_and_again_runs_to_its_closing_line() -> None:
+    lines = [f"{_LINE}\n"] * 8 + ["And home we sail at dawn."]
+    backend = _Looping(lines)
+    assert await _reply(backend, InMemorySessionStore(), _SHANTY) == "".join(lines)
+
+
+async def test_a_loop_on_a_message_asking_again_and_again_still_ends() -> None:
+    backend = _Looping([f"{_LINE}\n"] * 400)
+    shown = await _reply(backend, InMemorySessionStore(), _SHANTY)
+    assert shown == f"{_LINE}\n" * 13 + "\n" + REPEATED_LINE_NOTE.lstrip("\n")
+    assert backend.sent == 13
 
 
 class _Reading:

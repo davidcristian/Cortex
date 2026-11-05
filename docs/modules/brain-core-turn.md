@@ -118,8 +118,8 @@ after the window, one saying a handoff's deep reply is not stored (`tool_replay.
 (ADR-0030). `stream_turn_events(loop, channels, parts, stops, query)` maps a tool loop's deltas onto
 `TextDelta`, `StatusUpdate` and `ToolActivity`, adds reply text to `parts`, ends the reply when
 `RepeatWatch(query)` (`repeat_watch.py`, new at each tool call) sees a block of up to four lines, one of
-20 or more characters not in `query`, come 3 times back to back, or once more than a count `query` asks
-for (ADR-0048 decision 17), closes the loop in a `finally` and flushes the channels on a clean end.
+20 or more characters not in `query`, come 3 times back to back, once more than a count `query` asks for,
+or 13 times when it asks for copies with no count (ADR-0048 decision 17), closes the loop in a `finally` and flushes the channels on a clean end.
 `record_exchange(caps, taint, *, store, session_id, query, reply, runs, earlier=())` stores nothing when
 `memory_withheld` holds over `query`, `runs` and `earlier` (the cortex's runs before a handoff) or
 `store.deleted` holds, read again after the write (ADR-0021 decision 11). `limit_notes(stops, runs,

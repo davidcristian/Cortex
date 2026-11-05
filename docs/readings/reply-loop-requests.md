@@ -7,8 +7,8 @@ person's message does not hold. A request to make up a line and write it several
 shape, so the check cut it as a loop: on 2026-10-14 two of three such turns on the Linux shell
 ended at the third copy with `REPEATED_LINE_NOTE` ([overlay
 flows](overlay-repeat-and-forget-flows.md#a-requested-repeat-of-a-line-the-model-writes)).
-This record holds the sixth rule, written before any of its rows was drawn, and its results.
-The shape that passed, E, is the check in the brain now.
+This record holds the sixth and seventh rules, each written before any of its rows was drawn,
+and their results. The shapes that passed, E and then G, are the check in the brain now.
 
 ## The sixth rule
 
@@ -68,3 +68,47 @@ message, so none of the rows above changes.
 
 Method: `mkreq.py`, `draw.sh` and `score6.py` in the run's scratch directory, with the replay
 driver of the fifth rule's rows, against the test stack's cortex server on `127.0.0.1:8080`.
+
+## The seventh rule
+
+Written 2026-11-05, before any of its rows was drawn. Under E a message that asks for copies with
+no count needs 3, so `Write out the shanty chorus for me, the same long line again and again, then
+one closing line.` ended at the third copy with `REPEATED_LINE_NOTE` in 2 of 2 live turns on
+2026-10-31.
+
+- **G, a request for copies with no count**: the watch needs 13 back to back copies when the
+  message holds `again and again`, `over and over` or `keep repeating` and no count above 12. 13 is
+  the largest K at which the sixth rule's reading of the fourth rule's baseline still stops all 22
+  looping rig draws before their token limit. The rig's message holds none of the three phrases, so
+  G does not move where any recorded draw stops, and no rig row is drawn. A message that uses a
+  phrase about something else, such as "I tried again and again", also reads, and a loop on it ends
+  at the thirteenth copy in place of the third.
+- **Request rows**, live turns over `Converse` on the `cortexn13` stack (gemma-4-12B at context
+  16,384, schedules on, memory and tools), each in a new chat with `memories` emptied first, 3
+  draws on each build: the stack brain at the start hash (baseline) and a candidate brain beside it
+  with only G. Q1 is the message above, Q2 `Make up one line of a sea shanty and sing it over and
+  over, then finish with a different last line.`, Q3 `Keep repeating one sentence of advice for a
+  choir singer, then sign off with one short line.`
+- A row judges when the baseline ends at least 2 of its 3 draws with the note.
+- **G ships** when at least one row judges and, in every row that judges, no candidate draw that
+  writes fewer than 13 back to back copies ends with the note, and every candidate draw that writes
+  more ends at the thirteenth copy with it. Otherwise nothing changes and the rows are recorded here.
+
+**2026-11-05, the seventh rule's rows**, 18 live turns, the candidate's code identical to the brain
+built from it, llama-server build `b12004-3c809f443` with one slot. Copies are the most back to back
+copies of one block in the reply as shown.
+
+| Row | Baseline: ended with the note | Candidate: ended with the note | Candidate copies, then |
+| --- | --- | --- | --- |
+| Q1 | 3 of 3, at the third copy | 0 of 3 | 4, 4, 4, each then a closing line |
+| Q2 | 3 of 3, at the third copy | 0 of 3 | 6, 4, 4, each then a different last line |
+| Q3 | 3 of 3, at the third copy | 0 of 3 | 10, 3, 5 copies of a block of advice and a sign-off |
+
+Every row judges, no candidate draw ends with the note, and none writes 13 copies, so the last item
+has no draw to read; the thirteenth copy ending a loop on such a message is asserted in
+`test_repeat_watch.py`. **G passes** and ships in `RepeatWatch`. Replayed through the old and new
+watch, none of the 26,811 backticked or quoted strings of `docs/readings/`, the task files and the
+brain tests changes its copies except the messages this rule added and one test string that uses
+`over and over` about a tool call. SM clock read between rows: 0.12 of `clocks.max.sm`, the card
+idle. Method: `turn.py`, `draw.sh`, `score.py` and `replay.py` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/7993c5bc-88df-4188-a4c9-74349733b88c/scratchpad/slot1/`.

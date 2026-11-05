@@ -10,10 +10,12 @@ REPEATED_LINE_NOTE = (
     "Ask again, or ask in other words.)"
 )
 
-# The shape the reply loop readings judged: three back to back copies of one block of one to four
-# lines, holding a line of at least 20 characters with a letter that the person's message lacks.
-# A message asking for a count of copies raises the three to one more than that count.
+# The shape the reply loop readings judged: three back to back copies of a block of one to four
+# lines with a counted line the message lacks. A count of copies in the message raises the three to
+# one more than it, and a request for copies with no count to 13, the most that still stopped loops.
 _COPIES = 3
+_UNCOUNTED_COPIES = 13
+_UNCOUNTED = (" again and again ", " over and over ", " keep repeating ")
 _LONGEST_BLOCK = 4
 _MIN_LINE_CHARS = 20
 _LETTER = re.compile(r"[^\W\d_]")
@@ -45,7 +47,8 @@ class RepeatWatch:
 
     def __init__(self, query: str) -> None:
         self._query = _words(query)
-        self._copies = max(_COPIES, _asked_count(query) + 1)
+        uncounted = any(phrase in self._query for phrase in _UNCOUNTED)
+        self._copies = max(_COPIES, _asked_count(query) + 1, _UNCOUNTED_COPIES if uncounted else 0)
         self._partial = ""
         self._recent: deque[str] = deque(maxlen=_LONGEST_BLOCK + 1)
         self._runs = [0] * _LONGEST_BLOCK
