@@ -143,6 +143,8 @@ class TaintLedger:
     forget_refused: bool = False
     # Whether a sidecar call, or a call that runs sidecar tools, was refused as unasked.
     sidecar_refused: bool = False
+    # Whether a ``schedule_task`` call stored a rule that repeats on days of every month.
+    monthly_stored: bool = False
     untrusted_urls: set[str] = field(default_factory=set[str])
     sources: tuple[Provenance, ...] = ()
     # The tainted memories this turn recalled: its record is stored only while they all exist.

@@ -55,7 +55,7 @@ spends and whether it is worth running. The dispatcher is stateless; the loop dr
 - `refusal` (a `DispatchRefusal`) says the call must not run: `BUDGET` when the dispatch allowance
   is spent, `DECLINED` for a call identical to one the person declined in this turn (`ToolLoopContext.declined`,
   read from the tail after a handoff, where a `<redacted>` value equals no real value), `REDUNDANT` for a repeat the salience policy recognized, or
-  `ROUND_OVERSIZED` for a truncated round's overflow slot, or `UNASKED` for a tool in `LoopRecord.unasked`. The tool is not invoked, the member's
+  `ROUND_OVERSIZED` for a truncated round's overflow slot, `UNASKED` for a tool in `LoopRecord.unasked`, or `YEARLY_DATE` for a loop's first `schedule_task` call with `on_month_days` when `names_yearly_date` (`schedule_yearly.py`) reads a day of a named month and no month word in the person's message; a second such call runs. The tool is not invoked, the member's
   message is returned, and the attempt is audited. A refusal is checked **before** the confirmation
   rule, so a flood of confirmable calls cannot reach the user as prompts.
 - The confirmation rule (ADR-0013, revised by ADR-0022): a `confirm_required` call on a tainted turn is

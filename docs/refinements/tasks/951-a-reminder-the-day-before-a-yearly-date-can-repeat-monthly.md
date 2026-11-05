@@ -1,17 +1,15 @@
 # A reminder the day before a yearly date can repeat monthly
 
-**Status:** open, actionable
+**Status:** done 2026-11-05
 **Area:** scheduling
 **Origin:** [ADR-0025](../../adr/ADR-0025-scheduling-reminders.md)
-**Verified:** 2026-11-05
 
 A request for a reminder before a yearly date can make the cortex call `schedule_task` with a
 monthly rule (`at_time` with `on_month_days`) instead of a yearly one (`on_dates`). On 2026-11-05,
 5 of 15 draws over a birthday, an anniversary and a renewal stored a monthly rule, 9 stored it
 yearly and 1 stored a one-time reminder; the two requests that really are monthly stored a
 monthly rule in all 4 draws ([readings](../../readings/schedule-yearly-dates.md#baseline-2026-11-05)).
-The reply does not always show it: two of the five monthly draws replied "every year"
-([R-980](980-a-reply-can-call-a-monthly-reminder-yearly.md)).
+The reply does not always show it: two of the five monthly draws replied "every year".
 
 ## What to do
 
@@ -33,5 +31,10 @@ typed check its item 2 describes, not a sentence in the tool description.
 
 - 2026-10-30: filed from the candidate draws of the side-effect tools check (R-901).
 - 2026-11-05: corrected with a baseline of 19 draws: 5 of 15 yearly-date requests stored a monthly
-  rule, and the claim that the reply always names the stored rule failed twice (R-980 filed). The
-  typed check did not fit the slot's time box and is this task's next step.
+  rule, and the claim that the reply always names the stored rule failed twice. The typed check
+  did not fit the slot's time box and is this task's next step.
+- 2026-11-05: done. `names_yearly_date` (`schedule_yearly.py`) reads the message, and the first
+  `schedule_task` call with `on_month_days` in a turn it matches is refused as `YEARLY_DATE`. On
+  the same rows 0 of 15 Y draws stored a monthly rule, 13 of 15 stored a yearly one and all 4
+  monthly draws kept theirs, so item 2 of the rule passed. A reply calling a stored monthly rule
+  yearly now gets `MONTHLY_STORED_NOTE`. One refused draw stored the wrong month (R-981 filed).

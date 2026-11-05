@@ -61,4 +61,73 @@ yearly date falls on (11, 27, 19). The one-time Y02 draw stored 27 August 2027 a
 Three of the five monthly replies say "every month". The two monthly Y03 draws do not: their
 replies say "every year on March 19th" and "on March 19th of every year at 9:00 AM" while the
 stored rule fires on the 19th of every month, so the reply alone does not show the person what
-was stored ([R-980](../refinements/tasks/980-a-reply-can-call-a-monthly-reminder-yearly.md)).
+was stored.
+
+## The yearly date refusal, 2026-11-05
+
+The candidate is the brain built from the working tree with the refusal and before the reply note
+below, which reads only the reply and stores nothing: the first
+`schedule_task` call with `on_month_days` in a turn whose message `names_yearly_date` reads
+(`schedule_yearly.py`: a day of a named month and no month word) is refused as `YEARLY_DATE`,
+whose text gives the `on_dates` form. Same rows and driver, drawn from 04:03 to 04:17 UTC on a
+second brain beside the stack's, the SM clock at 0.51 to 0.52 of its maximum on every row. Run log
+`rows.jsonl`, `records.jsonl` and the brain log `cand.log` in slot 9 of the run's scratch directory.
+No turn failed, every draw stored one item, and no `cortex:schedule*` key was left.
+
+| Row | Yearly | Monthly | One-time | Refused first |
+| --- | --- | --- | --- | --- |
+| Y01 birthday, the day before | 5 | 0 | 0 | 2 |
+| Y02 anniversary, a week before | 3 | 0 | 2 | 1 |
+| Y03 renewal, the day before | 5 | 0 | 0 | 4 |
+| Y rows together | 13 of 15 | 0 of 15 | 2 of 15 | 7 of 15 |
+| M01 and M02, monthly near misses | 0 | 4 of 4 | 0 | 0 |
+
+Item 2 of the rule passes: 0 of 15 Y draws stored a monthly rule, the yearly count rose from 9 to
+13, and all 4 M draws stored a monthly rule. Every refused draw then stored a yearly rule, and no
+draw made a second monthly call. One refused Y02 draw stored the yearly date 09-27, the day of the
+refused call in the anniversary's month, where the request wanted 08-27; no baseline yearly draw
+stored a wrong date
+([R-981](../refinements/tasks/981-a-refused-monthly-call-can-be-stored-on-the-wrong-month.md)).
+
+The reader replayed every quoted string in `docs/readings/`, the task files and the brain tests
+(10,410 strings): 34 match, and none of them asks for a monthly reminder, since a string with a
+month word never matches. The person's messages among them are the three Y requests, "Note that my
+mother's birthday is on 12 May." (a request to remember, where `schedule_task` is refused as
+unasked anyway) and "Remind me on 14 March 2027 at 10:00 to renew the passport." (a one-time
+reminder, for which a monthly rule would be wrong). The rest are replies, test strings and the
+documents of a live spawn test, which the reader never reads.
+
+## The reply against the stored rule: rows and the rule, written before the R01 draws
+
+The check is a note the brain appends: `schedule_claim.claims_yearly` reads a reply that names a
+yearly repeat ("every year", "each year", "yearly", "annually", "once a year") and no month, and
+the note is added when a `schedule_task` call in the turn stored `on_month_days`.
+
+| Row | Request | Draws | Brain |
+| --- | --- | --- | --- |
+| R01 | Y03's request | 4 | the stack brain, which has no yearly date refusal |
+
+The rule: the note ships when, over every draw in this record (the baseline, the candidate rows
+below and R01), replayed through the reader with the record each draw stored, it is appended on
+every draw that stored a monthly rule while the reply names a yearly repeat, and on no other draw.
+A null result for R01 is no monthly draw, which tests nothing new and decides nothing.
+
+## R01 and the replay, 2026-11-05
+
+R01 drawn from 04:16 to 04:19 UTC on the stack brain, the SM clock at 0.51 to 0.52 of its maximum;
+run log `r01/rows.jsonl` in slot 9 of the run's scratch directory, no turn failed and no
+`cortex:schedule*` key was left. Three of four draws stored the 19th of every month, and all
+three replies said "March 19th every year" or "every year on March 19th"; the fourth stored 03-19
+yearly.
+
+| Draws replayed | Monthly rule stored | Monthly with a yearly reply | Note appended |
+| --- | --- | --- | --- |
+| Baseline, 19 | 9 | 2 | 2 |
+| Candidate, 19 | 4 | 0 | 0 |
+| R01, 4 | 3 | 3 | 3 |
+
+The rule passes: the note is appended on all 5 draws whose reply calls a stored monthly rule
+yearly, and on none of the other 37 draws: 11 stored a monthly rule and the reply named no
+yearly repeat or named a month, and 26 stored no monthly rule. Of the 10,423 quoted strings replayed through `claims_yearly`, 13 match;
+the note needs a stored monthly rule as well, so none of them adds a note in a turn that stored
+none.

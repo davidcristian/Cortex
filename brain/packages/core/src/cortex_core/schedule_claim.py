@@ -12,6 +12,11 @@ UNSCHEDULED_CLAIM_NOTE = (
     "schedule it.)"
 )
 
+MONTHLY_STORED_NOTE = (
+    "\n\n(The reminder set in this turn repeats on that day of every month, not once a year. Ask "
+    "to change it if you meant once a year.)"
+)
+
 SCHEDULING_TOOLS = frozenset(
     {SCHEDULE_TOOL_NAME, EDIT_SCHEDULED_TOOL_NAME, SNOOZE_SCHEDULED_TOOL_NAME}
 )
@@ -23,6 +28,10 @@ _DONE = rf"(?:{_FIRST_PERSON}|{_PASSIVE})"
 _SCHEDULED = re.compile(rf"{_DONE}scheduled\b", re.IGNORECASE)
 _SET = re.compile(rf"{_DONE}(?:set|created|added|booked)\b", re.IGNORECASE)
 _SCHEDULE_NOUN = re.compile(r"\b(?:reminders?|tasks?|alarms?|schedule)\b", re.IGNORECASE)
+_YEARLY = re.compile(
+    r"\b(?:every|each|per|once\s+a)\s+year\b|\b(?:yearly|annual(?:ly)?)\b", re.IGNORECASE
+)
+_MONTHLY = re.compile(r"\bmonth(?:s|ly)?\b", re.IGNORECASE)
 _SENTENCE_END = re.compile(r"(?<=[.!?])\s+|\n+")
 
 
@@ -57,3 +66,8 @@ def unscheduled_claim(runs: Sequence[ToolRun], reply: str, said: Sequence[str] =
     if any(run.ok and run.name in SCHEDULING_TOOLS for run in runs):
         return False
     return claims_scheduled(reply, said=said)
+
+
+def claims_yearly(reply: str) -> bool:
+    """Whether ``reply`` says a reminder repeats yearly and says nothing about months."""
+    return _YEARLY.search(reply) is not None and _MONTHLY.search(reply) is None

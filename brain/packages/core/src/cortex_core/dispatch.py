@@ -11,6 +11,7 @@ from cortex_core.errors import ToolError
 from cortex_core.log_secrets import REDACTED
 from cortex_core.ports import Clock, Confirmer, ToolAuditSink, ToolRegistry
 from cortex_core.progress import hold_wait
+from cortex_core.schedule_yearly import YEARLY_DATE_MSG
 from cortex_core.tool_budget import UNIFORM_COST, ToolCostPolicy
 from cortex_core.tool_round import MAX_CALLS_PER_ROUND
 from cortex_core.tool_salience import REPEAT_SALIENCE, SaliencePolicy
@@ -84,6 +85,7 @@ class DispatchRefusal(Enum):
     REDUNDANT = REDUNDANT_MSG
     ROUND_OVERSIZED = ROUND_OVERSIZED_MSG
     UNASKED = UNASKED_MSG
+    YEARLY_DATE = YEARLY_DATE_MSG
 
     @property
     def message(self) -> str:

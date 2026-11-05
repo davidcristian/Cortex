@@ -14,6 +14,7 @@ from cortex_core.memory_forget_chosen import FORGET_CHOSEN_TOOL_NAME
 from cortex_core.ports import Clock
 from cortex_core.progress import ProgressSink, hold_wait
 from cortex_core.provenance import SourceKind, as_source
+from cortex_core.schedule_yearly import monthly_for_yearly, stores_monthly
 from cortex_core.stops import StopLedger
 from cortex_core.tool_budget import DispatchBudget
 from cortex_core.tool_cut import RESULT_ROOM_CHARS, ResultRoom
@@ -68,6 +69,20 @@ class LoopRecord:
     room: ResultRoom = field(default_factory=ResultRoom)
     # The tools the person's message did not ask for (``unasked_tools.py``), refused by name.
     unasked: frozenset[str] = frozenset()
+    # The monthly schedule calls refused for a yearly date; only the first is refused.
+    yearly_refused: list[ToolCall] = field(default_factory=list[ToolCall])
+
+
+def _unasked_refusal(
+    call: ToolCall, record: LoopRecord, context: ToolLoopContext
+) -> DispatchRefusal | None:
+    """Which reading of the person's message refuses this call, or ``None`` when none does."""
+    if call.name in record.unasked:
+        return DispatchRefusal.UNASKED
+    if not record.yearly_refused and monthly_for_yearly(call, context.query):
+        record.yearly_refused.append(call)
+        return DispatchRefusal.YEARLY_DATE
+    return None
 
 
 def _refused_by(
@@ -81,8 +96,9 @@ def _refused_by(
     """Which bound refuses this call before it can run, or ``None`` when it may go ahead."""
     if oversized:
         return DispatchRefusal.ROUND_OVERSIZED
-    if call.name in record.unasked:
-        return DispatchRefusal.UNASKED
+    asked = _unasked_refusal(call, record, context)
+    if asked is not None:
+        return asked
     if any(asks_the_same(call, declined) for declined in context.declined):
         return DispatchRefusal.DECLINED
     if not dispatcher.admits(call, record.dispatched):
@@ -151,6 +167,7 @@ async def run_round(
             and spec is not None
             and (spec.sidecar or spec.calls_sidecar)
         )
+        context.taint.monthly_stored |= not result.is_error and stores_monthly(call)
         if call.name == FORGET_CHOSEN_TOOL_NAME and result.matched_nothing:
             context.taint.forget_unmatched += 1
         context.taint.observe(

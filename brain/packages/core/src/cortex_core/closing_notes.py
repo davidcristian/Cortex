@@ -13,7 +13,12 @@ from cortex_core.memory_claim import (
     memory_withheld,
     unkept_note_due,
 )
-from cortex_core.schedule_claim import UNSCHEDULED_CLAIM_NOTE, unscheduled_claim
+from cortex_core.schedule_claim import (
+    MONTHLY_STORED_NOTE,
+    UNSCHEDULED_CLAIM_NOTE,
+    claims_yearly,
+    unscheduled_claim,
+)
 from cortex_core.stops import StopLedger
 from cortex_core.turn_context import TurnCapabilities
 from cortex_core.turn_output import append_note, cap_note, repeat_note, rounds_note
@@ -52,6 +57,8 @@ def limit_notes(  # noqa: PLR0913 -- each claim note reads its own part of the t
     yield from repeat_note(stops, parts)
     if claimed:
         yield from append_note(parts, UNSCHEDULED_CLAIM_NOTE)
+    if taint.monthly_stored and claims_yearly(reply):
+        yield from append_note(parts, MONTHLY_STORED_NOTE)
     if unkept:
         yield from append_note(parts, UNKEPT_CLAIM_NOTE)
     if unforgotten:
