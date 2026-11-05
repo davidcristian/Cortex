@@ -156,6 +156,8 @@ def test_a_message_that_asks_nothing_be_remembered_leaves_every_tool(query: str)
         "Keep in mind that I am vegetarian.",
         "Please don't forget this: my gym class is on Tuesday.",
         "Note my code 7319.",
+        "Remember that my report is due on Friday.",
+        "Remember that my resume lists four jobs.",
     ],
 )
 def test_a_request_to_remember_a_fact_refuses_every_sidecar_tool(query: str) -> None:
@@ -188,6 +190,11 @@ def test_a_request_to_remember_a_fact_refuses_every_sidecar_tool(query: str) -> 
         "Remember my code 7319, and can you tell me the time?",
         "Remember my code 7319. Then tell me the time.",
         "Remember notes.txt for me.",
+        "Remember the report in Downloads.",
+        "Remember the report in my download folder.",
+        "Keep in mind the total in the statement I downloaded.",
+        "Remember the first paragraph of the readme.",
+        "Remember the attached contract",
     ],
 )
 def test_a_request_to_remember_that_asks_about_a_source_keeps_every_sidecar_tool(

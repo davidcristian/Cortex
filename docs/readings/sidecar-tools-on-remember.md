@@ -236,3 +236,15 @@ noted the address", nothing was stored, and `claims_kept` read no claim in that 
 the three rules' draws with the file in reach, the baseline stated the value in 0 of 26 and the two
 candidates in 25 of 26, and 10 of 34 baseline draws said they have no access. The reader and its near
 misses are kept as `reader962c.patch` beside the run logs.
+
+## Word forms of a source, 2026-11-05
+
+`_SOURCE` now also reads `Downloads`, `downloaded`, `readme` and `attached`. In the replay of
+[the stated-fact record](forget-refused-stated-fact.md#a-wish-words-own-forms-and-a-titles-full-stop-2026-11-05)
+only `Remember the report in Downloads.`, `Remember the first paragraph of the readme.` and `Remember
+the attached contract` change, each now keeping the file tools. A record noun with no source word (`my
+budget sheet`, `my resume`) is still refused, since W01 shows a wrong read is not free. Real turns,
+written before the draw as a check that it runs: the readme message with `readme.md` in the root and
+the Downloads one, one draw each; null result, a refused file call. None was refused: the readme reply
+quoted the first paragraph beside the note that nothing was kept, and the other said there is no
+`Downloads` folder, which its calls checked. Run log `rows.jsonl` beside `replay.log`.

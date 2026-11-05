@@ -76,7 +76,7 @@ never a reading of what the tree does now.
 - **[R-965](tasks/965-the-first-requests-of-two-builds-the-forget-rows-compare-are-not-recorded.md)** The first requests of two builds the forget rows compare are not recorded (memory). Its claim was checked against the code on 2026-10-31.
 - **[R-967](tasks/967-a-request-to-remember-a-new-value-and-forget-the-old-one-keeps-neither.md)** A request to remember a new value and forget the old one keeps neither (memory). Its claim was checked against the code on 2026-10-31.
 - **[R-969](tasks/969-a-forget-of-the-old-value-can-match-nothing-and-say-none-is-stored.md)** A forget of the old value can match nothing and say none is stored (memory). Its claim was checked against the code on 2026-10-31.
-- **[R-972](tasks/972-a-request-to-remember-a-named-source-with-no-file-word-refuses-the-file-tools.md)** A request to remember a named source with no file word refuses the file tools (tools). Its claim was checked against the code on 2026-10-31.
+- **[R-972](tasks/972-a-request-to-remember-a-named-source-with-no-file-word-refuses-the-file-tools.md)** A request to remember a named source with no file word refuses the file tools (tools). Its claim was checked against the code on 2026-11-05.
 
 ### Actionable, once a port changes (1)
 

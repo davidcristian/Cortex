@@ -22,13 +22,14 @@ _REMINDER = re.compile(
     re.IGNORECASE,
 )
 _ASKED = {SET_VOLUME_TOOL_NAME: _SOUND, SCHEDULE_TOOL_NAME: _REMINDER}
-# A question, a second sentence, a path, a link or a named source can need a sidecar tool, while
-# a message read wrongly here only keeps its tools offered.
+# A question, a second sentence, a path, a link or a named source can need a sidecar tool. A message
+# read wrongly here keeps its tools offered, and a file call then keeps the turn out of memory.
 _SOURCE = re.compile(
     r"\?|[.!]\s+\S|/\w|\b\w+\.[a-z]{1,5}\b"
     r"|\b(?:what|which|where|whether|who|how|files?|folders?|director(?:y|ies)|documents?|docs?"
-    r"|contents?|pdfs?|photos?|pictures?|images?|attachments?|e-?mails?|mail|inbox|web|websites?"
-    r"|wiki|internet|online|pages?|links?|look|find|check|open|fetch|download|browse|show)\b",
+    r"|contents?|pdfs?|photos?|pictures?|images?|attach(?:ed|ments?)|e-?mails?|mail|inbox|web"
+    r"|websites?|wiki|internet|online|pages?|links?|look|find|check|open|fetch|download(?:s|ed)?"
+    r"|readme|browse|show)\b",
     re.IGNORECASE,
 )
 _WORD = re.compile(r"[a-z]+")

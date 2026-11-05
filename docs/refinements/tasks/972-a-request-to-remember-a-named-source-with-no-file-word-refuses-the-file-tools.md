@@ -3,24 +3,31 @@
 **Status:** open, actionable
 **Area:** tools
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
-**Verified:** 2026-10-31
+**Verified:** 2026-11-05
 
-`_SOURCE` (`unasked_tools.py`) reads a question, a path, a link or a source word, and
-`\bdownload\b` does not read `Downloads`. Real turns with `readme.md` in the sidecar's folder:
-`Remember the first paragraph of the readme.` made two `list_allowed_directories` calls that were refused,
-the reply said `I can't find a "readme" file in the current directory`, which no tool checked, and the
-turn was stored. `Remember the report in Downloads.` was refused once and asked for the file's name. The
-reader also refuses `Remember the numbers in my budget sheet.`, `Remember my resume` and
-`Remember the attached contract`. Run log `t2.jsonl` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/545ea45a-902e-44a3-86aa-5ec869e6c085/scratchpad/slot7/`.
+`_SOURCE` (`unasked_tools.py`) reads a question, a path, a link or a source word, and since
+2026-11-05 also `Downloads`, `downloaded`, `readme` and `attached`, so `Remember the report in
+Downloads.`, `Remember the first paragraph of the readme.` and `Remember the attached contract` keep
+the file tools ([readings](../../readings/sidecar-tools-on-remember.md#word-forms-of-a-source-2026-11-05)).
+It still refuses them on a record noun with no source word: `Remember the numbers in my budget
+sheet.`, `Remember my resume`, and the M rows of that record.
+
+A wrong read is not free either. `Remember the meeting on my birthday.` (W01) called a file tool in 3
+of 4 draws once the reader kept the tools, and a file call keeps the turn out of memory. So a plain
+list of document nouns is the wrong remedy: it also reads `Remember that my report is due on Friday.`.
+The reader that reads a record word only in "the X from, on or in my Y" was drawn and reverted on a
+reply claim `claims_kept` did not read then
+([draws](../../readings/sidecar-tools-on-remember.md#a-value-named-by-a-record-the-draws-2026-10-31)).
+`claims_kept` reads that reply now.
 
 ## What to do
 
-Widen `_SOURCE` with plurals and common document nouns. Near-miss facts first, such as
-`Remember that my report is due on Friday.`, which may keep the tools at no cost, and a replay of the
-recorded messages through the old and new readers. A refusal here costs a second message and a false
-statement about the file, while a wrong read only keeps the tools offered.
+Rebuild that record-word reader from its readings (its patch was in a scratchpad lost to a reboot),
+add `sheet`, `report` and `resume` to its record words with near misses first, replay the recorded
+messages, and draw its rule again.
 
 ## History
 
 - 2026-10-31: filed from the night's closing audit.
+- 2026-11-05: corrected. The word forms are read now; a wrong read here also loses the fact, so the
+  document nouns wait on the record-word reader's rule.
