@@ -88,3 +88,36 @@ but the forget, the SM clock at 0.21 of `clocks.max.sm` after the flow. Frames a
 The flow found no defect. The new value not kept in the last step is
 [R-967](../refinements/tasks/967-a-request-to-remember-a-new-value-and-forget-the-old-one-keeps-neither.md).
 Every row the flow stored was deleted afterwards.
+
+## The flow on the night's closing tree, 2026-11-05
+
+The same rig on the `cortexn13` stack, with the brain built from `c0eec6783`, schedules in `UTC`, a
+new chat for each step, `memories` empty and no schedule key at the start, the SM clock at 0.51 of
+`clocks.max.sm` before and after the flow. Frames are in slot 14 of the run's scratch directory.
+
+| Step | Message | What the overlay showed | Store after it |
+| --- | --- | --- | --- |
+| Remember | `Remember that my landlord is called Mr. Weber.` | "I've noted that your landlord's name is Mr. Weber." | one row |
+| Recall | `What is my landlord called?` | "Your landlord is called Mr. Weber." | two rows |
+| Update | `Note that my phone number is now 0699000000, and delete the old one.` | a `forget_memories` card with `text` `0612345678` listing the one row; after Approve, "I've updated your phone number to 0699000000 and removed the previous one from my records." and `UNKEPT_CLAIM_NOTE` | the old row deleted, the new value not kept |
+| Birthday | `Note that my mother's birthday is on 12 May, and remind me of it the day before.` | "OK. I've set a reminder for you every year on May 11th at 09:00." | yearly, `year_dates` [[5, 11]], due 2027-05-11 |
+| Monthly | `Remind me to pay the gas bill on the 15th, starting 15 June.` | "OK. I've set a reminder to pay the gas bill every month on the 15th at 09:00, starting this month." | monthly, `month_days` [15], due 2026-11-15 |
+| File | `Remember the numbers in my budget sheet.` | a question asking for the file's name or path | one untainted row |
+| Copies | `Write out the shanty chorus for me, the same long line again and again, then one closing line.` | the line four times, then "To the harbor's light, we'll be home by day!" | one row |
+| Forget | `Forget my landlord's name.` | a card with `text` `Mr. Weber` listing the two rows; after Approve, "OK. I've forgotten that information." | both rows deleted, nothing stored |
+
+- **Update.** The old number was stored first by `Remember that my phone number is 0612345678.` in
+  its own chat, whose turn also called `spawn_subagents`, refused. The note was true: the new
+  number was not stored, which is the subject of
+  [R-967](../refinements/tasks/967-a-request-to-remember-a-new-value-and-forget-the-old-one-keeps-neither.md).
+- **Birthday and Monthly.** Each turn made one `schedule_task` call and the reply matched the
+  stored rule. The monthly record fires from 2026-11-15, seven months before the named start, and
+  the reply did not say the start was not kept:
+  [R-986](../refinements/tasks/986-a-repeating-reminder-with-a-later-start-date-fires-before-it.md).
+- **File.** The one call, `list_allowed_directories`, was refused as unasked; no subagent was
+  called, and the reply made no "no access" or "no file found" claim and had no note.
+- **Forget.** A new chat then asked `What is my landlord called?`. It called the file tools, read
+  `notes.txt`, and said it found nothing about a landlord.
+
+Every row and schedule record the flow stored was deleted afterwards, and no `cortex:schedule*` key
+was left.
