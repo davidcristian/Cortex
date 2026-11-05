@@ -133,11 +133,13 @@ pool down to the hits one turn sees. The turn that calls it is in
   `UNREAD_FOLDERS_NOTE`, with memory on or off. A later turn of a chat whose earlier turn read the
   folders also gets it, and its words stay true there: this turn checked nothing.
 - `unsearched_files_claim(taint, reply)` (`access_claim.py`) is true when the turn refused a
-  `sidecar` or `calls_sidecar` call as `UNASKED` (`TaintLedger.sidecar_refused`) and
-  `claims_no_access(reply)` finds a sentence, not a question, saying it has no access ("don't have
-  access", "can't access", "unable to access", "no access", "inaccessible") with no "if", "once",
-  "when", "whether" or "until" before it. `limit_notes` then appends `UNSEARCHED_FILES_NOTE`: no file
-  was searched, and naming the file in a new message has it read
+  `sidecar` or `calls_sidecar` call as `UNASKED` (`TaintLedger.sidecar_refused`) and a sentence of
+  the reply, not a question and with no "if", "once", "when", "whether" or "until" before the
+  match, says it has no access (`claims_no_access`: "don't have access", "can't access", "unable to
+  access", "no access", "inaccessible") or did not see, find or locate something
+  (`claims_not_found`: "don't see", "couldn't find", "can't locate", unless the next words name no
+  object, as "why", "how" or "a reason" do). `limit_notes` then appends `UNSEARCHED_FILES_NOTE`:
+  no file was searched, and naming the file in a new message has it read
   ([readings](../readings/no-access-after-a-refused-file-call.md)).
 - `unforgotten_claim(runs, reply, *, unmatched=0)` (`forget_claim.py`, ADR-0075) is true when
   `claims_forgotten(reply)` finds a statement, not a question, saying something was forgotten, or

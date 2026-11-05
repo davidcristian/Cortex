@@ -43,4 +43,3 @@ file.
 - 2026-11-05: done. `UNSEARCHED_FILES_NOTE` (`access_claim.py`) closes a reply saying it has no
   access on a turn that refused a sidecar call as unasked; it passed every part of its rule
   ([readings](../../readings/no-access-after-a-refused-file-call.md#the-candidate-2026-11-05)).
-  Filed [R-978](978-a-reply-after-a-refused-file-call-can-say-it-did-not-see-the-file.md).

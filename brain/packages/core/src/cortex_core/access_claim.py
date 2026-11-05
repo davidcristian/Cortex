@@ -1,4 +1,4 @@
-"""Close a reply that says it has no access after the turn's file call was refused as unasked."""
+"""Close a reply that says it has no access, or found no file, after a refused file call."""
 
 import re
 
@@ -15,13 +15,20 @@ _NO_ACCESS = re.compile(
     r"|no\s+access|inaccessible)\b",
     re.IGNORECASE,
 )
+_NOT_FOUND = re.compile(
+    r"\b(?:(?:don|doesn|didn|can|couldn)['\u2019]?t|(?:do|does|did|could)\s+not|cannot|can\s+not"
+    r"|unable\s+to|not\s+able\s+to)\s+(?:see|find|locate)\s+"
+    r"(?!(?:(?:a|an|the|any|your|my|that|this)\s+)?"
+    r"(?:why|how|what|whether|where|when|if|reason|point|need|problem|issue|harm|way)\b)\w",
+    re.IGNORECASE,
+)
 _CONDITION = re.compile(r"\b(?:if|once|when|whether|until)\b", re.IGNORECASE)
 _SENTENCE_END = re.compile(r"(?<=[.!?])\s+|\n+")
 
 
-def _says_no_access(sentence: str) -> bool:
-    """Whether ``sentence`` states, outside a question or a condition, that it has no access."""
-    found = _NO_ACCESS.search(sentence)
+def _states(pattern: re.Pattern[str], sentence: str) -> bool:
+    """Whether ``pattern`` matches ``sentence`` outside a question or a condition."""
+    found = pattern.search(sentence)
     return (
         found is not None
         and not sentence.rstrip().endswith("?")
@@ -31,9 +38,14 @@ def _says_no_access(sentence: str) -> bool:
 
 def claims_no_access(reply: str) -> bool:
     """Whether a sentence of ``reply`` says it has no access to something."""
-    return any(_says_no_access(sentence) for sentence in _SENTENCE_END.split(reply))
+    return any(_states(_NO_ACCESS, sentence) for sentence in _SENTENCE_END.split(reply))
+
+
+def claims_not_found(reply: str) -> bool:
+    """Whether a sentence of ``reply`` says it did not see, find or locate something."""
+    return any(_states(_NOT_FOUND, sentence) for sentence in _SENTENCE_END.split(reply))
 
 
 def unsearched_files_claim(taint: TaintLedger, reply: str) -> bool:
-    """Whether ``reply`` says it has no access on a turn that refused a sidecar call as unasked."""
-    return taint.sidecar_refused and claims_no_access(reply)
+    """Whether ``reply`` claims no access or no file found on a turn that refused a file call."""
+    return taint.sidecar_refused and (claims_no_access(reply) or claims_not_found(reply))

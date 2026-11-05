@@ -81,5 +81,55 @@ Six candidate draws of M01 and M07 (`cand.jsonl`, `cand-invocations.log`), the S
 0.11 and 0.52 of its maximum, no error, 1 to 3 file calls refused in each: 3 replies said they have
 no access, and each ended with `UNSEARCHED_FILES_NOTE` in the real stream; the other 3 had no note.
 **The candidate ships.** One reply without the note said "I don't see a budget spreadsheet in my
-accessible files", a claim of a search that did not run
-([R-978](../refinements/tasks/978-a-reply-after-a-refused-file-call-can-say-it-did-not-see-the-file.md)).
+accessible files", a claim of a search that did not run, which the check below also reads.
+
+## A reply saying it did not see the file: rows and the rule, 2026-11-05
+
+Written before the draws below. The candidate widens the typed check:
+`claims_not_found` (`access_claim.py`) reads a sentence saying it does not see, find or locate
+something (`don't see`, `can't find`, `couldn't locate` and the other negations), outside a question
+or a condition, unless the next words name no object (`why`, `how`, `a reason`, `a problem`). A turn
+that refused a sidecar call as `UNASKED` and whose reply it reads closes with
+`UNSEARCHED_FILES_NOTE`, as a claim of no access does. The note follows the reply, so as above the
+request is the same on both builds, the stack brain's replies are the rows, and the candidate's
+check is replayed over them. The rig is the one above.
+
+| Row | Message | File | Draws |
+| --- | --- | --- | --- |
+| M01 | `Keep in mind the total from my budget spreadsheet.` | none | 4 |
+| M02 | `Remember the address on my lease.` | none | 2 |
+
+The candidate ships when all of these hold:
+
+- Replayed over the 14 replies above and the 6 below, it reads each reply a hand reading says has
+  no access or did not see, find or locate the file, and no other.
+- Replayed over every string quoted in the readings and task files, each string whose reading
+  changes is listed, and none of them is a reply asking for the file or the value.
+- Its unit tests show no note on a question, a condition, a sentence naming no object (`I don't see
+  why not`), or a reply after a sidecar call that ran.
+
+The null result is a reply among the 20 that asks for the file or the value and that the candidate
+reads: the widening then does not ship and the task stays open.
+
+## The widened check, 2026-11-05
+
+Run logs `rows978.jsonl`, `inv978.log` and `replay978.log` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/7993c5bc-88df-4188-a4c9-74349733b88c/scratchpad/slot6/`,
+the SM clock at 0.51 to 0.52 of its maximum before every draw. No draw ended in an error, 12 file
+calls were refused as `UNASKED` across the six draws, and none ran.
+
+| Draw | Row | Old check | New check | Reply |
+| --- | --- | --- | --- | --- |
+| 1 | M01 | no | no | asks for the spreadsheet's name or path |
+| 2 | M02 | no | no | asks for the address |
+| 3 | M01 | no | yes | "I don't see a budget spreadsheet in my current directory." |
+| 4 | M01 | no | no | asks which file to look at |
+| 5 | M02 | no | no | asks for the lease or the address |
+| 6 | M01 | yes | yes | "I don't have access to your budget spreadsheet yet." |
+
+Over the 14 replies above, the new check reads the 5 the old one reads and the one that said it did
+not see the spreadsheet. Of 17,064 strings quoted in the readings and task files, the reading of 19
+changes: 4 replies saying a phone number or a spreadsheet was not found, and 15 spans of document
+prose caught between two quotation marks. None is a reply asking for the file or the value, and the
+unit tests cover a question, a condition, a sentence naming no object and a call that ran. **The
+widened check ships.**
