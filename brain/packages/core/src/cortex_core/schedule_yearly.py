@@ -27,6 +27,42 @@ _YEARLY_EVENT = re.compile(
     re.IGNORECASE,
 )
 _ORDINAL_DAY = re.compile(r"\b([1-9]|[12]\d|3[01])(?:st|nd|rd|th)\b", re.IGNORECASE)
+_ORDINALS = (
+    "first",
+    "second",
+    "third",
+    "fourth",
+    "fifth",
+    "sixth",
+    "seventh",
+    "eighth",
+    "ninth",
+    "tenth",
+    "eleventh",
+    "twelfth",
+    "thirteenth",
+    "fourteenth",
+    "fifteenth",
+    "sixteenth",
+    "seventeenth",
+    "eighteenth",
+    "nineteenth",
+    "twentieth",
+)
+_WORD_DAYS = {
+    **{word: day for day, word in enumerate(_ORDINALS, start=1)},
+    **{f"twenty {word}": 20 + day for day, word in enumerate(_ORDINALS[:9], start=1)},
+    "thirtieth": 30,
+    "thirty first": 31,
+}
+_WORD_DAY = "|".join(
+    word.replace(" ", r"[\s-]+") for word in sorted(_WORD_DAYS, key=len, reverse=True)
+)
+_WORD_DAY_OF_MONTH = re.compile(
+    rf"\b(?:(?:{_WORD_DAY})\s+(?:of\s+)?{_MONTH}|{_MONTH}\.?\s+(?:the\s+)?(?:{_WORD_DAY}))\b",
+    re.IGNORECASE,
+)
+_WORD_ORDINAL_DAY = re.compile(rf"\b(?:the|every)\s+({_WORD_DAY})\b", re.IGNORECASE)
 
 
 def names_yearly_date(message: str) -> bool:
@@ -39,9 +75,14 @@ def names_yearly_date(message: str) -> bool:
 
 
 def bare_days(message: str) -> frozenset[int]:
-    """The days of the month ``message`` names as an ordinal with no month beside it."""
-    rest = _DAY_OF_MONTH.sub(" ", message)
-    return frozenset(int(match.group(1)) for match in _ORDINAL_DAY.finditer(rest))
+    """The month days ``message`` names as an ordinal, digits or a word, with no month beside it."""
+    rest = _WORD_DAY_OF_MONTH.sub(" ", _DAY_OF_MONTH.sub(" ", message))
+    digits = {int(match.group(1)) for match in _ORDINAL_DAY.finditer(rest)}
+    words = {
+        _WORD_DAYS[re.sub(r"[\s-]+", " ", match.group(1).lower())]
+        for match in _WORD_ORDINAL_DAY.finditer(rest)
+    }
+    return frozenset(digits | words)
 
 
 def stores_monthly(call: ToolCall) -> bool:

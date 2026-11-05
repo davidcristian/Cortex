@@ -116,6 +116,32 @@ def test_bare_days_are_the_ordinals_with_no_month_beside_them(message: str, days
 
 
 @pytest.mark.parametrize(
+    ("message", "days"),
+    [
+        ("Remind me of Anna's birthday on 11 May and to pay rent on the first.", {1}),
+        ("My lease renews on 1 January; remind me every twenty-first to pay rent.", {21}),
+        ("The insurance renews on 3 March, and rent is due on the Thirty First.", {31}),
+        ("Mum's birthday is on the first of June.", set[int]()),
+        ("Mum's birthday is June the second.", set[int]()),
+        ("Remind me first thing on 3 May about the birthday.", set[int]()),
+        ("Our anniversary is on 3 May, the second one we have had.", {2}),
+    ],
+)
+def test_bare_days_read_an_ordinal_word_after_the_or_every(message: str, days: set[int]) -> None:
+    assert bare_days(message) == days
+
+
+@pytest.mark.parametrize(("month_days", "refused"), [([1], False), ([11], True)])
+def test_a_monthly_call_on_a_day_written_as_a_word_beside_a_birthday_runs(
+    month_days: list[int], *, refused: bool
+) -> None:
+    query = "Remind me of Anna's birthday on 11 May and to pay rent on the first."
+    arguments = {"at_time": "09:00", "on_month_days": month_days}
+    call = ToolCall(id="c", name=SCHEDULE_TOOL_NAME, arguments=arguments)
+    assert monthly_for_yearly(call, query) is refused
+
+
+@pytest.mark.parametrize(
     ("month_days", "refused"),
     [([10], True), ([15], False), ([10, 15], False), ("15", True)],
 )

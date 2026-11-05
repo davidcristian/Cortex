@@ -195,3 +195,13 @@ water filter.", "I'm away until June 2, so remind me on the 5th to water the pla
 on the 3rd of june about the dentist" and "The lease ends Sept. 30, remind me a week before.". A
 first build refuses a monthly call on each of them. The other 23 are replies and document
 passages, which the reader never reads. The three Y requests still match and name no bare day.
+
+## Ordinal words, 2026-11-05
+
+A second audit found that `bare_days` read only digit ordinals, so "Remind me of Anna's birthday
+on 11 May and to pay rent on the first." had its monthly call on day 1 refused, with the `on_dates`
+form as the fix the refusal names. The reader now also reads an ordinal word from "first" to
+"thirty first" after "the" or "every", unless a month is beside it ("the first of June"). The
+change only adds days, so it can only let a monthly call run. Replaying the quoted strings in
+`docs/readings/`, the task files and the brain tests (12,536 strings, 34 read as a yearly date)
+through both readers changes the days of four strings, all four added by this change's tests.
