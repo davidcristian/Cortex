@@ -131,3 +131,20 @@ yearly, and on none of the other 37 draws: 11 stored a monthly rule and the repl
 yearly repeat or named a month, and 26 stored no monthly rule. Of the 10,423 quoted strings replayed through `claims_yearly`, 13 match;
 the note needs a stored monthly rule as well, so none of them adds a note in a turn that stored
 none.
+
+## Monthly requests with a named date, 2026-11-05
+
+Two real turns on the stack brain (the build with the refusal and the reply note), drawn from
+04:26 to 04:29 UTC, the SM clock at 0.52 of its maximum at the start; brain log
+`brain-calls.log` in slot 10 of the run's scratch directory. Each message asks for a monthly
+reminder and names a start date with no month word.
+
+| Message | First call | Refused | Stored |
+| --- | --- | --- | --- |
+| "Remind me to pay the gas bill on the 15th, starting 15 June." | `on_month_days` [15] | yes | `on_dates` ["06-15"], yearly |
+| "Starting May 1, remind me on the 1st to pay rent." | `on_month_days` [1] | yes | `on_dates` ["05-01"], yearly |
+
+Both replies said "every year". A third turn repeating the first message listed the stored
+reminder and stored nothing. The draws' two records were deleted after the run, and no
+`cortex:schedule*` key was left
+([R-982](../refinements/tasks/982-the-yearly-date-refusal-turns-a-monthly-request-with-a-start-date-yearly.md)).
