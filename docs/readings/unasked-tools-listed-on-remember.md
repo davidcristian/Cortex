@@ -82,8 +82,7 @@ Four things the draws show:
   The S rows without a card stored a second row beside the first.
 - **The pair's 1 of 30 did not repeat.** The candidate lists the same tools as the pair's "before"
   build and drew 5 of 15. Reading the changes between those two builds found none to the tool list, a
-  tool's text or the system message; that is an assumption until a recording of both first requests
-  is compared. Over every run so far, each on its own build and night, the builds that leave the tools
+  tool's text or the system message, and the recorded first requests below match. Over every run so far, each on its own build and night, the builds that leave the tools
   out drew 43 of 120 and those that list them 11 of 75. So the list may still move the calls, by less
   than the pair showed, and this run could not see it.
 - **A listed tool can be called and refused without harm to the fact.** The refused R02 call left the
@@ -91,3 +90,21 @@ Four things the draws show:
 - **That R02 draw took about 10 times the row's median.** The cortex wrote its reply, then `set_volume`
   calls with no arguments until the length limit, and the reply ended in the limit note
   ([call-run-cut.md](call-run-cut.md)).
+
+## The first requests of both builds, 2026-11-05
+
+Run logs `req-a65.log` and `req-l61.log` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/7993c5bc-88df-4188-a4c9-74349733b88c/scratchpad/slot7/`,
+written by a recording proxy between each brain and the `cortexn13` stack's cortex server. One build
+is a `git archive` build of `6b9956582`, the pair's "before" build. The other is one of `6e9462fe6`,
+this record's baseline, with the one line that leaves both tools out removed, which is the
+candidate's tool list. Each brain ran on its own beside the stack, with the stack brain's settings
+and an empty `memories` table, and was sent `Please remember that my car is a red Fiat.` once.
+
+The two turn requests are the same byte for byte apart from the time stamp in `schedule_task`'s
+description: the same 17 tools in the same order with the same texts, the same system
+message and the same fields. Neither lists `set_volume` or `get_volume`, since no body ran on this
+stack, and no file under `brain/` that writes their specs changed between the two commits.
+
+So the pair's 1 of 30 and this record's 5 of 15 were drawn on the same first request. The gap
+between them is variation between runs, not a change the brain made.

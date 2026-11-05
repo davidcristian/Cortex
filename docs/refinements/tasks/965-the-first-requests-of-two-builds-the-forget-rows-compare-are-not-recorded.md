@@ -1,9 +1,8 @@
 # The first requests of two builds the forget rows compare are not recorded
 
-**Status:** open, actionable
+**Status:** done 2026-11-05
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-10-31
 
 The [separated pair](../../readings/side-effect-tools-on-remember.md#the-forget-calls-on-a-request-to-remember-separated-pair-the-draws-2026-10-31)
 drew `forget_memories` in 1 of 30 draws on the build before tools were left out of a request to
@@ -23,3 +22,7 @@ the system message, and that is an assumption until the first requests are compa
 
 - 2026-10-31: filed from the check of refusing that call, as its third step, which the refusal does
   not depend on.
+- 2026-11-05: done. The recorded turn requests of a `git archive` build of `6b9956582` and of
+  `6e9462fe6` listing both tools are the same apart from a time stamp
+  ([readings](../../readings/unasked-tools-listed-on-remember.md#the-first-requests-of-both-builds-2026-11-05)),
+  so the pair's 1 of 30 against 5 of 15 is variation between runs on one request.
