@@ -163,6 +163,15 @@ def test_a_message_that_asks_nothing_be_remembered_leaves_every_tool(query: str)
         "Note my code 7319.",
         "Remember that my report is due on Friday.",
         "Remember that my resume lists four jobs.",
+        "Remember the meeting on my birthday.",
+        "Remember my resume needs a new summary",
+        "Remember that the keys are in my coat",
+        "Remember that the total in my report is wrong.",
+        "Keep in mind the total on my last invoice was high.",
+        "Remember my resume",
+        "Remember the numbers in my budget sheet, please.",
+        "Note that the numbers are in my budget sheet.",
+        "Remember the name on a form.",
     ],
 )
 def test_a_request_to_remember_a_fact_refuses_every_sidecar_tool(query: str) -> None:
@@ -200,6 +209,12 @@ def test_a_request_to_remember_a_fact_refuses_every_sidecar_tool(query: str) -> 
         "Keep in mind the total in the statement I downloaded.",
         "Remember the first paragraph of the readme.",
         "Remember the attached contract",
+        "Remember the numbers in my budget sheet.",
+        "Keep in mind the total on my last invoice.",
+        "Remember the reference on my bank statement.",
+        "Remember the address on my lease.",
+        "Keep in mind the total from my budget spreadsheet.",
+        "Remember the dates on my train tickets!",
     ],
 )
 def test_a_request_to_remember_that_asks_about_a_source_keeps_every_sidecar_tool(
@@ -243,6 +258,7 @@ def test_a_tool_no_sidecar_serves_is_not_refused_for_being_listed() -> None:
     [
         "Search my files for any phone numbers.",
         "Ask a subagent to find the address on my lease.",
+        "Remember the address on my lease.",
         "Remember what is in notes.txt.",
         "Remember the phone number in my notes, and look through my folders for it.",
         "Remember that my locker code is 8426, and use subagents for it.",
@@ -256,7 +272,7 @@ def test_a_tool_that_calls_sidecar_tools_stays_callable_where_they_do(query: str
 @pytest.mark.parametrize(
     "query",
     [
-        "Remember the address on my lease.",
+        "Remember the address of my new flat.",
         "Remember that my phone number is 0612345678.",
         "Please remember this: my daughter is allergic to peanuts.",
     ],

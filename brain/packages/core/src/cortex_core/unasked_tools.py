@@ -32,6 +32,15 @@ _SOURCE = re.compile(
     r"|readme|browse|show)\b",
     re.IGNORECASE,
 )
+# A value named by the written record it is in, the message ending at the record ("the total on
+# my last invoice"). A record word elsewhere states a fact as often as it names a file.
+_RECORD = re.compile(
+    r"\bthe\s+(?:(?!(?:is|are|was|were)\b)[\w'\u2019-]+\s+){1,3}?(?:from|on|in)\s+(?:my|our)\s+"
+    r"(?:[\w-]+\s+){0,2}?(?:leases?|contracts?|spreadsheets?|sheets?"
+    r"|invoices?|passports?|receipts?|statements?|bills?|payslips?|polic(?:y|ies)|licen[cs]es?"
+    r"|certificates?|forms?|tickets?|reports?|resumes?|cvs?)\s*[.!]?\s*$",
+    re.IGNORECASE,
+)
 _WORD = re.compile(r"[a-z]+")
 # "Don't forget to" asks for an action, so it stays in the text the list reads.
 _DONT_FORGET = re.compile(
@@ -85,7 +94,8 @@ _SENTENCE_END = re.compile(r"(?<=[.!?])\s+|\n+")
 
 def _asks_a_source(query: str, sidecar: Sequence[ToolSpec]) -> bool:
     """Whether ``query`` holds a named source or a word of a sidecar tool's name."""
-    if _SOURCE.search(query.strip()):
+    text = query.strip()
+    if _SOURCE.search(text) or _RECORD.search(text):
         return True
     named = {word for spec in sidecar for word in _WORD.findall(spec.name.lower())}
     return not named.isdisjoint(_WORD.findall(query.lower()))
