@@ -27,7 +27,7 @@ _ASKED = {SET_VOLUME_TOOL_NAME: _SOUND, SCHEDULE_TOOL_NAME: _REMINDER}
 _SOURCE = re.compile(
     r"\?|[.!]\s+\S|/\w|\b\w+\.[a-z]{1,5}\b"
     r"|\b(?:what|which|where|whether|who|how|files?|folders?|director(?:y|ies)|documents?|docs?"
-    r"|contents?|pdfs?|photos?|pictures?|images?|attach(?:ed|ments?)|e-?mails?|mail|inbox|web"
+    r"|contents?|pdfs?|attach(?:ed|ments?)|e-?mails?|mail|inbox|web"
     r"|websites?|wiki|internet|online|pages?|links?|look|find|check|open|fetch|download(?:s|ed)?"
     r"|readme|browse|show)\b",
     re.IGNORECASE,
@@ -39,6 +39,15 @@ _RECORD = re.compile(
     r"(?:[\w-]+\s+){0,2}?(?:leases?|contracts?|spreadsheets?|sheets?"
     r"|invoices?|passports?|receipts?|statements?|bills?|payslips?|polic(?:y|ies)|licen[cs]es?"
     r"|certificates?|forms?|tickets?|reports?|resumes?|cvs?)\s*[.!]?\s*$",
+    re.IGNORECASE,
+)
+_PICTURE = re.compile(r"\b(?:photos?|pictures?|images?)\b", re.IGNORECASE)
+# A picture word names a file ("the picture I sent you") unless the message states a fact about it:
+# a form of "to be" or "need" after it, or "a" before it at the end ("my resume needs a new photo").
+_PICTURE_FACT = re.compile(
+    r"\b(?:photos?|pictures?|images?)\s+(?:(?:of|on|in|from|at|with)\s+(?:the\s+|my\s+|our\s+)?"
+    r"[\w'\u2019-]+\s+)?(?:is|are|was|were|needs?|has|have|had)\b"
+    r"|\ban?\s+(?:[\w-]+\s+)?(?:photos?|pictures?|images?)\s*[.!]?\s*$",
     re.IGNORECASE,
 )
 _WORD = re.compile(r"[a-z]+")
@@ -96,6 +105,8 @@ def _asks_a_source(query: str, sidecar: Sequence[ToolSpec]) -> bool:
     """Whether ``query`` holds a named source or a word of a sidecar tool's name."""
     text = query.strip()
     if _SOURCE.search(text) or _RECORD.search(text):
+        return True
+    if _PICTURE.search(text) and _PICTURE_FACT.search(text) is None:
         return True
     named = {word for spec in sidecar for word in _WORD.findall(spec.name.lower())}
     return not named.isdisjoint(_WORD.findall(query.lower()))

@@ -172,6 +172,13 @@ def test_a_message_that_asks_nothing_be_remembered_leaves_every_tool(query: str)
         "Remember the numbers in my budget sheet, please.",
         "Note that the numbers are in my budget sheet.",
         "Remember the name on a form.",
+        "Remember that the photo of grandma is in the hallway",
+        "Remember that my profile picture is from 2019",
+        "Remember my resume needs a new photo",
+        "Note that the image on my badge is old",
+        "Remember the photos from the trip are in the blue album.",
+        "Remember that the photo of grandma needs a new frame",
+        "Remember that the picture on my desk has a crack",
     ],
 )
 def test_a_request_to_remember_a_fact_refuses_every_sidecar_tool(query: str) -> None:
@@ -215,6 +222,12 @@ def test_a_request_to_remember_a_fact_refuses_every_sidecar_tool(query: str) -> 
         "Remember the address on my lease.",
         "Keep in mind the total from my budget spreadsheet.",
         "Remember the dates on my train tickets!",
+        "Remember the photo in Downloads",
+        "Remember what the attached picture shows",
+        "Remember the picture I sent you",
+        "Remember the picture of the whiteboard",
+        "Remember this photo",
+        "Remember a picture I sent you earlier",
     ],
 )
 def test_a_request_to_remember_that_asks_about_a_source_keeps_every_sidecar_tool(

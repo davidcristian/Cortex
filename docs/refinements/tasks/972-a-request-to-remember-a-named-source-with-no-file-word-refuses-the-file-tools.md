@@ -34,4 +34,5 @@ rule written first, in [sidecar-tools-record-words.md](../../readings/sidecar-to
   document nouns wait on the record-word reader's rule.
 - 2026-11-06: done. The record-word reader rebuilt, replayed and drawn: the two record rows read the
   file and stated its value in 6 of 6, W01 and three near misses stored the fact in 12 of 12 with no
-  file call. The `photo` near miss that is a wrong keep already is task 992.
+  file call. The `photo` near miss that is a wrong keep already is read by the picture-word
+  reader in the same readings.
