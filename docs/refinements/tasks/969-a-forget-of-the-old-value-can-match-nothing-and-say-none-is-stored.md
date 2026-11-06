@@ -36,8 +36,10 @@ delete. A repeat of the deleting call's own text came in 1 of 30 draws.
    [rule](../../readings/forget-no-match-on-remember.md#a-repeated-forget-rows-and-the-rule-2026-11-05)
    named it, reached 1 of 30 draws and none of the 20 drawn for it. The wider form's
    [rule](../../readings/forget-no-match-on-remember.md#a-forget-after-a-delete-rows-and-the-rule-2026-11-06)
-   needs 2 counted draws of 15; the first 15 gave 1, so 15 more decide it. The candidate's diff and
-   its seven tests are kept beside the run logs the readings name.
+   needs 2 counted draws; 30 draws gave 1, so the candidate did not ship and its diff is
+   [recorded as a patch](../../readings/forget-after-delete-patch.md). The form came in 6 of 60
+   draws of M02, so the next draw is a row written to provoke it (a message that asks twice to
+   forget the old value), under the same rule, before this step is built from the patch.
 2. An unmatched first call naming the new value. Write rows and a rule for a result text, on a call
    whose text the message states after "now" or "new", that asks for one word naming the fact.
    `_NONE_FOUND` is shared with a forget of a value never stored, where "nothing about it was stored"
@@ -61,3 +63,7 @@ delete. A repeat of the deleting call's own text came in 1 of 30 draws.
   the reply said the old number was forgotten) against the rule's 2: no result, so the candidate is
   not committed and 15 more draws decide it. Two first calls named the new number again, step 2's
   form; one of those replies asked for the old number.
+- 2026-11-06: 15 more draws of M02 through the proxy on the same candidate gave 0 counted draws, 1
+  of 30 against the rule's 2, so step 1's candidate is not committed and its diff is recorded as a
+  patch in the readings; a row that provokes the form is the next draw. Step 2's form came in 2 of
+  15 again, 6 of 60 in all, each reply saying no old number was found.
