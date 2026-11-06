@@ -87,7 +87,8 @@ Item 2 of the rule passes: 0 of 15 Y draws stored a monthly rule, the yearly cou
 draw made a second monthly call. One refused Y02 draw stored the yearly date 09-27, the day of the
 refused call in the anniversary's month, where the request wanted 08-27; no baseline yearly draw
 stored a wrong date
-([R-981](../refinements/tasks/981-a-refused-monthly-call-can-be-stored-on-the-wrong-month.md)).
+([R-981](../refinements/tasks/981-a-refused-monthly-call-can-be-stored-on-the-wrong-month.md); its
+rows are in [schedule-yearly-month-before.md](schedule-yearly-month-before.md)).
 
 The reader replayed every quoted string in `docs/readings/`, the task files and the brain tests
 (10,410 strings): 34 match, and none of them asks for a monthly reminder, since a string with a

@@ -3,7 +3,7 @@
 **Status:** open, actionable
 **Area:** scheduling
 **Origin:** [ADR-0025](../../adr/ADR-0025-scheduling-reminders.md)
-**Verified:** 2026-11-05
+**Verified:** 2026-11-06
 
 After the `YEARLY_DATE` refusal (`schedule_yearly.py`), the cortex makes the call again with
 `on_dates`. For "Our wedding anniversary is on 3 September. Remind me a week before." one of
@@ -14,12 +14,13 @@ fires once a year on the wrong day. No baseline yearly draw stored a wrong date
 
 ## What to do
 
-1. Write rows and a rule into the readings first: Y02 and other requests whose reminder falls in
-   the month before the named date ("a week before 3 September", "two days before 1 March"),
-   scored by whether the stored MM-DD equals the wanted date.
-2. Then try a refusal text that names the date the reminder fires on rather than the named date,
-   or a typed check that the stored `on_dates` entry is not the refused month day in the named
-   month, and draw the candidate on the same rows.
+1. Done: the rows (three month-before requests and a same-month near miss) and the rule are in
+   [schedule-yearly-month-before.md](../../readings/schedule-yearly-month-before.md), with the
+   baseline drawn on 2026-11-06.
+2. Then try, in the readings' order, a typed check that the retry's `on_dates` entry is not the
+   refused month day in the named month, with near misses as tests first, or a refusal text that
+   names the date the reminder fires on rather than the named date, and draw the candidate on the
+   same rows. Ship only on the rule's counts.
 
 ## History
 
@@ -29,3 +30,13 @@ fires once a year on the wrong day. No baseline yearly draw stored a wrong date
   refusal text names only "a day of a named month" and its example maps a date to itself
   ('05-11' for 11 May), so it gives the model no month for a reminder day in the month before.
   Whether a rewording changes 1 in 7 needs this task's rows; not drawn yet, so the task stays open.
+- 2026-11-06: checked the code again: a retry runs when its `on_month_days` equal the refused
+  call's (`same_month_days`), and nothing typed reads an `on_dates` entry against the message.
+  Wrote the month-before rows (B01 to B03, near miss N01) and the rule, then drew the baseline
+  on the stack brain: 11 of 12 B draws stored the wanted date, 0 of 12 the wrong month, 1 a
+  one-time reminder; 3 B draws were refused first, each retry storing the right month. A null
+  result under the rule, so the behaviour is left alone; the next row is eight draws per request.
+- 2026-11-06: drew the next row (eight per request, 29 draws): 2 of 22 B draws stored the wrong
+  month (both B03, 01-31, both refused first), so item 2 of the rule applies and the typed check of
+  the retry's `on_dates` entry is the next step, not drawn tonight. Two B03 draws stored the
+  birthday itself, filed as R-991.
