@@ -7,7 +7,7 @@
 manifest requirement that lets a build for a target it never links skip the resource step, or
 `just check-shell` on master, with `RC_x86_64_pc_windows_msvc` naming a GNU windres, failing at
 its Windows line over a `cfg(windows)` item.
-**Verified:** 2026-10-02
+**Verified:** 2026-11-06
 
 `check-shell` runs two clippy lines, the host one and
 `cargo clippy --locked --target x86_64-pc-windows-msvc --all-targets -- -D warnings`, and CI
@@ -87,3 +87,9 @@ depends on and a check that runs a different one proves less than it claims.
   `cfg(any(windows, target_os = "linux"))`, so four items stay behind `cfg(windows)` alone: three
   in `body_server.rs` and the hotkey `register`. The Windows line, run on HEAD with an unpacked
   windres named by `RC_x86_64_pc_windows_msvc`, exits 0.
+- 2026-11-06: Not fired. The shell's lock still names `tauri-build` 2.6.3, `tauri-winres` 0.3.6 and
+  `embed-resource` 3.0.11, and the four items behind `cfg(windows)` alone are the same three in
+  `body_server.rs` and the hotkey `register`, over the 16 shell commits since 2026-10-02. Two newer
+  releases exist: `tauri-winres` 0.3.7 of 2026-10-19 adds `compile_for_everything`, which links the
+  resource into more targets and skips nothing, and `embed-resource` 3.0.12, whose change was not
+  read in this slot. The Windows clippy line was not run.

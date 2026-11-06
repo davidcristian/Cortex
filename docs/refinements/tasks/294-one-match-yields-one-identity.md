@@ -16,7 +16,7 @@ nothing about how many readings its span has. The first condition is read off `u
 The second is read off the session store: an assistant record in any
 `cortex:session:<id>:messages` list that `SPACED_DOT` from `url_separators.py` matches, which no
 mixed host can avoid. On 2026-10-03 none of the 79 stored replies matched, and none held a URL.
-**Verified:** 2026-10-11
+**Verified:** 2026-11-06
 
 Opened by the pass that declined the mixed dot-and-gap host, because that decline is a symptom
 rather than the cause. `extract_urls` reduces each `URL_RE` match to exactly one identity and the
@@ -80,3 +80,6 @@ has been, since a second reading is a second chance to redact prose.
   tilde, each a character a URL path may end with, so `https://example.com/a_` has two readings.
   Both sides of the comparison drop the character, so the two readings give one identity and a
   defence would change nothing. The grep still prints six lines.
+- 2026-11-06: Not fired. The grep still prints six lines, five of them the four sites, and none of
+  the five URL modules has a commit since 2026-10-11, so `url_separators.py` still has one
+  two-reading form. The session store was not read, since the stack was down this slot.

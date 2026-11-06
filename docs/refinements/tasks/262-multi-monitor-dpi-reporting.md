@@ -3,7 +3,7 @@
 **Status:** open, waiting for a consumer
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-10-07
+**Verified:** 2026-11-06
 **Trigger:** A request to capture a display other than the primary one.
 
 The Windows backend captures the primary display only, in physical pixels. The X11 backend in
@@ -67,3 +67,6 @@ it returns `NoTarget` rather than a wrong picture.
   check. It captures through the screenshot portal with no output named in the call and lists no
   monitors, so a display index needs a way to pick an output there as well. No request names
   another display, and `CaptureScreenRequest` still uses fields 1 to 3.
+- 2026-11-06: Not fired. `CaptureScreenRequest` still uses fields 1 to 3 and `proto/body.proto` has
+  no commit since 2026-10-07; no commit since 2026-10-06 touched a capture backend, and no request
+  names another display.

@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** repo-checks
 **Origin:** [ADR-0040](../../adr/ADR-0040-prose-and-comment-style.md)
-**Verified:** 2026-10-07
+**Verified:** 2026-11-06
 **Trigger:** a tracked document has a table column of power readings whose unit `W` is written
 only in its header, such as `draw, W` or `(W)`, with bare numbers in the rows.
 
@@ -27,3 +27,6 @@ is not a header.
 
 - 2026-10-03: filed by [R-663](663-a-figure-that-describes-only-this-machine-is-caught-by-eye.md),
   which added the figure search and named this as its one known miss.
+- 2026-11-06: Not fired. No commit since 2026-10-07 touched `prosecheck.py` or `machinefigures.py`,
+  and a search of every tracked markdown table cell holding the word `W` or `kW` finds two, a label
+  legend in `docs/host/index.md` and a `W01` draw label in a readings table, neither a power column.

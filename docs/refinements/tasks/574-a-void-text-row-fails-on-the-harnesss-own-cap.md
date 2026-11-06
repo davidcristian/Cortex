@@ -7,7 +7,7 @@
 candidate, which the deep-model pick recorded consuming a whole context and answering nothing, or
 any later text row whose totals line names a void cell.
 **Origin:** [ADR-0041](../../adr/ADR-0041-injection-image-variant.md)
-**Verified:** 2026-10-07
+**Verified:** 2026-11-06
 
 The text row posts `max_tokens: 1600` on every completion, the number its published matrices were
 measured under, and the shipped path posts no cap at all (ADR-0029 decision 19 and the comment on
@@ -71,3 +71,7 @@ publishing what the thought-through reply did with the instruction.
   row, and the void cells their logs print belong to other harnesses and their own caps.
   `_MAX_TOKENS` is still 1600, now at line 365, its one use is still `_reply`, and
   `BRAIN_CANDIDATES` still lists both mixture-of-experts candidates.
+- 2026-11-06: Not fired. `_MAX_TOKENS` is still 1600 at line 365 of
+  `test_injection_defense_live.py`, its one use is still `_reply`, `BRAIN_CANDIDATES` still lists
+  both candidates, and no reading committed since 2026-10-07 names a `test_injection_defense[` row
+  or a void cell of one; the stack was down this slot, so no row was drawn.

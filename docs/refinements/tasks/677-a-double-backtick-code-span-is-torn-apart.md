@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** repo-checks
 **Origin:** [ADR-0039](../../adr/ADR-0039-backlog-per-task.md)
-**Verified:** 2026-10-07
+**Verified:** 2026-11-06
 **Trigger:** the first heading quoting something in a double backtick code span, which
 `backlogcheck` refuses whenever what is quoted has brackets, an angle-bracket tag or an entity
 reference. For brackets the printed advice is the code span the author already wrote; for a tag or
@@ -52,3 +52,8 @@ should say so.
   reproduce exactly through `problems()`: the bracket, tag and entity forms refused with the
   advice the trigger names, the closed run accepted. Over the 933 markdown files git tracks, no
   heading has a double backtick and `problems()` refuses none.
+- 2026-11-06: the trigger has not fired. `CODE_SPAN` is unchanged, with no commit to
+  `headingshapes.py` or `backlogcheck.py` since 2026-10-07, and the four headings above reproduce
+  through `problems()`: the first three refused with the advice the trigger names, the closed run
+  accepted. Over the 1,088 markdown files git tracks, the only headings with a double backtick are
+  the four examples in this file's own fence.

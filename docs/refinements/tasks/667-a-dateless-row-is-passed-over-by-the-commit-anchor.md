@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** repo-checks
 **Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-checks.md)
-**Verified:** 2026-10-07
+**Verified:** 2026-11-06
 **Trigger:** the ledger's latest pass has a "Drawn from" cell with no commit this clone resolves
 while an earlier row's does, whether its pass wrote the row without one or a rewrite moved the
 commit it recorded and left the earlier one in place, so the replay line counts from a pass that is
@@ -49,3 +49,7 @@ two dates, so "differ" is an equality rather than a judgement about date formats
   candidate bodies since it. The recipe's anchor logic has changed only in a variable's name since
   the last check, and the runbook still says a row with no commit is passed over while an earlier
   one resolves, so comparing the anchor with the last row is still the fix.
+- 2026-11-06: checked again and left open, the trigger unfired. The ledger has four rows, and the
+  last, the pass of 2026-10-02, records `82dc0c901`, which resolves and is an ancestor of HEAD;
+  `just replay` anchors on it and reports 239 candidate bodies since. No commit since 2026-10-07
+  changed the recipe's replay lines.

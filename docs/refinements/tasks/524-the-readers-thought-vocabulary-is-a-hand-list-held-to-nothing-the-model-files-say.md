@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** inference
 **Origin:** [ADR-0050](../../adr/ADR-0050-live-probe-records.md)
-**Verified:** 2026-10-03
+**Verified:** 2026-11-06
 **Trigger:** a pick entering the lineup whose chat template writes a thought marker
 `scripts/switchtail.py` does not list, or a model file of a listed family whose template changes
 the marker it writes. Both are countable by the struct walk over each GGUF header's
@@ -72,3 +72,6 @@ derivable from the template's own syntax.
   the tail `switchtail.tail` reads. No tier, candidate or document names it, so no pick has entered
   the lineup with it. ADR-0050 said every template on the mount writes a listed pair and that no
   file writes a third, and now says it of every template the tree names.
+- 2026-11-06: Not fired. `MARKERS` in `scripts/switchtail.py` is the same two pairs with no commit
+  since 2026-10-03, the mount holds the same 73 `*.gguf` files with none written since that date,
+  and `git grep -i glimmer` still finds nothing outside this backlog.

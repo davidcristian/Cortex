@@ -3,7 +3,7 @@
 **Status:** open, waiting for a consumer
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-10-06
+**Verified:** 2026-11-06
 **Trigger:** A capture that has to go ahead with part of the screen removed rather than be refused,
 over a window or a region Cortex does not own, since the body's own windows are the OS's to exclude
 on Windows, the X11 capture's own fill on X11, and a refusal while the overlay is shown on Wayland.
@@ -53,3 +53,7 @@ source for where another program's window is, which the portal does not give.
   the overlay is shown or within `OVERLAY_SETTLE` (1 s) of a hide, because a portal picture cannot
   leave a window out. The entry named only Windows and X11. Nothing in the body crates or the shell
   masks or redacts pixels of a window Cortex does not own.
+- 2026-11-06: Not fired. No commit since 2026-10-06 touched `screen.rs`, `overlay.rs` or
+  `exclude.rs` in `os_linux`, the `body_core` screen modules or the Windows `screen.rs`; the eleven
+  body commits since are clipboard, paste, hotkey and reminder card work, and nothing asks for a
+  capture with another program's window or a region removed.
