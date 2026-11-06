@@ -15,6 +15,7 @@ from cortex_core.handoff_view import (
     deep_history,
     deep_tail,
     midnight_refused_calls,
+    offset_refused_calls,
     yearly_refused_calls,
 )
 from cortex_core.output_channels import open_output_channels
@@ -109,6 +110,7 @@ class BrainPhase:
             declined=declined_calls(record),
             yearly_refused=tuple(yearly_refused_calls(record)),
             midnight_refused=tuple(midnight_refused_calls(record)),
+            offset_refused=tuple(offset_refused_calls(record)),
             results_spent=sum(len(m.text) for m in tail if m.role is Role.TOOL),
             query=query,
         )

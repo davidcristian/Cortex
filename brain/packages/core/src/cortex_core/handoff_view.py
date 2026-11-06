@@ -7,6 +7,7 @@ from cortex_core.conversation import Message, Role, ToolRun
 from cortex_core.escalate import ESCALATION_QUEUED_MSG
 from cortex_core.handoff import HandoffRecord
 from cortex_core.schedule_midnight import MIDNIGHT_TIME_MSG
+from cortex_core.schedule_offset import OFFSET_DATE_MSG
 from cortex_core.schedule_yearly import YEARLY_DATE_MSG
 from cortex_core.tools import ToolCall
 from cortex_core.untrusted import says_declined
@@ -63,6 +64,11 @@ def yearly_refused_calls(record: HandoffRecord) -> list[ToolCall]:
 def midnight_refused_calls(record: HandoffRecord) -> list[ToolCall]:
     """The schedule calls refused for an unasked 00:00 before the handoff, from the tail."""
     return _refused_calls(record, MIDNIGHT_TIME_MSG)
+
+
+def offset_refused_calls(record: HandoffRecord) -> list[ToolCall]:
+    """The schedule calls refused for a wrong date before a yearly one, from the tail."""
+    return _refused_calls(record, OFFSET_DATE_MSG)
 
 
 def deep_tail(record: HandoffRecord) -> tuple[Message, ...]:

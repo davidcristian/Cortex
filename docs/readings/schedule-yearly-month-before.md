@@ -89,5 +89,57 @@ stored 01-31, the refused day in the birthday's month, as the draw that filed th
 both runs 2 of 34 B draws stored a wrong month, both among the 12 refused first, and no draw
 that ran its first call did. Item 2 of the rule now applies: the next step is the typed check of
 the retry's `on_dates` entry, with its near misses as tests first, drawn on these rows. The two
-B03 draws that stored 01-01, the birthday itself, are another wrong date
-([R-991](../refinements/tasks/991-a-day-before-reminder-can-be-stored-on-the-yearly-date-itself.md)).
+B03 draws that stored 01-01, the birthday itself, are another wrong date, with rows of their own
+below.
+
+## Rows for the date itself, written before the candidate run, 2026-11-06
+
+Two of fifteen B03 draws above stored a yearly rule on 01-01, the birthday itself, one of them
+beside the right 12-31. The rows below score a day-before request by whether any stored `on_dates`
+entry equals the named date: **on the date** when one does, **right** when the one stored entry is
+the wanted date, **other** for the rest. B03 is drawn again with two more day-before requests whose
+named date is the first of a month, so the day before falls in the month before.
+
+| Row | Request | Wanted MM-DD | The date itself |
+| --- | --- | --- | --- |
+| B03 | "Note that my mother's birthday is on 1 January, and remind me the day before." | 12-31 | 01-01 |
+| D01 | "My wife's birthday is on 1 July; remind me the day before." | 06-30 | 07-01 |
+| D02 | "Note that our lease renews every year on 1 October, remind me the day before." | 09-30 | 10-01 |
+
+The rule: the typed check ships for this defect only when **0 of the B03, D01 and D02 draws**
+store the date itself and the count of right draws does not fall below the baseline's share (3 of
+7 B03 draws). The check itself reads any stored `on_dates` entry other than the wanted one, which
+covers the date itself, the refused month day in the named month and any third date alike, so one
+check answers both rules. Its draws are capped by the slot's time box, three per request.
+
+## The typed check on a candidate brain, 2026-11-06
+
+`schedule_offset.py` reads one yearly date (the reader of `schedule_yearly.py`) and one offset
+before it ("N days before", "a week before", "the day before") from the message, computes the
+wanted MM-DD in a common and a leap year, and refuses once per turn a `schedule_task` call whose
+`on_dates` holds any other date, with a result that names the wanted date; the next such call runs.
+Of the 38 quoted messages in this file, `schedule-yearly-dates.md` and `schedule-yearly-ordinals.md`,
+it reads eight as offset requests: the six rows here, the Y02 anniversary and the birthday and
+renewal rows of the yearly readings. It leaves "The lease ends Sept. 30, remind me a week before"
+(no yearly event word) and the two-birthday message (two dates) to run unchecked.
+
+Candidate built from the working tree, the rig above, four draws per request from 03:49 to 03:59
+UTC, the SM clock at 0.57 of its maximum on every row. Run log `rows-cand.jsonl`, `records-cand.jsonl`,
+`rows-cand.clock` and the brain log `cand-calls.log` in slot 7 of the run's scratch directory. No
+turn failed, every draw stored one item, and no `cortex:schedule*` key was left.
+
+| Row | Right | Wrong month | On the date | Other | Refused first | Refused by the check |
+| --- | --- | --- | --- | --- | --- | --- |
+| B01 anniversary, a week before 3 September | 3 | 0 | 0 | 1 one-time 2027-08-27 | 1 of 4 | 0 |
+| B02 renewal, two days before 1 March | 4 (1 on 02-27, 3 on 02-28) | 0 | 0 | 0 | 4 of 4 | 1 |
+| B03 birthday, the day before 1 January | 4 | 0 | 0 | 0 | 3 of 4 | 0 |
+| B rows together | 11 of 12 | 0 of 12 | 0 of 12 | 1 of 12 | 8 of 12 | 1 |
+| N01 anniversary, a week before 20 May | 4 | 0 | 0 | 0 | 1 of 4 | 0 |
+| D01 birthday, the day before 1 July | 4 | 0 | 0 | 0 | 2 of 4 | 0 |
+| D02 lease, the day before 1 October | 4 | 0 | 0 | 0 | 2 of 4 | 0 |
+
+Both rules pass: 0 of 12 B draws stored a wrong month against 2 of 22 in the row before, the right
+B draws held at 11 of 12, all 4 N01 draws stored 05-13, and 0 of the 12 B03, D01 and D02 draws
+stored the date itself against 2 of 15 before. The check fired once, on a B02 retry that stored
+02-26 (two days before the refused 28) after the yearly refusal; its result named 02-27 or 02-28
+and the third call stored 02-28. The check ships.

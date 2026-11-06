@@ -1,9 +1,8 @@
 # A refused monthly call can be stored on the wrong month
 
-**Status:** open, actionable
+**Status:** done 2026-11-06
 **Area:** scheduling
 **Origin:** [ADR-0025](../../adr/ADR-0025-scheduling-reminders.md)
-**Verified:** 2026-11-06
 
 After the `YEARLY_DATE` refusal (`schedule_yearly.py`), the cortex makes the call again with
 `on_dates`. For "Our wedding anniversary is on 3 September. Remind me a week before." one of
@@ -17,10 +16,9 @@ fires once a year on the wrong day. No baseline yearly draw stored a wrong date
 1. Done: the rows (three month-before requests and a same-month near miss) and the rule are in
    [schedule-yearly-month-before.md](../../readings/schedule-yearly-month-before.md), with the
    baseline drawn on 2026-11-06.
-2. Then try, in the readings' order, a typed check that the retry's `on_dates` entry is not the
-   refused month day in the named month, with near misses as tests first, or a refusal text that
-   names the date the reminder fires on rather than the named date, and draw the candidate on the
-   same rows. Ship only on the rule's counts.
+2. Done: `schedule_offset.py` reads the yearly date and the offset before it from the message and
+   refuses, once per turn, a `schedule_task` call whose `on_dates` entry is another date, naming
+   the wanted MM-DD; drawn on the same rows on 2026-11-06.
 
 ## History
 
@@ -39,4 +37,11 @@ fires once a year on the wrong day. No baseline yearly draw stored a wrong date
 - 2026-11-06: drew the next row (eight per request, 29 draws): 2 of 22 B draws stored the wrong
   month (both B03, 01-31, both refused first), so item 2 of the rule applies and the typed check of
   the retry's `on_dates` entry is the next step, not drawn tonight. Two B03 draws stored the
-  birthday itself, filed as R-991.
+  birthday itself, another wrong date the same check reads; its rows are in the readings.
+- 2026-11-06: built the typed check (`schedule_offset.py`): the wanted MM-DD is computed from the
+  named date and the offset, a `schedule_task` call whose `on_dates` holds another date is refused
+  once per turn with the wanted date named, and the next call runs. Near misses (no offset, "a week
+  after", no yearly date, two dates, two offsets, a one-time request) are tests. On the candidate,
+  0 of 12 B draws stored a wrong month, 11 of 12 the right date, all 4 N01 draws 05-13, and 0 of 12
+  day-before draws the date itself; the check fired once, on a 02-26 retry whose next call stored
+  02-28. Shipped; closed.

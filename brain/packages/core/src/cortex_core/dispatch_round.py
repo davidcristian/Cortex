@@ -1,7 +1,7 @@
 """Running one planned round of tool dispatches, and the context each round is given."""
 
 from collections.abc import AsyncGenerator, Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 from cortex_core.cadence import CadenceWatch
 from cortex_core.conversation import Message
@@ -16,6 +16,7 @@ from cortex_core.progress import ProgressSink, hold_wait
 from cortex_core.provenance import SourceKind, as_source
 from cortex_core.schedule_claim import stored_time
 from cortex_core.schedule_midnight import midnight_unasked
+from cortex_core.schedule_offset import offset_date_wrong, offset_refusal
 from cortex_core.schedule_yearly import monthly_for_yearly, same_month_days, stores_monthly
 from cortex_core.stops import StopLedger
 from cortex_core.tool_budget import DispatchBudget
@@ -23,7 +24,7 @@ from cortex_core.tool_cut import RESULT_ROOM_CHARS, ResultRoom
 from cortex_core.tool_round import RoundPlan, result_message
 from cortex_core.tool_salience import asks_the_same
 from cortex_core.tool_tail import tail_count
-from cortex_core.tools import ToolCall, ToolSpec, Trust, TurnStamp
+from cortex_core.tools import ToolCall, ToolResult, ToolSpec, Trust, TurnStamp
 from cortex_core.untrusted import TaintLedger, says_declined
 from cortex_core.waits import GENERATING, TOOL_RUNNING, Wait
 
@@ -60,6 +61,8 @@ class ToolLoopContext:
     yearly_refused: tuple[ToolCall, ...] = ()
     # The 00:00 schedule calls refused in a loop this one continues; the next one runs.
     midnight_refused: tuple[ToolCall, ...] = ()
+    # The yearly schedule calls refused for a wrong date in a loop this one continues.
+    offset_refused: tuple[ToolCall, ...] = ()
 
     @property
     def unit_id(self) -> str:
@@ -79,6 +82,8 @@ class LoopRecord:
     yearly_refused: list[ToolCall] = field(default_factory=list[ToolCall])
     # The 00:00 schedule calls refused once in this turn; a second one runs.
     midnight_refused: list[ToolCall] = field(default_factory=list[ToolCall])
+    # The yearly schedule calls refused once in this turn for a wrong date; a second one runs.
+    offset_refused: list[ToolCall] = field(default_factory=list[ToolCall])
 
 
 def _unasked_refusal(
@@ -91,6 +96,9 @@ def _unasked_refusal(
     if not retried and monthly_for_yearly(call, context.query):
         record.yearly_refused.append(call)
         return DispatchRefusal.YEARLY_DATE
+    if not record.offset_refused and offset_date_wrong(call, context.query):
+        record.offset_refused.append(call)
+        return DispatchRefusal.OFFSET_DATE
     if not record.midnight_refused and midnight_unasked(call, context.query):
         record.midnight_refused.append(call)
         return DispatchRefusal.MIDNIGHT_TIME
@@ -118,6 +126,13 @@ def _refused_by(
     if not context.budget.charge(dispatcher.cost_of(call.name)):
         return DispatchRefusal.BUDGET
     return None
+
+
+def _told(result: ToolResult, refusal: DispatchRefusal | None, query: str) -> ToolResult:
+    """The result the model reads: a wrong-date refusal names the date the ``query`` wants."""
+    if refusal is not DispatchRefusal.OFFSET_DATE:
+        return result
+    return replace(result, content=offset_refusal(query))
 
 
 def _stamp(context: ToolLoopContext) -> TurnStamp:
@@ -166,6 +181,7 @@ async def run_round(
                 confirm_required=spec is not None and spec.confirm_required,
                 refusal=refusal,
             )
+        result = _told(result, refusal, context.query)
         if refusal is None and says_declined(result.content):
             context.declined.append(call)
         if refusal is None and spec is not None:

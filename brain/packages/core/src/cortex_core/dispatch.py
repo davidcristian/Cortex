@@ -12,6 +12,7 @@ from cortex_core.log_secrets import REDACTED
 from cortex_core.ports import Clock, Confirmer, ToolAuditSink, ToolRegistry
 from cortex_core.progress import hold_wait
 from cortex_core.schedule_midnight import MIDNIGHT_TIME_MSG
+from cortex_core.schedule_offset import OFFSET_DATE_MSG
 from cortex_core.schedule_yearly import YEARLY_DATE_MSG
 from cortex_core.tool_budget import UNIFORM_COST, ToolCostPolicy
 from cortex_core.tool_round import MAX_CALLS_PER_ROUND
@@ -84,6 +85,7 @@ class DispatchRefusal(Enum):
     BUDGET = BUDGET_EXHAUSTED_MSG
     DECLINED = ALREADY_DECLINED_MSG
     MIDNIGHT_TIME = MIDNIGHT_TIME_MSG
+    OFFSET_DATE = OFFSET_DATE_MSG
     REDUNDANT = REDUNDANT_MSG
     ROUND_OVERSIZED = ROUND_OVERSIZED_MSG
     UNASKED = UNASKED_MSG
