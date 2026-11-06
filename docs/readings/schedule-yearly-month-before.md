@@ -192,3 +192,12 @@ All four stored items fall on the wanted date, so the check had nothing to refus
 item ran as the rule says. Both A1 draws first called a monthly rule on the 11th, which the yearly
 check refused, and the retry stored the yearly rule. Every reply names the date, and the first B01
 reply, which named no time, got the appended time note. No task is filed from these draws.
+
+## The second audit's combined turn on the stack brain, 2026-11-06
+
+The second audit sent A1 again to the stack brain built from the one-time check, at 05:29 UTC (SM
+clock at 0.57 of its maximum). One `schedule_task` call, not refused, stored the yearly rule
+`hour 9, minute 0, year_dates [[2, 11]]`, due 2027-02-11T09:00 UTC; the reply named February 11th
+and 9:00 AM, so no note was appended. The check fired 0 times. The refusal text a one-time `at`
+would read still names `on_dates` and `at_time` (task 994). Rows `rows.jsonl`, `records.jsonl`
+and `rows.clock` in slot 13 of the run's scratch directory; the record was deleted after the read.

@@ -194,3 +194,12 @@ records deleted after the read.
 - "Remind me at midnight on 31 December to call Anna": `schedule_task` with
   `at: 2026-12-31T00:00:00`, not refused since the message names midnight, stored due
   2026-12-31T00:00 UTC, and the reply named midnight, so no note was appended.
+
+## The second audit's two combined turns, 2026-11-06
+
+Sent again at 05:29 UTC to the stack brain built from the night's last brain commit (SM clock at
+0.53 to 0.57 of its maximum), rows in slot 13 of the run's scratch directory, records deleted after
+the read. The rent pair stored `hour 9, minute 0, month_days [3]` after `list_scheduled` and
+`edit_scheduled` with `on_month_days: [3]` and no `at_time`; the first reply named 9:00 AM, the
+second named no time and got the appended note "at 09:00". The midnight turn stored a one-time
+`at` due 2026-12-31T00:00 UTC with no refusal, and the reply named midnight, so no note.
