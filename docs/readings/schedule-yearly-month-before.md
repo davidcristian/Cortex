@@ -143,3 +143,13 @@ B draws held at 11 of 12, all 4 N01 draws stored 05-13, and 0 of the 12 B03, D01
 stored the date itself against 2 of 15 before. The check fired once, on a B02 retry that stored
 02-26 (two days before the refused 28) after the yearly refusal; its result named 02-27 or 02-28
 and the third call stored 02-28. The check ships.
+
+## A combined turn on the stack brain, 2026-11-06
+
+The closing audit sent "My sister's birthday is 14 February, remind me three days before" to the
+stack brain at 05:05 UTC (SM clock at 0.57 of its maximum). One `schedule_task` call,
+`at: 2027-02-11T09:00:00Z`, no `on_dates`: the date is right, the time is the default, and the
+reply, which named the date and no time, got the appended note "at 09:00". The reminder is a one-time
+item, so it does not repeat with the birthday, and the offset check reads `on_dates` only: a one-time
+`at` on the wrong date would have run (task 993). Rows `rows.jsonl`, `records.jsonl` and `rows.clock`
+in slot 11 of the run's scratch directory; the record was deleted after the read.

@@ -179,3 +179,18 @@ Rows, records and clock readings:
   the typed text; D5 draw 1's first call was refused by the yearly date check, as in the baseline).
 - Under the pass rule both ship: every stored draw of D1 to D6 passes, both D7 draws pass, and no
   row stored fewer draws than the baseline.
+
+## Two combined turns on the stack brain, 2026-11-06
+
+The closing audit sent two turns to the stack brain at 05:05 UTC (SM clock at 0.57 of its maximum),
+rows `rows.jsonl`, `records.jsonl` and `rows.clock` in slot 11 of the run's scratch directory, the
+records deleted after the read.
+
+- "Remind me to pay the rent on the 1st of every month", then "Move the rent reminder to the 3rd" in
+  the same session: `schedule_task` with `at_time: 09:00`, `on_month_days: [1]`; then `list_scheduled`
+  and `edit_scheduled` with `on_month_days: [3]` and no `at_time`. The stored rule read back as
+  `hour 9, minute 0, month_days [3]`, due 2026-12-03T09:00 UTC. The first reply named 9:00 AM; the
+  second named no time and got the appended note "at 09:00".
+- "Remind me at midnight on 31 December to call Anna": `schedule_task` with
+  `at: 2026-12-31T00:00:00`, not refused since the message names midnight, stored due
+  2026-12-31T00:00 UTC, and the reply named midnight, so no note was appended.
