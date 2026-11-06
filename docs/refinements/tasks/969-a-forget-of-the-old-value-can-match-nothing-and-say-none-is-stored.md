@@ -3,7 +3,7 @@
 **Status:** open, actionable
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-05
+**Verified:** 2026-11-06
 
 `Note that my phone number is now 0699000000, and delete the old one.`, with a row holding
 `0612345678`, called `forget_memories` with a text that matched nothing in 3 of 22 draws of it and its
@@ -34,8 +34,10 @@ delete. A repeat of the deleting call's own text came in 1 of 30 draws.
    result naming that delete, not `_NONE_FOUND`, whatever its text. `ForgetChosenTool` keeps the
    turn ids whose card ran a delete, bounded as `_shown` is. The repeated text alone, as the
    [rule](../../readings/forget-no-match-on-remember.md#a-repeated-forget-rows-and-the-rule-2026-11-05)
-   named it, reached 1 of 30 draws and none of the 20 drawn for it. Write the rows and rule for the
-   wider form before any draw, with M02 drawn through the proxy.
+   named it, reached 1 of 30 draws and none of the 20 drawn for it. The wider form's
+   [rule](../../readings/forget-no-match-on-remember.md#a-forget-after-a-delete-rows-and-the-rule-2026-11-06)
+   needs 2 counted draws of 15; the first 15 gave 1, so 15 more decide it. The candidate's diff and
+   its seven tests are kept beside the run logs the readings name.
 2. An unmatched first call naming the new value. Write rows and a rule for a result text, on a call
    whose text the message states after "now" or "new", that asks for one word naming the fact.
    `_NONE_FOUND` is shared with a forget of a value never stored, where "nothing about it was stored"
@@ -53,3 +55,9 @@ delete. A repeat of the deleting call's own text came in 1 of 30 draws.
   the proxy: no draw repeated the deleting text, so its rule gave no result and it was not committed.
   The draws found the unmatched first call naming the new number, and a later call naming it after a
   delete; both steps now name those forms.
+- 2026-11-06: the premise still holds in the code. Step 1's candidate was built with seven tests,
+  seven mutation rows over them all failed, and 15 draws of M02 through the proxy, with the seed row
+  written again, gave 1 counted draw (a later call naming the new number read the new result, and
+  the reply said the old number was forgotten) against the rule's 2: no result, so the candidate is
+  not committed and 15 more draws decide it. Two first calls named the new number again, step 2's
+  form; one of those replies asked for the old number.

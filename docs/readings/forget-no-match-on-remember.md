@@ -154,3 +154,57 @@ delete it"). In 4 draws a call with the new number followed the delete and match
 of those replies said "I couldn't find any previous phone number in my memory to delete" though the
 earlier call had deleted it. With the 10 draws above, a repeat of the deleting text came in 1 of 30
 draws, and a call naming the new value in 6 of 20.
+
+## A forget after a delete: rows and the rule, 2026-11-06
+
+Written before any draw. The candidate is step 1 of R-969: a call that matches nothing in a turn in
+which an earlier call's card already ran a delete gets "nothing more was forgotten: no remembered
+exchange contains that text, and an earlier call in this turn already deleted what the user asked
+to forget, so tell the user it was deleted and do not say that it was not stored or could not be
+found" in place of `_NONE_FOUND`, whatever the call's text. `ForgetChosenTool` keeps the turn ids
+whose card ran a delete, bounded as `_shown` is. The rig is the one above, with the proxy, cards
+approved, and the `seed4` row written again in tonight's stack by a real turn.
+
+| Row | Draws | A draw counts when |
+| --- | --- | --- |
+| M02 | 15 | a call with any text matched nothing after a call in the same turn whose card deleted the row |
+
+- The candidate ships when at least 2 draws count and no counted reply says the old value was not
+  stored, was already gone, or could not be found. Fewer than 2 counted draws is no result, and 15
+  more are drawn in a later slot.
+- The first request of both builds is identical, since the change reaches only the result of a later
+  call, so no item is written over the first call's text.
+- The null result is a counted reply that still says the old value was gone, not found or never
+  stored; then the result text stays, and a note the brain appends is the next form to write a rule
+  for.
+
+## A forget after a delete: the draws, 2026-11-06
+
+Run logs `rows.jsonl`, `req.log`, `mem.txt` and `rows.clock` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/a64866e3-d614-4e2e-a757-12775f4290c0/scratchpad/slot8/`,
+on a candidate built from the working tree with the result above (its diff and seven tests are
+`r969-candidate.diff` and `r969-test_forget_after_delete.py` beside them; seven mutation rows over
+the tests all failed), run through the proxy beside the stack brain of the commit that refuses a
+day-before reminder stored on the wrong date. The `seed4` row was written again by a real turn on
+the stack brain. The SM clock read 0.57 to 0.71 of its maximum before the draws. No draw ended in
+an error; the 15 draws took 04:13 to 04:19 UTC.
+
+| Of 15 draws | Count |
+| --- | --- |
+| First call's text the old value `0612345678` | 10 |
+| First call's text the label `phone number` | 3 |
+| First call's text the new value `0699000000`, matching nothing | 2 |
+| A card shown and approved, deleting the old row | 13 |
+| A later call with any text after a delete, matching nothing | 1 |
+| A row holding the old number after the draw | 2 |
+
+One draw counted, so under the rule **this is no result**, and the candidate is not committed; 15
+more draws decide it. The counted draw's later call named the new number `0699000000`, read the
+new result, and its reply said the old number was forgotten and the new one noted, with
+`UNKEPT_CLAIM_NOTE` appended. The 2 draws whose first call named the new number are step 2's form
+again: in both the old row stayed and the turn was stored, one reply asked for the old number
+("could you please tell me what the old number was?") though `_NONE_FOUND` says not to ask, and the
+other said no old number was stored. One draw whose call named the label said it had no access to
+the previous number and had cleared the phone number memories. With the 30 draws of 2026-11-05, a
+call matching nothing after a delete came in 6 of 45 draws, and a first call naming the new value
+in 4 of 45.
