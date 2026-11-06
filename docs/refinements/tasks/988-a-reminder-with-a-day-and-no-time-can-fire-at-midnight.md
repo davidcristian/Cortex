@@ -27,8 +27,14 @@ from a requested one.
    the turn's message names no midnight form; the result names the default, 09:00 in the schedule
    zone, and asks the model to call again. It refuses once per turn and a second call with 00:00
    runs, so it fails toward storing the reminder.
-2. For the unnamed time, try the brain-appended form first: when the stored item's time of day is
-   absent from the reply, append the time, as `schedule_claim.py` appends its note.
+2. For the unnamed time, try the brain-appended form first. `ToolRun` holds only a name and an
+   ok value, so the closing notes (`limit_notes` in `closing_notes.py`) cannot read the stored
+   time from the runs; `run_round` in `dispatch_round.py` sets `TaintLedger.monthly_stored` from a
+   call and its result, and the stored time of day is passed the same way: a ledger field set
+   from a successful `schedule_task` or `edit_scheduled` result (its text starts
+   `scheduled reminder <id>: due <date> <HH:MM>`; the call's `at_time` or `at` holds it too), read
+   by `limit_notes`, which appends a note naming that time when the reply names no time of day (a
+   clock figure, am or pm, noon or midnight), as `schedule_claim.py` appends its note.
 3. Draw the candidate with both on rows D1 to D7 and ship only if the pre-written pass rule
    passes; the refusal alone does not change whether a reply names the time.
 
