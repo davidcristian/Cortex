@@ -1,13 +1,19 @@
 """The ``cancel_scheduled`` / ``snooze_scheduled`` / ``edit_scheduled`` lifecycle verbs."""
 
+from collections.abc import Mapping
 from dataclasses import replace
 from datetime import datetime
+from typing import Any
 
 from cortex_core.errors import ScheduleStoreError
 from cortex_core.ports import Clock, ScheduleStore
 from cortex_core.schedule import ScheduleKind, ScheduleStatus
 from cortex_core.schedule_args import MIN_EVERY_SECONDS, starting_property
-from cortex_core.schedule_day_args import day_selector_properties, in_zone_property
+from cortex_core.schedule_day_args import (
+    day_selector_properties,
+    has_day_selector,
+    in_zone_property,
+)
 from cortex_core.schedule_render import describe_item, effective_zone
 from cortex_core.schedule_time import UTC_DISPLAY, UTC_ZONE_CONTEXT, DisplayZone, ZoneContext
 from cortex_core.schedule_transitions import ScheduleEdit
@@ -213,13 +219,14 @@ class EditScheduledTool:
         item_id = call.arguments.get("id")
         if not isinstance(item_id, str) or not item_id:
             return error_result(call.id, "'id' must be a non-empty string")
-        parsed = parse_edit(
-            call.arguments, now=self._clock.now(), zone=self._zone, resolve_zone=self._resolve_zone
-        )
-        if isinstance(parsed, str):
-            return error_result(call.id, parsed)
-        edit = replace(parsed, tainted=call.stamp.tainted)
         try:
+            arguments = await self._with_kept_time(item_id, call.arguments)
+            parsed = parse_edit(
+                arguments, now=self._clock.now(), zone=self._zone, resolve_zone=self._resolve_zone
+            )
+            if isinstance(parsed, str):
+                return error_result(call.id, parsed)
+            edit = replace(parsed, tainted=call.stamp.tainted)
             correction = await self._edit(item_id, edit, live_taint=call.stamp.live_taint)
         except ScheduleStoreError as err:
             return store_down_result(call.id, err)
@@ -230,6 +237,20 @@ class EditScheduledTool:
             zone = effective_zone(edit.rule.rule, self._zone)
             content = f"{content}: now due {zone.render(edit.rule.due_at)}"
         return ToolResult(call_id=call.id, content=content, trust=Trust.TRUSTED)
+
+    async def _with_kept_time(
+        self, item_id: str, arguments: Mapping[str, Any]
+    ) -> Mapping[str, Any]:
+        """The call's arguments, with the item's own wall clock when a day selector names none."""
+        if arguments.get("at_time") is not None or not has_day_selector(arguments):
+            return arguments
+        item = await self._store.get(item_id)
+        if item is None or item.rule is None:
+            return arguments
+        kept: dict[str, Any] = {**arguments, "at_time": item.rule.wall_time}
+        if item.rule.zone is not None and arguments.get("in_zone") is None:
+            kept["in_zone"] = item.rule.zone.name
+        return kept
 
     async def _edit(self, item_id: str, edit: ScheduleEdit, *, live_taint: bool) -> str | None:
         """Advisory guards (unknown / firing / tainted-task), then the fenced edit."""

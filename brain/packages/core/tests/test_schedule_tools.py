@@ -932,8 +932,6 @@ async def test_edit_refuses_a_task_rule_change_on_a_tainted_turn() -> None:
     ("arguments", "expected"),
     [
         ({"at_time": "09:00", "every_seconds": 3600}, "already recurs on the wall clock"),
-        ({"on_days": ["mon"]}, "apply only together with 'at_time'"),
-        ({"on_month_days": [1]}, "apply only together with 'at_time'"),
         ({"at_time": "09:00", "on_days": ["mon"], "on_month_days": [1]}, "never more than one"),
         ({"at_time": "09:00", "on_month_days": [0]}, "'on_month_days' must be"),
         ({"at_time": "9am"}, "'at_time' must be"),

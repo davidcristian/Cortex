@@ -57,7 +57,10 @@ decision 2).
 - **The first fire is derived from the rule.** `at_time` excludes `at` and `in_seconds`, a day
   selector without `at_time` is refused, and `every_seconds` with `at_time` is refused with the
   alternative named, so the model never has to keep a due time and a recurrence consistent by hand.
-  An edit that sets a rule derives its next occurrence the same way (ADR-0025 decision 9).
+  An edit that sets a rule derives its next occurrence the same way (ADR-0025 decision 9). An edit
+  that gives a day selector and no `at_time` keeps the item's own wall-clock time and zone when the
+  item has a rule, so moving a repeat's day takes one call; an item on a fixed interval has no wall
+  clock to keep and is corrected.
   An optional `starting` date moves the first fire to the rule's first match on or after that
   day in the rule's zone; a day before today is refused with today's date, and `starting`
   without `at_time` is refused, since `at` already names a first fire. An edit that sets a rule

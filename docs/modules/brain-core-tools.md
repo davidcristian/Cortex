@@ -192,7 +192,7 @@ Each is a `BuiltinTool` in the `CompositeToolRegistry`; `forget_untrusted_memori
   Creation, cancel and snooze results are `TRUSTED` and never echo stored text; the listing echoes
   text and so is `TRUSTED` only when every item listed is clean. A cancel is confirmed on a card
   showing the item's listing line without its day, flattened, at most `CARD_CHARS`. `edit_scheduled`
-  takes the same `starting` with `at_time`, adds the editing turn's taint and refuses a task edit on a `live_taint` turn; none of them raises.
+  takes the same `starting` with `at_time`, fills a missing `at_time` (and `in_zone`) from the item's own rule when the call gives a day selector alone, adds the editing turn's taint and refuses a task edit on a `live_taint` turn; none of them raises.
 
 ## Schedules
 

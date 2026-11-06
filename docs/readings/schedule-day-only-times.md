@@ -60,6 +60,19 @@ lines from 02:01:30 UTC.
 - D6, all three draws: the first `edit_scheduled` call gave `on_month_days` [20] and no `at_time`,
   was corrected with the typed "apply only together with 'at_time'" text, and the retry gave
   `at_time` 09:00 (the stored time, which `list_scheduled` had shown) with `on_month_days` [20].
-  Every edit took two calls to move a day; recorded as task 990.
+  Every edit took two calls to move a day.
 - Under the pass rule, no row passes in every draw: D1, D4 and D6 fail on the unnamed time alone.
   The task's remedy is to be built and drawn on these rows.
+
+## Result of the kept-time edit, 2026-11-06
+
+Row D6 was redrawn three times, 02:21 to 02:23 UTC, on a candidate brain built from the tree with
+the edit verb filling a missing `at_time` (and `in_zone`) from the item's own rule when the call
+gives a day selector alone; SM clock at 0.57 of its maximum at each draw's end. Each draw made
+three calls: `schedule_task`, `list_scheduled`, `edit_scheduled`. Every `edit_scheduled` call gave
+`on_month_days` [20] and no `at_time`, ran at once and kept the stored time of day (09:00; 12:00;
+09:00, where the first call of draw 2 had chosen 12:00). One call per edit, against two in every
+baseline draw. No reply named the time (0 of 3), so the row still fails the pass rule on the
+unnamed time alone. Rows, records and clock readings:
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/a64866e3-d614-4e2e-a757-12775f4290c0/scratchpad/slot3/rows.jsonl`,
+`records.jsonl` and `rows.clock` beside it.

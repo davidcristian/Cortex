@@ -38,4 +38,6 @@ from a requested one.
 - 2026-11-06: premise checked in `schedule_args.py`, `schedule_verb_args.py` and the
   `schedule_task` spec: no typed default or check exists. Six day-only rows and the pass rule
   were written and a baseline of 18 draws taken: 1 at 00:00, 8 replies naming the time. Left
-  open for the build; the edit row's double call is task 990.
+  open for the build. The same night the edit verb was changed to keep the item's own time when a
+  call moves a day without `at_time`, so a D6 edit takes one call; the 00:00 check and the
+  appended time are still to build, in the order above.
