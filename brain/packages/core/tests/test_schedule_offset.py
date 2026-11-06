@@ -34,6 +34,9 @@ _BIRTHDAY = "Note that my mother's birthday is on 1 January, and remind me the d
 _RIGHT = {"text": "mother's birthday tomorrow", "at_time": "09:00", "on_dates": ["12-31"]}
 _WRONG_MONTH = {**_RIGHT, "on_dates": ["01-31"]}
 _THE_DATE = {**_RIGHT, "on_dates": ["01-01"]}
+_ONCE_RIGHT = {"text": "mother's birthday tomorrow", "at": "2027-12-31T09:00:00Z"}
+_ONCE_THE_DATE = {**_ONCE_RIGHT, "at": "2027-01-01T09:00:00Z"}
+_SISTER = "My sister's birthday is 14 February, remind me three days before"
 
 
 @pytest.mark.parametrize(
@@ -100,6 +103,34 @@ def test_no_offset_no_yearly_date_two_dates_or_two_offsets_want_nothing(message:
         (SCHEDULE_TOOL_NAME, {**_RIGHT, "on_dates": "12-31"}, _BIRTHDAY, False),
         (SCHEDULE_TOOL_NAME, _THE_DATE, "Remind me on 1 January of my mother's birthday.", False),
         ("edit_scheduled", {"id": "i", **_THE_DATE}, _BIRTHDAY, False),
+        (SCHEDULE_TOOL_NAME, _ONCE_RIGHT, _BIRTHDAY, False),
+        (SCHEDULE_TOOL_NAME, _ONCE_THE_DATE, _BIRTHDAY, True),
+        (SCHEDULE_TOOL_NAME, {"text": "t", "at": "2027-01-31T09:00:00"}, _BIRTHDAY, True),
+        (SCHEDULE_TOOL_NAME, {"text": "t", "at": "2027-01-31"}, _BIRTHDAY, True),
+        (
+            SCHEDULE_TOOL_NAME,
+            _ONCE_THE_DATE,
+            "Remind me on 1 January of my mother's birthday.",
+            False,
+        ),
+        (
+            SCHEDULE_TOOL_NAME,
+            {"text": "t", "at": "2027-01-01T09:00:00Z"},
+            "Remind me a week before the exam.",
+            False,
+        ),
+        (SCHEDULE_TOOL_NAME, {"text": "t", "at": "09:00"}, _BIRTHDAY, False),
+        (SCHEDULE_TOOL_NAME, {"text": "t", "at": 9}, _BIRTHDAY, False),
+        (SCHEDULE_TOOL_NAME, {"text": "t", "in_seconds": 60}, _BIRTHDAY, False),
+        (SCHEDULE_TOOL_NAME, {"text": "t", "at": "2027-02-11T09:00:00Z"}, _SISTER, False),
+        (SCHEDULE_TOOL_NAME, {"text": "t", "at": "2027-02-14T09:00:00Z"}, _SISTER, True),
+        (
+            SCHEDULE_TOOL_NAME,
+            {"text": "t", "at": "2027-02-11T09:00:00Z", "on_dates": ["02-14"]},
+            _SISTER,
+            True,
+        ),
+        ("edit_scheduled", {"id": "i", **_ONCE_THE_DATE}, _BIRTHDAY, False),
     ],
 )
 def test_only_a_schedule_call_storing_another_date_than_the_wanted_one_is_wrong(
@@ -141,11 +172,17 @@ async def _loop(query: str, calls: list[ToolCall]) -> tuple[list[object], Record
     return ran, audit
 
 
-async def test_a_wrong_date_is_refused_once_with_the_wanted_date_and_the_retry_runs() -> None:
-    first = ToolCall(id="c1", name=SCHEDULE_TOOL_NAME, arguments=_WRONG_MONTH)
-    again = ToolCall(id="c2", name=SCHEDULE_TOOL_NAME, arguments=_THE_DATE)
+@pytest.mark.parametrize(
+    ("wrong", "retry"),
+    [(_WRONG_MONTH, _THE_DATE), (_ONCE_THE_DATE, _ONCE_RIGHT), (_ONCE_THE_DATE, _RIGHT)],
+)
+async def test_a_wrong_date_is_refused_once_with_the_wanted_date_and_the_retry_runs(
+    wrong: Mapping[str, object], retry: Mapping[str, object]
+) -> None:
+    first = ToolCall(id="c1", name=SCHEDULE_TOOL_NAME, arguments=wrong)
+    again = ToolCall(id="c2", name=SCHEDULE_TOOL_NAME, arguments=retry)
     ran, audit = await _loop(_BIRTHDAY, [first, again])
-    assert ran == [_THE_DATE]
+    assert ran == [dict(retry)]
     refused, kept = audit.records
     assert (refused.ok, refused.detail) == (False, OFFSET_DATE_MSG)
     assert kept.ok
@@ -186,6 +223,8 @@ async def test_the_refusal_result_the_model_reads_names_the_wanted_date() -> Non
         (_BIRTHDAY, _RIGHT),
         ("Remind me on 1 January of my mother's birthday.", _THE_DATE),
         ("Our wedding anniversary is on 20 May. Remind me a week before.", {"on_dates": ["05-13"]}),
+        (_SISTER, {"text": "t", "at": "2027-02-11T09:00:00Z"}),
+        (_BIRTHDAY, {"text": "t", "at": "09:00"}),
     ],
 )
 async def test_the_wanted_date_or_a_message_asking_no_offset_runs_at_once(

@@ -1,7 +1,7 @@
 """Read the date a reminder asked for before a yearly date falls on, against a schedule call."""
 
 import re
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 from cortex_core.schedule_day_args import parse_on_dates
 from cortex_core.schedule_tools import SCHEDULE_TOOL_NAME
@@ -75,17 +75,33 @@ def wanted_dates(message: str) -> frozenset[str]:
     return frozenset(f"{when.month:02d}-{when.day:02d}" for when in dates)
 
 
+def _stored_dates(call: ToolCall) -> set[str] | None:
+    """The MM-DD ``call`` stores in ``on_dates`` or a one-time ``at``, or ``None``."""
+    on_dates = call.arguments.get("on_dates")
+    if on_dates is not None:
+        stored = parse_on_dates(on_dates)
+        if isinstance(stored, str):
+            return None
+        return {f"{md.month:02d}-{md.day:02d}" for md in stored}
+    at = call.arguments.get("at")
+    if not isinstance(at, str):
+        return None
+    try:
+        once = datetime.fromisoformat(at)
+    except ValueError:
+        return None
+    return {f"{once.month:02d}-{once.day:02d}"}
+
+
 def offset_date_wrong(call: ToolCall, query: str) -> bool:
-    """Whether ``call`` stores a yearly date other than the one the ``query`` asks for before."""
-    if call.name != SCHEDULE_TOOL_NAME or call.arguments.get("on_dates") is None:
+    """Whether ``call`` stores a date other than the one the ``query`` wants before its date."""
+    if call.name != SCHEDULE_TOOL_NAME:
+        return False
+    stored = _stored_dates(call)
+    if stored is None:
         return False
     wanted = wanted_dates(query)
-    if not wanted:
-        return False
-    stored = parse_on_dates(call.arguments.get("on_dates"))
-    if isinstance(stored, str):
-        return False
-    return not {f"{md.month:02d}-{md.day:02d}" for md in stored} <= wanted
+    return bool(wanted) and not stored <= wanted
 
 
 def offset_refusal(query: str) -> str:

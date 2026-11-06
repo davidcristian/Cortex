@@ -151,5 +151,44 @@ stack brain at 05:05 UTC (SM clock at 0.57 of its maximum). One `schedule_task` 
 `at: 2027-02-11T09:00:00Z`, no `on_dates`: the date is right, the time is the default, and the
 reply, which named the date and no time, got the appended note "at 09:00". The reminder is a one-time
 item, so it does not repeat with the birthday, and the offset check reads `on_dates` only: a one-time
-`at` on the wrong date would have run (task 993). Rows `rows.jsonl`, `records.jsonl` and `rows.clock`
-in slot 11 of the run's scratch directory; the record was deleted after the read.
+`at` on the wrong date would have run. Rows `rows.jsonl`, `records.jsonl` and `rows.clock` in slot
+11 of the run's scratch directory; the record was deleted after the read.
+
+## A one-time reminder before a yearly date, written before the candidate run, 2026-11-06
+
+The check now reads a one-time `at` the same way as `on_dates`: when the message names a yearly date
+with an offset before it and the call's `at` (an ISO-8601 date-time) falls on a MM-DD other than the
+wanted one, the call is refused once per turn with the result above, and a one-time `at` on the
+wanted date runs, since the person may want this year's reminder only. An `at` that is not a
+date-time (a time of day alone, a number) and a call with `in_seconds` are not read, so a call the
+reader cannot place keeps its tool. Whether a one-time store for a yearly event should itself get a
+note is a separate question and not part of this change. Every stored item recorded in this file
+and in the closing audit's turn was a one-time `at` on the wanted date (2027-08-27, 2027-05-13,
+2027-02-11), so no recorded draw would have been refused.
+
+The rows: B01 above and the audit's turn A1, "My sister's birthday is 14 February, remind me three
+days before", two draws each on a candidate built from the working tree. The rule: the check ships
+on its tests and the replay of the recorded messages, which it does not change; the draws record
+the stored item's shape (one-time `at` or a yearly rule) and its MM-DD, and whether the check fired.
+A stored item on a date other than the wanted one, one-time or yearly, after the check files a
+task; four draws decide nothing about how often the model stores a one-time item.
+
+## The one-time check on a candidate brain, 2026-11-06
+
+Candidate built from the working tree, two draws per row from 05:18 to 05:20 UTC, the SM clock at
+0.57 of its maximum on three draws and 0.52 on the last. Run log `rows-cand.jsonl`,
+`records-cand.jsonl`, `rows-cand.clock` and the brain log `cand-calls.log` in slot 12 of the run's
+scratch directory. No turn failed, every draw stored one item, and no `cortex:schedule*` key was
+left. The reader of the message, `wanted_dates`, is unchanged, so the replay above holds.
+
+| Row | Draw | Stored | First call refused | Refused by the check |
+| --- | --- | --- | --- | --- |
+| B01 anniversary, a week before 3 September | 1 | one-time 2027-08-27 | no | no |
+| B01 | 2 | yearly 08-27 | no | no |
+| A1 birthday, three days before 14 February | 1 | yearly 02-11 | yes, monthly on the 11th | no |
+| A1 | 2 | yearly 02-11 | yes, monthly on the 11th | no |
+
+All four stored items fall on the wanted date, so the check had nothing to refuse, and the one-time
+item ran as the rule says. Both A1 draws first called a monthly rule on the 11th, which the yearly
+check refused, and the retry stored the yearly rule. Every reply names the date, and the first B01
+reply, which named no time, got the appended time note. No task is filed from these draws.
