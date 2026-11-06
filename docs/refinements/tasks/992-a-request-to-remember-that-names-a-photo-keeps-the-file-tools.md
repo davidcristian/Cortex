@@ -30,3 +30,8 @@ avoid.
   message, and a location clause (`on my badge`, `from the trip`) names a fact as often as a
   file, so the source shape must cover the sent, attached and folder forms and the fact shape
   the rest. Left open for a slot with time to draw the near misses on a rule written first.
+- 2026-11-06: not reached by the fix slot after the second audit, which spent its box on the
+  refusal text of the offset check (`schedule_offset.py`). The reader change above is still the
+  next step: the near misses as tests before the code, every recorded message replayed through the
+  old and new reader with each change listed in the readings, and the five rows drawn twice on a
+  candidate against the rule written first.
