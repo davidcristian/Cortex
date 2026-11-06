@@ -62,7 +62,16 @@ _WORD_DAY_OF_MONTH = re.compile(
     rf"\b(?:(?:{_WORD_DAY})\s+(?:of\s+)?{_MONTH}|{_MONTH}\.?\s+(?:the\s+)?(?:{_WORD_DAY}))\b",
     re.IGNORECASE,
 )
-_WORD_ORDINAL_DAY = re.compile(rf"\b(?:the|every)\s+({_WORD_DAY})\b", re.IGNORECASE)
+_AFTER_DAY = (
+    "of|to|at|for|from|until|till|through|on|in|by|with|after|before|around|about|during"
+    "|since|and|or|but|so|then|when|if|as|while|because|unless|each|every|this|that|which"
+    "|is|was|are|am|not|only|just|please|too|also|again|instead|onwards"
+    "|i|we|you|he|she|it|they|me|us|him|them|my|our|your|his|her|its|their"
+)
+_WORD_ORDINAL_DAY = re.compile(
+    rf"\b(?:the|every)\s+({_WORD_DAY})\b(?=\s*(?:$|[^\w\s]|(?:{_AFTER_DAY})\b))",
+    re.IGNORECASE,
+)
 
 
 def names_yearly_date(message: str) -> bool:

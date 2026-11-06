@@ -124,11 +124,44 @@ def test_bare_days_are_the_ordinals_with_no_month_beside_them(message: str, days
         ("Mum's birthday is on the first of June.", set[int]()),
         ("Mum's birthday is June the second.", set[int]()),
         ("Remind me first thing on 3 May about the birthday.", set[int]()),
-        ("Our anniversary is on 3 May, the second one we have had.", {2}),
+        ("Remind me of Anna's birthday on 11 May and to pay rent on the first", {1}),
+        ("On the second, pay the gym, and remind me of Tom's birthday on 2 March", {2}),
+        ("Our anniversary is on 3 May; the fifth is when rent is due.", {5}),
     ],
 )
 def test_bare_days_read_an_ordinal_word_after_the_or_every(message: str, days: set[int]) -> None:
     assert bare_days(message) == days
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        "Our anniversary is on 3 May, the second one we have had.",
+        "Remind me of Leo's birthday on 1 July, it's the first one he has at school",
+        "Remind me of Tom's birthday on 2 March, every second year we throw a party",
+        "Remind me of our anniversary on 3 June, the third reminder is the one I need",
+    ],
+)
+def test_an_ordinal_word_before_a_noun_is_not_a_day(message: str) -> None:
+    assert bare_days(message) == set[int]()
+
+
+@pytest.mark.parametrize(
+    ("query", "month_days", "refused"),
+    [
+        ("Remind me of Leo's birthday on 1 July, it's the first one he has at school", [1], True),
+        ("Remind me of Tom's birthday on 2 March, every second year we throw a party", [2], True),
+        ("Remind me of our anniversary on 3 June, the third reminder is the one I need", [3], True),
+        ("Remind me of Anna's birthday on 11 May and to pay rent on the first", [1], False),
+        ("On the second, pay the gym, and remind me of Tom's birthday on 2 March", [2], False),
+    ],
+)
+def test_a_monthly_call_on_the_day_of_an_ordinal_word_before_a_noun_is_refused(
+    query: str, month_days: list[int], *, refused: bool
+) -> None:
+    arguments = {"at_time": "09:00", "on_month_days": month_days}
+    call = ToolCall(id="c", name=SCHEDULE_TOOL_NAME, arguments=arguments)
+    assert monthly_for_yearly(call, query) is refused
 
 
 @pytest.mark.parametrize(("month_days", "refused"), [([1], False), ([11], True)])

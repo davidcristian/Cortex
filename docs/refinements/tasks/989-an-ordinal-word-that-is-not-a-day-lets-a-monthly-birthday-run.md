@@ -1,9 +1,8 @@
 # An ordinal word that is not a day lets a monthly birthday run
 
-**Status:** open, actionable
+**Status:** done 2026-11-06
 **Area:** scheduling
 **Origin:** [ADR-0025](../../adr/ADR-0025-scheduling-reminders.md)
-**Verified:** 2026-11-05
 
 `bare_days` in `schedule_yearly.py` reads an ordinal word after "the" or "every" as a month day,
 also when a noun follows it. When that number equals the day of the named date, a monthly call on
@@ -31,3 +30,7 @@ day, and a reply that calls the stored rule yearly still gets the monthly note.
 
 - 2026-11-05: filed by the third audit of the ordinal word reader, with the table above as its
   reproduction.
+- 2026-11-06: done. `bare_days` reads an ordinal word after "the" or "every" as a day only when the
+  end of the message, a punctuation mark or a closed-class word follows it, so the three messages
+  above are refused and the two near misses run; the rows, the replay and the stack draws are in
+  [schedule-yearly-ordinals](../../readings/schedule-yearly-ordinals.md).
