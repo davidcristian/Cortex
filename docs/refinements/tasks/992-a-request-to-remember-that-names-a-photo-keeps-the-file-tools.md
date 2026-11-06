@@ -22,3 +22,11 @@ avoid.
 ## History
 
 - 2026-11-06: filed while rebuilding the record-word reader (task 972).
+- 2026-11-06: premise checked in the fix slot after the closing audit. `_SOURCE` keeps the file
+  tools on every message naming a photo, the stated facts (`Remember that the photo of grandma
+  is in the hallway`, `Note that the image on my badge is old`) and the real requests (`Remember
+  the photo in Downloads`, `Remember the picture I sent you`, `Remember the picture of the
+  whiteboard`) alike. A fact shape over a form of "to be" alone does not reach the resume
+  message, and a location clause (`on my badge`, `from the trip`) names a fact as often as a
+  file, so the source shape must cover the sent, attached and folder forms and the fact shape
+  the rest. Left open for a slot with time to draw the near misses on a rule written first.
