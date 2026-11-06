@@ -128,11 +128,13 @@ def _refused_by(
     return None
 
 
-def _told(result: ToolResult, refusal: DispatchRefusal | None, query: str) -> ToolResult:
-    """The result the model reads: a wrong-date refusal names the date the ``query`` wants."""
+def _told(
+    result: ToolResult, refusal: DispatchRefusal | None, call: ToolCall, query: str
+) -> ToolResult:
+    """The result the model reads: a wrong-date refusal names the date and the field to fix."""
     if refusal is not DispatchRefusal.OFFSET_DATE:
         return result
-    return replace(result, content=offset_refusal(query))
+    return replace(result, content=offset_refusal(query, call))
 
 
 def _stamp(context: ToolLoopContext) -> TurnStamp:
@@ -181,7 +183,7 @@ async def run_round(
                 confirm_required=spec is not None and spec.confirm_required,
                 refusal=refusal,
             )
-        result = _told(result, refusal, context.query)
+        result = _told(result, refusal, call, context.query)
         if refusal is None and says_declined(result.content):
             context.declined.append(call)
         if refusal is None and spec is not None:

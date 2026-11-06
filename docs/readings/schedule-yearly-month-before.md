@@ -199,5 +199,40 @@ The second audit sent A1 again to the stack brain built from the one-time check,
 clock at 0.57 of its maximum). One `schedule_task` call, not refused, stored the yearly rule
 `hour 9, minute 0, year_dates [[2, 11]]`, due 2027-02-11T09:00 UTC; the reply named February 11th
 and 9:00 AM, so no note was appended. The check fired 0 times. The refusal text a one-time `at`
-would read still names `on_dates` and `at_time` (task 994). Rows `rows.jsonl`, `records.jsonl`
-and `rows.clock` in slot 13 of the run's scratch directory; the record was deleted after the read.
+would read named `on_dates` and `at_time`, two fields such a call has not, so the model was told to
+fix a field it did not send and to retry as a yearly rule; the next section records the fix. Rows
+`rows.jsonl`, `records.jsonl` and `rows.clock` in slot 13 of the run's scratch directory; the record
+was deleted after the read.
+
+## The refusal names the field the call used, written before the candidate run, 2026-11-06
+
+`offset_refusal` now takes the refused call. Its prefix, `OFFSET_DATE_MSG`, says the call stores
+another date, naming no field, so `offset_refused_calls` still finds both forms in a record's tail
+by that prefix. The sentence after the wanted date names the field the call used: a call with
+`on_dates` is asked for that date in `on_dates` with the same `at_time`; any other refused call,
+which `offset_date_wrong` only refuses on an ISO `at`, is asked for `at` on that date, keeping its
+year and time of day. Whether a one-time store for a yearly event should be steered to a yearly rule
+is not part of this change. The rule: the change ships on its tests (both forms' text, the loop's
+result for both, the tail reader on both) and on the recorded messages, which it does not read, so
+`wanted_dates` and the replay above are unchanged. One draw each of B01 and A1 on a candidate records
+the stored item's shape and MM-DD and whether the check fired; a refused `at` call whose retry keeps
+the one-time shape is the result the text is written for, and a draw where no refusal fires decides
+nothing about the text.
+
+## The field-naming text on a candidate brain, 2026-11-06
+
+Candidate built from the working tree, one draw per row from 05:41 to 05:42 UTC, the SM clock at
+0.57 of its maximum on both. Run log `rows-cand.jsonl`, `records-cand.jsonl`, `rows-cand.clock` and
+the brain log `cand-calls.log` in slot 14 of the run's scratch directory. No turn failed, every draw
+stored one item, and no `cortex:schedule*` key was left.
+
+| Row | Draw | Stored | First call refused | Refused by the check |
+| --- | --- | --- | --- | --- |
+| B01 anniversary, a week before 3 September | 1 | yearly 08-27 | yes, by the tool: `starting` held a date-time | no |
+| A1 birthday, three days before 14 February | 1 | one-time 2027-02-11 | no | no |
+
+Both stored items fall on the wanted date, so the check had nothing to refuse and no draw read the
+new text; the text is covered by its tests. B01's first call was turned back by the schedule tool
+itself (`starting` must be a calendar date) and the retry with `starting` as a date ran. Both
+replies name the date; the A1 reply named no time and got the appended time note. No task is filed
+from these draws.

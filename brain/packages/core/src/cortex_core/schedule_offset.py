@@ -10,8 +10,11 @@ from cortex_core.tools import ToolCall
 
 OFFSET_DATE_MSG = (
     "REFUSED: the person asked for a reminder a number of days before a yearly date, and this "
-    "call's 'on_dates' holds another date, so it was not run."
+    "call stores another date, so it was not run."
 )
+_RETRY_ON_DATES = "Call again with that date in 'on_dates' and the same 'at_time'."
+_RETRY_AT = "Call again with 'at' on that date, keeping its year and time of day."
+
 
 _MONTHS = (
     "jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"
@@ -104,10 +107,8 @@ def offset_date_wrong(call: ToolCall, query: str) -> bool:
     return bool(wanted) and not stored <= wanted
 
 
-def offset_refusal(query: str) -> str:
-    """The refusal text for a wrong date, naming the date the ``query`` asks the reminder for."""
+def offset_refusal(query: str, call: ToolCall) -> str:
+    """The refusal text for a wrong date: the date ``query`` wants, in the field ``call`` used."""
     wanted = " or ".join(f"'{when}'" for when in sorted(wanted_dates(query)))
-    return (
-        f"{OFFSET_DATE_MSG} Counted from the named date, the reminder falls on {wanted}. Call "
-        f"again with that date in 'on_dates' and the same 'at_time'."
-    )
+    retry = _RETRY_AT if call.arguments.get("on_dates") is None else _RETRY_ON_DATES
+    return f"{OFFSET_DATE_MSG} Counted from the named date, the reminder falls on {wanted}. {retry}"

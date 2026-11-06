@@ -140,11 +140,34 @@ def test_only_a_schedule_call_storing_another_date_than_the_wanted_one_is_wrong(
     assert offset_date_wrong(call, query) is wrong
 
 
+def _refusal(arguments: Mapping[str, object], query: str = _BIRTHDAY) -> str:
+    return offset_refusal(query, ToolCall(id="c", name=SCHEDULE_TOOL_NAME, arguments=arguments))
+
+
 def test_the_refusal_names_the_wanted_date_and_both_dates_before_1_march() -> None:
-    assert offset_refusal(_BIRTHDAY).startswith(OFFSET_DATE_MSG)
-    assert "falls on '12-31'. Call again" in offset_refusal(_BIRTHDAY)
+    assert _refusal(_THE_DATE).startswith(OFFSET_DATE_MSG)
+    assert "falls on '12-31'. Call again" in _refusal(_THE_DATE)
     renewal = "My car insurance renews every year on 1 March; remind me two days before."
-    assert "falls on '02-27' or '02-28'." in offset_refusal(renewal)
+    assert "falls on '02-27' or '02-28'. Call again" in _refusal(_ONCE_THE_DATE, renewal)
+
+
+@pytest.mark.parametrize(
+    ("arguments", "named", "unnamed"),
+    [
+        (_THE_DATE, ("'on_dates'", "'at_time'"), ("'at'",)),
+        ({"text": "t", "on_dates": ["01-01"]}, ("'on_dates'", "'at_time'"), ("'at'",)),
+        (_ONCE_THE_DATE, ("'at'",), ("'on_dates'", "'at_time'")),
+        ({"text": "t", "at": "2027-01-01"}, ("'at'",), ("'on_dates'", "'at_time'")),
+        ({"text": "t", "at": "2027-01-01", "on_dates": None}, ("'at'",), ("'on_dates'",)),
+    ],
+)
+def test_the_refusal_names_the_field_the_call_used_and_not_the_other_form(
+    arguments: Mapping[str, object], named: tuple[str, ...], unnamed: tuple[str, ...]
+) -> None:
+    said = _refusal(arguments)
+    assert said.startswith(OFFSET_DATE_MSG)
+    assert all(field in said for field in named)
+    assert not any(field in said for field in unnamed)
 
 
 async def _loop(query: str, calls: list[ToolCall]) -> tuple[list[object], RecordingAuditSink]:
@@ -188,7 +211,12 @@ async def test_a_wrong_date_is_refused_once_with_the_wanted_date_and_the_retry_r
     assert kept.ok
 
 
-async def test_the_refusal_result_the_model_reads_names_the_wanted_date() -> None:
+@pytest.mark.parametrize(
+    ("arguments", "field"), [(_THE_DATE, "'on_dates'"), (_ONCE_THE_DATE, "'at'")]
+)
+async def test_the_refusal_result_the_model_reads_names_the_wanted_date_and_field(
+    arguments: Mapping[str, object], field: str
+) -> None:
     ran: list[object] = []
     audit = RecordingAuditSink()
 
@@ -208,13 +236,14 @@ async def test_the_refusal_result_the_model_reads_names_the_wanted_date() -> Non
         query=_BIRTHDAY,
     )
     working = [Message(role=Role.USER, text=_BIRTHDAY, at=_AT, turn_id="t")]
-    call = ToolCall(id="c1", name=SCHEDULE_TOOL_NAME, arguments=_THE_DATE)
+    call = ToolCall(id="c1", name=SCHEDULE_TOOL_NAME, arguments=arguments)
     backend = ScriptedBrainBackend(chunks=("done",), tool_calls=[call])
     _ = [event async for event in stream_tool_loop(backend, "m", working, context)]
     assert ran == []
     results = [m.text for m in working if m.role is Role.TOOL]
-    assert results == [offset_refusal(_BIRTHDAY)]
+    assert results == [offset_refusal(_BIRTHDAY, call)]
     assert "'12-31'" in results[0]
+    assert field in results[0].split("falls on")[1]
 
 
 @pytest.mark.parametrize(
@@ -245,9 +274,12 @@ def _round(call_id: str, arguments: Mapping[str, object], said: str) -> tuple[Me
     )
 
 
-def test_the_calls_refused_for_a_wrong_date_are_read_from_the_tail_by_id() -> None:
+@pytest.mark.parametrize("wrong", [_THE_DATE, _ONCE_THE_DATE])
+def test_the_calls_refused_for_a_wrong_date_are_read_from_the_tail_by_id(
+    wrong: Mapping[str, object],
+) -> None:
     tail = (
-        *_round("c0", _THE_DATE, offset_refusal(_BIRTHDAY)),
+        *_round("c0", wrong, _refusal(wrong)),
         *_round("c1", _RIGHT, "scheduled"),
     )
     record = harness.prepared_slot(tail=tail).snapshot(
@@ -291,7 +323,7 @@ async def _deep_retry(
 
 
 async def test_a_deep_retry_on_a_wrong_date_runs_when_the_cortex_was_refused_already() -> None:
-    ran, audit = await _deep_retry(_round("c0", _THE_DATE, offset_refusal(_BIRTHDAY)), _THE_DATE)
+    ran, audit = await _deep_retry(_round("c0", _THE_DATE, _refusal(_THE_DATE)), _THE_DATE)
     assert ran == [_THE_DATE]
     assert [record.ok for record in audit.records] == [True]
 
