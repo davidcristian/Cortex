@@ -1,9 +1,8 @@
 # A reminder with a day and no time can fire at midnight
 
-**Status:** open, actionable
+**Status:** done 2026-11-06
 **Area:** scheduling
 **Origin:** [ADR-0025](../../adr/ADR-0025-scheduling-reminders.md)
-**Verified:** 2026-11-06
 
 A request that names a day and no time of day can be stored at 00:00. Over two nights, 3 of 26
 stored day-only draws were: two of eight start date draws on 2026-11-05
@@ -20,9 +19,8 @@ from a requested one.
 
 ## What to do
 
-1. Apply the recorded patch of the 00:00 refusal
-   ([readings](../../readings/schedule-midnight-refusal-patch.md)) and its 38 tests, listed as
-   cases in the [day-only readings](../../readings/schedule-day-only-times.md): a typed check of
+1. Apply the recorded patch of the 00:00 refusal and its 38 tests, listed as cases in the
+   [day-only readings](../../readings/schedule-day-only-times.md): a typed check of
    a `schedule_task` or `edit_scheduled` call whose time of day is 00:00 (`at` or `at_time`) when
    the turn's message names no midnight form; the result names the default, 09:00 in the schedule
    zone, and asks the model to call again. It refuses once per turn and a second call with 00:00
@@ -49,3 +47,9 @@ from a requested one.
   stored draws, none at 00:00, the reply naming the time in 5 of 12 (never D1, D4 or D6), so the
   pass rule failed on the unnamed time alone and the refusal did not ship; its patch is recorded
   in the readings, row D7 (a named midnight) was added, and the appended time is the next step.
+- 2026-11-06: closed. The recorded refusal was applied with its 38 tests, and the stored time is
+  appended: `run_round` sets `TaintLedger.stored_time` from a successful timed `schedule_task` or
+  `edit_scheduled` result, the field crosses the handoff record and its codec, and `limit_notes`
+  appends `STORED_TIME_NOTE` when the reply names no time of day. Drawn twice on D1 to D7: 14
+  stored draws, none at 00:00 for D1 to D6, both D7 draws at the named midnight, every reply
+  naming the time (6 by the note), so the pass rule passed and both shipped.

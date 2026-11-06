@@ -96,7 +96,7 @@ path returns the card to. Measurements are in [model-swap](../readings/model-swa
 for the last two: a terminal record stops being `active()` and may expire. `HandoffRecord` holds
 `handoff_id` (the escalating `turn_id`, which is why every log line on this path names its work
 `turn_id`), `session_id`, `requested_at`, `state`, `brief`, `nonce`, the serialized
-`TaintLedger` (`tainted`, `opaque`, `recalled_only`, `sources`, `untrusted_urls`, `recalled_ids`, `forget_asked`, `forget_calls`, `forget_unmatched`, `forget_refused`, `sidecar_refused`, `monthly_stored`; not `forgotten`, ADR-0019 decision 9), `budget_remaining`,
+`TaintLedger` (`tainted`, `opaque`, `recalled_only`, `sources`, `untrusted_urls`, `recalled_ids`, `forget_asked`, `forget_calls`, `forget_unmatched`, `forget_refused`, `sidecar_refused`, `monthly_stored`, `stored_time`; not `forgotten`, ADR-0019 decision 9), `budget_remaining`,
 `budget_closed`, `rounds_used` and `loop_tail`. It contains only what is not already in a store, per
 the one hard rule, and `taint_ledger()` rebuilds an exact detached ledger for the deep phase.
 `opaque` is there as defence in depth: the conductor refuses an opaque turn before it snapshots, so
@@ -137,7 +137,7 @@ raises `ValueError` on a slot no tool filled, one no engine filled, or a tail co
   (`brain_phase.py`) rehydrates from the stores and the record alone. Its working set is preamble,
   recalled context, the history without the cortex's reply to this turn, and the `loop_tail` with the
   escalation's result replaced by `HANDOFF_TAKEN_MSG` and the brief (`handoff_view.py`), so the last
-  message is to the deep model; ledger, nonce, allowance, spent `ResultRoom` and the calls the tail shows declined or refused for a yearly date resume from it. It runs
+  message is to the deep model; ledger, nonce, allowance, spent `ResultRoom` and the calls the tail shows declined or refused for a yearly date or an unasked 00:00 resume from it. It runs
   the shared tool loop with a fresh rounds allowance, no escalation slot and no `capture_screen`, then
   persists its reply as a second assistant message under the same `turn_id`. A mid-work `InferenceError`
   persists the partial text with a note and re-raises, so the conductor fails the record, with the same

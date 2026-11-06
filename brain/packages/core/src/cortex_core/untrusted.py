@@ -145,6 +145,8 @@ class TaintLedger:
     sidecar_refused: bool = False
     # Whether a ``schedule_task`` call stored a rule that repeats on days of every month.
     monthly_stored: bool = False
+    # The HH:MM the last successful ``schedule_task`` or ``edit_scheduled`` call stored, else empty.
+    stored_time: str = ""
     untrusted_urls: set[str] = field(default_factory=set[str])
     sources: tuple[Provenance, ...] = ()
     # The tainted memories this turn recalled: its record is stored only while they all exist.

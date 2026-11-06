@@ -15,8 +15,10 @@ from cortex_core.memory_claim import (
 )
 from cortex_core.schedule_claim import (
     MONTHLY_STORED_NOTE,
+    STORED_TIME_NOTE,
     UNSCHEDULED_CLAIM_NOTE,
     claims_yearly,
+    names_time_of_day,
     unscheduled_claim,
 )
 from cortex_core.stops import StopLedger
@@ -59,6 +61,8 @@ def limit_notes(  # noqa: PLR0913 -- each claim note reads its own part of the t
         yield from append_note(parts, UNSCHEDULED_CLAIM_NOTE)
     if taint.monthly_stored and claims_yearly(reply):
         yield from append_note(parts, MONTHLY_STORED_NOTE)
+    if taint.stored_time and not names_time_of_day(reply):
+        yield from append_note(parts, STORED_TIME_NOTE.format(time=taint.stored_time))
     if unkept:
         yield from append_note(parts, UNKEPT_CLAIM_NOTE)
     if unforgotten:

@@ -104,11 +104,20 @@ at each draw's end. Rows, records, clock readings and the candidate's patch and 
   `edit_scheduled` per D6 edit.
 - The reply named the time in 5 of 12 draws: both D2, both D3 and one D5, never D1, D4 or D6, as
   in the baseline.
-- Under the pass rule the candidate does not ship: no draw stored 00:00 and no row stored fewer
-  draws than the baseline, but D1, D4 and D6 fail on the unnamed time, which the refusal does not
-  change. The patch is recorded in
-  [schedule-midnight-refusal-patch](schedule-midnight-refusal-patch.md); the appended time is
-  built on top of it and the two are drawn together.
+- Under the pass rule the refusal alone does not ship: no draw stored 00:00 and no row stored
+  fewer draws than the baseline, but D1, D4 and D6 fail on the unnamed time, which the refusal
+  does not change. The appended time was built on top of it and the two were drawn together.
+
+The refusal as built (`schedule_midnight.py`, the `MIDNIGHT_TIME` member of `DispatchRefusal`):
+`midnight_unasked` is true for a `schedule_task` or `edit_scheduled` call whose `at_time` is
+`00:00` or `0:00`, or whose `at` ends in a 00:00 time, when `names_midnight` finds none of
+`midnight`, `0:00`, `00:00` (not followed by am or pm), `12 am`, `12:00 am` or `12 a.m.` in the
+person's message. `run_round` refuses the first such call of a turn with the result "REFUSED: this
+call sets the time of day to 00:00 and the person named no midnight, so it was not run. A reminder
+at 00:00 fires while the person is likely asleep. Call again with the time of day the person
+meant, or with the default 09:00 in the schedule zone when they named none." and runs the second,
+so it fails toward storing the reminder; the deep phase reads the turn's refusal from the handoff
+tail (`midnight_refused_calls`).
 
 The refusal's 38 tests, each of nine mutations failing at least one (dropping the `12 am` form,
 dropping the am or pm guard after `00:00`, reading every schedule call as 00:00, not reading
@@ -139,3 +148,34 @@ the tail's refusal):
 A D7 draw passes when every item it stores is at 00:00 and the reply names midnight; the pass rule
 for D1 to D6 is unchanged. The next candidate holds the recorded refusal and the appended time,
 and is drawn on D1 to D7.
+
+## Result of the refusal with the appended time, 2026-11-06
+
+Rows D1 to D7 were drawn twice each, 03:05 to 03:10 UTC, on a candidate brain built from the tree
+with the 00:00 refusal and a closing note: `run_round` sets `TaintLedger.stored_time` to the
+`HH:MM` in the `due` time of a successful `schedule_task` call given `at` or `at_time`, or of an
+`edit_scheduled` call, and `limit_notes` appends `STORED_TIME_NOTE` ("The reminder set or changed
+in this turn is at HH:MM. Ask to change it if you meant another time of day.") when the reply
+names no clock figure, am or pm, noon or midnight (`names_time_of_day` in `schedule_claim.py`).
+The field crosses a handoff with the ledger. SM clock at 0.57 of its maximum at each draw's end.
+Rows, records and clock readings:
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/a64866e3-d614-4e2e-a757-12775f4290c0/scratchpad/slot5/rows.jsonl`,
+`records.jsonl` and `rows.clock` beside it.
+
+| Row | Stored time of day per draw | Reply names the time | At 00:00 |
+| --- | --- | --- | --- |
+| D1 | 09:00; 09:00 | 2 of 2, both by the note | 0 |
+| D2 | 09:00; 09:00 | 2 of 2 | 0 |
+| D3 | 09:00; 09:00 | 2 of 2 | 0 |
+| D4 | 09:00; 09:00 | 2 of 2, both by the note | 0 |
+| D5 | 09:00; 09:00 | 2 of 2 | 0 |
+| D6 | 09:00; 09:00 (after the edit) | 2 of 2, both by the note | 0 |
+| D7 | 00:00; 00:00 | 2 of 2, midnight | 2 |
+
+- 14 stored draws, no null. D1 to D6: none at 00:00, and every reply names the stored time, in the
+  model's own text in 6 (D2, D3, D5) and by the appended note in 6 (D1, D4, D6). D7: both draws
+  stored 00:00 and named midnight. The 00:00 refusal was written in no draw, since every call gave
+  09:00 at once (D4 draw 2's first call gave `at_time` with `every_seconds` and was corrected by
+  the typed text; D5 draw 1's first call was refused by the yearly date check, as in the baseline).
+- Under the pass rule both ship: every stored draw of D1 to D6 passes, both D7 draws pass, and no
+  row stored fewer draws than the baseline.

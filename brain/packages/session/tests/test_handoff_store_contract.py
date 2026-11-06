@@ -216,7 +216,8 @@ async def test_a_record_written_before_the_file_and_monthly_marks_reads_as_neith
     fields = cast("dict[str, Any]", json.loads(encode_record(record)))
     del fields["sidecar_refused"]
     del fields["monthly_stored"]
+    del fields["stored_time"]
     await client.set("cortex:handoff:t1", json.dumps(fields))
     loaded = await RedisHandoffStore(client).get("t1")
     assert loaded is not None
-    assert (loaded.sidecar_refused, loaded.monthly_stored) == (False, False)
+    assert (loaded.sidecar_refused, loaded.monthly_stored, loaded.stored_time) == (False, False, "")

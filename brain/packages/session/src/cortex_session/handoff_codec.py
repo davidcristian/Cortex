@@ -74,6 +74,7 @@ def encode_record(record: HandoffRecord) -> str:
             "forget_refused": record.forget_refused,
             "sidecar_refused": record.sidecar_refused,
             "monthly_stored": record.monthly_stored,
+            "stored_time": record.stored_time,
             "sources": [
                 {"kind": source.kind.value, "value": source.value} for source in record.sources
             ],
@@ -125,6 +126,7 @@ def decode_record(raw: bytes | str, handoff_id: str) -> HandoffRecord:
             forget_refused=fields.get("forget_refused", False),
             sidecar_refused=fields.get("sidecar_refused", False),
             monthly_stored=fields.get("monthly_stored", False),
+            stored_time=fields.get("stored_time", ""),
         )
     except (KeyError, TypeError, ValueError) as err:
         msg = f"corrupt handoff record at {record_key(handoff_id)!r}"

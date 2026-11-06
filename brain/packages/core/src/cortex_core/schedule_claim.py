@@ -6,6 +6,7 @@ from collections.abc import Sequence
 from cortex_core.conversation import Message, Role, ToolRun
 from cortex_core.schedule_tools import SCHEDULE_TOOL_NAME
 from cortex_core.schedule_verbs import EDIT_SCHEDULED_TOOL_NAME, SNOOZE_SCHEDULED_TOOL_NAME
+from cortex_core.tools import ToolCall
 
 UNSCHEDULED_CLAIM_NOTE = (
     "\n\n(Nothing was scheduled in this turn: no scheduling call in it succeeded. Ask again to "
@@ -15,6 +16,11 @@ UNSCHEDULED_CLAIM_NOTE = (
 MONTHLY_STORED_NOTE = (
     "\n\n(The reminder set in this turn repeats on that day of every month, not once a year. Ask "
     "to change it if you meant once a year.)"
+)
+
+STORED_TIME_NOTE = (
+    "\n\n(The reminder set or changed in this turn is at {time}. Ask to change it if you meant "
+    "another time of day.)"
 )
 
 SCHEDULING_TOOLS = frozenset(
@@ -33,6 +39,11 @@ _YEARLY = re.compile(
 )
 _MONTHLY = re.compile(r"\bmonth(?:s|ly)?\b", re.IGNORECASE)
 _SENTENCE_END = re.compile(r"(?<=[.!?])\s+|\n+")
+_TIME_OF_DAY = re.compile(
+    r"\b\d{1,2}(?::\d{2})?\s*[ap]\.?m\.?(?![a-z])|\b\d{1,2}:\d{2}\b|\bnoon\b|\bmidnight\b",
+    re.IGNORECASE,
+)
+_DUE = re.compile(r"\bdue \d{4}-\d{2}-\d{2}T(\d{2}:\d{2})")
 
 
 def _claim(sentence: str, *, echoed: bool) -> bool:
@@ -66,6 +77,21 @@ def unscheduled_claim(runs: Sequence[ToolRun], reply: str, said: Sequence[str] =
     if any(run.ok and run.name in SCHEDULING_TOOLS for run in runs):
         return False
     return claims_scheduled(reply, said=said)
+
+
+def names_time_of_day(reply: str) -> bool:
+    """Whether ``reply`` names a time of day: a clock figure, am or pm, noon or midnight."""
+    return _TIME_OF_DAY.search(reply) is not None
+
+
+def stored_time(call: ToolCall, result: str) -> str:
+    """The HH:MM a timed schedule or edit ``call`` stored, read from its ``result``; else empty."""
+    timed = call.name == EDIT_SCHEDULED_TOOL_NAME or (
+        call.name == SCHEDULE_TOOL_NAME
+        and (call.arguments.get("at") is not None or call.arguments.get("at_time") is not None)
+    )
+    found = _DUE.search(result) if timed else None
+    return "" if found is None else found.group(1)
 
 
 def claims_yearly(reply: str) -> bool:

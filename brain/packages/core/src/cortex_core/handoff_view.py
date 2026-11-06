@@ -6,6 +6,7 @@ from dataclasses import replace
 from cortex_core.conversation import Message, Role, ToolRun
 from cortex_core.escalate import ESCALATION_QUEUED_MSG
 from cortex_core.handoff import HandoffRecord
+from cortex_core.schedule_midnight import MIDNIGHT_TIME_MSG
 from cortex_core.schedule_yearly import YEARLY_DATE_MSG
 from cortex_core.tools import ToolCall
 from cortex_core.untrusted import says_declined
@@ -44,16 +45,24 @@ def declined_calls(record: HandoffRecord) -> list[ToolCall]:
     ]
 
 
-def yearly_refused_calls(record: HandoffRecord) -> list[ToolCall]:
-    """The monthly schedule calls refused for a yearly date before the handoff, from the tail."""
+def _refused_calls(record: HandoffRecord, refusal: str) -> list[ToolCall]:
+    """The calls in the tail whose result starts with ``refusal``, read by id."""
     refused = {
-        message.tool_call_id
-        for message in record.loop_tail
-        if message.text.startswith(YEARLY_DATE_MSG)
+        message.tool_call_id for message in record.loop_tail if message.text.startswith(refusal)
     }
     return [
         call for message in record.loop_tail for call in message.tool_calls if call.id in refused
     ]
+
+
+def yearly_refused_calls(record: HandoffRecord) -> list[ToolCall]:
+    """The monthly schedule calls refused for a yearly date before the handoff, from the tail."""
+    return _refused_calls(record, YEARLY_DATE_MSG)
+
+
+def midnight_refused_calls(record: HandoffRecord) -> list[ToolCall]:
+    """The schedule calls refused for an unasked 00:00 before the handoff, from the tail."""
+    return _refused_calls(record, MIDNIGHT_TIME_MSG)
 
 
 def deep_tail(record: HandoffRecord) -> tuple[Message, ...]:

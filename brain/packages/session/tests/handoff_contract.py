@@ -352,14 +352,20 @@ async def check_a_refused_forget_call_round_trips_both_ways(store: HandoffStore)
 
 
 async def check_the_refused_file_call_and_monthly_marks_round_trip(store: HandoffStore) -> None:
-    """Whether the cortex had a file call refused, or stored a monthly reminder, survives."""
-    for refused, stored in ((False, True), (True, False)):
-        record = replace(make_record(_handoff_id()), sidecar_refused=refused, monthly_stored=stored)
+    """Whether the cortex had a file call refused, or stored a reminder and its time, survives."""
+    for refused, stored, time in ((False, True, "09:00"), (True, False, "")):
+        record = replace(
+            make_record(_handoff_id()),
+            sidecar_refused=refused,
+            monthly_stored=stored,
+            stored_time=time,
+        )
         await store.put(record)
         loaded = await store.get(record.handoff_id)
         assert loaded is not None
         ledger = loaded.taint_ledger()
         assert (ledger.sidecar_refused, ledger.monthly_stored) == (refused, stored)
+        assert ledger.stored_time == time
         await store.delete(record.handoff_id)
 
 

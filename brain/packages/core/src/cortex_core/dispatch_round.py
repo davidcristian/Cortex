@@ -14,6 +14,8 @@ from cortex_core.memory_forget_chosen import FORGET_CHOSEN_TOOL_NAME
 from cortex_core.ports import Clock
 from cortex_core.progress import ProgressSink, hold_wait
 from cortex_core.provenance import SourceKind, as_source
+from cortex_core.schedule_claim import stored_time
+from cortex_core.schedule_midnight import midnight_unasked
 from cortex_core.schedule_yearly import monthly_for_yearly, same_month_days, stores_monthly
 from cortex_core.stops import StopLedger
 from cortex_core.tool_budget import DispatchBudget
@@ -56,6 +58,8 @@ class ToolLoopContext:
     query: str = ""
     # The monthly schedule calls refused for a yearly date in a loop this one continues.
     yearly_refused: tuple[ToolCall, ...] = ()
+    # The 00:00 schedule calls refused in a loop this one continues; the next one runs.
+    midnight_refused: tuple[ToolCall, ...] = ()
 
     @property
     def unit_id(self) -> str:
@@ -73,6 +77,8 @@ class LoopRecord:
     unasked: frozenset[str] = frozenset()
     # The monthly schedule calls refused for a yearly date; a retry on the same days runs.
     yearly_refused: list[ToolCall] = field(default_factory=list[ToolCall])
+    # The 00:00 schedule calls refused once in this turn; a second one runs.
+    midnight_refused: list[ToolCall] = field(default_factory=list[ToolCall])
 
 
 def _unasked_refusal(
@@ -85,6 +91,9 @@ def _unasked_refusal(
     if not retried and monthly_for_yearly(call, context.query):
         record.yearly_refused.append(call)
         return DispatchRefusal.YEARLY_DATE
+    if not record.midnight_refused and midnight_unasked(call, context.query):
+        record.midnight_refused.append(call)
+        return DispatchRefusal.MIDNIGHT_TIME
     return None
 
 
@@ -171,6 +180,7 @@ async def run_round(
             and (spec.sidecar or spec.calls_sidecar)
         )
         context.taint.monthly_stored |= not result.is_error and stores_monthly(call)
+        context.taint.stored_time = stored_time(call, result.content) or context.taint.stored_time
         if call.name == FORGET_CHOSEN_TOOL_NAME and result.matched_nothing:
             context.taint.forget_unmatched += 1
         context.taint.observe(

@@ -130,7 +130,7 @@ ended in calls, ADR-0009) and `repeated` (the watch ended the reply). `limit_not
 `REPLY_CAPPED_NOTE`, `ROUNDS_SPENT_NOTE` naming each of `runs` with its outcome, `REPEATED_LINE_NOTE`,
 `UNSCHEDULED_CLAIM_NOTE` when `unscheduled_claim` (`schedule_claim.py`) finds a claimed schedule with no
 `SCHEDULING_TOOLS` run succeeding in `runs` or `earlier` (not a "scheduled" claim naming no reminder or
-task that the person's messages, `said`, made first), `MONTHLY_STORED_NOTE` when `TaintLedger.monthly_stored` (a `schedule_task` call stored `on_month_days`) and `claims_yearly` (the reply names a yearly repeat and no month) hold, `UNKEPT_CLAIM_NOTE` when `memory_withheld` and
+task that the person's messages, `said`, made first), `MONTHLY_STORED_NOTE` when `TaintLedger.monthly_stored` (a `schedule_task` call stored `on_month_days`) and `claims_yearly` (the reply names a yearly repeat and no month) hold, `STORED_TIME_NOTE` naming `TaintLedger.stored_time` (the `HH:MM` the last successful `schedule_task` call given `at` or `at_time`, or `edit_scheduled` call, stored, read by `stored_time` from the result's `due` time) when it is set and `names_time_of_day` finds no clock figure, am or pm, noon or midnight in the reply, `UNKEPT_CLAIM_NOTE` when `memory_withheld` and
 `unkept_note_due` hold, then `UNFORGOTTEN_CLAIM_NOTE`, `UNREAD_FOLDERS_NOTE` and `UNSEARCHED_FILES_NOTE`
 ([brain-core-memory.md](brain-core-memory.md)). `place_note` sets a note one blank line under text, or
 with no break when there is no text, in a `NO_TEXT` form for an overflow or unreadable call note.
