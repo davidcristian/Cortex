@@ -9,7 +9,7 @@ In the tree that reads as the `.panel` rule's `width: min(560px, 92vw)` in
 `body/app/src/overlay.css` changing, or as a script writing a width to anything but a whisper bubble
 or its text. This search finds four writes today, all in `whisper/useWhisperClock.ts`:
 `grep -rnE 'style\.(max|min)?[wW]idth|setProperty\("(max-|min-)?width"' body/app/src --exclude='*.test.*'`.
-**Verified:** 2026-10-17
+**Verified:** 2026-11-06
 
 The whisper re-measures its wrap width and re-lays the letter DOM when the width changes. It
 listens for the window's own `resize` event (`whisper/metrics.ts`, `watchWrap`), which is a
@@ -70,3 +70,8 @@ with one caller.
   `useWhisperClock.test.ts` pass.
 - 2026-10-17: checked again and not fired. `.panel` still sets `width: min(560px, 92vw)`, and the
   widths scripts write since 2026-10-07 are the whisper bubble's, not the panel's.
+- 2026-11-06: Not fired. `.panel` still sets `width: min(560px, 92vw)` (`overlay.css` line 138), the
+  script search finds four writes, all in `whisper/useWhisperClock.ts` (lines 133, 150, 217 and
+  253), `watchWrap` still listens to the window's `resize` alone, and the one commit since
+  2026-10-17 among `metrics.ts`, `usePreferences.ts` and `overlayState.ts` resets the overlay to a
+  new chat and writes no width.

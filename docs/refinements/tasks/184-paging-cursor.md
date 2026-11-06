@@ -13,7 +13,7 @@ a live reading of that sum below 4 MiB for every session means the trigger has n
 hoisted chat outside that window, and that set has no cap in the store. On 2026-10-03 the stored
 `cortex_redis-data` volume held 76 histories, the largest summing to 2,351 bytes, and 68 chats in
 `cortex:sessions` with no hoisted set.
-**Verified:** 2026-10-17
+**Verified:** 2026-11-06
 
 `ListSessions` and `GetSessionMessages` are unary snapshots with no cursor, which is enough at
 personal scale. If a single history is the one that grows too large first, the smaller move is a
@@ -56,3 +56,8 @@ stubs.
   new reading of the stored sums was taken, so the 2026-10-03 figures above are the latest.
 - 2026-10-17: checked again and not fired. No code under `body/` outside the generated stub names
   `max_decoding_message_size`, and nothing records a reply past 4 MiB.
+- 2026-11-06: Not fired. `GetSessionMessagesRequest` and `ListSessionsRequest` are unchanged in
+  `proto/body.proto`, `history` still reads `LRANGE 0 -1` in `store.py`, the two limit constants are
+  still 50 and 200, `store_codec.py` has no commit since 2026-10-17, and the body's lock still names
+  tonic 0.14.6 with nothing outside the generated stub setting `max_decoding_message_size`. The
+  stack was down, so no stored sum was read; the 2026-10-03 figures are the latest.

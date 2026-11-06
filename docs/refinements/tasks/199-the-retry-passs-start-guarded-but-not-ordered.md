@@ -9,7 +9,7 @@ pass had just started made the fit check refuse (with `CORTEX_SWAP_BRAIN_VRAM_MI
 handoff overcommitted (with `CORTEX_SWAP_BRAIN_DECODE_TPS` set). All four default off.
 `grep -rlni 'retry pass' docs/readings docs/host docs/runbooks` finding nothing says there is no
 such record.
-**Verified:** 2026-10-17
+**Verified:** 2026-11-06
 
 A retry pass reads the handoff claim and the residency scope flag synchronously in the instant
 before it starts a tier, so a handoff cannot begin between the check and the call. What is not
@@ -76,3 +76,6 @@ block a pass for the whole load bound.
   skips the drain (`swap_conductor.py:187`).
 - 2026-10-17: checked again and not fired. No record added under the three directories since
   2026-10-07 names `CORTEX_SWAP_EVICT_MODELS`.
+- 2026-11-06: Not fired. `grep -rlni 'retry pass' docs/readings docs/host docs/runbooks` prints
+  nothing, and no commit since 2026-10-17 touched `residency_pass.py`, `residency_moves.py`,
+  `swap_conductor.py` or a record naming `CORTEX_SWAP_EVICT_MODELS`.

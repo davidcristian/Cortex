@@ -14,7 +14,7 @@ It also shows up as any `@font-face` rule in a tracked file under `body/app/`
 arriving with no rule in the tree: a font stylesheet linked from `body/app/index.html` or a font
 package in `body/app/package.json`, where this search finds nothing today:
 `git grep -n -i font -- body/app/index.html body/app/package.json`.
-**Verified:** 2026-10-17
+**Verified:** 2026-11-06
 
 A whispered message puts each letter in its own box inside an unbreakable word box (ADR-0037
 decision 6), so kerning inside a word is lost while that message's DOM is on screen. It renders as
@@ -51,3 +51,6 @@ when the whisper shipped. It would be worth checking again against a licensed fa
   selector rather than in `--font` was not read at all, and the trigger now searches for it.
 - 2026-10-17: checked again and not fired. `--font` still names the system stack, and every
   `font-family` in the stylesheet reads `var(--font)` or `var(--mono)`.
+- 2026-11-06: Not fired. `--font` at `overlay.css` line 12 still names the system stack, the three
+  searches in the trigger find nothing, and no commit since 2026-10-17 touched `overlay.css`,
+  `WhisperBubble.tsx`, `index.html` or `package.json`.

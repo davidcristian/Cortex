@@ -10,7 +10,7 @@ then read `available_devices` and that property. The guest decides first whether
 taking: while `find /usr/lib/wsl/drivers -ipath '*npu*' -name '*.so*'` prints nothing, the vendor
 half below is unmet and no container has a driver to enumerate the NPU through. This entry's
 history records what each was when last read, and the body records which half is already met.
-**Verified:** 2026-10-17
+**Verified:** 2026-11-06
 
 An OpenVINO `InferenceBackend` adapter and a third `PlacementTarget` would use the otherwise idle
 NPU for tiny subagents or embeddings, which serves the same goal as the subagent container limits
@@ -20,12 +20,12 @@ Core Ultra 9 275HX, confirmed 2026-07-01), so two questions decide it: whether t
 from the dockerized WSL2 brain at all, and whether NPU inference for a 2-4B model is fast and mature
 enough to be worth a target.
 
-The first question is answered and the answer is no, for now. Measured at the guest: the only device
-node is `/dev/dxg`, `/dev/accel` and `/dev/dri` do not exist, the PCI bus has no Intel silicon, and
-the kernel is built `# CONFIG_DRM_ACCEL is not set`, so `intel_vpu` could not bind a device it was
-handed. Measured from a container: OpenVINO's NPU plugin ships in the wheel and loads, and it
-enumerates nothing. Not measured: whether the machine has an NPU at all, since this guest cannot see
-Windows device state.
+The first question is answered and the answer is no, for now. Measured at the guest: `/dev/dxg` is
+the only device node that reaches the host, since `/dev/dri` holds the kernel's own software `vgem`
+device and `/dev/accel` does not exist, the PCI bus has no Intel silicon, and the kernel is built
+`# CONFIG_DRM_ACCEL is not set`, so `intel_vpu` could not bind a device it was handed. Measured from
+a container: OpenVINO's NPU plugin ships in the wheel and loads, and it enumerates nothing. Not
+measured: whether the machine has an NPU at all, since this guest cannot see Windows device state.
 
 Of the 1,105 Windows driver packages WSL maps in, exactly five ship Linux user-mode libraries, the
 Intel graphics package in its two staged versions and the NVIDIA one in its three, while the NPU
@@ -94,3 +94,9 @@ placer rule for when a spawn goes to the NPU, and an `ngl` moved off the enum.
   says. The trigger gains the guest read that decides whether the container run is worth taking.
 - 2026-10-17: checked again and not fired. `find /usr/lib/wsl/drivers -ipath '*npu*' -name '*.so*'`
   still prints nothing, so the container run was not taken.
+- 2026-11-06: Not fired. `find /usr/lib/wsl/drivers -ipath '*npu*' -name '*.so*'` still prints
+  nothing, so the container run was not taken. The guest moved under it: the kernel is now
+  6.18.54.1-microsoft-standard-WSL2, still built `# CONFIG_DRM_ACCEL is not set`, and `/dev/dri` now
+  exists with `card0` and `renderD128` from the kernel's software `vgem` device under
+  `/sys/devices/faux/vgem`, not from Intel hardware; the five PCI devices still show vendors 0x1414
+  and 0x1af4 only. The device node sentence above is corrected to that.

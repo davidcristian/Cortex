@@ -10,7 +10,7 @@ across recipe lines, which just runs in separate shells, or by reading either fr
 variable, a file or a CI step's output. The arrangement also depends on the `justfile` setting no
 `shell` (`grep -n '^set ' justfile` prints nothing), so each recipe line is one `sh -cu`, and on
 both substitutions naming the toolchain as `+nightly`, which no directory override can change.
-**Verified:** 2026-10-17
+**Verified:** 2026-11-06
 
 The decline of [R-313](313-a-relay-can-be-required-and-empty.md) rests entirely on the shape of one
 line in the `justfile`: both arguments are filled by two command substitutions in the same shell,
@@ -76,3 +76,6 @@ fields. It is one five-line function, passed as `type=` to both arguments.
   to `msg` before the raise is five lines, not three.
 - 2026-10-17: checked again and not fired. The grep still returns one line, the `check-body`
   recipe's, which fills `--rustc` and `--llvm-cov` from two command substitutions of its own.
+- 2026-11-06: Not fired. The grep returns one line, `justfile:172`, filling `--rustc` and
+  `--llvm-cov` from two `+nightly` substitutions of its own, `grep -n '^set ' justfile` prints
+  nothing, and no commit since 2026-10-17 touched the `justfile`, `ci.yml` or `rustcoverage.py`.

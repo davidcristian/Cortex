@@ -7,7 +7,7 @@ period, or a second per handoff result is filed to be counted across handoffs ra
 displayed. Either still needs a home first: nothing in the brain keeps a per handoff row that
 outlives its handoff.
 **Origin:** [ADR-0055](../../adr/ADR-0055-co-residency-and-spill-watch.md)
-**Verified:** 2026-10-17
+**Verified:** 2026-11-06
 
 The spill note lives in the process, lasts an hour, and is cleared by the next handoff that keeps
 its pace, so a handoff that spilled at 03:00 is gone by morning and a brain that restarted takes it
@@ -87,3 +87,8 @@ is finished, so a store built for swap survival is not a store for history.
 - 2026-10-17: checked again and not fired. No task file, runbook step or ADR added since 2026-10-06
   asks how often handoffs spilled, and the `brain_phase.py` change of 2026-10-15 keeps no per
   handoff row.
+- 2026-11-06: Not fired. No task file, runbook or ADR added or changed since 2026-10-17 asks how
+  often handoffs spilled. `brain_phase.py` still writes the one spill `WARNING` (`SPILLED_LOG_MSG`,
+  line 210), and its fifteen commits since then change remember, forget and reminder handling, not a
+  per handoff row; `residency_pace.py` still has no logger, `_TERMINAL_TTL_SECONDS` is 3600 and
+  `DEFAULT_SPILL_DWELL_S` 3600.0.
