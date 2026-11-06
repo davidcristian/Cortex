@@ -76,3 +76,66 @@ baseline draw. No reply named the time (0 of 3), so the row still fails the pass
 unnamed time alone. Rows, records and clock readings:
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/a64866e3-d614-4e2e-a757-12775f4290c0/scratchpad/slot3/rows.jsonl`,
 `records.jsonl` and `rows.clock` beside it.
+
+## Result of the 00:00 refusal, 2026-11-06
+
+Rows D1 to D6 were drawn twice each, 02:40 to 02:44 UTC, on a candidate brain built from the tree
+with a typed refusal: a `schedule_task` or `edit_scheduled` call whose `at_time` or `at` time of
+day is 00:00, when the message names no midnight form (`midnight`, `0:00`, `00:00`, `12 am`,
+`12:00 am`, `12 a.m.`), is refused once per turn with a result that names the 09:00 default and
+asks for the time the person meant, and a second such call runs. SM clock at 0.57 of its maximum
+at each draw's end. Rows, records, clock readings and the candidate's patch and test file:
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/a64866e3-d614-4e2e-a757-12775f4290c0/scratchpad/slot4/`.
+
+| Row | Stored time of day per draw | Reply names the time | At 00:00 |
+| --- | --- | --- | --- |
+| D1 | 09:00; 09:00 | 0 of 2 | 0 |
+| D2 | 09:00; 09:00 | 2 of 2 | 0 |
+| D3 | 09:00; 09:00 | 2 of 2 | 0 |
+| D4 | 09:00; 09:00 | 0 of 2 | 0 |
+| D5 | 09:00; 09:00 | 1 of 2 | 0 |
+| D6 | 09:00; 09:00 (after the edit) | 0 of 2 | 0 |
+
+- 12 stored draws, no null, none at 00:00. The refusal was written once, in D5 draw 1, on the
+  baseline's own failing shape: the first call wrote `on_month_days` [9] with `at_time` 00:00 and
+  was refused by the yearly date check, the retry wrote `on_dates` ["08-09"] with `at_time` 00:00
+  and was refused for the unasked 00:00, and the third call wrote `at_time` 09:00 and ran; the
+  reply named "9:00 AM". Every other call gave 09:00 at once: 14 calls over the 12 draws, one
+  `edit_scheduled` per D6 edit.
+- The reply named the time in 5 of 12 draws: both D2, both D3 and one D5, never D1, D4 or D6, as
+  in the baseline.
+- Under the pass rule the candidate does not ship: no draw stored 00:00 and no row stored fewer
+  draws than the baseline, but D1, D4 and D6 fail on the unnamed time, which the refusal does not
+  change. The patch is recorded in
+  [schedule-midnight-refusal-patch](schedule-midnight-refusal-patch.md); the appended time is
+  built on top of it and the two are drawn together.
+
+The refusal's 38 tests, each of nine mutations failing at least one (dropping the `12 am` form,
+dropping the am or pm guard after `00:00`, reading every schedule call as 00:00, not reading
+`at_time` `0:00`, refusing the named midnight instead, refusing every 00:00 call, forgetting the
+refusal, reading the yearly refusals from the handoff tail instead, and the deep phase forgetting
+the tail's refusal):
+
+- `names_midnight` is true for `tonight at 0:00`, `at 12 am`, `at midnight`, `at 00:00`,
+  `at 12:00 am`, `at 12am` and `at 12 a.m.`, and false for `at 12 pm`, `at 12:00 pm`, `at 12:00`,
+  `at 10:00`, `at 00:00 pm`, the D1 message and the D3 message.
+- `sets_midnight` is true for `at` `2026-12-14T00:00:00`, `2026-12-14T00:00:00Z`,
+  `2026-12-14T00:00+01:00` and `2026-12-14 00:00`, for `at_time` `00:00` or `0:00`, and for an
+  `edit_scheduled` call with `at_time` `00:00`; false for `at` `2026-12-14T09:00:00`,
+  `2026-12-14T00:30:00` and `2026-12-14T10:00:00`, `at_time` `09:00`, a non-string `at`,
+  `in_seconds` alone, an edit that moves a day without `at_time`, and another tool with `at_time`
+  `00:00`.
+- In the loop, the first 00:00 call for the D1 message is refused with the message and a second
+  00:00 call runs; a retry at 09:00 runs; a 00:00 call runs at once when the message names
+  midnight or the call gives 09:00; the deep phase reads the refusal from the handoff tail, so a
+  deep retry at 00:00 runs and a first deep 00:00 call is refused.
+
+## Row added 2026-11-06 for the next draw
+
+| Row | Message | Shape |
+| --- | --- | --- |
+| D7 | `Remind me at midnight on 14 December to post the parcel.` | one time, a named midnight |
+
+A D7 draw passes when every item it stores is at 00:00 and the reply names midnight; the pass rule
+for D1 to D6 is unchanged. The next candidate holds the recorded refusal and the appended time,
+and is drawn on D1 to D7.
