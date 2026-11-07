@@ -19,6 +19,8 @@ time. Each of these returns true:
 
 These two state the repeat and must stay true: `I've set a daily reminder for 8:00.` and
 `Ich habe bereits einen täglichen Reminder für „Wäsche“ um 17:30 Uhr für dich eingerichtet.`
+None of the 318 distinct replies recorded on 2026-11-07 by 07:25 has the form: each of the 13
+that `names_repeat` reads as naming a repeat states it about the reminder.
 
 ## What to do
 
