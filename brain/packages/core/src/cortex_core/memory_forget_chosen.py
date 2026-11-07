@@ -116,6 +116,7 @@ class ForgetChosenTool:
         self._scope = scope
         self._shown: dict[str, _Chosen | str] = {}
         self._deleted_turns: dict[str, tuple[str, ...]] = {}
+        self._deleted_rows: dict[str, tuple[str, ...]] = {}
 
     @property
     def result_note(self) -> str:
@@ -176,9 +177,10 @@ class ForgetChosenTool:
                     extra.append((record, form))
         return extra
 
-    async def _holding(self, call: ToolCall, shown: _Chosen) -> int:
-        """How many remaining memories hold a run of four or more digits a deleted row held."""
-        runs = {key: form for text in shown.texts for key, form in digit_runs(text).items()}
+    async def _holding(self, call: ToolCall) -> int:
+        """How many remaining memories hold four or more digits a row the turn deleted held."""
+        deleted = self._deleted_rows.get(call.stamp.turn_id, ())
+        runs = {key: form for text in deleted for key, form in digit_runs(text).items()}
         holders: set[str] = set()
         for search in {text for key, form in runs.items() for text in (form, key[:_PREFIX_DIGITS])}:
             for record in await self._store.find_text(
@@ -236,7 +238,7 @@ class ForgetChosenTool:
         return chosen, card
 
     def _result(
-        self, call: ToolCall, content: str, *, error: bool = True, holding: int = 0
+        self, call: ToolCall, content: str, *, error: bool = True, holding: int | None = None
     ) -> ToolResult:
         """The call's result: ``content`` as one sentence."""
         return ToolResult(
@@ -245,7 +247,7 @@ class ForgetChosenTool:
             is_error=error,
             trust=Trust.TRUSTED,
             matched_nothing=content == _NONE_FOUND,
-            numbers_left=holding > 0,
+            numbers_left=None if holding is None else holding > 0,
         )
 
     async def invoke(self, call: ToolCall) -> ToolResult:
@@ -258,15 +260,15 @@ class ForgetChosenTool:
         try:
             removed = await self._store.delete_ids(shown.ids)
             turn = call.stamp.turn_id
-            self._deleted_turns[turn] = (
-                *self._deleted_turns.get(turn, ()),
-                *shown.texts,
-                _text(call),
-            )
-            while len(self._deleted_turns) > _PENDING_CALLS:
-                del self._deleted_turns[next(iter(self._deleted_turns))]
+            for ledger, texts in (
+                (self._deleted_turns, (*shown.texts, _text(call))),
+                (self._deleted_rows, shown.texts),
+            ):
+                ledger[turn] = (*ledger.get(turn, ()), *texts)
+                while len(ledger) > _PENDING_CALLS:
+                    del ledger[next(iter(ledger))]
             left = await self._found(call)
-            holding = 0 if left or shown.left_out else await self._holding(call, shown)
+            holding = 0 if left or shown.left_out else await self._holding(call)
         except MemoryStoreError as err:
             return self._result(call, f"the memory store failed during the forget: {err}")
         if left:

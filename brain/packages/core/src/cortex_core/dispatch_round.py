@@ -155,6 +155,13 @@ def _stamp(context: ToolLoopContext) -> TurnStamp:
     )
 
 
+def _note_forget(taint: TaintLedger, result: ToolResult) -> None:
+    """Record in ``taint`` whether a ``forget_memories`` result matched nothing or left numbers."""
+    taint.forget_unmatched += int(result.matched_nothing)
+    if result.numbers_left is not None:
+        taint.forget_numbers_left = result.numbers_left
+
+
 async def run_round(
     plan: RoundPlan,
     dispatcher: ToolDispatcher,
@@ -202,8 +209,7 @@ async def run_round(
         context.taint.stored_time = stored_time(call, result.content) or context.taint.stored_time
         context.taint.daily_stored = daily_after(call, result, context.taint.daily_stored)
         if call.name == FORGET_CHOSEN_TOOL_NAME:
-            context.taint.forget_unmatched += int(result.matched_nothing)
-            context.taint.forget_numbers_left = result.numbers_left
+            _note_forget(context.taint, result)
         context.taint.observe(
             result, source=as_source(SourceKind.TOOL, None if spec is None else spec.name)
         )

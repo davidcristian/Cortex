@@ -97,8 +97,9 @@ class ToolResult:
     images: tuple[ImagePart, ...] = ()
     # Set when the call ran and found nothing its arguments name, so it changed nothing.
     matched_nothing: bool = False
-    # Set when a forget deleted rows and other rows still hold a number the deleted ones held.
-    numbers_left: bool = False
+    # Set by a forget that deleted rows: whether rows still hold a number a row it or an earlier
+    # call of the turn deleted held. ``None`` leaves the turn's earlier answer as it is.
+    numbers_left: bool | None = None
 
 
 @dataclass(frozen=True, slots=True)

@@ -20,7 +20,6 @@ from cortex_core import (
     MemoryRecord,
     Message,
     RecordingAuditSink,
-    RecordingConfirmer,
     SystemClock,
     TaintLedger,
     TextChunk,
@@ -35,6 +34,7 @@ from cortex_core import (
 from cortex_core.closing_notes import limit_notes
 from cortex_core.numbers_left_claim import NUMBERS_LEFT_NOTE, names_still_held, says_forgotten
 from cortex_core.stops import StopLedger
+from cortex_core.tools import ConfirmAnswer, ConfirmationRequest
 
 _AT = datetime(2026, 11, 7, 8, 0, 0, tzinfo=UTC)
 _DOOR = "User: Remember that my door code is 1987.\nAssistant: Noted, your door code is 1987."
@@ -153,6 +153,15 @@ class _Rounds:
             yield call
 
 
+class _Answers:
+    def __init__(self, answers: Sequence[bool]) -> None:
+        self._answers = list(answers)
+
+    async def confirm(self, request: ConfirmationRequest) -> ConfirmAnswer:
+        del request
+        return ConfirmAnswer.APPROVED if self._answers.pop(0) else ConfirmAnswer.DECLINED
+
+
 class _Clock:
     def __init__(self) -> None:
         self._ticks = 0
@@ -167,7 +176,10 @@ def _forget(text: str, index: int = 0) -> ToolCall:
 
 
 async def _turn(
-    texts: Sequence[str], rounds: Sequence[Sequence[ToolCall]], reply: str
+    texts: Sequence[str],
+    rounds: Sequence[Sequence[ToolCall]],
+    reply: str,
+    answers: Sequence[bool] = (True, True),
 ) -> tuple[str, list[str]]:
     store, embedder = InMemoryMemoryStore(), HashEmbedder()
     for index, text in enumerate(texts):
@@ -179,7 +191,7 @@ async def _turn(
         CompositeToolRegistry([forget]),
         RecordingAuditSink(),
         _Clock(),
-        confirmer=RecordingConfirmer(answer=True),
+        confirmer=_Answers(answers),
         policy=DispatchPolicy(
             record_cards={FORGET_CHOSEN_TOOL_NAME: forget}, notes={FORGET_CHOSEN_TOOL_NAME: forget}
         ),
@@ -230,3 +242,39 @@ async def test_a_turn_with_no_number_left_or_a_reply_that_says_so_gets_no_note(
 ) -> None:
     shown, _ = await _turn((_FIAT, _CODE, _DOOR, _ONLY_VALUE), [[_forget(asked)]], reply)
     assert NUMBERS_LEFT_NOTE not in shown
+
+
+@pytest.mark.parametrize(
+    ("rounds", "answers"),
+    [
+        ([[_forget("door code")], [_forget("blue Fiat", 1)]], (True, True)),
+        ([[_forget("door code"), _forget("blue Fiat", 1)]], (True, True)),
+        ([[_forget("blue Fiat")], [_forget("door code", 1)]], (True, True)),
+        ([[_forget("door code")], [_forget("1987", 1)]], (True, False)),
+        ([[_forget("door code")], [_forget("dentist", 1)]], (True,)),
+        ([[_forget("1987")], [_forget("door code", 1)]], (False, True)),
+    ],
+    ids=[
+        "unrelated-delete-after",
+        "unrelated-delete-same-round",
+        "unrelated-delete-before",
+        "denied-forget-of-the-number",
+        "later-forget-matching-nothing",
+        "denied-forget-before",
+    ],
+)
+async def test_a_number_left_by_any_delete_of_the_turn_keeps_the_note(
+    rounds: list[list[ToolCall]], answers: tuple[bool, ...]
+) -> None:
+    reply = "I've forgotten your door code."
+    shown, left = await _turn((_DOOR, _ONLY_VALUE, _FIAT), rounds, reply, answers)
+    assert shown.endswith(reply + NUMBERS_LEFT_NOTE)
+    assert "m1" in left
+
+
+async def test_a_later_delete_of_the_rows_left_clears_the_note_after_an_unrelated_one() -> None:
+    rounds = [[_forget("door code")], [_forget("blue Fiat", 1)], [_forget("1987", 2)]]
+    reply = "I've forgotten your door code."
+    shown, left = await _turn((_DOOR, _ONLY_VALUE, _FIAT), rounds, reply, (True, True, True))
+    assert NUMBERS_LEFT_NOTE not in shown
+    assert left == []
