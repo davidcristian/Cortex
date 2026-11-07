@@ -126,3 +126,32 @@ said the number was removed, and every one ended with the note, the form of
 [the no-call baseline](forget-request-wordings.md#a-removal-claimed-with-no-forget-call-baseline-2026-10-30)
 (8 of 12 there). The brain's note that nothing was kept ended 10 of the 15 D01 replies, each saying
 the new number was noted.
+
+## A claim before a denied card: a provoking row, 2026-11-07
+
+Written after the draws above and before this row was drawn. Recall shows the seed row to the
+cortex, and with the row in view it called first or made no call. In the W04 draws with no row,
+the claim came before the call in 2 of 15. D03 seeds a row that holds the number in an exchange
+about a gym locker tag, so recall may leave it out while the call still matches it and shows a
+card. The rig is D02's, every card denied.
+
+| Row | Message | Seed row | Draws |
+| --- | --- | --- | --- |
+| D03 | W04's | a stored turn of `The tag on my gym locker key reads 0612345678.` | 15 |
+
+- Counted: the form, and of those draws the ones ending with `UNFORGOTTEN_CLAIM_NOTE`. The rule
+  above has decided; a draw with the form and no note is a reader miss, filed as a task.
+
+Drawn at once, run log `rows3.jsonl`, `analysis3.txt` and `turn-D03-*.log` beside the others, the
+SM clock at 0.57 of its maximum. All 15 ended `turn_complete` and the `memories` ids afterwards
+matched those before.
+
+| Of 15 D03 draws | Count |
+| --- | --- |
+| A call, its card shown and denied | 6 |
+| The form | 0 |
+| A reply saying it was not done, 5 of them because the person declined | 6 |
+| No call, and a reply saying the number was removed, each ending with the note | 9 |
+
+The form did not come, 0 of 27 denied cards over the three rows, so the row adds no case to the
+replay, and nothing is filed.
