@@ -228,3 +228,21 @@ draw called `forget_memories`, and no reply said the fact was not saved. The dra
 rows and their two schedule items were deleted afterwards. Run logs: `flows1.log` to `flows3.log`,
 `replay2.log`, `replay_time.log`, `mut2.log` and `mut_time.log` in
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/37073e3c-5ca6-42f6-aae1-df9e67b0e4db/scratchpad/slot11/`.
+
+## 9. Idioms with a keep verb
+
+`asks_not_kept` read an idiom with a keep verb (`ne garde pas rancune`, `behalt das nicht für
+dich`, `no guardes rencor`, `nu ține minte răul`) as a request not to keep, so the turn's fact was
+not stored. It now counts the negative imperative only when the verb ends its clause after at
+most an object naming the message, a phrase naming memory and a polite word. Replayed through the
+old and new reader, it changed on none of the 94 distinct messages recorded that night and none
+of 22,008 distinct strings in the brain's other test files and the readings records. The stack
+brain was rebuilt from the tree at 06:59 (SM clock 0.57 of `clocks.max.sm`), and each message
+below ran once in a new chat `s14-*` with every card approved:
+
+| Message | Tool calls | Stored |
+| --- | --- | --- |
+| `Ne garde pas rancune à Paul, il a déménagé à Lyon.` | none | yes |
+| `Behalt das nicht für dich, mein neuer Job beginnt am 1. Dezember.` | none | yes |
+| `No guardes rencor, mi jefe se llama Luis.` | none | yes |
+| `Nu ține minte răul, fratele meu se mută la Cluj.` | none | yes |

@@ -113,3 +113,41 @@ def test_a_statement_question_or_reminder_with_a_remember_verb_does_not_ask_kept
     query: str,
 ) -> None:
     assert not asks_kept(query)
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "Ne garde pas rancune à Paul, il a déménagé à Lyon.",
+        "Ne le retiens pas contre moi, mais mon nouveau numéro est 0176 5550 1234.",
+        "Ne le garde pas pour toi, dis-le à ta sœur.",
+        "Ne garde pas ça pour toi.",
+        "Behalt das nicht für dich, mein neuer Job beginnt am 1. Dezember.",
+        "No guardes rencor, mi jefe se llama Luis.",
+        "No lo guardes para ti: mi hermana se casa el 12 de mayo.",
+        "Nu ține minte răul, fratele meu se mută la Cluj.",
+        "Merk dir nicht alles, aber merk dir, dass mein Code 4512 ist.",
+    ],
+)
+def test_an_idiom_with_a_keep_verb_in_another_language_does_not_ask_not_kept(query: str) -> None:
+    assert not asks_not_kept(query)
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "Ne garde pas ça en mémoire.",
+        "Ne retiens pas mon numéro.",
+        "Merk dir das nicht, bitte.",
+        "No guardes mi número, por favor.",
+        "No recuerdes esto por favor.",
+        "Nu salva numărul meu.",
+        "Nu ține minte asta, te rog.",
+    ],
+)
+def test_a_request_not_to_keep_that_ends_its_clause_asks_not_kept(query: str) -> None:
+    assert asks_not_kept(query)
+
+
+def test_a_request_to_remember_after_an_idiom_in_another_language_asks_kept() -> None:
+    assert asks_kept("Merk dir nicht alles, aber merk dir, dass mein Code 4512 ist.")

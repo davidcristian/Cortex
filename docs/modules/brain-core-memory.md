@@ -117,7 +117,10 @@ pool down to the hits one turn sees. The turn that calls it is in
   that says "from your memory" or "off the record", asks not to keep; "remember not to", "remember
   to not", "get rid of" and "stop remembering" count only before the message ("it", "this", "my" and the like), as
   does any form after a request to remember in the same sentence; in French, German, Spanish and
-  Romanian only a negative imperative of a keep verb at a clause start counts. `asks_kept` reads
+  Romanian only a negative imperative of a keep verb at a clause start counts, and only when the
+  verb ends its clause after at most an object naming the message (`ça`, `das`, `esto`, `asta`,
+  `mon numéro`), a phrase naming memory (`en mémoire`) and a polite word, so the idioms
+  `ne garde pas rancune` and `behalt das nicht für dich` do not count. `asks_kept` reads
   English and, in those four languages, an imperative to remember at a clause start
   (`souviens-toi`, `merk dir`, `recuerda que`, `ține minte`), and not a statement, a question, a
   reminder (`rappelle-moi`) or a request not to keep. `asks_files`
