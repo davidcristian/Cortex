@@ -32,3 +32,6 @@ Reproduction: send `Oublie le code de mon casier 7731.` in new chats until a dra
 ## History
 
 - 2026-11-07: filed from the requests to remember in four more languages on the shared stack.
+- 2026-11-07: drew the French, German, Spanish and Romanian messages above once each on the
+  rebuilt stack brain with the card denied: all four called `forget_memories` (three matched
+  nothing, one was declined) and none was stored, so the path with no call occurred in 0 of 4.
